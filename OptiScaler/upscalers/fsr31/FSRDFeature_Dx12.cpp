@@ -466,8 +466,10 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
         .cameraFovAngleVertical = GetVertFovFromProjectionMatrixRad(_projMatrix),
         .renderSize = { RenderWidth(), RenderHeight() },   
         .frameIndex = (uint32_t)_frameCount,
-        .flags = _isInReset ? FFX_DENOISER_DISPATCH_RESET : 0u
+        .flags = FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO
     };
+
+    dispatchDesc.flags |= _isInReset & FFX_DENOISER_DISPATCH_RESET;
 
     // Update camera position for next frame
     _lastCamPos = camPos;
@@ -481,10 +483,16 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
     }
     }
 
-    inParams.Get(NVSDK_NGX_Parameter_Jitter_Offset_X, &dispatchDesc.jitterOffsets.x);
-    inParams.Get(NVSDK_NGX_Parameter_Jitter_Offset_Y, &dispatchDesc.jitterOffsets.y);
+    float jitterX = 0.0f, jitterY = 0.0f;
+    inParams.Get(NVSDK_NGX_Parameter_Jitter_Offset_X, &jitterX);
+    inParams.Get(NVSDK_NGX_Parameter_Jitter_Offset_Y, &jitterY);
 
-    LOG_DEBUG("Jitter Offset: {0}x{1}", dispatchDesc.jitterOffsets.x, dispatchDesc.jitterOffsets.y);
+    // Convert from pixel to NDC jitter
+    dispatchDesc.jitterOffsets.x = 2.0f * (jitterX / (float)RenderWidth());
+    dispatchDesc.jitterOffsets.y = -2.0f * (jitterY / (float) RenderHeight());
+
+    LOG_DEBUG("Jitter NDC [{:.6f}, {:.6f}]", dispatchDesc.jitterOffsets.x, dispatchDesc.jitterOffsets.y);
+
 
     return true;
 }
