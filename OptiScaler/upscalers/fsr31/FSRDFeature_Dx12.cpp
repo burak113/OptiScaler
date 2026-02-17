@@ -453,6 +453,8 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
         .normals = ffxApiGetResourceDX12(fsrdData.OutNormals, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
         .specularAlbedo = ffxApiGetResourceDX12(fsrdData.OutSpecAlbedo, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
         .diffuseAlbedo = ffxApiGetResourceDX12(fsrdData.OutDiffAlbedo, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
+        // Exactly the same name as the FSR scaling value. Completely different meaning.
+        .motionVectorScale = {. x = 1.0f, .y = 1.0f },
         // Camera movement since last frame (PreviousPosition - CurrentPosition)
         .cameraPositionDelta = { (_lastCamPos.x - camPos.x), (_lastCamPos.y - camPos.y), (_lastCamPos.z - camPos.z) },
         .cameraRight = GetFfxFloat3Column(_invViewMatrix, 0),
@@ -476,15 +478,7 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
                 NVSDK_NGX_Result_Success || dispatchDesc.deltaTime < 1.0f)
         {
             dispatchDesc.deltaTime = (float)GetDeltaTime();
-        }
     }
-
-    LOG_DEBUG("FrameTimeDeltaInMsec: {0}", dispatchDesc.deltaTime);
-
-    if (inParams.Get(NVSDK_NGX_Parameter_MV_Scale_X, &dispatchDesc.motionVectorScale.x) != NVSDK_NGX_Result_Success ||
-        inParams.Get(NVSDK_NGX_Parameter_MV_Scale_Y, &dispatchDesc.motionVectorScale.y) != NVSDK_NGX_Result_Success)
-    {
-        LOG_WARN("Can't get motion vector scales!");
     }
 
     inParams.Get(NVSDK_NGX_Parameter_Jitter_Offset_X, &dispatchDesc.jitterOffsets.x);
