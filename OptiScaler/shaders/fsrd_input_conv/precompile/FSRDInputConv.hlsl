@@ -114,10 +114,11 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // Assuming hardware depth
     const float inDepth = InDepth[px];
     const float3 ndcPos = float3(UVToNDC(uv), inDepth);
-    const float3 viewSpacePos = InvProjectPosition(ndcPos, InvProjMatrix);
+    float3 viewSpacePos = InvProjectPosition(ndcPos, InvProjMatrix);
 
     // Left handed view space
-    OutLinearDepth[px] = viewSpacePos.z; // Divide by FarPlane for debug vis
+    viewSpacePos.z = clamp(viewSpacePos.z, NearPlane, FarPlane);
+    OutLinearDepth[px] = viewSpacePos.z;
    
     // Motion Vectors & Depth Delta
     //
@@ -154,34 +155,35 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
     // Secondary albedo packing
     //
-    float3 specAlbedo, diffAlbedo;
+    float4 specAlbedo = float4(InSpecularAlbedo[px], 0.0f);
+    float4 diffAlbedo = float4(InDiffuseAlbedo[px], 0.0f);
+
+    // FSR-RR expects metalness in diffuse alpha
+    const float metalness = EstimateMetalness(diffAlbedo.rgb, specAlbedo.rgb);
+    specAlbedo.a = NoV;
+    diffAlbedo.a = metalness;
+    
+    float4 fusedAlbedo = float4(max(specAlbedo.rgb, diffAlbedo.rgb), NoV);
     
     // Used for better perceptual encoding efficiency with high bit depth sources
     // Unnecessary if the secondaries use 8-bit color, which they usually do.
     if (UseSqrtEncodingOnSecondaries > 0.1f)
     {
-        specAlbedo = sqrt(InSpecularAlbedo[px]);
-        diffAlbedo = sqrt(InDiffuseAlbedo[px]);
-    }
-    else
-    {
-        specAlbedo = InSpecularAlbedo[px];
-        diffAlbedo = InDiffuseAlbedo[px];
+        specAlbedo = sqrt(specAlbedo);
+        diffAlbedo = sqrt(diffAlbedo);
+        fusedAlbedo = sqrt(fusedAlbedo);
     }
     
-    // FSR-RR expects metalness in diffuse alpha
-    const float metalness = EstimateMetalness(diffAlbedo, specAlbedo);
-
     // FSR-RR expects NoV in specular alpha
-    OutSpecAlbedo[px] = float4(specAlbedo, NoV);
-    OutDiffAlbedo[px] = float4(diffAlbedo, metalness);
+    OutSpecAlbedo[px] = specAlbedo;
+    OutDiffAlbedo[px] = diffAlbedo;
 
     // Primary radiance packing - Mode 1 Signal
     const float3 color = InColor[px].rgb;
     // These are included with matrix transforms. Are they being rescaled?
     const float hitDist = InSpecHitDist[px];
 
-    OutFusedAlbedo[px] = float4(max(specAlbedo, diffAlbedo), NoV);
+    OutFusedAlbedo[px] = fusedAlbedo;
     // Input alpha channel should contain specular ray length
     OutRadiance[px] = float4(color, hitDist);
 }
