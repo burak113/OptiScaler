@@ -192,6 +192,9 @@ bool FSRDFeatureDx12::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
         if (!FSRDConvShader->IsInit())
             return false;
 
+        if (!FSRDConvShader->SetMaxRenderSize(_upscaleCtxDesc.maxRenderSize.width, _upscaleCtxDesc.maxRenderSize.height))
+            return false;
+
         // HW depth flag might not be needed. May be able to handle transparently in conv shader.
         if (int value; InParameters->Get(NVSDK_NGX_Parameter_Use_HW_Depth, &value) == NVSDK_NGX_Result_Success)
             _isHWDepth = value == NVSDK_NGX_DLSS_Depth_Type_HW;
@@ -597,10 +600,6 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     _convConfig.NearPlane = planes.nearPlane;
     _convConfig.FarPlane = planes.farPlane;
     _convConfig.UseInfiniteFarPlane = planes.isInfinite;
-
-    // Update render size
-    if (!FSRDConvShader->Resize(RenderWidth(), RenderHeight()))
-        return false;
 
     LOG_DEBUG("Distpaching FSRD Input Converter");
 

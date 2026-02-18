@@ -226,8 +226,8 @@ struct FSRDInputConv_Dx12::Impl
     UINT m_cbSlotSize = 0;
     UINT m_cbCurrentFrameIndex = 0;
 
-    uint32_t m_width = 0;
-    uint32_t m_height = 0;
+    uint32_t m_maxWidth = 0;
+    uint32_t m_maxHeight = 0;
 
     // Output Targets
     InternalOutputs m_Out;
@@ -306,13 +306,13 @@ struct FSRDInputConv_Dx12::Impl
         LOG_DEBUG("Creating FSRD Conv shader and resources initialized.", shaderLength);
     }
 
-    void Resize(uint32_t width, uint32_t height)
+    void SetMaxRenderSize(uint32_t width, uint32_t height)
     {
-        if (m_width == width && m_height == height)
+        if (m_maxWidth == width && m_maxHeight == height)
             return;
 
-        m_width = width;
-        m_height = height;
+        m_maxWidth = width;
+        m_maxHeight = height;
 
         static const auto initState =
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
@@ -336,7 +336,7 @@ struct FSRDInputConv_Dx12::Impl
 
     void Dispatch(ID3D12GraphicsCommandList* cmdList, const InputResources& inputs, const Constants& constants) 
     {
-        if (!cmdList || !m_width)
+        if (!cmdList || !m_maxWidth)
             return;
 
         // Update constant buffer
@@ -399,8 +399,8 @@ struct FSRDInputConv_Dx12::Impl
         uavStart.ptr += kConvInputCount * (uint64_t)handleInc;
         cmdList->SetComputeRootDescriptorTable(2, uavStart);
 
-        const UINT dimX = (m_width + (kThreadGroupSize - 1)) / kThreadGroupSize;
-        const UINT dimY = (m_height + (kThreadGroupSize - 1)) / kThreadGroupSize;
+        const uint32_t dimX = ((uint32_t)constants.RenderSize.x + (kThreadGroupSize - 1)) / kThreadGroupSize;
+        const uint32_t dimY = ((uint32_t)constants.RenderSize.y + (kThreadGroupSize - 1)) / kThreadGroupSize;
         cmdList->Dispatch(dimX, dimY, 1);
 
         // Transition the UAVs back to SRV
@@ -473,11 +473,11 @@ bool FSRDInputConv_Dx12::IsInit() const { return m_IsInitialized; }
 
 std::string_view FSRDInputConv_Dx12::GetName() const { return m_InstanceName; }
 
-bool FSRDInputConv_Dx12::Resize(uint32_t width, uint32_t height)
+bool FSRDInputConv_Dx12::SetMaxRenderSize(uint32_t width, uint32_t height)
 { 
     try
     {
-        m_impl->Resize(width, height);
+        m_impl->SetMaxRenderSize(width, height);
         return true;
     }
     catch (const std::exception& err)

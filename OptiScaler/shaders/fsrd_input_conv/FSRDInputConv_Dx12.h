@@ -101,10 +101,10 @@ class FSRDInputConv_Dx12
 
     /**
      * @brief (Re)allocates internal resources to match the specified render resolution.
-     * Must be called at least once before any Dispatch() and whenever resolution changes.
+     * Must be called at least once before any Dispatch().
      * @return True if resize succeeded
      */
-    bool Resize(uint32_t width, uint32_t height);
+    bool SetMaxRenderSize(uint32_t width, uint32_t height);
 
     /**
      * @brief Executes the input conversion shader.
