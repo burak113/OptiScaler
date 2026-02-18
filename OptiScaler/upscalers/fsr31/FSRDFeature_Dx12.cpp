@@ -613,17 +613,37 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     return true;
 }
 
+static void TryUpdateOption(const CustomOptional<float>& cfgValue, float& currentValue, bool& wasUpdated) 
+{
+    if (cfgValue.value_or_default() != currentValue)
+    {
+        currentValue = cfgValue.value_or_default();
+        wasUpdated = true;
+    }
+    }
+
 bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList, const ffxDispatchDescDenoiser& dispatchDesc)
 {
     auto& state = State::Instance();
+    const auto& cfg = *Config::Instance();
+    bool cfgChanged = false;
 
-    // Update settings
+    TryUpdateOption(cfg.FfxDenoiserHistRejection, _denoiserSettings.historyRejectionStrength, cfgChanged);
+    TryUpdateOption(cfg.FfxDenoiserCrossBlNormStr, _denoiserSettings.crossBilateralNormalStrength, cfgChanged);
+    TryUpdateOption(cfg.FfxDenoiserStabilityBias, _denoiserSettings.stabilityBias, cfgChanged);
+    TryUpdateOption(cfg.FfxDenoiserMaxRadiance, _denoiserSettings.maxRadiance, cfgChanged);
+    TryUpdateOption(cfg.FfxDenoiserRadianceClip, _denoiserSettings.radianceClipStdK, cfgChanged);
+    TryUpdateOption(cfg.FfxDenoiserGaussKernRelax, _denoiserSettings.gaussianKernelRelaxation, cfgChanged);
+
+    if (cfgChanged)
+    {
     ffxConfigureDescDenoiserSettings cfgDesc = 
     {
         .header = { .type = FFX_API_CONFIGURE_DESC_TYPE_DENOISER_SETTINGS },
         .settings = _denoiserSettings
     };
     FfxApiProxy::D3D12_Configure(&_pDenoiserCtx, &cfgDesc.header);
+    }
 
     LOG_DEBUG("Dispatching FSR-RR...");
     const ffxReturnCode_t result = FfxApiProxy::D3D12_Dispatch(&_pDenoiserCtx, &dispatchDesc.header);
