@@ -2896,7 +2896,60 @@ bool MenuCommon::RenderMenu()
                                     ImGui::Spacing();
                                     ImGui::Spacing();
                                 }
+                            }                            
+                        }
+                    }
+
+                    // FSR Ray Regeneration
+                    if (currentBackend == OptiKeys::FSR_RR)
+                    {
+                        if (auto ch = ScopedCollapsingHeader("FSR-RR Advanced Settings"); ch.IsHeaderOpen())
+                        {
+                            if (!state.ffxDenoiserDebugModes.empty())
+                            {
+                                int ffxDenoiseDebugMode = config->FfxDenoiserDebugMode.value_or_default();
+                                const char* currentEnum = state.ffxDenoiserDebugModeNames[ffxDenoiseDebugMode];
+
+                                if (ImGui::BeginCombo("Debug Mode", currentEnum))
+                                {
+                                    for (const auto& dbgMode : state.ffxDenoiserDebugModeNames)
+                                    {
+                                        bool isSelected = dbgMode.first == ffxDenoiseDebugMode;
+
+                                        if (ImGui::Selectable(dbgMode.second, &isSelected))
+                                            config->FfxDenoiserDebugMode = dbgMode.first;
+
+                                        if (isSelected)
+                                            ImGui::SetItemDefaultFocus();
+                                    }
+
+                                    ImGui::EndCombo();
+                                }
                             }
+
+                            if (float v = config->FfxDenoiserHistRejection.value_or_default();
+                                ImGui::SliderFloat("History Rejection", &v, 0, 1))
+                                config->FfxDenoiserHistRejection = v;
+
+                            if (float v = config->FfxDenoiserCrossBlNormStr.value_or_default();
+                                ImGui::SliderFloat("Cross Bilateral Normal Strength", &v, 0, 1))
+                                config->FfxDenoiserCrossBlNormStr = v;
+
+                            if (float v = config->FfxDenoiserStabilityBias.value_or_default();
+                                ImGui::SliderFloat("Temporal Stability Bias", &v, 0, 1))
+                                config->FfxDenoiserStabilityBias = v;
+
+                            if (float v = config->FfxDenoiserMaxRadiance.value_or_default();
+                                ImGui::SliderFloat("Max Radiance", &v, 100, 1e5f))
+                                config->FfxDenoiserMaxRadiance = v;
+
+                            if (float v = config->FfxDenoiserRadianceClip.value_or_default();
+                                ImGui::SliderFloat("Radiance Clip Deviation", &v, 1, 500))
+                                config->FfxDenoiserRadianceClip = v;
+
+                            if (float v = config->FfxDenoiserGaussKernRelax.value_or_default();
+                                ImGui::SliderFloat("Gaussian Kernel Relaxation", &v, 0, 1))
+                                config->FfxDenoiserGaussKernRelax = v;
                         }
                     }
 

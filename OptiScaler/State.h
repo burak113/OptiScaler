@@ -203,6 +203,8 @@ class State
     // FSR-RR
     std::vector<const char*> ffxDenoiserVersionNames {};
     std::vector<uint64_t> ffxDenoiserVersionIds {};
+    std::vector<uint32_t> ffxDenoiserDebugModes;
+    std::unordered_map<uint32_t, const char*> ffxDenoiserDebugModeNames;
 
     // Linux checks
     bool isRunningOnLinux = false;

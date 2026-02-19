@@ -36,8 +36,8 @@ private:
     ffxCreateContextDescDenoiser _denoiserCtxDesc;
     FfxApiDenoiserSettings _denoiserSettings;
 
-    bool _isHWDepth;
-    bool _isRoughnessPacked;
+    static bool s_isHWDepth;
+    static bool s_isRoughnessPacked;
 
     FSRDConvCfg _convConfig;
     DirectX::XMFLOAT3 _lastCamPos; // Last world space camera position

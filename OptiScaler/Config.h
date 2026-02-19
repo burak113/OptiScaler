@@ -380,6 +380,14 @@ class Config
 
     // FSR-RR
     CustomOptional<int> FfxDenoiserIndex { 0 };
+    CustomOptional<uint32_t> FfxDenoiserDebugMode { 0 };
+
+    CustomOptional<float> FfxDenoiserHistRejection { 1.0f };
+    CustomOptional<float> FfxDenoiserCrossBlNormStr { 1.0f };
+    CustomOptional<float> FfxDenoiserStabilityBias { 0.4f };
+    CustomOptional<float> FfxDenoiserMaxRadiance { 65504.0f };
+    CustomOptional<float> FfxDenoiserRadianceClip { 50.0f };
+    CustomOptional<float> FfxDenoiserGaussKernRelax { 0.0f };
 
     // FSR Common
     CustomOptional<float> FsrVerticalFov { 60.0f };

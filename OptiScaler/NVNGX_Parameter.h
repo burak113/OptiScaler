@@ -1079,7 +1079,7 @@ static bool TryGetNGXVoidPointer(const NVSDK_NGX_Parameter& ngxParams, const cha
     if (result != NVSDK_NGX_Result_Success)
         result = ngxParams.Get(key, reinterpret_cast<void**>(&outValue));
 
-    return (result == NVSDK_NGX_Result_Success);
+    return (result == NVSDK_NGX_Result_Success) && outValue != nullptr;
 }
 
 /**

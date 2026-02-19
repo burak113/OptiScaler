@@ -13,6 +13,36 @@
         "addressW = TEXTURE_ADDRESS_CLAMP, " \
         "visibility = SHADER_VISIBILITY_ALL)"
 
+// Flags
+#define FLAGS_NON_GAMMA_ALBEDO    (1 << 0)
+#define FLAGS_INF_FAR_PLANE       (1 << 1)
+#define FLAGS_PACKED_ROUGHNESS    (1 << 2)
+
+// Debug Flags
+#define FLAGS_DEBUG               (1 << 16)
+#define FLAGS_DEBUG_MODE_MASK     (0xFF << 16)
+
+// Inputs
+#define FLAGS_DEBUG_IN_SPEC_HIT_DIST  (1 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_DEPTH          (2 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_MOTION         (3 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_NORMALS        (4 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_ROUGHNESS      (5 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_DIFF_ALBEDO    (6 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_SPEC_ALBEDO    (7 << 17 | FLAGS_DEBUG)
+
+// Outputs
+#define FLAGS_DEBUG_OUT_FUSED_ALBEDO  (8 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_LINEAR_DEPTH  (9 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_MOTION        (10 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_NORMALS       (11 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_SPEC_ALBEDO   (12 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_DIFF_ALBEDO   (13 << 17 | FLAGS_DEBUG)
+
+#define FLAGS_DEBUG_OUT_DEPTH_DELTA   (14 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_NORM_DOT_VIEW   (15 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_METALICITY   (16 << 17 | FLAGS_DEBUG)
+
 // DLSS-RR Inputs
 Texture2D<float4> InColor : register(t0); // RGB - NVSDK_NGX_Parameter_Color
 Texture2D<float> InDepth : register(t1); // R - NVSDK_NGX_Parameter_Depth - hardware or linear - inverted or not
@@ -46,15 +76,16 @@ cbuffer CB_Packing : register(b0)
     float2 RenderSize; // Resolution of inputs
     float2 RenderSizeInv; // 1.0 / Resolution
     
-    float UseSqrtEncodingOnSecondaries; // If true, FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO should NOT be set
     float NearPlane;
     float FarPlane;
-    float UseInfiniteFarPlane;
     
-    float IsRoughnessPacked; // Roughness = InNormals.A - NVSDK_NGX_Parameter_DLSS_Roughness_Mode (Init param)
+    uint Flags;
 };
 
 SamplerState LinearSampler : register(s0);
+
+bool IsSet(uint mask) { return (Flags & mask) == mask; }
+uint GetDebugMode() { return (Flags & FLAGS_DEBUG_MODE_MASK); }
 
 // Octahedral Encoding from AMD FSR-RR manual
 float2 OctahedralEncode(float3 N)
@@ -64,6 +95,17 @@ float2 OctahedralEncode(float3 N)
     const float s = saturate(-N.z);
     N.xy = lerp(N.xy, (1.0 - abs(N.yx)) * k, s);
     return N.xy * 0.5 + 0.5;
+}
+
+// Octahedral Decoding (For debug)
+float3 OctahedralDecode(float2 UV)
+{
+    UV = UV * 2.0f - 1.0f;
+    float3 N = float3(UV, 1.0f - abs(UV.x) - abs(UV.y));
+    float t = saturate(-N.z);
+    float2 s = sign(N.xy);
+    N.xy += s * t;
+    return normalize(N);
 }
 
 float2 UVToNDC(float2 coord)
@@ -99,7 +141,52 @@ float EstimateMetalness(float3 diffuse, float3 specular)
     return diffFactor * specFactor;
 }
 
+// Visualization Helpers
+
+// High contrast color map for visualizing normalized scalars
+// Blue = 0 -> Cyan -> Green -> Orange -> Red = 1
+float3 TurboColormap(float x)
+{
+    const float4 kRedVec4 = float4(0.13572138, 4.61539260, -42.66032258, 132.13108234);
+    const float4 kGreenVec4 = float4(0.09140261, 2.19418839, 4.84296658, -14.18503333);
+    const float4 kBlueVec4 = float4(0.10667330, 12.64194608, -60.58204836, 110.36276771);
+    const float2 kRedVec2 = float2(-152.94239396, 59.28637943);
+    const float2 kGreenVec2 = float2(4.27729857, 2.82956604);
+    const float2 kBlueVec2 = float2(-89.90310912, 27.34824973);
+
+    x = saturate(x);
+    float4 v4 = float4(1.0, x, x * x, x * x * x);
+    float2 v2 = v4.zw * v4.z;
+
+    return float3(
+        dot(v4, kRedVec4) + dot(v2, kRedVec2),
+        dot(v4, kGreenVec4) + dot(v2, kGreenVec2),
+        dot(v4, kBlueVec4) + dot(v2, kBlueVec2)
+    );
+}
+
+// Visualizes 2D vectors as HSV. 
+// Right = red, up = cyan/greenish, 
+// left = cyan/blue, down = yellow/orange
+float3 VisualizeMotionVec(float2 motion, float scalar)
+{
+    float angle = atan2(motion.y, motion.x);
+    float mag = length(motion) * scalar;
+    
+    // Rough HSV to RGB
+    float3 rgb = saturate(abs(fmod(angle / 6.2831853 + float3(0.0, 4.0, 2.0) / 6.0, 1.0) * 6.0 - 3.0) - 1.0);
+    return rgb * saturate(mag);
+}
+
+float3 VisualizeSignedDiff(float val, float scale)
+{
+    // Red for negative, green for positive, black for zero
+    float v = val * scale;
+    return float3(saturate(-v), saturate(v), 0.0f);
+}
+
 // Main Kernel
+//
 [RootSignature(MainRS)]
 [numthreads(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
@@ -110,6 +197,21 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     const int2 px = int2(id.xy);
     const float2 uv = (float2(id.xy) + 0.5) * RenderSizeInv;
 
+    // Normals - FSR-RR requries world normals
+    //
+    // DLSS-RR normals may be in view or world space. They will need to be transformed to account
+    // for both configurations.
+    float4 worldSurfaceNormal = InNormals[px];    
+    const float2 octNormal = OctahedralEncode(worldSurfaceNormal.rgb);
+    const float materialType = 0.0f;
+    
+    // DLSS-RR provides 3D normals with roughnes optionally included in the A channel, or
+    // in a separate single-channel buffer (InRoughness).
+    const float roughness = IsSet(FLAGS_PACKED_ROUGHNESS) ? worldSurfaceNormal.a : InRoughness[px];
+
+    // Output: RG=OctNormal, B=Roughness, A=MaterialID
+    OutNormals[px] = float4(octNormal, roughness, materialType);
+    
     // Depth delta calculation from denoiser prepass sample shader
     // Assuming hardware depth
     const float inDepth = InDepth[px];
@@ -117,7 +219,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float3 viewSpacePos = InvProjectPosition(ndcPos, InvProjMatrix);
 
     // Left handed view space
-    viewSpacePos.z = clamp(viewSpacePos.z, NearPlane, FarPlane);
+    viewSpacePos.z = viewSpacePos.z;
     OutLinearDepth[px] = viewSpacePos.z;
    
     // Motion Vectors & Depth Delta
@@ -128,30 +230,16 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     const float depthDelta = (viewSpacePos.z - prevViewSpacePos.z);
     
     // FSR-RR requires Linear Depth Delta in Blue channel
-    const float2 motionPixels = InMotionVectors[px].rg; // RG: Pixel Movement
-    OutMotion[px] = float4(motionPixels, depthDelta, 0.0f);
-    
-    // Normals - FSR-RR requries world normals
-    //
-    // DLSS-RR normals may be in view or world space. They will need to be transformed to account
-    // for both configurations.
-    float4 normal = InNormals[px];
-    const float2 octNormal = OctahedralEncode(normalize(normal.rgb));
-    const float materialType = 0.0f;
-    
-    // DLSS-RR provides 3D normals with roughnes optionally included in the A channel, or
-    // in a separate single-channel buffer (InRoughness).
-    const float roughness = (IsRoughnessPacked > 0.1f) ? normal.a : InRoughness[px];
-
-    // Output: RG=OctNormal, B=Roughness, A=MaterialID
-    OutNormals[px] = float4(octNormal, roughness, materialType);
+    const float2 motionIn = InMotionVectors[px].rg; // RG: Pixel Movement
+    const float3 motionOut = float3(motionIn, depthDelta);
+    OutMotion[px] = float4(motionOut, 0.0f);
 
     // Calculate NoV (Dot(Normal, View))
     //
     const float3 cameraPos = float3(InvViewMatrix._m03, InvViewMatrix._m13, InvViewMatrix._m23);
     // Line from camera to the clip pos
     const float3 viewDir = normalize(cameraPos - worldSpacePos);
-    const float NoV = saturate(dot(normal.rgb, viewDir));
+    const float NoV = saturate(dot(worldSurfaceNormal.rgb, viewDir));
 
     // Secondary albedo packing
     //
@@ -167,7 +255,8 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     
     // Used for better perceptual encoding efficiency with high bit depth sources
     // Unnecessary if the secondaries use 8-bit color, which they usually do.
-    if (UseSqrtEncodingOnSecondaries > 0.1f)
+    [branch]
+    if (!IsSet(FLAGS_NON_GAMMA_ALBEDO))
     {
         specAlbedo = sqrt(specAlbedo);
         diffAlbedo = sqrt(diffAlbedo);
@@ -184,6 +273,90 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     const float hitDist = InSpecHitDist[px];
 
     OutFusedAlbedo[px] = fusedAlbedo;
-    // Input alpha channel should contain specular ray length
-    OutRadiance[px] = float4(color, hitDist);
+    
+    [branch]
+    if (!IsSet(FLAGS_DEBUG))
+    {
+        OutRadiance[px] = float4(color, hitDist);
+    }
+    // Debug
+    else
+    {
+        float3 debugColor = float3(0, 0, 0);
+        const uint debugMode = GetDebugMode();
+        
+        switch (debugMode)
+        {
+            // Inputs
+            case FLAGS_DEBUG_IN_SPEC_HIT_DIST:
+                debugColor = TurboColormap(frac(hitDist * 0.1f));
+                break;
+                
+            case FLAGS_DEBUG_IN_DEPTH:
+                debugColor = TurboColormap(frac(inDepth * 10.0)); // Hardware depth bands
+                break;
+                
+            case FLAGS_DEBUG_IN_MOTION:
+                debugColor = VisualizeMotionVec(motionIn * RenderSize, 1.0f);
+                break;
+                
+            case FLAGS_DEBUG_IN_NORMALS:
+                debugColor = worldSurfaceNormal.rgb * 0.5 + 0.5;
+                break;
+                
+            case FLAGS_DEBUG_IN_ROUGHNESS:
+                debugColor = roughness;
+                break;
+                
+            case FLAGS_DEBUG_IN_DIFF_ALBEDO:
+                debugColor = InDiffuseAlbedo[px];
+                break;
+                
+            case FLAGS_DEBUG_IN_SPEC_ALBEDO:
+                debugColor = InSpecularAlbedo[px];
+                break;
+            // Outputs
+            case FLAGS_DEBUG_OUT_FUSED_ALBEDO:
+                debugColor = fusedAlbedo.rgb;
+                break;
+                
+            case FLAGS_DEBUG_OUT_LINEAR_DEPTH:
+                debugColor = TurboColormap(frac(viewSpacePos.z * 0.1));
+                break;
+                
+            case FLAGS_DEBUG_OUT_MOTION:
+                debugColor = VisualizeMotionVec(motionOut.xy * RenderSize, 1.0f);
+                break;
+
+            case FLAGS_DEBUG_OUT_DEPTH_DELTA:
+                debugColor = VisualizeSignedDiff(motionOut.z, 5.0f);
+                break;
+                
+            case FLAGS_DEBUG_OUT_NORMALS:
+                debugColor = OctahedralDecode(octNormal) * 0.5 + 0.5;
+                break;
+            
+            case FLAGS_DEBUG_OUT_NORM_DOT_VIEW:
+                debugColor = float3(-NoV, NoV, 0.0f);
+                break;
+            
+            case FLAGS_DEBUG_OUT_METALICITY:
+                debugColor = metalness;
+                break;
+                
+            case FLAGS_DEBUG_OUT_SPEC_ALBEDO:
+                debugColor = specAlbedo.rgb;
+                break;
+                
+            case FLAGS_DEBUG_OUT_DIFF_ALBEDO:
+                debugColor = diffAlbedo.rgb;
+                break;
+                
+            default:
+                debugColor = color;
+                break;
+        }
+        
+        OutRadiance[px] = float4(debugColor, 1.0f);
+    }
 }

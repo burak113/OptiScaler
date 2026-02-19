@@ -18,6 +18,37 @@ class FSRDInputConv_Dx12
 {
   public:
 
+    enum class ConfigFlags : uint32_t
+    {
+        NonGammaAlbedo = 1 << 0, // If true, FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO should ALSO be set
+        UseInfiniteFarPlane = 1 << 1, 
+        IsRoughnessPacked = 1 << 2, // Roughness = InNormals.A - NVSDK_NGX_DLSS_Roughness_Mode_Packed (Init param)
+
+        Debug = 1 << 16, // Denoiser and upscaler bypassed for debug out if this is set
+        DebugModeMask = 0xFF << 16, // Denoiser and upscaler bypassed for debug out if this is set
+
+        DebugOutRadiance = Debug, // Default debug vis
+
+        DebugInSpecHitDist = 1 << 17 | Debug,
+        DebugInDepth = 2 << 17 | Debug,
+        DebugInMotion = 3 << 17 | Debug,
+        DebugInNormals = 4 << 17 | Debug,
+        DebugInRoughness = 5 << 17 | Debug,
+        DebugInDiffAlbedo = 6 << 17 | Debug,
+        DebugInSpecAlbedo = 7 << 17 | Debug,
+
+        DebugOutFusedAlbedo = 8 << 17 | Debug,
+        DebugOutLinearDepth = 9 << 17 | Debug,
+        DebugOutMotion = 10 << 17 | Debug,
+        DebugOutNormals = 11 << 17 | Debug,
+        DebugOutSpecAlbedo = 12 << 17 | Debug,
+        DebugOutDiffAlbedo = 13 << 17 | Debug,
+
+        DebugOutDepthDelta = 14 << 17 | Debug,
+        DebugOutNormDotView = 15 << 17 | Debug,
+        DebugOutMetalicty = 16 << 17 | Debug,
+    };
+
     /**
      * @brief Constant buffer data passed to the conversion shader.
      */
@@ -31,12 +62,10 @@ class FSRDInputConv_Dx12
         DirectX::XMFLOAT2 RenderSize; // Resolution of inputs
         DirectX::XMFLOAT2 RenderSizeInv; // 1.0 / Resolution
 
-        float UseSqrtEncodingOnSecondaries; // If true, FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO should NOT be set
         float NearPlane; // Near < Far - IsInverted flag accounts for inversion
         float FarPlane;  // Near < Far - IsInverted flag accounts for inversion
-        float UseInfiniteFarPlane;
 
-        float IsRoughnessPacked; // Roughness = InNormals.A - NVSDK_NGX_DLSS_Roughness_Mode_Packed (Init param)
+        uint32_t Flags; // Dynamic configuration flags. See: ConfigFlags
     };
 
     /**
@@ -50,7 +79,7 @@ class FSRDInputConv_Dx12
             ID3D12Resource* InColor;         // RGB - NVSDK_NGX_Parameter_Color - HDR or SDR
             ID3D12Resource* InDepth;         // R - NVSDK_NGX_Parameter_Depth - 24/32bits
             ID3D12Resource* InMotionVectors; // RG - NVSDK_NGX_Parameter_MotionVectors - RG16/RG32
-            ID3D12Resource* InNormals; // RGB: Normals, A: Roughness (Optional) - NVSDK_NGX_Parameter_GBuffer_Normals - RG16_FLOAT/RG32_FLOAT
+            ID3D12Resource* InNormals; // RGB: Normals, A: Roughness (Optional) - NVSDK_NGX_Parameter_GBuffer_Normals - RGB16_FLOAT/RG32_FLOAT
             ID3D12Resource* InRoughness;      // R - May be packed in normals. NVSDK_NGX_Parameter_GBuffer_Roughness
             ID3D12Resource* InSpecHitDist;    // R - NVSDK_NGX_Parameter_DLSSD_SpecularHitDistance - FP16/FP32
             ID3D12Resource* InDiffAlbedo;  // RGB - NVSDK_NGX_Parameter_GBuffer_DiffuseAlbedo - RGBA32
