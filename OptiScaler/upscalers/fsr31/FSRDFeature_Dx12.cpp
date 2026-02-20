@@ -94,6 +94,11 @@ static XMFLOAT3 GetFloat3(const XMVECTOR& vec4)
     return vec3;
 }
 
+static XMVECTOR GetColumn(const XMMATRIX& mat, int col)
+{
+    return { mat.r[0].m128_f32[col], mat.r[1].m128_f32[col], mat.r[2].m128_f32[col], 0 };
+}
+
 static XMFLOAT3 GetFloat3Column(const XMMATRIX& mat, int col)
 {
     return { mat.r[0].m128_f32[col], mat.r[1].m128_f32[col], mat.r[2].m128_f32[col] };
@@ -505,8 +510,7 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
 bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams,
     ffxDispatchDescDenoiser& dispatchDesc, ffxDispatchDescDenoiserInput1Signal& signalDesc)
 {
-    auto& state = State::Instance();
-    auto& cfg = *Config::Instance(); 
+    const auto& cfg = *Config::Instance(); 
     
     FSRDConvIn convInputs = {};
     
@@ -521,6 +525,9 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
 
     // Camera matrix - translation and rotation, from viewMatrix^-1
     const XMFLOAT3 camPos = GetFloat3Column(_invViewMatrix, 3);
+    const XMVECTOR right = XMVector3Normalize(GetColumn(_invViewMatrix, 0));
+    const XMVECTOR up = XMVector3Normalize(GetColumn(_invViewMatrix, 1));
+    const XMVECTOR forward = XMVector3Normalize(GetColumn(_invViewMatrix, 2));
 
     // Pack dispatch configuration
     signalDesc = 
@@ -548,13 +555,12 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
         .normals = ffxApiGetResourceDX12(fsrdData.OutNormals, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
         .specularAlbedo = ffxApiGetResourceDX12(fsrdData.OutSpecAlbedo, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
         .diffuseAlbedo = ffxApiGetResourceDX12(fsrdData.OutDiffAlbedo, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
-        // Exactly the same name as the FSR scaling value. Completely different meaning.
-        .motionVectorScale = {. x = 1.0f, .y = 1.0f },
+        .motionVectorScale = { .x = 1.0f, .y = 1.0f },
         // Camera movement since last frame (PreviousPosition - CurrentPosition)
         .cameraPositionDelta = { (_lastCamPos.x - camPos.x), (_lastCamPos.y - camPos.y), (_lastCamPos.z - camPos.z) },
-        .cameraRight = GetFfxFloat3Column(_invViewMatrix, 0),
-        .cameraUp = GetFfxFloat3Column(_invViewMatrix, 1),
-        .cameraForward = GetFfxFloat3Column(_invViewMatrix, 2),
+        .cameraRight = GetFfxFloat3(right),
+        .cameraUp = GetFfxFloat3(up),
+        .cameraForward = GetFfxFloat3(forward),
         .cameraAspectRatio = GetAspectRatioFromProjectionMatrix(_projMatrix),
         .cameraNear = _convConfig.NearPlane,
         .cameraFar = _convConfig.FarPlane,
@@ -563,7 +569,7 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
         .frameIndex = (uint32_t)_frameCount,
         .flags = FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO
     };
-
+    
     if (_isInReset)
         dispatchDesc.flags |= FFX_DENOISER_DISPATCH_RESET;
 
@@ -579,13 +585,24 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
         }
     }
 
+    // Motion Vector Scaling
+    // Scaling must result in UV space vectors, unlike FSR/DLSS pixel space vectors
+    float MVScaleX = 1.0f, MVScaleY = 1.0f;
+
+    if (inParams.Get(NVSDK_NGX_Parameter_MV_Scale_X, &MVScaleX) == NVSDK_NGX_Result_Success &&
+        inParams.Get(NVSDK_NGX_Parameter_MV_Scale_Y, &MVScaleY) == NVSDK_NGX_Result_Success)
+    {
+        dispatchDesc.motionVectorScale.x = MVScaleX / dispatchDesc.renderSize.width;
+        dispatchDesc.motionVectorScale.y = MVScaleY / dispatchDesc.renderSize.height;
+    }
+
     float jitterX = 0.0f, jitterY = 0.0f;
     inParams.Get(NVSDK_NGX_Parameter_Jitter_Offset_X, &jitterX);
     inParams.Get(NVSDK_NGX_Parameter_Jitter_Offset_Y, &jitterY);
 
     // Convert from pixel to NDC jitter
-    dispatchDesc.jitterOffsets.x = -2.0f * (jitterX / (float)RenderWidth());
-    dispatchDesc.jitterOffsets.y = 2.0f * (jitterY / (float) RenderHeight());
+    dispatchDesc.jitterOffsets.x = 2.0f * (jitterX / (float)RenderWidth());
+    dispatchDesc.jitterOffsets.y = -2.0f * (jitterY / (float) RenderHeight());
 
     LOG_DEBUG("Jitter NDC [{:.6f}, {:.6f}]", dispatchDesc.jitterOffsets.x, dispatchDesc.jitterOffsets.y);
 
@@ -660,13 +677,14 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     const FSRDConvIn& convInputs, FSRDConvOut& convOut)
 {
     const uint32_t dbgMode = Config::Instance()->FfxDenoiserDebugMode.value_or_default(); 
+    const auto& cfg = *Config::Instance(); 
 
     // Prepare input converter
     _convConfig = 
     {
         .RenderSize = { (float)RenderWidth(), (float)RenderHeight() },
         .RenderSizeInv = { 1.0f / (float)RenderWidth(), 1.0f / (float)RenderHeight() },
-        .Flags = (uint32_t) FSRDFlags::NonGammaAlbedo |(dbgMode & (uint32_t) FSRDFlags::DebugModeMask)
+        .Flags = (uint32_t) FSRDFlags::NonGammaAlbedo | (dbgMode & (uint32_t) FSRDFlags::DebugModeMask)
     };
     
     if (s_isRoughnessPacked)

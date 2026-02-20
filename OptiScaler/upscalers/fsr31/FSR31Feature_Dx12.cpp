@@ -234,8 +234,6 @@ void FSR31FeatureDx12::ConfigureUpscalerContext(const NVSDK_NGX_Parameter& ngxPa
     _upscaleCtxDesc.flags |= FFX_UPSCALE_ENABLE_DEBUG_CHECKING;
 #endif
 
-    // [TODO] ADD FFX_UPSCALE_ENABLE_DEPTH_INFINITE
-
     // Map NGX flags to FFX context flags
     if (DepthInverted())
         _upscaleCtxDesc.flags |= FFX_UPSCALE_ENABLE_DEPTH_INVERTED;
@@ -626,8 +624,6 @@ void FSR31FeatureDx12::ConfigureUpscaler(const NVSDK_NGX_Parameter& inParams, ff
 
     // Explicit near plane
     // Not explicitly set in the DLSS path. DLSS assumes near == 0 and far == 1 or the inverse.
-    //
-    // [TODO!] Review depth inversion logic and config fallback. FsrCameraNear on both branches looks like a typo.
     if (!TryGetToggleableNGXParam(inParams, OptiKeys::FSR_NearPlane, cfg.FsrUseFsrInputValues, upscalerDesc.cameraNear))
     {
         if (DepthInverted())
