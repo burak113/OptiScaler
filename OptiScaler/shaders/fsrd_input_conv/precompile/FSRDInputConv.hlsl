@@ -14,9 +14,10 @@
         "visibility = SHADER_VISIBILITY_ALL)"
 
 // Flags
-#define FLAGS_NON_GAMMA_ALBEDO    (1 << 0)
-#define FLAGS_INF_FAR_PLANE       (1 << 1)
-#define FLAGS_PACKED_ROUGHNESS    (1 << 2)
+#define FLAGS_NON_GAMMA_ALBEDO          (1 << 0)
+#define FLAGS_INF_FAR_PLANE             (1 << 1)
+#define FLAGS_PACKED_ROUGHNESS          (1 << 2)
+#define FLAGS_ENABLE_SPEC_RAY_LENGTH    (1 << 3)
 
 // Debug Flags
 #define FLAGS_DEBUG               (1 << 16)
@@ -62,7 +63,7 @@ RWTexture2D<float4> OutFusedAlbedo : register(u1); // RGB: max(specularAlbedo, d
 // ffxDispatchDescDenoiser
 RWTexture2D<float4> OutMotion : register(u2); // RG: Standard TSR motion vectors, B: Linear Depth Delta (CurrentLinearDepth - PrevLinearDepth)
 RWTexture2D<float4> OutNormals : register(u3); // RG: Octahedrally encoded normals, B: Linear Roughness, A: Material Type (Optional)
-RWTexture2D<float4> OutSpecAlbedo : register(u4); // RGB: Specular Albedo, A: saturate(dot(Normal, ViewDir))
+RWTexture2D<float4> OutSpecAlbedo : register(u4); // RGB: Specular Albedo, A: dot(Normal, ViewDir)
 RWTexture2D<float4> OutDiffAlbedo : register(u5); // RGB: Diffuse Albedo, A: Metalness (heuristic approximate)
 RWTexture2D<float> OutLinearDepth : register(u6);
 
@@ -87,24 +88,30 @@ SamplerState LinearSampler : register(s0);
 bool IsSet(uint mask) { return (Flags & mask) == mask; }
 uint GetDebugMode() { return (Flags & FLAGS_DEBUG_MODE_MASK); }
 
-// Octahedral Encoding from AMD FSR-RR manual
+// Octahedral Encoding from AMD FSR-RR sample
 float2 OctahedralEncode(float3 N)
 {
-    N.xy /= abs(N.x) + abs(N.y) + abs(N.z);
-    const float2 k = sign(N.xy);
-    const float s = saturate(-N.z);
-    N.xy = lerp(N.xy, (1.0 - abs(N.yx)) * k, s);
-    return N.xy * 0.5 + 0.5;
+    N.xy = float2(N.xy) / (abs(N.x) + abs(N.y) + abs(N.z));
+    float2 k;
+    k.x = N.x > 0.0f ? 1.0f : -1.0f;
+    k.y = N.y > 0.0f ? 1.0f : -1.0f;
+    
+    if (N.z < 0.0f)
+        N.xy = (1.0f - abs(float2(N.yx))) * k;
+    
+    return N.xy * 0.5f + 0.5f;
 }
 
 // Octahedral Decoding (For debug)
 float3 OctahedralDecode(float2 UV)
 {
-    UV = UV * 2.0f - 1.0f;
+    UV = 2.0f * (UV - 0.5f);
     float3 N = float3(UV, 1.0f - abs(UV.x) - abs(UV.y));
-    float t = saturate(-N.z);
-    float2 s = sign(N.xy);
-    N.xy += s * t;
+    float t = max(-N.z, 0.0f);
+    float2 k;
+    k.x = N.x >= 0.0f ? -t : t;
+    k.y = N.y >= 0.0f ? -t : t;
+    N.xy += k;
     return normalize(N);
 }
 
@@ -207,8 +214,8 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     
     // DLSS-RR provides 3D normals with roughnes optionally included in the A channel, or
     // in a separate single-channel buffer (InRoughness).
-    const float roughness = IsSet(FLAGS_PACKED_ROUGHNESS) ? worldSurfaceNormal.a : InRoughness[px];
-
+    float roughness = IsSet(FLAGS_PACKED_ROUGHNESS) ? worldSurfaceNormal.a : InRoughness[px];
+    
     // Output: RG=OctNormal, B=Roughness, A=MaterialID
     OutNormals[px] = float4(octNormal, roughness, materialType);
     
@@ -219,7 +226,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float3 viewSpacePos = InvProjectPosition(ndcPos, InvProjMatrix);
 
     // Left handed view space
-    OutLinearDepth[px] = viewSpacePos.z;
+    OutLinearDepth[px] = clamp(viewSpacePos.z, NearPlane, FarPlane);
    
     // Motion Vectors & Depth Delta
     //
@@ -238,7 +245,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     const float3 cameraPos = float3(InvViewMatrix._m03, InvViewMatrix._m13, InvViewMatrix._m23);
     // Line from camera to the clip pos
     const float3 viewDir = normalize(cameraPos - worldSpacePos);
-    const float NoV = saturate(dot(worldSurfaceNormal.rgb, viewDir));
+    const float NoV = dot(worldSurfaceNormal.rgb, viewDir);
 
     // Secondary albedo packing
     //
@@ -250,7 +257,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     specAlbedo.a = NoV;
     diffAlbedo.a = metalness;
     
-    float4 fusedAlbedo = float4(max(specAlbedo.rgb, diffAlbedo.rgb), NoV);
+    float4 fusedAlbedo = float4(max(1e-3f, max(specAlbedo.rgb, diffAlbedo.rgb)), NoV);
     
     // Used for better perceptual encoding efficiency with high bit depth sources
     // Unnecessary if the secondaries use 8-bit color, which they usually do.
@@ -265,13 +272,17 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // FSR-RR expects NoV in specular alpha
     OutSpecAlbedo[px] = specAlbedo;
     OutDiffAlbedo[px] = diffAlbedo;
+    OutFusedAlbedo[px] = fusedAlbedo;
 
     // Primary radiance packing - Mode 1 Signal
     const float3 color = InColor[px].rgb;
-    // These are included with matrix transforms. Are they being rescaled?
-    const float hitDist = InSpecHitDist[px];
-
-    OutFusedAlbedo[px] = fusedAlbedo;
+    float hitDist = 0.0f;
+    
+    // Experimental. Cannot be used if the input contains both diffuse and specular lighting.
+    // Supporting specular motion tracking may require Mode 2 denoising.
+    [branch]
+    if (IsSet(FLAGS_ENABLE_SPEC_RAY_LENGTH))
+        hitDist = InSpecHitDist[px];
     
     [branch]
     if (!IsSet(FLAGS_DEBUG))

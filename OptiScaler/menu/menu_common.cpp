@@ -2940,7 +2940,7 @@ bool MenuCommon::RenderMenu()
                                 config->FfxDenoiserStabilityBias = v;
 
                             if (float v = config->FfxDenoiserMaxRadiance.value_or_default();
-                                ImGui::SliderFloat("Max Radiance", &v, 100, 1e5f))
+                                ImGui::SliderFloat("Max Radiance", &v, 10, 1e5f))
                                 config->FfxDenoiserMaxRadiance = v;
 
                             if (float v = config->FfxDenoiserRadianceClip.value_or_default();

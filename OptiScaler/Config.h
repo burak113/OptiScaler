@@ -385,9 +385,9 @@ class Config
     CustomOptional<float> FfxDenoiserHistRejection { 1.0f };
     CustomOptional<float> FfxDenoiserCrossBlNormStr { 1.0f };
     CustomOptional<float> FfxDenoiserStabilityBias { 0.4f };
-    CustomOptional<float> FfxDenoiserMaxRadiance { 65504.0f };
-    CustomOptional<float> FfxDenoiserRadianceClip { 50.0f };
-    CustomOptional<float> FfxDenoiserGaussKernRelax { 0.0f };
+    CustomOptional<float> FfxDenoiserMaxRadiance { 1e4f };
+    CustomOptional<float> FfxDenoiserRadianceClip { 20.0f };
+    CustomOptional<float> FfxDenoiserGaussKernRelax { 0.5f };
 
     // FSR Common
     CustomOptional<float> FsrVerticalFov { 60.0f };
