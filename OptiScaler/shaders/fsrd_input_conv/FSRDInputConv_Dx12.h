@@ -107,9 +107,11 @@ class FSRDInputConv_Dx12
             ID3D12Resource* OutSpecAlbedo;  // RGB: Specular Albedo, A: saturate(dot(Normal, ViewDir)) - RGBA8_UNORM
             ID3D12Resource* OutDiffAlbedo;  // RGB: Diffuse Albedo, A: Metalness (heuristic approximate) - RGBA8_UNORM
             ID3D12Resource* OutLinearDepth; // R - R32_FLOAT
+
+            ID3D12Resource* OutSkipSignal;
         };
 
-        ID3D12Resource* AsArray[7];
+        ID3D12Resource* AsArray[8];
     };
 
   public:

@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "FSRDInputConv_Dx12.h"
 #include "precompile/FSRDInputConv_Shader.h" 
+#include "../Shader_Dx12Utils.h"
 
 #include <d3dcompiler.h>
 #include <d3d12.h>
@@ -49,6 +50,8 @@ struct InternalOutputs
     ComPtr<ID3D12Resource> SpecAlbedo;
     ComPtr<ID3D12Resource> DiffAlbedo;
     ComPtr<ID3D12Resource> LinearDepth;
+
+    ComPtr<ID3D12Resource> OutSkipSignal;
 
     OutputSpan& AsRawArray() { return *reinterpret_cast<OutputSpan*>(this); }
 
@@ -160,8 +163,7 @@ static void AddBarriers(std::span<ID3D12Resource* const> resources, D3D12_RESOUR
         AddBarrier(pRes, before, after, barriers, bCount);
 }
 
-static void CreateSRV(ID3D12Device* pDev, D3D12_CPU_DESCRIPTOR_HANDLE& destHandle, UINT handleInc,
-                      ID3D12Resource* pRes)
+static void CreateSRV(ID3D12Device* pDev, D3D12_CPU_DESCRIPTOR_HANDLE destHandle, ID3D12Resource* pRes)
 {
     ScopedSkipHeapCapture skipHeapCapture {};
 
@@ -180,33 +182,38 @@ static void CreateSRV(ID3D12Device* pDev, D3D12_CPU_DESCRIPTOR_HANDLE& destHandl
         srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         pDev->CreateShaderResourceView(nullptr, &srvDesc, destHandle);
     }
-
-    destHandle.ptr += handleInc;
 }
 
-static void CreateSRVs(ID3D12Device* pDev, D3D12_CPU_DESCRIPTOR_HANDLE& destHandle, UINT handleInc,
-    std::span<ID3D12Resource* const> inputs)
+static void CreateSRVs(ID3D12Device* pDev, FrameDescriptorHeap& heap, std::span<ID3D12Resource* const> inputs)
 {
-    for (auto& pRes : inputs)
-        CreateSRV(pDev, destHandle, handleInc, pRes);
+    for (UINT i = 0; i < (UINT)inputs.size(); i++)
+        CreateSRV(pDev, heap.GetSrvCPU(i), inputs[i]);
 }
 
-static void CreateUAV(ID3D12Device* pDev, D3D12_CPU_DESCRIPTOR_HANDLE& destHandle, UINT handleInc, ID3D12Resource* pRes,
-    DXGI_FORMAT fmt)
+static void CreateUAV(ID3D12Device* pDev, D3D12_CPU_DESCRIPTOR_HANDLE destHandle, ID3D12Resource* pRes,
+    DXGI_FORMAT fmt = DXGI_FORMAT_UNKNOWN)
 {
     ScopedSkipHeapCapture skipHeapCapture {};
+
+    if (pRes != nullptr && fmt == DXGI_FORMAT_UNKNOWN)
+        fmt = GetSRVFormat(pRes->GetDesc().Format);
+    else
+        fmt = DXGI_FORMAT_R8G8B8A8_UNORM;
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
     uavDesc.Format = fmt;
     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
     pDev->CreateUnorderedAccessView(pRes, nullptr, &uavDesc, destHandle);
-    destHandle.ptr += handleInc;
 }
 
-static void CreateUAVs(ID3D12Device* pDev, D3D12_CPU_DESCRIPTOR_HANDLE& destHandle, UINT handleInc, std::span<ResFmtPair> resources)
+static void CreateUAVs(ID3D12Device* pDev, FrameDescriptorHeap& heap, std::span<ID3D12Resource*> resources, 
+    std::span<DXGI_FORMAT> formats = {})
 {
-    for (const auto& res : resources)
-        CreateUAV(pDev, destHandle, handleInc, res.first, res.second);
+    for (UINT i = 0; i < (UINT)resources.size(); i++)
+    {
+        DXGI_FORMAT fmt = !formats.empty() ? formats[i] : DXGI_FORMAT_UNKNOWN;
+        CreateUAV(pDev, heap.GetUavCPU(i), resources[i], fmt);
+    }
 }
 
 // Private implementation
@@ -217,8 +224,7 @@ struct FSRDInputConv_Dx12::Impl
     ComPtr<ID3D12PipelineState> m_pso;
 
     // Descriptor
-    ComPtr<ID3D12DescriptorHeap> m_descHeap;
-    UINT m_descriptorSize = 0;
+    std::array<FrameDescriptorHeap, kBackBufferCount> m_frameHeaps;
 
     // Constant buffer
     ComPtr<ID3D12Resource> m_constUploadBuffer;
@@ -249,7 +255,6 @@ struct FSRDInputConv_Dx12::Impl
         LOG_DEBUG("Creating FSRD Conv shader. ({} bytes)", shaderLength);
 
         // Create Root Signature
-        // Note: The shader source must now specify a CBV at b0, not RootConstants!
         ThrowIfFailed(m_pDev->CreateRootSignature(0, shaderBytecode, shaderLength, IID_PPV_ARGS(&m_rootSignature)),
                       "Failed to create Root Signature");
 
@@ -288,20 +293,16 @@ struct FSRDInputConv_Dx12::Impl
         
         m_constUploadBuffer->SetName(L"FSRD_Conv_ConstantBuffer");
 
-        D3D12_RANGE readRange = { 0, 0 }; // We do not intend to read from this resource on the CPU
+        D3D12_RANGE readRange = { 0, 0 }; // Not reading this from the CPU
         ThrowIfFailed(m_constUploadBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_cbMappedData)), 
             "Failed to map Constant Buffer");
 
-        // Create Descriptor Heap
-        D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-        heapDesc.NumDescriptors = kConvDescriptorCount;
-        heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-
-        ThrowIfFailed(m_pDev->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_descHeap)),
-                      "Failed to create Descriptor Heap");
-
-        m_descriptorSize = m_pDev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        // Create Descriptor Heaps
+        for (auto& heap : m_frameHeaps)
+        {
+            if (!heap.Initialize(m_pDev, kConvInputCount, kConvOutputCount, 0, 0))
+                throw std::runtime_error("Failed to initialize FrameDescriptorHeap");
+        }
 
         LOG_DEBUG("Creating FSRD Conv shader and resources initialized.", shaderLength);
     }
@@ -314,24 +315,27 @@ struct FSRDInputConv_Dx12::Impl
         m_maxWidth = width;
         m_maxHeight = height;
 
-        static const auto initState =
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
-
+        static const auto initState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
         auto CreateTex = [&](DXGI_FORMAT fmt, LPCWSTR name)
         {
             return CreateInternalTexture(m_pDev, width, height, fmt, name, initState);
         };        
 
+        // Create output resources
         m_Out = 
         {
-            .Radiance = CreateTex(FSRDFormats::Radiance, L"FSR_Conv_Radiance"),
-            .FusedAlbedo = CreateTex(FSRDFormats::FusedAlbedo, L"FSR_Conv_FusedAlbedo"),
-            .Motion = CreateTex(FSRDFormats::Motion, L"FSR_Conv_Motion"),
-            .Normals = CreateTex(FSRDFormats::Normals, L"FSR_Conv_Normals"),
-            .SpecAlbedo = CreateTex(FSRDFormats::SpecAlbedo, L"FSR_Conv_SpecAlbedo"),
-            .DiffAlbedo = CreateTex(FSRDFormats::DiffAlbedo, L"FSR_Conv_DiffAlbedo"),
-            .LinearDepth = CreateTex(FSRDFormats::LinearDepth, L"FSR_Conv_LinearDepth")
+            .Radiance       = CreateTex(FSRDFormats::Radiance,      L"FSR_Conv_Radiance"),
+            .FusedAlbedo    = CreateTex(FSRDFormats::FusedAlbedo,   L"FSR_Conv_FusedAlbedo"),
+            .Motion         = CreateTex(FSRDFormats::Motion,        L"FSR_Conv_Motion"),
+            .Normals        = CreateTex(FSRDFormats::Normals,       L"FSR_Conv_Normals"),
+            .SpecAlbedo     = CreateTex(FSRDFormats::SpecAlbedo,    L"FSR_Conv_SpecAlbedo"),
+            .DiffAlbedo     = CreateTex(FSRDFormats::DiffAlbedo,    L"FSR_Conv_DiffAlbedo"),
+            .LinearDepth    = CreateTex(FSRDFormats::LinearDepth,   L"FSR_Conv_LinearDepth")
         };
+
+        // Create persistent internal UAVs
+        for (auto& heap : m_frameHeaps)
+            CreateUAVs(m_pDev, heap, m_Out.AsRawArray());
     }
 
     void Dispatch(ID3D12GraphicsCommandList* cmdList, const InputResources& inputs, const Constants& constants) 
@@ -341,63 +345,45 @@ struct FSRDInputConv_Dx12::Impl
 
         // Update constant buffer
         // Copy data to the current frame's slot in the upload buffer
-        UINT currentOffset = m_cbCurrentFrameIndex * m_cbSlotSize;
+        const UINT currentFrame = m_cbCurrentFrameIndex;
+        const UINT currentOffset = currentFrame * m_cbSlotSize;
         memcpy(m_cbMappedData + currentOffset, &constants, sizeof(Constants));
 
         // Get the GPU Virtual Address for this slot
         D3D12_GPU_VIRTUAL_ADDRESS cbAddress = m_constUploadBuffer->GetGPUVirtualAddress() + currentOffset;
-
-        // Advance ring buffer index
         m_cbCurrentFrameIndex = (m_cbCurrentFrameIndex + 1) % kBackBufferCount;
 
         // Resource transitions
+        const D3D12_RESOURCE_STATES srvState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
         D3D12_RESOURCE_BARRIER barriers[kConvOutputCount] = {};
         int bCount = 0;
 
-        const D3D12_RESOURCE_STATES srvState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
         AddBarriers(m_Out.AsRawArray(), srvState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, barriers, bCount);
 
         if (bCount > 0)
-            cmdList->ResourceBarrier(bCount, barriers);
+            cmdList->ResourceBarrier(bCount, barriers);        
 
         // Update descriptor heap
-        D3D12_CPU_DESCRIPTOR_HANDLE destHandle = m_descHeap->GetCPUDescriptorHandleForHeapStart();
-        UINT handleInc = m_descriptorSize;
+        FrameDescriptorHeap& currentHeap = m_frameHeaps[currentFrame];
 
-        // SRV Inputs (t0 - t7)
-        CreateSRVs(m_pDev, destHandle, handleInc, inputs.AsArray);
-
-        // UAV Outputs (u0 - u6)
-        auto uavs = std::to_array<ResFmtPair>(
-        {
-            { m_Out.Radiance.Get(), FSRDFormats::Radiance },
-            { m_Out.FusedAlbedo.Get(), FSRDFormats::FusedAlbedo },
-            { m_Out.Motion.Get(), FSRDFormats::Motion },
-            { m_Out.Normals.Get(), FSRDFormats::Normals },
-            { m_Out.SpecAlbedo.Get(), FSRDFormats::SpecAlbedo },
-            { m_Out.DiffAlbedo.Get(), FSRDFormats::DiffAlbedo },
-            { m_Out.LinearDepth.Get(), FSRDFormats::LinearDepth }
-        }); 
-
-        CreateUAVs(m_pDev, destHandle, handleInc, uavs);
+        // SRV Inputs
+        CreateSRVs(m_pDev, currentHeap, inputs.AsArray);
 
         // Configure pipeline and dispatch
         cmdList->SetPipelineState(m_pso.Get());
         cmdList->SetComputeRootSignature(m_rootSignature.Get());
 
-        ID3D12DescriptorHeap* heaps[] = { m_descHeap.Get() };
+        ID3D12DescriptorHeap* heaps[] = { currentHeap.GetHeapCSU() };
         cmdList->SetDescriptorHeaps(1, heaps);
-
         cmdList->SetComputeRootConstantBufferView(0, cbAddress);
 
-        // t0-t8: SRV Table
-        const D3D12_GPU_DESCRIPTOR_HANDLE tableStart = m_descHeap->GetGPUDescriptorHandleForHeapStart();
-        cmdList->SetComputeRootDescriptorTable(1, tableStart);
+        // SRV Table
+        cmdList->SetComputeRootDescriptorTable(1, currentHeap.GetTableGPUStart());
 
-        // u0-u5: UAV Table
-        D3D12_GPU_DESCRIPTOR_HANDLE uavStart = tableStart;
-        uavStart.ptr += kConvInputCount * (uint64_t)handleInc;
-        cmdList->SetComputeRootDescriptorTable(2, uavStart);
+        // UAV table
+        CD3DX12_GPU_DESCRIPTOR_HANDLE uavTable = currentHeap.GetTableGPUStart();
+        uavTable.Offset(kConvInputCount, m_pDev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+        cmdList->SetComputeRootDescriptorTable(2, uavTable);
 
         const uint32_t dimX = ((uint32_t)constants.RenderSize.x + (kThreadGroupSize - 1)) / kThreadGroupSize;
         const uint32_t dimY = ((uint32_t)constants.RenderSize.y + (kThreadGroupSize - 1)) / kThreadGroupSize;
