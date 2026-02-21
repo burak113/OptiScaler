@@ -56,6 +56,10 @@ private:
 
     bool QueryDenoiserVersions();
 
+    void DestroyDenoiserContext();
+
+    void UpdateSize();
+
     /**
      * @brief Generates FSR denoiser configuration and input buffers from DLSS-RR inputs and NGX configurations, 
      * converts and repacks resources internally.

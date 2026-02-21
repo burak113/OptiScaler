@@ -65,6 +65,8 @@ public:
      */
     bool InitFSR3(const NVSDK_NGX_Parameter* InParameters) override;
 
+    virtual void ConfigureUpscalerContext(const NVSDK_NGX_Parameter& ngxParams);
+
     // Evaluate utils
 
     /**
@@ -110,8 +112,6 @@ private:
     ID3D12Resource* _mainOutput;
 
     bool CreateUpscalerContext(const NVSDK_NGX_Parameter& ngxParams);
-
-    void ConfigureUpscalerContext(const NVSDK_NGX_Parameter& ngxParams);
 
     void SetResolutionConfig();
 

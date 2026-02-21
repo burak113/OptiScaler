@@ -248,8 +248,7 @@ FSRDFeatureDx12::~FSRDFeatureDx12()
     if (State::Instance().isShuttingDown)
         return;
 
-    if (_pDenoiserCtx != nullptr)
-        FfxApiProxy::D3D12_DestroyContext(&_pDenoiserCtx, nullptr);
+    DestroyDenoiserContext();
 }
 
 bool FSRDFeatureDx12::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
@@ -270,7 +269,7 @@ bool FSRDFeatureDx12::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
         if (!FSRDConvShader->IsInit())
             return false;
 
-        if (!FSRDConvShader->SetMaxRenderSize(_upscaleCtxDesc.maxRenderSize.width, _upscaleCtxDesc.maxRenderSize.height))
+        if (!FSRDConvShader->SetMaxRenderSize(_upscaleCtxDesc.maxUpscaleSize.width, _upscaleCtxDesc.maxUpscaleSize.height))
             return false;
 
         // HW depth flag might not be needed. May be able to handle transparently in conv shader.
@@ -330,7 +329,7 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
             .pNext = &backendDesc.header
         },
         .version = FFX_DENOISER_VERSION,
-        .maxRenderSize = _upscaleCtxDesc.maxRenderSize,       
+        .maxRenderSize = { RenderWidth(), RenderHeight() },
         .mode = FFX_DENOISER_MODE_1_SIGNAL,
         .flags = 0
     };
@@ -410,12 +409,41 @@ bool FSRDFeatureDx12::QueryDenoiserVersions()
     return true;
 }
 
+void FSRDFeatureDx12::DestroyDenoiserContext() 
+{
+    if (_pDenoiserCtx != nullptr)
+        FfxApiProxy::D3D12_DestroyContext(&_pDenoiserCtx, nullptr);
+}
+
+void FSRDFeatureDx12::UpdateSize() 
+{
+    // FSR-RR doesn't currently have proper DRS support. The example implementation 
+    // reinits on resolution change as well.
+    const bool needsReInit = 
+        _denoiserCtxDesc.maxRenderSize.width != RenderWidth() ||
+        _denoiserCtxDesc.maxRenderSize.height != RenderHeight();
+
+    if (needsReInit)
+    {
+        LOG_INFO(
+            "Reinitializing FSR-RR for resolution change. "
+            "Previous: {} x {}, New: {} x {}",
+            _denoiserCtxDesc.maxRenderSize.width, _denoiserCtxDesc.maxRenderSize.height,
+            RenderWidth(), RenderHeight());
+
+        DestroyDenoiserContext();
+        CreateDenoiserContext();
+    }
+}
+
 bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) 
 {
     LOG_FUNC();
 
     if (!IsInited())
         return false;
+
+    UpdateSize();
 
     auto& state = State::Instance();
     auto& cfg = *Config::Instance();
@@ -463,13 +491,7 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
             return false;
 
         // Override upscaler config
-        if (isDenoiserReady)
-        {
-            upscalerDesc.depth = denoiserDesc.linearDepth;
-            upscalerDesc.cameraNear = denoiserDesc.cameraNear;
-            upscalerDesc.cameraFar = denoiserDesc.cameraFar;
-            upscalerDesc.cameraFovAngleVertical = denoiserDesc.cameraFovAngleVertical;
-        }
+        upscalerDesc.cameraFovAngleVertical = denoiserDesc.cameraFovAngleVertical;
 
         // Sets optional, configurable resource barriers
         FSR31FeatureDx12::SetConfigurableBarriers(InCommandList);
@@ -641,11 +663,9 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
     if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_SpecularAlbedo, convInputs.InSpecAlbedo))
         isReady = false;
 
-    // [LIMITATION] Specular hit distance and the following two matrices are mandatory for FSR-RR, but optional for
-    // DLSS-RR. DLSS-RR allows these values to be substituted for Specular Motion Vectors, which FSR-RR cannot use. It
-    // may be worth inspecting the Streamline inputs if these values aren't available here.
-    if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_DLSSD_SpecularHitDistance, convInputs.InSpecHitDist))
-        isReady = false;
+    // Optional. Specular hit distance can be used with mode-2 denoising to track movement inside reflections, 
+    // in addition to primary motion tracking for the surface and camera.
+    TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_DLSSD_SpecularHitDistance, convInputs.InSpecHitDist);
     
     // Get DLSSD matrices and derive related values
     // World to view/camera space (V)
