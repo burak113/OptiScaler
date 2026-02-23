@@ -20,6 +20,8 @@ class FSRDPreprocessor_Dx12
 
     enum class ConvFlags : uint32_t
     {
+        None = 0,
+
         NonGammaAlbedo = 1 << 0, // If true, FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO should ALSO be set
         UseInfiniteFarPlane = 1 << 1, 
         IsRoughnessPacked = 1 << 2, // Roughness = InNormals.A - NVSDK_NGX_DLSS_Roughness_Mode_Packed (Init param)
@@ -47,6 +49,12 @@ class FSRDPreprocessor_Dx12
         DebugOutDepthDelta = 14 << 17 | Debug,
         DebugOutNormDotView = 15 << 17 | Debug,
         DebugOutMetalicty = 16 << 17 | Debug,
+    };
+
+    enum class CompFlags : uint32_t
+    {
+        None = 0,
+        RawSourceBlit = 1 << 0 // Bypass composition and write unmodified input
     };
 
     /**
@@ -124,11 +132,12 @@ class FSRDPreprocessor_Dx12
     {
         struct
         {
-            ID3D12Resource* InDenoisedRadiance;
+            ID3D12Resource* InPrimaryColor;
+            ID3D12Resource* InFusedModulator;
             ID3D12Resource* InSkipSignal;
         };
 
-        ID3D12Resource* AsArray[2];
+        ID3D12Resource* AsArray[3];
     };
 
   public:
@@ -184,6 +193,13 @@ class FSRDPreprocessor_Dx12
      * Must be re-acquired after each dispatch (lifetime managed internally).
      */
     ID3D12Resource* GetCompOutput() const;
+
+    /**
+     * @brief Copies the contents of the given source texture pixel by pixel, without any
+     * filtering or scaling. Does not automatically insert resource barriers.
+     */
+    bool Blit(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* srcTex, ID3D12Resource* dstTex,
+              DirectX::XMFLOAT2 dim = {}) const;
 
   private:
     struct Impl;

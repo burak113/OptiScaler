@@ -245,7 +245,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         const float3 cameraPos = float3(InvViewMatrix._m03, InvViewMatrix._m13, InvViewMatrix._m23);
         // Line from camera to the clip pos
         const float3 viewDir = normalize(cameraPos - worldSpacePos);
-        const float NoV = dot(worldSurfaceNormal.rgb, viewDir);
+        const float NoV = saturate(dot(worldSurfaceNormal.rgb, viewDir));
 
         // Secondary albedo packing
         //
@@ -275,7 +275,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         OutFusedAlbedo[px] = fusedAlbedo;
 
         // Primary radiance packing - Mode 1 Signal
-        const float3 color = InColor[px].rgb;
+        const float3 color = InColor[px].rgb / fusedAlbedo.rgb;
         float hitDist = 0.0f;
     
         // Experimental. Cannot be used if the input contains both diffuse and specular lighting.

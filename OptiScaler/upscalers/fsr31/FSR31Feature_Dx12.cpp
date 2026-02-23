@@ -370,8 +370,10 @@ bool FSR31FeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_
     const auto& inParams = *InParameters;
 
     // Validate helper features
-    if (!RCAS->IsInit()) cfg.RcasEnabled.set_volatile_value(false);
-    if (!OutputScaler->IsInit()) cfg.OutputScalingEnabled.set_volatile_value(false);
+    if (!RCAS->IsInit())
+        cfg.RcasEnabled.set_volatile_value(false);
+    if (!OutputScaler->IsInit())
+        cfg.OutputScalingEnabled.set_volatile_value(false);
 
     _isInReset = false;
 
@@ -387,21 +389,21 @@ bool FSR31FeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_
     // Sets optional, configurable resource barriers
     SetConfigurableBarriers(InCommandList);
 
-    if (!DispatchUpscaler(InCommandList, upscalerDesc))
-        return false;
+    bool isUpscalerReady = DispatchUpscaler(InCommandList, upscalerDesc);
 
     // Post-Process
-    PostProcess(InCommandList, inParams);
+    if (isUpscalerReady)
+        PostProcess(InCommandList, inParams);
 
     // Cleanup
     ResetConfigurableBarriers(InCommandList);
 
     _frameCount++;
-    return true;
+    return isUpscalerReady;
 }
 
-bool FSR31FeatureDx12::PrepareUpscalerInput(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams,
-    ffxDispatchDescUpscale& upscalerDesc)
+bool FSR31FeatureDx12::PrepareUpscalerInput(ID3D12GraphicsCommandList* InCommandList,
+                                            const NVSDK_NGX_Parameter& inParams, ffxDispatchDescUpscale& upscalerDesc)
 {
     auto& state = State::Instance();
     auto& cfg = *Config::Instance();
@@ -426,7 +428,8 @@ bool FSR31FeatureDx12::PrepareUpscalerInput(ID3D12GraphicsCommandList* InCommand
     // Optional Resources
     TryGetNGXVoidPointer(inParams, OptiKeys::FSR_TransparencyAndComp, _inputBuffers.TransparencyMask);
     TryGetNGXVoidPointer(inParams, OptiKeys::FSR_Reactive, _inputBuffers.ReactiveMask);
-    TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, _inputBuffers.DlssBiasMaskFallback);
+    TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask,
+                         _inputBuffers.DlssBiasMaskFallback);
     TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_ExposureTexture, _inputBuffers.ExposureMap);
 
     // If not AutoExposure, we must have an exposure texture. If missing, force AutoExposure reset.
@@ -447,7 +450,8 @@ bool FSR31FeatureDx12::PrepareUpscalerInput(ID3D12GraphicsCommandList* InCommand
 
     // Mandatory Inputs
     upscalerDesc.color = ffxApiGetResourceDX12(_inputBuffers.Color, FFX_API_RESOURCE_STATE_COMPUTE_READ);
-    upscalerDesc.motionVectors = ffxApiGetResourceDX12(_inputBuffers.MotionVectors, FFX_API_RESOURCE_STATE_COMPUTE_READ);
+    upscalerDesc.motionVectors =
+        ffxApiGetResourceDX12(_inputBuffers.MotionVectors, FFX_API_RESOURCE_STATE_COMPUTE_READ);
     upscalerDesc.depth = ffxApiGetResourceDX12(_inputBuffers.Depth, FFX_API_RESOURCE_STATE_COMPUTE_READ);
 
     // Output
@@ -689,8 +693,8 @@ void FSR31FeatureDx12::ConfigureUpscaler(const NVSDK_NGX_Parameter& inParams, ff
     // Velocity Factor (FSR 3.1.1+)
     if (Version() >= feature_version { 3, 1, 1 })
     {
-        SetFfxUpscaleKeyValue(&_upscaleCtx, _velocity, cfg.FsrVelocity, 
-            FFX_API_CONFIGURE_UPSCALE_KEY_FVELOCITYFACTOR, "Velocity");
+        SetFfxUpscaleKeyValue(&_upscaleCtx, _velocity, cfg.FsrVelocity, FFX_API_CONFIGURE_UPSCALE_KEY_FVELOCITYFACTOR,
+                              "Velocity");
     }
 
     // Reactiveness, Shading, and Accumulation (FSR 3.1.4+)
@@ -718,7 +722,8 @@ void FSR31FeatureDx12::ConfigureUpscaler(const NVSDK_NGX_Parameter& inParams, ff
     }
 }
 
-bool FSR31FeatureDx12::DispatchUpscaler(ID3D12GraphicsCommandList* InCommandList, const ffxDispatchDescUpscale& fsrParams)
+bool FSR31FeatureDx12::DispatchUpscaler(ID3D12GraphicsCommandList* InCommandList,
+                                        const ffxDispatchDescUpscale& fsrParams)
 {
     auto& state = State::Instance();
 
@@ -890,20 +895,19 @@ void FSR31FeatureDx12::SetConfigurableBarriers(ID3D12GraphicsCommandList* InComm
     }
 
     // Transition FSR inputs to SRVs for reading
-    TryResourceBarrier(InCommandList, _inputBuffers.Color, 
-        cfg.ColorResourceBarrier, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    TryResourceBarrier(InCommandList, _inputBuffers.MotionVectors, 
-        cfg.MVResourceBarrier, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    TryResourceBarrier(InCommandList, _inputBuffers.Depth, 
-        cfg.DepthResourceBarrier, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    TryResourceBarrier(InCommandList, _inputBuffers.Color, cfg.ColorResourceBarrier,
+                       D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    TryResourceBarrier(InCommandList, _inputBuffers.MotionVectors, cfg.MVResourceBarrier,
+                       D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    TryResourceBarrier(InCommandList, _inputBuffers.Depth, cfg.DepthResourceBarrier,
+                       D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
     if (_inputBuffers.ExposureMap && !AutoExposure())
-        TryResourceBarrier(InCommandList, _inputBuffers.ExposureMap, 
-            cfg.ExposureResourceBarrier, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        TryResourceBarrier(InCommandList, _inputBuffers.ExposureMap, cfg.ExposureResourceBarrier,
+                           D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
     // Transition output to UAV for writing
-    TryResourceBarrier(InCommandList, _mainOutput, 
-        cfg.OutputResourceBarrier, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    TryResourceBarrier(InCommandList, _mainOutput, cfg.OutputResourceBarrier, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
 void FSR31FeatureDx12::ResetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList) const
@@ -911,26 +915,25 @@ void FSR31FeatureDx12::ResetConfigurableBarriers(ID3D12GraphicsCommandList* InCo
     const auto& cfg = *Config::Instance();
 
     // Restore Barriers
-    TryResourceBarrier(InCommandList, _inputBuffers.Color, 
-        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, cfg.ColorResourceBarrier);
-    TryResourceBarrier(InCommandList, _inputBuffers.MotionVectors, 
-        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, cfg.MVResourceBarrier);
-    TryResourceBarrier(InCommandList, _inputBuffers.Depth, 
-        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, cfg.DepthResourceBarrier);
-    TryResourceBarrier(InCommandList, _mainOutput, 
-        D3D12_RESOURCE_STATE_UNORDERED_ACCESS, cfg.OutputResourceBarrier);
+    TryResourceBarrier(InCommandList, _inputBuffers.Color, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                       cfg.ColorResourceBarrier);
+    TryResourceBarrier(InCommandList, _inputBuffers.MotionVectors, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                       cfg.MVResourceBarrier);
+    TryResourceBarrier(InCommandList, _inputBuffers.Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                       cfg.DepthResourceBarrier);
+    TryResourceBarrier(InCommandList, _mainOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, cfg.OutputResourceBarrier);
 
     if (_inputBuffers.ExposureMap)
-        TryResourceBarrier(InCommandList, _inputBuffers.ExposureMap, 
-            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, cfg.ExposureResourceBarrier);
+        TryResourceBarrier(InCommandList, _inputBuffers.ExposureMap, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                           cfg.ExposureResourceBarrier);
 
     // Note: The original code only restored the reactive mask if it was the fallback dlss mask,
     // but generally restoring the native mask state is safer if we transitioned it.
     // Assuming original behavior for now:
-    TryResourceBarrier(InCommandList, _inputBuffers.ReactiveMask, 
-        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, cfg.MaskResourceBarrier);
+    TryResourceBarrier(InCommandList, _inputBuffers.ReactiveMask, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                       cfg.MaskResourceBarrier);
 
     if (_inputBuffers.DlssBiasMaskFallback) // Restore fallback if it was used
-        TryResourceBarrier(InCommandList, _inputBuffers.DlssBiasMaskFallback, 
+        TryResourceBarrier(InCommandList, _inputBuffers.DlssBiasMaskFallback,
             D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, cfg.MaskResourceBarrier);
 }

@@ -66,8 +66,8 @@ static bool TryGetLoggedResource(const NVSDK_NGX_Parameter& ngxParams, const cha
  * @return Vertical field of view in radians
  */
 static float GetVertFovFromProjectionMatrixRad(const XMMATRIX& proj)
-{ 
-    return float(2.0 * ( std::atan(1.0 / (double)proj.r[1].m128_f32[1]) ));
+{
+    return float(2.0 * (std::atan(1.0 / (double) proj.r[1].m128_f32[1])));
 }
 
 /**
@@ -76,8 +76,8 @@ static float GetVertFovFromProjectionMatrixRad(const XMMATRIX& proj)
  * @return Horizontal field of view in radians
  */
 static float GetHorzFovFromProjectionMatrixRad(const XMMATRIX& proj)
-{ 
-    return float(2.0 * ( std::atan(1.0 / (double)proj.r[0].m128_f32[0]) ));
+{
+    return float(2.0 * (std::atan(1.0 / (double) proj.r[0].m128_f32[0])));
 }
 
 /**
@@ -90,9 +90,9 @@ static float GetAspectRatioFromProjectionMatrix(const XMMATRIX& proj)
     return proj.r[1].m128_f32[1] / proj.r[0].m128_f32[0];
 }
 
-static XMFLOAT3 GetFloat3(const XMVECTOR& vec4) 
+static XMFLOAT3 GetFloat3(const XMVECTOR& vec4)
 {
-    XMFLOAT3 vec3= {};
+    XMFLOAT3 vec3 = {};
     XMStoreFloat3(&vec3, vec4);
     return vec3;
 }
@@ -107,24 +107,24 @@ static XMFLOAT3 GetFloat3Column(const XMMATRIX& mat, int col)
     return { mat.r[0].m128_f32[col], mat.r[1].m128_f32[col], mat.r[2].m128_f32[col] };
 }
 
-static FfxApiFloatCoords3D GetFfxFloat3Column(const XMMATRIX& mat, int col)
+static FfxApiFloatCoords3D GetFloat3ColumnFFX(const XMMATRIX& mat, int col)
 {
     return { mat.r[0].m128_f32[col], mat.r[1].m128_f32[col], mat.r[2].m128_f32[col] };
 }
 
-static FfxApiFloatCoords3D GetFfxFloat3(const XMVECTOR& vec4)
+static FfxApiFloatCoords3D GetFloat3FFX(const XMVECTOR& vec4)
 {
     FfxApiFloatCoords3D vec3 = {};
     XMStoreFloat3(reinterpret_cast<XMFLOAT3*>(&vec3), vec4);
     return vec3;
 }
 
-static FfxApiFloatCoords3D GetFfxFloat3(const XMFLOAT3& vec3)
+static const FfxApiFloatCoords3D& GetFloat3FFX(const XMFLOAT3& vec3)
 {
-    return { vec3.x, vec3.y, vec3.z };
+    return *reinterpret_cast<const FfxApiFloatCoords3D*>(&vec3);
 }
 
-static ID3D12Resource* GetFfxD3D12Resource(const FfxApiResource& resource) 
+static ID3D12Resource* GetD3D12ResFromFFX(const FfxApiResource& resource)
 {
     return static_cast<ID3D12Resource*>(resource.resource);
 }
@@ -454,17 +454,21 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
     auto& cfg = *Config::Instance();
     const auto& inParams = *InParameters;
 
-    const DebugModes dbgMode = (DebugModes)cfg.FfxDenoiserDebugMode.value_or_default(); 
-    const bool isDebugVisSet = (uint32_t)dbgMode & (uint32_t)DebugModes::DataVis || dbgMode == DebugModes::SkipSignal;
-    const bool isDenoiseBypassed = isDebugVisSet || (dbgMode != DebugModes::None && dbgMode != DebugModes::UpscalerBypass);
-    const bool isUpscaleBypassed = isDebugVisSet || (dbgMode != DebugModes::None && dbgMode != DebugModes::DenoiserBypass);
+    const DebugModes dbgMode = (DebugModes) cfg.FfxDenoiserDebugMode.value_or_default();
+    const bool isDebugVisSet = (uint32_t) dbgMode & (uint32_t) DebugModes::DataVis;
+    const bool isDenoiseBypassed =
+        isDebugVisSet || (dbgMode != DebugModes::None && dbgMode != DebugModes::UpscalerBypass);
+    const bool isUpscaleBypassed =
+        isDebugVisSet || (dbgMode != DebugModes::None && dbgMode != DebugModes::DenoiserBypass);
 
     // Validate helper features
-    if (!RCAS->IsInit()) cfg.RcasEnabled.set_volatile_value(false);
-    if (!OutputScaler->IsInit()) cfg.OutputScalingEnabled.set_volatile_value(false);
+    if (!RCAS->IsInit())
+        cfg.RcasEnabled.set_volatile_value(false);
+    if (!OutputScaler->IsInit())
+        cfg.OutputScalingEnabled.set_volatile_value(false);
 
     _isInReset = false;
-    
+
     if (uint32_t value = 0; inParams.Get(NVSDK_NGX_Parameter_Reset, &value) == NVSDK_NGX_Result_Success)
         _isInReset = value > 0;
 
@@ -481,12 +485,23 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
     // Dispatch denoiser
     if (!isDenoiseBypassed)
     {
-        if (!DispatchDenoiser(InCommandList, denoiserDesc))
+        // Denoise raw input
+        ResourceBarrier(InCommandList, GetD3D12ResFromFFX(signalDesc.radiance.output), 
+            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+        isDenoiserReady = DispatchDenoiser(InCommandList, denoiserDesc);
+
+        ResourceBarrier(InCommandList, GetD3D12ResFromFFX(signalDesc.radiance.output), 
+            D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+        if (!isDenoiserReady)
             return false;
 
+        // Compose denoised signals
         FSRDCompIn compIn = 
         {
-            .InDenoisedRadiance = GetFfxD3D12Resource(signalDesc.radiance.output),
+            .InPrimaryColor = GetD3D12ResFromFFX(signalDesc.radiance.output),
+            .InFusedModulator = GetD3D12ResFromFFX(signalDesc.fusedAlbedo),
             .InSkipSignal = FSRDConvShader->GetConvOutput().OutSkipSignal
         };
         FSRDCompCfg compCfg = { .RenderSize = _convConfig.RenderSize };
@@ -498,10 +513,10 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
     }
 
     // Upscaler start
-    ffxDispatchDescUpscale upscalerDesc = {};
-
     if (!isUpscaleBypassed)
     {
+        ffxDispatchDescUpscale upscalerDesc = {};
+
         if (!PrepareUpscalerInput(InCommandList, inParams, upscalerDesc))
             return false;
 
@@ -517,34 +532,36 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         // Sets optional, configurable resource barriers
         FSR31FeatureDx12::SetConfigurableBarriers(InCommandList);
 
-        if (!DispatchUpscaler(InCommandList, upscalerDesc))
-            return false;
+        bool isUpscalerReady = DispatchUpscaler(InCommandList, upscalerDesc);
 
         // Post-Process
-        PostProcess(InCommandList, inParams);
+        if (isUpscalerReady)
+            PostProcess(InCommandList, inParams);
 
         // Cleanup
         FSR31FeatureDx12::ResetConfigurableBarriers(InCommandList);
     }
     else // Debug visualization
     {
-        ID3D12Resource* resource = nullptr;
+        ID3D12Resource* srcTex = nullptr;
 
         if (dbgMode == DebugModes::RawColor)
-            TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_Color, resource);
+            TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_Color, srcTex);
         if (dbgMode == DebugModes::SkipSignal)
-            resource = FSRDConvShader->GetConvOutput().OutSkipSignal;
-        else if (isDebugVisSet || isUpscaleBypassed)
-            resource = FSRDConvShader->GetConvOutput().OutRadiance;
+            srcTex = FSRDConvShader->GetConvOutput().OutSkipSignal;
         else if (dbgMode == DebugModes::DlssBias)
-            TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, resource);
+            TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, srcTex);
+        else if (isDebugVisSet)
+            srcTex = FSRDConvShader->GetConvOutput().OutRadiance;
+        else
+            srcTex = GetD3D12ResFromFFX(signalDesc.radiance.output);
 
         ID3D12Resource* dstTex;
         
-        if (!resource || !TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_Output, dstTex))
+        if (!srcTex || !TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_Output, dstTex))
             return false;
 
-        OutputScaler->Dispatch(Device, InCommandList, resource, dstTex);
+        FSRDConvShader->Blit(InCommandList, srcTex, dstTex, _convConfig.RenderSize);
     }
 
     _frameCount++;
@@ -603,9 +620,9 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
         .motionVectorScale = { .x = 1.0f, .y = 1.0f },
         // Camera movement since last frame (PreviousPosition - CurrentPosition)
         .cameraPositionDelta = { (_lastCamPos.x - camPos.x), (_lastCamPos.y - camPos.y), (_lastCamPos.z - camPos.z) },
-        .cameraRight = GetFfxFloat3(right),
-        .cameraUp = GetFfxFloat3(up),
-        .cameraForward = GetFfxFloat3(forward),
+        .cameraRight = GetFloat3FFX(right),
+        .cameraUp = GetFloat3FFX(up),
+        .cameraForward = GetFloat3FFX(forward),
         .cameraAspectRatio = GetAspectRatioFromProjectionMatrix(_projMatrix),
         .cameraNear = _convConfig.NearPlane,
         .cameraFar = _convConfig.FarPlane,
@@ -646,7 +663,7 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
     inParams.Get(NVSDK_NGX_Parameter_Jitter_Offset_Y, &jitterY);
 
     // Convert from pixel to NDC jitter
-    dispatchDesc.jitterOffsets.x = 2.0f * (jitterX / (float)RenderWidth());
+    dispatchDesc.jitterOffsets.x = 2.0f * (jitterX / (float) RenderWidth());
     dispatchDesc.jitterOffsets.y = -2.0f * (jitterY / (float) RenderHeight());
 
     LOG_DEBUG("Jitter NDC [{:.6f}, {:.6f}]", dispatchDesc.jitterOffsets.x, dispatchDesc.jitterOffsets.y);
@@ -756,9 +773,14 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     _convConfig.FarPlane = planes.farPlane;
 
     if (planes.isInfinite)
-        _convConfig.Flags |= (uint32_t)FSRDFlags::UseInfiniteFarPlane;
+        _convConfig.Flags |= (uint32_t) FSRDFlags::UseInfiniteFarPlane;
 
     LOG_DEBUG("Distpaching FSRD Input Converter");
+
+    // Inputs from DLSS-RR in Cyberpunk 2077 are configured as pixel shader resources, but
+    // the Nvidia docs specify that they should be non-pixel shader resources. Is a detour somewhere
+    // changing the flag, or did CDPR get it wrong? Theoretically a non-issue as these states are
+    // functionally, if not logically, compatible.
 
     // Dispatch resource converter. Outputs are automatically transitioned for reading.
     if (!FSRDConvShader->DispatchConversion(InCommandList, convInputs, _convConfig))
@@ -770,7 +792,7 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     return true;
 }
 
-static void TryUpdateOption(const CustomOptional<float>& cfgValue, float& currentValue, bool& wasUpdated) 
+static void TryUpdateOption(const CustomOptional<float>& cfgValue, float& currentValue, bool& wasUpdated)
 {
     if (cfgValue.value_or_default() != currentValue)
     {
@@ -779,7 +801,8 @@ static void TryUpdateOption(const CustomOptional<float>& cfgValue, float& curren
     }
 }
 
-bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList, const ffxDispatchDescDenoiser& dispatchDesc)
+bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
+                                       const ffxDispatchDescDenoiser& dispatchDesc)
 {
     auto& state = State::Instance();
     const auto& cfg = *Config::Instance();

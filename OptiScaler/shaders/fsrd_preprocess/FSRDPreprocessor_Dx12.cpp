@@ -301,10 +301,14 @@ struct ComputeState
         std::span<const byte> cbData,
         std::span<ID3D12Resource* const> inputs,
         std::span<ID3D12Resource*> output,
-        DirectX::XMFLOAT2 renderSize)
+        DirectX::XMFLOAT2 renderSize,
+        bool autoTransitionUAV = true
+    )
     {
         if (!cmdList) 
-        return;
+            return;
+
+        ScopedSkipHeapCapture skipHeapCapture {};
 
         // Constant Buffer Updates
         const UINT currentFrame = m_cbCurrentFrameIndex;
@@ -315,12 +319,13 @@ struct ComputeState
         m_cbCurrentFrameIndex = (m_cbCurrentFrameIndex + 1) % kBackBufferCount;
 
         // Transitions SRV -> UAV
-        const D3D12_RESOURCE_STATES srvState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+        const D3D12_RESOURCE_STATES srvState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
         constexpr UINT kMaxBarriers = 16;
         D3D12_RESOURCE_BARRIER barriers[kMaxBarriers] = {};
         int bCount = 0;
 
-        AddBarriers(output, srvState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, barriers, bCount);
+        if (autoTransitionUAV)
+            AddBarriers(output, srvState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, barriers, bCount);
 
         if (bCount > 0)
             cmdList->ResourceBarrier(bCount, barriers);  
@@ -328,6 +333,7 @@ struct ComputeState
         // Update descriptors
         FrameDescriptorHeap& currentHeap = m_frameHeaps[currentFrame];
         CreateSRVs(m_pDev, currentHeap, inputs);
+        CreateUAVs(m_pDev, currentHeap, output);
 
         // Configure pipeline
         cmdList->SetPipelineState(m_pso.Get());
@@ -352,7 +358,9 @@ struct ComputeState
 
         // Transition the UAVs back to SRV
         bCount = 0;
-        AddBarriers(output, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, srvState, barriers, bCount);
+
+        if (autoTransitionUAV)
+            AddBarriers(output, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, srvState, barriers, bCount);
 
         if (bCount > 0)
             cmdList->ResourceBarrier(bCount, barriers);
@@ -393,7 +401,7 @@ struct FSRDPreprocessor_Dx12::Impl
         m_maxWidth = width;
         m_maxHeight = height;
 
-        static const auto initState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+        static const auto initState = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
         auto CreateTex = [&](DXGI_FORMAT fmt, LPCWSTR name)
         {
             return CreateInternalTexture(m_pDev, width, height, fmt, name, initState);
@@ -410,21 +418,15 @@ struct FSRDPreprocessor_Dx12::Impl
             .LinearDepth    = CreateTex(FSRDFormats::LinearDepth,   L"FSR_Conv_LinearDepth"),
             .SkipSignal     = CreateTex(FSRDFormats::SkipSignal,    L"FSR_Conv_SkipSignal")
         };
-
-        for (auto& heap : m_convShader.m_frameHeaps)
-            CreateUAVs(m_pDev, heap, m_Out.AsRawArray());
-
-        for (auto& heap : m_compShader.m_frameHeaps)
-            CreateUAV(m_pDev, heap.GetUavCPU(0), m_Out.Radiance.Get());
     }
 
-    void Dispatch(ID3D12GraphicsCommandList* cmdList, const ConvInput& inputs, const ConvConstants& constants) 
+    void DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConvInput& inputs, const ConvConstants& constants) 
     {
         if (!cmdList || !m_maxWidth)
             return;
 
         const std::span<const byte> cbData((const byte*) &constants, sizeof(constants));
-        m_convShader.Dispatch(cmdList, cbData, inputs.AsArray, m_Out.AsRawArray(), constants.RenderSize);
+        m_convShader.Dispatch(cmdList, cbData, inputs.AsArray, m_Out.AsRawArray(), constants.RenderSize, true);
     }
 
     void DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompInput& inputs, const CompConstants& constants)
@@ -434,7 +436,36 @@ struct FSRDPreprocessor_Dx12::Impl
 
         std::array<ID3D12Resource*, 1> uavs { m_Out.Radiance.Get() };
         const std::span<const byte> cbData((const byte*) &constants, sizeof(constants));
-        m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, uavs, constants.RenderSize);
+        m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, uavs, constants.RenderSize, true);
+    }
+
+    void Blit(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* srcTex, ID3D12Resource* dstTex,
+              DirectX::XMFLOAT2 dim) 
+    {
+        if (dim.x == 0 || dim.y == 0)
+        {
+            D3D12_RESOURCE_DESC srcDesc = srcTex->GetDesc();
+            dim.x = (float)srcDesc.Width;
+            dim.y = (float)srcDesc.Height;
+        }
+
+        if (!cmdList || dim.x == 0.0f)
+            return;
+
+        CompInput inputs = 
+        {
+            .InPrimaryColor = srcTex
+        };
+        CompConstants constants = 
+        {
+            .RenderSize = dim,
+            .Flags = (uint32_t)CompFlags::RawSourceBlit
+        };
+
+        std::array<ID3D12Resource*, 1> uavs { dstTex };
+        const std::span<const byte> cbData((const byte*) &constants, sizeof(constants));
+
+        m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, uavs, dim, false);
     }
 };
 
@@ -485,7 +516,7 @@ bool FSRDPreprocessor_Dx12::DispatchConversion(ID3D12GraphicsCommandList* cmdLis
 { 
     try
     {
-        m_impl->Dispatch(cmdList, inputs, constants);
+        m_impl->DispatchConversion(cmdList, inputs, constants);
         return true;
     }
     catch (const std::exception& err)
@@ -518,5 +549,21 @@ bool FSRDPreprocessor_Dx12::DispatchComposition(ID3D12GraphicsCommandList* cmdLi
 
 ID3D12Resource* FSRDPreprocessor_Dx12::GetCompOutput() const 
 {
-    return m_impl->m_Out.Radiance.Get();
+    return m_impl->m_Out.Radiance.Get(); }
+
+bool FSRDPreprocessor_Dx12::Blit(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* srcTex,
+                                 ID3D12Resource* dstTex, DirectX::XMFLOAT2 dim) const
+
+{
+    try
+    {
+        m_impl->Blit(cmdList, srcTex, dstTex, dim);
+        return true;
+    }
+    catch (const std::exception& err)
+    {
+        LOG_ERROR("FSRD blit failed. Details: {}", err.what());
+    }
+
+    return false;
 }

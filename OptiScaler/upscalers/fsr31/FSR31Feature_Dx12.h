@@ -11,7 +11,7 @@
  */
 class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
 {
-public:
+  public:
     struct InputResources
     {
         // Primary resources
@@ -27,9 +27,9 @@ public:
     };
 
     /**
-    * @brief Initializes the FSR feature, loads the FFX DX12 proxy methods,
-    * and verifies if the backend module is ready.
-    */
+     * @brief Initializes the FSR feature, loads the FFX DX12 proxy methods,
+     * and verifies if the backend module is ready.
+     */
     FSR31FeatureDx12(unsigned int InHandleId, NVSDK_NGX_Parameter* InParameters);
 
     ~FSR31FeatureDx12();
@@ -39,7 +39,7 @@ public:
     std::string Name() const override { return FSR31Feature::Name(); }
 
     /**
-     * @brief Initializes the FFX context, selects an FSR version based on configuration and 
+     * @brief Initializes the FFX context, selects an FSR version based on configuration and
      availability, and initializes helper shaders.
      * @return true if initialization succeeds.
      */
@@ -47,8 +47,8 @@ public:
               NVSDK_NGX_Parameter* InParameters) override;
 
     /**
-     * @brief Executes the upscaling pass. Gathers input and output textures and configuration 
-     * from the NGX parameter table. Includes optional, user-configurable pre and post processing 
+     * @brief Executes the upscaling pass. Gathers input and output textures and configuration
+     * from the NGX parameter table. Includes optional, user-configurable pre and post processing
      * steps for sharpening and scaling.
      */
     bool Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) override;
@@ -70,16 +70,16 @@ public:
     // Evaluate utils
 
     /**
-     * @brief Prepares upscaler inputs and configuration from a generic NGX param table, converting input buffers 
+     * @brief Prepares upscaler inputs and configuration from a generic NGX param table, converting input buffers
      * if needed, into a native ffx descriptor struct.
      */
     bool PrepareUpscalerInput(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams,
-        ffxDispatchDescUpscale& upscalerDesc);
+                              ffxDispatchDescUpscale& upscalerDesc);
 
     /**
-    * @brief Attempts to populate reactive and transparency masks for FSR input, converting/repurposing DLSS bias mask
-    * if provided and configured.
-    */
+     * @brief Attempts to populate reactive and transparency masks for FSR input, converting/repurposing DLSS bias mask
+     * if provided and configured.
+     */
     void GetReactiveAndTransparencyMasks(ID3D12GraphicsCommandList* InCommandList, InputResources& inputs);
 
     /**
@@ -88,7 +88,7 @@ public:
     bool DispatchUpscaler(ID3D12GraphicsCommandList* InCommandList, const ffxDispatchDescUpscale& desc);
 
     /**
-     * @brief Applies optional post-processing to FSR output if configured. Includes options for post-process RCAS, 
+     * @brief Applies optional post-processing to FSR output if configured. Includes options for post-process RCAS,
      FSR output rescaling and ImGui compositing.
      */
     void PostProcess(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams);
@@ -103,7 +103,7 @@ public:
      */
     virtual void ResetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList) const;
 
-private:
+  private:
     bool _isSuperScaling;
     bool _isSharpening;
 

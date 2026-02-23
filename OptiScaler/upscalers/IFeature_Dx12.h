@@ -29,7 +29,6 @@ class IFeature_Dx12 : public virtual IFeature
                                    D3D12_RESOURCE_STATES InBeforeState,
                                    const CustomOptional<int32_t, NoDefault>& InAfterState);
 
-
   public:
     virtual bool Init(ID3D12Device* InDevice, ID3D12GraphicsCommandList* InCommandList,
                       NVSDK_NGX_Parameter* InParameters) = 0;
