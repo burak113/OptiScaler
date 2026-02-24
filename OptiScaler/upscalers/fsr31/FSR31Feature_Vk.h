@@ -29,7 +29,7 @@ class FSR31FeatureVk : public FSR31Feature, public IFeature_Vk
         if (State::Instance().isShuttingDown)
             return;
 
-        if (_context != nullptr)
-            FfxApiProxy::VULKAN_DestroyContext()(&_context, NULL);
+        if (_upscaleCtx != nullptr)
+            FfxApiProxy::VULKAN_DestroyContext()(&_upscaleCtx, NULL);
     }
 };

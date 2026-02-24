@@ -8,15 +8,15 @@
 struct FSRInputResourcesDx12
 {
     // Primary resources
-    ID3D12Resource* color;
-    ID3D12Resource* velocity;
-    ID3D12Resource* depth;
+    ID3D12Resource* Color;
+    ID3D12Resource* MotionVectors;
+    ID3D12Resource* Depth;
 
     // Optional resources
-    ID3D12Resource* transparencyMask;
-    ID3D12Resource* reactiveMask;
-    ID3D12Resource* dlssBiasMaskFallback;
-    ID3D12Resource* exposureMap;
+    ID3D12Resource* TransparencyMask;
+    ID3D12Resource* ReactiveMask;
+    ID3D12Resource* DlssBiasMaskFallback;
+    ID3D12Resource* ExposureMap;
 };
 
 /**
@@ -102,7 +102,7 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
      * @brief Reads application configuration data from the NGX table the upscaling pass and sets the appropriate FFX
      * configurations in the dispatch descriptor. Executed immediately before FSR dispatch.
      */    
-    void UpdateConfiguration(const NVSDK_NGX_Parameter& inParams, ffxDispatchDescUpscale& fsrParams);
+    virtual void UpdateConfiguration(const NVSDK_NGX_Parameter& inParams, ffxDispatchDescUpscale& fsrParams);
 
     /**
      * @brief Applies optional post-processing to FSR output if configured. Includes options for post-process RCAS, 

@@ -30,7 +30,7 @@ class FSR31FeatureDx11on12 : public FSR31Feature, public IFeature_Dx11wDx12
         if (State::Instance().isShuttingDown)
             return;
 
-        if (_context != nullptr)
-            FfxApiProxy::D3D12_DestroyContext(&_context, NULL);
+        if (_upscaleCtx != nullptr)
+            FfxApiProxy::D3D12_DestroyContext(&_upscaleCtx, NULL);
     }
 };

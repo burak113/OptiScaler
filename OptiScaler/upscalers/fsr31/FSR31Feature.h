@@ -21,8 +21,8 @@ class FSR31Feature : public virtual IFeature
   protected:
     std::string _name = "FSR";
 
-    ffxContext _context = nullptr;
-    ffxCreateContextDescUpscale _contextDesc = {};
+    ffxContext _upscaleCtx = nullptr;
+    ffxCreateContextDescUpscale _upscaleCtxDesc = {};
 
     virtual bool InitFSR3(const NVSDK_NGX_Parameter* InParameters) = 0;
 

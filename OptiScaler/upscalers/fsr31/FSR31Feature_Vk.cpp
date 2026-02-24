@@ -166,33 +166,33 @@ bool FSR31FeatureVk::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
         // fill version ids and names arrays.
         FfxApiProxy::VULKAN_Query()(nullptr, &versionQuery.header);
 
-        _contextDesc.header.type = FFX_API_CREATE_CONTEXT_DESC_TYPE_UPSCALE;
-        _contextDesc.fpMessage = FfxLogCallback;
+        _upscaleCtxDesc.header.type = FFX_API_CREATE_CONTEXT_DESC_TYPE_UPSCALE;
+        _upscaleCtxDesc.fpMessage = FfxLogCallback;
 
 #ifdef _DEBUG
-        _contextDesc.flags |= FFX_UPSCALE_ENABLE_DEBUG_CHECKING;
+        _upscaleCtxDesc.flags |= FFX_UPSCALE_ENABLE_DEBUG_CHECKING;
 #endif
 
         if (DepthInverted())
-            _contextDesc.flags |= FFX_UPSCALE_ENABLE_DEPTH_INVERTED;
+            _upscaleCtxDesc.flags |= FFX_UPSCALE_ENABLE_DEPTH_INVERTED;
 
         if (AutoExposure())
-            _contextDesc.flags |= FFX_UPSCALE_ENABLE_AUTO_EXPOSURE;
+            _upscaleCtxDesc.flags |= FFX_UPSCALE_ENABLE_AUTO_EXPOSURE;
 
         if (IsHdr())
-            _contextDesc.flags |= FFX_UPSCALE_ENABLE_HIGH_DYNAMIC_RANGE;
+            _upscaleCtxDesc.flags |= FFX_UPSCALE_ENABLE_HIGH_DYNAMIC_RANGE;
 
         if (JitteredMV())
-            _contextDesc.flags |= FFX_UPSCALE_ENABLE_MOTION_VECTORS_JITTER_CANCELLATION;
+            _upscaleCtxDesc.flags |= FFX_UPSCALE_ENABLE_MOTION_VECTORS_JITTER_CANCELLATION;
 
         if (!LowResMV())
-            _contextDesc.flags |= FFX_UPSCALE_ENABLE_DISPLAY_RESOLUTION_MOTION_VECTORS;
+            _upscaleCtxDesc.flags |= FFX_UPSCALE_ENABLE_DISPLAY_RESOLUTION_MOTION_VECTORS;
 
         if (Config::Instance()->FsrNonLinearPQ.value_or_default() ||
             Config::Instance()->FsrNonLinearSRGB.value_or_default())
         {
-            _contextDesc.flags |= FFX_UPSCALE_ENABLE_NON_LINEAR_COLORSPACE;
-            LOG_INFO("contextDesc.initFlags (NonLinearColorSpace) {0:b}", _contextDesc.flags);
+            _upscaleCtxDesc.flags |= FFX_UPSCALE_ENABLE_NON_LINEAR_COLORSPACE;
+            LOG_INFO("contextDesc.initFlags (NonLinearColorSpace) {0:b}", _upscaleCtxDesc.flags);
         }
 
         if (Config::Instance()->OutputScalingEnabled.value_or_default() && LowResMV())
@@ -222,33 +222,33 @@ bool FSR31FeatureVk::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
         // extended limits changes how resolution
         if (Config::Instance()->ExtendedLimits.value_or_default() && RenderWidth() > DisplayWidth())
         {
-            _contextDesc.maxRenderSize.width = RenderWidth();
-            _contextDesc.maxRenderSize.height = RenderHeight();
+            _upscaleCtxDesc.maxRenderSize.width = RenderWidth();
+            _upscaleCtxDesc.maxRenderSize.height = RenderHeight();
 
             Config::Instance()->OutputScalingMultiplier.set_volatile_value(1.0f);
 
             // if output scaling active let it to handle downsampling
             if (Config::Instance()->OutputScalingEnabled.value_or_default() && LowResMV())
             {
-                _contextDesc.maxUpscaleSize.width = _contextDesc.maxRenderSize.width;
-                _contextDesc.maxUpscaleSize.height = _contextDesc.maxRenderSize.height;
+                _upscaleCtxDesc.maxUpscaleSize.width = _upscaleCtxDesc.maxRenderSize.width;
+                _upscaleCtxDesc.maxUpscaleSize.height = _upscaleCtxDesc.maxRenderSize.height;
 
                 // update target res
-                _targetWidth = _contextDesc.maxRenderSize.width;
-                _targetHeight = _contextDesc.maxRenderSize.height;
+                _targetWidth = _upscaleCtxDesc.maxRenderSize.width;
+                _targetHeight = _upscaleCtxDesc.maxRenderSize.height;
             }
             else
             {
-                _contextDesc.maxUpscaleSize.width = DisplayWidth();
-                _contextDesc.maxUpscaleSize.height = DisplayHeight();
+                _upscaleCtxDesc.maxUpscaleSize.width = DisplayWidth();
+                _upscaleCtxDesc.maxUpscaleSize.height = DisplayHeight();
             }
         }
         else
         {
-            _contextDesc.maxRenderSize.width = TargetWidth() > DisplayWidth() ? TargetWidth() : DisplayWidth();
-            _contextDesc.maxRenderSize.height = TargetHeight() > DisplayHeight() ? TargetHeight() : DisplayHeight();
-            _contextDesc.maxUpscaleSize.width = TargetWidth();
-            _contextDesc.maxUpscaleSize.height = TargetHeight();
+            _upscaleCtxDesc.maxRenderSize.width = TargetWidth() > DisplayWidth() ? TargetWidth() : DisplayWidth();
+            _upscaleCtxDesc.maxRenderSize.height = TargetHeight() > DisplayHeight() ? TargetHeight() : DisplayHeight();
+            _upscaleCtxDesc.maxUpscaleSize.width = TargetWidth();
+            _upscaleCtxDesc.maxUpscaleSize.height = TargetHeight();
         }
 
         ffxCreateBackendVKDesc backendDesc = { 0 };
@@ -261,7 +261,7 @@ bool FSR31FeatureVk::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
         else
             backendDesc.vkDeviceProcAddr = GDPA;
 
-        _contextDesc.header.pNext = &backendDesc.header;
+        _upscaleCtxDesc.header.pNext = &backendDesc.header;
 
         if (Config::Instance()->FfxUpscalerIndex.value_or_default() < 0 ||
             Config::Instance()->FfxUpscalerIndex.value_or_default() >= State::Instance().ffxUpscalerVersionIds.size())
@@ -273,7 +273,7 @@ bool FSR31FeatureVk::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
         backendDesc.header.pNext = &ov.header;
 
         LOG_DEBUG("_createContext!");
-        auto ret = FfxApiProxy::VULKAN_CreateContext()(&_context, &_contextDesc.header, NULL);
+        auto ret = FfxApiProxy::VULKAN_CreateContext()(&_upscaleCtx, &_upscaleCtxDesc.header, NULL);
 
         if (ret != FFX_API_RETURN_OK)
         {
@@ -688,7 +688,7 @@ bool FSR31FeatureVk::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* 
         m_upscalerKeyValueConfig.header.type = FFX_API_CONFIGURE_DESC_TYPE_UPSCALE_KEYVALUE;
         m_upscalerKeyValueConfig.key = FFX_API_CONFIGURE_UPSCALE_KEY_FVELOCITYFACTOR;
         m_upscalerKeyValueConfig.ptr = &_velocity;
-        auto result = FfxApiProxy::VULKAN_Configure()(&_context, &m_upscalerKeyValueConfig.header);
+        auto result = FfxApiProxy::VULKAN_Configure()(&_upscaleCtx, &m_upscalerKeyValueConfig.header);
 
         if (result != FFX_API_RETURN_OK)
             LOG_WARN("Velocity configure result: {}", (UINT) result);
@@ -703,7 +703,7 @@ bool FSR31FeatureVk::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* 
             m_upscalerKeyValueConfig.header.type = FFX_API_CONFIGURE_DESC_TYPE_UPSCALE_KEYVALUE;
             m_upscalerKeyValueConfig.key = FFX_API_CONFIGURE_UPSCALE_KEY_FREACTIVENESSSCALE;
             m_upscalerKeyValueConfig.ptr = &_reactiveScale;
-            auto result = FfxApiProxy::VULKAN_Configure()(&_context, &m_upscalerKeyValueConfig.header);
+            auto result = FfxApiProxy::VULKAN_Configure()(&_upscaleCtx, &m_upscalerKeyValueConfig.header);
 
             if (result != FFX_API_RETURN_OK)
                 LOG_WARN("Reactive Scale configure result: {}", (UINT) result);
@@ -716,7 +716,7 @@ bool FSR31FeatureVk::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* 
             m_upscalerKeyValueConfig.header.type = FFX_API_CONFIGURE_DESC_TYPE_UPSCALE_KEYVALUE;
             m_upscalerKeyValueConfig.key = FFX_API_CONFIGURE_UPSCALE_KEY_FSHADINGCHANGESCALE;
             m_upscalerKeyValueConfig.ptr = &_shadingScale;
-            auto result = FfxApiProxy::VULKAN_Configure()(&_context, &m_upscalerKeyValueConfig.header);
+            auto result = FfxApiProxy::VULKAN_Configure()(&_upscaleCtx, &m_upscalerKeyValueConfig.header);
 
             if (result != FFX_API_RETURN_OK)
                 LOG_WARN("Shading Scale configure result: {}", (UINT) result);
@@ -729,7 +729,7 @@ bool FSR31FeatureVk::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* 
             m_upscalerKeyValueConfig.header.type = FFX_API_CONFIGURE_DESC_TYPE_UPSCALE_KEYVALUE;
             m_upscalerKeyValueConfig.key = FFX_API_CONFIGURE_UPSCALE_KEY_FACCUMULATIONADDEDPERFRAME;
             m_upscalerKeyValueConfig.ptr = &_accAddPerFrame;
-            auto result = FfxApiProxy::VULKAN_Configure()(&_context, &m_upscalerKeyValueConfig.header);
+            auto result = FfxApiProxy::VULKAN_Configure()(&_upscaleCtx, &m_upscalerKeyValueConfig.header);
 
             if (result != FFX_API_RETURN_OK)
                 LOG_WARN("Acc. Add Per Frame configure result: {}", (UINT) result);
@@ -742,7 +742,7 @@ bool FSR31FeatureVk::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* 
             m_upscalerKeyValueConfig.header.type = FFX_API_CONFIGURE_DESC_TYPE_UPSCALE_KEYVALUE;
             m_upscalerKeyValueConfig.key = FFX_API_CONFIGURE_UPSCALE_KEY_FMINDISOCCLUSIONACCUMULATION;
             m_upscalerKeyValueConfig.ptr = &_minDisOccAcc;
-            auto result = FfxApiProxy::VULKAN_Configure()(&_context, &m_upscalerKeyValueConfig.header);
+            auto result = FfxApiProxy::VULKAN_Configure()(&_upscaleCtx, &m_upscalerKeyValueConfig.header);
 
             if (result != FFX_API_RETURN_OK)
                 LOG_WARN("Minimum Disocclusion Acc. configure result: {}", (UINT) result);
@@ -774,7 +774,7 @@ bool FSR31FeatureVk::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* 
     }
 
     LOG_DEBUG("Dispatch!!");
-    auto result = FfxApiProxy::VULKAN_Dispatch()(&_context, &params.header);
+    auto result = FfxApiProxy::VULKAN_Dispatch()(&_upscaleCtx, &params.header);
 
     if (result != FFX_API_RETURN_OK)
     {
