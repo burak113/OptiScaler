@@ -1,8 +1,10 @@
 #include <pch.h>
 #include <Config.h>
 #include <Util.h>
-
+#include "MathUtils.h"
 #include "FSR2Feature_Dx11.h"
+
+using namespace OptiMath;
 
 #define ASSIGN_DESC(dest, src)                                                                                         \
     dest.Width = src.Width;                                                                                            \
@@ -244,8 +246,12 @@ bool FSR2FeatureDx11::Evaluate(ID3D11DeviceContext* InContext, NVSDK_NGX_Paramet
     if (!IsInited())
         return false;
 
+    auto& state = State::Instance();
+    auto& cfg = *Config::Instance();
+    const auto& ngxParams = *InParameters;
+
     if (!RCAS->IsInit())
-        Config::Instance()->RcasEnabled.set_volatile_value(false);
+        cfg.RcasEnabled.set_volatile_value(false);
 
     ID3D11ShaderResourceView* restoreSRVs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
     ID3D11SamplerState* restoreSamplerStates[D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT] = {};
@@ -502,23 +508,24 @@ bool FSR2FeatureDx11::Evaluate(ID3D11DeviceContext* InContext, NVSDK_NGX_Paramet
 
     if (DepthInverted())
     {
-        params.cameraFar = Config::Instance()->FsrCameraNear.value_or_default();
-        params.cameraNear = Config::Instance()->FsrCameraFar.value_or_default();
+        params.cameraFar = cfg.FsrCameraNear.value_or_default();
+        params.cameraNear = cfg.FsrCameraFar.value_or_default();
     }
     else
     {
-        params.cameraFar = Config::Instance()->FsrCameraFar.value_or_default();
-        params.cameraNear = Config::Instance()->FsrCameraNear.value_or_default();
+        params.cameraFar = cfg.FsrCameraFar.value_or_default();
+        params.cameraNear = cfg.FsrCameraNear.value_or_default();
     }
 
-    if (Config::Instance()->FsrVerticalFov.has_value())
-        params.cameraFovAngleVertical = Config::Instance()->FsrVerticalFov.value() * 0.0174532925199433f;
-    else if (Config::Instance()->FsrHorizontalFov.value_or_default() > 0.0f)
-        params.cameraFovAngleVertical =
-            2.0f * atan((tan(Config::Instance()->FsrHorizontalFov.value() * 0.0174532925199433f) * 0.5f) /
-                        (float) DisplayHeight() * (float) DisplayWidth());
+    if (cfg.FsrVerticalFov.has_value())
+        params.cameraFovAngleVertical = GetRadiansFromDeg(cfg.FsrVerticalFov.value());
+    else if (cfg.FsrHorizontalFov.value_or_default() > 0.0f)
+    {
+        const float hFovRad = GetRadiansFromDeg(cfg.FsrHorizontalFov.value());
+        params.cameraFovAngleVertical = GetVerticalFovFromHorizontal(hFovRad, (float) TargetWidth(), (float) TargetHeight());
+    }
     else
-        params.cameraFovAngleVertical = 1.0471975511966f;
+        params.cameraFovAngleVertical = GetRadiansFromDeg(60);
 
     if (InParameters->Get(NVSDK_NGX_Parameter_FrameTimeDeltaInMsec, &params.frameTimeDelta) !=
             NVSDK_NGX_Result_Success ||

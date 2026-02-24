@@ -1,7 +1,9 @@
 #include <pch.h>
 #include <Config.h>
-
+#include "MathUtils.h"
 #include "FSR2Feature_Dx11On12.h"
+
+using namespace OptiMath;
 
 bool FSR2FeatureDx11on12::Init(ID3D11Device* InDevice, ID3D11DeviceContext* InContext,
                                NVSDK_NGX_Parameter* InParameters)
@@ -21,6 +23,9 @@ bool FSR2FeatureDx11on12::Init(ID3D11Device* InDevice, ID3D11DeviceContext* InCo
 bool FSR2FeatureDx11on12::Evaluate(ID3D11DeviceContext* InDeviceContext, NVSDK_NGX_Parameter* InParameters)
 {
     LOG_FUNC();
+
+    auto& cfg = *Config::Instance();
+    const auto& ngxParams = *InParameters;
 
     if (!_baseInit)
     {
@@ -287,14 +292,15 @@ bool FSR2FeatureDx11on12::Evaluate(ID3D11DeviceContext* InDeviceContext, NVSDK_N
             params.cameraNear = Config::Instance()->FsrCameraNear.value_or_default();
         }
 
-        if (Config::Instance()->FsrVerticalFov.has_value())
-            params.cameraFovAngleVertical = Config::Instance()->FsrVerticalFov.value() * 0.0174532925199433f;
-        else if (Config::Instance()->FsrHorizontalFov.value_or_default() > 0.0f)
-            params.cameraFovAngleVertical =
-                2.0f * atan((tan(Config::Instance()->FsrHorizontalFov.value() * 0.0174532925199433f) * 0.5f) /
-                            (float) TargetHeight() * (float) TargetWidth());
+        if (cfg.FsrVerticalFov.has_value())
+            params.cameraFovAngleVertical = GetRadiansFromDeg(cfg.FsrVerticalFov.value());
+        else if (cfg.FsrHorizontalFov.value_or_default() > 0.0f)
+        {
+            const float hFovRad = GetRadiansFromDeg(cfg.FsrHorizontalFov.value());
+            params.cameraFovAngleVertical = GetVerticalFovFromHorizontal(hFovRad, (float)TargetWidth(), (float)TargetHeight());
+        }
         else
-            params.cameraFovAngleVertical = 1.0471975511966f;
+            params.cameraFovAngleVertical = GetRadiansFromDeg(60);
 
         if (InParameters->Get(NVSDK_NGX_Parameter_FrameTimeDeltaInMsec, &params.frameTimeDelta) !=
                 NVSDK_NGX_Result_Success ||

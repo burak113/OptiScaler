@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -327,6 +327,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="inputs\FSR2_Dx11.h" />
     <ClInclude Include="inputs\FSR2_Vk.h" />
     <ClInclude Include="inputs\XeSS_Dx11.h" />
+    <ClInclude Include="MathUtils.h" />
     <ClInclude Include="OptiTexts.h" />
     <ClInclude Include="shaders\depth_invert\DI_Common.h" />
     <ClInclude Include="shaders\depth_invert\DI_Dx12.h" />
