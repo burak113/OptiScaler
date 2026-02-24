@@ -378,6 +378,9 @@ class Config
     CustomOptional<float> FsrAccAddPerFrame { 0.333f };
     CustomOptional<float> FsrMinDisOccAcc { -0.333f };
 
+    // FSR-RR
+    CustomOptional<int> FfxDenoiserIndex { 0 };
+
     // FSR Common
     CustomOptional<float> FsrVerticalFov { 60.0f };
     CustomOptional<float> FsrHorizontalFov { 0.0f }; // off by default

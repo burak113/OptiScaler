@@ -118,12 +118,12 @@ class IFeature
     bool ModuleLoaded() const { return _moduleLoaded; }
     long FrameCount() { return _frameCount; }
 
-    bool AutoExposure() { return _initFlags.AutoExposure; }
-    bool DepthInverted() { return _initFlags.DepthInverted; }
-    bool IsHdr() { return _initFlags.IsHdr; }
-    bool JitteredMV() { return _initFlags.JitteredMV; }
-    bool LowResMV() { return _initFlags.LowResMV; }
-    bool SharpenEnabled() { return _initFlags.SharpenEnabled; }
+    bool AutoExposure() const { return _initFlags.AutoExposure; }
+    bool DepthInverted() const { return _initFlags.DepthInverted; }
+    bool IsHdr() const { return _initFlags.IsHdr; }
+    bool JitteredMV() const { return _initFlags.JitteredMV; }
+    bool LowResMV() const { return _initFlags.LowResMV; }
+    bool SharpenEnabled() const { return _initFlags.SharpenEnabled; }
 
     IFeature(unsigned int InHandleId, NVSDK_NGX_Parameter* InParameters) { SetHandle(InHandleId); }
 

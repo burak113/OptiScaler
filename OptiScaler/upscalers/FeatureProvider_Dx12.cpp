@@ -11,6 +11,7 @@
 #include "upscalers/fsr2/FSR2Feature_Dx12.h"
 #include "upscalers/fsr2_212/FSR2Feature_Dx12_212.h"
 #include "upscalers/fsr31/FSR31Feature_Dx12.h"
+#include "upscalers/fsr31/FSRDFeature_Dx12.h"
 #include "upscalers/xess/XeSSFeature_Dx12.h"
 #include "FeatureProvider_Dx11.h"
 
@@ -37,6 +38,10 @@ bool FeatureProvider_Dx12::GetFeature(std::string_view upscalerName, UINT handle
     else if (upscalerName == "fsr31")
     {
         *feature = std::make_unique<FSR31FeatureDx12>(handleId, parameters);
+    }
+    else if (upscalerName == OptiKeys::FSR_RR)
+    {
+        *feature = std::make_unique<FSRDFeatureDx12>(handleId, parameters);
     }
     else if (cfg.DLSSEnabled.value_or_default())
     {

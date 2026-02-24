@@ -337,7 +337,9 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="shaders\depth_transfer\DT_Vk.h" />
     <ClInclude Include="shaders\depth_transfer\precompile\dt_int_Shader_Vk.h" />
     <ClInclude Include="shaders\depth_transfer\precompile\dt_Shader_Vk.h" />
+    <ClInclude Include="shaders\fsrd_input_conv\FSRDInputConv_Dx12.h" />
     <ClInclude Include="shaders\format_transfer\precompile\FT_Shader.h" />
+    <ClInclude Include="shaders\fsrd_input_conv\precompile\FSRDInputConv_Shader.h" />
     <ClInclude Include="shaders\hud_copy\HudCopy_Common.h" />
     <ClInclude Include="shaders\hud_copy\HudCopy_Dx12.h" />
     <ClInclude Include="shaders\hud_copy\precompile\HudCopy_Shader.h" />
@@ -377,6 +379,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="upscalers\fsr2_212\FSR2Feature_VkOnDx12_212.h" />
     <ClInclude Include="upscalers\fsr31\FSR31Feature_VkOn12.h" />
     <ClInclude Include="upscalers\IFeature_VkwDx12.h" />
+    <ClInclude Include="upscalers\fsr31\FSRDFeature_Dx12.h" />
     <ClInclude Include="upscaler_time\UpscalerTime_Dx11.h" />
     <ClInclude Include="upscaler_time\UpscalerTime_Dx12.h" />
     <ClInclude Include="upscaler_time\UpscalerTime_Vk.h" />
@@ -566,6 +569,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="shaders\depth_invert\DI_Dx12.cpp" />
+    <ClCompile Include="shaders\fsrd_input_conv\FSRDInputConv_Dx12.cpp" />
     <ClCompile Include="shaders\hud_copy\HudCopy_Dx12.cpp" />
     <ClCompile Include="shaders\depth_transfer\DT_Vk.cpp" />
     <ClCompile Include="shaders\output_scaling\OS_Vk.cpp" />
@@ -580,6 +584,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClCompile Include="upscalers\fsr2_212\FSR2Feature_VkOnDx12_212.cpp" />
     <ClCompile Include="upscalers\fsr31\FSR31Feature_VkOn12.cpp" />
     <ClCompile Include="upscalers\IFeature_VkwDx12.cpp" />
+    <ClCompile Include="upscalers\fsr31\FSRDFeature_Dx12.cpp" />
     <ClCompile Include="upscaler_time\UpscalerTime_Dx11.cpp" />
     <ClCompile Include="upscaler_time\UpscalerTime_Dx12.cpp" />
     <ClCompile Include="upscaler_time\UpscalerTime_Vk.cpp" />

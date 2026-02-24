@@ -36,7 +36,7 @@ class FSR31FeatureVkOn12 : public FSR31Feature, public IFeature_VkwDx12
         if (VulkanDevice)
             vkDeviceWaitIdle(VulkanDevice);
 
-        if (_context != nullptr)
-            FfxApiProxy::D3D12_DestroyContext(&_context, NULL);
+        if (_upscaleCtx != nullptr)
+            FfxApiProxy::D3D12_DestroyContext(&_upscaleCtx, NULL);
     }
 };
