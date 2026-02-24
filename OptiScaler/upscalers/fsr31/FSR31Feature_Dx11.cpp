@@ -443,7 +443,8 @@ bool FSR31FeatureDx11::Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Pa
     else if (cfg.FsrHorizontalFov.value_or_default() > 0.0f)
     {
         const float hFovRad = GetRadiansFromDeg(cfg.FsrHorizontalFov.value());
-        params.cameraFovAngleVertical = GetVerticalFovFromHorizontal(hFovRad, (float) TargetWidth(), (float) TargetHeight());
+        params.cameraFovAngleVertical =
+            GetVerticalFovFromHorizontal(hFovRad, (float) TargetWidth(), (float) TargetHeight());
     }
     else
         params.cameraFovAngleVertical = GetRadiansFromDeg(60);

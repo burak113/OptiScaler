@@ -14,11 +14,8 @@
 #include "upscalers/xess/XeSSFeature_Dx12.h"
 #include "FeatureProvider_Dx11.h"
 
-bool FeatureProvider_Dx12::GetFeature(
-    std::string_view upscalerName, 
-    UINT handleId, 
-    NVSDK_NGX_Parameter* parameters,
-    std::unique_ptr<IFeature_Dx12>* feature)
+bool FeatureProvider_Dx12::GetFeature(std::string_view upscalerName, UINT handleId, NVSDK_NGX_Parameter* parameters,
+                                      std::unique_ptr<IFeature_Dx12>* feature)
 {
     State& state = State::Instance();
     Config& cfg = *Config::Instance();
@@ -81,13 +78,9 @@ bool FeatureProvider_Dx12::GetFeature(
     return loaded;
 }
 
-bool FeatureProvider_Dx12::ChangeFeature(
-    std::string_view upscalerName, 
-    ID3D12Device* device,                                   
-    ID3D12GraphicsCommandList* cmdList, 
-    UINT handleId,
-    NVSDK_NGX_Parameter* parameters, 
-    ContextData<IFeature_Dx12>* contextData)
+bool FeatureProvider_Dx12::ChangeFeature(std::string_view upscalerName, ID3D12Device* device,
+                                         ID3D12GraphicsCommandList* cmdList, UINT handleId,
+                                         NVSDK_NGX_Parameter* parameters, ContextData<IFeature_Dx12>* contextData)
 {
     State& state = State::Instance();
     Config& cfg = *Config::Instance();
@@ -108,8 +101,7 @@ bool FeatureProvider_Dx12::ChangeFeature(
     // first release everything
     if (contextData->changeBackendCounter == 1)
     {
-        if (state.currentFG != nullptr && state.currentFG->IsActive() &&
-            state.activeFgInput == FGInput::Upscaler)
+        if (state.currentFG != nullptr && state.currentFG->IsActive() && state.activeFgInput == FGInput::Upscaler)
         {
             state.currentFG->DestroyFGContext();
             state.FGchanged = true;

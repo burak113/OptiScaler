@@ -108,18 +108,14 @@ bool FeatureProvider_Dx11::GetFeature(std::string upscalerName, UINT handleId, N
     return result;
 }
 
-bool FeatureProvider_Dx11::ChangeFeature(
-    std::string upscalerName, 
-    ID3D11Device* device,
-    ID3D11DeviceContext* devContext, 
-    UINT handleId,
-    NVSDK_NGX_Parameter* parameters, 
-    ContextData<IFeature_Dx11>* contextData)
+bool FeatureProvider_Dx11::ChangeFeature(std::string upscalerName, ID3D11Device* device,
+                                         ID3D11DeviceContext* devContext, UINT handleId,
+                                         NVSDK_NGX_Parameter* parameters, ContextData<IFeature_Dx11>* contextData)
 {
     State& state = State::Instance();
     Config& cfg = *Config::Instance();
 
-    if (state.newBackend == "" ||  (!cfg.DLSSEnabled.value_or_default() && state.newBackend == "dlss"))
+    if (state.newBackend == "" || (!cfg.DLSSEnabled.value_or_default() && state.newBackend == "dlss"))
         state.newBackend = cfg.Dx11Upscaler.value_or_default();
 
     contextData->changeBackendCounter++;

@@ -667,7 +667,8 @@ bool FSR31FeatureVk::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* 
     else if (cfg.FsrHorizontalFov.value_or_default() > 0.0f)
     {
         const float hFovRad = GetRadiansFromDeg(cfg.FsrHorizontalFov.value());
-        params.cameraFovAngleVertical = GetVerticalFovFromHorizontal(hFovRad, (float)TargetWidth(), (float)TargetHeight());
+        params.cameraFovAngleVertical =
+            GetVerticalFovFromHorizontal(hFovRad, (float) TargetWidth(), (float) TargetHeight());
     }
     else
         params.cameraFovAngleVertical = GetRadiansFromDeg(60);

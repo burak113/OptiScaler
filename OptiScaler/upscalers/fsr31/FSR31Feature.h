@@ -51,7 +51,7 @@ class FSR31Feature : public virtual IFeature
         switch (format)
         {
         case FFX_API_SURFACE_FORMAT_R10G10B10A2_TYPELESS:
-            format = FFX_API_SURFACE_FORMAT_R10G10B10A2_UNORM; 
+            format = FFX_API_SURFACE_FORMAT_R10G10B10A2_UNORM;
             return;
 
         case FFX_API_SURFACE_FORMAT_R32G32B32A32_TYPELESS:

@@ -19,20 +19,20 @@
 /** @brief Indicates the lifetime management required by an NGX parameter table. */
 namespace NGX_AllocTypes
 {
-    // Key used to get/set enum from table
-    constexpr std::string_view AllocKey = "OptiScaler.ParamAllocType";
+// Key used to get/set enum from table
+constexpr std::string_view AllocKey = "OptiScaler.ParamAllocType";
 
-    constexpr uint32_t Unknown = 0;
-    // Standard behavior in modern DLSS. Created with NGX Allocate(). Freed with Destroy().
-    constexpr uint32_t NVDynamic = 1;
-    // Legacy DLSS. Lifetime managed internally by the SDK.
-    constexpr uint32_t NVPersistent = 2;
-    // OptiScaler implementation used internally with new/delete.
-    constexpr uint32_t InternDynamic = 3;
-    // OptiScaler implementation for legacy applications. Must maintain a persistent instance
-    // for the lifetime of the application.
-    constexpr uint32_t InternPersistent = 4;
-}
+constexpr uint32_t Unknown = 0;
+// Standard behavior in modern DLSS. Created with NGX Allocate(). Freed with Destroy().
+constexpr uint32_t NVDynamic = 1;
+// Legacy DLSS. Lifetime managed internally by the SDK.
+constexpr uint32_t NVPersistent = 2;
+// OptiScaler implementation used internally with new/delete.
+constexpr uint32_t InternDynamic = 3;
+// OptiScaler implementation for legacy applications. Must maintain a persistent instance
+// for the lifetime of the application.
+constexpr uint32_t InternPersistent = 4;
+} // namespace NGX_AllocTypes
 
 /// @brief Calculates the resolution scaling ratio override based on the provided quality level and current
 /// configuration.
@@ -686,15 +686,13 @@ struct NVNGX_Parameters : public NVSDK_NGX_Parameter
 {
     std::string Name;
 
-    NVNGX_Parameters(std::string_view name, bool isPersistent) :
-        Name(name)
-    { 
+    NVNGX_Parameters(std::string_view name, bool isPersistent) : Name(name)
+    {
         // Old flag used to indicate custom table. Obsolete?
         Set("OptiScaler", 1);
         // New tracking flag
-        Set(NGX_AllocTypes::AllocKey.data(), isPersistent ? 
-            NGX_AllocTypes::InternPersistent : 
-            NGX_AllocTypes::InternDynamic);
+        Set(NGX_AllocTypes::AllocKey.data(),
+            isPersistent ? NGX_AllocTypes::InternPersistent : NGX_AllocTypes::InternDynamic);
     }
 
 #ifdef ENABLE_ENCAPSULATED_PARAMS
@@ -1020,7 +1018,7 @@ inline static NVNGX_Parameters* GetNGXParameters(std::string_view name, bool isP
 }
 
 /**
- * @brief Sets a custom tracking tag to indicate the memory management strategy required by 
+ * @brief Sets a custom tracking tag to indicate the memory management strategy required by
  * the table, indicated by NGX_AllocTypes.
  */
 inline static void SetNGXParamAllocType(NVSDK_NGX_Parameter& params, uint32_t allocType)

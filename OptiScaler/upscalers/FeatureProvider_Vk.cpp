@@ -110,8 +110,7 @@ bool FeatureProvider_Vk::ChangeFeature(std::string upscalerName, VkInstance inst
     State& state = State::Instance();
     Config& cfg = *Config::Instance();
 
-    if (state.newBackend == "" ||
-        (!cfg.DLSSEnabled.value_or_default() && state.newBackend == "dlss"))
+    if (state.newBackend == "" || (!cfg.DLSSEnabled.value_or_default() && state.newBackend == "dlss"))
         state.newBackend = cfg.VulkanUpscaler.value_or_default();
 
     contextData->changeBackendCounter++;

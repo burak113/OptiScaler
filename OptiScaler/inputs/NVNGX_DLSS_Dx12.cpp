@@ -471,7 +471,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_PopulateParameters_Impl(NVSDK_NGX
 }
 
 /**
- * @brief Destroys a given input parameter map created with AllocateParameters or GetCapabilityParameters. 
+ * @brief Destroys a given input parameter map created with AllocateParameters or GetCapabilityParameters.
  Must not be called on maps returned by GetParameters(). Unsupported tables will not be freed.
  */
 NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_DestroyParameters(NVSDK_NGX_Parameter* InParameters)
@@ -562,8 +562,7 @@ static NVSDK_NGX_Result TryCreateOptiFeature(
     Dx12Contexts[handleId] = {};
 
     // Retrieve feature implementation
-    if (!FeatureProvider_Dx12::GetFeature(featureName, handleId, 
-            InParameters, &Dx12Contexts[handleId].feature))
+    if (!FeatureProvider_Dx12::GetFeature(featureName, handleId, InParameters, &Dx12Contexts[handleId].feature))
     {
         LOG_ERROR("Failed to retrieve feature implementation for '{}'", featureName);
 
@@ -633,11 +632,10 @@ static NVSDK_NGX_Result TryCreateOptiFeature(
  * provides a handle used to reference the feature elsewhere in the API. Currently supports
  * various TSR and Frame Generation algorithms, including a special case for DLSS-RR passthrough.
  */
-NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_CreateFeature(
-    ID3D12GraphicsCommandList* InCmdList,
-    NVSDK_NGX_Feature InFeatureID,
-    NVSDK_NGX_Parameter* InParameters,
-    NVSDK_NGX_Handle** OutHandle)
+NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_CreateFeature(ID3D12GraphicsCommandList* InCmdList,
+                                                             NVSDK_NGX_Feature InFeatureID,
+                                                             NVSDK_NGX_Parameter* InParameters,
+                                                             NVSDK_NGX_Handle** OutHandle)
 {
     LOG_FUNC();
 
@@ -827,11 +825,10 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_GetFeatureRequirements(
     return NVSDK_NGX_Result_FAIL_FeatureNotSupported;
 }
 
-static NVSDK_NGX_Result TryEvaluateOptiFeature(
-    ID3D12GraphicsCommandList* InCmdList,
-    const NVSDK_NGX_Handle* InFeatureHandle,
-    NVSDK_NGX_Parameter* InParameters,
-    PFN_NVSDK_NGX_ProgressCallback InCallback)
+static NVSDK_NGX_Result TryEvaluateOptiFeature(ID3D12GraphicsCommandList* InCmdList,
+                                               const NVSDK_NGX_Handle* InFeatureHandle,
+                                               NVSDK_NGX_Parameter* InParameters,
+                                               PFN_NVSDK_NGX_ProgressCallback InCallback)
 {
     State& state = State::Instance();
     const Config& cfg = *Config::Instance();
@@ -869,7 +866,8 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(
     // Resolution change detection (only for upscalers that may require recreation)
     if (feature != nullptr)
     {
-        const bool isFSR31OrLater = feature->Name().starts_with("FSR") && feature->Version() >= feature_version { 3, 1, 0 };
+        const bool isFSR31OrLater =
+            feature->Name().starts_with("FSR") && feature->Version() >= feature_version { 3, 1, 0 };
 
         // FSR 3.1 supports upscaleSize that doesn't need reinit to change output resolution
         if (!isFSR31OrLater && feature->UpdateOutputResolution(InParameters))
@@ -882,8 +880,7 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(
         UpscalerInputsDx12::Reset();
         D3D12Hooks::SetRootSignatureTracking(true);
 
-        FeatureProvider_Dx12::ChangeFeature(state.newBackend, D3D12Device, 
-            InCmdList, handleId, InParameters, &ctxData);
+        FeatureProvider_Dx12::ChangeFeature(state.newBackend, D3D12Device, InCmdList, handleId, InParameters, &ctxData);
         feature = ctxData.feature.get();
 
         evalCounter = 0;
@@ -900,7 +897,7 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(
     }
 
     state.currentFeature = feature;
-    
+
     // Root signature restoration setup
     const bool restoreCompute = cfg.RestoreComputeSignature.value_or_default();
     const bool restoreGraphic = cfg.RestoreGraphicSignature.value_or_default();
@@ -955,11 +952,10 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(
  * @brief Per-frame feature execution. Runs a feature (upscaler, framegen, etc.) on a given command list using a
  * preexisting feature instance referenced by a unique handle.
  */
-NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_EvaluateFeature(
-    ID3D12GraphicsCommandList* InCmdList,
-    const NVSDK_NGX_Handle* InFeatureHandle,
-    NVSDK_NGX_Parameter* InParameters,
-    PFN_NVSDK_NGX_ProgressCallback InCallback)
+NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_EvaluateFeature(ID3D12GraphicsCommandList* InCmdList,
+                                                               const NVSDK_NGX_Handle* InFeatureHandle,
+                                                               NVSDK_NGX_Parameter* InParameters,
+                                                               PFN_NVSDK_NGX_ProgressCallback InCallback)
 {
     if (!InFeatureHandle)
     {
@@ -1010,10 +1006,9 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_EvaluateFeature(
 
 #pragma region DLSS Buffer Size Call
 
-NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_GetScratchBufferSize(
-    NVSDK_NGX_Feature InFeatureId,
-    const NVSDK_NGX_Parameter* InParameters,
-    size_t* OutSizeInBytes)
+NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_GetScratchBufferSize(NVSDK_NGX_Feature InFeatureId,
+                                                                    const NVSDK_NGX_Parameter* InParameters,
+                                                                    size_t* OutSizeInBytes)
 {
     if (OutSizeInBytes == nullptr)
         return NVSDK_NGX_Result_FAIL_InvalidParameter;

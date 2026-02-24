@@ -51,8 +51,7 @@ void UpscalerInputsDx12::UpscaleStart(ID3D12GraphicsCommandList* InCmdList, NVSD
     ngxParams.Get(OptiKeys::FSR_NearPlane, &tempCameraNear);
     ngxParams.Get(OptiKeys::FSR_FarPlane, &tempCameraFar);
 
-    if (!cfg.FsrUseFsrInputValues.value_or_default() ||
-        (tempCameraNear == 0.0f && tempCameraFar == 0.0f))
+    if (!cfg.FsrUseFsrInputValues.value_or_default() || (tempCameraNear == 0.0f && tempCameraFar == 0.0f))
     {
         if (feature->DepthInverted())
         {
@@ -79,7 +78,8 @@ void UpscalerInputsDx12::UpscaleStart(ID3D12GraphicsCommandList* InCmdList, NVSD
         else if (cfg.FsrHorizontalFov.value_or_default() > 0.0f)
         {
             const float hFovRad = GetRadiansFromDeg(cfg.FsrHorizontalFov.value());
-            cameraVFov = GetVerticalFovFromHorizontal(hFovRad, (float)feature->TargetWidth(), (float) feature->TargetHeight());
+            cameraVFov =
+                GetVerticalFovFromHorizontal(hFovRad, (float) feature->TargetWidth(), (float) feature->TargetHeight());
         }
         else
             cameraVFov = GetRadiansFromDeg(60);
