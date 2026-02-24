@@ -18,8 +18,17 @@ class IFeature_Dx12 : public virtual IFeature
     std::unique_ptr<RCAS_Dx12> RCAS = nullptr;
     std::unique_ptr<Bias_Dx12> Bias = nullptr;
 
-    void ResourceBarrier(ID3D12GraphicsCommandList* InCommandList, ID3D12Resource* InResource,
-                         D3D12_RESOURCE_STATES InBeforeState, D3D12_RESOURCE_STATES InAfterState) const;
+    static void ResourceBarrier(ID3D12GraphicsCommandList* InCommandList, ID3D12Resource* InResource,
+                                D3D12_RESOURCE_STATES InBeforeState, D3D12_RESOURCE_STATES InAfterState);
+
+    static bool TryResourceBarrier(ID3D12GraphicsCommandList* InCommandList, ID3D12Resource* InResource,
+                                   const CustomOptional<int32_t, NoDefault>& InBeforeState,
+                                   D3D12_RESOURCE_STATES InAfterState);
+
+    static bool TryResourceBarrier(ID3D12GraphicsCommandList* InCommandList, ID3D12Resource* InResource,
+                                   D3D12_RESOURCE_STATES InBeforeState,
+                                   const CustomOptional<int32_t, NoDefault>& InAfterState);
+
 
   public:
     virtual bool Init(ID3D12Device* InDevice, ID3D12GraphicsCommandList* InCommandList,
