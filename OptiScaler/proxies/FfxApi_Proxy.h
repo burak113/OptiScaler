@@ -207,6 +207,11 @@ class FfxApiProxy
         ffxQueryDescGetVersions versionQuery {};
         versionQuery.header.type = FFX_API_QUERY_DESC_TYPE_GET_VERSIONS;
         versionQuery.createDescType = type;
+
+        // Newer effects like FSR Ray Regen seem to require a D3D12 device if an ffxContext 
+        // hasn't already been created. Depending on init/hook order, this can be slightly 
+        // inconvenient, as features like NVSDK_NGX_D3D12_GetFeatureRequirements() run before
+        // the device is created/captured.
         versionQuery.device = State::Instance().currentD3D12Device;
         uint64_t versionCount = 0;
         versionQuery.outputCount = &versionCount;

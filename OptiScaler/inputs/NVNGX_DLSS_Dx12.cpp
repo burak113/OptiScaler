@@ -5,6 +5,7 @@
 #include "NVNGX_DLSS.h"
 #include "NVNGX_Parameter.h"
 #include "proxies/NVNGX_Proxy.h"
+#include "proxies/FfxApi_Proxy.h"
 
 #include <upscalers/FeatureProvider_Dx12.h>
 #include "upscalers/dlss/DLSSFeature_Dx12.h"
@@ -527,7 +528,8 @@ static NVSDK_NGX_Result TryCreateOptiFeature(ID3D12GraphicsCommandList* InCmdLis
     LOG_INFO("Creating OptiScaler feature, HandleId: {}", handleId);
 
     // Determine backend name
-    std::string featureName;
+    std::string_view featureName = "";
+
     if (InFeatureID == NVSDK_NGX_Feature_SuperSampling)
     {
         featureName = GetUpscalerBackend();
@@ -535,8 +537,19 @@ static NVSDK_NGX_Result TryCreateOptiFeature(ID3D12GraphicsCommandList* InCmdLis
     }
     else
     {
-        featureName = "dlssd";
-        LOG_INFO("Creating DLSSD (Ray Reconstruction) feature");
+        if (InFeatureID == NVSDK_NGX_Feature_RayReconstruction)
+        {
+            if (state.isRunningOnNvidia)
+            {
+                featureName = OptiKeys::DLSSD;
+                LOG_INFO("Creating DLSSD (Ray Reconstruction) feature");
+            }
+            else
+            {
+                featureName = OptiKeys::FSR_RR;
+                LOG_INFO("Creating FSR_RR (Ray Regeneration) feature");
+            }
+        }
     }
 
     // Root signature restoration setup
@@ -772,13 +785,42 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_GetFeatureRequirements(
 {
     LOG_DEBUG("for ({0})", (int) FeatureDiscoveryInfo->FeatureID);
 
-    if (State::Instance().activeFgInput == FGInput::Nukems)
+    const auto& state = State::Instance();
+    const auto& cfg = *Config::Instance();
+
+    if (state.activeFgInput == FGInput::Nukems)
         DLSSGMod::InitDLSSGMod_Dx12();
 
-    if (FeatureDiscoveryInfo->FeatureID == NVSDK_NGX_Feature_SuperSampling ||
-        (FeatureDiscoveryInfo->FeatureID == NVSDK_NGX_Feature_FrameGeneration &&
-         ((DLSSGMod::isDx12Available() && Config::Instance()->FGInput == FGInput::Nukems) ||
-          Config::Instance()->FGInput == FGInput::DLSSG)))
+    bool isOptiFeature = FeatureDiscoveryInfo->FeatureID == NVSDK_NGX_Feature_SuperSampling;
+    const bool isModFeature = 
+        ((DLSSGMod::isDx12Available() && cfg.FGInput == FGInput::Nukems) || cfg.FGInput == FGInput::DLSSG) &&
+        (FeatureDiscoveryInfo->FeatureID == NVSDK_NGX_Feature_FrameGeneration);
+
+    // FSR Ray Regen check
+    if (!isOptiFeature && !state.isRunningOnNvidia &&
+        (FeatureDiscoveryInfo->FeatureID == NVSDK_NGX_Feature_RayReconstruction))
+    {
+        if (!FfxApiProxy::IsRRReady())
+            FfxApiProxy::InitFfxDx12();
+        
+        /* Somewhat flawed check. ffxQuery can't be used for RR to check support because 
+        this runs before the D3D12Device* is captured, and the newer FFX APIs require it
+        to validate support. Slightly inconvenient, but actually a non-issue. 
+
+        InitNGXParameters() executes later, after the device is available, so full validation 
+        can be done there. All this does is allow the game to actually checks the params 
+        instead of failing early.
+        */
+        if (FfxApiProxy::IsSRReady() && FfxApiProxy::IsRRReady())
+        {
+            isOptiFeature = true;
+            LOG_DEBUG("Reporting support for DLSSD -> FSR Ray Regeneration");
+        }
+        else
+            LOG_DEBUG("DLSSD -> FSR Ray Regeneration not supported");
+    }
+
+    if (isOptiFeature || isModFeature)
     {
         if (OutSupported == nullptr)
         {
@@ -794,10 +836,10 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_GetFeatureRequirements(
         return NVSDK_NGX_Result_Success;
     }
 
-    if (Config::Instance()->DLSSEnabled.value_or_default() && NVNGXProxy::NVNGXModule() == nullptr)
+    if (cfg.DLSSEnabled.value_or_default() && NVNGXProxy::NVNGXModule() == nullptr)
         NVNGXProxy::InitNVNGX();
 
-    if (Config::Instance()->DLSSEnabled.value_or_default() && NVNGXProxy::D3D12_GetFeatureRequirements() != nullptr)
+    if (cfg.DLSSEnabled.value_or_default() && NVNGXProxy::D3D12_GetFeatureRequirements() != nullptr)
     {
         LOG_DEBUG("D3D12_GetFeatureRequirements for ({0})", (int) FeatureDiscoveryInfo->FeatureID);
         auto result = NVNGXProxy::D3D12_GetFeatureRequirements()(Adapter, FeatureDiscoveryInfo, OutSupported);

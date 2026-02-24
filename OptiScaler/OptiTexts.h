@@ -37,6 +37,8 @@ inline constexpr CString FSR31_11on12 = "fsr31_12";
 inline constexpr CString DLSS = "dlss";
 // ID code used for the DLSS-D/Ray Reconstruction upscaler+denoiser backend
 inline constexpr CString DLSSD = "dlssd";
+// ID code used for the FSR Ray Regeneration
+inline constexpr CString FSR_RR = "fsr-rr";
 
 inline constexpr CString FSR_UpscaleWidth = "FSR.upscaleSize.width";
 inline constexpr CString FSR_UpscaleHeight = "FSR.upscaleSize.height";
