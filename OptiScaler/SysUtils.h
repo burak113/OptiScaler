@@ -10,6 +10,8 @@
 #include <stdint.h>
 #include <libloaderapi.h>
 #include <ranges>
+#include <concepts>
+#include <string_view>
 
 #include <winternl.h>
 #include <d3dkmthk.h>
@@ -73,30 +75,38 @@ inline HMODULE slInterposerModule = nullptr;
 inline DWORD processId;
 
 #define LOG_TRACE(msg, ...) spdlog::trace(__FUNCTION__ " " msg, ##__VA_ARGS__)
-
 #define LOG_DEBUG(msg, ...) spdlog::debug(__FUNCTION__ " " msg, ##__VA_ARGS__)
-
-#ifdef DETAILED_DEBUG_LOGS
-#define LOG_DEBUG_ONLY(msg, ...) spdlog::debug(__FUNCTION__ " " msg, ##__VA_ARGS__)
-#else
-#define LOG_DEBUG_ONLY(msg, ...)
-#endif
-
-#ifdef LOG_ASYNC
-#define LOG_DEBUG_ASYNC(msg, ...) spdlog::debug(__FUNCTION__ " " msg, ##__VA_ARGS__)
-#else
-#define LOG_DEBUG_ASYNC(msg, ...)
-#endif
-
 #define LOG_INFO(msg, ...) spdlog::info(__FUNCTION__ " " msg, ##__VA_ARGS__)
-
 #define LOG_WARN(msg, ...) spdlog::warn(__FUNCTION__ " " msg, ##__VA_ARGS__)
-
 #define LOG_ERROR(msg, ...) spdlog::error(__FUNCTION__ " " msg, ##__VA_ARGS__)
 
-#define LOG_FUNC() spdlog::trace(__FUNCTION__)
+#define WLOG_TRACE(msg, ...) spdlog::trace(L"" __FUNCTIONW__ L" " msg, ##__VA_ARGS__)
+#define WLOG_DEBUG(msg, ...) spdlog::debug(L"" __FUNCTIONW__ L" " msg, ##__VA_ARGS__)
+#define WLOG_INFO(msg, ...) spdlog::info(L"" __FUNCTIONW__ L" " msg, ##__VA_ARGS__)
+#define WLOG_WARN(msg, ...) spdlog::warn(L"" __FUNCTIONW__ L" " msg, ##__VA_ARGS__)
+#define WLOG_ERROR(msg, ...) spdlog::error(L"" __FUNCTIONW__ L" " msg, ##__VA_ARGS__)
 
-#define LOG_FUNC_RESULT(result) spdlog::trace(__FUNCTION__ " result: {0:X}", (UINT64) result)
+#define LOG_FUNC() spdlog::trace(__FUNCTION__)
+#define LOG_FUNC_RESULT(result) spdlog::trace(__FUNCTION__ " result: {0:X}", (uint64_t) result)
+#define WLOG_FUNC_RESULT(result) spdlog::trace(L"" __FUNCTIONW__ L" result: {0:X}", (uint64_t) result)
+
+// Detailed Debugging
+#ifdef DETAILED_DEBUG_LOGS
+#define LOG_DEBUG_ONLY(msg, ...) spdlog::debug(__FUNCTION__ " " msg, ##__VA_ARGS__)
+#define WLOG_DEBUG_ONLY(msg, ...) spdlog::debug(L"" __FUNCTIONW__ L" " msg, ##__VA_ARGS__)
+#else
+#define LOG_DEBUG_ONLY(msg, ...)
+#define WLOG_DEBUG_ONLY(msg, ...)
+#endif
+
+// Async Debugging
+#ifdef LOG_ASYNC
+#define LOG_DEBUG_ASYNC(msg, ...) spdlog::debug(__FUNCTION__ " " msg, ##__VA_ARGS__)
+#define WLOG_DEBUG_ASYNC(msg, ...) spdlog::debug(L"" __FUNCTIONW__ L" " msg, ##__VA_ARGS__)
+#else
+#define LOG_DEBUG_ASYNC(msg, ...)
+#define WLOG_DEBUG_ASYNC(msg, ...)
+#endif
 
 // #define TRACKING_LOGS
 

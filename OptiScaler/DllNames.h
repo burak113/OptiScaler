@@ -7,7 +7,7 @@
 #include <cwctype> // for std::towlower
 
 #define DEFINE_NAME_VECTORS(varName, ...)                                                                              \
-    inline std::vector<std::string> varName##Names = []                                                                \
+    inline const std::vector<std::string> varName##Names = []                                                                \
     {                                                                                                                  \
         std::vector<std::string> v;                                                                                    \
         const char* libs[] = { __VA_ARGS__ };                                                                          \
@@ -18,7 +18,7 @@
         }                                                                                                              \
         return v;                                                                                                      \
     }();                                                                                                               \
-    inline std::vector<std::wstring> varName##NamesW = []                                                              \
+    inline const std::vector<std::wstring> varName##NamesW = []                                                              \
     {                                                                                                                  \
         std::vector<std::wstring> v;                                                                                   \
         const char* libs[] = { __VA_ARGS__ };                                                                          \
@@ -37,7 +37,7 @@ inline std::vector<std::wstring> dllNamesW;
 
 //"rtsshooks64.dll", "rtsshooks64", "rtsshooks.dll", "rtsshooks",
 
-inline std::vector<std::string> overlayNames = { "eosovh-win32-shipping.dll",
+inline const std::vector<std::string> overlayNames = { "eosovh-win32-shipping.dll",
                                                  "eosovh-win32-shipping",
                                                  "eosovh-win64-shipping.dll",
                                                  "eosovh-win64-shipping", // Epic
@@ -62,7 +62,7 @@ inline std::vector<std::string> overlayNames = { "eosovh-win32-shipping.dll",
                                                  "overlay",
                                                  "overlay.dll" }; // Ubisoft
 
-inline std::vector<std::wstring> overlayNamesW = { L"eosovh-win32-shipping.dll",
+inline const std::vector<std::wstring> overlayNamesW = { L"eosovh-win32-shipping.dll",
                                                    L"eosovh-win32-shipping",
                                                    L"eosovh-win64-shipping.dll",
                                                    L"eosovh-win64-shipping",
@@ -87,7 +87,7 @@ inline std::vector<std::wstring> overlayNamesW = { L"eosovh-win32-shipping.dll",
                                                    L"overlay",
                                                    L"overlay.dll" };
 
-inline std::vector<std::string> blockOverlayNames = { "eosovh-win32-shipping.dll",
+inline const std::vector<std::string> blockOverlayNames = { "eosovh-win32-shipping.dll",
                                                       "eosovh-win32-shipping",
                                                       "eosovh-win64-shipping.dll",
                                                       "eosovh-win64-shipping",
@@ -135,7 +135,7 @@ inline std::vector<std::wstring> blockOverlayNamesW = { L"eosovh-win32-shipping.
                                                         L"overlay",
                                                         L"overlay.dll" };
 
-inline std::vector<std::string> skipDxgiWrappingNames = { "eosovh-win32-shipping.dll",
+inline const std::vector<std::string> skipDxgiWrappingNames = { "eosovh-win32-shipping.dll",
                                                           "eosovh-win64-shipping.dll",
                                                           "gameoverlayrenderer64",
                                                           "gameoverlayrenderer64.dll",
@@ -202,93 +202,82 @@ DEFINE_NAME_VECTORS(fsr3BE, "ffx_backend_dx12_x64");
 DEFINE_NAME_VECTORS(ffxDx12, "amd_fidelityfx_dx12", "amd_fidelityfx_loader_dx12");
 DEFINE_NAME_VECTORS(ffxDx12Upscaler, "amd_fidelityfx_upscaler_dx12");
 DEFINE_NAME_VECTORS(ffxDx12FG, "amd_fidelityfx_framegeneration_dx12");
+DEFINE_NAME_VECTORS(ffxDx12RR, "amd_fidelityfx_denoiser_dx12");
+
 DEFINE_NAME_VECTORS(ffxVk, "amd_fidelityfx_vk");
 
-inline static bool CompareFileName(std::string* first, std::string* second)
+/**
+ * @brief Returns true if the given string ends with the given suffix.
+ * Case insensitive.
+ */
+template<typename CharT>
+[[nodiscard]] inline static bool CompareFileName(std::basic_string_view<CharT> str,
+    std::basic_string_view<CharT> suffix)
 {
-    if (first->size() < second->size())
+    if (str.size() < suffix.size())
         return false;
 
-    auto start = first->size() - second->size();
+    auto fileNameSuffix = str.substr(str.size() - suffix.size());
 
-    bool match = true;
-    for (size_t j = 0; j < second->size(); ++j)
-    {
-        if (std::tolower(static_cast<unsigned char>((*first)[start + j])) !=
-            std::tolower(static_cast<unsigned char>((*second)[j])))
+    return std::ranges::equal(fileNameSuffix, suffix,
+        [](CharT a, CharT b)
         {
-            return false;
-        }
-    }
-
-    return true;
+            if constexpr (std::is_same_v<CharT, wchar_t>)
+                return std::towlower(a) == std::towlower(b);
+            else
+                return std::tolower(static_cast<unsigned char>(a)) ==
+                        std::tolower(static_cast<unsigned char>(b));
+        });
 }
 
-inline static bool CompareFileNameW(std::wstring* first, std::wstring* second)
+/**
+ * @brief Returns true if the given dllName ends with any of the names in the
+ * name list. Case insensitive.
+ */
+[[nodiscard]] inline static bool CheckDllName(std::string_view dllName, std::span<const std::string> namesList)
 {
-    if (first->size() < second->size())
-        return false;
-
-    auto start = first->size() - second->size();
-
-    bool match = true;
-    for (size_t j = 0; j < second->size(); ++j)
-    {
-        if (std::towlower((*first)[start + j]) != std::towlower((*second)[j]))
-        {
-            return false;
-        }
-    }
-
-    return true;
+    return std::ranges::any_of(namesList, [&](const auto& candidate) 
+    { 
+        return CompareFileName<char>(dllName, candidate); 
+    });
 }
 
-inline static bool CheckDllName(std::string* dllName, std::vector<std::string>* namesList)
+/**
+ * @brief Returns true if the given dllName ends with any of the names in the
+ * name list. Case insensitive.
+ */
+[[nodiscard]] inline static bool CheckDllName(std::wstring_view dllName, std::span<const std::wstring> namesList)
 {
-    for (auto& name : *namesList)
-    {
-        if (CompareFileName(dllName, &name))
-            return true;
-    }
-
-    return false;
+    return std::ranges::any_of(namesList, [&](const auto& candidate) 
+    { 
+        return CompareFileName<wchar_t>(dllName, candidate); 
+    });
 }
 
-inline static bool CheckDllNameW(std::wstring* dllName, std::vector<std::wstring>* namesList)
+/**
+ * @brief Iterates through namesList and returns a handle to the first name that 
+ * matches a currently loaded module. Returns nullptr if none of the names are found.
+ */
+[[nodiscard]] inline static HMODULE GetDllModule(std::span<const std::string> namesList)
 {
-    for (auto& name : *namesList)
+    for (const auto& name : namesList)
     {
-        if (CompareFileNameW(dllName, &name))
-            return true;
+        if (HMODULE hMod = KernelBaseProxy::GetModuleHandleA_()(name.c_str()))
+            return hMod;
     }
-
-    return false;
-}
-
-inline static HMODULE GetDllNameModule(std::vector<std::string>* namesList)
-{
-    for (size_t i = 0; i < namesList->size(); i++)
-    {
-        auto name = namesList->at(i);
-        auto module = KernelBaseProxy::GetModuleHandleA_()(name.c_str());
-
-        if (module != nullptr)
-            return module;
-    }
-
     return nullptr;
 }
 
-inline static HMODULE GetDllNameWModule(std::vector<std::wstring>* namesList)
+/**
+ * @brief Iterates through namesList and returns a handle to the first name that
+ * matches a currently loaded module. Returns nullptr if none of the names are found.
+ */
+[[nodiscard]] inline static HMODULE GetDllModule(std::span<const std::wstring> namesList)
 {
-    for (size_t i = 0; i < namesList->size(); i++)
+    for (const auto& name : namesList)
     {
-        auto name = namesList->at(i);
-        auto module = KernelBaseProxy::GetModuleHandleW_()(name.c_str());
-
-        if (module != nullptr)
-            return module;
+        if (HMODULE hMod = KernelBaseProxy::GetModuleHandleW_()(name.c_str()))
+            return hMod;
     }
-
     return nullptr;
 }

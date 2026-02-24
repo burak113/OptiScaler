@@ -154,7 +154,7 @@ inline static HRESULT hkCreateDXGIFactory(REFIID riid, IDXGIFactory** ppFactory)
         return o_CreateDXGIFactory(riid, ppFactory);
     }
 
-    if (Config::Instance()->DxgiFactoryWrapping.value_or_default() && CheckDllName(&caller, &skipDxgiWrappingNames))
+    if (Config::Instance()->DxgiFactoryWrapping.value_or_default() && CheckDllName(caller, skipDxgiWrappingNames))
     {
         LOG_INFO("Skipping wrapping for: {}", caller);
         return o_CreateDXGIFactory(riid, ppFactory);
@@ -205,7 +205,7 @@ inline static HRESULT hkCreateDXGIFactory1(REFIID riid, IDXGIFactory1** ppFactor
         return o_CreateDXGIFactory1(riid, ppFactory);
     }
 
-    if (Config::Instance()->DxgiFactoryWrapping.value_or_default() && CheckDllName(&caller, &skipDxgiWrappingNames))
+    if (Config::Instance()->DxgiFactoryWrapping.value_or_default() && CheckDllName(caller, skipDxgiWrappingNames))
     {
         LOG_INFO("Skipping wrapping for: {}", caller);
         return o_CreateDXGIFactory1(riid, ppFactory);
@@ -256,7 +256,7 @@ inline static HRESULT hkCreateDXGIFactory2(UINT Flags, REFIID riid, IDXGIFactory
         return o_CreateDXGIFactory2(Flags, riid, ppFactory);
     }
 
-    if (Config::Instance()->DxgiFactoryWrapping.value_or_default() && CheckDllName(&caller, &skipDxgiWrappingNames))
+    if (Config::Instance()->DxgiFactoryWrapping.value_or_default() && CheckDllName(caller, skipDxgiWrappingNames))
     {
         LOG_INFO("Skipping wrapping for: {}", caller);
         return o_CreateDXGIFactory2(Flags, riid, ppFactory);

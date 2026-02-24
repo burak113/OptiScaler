@@ -239,6 +239,43 @@ void LoadAsiPlugins()
     }
 }
 
+static void HookEffectModulesLate()
+{
+    // hook streamline right away if it's already loaded
+    if (HMODULE hMod = TryHookModule(slInterposerNamesW, StreamlineHooks::hookInterposer);
+        hMod != nullptr)
+    {
+        slInterposerModule = hMod;
+    }
+
+    TryHookModule(slDlssNamesW, StreamlineHooks::hookDlss);
+    TryHookModule(slDlssgNamesW, StreamlineHooks::hookDlssg);
+    TryHookModule(slReflexNamesW, StreamlineHooks::hookReflex);
+    TryHookModule(slPclNamesW, StreamlineHooks::hookPcl);
+    TryHookModule(slCommonNamesW, StreamlineHooks::hookCommon);
+
+    // XeSS
+    TryHookModule(xessNamesW, XeSSProxy::HookXeSS);
+    TryHookModule(xessDx11NamesW, XeSSProxy::HookXeSSDx11);
+
+    // NVNGX
+    TryHookModule(nvngxNamesW, NVNGXProxy::InitNVNGX);
+
+    // FFX Dx12
+    TryHookModule(ffxDx12NamesW, FfxApiProxy::InitFfxDx12);
+
+    if (HMODULE hMod = TryHookModule(ffxDx12UpscalerNamesW, FSR4ModelSelection::Hook, true);
+        hMod != nullptr)
+    {
+        FfxApiProxy::InitFfxDx12_SR(hMod);
+    }
+
+    TryHookModule(ffxDx12FGNamesW, FfxApiProxy::InitFfxDx12_FG);
+
+    // FFX Vulkan
+    TryHookModule(ffxVkNamesW, FfxApiProxy::InitFfxVk);
+}
+
 static void CheckWorkingMode()
 {
     if (!_passThruMode)
@@ -757,7 +794,7 @@ static void CheckWorkingMode()
             {
                 LOG_DEBUG("Check for dxgi");
                 HMODULE dxgiModule = nullptr;
-                dxgiModule = GetDllNameWModule(&dxgiNamesW);
+                dxgiModule = GetDllModule(dxgiNamesW);
                 if (dxgiModule != nullptr)
                 {
                     LOG_DEBUG("dxgi.dll already in memory");
@@ -781,7 +818,7 @@ static void CheckWorkingMode()
 
                 LOG_DEBUG("Check for d3d12");
                 HMODULE d3d12Module = nullptr;
-                d3d12Module = GetDllNameWModule(&dx12NamesW);
+                d3d12Module = GetDllModule(dx12NamesW);
                 if (Config::Instance()->OverlayMenu.value() && d3d12Module != nullptr)
                 {
                     LOG_DEBUG("d3d12.dll already in memory");
@@ -802,7 +839,7 @@ static void CheckWorkingMode()
                 D3D12Hooks::Hook();
             }
 
-            d3d12AgilityModule = GetDllNameWModule(&dx12agilityNamesW);
+            d3d12AgilityModule = GetDllModule(dx12agilityNamesW);
             if (d3d12AgilityModule != nullptr)
             {
                 LOG_DEBUG("D3D12Core.dll already in memory");
@@ -833,7 +870,7 @@ static void CheckWorkingMode()
             }
 
             // DirectX 11
-            d3d11Module = GetDllNameWModule(&dx11NamesW);
+            d3d11Module = GetDllModule(dx11NamesW);
             if (Config::Instance()->OverlayMenu.value() && d3d11Module != nullptr)
             {
                 LOG_DEBUG("d3d11.dll already in memory");
@@ -841,6 +878,7 @@ static void CheckWorkingMode()
             }
 
             // Vulkan
+            vulkanModule = GetDllModule(vkNamesW);
             if (State::Instance().isRunningOnDXVK || State::Instance().isRunningOnLinux ||
                 (State::Instance().gameQuirks & GameQuirk::LoadVulkanManually))
             {
@@ -849,7 +887,7 @@ static void CheckWorkingMode()
             }
             else
             {
-                vulkanModule = GetDllNameWModule(&vkNamesW);
+                vulkanModule = GetDllModule(vkNamesW);
             }
 
             if (vulkanModule != nullptr)
@@ -860,7 +898,7 @@ static void CheckWorkingMode()
 
             // NVAPI
             HMODULE nvapi64 = nullptr;
-            nvapi64 = GetDllNameWModule(&nvapiNamesW);
+            nvapi64 = GetDllModule(nvapiNamesW);
             if (nvapi64 != nullptr)
             {
                 LOG_DEBUG("nvapi64.dll already in memory");
@@ -883,124 +921,8 @@ static void CheckWorkingMode()
                 Config::Instance()->StreamlineSpoofing.value_or_default())
             {
                 hookAdvapi32();
-            }
-
-            // User32
-            if (Config::Instance()->SpoofUser32.value_or_default())
-            {
-                User32Spoofing::Hook();
-            }
-
-            // hook streamline right away if it's already loaded
-            HMODULE slModule = nullptr;
-            slModule = GetDllNameWModule(&slInterposerNamesW);
-            if (slModule != nullptr)
-            {
-                LOG_DEBUG("sl.interposer.dll already in memory");
-                StreamlineHooks::hookInterposer(slModule);
-                slInterposerModule = slModule;
-            }
-
-            HMODULE slDlss = nullptr;
-            slDlss = GetDllNameWModule(&slDlssNamesW);
-            if (slDlss != nullptr)
-            {
-                LOG_DEBUG("sl.dlss.dll already in memory");
-                StreamlineHooks::hookDlss(slDlss);
-            }
-
-            HMODULE slDlssg = nullptr;
-            slDlssg = GetDllNameWModule(&slDlssgNamesW);
-            if (slDlssg != nullptr)
-            {
-                LOG_DEBUG("sl.dlss_g.dll already in memory");
-                StreamlineHooks::hookDlssg(slDlssg);
-            }
-
-            HMODULE slReflex = nullptr;
-            slReflex = GetDllNameWModule(&slReflexNamesW);
-            if (slReflex != nullptr)
-            {
-                LOG_DEBUG("sl.reflex.dll already in memory");
-                StreamlineHooks::hookReflex(slReflex);
-            }
-
-            HMODULE slPcl = nullptr;
-            slPcl = GetDllNameWModule(&slPclNamesW);
-            if (slPcl != nullptr)
-            {
-                LOG_DEBUG("sl.pcl.dll already in memory");
-                StreamlineHooks::hookPcl(slPcl);
-            }
-
-            HMODULE slCommon = nullptr;
-            slCommon = GetDllNameWModule(&slCommonNamesW);
-            if (slCommon != nullptr)
-            {
-                LOG_DEBUG("sl.common.dll already in memory");
-                StreamlineHooks::hookCommon(slCommon);
-            }
-
-            // XeSS
-            HMODULE xessModule = nullptr;
-            xessModule = GetDllNameWModule(&xessNamesW);
-            if (xessModule != nullptr)
-            {
-                LOG_DEBUG("libxess.dll already in memory");
-                XeSSProxy::HookXeSS(xessModule);
-            }
-
-            HMODULE xessDx11Module = nullptr;
-            xessDx11Module = GetDllNameWModule(&xessDx11NamesW);
-            if (xessDx11Module != nullptr)
-            {
-                LOG_DEBUG("libxess_dx11.dll already in memory");
-                XeSSProxy::HookXeSSDx11(xessDx11Module);
-            }
-
-            // NVNGX
-            HMODULE nvngxModule = nullptr;
-            nvngxModule = GetDllNameWModule(&nvngxNamesW);
-            if (nvngxModule != nullptr)
-            {
-                LOG_DEBUG("nvngx.dll already in memory");
-                NVNGXProxy::InitNVNGX(nvngxModule);
-            }
-
-            // FFX Dx12
-            HMODULE ffxDx12Module = nullptr;
-            ffxDx12Module = GetDllNameWModule(&ffxDx12NamesW);
-            if (ffxDx12Module != nullptr)
-            {
-                LOG_DEBUG("amd_fidelityfx_dx12.dll already in memory");
-                FfxApiProxy::InitFfxDx12(ffxDx12Module);
-            }
-
-            HMODULE ffxDx12SRModule = nullptr;
-            ffxDx12SRModule = GetDllNameWModule(&ffxDx12UpscalerNamesW);
-            if (ffxDx12SRModule != nullptr)
-            {
-                LOG_DEBUG("amd_fidelityfx_upscaler_dx12.dll already in memory");
-                FSR4ModelSelection::Hook(ffxDx12SRModule, FSR4Source::SDK);
-                FfxApiProxy::InitFfxDx12_SR(ffxDx12SRModule);
-            }
-
-            HMODULE ffxDx12FGModule = nullptr;
-            ffxDx12FGModule = GetDllNameWModule(&ffxDx12FGNamesW);
-            if (ffxDx12FGModule != nullptr)
-            {
-                LOG_DEBUG("amd_fidelityfx_framegeneration_dx12.dll already in memory");
-                FfxApiProxy::InitFfxDx12_FG(ffxDx12FGModule);
-            }
-
-            // FFX Vulkan
-            HMODULE ffxVkModule = nullptr;
-            ffxVkModule = GetDllNameWModule(&ffxVkNamesW);
-            if (ffxVkModule != nullptr)
-            {
-                LOG_DEBUG("amd_fidelityfx_vk.dll already in memory");
-                FfxApiProxy::InitFfxVk(ffxVkModule);
-            }
+            
+            HookEffectModulesLate();
 
             // Hook kernel32 methods
             if (!Config::Instance()->EarlyHooking.value_or_default())
@@ -1012,7 +934,7 @@ static void CheckWorkingMode()
             // For Agility SDK Upgrade
             if (Config::Instance()->FsrAgilitySDKUpgrade.value_or_default())
             {
-                RunAgilityUpgrade(GetDllNameWModule(&dx12NamesW));
+                RunAgilityUpgrade(GetDllModule(dx12NamesW));
             }
 
             // SpecialK
@@ -1471,7 +1393,7 @@ bool isNvidia()
 {
     bool nvidiaDetected = false;
     bool loadedHere = false;
-    auto nvapiModule = GetDllNameWModule(&nvapiNamesW);
+    auto nvapiModule = GetDllModule(nvapiNamesW);
 
     if (!nvapiModule)
     {
@@ -1810,11 +1732,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
                 HookFSR2Dx11ExeInputs();
             else
             {
-                handle = GetDllNameWModule(&fsr2NamesW);
+                handle = GetDllModule(fsr2NamesW);
                 if (handle != nullptr)
                     HookFSR2Inputs(handle);
 
-                handle = GetDllNameWModule(&fsr2BENamesW);
+                handle = GetDllModule(fsr2BENamesW);
                 if (handle != nullptr)
                     HookFSR2Dx12Inputs(handle);
 
@@ -1824,11 +1746,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
         if (Config::Instance()->EnableFsr3Inputs.value_or_default())
         {
-            handle = GetDllNameWModule(&fsr3NamesW);
+            handle = GetDllModule(fsr3NamesW);
             if (handle != nullptr)
                 HookFSR3Inputs(handle);
 
-            handle = GetDllNameWModule(&fsr3BENamesW);
+            handle = GetDllModule(fsr3BENamesW);
             if (handle != nullptr)
                 HookFSR3Dx12Inputs(handle);
 
