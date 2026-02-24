@@ -728,6 +728,9 @@
     <ClInclude Include="shaders\render_ui\RUI_Dx12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="OptiTexts.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="shaders\output_scaling\precompile\bcds_kaiser2_Shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>

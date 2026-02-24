@@ -183,3 +183,5 @@ inline static void to_lower_in_place(std::string& string)
 {
     std::transform(string.begin(), string.end(), string.begin(), ::tolower);
 }
+
+#include "OptiTexts.h"
