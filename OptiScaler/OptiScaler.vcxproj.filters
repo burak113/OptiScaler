@@ -695,6 +695,9 @@
     <ClInclude Include="shaders\hud_copy\HudCopy_Dx12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="shaders\hud_copy\precompile\HudCopy_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="MathUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>

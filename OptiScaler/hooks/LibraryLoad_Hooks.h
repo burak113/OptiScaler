@@ -28,7 +28,7 @@ class LibraryLoadHooks
 };
 
 /**
- * @brief Attempts to find a previously loaded module and initialize its hooks using 
+ * @brief Attempts to find a previously loaded module and initialize its hooks using
  * a function pointer.
  * @return The module handle if its found. Null on failure.
  */

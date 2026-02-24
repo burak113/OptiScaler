@@ -762,9 +762,9 @@ HMODULE LibraryLoadHooks::LoadFfxapiDx12(std::wstring originalPath)
     if (FfxApiProxy::Dx12Module() != nullptr)
         return FfxApiProxy::Dx12Module();
 
-    HMODULE ffxDx12 = nullptr;
+    HMODULE ffxMod = nullptr;
 
-    std::vector<std::wstring> dllNames = { L"amd_fidelityfx_loader_dx12.dll", L"amd_fidelityfx_dx12.dll" };
+    std::span<const std::wstring> dllNames = ffxDx12NamesW;
 
     for (size_t i = 0; i < dllNames.size(); i++)
     {
@@ -773,15 +773,15 @@ HMODULE LibraryLoadHooks::LoadFfxapiDx12(std::wstring originalPath)
             std::filesystem::path libPath(Config::Instance()->FfxDx12Path.value().c_str());
 
             if (libPath.has_filename())
-                ffxDx12 = NtdllProxy::LoadLibraryExW_Ldr(libPath.c_str(), NULL, 0);
+                ffxMod = NtdllProxy::LoadLibraryExW_Ldr(libPath.c_str(), NULL, 0);
             else
-                ffxDx12 = NtdllProxy::LoadLibraryExW_Ldr((libPath / dllNames[i]).c_str(), NULL, 0);
+                ffxMod = NtdllProxy::LoadLibraryExW_Ldr((libPath / dllNames[i]).c_str(), NULL, 0);
 
-            if (ffxDx12 != nullptr)
+            if (ffxMod != nullptr)
             {
                 LOG_INFO("{0} loaded from {1}", wstring_to_string(dllNames[i]),
                          wstring_to_string(Config::Instance()->FfxDx12Path.value()));
-                return ffxDx12;
+                return ffxMod;
             }
             else
             {
@@ -790,14 +790,14 @@ HMODULE LibraryLoadHooks::LoadFfxapiDx12(std::wstring originalPath)
             }
         }
 
-        if (ffxDx12 == nullptr)
+        if (ffxMod == nullptr)
         {
-            ffxDx12 = NtdllProxy::LoadLibraryExW_Ldr(originalPath.c_str(), NULL, 0);
+            ffxMod = NtdllProxy::LoadLibraryExW_Ldr(originalPath.c_str(), NULL, 0);
 
-            if (ffxDx12 != nullptr)
+            if (ffxMod != nullptr)
             {
                 LOG_INFO("{0} loaded from {1}", wstring_to_string(dllNames[i]), wstring_to_string(originalPath));
-                return ffxDx12;
+                return ffxMod;
             }
         }
     }

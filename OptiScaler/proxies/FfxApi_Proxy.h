@@ -13,10 +13,11 @@
 
 #include <fsr4/FSR4ModelSelection.h>
 
-#include "ffx_api.h"
+#include <ffx_api.h>
 #include <detours/detours.h>
 #include <ffx_framegeneration.h>
 #include <ffx_upscale.h>
+#include <fsr-rr/ffx_denoiser.h>
 
 #include <magic_enum.hpp>
 
@@ -25,6 +26,7 @@
 #define FFX_API_CONFIGURE_FG_SWAPCHAIN_KEY_FRAMEPACINGTUNING FFX_API_CONFIGURE_FG_SWAPCHAIN_KEY_FRAMEPACINGTUNING_DX12
 
 #include <dx12/ffx_api_dx12.h>
+#include "DllNames.h"
 
 #undef FFX_API_CONFIGURE_FG_SWAPCHAIN_KEY_WAITCALLBACK
 #undef FFX_API_CONFIGURE_FG_SWAPCHAIN_KEY_FRAMEPACINGTUNING
@@ -74,6 +76,7 @@ class FfxApiProxy
     inline static FfxModule main_dx12;
     inline static FfxModule upscaling_dx12;
     inline static FfxModule fg_dx12;
+    inline static FfxModule rrDenoiser_dx12;
 
     inline static FfxModule main_vk;
 
@@ -81,7 +84,7 @@ class FfxApiProxy
 
     inline static bool _skipDestroyCalls = false;
 
-    static inline void parse_version(const char* version_str, feature_version* _version)
+    static inline void ParseVersion(const char* version_str, feature_version* _version)
     {
         const char* p = version_str;
 
@@ -99,7 +102,7 @@ class FfxApiProxy
         LOG_WARN("can't parse {0}", version_str);
     }
 
-    static bool IsLoader(const std::wstring& filePath)
+    static bool IsLoader(std::wstring_view filePath)
     {
         auto size = std::filesystem::file_size(filePath);
 
@@ -107,13 +110,142 @@ class FfxApiProxy
         return size < 1048576;
     }
 
+    static bool LoadFfxModuleDx12(FfxModule& proxyModule, const std::span<const std::wstring> dllNames,
+                                  HMODULE module = nullptr, void (*loadCallback)(HMODULE) = nullptr)
+    {
+        // Early exit if already loaded
+        if (proxyModule.dll != nullptr && proxyModule.CreateContext != nullptr)
+            return true;
+
+        if (module != nullptr)
+            proxyModule.dll = module;
+
+        // If null, attempt to load the library by name
+        if (proxyModule.dll == nullptr)
+        {
+            // Try new api first
+            for (const std::wstring& name : dllNames)
+            {
+                WLOG_DEBUG(L"Trying to load {}", name);
+
+                if (proxyModule.dll == nullptr)
+                {
+                    proxyModule.dll = NtdllProxy::LoadLibraryExW_Ldr(name.c_str(), NULL, 0);
+
+                    if (proxyModule.dll != nullptr)
+                    {
+                        WLOG_INFO(L"{} loaded from exe folder", name);
+
+                        if (loadCallback != nullptr)
+                            loadCallback(proxyModule.dll);
+
+                        break;
+                    }
+                }
+            }
+        }
+
+        TryInstallFfxModuleHooksDx12(proxyModule);
+
+        bool loadResult = proxyModule.CreateContext != nullptr;
+
+        LOG_INFO("LoadResult: {}", loadResult);
+
+        if (!loadResult)
+            proxyModule.dll = nullptr;
+
+        return loadResult;
+    }
+
+    static void TryInstallFfxModuleHooksDx12(FfxModule& proxyModule)
+    {
+        if (proxyModule.dll != nullptr && proxyModule.Configure == nullptr)
+        {
+            // Get addresses of module functions
+            proxyModule.Configure =
+                (PfnFfxConfigure) KernelBaseProxy::GetProcAddress_()(proxyModule.dll, "ffxConfigure");
+            proxyModule.CreateContext =
+                (PfnFfxCreateContext) KernelBaseProxy::GetProcAddress_()(proxyModule.dll, "ffxCreateContext");
+            proxyModule.DestroyContext =
+                (PfnFfxDestroyContext) KernelBaseProxy::GetProcAddress_()(proxyModule.dll, "ffxDestroyContext");
+            proxyModule.Dispatch = (PfnFfxDispatch) KernelBaseProxy::GetProcAddress_()(proxyModule.dll, "ffxDispatch");
+            proxyModule.Query = (PfnFfxQuery) KernelBaseProxy::GetProcAddress_()(proxyModule.dll, "ffxQuery");
+
+            if (Config::Instance()->EnableFfxInputs.value_or_default() && proxyModule.CreateContext != nullptr)
+            {
+                DetourTransactionBegin();
+                DetourUpdateThread(GetCurrentThread());
+
+                // Detour module functions to FfxApi_Proxy switchboard
+                if (proxyModule.Configure != nullptr)
+                    DetourAttach(&(PVOID&) proxyModule.Configure, ffxConfigure_Dx12);
+
+                if (proxyModule.CreateContext != nullptr)
+                    DetourAttach(&(PVOID&) proxyModule.CreateContext, ffxCreateContext_Dx12);
+
+                if (proxyModule.DestroyContext != nullptr)
+                    DetourAttach(&(PVOID&) proxyModule.DestroyContext, ffxDestroyContext_Dx12);
+
+                if (proxyModule.Dispatch != nullptr)
+                    DetourAttach(&(PVOID&) proxyModule.Dispatch, ffxDispatch_Dx12);
+
+                if (proxyModule.Query != nullptr)
+                    DetourAttach(&(PVOID&) proxyModule.Query, ffxQuery_Dx12);
+
+                State::Instance().fsrHooks = true;
+
+                DetourTransactionCommit();
+            }
+        }
+    }
+
+    static void UpdateFeatureVersionDx12(FfxModule& module, uint64_t type, const char* label)
+    {
+        if (module.version.major != 0 || module.Query == nullptr)
+            return;
+
+        ffxQueryDescGetVersions versionQuery {};
+        versionQuery.header.type = FFX_API_QUERY_DESC_TYPE_GET_VERSIONS;
+        versionQuery.createDescType = type;
+        versionQuery.device = State::Instance().currentD3D12Device;
+        uint64_t versionCount = 0;
+        versionQuery.outputCount = &versionCount;
+
+        auto queryResult = module.Query(nullptr, &versionQuery.header);
+
+        if (queryResult == FFX_API_RETURN_OK && versionCount > 0)
+        {
+            std::vector<uint64_t> versionIds(versionCount);
+            std::vector<const char*> versionNames(versionCount);
+            versionQuery.versionIds = versionIds.data();
+            versionQuery.versionNames = versionNames.data();
+
+            queryResult = module.Query(nullptr, &versionQuery.header);
+
+            if (queryResult == FFX_API_RETURN_OK)
+            {
+                ParseVersion(versionNames[0], &module.version);
+                LOG_INFO("FfxApi Dx12 {} version: {}.{}.{}", label, module.version.major, module.version.minor,
+                         module.version.patch);
+                return;
+            }
+        }
+
+        LOG_WARN("{} Query failed result: {}", label, (UINT) queryResult);
+    }
+
   public:
     static HMODULE Dx12Module() { return main_dx12.dll; }
     static HMODULE Dx12Module_SR() { return upscaling_dx12.dll; }
     static HMODULE Dx12Module_FG() { return fg_dx12.dll; }
+    static HMODULE Dx12Module_RR() { return rrDenoiser_dx12.dll; }
 
+    // Returns true if the FFX framegen module is loaded
     static bool IsFGReady() { return (main_dx12.dll && !main_dx12.isLoader) || fg_dx12.dll != nullptr; }
+    // Returns true if the FSR upscaler module is loaded
     static bool IsSRReady() { return (main_dx12.dll && !main_dx12.isLoader) || upscaling_dx12.dll != nullptr; }
+    // Returns true if the FSR Ray Regen module is loaded
+    static bool IsRRReady() { return (main_dx12.dll && !main_dx12.isLoader) || rrDenoiser_dx12.dll != nullptr; }
 
     static FFXStructType GetType(ffxStructType_t type)
     {
@@ -168,41 +300,41 @@ class FfxApiProxy
 
         spdlog::info("");
 
+        // Check if loader if not null
         if (module != nullptr)
         {
-            main_dx12.dll = module;
-
             wchar_t path[MAX_PATH];
             DWORD len = GetModuleFileNameW(module, path, MAX_PATH);
-            std::wstring fileName(path);
-            main_dx12.isLoader = IsLoader(fileName);
+
+            main_dx12.isLoader = IsLoader(path);
+            main_dx12.dll = module;
         }
 
         if (main_dx12.dll == nullptr)
         {
+            const auto& cfg = *Config::Instance();
             // Try new api first
-            std::vector<std::wstring> dllNames = { L"amd_fidelityfx_loader_dx12.dll", L"amd_fidelityfx_dx12.dll" };
 
-            for (size_t i = 0; i < dllNames.size(); i++)
+            for (const std::wstring& name : ffxDx12NamesW)
             {
-                LOG_DEBUG("Trying to load {}", wstring_to_string(dllNames[i]));
+                WLOG_DEBUG(L"Trying to load {}", name);
 
-                if (main_dx12.dll == nullptr && Config::Instance()->FfxDx12Path.has_value())
+                // Search config directory
+                if (main_dx12.dll == nullptr && cfg.FfxDx12Path.has_value())
                 {
-                    std::filesystem::path libPath(Config::Instance()->FfxDx12Path.value().c_str());
+                    std::filesystem::path libPath(cfg.FfxDx12Path.value());
                     std::wstring fileName;
 
                     if (libPath.has_filename())
-                        fileName = libPath.c_str();
+                        fileName = libPath.wstring();
                     else
-                        fileName = (libPath / dllNames[i]).c_str();
+                        fileName = (libPath / name).wstring();
 
                     main_dx12.dll = NtdllProxy::LoadLibraryExW_Ldr(fileName.c_str(), NULL, 0);
 
                     if (main_dx12.dll != nullptr)
                     {
-                        LOG_INFO("{} loaded from {}", wstring_to_string(dllNames[i]),
-                                 wstring_to_string(Config::Instance()->FfxDx12Path.value()));
+                        WLOG_INFO(L"{} loaded from {}", name, cfg.FfxDx12Path.value());
 
                         // hacky but works for now
                         main_dx12.isLoader = IsLoader(fileName);
@@ -210,14 +342,15 @@ class FfxApiProxy
                     }
                 }
 
+                // Search parent directory
                 if (main_dx12.dll == nullptr)
                 {
-                    auto filePath = (Util::DllPath().parent_path() / dllNames[i]);
+                    std::filesystem::path filePath = (Util::DllPath().parent_path() / name);
                     main_dx12.dll = NtdllProxy::LoadLibraryExW_Ldr(filePath.c_str(), NULL, 0);
 
                     if (main_dx12.dll != nullptr)
                     {
-                        LOG_INFO("{} loaded from exe folder", wstring_to_string(dllNames[i]));
+                        WLOG_INFO(L"{} loaded from exe folder", name);
 
                         // hacky but works for now
                         main_dx12.isLoader = IsLoader(filePath.c_str());
@@ -227,44 +360,10 @@ class FfxApiProxy
             }
         }
 
-        if (main_dx12.dll != nullptr && main_dx12.Configure == nullptr)
-        {
-            main_dx12.Configure = (PfnFfxConfigure) KernelBaseProxy::GetProcAddress_()(main_dx12.dll, "ffxConfigure");
-            main_dx12.CreateContext =
-                (PfnFfxCreateContext) KernelBaseProxy::GetProcAddress_()(main_dx12.dll, "ffxCreateContext");
-            main_dx12.DestroyContext =
-                (PfnFfxDestroyContext) KernelBaseProxy::GetProcAddress_()(main_dx12.dll, "ffxDestroyContext");
-            main_dx12.Dispatch = (PfnFfxDispatch) KernelBaseProxy::GetProcAddress_()(main_dx12.dll, "ffxDispatch");
-            main_dx12.Query = (PfnFfxQuery) KernelBaseProxy::GetProcAddress_()(main_dx12.dll, "ffxQuery");
-
-            if (Config::Instance()->EnableFfxInputs.value_or_default() && main_dx12.CreateContext != nullptr)
-            {
-                DetourTransactionBegin();
-                DetourUpdateThread(GetCurrentThread());
-
-                if (main_dx12.Configure != nullptr)
-                    DetourAttach(&(PVOID&) main_dx12.Configure, ffxConfigure_Dx12);
-
-                if (main_dx12.CreateContext != nullptr)
-                    DetourAttach(&(PVOID&) main_dx12.CreateContext, ffxCreateContext_Dx12);
-
-                if (main_dx12.DestroyContext != nullptr)
-                    DetourAttach(&(PVOID&) main_dx12.DestroyContext, ffxDestroyContext_Dx12);
-
-                if (main_dx12.Dispatch != nullptr)
-                    DetourAttach(&(PVOID&) main_dx12.Dispatch, ffxDispatch_Dx12);
-
-                if (main_dx12.Query != nullptr)
-                    DetourAttach(&(PVOID&) main_dx12.Query, ffxQuery_Dx12);
-
-                State::Instance().fsrHooks = true;
-
-                DetourTransactionCommit();
-            }
-        }
-
+        TryInstallFfxModuleHooksDx12(main_dx12);
         InitFfxDx12_SR();
         InitFfxDx12_FG();
+        InitFfxDx12_RR();
 
         bool loadResult = main_dx12.CreateContext != nullptr || upscaling_dx12.CreateContext != nullptr ||
                           fg_dx12.CreateContext != nullptr;
@@ -279,247 +378,30 @@ class FfxApiProxy
 
     static bool InitFfxDx12_SR(HMODULE module = nullptr)
     {
-        // if dll already loaded
-        if (upscaling_dx12.dll != nullptr && upscaling_dx12.CreateContext != nullptr)
-            return true;
-
-        spdlog::info("");
-
-        if (module != nullptr)
-            upscaling_dx12.dll = module;
-
-        if (upscaling_dx12.dll == nullptr)
-        {
-            // Try new api first
-            std::vector<std::wstring> dllNames = { L"amd_fidelityfx_upscaler_dx12.dll" };
-
-            for (size_t i = 0; i < dllNames.size(); i++)
-            {
-                LOG_DEBUG("Trying to load {}", wstring_to_string(dllNames[i]));
-
-                // if (upscaling_dx12.dll == nullptr && Config::Instance()->FfxDx12Path.has_value())
-                //{
-                //     std::filesystem::path libPath(Config::Instance()->FfxDx12Path.value().c_str());
-
-                //    if (libPath.has_filename())
-                //        upscaling_dx12.dll = NtdllProxy::LoadLibraryExW_Ldr(libPath.c_str(), NULL, 0);
-                //    else
-                //        upscaling_dx12.dll = NtdllProxy::LoadLibraryExW_Ldr((libPath / dllNames[i]).c_str(), NULL, 0);
-
-                //    if (upscaling_dx12.dll != nullptr)
-                //    {
-                //        LOG_INFO("{} loaded from {}", wstring_to_string(dllNames[i]),
-                //                 wstring_to_string(Config::Instance()->FfxDx12Path.value()));
-                //        break;
-                //    }
-                //}
-
-                if (upscaling_dx12.dll == nullptr)
-                {
-                    upscaling_dx12.dll = NtdllProxy::LoadLibraryExW_Ldr(dllNames[i].c_str(), NULL, 0);
-
-                    if (upscaling_dx12.dll != nullptr)
-                    {
-                        LOG_INFO("{} loaded from exe folder", wstring_to_string(dllNames[i]));
-                        FSR4ModelSelection::Hook(upscaling_dx12.dll, FSR4Source::SDK);
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (upscaling_dx12.dll != nullptr && upscaling_dx12.Configure == nullptr)
-        {
-            upscaling_dx12.Configure =
-                (PfnFfxConfigure) KernelBaseProxy::GetProcAddress_()(upscaling_dx12.dll, "ffxConfigure");
-            upscaling_dx12.CreateContext =
-                (PfnFfxCreateContext) KernelBaseProxy::GetProcAddress_()(upscaling_dx12.dll, "ffxCreateContext");
-            upscaling_dx12.DestroyContext =
-                (PfnFfxDestroyContext) KernelBaseProxy::GetProcAddress_()(upscaling_dx12.dll, "ffxDestroyContext");
-            upscaling_dx12.Dispatch =
-                (PfnFfxDispatch) KernelBaseProxy::GetProcAddress_()(upscaling_dx12.dll, "ffxDispatch");
-            upscaling_dx12.Query = (PfnFfxQuery) KernelBaseProxy::GetProcAddress_()(upscaling_dx12.dll, "ffxQuery");
-
-            if (Config::Instance()->EnableFfxInputs.value_or_default() && upscaling_dx12.CreateContext != nullptr)
-            {
-                DetourTransactionBegin();
-                DetourUpdateThread(GetCurrentThread());
-
-                if (upscaling_dx12.Configure != nullptr)
-                    DetourAttach(&(PVOID&) upscaling_dx12.Configure, ffxConfigure_Dx12);
-
-                if (upscaling_dx12.CreateContext != nullptr)
-                    DetourAttach(&(PVOID&) upscaling_dx12.CreateContext, ffxCreateContext_Dx12);
-
-                if (upscaling_dx12.DestroyContext != nullptr)
-                    DetourAttach(&(PVOID&) upscaling_dx12.DestroyContext, ffxDestroyContext_Dx12);
-
-                if (upscaling_dx12.Dispatch != nullptr)
-                    DetourAttach(&(PVOID&) upscaling_dx12.Dispatch, ffxDispatch_Dx12);
-
-                if (upscaling_dx12.Query != nullptr)
-                    DetourAttach(&(PVOID&) upscaling_dx12.Query, ffxQuery_Dx12);
-
-                State::Instance().fsrHooks = true;
-
-                DetourTransactionCommit();
-            }
-        }
-
-        bool loadResult = upscaling_dx12.CreateContext != nullptr;
-
-        LOG_INFO("LoadResult: {}", loadResult);
-
-        if (!loadResult)
-            upscaling_dx12.dll = nullptr;
-
-        return loadResult;
+        return LoadFfxModuleDx12(upscaling_dx12, ffxDx12UpscalerNamesW, module,
+                                 [](HMODULE hMod) { FSR4ModelSelection::Hook(hMod, FSR4Source::SDK); });
     }
 
-    static bool InitFfxDx12_FG(HMODULE module = nullptr)
+    static bool InitFfxDx12_FG(HMODULE module = nullptr) { return LoadFfxModuleDx12(fg_dx12, ffxDx12FGNamesW, module); }
+
+    static bool InitFfxDx12_RR(HMODULE module = nullptr)
     {
-        // if dll already loaded
-        if (fg_dx12.dll != nullptr && fg_dx12.CreateContext != nullptr)
-            return true;
-
-        spdlog::info("");
-
-        if (module != nullptr)
-            fg_dx12.dll = module;
-
-        if (fg_dx12.dll == nullptr)
-        {
-            // Try new api first
-            std::vector<std::wstring> dllNames = { L"amd_fidelityfx_framegeneration_dx12.dll" };
-
-            for (size_t i = 0; i < dllNames.size(); i++)
-            {
-                LOG_DEBUG("Trying to load {}", wstring_to_string(dllNames[i]));
-
-                // if (fg_dx12.dll == nullptr && Config::Instance()->FfxDx12Path.has_value())
-                //{
-                //     std::filesystem::path libPath(Config::Instance()->FfxDx12Path.value().c_str());
-
-                //    if (libPath.has_filename())
-                //        fg_dx12.dll = NtdllProxy::LoadLibraryExW_Ldr(libPath.c_str(), NULL, 0);
-                //    else
-                //        fg_dx12.dll = NtdllProxy::LoadLibraryExW_Ldr((libPath / dllNames[i]).c_str(), NULL, 0);
-
-                //    if (fg_dx12.dll != nullptr)
-                //    {
-                //        LOG_INFO("{} loaded from {}", wstring_to_string(dllNames[i]),
-                //                 wstring_to_string(Config::Instance()->FfxDx12Path.value()));
-                //        break;
-                //    }
-                //}
-
-                if (fg_dx12.dll == nullptr)
-                {
-                    fg_dx12.dll = NtdllProxy::LoadLibraryExW_Ldr(dllNames[i].c_str(), NULL, 0);
-
-                    if (fg_dx12.dll != nullptr)
-                    {
-                        LOG_INFO("{} loaded from exe folder", wstring_to_string(dllNames[i]));
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (fg_dx12.dll != nullptr && fg_dx12.Configure == nullptr)
-        {
-            fg_dx12.Configure = (PfnFfxConfigure) KernelBaseProxy::GetProcAddress_()(fg_dx12.dll, "ffxConfigure");
-            fg_dx12.CreateContext =
-                (PfnFfxCreateContext) KernelBaseProxy::GetProcAddress_()(fg_dx12.dll, "ffxCreateContext");
-            fg_dx12.DestroyContext =
-                (PfnFfxDestroyContext) KernelBaseProxy::GetProcAddress_()(fg_dx12.dll, "ffxDestroyContext");
-            fg_dx12.Dispatch = (PfnFfxDispatch) KernelBaseProxy::GetProcAddress_()(fg_dx12.dll, "ffxDispatch");
-            fg_dx12.Query = (PfnFfxQuery) KernelBaseProxy::GetProcAddress_()(fg_dx12.dll, "ffxQuery");
-
-            if (Config::Instance()->EnableFfxInputs.value_or_default() && fg_dx12.CreateContext != nullptr)
-            {
-                DetourTransactionBegin();
-                DetourUpdateThread(GetCurrentThread());
-
-                if (fg_dx12.Configure != nullptr)
-                    DetourAttach(&(PVOID&) fg_dx12.Configure, ffxConfigure_Dx12);
-
-                if (fg_dx12.CreateContext != nullptr)
-                    DetourAttach(&(PVOID&) fg_dx12.CreateContext, ffxCreateContext_Dx12);
-
-                if (fg_dx12.DestroyContext != nullptr)
-                    DetourAttach(&(PVOID&) fg_dx12.DestroyContext, ffxDestroyContext_Dx12);
-
-                if (fg_dx12.Dispatch != nullptr)
-                    DetourAttach(&(PVOID&) fg_dx12.Dispatch, ffxDispatch_Dx12);
-
-                if (fg_dx12.Query != nullptr)
-                    DetourAttach(&(PVOID&) fg_dx12.Query, ffxQuery_Dx12);
-
-                State::Instance().fsrHooks = true;
-
-                DetourTransactionCommit();
-            }
-        }
-
-        bool loadResult = fg_dx12.CreateContext != nullptr;
-
-        LOG_INFO("LoadResult: {}", loadResult);
-
-        if (!loadResult)
-            fg_dx12.dll = nullptr;
-
-        return loadResult;
+        return LoadFfxModuleDx12(rrDenoiser_dx12, ffxDx12RRNamesW, module);
     }
 
     static feature_version VersionDx12()
     {
-        if (main_dx12.version.major == 0 && main_dx12.Query != nullptr /* && device != nullptr*/)
+        // Try to update main first
+        UpdateFeatureVersionDx12(main_dx12, FFX_API_CREATE_CONTEXT_DESC_TYPE_UPSCALE, "Main");
+
+        // Fallbacks if main is still invalid
+        if (main_dx12.version.major == 0)
         {
-            ffxQueryDescGetVersions versionQuery {};
-            versionQuery.header.type = FFX_API_QUERY_DESC_TYPE_GET_VERSIONS;
-            versionQuery.createDescType = FFX_API_CREATE_CONTEXT_DESC_TYPE_UPSCALE;
-            uint64_t versionCount = 0;
-            versionQuery.outputCount = &versionCount;
-
-            auto queryResult = main_dx12.Query(nullptr, &versionQuery.header);
-
-            // get number of versions for allocation
-            if (versionCount > 0 && queryResult == FFX_API_RETURN_OK)
-            {
-
-                std::vector<uint64_t> versionIds;
-                std::vector<const char*> versionNames;
-                versionIds.resize(versionCount);
-                versionNames.resize(versionCount);
-                versionQuery.versionIds = versionIds.data();
-                versionQuery.versionNames = versionNames.data();
-
-                // fill version ids and names arrays.
-                queryResult = main_dx12.Query(nullptr, &versionQuery.header);
-
-                if (queryResult == FFX_API_RETURN_OK)
-                {
-                    parse_version(versionNames[0], &main_dx12.version);
-                    LOG_INFO("FfxApi Dx12 version: {}.{}.{}", main_dx12.version.major, main_dx12.version.minor,
-                             main_dx12.version.patch);
-                }
-                else
-                {
-                    LOG_WARN("main_dx12.Query 2 result: {}", (UINT) queryResult);
-                }
-            }
-            else
-            {
-                LOG_WARN("main_dx12.Query result: {}", (UINT) queryResult);
-            }
+            if (upscaling_dx12.Query != nullptr)
+                main_dx12.version = VersionDx12_SR();
+            if (main_dx12.version.major == 0 && fg_dx12.Query != nullptr)
+                main_dx12.version = VersionDx12_FG();
         }
-
-        if (main_dx12.version.major == 0 && upscaling_dx12.Query != nullptr)
-            main_dx12.version = VersionDx12_SR();
-
-        if (main_dx12.version.major == 0 && fg_dx12.Query != nullptr)
-            main_dx12.version = VersionDx12_FG();
 
         return main_dx12.version;
     }
@@ -529,47 +411,7 @@ class FfxApiProxy
         if (upscaling_dx12.Query == nullptr)
             return VersionDx12();
 
-        if (upscaling_dx12.version.major == 0)
-        {
-            ffxQueryDescGetVersions versionQuery {};
-            versionQuery.header.type = FFX_API_QUERY_DESC_TYPE_GET_VERSIONS;
-            versionQuery.createDescType = FFX_API_CREATE_CONTEXT_DESC_TYPE_UPSCALE;
-            uint64_t versionCount = 0;
-            versionQuery.outputCount = &versionCount;
-
-            auto queryResult = upscaling_dx12.Query(nullptr, &versionQuery.header);
-
-            // get number of versions for allocation
-            if (versionCount > 0 && queryResult == FFX_API_RETURN_OK)
-            {
-
-                std::vector<uint64_t> versionIds;
-                std::vector<const char*> versionNames;
-                versionIds.resize(versionCount);
-                versionNames.resize(versionCount);
-                versionQuery.versionIds = versionIds.data();
-                versionQuery.versionNames = versionNames.data();
-
-                // fill version ids and names arrays.
-                queryResult = upscaling_dx12.Query(nullptr, &versionQuery.header);
-
-                if (queryResult == FFX_API_RETURN_OK)
-                {
-                    parse_version(versionNames[0], &upscaling_dx12.version);
-                    LOG_INFO("FfxApi Dx12 SR version: {}.{}.{}", upscaling_dx12.version.major,
-                             upscaling_dx12.version.minor, upscaling_dx12.version.patch);
-                }
-                else
-                {
-                    LOG_WARN("main_dx12.Query 2 result: {}", (UINT) queryResult);
-                }
-            }
-            else
-            {
-                LOG_WARN("main_dx12.Query result: {}", (UINT) queryResult);
-            }
-        }
-
+        UpdateFeatureVersionDx12(upscaling_dx12, FFX_API_CREATE_CONTEXT_DESC_TYPE_UPSCALE, "SR");
         return upscaling_dx12.version;
     }
 
@@ -578,85 +420,68 @@ class FfxApiProxy
         if (fg_dx12.Query == nullptr)
             return VersionDx12();
 
-        if (fg_dx12.version.major == 0)
-        {
-            ffxQueryDescGetVersions versionQuery {};
-            versionQuery.header.type = FFX_API_QUERY_DESC_TYPE_GET_VERSIONS;
-            versionQuery.createDescType = FFX_API_CREATE_CONTEXT_DESC_TYPE_FRAMEGENERATION;
-            uint64_t versionCount = 0;
-            versionQuery.outputCount = &versionCount;
-
-            auto queryResult = fg_dx12.Query(nullptr, &versionQuery.header);
-
-            // get number of versions for allocation
-            if (versionCount > 0 && queryResult == FFX_API_RETURN_OK)
-            {
-
-                std::vector<uint64_t> versionIds;
-                std::vector<const char*> versionNames;
-                versionIds.resize(versionCount);
-                versionNames.resize(versionCount);
-                versionQuery.versionIds = versionIds.data();
-                versionQuery.versionNames = versionNames.data();
-
-                // fill version ids and names arrays.
-                queryResult = fg_dx12.Query(nullptr, &versionQuery.header);
-
-                if (queryResult == FFX_API_RETURN_OK)
-                {
-                    parse_version(versionNames[0], &fg_dx12.version);
-                    LOG_INFO("FfxApi Dx12 FG version: {}.{}.{}", fg_dx12.version.major, fg_dx12.version.minor,
-                             fg_dx12.version.patch);
-                }
-                else
-                {
-                    LOG_WARN("main_dx12.Query 2 result: {}", (UINT) queryResult);
-                }
-            }
-            else
-            {
-                LOG_WARN("main_dx12.Query result: {}", (UINT) queryResult);
-            }
-        }
-
+        UpdateFeatureVersionDx12(fg_dx12, FFX_API_CREATE_CONTEXT_DESC_TYPE_FRAMEGENERATION, "FG");
         return fg_dx12.version;
+    }
+
+    static feature_version VersionDx12_RR()
+    {
+        if (rrDenoiser_dx12.Query == nullptr)
+            return VersionDx12();
+
+        UpdateFeatureVersionDx12(rrDenoiser_dx12, FFX_API_CREATE_CONTEXT_DESC_TYPE_DENOISER, "RR");
+        return rrDenoiser_dx12.version;
     }
 
     static ffxReturnCode_t D3D12_CreateContext(ffxContext* context, ffxCreateContextDescHeader* desc,
                                                const ffxAllocationCallbacks* memCb)
     {
-        auto type = GetType(desc->type);
-        auto isFg = type == FFXStructType::FG || type == FFXStructType::SwapchainDX12;
-
+        const FFXStructType type = GetType(desc->type);
         contextToType[context] = type;
+        FfxModule* pModule = nullptr;
 
-        if (isFg && fg_dx12.dll != nullptr)
+        // Module routing
+        switch (type)
         {
+        case FFXStructType::FG:
+        case FFXStructType::SwapchainDX12:
+            pModule = &fg_dx12;
+
+            if (fg_dx12.dll == nullptr)
+                break;
+
             LOG_DEBUG("Creating with fg_dx12");
             return fg_dx12.CreateContext(context, desc, memCb);
-        }
-        else if (!isFg && upscaling_dx12.dll != nullptr)
-        {
+
+        case FFXStructType::Denoiser:
+            pModule = &rrDenoiser_dx12;
+
+            if (rrDenoiser_dx12.dll == nullptr)
+                break;
+
+            LOG_DEBUG("Creating with rrDenoiser_dx12");
+            return rrDenoiser_dx12.CreateContext(context, desc, memCb);
+
+        case FFXStructType::Upscaling:
+        default:
+            // General/Unknown types default to the Upscaling module first
+            pModule = &upscaling_dx12;
+
+            if (upscaling_dx12.dll == nullptr)
+                break;
+
             LOG_DEBUG("Creating with upscaling_dx12");
             return upscaling_dx12.CreateContext(context, desc, memCb);
         }
 
-        if (main_dx12.dll != nullptr && !(isFg && fg_dx12.skipCreateCalls) &&
-            !(!isFg && upscaling_dx12.skipCreateCalls))
+        // Reentry guard (Fallback to Main)
+        if (main_dx12.dll != nullptr && !pModule->skipCreateCalls)
         {
             LOG_DEBUG("Creating with main_dx12");
 
-            if (isFg)
-                fg_dx12.skipCreateCalls = true;
-            else
-                upscaling_dx12.skipCreateCalls = true;
-
-            auto result = main_dx12.CreateContext(context, desc, memCb);
-
-            if (isFg)
-                fg_dx12.skipCreateCalls = false;
-            else
-                upscaling_dx12.skipCreateCalls = false;
+            pModule->skipCreateCalls = true;
+            ffxReturnCode_t result = main_dx12.CreateContext(context, desc, memCb);
+            pModule->skipCreateCalls = false;
 
             return result;
         }
@@ -680,6 +505,7 @@ class FfxApiProxy
             LOG_DEBUG("No context type mapping found, defaulting to Unknown");
         }
 
+        // Normal destructor routing
         switch (type)
         {
         case FFXStructType::General:
@@ -694,6 +520,12 @@ class FfxApiProxy
                 result = upscaling_dx12.DestroyContext(context, memCb);
             break;
 
+        case FFXStructType::Denoiser:
+            LOG_DEBUG("Destroying with rrDenoiser_dx12");
+            if (rrDenoiser_dx12.dll != nullptr)
+                result = rrDenoiser_dx12.DestroyContext(context, memCb);
+            break;
+
         case FFXStructType::FG:
         case FFXStructType::SwapchainDX12:
             LOG_DEBUG("Destroying with fg_dx12");
@@ -705,6 +537,7 @@ class FfxApiProxy
             break;
         }
 
+        // Very much not normal destructor routing
         if (result == FFX_API_RETURN_OK)
         {
             LOG_DEBUG("Destroyed with mapped module");
@@ -720,6 +553,18 @@ class FfxApiProxy
         if (result == FFX_API_RETURN_OK)
         {
             LOG_DEBUG("Destroyed with upscaling_dx12");
+            return result;
+        }
+
+        if (rrDenoiser_dx12.dll != nullptr)
+        {
+            LOG_DEBUG("Destroying with rrDenoiser_dx12");
+            result = rrDenoiser_dx12.DestroyContext(context, memCb);
+        }
+
+        if (result == FFX_API_RETURN_OK)
+        {
+            LOG_DEBUG("Destroyed with rrDenoiser_dx12");
             return result;
         }
 
@@ -755,28 +600,44 @@ class FfxApiProxy
 
     static ffxReturnCode_t D3D12_Configure(ffxContext* context, const ffxConfigureDescHeader* desc)
     {
-        auto type = GetType(desc->type);
-        auto isFg = type == FFXStructType::FG || type == FFXStructType::SwapchainDX12;
+        FFXStructType type = GetType(desc->type);
+        FfxModule* pModule = nullptr;
 
-        if (isFg && fg_dx12.dll != nullptr)
-            return fg_dx12.Configure(context, desc);
-        else if (!isFg && upscaling_dx12.dll != nullptr)
-            return upscaling_dx12.Configure(context, desc);
-
-        if (main_dx12.dll != nullptr && !(isFg && fg_dx12.skipConfigureCalls) &&
-            !(!isFg && upscaling_dx12.skipConfigureCalls))
+        switch (type)
         {
-            if (isFg)
-                fg_dx12.skipConfigureCalls = true;
-            else
-                upscaling_dx12.skipConfigureCalls = true;
+        case FFXStructType::FG:
+        case FFXStructType::SwapchainDX12:
+            pModule = &fg_dx12;
 
-            auto result = main_dx12.Configure(context, desc);
+            if (fg_dx12.dll != nullptr)
+                return fg_dx12.Configure(context, desc);
+            break;
 
-            if (isFg)
-                fg_dx12.skipConfigureCalls = false;
-            else
-                upscaling_dx12.skipConfigureCalls = false;
+        case FFXStructType::Denoiser:
+            pModule = &rrDenoiser_dx12;
+
+            if (rrDenoiser_dx12.dll != nullptr)
+                return rrDenoiser_dx12.Configure(context, desc);
+            break;
+
+        case FFXStructType::Upscaling:
+        default:
+            pModule = &upscaling_dx12;
+
+            if (upscaling_dx12.dll != nullptr)
+                return upscaling_dx12.Configure(context, desc);
+            break;
+        }
+
+        // Reentry guard (Fallback to Main)
+        if (pModule == nullptr)
+            pModule = &main_dx12;
+
+        if (main_dx12.dll != nullptr && !pModule->skipConfigureCalls)
+        {
+            pModule->skipConfigureCalls = true;
+            ffxReturnCode_t result = main_dx12.Configure(context, desc);
+            pModule->skipConfigureCalls = false;
 
             return result;
         }
@@ -786,27 +647,44 @@ class FfxApiProxy
 
     static ffxReturnCode_t D3D12_Query(ffxContext* context, ffxQueryDescHeader* desc)
     {
-        auto type = GetIndirectType(desc);
-        auto isFg = type == FFXStructType::FG || type == FFXStructType::SwapchainDX12;
+        FFXStructType type = GetIndirectType(desc);
+        FfxModule* pModule = nullptr;
 
-        if (isFg && fg_dx12.dll != nullptr)
-            return fg_dx12.Query(context, desc);
-        else if (!isFg && upscaling_dx12.dll != nullptr)
-            return upscaling_dx12.Query(context, desc);
-
-        if (main_dx12.dll != nullptr && !(isFg && fg_dx12.skipQueryCalls) && !(!isFg && upscaling_dx12.skipQueryCalls))
+        switch (type)
         {
-            if (isFg)
-                fg_dx12.skipQueryCalls = true;
-            else
-                upscaling_dx12.skipQueryCalls = true;
+        case FFXStructType::FG:
+        case FFXStructType::SwapchainDX12:
+            pModule = &fg_dx12;
 
-            auto result = main_dx12.Query(context, desc);
+            if (fg_dx12.dll != nullptr)
+                return fg_dx12.Query(context, desc);
+            break;
 
-            if (isFg)
-                fg_dx12.skipQueryCalls = false;
-            else
-                upscaling_dx12.skipQueryCalls = false;
+        case FFXStructType::Denoiser:
+            pModule = &rrDenoiser_dx12;
+
+            if (rrDenoiser_dx12.dll != nullptr)
+                return rrDenoiser_dx12.Query(context, desc);
+            break;
+
+        case FFXStructType::Upscaling:
+        default:
+            // Fallback to Upscaling module for General/Unknown
+            pModule = &upscaling_dx12;
+
+            if (upscaling_dx12.dll != nullptr)
+                return upscaling_dx12.Query(context, desc);
+            break;
+        }
+
+        if (pModule == nullptr)
+            pModule = &main_dx12;
+
+        if (main_dx12.dll != nullptr && !pModule->skipQueryCalls)
+        {
+            pModule->skipQueryCalls = true;
+            ffxReturnCode_t result = main_dx12.Query(context, desc);
+            pModule->skipQueryCalls = false;
 
             return result;
         }
@@ -816,28 +694,44 @@ class FfxApiProxy
 
     static ffxReturnCode_t D3D12_Dispatch(ffxContext* context, const ffxDispatchDescHeader* desc)
     {
-        auto type = GetType(desc->type);
-        auto isFg = type == FFXStructType::FG || type == FFXStructType::SwapchainDX12;
+        FFXStructType type = GetType(desc->type);
+        FfxModule* pModule = nullptr;
 
-        if (isFg && fg_dx12.dll != nullptr)
-            return fg_dx12.Dispatch(context, desc);
-        else if (!isFg && upscaling_dx12.dll != nullptr)
-            return upscaling_dx12.Dispatch(context, desc);
-
-        if (main_dx12.dll != nullptr && !(isFg && fg_dx12.skipDispatchCalls) &&
-            !(!isFg && upscaling_dx12.skipDispatchCalls))
+        switch (type)
         {
-            if (isFg)
-                fg_dx12.skipDispatchCalls = true;
-            else
-                upscaling_dx12.skipDispatchCalls = true;
+        case FFXStructType::FG:
+        case FFXStructType::SwapchainDX12:
+            pModule = &fg_dx12;
 
-            auto result = main_dx12.Dispatch(context, desc);
+            if (fg_dx12.dll != nullptr)
+                return fg_dx12.Dispatch(context, desc);
+            break;
 
-            if (isFg)
-                fg_dx12.skipDispatchCalls = false;
-            else
-                upscaling_dx12.skipDispatchCalls = false;
+        case FFXStructType::Denoiser:
+            pModule = &rrDenoiser_dx12;
+
+            if (rrDenoiser_dx12.dll != nullptr)
+                return rrDenoiser_dx12.Dispatch(context, desc);
+            break;
+
+        case FFXStructType::Upscaling:
+        default:
+            // Fallback to Upscaling module for General/Unknown
+            pModule = &upscaling_dx12;
+
+            if (upscaling_dx12.dll != nullptr)
+                return upscaling_dx12.Dispatch(context, desc);
+            break;
+        }
+
+        if (pModule == nullptr)
+            pModule = &main_dx12;
+
+        if (main_dx12.dll != nullptr && !pModule->skipDispatchCalls)
+        {
+            pModule->skipDispatchCalls = true;
+            ffxReturnCode_t result = main_dx12.Dispatch(context, desc);
+            pModule->skipDispatchCalls = false;
 
             return result;
         }
@@ -871,8 +765,7 @@ class FfxApiProxy
 
             if (main_vk.dll != nullptr)
             {
-                LOG_INFO("amd_fidelityfx_vk.dll loaded from {0}",
-                         wstring_to_string(Config::Instance()->FfxVkPath.value()));
+                WLOG_INFO(L"amd_fidelityfx_vk.dll loaded from {0}", Config::Instance()->FfxVkPath.value());
             }
         }
 
@@ -959,7 +852,7 @@ class FfxApiProxy
 
                 if (queryResult == FFX_API_RETURN_OK)
                 {
-                    parse_version(versionNames[0], &main_vk.version);
+                    ParseVersion(versionNames[0], &main_vk.version);
                     LOG_INFO("FfxApi Vulkan version: {}.{}.{}", main_vk.version.major, main_vk.version.minor,
                              main_vk.version.patch);
                 }
