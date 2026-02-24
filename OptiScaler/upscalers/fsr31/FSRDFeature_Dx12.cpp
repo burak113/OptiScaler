@@ -3,13 +3,16 @@
 #include <DirectXMath.h>
 #include "NVNGX_Parameter.h"
 #include "FSRDFeature_Dx12.h"
-#include "shaders/fsrd_input_conv/FSRDInputConv_Dx12.h"
+#include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
 
 using namespace DirectX;
 
-using FSRDConvIn = FSRDInputConv_Dx12::InputResources;
-using FSRDConvCfg = FSRDInputConv_Dx12::Constants;
-using FSRDConvOut = FSRDInputConv_Dx12::OutputResources;
+using FSRDConvIn = FSRDPreprocessor_Dx12::ConvInput;
+using FSRDConvCfg = FSRDPreprocessor_Dx12::ConvConstants;
+using FSRDConvOut = FSRDPreprocessor_Dx12::ConvOutput;
+
+using FSRDCompIn = FSRDPreprocessor_Dx12::CompInput;
+using FSRDCompCfg = FSRDPreprocessor_Dx12::CompConstants;
 
 /**
  * @brief Retrieves a matrix from the given parameter table. Matrices used by DLSS are in column-major
@@ -166,7 +169,7 @@ static ViewPlanes GetViewPlanes(const DirectX::XMMATRIX& projection, bool isInve
     return planes;
 }
 
-using FSRDFlags = FSRDInputConv_Dx12::ConfigFlags;
+using FSRDFlags = FSRDPreprocessor_Dx12::ConvFlags;
 
 enum class DebugModes : uint32_t
 {
@@ -175,6 +178,7 @@ enum class DebugModes : uint32_t
     UpscalerBypass = 2,
     RawColor = 3,
     DlssBias = 4,
+    SkipSignal = 5,
 
     DataVis = FSRDFlags::Debug,
     DataVisMask = FSRDFlags::DebugModeMask,
@@ -209,6 +213,7 @@ constexpr auto kDebugModes = std::to_array<DebugModeNamePair>
     { "UpscalerBypass", (uint32_t) DebugModes::UpscalerBypass },
     { "RawColor", (uint32_t)DebugModes::RawColor  },
     { "DlssBias", (uint32_t) DebugModes::DlssBias }, 
+    { "SkipSignal", (uint32_t) DebugModes::SkipSignal }, 
 
     { "InDepth", (uint32_t)DebugModes::InDepth  },
     { "InMotionVectors", (uint32_t)DebugModes::InMotion  },
@@ -262,15 +267,6 @@ bool FSRDFeatureDx12::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
 
         LOG_DEBUG("FSR Ray Regeneration Initializing");
         _name = "FSR Ray Regeneration";
-
-        // Create DLSS-RR to FSR-RR input converter
-        FSRDConvShader = std::make_unique<FSRDInputConv_Dx12>("FSRD Converter", Device);
-
-        if (!FSRDConvShader->IsInit())
-            return false;
-
-        if (!FSRDConvShader->SetMaxRenderSize(_upscaleCtxDesc.maxUpscaleSize.width, _upscaleCtxDesc.maxUpscaleSize.height))
-            return false;
 
         // HW depth flag might not be needed. May be able to handle transparently in conv shader.
         if (int value; InParameters->Get(NVSDK_NGX_Parameter_Use_HW_Depth, &value) == NVSDK_NGX_Result_Success)
@@ -359,6 +355,15 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
         .defaultSettings = &_denoiserSettings
     };
     FfxApiProxy::D3D12_Query(nullptr, &queryDefaultSettingsDesc.header);
+
+    // Create DLSS-RR to FSR-RR input converter
+    FSRDConvShader = std::make_unique<FSRDPreprocessor_Dx12>("FSRD Converter", Device);
+
+    if (!FSRDConvShader->IsInit())
+        return false;
+
+    if (!FSRDConvShader->SetMaxRenderSize(_denoiserCtxDesc.maxRenderSize.width, _denoiserCtxDesc.maxRenderSize.height))
+        return false;
 
     return true;
 }
@@ -450,7 +455,7 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
     const auto& inParams = *InParameters;
 
     const DebugModes dbgMode = (DebugModes)cfg.FfxDenoiserDebugMode.value_or_default(); 
-    const bool isDebugVisSet = (uint32_t)dbgMode & (uint32_t)DebugModes::DataVis;
+    const bool isDebugVisSet = (uint32_t)dbgMode & (uint32_t)DebugModes::DataVis || dbgMode == DebugModes::SkipSignal;
     const bool isDenoiseBypassed = isDebugVisSet || (dbgMode != DebugModes::None && dbgMode != DebugModes::UpscalerBypass);
     const bool isUpscaleBypassed = isDebugVisSet || (dbgMode != DebugModes::None && dbgMode != DebugModes::DenoiserBypass);
 
@@ -479,6 +484,16 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         if (!DispatchDenoiser(InCommandList, denoiserDesc))
             return false;
 
+        FSRDCompIn compIn = 
+        {
+            .InDenoisedRadiance = GetFfxD3D12Resource(signalDesc.radiance.output),
+            .InSkipSignal = FSRDConvShader->GetConvOutput().OutSkipSignal
+        };
+        FSRDCompCfg compCfg = { .RenderSize = _convConfig.RenderSize };
+
+        if (!FSRDConvShader->DispatchComposition(InCommandList, compIn, compCfg))
+            return false;
+
         isDenoiserReady = true;
     }
 
@@ -491,7 +506,13 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
             return false;
 
         // Override upscaler config
-        upscalerDesc.cameraFovAngleVertical = denoiserDesc.cameraFovAngleVertical;
+        if (isDenoiserReady)
+        {
+            upscalerDesc.cameraFovAngleVertical = denoiserDesc.cameraFovAngleVertical;
+            upscalerDesc.motionVectors = denoiserDesc.motionVectors;
+            upscalerDesc.color = ffxApiGetResourceDX12(FSRDConvShader->GetCompOutput(), FFX_API_RESOURCE_STATE_COMPUTE_READ);
+            upscalerDesc.frameTimeDelta = denoiserDesc.deltaTime;
+        }
 
         // Sets optional, configurable resource barriers
         FSR31FeatureDx12::SetConfigurableBarriers(InCommandList);
@@ -509,12 +530,14 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
     {
         ID3D12Resource* resource = nullptr;
 
-        if (isDebugVisSet)
-            resource = FSRDConvShader->GetOutputs().OutRadiance;
+        if (dbgMode == DebugModes::RawColor)
+            TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_Color, resource);
+        if (dbgMode == DebugModes::SkipSignal)
+            resource = FSRDConvShader->GetConvOutput().OutSkipSignal;
+        else if (isDebugVisSet || isUpscaleBypassed)
+            resource = FSRDConvShader->GetConvOutput().OutRadiance;
         else if (dbgMode == DebugModes::DlssBias)
             TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, resource);
-        else if (isUpscaleBypassed)
-            resource = GetFfxD3D12Resource(signalDesc.radiance.output);
 
         ID3D12Resource* dstTex;
         
@@ -587,7 +610,7 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
         .cameraNear = _convConfig.NearPlane,
         .cameraFar = _convConfig.FarPlane,
         .cameraFovAngleVertical = GetVertFovFromProjectionMatrixRad(_projMatrix),
-        .renderSize = { RenderWidth(), RenderHeight() },   
+        .renderSize = { RenderWidth(), RenderHeight() }, 
         .frameIndex = (uint32_t)_frameCount,
         .flags = FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO
     };
@@ -738,11 +761,11 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     LOG_DEBUG("Distpaching FSRD Input Converter");
 
     // Dispatch resource converter. Outputs are automatically transitioned for reading.
-    if (!FSRDConvShader->Dispatch(InCommandList, convInputs, _convConfig))
+    if (!FSRDConvShader->DispatchConversion(InCommandList, convInputs, _convConfig))
         return false;
 
     // Set FSR-RR input texture pointers
-    convOut = FSRDConvShader->GetOutputs();
+    convOut = FSRDConvShader->GetConvOutput();
 
     return true;
 }

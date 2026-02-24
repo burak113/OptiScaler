@@ -11,14 +11,14 @@ struct ID3D12GraphicsCommandList;
 struct ID3D12Resource;
 
 /**
- * @brief Converts DLSS Ray Reconstruction inputs into the format expected by FSR Ray Regeneration.
- * Manages shader compilation, resource allocation, format conversion, and state transitions.
+ * @brief Converts DLSS Ray Reconstruction inputs into the format expected by FSR Ray Regeneration,
+ * and handles composition for FSR-RR outputs.
  */
-class FSRDInputConv_Dx12
+class FSRDPreprocessor_Dx12
 {
   public:
 
-    enum class ConfigFlags : uint32_t
+    enum class ConvFlags : uint32_t
     {
         NonGammaAlbedo = 1 << 0, // If true, FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO should ALSO be set
         UseInfiniteFarPlane = 1 << 1, 
@@ -52,7 +52,7 @@ class FSRDInputConv_Dx12
     /**
      * @brief Constant buffer data passed to the conversion shader.
      */
-    struct alignas(16) Constants
+    struct alignas(16) ConvConstants
     {
         DirectX::XMFLOAT4X4 InvViewMatrix; // DLSSD WorldToView^1 - Camera matrix
         DirectX::XMFLOAT4X4 InvProjMatrix;   // DLSSD ViewToClip^-1 - Projection
@@ -72,7 +72,7 @@ class FSRDInputConv_Dx12
      * @brief Input resources matching DLSS Ray Reconstruction / NGX parameter names.
      * All resources must be in readable state before dispatch.
      */
-    union InputResources
+    union ConvInput
     {
         struct
         {
@@ -93,7 +93,7 @@ class FSRDInputConv_Dx12
      * @brief Output resources formatted for direct consumption by FSR Ray Regeneration.
      * All resources are automatically transitioned to SRV state after dispatch.
      */
-    union OutputResources
+    union ConvOutput
     {
         struct
         {
@@ -114,11 +114,28 @@ class FSRDInputConv_Dx12
         ID3D12Resource* AsArray[8];
     };
 
+    struct alignas(16) CompConstants
+    {
+        DirectX::XMFLOAT2 RenderSize;    // Resolution of inputs
+        uint32_t Flags;
+    };
+
+    union CompInput
+    {
+        struct
+        {
+            ID3D12Resource* InDenoisedRadiance;
+            ID3D12Resource* InSkipSignal;
+        };
+
+        ID3D12Resource* AsArray[2];
+    };
+
   public:
 
-    FSRDInputConv_Dx12(std::string_view name, ID3D12Device* pDev);
+    FSRDPreprocessor_Dx12(std::string_view name, ID3D12Device* pDev);
 
-    ~FSRDInputConv_Dx12();
+    ~FSRDPreprocessor_Dx12();
 
     /**
      * @brief Indicates whether the converter has been successfully initialized.
@@ -146,14 +163,27 @@ class FSRDInputConv_Dx12
      * @param constants Per-frame constant buffer values
      * @return True if dispatch completed successfully
      */
-    bool Dispatch(ID3D12GraphicsCommandList* cmdList, const InputResources& inputs, const Constants& constants);
+    bool DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConvInput& inputs, const ConvConstants& constants);
 
     /**
      * @brief Returns output resources for FSR-RR after dispatch.
      * Resources are transitioned to SRV state and valid until the next dispatch.
      * Must be re-acquired after each dispatch (lifetime managed internally).
      */
-    OutputResources GetOutputs() const;
+    ConvOutput GetConvOutput() const;
+
+    /**
+     * @brief Composes the denoised radiance from FSR-RR with the skip signal previously generated 
+     * by the converter, and writes the result to OutRadiance.
+     */
+    bool DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompInput& inputs, const CompConstants& constants);
+
+    /**
+     * @brief Returns the final composited and denoised output.
+     * Resources are transitioned to SRV state and valid until the next dispatch.
+     * Must be re-acquired after each dispatch (lifetime managed internally).
+     */
+    ID3D12Resource* GetCompOutput() const;
 
   private:
     struct Impl;
@@ -161,6 +191,4 @@ class FSRDInputConv_Dx12
     std::unique_ptr<Impl> m_impl;
     std::string_view m_InstanceName;
     bool m_IsInitialized;
-
-    FSRDInputConv_Dx12(std::string_view name, ID3D12Device* pDev, std::string_view hlslSrc);
 };

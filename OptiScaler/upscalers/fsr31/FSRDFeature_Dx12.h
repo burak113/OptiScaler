@@ -1,14 +1,7 @@
 #pragma once
 #include "FSR31Feature_Dx12.h"
-#include "shaders/fsrd_input_conv/FSRDInputConv_Dx12.h"
+#include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
 #include <DirectXMath.h>
-
-class FSRDInputConv_Dx12;
-
-namespace DirectX
-{
-    struct XMMATRIX;
-}
 
 /**
  * @brief Unfied denoiser-upscaler utilising AMD FSR Ray Regeneration and Super Resolution with 
@@ -17,9 +10,9 @@ namespace DirectX
 class FSRDFeatureDx12 : public FSR31FeatureDx12
 {
 public:
-    using FSRDConvIn = FSRDInputConv_Dx12::InputResources;
-    using FSRDConvCfg = FSRDInputConv_Dx12::Constants;
-    using FSRDConvOut = FSRDInputConv_Dx12::OutputResources;
+    using FSRDConvIn = FSRDPreprocessor_Dx12::ConvInput;
+    using FSRDConvCfg = FSRDPreprocessor_Dx12::ConvConstants;
+    using FSRDConvOut = FSRDPreprocessor_Dx12::ConvOutput;
 
     FSRDFeatureDx12(uint32_t InHandleId, NVSDK_NGX_Parameter* InParameters);
 
@@ -48,7 +41,7 @@ private:
     DirectX::XMMATRIX _prevViewMatrix; // Last world to camera space
     DirectX::XMMATRIX _projMatrix; // Perspective projection matrix
 
-    std::unique_ptr<FSRDInputConv_Dx12> FSRDConvShader;
+    std::unique_ptr<FSRDPreprocessor_Dx12> FSRDConvShader;
 
     bool InitFSR3(const NVSDK_NGX_Parameter* InParameters) override;
 

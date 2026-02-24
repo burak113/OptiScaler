@@ -5,13 +5,7 @@
     "RootFlags(0), " \
     "CBV(b0), " \
     "DescriptorTable(SRV(t0, numDescriptors = 8), visibility = SHADER_VISIBILITY_ALL), " \
-    "DescriptorTable(UAV(u0, numDescriptors = 8), visibility = SHADER_VISIBILITY_ALL), " \
-    "StaticSampler(s0, " \
-        "filter = FILTER_MIN_MAG_MIP_LINEAR, " \
-        "addressU = TEXTURE_ADDRESS_CLAMP, " \
-        "addressV = TEXTURE_ADDRESS_CLAMP, " \
-        "addressW = TEXTURE_ADDRESS_CLAMP, " \
-        "visibility = SHADER_VISIBILITY_ALL)"
+    "DescriptorTable(UAV(u0, numDescriptors = 8), visibility = SHADER_VISIBILITY_ALL), "
 
 // Flags
 #define FLAGS_NON_GAMMA_ALBEDO          (1 << 0)
@@ -84,8 +78,6 @@ cbuffer CB_Packing : register(b0)
     
     uint Flags;
 };
-
-SamplerState LinearSampler : register(s0);
 
 bool IsSet(uint mask) { return (Flags & mask) == mask; }
 uint GetDebugMode() { return (Flags & FLAGS_DEBUG_MODE_MASK); }
