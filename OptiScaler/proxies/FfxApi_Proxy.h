@@ -542,13 +542,14 @@ class FfxApiProxy
             break;
         }
 
-        // Very much not normal destructor routing
+        // Destroyed normally
         if (result == FFX_API_RETURN_OK)
         {
             LOG_DEBUG("Destroyed with mapped module");
             return result;
         }
 
+        // Very much not normal object destruction routing
         if (upscaling_dx12.dll != nullptr)
         {
             LOG_DEBUG("Destroying with upscaling_dx12");
@@ -559,12 +560,6 @@ class FfxApiProxy
         {
             LOG_DEBUG("Destroyed with upscaling_dx12");
             return result;
-        }
-
-        if (rrDenoiser_dx12.dll != nullptr)
-        {
-            LOG_DEBUG("Destroying with rrDenoiser_dx12");
-            result = rrDenoiser_dx12.DestroyContext(context, memCb);
         }
 
         if (result == FFX_API_RETURN_OK)
