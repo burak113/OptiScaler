@@ -2580,21 +2580,16 @@ bool MenuCommon::RenderMenu()
 
                     // FFX -----------------
                     if (currentBackend.rfind("fsr", 0) == 0 && currentFeature->Name() != "DLSSD" &&
-                        (currentBackend == "fsr31" || currentBackend == "fsr31_12"))
-                    if (currentBackend.rfind("fsr", 0) == 0 && state.currentFeature->Name() != "DLSSD" &&
-                        (currentBackend == OptiKeys::FSR31 || 
-                        currentBackend == OptiKeys::FSR_RR ||
-                        currentBackend == OptiKeys::FSR31_11on12))
+                        (currentBackend == "fsr31" || currentBackend == "fsr31_12" ||
+                         currentBackend == OptiKeys::FSR_RR))
                     {
                         ImGui::SeparatorText("FFX Settings");
 
                         if (_ffxUpscalerIndex < 0)
                             _ffxUpscalerIndex = config->FfxUpscalerIndex.value_or_default();
 
-                        if (currentBackend == "fsr31" ||
+                        if (currentBackend == "fsr31" || currentBackend == OptiKeys::FSR_RR || 
                             currentBackend == "fsr31_12" && state.ffxUpscalerVersionNames.size() > 0)
-                        if (currentBackend == OptiKeys::FSR31 || currentBackend == OptiKeys::FSR_RR || 
-                            currentBackend == OptiKeys::FSR31_11on12 && state.ffxUpscalerVersionNames.size() > 0)
                         {
                             ImGui::PushItemWidth(135.0f * menuResScale);
 
