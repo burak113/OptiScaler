@@ -573,12 +573,6 @@ static NVSDK_NGX_Result TryCreateOptiFeature(
         return NVSDK_NGX_Result_Fail;
     }
 
-    // Assign handle
-    if (*OutHandle == nullptr)
-        *OutHandle = new NVSDK_NGX_Handle{ handleId };
-    else
-        (*OutHandle)->Id = handleId;
-
     // Ensure D3D12 device
     if (!EnsureD3D12Device(InCmdList))
     {
@@ -587,10 +581,16 @@ static NVSDK_NGX_Result TryCreateOptiFeature(
         if (shouldRestore)
             D3D12Hooks::SetRootSignatureTracking(true);
 
-        // Partial cleanup â€“ handle is allocated but context is incomplete
+        // Partial cleanup – handle is allocated but context is incomplete
         Dx12Contexts.erase(handleId);
         return NVSDK_NGX_Result_Fail;
     }
+
+    // Assign handle
+    if (*OutHandle == nullptr)
+        *OutHandle = new NVSDK_NGX_Handle { handleId };
+    else
+        (*OutHandle)->Id = handleId;
 
     state.AutoExposure.reset();
 
