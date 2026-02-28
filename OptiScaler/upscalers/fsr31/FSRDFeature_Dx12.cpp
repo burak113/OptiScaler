@@ -208,6 +208,7 @@ enum class DebugModes : uint32_t
     Coherence = FSRDFlags::DebugCoherence,
     CoherenceMask = FSRDFlags::DebugCoherenceMask,
     LinearityMask = FSRDFlags::DebugLinearityMask,
+    ColorMask = FSRDFlags::DebugColorMask,
 };
 
 using DebugModeNamePair = std::pair<const char*, uint32_t>;
@@ -243,7 +244,8 @@ constexpr auto kDebugModes = std::to_array<DebugModeNamePair>
 
     { "Coherence", (uint32_t)DebugModes::Coherence  },
     { "CoherenceMask", (uint32_t)DebugModes::CoherenceMask  },
-    { "LinearityMask", (uint32_t)DebugModes::LinearityMask  }
+    { "LinearityMask", (uint32_t)DebugModes::LinearityMask  },
+    { "ColorMask", (uint32_t)DebugModes::ColorMask  }
 });
 
 bool FSRDFeatureDx12::s_isHWDepth = false;
@@ -516,6 +518,8 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         };
         FSRDCompCfg compCfg = { .RenderSize = _convConfig.RenderSize };
 
+        TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles, compIn.InColorBeforeParticles);
+
         if (!FSRDConvShader->DispatchComposition(InCommandList, compIn, compCfg))
             return false;
 
@@ -714,6 +718,8 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
 
     if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_SpecularAlbedo, convInputs.InSpecAlbedo))
         isReady = false;
+
+    TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, convInputs.InBiasMask);
 
     // Optional. Specular hit distance can be used with mode-2 denoising to track movement inside reflections, 
     // in addition to primary motion tracking for the surface and camera.

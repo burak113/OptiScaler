@@ -53,6 +53,7 @@ class FSRDPreprocessor_Dx12
         DebugCoherence = 17 << 17 | Debug,
         DebugCoherenceMask = 18 << 17 | Debug,
         DebugLinearityMask = 19 << 17 | Debug,
+        DebugColorMask = 20 << 17 | Debug,
     };
 
     enum class CompFlags : uint32_t
@@ -96,9 +97,10 @@ class FSRDPreprocessor_Dx12
             ID3D12Resource* InSpecHitDist;    // R - NVSDK_NGX_Parameter_DLSSD_SpecularHitDistance - FP16/FP32
             ID3D12Resource* InDiffAlbedo;  // RGB - NVSDK_NGX_Parameter_GBuffer_DiffuseAlbedo - RGBA32
             ID3D12Resource* InSpecAlbedo; // RGB - NVSDK_NGX_Parameter_GBuffer_SpecularAlbedo - RGBA32
+            ID3D12Resource* InBiasMask; // R8 - NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask
         };
 
-        ID3D12Resource* AsArray[8];
+        ID3D12Resource* AsArray[9];
     };
 
     /**
@@ -138,10 +140,11 @@ class FSRDPreprocessor_Dx12
         {
             ID3D12Resource* InPrimaryColor;
             ID3D12Resource* InFusedModulator;
+            ID3D12Resource* InColorBeforeParticles; // NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles
             ID3D12Resource* InSkipSignal;
         };
 
-        ID3D12Resource* AsArray[3];
+        ID3D12Resource* AsArray[4];
     };
 
   public:

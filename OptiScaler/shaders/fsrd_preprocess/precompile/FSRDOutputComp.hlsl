@@ -4,7 +4,7 @@
 #define MainRS \
     "RootFlags(0), " \
     "CBV(b0), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 3), visibility = SHADER_VISIBILITY_ALL), " \
+    "DescriptorTable(SRV(t0, numDescriptors = 4), visibility = SHADER_VISIBILITY_ALL), " \
     "DescriptorTable(UAV(u0, numDescriptors = 1), visibility = SHADER_VISIBILITY_ALL), " \
     "StaticSampler(s0, " \
         "filter = FILTER_MIN_MAG_MIP_LINEAR, " \
@@ -17,7 +17,8 @@
 
 Texture2D<float4> InPrimaryColor : register(t0);
 Texture2D<float4> InFusedModulator : register(t1);
-Texture2D<float4> InSkipSignal : register(t2);
+Texture2D<float3> InColorBeforeParticles : register(t2);
+Texture2D<float4> InSkipSignal : register(t3);
 
 RWTexture2D<float4> OutColor : register(u0);
 
@@ -47,8 +48,9 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     {
         const float4 skip = InSkipSignal[id.xy];
         const float3 remod = InFusedModulator[id.xy].rgb;
-        const float3 color = InPrimaryColor[id.xy].rgb * remod;
-
-        OutColor[id.xy] = float4(lerp(color, skip.rgb, skip.a), 1.0f);
+        const float3 color = lerp(InPrimaryColor[id.xy].rgb * remod, skip.rgb, skip.a);
+        const float3 particles = InColorBeforeParticles[id.xy];
+        
+        OutColor[id.xy] = float4(color + particles.rgb, 1.0f);
     }
 }

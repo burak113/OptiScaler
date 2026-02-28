@@ -4,7 +4,7 @@
 #define MainRS \
     "RootFlags(0), " \
     "CBV(b0), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 8), visibility = SHADER_VISIBILITY_ALL), " \
+    "DescriptorTable(SRV(t0, numDescriptors = 9), visibility = SHADER_VISIBILITY_ALL), " \
     "DescriptorTable(UAV(u0, numDescriptors = 8), visibility = SHADER_VISIBILITY_ALL), "
 
 // Flags
@@ -41,6 +41,7 @@
 #define FLAGS_DEBUG_COHERENCE   (17 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_COHERENCE_MASK   (18 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_LINEARITY_MASK   (19 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_COLOR_MASK   (20 << 17 | FLAGS_DEBUG)
 
 // DLSS-RR Inputs
 Texture2D<float4> InColor : register(t0); // RGB - NVSDK_NGX_Parameter_Color
@@ -51,6 +52,7 @@ Texture2D<float> InRoughness : register(t4); // R - May be packed in normals. NV
 Texture2D<float> InSpecHitDist : register(t5); // R - NVSDK_NGX_Parameter_DLSSD_SpecularHitDistance
 Texture2D<float3> InDiffuseAlbedo : register(t6); // RGB - NVSDK_NGX_Parameter_GBuffer_DiffuseAlbedo
 Texture2D<float3> InSpecularAlbedo : register(t7); // RGB - NVSDK_NGX_Parameter_GBuffer_SpecularAlbedo
+Texture2D<float> InBiasMask : register(t8);
 
 // FSR-RR
 //
@@ -274,8 +276,11 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
     const float coherenceMask = dot(coherence, 1.0f) > 0.95f;
     const float linearityMask = (coherence.y > 0.8f);
 
+    const float transparencyBias = InBiasMask[px];
+    const float transparencyMask = (linearityMask * transparencyBias);
+    
     // If a sample is at the far plane, it's probably a miss
-    if ((abs(viewSpacePos.z - FarPlane) > 1e-2f) || IsSet(FLAGS_DEBUG))
+    if (((abs(viewSpacePos.z - FarPlane) > 1e-2f) && (transparencyMask < 0.9f)) || IsSet(FLAGS_DEBUG))
     {        
         // Normals - FSR-RR requries world normals.
         //
@@ -432,6 +437,10 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
                 
                 case FLAGS_DEBUG_LINEARITY_MASK:
                     debugColor = linearityMask;
+                    break;
+                
+                case FLAGS_DEBUG_COLOR_MASK:
+                    debugColor = transparencyMask;
                     break;
                 
                 default:
