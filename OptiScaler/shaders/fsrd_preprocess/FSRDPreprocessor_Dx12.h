@@ -49,6 +49,10 @@ class FSRDPreprocessor_Dx12
         DebugOutDepthDelta = 14 << 17 | Debug,
         DebugOutNormDotView = 15 << 17 | Debug,
         DebugOutMetalicty = 16 << 17 | Debug,
+
+        DebugCoherence = 17 << 17 | Debug,
+        DebugCoherenceMask = 18 << 17 | Debug,
+        DebugLinearityMask = 19 << 17 | Debug,
     };
 
     enum class CompFlags : uint32_t

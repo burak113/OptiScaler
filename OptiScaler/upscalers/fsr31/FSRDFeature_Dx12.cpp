@@ -178,7 +178,8 @@ enum class DebugModes : uint32_t
     UpscalerBypass = 2,
     RawColor = 3,
     DlssBias = 4,
-    SkipSignal = 5,
+    DlssColorBeforeParticles = 5,
+    SkipSignal = 6,
 
     DataVis = FSRDFlags::Debug,
     DataVisMask = FSRDFlags::DebugModeMask,
@@ -203,6 +204,10 @@ enum class DebugModes : uint32_t
     OutDepthDelta = FSRDFlags::DebugOutDepthDelta,
     OutNormDotView = FSRDFlags::DebugOutNormDotView,
     OutMetalicity = FSRDFlags::DebugOutMetalicty,
+
+    Coherence = FSRDFlags::DebugCoherence,
+    CoherenceMask = FSRDFlags::DebugCoherenceMask,
+    LinearityMask = FSRDFlags::DebugLinearityMask,
 };
 
 using DebugModeNamePair = std::pair<const char*, uint32_t>;
@@ -213,6 +218,7 @@ constexpr auto kDebugModes = std::to_array<DebugModeNamePair>
     { "UpscalerBypass", (uint32_t) DebugModes::UpscalerBypass },
     { "RawColor", (uint32_t)DebugModes::RawColor  },
     { "DlssBias", (uint32_t) DebugModes::DlssBias }, 
+    { "DlssColorBeforeParticles", (uint32_t) DebugModes::DlssColorBeforeParticles }, 
     { "SkipSignal", (uint32_t) DebugModes::SkipSignal }, 
 
     { "InDepth", (uint32_t)DebugModes::InDepth  },
@@ -233,7 +239,11 @@ constexpr auto kDebugModes = std::to_array<DebugModeNamePair>
 
     { "OutDepthDelta", (uint32_t)DebugModes::OutDepthDelta  },
     { "OutNormDotView", (uint32_t)DebugModes::OutNormDotView  },
-    { "OutMetalicity", (uint32_t)DebugModes::OutMetalicity  }
+    { "OutMetalicity", (uint32_t)DebugModes::OutMetalicity  },
+
+    { "Coherence", (uint32_t)DebugModes::Coherence  },
+    { "CoherenceMask", (uint32_t)DebugModes::CoherenceMask  },
+    { "LinearityMask", (uint32_t)DebugModes::LinearityMask  }
 });
 
 bool FSRDFeatureDx12::s_isHWDepth = false;
@@ -547,7 +557,9 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
 
         if (dbgMode == DebugModes::RawColor)
             TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_Color, srcTex);
-        if (dbgMode == DebugModes::SkipSignal)
+        else if (dbgMode == DebugModes::DlssColorBeforeParticles)
+            TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles, srcTex);
+        else if (dbgMode == DebugModes::SkipSignal)
             srcTex = FSRDConvShader->GetConvOutput().OutSkipSignal;
         else if (dbgMode == DebugModes::DlssBias)
             TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, srcTex);

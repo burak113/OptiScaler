@@ -38,6 +38,10 @@
 #define FLAGS_DEBUG_OUT_NORM_DOT_VIEW   (15 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_OUT_METALICITY   (16 << 17 | FLAGS_DEBUG)
 
+#define FLAGS_DEBUG_COHERENCE   (17 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_COHERENCE_MASK   (18 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_LINEARITY_MASK   (19 << 17 | FLAGS_DEBUG)
+
 // DLSS-RR Inputs
 Texture2D<float4> InColor : register(t0); // RGB - NVSDK_NGX_Parameter_Color
 Texture2D<float> InDepth : register(t1); // R - NVSDK_NGX_Parameter_Depth - hardware or linear - inverted or not
@@ -62,6 +66,9 @@ RWTexture2D<float4> OutDiffAlbedo : register(u5); // RGB: Diffuse Albedo, A: Met
 RWTexture2D<float> OutLinearDepth : register(u6);
 
 RWTexture2D<float4> OutSkipSignal : register(u7);
+
+groupshared float g_Luma[THREAD_GROUP_SIZE_X][THREAD_GROUP_SIZE_Y];
+groupshared float2 g_LumaNormal[THREAD_GROUP_SIZE_X][THREAD_GROUP_SIZE_Y];
 
 cbuffer CB_Packing : register(b0)
 {
@@ -186,11 +193,59 @@ float3 VisualizeSignedDiff(float val, float scale)
     return float3(saturate(-v), saturate(v), 0.0f);
 }
 
+float2 SafeNormalize(float2 v)
+{
+    float lenSq = dot(v, v);
+    return (lenSq > 1e-6f) ? (v * rsqrt(lenSq)) : 0.71f;
+}
+
+float2 AnalyzeRadiance(const uint2 gID, const float3 color)
+{
+    const int2 idxDir = 1 - 2 * int2(gID.xy > 1);
+
+    // Luma-ish
+    const float lumCenter = dot(color, 1.0f);
+    g_Luma[gID.x][gID.y] = lumCenter;
+    
+    GroupMemoryBarrierWithGroupSync();
+
+    // Read neighbors
+    const float lumUp = g_Luma[gID.x][gID.y + idxDir.y];
+    const float lumRight = g_Luma[gID.x + idxDir.x][gID.y];
+
+    // Compute gradients and normals
+    const float2 colorGradient = float2(lumRight - lumCenter, lumUp - lumCenter) * float2(idxDir);    
+    const float2 colorNormal = SafeNormalize(colorGradient);
+    g_LumaNormal[gID.x][gID.y] = colorNormal;
+        
+    // Luma coherence
+    const float normIntensity = lumCenter * rcp(0.5f * (lumUp.x + lumRight.x) + 1e-2f);
+    // More coherent components will be closer to their neighbors
+    // -> 1 as the values converge; -> 0 as they diverge
+    const float intensityCoherence = 1.0f - saturate(abs(1.0f - normIntensity));
+
+    // Analyze gradient directions
+    // Track perpindicular neighbors
+    int2 colorDir = 0;
+    colorDir.x = (abs(colorNormal.x) <= abs(colorNormal.y));
+    colorDir.y = 1 - colorDir.x;
+    colorDir *= idxDir;
+
+    GroupMemoryBarrierWithGroupSync();
+        
+    // Check linearity along the edge
+    const float2 n1 = g_LumaNormal[gID.x + colorDir.x][gID.y + colorDir.y];
+    const float2 n2 = g_LumaNormal[gID.x + 2 * colorDir.x][gID.y + 2 * colorDir.y];
+    const float linearity = saturate(dot(n1, colorNormal)) * saturate(dot(n1, n2));
+    
+    return float2(intensityCoherence, linearity);
+}
+
 // Main Kernel
 //
 [RootSignature(MainRS)]
 [numthreads(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y, 1)]
-void CSMain(uint3 id : SV_DispatchThreadID)
+void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
 {
     if (id.x >= RenderSize.x || id.y >= RenderSize.y)
         return;
@@ -208,15 +263,24 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // Left handed view space
     OutLinearDepth[px] = viewSpacePos.z;
     
+    // Color and albedo gradient analysis
+    // Prepare rough color luma
+    const float3 color = InColor[px].rgb;
+    float4 specAlbedo = float4(InSpecularAlbedo[px] + 0.01f, 0.0f);
+    float4 diffAlbedo = float4(InDiffuseAlbedo[px] + 0.01f, 0.0f);
+    float4 fusedAlbedo = float4(max(specAlbedo.rgb, diffAlbedo.rgb), 0.0f);
+    
+    const float2 coherence = AnalyzeRadiance(gID.xy, color);  
+    const float coherenceMask = dot(coherence, 1.0f) > 0.95f;
+    const float linearityMask = (coherence.y > 0.8f);
+
     // If a sample is at the far plane, it's probably a miss
-    if (abs(viewSpacePos.z - FarPlane) > 1e-2f || IsSet(FLAGS_DEBUG))
-    {
-        OutSkipSignal[px] = 0.0f;
-        
-        // Normals - FSR-RR requries world normals
+    if ((abs(viewSpacePos.z - FarPlane) > 1e-2f) || IsSet(FLAGS_DEBUG))
+    {        
+        // Normals - FSR-RR requries world normals.
         //
-        // DLSS-RR normals may be in view or world space. They will need to be transformed to account
-        // for both configurations.
+        // [TODO!] DLSS-RR normals may be in view or world space. They will need to be transformed to account
+        // for both configurations. Cyberpunk happens to use world normals, thankfully.
         float4 worldSurfaceNormal = InNormals[px];
         const float2 octNormal = OctahedralEncode(worldSurfaceNormal.rgb);
         const float materialType = 0.0f;
@@ -249,18 +313,13 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
         // Secondary albedo packing
         //
-        float4 specAlbedo = float4(InSpecularAlbedo[px], 0.0f);
-        float4 diffAlbedo = float4(InDiffuseAlbedo[px], 0.0f);
-
         // FSR-RR expects metalness in diffuse alpha
         const float metalness = EstimateMetalness(diffAlbedo.rgb, specAlbedo.rgb);
         specAlbedo.a = NoV;
-        diffAlbedo.a = metalness;
-    
-        float4 fusedAlbedo = float4(max(1e-3f, max(specAlbedo.rgb, diffAlbedo.rgb)), NoV);
-    
-        // Used for better perceptual encoding efficiency with high bit depth sources
-        // Unnecessary if the secondaries use 8-bit color, which they usually do.
+        diffAlbedo.a = metalness;  
+        fusedAlbedo.a = NoV;
+        
+        // May be for better perceptual encoding efficiency in some configurations
         [branch]
         if (!IsSet(FLAGS_NON_GAMMA_ALBEDO))
         {
@@ -268,18 +327,20 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             diffAlbedo = sqrt(diffAlbedo);
             fusedAlbedo = sqrt(fusedAlbedo);
         }
-    
+        
+        // Primary radiance packing - Mode 1 Signal
+        const float3 demodColor = color / fusedAlbedo.rgb;
+        
         // FSR-RR expects NoV in specular alpha
         OutSpecAlbedo[px] = specAlbedo;
         OutDiffAlbedo[px] = diffAlbedo;
         OutFusedAlbedo[px] = fusedAlbedo;
+        OutSkipSignal[px] = float4(color, coherenceMask);
 
-        // Primary radiance packing - Mode 1 Signal
-        const float3 color = InColor[px].rgb / fusedAlbedo.rgb;
-        float hitDist = 0.0f;
-    
         // Experimental. Cannot be used if the input contains both diffuse and specular lighting.
         // Supporting specular motion tracking may require Mode 2 denoising.
+        float hitDist = 0.0f;
+
         [branch]
         if (IsSet(FLAGS_ENABLE_SPEC_RAY_LENGTH))
             hitDist = InSpecHitDist[px];
@@ -287,7 +348,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         [branch]
         if (!IsSet(FLAGS_DEBUG))
         {
-            OutRadiance[px] = float4(color, hitDist);
+            OutRadiance[px] = float4(demodColor, hitDist);
         }
         else
         {
@@ -306,7 +367,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
                     break;
                 
                 case FLAGS_DEBUG_IN_MOTION:
-                    debugColor = VisualizeMotionVec(motionIn * RenderSize, 1.0f);
+                    debugColor = VisualizeMotionVec(motionIn, 1.0f);
                     break;
                 
                 case FLAGS_DEBUG_IN_NORMALS:
@@ -334,7 +395,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
                     break;
                 
                 case FLAGS_DEBUG_OUT_MOTION:
-                    debugColor = VisualizeMotionVec(motionOut.xy * RenderSize, 1.0f);
+                    debugColor = VisualizeMotionVec(motionOut.xy, 1.0f);
                     break;
 
                 case FLAGS_DEBUG_OUT_DEPTH_DELTA:
@@ -361,8 +422,20 @@ void CSMain(uint3 id : SV_DispatchThreadID)
                     debugColor = diffAlbedo.rgb;
                     break;
                 
+                case FLAGS_DEBUG_COHERENCE:
+                    debugColor = float3(coherence, 0.0f);
+                    break;
+                
+                case FLAGS_DEBUG_COHERENCE_MASK:
+                    debugColor = coherenceMask;
+                    break;
+                
+                case FLAGS_DEBUG_LINEARITY_MASK:
+                    debugColor = linearityMask;
+                    break;
+                
                 default:
-                    debugColor = color;
+                    debugColor = demodColor;
                     break;
             }
         
@@ -376,6 +449,6 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         OutDiffAlbedo[px] = 0.0f;
         OutFusedAlbedo[px] = 0.0f;
         OutRadiance[px] = 0.0f;
-        OutSkipSignal[px] = float4(InColor[px].rgb, 0.0f);
+        OutSkipSignal[px] = float4(color, 1.0f);
     }
 }

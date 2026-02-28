@@ -45,7 +45,10 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     }
     else
     {
-        const float3 color = InPrimaryColor[id.xy].rgb * InFusedModulator[id.xy].rgb;
-        OutColor[id.xy] = float4(color + InSkipSignal[id.xy].rgb, 1.0f);
+        const float4 skip = InSkipSignal[id.xy];
+        const float3 remod = InFusedModulator[id.xy].rgb;
+        const float3 color = InPrimaryColor[id.xy].rgb * remod;
+
+        OutColor[id.xy] = float4(lerp(color, skip.rgb, skip.a), 1.0f);
     }
 }
