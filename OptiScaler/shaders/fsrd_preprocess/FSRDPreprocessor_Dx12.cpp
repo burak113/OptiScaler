@@ -46,6 +46,7 @@ namespace FSRDFormats
     constexpr DXGI_FORMAT LinearDepth = DXGI_FORMAT_R32_FLOAT;
 
     constexpr DXGI_FORMAT SkipSignal = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    constexpr DXGI_FORMAT CoherenceSignal = DXGI_FORMAT_R16_FLOAT;
 }
 
 using OutputSpan = std::array<ID3D12Resource*, kConvOutputCount>;
@@ -381,6 +382,7 @@ struct FSRDPreprocessor_Dx12::Impl
 
     // Output Targets
     InternalOutputs m_Out;
+    ID3D12Resource* m_CoherenceHistory;
 
     void Initialize(std::span<const byte> convBytecode, std::span<const byte> compBytecode)
     {

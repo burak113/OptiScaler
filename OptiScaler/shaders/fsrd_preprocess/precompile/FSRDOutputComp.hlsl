@@ -13,8 +13,8 @@
         "addressW = TEXTURE_ADDRESS_CLAMP, " \
         "visibility = SHADER_VISIBILITY_ALL)"
 
-#define FLAGS_RAW_SOURCE_BLIT   (1 << 0)
-#define FLAGS_SCALE_SRC         (1 << 1)
+#define FLAGS_RAW_SOURCE_BLIT           (1 << 0)
+#define FLAGS_SCALE_SRC                 (1 << 1)
 
 Texture2D<float4> InPrimaryColor : register(t0);
 Texture2D<float4> InFusedModulator : register(t1);
@@ -62,21 +62,28 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         const float4 skip = InSkipSignal[id.xy];
         const float3 particles = InColorBeforeParticles[id.xy];
         const float3 remod = InFusedModulator[id.xy].rgb;
-        float3 color = 0.0f;
+        float3 denoisedColor = 0.0f;
         
         [branch]
         if (IsSet(FLAGS_SCALE_SRC))
         {
             const float2 uv = (float2(id.xy) + 0.5f) * DstTexSize.zw;
-            color = InPrimaryColor.SampleLevel(LinearSampler, uv, 0).rgb;
+            denoisedColor = InPrimaryColor.SampleLevel(LinearSampler, uv, 0).rgb * remod;
         }
         else
         {
-            color = InPrimaryColor[id.xy].rgb;
+            denoisedColor = InPrimaryColor[id.xy].rgb * remod;
         }
         
-        const float3 outColor = lerp(color * remod, skip.rgb, skip.a) + particles.rgb;
+        // Sanity check for extrema that slipped through
+        const float normSkip = dot(skip.rgb, 1.0f) * rcp(dot(denoisedColor.rgb, 1.0f) + 1e-2f);   
+        // -> 1 as the denoised and skip values converge
+        const float gateDelta = 1.0f - saturate(abs(1.0f - normSkip));
+        const bool canSkip = gateDelta > 0.5f || skip.a >= 1.0f;
+        const float coherence = skip.a * float(canSkip);
         
+        const float3 outColor = lerp(denoisedColor, skip.rgb, saturate(coherence)) + particles.rgb;
+                
         OutColor[id.xy] = float4(outColor, 1.0f);
     }
 }

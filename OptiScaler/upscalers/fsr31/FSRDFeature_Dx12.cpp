@@ -206,8 +206,6 @@ enum class DebugModes : uint32_t
     OutMetalicity = FSRDFlags::DebugOutMetalicty,
 
     Coherence = FSRDFlags::DebugCoherence,
-    CoherenceMask = FSRDFlags::DebugCoherenceMask,
-    LinearityMask = FSRDFlags::DebugLinearityMask,
     ColorMask = FSRDFlags::DebugColorMask,
 };
 
@@ -243,8 +241,6 @@ constexpr auto kDebugModes = std::to_array<DebugModeNamePair>
     { "OutMetalicity", (uint32_t)DebugModes::OutMetalicity  },
 
     { "Coherence", (uint32_t)DebugModes::Coherence  },
-    { "CoherenceMask", (uint32_t)DebugModes::CoherenceMask  },
-    { "LinearityMask", (uint32_t)DebugModes::LinearityMask  },
     { "ColorMask", (uint32_t)DebugModes::ColorMask  }
 });
 
@@ -762,6 +758,7 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     {
         .RenderSize = { (float)RenderWidth(), (float)RenderHeight() },
         .RenderSizeInv = { 1.0f / (float)RenderWidth(), 1.0f / (float)RenderHeight() },
+        .CoherenceStrength = cfg.FfxDenoiserCoherenceStrength.value_or_default(),
         .Flags = (uint32_t) FSRDFlags::NonGammaAlbedo | (dbgMode & (uint32_t) FSRDFlags::DebugModeMask)
     };
     

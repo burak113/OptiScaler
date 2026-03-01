@@ -39,9 +39,7 @@
 #define FLAGS_DEBUG_OUT_METALICITY   (16 << 17 | FLAGS_DEBUG)
 
 #define FLAGS_DEBUG_COHERENCE   (17 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_COHERENCE_MASK   (18 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_LINEARITY_MASK   (19 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_COLOR_MASK   (20 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_COLOR_MASK   (18 << 17 | FLAGS_DEBUG)
 
 // DLSS-RR Inputs
 Texture2D<float4> InColor : register(t0); // RGB - NVSDK_NGX_Parameter_Color
@@ -69,9 +67,6 @@ RWTexture2D<float> OutLinearDepth : register(u6);
 
 RWTexture2D<float4> OutSkipSignal : register(u7);
 
-groupshared float g_Luma[THREAD_GROUP_SIZE_X][THREAD_GROUP_SIZE_Y];
-groupshared float2 g_LumaNormal[THREAD_GROUP_SIZE_X][THREAD_GROUP_SIZE_Y];
-
 cbuffer CB_Packing : register(b0)
 {
     float4x4 InvViewMatrix; // DLSSD WorldToView^-1
@@ -85,6 +80,7 @@ cbuffer CB_Packing : register(b0)
     float NearPlane;
     float FarPlane;
     
+    float CoherenceStrength;
     uint Flags;
 };
 
@@ -195,52 +191,56 @@ float3 VisualizeSignedDiff(float val, float scale)
     return float3(saturate(-v), saturate(v), 0.0f);
 }
 
-float2 SafeNormalize(float2 v)
+float2 AnalyzeRadiance(const int2 px, const float3 centerColor)
 {
-    float lenSq = dot(v, v);
-    return (lenSq > 1e-6f) ? (v * rsqrt(lenSq)) : 0.71f;
-}
-
-float2 AnalyzeRadiance(const uint2 gID, const float3 color)
-{
-    const int2 idxDir = 1 - 2 * int2(gID.xy > 1);
-
-    // Luma-ish
-    const float lumCenter = dot(color, 1.0f);
-    g_Luma[gID.x][gID.y] = lumCenter;
+    // Load luma for 3x3 area - find avg and extrema
+    float lum[3][3];
+    const float lumCenter = dot(centerColor, 1.0f);
+    float4 extrema = float4(1e7f, 1e7f, -1e7f, -1e7f); // X=Min1, Y=Min2, Z=Max1, W=Max2
     
-    GroupMemoryBarrierWithGroupSync();
+    // This really needs to be replaced with LDS
+    [unroll]
+    for (int y = -1; y <= 1; ++y)
+    {
+        [unroll]
+        for (int x = -1; x <= 1; ++x)
+        {
+            const float currentLum = (x == 0 && y == 0)
+                                     ? lumCenter
+                                     : dot(InColor[px + int2(x, y)].rgb, 1.0f);
+                        
+            lum[x + 1][y + 1] = currentLum;
+            const float lastMin1 = extrema.x;
+            extrema.x = min(lastMin1, currentLum); // Lowest value
+            extrema.y = min(extrema.y, max(lastMin1, currentLum)); // Second lowest
 
-    // Read neighbors
-    const float lumUp = g_Luma[gID.x][gID.y + idxDir.y];
-    const float lumRight = g_Luma[gID.x + idxDir.x][gID.y];
+            const float lastMax1 = extrema.z;
+            extrema.z = max(lastMax1, currentLum); /// Highest value
+            extrema.w = max(extrema.w, min(lastMax1, currentLum)); // Second highest
+        }
+    }
 
-    // Compute gradients and normals
-    const float2 colorGradient = float2(lumRight - lumCenter, lumUp - lumCenter) * float2(idxDir);    
-    const float2 colorNormal = SafeNormalize(colorGradient);
-    g_LumaNormal[gID.x][gID.y] = colorNormal;
-        
-    // Luma coherence
-    const float normIntensity = lumCenter * rcp(0.5f * (lumUp.x + lumRight.x) + 1e-2f);
-    // More coherent components will be closer to their neighbors
-    // -> 1 as the values converge; -> 0 as they diverge
-    const float intensityCoherence = 1.0f - saturate(abs(1.0f - normIntensity));
+    // Local coherence
+    // As the value -> 1, the values converge
+    // As it -> 0, they diverge
+    const float normMin = lumCenter * rcp(extrema.y + 1e-2f);
+    const float normMax = lumCenter * rcp(extrema.w + 1e-2f);
+    const float localCoherenceMin = 1.0f - saturate(abs(1.0f - normMin));
+    const float localCoherenceMax = 1.0f - saturate(abs(1.0f - normMax));
+    const float coherence = localCoherenceMin * localCoherenceMax;
 
-    // Analyze gradient directions
-    // Track perpindicular neighbors
-    int2 colorDir = 0;
-    colorDir.x = (abs(colorNormal.x) <= abs(colorNormal.y));
-    colorDir.y = 1 - colorDir.x;
-    colorDir *= idxDir;
-
-    GroupMemoryBarrierWithGroupSync();
-        
-    // Check linearity along the edge
-    const float2 n1 = g_LumaNormal[gID.x + colorDir.x][gID.y + colorDir.y];
-    const float2 n2 = g_LumaNormal[gID.x + 2 * colorDir.x][gID.y + 2 * colorDir.y];
-    const float linearity = saturate(dot(n1, colorNormal)) * saturate(dot(n1, n2));
+    // Sobel filter edge detection
+    const float Gx = -(lum[0][0] + (2.0f * lum[0][1]) + lum[0][2])
+                     + (lum[2][0] + (2.0f * lum[2][1]) + lum[2][2]);
     
-    return float2(intensityCoherence, linearity);
+    const float Gy = -(lum[0][0] + (2.0f * lum[1][0]) + lum[2][0])
+                     + (lum[0][2] + (2.0f * lum[1][2]) + lum[2][2]);
+    
+    const float gradMag = sqrt(Gx * Gx + Gy * Gy);
+    const float localContrast = extrema.z - extrema.x;
+    const float linearity = saturate(gradMag * rcp(localContrast * 4.0f + 1e-2f));
+
+    return float2(coherence, linearity > 0.8f);
 }
 
 // Main Kernel
@@ -272,12 +272,9 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
     float4 diffAlbedo = float4(InDiffuseAlbedo[px] + 0.01f, 0.0f);
     float4 fusedAlbedo = float4(max(specAlbedo.rgb, diffAlbedo.rgb), 0.0f);
     
-    const float2 coherence = AnalyzeRadiance(gID.xy, color);  
-    const float coherenceMask = dot(coherence, 1.0f) > 0.95f;
-    const float linearityMask = (coherence.y > 0.8f);
-
+    const float2 coherence = AnalyzeRadiance(px, color);
     const float transparencyBias = InBiasMask[px];
-    const float transparencyMask = (linearityMask * transparencyBias);
+    const float transparencyMask = (dot(coherence, 1.0f) * transparencyBias);
     
     // If a sample is at the far plane, it's probably a miss
     if (((abs(viewSpacePos.z - FarPlane) > 1e-2f) && (transparencyMask < 0.9f)) || IsSet(FLAGS_DEBUG))
@@ -340,7 +337,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
         OutSpecAlbedo[px] = specAlbedo;
         OutDiffAlbedo[px] = diffAlbedo;
         OutFusedAlbedo[px] = fusedAlbedo;
-        OutSkipSignal[px] = float4(color, coherenceMask);
+        OutSkipSignal[px] = float4(color, dot(coherence, 1.0f) * CoherenceStrength);
 
         // Experimental. Cannot be used if the input contains both diffuse and specular lighting.
         // Supporting specular motion tracking may require Mode 2 denoising.
@@ -372,7 +369,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
                     break;
                 
                 case FLAGS_DEBUG_IN_MOTION:
-                    debugColor = VisualizeMotionVec(motionIn, 1.0f);
+                    debugColor = VisualizeMotionVec(motionIn * RenderSize, 0.1f);
                     break;
                 
                 case FLAGS_DEBUG_IN_NORMALS:
@@ -400,7 +397,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
                     break;
                 
                 case FLAGS_DEBUG_OUT_MOTION:
-                    debugColor = VisualizeMotionVec(motionOut.xy, 1.0f);
+                    debugColor = VisualizeMotionVec(motionOut.xy * RenderSize, 0.1f);
                     break;
 
                 case FLAGS_DEBUG_OUT_DEPTH_DELTA:
@@ -428,17 +425,9 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
                     break;
                 
                 case FLAGS_DEBUG_COHERENCE:
-                    debugColor = float3(coherence, 0.0f);
+                    debugColor = TurboColormap(saturate(dot(coherence, 1.0f)));
                     break;
-                
-                case FLAGS_DEBUG_COHERENCE_MASK:
-                    debugColor = coherenceMask;
-                    break;
-                
-                case FLAGS_DEBUG_LINEARITY_MASK:
-                    debugColor = linearityMask;
-                    break;
-                
+
                 case FLAGS_DEBUG_COLOR_MASK:
                     debugColor = transparencyMask;
                     break;
@@ -448,7 +437,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
                     break;
             }
         
-            OutRadiance[px] = float4(debugColor, 1.0f);
+            OutRadiance[px] = float4(debugColor, 2.0f);
         }
     }
     else // Skip
@@ -458,6 +447,6 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
         OutDiffAlbedo[px] = 0.0f;
         OutFusedAlbedo[px] = 0.0f;
         OutRadiance[px] = 0.0f;
-        OutSkipSignal[px] = float4(color, 1.0f);
+        OutSkipSignal[px] = float4(color, 2.0f);
     }
 }

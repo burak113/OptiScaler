@@ -51,9 +51,7 @@ class FSRDPreprocessor_Dx12
         DebugOutMetalicty = 16 << 17 | Debug,
 
         DebugCoherence = 17 << 17 | Debug,
-        DebugCoherenceMask = 18 << 17 | Debug,
-        DebugLinearityMask = 19 << 17 | Debug,
-        DebugColorMask = 20 << 17 | Debug,
+        DebugColorMask = 18 << 17 | Debug,
     };
 
     enum class CompFlags : uint32_t
@@ -79,6 +77,7 @@ class FSRDPreprocessor_Dx12
         float NearPlane; // Near < Far - IsInverted flag accounts for inversion
         float FarPlane;  // Near < Far - IsInverted flag accounts for inversion
 
+        float CoherenceStrength; // Controls the contribution of stable elements to the final image
         uint32_t Flags; // Dynamic configuration flags. See: ConfigFlags
     };
 
