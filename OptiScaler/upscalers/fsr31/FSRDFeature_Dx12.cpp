@@ -516,7 +516,7 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
             .InFusedModulator = GetD3D12ResFromFFX(signalDesc.fusedAlbedo),
             .InSkipSignal = FSRDConvShader->GetConvOutput().OutSkipSignal
         };
-        FSRDCompCfg compCfg = { .RenderSize = _convConfig.RenderSize };
+        FSRDCompCfg compCfg = { .DstTexSize = { _convConfig.RenderSize.x, _convConfig.RenderSize.y, 0, 0 } };
 
         TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles, compIn.InColorBeforeParticles);
 
@@ -577,7 +577,7 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         if (!srcTex || !TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_Output, dstTex))
             return false;
 
-        FSRDConvShader->Blit(InCommandList, srcTex, dstTex, _convConfig.RenderSize);
+        FSRDConvShader->Blit(InCommandList, srcTex, dstTex);
     }
 
     _frameCount++;

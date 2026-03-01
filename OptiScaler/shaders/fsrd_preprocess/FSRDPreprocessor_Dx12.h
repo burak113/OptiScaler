@@ -59,7 +59,8 @@ class FSRDPreprocessor_Dx12
     enum class CompFlags : uint32_t
     {
         None = 0,
-        RawSourceBlit = 1 << 0 // Bypass composition and write unmodified input
+        RawSourceBlit = 1 << 0, // Bypass composition and write unmodified input
+        ScaleSrc = 1 << 1 // Enable bilinear scaling to output
     };
 
     /**
@@ -130,8 +131,10 @@ class FSRDPreprocessor_Dx12
 
     struct alignas(16) CompConstants
     {
-        DirectX::XMFLOAT2 RenderSize;    // Resolution of inputs
+        DirectX::XMFLOAT4 DstTexSize; // XY = Tex Size - ZW = 1 / XY
         uint32_t Flags;
+
+        float _Padding[3];
     };
 
     union CompInput

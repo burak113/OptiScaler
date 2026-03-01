@@ -15,6 +15,7 @@
 #pragma comment(lib, "d3dcompiler.lib")
 
 using Microsoft::WRL::ComPtr;
+using namespace DirectX;
 using ResFmtPair = std::pair<ID3D12Resource*, DXGI_FORMAT>;
 
 constexpr UINT kBackBufferCount = 3;
@@ -301,7 +302,7 @@ struct ComputeState
         std::span<const byte> cbData,
         std::span<ID3D12Resource* const> inputs,
         std::span<ID3D12Resource*> output,
-        DirectX::XMFLOAT2 renderSize,
+        XMFLOAT2 outDim,
         bool autoTransitionUAV = true
     )
     {
@@ -352,8 +353,8 @@ struct ComputeState
         cmdList->SetComputeRootDescriptorTable(2, uavTable);
 
         // Dispatch
-        const uint32_t dimX = ((uint32_t)renderSize.x + (kThreadGroupSize - 1)) / kThreadGroupSize;
-        const uint32_t dimY = ((uint32_t)renderSize.y + (kThreadGroupSize - 1)) / kThreadGroupSize;
+        const uint32_t dimX = ((uint32_t)outDim.x + (kThreadGroupSize - 1)) / kThreadGroupSize;
+        const uint32_t dimY = ((uint32_t)outDim.y + (kThreadGroupSize - 1)) / kThreadGroupSize;
         cmdList->Dispatch(dimX, dimY, 1);
 
         // Transition the UAVs back to SRV
@@ -436,36 +437,47 @@ struct FSRDPreprocessor_Dx12::Impl
 
         std::array<ID3D12Resource*, 1> uavs { m_Out.Radiance.Get() };
         const std::span<const byte> cbData((const byte*) &constants, sizeof(constants));
-        m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, uavs, constants.RenderSize, true);
+        const XMFLOAT2 dstDim = { constants.DstTexSize.x, constants.DstTexSize.y };
+
+        m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, uavs, dstDim, true);
     }
 
     void Blit(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* srcTex, ID3D12Resource* dstTex,
-              DirectX::XMFLOAT2 dim) 
+              XMFLOAT2 dstDim) 
     {
-        if (dim.x == 0 || dim.y == 0)
+        XMFLOAT2 srcDim = {};
+        D3D12_RESOURCE_DESC srcDesc = srcTex->GetDesc();
+        srcDim.x = (float)srcDesc.Width;
+        srcDim.y = (float)srcDesc.Height;
+
+        if (dstDim.x == 0 || dstDim.y == 0)
         {
-            D3D12_RESOURCE_DESC srcDesc = srcTex->GetDesc();
-            dim.x = (float)srcDesc.Width;
-            dim.y = (float)srcDesc.Height;
+            D3D12_RESOURCE_DESC dstDesc = dstTex->GetDesc();
+            dstDim.x = (float)dstDesc.Width;
+            dstDim.y = (float)dstDesc.Height;
         }
 
-        if (!cmdList || dim.x == 0.0f)
+        if (!cmdList || dstDim.x == 0.0f)
             return;
 
-        CompInput inputs = 
+        const CompInput inputs = 
         {
             .InPrimaryColor = srcTex
         };
-        CompConstants constants = 
+        const CompConstants constants = 
         {
-            .RenderSize = dim,
-            .Flags = (uint32_t)CompFlags::RawSourceBlit
+            .DstTexSize = 
+            {
+                dstDim.x,           dstDim.y,
+                (1.0f / dstDim.x),  (1.0f / dstDim.y)
+            },
+            .Flags = (uint32_t)CompFlags::RawSourceBlit | (uint32_t)CompFlags::ScaleSrc
         };
 
         std::array<ID3D12Resource*, 1> uavs { dstTex };
         const std::span<const byte> cbData((const byte*) &constants, sizeof(constants));
 
-        m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, uavs, dim, false);
+        m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, uavs, dstDim, false);
     }
 };
 
@@ -552,7 +564,7 @@ ID3D12Resource* FSRDPreprocessor_Dx12::GetCompOutput() const
     return m_impl->m_Out.Radiance.Get(); }
 
 bool FSRDPreprocessor_Dx12::Blit(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* srcTex,
-                                 ID3D12Resource* dstTex, DirectX::XMFLOAT2 dim) const
+                                 ID3D12Resource* dstTex, XMFLOAT2 dim) const
 
 {
     try

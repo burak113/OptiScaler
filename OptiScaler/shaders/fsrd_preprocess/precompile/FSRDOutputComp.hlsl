@@ -1,4 +1,4 @@
-// FSR-RR Conversion & Packing Shader
+// FSR-RR Composition Utility
 #define THREAD_GROUP_SIZE_X 8
 #define THREAD_GROUP_SIZE_Y 8
 #define MainRS \
@@ -14,6 +14,7 @@
         "visibility = SHADER_VISIBILITY_ALL)"
 
 #define FLAGS_RAW_SOURCE_BLIT   (1 << 0)
+#define FLAGS_SCALE_SRC         (1 << 1)
 
 Texture2D<float4> InPrimaryColor : register(t0);
 Texture2D<float4> InFusedModulator : register(t1);
@@ -26,7 +27,7 @@ SamplerState LinearSampler : register(s0);
 
 cbuffer CB_Comp : register(b0)
 {
-    float2 RenderSize;
+    float4 DstTexSize;
     uint Flags;
 }
 
@@ -36,21 +37,46 @@ bool IsSet(uint mask) { return (Flags & mask) == mask; }
 [numthreads(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= RenderSize.x || id.y >= RenderSize.y)
+    if (id.x >= DstTexSize.x || id.y >= DstTexSize.y)
+    {
+        OutColor[id.xy] = 0.0f;
         return;
+    }
     
     [branch]
     if (IsSet(FLAGS_RAW_SOURCE_BLIT))
     {
-        OutColor[id.xy] = InPrimaryColor[id.xy];
+        [branch]
+        if (IsSet(FLAGS_SCALE_SRC))
+        {
+            const float2 uv = (float2(id.xy) + 0.5f) * DstTexSize.zw;
+            OutColor[id.xy] = InPrimaryColor.SampleLevel(LinearSampler, uv, 0);
+        }
+        else
+        {
+            OutColor[id.xy] = InPrimaryColor[id.xy];
+        } 
     }
     else
     {
         const float4 skip = InSkipSignal[id.xy];
-        const float3 remod = InFusedModulator[id.xy].rgb;
-        const float3 color = lerp(InPrimaryColor[id.xy].rgb * remod, skip.rgb, skip.a);
         const float3 particles = InColorBeforeParticles[id.xy];
+        const float3 remod = InFusedModulator[id.xy].rgb;
+        float3 color = 0.0f;
         
-        OutColor[id.xy] = float4(color + particles.rgb, 1.0f);
+        [branch]
+        if (IsSet(FLAGS_SCALE_SRC))
+        {
+            const float2 uv = (float2(id.xy) + 0.5f) * DstTexSize.zw;
+            color = InPrimaryColor.SampleLevel(LinearSampler, uv, 0).rgb;
+        }
+        else
+        {
+            color = InPrimaryColor[id.xy].rgb;
+        }
+        
+        const float3 outColor = lerp(color * remod, skip.rgb, skip.a) + particles.rgb;
+        
+        OutColor[id.xy] = float4(outColor, 1.0f);
     }
 }
