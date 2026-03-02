@@ -2946,9 +2946,9 @@ bool MenuCommon::RenderMenu()
                                 ImGui::SliderFloat("Gaussian Kernel Relaxation", &v, 0, 1))
                                 config->FfxDenoiserGaussKernRelax = v;
 
-                            if (float v = config->FfxDenoiserCoherenceStrength.value_or_default();
-                                ImGui::SliderFloat("Coherence Bias", &v, 0, 1))
-                                config->FfxDenoiserCoherenceStrength = v;
+                            if (float v = config->FfxDenoiserCorrelationBias.value_or_default();
+                                ImGui::SliderFloat("Correlation Bias", &v, 0, 1))
+                                config->FfxDenoiserCorrelationBias = v;
                         }
                     }
 

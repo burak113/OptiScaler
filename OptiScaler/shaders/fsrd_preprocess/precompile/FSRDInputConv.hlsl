@@ -1,4 +1,6 @@
 // FSR-RR Conversion & Packing Shader
+#include "FSRDPreprocessCommon.hlsli"
+
 #define THREAD_GROUP_SIZE_X 8
 #define THREAD_GROUP_SIZE_Y 8
 #define MainRS \
@@ -34,12 +36,12 @@
 #define FLAGS_DEBUG_OUT_SPEC_ALBEDO   (12 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_OUT_DIFF_ALBEDO   (13 << 17 | FLAGS_DEBUG)
 
-#define FLAGS_DEBUG_OUT_DEPTH_DELTA   (14 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_DEPTH_DELTA     (14 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_OUT_NORM_DOT_VIEW   (15 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_OUT_METALICITY   (16 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_METALICITY      (16 << 17 | FLAGS_DEBUG)
 
-#define FLAGS_DEBUG_COHERENCE   (17 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_COLOR_MASK   (18 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_EDGE_MASK       (17 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_COLOR_MASK      (18 << 17 | FLAGS_DEBUG)
 
 // DLSS-RR Inputs
 Texture2D<float4> InColor : register(t0); // RGB - NVSDK_NGX_Parameter_Color
@@ -80,124 +82,21 @@ cbuffer CB_Packing : register(b0)
     float NearPlane;
     float FarPlane;
     
-    float CoherenceStrength;
     uint Flags;
 };
 
 bool IsSet(uint mask) { return (Flags & mask) == mask; }
 uint GetDebugMode() { return (Flags & FLAGS_DEBUG_MODE_MASK); }
 
-// Octahedral Encoding from AMD FSR-RR sample
-float2 OctahedralEncode(float3 N)
-{
-    N.xy = float2(N.xy) / (abs(N.x) + abs(N.y) + abs(N.z));
-    float2 k;
-    k.x = N.x > 0.0f ? 1.0f : -1.0f;
-    k.y = N.y > 0.0f ? 1.0f : -1.0f;
-    
-    if (N.z < 0.0f)
-        N.xy = (1.0f - abs(float2(N.yx))) * k;
-    
-    return N.xy * 0.5f + 0.5f;
-}
-
-// Octahedral Decoding (For debug)
-float3 OctahedralDecode(float2 UV)
-{
-    UV = 2.0f * (UV - 0.5f);
-    float3 N = float3(UV, 1.0f - abs(UV.x) - abs(UV.y));
-    float t = max(-N.z, 0.0f);
-    float2 k;
-    k.x = N.x >= 0.0f ? -t : t;
-    k.y = N.y >= 0.0f ? -t : t;
-    N.xy += k;
-    return normalize(N);
-}
-
-float2 UVToNDC(float2 coord)
-{
-    coord.y = (1 - coord.y);
-    coord.xy = 2 * coord.xy - 1;
-    return coord;
-}
-
-float3 InvProjectPosition(float3 coord, float4x4 mat)
-{
-    coord.xy = UVToNDC(coord.xy);
-    float4 projected = mul(mat, float4(coord, 1.0f));
-    projected.xyz /= projected.w;
-    
-    return projected.xyz;
-}
-
-// Metalness Heuristic (Since unavailable in DLSS inputs)
-float EstimateMetalness(float3 diffuse, float3 specular)
-{
-    const float lumDiff = dot(diffuse, float3(0.2126, 0.7152, 0.0722));
-    const float lumSpec = dot(specular, float3(0.2126, 0.7152, 0.0722));
-    const float maxSpec = max(max(specular.r, specular.g), specular.b);
-    const float minSpec = min(min(specular.r, specular.g), specular.b);
-    float chromaSpec = (maxSpec > 0.0) ? (maxSpec - minSpec) / maxSpec : 0.0;
-
-    // Smoothly decrease metalness as diffuse luminance increases
-    float diffFactor = smoothstep(0.02, 0.005, lumDiff); // Inverted: high when lumDiff low
-    // Increase metalness with specular luminance and chromaticity
-    float specFactor = smoothstep(0.04, 0.6, lumSpec) * smoothstep(0.0, 0.3, chromaSpec);
-
-    return diffFactor * specFactor;
-}
-
-// Visualization Helpers
-
-// High contrast color map for visualizing normalized scalars
-// Blue = 0 -> Cyan -> Green -> Orange -> Red = 1
-float3 TurboColormap(float x)
-{
-    const float4 kRedVec4 = float4(0.13572138, 4.61539260, -42.66032258, 132.13108234);
-    const float4 kGreenVec4 = float4(0.09140261, 2.19418839, 4.84296658, -14.18503333);
-    const float4 kBlueVec4 = float4(0.10667330, 12.64194608, -60.58204836, 110.36276771);
-    const float2 kRedVec2 = float2(-152.94239396, 59.28637943);
-    const float2 kGreenVec2 = float2(4.27729857, 2.82956604);
-    const float2 kBlueVec2 = float2(-89.90310912, 27.34824973);
-
-    x = saturate(x);
-    float4 v4 = float4(1.0, x, x * x, x * x * x);
-    float2 v2 = v4.zw * v4.z;
-
-    return float3(
-        dot(v4, kRedVec4) + dot(v2, kRedVec2),
-        dot(v4, kGreenVec4) + dot(v2, kGreenVec2),
-        dot(v4, kBlueVec4) + dot(v2, kBlueVec2)
-    );
-}
-
-// Visualizes 2D vectors as HSV. 
-// Right = red, up = cyan/greenish, 
-// left = cyan/blue, down = yellow/orange
-float3 VisualizeMotionVec(float2 motion, float scalar)
-{
-    float angle = atan2(motion.y, motion.x);
-    float mag = length(motion) * scalar;
-    
-    // Rough HSV to RGB
-    float3 rgb = saturate(abs(fmod(angle / 6.2831853 + float3(0.0, 4.0, 2.0) / 6.0, 1.0) * 6.0 - 3.0) - 1.0);
-    return rgb * saturate(mag);
-}
-
-float3 VisualizeSignedDiff(float val, float scale)
-{
-    // Red for negative, green for positive, black for zero
-    float v = val * scale;
-    return float3(saturate(-v), saturate(v), 0.0f);
-}
-
-float2 AnalyzeRadiance(const int2 px, const float3 centerColor)
+float AnalyzeEdges(const int2 px, const float3 centerColor)
 {
     // Load luma for 3x3 area - find avg and extrema
     float lum[3][3];
     const float lumCenter = dot(centerColor, 1.0f);
-    float4 extrema = float4(1e7f, 1e7f, -1e7f, -1e7f); // X=Min1, Y=Min2, Z=Max1, W=Max2
-    
+    float minLum = min(1e7f, lumCenter);
+    float maxLum = max(1e-7f, lumCenter);
+    lum[1][1] = lumCenter;
+
     // This really needs to be replaced with LDS
     [unroll]
     for (int y = -1; y <= 1; ++y)
@@ -205,42 +104,28 @@ float2 AnalyzeRadiance(const int2 px, const float3 centerColor)
         [unroll]
         for (int x = -1; x <= 1; ++x)
         {
-            const float currentLum = (x == 0 && y == 0)
-                                     ? lumCenter
-                                     : dot(InColor[px + int2(x, y)].rgb, 1.0f);
-                        
-            lum[x + 1][y + 1] = currentLum;
-            const float lastMin1 = extrema.x;
-            extrema.x = min(lastMin1, currentLum); // Lowest value
-            extrema.y = min(extrema.y, max(lastMin1, currentLum)); // Second lowest
-
-            const float lastMax1 = extrema.z;
-            extrema.z = max(lastMax1, currentLum); /// Highest value
-            extrema.w = max(extrema.w, min(lastMax1, currentLum)); // Second highest
+            if (x != 0 || y != 0)
+            {
+                const float currentLum = dot(InColor[px + int2(x, y)].rgb, 1.0f);
+                minLum = min(minLum, currentLum);
+                maxLum = max(maxLum, currentLum);
+                lum[x + 1][y + 1] = currentLum;
+            }
         }
     }
 
-    // Local coherence
-    // As the value -> 1, the values converge
-    // As it -> 0, they diverge
-    const float normMin = lumCenter * rcp(extrema.y + 1e-2f);
-    const float normMax = lumCenter * rcp(extrema.w + 1e-2f);
-    const float localCoherenceMin = 1.0f - saturate(abs(1.0f - normMin));
-    const float localCoherenceMax = 1.0f - saturate(abs(1.0f - normMax));
-    const float coherence = localCoherenceMin * localCoherenceMax;
-
     // Sobel filter edge detection
-    const float Gx = -(lum[0][0] + (2.0f * lum[0][1]) + lum[0][2])
-                     + (lum[2][0] + (2.0f * lum[2][1]) + lum[2][2]);
+    float2 gradient = 0.0f;  
+    gradient.x = -(lum[0][0] + (2.0f * lum[0][1]) + lum[0][2])
+                 +(lum[2][0] + (2.0f * lum[2][1]) + lum[2][2]);
     
-    const float Gy = -(lum[0][0] + (2.0f * lum[1][0]) + lum[2][0])
-                     + (lum[0][2] + (2.0f * lum[1][2]) + lum[2][2]);
+    gradient.y = -(lum[0][0] + (2.0f * lum[1][0]) + lum[2][0])
+                 +(lum[0][2] + (2.0f * lum[1][2]) + lum[2][2]);
     
-    const float gradMag = sqrt(Gx * Gx + Gy * Gy);
-    const float localContrast = extrema.z - extrema.x;
-    const float linearity = saturate(gradMag * rcp(localContrast * 4.0f + 1e-2f));
+    const float localContrast = maxLum - minLum;
+    const float linearity = saturate(length(gradient) * rcp(localContrast * 4.0f + 1e-2f));
 
-    return float2(coherence, linearity > 0.8f);
+    return float(linearity > 0.8f);
 }
 
 // Main Kernel
@@ -272,9 +157,9 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
     float4 diffAlbedo = float4(InDiffuseAlbedo[px] + 0.01f, 0.0f);
     float4 fusedAlbedo = float4(max(specAlbedo.rgb, diffAlbedo.rgb), 0.0f);
     
-    const float2 coherence = AnalyzeRadiance(px, color);
+    const float isEdge = AnalyzeEdges(px, color);
     const float transparencyBias = InBiasMask[px];
-    const float transparencyMask = (dot(coherence, 1.0f) * transparencyBias);
+    const float transparencyMask = (isEdge * transparencyBias);
     
     // If a sample is at the far plane, it's probably a miss
     if (((abs(viewSpacePos.z - FarPlane) > 1e-2f) && (transparencyMask < 0.9f)) || IsSet(FLAGS_DEBUG))
@@ -337,7 +222,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
         OutSpecAlbedo[px] = specAlbedo;
         OutDiffAlbedo[px] = diffAlbedo;
         OutFusedAlbedo[px] = fusedAlbedo;
-        OutSkipSignal[px] = float4(color, dot(coherence, 1.0f) * CoherenceStrength);
+        OutSkipSignal[px] = float4(color, 0.0f);
 
         // Experimental. Cannot be used if the input contains both diffuse and specular lighting.
         // Supporting specular motion tracking may require Mode 2 denoising.
@@ -424,8 +309,8 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
                     debugColor = diffAlbedo.rgb;
                     break;
                 
-                case FLAGS_DEBUG_COHERENCE:
-                    debugColor = TurboColormap(saturate(dot(coherence, 1.0f)));
+                case FLAGS_DEBUG_EDGE_MASK:
+                    debugColor = isEdge;
                     break;
 
                 case FLAGS_DEBUG_COLOR_MASK:
@@ -437,7 +322,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
                     break;
             }
         
-            OutRadiance[px] = float4(debugColor, 2.0f);
+            OutRadiance[px] = float4(debugColor, 1.0f);
         }
     }
     else // Skip
@@ -447,6 +332,6 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
         OutDiffAlbedo[px] = 0.0f;
         OutFusedAlbedo[px] = 0.0f;
         OutRadiance[px] = 0.0f;
-        OutSkipSignal[px] = float4(color, 2.0f);
+        OutSkipSignal[px] = float4(color, 1.0f);
     }
 }

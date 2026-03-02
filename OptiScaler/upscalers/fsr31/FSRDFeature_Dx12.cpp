@@ -169,7 +169,8 @@ static ViewPlanes GetViewPlanes(const DirectX::XMMATRIX& projection, bool isInve
     return planes;
 }
 
-using FSRDFlags = FSRDPreprocessor_Dx12::ConvFlags;
+using FSRDConvFlags = FSRDPreprocessor_Dx12::ConvFlags;
+using FSRDCompFlags = FSRDPreprocessor_Dx12::CompFlags;
 
 enum class DebugModes : uint32_t
 {
@@ -180,33 +181,34 @@ enum class DebugModes : uint32_t
     DlssBias = 4,
     DlssColorBeforeParticles = 5,
     SkipSignal = 6,
+    Correlation = 7,
 
-    DataVis = FSRDFlags::Debug,
-    DataVisMask = FSRDFlags::DebugModeMask,
+    DataVis = FSRDConvFlags::Debug,
+    DataVisMask = FSRDConvFlags::DebugModeMask,
 
-    OutRadiance = FSRDFlags::DebugOutRadiance,
+    OutRadiance = FSRDConvFlags::DebugOutRadiance,
 
-    InSpecHitDist = FSRDFlags::DebugInSpecHitDist,
-    InDepth = FSRDFlags::DebugInDepth,
-    InMotion = FSRDFlags::DebugInMotion,
-    InNormals = FSRDFlags::DebugInNormals,
-    InRoughness = FSRDFlags::DebugInRoughness,
-    InDiffAlbedo = FSRDFlags::DebugInDiffAlbedo,
-    InSpecAlbedo = FSRDFlags::DebugInSpecAlbedo,
+    InSpecHitDist = FSRDConvFlags::DebugInSpecHitDist,
+    InDepth = FSRDConvFlags::DebugInDepth,
+    InMotion = FSRDConvFlags::DebugInMotion,
+    InNormals = FSRDConvFlags::DebugInNormals,
+    InRoughness = FSRDConvFlags::DebugInRoughness,
+    InDiffAlbedo = FSRDConvFlags::DebugInDiffAlbedo,
+    InSpecAlbedo = FSRDConvFlags::DebugInSpecAlbedo,
 
-    OutFusedAlbedo = FSRDFlags::DebugOutFusedAlbedo,
-    OutLinearDepth = FSRDFlags::DebugOutLinearDepth,
-    OutMotion = FSRDFlags::DebugOutMotion,
-    OutNormals = FSRDFlags::DebugOutNormals,
-    OutSpecAlbedo = FSRDFlags::DebugOutSpecAlbedo,
-    OutDiffAlbedo = FSRDFlags::DebugOutDiffAlbedo,
+    OutFusedAlbedo = FSRDConvFlags::DebugOutFusedAlbedo,
+    OutLinearDepth = FSRDConvFlags::DebugOutLinearDepth,
+    OutMotion = FSRDConvFlags::DebugOutMotion,
+    OutNormals = FSRDConvFlags::DebugOutNormals,
+    OutSpecAlbedo = FSRDConvFlags::DebugOutSpecAlbedo,
+    OutDiffAlbedo = FSRDConvFlags::DebugOutDiffAlbedo,
 
-    OutDepthDelta = FSRDFlags::DebugOutDepthDelta,
-    OutNormDotView = FSRDFlags::DebugOutNormDotView,
-    OutMetalicity = FSRDFlags::DebugOutMetalicty,
+    OutDepthDelta = FSRDConvFlags::DebugOutDepthDelta,
+    OutNormDotView = FSRDConvFlags::DebugOutNormDotView,
+    OutMetalicity = FSRDConvFlags::DebugOutMetalicty,
 
-    Coherence = FSRDFlags::DebugCoherence,
-    ColorMask = FSRDFlags::DebugColorMask,
+    EdgeMask = FSRDConvFlags::DebugEdgeMask,
+    ColorMask = FSRDConvFlags::DebugColorMask
 };
 
 using DebugModeNamePair = std::pair<const char*, uint32_t>;
@@ -240,8 +242,9 @@ constexpr auto kDebugModes = std::to_array<DebugModeNamePair>
     { "OutNormDotView", (uint32_t)DebugModes::OutNormDotView  },
     { "OutMetalicity", (uint32_t)DebugModes::OutMetalicity  },
 
-    { "Coherence", (uint32_t)DebugModes::Coherence  },
-    { "ColorMask", (uint32_t)DebugModes::ColorMask  }
+    { "EdgeMask", (uint32_t)DebugModes::EdgeMask  },
+    { "ColorMask", (uint32_t)DebugModes::ColorMask  },
+    { "Correlation", (uint32_t) DebugModes::Correlation }
 });
 
 bool FSRDFeatureDx12::s_isHWDepth = false;
@@ -464,10 +467,11 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
 
     const DebugModes dbgMode = (DebugModes) cfg.FfxDenoiserDebugMode.value_or_default();
     const bool isDebugVisSet = (uint32_t) dbgMode & (uint32_t) DebugModes::DataVis;
+    const bool isCompDebugSet = dbgMode == DebugModes::Correlation;
     const bool isDenoiseBypassed =
-        isDebugVisSet || (dbgMode != DebugModes::None && dbgMode != DebugModes::UpscalerBypass);
+        !isCompDebugSet && (isDebugVisSet || (dbgMode != DebugModes::None && dbgMode != DebugModes::UpscalerBypass));
     const bool isUpscaleBypassed =
-        isDebugVisSet || (dbgMode != DebugModes::None && dbgMode != DebugModes::DenoiserBypass);
+        isCompDebugSet || isDebugVisSet || (dbgMode != DebugModes::None && dbgMode != DebugModes::DenoiserBypass);
 
     // Validate helper features
     if (!RCAS->IsInit())
@@ -508,11 +512,17 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         // Compose denoised signals
         FSRDCompIn compIn = 
         {
-            .InPrimaryColor = GetD3D12ResFromFFX(signalDesc.radiance.output),
-            .InFusedModulator = GetD3D12ResFromFFX(signalDesc.fusedAlbedo),
+            .InDenoisedColor = GetD3D12ResFromFFX(signalDesc.radiance.output),
+            .InDemodulatedColor = FSRDConvShader->GetConvOutput().OutDemodulatedColor,
+            .InFusedAlbedo = FSRDConvShader->GetConvOutput().OutFusedAlbedo,
             .InSkipSignal = FSRDConvShader->GetConvOutput().OutSkipSignal
         };
-        FSRDCompCfg compCfg = { .DstTexSize = { _convConfig.RenderSize.x, _convConfig.RenderSize.y, 0, 0 } };
+        FSRDCompCfg compCfg = 
+        { 
+            .DstTexSize = { _convConfig.RenderSize.x, _convConfig.RenderSize.y, 0, 0 },
+            .CorrelationBias = cfg.FfxDenoiserCorrelationBias.value_or_default(),
+            .Flags = uint32_t(isCompDebugSet ? FSRDCompFlags::DebugCorrelation : FSRDCompFlags::None)
+        };
 
         TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles, compIn.InColorBeforeParticles);
 
@@ -534,7 +544,6 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         if (isDenoiserReady)
         {
             upscalerDesc.cameraFovAngleVertical = denoiserDesc.cameraFovAngleVertical;
-            upscalerDesc.motionVectors = denoiserDesc.motionVectors;
             upscalerDesc.color = ffxApiGetResourceDX12(FSRDConvShader->GetCompOutput(), FFX_API_RESOURCE_STATE_COMPUTE_READ);
             upscalerDesc.frameTimeDelta = denoiserDesc.deltaTime;
         }
@@ -564,7 +573,9 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         else if (dbgMode == DebugModes::DlssBias)
             TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, srcTex);
         else if (isDebugVisSet)
-            srcTex = FSRDConvShader->GetConvOutput().OutRadiance;
+            srcTex = FSRDConvShader->GetConvOutput().OutDemodulatedColor;
+        else if (isCompDebugSet)
+            srcTex = FSRDConvShader->GetCompOutput();
         else
             srcTex = GetD3D12ResFromFFX(signalDesc.radiance.output);
 
@@ -609,7 +620,7 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
         .header = { .type = FFX_API_DISPATCH_DESC_INPUT_1_SIGNAL_TYPE_DENOISER },
         .radiance = 
         {
-            .input = ffxApiGetResourceDX12(fsrdData.OutRadiance, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
+            .input = ffxApiGetResourceDX12(fsrdData.OutDemodulatedColor, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
             // Configure FSR-RR to overwrite original input with denoised output
             .output = ffxApiGetResourceDX12(convInputs.InColor, FFX_API_RESOURCE_STATE_UNORDERED_ACCESS),
         },
@@ -758,12 +769,11 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     {
         .RenderSize = { (float)RenderWidth(), (float)RenderHeight() },
         .RenderSizeInv = { 1.0f / (float)RenderWidth(), 1.0f / (float)RenderHeight() },
-        .CoherenceStrength = cfg.FfxDenoiserCoherenceStrength.value_or_default(),
-        .Flags = (uint32_t) FSRDFlags::NonGammaAlbedo | (dbgMode & (uint32_t) FSRDFlags::DebugModeMask)
+        .Flags = (uint32_t) FSRDConvFlags::NonGammaAlbedo | (dbgMode & (uint32_t) FSRDConvFlags::DebugModeMask)
     };
     
     if (s_isRoughnessPacked)
-        _convConfig.Flags |= (uint32_t)FSRDFlags::IsRoughnessPacked;
+        _convConfig.Flags |= (uint32_t)FSRDConvFlags::IsRoughnessPacked;
 
     // Store in column major order for GPU
     XMStoreFloat4x4(&_convConfig.InvViewMatrix, XMMatrixTranspose(_invViewMatrix));
@@ -788,7 +798,7 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     _convConfig.FarPlane = planes.farPlane;
 
     if (planes.isInfinite)
-        _convConfig.Flags |= (uint32_t) FSRDFlags::UseInfiniteFarPlane;
+        _convConfig.Flags |= (uint32_t) FSRDConvFlags::UseInfiniteFarPlane;
 
     LOG_DEBUG("Distpaching FSRD Input Converter");
 

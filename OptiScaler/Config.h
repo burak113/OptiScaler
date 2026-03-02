@@ -388,7 +388,7 @@ class Config
     CustomOptional<float> FfxDenoiserMaxRadiance { 1e4f };
     CustomOptional<float> FfxDenoiserRadianceClip { 20.0f };
     CustomOptional<float> FfxDenoiserGaussKernRelax { 0.5f };
-    CustomOptional<float> FfxDenoiserCoherenceStrength { 1.0f };
+    CustomOptional<float> FfxDenoiserCorrelationBias { 1.0f };
 
     // FSR Common
     CustomOptional<float> FsrVerticalFov { 60.0f };

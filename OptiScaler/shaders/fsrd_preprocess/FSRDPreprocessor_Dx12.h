@@ -50,7 +50,7 @@ class FSRDPreprocessor_Dx12
         DebugOutNormDotView = 15 << 17 | Debug,
         DebugOutMetalicty = 16 << 17 | Debug,
 
-        DebugCoherence = 17 << 17 | Debug,
+        DebugEdgeMask = 17 << 17 | Debug,
         DebugColorMask = 18 << 17 | Debug,
     };
 
@@ -58,7 +58,12 @@ class FSRDPreprocessor_Dx12
     {
         None = 0,
         RawSourceBlit = 1 << 0, // Bypass composition and write unmodified input
-        ScaleSrc = 1 << 1 // Enable bilinear scaling to output
+        ScaleSrc = 1 << 1, // Enable bilinear scaling to output
+
+        Debug = 1 << 16,
+        DebugModeMask = 0xFF << 16,
+
+        DebugCorrelation = 1 << 17 | Debug
     };
 
     /**
@@ -77,7 +82,6 @@ class FSRDPreprocessor_Dx12
         float NearPlane; // Near < Far - IsInverted flag accounts for inversion
         float FarPlane;  // Near < Far - IsInverted flag accounts for inversion
 
-        float CoherenceStrength; // Controls the contribution of stable elements to the final image
         uint32_t Flags; // Dynamic configuration flags. See: ConfigFlags
     };
 
@@ -89,13 +93,13 @@ class FSRDPreprocessor_Dx12
     {
         struct
         {
-            ID3D12Resource* InColor;         // RGB - NVSDK_NGX_Parameter_Color - HDR or SDR
-            ID3D12Resource* InDepth;         // R - NVSDK_NGX_Parameter_Depth - 24/32bits
+            ID3D12Resource* InColor; // RGB - NVSDK_NGX_Parameter_Color - HDR or SDR
+            ID3D12Resource* InDepth; // R - NVSDK_NGX_Parameter_Depth - 24/32bits
             ID3D12Resource* InMotionVectors; // RG - NVSDK_NGX_Parameter_MotionVectors - RG16/RG32
             ID3D12Resource* InNormals; // RGB: Normals, A: Roughness (Optional) - NVSDK_NGX_Parameter_GBuffer_Normals - RGB16_FLOAT/RG32_FLOAT
-            ID3D12Resource* InRoughness;      // R - May be packed in normals. NVSDK_NGX_Parameter_GBuffer_Roughness
-            ID3D12Resource* InSpecHitDist;    // R - NVSDK_NGX_Parameter_DLSSD_SpecularHitDistance - FP16/FP32
-            ID3D12Resource* InDiffAlbedo;  // RGB - NVSDK_NGX_Parameter_GBuffer_DiffuseAlbedo - RGBA32
+            ID3D12Resource* InRoughness; // R - May be packed in normals. NVSDK_NGX_Parameter_GBuffer_Roughness
+            ID3D12Resource* InSpecHitDist; // R - NVSDK_NGX_Parameter_DLSSD_SpecularHitDistance - FP16/FP32
+            ID3D12Resource* InDiffAlbedo; // RGB - NVSDK_NGX_Parameter_GBuffer_DiffuseAlbedo - RGBA32
             ID3D12Resource* InSpecAlbedo; // RGB - NVSDK_NGX_Parameter_GBuffer_SpecularAlbedo - RGBA32
             ID3D12Resource* InBiasMask; // R8 - NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask
         };
@@ -112,14 +116,14 @@ class FSRDPreprocessor_Dx12
         struct
         {
             // ffxDispatchDescDenoiserInput1Signal
-            ID3D12Resource* OutRadiance;    // RGB: Combined noisy color A: Specular Ray Length - RGBA16_FLOAT
+            ID3D12Resource* OutDemodulatedColor; // RGB: Combined noisy color A: Specular Ray Length - RGBA16_FLOAT
             ID3D12Resource* OutFusedAlbedo; // RGB: max(specularAlbedo, diffuseAlbedo) A: NoV - RGBA8_UNORM
 
             // ffxDispatchDescDenoiser
             ID3D12Resource* OutMotion;  // RG: Standard TSR motion vectors, B: Linear Depth Delta (CurrentLinearDepth - PrevLinearDepth) - RGBA16_FLOAT
             ID3D12Resource* OutNormals; // RG: Octahedrally encoded normals, B: Linear Roughness, A: Material Type (Optional) - RGB10A2_UNORM
-            ID3D12Resource* OutSpecAlbedo;  // RGB: Specular Albedo, A: saturate(dot(Normal, ViewDir)) - RGBA8_UNORM
-            ID3D12Resource* OutDiffAlbedo;  // RGB: Diffuse Albedo, A: Metalness (heuristic approximate) - RGBA8_UNORM
+            ID3D12Resource* OutSpecAlbedo; // RGB: Specular Albedo, A: saturate(dot(Normal, ViewDir)) - RGBA8_UNORM
+            ID3D12Resource* OutDiffAlbedo; // RGB: Diffuse Albedo, A: Metalness (heuristic approximate) - RGBA8_UNORM
             ID3D12Resource* OutLinearDepth; // R - R32_FLOAT
 
             ID3D12Resource* OutSkipSignal;
@@ -131,22 +135,25 @@ class FSRDPreprocessor_Dx12
     struct alignas(16) CompConstants
     {
         DirectX::XMFLOAT4 DstTexSize; // XY = Tex Size - ZW = 1 / XY
+
+        float CorrelationBias; // Controls the contribution of stable elements to the final image
         uint32_t Flags;
 
-        float _Padding[3];
+        float _Padding[2];
     };
 
     union CompInput
     {
         struct
         {
-            ID3D12Resource* InPrimaryColor;
-            ID3D12Resource* InFusedModulator;
+            ID3D12Resource* InDenoisedColor;
+            ID3D12Resource* InDemodulatedColor;
+            ID3D12Resource* InFusedAlbedo;
             ID3D12Resource* InColorBeforeParticles; // NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles
             ID3D12Resource* InSkipSignal;
         };
 
-        ID3D12Resource* AsArray[4];
+        ID3D12Resource* AsArray[5];
     };
 
   public:
