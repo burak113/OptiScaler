@@ -177,11 +177,12 @@ enum class DebugModes : uint32_t
     None = 0,
     DenoiserBypass = 1,
     UpscalerBypass = 2,
-    RawColor = 3,
-    DlssBias = 4,
-    DlssColorBeforeParticles = 5,
-    SkipSignal = 6,
-    Correlation = 7,
+    DenoiserOutput = 3,
+    RawColor = 4,
+    DlssBias = 5,
+    DlssColorBeforeParticles = 6,
+    SkipSignal = 7,
+    Correlation = 8,
 
     DataVis = FSRDConvFlags::Debug,
     DataVisMask = FSRDConvFlags::DebugModeMask,
@@ -217,6 +218,8 @@ constexpr auto kDebugModes = std::to_array<DebugModeNamePair>
     { "None", (uint32_t)DebugModes::None  },
     { "DenoiserBypass", (uint32_t) DebugModes::DenoiserBypass },
     { "UpscalerBypass", (uint32_t) DebugModes::UpscalerBypass },
+    { "DenoiserOutput", (uint32_t) DebugModes::DenoiserOutput },
+
     { "RawColor", (uint32_t)DebugModes::RawColor  },
     { "DlssBias", (uint32_t) DebugModes::DlssBias }, 
     { "DlssColorBeforeParticles", (uint32_t) DebugModes::DlssColorBeforeParticles }, 
@@ -277,7 +280,7 @@ bool FSRDFeatureDx12::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
         SetInit(false);
 
         LOG_DEBUG("FSR Ray Regeneration Initializing");
-        _name = "FSR Ray Regeneration";
+        _name = OptiTexts::FSR_RR_Name;
 
         // HW depth flag might not be needed. May be able to handle transparently in conv shader.
         if (int value; InParameters->Get(NVSDK_NGX_Parameter_Use_HW_Depth, &value) == NVSDK_NGX_Result_Success)
@@ -303,11 +306,14 @@ bool FSRDFeatureDx12::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
 bool FSRDFeatureDx12::CreateDenoiserContext() 
 {
     ScopedSkipSpoofing skipSpoofing {};
-    const auto& state = State::Instance();
+    auto& state = State::Instance();
     const auto& cfg = *Config::Instance();
 
     if (!QueryDenoiserVersions())
         return false;
+
+    state.ffxDenoiserUpscalerVersion = Version();
+    parse_version(state.ffxDenoiserVersionNames[cfg.FfxDenoiserIndex.value_or_default()]);
 
     ffxOverrideVersion vidOverride = 
     {
@@ -459,19 +465,19 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
     if (!IsInited())
         return false;
 
-    UpdateSize();
-
     auto& state = State::Instance();
     auto& cfg = *Config::Instance();
     const auto& inParams = *InParameters;
 
+    UpdateSize();
+
     const DebugModes dbgMode = (DebugModes) cfg.FfxDenoiserDebugMode.value_or_default();
     const bool isDebugVisSet = (uint32_t) dbgMode & (uint32_t) DebugModes::DataVis;
     const bool isCompDebugSet = dbgMode == DebugModes::Correlation;
-    const bool isDenoiseBypassed =
-        !isCompDebugSet && (isDebugVisSet || (dbgMode != DebugModes::None && dbgMode != DebugModes::UpscalerBypass));
-    const bool isUpscaleBypassed =
-        isCompDebugSet || isDebugVisSet || (dbgMode != DebugModes::None && dbgMode != DebugModes::DenoiserBypass);
+    const bool isDenoiseBypassed = !isCompDebugSet && (isDebugVisSet || 
+        (dbgMode != DebugModes::None && dbgMode != DebugModes::DenoiserOutput && dbgMode != DebugModes::UpscalerBypass));
+    const bool isUpscaleBypassed = isCompDebugSet || isDebugVisSet || 
+        (dbgMode != DebugModes::None && dbgMode != DebugModes::DenoiserBypass);
 
     // Validate helper features
     if (!RCAS->IsInit())
@@ -574,10 +580,10 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
             TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, srcTex);
         else if (isDebugVisSet)
             srcTex = FSRDConvShader->GetConvOutput().OutDemodulatedColor;
-        else if (isCompDebugSet)
-            srcTex = FSRDConvShader->GetCompOutput();
-        else
+        else if (dbgMode == DebugModes::DenoiserOutput)
             srcTex = GetD3D12ResFromFFX(signalDesc.radiance.output);
+        else
+            srcTex = FSRDConvShader->GetCompOutput();
 
         ID3D12Resource* dstTex;
         

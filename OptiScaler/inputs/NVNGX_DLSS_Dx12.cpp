@@ -497,6 +497,9 @@ static std::string_view GetUpscalerBackend()
     if (Config::Instance()->Dx12Upscaler.has_value())
         name = Config::Instance()->Dx12Upscaler.value();
 
+    if (name == OptiKeys::FSR_RR)
+        name = OptiKeys::FSR31;
+
     return name;
 }
 
@@ -564,7 +567,7 @@ static NVSDK_NGX_Result TryCreateOptiFeature(ID3D12GraphicsCommandList* InCmdLis
     Dx12Contexts[handleId] = {};
 
     // Retrieve feature implementation
-    if (!FeatureProvider_Dx12::GetFeature(featureName, handleId, InParameters, &Dx12Contexts[handleId].feature))
+    if (!FeatureProvider_Dx12::GetFeature(featureName, handleId, InFeatureID, InParameters, &Dx12Contexts[handleId].feature))
     {
         LOG_ERROR("Failed to retrieve feature implementation for '{}'", featureName);
 
@@ -601,6 +604,8 @@ static NVSDK_NGX_Result TryCreateOptiFeature(ID3D12GraphicsCommandList* InCmdLis
     // Initialize feature
     if (feature->Init(D3D12Device, InCmdList, InParameters))
     {
+        Dx12Contexts[handleId].featureKey = cfg.Dx12Upscaler.value_or_default();
+        Dx12Contexts[handleId].featureID = InFeatureID;
         state.currentFeature = feature;
         evalCounter = 0;
         UpscalerInputsDx12::Reset();
@@ -608,7 +613,9 @@ static NVSDK_NGX_Result TryCreateOptiFeature(ID3D12GraphicsCommandList* InCmdLis
     else
     {
         LOG_ERROR("Feature '{}' initialization failed falling back to FSR 2.1.2", featureName);
-        state.newBackend = "fsr21";
+        state.newBackend = OptiKeys::FSR21;
+        Dx12Contexts[handleId].featureKey = OptiKeys::FSR21;
+        Dx12Contexts[handleId].featureID = InFeatureID;
         state.changeBackend[handleId] = true;
     }
 
@@ -863,7 +870,7 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(ID3D12GraphicsCommandList* InCmdL
                                                PFN_NVSDK_NGX_ProgressCallback InCallback)
 {
     State& state = State::Instance();
-    const Config& cfg = *Config::Instance();
+    Config& cfg = *Config::Instance();
     const uint32_t handleId = InFeatureHandle->Id;
 
     auto ctxIt = Dx12Contexts.find(handleId);
@@ -895,7 +902,6 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(ID3D12GraphicsCommandList* InCmdL
     if (InCallback)
         LOG_INFO("Progress callback provided but unused in synchronous OptiScaler path");
 
-    // Resolution change detection (only for upscalers that may require recreation)
     if (feature != nullptr)
     {
         const bool isFSR31OrLater =

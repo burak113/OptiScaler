@@ -52,3 +52,11 @@ inline constexpr CString FSR_TransparencyAndComp = "FSR.transparencyAndCompositi
 inline constexpr CString FSR_Reactive = "FSR.reactive";
 
 } // namespace OptiKeys
+
+namespace OptiTexts
+{
+using CString = const char[];
+
+// User friendly name for FSR-RR backend
+inline constexpr CString FSR_RR_Name = "FSR Ray Regeneration";
+}

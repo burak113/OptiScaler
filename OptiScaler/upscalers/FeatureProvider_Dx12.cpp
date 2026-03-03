@@ -15,63 +15,85 @@
 #include "upscalers/xess/XeSSFeature_Dx12.h"
 #include "FeatureProvider_Dx11.h"
 
-bool FeatureProvider_Dx12::GetFeature(std::string_view upscalerName, UINT handleId, NVSDK_NGX_Parameter* parameters,
-                                      std::unique_ptr<IFeature_Dx12>* feature)
+bool FeatureProvider_Dx12::GetFeature(std::string_view upscalerName, UINT handleId, NVSDK_NGX_Feature featureID,
+                                      NVSDK_NGX_Parameter* parameters, std::unique_ptr<IFeature_Dx12>* feature)
 {
     State& state = State::Instance();
     Config& cfg = *Config::Instance();
     ScopedSkipHeapCapture skipHeapCapture {};
     std::string_view config_upscaler(upscalerName);
+    bool loaded = false;
 
-    if (upscalerName == "xess")
+    // Feature type is fixed during NVSDK_NGX_D3D12_CreateFeature. 
+    // To change the type, the feature has to be released by the application first.
+    if (featureID == NVSDK_NGX_Feature_SuperSampling)
     {
-        *feature = std::make_unique<XeSSFeatureDx12>(handleId, parameters);
-    }
-    else if (upscalerName == "fsr21")
-    {
-        *feature = std::make_unique<FSR2FeatureDx12_212>(handleId, parameters);
-    }
-    else if (upscalerName == "fsr22")
-    {
-        *feature = std::make_unique<FSR2FeatureDx12>(handleId, parameters);
-    }
-    else if (upscalerName == "fsr31")
-    {
-        *feature = std::make_unique<FSR31FeatureDx12>(handleId, parameters);
-    }
-    else if (upscalerName == OptiKeys::FSR_RR)
-    {
-        *feature = std::make_unique<FSRDFeatureDx12>(handleId, parameters);
-    }
-    else if (cfg.DLSSEnabled.value_or_default())
-    {
-        if (upscalerName == "dlss" && state.NVNGX_DLSS_Path.has_value())
+        if (upscalerName == "xess")
         {
-            *feature = std::make_unique<DLSSFeatureDx12>(handleId, parameters);
+            *feature = std::make_unique<XeSSFeatureDx12>(handleId, parameters);
         }
-        else if (upscalerName == "dlssd" && state.NVNGX_DLSSD_Path.has_value())
+        else if (upscalerName == "fsr21")
         {
-            *feature = std::make_unique<DLSSDFeatureDx12>(handleId, parameters);
+            *feature = std::make_unique<FSR2FeatureDx12_212>(handleId, parameters);
+        }
+        else if (upscalerName == "fsr22")
+        {
+            *feature = std::make_unique<FSR2FeatureDx12>(handleId, parameters);
+        }
+        else if (upscalerName == OptiKeys::FSR31)
+        {
+            *feature = std::make_unique<FSR31FeatureDx12>(handleId, parameters);
+        }
+        else if (cfg.DLSSEnabled.value_or_default())
+        {
+            if (upscalerName == "dlss" && state.NVNGX_DLSS_Path.has_value())
+            {
+                *feature = std::make_unique<DLSSFeatureDx12>(handleId, parameters);
+            }
+            else
+            {
+                *feature = std::make_unique<FSR2FeatureDx12_212>(handleId, parameters);
+                config_upscaler = "fsr21";
+            }
         }
         else
         {
             *feature = std::make_unique<FSR2FeatureDx12_212>(handleId, parameters);
             config_upscaler = "fsr21";
         }
-    }
-    else
-    {
-        *feature = std::make_unique<FSR2FeatureDx12_212>(handleId, parameters);
-        config_upscaler = "fsr21";
-    }
 
-    bool loaded = (*feature)->ModuleLoaded();
+        loaded = (*feature)->ModuleLoaded();
 
-    if (!loaded)
+        if (!loaded)
+        {
+            *feature = std::make_unique<FSR2FeatureDx12_212>(handleId, parameters);
+            config_upscaler = "fsr21";
+            loaded = true; // Assuming the fallback always loads successfully
+        }
+    }
+    else if (featureID == NVSDK_NGX_Feature_RayReconstruction)
     {
-        *feature = std::make_unique<FSR2FeatureDx12_212>(handleId, parameters);
-        config_upscaler = "fsr21";
-        loaded = true; // Assuming the fallback always loads successfully
+        if (!upscalerName.starts_with("dlss"))
+            upscalerName = OptiKeys::FSR_RR;
+
+        if (upscalerName == OptiKeys::FSR_RR)
+        {
+            if (FfxApiProxy::IsRRReady())
+                *feature = std::make_unique<FSRDFeatureDx12>(handleId, parameters);
+            else
+                return false;
+        }
+        else if (cfg.DLSSEnabled.value_or_default())
+        {
+            if (upscalerName == "dlssd" && state.NVNGX_DLSSD_Path.has_value())
+                *feature = std::make_unique<DLSSDFeatureDx12>(handleId, parameters);
+            else
+                return false;
+        }
+        else
+            return false;
+
+        loaded = (*feature)->ModuleLoaded();
     }
 
     // Handle display name normalization for DLSSD
@@ -98,6 +120,13 @@ bool FeatureProvider_Dx12::ChangeFeature(std::string_view upscalerName, ID3D12De
     // If no name or if dlss is being enabled use the configured upscaler name
     if (state.newBackend == "" || isDlssBeingEnabled)
         state.newBackend = cfg.Dx12Upscaler.value_or_default();
+
+    if (contextData->featureID == NVSDK_NGX_Feature_RayReconstruction)
+    {
+        // RR features are not allowed to change. They can only init/reinit.
+        if (state.newBackend != contextData->featureKey)
+            state.newBackend = contextData->featureKey;
+    }
 
     contextData->changeBackendCounter++;
 
@@ -172,8 +201,9 @@ bool FeatureProvider_Dx12::ChangeFeature(std::string_view upscalerName, ID3D12De
     {
         LOG_INFO("Creating new {} upscaler", state.newBackend);
         contextData->feature.reset();
+        contextData->featureKey = state.newBackend;
 
-        if (!GetFeature(state.newBackend, handleId, contextData->createParams, &contextData->feature))
+        if (!GetFeature(state.newBackend, handleId, contextData->featureID, contextData->createParams, &contextData->feature))
         {
             LOG_ERROR("Upscaler can't created");
             return false;

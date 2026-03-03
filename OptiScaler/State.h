@@ -199,12 +199,13 @@ class State
     std::vector<const char*> ffxFGVersionNames {};
     std::vector<uint64_t> ffxFGVersionIds {};
     uint32_t currentFsr4Model {};
-
+    
     // FSR-RR
     std::vector<const char*> ffxDenoiserVersionNames {};
     std::vector<uint64_t> ffxDenoiserVersionIds {};
     std::vector<uint32_t> ffxDenoiserDebugModes;
     std::unordered_map<uint32_t, const char*> ffxDenoiserDebugModeNames;
+    feature_version ffxDenoiserUpscalerVersion {};
 
     // Linux checks
     bool isRunningOnLinux = false;
