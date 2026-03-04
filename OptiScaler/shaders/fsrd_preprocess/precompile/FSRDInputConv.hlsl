@@ -14,6 +14,7 @@
 #define FLAGS_INF_FAR_PLANE             (1 << 1)
 #define FLAGS_PACKED_ROUGHNESS          (1 << 2)
 #define FLAGS_ENABLE_SPEC_RAY_LENGTH    (1 << 3)
+#define FLAGS_IS_RIGHT_HANDED           (1 << 4)
 
 // Debug Flags
 #define FLAGS_DEBUG               (1 << 16)
@@ -139,13 +140,14 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
 
     const int2 px = int2(id.xy);
     const float2 uv = (float2(id.xy) + 0.5) * RenderSizeInv;
+    const float zSign = IsSet(FLAGS_IS_RIGHT_HANDED) ? -1.0f : 1.0f;
 
     // Depth delta calculation from denoiser prepass sample shader
     // Assuming hardware depth
     const float inDepth = InDepth[px];
     const float3 ndcPos = float3(UVToNDC(uv), inDepth);
     float3 viewSpacePos = InvProjectPosition(ndcPos, InvProjMatrix);
-    viewSpacePos.z = clamp(viewSpacePos.z, NearPlane, FarPlane);
+    viewSpacePos.z = clamp(zSign * viewSpacePos.z, NearPlane, FarPlane);
     
     // Left handed view space
     OutLinearDepth[px] = viewSpacePos.z;
@@ -183,8 +185,10 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
         //
         // Find the current pixel in world space and calculate movement in view space
         const float3 worldSpacePos = mul(InvViewMatrix, float4(viewSpacePos, 1.0f)).xyz;
-        const float3 prevViewSpacePos = mul(PrevViewMatrix, float4(worldSpacePos, 1.0f)).xyz;
-        const float depthDelta = (prevViewSpacePos.z - viewSpacePos.z);
+        float3 prevViewSpacePos = mul(PrevViewMatrix, float4(worldSpacePos, 1.0f)).xyz;
+        prevViewSpacePos.z *= zSign;
+        
+        const float depthDelta = (viewSpacePos.z - prevViewSpacePos.z);
     
         // FSR-RR requires Linear Depth Delta in Blue channel
         const float2 motionIn = InMotionVectors[px].rg; // RG: Pixel Movement

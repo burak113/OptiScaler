@@ -134,6 +134,7 @@ struct ViewPlanes
     float nearPlane;
     float farPlane;
     bool isInfinite;
+    bool isRightHanded;
 };
 
 static ViewPlanes GetViewPlanes(const DirectX::XMMATRIX& projection, bool isInverted)
@@ -146,24 +147,25 @@ static ViewPlanes GetViewPlanes(const DirectX::XMMATRIX& projection, bool isInve
 
     float infiniteCheckVal = isInverted ? A : (A - W);
     planes.isInfinite = std::abs(infiniteCheckVal) < 1e-6f;
+    planes.isRightHanded = B < 0.0f;
 
     if (isInverted)
     {
         // Inverted: Near is at D=1, Far is at D=0
         // 1 = A/W + B/(n*W) -> n = B / (W - A)
-        planes.nearPlane = B / (W - A);
+        planes.nearPlane = std::abs(B / (W - A));
 
         // 0 = A/W + B/(f*W) -> f = -B / A
-        planes.farPlane = -B / A;
+        planes.farPlane = std::abs(-B / A);
     }
     else
     {
         // Standard: Near is at D=0, Far is at D=1
         // 0 = A/W + B/(n*W) -> n = -B / A
-        planes.nearPlane = -B / A;
+        planes.nearPlane = std::abs(-B / A);
 
         // 1 = A/W + B/(f*W) -> f = B / (W - A)
-        planes.farPlane = B / (W - A);
+        planes.farPlane = std::abs(B / (W - A));
     }
 
     return planes;
@@ -810,15 +812,13 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     _convConfig.NearPlane = planes.nearPlane;
     _convConfig.FarPlane = planes.farPlane;
 
+    if (planes.isRightHanded)
+        _convConfig.Flags |= (uint32_t) FSRDConvFlags::IsRightHanded;
+
     if (planes.isInfinite)
         _convConfig.Flags |= (uint32_t) FSRDConvFlags::UseInfiniteFarPlane;
 
     LOG_DEBUG("Distpaching FSRD Input Converter");
-
-    // Inputs from DLSS-RR in Cyberpunk 2077 are configured as pixel shader resources, but
-    // the Nvidia docs specify that they should be non-pixel shader resources. Is a detour somewhere
-    // changing the flag, or did CDPR get it wrong? Theoretically a non-issue as these states are
-    // functionally, if not logically, compatible.
 
     // Dispatch resource converter. Outputs are automatically transitioned for reading.
     if (!FSRDConvShader->DispatchConversion(InCommandList, convInputs, _convConfig))

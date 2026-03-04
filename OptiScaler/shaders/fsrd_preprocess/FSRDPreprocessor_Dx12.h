@@ -25,6 +25,8 @@ class FSRDPreprocessor_Dx12
         NonGammaAlbedo = 1 << 0, // If true, FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO should ALSO be set
         UseInfiniteFarPlane = 1 << 1, 
         IsRoughnessPacked = 1 << 2, // Roughness = InNormals.A - NVSDK_NGX_DLSS_Roughness_Mode_Packed (Init param)
+        EnableSpecRayLength = 1 << 3,
+        IsRightHanded = 1 << 4,
 
         Debug = 1 << 16, // Denoiser and upscaler bypassed for debug out if this is set
         DebugModeMask = 0xFF << 16, // Denoiser and upscaler bypassed for debug out if this is set
