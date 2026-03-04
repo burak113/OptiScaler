@@ -785,6 +785,42 @@
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDOutputComp_Shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="shaders\output_scaling\precompile\bcds_kaiser2_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\output_scaling\precompile\bcds_kaiser2_Shader_Dx11.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\output_scaling\precompile\bcds_kaiser2_Shader_Vk.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\output_scaling\precompile\bcds_kaiser3_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\output_scaling\precompile\bcds_kaiser3_Shader_Dx11.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\output_scaling\precompile\bcds_kaiser3_Shader_Vk.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\output_scaling\precompile\bcds_lanczos2_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\output_scaling\precompile\bcds_lanczos2_Shader_Dx11.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\output_scaling\precompile\bcds_lanczos2_Shader_Vk.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\output_scaling\precompile\bcds_lanczos3_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\output_scaling\precompile\bcds_lanczos3_Shader_Dx11.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\output_scaling\precompile\bcds_lanczos3_Shader_Vk.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Config.cpp">
@@ -1188,7 +1224,7 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="shaders\render_ui\RUI_Dx12.cpp">
-        <Filter>Source Files</Filter>
+      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="upscalers\fsr31\FSRDFeature_Dx12.cpp">
       <Filter>Source Files</Filter>
