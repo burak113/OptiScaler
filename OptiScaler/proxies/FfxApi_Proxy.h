@@ -250,7 +250,7 @@ class FfxApiProxy
     // Returns true if the FSR upscaler module is loaded
     static bool IsSRReady() { return (main_dx12.dll && !main_dx12.isLoader) || upscaling_dx12.dll != nullptr; }
     // Returns true if the FSR Ray Regen module is loaded
-    static bool IsRRReady() { return (main_dx12.dll && !main_dx12.isLoader) || rrDenoiser_dx12.dll != nullptr; }
+    static bool IsRRReady() { return IsSRReady() && rrDenoiser_dx12.dll != nullptr; }
 
     static FFXStructType GetType(ffxStructType_t type)
     {

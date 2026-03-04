@@ -260,7 +260,14 @@ FSRDFeatureDx12::FSRDFeatureDx12(uint32_t InHandleId, NVSDK_NGX_Parameter* InPar
     _denoiserCtxDesc({}),
     _denoiserSettings({}), 
     _convConfig({})
-{ }
+{
+    _moduleLoaded = FfxApiProxy::IsRRReady();
+
+    if (_moduleLoaded)
+        LOG_INFO("amd_fidelityfx_denoiser_dx12.dll methods loaded!");
+    else
+        LOG_ERROR("can't load amd_fidelityfx_denoiser_dx12.dll methods!");
+}
 
 FSRDFeatureDx12::~FSRDFeatureDx12() 
 {
