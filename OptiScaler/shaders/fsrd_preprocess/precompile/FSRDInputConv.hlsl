@@ -41,8 +41,7 @@
 #define FLAGS_DEBUG_OUT_NORM_DOT_VIEW   (15 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_OUT_METALICITY      (16 << 17 | FLAGS_DEBUG)
 
-#define FLAGS_DEBUG_EDGE_MASK       (17 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_COLOR_MASK      (18 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_COLOR_MASK      (17 << 17 | FLAGS_DEBUG)
 
 // DLSS-RR Inputs
 Texture2D<float4> InColor : register(t0); // RGB - NVSDK_NGX_Parameter_Color
@@ -154,7 +153,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
     
     // Color and albedo gradient analysis
     // Prepare rough color luma
-    const float3 color = InColor[px].rgb;
+    const float3 color = GetSafeFP16(InColor[px].rgb);
     float4 specAlbedo = float4(InSpecularAlbedo[px] + 0.01f, 0.0f);
     float4 diffAlbedo = float4(InDiffuseAlbedo[px] + 0.01f, 0.0f);
     float4 fusedAlbedo = float4(max(specAlbedo.rgb, diffAlbedo.rgb), 0.0f);
@@ -239,7 +238,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
         [branch]
         if (!IsSet(FLAGS_DEBUG))
         {
-            OutRadiance[px] = float4(demodColor, hitDist);
+            OutRadiance[px] = GetSafeFP16(float4(demodColor, hitDist));
         }
         else
         {
@@ -312,13 +311,9 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
                 case FLAGS_DEBUG_OUT_DIFF_ALBEDO:
                     debugColor = diffAlbedo.rgb;
                     break;
-                
-                case FLAGS_DEBUG_EDGE_MASK:
-                    debugColor = isEdge;
-                    break;
 
                 case FLAGS_DEBUG_COLOR_MASK:
-                    debugColor = transparencyMask;
+                    debugColor = transparencyMask > 0.5f;
                     break;
                 
                 default:

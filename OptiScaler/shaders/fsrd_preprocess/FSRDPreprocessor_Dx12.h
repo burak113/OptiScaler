@@ -52,8 +52,7 @@ class FSRDPreprocessor_Dx12
         DebugOutNormDotView = 15 << 17 | Debug,
         DebugOutMetalicty = 16 << 17 | Debug,
 
-        DebugEdgeMask = 17 << 17 | Debug,
-        DebugColorMask = 18 << 17 | Debug,
+        DebugColorMask = 17 << 17 | Debug,
     };
 
     enum class CompFlags : uint32_t

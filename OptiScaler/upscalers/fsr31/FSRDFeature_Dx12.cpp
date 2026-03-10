@@ -210,7 +210,6 @@ enum class DebugModes : uint32_t
     OutNormDotView = FSRDConvFlags::DebugOutNormDotView,
     OutMetalicity = FSRDConvFlags::DebugOutMetalicty,
 
-    EdgeMask = FSRDConvFlags::DebugEdgeMask,
     ColorMask = FSRDConvFlags::DebugColorMask
 };
 
@@ -247,7 +246,6 @@ constexpr auto kDebugModes = std::to_array<DebugModeNamePair>
     { "OutNormDotView", (uint32_t)DebugModes::OutNormDotView  },
     { "OutMetalicity", (uint32_t)DebugModes::OutMetalicity  },
 
-    { "EdgeMask", (uint32_t)DebugModes::EdgeMask  },
     { "ColorMask", (uint32_t)DebugModes::ColorMask  },
     { "Correlation", (uint32_t) DebugModes::Correlation }
 });
@@ -534,7 +532,11 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         };
         FSRDCompCfg compCfg = 
         { 
-            .DstTexSize = { _convConfig.RenderSize.x, _convConfig.RenderSize.y, 0, 0 },
+            .DstTexSize = 
+            { 
+                _convConfig.RenderSize.x, _convConfig.RenderSize.y,
+                _convConfig.RenderSizeInv.x, _convConfig.RenderSizeInv.y 
+            },
             .CorrelationBias = cfg.FfxDenoiserCorrelationBias.value_or_default(),
             .Flags = uint32_t(isCompDebugSet ? FSRDCompFlags::DebugCorrelation : FSRDCompFlags::None)
         };

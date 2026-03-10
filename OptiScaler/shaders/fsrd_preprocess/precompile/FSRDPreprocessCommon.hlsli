@@ -101,3 +101,18 @@ float3 VisualizeSignedDiff(float val, float scale)
     float v = val * scale;
     return float3(saturate(-v), saturate(v), 0.0f);
 }
+
+float4 GetSafeFP16(float4 v)
+{
+    return min(max(v, 0.0f), 65500.0f);
+}
+
+float3 GetSafeFP16(float3 v)
+{
+    return min(max(v, 0.0f), 65500.0f);
+}
+
+float Square(float x)
+{
+    return x * x;
+}

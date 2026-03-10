@@ -30,7 +30,8 @@ constexpr UINT kConvDescriptorCount = kInternalBufferCount + kConvInputCount + k
 constexpr UINT kCompInputCount = sizeof(FSRDPreprocessor_Dx12::CompInput) / sizeof(ID3D12Resource*);
 constexpr UINT kCompOutputCount = 1;
 
-constexpr UINT kThreadGroupSize = 8;
+constexpr UINT kThreadGroupSizeX = 8;
+constexpr UINT kThreadGroupSizeY = 8;
 
 namespace FSRDFormats
 {
@@ -354,8 +355,8 @@ struct ComputeState
         cmdList->SetComputeRootDescriptorTable(2, uavTable);
 
         // Dispatch
-        const uint32_t dimX = ((uint32_t)outDim.x + (kThreadGroupSize - 1)) / kThreadGroupSize;
-        const uint32_t dimY = ((uint32_t)outDim.y + (kThreadGroupSize - 1)) / kThreadGroupSize;
+        const uint32_t dimX = ((uint32_t)outDim.x + (kThreadGroupSizeX - 1)) / kThreadGroupSizeX;
+        const uint32_t dimY = ((uint32_t)outDim.y + (kThreadGroupSizeY - 1)) / kThreadGroupSizeY;
         cmdList->Dispatch(dimX, dimY, 1);
 
         // Transition the UAVs back to SRV
