@@ -1,11 +1,5 @@
-// FSR-RR Composition Utility
 #include "FSRDPreprocessCommon.hlsli"
 
-#define THREAD_GROUP_SIZE_X 8
-#define THREAD_GROUP_SIZE_Y 8
-#define NUM_THREADS (THREAD_GROUP_SIZE_X * THREAD_GROUP_SIZE_Y)
-
-// Root signature
 #define MainRS \
     "RootFlags(0), " \
     "CBV(b0), " \
@@ -18,27 +12,42 @@
         "addressW = TEXTURE_ADDRESS_CLAMP, " \
         "visibility = SHADER_VISIBILITY_ALL)"
 
-// Flags
+// Dispatch config
+#define THREAD_GROUP_SIZE_X     8
+#define THREAD_GROUP_SIZE_Y     8
+#define NUM_THREADS             (THREAD_GROUP_SIZE_X * THREAD_GROUP_SIZE_Y)
+
+static const uint2 s_ThreadGroupSize = uint2(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y);
+
+// Kernel config
+#define SSIM_KERNEL_SIZE        5
+#define SSIM_RANGE_MIN          (-SSIM_KERNEL_SIZE / 2)
+#define SSIM_RANGE_MAX          (SSIM_KERNEL_SIZE / 2)
+
+static const float s_InvKernelSize = 1.0f / (SSIM_KERNEL_SIZE * SSIM_KERNEL_SIZE);
+
+// Shared memory config
+#define SHARED_HALO_SIZE        (SSIM_KERNEL_SIZE / 2)
+#define SHARED_DIM_X            (THREAD_GROUP_SIZE_X + 2 * SHARED_HALO_SIZE)
+#define SHARED_DIM_Y            (THREAD_GROUP_SIZE_Y + 2 * SHARED_HALO_SIZE)
+#define NUM_SHARED_ELEMENTS     (SHARED_DIM_X * SHARED_DIM_Y)
+
+static const uint2 s_SMHaloOffset = uint2(SHARED_HALO_SIZE, SHARED_HALO_SIZE);
+static const uint2 s_SMSize = uint2(SHARED_DIM_X, SHARED_DIM_Y);
+static const uint s_SMLoadsPerThread = (NUM_SHARED_ELEMENTS + NUM_THREADS - 1) / NUM_THREADS;
+
+groupshared half g_DenoisedDemodLuma[SHARED_DIM_X][SHARED_DIM_Y];
+groupshared half g_DemodLuma[SHARED_DIM_X][SHARED_DIM_Y];
+groupshared half g_RawLuma[SHARED_DIM_X][SHARED_DIM_Y];
+
+// Feature Flags
 #define FLAGS_RAW_SOURCE_BLIT           (1 << 0)
 #define FLAGS_SCALE_SRC                 (1 << 1)
 
 // Debug Flags
 #define FLAGS_DEBUG                     (1 << 16)
 #define FLAGS_DEBUG_MODE_MASK           (0xFF << 16)
-
 #define FLAGS_DEBUG_CORRELATION_BIAS    (1 << 17 | FLAGS_DEBUG)
-
-#define SHARED_DIM_X (THREAD_GROUP_SIZE_X + 2)
-#define SHARED_DIM_Y (THREAD_GROUP_SIZE_Y + 2)
-#define TOTAL_SHARED_ELEMENTS (SHARED_DIM_X * SHARED_DIM_Y)
-
-#define SSIM_KERNEL_SIZE 3
-#define SSIM_RANGE_MIN (-SSIM_KERNEL_SIZE / 2)
-#define SSIM_RANGE_MAX (SSIM_KERNEL_SIZE / 2)
-
-groupshared half g_DenoisedDemodLuma[SHARED_DIM_X][SHARED_DIM_Y];
-groupshared half g_DemodLuma[SHARED_DIM_X][SHARED_DIM_Y];
-groupshared half g_RawLuma[SHARED_DIM_X][SHARED_DIM_Y];
 
 Texture2D<half4> InDenoisedColor : register(t0); // Denoiser output
 Texture2D<half4> InDemodulatedColor : register(t1); // Denoiser input
@@ -64,7 +73,7 @@ uint GetDebugMode() { return (Flags & FLAGS_DEBUG_MODE_MASK); }
 // Calculates normalized SNR for the original raw input, compressed into [0, 1]
 float CalculateRawSNR(const uint2 gtID)
 {
-    const int2 center = gtID + int2(1, 1);
+    const int2 center = gtID + s_SMHaloOffset;
     float sum = 0.0f;
     float sumSq = 0.0f;
     
@@ -80,10 +89,10 @@ float CalculateRawSNR(const uint2 gtID)
         }
     }
     
-    const float mean = sum * (1.0f / (SSIM_KERNEL_SIZE * SSIM_KERNEL_SIZE));
-    const float meanSq = sumSq * (1.0f / (SSIM_KERNEL_SIZE * SSIM_KERNEL_SIZE));
+    const float mean = sum * s_InvKernelSize;
+    const float meanSq = sumSq * s_InvKernelSize;
     const float var = max(meanSq - Square(mean), 0.0f);
-    const float snr = (mean + 1e-3f) * rcp(mean + sqrt(var) + 1e-3f);
+    const float snr = (mean) * rcp(mean + sqrt(var) + 1e-5f);
     
     return snr;
 }
@@ -91,7 +100,7 @@ float CalculateRawSNR(const uint2 gtID)
 // Correlates raw noisy input with denoised color, using a modified SSIM.
 void CorrelateDemodulatedColor(const uint2 gtID, out float strucCorrelation, out float conCorrelation, out float lumCorrelation)
 {
-    const int2 smCenter = gtID + int2(1, 1);
+    const int2 smCenter = gtID + s_SMHaloOffset;
     const float denoisedCenter = g_DenoisedDemodLuma[smCenter.x][smCenter.y]; // D       
     const float rawCenter = g_DemodLuma[smCenter.x][smCenter.y]; // R    
     
@@ -147,16 +156,15 @@ void CorrelateDemodulatedColor(const uint2 gtID, out float strucCorrelation, out
         }
     }
 
-    const float invN = 1.0f / (SSIM_KERNEL_SIZE * SSIM_KERNEL_SIZE);
-    const float avgD = sumD * invN;
-    const float avgR = sumR * invN;
+    const float avgD = sumD * s_InvKernelSize;
+    const float avgR = sumR * s_InvKernelSize;
     const float avgDSq = Square(avgD);
     const float avgRSq = Square(avgR);
     
     // Variances (std.dev^2)
     // E[X^2] - (E[X])^2 - Average of squares, less the square of the average
-    const float varD = max((sumDD * invN) - avgDSq, 0.0f);
-    const float varR = max((sumRR * invN) - avgRSq, 1e-3f);
+    const float varD = max((sumDD * s_InvKernelSize) - avgDSq, 0.0f);
+    const float varR = max((sumRR * s_InvKernelSize) - avgRSq, 2e-3f);
     
     // Std. Deviation
     const float devD = sqrt(varD);
@@ -164,7 +172,7 @@ void CorrelateDemodulatedColor(const uint2 gtID, out float strucCorrelation, out
     
     // Covariance
     // E[X*Y] - E[X]E[Y] - Average of R*D product, less product of their averages
-    const float covRD = (sumRD * invN) - (avgD * avgR);
+    const float covRD = (sumRD * s_InvKernelSize) - (avgD * avgR);
         
     // Correlation
     const float relaxation = 1.0f;
@@ -178,23 +186,40 @@ void CorrelateDemodulatedColor(const uint2 gtID, out float strucCorrelation, out
     lumCorrelation = (2.0f * avgD * avgR) * rcp(avgDSq + avgRSq + c1);
 }
 
-void SetSharedMemoryHalo(int2 px, int2 smID)
+void PopulateSharedMemory(const uint2 groupID, const int2 gtID)
 {
-    const float3 remod = InFusedModulator[px].rgb;
-    const float3 rawDemodColor = InDemodulatedColor[px].rgb;
+    const int2 pxOrigin = groupID.xy * s_ThreadGroupSize - s_SMHaloOffset;
+    const uint flatID = gtID.x + gtID.y * s_ThreadGroupSize.x;
+    const int2 maxBounds = int2(DstTexSize.xy) - 1;
+
+    for (int i = 0; i < s_SMLoadsPerThread; i++)
+    {
+        const uint smFlatID = flatID + i * NUM_THREADS;
+        
+        if (smFlatID < NUM_SHARED_ELEMENTS)
+        {
+            const int2 smID = int2(smFlatID % s_SMSize.x, smFlatID / s_SMSize.x);
+            int2 px = pxOrigin + smID;
+            px = clamp(px, int2(0, 0), maxBounds);
             
-    g_DenoisedDemodLuma[smID.x][smID.y] = (half)dot(InDenoisedColor[px].rgb, 0.33f);
-    g_DemodLuma[smID.x][smID.y] = (half)dot(rawDemodColor, 0.33f);
-    g_RawLuma[smID.x][smID.y] = (half)dot(rawDemodColor * remod, 0.33f);
+            const float3 remod = InFusedModulator[px].rgb;
+            const float3 rawDemodColor = InDemodulatedColor[px].rgb;
+            
+            g_DenoisedDemodLuma[smID.x][smID.y] = (half) dot(InDenoisedColor[px].rgb, 0.33f);
+            g_DemodLuma[smID.x][smID.y] = (half) dot(rawDemodColor, 0.33f);
+            g_RawLuma[smID.x][smID.y] = (half) dot(rawDemodColor * remod, 0.33f);
+        }
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
 }
 
 [RootSignature(MainRS)]
 [numthreads(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y, 1)]
-void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID, uint flatID : SV_GroupIndex)
+void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 {
-    const uint2 px = groupID.xy * uint2(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y) + gtID.xy;
+    const uint2 px = groupID.xy * s_ThreadGroupSize + gtID.xy;
     const float2 uv = (float2(px) + 0.5f) * DstTexSize.zw;
-    const float2 uvCorner = float2(px) * DstTexSize.zw;
     
     if (px.x >= DstTexSize.x || px.y >= DstTexSize.y)
     {
@@ -207,56 +232,15 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID, uint flat
     {
         [branch]
         if (IsSet(FLAGS_SCALE_SRC))
-        {
             OutColor[px] = InDenoisedColor.SampleLevel(LinearSampler, uv, 0);
-        }
         else
-        {
             OutColor[px] = InDenoisedColor[px];
-        }
     }
     else
     {
-        const float3 remod = InFusedModulator[px].rgb;
-        const float3 rawDemodColor = InDemodulatedColor[px].rgb;
-        const float3 demodDenoisedColor = InDenoisedColor[px].rgb;
-        
-        // Populate shared memory
-        g_DenoisedDemodLuma[gtID.x + 1][gtID.y + 1] = (half) dot(demodDenoisedColor, 0.33f);
-        g_DemodLuma[gtID.x + 1][gtID.y + 1] = (half) dot(rawDemodColor, 0.33f);
-        g_RawLuma[gtID.x + 1][gtID.y + 1] = (half) dot(rawDemodColor * remod, 0.33f);
-        
-        const bool isHorzEdge = gtID.x == 0 || gtID.x == (THREAD_GROUP_SIZE_X - 1);
-        const bool isVertEdge = gtID.y == 0 || gtID.y == (THREAD_GROUP_SIZE_Y - 1);
-        const int xOffset = 2 * (gtID.x > 0) - 1;
-        const int yOffset = 2 * (gtID.y > 0) - 1;
-        const int smX = gtID.x + 1 + xOffset;
-        const int smY = gtID.y + 1 + yOffset;
+        PopulateSharedMemory(groupID.xy, gtID.xy);
 
-        if (isHorzEdge)
-        {
-            const int2 pxEdgeX = int2(px + int2(xOffset, 0));
-            const int2 smIDEdgeX = int2(smX, gtID.y + 1);          
-            SetSharedMemoryHalo(pxEdgeX, smIDEdgeX);
-        }
-        
-        if (isVertEdge)
-        {
-            const int2 pxEdgeY = int2(px + int2(0, yOffset));
-            const int2 smIDEdgeY = int2(gtID.x + 1, smY);          
-            SetSharedMemoryHalo(pxEdgeY, smIDEdgeY);
-        }
-        
-        if (isHorzEdge && isVertEdge)
-        {
-            const int2 pxCorner = px + int2(xOffset, yOffset);
-            const int2 smIDCorner = int2(smX, smY);
-            SetSharedMemoryHalo(pxCorner, smIDCorner);
-        }
-        
-        // Finish populating halo
-        GroupMemoryBarrierWithGroupSync();
-
+        // Correlate raw RT input with denoiser output
         float strucCorrelation, conCorrelation, lumCorrelation;    
         CorrelateDemodulatedColor(gtID.xy, strucCorrelation, conCorrelation, lumCorrelation);
         
@@ -270,7 +254,8 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID, uint flat
         }
         else
         {
-            const float3 denoisedColor = demodDenoisedColor * remod;
+            const float3 remod = InFusedModulator[px].rgb;
+            const float3 denoisedColor = InDenoisedColor[px].rgb * remod;
             const float4 skip = InSkipSignal[px];
             const float3 particles = InColorBeforeParticles[px]; // Not quite right
             const float skipWeight = saturate(lowConfWeight + skip.a);
