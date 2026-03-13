@@ -12,7 +12,6 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
   public:
     using FSRDConvIn = FSRDPreprocessor_Dx12::ConvInput;
     using FSRDConvCfg = FSRDPreprocessor_Dx12::ConvConstants;
-    using FSRDConvOut = FSRDPreprocessor_Dx12::ConvOutput;
 
     FSRDFeatureDx12(uint32_t InHandleId, NVSDK_NGX_Parameter* InParameters);
 
@@ -28,6 +27,7 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     ffxContext _pDenoiserCtx;
     ffxCreateContextDescDenoiser _denoiserCtxDesc;
     FfxApiDenoiserSettings _denoiserSettings;
+    bool _isMode2;
 
     static bool s_isHWDepth;
     static bool s_isRoughnessPacked;
@@ -57,8 +57,9 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
      * @brief Generates FSR denoiser configuration and input buffers from DLSS-RR inputs and NGX configurations,
      * converts and repacks resources internally.
      */
+    template<typename SignalDescT>
     bool PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& ngxParams,
-                              ffxDispatchDescDenoiser& dispatchDesc, ffxDispatchDescDenoiserInput1Signal& signalDesc);
+                              ffxDispatchDescDenoiser& dispatchDesc, SignalDescT& signalDesc);
 
     /**
      * @brief Retrieves DLSS-RR inputs to populate the inputs for the conversion shader in order to generate
@@ -69,8 +70,7 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     /**
      * @brief Converts previously retrieved DLSS-RR resources into FSR-RR inputs.
      */
-    bool ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InCommandList, const FSRDConvIn& convInputs,
-                                FSRDConvOut& convOut);
+    bool ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InCommandList, const FSRDConvIn& convInputs);
 
     /**
      * @brief Dispatches FSR-RR denoiser converted inputs. Runs before upscaler.

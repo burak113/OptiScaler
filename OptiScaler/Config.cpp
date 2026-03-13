@@ -247,6 +247,7 @@ bool Config::Reload(std::filesystem::path iniPath)
 
         // FSR-RR
         {
+            FfxDenoiserMode.set_from_config(readInt("FSR-RR", "DenoiserMode"));
             FfxDenoiserHistRejection.set_from_config(readFloat("FSR-RR", "HistoryRejection"));
             FfxDenoiserCrossBlNormStr.set_from_config(readFloat("FSR-RR", "CrossBilateralNormalStrength"));
             FfxDenoiserStabilityBias.set_from_config(readFloat("FSR-RR", "TemporalStabilityBias"));
@@ -961,6 +962,8 @@ bool Config::SaveIni()
 
     // FSR-RR
     {
+        ini.SetValue("FSR-RR", "DenoiserMode",
+                     GetIntValue(Instance()->FfxDenoiserMode.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "HistoryRejection",
                      GetFloatValue(Instance()->FfxDenoiserHistRejection.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "CrossBilateralNormalStrength",

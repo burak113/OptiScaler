@@ -9,10 +9,8 @@ using namespace DirectX;
 
 using FSRDConvIn = FSRDPreprocessor_Dx12::ConvInput;
 using FSRDConvCfg = FSRDPreprocessor_Dx12::ConvConstants;
-using FSRDConvOut = FSRDPreprocessor_Dx12::ConvOutput;
 
-using FSRDCompIn = FSRDPreprocessor_Dx12::CompInput;
-using FSRDCompCfg = FSRDPreprocessor_Dx12::CompConstants;
+using FSRDCompDesc = FSRDPreprocessor_Dx12::CompositionDesc;
 
 /**
  * @brief Retrieves a matrix from the given parameter table. Matrices used by DLSS are in column-major
@@ -174,20 +172,17 @@ static ViewPlanes GetViewPlanes(const DirectX::XMMATRIX& projection, bool isInve
 using FSRDConvFlags = FSRDPreprocessor_Dx12::ConvFlags;
 using FSRDCompFlags = FSRDPreprocessor_Dx12::CompFlags;
 
-enum class DebugModes : uint32_t
+enum class DebugModes : uint64_t
 {
     None = 0,
     DenoiserBypass = 1,
     UpscalerBypass = 2,
-    DenoiserOutput = 3,
-    RawColor = 4,
-    DlssBias = 5,
-    DlssColorBeforeParticles = 6,
-    SkipSignal = 7,
-    Correlation = 8,
+    RawColor = 3,
+    DlssBias = 4,
+    DlssColorBeforeParticles = 5,
 
-    DataVis = FSRDConvFlags::Debug,
-    DataVisMask = FSRDConvFlags::DebugModeMask,
+    ConversionDebug = FSRDConvFlags::Debug,
+    ConversionDebugMask = FSRDConvFlags::DebugModeMask,
 
     OutRadiance = FSRDConvFlags::DebugOutRadiance,
 
@@ -209,45 +204,80 @@ enum class DebugModes : uint32_t
     OutDepthDelta = FSRDConvFlags::DebugOutDepthDelta,
     OutNormDotView = FSRDConvFlags::DebugOutNormDotView,
     OutMetalicity = FSRDConvFlags::DebugOutMetalicty,
+    ColorMask = FSRDConvFlags::DebugColorMask,
+    AlbedoError = FSRDConvFlags::DebugAlbedoError,
 
-    ColorMask = FSRDConvFlags::DebugColorMask
+    CompositionDebugOffset = 16u,
+    CompositionDebug = (uint64_t) FSRDCompFlags::Debug << CompositionDebugOffset,
+    CompositionDebugMask = (uint64_t)FSRDCompFlags::DebugModeMask,
+
+    Correlation = (uint64_t)FSRDCompFlags::DebugCorrelation << CompositionDebugOffset,
+    SkipSignal = (uint64_t) FSRDCompFlags::DebugSkipSignal << CompositionDebugOffset,
+    DenoiserOutput = (uint64_t) FSRDCompFlags::DebugDenoiserOutput << CompositionDebugOffset,
+    SpecularColor = (uint64_t) FSRDCompFlags::DebugSpecularColor << CompositionDebugOffset,
+    DiffuseColor = (uint64_t) FSRDCompFlags::DebugDiffuseColor << CompositionDebugOffset,
 };
 
-using DebugModeNamePair = std::pair<const char*, uint32_t>;
-constexpr auto kDebugModes = std::to_array<DebugModeNamePair>
-({ 
-    { "None", (uint32_t)DebugModes::None  },
-    { "DenoiserBypass", (uint32_t) DebugModes::DenoiserBypass },
-    { "UpscalerBypass", (uint32_t) DebugModes::UpscalerBypass },
-    { "DenoiserOutput", (uint32_t) DebugModes::DenoiserOutput },
+static FSRDConvFlags GetConvDebugFlags(DebugModes mode) 
+{ 
+    uint32_t flags = uint32_t(mode);
+    flags &= uint32_t(DebugModes::ConversionDebugMask);
+    return FSRDConvFlags(flags);
+}
 
-    { "RawColor", (uint32_t)DebugModes::RawColor  },
-    { "DlssBias", (uint32_t) DebugModes::DlssBias }, 
-    { "DlssColorBeforeParticles", (uint32_t) DebugModes::DlssColorBeforeParticles }, 
-    { "SkipSignal", (uint32_t) DebugModes::SkipSignal }, 
+static FSRDCompFlags GetCompDebugFlags(DebugModes mode) 
+{ 
+    uint64_t flags = uint64_t(mode);
+    flags >>= uint64_t(DebugModes::CompositionDebugOffset);
+    flags &= uint64_t(DebugModes::CompositionDebugMask);
+    return FSRDCompFlags(flags);
+}
 
-    { "InDepth", (uint32_t)DebugModes::InDepth  },
-    { "InMotionVectors", (uint32_t)DebugModes::InMotion  },
-    { "InNormals", (uint32_t)DebugModes::InNormals },
-    { "InRoughness", (uint32_t)DebugModes::InRoughness  },
-    { "InSpecHitDist", (uint32_t)DebugModes::InSpecHitDist  },
-    { "InDiffAlbedo", (uint32_t)DebugModes::InDiffAlbedo  },
-    { "InSpecAlbedo", (uint32_t)DebugModes::InSpecAlbedo  },
+using ModeNamePair = std::pair<const char*, uint64_t>;
+constexpr auto kDebugModes = std::to_array<ModeNamePair>(
+{ 
+    { "None", (uint64_t) DebugModes::None },
+    { "DenoiserBypass", (uint64_t) DebugModes::DenoiserBypass },
+    { "UpscalerBypass", (uint64_t) DebugModes::UpscalerBypass },
+    { "DenoiserOutput", (uint64_t) DebugModes::DenoiserOutput },
 
-    { "OutRadiance", (uint32_t)DebugModes::OutRadiance  },
-    { "OutFusedAlbedo", (uint32_t)DebugModes::OutFusedAlbedo  },
-    { "OutLinearDepth", (uint32_t)DebugModes::OutLinearDepth  },
-    { "OutMotionVectors", (uint32_t)DebugModes::OutMotion  },
-    { "OutNormals", (uint32_t)DebugModes::OutNormals  },
-    { "OutSpecAlbedo", (uint32_t)DebugModes::OutSpecAlbedo  },
-    { "OutDiffAlbedo", (uint32_t)DebugModes::OutDiffAlbedo  },
+    { "RawColor", (uint64_t) DebugModes::RawColor },
+    { "DlssBias", (uint64_t) DebugModes::DlssBias }, 
+    { "DlssColorBeforeParticles", (uint64_t) DebugModes::DlssColorBeforeParticles }, 
+    { "SkipSignal", (uint64_t) DebugModes::SkipSignal }, 
 
-    { "OutDepthDelta", (uint32_t)DebugModes::OutDepthDelta  },
-    { "OutNormDotView", (uint32_t)DebugModes::OutNormDotView  },
-    { "OutMetalicity", (uint32_t)DebugModes::OutMetalicity  },
+    { "InDepth", (uint64_t) DebugModes::InDepth },
+    { "InMotionVectors", (uint64_t)DebugModes::InMotion  },
+    { "InNormals", (uint64_t)DebugModes::InNormals },
+    { "InRoughness", (uint64_t)DebugModes::InRoughness  },
+    { "InSpecHitDist", (uint64_t)DebugModes::InSpecHitDist  },
+    { "InDiffAlbedo", (uint64_t)DebugModes::InDiffAlbedo  },
+    { "InSpecAlbedo", (uint64_t)DebugModes::InSpecAlbedo  },
 
-    { "ColorMask", (uint32_t)DebugModes::ColorMask  },
-    { "Correlation", (uint32_t) DebugModes::Correlation }
+    { "OutRadiance", (uint64_t) DebugModes::OutRadiance },
+    { "OutFusedAlbedo", (uint64_t)DebugModes::OutFusedAlbedo  },
+    { "OutLinearDepth", (uint64_t)DebugModes::OutLinearDepth  },
+    { "OutMotionVectors", (uint64_t)DebugModes::OutMotion  },
+    { "OutNormals", (uint64_t)DebugModes::OutNormals  },
+    { "OutSpecAlbedo", (uint64_t)DebugModes::OutSpecAlbedo  },
+    { "OutDiffAlbedo", (uint64_t)DebugModes::OutDiffAlbedo  },
+
+    { "OutDepthDelta", (uint64_t) DebugModes::OutDepthDelta },
+    { "OutNormDotView", (uint64_t)DebugModes::OutNormDotView  },
+    { "OutMetalicity", (uint64_t)DebugModes::OutMetalicity  },
+
+    { "ColorMask", (uint64_t) DebugModes::ColorMask },
+    { "AlbedoError", (uint64_t) DebugModes::AlbedoError },
+
+    { "Correlation", (uint64_t) DebugModes::Correlation },
+    { "SpecularColor", (uint64_t) DebugModes::SpecularColor },
+    { "DiffuseColor", (uint64_t) DebugModes::DiffuseColor }
+});
+
+constexpr auto kDenoiserModes = std::to_array<std::pair<const char*, int>>(
+{ 
+    { "Mode 2", 0 }, 
+    { "Mode 1", 1 }, 
 });
 
 bool FSRDFeatureDx12::s_isHWDepth = false;
@@ -259,7 +289,8 @@ FSRDFeatureDx12::FSRDFeatureDx12(uint32_t InHandleId, NVSDK_NGX_Parameter* InPar
     _pDenoiserCtx(nullptr), 
     _denoiserCtxDesc({}),
     _denoiserSettings({}), 
-    _convConfig({})
+    _convConfig({}), 
+    _isMode2(false)
 {
     _moduleLoaded = FfxApiProxy::IsRRReady();
 
@@ -322,6 +353,19 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
     state.ffxDenoiserUpscalerVersion = Version();
     parse_version(state.ffxDenoiserVersionNames[cfg.FfxDenoiserIndex.value_or_default()]);
 
+    // Get current mode and populate mode map
+    _isMode2 = cfg.FfxDenoiserMode.value_or_default() == 0;
+    state.ffxDenoiserModes.resize(kDenoiserModes.size());
+    state.ffxDenoiserModeNames.reserve(kDenoiserModes.size());
+    state.ffxDenoiserModes.clear();
+    state.ffxDenoiserModeNames.clear();
+
+    for (const auto& mode : kDenoiserModes)
+    {
+        state.ffxDenoiserModes.push_back(mode.second);
+        state.ffxDenoiserModeNames.emplace(mode.second, mode.first);
+    }
+
     ffxOverrideVersion vidOverride = 
     {
         .header = { .type = FFX_API_DESC_TYPE_OVERRIDE_VERSION },
@@ -350,7 +394,7 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
         },
         .version = FFX_DENOISER_VERSION,
         .maxRenderSize = { RenderWidth(), RenderHeight() },
-        .mode = FFX_DENOISER_MODE_1_SIGNAL,
+        .mode = _isMode2 ? FFX_DENOISER_MODE_2_SIGNALS : FFX_DENOISER_MODE_1_SIGNAL,
         .flags = 0
     };
 
@@ -381,7 +425,7 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
     FfxApiProxy::D3D12_Query(nullptr, &queryDefaultSettingsDesc.header);
 
     // Create DLSS-RR to FSR-RR input converter
-    FSRDConvShader = std::make_unique<FSRDPreprocessor_Dx12>("FSRD Converter", Device);
+    FSRDConvShader = std::make_unique<FSRDPreprocessor_Dx12>("FSRD Converter", Device, _isMode2);
 
     if (!FSRDConvShader->IsInit())
         return false;
@@ -478,13 +522,17 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
 
     UpdateSize();
 
-    const DebugModes dbgMode = (DebugModes) cfg.FfxDenoiserDebugMode.value_or_default();
-    const bool isDebugVisSet = (uint32_t) dbgMode & (uint32_t) DebugModes::DataVis;
-    const bool isCompDebugSet = dbgMode == DebugModes::Correlation;
-    const bool isDenoiseBypassed = !isCompDebugSet && (isDebugVisSet || 
-        (dbgMode != DebugModes::None && dbgMode != DebugModes::DenoiserOutput && dbgMode != DebugModes::UpscalerBypass));
-    const bool isUpscaleBypassed = isCompDebugSet || isDebugVisSet || 
-        (dbgMode != DebugModes::None && dbgMode != DebugModes::DenoiserBypass);
+    const auto dbgMode = static_cast<DebugModes>(cfg.FfxDenoiserDebugMode.value_or_default());
+    const bool isDebugVis = (uint32_t)dbgMode & (uint32_t) DebugModes::ConversionDebug;
+    const bool isDebugComp = ((uint64_t)dbgMode & (uint64_t)DebugModes::CompositionDebug);
+    const bool hasAnyDebug = (dbgMode != DebugModes::None);
+
+    // Denoise is bypassed if we are debugging something OTHER than the final outputs
+    const bool isDenoiseBypassed =
+        !isDebugComp && hasAnyDebug && dbgMode != DebugModes::DenoiserOutput && dbgMode != DebugModes::UpscalerBypass;
+
+    // Upscale is bypassed if we are in a debug mode that isn't the DenoiserBypass (final raw)
+    const bool isUpscaleBypassed = hasAnyDebug && dbgMode != DebugModes::DenoiserBypass;
 
     // Validate helper features
     if (!RCAS->IsInit())
@@ -498,39 +546,34 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         _isInReset = value > 0;
 
     // Denoiser start
-    ffxDispatchDescDenoiserInput1Signal signalDesc = {};
+    ffxDispatchDescDenoiserInput1Signal mode1Signal = {};
+    ffxDispatchDescDenoiserInput2Signals mode2Signal = {};
     ffxDispatchDescDenoiser denoiserDesc = {};
     bool isDenoiserReady = false;
 
     // Pull configuration and input buffers for DLSS-RR from the param table, convert and 
     // repack input buffers into intermediate FSR-RR input buffers, and configure descriptors.
-    if (!PrepareDenoiserInput(InCommandList, *InParameters, denoiserDesc, signalDesc))
-        return false;
+    if (_isMode2)
+    {
+        if (!PrepareDenoiserInput(InCommandList, *InParameters, denoiserDesc, mode2Signal))
+            return false;
+    }
+    else
+    {
+        if (!PrepareDenoiserInput(InCommandList, *InParameters, denoiserDesc, mode1Signal))
+            return false;
+    }
 
     // Dispatch denoiser
     if (!isDenoiseBypassed)
     {
-        // Denoise raw input
-        ResourceBarrier(InCommandList, GetD3D12ResFromFFX(signalDesc.radiance.output), 
-            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
         isDenoiserReady = DispatchDenoiser(InCommandList, denoiserDesc);
-
-        ResourceBarrier(InCommandList, GetD3D12ResFromFFX(signalDesc.radiance.output), 
-            D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
         if (!isDenoiserReady)
             return false;
 
         // Compose denoised signals
-        FSRDCompIn compIn = 
-        {
-            .InDenoisedColor = GetD3D12ResFromFFX(signalDesc.radiance.output),
-            .InDemodulatedColor = FSRDConvShader->GetConvOutput().OutDemodulatedColor,
-            .InFusedAlbedo = FSRDConvShader->GetConvOutput().OutFusedAlbedo,
-            .InSkipSignal = FSRDConvShader->GetConvOutput().OutSkipSignal
-        };
-        FSRDCompCfg compCfg = 
+        FSRDCompDesc compDesc = 
         { 
             .DstTexSize = 
             { 
@@ -538,13 +581,22 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
                 _convConfig.RenderSizeInv.x, _convConfig.RenderSizeInv.y 
             },
             .CorrelationBias = cfg.FfxDenoiserCorrelationBias.value_or_default(),
-            .Flags = uint32_t(isCompDebugSet ? FSRDCompFlags::DebugCorrelation : FSRDCompFlags::None)
+            .Flags = (uint32_t)GetCompDebugFlags(dbgMode)
         };
 
-        TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles, compIn.InColorBeforeParticles);
+        TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles, compDesc.InColorBeforeParticles);
+        TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_Color, compDesc.DstTex);
 
-        if (!FSRDConvShader->DispatchComposition(InCommandList, compIn, compCfg))
+        // Transition input color to UAV to be overwritten with denoised color
+        ResourceBarrier(InCommandList, compDesc.DstTex,
+                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+        if (!FSRDConvShader->DispatchComposition(InCommandList, compDesc))
             return false;
+
+        // Transition input color back to SRV to be consumed by the upscaler
+        ResourceBarrier(InCommandList, compDesc.DstTex,
+                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
         isDenoiserReady = true;
     }
@@ -561,7 +613,6 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         if (isDenoiserReady)
         {
             upscalerDesc.cameraFovAngleVertical = denoiserDesc.cameraFovAngleVertical;
-            upscalerDesc.color = ffxApiGetResourceDX12(FSRDConvShader->GetCompOutput(), FFX_API_RESOURCE_STATE_COMPUTE_READ);
             upscalerDesc.frameTimeDelta = denoiserDesc.deltaTime;
         }
 
@@ -581,20 +632,19 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
     {
         ID3D12Resource* srcTex = nullptr;
 
-        if (dbgMode == DebugModes::RawColor)
-            TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_Color, srcTex);
-        else if (dbgMode == DebugModes::DlssColorBeforeParticles)
+        if (dbgMode == DebugModes::DlssColorBeforeParticles)
             TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles, srcTex);
-        else if (dbgMode == DebugModes::SkipSignal)
-            srcTex = FSRDConvShader->GetConvOutput().OutSkipSignal;
         else if (dbgMode == DebugModes::DlssBias)
             TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, srcTex);
-        else if (isDebugVisSet)
-            srcTex = FSRDConvShader->GetConvOutput().OutDemodulatedColor;
-        else if (dbgMode == DebugModes::DenoiserOutput)
-            srcTex = GetD3D12ResFromFFX(signalDesc.radiance.output);
+        else if (isDebugVis)
+        {
+            if (_isMode2)
+                srcTex = GetD3D12ResFromFFX(mode2Signal.specularRadiance.input);
+            else
+                srcTex = GetD3D12ResFromFFX(mode1Signal.radiance.input);
+        }
         else
-            srcTex = FSRDConvShader->GetCompOutput();
+            TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_Color, srcTex);
 
         ID3D12Resource* dstTex;
         
@@ -609,8 +659,9 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
     return isDenoiserReady || isDenoiseBypassed;
 }
 
+template <typename SignalDescT>
 bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams,
-    ffxDispatchDescDenoiser& dispatchDesc, ffxDispatchDescDenoiserInput1Signal& signalDesc)
+    ffxDispatchDescDenoiser& dispatchDesc, SignalDescT& signalDesc)
 {
     const auto& cfg = *Config::Instance(); 
     
@@ -620,9 +671,7 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
     if (!PrepareDenoiseConvInput(inParams, convInputs))
         return false;   
 
-    FSRDConvOut fsrdData = {};
-
-    if (!ConvertDenoiserBuffers(InCommandList, convInputs, fsrdData))
+    if (!ConvertDenoiserBuffers(InCommandList, convInputs))
         return false;
 
     // Camera matrix - translation and rotation, from viewMatrix^-1
@@ -632,31 +681,9 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
     const XMVECTOR forward = XMVector3Normalize(GetColumn(_invViewMatrix, 2));
 
     // Pack dispatch configuration
-    signalDesc = 
-    {
-        .header = { .type = FFX_API_DISPATCH_DESC_INPUT_1_SIGNAL_TYPE_DENOISER },
-        .radiance = 
-        {
-            .input = ffxApiGetResourceDX12(fsrdData.OutDemodulatedColor, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
-            // Configure FSR-RR to overwrite original input with denoised output
-            .output = ffxApiGetResourceDX12(convInputs.InColor, FFX_API_RESOURCE_STATE_UNORDERED_ACCESS),
-        },
-        .fusedAlbedo = ffxApiGetResourceDX12(fsrdData.OutFusedAlbedo, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ)
-    };
-
     dispatchDesc = 
     {
-        .header = 
-        { 
-            .type = FFX_API_DISPATCH_DESC_TYPE_DENOISER,
-            .pNext = &signalDesc.header // Link signal desc to main header
-        },
         .commandList = InCommandList,
-        .linearDepth = ffxApiGetResourceDX12(fsrdData.OutLinearDepth, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
-        .motionVectors = ffxApiGetResourceDX12(fsrdData.OutMotion, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
-        .normals = ffxApiGetResourceDX12(fsrdData.OutNormals, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
-        .specularAlbedo = ffxApiGetResourceDX12(fsrdData.OutSpecAlbedo, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
-        .diffuseAlbedo = ffxApiGetResourceDX12(fsrdData.OutDiffAlbedo, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
         .motionVectorScale = { .x = 1.0f, .y = 1.0f },
         // Camera movement since last frame (PreviousPosition - CurrentPosition)
         .cameraPositionDelta = { (_lastCamPos.x - camPos.x), (_lastCamPos.y - camPos.y), (_lastCamPos.z - camPos.z) },
@@ -671,6 +698,9 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
         .frameIndex = (uint32_t)_frameCount,
         .flags = FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO
     };
+
+    // Populate resources and link signal header
+    FSRDConvShader->GetSignal(signalDesc, dispatchDesc);
     
     if (_isInReset)
         dispatchDesc.flags |= FFX_DENOISER_DISPATCH_RESET;
@@ -775,10 +805,9 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
     return isReady;
 }
 
-bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InCommandList, 
-    const FSRDConvIn& convInputs, FSRDConvOut& convOut)
+bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InCommandList, const FSRDConvIn& convInputs)
 {
-    const uint32_t dbgMode = Config::Instance()->FfxDenoiserDebugMode.value_or_default(); 
+    const uint32_t dbgMode = (uint32_t)Config::Instance()->FfxDenoiserDebugMode.value_or_default(); 
     const auto& cfg = *Config::Instance(); 
 
     // Prepare input converter
@@ -825,9 +854,6 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     // Dispatch resource converter. Outputs are automatically transitioned for reading.
     if (!FSRDConvShader->DispatchConversion(InCommandList, convInputs, _convConfig))
         return false;
-
-    // Set FSR-RR input texture pointers
-    convOut = FSRDConvShader->GetConvOutput();
 
     return true;
 }

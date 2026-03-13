@@ -3,7 +3,7 @@
 #define MainRS \
     "RootFlags(0), " \
     "CBV(b0), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 5), visibility = SHADER_VISIBILITY_ALL), " \
+    "DescriptorTable(SRV(t0, numDescriptors = 8), visibility = SHADER_VISIBILITY_ALL), " \
     "DescriptorTable(UAV(u0, numDescriptors = 1), visibility = SHADER_VISIBILITY_ALL), " \
     "StaticSampler(s0, " \
         "filter = FILTER_MIN_MAG_MIP_LINEAR, " \
@@ -17,14 +17,14 @@
 #define THREAD_GROUP_SIZE_Y     8
 #define NUM_THREADS             (THREAD_GROUP_SIZE_X * THREAD_GROUP_SIZE_Y)
 
-static const uint2 s_ThreadGroupSize = uint2(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y);
+static const uint2 s_ThreadGroupSize =  uint2(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y);
 
 // Kernel config
 #define SSIM_KERNEL_SIZE        5
 #define SSIM_RANGE_MIN          (-SSIM_KERNEL_SIZE / 2)
 #define SSIM_RANGE_MAX          (SSIM_KERNEL_SIZE / 2)
 
-static const float s_InvKernelSize = 1.0f / (SSIM_KERNEL_SIZE * SSIM_KERNEL_SIZE);
+static const float s_InvKernelSize =    1.0f / (SSIM_KERNEL_SIZE * SSIM_KERNEL_SIZE);
 
 // Shared memory config
 #define SHARED_HALO_SIZE        (SSIM_KERNEL_SIZE / 2)
@@ -32,9 +32,11 @@ static const float s_InvKernelSize = 1.0f / (SSIM_KERNEL_SIZE * SSIM_KERNEL_SIZE
 #define SHARED_DIM_Y            (THREAD_GROUP_SIZE_Y + 2 * SHARED_HALO_SIZE)
 #define NUM_SHARED_ELEMENTS     (SHARED_DIM_X * SHARED_DIM_Y)
 
-static const uint2 s_SMHaloOffset = uint2(SHARED_HALO_SIZE, SHARED_HALO_SIZE);
-static const uint2 s_SMSize = uint2(SHARED_DIM_X, SHARED_DIM_Y);
-static const uint s_SMLoadsPerThread = (NUM_SHARED_ELEMENTS + NUM_THREADS - 1) / NUM_THREADS;
+static const uint2 s_SMHaloOffset =     uint2(SHARED_HALO_SIZE, SHARED_HALO_SIZE);
+static const uint2 s_SMSize =           uint2(SHARED_DIM_X, SHARED_DIM_Y);
+static const uint s_SMLoadsPerThread =  (NUM_SHARED_ELEMENTS + NUM_THREADS - 1) / NUM_THREADS;
+
+groupshared half3 g_DenoisedColor[SHARED_DIM_X][SHARED_DIM_Y];
 
 groupshared half g_DenoisedDemodLuma[SHARED_DIM_X][SHARED_DIM_Y];
 groupshared half g_DemodLuma[SHARED_DIM_X][SHARED_DIM_Y];
@@ -43,17 +45,31 @@ groupshared half g_RawLuma[SHARED_DIM_X][SHARED_DIM_Y];
 // Feature Flags
 #define FLAGS_RAW_SOURCE_BLIT           (1 << 0)
 #define FLAGS_SCALE_SRC                 (1 << 1)
+#define FLAGS_MODE_2_SIGNAL             (1 << 2)
 
 // Debug Flags
 #define FLAGS_DEBUG                     (1 << 16)
 #define FLAGS_DEBUG_MODE_MASK           (0xFF << 16)
-#define FLAGS_DEBUG_CORRELATION_BIAS    (1 << 17 | FLAGS_DEBUG)
 
-Texture2D<half4> InDenoisedColor : register(t0); // Denoiser output
-Texture2D<half4> InDemodulatedColor : register(t1); // Denoiser input
-Texture2D<half4> InFusedModulator : register(t2);
-Texture2D<half3> InColorBeforeParticles : register(t3);
-Texture2D<half4> InSkipSignal : register(t4);
+#define FLAGS_DEBUG_CORRELATION_BIAS    (1 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_SKIP_SIGNAL         (2 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_DENOISER_OUTPUT     (3 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_SPECULAR_COLOR      (4 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_DIFFUSE_COLOR       (5 << 17 | FLAGS_DEBUG)
+
+// Mode 1/2 Signal
+Texture2D<half4> InDenoisedSignal1 : register(t0); // Fused or specular denoiser output
+Texture2D<half4> InRawSignal1 : register(t1); // Raw demodulated fused or specular input
+Texture2D<half4> InAlbedo1 : register(t2); // Fused or specular albedo
+
+// Mode 2 Signal
+Texture2D<half4> InDenoisedSignal2 : register(t3); // Diffuse denoiser output
+Texture2D<half4> InRawSignal2 : register(t4); // Diffuse denoiser input
+Texture2D<half4> InAlbedo2 : register(t5); // Diffuse albedo
+
+// Secondary buffers
+Texture2D<half3> InColorBeforeParticles : register(t6);
+Texture2D<half4> InSkipSignal : register(t7);
 
 RWTexture2D<half4> OutColor : register(u0);
 
@@ -199,15 +215,37 @@ void PopulateSharedMemory(const uint2 groupID, const int2 gtID)
         if (smFlatID < NUM_SHARED_ELEMENTS)
         {
             const int2 smID = int2(smFlatID % s_SMSize.x, smFlatID / s_SMSize.x);
-            int2 px = pxOrigin + smID;
-            px = clamp(px, int2(0, 0), maxBounds);
+            const int2 px = clamp(pxOrigin + smID, int2(0, 0), maxBounds);
+            float3 rawDemodColor, rawColor, denoisedDemodColor, denoisedColor;
             
-            const float3 remod = InFusedModulator[px].rgb;
-            const float3 rawDemodColor = InDemodulatedColor[px].rgb;
+            [branch]
+            if (IsSet(FLAGS_MODE_2_SIGNAL))
+            {
+                const float3 denoisedSpecColor = InDenoisedSignal1[px].rgb;
+                const float3 denoisedDiffColor = InDenoisedSignal2[px].rgb;
+                const float3 rawSpecColor = InRawSignal1[px].rgb;
+                const float3 rawDiffColor = InRawSignal2[px].rgb;
+                const float3 specAlbedo = InAlbedo1[px].rgb;
+                const float3 diffAlbedo = InAlbedo2[px].rgb;
+                
+                denoisedColor = (denoisedSpecColor * specAlbedo) + (denoisedDiffColor * diffAlbedo);
+                denoisedDemodColor = denoisedSpecColor + denoisedDiffColor;
+                rawDemodColor = rawSpecColor + rawDiffColor;
+                rawColor = (rawSpecColor * specAlbedo) + (rawDiffColor * diffAlbedo);
+            }
+            else
+            {
+                const float3 remod = InAlbedo1[px].rgb;
+                denoisedDemodColor = InDenoisedSignal1[px].rgb;
+                denoisedColor = denoisedDemodColor * remod;
+                rawDemodColor = InRawSignal1[px].rgb;
+                rawColor = rawDemodColor * rawDemodColor;
+            }
             
-            g_DenoisedDemodLuma[smID.x][smID.y] = (half) dot(InDenoisedColor[px].rgb, 0.33f);
+            g_DenoisedColor[smID.x][smID.y] = denoisedColor;
+            g_DenoisedDemodLuma[smID.x][smID.y] = (half) dot(denoisedDemodColor, 0.33f);
             g_DemodLuma[smID.x][smID.y] = (half) dot(rawDemodColor, 0.33f);
-            g_RawLuma[smID.x][smID.y] = (half) dot(rawDemodColor * remod, 0.33f);
+            g_RawLuma[smID.x][smID.y] = (half) dot(rawColor, 0.33f);
         }
     }
     
@@ -232,12 +270,13 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     {
         [branch]
         if (IsSet(FLAGS_SCALE_SRC))
-            OutColor[px] = InDenoisedColor.SampleLevel(LinearSampler, uv, 0);
+            OutColor[px] = InDenoisedSignal1.SampleLevel(LinearSampler, uv, 0);
         else
-            OutColor[px] = InDenoisedColor[px];
+            OutColor[px] = InDenoisedSignal1[px];
     }
     else
     {
+        const int2 smID = gtID.xy + s_SMHaloOffset;      
         PopulateSharedMemory(groupID.xy, gtID.xy);
 
         // Correlate raw RT input with denoiser output
@@ -247,21 +286,42 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         float lowConfWeight = strucCorrelation * conCorrelation * lumCorrelation;
         lowConfWeight *= CorrelationBias;
         
+        const float3 denoisedColor = g_DenoisedColor[smID.x][smID.y];
+        const float4 skip = InSkipSignal[px];
+        
         [branch]
-        if (IsSet(FLAGS_DEBUG_CORRELATION_BIAS))
+        if (IsSet(FLAGS_DEBUG))
         {
-            OutColor[px] = half4(TurboColormap(lowConfWeight), 1.0f);
+            switch (GetDebugMode())
+            {
+                case FLAGS_DEBUG_CORRELATION_BIAS:
+                    OutColor[px] = half4(TurboColormap(lowConfWeight), 1.0f);
+                    break;
+                case FLAGS_DEBUG_SKIP_SIGNAL:
+                    OutColor[px] = half4(skip.rgb, 1.0f);
+                    break;
+                case FLAGS_DEBUG_SPECULAR_COLOR:
+                    OutColor[px] = half4(InDenoisedSignal1[px].rgb * InAlbedo1[px].rgb, 1.0f);
+                    break;
+                case FLAGS_DEBUG_DIFFUSE_COLOR:
+                    OutColor[px] = half4(InDenoisedSignal2[px].rgb * InAlbedo2[px].rgb, 1.0f);
+                    break;
+                default:
+                    if (IsSet(FLAGS_MODE_2_SIGNAL))
+                        OutColor[px] = half4(InDenoisedSignal1[px].rgb + InDenoisedSignal2[px].rgb, 1.0f);
+                    else
+                        OutColor[px] = half4(InDenoisedSignal1[px].rgb, 1.0f);
+                
+                    break;
+            }    
         }
         else
         {
-            const float3 remod = InFusedModulator[px].rgb;
-            const float3 denoisedColor = InDenoisedColor[px].rgb * remod;
-            const float4 skip = InSkipSignal[px];
             const float3 particles = InColorBeforeParticles[px]; // Not quite right
             const float skipWeight = saturate(lowConfWeight + skip.a);
             const float3 outColor = lerp(denoisedColor, skip.rgb, skipWeight);
                 
-            OutColor[px] = (half4)GetSafeFP16(float4(outColor + particles.rgb, 1.0f));
+            OutColor[px] = (half4)GetSafeFP16(float4(outColor, 1.0f));
         }
     }
 }

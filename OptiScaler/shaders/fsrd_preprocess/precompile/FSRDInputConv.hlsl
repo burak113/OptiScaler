@@ -13,61 +13,66 @@
 #define FLAGS_NON_GAMMA_ALBEDO          (1 << 0)
 #define FLAGS_INF_FAR_PLANE             (1 << 1)
 #define FLAGS_PACKED_ROUGHNESS          (1 << 2)
-#define FLAGS_ENABLE_SPEC_RAY_LENGTH    (1 << 3)
+#define FLAGS_MODE_2_SIGNAL             (1 << 3)
 #define FLAGS_IS_RIGHT_HANDED           (1 << 4)
 
 // Debug Flags
-#define FLAGS_DEBUG               (1 << 16)
-#define FLAGS_DEBUG_MODE_MASK     (0xFF << 16)
+#define FLAGS_DEBUG                     (1 << 16)
+#define FLAGS_DEBUG_MODE_MASK           (0xFF << 16)
 
 // Inputs
-#define FLAGS_DEBUG_IN_SPEC_HIT_DIST  (1 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_IN_DEPTH          (2 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_IN_MOTION         (3 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_IN_NORMALS        (4 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_IN_ROUGHNESS      (5 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_IN_DIFF_ALBEDO    (6 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_IN_SPEC_ALBEDO    (7 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_SPEC_HIT_DIST    (1 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_DEPTH            (2 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_MOTION           (3 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_NORMALS          (4 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_ROUGHNESS        (5 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_DIFF_ALBEDO      (6 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_SPEC_ALBEDO      (7 << 17 | FLAGS_DEBUG)
 
 // Outputs
-#define FLAGS_DEBUG_OUT_FUSED_ALBEDO  (8 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_OUT_LINEAR_DEPTH  (9 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_OUT_MOTION        (10 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_OUT_NORMALS       (11 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_OUT_SPEC_ALBEDO   (12 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_OUT_DIFF_ALBEDO   (13 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_FUSED_ALBEDO    (8 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_LINEAR_DEPTH    (9 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_MOTION          (10 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_NORMALS         (11 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_SPEC_ALBEDO     (12 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_DIFF_ALBEDO     (13 << 17 | FLAGS_DEBUG)
 
 #define FLAGS_DEBUG_OUT_DEPTH_DELTA     (14 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_OUT_NORM_DOT_VIEW   (15 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_OUT_METALICITY      (16 << 17 | FLAGS_DEBUG)
 
-#define FLAGS_DEBUG_COLOR_MASK      (17 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_COLOR_MASK          (17 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_ALBEDO_OVERSHOOT    (18 << 17 | FLAGS_DEBUG)
 
 // DLSS-RR Inputs
-Texture2D<float4> InColor : register(t0); // RGB - NVSDK_NGX_Parameter_Color
+Texture2D<half3> InColor : register(t0); // RGB - NVSDK_NGX_Parameter_Color
 Texture2D<float> InDepth : register(t1); // R - NVSDK_NGX_Parameter_Depth - hardware or linear - inverted or not
 Texture2D<float3> InMotionVectors : register(t2); // RG - NVSDK_NGX_Parameter_MotionVectors
 Texture2D<float4> InNormals : register(t3); // RGB: Normals, A: Roughness (Optional) - NVSDK_NGX_Parameter_GBuffer_Normals
 Texture2D<float> InRoughness : register(t4); // R - May be packed in normals. NVSDK_NGX_Parameter_GBuffer_Roughness
 Texture2D<float> InSpecHitDist : register(t5); // R - NVSDK_NGX_Parameter_DLSSD_SpecularHitDistance
-Texture2D<float3> InDiffuseAlbedo : register(t6); // RGB - NVSDK_NGX_Parameter_GBuffer_DiffuseAlbedo
-Texture2D<float3> InSpecularAlbedo : register(t7); // RGB - NVSDK_NGX_Parameter_GBuffer_SpecularAlbedo
-Texture2D<float> InBiasMask : register(t8);
+Texture2D<half3> InDiffAlbedo : register(t6); // RGB - NVSDK_NGX_Parameter_GBuffer_DiffuseAlbedo
+Texture2D<half3> InSpecAlbedo : register(t7); // RGB - NVSDK_NGX_Parameter_GBuffer_SpecularAlbedo
+Texture2D<half> InBiasMask : register(t8);
 
-// FSR-RR
+// FSR-RR - ffxDispatchDescDenoiserInput1Signal or ffxDispatchDescDenoiserInput2Signals
 //
-// ffxDispatchDescDenoiserInput1Signal
-RWTexture2D<float4> OutRadiance : register(u0); // RGB: Combined noisy color A: Specular Ray Length
-RWTexture2D<float4> OutFusedAlbedo : register(u1); // RGB: max(specularAlbedo, diffuseAlbedo) A: NoV 
+// Mode 1: RGB: Noisy fused lighting
+// Mode 2: RGB: Noisy specular lighting A: Specular Ray Length
+RWTexture2D<half4> OutSignal1 : register(u0); 
+
+// Mode 1: RGB Fused Albedo: max(specularAlbedo, diffuseAlbedo) A: NoV
+// Mode 2: RGB: Noisy diffuse lighting for Mode 2
+RWTexture2D<half4> OutSignal2 : register(u1);
 
 // ffxDispatchDescDenoiser
-RWTexture2D<float4> OutMotion : register(u2); // RG: Standard TSR motion vectors, B: Linear Depth Delta (CurrentLinearDepth - PrevLinearDepth)
-RWTexture2D<float4> OutNormals : register(u3); // RG: Octahedrally encoded normals, B: Linear Roughness, A: Material Type (Optional)
-RWTexture2D<float4> OutSpecAlbedo : register(u4); // RGB: Specular Albedo, A: dot(Normal, ViewDir)
-RWTexture2D<float4> OutDiffAlbedo : register(u5); // RGB: Diffuse Albedo, A: Metalness (heuristic approximate)
+RWTexture2D<half4> OutMotion : register(u2); // RG: Standard TSR motion vectors, B: Linear Depth Delta (CurrentLinearDepth - PrevLinearDepth)
+RWTexture2D<half4> OutNormals : register(u3); // RG: Octahedrally encoded normals, B: Linear Roughness, A: Material Type (Optional)
+RWTexture2D<half4> OutSpecAlbedo : register(u4); // RGB: Specular Albedo, A: dot(Normal, ViewDir)
+RWTexture2D<half4> OutDiffAlbedo : register(u5); // RGB: Diffuse Albedo, A: Metalness (heuristic approximate)
 RWTexture2D<float> OutLinearDepth : register(u6);
 
-RWTexture2D<float4> OutSkipSignal : register(u7);
+RWTexture2D<half4> OutSkipSignal : register(u7);
 
 cbuffer CB_Packing : register(b0)
 {
@@ -169,12 +174,13 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
         const float2 octNormal = OctahedralEncode(worldSurfaceNormal.rgb);
         const float materialType = 0.0f;
     
-        // DLSS-RR provides 3D normals with roughnes optionally included in the A channel, or
-        // in a separate single-channel buffer (InRoughness).
-        float roughness = IsSet(FLAGS_PACKED_ROUGHNESS) ? worldSurfaceNormal.a : InRoughness[px];
+        // DLSS-RR provides 3D normals
+        // Linear roughness optionally included in the A channel, or in a separate single-channel 
+        // buffer (InRoughness).
+        const float roughness = IsSet(FLAGS_PACKED_ROUGHNESS) ? worldSurfaceNormal.a : InRoughness[px];
     
         // Output: RG=OctNormal, B=Roughness, A=MaterialID
-        OutNormals[px] = float4(octNormal, roughness, materialType);
+        OutNormals[px] = GetSafeFP16(float4(octNormal, roughness, materialType));
    
         // Motion Vectors & Depth Delta
         //
@@ -199,15 +205,25 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
 
         // Secondary albedo packing
         //
-        // FSR-RR expects metalness in diffuse alpha
-        float4 specAlbedo = float4(InSpecularAlbedo[px] + 0.01f, 0.0f);
-        float4 diffAlbedo = float4(InDiffuseAlbedo[px] + 0.01f, 0.0f);
-        float4 fusedAlbedo = float4(max(specAlbedo.rgb, diffAlbedo.rgb), 0.0f);
-
+        // FSR-RR expects metalness in diffuse alpha.
+        // DLSS-RR specular albedo is not albedo. It's hemispherical specular reflectance at (NoV, roughness).
+        // FSR-RR seems to use the same in the sample, calculated with a LUT.
+        //
+        // Zero albedo is physically implausible - investigate
+        float4 specAlbedo = float4(InSpecAlbedo[px], NoV);
+        float4 diffAlbedo = float4(InDiffAlbedo[px], 0.0f);
+        
+        // Total albedo near or greater than 1 violate conservation of energy
+        // May be sentinel value or bug
+        const float3 albedoOvershoot = max((specAlbedo.rgb + diffAlbedo.rgb) - 1.0f, 0.0f);
+        specAlbedo.rgb = saturate(specAlbedo.rgb - albedoOvershoot);
+        diffAlbedo.rgb -= max((specAlbedo.rgb + diffAlbedo.rgb) - 1.0f, 0.0f);
+        
+        specAlbedo.rgb = max(specAlbedo.rgb, 1e-3f);
+        diffAlbedo.rgb = max(diffAlbedo.rgb, 1e-3f);
+        
         const float metalness = EstimateMetalness(diffAlbedo.rgb, specAlbedo.rgb);
-        specAlbedo.a = NoV;
-        diffAlbedo.a = metalness;  
-        fusedAlbedo.a = NoV;
+        diffAlbedo.a = metalness;
         
         // May be for better perceptual encoding efficiency in some configurations
         [branch]
@@ -215,37 +231,64 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
         {
             specAlbedo = sqrt(specAlbedo);
             diffAlbedo = sqrt(diffAlbedo);
-            fusedAlbedo = sqrt(fusedAlbedo);
-        }
-        
-        // Primary radiance packing - Mode 1 Signal
-        const float3 demodColor = color / fusedAlbedo.rgb;
+        }      
         
         // FSR-RR expects NoV in specular alpha
-        OutSpecAlbedo[px] = specAlbedo;
-        OutDiffAlbedo[px] = diffAlbedo;
-        OutFusedAlbedo[px] = fusedAlbedo;
-        OutSkipSignal[px] = float4(color, 0.0f);
+        OutSpecAlbedo[px] = GetSafeFP16(specAlbedo);
+        OutDiffAlbedo[px] = GetSafeFP16(diffAlbedo);
+        OutSkipSignal[px] = GetSafeFP16(float4(color, 0.0f));
 
-        // Experimental. Cannot be used if the input contains both diffuse and specular lighting.
-        // Supporting specular motion tracking may require Mode 2 denoising.
-        float hitDist = 0.0f;
-
+        float hitDist = hitDist = 0.0f;
+        float3 demodColor = 0.0f;
+        float4 fusedAlbedo = 0.0f;
+        
         [branch]
-        if (IsSet(FLAGS_ENABLE_SPEC_RAY_LENGTH))
+        if (IsSet(FLAGS_MODE_2_SIGNAL)) // Primary radiance packing - Mode 2 Signal
+        {          
+            const float3 specWeight = saturate(specAlbedo.rgb);
+            const float3 diffWeight = saturate((1.0f - specAlbedo.rgb) * diffAlbedo.rgb);
+            const float3 rcpTotalWeight = rcp(max(diffWeight + specWeight, 1e-5f));
+
+            const float3 diffuseColor = color * (diffWeight * rcpTotalWeight);
+            const float3 specularColor = color * (specWeight * rcpTotalWeight);
+
+            const float3 demodDiffuse = diffuseColor / max(diffAlbedo.rgb, 1e-3f);
+            const float3 demodSpecular = specularColor / max(specAlbedo.rgb, 1e-3f);
+            
             hitDist = InSpecHitDist[px];
-    
-        [branch]
-        if (!IsSet(FLAGS_DEBUG))
-        {
-            OutRadiance[px] = GetSafeFP16(float4(demodColor, hitDist));
+            
+            [branch]
+            if (!IsSet(FLAGS_DEBUG))
+            {
+                OutSignal1[px] = GetSafeFP16(float4(demodSpecular, hitDist));
+                OutSignal2[px] = GetSafeFP16(float4(demodDiffuse, 0.0f));
+            }
+            else
+                demodColor = demodDiffuse + demodSpecular;
         }
-        else
+        else // Primary radiance packing - Mode 1 Signal
+        {           
+            fusedAlbedo = float4(max(specAlbedo.rgb, diffAlbedo.rgb), NoV);
+            demodColor = color / fusedAlbedo.rgb;
+            
+            [branch]
+            if (!IsSet(FLAGS_NON_GAMMA_ALBEDO))
+                fusedAlbedo = sqrt(fusedAlbedo);
+            
+            [branch]
+            if (!IsSet(FLAGS_DEBUG))
+            {
+                OutSignal1[px] = GetSafeFP16(float4(demodColor, hitDist));
+                OutSignal2[px] = GetSafeFP16(fusedAlbedo);
+            }
+        }
+        
+        [branch]
+        if (IsSet(FLAGS_DEBUG))
         {
             float3 debugColor = float3(0, 0, 0);
-            const uint debugMode = GetDebugMode();
         
-            switch (debugMode)
+            switch (GetDebugMode())
             {
                 // Inputs
                 case FLAGS_DEBUG_IN_SPEC_HIT_DIST:
@@ -269,11 +312,11 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
                     break;
                 
                 case FLAGS_DEBUG_IN_DIFF_ALBEDO:
-                    debugColor = InDiffuseAlbedo[px];
+                    debugColor = InDiffAlbedo[px];
                     break;
                 
                 case FLAGS_DEBUG_IN_SPEC_ALBEDO:
-                    debugColor = InSpecularAlbedo[px];
+                    debugColor = InSpecAlbedo[px];
                     break;
                 // Outputs
                 case FLAGS_DEBUG_OUT_FUSED_ALBEDO:
@@ -316,12 +359,16 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
                     debugColor = transparencyMask > 0.5f;
                     break;
                 
+                case FLAGS_DEBUG_ALBEDO_OVERSHOOT:
+                    debugColor = albedoOvershoot;
+                    break;
+                
                 default:
                     debugColor = demodColor;
                     break;
             }
         
-            OutRadiance[px] = float4(debugColor, 1.0f);
+            OutSignal1[px] = float4(debugColor, 1.0f);
         }
     }
     else // Skip
@@ -329,8 +376,8 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
         OutNormals[px] = 0.0f;
         OutSpecAlbedo[px] = 0.0f;
         OutDiffAlbedo[px] = 0.0f;
-        OutFusedAlbedo[px] = 0.0f;
-        OutRadiance[px] = 0.0f;
+        OutSignal1[px] = 0.0f;
+        OutSignal2[px] = 0.0f;
         OutSkipSignal[px] = float4(color, 1.0f);
     }
 }

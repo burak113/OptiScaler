@@ -2901,25 +2901,40 @@ bool MenuCommon::RenderMenu()
                     {
                         if (auto ch = ScopedCollapsingHeader("FSR-RR Advanced Settings"); ch.IsHeaderOpen())
                         {
-                            if (!state.ffxDenoiserDebugModes.empty())
+                            if (!state.ffxDenoiserModes.empty())
                             {
-                                uint32_t ffxDenoiseDebugMode = config->FfxDenoiserDebugMode.value_or_default();
-                                const char* currentEnum = state.ffxDenoiserDebugModeNames[ffxDenoiseDebugMode];
+                                if (_ffxDenoiserMode == -1)
+                                    _ffxDenoiserMode = config->FfxDenoiserMode.value_or_default();
 
-                                if (ImGui::BeginCombo("Debug Mode", currentEnum))
+                                const char* currentEnum = state.ffxDenoiserModeNames[_ffxDenoiserMode];
+
+                                if (ImGui::BeginCombo("Denoiser Mode", currentEnum))
                                 {
-                                    for (const uint32_t dbgMode : state.ffxDenoiserDebugModes)
+                                    for (const int mode : state.ffxDenoiserModes)
                                     {
-                                        bool isSelected = dbgMode == ffxDenoiseDebugMode;
+                                        bool isSelected = mode == _ffxDenoiserMode;
 
-                                        if (ImGui::Selectable(state.ffxDenoiserDebugModeNames[dbgMode], &isSelected))
-                                            config->FfxDenoiserDebugMode = dbgMode;
+                                        if (ImGui::Selectable(state.ffxDenoiserModeNames[mode], &isSelected))
+                                            _ffxDenoiserMode = mode;
 
                                         if (isSelected)
                                             ImGui::SetItemDefaultFocus();
                                     }
 
                                     ImGui::EndCombo();
+                                }
+                                ShowHelpMarker(
+                                    "Sets the denoising mode. "
+                                    "Higher modes are generally higher quality, but more demanding.");
+
+                                ImGui::SameLine();
+
+                                if (ImGui::Button("Change Mode") &&
+                                    _ffxDenoiserMode != config->FfxDenoiserMode.value_or_default())
+                                {
+                                    config->FfxDenoiserMode = _ffxDenoiserMode;
+                                    state.newBackend = currentBackend;
+                                    MARK_ALL_BACKENDS_CHANGED();
                                 }
                             }
 
@@ -2946,6 +2961,67 @@ bool MenuCommon::RenderMenu()
                             if (float v = config->FfxDenoiserGaussKernRelax.value_or_default();
                                 ImGui::SliderFloat("Gaussian Kernel Relaxation", &v, 0, 1))
                                 config->FfxDenoiserGaussKernRelax = v;
+
+                            ImGui::SeparatorText("Debug");
+
+                            if (!state.ffxDenoiserDebugModes.empty())
+                            {
+                                uint64_t ffxDenoiseDebugMode = config->FfxDenoiserDebugMode.value_or_default();
+                                const char* currentEnum = state.ffxDenoiserDebugModeNames[ffxDenoiseDebugMode];
+
+                                if (ImGui::BeginCombo("Debug View", currentEnum))
+                                {
+                                    static char filter[255] = "";
+
+                                    // Auto focus search
+                                    if (ImGui::IsWindowAppearing())
+                                        ImGui::SetKeyboardFocusHere();
+
+                                    ImGui::InputTextWithHint("##Filter", "Search...", filter, IM_ARRAYSIZE(filter));
+                                    ImGui::Separator();
+
+                                    // Checks if the entry with the given name matches the filter - case insensitive
+                                    const auto GetIsInFilter = [](std::string_view haystack, std::string_view needle) -> bool
+                                    {
+                                        if (needle.empty())
+                                            return true;
+                                        else
+                                        {
+                                            const auto charPredicate = [](unsigned char a, unsigned char b)
+                                            { return std::tolower(a) == std::tolower(b); };
+
+                                            const auto& result = std::search
+                                            (
+                                                haystack.begin(), haystack.end(),
+                                                needle.begin(), needle.end(), 
+                                                charPredicate 
+                                            );
+
+                                            return result != haystack.end();
+                                        }
+                                    };
+
+                                    // Debug view list - these are getting slightly out of hand
+                                    for (const uint64_t dbgMode : state.ffxDenoiserDebugModes)
+                                    {
+                                        const char* name = state.ffxDenoiserDebugModeNames[dbgMode];
+
+                                        // If it's not in the filter, don't show it
+                                        if (!GetIsInFilter(name, filter))
+                                            continue;
+
+                                        bool isSelected = (dbgMode == ffxDenoiseDebugMode);
+
+                                        if (ImGui::Selectable(name, isSelected))
+                                            config->FfxDenoiserDebugMode = dbgMode;
+
+                                        if (isSelected)
+                                            ImGui::SetItemDefaultFocus();
+                                    }
+
+                                    ImGui::EndCombo();
+                                }
+                            }
 
                             if (float v = config->FfxDenoiserCorrelationBias.value_or_default();
                                 ImGui::SliderFloat("Correlation Bias", &v, 0, 1))

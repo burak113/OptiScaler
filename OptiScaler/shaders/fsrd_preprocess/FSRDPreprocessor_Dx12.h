@@ -10,6 +10,10 @@ struct ID3D12Device;
 struct ID3D12GraphicsCommandList;
 struct ID3D12Resource;
 
+struct ffxDispatchDescDenoiserInput1Signal;
+struct ffxDispatchDescDenoiserInput2Signals;
+struct ffxDispatchDescDenoiser;
+
 /**
  * @brief Converts DLSS Ray Reconstruction inputs into the format expected by FSR Ray Regeneration,
  * and handles composition for FSR-RR outputs.
@@ -22,49 +26,55 @@ class FSRDPreprocessor_Dx12
     {
         None = 0,
 
-        NonGammaAlbedo = 1 << 0, // If true, FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO should ALSO be set
-        UseInfiniteFarPlane = 1 << 1, 
-        IsRoughnessPacked = 1 << 2, // Roughness = InNormals.A - NVSDK_NGX_DLSS_Roughness_Mode_Packed (Init param)
-        EnableSpecRayLength = 1 << 3,
-        IsRightHanded = 1 << 4,
+        NonGammaAlbedo =        1 << 0, // If true, FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO should ALSO be set
+        UseInfiniteFarPlane =   1 << 1, 
+        IsRoughnessPacked =     1 << 2, // Roughness = InNormals.A - NVSDK_NGX_DLSS_Roughness_Mode_Packed (Init param)
+        Mode2Signal =           1 << 3, // Enables mode 2 denoiser outputs with discrete diffuse and specular lighting
+        IsRightHanded =         1 << 4,
 
-        Debug = 1 << 16, // Denoiser and upscaler bypassed for debug out if this is set
-        DebugModeMask = 0xFF << 16, // Denoiser and upscaler bypassed for debug out if this is set
+        Debug =                 1 << 16, // Denoiser and upscaler bypassed for debug out if this is set
+        DebugModeMask =         0xFF << 16,
 
-        DebugOutRadiance = Debug, // Default debug vis
+        DebugOutRadiance =      Debug, // Default debug vis
 
-        DebugInSpecHitDist = 1 << 17 | Debug,
-        DebugInDepth = 2 << 17 | Debug,
-        DebugInMotion = 3 << 17 | Debug,
-        DebugInNormals = 4 << 17 | Debug,
-        DebugInRoughness = 5 << 17 | Debug,
-        DebugInDiffAlbedo = 6 << 17 | Debug,
-        DebugInSpecAlbedo = 7 << 17 | Debug,
+        DebugInSpecHitDist =    1 << 17 | Debug,
+        DebugInDepth =          2 << 17 | Debug,
+        DebugInMotion =         3 << 17 | Debug,
+        DebugInNormals =        4 << 17 | Debug,
+        DebugInRoughness =      5 << 17 | Debug,
+        DebugInDiffAlbedo =     6 << 17 | Debug,
+        DebugInSpecAlbedo =     7 << 17 | Debug,
 
-        DebugOutFusedAlbedo = 8 << 17 | Debug,
-        DebugOutLinearDepth = 9 << 17 | Debug,
-        DebugOutMotion = 10 << 17 | Debug,
-        DebugOutNormals = 11 << 17 | Debug,
-        DebugOutSpecAlbedo = 12 << 17 | Debug,
-        DebugOutDiffAlbedo = 13 << 17 | Debug,
+        DebugOutFusedAlbedo =   8 << 17 | Debug,
+        DebugOutLinearDepth =   9 << 17 | Debug,
+        DebugOutMotion =        10 << 17 | Debug,
+        DebugOutNormals =       11 << 17 | Debug,
+        DebugOutSpecAlbedo =    12 << 17 | Debug,
+        DebugOutDiffAlbedo =    13 << 17 | Debug,
 
-        DebugOutDepthDelta = 14 << 17 | Debug,
-        DebugOutNormDotView = 15 << 17 | Debug,
-        DebugOutMetalicty = 16 << 17 | Debug,
+        DebugOutDepthDelta =    14 << 17 | Debug,
+        DebugOutNormDotView =   15 << 17 | Debug,
+        DebugOutMetalicty =     16 << 17 | Debug,
 
-        DebugColorMask = 17 << 17 | Debug,
+        DebugColorMask =        17 << 17 | Debug,
+        DebugAlbedoError =      18 << 17 | Debug,
     };
 
     enum class CompFlags : uint32_t
     {
-        None = 0,
-        RawSourceBlit = 1 << 0, // Bypass composition and write unmodified input
-        ScaleSrc = 1 << 1, // Enable bilinear scaling to output
+        None =                  0,
+        RawSourceBlit =         1 << 0, // Bypass composition and write unmodified input
+        ScaleSrc =              1 << 1, // Enable bilinear scaling to output
+        Mode2Signal =           1 << 2,
 
-        Debug = 1 << 16,
-        DebugModeMask = 0xFF << 16,
+        Debug =                 1 << 16,
+        DebugModeMask =         0xFF << 16,
 
-        DebugCorrelation = 1 << 17 | Debug
+        DebugCorrelation =      1 << 17 | Debug,
+        DebugSkipSignal =       2 << 17 | Debug,
+        DebugDenoiserOutput =   3 << 17 | Debug,
+        DebugSpecularColor =    4 << 17 | Debug,
+        DebugDiffuseColor =     5 << 17 | Debug,
     };
 
     /**
@@ -109,57 +119,21 @@ class FSRDPreprocessor_Dx12
     };
 
     /**
-     * @brief Output resources formatted for direct consumption by FSR Ray Regeneration.
-     * All resources are automatically transitioned to SRV state after dispatch.
+     * @brief Configuration and external resources used for compositing denoiser output into final result.
      */
-    union ConvOutput
-    {
-        struct
-        {
-            // ffxDispatchDescDenoiserInput1Signal
-            ID3D12Resource* OutDemodulatedColor; // RGB: Combined noisy color A: Specular Ray Length - RGBA16_FLOAT
-            ID3D12Resource* OutFusedAlbedo; // RGB: max(specularAlbedo, diffuseAlbedo) A: NoV - RGBA8_UNORM
-
-            // ffxDispatchDescDenoiser
-            ID3D12Resource* OutMotion;  // RG: Standard TSR motion vectors, B: Linear Depth Delta (CurrentLinearDepth - PrevLinearDepth) - RGBA16_FLOAT
-            ID3D12Resource* OutNormals; // RG: Octahedrally encoded normals, B: Linear Roughness, A: Material Type (Optional) - RGB10A2_UNORM
-            ID3D12Resource* OutSpecAlbedo; // RGB: Specular Albedo, A: saturate(dot(Normal, ViewDir)) - RGBA8_UNORM
-            ID3D12Resource* OutDiffAlbedo; // RGB: Diffuse Albedo, A: Metalness (heuristic approximate) - RGBA8_UNORM
-            ID3D12Resource* OutLinearDepth; // R - R32_FLOAT
-
-            ID3D12Resource* OutSkipSignal;
-        };
-
-        ID3D12Resource* AsArray[8];
-    };
-
-    struct alignas(16) CompConstants
+    struct CompositionDesc
     {
         DirectX::XMFLOAT4 DstTexSize; // XY = Tex Size - ZW = 1 / XY
-
         float CorrelationBias; // Controls the contribution of stable elements to the final image
         uint32_t Flags;
 
-        float _Padding[2];
-    };
-
-    union CompInput
-    {
-        struct
-        {
-            ID3D12Resource* InDenoisedColor;
-            ID3D12Resource* InDemodulatedColor;
-            ID3D12Resource* InFusedAlbedo;
-            ID3D12Resource* InColorBeforeParticles; // NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles
-            ID3D12Resource* InSkipSignal;
-        };
-
-        ID3D12Resource* AsArray[5];
+        ID3D12Resource* InColorBeforeParticles; // NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles (Optional)
+        ID3D12Resource* DstTex; // Destination texture used for compositing denoiser result
     };
 
   public:
 
-    FSRDPreprocessor_Dx12(std::string_view name, ID3D12Device* pDev);
+    FSRDPreprocessor_Dx12(std::string_view name, ID3D12Device* pDev, bool isMode2);
 
     ~FSRDPreprocessor_Dx12();
 
@@ -192,28 +166,27 @@ class FSRDPreprocessor_Dx12
     bool DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConvInput& inputs, const ConvConstants& constants);
 
     /**
-     * @brief Returns output resources for FSR-RR after dispatch.
-     * Resources are transitioned to SRV state and valid until the next dispatch.
+     * @brief Configures input/output resources after input conversion for FSR-RR with Mode-1 fused inputs.
+     * Resources are transitioned to SRV state and valid until the next conversion dispatch.
      * Must be re-acquired after each dispatch (lifetime managed internally).
      */
-    ConvOutput GetConvOutput() const;
+    void GetSignal(ffxDispatchDescDenoiserInput1Signal& signalDesc, ffxDispatchDescDenoiser& dispatchDesc) const;
+
+    /**
+     * @brief Configures input/output resources after input conversion for FSR-RR with Mode-2 discrete diffuse/specular color.
+     * Resources are transitioned to SRV state and valid until the next conversion dispatch.
+     * Must be re-acquired after each dispatch (lifetime managed internally).
+     */
+    void GetSignal(ffxDispatchDescDenoiserInput2Signals& signalDesc, ffxDispatchDescDenoiser& dispatchDesc) const;
 
     /**
      * @brief Composes the denoised radiance from FSR-RR with the skip signal previously generated 
-     * by the converter, and writes the result to OutRadiance.
+     * by the converter, and writes the result to the given destination texture.
      */
-    bool DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompInput& inputs, const CompConstants& constants);
+    bool DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc);
 
     /**
-     * @brief Returns the final composited and denoised output.
-     * Resources are transitioned to SRV state and valid until the next dispatch.
-     * Must be re-acquired after each dispatch (lifetime managed internally).
-     */
-    ID3D12Resource* GetCompOutput() const;
-
-    /**
-     * @brief Copies the contents of the given source texture pixel by pixel, without any
-     * filtering or scaling. Does not automatically insert resource barriers.
+     * @brief Copies the contents of the given source texture. Does not automatically set resource barriers.
      */
     bool Blit(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* srcTex, ID3D12Resource* dstTex,
               DirectX::XMFLOAT2 dim = {}) const;
