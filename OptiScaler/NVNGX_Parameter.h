@@ -959,7 +959,15 @@ struct NVNGX_Parameters : public NVSDK_NGX_Parameter
     void Reset() override
     {
         if (!m_values.empty())
+        {
+            // Preserve usage type if set
+            uint32_t allocType = NGX_AllocTypes::Unknown;
+            NVSDK_NGX_Result result = Get(NGX_AllocTypes::AllocKey.data(), &allocType);
             m_values.clear();
+
+            if (result != NVSDK_NGX_Result_Fail)
+                Set(NGX_AllocTypes::AllocKey.data(), allocType);
+        }
 
         LOG_DEBUG("Start");
 

@@ -32,10 +32,10 @@ static inline bool _skipInit = false;
 
 class ScopedInit
 {
-private:
+  private:
     bool previousState;
 
-public:
+  public:
     ScopedInit()
     {
         previousState = _skipInit;
@@ -44,19 +44,12 @@ public:
     ~ScopedInit() { _skipInit = previousState; }
 };
 
-static bool GetIsDlssModuleInited()
-{
-    return Config::Instance()->DLSSEnabled.value_or_default() && NVNGXProxy::IsDx12Inited();
-}
-
 #pragma region DLSS Init Calls
 
-NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_Init_Ext(
-    unsigned long long InApplicationId,
-    const wchar_t* InApplicationDataPath,
-    ID3D12Device* InDevice,
-    NVSDK_NGX_Version InSDKVersion,
-    const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo)
+NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_Init_Ext(unsigned long long InApplicationId,
+                                                        const wchar_t* InApplicationDataPath, ID3D12Device* InDevice,
+                                                        NVSDK_NGX_Version InSDKVersion,
+                                                        const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo)
 {
     LOG_FUNC();
 
@@ -80,8 +73,8 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_Init_Ext(
         {
             LOG_INFO("calling NVNGXProxy::D3D12_Init_Ext");
             auto result = NVNGXProxy::D3D12_Init_Ext()(InApplicationId, InApplicationDataPath, InDevice, InSDKVersion,
-                InFeatureInfo);
-            LOG_INFO("calling NVNGXProxy::D3D12_Init_Ext result: {0:X}", (UINT)result);
+                                                       InFeatureInfo);
+            LOG_INFO("calling NVNGXProxy::D3D12_Init_Ext result: {0:X}", (UINT) result);
 
             if (result == NVSDK_NGX_Result_Success)
                 NVNGXProxy::SetDx12Inited(true);
@@ -105,7 +98,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_Init_Ext(
     }
 
     LOG_INFO("AppId: {0}", InApplicationId);
-    LOG_INFO("SDK: {0:x}", (unsigned int)InSDKVersion);
+    LOG_INFO("SDK: {0:x}", (unsigned int) InSDKVersion);
     appDataPath = std::wstring(InApplicationDataPath);
 
     LOG_INFO("InApplicationDataPath {0}", wstring_to_string(appDataPath));
@@ -137,12 +130,10 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_Init_Ext(
     return NVSDK_NGX_Result_Success;
 }
 
-NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_Init(
-    unsigned long long InApplicationId,
-    const wchar_t* InApplicationDataPath,
-    ID3D12Device* InDevice,
-    const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo,
-    NVSDK_NGX_Version InSDKVersion)
+NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_Init(unsigned long long InApplicationId,
+                                                    const wchar_t* InApplicationDataPath, ID3D12Device* InDevice,
+                                                    const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo,
+                                                    NVSDK_NGX_Version InSDKVersion)
 {
     LOG_FUNC();
 
@@ -161,7 +152,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_Init(
             auto result =
                 NVNGXProxy::D3D12_Init()(InApplicationId, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
 
-            LOG_INFO("calling NVNGXProxy::D3D12_Init result: {0:X}", (UINT)result);
+            LOG_INFO("calling NVNGXProxy::D3D12_Init result: {0:X}", (UINT) result);
 
             if (result == NVSDK_NGX_Result_Success)
                 NVNGXProxy::SetDx12Inited(true);
@@ -180,7 +171,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_Init(
     //     DLSSGMod::D3D12_Init(InApplicationId, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
     // }
 
-    ScopedInit scopedInit{};
+    ScopedInit scopedInit {};
     auto result =
         NVSDK_NGX_D3D12_Init_Ext(InApplicationId, InApplicationDataPath, InDevice, InSDKVersion, InFeatureInfo);
 
@@ -188,14 +179,12 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_Init(
     return result;
 }
 
-NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_Init_ProjectID(
-    const char* InProjectId,
-    NVSDK_NGX_EngineType InEngineType,
-    const char* InEngineVersion,
-    const wchar_t* InApplicationDataPath,
-    ID3D12Device* InDevice,
-    NVSDK_NGX_Version InSDKVersion,
-    const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo)
+NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_Init_ProjectID(const char* InProjectId,
+                                                              NVSDK_NGX_EngineType InEngineType,
+                                                              const char* InEngineVersion,
+                                                              const wchar_t* InApplicationDataPath,
+                                                              ID3D12Device* InDevice, NVSDK_NGX_Version InSDKVersion,
+                                                              const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo)
 {
     LOG_FUNC();
 
@@ -213,9 +202,9 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_Init_ProjectID(
 
             auto result =
                 NVNGXProxy::D3D12_Init_ProjectID()(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath,
-                    InDevice, InSDKVersion, InFeatureInfo);
+                                                   InDevice, InSDKVersion, InFeatureInfo);
 
-            LOG_INFO("calling NVNGXProxy::D3D12_Init_ProjectID result: {0:X}", (UINT)result);
+            LOG_INFO("calling NVNGXProxy::D3D12_Init_ProjectID result: {0:X}", (UINT) result);
 
             if (result == NVSDK_NGX_Result_Success)
                 NVNGXProxy::SetDx12Inited(true);
@@ -223,7 +212,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_Init_ProjectID(
     }
 
     LOG_INFO("InProjectId: {0}", InProjectId);
-    LOG_INFO("InEngineType: {0}", (int)InEngineType);
+    LOG_INFO("InEngineType: {0}", (int) InEngineType);
     LOG_INFO("InEngineVersion: {0}", InEngineVersion);
 
     State::Instance().NVNGX_ProjectId = std::string(InProjectId);
@@ -236,7 +225,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_Init_ProjectID(
         return NVSDK_NGX_Result_Success;
     }
 
-    ScopedInit scopedInit{};
+    ScopedInit scopedInit {};
     auto result = NVSDK_NGX_D3D12_Init_Ext(0x1337, InApplicationDataPath, InDevice, InSDKVersion, InFeatureInfo);
     return result;
 }
@@ -250,7 +239,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_Init_with_ProjectID(
     LOG_FUNC();
 
     LOG_INFO("InProjectId: {0}", InProjectId);
-    LOG_INFO("InEngineType: {0}", (int)InEngineType);
+    LOG_INFO("InEngineType: {0}", (int) InEngineType);
     LOG_INFO("InEngineVersion: {0}", InEngineVersion);
 
     State::Instance().NVNGX_ProjectId = std::string(InProjectId);
@@ -366,12 +355,13 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_GetParameters(NVSDK_NGX_Parameter
         return NVSDK_NGX_Result_FAIL_InvalidParameter;
 
     // If DLSS is enabled and the real DLSS module is loaded, get native NGX table
-    if (GetIsDlssModuleInited() && NVNGXProxy::D3D12_GetParameters() != nullptr)
+    if (Config::Instance()->DLSSEnabled.value_or_default() && NVNGXProxy::NVNGXModule() != nullptr &&
+        NVNGXProxy::D3D12_GetParameters() != nullptr)
     {
         LOG_INFO("Calling NVNGXProxy::D3D12_GetParameters");
         auto result = NVNGXProxy::D3D12_GetParameters()(OutParameters);
-        LOG_INFO("Calling NVNGXProxy::D3D12_GetParameters result: {0:X}, ptr: {1:X}", (UINT)result,
-            (UINT64)*OutParameters);
+        LOG_INFO("Calling NVNGXProxy::D3D12_GetParameters result: {0:X}, ptr: {1:X}", (UINT) result,
+                 (UINT64) *OutParameters);
 
         // Copy OptiScaler config to real NGX param table
         if (result == NVSDK_NGX_Result_Success)
@@ -391,9 +381,9 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_GetParameters(NVSDK_NGX_Parameter
 }
 
 /**
- * @brief Allocates a new NVSDK parameter map pre-populated with NGX capabilities and information about available features.
- * The output parameter map may also be used in the same ways as a parameter map allocated with AllocateParameters().
- * The lifetime of this map is managed by the calling application with DestroyParameters().
+ * @brief Allocates a new NVSDK parameter map pre-populated with NGX capabilities and information about available
+ * features. The output parameter map may also be used in the same ways as a parameter map allocated with
+ * AllocateParameters(). The lifetime of this map is managed by the calling application with DestroyParameters().
  */
 NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_GetCapabilityParameters(NVSDK_NGX_Parameter** OutParameters)
 {
@@ -403,12 +393,13 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_GetCapabilityParameters(NVSDK_NGX
         return NVSDK_NGX_Result_FAIL_InvalidParameter;
 
     // Get native DLSS params if DLSS is enabled and the module is loaded
-    if (GetIsDlssModuleInited() && NVNGXProxy::IsDx12Inited() && NVNGXProxy::D3D12_GetCapabilityParameters() != nullptr)
+    if (Config::Instance()->DLSSEnabled.value_or_default() && NVNGXProxy::NVNGXModule() != nullptr &&
+        NVNGXProxy::IsDx12Inited() && NVNGXProxy::D3D12_GetCapabilityParameters() != nullptr)
     {
         LOG_INFO("Calling NVNGXProxy::D3D12_GetCapabilityParameters");
         auto result = NVNGXProxy::D3D12_GetCapabilityParameters()(OutParameters);
-        LOG_INFO("Calling NVNGXProxy::D3D12_GetCapabilityParameters result: {0:X}, ptr: {1:X}", (UINT)result,
-            (UINT64)*OutParameters);
+        LOG_INFO("Calling NVNGXProxy::D3D12_GetCapabilityParameters result: {0:X}, ptr: {1:X}", (UINT) result,
+                 (UINT64) *OutParameters);
 
         if (result == NVSDK_NGX_Result_Success)
         {
@@ -435,12 +426,13 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_AllocateParameters(NVSDK_NGX_Para
 {
     LOG_FUNC();
 
-    if (GetIsDlssModuleInited() && NVNGXProxy::D3D12_AllocateParameters() != nullptr)
+    if (Config::Instance()->DLSSEnabled.value_or_default() && NVNGXProxy::NVNGXModule() != nullptr &&
+        NVNGXProxy::D3D12_AllocateParameters() != nullptr)
     {
         LOG_INFO("Calling NVNGXProxy::D3D12_AllocateParameters");
         auto result = NVNGXProxy::D3D12_AllocateParameters()(OutParameters);
-        LOG_INFO("Calling NVNGXProxy::D3D12_AllocateParameters result: {0:X}, ptr: {1:X}", (UINT)result,
-            (UINT64)*OutParameters);
+        LOG_INFO("Calling NVNGXProxy::D3D12_AllocateParameters result: {0:X}, ptr: {1:X}", (UINT) result,
+                 (UINT64) *OutParameters);
 
         if (result == NVSDK_NGX_Result_Success)
         {
@@ -523,11 +515,8 @@ static bool EnsureD3D12Device(ID3D12GraphicsCommandList* cmdList)
     return true;
 }
 
-static NVSDK_NGX_Result TryCreateOptiFeature(
-    ID3D12GraphicsCommandList* InCmdList,
-    NVSDK_NGX_Feature InFeatureID,
-    NVSDK_NGX_Parameter* InParameters,
-    NVSDK_NGX_Handle** OutHandle)
+static NVSDK_NGX_Result TryCreateOptiFeature(ID3D12GraphicsCommandList* InCmdList, NVSDK_NGX_Feature InFeatureID,
+                                             NVSDK_NGX_Parameter* InParameters, NVSDK_NGX_Handle** OutHandle)
 {
     State& state = State::Instance();
     const Config& cfg = *Config::Instance();
@@ -674,19 +663,19 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_CreateFeature(ID3D12GraphicsComma
         if (cfg.DLSSEnabled.value_or_default() && NVNGXProxy::InitDx12(D3D12Device) &&
             NVNGXProxy::D3D12_CreateFeature() != nullptr)
         {
-            LOG_INFO("Passthrough to native NGX CreateFeature for feature {}", (int)InFeatureID);
+            LOG_INFO("Passthrough to native NGX CreateFeature for feature {}", (int) InFeatureID);
 
             NVSDK_NGX_Result res = NVNGXProxy::D3D12_CreateFeature()(InCmdList, InFeatureID, InParameters, OutHandle);
 
             if (*OutHandle)
                 LOG_INFO("Native CreateFeature success, HandleId: {}", (*OutHandle)->Id);
             else
-                LOG_INFO("Native CreateFeature failed: {:#x}", (uint32_t)res);
+                LOG_INFO("Native CreateFeature failed: {:#x}", (uint32_t) res);
 
             return res;
         }
 
-        LOG_WARN("Native DLSS passthrough not available for feature {}", (int)InFeatureID);
+        LOG_WARN("Native DLSS passthrough not available for feature {}", (int) InFeatureID);
         return NVSDK_NGX_Result_FAIL_FeatureNotSupported;
     }
 
@@ -727,7 +716,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_ReleaseFeature(NVSDK_NGX_Handle* 
             auto result = NVNGXProxy::D3D12_ReleaseFeature()(InHandle);
 
             if (!shutdown)
-                LOG_INFO("D3D12_ReleaseFeature result for ({0}): {1:X}", handleId, (UINT)result);
+                LOG_INFO("D3D12_ReleaseFeature result for ({0}): {1:X}", handleId, (UINT) result);
 
             return result;
         }
@@ -761,10 +750,12 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_ReleaseFeature(NVSDK_NGX_Handle* 
             Dx12Contexts.erase(it);
         }
     }
-
-    // Fallback Error Handling
-    if (!shutdown)
-        LOG_ERROR("can't release feature with id {0}!", handleId);
+    else
+    {
+        // Fallback Error Handling
+        if (!shutdown)
+            LOG_ERROR("can't release feature with id {0}!", handleId);
+    }
 
     return NVSDK_NGX_Result_Success;
 }
@@ -776,19 +767,18 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_ReleaseFeature(NVSDK_NGX_Handle* 
  * @param OutSupported Used to indicate whether a feature is supported and its requirements.
  */
 NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_GetFeatureRequirements(
-    IDXGIAdapter* Adapter,
-    const NVSDK_NGX_FeatureDiscoveryInfo* FeatureDiscoveryInfo,
+    IDXGIAdapter* Adapter, const NVSDK_NGX_FeatureDiscoveryInfo* FeatureDiscoveryInfo,
     NVSDK_NGX_FeatureRequirement* OutSupported)
 {
-    LOG_DEBUG("for ({0})", (int)FeatureDiscoveryInfo->FeatureID);
+    LOG_DEBUG("for ({0})", (int) FeatureDiscoveryInfo->FeatureID);
 
     if (State::Instance().activeFgInput == FGInput::Nukems)
         DLSSGMod::InitDLSSGMod_Dx12();
 
     if (FeatureDiscoveryInfo->FeatureID == NVSDK_NGX_Feature_SuperSampling ||
         (FeatureDiscoveryInfo->FeatureID == NVSDK_NGX_Feature_FrameGeneration &&
-            ((DLSSGMod::isDx12Available() && Config::Instance()->FGInput == FGInput::Nukems) ||
-                Config::Instance()->FGInput == FGInput::DLSSG)))
+         ((DLSSGMod::isDx12Available() && Config::Instance()->FGInput == FGInput::Nukems) ||
+          Config::Instance()->FGInput == FGInput::DLSSG)))
     {
         if (OutSupported == nullptr)
         {
@@ -809,16 +799,16 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_GetFeatureRequirements(
 
     if (Config::Instance()->DLSSEnabled.value_or_default() && NVNGXProxy::D3D12_GetFeatureRequirements() != nullptr)
     {
-        LOG_DEBUG("D3D12_GetFeatureRequirements for ({0})", (int)FeatureDiscoveryInfo->FeatureID);
+        LOG_DEBUG("D3D12_GetFeatureRequirements for ({0})", (int) FeatureDiscoveryInfo->FeatureID);
         auto result = NVNGXProxy::D3D12_GetFeatureRequirements()(Adapter, FeatureDiscoveryInfo, OutSupported);
-        LOG_DEBUG("D3D12_GetFeatureRequirements result for ({0}): {1:X}", (int)FeatureDiscoveryInfo->FeatureID,
-            (UINT)result);
+        LOG_DEBUG("D3D12_GetFeatureRequirements result for ({0}): {1:X}", (int) FeatureDiscoveryInfo->FeatureID,
+                  (UINT) result);
 
         return result;
     }
     else
     {
-        LOG_DEBUG("D3D12_GetFeatureRequirements not available for ({0})", (int)FeatureDiscoveryInfo->FeatureID);
+        LOG_DEBUG("D3D12_GetFeatureRequirements not available for ({0})", (int) FeatureDiscoveryInfo->FeatureID);
     }
 
     OutSupported->FeatureSupported = NVSDK_NGX_FeatureSupportResult_AdapterUnsupported;
@@ -901,7 +891,7 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(ID3D12GraphicsCommandList* InCmdL
     // Root signature restoration setup
     const bool restoreCompute = cfg.RestoreComputeSignature.value_or_default();
     const bool restoreGraphic = cfg.RestoreGraphicSignature.value_or_default();
-    const bool shouldRestore = (feature->Name() != "DLSSD") && (restoreCompute || restoreGraphic);
+    const bool shouldRestore = restoreCompute || restoreGraphic;
 
     if (shouldRestore)
         D3D12Hooks::SetRootSignatureTracking(false);
@@ -916,7 +906,7 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(ID3D12GraphicsCommandList* InCmdL
     // Evaluate the feature
     bool evalSuccess = false;
     {
-        ScopedSkipHeapCapture skip{};
+        ScopedSkipHeapCapture skip {};
         evalSuccess = feature->Evaluate(InCmdList, InParameters);
     }
 
@@ -970,7 +960,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_EvaluateFeature(ID3D12GraphicsCom
     }
 
     const uint32_t handleId = InFeatureHandle->Id;
-    LOG_DEBUG("EvaluateFeature - Handle: {}, CmdList: {:p}", handleId, (void*)InCmdList);
+    LOG_DEBUG("EvaluateFeature - Handle: {}, CmdList: {:p}", handleId, (void*) InCmdList);
 
     const State& state = State::Instance();
     const Config& cfg = *Config::Instance();
@@ -983,7 +973,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_EvaluateFeature(ID3D12GraphicsCom
             LOG_DEBUG("Passthrough to native DLSS EvaluateFeature for handle {}", handleId);
             NVSDK_NGX_Result result =
                 NVNGXProxy::D3D12_EvaluateFeature()(InCmdList, InFeatureHandle, InParameters, InCallback);
-            LOG_DEBUG("Native DLSS EvaluateFeature result: {:#x}", (uint32_t)result);
+            LOG_DEBUG("Native DLSS EvaluateFeature result: {:#x}", (uint32_t) result);
             return result;
         }
 
