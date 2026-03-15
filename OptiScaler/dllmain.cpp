@@ -915,6 +915,7 @@ static void CheckWorkingMode()
                 Config::Instance()->StreamlineSpoofing.value_or_default())
             {
                 hookAdvapi32();
+            }
 
             HookEffectModulesLate();
 

@@ -194,7 +194,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
         // FSR-RR requires Linear Depth Delta in Blue channel
         const float2 motionIn = InMotionVectors[px].rg; // RG: Pixel Movement
         const float3 motionOut = float3(motionIn, depthDelta);
-        OutMotion[px] = float4(motionOut, 0.0f);
+        OutMotion[px] = half4(motionOut, 0.0f);
 
         // Calculate NoV (Dot(Normal, View))
         //
@@ -368,7 +368,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
                     break;
             }
         
-            OutSignal1[px] = float4(debugColor, 1.0f);
+            OutSignal1[px] = half4(debugColor, 1.0f);
         }
     }
     else // Skip
@@ -378,6 +378,6 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
         OutDiffAlbedo[px] = 0.0f;
         OutSignal1[px] = 0.0f;
         OutSignal2[px] = 0.0f;
-        OutSkipSignal[px] = float4(color, 1.0f);
+        OutSkipSignal[px] = half4(color, 1.0f);
     }
 }

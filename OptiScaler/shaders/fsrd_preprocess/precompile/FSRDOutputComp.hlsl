@@ -242,7 +242,7 @@ void PopulateSharedMemory(const uint2 groupID, const int2 gtID)
                 rawColor = rawDemodColor * rawDemodColor;
             }
             
-            g_DenoisedColor[smID.x][smID.y] = denoisedColor;
+            g_DenoisedColor[smID.x][smID.y] = half3(denoisedColor);
             g_DenoisedDemodLuma[smID.x][smID.y] = (half) dot(denoisedDemodColor, 0.33f);
             g_DemodLuma[smID.x][smID.y] = (half) dot(rawDemodColor, 0.33f);
             g_RawLuma[smID.x][smID.y] = (half) dot(rawColor, 0.33f);
