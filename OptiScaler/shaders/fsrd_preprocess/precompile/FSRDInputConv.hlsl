@@ -206,37 +206,21 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
         // Secondary albedo packing
         //
         // FSR-RR expects metalness in diffuse alpha.
-        // DLSS-RR specular albedo is not albedo. It's hemispherical specular reflectance at (NoV, roughness).
-        // FSR-RR seems to use the same in the sample, calculated with a LUT.
+        // DLSS-RR specular albedo is hemispherical specular reflectance at (NoV, roughness).
+        // Diffuse albedo is the diffuse component of reflectance.
         //
         // Zero albedo is physically implausible - investigate
-        float4 specAlbedo = float4(InSpecAlbedo[px], NoV);
+        float4 specReflectance = float4(InSpecAlbedo[px], NoV);
         float4 diffAlbedo = float4(InDiffAlbedo[px], 0.0f);
-        
+                
         // Total albedo near or greater than 1 violate conservation of energy
         // May be sentinel value or bug
-        const float3 albedoOvershoot = max((specAlbedo.rgb + diffAlbedo.rgb) - 1.0f, 0.0f);
-        specAlbedo.rgb = saturate(specAlbedo.rgb - albedoOvershoot);
-        diffAlbedo.rgb -= max((specAlbedo.rgb + diffAlbedo.rgb) - 1.0f, 0.0f);
+        const float3 albedoOvershoot = max((specReflectance.rgb + diffAlbedo.rgb) - 1.0f, 0.0f);
+        specReflectance.rgb = saturate(specReflectance.rgb - albedoOvershoot);
+        diffAlbedo.rgb -= max((specReflectance.rgb + diffAlbedo.rgb) - 1.0f, 0.0f);
         
-        specAlbedo.rgb = max(specAlbedo.rgb, 1e-3f);
+        specReflectance.rgb = max(specReflectance.rgb, 1e-3f);
         diffAlbedo.rgb = max(diffAlbedo.rgb, 1e-3f);
-        
-        const float metalness = EstimateMetalness(diffAlbedo.rgb, specAlbedo.rgb);
-        diffAlbedo.a = metalness;
-        
-        // May be for better perceptual encoding efficiency in some configurations
-        [branch]
-        if (!IsSet(FLAGS_NON_GAMMA_ALBEDO))
-        {
-            specAlbedo = sqrt(specAlbedo);
-            diffAlbedo = sqrt(diffAlbedo);
-        }      
-        
-        // FSR-RR expects NoV in specular alpha
-        OutSpecAlbedo[px] = GetSafeFP16(specAlbedo);
-        OutDiffAlbedo[px] = GetSafeFP16(diffAlbedo);
-        OutSkipSignal[px] = GetSafeFP16(float4(color, 0.0f));
 
         float hitDist = hitDist = 0.0f;
         float3 demodColor = 0.0f;
@@ -245,17 +229,18 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
         [branch]
         if (IsSet(FLAGS_MODE_2_SIGNAL)) // Primary radiance packing - Mode 2 Signal
         {          
-            const float3 specWeight = saturate(specAlbedo.rgb);
-            const float3 diffWeight = saturate((1.0f - specAlbedo.rgb) * diffAlbedo.rgb);
-            const float3 rcpTotalWeight = rcp(max(diffWeight + specWeight, 1e-5f));
+            const float3 specWeight = saturate(specReflectance.rgb);
+            const float3 diffWeight = saturate(diffAlbedo.rgb);
+            const float3 rcpTotalWeight = rcp(diffWeight + specWeight);
 
-            const float3 diffuseColor = color * (diffWeight * rcpTotalWeight);
             const float3 specularColor = color * (specWeight * rcpTotalWeight);
+            const float3 diffuseColor = color - specularColor;
 
-            const float3 demodDiffuse = diffuseColor / max(diffAlbedo.rgb, 1e-3f);
-            const float3 demodSpecular = specularColor / max(specAlbedo.rgb, 1e-3f);
-            
-            hitDist = InSpecHitDist[px];
+            const float3 demodSpecular = specularColor / specReflectance.rgb;
+            const float3 demodDiffuse = diffuseColor / diffAlbedo.rgb;
+
+            // Mask out specular tracking if the surface isn't smooth enough
+            hitDist = InSpecHitDist[px] * (roughness < 0.2f);
             
             [branch]
             if (!IsSet(FLAGS_DEBUG))
@@ -268,7 +253,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
         }
         else // Primary radiance packing - Mode 1 Signal
         {           
-            fusedAlbedo = float4(max(specAlbedo.rgb, diffAlbedo.rgb), NoV);
+            fusedAlbedo = float4(max(specReflectance.rgb, diffAlbedo.rgb), NoV);
             demodColor = color / fusedAlbedo.rgb;
             
             [branch]
@@ -282,6 +267,19 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
                 OutSignal2[px] = GetSafeFP16(fusedAlbedo);
             }
         }
+        
+        // May be for better perceptual encoding efficiency in some configurations
+        [branch]
+        if (!IsSet(FLAGS_NON_GAMMA_ALBEDO))
+        {
+            specReflectance = sqrt(specReflectance);
+            diffAlbedo = sqrt(diffAlbedo);
+        }
+        
+        // FSR-RR expects NoV in specular alpha
+        OutSpecAlbedo[px] = GetSafeFP16(specReflectance);
+        OutDiffAlbedo[px] = GetSafeFP16(diffAlbedo);
+        OutSkipSignal[px] = GetSafeFP16(float4(color, 0.0f));
         
         [branch]
         if (IsSet(FLAGS_DEBUG))
@@ -344,11 +342,11 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
                     break;
             
                 case FLAGS_DEBUG_OUT_METALICITY:
-                    debugColor = metalness;
+                    debugColor = 0.0f;
                     break;
                 
                 case FLAGS_DEBUG_OUT_SPEC_ALBEDO:
-                    debugColor = specAlbedo.rgb;
+                    debugColor = specReflectance.rgb;
                     break;
                 
                 case FLAGS_DEBUG_OUT_DIFF_ALBEDO:

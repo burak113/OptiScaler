@@ -225,13 +225,13 @@ void PopulateSharedMemory(const uint2 groupID, const int2 gtID)
                 const float3 denoisedDiffColor = InDenoisedSignal2[px].rgb;
                 const float3 rawSpecColor = InRawSignal1[px].rgb;
                 const float3 rawDiffColor = InRawSignal2[px].rgb;
-                const float3 specAlbedo = InAlbedo1[px].rgb;
+                const float3 specReflectance = InAlbedo1[px].rgb;
                 const float3 diffAlbedo = InAlbedo2[px].rgb;
                 
-                denoisedColor = (denoisedSpecColor * specAlbedo) + (denoisedDiffColor * diffAlbedo);
+                denoisedColor = (denoisedSpecColor * specReflectance) + (denoisedDiffColor * diffAlbedo);
                 denoisedDemodColor = denoisedSpecColor + denoisedDiffColor;
                 rawDemodColor = rawSpecColor + rawDiffColor;
-                rawColor = (rawSpecColor * specAlbedo) + (rawDiffColor * diffAlbedo);
+                rawColor = (rawSpecColor * specReflectance) + (rawDiffColor * diffAlbedo);
             }
             else
             {

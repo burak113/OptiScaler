@@ -121,10 +121,13 @@ half3 GetSafeFP16(float3 v)
     return (half3) min(max(v, 0.0f), 65500.0f);
 }
 
-float Square(float x)
-{
-    return x * x;
-}
+float Square(float x) { return x * x; }
+
+float2 Square(float2 vec) { return float2(vec.x * vec.x, vec.y * vec.y); }
+
+float3 Square(float3 vec) { return float3(vec.x * vec.x, vec.y * vec.y, vec.z * vec.z); }
+
+float4 Square(float4 vec) { return float4(vec.x * vec.x, vec.y * vec.y, vec.z * vec.z, vec.w * vec.w); }
 
 float GetLuminance(float3 color)
 {
