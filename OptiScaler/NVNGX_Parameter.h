@@ -523,11 +523,11 @@ inline static void InitNGXParameters(NVSDK_NGX_Parameter* InParams)
 
         if (state.currentD3D12Device != nullptr)
         {
-            if (!FfxApiProxy::IsRRReady())
+            if (!FfxApiProxy::IsDenoiserReady())
                 FfxApiProxy::InitFfxDx12();
 
             ssDenoiseAvailable =
-                FfxApiProxy::IsSRReady() && FfxApiProxy::IsRRReady() 
+                FfxApiProxy::IsSRReady() && FfxApiProxy::IsDenoiserReady() 
                 && FfxApiProxy::VersionDx12_RR().major > 0;
 
             if (ssDenoiseAvailable)

@@ -807,7 +807,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_GetFeatureRequirements(
     if (!isOptiFeature && !state.isRunningOnNvidia &&
         (FeatureDiscoveryInfo->FeatureID == NVSDK_NGX_Feature_RayReconstruction))
     {
-        if (!FfxApiProxy::IsRRReady())
+        if (!FfxApiProxy::IsDenoiserReady())
             FfxApiProxy::InitFfxDx12();
         
         /* Somewhat flawed check. ffxQuery can't be used for RR to check support because 
@@ -818,7 +818,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_GetFeatureRequirements(
         can be done there. All this does is allow the game to actually checks the params 
         instead of failing early.
         */
-        if (FfxApiProxy::IsSRReady() && FfxApiProxy::IsRRReady())
+        if (FfxApiProxy::IsSRReady() && FfxApiProxy::IsDenoiserReady())
         {
             isOptiFeature = true;
             LOG_DEBUG("Reporting support for DLSSD -> FSR Ray Regeneration");

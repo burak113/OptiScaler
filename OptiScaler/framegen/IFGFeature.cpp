@@ -179,12 +179,16 @@ bool IFGFeature::IsInfiniteDepth() { return _constants.flags[FG_Flags::InfiniteD
 
 void IFGFeature::SetFrameCount(UINT64 frameId)
 {
-    // Only increment frame count, if it's higher than current one
-    // Also take allowed frame ahead into account to prevent wrong frame count
-    if (frameId > _frameCount && (frameId - _frameCount) > Config::Instance()->FGAllowedFrameAhead.value_or_default())
+    // Only change frame count, if it's lower than current one
+    // Or higher than allowed frame ahead
+    if (frameId < _frameCount || (frameId - _frameCount) > Config::Instance()->FGAllowedFrameAhead.value_or_default())
     {
         LOG_DEBUG("Old: {}, New: {}", _frameCount, frameId);
         _frameCount = frameId;
+    }
+    else if (frameId != _frameCount)
+    {
+        LOG_TRACE("Prevented setting frame count! Old: {}, New: {}", _frameCount, frameId);
     }
 }
 

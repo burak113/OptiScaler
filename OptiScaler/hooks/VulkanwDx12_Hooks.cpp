@@ -33,6 +33,7 @@ static PFN_vkAllocateCommandBuffers o_vkAllocateCommandBuffers = nullptr;
 static PFN_vkDestroyCommandPool o_vkDestroyCommandPool = nullptr;
 static PFN_vkCreateCommandPool o_vkCreateCommandPool = nullptr;
 
+static std::mutex mutexCommandPoolToQueueFamilyMap;
 static std::unordered_map<VkCommandPool, uint32_t> commandPoolToQueueFamilyMap;
 
 // #define LOG_ALL_RECORDS
@@ -6055,7 +6056,10 @@ VkResult hk_vkCreateCommandPool(VkDevice device, const VkCommandPoolCreateInfo* 
 
     if (result == VK_SUCCESS && pCommandPool && *pCommandPool != VK_NULL_HANDLE && pCreateInfo)
     {
-        commandPoolToQueueFamilyMap[*pCommandPool] = pCreateInfo->queueFamilyIndex;
+        {
+            std::scoped_lock lock(mutexCommandPoolToQueueFamilyMap);
+            commandPoolToQueueFamilyMap[*pCommandPool] = pCreateInfo->queueFamilyIndex;
+        }
 
         LOG_DEBUG("Command pool {:X} created for queue family {}", (size_t) *pCommandPool,
                   pCreateInfo->queueFamilyIndex);
@@ -7179,8 +7183,13 @@ VkResult Vulkan_wDx12::hk_vkAllocateCommandBuffers(VkDevice device, const VkComm
 
     if (result == VK_SUCCESS && pAllocateInfo != nullptr && pCommandBuffers != nullptr)
     {
-        auto it = commandPoolToQueueFamilyMap.find(pAllocateInfo->commandPool);
-        uint32_t queueFamily = (it != commandPoolToQueueFamilyMap.end()) ? it->second : 0;
+        uint32_t queueFamily = 0;
+
+        {
+            std::scoped_lock lock(mutexCommandPoolToQueueFamilyMap);
+            auto it = commandPoolToQueueFamilyMap.find(pAllocateInfo->commandPool);
+            queueFamily = (it != commandPoolToQueueFamilyMap.end()) ? it->second : 0;
+        }
 
         // Notify state tracker about new command buffers
         cmdBufferStateTracker.OnAllocateCommandBuffers(pAllocateInfo->commandPool, pAllocateInfo->commandBufferCount,

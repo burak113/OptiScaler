@@ -156,7 +156,8 @@ bool FSR2FeatureDx11::InitFSR2(const NVSDK_NGX_Parameter* InParameters)
             _contextDesc.flags |= FFX_FSR2_ENABLE_DISPLAY_RESOLUTION_MOTION_VECTORS;
 
         // output scaling
-        if (Config::Instance()->OutputScalingEnabled.value_or_default() && LowResMV())
+        if (Config::Instance()->OutputScalingEnabled.value_or_default() &&
+            (LowResMV() || RenderWidth() == DisplayWidth()))
         {
             float ssMulti = Config::Instance()->OutputScalingMultiplier.value_or_default();
 
@@ -189,7 +190,8 @@ bool FSR2FeatureDx11::InitFSR2(const NVSDK_NGX_Parameter* InParameters)
             Config::Instance()->OutputScalingMultiplier.set_volatile_value(1.0f);
 
             // if output scaling active let it to handle downsampling
-            if (Config::Instance()->OutputScalingEnabled.value_or_default() && LowResMV())
+            if (Config::Instance()->OutputScalingEnabled.value_or_default() &&
+                (LowResMV() || RenderWidth() == DisplayWidth()))
             {
 
                 _contextDesc.displaySize.width = _contextDesc.maxRenderSize.width;
@@ -305,7 +307,8 @@ bool FSR2FeatureDx11::Evaluate(ID3D11DeviceContext* InContext, NVSDK_NGX_Paramet
 
     LOG_DEBUG("Input Resolution: {0}x{1}", params.renderSize.width, params.renderSize.height);
 
-    bool useSS = Config::Instance()->OutputScalingEnabled.value_or_default() && LowResMV();
+    bool useSS =
+        Config::Instance()->OutputScalingEnabled.value_or_default() && (LowResMV() || RenderWidth() == DisplayWidth());
 
     if (Config::Instance()->OverrideSharpness.value_or_default())
         _sharpness = Config::Instance()->Sharpness.value_or_default();

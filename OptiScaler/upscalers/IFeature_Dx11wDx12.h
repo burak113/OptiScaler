@@ -59,7 +59,7 @@ class IFeature_Dx11wDx12 : public virtual IFeature_Dx11
     ID3D11Fence* dx11FenceTextureCopy = nullptr;
     ID3D12Fence* dx12FenceTextureCopy = nullptr;
     HANDLE dx11SHForTextureCopy = nullptr;
-    ULONG _fenceValue = 0;
+    ULONG _fenceValue = 1;
 
     std::unique_ptr<OS_Dx12> OutputScaler = nullptr;
     std::unique_ptr<RCAS_Dx12> RCAS = nullptr;

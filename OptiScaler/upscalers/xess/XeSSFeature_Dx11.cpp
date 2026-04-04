@@ -185,7 +185,8 @@ bool XeSSFeature_Dx11::Init(ID3D11Device* InDevice, ID3D11DeviceContext* InConte
             break;
         }
 
-        if (Config::Instance()->OutputScalingEnabled.value_or(false) && LowResMV())
+        if (Config::Instance()->OutputScalingEnabled.value_or_default() &&
+            (LowResMV() || RenderWidth() == DisplayWidth()))
         {
             float ssMulti = Config::Instance()->OutputScalingMultiplier.value_or(1.5f);
 
@@ -329,7 +330,8 @@ bool XeSSFeature_Dx11::Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Pa
 
     float ssMulti = Config::Instance()->OutputScalingMultiplier.value_or(1.5f);
 
-    bool useSS = Config::Instance()->OutputScalingEnabled.value_or(false) && LowResMV();
+    bool useSS =
+        Config::Instance()->OutputScalingEnabled.value_or_default() && (LowResMV() || RenderWidth() == DisplayWidth());
 
     LOG_DEBUG("Input Resolution: {0}x{1}", params.inputWidth, params.inputHeight);
 

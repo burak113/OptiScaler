@@ -146,7 +146,8 @@ bool XeSSFeature::InitXeSS(ID3D12Device* device, const NVSDK_NGX_Parameter* InPa
             break;
         }
 
-        if (Config::Instance()->OutputScalingEnabled.value_or(false) && LowResMV())
+        if (Config::Instance()->OutputScalingEnabled.value_or_default() &&
+            (LowResMV() || RenderWidth() == DisplayWidth()))
         {
             float ssMulti = Config::Instance()->OutputScalingMultiplier.value_or(1.5f);
 

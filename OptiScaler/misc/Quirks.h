@@ -40,9 +40,12 @@ enum class GameQuirk : uint64_t
     SpoofRegistry,
     DisableFakenvapi,
     DoNotPreserveFGSwapChain,
+    DoNotSkipResize,
+    OldOverlayMenu,
 
     // Quirks that are applied deeper in code
-    CyberpunkHudlessFixes,
+    CyberpunkHudlessState,
+    FSRFGHudlessMismatchFixup, // Shader extracts UI from swapchain, alpha cut off and apply to hudless
     SkipFsr3Method,
     FastFeatureReset,
     LoadD3D12Manually,
@@ -123,8 +126,8 @@ static const QuirkEntry quirkTable[] = {
     QUIRK_ENTRY("ninjagaiden4-wingdk.exe", GameQuirk::DisableResizeSkip, GameQuirk::DoNotPreserveFGSwapChain),
 
     // The Last of Us Part I
-    QUIRK_ENTRY("tlou-i.exe", GameQuirk::AllowedFrameAhead2),
-    QUIRK_ENTRY("tlou-i-l.exe", GameQuirk::AllowedFrameAhead2),
+    QUIRK_ENTRY("tlou-i.exe", GameQuirk::AllowedFrameAhead2, GameQuirk::DisableDxgiSpoofing),
+    QUIRK_ENTRY("tlou-i-l.exe", GameQuirk::AllowedFrameAhead2, GameQuirk::DisableDxgiSpoofing),
 
     // Horizon Forbidden West
     QUIRK_ENTRY("horizonforbiddenwest.exe", GameQuirk::AllowedFrameAhead2),
@@ -132,7 +135,8 @@ static const QuirkEntry quirkTable[] = {
     // Crapcom Games, DLSS without dxgi spoofing needs restore compute in those
     //
     // Kunitsu-Gami: Path of the Goddess, Monster Hunter Wilds, MONSTER HUNTER RISE, Dead Rising Deluxe Remaster
-    // (including the demo), Dragon's Dogma 2, Pragmata Demo, Resident Evil Requiem
+    // (including the demo), Dragon's Dogma 2, Pragmata Demo, Resident Evil Requiem, Monster Hunter Stories 3: Twisted
+    // Reflection
     QUIRK_ENTRY("kunitsugami.exe", GameQuirk::RestoreComputeSigOnNonNvidia, GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("kunitsugamidemo.exe", GameQuirk::RestoreComputeSigOnNonNvidia, GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("monsterhunterwilds.exe", GameQuirk::RestoreComputeSigOnNonNvidia, GameQuirk::DisableDxgiSpoofing,
@@ -145,11 +149,22 @@ static const QuirkEntry quirkTable[] = {
                 GameQuirk::AllowedFrameAhead2),
     QUIRK_ENTRY("re9.exe", GameQuirk::RestoreComputeSigOnNonNvidia, GameQuirk::DisableDxgiSpoofing,
                 GameQuirk::RestoreComputeSigOnNvidia),
+    QUIRK_ENTRY("monster_hunter_stories_3_twisted_reflection.exe", GameQuirk::RestoreComputeSigOnNonNvidia,
+                GameQuirk::DisableDxgiSpoofing, GameQuirk::RestoreComputeSigOnNvidia),
+    // REF PDUpscaler branch
+    // Old menu needed to avoid the invisible overlay while upscaling is active
+    QUIRK_ENTRY("re2.exe", GameQuirk::DisableDxgiSpoofing, GameQuirk::OldOverlayMenu),
+    QUIRK_ENTRY("re3.exe", GameQuirk::DisableDxgiSpoofing, GameQuirk::OldOverlayMenu),
+    QUIRK_ENTRY("re4.exe", GameQuirk::DisableDxgiSpoofing, GameQuirk::OldOverlayMenu),
+    QUIRK_ENTRY("re7.exe", GameQuirk::DisableDxgiSpoofing, GameQuirk::OldOverlayMenu),
+    QUIRK_ENTRY("re8.exe", GameQuirk::DisableDxgiSpoofing, GameQuirk::OldOverlayMenu),
+    QUIRK_ENTRY("devilmaycry5.exe", GameQuirk::DisableDxgiSpoofing, GameQuirk::OldOverlayMenu),
+    QUIRK_ENTRY("streetfighter6.exe", GameQuirk::DisableDxgiSpoofing, GameQuirk::OldOverlayMenu),
 
     // Cyberpunk 2077
     // SL spoof enough to unlock everything DLSS
-    QUIRK_ENTRY("cyberpunk2077.exe", GameQuirk::CyberpunkHudlessFixes, GameQuirk::DisableHudfix,
-                GameQuirk::DisableDxgiSpoofing),
+    QUIRK_ENTRY("cyberpunk2077.exe", GameQuirk::CyberpunkHudlessState, GameQuirk::FSRFGHudlessMismatchFixup,
+                GameQuirk::DisableHudfix, GameQuirk::DisableDxgiSpoofing),
 
     // Forza Horizon 5
     // SL spoof enough to unlock everything DLSS
@@ -173,6 +188,9 @@ static const QuirkEntry quirkTable[] = {
 
     // Duet Night Abyss
     QUIRK_ENTRY("em-win64-shipping.exe", GameQuirk::DontUseNtDllHooks),
+
+    // The Talos Principle 2
+    QUIRK_ENTRY("talos2-win64-shipping.exe", GameQuirk::DoNotPreserveFGSwapChain, GameQuirk::DoNotSkipResize),
 
     // The Callisto Protocol
     // FSR2 only, no spoof needed
@@ -225,11 +243,22 @@ static const QuirkEntry quirkTable[] = {
     // Nixxes Sony ports - Dxgi spoofing disabled due to RT crashes
     //
     // Ratchet & Clank: Rift Apart, Marvel’s Spider-Man Remastered, Marvel’s Spider-Man: Miles Morales, Marvel's
-    // Spider-Man 2
+    // Spider-Man 2, DEATH STRANDING 2: ON THE BEACH
     QUIRK_ENTRY("riftapart.exe", GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("spider-man.exe", GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("milesmorales.exe", GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("spider-man2.exe", GameQuirk::DisableDxgiSpoofing),
+    QUIRK_ENTRY("ds2.exe", GameQuirk::DisableDxgiSpoofing, GameQuirk::FSRFGHudlessMismatchFixup),
+    //
+    // Dxgi spoofing disabled, DLSS-FG available, standalone Reflex can be unlocked with -unlockReflexOptions launch
+    // option if needed
+    // Horizon Zero Dawn Remastered, Horizon Forbidden West Complete Edition, Ghost of Tsushima DIRECTOR'S CUT, The Last
+    // of Us Part II Remastered
+    QUIRK_ENTRY("horizonzerodawnremastered.exe", GameQuirk::DisableDxgiSpoofing),
+    QUIRK_ENTRY("horizonforbiddenwest.exe", GameQuirk::DisableDxgiSpoofing),
+    QUIRK_ENTRY("ghostoftsushima.exe", GameQuirk::DisableDxgiSpoofing),
+    QUIRK_ENTRY("tlou-ii.exe", GameQuirk::DisableDxgiSpoofing),
+    QUIRK_ENTRY("tlou-ii-l.exe", GameQuirk::DisableDxgiSpoofing),
 
     // Dead Space Remake
     // Override Vsync required to avoid crash on boot
@@ -248,6 +277,19 @@ static const QuirkEntry quirkTable[] = {
     QUIRK_ENTRY("outlaws_plus.exe", GameQuirk::DisableFSR2Inputs, GameQuirk::DisableFSR3Inputs,
                 GameQuirk::DisableDxgiSpoofing),
 
+    // Lies of P
+    // Spoofing disabled as no Streamline and OptiPatcher unlocks DLSS anyway
+    QUIRK_ENTRY_UE(lop, GameQuirk::DisableDxgiSpoofing),
+
+    // Crimson Desert
+    // Spoofing disabled due to "unsupported GPU" error
+    QUIRK_ENTRY("crimsondesert.exe", GameQuirk::DisableDxgiSpoofing),
+
+    // Assassin's Creed Mirage
+    // Game not loading SL plugin even while spoofing, also avoids the "unsupported video driver" notification
+    QUIRK_ENTRY("acmirage.exe", GameQuirk::DisableDxgiSpoofing),
+    QUIRK_ENTRY("acmirage_plus.exe", GameQuirk::DisableDxgiSpoofing),
+
     // SL spoof enough to unlock everything DLSS/No spoof needed for DLSS inputs
     //
     // The Witcher 3, Alan Wake 2, Crysis 3 Remastered, Marvel's Guardians of the Galaxy, UNCHARTED: Legacy of Thieves
@@ -257,7 +299,7 @@ static const QuirkEntry quirkTable[] = {
     // Medium, NINJA GAIDEN 4 (+ WinGDK), God of War (2018), Europa Universalis V, Need for Speed Unbound, Nioh 2 – The
     // Complete Edition, Control Ultimate Edition, Deathloop, Where Winds Meet, FINAL FANTASY VII REMAKE INTERGRADE (for
     // Luma mod), Assassin’s Creed Shadows, Farming Simulator 2025, Nioh 3, FATAL FRAME II: Crimson Butterfly REMAKE,
-    // OUTRIDERS
+    // OUTRIDERS, Assetto Corsa EVO
     QUIRK_ENTRY("witcher3.exe", GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("alanwake2.exe", GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("crysis3remastered.exe", GameQuirk::DisableDxgiSpoofing),
@@ -295,6 +337,7 @@ static const QuirkEntry quirkTable[] = {
     QUIRK_ENTRY("nioh3.exe", GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("fatalframeii.exe", GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY_UE(outriders, GameQuirk::DisableDxgiSpoofing),
+    QUIRK_ENTRY("assettocorsaevo.exe", GameQuirk::DisableDxgiSpoofing),
 
     // FSR2/3 only, no spoof needed
     //
@@ -315,7 +358,7 @@ static const QuirkEntry quirkTable[] = {
     //
     // Forgive Me Father 2, Revenge of the Savage Planet, F1 22, Metal Eden, Until Dawn, Bloomand Rage, 171, Microsoft
     // Flight Simulator (2020) - MSFS2020, Banishers: Ghosts of New Eden,Rune Factory Guardians of Azuma, Supraworld, F1
-    // Manager 2024, Keeper (+ WinGDK PaganIdol version)
+    // Manager 2024, Keeper (+ WinGDK PaganIdol version), Assetto Corsa Rally
     QUIRK_ENTRY_UE(fmf2, GameQuirk::DisableFSR2Inputs, GameQuirk::DisableFSR3Inputs),
     QUIRK_ENTRY_UE(towers, GameQuirk::DisableFSR2Inputs,
                    GameQuirk::DisableFSR3Inputs), // Revenge of the Savage Planet
@@ -332,6 +375,7 @@ static const QuirkEntry quirkTable[] = {
     QUIRK_ENTRY_UE(keeper, GameQuirk::DisableFSR2Inputs, GameQuirk::DisableFSR3Inputs),
     QUIRK_ENTRY_UE(paganidol, GameQuirk::DisableFSR2Inputs,
                    GameQuirk::DisableFSR3Inputs), // Keeper WinGDK PaganIdol
+    QUIRK_ENTRY("acr.exe", GameQuirk::DisableFSR2Inputs, GameQuirk::DisableFSR3Inputs),
 
     // XeSS only, no spoof needed
     //

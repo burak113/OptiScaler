@@ -76,11 +76,12 @@ class FfxApiProxy
     inline static FfxModule main_dx12;
     inline static FfxModule upscaling_dx12;
     inline static FfxModule fg_dx12;
-    inline static FfxModule rrDenoiser_dx12;
+    inline static FfxModule denoiser_dx12;
+    inline static FfxModule radiance_dx12;
 
     inline static FfxModule main_vk;
 
-    inline static ankerl::unordered_dense::map<ffxContext*, FFXStructType> contextToType;
+    inline static ankerl::unordered_dense::map<ffxContext, FFXStructType> contextToType;
 
     inline static bool _skipDestroyCalls = false;
 
@@ -243,14 +244,15 @@ class FfxApiProxy
     static HMODULE Dx12Module() { return main_dx12.dll; }
     static HMODULE Dx12Module_SR() { return upscaling_dx12.dll; }
     static HMODULE Dx12Module_FG() { return fg_dx12.dll; }
-    static HMODULE Dx12Module_RR() { return rrDenoiser_dx12.dll; }
+    static HMODULE Dx12Module_Denoiser() { return denoiser_dx12.dll; }
+    static HMODULE Dx12Module_Radiance() { return radiance_dx12.dll; }
 
     // Returns true if the FFX framegen module is loaded
     static bool IsFGReady() { return (main_dx12.dll && !main_dx12.isLoader) || fg_dx12.dll != nullptr; }
     // Returns true if the FSR upscaler module is loaded
     static bool IsSRReady() { return (main_dx12.dll && !main_dx12.isLoader) || upscaling_dx12.dll != nullptr; }
-    // Returns true if the FSR Ray Regen module is loaded
-    static bool IsRRReady() { return IsSRReady() && rrDenoiser_dx12.dll != nullptr; }
+    static bool IsDenoiserReady() { return IsSRReady() && denoiser_dx12.dll != nullptr; }
+    static bool IsRadianceReady() { return (main_dx12.dll && !main_dx12.isLoader) || radiance_dx12.dll != nullptr; }
 
     static FFXStructType GetType(ffxStructType_t type)
     {
@@ -368,10 +370,12 @@ class FfxApiProxy
         TryInstallFfxModuleHooksDx12(main_dx12);
         InitFfxDx12_SR();
         InitFfxDx12_FG();
-        InitFfxDx12_RR();
+        InitFfxDx12_Denoiser();
+        InitFfxDx12_Radiance();
 
         bool loadResult = main_dx12.CreateContext != nullptr || upscaling_dx12.CreateContext != nullptr ||
-                          fg_dx12.CreateContext != nullptr;
+                          fg_dx12.CreateContext != nullptr || denoiser_dx12.CreateContext != nullptr ||
+                          radiance_dx12.CreateContext != nullptr;
 
         LOG_INFO("LoadResult: {}", loadResult);
 
@@ -389,9 +393,14 @@ class FfxApiProxy
 
     static bool InitFfxDx12_FG(HMODULE module = nullptr) { return LoadFfxModuleDx12(fg_dx12, ffxDx12FGNamesW, module); }
 
-    static bool InitFfxDx12_RR(HMODULE module = nullptr)
+    static bool InitFfxDx12_Denoiser(HMODULE module = nullptr)
     {
-        return LoadFfxModuleDx12(rrDenoiser_dx12, ffxDx12RRNamesW, module);
+        return LoadFfxModuleDx12(denoiser_dx12, ffxDx12DenoiserNamesW, module);
+    }
+
+    static bool InitFfxDx12_Radiance(HMODULE module = nullptr)
+    {
+        return LoadFfxModuleDx12(radiance_dx12, ffxDx12RadianceNamesW, module);
     }
 
     static feature_version VersionDx12()
@@ -431,11 +440,11 @@ class FfxApiProxy
 
     static feature_version VersionDx12_RR()
     {
-        if (rrDenoiser_dx12.Query == nullptr)
+        if (denoiser_dx12.Query == nullptr)
             return VersionDx12();
 
-        UpdateFeatureVersionDx12(rrDenoiser_dx12, FFX_API_CREATE_CONTEXT_DESC_TYPE_DENOISER, "RR");
-        return rrDenoiser_dx12.version;
+        UpdateFeatureVersionDx12(denoiser_dx12, FFX_API_CREATE_CONTEXT_DESC_TYPE_DENOISER, "RR");
+        return denoiser_dx12.version;
     }
 
     static ffxReturnCode_t D3D12_CreateContext(ffxContext* context, ffxCreateContextDescHeader* desc,
@@ -459,13 +468,21 @@ class FfxApiProxy
             return fg_dx12.CreateContext(context, desc, memCb);
 
         case FFXStructType::Denoiser:
-            pModule = &rrDenoiser_dx12;
+            pModule = &denoiser_dx12;
 
-            if (rrDenoiser_dx12.dll == nullptr)
+            if (denoiser_dx12.dll == nullptr)
                 break;
 
-            LOG_DEBUG("Creating with rrDenoiser_dx12");
-            return rrDenoiser_dx12.CreateContext(context, desc, memCb);
+            LOG_DEBUG("Creating with denoiser_dx12");
+            return denoiser_dx12.CreateContext(context, desc, memCb);
+        case FFXStructType::RadianceCache:
+            pModule = &radiance_dx12;
+
+            if (radiance_dx12.dll == nullptr)
+                break;
+
+            LOG_DEBUG("Creating with radiance_dx12");
+            return radiance_dx12.CreateContext(context, desc, memCb);
 
         case FFXStructType::Upscaling:
         default:
@@ -476,7 +493,10 @@ class FfxApiProxy
                 break;
 
             LOG_DEBUG("Creating with upscaling_dx12");
-            return upscaling_dx12.CreateContext(context, desc, memCb);
+            auto result = upscaling_dx12.CreateContext(context, desc, memCb);
+            contextToType[*context] = type;
+            LOG_DEBUG("Created with upscaling_dx12: {:X}", (size_t) *context);
+            return result;
         }
 
         // Reentry guard (Fallback to Main)
@@ -499,11 +519,11 @@ class FfxApiProxy
         ffxReturnCode_t result = FFX_API_RETURN_ERROR;
         auto type = FFXStructType::Unknown;
 
-        if (contextToType.contains(context))
+        if (contextToType.contains(*context))
         {
+            type = contextToType[*context];
             LOG_DEBUG("Found context type mapping: {}", magic_enum::enum_name(type));
-            type = contextToType[context];
-            contextToType.erase(context);
+            contextToType.erase(*context);
         }
         else
         {
@@ -525,17 +545,23 @@ class FfxApiProxy
                 result = upscaling_dx12.DestroyContext(context, memCb);
             break;
 
-        case FFXStructType::Denoiser:
-            LOG_DEBUG("Destroying with rrDenoiser_dx12");
-            if (rrDenoiser_dx12.dll != nullptr)
-                result = rrDenoiser_dx12.DestroyContext(context, memCb);
-            break;
-
         case FFXStructType::FG:
         case FFXStructType::SwapchainDX12:
             LOG_DEBUG("Destroying with fg_dx12");
             if (fg_dx12.dll != nullptr)
                 result = fg_dx12.DestroyContext(context, memCb);
+            break;
+
+        case FFXStructType::Denoiser:
+            LOG_DEBUG("Destroying with denoiser_dx12");
+            if (denoiser_dx12.dll != nullptr)
+                result = denoiser_dx12.DestroyContext(context, memCb);
+            break;
+
+        case FFXStructType::RadianceCache:
+            LOG_DEBUG("Destroying with radiance_dx12");
+            if (radiance_dx12.dll != nullptr)
+                result = radiance_dx12.DestroyContext(context, memCb);
             break;
 
         default:
@@ -564,7 +590,7 @@ class FfxApiProxy
 
         if (result == FFX_API_RETURN_OK)
         {
-            LOG_DEBUG("Destroyed with rrDenoiser_dx12");
+            LOG_DEBUG("Destroyed with denoiser_dx12");
             return result;
         }
 
@@ -577,20 +603,6 @@ class FfxApiProxy
         if (result == FFX_API_RETURN_OK)
         {
             LOG_DEBUG("Destroyed with fg_dx12");
-            return result;
-        }
-
-        if (main_dx12.dll != nullptr && !_skipDestroyCalls)
-        {
-            LOG_DEBUG("Destroying with main_dx12");
-            _skipDestroyCalls = true;
-            result = main_dx12.DestroyContext(context, memCb);
-            _skipDestroyCalls = false;
-        }
-
-        if (result == FFX_API_RETURN_OK)
-        {
-            LOG_DEBUG("Destroyed with main_dx12");
             return result;
         }
 
@@ -614,10 +626,17 @@ class FfxApiProxy
             break;
 
         case FFXStructType::Denoiser:
-            pModule = &rrDenoiser_dx12;
+            pModule = &denoiser_dx12;
 
-            if (rrDenoiser_dx12.dll != nullptr)
-                return rrDenoiser_dx12.Configure(context, desc);
+            if (denoiser_dx12.dll != nullptr)
+                return denoiser_dx12.Configure(context, desc);
+            break;
+
+        case FFXStructType::RadianceCache:
+            pModule = &radiance_dx12;
+
+            if (radiance_dx12.dll != nullptr)
+                return radiance_dx12.Configure(context, desc);
             break;
 
         case FFXStructType::Upscaling:
@@ -661,10 +680,10 @@ class FfxApiProxy
             break;
 
         case FFXStructType::Denoiser:
-            pModule = &rrDenoiser_dx12;
+            pModule = &denoiser_dx12;
 
-            if (rrDenoiser_dx12.dll != nullptr)
-                return rrDenoiser_dx12.Query(context, desc);
+            if (denoiser_dx12.dll != nullptr)
+                return denoiser_dx12.Query(context, desc);
             break;
 
         case FFXStructType::Upscaling:
@@ -708,10 +727,10 @@ class FfxApiProxy
             break;
 
         case FFXStructType::Denoiser:
-            pModule = &rrDenoiser_dx12;
+            pModule = &denoiser_dx12;
 
-            if (rrDenoiser_dx12.dll != nullptr)
-                return rrDenoiser_dx12.Dispatch(context, desc);
+            if (denoiser_dx12.dll != nullptr)
+                return denoiser_dx12.Dispatch(context, desc);
             break;
 
         case FFXStructType::Upscaling:
@@ -898,5 +917,203 @@ class FfxApiProxy
         default:
             return "Unknown";
         }
+    }
+
+    static std::string GetTypeName(ffxStructType_t type)
+    {
+        switch ((uint64_t) type)
+        {
+        // General
+        case 1u:
+            return std::format("CONFIGURE_DESC_TYPE_GLOBALDEBUG1 ({:X})", type);
+
+        case 2u:
+            return std::format("CREATE_CONTEXT_DESC_TYPE_BACKEND_DX12 ({:X})", type);
+
+        case 3u:
+            return std::format("CREATE_CONTEXT_DESC_TYPE_BACKEND_VK ({:X})", type);
+
+        case 4u:
+            return std::format("QUERY_DESC_TYPE_GET_VERSIONS ({:X})", type);
+
+        case 5u:
+            return std::format("DESC_TYPE_OVERRIDE_VERSION ({:X})", type);
+
+        case 6u:
+            return std::format("QUERY_DESC_TYPE_GET_PROVIDER_VERSION ({:X})", type);
+
+        // Upscaling
+        case 0x00010000u:
+            return std::format("CREATE_CONTEXT_DESC_TYPE_UPSCALE ({:X})", type);
+
+        case 0x00010001u:
+            return std::format("DISPATCH_DESC_TYPE_UPSCALE ({:X})", type);
+
+        case 0x00010002u:
+            return std::format("QUERY_DESC_TYPE_UPSCALE_GETUPSCALERATIOFROMQUALITYMODE ({:X})", type);
+
+        case 0x00010003u:
+            return std::format("QUERY_DESC_TYPE_UPSCALE_GETRENDERRESOLUTIONFROMQUALITYMODE ({:X})", type);
+
+        case 0x00010004u:
+            return std::format("QUERY_DESC_TYPE_UPSCALE_GETJITTERPHASECOUNT ({:X})", type);
+
+        case 0x00010005u:
+            return std::format("QUERY_DESC_TYPE_UPSCALE_GETJITTEROFFSET ({:X})", type);
+
+        case 0x00010006u:
+            return std::format("DISPATCH_DESC_TYPE_UPSCALE_GENERATEREACTIVEMASK ({:X})", type);
+
+        case 0x00010007u:
+            return std::format("CONFIGURE_DESC_TYPE_UPSCALE_KEYVALUE ({:X})", type);
+
+        case 0x00010008u:
+            return std::format("QUERY_DESC_TYPE_UPSCALE_GPU_MEMORY_USAGE ({:X})", type);
+
+        case 0x00010009u:
+            return std::format("QUERY_DESC_TYPE_UPSCALE_GPU_MEMORY_USAGE_V2 ({:X})", type);
+
+        case 0x0001000au:
+            return std::format("QUERY_DESC_TYPE_UPSCALE_GET_RESOURCE_REQUIREMENTS ({:X})", type);
+
+        // FG
+        case 0x00020001u:
+            return std::format("CREATE_CONTEXT_DESC_TYPE_FRAMEGENERATION ({:X})", type);
+
+        case 0x00020005u:
+            return std::format("CALLBACK_DESC_TYPE_FRAMEGENERATION_PRESENT ({:X})", type);
+
+        case 0x00020003u:
+            return std::format("DISPATCH_DESC_TYPE_FRAMEGENERATION ({:X})", type);
+
+        case 0x00020002u:
+            return std::format("CONFIGURE_DESC_TYPE_FRAMEGENERATION ({:X})", type);
+
+        case 0x00020004u:
+            return std::format("DISPATCH_DESC_TYPE_FRAMEGENERATION_PREPARE ({:X})", type);
+
+        case 0x00020006u:
+            return std::format("CONFIGURE_DESC_TYPE_FRAMEGENERATION_KEYVALUE ({:X})", type);
+
+        case 0x00020007u:
+            return std::format("QUERY_DESC_TYPE_FRAMEGENERATION_GPU_MEMORY_USAGE ({:X})", type);
+
+        case 0x00020008u:
+            return std::format("CONFIGURE_DESC_TYPE_FRAMEGENERATION_REGISTERDISTORTIONRESOURCE ({:X})", type);
+
+        case 0x00020009u:
+            return std::format("CREATE_CONTEXT_DESC_TYPE_FRAMEGENERATION_HUDLESS ({:X})", type);
+
+        case 0x0002000au:
+            return std::format("DISPATCH_DESC_TYPE_FRAMEGENERATION_PREPARE_CAMERAINFO ({:X})", type);
+
+        case 0x0002000bu:
+            return std::format("QUERY_DESC_TYPE_FRAMEGENERATION_GPU_MEMORY_USAGE_V2 ({:X})", type);
+
+        case 0x0002000cu:
+            return std::format("DISPATCH_DESC_TYPE_FRAMEGENERATION_PREPARE_V2 ({:X})", type);
+
+        // DX12 Swapchain
+        case 0x00030001u:
+            return std::format("CREATE_CONTEXT_DESC_TYPE_FRAMEGENERATIONSWAPCHAIN_WRAP_DX12 ({:X})", type);
+
+        case 0x00030005u:
+            return std::format("CREATE_CONTEXT_DESC_TYPE_FRAMEGENERATIONSWAPCHAIN_NEW_DX12 ({:X})", type);
+
+        case 0x00030006u:
+            return std::format("CREATE_CONTEXT_DESC_TYPE_FRAMEGENERATIONSWAPCHAIN_FOR_HWND_DX12 ({:X})", type);
+
+        case 0x00030002u:
+            return std::format("CONFIGURE_DESC_TYPE_FRAMEGENERATIONSWAPCHAIN_REGISTERUIRESOURCE_DX12 ({:X})", type);
+
+        case 0x00030003u:
+            return std::format("QUERY_DESC_TYPE_FRAMEGENERATIONSWAPCHAIN_INTERPOLATIONCOMMANDLIST_DX12 ({:X})", type);
+
+        case 0x00030004u:
+            return std::format("QUERY_DESC_TYPE_FRAMEGENERATIONSWAPCHAIN_INTERPOLATIONTEXTURE_DX12 ({:X})", type);
+
+        case 0x00030007u:
+            return std::format("DISPATCH_DESC_TYPE_FRAMEGENERATIONSWAPCHAIN_WAIT_FOR_PRESENTS_DX12 ({:X})", type);
+
+        case 0x00030008u:
+            return std::format("CONFIGURE_DESC_TYPE_FRAMEGENERATIONSWAPCHAIN_KEYVALUE_DX12 ({:X})", type);
+
+        case 0x00030009u:
+            return std::format("QUERY_DESC_TYPE_FRAMEGENERATIONSWAPCHAIN_GPU_MEMORY_USAGE_DX12 ({:X})", type);
+
+        case 0x0003000au:
+            return std::format("QUERY_DESC_TYPE_FRAMEGENERATIONSWAPCHAIN_GPU_MEMORY_USAGE_DX12_V2 ({:X})", type);
+
+        // Vulkan Swapchain
+        case 0x00040001u:
+            return std::format("CREATE_CONTEXT_DESC_TYPE_FGSWAPCHAIN_VK ({:X})", type);
+
+        case 0x00040002u:
+            return std::format("CONFIGURE_DESC_TYPE_FGSWAPCHAIN_REGISTERUIRESOURCE_VK ({:X})", type);
+
+        case 0x00040003u:
+            return std::format("QUERY_DESC_TYPE_FGSWAPCHAIN_INTERPOLATIONCOMMANDLIST_VK ({:X})", type);
+
+        case 0x00040004u:
+            return std::format("QUERY_DESC_TYPE_FGSWAPCHAIN_INTERPOLATIONTEXTURE_VK ({:X})", type);
+
+        case 0x00040007u:
+            return std::format("DISPATCH_DESC_TYPE_FGSWAPCHAIN_WAIT_FOR_PRESENTS_VK ({:X})", type);
+
+        case 0x00040008u:
+            return std::format("CONFIGURE_DESC_TYPE_FRAMEGENERATIONSWAPCHAIN_KEYVALUE_VK ({:X})", type);
+
+        case 0x00040009u:
+            return std::format("QUERY_DESC_TYPE_FRAMEGENERATIONSWAPCHAIN_GPU_MEMORY_USAGE_VK ({:X})", type);
+
+        case 0x00040005u:
+            return std::format("QUERY_DESC_TYPE_FGSWAPCHAIN_FUNCTIONS_VK ({:X})", type);
+
+        case 0x00040010u:
+            return std::format("CREATE_CONTEXT_DESC_TYPE_FGSWAPCHAIN_MODE_VK ({:X})", type);
+
+        // Denoiser
+        case 0x00050001u:
+            return std::format("CREATE_CONTEXT_DESC_TYPE_DENOISER ({:X})", type);
+
+        case 0x00050002u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER ({:X})", type);
+
+        case 0x00050003u:
+            return std::format("DISPATCH_DESC_INPUT_4_SIGNALS_TYPE_DENOISER ({:X})", type);
+
+        case 0x00050004u:
+            return std::format("DISPATCH_DESC_INPUT_2_SIGNALS_TYPE_DENOISER ({:X})", type);
+
+        case 0x00050005u:
+            return std::format("DISPATCH_DESC_INPUT_1_SIGNAL_TYPE_DENOISER ({:X})", type);
+
+        case 0x00050007u:
+            return std::format("DISPATCH_DESC_INPUT_DOMINANT_LIGHT_TYPE_DENOISER ({:X})", type);
+
+        case 0x00050008u:
+            return std::format("CONFIGURE_DESC_TYPE_DENOISER_SETTINGS ({:X})", type);
+
+        case 0x00050009u:
+            return std::format("QUERY_DESC_TYPE_DENOISER_GPU_MEMORY_USAGE ({:X})", type);
+
+        case 0x0005000au:
+            return std::format("QUERY_DESC_TYPE_DENOISER_GET_VERSION ({:X})", type);
+
+        case 0x0005000bu:
+            return std::format("QUERY_DESC_TYPE_DENOISER_GET_DEFAULT_SETTINGS ({:X})", type);
+
+        // Radiance Cache
+        case 0x00060002u:
+            return std::format("CREATE_CONTEXT_DESC_TYPE_RADIANCECACHE ({:X})", type);
+
+        case 0x00060004u:
+            return std::format("DISPATCH_DESC_TYPE_RADIANCECACHE ({:X})", type);
+
+        case 0x00060005u:
+            return std::format("DEBUG_DISPATCH_DESC_TYPE_RADIANCECACHE ({:X})", type);
+        }
+
+        return std::format("??? ({:X})", type);
     }
 };

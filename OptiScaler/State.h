@@ -25,6 +25,13 @@ enum class FGPreset : uint32_t
     Nukems,
 };
 
+enum class FrameTimeSource : uint32_t
+{
+    Input,
+    Opti,
+    Zero,
+};
+
 enum class FGInput : uint32_t
 {
     NoFG,
@@ -150,6 +157,7 @@ class State
     bool reflexLimitsFps = false;
     bool reflexShowWarning = false;
     bool rtssReflexInjection = false;
+    UINT64 reflexFrameId = 0;
     UINT64 frameCount = 0;
 
     // for realtime changes

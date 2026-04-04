@@ -9,6 +9,8 @@
 #include <resource_tracking/ResTrack_Dx12.h>
 
 #include <proxies/D3D12_Proxy.h>
+#include <proxies/XeFG_Proxy.h>
+#include <proxies/XeSS_Proxy.h>
 #include <proxies/IGDExt_Proxy.h>
 #include <proxies/KernelBase_Proxy.h>
 
@@ -35,6 +37,10 @@ typedef HRESULT (*PFN_CreatePlacedResource)(ID3D12Device* device, ID3D12Heap* pH
                                             const D3D12_CLEAR_VALUE* pOptimizedClearValue, REFIID riid,
                                             void** ppvResource);
 
+typedef HRESULT(STDMETHODCALLTYPE* PFN_SetResidencyPriority)(ID3D12Device* This, UINT NumObjects,
+                                                             ID3D12Pageable* const* ppObjects,
+                                                             const D3D12_RESIDENCY_PRIORITY* pPriorities);
+
 typedef void(STDMETHODCALLTYPE* PFN_GetResourceAllocationInfo)(ID3D12Device* device,
                                                                D3D12_RESOURCE_ALLOCATION_INFO* pResult,
                                                                UINT visibleMask, UINT numResourceDescs,
@@ -53,6 +59,7 @@ static PFN_CreateSampler o_CreateSampler = nullptr;
 static PFN_CheckFeatureSupport o_CheckFeatureSupport = nullptr;
 static PFN_CreateCommittedResource o_CreateCommittedResource = nullptr;
 static PFN_CreatePlacedResource o_CreatePlacedResource = nullptr;
+static PFN_SetResidencyPriority o_SetResidencyPriority = nullptr;
 static PFN_GetResourceAllocationInfo o_GetResourceAllocationInfo = nullptr;
 static PFN_CreateRootSignature o_CreateRootSignature = nullptr;
 static PFN_D3D12GetInterface o_D3D12GetInterface = nullptr;
@@ -739,6 +746,29 @@ static HRESULT hkCreatePlacedResource(ID3D12Device* device, ID3D12Heap* pHeap, U
                                   ppvResource);
 }
 
+static HRESULT hkSetResidencyPriority(ID3D12Device* This, UINT NumObjects, ID3D12Pageable* const* ppObjects,
+                                      const D3D12_RESIDENCY_PRIORITY* pPriorities)
+{
+    auto result = o_SetResidencyPriority(This, NumObjects, ppObjects, pPriorities);
+
+    // HACK: AMD Windows 25.20 drivers fail in xess/xefg with E_INVALIDARG
+    // This hack allows them to work without the priority being actually set
+    if (FAILED(result))
+    {
+        auto callerModule = Util::GetCallerModule(_ReturnAddress());
+        auto xefgModule = XeFGProxy::Module();
+        auto xessgModule = XeSSProxy::Module();
+
+        if (callerModule == xefgModule || callerModule == xessgModule)
+        {
+            LOG_WARN("SetResidencyPriority failed, faking success for xess/xefg");
+            result = S_OK;
+        }
+    }
+
+    return result;
+}
+
 /*
 The Golden Rule of x64 Struct Returns
 If a Windows x64 function returns a struct larger than 8 bytes (and isn't a vector intrinsic):
@@ -987,6 +1017,19 @@ static void HookToDevice(ID3D12Device* InDevice)
     o_CreateCommittedResource = (PFN_CreateCommittedResource) pVTable[27];
     o_CreatePlacedResource = (PFN_CreatePlacedResource) pVTable[29];
 
+    ID3D12Device1* device12_1 = nullptr;
+    if (realDevice)
+        realDevice->QueryInterface(IID_PPV_ARGS(&device12_1));
+    else
+        InDevice->QueryInterface(IID_PPV_ARGS(&device12_1));
+
+    if (device12_1 /*&& isAMD*/)
+    {
+        PVOID* pVTable = *(PVOID**) device12_1;
+        o_SetResidencyPriority = (PFN_SetResidencyPriority) pVTable[46];
+        device12_1->Release();
+    }
+
     // Apply the detour
     if (o_CreateSampler != nullptr)
     {
@@ -1002,6 +1045,10 @@ static void HookToDevice(ID3D12Device* InDevice)
         // Will be used for tracking current d3d12 device too
         if (o_D3D12DeviceRelease != nullptr)
             DetourAttach(&(PVOID&) o_D3D12DeviceRelease, hkD3D12DeviceRelease);
+
+        // HACK: see reason in hkSetResidencyPriority
+        if (o_SetResidencyPriority != nullptr)
+            DetourAttach(&(PVOID&) o_SetResidencyPriority, hkSetResidencyPriority);
 
         if (Config::Instance()->UESpoofIntelAtomics64.value_or_default())
         {
@@ -1023,7 +1070,7 @@ static void HookToDevice(ID3D12Device* InDevice)
 
     HookToCommandList(InDevice);
 
-    if (State::Instance().activeFgInput == FGInput::Upscaler)
+    if (State::Instance().activeFgInput == FGInput::Upscaler && !Config::Instance()->FGDisableHUDFix.value_or_default())
         ResTrack_Dx12::HookDevice(InDevice);
 }
 

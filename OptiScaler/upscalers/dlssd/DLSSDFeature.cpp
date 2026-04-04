@@ -56,7 +56,7 @@ void DLSSDFeature::ProcessInitParams(NVSDK_NGX_Parameter* InParameters)
     InParameters->Set(NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags, featureFlags);
 
     // Resolution -----------------------------
-    if (State::Instance().api != Vulkan && Config::Instance()->OutputScalingEnabled.value_or_default() && LowResMV())
+    if (Config::Instance()->OutputScalingEnabled.value_or_default() && (LowResMV() || RenderWidth() == DisplayWidth()))
     {
         float ssMulti = Config::Instance()->OutputScalingMultiplier.value_or_default();
 

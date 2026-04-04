@@ -727,29 +727,11 @@ class NVNGXProxy
 
     static PFN_D3D11_GetFeatureRequirements D3D11_GetFeatureRequirements() { return _D3D11_GetFeatureRequirements; }
 
-    static PFN_D3D11_GetCapabilityParameters D3D11_GetCapabilityParameters()
-    {
-        if (!_dx11Inited)
-            return nullptr;
+    static PFN_D3D11_GetCapabilityParameters D3D11_GetCapabilityParameters() { return _D3D11_GetCapabilityParameters; }
 
-        return _D3D11_GetCapabilityParameters;
-    }
+    static PFN_D3D11_AllocateParameters D3D11_AllocateParameters() { return _D3D11_AllocateParameters; }
 
-    static PFN_D3D11_AllocateParameters D3D11_AllocateParameters()
-    {
-        if (!_dx11Inited)
-            return nullptr;
-
-        return _D3D11_AllocateParameters;
-    }
-
-    static PFN_D3D11_GetParameters D3D11_GetParameters()
-    {
-        if (!_dx11Inited)
-            return nullptr;
-
-        return _D3D11_GetParameters;
-    }
+    static PFN_D3D11_GetParameters D3D11_GetParameters() { return _D3D11_GetParameters; }
 
     static PFN_D3D11_DestroyParameters D3D11_DestroyParameters()
     {
@@ -849,29 +831,11 @@ class NVNGXProxy
 
     static PFN_D3D12_GetFeatureRequirements D3D12_GetFeatureRequirements() { return _D3D12_GetFeatureRequirements; }
 
-    static PFN_D3D12_GetCapabilityParameters D3D12_GetCapabilityParameters()
-    {
-        if (!_dx12Inited)
-            return nullptr;
+    static PFN_D3D12_GetCapabilityParameters D3D12_GetCapabilityParameters() { return _D3D12_GetCapabilityParameters; }
 
-        return _D3D12_GetCapabilityParameters;
-    }
+    static PFN_D3D12_AllocateParameters D3D12_AllocateParameters() { return _D3D12_AllocateParameters; }
 
-    static PFN_D3D12_AllocateParameters D3D12_AllocateParameters()
-    {
-        if (!_dx12Inited)
-            return nullptr;
-
-        return _D3D12_AllocateParameters;
-    }
-
-    static PFN_D3D12_GetParameters D3D12_GetParameters()
-    {
-        if (!_dx12Inited)
-            return nullptr;
-
-        return _D3D12_GetParameters;
-    }
+    static PFN_D3D12_GetParameters D3D12_GetParameters() { return _D3D12_GetParameters; }
 
     static PFN_D3D12_DestroyParameters D3D12_DestroyParameters()
     {
@@ -988,27 +952,12 @@ class NVNGXProxy
 
     static PFN_VULKAN_GetCapabilityParameters VULKAN_GetCapabilityParameters()
     {
-        if (!_vulkanInited)
-            return nullptr;
-
         return _VULKAN_GetCapabilityParameters;
     }
 
-    static PFN_VULKAN_AllocateParameters VULKAN_AllocateParameters()
-    {
-        if (!_vulkanInited)
-            return nullptr;
+    static PFN_VULKAN_AllocateParameters VULKAN_AllocateParameters() { return _VULKAN_AllocateParameters; }
 
-        return _VULKAN_AllocateParameters;
-    }
-
-    static PFN_VULKAN_GetParameters VULKAN_GetParameters()
-    {
-        if (!_vulkanInited)
-            return nullptr;
-
-        return _VULKAN_GetParameters;
-    }
+    static PFN_VULKAN_GetParameters VULKAN_GetParameters() { return _VULKAN_GetParameters; }
 
     static PFN_VULKAN_DestroyParameters VULKAN_DestroyParameters()
     {

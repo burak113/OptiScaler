@@ -503,25 +503,47 @@ HRESULT IFeature_Dx11wDx12::CreateDx12Device(D3D_FEATURE_LEVEL InFeatureLevel)
 
 bool IFeature_Dx11wDx12::ProcessDx11Textures(const NVSDK_NGX_Parameter* InParameters)
 {
+    HRESULT result;
+
     // Wait for last frame
     if (Dx12Fence->GetCompletedValue() < _frameCount)
     {
-        Dx12Fence->SetEventOnCompletion(_frameCount, Dx12FenceEvent);
+        result = Dx12Fence->SetEventOnCompletion(_frameCount, Dx12FenceEvent);
+        if (result != S_OK)
+        {
+            LOG_ERROR("SetEventOnCompletion error: {:X}", (UINT) result);
+            return false;
+        }
+
         WaitForSingleObject(Dx12FenceEvent, INFINITE);
     }
 
     auto frame = _frameCount % 2;
 
-    Dx12CommandAllocator[frame]->Reset();
-    Dx12CommandList[frame]->Reset(Dx12CommandAllocator[frame], nullptr);
+    result = Dx12CommandAllocator[frame]->Reset();
+    if (result != S_OK)
+    {
+        LOG_ERROR("CommandAllocator Reset error: {:X}", (UINT) result);
+        return false;
+    }
 
-    HRESULT result;
+    result = Dx12CommandList[frame]->Reset(Dx12CommandAllocator[frame], nullptr);
+    if (result != S_OK)
+    {
+        LOG_ERROR("CommandList Reset error: {:X}", (UINT) result);
+        return false;
+    }
 
     auto dontUseNTS = Config::Instance()->DontUseNTShared.value_or_default();
 
 #pragma region Texture copies
 
-    ID3D11Resource* paramColor;
+    ID3D11Resource* paramColor = nullptr;
+    ID3D11Resource* paramMv = nullptr;
+    ID3D11Resource* paramDepth = nullptr;
+    ID3D11Resource* paramExposure = nullptr;
+    ID3D11Resource* paramReactiveMask = nullptr;
+
     if (InParameters->Get(NVSDK_NGX_Parameter_Color, &paramColor) != NVSDK_NGX_Result_Success)
         InParameters->Get(NVSDK_NGX_Parameter_Color, (void**) &paramColor);
 
@@ -537,7 +559,6 @@ bool IFeature_Dx11wDx12::ProcessDx11Textures(const NVSDK_NGX_Parameter* InParame
         return false;
     }
 
-    ID3D11Resource* paramMv;
     if (InParameters->Get(NVSDK_NGX_Parameter_MotionVectors, &paramMv) != NVSDK_NGX_Result_Success)
         InParameters->Get(NVSDK_NGX_Parameter_MotionVectors, (void**) &paramMv);
 
@@ -568,7 +589,6 @@ bool IFeature_Dx11wDx12::ProcessDx11Textures(const NVSDK_NGX_Parameter* InParame
         return false;
     }
 
-    ID3D11Resource* paramDepth;
     if (InParameters->Get(NVSDK_NGX_Parameter_Depth, &paramDepth) != NVSDK_NGX_Result_Success)
         InParameters->Get(NVSDK_NGX_Parameter_Depth, (void**) &paramDepth);
 
@@ -582,7 +602,6 @@ bool IFeature_Dx11wDx12::ProcessDx11Textures(const NVSDK_NGX_Parameter* InParame
     else
         LOG_ERROR("IFeature_Dx11wDx12::Evaluate Depth not exist!!");
 
-    ID3D11Resource* paramExposure = nullptr;
     if (AutoExposure())
     {
         LOG_DEBUG("AutoExposure enabled!");
@@ -607,7 +626,6 @@ bool IFeature_Dx11wDx12::ProcessDx11Textures(const NVSDK_NGX_Parameter* InParame
         }
     }
 
-    ID3D11Resource* paramReactiveMask = nullptr;
     if (InParameters->Get(NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, &paramReactiveMask) !=
         NVSDK_NGX_Result_Success)
         InParameters->Get(NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, (void**) &paramReactiveMask);
@@ -645,6 +663,8 @@ bool IFeature_Dx11wDx12::ProcessDx11Textures(const NVSDK_NGX_Parameter* InParame
                 LOG_ERROR("Can't create dx11FenceTextureCopy {0:x}", result);
                 return false;
             }
+
+            LOG_INFO("dx11FenceTextureCopy created successfully!");
         }
 
         if (dx11SHForTextureCopy == nullptr)
@@ -653,7 +673,7 @@ bool IFeature_Dx11wDx12::ProcessDx11Textures(const NVSDK_NGX_Parameter* InParame
 
             if (result != S_OK)
             {
-                LOG_ERROR("Can't create sharedhandle for dx11FenceTextureCopy {0:x}", result);
+                LOG_ERROR("Can't create sharedhandle for dx11FenceTextureCopy {:X}", (UINT) result);
                 return false;
             }
 
@@ -661,22 +681,25 @@ bool IFeature_Dx11wDx12::ProcessDx11Textures(const NVSDK_NGX_Parameter* InParame
 
             if (result != S_OK)
             {
-                LOG_ERROR("Can't create open sharedhandle for dx12FenceTextureCopy {0:x}", result);
+                LOG_ERROR("Can't create open sharedhandle for dx12FenceTextureCopy {:X}", (UINT) result);
                 return false;
             }
+
+            LOG_INFO("dx12FenceTextureCopy created successfully from shared handle!");
         }
 
         // Fence
         LOG_DEBUG("Dx11 Signal & Dx12 Wait!");
 
         result = Dx11DeviceContext->Signal(dx11FenceTextureCopy, _fenceValue);
-        Dx11DeviceContext->Flush();
 
         if (result != S_OK)
         {
-            LOG_ERROR("Dx11DeviceContext->Signal(dx11FenceTextureCopy, 10) : {0:x}!", result);
+            LOG_ERROR("Dx11DeviceContext->Signal(dx11FenceTextureCopy, {}) : {:X}!", _fenceValue, (UINT) result);
             return false;
         }
+
+        Dx11DeviceContext->Flush();
 
         // Gpu Sync
         result = Dx12CommandQueue->Wait(dx12FenceTextureCopy, _fenceValue);
@@ -684,7 +707,7 @@ bool IFeature_Dx11wDx12::ProcessDx11Textures(const NVSDK_NGX_Parameter* InParame
 
         if (result != S_OK)
         {
-            LOG_ERROR("Dx12CommandQueue->Wait(dx12fence_1, 10) : {0:x}!", result);
+            LOG_ERROR("Dx12CommandQueue->Wait(dx12fence_1, {}) : {:X}!", _fenceValue, result);
             return false;
         }
     }

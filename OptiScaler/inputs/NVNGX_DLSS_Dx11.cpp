@@ -185,7 +185,6 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D11_Init_with_ProjectID(
     const wchar_t* InApplicationDataPath, ID3D11Device* InDevice, const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo,
     NVSDK_NGX_Version InSDKVersion)
 {
-    ScopedInit scopedInit {};
     auto result = NVSDK_NGX_D3D11_Init_Ext(0x1337, InApplicationDataPath, InDevice, InSDKVersion, InFeatureInfo);
 
     LOG_INFO("InProjectId: {0}", InProjectId);
@@ -456,18 +455,18 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D11_CreateFeature(ID3D11DeviceContext
     auto deviceContext = Dx11Contexts[handleId].feature.get();
     *OutHandle = deviceContext->Handle();
 
+    // Always get device from context to avoid issues with Dx11 w/Dx12
+    LOG_DEBUG("Get Dx11Device from InDevCtx!");
+    InDevCtx->GetDevice(&D3D11Device);
+    evalCounter = 0;
+
     if (!D3D11Device)
     {
-        LOG_DEBUG("Get Dx11Device from InDevCtx!");
-        InDevCtx->GetDevice(&D3D11Device);
-        evalCounter = 0;
-
-        if (!D3D11Device)
-        {
-            LOG_ERROR("Can't get Dx11Device from InDevCtx!");
-            return NVSDK_NGX_Result_Fail;
-        }
+        LOG_ERROR("Can't get Dx11Device from InDevCtx!");
+        return NVSDK_NGX_Result_Fail;
     }
+
+    D3D11Device->Release();
 
     State::Instance().AutoExposure.reset();
 

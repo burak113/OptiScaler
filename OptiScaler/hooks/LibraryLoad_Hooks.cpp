@@ -267,6 +267,14 @@ HMODULE LibraryLoadHooks::LoadLibraryCheckW(std::wstring libName, LPCWSTR lpLibF
         return commonModule;
     }
 
+    // Make EOS block separate as it's the only one having issues with non-OptiFG FGs
+    if (!Config::Instance()->DisableOverlays.has_value() && State::Instance().activeFgOutput != FGOutput::NoFG &&
+        CheckDllName(libName, eosOverlayNamesW))
+    {
+        LOG_DEBUG("Blocking overlay dll: {}", wstring_to_string(libName));
+        return (HMODULE) 1337;
+    }
+
     if (CheckDllName(libName, blockedDllNamesW))
     {
         LOG_DEBUG("Blocking dll: {}", wstring_to_string(libName));

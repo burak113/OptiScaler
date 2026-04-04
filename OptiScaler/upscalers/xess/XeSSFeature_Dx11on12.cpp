@@ -180,7 +180,8 @@ bool XeSSFeatureDx11on12::Evaluate(ID3D11DeviceContext* InDeviceContext, NVSDK_N
 
     _sharpness = GetSharpness(InParameters);
 
-    bool useSS = Config::Instance()->OutputScalingEnabled.value_or(false) && LowResMV();
+    bool useSS =
+        Config::Instance()->OutputScalingEnabled.value_or_default() && (LowResMV() || RenderWidth() == DisplayWidth());
 
     LOG_DEBUG("Input Resolution: {0}x{1}", params.inputWidth, params.inputHeight);
 

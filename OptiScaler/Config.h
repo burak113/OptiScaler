@@ -310,7 +310,7 @@ class Config
         L"idtechlauncher.exe|cefviewwing.exe|ace-setup64.exe|ace-service64.exe|qtwebengineprocess.exe|"
         L"platformprocess.exe|bugsplathd64.exe|bssndrpt64.exe|pspcsdkappmgr.exe|pspcsdkcore.exe|pspcsdkstttts.exe|"
         L"pspcsdktelemetry.exe|pspcsdkui.exe|pspcsdkupdatechecker.exe|pspcsdkvoicechat.exe|pspcsdkwebview.exe|windhawk."
-        L"exe|vscodium.exe|crash_reporter.exe|steamerrorreporter64.exe"
+        L"exe|vscodium.exe|crash_reporter.exe|steamerrorreporter64.exe|crashreportclient.exe"
     };
 
     // Hotfixes
@@ -411,6 +411,7 @@ class Config
 
     // NVAPI Override
     CustomOptional<bool> OverrideNvapiDll { false };
+    CustomOptional<bool> DontUseFakenvapiForXeLLOnNvidia { false };
     CustomOptional<std::wstring, NoDefault> NvapiDllPath;
     CustomOptional<bool> DisableFlipMetering { false };
 
@@ -433,7 +434,7 @@ class Config
     CustomOptional<bool> UESpoofIntelAtomics64 { false };
     CustomOptional<bool> SpoofRegistry { false };
     CustomOptional<bool> SpoofUser32 { false };
-    CustomOptional<std::wstring> SpoofedDriver { L"32.0.15.7302" };
+    CustomOptional<std::wstring> SpoofedDriver { L"32.0.15.9155" };
 
     // Plugins
     CustomOptional<std::wstring> PluginPath { L"plugins" };
@@ -454,6 +455,11 @@ class Config
     CustomOptional<bool> FGVelocityValidNow { false };
     CustomOptional<bool> FGHudlessValidNow { false };
     CustomOptional<bool> FGOnlyAcceptFirstHudless { false };
+    CustomOptional<bool> FGPreserveSwapChain { true };
+    CustomOptional<bool> FGSkipResizeBuffers { true };
+    CustomOptional<bool> FGModifyBufferState { false };
+    CustomOptional<bool> FGModifySCIndex { false };
+    CustomOptional<FrameTimeSource> FTInput { FrameTimeSource::Input };
 
     // OptiFG
     CustomOptional<bool> FGEnabled { false };
@@ -470,6 +476,7 @@ class Config
     CustomOptional<int, NoDefault> FGRectHeight;
 
     // OptiFG - Hudfix
+    CustomOptional<bool> FGDisableHUDFix { false };
     CustomOptional<bool> FGHUDFix { false };
     CustomOptional<int> FGHUDLimit { 1 };
     CustomOptional<bool> FGHUDFixExtended { false };
@@ -521,12 +528,6 @@ class Config
     CustomOptional<bool> FGXeFGHighResMV { false };
     CustomOptional<bool> FGXeFGDebugView { false };
     CustomOptional<bool> FGXeFGForceBorderless { false };
-
-    // FG
-    CustomOptional<bool> FGPreserveSwapChain { true };
-    CustomOptional<bool> FGSkipResizeBuffers { true };
-    CustomOptional<bool> FGModifyBufferState { false };
-    CustomOptional<bool> FGModifySCIndex { false };
 
     // fakenvapi
     CustomOptional<bool> FN_EnableLogs { true };

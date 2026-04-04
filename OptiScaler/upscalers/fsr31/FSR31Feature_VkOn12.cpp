@@ -191,7 +191,8 @@ bool FSR31FeatureVkOn12::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Paramet
 
     GetRenderResolution(InParameters, &params.renderSize.width, &params.renderSize.height);
 
-    bool useSS = Config::Instance()->OutputScalingEnabled.value_or_default() && LowResMV();
+    bool useSS =
+        Config::Instance()->OutputScalingEnabled.value_or_default() && (LowResMV() || RenderWidth() == DisplayWidth());
 
     LOG_DEBUG("Input Resolution: {0}x{1}", params.renderSize.width, params.renderSize.height);
 
@@ -611,7 +612,8 @@ bool FSR31FeatureVkOn12::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
             LOG_INFO("contextDesc.initFlags (NonLinearColorSpace) {0:b}", _upscaleCtxDesc.flags);
         }
 
-        if (Config::Instance()->OutputScalingEnabled.value_or_default() && LowResMV())
+        if (Config::Instance()->OutputScalingEnabled.value_or_default() &&
+            (LowResMV() || RenderWidth() == DisplayWidth()))
         {
             float ssMulti = Config::Instance()->OutputScalingMultiplier.value_or_default();
 
@@ -644,7 +646,8 @@ bool FSR31FeatureVkOn12::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
             Config::Instance()->OutputScalingMultiplier.set_volatile_value(1.0f);
 
             // If output scaling is active, let it handle downsampling
-            if (Config::Instance()->OutputScalingEnabled.value_or_default() && LowResMV())
+            if (Config::Instance()->OutputScalingEnabled.value_or_default() &&
+                (LowResMV() || RenderWidth() == DisplayWidth()))
             {
                 _upscaleCtxDesc.maxUpscaleSize.width = _upscaleCtxDesc.maxRenderSize.width;
                 _upscaleCtxDesc.maxUpscaleSize.height = _upscaleCtxDesc.maxRenderSize.height;

@@ -26,7 +26,7 @@ class FGHooks
                                           DXGI_FORMAT Format, UINT SwapChainFlags, const UINT* pCreationNodeMask,
                                           IUnknown* const* ppPresentQueue);
     typedef HRESULT (*PFN_ResizeTarget)(IDXGISwapChain* This, DXGI_MODE_DESC* pNewTargetParameters);
-    typedef HRESULT (*PFN_Release)(IDXGISwapChain* This);
+    typedef ULONG (*PFN_Release)(IDXGISwapChain* This);
 
     inline static PFN_ResizeBuffers o_FGSCResizeBuffers = nullptr;
     inline static PFN_ResizeTarget o_FGSCResizeTarget = nullptr;
@@ -43,7 +43,7 @@ class FGHooks
     inline static bool _skipPresent = false;
     inline static bool _skipPresent1 = false;
     inline static UINT _lastPresentFlags = 0;
-    inline static double _lastFGFrameTime = 0.0;
+    inline static double _lastFGFrameTime = -1.0;
 
     static void HookFGSwapchain(IDXGISwapChain* pSwapChain);
 
@@ -56,7 +56,7 @@ class FGHooks
     static HRESULT hkResizeBuffers1(IDXGISwapChain* This, UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT Format,
                                     UINT SwapChainFlags, const UINT* pCreationNodeMask,
                                     IUnknown* const* ppPresentQueue);
-    static HRESULT hkFGRelease(IDXGISwapChain* This);
+    static ULONG hkFGRelease(IDXGISwapChain* This);
 
     static HRESULT hkFGPresent(void* This, UINT SyncInterval, UINT Flags);
     static HRESULT hkFGPresent1(void* This, UINT SyncInterval, UINT Flags,

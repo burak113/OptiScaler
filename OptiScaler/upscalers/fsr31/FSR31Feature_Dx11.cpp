@@ -232,7 +232,8 @@ bool FSR31FeatureDx11::Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Pa
 
     GetRenderResolution(InParameters, &params.renderSize.width, &params.renderSize.height);
 
-    bool useSS = Config::Instance()->OutputScalingEnabled.value_or_default() && LowResMV();
+    bool useSS =
+        Config::Instance()->OutputScalingEnabled.value_or_default() && (LowResMV() || RenderWidth() == DisplayWidth());
 
     LOG_DEBUG("Input Resolution: {0}x{1}", params.renderSize.width, params.renderSize.height);
 
@@ -702,7 +703,8 @@ bool FSR31FeatureDx11::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
             LOG_INFO("contextDesc.initFlags (NonLinearColorSpace) {0:b}", _upscalerContextDesc.flags);
         }
 
-        if (Config::Instance()->OutputScalingEnabled.value_or_default() && LowResMV())
+        if (Config::Instance()->OutputScalingEnabled.value_or_default() &&
+            (LowResMV() || RenderWidth() == DisplayWidth()))
         {
             float ssMulti = Config::Instance()->OutputScalingMultiplier.value_or_default();
 
@@ -735,7 +737,8 @@ bool FSR31FeatureDx11::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
             Config::Instance()->OutputScalingMultiplier.set_volatile_value(1.0f);
 
             // if output scaling active let it to handle downsampling
-            if (Config::Instance()->OutputScalingEnabled.value_or_default() && LowResMV())
+            if (Config::Instance()->OutputScalingEnabled.value_or_default() &&
+                (LowResMV() || RenderWidth() == DisplayWidth()))
             {
                 _upscalerContextDesc.maxUpscaleSize.width = _upscalerContextDesc.maxRenderSize.width;
                 _upscalerContextDesc.maxUpscaleSize.height = _upscalerContextDesc.maxRenderSize.height;

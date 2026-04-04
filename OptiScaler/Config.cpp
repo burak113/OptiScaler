@@ -100,6 +100,13 @@ bool Config::Reload(std::filesystem::path iniPath)
                     FGOutput.set_from_config(FGOutput::XeFG);
             }
 
+            auto ftInput = readInt("FrameGen", "FTSource");
+            if (ftInput.has_value() && ftInput.value() >= 0 &&
+                ftInput.value() <= (FGOutput.value_or_default() == FGOutput::XeFG ? 2 : 1))
+            {
+                FTInput.set_from_config(static_cast<FrameTimeSource>(ftInput.value()));
+            }
+
             FGDrawUIOverFG.set_from_config(readBool("FrameGen", "DrawUIOverFG"));
             FGUIPremultipliedAlpha.set_from_config(readBool("FrameGen", "UIPremultipliedAlpha"));
             FGDisableHudless.set_from_config(readBool("FrameGen", "DisableHudless"));
@@ -118,6 +125,10 @@ bool Config::Reload(std::filesystem::path iniPath)
             FGVelocityValidNow.set_from_config(readBool("FrameGen", "VelocityValidNow"));
             FGHudlessValidNow.set_from_config(readBool("FrameGen", "HudlessValidNow"));
             FGOnlyAcceptFirstHudless.set_from_config(readBool("FrameGen", "OnlyAcceptFirstHudless"));
+            FGPreserveSwapChain.set_from_config(readBool("FrameGen", "PreserveSwapChain"));
+            FGSkipResizeBuffers.set_from_config(readBool("FrameGen", "SkipResizeBuffers"));
+            FGModifyBufferState.set_from_config(readBool("FrameGen", "ModifyBufferState"));
+            FGModifySCIndex.set_from_config(readBool("FrameGen", "ModifySCIndex"));
         }
 
         // FSR FG
@@ -138,6 +149,7 @@ bool Config::Reload(std::filesystem::path iniPath)
 
         // OptiFG
         {
+            FGDisableHUDFix.set_from_config(readBool("OptiFG", "DisableHUDFix"));
             FGHUDFix.set_from_config(readBool("OptiFG", "HUDFix"));
             FGHUDLimit.set_from_config(readInt("OptiFG", "HUDLimit"));
             FGHUDFixExtended.set_from_config(readBool("OptiFG", "HUDFixExtended"));
@@ -182,10 +194,6 @@ bool Config::Reload(std::filesystem::path iniPath)
             FGXeFGHighResMV.set_from_config(readBool("XeFG", "HighResMV"));
             FGXeFGDebugView.set_from_config(readBool("XeFG", "DebugView"));
             FGXeFGForceBorderless.set_from_config(readBool("XeFG", "ForceBorderless"));
-            FGPreserveSwapChain.set_from_config(readBool("XeFG", "PreserveSwapChain"));
-            FGSkipResizeBuffers.set_from_config(readBool("XeFG", "SkipResizeBuffers"));
-            FGModifyBufferState.set_from_config(readBool("XeFG", "ModifyBufferState"));
-            FGModifySCIndex.set_from_config(readBool("XeFG", "ModifySCIndex"));
         }
 
         // FSR FG Inputs
@@ -581,6 +589,7 @@ bool Config::Reload(std::filesystem::path iniPath)
         // NvApi
         {
             OverrideNvapiDll.set_from_config(readBool("NvApi", "OverrideNvapiDll"));
+            DontUseFakenvapiForXeLLOnNvidia.set_from_config(readBool("NvApi", "DontUseFakenvapiForXeLLOnNvidia"));
             NvapiDllPath.set_from_config(readWString("NvApi", "NvapiDllPath", true));
             DisableFlipMetering.set_from_config(readBool("NvApi", "DisableFlipMetering"));
         }
@@ -606,6 +615,13 @@ bool Config::Reload(std::filesystem::path iniPath)
             SpoofRegistry.set_from_config(readBool("Spoofing", "Registry"));
             SpoofedDriver.set_from_config(readWString("Spoofing", "RegistryDriver"));
             SpoofUser32.set_from_config(readBool("Spoofing", "User32"));
+
+            // Enable HAGS when DLSS-G will be used
+            if (!SpoofHAGS.has_value())
+            {
+                SpoofHAGS.set_volatile_value(FGInput.value_or_default() == FGInput::Nukems ||
+                                             FGInput.value_or_default() == FGInput::DLSSG);
+            }
         }
 
         // Inputs
@@ -774,6 +790,12 @@ bool Config::SaveIni()
                 FGOutputString = "XeFG";
         }
         ini.SetValue("FrameGen", "FGOutput", FGOutputString.c_str());
+
+        std::optional<int> ftInput;
+        if (Instance()->FTInput.has_value())
+            ftInput = (int) Instance()->FTInput.value();
+
+        ini.SetValue("FrameGen", "FTInput", GetIntValue(ftInput).c_str());
         ini.SetValue("FrameGen", "DrawUIOverFG", GetBoolValue(Instance()->FGDrawUIOverFG.value_for_config()).c_str());
         ini.SetValue("FrameGen", "UIPremultipliedAlpha",
                      GetBoolValue(Instance()->FGUIPremultipliedAlpha.value_for_config()).c_str());
@@ -794,6 +816,13 @@ bool Config::SaveIni()
                      GetBoolValue(Instance()->FGHudlessValidNow.value_for_config()).c_str());
         ini.SetValue("FrameGen", "OnlyAcceptFirstHudless",
                      GetBoolValue(Instance()->FGOnlyAcceptFirstHudless.value_for_config()).c_str());
+        ini.SetValue("FrameGen", "PreserveSwapChain",
+                     GetBoolValue(Instance()->FGPreserveSwapChain.value_for_config()).c_str());
+        ini.SetValue("FrameGen", "SkipResizeBuffers",
+                     GetBoolValue(Instance()->FGSkipResizeBuffers.value_for_config()).c_str());
+        ini.SetValue("FrameGen", "ModifyBufferState",
+                     GetBoolValue(Instance()->FGModifyBufferState.value_for_config()).c_str());
+        ini.SetValue("FrameGen", "ModifySCIndex", GetBoolValue(Instance()->FGModifySCIndex.value_for_config()).c_str());
     }
 
     // FSR FG output
@@ -835,17 +864,11 @@ bool Config::SaveIni()
         ini.SetValue("XeFG", "DebugView", GetBoolValue(Instance()->FGXeFGDebugView.value_for_config()).c_str());
         ini.SetValue("XeFG", "ForceBorderless",
                      GetBoolValue(Instance()->FGXeFGForceBorderless.value_for_config()).c_str());
-        ini.SetValue("XeFG", "PreserveSwapChain",
-                     GetBoolValue(Instance()->FGPreserveSwapChain.value_for_config()).c_str());
-        ini.SetValue("XeFG", "SkipResizeBuffers",
-                     GetBoolValue(Instance()->FGSkipResizeBuffers.value_for_config()).c_str());
-        ini.SetValue("XeFG", "ModifyBufferState",
-                     GetBoolValue(Instance()->FGModifyBufferState.value_for_config()).c_str());
-        ini.SetValue("XeFG", "ModifySCIndex", GetBoolValue(Instance()->FGModifySCIndex.value_for_config()).c_str());
     }
 
     // OptiFG
     {
+        ini.SetValue("OptiFG", "DisableHUDFix", GetBoolValue(Instance()->FGDisableHUDFix.value_for_config()).c_str());
         ini.SetValue("OptiFG", "HUDFix", GetBoolValue(Instance()->FGHUDFix.value_for_config()).c_str());
         ini.SetValue("OptiFG", "HUDLimit", GetIntValue(Instance()->FGHUDLimit.value_for_config()).c_str());
         ini.SetValue("OptiFG", "HUDFixExtended", GetBoolValue(Instance()->FGHUDFixExtended.value_for_config()).c_str());
@@ -1243,6 +1266,8 @@ bool Config::SaveIni()
     {
         ini.SetValue("NvApi", "OverrideNvapiDll",
                      GetBoolValue(Instance()->OverrideNvapiDll.value_for_config()).c_str());
+        ini.SetValue("NvApi", "DontUseFakenvapiForXeLLOnNvidia",
+                     GetBoolValue(Instance()->DontUseFakenvapiForXeLLOnNvidia.value_for_config()).c_str());
         ini.SetValue("NvApi", "NvapiDllPath",
                      wstring_to_string(Instance()->NvapiDllPath.value_for_config_or(L"auto")).c_str());
         ini.SetValue("NvApi", "DisableFlipMetering",
@@ -1295,13 +1320,6 @@ bool Config::SaveIni()
         ini.SetValue("Spoofing", "RegistryDriver",
                      wstring_to_string(Instance()->SpoofedDriver.value_for_config_or(L"auto")).c_str());
         ini.SetValue("Spoofing", "User32", GetBoolValue(Instance()->SpoofUser32.value_for_config()).c_str());
-
-        // Enable HAGS when DLSS-G will be used
-        if (!Instance()->SpoofHAGS.has_value())
-        {
-            Instance()->SpoofHAGS.set_volatile_value(Instance()->FGInput.value_or_default() == FGInput::Nukems ||
-                                                     Instance()->FGInput.value_or_default() == FGInput::DLSSG);
-        }
     }
 
     // Plugins

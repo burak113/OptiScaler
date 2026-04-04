@@ -112,7 +112,8 @@ bool DLSSFeatureVk::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* I
 
         _sharpness = GetSharpness(InParameters);
         float ssMulti = Config::Instance()->OutputScalingMultiplier.value_or(1.5f);
-        bool useSS = Config::Instance()->OutputScalingEnabled.value_or(false) && LowResMV();
+        bool useSS = Config::Instance()->OutputScalingEnabled.value_or_default() &&
+                     (LowResMV() || RenderWidth() == DisplayWidth());
 
         bool rcasEnabled = Config::Instance()->RcasEnabled.value_or(true) &&
                            (_sharpness > 0.0f || (Config::Instance()->MotionSharpnessEnabled.value_or(false) &&

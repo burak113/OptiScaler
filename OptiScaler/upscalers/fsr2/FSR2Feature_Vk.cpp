@@ -37,7 +37,8 @@ bool FSR2FeatureVk::InitFSR2(const NVSDK_NGX_Parameter* InParameters)
 
         _contextDesc.device = ffxGetDeviceVK(Device);
 
-        if (Config::Instance()->OutputScalingEnabled.value_or_default() && LowResMV())
+        if (Config::Instance()->OutputScalingEnabled.value_or_default() &&
+            (LowResMV() || RenderWidth() == DisplayWidth()))
         {
             float ssMulti = Config::Instance()->OutputScalingMultiplier.value_or_default();
 
@@ -70,7 +71,8 @@ bool FSR2FeatureVk::InitFSR2(const NVSDK_NGX_Parameter* InParameters)
             Config::Instance()->OutputScalingMultiplier.set_volatile_value(1.0f);
 
             // if output scaling active let it to handle downsampling
-            if (Config::Instance()->OutputScalingEnabled.value_or_default() && LowResMV())
+            if (Config::Instance()->OutputScalingEnabled.value_or_default() &&
+                (LowResMV() || RenderWidth() == DisplayWidth()))
             {
 
                 _contextDesc.displaySize.width = _contextDesc.maxRenderSize.width;
@@ -377,7 +379,8 @@ bool FSR2FeatureVk::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* I
 
     _sharpness = GetSharpness(InParameters);
     float ssMulti = Config::Instance()->OutputScalingMultiplier.value_or(1.5f);
-    bool useSS = Config::Instance()->OutputScalingEnabled.value_or(false) && LowResMV();
+    bool useSS =
+        Config::Instance()->OutputScalingEnabled.value_or_default() && (LowResMV() || RenderWidth() == DisplayWidth());
 
     bool rcasEnabled = Config::Instance()->RcasEnabled.value_or(true) &&
                        (_sharpness > 0.0f || (Config::Instance()->MotionSharpnessEnabled.value_or(false) &&

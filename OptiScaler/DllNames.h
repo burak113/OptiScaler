@@ -37,142 +37,76 @@ inline std::vector<std::wstring> dllNamesW;
 
 //"rtsshooks64.dll", "rtsshooks64", "rtsshooks.dll", "rtsshooks",
 
-inline const std::vector<std::string> overlayNames = { "eosovh-win32-shipping.dll",
-                                                       "eosovh-win32-shipping",
-                                                       "eosovh-win64-shipping.dll",
-                                                       "eosovh-win64-shipping", // Epic
-                                                       "gameoverlayrenderer64",
-                                                       "gameoverlayrenderer64.dll",
-                                                       "gameoverlayrenderer",
-                                                       "gameoverlayrenderer.dll", // Steam
-                                                       "socialclubd3d12renderer",
-                                                       "socialclubd3d12renderer.dll", // Rockstar
-                                                       "owutils.dll",
-                                                       "owutils", // Overwolf
-                                                       "galaxy.dll",
-                                                       "galaxy",
-                                                       "galaxy64.dll",
-                                                       "galaxy64", // GOG Galaxy
-                                                       "discordoverlay.dll",
-                                                       "discordoverlay",
-                                                       "discordoverlay64.dll",
-                                                       "discordoverlay64", // Discord
-                                                       "overlay64",
-                                                       "overlay64.dll",
-                                                       "overlay",
-                                                       "overlay.dll" }; // Ubisoft
+// clang-format off
+DEFINE_NAME_VECTORS(overlay, "eosovh-win32-shipping",
+                             "eosovh-win64-shipping",   // Epic
+                             "gameoverlayrenderer64",
+                             "gameoverlayrenderer",     // Steam
+                             "socialclubd3d12renderer", // Rockstar
+                             "owutils",                 // Overwolf
+                             "galaxy",
+                             "galaxy64",                // GOG Galaxy
+                             "discordoverlay",
+                             "discordoverlay64",        // Discord
+                             "overlay64",
+                             "overlay"                  // Ubisoft
+);
 
-inline const std::vector<std::wstring> overlayNamesW = { L"eosovh-win32-shipping.dll",
-                                                         L"eosovh-win32-shipping",
-                                                         L"eosovh-win64-shipping.dll",
-                                                         L"eosovh-win64-shipping",
-                                                         L"gameoverlayrenderer64",
-                                                         L"gameoverlayrenderer64.dll",
-                                                         L"gameoverlayrenderer",
-                                                         L"gameoverlayrenderer.dll",
-                                                         L"socialclubd3d12renderer",
-                                                         L"socialclubd3d12renderer.dll",
-                                                         L"owutils.dll",
-                                                         L"owutils",
-                                                         L"galaxy.dll",
-                                                         L"galaxy",
-                                                         L"galaxy64.dll",
-                                                         L"galaxy64",
-                                                         L"discordoverlay.dll",
-                                                         L"discordoverlay",
-                                                         L"discordoverlay64.dll",
-                                                         L"discordoverlay64",
-                                                         L"overlay64",
-                                                         L"overlay64.dll",
-                                                         L"overlay",
-                                                         L"overlay.dll" };
-
-inline const std::vector<std::string> blockOverlayNames = { "eosovh-win32-shipping.dll",
-                                                            "eosovh-win32-shipping",
-                                                            "eosovh-win64-shipping.dll",
-                                                            "eosovh-win64-shipping",
-                                                            "gameoverlayrenderer64",
-                                                            "gameoverlayrenderer64.dll",
-                                                            "gameoverlayrenderer",
-                                                            "gameoverlayrenderer.dll",
-                                                            "owclient.dll",
-                                                            "owclient"
-                                                            "galaxy.dll",
-                                                            "galaxy",
-                                                            "galaxy64.dll",
-                                                            "galaxy64",
-                                                            "discordoverlay.dll",
-                                                            "discordoverlay",
-                                                            "discordoverlay64.dll",
-                                                            "discordoverlay64",
-                                                            "overlay64",
-                                                            "overlay64.dll",
-                                                            "overlay",
-                                                            "overlay.dll" };
+DEFINE_NAME_VECTORS(blockOverlay, "eosovh-win32-shipping", 
+                                  "eosovh-win64-shipping", 
+                                  "gameoverlayrenderer64",
+                                  "gameoverlayrenderer",
+                                  "owclient"
+                                  "galaxy",
+                                  "galaxy64", 
+                                  "discordoverlay", 
+                                  "discordoverlay64", 
+                                  "overlay64", 
+                                  "overlay"
+);
 
 inline std::vector<std::wstring> blockedDllNamesW = { L"windhawk.dll", L"mactype.dll", L"mactype64.dll" };
 
-inline std::vector<std::wstring> blockOverlayNamesW = { L"eosovh-win32-shipping.dll",
-                                                        L"eosovh-win32-shipping",
-                                                        L"eosovh-win64-shipping.dll",
-                                                        L"eosovh-win64-shipping",
-                                                        L"gameoverlayrenderer64",
-                                                        L"gameoverlayrenderer64.dll",
-                                                        L"gameoverlayrenderer",
-                                                        L"gameoverlayrenderer.dll",
-                                                        L"owclient.dll",
-                                                        L"owclient",
-                                                        L"galaxy.dll",
-                                                        L"galaxy",
-                                                        L"galaxy64.dll",
-                                                        L"galaxy64",
-                                                        L"discordoverlay.dll",
-                                                        L"discordoverlay",
-                                                        L"discordoverlay64.dll",
-                                                        L"discordoverlay64",
-                                                        L"overlay64",
-                                                        L"overlay64.dll",
-                                                        L"overlay",
-                                                        L"overlay.dll" };
-
-inline const std::vector<std::string> skipDxgiWrappingNames = { "eosovh-win32-shipping.dll",
-                                                                "eosovh-win64-shipping.dll",
-                                                                "gameoverlayrenderer64",
-                                                                "gameoverlayrenderer64.dll",
-                                                                "gameoverlayrenderer.dll",
-                                                                "socialclubd3d12renderer.dll",
-                                                                "owutils.dll",
-                                                                "galaxy.dll",
-                                                                "galaxy64.dll",
-                                                                "discordoverlay.dll",
-                                                                "discordoverlay64.dll",
-                                                                "overlay64.dll",
-                                                                "overlay.dll", // Overlays ended
-                                                                "d3d11.dll",
-                                                                "d3d12.dll",
-                                                                "d3d12core.dll" }; // directx ended
+DEFINE_NAME_VECTORS(skipDxgiWrapping, "eosovh-win32-shipping", 
+                                      "eosovh-win64-shipping", 
+                                      "gameoverlayrenderer64",
+                                      "gameoverlayrenderer",
+                                      "socialclubd3d12renderer"
+                                      "owutils"
+                                      "galaxy",
+                                      "galaxy64", 
+                                      "discordoverlay", 
+                                      "discordoverlay64", 
+                                      "overlay64", 
+                                      "overlay" // Overlays ended
+                                      "d3d11"
+                                      "d3d12"
+                                      "d3d12core" // DirectX ended
 /*
-                                                          "fakenvapi.dll", // fakenvapi
-                                                          "libxell.dll",
-                                                          "libxess.dll",
-                                                          "libxess_dx11.dll",
-                                                          "igxess.dll",
-                                                          "igxess2.dll",
-                                                          "libxess_fg.dll",
-                                                          "igxess_fg.dll", // xess ended
-                                                          "intelcontrollib.dll",
-                                                          "igdext64.dll",
-                                                          "igdgmm64.dll", // intel drivers ended
-                                                          "ffx_fsr2_api_x64.dll",
-                                                          "ffx_fsr2_api_dx12_x64.dll",
-                                                          "ffx_fsr3upscaler_x64.dll",
-                                                          "ffx_backend_dx12_x64.dll",
-                                                          "amd_fidelityfx_dx12.dll",
-                                                          "amd_fidelityfx_loader_dx12.dll",
-                                                          "amd_fidelityfx_upscaler_dx12.dll",
-                                                          "amd_fidelityfx_framegeneration_dx12.dll", // fsr ended
-                                                          "nvcamera64.dll",                          // nvcamera?
+                                      "libxell.dll",
+                                      "libxess.dll",
+                                      "libxess_dx11.dll",
+                                      "igxess.dll",
+                                      "igxess2.dll",
+                                      "libxess_fg.dll",
+                                      "igxess_fg.dll", // xess ended
+                                      "intelcontrollib.dll",
+                                      "igdext64.dll",
+                                      "igdgmm64.dll", // intel drivers ended
+                                      "ffx_fsr2_api_x64.dll",
+                                      "ffx_fsr2_api_dx12_x64.dll",
+                                      "ffx_fsr3upscaler_x64.dll",
+                                      "ffx_backend_dx12_x64.dll",
+                                      "amd_fidelityfx_dx12.dll",
+                                      "amd_fidelityfx_loader_dx12.dll",
+                                      "amd_fidelityfx_upscaler_dx12.dll",
+                                      "amd_fidelityfx_framegeneration_dx12.dll", // fsr ended
+                                      "nvcamera64.dll",                          // nvcamera?
 */
+);
+// clang-format on
+
+DEFINE_NAME_VECTORS(eosOverlay, "eosovh-win32-shipping", "eosovh-win64-shipping");
 
 DEFINE_NAME_VECTORS(dx11, "d3d11");
 DEFINE_NAME_VECTORS(dx12, "d3d12");
@@ -202,8 +136,8 @@ DEFINE_NAME_VECTORS(fsr3BE, "ffx_backend_dx12_x64");
 DEFINE_NAME_VECTORS(ffxDx12, "amd_fidelityfx_dx12", "amd_fidelityfx_loader_dx12");
 DEFINE_NAME_VECTORS(ffxDx12Upscaler, "amd_fidelityfx_upscaler_dx12");
 DEFINE_NAME_VECTORS(ffxDx12FG, "amd_fidelityfx_framegeneration_dx12");
-DEFINE_NAME_VECTORS(ffxDx12RR, "amd_fidelityfx_denoiser_dx12");
-
+DEFINE_NAME_VECTORS(ffxDx12Denoiser, "amd_fidelityfx_denoiser_dx12");
+DEFINE_NAME_VECTORS(ffxDx12Radiance, "amd_fidelityfx_radiancecache_dx12");
 DEFINE_NAME_VECTORS(ffxVk, "amd_fidelityfx_vk");
 
 /**

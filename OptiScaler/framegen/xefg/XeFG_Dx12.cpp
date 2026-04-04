@@ -226,6 +226,7 @@ bool XeFG_Dx12::CreateSwapchain(IDXGIFactory* factory, ID3D12CommandQueue* cmdQu
                               desc->BufferDesc.Format, desc->Flags) == S_OK;
 
             *swapChain = State::Instance().currentFGSwapchain;
+
             return result;
         }
         // Game is creating new swapchain without releasing old one,
@@ -707,9 +708,17 @@ bool XeFG_Dx12::Dispatch()
         return false;
     }
 
+    auto& state = State::Instance();
+
     if (XeFGProxy::SetUiCompositionState() != nullptr &&
         Config::Instance()->FGXeFGUIComposition.value_or_default() != _uiComposition && IsUsingHudless(fIndex))
     {
+        // To prevent XeLL issues
+        LOG_DEBUG("UI Composition state changed {}, skipping rendering for 10 frames", _uiComposition);
+        state.FGchanged = true;
+        UpdateTarget();
+        Deactivate();
+
         _uiComposition = Config::Instance()->FGXeFGUIComposition.value_or_default();
 
         auto uiState =
@@ -737,26 +746,24 @@ bool XeFG_Dx12::Dispatch()
             LOG_INFO("Interpolation count changed {} -> {}", _framesToInterpolate,
                      Config::Instance()->FGXeFGInterpolationCount.value_or_default());
 
+            state.FGchanged = true;
+            UpdateTarget();
+            Deactivate();
+
             ScopedSkipSpoofing skipSpoofing {};
 
             auto intResult = XeFGProxy::SetNumInterpolatedFrames()(
                 _swapChainContext, Config::Instance()->FGXeFGInterpolationCount.value_or_default());
+
+            _framesToInterpolate = Config::Instance()->FGXeFGInterpolationCount.value_or_default();
 
             if (intResult != XEFG_SWAPCHAIN_RESULT_SUCCESS)
             {
                 LOG_ERROR("SetNumInterpolatedFrames error: {} ({})", magic_enum::enum_name(intResult),
                           (UINT) intResult);
             }
-            else
-            {
-                LOG_DEBUG("Interpolation count set to: {}",
-                          Config::Instance()->FGXeFGInterpolationCount.value_or_default());
-                _framesToInterpolate = Config::Instance()->FGXeFGInterpolationCount.value_or_default();
-            }
         }
     }
-
-    auto& state = State::Instance();
 
     if (!_haveHudless.has_value())
     {
@@ -867,9 +874,24 @@ bool XeFG_Dx12::Dispatch()
     else
         constData.resetHistory = false;
 
-    constData.frameRenderTime = static_cast<float>(state.lastFGFrameTime);
+    switch (Config::Instance()->FTInput.value_or_default())
+    {
+    case FrameTimeSource::Input:
+        constData.frameRenderTime = (float) _ftDelta[fIndex];
+        break;
 
-    LOG_DEBUG("Reset: {}, FTDelta: {}", _reset[fIndex], constData.frameRenderTime);
+    case FrameTimeSource::Opti:
+        constData.frameRenderTime = static_cast<float>(state.lastFGFrameTime);
+        break;
+
+    case FrameTimeSource::Zero:
+        constData.frameRenderTime = 0.0f;
+        break;
+    }
+
+    LOG_DEBUG("Reset: {}, Opti FT: {}, Source FT: {}, Set FT: {}, Opti Id: {}, Reflex Id: {}", _reset[fIndex],
+              constData.frameRenderTime, _ftDelta[fIndex], constData.frameRenderTime, _frameCount,
+              State::Instance().reflexFrameId);
 
     auto frameId = static_cast<uint32_t>(willDispatchFrame);
 

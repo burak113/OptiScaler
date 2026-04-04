@@ -292,7 +292,7 @@ FSRDFeatureDx12::FSRDFeatureDx12(uint32_t InHandleId, NVSDK_NGX_Parameter* InPar
     _convConfig({}), 
     _isMode2(false)
 {
-    _moduleLoaded = FfxApiProxy::IsRRReady();
+    _moduleLoaded = FfxApiProxy::IsDenoiserReady();
 
     if (_moduleLoaded)
         LOG_INFO("amd_fidelityfx_denoiser_dx12.dll methods loaded!");

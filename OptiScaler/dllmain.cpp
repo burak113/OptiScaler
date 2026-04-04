@@ -264,7 +264,8 @@ static void HookEffectModulesLate()
     TryHookModule(ffxDx12NamesW, FfxApiProxy::InitFfxDx12);
     TryHookModule(ffxDx12UpscalerNamesW, FfxApiProxy::InitFfxDx12_SR);
     TryHookModule(ffxDx12FGNamesW, FfxApiProxy::InitFfxDx12_FG);
-    TryHookModule(ffxDx12RRNamesW, FfxApiProxy::InitFfxDx12_RR);
+    TryHookModule(ffxDx12DenoiserNamesW, FfxApiProxy::InitFfxDx12_Denoiser);
+    TryHookModule(ffxDx12RadianceNamesW, FfxApiProxy::InitFfxDx12_Radiance);
 
     // FFX Vulkan
     TryHookModule(ffxVkNamesW, FfxApiProxy::InitFfxVk);
@@ -981,8 +982,11 @@ static void printQuirks(flag_set<GameQuirk>& quirks)
     auto state = &State::Instance();
     std::vector<std::string> stringQuirks;
 
-    if (quirks & GameQuirk::CyberpunkHudlessFixes)
-        stringQuirks.push_back("Fixing DLSSG's hudless in Cyberpunk");
+    if (quirks & GameQuirk::CyberpunkHudlessState)
+        stringQuirks.push_back("Fixing DLSSG's hudless state in Cyberpunk");
+
+    if (quirks & GameQuirk::FSRFGHudlessMismatchFixup)
+        stringQuirks.push_back("FSR FG hudless mismatch fixup");
 
     if (quirks & GameQuirk::SkipFsr3Method)
         stringQuirks.push_back("Skipping first FSR 3 method");
@@ -1118,6 +1122,12 @@ static void printQuirks(flag_set<GameQuirk>& quirks)
 
     if (quirks & GameQuirk::DoNotPreserveFGSwapChain)
         stringQuirks.push_back("Don't Preserve FG Swapchain");
+
+    if (quirks & GameQuirk::DoNotSkipResize)
+        stringQuirks.push_back("Don't Skip Resize");
+
+    if (quirks & GameQuirk::OldOverlayMenu)
+        stringQuirks.push_back("Using old overlay (draws on upscaled image)");
 
     state->detectedQuirks.append_range(stringQuirks);
     for (auto& stringQuirk : stringQuirks)
@@ -1289,6 +1299,16 @@ static void CheckQuirks()
     if (quirks & GameQuirk::DoNotPreserveFGSwapChain && !Config::Instance()->FGPreserveSwapChain.has_value())
     {
         Config::Instance()->FGPreserveSwapChain.set_volatile_value(false);
+    }
+
+    if (quirks & GameQuirk::DoNotSkipResize && !Config::Instance()->FGSkipResizeBuffers.has_value())
+    {
+        Config::Instance()->FGSkipResizeBuffers.set_volatile_value(false);
+    }
+
+    if (quirks & GameQuirk::OldOverlayMenu && !Config::Instance()->OverlayMenu.has_value())
+    {
+        Config::Instance()->OverlayMenu.set_volatile_value(false);
     }
 
     // For Luma, we assume if Luma addon in game folder it's used
