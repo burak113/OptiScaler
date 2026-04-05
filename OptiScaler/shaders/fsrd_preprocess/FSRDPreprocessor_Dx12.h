@@ -126,7 +126,6 @@ class FSRDPreprocessor_Dx12
         uint32_t Flags;
 
         ID3D12Resource* InColorBeforeParticles; // NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles (Optional)
-        ID3D12Resource* DstTex; // Destination texture used for compositing denoiser result
     };
 
   public:
@@ -182,6 +181,11 @@ class FSRDPreprocessor_Dx12
      * by the converter, and writes the result to the given destination texture.
      */
     bool DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc);
+
+    /**
+     * @brief Returns the output from the last composition dispatch. Valid until the next conversion dispatch.
+     */
+    ID3D12Resource* GetCompositionOutput() const;
 
     /**
      * @brief Copies the contents of the given source texture. Does not automatically set resource barriers.

@@ -598,18 +598,9 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         };
 
         TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles, compDesc.InColorBeforeParticles);
-        TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_Color, compDesc.DstTex);
-
-        // Transition input color to UAV to be overwritten with denoised color
-        ResourceBarrier(InCommandList, compDesc.DstTex,
-                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
         if (!FSRDConvShader->DispatchComposition(InCommandList, compDesc))
             return false;
-
-        // Transition input color back to SRV to be consumed by the upscaler
-        ResourceBarrier(InCommandList, compDesc.DstTex,
-                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
         isDenoiserReady = true;
     }
@@ -625,6 +616,7 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         // Override upscaler config
         if (isDenoiserReady)
         {
+            upscalerDesc.color = ffxApiGetResourceDX12(FSRDConvShader->GetCompositionOutput());
             upscalerDesc.cameraFovAngleVertical = denoiserDesc.cameraFovAngleVertical;
             upscalerDesc.frameTimeDelta = denoiserDesc.deltaTime;
         }
@@ -660,6 +652,8 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
             else
                 srcTex = GetD3D12ResFromFFX(mode1Signal.radiance.input);
         }
+        else if (isDebugComp)
+            srcTex = FSRDConvShader->GetCompositionOutput();
         else
             TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_Color, srcTex);
 

@@ -577,7 +577,7 @@ struct FSRDPreprocessor_Dx12::Impl
             };
         }  
 
-        std::array<ID3D12Resource*, 1> uavs { desc.DstTex };
+        std::array<ID3D12Resource*, 1> uavs { m_Out.Motion.Get() };
         const std::span<const byte> cbData((const byte*) &constants, sizeof(constants));
         const XMFLOAT2 dstDim = { constants.DstTexSize.x, constants.DstTexSize.y };
 
@@ -754,6 +754,11 @@ bool FSRDPreprocessor_Dx12::DispatchComposition(ID3D12GraphicsCommandList* cmdLi
     }
 
     return false;
+}
+
+ID3D12Resource* FSRDPreprocessor_Dx12::GetCompositionOutput() const 
+{ 
+    return m_impl->m_Out.Motion.Get(); 
 }
 
 bool FSRDPreprocessor_Dx12::Blit(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* srcTex,
