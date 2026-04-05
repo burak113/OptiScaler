@@ -384,10 +384,10 @@ class Config
     CustomOptional<uint64_t> FfxDenoiserDebugMode { 0 };
 
     CustomOptional<float> FfxDenoiserHistRejection { 1.0f };
-    CustomOptional<float> FfxDenoiserCrossBlNormStr { 1.0f };
-    CustomOptional<float> FfxDenoiserStabilityBias { 0.4f };
-    CustomOptional<float> FfxDenoiserMaxRadiance { 1e4f };
-    CustomOptional<float> FfxDenoiserRadianceClip { 20.0f };
+    CustomOptional<float> FfxDenoiserCrossBlNormStr { 0.4f };
+    CustomOptional<float> FfxDenoiserStabilityBias { 0.7f };
+    CustomOptional<float> FfxDenoiserMaxRadiance { 2e4f };
+    CustomOptional<float> FfxDenoiserRadianceClip { 40.0f };
     CustomOptional<float> FfxDenoiserGaussKernRelax { 0.5f };
     CustomOptional<float> FfxDenoiserCorrelationBias { 1.0f };
 

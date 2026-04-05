@@ -27,7 +27,7 @@ class FSRDPreprocessor_Dx12
         None = 0,
 
         NonGammaAlbedo =        1 << 0, // If true, FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO should ALSO be set
-        UseInfiniteFarPlane =   1 << 1, 
+        IsDepthLinear =         1 << 1, 
         IsRoughnessPacked =     1 << 2, // Roughness = InNormals.A - NVSDK_NGX_DLSS_Roughness_Mode_Packed (Init param)
         Mode2Signal =           1 << 3, // Enables mode 2 denoiser outputs with discrete diffuse and specular lighting
         IsRightHanded =         1 << 4,
@@ -54,10 +54,9 @@ class FSRDPreprocessor_Dx12
 
         DebugOutDepthDelta =    14 << 17 | Debug,
         DebugOutNormDotView =   15 << 17 | Debug,
-        DebugOutMetalicty =     16 << 17 | Debug,
 
-        DebugColorMask =        17 << 17 | Debug,
-        DebugAlbedoError =      18 << 17 | Debug,
+        DebugColorMask =        16 << 17 | Debug,
+        DebugAlbedoError =      17 << 17 | Debug,
     };
 
     enum class CompFlags : uint32_t
@@ -73,8 +72,8 @@ class FSRDPreprocessor_Dx12
         DebugCorrelation =      1 << 17 | Debug,
         DebugSkipSignal =       2 << 17 | Debug,
         DebugDenoiserOutput =   3 << 17 | Debug,
-        DebugSpecularColor =    4 << 17 | Debug,
-        DebugDiffuseColor =     5 << 17 | Debug,
+        DebugSignal1 = 4 << 17 | Debug,
+        DebugSignal2 = 5 << 17 | Debug,
     };
 
     /**
@@ -84,7 +83,6 @@ class FSRDPreprocessor_Dx12
     {
         DirectX::XMFLOAT4X4 InvViewMatrix; // DLSSD WorldToView^1 - Camera matrix
         DirectX::XMFLOAT4X4 InvProjMatrix;   // DLSSD ViewToClip^-1 - Projection
-        DirectX::XMFLOAT4X4 InvViewProjMatrix;  // DLSSD (WorldToView x ViewToClip)^-1
         DirectX::XMFLOAT4X4 PrevViewMatrix; // DLSSD WorldToView from last frame
 
         DirectX::XMFLOAT2 RenderSize; // Resolution of inputs

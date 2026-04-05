@@ -11,7 +11,7 @@
 
 // Flags
 #define FLAGS_NON_GAMMA_ALBEDO          (1 << 0)
-#define FLAGS_INF_FAR_PLANE             (1 << 1)
+#define FLAGS_LINEAR_DEPTH              (1 << 1)
 #define FLAGS_PACKED_ROUGHNESS          (1 << 2)
 #define FLAGS_MODE_2_SIGNAL             (1 << 3)
 #define FLAGS_IS_RIGHT_HANDED           (1 << 4)
@@ -39,10 +39,9 @@
 
 #define FLAGS_DEBUG_OUT_DEPTH_DELTA     (14 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_OUT_NORM_DOT_VIEW   (15 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_OUT_METALICITY      (16 << 17 | FLAGS_DEBUG)
 
-#define FLAGS_DEBUG_COLOR_MASK          (17 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_ALBEDO_OVERSHOOT    (18 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_COLOR_MASK          (16 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_ALBEDO_OVERSHOOT    (17 << 17 | FLAGS_DEBUG)
 
 // DLSS-RR Inputs
 Texture2D<half3> InColor : register(t0); // RGB - NVSDK_NGX_Parameter_Color
@@ -78,7 +77,6 @@ cbuffer CB_Packing : register(b0)
 {
     float4x4 InvViewMatrix; // DLSSD WorldToView^-1
     float4x4 InvProjMatrix; // DLSSD ViewToClip^-1
-    float4x4 InvViewProjMatrix; // DLSSD (WorldToView x ViewToClip)^-1
     float4x4 PrevViewMatrix; // DLSSD WorldToView from last frame
     
     float2 RenderSize; // Resolution of inputs
@@ -133,6 +131,27 @@ float AnalyzeEdges(const int2 px, const float3 centerColor)
     return float(linearity > 0.8f);
 }
 
+float3 GetViewSpacePos(const int2 px)
+{
+    const float inDepth = InDepth[px];
+    const float2 uv = (float2(px) + 0.5) * RenderSizeInv;
+    float3 viewSpacePos = 0.0f;
+    
+    [branch]
+    if (IsSet(FLAGS_LINEAR_DEPTH))
+    {
+        viewSpacePos = InvProjectPosition(float3(uv, 1.0f), InvProjMatrix);
+        viewSpacePos *= (inDepth / viewSpacePos.z);
+    }
+    else
+    {
+        viewSpacePos = InvProjectPosition(float3(uv, inDepth), InvProjMatrix);       
+    }
+    
+    viewSpacePos.z = clamp(abs(viewSpacePos.z), NearPlane, FarPlane);
+    return viewSpacePos;
+}
+
 // Main Kernel
 //
 [RootSignature(MainRS)]
@@ -143,15 +162,9 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
         return;
 
     const int2 px = int2(id.xy);
-    const float2 uv = (float2(id.xy) + 0.5) * RenderSizeInv;
     const float zSign = IsSet(FLAGS_IS_RIGHT_HANDED) ? -1.0f : 1.0f;
-
-    // Depth delta calculation from denoiser prepass sample shader
-    // Assuming hardware depth
-    const float inDepth = InDepth[px];
-    float3 viewSpacePos = InvProjectPosition(float3(uv, inDepth), InvProjMatrix);
-    viewSpacePos.z = clamp(zSign * viewSpacePos.z, NearPlane, FarPlane);
-    
+    const float3 viewSpacePos = GetViewSpacePos(px);
+        
     // Left handed view space
     OutLinearDepth[px] = viewSpacePos.z;
     
@@ -187,7 +200,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
         // Find the current pixel in world space and calculate movement in view space
         const float3 worldSpacePos = mul(InvViewMatrix, float4(viewSpacePos, 1.0f)).xyz;
         float3 prevViewSpacePos = mul(PrevViewMatrix, float4(worldSpacePos, 1.0f)).xyz;
-        prevViewSpacePos.z *= zSign;
+        prevViewSpacePos.z = abs(prevViewSpacePos.z);
         
         const float depthDelta = (viewSpacePos.z - prevViewSpacePos.z);
     
@@ -201,7 +214,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
         const float3 cameraPos = float3(InvViewMatrix._m03, InvViewMatrix._m13, InvViewMatrix._m23);
         // Line from camera to the clip pos
         const float3 toCameraDir = normalize(cameraPos - worldSpacePos);
-        const float NoV = saturate(dot(worldSurfaceNormal.rgb, toCameraDir));
+        const float NoV = dot(worldSurfaceNormal.rgb, toCameraDir);
 
         // Secondary albedo packing
         //
@@ -294,7 +307,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
                     break;
                 
                 case FLAGS_DEBUG_IN_DEPTH:
-                    debugColor = TurboColormap(frac(inDepth * 10.0)); // Hardware depth bands
+                    debugColor = TurboColormap(frac(InDepth[px]));
                     break;
                 
                 case FLAGS_DEBUG_IN_MOTION:
@@ -340,11 +353,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 gID : SV_GroupThreadID)
                 case FLAGS_DEBUG_OUT_NORM_DOT_VIEW:
                     debugColor = float3(-NoV, NoV, 0.0f);
                     break;
-            
-                case FLAGS_DEBUG_OUT_METALICITY:
-                    debugColor = 0.0f;
-                    break;
-                
+
                 case FLAGS_DEBUG_OUT_SPEC_ALBEDO:
                     debugColor = specReflectance.rgb;
                     break;

@@ -589,6 +589,7 @@ sl::Result StreamlineHooks::hkslSetConstants(const sl::Constants& values, const 
     std::scoped_lock lock(setConstantsMutex);
     LOG_TRACE("called with frameIndex: {}, viewport: {}", (unsigned int) frame, (unsigned int) viewport);
 
+    State::Instance().slLastConstants = values;
     State::Instance().slFGInputs.setConstants(values, (uint32_t) frame);
 
     return o_slSetConstants(values, frame, viewport);
@@ -1111,7 +1112,8 @@ void StreamlineHooks::hookInterposer(HMODULE slInterposer)
                 if (o_slSetTagForFrame != nullptr && hookSetTag)
                     DetourAttach(&(PVOID&) o_slSetTagForFrame, hkslSetTagForFrame);
 
-                if (o_slSetConstants != nullptr && hookSetTag)
+                // Allow constants to be hooked without DLSSG
+                if (o_slSetConstants != nullptr)
                     DetourAttach(&(PVOID&) o_slSetConstants, hkslSetConstants);
 
                 if (o_slEvaluateFeature != nullptr)
