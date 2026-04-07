@@ -565,6 +565,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClCompile Include="inputs\FSR2_Dx11.cpp" />
     <ClCompile Include="inputs\FSR2_Vk.cpp" />
     <ClCompile Include="inputs\XeSS_Dx11.cpp" />
+    <ClCompile Include="NVNGX_Parameter.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='ReleaseDebug|x64'">Create</PrecompiledHeader>

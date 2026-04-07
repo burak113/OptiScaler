@@ -1125,3 +1125,8 @@ static inline bool TryDestroyNGXParameters(NVSDK_NGX_Parameter* InParameters, PF
 
     return false;
 }
+
+/**
+ * @brief Tries to get additional camera configuration for upscaling from Streamline hooks.
+ */
+bool TryGetNGXCamConfigFromStreamline(NVSDK_NGX_Parameter* InParameters);

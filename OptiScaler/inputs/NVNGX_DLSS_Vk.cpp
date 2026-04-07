@@ -932,6 +932,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_VULKAN_EvaluateFeature(VkCommandBuffer 
 
     UpscalerTimeVk::UpscaleStart(InCmdList);
 
+    TryGetNGXCamConfigFromStreamline(InParameters);
     auto upscaleResult = deviceContext->Evaluate(InCmdList, InParameters);
 
     if ((!upscaleResult || !deviceContext->IsInited()) &&

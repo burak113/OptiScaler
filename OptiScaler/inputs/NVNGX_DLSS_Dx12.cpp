@@ -955,6 +955,7 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(ID3D12GraphicsCommandList* InCmdL
     bool evalSuccess = false;
     {
         ScopedSkipHeapCapture skip {};
+        TryGetNGXCamConfigFromStreamline(InParameters);
         evalSuccess = feature->Evaluate(InCmdList, InParameters);
     }
 

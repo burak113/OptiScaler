@@ -828,7 +828,7 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
         if (slData.cameraFOV != sl::INVALID_FLOAT && slData.cameraNear != slData.cameraFar)
         {
             // The stupid, it burns...
-            // These measurements are supposed to be in radians, but some titles supply degrees.
+            // This measurement is supposed to be in radians, but some titles supply degrees.
             // Valid FOV in radians never exceeds PI. Realistic FOV in degrees is basically never in the single digits.
             const float fov = (slData.cameraFOV < 4.0f) ? slData.cameraFOV : GetRadiansFromDeg(slData.cameraFOV);
             const float nearPlane = (slData.depthInverted) ? slData.cameraFar : slData.cameraNear;

@@ -626,23 +626,15 @@ void FSR31FeatureDx12::ConfigureUpscaler(const NVSDK_NGX_Parameter& inParams, ff
 
     // Camera & View Parameters with fallbacks
 
-    // Explicit near plane
     // Not explicitly set in the DLSS path. DLSS assumes near == 0 and far == 1 or the inverse.
     if (!TryGetToggleableNGXParam(inParams, OptiKeys::FSR_NearPlane, cfg.FsrUseFsrInputValues, upscalerDesc.cameraNear))
     {
-        if (DepthInverted())
-            upscalerDesc.cameraFar = cfg.FsrCameraNear.value_or_default();
-        else
-            upscalerDesc.cameraNear = cfg.FsrCameraNear.value_or_default();
+        upscalerDesc.cameraNear = cfg.FsrCameraNear.value_or_default();
     }
 
-    // Explicit far plane
     if (!TryGetToggleableNGXParam(inParams, OptiKeys::FSR_FarPlane, cfg.FsrUseFsrInputValues, upscalerDesc.cameraFar))
     {
-        if (DepthInverted())
-            upscalerDesc.cameraNear = cfg.FsrCameraFar.value_or_default();
-        else
-            upscalerDesc.cameraFar = cfg.FsrCameraFar.value_or_default();
+        upscalerDesc.cameraFar = cfg.FsrCameraFar.value_or_default();
     }
 
     // Not being set in DLSS or XeSS input paths. Inverse VP matrices may be deprecated in modern DLSS.

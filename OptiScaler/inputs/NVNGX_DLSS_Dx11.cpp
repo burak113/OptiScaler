@@ -658,6 +658,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D11_EvaluateFeature(ID3D11DeviceConte
     }
 
     UpscalerTimeDx11::UpscaleStart(InDevCtx);
+    TryGetNGXCamConfigFromStreamline(InParameters);
 
     if (!deviceContext->Evaluate(InDevCtx, InParameters) && !deviceContext->IsInited() &&
         (deviceContext->Name() == "XeSS" || deviceContext->Name() == "DLSS" || deviceContext->Name() == "FSR3 w/Dx12"))
