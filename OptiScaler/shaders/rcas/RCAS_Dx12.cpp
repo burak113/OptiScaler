@@ -32,7 +32,9 @@ bool RCAS_Dx12::CreatePipelineState(ID3D12Device* InDevice, const std::string& I
     ID3DBlob* shaderBlob = RCAS_CompileShader(InShaderCode.c_str(), "CSMain", "cs_5_0");
 
     auto result = Shader_Dx12::CreateComputeShader(InDevice, _rootSignature, OutPipelineState, shaderBlob, byteCode);
-    shaderBlob->Release();
+
+    if (shaderBlob != nullptr)
+        shaderBlob->Release();
 
     return result;
 }
@@ -61,8 +63,8 @@ void RCAS_Dx12::FillMotionConstants(InternalConstants& OutConstants, const RcasC
 
     if (feature->LowResMV())
     {
-    OutConstants.MotionTextureScale = (float) feature->RenderWidth() / (float) feature->TargetWidth();
-}
+        OutConstants.MotionTextureScale = (float) feature->RenderWidth() / (float) feature->TargetWidth();
+    }
     else
     {
         OutConstants.MotionTextureScale = 1.0f;
@@ -115,8 +117,6 @@ void RCAS_Dx12::FillMotionConstants(InternalConstantsDA& OutConstants, const Rca
 
     OutConstants.DepthWidth = feature->RenderWidth();
     OutConstants.DepthHeight = feature->RenderHeight();
-
-    OutConstants.MotionTextureScale = (float) feature->RenderWidth() / (float) feature->TargetWidth();
 }
 
 bool RCAS_Dx12::DispatchRCAS(ID3D12Device* InDevice, ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InResource,
