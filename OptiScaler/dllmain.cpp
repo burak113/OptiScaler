@@ -999,7 +999,6 @@ static void CheckWorkingMode()
             if (ffxDx12SRModule != nullptr)
             {
                 LOG_DEBUG("amd_fidelityfx_upscaler_dx12.dll already in memory");
-                FSR4ModelSelection::Hook(ffxDx12SRModule, FSR4Source::SDK);
                 FfxApiProxy::InitFfxDx12_SR(ffxDx12SRModule);
             }
 

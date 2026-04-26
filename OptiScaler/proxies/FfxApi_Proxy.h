@@ -240,6 +240,11 @@ class FfxApiProxy
 
             // hacky but works for now
             main_dx12.isLoader = IsLoader(main_dx12.filePath);
+
+            if (!main_dx12.isLoader)
+            {
+                FSR4ModelSelection::Hook(main_dx12.dll, FSR4Source::SDK);
+            }
         }
 
         // Get methods of Opti's dlls
@@ -374,6 +379,8 @@ class FfxApiProxy
 
         if (upscaling_dx12.dll != nullptr)
         {
+            FSR4ModelSelection::Hook(upscaling_dx12.dll, FSR4Source::SDK);
+
             wchar_t modulePath[MAX_PATH];
             DWORD len = GetModuleFileNameW(upscaling_dx12.dll, modulePath, MAX_PATH);
             upscaling_dx12.filePath = std::wstring(modulePath);

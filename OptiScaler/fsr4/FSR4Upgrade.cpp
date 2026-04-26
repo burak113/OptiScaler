@@ -266,11 +266,6 @@ struct AmdExtFfxApi : public IAmdExtFfxApi
                 LOG_INFO("amdxcffx64 loaded from game folder");
             }
 
-            auto sdk2upscalingModule = KernelBaseProxy::GetModuleHandleA_()("amd_fidelityfx_upscaler_dx12.dll");
-
-            if (sdk2upscalingModule)
-                FSR4ModelSelection::Hook(sdk2upscalingModule, FSR4Source::SDK);
-
             if (moduleAmdxcffx64)
             {
                 FSR4ModelSelection::Hook(moduleAmdxcffx64, FSR4Source::DriverDll);
