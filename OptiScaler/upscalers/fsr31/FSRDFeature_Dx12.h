@@ -10,8 +10,7 @@
 class FSRDFeatureDx12 : public FSR31FeatureDx12
 {
   public:
-    using FSRDConvIn = FSRDPreprocessor_Dx12::ConvInput;
-    using FSRDConvCfg = FSRDPreprocessor_Dx12::ConvConstants;
+    using FSRDConvDesc = FSRDPreprocessor_Dx12::ConversionDesc;
 
     FSRDFeatureDx12(uint32_t InHandleId, NVSDK_NGX_Parameter* InParameters);
 
@@ -32,7 +31,7 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     static bool s_isHWDepth;
     static bool s_isRoughnessPacked;
 
-    FSRDConvCfg _convConfig;
+    FSRDConvDesc _convDesc;
     DirectX::XMFLOAT3 _lastCamPos; // Last world space camera position
 
     // Matrices
@@ -65,12 +64,12 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
      * @brief Retrieves DLSS-RR inputs to populate the inputs for the conversion shader in order to generate
      FSR-RR compatible buffers.
      */
-    bool PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParams, FSRDConvIn& convIn);
+    bool PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParams);
 
     /**
      * @brief Converts previously retrieved DLSS-RR resources into FSR-RR inputs.
      */
-    bool ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InCommandList, const FSRDConvIn& convInputs);
+    bool ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InCommandList);
 
     /**
      * @brief Dispatches FSR-RR denoiser converted inputs. Runs before upscaler.

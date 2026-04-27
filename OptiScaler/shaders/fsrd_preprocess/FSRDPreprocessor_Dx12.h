@@ -26,11 +26,11 @@ class FSRDPreprocessor_Dx12
     {
         None = 0,
 
-        NonGammaAlbedo =        1 << 0, // If true, FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO should ALSO be set
-        IsDepthLinear =         1 << 1, 
+        NonGammaAlbedo =        1 << 0, // If set, FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO should ALSO be set
+        IsDepthLinear =         1 << 1, // Interprets input depth as already linearized for view space calculations
         IsRoughnessPacked =     1 << 2, // Roughness = InNormals.A - NVSDK_NGX_DLSS_Roughness_Mode_Packed (Init param)
         Mode2Signal =           1 << 3, // Enables mode 2 denoiser outputs with discrete diffuse and specular lighting
-        IsRightHanded =         1 << 4,
+        IsRightHanded =         1 << 4, // If set, then +Z is treated as the direction pointing away from the camera
 
         Debug =                 1 << 16, // Denoiser and upscaler bypassed for debug out if this is set
         DebugModeMask =         0xFF << 16,
@@ -54,9 +54,10 @@ class FSRDPreprocessor_Dx12
 
         DebugOutDepthDelta =    14 << 17 | Debug,
         DebugOutNormDotView =   15 << 17 | Debug,
+        DebugAlbedoError =      16 << 17 | Debug,
 
-        DebugColorMask =        16 << 17 | Debug,
-        DebugAlbedoError =      17 << 17 | Debug,
+        DebugFloorVariance =    17 << 17 | Debug,
+        DebugFloorColor =       18 << 17 | Debug,
     };
 
     enum class CompFlags : uint32_t
@@ -72,33 +73,15 @@ class FSRDPreprocessor_Dx12
         DebugCorrelation =      1 << 17 | Debug,
         DebugSkipSignal =       2 << 17 | Debug,
         DebugDenoiserOutput =   3 << 17 | Debug,
-        DebugSignal1 = 4 << 17 | Debug,
-        DebugSignal2 = 5 << 17 | Debug,
-    };
-
-    /**
-     * @brief Constant buffer data passed to the conversion shader.
-     */
-    struct alignas(16) ConvConstants
-    {
-        DirectX::XMFLOAT4X4 InvViewMatrix; // DLSSD WorldToView^1 - Camera matrix
-        DirectX::XMFLOAT4X4 InvProjMatrix;   // DLSSD ViewToClip^-1 - Projection
-        DirectX::XMFLOAT4X4 PrevViewMatrix; // DLSSD WorldToView from last frame
-
-        DirectX::XMFLOAT2 RenderSize; // Resolution of inputs
-        DirectX::XMFLOAT2 RenderSizeInv; // 1.0 / Resolution
-
-        float NearPlane; // Near < Far - IsInverted flag accounts for inversion
-        float FarPlane;  // Near < Far - IsInverted flag accounts for inversion
-
-        uint32_t Flags; // Dynamic configuration flags. See: ConfigFlags
+        DebugSignal1 =          4 << 17 | Debug,
+        DebugSignal2 =          5 << 17 | Debug,
     };
 
     /**
      * @brief Input resources matching DLSS Ray Reconstruction / NGX parameter names.
      * All resources must be in readable state before dispatch.
      */
-    union ConvInput
+    union InputResources
     {
         struct
         {
@@ -117,14 +100,36 @@ class FSRDPreprocessor_Dx12
     };
 
     /**
+     * @brief Configuration and resources required for generating FSR-RR inputs from DLSS-RR
+     * inputs.
+     */
+    struct ConversionDesc
+    {
+        InputResources Resources;
+
+        DirectX::XMFLOAT4X4 InvViewMatrix;     // DLSSD WorldToView^1 - Camera matrix
+        DirectX::XMFLOAT4X4 InvProjMatrix;     // DLSSD ViewToClip^-1 - Projection
+        DirectX::XMFLOAT4X4 PrevViewMatrix;    // DLSSD WorldToView from last frame
+
+        DirectX::XMFLOAT4 RenderSize;    // XY: Resolution of inputs - ZW: 1.0 / Resolution
+
+        float NearPlane; // Near < Far
+        float FarPlane;  // Near < Far
+
+        uint32_t Flags; // Dynamic configuration flags. See: ConfigFlags
+        float FloorIsolation;
+    };
+
+    /**
      * @brief Configuration and external resources used for compositing denoiser output into final result.
      */
     struct CompositionDesc
     {
         DirectX::XMFLOAT4 DstTexSize; // XY = Tex Size - ZW = 1 / XY
-        float CorrelationBias; // Controls the contribution of stable elements to the final image
+        float CorrelationBias; // Enhances the contribution of stable elements to the final image
         uint32_t Flags;
 
+        ID3D12Resource* InRawColor;
         ID3D12Resource* InColorBeforeParticles; // NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles (Optional)
     };
 
@@ -160,18 +165,18 @@ class FSRDPreprocessor_Dx12
      * @param constants Per-frame constant buffer values
      * @return True if dispatch completed successfully
      */
-    bool DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConvInput& inputs, const ConvConstants& constants);
+    bool DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc);
 
     /**
      * @brief Configures input/output resources after input conversion for FSR-RR with Mode-1 fused inputs.
-     * Resources are transitioned to SRV state and valid until the next conversion dispatch.
+     * Resources are transitioned to SRV state and valid until the next conversion or composition dispatch.
      * Must be re-acquired after each dispatch (lifetime managed internally).
      */
     void GetSignal(ffxDispatchDescDenoiserInput1Signal& signalDesc, ffxDispatchDescDenoiser& dispatchDesc) const;
 
     /**
      * @brief Configures input/output resources after input conversion for FSR-RR with Mode-2 discrete diffuse/specular color.
-     * Resources are transitioned to SRV state and valid until the next conversion dispatch.
+     * Resources are transitioned to SRV state and valid until the next conversion or composition dispatch.
      * Must be re-acquired after each dispatch (lifetime managed internally).
      */
     void GetSignal(ffxDispatchDescDenoiserInput2Signals& signalDesc, ffxDispatchDescDenoiser& dispatchDesc) const;

@@ -9,9 +9,7 @@
 using namespace DirectX;
 using namespace OptiMath;
 
-using FSRDConvIn = FSRDPreprocessor_Dx12::ConvInput;
-using FSRDConvCfg = FSRDPreprocessor_Dx12::ConvConstants;
-
+using FSRDConvDesc = FSRDPreprocessor_Dx12::ConversionDesc;
 using FSRDCompDesc = FSRDPreprocessor_Dx12::CompositionDesc;
 
 /**
@@ -215,9 +213,10 @@ enum class DebugModes : uint64_t
 
     OutDepthDelta = FSRDConvFlags::DebugOutDepthDelta,
     OutNormDotView = FSRDConvFlags::DebugOutNormDotView,
-
-    ColorMask = FSRDConvFlags::DebugColorMask,
     AlbedoError = FSRDConvFlags::DebugAlbedoError,
+
+    FloorVariance = FSRDConvFlags::DebugFloorVariance,
+    FloorColor = FSRDConvFlags::DebugFloorColor,
 
     CompositionDebugOffset = 16u,
     CompositionDebug = (uint64_t) FSRDCompFlags::Debug << CompositionDebugOffset,
@@ -279,10 +278,12 @@ constexpr auto kDebugModes = std::to_array<ModeNamePair>(
     { "OutDepthDelta", (uint64_t) DebugModes::OutDepthDelta },
     { "OutNormDotView", (uint64_t) DebugModes::OutNormDotView },
 
-    { "ColorMask", (uint64_t) DebugModes::ColorMask },
     { "AlbedoError", (uint64_t) DebugModes::AlbedoError },
     { "Correlation", (uint64_t) DebugModes::Correlation },
 
+    { "FloorVariance", (uint64_t) DebugModes::FloorVariance },
+    { "FloorColor", (uint64_t) DebugModes::FloorColor },
+    
     { "Signal1", (uint64_t) DebugModes::Signal1 },
     { "Signal2", (uint64_t) DebugModes::Signal2 },
 });
@@ -303,7 +304,7 @@ FSRDFeatureDx12::FSRDFeatureDx12(uint32_t InHandleId, NVSDK_NGX_Parameter* InPar
     _pDenoiserCtx(nullptr), 
     _denoiserCtxDesc({}),
     _denoiserSettings({}), 
-    _convConfig({}), 
+    _convDesc({}), 
     _isMode2(false)
 {
     _moduleLoaded = FfxApiProxy::IsDenoiserReady();
@@ -588,15 +589,12 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         // Compose denoised signals
         FSRDCompDesc compDesc = 
         { 
-            .DstTexSize = 
-            { 
-                _convConfig.RenderSize.x, _convConfig.RenderSize.y,
-                _convConfig.RenderSizeInv.x, _convConfig.RenderSizeInv.y 
-            },
+            .DstTexSize = _convDesc.RenderSize,
             .CorrelationBias = cfg.FfxDenoiserCorrelationBias.value_or_default(),
             .Flags = (uint32_t)GetCompDebugFlags(dbgMode)
         };
 
+        TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_Color, compDesc.InRawColor);
         TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles, compDesc.InColorBeforeParticles);
 
         if (!FSRDConvShader->DispatchComposition(InCommandList, compDesc))
@@ -645,6 +643,8 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
             TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSS_TransparencyLayer, srcTex);
         else if (dbgMode == DebugModes::DlssBias)
             TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, srcTex);
+        else if (dbgMode == DebugModes::RawColor)
+            TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_Color, srcTex);
         else if (isDebugVis)
         {
             if (_isMode2)
@@ -652,10 +652,8 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
             else
                 srcTex = GetD3D12ResFromFFX(mode1Signal.radiance.input);
         }
-        else if (isDebugComp)
-            srcTex = FSRDConvShader->GetCompositionOutput();
         else
-            TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_Color, srcTex);
+            srcTex = FSRDConvShader->GetCompositionOutput();
 
         ID3D12Resource* dstTex;
 
@@ -679,13 +677,11 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
     const auto& cfg = *Config::Instance(); 
     const auto& slData = State::Instance().slLastConstants;
 
-    FSRDConvIn convInputs = {};
-    
     // Gather DLSS-RR input buffers for conversion and repacking for FSR-RR
-    if (!PrepareDenoiseConvInput(inParams, convInputs))
+    if (!PrepareDenoiseConvInput(inParams))
         return false;   
 
-    if (!ConvertDenoiserBuffers(InCommandList, convInputs))
+    if (!ConvertDenoiserBuffers(InCommandList))
         return false;
 
     // Camera matrix - translation and rotation, from viewMatrix^-1
@@ -698,15 +694,15 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
     dispatchDesc = 
     {
         .commandList = InCommandList,
-        .motionVectorScale = { .x = 1.0f, .y = 1.0f },
+        .motionVectorScale = { 1.0f, 1.0f },
         // Camera movement since last frame (PreviousPosition - CurrentPosition)
         .cameraPositionDelta = { (_lastCamPos.x - camPos.x), (_lastCamPos.y - camPos.y), (_lastCamPos.z - camPos.z) },
         .cameraRight = GetFloat3FFX(right),
         .cameraUp = GetFloat3FFX(up),
         .cameraForward = GetFloat3FFX(forward),
         .cameraAspectRatio = GetAspectRatioFromProjectionMatrix(_projMatrix),
-        .cameraNear = _convConfig.NearPlane,
-        .cameraFar = _convConfig.FarPlane,
+        .cameraNear = _convDesc.NearPlane,
+        .cameraFar = _convDesc.FarPlane,
         .cameraFovAngleVertical = GetVertFovFromProjectionMatrixRad(_projMatrix),
         .renderSize = { RenderWidth(), RenderHeight() }, 
         .frameIndex = (uint32_t)_frameCount,
@@ -755,7 +751,7 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
     return true;
 }
 
-bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParams, FSRDConvIn& convInputs)
+bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParams)
 {
     const auto& slData = State::Instance().slLastConstants;
 
@@ -763,37 +759,38 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
     bool isReady = true;
 
     // Standard TSR buffers
-    if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_Color, convInputs.InColor))
+    if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_Color, _convDesc.Resources.InColor))
         isReady = false;
-    if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_MotionVectors, convInputs.InMotionVectors))
+    if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_MotionVectors, _convDesc.Resources.InMotionVectors))
         isReady = false;
-    if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_Depth, convInputs.InDepth) && LowResMV())
+    if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_Depth, _convDesc.Resources.InDepth) && LowResMV())
         isReady = false;
 
     // DLSSD-specific buffers
-    if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_GBuffer_Normals, convInputs.InNormals))
+    if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_GBuffer_Normals, _convDesc.Resources.InNormals))
         isReady = false;
 
     // If roughness is not packed into normals, then this texture is mandatory.
     // This value should be available in one of these two buffers in any DLSS-RR implementation.
-    if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_GBuffer_Roughness, convInputs.InRoughness) &&
+    if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_GBuffer_Roughness, _convDesc.Resources.InRoughness) &&
         !s_isRoughnessPacked)
     {
         LOG_WARN("Expected unpacked roughness buffer from DLSS-RR. Defaulting to packed roughness.");
         s_isRoughnessPacked = true;
     }
 
-    if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_DiffuseAlbedo, convInputs.InDiffAlbedo))
+    if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_DiffuseAlbedo, _convDesc.Resources.InDiffAlbedo))
         isReady = false;
 
-    if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_SpecularAlbedo, convInputs.InSpecAlbedo))
+    if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_SpecularAlbedo, _convDesc.Resources.InSpecAlbedo))
         isReady = false;
 
-    TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, convInputs.InBiasMask);
+    TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask,
+                         _convDesc.Resources.InBiasMask);
 
     // Optional. Specular hit distance can be used with mode-2 denoising to track movement inside reflections, 
     // in addition to primary motion tracking for the surface and camera.
-    TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_DLSSD_SpecularHitDistance, convInputs.InSpecHitDist);
+    TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_DLSSD_SpecularHitDistance, _convDesc.Resources.InSpecHitDist);
     
     // Get DLSSD matrices and derive related values
     // World to view/camera space (V)
@@ -828,11 +825,11 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
         if (slData.cameraFOV != sl::INVALID_FLOAT && slData.cameraNear != slData.cameraFar)
         {
             // The stupid, it burns...
-            // This measurement is supposed to be in radians, but some titles supply degrees.
+            // These measurements are supposed to be in radians, but some titles supply degrees.
             // Valid FOV in radians never exceeds PI. Realistic FOV in degrees is basically never in the single digits.
             const float fov = (slData.cameraFOV < 4.0f) ? slData.cameraFOV : GetRadiansFromDeg(slData.cameraFOV);
-            const float nearPlane = (slData.depthInverted) ? slData.cameraFar : slData.cameraNear;
-            const float farPlane = (slData.depthInverted) ? slData.cameraNear : slData.cameraFar;
+            const float nearPlane = slData.cameraNear;
+            const float farPlane = slData.cameraFar;
             const bool isRightHanded = slData.cameraViewToClip[2].w < 0.0f;
 
             // Actual SL view to clip matrix isn't necessarily what you might expect. This is harder to fuck up.
@@ -848,49 +845,49 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
     return isReady;
 }
 
-bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InCommandList, const FSRDConvIn& convInputs)
+bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InCommandList)
 {
     const uint32_t dbgMode = (uint32_t)Config::Instance()->FfxDenoiserDebugMode.value_or_default(); 
     const auto& cfg = *Config::Instance(); 
     const auto& slData = State::Instance().slLastConstants;
 
     // Prepare input converter
-    _convConfig = 
-    {
-        .RenderSize = { (float)RenderWidth(), (float)RenderHeight() },
-        .RenderSizeInv = { 1.0f / (float)RenderWidth(), 1.0f / (float)RenderHeight() },
-        .Flags = (uint32_t) FSRDConvFlags::NonGammaAlbedo | (dbgMode & (uint32_t) FSRDConvFlags::DebugModeMask)
+    _convDesc.RenderSize = 
+    { 
+        (float) RenderWidth(), (float) RenderHeight(), 
+        1.0f / (float) RenderWidth(), 1.0f / (float) RenderHeight()
     };
-    
+    _convDesc.Flags = (uint32_t) FSRDConvFlags::NonGammaAlbedo | (dbgMode & (uint32_t) FSRDConvFlags::DebugModeMask);
+    _convDesc.FloorIsolation = cfg.FfxDenoiserFloorIsolation.value_or_default();
+
     if (s_isRoughnessPacked)
-        _convConfig.Flags |= (uint32_t)FSRDConvFlags::IsRoughnessPacked;
+        _convDesc.Flags |= (uint32_t) FSRDConvFlags::IsRoughnessPacked;
 
     // Store in column major order for GPU
-    XMStoreFloat4x4(&_convConfig.InvViewMatrix, XMMatrixTranspose(_invViewMatrix));
+    XMStoreFloat4x4(&_convDesc.InvViewMatrix, XMMatrixTranspose(_invViewMatrix));
 
     // Inverse perspective projection
     const XMMATRIX invProjMatrix = XMMatrixInverse(nullptr, _projMatrix);
-    XMStoreFloat4x4(&_convConfig.InvProjMatrix, XMMatrixTranspose(invProjMatrix));
+    XMStoreFloat4x4(&_convDesc.InvProjMatrix, XMMatrixTranspose(invProjMatrix));
 
     // Previous world to view for linear depth delta
-    XMStoreFloat4x4(&_convConfig.PrevViewMatrix, XMMatrixTranspose(_prevViewMatrix));
+    XMStoreFloat4x4(&_convDesc.PrevViewMatrix, XMMatrixTranspose(_prevViewMatrix));
 
     // Near and far planes
-    bool isDepthInverted = DepthInverted() || slData.depthInverted;
-    const ViewPlanes planes = GetViewPlanes(_projMatrix, isDepthInverted);
-    _convConfig.NearPlane = planes.nearPlane;
-    _convConfig.FarPlane = planes.farPlane;
+    const ViewPlanes planes = GetViewPlanes(_projMatrix, DepthInverted());
+    _convDesc.NearPlane = planes.nearPlane;
+    _convDesc.FarPlane = planes.farPlane;
 
     if (planes.isRightHanded)
-        _convConfig.Flags |= (uint32_t) FSRDConvFlags::IsRightHanded;
+        _convDesc.Flags |= (uint32_t) FSRDConvFlags::IsRightHanded;
 
     if (!s_isHWDepth)
-        _convConfig.Flags |= (uint32_t) FSRDConvFlags::IsDepthLinear;
+        _convDesc.Flags |= (uint32_t) FSRDConvFlags::IsDepthLinear;
 
     LOG_DEBUG("Distpaching FSRD Input Converter");
 
     // Dispatch resource converter. Outputs are automatically transitioned for reading.
-    if (!FSRDConvShader->DispatchConversion(InCommandList, convInputs, _convConfig))
+    if (!FSRDConvShader->DispatchConversion(InCommandList, _convDesc))
         return false;
 
     return true;

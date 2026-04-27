@@ -433,8 +433,7 @@ inline static void InitNGXParameters(NVSDK_NGX_Parameter* InParams)
 
     InParams->Set(NVSDK_NGX_Parameter_SuperSampling_Available, 1);
 
-    if (state.NVNGX_Engine == NVSDK_NGX_ENGINE_TYPE_UNREAL ||
-        state.gameQuirks & GameQuirk::ForceUnrealEngine)
+    if (state.NVNGX_Engine == NVSDK_NGX_ENGINE_TYPE_UNREAL || state.gameQuirks & GameQuirk::ForceUnrealEngine)
     {
         InParams->Set(NVSDK_NGX_Parameter_SuperSampling_MinDriverVersionMajor, 10);
         InParams->Set(NVSDK_NGX_Parameter_SuperSampling_MinDriverVersionMinor, 10);
@@ -507,8 +506,7 @@ inline static void InitNGXParameters(NVSDK_NGX_Parameter* InParams)
     {
         InParams->Set("SuperSamplingDenoising.NeedsUpdatedDriver", 0);
 
-        if (state.NVNGX_Engine == NVSDK_NGX_ENGINE_TYPE_UNREAL ||
-            state.gameQuirks & GameQuirk::ForceUnrealEngine)
+        if (state.NVNGX_Engine == NVSDK_NGX_ENGINE_TYPE_UNREAL || state.gameQuirks & GameQuirk::ForceUnrealEngine)
         {
             InParams->Set("SuperSamplingDenoising.MinDriverVersionMajor", 10);
             InParams->Set("SuperSamplingDenoising.MinDriverVersionMinor", 10);
@@ -527,8 +525,7 @@ inline static void InitNGXParameters(NVSDK_NGX_Parameter* InParams)
                 FfxApiProxy::InitFfxDx12();
 
             ssDenoiseAvailable =
-                FfxApiProxy::IsSRReady() && FfxApiProxy::IsDenoiserReady() 
-                && FfxApiProxy::VersionDx12_RR().major > 0;
+                FfxApiProxy::IsSRReady() && FfxApiProxy::IsDenoiserReady() && FfxApiProxy::VersionDx12_RR().major > 0;
 
             if (ssDenoiseAvailable)
                 LOG_DEBUG("Setting DLSSD flags for FSR Ray Regeneration");
@@ -549,8 +546,7 @@ inline static void InitNGXParameters(NVSDK_NGX_Parameter* InParams)
         InParams->Set(NVSDK_NGX_Parameter_FrameInterpolation_FeatureInitResult, 1);
         InParams->Set("DLSSG.MultiFrameCountMax", 1);
 
-        if (state.NVNGX_Engine == NVSDK_NGX_ENGINE_TYPE_UNREAL ||
-            state.gameQuirks & GameQuirk::ForceUnrealEngine)
+        if (state.NVNGX_Engine == NVSDK_NGX_ENGINE_TYPE_UNREAL || state.gameQuirks & GameQuirk::ForceUnrealEngine)
         {
             InParams->Set(NVSDK_NGX_Parameter_FrameInterpolation_MinDriverVersionMajor, 10);
             InParams->Set("FrameGeneration.MinDriverVersionMajor", 10);
@@ -1059,7 +1055,7 @@ inline static void SetNGXParamAllocType(NVSDK_NGX_Parameter& params, uint32_t al
  */
 template <typename T>
 static bool TryGetToggleableNGXParam(const NVSDK_NGX_Parameter& ngxParams, const char* key,
-                                      const CustomOptional<bool>& isEnabled, T& outValue)
+                                     const CustomOptional<bool>& isEnabled, T& outValue)
 {
     return isEnabled.value_or_default() && (ngxParams.Get(key, &outValue) == NVSDK_NGX_Result_Success);
 }

@@ -1,8 +1,11 @@
 #include "pch.h"
 #include "FSRDPreprocessor_Dx12.h"
+#include "FSRDShaderUtils.h"
+#include "FSRDShaderData.h"
 #include "precompile/FSRDInputConv_Shader.h" 
+#include "precompile/FSRDPyramidSeed_Shader.h" 
+#include "precompile/FSRDBilateralPyramid_Shader.h" 
 #include "precompile/FSRDOutputComp_Shader.h" 
-#include "../Shader_Dx12Utils.h"
 
 #include "dx12/ffx_api_dx12.h"
 #include "fsr-rr/ffx_denoiser.h"
@@ -19,51 +22,9 @@
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
-using ResFmtPair = std::pair<ID3D12Resource*, DXGI_FORMAT>;
+using namespace FSRD;
 
-/**
- * @brief Resources used for composition after denoising
- */
-union CompInput
-{
-    struct
-    {
-        ID3D12Resource* InDenoisedSignal1;
-        ID3D12Resource* InRawSignal1;
-        ID3D12Resource* InAlbedo1;
-
-        ID3D12Resource* InDenoisedSignal2;
-        ID3D12Resource* InRawSignal2;
-        ID3D12Resource* InAlbedo2;
-
-        ID3D12Resource* InColorBeforeParticles; // NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles
-        ID3D12Resource* InSkipSignal;
-    };
-
-    ID3D12Resource* AsArray[8];
-};
-
-struct alignas(16) CompConstants
-{
-    DirectX::XMFLOAT4 DstTexSize; // XY = Tex Size - ZW = 1 / XY
-
-    float CorrelationBias; // Controls the contribution of stable elements to the final image
-    uint32_t Flags;
-
-    float _Padding[2];
-};
-
-constexpr UINT kBackBufferCount = 7;
-constexpr UINT kInternalBufferCount = 0;
-
-// Conversion Constants
-constexpr UINT kConvInputCount = sizeof(FSRDPreprocessor_Dx12::ConvInput) / sizeof(ID3D12Resource*);
-constexpr UINT kConvOutputCount = 8;
-constexpr UINT kConvDescriptorCount = kInternalBufferCount + kConvInputCount + kConvOutputCount;
-
-// Composition Constants
-constexpr UINT kCompInputCount = sizeof(CompInput) / sizeof(ID3D12Resource*);
-constexpr UINT kCompOutputCount = 1;
+constexpr UINT kBackBufferCount = 3;
 
 constexpr UINT kThreadGroupSizeX = 8;
 constexpr UINT kThreadGroupSizeY = 8;
@@ -93,212 +54,9 @@ namespace FSRDFormats
 
     constexpr DXGI_FORMAT OutputBuffer1 = DXGI_FORMAT_R16G16B16A16_FLOAT;
     constexpr DXGI_FORMAT OutputBuffer2 = DXGI_FORMAT_R16G16B16A16_FLOAT;
-}
 
-using OutputSpan = std::array<ID3D12Resource*, kConvOutputCount>;
-using OutputSmartSpan = std::array<ComPtr<ID3D12Resource>, kConvOutputCount>;
-
-// ffxDispatchDescDenoiserInput1Signal
-struct Mode1Signal
-{
-    ComPtr<ID3D12Resource> Radiance; // RGB: Combined noisy color A: Specular Ray Length - RGBA16_FLOAT
-    ComPtr<ID3D12Resource> FusedAlbedo; // RGB: max(specularAlbedo, diffuseAlbedo) A: NoV - RGBA8_UNORM
-};
-
-// ffxDispatchDescDenoiserInput2Signals
-struct Mode2Signal
-{
-    ComPtr<ID3D12Resource> SpecRadiance; // RGB: Noisy specular lighting A: Specular Ray Length - RGBA16_FLOAT
-    ComPtr<ID3D12Resource> DiffRadiance; // RGB: Noisy diffuse lighting - RGBA16_FLOAT
-};
-
-/**
- * @brief Output resources formatted for direct consumption by FSR Ray Regeneration.
- * All resources are automatically transitioned to SRV state after dispatch.
- */
-union InternalOutputs
-{
-    struct
-    {
-        union 
-        {
-            Mode1Signal Mode1Inputs;
-            Mode2Signal Mode2Inputs;
-        };
-
-        ComPtr<ID3D12Resource> Motion; // RG: Standard TSR motion vectors, B: Linear Depth Delta (CurrentLinearDepth - PrevLinearDepth) - RGBA16_FLOAT
-        ComPtr<ID3D12Resource> Normals; // RG: Octahedrally encoded normals, B: Linear Roughness, A: Material Type (Optional) - RGB10A2_UNORM
-        ComPtr<ID3D12Resource> SpecAlbedo; // RGB: Specular Albedo, A: saturate(dot(Normal, ViewDir)) - RGBA8_UNORM
-        ComPtr<ID3D12Resource> DiffAlbedo; // RGB: Diffuse Albedo, A: Metalness (heuristic approximate) - RGBA8_UNORM
-        ComPtr<ID3D12Resource> LinearDepth; // R - R32_FLOAT
-
-        ComPtr<ID3D12Resource> SkipSignal;
-    };
-
-    InternalOutputs()
-    {
-        for (auto& resource : AsArray)
-            resource = ComPtr<ID3D12Resource>();
-    }
-
-    ~InternalOutputs() 
-    { 
-        for (auto& resource : AsArray)
-            resource.~ComPtr();
-    }
-
-    ComPtr<ID3D12Resource> AsArray[8];
-
-    ID3D12Resource* AsRawArray[8];
-};
-
-static void ThrowIfFailed(HRESULT hr, const char* msg)
-{
-    if (FAILED(hr))
-        throw std::runtime_error(msg);
-}
-
-static UINT AlignTo256(UINT size)
-{
-    return (size + 255) & ~255;
-}
-
-static DXGI_FORMAT GetSRVFormat(DXGI_FORMAT defaultFormat) 
-{
-    switch (defaultFormat) 
-    {
-        case DXGI_FORMAT_D32_FLOAT:                return DXGI_FORMAT_R32_FLOAT;
-        case DXGI_FORMAT_D16_UNORM:                return DXGI_FORMAT_R16_UNORM;
-        case DXGI_FORMAT_D24_UNORM_S8_UINT:        return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-        case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:     return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
-
-        case DXGI_FORMAT_R32_TYPELESS:             return DXGI_FORMAT_R32_FLOAT;
-        case DXGI_FORMAT_R16_TYPELESS:             return DXGI_FORMAT_R16_UNORM;
-        case DXGI_FORMAT_R8_TYPELESS:              return DXGI_FORMAT_R8_UNORM;
-
-        case DXGI_FORMAT_R32G32B32A32_TYPELESS:    return DXGI_FORMAT_R32G32B32A32_FLOAT;
-        case DXGI_FORMAT_R32G32B32_TYPELESS:       return DXGI_FORMAT_R32G32B32_FLOAT;
-        case DXGI_FORMAT_R16G16B16A16_TYPELESS:    return DXGI_FORMAT_R16G16B16A16_FLOAT;
-        case DXGI_FORMAT_R8G8B8A8_TYPELESS:        return DXGI_FORMAT_R8G8B8A8_UNORM;
-        case DXGI_FORMAT_R8G8_TYPELESS:            return DXGI_FORMAT_R8G8_UNORM;
-        
-        case DXGI_FORMAT_R10G10B10A2_TYPELESS:     return DXGI_FORMAT_R10G10B10A2_UNORM;
-        case DXGI_FORMAT_R11G11B10_FLOAT:          return DXGI_FORMAT_R11G11B10_FLOAT;
-
-        default: return defaultFormat;
-    }
-}
-
-static ComPtr<ID3D12Resource> CreateInternalTexture(ID3D12Device* pDev, uint32_t width, uint32_t height,
-    DXGI_FORMAT format, LPCWSTR name, D3D12_RESOURCE_STATES initialState)
-{
-    ScopedSkipHeapCapture skipHeapCapture {}; 
-
-    D3D12_RESOURCE_DESC desc = {};
-    desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    desc.Width = width;
-    desc.Height = height;
-    desc.DepthOrArraySize = 1;
-    desc.MipLevels = 1;
-    desc.Format = format;
-    desc.SampleDesc.Count = 1;
-    desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-
-    D3D12_HEAP_PROPERTIES heapProps = { D3D12_HEAP_TYPE_DEFAULT };
-    ComPtr<ID3D12Resource> resource;
-
-    ThrowIfFailed(pDev->CreateCommittedResource(
-        &heapProps, 
-        D3D12_HEAP_FLAG_NONE, 
-        &desc, 
-        initialState, 
-        nullptr,
-        IID_PPV_ARGS(&resource)),
-        "Failed to create internal texture"
-    );
-
-    resource->SetName(name);
-    return resource;
-}
-
-static void AddBarrier(ID3D12Resource* pRes, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after,
-    std::span<D3D12_RESOURCE_BARRIER> barriers, int& bCount)
-{
-    if (!pRes) return;
-
-    barriers[bCount].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barriers[bCount].Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    barriers[bCount].Transition.pResource = pRes;
-    barriers[bCount].Transition.StateBefore = before;
-    barriers[bCount].Transition.StateAfter = after;
-    barriers[bCount].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    bCount++;
-}
-
-static void AddBarriers(ID3D12GraphicsCommandList* cmdList, std::span<ID3D12Resource* const> resources,
-                        D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after)
-{
-    constexpr UINT kMaxBarriers = 16;
-    D3D12_RESOURCE_BARRIER barriers[kMaxBarriers] = {};   
-    int bCount = 0;
-
-    for (auto const& pRes: resources)
-        AddBarrier(pRes, before, after, barriers, bCount);
-
-    if (bCount > 0)
-        cmdList->ResourceBarrier(bCount, barriers);
-}
-
-static void CreateSRV(ID3D12Device* pDev, D3D12_CPU_DESCRIPTOR_HANDLE destHandle, ID3D12Resource* pRes)
-{
-    ScopedSkipHeapCapture skipHeapCapture {};
-
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Texture2D.MipLevels = 1;
-
-    if (pRes != nullptr)
-    {
-        srvDesc.Format = GetSRVFormat(pRes->GetDesc().Format);
-        pDev->CreateShaderResourceView(pRes, &srvDesc, destHandle);
-    }
-    else
-    {
-        srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        pDev->CreateShaderResourceView(nullptr, &srvDesc, destHandle);
-    }
-}
-
-static void CreateSRVs(ID3D12Device* pDev, FrameDescriptorHeap& heap, std::span<ID3D12Resource* const> inputs)
-{
-    for (UINT i = 0; i < (UINT)inputs.size(); i++)
-        CreateSRV(pDev, heap.GetSrvCPU(i), inputs[i]);
-}
-
-static void CreateUAV(ID3D12Device* pDev, D3D12_CPU_DESCRIPTOR_HANDLE destHandle, ID3D12Resource* pRes,
-    DXGI_FORMAT fmt = DXGI_FORMAT_UNKNOWN)
-{
-    ScopedSkipHeapCapture skipHeapCapture {};
-
-    if (fmt == DXGI_FORMAT_UNKNOWN)
-        fmt = (pRes != nullptr) ? GetSRVFormat(pRes->GetDesc().Format) : DXGI_FORMAT_R8G8B8A8_UNORM;
-
-    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-    uavDesc.Format = fmt;
-    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-    pDev->CreateUnorderedAccessView(pRes, nullptr, &uavDesc, destHandle);
-}
-
-static void CreateUAVs(ID3D12Device* pDev, FrameDescriptorHeap& heap, std::span<ID3D12Resource*> resources, 
-    std::span<DXGI_FORMAT> formats = {})
-{
-    for (UINT i = 0; i < (UINT)resources.size(); i++)
-    {
-        DXGI_FORMAT fmt = !formats.empty() ? formats[i] : DXGI_FORMAT_UNKNOWN;
-        CreateUAV(pDev, heap.GetUavCPU(i), resources[i], fmt);
-    }
+    constexpr DXGI_FORMAT SmoothFloor = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    constexpr DXGI_FORMAT EdgeGuide = DXGI_FORMAT_R8_UNORM;
 }
 
 struct ComputeState
@@ -307,12 +65,13 @@ struct ComputeState
     
     ComPtr<ID3D12RootSignature> m_rootSig;
     ComPtr<ID3D12PipelineState> m_pso;
-    std::array<FrameDescriptorHeap, kBackBufferCount> m_frameHeaps;
+    std::vector<FrameDescriptorHeap> m_frameHeaps;
 
     ComPtr<ID3D12Resource> m_constUploadBuffer;
     byte* m_cbMappedData = nullptr;
     UINT m_cbSlotSize = 0;
     UINT m_cbCurrentFrameIndex = 0;
+    UINT backBufferCount = kBackBufferCount;
 
     ~ComputeState()
     {
@@ -329,9 +88,11 @@ struct ComputeState
         UINT cbDataSize,
         UINT numSrvs,
         UINT numUavs,
-        LPCWSTR cbName)
+        LPCWSTR cbName,
+        UINT backBufferCount = kBackBufferCount)
     {
         m_pDev = pDev;
+        this->backBufferCount = backBufferCount;
 
         // Create Root Signature
         ThrowIfFailed(m_pDev->CreateRootSignature(0, bytecode.data(), bytecode.size(), IID_PPV_ARGS(&m_rootSig)),
@@ -345,7 +106,7 @@ struct ComputeState
 
         // Create Constant Buffer Upload Heap
         m_cbSlotSize = AlignTo256(cbDataSize);
-        const UINT bufferSize = m_cbSlotSize * kBackBufferCount;
+        const UINT bufferSize = m_cbSlotSize * backBufferCount;
 
         D3D12_HEAP_PROPERTIES heapProps = { D3D12_HEAP_TYPE_UPLOAD };
         D3D12_RESOURCE_DESC bufferDesc = {};
@@ -365,6 +126,8 @@ struct ComputeState
         D3D12_RANGE readRange = { 0, 0 }; 
         ThrowIfFailed(m_constUploadBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_cbMappedData)), "Failed to map Constant Buffer");
 
+        m_frameHeaps.resize(backBufferCount);
+
         // Create Descriptor Heaps
         for (auto& heap : m_frameHeaps)
         {
@@ -377,9 +140,11 @@ struct ComputeState
         ID3D12GraphicsCommandList* cmdList,
         std::span<const byte> cbData,
         std::span<ID3D12Resource* const> inputs,
+        std::span<const MipChainDesc> inputMips,
         std::span<ID3D12Resource*> output,
+        std::span<const UINT> outputMips,
         XMFLOAT2 outDim,
-        bool autoTransitionUAV = true
+        bool autoBarrierOutput = true
     )
     {
         if (!cmdList) 
@@ -393,16 +158,16 @@ struct ComputeState
         memcpy(m_cbMappedData + currentOffset, cbData.data(), cbData.size());
 
         D3D12_GPU_VIRTUAL_ADDRESS cbAddress = m_constUploadBuffer->GetGPUVirtualAddress() + currentOffset;
-        m_cbCurrentFrameIndex = (m_cbCurrentFrameIndex + 1) % kBackBufferCount;
+        m_cbCurrentFrameIndex = (m_cbCurrentFrameIndex + 1) % backBufferCount;
 
         // Transitions SRV -> UAV
-        if (autoTransitionUAV)
-            AddBarriers(cmdList, output, kSrvState, kUavState);
+        if (autoBarrierOutput)
+            AddBarriers(cmdList, output, outputMips, kSrvState, kUavState);
 
         // Update descriptors
         FrameDescriptorHeap& currentHeap = m_frameHeaps[currentFrame];
-        CreateSRVs(m_pDev, currentHeap, inputs);
-        CreateUAVs(m_pDev, currentHeap, output);
+        CreateSRVs(m_pDev, currentHeap, inputs, inputMips);
+        CreateUAVs(m_pDev, currentHeap, output, outputMips);
 
         // Configure pipeline
         cmdList->SetPipelineState(m_pso.Get());
@@ -421,13 +186,25 @@ struct ComputeState
         cmdList->SetComputeRootDescriptorTable(2, uavTable);
 
         // Dispatch
-        const uint32_t dimX = ((uint32_t)outDim.x + (kThreadGroupSizeX - 1)) / kThreadGroupSizeX;
-        const uint32_t dimY = ((uint32_t)outDim.y + (kThreadGroupSizeY - 1)) / kThreadGroupSizeY;
+        const UINT dimX = ((UINT)outDim.x + (kThreadGroupSizeX - 1)) / kThreadGroupSizeX;
+        const UINT dimY = ((UINT)outDim.y + (kThreadGroupSizeY - 1)) / kThreadGroupSizeY;
         cmdList->Dispatch(dimX, dimY, 1);
 
         // Transition the UAVs back to SRV
-        if (autoTransitionUAV)
-            AddBarriers(cmdList, output, kUavState, kSrvState);
+        if (autoBarrierOutput)
+            AddBarriers(cmdList, output, outputMips, kUavState, kSrvState);
+    }
+
+    void Dispatch(
+        ID3D12GraphicsCommandList* cmdList,
+        std::span<const byte> cbData,
+        std::span<ID3D12Resource* const> inputs,
+        std::span<ID3D12Resource*> output,
+        XMFLOAT2 outDim,
+        bool autoBarrierOutput = true
+    )
+    {
+        Dispatch(cmdList, cbData, inputs, {}, output, {}, outDim, autoBarrierOutput);
     }
 };
 
@@ -437,31 +214,50 @@ struct FSRDPreprocessor_Dx12::Impl
     ID3D12Device* m_pDev = nullptr;
     bool m_isMode2;
 
+    ComputeState m_pyramidSeedShader;
+    ComputeState m_blPyramidShader;
     ComputeState m_convShader;
     ComputeState m_compShader;
 
-    uint32_t m_maxWidth = 0;
-    uint32_t m_maxHeight = 0;
+    UINT m_maxWidth = 0;
+    UINT m_maxHeight = 0;
 
     // Output Targets
-    InternalOutputs m_Out;
+    // Internal storage
+    Conversion::Output m_Out;
     ComPtr<ID3D12Resource> m_OutputBuffer1;
     ComPtr<ID3D12Resource> m_OutputBuffer2;
 
-    void Initialize(std::span<const byte> convBytecode, std::span<const byte> compBytecode, bool isMode2)
+    // Temporary pyramid storage
+    ComPtr<ID3D12Resource> m_SmoothFloor;
+    ComPtr<ID3D12Resource> m_EdgeGuide;
+
+    void Initialize(
+        std::span<const byte> blSeedByteCode, 
+        std::span<const byte> blPyramidByteCode, 
+        std::span<const byte> convByteCode, 
+        std::span<const byte> compByteCode, 
+        bool isMode2
+    )
     {
         ScopedSkipHeapCapture skipHeapCapture {};
         m_isMode2 = isMode2;
 
-        LOG_DEBUG("Creating FSRD shaders.");
+        LOG_DEBUG("Creating FSRD interop shaders...");
 
-        m_convShader.Initialize(m_pDev, convBytecode, sizeof(ConvConstants), kConvInputCount, kConvOutputCount, L"FSRD_Conv_ConstantBuffer");
-        m_compShader.Initialize(m_pDev, compBytecode, sizeof(CompConstants), kCompInputCount, kCompOutputCount, L"FSRD_Comp_ConstantBuffer");
+        m_pyramidSeedShader.Initialize(m_pDev, blSeedByteCode, sizeof(PyramidSeed::Constants), 
+            PyramidSeed::Input::kCount, PyramidSeed::Output::kCount, L"FSRD_PyramidSeed_Constants", PyramidSeed::kBackBufferCount);
+        m_blPyramidShader.Initialize(m_pDev, blPyramidByteCode, sizeof(BLPyramid::Constants), 
+            BLPyramid::Input::kCount, BLPyramid::Output::kCount, L"FSRD_BLPyramid_Constants", BLPyramid::kBackBufferCount);
+        m_convShader.Initialize(m_pDev, convByteCode, sizeof(Conversion::Constants), 
+            Conversion::Input::kCount, Conversion::Output::kCount, L"FSRD_Conv_Constants", Conversion::kBackBufferCount);
+        m_compShader.Initialize(m_pDev, compByteCode, sizeof(Composition::Constants), 
+            Composition::Input::kCount, Composition::kOutputCount, L"FSRD_Comp_Constants", Composition::kBackBufferCount);
 
-        LOG_DEBUG("FSRD Conv & Comp shaders and resources initialized.");
+        LOG_DEBUG("FSRD interop shaders and resources initialized.");
     }
 
-    void SetMaxRenderSize(uint32_t width, uint32_t height)
+    void SetMaxRenderSize(UINT width, UINT height)
     {
         if (m_maxWidth == width && m_maxHeight == height)
             return;
@@ -469,24 +265,28 @@ struct FSRDPreprocessor_Dx12::Impl
         m_maxWidth = width;
         m_maxHeight = height;
 
-        auto CreateTex = [&](DXGI_FORMAT fmt, LPCWSTR name)
-        {
-            return CreateInternalTexture(m_pDev, width, height, fmt, name, kSrvState);
+        auto CreateTex = [&](DXGI_FORMAT fmt, LPCWSTR name, UINT mipLevels = 1)
+        { 
+            return CreateTexture2D(m_pDev, width, height, fmt, name, kSrvState, mipLevels);
         };
 
-        m_Out.Motion = CreateTex(FSRDFormats::Motion, L"FSR_Conv_Motion");
-        m_Out.Normals = CreateTex(FSRDFormats::Normals, L"FSR_Conv_Normals");
-        m_Out.SpecAlbedo = CreateTex(FSRDFormats::SpecAlbedo, L"FSR_Conv_SpecAlbedo");
-        m_Out.DiffAlbedo = CreateTex(FSRDFormats::DiffAlbedo, L"FSR_Conv_DiffAlbedo");
-        m_Out.LinearDepth = CreateTex(FSRDFormats::LinearDepth, L"FSR_Conv_LinearDepth");
-        m_Out.SkipSignal = CreateTex(FSRDFormats::SkipSignal, L"FSR_Conv_SkipSignal");
+        auto& outResources = m_Out.Resources;
+        outResources.Motion = CreateTex(FSRDFormats::Motion, L"FSR_Conv_Motion");
+        outResources.Normals = CreateTex(FSRDFormats::Normals, L"FSR_Conv_Normals");
+        outResources.SpecAlbedo = CreateTex(FSRDFormats::SpecAlbedo, L"FSR_Conv_SpecAlbedo");
+        outResources.DiffAlbedo = CreateTex(FSRDFormats::DiffAlbedo, L"FSR_Conv_DiffAlbedo");
+        outResources.LinearDepth = CreateTex(FSRDFormats::LinearDepth, L"FSR_Conv_LinearDepth");
+        outResources.SkipSignal = CreateTex(FSRDFormats::SkipSignal, L"FSR_Conv_SkipSignal");
+
         m_OutputBuffer1 = CreateTex(FSRDFormats::OutputBuffer1, L"FSR_Conv_OutputBuffer1");
+
+        m_SmoothFloor = CreateTex(FSRDFormats::SmoothFloor, L"FSR_Conv_SmoothFloor", BLPyramid::kPasses + 1);
+        m_EdgeGuide = CreateTex(FSRDFormats::EdgeGuide, L"FSR_Conv_EdgeGuide", BLPyramid::kPasses + 1);
 
         if (m_isMode2)
         {
             m_OutputBuffer2 = CreateTex(FSRDFormats::OutputBuffer2, L"FSR_Conv_OutputBuffer2");
-
-            m_Out.Mode2Inputs = 
+            outResources.Mode2Inputs = 
             {
                 .SpecRadiance = CreateTex(FSRDFormats::SpecRadiance, L"FSR_Conv_SpecRadiance"),
                 .DiffRadiance = CreateTex(FSRDFormats::DiffRadiance, L"FSR_Conv_DiffRadiance")
@@ -494,7 +294,7 @@ struct FSRDPreprocessor_Dx12::Impl
         }
         else
         {
-            m_Out.Mode1Inputs = 
+            outResources.Mode1Inputs = 
             {
                 .Radiance = CreateTex(FSRDFormats::Radiance, L"FSR_Conv_Radiance"),
                 .FusedAlbedo = CreateTex(FSRDFormats::FusedAlbedo, L"FSR_Conv_FusedAlbedo")
@@ -502,28 +302,156 @@ struct FSRDPreprocessor_Dx12::Impl
         }
     }
 
-    void DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConvInput& inputs, ConvConstants constants) 
+    void DispatchPyramidSeed(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
+    {
+        const XMFLOAT2 dispatchSize = { desc.RenderSize.x, desc.RenderSize.y };
+        const bool isDepthLinear = (desc.Flags & (uint32_t) ConvFlags::IsDepthLinear);
+
+        PyramidSeed::Constants constants = 
+        { 
+            .InvProjMatrix = desc.InvProjMatrix,
+            .RenderSize = desc.RenderSize,
+            .NearPlane = desc.NearPlane,
+            .FarPlane = desc.FarPlane,
+            .Flags = isDepthLinear ? uint32_t(PyramidSeed::Flags::LinearDepth) : 0u
+        };
+        const auto cbData = GetAsByteSpan(constants);
+
+        // Create median filtered raw color before cross bilateral filtering
+        // Write to mip chain at top level
+        PyramidSeed::Input in = { .Resources =  
+        {
+            .InColor = desc.Resources.InColor,
+            .InSpecAlbedo = desc.Resources.InSpecAlbedo,
+            .InDiffAlbedo = desc.Resources.InDiffAlbedo,
+            .InDepth = desc.Resources.InDepth
+        }};
+        const auto inMips = std::to_array<MipChainDesc>(
+        {
+            { .MipCount = 1, .MipSlice = 0 },
+            { .MipCount = 1, .MipSlice = 0 },
+            { .MipCount = 1, .MipSlice = 0 },
+            { .MipCount = 1, .MipSlice = 0 }
+        });
+
+        PyramidSeed::Output out = { .Resources = 
+        {
+            .OutColor = m_SmoothFloor.Get(),
+            .OutEdges = m_EdgeGuide.Get()
+        }};
+        const auto outMips = std::to_array<UINT>({ 0u, 0u });
+
+        m_pyramidSeedShader.Dispatch(cmdList, cbData, in.AsArray, inMips, out.AsArray, outMips, dispatchSize);
+    }
+
+    void DispatchBLPyramidMip(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc, UINT currentMip,
+                              UINT nextMip, bool isUpscaling = false)
+    {
+        const XMFLOAT4 RenderSize = desc.RenderSize;
+        const XMFLOAT2 dispatchSize = { desc.RenderSize.x, desc.RenderSize.y };
+        const float srcScale = float(1 << currentMip);
+        const float dstScale = float(1 << nextMip);
+
+        BLPyramid::Constants constants = 
+        {
+            .SrcTexSize = 
+            {
+                RenderSize.x / srcScale, RenderSize.y / srcScale, 
+                RenderSize.z * srcScale, RenderSize.w * srcScale 
+            },
+            .DstTexSize = 
+            { 
+                RenderSize.x / dstScale, RenderSize.y / dstScale, 
+                RenderSize.z * dstScale, RenderSize.w * dstScale 
+            },
+            .Flags = isUpscaling ? UINT(BLPyramid::Flags::Upscale) : 0u
+        };
+        const auto cbData = GetAsByteSpan(constants);
+
+        // Read from mip N
+        BLPyramid::Input in = { .Resources = 
+        {
+            .InColor = m_SmoothFloor.Get(),
+            .InEdgeGuide = m_EdgeGuide.Get()
+        }};
+        const auto inMips = std::to_array<MipChainDesc>(
+        {
+            { .MipCount = 1, .MipSlice = currentMip },
+            { .MipCount = 1, .MipSlice = isUpscaling ? nextMip : currentMip }
+        });
+
+        // Write to mip N +/- 1
+        BLPyramid::Output out = { .Resources = 
+        {
+            .OutColor = m_SmoothFloor.Get(),
+            .OutEdgeGuide = isUpscaling ? nullptr : m_EdgeGuide.Get()
+        }};
+        const auto outMips = std::to_array<UINT>({ nextMip, nextMip });
+
+        m_blPyramidShader.Dispatch(cmdList, cbData, in.AsArray, inMips, out.AsArray, outMips, dispatchSize);
+    }
+
+    void DispatchBLPyramid(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
+    {
+        const XMFLOAT4 RenderSize = desc.RenderSize;
+        const XMFLOAT2 dispatchSize = { desc.RenderSize.x, desc.RenderSize.y };
+
+        // Cross bilateral downscale written to a mip chain with a scalar edge guide pyramid
+        // All mip levels are initialized as SRV. Top level is initialized by the median filter.
+        for (int i = 0; i < BLPyramid::kPasses; i++)
+            DispatchBLPyramidMip(cmdList, desc, i, i + 1);
+
+        // Upscale
+        // All mip levels have been written to and transitioned to SRVs by this point
+        // Destination mips are automatically transitioned to UAVs then back to SRVs after dispatch
+        for (int i = BLPyramid::kPasses; i > 0; i--)
+            DispatchBLPyramidMip(cmdList, desc, i, i - 1, true);
+    }
+
+    void DispatchPackingShader(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
+    {
+        const XMFLOAT2 dispatchSize = { desc.RenderSize.x, desc.RenderSize.y };
+
+        // Prepare inputs for packing and format conversion
+        Conversion::Input in = {};
+        memcpy_s(in.AsArray, sizeof(in.AsArray), desc.Resources.AsArray, sizeof(desc.Resources.AsArray));
+
+        Conversion::Constants packConstants =
+        {
+            .InvViewMatrix = desc.InvViewMatrix,
+            .InvProjMatrix = desc.InvProjMatrix,
+            .PrevViewMatrix = desc.PrevViewMatrix,
+            .RenderSize = desc.RenderSize,
+            .NearPlane = desc.NearPlane,
+            .FarPlane = desc.FarPlane,
+            .FloorIsolation = desc.FloorIsolation,
+            .Flags = desc.Flags
+        };
+
+        in.Resources.InBlurColor = m_SmoothFloor.Get();
+
+        if (m_isMode2)
+            packConstants.Flags |= UINT(ConvFlags::Mode2Signal);
+
+        const std::span<const byte> convCBData((const byte*) &packConstants, sizeof(packConstants));
+        m_convShader.Dispatch(cmdList, convCBData, in.AsArray, m_Out.AsRawArray, dispatchSize, true);
+    }
+
+    void DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
     {
         if (!cmdList || !m_maxWidth)
             return;
 
-        if (m_isMode2)
-            constants.Flags |= uint32_t(ConvFlags::Mode2Signal);
+        // Filtered raster lighting estimate
+        DispatchPyramidSeed(cmdList, desc);
+        DispatchBLPyramid(cmdList, desc);
 
-        const std::span<const byte> cbData((const byte*) &constants, sizeof(constants));
-        m_convShader.Dispatch(cmdList, cbData, inputs.AsArray, m_Out.AsRawArray, constants.RenderSize, true);
+        // DLSS-RR to FSR-RR conversion
+        DispatchPackingShader(cmdList, desc);
 
         // Transition output buffers to UAV after last composition pass or first init
-        if (m_isMode2)
-        {
-            std::array<ID3D12Resource*, 2> buffers = { m_OutputBuffer1.Get(), m_OutputBuffer2.Get() };
-            AddBarriers(cmdList, buffers, kSrvState, kUavState);
-        }
-        else
-        {
-            std::array<ID3D12Resource*, 1> buffers = { m_OutputBuffer1.Get() };
-            AddBarriers(cmdList, buffers, kSrvState, kUavState);
-        }
+        AddBarrier(cmdList, m_OutputBuffer1.Get(), kSrvState, kUavState);
+        AddBarrier(cmdList, m_OutputBuffer2.Get(), kSrvState, kUavState);
     }
 
     void DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
@@ -531,53 +459,50 @@ struct FSRDPreprocessor_Dx12::Impl
         if (!cmdList || !m_maxWidth)
             return;
 
-        CompInput inputs;
-        CompConstants constants = 
+        auto& outResources = m_Out.Resources;
+        Composition::Input inputs = {};
+        Composition::Constants constants = 
         {
             .DstTexSize = desc.DstTexSize,
             .CorrelationBias = desc.CorrelationBias,
-            .Flags = uint32_t(desc.Flags) 
+            .Flags = UINT(desc.Flags) 
         };
+
+        // Transition denoiser output buffers to SRV for composition
+        std::array<ID3D12Resource*, 2> buffers = { m_OutputBuffer1.Get(), m_OutputBuffer2.Get() };
+        AddBarriers(cmdList, buffers, kUavState, kSrvState);
 
         if (m_isMode2)
         {
-            auto& signalData = m_Out.Mode2Inputs;
+            auto& signalData = outResources.Mode2Inputs;
 
-            // Transition denoiser output buffers to SRV for composition
-            std::array<ID3D12Resource*, 2> buffers = { m_OutputBuffer1.Get(), m_OutputBuffer2.Get() };
-            AddBarriers(cmdList, buffers, kUavState, kSrvState);
-
-            inputs = 
+            inputs.Resources = 
             {
                 .InDenoisedSignal1 = m_OutputBuffer1.Get(),
-                .InRawSignal1 = signalData.SpecRadiance.Get(),
-                .InAlbedo1 = m_Out.SpecAlbedo.Get(),
+                .InAlbedo1 = outResources.SpecAlbedo.Get(),
                 .InDenoisedSignal2 = m_OutputBuffer2.Get(),
-                .InRawSignal2 = signalData.DiffRadiance.Get(),
-                .InAlbedo2 = m_Out.DiffAlbedo.Get(),
-                .InColorBeforeParticles = desc.InColorBeforeParticles,
-                .InSkipSignal = m_Out.SkipSignal.Get()
+                .InAlbedo2 = outResources.DiffAlbedo.Get(),
+                .InSkipSignal = outResources.SkipSignal.Get(),
+                .InRawColor = desc.InRawColor,
+                .InColorBeforeParticles = desc.InColorBeforeParticles
             };
 
-            constants.Flags |= uint32_t(CompFlags::Mode2Signal);
+            constants.Flags |= UINT(CompFlags::Mode2Signal);
         }
         else
         {
-            auto& signalData = m_Out.Mode1Inputs;
-            std::array<ID3D12Resource*, 1> buffers = { m_OutputBuffer1.Get() };
-            AddBarriers(cmdList, buffers, kUavState, kSrvState);
+            auto& signalData = outResources.Mode1Inputs;
 
-            inputs = 
+            inputs.Resources = 
             {
                 .InDenoisedSignal1 = m_OutputBuffer1.Get(),
-                .InRawSignal1 = signalData.Radiance.Get(),
                 .InAlbedo1 = signalData.FusedAlbedo.Get(),
-                .InColorBeforeParticles = desc.InColorBeforeParticles,
-                .InSkipSignal = m_Out.SkipSignal.Get()
+                .InSkipSignal = outResources.SkipSignal.Get(),
+                .InColorBeforeParticles = desc.InColorBeforeParticles
             };
         }  
 
-        std::array<ID3D12Resource*, 1> uavs { m_Out.Motion.Get() };
+        std::array<ID3D12Resource*, 1> uavs { m_Out.Resources.Motion.Get() };
         const std::span<const byte> cbData((const byte*) &constants, sizeof(constants));
         const XMFLOAT2 dstDim = { constants.DstTexSize.x, constants.DstTexSize.y };
 
@@ -602,18 +527,17 @@ struct FSRDPreprocessor_Dx12::Impl
         if (!cmdList || dstDim.x == 0.0f)
             return;
 
-        const CompInput inputs = 
-        {
-            .InDenoisedSignal1 = srcTex
-        };
-        const CompConstants constants = 
+        Composition::Input inputs = {};
+        inputs.Resources.InDenoisedSignal1 = srcTex;
+
+        const Composition::Constants constants = 
         {
             .DstTexSize = 
             {
                 dstDim.x,           dstDim.y,
                 (1.0f / dstDim.x),  (1.0f / dstDim.y)
             },
-            .Flags = (uint32_t)CompFlags::RawSourceBlit | (uint32_t)CompFlags::ScaleSrc
+            .Flags = (UINT)CompFlags::RawSourceBlit | (UINT)CompFlags::ScaleSrc
         };
 
         std::array<ID3D12Resource*, 1> uavs { dstTex };
@@ -633,11 +557,8 @@ FSRDPreprocessor_Dx12::FSRDPreprocessor_Dx12(std::string_view name, ID3D12Device
     try
     {
         m_impl->m_pDev = pDev;
-        m_impl->Initialize(
-            { reinterpret_cast<const byte*>(FSRDInputConv_cso), sizeof(FSRDInputConv_cso) },
-            { reinterpret_cast<const byte*>(FSRDOutputComp_cso), sizeof(FSRDOutputComp_cso) },
-            isMode2
-        );
+        m_impl->Initialize(GetAsByteSpan(FSRDPyramidSeed_cso), GetAsByteSpan(FSRDBilateralPyramid_cso),
+                           GetAsByteSpan(FSRDInputConv_cso), GetAsByteSpan(FSRDOutputComp_cso), isMode2);
         m_IsInitialized = true;
     }
     catch (const std::exception& err)
@@ -652,7 +573,7 @@ bool FSRDPreprocessor_Dx12::IsInit() const { return m_IsInitialized; }
 
 std::string_view FSRDPreprocessor_Dx12::GetName() const { return m_InstanceName; }
 
-bool FSRDPreprocessor_Dx12::SetMaxRenderSize(uint32_t width, uint32_t height)
+bool FSRDPreprocessor_Dx12::SetMaxRenderSize(UINT width, UINT height)
 { 
     try
     {
@@ -667,11 +588,11 @@ bool FSRDPreprocessor_Dx12::SetMaxRenderSize(uint32_t width, uint32_t height)
     return false;
 }
 
-bool FSRDPreprocessor_Dx12::DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConvInput& inputs, const ConvConstants& constants)
+bool FSRDPreprocessor_Dx12::DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
 { 
     try
     {
-        m_impl->DispatchConversion(cmdList, inputs, constants);
+        m_impl->DispatchConversion(cmdList, desc);
         return true;
     }
     catch (const std::exception& err)
@@ -682,26 +603,29 @@ bool FSRDPreprocessor_Dx12::DispatchConversion(ID3D12GraphicsCommandList* cmdLis
     return false;
 }
 
-static void SetDescResources(InternalOutputs& descData, ffxDispatchDescHeader& signalHeader,
+static void SetDescResources(Conversion::Output& descData, ffxDispatchDescHeader& signalHeader,
                              ffxDispatchDescDenoiser& dispatchDesc)
 {
+    auto& outResources = descData.Resources;
+
     dispatchDesc.header = 
     { 
         .type = FFX_API_DISPATCH_DESC_TYPE_DENOISER,
         .pNext = &signalHeader // Link signal desc to main header
     };
 
-    dispatchDesc.linearDepth = ffxApiGetResourceDX12(descData.LinearDepth.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-    dispatchDesc.motionVectors = ffxApiGetResourceDX12(descData.Motion.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-    dispatchDesc.normals = ffxApiGetResourceDX12(descData.Normals.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-    dispatchDesc.specularAlbedo = ffxApiGetResourceDX12(descData.SpecAlbedo.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-    dispatchDesc.diffuseAlbedo = ffxApiGetResourceDX12(descData.DiffAlbedo.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+    dispatchDesc.linearDepth = ffxApiGetResourceDX12(outResources.LinearDepth.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+    dispatchDesc.motionVectors = ffxApiGetResourceDX12(outResources.Motion.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+    dispatchDesc.normals = ffxApiGetResourceDX12(outResources.Normals.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+    dispatchDesc.specularAlbedo = ffxApiGetResourceDX12(outResources.SpecAlbedo.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+    dispatchDesc.diffuseAlbedo = ffxApiGetResourceDX12(outResources.DiffAlbedo.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
 }
 
 void FSRDPreprocessor_Dx12::GetSignal(ffxDispatchDescDenoiserInput1Signal& signalDesc,
                                       ffxDispatchDescDenoiser& dispatchDesc) const
 {
-    auto& signalData = m_impl->m_Out.Mode1Inputs;
+    auto& outResources = m_impl->m_Out.Resources;
+    auto& signalData = outResources.Mode1Inputs;
 
     signalDesc = 
     {
@@ -720,8 +644,8 @@ void FSRDPreprocessor_Dx12::GetSignal(ffxDispatchDescDenoiserInput1Signal& signa
 void FSRDPreprocessor_Dx12::GetSignal(ffxDispatchDescDenoiserInput2Signals& signalDesc,
                                       ffxDispatchDescDenoiser& dispatchDesc) const
 {
-    auto& signalData = m_impl->m_Out.Mode2Inputs;
-    auto& descData = m_impl->m_Out;
+    auto& outResources = m_impl->m_Out.Resources;
+    auto& signalData = outResources.Mode2Inputs;
 
     signalDesc = 
     {
@@ -758,7 +682,7 @@ bool FSRDPreprocessor_Dx12::DispatchComposition(ID3D12GraphicsCommandList* cmdLi
 
 ID3D12Resource* FSRDPreprocessor_Dx12::GetCompositionOutput() const 
 { 
-    return m_impl->m_Out.Motion.Get(); 
+    return m_impl->m_Out.Resources.Motion.Get(); 
 }
 
 bool FSRDPreprocessor_Dx12::Blit(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* srcTex,

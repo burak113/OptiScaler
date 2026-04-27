@@ -1,11 +1,25 @@
-static const float GaussWeights[5][5] =
-{
-    { 0.000841, 0.006815, 0.013659, 0.006815, 0.000841 },
-    { 0.006815, 0.055225, 0.110685, 0.055225, 0.006815 },
-    { 0.013659, 0.110685, 0.221841, 0.110685, 0.013659 },
-    { 0.006815, 0.055225, 0.110685, 0.055225, 0.006815 },
-    { 0.000841, 0.006815, 0.013659, 0.006815, 0.000841 }
-};
+// Shared memory sizing utilities
+#define GET_LDS_HALO(K)          ((K) / 2)
+#define GET_LDS_DIM_X(K)         (THREAD_GROUP_SIZE_X + 2 * GET_LDS_HALO(K))
+#define GET_LDS_DIM_Y(K)         (THREAD_GROUP_SIZE_Y + 2 * GET_LDS_HALO(K))
+#define GET_LDS_TOTAL(K)         (GET_LDS_DIM_X(K) * GET_LDS_DIM_Y(K))
+#define GET_LDS_LOADS(K, NumThr) ((GET_LDS_TOTAL(K) + (NumThr) - 1) / (NumThr))
+
+// Defines constants used for shared memory sizing and indexing
+#define DEFINE_LDS_CONFIG(Prefix, KSize) \
+    static const uint Prefix##_Halo             = GET_LDS_HALO(KSize); \
+    static const uint2 Prefix##_HaloOffset      = uint2(Prefix##_Halo, Prefix##_Halo); \
+    static const uint2 Prefix##_Size            = uint2(GET_LDS_DIM_X(KSize), GET_LDS_DIM_Y(KSize)); \
+    static const uint Prefix##_ElementCount     = GET_LDS_TOTAL(KSize); \
+    static const float Prefix##_InvKernelSize   = 1.0f / (KSize * KSize); \
+    static const uint Prefix##_LoadsPerThread   = GET_LDS_LOADS(KSize, NUM_THREADS);
+
+// Defines a 2D shared memory array using predefined LDS config
+#define DECLARE_LDS_ARRAY_2D(Type, Name, KSize) \
+    groupshared Type Name[GET_LDS_DIM_X(KSize)][GET_LDS_DIM_Y(KSize)]
+
+static const float s_PI = 3.14159265358979f;
+static const float s_TAU = 2.0f * s_PI;
 
 // Octahedral Encoding from AMD FSR-RR sample
 float2 OctahedralEncode(float3 N)
@@ -34,10 +48,25 @@ float3 OctahedralDecode(float2 UV)
     return normalize(N);
 }
 
+float2 ClipToUV(float4 clipPosH)
+{
+    float2 coord = clipPosH.xy / clipPosH.w; // NDC
+    coord.xy = 0.5f * coord.xy + 0.5f;
+    coord.y = (1.0f - coord.y);  
+    return coord;
+}
+
+float2 NDCToUV(float2 coord)
+{
+    coord.xy = 0.5f * coord.xy + 0.5f;
+    coord.y = (1.0f - coord.y);
+    return coord;
+}
+
 float2 UVToNDC(float2 coord)
 {
-    coord.y = (1 - coord.y);
-    coord.xy = 2 * coord.xy - 1;
+    coord.y = (1.0f - coord.y);
+    coord.xy = 2.0f * coord.xy - 1.0f;
     return coord;
 }
 
@@ -121,6 +150,15 @@ half3 GetSafeFP16(float3 v)
     return (half3) min(max(v, 0.0f), 65500.0f);
 }
 
+half2 GetSafeFP16(float2 v)
+{
+    return (half2) min(max(v, 0.0f), 65500.0f);
+}
+half1 GetSafeFP16(float v)
+{
+    return (half) min(max(v, 0.0f), 65500.0f);
+}
+
 float Square(float x) { return x * x; }
 
 float2 Square(float2 vec) { return float2(vec.x * vec.x, vec.y * vec.y); }
@@ -132,4 +170,28 @@ float4 Square(float4 vec) { return float4(vec.x * vec.x, vec.y * vec.y, vec.z * 
 float GetLuminance(float3 color)
 {
     return dot(color, float3(0.2126f, 0.7152f, 0.0722f));
+}
+
+// Computes statistical variance/spread using the mean of squares and mean.
+// Var(X) = E[X^2] - (E[X])^2 = sigma^2
+float GetVariance(float meanSq, float mean)
+{
+    return max(meanSq - Square(mean), 0.0f);
+}
+
+// Computes squared coefficient of variation for a scale-invariant measure 
+// of variance. (sigma / mu)^2
+float GetCOVSquared(float meanSq, float mean)
+{
+    const float squaredMean = Square(mean);
+    const float variance = max(meanSq - squaredMean, 0.0f);
+    return variance * rcp(squaredMean + 1e-4f);
+}
+
+// Computes coefficient of variation for a scale-invariant measure 
+// of variance. sigma / mu
+float GetCOV(float meanSq, float mean)
+{
+    const float variance = max(meanSq - Square(mean), 0.0f);
+    return sqrt(variance) * rcp(mean + 1e-2f);
 }
