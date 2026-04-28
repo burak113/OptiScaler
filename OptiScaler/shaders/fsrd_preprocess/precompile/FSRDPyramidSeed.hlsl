@@ -30,6 +30,14 @@ static const uint2 s_ThreadGroupSize = uint2(THREAD_GROUP_SIZE_X, THREAD_GROUP_S
 DEFINE_LDS_CONFIG(s_SM_Med, SORT_KERNEL_SIZE);
 DECLARE_LDS_ARRAY_2D(half4, g_Color, SORT_KERNEL_SIZE);
 
+// 3x3 Depth gradient
+#define DEPTH_KERNEL_SIZE       3
+#define DEPTH_KERNEL_RANGE_MIN  (-DEPTH_KERNEL_SIZE / 2)
+#define DEPTH_KERNEL_RANGE_MAX  (DEPTH_KERNEL_SIZE / 2)
+
+DEFINE_LDS_CONFIG(s_SM_Depth, DEPTH_KERNEL_SIZE);
+DECLARE_LDS_ARRAY_2D(float, g_Depth, DEPTH_KERNEL_SIZE);
+
 Texture2D<half3> InColor : register(t0);
 Texture2D<half3> InSpecAlbedo : register(t1);
 Texture2D<half3> InDiffAlbedo : register(t2);
@@ -43,14 +51,13 @@ SamplerState LinearSampler : register(s0);
 cbuffer CB_Median : register(b0)
 {
     float4x4 InvProjMatrix; // DLSSD ViewToClip^-1
-
     float4 RenderSize;
     
     float NearPlane;
     float FarPlane;
     uint Flags;
     
-    float2 _Padding;
+    float _Padding;
 }
 
 // Full sorting network for 25 values
@@ -77,14 +84,15 @@ bool IsSet(uint mask)
     return (Flags & mask) == mask;
 }
 
-int2 GetSortID(const int i, const int2 gtID)
+int2 GetSortID(const half2 key, const int2 gtID)
 {
+    const int i = (int) key.y;
     const int offsetX = i / SORT_KERNEL_SIZE;
     const int offsetY = i % SORT_KERNEL_SIZE;
     return gtID + int2(offsetX, offsetY);
 }
 
-half4 GetMedianColor(const uint2 groupID, const int2 gtID)
+half4 GetStableColor(const uint2 groupID, const int2 gtID)
 {
     half2 sortKeys[25];
 
@@ -113,17 +121,30 @@ half4 GetMedianColor(const uint2 groupID, const int2 gtID)
         sortKeys[pair.y] = (a.x > b.x) ? a : b;
     }
 
-    // Temporarilly swapped median for minimum
-    // Median overshoots RT shadows - 20th percentile gets closer, but causes too much leakage
-    const int medianFlatIdx = (int) sortKeys[0].y;
-    const int offsetX = medianFlatIdx / SORT_KERNEL_SIZE;
-    const int offsetY = medianFlatIdx % SORT_KERNEL_SIZE;
-    const int2 medID = gtID + int2(offsetX, offsetY);
+    // Stable areas have a well behaved, flatter median. Noise and hard edges introduce
+    // jump discontinuties in the distribution. If this value is low, then the median is 
+    // well behaved and this area is probably flat or at least not unstable.
+    const float medianSpread = abs(sortKeys[11].x - sortKeys[13].x) * rcp(sortKeys[12].x + 1e-2f);
+    const float variance = saturate(10.0f * medianSpread);
+    const float stability = 1.0f - variance;
+    
+    const int2 minID = GetSortID(sortKeys[0], gtID);   
+    const half4 minColor = g_Color[minID.x][minID.y];
+    
+    return half4(minColor.rgb * stability, variance);
+}
 
-    const half4 medianColor = g_Color[medID.x][medID.y];
-    const float spread = abs(sortKeys[11].x - sortKeys[13].x) * rcp(sortKeys[12].x + 1e-2f);
+half GetDepthGradientStrength(const uint2 groupID, const int2 gtID)
+{
+    const int2 smID = gtID + s_SM_Depth_HaloOffset;
+    
+    float2 gradient = 0.0f;
+    gradient.x = g_Depth[smID.x + 1][smID.y] - g_Depth[smID.x - 1][smID.y];
+    gradient.y = g_Depth[smID.x][smID.y + 1] - g_Depth[smID.x][smID.y - 1];
 
-    return half4(medianColor.rgb, saturate(5.0f * spread));
+    const float center = g_Depth[smID.x][smID.y];
+    
+    return half(saturate(length(gradient) * rcp(max(center, 0.1f))));
 }
 
 float3 GetViewSpacePos(const int2 px)
@@ -167,6 +188,23 @@ void PopulateSharedMemory(const uint2 groupID, const int2 gtID)
             g_Color[smID.x][smID.y] = half4(color, GetLuminance(color));
         }
     }
+    
+    const int2 pxDepthOrigin = groupID.xy * s_ThreadGroupSize - s_SM_Depth_HaloOffset;
+    
+    [unroll]
+    for (int i2 = 0; i2 < s_SM_Depth_LoadsPerThread; i2++)
+    {
+        const uint smFlatID = flatID + i2 * NUM_THREADS;
+        
+        if (smFlatID < s_SM_Depth_ElementCount)
+        {
+            const int2 smID = int2(smFlatID % s_SM_Depth_Size.x, smFlatID / s_SM_Depth_Size.x);
+            const int2 px = clamp(pxDepthOrigin + smID, int2(0, 0), maxBounds);
+            const float3 color = GetSafeFP16(InColor[px].rgb);
+            
+            g_Depth[smID.x][smID.y] = GetViewSpacePos(px).z;
+        }
+    }
 }
 
 [RootSignature(MainRS)]
@@ -183,13 +221,11 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     const half3 specAlbedo = GetSafeFP16(InSpecAlbedo[px].rgb);
     const half3 diffAlbedo = GetSafeFP16(InDiffAlbedo[px].rgb);
     const half avgAlbedo = dot(specAlbedo + diffAlbedo, 0.33f);
-    const half4 median = GetMedianColor(groupID.xy, gtID.xy);
-
-    const float depth = GetViewSpacePos(px).z;
-    const float depthScale = rcp(FarPlane - NearPlane + 1e-2f) * 100.0f;
-    const half compressedDepth = frac(depth * depthScale);
-    const half edgeGuide = GetSafeFP16(avgAlbedo + compressedDepth);
     
-    OutColor[px] = half4(median.rgb * (1.0f - median.a), median.a);
+    const half depthGuide = GetDepthGradientStrength(groupID.xy, gtID.xy);
+    const half edgeGuide = GetSafeFP16(avgAlbedo + 0.2f * depthGuide);
+    const half4 color = GetStableColor(groupID.xy, gtID.xy);
+    
+    OutColor[px] = color;
     OutEdgeGuide[px] = edgeGuide;
 }

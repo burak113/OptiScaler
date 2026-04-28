@@ -116,8 +116,9 @@ class FSRDPreprocessor_Dx12
         float NearPlane; // Near < Far
         float FarPlane;  // Near < Far
 
-        uint32_t Flags; // Dynamic configuration flags. See: ConfigFlags
         float FloorIsolation;
+
+        uint32_t Flags; // Dynamic configuration flags. See: ConfigFlags
     };
 
     /**

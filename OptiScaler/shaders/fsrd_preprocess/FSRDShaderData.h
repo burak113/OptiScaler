@@ -16,14 +16,13 @@ namespace FSRD
         struct alignas(16) Constants
         {
             XMFLOAT4X4 InvProjMatrix;
-
             XMFLOAT4 RenderSize;
 
             float NearPlane;
             float FarPlane;
             uint32_t Flags;
 
-            float _Padding[2];
+            float _Padding[1];
         };
 
         union Input
@@ -64,24 +63,21 @@ namespace FSRD
     namespace BLPyramid
     {
         constexpr UINT kPasses = 3;
-        constexpr UINT kBackBufferCount = std::max(2 * 3 * kPasses, 1u);
+        constexpr UINT kBackBufferCount = std::max(3 * (kPasses + 1), 1u);
 
         enum class Flags : uint32_t
         {
-            None = 0,
-            Upscale = (1 << 0)
+            None = 0
         };
 
         struct alignas(16) Constants
         {
-            XMFLOAT4 SrcTexSize;
             XMFLOAT4 DstTexSize;
 
-            float RcpCrossBlNorm;
-            float RcpSelfBlNorm;
+            int32_t StepSize;
             uint32_t Flags;
 
-            float _Padding[1];
+            float _Padding[2];
         };
 
         union Input
@@ -238,6 +234,7 @@ namespace FSRD
 
             float CorrelationBias; // Controls the contribution of stable elements to the final image
             uint32_t Flags;
+
             float _Padding[2];
         };  
 

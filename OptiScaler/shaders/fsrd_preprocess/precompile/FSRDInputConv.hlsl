@@ -130,23 +130,28 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 
     if (px.x >= RenderSize.x || px.y >= RenderSize.y)
         return;
-
-    const float3 viewSpacePos = GetViewSpacePos(px);        
-    OutLinearDepth[px] = viewSpacePos.z;
     
     const float3 rawColor = GetSafeFP16(InColor[px].rgb);
+    float3 floorColor = InBlurColor[px].rgb;
+    
     const float rawLuma = GetLuminance(rawColor);
-    const float floorLuma = min(GetLuminance(InBlurColor[px].rgb), rawLuma);
+    const float floorLuma = GetLuminance(floorColor);
     
-    const float floorScale = FloorIsolation * floorLuma * rcp(max(rawLuma, 1e-2f));
-    const float3 floorColor = floorScale * rawColor;
-    const float3 denosierColor = rawColor - floorColor;
+    // Clamp floor to minimum and blend in raw values where similar to preserve microcontrast
+    const float floorSimilarity = GetRelativeSimilarity(floorLuma, rawLuma, 0.2f);
+    floorColor = lerp(floorColor, rawColor, saturate(floorSimilarity));
+    floorColor = FloorIsolation * min(rawColor, floorColor);
     
-    float4 specReflectance = float4(GetSafeFP16(InSpecAlbedo[px].rgb), 0.0f);
-    float4 diffAlbedo = float4(GetSafeFP16(InDiffAlbedo[px].rgb), 0.0f);    
+    const float3 denosierColor = rawColor - floorColor;           
     
     // Zeroed albedos are unusable sentinels and must be skipped. Depth values at the far plane 
     // indicate a skybox or other skippable content.
+    float4 specReflectance = float4(GetSafeFP16(InSpecAlbedo[px].rgb), 0.0f);
+    float4 diffAlbedo = float4(GetSafeFP16(InDiffAlbedo[px].rgb), 0.0f);
+    
+    const float3 viewSpacePos = GetViewSpacePos(px);
+    OutLinearDepth[px] = viewSpacePos.z;
+    
     const float depthDelta = abs(viewSpacePos.z - FarPlane);
     const float totalAlbedo = dot(specReflectance.rgb + diffAlbedo.rgb, 1.0f);
     

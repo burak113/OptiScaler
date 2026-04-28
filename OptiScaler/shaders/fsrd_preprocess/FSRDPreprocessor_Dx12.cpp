@@ -280,8 +280,8 @@ struct FSRDPreprocessor_Dx12::Impl
 
         m_OutputBuffer1 = CreateTex(FSRDFormats::OutputBuffer1, L"FSR_Conv_OutputBuffer1");
 
-        m_SmoothFloor = CreateTex(FSRDFormats::SmoothFloor, L"FSR_Conv_SmoothFloor", BLPyramid::kPasses + 1);
-        m_EdgeGuide = CreateTex(FSRDFormats::EdgeGuide, L"FSR_Conv_EdgeGuide", BLPyramid::kPasses + 1);
+        m_SmoothFloor = CreateTex(FSRDFormats::SmoothFloor, L"FSR_Conv_SmoothFloor");
+        m_EdgeGuide = CreateTex(FSRDFormats::EdgeGuide, L"FSR_Conv_EdgeGuide");
 
         if (m_isMode2)
         {
@@ -326,86 +326,43 @@ struct FSRDPreprocessor_Dx12::Impl
             .InDiffAlbedo = desc.Resources.InDiffAlbedo,
             .InDepth = desc.Resources.InDepth
         }};
-        const auto inMips = std::to_array<MipChainDesc>(
-        {
-            { .MipCount = 1, .MipSlice = 0 },
-            { .MipCount = 1, .MipSlice = 0 },
-            { .MipCount = 1, .MipSlice = 0 },
-            { .MipCount = 1, .MipSlice = 0 }
-        });
 
         PyramidSeed::Output out = { .Resources = 
         {
             .OutColor = m_SmoothFloor.Get(),
             .OutEdges = m_EdgeGuide.Get()
         }};
-        const auto outMips = std::to_array<UINT>({ 0u, 0u });
 
-        m_pyramidSeedShader.Dispatch(cmdList, cbData, in.AsArray, inMips, out.AsArray, outMips, dispatchSize);
+        m_pyramidSeedShader.Dispatch(cmdList, cbData, in.AsArray, out.AsArray, dispatchSize);
     }
 
-    void DispatchBLPyramidMip(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc, UINT currentMip,
-                              UINT nextMip, bool isUpscaling = false)
+    void DispatchFloorFilter(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
     {
-        const XMFLOAT4 RenderSize = desc.RenderSize;
         const XMFLOAT2 dispatchSize = { desc.RenderSize.x, desc.RenderSize.y };
-        const float srcScale = float(1 << currentMip);
-        const float dstScale = float(1 << nextMip);
 
-        BLPyramid::Constants constants = 
+        for (int i = 0; i <= BLPyramid::kPasses; i++)
         {
-            .SrcTexSize = 
+            BLPyramid::Constants constants = 
             {
-                RenderSize.x / srcScale, RenderSize.y / srcScale, 
-                RenderSize.z * srcScale, RenderSize.w * srcScale 
-            },
-            .DstTexSize = 
-            { 
-                RenderSize.x / dstScale, RenderSize.y / dstScale, 
-                RenderSize.z * dstScale, RenderSize.w * dstScale 
-            },
-            .Flags = isUpscaling ? UINT(BLPyramid::Flags::Upscale) : 0u
-        };
-        const auto cbData = GetAsByteSpan(constants);
+                .DstTexSize = desc.RenderSize,
+                .StepSize = 1 << i
+            };
+            const auto cbData = GetAsByteSpan(constants);
 
-        // Read from mip N
-        BLPyramid::Input in = { .Resources = 
-        {
-            .InColor = m_SmoothFloor.Get(),
-            .InEdgeGuide = m_EdgeGuide.Get()
-        }};
-        const auto inMips = std::to_array<MipChainDesc>(
-        {
-            { .MipCount = 1, .MipSlice = currentMip },
-            { .MipCount = 1, .MipSlice = isUpscaling ? nextMip : currentMip }
-        });
+            BLPyramid::Input in = { .Resources = 
+            {
+                .InColor = m_SmoothFloor.Get(),
+                .InEdgeGuide = m_EdgeGuide.Get()
+            }};
 
-        // Write to mip N +/- 1
-        BLPyramid::Output out = { .Resources = 
-        {
-            .OutColor = m_SmoothFloor.Get(),
-            .OutEdgeGuide = isUpscaling ? nullptr : m_EdgeGuide.Get()
-        }};
-        const auto outMips = std::to_array<UINT>({ nextMip, nextMip });
+            BLPyramid::Output out = { .Resources = 
+            {
+                .OutColor = m_OutputBuffer1.Get()
+            }};
 
-        m_blPyramidShader.Dispatch(cmdList, cbData, in.AsArray, inMips, out.AsArray, outMips, dispatchSize);
-    }
-
-    void DispatchBLPyramid(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
-    {
-        const XMFLOAT4 RenderSize = desc.RenderSize;
-        const XMFLOAT2 dispatchSize = { desc.RenderSize.x, desc.RenderSize.y };
-
-        // Cross bilateral downscale written to a mip chain with a scalar edge guide pyramid
-        // All mip levels are initialized as SRV. Top level is initialized by the median filter.
-        for (int i = 0; i < BLPyramid::kPasses; i++)
-            DispatchBLPyramidMip(cmdList, desc, i, i + 1);
-
-        // Upscale
-        // All mip levels have been written to and transitioned to SRVs by this point
-        // Destination mips are automatically transitioned to UAVs then back to SRVs after dispatch
-        for (int i = BLPyramid::kPasses; i > 0; i--)
-            DispatchBLPyramidMip(cmdList, desc, i, i - 1, true);
+            m_blPyramidShader.Dispatch(cmdList, cbData, in.AsArray, out.AsArray, dispatchSize);
+            std::swap(m_SmoothFloor, m_OutputBuffer1);
+        }
     }
 
     void DispatchPackingShader(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
@@ -444,7 +401,7 @@ struct FSRDPreprocessor_Dx12::Impl
 
         // Filtered raster lighting estimate
         DispatchPyramidSeed(cmdList, desc);
-        DispatchBLPyramid(cmdList, desc);
+        DispatchFloorFilter(cmdList, desc);
 
         // DLSS-RR to FSR-RR conversion
         DispatchPackingShader(cmdList, desc);

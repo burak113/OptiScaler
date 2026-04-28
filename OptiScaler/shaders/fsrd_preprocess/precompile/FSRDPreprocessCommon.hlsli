@@ -185,7 +185,7 @@ float GetCOVSquared(float meanSq, float mean)
 {
     const float squaredMean = Square(mean);
     const float variance = max(meanSq - squaredMean, 0.0f);
-    return variance * rcp(squaredMean + 1e-4f);
+    return variance * rcp(max(squaredMean, 1e-4f));
 }
 
 // Computes coefficient of variation for a scale-invariant measure 
@@ -193,5 +193,20 @@ float GetCOVSquared(float meanSq, float mean)
 float GetCOV(float meanSq, float mean)
 {
     const float variance = max(meanSq - Square(mean), 0.0f);
-    return sqrt(variance) * rcp(mean + 1e-2f);
+    return sqrt(variance) * rcp(max(mean, 1e-2f));
+}
+
+// Computes a relative similarity score between value and baseline.
+// Returns 1.0 when values are identical, and falls off based on relative difference.
+float GetRelativeSimilarity(float value, float baseline)
+{
+    const float delta = abs(baseline - value) * rcp(max(baseline, 1e-2f));
+    return saturate(1.0f - delta);
+}
+
+// Computes a relative similarity score between value and baseline. 
+// Returns 0 below threshold, smoothly transitions to 1.0 as similarity approaches 1.
+float GetRelativeSimilarity(float value, float baseline, float threshold)
+{
+    return smoothstep(threshold, 1.0f, GetRelativeSimilarity(value, baseline));
 }
