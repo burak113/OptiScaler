@@ -20,9 +20,9 @@
 static const uint2 s_ThreadGroupSize =  uint2(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y);
 
 // Kernel config
-#define KERNEL_SIZE        5
-#define KERNEL_RANGE_MIN          (-KERNEL_SIZE / 2)
-#define KERNEL_RANGE_MAX          (KERNEL_SIZE / 2)
+#define KERNEL_SIZE             5
+#define KERNEL_RANGE_MIN        (-KERNEL_SIZE / 2)
+#define KERNEL_RANGE_MAX        (KERNEL_SIZE / 2)
 
 static const float s_InvKernelSize =    1.0f / (KERNEL_SIZE * KERNEL_SIZE);
 
@@ -77,74 +77,48 @@ cbuffer CB_Comp : register(b0)
 bool IsSet(uint mask) { return (Flags & mask) == mask; }
 uint GetDebugMode() { return (Flags & FLAGS_DEBUG_MODE_MASK); }
 
-// Correlates raw noisy input with denoised color, using a modified SSIM.
-void CorrelateDemodulatedColor(const uint2 gtID, out float strucCorrelation, out float conCorrelation, out float lumCorrelation)
+// Correlates raw noisy input with denoised color using a modified SSIM.
+float GetRawColorSimilarity(const uint2 gtID)
 {
-    const int2 smCenter = gtID + s_SM_HaloOffset;
-    const float denoisedCenter = g_DenoisedColor[smCenter.x][smCenter.y].a; // D       
-    const float rawCenter = g_RawColor[smCenter.x][smCenter.y].a; // R    
-    
-    float rawLuma = rawCenter;
-    float sumD = denoisedCenter;
-    float sumR = rawLuma;
-    float sumDD = Square(denoisedCenter); // D^2
-    float sumRR = Square(rawLuma); // R^2
-    float sumRD = rawLuma * denoisedCenter; // R*D
-    float minD = 1e7f;
-    float maxD = 1e-7f;
-    
+    const int2 smCenter = gtID + s_SM_HaloOffset;    
+    float meanD = 0.0f;
+    float meanR = 0.0f;
+    float meanDD = 0.0f; // D^2
+    float meanRR = 0.0f; // R^2
+    float meanRD = 0.0f; // R*D
+
+    [unroll]
     for (int x1 = KERNEL_RANGE_MIN; x1 <= KERNEL_RANGE_MAX; x1++)
     {
+        [unroll]
         for (int y1 = KERNEL_RANGE_MIN; y1 <= KERNEL_RANGE_MAX; y1++)
         {
-            if (x1 != 0 || y1 != 0)
-            {
-                const int2 smID = smCenter + int2(x1, y1);
-                const float lum = g_DenoisedColor[smID.x][smID.y].a;
+            const int2 smID = smCenter + int2(x1, y1);
                 
-                sumD += lum;
-                sumDD += Square(lum);
-                minD = min(minD, lum);
-                maxD = max(maxD, lum);
-            }
+            const float lumD = g_DenoisedColor[smID.x][smID.y].a;
+            meanD += lumD;
+            meanDD += Square(lumD);
+  
+            const float lumR = g_RawColor[smID.x][smID.y].a;
+            meanR += lumR;
+            meanRR += Square(lumR);
+            meanRD += lumR * lumD;
         }
     }
     
-    // Neighborhood around raw input is clamped to prevent neighbors from dominating
-    // too much if they're noisy/sparse.
-    const float lumRange = 5.0f * max(maxD - minD, 0.1f);
-    const float rcpLumRange = rcp(lumRange);
-    const float lumRangeMin = rawCenter - 0.5f * lumRange;
-    const float lumRangeMax = rawCenter + 0.5f * lumRange;
+    meanD *= s_InvKernelSize;
+    meanR *= s_InvKernelSize;
+    meanDD *= s_InvKernelSize;
+    meanRR *= s_InvKernelSize;
+    meanRD *= s_InvKernelSize;
     
-    for (int x2 = KERNEL_RANGE_MIN; x2 <= KERNEL_RANGE_MAX; x2++)
-    {
-        for (int y2 = KERNEL_RANGE_MIN; y2 <= KERNEL_RANGE_MAX; y2++)
-        {
-            if (x2 != 0 || y2 != 0)
-            {
-                const int2 smID = smCenter + int2(x2, y2);
-                const float lum = g_RawColor[smID.x][smID.y].a;
-                
-                rawLuma = lum;
-                rawLuma = rawCenter + lumRange * tanh((rawLuma - rawCenter) * rcpLumRange);
-                
-                sumR += rawLuma;
-                sumRR += Square(rawLuma);
-                sumRD += rawLuma * g_DenoisedColor[smID.x][smID.y].a;
-            }
-        }
-    }
-
-    const float avgD = sumD * s_InvKernelSize;
-    const float avgR = sumR * s_InvKernelSize;
-    const float avgDSq = Square(avgD);
-    const float avgRSq = Square(avgR);
+    const float meanDSq = Square(meanD);
+    const float meanRSq = Square(meanR);
     
     // Variances (std.dev^2)
     // E[X^2] - (E[X])^2 - Average of squares, less the square of the average
-    const float varD = max((sumDD * s_InvKernelSize) - avgDSq, 0.0f);
-    const float varR = max((sumRR * s_InvKernelSize) - avgRSq, 2e-3f);
+    const float varD = max(meanDD - meanDSq, 0.0f);
+    const float varR = max(meanRR - meanRSq, 2e-3f);
     
     // Std. Deviation
     const float devD = sqrt(varD);
@@ -152,18 +126,27 @@ void CorrelateDemodulatedColor(const uint2 gtID, out float strucCorrelation, out
     
     // Covariance
     // E[X*Y] - E[X]E[Y] - Average of R*D product, less product of their averages
-    const float covRD = (sumRD * s_InvKernelSize) - (avgD * avgR);
+    const float covRD = meanRD - (meanD * meanR);
         
     // Correlation
-    const float relaxation = 1.0f;
-    const float c1 = Square(1e-2f * relaxation);
-    const float c2 = Square(3e-2f * relaxation);
+    static const float s_SSIMStrictness = 1.0f;
+    static const float s_COVThreshold = 0.2f;
+    
+    const float c1 = Square(1e-2f * s_SSIMStrictness);
+    const float c2 = Square(3e-2f * s_SSIMStrictness);
     const float c3 = 1.0f * c2;
     
     // Standard SSIM components
-    strucCorrelation = ((covRD + c3) * rcp(devD * devR + c3));
-    conCorrelation = ((2.0f * devD * devR + c2) * rcp(varD + varR + c2));
-    lumCorrelation = (2.0f * avgD * avgR) * rcp(avgDSq + avgRSq + c1);
+    const float strucCorrelation = ((covRD + c3) * rcp(devD * devR + c3));
+    const float conCorrelation = ((2.0f * devD * devR + c2) * rcp(varD + varR + c2));
+    const float lumCorrelation = (2.0f * meanD * meanR) * rcp(meanDSq + meanRSq + c1);    
+    const float ssim = strucCorrelation * conCorrelation * lumCorrelation;  
+    
+    // Variance gating. The denoiser doesn't destroy genuine detail. It might flatten details, or even
+    // hallucinate, but if it says it's flat, then it's actually flat.
+    const float covD = devD * rcp(max(meanD, 1e-2f));
+    
+    return saturate(ssim) * smoothstep(0.0f, s_COVThreshold, covD);
 }
 
 void PopulateSharedMemory(const uint2 groupID, const int2 gtID)
@@ -201,15 +184,16 @@ void PopulateSharedMemory(const uint2 groupID, const int2 gtID)
                 denoisedColor = InDenoisedSignal1[px].rgb * totalAlbedo;
             }
             
-            const float3 skipColor = InSkipSignal[px].rgb;
-            denoisedColor += skipColor;
-            const float denoisedLuma = GetLuminance(denoisedColor);
+            denoisedColor += InSkipSignal[px].rgb;
 
             // Constrain raw color to denosied chroma
+            const float denoisedLuma = GetLuminance(denoisedColor);
             const float rawLuma = GetLuminance(InRawColor[px]);
+            
             const float rawScale = rawLuma * rcp(max(denoisedLuma, 1e-2f));
             const float3 rawColor = rawScale * denoisedColor;
 
+            // Use demodulated color for luma references, but use modulated color for RGB
             const float3 rcpTotalAlbedo = rcp(max(totalAlbedo, 1e-3f));
             const float rawRef = GetLuminance(rawColor * rcpTotalAlbedo);
             const float denoisedRef = GetLuminance(denoisedColor * rcpTotalAlbedo);
@@ -250,11 +234,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         PopulateSharedMemory(groupID.xy, gtID.xy);
 
         // Correlate raw RT input with denoiser output
-        float strucCorrelation, conCorrelation, lumCorrelation;    
-        CorrelateDemodulatedColor(gtID.xy, strucCorrelation, conCorrelation, lumCorrelation);
-        
-        float lowConfWeight = strucCorrelation * conCorrelation * lumCorrelation;
-        lowConfWeight = saturate(CorrelationBias * lowConfWeight);
+        float lowConfWeight = GetRawColorSimilarity(gtID.xy) * CorrelationBias;
                 
         [branch]
         if (IsSet(FLAGS_DEBUG))
@@ -284,11 +264,11 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         }
         else
         {
-            const half3 denoisedColor = g_DenoisedColor[smID.x][smID.y].rgb;
-            const half3 rawColor = g_RawColor[smID.x][smID.y].rgb;
-            const half4 particles = InColorBeforeParticles[px];
-            
-            const half3 outColor = half3(lerp(denoisedColor, rawColor, lowConfWeight));
+            const half4 denoisedColor = g_DenoisedColor[smID.x][smID.y];
+            const half4 rawColor = g_RawColor[smID.x][smID.y];
+            const half4 particles = InColorBeforeParticles[px]; // TODO
+
+            const half3 outColor = half3(lerp(denoisedColor.rgb, rawColor.rgb, lowConfWeight));
 
             OutColor[px] = (half4)GetSafeFP16(float4(outColor, 1.0f));
         }
