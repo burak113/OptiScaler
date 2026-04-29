@@ -23,9 +23,43 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     bool Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) override;
 
   private:
+
+    union DenoiserConfiguration
+    {
+        static constexpr uint32_t kCount = FFX_API_CONFIGURE_DENOISER_KEY_DISOCCLUSION_THRESHOLD;
+
+        // Ordered by FfxApiConfigureDenoiserKey
+        struct
+        {
+            float m_CrossBilateralNormalStrength;
+            float m_StabilityBias;
+            float m_MaxRadiance;
+            float m_RadianceClipStdK;
+            float m_GaussianKernelRelaxation;
+            float m_DisocclusionThreshold;
+        };
+
+        float AsArray[kCount];
+
+        static int GetKeyIndex(FfxApiConfigureDenoiserKey key) 
+        {
+            return std::clamp((int) key - 1, 0, (int)DenoiserConfiguration::kCount);
+        }
+
+        static FfxApiConfigureDenoiserKey GetIndexKey(int index)
+        {
+            index = std::clamp(index, 0, (int) DenoiserConfiguration::kCount);
+            return static_cast<FfxApiConfigureDenoiserKey>(index);
+        }
+
+        float& GetMember(int index) { return AsArray[index]; }
+
+        float& GetMember(FfxApiConfigureDenoiserKey key) { return AsArray[GetKeyIndex(key)]; }
+    };
+
     ffxContext _pDenoiserCtx;
     ffxCreateContextDescDenoiser _denoiserCtxDesc;
-    FfxApiDenoiserSettings _denoiserSettings;
+    DenoiserConfiguration _denoiserSettings;
     bool _isMode2;
 
     static bool s_isHWDepth;
@@ -75,4 +109,10 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
      * @brief Dispatches FSR-RR denoiser converted inputs. Runs before upscaler.
      */
     bool DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList, const ffxDispatchDescDenoiser& dispatchDesc);
+
+        void SetDefaultConfiguration();
+
+    ffxReturnCode_t SetDefaultConfiguration(FfxApiConfigureDenoiserKey key);
+
+    ffxReturnCode_t ApplyConfiguration(FfxApiConfigureDenoiserKey key);
 };

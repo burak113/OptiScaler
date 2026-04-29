@@ -190,6 +190,7 @@ enum class DebugModes : uint64_t
     DlssColorBeforeParticles = 5,
     DlssColorBeforeTransparency = 6,
     DlssTransparencyLayer = 7,
+    FfxDebug = 8,
 
     ConversionDebug = FSRDConvFlags::Debug,
     ConversionDebugMask = FSRDConvFlags::DebugModeMask,
@@ -212,7 +213,6 @@ enum class DebugModes : uint64_t
     OutDiffAlbedo = FSRDConvFlags::DebugOutDiffAlbedo,
 
     OutDepthDelta = FSRDConvFlags::DebugOutDepthDelta,
-    OutNormDotView = FSRDConvFlags::DebugOutNormDotView,
     AlbedoError = FSRDConvFlags::DebugAlbedoError,
 
     FloorVariance = FSRDConvFlags::DebugFloorVariance,
@@ -248,6 +248,7 @@ using ModeNamePair = std::pair<const char*, uint64_t>;
 constexpr auto kDebugModes = std::to_array<ModeNamePair>(
 {
     { "None", (uint64_t) DebugModes::None },
+    { "FfxDebug", (uint64_t) DebugModes::FfxDebug },
 
     { "DenoiserBypass", (uint64_t) DebugModes::DenoiserBypass },
     { "UpscalerBypass", (uint64_t) DebugModes::UpscalerBypass },
@@ -276,7 +277,6 @@ constexpr auto kDebugModes = std::to_array<ModeNamePair>(
     { "OutSpecAlbedo", (uint64_t) DebugModes::OutSpecAlbedo },
     { "OutDiffAlbedo", (uint64_t) DebugModes::OutDiffAlbedo },
     { "OutDepthDelta", (uint64_t) DebugModes::OutDepthDelta },
-    { "OutNormDotView", (uint64_t) DebugModes::OutNormDotView },
 
     { "AlbedoError", (uint64_t) DebugModes::AlbedoError },
     { "Correlation", (uint64_t) DebugModes::Correlation },
@@ -304,7 +304,7 @@ FSRDFeatureDx12::FSRDFeatureDx12(uint32_t InHandleId, NVSDK_NGX_Parameter* InPar
     _pDenoiserCtx(nullptr), 
     _denoiserCtxDesc({}),
     _denoiserSettings({}), 
-    _convDesc({}), 
+    _convDesc({}),
     _isMode2(false)
 {
     _moduleLoaded = FfxApiProxy::IsDenoiserReady();
@@ -408,7 +408,7 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
         },
         .version = FFX_DENOISER_VERSION,
         .maxRenderSize = { RenderWidth(), RenderHeight() },
-        .mode = _isMode2 ? FFX_DENOISER_MODE_2_SIGNALS : FFX_DENOISER_MODE_1_SIGNAL,
+        .mode = uint32_t(_isMode2 ? FFX_DENOISER_MODE_2_SIGNALS : FFX_DENOISER_MODE_1_SIGNAL),
         .flags = 0
     };
 
@@ -430,13 +430,7 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
     }
 
     // Query default settings
-    ffxQueryDescDenoiserGetDefaultSettings queryDefaultSettingsDesc = 
-    {
-        .header = { .type = FFX_API_QUERY_DESC_TYPE_DENOISER_GET_DEFAULT_SETTINGS },
-        .device = Device,
-        .defaultSettings = &_denoiserSettings
-    };
-    FfxApiProxy::D3D12_Query(nullptr, &queryDefaultSettingsDesc.header);
+    SetDefaultConfiguration();
 
     // Create DLSS-RR to FSR-RR input converter
     FSRDConvShader = std::make_unique<FSRDPreprocessor_Dx12>("FSRD Converter", Device, _isMode2);
@@ -539,11 +533,12 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
     const auto dbgMode = static_cast<DebugModes>(cfg.FfxDenoiserDebugMode.value_or_default());
     const bool isDebugVis = (uint32_t)dbgMode & (uint32_t) DebugModes::ConversionDebug;
     const bool isDebugComp = ((uint64_t)dbgMode & (uint64_t)DebugModes::CompositionDebug);
+    const bool isFfxDebug = dbgMode == DebugModes::FfxDebug;
     const bool hasAnyDebug = (dbgMode != DebugModes::None);
 
     // Denoise is bypassed if we are debugging something OTHER than the final outputs
-    const bool isDenoiseBypassed =
-        !isDebugComp && hasAnyDebug && dbgMode != DebugModes::DenoiserOutput && dbgMode != DebugModes::UpscalerBypass;
+    const bool isDenoiseBypassed = !isFfxDebug && !isDebugComp && 
+        hasAnyDebug && dbgMode != DebugModes::DenoiserOutput && dbgMode != DebugModes::UpscalerBypass;
 
     // Upscale is bypassed if we are in a debug mode that isn't the DenoiserBypass (final raw)
     const bool isUpscaleBypassed = hasAnyDebug && dbgMode != DebugModes::DenoiserBypass;
@@ -581,6 +576,26 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
     // Dispatch denoiser
     if (!isDenoiseBypassed)
     {
+        ffxDispatchDescDenoiserDebugView dispatchDebugView = {};
+
+        if (isFfxDebug)
+        {
+            ffxDispatchDescHeader* signalHeader = denoiserDesc.header.pNext;
+            signalHeader->pNext = &dispatchDebugView.header;
+
+            ID3D12Resource* dstTex;
+            TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_Output, dstTex);
+
+            dispatchDebugView = 
+            { 
+                .header = { .type = FFX_API_DISPATCH_DESC_DEBUG_VIEW_TYPE_DENOISER }, 
+                .output = ffxApiGetResourceDX12(dstTex, FFX_API_RESOURCE_STATE_UNORDERED_ACCESS),
+                .outputSize = { TargetWidth(), TargetHeight() },
+                .mode = FFX_API_DENOISER_DEBUG_VIEW_MODE_OVERVIEW,
+                .viewportIndex = 0
+            };
+        }
+
         isDenoiserReady = DispatchDenoiser(InCommandList, denoiserDesc);
 
         if (!isDenoiserReady)
@@ -597,7 +612,7 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_Color, compDesc.InRawColor);
         TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles, compDesc.InColorBeforeParticles);
 
-        if (!FSRDConvShader->DispatchComposition(InCommandList, compDesc))
+        if (!isFfxDebug && !FSRDConvShader->DispatchComposition(InCommandList, compDesc))
             return false;
 
         isDenoiserReady = true;
@@ -631,7 +646,7 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         // Cleanup
         FSR31FeatureDx12::ResetConfigurableBarriers(InCommandList);
     }
-    else // Debug visualization
+    else if (!isFfxDebug) // Debug visualization
     {
         ID3D12Resource* srcTex = nullptr;
 
@@ -694,7 +709,7 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
     dispatchDesc = 
     {
         .commandList = InCommandList,
-        .motionVectorScale = { 1.0f, 1.0f },
+        .motionVectorScale = { 1.0f, 1.0f, 1.0f },
         // Camera movement since last frame (PreviousPosition - CurrentPosition)
         .cameraPositionDelta = { (_lastCamPos.x - camPos.x), (_lastCamPos.y - camPos.y), (_lastCamPos.z - camPos.z) },
         .cameraRight = GetFloat3FFX(right),
@@ -742,9 +757,9 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
     inParams.Get(NVSDK_NGX_Parameter_Jitter_Offset_X, &jitterX);
     inParams.Get(NVSDK_NGX_Parameter_Jitter_Offset_Y, &jitterY);
 
-    // Convert from pixel to NDC jitter
-    dispatchDesc.jitterOffsets.x = 2.0f * (jitterX / (float) RenderWidth());
-    dispatchDesc.jitterOffsets.y = -2.0f * (jitterY / (float) RenderHeight());
+    // Pixel jitter
+    dispatchDesc.jitterOffsets.x = jitterX;
+    dispatchDesc.jitterOffsets.y = jitterY;
 
     LOG_DEBUG("Jitter NDC [{:.6f}, {:.6f}]", dispatchDesc.jitterOffsets.x, dispatchDesc.jitterOffsets.y);
 
@@ -893,13 +908,15 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     return true;
 }
 
-static void TryUpdateOption(const CustomOptional<float>& cfgValue, float& currentValue, bool& wasUpdated)
+static bool TryUpdateOption(const CustomOptional<float>& cfgValue, float& currentValue)
 {
     if (cfgValue.value_or_default() != currentValue)
     {
         currentValue = cfgValue.value_or_default();
-        wasUpdated = true;
+        return true;
     }
+    else
+        return false;
 }
 
 bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
@@ -909,22 +926,18 @@ bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
     const auto& cfg = *Config::Instance();
     bool cfgChanged = false;
 
-    TryUpdateOption(cfg.FfxDenoiserHistRejection, _denoiserSettings.historyRejectionStrength, cfgChanged);
-    TryUpdateOption(cfg.FfxDenoiserCrossBlNormStr, _denoiserSettings.crossBilateralNormalStrength, cfgChanged);
-    TryUpdateOption(cfg.FfxDenoiserStabilityBias, _denoiserSettings.stabilityBias, cfgChanged);
-    TryUpdateOption(cfg.FfxDenoiserMaxRadiance, _denoiserSettings.maxRadiance, cfgChanged);
-    TryUpdateOption(cfg.FfxDenoiserRadianceClip, _denoiserSettings.radianceClipStdK, cfgChanged);
-    TryUpdateOption(cfg.FfxDenoiserGaussKernRelax, _denoiserSettings.gaussianKernelRelaxation, cfgChanged);
-
-    if (cfgChanged)
-    {
-        ffxConfigureDescDenoiserSettings cfgDesc = 
-        {
-            .header = { .type = FFX_API_CONFIGURE_DESC_TYPE_DENOISER_SETTINGS },
-            .settings = _denoiserSettings
-        };
-        FfxApiProxy::D3D12_Configure(&_pDenoiserCtx, &cfgDesc.header);
-    }
+    if (TryUpdateOption(cfg.FfxDenoiserDisocThreshold, _denoiserSettings.m_DisocclusionThreshold))
+        ApplyConfiguration(FFX_API_CONFIGURE_DENOISER_KEY_DISOCCLUSION_THRESHOLD);
+    if (TryUpdateOption(cfg.FfxDenoiserCrossBlNormStr, _denoiserSettings.m_CrossBilateralNormalStrength))
+        ApplyConfiguration(FFX_API_CONFIGURE_DENOISER_KEY_CROSS_BILATERAL_NORMAL_STRENGTH);
+    if (TryUpdateOption(cfg.FfxDenoiserStabilityBias, _denoiserSettings.m_StabilityBias))
+        ApplyConfiguration(FFX_API_CONFIGURE_DENOISER_KEY_STABILITY_BIAS);
+    if (TryUpdateOption(cfg.FfxDenoiserMaxRadiance, _denoiserSettings.m_MaxRadiance))
+        ApplyConfiguration(FFX_API_CONFIGURE_DENOISER_KEY_MAX_RADIANCE);
+    if (TryUpdateOption(cfg.FfxDenoiserRadianceClip, _denoiserSettings.m_RadianceClipStdK))
+        ApplyConfiguration(FFX_API_CONFIGURE_DENOISER_KEY_RADIANCE_CLIP_STD_K);
+    if (TryUpdateOption(cfg.FfxDenoiserGaussKernRelax, _denoiserSettings.m_GaussianKernelRelaxation))
+        ApplyConfiguration(FFX_API_CONFIGURE_DENOISER_KEY_GAUSSIAN_KERNEL_RELAXATION);
 
     LOG_DEBUG("Dispatching FSR-RR...");
     const ffxReturnCode_t result = FfxApiProxy::D3D12_Dispatch(&_pDenoiserCtx, &dispatchDesc.header);
@@ -943,4 +956,38 @@ bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
     }
 
     return true;
+}
+
+void FSRDFeatureDx12::SetDefaultConfiguration()
+{
+    for (int i = 0; i < DenoiserConfiguration::kCount; i++)
+        SetDefaultConfiguration(DenoiserConfiguration::GetIndexKey(i));
+}
+
+ffxReturnCode_t FSRDFeatureDx12::SetDefaultConfiguration(FfxApiConfigureDenoiserKey key)
+{
+    ffxQueryDescDenoiserGetDefaultKeyValue queryDesc = 
+    {
+        .header = { .type = FFX_API_QUERY_DESC_TYPE_DENOISER_GET_DEFAULT_KEYVALUE }, 
+        .key = (uint64_t)key, 
+        .count = 1u,
+        .data = &_denoiserSettings.GetMember(key)
+    };
+
+    const ffxReturnCode_t code = FfxApiProxy::D3D12_Query(&_pDenoiserCtx, &queryDesc.header);
+    return code;
+}
+
+ffxReturnCode_t FSRDFeatureDx12::ApplyConfiguration(FfxApiConfigureDenoiserKey key)
+{
+    ffxQueryDescDenoiserGetDefaultKeyValue configureDesc = 
+    {
+        .header = { .type = FFX_API_CONFIGURE_DESC_TYPE_DENOISER_KEYVALUE }, 
+        .key = (uint64_t)key, 
+        .count = 1u,
+        .data = &_denoiserSettings.GetMember(key)
+    };
+
+    const ffxReturnCode_t code = FfxApiProxy::D3D12_Configure(&_pDenoiserCtx, &configureDesc.header);
+    return code;
 }

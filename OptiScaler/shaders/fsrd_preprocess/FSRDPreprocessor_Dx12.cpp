@@ -278,14 +278,16 @@ struct FSRDPreprocessor_Dx12::Impl
         outResources.LinearDepth = CreateTex(FSRDFormats::LinearDepth, L"FSR_Conv_LinearDepth");
         outResources.SkipSignal = CreateTex(FSRDFormats::SkipSignal, L"FSR_Conv_SkipSignal");
 
-        m_outputBuffer1 = CreateTex(FSRDFormats::OutputBuffer1, L"FSR_Conv_OutputBuffer1");
-
         m_smoothFloor = nullptr;
         m_edgeGuide = CreateTex(FSRDFormats::EdgeGuide, L"FSR_Conv_EdgeGuide");
 
+        // Scratch buffers
+        m_outputBuffer1 = CreateTex(FSRDFormats::OutputBuffer1, L"FSR_Conv_OutputBuffer1");
+        m_outputBuffer2 = CreateTex(FSRDFormats::OutputBuffer2, L"FSR_Conv_OutputBuffer2");
+
         if (m_isMode2)
         {
-            m_outputBuffer2 = CreateTex(FSRDFormats::OutputBuffer2, L"FSR_Conv_OutputBuffer2");
+            
             outResources.Mode2Inputs = 
             {
                 .SpecRadiance = CreateTex(FSRDFormats::SpecRadiance, L"FSR_Conv_SpecRadiance"),
@@ -302,7 +304,7 @@ struct FSRDPreprocessor_Dx12::Impl
         }
     }
 
-    void DispatchPyramidSeed(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
+    void DispatchFloorSeed(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
     {
         const XMFLOAT2 dispatchSize = { desc.RenderSize.x, desc.RenderSize.y };
         const bool isDepthLinear = (desc.Flags & (uint32_t) ConvFlags::IsDepthLinear);
@@ -403,13 +405,14 @@ struct FSRDPreprocessor_Dx12::Impl
             return;
 
         // Filtered raster lighting estimate
-        DispatchPyramidSeed(cmdList, desc);
+        DispatchFloorSeed(cmdList, desc);
         DispatchFloorFilter(cmdList, desc);
 
         // DLSS-RR to FSR-RR conversion
         DispatchPackingShader(cmdList, desc);
 
-        // Transition output buffers to UAV after last composition pass or first init
+        // Transition output buffers to UAV after last composition pass or first init.
+        // The denoiser will be writing to these.
         AddBarrier(cmdList, m_outputBuffer1.Get(), kSrvState, kUavState);
         AddBarrier(cmdList, m_outputBuffer2.Get(), kSrvState, kUavState);
     }

@@ -256,13 +256,12 @@ bool Config::Reload(std::filesystem::path iniPath)
         // FSR-RR
         {
             FfxDenoiserMode.set_from_config(readInt("FSR-RR", "DenoiserMode"));
-            FfxDenoiserHistRejection.set_from_config(readFloat("FSR-RR", "HistoryRejection"));
+            FfxDenoiserDisocThreshold.set_from_config(readFloat("FSR-RR", "DisocclusionThreshold"));
             FfxDenoiserCrossBlNormStr.set_from_config(readFloat("FSR-RR", "CrossBilateralNormalStrength"));
             FfxDenoiserStabilityBias.set_from_config(readFloat("FSR-RR", "TemporalStabilityBias"));
             FfxDenoiserMaxRadiance.set_from_config(readFloat("FSR-RR", "MaxRadiance"));
             FfxDenoiserRadianceClip.set_from_config(readFloat("FSR-RR", "RadianceClipDeviation"));
             FfxDenoiserGaussKernRelax.set_from_config(readFloat("FSR-RR", "GaussianKernelRelaxation"));
-            FfxDenoiserCorrelationBias.set_from_config(readFloat("FSR-RR", "CorrelationBias"));
         }
 
         // XeSS
@@ -987,8 +986,8 @@ bool Config::SaveIni()
     {
         ini.SetValue("FSR-RR", "DenoiserMode",
                      GetIntValue(Instance()->FfxDenoiserMode.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "HistoryRejection",
-                     GetFloatValue(Instance()->FfxDenoiserHistRejection.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "DisocclusionThreshold",
+                     GetFloatValue(Instance()->FfxDenoiserDisocThreshold.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "CrossBilateralNormalStrength",
                      GetFloatValue(Instance()->FfxDenoiserCrossBlNormStr.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "TemporalStabilityBias",
@@ -999,8 +998,6 @@ bool Config::SaveIni()
                      GetFloatValue(Instance()->FfxDenoiserRadianceClip.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "GaussianKernelRelaxation",
                      GetFloatValue(Instance()->FfxDenoiserGaussKernRelax.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "CorrelationBias",
-                     GetFloatValue(Instance()->FfxDenoiserCorrelationBias.value_for_config()).c_str());
     }
 
     // XeSS
