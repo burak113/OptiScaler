@@ -966,9 +966,11 @@ static void CheckWorkingMode()
                 LOG_INFO("Loading ReShade64.dll, result: {0:X}", (size_t) reshadeModule);
             }
 
+            // Permanently disabled for FSR-RR fork development
+            // 
             // Version check
-            if (Config::Instance()->CheckForUpdate.value_or_default())
-                VersionCheck::Start();
+            //if (Config::Instance()->CheckForUpdate.value_or_default())
+            //    VersionCheck::Start();
         }
 
         return;
