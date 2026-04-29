@@ -2145,37 +2145,87 @@ bool MenuCommon::RenderMenu()
             // Prepare Line 1
             if (config->FpsOverlayType.value_or_default() == FpsOverlay_JustFPS)
             {
+                if (fg != nullptr && fg->IsActive() && !fg->IsPaused())
+                {
+                    firstLine = StrFmt("%s | FPS: %6.1f/%5.1f %s", api.c_str(), frameRate,
+                                       frameRate / (float) (fg->GetInterpolatedFrameCount() + 1), fgText.c_str());
+                }
+                else
+                {
                 firstLine = StrFmt("%s | FPS: %6.1f %s", api.c_str(), frameRate, fgText.c_str());
+            }
             }
             else if (config->FpsOverlayType.value_or_default() == FpsOverlay_Simple)
             {
                 if (currentFeature != nullptr && !currentFeature->IsFrozen())
                 {
+                    if (fg != nullptr && fg->IsActive() && !fg->IsPaused())
+                    {
+                        firstLine = StrFmt("%s | FPS: %6.1f/%5.1f, %7.2f ms %s | %s -> %s %u.%u.%u", api.c_str(),
+                                           frameRate, frameRate / (float) (fg->GetInterpolatedFrameCount() + 1),
+                                           frameTime, fgText.c_str(), state.currentInputApiName.c_str(),
+                                           currentFeature->Name().c_str(), currentFeature->Version().major,
+                                           currentFeature->Version().minor, currentFeature->Version().patch);
+                    }
+                    else
+                    {
                     firstLine = StrFmt("%s | FPS: %6.1f, %7.2f ms %s | %s -> %s %u.%u.%u", api.c_str(), frameRate,
                                        frameTime, fgText.c_str(), state.currentInputApiName.c_str(),
                                        currentFeature->Name().c_str(), currentFeature->Version().major,
                                        currentFeature->Version().minor, currentFeature->Version().patch);
                 }
+                }
+                else
+                {
+                    if (fg != nullptr && fg->IsActive() && !fg->IsPaused())
+                    {
+                        firstLine = StrFmt("%s | FPS: %6.1f/%5.1f, %7.2f ms %s", api.c_str(), frameRate,
+                                           frameRate / (float) (fg->GetInterpolatedFrameCount() + 1), frameTime,
+                                           fgText.c_str());
+                    }
                 else
                 {
                     firstLine =
                         StrFmt("%s | FPS: %6.1f, %7.2f ms %s", api.c_str(), frameRate, frameTime, fgText.c_str());
                 }
             }
+            }
             else
             {
                 if (currentFeature != nullptr && !currentFeature->IsFrozen())
                 {
-                    firstLine = StrFmt("%s | FPS: %6.1f, Avg: %6.1f %s | %s -> %s %u.%u.%u", api.c_str(), frameRate,
+                    if (fg != nullptr && fg->IsActive() && !fg->IsPaused())
+                    {
+                        firstLine =
+                            StrFmt("%s | FPS: %6.1f/%5.1f, Avg: %6.1f %s | %s -> %s %u.%u.%u", api.c_str(), frameRate,
+                                   frameRate / (float) (fg->GetInterpolatedFrameCount() + 1),
+                                   1000.0f / averageFrameTime, fgText.c_str(), state.currentInputApiName.c_str(),
+                                   currentFeature->Name().c_str(), currentFeature->Version().major,
+                                   currentFeature->Version().minor, currentFeature->Version().patch);
+                    }
+                    else
+                    {
+                        firstLine =
+                            StrFmt("%s | FPS: %6.1f, Avg: %6.1f %s | %s -> %s %u.%u.%u", api.c_str(), frameRate,
                                        1000.0f / averageFrameTime, fgText.c_str(), state.currentInputApiName.c_str(),
                                        currentFeature->Name().c_str(), currentFeature->Version().major,
                                        currentFeature->Version().minor, currentFeature->Version().patch);
                 }
+                }
                 else
                 {
+                    if (fg != nullptr && fg->IsActive() && !fg->IsPaused())
+                    {
+                        firstLine = StrFmt("%s | FPS: %6.1f/%5.1f, Avg: %6.1f %s", api.c_str(), frameRate,
+                                           frameRate / (float) (fg->GetInterpolatedFrameCount() + 1),
+                                           1000.0f / averageFrameTime, fgText.c_str());
+                    }
+                    else
+                    {
                     firstLine = StrFmt("%s | FPS: %6.1f, Avg: %6.1f %s", api.c_str(), frameRate,
                                        1000.0f / averageFrameTime, fgText.c_str());
                 }
+            }
             }
 
             // Prepare Line 2
