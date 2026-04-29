@@ -3,8 +3,8 @@
 #include "FSRDShaderUtils.h"
 #include "FSRDShaderData.h"
 #include "precompile/FSRDInputConv_Shader.h" 
-#include "precompile/FSRDPyramidSeed_Shader.h" 
-#include "precompile/FSRDBilateralPyramid_Shader.h" 
+#include "precompile/FSRDFloorSeed_Shader.h" 
+#include "precompile/FSRDFloor_Shader.h" 
 #include "precompile/FSRDOutputComp_Shader.h" 
 
 #include "dx12/ffx_api_dx12.h"
@@ -214,8 +214,8 @@ struct FSRDPreprocessor_Dx12::Impl
     ID3D12Device* m_pDev = nullptr;
     bool m_isMode2;
 
-    ComputeState m_pyramidSeedShader;
-    ComputeState m_blPyramidShader;
+    ComputeState m_floorSeedShader;
+    ComputeState m_floorFilterShader;
     ComputeState m_convShader;
     ComputeState m_compShader;
 
@@ -224,13 +224,13 @@ struct FSRDPreprocessor_Dx12::Impl
 
     // Output Targets
     // Internal storage
-    Conversion::Output m_Out;
-    ComPtr<ID3D12Resource> m_OutputBuffer1;
-    ComPtr<ID3D12Resource> m_OutputBuffer2;
+    Conversion::Output m_out;
+    ComPtr<ID3D12Resource> m_outputBuffer1;
+    ComPtr<ID3D12Resource> m_outputBuffer2;
 
-    // Temporary pyramid storage
-    ComPtr<ID3D12Resource> m_SmoothFloor;
-    ComPtr<ID3D12Resource> m_EdgeGuide;
+    // Floor filter
+    ID3D12Resource* m_smoothFloor;
+    ComPtr<ID3D12Resource> m_edgeGuide;
 
     void Initialize(
         std::span<const byte> blSeedByteCode, 
@@ -245,10 +245,10 @@ struct FSRDPreprocessor_Dx12::Impl
 
         LOG_DEBUG("Creating FSRD interop shaders...");
 
-        m_pyramidSeedShader.Initialize(m_pDev, blSeedByteCode, sizeof(PyramidSeed::Constants), 
-            PyramidSeed::Input::kCount, PyramidSeed::Output::kCount, L"FSRD_PyramidSeed_Constants", PyramidSeed::kBackBufferCount);
-        m_blPyramidShader.Initialize(m_pDev, blPyramidByteCode, sizeof(BLPyramid::Constants), 
-            BLPyramid::Input::kCount, BLPyramid::Output::kCount, L"FSRD_BLPyramid_Constants", BLPyramid::kBackBufferCount);
+        m_floorSeedShader.Initialize(m_pDev, blSeedByteCode, sizeof(FloorSeed::Constants), 
+            FloorSeed::Input::kCount, FloorSeed::Output::kCount, L"FSRD_FloorSeed_Constants", FloorSeed::kBackBufferCount);
+        m_floorFilterShader.Initialize(m_pDev, blPyramidByteCode, sizeof(FloorFilter::Constants), 
+            FloorFilter::Input::kCount, FloorFilter::Output::kCount, L"FSRD_FloorFilter_Constants", FloorFilter::kBackBufferCount);
         m_convShader.Initialize(m_pDev, convByteCode, sizeof(Conversion::Constants), 
             Conversion::Input::kCount, Conversion::Output::kCount, L"FSRD_Conv_Constants", Conversion::kBackBufferCount);
         m_compShader.Initialize(m_pDev, compByteCode, sizeof(Composition::Constants), 
@@ -270,7 +270,7 @@ struct FSRDPreprocessor_Dx12::Impl
             return CreateTexture2D(m_pDev, width, height, fmt, name, kSrvState, mipLevels);
         };
 
-        auto& outResources = m_Out.Resources;
+        auto& outResources = m_out.Resources;
         outResources.Motion = CreateTex(FSRDFormats::Motion, L"FSR_Conv_Motion");
         outResources.Normals = CreateTex(FSRDFormats::Normals, L"FSR_Conv_Normals");
         outResources.SpecAlbedo = CreateTex(FSRDFormats::SpecAlbedo, L"FSR_Conv_SpecAlbedo");
@@ -278,14 +278,14 @@ struct FSRDPreprocessor_Dx12::Impl
         outResources.LinearDepth = CreateTex(FSRDFormats::LinearDepth, L"FSR_Conv_LinearDepth");
         outResources.SkipSignal = CreateTex(FSRDFormats::SkipSignal, L"FSR_Conv_SkipSignal");
 
-        m_OutputBuffer1 = CreateTex(FSRDFormats::OutputBuffer1, L"FSR_Conv_OutputBuffer1");
+        m_outputBuffer1 = CreateTex(FSRDFormats::OutputBuffer1, L"FSR_Conv_OutputBuffer1");
 
-        m_SmoothFloor = CreateTex(FSRDFormats::SmoothFloor, L"FSR_Conv_SmoothFloor");
-        m_EdgeGuide = CreateTex(FSRDFormats::EdgeGuide, L"FSR_Conv_EdgeGuide");
+        m_smoothFloor = nullptr;
+        m_edgeGuide = CreateTex(FSRDFormats::EdgeGuide, L"FSR_Conv_EdgeGuide");
 
         if (m_isMode2)
         {
-            m_OutputBuffer2 = CreateTex(FSRDFormats::OutputBuffer2, L"FSR_Conv_OutputBuffer2");
+            m_outputBuffer2 = CreateTex(FSRDFormats::OutputBuffer2, L"FSR_Conv_OutputBuffer2");
             outResources.Mode2Inputs = 
             {
                 .SpecRadiance = CreateTex(FSRDFormats::SpecRadiance, L"FSR_Conv_SpecRadiance"),
@@ -306,20 +306,21 @@ struct FSRDPreprocessor_Dx12::Impl
     {
         const XMFLOAT2 dispatchSize = { desc.RenderSize.x, desc.RenderSize.y };
         const bool isDepthLinear = (desc.Flags & (uint32_t) ConvFlags::IsDepthLinear);
+        m_smoothFloor = m_outputBuffer1.Get();
 
-        PyramidSeed::Constants constants = 
+        FloorSeed::Constants constants = 
         { 
             .InvProjMatrix = desc.InvProjMatrix,
             .RenderSize = desc.RenderSize,
             .NearPlane = desc.NearPlane,
             .FarPlane = desc.FarPlane,
-            .Flags = isDepthLinear ? uint32_t(PyramidSeed::Flags::LinearDepth) : 0u
+            .Flags = isDepthLinear ? uint32_t(FloorSeed::Flags::LinearDepth) : 0u
         };
         const auto cbData = GetAsByteSpan(constants);
 
         // Create median filtered raw color before cross bilateral filtering
         // Write to mip chain at top level
-        PyramidSeed::Input in = { .Resources =  
+        FloorSeed::Input in = { .Resources =  
         {
             .InColor = desc.Resources.InColor,
             .InSpecAlbedo = desc.Resources.InSpecAlbedo,
@@ -327,41 +328,43 @@ struct FSRDPreprocessor_Dx12::Impl
             .InDepth = desc.Resources.InDepth
         }};
 
-        PyramidSeed::Output out = { .Resources = 
+        FloorSeed::Output out = { .Resources = 
         {
-            .OutColor = m_SmoothFloor.Get(),
-            .OutEdges = m_EdgeGuide.Get()
+            .OutColor = m_smoothFloor,
+            .OutEdges = m_edgeGuide.Get()
         }};
 
-        m_pyramidSeedShader.Dispatch(cmdList, cbData, in.AsArray, out.AsArray, dispatchSize);
+        m_floorSeedShader.Dispatch(cmdList, cbData, in.AsArray, out.AsArray, dispatchSize);
     }
 
     void DispatchFloorFilter(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
     {
         const XMFLOAT2 dispatchSize = { desc.RenderSize.x, desc.RenderSize.y };
 
-        for (int i = 0; i <= BLPyramid::kPasses; i++)
+        for (int i = 0; i <= FloorFilter::kPasses; i++)
         {
-            BLPyramid::Constants constants = 
+            FloorFilter::Constants constants = 
             {
                 .DstTexSize = desc.RenderSize,
                 .StepSize = 1 << i
             };
             const auto cbData = GetAsByteSpan(constants);
 
-            BLPyramid::Input in = { .Resources = 
+            FloorFilter::Input in = { .Resources = 
             {
-                .InColor = m_SmoothFloor.Get(),
-                .InEdgeGuide = m_EdgeGuide.Get()
+                .InColor = m_smoothFloor,
+                .InEdgeGuide = m_edgeGuide.Get()
             }};
 
-            BLPyramid::Output out = { .Resources = 
+            FloorFilter::Output out = { .Resources = 
             {
-                .OutColor = m_OutputBuffer1.Get()
+                .OutColor = m_outputBuffer2.Get()
             }};
 
-            m_blPyramidShader.Dispatch(cmdList, cbData, in.AsArray, out.AsArray, dispatchSize);
-            std::swap(m_SmoothFloor, m_OutputBuffer1);
+            m_floorFilterShader.Dispatch(cmdList, cbData, in.AsArray, out.AsArray, dispatchSize);
+
+            std::swap(m_outputBuffer1, m_outputBuffer2);
+            m_smoothFloor = m_outputBuffer1.Get();
         }
     }
 
@@ -385,13 +388,13 @@ struct FSRDPreprocessor_Dx12::Impl
             .Flags = desc.Flags
         };
 
-        in.Resources.InBlurColor = m_SmoothFloor.Get();
+        in.Resources.InBlurColor = m_smoothFloor;
 
         if (m_isMode2)
             packConstants.Flags |= UINT(ConvFlags::Mode2Signal);
 
         const std::span<const byte> convCBData((const byte*) &packConstants, sizeof(packConstants));
-        m_convShader.Dispatch(cmdList, convCBData, in.AsArray, m_Out.AsRawArray, dispatchSize, true);
+        m_convShader.Dispatch(cmdList, convCBData, in.AsArray, m_out.AsRawArray, dispatchSize, true);
     }
 
     void DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
@@ -407,8 +410,8 @@ struct FSRDPreprocessor_Dx12::Impl
         DispatchPackingShader(cmdList, desc);
 
         // Transition output buffers to UAV after last composition pass or first init
-        AddBarrier(cmdList, m_OutputBuffer1.Get(), kSrvState, kUavState);
-        AddBarrier(cmdList, m_OutputBuffer2.Get(), kSrvState, kUavState);
+        AddBarrier(cmdList, m_outputBuffer1.Get(), kSrvState, kUavState);
+        AddBarrier(cmdList, m_outputBuffer2.Get(), kSrvState, kUavState);
     }
 
     void DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
@@ -416,7 +419,7 @@ struct FSRDPreprocessor_Dx12::Impl
         if (!cmdList || !m_maxWidth)
             return;
 
-        auto& outResources = m_Out.Resources;
+        auto& outResources = m_out.Resources;
         Composition::Input inputs = {};
         Composition::Constants constants = 
         {
@@ -426,7 +429,7 @@ struct FSRDPreprocessor_Dx12::Impl
         };
 
         // Transition denoiser output buffers to SRV for composition
-        std::array<ID3D12Resource*, 2> buffers = { m_OutputBuffer1.Get(), m_OutputBuffer2.Get() };
+        std::array<ID3D12Resource*, 2> buffers = { m_outputBuffer1.Get(), m_outputBuffer2.Get() };
         AddBarriers(cmdList, buffers, kUavState, kSrvState);
 
         if (m_isMode2)
@@ -435,9 +438,9 @@ struct FSRDPreprocessor_Dx12::Impl
 
             inputs.Resources = 
             {
-                .InDenoisedSignal1 = m_OutputBuffer1.Get(),
+                .InDenoisedSignal1 = m_outputBuffer1.Get(),
                 .InAlbedo1 = outResources.SpecAlbedo.Get(),
-                .InDenoisedSignal2 = m_OutputBuffer2.Get(),
+                .InDenoisedSignal2 = m_outputBuffer2.Get(),
                 .InAlbedo2 = outResources.DiffAlbedo.Get(),
                 .InSkipSignal = outResources.SkipSignal.Get(),
                 .InRawColor = desc.InRawColor,
@@ -452,14 +455,14 @@ struct FSRDPreprocessor_Dx12::Impl
 
             inputs.Resources = 
             {
-                .InDenoisedSignal1 = m_OutputBuffer1.Get(),
+                .InDenoisedSignal1 = m_outputBuffer1.Get(),
                 .InAlbedo1 = signalData.FusedAlbedo.Get(),
                 .InSkipSignal = outResources.SkipSignal.Get(),
                 .InColorBeforeParticles = desc.InColorBeforeParticles
             };
         }  
 
-        std::array<ID3D12Resource*, 1> uavs { m_Out.Resources.Motion.Get() };
+        std::array<ID3D12Resource*, 1> uavs { m_out.Resources.Motion.Get() };
         const std::span<const byte> cbData((const byte*) &constants, sizeof(constants));
         const XMFLOAT2 dstDim = { constants.DstTexSize.x, constants.DstTexSize.y };
 
@@ -514,7 +517,7 @@ FSRDPreprocessor_Dx12::FSRDPreprocessor_Dx12(std::string_view name, ID3D12Device
     try
     {
         m_impl->m_pDev = pDev;
-        m_impl->Initialize(GetAsByteSpan(FSRDPyramidSeed_cso), GetAsByteSpan(FSRDBilateralPyramid_cso),
+        m_impl->Initialize(GetAsByteSpan(FSRDFloorSeed_cso), GetAsByteSpan(FSRDFloor_cso),
                            GetAsByteSpan(FSRDInputConv_cso), GetAsByteSpan(FSRDOutputComp_cso), isMode2);
         m_IsInitialized = true;
     }
@@ -581,7 +584,7 @@ static void SetDescResources(Conversion::Output& descData, ffxDispatchDescHeader
 void FSRDPreprocessor_Dx12::GetSignal(ffxDispatchDescDenoiserInput1Signal& signalDesc,
                                       ffxDispatchDescDenoiser& dispatchDesc) const
 {
-    auto& outResources = m_impl->m_Out.Resources;
+    auto& outResources = m_impl->m_out.Resources;
     auto& signalData = outResources.Mode1Inputs;
 
     signalDesc = 
@@ -590,18 +593,18 @@ void FSRDPreprocessor_Dx12::GetSignal(ffxDispatchDescDenoiserInput1Signal& signa
         .radiance = 
         {
             .input = ffxApiGetResourceDX12(signalData.Radiance.Get()),
-            .output = ffxApiGetResourceDX12(m_impl->m_OutputBuffer1.Get())
+            .output = ffxApiGetResourceDX12(m_impl->m_outputBuffer1.Get())
         },
         .fusedAlbedo = ffxApiGetResourceDX12(signalData.FusedAlbedo.Get())
     };
 
-    SetDescResources(m_impl->m_Out, signalDesc.header, dispatchDesc);
+    SetDescResources(m_impl->m_out, signalDesc.header, dispatchDesc);
 }
 
 void FSRDPreprocessor_Dx12::GetSignal(ffxDispatchDescDenoiserInput2Signals& signalDesc,
                                       ffxDispatchDescDenoiser& dispatchDesc) const
 {
-    auto& outResources = m_impl->m_Out.Resources;
+    auto& outResources = m_impl->m_out.Resources;
     auto& signalData = outResources.Mode2Inputs;
 
     signalDesc = 
@@ -610,16 +613,16 @@ void FSRDPreprocessor_Dx12::GetSignal(ffxDispatchDescDenoiserInput2Signals& sign
         .specularRadiance = 
         {
             .input = ffxApiGetResourceDX12(signalData.SpecRadiance.Get()),
-            .output = ffxApiGetResourceDX12(m_impl->m_OutputBuffer1.Get())
+            .output = ffxApiGetResourceDX12(m_impl->m_outputBuffer1.Get())
         },
         .diffuseRadiance = 
         {
             .input = ffxApiGetResourceDX12(signalData.DiffRadiance.Get()),
-            .output = ffxApiGetResourceDX12(m_impl->m_OutputBuffer2.Get())
+            .output = ffxApiGetResourceDX12(m_impl->m_outputBuffer2.Get())
         },
     };
 
-    SetDescResources(m_impl->m_Out, signalDesc.header, dispatchDesc);
+    SetDescResources(m_impl->m_out, signalDesc.header, dispatchDesc);
 }
 
 bool FSRDPreprocessor_Dx12::DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
@@ -639,7 +642,7 @@ bool FSRDPreprocessor_Dx12::DispatchComposition(ID3D12GraphicsCommandList* cmdLi
 
 ID3D12Resource* FSRDPreprocessor_Dx12::GetCompositionOutput() const 
 { 
-    return m_impl->m_Out.Resources.Motion.Get(); 
+    return m_impl->m_out.Resources.Motion.Get(); 
 }
 
 bool FSRDPreprocessor_Dx12::Blit(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* srcTex,

@@ -3,7 +3,7 @@
 
 namespace FSRD
 {
-    namespace PyramidSeed
+    namespace FloorSeed
     {
         constexpr UINT kBackBufferCount = 3;
 
@@ -60,7 +60,7 @@ namespace FSRD
         };
     }
 
-    namespace BLPyramid
+    namespace FloorFilter
     {
         constexpr UINT kPasses = 3;
         constexpr UINT kBackBufferCount = std::max(3 * (kPasses + 1), 1u);

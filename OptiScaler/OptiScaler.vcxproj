@@ -327,8 +327,6 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="hooks\CommandBuffer_StateTracker.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDShaderData.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDShaderUtils.h" />
-    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDBilateralPyramid_Shader.h" />
-    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDPyramidSeed_Shader.h" />
     <ClInclude Include="spoofing\User32_Spoofing.h" />
     <ClInclude Include="hooks\VulkanwDx12_Hooks.h" />
     <ClInclude Include="inputs\FSR2_Dx11.h" />
