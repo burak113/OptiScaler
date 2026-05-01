@@ -5,7 +5,8 @@ namespace FSRD
 {
     namespace FloorSeed
     {
-        constexpr UINT kBackBufferCount = 3;
+        constexpr UINT kPasses = 1;
+        constexpr UINT kBackBufferCount = std::max(3 * (kPasses + 1), 1u);
 
         enum class Flags : uint32_t
         {
@@ -20,8 +21,8 @@ namespace FSRD
 
             float NearPlane;
             float FarPlane;
-            uint32_t Flags;
 
+            uint32_t Flags;
             float _Padding[1];
         };
 
@@ -62,12 +63,12 @@ namespace FSRD
 
     namespace FloorFilter
     {
-        constexpr UINT kPasses = 3;
+        constexpr UINT kPasses = 4;
         constexpr UINT kBackBufferCount = std::max(3 * (kPasses + 1), 1u);
 
         enum class Flags : uint32_t
         {
-            None = 0
+            None = 0,
         };
 
         struct alignas(16) Constants
@@ -101,7 +102,6 @@ namespace FSRD
             struct Data
             {
                 ID3D12Resource* OutColor;
-                ID3D12Resource* OutEdgeGuide;
             };
 
             // The number of D3D12 resources in the struct
@@ -164,6 +164,7 @@ namespace FSRD
                 ID3D12Resource* InBiasMask;    // R8 - NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask
 
                 ID3D12Resource* InBlurColor;
+                ID3D12Resource* InEdgeGuide;
             };
 
             // The number of D3D12 resources in the struct

@@ -38,6 +38,11 @@ DECLARE_LDS_ARRAY_2D(half4, g_Color, SORT_KERNEL_SIZE);
 DEFINE_LDS_CONFIG(s_SM_Depth, DEPTH_KERNEL_SIZE);
 DECLARE_LDS_ARRAY_2D(float, g_Depth, DEPTH_KERNEL_SIZE);
 
+// Stats config
+static const int s_SpreadWindowSize = 1;
+static const float s_TargetPercentile = 0.1f;
+static const float s_SupressionThreshold = 0.1f;
+
 Texture2D<half3> InColor : register(t0);
 Texture2D<half3> InSpecAlbedo : register(t1);
 Texture2D<half3> InDiffAlbedo : register(t2);
@@ -52,11 +57,11 @@ cbuffer CB_Median : register(b0)
 {
     float4x4 InvProjMatrix; // DLSSD ViewToClip^-1
     float4 RenderSize;
-    
+
     float NearPlane;
     float FarPlane;
-    uint Flags;
     
+    uint Flags;   
     float _Padding;
 }
 
@@ -92,8 +97,9 @@ int2 GetSortID(const half2 key, const int2 gtID)
     return gtID + int2(offsetX, offsetY);
 }
 
-half4 GetStableColor(const uint2 groupID, const int2 gtID)
+half4 GetConservativeColor(const uint2 groupID, const int2 gtID)
 {
+    const int2 smID = gtID + s_SM_Med_HaloOffset;
     half2 sortKeys[25];
 
     // Populate sorting keys: luminance in X, flat index (0-24) in Y
@@ -121,17 +127,25 @@ half4 GetStableColor(const uint2 groupID, const int2 gtID)
         sortKeys[pair.y] = (a.x > b.x) ? a : b;
     }
 
-    // Stable areas have a well behaved, flatter median. Noise and hard edges introduce
-    // jump discontinuties in the distribution. If this value is low, then the median is 
-    // well behaved and this area is probably flat or at least not unstable.
-    const float medianSpread = abs(sortKeys[11].x - sortKeys[13].x) * rcp(sortKeys[12].x + 1e-2f);
-    const float variance = saturate(10.0f * medianSpread);
-    const float stability = 1.0f - variance;
+    const int centerID = clamp(int(round(s_TargetPercentile * 24.0f)), 0, 24);
+    const int lowerID = max(centerID - s_SpreadWindowSize, 0);
+    const int upperID = min(centerID + s_SpreadWindowSize, 24);    
     
-    const int2 minID = GetSortID(sortKeys[0], gtID);   
-    const half4 minColor = g_Color[minID.x][minID.y];
+    // Get color at the set percentile, clamped below the current color
+    const int2 binID = GetSortID(sortKeys[centerID], gtID);
+    const half4 binColor = g_Color[binID.x][binID.y];
+    half4 stableColor = min(binColor, g_Color[smID.x][smID.y]);
     
-    return half4(minColor.rgb * stability, variance);
+    // Check for discontinuities in the window around the output percentile, and use it
+    // to further suppress areas with high variance.
+    const float spread = abs(sortKeys[lowerID].x - sortKeys[upperID].x) * rcp(sortKeys[centerID].x + 1e-2f);
+    const float instability = smoothstep(0.0f, s_SupressionThreshold, spread);
+    
+    // Interpolate toward safer lower bound as instability increases
+    const half4 minColor = 0.25f * binColor;
+    stableColor.rgb = lerp(stableColor.rgb, minColor.rgb, instability);
+    
+    return half4(stableColor.rgb, instability);
 }
 
 half GetDepthGradientStrength(const uint2 groupID, const int2 gtID)
@@ -224,7 +238,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     
     const half depthGuide = GetDepthGradientStrength(groupID.xy, gtID.xy);
     const half edgeGuide = GetSafeFP16(avgAlbedo + 0.2f * depthGuide);
-    const half4 color = GetStableColor(groupID.xy, gtID.xy);
+    const half4 color = GetConservativeColor(groupID.xy, gtID.xy);
     
     OutColor[px] = color;
     OutEdgeGuide[px] = edgeGuide;

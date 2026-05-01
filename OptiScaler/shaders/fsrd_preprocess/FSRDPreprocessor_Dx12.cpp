@@ -279,13 +279,13 @@ struct FSRDPreprocessor_Dx12::Impl
         outResources.SkipSignal = CreateTex(FSRDFormats::SkipSignal, L"FSR_Conv_SkipSignal");
 
         m_outputBuffer1 = CreateTex(FSRDFormats::OutputBuffer1, L"FSR_Conv_OutputBuffer1");
+        m_outputBuffer2 = CreateTex(FSRDFormats::OutputBuffer2, L"FSR_Conv_OutputBuffer2");
 
         m_smoothFloor = nullptr;
         m_edgeGuide = CreateTex(FSRDFormats::EdgeGuide, L"FSR_Conv_EdgeGuide");
 
         if (m_isMode2)
         {
-            m_outputBuffer2 = CreateTex(FSRDFormats::OutputBuffer2, L"FSR_Conv_OutputBuffer2");
             outResources.Mode2Inputs = 
             {
                 .SpecRadiance = CreateTex(FSRDFormats::SpecRadiance, L"FSR_Conv_SpecRadiance"),
@@ -302,46 +302,54 @@ struct FSRDPreprocessor_Dx12::Impl
         }
     }
 
-    void DispatchPyramidSeed(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
+    void DispatchFloorSeed(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
     {
         const XMFLOAT2 dispatchSize = { desc.RenderSize.x, desc.RenderSize.y };
         const bool isDepthLinear = (desc.Flags & (uint32_t) ConvFlags::IsDepthLinear);
-        m_smoothFloor = m_outputBuffer1.Get();
+        ID3D12Resource* inColor = desc.Resources.InColor;
 
-        FloorSeed::Constants constants = 
-        { 
-            .InvProjMatrix = desc.InvProjMatrix,
-            .RenderSize = desc.RenderSize,
-            .NearPlane = desc.NearPlane,
-            .FarPlane = desc.FarPlane,
-            .Flags = isDepthLinear ? uint32_t(FloorSeed::Flags::LinearDepth) : 0u
-        };
-        const auto cbData = GetAsByteSpan(constants);
-
-        // Create median filtered raw color before cross bilateral filtering
-        // Write to mip chain at top level
-        FloorSeed::Input in = { .Resources =  
+        for (int i = 0; i < FloorSeed::kPasses; i++)
         {
-            .InColor = desc.Resources.InColor,
-            .InSpecAlbedo = desc.Resources.InSpecAlbedo,
-            .InDiffAlbedo = desc.Resources.InDiffAlbedo,
-            .InDepth = desc.Resources.InDepth
-        }};
+            FloorSeed::Constants constants = 
+            { 
+                .InvProjMatrix = desc.InvProjMatrix,
+                .RenderSize = desc.RenderSize,
+                .NearPlane = desc.NearPlane,
+                .FarPlane = desc.FarPlane,
+                .Flags = isDepthLinear ? uint32_t(FloorSeed::Flags::LinearDepth) : 0u
+            };
+            const auto cbData = GetAsByteSpan(constants);
 
-        FloorSeed::Output out = { .Resources = 
-        {
-            .OutColor = m_smoothFloor,
-            .OutEdges = m_edgeGuide.Get()
-        }};
+            // Create median filtered raw color before cross bilateral filtering
+            // Write to mip chain at top level
+            FloorSeed::Input in = { .Resources =  
+            {
+                .InColor = inColor,
+                .InSpecAlbedo = desc.Resources.InSpecAlbedo,
+                .InDiffAlbedo = desc.Resources.InDiffAlbedo,
+                .InDepth = desc.Resources.InDepth
+            }};
 
-        m_floorSeedShader.Dispatch(cmdList, cbData, in.AsArray, out.AsArray, dispatchSize);
+            FloorSeed::Output out = { .Resources = 
+            {
+                .OutColor = m_outputBuffer1.Get(),
+                .OutEdges = m_edgeGuide.Get()
+            }};
+
+            m_floorSeedShader.Dispatch(cmdList, cbData, in.AsArray, out.AsArray, dispatchSize);
+
+            std::swap(m_outputBuffer1, m_outputBuffer2);
+            inColor = m_outputBuffer2.Get();
+        }
+
+        m_smoothFloor = m_outputBuffer2.Get();
     }
 
     void DispatchFloorFilter(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
     {
         const XMFLOAT2 dispatchSize = { desc.RenderSize.x, desc.RenderSize.y };
 
-        for (int i = 0; i <= FloorFilter::kPasses; i++)
+        for (int i = 0; i < FloorFilter::kPasses; i++)
         {
             FloorFilter::Constants constants = 
             {
@@ -403,7 +411,7 @@ struct FSRDPreprocessor_Dx12::Impl
             return;
 
         // Filtered raster lighting estimate
-        DispatchPyramidSeed(cmdList, desc);
+        DispatchFloorSeed(cmdList, desc);
         DispatchFloorFilter(cmdList, desc);
 
         // DLSS-RR to FSR-RR conversion
