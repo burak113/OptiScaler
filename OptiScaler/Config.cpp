@@ -1393,7 +1393,7 @@ bool Config::ReloadFakenvapi()
 {
     auto FN_iniPath = Config::Instance()->MainDllPath.value() + L"\\fakenvapi.ini";
     if (NvapiDllPath.has_value())
-        FN_iniPath = std::filesystem::path(NvapiDllPath.value()).parent_path() / L"\\fakenvapi.ini";
+        FN_iniPath = std::filesystem::path(NvapiDllPath.value()).parent_path() / L"fakenvapi.ini";
 
     auto pathWStr = FN_iniPath;
 
@@ -1417,7 +1417,7 @@ bool Config::SaveFakenvapiIni()
 {
     auto FN_iniPath = Config::Instance()->MainDllPath.value() + L"\\fakenvapi.ini";
     if (NvapiDllPath.has_value())
-        FN_iniPath = std::filesystem::path(NvapiDllPath.value()).parent_path() / L"\\fakenvapi.ini";
+        FN_iniPath = std::filesystem::path(NvapiDllPath.value()).parent_path() / L"fakenvapi.ini";
 
     auto pathWStr = FN_iniPath;
 
