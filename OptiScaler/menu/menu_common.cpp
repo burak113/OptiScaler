@@ -1511,6 +1511,15 @@ static void ApplyThemeStyle()
         accent.z *= 0.55f;
     }
 
+    auto Mix = [](const ImVec4& a, const ImVec4& b, float t, float alpha = 1.0f)
+    { return ImVec4(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, alpha); };
+
+    auto AccentBackground = [&](const ImVec4& base, float strength = 1.0f, float alpha = 1.0f)
+    {
+        float t = lightTheme ? (0.025f * strength) : (0.040f * strength);
+        return Mix(base, accent, t, alpha);
+    };
+
     // Background palette switches based on theme
     const ImVec4 bgDark = lightTheme ? ImVec4(0.80f, 0.82f, 0.86f, 1.00f) : ImVec4(0.09f, 0.10f, 0.13f, 1.00f);
     const ImVec4 bgMid = lightTheme ? ImVec4(0.89f, 0.91f, 0.95f, 1.00f) : ImVec4(0.11f, 0.13f, 0.16f, 1.00f);
@@ -1521,9 +1530,6 @@ static void ApplyThemeStyle()
     const ImVec4 borderCol = lightTheme ? ImVec4(0.35f, 0.40f, 0.50f, 1.00f) : ImVec4(0.18f, 0.22f, 0.30f, 1.00f);
     const ImVec4 dimBg = lightTheme ? ImVec4(0.30f, 0.33f, 0.38f, 0.20f) : ImVec4(0.09f, 0.10f, 0.13f, 0.20f);
     const ImVec4 modalDimBg = lightTheme ? ImVec4(0.22f, 0.24f, 0.28f, 0.55f) : ImVec4(0.04f, 0.04f, 0.07f, 0.55f);
-
-    auto Mix = [](const ImVec4& a, const ImVec4& b, float t, float alpha = 1.0f)
-    { return ImVec4(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, alpha); };
 
     auto AccentSoft = [&](float alpha = 1.0f)
     { return lightTheme ? Mix(bgLight, accent, 0.24f, alpha) : Mix(bgDark, accent, 0.32f, alpha); };
@@ -1602,18 +1608,19 @@ static void ApplyThemeStyle()
     c[ImGuiCol_TextLink] = AccentReadable();
 
     // Backgrounds
-    c[ImGuiCol_WindowBg] = bgDark;
-    c[ImGuiCol_ChildBg] = bgMid;
-    c[ImGuiCol_PopupBg] = lightTheme ? bgLight : ImVec4(0.09f, 0.10f, 0.13f, 0.97f);
-    c[ImGuiCol_MenuBarBg] = bgDark;
-    c[ImGuiCol_DockingEmptyBg] = bgDark;
+    c[ImGuiCol_WindowBg] = AccentBackground(bgDark, 1.00f);
+    c[ImGuiCol_ChildBg] = AccentBackground(bgMid, 1.10f);
+    c[ImGuiCol_PopupBg] = lightTheme ? AccentBackground(bgLight, 0.90f)
+                                     : AccentBackground(ImVec4(0.09f, 0.10f, 0.13f, 0.97f), 0.90f, 0.97f);
+    c[ImGuiCol_MenuBarBg] = AccentBackground(bgDark, 0.85f);
+    c[ImGuiCol_DockingEmptyBg] = AccentBackground(bgDark, 0.75f);
 
     // Borders
     c[ImGuiCol_Border] = borderCol;
     c[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
 
     // Frames
-    c[ImGuiCol_FrameBg] = bgLight;
+    c[ImGuiCol_FrameBg] = AccentBackground(bgLight, 0.65f);
     c[ImGuiCol_FrameBgHovered] = SurfaceHover();
     c[ImGuiCol_FrameBgActive] = SurfaceActive();
 
@@ -1655,11 +1662,11 @@ static void ApplyThemeStyle()
     c[ImGuiCol_ResizeGripActive] = AccentStrong(0.95f);
 
     // Tabs
-    c[ImGuiCol_Tab] = bgMid;
+    c[ImGuiCol_Tab] = AccentBackground(bgMid, 0.70f);
     c[ImGuiCol_TabHovered] = AccentMed();
     c[ImGuiCol_TabSelected] = AccentSoft();
     c[ImGuiCol_TabSelectedOverline] = AccentStrong();
-    c[ImGuiCol_TabDimmed] = bgDark;
+    c[ImGuiCol_TabDimmed] = AccentBackground(bgDark, 0.60f);
     c[ImGuiCol_TabDimmedSelected] = AccentSoft(0.75f);
     c[ImGuiCol_TabDimmedSelectedOverline] = borderCol;
 
@@ -1673,7 +1680,7 @@ static void ApplyThemeStyle()
     c[ImGuiCol_PlotHistogramHovered] = PlotAccentHovered();
 
     // Tables
-    c[ImGuiCol_TableHeaderBg] = bgMid;
+    c[ImGuiCol_TableHeaderBg] = AccentBackground(bgMid, 0.80f);
     c[ImGuiCol_TableBorderStrong] = borderCol;
     c[ImGuiCol_TableBorderLight] = lightTheme ? ImVec4(0.68f, 0.72f, 0.80f, 1.00f) : AccentSoft();
     c[ImGuiCol_TableRowBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
