@@ -1773,6 +1773,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         State::Instance().isRunningOnLinux = IsRunningOnWine();
         State::Instance().isRunningOnDXVK = State::Instance().isRunningOnLinux;
 
+        spdlog::info("");
+        spdlog::info("Check for DLSS files");
+        auto exePath = Util::ExePath().remove_filename();
+        State::Instance().NVNGX_DLSS_Path = Util::FindFilePath(exePath, "nvngx_dlss.dll");
+        State::Instance().NVNGX_DLSSD_Path = Util::FindFilePath(exePath, "nvngx_dlssd.dll");
+        State::Instance().NVNGX_DLSSG_Path = Util::FindFilePath(exePath, "nvngx_dlssg.dll");
+
         // Check if real DLSS available
         if (Config::Instance()->DLSSEnabled.value_or_default())
         {
@@ -1782,12 +1789,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
             if (State::Instance().isRunningOnNvidia)
             {
                 spdlog::info("Running on Nvidia");
-
-                // TODO: Upscaler inputs also get paths so make this code shared
-                auto exePath = Util::ExePath().remove_filename();
-                State::Instance().NVNGX_DLSS_Path = Util::FindFilePath(exePath, "nvngx_dlss.dll");
-                State::Instance().NVNGX_DLSSD_Path = Util::FindFilePath(exePath, "nvngx_dlssd.dll");
-                State::Instance().NVNGX_DLSSG_Path = Util::FindFilePath(exePath, "nvngx_dlssg.dll");
 
                 if (!State::Instance().NVNGX_DLSS_Path.has_value() &&
                     Config::Instance()->NVNGX_DLSS_Library.has_value())
