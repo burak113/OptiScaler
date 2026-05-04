@@ -54,9 +54,6 @@ namespace FSRDFormats
 
     constexpr DXGI_FORMAT OutputBuffer1 = DXGI_FORMAT_R16G16B16A16_FLOAT;
     constexpr DXGI_FORMAT OutputBuffer2 = DXGI_FORMAT_R16G16B16A16_FLOAT;
-
-    constexpr DXGI_FORMAT SmoothFloor = DXGI_FORMAT_R16G16B16A16_FLOAT;
-    constexpr DXGI_FORMAT EdgeGuide = DXGI_FORMAT_R8_UNORM;
 }
 
 struct ComputeState
@@ -225,12 +222,12 @@ struct FSRDPreprocessor_Dx12::Impl
     // Output Targets
     // Internal storage
     Conversion::Output m_out;
+    ComPtr<ID3D12Resource> m_LinearDepth;
     ComPtr<ID3D12Resource> m_outputBuffer1;
     ComPtr<ID3D12Resource> m_outputBuffer2;
 
     // Floor filter
     ID3D12Resource* m_smoothFloor;
-    ComPtr<ID3D12Resource> m_edgeGuide;
 
     void Initialize(
         std::span<const byte> blSeedByteCode, 
@@ -275,14 +272,13 @@ struct FSRDPreprocessor_Dx12::Impl
         outResources.Normals = CreateTex(FSRDFormats::Normals, L"FSR_Conv_Normals");
         outResources.SpecAlbedo = CreateTex(FSRDFormats::SpecAlbedo, L"FSR_Conv_SpecAlbedo");
         outResources.DiffAlbedo = CreateTex(FSRDFormats::DiffAlbedo, L"FSR_Conv_DiffAlbedo");
-        outResources.LinearDepth = CreateTex(FSRDFormats::LinearDepth, L"FSR_Conv_LinearDepth");
         outResources.SkipSignal = CreateTex(FSRDFormats::SkipSignal, L"FSR_Conv_SkipSignal");
 
+        m_LinearDepth = CreateTex(FSRDFormats::LinearDepth, L"FSR_Conv_LinearDepth");
         m_outputBuffer1 = CreateTex(FSRDFormats::OutputBuffer1, L"FSR_Conv_OutputBuffer1");
         m_outputBuffer2 = CreateTex(FSRDFormats::OutputBuffer2, L"FSR_Conv_OutputBuffer2");
 
         m_smoothFloor = nullptr;
-        m_edgeGuide = CreateTex(FSRDFormats::EdgeGuide, L"FSR_Conv_EdgeGuide");
 
         if (m_isMode2)
         {
@@ -325,15 +321,15 @@ struct FSRDPreprocessor_Dx12::Impl
             FloorSeed::Input in = { .Resources =  
             {
                 .InColor = inColor,
-                .InSpecAlbedo = desc.Resources.InSpecAlbedo,
-                .InDiffAlbedo = desc.Resources.InDiffAlbedo,
+                .InNormals = desc.Resources.InNormals,
                 .InDepth = desc.Resources.InDepth
             }};
 
             FloorSeed::Output out = { .Resources = 
             {
                 .OutColor = m_outputBuffer1.Get(),
-                .OutEdges = m_edgeGuide.Get()
+                .OutLinearDepth = m_LinearDepth.Get(),
+                .OutDepthGradient = m_out.Resources.Motion.Get()
             }};
 
             m_floorSeedShader.Dispatch(cmdList, cbData, in.AsArray, out.AsArray, dispatchSize);
@@ -347,21 +343,31 @@ struct FSRDPreprocessor_Dx12::Impl
 
     void DispatchFloorFilter(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
     {
+        static uint32_t frameIndex = 0;
         const XMFLOAT2 dispatchSize = { desc.RenderSize.x, desc.RenderSize.y };
+
+        // Tukey biweight: W = ( 1 - ( (center - tap) * scale )^2 )^2
+        // scale = 2^(i + 1) / norm
+        float rcpCrossNorm = (1.0f / 0.5f);
+        float rcpLumNorm = (1e-2f / 0.5f);
 
         for (int i = 0; i < FloorFilter::kPasses; i++)
         {
             FloorFilter::Constants constants = 
             {
                 .DstTexSize = desc.RenderSize,
-                .StepSize = 1 << i
+                .RcpCrossBlNorm = rcpCrossNorm,
+                .RcpSelfBlNorm = rcpLumNorm,
+                .StepSize = 1 << i,
+                .FrameIndex = frameIndex
             };
             const auto cbData = GetAsByteSpan(constants);
 
             FloorFilter::Input in = { .Resources = 
             {
                 .InColor = m_smoothFloor,
-                .InEdgeGuide = m_edgeGuide.Get()
+                .InLinearDepth = m_LinearDepth.Get(),
+                .InDepthGradient = m_out.Resources.Motion.Get()
             }};
 
             FloorFilter::Output out = { .Resources = 
@@ -374,6 +380,8 @@ struct FSRDPreprocessor_Dx12::Impl
             std::swap(m_outputBuffer1, m_outputBuffer2);
             m_smoothFloor = m_outputBuffer1.Get();
         }
+
+        frameIndex++;
     }
 
     void DispatchPackingShader(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
@@ -383,6 +391,7 @@ struct FSRDPreprocessor_Dx12::Impl
         // Prepare inputs for packing and format conversion
         Conversion::Input in = {};
         memcpy_s(in.AsArray, sizeof(in.AsArray), desc.Resources.AsArray, sizeof(desc.Resources.AsArray));
+        in.Resources.InDepth = m_LinearDepth.Get();
 
         Conversion::Constants packConstants =
         {
@@ -513,6 +522,23 @@ struct FSRDPreprocessor_Dx12::Impl
 
         m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, uavs, dstDim, false);
     }
+
+    void SetDescResources(ffxDispatchDescHeader& signalHeader, ffxDispatchDescDenoiser& dispatchDesc)
+    {
+        auto& outResources = m_out.Resources;
+
+        dispatchDesc.header = 
+        { 
+            .type = FFX_API_DISPATCH_DESC_TYPE_DENOISER,
+            .pNext = &signalHeader // Link signal desc to main header
+        };
+
+        dispatchDesc.linearDepth = ffxApiGetResourceDX12(m_LinearDepth.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+        dispatchDesc.motionVectors = ffxApiGetResourceDX12(outResources.Motion.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+        dispatchDesc.normals = ffxApiGetResourceDX12(outResources.Normals.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+        dispatchDesc.specularAlbedo = ffxApiGetResourceDX12(outResources.SpecAlbedo.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+        dispatchDesc.diffuseAlbedo = ffxApiGetResourceDX12(outResources.DiffAlbedo.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+    }
 };
 
 // Public interface
@@ -571,24 +597,6 @@ bool FSRDPreprocessor_Dx12::DispatchConversion(ID3D12GraphicsCommandList* cmdLis
     return false;
 }
 
-static void SetDescResources(Conversion::Output& descData, ffxDispatchDescHeader& signalHeader,
-                             ffxDispatchDescDenoiser& dispatchDesc)
-{
-    auto& outResources = descData.Resources;
-
-    dispatchDesc.header = 
-    { 
-        .type = FFX_API_DISPATCH_DESC_TYPE_DENOISER,
-        .pNext = &signalHeader // Link signal desc to main header
-    };
-
-    dispatchDesc.linearDepth = ffxApiGetResourceDX12(outResources.LinearDepth.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-    dispatchDesc.motionVectors = ffxApiGetResourceDX12(outResources.Motion.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-    dispatchDesc.normals = ffxApiGetResourceDX12(outResources.Normals.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-    dispatchDesc.specularAlbedo = ffxApiGetResourceDX12(outResources.SpecAlbedo.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-    dispatchDesc.diffuseAlbedo = ffxApiGetResourceDX12(outResources.DiffAlbedo.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-}
-
 void FSRDPreprocessor_Dx12::GetSignal(ffxDispatchDescDenoiserInput1Signal& signalDesc,
                                       ffxDispatchDescDenoiser& dispatchDesc) const
 {
@@ -606,7 +614,7 @@ void FSRDPreprocessor_Dx12::GetSignal(ffxDispatchDescDenoiserInput1Signal& signa
         .fusedAlbedo = ffxApiGetResourceDX12(signalData.FusedAlbedo.Get())
     };
 
-    SetDescResources(m_impl->m_out, signalDesc.header, dispatchDesc);
+    m_impl->SetDescResources(signalDesc.header, dispatchDesc);
 }
 
 void FSRDPreprocessor_Dx12::GetSignal(ffxDispatchDescDenoiserInput2Signals& signalDesc,
@@ -630,7 +638,7 @@ void FSRDPreprocessor_Dx12::GetSignal(ffxDispatchDescDenoiserInput2Signals& sign
         },
     };
 
-    SetDescResources(m_impl->m_out, signalDesc.header, dispatchDesc);
+    m_impl->SetDescResources(signalDesc.header, dispatchDesc);
 }
 
 bool FSRDPreprocessor_Dx12::DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)

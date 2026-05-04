@@ -3,8 +3,8 @@
 #define MainRS \
     "RootFlags(0), " \
     "CBV(b0), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 4), visibility = SHADER_VISIBILITY_ALL), " \
-    "DescriptorTable(UAV(u0, numDescriptors = 2), visibility = SHADER_VISIBILITY_ALL), " \
+    "DescriptorTable(SRV(t0, numDescriptors = 3), visibility = SHADER_VISIBILITY_ALL), " \
+    "DescriptorTable(UAV(u0, numDescriptors = 3), visibility = SHADER_VISIBILITY_ALL), " \
     "StaticSampler(s0, " \
         "filter = FILTER_MIN_MAG_MIP_LINEAR, " \
         "addressU = TEXTURE_ADDRESS_CLAMP, " \
@@ -66,12 +66,12 @@ static const uint SortNetwork[2 * kSortNetworkSize] =
 };
 
 Texture2D<half3> InColor : register(t0);
-Texture2D<half3> InSpecAlbedo : register(t1);
-Texture2D<half3> InDiffAlbedo : register(t2);
-Texture2D<float> InDepth : register(t3);
+Texture2D<half3> InNormals : register(t1);
+Texture2D<float> InDepth : register(t2);
 
 RWTexture2D<half4> OutColor : register(u0);
-RWTexture2D<half> OutEdgeGuide : register(u1);
+RWTexture2D<float> OutLinearDepth : register(u1);
+RWTexture2D<half2> OutDepthGradient : register(u2);
 
 SamplerState LinearSampler : register(s0);
 
@@ -182,16 +182,16 @@ half4 GetConservativeColor(const uint2 groupID, const int2 gtID)
     return half4(stableColor.rgb, instability);
 }
 
-half GetDepthGradientStrength(const uint2 groupID, const int2 gtID)
+half2 GetDepthGradient(const uint2 groupID, const int2 gtID)
 {
     const int2 smID = gtID + s_SM_Depth_HaloOffset;
     float2 gradient = 0.0f;
+    
     gradient.x = g_Depth[smID.x + 1][smID.y] - g_Depth[smID.x - 1][smID.y];
     gradient.y = g_Depth[smID.x][smID.y + 1] - g_Depth[smID.x][smID.y - 1];
-
-    const float center = g_Depth[smID.x][smID.y];
-    
-    return half(saturate(length(gradient) * rcp(max(center, 0.1f))));
+    gradient *= 0.5f;
+        
+    return half2(gradient);
 }
 
 float3 GetViewSpacePos(const int2 px)
@@ -265,15 +265,13 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 
     if (px.x >= RenderSize.x || px.y >= RenderSize.y)
         return;
-    
-    const half3 specAlbedo = GetSafeFP16(InSpecAlbedo[px].rgb);
-    const half3 diffAlbedo = GetSafeFP16(InDiffAlbedo[px].rgb);
-    const half avgAlbedo = dot(specAlbedo + diffAlbedo, 0.33f);
-    
-    const half depthGuide = GetDepthGradientStrength(groupID.xy, gtID.xy);
-    const half edgeGuide = GetSafeFP16(avgAlbedo + 0.2f * depthGuide);
+
+    const int2 smID = gtID.xy + s_SM_Depth_HaloOffset;
     const half4 color = GetConservativeColor(groupID.xy, gtID.xy);
-    
+    const float depth = g_Depth[smID.x][smID.y];
+    const half2 gradient = GetDepthGradient(groupID.xy, gtID.xy);
+
     OutColor[px] = color;
-    OutEdgeGuide[px] = edgeGuide;
+    OutLinearDepth[px] = depth;
+    OutDepthGradient[px] = gradient;
 }

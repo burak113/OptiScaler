@@ -31,8 +31,7 @@ namespace FSRD
             struct Data
             {
                 ID3D12Resource* InColor;
-                ID3D12Resource* InSpecAlbedo;
-                ID3D12Resource* InDiffAlbedo;
+                ID3D12Resource* InNormals;
                 ID3D12Resource* InDepth;
             };
 
@@ -49,7 +48,8 @@ namespace FSRD
             struct Data
             {
                 ID3D12Resource* OutColor;
-                ID3D12Resource* OutEdges;
+                ID3D12Resource* OutLinearDepth;
+                ID3D12Resource* OutDepthGradient;
             };
 
             // The number of D3D12 resources in the struct
@@ -63,7 +63,7 @@ namespace FSRD
 
     namespace FloorFilter
     {
-        constexpr UINT kPasses = 4;
+        constexpr UINT kPasses = 5;
         constexpr UINT kBackBufferCount = std::max(3 * (kPasses + 1), 1u);
 
         enum class Flags : uint32_t
@@ -75,10 +75,14 @@ namespace FSRD
         {
             XMFLOAT4 DstTexSize;
 
-            int32_t StepSize;
-            uint32_t Flags;
+            float RcpCrossBlNorm;
+            float RcpSelfBlNorm;
 
-            float _Padding[2];
+            int32_t StepSize;
+            uint32_t FrameIndex;
+
+            uint32_t Flags;
+            float _Padding[3];
         };
 
         union Input
@@ -86,7 +90,8 @@ namespace FSRD
             struct Data
             {
                 ID3D12Resource* InColor;
-                ID3D12Resource* InEdgeGuide;
+                ID3D12Resource* InLinearDepth;
+                ID3D12Resource* InDepthGradient;
             };
 
             // The number of D3D12 resources in the struct
@@ -193,7 +198,6 @@ namespace FSRD
                 ComPtr<ID3D12Resource> Normals; // RG: Octahedrally encoded normals, B: Linear Roughness, A: Material Type (Optional) - RGB10A2_UNORM
                 ComPtr<ID3D12Resource> SpecAlbedo; // RGB: Specular Albedo, A: saturate(dot(Normal, ViewDir)) - RGBA8_UNORM
                 ComPtr<ID3D12Resource> DiffAlbedo; // RGB: Diffuse Albedo, A: Metalness (heuristic approximate) - RGBA8_UNORM
-                ComPtr<ID3D12Resource> LinearDepth; // R - R32_FLOAT
 
                 ComPtr<ID3D12Resource> SkipSignal;
 
