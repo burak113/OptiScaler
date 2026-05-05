@@ -1,3 +1,11 @@
+// Types not recognized by Intellisense
+#ifdef __INTELLISENSE__
+#define int16_t  int
+#define uint16_t uint
+#define int64_t  int
+#define uint64_t uint
+#endif
+
 // Shared memory sizing utilities
 #define GET_LDS_HALO(K)          ((K) / 2)
 #define GET_LDS_DIM_X(K)         (THREAD_GROUP_SIZE_X + 2 * GET_LDS_HALO(K))

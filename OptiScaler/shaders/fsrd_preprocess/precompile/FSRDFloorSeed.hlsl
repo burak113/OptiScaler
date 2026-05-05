@@ -20,12 +20,12 @@
 static const uint2 s_ThreadGroupSize = uint2(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y);
 
 // Flags
-#define FLAGS_LINEAR_DEPTH              (1 << 0)
+#define FLAGS_LINEAR_DEPTH      (1 << 0)
 
-// 5x5 Median filter config
-#define SORT_KERNEL_SIZE       5
-#define SORT_KERNEL_RANGE_MIN  (-SORT_KERNEL_SIZE / 2)
-#define SORT_KERNEL_RANGE_MAX  (SORT_KERNEL_SIZE / 2)
+// 5x5 sorting filter config
+#define SORT_KERNEL_SIZE        5
+#define SORT_KERNEL_RANGE_MIN   (-SORT_KERNEL_SIZE / 2)
+#define SORT_KERNEL_RANGE_MAX   (SORT_KERNEL_SIZE / 2)
 
 DEFINE_LDS_CONFIG(s_SM_Med, SORT_KERNEL_SIZE);
 DECLARE_LDS_ARRAY_2D(half4, g_Color, SORT_KERNEL_SIZE);
@@ -39,9 +39,31 @@ DEFINE_LDS_CONFIG(s_SM_Depth, DEPTH_KERNEL_SIZE);
 DECLARE_LDS_ARRAY_2D(float, g_Depth, DEPTH_KERNEL_SIZE);
 
 // Stats config
+static const int s_SetSize = 25;
 static const int s_SpreadWindowSize = 1;
-static const float s_TargetPercentile = 0.1f;
-static const float s_SupressionThreshold = 0.1f;
+
+static const float s_BinIndexToPct = (1.0f / float(s_SetSize - 1));
+static const int s_MinBin = s_SpreadWindowSize + 1;
+static const int s_MaxBin = s_SetSize - s_SpreadWindowSize - 1;
+
+// Full sorting network for 25 values
+static const uint kSortNetworkSize = 131;
+static const uint SortNetwork[2 * kSortNetworkSize] =
+{
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+    0, 2, 1, 3, 4, 6, 5, 7, 8, 10, 9, 11, 12, 14, 13, 15, 16, 18, 17, 19, 20, 22, 21, 24,
+    0, 4, 1, 5, 2, 6, 3, 7, 8, 12, 9, 13, 10, 14, 11, 15, 16, 20, 21, 22, 23, 24,
+    0, 8, 1, 12, 2, 10, 3, 14, 4, 9, 5, 13, 6, 11, 7, 15, 17, 22, 18, 21, 19, 24,
+    1, 18, 3, 9, 5, 17, 6, 20, 7, 13, 11, 14, 12, 22, 15, 24, 21, 23,
+    1, 16, 3, 12, 5, 21, 6, 18, 7, 11, 10, 17, 14, 23, 19, 20,
+    0, 1, 2, 5, 4, 16, 6, 8, 7, 18, 9, 21, 10, 14, 11, 13, 12, 19, 15, 23, 20, 22,
+    1, 2, 3, 5, 4, 6, 7, 9, 8, 12, 10, 16, 11, 20, 13, 22, 14, 17, 15, 18, 19, 21,
+    1, 4, 2, 6, 3, 7, 5, 9, 8, 10, 11, 14, 12, 16, 13, 17, 15, 19, 18, 20, 22, 23,
+    2, 4, 3, 8, 5, 10, 7, 12, 9, 16, 11, 15, 13, 19, 14, 21, 17, 18, 20, 22,
+    3, 4, 5, 8, 6, 7, 9, 12, 10, 11, 13, 16, 14, 15, 17, 19, 18, 21,
+    5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21,
+    4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
+};
 
 Texture2D<half3> InColor : register(t0);
 Texture2D<half3> InSpecAlbedo : register(t1);
@@ -61,37 +83,18 @@ cbuffer CB_Median : register(b0)
     float NearPlane;
     float FarPlane;
     
-    uint Flags;   
+    uint Flags;
+    
     float _Padding;
 }
-
-// Full sorting network for 25 values
-static const uint kSortNetworkSize = 131;
-static const uint2 SortNetwork[kSortNetworkSize] =
-{
-    uint2(0, 1), uint2(2, 3), uint2(4, 5), uint2(6, 7), uint2(8, 9), uint2(10, 11), uint2(12, 13), uint2(14, 15), uint2(16, 17), uint2(18, 19), uint2(20, 21), uint2(22, 23),
-    uint2(0, 2), uint2(1, 3), uint2(4, 6), uint2(5, 7), uint2(8, 10), uint2(9, 11), uint2(12, 14), uint2(13, 15), uint2(16, 18), uint2(17, 19), uint2(20, 22), uint2(21, 24),
-    uint2(0, 4), uint2(1, 5), uint2(2, 6), uint2(3, 7), uint2(8, 12), uint2(9, 13), uint2(10, 14), uint2(11, 15), uint2(16, 20), uint2(21, 22), uint2(23, 24),
-    uint2(0, 8), uint2(1, 12), uint2(2, 10), uint2(3, 14), uint2(4, 9), uint2(5, 13), uint2(6, 11), uint2(7, 15), uint2(17, 22), uint2(18, 21), uint2(19, 24),
-    uint2(1, 18), uint2(3, 9), uint2(5, 17), uint2(6, 20), uint2(7, 13), uint2(11, 14), uint2(12, 22), uint2(15, 24), uint2(21, 23),
-    uint2(1, 16), uint2(3, 12), uint2(5, 21), uint2(6, 18), uint2(7, 11), uint2(10, 17), uint2(14, 23), uint2(19, 20),
-    uint2(0, 1), uint2(2, 5), uint2(4, 16), uint2(6, 8), uint2(7, 18), uint2(9, 21), uint2(10, 14), uint2(11, 13), uint2(12, 19), uint2(15, 23), uint2(20, 22),
-    uint2(1, 2), uint2(3, 5), uint2(4, 6), uint2(7, 9), uint2(8, 12), uint2(10, 16), uint2(11, 20), uint2(13, 22), uint2(14, 17), uint2(15, 18), uint2(19, 21),
-    uint2(1, 4), uint2(2, 6), uint2(3, 7), uint2(5, 9), uint2(8, 10), uint2(11, 14), uint2(12, 16), uint2(13, 17), uint2(15, 19), uint2(18, 20), uint2(22, 23),
-    uint2(2, 4), uint2(3, 8), uint2(5, 10), uint2(7, 12), uint2(9, 16), uint2(11, 15), uint2(13, 19), uint2(14, 21), uint2(17, 18), uint2(20, 22),
-    uint2(3, 4), uint2(5, 8), uint2(6, 7), uint2(9, 12), uint2(10, 11), uint2(13, 16), uint2(14, 15), uint2(17, 19), uint2(18, 21),
-    uint2(5, 6), uint2(7, 8), uint2(9, 10), uint2(11, 12), uint2(13, 14), uint2(15, 16), uint2(17, 18), uint2(20, 21),
-    uint2(4, 5), uint2(6, 7), uint2(8, 9), uint2(10, 11), uint2(12, 13), uint2(14, 15), uint2(16, 17), uint2(18, 19)
-};
 
 bool IsSet(uint mask)
 {
     return (Flags & mask) == mask;
 }
 
-int2 GetSortID(const half2 key, const int2 gtID)
+int2 GetSortID(const int i, const int2 gtID)
 {
-    const int i = (int) key.y;
     const int offsetX = i / SORT_KERNEL_SIZE;
     const int offsetY = i % SORT_KERNEL_SIZE;
     return gtID + int2(offsetX, offsetY);
@@ -100,50 +103,81 @@ int2 GetSortID(const half2 key, const int2 gtID)
 half4 GetConservativeColor(const uint2 groupID, const int2 gtID)
 {
     const int2 smID = gtID + s_SM_Med_HaloOffset;
-    half2 sortKeys[25];
-
+    half sortKeys[s_SetSize];
+    int16_t sortValues[s_SetSize];
+    
     // Populate sorting keys: luminance in X, flat index (0-24) in Y
     [unroll]
-    for (int i1 = 0; i1 < 25; i1++)
+    for (int i1 = 0; i1 < s_SetSize; i1++)
     {
-        const int offsetX = i1 / SORT_KERNEL_SIZE;
-        const int offsetY = i1 % SORT_KERNEL_SIZE;
-        const int2 smID = gtID + int2(offsetX, offsetY);
-
+        const int2 smID = GetSortID(i1, gtID);
         const half lum = g_Color[smID.x][smID.y].a;
-        sortKeys[i1].x = lum;
-        sortKeys[i1].y = (half) i1;
+        
+        sortKeys[i1] = lum;
+        sortValues[i1] = int16_t(i1);
     }
 
-    // Sorting network
+    // Sorting network - ascending order
     [unroll]
-    for (int i2 = 0; i2 < kSortNetworkSize; i2++)
+    for (int k = 0; k < kSortNetworkSize; k++)
     {
-        const uint2 pair = SortNetwork[i2];
-        const half2 a = sortKeys[pair.x];
-        const half2 b = sortKeys[pair.y];
+        const int pairIndex = 2 * k;
+        const uint lower = SortNetwork[pairIndex];
+        const uint upper = SortNetwork[pairIndex + 1];
+        
+        const half keyA = sortKeys[lower];
+        const int16_t valA = sortValues[lower];
 
-        sortKeys[pair.x] = (a.x <= b.x) ? a : b;
-        sortKeys[pair.y] = (a.x > b.x) ? a : b;
+        const half keyB = sortKeys[upper];
+        const int16_t valB = sortValues[upper];
+        
+        const bool swap = (keyA > keyB);
+        sortKeys[lower] = swap ? keyB : keyA;
+        sortValues[lower] = swap ? valB : valA;
+        
+        sortKeys[upper] = swap ? keyA : keyB;
+        sortValues[upper] = swap ? valA : valB;
     }
 
-    const int centerID = clamp(int(round(s_TargetPercentile * 24.0f)), 0, 24);
-    const int lowerID = max(centerID - s_SpreadWindowSize, 0);
-    const int upperID = min(centerID + s_SpreadWindowSize, 24);    
+    // Scan the sorted distribution for jump discontinuities.
+    //
+    // Jump discontinuities indicate multimodal behavor and/or edges. In general, there 
+    // are up to three populations, not counting geometric edges: RT shadows and AO, raster 
+    // lighting and alpha effects, and RT lighting.
+    //
+    // Shadows generally cluster below the 30th percentile, sparse specular RT is fully rejected
+    // around the 30th-40th perecntiles, and raster lighting can occur anywhere, as it is the 
+    // dominant mode in a composited raster + raw RT image.
+    int targetBin = s_MinBin;
+    float spread = 0.0f;
+    bool isSafe = true;
+
+    [unroll]
+    for (int i3 = s_MinBin; i3 <= s_MaxBin; i3++)
+    {
+        const int lowerID = i3 - s_SpreadWindowSize;
+        const int upperID = i3 + s_SpreadWindowSize;
+        const float binSpread = abs(sortKeys[lowerID] - sortKeys[upperID]) * rcp(sortKeys[i3] + 1e-2f);
+        const bool isDiscontinuous = (binSpread > (spread * 2.0f + 0.1f));
+
+        isSafe = isSafe && !isDiscontinuous;
+        targetBin = isSafe ? i3 : targetBin;
+        spread = isSafe ? binSpread : spread;
+    }
+    
+    // The harsher the clamp, the more samples are effectively discarded, and the less 
+    // trustworthy the signal becomes.
+    const half pct = half(float(targetBin) * s_BinIndexToPct);
+    const half instability = half(sqrt(smoothstep(0.9f, 0.1f, pct)));
     
     // Get color at the set percentile, clamped below the current color
-    const int2 binID = GetSortID(sortKeys[centerID], gtID);
+    const int2 binID = GetSortID(sortValues[targetBin], gtID);
     const half4 binColor = g_Color[binID.x][binID.y];
     half4 stableColor = min(binColor, g_Color[smID.x][smID.y]);
-    
-    // Check for discontinuities in the window around the output percentile, and use it
-    // to further suppress areas with high variance.
-    const float spread = abs(sortKeys[lowerID].x - sortKeys[upperID].x) * rcp(sortKeys[centerID].x + 1e-2f);
-    const float instability = smoothstep(0.0f, s_SupressionThreshold, spread);
-    
+
     // Interpolate toward safer lower bound as instability increases
-    const half4 minColor = 0.25f * binColor;
-    stableColor.rgb = lerp(stableColor.rgb, minColor.rgb, instability);
+    const half4 minColor = 0.25h * binColor;
+    stableColor.rgb = (half3) lerp(stableColor.rgb, minColor.rgb, instability);
     
     return half4(stableColor.rgb, instability);
 }
@@ -151,7 +185,6 @@ half4 GetConservativeColor(const uint2 groupID, const int2 gtID)
 half GetDepthGradientStrength(const uint2 groupID, const int2 gtID)
 {
     const int2 smID = gtID + s_SM_Depth_HaloOffset;
-    
     float2 gradient = 0.0f;
     gradient.x = g_Depth[smID.x + 1][smID.y] - g_Depth[smID.x - 1][smID.y];
     gradient.y = g_Depth[smID.x][smID.y + 1] - g_Depth[smID.x][smID.y - 1];
@@ -171,14 +204,15 @@ float3 GetViewSpacePos(const int2 px)
     if (IsSet(FLAGS_LINEAR_DEPTH))
     {
         viewSpacePos = InvProjectPosition(float3(uv, 1.0f), InvProjMatrix);
+        viewSpacePos.z = abs(viewSpacePos.z);
         viewSpacePos *= (inDepth / viewSpacePos.z);
     }
     else
     {
         viewSpacePos = InvProjectPosition(float3(uv, inDepth), InvProjMatrix);
+        viewSpacePos.z = abs(viewSpacePos.z);
     }
     
-    viewSpacePos.z = clamp(abs(viewSpacePos.z), NearPlane, FarPlane);
     return viewSpacePos;
 }
 
