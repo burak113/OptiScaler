@@ -134,7 +134,12 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     // DLSS-RR specular albedo is hemispherical specular reflectance at (NoV, roughness).
     // Diffuse albedo is the diffuse component of reflectance.     
     float4 specReflectance = float4(GetSafeFP16(InSpecAlbedo[px].rgb), 0.0f);
-    float4 diffAlbedo = float4(GetSafeFP16(InDiffAlbedo[px].rgb), 0.0f);
+    float4 diffAlbedo = float4(GetSafeFP16(InDiffAlbedo[px].rgb), 0.0f);    
+    
+    const float totalAlbedo = dot(specReflectance.rgb + diffAlbedo.rgb, 1.0f);
+    const float isEmissive = (totalAlbedo > 5.9f);   
+    diffAlbedo.rgb *= (1.0f - isEmissive);
+    specReflectance.rgb = lerp(specReflectance.rgb, .04f, isEmissive);
     
     // Clamp albedo
     const float3 albedoOvershoot = max((specReflectance.rgb + diffAlbedo.rgb) - 1.0f, 0.0f);
@@ -143,9 +148,6 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     specReflectance.rgb = max(specReflectance.rgb, 1e-4f);
     diffAlbedo.rgb = max(diffAlbedo.rgb, 1e-4f);
     
-    const float totalAlbedo = dot(specReflectance.rgb + diffAlbedo.rgb, 1.0f);
-    const float avgSpecular = dot(specReflectance.rgb, 0.33f);
-
     // Denoiser input color and floor residual
     const float3 rawColor = GetSafeFP16(InColor[px].rgb);
     float4 floorColor = InFloorColor[px];
@@ -155,6 +157,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     // Floor color blending
     //
     // Diffuse dominant surfaces are relatively well behaved.
+    const float avgSpecular = dot(specReflectance.rgb, 0.33f);
     const float diffuseDominance = smoothstep(0.08f, 0.0f, avgSpecular);
     const float similarityThreshold = lerp(0.5f, 0.1f, diffuseDominance);
     
@@ -177,8 +180,9 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         // DLSS-RR provides 3D normals
         // Linear roughness optionally included in the A channel, or in a separate single-channel 
         // buffer (InRoughness).
-        const float roughness = IsSet(FLAGS_PACKED_ROUGHNESS) ? worldSurfaceNormal.a : InRoughness[px];
-    
+        float roughness = IsSet(FLAGS_PACKED_ROUGHNESS) ? worldSurfaceNormal.a : InRoughness[px];
+        roughness *= (1.0f - isEmissive);
+        
         // Output: RG=OctNormal, B=Roughness, A=MaterialID
         OutNormals[px] = GetSafeFP16(float4(octNormal, roughness, materialType));
    
@@ -226,7 +230,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             floorColor.rgb += residual;
             
             // Mask out specular tracking if the surface isn't smooth enough
-            hitDist = GetSafeFP16(InSpecHitDist[px] * (roughness < 0.2f));
+            hitDist = GetSafeFP16(InSpecHitDist[px] * (roughness < 0.2f) * (1.0f - isEmissive));
             
             [branch]
             if (!IsSet(FLAGS_DEBUG))
@@ -348,7 +352,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                 case FLAGS_DEBUG_FLOOR_COLOR:
                     debugColor = InFloorColor[px].rgb;
                     break;
-                
+
                 case FLAGS_DEBUG_ALBEDO_OVERSHOOT:
                     debugColor = albedoOvershoot;
                     break;
