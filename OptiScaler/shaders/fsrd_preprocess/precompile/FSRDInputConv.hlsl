@@ -100,13 +100,13 @@ uint GetDebugMode() { return (Flags & FLAGS_DEBUG_MODE_MASK); }
 
 float3 GetViewSpacePos(const int2 px)
 {
-    const float inDepth = InDepth[px];
+    const float inDepth = abs(InDepth[px]);
     const float2 uv = (float2(px) + 0.5) * DstTexSize.zw;
     float3 viewSpacePos = 0.0f;
     
     viewSpacePos = InvProjectPosition(float3(uv, 1.0f), InvProjMatrix);
-    viewSpacePos.z = abs(viewSpacePos.z);
-    viewSpacePos *= (inDepth / viewSpacePos.z);
+    viewSpacePos.xy *= abs(inDepth / viewSpacePos.z);
+    viewSpacePos.z = inDepth;
 
     return viewSpacePos;
 }
@@ -121,10 +121,6 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     
     if (px.x >= DstTexSize.x || px.y >= DstTexSize.y)
         return;
-
-    // Depth
-    const float3 viewSpacePos = GetViewSpacePos(px);
-    const float depthDelta = abs(viewSpacePos.z - FarPlane);
 
     // Albedo / reflectance
     //
@@ -167,7 +163,11 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     floorColor.rgb = FloorIsolation * min(rawColor, floorColor.rgb);
     const float3 denoiserColor = rawColor - floorColor.rgb;
 
-    if ((depthDelta > 1e-2f && totalAlbedo > 1e-2f) || IsSet(FLAGS_DEBUG))
+    // Depth
+    const float3 viewSpacePos = GetViewSpacePos(px);
+    const float compressedDepth = log(viewSpacePos.z + 1.0f) / log(FarPlane + 1.0f);
+    
+    if (((compressedDepth < 0.99f) && totalAlbedo > 1e-2f) || IsSet(FLAGS_DEBUG))
     {        
         // Normals - FSR-RR requries world normals.
         //
@@ -192,11 +192,10 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         const float3 worldSpacePos = mul(InvViewMatrix, float4(viewSpacePos, 1.0f)).xyz;
         float3 prevViewSpacePos = mul(PrevViewMatrix, float4(worldSpacePos, 1.0f)).xyz;
         prevViewSpacePos.z = abs(prevViewSpacePos.z);
-        
-        const float depthDelta = (viewSpacePos.z - prevViewSpacePos.z);
-    
+            
         // FSR-RR requires Linear Depth Delta in Blue channel
         const float2 motionIn = InMotionVectors[px].rg; // RG: Pixel Movement
+        const float depthDelta = (prevViewSpacePos.z - viewSpacePos.z);
         const float3 motionOut = float3(motionIn, depthDelta);
         OutMotion[px] = half4(motionOut, 0.0f);
 
@@ -280,7 +279,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                     break;
                 
                 case FLAGS_DEBUG_IN_DEPTH:
-                    debugColor = TurboColormap(frac(InDepth[px]));
+                    debugColor = TurboColormap(compressedDepth);
                     break;
                 
                 case FLAGS_DEBUG_IN_MOTION:

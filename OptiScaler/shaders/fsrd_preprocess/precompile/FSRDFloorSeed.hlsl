@@ -196,21 +196,22 @@ half2 GetDepthGradient(const uint2 groupID, const int2 gtID)
 
 float3 GetViewSpacePos(const int2 px)
 {
-    const float inDepth = InDepth[px];
+    float inDepth = InDepth[px];
     const float2 uv = (float2(px) + 0.5) * RenderSize.zw;
     float3 viewSpacePos = 0.0f;
     
     [branch]
     if (IsSet(FLAGS_LINEAR_DEPTH))
     {
+        inDepth = clamp(inDepth, NearPlane, FarPlane);
         viewSpacePos = InvProjectPosition(float3(uv, 1.0f), InvProjMatrix);
-        viewSpacePos.z = abs(viewSpacePos.z);
-        viewSpacePos *= (inDepth / viewSpacePos.z);
+        viewSpacePos.xy *= abs(inDepth / viewSpacePos.z);
+        viewSpacePos.z = abs(inDepth);
     }
     else
     {
         viewSpacePos = InvProjectPosition(float3(uv, inDepth), InvProjMatrix);
-        viewSpacePos.z = abs(viewSpacePos.z);
+        viewSpacePos.z = clamp(abs(viewSpacePos.z), NearPlane, FarPlane);
     }
     
     return viewSpacePos;

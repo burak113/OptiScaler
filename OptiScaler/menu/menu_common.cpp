@@ -2970,7 +2970,7 @@ bool MenuCommon::RenderMenu()
                             }
 
                             if (float v = config->FfxDenoiserDisocThreshold.value_or_default();
-                                ImGui::SliderFloat("Disocclusion Threshold", &v, 1e-3f, .1f))
+                                ImGui::SliderFloat("Disocclusion Threshold", &v, 1e-2f, 1.0f))
                                 config->FfxDenoiserDisocThreshold = v;
 
                             if (float v = config->FfxDenoiserCrossBlNormStr.value_or_default();
