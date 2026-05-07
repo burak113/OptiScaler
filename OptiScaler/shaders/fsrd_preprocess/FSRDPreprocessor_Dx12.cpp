@@ -280,6 +280,10 @@ struct FSRDPreprocessor_Dx12::Impl
 
         m_smoothFloor = nullptr;
 
+        // Scratch buffers
+        m_outputBuffer1 = CreateTex(FSRDFormats::OutputBuffer1, L"FSR_Conv_OutputBuffer1");
+        m_outputBuffer2 = CreateTex(FSRDFormats::OutputBuffer2, L"FSR_Conv_OutputBuffer2");
+
         if (m_isMode2)
         {
             outResources.Mode2Inputs = 
@@ -426,7 +430,8 @@ struct FSRDPreprocessor_Dx12::Impl
         // DLSS-RR to FSR-RR conversion
         DispatchPackingShader(cmdList, desc);
 
-        // Transition output buffers to UAV after last composition pass or first init
+        // Transition output buffers to UAV after last composition pass or first init.
+        // The denoiser will be writing to these.
         AddBarrier(cmdList, m_outputBuffer1.Get(), kSrvState, kUavState);
         AddBarrier(cmdList, m_outputBuffer2.Get(), kSrvState, kUavState);
     }

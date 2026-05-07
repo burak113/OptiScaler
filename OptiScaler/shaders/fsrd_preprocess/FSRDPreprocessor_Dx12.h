@@ -53,7 +53,7 @@ class FSRDPreprocessor_Dx12
         DebugOutDiffAlbedo =    13 << 17 | Debug,
 
         DebugOutDepthDelta =    14 << 17 | Debug,
-        DebugOutNormDotView =   15 << 17 | Debug,
+
         DebugAlbedoError =      16 << 17 | Debug,
 
         DebugFloorVariance =    17 << 17 | Debug,

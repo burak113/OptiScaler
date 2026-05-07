@@ -43,7 +43,7 @@ static const uint2 s_ThreadGroupSize = uint2(THREAD_GROUP_SIZE_X, THREAD_GROUP_S
 #define FLAGS_DEBUG_OUT_DIFF_ALBEDO     (13 << 17 | FLAGS_DEBUG)
 
 #define FLAGS_DEBUG_OUT_DEPTH_DELTA     (14 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_OUT_NORM_DOT_VIEW   (15 << 17 | FLAGS_DEBUG)
+
 #define FLAGS_DEBUG_ALBEDO_OVERSHOOT    (16 << 17 | FLAGS_DEBUG)
 
 #define FLAGS_DEBUG_FLOOR_VARIANCE      (17 << 17 | FLAGS_DEBUG)
@@ -68,7 +68,7 @@ Texture2D<half4> InFloorColor : register(t9);
 // Mode 2: RGB: Noisy specular lighting A: Specular Ray Length
 RWTexture2D<half4> OutSignal1 : register(u0); 
 
-// Mode 1: RGB Fused Albedo: max(specularAlbedo, diffuseAlbedo) A: NoV
+// Mode 1: RGB Fused Albedo: max(specularAlbedo, diffuseAlbedo)
 // Mode 2: RGB: Noisy diffuse lighting for Mode 2
 RWTexture2D<half4> OutSignal2 : register(u1);
 
@@ -86,7 +86,7 @@ cbuffer CB_Packing : register(b0)
     float4x4 InvProjMatrix; // DLSSD ViewToClip^-1
     float4x4 PrevViewMatrix; // DLSSD WorldToView from last frame
     
-    float4 RenderSize; // Resolution of inputs
+    float4 DstTexSize; // Resolution of inputs
     
     float NearPlane;
     float FarPlane;   
@@ -101,7 +101,7 @@ uint GetDebugMode() { return (Flags & FLAGS_DEBUG_MODE_MASK); }
 float3 GetViewSpacePos(const int2 px)
 {
     const float inDepth = InDepth[px];
-    const float2 uv = (float2(px) + 0.5) * RenderSize.zw;
+    const float2 uv = (float2(px) + 0.5) * DstTexSize.zw;
     float3 viewSpacePos = 0.0f;
     
     viewSpacePos = InvProjectPosition(float3(uv, 1.0f), InvProjMatrix);
@@ -119,7 +119,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 {
     const uint2 px = groupID.xy * s_ThreadGroupSize + gtID.xy;
     
-    if (px.x >= RenderSize.x || px.y >= RenderSize.y)
+    if (px.x >= DstTexSize.x || px.y >= DstTexSize.y)
         return;
 
     // Depth
@@ -133,8 +133,8 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     //
     // DLSS-RR specular albedo is hemispherical specular reflectance at (NoV, roughness).
     // Diffuse albedo is the diffuse component of reflectance.     
-    float4 specReflectance = float4(GetSafeFP16(InSpecAlbedo[px].rgb), 0.0f);
-    float4 diffAlbedo = float4(GetSafeFP16(InDiffAlbedo[px].rgb), 0.0f);    
+    float3 specReflectance = GetSafeFP16(InSpecAlbedo[px].rgb);
+    float3 diffAlbedo = GetSafeFP16(InDiffAlbedo[px].rgb);
     
     const float totalAlbedo = dot(specReflectance.rgb + diffAlbedo.rgb, 1.0f);
     const float isEmissive = (totalAlbedo > 5.9f);   
@@ -200,16 +200,9 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         const float3 motionOut = float3(motionIn, depthDelta);
         OutMotion[px] = half4(motionOut, 0.0f);
 
-        // Calculate NoV (Dot(Normal, View))
-        //
-        const float3 cameraPos = float3(InvViewMatrix._m03, InvViewMatrix._m13, InvViewMatrix._m23);
-        // Line from camera to the clip pos
-        const float3 toCameraDir = normalize(cameraPos - worldSpacePos);
-        const float NoV = dot(worldSurfaceNormal.rgb, toCameraDir);
-
         half hitDist = hitDist = 0.0f;
         half3 demodColor = 0.0f;
-        float4 fusedAlbedo = 0.0f;
+        float3 fusedAlbedo = 0.0f;
         
         [branch]
         if (IsSet(FLAGS_MODE_2_SIGNAL)) // Primary radiance packing - Mode 2 Signal
@@ -230,7 +223,8 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             floorColor.rgb += residual;
             
             // Mask out specular tracking if the surface isn't smooth enough
-            hitDist = GetSafeFP16(InSpecHitDist[px] * (roughness < 0.2f) * (1.0f - isEmissive));
+            const float canUseHitDist = (roughness < 0.2f) * (1.0f - isEmissive);
+            hitDist = GetSafeFP16(InSpecHitDist[px] * canUseHitDist);
             
             [branch]
             if (!IsSet(FLAGS_DEBUG))
@@ -243,7 +237,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         }
         else // Primary radiance packing - Mode 1 Signal
         {           
-            fusedAlbedo = float4(max(specReflectance.rgb, diffAlbedo.rgb), NoV);
+            fusedAlbedo = max(specReflectance.rgb, diffAlbedo.rgb);
             demodColor = GetSafeFP16(denoiserColor / fusedAlbedo.rgb);
             
             const float3 residual = max(0.0f, denoiserColor - (demodColor * fusedAlbedo.rgb));
@@ -257,13 +251,10 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             if (!IsSet(FLAGS_DEBUG))
             {
                 OutSignal1[px] = half4(demodColor, hitDist);
-                OutSignal2[px] = GetSafeFP16(fusedAlbedo);
+                OutSignal2[px] = half4(GetSafeFP16(fusedAlbedo), 0.0f);
             }
         }        
-                
-        // Pack NoV into specular reflectance alpha
-        specReflectance.a = NoV;
-        
+
         // May be for better perceptual encoding efficiency in some configurations
         [branch]
         if (!IsSet(FLAGS_NON_GAMMA_ALBEDO))
@@ -272,10 +263,9 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             diffAlbedo = sqrt(diffAlbedo);
         }
         
-        // FSR-RR expects NoV in specular alpha
-        OutSpecAlbedo[px] = GetSafeFP16(specReflectance);
-        OutDiffAlbedo[px] = GetSafeFP16(diffAlbedo);
-        OutSkipSignal[px] = GetSafeFP16(float4(floorColor.rgb, 0.0f));
+        OutSpecAlbedo[px] = half4(GetSafeFP16(specReflectance), 0.0f);
+        OutDiffAlbedo[px] = half4(GetSafeFP16(diffAlbedo), 0.0f);
+        OutSkipSignal[px] = half4(GetSafeFP16(floorColor.rgb), 0.0f);
         
         [branch]
         if (IsSet(FLAGS_DEBUG))
@@ -294,7 +284,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                     break;
                 
                 case FLAGS_DEBUG_IN_MOTION:
-                    debugColor = VisualizeMotionVec(motionIn * RenderSize.xy, 0.1f);
+                    debugColor = VisualizeMotionVec(motionIn * DstTexSize.xy, 0.1f);
                     break;
                 
                 case FLAGS_DEBUG_IN_NORMALS:
@@ -322,7 +312,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                     break;
                 
                 case FLAGS_DEBUG_OUT_MOTION:
-                    debugColor = VisualizeMotionVec(motionOut.xy * RenderSize.xy, 0.1f);
+                    debugColor = VisualizeMotionVec(motionOut.xy * DstTexSize.xy, 0.1f);
                     break;
 
                 case FLAGS_DEBUG_OUT_DEPTH_DELTA:
@@ -332,11 +322,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                 case FLAGS_DEBUG_OUT_NORMALS:
                     debugColor = OctahedralDecode(octNormal) * 0.5 + 0.5;
                     break;
-            
-                case FLAGS_DEBUG_OUT_NORM_DOT_VIEW:
-                    debugColor = float3(-NoV, NoV, 0.0f);
-                    break;
-                
+
                 case FLAGS_DEBUG_OUT_SPEC_ALBEDO:
                     debugColor = specReflectance.rgb;
                     break;

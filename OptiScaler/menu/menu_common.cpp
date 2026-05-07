@@ -2969,9 +2969,9 @@ bool MenuCommon::RenderMenu()
                                 }
                             }
 
-                            if (float v = config->FfxDenoiserHistRejection.value_or_default();
-                                ImGui::SliderFloat("History Rejection", &v, 0, 1))
-                                config->FfxDenoiserHistRejection = v;
+                            if (float v = config->FfxDenoiserDisocThreshold.value_or_default();
+                                ImGui::SliderFloat("Disocclusion Threshold", &v, 1e-3f, .1f))
+                                config->FfxDenoiserDisocThreshold = v;
 
                             if (float v = config->FfxDenoiserCrossBlNormStr.value_or_default();
                                 ImGui::SliderFloat("Cross Bilateral Normal Strength", &v, 0, 1))
