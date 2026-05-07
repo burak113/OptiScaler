@@ -447,6 +447,16 @@ class FfxApiProxy
         return denoiser_dx12.version;
     }
 
+    static feature_version GetTargetDenoiserVersion() 
+    {
+        return 
+        {
+            .major = FFX_DENOISER_VERSION_MAJOR,
+            .minor = FFX_DENOISER_VERSION_MINOR,
+            .patch = FFX_DENOISER_VERSION_PATCH
+        };
+    }
+
     static ffxReturnCode_t D3D12_CreateContext(ffxContext* context, ffxCreateContextDescHeader* desc,
                                                const ffxAllocationCallbacks* memCb)
     {

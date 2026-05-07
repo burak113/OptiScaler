@@ -1089,7 +1089,6 @@ void MenuCommon::AddDx12Backends(std::string* code, std::string* name)
     bool fsr4Possible =
         Config::Instance()->Fsr4Update.value_or_default() || State::Instance().isRunningOnRDNA4.value_or(false);
     std::string fsr3xName = fsr4Possible ? "FSR 3.X/4" : "FSR 3.X";
-    const bool canUseFSR_RR = FfxApiProxy::VersionDx12_RR().major > 0;
 
     if (State::Instance().newBackend == "fsr21" || (State::Instance().newBackend == "" && *code == "fsr21"))
         selectedUpscalerName = "FSR 2.1.2";
@@ -2361,7 +2360,7 @@ bool MenuCommon::RenderMenu()
 
             if (ImGui::BeginTable("main", 2, ImGuiTableFlags_SizingStretchSame))
             {
-                ImGui::TableNextColumn();
+                ImGui::TableNextColumn();                
 
                 if (currentFeature != nullptr && !currentFeature->IsFrozen())
                 {
@@ -2481,6 +2480,26 @@ bool MenuCommon::RenderMenu()
                     {
                         ImGui::Spacing();
                         ImGui::TextColored(ImVec4(1.f, 0.8f, 0.f, 1.f), "nvngx_dlss.dll not found, DLSS disabled!");
+                    }
+
+                    // FSR Ray Regeneration version mismatch warning
+                    {
+                        const bool isDenoiserInstalled = FfxApiProxy::IsDenoiserReady();
+                        const bool isDenoiserReady = isDenoiserInstalled && FfxApiProxy::VersionDx12_RR().major > 0;
+                        const feature_version rrVer =
+                            isDenoiserInstalled ? FfxApiProxy::VersionDx12_RR() : feature_version {};
+                        const feature_version rrTarget = FfxApiProxy::GetTargetDenoiserVersion();
+
+                        if (isDenoiserReady && rrVer != rrTarget)
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 180, 50, 255));
+
+                            ImGui::Text("[Warning] FSR-RR version mismatch | Installed: %d.%d.%d | Expected: %d.%d.%d",
+                                        rrVer.major, rrVer.minor, rrVer.patch, rrTarget.major, rrTarget.minor,
+                                        rrTarget.patch);
+
+                            ImGui::PopStyleColor();
+                        }
                     }
                 }
 
