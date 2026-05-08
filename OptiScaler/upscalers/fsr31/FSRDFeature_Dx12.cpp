@@ -757,9 +757,10 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
     inParams.Get(NVSDK_NGX_Parameter_Jitter_Offset_X, &jitterX);
     inParams.Get(NVSDK_NGX_Parameter_Jitter_Offset_Y, &jitterY);
 
-    // Pixel jitter
-    dispatchDesc.jitterOffsets.x = jitterX;
-    dispatchDesc.jitterOffsets.y = jitterY;
+    // Convert from pixel to NDC jitter. Inline AMD docs incorrectly claim this is "expressed in screen pixels".
+    // The RR 1.0 and 1.1 reference implementations use NDC jitter. Fucking clowns.
+    dispatchDesc.jitterOffsets.x = 2.0f * (jitterX / (float) RenderWidth());
+    dispatchDesc.jitterOffsets.y = -2.0f * (jitterY / (float) RenderHeight());
 
     LOG_DEBUG("Jitter NDC [{:.6f}, {:.6f}]", dispatchDesc.jitterOffsets.x, dispatchDesc.jitterOffsets.y);
 
@@ -790,7 +791,7 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
     if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_GBuffer_Roughness, _convDesc.Resources.InRoughness) &&
         !s_isRoughnessPacked)
     {
-        LOG_WARN("Expected unpacked roughness buffer from DLSS-RR. Defaulting to packed roughness.");
+        LOG_WARN("Expected unpacked roughness buffer from DLSS-RR. Defaulting to packed roughness...");
         s_isRoughnessPacked = true;
     }
 
@@ -800,8 +801,7 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
     if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_SpecularAlbedo, _convDesc.Resources.InSpecAlbedo))
         isReady = false;
 
-    TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask,
-                         _convDesc.Resources.InBiasMask);
+    TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, _convDesc.Resources.InBiasMask);
 
     // Optional. Specular hit distance can be used with mode-2 denoising to track movement inside reflections, 
     // in addition to primary motion tracking for the surface and camera.

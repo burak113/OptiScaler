@@ -525,7 +525,7 @@ inline static void InitNGXParameters(NVSDK_NGX_Parameter* InParams)
                 FfxApiProxy::InitFfxDx12();
 
             ssDenoiseAvailable = FfxApiProxy::IsSRReady() && FfxApiProxy::IsDenoiserReady() &&
-                                 FfxApiProxy::VersionDx12_RR() == FfxApiProxy::GetTargetDenoiserVersion();
+                                 FfxApiProxy::VersionDx12_RR() == FfxApiProxy::VersionTarget_RR();
 
             if (ssDenoiseAvailable)
                 LOG_DEBUG("Setting DLSSD flags for FSR Ray Regeneration");

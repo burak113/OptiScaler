@@ -87,15 +87,15 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     void UpdateSize();
 
     /**
-     * @brief Generates FSR denoiser configuration and input buffers from DLSS-RR inputs and NGX configurations,
-     * converts and repacks resources internally.
+     * @brief Generates FFX denoiser configuration and input buffers from DLSS-RR inputs and NGX configurations.
+     * Converts and repacks resources internally.
      */
     template<typename SignalDescT>
     bool PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& ngxParams,
                               ffxDispatchDescDenoiser& dispatchDesc, SignalDescT& signalDesc);
 
     /**
-     * @brief Retrieves DLSS-RR inputs to populate the inputs for the conversion shader in order to generate
+     * @brief Retrieves DLSS-RR inputs to populate the inputs for the interop layer in order to generate
      FSR-RR compatible buffers.
      */
     bool PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParams);
@@ -110,7 +110,7 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
      */
     bool DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList, const ffxDispatchDescDenoiser& dispatchDesc);
 
-        void SetDefaultConfiguration();
+    void SetDefaultConfiguration();
 
     ffxReturnCode_t SetDefaultConfiguration(FfxApiConfigureDenoiserKey key);
 

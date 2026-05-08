@@ -447,7 +447,7 @@ class FfxApiProxy
         return denoiser_dx12.version;
     }
 
-    static feature_version GetTargetDenoiserVersion() 
+    static feature_version VersionTarget_RR() 
     {
         return 
         {

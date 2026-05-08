@@ -2485,10 +2485,9 @@ bool MenuCommon::RenderMenu()
                     // FSR Ray Regeneration version mismatch warning
                     {
                         const bool isDenoiserInstalled = FfxApiProxy::IsDenoiserReady();
-                        const bool isDenoiserReady = isDenoiserInstalled && FfxApiProxy::VersionDx12_RR().major > 0;
-                        const feature_version rrVer =
-                            isDenoiserInstalled ? FfxApiProxy::VersionDx12_RR() : feature_version {};
-                        const feature_version rrTarget = FfxApiProxy::GetTargetDenoiserVersion();
+                        const feature_version rrVer = isDenoiserInstalled ? FfxApiProxy::VersionDx12_RR() : feature_version {};
+                        const feature_version rrTarget = FfxApiProxy::VersionTarget_RR();
+                        const bool isDenoiserReady = isDenoiserInstalled && rrVer.major > 0;
 
                         if (isDenoiserReady && rrVer != rrTarget)
                         {
@@ -2972,26 +2971,72 @@ bool MenuCommon::RenderMenu()
                             if (float v = config->FfxDenoiserDisocThreshold.value_or_default();
                                 ImGui::SliderFloat("Disocclusion Threshold", &v, 1e-2f, 1.0f))
                                 config->FfxDenoiserDisocThreshold = v;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "Controls how sensitive the denoiser is to newly revealed areas when objects "
+                                    "move.\n"
+                                    "Lower: More sensitive - better handles moving objects, but may cause flickering.\n"
+                                    "Higher: Less sensitive - reduces flickering, but may cause ghosting or light "
+                                    "smearing.");
 
                             if (float v = config->FfxDenoiserCrossBlNormStr.value_or_default();
                                 ImGui::SliderFloat("Cross Bilateral Normal Strength", &v, 0, 1))
                                 config->FfxDenoiserCrossBlNormStr = v;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "Controls how strongly the denoiser preserves edges based on surface angles.\n"
+                                    "Higher: Keeps edges sharper and prevents blurring across surface boundaries.\n"
+                                    "Too high: May introduce noise or artifacts on complex surfaces.");
 
                             if (float v = config->FfxDenoiserStabilityBias.value_or_default();
-                                ImGui::SliderFloat("Temporal Stability Bias", &v, 0, 1))
+                                ImGui::SliderFloat("Temporal Stability Bias", &v, 0.1f, 0.9f))
                                 config->FfxDenoiserStabilityBias = v;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "Controls how much the denoiser blends previous frames with the current frame.\n"
+                                    "Higher: Smoother, less noisy image, but may cause ghosting or loss of fine "
+                                    "detail.\n"
+                                    "Lower: More responsive and detailed, but may show noise or a boiling effect.");
 
                             if (float v = config->FfxDenoiserMaxRadiance.value_or_default();
-                                ImGui::SliderFloat("Max Radiance", &v, 10, 1e5f))
+                                ImGui::SliderFloat("Max Radiance", &v, 10, 65500.0f))
                                 config->FfxDenoiserMaxRadiance = v;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "Lower: More aggressive firefly removal, but may dim bright highlights.\n"
+                                    "Higher: Preserves bright lights better, but may allow fireflies and noise "
+                                    "through.");
 
                             if (float v = config->FfxDenoiserRadianceClip.value_or_default();
                                 ImGui::SliderFloat("Radiance Clip Deviation", &v, 1, 500))
                                 config->FfxDenoiserRadianceClip = v;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "Controls tolerance for bright spots relative to their surroundings.\n"
+                                    "Lower: Aggressively removes fireflies and noise, but may dim small intense light "
+                                    "sources.\n"
+                                    "Higher: Better preserves specular highlights and glowing surfaces, but allows "
+                                    "more noise.");
 
                             if (float v = config->FfxDenoiserGaussKernRelax.value_or_default();
                                 ImGui::SliderFloat("Gaussian Kernel Relaxation", &v, 0, 1))
                                 config->FfxDenoiserGaussKernRelax = v;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "Controls how the smoothing filter adapts to surface details.\n"
+                                    "Higher: Filter stretches more to follow surface geometry, reducing rippling and "
+                                    "banding on smooth surfaces.\n"
+                                    "Lower: Slightly sharper with weaker smoothing on large surfaces, may increase banding and rippling.\n");
+
+                            if (ImGui::Button("Reset"))
+                            {
+                                config->FfxDenoiserDisocThreshold = 0.1f;
+                                config->FfxDenoiserCrossBlNormStr = 0.5f;
+                                config->FfxDenoiserStabilityBias = 0.7f;
+                                config->FfxDenoiserMaxRadiance = 40000.0f;
+                                config->FfxDenoiserRadianceClip = 40.0f;
+                                config->FfxDenoiserGaussKernRelax = 0.5f;
+                            }
 
                             ImGui::SeparatorText("Debug");
 
