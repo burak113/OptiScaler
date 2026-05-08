@@ -701,10 +701,13 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
         return false;
 
     // Camera matrix - translation and rotation, from viewMatrix^-1
+    const XMFLOAT3 camPos = GetFloat3Column(_invViewMatrix, 3);
     const XMVECTOR right = XMVector3Normalize(GetColumn(_invViewMatrix, 0));
     const XMVECTOR up = XMVector3Normalize(GetColumn(_invViewMatrix, 1));
-    const XMVECTOR forward = XMVector3Normalize(GetColumn(_invViewMatrix, 2));
-    const XMFLOAT3 camPos = GetFloat3Column(_invViewMatrix, 3);
+
+    // FSR-RR requires left handed view matrices
+    XMVECTOR forward = XMVector3Normalize(GetColumn(_invViewMatrix, 2));
+    forward *= _isRightHanded ? -1.0f : 1.0f;
 
     // Pack dispatch configuration
     dispatchDesc = 
@@ -851,14 +854,14 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
                 // digits.
                 const float fov = (slData.cameraFOV < 4.0f) ? slData.cameraFOV : GetRadiansFromDeg(slData.cameraFOV);
                 const float nearPlane = slData.cameraNear;
-            const float farPlane = slData.cameraFar;
-            const bool isRightHanded = slData.cameraViewToClip[2].w < 0.0f;
+                const float farPlane = slData.cameraFar;
+                _isRightHanded = slData.cameraViewToClip[2].w < 0.0f;
 
-            // Actual SL view to clip matrix isn't necessarily what you might expect. This is harder to fuck up.
-            if (isRightHanded)
-                _projMatrix = XMMatrixPerspectiveFovRH(fov, slData.cameraAspectRatio, nearPlane, farPlane);
-            else
-                _projMatrix = XMMatrixPerspectiveFovLH(fov, slData.cameraAspectRatio, nearPlane, farPlane);
+                // Actual SL view to clip matrix isn't reliable. This is harder to fuck up.
+                if (_isRightHanded)
+                    _projMatrix = XMMatrixPerspectiveFovRH(fov, slData.cameraAspectRatio, nearPlane, farPlane);
+                else
+                    _projMatrix = XMMatrixPerspectiveFovLH(fov, slData.cameraAspectRatio, nearPlane, farPlane);
 
                 _projMatrix = XMMatrixTranspose(_projMatrix);
             }

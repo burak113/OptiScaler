@@ -69,10 +69,11 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     DirectX::XMFLOAT3 _lastCamPos; // Last world space camera position
 
     // Matrices
-    DirectX::XMMATRIX _invViewMatrix;  // Camera rotation and translation
-    DirectX::XMMATRIX _viewMatrix;     // World to camera space
-    DirectX::XMMATRIX _prevViewMatrix; // Last world to camera space
-    DirectX::XMMATRIX _projMatrix;     // Perspective projection matrix
+    DirectX::XMMATRIX _invViewMatrix;   // Camera rotation and translation
+    DirectX::XMMATRIX _viewMatrix;      // World to camera space
+    DirectX::XMMATRIX _prevViewMatrix;  // Last world to camera space
+    DirectX::XMMATRIX _projMatrix;      // Perspective projection matrix
+    bool _isRightHanded;                // True if the camera matrix is right handed
 
     std::unique_ptr<FSRDPreprocessor_Dx12> FSRDConvShader;
 
