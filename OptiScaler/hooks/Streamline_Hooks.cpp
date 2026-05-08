@@ -1396,6 +1396,8 @@ bool StreamlineHooks::isDlssgHooked() { return o_dlssg_slGetPluginFunction != nu
 
 bool StreamlineHooks::isCommonHooked() { return o_common_slGetPluginFunction != nullptr; }
 
+bool StreamlineHooks::isSetConstantsHooked() { return o_slSetConstants != nullptr; }
+
 bool StreamlineHooks::isPclHooked() { return o_pcl_slGetPluginFunction != nullptr; }
 
 bool StreamlineHooks::isReflexHooked() { return o_reflex_slGetPluginFunction != nullptr; }

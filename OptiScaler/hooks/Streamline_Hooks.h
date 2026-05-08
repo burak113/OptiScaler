@@ -86,6 +86,7 @@ class StreamlineHooks
     static bool isInterposerHooked();
     static bool isDlssHooked();
     static bool isDlssgHooked();
+    static bool isSetConstantsHooked();
     static bool isCommonHooked();
     static bool isPclHooked();
     static bool isReflexHooked();

@@ -2,6 +2,7 @@
 #include <nvsdk_ngx_defs_dlssd.h>
 #include <DirectXMath.h>
 #include "NVNGX_Parameter.h"
+#include "hooks/Streamline_Hooks.h"
 #include "FSRDFeature_Dx12.h"
 #include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
 #include "MathUtils.h"
@@ -814,15 +815,21 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
 
     if (!TryGetNGXMatrix(inParams, NVSDK_NGX_Parameter_DLSS_WORLD_TO_VIEW_MATRIX, _viewMatrix))
     {
-        LOG_DEBUG("View matrix missing! Falling back to Streamline inputs...");
+        if (StreamlineHooks::isSetConstantsHooked())
+        {
+            SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraRight), 0, _invViewMatrix);
+            SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraUp), 1, _invViewMatrix);
+            SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraFwd), 2, _invViewMatrix);
+            SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraPos), 3, _invViewMatrix);
+            _invViewMatrix.r[3].m128_f32[3] = 1.0f;
 
-        SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraRight), 0, _invViewMatrix);
-        SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraUp), 1, _invViewMatrix);
-        SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraFwd), 2, _invViewMatrix);
-        SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraPos), 3, _invViewMatrix);
-        _invViewMatrix.r[3].m128_f32[3] = 1.0f;
-
-        _viewMatrix = XMMatrixInverse(nullptr, _invViewMatrix);
+            _viewMatrix = XMMatrixInverse(nullptr, _invViewMatrix);
+        }
+        else
+        {
+            LOG_ERROR("View matrix missing! Denoiser not ready.");
+            isReady = false;
+        }
     }
     else
     {
@@ -835,15 +842,15 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
 
     if (!TryGetNGXMatrix(inParams, NVSDK_NGX_Parameter_DLSS_VIEW_TO_CLIP_MATRIX, _projMatrix))
     {
-        LOG_DEBUG("Projection matrix missing! Falling back to Streamline inputs...");
-        
-        if (slData.cameraFOV != sl::INVALID_FLOAT && slData.cameraNear != slData.cameraFar)
+        if (StreamlineHooks::isSetConstantsHooked())
         {
-            // The stupid, it burns...
-            // These measurements are supposed to be in radians, but some titles supply degrees.
-            // Valid FOV in radians never exceeds PI. Realistic FOV in degrees is basically never in the single digits.
-            const float fov = (slData.cameraFOV < 4.0f) ? slData.cameraFOV : GetRadiansFromDeg(slData.cameraFOV);
-            const float nearPlane = slData.cameraNear;
+            if (slData.cameraFOV != sl::INVALID_FLOAT && slData.cameraNear != slData.cameraFar)
+            {
+                // These measurements are supposed to be in radians, but some titles supply degrees.
+                // Valid FOV in radians never exceeds PI. Realistic FOV in degrees is basically never in the single
+                // digits.
+                const float fov = (slData.cameraFOV < 4.0f) ? slData.cameraFOV : GetRadiansFromDeg(slData.cameraFOV);
+                const float nearPlane = slData.cameraNear;
             const float farPlane = slData.cameraFar;
             const bool isRightHanded = slData.cameraViewToClip[2].w < 0.0f;
 
@@ -853,7 +860,13 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
             else
                 _projMatrix = XMMatrixPerspectiveFovLH(fov, slData.cameraAspectRatio, nearPlane, farPlane);
 
-            _projMatrix = XMMatrixTranspose(_projMatrix);
+                _projMatrix = XMMatrixTranspose(_projMatrix);
+            }
+        }
+        else
+        {
+            LOG_ERROR("Projection matrix missing! Denoiser not ready.");
+            isReady = false;
         }
     }
 
