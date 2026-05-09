@@ -385,7 +385,7 @@ class Config
 
     CustomOptional<float> FfxDenoiserDisocThreshold { 0.1f };
     CustomOptional<float> FfxDenoiserCrossBlNormStr { 0.5f };
-    CustomOptional<float> FfxDenoiserStabilityBias { 0.7f };
+    CustomOptional<float> FfxDenoiserStabilityBias { 0.5f };
     CustomOptional<float> FfxDenoiserMaxRadiance { 2e4f };
     CustomOptional<float> FfxDenoiserRadianceClip { 40.0f };
     CustomOptional<float> FfxDenoiserGaussKernRelax { 0.5f };

@@ -353,7 +353,7 @@ struct FSRDPreprocessor_Dx12::Impl
         // Tukey biweight: W = ( 1 - ( (center - tap) * scale )^2 )^2
         // scale = 2^(i + 1) / norm
         float rcpCrossNorm = (1.0f / 0.5f);
-        float rcpLumNorm = (1e-2f / 0.2f);
+        float rcpLumNorm = (1e-2f / 0.3f);
 
         for (int i = 0; i < FloorFilter::kPasses; i++)
         {

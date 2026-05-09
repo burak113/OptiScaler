@@ -3032,7 +3032,7 @@ bool MenuCommon::RenderMenu()
                             {
                                 config->FfxDenoiserDisocThreshold = 0.1f;
                                 config->FfxDenoiserCrossBlNormStr = 0.5f;
-                                config->FfxDenoiserStabilityBias = 0.7f;
+                                config->FfxDenoiserStabilityBias = 0.5f;
                                 config->FfxDenoiserMaxRadiance = 40000.0f;
                                 config->FfxDenoiserRadianceClip = 40.0f;
                                 config->FfxDenoiserGaussKernRelax = 0.5f;

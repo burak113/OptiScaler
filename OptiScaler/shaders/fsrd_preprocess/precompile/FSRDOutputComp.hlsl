@@ -56,7 +56,6 @@ Texture2D<half4> InAlbedo2 : register(t3); // Diffuse albedo
 
 // Secondary buffers
 Texture2D<half4> InSkipSignal : register(t4);
-
 Texture2D<half3> InRawColor : register(t5);
 Texture2D<half4> InColorBeforeParticles : register(t6);
 
@@ -87,30 +86,37 @@ float GetRawColorSimilarity(const uint2 gtID)
     float meanRR = 0.0f; // R^2
     float meanRD = 0.0f; // R*D
 
+    static const float s_RcpSigma = 1.0f / 1.2f;
+    float totalWeight = 0.0f;
+    
     [unroll]
     for (int x1 = KERNEL_RANGE_MIN; x1 <= KERNEL_RANGE_MAX; x1++)
     {
         [unroll]
         for (int y1 = KERNEL_RANGE_MIN; y1 <= KERNEL_RANGE_MAX; y1++)
         {
-            const int2 smID = smCenter + int2(x1, y1);
-                
+            const int2 smID = smCenter + int2(x1, y1);               
+            float w = exp(-(Square(x1) + Square(y1)) * s_RcpSigma);
+            totalWeight += w;
+            
             const float lumD = g_DenoisedColor[smID.x][smID.y].a;
-            meanD += lumD;
-            meanDD += Square(lumD);
+            meanD += w * lumD;
+            meanDD += w * Square(lumD);
   
             const float lumR = g_RawColor[smID.x][smID.y].a;
-            meanR += lumR;
-            meanRR += Square(lumR);
-            meanRD += lumR * lumD;
+            meanR += w * lumR;
+            meanRR += w * Square(lumR);
+            meanRD += w * lumR * lumD;
         }
     }
     
-    meanD *= s_InvKernelSize;
-    meanR *= s_InvKernelSize;
-    meanDD *= s_InvKernelSize;
-    meanRR *= s_InvKernelSize;
-    meanRD *= s_InvKernelSize;
+    const float rcpTotalWeight = rcp(totalWeight);
+    
+    meanD *= rcpTotalWeight;
+    meanR *= rcpTotalWeight;
+    meanDD *= rcpTotalWeight;
+    meanRR *= rcpTotalWeight;
+    meanRD *= rcpTotalWeight;
     
     const float meanDSq = Square(meanD);
     const float meanRSq = Square(meanR);
@@ -142,11 +148,11 @@ float GetRawColorSimilarity(const uint2 gtID)
     const float lumCorrelation = (2.0f * meanD * meanR) * rcp(meanDSq + meanRSq + c1);    
     const float ssim = strucCorrelation * conCorrelation * lumCorrelation;  
     
-    // Variance gating. The denoiser doesn't destroy genuine detail. It might flatten details, or even
-    // hallucinate, but if it says it's flat, then it's actually flat.
+    // Variance gating. The denoiser doesn't destroy genuine detail. It might attenuate details, or even
+    // hallucinate, but if it says it's flat, then almost certainly flat.
     const float covD = devD * rcp(max(meanD, 1e-2f));
     
-    return saturate(ssim) * smoothstep(0.0f, s_COVThreshold, covD);
+    return smoothstep(0.0f, 0.5f, ssim) * smoothstep(0.0f, s_COVThreshold, covD);
 }
 
 void PopulateSharedMemory(const uint2 groupID, const int2 gtID)
@@ -185,13 +191,7 @@ void PopulateSharedMemory(const uint2 groupID, const int2 gtID)
             }
             
             denoisedColor += InSkipSignal[px].rgb;
-
-            // Constrain raw color to denosied chroma
-            const float denoisedLuma = GetLuminance(denoisedColor);
-            const float rawLuma = GetLuminance(InRawColor[px]);
-            
-            const float rawScale = rawLuma * rcp(max(denoisedLuma, 1e-2f));
-            const float3 rawColor = rawScale * denoisedColor;
+            const float3 rawColor = InRawColor[px];
 
             // Use demodulated color for luma references, but use modulated color for RGB
             const float3 rcpTotalAlbedo = rcp(max(totalAlbedo, 1e-3f));

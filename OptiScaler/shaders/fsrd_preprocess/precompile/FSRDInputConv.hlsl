@@ -134,7 +134,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     const float totalAlbedo = dot(specReflectance.rgb + diffAlbedo.rgb, 1.0f);
     const float isEmissive = (totalAlbedo > 5.9f);   
     diffAlbedo.rgb *= (1.0f - isEmissive);
-    specReflectance.rgb = lerp(specReflectance.rgb, 1.0f, isEmissive);
+    specReflectance.rgb = lerp(specReflectance.rgb, 0.1f, isEmissive);
     
     // Clamp albedo
     const float3 albedoOvershoot = max((specReflectance.rgb + diffAlbedo.rgb) - 1.0f, 0.0f);
@@ -154,7 +154,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     // Diffuse dominant surfaces are relatively well behaved.
     const float avgSpecular = dot(specReflectance.rgb, 0.33f);
     const float diffuseDominance = smoothstep(0.08f, 0.0f, avgSpecular);
-    const float similarityThreshold = lerp(0.5f, 0.1f, diffuseDominance);
+    const float similarityThreshold = lerp(0.5f, 0.2f, diffuseDominance);
     
     // Clamp floor to minimum and blend in raw values where similar to preserve microcontrast.
     const float floorSimilarity = GetRelativeSimilarity(floorLuma, rawLuma, similarityThreshold);
@@ -217,7 +217,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 
             // Anything that can't survive modulation and clamping should be skipped
             const float3 remodColor = (demodSpecular * specReflectance.rgb) + (demodDiffuse * diffAlbedo.rgb);
-            const float3 residual = max(0.0f, denoiserColor - remodColor);            
+            const float3 residual = max(0.0f, denoiserColor - remodColor);           
             floorColor.rgb += residual;
             
             // Mask out specular tracking if the surface isn't smooth enough

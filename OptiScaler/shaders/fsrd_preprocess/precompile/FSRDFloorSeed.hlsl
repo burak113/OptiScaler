@@ -176,7 +176,7 @@ half4 GetConservativeColor(const uint2 groupID, const int2 gtID)
     half4 stableColor = min(binColor, g_Color[smID.x][smID.y]);
 
     // Interpolate toward safer lower bound as instability increases
-    const half4 minColor = 0.25h * binColor;
+    const half4 minColor = 0.2h * binColor;
     stableColor.rgb = (half3) lerp(stableColor.rgb, minColor.rgb, instability);
     
     return half4(stableColor.rgb, instability);
