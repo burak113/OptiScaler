@@ -19,7 +19,6 @@ static const uint2 s_ThreadGroupSize = uint2(THREAD_GROUP_SIZE_X, THREAD_GROUP_S
 
 #define FLAGS_PACKED_ROUGHNESS          (1 << 2)
 #define FLAGS_MODE_2_SIGNAL             (1 << 3)
-#define FLAGS_IS_RIGHT_HANDED           (1 << 4)
 
 // Debug Flags
 #define FLAGS_DEBUG                     (1 << 16)
@@ -27,27 +26,27 @@ static const uint2 s_ThreadGroupSize = uint2(THREAD_GROUP_SIZE_X, THREAD_GROUP_S
 
 // Inputs
 #define FLAGS_DEBUG_IN_SPEC_HIT_DIST    (1 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_IN_DEPTH            (2 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_IN_MOTION           (3 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_IN_NORMALS          (4 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_IN_ROUGHNESS        (5 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_IN_DIFF_ALBEDO      (6 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_IN_SPEC_ALBEDO      (7 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_MOTION           (2 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_NORMALS          (3 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_ROUGHNESS        (4 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_DIFF_ALBEDO      (5 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_SPEC_ALBEDO      (6 << 17 | FLAGS_DEBUG)
 
 // Outputs
-#define FLAGS_DEBUG_OUT_FUSED_ALBEDO    (8 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_OUT_LINEAR_DEPTH    (9 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_OUT_MOTION          (10 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_OUT_NORMALS         (11 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_OUT_SPEC_ALBEDO     (12 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_OUT_DIFF_ALBEDO     (13 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_FUSED_ALBEDO    (7 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_LINEAR_DEPTH    (8 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_MOTION          (9 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_NORMALS         (10 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_SPEC_ALBEDO     (11 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_DIFF_ALBEDO     (12 << 17 | FLAGS_DEBUG)
 
-#define FLAGS_DEBUG_OUT_DEPTH_DELTA     (14 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_OUT_DEPTH_DELTA     (13 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_NORM_DEPTH          (14 << 17 | FLAGS_DEBUG)
 
-#define FLAGS_DEBUG_ALBEDO_OVERSHOOT    (16 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_ALBEDO_OVERSHOOT    (15 << 17 | FLAGS_DEBUG)
 
-#define FLAGS_DEBUG_FLOOR_VARIANCE      (17 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_FLOOR_COLOR         (18 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_FLOOR_VARIANCE      (16 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_FLOOR_COLOR         (17 << 17 | FLAGS_DEBUG)
 
 // DLSS-RR Inputs
 Texture2D<half3> InColor : register(t0); // RGB - NVSDK_NGX_Parameter_Color
@@ -135,7 +134,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     const float totalAlbedo = dot(specReflectance.rgb + diffAlbedo.rgb, 1.0f);
     const float isEmissive = (totalAlbedo > 5.9f);   
     diffAlbedo.rgb *= (1.0f - isEmissive);
-    specReflectance.rgb = lerp(specReflectance.rgb, .04f, isEmissive);
+    specReflectance.rgb = lerp(specReflectance.rgb, 1.0f, isEmissive);
     
     // Clamp albedo
     const float3 albedoOvershoot = max((specReflectance.rgb + diffAlbedo.rgb) - 1.0f, 0.0f);
@@ -163,7 +162,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     floorColor.rgb = FloorIsolation * min(rawColor, floorColor.rgb);
     const float3 denoiserColor = rawColor - floorColor.rgb;
 
-    // Depth
+    // Depth - full position needed for reprojected depth delta
     const float3 viewSpacePos = GetViewSpacePos(px);
     const float compressedDepth = log(viewSpacePos.z + 1.0f) / log(FarPlane + 1.0f);
     
@@ -278,7 +277,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                     debugColor = TurboColormap(frac(hitDist * 0.1f));
                     break;
                 
-                case FLAGS_DEBUG_IN_DEPTH:
+                case FLAGS_DEBUG_NORM_DEPTH:
                     debugColor = TurboColormap(compressedDepth);
                     break;
                 

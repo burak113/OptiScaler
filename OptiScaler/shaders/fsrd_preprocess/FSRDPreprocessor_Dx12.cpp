@@ -480,6 +480,7 @@ struct FSRDPreprocessor_Dx12::Impl
                 .InDenoisedSignal1 = m_outputBuffer1.Get(),
                 .InAlbedo1 = signalData.FusedAlbedo.Get(),
                 .InSkipSignal = outResources.SkipSignal.Get(),
+                .InRawColor = desc.InRawColor,
                 .InColorBeforeParticles = desc.InColorBeforeParticles
             };
         }  

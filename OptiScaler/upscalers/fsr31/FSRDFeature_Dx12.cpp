@@ -199,7 +199,6 @@ enum class DebugModes : uint64_t
     OutRadiance = FSRDConvFlags::DebugOutRadiance,
 
     InSpecHitDist = FSRDConvFlags::DebugInSpecHitDist,
-    InDepth = FSRDConvFlags::DebugInDepth,
     InMotion = FSRDConvFlags::DebugInMotion,
     InNormals = FSRDConvFlags::DebugInNormals,
     InRoughness = FSRDConvFlags::DebugInRoughness,
@@ -214,6 +213,7 @@ enum class DebugModes : uint64_t
     OutDiffAlbedo = FSRDConvFlags::DebugOutDiffAlbedo,
 
     OutDepthDelta = FSRDConvFlags::DebugOutDepthDelta,
+    NormDepth = FSRDConvFlags::DebugNormDepth,
     AlbedoError = FSRDConvFlags::DebugAlbedoError,
 
     FloorVariance = FSRDConvFlags::DebugFloorVariance,
@@ -249,7 +249,7 @@ using ModeNamePair = std::pair<const char*, uint64_t>;
 constexpr auto kDebugModes = std::to_array<ModeNamePair>(
 {
     { "None", (uint64_t) DebugModes::None },
-    { "FfxDebug", (uint64_t) DebugModes::FfxDebug },
+    { "DebugOverview", (uint64_t) DebugModes::FfxDebug },
 
     { "DenoiserBypass", (uint64_t) DebugModes::DenoiserBypass },
     { "UpscalerBypass", (uint64_t) DebugModes::UpscalerBypass },
@@ -262,7 +262,6 @@ constexpr auto kDebugModes = std::to_array<ModeNamePair>(
     { "DlssColorBeforeTransparency", (uint64_t) DebugModes::DlssColorBeforeTransparency },
     { "DlssTransparencyLayer", (uint64_t) DebugModes::DlssTransparencyLayer },
 
-    { "InDepth", (uint64_t) DebugModes::InDepth },
     { "InMotionVectors", (uint64_t) DebugModes::InMotion },
     { "InNormals", (uint64_t) DebugModes::InNormals },
     { "InRoughness", (uint64_t) DebugModes::InRoughness },
@@ -278,6 +277,7 @@ constexpr auto kDebugModes = std::to_array<ModeNamePair>(
     { "OutSpecAlbedo", (uint64_t) DebugModes::OutSpecAlbedo },
     { "OutDiffAlbedo", (uint64_t) DebugModes::OutDiffAlbedo },
     { "OutDepthDelta", (uint64_t) DebugModes::OutDepthDelta },
+    { "NormDepth", (uint64_t) DebugModes::NormDepth },
 
     { "AlbedoError", (uint64_t) DebugModes::AlbedoError },
     { "Correlation", (uint64_t) DebugModes::Correlation },
@@ -908,9 +908,6 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     const ViewPlanes planes = GetViewPlanes(_projMatrix, DepthInverted());
     _convDesc.NearPlane = planes.nearPlane;
     _convDesc.FarPlane = planes.farPlane;
-
-    if (planes.isRightHanded)
-        _convDesc.Flags |= (uint32_t) FSRDConvFlags::IsRightHanded;
 
     if (!s_isHWDepth)
         _convDesc.Flags |= (uint32_t) FSRDConvFlags::IsDepthLinear;
