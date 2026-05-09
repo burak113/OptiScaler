@@ -113,13 +113,6 @@ FARPROC WINAPI KernelHooks::hk_K32_GetProcAddress(HMODULE hModule, LPCSTR lpProc
         return (FARPROC) &hkAmdExtD3DCreateInterface;
     }
 
-    if (State::Instance().isRunningOnLinux && lpProcName != nullptr &&
-        hModule == KernelBaseProxy::GetModuleHandleW_()(L"gdi32.dll") &&
-        lstrcmpA(lpProcName, "D3DKMTEnumAdapters2") == 0)
-    {
-        return (FARPROC) &customD3DKMTEnumAdapters2;
-    }
-
     return o_K32_GetProcAddress(hModule, lpProcName);
 }
 
@@ -188,11 +181,6 @@ FARPROC WINAPI KernelHooks::hk_KB_GetProcAddress(HMODULE hModule, LPCSTR lpProcN
     //     LOG_TRACE("Trying to get process address of {}, caller: {}", lpProcName,
     //               Util::WhoIsTheCaller(_ReturnAddress()));
     // }
-
-    if (State::Instance().isRunningOnLinux && lpProcName != nullptr &&
-        hModule == KernelBaseProxy::GetModuleHandleW_()(L"gdi32.dll") &&
-        lstrcmpA(lpProcName, "D3DKMTEnumAdapters2") == 0)
-        return (FARPROC) &customD3DKMTEnumAdapters2;
 
     return o_KB_GetProcAddress(hModule, lpProcName);
 }
