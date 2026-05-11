@@ -587,6 +587,8 @@ ULONG STDMETHODCALLTYPE WrappedIDXGISwapChain4::Release()
 
         auto refCount = _real->Release();
 
+        // Disabled for now, cause issues with some games
+        /*
         IDXGISwapChain* skSC = nullptr;
         if (_real->QueryInterface(IID_IUnwrappedDXGISwapChain, (void**) &skSC) == S_OK && skSC != nullptr)
         {
@@ -603,6 +605,7 @@ ULONG STDMETHODCALLTYPE WrappedIDXGISwapChain4::Release()
                 refCount = _real->Release();
             }
         }
+        */
 
         LOG_DEBUG("Real swapchain released, refCount: {}", refCount);
 
