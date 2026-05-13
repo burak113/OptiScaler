@@ -10,10 +10,10 @@ echo #+#    #+# #+#            #+#         #+#     #+#    #+# #+#    #+# #+#    
 echo  ########  ###            ###     ###########  ########   ########  ###     ### ########## ########## ###    ### 
 echo.
 echo Coping is strong with this one...
-echo v2.5 - now with OptiPatcher support
+echo v2.75 - now with OptiPatcher support
 echo.
 
-del "!! EXTRACT ALL FILES TO GAME FOLDER !!" 2>nul
+del "!! README_EXTRACT ALL FILES TO GAME FOLDER !!.txt" 2>nul
 
 setlocal enabledelayedexpansion
 
@@ -371,10 +371,11 @@ if "%setupSuccess%"=="true" (
 exit /b
 
 :create_uninstaller
-copy /y NUL "Remove OptiScaler.bat"
+setlocal DisableDelayedExpansion
 
 (
 echo @echo off
+echo setlocal EnableDelayedExpansion
 echo cls
 echo echo  ::::::::  :::::::::  ::::::::::: :::::::::::  ::::::::   ::::::::      :::     :::        :::::::::: :::::::::  
 echo echo :+:    :+: :+:    :+:     :+:         :+:     :+:    :+: :+:    :+:   :+: :+:   :+:        :+:        :+:    :+: 
@@ -385,45 +386,73 @@ echo echo #+#    #+# #+#            #+#         #+#     #+#    #+# #+#    #+# #+
 echo echo  ########  ###            ###     ###########  ########   ########  ###     ### ########## ########## ###    ### 
 echo echo.
 echo echo Coping is strong with this one...
-echo echo v2.5 - now with OptiPatcher support
+echo echo v2.75 - now with OptiPatcher support
 echo echo.
-echo.
+echo REM Check if OptiScaler installation exists
+echo set "OLD_FILES_FOUND=0"
+echo set "OPTI_DLL_LIST="
+echo if exist OptiScaler.asi set "OLD_FILES_FOUND=1"
+
+echo for %%%%F in ^(dxgi.dll winmm.dll d3d12.dll dbghelp.dll version.dll wininet.dll winhttp.dll^) do ^(
+echo     if exist "%%%%F" ^(
+echo         set "origname="
+echo         for /f "tokens=*" %%%%P in ^('powershell -NoProfile -Command "(Get-Item '%%%%F').VersionInfo.OriginalFilename"'^) do ^(
+echo             set "origname=%%%%P"
+echo         ^)
+echo         if /i "!origname!"=="OptiScaler.dll" ^(
+echo             set "OLD_FILES_FOUND=1"
+echo             set "OPTI_DLL_LIST=!OPTI_DLL_LIST! %%%%F"
+echo         ^)
+echo     ^)
+echo ^)
+
+echo if "!OLD_FILES_FOUND!"=="1" ^(
+echo     echo Existing OptiScaler installation detected^^^^!
+echo     if exist OptiScaler.asi echo   - OptiScaler.asi
+echo     for %%%%F in ^(!OPTI_DLL_LIST!^) do echo   - %%%%F - original filename: OptiScaler.dll
+echo     echo.
+echo ^)
+
 echo set /p removeChoice="Do you want to remove OptiScaler? [y/n]: "
 echo echo.
+
 echo if "%%removeChoice%%"=="y" ^(
-echo    del OptiScaler.log
-echo    del OptiScaler.ini
-echo    del %selectedFilename%
-echo    del fakenvapi.dll
-echo    del fakenvapi.ini
-echo    del fakenvapi.log
-echo    del dlssg_to_fsr3_amd_is_better.dll
-echo    del dlssg_to_fsr3.log
-echo    del /Q D3D12_Optiscaler\*
-echo    rd D3D12_Optiscaler
-echo    del /Q DlssOverrides\*
-echo    rd DlssOverrides
-echo    del /Q Licenses\*
-echo    rd Licenses
-echo    echo.
-echo    echo Deleting OptiPatcher if present
-echo    del plugins\OptiPatcher.asi
-echo    rd plugins
-echo    echo.
-echo    echo OptiScaler removed^^! Ignore the warnings about missing files.
-echo    echo.
+echo     del OptiScaler.log
+echo     del OptiScaler.ini
+echo     del OptiScaler.asi
+echo     del fakenvapi.dll
+echo     del fakenvapi.ini
+echo     del fakenvapi.log
+echo     del dlssg_to_fsr3_amd_is_better.dll
+echo     del dlssg_to_fsr3.log
+echo     del /Q D3D12_Optiscaler\*
+echo     rd D3D12_Optiscaler
+echo     del /Q DlssOverrides\*
+echo     rd DlssOverrides
+echo     del /Q Licenses\*
+echo     rd Licenses
+echo     for %%%%F in ^(!OPTI_DLL_LIST!^) do ^(del "%%%%F"^)
+echo     echo.
+echo     echo Deleting OptiPatcher if present
+echo     del plugins\OptiPatcher.asi
+echo     rd plugins
+echo     echo.
+echo     echo OptiScaler removed^^^^! Ignore the warnings about missing files.
+echo     echo.
 echo ^) else ^(
-echo    echo.
-echo    echo Operation cancelled.
-echo    echo.
+echo     echo.
+echo     echo Operation cancelled.
+echo     echo.
 echo ^)
+
 echo.
 echo pause
 echo if "%%removeChoice%%"=="y" ^(
-echo   del %%0
+echo     del %%0
 echo ^)
-) >> "Remove OptiScaler.bat"
+) > "Remove OptiScaler.bat"
 
+endlocal
 echo.
 echo Uninstaller created.
 echo.

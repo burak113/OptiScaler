@@ -132,10 +132,10 @@ struct HeapInfo
     // mutable std::shared_mutex mutex;
 
     ID3D12DescriptorHeap* heap = nullptr;
-    SIZE_T cpuStart = NULL;
-    SIZE_T cpuEnd = NULL;
-    SIZE_T gpuStart = NULL;
-    SIZE_T gpuEnd = NULL;
+    SIZE_T cpuStart = 0;
+    SIZE_T cpuEnd = 0;
+    SIZE_T gpuStart = 0;
+    SIZE_T gpuEnd = 0;
     UINT numDescriptors = 0;
     UINT increment = 0;
     UINT type = 0;
@@ -146,8 +146,8 @@ struct HeapInfo
 
     HeapInfo(ID3D12DescriptorHeap* heap, SIZE_T cpuStart, SIZE_T cpuEnd, SIZE_T gpuStart, SIZE_T gpuEnd,
              UINT numResources, UINT increment, UINT type)
-        : cpuStart(cpuStart), cpuEnd(cpuEnd), gpuStart(gpuStart), gpuEnd(gpuEnd), numDescriptors(numResources),
-          increment(increment), info(new ResourceInfo[numResources]), type(type), heap(heap)
+        : heap(heap), cpuStart(cpuStart), cpuEnd(cpuEnd), gpuStart(gpuStart), gpuEnd(gpuEnd),
+          numDescriptors(numResources), increment(increment), type(type), info(new ResourceInfo[numResources])
     {
         static std::atomic<uint64_t> globalHeapVersion { 1 };
         version.store(globalHeapVersion.fetch_add(1, std::memory_order_relaxed), std::memory_order_relaxed);
@@ -242,6 +242,10 @@ struct HeapInfo
             info[index] = setInfo;
             AttachToNewResource(index);
         }
+        else
+        {
+            info[index] = setInfo;
+        }
     }
 
     void SetByGpuHandle(SIZE_T gpuHandle, ResourceInfo setInfo) const
@@ -262,6 +266,10 @@ struct HeapInfo
             DetachFromOldResource(index);
             info[index] = setInfo;
             AttachToNewResource(index);
+        }
+        else
+        {
+            info[index] = setInfo;
         }
     }
 
@@ -323,7 +331,7 @@ struct alignas(CACHE_LINE_SIZE) CommandListShard
                                  ankerl::unordered_dense::map<ID3D12Resource*, ResourceInfo>>
         map;
 
-    char padding[CACHE_LINE_SIZE - (sizeof(SpinLock) + sizeof(void*) % CACHE_LINE_SIZE)] = {};
+    char padding[CACHE_LINE_SIZE - ((sizeof(SpinLock) + sizeof(void*)) % CACHE_LINE_SIZE)] = {};
 };
 #else
 struct alignas(CACHE_LINE_SIZE) CommandListShard
@@ -333,7 +341,7 @@ struct alignas(CACHE_LINE_SIZE) CommandListShard
                                  ankerl::unordered_dense::map<ID3D12Resource*, ResourceInfo>>
         map;
 
-    char padding[CACHE_LINE_SIZE - (sizeof(std::mutex) + sizeof(void*) % CACHE_LINE_SIZE)] = {};
+    char padding[CACHE_LINE_SIZE - ((sizeof(std::mutex) + sizeof(void*)) % CACHE_LINE_SIZE)] = {};
 };
 #endif
 

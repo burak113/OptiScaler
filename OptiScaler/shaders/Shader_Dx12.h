@@ -16,7 +16,8 @@ class Shader_Dx12
 
     static DXGI_FORMAT TranslateTypelessFormats(DXGI_FORMAT format);
     static bool CreateComputeShader(ID3D12Device* device, ID3D12RootSignature* rootSignature,
-                                    ID3D12PipelineState** pipelineState, ID3DBlob* shaderBlob);
+                                    ID3D12PipelineState** pipelineState, ID3DBlob* shaderBlob,
+                                    D3D12_SHADER_BYTECODE byteCode);
     static bool CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* InResource, D3D12_RESOURCE_STATES InState,
                                      ID3D12Resource** OutResource, D3D12_RESOURCE_FLAGS ResourceFlags,
                                      uint64_t InWidth = 0, uint32_t InHeight = 0,

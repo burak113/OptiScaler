@@ -159,15 +159,19 @@ DepthTransfer_Dx11::DepthTransfer_Dx11(std::string InName, ID3D11Device* InDevic
     {
         // Compile shader blobs
         ID3DBlob* shaderBlob = DT_CompileShader(shaderCode.c_str(), "CSMain", "cs_5_0");
+
         if (shaderBlob == nullptr)
-        {
             LOG_ERROR("[{0}] CompileShader error!", _name);
-            return;
-        }
 
         // create pso objects
-        auto hr = _device->CreateComputeShader(shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), nullptr,
-                                               &_computeShader);
+        HRESULT hr = E_FAIL;
+
+        if (shaderBlob != nullptr)
+            hr = _device->CreateComputeShader(shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), nullptr,
+                                              &_computeShader);
+        else
+            hr = _device->CreateComputeShader(reinterpret_cast<const void*>(dt_dx11_cso), sizeof(dt_dx11_cso), nullptr,
+                                              &_computeShader);
 
         if (shaderBlob != nullptr)
         {

@@ -1,6 +1,8 @@
 #include "pch.h"
+#include "pch.h"
 #include "RCAS_Vk.h"
 #include "precompile/RCAS_Shader_Vk.h"
+#include "precompile/da_sharpen_Shader_Vk.h"
 #include <Config.h>
 
 RCAS_Vk::RCAS_Vk(std::string InName, VkDevice InDevice, VkPhysicalDevice InPhysicalDevice)
@@ -15,9 +17,13 @@ RCAS_Vk::RCAS_Vk(std::string InName, VkDevice InDevice, VkPhysicalDevice InPhysi
     LOG_FUNC();
 
     CreateDescriptorSetLayout();
+    CreateDescriptorSetLayoutDA();
     CreateConstantBuffer();
+    CreateConstantBufferDA();
     CreateDescriptorPool();
+    CreateDescriptorPoolDA();
     CreateDescriptorSets();
+    CreateDescriptorSetsDA();
 
     // Create nearest sampler
     VkSamplerCreateInfo samplerInfo {};
@@ -36,21 +42,53 @@ RCAS_Vk::RCAS_Vk(std::string InName, VkDevice InDevice, VkPhysicalDevice InPhysi
         return;
     }
 
+    std::vector<char> shaderCodeDA(da_sharpen_spv, da_sharpen_spv + sizeof(da_sharpen_spv));
+    if (!CreateComputePipeline(_device, _pipelineLayoutDA, &_pipelineDA, shaderCodeDA))
+    {
+        LOG_ERROR("Failed to create pipeline for RCAS_Vk depth adaptive");
+        _init = false;
+        return;
+    }
+
     _init = true;
 }
 
 RCAS_Vk::~RCAS_Vk()
 {
+    if (_pipelineDA != VK_NULL_HANDLE)
+    {
+        vkDestroyPipeline(_device, _pipelineDA, nullptr);
+        _pipelineDA = VK_NULL_HANDLE;
+    }
+
+    if (_descriptorPoolDA != VK_NULL_HANDLE)
+    {
+        vkDestroyDescriptorPool(_device, _descriptorPoolDA, nullptr);
+        _descriptorPoolDA = VK_NULL_HANDLE;
+    }
+
     if (_descriptorPool != VK_NULL_HANDLE)
     {
         vkDestroyDescriptorPool(_device, _descriptorPool, nullptr);
         _descriptorPool = VK_NULL_HANDLE;
     }
 
+    if (_descriptorSetLayoutDA != VK_NULL_HANDLE)
+    {
+        vkDestroyDescriptorSetLayout(_device, _descriptorSetLayoutDA, nullptr);
+        _descriptorSetLayoutDA = VK_NULL_HANDLE;
+    }
+
     if (_descriptorSetLayout != VK_NULL_HANDLE)
     {
         vkDestroyDescriptorSetLayout(_device, _descriptorSetLayout, nullptr);
         _descriptorSetLayout = VK_NULL_HANDLE;
+    }
+
+    if (_pipelineLayoutDA != VK_NULL_HANDLE)
+    {
+        vkDestroyPipelineLayout(_device, _pipelineLayoutDA, nullptr);
+        _pipelineLayoutDA = VK_NULL_HANDLE;
     }
 
     if (_pipelineLayout != VK_NULL_HANDLE)
@@ -65,10 +103,22 @@ RCAS_Vk::~RCAS_Vk()
         _constantBuffer = VK_NULL_HANDLE;
     }
 
+    if (_constantBufferDA != VK_NULL_HANDLE)
+    {
+        vkDestroyBuffer(_device, _constantBufferDA, nullptr);
+        _constantBufferDA = VK_NULL_HANDLE;
+    }
+
     if (_constantBufferMemory != VK_NULL_HANDLE)
     {
         vkFreeMemory(_device, _constantBufferMemory, nullptr);
         _constantBufferMemory = VK_NULL_HANDLE;
+    }
+
+    if (_constantBufferMemoryDA != VK_NULL_HANDLE)
+    {
+        vkFreeMemory(_device, _constantBufferMemoryDA, nullptr);
+        _constantBufferMemoryDA = VK_NULL_HANDLE;
     }
 
     if (_nearestSampler != VK_NULL_HANDLE)
@@ -135,6 +185,63 @@ void RCAS_Vk::CreateDescriptorSetLayout()
     }
 }
 
+void RCAS_Vk::CreateDescriptorSetLayoutDA()
+{
+    VkDescriptorSetLayoutBinding uboLayoutBinding {};
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    VkDescriptorSetLayoutBinding sourceLayoutBinding {};
+    sourceLayoutBinding.binding = 1;
+    sourceLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    sourceLayoutBinding.descriptorCount = 1;
+    sourceLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    VkDescriptorSetLayoutBinding motionLayoutBinding {};
+    motionLayoutBinding.binding = 2;
+    motionLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    motionLayoutBinding.descriptorCount = 1;
+    motionLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    VkDescriptorSetLayoutBinding depthLayoutBinding {};
+    depthLayoutBinding.binding = 3;
+    depthLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    depthLayoutBinding.descriptorCount = 1;
+    depthLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    VkDescriptorSetLayoutBinding destLayoutBinding {};
+    destLayoutBinding.binding = 4;
+    destLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    destLayoutBinding.descriptorCount = 1;
+    destLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    std::vector<VkDescriptorSetLayoutBinding> bindings = { uboLayoutBinding, sourceLayoutBinding, motionLayoutBinding,
+                                                           depthLayoutBinding, destLayoutBinding };
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo {};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+    layoutInfo.pBindings = bindings.data();
+
+    if (vkCreateDescriptorSetLayout(_device, &layoutInfo, nullptr, &_descriptorSetLayoutDA) != VK_SUCCESS)
+    {
+        LOG_ERROR("failed to create depth adaptive descriptor set layout!");
+        return;
+    }
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo {};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &_descriptorSetLayoutDA;
+
+    if (vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_pipelineLayoutDA) != VK_SUCCESS)
+    {
+        LOG_ERROR("failed to create depth adaptive pipeline layout!");
+    }
+}
+
 void RCAS_Vk::CreateDescriptorPool()
 {
     std::vector<VkDescriptorPoolSize> poolSizes = {
@@ -155,6 +262,26 @@ void RCAS_Vk::CreateDescriptorPool()
     }
 }
 
+void RCAS_Vk::CreateDescriptorPoolDA()
+{
+    std::vector<VkDescriptorPoolSize> poolSizes = {
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, static_cast<uint32_t>(3 * MAX_FRAMES_IN_FLIGHT) },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) }
+    };
+
+    VkDescriptorPoolCreateInfo poolInfo {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+    poolInfo.pPoolSizes = poolSizes.data();
+    poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+    if (vkCreateDescriptorPool(_device, &poolInfo, nullptr, &_descriptorPoolDA) != VK_SUCCESS)
+    {
+        LOG_ERROR("failed to create depth adaptive descriptor pool!");
+    }
+}
+
 void RCAS_Vk::CreateDescriptorSets()
 {
     std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, _descriptorSetLayout);
@@ -171,9 +298,27 @@ void RCAS_Vk::CreateDescriptorSets()
     }
 }
 
+void RCAS_Vk::CreateDescriptorSetsDA()
+{
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, _descriptorSetLayoutDA);
+    VkDescriptorSetAllocateInfo allocInfo {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = _descriptorPoolDA;
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    allocInfo.pSetLayouts = layouts.data();
+
+    _descriptorSetsDA.resize(MAX_FRAMES_IN_FLIGHT);
+    if (vkAllocateDescriptorSets(_device, &allocInfo, _descriptorSetsDA.data()) != VK_SUCCESS)
+    {
+        LOG_ERROR("failed to allocate depth adaptive descriptor sets!");
+    }
+}
+
 void RCAS_Vk::UpdateDescriptorSet(VkCommandBuffer cmdList, int setIndex, VkImageView inputView, VkImageView motionView,
                                   VkImageView outputView)
 {
+    (void) cmdList;
+
     // Check if motion view invalid, if so use input view
     if (motionView == VK_NULL_HANDLE)
         motionView = inputView;
@@ -247,44 +392,188 @@ void RCAS_Vk::UpdateDescriptorSet(VkCommandBuffer cmdList, int setIndex, VkImage
                            0, nullptr);
 }
 
-bool RCAS_Vk::Dispatch(VkDevice InDevice, VkCommandBuffer InCmdList, RcasConstants InConstants,
-                       VkImageView InResourceView, VkImageView InMotionVectorsView, VkImageView OutResourceView,
-                       VkExtent2D OutExtent)
+void RCAS_Vk::UpdateDescriptorSetDA(VkCommandBuffer cmdList, int setIndex, VkImageView inputView,
+                                    VkImageView motionView, VkImageView depthView, VkImageView outputView)
 {
-    if (!_init || InDevice == VK_NULL_HANDLE || InCmdList == VK_NULL_HANDLE)
-        return false;
+    (void) cmdList;
 
-    // Update constants
-    InternalConstants constants {};
+    if (motionView == VK_NULL_HANDLE)
+        motionView = inputView;
 
+    VkDescriptorSet descriptorSet = _descriptorSetsDA[setIndex];
+
+    VkDescriptorBufferInfo bufferInfo {};
+    bufferInfo.buffer = _constantBufferDA;
+    bufferInfo.offset = 0;
+    bufferInfo.range = sizeof(InternalConstantsDA);
+
+    VkWriteDescriptorSet descriptorWriteUBO {};
+    descriptorWriteUBO.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWriteUBO.dstSet = descriptorSet;
+    descriptorWriteUBO.dstBinding = 0;
+    descriptorWriteUBO.dstArrayElement = 0;
+    descriptorWriteUBO.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWriteUBO.descriptorCount = 1;
+    descriptorWriteUBO.pBufferInfo = &bufferInfo;
+
+    VkDescriptorImageInfo sourceInfo {};
+    sourceInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    sourceInfo.imageView = inputView;
+    sourceInfo.sampler = _nearestSampler;
+
+    VkWriteDescriptorSet descriptorWriteSource {};
+    descriptorWriteSource.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWriteSource.dstSet = descriptorSet;
+    descriptorWriteSource.dstBinding = 1;
+    descriptorWriteSource.dstArrayElement = 0;
+    descriptorWriteSource.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWriteSource.descriptorCount = 1;
+    descriptorWriteSource.pImageInfo = &sourceInfo;
+
+    VkDescriptorImageInfo motionInfo {};
+    motionInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    motionInfo.imageView = motionView;
+    motionInfo.sampler = _nearestSampler;
+
+    VkWriteDescriptorSet descriptorWriteMotion {};
+    descriptorWriteMotion.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWriteMotion.dstSet = descriptorSet;
+    descriptorWriteMotion.dstBinding = 2;
+    descriptorWriteMotion.dstArrayElement = 0;
+    descriptorWriteMotion.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWriteMotion.descriptorCount = 1;
+    descriptorWriteMotion.pImageInfo = &motionInfo;
+
+    VkDescriptorImageInfo depthInfo {};
+    depthInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    depthInfo.imageView = depthView;
+    depthInfo.sampler = _nearestSampler;
+
+    VkWriteDescriptorSet descriptorWriteDepth {};
+    descriptorWriteDepth.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWriteDepth.dstSet = descriptorSet;
+    descriptorWriteDepth.dstBinding = 3;
+    descriptorWriteDepth.dstArrayElement = 0;
+    descriptorWriteDepth.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWriteDepth.descriptorCount = 1;
+    descriptorWriteDepth.pImageInfo = &depthInfo;
+
+    VkDescriptorImageInfo destInfo {};
+    destInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    destInfo.imageView = outputView;
+    destInfo.sampler = VK_NULL_HANDLE;
+
+    VkWriteDescriptorSet descriptorWriteDest {};
+    descriptorWriteDest.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWriteDest.dstSet = descriptorSet;
+    descriptorWriteDest.dstBinding = 4;
+    descriptorWriteDest.dstArrayElement = 0;
+    descriptorWriteDest.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    descriptorWriteDest.descriptorCount = 1;
+    descriptorWriteDest.pImageInfo = &destInfo;
+
+    std::vector<VkWriteDescriptorSet> descriptorWritesBuffer = { descriptorWriteUBO, descriptorWriteSource,
+                                                                 descriptorWriteMotion, descriptorWriteDepth,
+                                                                 descriptorWriteDest };
+
+    vkUpdateDescriptorSets(_device, static_cast<uint32_t>(descriptorWritesBuffer.size()), descriptorWritesBuffer.data(),
+                           0, nullptr);
+}
+
+void RCAS_Vk::FillMotionConstants(InternalConstants& OutConstants, const RcasConstants& InConstants)
+{
     if (Config::Instance()->ContrastEnabled.value_or_default())
-        constants.Contrast = Config::Instance()->Contrast.value_or_default() * -1.0f;
+        OutConstants.Contrast = Config::Instance()->Contrast.value_or_default() * -1.0f;
     else
-        constants.Contrast = -100.0f;
+        OutConstants.Contrast = -100.0f;
 
-    constants.DisplayHeight = InConstants.DisplayHeight;
-    constants.DisplayWidth = InConstants.DisplayWidth;
-    constants.DynamicSharpenEnabled = Config::Instance()->MotionSharpnessEnabled.value_or_default() ? 1 : 0;
-    constants.MotionSharpness = Config::Instance()->MotionSharpness.value_or_default();
-    constants.MvScaleX = InConstants.MvScaleX;
-    constants.MvScaleY = InConstants.MvScaleY;
-    constants.Sharpness = InConstants.Sharpness;
-    constants.Debug = Config::Instance()->MotionSharpnessDebug.value_or_default() ? 1 : 0;
-    constants.Threshold = Config::Instance()->MotionThreshold.value_or_default();
-    constants.ScaleLimit = Config::Instance()->MotionScaleLimit.value_or_default();
-    constants.DisplaySizeMV = InConstants.DisplaySizeMV ? 1 : 0;
+    auto feature = State::Instance().currentFeature;
 
-    if (InConstants.RenderWidth == 0 || InConstants.DisplayWidth == 0)
-        constants.MotionTextureScale = 1.0f;
+    OutConstants.Sharpness = InConstants.Sharpness;
+    OutConstants.MvScaleX = InConstants.MvScaleX;
+    OutConstants.MvScaleY = InConstants.MvScaleY;
+    OutConstants.DisplaySizeMV = feature->LowResMV() ? 0 : 1;
+
+    OutConstants.DisplayWidth = feature->TargetWidth();
+    OutConstants.DisplayHeight = feature->TargetHeight();
+    OutConstants.DynamicSharpenEnabled = Config::Instance()->MotionSharpnessEnabled.value_or_default() ? 1 : 0;
+    OutConstants.MotionSharpness = Config::Instance()->MotionSharpness.value_or_default();
+    OutConstants.Debug = Config::Instance()->MotionSharpnessDebug.value_or_default() ? 1 : 0;
+    OutConstants.Threshold = Config::Instance()->MotionThreshold.value_or_default();
+    OutConstants.ScaleLimit = Config::Instance()->MotionScaleLimit.value_or_default();
+
+    if (feature->LowResMV())
+    {
+        OutConstants.MotionTextureScale = (float) feature->RenderWidth() / (float) feature->TargetWidth();
+    }
     else
-        constants.MotionTextureScale = (float) InConstants.RenderWidth / (float) InConstants.DisplayWidth;
+    {
+        OutConstants.MotionTextureScale = 1.0f;
+    }
+}
+
+void RCAS_Vk::FillMotionConstants(InternalConstantsDA& OutConstants, const RcasConstants& InConstants)
+{
+    auto feature = State::Instance().currentFeature;
+
+    OutConstants.Sharpness = InConstants.Sharpness * 2.0f;
+    OutConstants.MvScaleX = InConstants.MvScaleX;
+    OutConstants.MvScaleY = InConstants.MvScaleY;
+    OutConstants.DisplaySizeMV = feature->LowResMV() ? 0 : 1;
+
+    OutConstants.DynamicSharpenEnabled = Config::Instance()->MotionSharpnessEnabled.value_or_default() ? 1 : 0;
+    OutConstants.Debug = Config::Instance()->MotionSharpnessDebug.value_or_default() ? 3 : 0;
+    OutConstants.MotionSharpness = Config::Instance()->MotionSharpness.value_or_default();
+    OutConstants.MotionThreshold = Config::Instance()->MotionThreshold.value_or_default();
+    OutConstants.MotionScaleLimit = Config::Instance()->MotionScaleLimit.value_or_default();
+    OutConstants.DisplayWidth = feature->TargetWidth();
+    OutConstants.DisplayHeight = feature->TargetHeight();
+
+    OutConstants.DepthIsLinear = Config::Instance()->DADepthIsLinear.value_or_default() ? 1 : 0;
+    OutConstants.DepthIsReversed = feature->DepthInverted() ? 1 : 0;
+    OutConstants.DepthScale =
+        Config::Instance()->DADepthScale.value_or(OutConstants.DepthIsLinear == 0 ? 4.0f : 250.0f);
+    OutConstants.DepthBias =
+        Config::Instance()->DADepthBias.value_or(OutConstants.DepthIsLinear == 0 ? 0.01f : 0.0015f);
+
+    OutConstants.DepthLinearA = InConstants.CameraNear * InConstants.CameraFar;
+    OutConstants.DepthLinearB = InConstants.CameraFar;
+    OutConstants.DepthLinearC = InConstants.CameraFar - InConstants.CameraNear;
+    OutConstants.DepthTextureScale = (float) feature->RenderWidth() / (float) feature->DisplayWidth();
+
+    OutConstants.ClampOutput = Config::Instance()->DAClampOutput.value_or(feature->IsHdr()) ? 0 : 1;
+
+    if (feature->LowResMV())
+    {
+        OutConstants.MotionWidth = feature->RenderWidth();
+        OutConstants.MotionHeight = feature->RenderHeight();
+    }
+    else
+    {
+        OutConstants.MotionWidth = feature->TargetWidth();
+        OutConstants.MotionHeight = feature->TargetHeight();
+    }
+
+    OutConstants.DepthWidth = feature->RenderWidth();
+    OutConstants.DepthHeight = feature->RenderHeight();
+
+    OutConstants.MotionTextureScale = (float) OutConstants.MotionWidth / (float) feature->TargetWidth();
+}
+
+bool RCAS_Vk::DispatchRCAS(VkDevice InDevice, VkCommandBuffer InCmdList, RcasConstants InConstants,
+                           VkImageView InResourceView, VkImageView InMotionVectorsView, VkImageView OutResourceView,
+                           VkExtent2D OutExtent)
+{
+    (void) InDevice;
+
+    InternalConstants constants {};
+    FillMotionConstants(constants, InConstants);
 
     if (_mappedConstantBuffer)
     {
         memcpy(_mappedConstantBuffer, &constants, sizeof(InternalConstants));
     }
 
-    // Prepare descriptors
     _currentSetIndex = (_currentSetIndex + 1) % MAX_FRAMES_IN_FLIGHT;
     UpdateDescriptorSet(InCmdList, _currentSetIndex, InResourceView, InMotionVectorsView, OutResourceView);
 
@@ -293,12 +582,63 @@ bool RCAS_Vk::Dispatch(VkDevice InDevice, VkCommandBuffer InCmdList, RcasConstan
     vkCmdBindDescriptorSets(InCmdList, VK_PIPELINE_BIND_POINT_COMPUTE, _pipelineLayout, 0, 1,
                             &_descriptorSets[_currentSetIndex], 0, nullptr);
 
-    // Dispatch
     uint32_t groupX = (OutExtent.width + 15) / 16;
     uint32_t groupY = (OutExtent.height + 15) / 16;
     vkCmdDispatch(InCmdList, groupX, groupY, 1);
 
     return true;
+}
+
+bool RCAS_Vk::DispatchDepthAdaptive(VkDevice InDevice, VkCommandBuffer InCmdList, RcasConstants InConstants,
+                                    VkImageView InResourceView, VkImageView InMotionVectorsView,
+                                    VkImageView OutResourceView, VkExtent2D OutExtent, VkImageView InDepthView)
+{
+    (void) InDevice;
+
+    if (InDepthView == VK_NULL_HANDLE || _pipelineDA == VK_NULL_HANDLE)
+        return false;
+
+    InternalConstantsDA constants {};
+    FillMotionConstants(constants, InConstants);
+
+    if (_mappedConstantBufferDA)
+    {
+        memcpy(_mappedConstantBufferDA, &constants, sizeof(InternalConstantsDA));
+    }
+
+    _currentSetIndex = (_currentSetIndex + 1) % MAX_FRAMES_IN_FLIGHT;
+    UpdateDescriptorSetDA(InCmdList, _currentSetIndex, InResourceView, InMotionVectorsView, InDepthView,
+                          OutResourceView);
+
+    vkCmdBindPipeline(InCmdList, VK_PIPELINE_BIND_POINT_COMPUTE, _pipelineDA);
+
+    vkCmdBindDescriptorSets(InCmdList, VK_PIPELINE_BIND_POINT_COMPUTE, _pipelineLayoutDA, 0, 1,
+                            &_descriptorSetsDA[_currentSetIndex], 0, nullptr);
+
+    uint32_t groupX = (OutExtent.width + 15) / 16;
+    uint32_t groupY = (OutExtent.height + 15) / 16;
+    vkCmdDispatch(InCmdList, groupX, groupY, 1);
+
+    return true;
+}
+
+bool RCAS_Vk::Dispatch(VkDevice InDevice, VkCommandBuffer InCmdList, RcasConstants InConstants,
+                       VkImageView InResourceView, VkImageView InMotionVectorsView, VkImageView OutResourceView,
+                       VkExtent2D OutExtent, VkImageView InDepthView)
+{
+    if (!_init || InDevice == VK_NULL_HANDLE || InCmdList == VK_NULL_HANDLE ||
+        State::Instance().currentFeature == nullptr)
+        return false;
+
+    const bool useDepthAdaptive =
+        Config::Instance()->UseDepthAwareSharpen.value_or_default() && InDepthView != VK_NULL_HANDLE;
+
+    if (useDepthAdaptive)
+        return DispatchDepthAdaptive(InDevice, InCmdList, InConstants, InResourceView, InMotionVectorsView,
+                                     OutResourceView, OutExtent, InDepthView);
+
+    return DispatchRCAS(InDevice, InCmdList, InConstants, InResourceView, InMotionVectorsView, OutResourceView,
+                        OutExtent);
 }
 
 bool RCAS_Vk::CreateBufferResource(VkDevice device, VkPhysicalDevice physicalDevice, VkBuffer* buffer,
@@ -480,4 +820,19 @@ void RCAS_Vk::CreateConstantBuffer()
     }
 
     vkMapMemory(_device, _constantBufferMemory, 0, bufferSize, 0, &_mappedConstantBuffer);
+}
+
+void RCAS_Vk::CreateConstantBufferDA()
+{
+    VkDeviceSize bufferSize = sizeof(InternalConstantsDA);
+
+    if (!Shader_Vk::CreateBufferResource(_device, _physicalDevice, &_constantBufferDA, &_constantBufferMemoryDA,
+                                         bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT))
+    {
+        LOG_ERROR("Failed to create depth adaptive constant buffer!");
+        return;
+    }
+
+    vkMapMemory(_device, _constantBufferMemoryDA, 0, bufferSize, 0, &_mappedConstantBufferDA);
 }

@@ -54,12 +54,17 @@ DXGI_FORMAT Shader_Dx12::TranslateTypelessFormats(DXGI_FORMAT format)
 }
 
 bool Shader_Dx12::CreateComputeShader(ID3D12Device* device, ID3D12RootSignature* rootSignature,
-                                      ID3D12PipelineState** pipelineState, ID3DBlob* shaderBlob)
+                                      ID3D12PipelineState** pipelineState, ID3DBlob* shaderBlob,
+                                      D3D12_SHADER_BYTECODE byteCode)
 {
     D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
     psoDesc.pRootSignature = rootSignature;
     psoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
-    psoDesc.CS = CD3DX12_SHADER_BYTECODE(shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize());
+
+    if (shaderBlob != nullptr)
+        psoDesc.CS = CD3DX12_SHADER_BYTECODE(shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize());
+    else
+        psoDesc.CS = byteCode;
 
     HRESULT hr = device->CreateComputePipelineState(&psoDesc, __uuidof(ID3D12PipelineState*), (void**) pipelineState);
 

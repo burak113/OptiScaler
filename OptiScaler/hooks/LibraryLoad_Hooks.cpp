@@ -6,11 +6,14 @@
 
 #include <proxies/Ntdll_Proxy.h>
 #include <proxies/Kernel32_Proxy.h>
-#include <proxies/NVNGX_Proxy.h>
-#include <proxies/XeSS_Proxy.h>
-#include <proxies/FfxApi_Proxy.h>
 #include <proxies/Dxgi_Proxy.h>
 #include <proxies/D3D12_Proxy.h>
+
+#include <proxies/XeSS_Proxy.h>
+#include <proxies/XeFG_Proxy.h>
+#include <proxies/XeLL_Proxy.h>
+#include <proxies/NVNGX_Proxy.h>
+#include <proxies/FfxApi_Proxy.h>
 
 #include <inputs/FSR2_Dx12.h>
 #include <inputs/FSR3_Dx12.h>
@@ -433,31 +436,45 @@ HMODULE LibraryLoadHooks::LoadLibraryCheckW(std::wstring libName, LPCWSTR lpLibF
 
     if (CheckDllName(libName, xessNamesW))
     {
-        auto module = LoadLibxess(libName);
+        if (XeSSProxy::Module() != nullptr)
+        {
+            auto module = NtdllProxy::LoadLibraryExW_Ldr(XeSSProxy::Module_Path().c_str(), NULL, NULL);
+            return module;
+        }
 
-        LOG_DEBUG("Libxess: {:X}", (size_t) module);
+        auto module = NtdllProxy::LoadLibraryExW_Ldr(libName.c_str(), NULL, NULL);
 
         if (module != nullptr)
-            XeSSProxy::HookXeSS(module);
+            XeSSProxy::InitXeSS(module);
 
         return module;
     }
 
     if (CheckDllName(libName, xessDx11NamesW))
     {
-        auto module = LoadLibxessDx11(libName);
+        if (XeSSProxy::ModuleDx11() != nullptr)
+        {
+            auto module = NtdllProxy::LoadLibraryExW_Ldr(XeSSProxy::ModuleDx11_Path().c_str(), NULL, NULL);
+            return module;
+        }
+
+        auto module = NtdllProxy::LoadLibraryExW_Ldr(libName.c_str(), NULL, NULL);
 
         if (module != nullptr)
-            XeSSProxy::HookXeSSDx11(module);
-        else
-            LOG_ERROR("Trying to load dll: {}", wstring_to_string(libName));
+            XeSSProxy::InitXeSSDx11(module);
 
         return module;
     }
 
     if (CheckDllName(libName, ffxDx12NamesW))
     {
-        auto module = LoadFfxapiDx12(libName);
+        if (FfxApiProxy::Dx12Module() != nullptr)
+        {
+            auto module = NtdllProxy::LoadLibraryExW_Ldr(FfxApiProxy::Dx12Module_Path().c_str(), NULL, NULL);
+            return module;
+        }
+
+        auto module = NtdllProxy::LoadLibraryExW_Ldr(libName.c_str(), NULL, NULL);
 
         if (module != nullptr)
             FfxApiProxy::InitFfxDx12(module);
@@ -467,9 +484,13 @@ HMODULE LibraryLoadHooks::LoadLibraryCheckW(std::wstring libName, LPCWSTR lpLibF
 
     if (CheckDllName(libName, ffxDx12UpscalerNamesW))
     {
-        auto module = NtdllProxy::LoadLibraryExW_Ldr(libName.c_str(), NULL, 0);
+        if (FfxApiProxy::Dx12Module_SR() != nullptr)
+        {
+            auto module = NtdllProxy::LoadLibraryExW_Ldr(FfxApiProxy::Dx12Module_SR_Path().c_str(), NULL, NULL);
+            return module;
+        }
 
-        FSR4ModelSelection::Hook(module, FSR4Source::SDK);
+        auto module = NtdllProxy::LoadLibraryExW_Ldr(libName.c_str(), NULL, NULL);
 
         if (module != nullptr)
             FfxApiProxy::InitFfxDx12_SR(module);
@@ -479,7 +500,13 @@ HMODULE LibraryLoadHooks::LoadLibraryCheckW(std::wstring libName, LPCWSTR lpLibF
 
     if (CheckDllName(libName, ffxDx12FGNamesW))
     {
-        auto module = NtdllProxy::LoadLibraryExW_Ldr(libName.c_str(), NULL, 0);
+        if (FfxApiProxy::Dx12Module_FG() != nullptr)
+        {
+            auto module = NtdllProxy::LoadLibraryExW_Ldr(FfxApiProxy::Dx12Module_FG_Path().c_str(), NULL, NULL);
+            return module;
+        }
+
+        auto module = NtdllProxy::LoadLibraryExW_Ldr(libName.c_str(), NULL, NULL);
 
         if (module != nullptr)
             FfxApiProxy::InitFfxDx12_FG(module);
@@ -489,7 +516,13 @@ HMODULE LibraryLoadHooks::LoadLibraryCheckW(std::wstring libName, LPCWSTR lpLibF
 
     if (CheckDllName(libName, ffxVkNamesW))
     {
-        auto module = LoadFfxapiVk(libName);
+        if (FfxApiProxy::VkModule() != nullptr)
+        {
+            auto module = NtdllProxy::LoadLibraryExW_Ldr(FfxApiProxy::VkModule_Path().c_str(), NULL, NULL);
+            return module;
+        }
+
+        auto module = NtdllProxy::LoadLibraryExW_Ldr(libName.c_str(), NULL, NULL);
 
         if (module != nullptr)
             FfxApiProxy::InitFfxVk(module);
@@ -681,179 +714,179 @@ HMODULE LibraryLoadHooks::LoadNvngxDlss(std::wstring originalPath)
     return nullptr;
 }
 
-HMODULE LibraryLoadHooks::LoadLibxess(std::wstring originalPath)
-{
-    if (XeSSProxy::Module() != nullptr)
-        return XeSSProxy::Module();
-
-    HMODULE libxess = nullptr;
-
-    if (Config::Instance()->XeSSLibrary.has_value())
-    {
-        std::filesystem::path libPath(Config::Instance()->XeSSLibrary.value().c_str());
-
-        if (libPath.has_filename())
-            libxess = NtdllProxy::LoadLibraryExW_Ldr(libPath.c_str(), NULL, 0);
-        else
-            libxess = NtdllProxy::LoadLibraryExW_Ldr((libPath / L"libxess.dll").c_str(), NULL, 0);
-
-        if (libxess != nullptr)
-        {
-            LOG_INFO("libxess.dll loaded from {0}", wstring_to_string(Config::Instance()->XeSSLibrary.value()));
-            return libxess;
-        }
-        else
-        {
-            LOG_WARN("libxess.dll can't found at {0}", wstring_to_string(Config::Instance()->XeSSLibrary.value()));
-        }
-    }
-
-    if (libxess == nullptr)
-    {
-        libxess = NtdllProxy::LoadLibraryExW_Ldr(originalPath.c_str(), NULL, 0);
-
-        if (libxess != nullptr)
-        {
-            LOG_INFO("libxess.dll loaded from {0}", wstring_to_string(originalPath));
-            return libxess;
-        }
-    }
-
-    return nullptr;
-}
-
-HMODULE LibraryLoadHooks::LoadLibxessDx11(std::wstring originalPath)
-{
-    if (XeSSProxy::ModuleDx11() != nullptr)
-        return XeSSProxy::ModuleDx11();
-
-    HMODULE libxess = nullptr;
-
-    if (Config::Instance()->XeSSDx11Library.has_value())
-    {
-        std::filesystem::path libPath(Config::Instance()->XeSSDx11Library.value().c_str());
-
-        if (libPath.has_filename())
-            libxess = NtdllProxy::LoadLibraryExW_Ldr(libPath.c_str(), NULL, 0);
-        else
-            libxess = NtdllProxy::LoadLibraryExW_Ldr((libPath / L"libxess_dx11.dll").c_str(), NULL, 0);
-
-        if (libxess != nullptr)
-        {
-            LOG_INFO("libxess_dx11.dll loaded from {0}",
-                     wstring_to_string(Config::Instance()->XeSSDx11Library.value()));
-            return libxess;
-        }
-        else
-        {
-            LOG_WARN("libxess_dx11.dll can't found at {0}",
-                     wstring_to_string(Config::Instance()->XeSSDx11Library.value()));
-        }
-    }
-
-    if (libxess == nullptr)
-    {
-        libxess = NtdllProxy::LoadLibraryExW_Ldr(originalPath.c_str(), NULL, 0);
-
-        if (libxess != nullptr)
-        {
-            LOG_INFO("libxess_dx11.dll loaded from {0}", wstring_to_string(originalPath));
-            return libxess;
-        }
-    }
-
-    return nullptr;
-}
-
-HMODULE LibraryLoadHooks::LoadFfxapiDx12(std::wstring originalPath)
-{
-    if (FfxApiProxy::Dx12Module() != nullptr)
-        return FfxApiProxy::Dx12Module();
-
-    HMODULE ffxMod = nullptr;
-
-    std::span<const std::wstring> dllNames = ffxDx12NamesW;
-
-    for (size_t i = 0; i < dllNames.size(); i++)
-    {
-        if (Config::Instance()->FfxDx12Path.has_value())
-        {
-            std::filesystem::path libPath(Config::Instance()->FfxDx12Path.value().c_str());
-
-            if (libPath.has_filename())
-                ffxMod = NtdllProxy::LoadLibraryExW_Ldr(libPath.c_str(), NULL, 0);
-            else
-                ffxMod = NtdllProxy::LoadLibraryExW_Ldr((libPath / dllNames[i]).c_str(), NULL, 0);
-
-            if (ffxMod != nullptr)
-            {
-                LOG_INFO("{0} loaded from {1}", wstring_to_string(dllNames[i]),
-                         wstring_to_string(Config::Instance()->FfxDx12Path.value()));
-                return ffxMod;
-            }
-            else
-            {
-                LOG_WARN("{0} can't found at {1}", wstring_to_string(dllNames[i]),
-                         wstring_to_string(Config::Instance()->FfxDx12Path.value()));
-            }
-        }
-
-        if (ffxMod == nullptr)
-        {
-            ffxMod = NtdllProxy::LoadLibraryExW_Ldr(originalPath.c_str(), NULL, 0);
-
-            if (ffxMod != nullptr)
-            {
-                LOG_INFO("{0} loaded from {1}", wstring_to_string(dllNames[i]), wstring_to_string(originalPath));
-                return ffxMod;
-            }
-        }
-    }
-
-    return nullptr;
-}
-
-HMODULE LibraryLoadHooks::LoadFfxapiVk(std::wstring originalPath)
-{
-    if (FfxApiProxy::VkModule() != nullptr)
-        return FfxApiProxy::VkModule();
-
-    HMODULE ffxVk = nullptr;
-
-    if (Config::Instance()->FfxVkPath.has_value())
-    {
-        std::filesystem::path libPath(Config::Instance()->FfxVkPath.value().c_str());
-
-        if (libPath.has_filename())
-            ffxVk = NtdllProxy::LoadLibraryExW_Ldr(libPath.c_str(), NULL, 0);
-        else
-            ffxVk = NtdllProxy::LoadLibraryExW_Ldr((libPath / L"amd_fidelityfx_vk.dll").c_str(), NULL, 0);
-
-        if (ffxVk != nullptr)
-        {
-            LOG_INFO("amd_fidelityfx_vk.dll loaded from {0}", wstring_to_string(Config::Instance()->FfxVkPath.value()));
-            return ffxVk;
-        }
-        else
-        {
-            LOG_WARN("amd_fidelityfx_vk.dll can't found at {0}",
-                     wstring_to_string(Config::Instance()->FfxVkPath.value()));
-        }
-    }
-
-    if (ffxVk == nullptr)
-    {
-        ffxVk = NtdllProxy::LoadLibraryExW_Ldr(originalPath.c_str(), NULL, 0);
-
-        if (ffxVk != nullptr)
-        {
-            LOG_INFO("amd_fidelityfx_vk.dll loaded from {0}", wstring_to_string(originalPath));
-            return ffxVk;
-        }
-    }
-
-    return nullptr;
-}
+// HMODULE LibraryLoadHooks::LoadLibxess(std::wstring originalPath)
+//{
+//     if (XeSSProxy::Module() != nullptr)
+//         return XeSSProxy::Module();
+//
+//     HMODULE libxess = nullptr;
+//
+//     if (Config::Instance()->XeSSLibrary.has_value())
+//     {
+//         std::filesystem::path libPath(Config::Instance()->XeSSLibrary.value().c_str());
+//
+//         if (libPath.has_filename())
+//             libxess = NtdllProxy::LoadLibraryExW_Ldr(libPath.c_str(), NULL, 0);
+//         else
+//             libxess = NtdllProxy::LoadLibraryExW_Ldr((libPath / L"libxess.dll").c_str(), NULL, 0);
+//
+//         if (libxess != nullptr)
+//         {
+//             LOG_INFO("libxess.dll loaded from {0}", wstring_to_string(Config::Instance()->XeSSLibrary.value()));
+//             return libxess;
+//         }
+//         else
+//         {
+//             LOG_WARN("libxess.dll can't found at {0}", wstring_to_string(Config::Instance()->XeSSLibrary.value()));
+//         }
+//     }
+//
+//     if (libxess == nullptr)
+//     {
+//         libxess = NtdllProxy::LoadLibraryExW_Ldr(originalPath.c_str(), NULL, 0);
+//
+//         if (libxess != nullptr)
+//         {
+//             LOG_INFO("libxess.dll loaded from {0}", wstring_to_string(originalPath));
+//             return libxess;
+//         }
+//     }
+//
+//     return nullptr;
+// }
+//
+// HMODULE LibraryLoadHooks::LoadLibxessDx11(std::wstring originalPath)
+//{
+//     if (XeSSProxy::ModuleDx11() != nullptr)
+//         return XeSSProxy::ModuleDx11();
+//
+//     HMODULE libxess = nullptr;
+//
+//     if (Config::Instance()->XeSSDx11Library.has_value())
+//     {
+//         std::filesystem::path libPath(Config::Instance()->XeSSDx11Library.value().c_str());
+//
+//         if (libPath.has_filename())
+//             libxess = NtdllProxy::LoadLibraryExW_Ldr(libPath.c_str(), NULL, 0);
+//         else
+//             libxess = NtdllProxy::LoadLibraryExW_Ldr((libPath / L"libxess_dx11.dll").c_str(), NULL, 0);
+//
+//         if (libxess != nullptr)
+//         {
+//             LOG_INFO("libxess_dx11.dll loaded from {0}",
+//                      wstring_to_string(Config::Instance()->XeSSDx11Library.value()));
+//             return libxess;
+//         }
+//         else
+//         {
+//             LOG_WARN("libxess_dx11.dll can't found at {0}",
+//                      wstring_to_string(Config::Instance()->XeSSDx11Library.value()));
+//         }
+//     }
+//
+//     if (libxess == nullptr)
+//     {
+//         libxess = NtdllProxy::LoadLibraryExW_Ldr(originalPath.c_str(), NULL, 0);
+//
+//         if (libxess != nullptr)
+//         {
+//             LOG_INFO("libxess_dx11.dll loaded from {0}", wstring_to_string(originalPath));
+//             return libxess;
+//         }
+//     }
+//
+//     return nullptr;
+// }
+//
+// HMODULE LibraryLoadHooks::LoadFfxapiDx12(std::wstring originalPath)
+//{
+//     if (FfxApiProxy::Dx12Module() != nullptr)
+//         return FfxApiProxy::Dx12Module();
+//
+//     HMODULE ffxDx12 = nullptr;
+//
+//     std::vector<std::wstring> dllNames = { L"amd_fidelityfx_loader_dx12.dll", L"amd_fidelityfx_dx12.dll" };
+//
+//     for (size_t i = 0; i < dllNames.size(); i++)
+//     {
+//         if (Config::Instance()->FfxDx12Path.has_value())
+//         {
+//             std::filesystem::path libPath(Config::Instance()->FfxDx12Path.value().c_str());
+//
+//             if (libPath.has_filename())
+//                 ffxDx12 = NtdllProxy::LoadLibraryExW_Ldr(libPath.c_str(), NULL, 0);
+//             else
+//                 ffxDx12 = NtdllProxy::LoadLibraryExW_Ldr((libPath / dllNames[i]).c_str(), NULL, 0);
+//
+//             if (ffxDx12 != nullptr)
+//             {
+//                 LOG_INFO("{0} loaded from {1}", wstring_to_string(dllNames[i]),
+//                          wstring_to_string(Config::Instance()->FfxDx12Path.value()));
+//                 return ffxDx12;
+//             }
+//             else
+//             {
+//                 LOG_WARN("{0} can't found at {1}", wstring_to_string(dllNames[i]),
+//                          wstring_to_string(Config::Instance()->FfxDx12Path.value()));
+//             }
+//         }
+//
+//         if (ffxDx12 == nullptr)
+//         {
+//             ffxDx12 = NtdllProxy::LoadLibraryExW_Ldr(originalPath.c_str(), NULL, 0);
+//
+//             if (ffxDx12 != nullptr)
+//             {
+//                 LOG_INFO("{0} loaded from {1}", wstring_to_string(dllNames[i]), wstring_to_string(originalPath));
+//                 return ffxDx12;
+//             }
+//         }
+//     }
+//
+//     return nullptr;
+// }
+//
+// HMODULE LibraryLoadHooks::LoadFfxapiVk(std::wstring originalPath)
+//{
+//     if (FfxApiProxy::VkModule() != nullptr)
+//         return FfxApiProxy::VkModule();
+//
+//     HMODULE ffxVk = nullptr;
+//
+//     if (Config::Instance()->FfxVkPath.has_value())
+//     {
+//         std::filesystem::path libPath(Config::Instance()->FfxVkPath.value().c_str());
+//
+//         if (libPath.has_filename())
+//             ffxVk = NtdllProxy::LoadLibraryExW_Ldr(libPath.c_str(), NULL, 0);
+//         else
+//             ffxVk = NtdllProxy::LoadLibraryExW_Ldr((libPath / L"amd_fidelityfx_vk.dll").c_str(), NULL, 0);
+//
+//         if (ffxVk != nullptr)
+//         {
+//             LOG_INFO("amd_fidelityfx_vk.dll loaded from {0}",
+//             wstring_to_string(Config::Instance()->FfxVkPath.value())); return ffxVk;
+//         }
+//         else
+//         {
+//             LOG_WARN("amd_fidelityfx_vk.dll can't found at {0}",
+//                      wstring_to_string(Config::Instance()->FfxVkPath.value()));
+//         }
+//     }
+//
+//     if (ffxVk == nullptr)
+//     {
+//         ffxVk = NtdllProxy::LoadLibraryExW_Ldr(originalPath.c_str(), NULL, 0);
+//
+//         if (ffxVk != nullptr)
+//         {
+//             LOG_INFO("amd_fidelityfx_vk.dll loaded from {0}", wstring_to_string(originalPath));
+//             return ffxVk;
+//         }
+//     }
+//
+//     return nullptr;
+// }
 
 void LibraryLoadHooks::CheckModulesInMemory()
 {
@@ -882,19 +915,19 @@ void LibraryLoadHooks::CheckModulesInMemory()
         TryHookModule(slCommonNamesW, StreamlineHooks::hookCommon);
 
     // XeSS
-    if (XeSSProxy::Module() == nullptr)
-        TryHookModule(xessNamesW, XeSSProxy::HookXeSS);
+    //if (XeSSProxy::Module() == nullptr)
+    //    TryHookModule(xessNamesW, XeSSProxy::HookXeSS);
 
-    if (XeSSProxy::ModuleDx11() == nullptr)
-        TryHookModule(xessDx11NamesW, XeSSProxy::HookXeSSDx11);
+    //if (XeSSProxy::ModuleDx11() == nullptr)
+    //    TryHookModule(xessDx11NamesW, XeSSProxy::HookXeSSDx11);
 
     // FFX Dx12
-    if (FfxApiProxy::Dx12Module() == nullptr)
-        TryHookModule(ffxDx12NamesW, FfxApiProxy::InitFfxDx12);
+    //if (FfxApiProxy::Dx12Module() == nullptr)
+     //   TryHookModule(ffxDx12NamesW, FfxApiProxy::InitFfxDx12);
 
     // FFX Vulkan
-    if (FfxApiProxy::VkModule() == nullptr)
-        TryHookModule(ffxVkNamesW, FfxApiProxy::InitFfxVk);
+    //if (FfxApiProxy::VkModule() == nullptr)
+    //    TryHookModule(ffxVkNamesW, FfxApiProxy::InitFfxVk);
 }
 
 bool LibraryLoadHooks::EndsWithInsensitive(std::wstring_view text, std::wstring_view suffix)

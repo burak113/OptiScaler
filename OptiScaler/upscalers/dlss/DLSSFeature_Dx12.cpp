@@ -195,18 +195,28 @@ bool DLSSFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
             RcasConstants rcasConstants {};
 
             rcasConstants.Sharpness = _sharpness;
-            rcasConstants.DisplayWidth = TargetWidth();
-            rcasConstants.DisplayHeight = TargetHeight();
             InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_X, &rcasConstants.MvScaleX);
             InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_Y, &rcasConstants.MvScaleY);
-            rcasConstants.DisplaySizeMV = !(GetFeatureFlags() & NVSDK_NGX_DLSS_Feature_Flags_MVLowRes);
-            rcasConstants.RenderHeight = RenderHeight();
-            rcasConstants.RenderWidth = RenderWidth();
+
+            float nearPlane = 0.0f;
+            float farPlane = 0.0f;
+
+            if (InParameters->Get("DLSSG.CameraNear", &nearPlane) == NVSDK_NGX_Result_Success &&
+                InParameters->Get("DLSSG.CameraFar", &farPlane) == NVSDK_NGX_Result_Success)
+            {
+                rcasConstants.CameraNear = nearPlane;
+                rcasConstants.CameraFar = farPlane;
+            }
+            else
+            {
+                rcasConstants.CameraNear = Config::Instance()->FsrCameraNear.value_or_default();
+                rcasConstants.CameraFar = Config::Instance()->FsrCameraFar.value_or_default();
+            }
 
             if (useSS)
             {
                 if (!RCAS->Dispatch(Device, InCommandList, setBuffer, paramMotion, rcasConstants,
-                                    OutputScaler->Buffer()))
+                                    OutputScaler->Buffer(), paramDepth))
                 {
                     Config::Instance()->RcasEnabled.set_volatile_value(false);
                     return true;
@@ -214,7 +224,8 @@ bool DLSSFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
             }
             else
             {
-                if (!RCAS->Dispatch(Device, InCommandList, setBuffer, paramMotion, rcasConstants, paramOutput))
+                if (!RCAS->Dispatch(Device, InCommandList, setBuffer, paramMotion, rcasConstants, paramOutput,
+                                    paramDepth))
                 {
                     Config::Instance()->RcasEnabled.set_volatile_value(false);
                     return true;

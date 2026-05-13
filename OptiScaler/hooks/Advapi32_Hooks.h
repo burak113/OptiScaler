@@ -3,6 +3,8 @@
 #include "Config.h"
 #include "detours/detours.h"
 
+#include "Hook_Utils.h"
+
 const HKEY signatureMark = (HKEY) 0xFFFFFFFF13372137;
 
 typedef decltype(&RegOpenKeyExW) PFN_RegOpenKeyExW;
@@ -17,6 +19,7 @@ static PFN_RegCloseKey o_RegCloseKey = nullptr;
 static PFN_RegQueryValueExW o_RegQueryValueExW = nullptr;
 static PFN_RegQueryValueExA o_RegQueryValueExA = nullptr;
 
+VALIDATE_HOOK(hkRegOpenKeyExW, PFN_RegOpenKeyExW)
 static LSTATUS hkRegOpenKeyExW(HKEY hKey, LPCWSTR lpSubKey, DWORD ulOptions, REGSAM samDesired, PHKEY phkResult)
 {
     if (lpSubKey != nullptr && (wcscmp(L"SOFTWARE\\NVIDIA Corporation\\Global", lpSubKey) == 0 ||
@@ -29,6 +32,7 @@ static LSTATUS hkRegOpenKeyExW(HKEY hKey, LPCWSTR lpSubKey, DWORD ulOptions, REG
     return o_RegOpenKeyExW(hKey, lpSubKey, ulOptions, samDesired, phkResult);
 }
 
+VALIDATE_HOOK(hkRegEnumValueW, PFN_RegEnumValueW)
 static LSTATUS hkRegEnumValueW(HKEY hKey, DWORD dwIndex, LPWSTR lpValueName, LPDWORD lpcchValueName, LPDWORD lpReserved,
                                LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData)
 {
@@ -75,6 +79,7 @@ static LSTATUS hkRegEnumValueW(HKEY hKey, DWORD dwIndex, LPWSTR lpValueName, LPD
     }
 }
 
+VALIDATE_HOOK(hkRegCloseKey, PFN_RegCloseKey)
 static LSTATUS hkRegCloseKey(HKEY hKey)
 {
     if (hKey == signatureMark)
@@ -341,6 +346,7 @@ static void SpoofMultiSzA(LPBYTE lpData, LPDWORD lpcbData, const std::string& sp
 
 // Original implementation:
 // https://github.com/artur-graniszewski/dlss-enabler-main/blob/1f8b24722f1b526ffb896ae62b6aa3ca766b0728/Utils/RegistryProxy.cpp#L137
+VALIDATE_HOOK(hkRegQueryValueExW, PFN_RegQueryValueExW)
 static LONG hkRegQueryValueExW(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData,
                                LPDWORD lpcbData)
 {
@@ -488,6 +494,7 @@ static LONG hkRegQueryValueExW(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserve
     return result;
 }
 
+VALIDATE_HOOK(hkRegQueryValueExA, PFN_RegQueryValueExA)
 LONG WINAPI hkRegQueryValueExA(HKEY hKey, LPCSTR lpValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData,
                                LPDWORD lpcbData)
 {

@@ -45,6 +45,9 @@ bool XeSSFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
     if (!OutputScaler->IsInit())
         Config::Instance()->OutputScalingEnabled = false;
 
+    if (Config::Instance()->DADepthIsLinear.value_for_config_ignore_default() == std::nullopt)
+        Config::Instance()->DADepthIsLinear.set_volatile_value(false);
+
     xess_result_t xessResult;
 
     if (State::Instance().xessDebug)
@@ -371,18 +374,15 @@ bool XeSSFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         RcasConstants rcasConstants {};
 
         rcasConstants.Sharpness = _sharpness;
-        rcasConstants.DisplayWidth = TargetWidth();
-        rcasConstants.DisplayHeight = TargetHeight();
         InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_X, &rcasConstants.MvScaleX);
         InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_Y, &rcasConstants.MvScaleY);
-        rcasConstants.DisplaySizeMV = !(GetFeatureFlags() & NVSDK_NGX_DLSS_Feature_Flags_MVLowRes);
-        rcasConstants.RenderHeight = RenderHeight();
-        rcasConstants.RenderWidth = RenderWidth();
+        rcasConstants.CameraNear = Config::Instance()->FsrCameraNear.value_or_default();
+        rcasConstants.CameraFar = Config::Instance()->FsrCameraFar.value_or_default();
 
         if (useSS)
         {
             if (!RCAS->Dispatch(Device, InCommandList, params.pOutputTexture, params.pVelocityTexture, rcasConstants,
-                                OutputScaler->Buffer()))
+                                OutputScaler->Buffer(), params.pDepthTexture))
             {
                 Config::Instance()->RcasEnabled = false;
                 return true;
@@ -391,7 +391,7 @@ bool XeSSFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         else
         {
             if (!RCAS->Dispatch(Device, InCommandList, params.pOutputTexture, params.pVelocityTexture, rcasConstants,
-                                paramOutput))
+                                paramOutput, params.pDepthTexture))
             {
                 Config::Instance()->RcasEnabled = false;
                 return true;

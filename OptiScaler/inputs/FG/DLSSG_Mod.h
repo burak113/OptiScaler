@@ -68,8 +68,12 @@ class DLSSGMod
 
         if (_dll == nullptr)
         {
-            auto dllPath = Util::DllPath().parent_path() / "dlssg_to_fsr3_amd_is_better.dll";
-            _dll = NtdllProxy::LoadLibraryExW_Ldr(dllPath.c_str(), NULL, 0);
+            HMODULE memModule = nullptr;
+            auto optiPath = Config::Instance()->MainDllPath.value();
+            Util::LoadProxyLibrary(L"dlssg_to_fsr3_amd_is_better.dll", L"", optiPath, &memModule, &_dll);
+
+            if (_dll == nullptr && memModule != nullptr)
+                _dll = memModule;
         }
 
         if (_dll != nullptr)
@@ -112,8 +116,12 @@ class DLSSGMod
 
         if (_dll == nullptr)
         {
-            auto dllPath = Util::DllPath().parent_path() / "dlssg_to_fsr3_amd_is_better.dll";
-            _dll = NtdllProxy::LoadLibraryExW_Ldr(dllPath.c_str(), NULL, 0);
+            HMODULE memModule = nullptr;
+            auto optiPath = Config::Instance()->MainDllPath.value();
+            Util::LoadProxyLibrary(L"dlssg_to_fsr3_amd_is_better.dll", L"", optiPath, &memModule, &_dll);
+
+            if (_dll == nullptr && memModule != nullptr)
+                _dll = memModule;
         }
 
         if (_dll != nullptr)

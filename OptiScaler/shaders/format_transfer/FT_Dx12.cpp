@@ -206,13 +206,12 @@ FT_Dx12::FT_Dx12(std::string InName, ID3D12Device* InDevice, DXGI_FORMAT InForma
         _recEncodeShader = FT_CompileShader(FT_ShaderCode.c_str(), "CSMain", "cs_5_0");
 
         if (_recEncodeShader == nullptr)
-        {
             LOG_ERROR("[{0}] CompileShader error!", _name);
-            return;
-        }
 
         // create pso objects
-        if (!Shader_Dx12::CreateComputeShader(InDevice, _rootSignature, &_pipelineState, _recEncodeShader))
+        if (!Shader_Dx12::CreateComputeShader(
+                InDevice, _rootSignature, &_pipelineState, _recEncodeShader,
+                CD3DX12_SHADER_BYTECODE(reinterpret_cast<const void*>(FT_cso), sizeof(FT_cso))))
         {
             LOG_ERROR("[{0}] CreateComputeShader error!", _name);
             return;

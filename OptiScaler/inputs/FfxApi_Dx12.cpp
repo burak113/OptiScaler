@@ -428,9 +428,9 @@ ffxReturnCode_t ffxQuery_Dx12(ffxContext* context, ffxQueryDescHeader* desc)
     if (desc == nullptr)
         return FFX_API_RETURN_ERROR_PARAMETER;
 
-    LOG_DEBUG("type: {}", FfxApiProxy::GetTypeName(desc->type));
-
     auto type = FfxApiProxy::GetIndirectType(desc);
+    LOG_DEBUG("Header type: {}, Indirect type: {}", FfxApiProxy::GetTypeName(desc->type), magic_enum::enum_name(type));
+
     if (type == FFXStructType::SwapchainDX12 || type == FFXStructType::FG)
     {
         ffxReturnCode_t result = PASSTHRU_RETURN_CODE;
@@ -510,6 +510,20 @@ ffxReturnCode_t ffxQuery_Dx12(ffxContext* context, ffxQueryDescHeader* desc)
         else if (type == FFXStructType::Upscaling)
         {
             ver = FfxApiProxy::VersionDx12_SR();
+
+            providerDesc->versionId =
+                0xF5A5'CA1Eui64 << 32 | (((ver.major << 22) | (ver.minor << 12) | ver.patch) & 0xFFFFFFFF);
+        }
+        else if (type == FFXStructType::Denoiser)
+        {
+            ver = FfxApiProxy::VersionDx12_RR();
+
+            providerDesc->versionId =
+                0xF5A5'CA1Eui64 << 32 | (((ver.major << 22) | (ver.minor << 12) | ver.patch) & 0xFFFFFFFF);
+        }
+        else if (type == FFXStructType::RadianceCache)
+        {
+            ver = FfxApiProxy::VersionDx12_RC();
 
             providerDesc->versionId =
                 0xF5A5'CA1Eui64 << 32 | (((ver.major << 22) | (ver.minor << 12) | ver.patch) & 0xFFFFFFFF);

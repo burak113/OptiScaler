@@ -60,6 +60,7 @@ enum class GameQuirk : uint64_t
     CreateD3D12DeviceForLuma,
     ForceCreateD3D12Device,
     ForceDepthD32S8,
+    PregmataFixDLSSModes,
     // Don't forget to add the new entry to printQuirks
     _
 };
@@ -92,9 +93,11 @@ static const QuirkEntry quirkTable[] = {
     QUIRK_ENTRY("playrdr2.exe", GameQuirk::DisableFSR3Inputs, GameQuirk::DisableDxgiSpoofing),
 
     // Red Dead Redemption
-    QUIRK_ENTRY("rdr.exe", GameQuirk::SkipFsr3Method, GameQuirk::NoFSRFGFirstSwapchain, GameQuirk::DisableDxgiSpoofing),
+    // Preserving the FG swapchain causes crashes with DLSSG via SL
+    QUIRK_ENTRY("rdr.exe", GameQuirk::SkipFsr3Method, GameQuirk::NoFSRFGFirstSwapchain, GameQuirk::DisableDxgiSpoofing,
+                GameQuirk::DoNotPreserveFGSwapChain),
     QUIRK_ENTRY("playrdr.exe", GameQuirk::SkipFsr3Method, GameQuirk::NoFSRFGFirstSwapchain,
-                GameQuirk::DisableDxgiSpoofing),
+                GameQuirk::DisableDxgiSpoofing, GameQuirk::DoNotPreserveFGSwapChain),
 
     // Visions of Mana
     // Use FSR2 Pattern Matching to fix broken FSR2 detection
@@ -135,8 +138,8 @@ static const QuirkEntry quirkTable[] = {
     // Crapcom Games, DLSS without dxgi spoofing needs restore compute in those
     //
     // Kunitsu-Gami: Path of the Goddess, Monster Hunter Wilds, MONSTER HUNTER RISE, Dead Rising Deluxe Remaster
-    // (including the demo), Dragon's Dogma 2, Pragmata Demo, Resident Evil Requiem, Monster Hunter Stories 3: Twisted
-    // Reflection
+    // (including the demo), Dragon's Dogma 2, PRAGMATA Demo, Resident Evil Requiem, Monster Hunter Stories 3: Twisted
+    // Reflection, PRAGMATA
     QUIRK_ENTRY("kunitsugami.exe", GameQuirk::RestoreComputeSigOnNonNvidia, GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("kunitsugamidemo.exe", GameQuirk::RestoreComputeSigOnNonNvidia, GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("monsterhunterwilds.exe", GameQuirk::RestoreComputeSigOnNonNvidia, GameQuirk::DisableDxgiSpoofing,
@@ -146,11 +149,14 @@ static const QuirkEntry quirkTable[] = {
     QUIRK_ENTRY("dd2ccs.exe", GameQuirk::RestoreComputeSigOnNonNvidia, GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("dd2.exe", GameQuirk::RestoreComputeSigOnNonNvidia, GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("pragmata_sketchbook.exe", GameQuirk::RestoreComputeSigOnNonNvidia, GameQuirk::DisableDxgiSpoofing,
-                GameQuirk::AllowedFrameAhead2),
+                GameQuirk::AllowedFrameAhead2, GameQuirk::PregmataFixDLSSModes),
     QUIRK_ENTRY("re9.exe", GameQuirk::RestoreComputeSigOnNonNvidia, GameQuirk::DisableDxgiSpoofing,
                 GameQuirk::RestoreComputeSigOnNvidia),
     QUIRK_ENTRY("monster_hunter_stories_3_twisted_reflection.exe", GameQuirk::RestoreComputeSigOnNonNvidia,
                 GameQuirk::DisableDxgiSpoofing, GameQuirk::RestoreComputeSigOnNvidia),
+    QUIRK_ENTRY("pragmata.exe", GameQuirk::RestoreComputeSigOnNonNvidia, GameQuirk::DisableDxgiSpoofing,
+                GameQuirk::RestoreComputeSigOnNvidia, GameQuirk::PregmataFixDLSSModes),
+
     // REF PDUpscaler branch
     // Old menu needed to avoid the invisible overlay while upscaling is active
     QUIRK_ENTRY("re2.exe", GameQuirk::DisableDxgiSpoofing, GameQuirk::OldOverlayMenu),
@@ -290,6 +296,10 @@ static const QuirkEntry quirkTable[] = {
     QUIRK_ENTRY("acmirage.exe", GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("acmirage_plus.exe", GameQuirk::DisableDxgiSpoofing),
 
+    // DCS World
+    // Fakenvapi seems to cause a crash when switching to FSR4 (INT8 only?)
+    QUIRK_ENTRY("dcs.exe", GameQuirk::DisableFakenvapi),
+
     // SL spoof enough to unlock everything DLSS/No spoof needed for DLSS inputs
     //
     // The Witcher 3, Alan Wake 2, Crysis 3 Remastered, Marvel's Guardians of the Galaxy, UNCHARTED: Legacy of Thieves
@@ -299,7 +309,7 @@ static const QuirkEntry quirkTable[] = {
     // Medium, NINJA GAIDEN 4 (+ WinGDK), God of War (2018), Europa Universalis V, Need for Speed Unbound, Nioh 2 – The
     // Complete Edition, Control Ultimate Edition, Deathloop, Where Winds Meet, FINAL FANTASY VII REMAKE INTERGRADE (for
     // Luma mod), Assassin’s Creed Shadows, Farming Simulator 2025, Nioh 3, FATAL FRAME II: Crimson Butterfly REMAKE,
-    // OUTRIDERS, Assetto Corsa EVO
+    // OUTRIDERS, Assetto Corsa EVO, MOUSE: P.I. For Hire, Yet Another Zombie Survivors, Voodoo Fishin'
     QUIRK_ENTRY("witcher3.exe", GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("alanwake2.exe", GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("crysis3remastered.exe", GameQuirk::DisableDxgiSpoofing),
@@ -338,13 +348,17 @@ static const QuirkEntry quirkTable[] = {
     QUIRK_ENTRY("fatalframeii.exe", GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY_UE(outriders, GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("assettocorsaevo.exe", GameQuirk::DisableDxgiSpoofing),
+    QUIRK_ENTRY("mouse.exe", GameQuirk::DisableDxgiSpoofing),
+    QUIRK_ENTRY("yet another zombie survivors.exe", GameQuirk::DisableDxgiSpoofing),
+    QUIRK_ENTRY("voodoo fishin'.exe", GameQuirk::DisableDxgiSpoofing),
 
     // FSR2/3 only, no spoof needed
     //
     // Tiny Tina's Wonderlands, Dead Island 2, The Outer Worlds: Spacer's Choice Edition, Scorn, Thymesia, Company of
     // Heroes 3, Caravan Sandwitch, Asterigos: Curse of the Stars, Saints Row (2022)
     QUIRK_ENTRY("wonderlands.exe", GameQuirk::DisableReactiveMasks, GameQuirk::DisableDxgiSpoofing),
-    QUIRK_ENTRY_UE(deadisland, GameQuirk::DisableReactiveMasks, GameQuirk::DisableDxgiSpoofing),
+    QUIRK_ENTRY_UE(deadisland, GameQuirk::DisableReactiveMasks, GameQuirk::DisableDxgiSpoofing,
+                   GameQuirk::ForceAutoExposure),
     QUIRK_ENTRY_UE(indiana, GameQuirk::DisableReactiveMasks, GameQuirk::DisableDxgiSpoofing,
                    GameQuirk::ForceAutoExposure),
     QUIRK_ENTRY_UE(scorn, GameQuirk::DisableDxgiSpoofing),
@@ -398,6 +412,7 @@ static const QuirkEntry quirkTable[] = {
     QUIRK_ENTRY_UE(mechwarrior, GameQuirk::ForceUnrealEngine),
     QUIRK_ENTRY_UE(ghostrunner, GameQuirk::ForceUnrealEngine),
     QUIRK_ENTRY_UE(ghostrunner2, GameQuirk::ForceUnrealEngine),
+    QUIRK_ENTRY("soulstice.exe", GameQuirk::ForceUnrealEngine, GameQuirk::ForceAutoExposure),
 
     // VULKAN
     // ------
@@ -416,6 +431,9 @@ static const QuirkEntry quirkTable[] = {
 
     // World War Z
     QUIRK_ENTRY("wwzretail.exe", GameQuirk::UseFsr2VulkanInputs, GameQuirk::EnableVulkanExtensionSpoofing,
+                GameQuirk::DisableDxgiSpoofing, GameQuirk::ForceDepthD32S8),
+
+    QUIRK_ENTRY("wwzretailegs.exe", GameQuirk::UseFsr2VulkanInputs, GameQuirk::EnableVulkanExtensionSpoofing,
                 GameQuirk::DisableDxgiSpoofing, GameQuirk::ForceDepthD32S8),
 
     // Baldur's Gate 3

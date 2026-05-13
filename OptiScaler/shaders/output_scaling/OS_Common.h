@@ -969,7 +969,9 @@ void CSMain(uint3 id : SV_DispatchThreadID,
             uint3 tid : SV_GroupThreadID)
 {
     // k < 1 for downsample: k = DstDim / SrcDim = 1 / _Scale
-    float2 k = 1.0f / _Scale;
+    float2 k = float2(
+        (float) _DstWidth / (float) _SrcWidth,
+        (float) _DstHeight / (float) _SrcHeight);
 
     // ----------------------------
     // 1) Compute the source tile footprint for the *whole* 8x8 output block.
@@ -1011,7 +1013,7 @@ void CSMain(uint3 id : SV_DispatchThreadID,
     // ----------------------------
     // 2) Cooperative LDS load — de-interleaved into separate R/G/B planes
     // ----------------------------
-    uint lane  = tid.y * 8u + tid.x;
+    uint lane = tid.y * 8u + tid.x;
     uint total = (uint) (tileW * tileH);
 
     for (uint idx = lane; idx < total; idx += 64u)
@@ -1020,7 +1022,7 @@ void CSMain(uint3 id : SV_DispatchThreadID,
         int ly = (int) (idx / (uint) tileW);
 
         int2 srcPos;
-        srcPos.x = ClampInt(tileStart.x + lx, 0, _SrcWidth  - 1);
+        srcPos.x = ClampInt(tileStart.x + lx, 0, _SrcWidth - 1);
         srcPos.y = ClampInt(tileStart.y + ly, 0, _SrcHeight - 1);
 
         float3 rgb = InputTexture.Load(int3(srcPos, 0)).rgb;
@@ -1047,8 +1049,8 @@ void CSMain(uint3 id : SV_DispatchThreadID,
     int2 x1y1 = (int2) floor(upperF);
 
     // Clamp to source bounds
-    x0y0.x = ClampInt(x0y0.x, 0, _SrcWidth  - 1);
-    x1y1.x = ClampInt(x1y1.x, 0, _SrcWidth  - 1);
+    x0y0.x = ClampInt(x0y0.x, 0, _SrcWidth - 1);
+    x1y1.x = ClampInt(x1y1.x, 0, _SrcWidth - 1);
     x0y0.y = ClampInt(x0y0.y, 0, _SrcHeight - 1);
     x1y1.y = ClampInt(x1y1.y, 0, _SrcHeight - 1);
 
@@ -1073,7 +1075,7 @@ void CSMain(uint3 id : SV_DispatchThreadID,
         if (i < nx)
         {
             float w = MagicKernel(uBase + k.x * (float) i);
-            wx[i]  = w;
+            wx[i] = w;
             sumWx += w;
         }
         else
@@ -1083,7 +1085,7 @@ void CSMain(uint3 id : SV_DispatchThreadID,
         if (i < ny)
         {
             float w = MagicKernel(vBase + k.y * (float) i);
-            wy[i]  = w;
+            wy[i] = w;
             sumWy += w;
         }
         else

@@ -430,20 +430,28 @@ ffxReturnCode_t ffxDestroyContext_Dx12FG(ffxContext* context, const ffxAllocatio
 
     if (State::Instance().currentFG != nullptr && (void*) scContext == *context)
     {
-        LOG_INFO("Destroying Swapchain Context: {:X}", (size_t) State::Instance().currentFG);
-        State::Instance().currentFG->ReleaseSwapchain(State::Instance().currentFG->Hwnd());
-
-        if (State::Instance().currentWrappedSwapchain != nullptr &&
-            State::Instance().currentSwapchainDesc.OutputWindow == State::Instance().currentFG->Hwnd())
+        if (!Config::Instance()->FGPreserveSwapChain.value_or_default())
         {
-            auto refCount = State::Instance().currentWrappedSwapchain->Release();
+            LOG_INFO("Destroying Swapchain Context: {:X}", (size_t) State::Instance().currentFG);
 
-            while (refCount > 0 && refCount < 0xffffff00)
+            State::Instance().currentFG->ReleaseSwapchain(State::Instance().currentFG->Hwnd());
+
+            if (State::Instance().currentWrappedSwapchain != nullptr &&
+                State::Instance().currentSwapchainDesc.OutputWindow == State::Instance().currentFG->Hwnd())
             {
-                refCount = State::Instance().currentWrappedSwapchain->Release();
-            }
+                auto refCount = State::Instance().currentWrappedSwapchain->Release();
 
-            State::Instance().currentWrappedSwapchain = nullptr;
+                while (refCount > 0 && refCount < 0xffffff00)
+                {
+                    refCount = State::Instance().currentWrappedSwapchain->Release();
+                }
+
+                State::Instance().currentWrappedSwapchain = nullptr;
+            }
+        }
+        else
+        {
+            LOG_DEBUG("Preserving FGSwapChain!");
         }
 
         return FFX_API_RETURN_OK;

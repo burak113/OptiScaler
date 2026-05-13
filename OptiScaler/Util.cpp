@@ -3,6 +3,9 @@
 #include "Util.h"
 #include "Config.h"
 
+#include <proxies/Ntdll_Proxy.h>
+#include <proxies/KernelBase_Proxy.h>
+
 #include <shlobj.h>
 
 typedef LONG(WINAPI* RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
@@ -589,4 +592,69 @@ void Util::GetDeviceRemovedReason(ID3D12Device* pDevice)
     default:
         LOG_ERROR("Device removed reason: Unknown ({:X})", (UINT) reason);
     }
+}
+
+void Util::LoadProxyLibrary(const std::wstring& name, const std::wstring& optiPath, const std::wstring& overridePath,
+                            HMODULE* memoryModule, HMODULE* loadedModule)
+{
+    HMODULE result = nullptr;
+
+    result = KernelBaseProxy::GetModuleHandleW_()(name.c_str());
+    if (result != nullptr && result != dllModule)
+    {
+        LOG_INFO("{} already loaded at memory: {:X}", wstring_to_string(name), (size_t) result);
+        *memoryModule = result;
+    }
+    result = nullptr;
+
+    if (overridePath.size() > 0)
+    {
+        auto path = std::filesystem::path(overridePath);
+
+        if (std::filesystem::exists(path))
+        {
+            if (std::filesystem::is_directory(path))
+                path = path / name;
+
+            result = NtdllProxy::LoadLibraryExW_Ldr(path.c_str(), NULL, NULL);
+
+            if (result != nullptr && result != dllModule)
+            {
+                LOG_INFO("{} loaded from override path: {}", wstring_to_string(name), path.string());
+                *loadedModule = result;
+            }
+        }
+    }
+
+    if (optiPath.size() > 0 && *loadedModule == nullptr)
+    {
+        auto path = std::filesystem::path(optiPath);
+
+        if (std::filesystem::exists(path))
+        {
+            if (std::filesystem::is_directory(path))
+                path = path / name;
+
+            result = NtdllProxy::LoadLibraryExW_Ldr(path.c_str(), NULL, NULL);
+
+            if (result != nullptr && result != dllModule)
+            {
+                LOG_INFO("{} loaded from Opti dll path: {}", wstring_to_string(name), path.string());
+                *loadedModule = result;
+            }
+        }
+    }
+
+    if (*loadedModule == nullptr)
+    {
+        result = NtdllProxy::LoadLibraryExW_Ldr(name.c_str(), NULL, NULL);
+        if (result != nullptr && result != dllModule)
+        {
+            LOG_INFO("{} loaded from system path", wstring_to_string(name));
+            *loadedModule = result;
+        }
+    }
+
+    if (*loadedModule == nullptr)
+        LOG_WARN("Can't find {}, returning nullptr!", wstring_to_string(name));
 }

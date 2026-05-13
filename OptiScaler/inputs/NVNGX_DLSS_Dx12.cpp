@@ -561,7 +561,10 @@ static NVSDK_NGX_Result TryCreateOptiFeature(ID3D12GraphicsCommandList* InCmdLis
     const bool shouldRestore = restoreCompute || restoreGraphic;
 
     if (shouldRestore)
+    {
         D3D12Hooks::SetRootSignatureTracking(false);
+        D3D12Hooks::HookToCommandListLate(InCmdList);
+    }
 
     // Create context entry
     Dx12Contexts[handleId] = {};
@@ -898,6 +901,20 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(ID3D12GraphicsCommandList* InCmdL
     // Skip evaluation for the first N frames if configured
     if (cfg.SkipFirstFrames.has_value() && evalCounter < cfg.SkipFirstFrames.value())
         return NVSDK_NGX_Result_Success;
+
+    if (Config::Instance()->RestoreComputeSignature.value_or_default() &&
+        !D3D12Hooks::CanRestoreComputeRootSignature(InCmdList))
+    {
+        LOG_DEBUG("Skipping upscaling because can't restore compute signature");
+        return NVSDK_NGX_Result_Success;
+    }
+
+    if (Config::Instance()->RestoreGraphicSignature.value_or_default() &&
+        !D3D12Hooks::CanRestoreGraphicsRootSignature(InCmdList))
+    {
+        LOG_DEBUG("Skipping upscaling because can't restore graphics signature");
+        return NVSDK_NGX_Result_Success;
+    }
 
     if (InCallback)
         LOG_INFO("Progress callback provided but unused in synchronous OptiScaler path");

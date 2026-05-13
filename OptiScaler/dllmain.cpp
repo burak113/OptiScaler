@@ -8,12 +8,15 @@
 #include "DllNames.h"
 
 #include "proxies/Dxgi_Proxy.h"
-#include <proxies/XeSS_Proxy.h>
-#include <proxies/NVNGX_Proxy.h>
 #include "proxies/Kernel32_Proxy.h"
 #include "proxies/KernelBase_Proxy.h"
 #include "proxies/Ntdll_Proxy.h"
 #include <proxies/IGDExt_Proxy.h>
+
+#include <proxies/XeSS_Proxy.h>
+#include <proxies/XeFG_Proxy.h>
+#include <proxies/XeLL_Proxy.h>
+#include <proxies/NVNGX_Proxy.h>
 #include <proxies/FfxApi_Proxy.h>
 
 #include "inputs/FSR2_Dx11.h"
@@ -121,8 +124,6 @@ static bool IsRunningOnWine()
 
 UINT customD3D12SDKVersion = 615;
 
-const char8_t* customD3D12SDKPath = u8".\\D3D12_Optiscaler\\"; // Hardcoded for now
-
 static void RunAgilityUpgrade(HMODULE dx12Module)
 {
     typedef HRESULT (*PFN_IsDeveloperModeEnabled)(BOOL* isEnabled);
@@ -153,7 +154,24 @@ static void RunAgilityUpgrade(HMODULE dx12Module)
 
         if (SUCCEEDED(hr))
         {
-            hr = sdkConfig->SetSDKVersion(customD3D12SDKVersion, reinterpret_cast<LPCSTR>(customD3D12SDKPath));
+            static bool pathSet = false;
+            static std::string path; // narrow string
+
+            if (!pathSet)
+            {
+                std::wstring widePath = Config::Instance()->MainDllPath.value();
+                widePath = std::filesystem::relative(widePath, Util::ExePath().parent_path());
+                widePath = widePath + L"\\D3D12_OptiScaler\\";
+
+                // Properly convert wstring → string
+                int size = WideCharToMultiByte(CP_UTF8, 0, widePath.c_str(), -1, nullptr, 0, nullptr, nullptr);
+                path.resize(size - 1);
+                WideCharToMultiByte(CP_UTF8, 0, widePath.c_str(), -1, path.data(), size, nullptr, nullptr);
+
+                pathSet = true;
+            }
+
+            hr = sdkConfig->SetSDKVersion(customD3D12SDKVersion, reinterpret_cast<LPCSTR>(path.c_str()));
             if (FAILED(hr))
             {
                 LOG_ERROR("Failed to upgrade Agility SDK: {0}", hr);
@@ -177,7 +195,7 @@ static void RunAgilityUpgrade(HMODULE dx12Module)
 
 void LoadAsiPlugins()
 {
-    std::filesystem::path pluginPath(Config::Instance()->PluginPath.value_or_default());
+    std::filesystem::path pluginPath(Config::Instance()->PluginPath.value());
     auto folderPath = pluginPath.wstring();
 
     LOG_DEBUG(L"Checking {} for *.asi", folderPath);
@@ -254,8 +272,8 @@ static void HookEffectModulesLate()
     TryHookModule(slCommonNamesW, StreamlineHooks::hookCommon);
 
     // XeSS
-    TryHookModule(xessNamesW, XeSSProxy::HookXeSS);
-    TryHookModule(xessDx11NamesW, XeSSProxy::HookXeSSDx11);
+    //TryHookModule(xessNamesW, XeSSProxy::HookXeSS);
+    //TryHookModule(xessDx11NamesW, XeSSProxy::HookXeSSDx11);
 
     // NVNGX
     TryHookModule(nvngxNamesW, NVNGXProxy::InitNVNGX);
@@ -282,7 +300,7 @@ static void CheckWorkingMode()
     wchar_t sysFolder[MAX_PATH];
     GetSystemDirectory(sysFolder, MAX_PATH);
     std::filesystem::path sysPath(sysFolder);
-    std::filesystem::path pluginPath(Config::Instance()->PluginPath.value_or_default());
+    std::filesystem::path pluginPath(Config::Instance()->PluginPath.value());
 
     for (size_t i = 0; i < lCaseFilename.size(); i++)
         lCaseFilename[i] = std::tolower(lCaseFilename[i]);
@@ -1131,6 +1149,9 @@ static void printQuirks(flag_set<GameQuirk>& quirks)
     if (quirks & GameQuirk::OldOverlayMenu)
         stringQuirks.push_back("Using old overlay (draws on upscaled image)");
 
+    if (quirks & GameQuirk::PregmataFixDLSSModes)
+        stringQuirks.push_back("Fix DLSS quality selection in Pragmata");
+
     state->detectedQuirks.append_range(stringQuirks);
     for (auto& stringQuirk : stringQuirks)
         spdlog::info("Quirk: {}", stringQuirk);
@@ -1153,8 +1174,9 @@ static void CheckQuirks()
     auto state = &State::Instance();
 
     // Apply config-level quirks
-    if (quirks & GameQuirk::DisableHudfix && Config::Instance()->FGInput.value_or_default() == FGInput::Upscaler)
-        Config::Instance()->FGHUDFix.set_volatile_value(false);
+    if (quirks & GameQuirk::DisableHudfix && !Config::Instance()->FGDisableHUDFix.has_value() &&
+        Config::Instance()->FGInput.value_or_default() == FGInput::Upscaler)
+        Config::Instance()->FGDisableHUDFix.set_volatile_value(true);
 
     if (quirks & GameQuirk::DisableFSR3Inputs && !Config::Instance()->EnableFsr3Inputs.has_value())
         Config::Instance()->EnableFsr3Inputs.set_volatile_value(false);
@@ -1414,7 +1436,12 @@ bool isNvidia()
 
     if (!nvapiModule)
     {
-        nvapiModule = NtdllProxy::LoadLibraryExW_Ldr(L"nvapi64.dll", NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
+        wchar_t sysFolder[MAX_PATH];
+        GetSystemDirectory(sysFolder, MAX_PATH);
+        std::filesystem::path sysPath(sysFolder);
+        auto nvapi64Path = sysPath / L"nvapi64.dll";
+
+        nvapiModule = NtdllProxy::LoadLibraryExW_Ldr(nvapi64Path.c_str(), NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
         loadedHere = true;
     }
 
@@ -1524,6 +1551,22 @@ void CheckForExcludedProcess()
     _passThruMode = false;
 }
 
+void CheckMemoryForProxies()
+{
+    FfxApiProxy::InitFfxDx12();
+    FfxApiProxy::InitFfxDx12_SR();
+    FfxApiProxy::InitFfxDx12_FG();
+    FfxApiProxy::InitFfxDx12_Denoiser();
+    FfxApiProxy::InitFfxDx12_Radiance();
+
+    XeSSProxy::InitXeSS();
+    XeSSProxy::InitXeSSDx11();
+    XeFGProxy::InitXeFG();
+    XeLLProxy::InitXeLL();
+
+    NVNGXProxy::InitNVNGX();
+}
+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     HMODULE handle = nullptr;
@@ -1537,6 +1580,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         dllModule = hModule;
         exeModule = GetModuleHandle(nullptr);
         processId = GetCurrentProcessId();
+
+        // Main Opti DLL path
+        if (!Config::Instance()->MainDllPath.has_value())
+            Config::Instance()->MainDllPath.set_volatile_value(Util::ExePath().parent_path() / L".");
+
+        if (!Config::Instance()->PluginPath.has_value())
+            Config::Instance()->PluginPath.set_volatile_value(
+                std::filesystem::path(Config::Instance()->MainDllPath.value()) / L"plugins");
 
         CheckForExcludedProcess();
 
@@ -1578,11 +1629,13 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         else
             spdlog::warn("Can't read windows version");
 
-        spdlog::info("");
-
         spdlog::info("Config parameters:");
         for (const std::string& l : Config::Instance()->GetConfigLog())
             spdlog::info(l);
+
+        spdlog::info("");
+        spdlog::info("Setting DllPath to {}", wstring_to_string(Config::Instance()->MainDllPath.value()));
+        spdlog::info("");
 
 #ifdef VER_PRE_RELEASE
         spdlog::info("Pre-release build, disabling update checks");
@@ -1613,10 +1666,40 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
             {
                 spdlog::info("Running on Nvidia");
 
+                // TODO: Upscaler inputs also get paths so make this code shared
                 auto exePath = Util::ExePath().remove_filename();
                 State::Instance().NVNGX_DLSS_Path = Util::FindFilePath(exePath, "nvngx_dlss.dll");
                 State::Instance().NVNGX_DLSSD_Path = Util::FindFilePath(exePath, "nvngx_dlssd.dll");
                 State::Instance().NVNGX_DLSSG_Path = Util::FindFilePath(exePath, "nvngx_dlssg.dll");
+
+                if (!State::Instance().NVNGX_DLSS_Path.has_value() &&
+                    Config::Instance()->NVNGX_DLSS_Library.has_value())
+                {
+                    std::filesystem::path dlssPath(Config::Instance()->NVNGX_DLSS_Library.value());
+                    State::Instance().NVNGX_DLSS_Path =
+                        Util::FindFilePath(dlssPath.remove_filename(), "nvngx_dlss.dll");
+                }
+
+                if (!State::Instance().NVNGX_DLSS_Path.has_value() && Config::Instance()->MainDllPath.has_value())
+                {
+                    std::filesystem::path dllsFolder(Config::Instance()->MainDllPath.value());
+                    State::Instance().NVNGX_DLSS_Path =
+                        Util::FindFilePath(dllsFolder.remove_filename(), "nvngx_dlss.dll");
+                }
+
+                if (Config::Instance()->DLSSFeaturePath.has_value())
+                {
+                    std::filesystem::path dlssFeaturePath(Config::Instance()->DLSSFeaturePath.value());
+
+                    if (!State::Instance().NVNGX_DLSS_Path.has_value())
+                        State::Instance().NVNGX_DLSS_Path = Util::FindFilePath(dlssFeaturePath, "nvngx_dlss.dll");
+
+                    if (!State::Instance().NVNGX_DLSSD_Path.has_value())
+                        State::Instance().NVNGX_DLSSD_Path = Util::FindFilePath(dlssFeaturePath, "nvngx_dlssd.dll");
+
+                    if (!State::Instance().NVNGX_DLSSG_Path.has_value())
+                        State::Instance().NVNGX_DLSSG_Path = Util::FindFilePath(dlssFeaturePath, "nvngx_dlssg.dll");
+                }
 
                 if (State::Instance().NVNGX_DLSS_Path.has_value())
                 {
@@ -1657,6 +1740,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         // Check for working mode and attach hooks
         spdlog::info("");
         CheckWorkingMode();
+        CheckMemoryForProxies();
 
         // OptiFG & Overlay Checks
         // TODO: Either FGInput == FGInput::Upscaler or FGOutput == FGOutput::FSRFG
@@ -1717,7 +1801,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
             // Try to load fakenvapi.dll as the main nvapi if not on Nvidia
             if (!State::Instance().isRunningOnNvidia && !Config::Instance()->NvapiDllPath.has_value())
-                Config::Instance()->NvapiDllPath.set_volatile_value(L"fakenvapi.dll");
+            {
+                auto path = std::filesystem::path(Config::Instance()->MainDllPath.value()) / L"fakenvapi.dll";
+                Config::Instance()->NvapiDllPath.set_volatile_value(path.wstring());
+            }
         }
 
         // Asi plugins

@@ -14,14 +14,16 @@
 #include <d3d11on12.h>
 #include <dxgi1_6.h>
 
+#include "Hook_Utils.h"
+
 #pragma intrinsic(_ReturnAddress)
 
 bool _skipDx11Create = false;
 
 // DirectX
-typedef HRESULT (*PFN_CreateSamplerState)(ID3D11Device* This, const D3D11_SAMPLER_DESC* pSamplerDesc,
-                                          ID3D11SamplerState** ppSamplerState);
-typedef ULONG (*PFN_Release)(IUnknown* This);
+using PFN_CreateSamplerState = rewrite_signature<decltype(&ID3D11Device::CreateSamplerState)>::type;
+
+using PFN_Release = rewrite_signature<decltype(&IUnknown::Release)>::type;
 
 static PFN_D3D11_CREATE_DEVICE o_D3D11CreateDevice = nullptr;
 static PFN_D3D11_CREATE_DEVICE_AND_SWAP_CHAIN o_D3D11CreateDeviceAndSwapChain = nullptr;
@@ -32,6 +34,7 @@ static PFN_Release o_D3D11DeviceRelease = nullptr;
 static HRESULT hkCreateSamplerState(ID3D11Device* This, const D3D11_SAMPLER_DESC* pSamplerDesc,
                                     ID3D11SamplerState** ppSamplerState);
 
+VALIDATE_HOOK(hkD3D11DeviceRelease, PFN_Release)
 static ULONG hkD3D11DeviceRelease(IUnknown* device)
 {
     if (State::Instance().currentD3D11Device == device)
@@ -112,18 +115,21 @@ static void HookToDeviceLocal(ID3D11Device* InDevice)
     }
 }
 
+VALIDATE_HOOK(hkD3D11On12CreateDevice, PFN_D3D11ON12_CREATE_DEVICE)
 static HRESULT hkD3D11On12CreateDevice(IUnknown* pDevice, UINT Flags, const D3D_FEATURE_LEVEL* pFeatureLevels,
-                                       UINT FeatureLevels, IUnknown** ppCommandQueues, UINT NumQueues, UINT NodeMask,
-                                       ID3D11Device** ppDevice, ID3D11DeviceContext** ppImmediateContext,
+                                       UINT FeatureLevels, IUnknown* const* ppCommandQueues, UINT NumQueues,
+                                       UINT NodeMask, ID3D11Device** ppDevice, ID3D11DeviceContext** ppImmediateContext,
                                        D3D_FEATURE_LEVEL* pChosenFeatureLevel)
 {
-    LOG_DEBUG("Caller: {}", Util::WhoIsTheCaller(_ReturnAddress()));
+    LOG_DEBUG("Caller: {}, Device: {:X}", Util::WhoIsTheCaller(_ReturnAddress()), (UINT64) pDevice);
 
 #ifdef ENABLE_DEBUG_LAYER_DX11
     Flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
     bool rtss = false;
+
+    IUnknown* copyCommandQueues = *ppCommandQueues;
 
     // Assuming RTSS is creating a D3D11on12 device, not sure why but sometimes RTSS tries to create
     // it's D3D11on12 device with old CommandQueue which results crash
@@ -134,13 +140,17 @@ static HRESULT hkD3D11On12CreateDevice(IUnknown* pDevice, UINT Flags, const D3D_
         LOG_INFO("Replaced RTSS CommandQueue with correct one {0:X} -> {1:X}", (UINT64) *ppCommandQueues,
                  (UINT64) State::Instance().currentCommandQueue);
 
-        *ppCommandQueues = State::Instance().currentCommandQueue;
+        copyCommandQueues = State::Instance().currentCommandQueue;
 
         rtss = true;
     }
 
-    auto result = o_D3D11On12CreateDevice(pDevice, Flags, pFeatureLevels, FeatureLevels, ppCommandQueues, NumQueues,
-                                          NodeMask, ppDevice, ppImmediateContext, pChosenFeatureLevel);
+    HRESULT result = E_FAIL;
+    {
+        ScopedCreatingD3DDevice skipCreatingD3DDevice {};
+        result = o_D3D11On12CreateDevice(pDevice, Flags, pFeatureLevels, FeatureLevels, &copyCommandQueues, NumQueues,
+                                         NodeMask, ppDevice, ppImmediateContext, pChosenFeatureLevel);
+    }
 
     if (result == S_OK && *ppDevice != nullptr && !rtss && State::Instance().currentD3D12Device == nullptr)
     {
@@ -156,6 +166,7 @@ static HRESULT hkD3D11On12CreateDevice(IUnknown* pDevice, UINT Flags, const D3D_
     return result;
 }
 
+VALIDATE_HOOK(hkD3D11CreateDevice, PFN_D3D11_CREATE_DEVICE)
 static HRESULT hkD3D11CreateDevice(IDXGIAdapter* pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags,
                                    const D3D_FEATURE_LEVEL* pFeatureLevels, UINT FeatureLevels, UINT SDKVersion,
                                    ID3D11Device** ppDevice, D3D_FEATURE_LEVEL* pFeatureLevel,
@@ -193,6 +204,7 @@ static HRESULT hkD3D11CreateDevice(IDXGIAdapter* pAdapter, D3D_DRIVER_TYPE Drive
                     HRESULT result;
                     {
                         ScopedSkipParentWrapping skipParentWrapping {};
+                        ScopedCreatingD3DDevice skipCreatingD3DDevice {};
                         result =
                             o_D3D11CreateDevice(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels,
                                                 SDKVersion, ppDevice, pFeatureLevel, ppImmediateContext);
@@ -259,6 +271,7 @@ static HRESULT hkD3D11CreateDevice(IDXGIAdapter* pAdapter, D3D_DRIVER_TYPE Drive
     return result;
 }
 
+VALIDATE_HOOK(hkD3D11CreateDeviceAndSwapChain, PFN_D3D11_CREATE_DEVICE_AND_SWAP_CHAIN)
 static HRESULT hkD3D11CreateDeviceAndSwapChain(IDXGIAdapter* pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software,
                                                UINT Flags, const D3D_FEATURE_LEVEL* pFeatureLevels, UINT FeatureLevels,
                                                UINT SDKVersion, const DXGI_SWAP_CHAIN_DESC* pSwapChainDesc,
@@ -300,6 +313,7 @@ static HRESULT hkD3D11CreateDeviceAndSwapChain(IDXGIAdapter* pAdapter, D3D_DRIVE
                     HRESULT result;
                     {
                         ScopedSkipParentWrapping skipParentWrapping {};
+                        ScopedCreatingD3DDevice skipCreatingD3DDevice {};
                         result = o_D3D11CreateDeviceAndSwapChain(pAdapter, DriverType, Software, Flags, pFeatureLevels,
                                                                  FeatureLevels, SDKVersion, pSwapChainDesc, ppSwapChain,
                                                                  ppDevice, pFeatureLevel, ppImmediateContext);
@@ -434,6 +448,7 @@ static HRESULT hkD3D11CreateDeviceAndSwapChain(IDXGIAdapter* pAdapter, D3D_DRIVE
     return result;
 }
 
+VALIDATE_HOOK(hkCreateSamplerState, PFN_CreateSamplerState)
 static HRESULT hkCreateSamplerState(ID3D11Device* This, const D3D11_SAMPLER_DESC* pSamplerDesc,
                                     ID3D11SamplerState** ppSamplerState)
 {

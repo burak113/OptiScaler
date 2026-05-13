@@ -19,6 +19,8 @@
 
 #include <detours/detours.h>
 
+#include "Hook_Utils.h"
+
 // for menu rendering
 static VkDevice _device = VK_NULL_HANDLE;
 static VkInstance _instance = VK_NULL_HANDLE;
@@ -35,12 +37,10 @@ PFN_vkCreateSwapchainKHR o_CreateSwapchainKHR = nullptr;
 static PFN_vkGetInstanceProcAddr o_vkGetInstanceProcAddr = nullptr;
 static PFN_vkGetDeviceProcAddr o_vkGetDeviceProcAddr = nullptr;
 
-static VkResult hkvkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo* pCreateInfo,
-                                 const VkAllocationCallbacks* pAllocator, VkDevice* pDevice);
+// Forward declaration
 static VkResult hkvkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* pPresentInfo);
 static VkResult hkvkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreateInfoKHR* pCreateInfo,
-                                       VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchain);
-static PFN_vkVoidFunction hkvkGetDeviceProcAddr(VkDevice device, const char* pName);
+                                       const VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchain);
 
 static void HookDevice(VkDevice InDevice)
 {
@@ -67,6 +67,7 @@ static void HookDevice(VkDevice InDevice)
     }
 }
 
+VALIDATE_HOOK(hkvkCreateWin32SurfaceKHR, PFN_vkCreateWin32SurfaceKHR)
 static VkResult hkvkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32SurfaceCreateInfoKHR* pCreateInfo,
                                           const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface)
 {
@@ -93,6 +94,7 @@ static VkResult hkvkCreateWin32SurfaceKHR(VkInstance instance, const VkWin32Surf
     return result;
 }
 
+VALIDATE_HOOK(hkvkCreateInstance, PFN_vkCreateInstance)
 static VkResult hkvkCreateInstance(const VkInstanceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator,
                                    VkInstance* pInstance)
 {
@@ -123,16 +125,18 @@ static VkResult hkvkCreateInstance(const VkInstanceCreateInfo* pCreateInfo, cons
 #endif
     }
 
-    if (result == VK_SUCCESS && !State::Instance().vulkanSkipHooks)
-    {
-        MenuOverlayVk::DestroyVulkanObjects(false);
-    }
+    // Disabled to prevent unnecessary object release
+    // if (result == VK_SUCCESS && !State::Instance().vulkanSkipHooks)
+    //{
+    //     MenuOverlayVk::DestroyVulkanObjects(false);
+    // }
 
     LOG_FUNC_RESULT(result);
 
     return result;
 }
 
+VALIDATE_HOOK(hkvkCreateDevice, PFN_vkCreateDevice)
 static VkResult hkvkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo* pCreateInfo,
                                  const VkAllocationCallbacks* pAllocator, VkDevice* pDevice)
 {
@@ -147,23 +151,27 @@ static VkResult hkvkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevice
 
     if (result == VK_SUCCESS && !State::Instance().vulkanSkipHooks && Config::Instance()->OverlayMenu.value())
     {
-        MenuOverlayVk::DestroyVulkanObjects(false);
+        if (!State::Instance().vulkanSkipHooks)
+        {
+            // Disabled to prevent unnecessary object release
+            // MenuOverlayVk::DestroyVulkanObjects(false);
 
-        _PD = physicalDevice;
-        LOG_DEBUG("_PD captured: {0:X}", (UINT64) _PD);
-        _device = *pDevice;
-        LOG_DEBUG("_device captured: {0:X}", (UINT64) _device);
-        HookDevice(_device);
+            _PD = physicalDevice;
+            LOG_DEBUG("_PD captured: {0:X}", (UINT64) _PD);
+            _device = *pDevice;
+            LOG_DEBUG("_device captured: {0:X}", (UINT64) _device);
+            HookDevice(_device);
 
-        ScopedSkipSpoofing skipSpoofing {};
+            ScopedSkipSpoofing skipSpoofing {};
 
-        VkPhysicalDeviceProperties prop {};
-        vkGetPhysicalDeviceProperties(physicalDevice, &prop);
+            VkPhysicalDeviceProperties prop {};
+            vkGetPhysicalDeviceProperties(physicalDevice, &prop);
 
-        auto szName = std::string(prop.deviceName);
+            auto szName = std::string(prop.deviceName);
 
-        if (szName.size() > 0)
-            State::Instance().DeviceAdapterNames[*pDevice] = szName;
+            if (szName.size() > 0)
+                State::Instance().DeviceAdapterNames[*pDevice] = szName;
+        }
     }
 
 #ifdef USE_QUEUE_SUBMIT_2_KHR
@@ -176,6 +184,7 @@ static VkResult hkvkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevice
     return result;
 }
 
+VALIDATE_HOOK(hkvkQueuePresentKHR, PFN_vkQueuePresentKHR)
 static VkResult hkvkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* pPresentInfo)
 {
     LOG_FUNC();
@@ -214,8 +223,9 @@ static VkResult hkvkQueuePresentKHR(VkQueue queue, const VkPresentInfoKHR* pPres
     return result;
 }
 
+VALIDATE_HOOK(hkvkCreateSwapchainKHR, PFN_vkCreateSwapchainKHR)
 static VkResult hkvkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreateInfoKHR* pCreateInfo,
-                                       VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchain)
+                                       const VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchain)
 {
     LOG_FUNC();
 
@@ -245,6 +255,7 @@ static VkResult hkvkCreateSwapchainKHR(VkDevice device, const VkSwapchainCreateI
     return result;
 }
 
+VALIDATE_HOOK(hkvkGetInstanceProcAddr, PFN_vkGetInstanceProcAddr)
 PFN_vkVoidFunction hkvkGetInstanceProcAddr(VkInstance instance, const char* pName)
 {
     auto orgFunc = o_vkGetInstanceProcAddr(instance, pName);
@@ -278,6 +289,7 @@ PFN_vkVoidFunction hkvkGetInstanceProcAddr(VkInstance instance, const char* pNam
     return orgFunc;
 }
 
+VALIDATE_HOOK(hkvkGetDeviceProcAddr, PFN_vkGetDeviceProcAddr)
 PFN_vkVoidFunction hkvkGetDeviceProcAddr(VkDevice device, const char* pName)
 {
     auto orgFunc = o_vkGetDeviceProcAddr(device, pName);

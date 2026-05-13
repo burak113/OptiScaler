@@ -616,7 +616,29 @@ ffxReturnCode_t FSRFG_Dx12::DispatchCallback(ffxDispatchDescFrameGeneration* par
         return FFX_API_RETURN_OK;
     }
 
-    if (State::Instance().gameQuirks & GameQuirk::FSRFGHudlessMismatchFixup)
+    static bool lastFGDisableHudless = Config::Instance()->FGDisableHudless.value_or_default();
+    if (lastFGDisableHudless != Config::Instance()->FGDisableHudless.value_or_default())
+    {
+        lastFGDisableHudless = Config::Instance()->FGDisableHudless.value_or_default();
+
+        // We can't just stop sending hudless if we have provided a hudless desc
+        // Recreate FG if it was linked at creation
+        if (_linkedHudlesDesc)
+        {
+            if (lastFGDisableHudless)
+                _lastHudlessFormat = FFX_API_SURFACE_FORMAT_UNKNOWN;
+
+            params->numGeneratedFrames = 0;
+            _lastFrameId = params->frameID;
+
+            state.FGchanged = true;
+            state.SCchanged = true;
+
+            return FFX_API_RETURN_OK;
+        }
+    }
+
+    if (State::Instance().gameQuirks & GameQuirk::FSRFGHudlessMismatchFixup && !lastFGDisableHudless)
     {
         auto presentWithHud = (ID3D12Resource*) params->presentColor.resource;
         auto hudlessResource = _resourceCopy[fIndex][FG_ResourceType::HudlessColor];
@@ -711,10 +733,7 @@ bool FSRFG_Dx12::Shutdown()
     Deactivate();
 
     if (_swapChainContext != nullptr)
-    {
-        if (ReleaseSwapchain(_hwnd))
-            State::Instance().currentFGSwapchain = nullptr;
-    }
+        ReleaseSwapchain(_hwnd);
 
     ReleaseObjects();
 
@@ -896,16 +915,19 @@ bool FSRFG_Dx12::ReleaseSwapchain(HWND hwnd)
     if (_fgContext != nullptr)
         DestroyFGContext();
 
-    if (!State::Instance().isShuttingDown)
+    if (!Config::Instance()->FGPreserveSwapChain.value_or_default())
     {
-        if (_swapChainContext != nullptr)
+        if (!State::Instance().isShuttingDown)
         {
-            auto result = FfxApiProxy::D3D12_DestroyContext(&_swapChainContext, nullptr);
-            LOG_INFO("Destroy Ffx Swapchain Result: {}({})", result, FfxApiProxy::ReturnCodeToString(result));
-        }
+            if (_swapChainContext != nullptr)
+            {
+                auto result = FfxApiProxy::D3D12_DestroyContext(&_swapChainContext, nullptr);
+                LOG_INFO("Destroy Ffx Swapchain Result: {}({})", result, FfxApiProxy::ReturnCodeToString(result));
+            }
 
-        _swapChainContext = nullptr;
-        State::Instance().currentFGSwapchain = nullptr;
+            _swapChainContext = nullptr;
+            State::Instance().currentFGSwapchain = nullptr;
+        }
     }
 
     if (Config::Instance()->FGUseMutexForSwapchain.value_or_default())
@@ -1030,11 +1052,13 @@ void FSRFG_Dx12::CreateContext(ID3D12Device* device, FG_Constants& fgConstants)
         _usingHudlessFormat = _lastHudlessFormat;
         _lastHudlessFormat = FFX_API_SURFACE_FORMAT_UNKNOWN;
         createFg.header.pNext = &hudlessDesc.header;
+        _linkedHudlesDesc = true;
     }
     else
     {
         _usingHudlessFormat = FFX_API_SURFACE_FORMAT_UNKNOWN;
         createFg.header.pNext = &backendDesc.header;
+        _linkedHudlesDesc = false;
     }
 
     {
@@ -1105,7 +1129,7 @@ void FSRFG_Dx12::Deactivate()
             _uiCommandListResetted[fIndex] = false;
         }
 
-        ffxReturnCode_t result = FFX_API_RETURN_OK;
+        ffxReturnCode_t result = FFX_API_RETURN_ERROR;
 
         if (_fgContext != nullptr)
         {
@@ -1116,13 +1140,14 @@ void FSRFG_Dx12::Deactivate()
             fgConfig.presentCallback = nullptr;
             fgConfig.HUDLessColor = FfxApiResource({});
 
-            auto result = FfxApiProxy::D3D12_Configure(&_fgContext, &fgConfig.header);
+            result = FfxApiProxy::D3D12_Configure(&_fgContext, &fgConfig.header);
 
             if (result == FFX_API_RETURN_OK)
                 _isActive = false;
         }
         else
         {
+            LOG_DEBUG("No context to deactivate, just set  active to false");
             _isActive = false;
         }
 

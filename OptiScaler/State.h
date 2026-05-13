@@ -128,6 +128,8 @@ class State
     bool FSRFGFTPchanged = false;
     bool FSRFGInputActive = false;
 
+    bool FGResizing = false;
+
     ankerl::unordered_dense::map<void*, CapturedHudlessInfo> CapturedHudlesses;
     bool ClearCapturedHudlesses = false;
 
@@ -172,6 +174,7 @@ class State
     float lastMipBiasMax = -100.0f;
 
     int xefgMaxInterpolationCount = 1;
+    bool WAR_xefgRequestFGToggle = false;
 
     // DLSS
     bool dlssPresetsOverriddenExternally = false;
@@ -207,7 +210,7 @@ class State
     std::vector<uint64_t> ffxUpscalerVersionIds {};
     std::vector<const char*> ffxFGVersionNames {};
     std::vector<uint64_t> ffxFGVersionIds {};
-    uint32_t currentFsr4Model {};
+    std::optional<uint32_t> currentFsr4Model {};
     
     // FSR-RR
     std::vector<const char*> ffxDenoiserVersionNames {};
@@ -232,6 +235,7 @@ class State
 
     // Vulkan stuff
     bool vulkanCreatingSC = false;
+    bool creatingD3DDevice = false;
     bool vulkanSkipHooks = false;
     VkInstance VulkanInstance = nullptr;
 
@@ -444,4 +448,18 @@ class ScopedVulkanCreatingSC
         State::Instance().vulkanCreatingSC = true;
     }
     ~ScopedVulkanCreatingSC() { State::Instance().vulkanCreatingSC = previousState; }
+};
+
+class ScopedCreatingD3DDevice
+{
+  private:
+    bool previousState;
+
+  public:
+    ScopedCreatingD3DDevice()
+    {
+        previousState = State::Instance().creatingD3DDevice;
+        State::Instance().creatingD3DDevice = true;
+    }
+    ~ScopedCreatingD3DDevice() { State::Instance().creatingD3DDevice = previousState; }
 };

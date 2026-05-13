@@ -55,6 +55,7 @@ struct FfxModule
 {
     HMODULE dll = nullptr;
     feature_version version { 0, 0, 0 };
+    std::wstring filePath;
 
     bool skipCreateCalls = false;
     bool skipConfigureCalls = false;
@@ -62,6 +63,7 @@ struct FfxModule
     bool skipDispatchCalls = false;
 
     bool isLoader = false;
+    bool hooked = false;
 
     PfnFfxCreateContext CreateContext = nullptr;
     PfnFfxDestroyContext DestroyContext = nullptr;
@@ -78,8 +80,14 @@ class FfxApiProxy
     inline static FfxModule fg_dx12;
     inline static FfxModule denoiser_dx12;
     inline static FfxModule radiance_dx12;
-
     inline static FfxModule main_vk;
+
+    inline static FfxModule main_dx12_hooked;
+    inline static FfxModule upscaling_dx12_hooked;
+    inline static FfxModule fg_dx12_hooked;
+    inline static FfxModule denoiser_dx12_hooked;
+    inline static FfxModule radiance_dx12_hooked;
+    inline static FfxModule main_vk_hooked;
 
     inline static ankerl::unordered_dense::map<ffxContext, FFXStructType> contextToType;
 
@@ -247,7 +255,12 @@ class FfxApiProxy
     static HMODULE Dx12Module_Denoiser() { return denoiser_dx12.dll; }
     static HMODULE Dx12Module_Radiance() { return radiance_dx12.dll; }
 
-    // Returns true if the FFX framegen module is loaded
+    static std::wstring Dx12Module_Path() { return main_dx12.filePath; }
+    static std::wstring Dx12Module_SR_Path() { return upscaling_dx12.filePath; }
+    static std::wstring Dx12Module_FG_Path() { return fg_dx12.filePath; }
+    static std::wstring Dx12Module_Denoiser_Path() { return denoiser_dx12.filePath; }
+    static std::wstring Dx12Module_Radiance_Path() { return radiance_dx12.filePath; }
+
     static bool IsFGReady() { return (main_dx12.dll && !main_dx12.isLoader) || fg_dx12.dll != nullptr; }
     // Returns true if the FSR upscaler module is loaded
     static bool IsSRReady() { return (main_dx12.dll && !main_dx12.isLoader) || upscaling_dx12.dll != nullptr; }
@@ -307,64 +320,58 @@ class FfxApiProxy
 
         spdlog::info("");
 
-        // Check if loader if not null
-        if (module != nullptr)
+        // This is module loaded by game, need to hook it to use inputs
+        if (module != nullptr && main_dx12_hooked.dll == nullptr)
         {
-            wchar_t path[MAX_PATH];
-            DWORD len = GetModuleFileNameW(module, path, MAX_PATH);
-
-            main_dx12.isLoader = IsLoader(path);
-            main_dx12.dll = module;
+            main_dx12_hooked.dll = module;
         }
 
+        // Try loading Opti's dlls first
         if (main_dx12.dll == nullptr)
         {
-            const auto& cfg = *Config::Instance();
-            // Try new api first
+            std::vector<std::wstring> dllNames = { L"amd_fidelityfx_loader_dx12.dll", L"amd_fidelityfx_dx12.dll" };
 
-            for (const std::wstring& name : ffxDx12NamesW)
+            auto optiPath = Config::Instance()->MainDllPath.value();
+
+            for (size_t i = 0; i < dllNames.size(); i++)
             {
-                WLOG_DEBUG(L"Trying to load {}", name);
+                WLOG_DEBUG(L"Trying to load {}", dllNames[i]);
 
-                // Search config directory
-                if (main_dx12.dll == nullptr && cfg.FfxDx12Path.has_value())
+                auto overridePath = Config::Instance()->FfxDx12Path.value_or(L"");
+
+                if (main_dx12_hooked.dll == nullptr)
                 {
-                    std::filesystem::path libPath(cfg.FfxDx12Path.value());
-                    std::wstring fileName;
-
-                    if (libPath.has_filename())
-                        fileName = libPath.wstring();
-                    else
-                        fileName = (libPath / name).wstring();
-
-                    main_dx12.dll = NtdllProxy::LoadLibraryExW_Ldr(fileName.c_str(), NULL, 0);
-
-                    if (main_dx12.dll != nullptr)
-                    {
-                        WLOG_INFO(L"{} loaded from {}", name, cfg.FfxDx12Path.value());
-
-                        // hacky but works for now
-                        main_dx12.isLoader = IsLoader(fileName);
-                        break;
-                    }
+                    Util::LoadProxyLibrary(dllNames[i], optiPath, overridePath, &main_dx12_hooked.dll, &main_dx12.dll);
+                }
+                else
+                {
+                    HMODULE memModule = nullptr;
+                    Util::LoadProxyLibrary(dllNames[i], optiPath, overridePath, &memModule, &main_dx12.dll);
                 }
 
-                // Search parent directory
-                if (main_dx12.dll == nullptr)
+                if (main_dx12.dll != nullptr)
                 {
-                    std::filesystem::path filePath = (Util::DllPath().parent_path() / name);
-                    main_dx12.dll = NtdllProxy::LoadLibraryExW_Ldr(filePath.c_str(), NULL, 0);
-
-                    if (main_dx12.dll != nullptr)
-                    {
-                        WLOG_INFO(L"{} loaded from exe folder", name);
-
-                        // hacky but works for now
-                        main_dx12.isLoader = IsLoader(filePath.c_str());
-                        break;
-                    }
+                    break;
                 }
             }
+        }
+
+        // Can't find Opti dlls, use just loaded module
+        if (main_dx12.dll == nullptr && main_dx12_hooked.dll != nullptr)
+        {
+            main_dx12 = main_dx12_hooked;
+        }
+
+        if (main_dx12.dll != nullptr)
+        {
+            wchar_t modulePath[MAX_PATH];
+            DWORD len = GetModuleFileNameW(main_dx12.dll, modulePath, MAX_PATH);
+            main_dx12.filePath = std::wstring(modulePath);
+
+            LOG_INFO("Loaded from {}", wstring_to_string(main_dx12.filePath));
+
+            // hacky but works for now
+            main_dx12.isLoader = IsLoader(main_dx12.filePath);
         }
 
         TryInstallFfxModuleHooksDx12(main_dx12);
@@ -417,6 +424,12 @@ class FfxApiProxy
                 main_dx12.version = VersionDx12_FG();
         }
 
+        if (denoiser_dx12.version.major == 0 && denoiser_dx12.Query != nullptr)
+            denoiser_dx12.version = VersionDx12_RR();
+
+        if (radiance_dx12.version.major == 0 && radiance_dx12.Query != nullptr)
+            radiance_dx12.version = VersionDx12_RC();
+
         return main_dx12.version;
     }
 
@@ -445,6 +458,15 @@ class FfxApiProxy
 
         UpdateFeatureVersionDx12(denoiser_dx12, FFX_API_CREATE_CONTEXT_DESC_TYPE_DENOISER, "RR");
         return denoiser_dx12.version;
+    }
+
+    static feature_version VersionDx12_RC()
+    {
+        if (radiance_dx12.Query == nullptr)
+            return VersionDx12();
+
+        UpdateFeatureVersionDx12(radiance_dx12, FFX_API_DISPATCH_DESC_TYPE_RADIANCECACHE, "RC");
+        return radiance_dx12.version;
     }
 
     static feature_version VersionTarget_RR() 
@@ -769,6 +791,7 @@ class FfxApiProxy
     }
 
     static HMODULE VkModule() { return main_vk.dll; }
+    static std::wstring VkModule_Path() { return main_vk.filePath; }
 
     static bool InitFfxVk(HMODULE module = nullptr)
     {
@@ -778,32 +801,46 @@ class FfxApiProxy
 
         spdlog::info("");
 
-        LOG_DEBUG("Loading amd_fidelityfx_vk.dll methods");
-
         if (module != nullptr)
             main_vk.dll = module;
 
-        if (main_vk.dll == nullptr && Config::Instance()->FfxVkPath.has_value())
+        if (main_vk.dll == nullptr)
         {
-            std::filesystem::path libPath(Config::Instance()->FfxVkPath.value().c_str());
+            // Try new api first
+            std::vector<std::wstring> dllNames = { L"amd_fidelityfx_vk.dll" };
 
-            if (libPath.has_filename())
-                main_vk.dll = NtdllProxy::LoadLibraryExW_Ldr(libPath.c_str(), NULL, 0);
-            else
-                main_vk.dll = NtdllProxy::LoadLibraryExW_Ldr((libPath / L"amd_fidelityfx_vk.dll").c_str(), NULL, 0);
+            auto optiPath = Config::Instance()->MainDllPath.value();
 
-            if (main_vk.dll != nullptr)
+            for (size_t i = 0; i < dllNames.size(); i++)
             {
-                WLOG_INFO(L"amd_fidelityfx_vk.dll loaded from {0}", Config::Instance()->FfxVkPath.value());
+                LOG_DEBUG("Trying to load {}", wstring_to_string(dllNames[i]));
+
+                auto overridePath = Config::Instance()->FfxVkPath.value_or(L"");
+
+                if (main_vk_hooked.dll == nullptr)
+                {
+                    Util::LoadProxyLibrary(dllNames[i], optiPath, overridePath, &main_vk_hooked.dll, &main_vk.dll);
+                }
+                else
+                {
+                    HMODULE memModule = nullptr;
+                    Util::LoadProxyLibrary(dllNames[i], optiPath, overridePath, &memModule, &main_vk.dll);
+                }
+
+                if (main_vk.dll != nullptr)
+                {
+                    break;
+                }
             }
         }
 
-        if (main_vk.dll == nullptr)
+        if (main_vk.dll != nullptr)
         {
-            main_vk.dll = NtdllProxy::LoadLibraryExW_Ldr(L"amd_fidelityfx_vk.dll", NULL, 0);
+            wchar_t modulePath[MAX_PATH];
+            DWORD len = GetModuleFileNameW(main_vk.dll, modulePath, MAX_PATH);
+            main_vk.filePath = std::wstring(modulePath);
 
-            if (main_vk.dll != nullptr)
-                LOG_INFO("amd_fidelityfx_vk.dll loaded from exe folder");
+            LOG_INFO("Loaded from {}", wstring_to_string(main_vk.filePath));
         }
 
         if (main_vk.dll != nullptr && main_vk.CreateContext == nullptr)

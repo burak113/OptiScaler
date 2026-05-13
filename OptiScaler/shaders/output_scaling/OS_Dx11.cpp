@@ -367,15 +367,61 @@ OS_Dx11::OS_Dx11(std::string InName, ID3D11Device* InDevice, bool InUpsample)
             }
         }
 
-        if (shaderBlob == nullptr)
+        HRESULT hr = E_FAIL;
+
+        if (shaderBlob != nullptr)
+        {
+            // create pso objects
+            hr = _device->CreateComputeShader(shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), nullptr,
+                                              &_computeShader);
+        }
+        else
         {
             LOG_ERROR("[{0}] CompileShader error!", _name);
-            return;
-        }
 
-        // create pso objects
-        auto hr = _device->CreateComputeShader(shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), nullptr,
-                                               &_computeShader);
+            switch (Config::Instance()->OutputScalingDownscaler.value_or_default())
+            {
+            case Scaler::Bicubic:
+                hr = _device->CreateComputeShader(reinterpret_cast<const void*>(bcds_bicubic_cso),
+                                                  sizeof(bcds_bicubic_cso), nullptr, &_computeShader);
+                break;
+
+            case Scaler::CatmullRom:
+                hr = _device->CreateComputeShader(reinterpret_cast<const void*>(bcds_catmull_cso),
+                                                  sizeof(bcds_catmull_cso), nullptr, &_computeShader);
+                break;
+
+            case Scaler::Lanczos2:
+                hr = _device->CreateComputeShader(reinterpret_cast<const void*>(bcds_lanczos2_cso),
+                                                  sizeof(bcds_lanczos2_cso), nullptr, &_computeShader);
+                break;
+
+            case Scaler::Lanczos3:
+                hr = _device->CreateComputeShader(reinterpret_cast<const void*>(bcds_lanczos3_cso),
+                                                  sizeof(bcds_lanczos3_cso), nullptr, &_computeShader);
+                break;
+
+            case Scaler::Kaiser2:
+                hr = _device->CreateComputeShader(reinterpret_cast<const void*>(bcds_kaiser2_cso),
+                                                  sizeof(bcds_kaiser2_cso), nullptr, &_computeShader);
+                break;
+
+            case Scaler::Kaiser3:
+                hr = _device->CreateComputeShader(reinterpret_cast<const void*>(bcds_kaiser3_cso),
+                                                  sizeof(bcds_kaiser3_cso), nullptr, &_computeShader);
+                break;
+
+            case Scaler::Magic:
+                hr = _device->CreateComputeShader(reinterpret_cast<const void*>(bcds_magc_cso), sizeof(bcds_magc_cso),
+                                                  nullptr, &_computeShader);
+                break;
+
+            default:
+                hr = _device->CreateComputeShader(reinterpret_cast<const void*>(bcds_bicubic_cso),
+                                                  sizeof(bcds_bicubic_cso), nullptr, &_computeShader);
+                break;
+            }
+        }
 
         if (shaderBlob != nullptr)
         {

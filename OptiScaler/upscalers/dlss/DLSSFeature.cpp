@@ -9,19 +9,32 @@ void DLSSFeature::ProcessEvaluateParams(NVSDK_NGX_Parameter* InParameters)
     LOG_FUNC();
 
     // override sharpness
-    if (Config::Instance()->OverrideSharpness.value_or_default() &&
-        !(State::Instance().api != Vulkan && Config::Instance()->RcasEnabled.value_or_default()))
+    if (Config::Instance()->OverrideSharpness.value_or_default() && !Config::Instance()->RcasEnabled.value_or_default())
     {
         auto sharpness = Config::Instance()->Sharpness.value_or_default();
-
         sharpness = std::min(sharpness, 1.0f);
-
         InParameters->Set(NVSDK_NGX_Parameter_Sharpness, sharpness);
     }
     // rcas enabled
     else
     {
         InParameters->Set(NVSDK_NGX_Parameter_Sharpness, 0.0f);
+
+        UINT hwDepth = 10;
+        if (InParameters->Get("DLSS.Use.HW.Depth", &hwDepth) == NVSDK_NGX_Result_Success)
+        {
+            LOG_DEBUG("DLSS.Use.HW.Depth: {}", hwDepth);
+
+            if (hwDepth == 0)
+                Config::Instance()->DADepthIsLinear.set_volatile_value(true);
+            else
+                Config::Instance()->DADepthIsLinear.set_volatile_value(false);
+        }
+        else
+        {
+            if (Config::Instance()->DADepthIsLinear.value_for_config_ignore_default() == std::nullopt)
+                Config::Instance()->DADepthIsLinear.set_volatile_value(false);
+        }
     }
 
     // Read render resolution

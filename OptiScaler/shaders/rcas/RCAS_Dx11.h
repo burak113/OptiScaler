@@ -28,6 +28,43 @@ class RCAS_Dx11
         int DisplayHeight;
     };
 
+    struct alignas(256) InternalConstantsDA
+    {
+        float Sharpness;
+
+        int DepthIsLinear;
+        int DepthIsReversed;
+
+        float DepthScale;
+        float DepthBias;
+
+        float DepthLinearA;
+        float DepthLinearB;
+        float DepthLinearC;
+
+        int DynamicSharpenEnabled;
+        int DisplaySizeMV;
+        int Debug;
+
+        float MotionSharpness;
+        float MotionTextureScale;
+        float MvScaleX;
+        float MvScaleY;
+        float MotionThreshold;
+        float MotionScaleLimit;
+
+        float DepthTextureScale;
+
+        int ClampOutput;
+
+        int DisplayWidth;
+        int DisplayHeight;
+        int MotionWidth;
+        int MotionHeight;
+        int DepthWidth;
+        int DepthHeight;
+    };
+
     std::string _name = "";
     bool _init = false;
     int _counter = 0;
@@ -35,25 +72,38 @@ class RCAS_Dx11
     ID3D11Device* _device = nullptr;
 
     ID3D11ComputeShader* _computeShader = nullptr;
+    ID3D11ComputeShader* _computeShaderDA = nullptr;
     ID3D11Buffer* _constantBuffer = nullptr;
     ID3D11Texture2D* _buffer = nullptr;
     ID3D11ShaderResourceView* _srvInput = nullptr;
     ID3D11ShaderResourceView* _srvMotionVectors = nullptr;
+    ID3D11ShaderResourceView* _srvDepth = nullptr;
     ID3D11UnorderedAccessView* _uavOutput = nullptr;
 
     ID3D11Texture2D* _currentInResource = nullptr;
     ID3D11Texture2D* _currentMotionVectors = nullptr;
+    ID3D11Texture2D* _currentDepth = nullptr;
     ID3D11Texture2D* _currentOutResource = nullptr;
 
     uint32_t InNumThreadsX = 16;
     uint32_t InNumThreadsY = 16;
 
     bool InitializeViews(ID3D11Texture2D* InResource, ID3D11Texture2D* InMotionVectors, ID3D11Texture2D* OutResource);
+    bool InitializeViewsDA(ID3D11Texture2D* InResource, ID3D11Texture2D* InMotionVectors, ID3D11Texture2D* InDepth,
+                           ID3D11Texture2D* OutResource);
+    static void FillMotionConstants(InternalConstants& OutConstants, const RcasConstants& InConstants);
+    static void FillMotionConstants(InternalConstantsDA& OutConstants, const RcasConstants& InConstants);
+    bool DispatchRCAS(ID3D11Device* InDevice, ID3D11DeviceContext* InContext, ID3D11Texture2D* InResource,
+                      ID3D11Texture2D* InMotionVectors, RcasConstants InConstants, ID3D11Texture2D* OutResource);
+    bool DispatchDepthAdaptive(ID3D11Device* InDevice, ID3D11DeviceContext* InContext, ID3D11Texture2D* InResource,
+                               ID3D11Texture2D* InMotionVectors, ID3D11Texture2D* InDepth, RcasConstants InConstants,
+                               ID3D11Texture2D* OutResource);
 
   public:
     bool CreateBufferResource(ID3D11Device* InDevice, ID3D11Resource* InSource);
     bool Dispatch(ID3D11Device* InDevice, ID3D11DeviceContext* InContext, ID3D11Texture2D* InResource,
-                  ID3D11Texture2D* InMotionVectors, RcasConstants InConstants, ID3D11Texture2D* OutResource);
+                  ID3D11Texture2D* InMotionVectors, RcasConstants InConstants, ID3D11Texture2D* OutResource,
+                  ID3D11Texture2D* InDepth = nullptr);
 
     ID3D11Texture2D* Buffer() { return _buffer; }
     bool IsInit() const { return _init; }

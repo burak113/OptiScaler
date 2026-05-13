@@ -71,6 +71,9 @@ bool FSR2FeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         params.sharpness = _sharpness;
     }
 
+    if (Config::Instance()->DADepthIsLinear.value_for_config_ignore_default() == std::nullopt)
+        Config::Instance()->DADepthIsLinear.set_volatile_value(false);
+
     unsigned int reset;
     InParameters->Get(NVSDK_NGX_Parameter_Reset, &reset);
     params.reset = (reset == 1);
@@ -320,21 +323,13 @@ bool FSR2FeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
     _accessToReactiveMask = paramReactiveMask != nullptr;
     _hasOutput = params.output.resource != nullptr;
 
-    float MVScaleX = 1.0f;
-    float MVScaleY = 1.0f;
+    params.motionVectorScale.x = 1.0f;
+    params.motionVectorScale.y = 1.0f;
 
-    if (InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_X, &MVScaleX) == NVSDK_NGX_Result_Success &&
-        InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_Y, &MVScaleY) == NVSDK_NGX_Result_Success)
-    {
-        params.motionVectorScale.x = MVScaleX;
-        params.motionVectorScale.y = MVScaleY;
-    }
-    else
+    if (InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_X, &params.motionVectorScale.x) != NVSDK_NGX_Result_Success ||
+        InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_Y, &params.motionVectorScale.y) != NVSDK_NGX_Result_Success)
     {
         LOG_WARN("Can't get motion vector scales!");
-
-        params.motionVectorScale.x = MVScaleX;
-        params.motionVectorScale.y = MVScaleY;
     }
 
     if (!Config::Instance()->FsrUseFsrInputValues.value_or_default() ||
@@ -406,18 +401,25 @@ bool FSR2FeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         RcasConstants rcasConstants {};
 
         rcasConstants.Sharpness = _sharpness;
-        rcasConstants.DisplayWidth = TargetWidth();
-        rcasConstants.DisplayHeight = TargetHeight();
         InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_X, &rcasConstants.MvScaleX);
         InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_Y, &rcasConstants.MvScaleY);
-        rcasConstants.DisplaySizeMV = !(GetFeatureFlags() & NVSDK_NGX_DLSS_Feature_Flags_MVLowRes);
-        rcasConstants.RenderHeight = RenderHeight();
-        rcasConstants.RenderWidth = RenderWidth();
+
+        if (DepthInverted())
+        {
+            rcasConstants.CameraNear = params.cameraFar;
+            rcasConstants.CameraFar = params.cameraNear;
+        }
+        else
+        {
+            rcasConstants.CameraNear = params.cameraNear;
+            rcasConstants.CameraFar = params.cameraFar;
+        }
 
         if (useSS)
         {
             if (!RCAS->Dispatch(Device, InCommandList, (ID3D12Resource*) params.output.resource,
-                                (ID3D12Resource*) params.motionVectors.resource, rcasConstants, OutputScaler->Buffer()))
+                                (ID3D12Resource*) params.motionVectors.resource, rcasConstants, OutputScaler->Buffer(),
+                                (ID3D12Resource*) params.depth.resource))
             {
                 Config::Instance()->RcasEnabled.set_volatile_value(false);
                 return true;
@@ -426,7 +428,8 @@ bool FSR2FeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
         else
         {
             if (!RCAS->Dispatch(Device, InCommandList, (ID3D12Resource*) params.output.resource,
-                                (ID3D12Resource*) params.motionVectors.resource, rcasConstants, paramOutput))
+                                (ID3D12Resource*) params.motionVectors.resource, rcasConstants, paramOutput,
+                                (ID3D12Resource*) params.depth.resource))
             {
                 Config::Instance()->RcasEnabled.set_volatile_value(false);
                 return true;

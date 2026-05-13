@@ -154,6 +154,9 @@ bool FSR31FeatureDx11::Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Pa
     if (!OutputScaler->IsInit())
         Config::Instance()->OutputScalingEnabled.set_volatile_value(false);
 
+    if (Config::Instance()->DADepthIsLinear.value_for_config_ignore_default() == std::nullopt)
+        Config::Instance()->DADepthIsLinear.set_volatile_value(false);
+
     ID3D11ShaderResourceView* restoreSRVs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
     ID3D11SamplerState* restoreSamplerStates[D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT] = {};
     ID3D11Buffer* restoreCBVs[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT] = {};
@@ -406,21 +409,13 @@ bool FSR31FeatureDx11::Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Pa
     _accessToReactiveMask = paramReactiveMask != nullptr;
     _hasOutput = params.upscaleOutput.resource != nullptr;
 
-    float MVScaleX = 1.0f;
-    float MVScaleY = 1.0f;
+    params.motionVectorScale.x = 1.0f;
+    params.motionVectorScale.y = 1.0f;
 
-    if (InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_X, &MVScaleX) == NVSDK_NGX_Result_Success &&
-        InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_Y, &MVScaleY) == NVSDK_NGX_Result_Success)
-    {
-        params.motionVectorScale.x = MVScaleX;
-        params.motionVectorScale.y = MVScaleY;
-    }
-    else
+    if (InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_X, &params.motionVectorScale.x) != NVSDK_NGX_Result_Success ||
+        InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_Y, &params.motionVectorScale.y) != NVSDK_NGX_Result_Success)
     {
         LOG_WARN("Can't get motion vector scales!");
-
-        params.motionVectorScale.x = MVScaleX;
-        params.motionVectorScale.y = MVScaleY;
     }
 
     LOG_DEBUG("Sharpness: {0}", params.sharpness);
@@ -515,19 +510,25 @@ bool FSR31FeatureDx11::Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Pa
         RcasConstants rcasConstants {};
 
         rcasConstants.Sharpness = _sharpness;
-        rcasConstants.DisplayWidth = TargetWidth();
-        rcasConstants.DisplayHeight = TargetHeight();
         InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_X, &rcasConstants.MvScaleX);
         InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_Y, &rcasConstants.MvScaleY);
-        rcasConstants.DisplaySizeMV = !(GetFeatureFlags() & NVSDK_NGX_DLSS_Feature_Flags_MVLowRes);
-        rcasConstants.RenderHeight = RenderHeight();
-        rcasConstants.RenderWidth = RenderWidth();
+
+        if (DepthInverted())
+        {
+            rcasConstants.CameraNear = params.cameraFar;
+            rcasConstants.CameraFar = params.cameraNear;
+        }
+        else
+        {
+            rcasConstants.CameraNear = params.cameraNear;
+            rcasConstants.CameraFar = params.cameraFar;
+        }
 
         if (useSS)
         {
             if (!RCAS->Dispatch(Device, DeviceContext, (ID3D11Texture2D*) params.upscaleOutput.resource,
-                                (ID3D11Texture2D*) params.motionVectors.resource, rcasConstants,
-                                OutputScaler->Buffer()))
+                                (ID3D11Texture2D*) params.motionVectors.resource, rcasConstants, OutputScaler->Buffer(),
+                                (ID3D11Texture2D*) params.depth.resource))
             {
                 Config::Instance()->RcasEnabled.set_volatile_value(false);
                 return true;
@@ -537,7 +538,7 @@ bool FSR31FeatureDx11::Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Pa
         {
             if (!RCAS->Dispatch(Device, DeviceContext, (ID3D11Texture2D*) params.upscaleOutput.resource,
                                 (ID3D11Texture2D*) params.motionVectors.resource, rcasConstants,
-                                (ID3D11Texture2D*) paramOutput))
+                                (ID3D11Texture2D*) paramOutput, (ID3D11Texture2D*) params.depth.resource))
             {
                 Config::Instance()->RcasEnabled.set_volatile_value(false);
                 return true;

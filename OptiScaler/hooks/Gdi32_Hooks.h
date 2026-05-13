@@ -3,11 +3,15 @@
 #include "Config.h"
 #include "detours/detours.h"
 
+#include "Hook_Utils.h"
+
 typedef decltype(&D3DKMTQueryAdapterInfo) PFN_D3DKMTQueryAdapterInfo;
+typedef decltype(&D3DKMTEnumAdapters2) PFN_D3DKMTEnumAdapters2;
 
 static PFN_D3DKMTQueryAdapterInfo o_D3DKMTQueryAdapterInfo = nullptr;
 
-static int hkD3DKMTQueryAdapterInfo(const D3DKMT_QUERYADAPTERINFO* data)
+VALIDATE_HOOK(hkD3DKMTQueryAdapterInfo, PFN_D3DKMTQueryAdapterInfo)
+static NTSTATUS hkD3DKMTQueryAdapterInfo(const D3DKMT_QUERYADAPTERINFO* data)
 {
     auto result = o_D3DKMTQueryAdapterInfo(data);
 
@@ -49,7 +53,8 @@ static int hkD3DKMTQueryAdapterInfo(const D3DKMT_QUERYADAPTERINFO* data)
 }
 
 // Only for Linux, Wine doesn't have this function
-static int customD3DKMTEnumAdapters2(const D3DKMT_ENUMADAPTERS2* data)
+VALIDATE_HOOK(customD3DKMTEnumAdapters2, PFN_D3DKMTEnumAdapters2)
+static NTSTATUS customD3DKMTEnumAdapters2(const D3DKMT_ENUMADAPTERS2* data)
 {
     LOG_FUNC();
 

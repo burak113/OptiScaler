@@ -5,10 +5,13 @@
 #include "detours/detours.h"
 #include <wincrypt.h>
 
+#include "Hook_Utils.h"
+
 typedef decltype(&CryptQueryObject) PFN_CryptQueryObject;
 
 static PFN_CryptQueryObject o_CryptQueryObject = nullptr;
 
+VALIDATE_HOOK(hkCryptQueryObject, PFN_CryptQueryObject)
 static BOOL hkCryptQueryObject(DWORD dwObjectType, const void* pvObject, DWORD dwExpectedContentTypeFlags,
                                DWORD dwExpectedFormatTypeFlags, DWORD dwFlags, DWORD* pdwMsgAndCertEncodingType,
                                DWORD* pdwContentType, DWORD* pdwFormatType, HCERTSTORE* phCertStore, HCRYPTMSG* phMsg,

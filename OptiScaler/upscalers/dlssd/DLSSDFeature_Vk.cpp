@@ -235,9 +235,11 @@ bool DLSSDFeatureVk::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* 
         if (rcasEnabled)
         {
             NVSDK_NGX_Resource_VK* paramVelocity = nullptr;
+            NVSDK_NGX_Resource_VK* paramDepth = nullptr;
+            InParameters->Get(NVSDK_NGX_Parameter_MotionVectors, (void**) &paramVelocity);
+            InParameters->Get(NVSDK_NGX_Parameter_Depth, (void**) &paramDepth);
 
-            if (InParameters->Get(NVSDK_NGX_Parameter_MotionVectors, (void**) &paramVelocity) &&
-                paramVelocity != nullptr)
+            if (paramVelocity != nullptr && paramDepth != nullptr)
             {
                 VkImageSubresourceRange range {};
                 range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -251,18 +253,29 @@ bool DLSSDFeatureVk::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* 
 
                 RcasConstants rcasConstants {};
                 rcasConstants.Sharpness = _sharpness;
-                rcasConstants.DisplayWidth = TargetWidth();
-                rcasConstants.DisplayHeight = TargetHeight();
                 InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_X, &rcasConstants.MvScaleX);
                 InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_Y, &rcasConstants.MvScaleY);
-                rcasConstants.DisplaySizeMV = !(GetFeatureFlags() & NVSDK_NGX_DLSS_Feature_Flags_MVLowRes);
-                rcasConstants.RenderHeight = RenderHeight();
-                rcasConstants.RenderWidth = RenderWidth();
+
+                float nearPlane = 0.0f;
+                float farPlane = 0.0f;
+
+                if (InParameters->Get("DLSSG.CameraNear", &nearPlane) == NVSDK_NGX_Result_Success &&
+                    InParameters->Get("DLSSG.CameraFar", &farPlane) == NVSDK_NGX_Result_Success)
+                {
+                    rcasConstants.CameraNear = nearPlane;
+                    rcasConstants.CameraFar = farPlane;
+                }
+                else
+                {
+                    rcasConstants.CameraNear = Config::Instance()->FsrCameraNear.value_or_default();
+                    rcasConstants.CameraFar = Config::Instance()->FsrCameraFar.value_or_default();
+                }
 
                 VkExtent2D outExtent = { DisplayWidth(), DisplayHeight() };
 
                 RCAS->Dispatch(Device, InCmdBuffer, rcasConstants, RCAS->GetImageView(),
-                               paramVelocity->Resource.ImageViewInfo.ImageView, finalOutputView, outExtent);
+                               paramVelocity->Resource.ImageViewInfo.ImageView, finalOutputView, outExtent,
+                               paramDepth->Resource.ImageViewInfo.ImageView);
 
                 paramOutput->Resource.ImageViewInfo.Image = finalOutputImage;
                 paramOutput->Resource.ImageViewInfo.ImageView = finalOutputView;

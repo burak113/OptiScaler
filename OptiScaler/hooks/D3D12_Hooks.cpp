@@ -18,42 +18,23 @@
 
 #include <dxgi1_6.h>
 
+#include "Hook_Utils.h"
+
 #pragma intrinsic(_ReturnAddress)
 
-typedef void (*PFN_CreateSampler)(ID3D12Device* device, const D3D12_SAMPLER_DESC* pDesc,
-                                  D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+using PFN_CheckFeatureSupport = rewrite_signature<decltype(&ID3D12Device::CheckFeatureSupport)>::type;
+using PFN_CreateSampler = rewrite_signature<decltype(&ID3D12Device::CreateSampler)>::type;
+using PFN_CreateCommittedResource = rewrite_signature<decltype(&ID3D12Device::CreateCommittedResource)>::type;
+using PFN_CreatePlacedResource = rewrite_signature<decltype(&ID3D12Device::CreatePlacedResource)>::type;
+using PFN_SetResidencyPriority = rewrite_signature<decltype(&ID3D12Device1::SetResidencyPriority)>::type;
+using PFN_GetResourceAllocationInfo = rewrite_signature<decltype(&ID3D12Device::GetResourceAllocationInfo)>::type;
+using PFN_CreateRootSignature = rewrite_signature<decltype(&ID3D12Device::CreateRootSignature)>::type;
 
-typedef HRESULT (*PFN_CheckFeatureSupport)(ID3D12Device* device, D3D12_FEATURE Feature, void* pFeatureSupportData,
-                                           UINT FeatureSupportDataSize);
+typedef decltype(&D3D12GetInterface) PFN_D3D12GetInterface;
 
-typedef HRESULT (*PFN_CreateCommittedResource)(ID3D12Device* device, const D3D12_HEAP_PROPERTIES* pHeapProperties,
-                                               D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC* pDesc,
-                                               D3D12_RESOURCE_STATES InitialResourceState,
-                                               const D3D12_CLEAR_VALUE* pOptimizedClearValue, REFIID riidResource,
-                                               void** ppvResource);
+using PFN_CreateDevice = rewrite_signature<decltype(&ID3D12DeviceFactory::CreateDevice)>::type;
 
-typedef HRESULT (*PFN_CreatePlacedResource)(ID3D12Device* device, ID3D12Heap* pHeap, UINT64 HeapOffset,
-                                            const D3D12_RESOURCE_DESC* pDesc, D3D12_RESOURCE_STATES InitialState,
-                                            const D3D12_CLEAR_VALUE* pOptimizedClearValue, REFIID riid,
-                                            void** ppvResource);
-
-typedef HRESULT(STDMETHODCALLTYPE* PFN_SetResidencyPriority)(ID3D12Device* This, UINT NumObjects,
-                                                             ID3D12Pageable* const* ppObjects,
-                                                             const D3D12_RESIDENCY_PRIORITY* pPriorities);
-
-typedef void(STDMETHODCALLTYPE* PFN_GetResourceAllocationInfo)(ID3D12Device* device,
-                                                               D3D12_RESOURCE_ALLOCATION_INFO* pResult,
-                                                               UINT visibleMask, UINT numResourceDescs,
-                                                               const D3D12_RESOURCE_DESC* pResourceDescs);
-
-typedef HRESULT (*PFN_CreateRootSignature)(ID3D12Device* device, UINT nodeMask, const void* pBlobWithRootSignature,
-                                           SIZE_T blobLengthInBytes, REFIID riid, void** ppvRootSignature);
-
-typedef HRESULT (*PFN_D3D12GetInterface)(REFCLSID rclsid, REFIID riid, void** ppvDebug);
-typedef HRESULT (*PFN_CreateDevice)(ID3D12DeviceFactory* pFactory, IUnknown* adapter, D3D_FEATURE_LEVEL FeatureLevel,
-                                    REFIID riid, void** ppvDevice);
-
-typedef ULONG (*PFN_Release)(IUnknown* This);
+using PFN_Release = rewrite_signature<decltype(&IUnknown::Release)>::type;
 
 static PFN_CreateSampler o_CreateSampler = nullptr;
 static PFN_CheckFeatureSupport o_CheckFeatureSupport = nullptr;
@@ -74,11 +55,17 @@ static bool _creatingD3D12Device = false;
 static bool _d3d12Captured = false;
 static LUID _lastAdapterLuid = {};
 
-typedef void (*PFN_SetComputeRootSignature)(ID3D12GraphicsCommandList* commandList,
-                                            ID3D12RootSignature* pRootSignature);
+using PFN_SetComputeRootSignature =
+    rewrite_signature<decltype(&ID3D12GraphicsCommandList::SetComputeRootSignature)>::type;
+using PFN_SetGraphicsRootSignature =
+    rewrite_signature<decltype(&ID3D12GraphicsCommandList::SetGraphicsRootSignature)>::type;
 
 static PFN_SetComputeRootSignature o_SetComputeRootSignature = nullptr;
-static PFN_SetComputeRootSignature o_SetGraphicRootSignature = nullptr;
+static PFN_SetGraphicsRootSignature o_SetGraphicsRootSignature = nullptr;
+
+static std::atomic_bool hookedLate = false;
+static PFN_SetComputeRootSignature o_SetComputeRootSignatureLate = nullptr;
+static PFN_SetGraphicsRootSignature o_SetGraphicsRootSignatureLate = nullptr;
 
 static ankerl::unordered_dense::map<ID3D12GraphicsCommandList*, ID3D12RootSignature*> computeSignatures;
 static ankerl::unordered_dense::map<ID3D12GraphicsCommandList*, ID3D12RootSignature*> graphicSignatures;
@@ -253,10 +240,11 @@ static void ApplySamplerOverrides(D3D12_STATIC_SAMPLER_DESC1& samplerDesc)
     }
 }
 
+VALIDATE_HOOK(hkSetComputeRootSignature, PFN_SetComputeRootSignature)
 static void hkSetComputeRootSignature(ID3D12GraphicsCommandList* commandList, ID3D12RootSignature* pRootSignature)
 {
     if (Config::Instance()->RestoreComputeSignature.value_or_default() && !isUpscalerActive && commandList != nullptr &&
-        pRootSignature != nullptr)
+        pRootSignature != nullptr && !hookedLate)
     {
         std::unique_lock<std::shared_mutex> lock(computeSigatureMutex);
         computeSignatures.insert_or_assign(commandList, pRootSignature);
@@ -265,7 +253,34 @@ static void hkSetComputeRootSignature(ID3D12GraphicsCommandList* commandList, ID
     o_SetComputeRootSignature(commandList, pRootSignature);
 }
 
-static void hkSetGraphicRootSignature(ID3D12GraphicsCommandList* commandList, ID3D12RootSignature* pRootSignature)
+VALIDATE_HOOK(hkSetGraphicsRootSignature, PFN_SetGraphicsRootSignature)
+static void hkSetGraphicsRootSignature(ID3D12GraphicsCommandList* commandList, ID3D12RootSignature* pRootSignature)
+{
+    if (Config::Instance()->RestoreGraphicSignature.value_or_default() && !isUpscalerActive && commandList != nullptr &&
+        pRootSignature != nullptr && !hookedLate)
+    {
+        std::unique_lock<std::shared_mutex> lock(graphSigatureMutex);
+        graphicSignatures.insert_or_assign(commandList, pRootSignature);
+    }
+
+    o_SetGraphicsRootSignature(commandList, pRootSignature);
+}
+
+VALIDATE_HOOK(hkSetComputeRootSignatureLate, PFN_SetComputeRootSignature)
+static void hkSetComputeRootSignatureLate(ID3D12GraphicsCommandList* commandList, ID3D12RootSignature* pRootSignature)
+{
+    if (Config::Instance()->RestoreComputeSignature.value_or_default() && !isUpscalerActive && commandList != nullptr &&
+        pRootSignature != nullptr)
+    {
+        std::unique_lock<std::shared_mutex> lock(computeSigatureMutex);
+        computeSignatures.insert_or_assign(commandList, pRootSignature);
+    }
+
+    o_SetComputeRootSignatureLate(commandList, pRootSignature);
+}
+
+VALIDATE_HOOK(hkSetGraphicsRootSignatureLate, PFN_SetGraphicsRootSignature)
+static void hkSetGraphicsRootSignatureLate(ID3D12GraphicsCommandList* commandList, ID3D12RootSignature* pRootSignature)
 {
     if (Config::Instance()->RestoreGraphicSignature.value_or_default() && !isUpscalerActive && commandList != nullptr &&
         pRootSignature != nullptr)
@@ -274,12 +289,41 @@ static void hkSetGraphicRootSignature(ID3D12GraphicsCommandList* commandList, ID
         graphicSignatures.insert_or_assign(commandList, pRootSignature);
     }
 
-    o_SetGraphicRootSignature(commandList, pRootSignature);
+    o_SetGraphicsRootSignatureLate(commandList, pRootSignature);
+}
+
+void D3D12Hooks::HookToCommandListLate(ID3D12GraphicsCommandList* commandList)
+{
+    if (o_SetComputeRootSignatureLate || o_SetGraphicsRootSignatureLate)
+        return;
+
+    // Get the vtable pointer
+    PVOID* pVTable = *(PVOID**) commandList;
+
+    o_SetComputeRootSignatureLate = (PFN_SetComputeRootSignature) pVTable[29];
+    o_SetGraphicsRootSignatureLate = (PFN_SetGraphicsRootSignature) pVTable[30];
+
+    if (o_SetComputeRootSignatureLate != nullptr || o_SetGraphicsRootSignatureLate != nullptr)
+    {
+        DetourTransactionBegin();
+        DetourUpdateThread(GetCurrentThread());
+
+        if (o_SetComputeRootSignatureLate != nullptr)
+            DetourAttach(&(PVOID&) o_SetComputeRootSignatureLate, hkSetComputeRootSignatureLate);
+
+        if (o_SetGraphicsRootSignatureLate != nullptr)
+            DetourAttach(&(PVOID&) o_SetGraphicsRootSignatureLate, hkSetGraphicsRootSignatureLate);
+
+        LOG_DEBUG("Hooked SetRootSignature functions Late");
+        hookedLate = true;
+
+        DetourTransactionCommit();
+    }
 }
 
 static void HookToCommandList(ID3D12Device* InDevice)
 {
-    if (o_SetComputeRootSignature != nullptr || o_SetGraphicRootSignature != nullptr)
+    if (o_SetComputeRootSignature != nullptr || o_SetGraphicsRootSignature != nullptr)
         return;
 
     ID3D12GraphicsCommandList* commandList = nullptr;
@@ -294,9 +338,9 @@ static void HookToCommandList(ID3D12Device* InDevice)
             PVOID* pVTable = *(PVOID**) commandList;
 
             o_SetComputeRootSignature = (PFN_SetComputeRootSignature) pVTable[29];
-            o_SetGraphicRootSignature = (PFN_SetComputeRootSignature) pVTable[30];
+            o_SetGraphicsRootSignature = (PFN_SetGraphicsRootSignature) pVTable[30];
 
-            if (o_SetComputeRootSignature != nullptr || o_SetGraphicRootSignature != nullptr)
+            if (o_SetComputeRootSignature != nullptr || o_SetGraphicsRootSignature != nullptr)
             {
                 DetourTransactionBegin();
                 DetourUpdateThread(GetCurrentThread());
@@ -304,8 +348,8 @@ static void HookToCommandList(ID3D12Device* InDevice)
                 if (o_SetComputeRootSignature != nullptr)
                     DetourAttach(&(PVOID&) o_SetComputeRootSignature, hkSetComputeRootSignature);
 
-                if (o_SetGraphicRootSignature != nullptr)
-                    DetourAttach(&(PVOID&) o_SetGraphicRootSignature, hkSetGraphicRootSignature);
+                if (o_SetGraphicsRootSignature != nullptr)
+                    DetourAttach(&(PVOID&) o_SetGraphicsRootSignature, hkSetGraphicsRootSignature);
 
                 LOG_DEBUG("Hooked SetRootSignature functions");
 
@@ -332,16 +376,17 @@ static void UnhookAll()
         o_SetComputeRootSignature = nullptr;
     }
 
-    if (o_SetGraphicRootSignature != nullptr)
+    if (o_SetGraphicsRootSignature != nullptr)
     {
-        DetourDetach(&(PVOID&) o_SetGraphicRootSignature, hkSetGraphicRootSignature);
-        o_SetGraphicRootSignature = nullptr;
+        DetourDetach(&(PVOID&) o_SetGraphicsRootSignature, hkSetGraphicsRootSignature);
+        o_SetGraphicsRootSignature = nullptr;
     }
 
     DetourTransactionCommit();
 }
 
-static HRESULT hkD3D12CreateDevice(IDXGIAdapter* pAdapter, D3D_FEATURE_LEVEL MinimumFeatureLevel, REFIID riid,
+VALIDATE_HOOK(hkD3D12CreateDevice, D3d12Proxy::PFN_D3D12CreateDevice)
+static HRESULT hkD3D12CreateDevice(IUnknown* pAdapter, D3D_FEATURE_LEVEL MinimumFeatureLevel, REFIID riid,
                                    void** ppDevice)
 {
     LOG_DEBUG("Adapter: {:X}, Level: {:X}, Caller: {}", (size_t) pAdapter, (UINT) MinimumFeatureLevel,
@@ -368,7 +413,7 @@ static HRESULT hkD3D12CreateDevice(IDXGIAdapter* pAdapter, D3D_FEATURE_LEVEL Min
     {
         ScopedSkipSpoofing skipSpoofing {};
 
-        if (pAdapter->GetDesc(&desc) == S_OK)
+        if (((IDXGIAdapter*) pAdapter)->GetDesc(&desc) == S_OK)
         {
             szName = desc.Description;
             LOG_INFO("Adapter Desc: {}", wstring_to_string(szName));
@@ -386,6 +431,7 @@ static HRESULT hkD3D12CreateDevice(IDXGIAdapter* pAdapter, D3D_FEATURE_LEVEL Min
     {
         LOG_ERROR("ppDevice is nullptr");
         _creatingD3D12Device = true;
+        ScopedCreatingD3DDevice skipCreatingD3DDevice {};
         auto result = o_D3D12CreateDevice(pAdapter, minLevel, riid, ppDevice);
         _creatingD3D12Device = false;
         return result;
@@ -400,6 +446,7 @@ static HRESULT hkD3D12CreateDevice(IDXGIAdapter* pAdapter, D3D_FEATURE_LEVEL Min
     }
     else
     {
+        ScopedCreatingD3DDevice skipCreatingD3DDevice {};
         result = o_D3D12CreateDevice(pAdapter, minLevel, riid, ppDevice);
     }
     _creatingD3D12Device = false;
@@ -467,8 +514,9 @@ static HRESULT hkD3D12CreateDevice(IDXGIAdapter* pAdapter, D3D_FEATURE_LEVEL Min
     return result;
 }
 
-static HRESULT hkCreateDevice(ID3D12DeviceFactory* pFactory, IDXGIAdapter* pAdapter,
-                              D3D_FEATURE_LEVEL MinimumFeatureLevel, REFIID riid, void** ppDevice)
+VALIDATE_HOOK(hkCreateDevice, PFN_CreateDevice)
+static HRESULT hkCreateDevice(ID3D12DeviceFactory* pFactory, IUnknown* pAdapter, D3D_FEATURE_LEVEL MinimumFeatureLevel,
+                              REFIID riid, void** ppDevice)
 {
     LOG_DEBUG("Adapter: {:X}, Level: {:X}, Caller: {}", (size_t) pAdapter, (UINT) MinimumFeatureLevel,
               Util::WhoIsTheCaller(_ReturnAddress()));
@@ -500,7 +548,7 @@ static HRESULT hkCreateDevice(ID3D12DeviceFactory* pFactory, IDXGIAdapter* pAdap
     {
         ScopedSkipSpoofing skipSpoofing {};
 
-        if (pAdapter->GetDesc(&desc) == S_OK)
+        if (((IDXGIAdapter*) pAdapter)->GetDesc(&desc) == S_OK)
         {
             szName = desc.Description;
             LOG_INFO("Adapter Desc: {}", wstring_to_string(szName));
@@ -517,6 +565,7 @@ static HRESULT hkCreateDevice(ID3D12DeviceFactory* pFactory, IDXGIAdapter* pAdap
     if (ppDevice == nullptr)
     {
         LOG_ERROR("ppDevice is nullptr");
+        ScopedCreatingD3DDevice skipCreatingD3DDevice {};
         return o_CreateDevice(pFactory, pAdapter, minLevel, riid, ppDevice);
     }
 
@@ -524,10 +573,12 @@ static HRESULT hkCreateDevice(ID3D12DeviceFactory* pFactory, IDXGIAdapter* pAdap
     if (desc.VendorId == VendorId::Intel)
     {
         ScopedSkipSpoofing skipSpoofing {};
+        ScopedCreatingD3DDevice skipCreatingD3DDevice {};
         result = o_CreateDevice(pFactory, pAdapter, minLevel, riid, ppDevice);
     }
     else
     {
+        ScopedCreatingD3DDevice skipCreatingD3DDevice {};
         result = o_CreateDevice(pFactory, pAdapter, minLevel, riid, ppDevice);
     }
 
@@ -591,52 +642,97 @@ static HRESULT hkCreateDevice(ID3D12DeviceFactory* pFactory, IDXGIAdapter* pAdap
     return result;
 }
 
-static HRESULT hkD3D12SerializeRootSignature(D3d12Proxy::D3D12_ROOT_SIGNATURE_DESC_L* pRootSignature,
+VALIDATE_HOOK(hkD3D12SerializeRootSignature, D3d12Proxy::PFN_D3D12SerializeRootSignature)
+static HRESULT hkD3D12SerializeRootSignature(const D3D12_ROOT_SIGNATURE_DESC* pRootSignature,
                                              D3D_ROOT_SIGNATURE_VERSION Version, ID3DBlob** ppBlob,
                                              ID3DBlob** ppErrorBlob)
 {
-    if (pRootSignature != nullptr)
+    if (pRootSignature == nullptr)
+        return o_D3D12SerializeRootSignature(pRootSignature, Version, ppBlob, ppErrorBlob);
+
+    auto localRootSignature = *pRootSignature;
+    std::vector<D3D12_STATIC_SAMPLER_DESC> localSamplers;
+
+    if (pRootSignature->NumStaticSamplers > 0)
     {
-        for (size_t i = 0; i < pRootSignature->NumStaticSamplers; i++)
-        {
-            ApplySamplerOverrides(pRootSignature->pStaticSamplers[i]);
-        }
+        localSamplers.assign(pRootSignature->pStaticSamplers,
+                             pRootSignature->pStaticSamplers + pRootSignature->NumStaticSamplers);
     }
 
-    return o_D3D12SerializeRootSignature(pRootSignature, Version, ppBlob, ppErrorBlob);
+    for (auto& sampler : localSamplers)
+    {
+        ApplySamplerOverrides(sampler);
+    }
+
+    localRootSignature.pStaticSamplers = localSamplers.data();
+
+    return o_D3D12SerializeRootSignature(&localRootSignature, Version, ppBlob, ppErrorBlob);
 }
 
-static HRESULT hkD3D12SerializeVersionedRootSignature(D3d12Proxy::D3D12_VERSIONED_ROOT_SIGNATURE_DESC_L* pRootSignature,
+VALIDATE_HOOK(hkD3D12SerializeVersionedRootSignature, D3d12Proxy::PFN_D3D12SerializeVersionedRootSignature)
+static HRESULT hkD3D12SerializeVersionedRootSignature(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC* pRootSignature,
                                                       ID3DBlob** ppBlob, ID3DBlob** ppErrorBlob)
 {
-    if (pRootSignature != nullptr)
+    if (pRootSignature == nullptr)
+        return o_D3D12SerializeVersionedRootSignature(pRootSignature, ppBlob, ppErrorBlob);
+
+    auto localVersionedRootSignature = *pRootSignature;
+    std::vector<D3D12_STATIC_SAMPLER_DESC> localSamplers;
+    std::vector<D3D12_STATIC_SAMPLER_DESC1> localSamplers1;
+
+    if (pRootSignature->Version == D3D_ROOT_SIGNATURE_VERSION_1_0)
     {
-        if (pRootSignature->Version == D3D_ROOT_SIGNATURE_VERSION_1_0)
+        if (pRootSignature->Desc_1_0.NumStaticSamplers > 0)
         {
-            for (size_t i = 0; i < pRootSignature->Desc_1_0.NumStaticSamplers; i++)
-            {
-                ApplySamplerOverrides(pRootSignature->Desc_1_0.pStaticSamplers[i]);
-            }
+            localSamplers.assign(pRootSignature->Desc_1_0.pStaticSamplers,
+                                 pRootSignature->Desc_1_0.pStaticSamplers + pRootSignature->Desc_1_0.NumStaticSamplers);
         }
-        else if (pRootSignature->Version == D3D_ROOT_SIGNATURE_VERSION_1_1)
+
+        for (auto& sampler : localSamplers)
         {
-            for (size_t i = 0; i < pRootSignature->Desc_1_1.NumStaticSamplers; i++)
-            {
-                ApplySamplerOverrides(pRootSignature->Desc_1_1.pStaticSamplers[i]);
-            }
+            ApplySamplerOverrides(sampler);
         }
-        else if (pRootSignature->Version == D3D_ROOT_SIGNATURE_VERSION_1_2)
+
+        localVersionedRootSignature.Desc_1_0.pStaticSamplers = localSamplers.data();
+    }
+    else if (pRootSignature->Version == D3D_ROOT_SIGNATURE_VERSION_1_1)
+    {
+        if (pRootSignature->Desc_1_1.NumStaticSamplers > 0)
         {
-            for (size_t i = 0; i < pRootSignature->Desc_1_2.NumStaticSamplers; i++)
-            {
-                ApplySamplerOverrides(pRootSignature->Desc_1_2.pStaticSamplers[i]);
-            }
+            localSamplers.assign(pRootSignature->Desc_1_1.pStaticSamplers,
+                                 pRootSignature->Desc_1_1.pStaticSamplers + pRootSignature->Desc_1_1.NumStaticSamplers);
         }
+
+        for (auto& sampler : localSamplers)
+        {
+            ApplySamplerOverrides(sampler);
+        }
+
+        localVersionedRootSignature.Desc_1_1.pStaticSamplers = localSamplers.data();
+    }
+    else if (pRootSignature->Version == D3D_ROOT_SIGNATURE_VERSION_1_2)
+    {
+        if (pRootSignature->Desc_1_2.NumStaticSamplers > 0)
+        {
+            localSamplers1.assign(pRootSignature->Desc_1_2.pStaticSamplers,
+                                  pRootSignature->Desc_1_2.pStaticSamplers +
+                                      pRootSignature->Desc_1_2.NumStaticSamplers);
+        }
+
+        for (auto& sampler : localSamplers1)
+        {
+            ApplySamplerOverrides(sampler);
+        }
+
+        localVersionedRootSignature.Desc_1_2.pStaticSamplers = localSamplers1.data();
     }
 
-    return o_D3D12SerializeVersionedRootSignature(pRootSignature, ppBlob, ppErrorBlob);
+    auto result = o_D3D12SerializeVersionedRootSignature(&localVersionedRootSignature, ppBlob, ppErrorBlob);
+
+    return result;
 }
 
+VALIDATE_HOOK(hkD3D12DeviceRelease, PFN_Release)
 static ULONG hkD3D12DeviceRelease(IUnknown* device)
 {
     if (Config::Instance()->UESpoofIntelAtomics64.value_or_default() && device == _intelD3D12Device)
@@ -668,6 +764,7 @@ static ULONG hkD3D12DeviceRelease(IUnknown* device)
     return result;
 }
 
+VALIDATE_HOOK(hkCheckFeatureSupport, PFN_CheckFeatureSupport)
 static HRESULT hkCheckFeatureSupport(ID3D12Device* device, D3D12_FEATURE Feature, void* pFeatureSupportData,
                                      UINT FeatureSupportDataSize)
 {
@@ -686,6 +783,7 @@ static HRESULT hkCheckFeatureSupport(ID3D12Device* device, D3D12_FEATURE Feature
     return result;
 }
 
+VALIDATE_HOOK(hkCreateCommittedResource, PFN_CreateCommittedResource)
 static HRESULT hkCreateCommittedResource(ID3D12Device* device, const D3D12_HEAP_PROPERTIES* pHeapProperties,
                                          D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC* pDesc,
                                          D3D12_RESOURCE_STATES InitialResourceState,
@@ -719,6 +817,7 @@ static HRESULT hkCreateCommittedResource(ID3D12Device* device, const D3D12_HEAP_
 
 static bool skipPlacedResource = false;
 
+VALIDATE_HOOK(hkCreatePlacedResource, PFN_CreatePlacedResource)
 static HRESULT hkCreatePlacedResource(ID3D12Device* device, ID3D12Heap* pHeap, UINT64 HeapOffset,
                                       const D3D12_RESOURCE_DESC* pDesc, D3D12_RESOURCE_STATES InitialState,
                                       const D3D12_CLEAR_VALUE* pOptimizedClearValue, REFIID riid, void** ppvResource)
@@ -746,7 +845,8 @@ static HRESULT hkCreatePlacedResource(ID3D12Device* device, ID3D12Heap* pHeap, U
                                   ppvResource);
 }
 
-static HRESULT hkSetResidencyPriority(ID3D12Device* This, UINT NumObjects, ID3D12Pageable* const* ppObjects,
+VALIDATE_HOOK(hkSetResidencyPriority, PFN_SetResidencyPriority)
+static HRESULT hkSetResidencyPriority(ID3D12Device1* This, UINT NumObjects, ID3D12Pageable* const* ppObjects,
                                       const D3D12_RESIDENCY_PRIORITY* pPriorities)
 {
     auto result = o_SetResidencyPriority(This, NumObjects, ppObjects, pPriorities);
@@ -785,13 +885,13 @@ Why Agility SDK crashed but legacy didn't: The Agility SDK is compiled with newe
 enforce the "Return in RAX" rule for chained calls. The legacy DLL likely had some wiggle room or didn't immediately
 dereference RAX after the call.
 */
-static D3D12_RESOURCE_ALLOCATION_INFO* STDMETHODCALLTYPE
-hkGetResourceAllocationInfo(ID3D12Device* device, D3D12_RESOURCE_ALLOCATION_INFO* pResult, UINT visibleMask,
-                            UINT numResourceDescs, D3D12_RESOURCE_DESC* pResourceDescs)
+VALIDATE_HOOK(hkGetResourceAllocationInfo, PFN_GetResourceAllocationInfo)
+static D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE hkGetResourceAllocationInfo(
+    ID3D12Device* device, UINT visibleMask, UINT numResourceDescs, const D3D12_RESOURCE_DESC* pResourceDescs)
 {
     if (!_skipGetResourceAllocationInfo)
     {
-        auto ueDesc = reinterpret_cast<UE_D3D12_RESOURCE_DESC*>(pResourceDescs);
+        auto ueDesc = reinterpret_cast<const UE_D3D12_RESOURCE_DESC*>(pResourceDescs);
 
         if (Config::Instance()->UESpoofIntelAtomics64.value_or_default() && ueDesc != nullptr &&
             ueDesc->bRequires64BitAtomicSupport)
@@ -800,17 +900,14 @@ hkGetResourceAllocationInfo(ID3D12Device* device, D3D12_RESOURCE_ALLOCATION_INFO
             auto result = IGDExtProxy::GetResourceAllocationInfo(visibleMask, numResourceDescs, pResourceDescs);
             LOG_DEBUG("IGDExtProxy::GetResourceAllocationInfo result: SizeInBytes={}", result.SizeInBytes);
             _skipGetResourceAllocationInfo = false;
-            *pResult = result;
-            return pResult;
+            return result;
         }
     }
 
-    pResult->Alignment = 0;
-    pResult->SizeInBytes = 0;
-    o_GetResourceAllocationInfo(device, pResult, visibleMask, numResourceDescs, pResourceDescs);
-    return pResult;
+    return o_GetResourceAllocationInfo(device, visibleMask, numResourceDescs, pResourceDescs);
 }
 
+VALIDATE_HOOK(hkCreateSampler, PFN_CreateSampler)
 static void hkCreateSampler(ID3D12Device* device, const D3D12_SAMPLER_DESC* pDesc,
                             D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
@@ -859,6 +956,7 @@ static void hkCreateSampler(ID3D12Device* device, const D3D12_SAMPLER_DESC* pDes
     return o_CreateSampler(device, &newDesc, DestDescriptor);
 }
 
+VALIDATE_HOOK(hkCreateRootSignature, PFN_CreateRootSignature)
 static HRESULT hkCreateRootSignature(ID3D12Device* device, UINT nodeMask, const void* pBlobWithRootSignature,
                                      SIZE_T blobLengthInBytes, REFIID riid, void** ppvRootSignature)
 {
@@ -883,7 +981,7 @@ static HRESULT hkCreateRootSignature(ID3D12Device* device, UINT nodeMask, const 
     const D3D12_VERSIONED_ROOT_SIGNATURE_DESC* desc = deserializer->GetUnconvertedRootSignatureDesc();
 
     // Create a modifiable copy
-    D3d12Proxy::D3D12_VERSIONED_ROOT_SIGNATURE_DESC_L descCopy {};
+    D3D12_VERSIONED_ROOT_SIGNATURE_DESC descCopy {};
     std::memcpy(&descCopy, desc, sizeof(D3D12_VERSIONED_ROOT_SIGNATURE_DESC));
 
     std::vector<D3D12_STATIC_SAMPLER_DESC> samplers;
@@ -965,6 +1063,7 @@ static HRESULT hkCreateRootSignature(ID3D12Device* device, UINT nodeMask, const 
     return result;
 }
 
+VALIDATE_HOOK(hkD3D12GetInterface, PFN_D3D12GetInterface)
 static HRESULT hkD3D12GetInterface(REFCLSID rclsid, REFIID riid, void** ppvDebug)
 {
     LOG_DEBUG("D3D12GetInterface called: {:X}, {:X}, Caller: {}", (size_t) &rclsid, (size_t) &riid,
@@ -1198,6 +1297,16 @@ void D3D12Hooks::Unhook()
 
 void D3D12Hooks::SetRootSignatureTracking(bool enable) { isUpscalerActive = !enable; }
 
+bool D3D12Hooks::CanRestoreComputeRootSignature(ID3D12GraphicsCommandList* cmdList)
+{
+    return computeSignatures.contains(cmdList);
+}
+
+bool D3D12Hooks::CanRestoreGraphicsRootSignature(ID3D12GraphicsCommandList* cmdList)
+{
+    return graphicSignatures.contains(cmdList);
+}
+
 void D3D12Hooks::RestoreComputeRootSignature(ID3D12GraphicsCommandList* cmdList)
 {
     if (Config::Instance()->RestoreComputeSignature.value_or_default() && computeSignatures.contains(cmdList))
@@ -1218,7 +1327,7 @@ void D3D12Hooks::RestoreGraphicsRootSignature(ID3D12GraphicsCommandList* cmdList
     {
         auto signature = graphicSignatures[cmdList];
         LOG_TRACE("Restore GraphicsRootSig: {:X}, for CmdList: {:X}", (UINT64) signature, (UINT64) cmdList);
-        o_SetGraphicRootSignature(cmdList, signature);
+        o_SetGraphicsRootSignature(cmdList, signature);
     }
     else if (Config::Instance()->RestoreGraphicSignature.value_or_default())
     {

@@ -1,7 +1,9 @@
 #include "pch.h"
+
 #include "RCAS_Dx11.h"
 
 #include "precompile/RCAS_Shader_Dx11.h"
+#include "precompile/da_sharpen_Shader_Dx11.h"
 
 #include <Config.h>
 
@@ -25,9 +27,102 @@ inline static DXGI_FORMAT TranslateTypelessFormats(DXGI_FORMAT format)
         return DXGI_FORMAT_R16G16_FLOAT;
     case DXGI_FORMAT_R32G32_TYPELESS:
         return DXGI_FORMAT_R32G32_FLOAT;
+    case DXGI_FORMAT_R24G8_TYPELESS:
+        return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+    case DXGI_FORMAT_D24_UNORM_S8_UINT:
+        return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+    case DXGI_FORMAT_R32G8X24_TYPELESS:
+        return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+    case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+        return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+    case DXGI_FORMAT_R32_TYPELESS:
+        return DXGI_FORMAT_R32_FLOAT;
+    case DXGI_FORMAT_D32_FLOAT:
+        return DXGI_FORMAT_R32_FLOAT;
     default:
         return format;
     }
+}
+
+void RCAS_Dx11::FillMotionConstants(InternalConstants& OutConstants, const RcasConstants& InConstants)
+{
+    if (Config::Instance()->ContrastEnabled.value_or_default())
+        OutConstants.Contrast = Config::Instance()->Contrast.value_or_default();
+    else
+        OutConstants.Contrast = 0.0f;
+
+    auto feature = State::Instance().currentFeature;
+
+    OutConstants.Sharpness = InConstants.Sharpness;
+    OutConstants.MvScaleX = InConstants.MvScaleX;
+    OutConstants.MvScaleY = InConstants.MvScaleY;
+    OutConstants.DisplaySizeMV = feature->LowResMV() ? 0 : 1;
+
+    OutConstants.DisplayWidth = feature->TargetWidth();
+    OutConstants.DisplayHeight = feature->TargetHeight();
+    OutConstants.DynamicSharpenEnabled = Config::Instance()->MotionSharpnessEnabled.value_or_default() ? 1 : 0;
+    OutConstants.MotionSharpness = Config::Instance()->MotionSharpness.value_or_default();
+    OutConstants.Debug = Config::Instance()->MotionSharpnessDebug.value_or_default() ? 1 : 0;
+    OutConstants.Threshold = Config::Instance()->MotionThreshold.value_or_default();
+    OutConstants.ScaleLimit = Config::Instance()->MotionScaleLimit.value_or_default();
+
+    if (feature->LowResMV())
+    {
+        OutConstants.MotionTextureScale = (float) feature->RenderWidth() / (float) feature->TargetWidth();
+    }
+    else
+    {
+        OutConstants.MotionTextureScale = 1.0f;
+    }
+}
+
+void RCAS_Dx11::FillMotionConstants(InternalConstantsDA& OutConstants, const RcasConstants& InConstants)
+{
+    auto feature = State::Instance().currentFeature;
+
+    OutConstants.Sharpness = InConstants.Sharpness * 2.0f;
+    OutConstants.MvScaleX = InConstants.MvScaleX;
+    OutConstants.MvScaleY = InConstants.MvScaleY;
+    OutConstants.DisplaySizeMV = feature->LowResMV() ? 0 : 1;
+
+    OutConstants.DynamicSharpenEnabled = Config::Instance()->MotionSharpnessEnabled.value_or_default() ? 1 : 0;
+    OutConstants.Debug = Config::Instance()->MotionSharpnessDebug.value_or_default() ? 3 : 0;
+    OutConstants.MotionSharpness = Config::Instance()->MotionSharpness.value_or_default();
+    OutConstants.MotionThreshold = Config::Instance()->MotionThreshold.value_or_default();
+    OutConstants.MotionScaleLimit = Config::Instance()->MotionScaleLimit.value_or_default();
+    OutConstants.DisplayWidth = feature->TargetWidth();
+    OutConstants.DisplayHeight = feature->TargetHeight();
+
+    OutConstants.DepthIsLinear = Config::Instance()->DADepthIsLinear.value_or_default() ? 1 : 0;
+    OutConstants.DepthIsReversed = feature->DepthInverted() ? 1 : 0;
+    OutConstants.DepthScale =
+        Config::Instance()->DADepthScale.value_or(OutConstants.DepthIsLinear == 0 ? 4.0f : 250.0f);
+    OutConstants.DepthBias =
+        Config::Instance()->DADepthBias.value_or(OutConstants.DepthIsLinear == 0 ? 0.01f : 0.0015f);
+
+    OutConstants.DepthLinearA = InConstants.CameraNear * InConstants.CameraFar;
+    OutConstants.DepthLinearB = InConstants.CameraFar;
+    OutConstants.DepthLinearC = InConstants.CameraFar - InConstants.CameraNear;
+
+    OutConstants.DepthTextureScale = (float) feature->RenderWidth() / (float) feature->TargetWidth();
+
+    OutConstants.ClampOutput = Config::Instance()->DAClampOutput.value_or(feature->IsHdr()) ? 0 : 1;
+
+    if (feature->LowResMV())
+    {
+        OutConstants.MotionWidth = feature->RenderWidth();
+        OutConstants.MotionHeight = feature->RenderHeight();
+    }
+    else
+    {
+        OutConstants.MotionWidth = feature->TargetWidth();
+        OutConstants.MotionHeight = feature->TargetHeight();
+    }
+
+    OutConstants.DepthWidth = feature->RenderWidth();
+    OutConstants.DepthHeight = feature->RenderHeight();
+
+    OutConstants.MotionTextureScale = (float) OutConstants.MotionWidth / (float) feature->TargetWidth();
 }
 
 bool RCAS_Dx11::CreateBufferResource(ID3D11Device* InDevice, ID3D11Resource* InResource)
@@ -151,43 +246,52 @@ bool RCAS_Dx11::InitializeViews(ID3D11Texture2D* InResource, ID3D11Texture2D* In
     return true;
 }
 
-bool RCAS_Dx11::Dispatch(ID3D11Device* InDevice, ID3D11DeviceContext* InContext, ID3D11Texture2D* InResource,
-                         ID3D11Texture2D* InMotionVectors, RcasConstants InConstants, ID3D11Texture2D* OutResource)
+bool RCAS_Dx11::InitializeViewsDA(ID3D11Texture2D* InResource, ID3D11Texture2D* InMotionVectors,
+                                  ID3D11Texture2D* InDepth, ID3D11Texture2D* OutResource)
 {
-    if (!_init || InDevice == nullptr || InContext == nullptr || InResource == nullptr || OutResource == nullptr ||
-        InMotionVectors == nullptr)
+    if (!_init || InResource == nullptr || InMotionVectors == nullptr || InDepth == nullptr || OutResource == nullptr)
         return false;
 
-    LOG_DEBUG("[{0}] Start!", _name);
+    if (!InitializeViews(InResource, InMotionVectors, OutResource))
+        return false;
 
-    _device = InDevice;
+    D3D11_TEXTURE2D_DESC desc;
+
+    if (InDepth != _currentDepth || _srvDepth == nullptr)
+    {
+        if (_srvDepth != nullptr)
+            _srvDepth->Release();
+
+        InDepth->GetDesc(&desc);
+
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = TranslateTypelessFormats(desc.Format);
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = desc.MipLevels;
+
+        auto hr = _device->CreateShaderResourceView(InDepth, &srvDesc, &_srvDepth);
+        if (FAILED(hr))
+        {
+            LOG_ERROR("[{0}] _srvDepth CreateShaderResourceView error {1:x}", _name, hr);
+            return false;
+        }
+
+        _currentDepth = InDepth;
+    }
+
+    return true;
+}
+
+bool RCAS_Dx11::DispatchRCAS(ID3D11Device* InDevice, ID3D11DeviceContext* InContext, ID3D11Texture2D* InResource,
+                             ID3D11Texture2D* InMotionVectors, RcasConstants InConstants, ID3D11Texture2D* OutResource)
+{
+    (void) InDevice;
 
     if (!InitializeViews(InResource, InMotionVectors, OutResource))
         return false;
 
     InternalConstants constants {};
-
-    if (Config::Instance()->ContrastEnabled.value_or_default())
-        constants.Contrast = Config::Instance()->Contrast.value_or_default() * -1.0f;
-    else
-        constants.Contrast = -100.0f;
-
-    constants.DisplayHeight = InConstants.DisplayHeight;
-    constants.DisplayWidth = InConstants.DisplayWidth;
-    constants.DynamicSharpenEnabled = Config::Instance()->MotionSharpnessEnabled.value_or_default() ? 1 : 0;
-    constants.MotionSharpness = Config::Instance()->MotionSharpness.value_or_default();
-    constants.MvScaleX = InConstants.MvScaleX;
-    constants.MvScaleY = InConstants.MvScaleY;
-    constants.Sharpness = InConstants.Sharpness;
-    constants.Debug = Config::Instance()->MotionSharpnessDebug.value_or_default() ? 1 : 0;
-    constants.Threshold = Config::Instance()->MotionThreshold.value_or_default();
-    constants.ScaleLimit = Config::Instance()->MotionScaleLimit.value_or_default();
-    constants.DisplaySizeMV = InConstants.DisplaySizeMV ? 1 : 0;
-
-    if (InConstants.RenderWidth == 0 || InConstants.DisplayWidth == 0)
-        constants.MotionTextureScale = 1.0f;
-    else
-        constants.MotionTextureScale = (float) InConstants.RenderWidth / (float) InConstants.DisplayWidth;
+    FillMotionConstants(constants, InConstants);
 
     D3D11_MAPPED_SUBRESOURCE mappedResource;
     auto hr = InContext->Map(_constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
@@ -204,28 +308,97 @@ bool RCAS_Dx11::Dispatch(ID3D11Device* InDevice, ID3D11DeviceContext* InContext,
     memcpy(mappedResource.pData, &constants, sizeof(constants));
     InContext->Unmap(_constantBuffer, 0);
 
-    // Set the compute shader and resources
     InContext->CSSetShader(_computeShader, nullptr, 0);
     InContext->CSSetConstantBuffers(0, 1, &_constantBuffer);
     InContext->CSSetShaderResources(0, 1, &_srvInput);
     InContext->CSSetShaderResources(1, 1, &_srvMotionVectors);
     InContext->CSSetUnorderedAccessViews(0, 1, &_uavOutput, nullptr);
 
-    UINT dispatchWidth = 0;
-    UINT dispatchHeight = 0;
-
-    dispatchWidth = (InConstants.DisplayWidth + InNumThreadsX - 1) / InNumThreadsX;
-    dispatchHeight = (InConstants.DisplayHeight + InNumThreadsY - 1) / InNumThreadsY;
+    auto feature = State::Instance().currentFeature;
+    UINT dispatchWidth = (feature->TargetWidth() + InNumThreadsX - 1) / InNumThreadsX;
+    UINT dispatchHeight = (feature->TargetHeight() + InNumThreadsY - 1) / InNumThreadsY;
 
     InContext->Dispatch(dispatchWidth, dispatchHeight, 1);
 
-    // Unbind resources
     ID3D11UnorderedAccessView* nullUAV = nullptr;
     InContext->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
     ID3D11ShaderResourceView* nullSRV[2] = { nullptr, nullptr };
     InContext->CSSetShaderResources(0, 2, nullSRV);
 
     return true;
+}
+
+bool RCAS_Dx11::DispatchDepthAdaptive(ID3D11Device* InDevice, ID3D11DeviceContext* InContext,
+                                      ID3D11Texture2D* InResource, ID3D11Texture2D* InMotionVectors,
+                                      ID3D11Texture2D* InDepth, RcasConstants InConstants, ID3D11Texture2D* OutResource)
+{
+    (void) InDevice;
+
+    if (InDepth == nullptr || _computeShaderDA == nullptr)
+        return false;
+
+    if (!InitializeViewsDA(InResource, InMotionVectors, InDepth, OutResource))
+        return false;
+
+    InternalConstantsDA constants {};
+    FillMotionConstants(constants, InConstants);
+
+    D3D11_MAPPED_SUBRESOURCE mappedResource;
+    auto hr = InContext->Map(_constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+    if (FAILED(hr))
+    {
+        LOG_ERROR("[{0}] Map error {1:x}", _name, hr);
+
+        if (hr == DXGI_ERROR_DEVICE_REMOVED && _device != nullptr)
+            Util::GetDeviceRemovedReason(_device);
+
+        return false;
+    }
+
+    memcpy(mappedResource.pData, &constants, sizeof(constants));
+    InContext->Unmap(_constantBuffer, 0);
+
+    InContext->CSSetShader(_computeShaderDA, nullptr, 0);
+    InContext->CSSetConstantBuffers(0, 1, &_constantBuffer);
+
+    ID3D11ShaderResourceView* srvs[3] = { _srvInput, _srvMotionVectors, _srvDepth };
+    InContext->CSSetShaderResources(0, 3, srvs);
+    InContext->CSSetUnorderedAccessViews(0, 1, &_uavOutput, nullptr);
+
+    UINT dispatchWidth = (constants.DisplayWidth + InNumThreadsX - 1) / InNumThreadsX;
+    UINT dispatchHeight = (constants.DisplayHeight + InNumThreadsY - 1) / InNumThreadsY;
+
+    InContext->Dispatch(dispatchWidth, dispatchHeight, 1);
+
+    ID3D11UnorderedAccessView* nullUAV = nullptr;
+    InContext->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
+    ID3D11ShaderResourceView* nullSRV[3] = { nullptr, nullptr, nullptr };
+    InContext->CSSetShaderResources(0, 3, nullSRV);
+
+    return true;
+}
+
+bool RCAS_Dx11::Dispatch(ID3D11Device* InDevice, ID3D11DeviceContext* InContext, ID3D11Texture2D* InResource,
+                         ID3D11Texture2D* InMotionVectors, RcasConstants InConstants, ID3D11Texture2D* OutResource,
+                         ID3D11Texture2D* InDepth)
+{
+    if (!_init || InDevice == nullptr || InContext == nullptr || InResource == nullptr || OutResource == nullptr ||
+        InMotionVectors == nullptr)
+    {
+        return false;
+    }
+
+    LOG_DEBUG("[{0}] Start!", _name);
+
+    _device = InDevice;
+
+    const bool useDepthAdaptive = Config::Instance()->UseDepthAwareSharpen.value_or_default() && InDepth != nullptr;
+
+    if (useDepthAdaptive)
+        return DispatchDepthAdaptive(InDevice, InContext, InResource, InMotionVectors, InDepth, InConstants,
+                                     OutResource);
+
+    return DispatchRCAS(InDevice, InContext, InResource, InMotionVectors, InConstants, OutResource);
 }
 
 RCAS_Dx11::RCAS_Dx11(std::string InName, ID3D11Device* InDevice) : _name(InName), _device(InDevice)
@@ -247,20 +420,34 @@ RCAS_Dx11::RCAS_Dx11(std::string InName, ID3D11Device* InDevice) : _name(InName)
             LOG_ERROR("[{0}] CreateComputeShader error: {1:X}", _name, hr);
             return;
         }
+
+        hr = _device->CreateComputeShader(reinterpret_cast<const void*>(da_sharpen_cso), sizeof(da_sharpen_cso),
+                                          nullptr, &_computeShaderDA);
+        if (FAILED(hr))
+        {
+            LOG_ERROR("[{0}] CreateComputeShader error for depth adaptive shader: {1:X}", _name, hr);
+            return;
+        }
     }
     else
     {
         // Compile shader blobs
         ID3DBlob* shaderBlob = RCAS_CompileShader(rcasCode.c_str(), "CSMain", "cs_5_0");
-        if (shaderBlob == nullptr)
+
+        HRESULT hr = E_FAIL;
+
+        if (shaderBlob != nullptr)
+        {
+            // create pso objects
+            hr = _device->CreateComputeShader(shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), nullptr,
+                                              &_computeShader);
+        }
+        else
         {
             LOG_ERROR("[{0}] RCAS_CompileShader error!", _name);
-            return;
+            hr = _device->CreateComputeShader(reinterpret_cast<const void*>(rcas_cso), sizeof(rcas_cso), nullptr,
+                                              &_computeShader);
         }
-
-        // create pso objects
-        auto hr = _device->CreateComputeShader(shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), nullptr,
-                                               &_computeShader);
 
         if (shaderBlob != nullptr)
         {
@@ -270,7 +457,33 @@ RCAS_Dx11::RCAS_Dx11(std::string InName, ID3D11Device* InDevice) : _name(InName)
 
         if (FAILED(hr))
         {
-            LOG_ERROR("[{0}] CreateComputeShader error: {1:X}", _name, hr);
+            LOG_ERROR("[{0}] CreateComputeShader error for rcas shader: {1:X}", _name, hr);
+            return;
+        }
+
+        shaderBlob = RCAS_CompileShader(daSharpenCode.c_str(), "CSMain", "cs_5_0");
+
+        if (shaderBlob != nullptr)
+        {
+            hr = _device->CreateComputeShader(shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), nullptr,
+                                              &_computeShaderDA);
+        }
+        else
+        {
+            LOG_ERROR("[{0}] RCAS_CompileShader error for depth adaptive shader!", _name);
+            hr = _device->CreateComputeShader(reinterpret_cast<const void*>(da_sharpen_cso), sizeof(da_sharpen_cso),
+                                              nullptr, &_computeShaderDA);
+        }
+
+        if (shaderBlob != nullptr)
+        {
+            shaderBlob->Release();
+            shaderBlob = nullptr;
+        }
+
+        if (FAILED(hr))
+        {
+            LOG_ERROR("[{0}] CreateComputeShader error for depth adaptive shader: {1:X}", _name, hr);
             return;
         }
     }
@@ -278,7 +491,7 @@ RCAS_Dx11::RCAS_Dx11(std::string InName, ID3D11Device* InDevice) : _name(InName)
     // CBV
     D3D11_BUFFER_DESC cbDesc = {};
     cbDesc.Usage = D3D11_USAGE_DYNAMIC;
-    cbDesc.ByteWidth = sizeof(InternalConstants);
+    cbDesc.ByteWidth = sizeof(InternalConstantsDA);
     cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     auto result = InDevice->CreateBuffer(&cbDesc, nullptr, &_constantBuffer);
@@ -299,6 +512,9 @@ RCAS_Dx11::~RCAS_Dx11()
     if (_computeShader != nullptr)
         _computeShader->Release();
 
+    if (_computeShaderDA != nullptr)
+        _computeShaderDA->Release();
+
     if (_constantBuffer != nullptr)
         _constantBuffer->Release();
 
@@ -307,6 +523,9 @@ RCAS_Dx11::~RCAS_Dx11()
 
     if (_srvMotionVectors != nullptr)
         _srvMotionVectors->Release();
+
+    if (_srvDepth != nullptr)
+        _srvDepth->Release();
 
     if (_uavOutput != nullptr)
         _uavOutput->Release();

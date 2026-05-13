@@ -14,61 +14,14 @@
 class D3d12Proxy
 {
   public:
-    typedef struct D3D12_ROOT_SIGNATURE_DESC_L
-    {
-        UINT NumParameters;
-        D3D12_ROOT_PARAMETER* pParameters;
-        UINT NumStaticSamplers;
-        D3D12_STATIC_SAMPLER_DESC* pStaticSamplers;
-        D3D12_ROOT_SIGNATURE_FLAGS Flags;
-    } D3D12_ROOT_SIGNATURE_DESC_L;
-
-    typedef struct D3D12_ROOT_SIGNATURE_DESC1_L
-    {
-        UINT NumParameters;
-        D3D12_ROOT_PARAMETER1* pParameters;
-        UINT NumStaticSamplers;
-        D3D12_STATIC_SAMPLER_DESC* pStaticSamplers;
-        D3D12_ROOT_SIGNATURE_FLAGS Flags;
-    } D3D12_ROOT_SIGNATURE_DESC1_L;
-
-    typedef struct D3D12_ROOT_SIGNATURE_DESC2_L
-    {
-        UINT NumParameters;
-        D3D12_ROOT_PARAMETER1* pParameters;
-        UINT NumStaticSamplers;
-        D3D12_STATIC_SAMPLER_DESC1* pStaticSamplers;
-        D3D12_ROOT_SIGNATURE_FLAGS Flags;
-    } D3D12_ROOT_SIGNATURE_DESC2_L;
-
-    typedef struct D3D12_VERSIONED_ROOT_SIGNATURE_DESC_L
-    {
-        D3D_ROOT_SIGNATURE_VERSION Version;
-        union
-        {
-            D3D12_ROOT_SIGNATURE_DESC_L Desc_1_0;
-            D3D12_ROOT_SIGNATURE_DESC1_L Desc_1_1;
-            D3D12_ROOT_SIGNATURE_DESC2_L Desc_1_2;
-        };
-    } D3D12_VERSIONED_ROOT_SIGNATURE_DESC_L;
-
-    typedef HRESULT (*PFN_D3D12CreateDevice)(IUnknown*, D3D_FEATURE_LEVEL, REFIID, void**);
-    typedef HRESULT (*PFN_D3D12SerializeRootSignature)(D3D12_ROOT_SIGNATURE_DESC_L* pRootSignature,
-                                                       D3D_ROOT_SIGNATURE_VERSION Version, ID3DBlob** ppBlob,
-                                                       ID3DBlob** ppErrorBlob);
-    typedef HRESULT (*PFN_D3D12CreateRootSignatureDeserializer)(LPCVOID pSrcData, SIZE_T SrcDataSizeInBytes,
-                                                                REFIID pRootSignatureDeserializerInterface,
-                                                                void** ppRootSignatureDeserializer);
-    typedef HRESULT (*PFN_D3D12SerializeVersionedRootSignature)(D3D12_VERSIONED_ROOT_SIGNATURE_DESC_L* pRootSignature,
-                                                                ID3DBlob** ppBlob, ID3DBlob** ppErrorBlob);
-    typedef HRESULT (*PFN_D3D12CreateVersionedRootSignatureDeserializer)(LPCVOID pSrcData, SIZE_T SrcDataSizeInBytes,
-                                                                         REFIID pRootSignatureDeserializerInterface,
-                                                                         void** ppRootSignatureDeserializer);
-    typedef HRESULT (*PFN_D3D12GetDebugInterface)(REFIID, void**);
-    typedef HRESULT (*PFN_D3D12EnableExperimentalFeatures)(UINT NumFeatures, const IID* pIIDs,
-                                                           void* pConfigurationStructs,
-                                                           UINT* pConfigurationStructSizes);
-    typedef HRESULT (*PFN_D3D12GetInterface)(REFCLSID, REFIID, void**);
+    typedef decltype(&D3D12CreateDevice) PFN_D3D12CreateDevice;
+    typedef decltype(&D3D12SerializeRootSignature) PFN_D3D12SerializeRootSignature;
+    typedef decltype(&D3D12CreateRootSignatureDeserializer) PFN_D3D12CreateRootSignatureDeserializer;
+    typedef decltype(&D3D12SerializeVersionedRootSignature) PFN_D3D12SerializeVersionedRootSignature;
+    typedef decltype(&D3D12CreateVersionedRootSignatureDeserializer) PFN_D3D12CreateVersionedRootSignatureDeserializer;
+    typedef decltype(&D3D12GetDebugInterface) PFN_D3D12GetDebugInterface;
+    typedef decltype(&D3D12EnableExperimentalFeatures) PFN_D3D12EnableExperimentalFeatures;
+    typedef decltype(&D3D12GetInterface) PFN_D3D12GetInterface;
 
     static void Init(HMODULE module = nullptr)
     {

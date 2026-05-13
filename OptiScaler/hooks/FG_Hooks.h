@@ -2,6 +2,8 @@
 #include "SysUtils.h"
 #include <dxgi1_6.h>
 
+#include "Hook_Utils.h"
+
 class FGHooks
 {
   public:
@@ -14,19 +16,15 @@ class FGHooks
                                           IDXGIOutput* pRestrictToOutput, IDXGISwapChain1** ppSwapChain);
 
   private:
-    typedef HRESULT (*PFN_Present)(void* This, UINT SyncInterval, UINT Flags);
-    typedef HRESULT (*PFN_Present1)(void* This, UINT SyncInterval, UINT Flags,
-                                    const DXGI_PRESENT_PARAMETERS* pPresentParameters);
-    typedef HRESULT (*PFN_GetFullscreenDesc)(IDXGISwapChain* This, DXGI_SWAP_CHAIN_FULLSCREEN_DESC* pDesc);
-    typedef HRESULT (*PFN_SetFullscreenState)(IDXGISwapChain* This, BOOL Fullscreen, IDXGIOutput* pTarget);
-    typedef HRESULT (*PFN_GetFullscreenState)(IDXGISwapChain* This, BOOL* pFullscreen, IDXGIOutput** ppTarget);
-    typedef HRESULT (*PFN_ResizeBuffers)(IDXGISwapChain* This, UINT BufferCount, UINT Width, UINT Height,
-                                         DXGI_FORMAT NewFormat, UINT SwapChainFlags);
-    typedef HRESULT (*PFN_ResizeBuffers1)(IDXGISwapChain* This, UINT BufferCount, UINT Width, UINT Height,
-                                          DXGI_FORMAT Format, UINT SwapChainFlags, const UINT* pCreationNodeMask,
-                                          IUnknown* const* ppPresentQueue);
-    typedef HRESULT (*PFN_ResizeTarget)(IDXGISwapChain* This, DXGI_MODE_DESC* pNewTargetParameters);
-    typedef ULONG (*PFN_Release)(IDXGISwapChain* This);
+    using PFN_Present = rewrite_signature<decltype(&IDXGISwapChain::Present)>::type;
+    using PFN_Present1 = rewrite_signature<decltype(&IDXGISwapChain1::Present1)>::type;
+    using PFN_SetFullscreenState = rewrite_signature<decltype(&IDXGISwapChain::SetFullscreenState)>::type;
+    using PFN_GetFullscreenState = rewrite_signature<decltype(&IDXGISwapChain::GetFullscreenState)>::type;
+    using PFN_GetFullscreenDesc = rewrite_signature<decltype(&IDXGISwapChain1::GetFullscreenDesc)>::type;
+    using PFN_ResizeBuffers = rewrite_signature<decltype(&IDXGISwapChain::ResizeBuffers)>::type;
+    using PFN_ResizeBuffers1 = rewrite_signature<decltype(&IDXGISwapChain3::ResizeBuffers1)>::type;
+    using PFN_ResizeTarget = rewrite_signature<decltype(&IDXGISwapChain::ResizeTarget)>::type;
+    using PFN_Release = rewrite_signature<decltype(&IUnknown::Release)>::type;
 
     inline static PFN_ResizeBuffers o_FGSCResizeBuffers = nullptr;
     inline static PFN_ResizeTarget o_FGSCResizeTarget = nullptr;
@@ -48,19 +46,29 @@ class FGHooks
     static void HookFGSwapchain(IDXGISwapChain* pSwapChain);
 
     static HRESULT hkSetFullscreenState(IDXGISwapChain* This, BOOL Fullscreen, IDXGIOutput* pTarget);
-    static HRESULT hkGetFullscreenDesc(IDXGISwapChain* This, DXGI_SWAP_CHAIN_FULLSCREEN_DESC* pDesc);
+    static HRESULT hkGetFullscreenDesc(IDXGISwapChain1* This, DXGI_SWAP_CHAIN_FULLSCREEN_DESC* pDesc);
     static HRESULT hkGetFullscreenState(IDXGISwapChain* This, BOOL* pFullscreen, IDXGIOutput** ppTarget);
     static HRESULT hkResizeBuffers(IDXGISwapChain* This, UINT BufferCount, UINT Width, UINT Height,
                                    DXGI_FORMAT NewFormat, UINT SwapChainFlags);
-    static HRESULT hkResizeTarget(IDXGISwapChain* This, DXGI_MODE_DESC* pNewTargetParameters);
-    static HRESULT hkResizeBuffers1(IDXGISwapChain* This, UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT Format,
-                                    UINT SwapChainFlags, const UINT* pCreationNodeMask,
+    static HRESULT hkResizeTarget(IDXGISwapChain* This, const DXGI_MODE_DESC* pNewTargetParameters);
+    static HRESULT hkResizeBuffers1(IDXGISwapChain3* This, UINT BufferCount, UINT Width, UINT Height,
+                                    DXGI_FORMAT Format, UINT SwapChainFlags, const UINT* pCreationNodeMask,
                                     IUnknown* const* ppPresentQueue);
-    static ULONG hkFGRelease(IDXGISwapChain* This);
+    static ULONG hkFGRelease(IUnknown* This);
 
-    static HRESULT hkFGPresent(void* This, UINT SyncInterval, UINT Flags);
-    static HRESULT hkFGPresent1(void* This, UINT SyncInterval, UINT Flags,
+    static HRESULT hkFGPresent(IDXGISwapChain* This, UINT SyncInterval, UINT Flags);
+    static HRESULT hkFGPresent1(IDXGISwapChain1* This, UINT SyncInterval, UINT Flags,
                                 const DXGI_PRESENT_PARAMETERS* pPresentParameters);
-    static HRESULT FGPresent(void* This, UINT SyncInterval, UINT Flags,
+    static HRESULT FGPresent(IDXGISwapChain* This, UINT SyncInterval, UINT Flags,
                              const DXGI_PRESENT_PARAMETERS* pPresentParameters);
+
+    VALIDATE_MEMBER_HOOK(hkFGPresent, PFN_Present)
+    VALIDATE_MEMBER_HOOK(hkFGPresent1, PFN_Present1)
+    VALIDATE_MEMBER_HOOK(hkSetFullscreenState, PFN_SetFullscreenState)
+    VALIDATE_MEMBER_HOOK(hkGetFullscreenState, PFN_GetFullscreenState)
+    VALIDATE_MEMBER_HOOK(hkGetFullscreenDesc, PFN_GetFullscreenDesc)
+    VALIDATE_MEMBER_HOOK(hkResizeBuffers, PFN_ResizeBuffers)
+    VALIDATE_MEMBER_HOOK(hkResizeBuffers1, PFN_ResizeBuffers1)
+    VALIDATE_MEMBER_HOOK(hkResizeTarget, PFN_ResizeTarget)
+    VALIDATE_MEMBER_HOOK(hkFGRelease, PFN_Release)
 };

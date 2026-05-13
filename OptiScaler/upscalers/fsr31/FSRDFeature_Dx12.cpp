@@ -642,7 +642,7 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
 
         // Post-Process
         if (isUpscalerReady)
-            PostProcess(InCommandList, inParams);
+            PostProcess(InCommandList, inParams, upscalerDesc);
 
         // Cleanup
         FSR31FeatureDx12::ResetConfigurableBarriers(InCommandList);

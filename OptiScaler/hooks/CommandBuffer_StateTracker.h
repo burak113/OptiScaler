@@ -247,40 +247,32 @@ class CommandBufferStateTracker
     void OnAllocateCommandBuffers(VkCommandPool pool, uint32_t count, const VkCommandBuffer* pCommandBuffers,
                                   uint32_t queueFamilyIndex)
     {
-        // Fast path: check if pool metadata already exists (read-only lock)
+        // Phase 1: Ensure pool metadata exists (only _poolMetadataMutex)
         {
             std::shared_lock poolLock(_poolMetadataMutex);
-            if (_poolToQueueFamily.find(pool) != _poolToQueueFamily.end())
-            {
-                // Pool already initialized - only need to map command buffers
-                std::unique_lock mapLock(_statesMapMutex);
-                for (uint32_t i = 0; i < count; ++i)
-                {
-                    _cmdBufferToPool[pCommandBuffers[i]] = pool;
-                }
-                return;
-            }
-        }
-
-        // Slow path: initialize new pool (exclusive lock only for this rare case)
-        {
-            std::unique_lock poolLock(_poolMetadataMutex);
-
-            // Double-check after acquiring exclusive lock
             if (_poolToQueueFamily.find(pool) == _poolToQueueFamily.end())
             {
-                _poolToQueueFamily[pool] = queueFamilyIndex;
+                poolLock.unlock();
 
-                // Initialize epoch atomically using shared_ptr
-                auto epochIt = _poolEpochs.find(pool);
-                if (epochIt == _poolEpochs.end())
+                std::unique_lock exclusivePoolLock(_poolMetadataMutex);
+                // Double-check after acquiring exclusive lock
+                if (_poolToQueueFamily.find(pool) == _poolToQueueFamily.end())
                 {
-                    _poolEpochs[pool] =
-                        std::make_shared<std::atomic<uint64_t>>(_globalEpochCounter.load(std::memory_order_acquire));
+                    _poolToQueueFamily[pool] = queueFamilyIndex;
+
+                    auto epochIt = _poolEpochs.find(pool);
+                    if (epochIt == _poolEpochs.end())
+                    {
+                        _poolEpochs[pool] = std::make_shared<std::atomic<uint64_t>>(
+                            _globalEpochCounter.load(std::memory_order_acquire));
+                    }
                 }
             }
+        }
+        // _poolMetadataMutex fully released here before touching _statesMapMutex
 
-            // Map command buffers
+        // Phase 2: Map command buffers (only _statesMapMutex)
+        {
             std::unique_lock mapLock(_statesMapMutex);
             for (uint32_t i = 0; i < count; ++i)
             {
@@ -1024,24 +1016,31 @@ class CommandBufferStateTracker
 
     std::optional<uint32_t> GetCommandBufferQueueFamily(VkCommandBuffer cmd) const
     {
-        std::shared_lock mapLock(_statesMapMutex);
-
-        auto poolIt = _cmdBufferToPool.find(cmd);
-        if (poolIt == _cmdBufferToPool.end())
+        // Phase 1: Get pool handle (only _statesMapMutex)
+        VkCommandPool pool = VK_NULL_HANDLE;
         {
-            LOG_WARN("Command buffer {:X} not tracked in any pool", (size_t) cmd);
-            return std::nullopt;
+            std::shared_lock mapLock(_statesMapMutex);
+            auto poolIt = _cmdBufferToPool.find(cmd);
+            if (poolIt == _cmdBufferToPool.end())
+            {
+                LOG_WARN("Command buffer {:X} not tracked in any pool", (size_t) cmd);
+                return std::nullopt;
+            }
+            pool = poolIt->second;
         }
+        // _statesMapMutex fully released here before touching _poolMetadataMutex
 
-        std::shared_lock poolLock(_poolMetadataMutex);
-        auto familyIt = _poolToQueueFamily.find(poolIt->second);
-        if (familyIt == _poolToQueueFamily.end())
+        // Phase 2: Get queue family (only _poolMetadataMutex)
         {
-            LOG_WARN("Pool {:X} has no queue family info", (size_t) poolIt->second);
-            return std::nullopt;
+            std::shared_lock poolLock(_poolMetadataMutex);
+            auto familyIt = _poolToQueueFamily.find(pool);
+            if (familyIt == _poolToQueueFamily.end())
+            {
+                LOG_WARN("Pool {:X} has no queue family info", (size_t) pool);
+                return std::nullopt;
+            }
+            return familyIt->second;
         }
-
-        return familyIt->second;
     }
 
   private:

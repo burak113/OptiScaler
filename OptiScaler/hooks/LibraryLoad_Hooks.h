@@ -16,10 +16,10 @@ class LibraryLoadHooks
     static std::optional<NTSTATUS> FreeLibrary(PVOID library);
 
     static HMODULE LoadNvApi();
-    static HMODULE LoadFfxapiVk(std::wstring originalPath);
-    static HMODULE LoadFfxapiDx12(std::wstring originalPath);
-    static HMODULE LoadLibxessDx11(std::wstring originalPath);
-    static HMODULE LoadLibxess(std::wstring originalPath);
+    // static HMODULE LoadFfxapiVk(std::wstring originalPath);
+    // static HMODULE LoadFfxapiDx12(std::wstring originalPath);
+    // static HMODULE LoadLibxessDx11(std::wstring originalPath);
+    // static HMODULE LoadLibxess(std::wstring originalPath);
     static HMODULE LoadNvngxDlss(std::wstring originalPath);
 
     static bool IsApiSetName(const std::wstring_view& n);

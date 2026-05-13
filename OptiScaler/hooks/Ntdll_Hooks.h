@@ -6,6 +6,7 @@
 #include <DllNames.h>
 
 #include "LibraryLoad_Hooks.h"
+#include "Hook_Utils.h"
 
 #include <cwctype>
 
@@ -157,6 +158,10 @@ class NtdllHooks
 
         return o_LdrUnloadDll(lpLibrary);
     }
+
+    VALIDATE_MEMBER_HOOK(hkNtLoadDll, NtdllProxy::PFN_NtLoadDll)
+    VALIDATE_MEMBER_HOOK(hkLdrLoadDll, NtdllProxy::PFN_LdrLoadDll)
+    VALIDATE_MEMBER_HOOK(hkLdrUnloadDll, NtdllProxy::PFN_LdrUnloadDll)
 
   public:
     static void Hook()

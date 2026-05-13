@@ -85,7 +85,7 @@ inline static bool CompareResourceFormats(DXGI_FORMAT sc, DXGI_FORMAT hudless)
 bool Hudfix_Dx12::CreateObjects()
 {
     if (_commandQueue != nullptr)
-        return false;
+        return true;
 
     do
     {
@@ -154,7 +154,7 @@ bool Hudfix_Dx12::CreateObjects()
 bool Hudfix_Dx12::CreateBufferResource(ID3D12Device* InDevice, ResourceInfo* InSource, D3D12_RESOURCE_STATES InState,
                                        ID3D12Resource** OutResource)
 {
-    if (InDevice == nullptr || InSource == nullptr)
+    if (InDevice == nullptr || InSource == nullptr || InSource->buffer == nullptr)
         return false;
 
     if (*OutResource != nullptr)
@@ -271,22 +271,21 @@ bool Hudfix_Dx12::CheckCapture()
 {
     auto fIndex = GetIndex();
 
-    // early exit
-    if (_captureCounter[fIndex] > 999)
-    {
-        LOG_DEBUG("_captureCounter[{}] > 999", fIndex);
-        return false;
-    }
-
     {
         std::lock_guard<std::mutex> lock(_counterMutex);
+
+        if (_captureCounter[fIndex] > 999)
+        {
+            LOG_DEBUG("_captureCounter[{}] > 999", fIndex);
+            return false;
+        }
+
         _captureCounter[fIndex]++;
 
         LOG_TRACE("frameCounter: {}, _captureCounter: {}, Limit: {}", State::Instance().currentFeature->FrameCount(),
                   _captureCounter[fIndex], Config::Instance()->FGHUDLimit.value_or_default());
 
-        if (_captureCounter[fIndex] > 999 ||
-            _captureCounter[fIndex] != Config::Instance()->FGHUDLimit.value_or_default())
+        if (_captureCounter[fIndex] < Config::Instance()->FGHUDLimit.value_or_default())
             return false;
     }
 
@@ -342,7 +341,7 @@ bool Hudfix_Dx12::CheckResource(ResourceInfo* resource)
     if (State::Instance().FGonlyUseCapturedResources)
     {
         auto result = _captureList.find(resource->buffer) != _captureList.end();
-        return true;
+        return result;
     }
 
     auto& s = State::Instance();
@@ -421,19 +420,6 @@ bool Hudfix_Dx12::CheckResource(ResourceInfo* resource)
         return false;
     }
 
-    // resource format is one of supported formats
-    // if (resDesc.Format == DXGI_FORMAT_R32G32B32A32_TYPELESS || resDesc.Format == DXGI_FORMAT_R32G32B32A32_FLOAT ||
-    //    resDesc.Format == DXGI_FORMAT_R32G32B32A32_UINT || resDesc.Format == DXGI_FORMAT_R32G32B32A32_SINT ||
-    //    resDesc.Format == DXGI_FORMAT_R32G32B32_TYPELESS || resDesc.Format == DXGI_FORMAT_R32G32B32_FLOAT ||
-    //    resDesc.Format == DXGI_FORMAT_R32G32B32_UINT || resDesc.Format == DXGI_FORMAT_R32G32B32_SINT ||
-    //    resDesc.Format == DXGI_FORMAT_R16G16B16A16_TYPELESS || resDesc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT ||
-    //    resDesc.Format == DXGI_FORMAT_R16G16B16A16_UNORM || resDesc.Format == DXGI_FORMAT_R16G16B16A16_UINT ||
-    //    resDesc.Format == DXGI_FORMAT_R16G16B16A16_SNORM || resDesc.Format == DXGI_FORMAT_R16G16B16A16_SINT ||
-    //    resDesc.Format == DXGI_FORMAT_R10G10B10A2_TYPELESS || resDesc.Format == DXGI_FORMAT_R10G10B10A2_UNORM ||
-    //    resDesc.Format == DXGI_FORMAT_R10G10B10A2_UINT || resDesc.Format == DXGI_FORMAT_R11G11B10_FLOAT ||
-    //    resDesc.Format == DXGI_FORMAT_R8G8B8A8_TYPELESS || resDesc.Format == DXGI_FORMAT_R8G8B8A8_UNORM ||
-    //    resDesc.Format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB || resDesc.Format == DXGI_FORMAT_R8G8B8A8_UINT ||
-    //    resDesc.Format == DXGI_FORMAT_R8G8B8A8_SNORM || resDesc.Format == DXGI_FORMAT_R8G8B8A8_SINT)
     {
         LOG_DEBUG("{}->{} Width: {}/{}, Height: {}/{}, Format: {}/{}, Resource: {:X}, convertFormat: {} -> TRUE",
                   GetSourceString(source), GetDispatchString(dispatcher), resDesc.Width, width, resDesc.Height, height,
@@ -463,7 +449,7 @@ void Hudfix_Dx12::HudlessFound(ID3D12GraphicsCommandList* cmdList)
     if (_captureCounter[index] > 1000)
         return;
 
-    // Set it above 1000 to prvent capture
+    // Set it above 1000 to prevent capture
     _captureCounter[index] = 9999;
 
     // Increase counter
@@ -503,13 +489,13 @@ void Hudfix_Dx12::UpscaleStart()
         std::lock_guard<std::mutex> lock(_captureMutex);
         _captureList.clear();
         LOG_DEBUG("FGResetCapturedResources");
-        State::Instance().FGresetCapturedResources = false;
         State::Instance().FGcapturedResourceCount = 0;
         State::Instance().FGresetCapturedResources = false;
     }
 
     if (State::Instance().ClearCapturedHudlesses)
     {
+        LOG_DEBUG("ClearCapturedHudlesses");
         State::Instance().ClearCapturedHudlesses = false;
         State::Instance().CapturedHudlesses.clear();
     }
@@ -525,13 +511,10 @@ void Hudfix_Dx12::UpscaleEnd(UINT64 frameId, double lastFGFrameTime)
     // Get new index and clear resources
     auto index = GetIndex();
     _captureCounter[index] = 0;
+    _skipHudlessChecks = false;
 }
 
-void Hudfix_Dx12::PresentStart()
-{
-    _fgCounter = _upscaleCounter;
-    return;
-}
+void Hudfix_Dx12::PresentStart() { _fgCounter = _upscaleCounter; }
 
 void Hudfix_Dx12::PresentEnd() { LOG_DEBUG(""); }
 
@@ -578,13 +561,6 @@ bool Hudfix_Dx12::IsResourceCheckActive()
         return false;
     }
 
-    auto fg = reinterpret_cast<IFGFeature_Dx12*>(State::Instance().currentFG);
-    if (fg == nullptr)
-    {
-        // LOG_TRACK("fg == nullptr");
-        return false;
-    }
-
     return true;
 }
 
@@ -609,11 +585,17 @@ bool Hudfix_Dx12::CheckForHudless(ID3D12GraphicsCommandList* cmdList, ResourceIn
             break;
         }
 
-        CapturedHudlessInfo* capturedHudlessInfo = &s.CapturedHudlesses[resource->buffer];
-        if (capturedHudlessInfo != nullptr && !capturedHudlessInfo->enabled)
+        CapturedHudlessInfo* capturedHudlessInfo = nullptr;
+        auto it = s.CapturedHudlesses.find(resource->buffer);
+        if (it != s.CapturedHudlesses.end())
         {
-            LOG_DEBUG("Skipping {:X}, disabled from captured hudless list!", (size_t) resource->buffer);
-            break;
+            capturedHudlessInfo = &it->second;
+
+            if (!capturedHudlessInfo->enabled)
+            {
+                LOG_DEBUG("Skipping {:X}, disabled from captured hudless list!", (size_t) resource->buffer);
+                break;
+            }
         }
 
         // Prevent double capture
@@ -723,7 +705,6 @@ bool Hudfix_Dx12::CheckForHudless(ID3D12GraphicsCommandList* cmdList, ResourceIn
         if (_commandQueue == nullptr && !CreateObjects())
         {
             LOG_WARN("Can't create command queue!");
-            _captureCounter[fIndex]--;
             return false;
         }
 
@@ -753,7 +734,6 @@ bool Hudfix_Dx12::CheckForHudless(ID3D12GraphicsCommandList* cmdList, ResourceIn
             else
             {
                 LOG_WARN("Can't create _captureBuffer!");
-                _captureCounter[fIndex]--;
                 break;
             }
         }
@@ -812,7 +792,6 @@ bool Hudfix_Dx12::CheckForHudless(ID3D12GraphicsCommandList* cmdList, ResourceIn
             else
             {
                 LOG_WARN("Can't create _captureBuffer!");
-                _captureCounter[fIndex]--;
                 break;
             }
         }
@@ -836,6 +815,7 @@ bool Hudfix_Dx12::CheckForHudless(ID3D12GraphicsCommandList* cmdList, ResourceIn
 
                 _formatTransfer[fIndex] =
                     new FT_Dx12("FormatTransfer", s.currentD3D12Device, s.currentSwapchainDesc.BufferDesc.Format);
+
                 break;
             }
 
@@ -845,7 +825,6 @@ bool Hudfix_Dx12::CheckForHudless(ID3D12GraphicsCommandList* cmdList, ResourceIn
                 if (!_formatTransfer[fIndex]->CreateBufferResource(s.currentD3D12Device, _captureBuffer[fIndex],
                                                                    D3D12_RESOURCE_STATE_UNORDERED_ACCESS))
                 {
-                    _captureCounter[fIndex]--;
                     break;
                 }
 
@@ -889,7 +868,6 @@ bool Hudfix_Dx12::CheckForHudless(ID3D12GraphicsCommandList* cmdList, ResourceIn
             else
             {
                 LOG_WARN("_formatTransfer is null or can't create _formatTransfer buffer!");
-                _captureCounter[fIndex]--;
                 break;
             }
         }
@@ -933,14 +911,19 @@ bool Hudfix_Dx12::CheckForHudless(ID3D12GraphicsCommandList* cmdList, ResourceIn
         HudlessFound(cmdList);
 
         if (capturedHudlessInfo != nullptr)
+        {
             capturedHudlessInfo->usageCount++;
+            capturedHudlessInfo->captureInfo = resource->captureInfo;
+            LOG_DEBUG("Updated hudless info, count: {}, enabled: {}", capturedHudlessInfo->usageCount,
+                      capturedHudlessInfo->enabled);
+        }
         else
         {
-            s.CapturedHudlesses[resource->buffer] = {};
-            capturedHudlessInfo = &s.CapturedHudlesses[resource->buffer];
-        }
+            s.CapturedHudlesses.insert_or_assign(resource->buffer,
+                                                 CapturedHudlessInfo { 1, resource->captureInfo, true });
 
-        capturedHudlessInfo->captureInfo = resource->captureInfo;
+            LOG_DEBUG("Inserted hudless info for {:X}", (size_t) resource->buffer);
+        }
 
         return true;
 

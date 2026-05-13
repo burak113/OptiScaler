@@ -6,9 +6,12 @@
 #include <WinTrust.h>
 #include <Softpub.h>
 
+#include "Hook_Utils.h"
+
 typedef decltype(&WinVerifyTrust) PFN_WinVerifyTrust;
 static PFN_WinVerifyTrust o_WinVerifyTrust = nullptr;
 
+VALIDATE_HOOK(hkWinVerifyTrust, PFN_WinVerifyTrust)
 static LONG hkWinVerifyTrust(HWND hwnd, GUID* pgActionID, LPVOID pWVTData)
 {
     if (!pWVTData || !IsEqualGUID(*pgActionID, WINTRUST_ACTION_GENERIC_VERIFY_V2))

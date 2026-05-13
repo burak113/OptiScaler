@@ -258,8 +258,37 @@ inline static VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugCallback(
 VkResult VulkanSpoofing::hkvkCreateInstance(VkInstanceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator,
                                             VkInstance* pInstance)
 {
+    if (State::Instance().creatingD3DDevice)
+    {
+        LOG_INFO("Skipping because DXVK/VKD3D is creating a D3D device");
+        return VK_SUCCESS;
+    }
+
     if (pCreateInfo == nullptr)
         return VK_ERROR_INITIALIZATION_FAILED;
+
+    if (vkInstanceExtensions.size() == 0)
+    {
+        auto enumarate = o_vkEnumerateInstanceExtensionProperties;
+        if (o_vkEnumerateInstanceExtensionProperties == nullptr)
+        {
+            enumarate = (PFN_vkEnumerateInstanceExtensionProperties) KernelBaseProxy::GetProcAddress_()(
+                vulkanModule, "vkEnumerateInstanceExtensionProperties");
+        }
+
+        LOG_INFO("vkInstanceExtensions is empty, enumerating instance extensions");
+        vkEnumerateInstanceExtensionPropertiesListed = true;
+        vkEnumerateInstanceExtensionPropertiesCount = 0;
+
+        enumarate(VK_NULL_HANDLE, &vkEnumerateInstanceExtensionPropertiesCount, VK_NULL_HANDLE);
+        std::vector<VkExtensionProperties> extensions(vkEnumerateInstanceExtensionPropertiesCount);
+        enumarate(VK_NULL_HANDLE, &vkEnumerateInstanceExtensionPropertiesCount, extensions.data());
+        for (const auto& ext : extensions)
+        {
+            vkInstanceExtensions[ext.extensionName] = true;
+            LOG_DEBUG("  {}", ext.extensionName);
+        }
+    }
 
     if (pCreateInfo->pApplicationInfo != nullptr && pCreateInfo->pApplicationInfo->pApplicationName != nullptr)
         LOG_DEBUG("ApplicationName: {}", pCreateInfo->pApplicationInfo->pApplicationName);
@@ -277,22 +306,19 @@ VkResult VulkanSpoofing::hkvkCreateInstance(VkInstanceCreateInfo* pCreateInfo, c
     if (State::Instance().isRunningOnNvidia && Config::Instance()->DLSSEnabled.value_or_default())
     {
         LOG_INFO("Adding NVNGX Vulkan extensions");
-        if (vkInstanceExtensions.size() == 0 ||
-            vkInstanceExtensions.contains(std::string(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME)))
+        if (vkInstanceExtensions.contains(std::string(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME)))
         {
             LOG_DEBUG("  Adding {}", VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
             newExtensionList.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
         }
 
-        if (vkInstanceExtensions.size() == 0 ||
-            vkInstanceExtensions.contains(std::string(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME)))
+        if (vkInstanceExtensions.contains(std::string(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME)))
         {
             LOG_DEBUG("  Adding {}", VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
             newExtensionList.push_back(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
         }
 
-        if (vkInstanceExtensions.size() == 0 ||
-            vkInstanceExtensions.contains(std::string(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME)))
+        if (vkInstanceExtensions.contains(std::string(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME)))
         {
             LOG_DEBUG("  Adding {}", VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME);
             newExtensionList.push_back(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME);
@@ -300,23 +326,20 @@ VkResult VulkanSpoofing::hkvkCreateInstance(VkInstanceCreateInfo* pCreateInfo, c
     }
 
     LOG_INFO("Adding FFX Vulkan extensions");
-    if (vkInstanceExtensions.size() == 0 ||
-        vkInstanceExtensions.contains(std::string(VK_EXT_DEBUG_UTILS_EXTENSION_NAME)))
+    if (vkInstanceExtensions.contains(std::string(VK_EXT_DEBUG_UTILS_EXTENSION_NAME)))
     {
         LOG_DEBUG("  Adding {}", VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         newExtensionList.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
 
     LOG_INFO("Adding Vulkan w/Dx12 extensions");
-    if (vkInstanceExtensions.size() == 0 ||
-        vkInstanceExtensions.contains(std::string(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME)))
+    if (vkInstanceExtensions.contains(std::string(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME)))
     {
         LOG_DEBUG("  Adding {}", VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
         newExtensionList.push_back(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
     }
 
-    if (vkInstanceExtensions.size() == 0 ||
-        vkInstanceExtensions.contains(std::string(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME)))
+    if (vkInstanceExtensions.contains(std::string(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME)))
     {
         LOG_DEBUG("  Adding {}", VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME);
         newExtensionList.push_back(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME);
@@ -369,7 +392,37 @@ VkResult VulkanSpoofing::hkvkCreateInstance(VkInstanceCreateInfo* pCreateInfo, c
 VkResult VulkanSpoofing::hkvkCreateDevice(VkPhysicalDevice physicalDevice, VkDeviceCreateInfo* pCreateInfo,
                                           const VkAllocationCallbacks* pAllocator, VkDevice* pDevice)
 {
+    if (State::Instance().creatingD3DDevice)
+    {
+        LOG_INFO("Skipping because DXVK/VKD3D is creating a D3D device");
+        return VK_SUCCESS;
+    }
+
     LOG_FUNC();
+
+    if (vkDeviceExtensions.size() == 0)
+    {
+        LOG_INFO("vkDeviceExtensions is empty, enumerating device extensions");
+        auto enumarate = o_vkEnumerateDeviceExtensionProperties;
+        if (o_vkEnumerateDeviceExtensionProperties == nullptr)
+        {
+            enumarate = (PFN_vkEnumerateDeviceExtensionProperties) KernelBaseProxy::GetProcAddress_()(
+                vulkanModule, "vkEnumerateDeviceExtensionProperties");
+        }
+
+        vkEnumerateDeviceExtensionPropertiesListed = true;
+        vkEnumerateDeviceExtensionPropertiesCount = 0;
+
+        enumarate(physicalDevice, nullptr, &vkEnumerateDeviceExtensionPropertiesCount, nullptr);
+        std::vector<VkExtensionProperties> extensions(vkEnumerateDeviceExtensionPropertiesCount);
+        enumarate(physicalDevice, nullptr, &vkEnumerateDeviceExtensionPropertiesCount, extensions.data());
+
+        for (const auto& ext : extensions)
+        {
+            vkDeviceExtensions[ext.extensionName] = true;
+            LOG_DEBUG("  {}", ext.extensionName);
+        }
+    }
 
     static std::vector<const char*> newExtensionList;
     newExtensionList.clear();
@@ -405,29 +458,25 @@ VkResult VulkanSpoofing::hkvkCreateDevice(VkPhysicalDevice physicalDevice, VkDev
     if (State::Instance().isRunningOnNvidia)
     {
         LOG_INFO("Adding NVNGX Vulkan extensions");
-        if (vkDeviceExtensions.size() == 0 ||
-            vkDeviceExtensions.contains(std::string(VK_NVX_MULTIVIEW_PER_VIEW_ATTRIBUTES_EXTENSION_NAME)))
+        if (vkDeviceExtensions.contains(std::string(VK_NVX_MULTIVIEW_PER_VIEW_ATTRIBUTES_EXTENSION_NAME)))
         {
             LOG_DEBUG("  Adding {}", VK_NVX_MULTIVIEW_PER_VIEW_ATTRIBUTES_EXTENSION_NAME);
             newExtensionList.push_back(VK_NVX_MULTIVIEW_PER_VIEW_ATTRIBUTES_EXTENSION_NAME);
         }
 
-        if (vkDeviceExtensions.size() == 0 ||
-            vkDeviceExtensions.contains(std::string(VK_NV_LOW_LATENCY_EXTENSION_NAME)))
+        if (vkDeviceExtensions.contains(std::string(VK_NV_LOW_LATENCY_EXTENSION_NAME)))
         {
             LOG_DEBUG("  Adding {}", VK_NV_LOW_LATENCY_EXTENSION_NAME);
             newExtensionList.push_back(VK_NV_LOW_LATENCY_EXTENSION_NAME);
         }
 
-        if (vkDeviceExtensions.size() == 0 ||
-            vkDeviceExtensions.contains(std::string(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME)))
+        if (vkDeviceExtensions.contains(std::string(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME)))
         {
             LOG_DEBUG("  Adding {}", VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
             newExtensionList.push_back(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
         }
 
-        if (vkDeviceExtensions.size() == 0 ||
-            vkDeviceExtensions.contains(std::string(VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME)))
+        if (vkDeviceExtensions.contains(std::string(VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME)))
         {
             LOG_DEBUG("  Adding {}", VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
             newExtensionList.push_back(VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
@@ -435,15 +484,13 @@ VkResult VulkanSpoofing::hkvkCreateDevice(VkPhysicalDevice physicalDevice, VkDev
 
         if (!isPascalOrOlder)
         {
-            if (vkDeviceExtensions.size() == 0 ||
-                vkDeviceExtensions.contains(std::string(VK_NVX_BINARY_IMPORT_EXTENSION_NAME)))
+            if (vkDeviceExtensions.contains(std::string(VK_NVX_BINARY_IMPORT_EXTENSION_NAME)))
             {
                 LOG_DEBUG("  Adding {}", VK_NVX_BINARY_IMPORT_EXTENSION_NAME);
                 newExtensionList.push_back(VK_NVX_BINARY_IMPORT_EXTENSION_NAME);
             }
 
-            if (vkDeviceExtensions.size() == 0 ||
-                vkDeviceExtensions.contains(std::string(VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME)))
+            if (vkDeviceExtensions.contains(std::string(VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME)))
             {
                 LOG_DEBUG("  Adding {}", VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME);
                 newExtensionList.push_back(VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME);
@@ -452,43 +499,25 @@ VkResult VulkanSpoofing::hkvkCreateDevice(VkPhysicalDevice physicalDevice, VkDev
     }
 
     LOG_INFO("Adding FFX Vulkan extensions");
-    if (vkDeviceExtensions.size() == 0 ||
-        vkDeviceExtensions.contains(std::string(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME)))
+    if (vkDeviceExtensions.contains(std::string(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME)))
     {
         LOG_DEBUG("  Adding {}", VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
         newExtensionList.push_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
     }
 
-    if (vkDeviceExtensions.size() == 0 ||
-        vkDeviceExtensions.contains(std::string(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME)))
+    if (vkDeviceExtensions.contains(std::string(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME)))
     {
         LOG_DEBUG("  Adding {}", VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
         newExtensionList.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
     }
 
-    if (vkDeviceExtensions.size() == 0 ||
-        vkDeviceExtensions.contains(std::string(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME)))
-    {
-        LOG_DEBUG("  Adding {}", VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
-        newExtensionList.push_back(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
-    }
-
-    if (vkDeviceExtensions.size() == 0 ||
-        vkDeviceExtensions.contains(std::string(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME)))
+    if (vkDeviceExtensions.contains(std::string(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME)))
     {
         LOG_DEBUG("  Adding {}", VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME);
         newExtensionList.push_back(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME);
     }
 
-    if (vkDeviceExtensions.size() == 0 ||
-        vkDeviceExtensions.contains(std::string(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME)))
-    {
-        LOG_DEBUG("  Adding {}", VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME);
-        newExtensionList.push_back(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME);
-    }
-
-    if (vkDeviceExtensions.size() == 0 ||
-        vkDeviceExtensions.contains(std::string(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME)))
+    if (vkDeviceExtensions.contains(std::string(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME)))
     {
         LOG_DEBUG("  Adding {}", VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME);
         newExtensionList.push_back(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME);
@@ -501,31 +530,41 @@ VkResult VulkanSpoofing::hkvkCreateDevice(VkPhysicalDevice physicalDevice, VkDev
     }
 
     LOG_INFO("Adding XeSS Vulkan extensions");
-    if (vkDeviceExtensions.size() == 0 ||
-        vkDeviceExtensions.contains(std::string(VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME)))
+    if (vkDeviceExtensions.contains(std::string(VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME)))
     {
         LOG_DEBUG("  Adding {}", VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME);
         newExtensionList.push_back(VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME);
     }
 
-    if (vkDeviceExtensions.size() == 0 ||
-        vkDeviceExtensions.contains(std::string(VK_KHR_SHADER_INTEGER_DOT_PRODUCT_EXTENSION_NAME)))
+    if (vkDeviceExtensions.contains(std::string(VK_KHR_SHADER_INTEGER_DOT_PRODUCT_EXTENSION_NAME)))
     {
         LOG_DEBUG("  Adding {}", VK_KHR_SHADER_INTEGER_DOT_PRODUCT_EXTENSION_NAME);
         newExtensionList.push_back(VK_KHR_SHADER_INTEGER_DOT_PRODUCT_EXTENSION_NAME);
     }
 
-    if (vkDeviceExtensions.size() == 0 ||
-        vkDeviceExtensions.contains(std::string(VK_EXT_MUTABLE_DESCRIPTOR_TYPE_EXTENSION_NAME)))
+    if (vkDeviceExtensions.contains(std::string(VK_EXT_MUTABLE_DESCRIPTOR_TYPE_EXTENSION_NAME)))
     {
         LOG_DEBUG("  Adding {}", VK_EXT_MUTABLE_DESCRIPTOR_TYPE_EXTENSION_NAME);
         newExtensionList.push_back(VK_EXT_MUTABLE_DESCRIPTOR_TYPE_EXTENSION_NAME);
     }
 
+    LOG_INFO("Adding Vk w/Dx12 Vulkan extensions");
+
+    if (vkDeviceExtensions.contains(std::string(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME)))
+    {
+        LOG_DEBUG("  Adding {}", VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
+        newExtensionList.push_back(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
+    }
+
+    if (vkDeviceExtensions.contains(std::string(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME)))
+    {
+        LOG_DEBUG("  Adding {}", VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME);
+        newExtensionList.push_back(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME);
+    }
+
 #ifdef USE_QUEUE_SUBMIT_2_KHR
     LOG_INFO("Adding QueueSubmit2 Vulkan extensions");
-    if (vkDeviceExtensions.size() == 0 ||
-        vkDeviceExtensions.contains(std::string(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME)))
+    if (vkDeviceExtensions.contains(std::string(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME)))
     {
         LOG_DEBUG("  Adding {}", VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
         newExtensionList.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
@@ -628,12 +667,16 @@ inline static VkResult hkvkEnumerateDeviceExtensionProperties(VkPhysicalDevice p
     {
         vkEnumerateDeviceExtensionPropertiesListed = true;
 
+        auto minusCount = 5;
+        if (State::Instance().activeFgInput == FGInput::DLSSG || State::Instance().activeFgInput == FGInput::Nukems)
+            minusCount = 7;
+
         LOG_DEBUG("Extensions returned:");
         for (uint32_t i = 0; i < *pPropertyCount; i++)
         {
             LOG_DEBUG("  {}", pProperties[i].extensionName);
 
-            if (i < (*pPropertyCount - 5))
+            if (!State::Instance().skipSpoofing && i < (*pPropertyCount - minusCount))
                 vkDeviceExtensions.insert_or_assign(std::string(pProperties[i].extensionName), true);
         }
     }

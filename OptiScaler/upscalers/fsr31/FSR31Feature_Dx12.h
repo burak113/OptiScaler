@@ -91,7 +91,8 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
      * @brief Applies optional post-processing to FSR output if configured. Includes options for post-process RCAS,
      FSR output rescaling and ImGui compositing.
      */
-    void PostProcess(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams);
+    void PostProcess(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams,
+                     const ffxDispatchDescUpscale& upscaleDesc);
 
     /**
      * @brief Sets optional resource transition barriers. Used in conjunction with game quirk workarounds.

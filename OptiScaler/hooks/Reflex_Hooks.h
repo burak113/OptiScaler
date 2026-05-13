@@ -2,6 +2,8 @@
 #include <d3d12.h>
 #include <nvapi/NvApiTypes.h>
 
+#include "Hook_Utils.h"
+
 enum TimingType : uint32_t
 {
     TimeRange, // in ns, value stored in length
@@ -59,6 +61,14 @@ class ReflexHooks
                                                         NV_VULKAN_LATENCY_MARKER_PARAMS* pSetLatencyMarkerParams);
     static NvAPI_Status hkNvAPI_Vulkan_SetSleepMode(HANDLE vkDevice,
                                                     NV_VULKAN_SET_SLEEP_MODE_PARAMS* pSetSleepModeParams);
+
+    VALIDATE_MEMBER_HOOK(hkNvAPI_D3D_SetSleepMode, decltype(&NvAPI_D3D_SetSleepMode))
+    VALIDATE_MEMBER_HOOK(hkNvAPI_D3D_Sleep, decltype(&NvAPI_D3D_Sleep))
+    VALIDATE_MEMBER_HOOK(hkNvAPI_D3D_GetLatency, decltype(&NvAPI_D3D_GetLatency))
+    VALIDATE_MEMBER_HOOK(hkNvAPI_D3D_SetLatencyMarker, decltype(&NvAPI_D3D_SetLatencyMarker))
+    VALIDATE_MEMBER_HOOK(hkNvAPI_D3D12_SetAsyncFrameMarker, decltype(&NvAPI_D3D12_SetAsyncFrameMarker))
+    VALIDATE_MEMBER_HOOK(hkNvAPI_Vulkan_SetLatencyMarker, decltype(&NvAPI_Vulkan_SetLatencyMarker))
+    VALIDATE_MEMBER_HOOK(hkNvAPI_Vulkan_SetSleepMode, decltype(&NvAPI_Vulkan_SetSleepMode))
 
   public:
     static std::optional<TimingEntry> timingData[TimingType::TimingTypeCOUNT];

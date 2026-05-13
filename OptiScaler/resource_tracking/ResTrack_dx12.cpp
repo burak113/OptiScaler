@@ -203,7 +203,7 @@ bool ResTrack_Dx12::CheckForRealObject(const std::string functionName, IUnknown*
 bool ResTrack_Dx12::CreateBufferResource(ID3D12Device* InDevice, ResourceInfo* InSource, D3D12_RESOURCE_STATES InState,
                                          ID3D12Resource** OutResource)
 {
-    if (InDevice == nullptr || InSource == nullptr)
+    if (InDevice == nullptr || InSource == nullptr || InSource->buffer == nullptr)
         return false;
 
     if (*OutResource != nullptr)
@@ -249,6 +249,9 @@ bool ResTrack_Dx12::CreateBufferResource(ID3D12Device* InDevice, ResourceInfo* I
 void ResTrack_Dx12::ResourceBarrier(ID3D12GraphicsCommandList* InCommandList, ID3D12Resource* InResource,
                                     D3D12_RESOURCE_STATES InBeforeState, D3D12_RESOURCE_STATES InAfterState)
 {
+    if (InBeforeState == InAfterState)
+        return;
+
     D3D12_RESOURCE_BARRIER barrier = {};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Transition.pResource = InResource;
@@ -944,7 +947,7 @@ HRESULT ResTrack_Dx12::hkCreateDescriptorHeap(ID3D12Device* This, D3D12_DESCRIPT
     }
     else
     {
-        if (*ppvHeap != nullptr)
+        if (ppvHeap != nullptr && *ppvHeap != nullptr)
         {
             auto heap = (ID3D12DescriptorHeap*) (*ppvHeap);
             LOG_TRACE("Skipping, Heap type: {}, Cpu: {}, Gpu: {}", (UINT) pDescriptorHeapDesc->Type,
@@ -971,6 +974,7 @@ ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
         {
             toClean = _trackedResources[This]; // Copy vector
             _trackedResources.erase(This);
+            State::Instance().CapturedHudlesses.erase(This);
         }
     }
 
@@ -984,7 +988,6 @@ ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
         }
     }
 
-    State::Instance().CapturedHudlesses.erase(This);
     return o_Release(This);
 }
 
@@ -1267,7 +1270,6 @@ void ResTrack_Dx12::hkOMSetRenderTargets(ID3D12GraphicsCommandList* This, UINT N
     LOG_DEBUG_ONLY("NumRenderTargetDescriptors: {}", NumRenderTargetDescriptors);
 
     auto fIndex = Hudfix_Dx12::ActivePresentFrame() % BUFFER_COUNT;
-    bool anyResourceTracked = false;
 
     // Process render targets
     for (size_t i = 0; i < NumRenderTargetDescriptors; i++)
@@ -1334,7 +1336,6 @@ void ResTrack_Dx12::hkOMSetRenderTargets(ID3D12GraphicsCommandList* This, UINT N
 
                 LOG_TRACK("Tracking Resource: {:X}, Desc: {:X}", (size_t) capturedBuffer->buffer, handle.ptr);
                 fgPossibleHudless[fIndex][This].insert_or_assign(capturedBuffer->buffer, *capturedBuffer);
-                anyResourceTracked = true;
             }
             else
             {
@@ -1358,7 +1359,6 @@ void ResTrack_Dx12::hkOMSetRenderTargets(ID3D12GraphicsCommandList* This, UINT N
                           (size_t) capturedBuffer->buffer, handle.ptr, (UINT) capturedBuffer->format);
 
                 shard.map[This].insert_or_assign(capturedBuffer->buffer, *capturedBuffer);
-                anyResourceTracked = true;
             }
         }
     }
@@ -1494,14 +1494,11 @@ void ResTrack_Dx12::hkDrawInstanced(ID3D12GraphicsCommandList* This, UINT Vertex
             return;
         }
 
-        if (fgPossibleHudless[fIndex].size() == 0)
-            return;
-
         ankerl::unordered_dense::map<ID3D12Resource*, ResourceInfo> val0;
         {
             std::lock_guard<std::mutex> lock(_hudlessTrackMutex);
 
-            if (!fgPossibleHudless[fIndex].contains(This))
+            if (fgPossibleHudless[fIndex].size() == 0 || !fgPossibleHudless[fIndex].contains(This))
                 return;
 
             val0 = std::move(fgPossibleHudless[fIndex][This]);
@@ -1517,10 +1514,9 @@ void ResTrack_Dx12::hkDrawInstanced(ID3D12GraphicsCommandList* This, UINT Vertex
             if (Config::Instance()->FGHudfixDisableDI.value_or_default())
                 break;
 
+            std::lock_guard<std::mutex> lock(_drawMutex);
             for (auto& [key, val] : val0)
             {
-                std::lock_guard<std::mutex> lock(_drawMutex);
-
                 val.captureInfo |= CaptureInfo::DrawInstanced;
 
                 if (Hudfix_Dx12::CheckForHudless(This, &val, val.state))
@@ -1618,14 +1614,11 @@ void ResTrack_Dx12::hkDrawIndexedInstanced(ID3D12GraphicsCommandList* This, UINT
             return;
         }
 
-        if (fgPossibleHudless[fIndex].size() == 0)
-            return;
-
         ankerl::unordered_dense::map<ID3D12Resource*, ResourceInfo> val0;
         {
             std::lock_guard<std::mutex> lock(_hudlessTrackMutex);
 
-            if (!fgPossibleHudless[fIndex].contains(This))
+            if (fgPossibleHudless[fIndex].size() == 0 || !fgPossibleHudless[fIndex].contains(This))
                 return;
 
             val0 = std::move(fgPossibleHudless[fIndex][This]);
@@ -1641,11 +1634,9 @@ void ResTrack_Dx12::hkDrawIndexedInstanced(ID3D12GraphicsCommandList* This, UINT
             if (Config::Instance()->FGHudfixDisableDII.value_or_default())
                 break;
 
+            std::lock_guard<std::mutex> lock(_drawMutex);
             for (auto& [key, val] : val0)
             {
-                // LOG_DEBUG("Waiting _drawMutex {:X}", (size_t)val.buffer);
-                std::lock_guard<std::mutex> lock(_drawMutex);
-
                 val.captureInfo |= CaptureInfo::DrawIndexedInstanced;
 
                 if (Hudfix_Dx12::CheckForHudless(This, &val, val.state))
@@ -1733,7 +1724,7 @@ void ResTrack_Dx12::hkExecuteBundle(ID3D12GraphicsCommandList* This, ID3D12Graph
             if (_notFoundCmdLists.contains(pCommandList))
                 LOG_WARN("Found last frames cmdList: {:X}", (size_t) This);
 
-            auto frameCmdList = _resourceCommandList[index];
+            auto& frameCmdList = _resourceCommandList[index];
             for (std::unordered_map<FG_ResourceType, ID3D12GraphicsCommandList*>::iterator it = frameCmdList.begin();
                  it != frameCmdList.end(); ++it)
             {
@@ -1815,14 +1806,11 @@ void ResTrack_Dx12::hkDispatch(ID3D12GraphicsCommandList* This, UINT ThreadGroup
             return;
         }
 
-        if (fgPossibleHudless[fIndex].size() == 0)
-            return;
-
         ankerl::unordered_dense::map<ID3D12Resource*, ResourceInfo> val0;
         {
             std::lock_guard<std::mutex> lock(_hudlessTrackMutex);
 
-            if (!fgPossibleHudless[fIndex].contains(This))
+            if (fgPossibleHudless[fIndex].size() == 0 || !fgPossibleHudless[fIndex].contains(This))
                 return;
 
             val0 = std::move(fgPossibleHudless[fIndex][This]);
@@ -1838,16 +1826,13 @@ void ResTrack_Dx12::hkDispatch(ID3D12GraphicsCommandList* This, UINT ThreadGroup
             if (Config::Instance()->FGHudfixDisableDispatch.value_or_default())
                 break;
 
+            std::lock_guard<std::mutex> lock(_drawMutex);
             for (auto& [key, val] : val0)
             {
-                // LOG_DEBUG("Waiting _drawMutex {:X}", (size_t)val.buffer);
-                std::lock_guard<std::mutex> lock(_drawMutex);
-
                 val.captureInfo |= CaptureInfo::Dispatch;
+
                 if (Hudfix_Dx12::CheckForHudless(This, &val, val.state))
-                {
                     break;
-                }
             }
         } while (false);
     }

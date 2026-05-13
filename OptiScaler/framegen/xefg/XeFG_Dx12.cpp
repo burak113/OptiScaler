@@ -154,7 +154,8 @@ bool XeFG_Dx12::DestroySwapchainContext()
             if (XeLLProxy::Context() != nullptr)
                 XeLLProxy::DestroyXeLLContext();
 
-            State::Instance().currentFGSwapchain = nullptr;
+            if (!Config::Instance()->FGPreserveSwapChain.value_or_default())
+                State::Instance().currentFGSwapchain = nullptr;
         }
     }
 
@@ -715,9 +716,7 @@ bool XeFG_Dx12::Dispatch()
     {
         // To prevent XeLL issues
         LOG_DEBUG("UI Composition state changed {}, skipping rendering for 10 frames", _uiComposition);
-        state.FGchanged = true;
-        UpdateTarget();
-        Deactivate();
+        state.WAR_xefgRequestFGToggle = true;
 
         _uiComposition = Config::Instance()->FGXeFGUIComposition.value_or_default();
 
@@ -746,9 +745,7 @@ bool XeFG_Dx12::Dispatch()
             LOG_INFO("Interpolation count changed {} -> {}", _framesToInterpolate,
                      Config::Instance()->FGXeFGInterpolationCount.value_or_default());
 
-            state.FGchanged = true;
-            UpdateTarget();
-            Deactivate();
+            state.WAR_xefgRequestFGToggle = true;
 
             ScopedSkipSpoofing skipSpoofing {};
 
@@ -763,6 +760,16 @@ bool XeFG_Dx12::Dispatch()
                           (UINT) intResult);
             }
         }
+    }
+
+    // Workaround for wrong frame limit
+    if (state.WAR_xefgRequestFGToggle)
+    {
+        state.WAR_xefgRequestFGToggle = false;
+
+        state.FGchanged = true;
+        UpdateTarget();
+        Deactivate();
     }
 
     if (!_haveHudless.has_value())
@@ -1570,7 +1577,9 @@ bool XeFG_Dx12::ReleaseSwapchain(HWND hwnd)
             DestroySwapchainContext();
 
         _swapChainContext = nullptr;
-        State::Instance().currentFGSwapchain = nullptr;
+
+        if (!Config::Instance()->FGPreserveSwapChain.value_or_default())
+            State::Instance().currentFGSwapchain = nullptr;
     }
 
     ReleaseObjects();

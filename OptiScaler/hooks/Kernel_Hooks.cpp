@@ -14,6 +14,8 @@
 
 #include <cwctype>
 
+#include "Hook_Utils.h"
+
 #pragma intrinsic(_ReturnAddress)
 
 static inline void NormalizePath(std::string& path)
@@ -83,6 +85,7 @@ static inline HMODULE CheckLoad(const std::wstring& name)
     return nullptr;
 }
 
+VALIDATE_HOOK(hk_K32_GetProcAddress, Kernel32Proxy::PFN_GetProcAddress)
 FARPROC WINAPI KernelHooks::hk_K32_GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
 {
 
@@ -120,6 +123,7 @@ FARPROC WINAPI KernelHooks::hk_K32_GetProcAddress(HMODULE hModule, LPCSTR lpProc
     return o_K32_GetProcAddress(hModule, lpProcName);
 }
 
+VALIDATE_HOOK(hk_K32_GetModuleHandleA, Kernel32Proxy::PFN_GetModuleHandleA)
 HMODULE WINAPI KernelHooks::hk_K32_GetModuleHandleA(LPCSTR lpModuleName)
 {
     if (lpModuleName != NULL)
@@ -154,6 +158,7 @@ HMODULE WINAPI KernelHooks::hk_K32_GetModuleHandleA(LPCSTR lpModuleName)
     return o_K32_GetModuleHandleA(lpModuleName);
 }
 
+VALIDATE_HOOK(hk_K32_GetModuleHandleExW, Kernel32Proxy::PFN_GetModuleHandleExW)
 BOOL WINAPI KernelHooks::hk_K32_GetModuleHandleExW(DWORD dwFlags, LPCWSTR lpModuleName, HMODULE* phModule)
 {
     if (lpModuleName && dwFlags == GET_MODULE_HANDLE_EX_FLAG_PIN && lstrcmpW(L"nvapi64.dll", lpModuleName) == 0 &&
@@ -167,6 +172,7 @@ BOOL WINAPI KernelHooks::hk_K32_GetModuleHandleExW(DWORD dwFlags, LPCWSTR lpModu
     return o_K32_GetModuleHandleExW(dwFlags, lpModuleName, phModule);
 }
 
+VALIDATE_HOOK(hk_KB_GetProcAddress, KernelBaseProxy::PFN_GetProcAddress)
 FARPROC WINAPI KernelHooks::hk_KB_GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
 {
     if ((size_t) lpProcName < 0x000000000000F000)
@@ -191,6 +197,7 @@ FARPROC WINAPI KernelHooks::hk_KB_GetProcAddress(HMODULE hModule, LPCSTR lpProcN
     return o_KB_GetProcAddress(hModule, lpProcName);
 }
 
+VALIDATE_HOOK(hk_K32_GetFileAttributesW, Kernel32Proxy::PFN_GetFileAttributesW)
 DWORD WINAPI KernelHooks::hk_K32_GetFileAttributesW(LPCWSTR lpFileName)
 {
     if (!State::Instance().nvngxExists && State::Instance().nvngxReplacement.has_value() &&
@@ -211,6 +218,7 @@ DWORD WINAPI KernelHooks::hk_K32_GetFileAttributesW(LPCWSTR lpFileName)
     return o_K32_GetFileAttributesW(lpFileName);
 }
 
+VALIDATE_HOOK(hk_K32_CreateFileW, Kernel32Proxy::PFN_CreateFileW)
 HANDLE WINAPI KernelHooks::hk_K32_CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
                                               LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition,
                                               DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
@@ -239,6 +247,7 @@ HANDLE WINAPI KernelHooks::hk_K32_CreateFileW(LPCWSTR lpFileName, DWORD dwDesire
 
 // Load Library checks
 
+VALIDATE_HOOK(hk_K32_LoadLibraryW, Kernel32Proxy::PFN_LoadLibraryW)
 HMODULE KernelHooks::hk_K32_LoadLibraryW(LPCWSTR lpLibFileName)
 {
     if (lpLibFileName == nullptr)
@@ -258,6 +267,7 @@ HMODULE KernelHooks::hk_K32_LoadLibraryW(LPCWSTR lpLibFileName)
     return o_K32_LoadLibraryW(lpLibFileName);
 }
 
+VALIDATE_HOOK(hk_K32_LoadLibraryA, Kernel32Proxy::PFN_LoadLibraryA)
 HMODULE KernelHooks::hk_K32_LoadLibraryA(LPCSTR lpLibFileName)
 {
     if (lpLibFileName == nullptr)
@@ -278,6 +288,7 @@ HMODULE KernelHooks::hk_K32_LoadLibraryA(LPCSTR lpLibFileName)
     return o_K32_LoadLibraryA(lpLibFileName);
 }
 
+VALIDATE_HOOK(hk_K32_LoadLibraryExW, Kernel32Proxy::PFN_LoadLibraryExW)
 HMODULE KernelHooks::hk_K32_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
     if (lpLibFileName == nullptr)
@@ -297,6 +308,7 @@ HMODULE KernelHooks::hk_K32_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, 
     return o_K32_LoadLibraryExW(lpLibFileName, hFile, dwFlags);
 }
 
+VALIDATE_HOOK(hk_K32_LoadLibraryExA, Kernel32Proxy::PFN_LoadLibraryExA)
 HMODULE KernelHooks::hk_K32_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
     if (lpLibFileName == nullptr)
@@ -317,6 +329,7 @@ HMODULE KernelHooks::hk_K32_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, D
     return o_K32_LoadLibraryExA(lpLibFileName, hFile, dwFlags);
 }
 
+VALIDATE_HOOK(hk_KB_LoadLibraryExW, KernelBaseProxy::PFN_LoadLibraryExW)
 HMODULE KernelHooks::hk_KB_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
     if (lpLibFileName == nullptr)
@@ -336,6 +349,7 @@ HMODULE KernelHooks::hk_KB_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, D
     return o_KB_LoadLibraryExW(lpLibFileName, hFile, dwFlags);
 }
 
+VALIDATE_HOOK(hk_K32_FreeLibrary, Kernel32Proxy::PFN_FreeLibrary)
 BOOL KernelHooks::hk_K32_FreeLibrary(HMODULE lpLibrary)
 {
     if (lpLibrary == nullptr)

@@ -294,6 +294,9 @@ bool XeSSFeature_Vk::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* 
     if (!OS->IsInit())
         Config::Instance()->OutputScalingEnabled.set_volatile_value(false);
 
+    if (Config::Instance()->DADepthIsLinear.value_for_config_ignore_default() == std::nullopt)
+        Config::Instance()->DADepthIsLinear.set_volatile_value(false);
+
     if (State::Instance().xessDebug)
     {
         LOG_ERROR("xessDebug");
@@ -608,18 +611,15 @@ bool XeSSFeature_Vk::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* 
 
         RcasConstants rcasConstants {};
         rcasConstants.Sharpness = _sharpness;
-        rcasConstants.DisplayWidth = TargetWidth();
-        rcasConstants.DisplayHeight = TargetHeight();
         InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_X, &rcasConstants.MvScaleX);
         InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_Y, &rcasConstants.MvScaleY);
-        rcasConstants.DisplaySizeMV = !(GetFeatureFlags() & NVSDK_NGX_DLSS_Feature_Flags_MVLowRes);
-        rcasConstants.RenderHeight = RenderHeight();
-        rcasConstants.RenderWidth = RenderWidth();
+        rcasConstants.CameraNear = Config::Instance()->FsrCameraNear.value_or_default();
+        rcasConstants.CameraFar = Config::Instance()->FsrCameraFar.value_or_default();
 
         VkExtent2D outExtent = { DisplayWidth(), DisplayHeight() };
 
         RCAS->Dispatch(Device, InCmdBuffer, rcasConstants, RCAS->GetImageView(), params.velocityTexture.imageView,
-                       finalOutputView, outExtent);
+                       finalOutputView, outExtent, params.depthTexture.imageView);
     }
 
     _frameCount++;
@@ -632,8 +632,8 @@ XeSSFeature_Vk::XeSSFeature_Vk(unsigned int handleId, NVSDK_NGX_Parameter* InPar
 {
     _initParameters = SetInitParameters(InParameters);
 
-    if (XeSSProxy::Module() == nullptr && XeSSProxy::InitXeSS())
-        XeSSProxy::HookXeSS();
+    if (XeSSProxy::Module() == nullptr)
+        XeSSProxy::InitXeSS();
 
     _moduleLoaded = XeSSProxy::Module() != nullptr && XeSSProxy::VKCreateContext() != nullptr;
 }

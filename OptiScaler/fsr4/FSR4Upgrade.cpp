@@ -104,7 +104,7 @@ std::vector<std::filesystem::path> GetDriverStore()
                 auto hr = o_D3DKMTQueryAdapterInfo(&queryAdapterInfo);
 
                 if (hr != 0)
-                    LOG_ERROR("Failed to query adapter info {:X}", hr);
+                    LOG_WARN("Failed to query adapter info {:X}", hr);
                 else
                     result.push_back(std::filesystem::path(umdFileInfo.UmdFileName).parent_path());
 
@@ -266,19 +266,20 @@ struct AmdExtFfxApi : public IAmdExtFfxApi
                 LOG_INFO("amdxcffx64 loaded from game folder");
             }
 
-            if (moduleAmdxcffx64 == nullptr)
-            {
-                LOG_ERROR("Failed to load amdxcffx64.dll");
-                return E_NOINTERFACE;
-            }
-
             auto sdk2upscalingModule = KernelBaseProxy::GetModuleHandleA_()("amd_fidelityfx_upscaler_dx12.dll");
 
             if (sdk2upscalingModule)
                 FSR4ModelSelection::Hook(sdk2upscalingModule, FSR4Source::SDK);
 
             if (moduleAmdxcffx64)
+            {
                 FSR4ModelSelection::Hook(moduleAmdxcffx64, FSR4Source::DriverDll);
+            }
+            else
+            {
+                LOG_WARN("Failed to load amdxcffx64.dll");
+                return E_NOINTERFACE;
+            }
 
             o_UpdateFfxApiProvider =
                 (PFN_UpdateFfxApiProvider) KernelBaseProxy::GetProcAddress_()(moduleAmdxcffx64, "UpdateFfxApiProvider");

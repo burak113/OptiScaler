@@ -164,7 +164,18 @@ bool fakenvapi::loadForNvidia()
     if (_dllForNvidia != nullptr)
         return true;
 
-    _dllForNvidia = NtdllProxy::LoadLibraryExW_Ldr(L"fakenvapi.dll", NULL, 0);
+    HMODULE memModule = nullptr;
+    auto optiPath = Config::Instance()->MainDllPath.value();
+    Util::LoadProxyLibrary(L"fakenvapi.dll", optiPath, Config::Instance()->NvapiDllPath.value_or(L""), &memModule,
+                           &_dllForNvidia);
+
+    if (memModule != nullptr)
+    {
+        if (_dllForNvidia == nullptr)
+            _dllForNvidia = memModule;
+        else if (memModule != _dllForNvidia)
+            LOG_WARN("Loaded fakenvapi.dll from memory but it is different from Opti folder");
+    }
 
     if (!_dllForNvidia)
         return false;

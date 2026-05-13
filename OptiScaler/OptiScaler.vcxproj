@@ -323,10 +323,14 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="hooks\DxgiFactory_WrappedCalls.h" />
     <ClInclude Include="hooks\Dxgi_Hooks.h" />
     <ClInclude Include="hooks\FG_Hooks.h" />
+    <ClInclude Include="hooks\Hook_Utils.h" />
     <ClInclude Include="hooks\LibraryLoad_Hooks.h" />
     <ClInclude Include="hooks\CommandBuffer_StateTracker.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDShaderData.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDShaderUtils.h" />
+    <ClInclude Include="shaders\rcas\precompile\da_sharpen_Shader.h" />
+    <ClInclude Include="shaders\rcas\precompile\da_sharpen_Shader_Dx11.h" />
+    <ClInclude Include="shaders\rcas\precompile\da_sharpen_Shader_Vk.h" />
     <ClInclude Include="spoofing\User32_Spoofing.h" />
     <ClInclude Include="hooks\VulkanwDx12_Hooks.h" />
     <ClInclude Include="inputs\FSR2_Dx11.h" />

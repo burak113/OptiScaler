@@ -15,8 +15,8 @@ class XeSSFeatureDx12 : public XeSSFeature, public IFeature_Dx12
         : IFeature(InHandleId, InParameters), IFeature_Dx12(InHandleId, InParameters),
           XeSSFeature(InHandleId, InParameters)
     {
-        if (XeSSProxy::Module() == nullptr && XeSSProxy::InitXeSS())
-            XeSSProxy::HookXeSS();
+        if (XeSSProxy::Module() == nullptr)
+            XeSSProxy::InitXeSS();
 
         _moduleLoaded = XeSSProxy::Module() != nullptr && XeSSProxy::D3D12CreateContext() != nullptr;
     }

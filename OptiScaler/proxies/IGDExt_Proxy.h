@@ -416,7 +416,7 @@ class IGDExtProxy
     }
 
     static D3D12_RESOURCE_ALLOCATION_INFO GetResourceAllocationInfo(UINT visibleMask, UINT numResourceDescs,
-                                                                    D3D12_RESOURCE_DESC* pResourceDescs)
+                                                                    const D3D12_RESOURCE_DESC* pResourceDescs)
     {
         if (_context == nullptr)
             return {};
@@ -431,7 +431,8 @@ class IGDExtProxy
             return {};
 
         INTC_D3D12_RESOURCE_DESC_0001 localDesc {};
-        localDesc.pD3D12Desc = pResourceDescs;
+        D3D12_RESOURCE_DESC localD3D12Desc = *pResourceDescs;
+        localDesc.pD3D12Desc = &localD3D12Desc;
         localDesc.EmulatedTyped64bitAtomics = true;
 
         auto result = _INTC_D3D12_GetResourceAllocationInfo(_context, visibleMask, numResourceDescs, &localDesc);

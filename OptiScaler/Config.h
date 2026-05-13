@@ -205,7 +205,7 @@ class Config
     CustomOptional<bool> LogToNGX { false };
     CustomOptional<bool> OpenConsole { false };
     CustomOptional<bool> DebugWait { false }; // not in ini
-    CustomOptional<int> LogLevel { 1 };
+    CustomOptional<int> LogLevel { 0 };
     CustomOptional<std::wstring> LogFileName { L"OptiScaler.log" };
     CustomOptional<bool> LogSingleFile { true };
     CustomOptional<bool> LogAsync { false };
@@ -215,14 +215,9 @@ class Config
     CustomOptional<bool> BuildPipelines { true };
     CustomOptional<int32_t> NetworkModel { 0 };
     CustomOptional<bool> CreateHeaps { true };
-    CustomOptional<std::wstring, NoDefault> XeSSLibrary;
-    CustomOptional<std::wstring, NoDefault> XeSSDx11Library;
 
     // DLSS
     CustomOptional<bool> DLSSEnabled { true };
-    CustomOptional<std::wstring, NoDefault> NvngxPath;
-    CustomOptional<std::wstring, NoDefault> NVNGX_DLSS_Library;
-    CustomOptional<std::wstring, NoDefault> DLSSFeaturePath;
     CustomOptional<bool> RenderPresetOverride { false };
     CustomOptional<uint32_t> RenderPresetForAll { 0 };
     CustomOptional<uint32_t> RenderPresetDLAA { 0 };
@@ -245,19 +240,47 @@ class Config
     // Nukems
     CustomOptional<bool> MakeDepthCopy { false };
 
-    // CAS
-    CustomOptional<bool> RcasEnabled { false };
-    CustomOptional<bool> MotionSharpnessEnabled { false };
-    CustomOptional<bool> MotionSharpnessDebug { false };
-    CustomOptional<float> MotionSharpness { 0.4f };
-    CustomOptional<float> MotionThreshold { 0.0f };
-    CustomOptional<float> MotionScaleLimit { 10.0f };
+    // Libraries
+    CustomOptional<std::wstring, NoDefault> MainDllPath;
+    CustomOptional<std::wstring, NoDefault> FfxDx12Path;
+    CustomOptional<std::wstring, NoDefault> FfxDx12SRPath;
+    CustomOptional<std::wstring, NoDefault> FfxDx12FGPath;
+    CustomOptional<std::wstring, NoDefault> FfxDx12RRPath;
+    CustomOptional<std::wstring, NoDefault> FfxDx12RCPath;
+    CustomOptional<std::wstring, NoDefault> FfxVkPath;
+    CustomOptional<std::wstring, NoDefault> XeSSLibrary;
+    CustomOptional<std::wstring, NoDefault> XeFGLibrary;
+    CustomOptional<std::wstring, NoDefault> XeLLLibrary;
+    CustomOptional<std::wstring, NoDefault> XeSSDx11Library;
+    CustomOptional<std::wstring, NoDefault> NvngxPath;
+    CustomOptional<std::wstring, NoDefault> NVNGX_DLSS_Library;
+    CustomOptional<std::wstring, NoDefault> DLSSFeaturePath;
+    CustomOptional<std::wstring, NoDefault> NvapiDllPath;
 
     // Sharpness
     CustomOptional<bool> OverrideSharpness { false };
-    CustomOptional<float> Sharpness { 0.3f };
+    CustomOptional<float> Sharpness { 0.4f };
+
+    // CAS
+    CustomOptional<bool> RcasEnabled { false };
+
+    // RCAS
     CustomOptional<bool> ContrastEnabled { false };
-    CustomOptional<float> Contrast { 0.0f };
+    CustomOptional<float> Contrast { -0.3f };
+
+    // DA Sharpening
+    CustomOptional<bool> UseDepthAwareSharpen { false };
+    CustomOptional<bool> DADepthIsLinear { false };
+    CustomOptional<float, NoDefault> DADepthScale;
+    CustomOptional<float, NoDefault> DADepthBias;
+    CustomOptional<bool, NoDefault> DAClampOutput;
+
+    // MAS
+    CustomOptional<bool> MotionSharpnessEnabled { false };
+    CustomOptional<bool> MotionSharpnessDebug { false };
+    CustomOptional<float> MotionSharpness { 0.2f };
+    CustomOptional<float> MotionThreshold { 0.0f };
+    CustomOptional<float> MotionScaleLimit { 10.0f };
 
     // Menu
     CustomOptional<float, NoDefault> MenuScale;
@@ -310,7 +333,8 @@ class Config
         L"idtechlauncher.exe|cefviewwing.exe|ace-setup64.exe|ace-service64.exe|qtwebengineprocess.exe|"
         L"platformprocess.exe|bugsplathd64.exe|bssndrpt64.exe|pspcsdkappmgr.exe|pspcsdkcore.exe|pspcsdkstttts.exe|"
         L"pspcsdktelemetry.exe|pspcsdkui.exe|pspcsdkupdatechecker.exe|pspcsdkvoicechat.exe|pspcsdkwebview.exe|windhawk."
-        L"exe|vscodium.exe|crash_reporter.exe|steamerrorreporter64.exe|crashreportclient.exe"
+        L"exe|vscodium.exe|crash_reporter.exe|steamerrorreporter64.exe|crashreportclient.exe|edcefcrashpadprocess.exe|"
+        L"edcefrenderprocess.exe"
     };
 
     // Hotfixes
@@ -334,7 +358,7 @@ class Config
     CustomOptional<bool> RestoreComputeSignature { false };
     CustomOptional<bool> RestoreGraphicSignature { false };
 
-    CustomOptional<bool> UsePrecompiledShaders { true };
+    CustomOptional<bool> UsePrecompiledShaders { false };
 
     CustomOptional<bool> UseGenericAppIdWithDlss { false };
     CustomOptional<bool> PreferDedicatedGpu { false };
@@ -400,9 +424,6 @@ class Config
     CustomOptional<float> FsrCameraFar { 100000.0f };
     CustomOptional<bool> FsrUseFsrInputValues { true };
 
-    CustomOptional<std::wstring, NoDefault> FfxDx12Path;
-    CustomOptional<std::wstring, NoDefault> FfxVkPath;
-
     // dx11wdx12
     CustomOptional<bool> Dx11DelayedInit { false };
     CustomOptional<bool> DontUseNTShared { true };
@@ -414,7 +435,6 @@ class Config
     // NVAPI Override
     CustomOptional<bool> OverrideNvapiDll { false };
     CustomOptional<bool> DontUseFakenvapiForXeLLOnNvidia { false };
-    CustomOptional<std::wstring, NoDefault> NvapiDllPath;
     CustomOptional<bool> DisableFlipMetering { false };
 
     // Spoofing
@@ -439,7 +459,7 @@ class Config
     CustomOptional<std::wstring> SpoofedDriver { L"32.0.15.9155" };
 
     // Plugins
-    CustomOptional<std::wstring> PluginPath { L"plugins" };
+    CustomOptional<std::wstring, NoDefault> PluginPath;
     CustomOptional<bool> LoadSpecialK { false };
     CustomOptional<bool> LoadReShade { false };
     CustomOptional<bool> LoadAsiPlugins { false };

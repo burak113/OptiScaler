@@ -48,6 +48,7 @@ class XeFGProxy
 {
   private:
     inline static HMODULE _dll = nullptr;
+    inline static std::wstring _dllPath;
 
     inline static feature_version _xefgVersion {};
 
@@ -148,6 +149,7 @@ class XeFGProxy
 
   public:
     static HMODULE Module() { return _dll; }
+    static std::wstring Module_Path() { return _dllPath; }
 
     static bool InitXeFG()
     {
@@ -156,37 +158,35 @@ class XeFGProxy
 
         HMODULE mainModule = nullptr;
 
-        mainModule = GetModuleHandle(L"libxess_fg.dll");
-        if (mainModule != nullptr)
+        std::vector<std::wstring> dllNames = { L"libxess_fg.dll" };
+
+        auto optiPath = Config::Instance()->MainDllPath.value();
+
+        for (size_t i = 0; i < dllNames.size(); i++)
         {
-            _dll = mainModule;
-            // return true;
-        }
+            LOG_DEBUG("Trying to load {}", wstring_to_string(dllNames[i]));
 
-        auto dllPath = Util::DllPath();
+            auto overridePath = Config::Instance()->XeFGLibrary.value_or(L"");
 
-        std::wstring libraryName;
-        libraryName = L"libxess_fg.dll";
+            HMODULE memModule = nullptr;
+            Util::LoadProxyLibrary(dllNames[i], optiPath, overridePath, &memModule, &mainModule);
 
-        // we would like to prioritize file pointed at ini
-        // if (Config::Instance()->XeSSLibrary.has_value())
-        //{
-        //    std::filesystem::path cfgPath(Config::Instance()->XeSSLibrary.value().c_str());
-        //    LOG_INFO(L"Trying to load libxell.dll from ini path: {}", cfgPath.wstring());
-
-        //    cfgPath = cfgPath / libraryName;
-        //    mainModule = KernelBaseProxy::LoadLibraryExW_()(cfgPath.c_str(), NULL, 0);
-        //}
-
-        if (mainModule == nullptr)
-        {
-            std::filesystem::path libXeFGPath = dllPath.parent_path() / libraryName;
-            LOG_INFO(L"Trying to load libxess_fg.dll from dll path: {}", libXeFGPath.wstring());
-            mainModule = NtdllProxy::LoadLibraryExW_Ldr(libXeFGPath.c_str(), NULL, 0);
+            if (mainModule != nullptr)
+            {
+                break;
+            }
         }
 
         if (mainModule != nullptr)
+        {
+            wchar_t modulePath[MAX_PATH];
+            DWORD len = GetModuleFileNameW(mainModule, modulePath, MAX_PATH);
+            _dllPath = std::wstring(modulePath);
+
+            LOG_INFO("Loaded from {}", wstring_to_string(_dllPath));
+
             return HookXeFG(mainModule);
+        }
 
         return false;
     }

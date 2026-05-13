@@ -148,20 +148,32 @@ RUI_Dx12::RUI_Dx12(std::string InName, ID3D12Device* InDevice, bool preMultiplie
             vs = RUI_CompileShader(ruiCode.c_str(), "VSMain", "vs_5_1");
             if (vs != nullptr)
                 graphicsPsoDesc.VS = { vs->GetBufferPointer(), vs->GetBufferSize() };
+            else
+                graphicsPsoDesc.VS =
+                    CD3DX12_SHADER_BYTECODE(reinterpret_cast<const void*>(render_ui_VS_cso), sizeof(render_ui_VS_cso));
 
             ps = RUI_CompileShader(ruiCode.c_str(), "PSMain", "ps_5_1");
             if (ps != nullptr)
                 graphicsPsoDesc.PS = { ps->GetBufferPointer(), ps->GetBufferSize() };
+            else
+                graphicsPsoDesc.PS =
+                    CD3DX12_SHADER_BYTECODE(reinterpret_cast<const void*>(render_ui_PS_cso), sizeof(render_ui_PS_cso));
         }
         else
         {
             vs = RUI_CompileShader(ruipmCode.c_str(), "VSMain", "vs_5_1");
             if (vs != nullptr)
                 graphicsPsoDesc.VS = { vs->GetBufferPointer(), vs->GetBufferSize() };
+            else
+                graphicsPsoDesc.VS = CD3DX12_SHADER_BYTECODE(reinterpret_cast<const void*>(render_ui_pm_VS_cso),
+                                                             sizeof(render_ui_pm_VS_cso));
 
             ps = RUI_CompileShader(ruipmCode.c_str(), "PSMain", "ps_5_1");
             if (ps != nullptr)
                 graphicsPsoDesc.PS = { ps->GetBufferPointer(), ps->GetBufferSize() };
+            else
+                graphicsPsoDesc.PS = CD3DX12_SHADER_BYTECODE(reinterpret_cast<const void*>(render_ui_pm_PS_cso),
+                                                             sizeof(render_ui_pm_PS_cso));
         }
     }
 

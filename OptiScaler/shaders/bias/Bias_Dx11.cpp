@@ -210,15 +210,22 @@ Bias_Dx11::Bias_Dx11(std::string InName, ID3D11Device* InDevice) : _name(InName)
     {
         // Compile shader blobs
         ID3DBlob* shaderBlob = Bias_CompileShader(biasShader.c_str(), "CSMain", "cs_5_0");
+
+        HRESULT hr = E_FAIL;
+
         if (shaderBlob == nullptr)
         {
             LOG_ERROR("[{0}] CompileShader error!", _name);
-            return;
-        }
 
-        // create pso objects
-        auto hr = _device->CreateComputeShader(shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), nullptr,
-                                               &_computeShader);
+            hr = _device->CreateComputeShader(reinterpret_cast<const void*>(bias_cso), sizeof(bias_cso), nullptr,
+                                              &_computeShader);
+        }
+        else
+        {
+            // create pso objects
+            hr = _device->CreateComputeShader(shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), nullptr,
+                                              &_computeShader);
+        }
 
         if (shaderBlob != nullptr)
         {

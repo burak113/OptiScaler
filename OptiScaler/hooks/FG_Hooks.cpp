@@ -12,6 +12,7 @@
 #include <resource_tracking/ResTrack_Dx12.h>
 
 #include <misc/FrameLimit.h>
+#include <menu/menu_overlay_dx.h>
 #include <upscaler_time/UpscalerTime_Dx12.h>
 
 #include <detours/detours.h>
@@ -24,17 +25,44 @@ inline static ID3D12Fence* resizeFence = nullptr;
 inline static UINT64 resizeFenceValue = 0;
 inline static HANDLE resizeFenceEvent = nullptr;
 inline static IUnknown* oldSwapChain = nullptr;
+inline static ID3D12CommandQueue* currentCommandQueue = nullptr;
+inline static bool _forcedHdrForXeFG = false;
 
 #if (XEFG_RESOURCE_REF_LIMIT == 0)
 inline static std::vector<void*> oldBackBuffers;
 #endif
 
+static void PauseFG(IFGFeature_Dx12* fg)
+{
+    if (fg != nullptr && fg->IsActive())
+    {
+        State::Instance().FGchanged = true;
+        fg->UpdateTarget();
+        fg->Deactivate();
+    }
+}
+
+static void WaitForGPUIdle()
+{
+    if (currentCommandQueue != nullptr && resizeFence != nullptr && resizeFenceEvent != nullptr)
+    {
+        LOG_DEBUG("Waiting for GPU to finish before resizing buffers");
+
+        resizeFenceValue++;
+        currentCommandQueue->Signal(resizeFence, resizeFenceValue);
+
+        if (resizeFence->GetCompletedValue() < resizeFenceValue)
+        {
+            resizeFence->SetEventOnCompletion(resizeFenceValue, resizeFenceEvent);
+            // Max 5 sec
+            auto waitResult = WaitForSingleObject(resizeFenceEvent, 5000);
+            LOG_DEBUG("WaitForSingleObject result: {:X}", waitResult);
+        }
+    }
+}
+
 static bool CheckForFGStatus()
 {
-    // Need to check overlay menu parameter, goes to places it shouldn't go
-    // if (!Config::Instance()->OverlayMenu.value_or_default())
-    //    return false;
-
     if (State::Instance().activeFgInput == FGInput::NoFG || State::Instance().activeFgInput == FGInput::Nukems)
         return false;
 
@@ -82,6 +110,7 @@ HRESULT FGHooks::CreateSwapChain(IDXGIFactory* pFactory, IUnknown* pDevice, DXGI
         return E_INVALIDARG;
     }
 
+    currentCommandQueue = cq;
     cq->Release();
 
     if (State::Instance().currentFG == nullptr)
@@ -124,27 +153,12 @@ HRESULT FGHooks::CreateSwapChain(IDXGIFactory* pFactory, IUnknown* pDevice, DXGI
 
         // Looks like game is creating new swapchain,
         // without releasing old one, be sure gpu is in idle state
-        if (State::Instance().currentFGSwapchain != nullptr)
+        if (!Config::Instance()->FGPreserveSwapChain.value_or_default() &&
+            State::Instance().currentFGSwapchain != nullptr)
         {
             LOG_WARN("Looks like game is creating new swapchain, without releasing old one!");
 
-            if (State::Instance().currentCommandQueue != nullptr && resizeFence != nullptr &&
-                resizeFenceEvent != nullptr)
-            {
-                LOG_DEBUG("Waiting for GPU to finish before resizing buffers");
-
-                resizeFenceValue++;
-                State::Instance().currentCommandQueue->Signal(resizeFence, resizeFenceValue);
-
-                if (resizeFence->GetCompletedValue() < resizeFenceValue)
-                {
-                    resizeFence->SetEventOnCompletion(resizeFenceValue, resizeFenceEvent);
-                    // Max 5 sec
-                    auto waitResult = WaitForSingleObject(resizeFenceEvent, 5000);
-                    LOG_DEBUG("WaitForSingleObject result: {:X}", waitResult);
-                }
-            }
-
+            WaitForGPUIdle();
             oldSwapChain = State::Instance().currentFGSwapchain;
         }
 
@@ -205,6 +219,7 @@ HRESULT FGHooks::CreateSwapChainForHwnd(IDXGIFactory* pFactory, IUnknown* pDevic
         return E_INVALIDARG;
     }
 
+    currentCommandQueue = cq;
     cq->Release();
 
     if (State::Instance().currentFG == nullptr)
@@ -247,27 +262,12 @@ HRESULT FGHooks::CreateSwapChainForHwnd(IDXGIFactory* pFactory, IUnknown* pDevic
 
         // Looks like game is creating new swapchain,
         // without releasing old one, be sure gpu is in idle state
-        if (State::Instance().currentFGSwapchain != nullptr)
+        if (!Config::Instance()->FGPreserveSwapChain.value_or_default() &&
+            State::Instance().currentFGSwapchain != nullptr)
         {
             LOG_WARN("Looks like game is creating new swapchain, without releasing old one!");
 
-            if (State::Instance().currentCommandQueue != nullptr && resizeFence != nullptr &&
-                resizeFenceEvent != nullptr)
-            {
-                LOG_DEBUG("Waiting for GPU to finish before resizing buffers");
-
-                resizeFenceValue++;
-                State::Instance().currentCommandQueue->Signal(resizeFence, resizeFenceValue);
-
-                if (resizeFence->GetCompletedValue() < resizeFenceValue)
-                {
-                    resizeFence->SetEventOnCompletion(resizeFenceValue, resizeFenceEvent);
-                    // Max 5 sec
-                    auto waitResult = WaitForSingleObject(resizeFenceEvent, 5000);
-                    LOG_DEBUG("WaitForSingleObject result: {:X}", waitResult);
-                }
-            }
-
+            WaitForGPUIdle();
             oldSwapChain = State::Instance().currentFGSwapchain;
         }
 
@@ -369,12 +369,7 @@ void FGHooks::HookFGSwapchain(IDXGISwapChain* pSwapChain)
 HRESULT FGHooks::hkSetFullscreenState(IDXGISwapChain* This, BOOL Fullscreen, IDXGIOutput* pTarget)
 {
     auto fg = State::Instance().currentFG;
-    if (fg != nullptr && fg->IsActive())
-    {
-        State::Instance().FGchanged = true;
-        fg->UpdateTarget();
-        fg->Deactivate();
-    }
+    PauseFG(fg);
 
     bool modeChanged = false;
     bool orgFS = Fullscreen;
@@ -451,7 +446,7 @@ HRESULT FGHooks::hkSetFullscreenState(IDXGISwapChain* This, BOOL Fullscreen, IDX
     return result;
 }
 
-HRESULT FGHooks::hkGetFullscreenDesc(IDXGISwapChain* This, DXGI_SWAP_CHAIN_FULLSCREEN_DESC* pDesc)
+HRESULT FGHooks::hkGetFullscreenDesc(IDXGISwapChain1* This, DXGI_SWAP_CHAIN_FULLSCREEN_DESC* pDesc)
 {
     auto result = o_FGSCGetFullscreenDesc(This, pDesc);
 
@@ -498,22 +493,17 @@ HRESULT FGHooks::hkResizeBuffers(IDXGISwapChain* This, UINT BufferCount, UINT Wi
         return o_FGSCResizeBuffers(This, BufferCount, Width, Height, NewFormat, SwapChainFlags);
     }
 
-    if (State::Instance().currentCommandQueue != nullptr && resizeFence != nullptr && resizeFenceEvent != nullptr)
-    {
-        LOG_DEBUG("Waiting for GPU to finish before resizing buffers");
+    auto fg = State::Instance().currentFG;
 
-        resizeFenceValue++;
-        State::Instance().currentCommandQueue->Signal(resizeFence, resizeFenceValue);
+    OwnedLockGuard lg(fg->Mutex, 6677);
 
-        if (resizeFence->GetCompletedValue() < resizeFenceValue)
-        {
-            resizeFence->SetEventOnCompletion(resizeFenceValue, resizeFenceEvent);
-            // Max 5 sec
-            auto waitResult = WaitForSingleObject(resizeFenceEvent, 5000);
-            LOG_DEBUG("WaitForSingleObject result: {:X}", waitResult);
-        }
-    }
+    // Disable frame generation when resizing swapchain
+    PauseFG(fg);
 
+    // Wait for GPU to finish rendering before resizing buffers to prevent issues with unreleased backbuffers
+    WaitForGPUIdle();
+
+    // Prevent mode switch when using borderless workaround for XeFG
     if (State::Instance().activeFgOutput == FGOutput::XeFG)
     {
         if (Config::Instance()->FGXeFGForceBorderless.value_or_default())
@@ -536,8 +526,7 @@ HRESULT FGHooks::hkResizeBuffers(IDXGISwapChain* This, UINT BufferCount, UINT Wi
     LOG_DEBUG("BufferCount: {}, Width: {}, Height: {}, NewFormat:{}, SwapChainFlags: {:X}", BufferCount, Width, Height,
               (UINT) NewFormat, SwapChainFlags);
 
-    auto fg = State::Instance().currentFG;
-
+    // Skip resize checks for XeFG
     if (State::Instance().activeFgOutput == FGOutput::XeFG && !State::Instance().SCExclusiveFullscreen &&
         Config::Instance()->FGSkipResizeBuffers.value_or_default())
     {
@@ -609,18 +598,17 @@ HRESULT FGHooks::hkResizeBuffers(IDXGISwapChain* This, UINT BufferCount, UINT Wi
         SwapChainFlags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
     }
 
-    State::Instance().SCAllowTearing = (SwapChainFlags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) > 0;
+    _skipResize1 = true;
+    State::Instance().FGResizing = true;
 
+    State::Instance().SCAllowTearing = (SwapChainFlags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) > 0;
     State::Instance().SCLastFlags = SwapChainFlags;
 
-    if (fg != nullptr && fg->IsActive())
-    {
-        State::Instance().FGchanged = true;
-        fg->UpdateTarget();
-        fg->Deactivate();
-    }
+    HRESULT result = E_FAIL;
 
-    _skipResize1 = true;
+    // Release menu render targets
+    if (Config::Instance()->OverlayMenu.value_or_default())
+        MenuOverlayDx::CleanupRenderTarget(false, NULL);
 
     // Release swapchain backbuffers to prevent errors when resizing
     if (State::Instance().activeFgOutput == FGOutput::XeFG)
@@ -650,28 +638,90 @@ HRESULT FGHooks::hkResizeBuffers(IDXGISwapChain* This, UINT BufferCount, UINT Wi
                 break;
             }
         }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
-    HRESULT result;
+    // Force HDR10 for XeFG if HDR16 is used
+    if (State::Instance().activeFgOutput == FGOutput::XeFG && NewFormat >= DXGI_FORMAT_R16G16B16A16_TYPELESS &&
+        NewFormat <= DXGI_FORMAT_R16G16B16A16_SINT && !Config::Instance()->ForceHDR.has_value())
+    {
+        if (!Config::Instance()->ForceHDR.has_value())
+        {
+            LOG_INFO("XeFG is active, forcing HDR10");
+            Config::Instance()->ForceHDR.set_volatile_value(true);
+            Config::Instance()->UseHDR10.set_volatile_value(true);
+            Config::Instance()->SkipColorSpace.set_volatile_value(true);
+            _forcedHdrForXeFG = true;
+        }
+    }
+    else if (_forcedHdrForXeFG)
+    {
+        LOG_INFO("Disabling forced HDR10");
+        Config::Instance()->ForceHDR.reset();
+        Config::Instance()->UseHDR10.reset();
+        Config::Instance()->SkipColorSpace.reset();
+        _forcedHdrForXeFG = false;
+    }
+
+    // Crude implementation of EndlesslyFlowering's AutoHDR-ReShade
+    // https://github.com/EndlesslyFlowering/AutoHDR-ReShade
+    if (Config::Instance()->ForceHDR.value_or_default())
+    {
+        LOG_INFO("Force HDR on");
+
+        IDXGISwapChain3* _real3 = nullptr;
+        if (This->QueryInterface(IID_PPV_ARGS(&_real3)) == S_OK)
+        {
+            do
+            {
+                NewFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+                DXGI_COLOR_SPACE_TYPE hdrCS = DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;
+
+                if (Config::Instance()->UseHDR10.value_or_default())
+                {
+                    NewFormat = DXGI_FORMAT_R10G10B10A2_UNORM;
+                    hdrCS = DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+                }
+
+                if (!Config::Instance()->SkipColorSpace.value_or_default())
+                {
+                    UINT css = 0;
+
+                    auto result = _real3->CheckColorSpaceSupport(hdrCS, &css);
+
+                    if (result != S_OK)
+                    {
+                        LOG_ERROR("CheckColorSpaceSupport error: {:X}", (UINT) result);
+                        break;
+                    }
+
+                    if (DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT & css)
+                    {
+                        result = _real3->SetColorSpace1(hdrCS);
+
+                        if (result != S_OK)
+                        {
+                            LOG_ERROR("SetColorSpace1 error: {:X}", (UINT) result);
+                            break;
+                        }
+                    }
+
+                    LOG_INFO("HDR format and color space are set");
+                }
+
+            } while (false);
+
+            _real3->Release();
+        }
+    }
+
     {
         ScopedSkipSpoofing skipSpoofing {};
         result = o_FGSCResizeBuffers(This, BufferCount, Width, Height, NewFormat, SwapChainFlags);
     }
 
-    _skipResize1 = false;
-
     LOG_DEBUG("Result: {:X}, Caller: {}", (UINT) result, Util::WhoIsTheCaller(_ReturnAddress()));
-
-    if (result == S_OK)
-    {
-        auto fg = State::Instance().currentFG;
-        if (fg != nullptr)
-        {
-            State::Instance().FGchanged = true;
-            fg->Deactivate();
-            fg->UpdateTarget();
-        }
-    }
 
     // Resize window to cover the screen
     if (result == S_OK && Config::Instance()->FGXeFGForceBorderless.value_or_default() &&
@@ -689,10 +739,13 @@ HRESULT FGHooks::hkResizeBuffers(IDXGISwapChain* This, UINT BufferCount, UINT Wi
         SetWindowPos(_hwnd, HWND_TOP, info.x, info.y, info.width, info.height, SWP_FRAMECHANGED | SWP_SHOWWINDOW);
     }
 
+    State::Instance().FGResizing = false;
+    _skipResize1 = false;
+
     return result;
 }
 
-HRESULT FGHooks::hkResizeTarget(IDXGISwapChain* This, DXGI_MODE_DESC* pNewTargetParameters)
+HRESULT FGHooks::hkResizeTarget(IDXGISwapChain* This, const DXGI_MODE_DESC* pNewTargetParameters)
 {
     if (Config::Instance()->FGXeFGForceBorderless.value_or_default())
     {
@@ -700,18 +753,10 @@ HRESULT FGHooks::hkResizeTarget(IDXGISwapChain* This, DXGI_MODE_DESC* pNewTarget
         return S_OK;
     }
 
-    auto fg = State::Instance().currentFG;
-    if (fg != nullptr && fg->IsActive())
-    {
-        State::Instance().FGchanged = true;
-        fg->UpdateTarget();
-        fg->Deactivate();
-    }
-
     return o_FGSCResizeTarget(This, pNewTargetParameters);
 }
 
-HRESULT FGHooks::hkResizeBuffers1(IDXGISwapChain* This, UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT Format,
+HRESULT FGHooks::hkResizeBuffers1(IDXGISwapChain3* This, UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT Format,
                                   UINT SwapChainFlags, const UINT* pCreationNodeMask, IUnknown* const* ppPresentQueue)
 {
     // Skip XeFG's internal call
@@ -735,22 +780,17 @@ HRESULT FGHooks::hkResizeBuffers1(IDXGISwapChain* This, UINT BufferCount, UINT W
                                     ppPresentQueue);
     }
 
-    if (State::Instance().currentCommandQueue != nullptr && resizeFence != nullptr && resizeFenceEvent != nullptr)
-    {
-        LOG_DEBUG("Waiting for GPU to finish before resizing buffers");
+    auto fg = State::Instance().currentFG;
 
-        resizeFenceValue++;
-        State::Instance().currentCommandQueue->Signal(resizeFence, resizeFenceValue);
+    OwnedLockGuard lg(fg->Mutex, 6678);
 
-        if (resizeFence->GetCompletedValue() < resizeFenceValue)
-        {
-            resizeFence->SetEventOnCompletion(resizeFenceValue, resizeFenceEvent);
-            // Max 5 sec
-            auto waitResult = WaitForSingleObject(resizeFenceEvent, 5000);
-            LOG_DEBUG("WaitForSingleObject result: {:X}", waitResult);
-        }
-    }
+    // Disable frame generation when resizing swapchain
+    PauseFG(fg);
 
+    // Wait for GPU to finish rendering before resizing buffers to prevent issues with unreleased backbuffers
+    WaitForGPUIdle();
+
+    // Prevent mode switch when using borderless workaround for XeFG
     if (State::Instance().activeFgOutput == FGOutput::XeFG)
     {
         if (Config::Instance()->FGXeFGForceBorderless.value_or_default())
@@ -773,9 +813,9 @@ HRESULT FGHooks::hkResizeBuffers1(IDXGISwapChain* This, UINT BufferCount, UINT W
     LOG_DEBUG("BufferCount: {}, Width: {}, Height: {}, NewFormat:{}, SwapChainFlags: {:X}, Caller: {}", BufferCount,
               Width, Height, (UINT) Format, SwapChainFlags, Util::WhoIsTheCaller(_ReturnAddress()));
 
-    auto fg = State::Instance().currentFG;
-
-    if (State::Instance().activeFgOutput == FGOutput::XeFG && !State::Instance().SCExclusiveFullscreen)
+    // Skip resize checks for XeFG
+    if (State::Instance().activeFgOutput == FGOutput::XeFG && !State::Instance().SCExclusiveFullscreen &&
+        Config::Instance()->FGSkipResizeBuffers.value_or_default())
     {
         DXGI_SWAP_CHAIN_DESC desc {};
         if (This->GetDesc(&desc) == S_OK)
@@ -844,16 +884,17 @@ HRESULT FGHooks::hkResizeBuffers1(IDXGISwapChain* This, UINT BufferCount, UINT W
         SwapChainFlags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
     }
 
-    State::Instance().SCAllowTearing = (SwapChainFlags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) > 0;
+    _skipResize = true;
+    State::Instance().FGResizing = true;
 
+    State::Instance().SCAllowTearing = (SwapChainFlags & DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING) > 0;
     State::Instance().SCLastFlags = SwapChainFlags;
 
-    if (fg != nullptr && fg->IsActive())
-    {
-        State::Instance().FGchanged = true;
-        fg->UpdateTarget();
-        fg->Deactivate();
-    }
+    HRESULT result;
+
+    // Release menu render targets
+    if (Config::Instance()->OverlayMenu.value_or_default())
+        MenuOverlayDx::CleanupRenderTarget(false, NULL);
 
     // Release swapchain backbuffers to prevent errors when resizing
     if (State::Instance().activeFgOutput == FGOutput::XeFG)
@@ -883,31 +924,91 @@ HRESULT FGHooks::hkResizeBuffers1(IDXGISwapChain* This, UINT BufferCount, UINT W
                 break;
             }
         }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
-    HRESULT result;
+    // Force HDR10 for XeFG if HDR16 is used
+    if (State::Instance().activeFgOutput == FGOutput::XeFG && Format >= DXGI_FORMAT_R16G16B16A16_TYPELESS &&
+        Format <= DXGI_FORMAT_R16G16B16A16_SINT && !Config::Instance()->ForceHDR.has_value())
+    {
+        if (!Config::Instance()->ForceHDR.has_value())
+        {
+            LOG_INFO("XeFG is active, forcing HDR10");
+            Config::Instance()->ForceHDR.set_volatile_value(true);
+            Config::Instance()->UseHDR10.set_volatile_value(true);
+            Config::Instance()->SkipColorSpace.set_volatile_value(true);
+            _forcedHdrForXeFG = true;
+        }
+    }
+    else if (_forcedHdrForXeFG)
+    {
+        LOG_INFO("Disabling forced HDR10");
+        Config::Instance()->ForceHDR.reset();
+        Config::Instance()->UseHDR10.reset();
+        Config::Instance()->SkipColorSpace.reset();
+        _forcedHdrForXeFG = false;
+    }
+
+    // Crude implementation of EndlesslyFlowering's AutoHDR-ReShade
+    // https://github.com/EndlesslyFlowering/AutoHDR-ReShade
+    if (Config::Instance()->ForceHDR.value_or_default())
+    {
+        LOG_INFO("Force HDR on");
+
+        IDXGISwapChain3* _real3 = nullptr;
+        if (This->QueryInterface(IID_PPV_ARGS(&_real3)) == S_OK)
+        {
+            do
+            {
+                Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+                DXGI_COLOR_SPACE_TYPE hdrCS = DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;
+
+                if (Config::Instance()->UseHDR10.value_or_default())
+                {
+                    Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+                    hdrCS = DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+                }
+
+                if (!Config::Instance()->SkipColorSpace.value_or_default())
+                {
+                    UINT css = 0;
+
+                    auto result = _real3->CheckColorSpaceSupport(hdrCS, &css);
+
+                    if (result != S_OK)
+                    {
+                        LOG_ERROR("CheckColorSpaceSupport error: {:X}", (UINT) result);
+                        break;
+                    }
+
+                    if (DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT & css)
+                    {
+                        result = _real3->SetColorSpace1(hdrCS);
+
+                        if (result != S_OK)
+                        {
+                            LOG_ERROR("SetColorSpace1 error: {:X}", (UINT) result);
+                            break;
+                        }
+                    }
+
+                    LOG_INFO("HDR format and color space are set");
+                }
+
+            } while (false);
+
+            _real3->Release();
+        }
+    }
+
     {
         ScopedSkipSpoofing skipSpoofing {};
-        _skipResize = true;
-
         result = o_FGSCResizeBuffers1(This, BufferCount, Width, Height, Format, SwapChainFlags, pCreationNodeMask,
                                       ppPresentQueue);
-
-        _skipResize = false;
     }
 
     LOG_DEBUG("Result: {:X}, Caller: {}", (UINT) result, Util::WhoIsTheCaller(_ReturnAddress()));
-
-    if (result == S_OK)
-    {
-        auto fg = State::Instance().currentFG;
-        if (fg != nullptr)
-        {
-            State::Instance().FGchanged = true;
-            fg->Deactivate();
-            fg->UpdateTarget();
-        }
-    }
 
     // Resize window to cover the screen
     if (result == S_OK && Config::Instance()->FGXeFGForceBorderless.value_or_default() &&
@@ -925,10 +1026,13 @@ HRESULT FGHooks::hkResizeBuffers1(IDXGISwapChain* This, UINT BufferCount, UINT W
         SetWindowPos(_hwnd, HWND_TOP, info.x, info.y, info.width, info.height, SWP_FRAMECHANGED | SWP_SHOWWINDOW);
     }
 
+    State::Instance().FGResizing = false;
+    _skipResize = false;
+
     return result;
 }
 
-HRESULT FGHooks::hkFGPresent(void* This, UINT SyncInterval, UINT Flags)
+HRESULT FGHooks::hkFGPresent(IDXGISwapChain* This, UINT SyncInterval, UINT Flags)
 {
     // Skip XeFG's internal call
     if (_skipPresent)
@@ -962,7 +1066,7 @@ HRESULT FGHooks::hkFGPresent(void* This, UINT SyncInterval, UINT Flags)
     return result;
 }
 
-HRESULT FGHooks::hkFGPresent1(void* This, UINT SyncInterval, UINT Flags,
+HRESULT FGHooks::hkFGPresent1(IDXGISwapChain1* This, UINT SyncInterval, UINT Flags,
                               const DXGI_PRESENT_PARAMETERS* pPresentParameters)
 {
     // Skip XeFG's internal call
@@ -996,7 +1100,8 @@ HRESULT FGHooks::hkFGPresent1(void* This, UINT SyncInterval, UINT Flags,
     return result;
 }
 
-HRESULT FGHooks::FGPresent(void* This, UINT SyncInterval, UINT Flags, const DXGI_PRESENT_PARAMETERS* pPresentParameters)
+HRESULT FGHooks::FGPresent(IDXGISwapChain* This, UINT SyncInterval, UINT Flags,
+                           const DXGI_PRESENT_PARAMETERS* pPresentParameters)
 {
     _lastPresentFlags = Flags;
 
@@ -1005,7 +1110,7 @@ HRESULT FGHooks::FGPresent(void* This, UINT SyncInterval, UINT Flags, const DXGI
         if (pPresentParameters == nullptr)
             return o_FGSCPresent(This, SyncInterval, Flags);
         else
-            return o_FGSCPresent1(This, SyncInterval, Flags, pPresentParameters);
+            return o_FGSCPresent1((IDXGISwapChain1*) This, SyncInterval, Flags, pPresentParameters);
     }
 
     auto willPresent = (Flags & DXGI_PRESENT_TEST) == 0;
@@ -1026,14 +1131,14 @@ HRESULT FGHooks::FGPresent(void* This, UINT SyncInterval, UINT Flags, const DXGI
         LOG_DEBUG("flags: {:X}, Frametime: {}", Flags, ftDelta);
     }
 
-    if (willPresent && State::Instance().currentCommandQueue != nullptr)
+    if (willPresent && currentCommandQueue != nullptr)
     {
         UpscalerTimeDx12::ReadUpscalingTime(State::Instance().currentCommandQueue);
     }
 
     auto fg = State::Instance().currentFG;
     bool mutexUsed = false;
-    if (willPresent && fg != nullptr && fg->IsActive() &&
+    if (willPresent && fg != nullptr && fg->IsActive() && !fg->IsPaused() &&
         Config::Instance()->FGUseMutexForSwapchain.value_or_default() && fg->Mutex.getOwner() != 2)
     {
         LOG_TRACE("Waiting FG->Mutex 2, current: {}", fg->Mutex.getOwner());
@@ -1100,7 +1205,7 @@ HRESULT FGHooks::FGPresent(void* This, UINT SyncInterval, UINT Flags, const DXGI
     if (pPresentParameters == nullptr)
         result = o_FGSCPresent(This, SyncInterval, Flags);
     else
-        result = o_FGSCPresent1(This, SyncInterval, Flags, pPresentParameters);
+        result = o_FGSCPresent1((IDXGISwapChain1*) This, SyncInterval, Flags, pPresentParameters);
 
     if (result == S_OK)
     {
@@ -1116,7 +1221,9 @@ HRESULT FGHooks::FGPresent(void* This, UINT SyncInterval, UINT Flags, const DXGI
 
     if (willPresent && !State::Instance().reflexLimitsFps && State::Instance().activeFgOutput != FGOutput::NoFG &&
         !State::Instance().isRunningOnDXVK)
-        FrameLimit::sleep(fg != nullptr ? fg->IsActive() : false);
+    {
+        FrameLimit::sleep(fg != nullptr ? fg->IsActive() && !fg->IsPaused() : false);
+    }
 
     if (mutexUsed && fg != nullptr)
     {
@@ -1124,10 +1231,12 @@ HRESULT FGHooks::FGPresent(void* This, UINT SyncInterval, UINT Flags, const DXGI
         fg->Mutex.unlockThis(2);
     }
 
+    LOG_DEBUG("Present finished");
+
     return result;
 }
 
-ULONG FGHooks::hkFGRelease(IDXGISwapChain* This)
+ULONG FGHooks::hkFGRelease(IUnknown* This)
 {
     // We already released this one, prevent crashes
     if (This == oldSwapChain)
@@ -1164,22 +1273,7 @@ ULONG FGHooks::hkFGRelease(IDXGISwapChain* This)
         {
             LOG_DEBUG("");
 
-            if (State::Instance().currentCommandQueue != nullptr && resizeFence != nullptr &&
-                resizeFenceEvent != nullptr)
-            {
-                LOG_DEBUG("Waiting for GPU to finish before resizing buffers");
-
-                resizeFenceValue++;
-                State::Instance().currentCommandQueue->Signal(resizeFence, resizeFenceValue);
-
-                if (resizeFence->GetCompletedValue() < resizeFenceValue)
-                {
-                    resizeFence->SetEventOnCompletion(resizeFenceValue, resizeFenceEvent);
-                    // Max 5 sec
-                    auto waitResult = WaitForSingleObject(resizeFenceEvent, 5000);
-                    LOG_DEBUG("WaitForSingleObject result: {:X}", waitResult);
-                }
-            }
+            WaitForGPUIdle();
 
             // Release swapchain backbuffers to prevent errors when releasing FG swapchain
             if (State::Instance().activeFgOutput == FGOutput::XeFG)
@@ -1187,7 +1281,7 @@ ULONG FGHooks::hkFGRelease(IDXGISwapChain* This)
                 for (UINT i = 0; i < 8; i++)
                 {
                     ID3D12Resource* backBuffer = nullptr;
-                    auto bbResult = This->GetBuffer(i, IID_PPV_ARGS(&backBuffer));
+                    auto bbResult = ((IDXGISwapChain*) This)->GetBuffer(i, IID_PPV_ARGS(&backBuffer));
 
                     if (bbResult == S_OK)
                     {

@@ -369,6 +369,9 @@ bool FSR31FeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_
     auto& cfg = *Config::Instance();
     const auto& inParams = *InParameters;
 
+    if (cfg.DADepthIsLinear.value_for_config_ignore_default() == std::nullopt)
+        cfg.DADepthIsLinear.set_volatile_value(false);
+
     // Validate helper features
     if (!RCAS->IsInit())
         cfg.RcasEnabled.set_volatile_value(false);
@@ -393,7 +396,7 @@ bool FSR31FeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_
 
     // Post-Process
     if (isUpscalerReady)
-        PostProcess(InCommandList, inParams);
+        PostProcess(InCommandList, inParams, upscalerDesc);
 
     // Cleanup
     ResetConfigurableBarriers(InCommandList);
@@ -738,7 +741,8 @@ bool FSR31FeatureDx12::DispatchUpscaler(ID3D12GraphicsCommandList* InCommandList
     return true;
 }
 
-void FSR31FeatureDx12::PostProcess(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams)
+void FSR31FeatureDx12::PostProcess(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams,
+                                   const ffxDispatchDescUpscale& upscaleDesc)
 {
     auto& state = State::Instance();
     auto& cfg = *Config::Instance();
@@ -758,18 +762,22 @@ void FSR31FeatureDx12::PostProcess(ID3D12GraphicsCommandList* InCommandList, con
         RCAS->SetBufferState(InCommandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
         // Configure RCAS
-        RcasConstants rcasConstants 
-        {
-            .Sharpness = _sharpness,
-            .DisplaySizeMV = !LowResMV(),
-            .RenderWidth = (int)RenderWidth(),
-            .RenderHeight = (int)RenderHeight(),
-            .DisplayWidth = (int)TargetWidth(),
-            .DisplayHeight = (int)TargetHeight()
-        };
+        RcasConstants rcasConstants {};
 
+        rcasConstants.Sharpness = _sharpness;
         inParams.Get(NVSDK_NGX_Parameter_MV_Scale_X, &rcasConstants.MvScaleX);
         inParams.Get(NVSDK_NGX_Parameter_MV_Scale_Y, &rcasConstants.MvScaleY);
+
+        if (DepthInverted())
+        {
+            rcasConstants.CameraNear = upscaleDesc.cameraFar;
+            rcasConstants.CameraFar = upscaleDesc.cameraNear;
+        }
+        else
+        {
+            rcasConstants.CameraNear = upscaleDesc.cameraNear;
+            rcasConstants.CameraFar = upscaleDesc.cameraFar;
+        }
 
         // Determine RCAS Output Target
         // If scaling is next, write to the scaler's internal buffer. Otherwise, write to the final app texture.

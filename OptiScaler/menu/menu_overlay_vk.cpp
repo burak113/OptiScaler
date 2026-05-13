@@ -604,8 +604,8 @@ bool MenuOverlayVk::QueuePresent(VkQueue queue, VkPresentInfoKHR* pPresentInfo)
 }
 
 void MenuOverlayVk::CreateSwapchain(VkDevice device, VkPhysicalDevice pd, VkInstance instance, HWND hwnd,
-                                    const VkSwapchainCreateInfoKHR* pCreateInfo, VkAllocationCallbacks* pAllocator,
-                                    VkSwapchainKHR* pSwapchain)
+                                    const VkSwapchainCreateInfoKHR* pCreateInfo,
+                                    const VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchain)
 {
     LOG_FUNC();
 

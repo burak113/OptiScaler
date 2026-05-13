@@ -124,6 +124,9 @@ bool XeSSFeatureDx11on12::Evaluate(ID3D11DeviceContext* InDeviceContext, NVSDK_N
     if (!OutputScaler->IsInit())
         Config::Instance()->OutputScalingEnabled = false;
 
+    if (Config::Instance()->DADepthIsLinear.value_for_config_ignore_default() == std::nullopt)
+        Config::Instance()->DADepthIsLinear.set_volatile_value(false);
+
     ID3D11DeviceContext4* dc;
     auto result = InDeviceContext->QueryInterface(IID_PPV_ARGS(&dc));
 
@@ -340,18 +343,15 @@ bool XeSSFeatureDx11on12::Evaluate(ID3D11DeviceContext* InDeviceContext, NVSDK_N
 
             RcasConstants rcasConstants {};
             rcasConstants.Sharpness = _sharpness;
-            rcasConstants.DisplayWidth = TargetWidth();
-            rcasConstants.DisplayHeight = TargetHeight();
             InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_X, &rcasConstants.MvScaleX);
             InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_Y, &rcasConstants.MvScaleY);
-            rcasConstants.DisplaySizeMV = !(GetFeatureFlags() & NVSDK_NGX_DLSS_Feature_Flags_MVLowRes);
-            rcasConstants.RenderHeight = RenderHeight();
-            rcasConstants.RenderWidth = RenderWidth();
+            rcasConstants.CameraNear = Config::Instance()->FsrCameraNear.value_or_default();
+            rcasConstants.CameraFar = Config::Instance()->FsrCameraFar.value_or_default();
 
             if (useSS)
             {
                 if (!RCAS->Dispatch(_dx11on12Device, cmdList, params.pOutputTexture, params.pVelocityTexture,
-                                    rcasConstants, OutputScaler->Buffer()))
+                                    rcasConstants, OutputScaler->Buffer(), params.pDepthTexture))
                 {
                     Config::Instance()->RcasEnabled = false;
                     break;
@@ -360,7 +360,7 @@ bool XeSSFeatureDx11on12::Evaluate(ID3D11DeviceContext* InDeviceContext, NVSDK_N
             else
             {
                 if (!RCAS->Dispatch(_dx11on12Device, cmdList, params.pOutputTexture, params.pVelocityTexture,
-                                    rcasConstants, dx11Out.Dx12Resource))
+                                    rcasConstants, dx11Out.Dx12Resource, params.pDepthTexture))
                 {
                     Config::Instance()->RcasEnabled = false;
                     break;

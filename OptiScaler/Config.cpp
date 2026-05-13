@@ -143,7 +143,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             FGFPTVarianceFactor.set_from_config(readFloat("FSRFG", "FPTVarianceFactor"));
             FGFPTAllowHybridSpin.set_from_config(readBool("FSRFG", "FPTHybridSpin"));
             FGFPTHybridSpinTime.set_from_config(readInt("FSRFG", "FPTHybridSpinTime"));
-            FGFPTAllowWaitForSingleObjectOnFence.set_from_config(readInt("FSRFG", "FPTWaitForSingleObjectOnFence"));
+            FGFPTAllowWaitForSingleObjectOnFence.set_from_config(readBool("FSRFG", "FPTWaitForSingleObjectOnFence"));
             FSRFGEnableWatermark.set_from_config(readBool("FSRFG", "EnableWatermark"));
         }
 
@@ -214,9 +214,6 @@ bool Config::Reload(std::filesystem::path iniPath)
             FsrCameraNear.set_from_config(readFloat("FSR", "CameraNear"));
             FsrCameraFar.set_from_config(readFloat("FSR", "CameraFar"));
             FsrUseFsrInputValues.set_from_config(readBool("FSR", "UseFsrInputValues"));
-
-            FfxDx12Path.set_from_config(readWString("FSR", "FfxDx12Path"));
-            FfxVkPath.set_from_config(readWString("FSR", "FfxVkPath"));
         }
 
         // FSR
@@ -269,17 +266,12 @@ bool Config::Reload(std::filesystem::path iniPath)
             BuildPipelines.set_from_config(readBool("XeSS", "BuildPipelines"));
             NetworkModel.set_from_config(readInt("XeSS", "NetworkModel"));
             CreateHeaps.set_from_config(readBool("XeSS", "CreateHeaps"));
-            XeSSLibrary.set_from_config(readWString("XeSS", "LibraryPath"));
-            XeSSDx11Library.set_from_config(readWString("XeSS", "Dx11LibraryPath"));
         }
 
         // DLSS
         {
             // Don't enable again if set false because of no nvngx found
             DLSSEnabled.set_from_config(readBool("DLSS", "Enabled"));
-            NvngxPath.set_from_config(readWString("DLSS", "LibraryPath"));
-            DLSSFeaturePath.set_from_config(readWString("DLSS", "FeaturePath"));
-            NVNGX_DLSS_Library.set_from_config(readWString("DLSS", "NVNGX_DLSS_Path"));
             UseGenericAppIdWithDlss.set_from_config(readBool("DLSS", "UseGenericAppIdWithDlss"));
 
             RenderPresetOverride.set_from_config(readBool("DLSS", "RenderPresetOverride"));
@@ -369,7 +361,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             LogAsyncThreads.set_from_config(readInt("Log", "LogAsyncThreads"));
 
             {
-                auto setting = readString("Log", "LogFile", false);
+                auto setting = readString("Log", "LogFileName", false);
 
                 if (setting.has_value() && setting.value().empty())
                     setting = std::nullopt;
@@ -454,8 +446,8 @@ bool Config::Reload(std::filesystem::path iniPath)
         // RCAS
         {
             RcasEnabled.set_from_config(readBool("CAS", "Enabled"));
+
             MotionSharpnessEnabled.set_from_config(readBool("CAS", "MotionSharpnessEnabled"));
-            MotionSharpnessDebug.set_from_config(readBool("CAS", "MotionSharpnessDebug"));
 
             if (auto setting = readFloat("CAS", "MotionSharpness"); setting.has_value())
                 MotionSharpness.set_from_config(std::clamp(setting.value(), -1.3f, 1.3f));
@@ -469,6 +461,14 @@ bool Config::Reload(std::filesystem::path iniPath)
             ContrastEnabled.set_from_config(readBool("CAS", "ContrastEnabled"));
             if (auto setting = readFloat("CAS", "Contrast"); setting.has_value())
                 Contrast.set_from_config(std::clamp(setting.value(), -2.0f, 2.0f));
+
+            UseDepthAwareSharpen.set_from_config(readBool("CAS", "UseDepthAwareSharpen"));
+            DADepthIsLinear.set_from_config(readBool("CAS", "DADepthIsLinear"));
+            DADepthScale.set_from_config(readFloat("CAS", "DADepthScale"));
+            DADepthBias.set_from_config(readFloat("CAS", "DADepthBias"));
+            DAClampOutput.set_from_config(readBool("CAS", "DAClampOutput"));
+
+            MotionSharpnessDebug.set_from_config(readBool("CAS", "SharpenerDebug"));
         }
 
         // Output Scaling
@@ -589,7 +589,6 @@ bool Config::Reload(std::filesystem::path iniPath)
         {
             OverrideNvapiDll.set_from_config(readBool("NvApi", "OverrideNvapiDll"));
             DontUseFakenvapiForXeLLOnNvidia.set_from_config(readBool("NvApi", "DontUseFakenvapiForXeLLOnNvidia"));
-            NvapiDllPath.set_from_config(readWString("NvApi", "NvapiDllPath", true));
             DisableFlipMetering.set_from_config(readBool("NvApi", "DisableFlipMetering"));
         }
 
@@ -645,29 +644,7 @@ bool Config::Reload(std::filesystem::path iniPath)
 
         // Plugins
         {
-            std::filesystem::path path;
-            auto setting = readString("Plugins", "Path", true);
-
-            if (setting.has_value())
-                path = std::filesystem::path(setting.value());
-            else
-                path = std::filesystem::path(PluginPath.value_or_default());
-
-            if (setting.has_value())
-            {
-                if (path.has_root_path())
-                    PluginPath.set_from_config(path.wstring());
-                else
-                    PluginPath.set_from_config((Util::DllPath().parent_path() / path).wstring());
-            }
-            else
-            {
-                if (path.has_root_path())
-                    PluginPath.set_volatile_value(path.wstring());
-                else
-                    PluginPath.set_volatile_value((Util::DllPath().parent_path() / path).wstring());
-            }
-
+            PluginPath.set_from_config(readWString("Plugins", "Path"));
             LoadSpecialK.set_from_config(readBool("Plugins", "LoadSpecialK"));
             LoadReShade.set_from_config(readBool("Plugins", "LoadReShade"));
             LoadAsiPlugins.set_from_config(readBool("Plugins", "LoadAsiPlugins"));
@@ -685,6 +662,28 @@ bool Config::Reload(std::filesystem::path iniPath)
             OverrideVsync.set_from_config(readBool("V-Sync", "OverrideVsync"));
             ForceVsync.set_from_config(readBool("V-Sync", "ForceVsync"));
             VsyncInterval.set_from_config(readInt("V-Sync", "SyncInterval"));
+        }
+
+        // Libraries
+        {
+            MainDllPath.set_from_config(readWString("Libraries", "OptiDllPath"));
+
+            NvngxPath.set_from_config(readWString("Libraries", "NvngxPath"));
+            NVNGX_DLSS_Library.set_from_config(readWString("Libraries", "NvngxDlssPath"));
+            DLSSFeaturePath.set_from_config(readWString("Libraries", "NvngxFeaturePath"));
+            NvapiDllPath.set_from_config(readWString("Libraries", "NvapiPath"));
+
+            FfxDx12Path.set_from_config(readWString("Libraries", "FfxDx12Path"));
+            FfxDx12SRPath.set_from_config(readWString("Libraries", "FfxSRDx12Path"));
+            FfxDx12FGPath.set_from_config(readWString("Libraries", "FfxFGDx12Path"));
+            FfxDx12RRPath.set_from_config(readWString("Libraries", "FfxRRDx12Path"));
+            FfxDx12RCPath.set_from_config(readWString("Libraries", "FfxRCDx12Path"));
+            FfxVkPath.set_from_config(readWString("Libraries", "FfxVkPath"));
+
+            XeSSLibrary.set_from_config(readWString("Libraries", "XeSSPath"));
+            XeSSLibrary.set_from_config(readWString("Libraries", "XeFGPath"));
+            XeSSLibrary.set_from_config(readWString("Libraries", "XeLLPath"));
+            XeSSDx11Library.set_from_config(readWString("Libraries", "XeSSDx11Path"));
         }
 
         if (fakenvapi::isUsingFakenvapi())
@@ -947,10 +946,6 @@ bool Config::SaveIni()
         ini.SetValue("FSR", "CameraFar", GetFloatValue(Instance()->FsrCameraFar.value_for_config()).c_str());
         ini.SetValue("FSR", "UseFsrInputValues",
                      GetBoolValue(Instance()->FsrUseFsrInputValues.value_for_config()).c_str());
-
-        ini.SetValue("FSR", "FfxDx12Path",
-                     wstring_to_string(Instance()->FfxDx12Path.value_for_config_or(L"auto")).c_str());
-        ini.SetValue("FSR", "FfxVkPath", wstring_to_string(Instance()->FfxVkPath.value_for_config_or(L"auto")).c_str());
     }
 
     // FSR
@@ -1005,21 +1000,11 @@ bool Config::SaveIni()
         ini.SetValue("XeSS", "BuildPipelines", GetBoolValue(Instance()->BuildPipelines.value_for_config()).c_str());
         ini.SetValue("XeSS", "CreateHeaps", GetBoolValue(Instance()->CreateHeaps.value_for_config()).c_str());
         ini.SetValue("XeSS", "NetworkModel", GetIntValue(Instance()->NetworkModel.value_for_config()).c_str());
-        ini.SetValue("XeSS", "LibraryPath",
-                     wstring_to_string(Instance()->XeSSLibrary.value_for_config_or(L"auto")).c_str());
-        ini.SetValue("XeSS", "Dx11LibraryPath",
-                     wstring_to_string(Instance()->XeSSDx11Library.value_for_config_or(L"auto")).c_str());
     }
 
     // DLSS
     {
         ini.SetValue("DLSS", "Enabled", GetBoolValue(Instance()->DLSSEnabled.value_for_config()).c_str());
-        ini.SetValue("DLSS", "LibraryPath",
-                     wstring_to_string(Instance()->NvngxPath.value_for_config_or(L"auto")).c_str());
-        ini.SetValue("DLSS", "FeaturePath",
-                     wstring_to_string(Instance()->DLSSFeaturePath.value_for_config_or(L"auto")).c_str());
-        ini.SetValue("DLSS", "NVNGX_DLSS_Path",
-                     wstring_to_string(Instance()->NVNGX_DLSS_Library.value_for_config_or(L"auto")).c_str());
         ini.SetValue("DLSS", "RenderPresetOverride",
                      GetBoolValue(Instance()->RenderPresetOverride.value_for_config()).c_str());
         ini.SetValue("DLSS", "RenderPresetForAll",
@@ -1071,6 +1056,30 @@ bool Config::SaveIni()
         ini.SetValue("Sharpness", "Sharpness", GetFloatValue(Instance()->Sharpness.value_for_config()).c_str());
     }
 
+    // CAS
+    {
+        ini.SetValue("CAS", "Enabled", GetBoolValue(Instance()->RcasEnabled.value_for_config()).c_str());
+
+        ini.SetValue("CAS", "MotionSharpnessEnabled",
+                     GetBoolValue(Instance()->MotionSharpnessEnabled.value_for_config()).c_str());
+        ini.SetValue("CAS", "MotionSharpness", GetFloatValue(Instance()->MotionSharpness.value_for_config()).c_str());
+        ini.SetValue("CAS", "MotionThreshold", GetFloatValue(Instance()->MotionThreshold.value_for_config()).c_str());
+        ini.SetValue("CAS", "MotionScaleLimit", GetFloatValue(Instance()->MotionScaleLimit.value_for_config()).c_str());
+
+        ini.SetValue("CAS", "ContrastEnabled", GetBoolValue(Instance()->ContrastEnabled.value_for_config()).c_str());
+        ini.SetValue("CAS", "Contrast", GetFloatValue(Instance()->Contrast.value_for_config()).c_str());
+
+        ini.SetValue("CAS", "UseDepthAwareSharpen",
+                     GetBoolValue(Instance()->UseDepthAwareSharpen.value_for_config()).c_str());
+        ini.SetValue("CAS", "DADepthIsLinear", GetBoolValue(Instance()->DADepthIsLinear.value_for_config()).c_str());
+        ini.SetValue("CAS", "DADepthScale", GetFloatValue(Instance()->DADepthScale.value_for_config()).c_str());
+        ini.SetValue("CAS", "DADepthBias", GetFloatValue(Instance()->DADepthBias.value_for_config()).c_str());
+        ini.SetValue("CAS", "DAClampOutput", GetBoolValue(Instance()->DAClampOutput.value_for_config()).c_str());
+
+        ini.SetValue("CAS", "SharpenerDebug",
+                     GetBoolValue(Instance()->MotionSharpnessDebug.value_for_config()).c_str());
+    }
+
     // Menu
     {
         ini.SetValue("Menu", "Scale", GetFloatValue(Instance()->MenuScale).c_str());
@@ -1113,22 +1122,6 @@ bool Config::SaveIni()
                      GetBoolValue(Instance()->HookOriginalNvngxOnly.value_for_config()).c_str());
         ini.SetValue("Hooks", "EarlyHooking", GetBoolValue(Instance()->EarlyHooking.value_for_config()).c_str());
         ini.SetValue("Hooks", "UseNtdllHooks", GetBoolValue(Instance()->UseNtdllHooks.value_for_config()).c_str());
-    }
-
-    // CAS
-    {
-        ini.SetValue("CAS", "Enabled",
-                     Instance()->RcasEnabled.has_value() ? (Instance()->RcasEnabled.value() ? "true" : "false")
-                                                         : "auto");
-        ini.SetValue("CAS", "MotionSharpnessEnabled",
-                     GetBoolValue(Instance()->MotionSharpnessEnabled.value_for_config()).c_str());
-        ini.SetValue("CAS", "MotionSharpnessDebug",
-                     GetBoolValue(Instance()->MotionSharpnessDebug.value_for_config()).c_str());
-        ini.SetValue("CAS", "MotionSharpness", GetFloatValue(Instance()->MotionSharpness.value_for_config()).c_str());
-        ini.SetValue("CAS", "MotionThreshold", GetFloatValue(Instance()->MotionThreshold.value_for_config()).c_str());
-        ini.SetValue("CAS", "MotionScaleLimit", GetFloatValue(Instance()->MotionScaleLimit.value_for_config()).c_str());
-        ini.SetValue("CAS", "ContrastEnabled", GetBoolValue(Instance()->ContrastEnabled.value_for_config()).c_str());
-        ini.SetValue("CAS", "Contrast", GetFloatValue(Instance()->Contrast.value_for_config()).c_str());
     }
 
     // InitFlags
@@ -1253,7 +1246,8 @@ bool Config::SaveIni()
         ini.SetValue("Log", "LogToFile", GetBoolValue(Instance()->LogToFile.value_for_config()).c_str());
         ini.SetValue("Log", "LogToNGX", GetBoolValue(Instance()->LogToNGX.value_for_config()).c_str());
         ini.SetValue("Log", "OpenConsole", GetBoolValue(Instance()->OpenConsole.value_for_config()).c_str());
-        ini.SetValue("Log", "LogFile", wstring_to_string(Instance()->LogFileName.value_for_config_or(L"auto")).c_str());
+        ini.SetValue("Log", "LogFileName",
+                     wstring_to_string(Instance()->LogFileName.value_for_config_or(L"auto")).c_str());
         ini.SetValue("Log", "SingleFile", GetBoolValue(Instance()->LogSingleFile.value_for_config()).c_str());
         ini.SetValue("Log", "LogAsync", GetBoolValue(Instance()->LogAsync.value_for_config()).c_str());
         ini.SetValue("Log", "LogAsyncThreads", GetIntValue(Instance()->LogAsyncThreads.value_for_config()).c_str());
@@ -1265,8 +1259,6 @@ bool Config::SaveIni()
                      GetBoolValue(Instance()->OverrideNvapiDll.value_for_config()).c_str());
         ini.SetValue("NvApi", "DontUseFakenvapiForXeLLOnNvidia",
                      GetBoolValue(Instance()->DontUseFakenvapiForXeLLOnNvidia.value_for_config()).c_str());
-        ini.SetValue("NvApi", "NvapiDllPath",
-                     wstring_to_string(Instance()->NvapiDllPath.value_for_config_or(L"auto")).c_str());
         ini.SetValue("NvApi", "DisableFlipMetering",
                      GetBoolValue(Instance()->DisableFlipMetering.value_for_config()).c_str());
     }
@@ -1366,6 +1358,43 @@ bool Config::SaveIni()
         }
     }
 
+    // Libraries
+    {
+        ini.SetValue("Libraries", "OptiDllPath",
+                     wstring_to_string(Instance()->MainDllPath.value_for_config_or(L"auto")).c_str());
+
+        ini.SetValue("Libraries", "NvngxPath",
+                     wstring_to_string(Instance()->NvngxPath.value_for_config_or(L"auto")).c_str());
+        ini.SetValue("Libraries", "NvngxFeaturePath",
+                     wstring_to_string(Instance()->DLSSFeaturePath.value_for_config_or(L"auto")).c_str());
+        ini.SetValue("Libraries", "NvngxDlssPath",
+                     wstring_to_string(Instance()->NVNGX_DLSS_Library.value_for_config_or(L"auto")).c_str());
+        ini.SetValue("Libraries", "NvapiPath",
+                     wstring_to_string(Instance()->NvapiDllPath.value_for_config_or(L"auto")).c_str());
+
+        ini.SetValue("Libraries", "FfxDx12Path",
+                     wstring_to_string(Instance()->FfxDx12Path.value_for_config_or(L"auto")).c_str());
+        ini.SetValue("Libraries", "FfxDx12SRPath",
+                     wstring_to_string(Instance()->FfxDx12SRPath.value_for_config_or(L"auto")).c_str());
+        ini.SetValue("Libraries", "FfxDx12FGPath",
+                     wstring_to_string(Instance()->FfxDx12FGPath.value_for_config_or(L"auto")).c_str());
+        ini.SetValue("Libraries", "FfxDx12RRPath",
+                     wstring_to_string(Instance()->FfxDx12RRPath.value_for_config_or(L"auto")).c_str());
+        ini.SetValue("Libraries", "FfxDx12RCPath",
+                     wstring_to_string(Instance()->FfxDx12RCPath.value_for_config_or(L"auto")).c_str());
+        ini.SetValue("Libraries", "FfxVkPath",
+                     wstring_to_string(Instance()->FfxVkPath.value_for_config_or(L"auto")).c_str());
+
+        ini.SetValue("Libraries", "XeSSPath",
+                     wstring_to_string(Instance()->XeSSLibrary.value_for_config_or(L"auto")).c_str());
+        ini.SetValue("Libraries", "XeFGPath",
+                     wstring_to_string(Instance()->XeFGLibrary.value_for_config_or(L"auto")).c_str());
+        ini.SetValue("Libraries", "XeLLPath",
+                     wstring_to_string(Instance()->XeLLLibrary.value_for_config_or(L"auto")).c_str());
+        ini.SetValue("Libraries", "XeSSDx11Path",
+                     wstring_to_string(Instance()->XeSSDx11Library.value_for_config_or(L"auto")).c_str());
+    }
+
     auto pathWStr = absoluteFileName.wstring();
 
     LOG_INFO("Trying to save ini to: {0}", wstring_to_string(pathWStr));
@@ -1375,11 +1404,11 @@ bool Config::SaveIni()
 
 bool Config::ReloadFakenvapi()
 {
-    auto FN_iniPath = Util::DllPath().parent_path() / L"fakenvapi.ini";
+    auto FN_iniPath = Config::Instance()->MainDllPath.value() + L"\\fakenvapi.ini";
     if (NvapiDllPath.has_value())
-        FN_iniPath = std::filesystem::path(NvapiDllPath.value()).parent_path() / L"fakenvapi.ini";
+        FN_iniPath = std::filesystem::path(NvapiDllPath.value()).parent_path() / L"\\fakenvapi.ini";
 
-    auto pathWStr = FN_iniPath.wstring();
+    auto pathWStr = FN_iniPath;
 
     LOG_INFO("Trying to load fakenvapi's ini from: {0}", wstring_to_string(pathWStr));
 
@@ -1399,11 +1428,11 @@ bool Config::ReloadFakenvapi()
 
 bool Config::SaveFakenvapiIni()
 {
-    auto FN_iniPath = Util::DllPath().parent_path() / L"fakenvapi.ini";
+    auto FN_iniPath = Config::Instance()->MainDllPath.value() + L"\\fakenvapi.ini";
     if (NvapiDllPath.has_value())
-        FN_iniPath = std::filesystem::path(NvapiDllPath.value()).parent_path() / L"fakenvapi.ini";
+        FN_iniPath = std::filesystem::path(NvapiDllPath.value()).parent_path() / L"\\fakenvapi.ini";
 
-    auto pathWStr = FN_iniPath.wstring();
+    auto pathWStr = FN_iniPath;
 
     LOG_INFO("Trying to save fakenvapi's ini to: {0}", wstring_to_string(pathWStr));
 
@@ -1415,7 +1444,7 @@ bool Config::SaveFakenvapiIni()
 
     StreamlineHooks::updateForceReflex();
 
-    return fakenvapiIni.SaveFile(FN_iniPath.wstring().c_str()) >= 0;
+    return fakenvapiIni.SaveFile(FN_iniPath.c_str()) >= 0;
 }
 
 bool Config::SaveXeFG()

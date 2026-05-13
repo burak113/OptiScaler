@@ -54,6 +54,7 @@ struct FfxApiFloatCoords3D
 #define FFX_DENOISER_VERSION_PATCH 0
 
 #define FFX_API_EFFECT_ID_DENOISER 0x00050000u
+#define FFX_API_EFFECT_ID_RADIANCECACHE 0x00060000u
 
 #define FFX_API_MAKE_EFFECT_SUB_ID(effectId, subversion)                                                               \
     ((effectId & FFX_API_EFFECT_MASK) | (subversion & ~FFX_API_EFFECT_MASK))
@@ -70,6 +71,7 @@ struct FfxApiFloatCoords3D
 #define FFX_DENOISER_VERSION                                                                                           \
     FFX_DENOISER_MAKE_VERSION(FFX_DENOISER_VERSION_MAJOR, FFX_DENOISER_VERSION_MINOR, FFX_DENOISER_VERSION_PATCH)
 
+#define FFX_API_DISPATCH_DESC_TYPE_RADIANCECACHE FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_RADIANCECACHE, 0x04)
 
 //------------------------------------------------------------------------------
 // FFX Denoiser Declarations

@@ -4,11 +4,14 @@
 #include <sl.h>
 #include <sl1.h>
 #include <sl_dlss_g.h>
+#include <sl_dlss.h>
 #include <sl_pcl.h>
 #include <sl_reflex.h>
 
 #include <d3d12.h>
 #include "include/sl.param/parameters.h"
+
+#include "Hook_Utils.h"
 
 struct Adapter
 {
@@ -57,7 +60,7 @@ class StreamlineHooks
 {
   public:
     typedef void* (*PFN_slGetPluginFunction)(const char* functionName);
-    typedef bool (*PFN_slOnPluginLoad)(void* params, const char* loaderJSON, const char** pluginJSON);
+    typedef bool (*PFN_slOnPluginLoad)(sl::param::IParameters* params, const char* loaderJSON, const char** pluginJSON);
     typedef sl::Result (*PFN_slSetData)(const sl::BaseStructure* inputs, sl::CommandBuffer* cmdBuffer);
     typedef bool (*PFN_slSetConstants_sl1)(const void* data, uint32_t frameIndex, uint32_t id);
     typedef void (*PFN_slSetParameters_sl1)(void* params);
@@ -119,9 +122,9 @@ class StreamlineHooks
     static sl::PFun_LogMessageCallback* o_logCallback;
     static sl1::pfunLogMessageCallback* o_logCallback_sl1;
 
-    static sl::Result hkslInit(sl::Preferences* pref, uint64_t sdkVersion);
-    static bool hkslInit_sl1(sl1::Preferences* pref, int applicationId);
-    static sl::Result hkslSetTag(sl::ViewportHandle& viewport, sl::ResourceTag* tags, uint32_t numTags,
+    static sl::Result hkslInit(const sl::Preferences& pref, uint64_t sdkVersion);
+    static bool hkslInit_sl1(const sl1::Preferences& pref, int applicationId);
+    static sl::Result hkslSetTag(const sl::ViewportHandle& viewport, const sl::ResourceTag* tags, uint32_t numTags,
                                  sl::CommandBuffer* cmdBuffer);
 
     static sl::Result hkslSetTagForFrame(const sl::FrameToken& frame, const sl::ViewportHandle& viewport,
@@ -142,8 +145,10 @@ class StreamlineHooks
     // DLSS
     static PFN_slGetPluginFunction o_dlss_slGetPluginFunction;
     static PFN_slOnPluginLoad o_dlss_slOnPluginLoad;
+    static decltype(&slDLSSGetOptimalSettings) o_slDLSSGetOptimalSettings;
 
-    static bool hkdlss_slOnPluginLoad(void* params, const char* loaderJSON, const char** pluginJSON);
+    static bool hkdlss_slOnPluginLoad(sl::param::IParameters* params, const char* loaderJSON, const char** pluginJSON);
+    static sl::Result hkslDLSSGetOptimalSettings(const sl::DLSSOptions& options, sl::DLSSOptimalSettings& settings);
     static void* hkdlss_slGetPluginFunction(const char* functionName);
 
     // DLSSG
@@ -152,7 +157,7 @@ class StreamlineHooks
     static decltype(&slDLSSGSetOptions) o_slDLSSGSetOptions;
     static decltype(&slDLSSGGetState) o_slDLSSGGetState;
 
-    static bool hkdlssg_slOnPluginLoad(void* params, const char* loaderJSON, const char** pluginJSON);
+    static bool hkdlssg_slOnPluginLoad(sl::param::IParameters* params, const char* loaderJSON, const char** pluginJSON);
     static sl::Result hkslSetConstants(const sl::Constants& values, const sl::FrameToken& frame,
                                        const sl::ViewportHandle& viewport);
     static sl::Result hkslDLSSGSetOptions(const sl::ViewportHandle& viewport, const sl::DLSSGOptions& options);
@@ -167,7 +172,8 @@ class StreamlineHooks
     static PFN_slOnPluginLoad o_reflex_slOnPluginLoad;
     static decltype(&slReflexSetOptions) o_slReflexSetOptions;
 
-    static bool hkreflex_slOnPluginLoad(void* params, const char* loaderJSON, const char** pluginJSON);
+    static bool hkreflex_slOnPluginLoad(sl::param::IParameters* params, const char* loaderJSON,
+                                        const char** pluginJSON);
     static sl::Result hkslReflexSetOptions(const sl::ReflexOptions& options);
     static bool hkreflex_slSetConstants_sl1(const void* data, uint32_t frameIndex, uint32_t id);
     static void* hkreflex_slGetPluginFunction(const char* functionName);
@@ -177,7 +183,7 @@ class StreamlineHooks
     static PFN_slOnPluginLoad o_pcl_slOnPluginLoad;
     static decltype(&slPCLSetMarker) o_slPCLSetMarker;
 
-    static bool hkpcl_slOnPluginLoad(void* params, const char* loaderJSON, const char** pluginJSON);
+    static bool hkpcl_slOnPluginLoad(sl::param::IParameters* params, const char* loaderJSON, const char** pluginJSON);
     static void* hkpcl_slGetPluginFunction(const char* functionName);
     static sl::Result hkslPCLSetMarker(sl::PCLMarker marker, const sl::FrameToken& frame);
 
@@ -187,7 +193,8 @@ class StreamlineHooks
     static PFN_slSetParameters_sl1 o_common_slSetParameters_sl1;
     static PFN_setVoid o_setVoid;
 
-    static bool hkcommon_slOnPluginLoad(void* params, const char* loaderJSON, const char** pluginJSON);
+    static bool hkcommon_slOnPluginLoad(sl::param::IParameters* params, const char* loaderJSON,
+                                        const char** pluginJSON);
     static void* hkcommon_slGetPluginFunction(const char* functionName);
     static void hkcommon_slSetParameters_sl1(void* params);
     static bool hk_setVoid(void* self, const char* key, void** value);
@@ -196,4 +203,33 @@ class StreamlineHooks
     static char* trimStreamlineLog(const char* msg);
     static void streamlineLogCallback(sl::LogType type, const char* msg);
     static void streamlineLogCallback_sl1(sl1::LogType type, const char* msg);
+
+    // Function signature checking
+    VALIDATE_MEMBER_HOOK(hkslInit, decltype(&slInit))
+    VALIDATE_MEMBER_HOOK(hkslInit_sl1, decltype(&sl1::slInit))
+    VALIDATE_MEMBER_HOOK(hkslSetTag, decltype(&slSetTag))
+    VALIDATE_MEMBER_HOOK(hkslSetTagForFrame, decltype(&slSetTagForFrame))
+    VALIDATE_MEMBER_HOOK(hkslEvaluateFeature, decltype(&slEvaluateFeature))
+    VALIDATE_MEMBER_HOOK(hkslAllocateResources, decltype(&slAllocateResources))
+    VALIDATE_MEMBER_HOOK(hkslGetNativeInterface, decltype(&slGetNativeInterface))
+    VALIDATE_MEMBER_HOOK(hkslSetD3DDevice, decltype(&slSetD3DDevice))
+    VALIDATE_MEMBER_HOOK(hkdlss_slOnPluginLoad, PFN_slOnPluginLoad)
+    VALIDATE_MEMBER_HOOK(hkslDLSSGetOptimalSettings, decltype(&slDLSSGetOptimalSettings))
+    VALIDATE_MEMBER_HOOK(hkdlss_slGetPluginFunction, PFN_slGetPluginFunction)
+    VALIDATE_MEMBER_HOOK(hkdlssg_slOnPluginLoad, PFN_slOnPluginLoad)
+    VALIDATE_MEMBER_HOOK(hkslSetConstants, decltype(&slSetConstants))
+    VALIDATE_MEMBER_HOOK(hkslDLSSGSetOptions, decltype(&slDLSSGSetOptions))
+    VALIDATE_MEMBER_HOOK(hkslDLSSGGetState, decltype(&slDLSSGGetState))
+    VALIDATE_MEMBER_HOOK(hkdlssg_slGetPluginFunction, PFN_slGetPluginFunction)
+    VALIDATE_MEMBER_HOOK(hkreflex_slOnPluginLoad, PFN_slOnPluginLoad)
+    VALIDATE_MEMBER_HOOK(hkslReflexSetOptions, decltype(&slReflexSetOptions))
+    VALIDATE_MEMBER_HOOK(hkreflex_slSetConstants_sl1, PFN_slSetConstants_sl1)
+    VALIDATE_MEMBER_HOOK(hkreflex_slGetPluginFunction, PFN_slGetPluginFunction)
+    VALIDATE_MEMBER_HOOK(hkpcl_slOnPluginLoad, PFN_slOnPluginLoad)
+    VALIDATE_MEMBER_HOOK(hkpcl_slGetPluginFunction, PFN_slGetPluginFunction)
+    VALIDATE_MEMBER_HOOK(hkslPCLSetMarker, decltype(&slPCLSetMarker))
+    VALIDATE_MEMBER_HOOK(hkcommon_slOnPluginLoad, PFN_slOnPluginLoad)
+    VALIDATE_MEMBER_HOOK(hkcommon_slGetPluginFunction, PFN_slGetPluginFunction)
+    VALIDATE_MEMBER_HOOK(hkcommon_slSetParameters_sl1, PFN_slSetParameters_sl1)
+    VALIDATE_MEMBER_HOOK(hk_setVoid, PFN_setVoid)
 };

@@ -136,10 +136,16 @@ HC_Dx12::HC_Dx12(std::string InName, ID3D12Device* InDevice) : Shader_Dx12(InNam
         vs = HC_CompileShader(hcCode.c_str(), "VSMain", "vs_5_1");
         if (vs != nullptr)
             graphicsPsoDesc.VS = { vs->GetBufferPointer(), vs->GetBufferSize() };
+        else
+            graphicsPsoDesc.VS = CD3DX12_SHADER_BYTECODE(reinterpret_cast<const void*>(hudless_compare_VS_cso),
+                                                         sizeof(hudless_compare_VS_cso));
 
         ps = HC_CompileShader(hcCode.c_str(), "PSMain", "ps_5_1");
         if (ps != nullptr)
             graphicsPsoDesc.PS = { ps->GetBufferPointer(), ps->GetBufferSize() };
+        else
+            graphicsPsoDesc.PS = CD3DX12_SHADER_BYTECODE(reinterpret_cast<const void*>(hudless_compare_PS_cso),
+                                                         sizeof(hudless_compare_PS_cso));
     }
 
     graphicsPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);

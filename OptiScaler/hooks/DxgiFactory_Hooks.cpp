@@ -141,8 +141,8 @@ void DxgiFactoryHooks::HookToFactory(IDXGIFactory* pFactory)
     DetourTransactionCommit();
 }
 
-HRESULT DxgiFactoryHooks::CreateSwapChain(IDXGIFactory* realFactory, IUnknown* pDevice,
-                                          const DXGI_SWAP_CHAIN_DESC* pDesc, IDXGISwapChain** ppSwapChain)
+HRESULT DxgiFactoryHooks::CreateSwapChain(IDXGIFactory* realFactory, IUnknown* pDevice, DXGI_SWAP_CHAIN_DESC* pDesc,
+                                          IDXGISwapChain** ppSwapChain)
 {
     *ppSwapChain = nullptr;
 
@@ -879,14 +879,14 @@ HRESULT DxgiFactoryHooks::EnumAdapters(IDXGIFactory* realFactory, UINT Adapter, 
                 ScopedSkipHighPerfCheck skipHighPerfCheck {};
 
                 result = o_EnumAdapterByGpuPreference(factory6, Adapter, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
-                                                      __uuidof(IDXGIAdapter1), (IUnknown**) ppAdapter);
+                                                      __uuidof(IDXGIAdapter1), (void**) ppAdapter);
             }
 
             if (result != S_OK)
             {
                 LOG_ERROR("Can't get high performance adapter: {:X}, fallback to standard method", Adapter);
                 ScopedSkipDxgiLoadChecks skipDxgiLoadChecks {};
-                result = o_EnumAdapters(realFactory, Adapter, (IUnknown**) ppAdapter);
+                result = o_EnumAdapters(realFactory, Adapter, ppAdapter);
             }
 
             if (result == S_OK)
@@ -910,13 +910,13 @@ HRESULT DxgiFactoryHooks::EnumAdapters(IDXGIFactory* realFactory, UINT Adapter, 
         else
         {
             ScopedSkipDxgiLoadChecks skipDxgiLoadChecks {};
-            result = o_EnumAdapters(realFactory, Adapter, (IUnknown**) ppAdapter);
+            result = o_EnumAdapters(realFactory, Adapter, ppAdapter);
         }
     }
     else
     {
         ScopedSkipDxgiLoadChecks skipDxgiLoadChecks {};
-        result = o_EnumAdapters(realFactory, Adapter, (IUnknown**) ppAdapter);
+        result = o_EnumAdapters(realFactory, Adapter, ppAdapter);
     }
 
     if (result == S_OK)
@@ -956,14 +956,14 @@ HRESULT DxgiFactoryHooks::EnumAdapters1(IDXGIFactory1* realFactory, UINT Adapter
                 ScopedSkipHighPerfCheck skipHighPerfCheck {};
 
                 result = o_EnumAdapterByGpuPreference(factory6, Adapter, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
-                                                      __uuidof(IDXGIAdapter1), (IUnknown**) ppAdapter);
+                                                      __uuidof(IDXGIAdapter1), (void**) ppAdapter);
             }
 
             if (result != S_OK)
             {
                 LOG_ERROR("Can't get high performance adapter: {:X}, fallback to standard method", Adapter);
                 ScopedSkipDxgiLoadChecks skipDxgiLoadChecks {};
-                result = o_EnumAdapters1(realFactory, Adapter, (IUnknown**) ppAdapter);
+                result = o_EnumAdapters1(realFactory, Adapter, ppAdapter);
             }
 
             if (result == S_OK)
@@ -987,13 +987,13 @@ HRESULT DxgiFactoryHooks::EnumAdapters1(IDXGIFactory1* realFactory, UINT Adapter
         else
         {
             ScopedSkipDxgiLoadChecks skipDxgiLoadChecks {};
-            result = o_EnumAdapters1(realFactory, Adapter, (IUnknown**) ppAdapter);
+            result = o_EnumAdapters1(realFactory, Adapter, ppAdapter);
         }
     }
     else
     {
         ScopedSkipDxgiLoadChecks skipDxgiLoadChecks {};
-        result = o_EnumAdapters1(realFactory, Adapter, (IUnknown**) ppAdapter);
+        result = o_EnumAdapters1(realFactory, Adapter, ppAdapter);
     }
 
     if (result == S_OK)
@@ -1015,7 +1015,7 @@ HRESULT DxgiFactoryHooks::EnumAdapterByLuid(IDXGIFactory4* realFactory, LUID Ada
     HRESULT result;
     {
         ScopedSkipDxgiLoadChecks skipDxgiLoadChecks {};
-        result = o_EnumAdapterByLuid(realFactory, AdapterLuid, riid, (IUnknown**) ppvAdapter);
+        result = o_EnumAdapterByLuid(realFactory, AdapterLuid, riid, ppvAdapter);
     }
 
     if (result == S_OK)
@@ -1038,7 +1038,7 @@ HRESULT DxgiFactoryHooks::EnumAdapterByGpuPreference(IDXGIFactory6* realFactory,
 
     {
         ScopedSkipDxgiLoadChecks skipDxgiLoadChecks {};
-        result = o_EnumAdapterByGpuPreference(realFactory, Adapter, GpuPreference, riid, (IUnknown**) ppvAdapter);
+        result = o_EnumAdapterByGpuPreference(realFactory, Adapter, GpuPreference, riid, ppvAdapter);
     }
 
     if (result == S_OK)
