@@ -56,7 +56,7 @@ Texture2D<half4> InAlbedo2 : register(t3); // Diffuse albedo
 
 // Secondary buffers
 Texture2D<half4> InSkipSignal : register(t4);
-Texture2D<half3> InRawColor : register(t5);
+Texture2D<half4> InRawColor : register(t5);
 Texture2D<half4> InColorBeforeParticles : register(t6);
 
 RWTexture2D<half4> OutColor : register(u0);
@@ -190,7 +190,7 @@ void PopulateSharedMemory(const uint2 groupID, const int2 gtID)
                 denoisedColor = InDenoisedSignal1[px].rgb * totalAlbedo;
             }
             
-            const float3 rawColor = InRawColor[px];
+            const float3 rawColor = InRawColor[px].rgb;
             const float4 skipColor = InSkipSignal[px];
             const float skipLuma = skipColor.a;
             
@@ -236,7 +236,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         PopulateSharedMemory(groupID.xy, gtID.xy);
 
         // Correlate raw RT input with denoiser output
-        float lowConfWeight = GetRawColorSimilarity(gtID.xy) * CorrelationBias;
+        float lowConfWeight = saturate(GetRawColorSimilarity(gtID.xy) * CorrelationBias);
                 
         [branch]
         if (IsSet(FLAGS_DEBUG))
@@ -268,10 +268,12 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         {
             const half4 denoisedColor = g_DenoisedColor[smID.x][smID.y];
             const half4 rawColor = g_RawColor[smID.x][smID.y];
-            const half4 particles = InColorBeforeParticles[px]; // TODO
-
-            const half3 outColor = half3(lerp(denoisedColor.rgb, rawColor.rgb, lowConfWeight));
-
+            half3 outColor = half3(lerp(denoisedColor.rgb, rawColor.rgb, lowConfWeight));
+            
+            // Optional discrete premultiplied alpha buffer
+            const half4 particles = InColorBeforeParticles[px];
+            outColor = (1.0f - particles.a) * outColor + particles.rgb;
+            
             OutColor[px] = (half4)GetSafeFP16(float4(outColor, 1.0f));
         }
     }
