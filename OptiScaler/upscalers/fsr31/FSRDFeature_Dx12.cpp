@@ -792,8 +792,7 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
 
     // If roughness is not packed into normals, then this texture is mandatory.
     // This value should be available in one of these two buffers in any DLSS-RR implementation.
-    if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_GBuffer_Roughness, _convDesc.Resources.InRoughness) &&
-        !s_isRoughnessPacked)
+    if (!s_isRoughnessPacked && !TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_GBuffer_Roughness, _convDesc.Resources.InRoughness))
     {
         LOG_WARN("Expected unpacked roughness buffer from DLSS-RR. Defaulting to packed roughness...");
         s_isRoughnessPacked = true;
@@ -957,7 +956,7 @@ bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
 
     if (result != FFX_API_RETURN_OK)
     {
-        LOG_ERROR("_dispatch error: {0}", FfxApiProxy::ReturnCodeToString(result));
+        LOG_ERROR("Dispatch error: {0}", FfxApiProxy::ReturnCodeToString(result));
 
         if (result == FFX_API_RETURN_ERROR_RUNTIME_ERROR)
         {

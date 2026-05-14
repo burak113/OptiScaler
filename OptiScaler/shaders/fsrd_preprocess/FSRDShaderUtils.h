@@ -38,12 +38,13 @@ namespace FSRD
     static inline UINT AlignTo256(UINT size) { return (size + 255) & ~255; }
 
     /**
-     * @brief Maps typeless formats into formats compatible with SRVs and UAVs
+     * @brief Maps typeless and depth formats into formats compatible with SRVs and UAVs
      */
     static inline DXGI_FORMAT GetViewFormat(DXGI_FORMAT defaultFormat)
     {
         switch (defaultFormat)
         {
+        // Depth/Stencil Mappings
         case DXGI_FORMAT_D32_FLOAT:
             return DXGI_FORMAT_R32_FLOAT;
         case DXGI_FORMAT_D16_UNORM:
@@ -53,30 +54,50 @@ namespace FSRD
         case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
             return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
 
+        // 128-bit Typeless
+        case DXGI_FORMAT_R32G32B32A32_TYPELESS:
+            return DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+        // 96-bit Typeless
+        case DXGI_FORMAT_R32G32B32_TYPELESS:
+            return DXGI_FORMAT_R32G32B32_FLOAT;
+
+        // 64-bit Typeless
+        case DXGI_FORMAT_R16G16B16A16_TYPELESS:
+            return DXGI_FORMAT_R16G16B16A16_FLOAT;
+        case DXGI_FORMAT_R32G32_TYPELESS:
+            return DXGI_FORMAT_R32G32_FLOAT;
+        case DXGI_FORMAT_R32G8X24_TYPELESS:
+            return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+
+        // 32-bit Typeless
+        case DXGI_FORMAT_R10G10B10A2_TYPELESS:
+            return DXGI_FORMAT_R10G10B10A2_UNORM;
+        case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+            return DXGI_FORMAT_R8G8B8A8_UNORM;
+        case DXGI_FORMAT_R16G16_TYPELESS:
+            return DXGI_FORMAT_R16G16_UNORM;
         case DXGI_FORMAT_R32_TYPELESS:
             return DXGI_FORMAT_R32_FLOAT;
+        case DXGI_FORMAT_R24G8_TYPELESS:
+            return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+        case DXGI_FORMAT_B8G8R8A8_TYPELESS:
+            return DXGI_FORMAT_B8G8R8A8_UNORM;
+        case DXGI_FORMAT_B8G8R8X8_TYPELESS:
+            return DXGI_FORMAT_B8G8R8X8_UNORM;
+
+        // 16-bit Typeless
+        case DXGI_FORMAT_R8G8_TYPELESS:
+            return DXGI_FORMAT_R8G8_UNORM;
         case DXGI_FORMAT_R16_TYPELESS:
             return DXGI_FORMAT_R16_UNORM;
+
+        // 8-bit Typeless
         case DXGI_FORMAT_R8_TYPELESS:
             return DXGI_FORMAT_R8_UNORM;
 
-        case DXGI_FORMAT_R32G32B32A32_TYPELESS:
-            return DXGI_FORMAT_R32G32B32A32_FLOAT;
-        case DXGI_FORMAT_R32G32B32_TYPELESS:
-            return DXGI_FORMAT_R32G32B32_FLOAT;
-        case DXGI_FORMAT_R16G16B16A16_TYPELESS:
-            return DXGI_FORMAT_R16G16B16A16_FLOAT;
-        case DXGI_FORMAT_R8G8B8A8_TYPELESS:
-            return DXGI_FORMAT_R8G8B8A8_UNORM;
-        case DXGI_FORMAT_R8G8_TYPELESS:
-            return DXGI_FORMAT_R8G8_UNORM;
-
-        case DXGI_FORMAT_R10G10B10A2_TYPELESS:
-            return DXGI_FORMAT_R10G10B10A2_UNORM;
-        case DXGI_FORMAT_R11G11B10_FLOAT:
-            return DXGI_FORMAT_R11G11B10_FLOAT;
-
         default:
+            // Any format not explicitly caught here is likely already a fully typed format (or unsupported)
             return defaultFormat;
         }
     }
