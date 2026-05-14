@@ -77,7 +77,7 @@ bool IsSet(uint mask) { return (Flags & mask) == mask; }
 uint GetDebugMode() { return (Flags & FLAGS_DEBUG_MODE_MASK); }
 
 // Correlates raw noisy input with denoised color using a modified SSIM.
-float GetRawColorSimilarity(const uint2 gtID)
+half GetRawColorSimilarity(const uint2 gtID)
 {
     const int2 smCenter = gtID + s_SM_HaloOffset;    
     float meanD = 0.0f;
@@ -95,8 +95,8 @@ float GetRawColorSimilarity(const uint2 gtID)
         [unroll]
         for (int y1 = KERNEL_RANGE_MIN; y1 <= KERNEL_RANGE_MAX; y1++)
         {
-            const int2 smID = smCenter + int2(x1, y1);               
-            float w = exp(-(Square(x1) + Square(y1)) * s_RcpSigma);
+            const int2 smID = smCenter + int2(x1, y1);
+            float w = exp(-(Square(x1) + Square(y1)) * s_RcpSigma); // This is precomputed by DXC
             totalWeight += w;
             
             const float lumD = g_DenoisedColor[smID.x][smID.y].a;
@@ -110,8 +110,7 @@ float GetRawColorSimilarity(const uint2 gtID)
         }
     }
     
-    const float rcpTotalWeight = rcp(totalWeight);
-    
+    const float rcpTotalWeight = rcp(totalWeight);   
     meanD *= rcpTotalWeight;
     meanR *= rcpTotalWeight;
     meanDD *= rcpTotalWeight;
@@ -135,24 +134,25 @@ float GetRawColorSimilarity(const uint2 gtID)
     const float covRD = meanRD - (meanD * meanR);
         
     // Correlation
-    static const float s_SSIMStrictness = 1.0f;
+    static const float s_SSIMRelaxation = 0.1f;
     static const float s_COVThreshold = 0.2f;
     
-    const float c1 = Square(1e-2f * s_SSIMStrictness);
-    const float c2 = Square(3e-2f * s_SSIMStrictness);
-    const float c3 = 1.0f * c2;
+    static const float c1 = Square(1e-2f * s_SSIMRelaxation) + 0.1f;
+    static const float c2 = Square(3e-2f * s_SSIMRelaxation);
+    static const float c3 = 1.0f * c2;
     
     // Standard SSIM components
     const float strucCorrelation = ((covRD + c3) * rcp(devD * devR + c3));
-    const float conCorrelation = ((2.0f * devD * devR + c2) * rcp(varD + varR + c2));
-    const float lumCorrelation = (2.0f * meanD * meanR) * rcp(meanDSq + meanRSq + c1);    
-    const float ssim = strucCorrelation * conCorrelation * lumCorrelation;  
+    const float conCorrelation = (2.0f * devD * devR + c2) * rcp(varD + varR + c2);
+    const float lumCorrelation = (2.0f * meanD * meanR) * rcp(meanDSq + meanRSq + c1);
+    const half ssim = half(strucCorrelation * conCorrelation * lumCorrelation);
     
     // Variance gating. The denoiser doesn't destroy genuine detail. It might attenuate details, or even
     // hallucinate, but if it says it's flat, then almost certainly flat.
-    const float covD = devD * rcp(max(meanD, 1e-2f));
+    const half covD = half(devD * rcp(max(meanD, 1e-2f)));
+    const half similarity = half(smoothstep(0.0f, 0.5f, ssim) * smoothstep(0.0f, s_COVThreshold, covD));
     
-    return smoothstep(0.0f, 0.5f, ssim) * smoothstep(0.0f, s_COVThreshold, covD);
+    return min(max(similarity, 0.0h), 1.0h);
 }
 
 void PopulateSharedMemory(const uint2 groupID, const int2 gtID)
@@ -170,8 +170,8 @@ void PopulateSharedMemory(const uint2 groupID, const int2 gtID)
         {
             const int2 smID = int2(smFlatID % s_SM_Size.x, smFlatID / s_SM_Size.x);
             const int2 px = clamp(pxOrigin + smID, int2(0, 0), maxBounds);
-            float3 denoisedColor;
-            float3 totalAlbedo;
+            half3 denoisedColor;
+            half3 totalAlbedo;
             
             [branch]
             if (IsSet(FLAGS_MODE_2_SIGNAL))
@@ -181,23 +181,23 @@ void PopulateSharedMemory(const uint2 groupID, const int2 gtID)
                 const float3 specReflectance = InAlbedo1[px].rgb;
                 const float3 diffAlbedo = InAlbedo2[px].rgb;
                 
-                totalAlbedo = specReflectance + diffAlbedo;
-                denoisedColor = (denoisedSpecColor * specReflectance) + (denoisedDiffColor * diffAlbedo);
+                totalAlbedo = GetSafeFP16(specReflectance + diffAlbedo);
+                denoisedColor = GetSafeFP16((denoisedSpecColor * specReflectance) + (denoisedDiffColor * diffAlbedo));
             }
             else
             {
-                totalAlbedo = InAlbedo1[px].rgb;
-                denoisedColor = InDenoisedSignal1[px].rgb * totalAlbedo;
+                totalAlbedo = GetSafeFP16(InAlbedo1[px].rgb);
+                denoisedColor = GetSafeFP16(InDenoisedSignal1[px].rgb) * totalAlbedo;
             }
             
-            const float3 rawColor = InRawColor[px].rgb;
-            const float4 skipColor = InSkipSignal[px];
-            const float skipLuma = skipColor.a;
+            const half3 rawColor = GetSafeFP16(InRawColor[px].rgb);
+            const half4 skipColor = GetSafeFP16(InSkipSignal[px]);
+            const half skipLuma = skipColor.a;
             
             // Use demodulated color for luma references, but use remodulated color for output colors.
-            const float rcpTotalAlbedo = rcp(max(GetLuminance(totalAlbedo), 1e-3f));
-            const float rawRef = GetLuminance(rawColor) * rcpTotalAlbedo;
-            const float denoisedRef = (GetLuminance(denoisedColor) + skipColor.a) * rcpTotalAlbedo;
+            const float rcpTotalAlbedo = rcp(max(GetLuminance(totalAlbedo), 1e-2f));
+            const half rawRef = GetSafeFP16(GetLuminance(rawColor) * rcpTotalAlbedo);
+            const half denoisedRef = GetSafeFP16((GetLuminance(denoisedColor) + skipColor.a) * rcpTotalAlbedo);
             denoisedColor += skipColor.rgb;
 
             g_RawColor[smID.x][smID.y] = half4(rawColor, rawRef);
@@ -236,15 +236,15 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         PopulateSharedMemory(groupID.xy, gtID.xy);
 
         // Correlate raw RT input with denoiser output
-        float lowConfWeight = saturate(GetRawColorSimilarity(gtID.xy) * CorrelationBias);
-                
+        const half rawWeight = GetRawColorSimilarity(gtID.xy) * CorrelationBias;
+        
         [branch]
         if (IsSet(FLAGS_DEBUG))
         {
             switch (GetDebugMode())
             {
                 case FLAGS_DEBUG_CORRELATION_BIAS:
-                    OutColor[px] = half4(TurboColormap(lowConfWeight), 1.0f);
+                    OutColor[px] = half4(TurboColormap(rawWeight), 1.0f);
                     break;
                 case FLAGS_DEBUG_SKIP_SIGNAL:
                     OutColor[px] = half4(InSkipSignal[px].rgb, 1.0f);
@@ -268,10 +268,17 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         {
             const half4 denoisedColor = g_DenoisedColor[smID.x][smID.y];
             const half4 rawColor = g_RawColor[smID.x][smID.y];
-            half3 outColor = half3(lerp(denoisedColor.rgb, rawColor.rgb, lowConfWeight));
+            half3 outColor = GetSafeFP16(lerp(denoisedColor.rgb, rawColor.rgb, rawWeight));
+            
+            // Clamp final color within +/- 50% of the denoiser output. The SSIM metric generally stays well 
+            // clear if this threshold, but not always.
+            const half3 minColor = 0.5f * denoisedColor.rgb;
+            const half3 maxColor = 1.5f * denoisedColor.rgb;
+            outColor.rgb = clamp(outColor.rgb, minColor, maxColor);
             
             // Optional discrete premultiplied alpha buffer
-            const half4 particles = InColorBeforeParticles[px];
+            half4 particles = GetSafeFP16(InColorBeforeParticles[px]);
+            particles.a = saturate(particles.a);
             outColor = (1.0f - particles.a) * outColor + particles.rgb;
             
             OutColor[px] = (half4)GetSafeFP16(float4(outColor, 1.0f));

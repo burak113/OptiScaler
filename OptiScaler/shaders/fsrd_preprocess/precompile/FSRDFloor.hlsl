@@ -59,7 +59,7 @@ float GetRangeWeight(float delta, float scale)
 {
     // W = ( 1 - ( (center - tap) * scale )^2 )^2
     // scale = 1 / norm
-    return Square(max(1.0f - Square(delta * scale), 0.0f));
+    return Square(max(1.0f - Square(delta * scale), 1e-2f));
 }
 
 [RootSignature(MainRS)]

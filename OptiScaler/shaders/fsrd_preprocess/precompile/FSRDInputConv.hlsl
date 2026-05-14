@@ -159,8 +159,8 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     
     // Clamp floor to minimum and blend in raw values where similar to preserve microcontrast.
     const float floorSimilarity = GetRelativeSimilarity(floorLuma, rawLuma, similarityThreshold);
-    floorColor.rgb = lerp(floorColor.rgb, rawColor, saturate(floorSimilarity));
-    floorColor.rgb = FloorIsolation * min(rawColor, floorColor.rgb);
+    floorColor.rgb = FloorIsolation * lerp(floorColor.rgb, rawColor, saturate(floorSimilarity));
+    floorColor.rgb = min(rawColor, floorColor.rgb);
     const float3 denoiserColor = rawColor - floorColor.rgb;
 
     // Depth - full position needed for reprojected depth delta

@@ -162,6 +162,7 @@ half2 GetSafeFP16(float2 v)
 {
     return (half2) min(max(v, 0.0f), 65500.0f);
 }
+
 half1 GetSafeFP16(float v)
 {
     return (half) min(max(v, 0.0f), 65500.0f);
@@ -208,8 +209,9 @@ float GetCOV(float meanSq, float mean)
 // Returns 1.0 when values are identical, and falls off based on relative difference.
 float GetRelativeSimilarity(float value, float baseline)
 {
-    const float delta = abs(baseline - value) * rcp(max(baseline, 1e-2f));
-    return saturate(1.0f - delta);
+    const float den = max(max(value, baseline), 1e-2f);
+    const float delta = abs(baseline - value) * rcp(den);
+    return min(max(1.0f - delta, 0.0f), 1.0f);
 }
 
 // Computes a relative similarity score between value and baseline. 
