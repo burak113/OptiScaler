@@ -145,9 +145,10 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     
     // Denoiser input color and floor residual
     const float3 rawColor = GetSafeFP16(InColor[px].rgb);
-    float4 floorColor = InFloorColor[px];
+    float4 floorColor = InFloorColor[px];  
     const float rawLuma = GetLuminance(rawColor);
     const float floorLuma = GetLuminance(floorColor.rgb);
+    floorColor.a = floorLuma;
 
     // Floor color blending
     //
@@ -263,7 +264,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         
         OutSpecAlbedo[px] = half4(GetSafeFP16(specReflectance), 0.0f);
         OutDiffAlbedo[px] = half4(GetSafeFP16(diffAlbedo), 0.0f);
-        OutSkipSignal[px] = half4(GetSafeFP16(floorColor.rgb), 0.0f);
+        OutSkipSignal[px] = half4(GetSafeFP16(floorColor));
         
         [branch]
         if (IsSet(FLAGS_DEBUG))
@@ -356,6 +357,6 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         OutDiffAlbedo[px] = 0.0f;
         OutSignal1[px] = 0.0f;
         OutSignal2[px] = 0.0f;
-        OutSkipSignal[px] = half4(rawColor, 1.0f);
+        OutSkipSignal[px] = half4(rawColor, rawLuma);
     }
 }

@@ -190,14 +190,16 @@ void PopulateSharedMemory(const uint2 groupID, const int2 gtID)
                 denoisedColor = InDenoisedSignal1[px].rgb * totalAlbedo;
             }
             
-            denoisedColor += InSkipSignal[px].rgb;
             const float3 rawColor = InRawColor[px];
+            const float4 skipColor = InSkipSignal[px];
+            const float skipLuma = skipColor.a;
+            
+            // Use demodulated color for luma references, but use remodulated color for output colors.
+            const float rcpTotalAlbedo = rcp(max(GetLuminance(totalAlbedo), 1e-3f));
+            const float rawRef = GetLuminance(rawColor) * rcpTotalAlbedo;
+            const float denoisedRef = (GetLuminance(denoisedColor) + skipColor.a) * rcpTotalAlbedo;
+            denoisedColor += skipColor.rgb;
 
-            // Use demodulated color for luma references, but use modulated color for RGB
-            const float3 rcpTotalAlbedo = rcp(max(totalAlbedo, 1e-3f));
-            const float rawRef = GetLuminance(rawColor * rcpTotalAlbedo);
-            const float denoisedRef = GetLuminance(denoisedColor * rcpTotalAlbedo);
-                        
             g_RawColor[smID.x][smID.y] = half4(rawColor, rawRef);
             g_DenoisedColor[smID.x][smID.y] = half4(denoisedColor, denoisedRef);
         }
