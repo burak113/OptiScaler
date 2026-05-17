@@ -121,6 +121,7 @@ static std::vector<std::string> splashText = { "Cope smarter, not harder",
                                                "2D AI filters, now powered by just 2x 5090s",
                                                "Neural Slop Sampling with DLSS5",
                                                "DLSS 5 - the way it's meant to be slopped",
+                                               "Just when I think I'm out, they scale me back in",
                                                "<Your funny text goes here>" };
 
 static ImVec2 updateNoticePosition(-1000.0f, -1000.0f);
