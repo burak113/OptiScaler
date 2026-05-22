@@ -43,12 +43,12 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
 
         static int GetKeyIndex(FfxApiConfigureDenoiserKey key) 
         {
-            return std::clamp((int) key - 1, 0, (int)DenoiserConfiguration::kCount);
+            return std::clamp((int) key - 1, 0, (int)DenoiserConfiguration::kCount - 1);
         }
 
         static FfxApiConfigureDenoiserKey GetIndexKey(int index)
         {
-            index = std::clamp(index, 0, (int) DenoiserConfiguration::kCount);
+            index = std::clamp(index + 1, 1, (int) DenoiserConfiguration::kCount);
             return static_cast<FfxApiConfigureDenoiserKey>(index);
         }
 
