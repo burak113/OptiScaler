@@ -14,25 +14,110 @@
 
 #include <ankerl/unordered_dense.h>
 
-inline ID3D11Device* D3D11Device = nullptr;
+static ID3D11Device* D3D11Device = nullptr;
 static ankerl::unordered_dense::map<unsigned int, ContextData<IFeature_Dx11>> Dx11Contexts;
-static inline int evalCounter = 0;
-static inline bool shutdown = false;
-static inline bool _skipInit = false;
+static int evalCounter = 0;
+static bool shutdown = false;
+static bool _skipInit = false;
+static wchar_t const** paths;
 
-class ScopedInit
+class ScopedInitDx11
 {
   private:
     bool previousState;
 
   public:
-    ScopedInit()
+    ScopedInitDx11()
     {
         previousState = _skipInit;
         _skipInit = true;
     }
-    ~ScopedInit() { _skipInit = previousState; }
+    ~ScopedInitDx11() { _skipInit = previousState; }
 };
+
+static void UpdateInitPaths(NVSDK_NGX_FeatureCommonInfo* InFeatureInfo)
+{
+    State::Instance().NVNGX_FeatureInfo_Paths.clear();
+
+    if (InFeatureInfo != nullptr)
+    {
+        for (size_t i = 0; i < InFeatureInfo->PathListInfo.Length; i++)
+        {
+            const wchar_t* path = InFeatureInfo->PathListInfo.Path[i];
+            State::Instance().NVNGX_FeatureInfo_Paths.push_back(std::wstring(path));
+        }
+
+        auto exePath = Util::ExePath().remove_filename();
+
+        std::optional<std::filesystem::path> nvngxDlssPath = std::nullopt;
+        std::optional<std::filesystem::path> nvngxDlssDPath = std::nullopt;
+        std::optional<std::filesystem::path> nvngxDlssGPath = std::nullopt;
+
+        // Check DLSS path
+        if (State::Instance().NVNGX_DLSS_Path.has_value())
+        {
+            nvngxDlssPath = std::filesystem::path(State::Instance().NVNGX_DLSS_Path.value());
+        }
+        else
+        {
+            auto path = Util::FindFilePath(exePath, "nvngx_dlss.dll");
+
+            if (path.has_value())
+                nvngxDlssPath = path.value();
+        }
+
+        // Check DLSS-D path
+        if (State::Instance().NVNGX_DLSSD_Path.has_value())
+        {
+            nvngxDlssDPath = std::filesystem::path(State::Instance().NVNGX_DLSSD_Path.value());
+        }
+        else
+        {
+            auto path = Util::FindFilePath(exePath, "nvngx_dlssd.dll");
+
+            if (path.has_value())
+                nvngxDlssDPath = path.value();
+        }
+
+        // Check DLSS-G path
+        if (State::Instance().NVNGX_DLSSG_Path.has_value())
+        {
+            nvngxDlssGPath = std::filesystem::path(State::Instance().NVNGX_DLSSG_Path.value());
+        }
+        else
+        {
+            auto path = Util::FindFilePath(exePath, "nvngx_dlssg.dll");
+
+            if (path.has_value())
+                nvngxDlssGPath = path.value();
+        }
+
+        // Add found locations
+        State::Instance().NVNGX_FeatureInfo_Paths.push_back(exePath.wstring());
+        if (nvngxDlssPath.has_value())
+            State::Instance().NVNGX_FeatureInfo_Paths.push_back(nvngxDlssPath.value().parent_path().wstring());
+
+        if (nvngxDlssDPath.has_value())
+            State::Instance().NVNGX_FeatureInfo_Paths.push_back(nvngxDlssDPath.value().parent_path().wstring());
+
+        if (nvngxDlssGPath.has_value())
+            State::Instance().NVNGX_FeatureInfo_Paths.push_back(nvngxDlssGPath.value().parent_path().wstring());
+
+        if (Config::Instance()->DLSSFeaturePath.has_value())
+            State::Instance().NVNGX_FeatureInfo_Paths.push_back(Config::Instance()->DLSSFeaturePath.value());
+
+        // Build pointer array
+        paths = new const wchar_t*[State::Instance().NVNGX_FeatureInfo_Paths.size()];
+        for (size_t i = 0; i < State::Instance().NVNGX_FeatureInfo_Paths.size(); ++i)
+        {
+            paths[i] = State::Instance().NVNGX_FeatureInfo_Paths[i].c_str();
+            LOG_DEBUG("Feature Path [{}]: {}", i, wstring_to_string(State::Instance().NVNGX_FeatureInfo_Paths[i]));
+        }
+
+        InFeatureInfo->PathListInfo.Path = paths;
+        InFeatureInfo->PathListInfo.Length = (int) State::Instance().NVNGX_FeatureInfo_Paths.size();
+    }
+}
 
 #pragma region NVSDK_NGX_D3D11_Init
 
@@ -41,6 +126,12 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D11_Init_Ext(unsigned long long InApp
                                                         NVSDK_NGX_Version InSDKVersion,
                                                         const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo)
 {
+    NVSDK_NGX_FeatureCommonInfo localFeatureInfo = {};
+    std::memcpy(&localFeatureInfo, InFeatureInfo, sizeof(NVSDK_NGX_FeatureCommonInfo));
+
+    if (!_skipInit)
+        UpdateInitPaths(&localFeatureInfo);
+
     if (Config::Instance()->DLSSEnabled.value_or_default() && !_skipInit)
     {
         if (Config::Instance()->UseGenericAppIdWithDlss.value_or_default())
@@ -54,7 +145,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D11_Init_Ext(unsigned long long InApp
             LOG_INFO("calling NVNGXProxy::D3D11_Init_Ext");
 
             auto result = NVNGXProxy::D3D11_Init_Ext()(InApplicationId, InApplicationDataPath, InDevice, InSDKVersion,
-                                                       InFeatureInfo);
+                                                       &localFeatureInfo);
 
             LOG_INFO("calling NVNGXProxy::D3D11_Init_Ext result: {0:X}", (UINT) result);
 
@@ -107,6 +198,12 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D11_Init(unsigned long long InApplica
                                                     const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo,
                                                     NVSDK_NGX_Version InSDKVersion)
 {
+    NVSDK_NGX_FeatureCommonInfo localFeatureInfo = {};
+    std::memcpy(&localFeatureInfo, InFeatureInfo, sizeof(NVSDK_NGX_FeatureCommonInfo));
+
+    if (!_skipInit)
+        UpdateInitPaths(&localFeatureInfo);
+
     if (Config::Instance()->DLSSEnabled.value_or_default() && !_skipInit)
     {
         if (Config::Instance()->UseGenericAppIdWithDlss.value_or_default())
@@ -119,8 +216,8 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D11_Init(unsigned long long InApplica
         {
             LOG_INFO("calling NVNGXProxy::D3D11_Init");
 
-            auto result =
-                NVNGXProxy::D3D11_Init()(InApplicationId, InApplicationDataPath, InDevice, InFeatureInfo, InSDKVersion);
+            auto result = NVNGXProxy::D3D11_Init()(InApplicationId, InApplicationDataPath, InDevice, &localFeatureInfo,
+                                                   InSDKVersion);
 
             LOG_INFO("calling NVNGXProxy::D3D11_Init result: {0:X}", (UINT) result);
 
@@ -129,8 +226,8 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D11_Init(unsigned long long InApplica
         }
     }
 
-    ScopedInit scopedInit {};
-    auto result = NVSDK_NGX_D3D11_Init_Ext(0x1337, InApplicationDataPath, InDevice, InSDKVersion, InFeatureInfo);
+    ScopedInitDx11 scopedInit {};
+    auto result = NVSDK_NGX_D3D11_Init_Ext(0x1337, InApplicationDataPath, InDevice, InSDKVersion, &localFeatureInfo);
     LOG_DEBUG("was called NVSDK_NGX_D3D11_Init_Ext");
     return result;
 }
@@ -142,6 +239,12 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D11_Init_ProjectID(const char* InProj
                                                               ID3D11Device* InDevice, NVSDK_NGX_Version InSDKVersion,
                                                               const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo)
 {
+    NVSDK_NGX_FeatureCommonInfo localFeatureInfo = {};
+    std::memcpy(&localFeatureInfo, InFeatureInfo, sizeof(NVSDK_NGX_FeatureCommonInfo));
+
+    if (!_skipInit)
+        UpdateInitPaths(&localFeatureInfo);
+
     if (Config::Instance()->DLSSEnabled.value_or_default() && !_skipInit)
     {
         if (Config::Instance()->UseGenericAppIdWithDlss.value_or_default())
@@ -156,7 +259,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D11_Init_ProjectID(const char* InProj
 
             auto result =
                 NVNGXProxy::D3D11_Init_ProjectID()(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath,
-                                                   InDevice, InSDKVersion, InFeatureInfo);
+                                                   InDevice, InSDKVersion, &localFeatureInfo);
 
             LOG_INFO("calling NVNGXProxy::D3D11_Init_ProjectID result: {0:X}", (UINT) result);
 
@@ -165,8 +268,8 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D11_Init_ProjectID(const char* InProj
         }
     }
 
-    ScopedInit scopedInit {};
-    auto result = NVSDK_NGX_D3D11_Init_Ext(0x1337, InApplicationDataPath, InDevice, InSDKVersion, InFeatureInfo);
+    ScopedInitDx11 scopedInit {};
+    auto result = NVSDK_NGX_D3D11_Init_Ext(0x1337, InApplicationDataPath, InDevice, InSDKVersion, &localFeatureInfo);
 
     LOG_INFO("InProjectId: {0}", InProjectId);
     LOG_INFO("InEngineType: {0}", (int) InEngineType);

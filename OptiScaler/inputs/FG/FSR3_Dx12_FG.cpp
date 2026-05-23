@@ -709,8 +709,11 @@ static Fsr3::FfxErrorCode hkffxFsr3ConfigureFrameGeneration(void* context, Fsr3:
 
         if (config->frameGenerationEnabled && !fg->IsActive() && Config::Instance()->FGEnabled.value_or_default())
         {
-            fg->Activate();
-            fg->ResetCounters();
+            if (!fg->IsPaused())
+            {
+                fg->Activate();
+                fg->ResetCounters();
+            }
         }
         else if (!config->frameGenerationEnabled && fg->IsActive())
         {
@@ -790,8 +793,11 @@ static Fsr3::FfxErrorCode hkffxSetFrameGenerationConfigToSwapchainDX12(Fsr3::Ffx
 
         if (config->frameGenerationEnabled && !fg->IsActive() && Config::Instance()->FGEnabled.value_or_default())
         {
-            fg->Activate();
-            fg->ResetCounters();
+            if (!fg->IsPaused())
+            {
+                fg->Activate();
+                fg->ResetCounters();
+            }
         }
         else if (!config->frameGenerationEnabled && fg->IsActive())
         {

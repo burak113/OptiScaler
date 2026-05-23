@@ -123,7 +123,7 @@ feature_version XeFG_Dx12::Version()
     if (XeFGProxy::InitXeFG())
     {
         auto ver = XeFGProxy::Version();
-        return ver;
+        return feature_version(ver.major, ver.minor, ver.patch);
     }
 
     return { 0, 0, 0 };

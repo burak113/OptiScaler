@@ -40,47 +40,53 @@ inline std::vector<std::wstring> dllNamesW;
 // clang-format off
 DEFINE_NAME_VECTORS(overlay, "eosovh-win32-shipping",
                              "eosovh-win64-shipping",   // Epic
-                             "gameoverlayrenderer64",
-                             "gameoverlayrenderer",     // Steam
+                             "gameoverlayrenderer",
+                             "gameoverlayrenderer64",     // Steam
                              "socialclubd3d12renderer", // Rockstar
                              "owutils",                 // Overwolf
                              "galaxy",
                              "galaxy64",                // GOG Galaxy
+                             "discordhook",
+                             "discordhook64",
                              "discordoverlay",
                              "discordoverlay64",        // Discord
-                             "overlay64",
-                             "overlay"                  // Ubisoft
+                             "overlay",
+                             "overlay64"                  // Ubisoft
 );
 
-DEFINE_NAME_VECTORS(blockOverlay, "eosovh-win32-shipping", 
-                                  "eosovh-win64-shipping", 
-                                  "gameoverlayrenderer64",
+DEFINE_NAME_VECTORS(blockOverlay, "eosovh-win32-shipping",
+                                  "eosovh-win64-shipping",
                                   "gameoverlayrenderer",
+                                  "gameoverlayrenderer64",
                                   "owclient"
                                   "galaxy",
-                                  "galaxy64", 
-                                  "discordoverlay", 
-                                  "discordoverlay64", 
-                                  "overlay64", 
-                                  "overlay"
+                                  "galaxy64",
+                                  "discordhook",
+                                  "discordhook64",
+                                  "discordoverlay",
+                                  "discordoverlay64",
+                                  "overlay",
+                                  "overlay64"
 );
 
 inline std::vector<std::wstring> blockedDllNamesW = { L"windhawk.dll", L"mactype.dll", L"mactype64.dll" };
 
-DEFINE_NAME_VECTORS(skipDxgiWrapping, "eosovh-win32-shipping", 
-                                      "eosovh-win64-shipping", 
-                                      "gameoverlayrenderer64",
+DEFINE_NAME_VECTORS(skipDxgiWrapping, "eosovh-win32-shipping",
+                                      "eosovh-win64-shipping",
                                       "gameoverlayrenderer",
-                                      "socialclubd3d12renderer"
-                                      "owutils"
+                                      "gameoverlayrenderer64",
+                                      "socialclubd3d12renderer",
+                                      "owutils",
                                       "galaxy",
-                                      "galaxy64", 
-                                      "discordoverlay", 
-                                      "discordoverlay64", 
-                                      "overlay64", 
-                                      "overlay" // Overlays ended
-                                      "d3d11"
-                                      "d3d12"
+                                      "galaxy64",
+                                      "discordhook",
+                                      "discordhook64",
+                                      "discordoverlay",
+                                      "discordoverlay64",
+                                      "overlay",
+                                      "overlay64", // Overlays ended
+                                      "d3d11",
+                                      "d3d12",
                                       "d3d12core" // DirectX ended
 /*
                                       "libxell.dll",

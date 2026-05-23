@@ -106,34 +106,34 @@ xess_result_t hk_xessD3D12CreateContext(ID3D12Device* pDevice, xess_context_hand
         NVSDK_NGX_FeatureCommonInfo fcInfo {};
 
         auto exePath = Util::ExePath().remove_filename();
-        auto nvngxDlssPath = Util::FindFilePath(exePath, "nvngx_dlss.dll");
-        auto nvngxDlssDPath = Util::FindFilePath(exePath, "nvngx_dlssd.dll");
-        auto nvngxDlssGPath = Util::FindFilePath(exePath, "nvngx_dlssg.dll");
+        // auto nvngxDlssPath = Util::FindFilePath(exePath, "nvngx_dlss.dll");
+        // auto nvngxDlssDPath = Util::FindFilePath(exePath, "nvngx_dlssd.dll");
+        // auto nvngxDlssGPath = Util::FindFilePath(exePath, "nvngx_dlssg.dll");
 
-        std::vector<std::wstring> pathStorage;
+        // std::vector<std::wstring> pathStorage;
 
-        pathStorage.push_back(exePath.wstring());
-        if (nvngxDlssPath.has_value())
-            pathStorage.push_back(nvngxDlssPath.value().parent_path().wstring());
+        // pathStorage.push_back(exePath.wstring());
+        // if (nvngxDlssPath.has_value())
+        //     pathStorage.push_back(nvngxDlssPath.value().parent_path().wstring());
 
-        if (nvngxDlssDPath.has_value())
-            pathStorage.push_back(nvngxDlssDPath.value().parent_path().wstring());
+        // if (nvngxDlssDPath.has_value())
+        //     pathStorage.push_back(nvngxDlssDPath.value().parent_path().wstring());
 
-        if (nvngxDlssGPath.has_value())
-            pathStorage.push_back(nvngxDlssGPath.value().parent_path().wstring());
+        // if (nvngxDlssGPath.has_value())
+        //     pathStorage.push_back(nvngxDlssGPath.value().parent_path().wstring());
 
-        if (Config::Instance()->DLSSFeaturePath.has_value())
-            pathStorage.push_back(Config::Instance()->DLSSFeaturePath.value());
+        // if (Config::Instance()->DLSSFeaturePath.has_value())
+        //     pathStorage.push_back(Config::Instance()->DLSSFeaturePath.value());
 
-        // Build pointer array
-        wchar_t const** paths = new const wchar_t*[pathStorage.size()];
-        for (size_t i = 0; i < pathStorage.size(); ++i)
-        {
-            paths[i] = pathStorage[i].c_str();
-        }
+        //// Build pointer array
+        // wchar_t const** paths = new const wchar_t*[pathStorage.size()];
+        // for (size_t i = 0; i < pathStorage.size(); ++i)
+        //{
+        //     paths[i] = pathStorage[i].c_str();
+        // }
 
-        fcInfo.PathListInfo.Path = paths;
-        fcInfo.PathListInfo.Length = (int) pathStorage.size();
+        // fcInfo.PathListInfo.Path = paths;
+        // fcInfo.PathListInfo.Length = (int) pathStorage.size();
 
         auto nvResult = NVSDK_NGX_D3D12_Init_with_ProjectID(
             OPTI_GUID, NVSDK_NGX_ENGINE_TYPE_CUSTOM, OPTI_VERSION, exePath.c_str(), pDevice, &fcInfo,

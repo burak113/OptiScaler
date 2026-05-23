@@ -3,7 +3,8 @@
 #include "RCAS_Dx12.h"
 
 #include "precompile/RCAS_Shader.h"
-#include "precompile/da_sharpen_Shader.h"
+#include "precompile/da_das_sharpen_Shader.h"
+#include "precompile/da_rcas_sharpen_Shader.h"
 
 #include <Config.h>
 
@@ -91,9 +92,9 @@ void RCAS_Dx12::FillMotionConstants(InternalConstantsDA& OutConstants, const Rca
     OutConstants.DepthIsLinear = Config::Instance()->DADepthIsLinear.value_or_default() ? 1 : 0;
     OutConstants.DepthIsReversed = feature->DepthInverted() ? 1 : 0;
     OutConstants.DepthScale =
-        Config::Instance()->DADepthScale.value_or(OutConstants.DepthIsLinear == 0 ? 4.0f : 250.0f);
+        Config::Instance()->DADepthScale.value_or(OutConstants.DepthIsLinear == 0 ? 35.0f : 250.0f);
     OutConstants.DepthBias =
-        Config::Instance()->DADepthBias.value_or(OutConstants.DepthIsLinear == 0 ? 0.01f : 0.0015f);
+        Config::Instance()->DADepthBias.value_or(OutConstants.DepthIsLinear == 0 ? 0.001f : 0.0015f);
 
     OutConstants.DepthLinearA = InConstants.CameraNear * InConstants.CameraFar;
     OutConstants.DepthLinearB = InConstants.CameraFar;
@@ -277,6 +278,91 @@ bool RCAS_Dx12::DispatchDepthAdaptive(ID3D12Device* InDevice, ID3D12GraphicsComm
     return true;
 }
 
+bool RCAS_Dx12::DispatchDASDepthAdaptive(ID3D12Device* InDevice, ID3D12GraphicsCommandList* InCmdList,
+                                         ID3D12Resource* InResource, ID3D12Resource* InMotionVectors,
+                                         ID3D12Resource* InDepth, RcasConstants InConstants,
+                                         ID3D12Resource* OutResource, FrameDescriptorHeap& currentHeap)
+{
+    if (InDepth == nullptr || _pipelineStateLCDA == nullptr)
+        return false;
+
+    auto inDesc = InResource->GetDesc();
+    auto mvDesc = InMotionVectors->GetDesc();
+    auto depthDesc = InDepth->GetDesc();
+    auto outDesc = OutResource->GetDesc();
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Format = Shader_Dx12::TranslateTypelessFormats(inDesc.Format);
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = 1;
+    InDevice->CreateShaderResourceView(InResource, &srvDesc, currentHeap.GetSrvCPU(0));
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC mvSrvDesc = {};
+    mvSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    mvSrvDesc.Format = Shader_Dx12::TranslateTypelessFormats(mvDesc.Format);
+    mvSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    mvSrvDesc.Texture2D.MipLevels = 1;
+    InDevice->CreateShaderResourceView(InMotionVectors, &mvSrvDesc, currentHeap.GetSrvCPU(1));
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC depthSrvDesc = {};
+    depthSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    depthSrvDesc.Format = Shader_Dx12::TranslateTypelessFormats(depthDesc.Format);
+    depthSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    depthSrvDesc.Texture2D.MipLevels = 1;
+    InDevice->CreateShaderResourceView(InDepth, &depthSrvDesc, currentHeap.GetSrvCPU(2));
+
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.Format = Shader_Dx12::TranslateTypelessFormats(outDesc.Format);
+    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+    uavDesc.Texture2D.MipSlice = 0;
+    InDevice->CreateUnorderedAccessView(OutResource, nullptr, &uavDesc, currentHeap.GetUavCPU(0));
+
+    InternalConstantsDA constants {};
+    FillMotionConstants(constants, InConstants);
+
+    BYTE* pCBDataBegin;
+    CD3DX12_RANGE readRange(0, 0);
+    auto result = _constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pCBDataBegin));
+
+    if (result != S_OK)
+    {
+        LOG_ERROR("[{0}] _constantBuffer->Map error {1:x}", _name, (unsigned int) result);
+
+        if (result == DXGI_ERROR_DEVICE_REMOVED && _device != nullptr)
+            Util::GetDeviceRemovedReason(_device);
+
+        return false;
+    }
+
+    if (pCBDataBegin == nullptr)
+    {
+        _constantBuffer->Unmap(0, nullptr);
+        LOG_ERROR("[{0}] pCBDataBegin is null!", _name);
+        return false;
+    }
+
+    memcpy(pCBDataBegin, &constants, sizeof(constants));
+    _constantBuffer->Unmap(0, nullptr);
+
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+    cbvDesc.BufferLocation = _constantBuffer->GetGPUVirtualAddress();
+    cbvDesc.SizeInBytes = sizeof(constants);
+    InDevice->CreateConstantBufferView(&cbvDesc, currentHeap.GetCbvCPU(0));
+
+    ID3D12DescriptorHeap* heaps[] = { currentHeap.GetHeapCSU() };
+    InCmdList->SetDescriptorHeaps(_countof(heaps), heaps);
+    InCmdList->SetComputeRootSignature(_rootSignature);
+    InCmdList->SetPipelineState(_pipelineStateLCDA);
+    InCmdList->SetComputeRootDescriptorTable(0, currentHeap.GetTableGPUStart());
+
+    UINT dispatchWidth = static_cast<UINT>((constants.DisplayWidth + InNumThreadsX - 1) / InNumThreadsX);
+    UINT dispatchHeight = (constants.DisplayHeight + InNumThreadsY - 1) / InNumThreadsY;
+    InCmdList->Dispatch(dispatchWidth, dispatchHeight, 1);
+
+    return true;
+}
+
 bool RCAS_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* InSource, D3D12_RESOURCE_STATES InState)
 {
     auto resourceFlags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS |
@@ -286,7 +372,7 @@ bool RCAS_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* InS
 
     if (result)
     {
-        _buffer->SetName(L"RCAS_Buffer");
+        _buffer->SetName(L"RCAS_DA_Buffer");
         _bufferState = InState;
     }
 
@@ -313,10 +399,16 @@ bool RCAS_Dx12::Dispatch(ID3D12Device* InDevice, ID3D12GraphicsCommandList* InCm
     FrameDescriptorHeap& currentHeap = _frameHeaps[_counter];
 
     const bool useDepthAdaptive = Config::Instance()->UseDepthAwareSharpen.value_or_default() && InDepth != nullptr;
+    const bool useDASDepthAdaptive =
+        Config::Instance()->UseDASDepthAwareSharpen.value_or_default() && InDepth != nullptr;
 
     if (useDepthAdaptive)
         return DispatchDepthAdaptive(InDevice, InCmdList, InResource, InMotionVectors, InDepth, InConstants,
                                      OutResource, currentHeap);
+
+    if (useDASDepthAdaptive)
+        return DispatchDASDepthAdaptive(InDevice, InCmdList, InResource, InMotionVectors, InDepth, InConstants,
+                                        OutResource, currentHeap);
 
     return DispatchRCAS(InDevice, InCmdList, InResource, InMotionVectors, InConstants, OutResource, currentHeap);
 }
@@ -408,8 +500,12 @@ RCAS_Dx12::RCAS_Dx12(std::string InName, ID3D12Device* InDevice) : Shader_Dx12(I
         if (!CreatePipelineState(InDevice, reinterpret_cast<const void*>(rcas_cso), sizeof(rcas_cso), &_pipelineState))
             return;
 
-        if (!CreatePipelineState(InDevice, reinterpret_cast<const void*>(da_sharpen_cso), sizeof(da_sharpen_cso),
-                                 &_pipelineStateDA))
+        if (!CreatePipelineState(InDevice, reinterpret_cast<const void*>(da_rcas_sharpen_cso),
+                                 sizeof(da_rcas_sharpen_cso), &_pipelineStateDA))
+            return;
+
+        if (!CreatePipelineState(InDevice, reinterpret_cast<const void*>(da_das_sharpen_cso),
+                                 sizeof(da_das_sharpen_cso), &_pipelineStateLCDA))
             return;
     }
     else
@@ -421,11 +517,19 @@ RCAS_Dx12::RCAS_Dx12(std::string InName, ID3D12Device* InDevice) : Shader_Dx12(I
             return;
         }
 
-        if (!CreatePipelineState(
-                InDevice, daSharpenCode, &_pipelineStateDA,
-                CD3DX12_SHADER_BYTECODE(reinterpret_cast<const void*>(da_sharpen_cso), sizeof(da_sharpen_cso))))
+        if (!CreatePipelineState(InDevice, daRcasSharpenCode, &_pipelineStateDA,
+                                 CD3DX12_SHADER_BYTECODE(reinterpret_cast<const void*>(da_rcas_sharpen_cso),
+                                                         sizeof(da_rcas_sharpen_cso))))
         {
-            LOG_ERROR("[{0}] CreateComputeShader error for depth adaptive shader!", _name);
+            LOG_ERROR("[{0}] CreateComputeShader error for depth aware shader!", _name);
+            return;
+        }
+
+        if (!CreatePipelineState(
+                InDevice, dasDASharpenCode, &_pipelineStateLCDA,
+                CD3DX12_SHADER_BYTECODE(reinterpret_cast<const void*>(da_das_sharpen_cso), sizeof(da_das_sharpen_cso))))
+        {
+            LOG_ERROR("[{0}] CreateComputeShader error for DAS depth aware shader!", _name);
             return;
         }
     }
@@ -466,6 +570,12 @@ RCAS_Dx12::~RCAS_Dx12()
     {
         _pipelineStateDA->Release();
         _pipelineStateDA = nullptr;
+    }
+
+    if (_pipelineStateLCDA != nullptr)
+    {
+        _pipelineStateLCDA->Release();
+        _pipelineStateLCDA = nullptr;
     }
 
     for (int i = 0; i < RCAS_NUM_OF_HEAPS; i++)

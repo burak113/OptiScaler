@@ -179,6 +179,7 @@ class State
     // DLSS
     bool dlssPresetsOverriddenExternally = false;
     bool dlssPresetsOverridenByOpti = false;
+    uint32_t dlssRenderPresetExternal = 0;
     uint32_t dlssRenderPresetDLAA = 0;
     uint32_t dlssRenderPresetUltraQuality = 0;
     uint32_t dlssRenderPresetQuality = 0;
@@ -189,6 +190,7 @@ class State
     // DLSSD
     bool dlssdPresetsOverriddenExternally = false;
     bool dlssdPresetsOverridenByOpti = false;
+    uint32_t dlssdRenderPresetExternal = 0;
     uint32_t dlssdRenderPresetDLAA = 0;
     uint32_t dlssdRenderPresetUltraQuality = 0;
     uint32_t dlssdRenderPresetQuality = 0;

@@ -50,7 +50,7 @@ class XeFGProxy
     inline static HMODULE _dll = nullptr;
     inline static std::wstring _dllPath;
 
-    inline static feature_version _xefgVersion {};
+    inline static xefg_swapchain_version_t _xefgVersion {};
 
     // Common
     inline static PFN_xefgSwapChainGetVersion _xefgSwapChainGetVersion = nullptr;
@@ -289,17 +289,12 @@ class XeFGProxy
         return loadResult;
     }
 
-    static feature_version Version()
+    static xefg_swapchain_version_t Version()
     {
         if (_xefgVersion.major == 0 && _xefgSwapChainGetVersion != nullptr)
         {
-            xefg_swapchain_version_t tempVersion;
-            if (auto result = _xefgSwapChainGetVersion(&tempVersion); result == XESS_RESULT_SUCCESS)
+            if (auto result = _xefgSwapChainGetVersion(&_xefgVersion); result == XEFG_SWAPCHAIN_RESULT_SUCCESS)
             {
-                _xefgVersion.major = tempVersion.major;
-                _xefgVersion.minor = tempVersion.minor;
-                _xefgVersion.patch = tempVersion.patch;
-
                 LOG_INFO("XeFG Version: v{}.{}.{}", _xefgVersion.major, _xefgVersion.minor, _xefgVersion.patch);
             }
             else

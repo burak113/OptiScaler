@@ -68,7 +68,7 @@ class XeLLProxy
     inline static HMODULE _dll = nullptr;
     inline static std::wstring _dllPath;
 
-    inline static feature_version _xellVersion {};
+    inline static xell_version_t _xellVersion {};
 
     inline static xell_context_handle_t _xellContext = nullptr;
 
@@ -259,15 +259,18 @@ class XeLLProxy
         return loadResult;
     }
 
-    static feature_version Version()
+    static xell_version_t Version()
     {
         if (_xellVersion.major == 0 && _xellGetVersion != nullptr)
         {
-            if (auto result = _xellGetVersion((xell_version_t*) &_xellVersion); result == XESS_RESULT_SUCCESS)
-
+            if (auto result = _xellGetVersion(&_xellVersion); result == XELL_RESULT_SUCCESS)
+            {
                 LOG_INFO("XeLL Version: v{}.{}.{}", _xellVersion.major, _xellVersion.minor, _xellVersion.patch);
+            }
             else
+            {
                 LOG_ERROR("Can't get XeLL version: {}", (UINT) result);
+            }
         }
 
         if (_xellVersion.major == 0)

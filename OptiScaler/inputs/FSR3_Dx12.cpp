@@ -261,36 +261,7 @@ static Fsr3::FfxErrorCode ffxFsr3ContextCreate_Dx12(Fsr3::FfxFsr3UpscalerContext
     if (!state.NvngxDx12Inited)
     {
         NVSDK_NGX_FeatureCommonInfo fcInfo {};
-
         auto exePath = Util::ExePath().remove_filename();
-        auto nvngxDlssPath = Util::FindFilePath(exePath, "nvngx_dlss.dll");
-        auto nvngxDlssDPath = Util::FindFilePath(exePath, "nvngx_dlssd.dll");
-        auto nvngxDlssGPath = Util::FindFilePath(exePath, "nvngx_dlssg.dll");
-
-        std::vector<std::wstring> pathStorage;
-
-        pathStorage.push_back(exePath.wstring());
-        if (nvngxDlssPath.has_value())
-            pathStorage.push_back(nvngxDlssPath.value().parent_path().wstring());
-
-        if (nvngxDlssDPath.has_value())
-            pathStorage.push_back(nvngxDlssDPath.value().parent_path().wstring());
-
-        if (nvngxDlssGPath.has_value())
-            pathStorage.push_back(nvngxDlssGPath.value().parent_path().wstring());
-
-        if (Config::Instance()->DLSSFeaturePath.has_value())
-            pathStorage.push_back(Config::Instance()->DLSSFeaturePath.value());
-
-        // Build pointer array
-        wchar_t const** paths = new const wchar_t*[pathStorage.size()];
-        for (size_t i = 0; i < pathStorage.size(); ++i)
-        {
-            paths[i] = pathStorage[i].c_str();
-        }
-
-        fcInfo.PathListInfo.Path = paths;
-        fcInfo.PathListInfo.Length = (int) pathStorage.size();
 
         auto nvResult = NVSDK_NGX_D3D12_Init_with_ProjectID(
             OPTI_GUID, state.NVNGX_Engine, OPTI_VERSION, exePath.c_str(), _d3d12Device, &fcInfo,

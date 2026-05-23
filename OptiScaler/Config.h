@@ -270,6 +270,7 @@ class Config
 
     // DA Sharpening
     CustomOptional<bool> UseDepthAwareSharpen { false };
+    CustomOptional<bool> UseDASDepthAwareSharpen { false };
     CustomOptional<bool> DADepthIsLinear { false };
     CustomOptional<float, NoDefault> DADepthScale;
     CustomOptional<float, NoDefault> DADepthBias;
@@ -301,8 +302,16 @@ class Config
     CustomOptional<float, NoDefault> FpsScale; // No value means same as MenuScale
     CustomOptional<bool> UseHQFont { true };
     CustomOptional<bool> DisableSplash { false };
+    CustomOptional<float> FontSize { 14.0f };
     CustomOptional<std::wstring, NoDefault> TTFFontPath;
     CustomOptional<int> FGShortcutKey { VK_END };
+    CustomOptional<bool> LightTheme { false };
+    CustomOptional<float> MenuAccentColorR { 0.00f };
+    CustomOptional<float> MenuAccentColorG { 0.40f };
+    CustomOptional<float> MenuAccentColorB { 0.77f };
+    CustomOptional<float> MenuBGColorR { 0.0f };
+    CustomOptional<float> MenuBGColorG { 0.0f };
+    CustomOptional<float> MenuBGColorB { 0.0f };
 
     // Hooks
     CustomOptional<bool> HookOriginalNvngxOnly { false };
@@ -478,7 +487,7 @@ class Config
     CustomOptional<bool> FGHudlessValidNow { false };
     CustomOptional<bool> FGOnlyAcceptFirstHudless { false };
     CustomOptional<bool> FGPreserveSwapChain { true };
-    CustomOptional<bool> FGSkipResizeBuffers { true };
+    CustomOptional<bool> FGSkipResizeBuffers { false };
     CustomOptional<bool> FGModifyBufferState { false };
     CustomOptional<bool> FGModifySCIndex { false };
     CustomOptional<FrameTimeSource> FTInput { FrameTimeSource::Input };
@@ -545,7 +554,7 @@ class Config
     CustomOptional<bool> FGXeFGIgnoreInitChecks { false };
     CustomOptional<int> FGXeFGInterpolationCount { 1 };
     CustomOptional<bool> FGXeFGUIComposition { false };
-    CustomOptional<bool> FGXeFGDepthInverted { false };
+    CustomOptional<bool> FGXeFGDepthInverted { true };
     CustomOptional<bool> FGXeFGJitteredMV { false };
     CustomOptional<bool> FGXeFGHighResMV { false };
     CustomOptional<bool> FGXeFGDebugView { false };

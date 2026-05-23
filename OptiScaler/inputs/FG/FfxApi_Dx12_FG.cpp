@@ -528,8 +528,11 @@ ffxReturnCode_t ffxConfigure_Dx12FG(ffxContext* context, ffxConfigureDescHeader*
 
         if (cDesc->frameGenerationEnabled && !fg->IsActive() && Config::Instance()->FGEnabled.value_or_default())
         {
-            fg->Activate();
-            fg->ResetCounters();
+            if (!fg->IsPaused())
+            {
+                fg->Activate();
+                fg->ResetCounters();
+            }
         }
         else if (!cDesc->frameGenerationEnabled && fg->IsActive())
         {

@@ -325,6 +325,9 @@ PFN_vkVoidFunction hkvkGetDeviceProcAddr(VkDevice device, const char* pName)
 
 void VulkanHooks::Hook(HMODULE vulkan1)
 {
+    if (vulkanModule == nullptr)
+        vulkanModule = vulkan1;
+
     VulkanSpoofing::HookForVulkanSpoofing(vulkan1);
     VulkanSpoofing::HookForVulkanExtensionSpoofing(vulkan1);
     VulkanSpoofing::HookForVulkanVRAMSpoofing(vulkan1);

@@ -22,23 +22,108 @@ PFN_vkGetInstanceProcAddr vkGIPA;
 PFN_vkGetDeviceProcAddr vkGDPA;
 
 static ankerl::unordered_dense::map<unsigned int, ContextData<IFeature_Vk>> VkContexts;
-static inline int evalCounter = 0;
-static inline bool shutdown = false;
-static inline bool _skipInit = false;
+static int evalCounter = 0;
+static bool shutdown = false;
+static bool _skipInit = false;
+static wchar_t const** paths;
 
-class ScopedInit
+class ScopedInitVk
 {
   private:
     bool previousState;
 
   public:
-    ScopedInit()
+    ScopedInitVk()
     {
         previousState = _skipInit;
         _skipInit = true;
     }
-    ~ScopedInit() { _skipInit = previousState; }
+    ~ScopedInitVk() { _skipInit = previousState; }
 };
+
+static void UpdateInitPaths(NVSDK_NGX_FeatureCommonInfo* InFeatureInfo)
+{
+    State::Instance().NVNGX_FeatureInfo_Paths.clear();
+
+    if (InFeatureInfo != nullptr)
+    {
+        for (size_t i = 0; i < InFeatureInfo->PathListInfo.Length; i++)
+        {
+            const wchar_t* path = InFeatureInfo->PathListInfo.Path[i];
+            State::Instance().NVNGX_FeatureInfo_Paths.push_back(std::wstring(path));
+        }
+
+        auto exePath = Util::ExePath().remove_filename();
+
+        std::optional<std::filesystem::path> nvngxDlssPath = std::nullopt;
+        std::optional<std::filesystem::path> nvngxDlssDPath = std::nullopt;
+        std::optional<std::filesystem::path> nvngxDlssGPath = std::nullopt;
+
+        // Check DLSS path
+        if (State::Instance().NVNGX_DLSS_Path.has_value())
+        {
+            nvngxDlssPath = std::filesystem::path(State::Instance().NVNGX_DLSS_Path.value());
+        }
+        else
+        {
+            auto path = Util::FindFilePath(exePath, "nvngx_dlss.dll");
+
+            if (path.has_value())
+                nvngxDlssPath = path.value();
+        }
+
+        // Check DLSS-D path
+        if (State::Instance().NVNGX_DLSSD_Path.has_value())
+        {
+            nvngxDlssDPath = std::filesystem::path(State::Instance().NVNGX_DLSSD_Path.value());
+        }
+        else
+        {
+            auto path = Util::FindFilePath(exePath, "nvngx_dlssd.dll");
+
+            if (path.has_value())
+                nvngxDlssDPath = path.value();
+        }
+
+        // Check DLSS-G path
+        if (State::Instance().NVNGX_DLSSG_Path.has_value())
+        {
+            nvngxDlssGPath = std::filesystem::path(State::Instance().NVNGX_DLSSG_Path.value());
+        }
+        else
+        {
+            auto path = Util::FindFilePath(exePath, "nvngx_dlssg.dll");
+
+            if (path.has_value())
+                nvngxDlssGPath = path.value();
+        }
+
+        // Add found locations
+        State::Instance().NVNGX_FeatureInfo_Paths.push_back(exePath.wstring());
+        if (nvngxDlssPath.has_value())
+            State::Instance().NVNGX_FeatureInfo_Paths.push_back(nvngxDlssPath.value().parent_path().wstring());
+
+        if (nvngxDlssDPath.has_value())
+            State::Instance().NVNGX_FeatureInfo_Paths.push_back(nvngxDlssDPath.value().parent_path().wstring());
+
+        if (nvngxDlssGPath.has_value())
+            State::Instance().NVNGX_FeatureInfo_Paths.push_back(nvngxDlssGPath.value().parent_path().wstring());
+
+        if (Config::Instance()->DLSSFeaturePath.has_value())
+            State::Instance().NVNGX_FeatureInfo_Paths.push_back(Config::Instance()->DLSSFeaturePath.value());
+
+        // Build pointer array
+        paths = new const wchar_t*[State::Instance().NVNGX_FeatureInfo_Paths.size()];
+        for (size_t i = 0; i < State::Instance().NVNGX_FeatureInfo_Paths.size(); ++i)
+        {
+            paths[i] = State::Instance().NVNGX_FeatureInfo_Paths[i].c_str();
+            LOG_DEBUG("Feature Path [{}]: {}", i, wstring_to_string(State::Instance().NVNGX_FeatureInfo_Paths[i]));
+        }
+
+        InFeatureInfo->PathListInfo.Path = paths;
+        InFeatureInfo->PathListInfo.Length = (int) State::Instance().NVNGX_FeatureInfo_Paths.size();
+    }
+}
 
 NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_VULKAN_Init_Ext2(
     unsigned long long InApplicationId, const wchar_t* InApplicationDataPath, VkInstance InInstance,
@@ -46,6 +131,12 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_VULKAN_Init_Ext2(
     NVSDK_NGX_Version InSDKVersion, const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo)
 {
     LOG_FUNC();
+
+    NVSDK_NGX_FeatureCommonInfo localFeatureInfo = {};
+    std::memcpy(&localFeatureInfo, InFeatureInfo, sizeof(NVSDK_NGX_FeatureCommonInfo));
+
+    if (!_skipInit)
+        UpdateInitPaths(&localFeatureInfo);
 
     if (Config::Instance()->DLSSEnabled.value_or_default() && !_skipInit)
     {
@@ -59,7 +150,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_VULKAN_Init_Ext2(
         {
             LOG_INFO("calling NVNGXProxy::VULKAN_Init_Ext2");
             auto result = NVNGXProxy::VULKAN_Init_Ext2()(InApplicationId, InApplicationDataPath, InInstance, InPD,
-                                                         InDevice, InGIPA, InGDPA, InSDKVersion, InFeatureInfo);
+                                                         InDevice, InGIPA, InGDPA, InSDKVersion, &localFeatureInfo);
             LOG_INFO("NVNGXProxy::VULKAN_Init_Ext2 result: {0:X}", (UINT) result);
 
             if (result == NVSDK_NGX_Result_Success)
@@ -69,12 +160,12 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_VULKAN_Init_Ext2(
 
     DLSSGMod::InitDLSSGMod_Vulkan();
     DLSSGMod::VULKAN_Init_Ext2(InApplicationId, InApplicationDataPath, InInstance, InPD, InDevice, InGIPA, InGDPA,
-                               InSDKVersion, InFeatureInfo);
+                               InSDKVersion, &localFeatureInfo);
 
     State::Instance().NVNGX_ApplicationId = InApplicationId;
     State::Instance().NVNGX_ApplicationDataPath = std::wstring(InApplicationDataPath);
     State::Instance().NVNGX_Version = InSDKVersion;
-    State::Instance().NVNGX_FeatureInfo = InFeatureInfo;
+    State::Instance().NVNGX_FeatureInfo = &localFeatureInfo;
     State::Instance().NVNGX_Version = InSDKVersion;
 
     State::Instance().NVNGX_FeatureInfo_Paths.clear();
@@ -82,14 +173,14 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_VULKAN_Init_Ext2(
     if (InFeatureInfo != nullptr)
     {
         if (InSDKVersion > 0x0000013)
-            State::Instance().NVNGX_Logger = InFeatureInfo->LoggingInfo;
+            State::Instance().NVNGX_Logger = localFeatureInfo.LoggingInfo;
 
         // Doom Ethernal is sending junk data
-        if (InFeatureInfo->PathListInfo.Length < 10)
+        if (localFeatureInfo.PathListInfo.Length < 10)
         {
-            for (size_t i = 0; i < InFeatureInfo->PathListInfo.Length; i++)
+            for (size_t i = 0; i < localFeatureInfo.PathListInfo.Length; i++)
             {
-                const wchar_t* path = InFeatureInfo->PathListInfo.Path[i];
+                const wchar_t* path = localFeatureInfo.PathListInfo.Path[i];
                 State::Instance().NVNGX_FeatureInfo_Paths.push_back(std::wstring(path));
             }
         }
@@ -166,6 +257,12 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_VULKAN_Init_Ext(unsigned long long InAp
 {
     LOG_FUNC();
 
+    NVSDK_NGX_FeatureCommonInfo localFeatureInfo = {};
+    std::memcpy(&localFeatureInfo, InFeatureInfo, sizeof(NVSDK_NGX_FeatureCommonInfo));
+
+    if (!_skipInit)
+        UpdateInitPaths(&localFeatureInfo);
+
     if (Config::Instance()->DLSSEnabled.value_or_default() && !_skipInit)
     {
         if (Config::Instance()->UseGenericAppIdWithDlss.value_or_default())
@@ -178,7 +275,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_VULKAN_Init_Ext(unsigned long long InAp
         {
             LOG_INFO("calling NVNGXProxy::VULKAN_Init_Ext");
             auto result = NVNGXProxy::VULKAN_Init_Ext()(InApplicationId, InApplicationDataPath, InInstance, InPD,
-                                                        InDevice, InSDKVersion, InFeatureInfo);
+                                                        InDevice, InSDKVersion, &localFeatureInfo);
             LOG_INFO("NVNGXProxy::VULKAN_Init_Ext result: {0:X}", (UINT) result);
 
             if (result == NVSDK_NGX_Result_Success)
@@ -188,9 +285,9 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_VULKAN_Init_Ext(unsigned long long InAp
 
     DLSSGMod::InitDLSSGMod_Vulkan();
     DLSSGMod::VULKAN_Init_Ext(InApplicationId, InApplicationDataPath, InInstance, InPD, InDevice, InSDKVersion,
-                              InFeatureInfo);
+                              &localFeatureInfo);
 
-    ScopedInit scopedInit {};
+    ScopedInitVk scopedInit {};
     return NVSDK_NGX_VULKAN_Init_Ext2(InApplicationId, InApplicationDataPath, InInstance, InPD, InDevice,
                                       vkGetInstanceProcAddr, vkGetDeviceProcAddr, InSDKVersion, InFeatureInfo);
 }
@@ -203,6 +300,12 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_VULKAN_Init_ProjectID_Ext(
 {
     LOG_FUNC();
 
+    NVSDK_NGX_FeatureCommonInfo localFeatureInfo = {};
+    std::memcpy(&localFeatureInfo, InFeatureInfo, sizeof(NVSDK_NGX_FeatureCommonInfo));
+
+    if (!_skipInit)
+        UpdateInitPaths(&localFeatureInfo);
+
     if (Config::Instance()->DLSSEnabled.value_or_default() && !_skipInit)
     {
         if (NVNGXProxy::NVNGXModule() == nullptr)
@@ -213,7 +316,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_VULKAN_Init_ProjectID_Ext(
             LOG_INFO("calling NVNGXProxy::VULKAN_Init_ProjectID_Ext");
             auto result = NVNGXProxy::VULKAN_Init_ProjectID_Ext()(InProjectId, InEngineType, InEngineVersion,
                                                                   InApplicationDataPath, InInstance, InPD, InDevice,
-                                                                  InGIPA, InGDPA, InSDKVersion, InFeatureInfo);
+                                                                  InGIPA, InGDPA, InSDKVersion, &localFeatureInfo);
             LOG_INFO("NVNGXProxy::VULKAN_Init_ProjectID_Ext result: {0:X}", (UINT) result);
 
             if (result == NVSDK_NGX_Result_Success)
@@ -221,9 +324,9 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_VULKAN_Init_ProjectID_Ext(
         }
     }
 
-    ScopedInit scopedInit {};
+    ScopedInitVk scopedInit {};
     auto result = NVSDK_NGX_VULKAN_Init_Ext2(0x1337, InApplicationDataPath, InInstance, InPD, InDevice, InGIPA, InGDPA,
-                                             InSDKVersion, InFeatureInfo);
+                                             InSDKVersion, &localFeatureInfo);
 
     LOG_DEBUG("InProjectId: {0}", InProjectId);
     LOG_DEBUG("InEngineType: {0}", (int) InEngineType);
@@ -245,6 +348,12 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_VULKAN_Init(unsigned long long InApplic
 {
     LOG_FUNC();
 
+    NVSDK_NGX_FeatureCommonInfo localFeatureInfo = {};
+    std::memcpy(&localFeatureInfo, InFeatureInfo, sizeof(NVSDK_NGX_FeatureCommonInfo));
+
+    if (!_skipInit)
+        UpdateInitPaths(&localFeatureInfo);
+
     if (Config::Instance()->DLSSEnabled.value_or_default() && !_skipInit)
     {
         if (Config::Instance()->UseGenericAppIdWithDlss.value_or_default())
@@ -257,7 +366,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_VULKAN_Init(unsigned long long InApplic
         {
             LOG_INFO("calling NVNGXProxy::VULKAN_Init");
             auto result = NVNGXProxy::VULKAN_Init()(InApplicationId, InApplicationDataPath, InInstance, InPD, InDevice,
-                                                    InGIPA, InGDPA, InFeatureInfo, InSDKVersion);
+                                                    InGIPA, InGDPA, &localFeatureInfo, InSDKVersion);
             LOG_INFO("NVNGXProxy::VULKAN_Init result: {0:X}", (UINT) result);
 
             if (result == NVSDK_NGX_Result_Success)
@@ -267,9 +376,9 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_VULKAN_Init(unsigned long long InApplic
 
     DLSSGMod::InitDLSSGMod_Vulkan();
     DLSSGMod::VULKAN_Init(InApplicationId, InApplicationDataPath, InInstance, InPD, InDevice, InGIPA, InGDPA,
-                          InFeatureInfo, InSDKVersion);
+                          &localFeatureInfo, InSDKVersion);
 
-    ScopedInit scopedInit {};
+    ScopedInitVk scopedInit {};
     return NVSDK_NGX_VULKAN_Init_Ext2(InApplicationId, InApplicationDataPath, InInstance, InPD, InDevice, InGIPA,
                                       InGDPA, InSDKVersion, InFeatureInfo);
 }
@@ -281,6 +390,12 @@ NVSDK_NGX_VULKAN_Init_ProjectID(const char* InProjectId, NVSDK_NGX_EngineType In
                                 NVSDK_NGX_Version InSDKVersion, const NVSDK_NGX_FeatureCommonInfo* InFeatureInfo)
 {
     LOG_FUNC();
+
+    NVSDK_NGX_FeatureCommonInfo localFeatureInfo = {};
+    std::memcpy(&localFeatureInfo, InFeatureInfo, sizeof(NVSDK_NGX_FeatureCommonInfo));
+
+    if (!_skipInit)
+        UpdateInitPaths(&localFeatureInfo);
 
     if (Config::Instance()->DLSSEnabled.value_or_default() && !_skipInit)
     {
@@ -295,7 +410,7 @@ NVSDK_NGX_VULKAN_Init_ProjectID(const char* InProjectId, NVSDK_NGX_EngineType In
             LOG_INFO("calling NVNGXProxy::VULKAN_Init_ProjectID");
             auto result = NVNGXProxy::VULKAN_Init_ProjectID()(InProjectId, InEngineType, InEngineVersion,
                                                               InApplicationDataPath, InInstance, InPD, InDevice, InGIPA,
-                                                              InGDPA, InSDKVersion, InFeatureInfo);
+                                                              InGDPA, InSDKVersion, &localFeatureInfo);
             LOG_INFO("NVNGXProxy::VULKAN_Init_ProjectID result: {0:X}", (UINT) result);
 
             if (result == NVSDK_NGX_Result_Success)
@@ -303,9 +418,10 @@ NVSDK_NGX_VULKAN_Init_ProjectID(const char* InProjectId, NVSDK_NGX_EngineType In
         }
     }
 
-    ScopedInit scopedInit {};
+    ScopedInitVk scopedInit {};
     return NVSDK_NGX_VULKAN_Init_ProjectID_Ext(InProjectId, InEngineType, InEngineVersion, InApplicationDataPath,
-                                               InInstance, InPD, InDevice, InGIPA, InGDPA, InSDKVersion, InFeatureInfo);
+                                               InInstance, InPD, InDevice, InGIPA, InGDPA, InSDKVersion,
+                                               &localFeatureInfo);
 }
 
 /**

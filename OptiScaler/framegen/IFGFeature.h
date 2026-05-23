@@ -73,7 +73,7 @@ class IFGFeature
     UINT64 _lastDispatchedFrame = 0;
     UINT64 _lastFGFrame = 0;
     bool _waitingNewFrameData = false;
-    int _framesToInterpolate = 1;
+    int _framesToInterpolate = -1;
 
     bool _isActive = false;
     UINT64 _targetFrame = 0;

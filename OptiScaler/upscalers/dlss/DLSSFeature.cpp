@@ -166,6 +166,15 @@ void DLSSFeature::ProcessInitParams(NVSDK_NGX_Parameter* InParameters)
 
         if (Config::Instance()->RenderPresetOverride.value_or_default())
         {
+            LOG_DEBUG("RenderPresetForAll: {}", Config::Instance()->RenderPresetForAll.value_or_default());
+            LOG_DEBUG("RenderPresetDLAA: {}", Config::Instance()->RenderPresetDLAA.value_or_default());
+            LOG_DEBUG("RenderPresetUltraQuality: {}", Config::Instance()->RenderPresetUltraQuality.value_or_default());
+            LOG_DEBUG("RenderPresetQuality: {}", Config::Instance()->RenderPresetQuality.value_or_default());
+            LOG_DEBUG("RenderPresetBalanced: {}", Config::Instance()->RenderPresetBalanced.value_or_default());
+            LOG_DEBUG("RenderPresetPerformance: {}", Config::Instance()->RenderPresetPerformance.value_or_default());
+            LOG_DEBUG("RenderPresetUltraPerformance: {}",
+                      Config::Instance()->RenderPresetUltraPerformance.value_or_default());
+
             RenderPresetDLAA = Config::Instance()->RenderPresetForAll.value_or(
                 Config::Instance()->RenderPresetDLAA.value_or(RenderPresetDLAA));
             RenderPresetUltraQuality = Config::Instance()->RenderPresetForAll.value_or(
@@ -220,6 +229,22 @@ void DLSSFeature::ProcessInitParams(NVSDK_NGX_Parameter* InParameters)
         }
         else
         {
+            if (State::Instance().dlssPresetsOverriddenExternally)
+            {
+                InParameters->Set(NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_DLAA,
+                                  State::Instance().dlssRenderPresetExternal);
+                InParameters->Set(NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraQuality,
+                                  State::Instance().dlssRenderPresetExternal);
+                InParameters->Set(NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Quality,
+                                  State::Instance().dlssRenderPresetExternal);
+                InParameters->Set(NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Balanced,
+                                  State::Instance().dlssRenderPresetExternal);
+                InParameters->Set(NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Performance,
+                                  State::Instance().dlssRenderPresetExternal);
+                InParameters->Set(NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraPerformance,
+                                  State::Instance().dlssRenderPresetExternal);
+            }
+
             InParameters->Get(NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_DLAA,
                               &State::Instance().dlssRenderPresetDLAA);
             InParameters->Get(NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraQuality,

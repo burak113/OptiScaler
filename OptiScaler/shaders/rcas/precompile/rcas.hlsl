@@ -88,7 +88,7 @@ void CSMain(uint3 DTid : SV_DispatchThreadID)
         }
 
         setSharpness += add;
-        setSharpness = clamp(setSharpness, 0.0, 1.3);
+        setSharpness = clamp(setSharpness, 0.0, 1.0);
     }
 
     float3 e = Source.Load(int3(pixel, 0)).rgb;
@@ -114,9 +114,32 @@ void CSMain(uint3 DTid : SV_DispatchThreadID)
     float3 f = Source.Load(int3(coordF, 0)).rgb;
     float3 h = Source.Load(int3(coordH, 0)).rgb;
 
-    // Min and max of ring
-    float3 minRGB = min(min(b, d), min(f, h));
-    float3 maxRGB = max(max(b, d), max(f, h));
+    // Only normalize HDR neighborhoods down; do not scale dark/LDR pixels up.
+    float localScale = max(
+        max(e.r, max(e.g, e.b)),
+        max(
+            max(b.r, max(b.g, b.b)),
+            max(
+                max(d.r, max(d.g, d.b)),
+                max(
+                    max(f.r, max(f.g, f.b)),
+                    max(h.r, max(h.g, h.b))
+                )
+            )
+        )
+    );
+    
+    localScale = max(localScale, 1.0);
+
+    float3 en = max(e / localScale, 0.0);
+    float3 bn = max(b / localScale, 0.0);
+    float3 dn = max(d / localScale, 0.0);
+    float3 fn = max(f / localScale, 0.0);
+    float3 hn = max(h / localScale, 0.0);
+
+    // Min and max of normalized ring
+    float3 minRGB = min(min(bn, dn), min(fn, hn));
+    float3 maxRGB = max(max(bn, dn), max(fn, hn));    
 
     float2 peakC = float2(1.0, -4.0);
 
@@ -140,7 +163,7 @@ void CSMain(uint3 DTid : SV_DispatchThreadID)
     }
 
     float rcpL = rcp(4.0 * lobe + 1.0);
-    float3 output = ((b + d + f + h) * lobe + e) * rcpL;
+    float3 output = (((bn + dn + fn + hn) * lobe + en) * rcpL) * localScale;
 
     if (Debug > 0 && DynamicSharpenEnabled > 0)
     {

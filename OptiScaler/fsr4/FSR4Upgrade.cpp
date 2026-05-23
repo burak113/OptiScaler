@@ -27,6 +27,8 @@
 #undef FFX_API_CONFIGURE_FG_SWAPCHAIN_KEY_WAITCALLBACK
 #undef FFX_API_CONFIGURE_FG_SWAPCHAIN_KEY_FRAMEPACINGTUNING
 
+#pragma intrinsic(_ReturnAddress)
+
 static HMODULE moduleAmdxc64 = nullptr;
 static HMODULE moduleAmdxcffx64 = nullptr;
 
@@ -231,6 +233,15 @@ struct AmdExtFfxApi : public IAmdExtFfxApi
 
     HRESULT STDMETHODCALLTYPE UpdateFfxApiProvider(void* pData, uint32_t dataSizeInBytes) override
     {
+        auto returnAddress = _ReturnAddress();
+        auto callerModule = Util::GetCallerModule(returnAddress);
+
+        if (callerModule == exeModule)
+        {
+            LOG_WARN("Called from game module, returning E_NOINTERFACE");
+            return E_NOINTERFACE;
+        }
+
         auto effectType = FfxApiProxy::GetType(reinterpret_cast<ExternalProviderData*>(pData)->descType);
 
         auto effect = magic_enum::enum_name(effectType);
@@ -239,7 +250,13 @@ struct AmdExtFfxApi : public IAmdExtFfxApi
 
         if (o_UpdateFfxApiProvider == nullptr)
         {
-            moduleAmdxcffx64 = NtdllProxy::LoadLibraryExW_Ldr(L"amdxcffx64.dll", NULL, 0);
+            HMODULE moduleAmdxcffx64 = nullptr;
+            HMODULE memModule = nullptr;
+            auto optiPath = Config::Instance()->MainDllPath.value();
+            Util::LoadProxyLibrary(L"amdxcffx64.dll", L"", optiPath, &memModule, &moduleAmdxcffx64);
+
+            if (moduleAmdxcffx64 == nullptr && memModule != nullptr)
+                moduleAmdxcffx64 = memModule;
 
             if (moduleAmdxcffx64 == nullptr)
             {
@@ -265,11 +282,6 @@ struct AmdExtFfxApi : public IAmdExtFfxApi
             {
                 LOG_INFO("amdxcffx64 loaded from game folder");
             }
-
-            auto sdk2upscalingModule = KernelBaseProxy::GetModuleHandleA_()("amd_fidelityfx_upscaler_dx12.dll");
-
-            if (sdk2upscalingModule)
-                FSR4ModelSelection::Hook(sdk2upscalingModule, FSR4Source::SDK);
 
             if (moduleAmdxcffx64)
             {

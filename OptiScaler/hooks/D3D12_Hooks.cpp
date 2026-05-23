@@ -27,8 +27,14 @@ using PFN_CreateSampler = rewrite_signature<decltype(&ID3D12Device::CreateSample
 using PFN_CreateCommittedResource = rewrite_signature<decltype(&ID3D12Device::CreateCommittedResource)>::type;
 using PFN_CreatePlacedResource = rewrite_signature<decltype(&ID3D12Device::CreatePlacedResource)>::type;
 using PFN_SetResidencyPriority = rewrite_signature<decltype(&ID3D12Device1::SetResidencyPriority)>::type;
-using PFN_GetResourceAllocationInfo = rewrite_signature<decltype(&ID3D12Device::GetResourceAllocationInfo)>::type;
 using PFN_CreateRootSignature = rewrite_signature<decltype(&ID3D12Device::CreateRootSignature)>::type;
+
+// GetResourceAllocationInfo is a special case because of the struct return,
+// see comment on hkGetResourceAllocationInfo for details
+typedef void(STDMETHODCALLTYPE* PFN_GetResourceAllocationInfo)(ID3D12Device* device,
+                                                               D3D12_RESOURCE_ALLOCATION_INFO* pResult,
+                                                               UINT visibleMask, UINT numResourceDescs,
+                                                               D3D12_RESOURCE_DESC* pResourceDescs);
 
 typedef decltype(&D3D12GetInterface) PFN_D3D12GetInterface;
 
@@ -885,13 +891,14 @@ Why Agility SDK crashed but legacy didn't: The Agility SDK is compiled with newe
 enforce the "Return in RAX" rule for chained calls. The legacy DLL likely had some wiggle room or didn't immediately
 dereference RAX after the call.
 */
-VALIDATE_HOOK(hkGetResourceAllocationInfo, PFN_GetResourceAllocationInfo)
-static D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE hkGetResourceAllocationInfo(
-    ID3D12Device* device, UINT visibleMask, UINT numResourceDescs, const D3D12_RESOURCE_DESC* pResourceDescs)
+// Not using validation because of this hooks special case
+static D3D12_RESOURCE_ALLOCATION_INFO* STDMETHODCALLTYPE
+hkGetResourceAllocationInfo(ID3D12Device* device, D3D12_RESOURCE_ALLOCATION_INFO* pResult, UINT visibleMask,
+                            UINT numResourceDescs, D3D12_RESOURCE_DESC* pResourceDescs)
 {
     if (!_skipGetResourceAllocationInfo)
     {
-        auto ueDesc = reinterpret_cast<const UE_D3D12_RESOURCE_DESC*>(pResourceDescs);
+        auto ueDesc = reinterpret_cast<UE_D3D12_RESOURCE_DESC*>(pResourceDescs);
 
         if (Config::Instance()->UESpoofIntelAtomics64.value_or_default() && ueDesc != nullptr &&
             ueDesc->bRequires64BitAtomicSupport)
@@ -900,11 +907,15 @@ static D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE hkGetResourceAllocationI
             auto result = IGDExtProxy::GetResourceAllocationInfo(visibleMask, numResourceDescs, pResourceDescs);
             LOG_DEBUG("IGDExtProxy::GetResourceAllocationInfo result: SizeInBytes={}", result.SizeInBytes);
             _skipGetResourceAllocationInfo = false;
-            return result;
+            *pResult = result;
+            return pResult;
         }
     }
 
-    return o_GetResourceAllocationInfo(device, visibleMask, numResourceDescs, pResourceDescs);
+    pResult->Alignment = 0;
+    pResult->SizeInBytes = 0;
+    o_GetResourceAllocationInfo(device, pResult, visibleMask, numResourceDescs, pResourceDescs);
+    return pResult;
 }
 
 VALIDATE_HOOK(hkCreateSampler, PFN_CreateSampler)
@@ -1151,6 +1162,8 @@ static void HookToDevice(ID3D12Device* InDevice)
 
         if (Config::Instance()->UESpoofIntelAtomics64.value_or_default())
         {
+            LOG_DEBUG("UE spoofing for Intel Atomics64 enabled, applying detours");
+
             if (o_CheckFeatureSupport != nullptr)
                 DetourAttach(&(PVOID&) o_CheckFeatureSupport, hkCheckFeatureSupport);
 

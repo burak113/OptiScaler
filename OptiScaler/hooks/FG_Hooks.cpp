@@ -513,7 +513,7 @@ HRESULT FGHooks::hkResizeBuffers(IDXGISwapChain* This, UINT BufferCount, UINT Wi
 
         if (State::Instance().SCLastFlags != SwapChainFlags)
         {
-            LOG_WARN("SwapChainFlags changed from {} to {}", State::Instance().SCLastFlags, SwapChainFlags);
+            LOG_WARN("SwapChainFlags changed from {:X} to {:X}", State::Instance().SCLastFlags, SwapChainFlags);
 
             if (State::Instance().activeFgOutput == FGOutput::XeFG)
             {
@@ -639,7 +639,7 @@ HRESULT FGHooks::hkResizeBuffers(IDXGISwapChain* This, UINT BufferCount, UINT Wi
             }
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     // Force HDR10 for XeFG if HDR16 is used
@@ -800,7 +800,7 @@ HRESULT FGHooks::hkResizeBuffers1(IDXGISwapChain3* This, UINT BufferCount, UINT 
 
         if (State::Instance().SCLastFlags != SwapChainFlags)
         {
-            LOG_WARN("SwapChainFlags changed from {} to {}", State::Instance().SCLastFlags, SwapChainFlags);
+            LOG_WARN("SwapChainFlags changed from {:X} to {:X}", State::Instance().SCLastFlags, SwapChainFlags);
 
             if (State::Instance().activeFgOutput == FGOutput::XeFG)
             {
@@ -925,7 +925,7 @@ HRESULT FGHooks::hkResizeBuffers1(IDXGISwapChain3* This, UINT BufferCount, UINT 
             }
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     // Force HDR10 for XeFG if HDR16 is used
@@ -1275,10 +1275,12 @@ ULONG FGHooks::hkFGRelease(IUnknown* This)
 
             WaitForGPUIdle();
 
+            DXGI_SWAP_CHAIN_DESC scDesc {};
+            ((IDXGISwapChain*) This)->GetDesc(&scDesc);
+
             // Release swapchain backbuffers to prevent errors when releasing FG swapchain
-            if (State::Instance().activeFgOutput == FGOutput::XeFG)
             {
-                for (UINT i = 0; i < 8; i++)
+                for (UINT i = 0; i < scDesc.BufferCount; i++)
                 {
                     ID3D12Resource* backBuffer = nullptr;
                     auto bbResult = ((IDXGISwapChain*) This)->GetBuffer(i, IID_PPV_ARGS(&backBuffer));

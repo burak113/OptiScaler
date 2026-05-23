@@ -272,21 +272,35 @@ VkResult VulkanSpoofing::hkvkCreateInstance(VkInstanceCreateInfo* pCreateInfo, c
         auto enumarate = o_vkEnumerateInstanceExtensionProperties;
         if (o_vkEnumerateInstanceExtensionProperties == nullptr)
         {
-            enumarate = (PFN_vkEnumerateInstanceExtensionProperties) KernelBaseProxy::GetProcAddress_()(
-                vulkanModule, "vkEnumerateInstanceExtensionProperties");
+            if (vulkanModule == nullptr)
+                vulkanModule = KernelBaseProxy::GetModuleHandleA_()("vulkan-1.dll");
+
+            if (vulkanModule != nullptr)
+            {
+                enumarate = (PFN_vkEnumerateInstanceExtensionProperties) KernelBaseProxy::GetProcAddress_()(
+                    vulkanModule, "vkEnumerateInstanceExtensionProperties");
+            }
+
+            if (enumarate == nullptr)
+            {
+                enumarate = vkEnumerateInstanceExtensionProperties;
+            }
         }
 
-        LOG_INFO("vkInstanceExtensions is empty, enumerating instance extensions");
-        vkEnumerateInstanceExtensionPropertiesListed = true;
-        vkEnumerateInstanceExtensionPropertiesCount = 0;
-
-        enumarate(VK_NULL_HANDLE, &vkEnumerateInstanceExtensionPropertiesCount, VK_NULL_HANDLE);
-        std::vector<VkExtensionProperties> extensions(vkEnumerateInstanceExtensionPropertiesCount);
-        enumarate(VK_NULL_HANDLE, &vkEnumerateInstanceExtensionPropertiesCount, extensions.data());
-        for (const auto& ext : extensions)
+        if (enumarate != nullptr)
         {
-            vkInstanceExtensions[ext.extensionName] = true;
-            LOG_DEBUG("  {}", ext.extensionName);
+            LOG_INFO("vkInstanceExtensions is empty, enumerating instance extensions");
+            vkEnumerateInstanceExtensionPropertiesListed = true;
+            vkEnumerateInstanceExtensionPropertiesCount = 0;
+
+            enumarate(VK_NULL_HANDLE, &vkEnumerateInstanceExtensionPropertiesCount, VK_NULL_HANDLE);
+            std::vector<VkExtensionProperties> extensions(vkEnumerateInstanceExtensionPropertiesCount);
+            enumarate(VK_NULL_HANDLE, &vkEnumerateInstanceExtensionPropertiesCount, extensions.data());
+            for (const auto& ext : extensions)
+            {
+                vkInstanceExtensions[ext.extensionName] = true;
+                LOG_DEBUG("  {}", ext.extensionName);
+            }
         }
     }
 
@@ -406,21 +420,35 @@ VkResult VulkanSpoofing::hkvkCreateDevice(VkPhysicalDevice physicalDevice, VkDev
         auto enumarate = o_vkEnumerateDeviceExtensionProperties;
         if (o_vkEnumerateDeviceExtensionProperties == nullptr)
         {
-            enumarate = (PFN_vkEnumerateDeviceExtensionProperties) KernelBaseProxy::GetProcAddress_()(
-                vulkanModule, "vkEnumerateDeviceExtensionProperties");
+            if (vulkanModule == nullptr)
+                vulkanModule = KernelBaseProxy::GetModuleHandleA_()("vulkan-1.dll");
+
+            if (vulkanModule != nullptr)
+            {
+                enumarate = (PFN_vkEnumerateDeviceExtensionProperties) KernelBaseProxy::GetProcAddress_()(
+                    vulkanModule, "vkEnumerateDeviceExtensionProperties");
+            }
+
+            if (enumarate == nullptr)
+            {
+                enumarate = vkEnumerateDeviceExtensionProperties;
+            }
         }
 
-        vkEnumerateDeviceExtensionPropertiesListed = true;
-        vkEnumerateDeviceExtensionPropertiesCount = 0;
-
-        enumarate(physicalDevice, nullptr, &vkEnumerateDeviceExtensionPropertiesCount, nullptr);
-        std::vector<VkExtensionProperties> extensions(vkEnumerateDeviceExtensionPropertiesCount);
-        enumarate(physicalDevice, nullptr, &vkEnumerateDeviceExtensionPropertiesCount, extensions.data());
-
-        for (const auto& ext : extensions)
+        if (enumarate != nullptr)
         {
-            vkDeviceExtensions[ext.extensionName] = true;
-            LOG_DEBUG("  {}", ext.extensionName);
+            vkEnumerateDeviceExtensionPropertiesListed = true;
+            vkEnumerateDeviceExtensionPropertiesCount = 0;
+
+            enumarate(physicalDevice, nullptr, &vkEnumerateDeviceExtensionPropertiesCount, nullptr);
+            std::vector<VkExtensionProperties> extensions(vkEnumerateDeviceExtensionPropertiesCount);
+            enumarate(physicalDevice, nullptr, &vkEnumerateDeviceExtensionPropertiesCount, extensions.data());
+
+            for (const auto& ext : extensions)
+            {
+                vkDeviceExtensions[ext.extensionName] = true;
+                LOG_DEBUG("  {}", ext.extensionName);
+            }
         }
     }
 

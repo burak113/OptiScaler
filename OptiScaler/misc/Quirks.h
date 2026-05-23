@@ -121,6 +121,10 @@ static const QuirkEntry quirkTable[] = {
     // Arknights: Endfield
     QUIRK_ENTRY("endfield.exe", GameQuirk::ForceCreateD3D12Device, GameQuirk::DisableFakenvapi),
 
+    // Neverness to Everness
+    // Kernel hooks required to unlock DLSS inputs
+    QUIRK_ENTRY("htgame.exe", GameQuirk::DisableFSR2Inputs, GameQuirk::DisableFSR3Inputs, GameQuirk::DontUseNtDllHooks),
+
     // Trails in the Sky 1st Chapter
     QUIRK_ENTRY("sora_1st.exe", GameQuirk::UseFsr2Dx11Inputs, GameQuirk::DisableDxgiSpoofing),
 
@@ -309,7 +313,7 @@ static const QuirkEntry quirkTable[] = {
     // Medium, NINJA GAIDEN 4 (+ WinGDK), God of War (2018), Europa Universalis V, Need for Speed Unbound, Nioh 2 – The
     // Complete Edition, Control Ultimate Edition, Deathloop, Where Winds Meet, FINAL FANTASY VII REMAKE INTERGRADE (for
     // Luma mod), Assassin’s Creed Shadows, Farming Simulator 2025, Nioh 3, FATAL FRAME II: Crimson Butterfly REMAKE,
-    // OUTRIDERS, Assetto Corsa EVO, MOUSE: P.I. For Hire, Yet Another Zombie Survivors, Voodoo Fishin'
+    // OUTRIDERS, Assetto Corsa EVO, MOUSE: P.I. For Hire, Yet Another Zombie Survivors, Voodoo Fishin', Forza Horizon 6
     QUIRK_ENTRY("witcher3.exe", GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("alanwake2.exe", GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("crysis3remastered.exe", GameQuirk::DisableDxgiSpoofing),
@@ -351,6 +355,7 @@ static const QuirkEntry quirkTable[] = {
     QUIRK_ENTRY("mouse.exe", GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("yet another zombie survivors.exe", GameQuirk::DisableDxgiSpoofing),
     QUIRK_ENTRY("voodoo fishin'.exe", GameQuirk::DisableDxgiSpoofing),
+    QUIRK_ENTRY("forzahorizon6.exe", GameQuirk::DisableDxgiSpoofing),
 
     // FSR2/3 only, no spoof needed
     //

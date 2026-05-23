@@ -119,10 +119,10 @@ static LSTATUS SpoofRegSzW(LPBYTE lpData, LPDWORD lpcbData, LPDWORD lpType, cons
 {
     size_t spoofedValueSize = (spoofedValue.size() + 1) * sizeof(wchar_t);
 
-    if (lpData == nullptr || lpcbData == nullptr)
+    if (lpcbData == nullptr)
         return ERROR_SUCCESS;
 
-    if (*lpcbData >= spoofedValueSize)
+    if (lpData != nullptr && *lpcbData >= spoofedValueSize)
     {
         std::memcpy(lpData, spoofedValue.c_str(), spoofedValueSize);
         *lpcbData = static_cast<DWORD>(spoofedValueSize);
@@ -135,9 +135,13 @@ static LSTATUS SpoofRegSzW(LPBYTE lpData, LPDWORD lpcbData, LPDWORD lpType, cons
     }
     else
     {
-        *lpcbData = static_cast<DWORD>(spoofedValueSize);
-        return ERROR_MORE_DATA;
+        *lpcbData = std::max(static_cast<DWORD>(spoofedValueSize), *lpcbData);
     }
+
+    if (lpData != nullptr)
+        return ERROR_MORE_DATA;
+    else
+        return ERROR_SUCCESS;
 }
 
 static LSTATUS SpoofRegSzA(LPBYTE lpData, LPDWORD lpcbData, LPDWORD lpType, const std::string& spoofedValue,
@@ -145,10 +149,10 @@ static LSTATUS SpoofRegSzA(LPBYTE lpData, LPDWORD lpcbData, LPDWORD lpType, cons
 {
     size_t spoofedValueSize = (spoofedValue.size() + 1) * sizeof(char);
 
-    if (lpData == nullptr || lpcbData == nullptr)
+    if (lpcbData == nullptr)
         return ERROR_SUCCESS;
 
-    if (*lpcbData >= spoofedValueSize)
+    if (lpData != nullptr && *lpcbData >= spoofedValueSize)
     {
         std::memcpy(lpData, spoofedValue.c_str(), spoofedValueSize);
         *lpcbData = static_cast<DWORD>(spoofedValueSize);
@@ -161,9 +165,13 @@ static LSTATUS SpoofRegSzA(LPBYTE lpData, LPDWORD lpcbData, LPDWORD lpType, cons
     }
     else
     {
-        *lpcbData = static_cast<DWORD>(spoofedValueSize);
-        return ERROR_MORE_DATA;
+        *lpcbData = std::max(static_cast<DWORD>(spoofedValueSize), *lpcbData);
     }
+
+    if (lpData != nullptr)
+        return ERROR_MORE_DATA;
+    else
+        return ERROR_SUCCESS;
 }
 
 // Replace vendor/device tokens in a single wide string segment.
@@ -387,12 +395,21 @@ static LONG hkRegQueryValueExW(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserve
         return ERROR_INVALID_PARAMETER;
     }
 
+    // Store the buffer size that the game is providing and restore it in spoofs
+    // because the real query will change the size reported to the unspoofed buffer's size
+    DWORD oldCbData {};
+    if (lpData && lpcbData)
+        oldCbData = *lpcbData;
+
     auto result = o_RegQueryValueExW(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
 
     if (result == ERROR_SUCCESS && Config::Instance()->SpoofRegistry.value_or_default())
     {
         if (valueName == L"DriverVersion")
         {
+            if (lpData && lpcbData)
+                *lpcbData = oldCbData;
+
             const std::wstring spoofedValue = Config::Instance()->SpoofedDriver.value_or_default();
             size_t spoofedValueSize = (spoofedValue.size() + 1) * sizeof(wchar_t);
 
@@ -414,6 +431,9 @@ static LONG hkRegQueryValueExW(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserve
 
         if (valueName == L"DriverDesc")
         {
+            if (lpData && lpcbData)
+                *lpcbData = oldCbData;
+
             const std::wstring spoofedValue = Config::Instance()->SpoofedGPUName.value_or_default();
             auto spoofResult = SpoofRegSzW(lpData, lpcbData, lpType, spoofedValue, "DriverDesc");
             if (spoofResult != ERROR_SUCCESS)
@@ -422,6 +442,9 @@ static LONG hkRegQueryValueExW(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserve
 
         if (valueName == L"ProviderName")
         {
+            if (lpData && lpcbData)
+                *lpcbData = oldCbData;
+
             const std::wstring spoofedValue = GetSpoofedProviderNameW();
             auto spoofResult = SpoofRegSzW(lpData, lpcbData, lpType, spoofedValue, "ProviderName");
             if (spoofResult != ERROR_SUCCESS)
@@ -430,6 +453,9 @@ static LONG hkRegQueryValueExW(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserve
 
         if (valueName == L"HardwareInformation.AdapterString")
         {
+            if (lpData && lpcbData)
+                *lpcbData = oldCbData;
+
             const std::wstring spoofedValue = Config::Instance()->SpoofedGPUName.value_or_default();
             auto spoofResult = SpoofRegSzW(lpData, lpcbData, lpType, spoofedValue, "HardwareInformation.AdapterString");
             if (spoofResult != ERROR_SUCCESS)
@@ -439,6 +465,9 @@ static LONG hkRegQueryValueExW(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserve
         if ((valueName == L"HardwareID" || valueName == L"MatchingDeviceId") && lpData != nullptr &&
             lpcbData != nullptr)
         {
+            if (lpData && lpcbData)
+                *lpcbData = oldCbData;
+
             DWORD regType = lpType ? *lpType : REG_NONE;
 
             if (regType == REG_MULTI_SZ)
@@ -472,6 +501,9 @@ static LONG hkRegQueryValueExW(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserve
         if (lpData != nullptr && lpcbData != nullptr && *lpcbData >= sizeof(wchar_t) && valueName.size() >= 13 &&
             _wcsnicmp(valueName.c_str(), L"\\Device\\Video", 13) == 0)
         {
+            if (lpData && lpcbData)
+                *lpcbData = oldCbData;
+
             DWORD regType = lpType ? *lpType : REG_NONE;
             if (regType == REG_SZ || regType == REG_EXPAND_SZ)
             {
@@ -535,12 +567,21 @@ LONG WINAPI hkRegQueryValueExA(HKEY hKey, LPCSTR lpValueName, LPDWORD lpReserved
         return ERROR_INVALID_PARAMETER;
     }
 
+    // Store the buffer size that the game is providing and restore it in spoofs
+    // because the real query will change the size reported to the unspoofed buffer's size
+    DWORD oldCbData {};
+    if (lpData && lpcbData)
+        oldCbData = *lpcbData;
+
     auto result = o_RegQueryValueExA(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
 
     if (result == ERROR_SUCCESS && Config::Instance()->SpoofRegistry.value_or_default())
     {
         if (valueName == "DriverVersion")
         {
+            if (lpData && lpcbData)
+                *lpcbData = oldCbData;
+
             const std::string spoofedValue = wstring_to_string(Config::Instance()->SpoofedDriver.value_or_default());
             size_t spoofedValueSize = (spoofedValue.size() + 1) * sizeof(char);
 
@@ -562,6 +603,9 @@ LONG WINAPI hkRegQueryValueExA(HKEY hKey, LPCSTR lpValueName, LPDWORD lpReserved
 
         if (valueName == "DriverDesc")
         {
+            if (lpData && lpcbData)
+                *lpcbData = oldCbData;
+
             const std::string spoofedValue = wstring_to_string(Config::Instance()->SpoofedGPUName.value_or_default());
             auto spoofResult = SpoofRegSzA(lpData, lpcbData, lpType, spoofedValue, "DriverDesc");
             if (spoofResult != ERROR_SUCCESS)
@@ -570,6 +614,9 @@ LONG WINAPI hkRegQueryValueExA(HKEY hKey, LPCSTR lpValueName, LPDWORD lpReserved
 
         if (valueName == "ProviderName")
         {
+            if (lpData && lpcbData)
+                *lpcbData = oldCbData;
+
             const std::string spoofedValue = GetSpoofedProviderNameA();
             auto spoofResult = SpoofRegSzA(lpData, lpcbData, lpType, spoofedValue, "ProviderName");
             if (spoofResult != ERROR_SUCCESS)
@@ -578,6 +625,9 @@ LONG WINAPI hkRegQueryValueExA(HKEY hKey, LPCSTR lpValueName, LPDWORD lpReserved
 
         if (valueName == "HardwareInformation.AdapterString")
         {
+            if (lpData && lpcbData)
+                *lpcbData = oldCbData;
+
             const std::string spoofedValue = wstring_to_string(Config::Instance()->SpoofedGPUName.value_or_default());
             auto spoofResult = SpoofRegSzA(lpData, lpcbData, lpType, spoofedValue, "HardwareInformation.AdapterString");
             if (spoofResult != ERROR_SUCCESS)
@@ -586,6 +636,9 @@ LONG WINAPI hkRegQueryValueExA(HKEY hKey, LPCSTR lpValueName, LPDWORD lpReserved
 
         if ((valueName == "HardwareID" || valueName == "MatchingDeviceId") && lpData != nullptr && lpcbData != nullptr)
         {
+            if (lpData && lpcbData)
+                *lpcbData = oldCbData;
+
             DWORD regType = lpType ? *lpType : REG_NONE;
 
             if (regType == REG_MULTI_SZ)
@@ -618,6 +671,9 @@ LONG WINAPI hkRegQueryValueExA(HKEY hKey, LPCSTR lpValueName, LPDWORD lpReserved
         if (lpData != nullptr && lpcbData != nullptr && *lpcbData >= sizeof(char) && valueName.size() >= 13 &&
             _strnicmp(valueName.c_str(), "\\Device\\Video", 13) == 0)
         {
+            if (lpData && lpcbData)
+                *lpcbData = oldCbData;
+
             DWORD regType = lpType ? *lpType : REG_NONE;
             if (regType == REG_SZ || regType == REG_EXPAND_SZ)
             {

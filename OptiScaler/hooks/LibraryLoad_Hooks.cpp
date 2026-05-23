@@ -305,8 +305,14 @@ HMODULE LibraryLoadHooks::LoadLibraryCheckW(std::wstring libName, LPCWSTR lpLibF
 
         if (module != nullptr)
         {
-            if (/*!_overlayMethodsCalled && */ DxgiProxy::Module() != nullptr)
+            auto filePath = std::filesystem::path(libName);
+            auto filename = filePath.filename().wstring();
+            to_lower_in_place(filename);
+
+            if (!_overlayMethodsCalled.contains(filename) && DxgiProxy::Module() != nullptr)
             {
+                _overlayMethodsCalled[filename] = true;
+
                 LOG_INFO("Calling CreateDxgiFactory methods for overlay!");
                 IDXGIFactory* factory = nullptr;
                 IDXGIFactory1* factory1 = nullptr;
@@ -329,8 +335,6 @@ HMODULE LibraryLoadHooks::LoadLibraryCheckW(std::wstring libName, LPCWSTR lpLibF
                     LOG_DEBUG("CreateDxgiFactory2 ok");
                     factory2->Release();
                 }
-
-                _overlayMethodsCalled = true;
             }
 
             return module;
@@ -638,13 +642,27 @@ HMODULE LibraryLoadHooks::LoadNvApi()
 
     if (Config::Instance()->NvapiDllPath.has_value())
     {
-        LOG_DEBUG("Load NvapiDllPath");
+        LOG_DEBUG("Load NvapiDllPath: {}", wstring_to_string(Config::Instance()->NvapiDllPath.value()));
 
         nvapi = NtdllProxy::LoadLibraryExW_Ldr(Config::Instance()->NvapiDllPath->c_str(), NULL, 0);
 
         if (nvapi != nullptr)
         {
-            LOG_INFO("nvapi64.dll loaded from {0}", wstring_to_string(Config::Instance()->NvapiDllPath.value()));
+            LOG_INFO("Dll loaded from {}", wstring_to_string(Config::Instance()->NvapiDllPath.value()));
+            return nvapi;
+        }
+    }
+
+    if (nvapi == nullptr)
+    {
+        LOG_DEBUG("Load fakenvapi.dll");
+
+        auto localPath = Util::DllPath().parent_path() / L"fakenvapi.dll";
+        nvapi = NtdllProxy::LoadLibraryExW_Ldr(localPath.wstring().c_str(), NULL, 0);
+
+        if (nvapi != nullptr)
+        {
+            LOG_INFO("fakenvapi.dll loaded from {}", wstring_to_string(localPath.wstring()));
             return nvapi;
         }
     }
@@ -658,7 +676,7 @@ HMODULE LibraryLoadHooks::LoadNvApi()
 
         if (nvapi != nullptr)
         {
-            LOG_INFO("nvapi64.dll loaded from {0}", wstring_to_string(localPath.wstring()));
+            LOG_INFO("nvapi64.dll loaded from {}", wstring_to_string(localPath.wstring()));
             return nvapi;
         }
     }

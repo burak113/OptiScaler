@@ -62,20 +62,28 @@ NvAPI_Status __stdcall NvApiHooks::hkNvAPI_DRS_GetSetting(NvDRSSessionHandle hSe
     {
         if (settingId == NGX_DLSS_SR_OVERRIDE_RENDER_PRESET_SELECTION_ID)
         {
-            if (Config::Instance()->RenderPresetOverride.value_or_default())
-                pSetting->u32CurrentValue = NGX_DLSS_SR_OVERRIDE_RENDER_PRESET_SELECTION_OFF;
-            else
-                State::Instance().dlssPresetsOverriddenExternally =
-                    pSetting->u32CurrentValue != NGX_DLSS_SR_OVERRIDE_RENDER_PRESET_SELECTION_OFF;
+            State::Instance().dlssRenderPresetExternal = pSetting->u32CurrentValue;
+
+            State::Instance().dlssPresetsOverriddenExternally =
+                pSetting->u32CurrentValue != NGX_DLSS_SR_OVERRIDE_RENDER_PRESET_SELECTION_OFF;
+
+            // Report no override, we will handle presets from now on
+            pSetting->u32CurrentValue = NGX_DLSS_SR_OVERRIDE_RENDER_PRESET_SELECTION_OFF;
+
+            LOG_DEBUG("DLSS External override: {}", State::Instance().dlssRenderPresetExternal);
         }
 
         if (settingId == NGX_DLSS_RR_OVERRIDE_RENDER_PRESET_SELECTION_ID)
         {
-            if (Config::Instance()->RenderPresetOverride.value_or_default())
-                pSetting->u32CurrentValue = NGX_DLSS_RR_OVERRIDE_RENDER_PRESET_SELECTION_OFF;
-            else
-                State::Instance().dlssdPresetsOverriddenExternally =
-                    pSetting->u32CurrentValue != NGX_DLSS_RR_OVERRIDE_RENDER_PRESET_SELECTION_OFF;
+            State::Instance().dlssdRenderPresetExternal = pSetting->u32CurrentValue;
+
+            State::Instance().dlssdPresetsOverriddenExternally =
+                pSetting->u32CurrentValue != NGX_DLSS_RR_OVERRIDE_RENDER_PRESET_SELECTION_OFF;
+
+            // Report no override, we will handle presets from now on
+            pSetting->u32CurrentValue = NGX_DLSS_RR_OVERRIDE_RENDER_PRESET_SELECTION_OFF;
+
+            LOG_DEBUG("DLSSD External override: {}", State::Instance().dlssdRenderPresetExternal);
         }
     }
 

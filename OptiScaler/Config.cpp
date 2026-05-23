@@ -431,9 +431,18 @@ bool Config::Reload(std::filesystem::path iniPath)
             if (auto setting = readFloat("Menu", "FpsScale"); setting.has_value())
                 FpsScale.set_from_config(std::clamp(setting.value(), 0.5f, 2.0f));
 
+            FontSize.set_from_config(readFloat("Menu", "FontSize"));
             TTFFontPath.set_from_config(readWString("Menu", "TTFFontPath"));
 
             FGShortcutKey.set_from_config(readInt("Menu", "FGShortcutKey"));
+
+            LightTheme.set_from_config(readBool("Menu", "LightTheme"));
+            MenuAccentColorR.set_from_config(readFloat("Menu", "AccentColorR"));
+            MenuAccentColorG.set_from_config(readFloat("Menu", "AccentColorG"));
+            MenuAccentColorB.set_from_config(readFloat("Menu", "AccentColorB"));
+            MenuBGColorR.set_from_config(readFloat("Menu", "BGColorR"));
+            MenuBGColorG.set_from_config(readFloat("Menu", "BGColorG"));
+            MenuBGColorB.set_from_config(readFloat("Menu", "BGColorB"));
         }
 
         // Hooks
@@ -463,6 +472,7 @@ bool Config::Reload(std::filesystem::path iniPath)
                 Contrast.set_from_config(std::clamp(setting.value(), -2.0f, 2.0f));
 
             UseDepthAwareSharpen.set_from_config(readBool("CAS", "UseDepthAwareSharpen"));
+            UseDASDepthAwareSharpen.set_from_config(readBool("CAS", "UseDASDepthAwareSharpen"));
             DADepthIsLinear.set_from_config(readBool("CAS", "DADepthIsLinear"));
             DADepthScale.set_from_config(readFloat("CAS", "DADepthScale"));
             DADepthBias.set_from_config(readFloat("CAS", "DADepthBias"));
@@ -674,10 +684,10 @@ bool Config::Reload(std::filesystem::path iniPath)
             NvapiDllPath.set_from_config(readWString("Libraries", "NvapiPath"));
 
             FfxDx12Path.set_from_config(readWString("Libraries", "FfxDx12Path"));
-            FfxDx12SRPath.set_from_config(readWString("Libraries", "FfxSRDx12Path"));
-            FfxDx12FGPath.set_from_config(readWString("Libraries", "FfxFGDx12Path"));
-            FfxDx12RRPath.set_from_config(readWString("Libraries", "FfxRRDx12Path"));
-            FfxDx12RCPath.set_from_config(readWString("Libraries", "FfxRCDx12Path"));
+            FfxDx12SRPath.set_from_config(readWString("Libraries", "FfxDx12SRPath"));
+            FfxDx12FGPath.set_from_config(readWString("Libraries", "FfxDx12FGPath"));
+            FfxDx12RRPath.set_from_config(readWString("Libraries", "FfxDx12RRPath"));
+            FfxDx12RCPath.set_from_config(readWString("Libraries", "FfxDx12RCPath"));
             FfxVkPath.set_from_config(readWString("Libraries", "FfxVkPath"));
 
             XeSSLibrary.set_from_config(readWString("Libraries", "XeSSPath"));
@@ -1071,6 +1081,8 @@ bool Config::SaveIni()
 
         ini.SetValue("CAS", "UseDepthAwareSharpen",
                      GetBoolValue(Instance()->UseDepthAwareSharpen.value_for_config()).c_str());
+        ini.SetValue("CAS", "UseDASDepthAwareSharpen",
+                     GetBoolValue(Instance()->UseDASDepthAwareSharpen.value_for_config()).c_str());
         ini.SetValue("CAS", "DADepthIsLinear", GetBoolValue(Instance()->DADepthIsLinear.value_for_config()).c_str());
         ini.SetValue("CAS", "DADepthScale", GetFloatValue(Instance()->DADepthScale.value_for_config()).c_str());
         ini.SetValue("CAS", "DADepthBias", GetFloatValue(Instance()->DADepthBias.value_for_config()).c_str());
@@ -1112,8 +1124,20 @@ bool Config::SaveIni()
                      GetBoolValue(Instance()->FpsOverlayHorizontal.value_for_config()).c_str());
         ini.SetValue("Menu", "FpsOverlayAlpha", GetFloatValue(Instance()->FpsOverlayAlpha.value_for_config()).c_str());
         ini.SetValue("Menu", "FpsScale", GetFloatValue(Instance()->FpsScale.value_for_config()).c_str());
+        ini.SetValue("Menu", "FontSize", GetFloatValue(Instance()->FontSize.value_for_config()).c_str());
         ini.SetValue("Menu", "TTFFontPath",
                      wstring_to_string(Instance()->TTFFontPath.value_for_config_or(L"auto")).c_str());
+
+        ini.SetValue("Menu", "LightTheme", GetBoolValue(Instance()->LightTheme.value_for_config()).c_str());
+        ini.SetValue("Menu", "MenuAccentColorR",
+                     GetFloatValue(Instance()->MenuAccentColorR.value_for_config()).c_str());
+        ini.SetValue("Menu", "MenuAccentColorG",
+                     GetFloatValue(Instance()->MenuAccentColorG.value_for_config()).c_str());
+        ini.SetValue("Menu", "MenuAccentColorB",
+                     GetFloatValue(Instance()->MenuAccentColorB.value_for_config()).c_str());
+        ini.SetValue("Menu", "MenuBGColorR", GetFloatValue(Instance()->MenuBGColorR.value_for_config()).c_str());
+        ini.SetValue("Menu", "MenuBGColorG", GetFloatValue(Instance()->MenuBGColorG.value_for_config()).c_str());
+        ini.SetValue("Menu", "MenuBGColorB", GetFloatValue(Instance()->MenuBGColorB.value_for_config()).c_str());
     }
 
     // Hooks
@@ -1404,10 +1428,24 @@ bool Config::SaveIni()
 
 bool Config::ReloadFakenvapi()
 {
-    auto FN_iniPath = Config::Instance()->MainDllPath.value() + L"\\fakenvapi.ini";
-    if (NvapiDllPath.has_value())
-        FN_iniPath = std::filesystem::path(NvapiDllPath.value()).parent_path() / L"\\fakenvapi.ini";
+    std::wstring FN_iniPath;
 
+    auto nvapiPath = std::filesystem::path(MainDllPath.value());
+
+    if (std::filesystem::is_directory(nvapiPath))
+        FN_iniPath = nvapiPath / L"fakenvapi.ini";
+    else
+        FN_iniPath = nvapiPath.parent_path() / L"fakenvapi.ini";
+
+    if (NvapiDllPath.has_value())
+    {
+        auto nvapiPath = std::filesystem::path(NvapiDllPath.value());
+
+        if (std::filesystem::is_directory(nvapiPath))
+            FN_iniPath = nvapiPath / L"fakenvapi.ini";
+        else
+            FN_iniPath = nvapiPath.parent_path() / L"fakenvapi.ini";
+    }
     auto pathWStr = FN_iniPath;
 
     LOG_INFO("Trying to load fakenvapi's ini from: {0}", wstring_to_string(pathWStr));
@@ -1428,9 +1466,24 @@ bool Config::ReloadFakenvapi()
 
 bool Config::SaveFakenvapiIni()
 {
-    auto FN_iniPath = Config::Instance()->MainDllPath.value() + L"\\fakenvapi.ini";
+    std::wstring FN_iniPath;
+
+    auto nvapiPath = std::filesystem::path(MainDllPath.value());
+
+    if (std::filesystem::is_directory(nvapiPath))
+        FN_iniPath = nvapiPath / L"fakenvapi.ini";
+    else
+        FN_iniPath = nvapiPath.parent_path() / L"fakenvapi.ini";
+
     if (NvapiDllPath.has_value())
-        FN_iniPath = std::filesystem::path(NvapiDllPath.value()).parent_path() / L"\\fakenvapi.ini";
+    {
+        auto nvapiPath = std::filesystem::path(NvapiDllPath.value());
+
+        if (std::filesystem::is_directory(nvapiPath))
+            FN_iniPath = nvapiPath / L"fakenvapi.ini";
+        else
+            FN_iniPath = nvapiPath.parent_path() / L"fakenvapi.ini";
+    }
 
     auto pathWStr = FN_iniPath;
 

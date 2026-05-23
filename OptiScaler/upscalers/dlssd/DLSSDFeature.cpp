@@ -207,6 +207,22 @@ void DLSSDFeature::ProcessInitParams(NVSDK_NGX_Parameter* InParameters)
         }
         else
         {
+            if (State::Instance().dlssPresetsOverriddenExternally)
+            {
+                InParameters->Set("RayReconstruction.Hint.Render.Preset.DLAA",
+                                  State::Instance().dlssdRenderPresetExternal);
+                InParameters->Set("RayReconstruction.Hint.Render.Preset.UltraQuality",
+                                  State::Instance().dlssdRenderPresetExternal);
+                InParameters->Set("RayReconstruction.Hint.Render.Preset.Quality",
+                                  State::Instance().dlssdRenderPresetExternal);
+                InParameters->Set("RayReconstruction.Hint.Render.Preset.Balanced",
+                                  State::Instance().dlssdRenderPresetExternal);
+                InParameters->Set("RayReconstruction.Hint.Render.Preset.Performance",
+                                  State::Instance().dlssdRenderPresetExternal);
+                InParameters->Set("RayReconstruction.Hint.Render.Preset.UltraPerformance",
+                                  State::Instance().dlssdRenderPresetExternal);
+            }
+
             InParameters->Get("RayReconstruction.Hint.Render.Preset.DLAA", &State::Instance().dlssdRenderPresetDLAA);
             InParameters->Get("RayReconstruction.Hint.Render.Preset.UltraQuality",
                               &State::Instance().dlssdRenderPresetUltraQuality);

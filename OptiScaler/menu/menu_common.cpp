@@ -28,7 +28,7 @@
     for (auto& singleChangeBackend : State::Instance().changeBackend)                                                  \
         singleChangeBackend.second = true;
 
-constexpr float fontSize = 14.0f; // just changing this doesn't make other elements scale ideally
+static float fontSize = 14.0f; // just changing this doesn't make other elements scale ideally
 static ImVec2 overlaySize(0.0f, 0.0f);
 static ImVec2 overlayPosition(-1000.0f, -1000.0f);
 static bool _hdrTonemapApplied = false;
@@ -46,6 +46,7 @@ static std::string selectedUpscalerName = "";
 static std::string currentBackend = "";
 static std::string currentBackendName = "";
 static int refreshRate = 0;
+static ImVec2 lastPosition(-1000.0f, -1000.0f);
 
 static ImVec2 splashPosition(-1000.0f, -1000.0f);
 static ImVec2 splashSize(0.0f, 0.0f);
@@ -105,7 +106,7 @@ static std::vector<std::string> splashText = { "Cope smarter, not harder",
                                                "Upscaling for the masses, not the classes",
                                                "Generating discord since 2023",
                                                "Enabling DLSS since 2023",
-                                               "[Reducted] never looked better",
+                                               "[REDACTED] never looked better",
                                                "Free and always free",
                                                "Getting unshackled from green chains in progress...",
                                                "Who's Nukem anyway?",
@@ -120,6 +121,7 @@ static std::vector<std::string> splashText = { "Cope smarter, not harder",
                                                "2D AI filters, now powered by just 2x 5090s",
                                                "Neural Slop Sampling with DLSS5",
                                                "DLSS 5 - the way it's meant to be slopped",
+                                               "Just when I think I'm out, they scale me back in",
                                                "<Your funny text goes here>" };
 
 static ImVec2 updateNoticePosition(-1000.0f, -1000.0f);
@@ -130,6 +132,7 @@ static bool updateNoticeVisible = false;
 static std::string updateNoticeTag;
 static std::string updateNoticeUrl;
 static float lastMenuScale = 0.0f;
+static CustomOptional<uint32_t> comboPreset { 0 };
 
 template <typename T, size_t N> struct RingBuffer
 {
@@ -1235,6 +1238,153 @@ template <HasDefaultValue B> void MenuCommon::AddResourceBarrier(std::string nam
     }
 }
 
+static uint32_t GetPresetIndex(IFeature* feature, bool dlssd = false)
+{
+    auto ratio = (float) feature->TargetWidth() / (float) feature->RenderWidth();
+
+    if (!dlssd)
+    {
+        if (State::Instance().dlssPresetsOverridenByOpti)
+        {
+            LOG_DEBUG("DLSS Presets overridden by Opti, using Opti preset indices with ratio: {}", ratio);
+
+            if (ratio <= (Config::Instance()->QualityRatio_UltraPerformance.value_or_default() + 0.01f))
+            {
+                return Config::Instance()->RenderPresetForAll.value_or(
+                    Config::Instance()->RenderPresetUltraPerformance.value_or_default());
+            }
+            else if (ratio <= (Config::Instance()->QualityRatio_Performance.value_or_default() + 0.01f))
+            {
+                return Config::Instance()->RenderPresetForAll.value_or(
+                    Config::Instance()->RenderPresetPerformance.value_or_default());
+            }
+            else if (ratio <= (Config::Instance()->QualityRatio_Balanced.value_or_default() + 0.01f))
+            {
+                return Config::Instance()->RenderPresetForAll.value_or(
+                    Config::Instance()->RenderPresetBalanced.value_or_default());
+            }
+            else if (ratio <= (Config::Instance()->QualityRatio_Quality.value_or_default() + 0.01f))
+            {
+                return Config::Instance()->RenderPresetForAll.value_or(
+                    Config::Instance()->RenderPresetQuality.value_or_default());
+            }
+            else if (ratio <= (Config::Instance()->QualityRatio_UltraQuality.value_or_default() + 0.01f))
+            {
+                return Config::Instance()->RenderPresetForAll.value_or(
+                    Config::Instance()->RenderPresetUltraQuality.value_or_default());
+            }
+            else
+            {
+                return Config::Instance()->RenderPresetForAll.value_or(
+                    Config::Instance()->RenderPresetDLAA.value_or_default());
+            }
+        }
+        else if (State::Instance().dlssPresetsOverriddenExternally)
+        {
+            LOG_DEBUG("DLSS Presets overridden externally, using external preset index: {}",
+                      State::Instance().dlssRenderPresetExternal);
+
+            return State::Instance().dlssRenderPresetExternal;
+        }
+        else
+        {
+            if (ratio <= (Config::Instance()->QualityRatio_UltraPerformance.value_or_default() + 0.01f))
+            {
+                return State::Instance().dlssRenderPresetUltraPerformance;
+            }
+            else if (ratio <= (Config::Instance()->QualityRatio_Performance.value_or_default() + 0.01f))
+            {
+                return State::Instance().dlssRenderPresetPerformance;
+            }
+            else if (ratio <= (Config::Instance()->QualityRatio_Balanced.value_or_default() + 0.01f))
+            {
+                return State::Instance().dlssRenderPresetBalanced;
+            }
+            else if (ratio <= (Config::Instance()->QualityRatio_Quality.value_or_default() + 0.01f))
+            {
+                return State::Instance().dlssRenderPresetQuality;
+            }
+            else if (ratio <= (Config::Instance()->QualityRatio_UltraQuality.value_or_default() + 0.01f))
+            {
+                return State::Instance().dlssRenderPresetUltraQuality;
+            }
+            else
+            {
+                return State::Instance().dlssRenderPresetDLAA;
+            }
+        }
+    }
+    else
+    {
+        if (State::Instance().dlssdPresetsOverridenByOpti)
+        {
+            if (ratio <= (Config::Instance()->QualityRatio_UltraPerformance.value_or_default() + 0.01f))
+            {
+                return Config::Instance()->DLSSDRenderPresetForAll.value_or(
+                    Config::Instance()->DLSSDRenderPresetUltraPerformance.value_or_default());
+            }
+            else if (ratio <= (Config::Instance()->QualityRatio_Performance.value_or_default() + 0.01f))
+            {
+                return Config::Instance()->DLSSDRenderPresetForAll.value_or(
+                    Config::Instance()->DLSSDRenderPresetPerformance.value_or_default());
+            }
+            else if (ratio <= (Config::Instance()->QualityRatio_Balanced.value_or_default() + 0.01f))
+            {
+                return Config::Instance()->DLSSDRenderPresetForAll.value_or(
+                    Config::Instance()->DLSSDRenderPresetBalanced.value_or_default());
+            }
+            else if (ratio <= (Config::Instance()->QualityRatio_Quality.value_or_default() + 0.01f))
+            {
+                return Config::Instance()->DLSSDRenderPresetForAll.value_or(
+                    Config::Instance()->DLSSDRenderPresetQuality.value_or_default());
+            }
+            else if (ratio <= (Config::Instance()->QualityRatio_UltraQuality.value_or_default() + 0.01f))
+            {
+                return Config::Instance()->DLSSDRenderPresetForAll.value_or(
+                    Config::Instance()->DLSSDRenderPresetUltraQuality.value_or_default());
+            }
+            else
+            {
+                return Config::Instance()->DLSSDRenderPresetForAll.value_or(
+                    Config::Instance()->DLSSDRenderPresetDLAA.value_or_default());
+            }
+        }
+        else if (State::Instance().dlssdPresetsOverriddenExternally)
+        {
+            return State::Instance().dlssdRenderPresetExternal;
+        }
+        else
+        {
+            if (ratio <= (Config::Instance()->QualityRatio_UltraPerformance.value_or_default() + 0.01f))
+            {
+                return State::Instance().dlssdRenderPresetUltraPerformance;
+            }
+            else if (ratio <= (Config::Instance()->QualityRatio_Performance.value_or_default() + 0.01f))
+            {
+                return State::Instance().dlssdRenderPresetPerformance;
+            }
+            else if (ratio <= (Config::Instance()->QualityRatio_Balanced.value_or_default() + 0.01f))
+            {
+                return State::Instance().dlssdRenderPresetBalanced;
+            }
+            else if (ratio <= (Config::Instance()->QualityRatio_Quality.value_or_default() + 0.01f))
+            {
+                return State::Instance().dlssdRenderPresetQuality;
+            }
+            else if (ratio <= (Config::Instance()->QualityRatio_UltraQuality.value_or_default() + 0.01f))
+            {
+                return State::Instance().dlssdRenderPresetUltraQuality;
+            }
+            else
+            {
+                return State::Instance().dlssdRenderPresetDLAA;
+            }
+        }
+    }
+
+    return 0;
+}
+
 constexpr uint32_t NV_PRESET_LATEST = 0x00FFFFFF;
 
 // TODO: disable presets based on the detected DLSS version
@@ -1347,12 +1497,19 @@ void MenuCommon::PopulateCombo(const std::string& name, TStorage& currentValue,
 
 static ImVec4 toneMapColor(const ImVec4& color)
 {
-    // Apply tone mapping (e.g., Reinhard tone mapping)
-    float luminance = 0.2126f * color.x + 0.7152f * color.y + 0.0722f * color.z;
-    float mappedLuminance = luminance / (1.0f + luminance);
-    float scale = mappedLuminance / luminance;
+    if (State::Instance().isHdrActive ||
+        (!Config::Instance()->OverlayMenu.value_or_default() && State::Instance().currentFeature != nullptr &&
+         State::Instance().currentFeature->IsHdr()))
+    {
+        // Apply tone mapping (e.g., Reinhard tone mapping)
+        float luminance = 0.2126f * color.x + 0.7152f * color.y + 0.0722f * color.z;
+        float mappedLuminance = luminance / (1.0f + luminance);
+        float scale = mappedLuminance / luminance;
 
-    return ImVec4(color.x * scale, color.y * scale, color.z * scale, color.w);
+        return ImVec4(color.x * scale, color.y * scale, color.z * scale, color.w);
+    }
+
+    return color;
 }
 
 static void MenuHdrCheck(ImGuiIO io)
@@ -1452,6 +1609,211 @@ inline static std::string GetDispatchString(UINT source)
     }
 }
 
+static void ApplyThemeStyle()
+{
+    ImGuiStyle& style = ImGui::GetStyle();
+
+    auto conf = Config::Instance();
+    bool lightTheme = conf->LightTheme.value_or_default();
+
+    style.WindowRounding = 2.0f;
+    style.ChildRounding = 1.0f;
+    style.FrameRounding = 2.0f;
+    style.PopupRounding = 2.0f;
+    style.ScrollbarRounding = 2.0f;
+    style.GrabRounding = 2.0f;
+    style.TabRounding = 2.0f;
+
+    style.WindowBorderSize = 1.0f;
+    style.PopupBorderSize = 1.0f;
+
+    style.FrameBorderSize = lightTheme ? 1.0f : 0.0f;
+    style.TabBorderSize = lightTheme ? 1.0f : 0.0f;
+
+    style.ScrollbarSize = 10.0f;
+    style.GrabMinSize = 10.0f;
+
+    auto Clamp01 = [](float v) { return std::max(0.0f, std::min(v, 1.0f)); };
+
+    auto Mix = [](const ImVec4& a, const ImVec4& b, float t, float alpha = 1.0f)
+    { return ImVec4(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, alpha); };
+
+    auto Luminance = [](const ImVec4& c) { return c.x * 0.2126f + c.y * 0.7152f + c.z * 0.0722f; };
+
+    auto Saturate = [&](const ImVec4& color, float amount)
+    {
+        float lum = Luminance(color);
+
+        return ImVec4(Clamp01(lum + (color.x - lum) * amount), Clamp01(lum + (color.y - lum) * amount),
+                      Clamp01(lum + (color.z - lum) * amount), color.w);
+    };
+
+    ImVec4 accent = ImVec4(conf->MenuAccentColorR.value_or_default(), conf->MenuAccentColorG.value_or_default(),
+                           conf->MenuAccentColorB.value_or_default(), 1.0f);
+
+    ImVec4 bgAccent = ImVec4(conf->MenuBGColorR.value_or_default(), conf->MenuBGColorG.value_or_default(),
+                             conf->MenuBGColorB.value_or_default(), 1.0f);
+
+    float luminance = Luminance(accent);
+
+    const ImVec4 bgDark = lightTheme ? ImVec4(0.80f, 0.82f, 0.86f, 1.00f) : ImVec4(0.09f, 0.09f, 0.10f, 1.00f);
+    const ImVec4 bgMid = lightTheme ? ImVec4(0.89f, 0.91f, 0.95f, 1.00f) : ImVec4(0.11f, 0.11f, 0.12f, 1.00f);
+    const ImVec4 bgLight = lightTheme ? ImVec4(0.96f, 0.97f, 0.99f, 1.00f) : ImVec4(0.14f, 0.14f, 0.15f, 1.00f);
+
+    const ImVec4 textPrimary = lightTheme ? ImVec4(0.05f, 0.06f, 0.08f, 1.00f) : ImVec4(0.90f, 0.93f, 0.95f, 1.00f);
+    const ImVec4 textDim = lightTheme ? ImVec4(0.22f, 0.25f, 0.31f, 1.00f) : ImVec4(0.54f, 0.58f, 0.62f, 1.00f);
+
+    const ImVec4 borderCol = lightTheme ? ImVec4(0.35f, 0.40f, 0.50f, 1.00f) : ImVec4(0.24f, 0.24f, 0.26f, 1.00f);
+    const ImVec4 dimBg = lightTheme ? ImVec4(0.30f, 0.33f, 0.38f, 0.20f) : ImVec4(0.09f, 0.10f, 0.13f, 0.20f);
+    const ImVec4 modalDimBg = lightTheme ? ImVec4(0.22f, 0.24f, 0.28f, 0.55f) : ImVec4(0.04f, 0.04f, 0.07f, 0.55f);
+
+    // MenuBGColor: only background/surface tint.
+    auto BgTint = [&](const ImVec4& base, float strength = 1.0f, float alpha = 1.0f)
+    {
+        float t = lightTheme ? (0.180f * strength) : (0.120f * strength);
+        return Mix(base, bgAccent, t, alpha);
+    };
+
+    // MenuAccentColor: all visible interactive accent colors.
+    auto AccentSoft = [&](float alpha = 1.0f)
+    { return lightTheme ? Mix(bgLight, accent, 0.14f, alpha) : Mix(bgDark, accent, 0.32f, alpha); };
+
+    auto AccentMed = [&](float alpha = 1.0f)
+    { return lightTheme ? Mix(bgLight, accent, 0.42f, alpha) : Mix(bgDark, accent, 0.55f, alpha); };
+
+    auto AccentStrong = [&](float alpha = 1.0f) { return ImVec4(accent.x, accent.y, accent.z, alpha); };
+
+    const ImVec4 bgTitle = AccentSoft();
+
+    auto SurfaceHover = [&](float alpha = 1.0f)
+    { return lightTheme ? Mix(bgLight, accent, 0.12f, alpha) : Mix(bgLight, accent, 0.18f, alpha); };
+
+    auto SurfaceActive = [&](float alpha = 1.0f)
+    { return lightTheme ? Mix(bgLight, accent, 0.20f, alpha) : Mix(bgLight, accent, 0.28f, alpha); };
+
+    auto TitleActive = [&](float alpha = 1.0f)
+    { return lightTheme ? Mix(bgTitle, accent, 0.18f, alpha) : Mix(bgTitle, accent, 0.16f, alpha); };
+
+    auto PlotAccent = [&](float alpha = 1.0f)
+    {
+        if (lightTheme)
+        {
+            // Darken slightly for contrast on light bg — no channel floors
+            return Mix(accent, ImVec4(0.00f, 0.00f, 0.00f, 1.00f), 0.20f, alpha);
+        }
+
+        // Brighten slightly for visibility on dark bg — no channel floors
+        return Mix(accent, ImVec4(1.00f, 1.00f, 1.00f, 1.00f), 0.35f, alpha);
+    };
+
+    auto PlotAccentHovered = [&](float alpha = 1.0f)
+    {
+        if (lightTheme)
+        {
+            return Mix(PlotAccent(alpha), ImVec4(0.00f, 0.00f, 0.00f, 1.00f), 0.15f, alpha);
+        }
+
+        return Mix(PlotAccent(alpha), ImVec4(1.00f, 1.00f, 1.00f, 1.00f), 0.25f, alpha);
+    };
+
+    auto AccentReadable = [&](float alpha = 1.0f)
+    {
+        // Apply saturation boost and luminance correction only here,
+        // so AccentStrong / AccentMed / AccentSoft stay true to the user's pick.
+        ImVec4 a = Saturate(accent, lightTheme ? 1.35f : 1.25f);
+        float lum = Luminance(a);
+
+        if (lightTheme && lum > 0.72f)
+            a = Mix(a, ImVec4(0.0f, 0.0f, 0.0f, 1.0f), 0.35f, 1.0f);
+
+        if (!lightTheme && lum < 0.25f)
+            a = Mix(a, ImVec4(1.0f, 1.0f, 1.0f, 1.0f), 0.30f, 1.0f);
+
+        return ImVec4(a.x, a.y, a.z, alpha);
+    };
+
+    ImVec4* c = ImGui::GetStyle().Colors;
+
+    c[ImGuiCol_Text] = textPrimary;
+    c[ImGuiCol_TextDisabled] = textDim;
+    c[ImGuiCol_TextLink] = AccentReadable();
+
+    // MenuBGColor only.
+    c[ImGuiCol_WindowBg] = BgTint(bgDark, 1.00f);
+    c[ImGuiCol_ChildBg] = BgTint(bgMid, 1.10f);
+    c[ImGuiCol_PopupBg] =
+        lightTheme ? BgTint(bgLight, 0.90f) : BgTint(ImVec4(0.09f, 0.10f, 0.13f, 0.97f), 0.90f, 0.97f);
+    c[ImGuiCol_MenuBarBg] = BgTint(bgDark, 0.85f);
+    c[ImGuiCol_DockingEmptyBg] = BgTint(bgDark, 0.75f);
+
+    c[ImGuiCol_Border] = borderCol;
+    c[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+
+    // Neutral background, not MenuBGColor.
+    c[ImGuiCol_FrameBg] = BgTint(bgLight, 0.50f);
+    c[ImGuiCol_FrameBgHovered] = SurfaceHover();
+    c[ImGuiCol_FrameBgActive] = SurfaceActive();
+
+    c[ImGuiCol_TitleBg] = BgTint(bgTitle, 0.40f);
+    c[ImGuiCol_TitleBgActive] = TitleActive();
+    c[ImGuiCol_TitleBgCollapsed] = ImVec4(bgTitle.x, bgTitle.y, bgTitle.z, 0.75f);
+
+    c[ImGuiCol_ScrollbarBg] = BgTint(bgDark, 0.60f);
+    c[ImGuiCol_ScrollbarGrab] = AccentSoft();
+    c[ImGuiCol_ScrollbarGrabHovered] = AccentMed();
+    c[ImGuiCol_ScrollbarGrabActive] = AccentStrong();
+
+    c[ImGuiCol_CheckMark] = AccentReadable();
+    c[ImGuiCol_SliderGrab] = AccentMed();
+    c[ImGuiCol_SliderGrabActive] = AccentReadable();
+    c[ImGuiCol_InputTextCursor] = AccentReadable();
+
+    c[ImGuiCol_Button] = AccentSoft();
+    c[ImGuiCol_ButtonHovered] = AccentMed();
+    c[ImGuiCol_ButtonActive] = AccentStrong();
+
+    c[ImGuiCol_Header] = AccentSoft(0.90f);
+    c[ImGuiCol_HeaderHovered] = AccentMed(0.95f);
+    c[ImGuiCol_HeaderActive] = AccentStrong();
+
+    c[ImGuiCol_Separator] = borderCol;
+    c[ImGuiCol_SeparatorHovered] = AccentMed(0.85f);
+    c[ImGuiCol_SeparatorActive] = AccentStrong();
+
+    c[ImGuiCol_ResizeGrip] = AccentSoft(0.30f);
+    c[ImGuiCol_ResizeGripHovered] = AccentStrong(0.70f);
+    c[ImGuiCol_ResizeGripActive] = AccentStrong(0.95f);
+
+    c[ImGuiCol_Tab] = AccentSoft();
+    c[ImGuiCol_TabHovered] = AccentMed();
+    c[ImGuiCol_TabSelected] = AccentSoft();
+    c[ImGuiCol_TabSelectedOverline] = AccentStrong();
+    c[ImGuiCol_TabDimmed] = BgTint(bgDark, 0.60f);
+    c[ImGuiCol_TabDimmedSelected] = AccentSoft(0.75f);
+    c[ImGuiCol_TabDimmedSelectedOverline] = borderCol;
+
+    c[ImGuiCol_DockingPreview] = AccentStrong(0.70f);
+
+    c[ImGuiCol_PlotLines] = PlotAccent();
+    c[ImGuiCol_PlotLinesHovered] = PlotAccentHovered();
+    c[ImGuiCol_PlotHistogram] = PlotAccent(0.85f);
+    c[ImGuiCol_PlotHistogramHovered] = PlotAccentHovered();
+
+    c[ImGuiCol_TableHeaderBg] = BgTint(bgMid, 0.80f);
+    c[ImGuiCol_TableBorderStrong] = borderCol;
+    c[ImGuiCol_TableBorderLight] = lightTheme ? ImVec4(0.68f, 0.72f, 0.80f, 1.00f) : AccentSoft();
+    c[ImGuiCol_TableRowBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    c[ImGuiCol_TableRowBgAlt] = lightTheme ? ImVec4(0.00f, 0.00f, 0.00f, 0.045f) : ImVec4(1.00f, 1.00f, 1.00f, 0.03f);
+
+    c[ImGuiCol_TreeLines] = borderCol;
+    c[ImGuiCol_TextSelectedBg] = AccentMed(0.38f);
+    c[ImGuiCol_DragDropTarget] = AccentStrong(0.90f);
+    c[ImGuiCol_NavCursor] = AccentReadable();
+    c[ImGuiCol_NavWindowingHighlight] = AccentStrong(0.70f);
+    c[ImGuiCol_NavWindowingDimBg] = dimBg;
+    c[ImGuiCol_ModalWindowDimBg] = modalDimBg;
+}
+
 static double lastTime = 0.0;
 static UINT64 uwpTargetFrame = 0;
 
@@ -1537,10 +1899,20 @@ bool MenuCommon::RenderMenu()
 
             if (_isVisible)
             {
+                ApplyThemeStyle();
+
                 refreshRate = Util::GetActiveRefreshRate(_handle);
                 config->ReloadFakenvapi();
                 auto dllPath = Util::DllPath().parent_path() / "dlssg_to_fsr3_amd_is_better.dll";
                 state.NukemsFilesAvailable = gExists.Get(dllPath);
+
+                if (State::Instance().currentFeature != nullptr)
+                {
+                    if (State::Instance().currentFeature->Name() == "DLSSD")
+                        comboPreset = config->DLSSDRenderPresetForAll.value_or_default();
+                    else if (State::Instance().currentFeature->Name() == "DLSS")
+                        comboPreset = config->RenderPresetForAll.value_or_default();
+                }
 
                 if (pfn_ClipCursor_hooked)
                 {
@@ -1554,6 +1926,8 @@ bool MenuCommon::RenderMenu()
             }
             else
             {
+                ImGui::CloseCurrentPopup();
+
                 if (pfn_ClipCursor_hooked)
                     pfn_ClipCursor(&_cursorLimit);
 
@@ -1573,7 +1947,7 @@ bool MenuCommon::RenderMenu()
     bool frameTimesCalculated = false;
     const double splashTime = 7000.0;
     const double fadeTime = 1000.0;
-    const double updateNoticeTime = 60000.0;
+    const double updateNoticeTime = 7000.0;
     const double updateNoticeFade = 1000.0;
     static std::string splashMessage;
 
@@ -1658,6 +2032,8 @@ bool MenuCommon::RenderMenu()
 
             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, windowAlpha);
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12, 8));
+            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Text, toneMapColor(ImVec4(1.0f, 1.0f, 1.0f, 1.0f)));
             ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(0, 0, 0, 0));
             ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0, 0, 0, 0));
 
@@ -1692,7 +2068,7 @@ bool MenuCommon::RenderMenu()
                 splashPosition.y = io.DisplaySize.y - splashSize.y;
             }
 
-            ImGui::PopStyleColor(2);
+            ImGui::PopStyleColor(4);
             ImGui::PopStyleVar(2);
         }
     }
@@ -1717,6 +2093,8 @@ bool MenuCommon::RenderMenu()
 
             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, windowAlpha);
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12, 8));
+            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Text, toneMapColor(ImVec4(1.0f, 1.0f, 1.0f, 1.0f)));
             ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(0, 0, 0, 0));
             ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0, 0, 0, 0));
 
@@ -1754,7 +2132,7 @@ bool MenuCommon::RenderMenu()
             updateNoticeSize = ImGui::GetWindowSize();
             ImGui::End();
 
-            ImGui::PopStyleColor(2);
+            ImGui::PopStyleColor(4);
             ImGui::PopStyleVar(2);
 
             updateNoticePosition.x = 0.0f;
@@ -1829,6 +2207,8 @@ bool MenuCommon::RenderMenu()
         ImGui::SetNextWindowPos(overlayPosition, ImGuiCond_Always);
 
         // Set overlay window properties
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text, toneMapColor(ImVec4(1.0f, 1.0f, 1.0f, 1.0f)));
         ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(0, 0, 0, 0));            // Transparent border
         ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0, 0, 0, 0));           // Transparent frame background
         ImGui::SetNextWindowBgAlpha(config->FpsOverlayAlpha.value_or_default()); // Transparent background
@@ -1905,36 +2285,86 @@ bool MenuCommon::RenderMenu()
             // Prepare Line 1
             if (config->FpsOverlayType.value_or_default() == FpsOverlay_JustFPS)
             {
-                firstLine = StrFmt("%s | FPS: %6.1f %s", api.c_str(), frameRate, fgText.c_str());
+                if (fg != nullptr && fg->IsActive() && !fg->IsPaused())
+                {
+                    firstLine = StrFmt("%s | FPS: %6.1f/%5.1f %s", api.c_str(), frameRate,
+                                       frameRate / (float) (fg->GetInterpolatedFrameCount() + 1), fgText.c_str());
+                }
+                else
+                {
+                    firstLine = StrFmt("%s | FPS: %6.1f %s", api.c_str(), frameRate, fgText.c_str());
+                }
             }
             else if (config->FpsOverlayType.value_or_default() == FpsOverlay_Simple)
             {
                 if (currentFeature != nullptr && !currentFeature->IsFrozen())
                 {
-                    firstLine = StrFmt("%s | FPS: %6.1f, %7.2f ms %s | %s -> %s %u.%u.%u", api.c_str(), frameRate,
-                                       frameTime, fgText.c_str(), state.currentInputApiName.c_str(),
-                                       currentFeature->Name().c_str(), currentFeature->Version().major,
-                                       currentFeature->Version().minor, currentFeature->Version().patch);
+                    if (fg != nullptr && fg->IsActive() && !fg->IsPaused())
+                    {
+                        firstLine = StrFmt("%s | FPS: %6.1f/%5.1f, %7.2f ms %s | %s -> %s %u.%u.%u", api.c_str(),
+                                           frameRate, frameRate / (float) (fg->GetInterpolatedFrameCount() + 1),
+                                           frameTime, fgText.c_str(), state.currentInputApiName.c_str(),
+                                           currentFeature->Name().c_str(), currentFeature->Version().major,
+                                           currentFeature->Version().minor, currentFeature->Version().patch);
+                    }
+                    else
+                    {
+                        firstLine = StrFmt("%s | FPS: %6.1f, %7.2f ms %s | %s -> %s %u.%u.%u", api.c_str(), frameRate,
+                                           frameTime, fgText.c_str(), state.currentInputApiName.c_str(),
+                                           currentFeature->Name().c_str(), currentFeature->Version().major,
+                                           currentFeature->Version().minor, currentFeature->Version().patch);
+                    }
                 }
                 else
                 {
-                    firstLine =
-                        StrFmt("%s | FPS: %6.1f, %7.2f ms %s", api.c_str(), frameRate, frameTime, fgText.c_str());
+                    if (fg != nullptr && fg->IsActive() && !fg->IsPaused())
+                    {
+                        firstLine = StrFmt("%s | FPS: %6.1f/%5.1f, %7.2f ms %s", api.c_str(), frameRate,
+                                           frameRate / (float) (fg->GetInterpolatedFrameCount() + 1), frameTime,
+                                           fgText.c_str());
+                    }
+                    else
+                    {
+                        firstLine =
+                            StrFmt("%s | FPS: %6.1f, %7.2f ms %s", api.c_str(), frameRate, frameTime, fgText.c_str());
+                    }
                 }
             }
             else
             {
                 if (currentFeature != nullptr && !currentFeature->IsFrozen())
                 {
-                    firstLine = StrFmt("%s | FPS: %6.1f, Avg: %6.1f %s | %s -> %s %u.%u.%u", api.c_str(), frameRate,
-                                       1000.0f / averageFrameTime, fgText.c_str(), state.currentInputApiName.c_str(),
-                                       currentFeature->Name().c_str(), currentFeature->Version().major,
-                                       currentFeature->Version().minor, currentFeature->Version().patch);
+                    if (fg != nullptr && fg->IsActive() && !fg->IsPaused())
+                    {
+                        firstLine =
+                            StrFmt("%s | FPS: %6.1f/%5.1f, Avg: %6.1f %s | %s -> %s %u.%u.%u", api.c_str(), frameRate,
+                                   frameRate / (float) (fg->GetInterpolatedFrameCount() + 1),
+                                   1000.0f / averageFrameTime, fgText.c_str(), state.currentInputApiName.c_str(),
+                                   currentFeature->Name().c_str(), currentFeature->Version().major,
+                                   currentFeature->Version().minor, currentFeature->Version().patch);
+                    }
+                    else
+                    {
+                        firstLine =
+                            StrFmt("%s | FPS: %6.1f, Avg: %6.1f %s | %s -> %s %u.%u.%u", api.c_str(), frameRate,
+                                   1000.0f / averageFrameTime, fgText.c_str(), state.currentInputApiName.c_str(),
+                                   currentFeature->Name().c_str(), currentFeature->Version().major,
+                                   currentFeature->Version().minor, currentFeature->Version().patch);
+                    }
                 }
                 else
                 {
-                    firstLine = StrFmt("%s | FPS: %6.1f, Avg: %6.1f %s", api.c_str(), frameRate,
-                                       1000.0f / averageFrameTime, fgText.c_str());
+                    if (fg != nullptr && fg->IsActive() && !fg->IsPaused())
+                    {
+                        firstLine = StrFmt("%s | FPS: %6.1f/%5.1f, Avg: %6.1f %s", api.c_str(), frameRate,
+                                           frameRate / (float) (fg->GetInterpolatedFrameCount() + 1),
+                                           1000.0f / averageFrameTime, fgText.c_str());
+                    }
+                    else
+                    {
+                        firstLine = StrFmt("%s | FPS: %6.1f, Avg: %6.1f %s", api.c_str(), frameRate,
+                                           1000.0f / averageFrameTime, fgText.c_str());
+                    }
                 }
             }
 
@@ -2104,9 +2534,9 @@ bool MenuCommon::RenderMenu()
                     drawTiming(TimingType::GpuRender, "GpuRender", ImVec4(0.569f, 0.117f, 0.705f, 1.0f));
                 }
             }
-
-            ImGui::PopStyleColor(3); // Restore the style
         }
+
+        ImGui::PopStyleColor(5); // Restore the style
 
         // Get size for postioning
         overlaySize = ImGui::GetWindowSize();
@@ -2186,18 +2616,8 @@ bool MenuCommon::RenderMenu()
             style = ImGuiStyle();        // IMPORTANT: ScaleAllSizes will change the original size,
                                          // so we should reset all style config
 
-            style.WindowBorderSize = 1.0f;
-            style.ChildBorderSize = 1.0f;
-            style.PopupBorderSize = 1.0f;
-            style.FrameBorderSize = 1.0f;
-            style.TabBorderSize = 1.0f;
-            style.WindowRounding = 0.0f;
-            style.ChildRounding = 0.0f;
-            style.PopupRounding = 0.0f;
-            style.FrameRounding = 0.0f;
-            style.ScrollbarRounding = 0.0f;
-            style.GrabRounding = 0.0f;
-            style.TabRounding = 0.0f;
+            ApplyThemeStyle();
+
             style.ScaleAllSizes(menuResScale);
             style.MouseCursorScale = 1.0f;
             CopyMemory(style.Colors, styleold.Colors, sizeof(style.Colors)); // Restore colors
@@ -2266,9 +2686,9 @@ bool MenuCommon::RenderMenu()
                 ImGui::Spacing();
 
                 if (config->UseHQFont.value_or_default())
-                    ImGui::PushFontSize(std::round(fontSize * menuResScale * 3.0f));
+                    ImGui::PushFontSize(std::round(fontSize * menuResScale * 2.5f));
                 else
-                    ImGui::SetWindowFontScale(menuResScale * 3.0f);
+                    ImGui::SetWindowFontScale(menuResScale * 2.5f);
 
                 if (state.nvngxExists || state.nvngxReplacement.has_value() ||
                     (state.libxessExists || XeSSProxy::Module() != nullptr))
@@ -2290,8 +2710,8 @@ bool MenuCommon::RenderMenu()
 
                     std::string joinedUpscalers(joined.begin(), joined.end());
 
-                    ImGui::Text("Please select %s as upscaler\nfrom game options and load into the game\nto enable "
-                                "upscaler settings.\n",
+                    ImGui::Text("Please select %s as upscaler from game\noptions and load a save game "
+                                "to enable Opti settings.\nUpscalers don't always work in menus.",
                                 joinedUpscalers.c_str());
 
                     if (config->UseHQFont.value_or_default())
@@ -3138,8 +3558,8 @@ bool MenuCommon::RenderMenu()
                             ImGui::TextColored(ImVec4(1.f, 0.8f, 0.f, 1.f), "Presets are overridden externally");
                             ShowHelpMarker("This usually happens due to using tools\n"
                                            "such as Nvidia App or Nvidia Inspector");
-                            ImGui::Text("Selecting setting below will disable that external override\n"
-                                        "but you need to Save INI and restart the game");
+                            // ImGui::Text("Selecting setting below will disable that external override\n"
+                            //             "but you need to Save INI and restart the game");
 
                             ImGui::Spacing();
                         }
@@ -3154,10 +3574,20 @@ bool MenuCommon::RenderMenu()
                                            "Override to potentially improve image quality\n"
                                            "Press apply after enable/disable");
 
-                            ImGui::BeginDisabled(!config->DLSSDRenderPresetOverride.value_or_default() || overridden);
+                            /*
+                            auto currentPresetIndex = GetPresetIndex(currentFeature, true);
+
+                            if (currentPresetIndex == 0)
+                                ImGui::Text("Current Preset: Default");
+                            else
+                                ImGui::Text("Current Preset: %c", 64 + currentPresetIndex);
+                            */
+
+                            ImGui::BeginDisabled(
+                                !config->DLSSDRenderPresetOverride.value_or_default() /*|| overridden*/);
                             ImGui::PushItemWidth(135.0f * menuResScale);
 
-                            AddDLSSDRenderPreset("Override Preset", &config->DLSSDRenderPresetForAll);
+                            AddDLSSDRenderPreset("Override Preset", &comboPreset);
 
                             ImGui::PopItemWidth();
                             ImGui::EndDisabled();
@@ -3172,11 +3602,20 @@ bool MenuCommon::RenderMenu()
                                            "Override to potentially improve image quality\n"
                                            "Press apply after enable/disable");
 
-                            ImGui::BeginDisabled(!config->RenderPresetOverride.value_or_default() || overridden);
+                            /*
+                            auto currentPresetIndex = GetPresetIndex(currentFeature, false);
+
+                            if (currentPresetIndex == 0)
+                                ImGui::Text("Current Preset: Default");
+                            else
+                                ImGui::Text("Current Preset: %c", 64 + currentPresetIndex);
+                            */
+
+                            ImGui::BeginDisabled(!config->RenderPresetOverride.value_or_default() /*|| overridden*/);
 
                             ImGui::PushItemWidth(135.0f * menuResScale);
 
-                            AddDLSSRenderPreset("Override Preset", &config->RenderPresetForAll);
+                            AddDLSSRenderPreset("Override Preset", &comboPreset);
 
                             ImGui::PopItemWidth();
                             ImGui::EndDisabled();
@@ -3186,10 +3625,19 @@ bool MenuCommon::RenderMenu()
 
                         if (ImGui::Button("Apply Changes"))
                         {
+                            LOG_DEBUG("Applying DLSS/DLSSD preset override changes, preset index: {}",
+                                      comboPreset.value_or_default());
+
                             if (usesDlssd)
+                            {
+                                config->DLSSDRenderPresetForAll = comboPreset.value_or_default();
                                 state.newBackend = "dlssd";
+                            }
                             else
+                            {
+                                config->RenderPresetForAll = comboPreset.value_or_default();
                                 state.newBackend = currentBackend;
+                            }
 
                             MARK_ALL_BACKENDS_CHANGED();
                         }
@@ -3964,6 +4412,7 @@ bool MenuCommon::RenderMenu()
                                     if (ImGui::Selectable(intModes[i], (currentSet == i)))
                                     {
                                         LOG_DEBUG("XeFG Interpolation Count set to: {}", i + 1);
+                                        state.FGchanged = true;
                                         config->FGXeFGInterpolationCount = i + 1;
                                     }
                                 }
@@ -4811,10 +5260,14 @@ bool MenuCommon::RenderMenu()
                         ImGui::BeginDisabled(!config->RcasEnabled.value_or(rcasEnabled));
 
                         bool useDA = Config::Instance()->UseDepthAwareSharpen.value_or_default();
-                        bool useRcas = !useDA;
+                        bool useLCDA = Config::Instance()->UseDASDepthAwareSharpen.value_or_default();
+                        bool useRcas = !useDA && !useLCDA;
 
-                        if (ImGui::Checkbox("Use RCAS", &useRcas))
+                        if (ImGui::Checkbox("RCAS", &useRcas) && useRcas)
+                        {
                             Config::Instance()->UseDepthAwareSharpen = !useRcas;
+                            Config::Instance()->UseDASDepthAwareSharpen = !useRcas;
+                        }
 
                         ShowHelpMarker("Use AMD's RCAS\n"
                                        "Modified to add Contrast parameter\n"
@@ -4822,10 +5275,28 @@ bool MenuCommon::RenderMenu()
 
                         ImGui::SameLine(0.0f, 6.0f);
 
-                        if (ImGui::Checkbox("Use Depth Aware", &useDA))
+                        if (ImGui::Checkbox("Depth Aware (RCAS)", &useDA) && useDA)
+                        {
                             Config::Instance()->UseDepthAwareSharpen = useDA;
+                            Config::Instance()->UseDASDepthAwareSharpen = !useDA;
+                        }
 
-                        ShowHelpMarker("Use Depth Aware Sharpening\n"
+                        ShowHelpMarker("Use Depth Aware Sharpening (RCAS)\n"
+                                       "Smarter sharpening with less artifacts,\n"
+                                       "but also heavier\n\n"
+                                       "The farther away is the object, the more\n"
+                                       "sharpening is applied");
+
+                        ImGui::SameLine(0.0f, 6.0f);
+
+                        if (ImGui::Checkbox("Depth Aware (DAS)", &useLCDA) && useLCDA)
+                        {
+                            Config::Instance()->UseDASDepthAwareSharpen = useLCDA;
+                            Config::Instance()->UseDepthAwareSharpen = !useLCDA;
+                        }
+
+                        ShowHelpMarker("Use Depth Aware Sharpening (DAS)\n"
+                                       "Depth-aware directional adaptive luma sharpener\n"
                                        "Smarter sharpening with less artifacts,\n"
                                        "but also heavier\n\n"
                                        "The farther away is the object, the more\n"
@@ -4838,7 +5309,7 @@ bool MenuCommon::RenderMenu()
                             config->MotionSharpnessEnabled = overrideMotionSharpness;
                         ShowHelpMarker("Enables sharpness adjustments according to the motion");
 
-                        if (Config::Instance()->UseDepthAwareSharpen.value_or_default())
+                        if (useDA || useLCDA)
                         {
                             bool depthLinear = config->DADepthIsLinear.value_or_default();
                             if (ImGui::Checkbox("Linear Depth", &depthLinear))
@@ -4908,8 +5379,8 @@ bool MenuCommon::RenderMenu()
                                 }
                                 else
                                 {
-                                    float depthBias = config->DADepthBias.value_or(0.01f);
-                                    if (ImGui::SliderFloat("Depth Bias", &depthBias, 0.005f, 0.03f, "%.3f"))
+                                    float depthBias = config->DADepthBias.value_or(0.001f);
+                                    if (ImGui::SliderFloat("Depth Bias", &depthBias, 0.0001f, 0.003f, "%.4f"))
                                         config->DADepthBias = depthBias;
 
                                     ShowHelpMarker(
@@ -4919,8 +5390,8 @@ bool MenuCommon::RenderMenu()
                                         "Lower values preserve fine detail but can cause unstable or noisy edge "
                                         "detection.");
 
-                                    float depthScale = config->DADepthScale.value_or(4.0f);
-                                    if (ImGui::SliderFloat("Depth Scale", &depthScale, 2.0f, 10.0f, "%.1f"))
+                                    float depthScale = config->DADepthScale.value_or(35.0f);
+                                    if (ImGui::SliderFloat("Depth Scale", &depthScale, 25.0f, 400.0f, "%.1f"))
                                         config->DADepthScale = depthScale;
 
                                     ShowHelpMarker(
@@ -4966,7 +5437,7 @@ bool MenuCommon::RenderMenu()
 
                             ImGui::BeginDisabled(!config->MotionSharpnessEnabled.value_or_default());
 
-                            if (!Config::Instance()->UseDepthAwareSharpen.value_or_default())
+                            if (!useDA & !useLCDA)
                             {
                                 if (bool overrideMSDebug = config->MotionSharpnessDebug.value_or_default();
                                     ImGui::Checkbox("MAS Debug", &overrideMSDebug))
@@ -5497,6 +5968,399 @@ bool MenuCommon::RenderMenu()
                     }
                 }
 
+                // THEME -----------------------------
+                ImGui::Spacing();
+                if (auto ch = ScopedCollapsingHeader("Menu Theme and Colour"); ch.IsHeaderOpen())
+                {
+                    ScopedIndent indent {};
+                    ImGui::Spacing();
+
+                    bool lightTheme = config->LightTheme.value_or_default();
+
+                    const ImVec4 bgDark =
+                        lightTheme ? ImVec4(0.80f, 0.82f, 0.86f, 1.00f) : ImVec4(0.09f, 0.09f, 0.10f, 1.00f);
+                    const ImVec4 bgMid =
+                        lightTheme ? ImVec4(0.89f, 0.91f, 0.95f, 1.00f) : ImVec4(0.11f, 0.11f, 0.12f, 1.00f);
+                    const ImVec4 bgLight =
+                        lightTheme ? ImVec4(0.96f, 0.97f, 0.99f, 1.00f) : ImVec4(0.14f, 0.14f, 0.15f, 1.00f);
+
+                    auto Mix = [](const ImVec4& a, const ImVec4& b, float t, float alpha = 1.0f)
+                    { return ImVec4(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, alpha); };
+
+                    auto AccentSoft = [&](ImVec4 accent, float alpha = 1.0f)
+                    { return lightTheme ? Mix(bgLight, accent, 0.24f, alpha) : Mix(bgDark, accent, 0.32f, alpha); };
+
+                    auto AccentMed = [&](ImVec4 accent, float alpha = 1.0f)
+                    { return lightTheme ? Mix(bgLight, accent, 0.42f, alpha) : Mix(bgDark, accent, 0.55f, alpha); };
+
+                    auto AccentStrong = [&](ImVec4 accent, float alpha = 1.0f)
+                    { return ImVec4(accent.x, accent.y, accent.z, alpha); };
+
+                    if (ImGui::Checkbox("Light Theme", &lightTheme))
+                    {
+                        config->LightTheme = lightTheme;
+                        ApplyThemeStyle();
+                    }
+
+                    ImGui::SeparatorText("Accent Colour");
+
+                    ImGui::Text("Presets:");
+                    ImGui::SameLine(0.0f, 6.0f);
+
+                    ImVec4 colorBlue = { 0.00f, 0.40f, 0.77f, 1.0f };
+                    ImVec4 colorTeal = { 0.00f, 1.00f, 0.91f, 1.0f };
+                    ImVec4 colorGray = { 0.54f, 0.54f, 0.54f, 1.0f };
+                    ImVec4 colorYellow = { 1.00f, 0.89f, 0.00f, 1.0f };
+                    ImVec4 colorGreen = { 0.25f, 1.00f, 0.00f, 1.0f };
+                    ImVec4 colorRed = { 1.00f, 0.00f, 0.00f, 1.0f };
+                    ImVec4 colorOrange = { 1.00f, 0.52f, 0.00f, 1.0f };
+
+                    ImVec4 color = {};
+
+                    color = colorBlue;
+                    ImGui::PushStyleColor(ImGuiCol_Button, AccentSoft(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
+
+                    if (ImGui::Button("Blue"))
+                    {
+                        ImGui::PopStyleColor(3);
+
+                        config->MenuAccentColorR = color.x;
+                        config->MenuAccentColorG = color.y;
+                        config->MenuAccentColorB = color.z;
+                        ApplyThemeStyle();
+                    }
+                    else
+                    {
+                        ImGui::PopStyleColor(3);
+                    }
+
+                    ImGui::SameLine(0.0f, 6.0f);
+
+                    color = colorTeal;
+                    ImGui::PushStyleColor(ImGuiCol_Button, AccentSoft(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
+
+                    if (ImGui::Button("Teal"))
+                    {
+                        ImGui::PopStyleColor(3);
+
+                        config->MenuAccentColorR = color.x;
+                        config->MenuAccentColorG = color.y;
+                        config->MenuAccentColorB = color.z;
+                        ApplyThemeStyle();
+                    }
+                    else
+                    {
+                        ImGui::PopStyleColor(3);
+                    }
+
+                    ImGui::SameLine(0.0f, 6.0f);
+
+                    color = colorGray;
+                    ImGui::PushStyleColor(ImGuiCol_Button, AccentSoft(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
+
+                    if (ImGui::Button("Gray"))
+                    {
+                        ImGui::PopStyleColor(3);
+
+                        config->MenuAccentColorR = color.x;
+                        config->MenuAccentColorG = color.y;
+                        config->MenuAccentColorB = color.z;
+                        ApplyThemeStyle();
+                    }
+                    else
+                    {
+                        ImGui::PopStyleColor(3);
+                    }
+
+                    ImGui::SameLine(0.0f, 6.0f);
+
+                    color = colorYellow;
+                    ImGui::PushStyleColor(ImGuiCol_Button, AccentSoft(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
+
+                    if (ImGui::Button("Yellow"))
+                    {
+                        ImGui::PopStyleColor(3);
+
+                        config->MenuAccentColorR = color.x;
+                        config->MenuAccentColorG = color.y;
+                        config->MenuAccentColorB = color.z;
+                        ApplyThemeStyle();
+                    }
+                    else
+                    {
+                        ImGui::PopStyleColor(3);
+                    }
+
+                    ImGui::SameLine(0.0f, 6.0f);
+
+                    color = colorGreen;
+                    ImGui::PushStyleColor(ImGuiCol_Button, AccentSoft(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
+
+                    if (ImGui::Button("Green"))
+                    {
+                        ImGui::PopStyleColor(3);
+
+                        config->MenuAccentColorR = color.x;
+                        config->MenuAccentColorG = color.y;
+                        config->MenuAccentColorB = color.z;
+                        ApplyThemeStyle();
+                    }
+                    else
+                    {
+                        ImGui::PopStyleColor(3);
+                    }
+
+                    ImGui::SameLine(0.0f, 6.0f);
+
+                    color = colorRed;
+                    ImGui::PushStyleColor(ImGuiCol_Button, AccentSoft(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
+
+                    if (ImGui::Button("Red"))
+                    {
+                        ImGui::PopStyleColor(3);
+
+                        config->MenuAccentColorR = color.x;
+                        config->MenuAccentColorG = color.y;
+                        config->MenuAccentColorB = color.z;
+                        ApplyThemeStyle();
+                    }
+                    else
+                    {
+                        ImGui::PopStyleColor(3);
+                    }
+
+                    ImGui::SameLine(0.0f, 6.0f);
+
+                    color = colorOrange;
+                    ImGui::PushStyleColor(ImGuiCol_Button, AccentSoft(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
+
+                    if (ImGui::Button("Orange"))
+                    {
+                        ImGui::PopStyleColor(3);
+
+                        config->MenuAccentColorR = color.x;
+                        config->MenuAccentColorG = color.y;
+                        config->MenuAccentColorB = color.z;
+                        ApplyThemeStyle();
+                    }
+                    else
+                    {
+                        ImGui::PopStyleColor(3);
+                    }
+
+                    float accentColor[3] = { config->MenuAccentColorR.value_or_default(),
+                                             config->MenuAccentColorG.value_or_default(),
+                                             config->MenuAccentColorB.value_or_default() };
+
+                    if (ImGui::ColorEdit3("Custom Accent Colour", accentColor))
+                    {
+                        config->MenuAccentColorR = accentColor[0];
+                        config->MenuAccentColorG = accentColor[1];
+                        config->MenuAccentColorB = accentColor[2];
+                        ApplyThemeStyle();
+                    }
+
+                    ImGui::Spacing();
+
+                    if (ImGui::Button("Reset Accent Colour"))
+                    {
+                        config->MenuAccentColorR.reset();
+                        config->MenuAccentColorG.reset();
+                        config->MenuAccentColorB.reset();
+                        ApplyThemeStyle();
+                    }
+
+                    ImGui::Spacing();
+
+                    ImGui::SeparatorText("Background Colour");
+
+                    ImGui::Text("Presets:");
+                    ImGui::SameLine(0.0f, 6.0f);
+
+                    color = colorBlue;
+                    ImGui::PushStyleColor(ImGuiCol_Button, AccentSoft(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
+
+                    if (ImGui::Button("Blue##2"))
+                    {
+                        ImGui::PopStyleColor(3);
+
+                        config->MenuBGColorR = color.x;
+                        config->MenuBGColorG = color.y;
+                        config->MenuBGColorB = color.z;
+                        ApplyThemeStyle();
+                    }
+                    else
+                    {
+                        ImGui::PopStyleColor(3);
+                    }
+
+                    ImGui::SameLine(0.0f, 6.0f);
+
+                    color = colorTeal;
+                    ImGui::PushStyleColor(ImGuiCol_Button, AccentSoft(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
+
+                    if (ImGui::Button("Teal##2"))
+                    {
+                        ImGui::PopStyleColor(3);
+
+                        config->MenuBGColorR = color.x;
+                        config->MenuBGColorG = color.y;
+                        config->MenuBGColorB = color.z;
+                        ApplyThemeStyle();
+                    }
+                    else
+                    {
+                        ImGui::PopStyleColor(3);
+                    }
+
+                    ImGui::SameLine(0.0f, 6.0f);
+
+                    color = colorGray;
+                    ImGui::PushStyleColor(ImGuiCol_Button, AccentSoft(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
+
+                    if (ImGui::Button("Gray##2"))
+                    {
+                        ImGui::PopStyleColor(3);
+
+                        config->MenuBGColorR = color.x;
+                        config->MenuBGColorG = color.y;
+                        config->MenuBGColorB = color.z;
+                        ApplyThemeStyle();
+                    }
+                    else
+                    {
+                        ImGui::PopStyleColor(3);
+                    }
+
+                    ImGui::SameLine(0.0f, 6.0f);
+
+                    color = colorYellow;
+                    ImGui::PushStyleColor(ImGuiCol_Button, AccentSoft(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
+
+                    if (ImGui::Button("Yellow##2"))
+                    {
+                        ImGui::PopStyleColor(3);
+
+                        config->MenuBGColorR = color.x;
+                        config->MenuBGColorG = color.y;
+                        config->MenuBGColorB = color.z;
+                        ApplyThemeStyle();
+                    }
+                    else
+                    {
+                        ImGui::PopStyleColor(3);
+                    }
+
+                    ImGui::SameLine(0.0f, 6.0f);
+
+                    color = colorGreen;
+                    ImGui::PushStyleColor(ImGuiCol_Button, AccentSoft(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
+
+                    if (ImGui::Button("Green##2"))
+                    {
+                        ImGui::PopStyleColor(3);
+
+                        config->MenuBGColorR = color.x;
+                        config->MenuBGColorG = color.y;
+                        config->MenuBGColorB = color.z;
+                        ApplyThemeStyle();
+                    }
+                    else
+                    {
+                        ImGui::PopStyleColor(3);
+                    }
+
+                    ImGui::SameLine(0.0f, 6.0f);
+
+                    color = colorRed;
+                    ImGui::PushStyleColor(ImGuiCol_Button, AccentSoft(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
+
+                    if (ImGui::Button("Red##2"))
+                    {
+                        ImGui::PopStyleColor(3);
+
+                        config->MenuBGColorR = color.x;
+                        config->MenuBGColorG = color.y;
+                        config->MenuBGColorB = color.z;
+                        ApplyThemeStyle();
+                    }
+                    else
+                    {
+                        ImGui::PopStyleColor(3);
+                    }
+
+                    ImGui::SameLine(0.0f, 6.0f);
+
+                    color = colorOrange;
+                    ImGui::PushStyleColor(ImGuiCol_Button, AccentSoft(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, AccentMed(color));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentStrong(color));
+
+                    if (ImGui::Button("Orange##2"))
+                    {
+                        ImGui::PopStyleColor(3);
+
+                        config->MenuBGColorR = color.x;
+                        config->MenuBGColorG = color.y;
+                        config->MenuBGColorB = color.z;
+                        ApplyThemeStyle();
+                    }
+                    else
+                    {
+                        ImGui::PopStyleColor(3);
+                    }
+
+                    float bgColor[3] = { config->MenuBGColorR.value_or_default(),
+                                         config->MenuBGColorG.value_or_default(),
+                                         config->MenuBGColorB.value_or_default() };
+
+                    if (ImGui::ColorEdit3("Custom BG Colour", bgColor))
+                    {
+                        config->MenuBGColorR = bgColor[0];
+                        config->MenuBGColorG = bgColor[1];
+                        config->MenuBGColorB = bgColor[2];
+                        ApplyThemeStyle();
+                    }
+
+                    ImGui::Spacing();
+
+                    if (ImGui::Button("Reset BG Colour"))
+                    {
+                        config->MenuBGColorR.reset();
+                        config->MenuBGColorG.reset();
+                        config->MenuBGColorB.reset();
+                        ApplyThemeStyle();
+                    }
+
+                    ImGui::Spacing();
+                }
+
                 // FPS OVERLAY -----------------------------
                 ImGui::Spacing();
                 if (auto ch = ScopedCollapsingHeader("FPS Overlay"); ch.IsHeaderOpen())
@@ -6024,7 +6888,9 @@ bool MenuCommon::RenderMenu()
                 ImGui::SameLine();
 
                 auto textSize = ImGui::CalcTextSize("Open Wiki (?)");
-                textSize.x += ImGui::GetStyle().FramePadding.x * 3.0f;
+                auto& style = ImGui::GetStyle();
+                textSize.x += style.FramePadding.x * 2.0f;
+                textSize.x += style.ItemSpacing.x;
 
                 float avail = ImGui::GetContentRegionAvail().x;
                 ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - textSize.x);
@@ -6052,7 +6918,9 @@ bool MenuCommon::RenderMenu()
                     ImGui::Spacing();
                 }
 
-                if (winPos.x == 60.0 && winSize.x > 100)
+                if (lastPosition.x < -900.0f ||
+                    (lastPosition.x >= winPos.x - 1.0f && lastPosition.y >= winPos.y - 1.0f &&
+                     lastPosition.x <= winPos.x + 1.0f && lastPosition.y <= winPos.y + 1.0f))
                 {
                     float posX;
                     float posY;
@@ -6068,6 +6936,8 @@ bool MenuCommon::RenderMenu()
                     }
 
                     ImGui::SetWindowPos(ImVec2 { posX, posY });
+                    lastPosition.x = posX;
+                    lastPosition.y = posY;
                 }
 
                 ImGui::End();
@@ -6322,6 +7192,7 @@ void MenuCommon::Init(HWND InHwnd, bool isUWP)
     _handle = InHwnd;
     _isVisible = false;
     _isUWP = isUWP;
+    lastPosition = { -1000.0f, -1000.0f };
 
     LOG_DEBUG("Handle: {0:X}", (size_t) _handle);
 
@@ -6369,6 +7240,9 @@ void MenuCommon::Init(HWND InHwnd, bool isUWP)
         // This automatically becomes the next default font
         ImFontConfig fontConfig;
 
+        if (Config::Instance()->FontSize.has_value())
+            fontSize = Config::Instance()->FontSize.value();
+
         if (Config::Instance()->TTFFontPath.has_value())
         {
             io.FontDefault =
@@ -6395,6 +7269,7 @@ void MenuCommon::Init(HWND InHwnd, bool isUWP)
     if (!pfn_SetCursorPos_hooked)
         AttachHooks();
 
+    ApplyThemeStyle();
     _isInited = true;
 }
 

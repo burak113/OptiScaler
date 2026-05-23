@@ -257,38 +257,6 @@ void LoadAsiPlugins()
     }
 }
 
-static void HookEffectModulesLate()
-{
-    // hook streamline right away if it's already loaded
-    if (HMODULE hMod = TryHookModule(slInterposerNamesW, StreamlineHooks::hookInterposer); hMod != nullptr)
-    {
-        slInterposerModule = hMod;
-    }
-
-    TryHookModule(slDlssNamesW, StreamlineHooks::hookDlss);
-    TryHookModule(slDlssgNamesW, StreamlineHooks::hookDlssg);
-    TryHookModule(slReflexNamesW, StreamlineHooks::hookReflex);
-    TryHookModule(slPclNamesW, StreamlineHooks::hookPcl);
-    TryHookModule(slCommonNamesW, StreamlineHooks::hookCommon);
-
-    // XeSS
-    //TryHookModule(xessNamesW, XeSSProxy::HookXeSS);
-    //TryHookModule(xessDx11NamesW, XeSSProxy::HookXeSSDx11);
-
-    // NVNGX
-    TryHookModule(nvngxNamesW, NVNGXProxy::InitNVNGX);
-
-    // FFX Dx12
-    TryHookModule(ffxDx12NamesW, FfxApiProxy::InitFfxDx12);
-    TryHookModule(ffxDx12UpscalerNamesW, FfxApiProxy::InitFfxDx12_SR);
-    TryHookModule(ffxDx12FGNamesW, FfxApiProxy::InitFfxDx12_FG);
-    TryHookModule(ffxDx12DenoiserNamesW, FfxApiProxy::InitFfxDx12_Denoiser);
-    TryHookModule(ffxDx12RadianceNamesW, FfxApiProxy::InitFfxDx12_Radiance);
-
-    // FFX Vulkan
-    TryHookModule(ffxVkNamesW, FfxApiProxy::InitFfxVk);
-}
-
 static void CheckWorkingMode()
 {
     if (!_passThruMode)
@@ -936,7 +904,40 @@ static void CheckWorkingMode()
                 hookAdvapi32();
             }
 
-            HookEffectModulesLate();
+            // User32
+            if (Config::Instance()->SpoofUser32.value_or_default())
+            {
+                User32Spoofing::Hook();
+            }
+
+            // hook streamline right away if it's already loaded
+            if (HMODULE hMod = TryHookModule(slInterposerNamesW, StreamlineHooks::hookInterposer); hMod != nullptr)
+            {
+                slInterposerModule = hMod;
+            }
+
+            TryHookModule(slDlssNamesW, StreamlineHooks::hookDlss);
+            TryHookModule(slDlssgNamesW, StreamlineHooks::hookDlssg);
+            TryHookModule(slReflexNamesW, StreamlineHooks::hookReflex);
+            TryHookModule(slPclNamesW, StreamlineHooks::hookPcl);
+            TryHookModule(slCommonNamesW, StreamlineHooks::hookCommon);
+
+            // XeSS
+            TryHookModule(xessNamesW, XeSSProxy::InitXeSS);
+            TryHookModule(xessDx11NamesW, XeSSProxy::InitXeSSDx11);
+
+            // NVNGX
+            TryHookModule(nvngxNamesW, NVNGXProxy::InitNVNGX);
+
+            // FFX Dx12
+            TryHookModule(ffxDx12NamesW, FfxApiProxy::InitFfxDx12);
+            TryHookModule(ffxDx12UpscalerNamesW, FfxApiProxy::InitFfxDx12_SR);
+            TryHookModule(ffxDx12FGNamesW, FfxApiProxy::InitFfxDx12_FG);
+            TryHookModule(ffxDx12DenoiserNamesW, FfxApiProxy::InitFfxDx12_Denoiser);
+            TryHookModule(ffxDx12RadianceNamesW, FfxApiProxy::InitFfxDx12_Radiance);
+
+            // FFX Vulkan
+            TryHookModule(ffxVkNamesW, FfxApiProxy::InitFfxVk);
 
             // Hook kernel32 methods
             if (!Config::Instance()->EarlyHooking.value_or_default())
@@ -1177,18 +1178,28 @@ static void CheckQuirks()
     if (quirks & GameQuirk::DisableHudfix && !Config::Instance()->FGDisableHUDFix.has_value() &&
         Config::Instance()->FGInput.value_or_default() == FGInput::Upscaler)
         Config::Instance()->FGDisableHUDFix.set_volatile_value(true);
+    else
+        quirks.reset(GameQuirk::DisableHudfix);
 
     if (quirks & GameQuirk::DisableFSR3Inputs && !Config::Instance()->EnableFsr3Inputs.has_value())
         Config::Instance()->EnableFsr3Inputs.set_volatile_value(false);
+    else
+        quirks.reset(GameQuirk::DisableFSR3Inputs);
 
     if (quirks & GameQuirk::DisableFSR2Inputs && !Config::Instance()->EnableFsr2Inputs.has_value())
         Config::Instance()->EnableFsr2Inputs.set_volatile_value(false);
+    else
+        quirks.reset(GameQuirk::DisableFSR3Inputs);
 
     if (quirks & GameQuirk::DisableFFXInputs && !Config::Instance()->EnableFfxInputs.has_value())
         Config::Instance()->EnableFfxInputs.set_volatile_value(false);
+    else
+        quirks.reset(GameQuirk::DisableFFXInputs);
 
     if (quirks & GameQuirk::DisableDxgiSpoofing && !Config::Instance()->DxgiSpoofing.has_value())
         Config::Instance()->DxgiSpoofing.set_volatile_value(false);
+    else
+        quirks.reset(GameQuirk::DisableDxgiSpoofing);
 
     if (quirks & GameQuirk::RestoreComputeSigOnNonNvidia && !State::Instance().isRunningOnNvidia &&
         !Config::Instance()->DxgiSpoofing.value_or_default() &&
@@ -1196,33 +1207,47 @@ static void CheckQuirks()
     {
         Config::Instance()->RestoreComputeSignature.set_volatile_value(true);
     }
+    else
+        quirks.reset(GameQuirk::RestoreComputeSigOnNonNvidia);
 
     if (quirks & GameQuirk::RestoreComputeSigOnNvidia && State::Instance().isRunningOnNvidia &&
         !Config::Instance()->RestoreComputeSignature.has_value())
     {
         Config::Instance()->RestoreComputeSignature.set_volatile_value(true);
     }
+    else
+        quirks.reset(GameQuirk::RestoreComputeSigOnNvidia);
 
     if (quirks & GameQuirk::DisableReactiveMasks)
         Config::Instance()->DisableReactiveMask.set_volatile_value(true);
+    else
+        quirks.reset(GameQuirk::DisableReactiveMasks);
 
     if (quirks & GameQuirk::ForceAutoExposure)
         Config::Instance()->AutoExposure.set_volatile_value(true);
+    else
+        quirks.reset(GameQuirk::ForceAutoExposure);
 
     if (quirks & GameQuirk::DisableUseFsrInputValues)
         Config::Instance()->FsrUseFsrInputValues.set_volatile_value(false);
+    else
+        quirks.reset(GameQuirk::DisableUseFsrInputValues);
 
     if (quirks & GameQuirk::EnableVulkanSpoofing && !State::Instance().isRunningOnNvidia &&
         !Config::Instance()->VulkanSpoofing.has_value())
     {
         Config::Instance()->VulkanSpoofing.set_volatile_value(true);
     }
+    else
+        quirks.reset(GameQuirk::EnableVulkanSpoofing);
 
     if (quirks & GameQuirk::EnableVulkanExtensionSpoofing && !State::Instance().isRunningOnNvidia &&
         !Config::Instance()->VulkanExtensionSpoofing.has_value())
     {
         Config::Instance()->VulkanExtensionSpoofing.set_volatile_value(true);
     }
+    else
+        quirks.reset(GameQuirk::EnableVulkanExtensionSpoofing);
 
     if (quirks & GameQuirk::DisableOptiXessPipelineCreation && !Config::Instance()->CreateHeaps.has_value() &&
         !Config::Instance()->BuildPipelines.has_value())
@@ -1230,9 +1255,13 @@ static void CheckQuirks()
         Config::Instance()->CreateHeaps.set_volatile_value(false);
         Config::Instance()->BuildPipelines.set_volatile_value(false);
     }
+    else
+        quirks.reset(GameQuirk::DisableOptiXessPipelineCreation);
 
     if (quirks & GameQuirk::DontUseNTShared && !Config::Instance()->DontUseNTShared.has_value())
         Config::Instance()->DontUseNTShared.set_volatile_value(true);
+    else
+        quirks.reset(GameQuirk::DontUseNTShared);
 
     if (quirks & GameQuirk::DontUseUnrealBarriers && !Config::Instance()->ColorResourceBarrier.has_value())
         Config::Instance()->ColorResourceBarrier.set_volatile_value(128);
@@ -1240,35 +1269,56 @@ static void CheckQuirks()
     if (quirks & GameQuirk::DontUseUnrealBarriers && !Config::Instance()->MVResourceBarrier.has_value())
         Config::Instance()->MVResourceBarrier.set_volatile_value(128);
 
+    if (Config::Instance()->ColorResourceBarrier.has_value() && Config::Instance()->MVResourceBarrier.has_value())
+        quirks.reset(GameQuirk::DontUseUnrealBarriers);
+
     if (quirks & GameQuirk::SkipFirst10Frames && !Config::Instance()->SkipFirstFrames.has_value())
         Config::Instance()->SkipFirstFrames.set_volatile_value(10);
+    else
+        quirks.reset(GameQuirk::SkipFirst10Frames);
 
     if (quirks & GameQuirk::DisableVsyncOverride && !Config::Instance()->OverrideVsync.has_value())
         Config::Instance()->OverrideVsync.set_volatile_value(false);
+    else
+        quirks.reset(GameQuirk::DisableVsyncOverride);
 
     if (quirks & GameQuirk::DontUseNtDllHooks && !Config::Instance()->UseNtdllHooks.has_value())
         Config::Instance()->UseNtdllHooks.set_volatile_value(false);
+    else
+        quirks.reset(GameQuirk::DontUseNtDllHooks);
 
     if (quirks & GameQuirk::UseFSR2PatternMatching && !Config::Instance()->Fsr2Pattern.has_value())
         Config::Instance()->Fsr2Pattern.set_volatile_value(true);
+    else
+        quirks.reset(GameQuirk::UseFSR2PatternMatching);
 
     if (quirks & GameQuirk::AlwaysCaptureFSRFGSwapchain &&
         !Config::Instance()->FGAlwaysCaptureFSRFGSwapchain.has_value())
     {
         Config::Instance()->FGAlwaysCaptureFSRFGSwapchain.set_volatile_value(true);
     }
+    else
+        quirks.reset(GameQuirk::AlwaysCaptureFSRFGSwapchain);
 
     if (quirks & GameQuirk::AllowedFrameAhead2 && !Config::Instance()->FGAllowedFrameAhead.has_value())
         Config::Instance()->FGAllowedFrameAhead.set_volatile_value(2);
+    else
+        quirks.reset(GameQuirk::AllowedFrameAhead2);
 
     if (quirks & GameQuirk::DisableXeFGChecks && !Config::Instance()->FGXeFGIgnoreInitChecks.has_value())
         Config::Instance()->FGXeFGIgnoreInitChecks.set_volatile_value(true);
+    else
+        quirks.reset(GameQuirk::DisableXeFGChecks);
 
     if (quirks & GameQuirk::UseFsr2Dx11Inputs && !Config::Instance()->UseFsr2Dx11Inputs.has_value())
         Config::Instance()->UseFsr2Dx11Inputs.set_volatile_value(true);
+    else
+        quirks.reset(GameQuirk::UseFsr2Dx11Inputs);
 
     if (quirks & GameQuirk::UseFsr2VulkanInputs && !Config::Instance()->UseFsr2VulkanInputs.has_value())
         Config::Instance()->UseFsr2VulkanInputs.set_volatile_value(true);
+    else
+        quirks.reset(GameQuirk::UseFsr2VulkanInputs);
 
     if (quirks & GameQuirk::ForceBorderlessWhenUsingXeFG && !Config::Instance()->FGXeFGForceBorderless.has_value() &&
         State::Instance().activeFgOutput == FGOutput::XeFG && State::Instance().activeFgInput != FGInput::NoFG &&
@@ -1276,6 +1326,8 @@ static void CheckQuirks()
     {
         Config::Instance()->FGXeFGForceBorderless.set_volatile_value(true);
     }
+    else
+        quirks.reset(GameQuirk::ForceBorderlessWhenUsingXeFG);
 
     if (quirks & GameQuirk::OverrideVsyncWhenUsingXeFG && !Config::Instance()->OverrideVsync.has_value() &&
         State::Instance().activeFgOutput == FGOutput::XeFG && State::Instance().activeFgInput != FGInput::NoFG &&
@@ -1283,6 +1335,8 @@ static void CheckQuirks()
     {
         Config::Instance()->OverrideVsync.set_volatile_value(true);
     }
+    else
+        quirks.reset(GameQuirk::OverrideVsyncWhenUsingXeFG);
 
     if (quirks & GameQuirk::SetDepthValidNow && !Config::Instance()->FGDepthValidNow.has_value() &&
         State::Instance().activeFgInput == FGInput::DLSSG && State::Instance().activeFgOutput != FGOutput::NoFG &&
@@ -1290,6 +1344,8 @@ static void CheckQuirks()
     {
         Config::Instance()->FGDepthValidNow.set_volatile_value(true);
     }
+    else
+        quirks.reset(GameQuirk::SetDepthValidNow);
 
     if (quirks & GameQuirk::SetVelocityValidNow && !Config::Instance()->FGVelocityValidNow.has_value() &&
         State::Instance().activeFgInput == FGInput::DLSSG && State::Instance().activeFgOutput != FGOutput::NoFG &&
@@ -1297,6 +1353,8 @@ static void CheckQuirks()
     {
         Config::Instance()->FGVelocityValidNow.set_volatile_value(true);
     }
+    else
+        quirks.reset(GameQuirk::SetVelocityValidNow);
 
     if (quirks & GameQuirk::SetHudlessValidNow && !Config::Instance()->FGHudlessValidNow.has_value() &&
         State::Instance().activeFgInput == FGInput::DLSSG && State::Instance().activeFgOutput != FGOutput::NoFG &&
@@ -1304,36 +1362,50 @@ static void CheckQuirks()
     {
         Config::Instance()->FGHudlessValidNow.set_volatile_value(true);
     }
+    else
+        quirks.reset(GameQuirk::SetHudlessValidNow);
 
     if (quirks & GameQuirk::DisableResizeSkip && !Config::Instance()->FGSkipResizeBuffers.has_value())
     {
         Config::Instance()->FGSkipResizeBuffers.set_volatile_value(false);
     }
+    else
+        quirks.reset(GameQuirk::DisableResizeSkip);
 
     if (quirks & GameQuirk::SpoofRegistry && !Config::Instance()->SpoofRegistry.has_value())
     {
         Config::Instance()->SpoofRegistry.set_volatile_value(true);
     }
+    else
+        quirks.reset(GameQuirk::SpoofRegistry);
 
     if (quirks & GameQuirk::DisableFakenvapi && !Config::Instance()->OverrideNvapiDll.has_value())
     {
         Config::Instance()->OverrideNvapiDll.set_volatile_value(false);
     }
+    else
+        quirks.reset(GameQuirk::DisableFakenvapi);
 
     if (quirks & GameQuirk::DoNotPreserveFGSwapChain && !Config::Instance()->FGPreserveSwapChain.has_value())
     {
         Config::Instance()->FGPreserveSwapChain.set_volatile_value(false);
     }
+    else
+        quirks.reset(GameQuirk::DoNotPreserveFGSwapChain);
 
     if (quirks & GameQuirk::DoNotSkipResize && !Config::Instance()->FGSkipResizeBuffers.has_value())
     {
         Config::Instance()->FGSkipResizeBuffers.set_volatile_value(false);
     }
+    else
+        quirks.reset(GameQuirk::DoNotSkipResize);
 
     if (quirks & GameQuirk::OldOverlayMenu && !Config::Instance()->OverlayMenu.has_value())
     {
         Config::Instance()->OverlayMenu.set_volatile_value(false);
     }
+    else
+        quirks.reset(GameQuirk::OldOverlayMenu);
 
     // For Luma, we assume if Luma addon in game folder it's used
     const auto dir = Util::ExePath().parent_path();
@@ -1571,6 +1643,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 {
     HMODULE handle = nullptr;
     OSVERSIONINFOW winVer { 0 };
+    auto exePath = Util::ExePath().remove_filename();
 
     switch (ul_reason_for_call)
     {
@@ -1583,11 +1656,34 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
         // Main Opti DLL path
         if (!Config::Instance()->MainDllPath.has_value())
-            Config::Instance()->MainDllPath.set_volatile_value(Util::ExePath().parent_path() / L".");
+        {
+            Config::Instance()->MainDllPath.set_volatile_value(L".");
+        }
 
-        if (!Config::Instance()->PluginPath.has_value())
+        if (std::filesystem::path mainDllPath(Config::Instance()->MainDllPath.value()); mainDllPath.is_relative())
+        {
+            Config::Instance()->MainDllPath.set_volatile_value(Util::ExePath().parent_path() / mainDllPath);
+        }
+
+        // If path is invalid or doesn't exist, use the exe folder as main
+        if (!std::filesystem::exists(Config::Instance()->MainDllPath.value()) ||
+            !std::filesystem::is_directory(Config::Instance()->MainDllPath.value()))
+        {
+            Config::Instance()->MainDllPath.set_volatile_value(Util::ExePath().parent_path());
+        }
+
+        // Clean up path
+        Config::Instance()->MainDllPath.set_volatile_value(
+            std::filesystem::absolute(Config::Instance()->MainDllPath.value()));
+
+        // If path is not set or incorrect
+        if (!Config::Instance()->PluginPath.has_value() ||
+            (!std::filesystem::exists(Config::Instance()->PluginPath.value()) ||
+             !std::filesystem::is_directory(Config::Instance()->PluginPath.value())))
+        {
             Config::Instance()->PluginPath.set_volatile_value(
                 std::filesystem::path(Config::Instance()->MainDllPath.value()) / L"plugins");
+        }
 
         CheckForExcludedProcess();
 
@@ -1620,7 +1716,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         spdlog::warn("If you paid for these files, you've been scammed!");
         spdlog::warn("DO NOT USE IN MULTIPLAYER GAMES");
         spdlog::info("");
-        spdlog::info("LogLevel: {0}", Config::Instance()->LogLevel.value_or_default());
+        spdlog::info("LogLevel: {}", Config::Instance()->LogLevel.value_or_default());
 
         spdlog::info("");
         if (Util::GetRealWindowsVersion(winVer))
@@ -1656,6 +1752,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         State::Instance().isRunningOnLinux = IsRunningOnWine();
         State::Instance().isRunningOnDXVK = State::Instance().isRunningOnLinux;
 
+        spdlog::info("");
+        spdlog::info("Check for DLSS files");
+        State::Instance().NVNGX_DLSS_Path = Util::FindFilePath(exePath, "nvngx_dlss.dll");
+        State::Instance().NVNGX_DLSSD_Path = Util::FindFilePath(exePath, "nvngx_dlssd.dll");
+        State::Instance().NVNGX_DLSSG_Path = Util::FindFilePath(exePath, "nvngx_dlssg.dll");
+
         // Check if real DLSS available
         if (Config::Instance()->DLSSEnabled.value_or_default())
         {
@@ -1665,12 +1767,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
             if (State::Instance().isRunningOnNvidia)
             {
                 spdlog::info("Running on Nvidia");
-
-                // TODO: Upscaler inputs also get paths so make this code shared
-                auto exePath = Util::ExePath().remove_filename();
-                State::Instance().NVNGX_DLSS_Path = Util::FindFilePath(exePath, "nvngx_dlss.dll");
-                State::Instance().NVNGX_DLSSD_Path = Util::FindFilePath(exePath, "nvngx_dlssd.dll");
-                State::Instance().NVNGX_DLSSG_Path = Util::FindFilePath(exePath, "nvngx_dlssg.dll");
 
                 if (!State::Instance().NVNGX_DLSS_Path.has_value() &&
                     Config::Instance()->NVNGX_DLSS_Library.has_value())
@@ -1683,8 +1779,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
                 if (!State::Instance().NVNGX_DLSS_Path.has_value() && Config::Instance()->MainDllPath.has_value())
                 {
                     std::filesystem::path dllsFolder(Config::Instance()->MainDllPath.value());
-                    State::Instance().NVNGX_DLSS_Path =
-                        Util::FindFilePath(dllsFolder.remove_filename(), "nvngx_dlss.dll");
+                    State::Instance().NVNGX_DLSS_Path = Util::FindFilePath(dllsFolder, "nvngx_dlss.dll");
                 }
 
                 if (Config::Instance()->DLSSFeaturePath.has_value())
