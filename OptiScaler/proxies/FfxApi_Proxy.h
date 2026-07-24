@@ -51,6 +51,18 @@ enum class FFXStructType
     Unknown,
 };
 
+// The denoiser DLL can be present even when its ABI is not compatible with the
+// implementation compiled into OptiScaler. Keep provider detection separate
+// from implementation readiness so a new SDK cannot receive old descriptors.
+enum class FfxDenoiserApiGeneration
+{
+    NotLoaded,
+    Unknown,
+    V1_1,
+    V1_2,
+    Unsupported,
+};
+
 struct FfxModule
 {
     HMODULE dll = nullptr;
@@ -461,7 +473,8 @@ class FfxApiProxy
         if (denoiser_dx12.Query == nullptr)
             return VersionDx12();
 
-        UpdateFeatureVersionDx12(denoiser_dx12, FFX_API_CREATE_CONTEXT_DESC_TYPE_DENOISER, "RR");
+        // RR 1.2 enumerates providers by effect ID, matching AMD's SDK sample.
+        UpdateFeatureVersionDx12(denoiser_dx12, FFX_API_EFFECT_ID_DENOISER, "RR");
         return denoiser_dx12.version;
     }
 
@@ -474,9 +487,10 @@ class FfxApiProxy
         return radiance_dx12.version;
     }
 
-    static feature_version VersionTarget_RR() 
+    // Version implemented by the typed-signal FSR-RR dispatch backend.
+    static feature_version VersionImplemented_RR()
     {
-        return 
+        return
         {
             .major = FFX_DENOISER_VERSION_MAJOR,
             .minor = FFX_DENOISER_VERSION_MINOR,
@@ -484,12 +498,41 @@ class FfxApiProxy
         };
     }
 
+    static FfxDenoiserApiGeneration DenoiserApiGenerationDx12()
+    {
+        if (!IsDenoiserReady())
+            return FfxDenoiserApiGeneration::NotLoaded;
+
+        const feature_version version = VersionDx12_RR();
+
+        if (version.major == 0)
+            return FfxDenoiserApiGeneration::Unknown;
+        if (version == feature_version { 1, 1, 0 })
+            return FfxDenoiserApiGeneration::V1_1;
+        if (version == feature_version { 1, 2, 0 })
+            return FfxDenoiserApiGeneration::V1_2;
+
+        return FfxDenoiserApiGeneration::Unsupported;
+    }
+
+    // This is the guard for every path that can instantiate or dispatch FSR-RR.
+    static bool IsDenoiserApiImplementedDx12()
+    {
+        return DenoiserApiGenerationDx12() == FfxDenoiserApiGeneration::V1_2;
+    }
+
     static ffxReturnCode_t D3D12_CreateContext(ffxContext* context, ffxCreateContextDescHeader* desc,
                                                const ffxAllocationCallbacks* memCb)
     {
         const FFXStructType type = GetType(desc->type);
-        contextToType[context] = type;
         FfxModule* pModule = nullptr;
+        const auto recordContextType = [context, type](ffxReturnCode_t result)
+        {
+            if (result == FFX_API_RETURN_OK && context && *context)
+                contextToType[*context] = type;
+
+            return result;
+        };
 
         // Module routing
         switch (type)
@@ -502,7 +545,7 @@ class FfxApiProxy
                 break;
 
             LOG_DEBUG("Creating with fg_dx12");
-            return fg_dx12.CreateContext(context, desc, memCb);
+            return recordContextType(fg_dx12.CreateContext(context, desc, memCb));
 
         case FFXStructType::Denoiser:
             pModule = &denoiser_dx12;
@@ -511,7 +554,7 @@ class FfxApiProxy
                 break;
 
             LOG_DEBUG("Creating with denoiser_dx12");
-            return denoiser_dx12.CreateContext(context, desc, memCb);
+            return recordContextType(denoiser_dx12.CreateContext(context, desc, memCb));
         case FFXStructType::RadianceCache:
             pModule = &radiance_dx12;
 
@@ -519,7 +562,7 @@ class FfxApiProxy
                 break;
 
             LOG_DEBUG("Creating with radiance_dx12");
-            return radiance_dx12.CreateContext(context, desc, memCb);
+            return recordContextType(radiance_dx12.CreateContext(context, desc, memCb));
 
         case FFXStructType::Upscaling:
         default:
@@ -530,8 +573,8 @@ class FfxApiProxy
                 break;
 
             LOG_DEBUG("Creating with upscaling_dx12");
-            auto result = upscaling_dx12.CreateContext(context, desc, memCb);
-            contextToType[*context] = type;
+            const ffxReturnCode_t result =
+                recordContextType(upscaling_dx12.CreateContext(context, desc, memCb));
             LOG_DEBUG("Created with upscaling_dx12: {:X}", (size_t) *context);
             return result;
         }
@@ -545,7 +588,7 @@ class FfxApiProxy
             ffxReturnCode_t result = main_dx12.CreateContext(context, desc, memCb);
             pModule->skipCreateCalls = false;
 
-            return result;
+            return recordContextType(result);
         }
 
         return FFX_API_RETURN_NO_PROVIDER;
@@ -1154,6 +1197,43 @@ class FfxApiProxy
 
         case 0x0005000bu:
             return std::format("QUERY_DESC_TYPE_DENOISER_GET_DEFAULT_SETTINGS ({:X})", type);
+
+        // Denoiser 1.2
+        case 0x00050021u:
+            return std::format("CONFIGURE_DESC_TYPE_DENOISER_KEYVALUE ({:X})", type);
+
+        case 0x00050041u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_1_2 ({:X})", type);
+
+        case 0x00050042u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_DEBUG_VIEW ({:X})", type);
+
+        case 0x00050043u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_AMBIENT_OCCLUSION ({:X})", type);
+
+        case 0x00050044u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE ({:X})", type);
+
+        case 0x00050045u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR ({:X})", type);
+
+        case 0x00050046u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_DOMINANT_LIGHT ({:X})", type);
+
+        case 0x00050047u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE ({:X})", type);
+
+        case 0x00050048u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR ({:X})", type);
+
+        case 0x00050049u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_SPECULAR_OCCLUSION ({:X})", type);
+
+        case 0x00050081u:
+            return std::format("QUERY_DESC_TYPE_DENOISER_GET_DEFAULT_KEYVALUE ({:X})", type);
+
+        case 0x00050082u:
+            return std::format("QUERY_DESC_TYPE_DENOISER_GPU_MEMORY_USAGE_1_2 ({:X})", type);
 
         // Radiance Cache
         case 0x00060002u:

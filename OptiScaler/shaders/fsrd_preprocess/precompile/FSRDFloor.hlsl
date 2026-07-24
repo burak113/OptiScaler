@@ -80,7 +80,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     
     const float centerDepth = InLinearDepth[px];
     const float2 centerDepthGrad = InDepthGradient[px];   
-    const float rcpDepthScale = rcp((1.0f + centerDepth) * float(StepSize));
+    const float rcpDepthScale = rcp((1.0f + abs(centerDepth)) * float(StepSize));
     
     // As the scaling increases, bilateral weighting becomes stricter. As smoothness increases,
     // blur strength should decrease. Where smoothness remains low, the weights should allow

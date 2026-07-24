@@ -168,6 +168,16 @@ half1 GetSafeFP16(float v)
     return (half) min(max(v, 0.0f), 65500.0f);
 }
 
+half3 GetSafeSignedFP16(float3 v)
+{
+    return (half3) clamp(v, -65500.0f, 65500.0f);
+}
+
+half2 GetSafeSignedFP16(float2 v)
+{
+    return (half2) clamp(v, -65500.0f, 65500.0f);
+}
+
 float Square(float x) { return x * x; }
 
 float2 Square(float2 vec) { return float2(vec.x * vec.x, vec.y * vec.y); }

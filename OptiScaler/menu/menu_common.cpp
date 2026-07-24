@@ -2912,16 +2912,16 @@ bool MenuCommon::RenderMenu()
                     {
                         const bool isDenoiserInstalled = FfxApiProxy::IsDenoiserReady();
                         const feature_version rrVer = isDenoiserInstalled ? FfxApiProxy::VersionDx12_RR() : feature_version {};
-                        const feature_version rrTarget = FfxApiProxy::VersionTarget_RR();
+                        const feature_version rrImplemented = FfxApiProxy::VersionImplemented_RR();
                         const bool isDenoiserReady = isDenoiserInstalled && rrVer.major > 0;
 
-                        if (isDenoiserReady && rrVer != rrTarget)
+                        if (isDenoiserReady && !FfxApiProxy::IsDenoiserApiImplementedDx12())
                         {
                             ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 180, 50, 255));
 
                             ImGui::Text("[Warning] FSR-RR version mismatch | Installed: %d.%d.%d | Expected: %d.%d.%d",
-                                        rrVer.major, rrVer.minor, rrVer.patch, rrTarget.major, rrTarget.minor,
-                                        rrTarget.patch);
+                                        rrVer.major, rrVer.minor, rrVer.patch, rrImplemented.major,
+                                        rrImplemented.minor, rrImplemented.patch);
 
                             ImGui::PopStyleColor();
                         }
@@ -3360,42 +3360,38 @@ bool MenuCommon::RenderMenu()
                     {
                         if (auto ch = ScopedCollapsingHeader("FSR-RR Advanced Settings"); ch.IsHeaderOpen())
                         {
-                            if (!state.ffxDenoiserModes.empty())
+                            constexpr const char* signalTypes[] = { "Direct", "Indirect" };
+
+                            if (int signalType =
+                                    std::clamp(config->FfxDenoiserDiffuseSignalType.value_or_default(), 0, 1);
+                                ImGui::Combo("Diffuse Signal", &signalType, signalTypes, IM_ARRAYSIZE(signalTypes)))
                             {
-                                if (_ffxDenoiserMode == -1)
-                                    _ffxDenoiserMode = config->FfxDenoiserMode.value_or_default();
-
-                                const char* currentEnum = state.ffxDenoiserModeNames[_ffxDenoiserMode];
-
-                                if (ImGui::BeginCombo("Denoiser Mode", currentEnum))
-                                {
-                                    for (const int mode : state.ffxDenoiserModes)
-                                    {
-                                        bool isSelected = mode == _ffxDenoiserMode;
-
-                                        if (ImGui::Selectable(state.ffxDenoiserModeNames[mode], &isSelected))
-                                            _ffxDenoiserMode = mode;
-
-                                        if (isSelected)
-                                            ImGui::SetItemDefaultFocus();
-                                    }
-
-                                    ImGui::EndCombo();
-                                }
-                                ShowHelpMarker(
-                                    "Sets the denoising mode. "
-                                    "Higher modes are generally higher quality, but more demanding.");
-
-                                ImGui::SameLine();
-
-                                if (ImGui::Button("Change Mode") &&
-                                    _ffxDenoiserMode != config->FfxDenoiserMode.value_or_default())
-                                {
-                                    config->FfxDenoiserMode = _ffxDenoiserMode;
-                                    state.newBackend = currentBackend;
-                                    MARK_ALL_BACKENDS_CHANGED();
-                                }
+                                config->FfxDenoiserDiffuseSignalType = signalType;
+                                state.newBackend = currentBackend;
+                                MARK_ALL_BACKENDS_CHANGED();
                             }
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "Classifies the converted diffuse lighting for RR 1.2.\n"
+                                    "Changing this recreates the denoiser context.\n"
+                                    "The source is combined lighting, so both choices are experimental.\n"
+                                    "Indirect Diffuse requires DLSSD.DiffuseHitDistance (or its combined\n"
+                                    "direction/distance resource), which the game may not provide.");
+
+                            if (int signalType =
+                                    std::clamp(config->FfxDenoiserSpecularSignalType.value_or_default(), 0, 1);
+                                ImGui::Combo("Specular Signal", &signalType, signalTypes, IM_ARRAYSIZE(signalTypes)))
+                            {
+                                config->FfxDenoiserSpecularSignalType = signalType;
+                                state.newBackend = currentBackend;
+                                MARK_ALL_BACKENDS_CHANGED();
+                            }
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "Classifies the converted specular lighting for RR 1.2.\n"
+                                    "Changing this recreates the denoiser context.\n"
+                                    "Use this to compare Direct and Indirect handling of mirror reflections.\n"
+                                    "Indirect Specular consumes the available specular ray hit distance; Direct ignores it.");
 
                             if (float v = config->FfxDenoiserDisocThreshold.value_or_default();
                                 ImGui::SliderFloat("Disocclusion Threshold", &v, 1e-2f, 1.0f))
@@ -3457,14 +3453,42 @@ bool MenuCommon::RenderMenu()
                                     "banding on smooth surfaces.\n"
                                     "Lower: Slightly sharper with weaker smoothing on large surfaces, may increase banding and rippling.\n");
 
+                            if (float v = std::clamp(
+                                    config->FfxDenoiserDebugDepthMax.value_or_default(), 0.001f, 1024.0f);
+                                ImGui::SliderFloat("Debug Linear Depth Max", &v, 0.001f, 1024.0f, "%.3f",
+                                                   ImGuiSliderFlags_Logarithmic))
+                                config->FfxDenoiserDebugDepthMax = v;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "RR 1.2 option controlling the maximum used to normalize AMD's linear-depth "
+                                    "debug view.\n"
+                                    "This does not change the dispatch passthrough depth bounds.");
+
                             if (ImGui::Button("Reset"))
                             {
+                                const bool signalTypesChanged =
+                                    config->FfxDenoiserDiffuseSignalType.value_or_default() != 0 ||
+                                    config->FfxDenoiserSpecularSignalType.value_or_default() != 1;
+
+                                config->FfxDenoiserDiffuseSignalType = 0;
+                                config->FfxDenoiserSpecularSignalType = 1;
                                 config->FfxDenoiserDisocThreshold = 0.1f;
                                 config->FfxDenoiserCrossBlNormStr = 0.5f;
                                 config->FfxDenoiserStabilityBias = 0.5f;
                                 config->FfxDenoiserMaxRadiance = 40000.0f;
                                 config->FfxDenoiserRadianceClip = 40.0f;
                                 config->FfxDenoiserGaussKernRelax = 0.5f;
+                                config->FfxDenoiserDebugDepthMax = 1024.0f;
+                                config->FfxDenoiserCorrelationBias = 1.0f;
+                                config->FfxDenoiserFloorIsolation = 1.0f;
+                                config->FfxDenoiserRoughnessFloor = 0.002f;
+                                config->FfxDenoiserRoughnessFloorDistance = 25.0f;
+
+                                if (signalTypesChanged)
+                                {
+                                    state.newBackend = currentBackend;
+                                    MARK_ALL_BACKENDS_CHANGED();
+                                }
                             }
 
                             ImGui::SeparatorText("Debug");
@@ -3526,7 +3550,18 @@ bool MenuCommon::RenderMenu()
 
                                     ImGui::EndCombo();
                                 }
+
+                                if (currentEnum &&
+                                    (std::string_view(currentEnum) == "DenoisedDirectDiffuseSignal" ||
+                                     std::string_view(currentEnum) == "DenoisedIndirectDiffuseSignal"))
+                                {
+                                    ShowHelpMarker(
+                                        "Select the matching Direct or Indirect option under Diffuse Signal.\n"
+                                        "A magenta view means the debug view and active diffuse signal type do not match.");
+                                }
                             }
+
+                            ImGui::SeparatorText("Floor Correction");
 
                             if (float v = config->FfxDenoiserCorrelationBias.value_or_default();
                                 ImGui::SliderFloat("Correlation Bias", &v, 0, 1))
@@ -3535,6 +3570,28 @@ bool MenuCommon::RenderMenu()
                             if (float v = config->FfxDenoiserFloorIsolation.value_or_default();
                                 ImGui::SliderFloat("Floor Isolation", &v, 0, 1))
                                 config->FfxDenoiserFloorIsolation = v;
+
+                            if (float v = std::clamp(
+                                    config->FfxDenoiserRoughnessFloor.value_or_default(), 0.0f, 0.01f);
+                                ImGui::SliderFloat("Roughness Floor", &v, 0.0f, 0.01f, "%.4f"))
+                                config->FfxDenoiserRoughnessFloor = v;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "Raises only near-zero roughness supplied to FSR Ray Regeneration.\n"
+                                    "0.0000: Disabled. 0.0020: Recommended compatibility value.\n"
+                                    "Higher values may soften sharp mirror reflections.");
+
+                            if (float v = std::clamp(
+                                    config->FfxDenoiserRoughnessFloorDistance.value_or_default(),
+                                    0.0f, 1000.0f);
+                                ImGui::DragFloat("Floor Distance Threshold", &v, 0.1f, 0.0f, 1000.0f, "%.1f",
+                                                 ImGuiSliderFlags_AlwaysClamp))
+                                config->FfxDenoiserRoughnessFloorDistance = v;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "At or below this view-space distance: the full configured floor is applied.\n"
+                                    "Beyond it: no added roughness floor.\n"
+                                    "Cyberpunk's view-space units are approximately meters.");
                         }
                     }
 

@@ -21,6 +21,7 @@ static const uint2 s_ThreadGroupSize = uint2(THREAD_GROUP_SIZE_X, THREAD_GROUP_S
 
 // Flags
 #define FLAGS_LINEAR_DEPTH      (1 << 0)
+#define FLAGS_NEGATIVE_VIEW_DEPTH (1 << 1)
 
 // 5x5 sorting filter config
 #define SORT_KERNEL_SIZE        5
@@ -182,7 +183,7 @@ half4 GetConservativeColor(const uint2 groupID, const int2 gtID)
     return half4(stableColor.rgb, instability);
 }
 
-half2 GetDepthGradient(const uint2 groupID, const int2 gtID)
+float2 GetDepthGradient(const uint2 groupID, const int2 gtID)
 {
     const int2 smID = gtID + s_SM_Depth_HaloOffset;
     float2 gradient = 0.0f;
@@ -191,27 +192,40 @@ half2 GetDepthGradient(const uint2 groupID, const int2 gtID)
     gradient.y = g_Depth[smID.x][smID.y + 1] - g_Depth[smID.x][smID.y - 1];
     gradient *= 0.5f;
         
-    return half2(gradient);
+    return gradient;
 }
 
 float3 GetViewSpacePos(const int2 px)
 {
     float inDepth = InDepth[px];
     const float2 uv = (float2(px) + 0.5) * RenderSize.zw;
+    const float depthSign = IsSet(FLAGS_NEGATIVE_VIEW_DEPTH) ? -1.0f : 1.0f;
     float3 viewSpacePos = 0.0f;
     
     [branch]
     if (IsSet(FLAGS_LINEAR_DEPTH))
     {
-        inDepth = clamp(inDepth, NearPlane, FarPlane);
+        inDepth = clamp(abs(inDepth), NearPlane, FarPlane);
+        inDepth *= depthSign;
         viewSpacePos = InvProjectPosition(float3(uv, 1.0f), InvProjMatrix);
-        viewSpacePos.xy *= abs(inDepth / viewSpacePos.z);
-        viewSpacePos.z = abs(inDepth);
+        const float safeRayZ = (viewSpacePos.z < 0.0f)
+            ? min(viewSpacePos.z, -1e-6f)
+            : max(viewSpacePos.z, 1e-6f);
+        viewSpacePos *= inDepth / safeRayZ;
+        viewSpacePos.z = inDepth;
     }
     else
     {
         viewSpacePos = InvProjectPosition(float3(uv, inDepth), InvProjMatrix);
-        viewSpacePos.z = clamp(abs(viewSpacePos.z), NearPlane, FarPlane);
+        // Projection handedness, rather than depth direction, defines the RR sign.
+        // Clamp the complete position to preserve a coherent view ray at the
+        // near/far boundaries instead of replacing Z alone.
+        const float signedDepth = depthSign * clamp(abs(viewSpacePos.z), NearPlane, FarPlane);
+        const float safeViewZ = (viewSpacePos.z < 0.0f)
+            ? min(viewSpacePos.z, -1e-6f)
+            : max(viewSpacePos.z, 1e-6f);
+        viewSpacePos *= signedDepth / safeViewZ;
+        viewSpacePos.z = signedDepth;
     }
     
     return viewSpacePos;
@@ -270,9 +284,9 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     const int2 smID = gtID.xy + s_SM_Depth_HaloOffset;
     const half4 color = GetConservativeColor(groupID.xy, gtID.xy);
     const float depth = g_Depth[smID.x][smID.y];
-    const half2 gradient = GetDepthGradient(groupID.xy, gtID.xy);
+    const float2 gradient = GetDepthGradient(groupID.xy, gtID.xy);
 
     OutColor[px] = color;
     OutLinearDepth[px] = depth;
-    OutDepthGradient[px] = gradient;
+    OutDepthGradient[px] = GetSafeSignedFP16(gradient);
 }

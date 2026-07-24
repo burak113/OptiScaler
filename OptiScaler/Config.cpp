@@ -252,13 +252,20 @@ bool Config::Reload(std::filesystem::path iniPath)
 
         // FSR-RR
         {
-            FfxDenoiserMode.set_from_config(readInt("FSR-RR", "DenoiserMode"));
             FfxDenoiserDisocThreshold.set_from_config(readFloat("FSR-RR", "DisocclusionThreshold"));
             FfxDenoiserCrossBlNormStr.set_from_config(readFloat("FSR-RR", "CrossBilateralNormalStrength"));
             FfxDenoiserStabilityBias.set_from_config(readFloat("FSR-RR", "TemporalStabilityBias"));
             FfxDenoiserMaxRadiance.set_from_config(readFloat("FSR-RR", "MaxRadiance"));
             FfxDenoiserRadianceClip.set_from_config(readFloat("FSR-RR", "RadianceClipDeviation"));
             FfxDenoiserGaussKernRelax.set_from_config(readFloat("FSR-RR", "GaussianKernelRelaxation"));
+            FfxDenoiserDebugDepthMax.set_from_config(readFloat("FSR-RR", "DebugViewLinearDepthMax"));
+            FfxDenoiserCorrelationBias.set_from_config(readFloat("FSR-RR", "CorrelationBias"));
+            FfxDenoiserFloorIsolation.set_from_config(readFloat("FSR-RR", "FloorIsolation"));
+            FfxDenoiserRoughnessFloor.set_from_config(readFloat("FSR-RR", "RoughnessFloor"));
+            FfxDenoiserRoughnessFloorDistance.set_from_config(
+                readFloat("FSR-RR", "RoughnessFloorDistance"));
+            FfxDenoiserDiffuseSignalType.set_from_config(readInt("FSR-RR", "DiffuseSignalType"));
+            FfxDenoiserSpecularSignalType.set_from_config(readInt("FSR-RR", "SpecularSignalType"));
         }
 
         // XeSS
@@ -989,8 +996,6 @@ bool Config::SaveIni()
 
     // FSR-RR
     {
-        ini.SetValue("FSR-RR", "DenoiserMode",
-                     GetIntValue(Instance()->FfxDenoiserMode.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "DisocclusionThreshold",
                      GetFloatValue(Instance()->FfxDenoiserDisocThreshold.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "CrossBilateralNormalStrength",
@@ -1003,6 +1008,20 @@ bool Config::SaveIni()
                      GetFloatValue(Instance()->FfxDenoiserRadianceClip.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "GaussianKernelRelaxation",
                      GetFloatValue(Instance()->FfxDenoiserGaussKernRelax.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "DebugViewLinearDepthMax",
+                     GetFloatValue(Instance()->FfxDenoiserDebugDepthMax.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "CorrelationBias",
+                     GetFloatValue(Instance()->FfxDenoiserCorrelationBias.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "FloorIsolation",
+                     GetFloatValue(Instance()->FfxDenoiserFloorIsolation.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "RoughnessFloor",
+                     GetFloatValue(Instance()->FfxDenoiserRoughnessFloor.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "RoughnessFloorDistance",
+                     GetFloatValue(Instance()->FfxDenoiserRoughnessFloorDistance.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "DiffuseSignalType",
+                     GetIntValue(Instance()->FfxDenoiserDiffuseSignalType.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "SpecularSignalType",
+                     GetIntValue(Instance()->FfxDenoiserSpecularSignalType.value_for_config()).c_str());
     }
 
     // XeSS

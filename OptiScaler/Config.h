@@ -413,8 +413,9 @@ class Config
 
     // FSR-RR
     CustomOptional<int> FfxDenoiserIndex { 0 };
-    CustomOptional<int> FfxDenoiserMode { 0 };
     CustomOptional<uint64_t> FfxDenoiserDebugMode { 0 };
+    CustomOptional<int> FfxDenoiserDiffuseSignalType { 0 };  // 0: Direct, 1: Indirect
+    CustomOptional<int> FfxDenoiserSpecularSignalType { 1 }; // 0: Direct, 1: Indirect
 
     CustomOptional<float> FfxDenoiserDisocThreshold { 0.1f };
     CustomOptional<float> FfxDenoiserCrossBlNormStr { 0.5f };
@@ -422,9 +423,12 @@ class Config
     CustomOptional<float> FfxDenoiserMaxRadiance { 4e4f };
     CustomOptional<float> FfxDenoiserRadianceClip { 40.0f };
     CustomOptional<float> FfxDenoiserGaussKernRelax { 0.5f };
+    CustomOptional<float> FfxDenoiserDebugDepthMax { 1024.0f };
 
     CustomOptional<float> FfxDenoiserCorrelationBias { 1.0f };
     CustomOptional<float> FfxDenoiserFloorIsolation { 1.0f };
+    CustomOptional<float> FfxDenoiserRoughnessFloor { 0.002f };
+    CustomOptional<float> FfxDenoiserRoughnessFloorDistance { 25.0f };
 
     // FSR Common
     CustomOptional<float> FsrVerticalFov { 60.0f };

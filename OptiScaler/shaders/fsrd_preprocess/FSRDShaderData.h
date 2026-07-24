@@ -11,7 +11,8 @@ namespace FSRD
         enum class Flags : uint32_t
         {
             None = 0,
-            LinearDepth = (1 << 0)
+            LinearDepth = (1 << 0),
+            NegativeViewDepth = (1 << 1)
         };
 
         struct alignas(16) Constants
@@ -122,18 +123,10 @@ namespace FSRD
     {
         constexpr UINT kBackBufferCount = 3;
 
-        // ffxDispatchDescDenoiserInput1Signal
-        struct Mode1Signal
+        struct SignalResources
         {
-            ComPtr<ID3D12Resource> Radiance;    // RGB: Combined noisy color A: Specular Ray Length - RGBA16_FLOAT
-            ComPtr<ID3D12Resource> FusedAlbedo; // RGB: max(specularAlbedo, diffuseAlbedo) A: NoV - RGBA8_UNORM
-        };
-
-        // ffxDispatchDescDenoiserInput2Signals
-        struct Mode2Signal
-        {
-            ComPtr<ID3D12Resource> SpecRadiance; // RGB: Noisy specular lighting A: Specular Ray Length - RGBA16_FLOAT
-            ComPtr<ID3D12Resource> DiffRadiance; // RGB: Noisy diffuse lighting - RGBA16_FLOAT
+            ComPtr<ID3D12Resource> IndirectSpecular; // RGB: demodulated indirect specular, A: hit distance
+            ComPtr<ID3D12Resource> DirectDiffuse;    // RGB: demodulated direct diffuse
         };
 
         /**
@@ -151,8 +144,14 @@ namespace FSRD
             float FarPlane;  // Near < Far - IsInverted flag accounts for inversion
 
             float FloorIsolation;
+            float RoughnessFloor; // Minimum linear roughness supplied to RR; zero disables the adjustment
+            float RoughnessFloorDistance; // Maximum view-space distance at which the floor is applied
+
             uint32_t Flags;  // Dynamic configuration flags. See: ConfigFlags
+            uint32_t Padding[2];
         };
+
+        static_assert(sizeof(Constants) == 240, "FSRD conversion constant-buffer layout must match HLSL");
 
         union Input
         {
@@ -188,13 +187,9 @@ namespace FSRD
         {
             struct Data
             {
-                union
-                {
-                    Mode1Signal Mode1Inputs;
-                    Mode2Signal Mode2Inputs;
-                };
+                SignalResources Signals;
 
-                ComPtr<ID3D12Resource> Motion; // RG: Standard TSR motion vectors, B: Linear Depth Delta (CurrentLinearDepth - PrevLinearDepth) - RGBA16_FLOAT
+                ComPtr<ID3D12Resource> Motion; // RG: PreviousUV - CurrentUV, B: PreviousLinearDepth - CurrentLinearDepth - RGBA16_FLOAT
                 ComPtr<ID3D12Resource> Normals; // RG: Octahedrally encoded normals, B: Linear Roughness, A: Material Type (Optional) - RGB10A2_UNORM
                 ComPtr<ID3D12Resource> SpecAlbedo; // RGB: Specular Albedo, A: saturate(dot(Normal, ViewDir)) - RGBA8_UNORM
                 ComPtr<ID3D12Resource> DiffAlbedo; // RGB: Diffuse Albedo, A: Metalness (heuristic approximate) - RGBA8_UNORM
@@ -250,11 +245,11 @@ namespace FSRD
         {
             struct Data
             {
-                ID3D12Resource* InDenoisedSignal1;
-                ID3D12Resource* InAlbedo1;
+                ID3D12Resource* InIndirectSpecular;
+                ID3D12Resource* InSpecularAlbedo;
 
-                ID3D12Resource* InDenoisedSignal2;
-                ID3D12Resource* InAlbedo2;
+                ID3D12Resource* InDirectDiffuse;
+                ID3D12Resource* InDiffuseAlbedo;
 
                 ID3D12Resource* InSkipSignal;
                 ID3D12Resource* InRawColor;

@@ -3,11 +3,11 @@
 // Copyright (C) 2026 Advanced Micro Devices, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files(the "Software"), to deal
+// of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and /or sell
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions :
+// furnished to do so, subject to the following conditions:
 //
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
@@ -22,259 +22,232 @@
 
 #pragma once
 
-//------------------------------------------------------------------------------
-// FFX Includes
-//------------------------------------------------------------------------------
+#include <ffx_api.h>
+#include <ffx_api_types.h>
 
-#include "ffx_api.h"
-#include "ffx_api_types.h"
-
-/// A structure encapsulating a 3-dimensional set of floating point coordinates.
-struct FfxApiFloatCoords3D
-{
-    float x; ///< The x coordinate of a 3-dimensional point.
-    float y; ///< The y coordinate of a 3-dimensional point.
-    float z; ///< The z coordinate of a 3-dimensional point.
-};
-
-//------------------------------------------------------------------------------
-// External Includes
-//------------------------------------------------------------------------------
-
-// uint32_t
-// uint64_t
 #include <stdint.h>
 
-//------------------------------------------------------------------------------
-// FFX Denoiser Defines
-//------------------------------------------------------------------------------
+// SDK 1.1.4's shared API types predate these RR 1.2 additions. Keep the new
+// denoiser ABI local instead of changing the API headers used by every effect.
+typedef struct FfxApiFloatCoords3D
+{
+    float x;
+    float y;
+    float z;
+} FfxApiFloatCoords3D;
+
+typedef struct FfxApiFloat4
+{
+    float x;
+    float y;
+    float z;
+    float w;
+} FfxApiFloat4;
+
+typedef struct FfxApiMatrix4x4
+{
+    FfxApiFloat4 rows[4];
+} FfxApiMatrix4x4;
+
+typedef struct FfxApiFloatBounds
+{
+    float min;
+    float max;
+} FfxApiFloatBounds;
 
 #define FFX_DENOISER_VERSION_MAJOR 1
-#define FFX_DENOISER_VERSION_MINOR 1
+#define FFX_DENOISER_VERSION_MINOR 2
 #define FFX_DENOISER_VERSION_PATCH 0
 
 #define FFX_API_EFFECT_ID_DENOISER 0x00050000u
 #define FFX_API_EFFECT_ID_RADIANCECACHE 0x00060000u
 
 #define FFX_API_MAKE_EFFECT_SUB_ID(effectId, subversion)                                                               \
-    ((effectId & FFX_API_EFFECT_MASK) | (subversion & ~FFX_API_EFFECT_MASK))
-
-#define FFX_API_MAKE_BACKEND_SUB_ID(backendId, subversion)                                                             \
-    ((backendId & FFX_API_BACKEND_MASK) | (subversion & ~FFX_API_BACKEND_MASK))
-
-// Combiner for BACKEND-specific EFFECT sub-Ids
-#define FFX_API_MAKE_BACKEND_EFFECT_SUB_ID(backendId, effectId, subversion)                                            \
-    ((subversion & ~FFX_API_EFFECT_MASK) | (effectId & FFX_API_EFFECT_MASK) | (backendId & FFX_API_BACKEND_MASK) |     \
-     (subversion & ~(FFX_API_BACKEND_MASK | FFX_API_EFFECT_MASK)))
-
+    (((effectId) & FFX_API_EFFECT_MASK) | ((subversion) & ~FFX_API_EFFECT_MASK))
 #define FFX_DENOISER_MAKE_VERSION(major, minor, patch) (((major) << 22) | ((minor) << 12) | (patch))
 #define FFX_DENOISER_VERSION                                                                                           \
     FFX_DENOISER_MAKE_VERSION(FFX_DENOISER_VERSION_MAJOR, FFX_DENOISER_VERSION_MINOR, FFX_DENOISER_VERSION_PATCH)
 
 #define FFX_API_DISPATCH_DESC_TYPE_RADIANCECACHE FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_RADIANCECACHE, 0x04)
 
-//------------------------------------------------------------------------------
-// FFX Denoiser Declarations
-//------------------------------------------------------------------------------
-
 #ifdef __cplusplus
 extern "C"
 {
-#endif // __cplusplus
-
-//------------------------------------------------------------------------------
-// FFX Denoiser Descriptions: Create Context
-//------------------------------------------------------------------------------
+#endif
 
 #define FFX_API_CREATE_CONTEXT_DESC_TYPE_DENOISER FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x01)
 typedef struct ffxCreateContextDescDenoiser
 {
     ffxCreateContextDescHeader header;
-    uint32_t                   version;                     ///< The version of the API the application was built against. This must be set to <c>FFX_DENOISER_VERSION</c>.
-    struct FfxApiDimensions2D  maxRenderSize;               ///< The maximum size that rendering will be performed at.
-    ffxApiMessage              fpMessage;                   ///< A pointer to a function that can receive messages from the runtime. May be null.
-    uint32_t                   mode;                        ///< An entry of <c>FfxApiDenoiserMode</c> that selects the number of signals to denoise.
-    uint32_t                   flags;                       ///< Zero or a combination of values from <c>FfxApiCreateContextDenoiserFlags</c>.
+    uint32_t version;
+    struct FfxApiDimensions2D maxRenderSize;
+    uint32_t signalFlags;
+    uint32_t checkerboardSignalFlags;
+    uint32_t flags;
 } ffxCreateContextDescDenoiser;
 
-//------------------------------------------------------------------------------
-// FFX Denoiser Descriptions: Configure
-//------------------------------------------------------------------------------
-
-#define FFX_API_CONFIGURE_DESC_TYPE_DENOISER_KEYVALUE FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x08)
+#define FFX_API_CONFIGURE_DESC_TYPE_DENOISER_KEYVALUE FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x21)
 typedef struct ffxConfigureDescDenoiserKeyValue
 {
-    ffxConfigureDescHeader header;                          ///< Header descriptor, use type FFX_API_CONFIGURE_DESC_TYPE_DENOISER_KEYVALUE.
-    uint64_t               key;                             ///< Configuration key, member of the FfxApiConfigureDenoiserKey enumeration.
-    uint64_t               count;                           ///< The number of elements to configure.
-    const void*            data;                            ///< Pointer to an array containing the elements to configure.
+    ffxConfigureDescHeader header;
+    uint64_t key;
+    uint64_t count;
+    const void* data;
 } ffxConfigureDescDenoiserKeyValue;
-
-//------------------------------------------------------------------------------
-// FFX Denoiser Descriptions: Dispatch
-//------------------------------------------------------------------------------
 
 typedef struct FfxApiDenoiserSignal
 {
-    struct FfxApiResource input;                            ///< Input signal to be denoised.
-    struct FfxApiResource output;                           ///< Resulting denoised signal.
-
-    uint32_t _reserved[2];                                  ///< Reserved for future use.
+    struct FfxApiResource input;
+    struct FfxApiResource output;
+    uint32_t checkerboardOrigin;
 } FfxApiDenoiserSignal;
 
-#define FFX_API_DISPATCH_DESC_TYPE_DENOISER FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x02)
+#define FFX_API_DISPATCH_DESC_TYPE_DENOISER FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x41)
 typedef struct ffxDispatchDescDenoiser
 {
-    ffxDispatchDescHeader      header;
-    void*                      commandList;                 ///< Command list to record upscaling rendering commands into.
-                               
-    struct FfxApiResource      linearDepth;                 ///< R:   Absolute linear depth values for the current frame (<c>abs(CurrentLinearDepth)</c>).
-    struct FfxApiResource      motionVectors;               ///< RG:  2D motion vectors (<c>PreviousUV - CurrentUV</c>), B: Absolute linear depth delta (<c>abs(PreviousLinearDepth) - abs(CurrentLinearDepth)</c>).
-    struct FfxApiResource      normals;                     ///< RG:  Octahedrally encoded normals, B: Linear Roughness, A: Material Type - See docs for more info, 
-    struct FfxApiResource      specularAlbedo;              ///< RGB: Specular albedo - sqrt encoding assumed unless <c>FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO</c> is provided. <c>sqrt(SpecularAlbedo)</c>
-    struct FfxApiResource      diffuseAlbedo;               ///< RGB: Diffuse albedo (e.g., <c>BaseColor * (1 - Metalness)</c>) - sqrt encoding assumed unless <c>FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO</c> is provided. <c>sqrt(DiffuseAlbedo)</c>
-                                                            
-    struct FfxApiFloatCoords3D motionVectorScale;           ///< RG:  The scale factor for transforming the 2D motion vectors into UV space. For 2D motion vectors computed as <c>PreviousUV - CurrentUV</c>, use <c>{ .x = +1.0f, .y = +1.0f }</c>. For 2D motion vectors computed as <c>PreviousNDC - CurrentNDC</c>, use <c>{ .x = +0.5f, .y = -0.5f }</c>. B: The scale factor for transforming the linear depth delta. For linear depth deltas computed as <c>abs(PreviousLinearDepth) - abs(CurrentLinearDepth)</c>, use <c>{ .z = +1.0f }</c>.
-    struct FfxApiFloatCoords2D jitterOffsets;               ///< The subpixel jitter offset applied to the camera projection. (Expressed in screen pixels)
-                                                            
-    struct FfxApiFloatCoords3D cameraPositionDelta;         ///< The position delta of the camera since last frame (PreviousPosition - CurrentPosition).
-    struct FfxApiFloatCoords3D cameraRight;                 ///< The right (left) vector of the camera in world space if using a right-handed (left-handed) coordinate system.
-    struct FfxApiFloatCoords3D cameraUp;                    ///< The up vector of the camera in world space.
-    struct FfxApiFloatCoords3D cameraForward;               ///< The forward vector of the camera in world space (i.e., the direction the camera is looking).
-    float                      cameraAspectRatio;           ///< The aspect ratio of the camera.
-    float                      cameraNear;                  ///< The view z distance to the near plane of the camera.
-    float                      cameraFar;                   ///< The view z distance to the far plane of the camera.
-    float                      cameraFovAngleVertical;      ///< The vertical field of view of the camera. (Expressed in radians)
-                                                            
-    struct FfxApiDimensions2D  renderSize;                  ///< The resolution that was used for rendering the input resources.
-    float                      deltaTime;                   ///< The time, in milliseconds, since the last frame was rendered.
-    uint32_t                   frameIndex;                  ///< The index of the current frame.
-                                                            
-    uint32_t                   flags;                       ///< Zero or a combination of values from <c>FfxApiDispatchDenoiserFlags</c>.
+    ffxDispatchDescHeader header;
+    void* commandList;
+    struct FfxApiResource linearDepth;
+    struct FfxApiResource motionVectors;
+    struct FfxApiResource normals;
+    struct FfxApiResource specularAlbedo;
+    struct FfxApiResource diffuseAlbedo;
+    struct FfxApiFloatCoords3D motionVectorScale;
+    struct FfxApiFloatCoords2D jitterOffsets;
+    struct FfxApiFloatCoords3D cameraPositionDelta;
+    FfxApiMatrix4x4 view;
+    FfxApiMatrix4x4 projection;
+    FfxApiFloatBounds linearDepthBounds;
+    struct FfxApiDimensions2D renderSize;
+    uint32_t frameIndex;
+    uint32_t flags;
 } ffxDispatchDescDenoiser;
 
-#define FFX_API_DENOISER_DEBUG_VIEW_MAX_VIEWPORTS 12        ///< The maximum number of viewports that can be visualized.
-
-#define FFX_API_DISPATCH_DESC_DEBUG_VIEW_TYPE_DENOISER FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x0c)
+#define FFX_API_DENOISER_DEBUG_VIEW_MAX_VIEWPORTS 12
+#define FFX_API_DISPATCH_DESC_TYPE_DENOISER_DEBUG_VIEW FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x42)
 typedef struct ffxDispatchDescDenoiserDebugView
 {
-    ffxDispatchDescHeader                header;
-    struct FfxApiResource                output;            ///< Target output resource for debug visualization.
-    struct FfxApiDimensions2D            outputSize;        ///< The resolution of the output resource.
-    uint32_t                             mode;              ///< An entry of <c>FfxApiDenoiserDebugViewMode</c> that selects the mode used for visualization.
-    uint32_t                             viewportIndex;     ///< The index of the viewport to visualize when <c>FFX_API_DENOISER_DEBUG_VIEW_MODE_FULLSCREEN_VIEWPORT</c> mode is active. Clamped between 0 and <c>FFX_API_DENOISER_DEBUG_VIEW_MAX_VIEWPORTS - 1</c>.
+    ffxDispatchDescHeader header;
+    struct FfxApiResource output;
+    struct FfxApiDimensions2D outputSize;
+    uint32_t mode;
+    uint32_t viewportIndex;
 } ffxDispatchDescDenoiserDebugView;
 
-#define FFX_API_DISPATCH_DESC_INPUT_DOMINANT_LIGHT_TYPE_DENOISER FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x07)
-typedef struct ffxDispatchDescDenoiserInputDominantLight    ///< Requires <c>FFX_DENOISER_ENABLE_DOMINANT_LIGHT</c> to be set in the create flags.
+#define FFX_API_DISPATCH_DESC_TYPE_DENOISER_AMBIENT_OCCLUSION FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x43)
+typedef struct ffxDispatchDescDenoiserAmbientOcclusion
 {
-    ffxDispatchDescHeader       header;
-    struct FfxApiDenoiserSignal dominantLightVisibility;    ///< Dominant light visibility signal in/out, input should be described as distance to occluder (0 -> FP16_MAX).
-    struct FfxApiFloatCoords3D  dominantLightDirection;     ///< Dominant light direction. (from light source to target) 
-    struct FfxApiFloatCoords3D  dominantLightEmission;      ///< Dominant light emission. (i.e. <c>LightColor * LightIntensity</c>)
-} ffxDispatchDescDenoiserInputDominantLight;
+    ffxDispatchDescHeader header;
+    struct FfxApiDenoiserSignal signal;
+} ffxDispatchDescDenoiserAmbientOcclusion;
 
-#define FFX_API_DISPATCH_DESC_INPUT_4_SIGNALS_TYPE_DENOISER FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x03)
-typedef struct ffxDispatchDescDenoiserInput4Signals         ///< Requires FFX_DENOISER_MODE_4_SIGNALS to be set in the create flags.
+#define FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x44)
+typedef struct ffxDispatchDescDenoiserDirectDiffuse
 {
-    ffxDispatchDescHeader       header;
-    struct FfxApiDenoiserSignal indirectSpecularRadiance;   ///< RGB: Indirect specular radiance signal in/out, A: Specular ray length (in-only).
-    struct FfxApiDenoiserSignal indirectDiffuseRadiance;    ///< RGB: Indirect diffuse radiance signal in/out.
-    struct FfxApiDenoiserSignal directSpecularRadiance;     ///< RGB: Direct specular radiance signal in/out.
-    struct FfxApiDenoiserSignal directDiffuseRadiance;      ///< RGB: Direct diffuse radiance signal in/out.
-} ffxDispatchDescDenoiserInput4Signals;
+    ffxDispatchDescHeader header;
+    struct FfxApiDenoiserSignal signal;
+} ffxDispatchDescDenoiserDirectDiffuse;
 
-#define FFX_API_DISPATCH_DESC_INPUT_2_SIGNALS_TYPE_DENOISER FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x04)
-typedef struct ffxDispatchDescDenoiserInput2Signals         ///< Requires FFX_DENOISER_MODE_2_SIGNALS to be set in the create flags.
+#define FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x45)
+typedef struct ffxDispatchDescDenoiserDirectSpecular
 {
-    ffxDispatchDescHeader       header;
-    struct FfxApiDenoiserSignal specularRadiance;           ///< RGB: Specular radiance signal in/out, A: Specular ray length (in-only).
-    struct FfxApiDenoiserSignal diffuseRadiance;            ///< RGB: Diffuse radiance signal in/out.
-} ffxDispatchDescDenoiserInput2Signals;
+    ffxDispatchDescHeader header;
+    struct FfxApiDenoiserSignal signal;
+} ffxDispatchDescDenoiserDirectSpecular;
 
-#define FFX_API_DISPATCH_DESC_INPUT_1_SIGNAL_TYPE_DENOISER FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x05)
-typedef struct ffxDispatchDescDenoiserInput1Signal          ///< Requires FFX_DENOISER_MODE_1_SIGNAL to be set in the create flags.
+#define FFX_API_DISPATCH_DESC_TYPE_DENOISER_DOMINANT_LIGHT FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x46)
+typedef struct ffxDispatchDescDenoiserDominantLight
 {
-    ffxDispatchDescHeader       header;
-    struct FfxApiDenoiserSignal radiance;                   ///< RGB: Composited radiance signal in/out, A: Specular ray length (in-only).
-    struct FfxApiResource       fusedAlbedo;                ///< RGB: max(specularAlbedo, diffuseAlbedo) - sqrt encoding assumed unless <c>FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO</c> is provided. <c>sqrt(FusedAlbedo)</c>
-} ffxDispatchDescDenoiserInput1Signal;
+    ffxDispatchDescHeader header;
+    struct FfxApiDenoiserSignal signal;
+    struct FfxApiFloatCoords3D direction;
+    struct FfxApiFloatCoords3D emission;
+    float angularRadius;
+} ffxDispatchDescDenoiserDominantLight;
 
-//------------------------------------------------------------------------------
-// FFX Denoiser Descriptions: Query
-//------------------------------------------------------------------------------
+#define FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x47)
+typedef struct ffxDispatchDescDenoiserIndirectDiffuse
+{
+    ffxDispatchDescHeader header;
+    struct FfxApiDenoiserSignal signal;
+} ffxDispatchDescDenoiserIndirectDiffuse;
 
-#define FFX_API_QUERY_DESC_TYPE_DENOISER_GET_DEFAULT_KEYVALUE FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x0b)
+#define FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x48)
+typedef struct ffxDispatchDescDenoiserIndirectSpecular
+{
+    ffxDispatchDescHeader header;
+    struct FfxApiDenoiserSignal signal;
+} ffxDispatchDescDenoiserIndirectSpecular;
+
+#define FFX_API_DISPATCH_DESC_TYPE_DENOISER_SPECULAR_OCCLUSION FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x49)
+typedef struct ffxDispatchDescDenoiserSpecularOcclusion
+{
+    ffxDispatchDescHeader header;
+    struct FfxApiDenoiserSignal signal;
+} ffxDispatchDescDenoiserSpecularOcclusion;
+
+#define FFX_API_QUERY_DESC_TYPE_DENOISER_GET_DEFAULT_KEYVALUE FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x81)
 typedef struct ffxQueryDescDenoiserGetDefaultKeyValue
 {
-    ffxQueryDescHeader     header;                          ///< Header descriptor, use type FFX_API_QUERY_DESC_TYPE_DENOISER_GET_DEFAULT_KEYVALUE.
-    uint64_t               key;                             ///< Configuration key, member of the FfxApiConfigureDenoiserKey enumeration.
-    uint64_t               count;                           ///< The number of elements to query.
-    void*                  data;                            ///< Pointer to an array for storing the querried elements.
+    ffxQueryDescHeader header;
+    uint64_t key;
+    uint64_t count;
+    void* data;
 } ffxQueryDescDenoiserGetDefaultKeyValue;
 
-#define FFX_API_QUERY_DESC_TYPE_DENOISER_GPU_MEMORY_USAGE FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x09)
-typedef struct ffxQueryDescDenoiserGetGPUMemoryUsage        ///< If a valid FfxContext is passed into ffx::Query with this structure, current context usage will be reported. If no context is passed, the memory usage will be estimated based on the provided parameters.
+#define FFX_API_QUERY_DESC_TYPE_DENOISER_GPU_MEMORY_USAGE FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x82)
+typedef struct ffxQueryDescDenoiserGetGPUMemoryUsage
 {
-    ffxQueryDescHeader        header;
-    void*                     device;                       ///< For DX12: pointer to ID3D12Device.
-    struct FfxApiDimensions2D maxRenderSize;                ///< Maximum size that rendering will be performed at.
-    uint32_t                  mode;                         ///< An entry of <c>FfxApiDenoiserMode</c> that selects the number of signals to denoise.
-    uint32_t                  flags;                        ///< Zero or a combination of values from <c>FfxApiCreateContextDenoiserFlags</c>.
-
-    struct FfxApiEffectMemoryUsage* gpuMemoryUsage;         ///< A pointer to a <c>FfxApiEffectMemoryUsage</c> structure that will hold the GPU memory usage.
+    ffxQueryDescHeader header;
+    void* device;
+    struct FfxApiDimensions2D maxRenderSize;
+    uint32_t signalFlags;
+    uint32_t checkerboardSignalFlags;
+    uint32_t flags;
+    struct FfxApiEffectMemoryUsage* gpuMemoryUsage;
 } ffxQueryDescDenoiserGetGPUMemoryUsage;
-
-#define FFX_API_QUERY_DESC_TYPE_DENOISER_GET_VERSION FFX_API_MAKE_EFFECT_SUB_ID(FFX_API_EFFECT_ID_DENOISER, 0x0a)
-typedef struct ffxQueryDescDenoiserGetVersion               ///< If a valid FfxContext is passed into ffx::Query with this structure, info based on current context will be reported. If no context is passed, the info will be evaluated based on the provided parameters.
-{
-    ffxConfigureDescHeader  header;
-    void*                   device;                         ///< For DX12: pointer to ID3D12Device.
-
-    uint32_t*               major;                          ///< A pointer to a <c>uint32_t</c> variable that will hold the major version number.
-    uint32_t*               minor;                          ///< A pointer to a <c>uint32_t</c> variable that will hold the minor version number.
-    uint32_t*               patch;                          ///< A pointer to a <c>uint32_t</c> variable that will hold the patch version number.
-} ffxQueryDescDenoiserGetVersion;
-
-//------------------------------------------------------------------------------
-// FFX Denoiser Enums
-//------------------------------------------------------------------------------
 
 typedef enum FfxApiCreateContextDenoiserFlags
 {
-    FFX_DENOISER_ENABLE_DEBUGGING      = (1 << 0),          ///< A bit indicating that debug features may be enabled, memory consumption may increase.
-    FFX_DENOISER_ENABLE_DOMINANT_LIGHT = (1 << 1),          ///< A bit indicating that dominant light visibility denoising should be enabled. This requires the dominant light direction and emission to be provided.
+    FFX_DENOISER_ENABLE_DEBUGGING = (1 << 0),
+    FFX_DENOISER_ENABLE_VALIDATION = (1 << 1),
 } FfxApiCreateContextDenoiserFlags;
 
 typedef enum FfxApiConfigureDenoiserKey
 {
-    FFX_API_CONFIGURE_DENOISER_KEY_CROSS_BILATERAL_NORMAL_STRENGTH = 1, ///< Override the strength of the cross bilateral normal term. A single float scalar.
-    FFX_API_CONFIGURE_DENOISER_KEY_STABILITY_BIAS                  = 2, ///< Override the bias of the temporal accumulation to be more stable but less responsive. A single float scalar.
-    FFX_API_CONFIGURE_DENOISER_KEY_MAX_RADIANCE                    = 3, ///< Override the maximum radiance value. A single float scalar.
-    FFX_API_CONFIGURE_DENOISER_KEY_RADIANCE_CLIP_STD_K             = 4, ///< Override the standard deviation K value used for radiance clipping. A single float scalar.
-    FFX_API_CONFIGURE_DENOISER_KEY_GAUSSIAN_KERNEL_RELAXATION      = 5, ///< Override the Gaussian kernel relaxation factor. A single float scalar.
-    FFX_API_CONFIGURE_DENOISER_KEY_DISOCCLUSION_THRESHOLD          = 6, ///< Override the discocclusion threshold used for depth comparisons during temporal reprojection. A single float scalar.
+    FFX_API_CONFIGURE_DENOISER_KEY_CROSS_BILATERAL_NORMAL_STRENGTH = 1,
+    FFX_API_CONFIGURE_DENOISER_KEY_STABILITY_BIAS = 2,
+    FFX_API_CONFIGURE_DENOISER_KEY_MAX_RADIANCE = 3,
+    FFX_API_CONFIGURE_DENOISER_KEY_RADIANCE_CLIP_STD_K = 4,
+    FFX_API_CONFIGURE_DENOISER_KEY_GAUSSIAN_KERNEL_RELAXATION = 5,
+    FFX_API_CONFIGURE_DENOISER_KEY_DISOCCLUSION_THRESHOLD = 6,
+    FFX_API_CONFIGURE_DENOISER_KEY_DEBUG_VIEW_LINEAR_DEPTH_BOUNDS = 7,
 } FfxApiConfigureDenoiserKey;
 
 typedef enum FfxApiDenoiserDebugViewMode
 {
-    FFX_API_DENOISER_DEBUG_VIEW_MODE_OVERVIEW            = 0,
+    FFX_API_DENOISER_DEBUG_VIEW_MODE_OVERVIEW = 0,
     FFX_API_DENOISER_DEBUG_VIEW_MODE_FULLSCREEN_VIEWPORT = 1,
 } FfxApiDenoiserDebugViewMode;
 
-typedef enum FfxApiDenoiserMode
+typedef enum FfxApiDenoiserSignalFlags
 {
-    FFX_DENOISER_MODE_4_SIGNALS = 0,                        ///< The denoiser expects 4 split radiance signals as input to perform denoising on. (Direct Specular, Direct Diffuse, Indirect Specular, Indirect Diffuse)
-    FFX_DENOISER_MODE_2_SIGNALS = 1,                        ///< The denoiser expects 2 fused radiance signals as input to perform denoising on. (Specular, Diffuse)
-    FFX_DENOISER_MODE_1_SIGNAL  = 2,                        ///< The denoiser expects 1 fused radiance signal as input to perform denoising on. (Composited)
-} FfxApiDenoiserMode;
+    FFX_DENOISER_SIGNAL_NONE = 0,
+    FFX_DENOISER_SIGNAL_AMBIENT_OCCLUSION = (1 << 0),
+    FFX_DENOISER_SIGNAL_DIRECT_DIFFUSE = (1 << 1),
+    FFX_DENOISER_SIGNAL_DIRECT_SPECULAR = (1 << 2),
+    FFX_DENOISER_SIGNAL_DOMINANT_LIGHT_VISIBILITY = (1 << 3),
+    FFX_DENOISER_SIGNAL_INDIRECT_DIFFUSE = (1 << 4),
+    FFX_DENOISER_SIGNAL_INDIRECT_SPECULAR = (1 << 5),
+    FFX_DENOISER_SIGNAL_SPECULAR_OCCLUSION = (1 << 6),
+} FfxApiDenoiserSignalFlags;
 
 typedef enum FfxApiDispatchDenoiserFlags
 {
-    FFX_DENOISER_DISPATCH_RESET            = (1 << 0),      ///< A bit indicating that the we need to reset history accumulation.
-    FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO = (1 << 1),      ///< A bit indicating that the input albedo textures are not gamma encoded.
+    FFX_DENOISER_DISPATCH_RESET = (1 << 0),
+    FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO = (1 << 1),
 } FfxApiDispatchDenoiserFlags;
 
 #ifdef __cplusplus
 }
-#endif // __cplusplus
+#endif

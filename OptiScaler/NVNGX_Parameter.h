@@ -524,11 +524,13 @@ inline static void InitNGXParameters(NVSDK_NGX_Parameter* InParams)
             if (!FfxApiProxy::IsDenoiserReady())
                 FfxApiProxy::InitFfxDx12();
 
-            ssDenoiseAvailable = FfxApiProxy::IsSRReady() && FfxApiProxy::IsDenoiserReady() &&
-                                 FfxApiProxy::VersionDx12_RR() == FfxApiProxy::VersionTarget_RR();
+            const FfxDenoiserApiGeneration rrApi = FfxApiProxy::DenoiserApiGenerationDx12();
+            ssDenoiseAvailable = FfxApiProxy::IsSRReady() && FfxApiProxy::IsDenoiserApiImplementedDx12();
 
             if (ssDenoiseAvailable)
                 LOG_DEBUG("Setting DLSSD flags for FSR Ray Regeneration");
+            else if (rrApi != FfxDenoiserApiGeneration::NotLoaded)
+                LOG_DEBUG("FSR Ray Regeneration provider is not compatible with the RR 1.2 dispatch backend");
         }
 
         InParams->Set("SuperSamplingDenoising.Available", ssDenoiseAvailable);

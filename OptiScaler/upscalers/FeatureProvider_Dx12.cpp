@@ -78,7 +78,7 @@ bool FeatureProvider_Dx12::GetFeature(std::string_view upscalerName, UINT handle
 
         if (upscalerName == OptiKeys::FSR_RR)
         {
-            if (FfxApiProxy::IsDenoiserReady())
+            if (FfxApiProxy::IsDenoiserApiImplementedDx12())
                 *feature = std::make_unique<FSRDFeatureDx12>(handleId, parameters);
             else
                 return false;

@@ -24,55 +24,82 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
 
   private:
 
-    union DenoiserConfiguration
+    struct DenoiserConfiguration
     {
-        static constexpr uint32_t kCount = FFX_API_CONFIGURE_DENOISER_KEY_DISOCCLUSION_THRESHOLD;
+        static constexpr uint32_t kScalarCount = FFX_API_CONFIGURE_DENOISER_KEY_DISOCCLUSION_THRESHOLD;
+        static constexpr uint32_t kKeyCount = FFX_API_CONFIGURE_DENOISER_KEY_DEBUG_VIEW_LINEAR_DEPTH_BOUNDS;
 
         // Ordered by FfxApiConfigureDenoiserKey
-        struct
+        union
         {
-            float m_CrossBilateralNormalStrength;
-            float m_StabilityBias;
-            float m_MaxRadiance;
-            float m_RadianceClipStdK;
-            float m_GaussianKernelRelaxation;
-            float m_DisocclusionThreshold;
+            struct
+            {
+                float m_CrossBilateralNormalStrength;
+                float m_StabilityBias;
+                float m_MaxRadiance;
+                float m_RadianceClipStdK;
+                float m_GaussianKernelRelaxation;
+                float m_DisocclusionThreshold;
+            };
+
+            float ScalarValues[kScalarCount];
         };
 
-        float AsArray[kCount];
-
-        static int GetKeyIndex(FfxApiConfigureDenoiserKey key) 
-        {
-            return std::clamp((int) key - 1, 0, (int)DenoiserConfiguration::kCount - 1);
-        }
+        FfxApiFloatBounds m_DebugViewLinearDepthBounds;
 
         static FfxApiConfigureDenoiserKey GetIndexKey(int index)
         {
-            index = std::clamp(index + 1, 1, (int) DenoiserConfiguration::kCount);
+            index = std::clamp(index + 1, 1, static_cast<int>(kKeyCount));
             return static_cast<FfxApiConfigureDenoiserKey>(index);
         }
 
-        float& GetMember(int index) { return AsArray[index]; }
+        void* GetData(FfxApiConfigureDenoiserKey key)
+        {
+            if (key == FFX_API_CONFIGURE_DENOISER_KEY_DEBUG_VIEW_LINEAR_DEPTH_BOUNDS)
+                return &m_DebugViewLinearDepthBounds;
 
-        float& GetMember(FfxApiConfigureDenoiserKey key) { return AsArray[GetKeyIndex(key)]; }
+            const int index = static_cast<int>(key) - 1;
+            return index >= 0 && index < static_cast<int>(kScalarCount)
+                ? &ScalarValues[index]
+                : nullptr;
+        }
     };
 
     ffxContext _pDenoiserCtx;
     ffxCreateContextDescDenoiser _denoiserCtxDesc;
     DenoiserConfiguration _denoiserSettings;
-    bool _isMode2;
+    ffxStructType_t _diffuseSignalDescType = FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE;
+    ffxStructType_t _specularSignalDescType = FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR;
 
     static bool s_isHWDepth;
     static bool s_isRoughnessPacked;
 
     FSRDConvDesc _convDesc;
-    DirectX::XMFLOAT3 _lastCamPos; // Last world space camera position
+    // Diagnostic-only DLSS-RR probes. These are not bound to the converter or RR dispatch yet.
+    ID3D12Resource* _diffuseHitDistanceProbe = nullptr;
+    ID3D12Resource* _diffuseRayDirectionHitDistanceProbe = nullptr;
+    uint32_t _diffuseHitDistanceBaseX = 0;
+    uint32_t _diffuseHitDistanceBaseY = 0;
+    uint32_t _diffuseRayDirectionHitDistanceBaseX = 0;
+    uint32_t _diffuseRayDirectionHitDistanceBaseY = 0;
+    DirectX::XMFLOAT3 _lastCamPos {}; // Last successfully dispatched world-space camera position
+    float _appliedRoughnessFloor = -1.0f;
+    float _appliedRoughnessFloorDistance = -1.0f;
+    bool _hasDenoiserHistory = false;
+    bool _viewFromStreamline = false;
+    bool _projectionFromStreamline = false;
+    bool _logNextDenoiserDispatch = true;
+    bool _lastDispatchRequestedReset = false;
+    uint64_t _denoiserDispatchAttempts = 0;
+    uint64_t _denoiserDispatchSuccesses = 0;
+    uint64_t _denoiserDispatchFailures = 0;
 
     // Matrices
+    // Row-major storage with column-vector multiplication semantics.
     DirectX::XMMATRIX _invViewMatrix;   // Camera rotation and translation
     DirectX::XMMATRIX _viewMatrix;      // World to camera space
     DirectX::XMMATRIX _prevViewMatrix;  // Last world to camera space
-    DirectX::XMMATRIX _projMatrix;      // Perspective projection matrix
+    DirectX::XMMATRIX _projMatrix;      // Unjittered perspective projection
     bool _isRightHanded;                // True if the camera matrix is right handed
 
     std::unique_ptr<FSRDPreprocessor_Dx12> FSRDConvShader;
@@ -85,15 +112,16 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
 
     void DestroyDenoiserContext();
 
-    void UpdateSize();
+    bool UpdateSize();
 
     /**
      * @brief Generates FFX denoiser configuration and input buffers from DLSS-RR inputs and NGX configurations.
      * Converts and repacks resources internally.
      */
-    template<typename SignalDescT>
     bool PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& ngxParams,
-                              ffxDispatchDescDenoiser& dispatchDesc, SignalDescT& signalDesc);
+                              ffxDispatchDescDenoiser& dispatchDesc,
+                              ffxDispatchDescDenoiserDirectDiffuse& directDiffuse,
+                              ffxDispatchDescDenoiserIndirectSpecular& indirectSpecular);
 
     /**
      * @brief Retrieves DLSS-RR inputs to populate the inputs for the interop layer in order to generate
@@ -111,7 +139,15 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
      */
     bool DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList, const ffxDispatchDescDenoiser& dispatchDesc);
 
-    void SetDefaultConfiguration();
+    void CommitDenoiserHistory() noexcept;
+
+    void InvalidateDenoiserHistory() noexcept
+    {
+        _hasDenoiserHistory = false;
+        _lastDispatchRequestedReset = false;
+    }
+
+    bool SetDefaultConfiguration();
 
     ffxReturnCode_t SetDefaultConfiguration(FfxApiConfigureDenoiserKey key);
 
