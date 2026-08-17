@@ -810,7 +810,9 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
       <EnableDebuggingInformation Condition="'$(Configuration)|$(Platform)'=='ReleaseDebug|x64'">false</EnableDebuggingInformation>
       <DisableOptimizations Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</DisableOptimizations>
       <EnableDebuggingInformation Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</EnableDebuggingInformation>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/enable-16bit-types</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='ReleaseDebug|x64'">/enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
     </FxCompile>
     <FxCompile Include="shaders\fsrd_preprocess\precompile\FSRDFloorSeed.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
@@ -868,7 +870,9 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
       <EnableDebuggingInformation Condition="'$(Configuration)|$(Platform)'=='ReleaseDebug|x64'">false</EnableDebuggingInformation>
       <DisableOptimizations Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</DisableOptimizations>
       <EnableDebuggingInformation Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</EnableDebuggingInformation>
-      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/enable-16bit-types</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='ReleaseDebug|x64'">/enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/enable-16bit-types %(AdditionalOptions)</AdditionalOptions>
     </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

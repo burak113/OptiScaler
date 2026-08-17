@@ -143,6 +143,17 @@ namespace FSRD
         if (!pRes)
             return;
 
+        // Callers hand this a fixed-size stack array (kMaxBarriers) as a span. An
+        // output set that outgrows it would smash the stack rather than trip a
+        // validation error, so refuse the write and make the cause visible.
+        if (static_cast<size_t>(bCount) >= barriers.size())
+        {
+            LOG_ERROR("FSRD barrier array is full ({} entries); dropping a transition. "
+                      "Raise FSRD::kMaxBarriers to match the largest resource set.",
+                      barriers.size());
+            return;
+        }
+
         barriers[bCount].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
         barriers[bCount].Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
         barriers[bCount].Transition.pResource = pRes;

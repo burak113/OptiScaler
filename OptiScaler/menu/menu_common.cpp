@@ -13,10 +13,13 @@
 
 #include <nvapi/fakenvapi.h>
 #include <hooks/Reflex_Hooks.h>
+#include <hooks/Streamline_Hooks.h>
+#include <resource_tracking/ResTrack_dx12.h>
 
 #include <version_check.h>
 
 #include <imgui/imgui_internal.h>
+#include <magic_enum.hpp>
 
 #include <mutex>
 #include <cstdarg>
@@ -765,6 +768,7 @@ LRESULT MenuCommon::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             _isVisible = false;
             _showMipmapCalcWindow = false;
             _showHudlessWindow = false;
+            _showRRResourceInspectorWindow = false;
 
             io.MouseDrawCursor = false;
             io.WantCaptureKeyboard = false;
@@ -1933,6 +1937,7 @@ bool MenuCommon::RenderMenu()
 
                 _showMipmapCalcWindow = false;
                 _showHudlessWindow = false;
+                _showRRResourceInspectorWindow = false;
             }
 
             io.MouseDrawCursor = _isVisible;
@@ -2638,7 +2643,9 @@ bool MenuCommon::RenderMenu()
         {
             bool rcasEnabled = false;
 
-            if (!_showMipmapCalcWindow && !_showHudlessWindow && !ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
+            if (!_showMipmapCalcWindow && !_showHudlessWindow &&
+                !_showRRResourceInspectorWindow &&
+                !ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
                 ImGui::SetWindowFocus();
 
             if (config->MenuScale.has_value())
@@ -3360,13 +3367,17 @@ bool MenuCommon::RenderMenu()
                     {
                         if (auto ch = ScopedCollapsingHeader("FSR-RR Advanced Settings"); ch.IsHeaderOpen())
                         {
-                            constexpr const char* signalTypes[] = { "Direct", "Indirect" };
+                            constexpr const char* signalTypes[] = { "Auto", "Direct", "Indirect" };
 
-                            if (int signalType =
-                                    std::clamp(config->FfxDenoiserDiffuseSignalType.value_or_default(), 0, 1);
+                            if (int signalType = config->FfxDenoiserDiffuseSignalType.has_value()
+                                    ? std::clamp(config->FfxDenoiserDiffuseSignalType.value(), 0, 1) + 1
+                                    : 0;
                                 ImGui::Combo("Diffuse Signal", &signalType, signalTypes, IM_ARRAYSIZE(signalTypes)))
                             {
-                                config->FfxDenoiserDiffuseSignalType = signalType;
+                                if (signalType == 0)
+                                    config->FfxDenoiserDiffuseSignalType.reset();
+                                else
+                                    config->FfxDenoiserDiffuseSignalType = signalType - 1;
                                 state.newBackend = currentBackend;
                                 MARK_ALL_BACKENDS_CHANGED();
                             }
@@ -3374,15 +3385,26 @@ bool MenuCommon::RenderMenu()
                                 ImGui::SetTooltip(
                                     "Classifies the converted diffuse lighting for RR 1.2.\n"
                                     "Changing this recreates the denoiser context.\n"
-                                    "The source is combined lighting, so both choices are experimental.\n"
-                                    "Indirect Diffuse requires DLSSD.DiffuseHitDistance (or its combined\n"
-                                    "direction/distance resource), which the game may not provide.");
+                                    "Auto locks to Indirect when the first validated frame supplies a\n"
+                                    "diffuse ray length; otherwise it locks to Direct, since Indirect\n"
+                                    "Diffuse reads that length from its alpha and has nothing to work\n"
+                                    "from without it.\n"
+                                    "The source is combined lighting, so both explicit choices remain\n"
+                                    "experimental.");
 
-                            if (int signalType =
-                                    std::clamp(config->FfxDenoiserSpecularSignalType.value_or_default(), 0, 1);
-                                ImGui::Combo("Specular Signal", &signalType, signalTypes, IM_ARRAYSIZE(signalTypes)))
+                            constexpr const char* specularSignalTypes[] = {
+                                "Auto", "Direct", "Indirect"
+                            };
+                            if (int signalType = config->FfxDenoiserSpecularSignalType.has_value()
+                                    ? std::clamp(config->FfxDenoiserSpecularSignalType.value(), 0, 1) + 1
+                                    : 0;
+                                ImGui::Combo("Specular Signal", &signalType, specularSignalTypes,
+                                             IM_ARRAYSIZE(specularSignalTypes)))
                             {
-                                config->FfxDenoiserSpecularSignalType = signalType;
+                                if (signalType == 0)
+                                    config->FfxDenoiserSpecularSignalType.reset();
+                                else
+                                    config->FfxDenoiserSpecularSignalType = signalType - 1;
                                 state.newBackend = currentBackend;
                                 MARK_ALL_BACKENDS_CHANGED();
                             }
@@ -3390,8 +3412,70 @@ bool MenuCommon::RenderMenu()
                                 ImGui::SetTooltip(
                                     "Classifies the converted specular lighting for RR 1.2.\n"
                                     "Changing this recreates the denoiser context.\n"
+                                    "Auto locks to Indirect when the first validated frame has a specular\n"
+                                    "hit-distance guide; otherwise it locks to Direct.\n"
                                     "Use this to compare Direct and Indirect handling of mirror reflections.\n"
                                     "Indirect Specular consumes the available specular ray hit distance; Direct ignores it.");
+
+                            constexpr const char* depthInputTypes[] = {
+                                "Auto (NGX)", "Linear", "Hardware"
+                            };
+                            if (int depthInput = config->FfxDenoiserHardwareDepth.has_value()
+                                    ? (config->FfxDenoiserHardwareDepth.value() ? 2 : 1)
+                                    : 0;
+                                ImGui::Combo("Depth Input", &depthInput, depthInputTypes,
+                                             IM_ARRAYSIZE(depthInputTypes)))
+                            {
+                                if (depthInput == 0)
+                                    config->FfxDenoiserHardwareDepth.reset();
+                                else
+                                    config->FfxDenoiserHardwareDepth = depthInput == 2;
+                            }
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "How the game's depth buffer is interpreted.\n"
+                                    "Auto trusts a depth-stencil resource over the title's declaration,\n"
+                                    "then the DLSS.Use.HW.Depth declaration, then the resource flags,\n"
+                                    "and finally assumes Hardware. The log reports which rule fired.\n\n"
+                                    "A title that supplies hardware depth without declaring it makes RR\n"
+                                    "see a scene about one unit deep: the linear-depth debug view goes\n"
+                                    "black and disocclusion stops working. Set Hardware if you see that.\n"
+                                    "Applied immediately; changing it resets temporal history.");
+
+                            if (bool viewSpaceNormals =
+                                    config->FfxDenoiserNormalsInViewSpace.value_or_default();
+                                ImGui::Checkbox("Input Normals Are View Space", &viewSpaceNormals))
+                            {
+                                config->FfxDenoiserNormalsInViewSpace = viewSpaceNormals;
+                                state.newBackend = currentBackend;
+                                MARK_ALL_BACKENDS_CHANGED();
+                            }
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "Disabled (default): treats the supplied normal texture as world-space.\n"
+                                    "Enabled: converts view-space normals to world-space before RR.\n"
+                                    "Changing this recreates the active backend to discard temporal history.");
+
+                            // Ambient and specular occlusion are hidden rather than
+                            // removed. Both are already inert - AO defaults off and SO
+                            // has no semantic Streamline tag to activate from - so the
+                            // controls only added noise to a menu that is being used
+                            // for panel tuning. The backend plumbing is untouched, so
+                            // restoring them is a matter of putting this block back.
+
+                            bool useAmdDefaults = config->FfxDenoiserUseAmdDefaults.value_or_default();
+                            if (ImGui::Checkbox("Use AMD Default Tuning", &useAmdDefaults))
+                                config->FfxDenoiserUseAmdDefaults = useAmdDefaults;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "A/B reference. Pushes the baseline RR queries from AMD for the six\n"
+                                    "keys below instead of this fork's tuning. Takes effect immediately,\n"
+                                    "no context recreation. Your slider values are kept and restored when\n"
+                                    "you switch back.\n"
+                                    "AMD's actual numbers are printed to the log at context creation as\n"
+                                    "\"[RR_DIAG] configure baseline\".");
+
+                            ImGui::BeginDisabled(useAmdDefaults);
 
                             if (float v = config->FfxDenoiserDisocThreshold.value_or_default();
                                 ImGui::SliderFloat("Disocclusion Threshold", &v, 1e-2f, 1.0f))
@@ -3453,6 +3537,12 @@ bool MenuCommon::RenderMenu()
                                     "banding on smooth surfaces.\n"
                                     "Lower: Slightly sharper with weaker smoothing on large surfaces, may increase banding and rippling.\n");
 
+                            ImGui::EndDisabled();
+
+                            if (useAmdDefaults)
+                                ImGui::TextDisabled(
+                                    "AMD baseline active - sliders above show the fork values, not what is applied");
+
                             if (float v = std::clamp(
                                     config->FfxDenoiserDebugDepthMax.value_or_default(), 0.001f, 1024.0f);
                                 ImGui::SliderFloat("Debug Linear Depth Max", &v, 0.001f, 1024.0f, "%.3f",
@@ -3466,12 +3556,21 @@ bool MenuCommon::RenderMenu()
 
                             if (ImGui::Button("Reset"))
                             {
-                                const bool signalTypesChanged =
+                                const bool contextSettingsChanged =
                                     config->FfxDenoiserDiffuseSignalType.value_or_default() != 0 ||
-                                    config->FfxDenoiserSpecularSignalType.value_or_default() != 1;
+                                    config->FfxDenoiserSpecularSignalType.has_value() ||
+                                    config->FfxDenoiserTaggedAmbientOcclusion.value_or_default() ||
+                                    config->FfxDenoiserNormalsInViewSpace.value_or_default() ||
+                                    config->FfxDenoiserInternalDebugViews.value_or_default();
 
                                 config->FfxDenoiserDiffuseSignalType = 0;
-                                config->FfxDenoiserSpecularSignalType = 1;
+                                config->FfxDenoiserSpecularSignalType.reset();
+                                config->FfxDenoiserTaggedAmbientOcclusion = false;
+                                config->FfxDenoiserNormalsInViewSpace = false;
+                                // Back to following NGX. Not part of contextSettingsChanged:
+                                // this only feeds a conversion flag, not context creation.
+                                config->FfxDenoiserHardwareDepth.reset();
+                                config->FfxDenoiserUseAmdDefaults = false;
                                 config->FfxDenoiserDisocThreshold = 0.1f;
                                 config->FfxDenoiserCrossBlNormStr = 0.5f;
                                 config->FfxDenoiserStabilityBias = 0.5f;
@@ -3479,12 +3578,20 @@ bool MenuCommon::RenderMenu()
                                 config->FfxDenoiserRadianceClip = 40.0f;
                                 config->FfxDenoiserGaussKernRelax = 0.5f;
                                 config->FfxDenoiserDebugDepthMax = 1024.0f;
+                                config->FfxDenoiserDebugMode = 0;
+                                config->FfxDenoiserDebugViewport = -1;
+                                config->FfxDenoiserInternalDebugViews = false;
                                 config->FfxDenoiserCorrelationBias = 1.0f;
+                                config->FfxDenoiserDiffuseHitDistance = true;
                                 config->FfxDenoiserFloorIsolation = 1.0f;
-                                config->FfxDenoiserRoughnessFloor = 0.002f;
-                                config->FfxDenoiserRoughnessFloorDistance = 25.0f;
+                                config->FfxDenoiserRoughnessFloor = 0.1f;
+                                config->FfxDenoiserZeroRoughHandover = true;
+                                config->FfxDenoiserZeroRoughDetail = 1.0f;
+                                config->FfxDenoiserZeroRoughDetailMode = 3;
+                                config->FfxDenoiserZeroRoughAnchorClamp = 2.0f;
+                                config->FfxDenoiserZeroRoughCorrelationMix = 1.0f;
 
-                                if (signalTypesChanged)
+                                if (contextSettingsChanged)
                                 {
                                     state.newBackend = currentBackend;
                                     MARK_ALL_BACKENDS_CHANGED();
@@ -3492,6 +3599,24 @@ bool MenuCommon::RenderMenu()
                             }
 
                             ImGui::SeparatorText("Debug");
+
+                            bool internalDebugViews =
+                                config->FfxDenoiserInternalDebugViews.value_or_default();
+                            if (ImGui::Checkbox("Enable AMD Internal Debug Views", &internalDebugViews))
+                            {
+                                config->FfxDenoiserInternalDebugViews = internalDebugViews;
+                                if (!internalDebugViews)
+                                    config->FfxDenoiserDebugMode = 0;
+
+                                // FFX_DENOISER_ENABLE_DEBUGGING is a context-creation flag.
+                                state.newBackend = currentBackend;
+                                MARK_ALL_BACKENDS_CHANGED();
+                            }
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "Recreates the RR context with AMD's internal diagnostics enabled.\n"
+                                    "Debug output uses a dedicated RGBA16_FLOAT UAV and may increase VRAM use.\n"
+                                    "Leave this disabled during normal play.");
 
                             if (!state.ffxDenoiserDebugModes.empty())
                             {
@@ -3540,15 +3665,50 @@ bool MenuCommon::RenderMenu()
                                             continue;
 
                                         bool isSelected = (dbgMode == ffxDenoiseDebugMode);
+                                        const bool needsInternalDebugViews =
+                                            std::string_view(name) == "DebugOverview";
 
+                                        ImGui::BeginDisabled(needsInternalDebugViews && !internalDebugViews);
                                         if (ImGui::Selectable(name, isSelected))
                                             config->FfxDenoiserDebugMode = dbgMode;
+                                        ImGui::EndDisabled();
 
                                         if (isSelected)
                                             ImGui::SetItemDefaultFocus();
                                     }
 
                                     ImGui::EndCombo();
+                                }
+
+
+                                if (currentEnum && std::string_view(currentEnum) == "DebugOverview")
+                                {
+                                    constexpr const char* rrDebugViewports[] = {
+                                        "Overview",
+                                        "0 - Motion Vectors",
+                                        "1 - Motion Vectors Z",
+                                        "2 - Linear Depth",
+                                        "3 - Normals",
+                                        "4 - Reprojected Confidence",
+                                        "5 - Reprojected UV",
+                                        "6 - View Centered Position",
+                                        "7 - Virtual Hit Position",
+                                        "8 - NN Input 0",
+                                        "9 - NN Input 1",
+                                        "10 - NN Input 2",
+                                        "11 - Composed Luma",
+                                    };
+                                    int viewport =
+                                        std::clamp(config->FfxDenoiserDebugViewport.value_or_default(), -1, 11);
+                                    int selection = viewport + 1;
+                                    if (ImGui::Combo("AMD Debug Layout", &selection, rrDebugViewports,
+                                                     IM_ARRAYSIZE(rrDebugViewports)))
+                                        config->FfxDenoiserDebugViewport = selection - 1;
+                                    if (ImGui::IsItemHovered())
+                                        ImGui::SetTooltip(
+                                            "Select Overview or one of AMD's fullscreen RR 1.2 diagnostics.\n"
+                                            "Virtual Hit Position validates camera data and specular ray distance\n"
+                                            "for low-roughness reflections.");
                                 }
 
                                 if (currentEnum &&
@@ -3559,6 +3719,564 @@ bool MenuCommon::RenderMenu()
                                         "Select the matching Direct or Indirect option under Diffuse Signal.\n"
                                         "A magenta view means the debug view and active diffuse signal type do not match.");
                                 }
+                                if (currentEnum &&
+                                    (std::string_view(currentEnum) == "DenoisedDirectSpecSignal" ||
+                                     std::string_view(currentEnum) == "DenoisedIndirectSpecSignal"))
+                                {
+                                    ShowHelpMarker(
+                                        "RR specular-network output remodulated with the actual bounded,\n"
+                                        "surface-stabilized type-1 material split supplied to the denoiser.");
+                                }
+                            }
+
+                            if (ImGui::TreeNode("Streamline RR Signal Probe"))
+                            {
+                                const uint32_t renderWidth = currentFeature ? currentFeature->RenderWidth() : 0;
+                                const uint32_t renderHeight = currentFeature ? currentFeature->RenderHeight() : 0;
+                                const RRSignalTagDiagnostics diagnostics =
+                                    StreamlineHooks::getRRSignalTagDiagnostics();
+
+                                ImGui::TextWrapped(
+                                    "Read-only probe for Streamline emissive, diffuse, specular, shadow, "
+                                    "ambient-occlusion and hint tags. A half-width candidate confirms only the "
+                                    "layout, not its phase. Shadow tags still need light metadata; hints are not "
+                                    "RR signals.");
+
+                                if (diagnostics.generation == 0)
+                                    ImGui::TextDisabled("No matching Streamline resource tags observed yet.");
+
+                                for (size_t i = 0; i < diagnostics.resources.size(); ++i)
+                                {
+                                    const auto signal = static_cast<RRTaggedSignal>(i);
+                                    const auto& diagnostic = diagnostics.resources[i];
+                                    const char* signalName = StreamlineHooks::getRRTaggedSignalName(signal);
+
+                                    if (!diagnostic.observed)
+                                    {
+                                        ImGui::TextDisabled("%s: not observed", signalName);
+                                        continue;
+                                    }
+
+                                    if (!diagnostic.present)
+                                    {
+                                        ImGui::TextDisabled("%s: cleared (updates: %llu)", signalName,
+                                                            static_cast<unsigned long long>(diagnostic.updateCount));
+                                        continue;
+                                    }
+
+                                    const std::string formatName =
+                                        std::string(magic_enum::enum_name(diagnostic.format));
+                                    const char* checkerboard =
+                                        StreamlineHooks::getRRCheckerboardAssessment(
+                                            signal, diagnostic, renderWidth, renderHeight);
+                                    const bool preferredFormat =
+                                        StreamlineHooks::isRRPreferredTagFormat(signal, diagnostic.format);
+
+                                    ImGui::Text(
+                                        "%s: %ux%u, %s (%u), %s",
+                                        signalName, diagnostic.effectiveWidth, diagnostic.effectiveHeight,
+                                        formatName.empty() ? "UNKNOWN" : formatName.c_str(),
+                                        static_cast<uint32_t>(diagnostic.format), checkerboard);
+
+                                    if (ImGui::IsItemHovered())
+                                    {
+                                        ImGui::SetTooltip(
+                                            "Debug name: %s\n"
+                                            "Pointer: %p\n"
+                                            "Native size: %llux%u\n"
+                                            "Effective extent: [%u,%u] %ux%u\n"
+                                            "State: 0x%X | Flags: 0x%X\n"
+                                            "Mips: %u | Arrays: %u | Samples: %u\n"
+                                            "Frame: %u | Updates: %llu\n"
+                                            "Preferred RR format: %s (%s)",
+                                            diagnostic.debugName.empty() ? "(unnamed)" :
+                                                diagnostic.debugName.c_str(),
+                                            diagnostic.resourceAddress,
+                                            static_cast<unsigned long long>(diagnostic.nativeWidth),
+                                            diagnostic.nativeHeight,
+                                            diagnostic.extentLeft, diagnostic.extentTop,
+                                            diagnostic.effectiveWidth, diagnostic.effectiveHeight,
+                                            diagnostic.state, static_cast<uint32_t>(diagnostic.resourceFlags),
+                                            diagnostic.mipLevels, diagnostic.arraySize, diagnostic.sampleCount,
+                                            diagnostic.frameIndex,
+                                            static_cast<unsigned long long>(diagnostic.updateCount),
+                                            StreamlineHooks::getRRPreferredTagFormat(signal),
+                                            preferredFormat ? "match" : "different");
+                                    }
+                                }
+
+                                if (ImGui::TreeNode("Complete Streamline Tag Inventory"))
+                                {
+                                    const SLTagInventoryDiagnostics inventory =
+                                        StreamlineHooks::getSLTagInventoryDiagnostics();
+
+                                    ImGui::TextWrapped(
+                                        "Every Streamline resource tag observed by OptiScaler. Unknown/custom IDs "
+                                        "are retained numerically. This is useful for finding signals that are not "
+                                        "covered by the named RR candidates above.");
+
+                                    if (inventory.resources.empty())
+                                    {
+                                        ImGui::TextDisabled("No Streamline resource tags observed yet.");
+                                    }
+                                    else
+                                    {
+                                        ImGui::Text("Observed tag types: %zu", inventory.resources.size());
+                                    }
+
+                                    for (const auto& entry : inventory.resources)
+                                    {
+                                        const auto& resource = entry.resource;
+                                        const char* typeName =
+                                            StreamlineHooks::getSLBufferTypeName(entry.type);
+                                        if (!resource.present)
+                                        {
+                                            ImGui::TextDisabled(
+                                                "%u (%s): cleared", entry.type, typeName);
+                                            continue;
+                                        }
+
+                                        const std::string formatName =
+                                            std::string(magic_enum::enum_name(resource.format));
+                                        ImGui::Text(
+                                            "%u (%s): %ux%u, %s",
+                                            entry.type, typeName,
+                                            resource.effectiveWidth, resource.effectiveHeight,
+                                            formatName.empty() ? "UNKNOWN" : formatName.c_str());
+
+                                        if (ImGui::IsItemHovered())
+                                        {
+                                            ImGui::SetTooltip(
+                                                "Debug name: %s\n"
+                                                "Pointer: %p\n"
+                                                "Native size: %llux%u\n"
+                                                "Effective extent: [%u,%u] %ux%u\n"
+                                                "State: 0x%X | Flags: 0x%X\n"
+                                                "Mips: %u | Arrays: %u | Samples: %u\n"
+                                                "Frame: %u | Updates: %llu",
+                                                resource.debugName.empty() ? "(unnamed)" :
+                                                    resource.debugName.c_str(),
+                                                resource.resourceAddress,
+                                                static_cast<unsigned long long>(resource.nativeWidth),
+                                                resource.nativeHeight,
+                                                resource.extentLeft, resource.extentTop,
+                                                resource.effectiveWidth, resource.effectiveHeight,
+                                                resource.state,
+                                                static_cast<uint32_t>(resource.resourceFlags),
+                                                resource.mipLevels, resource.arraySize, resource.sampleCount,
+                                                resource.frameIndex,
+                                                static_cast<unsigned long long>(resource.updateCount));
+                                        }
+                                    }
+
+                                    ImGui::TreePop();
+                                }
+
+                                if (ImGui::TreeNode("NGX Pointer Inventory"))
+                                {
+                                    const RRNGXPointerDiagnostics ngxInventory =
+                                        StreamlineHooks::getRRNGXPointerDiagnostics();
+
+                                    ImGui::TextWrapped(
+                                        "Pointer-valued NGX parameters visible to the RR backend. Exact D3D12 "
+                                        "resources include texture metadata. Opaque pointers are listed by key and "
+                                        "address only because they may be matrices, callbacks, or other objects.");
+
+                                    if (!ngxInventory.tableInspectable)
+                                    {
+                                        ImGui::TextDisabled(
+                                            "The current NGX parameter table cannot be safely enumerated.");
+                                    }
+                                    else if (ngxInventory.parameters.empty())
+                                    {
+                                        ImGui::TextDisabled("No pointer-valued NGX parameters observed.");
+                                    }
+                                    else
+                                    {
+                                        ImGui::Text(
+                                            "Pointer parameters: %zu", ngxInventory.parameters.size());
+                                    }
+
+                                    for (const auto& parameter : ngxInventory.parameters)
+                                    {
+                                        const char* kind = "opaque pointer";
+                                        if (parameter.kind == RRNGXPointerKind::D3D12Resource)
+                                            kind = "D3D12 resource";
+                                        else if (parameter.kind == RRNGXPointerKind::D3D11Resource)
+                                            kind = "D3D11 resource";
+
+                                        if (!parameter.present)
+                                        {
+                                            ImGui::TextDisabled(
+                                                "%s: null (%s)", parameter.name.c_str(), kind);
+                                            continue;
+                                        }
+
+                                        if (parameter.kind != RRNGXPointerKind::D3D12Resource)
+                                        {
+                                            ImGui::Text(
+                                                "%s: %s (not dereferenced)",
+                                                parameter.name.c_str(), kind);
+                                        }
+                                        else
+                                        {
+                                            const std::string formatName =
+                                                std::string(magic_enum::enum_name(parameter.format));
+                                            ImGui::Text(
+                                                "%s: %llux%u, %s",
+                                                parameter.name.c_str(),
+                                                static_cast<unsigned long long>(parameter.nativeWidth),
+                                                parameter.nativeHeight,
+                                                formatName.empty() ? "UNKNOWN" : formatName.c_str());
+                                        }
+
+                                        if (ImGui::IsItemHovered())
+                                        {
+                                            ImGui::SetTooltip(
+                                                "Kind: %s\n"
+                                                "Pointer: %p\n"
+                                                "Dimension: %u | Flags: 0x%X\n"
+                                                "Mips: %u | Arrays: %u | Samples: %u\n"
+                                                "Updates: %llu",
+                                                kind, parameter.address,
+                                                static_cast<uint32_t>(parameter.dimension),
+                                                static_cast<uint32_t>(parameter.resourceFlags),
+                                                parameter.mipLevels, parameter.arraySize,
+                                                parameter.sampleCount,
+                                                static_cast<unsigned long long>(
+                                                    parameter.updateCount));
+                                        }
+                                    }
+
+                                    ImGui::TreePop();
+                                }
+
+                                if (ImGui::TreeNode("RR Resource Inspector"))
+                                {
+                                    ImGui::TextWrapped(
+                                        "Live diagnostic browser for full-resolution shader-readable textures. "
+                                        "It tracks completed GPU write transitions and keeps selection attached to "
+                                        "the resource pointer across refreshes. D3D12 event names identify the "
+                                        "nearest producing pass when the game emits markers; this is correlation "
+                                        "evidence, not a semantic guarantee. Producer PSO IDs correlate resources "
+                                        "with the graphics or compute pipeline that wrote them. It never inserts "
+                                        "resource barriers.");
+
+                                    bool inspectorEnabled = ResTrack_Dx12::IsRRResourceInspectorEnabled();
+                                    if (ImGui::Checkbox("Enable Resource Inspector", &inspectorEnabled))
+                                    {
+                                        ResTrack_Dx12::SetRRResourceInspectorEnabled(inspectorEnabled);
+                                        if (inspectorEnabled && renderWidth > 0 && renderHeight > 0)
+                                            ResTrack_Dx12::RefreshRRResourceCandidates(renderWidth, renderHeight);
+                                    }
+
+                                    if (inspectorEnabled)
+                                    {
+                                        std::vector<RRResourceCandidate> candidates =
+                                            ResTrack_Dx12::GetRRResourceCandidates();
+                                        const auto isRecentlyWritten =
+                                            [](const RRResourceCandidate& candidate, int maxAge) {
+                                                return candidate.writeObserved &&
+                                                       candidate.writeAgeFrames <=
+                                                           static_cast<uint64_t>(std::max(maxAge, 0));
+                                            };
+                                        const size_t activeCount = static_cast<size_t>(std::count_if(
+                                            candidates.begin(), candidates.end(),
+                                            [&](const RRResourceCandidate& candidate) {
+                                                return isRecentlyWritten(
+                                                    candidate, _rrInspectorMaxWriteAge);
+                                            }));
+                                        ImGui::Text(
+                                            "Live: %zu / %zu", activeCount, candidates.size());
+                                        ImGui::SameLine();
+                                        if (ImGui::Button("Open Large Live Inspector"))
+                                            _showRRResourceInspectorWindow = true;
+
+                                        ImGui::Checkbox(
+                                            "Active only", &_rrInspectorActiveOnly);
+                                        ImGui::SameLine();
+                                        ImGui::Checkbox(
+                                            "Emissive pass only", &_rrInspectorEmissivePassOnly);
+                                        ImGui::SameLine();
+                                        ImGui::SetNextItemWidth(130.0f);
+                                        ImGui::SliderInt(
+                                            "Max write age", &_rrInspectorMaxWriteAge, 1, 30,
+                                            "%d frames");
+                                        if (_rrInspectorPsoFilter != 0)
+                                        {
+                                            ImGui::Text(
+                                                "Producer filter: PSO #%llu",
+                                                static_cast<unsigned long long>(
+                                                    _rrInspectorPsoFilter));
+                                            ImGui::SameLine();
+                                            if (ImGui::SmallButton("Clear PSO Filter"))
+                                                _rrInspectorPsoFilter = 0;
+                                        }
+
+                                        int selectedIndex = ResTrack_Dx12::GetRRResourceCandidateIndex();
+                                        if (!candidates.empty())
+                                            selectedIndex = std::clamp(
+                                                selectedIndex, 0, static_cast<int>(candidates.size()) - 1);
+                                        else
+                                            selectedIndex = 0;
+
+                                        const char* previewLabel = "No candidates observed";
+                                        std::string selectedLabel;
+                                        if (!candidates.empty())
+                                        {
+                                            const RRResourceCandidate& selected = candidates[selectedIndex];
+                                            const auto formatName = magic_enum::enum_name(selected.format);
+                                            selectedLabel = std::format(
+                                                "[{}] {:X} | {} | {}ch",
+                                                selectedIndex,
+                                                reinterpret_cast<uintptr_t>(selected.resourceAddress),
+                                                formatName.empty() ? "UNKNOWN" : formatName,
+                                                selected.channelCount);
+                                            previewLabel = selectedLabel.c_str();
+                                        }
+
+                                        if (ImGui::BeginCombo("Candidate Texture", previewLabel))
+                                        {
+                                            for (int index = 0; index < static_cast<int>(candidates.size()); ++index)
+                                            {
+                                                const RRResourceCandidate& candidate = candidates[index];
+                                                const auto formatName = magic_enum::enum_name(candidate.format);
+                                                if (_rrInspectorActiveOnly &&
+                                                    !isRecentlyWritten(
+                                                        candidate, _rrInspectorMaxWriteAge))
+                                                {
+                                                    continue;
+                                                }
+                                                if (_rrInspectorEmissivePassOnly &&
+                                                    !candidate.emissivePassMatch)
+                                                {
+                                                    continue;
+                                                }
+                                                if (_rrInspectorPsoFilter != 0 &&
+                                                    candidate.producerPsoId !=
+                                                        _rrInspectorPsoFilter)
+                                                {
+                                                    continue;
+                                                }
+                                                const std::string activity =
+                                                    candidate.writeObserved
+                                                        ? std::format(
+                                                              "age {} / interval {}",
+                                                              candidate.writeAgeFrames,
+                                                              candidate.lastWriteInterval)
+                                                        : "never written";
+                                                const std::string label = std::format(
+                                                    "[{}] {:X} | {} | {}ch | PSO #{} | {} | {}",
+                                                    index,
+                                                    reinterpret_cast<uintptr_t>(candidate.resourceAddress),
+                                                    formatName.empty() ? "UNKNOWN" : formatName,
+                                                    candidate.channelCount,
+                                                    candidate.producerPsoId,
+                                                    candidate.shaderReadable ? "ready" :
+                                                        (candidate.stateKnown ? "not readable" : "state unknown"),
+                                                    activity);
+                                                const bool selected = index == selectedIndex;
+                                                if (ImGui::Selectable(label.c_str(), selected))
+                                                {
+                                                    selectedIndex = index;
+                                                    ResTrack_Dx12::SetRRResourceCandidateIndex(index);
+                                                }
+                                                if (selected)
+                                                    ImGui::SetItemDefaultFocus();
+                                            }
+                                            ImGui::EndCombo();
+                                        }
+
+                                        static constexpr const char* kChannels[] = { "R", "G", "B", "A" };
+                                        const uint32_t currentChannel =
+                                            ResTrack_Dx12::GetRRResourceChannel();
+                                        int channel = static_cast<int>(currentChannel);
+                                        int availableChannels = 4;
+                                        if (!candidates.empty())
+                                            availableChannels = static_cast<int>(
+                                                std::max(candidates[selectedIndex].channelCount, 1u));
+                                        channel = std::clamp(channel, 0, availableChannels - 1);
+                                        if (channel != static_cast<int>(currentChannel))
+                                            ResTrack_Dx12::SetRRResourceChannel(
+                                                static_cast<uint32_t>(channel));
+                                        if (ImGui::Combo("Preview Channel", &channel, kChannels, availableChannels))
+                                            ResTrack_Dx12::SetRRResourceChannel(static_cast<uint32_t>(channel));
+
+                                        float viewScale = ResTrack_Dx12::GetRRResourceViewScale();
+                                        if (ImGui::SliderFloat(
+                                                "Preview Scale", &viewScale, 0.01f, 16.0f, "%.2fx",
+                                                ImGuiSliderFlags_Logarithmic))
+                                        {
+                                            ResTrack_Dx12::SetRRResourceViewScale(viewScale);
+                                        }
+
+                                        if (!candidates.empty())
+                                        {
+                                            const RRResourceCandidate& selected = candidates[selectedIndex];
+                                            ImGui::Text(
+                                                "Size: %llux%u | SRV/UAV/RTV: %u/%u/%u",
+                                                static_cast<unsigned long long>(selected.width), selected.height,
+                                                selected.srvViews, selected.uavViews, selected.rtvViews);
+                                            if (selected.writeObserved)
+                                            {
+                                                ImGui::Text(
+                                                    "Last write: %llu frames ago | cadence: %llu | "
+                                                    "written frames: %llu",
+                                                    static_cast<unsigned long long>(
+                                                        selected.writeAgeFrames),
+                                                    static_cast<unsigned long long>(
+                                                        selected.lastWriteInterval),
+                                                    static_cast<unsigned long long>(
+                                                        selected.writtenFrameCount));
+                                            }
+                                            else
+                                            {
+                                                ImGui::TextDisabled(
+                                                    "No completed write observed since tracking began.");
+                                            }
+                                            if (!selected.stateKnown)
+                                            {
+                                                ImGui::TextDisabled(
+                                                    "Preview unavailable: state not observed yet. Move the camera "
+                                                    "or change graphics settings to make the texture transition.");
+                                            }
+                                            else if (!selected.shaderReadable)
+                                            {
+                                                ImGui::TextDisabled(
+                                                    "Preview unavailable: current state 0x%X is not shader-readable.",
+                                                    static_cast<uint32_t>(selected.state));
+                                            }
+                                            else
+                                            {
+                                                ImGui::TextColored(
+                                                    ImVec4(0.4f, 1.0f, 0.4f, 1.0f),
+                                                    "Preview ready (state 0x%X)",
+                                                    static_cast<uint32_t>(selected.state));
+                                            }
+                                            if (selected.lastWritePass.empty())
+                                            {
+                                                ImGui::TextDisabled(
+                                                    "Producing pass: no D3D12 marker associated yet.");
+                                            }
+                                            else if (selected.emissivePassMatch)
+                                            {
+                                                ImGui::TextColored(
+                                                    ImVec4(1.0f, 0.45f, 0.9f, 1.0f),
+                                                    "Producing pass (emissive match): %s",
+                                                    selected.lastWritePass.c_str());
+                                            }
+                                            else
+                                            {
+                                                ImGui::TextWrapped(
+                                                    "Producing pass: %s",
+                                                    selected.lastWritePass.c_str());
+                                            }
+                                            if (selected.producerPsoId == 0)
+                                            {
+                                                ImGui::TextDisabled(
+                                                    "Producer PSO: unresolved.");
+                                            }
+                                            else
+                                            {
+                                                const char* producerKind =
+                                                    selected.producerKind == 1 ? "Graphics" :
+                                                    selected.producerKind == 2 ? "Compute" :
+                                                    selected.producerKind == 3 ? "Stream" :
+                                                                                 "Unknown";
+                                                if (selected.producerAmbiguous)
+                                                {
+                                                    ImGui::TextColored(
+                                                        ImVec4(1.0f, 0.7f, 0.25f, 1.0f),
+                                                        "Producer PSO: %s #%llu, hash 0x%llX, "
+                                                        "%llu hits (%u candidates, ambiguous)",
+                                                        producerKind,
+                                                        static_cast<unsigned long long>(
+                                                            selected.producerPsoId),
+                                                        static_cast<unsigned long long>(
+                                                            selected.producerPsoHash),
+                                                        static_cast<unsigned long long>(
+                                                            selected.producerHitCount),
+                                                        selected.producerCount);
+                                                }
+                                                else
+                                                {
+                                                    ImGui::Text(
+                                                        "Producer PSO: %s #%llu, hash 0x%llX, "
+                                                        "%llu hits (%u candidates)",
+                                                        producerKind,
+                                                        static_cast<unsigned long long>(
+                                                            selected.producerPsoId),
+                                                        static_cast<unsigned long long>(
+                                                            selected.producerPsoHash),
+                                                        static_cast<unsigned long long>(
+                                                            selected.producerHitCount),
+                                                        selected.producerCount);
+                                                }
+                                                if (ImGui::SmallButton("Filter Selected PSO"))
+                                                    _rrInspectorPsoFilter =
+                                                        selected.producerPsoId;
+                                            }
+                                        }
+
+                                        if (ImGui::Button("Refresh Candidates") &&
+                                            renderWidth > 0 && renderHeight > 0)
+                                        {
+                                            ResTrack_Dx12::RefreshRRResourceCandidates(
+                                                renderWidth, renderHeight);
+                                        }
+
+                                        ImGui::SameLine();
+                                        if (ImGui::Button("Preview Selected"))
+                                        {
+                                            for (const uint64_t mode : state.ffxDenoiserDebugModes)
+                                            {
+                                                const char* name = state.ffxDenoiserDebugModeNames[mode];
+                                                if (name && std::string_view(name) == "ResourceInspector")
+                                                {
+                                                    config->FfxDenoiserDebugMode = mode;
+                                                    break;
+                                                }
+                                            }
+                                        }
+
+                                        ImGui::SameLine();
+                                        if (ImGui::Button("Log Resource Snapshot"))
+                                        {
+                                            ResTrack_Dx12::LogRRScalarResourceCandidates(
+                                                renderWidth, renderHeight);
+                                        }
+                                        ImGui::SameLine();
+                                        if (ImGui::Button("Log Emissive Pass Snapshot"))
+                                        {
+                                            ResTrack_Dx12::LogRREmissivePassSnapshot(
+                                                renderWidth, renderHeight);
+                                        }
+                                        ImGui::SameLine();
+                                        if (ImGui::Button("Log PSO Snapshot"))
+                                        {
+                                            ResTrack_Dx12::LogRRPsoProducerSnapshot(
+                                                renderWidth, renderHeight);
+                                        }
+                                    }
+
+                                    ImGui::TreePop();
+                                }
+
+                                if (ImGui::Button("Log Probe Snapshot"))
+                                {
+                                    StreamlineHooks::logRRSignalTagDiagnostics(renderWidth, renderHeight);
+                                    StreamlineHooks::logSLTagInventoryDiagnostics(renderWidth, renderHeight);
+                                    StreamlineHooks::logRRNGXPointerDiagnostics();
+                                }
+
+                                ImGui::SameLine();
+                                if (ImGui::Button("Reset Probe"))
+                                {
+                                    StreamlineHooks::resetRRSignalTagDiagnostics();
+                                    StreamlineHooks::resetRRInputInventoryDiagnostics();
+                                }
+
+                                ImGui::TreePop();
                             }
 
                             ImGui::SeparatorText("Floor Correction");
@@ -3567,31 +4285,125 @@ bool MenuCommon::RenderMenu()
                                 ImGui::SliderFloat("Correlation Bias", &v, 0, 1))
                                 config->FfxDenoiserCorrelationBias = v;
 
+                            // Supplying the diffuse ray length is no longer a user
+                            // decision: the diffuse signal's Auto mode resolves from
+                            // whether that length exists, so exposing a switch that
+                            // could contradict the classification only invited a
+                            // configuration where Indirect Diffuse was selected and
+                            // then starved of the input it reads.
+
                             if (float v = config->FfxDenoiserFloorIsolation.value_or_default();
                                 ImGui::SliderFloat("Floor Isolation", &v, 0, 1))
                                 config->FfxDenoiserFloorIsolation = v;
 
                             if (float v = std::clamp(
-                                    config->FfxDenoiserRoughnessFloor.value_or_default(), 0.0f, 0.01f);
-                                ImGui::SliderFloat("Roughness Floor", &v, 0.0f, 0.01f, "%.4f"))
+                                    config->FfxDenoiserRoughnessFloor.value_or_default(), 0.0f, 1.0f);
+                                ImGui::SliderFloat("Roughness Addition", &v, 0.0f, 1.0f, "%.4f"))
                                 config->FfxDenoiserRoughnessFloor = v;
                             if (ImGui::IsItemHovered())
                                 ImGui::SetTooltip(
-                                    "Raises only near-zero roughness supplied to FSR Ray Regeneration.\n"
-                                    "0.0000: Disabled. 0.0020: Recommended compatibility value.\n"
-                                    "Higher values may soften sharp mirror reflections.");
+                                    "Roughness added privately for exact-zero (type-1) surfaces only.\n"
+                                    "RR reads exact zero as a perfect mirror and reprojects it through a\n"
+                                    "virtual hit position it cannot reconstruct; lifting the value gives the\n"
+                                    "denoiser something it can filter instead. 0.0000 disables the addition.\n"
+                                    "The game G-buffer and the exact-zero classification are unchanged - this\n"
+                                    "value never leaves the RR input.");
 
-                            if (float v = std::clamp(
-                                    config->FfxDenoiserRoughnessFloorDistance.value_or_default(),
-                                    0.0f, 1000.0f);
-                                ImGui::DragFloat("Floor Distance Threshold", &v, 0.1f, 0.0f, 1000.0f, "%.1f",
-                                                 ImGuiSliderFlags_AlwaysClamp))
-                                config->FfxDenoiserRoughnessFloorDistance = v;
+
+                            bool zeroRoughHandover =
+                                config->FfxDenoiserZeroRoughHandover.value_or_default();
+                            if (ImGui::Checkbox("Zero-Rough Handover", &zeroRoughHandover))
+                                config->FfxDenoiserZeroRoughHandover = zeroRoughHandover;
                             if (ImGui::IsItemHovered())
                                 ImGui::SetTooltip(
-                                    "At or below this view-space distance: the full configured floor is applied.\n"
-                                    "Beyond it: no added roughness floor.\n"
-                                    "Cyberpunk's view-space units are approximately meters.");
+                                    "Routes exact-zero (type-1) surfaces to the spatial floor instead of RR.\n"
+                                    "RR reads exact-zero roughness as a perfect mirror and reprojects it\n"
+                                    "through a virtual hit position it cannot reconstruct without a specular\n"
+                                    "ray length, so it accumulates confident but misaligned history there.\n"
+                                    "Every type-1 pixel is handed over whole; composition then separates the\n"
+                                    "two paths by frequency, taking the low band from RR and the high band\n"
+                                    "from the floor, so nothing is traded away by mixing them as images.");
+
+                            ImGui::BeginDisabled(!zeroRoughHandover);
+
+                            if (float v = std::clamp(
+                                    config->FfxDenoiserZeroRoughDetail.value_or_default(), 0.0f, 1.0f);
+                                ImGui::SliderFloat("Zero-Rough Detail", &v, 0.0f, 1.0f, "%.3f"))
+                                config->FfxDenoiserZeroRoughDetail = v;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "How far the handover moves from the floor toward the detail filter.\n"
+                                    "0.0: the floor's 5x5 full median and a-trous result. Isotropic, so it\n"
+                                    "erases strokes thinner than about 3 pixels - this is what removes panel\n"
+                                    "text and blends the original colours.\n"
+                                    "1.0: entirely the filter selected below.");
+
+                            if (float v = std::clamp(
+                                    config->FfxDenoiserZeroRoughAnchorClamp.value_or_default(), 0.0f, 4.0f);
+                                ImGui::SliderFloat("Zero-Rough RR Anchor", &v, 0.0f, 4.0f, "%.2f"))
+                                config->FfxDenoiserZeroRoughAnchorClamp = v;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "Bounds the handover to RR's local distribution, in standard deviations.\n"
+                                    "The handover path is purely spatial, so it filters a fresh noise\n"
+                                    "realization every frame and flickers even on a static scene - no blend\n"
+                                    "can fix that, since a mix inherits the instability of whichever side is\n"
+                                    "unstable. RR's output is temporally stable, so clamping to its\n"
+                                    "neighbourhood lends that stability without lending its blur: values\n"
+                                    "already inside the range pass untouched.\n"
+                                    "Lower clamps harder. 0 is off.");
+
+                            if (float v = std::clamp(
+                                    config->FfxDenoiserZeroRoughCorrelationMix.value_or_default(), 0.0f, 1.0f);
+                                ImGui::SliderFloat("Zero-Rough Agreement Mix", &v, 0.0f, 1.0f, "%.2f"))
+                                config->FfxDenoiserZeroRoughCorrelationMix = v;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "Follows per-pixel agreement between the two paths instead of handing\n"
+                                    "over every type-1 pixel equally. Whether RR damaged a pixel is a\n"
+                                    "per-pixel fact, so one flat weight is the wrong instrument for it.\n"
+                                    "Where the two agree structurally the choice is moot and RR wins on\n"
+                                    "stability; where they diverge, RR removed something the floor kept,\n"
+                                    "which is the case the handover exists for. 0 is off.");
+
+                            constexpr const char* zeroRoughDetailModes[] = {
+                                "Hybrid Median (rank)",
+                                "Structure-Tensor Steered (avg)",
+                                "Kuwahara (avg)",
+                                "Adaptive Rank (rank)",
+                                "Albedo-Guided (avg)",
+                            };
+                            int detailMode = std::clamp(
+                                config->FfxDenoiserZeroRoughDetailMode.value_or_default(), 0,
+                                IM_ARRAYSIZE(zeroRoughDetailModes) - 1);
+                            if (ImGui::Combo("Zero-Rough Detail Filter", &detailMode,
+                                             zeroRoughDetailModes, IM_ARRAYSIZE(zeroRoughDetailModes)))
+                                config->FfxDenoiserZeroRoughDetailMode = detailMode;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip(
+                                    "Rank filters republish the centre pixel untouched wherever it is not an\n"
+                                    "outlier, so clean pixels and text keep their exact original value. They\n"
+                                    "cannot clear clustered noise, where neighbouring samples are wrong\n"
+                                    "together and none reads as an outlier.\n"
+                                    "Averaging filters clear that noise but never leave a pixel exactly as it\n"
+                                    "was, which reads as softening.\n\n"
+                                    "Hybrid Median: medians along the cross and diagonal axes. Fixed 3x3.\n\n"
+                                    "Structure-Tensor Steered: averages along a measured edge, never across.\n\n"
+                                    "Kuwahara: mean of the lowest-variance 3x3 of nine candidates, so it never\n"
+                                    "averages across a boundary. Nine candidates instead of the classic four\n"
+                                    "to stop glyph corners rounding.\n\n"
+                                    "Adaptive Rank: the classic adaptive median. Keeps the hybrid median's\n"
+                                    "exact-centre property but grows to 5x5 only where a 3x3 could not find a\n"
+                                    "trustworthy median - which is what clustered noise looks like. Try this\n"
+                                    "first if the hybrid median is the best so far.\n\n"
+                                    "Albedo-Guided: takes edge weights from the noise-free G-buffer albedo\n"
+                                    "instead of inferring them from the noisy signal. Best in class when the\n"
+                                    "panel's structure is present in albedo; falls back to the hybrid median\n"
+                                    "automatically where the albedo is flat. Check the\n"
+                                    "AlbedoStructureAvailability debug view - bright means it will work.");
+
+                            ImGui::EndDisabled();
+
                         }
                     }
 
@@ -6934,6 +7746,7 @@ bool MenuCommon::RenderMenu()
 
                     _showMipmapCalcWindow = false;
                     _showHudlessWindow = false;
+                    _showRRResourceInspectorWindow = false;
                     io.MouseDrawCursor = false;
                     io.WantCaptureKeyboard = false;
                     io.WantCaptureMouse = false;
@@ -6997,6 +7810,447 @@ bool MenuCommon::RenderMenu()
                     lastPosition.y = posY;
                 }
 
+                ImGui::End();
+            }
+
+            if (_showRRResourceInspectorWindow && currentFeature != nullptr)
+            {
+                const uint32_t renderWidth = currentFeature->RenderWidth();
+                const uint32_t renderHeight = currentFeature->RenderHeight();
+                if (!ResTrack_Dx12::IsRRResourceInspectorEnabled())
+                    ResTrack_Dx12::SetRRResourceInspectorEnabled(true);
+                if (renderWidth > 0 && renderHeight > 0)
+                    ResTrack_Dx12::RefreshRRResourceCandidates(renderWidth, renderHeight);
+
+                const ImVec2 inspectorSize {
+                    std::max(io.DisplaySize.x * 0.88f, 900.0f),
+                    std::max(io.DisplaySize.y * 0.82f, 620.0f)
+                };
+                ImGui::SetNextWindowPos(
+                    ImVec2 {
+                        std::max((io.DisplaySize.x - inspectorSize.x) * 0.5f, 0.0f),
+                        std::max((io.DisplaySize.y - inspectorSize.y) * 0.5f, 0.0f)
+                    },
+                    ImGuiCond_FirstUseEver);
+                ImGui::SetNextWindowSize(inspectorSize, ImGuiCond_FirstUseEver);
+
+                ImGuiWindowFlags inspectorFlags =
+                    ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoCollapse;
+                if (ImGui::Begin(
+                        "RR Live Resource Inspector", &_showRRResourceInspectorWindow,
+                        inspectorFlags))
+                {
+                    if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
+                        ImGui::SetWindowFocus();
+
+                    std::vector<RRResourceCandidate> candidates =
+                        ResTrack_Dx12::GetRRResourceCandidates();
+                    const auto isRecentlyWritten =
+                        [](const RRResourceCandidate& candidate, int maxAge) {
+                            return candidate.writeObserved &&
+                                   candidate.writeAgeFrames <=
+                                       static_cast<uint64_t>(std::max(maxAge, 0));
+                        };
+                    const size_t activeCount = static_cast<size_t>(std::count_if(
+                        candidates.begin(), candidates.end(),
+                        [&](const RRResourceCandidate& candidate) {
+                            return isRecentlyWritten(
+                                candidate, _rrInspectorMaxWriteAge);
+                        }));
+
+                    ImGui::Text(
+                        "Render: %ux%u | Live resources: %zu / %zu",
+                        renderWidth, renderHeight, activeCount, candidates.size());
+                    ImGui::TextWrapped(
+                        "A resource is live when a completed GPU write transition was observed recently. "
+                        "Cadence 2-4 usually indicates ping-pong or multi-buffered history. The preview is "
+                        "sampled directly and fills the game output; no copy or resource barrier is inserted. "
+                        "Producing-pass names come from game D3D12 markers. Producer PSO IDs correlate the "
+                        "resource with the graphics or compute pipeline that wrote it. Compute attribution is "
+                        "marked ambiguous when multiple dispatches occur before an observable write boundary.");
+
+                    ImGui::Checkbox("Active only##LargeRRInspector", &_rrInspectorActiveOnly);
+                    ImGui::SameLine();
+                    ImGui::Checkbox(
+                        "Emissive pass only##LargeRRInspector",
+                        &_rrInspectorEmissivePassOnly);
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(180.0f);
+                    ImGui::SliderInt(
+                        "Maximum write age##LargeRRInspector",
+                        &_rrInspectorMaxWriteAge, 1, 60, "%d frames");
+
+                    static char rrResourceFilter[128] = "";
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(330.0f);
+                    ImGui::InputTextWithHint(
+                        "##RRResourceFilter", "Filter pointer, name, format, pass, or PSO...",
+                        rrResourceFilter, IM_ARRAYSIZE(rrResourceFilter));
+                    if (_rrInspectorPsoFilter != 0)
+                    {
+                        ImGui::Text(
+                            "Producer filter: PSO #%llu",
+                            static_cast<unsigned long long>(_rrInspectorPsoFilter));
+                        ImGui::SameLine();
+                        if (ImGui::SmallButton("Clear PSO Filter##LargeRRInspector"))
+                            _rrInspectorPsoFilter = 0;
+                    }
+
+                    int selectedIndex = ResTrack_Dx12::GetRRResourceCandidateIndex();
+                    if (!candidates.empty())
+                    {
+                        selectedIndex = std::clamp(
+                            selectedIndex, 0, static_cast<int>(candidates.size()) - 1);
+                    }
+
+                    size_t visibleCount = 0;
+                    const float controlsHeight =
+                        ImGui::GetFrameHeightWithSpacing() * 5.5f;
+                    const ImGuiTableFlags tableFlags =
+                        ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
+                        ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable |
+                        ImGuiTableFlags_Hideable | ImGuiTableFlags_ScrollY |
+                        ImGuiTableFlags_SizingStretchProp;
+                    if (ImGui::BeginTable(
+                            "##RRLiveResourceTable", 12, tableFlags,
+                            ImVec2(0.0f, std::max(
+                                ImGui::GetContentRegionAvail().y - controlsHeight,
+                                240.0f))))
+                    {
+                        ImGui::TableSetupScrollFreeze(0, 1);
+                        ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 42.0f);
+                        ImGui::TableSetupColumn("Pointer", ImGuiTableColumnFlags_WidthFixed, 128.0f);
+                        ImGui::TableSetupColumn("Debug name", ImGuiTableColumnFlags_WidthStretch, 1.5f);
+                        ImGui::TableSetupColumn("Producing pass", ImGuiTableColumnFlags_WidthStretch, 2.2f);
+                        ImGui::TableSetupColumn("Format", ImGuiTableColumnFlags_WidthStretch, 1.1f);
+                        ImGui::TableSetupColumn("Producer PSO", ImGuiTableColumnFlags_WidthFixed, 126.0f);
+                        ImGui::TableSetupColumn("Activity", ImGuiTableColumnFlags_WidthFixed, 94.0f);
+                        ImGui::TableSetupColumn("Age", ImGuiTableColumnFlags_WidthFixed, 62.0f);
+                        ImGui::TableSetupColumn("Cadence", ImGuiTableColumnFlags_WidthFixed, 72.0f);
+                        ImGui::TableSetupColumn("Written", ImGuiTableColumnFlags_WidthFixed, 72.0f);
+                        ImGui::TableSetupColumn("SRV/UAV/RTV", ImGuiTableColumnFlags_WidthFixed, 112.0f);
+                        ImGui::TableSetupColumn("State", ImGuiTableColumnFlags_WidthFixed, 82.0f);
+                        ImGui::TableHeadersRow();
+
+                        for (int index = 0;
+                             index < static_cast<int>(candidates.size()); ++index)
+                        {
+                            const RRResourceCandidate& candidate = candidates[index];
+                            if (_rrInspectorActiveOnly &&
+                                !isRecentlyWritten(candidate, _rrInspectorMaxWriteAge))
+                            {
+                                continue;
+                            }
+                            if (_rrInspectorEmissivePassOnly &&
+                                !candidate.emissivePassMatch)
+                            {
+                                continue;
+                            }
+                            if (_rrInspectorPsoFilter != 0 &&
+                                candidate.producerPsoId != _rrInspectorPsoFilter)
+                            {
+                                continue;
+                            }
+
+                            const auto formatName = magic_enum::enum_name(candidate.format);
+                            const std::string pointerText = std::format(
+                                "{:X}",
+                                reinterpret_cast<uintptr_t>(candidate.resourceAddress));
+                            const char* producerKind =
+                                candidate.producerKind == 1 ? "Graphics" :
+                                candidate.producerKind == 2 ? "Compute" :
+                                candidate.producerKind == 3 ? "Stream" :
+                                                               "Unknown";
+                            const std::string searchable = std::format(
+                                "{} {} {} {} {} {} {:X}",
+                                pointerText, candidate.debugName,
+                                formatName.empty() ? "UNKNOWN" : formatName,
+                                candidate.lastWritePass, producerKind,
+                                candidate.producerPsoId, candidate.producerPsoHash);
+                            if (rrResourceFilter[0] != '\0' &&
+                                searchable.find(rrResourceFilter) == std::string::npos)
+                            {
+                                continue;
+                            }
+
+                            ++visibleCount;
+                            ImGui::PushID(candidate.resourceAddress);
+                            ImGui::TableNextRow();
+                            ImGui::TableSetColumnIndex(0);
+                            const bool selected = index == selectedIndex;
+                            if (ImGui::Selectable(
+                                    std::format("{}##candidate", index).c_str(),
+                                    selected,
+                                    ImGuiSelectableFlags_SpanAllColumns |
+                                        ImGuiSelectableFlags_AllowOverlap))
+                            {
+                                selectedIndex = index;
+                                ResTrack_Dx12::SetRRResourceCandidateIndex(index);
+                            }
+
+                            ImGui::TableSetColumnIndex(1);
+                            ImGui::TextUnformatted(pointerText.c_str());
+                            ImGui::TableSetColumnIndex(2);
+                            if (candidate.debugName.empty())
+                                ImGui::TextDisabled("(unnamed)");
+                            else
+                                ImGui::TextUnformatted(candidate.debugName.c_str());
+                            ImGui::TableSetColumnIndex(3);
+                            if (candidate.lastWritePass.empty())
+                            {
+                                ImGui::TextDisabled("(no marker)");
+                            }
+                            else if (candidate.emissivePassMatch)
+                            {
+                                ImGui::TextColored(
+                                    ImVec4(1.0f, 0.45f, 0.9f, 1.0f), "%s",
+                                    candidate.lastWritePass.c_str());
+                            }
+                            else
+                            {
+                                ImGui::TextUnformatted(candidate.lastWritePass.c_str());
+                            }
+                            ImGui::TableSetColumnIndex(4);
+                            ImGui::Text(
+                                "%s (%uch)",
+                                formatName.empty() ? "UNKNOWN" : formatName.data(),
+                                candidate.channelCount);
+                            ImGui::TableSetColumnIndex(5);
+                            if (candidate.producerPsoId == 0)
+                            {
+                                ImGui::TextDisabled("(unresolved)");
+                            }
+                            else if (candidate.producerAmbiguous)
+                            {
+                                ImGui::TextColored(
+                                    ImVec4(1.0f, 0.7f, 0.25f, 1.0f),
+                                    "%c #%llu ?",
+                                    candidate.producerKind == 1 ? 'G' :
+                                    candidate.producerKind == 2 ? 'C' : 'S',
+                                    static_cast<unsigned long long>(
+                                        candidate.producerPsoId));
+                            }
+                            else
+                            {
+                                ImGui::Text(
+                                    "%c #%llu",
+                                    candidate.producerKind == 1 ? 'G' :
+                                    candidate.producerKind == 2 ? 'C' : 'S',
+                                    static_cast<unsigned long long>(
+                                        candidate.producerPsoId));
+                            }
+                            if (ImGui::IsItemHovered() &&
+                                candidate.producerPsoId != 0)
+                            {
+                                ImGui::SetTooltip(
+                                    "%s PSO #%llu\nHash: 0x%llX\nHits: %llu\n"
+                                    "Candidate producers: %u%s",
+                                    producerKind,
+                                    static_cast<unsigned long long>(
+                                        candidate.producerPsoId),
+                                    static_cast<unsigned long long>(
+                                        candidate.producerPsoHash),
+                                    static_cast<unsigned long long>(
+                                        candidate.producerHitCount),
+                                    candidate.producerCount,
+                                    candidate.producerAmbiguous
+                                        ? "\nAttribution is ambiguous."
+                                        : "");
+                            }
+                            ImGui::TableSetColumnIndex(6);
+                            if (!candidate.writeObserved)
+                            {
+                                ImGui::TextDisabled("Never");
+                            }
+                            else if (candidate.alternating)
+                            {
+                                ImGui::TextColored(
+                                    ImVec4(0.3f, 0.9f, 1.0f, 1.0f), "Alternating");
+                            }
+                            else if (isRecentlyWritten(
+                                         candidate, _rrInspectorMaxWriteAge))
+                            {
+                                ImGui::TextColored(
+                                    ImVec4(0.35f, 1.0f, 0.35f, 1.0f), "Live");
+                            }
+                            else
+                            {
+                                ImGui::TextDisabled("Stale");
+                            }
+                            ImGui::TableSetColumnIndex(7);
+                            if (candidate.writeObserved)
+                                ImGui::Text(
+                                    "%llu",
+                                    static_cast<unsigned long long>(
+                                        candidate.writeAgeFrames));
+                            else
+                                ImGui::TextDisabled("-");
+                            ImGui::TableSetColumnIndex(8);
+                            if (candidate.lastWriteInterval > 0)
+                                ImGui::Text(
+                                    "%llu",
+                                    static_cast<unsigned long long>(
+                                        candidate.lastWriteInterval));
+                            else
+                                ImGui::TextDisabled("-");
+                            ImGui::TableSetColumnIndex(9);
+                            ImGui::Text(
+                                "%llu",
+                                static_cast<unsigned long long>(
+                                    candidate.writtenFrameCount));
+                            ImGui::TableSetColumnIndex(10);
+                            ImGui::Text(
+                                "%u/%u/%u", candidate.srvViews,
+                                candidate.uavViews, candidate.rtvViews);
+                            ImGui::TableSetColumnIndex(11);
+                            if (!candidate.stateKnown)
+                                ImGui::TextDisabled("Unknown");
+                            else if (candidate.shaderReadable)
+                                ImGui::TextColored(
+                                    ImVec4(0.35f, 1.0f, 0.35f, 1.0f),
+                                    "0x%X", static_cast<uint32_t>(candidate.state));
+                            else
+                                ImGui::Text(
+                                    "0x%X", static_cast<uint32_t>(candidate.state));
+                            ImGui::PopID();
+                        }
+
+                        ImGui::EndTable();
+                    }
+
+                    if (visibleCount == 0)
+                    {
+                        ImGui::TextDisabled(
+                            "No matching live resources yet. Move the camera for several frames, "
+                            "increase Maximum write age, or turn off Active only.");
+                    }
+
+                    candidates = ResTrack_Dx12::GetRRResourceCandidates();
+                    selectedIndex = ResTrack_Dx12::GetRRResourceCandidateIndex();
+                    const RRResourceCandidate* selected = nullptr;
+                    if (!candidates.empty() && selectedIndex >= 0 &&
+                        selectedIndex < static_cast<int>(candidates.size()))
+                    {
+                        selected = &candidates[selectedIndex];
+                    }
+
+                    static constexpr const char* kChannels[] = { "R", "G", "B", "A" };
+                    int channel = static_cast<int>(ResTrack_Dx12::GetRRResourceChannel());
+                    int availableChannels =
+                        selected ? static_cast<int>(
+                                       std::max(selected->channelCount, 1u))
+                                 : 4;
+                    channel = std::clamp(channel, 0, availableChannels - 1);
+                    ImGui::SetNextItemWidth(90.0f);
+                    if (ImGui::Combo(
+                            "Channel##LargeRRInspector", &channel, kChannels,
+                            availableChannels))
+                    {
+                        ResTrack_Dx12::SetRRResourceChannel(
+                            static_cast<uint32_t>(channel));
+                    }
+
+                    float viewScale = ResTrack_Dx12::GetRRResourceViewScale();
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(260.0f);
+                    if (ImGui::SliderFloat(
+                            "Value multiplier##LargeRRInspector", &viewScale,
+                            0.01f, 100.0f, "%.3fx",
+                            ImGuiSliderFlags_Logarithmic))
+                    {
+                        ResTrack_Dx12::SetRRResourceViewScale(viewScale);
+                    }
+
+                    if (selected)
+                    {
+                        ImGui::SameLine();
+                        ImGui::Text(
+                            "Selected [%d] %p | %s | state 0x%X",
+                            selectedIndex, selected->resourceAddress,
+                            selected->debugName.empty()
+                                ? "(unnamed)"
+                                : selected->debugName.c_str(),
+                            static_cast<uint32_t>(selected->state));
+                        if (!selected->lastWritePass.empty())
+                        {
+                            ImGui::TextWrapped(
+                                "Producing pass%s: %s",
+                                selected->emissivePassMatch ? " (emissive match)" : "",
+                                selected->lastWritePass.c_str());
+                        }
+                        if (selected->producerPsoId == 0)
+                        {
+                            ImGui::TextDisabled("Producer PSO: unresolved.");
+                        }
+                        else
+                        {
+                            const char* producerKind =
+                                selected->producerKind == 1 ? "Graphics" :
+                                selected->producerKind == 2 ? "Compute" :
+                                selected->producerKind == 3 ? "Stream" :
+                                                               "Unknown";
+                            ImGui::Text(
+                                "Producer PSO: %s #%llu | hash 0x%llX | hits %llu | "
+                                "candidate producers %u%s",
+                                producerKind,
+                                static_cast<unsigned long long>(
+                                    selected->producerPsoId),
+                                static_cast<unsigned long long>(
+                                    selected->producerPsoHash),
+                                static_cast<unsigned long long>(
+                                    selected->producerHitCount),
+                                selected->producerCount,
+                                selected->producerAmbiguous ? " | ambiguous" : "");
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton(
+                                    "Filter Selected PSO##LargeRRInspector"))
+                            {
+                                _rrInspectorPsoFilter = selected->producerPsoId;
+                            }
+                        }
+                    }
+
+                    if (ImGui::Button("Preview Selected Full Screen"))
+                    {
+                        for (const uint64_t mode : state.ffxDenoiserDebugModes)
+                        {
+                            const char* name = state.ffxDenoiserDebugModeNames[mode];
+                            if (name && std::string_view(name) == "ResourceInspector")
+                            {
+                                config->FfxDenoiserDebugMode = mode;
+                                break;
+                            }
+                        }
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Refresh Now") &&
+                        renderWidth > 0 && renderHeight > 0)
+                    {
+                        ResTrack_Dx12::RefreshRRResourceCandidates(
+                            renderWidth, renderHeight);
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Log Full Snapshot"))
+                    {
+                        ResTrack_Dx12::LogRRScalarResourceCandidates(
+                            renderWidth, renderHeight);
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Log Emissive Pass Snapshot"))
+                    {
+                        ResTrack_Dx12::LogRREmissivePassSnapshot(
+                            renderWidth, renderHeight);
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Log PSO Snapshot"))
+                    {
+                        ResTrack_Dx12::LogRRPsoProducerSnapshot(
+                            renderWidth, renderHeight);
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Close"))
+                        _showRRResourceInspectorWindow = false;
+                }
                 ImGui::End();
             }
 
@@ -7371,6 +8625,7 @@ void MenuCommon::HideMenu()
 
     _showMipmapCalcWindow = false;
     _showHudlessWindow = false;
+    _showRRResourceInspectorWindow = false;
 
     RECT windowRect = {};
 

@@ -697,6 +697,20 @@ struct Parameter
     size_t key = 0;
 };
 
+enum class NGXPointerParameterKind : uint32_t
+{
+    OpaquePointer,
+    D3D11Resource,
+    D3D12Resource
+};
+
+struct NGXPointerParameter
+{
+    std::string name;
+    NGXPointerParameterKind kind = NGXPointerParameterKind::OpaquePointer;
+    void* address = nullptr;
+};
+
 /// @brief Implementation of the NVSDK_NGX_Parameter interface, providing thread-safe storage and retrieval of NGX
 /// parameters.
 struct NVNGX_Parameters : public NVSDK_NGX_Parameter
@@ -995,12 +1009,49 @@ struct NVNGX_Parameters : public NVSDK_NGX_Parameter
 
     std::vector<std::string> enumerate() const
     {
+        const std::lock_guard<std::mutex> lock(m_mutex);
         std::vector<std::string> keys;
         for (auto& value : m_values)
         {
             keys.push_back(value.first);
         }
         return keys;
+    }
+
+    std::vector<NGXPointerParameter> enumeratePointerParameters() const
+    {
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        std::vector<NGXPointerParameter> parameters;
+
+        for (const auto& [name, parameter] : m_values)
+        {
+            NGXPointerParameter entry {};
+            entry.name = name;
+
+            if (parameter.key == typeid(ID3D12Resource*).hash_code())
+            {
+                entry.kind = NGXPointerParameterKind::D3D12Resource;
+                entry.address = parameter.values.d12r;
+            }
+            else if (parameter.key == typeid(ID3D11Resource*).hash_code())
+            {
+                entry.kind = NGXPointerParameterKind::D3D11Resource;
+                entry.address = parameter.values.d11r;
+            }
+            else if (parameter.key == typeid(void*).hash_code())
+            {
+                entry.kind = NGXPointerParameterKind::OpaquePointer;
+                entry.address = parameter.values.vp;
+            }
+            else
+            {
+                continue;
+            }
+
+            parameters.push_back(std::move(entry));
+        }
+
+        return parameters;
     }
 
   private:

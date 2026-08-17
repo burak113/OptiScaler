@@ -1,6 +1,8 @@
 #pragma once
 #include "FSR31Feature_Dx12.h"
+#include "hooks/Streamline_Hooks.h"
 #include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
+#include <array>
 #include <DirectXMath.h>
 
 /**
@@ -68,28 +70,91 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     ffxContext _pDenoiserCtx;
     ffxCreateContextDescDenoiser _denoiserCtxDesc;
     DenoiserConfiguration _denoiserSettings;
+    // AMD's queried baseline, captured before the per-frame configure pass starts
+    // overwriting _denoiserSettings with the INI values. Retained so the A/B switch
+    // can restore it without recreating the context.
+    DenoiserConfiguration _denoiserAmdDefaults {};
     ffxStructType_t _diffuseSignalDescType = FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE;
-    ffxStructType_t _specularSignalDescType = FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR;
+    ffxStructType_t _specularSignalDescType = FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR;
+    // An unset INI value means Auto. Start safely in direct mode, then resolve
+    // exactly once from the first frame's validated hit-distance resources.
+    ffxStructType_t _autoSpecularSignalDescType = FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR;
+    bool _autoSpecularSignalResolved = false;
+    // Same contract for diffuse: unset means Auto, resolved once from the first
+    // validated frame that either has a diffuse ray length or does not.
+    ffxStructType_t _autoDiffuseSignalDescType = FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE;
+    bool _autoDiffuseSignalResolved = false;
+    bool _ambientOcclusionEnabled = false;
+    bool _specularOcclusionEnabled = false;
+    Microsoft::WRL::ComPtr<ID3D12Resource> _ambientOcclusionNoisy;
+    Microsoft::WRL::ComPtr<ID3D12Resource> _ambientOcclusionDenoised;
+    D3D12_RESOURCE_STATES _ambientOcclusionNoisyState = D3D12_RESOURCE_STATE_COMMON;
+    D3D12_RESOURCE_STATES _ambientOcclusionDenoisedState = D3D12_RESOURCE_STATE_COMMON;
 
-    static bool s_isHWDepth;
-    static bool s_isRoughnessPacked;
+    enum class RoughnessSource : uint8_t
+    {
+        Unknown,
+        Separate,
+        Packed
+    };
+
+    // Depth-type interpretation. NGX reports it at creation, but a title that
+    // publishes nothing leaves it at Linear, and reading a hardware depth buffer as
+    // linear distance collapses every scene depth into [near, 1]. Keep the reported
+    // value and its presence separate from the effective one so the user can
+    // override it and so the log can say which of the two is in play.
+    // Latched across instances. NGX publishes the depth type only on a creation
+    // carrying DLSSD create params, so a recreation can arrive without it; the type
+    // itself does not change mid-session, and losing it drops the decision back onto
+    // an inference that has to guess.
+    static bool s_ngxDepthTypeSeen;
+    static bool s_ngxReportedHWDepth;
+
+    bool _isHWDepth = false;
+    bool _ngxReportedHWDepth = false;
+    bool _hasNGXDepthType = false;
+    int _appliedHardwareDepth = -1;
+    RoughnessSource _roughnessSource = RoughnessSource::Unknown;
 
     FSRDConvDesc _convDesc;
     // Diagnostic-only DLSS-RR probes. These are not bound to the converter or RR dispatch yet.
     ID3D12Resource* _diffuseHitDistanceProbe = nullptr;
     ID3D12Resource* _diffuseRayDirectionHitDistanceProbe = nullptr;
+    ID3D12Resource* _emissiveProbe = nullptr;
+    ID3D12Resource* _materialIdProbe = nullptr;
+    ID3D12Resource* _shadingModelIdProbe = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> _emissiveTaggedResource;
+    // Streamline tags only guarantee the native pointer for the declared
+    // lifecycle. Retain whichever optional reprojection sources win selection
+    // until this instance has finished submitting the frame.
+    Microsoft::WRL::ComPtr<ID3D12Resource> _specularHitDistanceTaggedResource;
+    Microsoft::WRL::ComPtr<ID3D12Resource> _specularRayDirectionHitDistanceTaggedResource;
+    std::array<uint64_t, static_cast<size_t>(RRTaggedSignal::Count)>
+        _lastConsumedSLTagUpdates {};
+    std::array<uint32_t, static_cast<size_t>(RRTaggedSignal::Count)>
+        _lastConsumedSLTagFrames {};
+    bool _emissiveProbeCompatible = false;
+    bool _emissiveProbeFromStreamline = false;
     uint32_t _diffuseHitDistanceBaseX = 0;
     uint32_t _diffuseHitDistanceBaseY = 0;
     uint32_t _diffuseRayDirectionHitDistanceBaseX = 0;
     uint32_t _diffuseRayDirectionHitDistanceBaseY = 0;
     DirectX::XMFLOAT3 _lastCamPos {}; // Last successfully dispatched world-space camera position
+    DirectX::XMFLOAT2 _previousDenoiserJitter {};
     float _appliedRoughnessFloor = -1.0f;
-    float _appliedRoughnessFloorDistance = -1.0f;
+    int _appliedNormalsInViewSpace = -1;
     bool _hasDenoiserHistory = false;
+    // True once this instance has recorded preprocessor work into a command list.
+    // Releasing the converter's textures after that point can free resources an
+    // already-submitted command list still references, so the automatic
+    // signal-classification path must request a feature rebuild instead.
+    bool _preprocessorHasRecordedWork = false;
     bool _viewFromStreamline = false;
     bool _projectionFromStreamline = false;
     bool _logNextDenoiserDispatch = true;
     bool _lastDispatchRequestedReset = false;
+    uint32_t _lastDenoiserRenderWidth = 0;
+    uint32_t _lastDenoiserRenderHeight = 0;
     uint64_t _denoiserDispatchAttempts = 0;
     uint64_t _denoiserDispatchSuccesses = 0;
     uint64_t _denoiserDispatchFailures = 0;
@@ -120,8 +185,17 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
      */
     bool PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& ngxParams,
                               ffxDispatchDescDenoiser& dispatchDesc,
+                              ffxDispatchDescDenoiserAmbientOcclusion& ambientOcclusion,
                               ffxDispatchDescDenoiserDirectDiffuse& directDiffuse,
                               ffxDispatchDescDenoiserIndirectSpecular& indirectSpecular);
+
+    bool AcquireTaggedAmbientOcclusionResources(bool logFailure);
+    bool PublishAmbientOcclusionOutput(ID3D12GraphicsCommandList* commandList);
+    bool AcquireSLTaggedResource(
+        const RRD3D12SignalTagSnapshot& snapshot, RRTaggedSignal signal,
+        const char* sourceName, bool requireShaderRead,
+        Microsoft::WRL::ComPtr<ID3D12Resource>& resource,
+        RRTaggedResourceDiagnostic& diagnostic);
 
     /**
      * @brief Retrieves DLSS-RR inputs to populate the inputs for the interop layer in order to generate

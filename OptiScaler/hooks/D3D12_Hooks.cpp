@@ -1182,8 +1182,21 @@ static void HookToDevice(ID3D12Device* InDevice)
 
     HookToCommandList(InDevice);
 
-    if (State::Instance().activeFgInput == FGInput::Upscaler && !Config::Instance()->FGDisableHUDFix.value_or_default())
+    // ResTrack detours CreateSRV/UAV/RTV, ResourceBarrier, every Draw/Dispatch and
+    // ID3D12Resource::Release, so it is only installed when something consumes it.
+    // OptiFG's HUD fix is the one consumer that has to be hooked from device
+    // creation, because it depends on seeing every descriptor heap.
+    //
+    // The RR resource inspector is the other consumer, but it is a debug tool that
+    // is off by default and toggled at runtime - long after this point, and possibly
+    // after the user switched to FSR-RR mid-session. It installs these hooks itself
+    // from SetRRResourceInspectorEnabled instead, so users who never open it pay
+    // nothing. ResTrack_Dx12::HookDevice is idempotent, so both paths can call it.
+    if (State::Instance().activeFgInput == FGInput::Upscaler &&
+        !Config::Instance()->FGDisableHUDFix.value_or_default())
+    {
         ResTrack_Dx12::HookDevice(InDevice);
+    }
 }
 
 static void UnhookDevice()

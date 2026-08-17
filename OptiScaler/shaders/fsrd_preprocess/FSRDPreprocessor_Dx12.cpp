@@ -17,6 +17,8 @@
 #include <string>
 #include <array>
 #include <algorithm>
+#include <cmath>
+#include <utility>
 
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -47,8 +49,16 @@ namespace FSRDFormats
 
     constexpr DXGI_FORMAT SkipSignal = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
+    // Carries a finished HDR image plus its mix weight, so it needs the same range as
+    // the skip signal it is an alternative to.
+    constexpr DXGI_FORMAT Handover = SkipSignal;
+
     constexpr DXGI_FORMAT OutputBuffer1 = DXGI_FORMAT_R16G16B16A16_FLOAT;
     constexpr DXGI_FORMAT OutputBuffer2 = DXGI_FORMAT_R16G16B16A16_FLOAT;
+
+    constexpr DXGI_FORMAT AmbientOcclusion = DXGI_FORMAT_R8_UNORM;
+    constexpr DXGI_FORMAT SpecularOcclusion = DXGI_FORMAT_R8_UNORM;
+    constexpr DXGI_FORMAT DebugView = DXGI_FORMAT_R16G16B16A16_FLOAT;
 }
 
 struct ComputeState
@@ -213,16 +223,36 @@ struct FSRDPreprocessor_Dx12::Impl
     UINT m_maxWidth = 0;
     UINT m_maxHeight = 0;
 
+    // Drives the a-trous filter's temporal pattern rotation. Per instance, not a
+    // function-local static: the feature can destroy and recreate the converter, and
+    // two live converters would otherwise advance one shared counter twice a frame.
+    uint32_t m_floorFilterFrameIndex = 0;
+
     // Output Targets
     // Internal storage
     Conversion::Output m_out;
     ComPtr<ID3D12Resource> m_LinearDepth;
     ComPtr<ID3D12Resource> m_outputBuffer1;
     ComPtr<ID3D12Resource> m_outputBuffer2;
+    ComPtr<ID3D12Resource> m_ambientOcclusionOutput;
+    ComPtr<ID3D12Resource> m_specularOcclusionOutput;
+    ComPtr<ID3D12Resource> m_debugViewOutput;
+    // A replaced debug target cannot be freed while an earlier command list can still
+    // reference it. Retain one full descriptor/constant-buffer rotation rather than
+    // assuming resolution changes are separated by several frames: DRS may resize on
+    // consecutive frames.
+    std::array<ComPtr<ID3D12Resource>, kBackBufferCount> m_retiredDebugViewOutputs;
+    UINT m_retiredDebugViewOutputIndex = 0;
+    UINT m_debugViewWidth = 0;
+    UINT m_debugViewHeight = 0;
 
     // Floor filter
     ID3D12Resource* m_smoothFloor;
-    bool m_denoiserOutputsInUavState = false;
+
+    bool m_radianceOutputsInUavState = false;
+    bool m_ambientOcclusionOutputInUavState = false;
+    bool m_specularOcclusionOutputInUavState = false;
+    bool m_debugViewOutputInUavState = false;
 
     void Initialize(
         std::span<const byte> blSeedByteCode, 
@@ -252,8 +282,14 @@ struct FSRDPreprocessor_Dx12::Impl
         if (m_maxWidth == width && m_maxHeight == height)
             return;
 
-        m_maxWidth = width;
-        m_maxHeight = height;
+        // Clear the latch before allocating rather than after. CreateTexture2D
+        // throws on failure, which leaves the object holding a mix of new- and
+        // old-sized textures; if the requested dimensions were already latched, an
+        // identical retry would hit the early-out above and silently "succeed" with
+        // that mix still in place. The latch is set at the end, once every
+        // allocation has actually completed.
+        m_maxWidth = 0;
+        m_maxHeight = 0;
 
         auto CreateTex = [&](DXGI_FORMAT fmt, LPCWSTR name, UINT mipLevels = 1)
         { 
@@ -266,19 +302,29 @@ struct FSRDPreprocessor_Dx12::Impl
         outResources.SpecAlbedo = CreateTex(FSRDFormats::SpecAlbedo, L"FSR_Conv_SpecAlbedo");
         outResources.DiffAlbedo = CreateTex(FSRDFormats::DiffAlbedo, L"FSR_Conv_DiffAlbedo");
         outResources.SkipSignal = CreateTex(FSRDFormats::SkipSignal, L"FSR_Conv_SkipSignal");
-
+        outResources.Handover = CreateTex(FSRDFormats::Handover, L"FSR_Conv_Handover");
         m_LinearDepth = CreateTex(FSRDFormats::LinearDepth, L"FSR_Conv_LinearDepth");
         m_outputBuffer1 = CreateTex(FSRDFormats::OutputBuffer1, L"FSR_Conv_OutputBuffer1");
         m_outputBuffer2 = CreateTex(FSRDFormats::OutputBuffer2, L"FSR_Conv_OutputBuffer2");
+        m_ambientOcclusionOutput =
+            CreateTex(FSRDFormats::AmbientOcclusion, L"FSR_RR_AmbientOcclusion_Output");
+        m_specularOcclusionOutput =
+            CreateTex(FSRDFormats::SpecularOcclusion, L"FSR_RR_SpecularOcclusion_Output");
 
         m_smoothFloor = nullptr;
-        m_denoiserOutputsInUavState = false;
+        m_radianceOutputsInUavState = false;
+        m_ambientOcclusionOutputInUavState = false;
+        m_specularOcclusionOutputInUavState = false;
 
         outResources.Signals =
         {
             .IndirectSpecular = CreateTex(FSRDFormats::IndirectSpecular, L"FSR_Conv_IndirectSpecular"),
             .DirectDiffuse = CreateTex(FSRDFormats::DirectDiffuse, L"FSR_Conv_DirectDiffuse")
         };
+
+        // Every allocation succeeded, so the new size is now the real state.
+        m_maxWidth = width;
+        m_maxHeight = height;
     }
 
     void DispatchFloorSeed(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
@@ -289,8 +335,19 @@ struct FSRDPreprocessor_Dx12::Impl
 
         for (int i = 0; i < FloorSeed::kPasses; i++)
         {
-            FloorSeed::Constants constants = 
-            { 
+            // The game's subrect origin only applies while the colour source is still
+            // the game's texture. From pass 1 on it is the zero-based internal buffer,
+            // so carrying the origin forward would shift every read. Depth keeps its
+            // own origin because it is re-read from the game texture every pass.
+            DirectX::XMUINT4 sourceBase = desc.FloorSourceBase;
+            if (i > 0)
+            {
+                sourceBase.x = 0;
+                sourceBase.y = 0;
+            }
+
+            FloorSeed::Constants constants =
+            {
                 .InvProjMatrix = desc.InvProjMatrix,
                 .RenderSize = desc.RenderSize,
                 .NearPlane = desc.NearPlane,
@@ -298,7 +355,9 @@ struct FSRDPreprocessor_Dx12::Impl
                 .Flags = (isDepthLinear ? uint32_t(FloorSeed::Flags::LinearDepth) : 0u) |
                          ((desc.Flags & uint32_t(ConvFlags::RightHanded))
                               ? uint32_t(FloorSeed::Flags::NegativeViewDepth)
-                              : 0u)
+                              : 0u),
+                .CurrentJitter = { desc.JitterOffsets.x, desc.JitterOffsets.y },
+                .InputBase = sourceBase
             };
             const auto cbData = GetAsByteSpan(constants);
 
@@ -327,9 +386,8 @@ struct FSRDPreprocessor_Dx12::Impl
         m_smoothFloor = m_outputBuffer2.Get();
     }
 
-    void DispatchFloorFilter(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
+    void DispatchFloorFilter(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
     {
-        static uint32_t frameIndex = 0;
         const XMFLOAT2 dispatchSize = { desc.RenderSize.x, desc.RenderSize.y };
 
         // Tukey biweight: W = ( 1 - ( (center - tap) * scale )^2 )^2
@@ -345,7 +403,7 @@ struct FSRDPreprocessor_Dx12::Impl
                 .RcpCrossBlNorm = rcpCrossNorm,
                 .RcpSelfBlNorm = rcpLumNorm,
                 .StepSize = 1 << i,
-                .FrameIndex = frameIndex
+                .FrameIndex = m_floorFilterFrameIndex
             };
             const auto cbData = GetAsByteSpan(constants);
 
@@ -358,16 +416,19 @@ struct FSRDPreprocessor_Dx12::Impl
 
             FloorFilter::Output out = { .Resources = 
             {
-                .OutColor = m_outputBuffer2.Get()
+                // m_smoothFloor always references m_outputBuffer2 at the start of
+                // an iteration. Write the opposite buffer, then swap the handles so
+                // the freshly filtered result becomes the next iteration's input.
+                .OutColor = m_outputBuffer1.Get()
             }};
 
             m_floorFilterShader.Dispatch(cmdList, cbData, in.AsArray, out.AsArray, dispatchSize);
 
             std::swap(m_outputBuffer1, m_outputBuffer2);
-            m_smoothFloor = m_outputBuffer1.Get();
+            m_smoothFloor = m_outputBuffer2.Get();
         }
 
-        frameIndex++;
+        m_floorFilterFrameIndex++;
     }
 
     void DispatchPackingShader(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
@@ -375,9 +436,33 @@ struct FSRDPreprocessor_Dx12::Impl
         const XMFLOAT2 dispatchSize = { desc.RenderSize.x, desc.RenderSize.y };
 
         // Prepare inputs for packing and format conversion
-        Conversion::Input in = {};
-        memcpy_s(in.AsArray, sizeof(in.AsArray), desc.Resources.AsArray, sizeof(desc.Resources.AsArray));
-        in.Resources.InDepth = m_LinearDepth.Get();
+        Conversion::Input in = { .Resources =
+        {
+            .InColor = desc.Resources.InColor,
+            .InDepth = m_LinearDepth.Get(),
+            .InMotionVectors = desc.Resources.InMotionVectors,
+            .InNormals = desc.Resources.InNormals,
+            .InRoughness = desc.Resources.InRoughness,
+            .InSpecHitDist = desc.Resources.InSpecHitDist,
+            .InDiffAlbedo = desc.Resources.InDiffAlbedo,
+            .InSpecAlbedo = desc.Resources.InSpecAlbedo,
+            .InBiasMask = desc.Resources.InBiasMask,
+            .InBlurColor = m_smoothFloor,
+            .InEdgeGuide = desc.Resources.InInspector,
+            .InEmissive = desc.Resources.InEmissive,
+            .InSpecularRayDirectionHitDistance =
+                desc.Resources.InSpecularRayDirectionHitDistance,
+            .InDiffuseHitDistance = desc.Resources.InDiffuseHitDistance
+        }};
+
+        uint32_t packFlags = desc.Flags | uint32_t(ConvFlags::IsDepthLinear);
+        if (desc.ZeroRoughHandover)
+            packFlags |= uint32_t(ConvFlags::ZeroRoughHandover);
+        if (desc.Resources.InSpecularRayDirectionHitDistance &&
+            desc.SpecularHitDistanceFromCombinedAlpha)
+        {
+            packFlags |= uint32_t(ConvFlags::HasCombinedSpecHitDistance);
+        }
 
         Conversion::Constants packConstants =
         {
@@ -385,17 +470,36 @@ struct FSRDPreprocessor_Dx12::Impl
             .InvProjMatrix = desc.InvProjMatrix,
             .PrevViewMatrix = desc.PrevViewMatrix,
             .RenderSize = desc.RenderSize,
+            .MotionInputSize = desc.MotionInputSize,
+            .MotionTransform = desc.MotionTransform,
+            .JitterOffsets = desc.JitterOffsets,
+            .InputBase0 = desc.InputBase0,
+            .InputBase1 = desc.InputBase1,
+            .InputBase2 = desc.InputBase2,
+            .InputBase3 = desc.InputBase3,
+            .InputBase4 = desc.InputBase4,
+            .InputBase5 = {
+                0u, 0u,
+                desc.SpecularHitDistanceBase.x, desc.SpecularHitDistanceBase.y
+            },
             .NearPlane = desc.NearPlane,
             .FarPlane = desc.FarPlane,
             .FloorIsolation = desc.FloorIsolation,
             .RoughnessFloor = desc.RoughnessFloor,
-            .RoughnessFloorDistance = desc.RoughnessFloorDistance,
             // The packing shader never sees the game's hardware depth. FloorSeed
             // has already converted it to signed linear view-space depth.
-            .Flags = desc.Flags | uint32_t(ConvFlags::IsDepthLinear)
+            .Flags = packFlags,
+            .InspectorChannel = desc.InspectorChannel,
+            .InspectorScale = desc.InspectorScale,
+            .DebugDepthMax = desc.DebugDepthMax,
+            // Only honour a mode the caller actually bound a resource for.
+            .DiffuseHitDistanceMode = desc.Resources.InDiffuseHitDistance != nullptr
+                ? desc.DiffuseHitDistanceMode
+                : 0u,
+            .ZeroRoughDetail = desc.ZeroRoughDetail,
+            .ZeroRoughDetailMode = static_cast<uint32_t>(desc.ZeroRoughDetailMode),
+            ._Padding0 = {}
         };
-
-        in.Resources.InBlurColor = m_smoothFloor;
 
         const std::span<const byte> convCBData((const byte*) &packConstants, sizeof(packConstants));
         m_convShader.Dispatch(cmdList, convCBData, in.AsArray, m_out.AsRawArray, dispatchSize, true);
@@ -419,7 +523,11 @@ struct FSRDPreprocessor_Dx12::Impl
         // The denoiser will be writing to these.
         AddBarrier(cmdList, m_outputBuffer1.Get(), kSrvState, kUavState);
         AddBarrier(cmdList, m_outputBuffer2.Get(), kSrvState, kUavState);
-        m_denoiserOutputsInUavState = true;
+        AddBarrier(cmdList, m_ambientOcclusionOutput.Get(), kSrvState, kUavState);
+        AddBarrier(cmdList, m_specularOcclusionOutput.Get(), kSrvState, kUavState);
+        m_radianceOutputsInUavState = true;
+        m_ambientOcclusionOutputInUavState = true;
+        m_specularOcclusionOutputInUavState = true;
     }
 
     void DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
@@ -432,8 +540,14 @@ struct FSRDPreprocessor_Dx12::Impl
         Composition::Constants constants = 
         {
             .DstTexSize = desc.DstTexSize,
+            .SourceBase = desc.SourceBase,
             .CorrelationBias = desc.CorrelationBias,
-            .Flags = UINT(desc.Flags) 
+            .Flags = UINT(desc.Flags),
+            .SourceUvScale = { 1.0f, 1.0f },
+            .SourceUvOffset = {},
+            .ZeroRoughAnchorClamp = desc.ZeroRoughAnchorClamp,
+            .ZeroRoughCorrelationMix = desc.ZeroRoughCorrelationMix,
+            ._Padding0 = {}
         };
 
         // Transition denoiser output buffers to SRV for composition.
@@ -447,7 +561,10 @@ struct FSRDPreprocessor_Dx12::Impl
             .InDiffuseAlbedo = outResources.DiffAlbedo.Get(),
             .InSkipSignal = outResources.SkipSignal.Get(),
             .InRawColor = desc.InRawColor,
-            .InColorBeforeParticles = desc.InColorBeforeParticles
+            .InColorBeforeParticles = desc.InColorBeforeParticles,
+            .InRawIndirectSpecular = outResources.Signals.IndirectSpecular.Get(),
+            .InNormals = outResources.Normals.Get(),
+            .InHandover = outResources.Handover.Get()
         };
 
         std::array<ID3D12Resource*, 1> uavs { m_out.Resources.Motion.Get() };
@@ -459,21 +576,130 @@ struct FSRDPreprocessor_Dx12::Impl
 
     void TransitionDenoiserOutputsToRead(ID3D12GraphicsCommandList* cmdList) noexcept
     {
-        if (!cmdList || !m_denoiserOutputsInUavState)
+        if (!cmdList)
             return;
 
-        std::array<ID3D12Resource*, 2> buffers = { m_outputBuffer1.Get(), m_outputBuffer2.Get() };
-        AddBarriers(cmdList, buffers, kUavState, kSrvState);
-        m_denoiserOutputsInUavState = false;
+        if (m_radianceOutputsInUavState)
+        {
+            std::array<ID3D12Resource*, 2> buffers = { m_outputBuffer1.Get(), m_outputBuffer2.Get() };
+            AddBarriers(cmdList, buffers, kUavState, kSrvState);
+            m_radianceOutputsInUavState = false;
+        }
+
+        if (m_ambientOcclusionOutputInUavState)
+        {
+            AddBarrier(cmdList, m_ambientOcclusionOutput.Get(), kUavState, kSrvState);
+            m_ambientOcclusionOutputInUavState = false;
+        }
+
+        if (m_specularOcclusionOutputInUavState)
+        {
+            AddBarrier(cmdList, m_specularOcclusionOutput.Get(), kUavState, kSrvState);
+            m_specularOcclusionOutputInUavState = false;
+        }
     }
 
-    void Blit(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* srcTex, ID3D12Resource* dstTex,
-              XMFLOAT2 dstDim) 
+    void CopyAmbientOcclusionOutput(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* dstTex,
+                                    D3D12_RESOURCE_STATES dstState,
+                                    uint32_t logicalWidth, uint32_t logicalHeight)
     {
-        XMFLOAT2 srcDim = {};
-        D3D12_RESOURCE_DESC srcDesc = srcTex->GetDesc();
-        srcDim.x = (float)srcDesc.Width;
-        srcDim.y = (float)srcDesc.Height;
+        if (!cmdList || !dstTex || !m_ambientOcclusionOutputInUavState ||
+            logicalWidth == 0 || logicalHeight == 0)
+            throw std::runtime_error("Ambient-occlusion output is unavailable for publication");
+
+        const D3D12_RESOURCE_DESC srcDesc = m_ambientOcclusionOutput->GetDesc();
+        const D3D12_RESOURCE_DESC dstDesc = dstTex->GetDesc();
+        if (srcDesc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D ||
+            dstDesc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D ||
+            logicalWidth > srcDesc.Width || logicalHeight > srcDesc.Height ||
+            logicalWidth > dstDesc.Width || logicalHeight > dstDesc.Height ||
+            dstDesc.DepthOrArraySize != 1 || dstDesc.MipLevels != 1)
+        {
+            throw std::runtime_error(
+                "Ambient-occlusion destination is incompatible with the allocation ceiling");
+        }
+
+        AddBarrier(cmdList, m_ambientOcclusionOutput.Get(), kUavState,
+                   D3D12_RESOURCE_STATE_COPY_SOURCE);
+        if (dstState != D3D12_RESOURCE_STATE_COPY_DEST)
+            AddBarrier(cmdList, dstTex, dstState, D3D12_RESOURCE_STATE_COPY_DEST);
+
+        D3D12_TEXTURE_COPY_LOCATION srcLocation {};
+        srcLocation.pResource = m_ambientOcclusionOutput.Get();
+        srcLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        srcLocation.SubresourceIndex = 0;
+        D3D12_TEXTURE_COPY_LOCATION dstLocation {};
+        dstLocation.pResource = dstTex;
+        dstLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        dstLocation.SubresourceIndex = 0;
+        const D3D12_BOX sourceBox {
+            0, 0, 0, logicalWidth, logicalHeight, 1
+        };
+        cmdList->CopyTextureRegion(
+            &dstLocation, 0, 0, 0, &srcLocation, &sourceBox);
+
+        AddBarrier(cmdList, m_ambientOcclusionOutput.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE,
+                   kSrvState);
+        if (dstState != D3D12_RESOURCE_STATE_COPY_DEST)
+            AddBarrier(cmdList, dstTex, D3D12_RESOURCE_STATE_COPY_DEST, dstState);
+
+        m_ambientOcclusionOutputInUavState = false;
+    }
+
+    ID3D12Resource* PrepareDebugViewOutput(ID3D12GraphicsCommandList* cmdList, UINT width, UINT height)
+    {
+        if (!cmdList || !m_pDev || width == 0 || height == 0)
+            throw std::runtime_error("Invalid AMD RR debug-view output request");
+
+        if (!m_debugViewOutput || m_debugViewWidth != width || m_debugViewHeight != height)
+        {
+            auto newOutput = CreateTexture2D(m_pDev, width, height, FSRDFormats::DebugView,
+                                             L"FSR_RR_DebugView_Output", kUavState);
+            // Retire rather than release. The ring matches this preprocessor's
+            // frames-in-flight reuse horizon even when DRS reallocates every frame.
+            m_retiredDebugViewOutputs[m_retiredDebugViewOutputIndex] =
+                std::move(m_debugViewOutput);
+            m_retiredDebugViewOutputIndex =
+                (m_retiredDebugViewOutputIndex + 1u) % kBackBufferCount;
+            m_debugViewOutput = std::move(newOutput);
+            m_debugViewWidth = width;
+            m_debugViewHeight = height;
+            m_debugViewOutputInUavState = true;
+
+            LOG_INFO("[RR_DIAG] created dedicated AMD debug-view output: {}x{}, "
+                     "DXGI_FORMAT_R16G16B16A16_FLOAT, UAV", width, height);
+        }
+        else if (!m_debugViewOutputInUavState)
+        {
+            AddBarrier(cmdList, m_debugViewOutput.Get(), kSrvState, kUavState);
+            m_debugViewOutputInUavState = true;
+        }
+
+        return m_debugViewOutput.Get();
+    }
+
+    void TransitionDebugViewOutputToRead(ID3D12GraphicsCommandList* cmdList) noexcept
+    {
+        if (!cmdList || !m_debugViewOutput || !m_debugViewOutputInUavState)
+            return;
+
+        AddBarrier(cmdList, m_debugViewOutput.Get(), kUavState, kSrvState);
+        m_debugViewOutputInUavState = false;
+    }
+
+    void Blit(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* srcTex,
+              ID3D12Resource* dstTex, XMFLOAT2 dstDim, XMFLOAT2 logicalSrcDim,
+              XMFLOAT2 logicalSrcBase)
+    {
+        if (!cmdList || !srcTex || !dstTex)
+            return;
+
+        const D3D12_RESOURCE_DESC srcDesc = srcTex->GetDesc();
+        const XMFLOAT2 physicalSrcDim {
+            static_cast<float>(srcDesc.Width), static_cast<float>(srcDesc.Height)
+        };
+        if (logicalSrcDim.x == 0.0f || logicalSrcDim.y == 0.0f)
+            logicalSrcDim = physicalSrcDim;
 
         if (dstDim.x == 0 || dstDim.y == 0)
         {
@@ -482,7 +708,12 @@ struct FSRDPreprocessor_Dx12::Impl
             dstDim.y = (float)dstDesc.Height;
         }
 
-        if (!cmdList || dstDim.x == 0.0f)
+        if (physicalSrcDim.x == 0.0f || physicalSrcDim.y == 0.0f ||
+            logicalSrcDim.x <= 0.0f || logicalSrcDim.y <= 0.0f ||
+            logicalSrcBase.x < 0.0f || logicalSrcBase.y < 0.0f ||
+            logicalSrcBase.x + logicalSrcDim.x > physicalSrcDim.x ||
+            logicalSrcBase.y + logicalSrcDim.y > physicalSrcDim.y ||
+            dstDim.x <= 0.0f || dstDim.y <= 0.0f)
             return;
 
         Composition::Input inputs = {};
@@ -495,7 +726,15 @@ struct FSRDPreprocessor_Dx12::Impl
                 dstDim.x,           dstDim.y,
                 (1.0f / dstDim.x),  (1.0f / dstDim.y)
             },
-            .Flags = (UINT)CompFlags::RawSourceBlit | (UINT)CompFlags::ScaleSrc
+            .Flags = (UINT)CompFlags::RawSourceBlit | (UINT)CompFlags::ScaleSrc,
+            .SourceUvScale = {
+                logicalSrcDim.x / physicalSrcDim.x,
+                logicalSrcDim.y / physicalSrcDim.y
+            },
+            .SourceUvOffset = {
+                logicalSrcBase.x / physicalSrcDim.x,
+                logicalSrcBase.y / physicalSrcDim.y
+            }
         };
 
         std::array<ID3D12Resource*, 1> uavs { dstTex };
@@ -516,9 +755,12 @@ struct FSRDPreprocessor_Dx12::Impl
 
         dispatchDesc.linearDepth = ffxApiGetResourceDX12(m_LinearDepth.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
         dispatchDesc.motionVectors = ffxApiGetResourceDX12(outResources.Motion.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-        dispatchDesc.normals = ffxApiGetResourceDX12(outResources.Normals.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-        dispatchDesc.specularAlbedo = ffxApiGetResourceDX12(outResources.SpecAlbedo.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-        dispatchDesc.diffuseAlbedo = ffxApiGetResourceDX12(outResources.DiffAlbedo.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+        dispatchDesc.normals = ffxApiGetResourceDX12(
+            outResources.Normals.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+        dispatchDesc.specularAlbedo = ffxApiGetResourceDX12(
+            outResources.SpecAlbedo.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+        dispatchDesc.diffuseAlbedo = ffxApiGetResourceDX12(
+            outResources.DiffAlbedo.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
     }
 };
 
@@ -533,7 +775,8 @@ FSRDPreprocessor_Dx12::FSRDPreprocessor_Dx12(std::string_view name, ID3D12Device
     {
         m_impl->m_pDev = pDev;
         m_impl->Initialize(GetAsByteSpan(FSRDFloorSeed_cso), GetAsByteSpan(FSRDFloor_cso),
-                           GetAsByteSpan(FSRDInputConv_cso), GetAsByteSpan(FSRDOutputComp_cso));
+                           GetAsByteSpan(FSRDInputConv_cso),
+                           GetAsByteSpan(FSRDOutputComp_cso));
         m_IsInitialized = true;
     }
     catch (const std::exception& err)
@@ -584,6 +827,8 @@ void FSRDPreprocessor_Dx12::GetSignals(ffxDispatchDescDenoiser& dispatchDesc,
 {
     auto& outResources = m_impl->m_out.Resources;
     auto& signalData = outResources.Signals;
+    ID3D12Resource* diffuseInput = signalData.DirectDiffuse.Get();
+    ID3D12Resource* specularInput = signalData.IndirectSpecular.Get();
 
     directDiffuse =
     {
@@ -594,7 +839,7 @@ void FSRDPreprocessor_Dx12::GetSignals(ffxDispatchDescDenoiser& dispatchDesc,
         },
         .signal =
         {
-            .input = ffxApiGetResourceDX12(signalData.DirectDiffuse.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
+            .input = ffxApiGetResourceDX12(diffuseInput, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
             .output = ffxApiGetResourceDX12(m_impl->m_outputBuffer2.Get(), FFX_API_RESOURCE_STATE_UNORDERED_ACCESS),
             .checkerboardOrigin = 0
         }
@@ -605,7 +850,7 @@ void FSRDPreprocessor_Dx12::GetSignals(ffxDispatchDescDenoiser& dispatchDesc,
         .header = { .type = FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR },
         .signal =
         {
-            .input = ffxApiGetResourceDX12(signalData.IndirectSpecular.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
+            .input = ffxApiGetResourceDX12(specularInput, FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
             .output = ffxApiGetResourceDX12(m_impl->m_outputBuffer1.Get(), FFX_API_RESOURCE_STATE_UNORDERED_ACCESS),
             .checkerboardOrigin = 0
         }
@@ -634,18 +879,73 @@ void FSRDPreprocessor_Dx12::TransitionDenoiserOutputsToRead(ID3D12GraphicsComman
     m_impl->TransitionDenoiserOutputsToRead(cmdList);
 }
 
+bool FSRDPreprocessor_Dx12::CopyAmbientOcclusionOutput(
+    ID3D12GraphicsCommandList* cmdList, ID3D12Resource* dstTex,
+    D3D12_RESOURCE_STATES dstState, uint32_t logicalWidth, uint32_t logicalHeight)
+{
+    try
+    {
+        m_impl->CopyAmbientOcclusionOutput(
+            cmdList, dstTex, dstState, logicalWidth, logicalHeight);
+        return true;
+    }
+    catch (const std::exception& err)
+    {
+        LOG_ERROR("FSRD ambient-occlusion publication failed. Details: {}", err.what());
+    }
+
+    return false;
+}
+
+ID3D12Resource* FSRDPreprocessor_Dx12::GetAmbientOcclusionOutput() const
+{
+    return m_impl->m_ambientOcclusionOutput.Get();
+}
+
+ID3D12Resource* FSRDPreprocessor_Dx12::GetSpecularOcclusionOutput() const
+{
+    return m_impl->m_specularOcclusionOutput.Get();
+}
+
+ID3D12Resource* FSRDPreprocessor_Dx12::PrepareDebugViewOutput(
+    ID3D12GraphicsCommandList* cmdList, uint32_t width, uint32_t height)
+{
+    try
+    {
+        return m_impl->PrepareDebugViewOutput(cmdList, width, height);
+    }
+    catch (const std::exception& err)
+    {
+        LOG_ERROR("Failed to prepare AMD RR debug-view output. Details: {}", err.what());
+    }
+
+    return nullptr;
+}
+
+void FSRDPreprocessor_Dx12::TransitionDebugViewOutputToRead(
+    ID3D12GraphicsCommandList* cmdList) noexcept
+{
+    m_impl->TransitionDebugViewOutputToRead(cmdList);
+}
+
+ID3D12Resource* FSRDPreprocessor_Dx12::GetDebugViewOutput() const
+{
+    return m_impl->m_debugViewOutput.Get();
+}
+
 ID3D12Resource* FSRDPreprocessor_Dx12::GetCompositionOutput() const 
 { 
     return m_impl->m_out.Resources.Motion.Get(); 
 }
 
 bool FSRDPreprocessor_Dx12::Blit(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* srcTex,
-                                 ID3D12Resource* dstTex, XMFLOAT2 dim) const
+                                 ID3D12Resource* dstTex, XMFLOAT2 dstDim,
+                                 XMFLOAT2 logicalSrcDim, XMFLOAT2 logicalSrcBase) const
 
 {
     try
     {
-        m_impl->Blit(cmdList, srcTex, dstTex, dim);
+        m_impl->Blit(cmdList, srcTex, dstTex, dstDim, logicalSrcDim, logicalSrcBase);
         return true;
     }
     catch (const std::exception& err)

@@ -414,8 +414,26 @@ class Config
     // FSR-RR
     CustomOptional<int> FfxDenoiserIndex { 0 };
     CustomOptional<uint64_t> FfxDenoiserDebugMode { 0 };
+    // -1: overview, 0..FFX_API_DENOISER_DEBUG_VIEW_MAX_VIEWPORTS-1: fullscreen viewport
+    CustomOptional<int> FfxDenoiserDebugViewport { -1 };
+    // Enables AMD's internal RR debug descriptors. Requires context recreation.
+    CustomOptional<bool> FfxDenoiserInternalDebugViews { false };
     CustomOptional<int> FfxDenoiserDiffuseSignalType { 0 };  // 0: Direct, 1: Indirect
     CustomOptional<int> FfxDenoiserSpecularSignalType { 1 }; // 0: Direct, 1: Indirect
+    // Uses only semantic Streamline AO noisy/denoised tags. Resource-inspector
+    // candidates are deliberately never promoted to signal inputs.
+    CustomOptional<bool> FfxDenoiserTaggedAmbientOcclusion { false };
+    // Disabled preserves the existing contract that RR input normals are world-space.
+    CustomOptional<bool> FfxDenoiserNormalsInViewSpace { false };
+    // Overrides the DLSS.Use.HW.Depth interpretation. Unset follows NGX, which
+    // defaults to linear when the title publishes nothing - and reading a hardware
+    // depth buffer as linear collapses the whole scene to sub-unit distances.
+    CustomOptional<bool, NoDefault> FfxDenoiserHardwareDepth;
+
+    // Pushes AMD's own queried baseline for the six tunable RR keys instead of the
+    // values below. A/B reference only - the fork's defaults remain the shipping
+    // configuration, and the sliders keep their values while this is enabled.
+    CustomOptional<bool> FfxDenoiserUseAmdDefaults { false };
 
     CustomOptional<float> FfxDenoiserDisocThreshold { 0.1f };
     CustomOptional<float> FfxDenoiserCrossBlNormStr { 0.5f };
@@ -426,9 +444,33 @@ class Config
     CustomOptional<float> FfxDenoiserDebugDepthMax { 1024.0f };
 
     CustomOptional<float> FfxDenoiserCorrelationBias { 1.0f };
+    // Binds the title's diffuse ray length into the diffuse signal's alpha. Without
+    // it that alpha is a constant FP16-max "ray miss", which is what RR's non-PSR
+    // reflection handling reads. No effect when the title provides no such resource.
+    CustomOptional<bool> FfxDenoiserDiffuseHitDistance { true };
     CustomOptional<float> FfxDenoiserFloorIsolation { 1.0f };
-    CustomOptional<float> FfxDenoiserRoughnessFloor { 0.002f };
-    CustomOptional<float> FfxDenoiserRoughnessFloorDistance { 25.0f };
+    CustomOptional<float> FfxDenoiserRoughnessFloor { 0.1f };
+    // Hands exact-zero-roughness (type-1) pixels to the spatial floor instead of RR.
+    CustomOptional<bool> FfxDenoiserZeroRoughHandover { true };
+    // Blends that handover between FloorSeed's isotropic floor (0), which erases thin
+    // structure, and a directional hybrid median that preserves panel text (1).
+    CustomOptional<float> FfxDenoiserZeroRoughDetail { 1.0f };
+    // Detail filter the blend targets. 0: hybrid median, rejects isolated impulses.
+    // 1: structure-tensor steered, averages along a measured edge so it can also clear
+    // clustered noise without crossing a stroke.
+    CustomOptional<int> FfxDenoiserZeroRoughDetailMode { 3 };
+    // Band-split only. Replaces the single mid band with the floor chain's own five
+    // a-trous detail levels, each shrunk against its own threshold. The chain is
+    // already this decomposition, so the mid band is a one-boundary approximation of
+    // a five-boundary split that exists either way.
+    // Handover refinements, each inert at zero and composing with the blend mode
+    // rather than replacing it.
+    CustomOptional<float> FfxDenoiserZeroRoughAnchorClamp { 2.0f };
+    CustomOptional<float> FfxDenoiserZeroRoughCorrelationMix { 1.0f };
+    // Per-level thresholds, finest (a-trous stride 1) first, in the same multiples of
+    // the floor's local spread as the thresholds above. Noise is broadband and panel
+    // structure is not, so the noise-to-signal ratio is worst at the finest level -
+    // hence the descending defaults.
 
     // FSR Common
     CustomOptional<float> FsrVerticalFov { 60.0f };

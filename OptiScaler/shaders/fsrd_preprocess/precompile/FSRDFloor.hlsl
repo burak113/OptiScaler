@@ -69,29 +69,36 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     const int2 px = groupID.xy * s_ThreadGroupSize + gtID.xy;
     
     if (px.x >= DstTexSize.x || px.y >= DstTexSize.y)
-    {
-        OutColor[px] = half4(0, 0, 0, 0);
         return;
-    }
     
     const float4 centerColor = InColor[px];    
     const float centerLum = GetLuminance(centerColor.rgb);
     const float rcpCenterLum = rcp(max(centerLum, 1e-1f));   
     
     const float centerDepth = InLinearDepth[px];
-    const float2 centerDepthGrad = InDepthGradient[px];   
-    const float rcpDepthScale = rcp((1.0f + abs(centerDepth)) * float(StepSize));
-    
+    const float2 centerDepthGrad = InDepthGradient[px];
+
     // As the scaling increases, bilateral weighting becomes stricter. As smoothness increases,
     // blur strength should decrease. Where smoothness remains low, the weights should allow
     // more blending.
     //
-    // StepSize scaling keeps range strictness consistent as the stride increases.
+    // StepSize scaling keeps luma strictness consistent as the stride increases.
     const float smoothness = saturate(1.0f - 2.0f * centerColor.a);
     const float adaptiveScale = float(StepSize) * (1.0f + 2.0f * smoothness);
-      
-    const float depthNormScale = adaptiveScale * (rcpDepthScale * RcpCrossBlNorm);
     const float selfNormScale = adaptiveScale * RcpSelfBlNorm;
+
+    // Depth tolerance is deliberately stride-independent. The tap test below measures
+    // distance from the center pixel's tangent plane, not raw depth difference, so the
+    // first-order change across the tap offset is already predicted and a coplanar tap
+    // scores the same residual at every stride.
+    //
+    // The old form wrote this as StepSize * ... * rcp(... * StepSize), which cancels to
+    // the same value. That cancellation was never the defect: it is the correct
+    // behaviour for a plane-relative test. The defect was that the plane term was
+    // missing, so the outer passes compared a stride-16 depth difference against a
+    // stride-1 tolerance and rejected nearly every tap on sloped geometry.
+    const float depthNormScale =
+        (1.0f + 2.0f * smoothness) * RcpCrossBlNorm * rcp(1.0f + abs(centerDepth));
     
     const int2 maxBounds = int2(DstTexSize.xy) - 1;
     float4 mean = 0;
@@ -112,10 +119,16 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             float lumDelta = (centerLum - lum) * rcpCenterLum;
             const float wLum = GetRangeWeight(lumDelta, selfNormScale);
 
-            // Coplaniarity weight
+            // Coplanarity weight. FloorSeed stores a per-pixel central difference of
+            // view-space depth, so scaling it by the tap offset predicts the depth this
+            // tap would carry if the surface were locally planar. Measuring the residual
+            // against that plane is what makes this a coplanarity test rather than a
+            // plain depth difference, and it is why the gradient is produced at all.
+            // The offset comes from the clamped position so border taps stay honest.
             const float depth = InLinearDepth[tapPX];
-            const float2 depthGrad = InDepthGradient[tapPX];
-            const float depthDelta = (centerDepth - depth);
+            const float2 tapOffset = float2(tapPX - px);
+            const float predictedDepth = centerDepth + dot(centerDepthGrad, tapOffset);
+            const float depthDelta = depth - predictedDepth;
             const float wDepth = GetRangeWeight(depthDelta, depthNormScale);
 
             const float wSpatial = GetSpatialWeight(x, y);
@@ -127,9 +140,6 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     }
 
     mean *= rcp(max(totalWeight, 1e-2f));
-    
-    // Laplacian residual of luminance for detail levels
-    const float residualLum = centerLum - GetLuminance(mean.rgb);
-    
+
     OutColor[px] = GetSafeFP16(mean);
 }

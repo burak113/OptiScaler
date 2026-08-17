@@ -87,6 +87,11 @@ cbuffer CB_Median : register(b0)
     uint Flags;
     
     float _Padding;
+
+    float2 CurrentJitter;
+    float2 _JitterPadding;
+
+    uint4 InputBase; // XY: color origin, ZW: depth origin
 }
 
 bool IsSet(uint mask)
@@ -197,8 +202,10 @@ float2 GetDepthGradient(const uint2 groupID, const int2 gtID)
 
 float3 GetViewSpacePos(const int2 px)
 {
-    float inDepth = InDepth[px];
-    const float2 uv = (float2(px) + 0.5) * RenderSize.zw;
+    float inDepth = InDepth[px + int2(InputBase.zw)];
+    // InvProjMatrix is unjittered. Convert the current jittered raster
+    // coordinate back to the matching unjittered projection ray.
+    const float2 uv = (float2(px) + 0.5 - CurrentJitter) * RenderSize.zw;
     const float depthSign = IsSet(FLAGS_NEGATIVE_VIEW_DEPTH) ? -1.0f : 1.0f;
     float3 viewSpacePos = 0.0f;
     
@@ -207,7 +214,10 @@ float3 GetViewSpacePos(const int2 px)
     {
         inDepth = clamp(abs(inDepth), NearPlane, FarPlane);
         inDepth *= depthSign;
-        viewSpacePos = InvProjectPosition(float3(uv, 1.0f), InvProjMatrix);
+        // Mid-range NDC depth: the ray is rescaled to inDepth below, so the choice
+        // is arbitrary except that it must avoid the inverse projection's w == 0
+        // singularity, which sits at 1.0 for a standard-Z infinite far plane.
+        viewSpacePos = InvProjectPosition(float3(uv, 0.5f), InvProjMatrix);
         const float safeRayZ = (viewSpacePos.z < 0.0f)
             ? min(viewSpacePos.z, -1e-6f)
             : max(viewSpacePos.z, 1e-6f);
@@ -246,7 +256,7 @@ void PopulateSharedMemory(const uint2 groupID, const int2 gtID)
         {
             const int2 smID = int2(smFlatID % s_SM_Med_Size.x, smFlatID / s_SM_Med_Size.x);
             const int2 px = clamp(pxMedOrigin + smID, int2(0, 0), maxBounds);
-            const float3 color = GetSafeFP16(InColor[px].rgb);
+            const float3 color = GetSafeFP16(InColor[px + int2(InputBase.xy)].rgb);
             
             g_Color[smID.x][smID.y] = half4(color, GetLuminance(color));
         }
@@ -263,8 +273,6 @@ void PopulateSharedMemory(const uint2 groupID, const int2 gtID)
         {
             const int2 smID = int2(smFlatID % s_SM_Depth_Size.x, smFlatID / s_SM_Depth_Size.x);
             const int2 px = clamp(pxDepthOrigin + smID, int2(0, 0), maxBounds);
-            const float3 color = GetSafeFP16(InColor[px].rgb);
-            
             g_Depth[smID.x][smID.y] = GetViewSpacePos(px).z;
         }
     }

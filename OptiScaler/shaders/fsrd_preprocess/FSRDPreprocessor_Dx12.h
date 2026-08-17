@@ -2,6 +2,7 @@
 #include "SysUtils.h"
 
 #include <DirectXMath.h>
+#include <d3d12.h>
 #include <cstdint>
 #include <memory>
 #include <string_view>
@@ -31,6 +32,13 @@ class FSRDPreprocessor_Dx12
         IsRoughnessPacked =     1 << 2, // Roughness = InNormals.A - NVSDK_NGX_DLSS_Roughness_Mode_Packed (Init param)
         RightHanded =           1 << 3, // View-space forward is negative Z
         HasSpecHitDistance =    1 << 4, // Indirect-specular A contains a valid ray hit distance
+        SpecularSignalIndirect = 1 << 5, // Indirect A uses distance/-1; Direct A remains non-negative
+        HasEmissiveInput =      1 << 6, // Optional GBuffer.Emissive input is bound
+        ZeroRoughHandover =     1 << 7, // Hand exact-zero-roughness pixels to the spatial floor
+        MotionVectorsJittered = 1 << 8, // Source XY contains previous-current raster jitter
+        DisplayResolutionMotion = 1 << 9, // Source MV texture uses display-resolution coordinates
+        NormalsViewSpace =     1 << 11, // Transform input view-space normals to world space
+        HasCombinedSpecHitDistance = 1 << 14, // Hit distance is combined resource alpha
 
         Debug =                 1 << 16, // Denoiser and upscaler bypassed for debug out if this is set
         DebugModeMask =         0xFF << 16,
@@ -67,6 +75,12 @@ class FSRDPreprocessor_Dx12
         DebugRawRoughness =      20 << 17 | Debug,
         DebugEmissiveMask =      21 << 17 | Debug,
         DebugAppliedRoughnessFloor = 22 << 17 | Debug,
+        DebugResourceInspector = 23 << 17 | Debug,
+        DebugMaterialType =      24 << 17 | Debug,
+        DebugInEmissive =        25 << 17 | Debug,
+        DebugRRMaterialType =    26 << 17 | Debug,
+        DebugAlbedoStructure =   27 << 17 | Debug,
+        DebugZeroRoughFloor =    28 << 17 | Debug,
     };
 
     enum class CompFlags : uint32_t
@@ -75,6 +89,7 @@ class FSRDPreprocessor_Dx12
         RawSourceBlit =         1 << 0, // Bypass composition and write unmodified input
         ScaleSrc =              1 << 1, // Enable bilinear scaling to output
         DiffuseSignalIndirect = 1 << 2, // The active diffuse output was dispatched as Indirect Diffuse
+        SpecularSignalIndirect = 1 << 3, // The active specular output was dispatched as Indirect Specular
 
         Debug =                 1 << 16,
         DebugModeMask =         0xFF << 16,
@@ -82,9 +97,18 @@ class FSRDPreprocessor_Dx12
         DebugCorrelation =      1 << 17 | Debug,
         DebugSkipSignal =       2 << 17 | Debug,
         DebugDenoiserOutput =   3 << 17 | Debug,
-        DebugIndirectSpecular = 4 << 17 | Debug,
+        DebugDirectSpecular =   4 << 17 | Debug,
         DebugDirectDiffuse =    5 << 17 | Debug,
         DebugIndirectDiffuse =  6 << 17 | Debug,
+
+        // Handover band inspection: RR's low band, the handover's high band, and
+        // which of the two carries each pixel.
+        DebugHandoverRRBand =     7 << 17 | Debug,
+        DebugHandoverDetailBand = 8 << 17 | Debug,
+        DebugHandoverBandMix =    9 << 17 | Debug,
+        DebugHandoverAnchor =     10 << 17 | Debug,
+        DebugHandoverWeight =     11 << 17 | Debug,
+        DebugIndirectSpecular =   12 << 17 | Debug,
     };
 
     /**
@@ -104,9 +128,18 @@ class FSRDPreprocessor_Dx12
             ID3D12Resource* InDiffAlbedo; // RGB - NVSDK_NGX_Parameter_GBuffer_DiffuseAlbedo - RGBA32
             ID3D12Resource* InSpecAlbedo; // RGB - NVSDK_NGX_Parameter_GBuffer_SpecularAlbedo - RGBA32
             ID3D12Resource* InBiasMask; // R8 - NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask
+            ID3D12Resource* InInspector; // Optional read-only RR resource-inspector input
+            ID3D12Resource* InEmissive; // Optional NVSDK_NGX_Parameter_GBuffer_Emissive diagnostic input
+            ID3D12Resource* InSpecularRayDirectionHitDistance; // Optional RGBA, distance in A
+            // Optional diffuse ray length. RR's non-PSR reflection handling is driven
+            // by hit distance, and the diffuse signal currently declares every pixel a
+            // ray miss, so supplying a real length is the whole point of this input.
+            ID3D12Resource* InDiffuseHitDistance;
         };
 
-        ID3D12Resource* AsArray[9];
+        // Must equal the field count of the struct above. The struct is anonymous so
+        // its members can be named directly, which rules out a sizeof-derived count.
+        ID3D12Resource* AsArray[13];
     };
 
     /**
@@ -122,15 +155,60 @@ class FSRDPreprocessor_Dx12
         DirectX::XMFLOAT4X4 PrevViewMatrix;    // DLSSD WorldToView from last frame
 
         DirectX::XMFLOAT4 RenderSize;    // XY: Resolution of inputs - ZW: 1.0 / Resolution
+        DirectX::XMFLOAT4 MotionInputSize; // XY: source MV extent - ZW: reciprocal extent
+        DirectX::XMFLOAT4 MotionTransform; // XY: raw MV -> UV scale
+        DirectX::XMFLOAT4 JitterOffsets; // XY: current pixels - ZW: previous pixels
+        DirectX::XMUINT2 SpecularHitDistanceBase {};
+        DirectX::XMUINT2 DiffuseHitDistanceBase {};
+
+        // How to read InDiffuseHitDistance. 0 = absent, 1 = scalar in R,
+        // 2 = combined ray-direction resource with the distance in A.
+        uint32_t DiffuseHitDistanceMode = 0;
+
+        // Packed uint2 source origins. Internal textures remain zero-based.
+        DirectX::XMUINT4 FloorSourceBase; // XY: color, ZW: depth
+        DirectX::XMUINT4 InputBase0; // XY: color, ZW: motion
+        DirectX::XMUINT4 InputBase1; // XY: normals, ZW: roughness
+        DirectX::XMUINT4 InputBase2; // XY: spec hit distance, ZW: diffuse albedo
+        DirectX::XMUINT4 InputBase3; // XY: specular albedo, ZW: bias mask
+        DirectX::XMUINT4 InputBase4; // XY: emissive, ZW: reserved
 
         float NearPlane; // Near < Far
         float FarPlane;  // Near < Far
 
         float FloorIsolation;
         float RoughnessFloor; // Minimum linear roughness supplied only to RR
-        float RoughnessFloorDistance; // Full floor begins at this absolute view-space distance
+        // Whether exact-zero-roughness pixels are handed to the spatial floor at all.
+        bool ZeroRoughHandover = true;
+        // Blends that handover between the isotropic floor (0) and the selected
+        // detail filter (1).
+        float ZeroRoughDetail = 1.0f;
+
+        // Detail filter the blend targets. The rank-based entries republish the centre
+        // untouched wherever it is not an outlier; the averaging entries can clear
+        // clustered noise a rank filter cannot reach, at the cost of never leaving a
+        // pixel exactly as it was.
+        enum class ZeroRoughDetailFilter : uint32_t
+        {
+            HybridMedian = 0,           // rank, fixed 3x3, directional
+            StructureTensorSteered = 1, // averaging, steered along a measured edge
+            Kuwahara = 2,               // averaging, lowest-variance subwindow
+            AdaptiveRank = 3,           // rank, radius grows only where needed
+            AlbedoGuided = 4,           // averaging, edges taken from noise-free albedo
+            Count
+        };
+        ZeroRoughDetailFilter ZeroRoughDetailMode = ZeroRoughDetailFilter::AdaptiveRank;
 
         uint32_t Flags; // Dynamic configuration flags. See: ConfigFlags
+        uint32_t InspectorChannel;
+        float InspectorScale;
+        float DebugDepthMax = 1024.0f; // Full scale for the linear depth debug view
+        bool MotionHistoryValid = false;
+        bool MotionVectorsJittered = false;
+        bool DisplayResolutionMotion = false;
+        bool SpecularHitDistanceFromCombinedAlpha = false;
+
+        uint64_t FrameIndex = 0;
     };
 
     /**
@@ -139,8 +217,13 @@ class FSRDPreprocessor_Dx12
     struct CompositionDesc
     {
         DirectX::XMFLOAT4 DstTexSize; // XY = Tex Size - ZW = 1 / XY
+        DirectX::XMUINT4 SourceBase; // XY = raw color origin, ZW = color-before-particles origin
         float CorrelationBias; // Enhances the contribution of stable elements to the final image
         uint32_t Flags;
+
+        // Handover refinements, each inert at zero. See Composition::Constants.
+        float ZeroRoughAnchorClamp = 0.0f;
+        float ZeroRoughCorrelationMix = 0.0f;
 
         ID3D12Resource* InRawColor;
         ID3D12Resource* InColorBeforeParticles; // NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles (Optional)
@@ -206,6 +289,31 @@ class FSRDPreprocessor_Dx12
     void TransitionDenoiserOutputsToRead(ID3D12GraphicsCommandList* cmdList) noexcept;
 
     /**
+     * @brief Publishes the internally denoised AO signal to a tagged game resource and restores
+     * both resources to their caller-visible states.
+     */
+    bool CopyAmbientOcclusionOutput(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* dstTex,
+                                    D3D12_RESOURCE_STATES dstState,
+                                    uint32_t logicalWidth, uint32_t logicalHeight);
+
+    ID3D12Resource* GetAmbientOcclusionOutput() const;
+    ID3D12Resource* GetSpecularOcclusionOutput() const;
+
+    /**
+     * @brief Creates or reuses the dedicated RGBA16_FLOAT UAV used by AMD's internal RR debug views.
+     * The returned resource is in unordered-access state and sized exactly as requested.
+     */
+    ID3D12Resource* PrepareDebugViewOutput(ID3D12GraphicsCommandList* cmdList, uint32_t width,
+                                           uint32_t height);
+
+    /**
+     * @brief Transitions the AMD debug-view target to shader-readable state for presentation.
+     */
+    void TransitionDebugViewOutputToRead(ID3D12GraphicsCommandList* cmdList) noexcept;
+
+    ID3D12Resource* GetDebugViewOutput() const;
+
+    /**
      * @brief Returns the output from the last composition dispatch. Valid until the next conversion dispatch.
      */
     ID3D12Resource* GetCompositionOutput() const;
@@ -214,7 +322,9 @@ class FSRDPreprocessor_Dx12
      * @brief Copies the contents of the given source texture. Does not automatically set resource barriers.
      */
     bool Blit(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* srcTex, ID3D12Resource* dstTex,
-              DirectX::XMFLOAT2 dim = {}) const;
+              DirectX::XMFLOAT2 dstDim = {},
+              DirectX::XMFLOAT2 logicalSrcDim = {},
+              DirectX::XMFLOAT2 logicalSrcBase = {}) const;
 
   private:
     struct Impl;

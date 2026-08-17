@@ -82,8 +82,16 @@ float3 InvProjectPosition(float3 coord, float4x4 mat)
 {
     coord.xy = UVToNDC(coord.xy);
     float4 projected = mul(mat, float4(coord, 1.0f));
-    projected.xyz /= projected.w;
-    
+    // An infinite far plane drives w to exactly zero at the NDC depth that maps to
+    // infinity: z = 1 for standard-Z, z = 0 for reversed-Z. Dividing there yields
+    // Inf, and a caller that then rescales the ray by depth/rayZ turns Inf * 0 into
+    // NaN. Clamp the magnitude so the result stays a finite, very distant point that
+    // the callers' near/far clamps can resolve.
+    const float safeW = (projected.w < 0.0f)
+        ? min(projected.w, -1e-6f)
+        : max(projected.w, 1e-6f);
+    projected.xyz /= safeW;
+
     return projected.xyz;
 }
 
@@ -189,6 +197,56 @@ float4 Square(float4 vec) { return float4(vec.x * vec.x, vec.y * vec.y, vec.z * 
 float GetLuminance(float3 color)
 {
     return dot(color, float3(0.2126f, 0.7152f, 0.0722f));
+}
+
+// Branch-free rank selection. Both forms are sorting networks over min/max, so they
+// compile to plain ALU with no divergence.
+#define FSRD_SORT_PAIR(x, y) { const float fsrdSortTmp = min(x, y); y = max(x, y); x = fsrdSortTmp; }
+
+float Median3(float a, float b, float c)
+{
+    return max(min(a, b), min(max(a, b), c));
+}
+
+// Optimal 9-comparator sorting network for five elements. Only the middle rank is
+// read, but the network is cheap enough that stopping early saves nothing useful.
+float Median5(float v0, float v1, float v2, float v3, float v4)
+{
+    FSRD_SORT_PAIR(v0, v1);
+    FSRD_SORT_PAIR(v3, v4);
+    FSRD_SORT_PAIR(v2, v4);
+    FSRD_SORT_PAIR(v2, v3);
+    FSRD_SORT_PAIR(v1, v4);
+    FSRD_SORT_PAIR(v0, v3);
+    FSRD_SORT_PAIR(v0, v2);
+    FSRD_SORT_PAIR(v1, v3);
+    FSRD_SORT_PAIR(v1, v2);
+    return v2;
+}
+
+// Partial network that resolves only the middle rank of nine elements: the standard
+// 19-comparator median-of-9. Ranks either side of the middle are left unsorted, which
+// is what makes it cheaper than a full sort.
+float Median9(float v0, float v1, float v2, float v3, float v4,
+              float v5, float v6, float v7, float v8)
+{
+    // Reduce the first six to a known min and max, discarding both from contention.
+    FSRD_SORT_PAIR(v0, v3); FSRD_SORT_PAIR(v1, v4); FSRD_SORT_PAIR(v2, v5);
+    FSRD_SORT_PAIR(v0, v1); FSRD_SORT_PAIR(v0, v2);
+    FSRD_SORT_PAIR(v4, v5); FSRD_SORT_PAIR(v3, v5);
+
+    // Fold in the remaining three one at a time, each time dropping the new extremes.
+    FSRD_SORT_PAIR(v1, v2); FSRD_SORT_PAIR(v3, v4);
+    FSRD_SORT_PAIR(v1, v3); FSRD_SORT_PAIR(v1, v6);
+    FSRD_SORT_PAIR(v4, v6); FSRD_SORT_PAIR(v2, v6);
+
+    FSRD_SORT_PAIR(v2, v3); FSRD_SORT_PAIR(v4, v7);
+    FSRD_SORT_PAIR(v2, v4); FSRD_SORT_PAIR(v3, v7);
+
+    FSRD_SORT_PAIR(v4, v8); FSRD_SORT_PAIR(v3, v8);
+    FSRD_SORT_PAIR(v3, v4);
+
+    return v4;
 }
 
 // Computes statistical variance/spread using the mean of squares and mean.

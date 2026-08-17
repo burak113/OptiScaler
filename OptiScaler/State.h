@@ -4,6 +4,7 @@
 #include <inputs/FG/Streamline_Inputs_Dx12.h>
 #include "misc/Quirks.h"
 
+#include <atomic>
 #include <set>
 #include <deque>
 #include <vulkan/vulkan.h>
@@ -110,6 +111,8 @@ class State
 
     // Streamline FG inputs
     sl::Constants slLastConstants = {};
+    uint32_t slLastConstantsFrame = UINT32_MAX;
+    uint32_t slLastConstantsViewport = UINT32_MAX;
     Sl_Inputs_Dx12 slFGInputs = {};
 
     // OptiFG
