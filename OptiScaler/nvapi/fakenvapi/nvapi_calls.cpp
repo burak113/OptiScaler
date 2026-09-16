@@ -191,12 +191,6 @@ NvAPI_Status __cdecl NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalGpu,
     return OK();
 }
 
-    if (pMemoryInfo->version >= MAKE_NVAPI_VERSION(NV_DISPLAY_DRIVER_MEMORY_INFO, 2))
-        pMemoryInfo->curAvailableDedicatedVideoMemory = 30000 * 1024;
-
-    return OK();
-}
-
 NvAPI_Status __cdecl NvAPI_GPU_GetMemoryInfoEx(NvPhysicalGpuHandle hPhysicalGpu,
                                                NV_GPU_MEMORY_INFO_EX_V1* pMemoryInfo)
 {
