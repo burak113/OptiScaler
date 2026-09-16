@@ -102,6 +102,45 @@ class FfxApiProxy
 
     inline static bool _skipDestroyCalls = false;
 
+    // Enumerates the module's own provider versions by effect id. Used for RR 1.2,
+    // which reports providers under FFX_API_EFFECT_ID_DENOISER instead of the
+    // upscale context type.
+    static void UpdateFeatureVersionDx12(FfxModule& module, uint64_t type, const char* label)
+    {
+        if (module.version.major != 0 || module.Query == nullptr)
+            return;
+
+        ffxQueryDescGetVersions versionQuery {};
+        versionQuery.header.type = FFX_API_QUERY_DESC_TYPE_GET_VERSIONS;
+        versionQuery.createDescType = type;
+
+        versionQuery.device = State::Instance().currentD3D12Device;
+        uint64_t versionCount = 0;
+        versionQuery.outputCount = &versionCount;
+
+        auto queryResult = module.Query(nullptr, &versionQuery.header);
+
+        if (queryResult == FFX_API_RETURN_OK && versionCount > 0)
+        {
+            std::vector<uint64_t> versionIds(versionCount);
+            std::vector<const char*> versionNames(versionCount);
+            versionQuery.versionIds = versionIds.data();
+            versionQuery.versionNames = versionNames.data();
+
+            queryResult = module.Query(nullptr, &versionQuery.header);
+
+            if (queryResult == FFX_API_RETURN_OK)
+            {
+                module.version.parse_version(versionNames[0]);
+                LOG_INFO("FfxApi Dx12 {} version: {}.{}.{}", label, module.version.major, module.version.minor,
+                         module.version.patch);
+                return;
+            }
+        }
+
+        LOG_WARN("{} Query failed result: {}", label, (UINT) queryResult);
+    }
+
     static bool IsLoader(const std::wstring& filePath)
     {
         auto size = std::filesystem::file_size(filePath);
@@ -176,7 +215,8 @@ class FfxApiProxy
             return FfxDenoiserApiGeneration::Unknown;
         if (version == feature_version { 1, 1, 0 })
             return FfxDenoiserApiGeneration::V1_1;
-        if (version == feature_version { 1, 2, 0 })
+        // RR 1.2 patch releases (1.2.1+) keep the 1.2 ABI, so accept the minor line
+        if (version.major == 1 && version.minor == 2)
             return FfxDenoiserApiGeneration::V1_2;
 
         return FfxDenoiserApiGeneration::Unsupported;
@@ -1128,47 +1168,8 @@ class FfxApiProxy
         if (denoiser_dx12.Query == nullptr)
             return VersionDx12();
 
-        if (denoiser_dx12.version.major == 0)
-        {
-            ffxQueryDescGetVersions versionQuery {};
-            versionQuery.header.type = FFX_API_QUERY_DESC_TYPE_GET_VERSIONS;
-            versionQuery.createDescType = FFX_API_CREATE_CONTEXT_DESC_TYPE_UPSCALE;
-            uint64_t versionCount = 0;
-            versionQuery.outputCount = &versionCount;
-
-            auto queryResult = denoiser_dx12.Query(nullptr, &versionQuery.header);
-
-            // get number of versions for allocation
-            if (versionCount > 0 && queryResult == FFX_API_RETURN_OK)
-            {
-
-                std::vector<uint64_t> versionIds;
-                std::vector<const char*> versionNames;
-                versionIds.resize(versionCount);
-                versionNames.resize(versionCount);
-                versionQuery.versionIds = versionIds.data();
-                versionQuery.versionNames = versionNames.data();
-
-                // fill version ids and names arrays.
-                queryResult = denoiser_dx12.Query(nullptr, &versionQuery.header);
-
-                if (queryResult == FFX_API_RETURN_OK)
-                {
-                    denoiser_dx12.version.parse_version(versionNames[0]);
-                    LOG_INFO("FfxApi Dx12 SR version: {}.{}.{}", denoiser_dx12.version.major,
-                             denoiser_dx12.version.minor, denoiser_dx12.version.patch);
-                }
-                else
-                {
-                    LOG_WARN("main_dx12.Query 2 result: {}", (UINT) queryResult);
-                }
-            }
-            else
-            {
-                LOG_WARN("main_dx12.Query result: {}", (UINT) queryResult);
-            }
-        }
-
+        // RR 1.2 enumerates providers by effect ID, matching AMD's SDK sample.
+        UpdateFeatureVersionDx12(denoiser_dx12, FFX_API_EFFECT_ID_DENOISER, "RR");
         return denoiser_dx12.version;
     }
 

@@ -6,6 +6,7 @@
 #include "Config.h"
 #include <ankerl/unordered_dense.h>
 #include <misc/IdentifyGpu.h>
+#include <proxies/FfxApi_Proxy.h>
 #include <framegen/nvngx/Nvngx_FG.h>
 
 /// @brief Calculates the resolution scaling ratio override based on the provided quality level and current
@@ -831,8 +832,24 @@ void InitNGXParameters(NVSDK_NGX_Parameter* InParams, API api)
             InParams->Set("SuperSamplingDenoising.MinDriverVersionMinor", 0);
         }
 
-        InParams->Set("SuperSamplingDenoising.Available", 0);
-        InParams->Set("SuperSamplingDenoising.FeatureInitResult", 0);
+        bool ssDenoiseAvailable = false;
+
+        if (State::Instance().currentD3D12Device != nullptr)
+        {
+            if (!FfxApiProxy::IsDenoiserReady(false))
+                FfxApiProxy::InitFfxDx12();
+
+            const FfxDenoiserApiGeneration rrApi = FfxApiProxy::DenoiserApiGenerationDx12();
+            ssDenoiseAvailable = FfxApiProxy::IsSRReady(false) && FfxApiProxy::IsDenoiserApiImplementedDx12();
+
+            if (ssDenoiseAvailable)
+                LOG_DEBUG("Setting DLSSD flags for FSR Ray Regeneration");
+            else if (rrApi != FfxDenoiserApiGeneration::NotLoaded)
+                LOG_DEBUG("FSR Ray Regeneration provider is not compatible with the RR 1.2 dispatch backend");
+        }
+
+        InParams->Set("SuperSamplingDenoising.Available", ssDenoiseAvailable);
+        InParams->Set("SuperSamplingDenoising.FeatureInitResult", ssDenoiseAvailable);
     }
 
     if ((api == API::DX12 || api == API::Vulkan) && (State::Instance().activeFgInput == FGInput::DLSSG ||
