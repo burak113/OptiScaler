@@ -413,6 +413,15 @@ template <typename T> NVSDK_NGX_Result NVNGX_Parameters::getT(const char* key, T
     const std::lock_guard<std::mutex> lock(m_mutex);
     auto k = m_values.find(key);
 
+    // RR gate trace: log capability reads the host makes for denoiser availability keys
+    if (std::strstr(key, "Denoising") != nullptr || std::strstr(key, "DLSSD") != nullptr)
+    {
+        if (k == m_values.end())
+            LOG_INFO("NGX param READ: '{}' -> MISSING", key);
+        else
+            LOG_INFO("NGX param READ: '{}' -> int {}", key, (int) (long long) (*k).second);
+    }
+
     if (k == m_values.end())
     {
         LOG_TRACE("('{0}', FAIL)", key);
