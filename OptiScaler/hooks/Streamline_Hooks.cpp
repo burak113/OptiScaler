@@ -1170,10 +1170,15 @@ sl::Result StreamlineHooks::hkslIsFeatureLoaded(sl::Feature feature, bool& loade
 
 sl::Result StreamlineHooks::hkslGetFeatureRequirements(sl::Feature feature, sl::FeatureRequirements& requirements)
 {
+    LOG_INFO("slGetFeatureRequirements: feature {}", (int) feature);
+
     if (feature == sl::kFeatureDLSS_G)
         return sl::Result::eOk;
 
-    return o_slGetFeatureRequirements(feature, requirements);
+    auto result = o_slGetFeatureRequirements(feature, requirements);
+    LOG_INFO("slGetFeatureRequirements: feature {} result: {} flags: {} driverReq: {}", (int) feature,
+             (int) result, (int) requirements.flags, requirements.driverVersionRequired.toStr());
+    return result;
 }
 
 sl::Result StreamlineHooks::hkslGetFeatureVersion(sl::Feature feature, sl::FeatureVersion& version)
