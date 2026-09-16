@@ -1147,13 +1147,14 @@ sl::Result StreamlineHooks::hkslInit(const sl::Preferences& pref, uint64_t sdkVe
 
 sl::Result StreamlineHooks::hkslIsFeatureSupported(sl::Feature feature, const sl::AdapterInfo& adapterInfo)
 {
-    LOG_INFO("slIsFeatureSupported: feature {}", (int) feature);
+    void* retAddr = _ReturnAddress();
+    LOG_INFO("slIsFeatureSupported: feature {} caller {}", (int) feature, retAddr);
 
     if (feature == sl::kFeatureDLSS_G || feature == sl::kFeatureDLSS_RR)
         return sl::Result::eOk;
 
     auto result = o_slIsFeatureSupported(feature, adapterInfo);
-    LOG_INFO("slIsFeatureSupported: feature {} result: {}", (int) feature, (int) result);
+    LOG_INFO("slIsFeatureSupported: feature {} result: {} caller {}", (int) feature, (int) result, retAddr);
     return result;
 }
 
