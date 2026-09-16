@@ -23,6 +23,38 @@ struct ffxCreateContextDescUpscaleVersion
 };
 
 using namespace OptiMath;
+
+// Local port of the fork's TryResourceBarrier helpers: transition only when the
+// configured override state exists.
+static void TryResourceBarrier(ID3D12GraphicsCommandList* InCommandList, ID3D12Resource* InResource,
+                               const CustomOptional<int32_t, NoDefault>& InBeforeState,
+                               D3D12_RESOURCE_STATES InAfterState)
+{
+    if (InCommandList != nullptr && InResource != nullptr && InBeforeState.has_value())
+    {
+        D3D12_RESOURCE_BARRIER desc = {};
+        desc.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        desc.Transition.pResource = InResource;
+        desc.Transition.StateBefore = (D3D12_RESOURCE_STATES) InBeforeState.value();
+        desc.Transition.StateAfter = InAfterState;
+        InCommandList->ResourceBarrier(1, &desc);
+    }
+}
+
+static void TryResourceBarrier(ID3D12GraphicsCommandList* InCommandList, ID3D12Resource* InResource,
+                               D3D12_RESOURCE_STATES InBeforeState,
+                               const CustomOptional<int32_t, NoDefault>& InAfterState)
+{
+    if (InCommandList != nullptr && InResource != nullptr && InAfterState.has_value())
+    {
+        D3D12_RESOURCE_BARRIER desc = {};
+        desc.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        desc.Transition.pResource = InResource;
+        desc.Transition.StateBefore = InBeforeState;
+        desc.Transition.StateAfter = (D3D12_RESOURCE_STATES) InAfterState.value();
+        InCommandList->ResourceBarrier(1, &desc);
+    }
+}
 using InputResources = FSR31FeatureDx12::InputResources;
 
 template <typename T>
@@ -297,7 +329,7 @@ void FSR31FeatureDx12::SetResolutionConfig()
 
 bool FSR31FeatureDx12::QueryUpscalerVersions()
 {
-    ScopedSkipSpoofing skipSpoofing {};
+    ScopedSkipSpoofingGlobal skipSpoofingGlobal {};
 
     auto& state = State::Instance();
 
@@ -406,7 +438,7 @@ bool FSR31FeatureDx12::PrepareUpscalerInput(ID3D12GraphicsCommandList* InCommand
     if (!AutoExposure() && !_inputBuffers.ExposureMap)
     {
         LOG_DEBUG("AutoExposure disabled but ExposureTexture is missing. Forcing AutoExposure and re-initializing.");
-        state.AutoExposure = true;
+        state.autoExposure = true;
         state.changeBackend[Handle()->Id] = true;
         return true;
     }
@@ -710,7 +742,7 @@ void FSR31FeatureDx12::GetReactiveAndTransparencyMasks(ID3D12GraphicsCommandList
                 {
                     Bias->SetBufferState(InCommandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-                    if (Bias->Dispatch(Device, InCommandList, inputs.DlssBiasMaskFallback,
+                    if (Bias->Dispatch(InCommandList, inputs.DlssBiasMaskFallback,
                                        cfg.DlssReactiveMaskBias.value_or_default(), Bias->Buffer()))
                     {
                         Bias->SetBufferState(InCommandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -734,7 +766,7 @@ void FSR31FeatureDx12::GetReactiveAndTransparencyMasks(ID3D12GraphicsCommandList
     inputs.ReactiveMask = activeReactiveMask;
 }
 
-void FSR31FeatureDx12::SetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList) const
+void FSR31FeatureDx12::SetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList)
 {
     const auto& state = State::Instance();
     auto& cfg = *Config::Instance();
@@ -765,7 +797,7 @@ void FSR31FeatureDx12::SetConfigurableBarriers(ID3D12GraphicsCommandList* InComm
     TryResourceBarrier(InCommandList, _upscalerOutput, cfg.OutputResourceBarrier, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
-void FSR31FeatureDx12::ResetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList) const
+void FSR31FeatureDx12::ResetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList)
 {
     const auto& cfg = *Config::Instance();
 

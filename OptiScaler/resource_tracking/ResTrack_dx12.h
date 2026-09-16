@@ -14,9 +14,8 @@
 #include <memory>
 #include <mutex>
 #include <new>
-#include        UINT index = 0;
-        if (!GetCpuIndex(cpuHandle, index))
-vector>
+#include <shared_mutex>
+#include <vector>
 
 // #define DEBUG_TRACKING
 
@@ -293,33 +292,8 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
         if (!active.load(std::memory_order_acquire))
             return;
 
-<<<<<<< HEAD
-        // std::unique_lock<std::shared_mutex> lock(mutex);
-
-#ifdef DEBUG_TRACKING
-        TestResource(&setInfo);
-#endif
-        if (info[index].buffer != setInfo.buffer)
-        {
-            DetachFromOldResource(index);
-            info[index] = setInfo;
-            AttachToNewResource(index);
-        }
-        else
-        {
-            info[index] = setInfo;
-        }
-    }
-
-    void SetByGpuHandle(SIZE_T gpuHandle, ResourceInfo setInfo) const
-    {
-        auto index = (gpuHandle - gpuStart) / increment;
-
-        if (index >= numDescriptors)
-=======
         UINT index = 0;
         if (!GetCpuIndex(cpuHandle, index))
->>>>>>> original/master
             return;
 
         std::unique_lock lock(GetDescriptorLock(index));
@@ -335,10 +309,6 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
             DetachFromOldResourceLocked(index);
             info[index] = setInfo;
             AttachToNewResourceLocked(index);
-        }
-        else
-        {
-            info[index] = setInfo;
         }
         else
         {

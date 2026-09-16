@@ -4,6 +4,7 @@
 #include <d3d12sdklayers.h>
 #include <cmath>
 #include "NVNGX_Parameter.h"
+#include <misc/SkipSpoof.h>
 #include "hooks/Streamline_Hooks.h"
 #include "resource_tracking/ResTrack_Dx12.h"
 #include "FSRDFeature_Dx12.h"
@@ -1200,7 +1201,7 @@ bool FSRDFeatureDx12::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
         SetInit(false);
 
         LOG_DEBUG("FSR Ray Regeneration Initializing");
-        _name = OptiTexts::FSR_RR_Name;
+        _name = "FSR-RR";
 
         if (int value; InParameters->Get(NVSDK_NGX_Parameter_Use_HW_Depth, &value) == NVSDK_NGX_Result_Success)
         {
@@ -1279,7 +1280,7 @@ bool FSRDFeatureDx12::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
 
 bool FSRDFeatureDx12::CreateDenoiserContext() 
 {
-    ScopedSkipSpoofing skipSpoofing {};
+    ScopedSkipSpoofingGlobal skipSpoofingGlobal {};
     auto& state = State::Instance();
     const auto& cfg = *Config::Instance();
 
@@ -1385,7 +1386,8 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
              "specularOcclusion={} (no semantic source)",
              GetSignalTypeName(_diffuseSignalDescType), GetSignalTypeName(_specularSignalDescType),
              _ambientOcclusionEnabled, _specularOcclusionEnabled);
-    WLOG_INFO(L"[RR_DIAG] denoiser module: {}", FfxApiProxy::Dx12Module_Denoiser_Path());
+    spdlog::info(L"" __FUNCTIONW__ L" [RR_DIAG] denoiser module: {}",
+                 FfxApiProxy::Dx12Module_Denoiser_Path());
 
     // Create the denoiser context
     {   
@@ -1461,7 +1463,7 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
 
 bool FSRDFeatureDx12::QueryDenoiserVersions() 
 {
-    ScopedSkipSpoofing skipSpoofing {};
+    ScopedSkipSpoofingGlobal skipSpoofingGlobal {};
     auto& state = State::Instance();
 
     // Get version count
@@ -1844,7 +1846,7 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
 
         // Post-Process
         if (isUpscalerReady)
-            PostProcess(InCommandList, inParams, upscalerDesc);
+            // Post-processing (RCAS/output scaling/overlay) is run by IFeature_Dx12::Evaluate.
 
         // Cleanup
         FSR31FeatureDx12::ResetConfigurableBarriers(InCommandList);

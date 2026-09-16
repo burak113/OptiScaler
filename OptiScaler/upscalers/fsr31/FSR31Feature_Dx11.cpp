@@ -4,9 +4,12 @@
 #include "FSR31Feature_Dx11.h"
 #include "MathUtils.h"
 
-using nam                                                                                   \
+using namespace OptiMath;
+
+#define ASSIGN_DESC(dest, src)                                                                                         \
     dest.Width = src.Width;                                                                                            \
-    dest.Height = src.Height;                                                                                                         \
+    dest.Height = src.Height;                                                                                          \
+    dest.Format = src.Format;                                                                                          \
     dest.BindFlags = src.BindFlags;
 
 FSR31FeatureDx11::FSR31FeatureDx11(unsigned int InHandleId, NVSDK_NGX_Parameter* InParameters)
@@ -120,56 +123,6 @@ bool FSR31FeatureDx11::EvaluateInternal(ID3D11DeviceContext* DeviceContext, NVSD
     auto& state = State::Instance();
     auto& cfg = *Config::Instance();
     const auto& ngxParams = *InParameters;
-<<<<<<< HEAD
-
-    if (!RCAS->IsInit())
-        Config::Instance()->RcasEnabled.set_volatile_value(false);
-
-    if (!OutputScaler->IsInit())
-        Config::Instance()->OutputScalingEnabled.set_volatile_value(false);
-
-    if (Config::Instance()->DADepthIsLinear.value_for_config_ignore_default() == std::nullopt)
-        Config::Instance()->DADepthIsLinear.set_volatile_value(false);
-
-    ID3D11ShaderResourceView* restoreSRVs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
-    ID3D11SamplerState* restoreSamplerStates[D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT] = {};
-    ID3D11Buffer* restoreCBVs[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT] = {};
-    ID3D11UnorderedAccessView* restoreUAVs[D3D11_1_UAV_SLOT_COUNT] = {};
-    ID3D11RenderTargetView* restoreRTVs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = {};
-    ID3D11DepthStencilView* restoreDSV = nullptr;
-
-    // backup compute shader resources
-    for (UINT i = 0; i < D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT; i++)
-    {
-        restoreSRVs[i] = nullptr;
-        DeviceContext->CSGetShaderResources(i, 1, &restoreSRVs[i]);
-    }
-
-    for (UINT i = 0; i < D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT; i++)
-    {
-        restoreSamplerStates[i] = nullptr;
-        DeviceContext->CSGetSamplers(i, 1, &restoreSamplerStates[i]);
-    }
-
-    for (UINT i = 0; i < D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT; i++)
-    {
-        restoreCBVs[i] = nullptr;
-        DeviceContext->CSGetConstantBuffers(i, 1, &restoreCBVs[i]);
-    }
-
-    for (UINT i = 0; i < D3D11_1_UAV_SLOT_COUNT; i++)
-    {
-        restoreUAVs[i] = nullptr;
-        DeviceContext->CSGetUnorderedAccessViews(i, 1, &restoreUAVs[i]);
-    }
-
-    DeviceContext->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, restoreRTVs, &restoreDSV);
-
-    // Unbind RenderTargets
-    ID3D11RenderTargetView* nullRTVs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = {};
-    DeviceContext->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, nullRTVs, nullptr);
-=======
->>>>>>> original/master
 
     Fsr31::FfxFsr3DispatchUpscaleDescription params {};
 
@@ -195,12 +148,6 @@ bool FSR31FeatureDx11::EvaluateInternal(ID3D11DeviceContext* DeviceContext, NVSD
 
     GetRenderResolution(InParameters, &params.renderSize.width, &params.renderSize.height);
 
-<<<<<<< HEAD
-    bool useSS =
-        Config::Instance()->OutputScalingEnabled.value_or_default() && (LowResMV() || RenderWidth() == DisplayWidth());
-
-=======
->>>>>>> original/master
     LOG_DEBUG("Input Resolution: {0}x{1}", params.renderSize.width, params.renderSize.height);
 
     params.commandList = Fsr31::ffxGetCommandListDX11(DeviceContext);
@@ -441,113 +388,6 @@ bool FSR31FeatureDx11::EvaluateInternal(ID3D11DeviceContext* DeviceContext, NVSD
         return false;
     }
 
-<<<<<<< HEAD
-    // apply rcas
-    if (Config::Instance()->RcasEnabled.value_or_default() &&
-        (_sharpness > 0.0f || (Config::Instance()->MotionSharpnessEnabled.value_or_default() &&
-                               Config::Instance()->MotionSharpness.value_or_default() > 0.0f)) &&
-        RCAS != nullptr && RCAS.get() != nullptr && RCAS->CanRender())
-    {
-        RcasConstants rcasConstants {};
-
-        rcasConstants.Sharpness = _sharpness;
-        InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_X, &rcasConstants.MvScaleX);
-        InParameters->Get(NVSDK_NGX_Parameter_MV_Scale_Y, &rcasConstants.MvScaleY);
-
-        if (DepthInverted())
-        {
-            rcasConstants.CameraNear = params.cameraFar;
-            rcasConstants.CameraFar = params.cameraNear;
-        }
-        else
-        {
-            rcasConstants.CameraNear = params.cameraNear;
-            rcasConstants.CameraFar = params.cameraFar;
-        }
-
-        if (useSS)
-        {
-            if (!RCAS->Dispatch(Device, DeviceContext, (ID3D11Texture2D*) params.upscaleOutput.resource,
-                                (ID3D11Texture2D*) params.motionVectors.resource, rcasConstants, OutputScaler->Buffer(),
-                                (ID3D11Texture2D*) params.depth.resource))
-            {
-                Config::Instance()->RcasEnabled.set_volatile_value(false);
-                return true;
-            }
-        }
-        else
-        {
-            if (!RCAS->Dispatch(Device, DeviceContext, (ID3D11Texture2D*) params.upscaleOutput.resource,
-                                (ID3D11Texture2D*) params.motionVectors.resource, rcasConstants,
-                                (ID3D11Texture2D*) paramOutput, (ID3D11Texture2D*) params.depth.resource))
-            {
-                Config::Instance()->RcasEnabled.set_volatile_value(false);
-                return true;
-            }
-        }
-    }
-
-    if (useSS)
-    {
-        LOG_DEBUG("scaling output...");
-        if (!OutputScaler->Dispatch(Device, DeviceContext, OutputScaler->Buffer(), (ID3D11Texture2D*) paramOutput))
-        {
-            Config::Instance()->OutputScalingEnabled.set_volatile_value(false);
-            State::Instance().changeBackend[Handle()->Id] = true;
-            return true;
-        }
-    }
-
-    // imgui
-    if (!Config::Instance()->OverlayMenu.value_or_default() && _frameCount > 30)
-    {
-        if (Imgui != nullptr && Imgui.get() != nullptr)
-        {
-            if (Imgui->IsHandleDifferent())
-            {
-                Imgui.reset();
-            }
-            else
-                Imgui->Render(DeviceContext, paramOutput);
-        }
-        else
-        {
-            if (Imgui == nullptr || Imgui.get() == nullptr)
-                Imgui = std::make_unique<Menu_Dx11>(GetForegroundWindow(), Device);
-        }
-    }
-
-    // restore compute shader resources
-    for (UINT i = 0; i < D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT; i++)
-    {
-        if (restoreSRVs[i] != nullptr)
-            DeviceContext->CSSetShaderResources(i, 1, &restoreSRVs[i]);
-    }
-
-    for (UINT i = 0; i < D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT; i++)
-    {
-        if (restoreSamplerStates[i] != nullptr)
-            DeviceContext->CSSetSamplers(i, 1, &restoreSamplerStates[i]);
-    }
-
-    for (UINT i = 0; i < D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT; i++)
-    {
-        if (restoreCBVs[i] != nullptr)
-            DeviceContext->CSSetConstantBuffers(i, 1, &restoreCBVs[i]);
-    }
-
-    for (UINT i = 0; i < D3D11_1_UAV_SLOT_COUNT; i++)
-    {
-        if (restoreUAVs[i] != nullptr)
-            DeviceContext->CSSetUnorderedAccessViews(i, 1, &restoreUAVs[i], 0);
-    }
-
-    DeviceContext->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, restoreRTVs, restoreDSV);
-
-    _frameCount++;
-
-=======
->>>>>>> original/master
     return true;
 }
 

@@ -1,6 +1,8 @@
 #pragma once
 
-#include "ffx_upude <upscalers/IFeature.h>
+#include "ffx_upscale.h"
+
+#include <upscalers/IFeature.h>
 
 inline static void FfxLogCallback(uint32_t type, const wchar_t* message)
 {
@@ -28,23 +30,6 @@ class FSR31Feature : public virtual IFeature
 
     static inline void parse_version(const char* version_str) { _version.parse_version(version_str); }
 
-<<<<<<< HEAD
-        // Skip non-digits at front
-        while (*p)
-        {
-            if (isdigit((unsigned char) p[0]))
-            {
-                if (sscanf(p, "%u.%u.%u", &_version.major, &_version.minor, &_version.patch) == 3)
-                    return;
-            }
-            ++p;
-        }
-
-        LOG_WARN("can't parse {0}", version_str);
-    }
-
-=======
->>>>>>> original/master
     static inline void ffxResolveTypelessFormat(uint32_t& format)
     {
         switch (format)

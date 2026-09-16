@@ -2,15 +2,12 @@
 
 #include "SysUtils.h"
 
-#incl                             "owclient",
-<proxies/Kerne                                  "owclient",
-_Proxy.h>
+#include <proxies/KernelBase_Proxy.h>
 
-#inc                                      "owclient",
- <cwctype> // for std::towlower
+#include <cwctype> // for std::towlower
 
 #define DEFINE_NAME_VECTORS(varName, ...)                                                                              \
-    inline const std::vector<std::string> varName##Names = []                                                          \
+    inline std::vector<std::string> varName##Names = []                                                                \
     {                                                                                                                  \
         std::vector<std::string> v;                                                                                    \
         const char* libs[] = { __VA_ARGS__ };                                                                          \
@@ -21,7 +18,7 @@ _Proxy.h>
         }                                                                                                              \
         return v;                                                                                                      \
     }();                                                                                                               \
-    inline const std::vector<std::wstring> varName##NamesW = []                                                        \
+    inline std::vector<std::wstring> varName##NamesW = []                                                              \
     {                                                                                                                  \
         std::vector<std::wstring> v;                                                                                   \
         const char* libs[] = { __VA_ARGS__ };                                                                          \
@@ -47,10 +44,7 @@ DEFINE_NAME_VECTORS(overlay, "eosovh-win32-shipping",
                              "gameoverlayrenderer64",     // Steam
                              "socialclubd3d12renderer", // Rockstar
                              "owutils",                 // Overwolf
-<<<<<<< HEAD
-=======
                              "owclient",
->>>>>>> original/master
                              "galaxy",
                              "galaxy64",                // GOG Galaxy
                              "discordhook",
@@ -65,11 +59,7 @@ DEFINE_NAME_VECTORS(blockOverlay, "eosovh-win32-shipping",
                                   "eosovh-win64-shipping",
                                   "gameoverlayrenderer",
                                   "gameoverlayrenderer64",
-<<<<<<< HEAD
-                                  "owclient"
-=======
                                   "owclient",
->>>>>>> original/master
                                   "galaxy",
                                   "galaxy64",
                                   "discordhook",
@@ -87,10 +77,7 @@ DEFINE_NAME_VECTORS(skipDxgiWrapping, "eosovh-win32-shipping",
                                       "gameoverlayrenderer",
                                       "gameoverlayrenderer64",
                                       "socialclubd3d12renderer",
-<<<<<<< HEAD
-=======
                                       "owclient",
->>>>>>> original/master
                                       "owutils",
                                       "galaxy",
                                       "galaxy64",
@@ -163,74 +150,91 @@ DEFINE_NAME_VECTORS(ffxDx12Radiance, "amd_fidelityfx_radiancecache_dx12");
 DEFINE_NAME_VECTORS(ffxVk, "amd_fidelityfx_vk");
 DEFINE_NAME_VECTORS(uell, "main");
 
-/**
- * @brief Returns true if the given string ends with the given suffix.
- * Case insensitive.
- */
-template <typename CharT>
-[[nodiscard]] inline static bool CompareFileName(std::basic_string_view<CharT> str,
-                                                 std::basic_string_view<CharT> suffix)
+inline static bool CompareFileName(std::string* first, std::string* second)
 {
-    if (str.size() < suffix.size())
+    if (first->size() < second->size())
         return false;
 
-    auto fileNameSuffix = str.substr(str.size() - suffix.size());
+    auto start = first->size() - second->size();
 
-    return std::ranges::equal(fileNameSuffix, suffix,
-                              [](CharT a, CharT b)
-                              {
-                                  if constexpr (std::is_same_v<CharT, wchar_t>)
-                                      return std::towlower(a) == std::towlower(b);
-                                  else
-                                      return std::tolower(static_cast<unsigned char>(a)) ==
-                                             std::tolower(static_cast<unsigned char>(b));
-                              });
-}
-
-/**
- * @brief Returns true if the given dllName ends with any of the names in the
- * name list. Case insensitive.
- */
-[[nodiscard]] inline static bool CheckDllName(std::string_view dllName, std::span<const std::string> namesList)
-{
-    return std::ranges::any_of(namesList,
-                               [&](const auto& candidate) { return CompareFileName<char>(dllName, candidate); });
-}
-
-/**
- * @brief Returns true if the given dllName ends with any of the names in the
- * name list. Case insensitive.
- */
-[[nodiscard]] inline static bool CheckDllName(std::wstring_view dllName, std::span<const std::wstring> namesList)
-{
-    return std::ranges::any_of(namesList,
-                               [&](const auto& candidate) { return CompareFileName<wchar_t>(dllName, candidate); });
-}
-
-/**
- * @brief Iterates through namesList and returns a handle to the first name that
- * matches a currently loaded module. Returns nullptr if none of the names are found.
- */
-[[nodiscard]] inline static HMODULE GetDllModule(std::span<const std::string> namesList)
-{
-    for (const auto& name : namesList)
+    bool match = true;
+    for (size_t j = 0; j < second->size(); ++j)
     {
-        if (HMODULE hMod = KernelBaseProxy::GetModuleHandleA_()(name.c_str()))
-            return hMod;
+        if (std::tolower(static_cast<unsigned char>((*first)[start + j])) !=
+            std::tolower(static_cast<unsigned char>((*second)[j])))
+        {
+            return false;
+        }
     }
+
+    return true;
+}
+
+inline static bool CompareFileNameW(std::wstring* first, std::wstring* second)
+{
+    if (first->size() < second->size())
+        return false;
+
+    auto start = first->size() - second->size();
+
+    bool match = true;
+    for (size_t j = 0; j < second->size(); ++j)
+    {
+        if (std::towlower((*first)[start + j]) != std::towlower((*second)[j]))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+inline static bool CheckDllName(std::string* dllName, std::vector<std::string>* namesList)
+{
+    for (auto& name : *namesList)
+    {
+        if (CompareFileName(dllName, &name))
+            return true;
+    }
+
+    return false;
+}
+
+inline static bool CheckDllNameW(std::wstring* dllName, std::vector<std::wstring>* namesList)
+{
+    for (auto& name : *namesList)
+    {
+        if (CompareFileNameW(dllName, &name))
+            return true;
+    }
+
+    return false;
+}
+
+inline static HMODULE GetDllNameModule(std::vector<std::string>* namesList)
+{
+    for (size_t i = 0; i < namesList->size(); i++)
+    {
+        auto name = namesList->at(i);
+        auto module = KernelBaseProxy::GetModuleHandleA_()(name.c_str());
+
+        if (module != nullptr)
+            return module;
+    }
+
     return nullptr;
 }
 
-/**
- * @brief Iterates through namesList and returns a handle to the first name that
- * matches a currently loaded module. Returns nullptr if none of the names are found.
- */
-[[nodiscard]] inline static HMODULE GetDllModule(std::span<const std::wstring> namesList)
+inline static HMODULE GetDllNameWModule(std::vector<std::wstring>* namesList)
 {
-    for (const auto& name : namesList)
+    for (size_t i = 0; i < namesList->size(); i++)
     {
-        if (HMODULE hMod = KernelBaseProxy::GetModuleHandleW_()(name.c_str()))
-            return hMod;
+        auto name = namesList->at(i);
+        auto module = KernelBaseProxy::GetModuleHandleW_()(name.c_str());
+
+        if (module != nullptr)
+            return module;
     }
+
     return nullptr;
 }

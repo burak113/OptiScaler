@@ -1,11 +1,5 @@
 //{{NO_DEPENDENCIES}}
-// Mi#define VER_MAJOR_VERSION 10
-#define VER_MINOR_VERSION 0
-#define VER_HOTFIX_VERSION 0
-#define VER_BUILD_NUMBER 1
-
-#define VER_DEV_RELEASE
- C++ generated include file.
+// Microsoft Visual C++ generated include file.
 // Used by OptiScaler.rc
 //
 #ifdef _DEBUG
@@ -32,20 +26,12 @@
 #define STRINGIZE_(s) #s
 #define STRINGIZE(s) STRINGIZE_(s)
 
-<<<<<<< HEAD
-#define VER_MAJOR_VERSION 0
-#define VER_MINOR_VERSION 9
-#define VER_HOTFIX_VERSION 2
-#define VER_BUILD_NUMBER 0
-
-=======
 #define VER_MAJOR_VERSION 10
 #define VER_MINOR_VERSION 0
 #define VER_HOTFIX_VERSION 0
 #define VER_BUILD_NUMBER 1
 
 #define VER_DEV_RELEASE
->>>>>>> original/master
 // #define VER_PRE_RELEASE
 
 #define VER_FILE_VERSION VER_MAJOR_VERSION, VER_MINOR_VERSION, VER_HOTFIX_VERSION, VER_BUILD_NUMBER

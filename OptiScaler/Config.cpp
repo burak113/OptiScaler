@@ -564,6 +564,9 @@ bool Config::Reload(std::filesystem::path iniPath)
             DADepthScale.set_from_config(readFloat("CAS", "DADepthScale"));
             DADepthBias.set_from_config(readFloat("CAS", "DADepthBias"));
             DAClampOutput.set_from_config(readBool("CAS", "DAClampOutput"));
+            UseDepthAwareSharpen.set_from_config(readBool("CAS", "UseDepthAwareSharpen"));
+            UseDASDepthAwareSharpen.set_from_config(readBool("CAS", "UseDASDepthAwareSharpen"));
+            DADepthIsLinear.set_from_config(readBool("CAS", "DADepthIsLinear"));
 
             MotionSharpnessDebug.set_from_config(readBool("CAS", "SharpenerDebug"));
         }
@@ -1327,6 +1330,12 @@ bool Config::SaveIni()
         ini.SetValue("CAS", "DADepthScale", GetFloatValue(Instance()->DADepthScale.value_for_config()).c_str());
         ini.SetValue("CAS", "DADepthBias", GetFloatValue(Instance()->DADepthBias.value_for_config()).c_str());
         ini.SetValue("CAS", "DAClampOutput", GetBoolValue(Instance()->DAClampOutput.value_for_config()).c_str());
+        ini.SetValue("CAS", "UseDepthAwareSharpen",
+                     GetBoolValue(Instance()->UseDepthAwareSharpen.value_for_config()).c_str());
+        ini.SetValue("CAS", "UseDASDepthAwareSharpen",
+                     GetBoolValue(Instance()->UseDASDepthAwareSharpen.value_for_config()).c_str());
+        ini.SetValue("CAS", "DADepthIsLinear",
+                     GetBoolValue(Instance()->DADepthIsLinear.value_for_config()).c_str());
 
         ini.SetValue("CAS", "SharpenerDebug",
                      GetBoolValue(Instance()->MotionSharpnessDebug.value_for_config()).c_str());

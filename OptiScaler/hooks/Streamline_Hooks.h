@@ -259,7 +259,6 @@ enum class BufferType : uint64_t
     ColorAfterDepthOfField = 66,
     ScalingOutputAlpha = 67
 };
-};
 
 class StreamlineHooks
 {

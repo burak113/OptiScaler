@@ -88,12 +88,12 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
     /**
      * @brief Sets optional resource transition barriers. Used in conjunction with game quirk workarounds.
      */
-    virtual void SetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList) const;
+    virtual void SetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList);
 
     /**
      * @brief Resets optional resource transition barriers. Used in conjunction with game quirk workarounds.
      */
-    virtual void ResetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList) const;
+    virtual void ResetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList);
 
   private:
     InputResources _inputBuffers;

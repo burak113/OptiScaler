@@ -142,6 +142,20 @@ template <class T, HasDefaultValue defaultState = WithDefault> class CustomOptio
         else
             return other;
     }
+
+    // Like value_for_config(), but keeps an explicit value that happens to equal
+    // the class default - "unset" stays a distinct state.
+    constexpr std::optional<T> value_for_config_ignore_default()
+        requires(defaultState == WithDefault)
+    {
+        if (_volatile)
+            return _configIni;
+
+        if (this->has_value())
+            return this->value();
+
+        return std::nullopt;
+    }
 };
 
 constexpr inline int UnboundKey = -1;
@@ -307,6 +321,9 @@ class Config
     CustomOptional<float, NoDefault> DADepthScale;
     CustomOptional<float, NoDefault> DADepthBias;
     CustomOptional<bool, NoDefault> DAClampOutput;
+    CustomOptional<bool> UseDepthAwareSharpen { false };
+    CustomOptional<bool> UseDASDepthAwareSharpen { false };
+    CustomOptional<bool> DADepthIsLinear { false };
 
     // MAS
     CustomOptional<bool> MotionSharpnessEnabled { false };
@@ -441,6 +458,7 @@ class Config
 
     // FSR
     CustomOptional<bool> FsrDebugView { false };
+    CustomOptional<bool> Fsr4EnableDebugView { false };
     CustomOptional<int> FfxUpscalerIndex { 0 };
     CustomOptional<int> FfxFGIndex { 0 };
     CustomOptional<bool> FsrUseMaskForTransparency { true };

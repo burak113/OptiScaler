@@ -14,6 +14,8 @@
 
 #include <nvapi/fakenvapi.h>
 #include <hooks/Reflex_Hooks.h>
+#include <hooks/Streamline_Hooks.h>
+#include <resource_tracking/ResTrack_dx12.h>
 
 #include <version_check.h>
 

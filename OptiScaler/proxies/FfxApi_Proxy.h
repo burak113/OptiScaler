@@ -158,12 +158,11 @@ class FfxApiProxy
 
     static feature_version VersionImplemented_RR()
     {
-        return
-        {
-            .major = FFX_DENOISER_VERSION_MAJOR,
-            .minor = FFX_DENOISER_VERSION_MINOR,
-            .patch = FFX_DENOISER_VERSION_PATCH
-        };
+        feature_version version { 0, 0, 0 };
+        version.major = FFX_DENOISER_VERSION_MAJOR;
+        version.minor = FFX_DENOISER_VERSION_MINOR;
+        version.patch = FFX_DENOISER_VERSION_PATCH;
+        return version;
     }
 
     static FfxDenoiserApiGeneration DenoiserApiGenerationDx12()

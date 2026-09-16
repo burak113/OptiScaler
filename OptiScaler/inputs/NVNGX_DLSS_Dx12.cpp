@@ -651,7 +651,7 @@ static NVSDK_NGX_Result TryCreateOptiFeature(ID3D12GraphicsCommandList* InCmdLis
     }
     else
     {
-        if (state.isRunningOnNvidia)
+        if (IdentifyGpu::getPrimaryGpu().vendorId == VendorId::Nvidia)
         {
             upscalerBackend = Upscaler::DLSSD;
             LOG_INFO("Creating DLSSD (Ray Reconstruction) feature");
@@ -930,7 +930,7 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_GetFeatureRequirements(
     }
 
     // FSR Ray Regen check
-    if (!State::Instance().isRunningOnNvidia &&
+    if (IdentifyGpu::getPrimaryGpu().vendorId != VendorId::Nvidia &&
         FeatureDiscoveryInfo->FeatureID == NVSDK_NGX_Feature_RayReconstruction)
     {
         if (!FfxApiProxy::IsDenoiserReady())

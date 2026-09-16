@@ -4,38 +4,13 @@
 #include "DxgiFactory_Hooks.h"
 
 #include <proxies/Dxgi_Proxy.h>
-#i    HRESULT result;
-    auto owner = State::GetOwner();
-    State::DisableChecks(owner, "dxgi");
-
-    {
-        ScopedCreatingD3DDevice creatingD3DDevice {};
-#ifndef DXGI_DEBUG_ENABLED
-        result = o_CreateDXGIFactory(riid, ppFactory);
-s/D3D12_Proxy.h>
-#include <proxies/Streamline_Proxy.h>    HRESULT result;
-    auto owner = State::GetOwner();
-    State::DisableChecks(owner, "dxgi");
-
-    {
-        ScopedCreatingD3DDevice creatingD3DDevice {};
-#ifndef DXGI_DEBUG_ENABLED
-        result = o_CreateDXGIFactory1(riid, ppFactory);
-apped/wrapped_factory.h>
+#include <proxies/D3D12_Proxy.h>
+#include <proxies/Streamline_Proxy.h>
+#include <wrapped/wrapped_factory.h>
 
 #include <DllNames.h>
-#inclu    HRESULT result;
-    auto owner = State::GetOwner();
-    State::DisableChecks(owner, "dxgi");
-
-    {
-        ScopedCreatingD3DDevice creatingD3DDevice {};
-#ifndef DXGI_DEBUG_ENABLED
-        result = o_CreateDXGIFactory2(Flags, riid, ppFactory);
-ifyGpu.h>
+#include <misc/IdentifyGpu.h>
 #include <with_dx12/with_dx12.h>
-
-#include "Hook_Utils.h"
 
 #include "Hook_Utils.h"
 
@@ -122,7 +97,7 @@ inline static HRESULT hkCreateDXGIFactory(REFIID riid, IDXGIFactory** ppFactory)
         return o_CreateDXGIFactory(riid, ppFactory);
     }
 
-    if (Config::Instance()->DxgiFactoryWrapping.value_or_default() && CheckDllName(caller, skipDxgiWrappingNames))
+    if (Config::Instance()->DxgiFactoryWrapping.value_or_default() && CheckDllName(&caller, &skipDxgiWrappingNames))
     {
         LOG_INFO("Skipping wrapping for: {}", caller);
         return o_CreateDXGIFactory(riid, ppFactory);
@@ -135,11 +110,6 @@ inline static HRESULT hkCreateDXGIFactory(REFIID riid, IDXGIFactory** ppFactory)
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-<<<<<<< HEAD
-    State::DisableChecks(97, "dxgi");
-#ifndef DXGI_DEBUG_ENABLED
-    auto result = o_CreateDXGIFactory(riid, ppFactory);
-=======
     HRESULT result;
     auto owner = State::GetOwner();
     State::DisableChecks(owner, "dxgi");
@@ -148,7 +118,6 @@ inline static HRESULT hkCreateDXGIFactory(REFIID riid, IDXGIFactory** ppFactory)
         ScopedCreatingD3DDevice creatingD3DDevice {};
 #ifndef DXGI_DEBUG_ENABLED
         result = o_CreateDXGIFactory(riid, ppFactory);
->>>>>>> original/master
 #else
         result = o_CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, riid, (IDXGIFactory2**) ppFactory);
 #endif
@@ -191,7 +160,7 @@ inline static HRESULT hkCreateDXGIFactory1(REFIID riid, IDXGIFactory1** ppFactor
         return o_CreateDXGIFactory1(riid, ppFactory);
     }
 
-    if (Config::Instance()->DxgiFactoryWrapping.value_or_default() && CheckDllName(caller, skipDxgiWrappingNames))
+    if (Config::Instance()->DxgiFactoryWrapping.value_or_default() && CheckDllName(&caller, &skipDxgiWrappingNames))
     {
         LOG_INFO("Skipping wrapping for: {}", caller);
         return o_CreateDXGIFactory1(riid, ppFactory);
@@ -204,11 +173,6 @@ inline static HRESULT hkCreateDXGIFactory1(REFIID riid, IDXGIFactory1** ppFactor
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-<<<<<<< HEAD
-    State::DisableChecks(98, "dxgi");
-#ifndef DXGI_DEBUG_ENABLED
-    auto result = o_CreateDXGIFactory1(riid, ppFactory);
-=======
     HRESULT result;
     auto owner = State::GetOwner();
     State::DisableChecks(owner, "dxgi");
@@ -217,7 +181,6 @@ inline static HRESULT hkCreateDXGIFactory1(REFIID riid, IDXGIFactory1** ppFactor
         ScopedCreatingD3DDevice creatingD3DDevice {};
 #ifndef DXGI_DEBUG_ENABLED
         result = o_CreateDXGIFactory1(riid, ppFactory);
->>>>>>> original/master
 #else
         result = o_CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, riid, (IDXGIFactory2**) ppFactory);
 #endif
@@ -260,7 +223,7 @@ inline static HRESULT hkCreateDXGIFactory2(UINT Flags, REFIID riid, IDXGIFactory
         return o_CreateDXGIFactory2(Flags, riid, ppFactory);
     }
 
-    if (Config::Instance()->DxgiFactoryWrapping.value_or_default() && CheckDllName(caller, skipDxgiWrappingNames))
+    if (Config::Instance()->DxgiFactoryWrapping.value_or_default() && CheckDllName(&caller, &skipDxgiWrappingNames))
     {
         LOG_INFO("Skipping wrapping for: {}", caller);
         return o_CreateDXGIFactory2(Flags, riid, ppFactory);
@@ -275,11 +238,6 @@ inline static HRESULT hkCreateDXGIFactory2(UINT Flags, REFIID riid, IDXGIFactory
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-<<<<<<< HEAD
-    State::DisableChecks(99, "dxgi");
-#ifndef DXGI_DEBUG_ENABLED
-    auto result = o_CreateDXGIFactory2(Flags, riid, ppFactory);
-=======
     HRESULT result;
     auto owner = State::GetOwner();
     State::DisableChecks(owner, "dxgi");
@@ -288,7 +246,6 @@ inline static HRESULT hkCreateDXGIFactory2(UINT Flags, REFIID riid, IDXGIFactory
         ScopedCreatingD3DDevice creatingD3DDevice {};
 #ifndef DXGI_DEBUG_ENABLED
         result = o_CreateDXGIFactory2(Flags, riid, ppFactory);
->>>>>>> original/master
 #else
         result = o_CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, riid, (IDXGIFactory2**) ppFactory);
 #endif

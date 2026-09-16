@@ -37,16 +37,8 @@ class IFeature_Dx12 : public virtual IFeature
 
     std::unique_ptr<GpuTime_Dx12> UpscalerTime = nullptr;
 
-    static void ResourceBarrier(ID3D12GraphicsCommandList* InCommandList, ID3D12Resource* InResource,
-                                D3D12_RESOURCE_STATES InBeforeState, D3D12_RESOURCE_STATES InAfterState);
-
-    static bool TryResourceBarrier(ID3D12GraphicsCommandList* InCommandList, ID3D12Resource* InResource,
-                                   const CustomOptional<int32_t, NoDefault>& InBeforeState,
-                                   D3D12_RESOURCE_STATES InAfterState);
-
-    static bool TryResourceBarrier(ID3D12GraphicsCommandList* InCommandList, ID3D12Resource* InResource,
-                                   D3D12_RESOURCE_STATES InBeforeState,
-                                   const CustomOptional<int32_t, NoDefault>& InAfterState);
+    void ResourceBarrier(ID3D12GraphicsCommandList* InCommandList, ID3D12Resource* InResource,
+                         D3D12_RESOURCE_STATES InBeforeState, D3D12_RESOURCE_STATES InAfterState) const;
 
     virtual bool InitInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) = 0;
     virtual bool EvaluateInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) = 0;
