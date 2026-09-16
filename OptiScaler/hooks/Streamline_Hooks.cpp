@@ -1416,8 +1416,8 @@ sl::Result StreamlineHooks::hkslSetTagForFrame(const sl::FrameToken& frame, cons
 sl::Result StreamlineHooks::hkslEvaluateFeature(sl::Feature feature, const sl::FrameToken& frame,
                                                 const sl::BaseStructure** inputs, uint32_t numInputs,
                                                 sl::CommandBuffer* cmdBuffer)
-    LOG_INFO("slEvaluateFeature: feature {}", (int) feature);
 {
+    LOG_INFO("slEvaluateFeature: feature {}", (int) feature);
     uint32_t activeViewport = UINT32_MAX;
     if (numInputs > 0 && inputs != nullptr)
     {
