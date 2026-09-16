@@ -571,10 +571,10 @@ class Config
     CustomOptional<bool> SpoofHAGS { false };
     CustomOptional<bool> SpoofFeatureLevel { false };
     CustomOptional<uint32_t> SpoofedVendorId { VendorId::Nvidia };
-    CustomOptional<uint32_t> SpoofedDeviceId { 0x2684 };
+    CustomOptional<uint32_t> SpoofedDeviceId { 0x2B85 };
     CustomOptional<uint32_t, NoDefault> TargetVendorId;
     CustomOptional<uint32_t, NoDefault> TargetDeviceId;
-    CustomOptional<std::wstring> SpoofedGPUName { L"NVIDIA GeForce RTX 4090" };
+    CustomOptional<std::wstring> SpoofedGPUName { L"NVIDIA GeForce RTX 5090" };
     CustomOptional<bool> UESpoofIntelAtomics64 { false };
     CustomOptional<bool> SpoofRegistry { false };
     CustomOptional<bool> SpoofUser32 { false };

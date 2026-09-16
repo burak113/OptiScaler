@@ -106,7 +106,7 @@ NvAPI_Status __cdecl NvAPI_GetDisplayDriverVersion(NvDisplayHandle hNvDisplay, N
 
     pVersion->drvVersion = 99999;
     tonvss(pVersion->szBuildBranchString, "buildBranch");
-    tonvss(pVersion->szAdapterString, "NVIDIA GeForce RTX 4090");
+    tonvss(pVersion->szAdapterString, "NVIDIA GeForce RTX 5090");
     return OK();
 }
 
@@ -131,10 +131,10 @@ NvAPI_Status __cdecl NvAPI_GPU_GetConnectedDisplayIds(NvPhysicalGpuHandle handle
 
 NvAPI_Status __cdecl NvAPI_GPU_GetArchInfo(NvPhysicalGpuHandle handle, NV_GPU_ARCH_INFO* archInfo)
 {
-    archInfo->architecture = NV_GPU_ARCHITECTURE_AD100;
-    archInfo->architecture_id = NV_GPU_ARCHITECTURE_AD100;
-    archInfo->implementation = NV_GPU_ARCH_IMPLEMENTATION_AD102;
-    archInfo->implementation_id = NV_GPU_ARCH_IMPLEMENTATION_AD102;
+    archInfo->architecture = NV_GPU_ARCHITECTURE_GB200;
+    archInfo->architecture_id = NV_GPU_ARCHITECTURE_GB200;
+    archInfo->implementation = NV_GPU_ARCH_IMPLEMENTATION_GB202;
+    archInfo->implementation_id = NV_GPU_ARCH_IMPLEMENTATION_GB202;
     archInfo->revision = NV_GPU_CHIP_REV_UNKNOWN;
     archInfo->revision_id = NV_GPU_CHIP_REV_UNKNOWN;
 
@@ -155,6 +155,7 @@ NvAPI_Status __cdecl NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysicalGp
                                                  NvU32* pSubSystemId, NvU32* pRevisionId, NvU32* pExtDeviceId)
 {
     // Report the spoofed identity so every vendor check sees the same GPU
+    LOG_INFO("nvapi: NvAPI_GPU_GetPCIIdentifiers called");
     const NvU32 spoofedVendor = Config::Instance()->SpoofedVendorId.value_or_default();
     const NvU32 spoofedDevice = Config::Instance()->SpoofedDeviceId.value_or_default();
 
@@ -167,24 +168,57 @@ NvAPI_Status __cdecl NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysicalGp
 
 NvAPI_Status __cdecl NvAPI_GPU_GetFullName(NvPhysicalGpuHandle hPhysicalGpu, NvAPI_ShortString szName)
 {
-    tonvss(szName, "NVIDIA GeForce RTX 4090");
+    tonvss(szName, "NVIDIA GeForce RTX 5090");
     return OK();
 }
 
 NvAPI_Status __cdecl NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalGpu,
                                              NV_DISPLAY_DRIVER_MEMORY_INFO_V2* pMemoryInfo)
 {
+    LOG_INFO("nvapi: NvAPI_GPU_GetMemoryInfo called (V2)");
     if (!pMemoryInfo)
         return ERROR_VALUE(NVAPI_INVALID_ARGUMENT);
 
-    // Report an RTX 4090-class budget so >= 12 GB VRAM gates pass
-    pMemoryInfo->dedicatedVideoMemory = 24576 * 1024;
-    pMemoryInfo->availableDedicatedVideoMemory = 22000 * 1024;
+    // Report an RTX 5090-class budget so >= 12 GB VRAM gates pass
+    pMemoryInfo->dedicatedVideoMemory = 32768 * 1024;
+    pMemoryInfo->availableDedicatedVideoMemory = 30000 * 1024;
     pMemoryInfo->systemVideoMemory = 512 * 1024;
     pMemoryInfo->sharedSystemMemory = 8192 * 1024;
 
     if (pMemoryInfo->version >= MAKE_NVAPI_VERSION(NV_DISPLAY_DRIVER_MEMORY_INFO, 2))
-        pMemoryInfo->curAvailableDedicatedVideoMemory = 22000 * 1024;
+        pMemoryInfo->curAvailableDedicatedVideoMemory = 30000 * 1024;
+
+    return OK();
+}
+
+    if (pMemoryInfo->version >= MAKE_NVAPI_VERSION(NV_DISPLAY_DRIVER_MEMORY_INFO, 2))
+        pMemoryInfo->curAvailableDedicatedVideoMemory = 30000 * 1024;
+
+    return OK();
+}
+
+NvAPI_Status __cdecl NvAPI_GPU_GetMemoryInfoEx(NvPhysicalGpuHandle hPhysicalGpu,
+                                               NV_GPU_MEMORY_INFO_EX_V1* pMemoryInfo)
+{
+    if (!pMemoryInfo)
+        return ERROR_VALUE(NVAPI_INVALID_ARGUMENT);
+
+    LOG_INFO("nvapi: NvAPI_GPU_GetMemoryInfoEx called (version {0:X})", (UINT) pMemoryInfo->version);
+
+    constexpr NvU64 kB = 1024;
+    pMemoryInfo->dedicatedVideoMemory = 32768ULL * 1024 * 1024;
+    pMemoryInfo->availableDedicatedVideoMemory = 30000ULL * 1024 * 1024;
+    pMemoryInfo->systemVideoMemory = 512ULL * 1024 * 1024;
+    pMemoryInfo->sharedSystemMemory = 8192ULL * 1024 * 1024;
+    pMemoryInfo->curAvailableDedicatedVideoMemory = 30000ULL * 1024 * 1024;
+
+    if (pMemoryInfo->version >= MAKE_NVAPI_VERSION(NV_GPU_MEMORY_INFO_EX_V1, 1))
+    {
+        pMemoryInfo->dedicatedVideoMemoryEvictionsSize = 0;
+        pMemoryInfo->dedicatedVideoMemoryEvictionCount = 0;
+        pMemoryInfo->dedicatedVideoMemoryPromotionsSize = 0;
+        pMemoryInfo->dedicatedVideoMemoryPromotionCount = 0;
+    }
 
     return OK();
 }
