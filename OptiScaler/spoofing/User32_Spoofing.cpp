@@ -129,7 +129,13 @@ void User32Spoofing::Hook()
     if (o_EnumDisplayDevicesW)
         DetourAttach(&(PVOID&) o_EnumDisplayDevicesW, hkEnumDisplayDevicesW);
 
-    DetourTransactionCommit();
+    auto detourResult = DetourTransactionCommit();
+    if (detourResult != NO_ERROR)
+    {
+        LOG_ERROR("Failed to install User32 spoofing hooks: {}", detourResult);
+        o_EnumDisplayDevicesA = nullptr;
+        o_EnumDisplayDevicesW = nullptr;
+    }
 }
 
 void User32Spoofing::Unhook()
@@ -138,16 +144,19 @@ void User32Spoofing::Unhook()
     DetourUpdateThread(GetCurrentThread());
 
     if (o_EnumDisplayDevicesA)
-    {
         DetourDetach(&(PVOID&) o_EnumDisplayDevicesA, hkEnumDisplayDevicesA);
-        o_EnumDisplayDevicesA = nullptr;
-    }
 
     if (o_EnumDisplayDevicesW)
-    {
         DetourDetach(&(PVOID&) o_EnumDisplayDevicesW, hkEnumDisplayDevicesW);
+
+    auto detourResult = DetourTransactionCommit();
+    if (detourResult != NO_ERROR)
+    {
+        LOG_ERROR("Failed to uninstall User32 spoofing hooks: {}", detourResult);
+    }
+    else
+    {
+        o_EnumDisplayDevicesA = nullptr;
         o_EnumDisplayDevicesW = nullptr;
     }
-
-    DetourTransactionCommit();
 }

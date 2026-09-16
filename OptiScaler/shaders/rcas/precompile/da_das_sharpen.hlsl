@@ -285,7 +285,7 @@ float ComputeEdgeFactorFromCrossWeights(float centerLuma, float lumaUp, float lu
     float lumaConfirm = saturate((relativeLumaAvg - 0.02) * 18.0);
     
     float depthBreakStrength = 1.0 - depthEdge;
-    float depthTrustFloor = lerp(0.15, 0.40, smoothstep(0.25, 0.80, depthBreakStrength));
+    float depthTrustFloor = lerp(0.15, 0.30, smoothstep(0.25, 0.80, depthBreakStrength));
     float depthTrust = lerp(depthTrustFloor, 1.0, lumaConfirm);
 
     return lerp(1.0, depthEdge, depthTrust);
@@ -324,27 +324,20 @@ float3 ApplyDirectionalSharpen(float3 centerColor, float3 upColor, float3 leftCo
     localScale = max(localScale, Max3(downRightColor));
     localScale = max(localScale, 1e-4);
 
-    float3 c = max(centerColor / localScale, 0.0);
-    float3 u = max(upColor / localScale, 0.0);
-    float3 l = max(leftColor / localScale, 0.0);
-    float3 r = max(rightColor / localScale, 0.0);
-    float3 d = max(downColor / localScale, 0.0);
+    float invLocalScale = rcp(localScale);
+    
+    float rawCenterY = Luma(max(centerColor, 0.0));
 
-    float3 ul = max(upLeftColor / localScale, 0.0);
-    float3 ur = max(upRightColor / localScale, 0.0);
-    float3 dl = max(downLeftColor / localScale, 0.0);
-    float3 dr = max(downRightColor / localScale, 0.0);
+    float cY = max(Luma(max(centerColor, 0.0)) * invLocalScale, 1e-6);
+    float uY = max(Luma(max(upColor, 0.0)) * invLocalScale, 1e-6);
+    float lY = max(Luma(max(leftColor, 0.0)) * invLocalScale, 1e-6);
+    float rY = max(Luma(max(rightColor, 0.0)) * invLocalScale, 1e-6);
+    float dY = max(Luma(max(downColor, 0.0)) * invLocalScale, 1e-6);
 
-    float cY = max(Luma(c), 1e-6);
-    float uY = max(Luma(u), 1e-6);
-    float lY = max(Luma(l), 1e-6);
-    float rY = max(Luma(r), 1e-6);
-    float dY = max(Luma(d), 1e-6);
-
-    float ulY = max(Luma(ul), 1e-6);
-    float urY = max(Luma(ur), 1e-6);
-    float dlY = max(Luma(dl), 1e-6);
-    float drY = max(Luma(dr), 1e-6);
+    float ulY = max(Luma(max(upLeftColor, 0.0)) * invLocalScale, 1e-6);
+    float urY = max(Luma(max(upRightColor, 0.0)) * invLocalScale, 1e-6);
+    float dlY = max(Luma(max(downLeftColor, 0.0)) * invLocalScale, 1e-6);
+    float drY = max(Luma(max(downRightColor, 0.0)) * invLocalScale, 1e-6);
 
     float minY = min(cY, min(min(uY, dY), min(lY, rY)));
     minY = min(minY, min(min(ulY, urY), min(dlY, drY)));
@@ -509,9 +502,9 @@ float3 ApplyDirectionalSharpen(float3 centerColor, float3 upColor, float3 leftCo
 
     newY = clamp(newY, limitMin, limitMax);
 
-    float3 outNorm = ApplyLumaRatio(c, cY, newY);
+    float targetY = newY * localScale;
 
-    return max(outNorm * localScale, 0.0);
+    return max(ApplyLumaRatio(centerColor, max(rawCenterY, 1e-6), targetY), 0.0);
 }
 
 // -----------------------------------------------------------------------------

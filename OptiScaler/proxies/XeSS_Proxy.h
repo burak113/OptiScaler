@@ -163,51 +163,20 @@ class XeSSProxy
 
     inline static xess_version_t GetDLLVersion(std::wstring dllPath)
     {
-        // Step 1: Get the size of the version information
-        DWORD handle = 0;
-        DWORD versionSize = GetFileVersionInfoSizeW(dllPath.c_str(), &handle);
-        xess_version_t version { 0, 0, 0 };
+        xess_version_t xessVersion {};
+        version_t tempVersion {};
+        auto result = Util::GetFileVersion(dllPath, &tempVersion);
 
-        if (versionSize == 0)
+        // Don't assume that the structs are identical
+        if (result)
         {
-            LOG_ERROR("Failed to get version info size: {0:X}", GetLastError());
-            return version;
+            xessVersion.major = tempVersion.major;
+            xessVersion.minor = tempVersion.minor;
+            xessVersion.patch = tempVersion.patch;
+            xessVersion.reserved = tempVersion.reserved;
         }
 
-        // Step 2: Allocate buffer and get the version information
-        std::vector<BYTE> versionInfo(versionSize);
-        if (handle == 0 && !GetFileVersionInfoW(dllPath.c_str(), handle, versionSize, versionInfo.data()))
-        {
-            LOG_ERROR("Failed to get version info: {0:X}", GetLastError());
-            return version;
-        }
-
-        // Step 3: Extract the version information
-        VS_FIXEDFILEINFO* fileInfo = nullptr;
-        UINT size = 0;
-        if (!VerQueryValueW(versionInfo.data(), L"\\", reinterpret_cast<LPVOID*>(&fileInfo), &size))
-        {
-            LOG_ERROR("Failed to query version value: {0:X}", GetLastError());
-            return version;
-        }
-
-        if (fileInfo != nullptr)
-        {
-            // Extract major, minor, build, and revision numbers from version information
-            DWORD fileVersionMS = fileInfo->dwFileVersionMS;
-            DWORD fileVersionLS = fileInfo->dwFileVersionLS;
-
-            version.major = (fileVersionMS >> 16) & 0xffff;
-            version.minor = (fileVersionMS >> 0) & 0xffff;
-            version.patch = (fileVersionLS >> 16) & 0xffff;
-            version.reserved = (fileVersionLS >> 0) & 0xffff;
-        }
-        else
-        {
-            LOG_ERROR("No version information found!");
-        }
-
-        return version;
+        return xessVersion;
     }
 
     inline static std::filesystem::path DllPath(HMODULE module)
@@ -571,12 +540,52 @@ class XeSSProxy
             if (_module_hooked.xessGetPipelineBuildStatus != nullptr)
                 DetourAttach(&(PVOID&) _module_hooked.xessGetPipelineBuildStatus, hk_xessGetPipelineBuildStatus);
 
-            DetourTransactionCommit();
+            auto detourResult = DetourTransactionCommit();
+            if (detourResult != NO_ERROR)
+            {
+                LOG_ERROR("Failed to commit detours: {:X}", detourResult);
+                _module_hooked.xessD3D12CreateContext = nullptr;
+                _module_hooked.xessD3D12BuildPipelines = nullptr;
+                _module_hooked.xessD3D12Init = nullptr;
+                _module_hooked.xessD3D12Execute = nullptr;
+                _module_hooked.xessSelectNetworkModel = nullptr;
+                _module_hooked.xessStartDump = nullptr;
+                _module_hooked.xessGetVersion = nullptr;
+                _module_hooked.xessIsOptimalDriver = nullptr;
+                _module_hooked.xessSetLoggingCallback = nullptr;
+                _module_hooked.xessGetProperties = nullptr;
+                _module_hooked.xessDestroyContext = nullptr;
+                _module_hooked.xessSetVelocityScale = nullptr;
+                _module_hooked.xessD3D12GetInitParams = nullptr;
+                _module_hooked.xessForceLegacyScaleFactors = nullptr;
+                _module_hooked.xessGetExposureMultiplier = nullptr;
+                _module_hooked.xessGetInputResolution = nullptr;
+                _module_hooked.xessGetIntelXeFXVersion = nullptr;
+                _module_hooked.xessGetJitterScale = nullptr;
+                _module_hooked.xessGetOptimalInputResolution = nullptr;
+                _module_hooked.xessSetExposureMultiplier = nullptr;
+                _module_hooked.xessSetJitterScale = nullptr;
+                _module_hooked.xessD3D12GetResourcesToDump = nullptr;
+                _module_hooked.xessD3D12GetProfilingData = nullptr;
+                _module_hooked.xessSetContextParameterF = nullptr;
+                _module_hooked.xessVKCreateContext = nullptr;
+                _module_hooked.xessVKBuildPipelines = nullptr;
+                _module_hooked.xessVKInit = nullptr;
+                _module_hooked.xessVKGetInitParams = nullptr;
+                _module_hooked.xessVKExecute = nullptr;
+                _module_hooked.xessVKGetResourcesToDump = nullptr;
+                _module_hooked.xessVKGetRequiredDeviceExtensions = nullptr;
+                _module_hooked.xessVKGetRequiredDeviceFeatures = nullptr;
+                _module_hooked.xessVKGetRequiredInstanceExtensions = nullptr;
+                _module_hooked.xessGetPipelineBuildStatus = nullptr;
+            }
+            else
+            {
+                if (_module.dll == _module_hooked.dll)
+                    _module = _module_hooked;
 
-            if (_module.dll == _module_hooked.dll)
-                _module = _module_hooked;
-
-            _module_hooked.hooked = true;
+                _module_hooked.hooked = true;
+            }
         }
 
         bool loadResult = _module.xessD3D12CreateContext != nullptr;
@@ -844,15 +853,44 @@ class XeSSProxy
             if (_module11_hooked.xessStartDumpDx11 != nullptr)
                 DetourAttach(&(PVOID&) _module11_hooked.xessStartDumpDx11, hk_xessStartDump);
 
-            DetourTransactionCommit();
+            auto detourResult = DetourTransactionCommit();
+            if (detourResult != NO_ERROR)
+            {
+                LOG_ERROR("Failed to commit detours: {:X}", detourResult);
+                _module11_hooked.xessD3D11CreateContext = nullptr;
+                _module11_hooked.xessD3D11GetInitParams = nullptr;
+                _module11_hooked.xessD3D11Init = nullptr;
+                _module11_hooked.xessD3D11Execute = nullptr;
+                _module11_hooked.xessDestroyContextDx11 = nullptr;
+                _module11_hooked.xessForceLegacyScaleFactorsDx11 = nullptr;
+                _module11_hooked.xessGetExposureMultiplierDx11 = nullptr;
+                _module11_hooked.xessGetInputResolutionDx11 = nullptr;
+                _module11_hooked.xessGetIntelXeFXVersionDx11 = nullptr;
+                _module11_hooked.xessGetJitterScaleDx11 = nullptr;
+                _module11_hooked.xessGetOptimalInputResolutionDx11 = nullptr;
+                _module11_hooked.xessGetPipelineBuildStatusDx11 = nullptr;
+                _module11_hooked.xessGetPropertiesDx11 = nullptr;
+                _module11_hooked.xessGetVelocityScaleDx11 = nullptr;
+                _module11_hooked.xessGetVersionDx11 = nullptr;
+                _module11_hooked.xessIsOptimalDriverDx11 = nullptr;
+                _module11_hooked.xessSelectNetworkModelDx11 = nullptr;
+                _module11_hooked.xessSetContextParameterFDx11 = nullptr;
+                _module11_hooked.xessSetExposureMultiplierDx11 = nullptr;
+                _module11_hooked.xessSetJitterScaleDx11 = nullptr;
+                _module11_hooked.xessSetLoggingCallbackDx11 = nullptr;
+                _module11_hooked.xessSetVelocityScaleDx11 = nullptr;
+                _module11_hooked.xessStartDumpDx11 = nullptr;
+            }
+            else
+            {
+                if (_module11.dll == _module11_hooked.dll)
+                    _module11 = _module11_hooked;
 
-            if (_module11.dll == _module11_hooked.dll)
-                _module11 = _module11_hooked;
-
-            _module11_hooked.hooked = true;
+                _module11_hooked.hooked = true;
+            }
         }
 
-        bool loadResult = _module.xessD3D12CreateContext != nullptr;
+        bool loadResult = _module11_hooked.xessD3D11CreateContext != nullptr;
 
         LOG_INFO("LoadResult: {}", loadResult);
 

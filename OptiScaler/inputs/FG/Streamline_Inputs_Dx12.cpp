@@ -8,10 +8,10 @@ void Sl_Inputs_Dx12::CheckForFrame(IFGFeature_Dx12* fg, uint32_t frameId)
 {
     std::scoped_lock lock(_frameBoundaryMutex);
 
-    if (_isFrameFinished && _lastFrameId == _currentFrameId && frameId == 0 && frameId != _currentFrameId)
+    if (_isFrameFinished && _lastPresentFrameId == _currentFrameId && frameId == 0 && frameId != _currentFrameId)
     {
-        LOG_DEBUG("1> CheckForFrame: frameId={}, currentFrameId={}, lastFrameId={}, isFrameFinished={}", frameId,
-                  _currentFrameId, _lastFrameId, _isFrameFinished);
+        LOG_DEBUG("1> CheckForFrame: frameId={}, currentFrameId={}, lastPresentFrameId={}, isFrameFinished={}", frameId,
+                  _currentFrameId, _lastPresentFrameId, _isFrameFinished);
 
         _isFrameFinished = false;
 
@@ -21,17 +21,17 @@ void Sl_Inputs_Dx12::CheckForFrame(IFGFeature_Dx12* fg, uint32_t frameId)
         if (frameId != 0)
             _currentFrameId = frameId;
         else
-            _currentFrameId = _lastFrameId + 1;
+            _currentFrameId = _lastPresentFrameId + 1;
 
         _frameIdIndex[_currentIndex] = _currentFrameId;
     }
     else if (frameId != 0 && frameId > _currentFrameId)
     {
-        LOG_DEBUG("2> CheckForFrame: frameId={}, currentFrameId={}, lastFrameId={}, isFrameFinished={}", frameId,
-                  _currentFrameId, _lastFrameId, _isFrameFinished);
+        LOG_DEBUG("2> CheckForFrame: frameId={}, currentFrameId={}, lastPresentFrameId={}, isFrameFinished={}", frameId,
+                  _currentFrameId, _lastPresentFrameId, _isFrameFinished);
 
         _isFrameFinished = false;
-        _lastFrameId = frameId - 1;
+        //_lastPresentFrameId = frameId - 1;
 
         fg->StartNewFrame();
         _currentIndex = fg->GetIndex();
@@ -53,7 +53,7 @@ int Sl_Inputs_Dx12::IndexForFrameId(uint32_t frameId) const
 
 bool Sl_Inputs_Dx12::setConstants(const sl::Constants& values, uint32_t frameId)
 {
-    auto fgOutput = reinterpret_cast<IFGFeature_Dx12*>(State::Instance().currentFG);
+    auto fgOutput = State::Instance().currentFG;
 
     if (fgOutput == nullptr)
         return false;
@@ -129,7 +129,7 @@ bool Sl_Inputs_Dx12::setConstants(const sl::Constants& values, uint32_t frameId)
 
         if (!config->FGEnabled.value_or_default())
         {
-            LOG_TRACE("FG not active or paused");
+            LOG_TRACE("FG not enabled");
             return true;
         }
         else
@@ -140,13 +140,12 @@ bool Sl_Inputs_Dx12::setConstants(const sl::Constants& values, uint32_t frameId)
             }
             else if (!fgOutput->IsActive() || fgOutput->IsPaused())
             {
-                LOG_TRACE("FG not active or paused");
+                LOG_TRACE("FG not active or paused (A:{}, P:{})", fgOutput->IsActive(), fgOutput->IsPaused());
                 return true;
             }
         }
 
         // Frame data part
-
         // Nukem's function, licensed under GPLv3
         auto loadCameraMatrix = [&]()
         {
@@ -250,9 +249,9 @@ bool Sl_Inputs_Dx12::setConstants(const sl::Constants& values, uint32_t frameId)
     return dataFound;
 }
 
-bool Sl_Inputs_Dx12::evaluateState(ID3D12Device* device)
+bool Sl_Inputs_Dx12::evaluateState()
 {
-    auto fgOutput = reinterpret_cast<IFGFeature_Dx12*>(State::Instance().currentFG);
+    auto fgOutput = State::Instance().currentFG;
 
     if (fgOutput == nullptr)
         return false;
@@ -274,7 +273,7 @@ bool Sl_Inputs_Dx12::evaluateState(ID3D12Device* device)
     if (repeatsInRow > 10 && fgOutput->IsActive())
     {
         LOG_WARN("Many frame count repeats in a row, stopping FG");
-        State::Instance().FGchanged = true;
+        State::Instance().fgChanged = true;
         repeatsInRow = 0;
         return false;
     }
@@ -285,12 +284,21 @@ bool Sl_Inputs_Dx12::evaluateState(ID3D12Device* device)
 bool Sl_Inputs_Dx12::reportResource(const sl::ResourceTag& tag, ID3D12GraphicsCommandList* cmdBuffer, uint32_t frameId)
 {
     auto& state = State::Instance();
-    state.DLSSGLastFrame = state.FGLastFrame;
+    state.dlssgLastFrame = state.fgLastFrame;
 
     auto fgOutput = reinterpret_cast<IFGFeature_Dx12*>(state.currentFG);
 
     // It's possible for only some resources to be marked ready if FGEnabled is enabled during resource tagging
     if (fgOutput == nullptr || !Config::Instance()->FGEnabled.value_or_default())
+        return false;
+
+    static const bool ignoreValidUntilEvaluateForFG =
+        State::Instance().gameQuirks[GameQuirk::IgnoreValidUntilEvaluateForFG];
+
+    // eValidUntilEvaluate is usually used for upscaling, not FG
+    // we could track multiple versions of the same resource for the same frame id
+    // to be able to compare validity but that seems pointless
+    if (tag.lifecycle == sl::eValidUntilEvaluate && ignoreValidUntilEvaluateForFG)
         return false;
 
     LOG_DEBUG("Reporting SL resource type: {} lifecycle: {} frameId: {}", tag.type,
@@ -317,7 +325,14 @@ bool Sl_Inputs_Dx12::reportResource(const sl::ResourceTag& tag, ID3D12GraphicsCo
     res.height = tag.extent ? tag.extent.height : desc.Height;
     res.state = (D3D12_RESOURCE_STATES) tag.resource->state;
     res.validity =
-        (tag.lifecycle == sl::eOnlyValidNow) ? FG_ResourceValidity::ValidNow : FG_ResourceValidity::UntilPresent;
+        (tag.lifecycle == sl::eValidUntilPresent) ? FG_ResourceValidity::UntilPresent : FG_ResourceValidity::ValidNow;
+
+    // If eValidUntilEvaluate is provided without cmdList when there's not much we can do
+    if (!res.cmdList && res.validity != FG_ResourceValidity::UntilPresent)
+    {
+        LOG_WARN("YOLOing resource validity due to missing cmdList");
+        res.validity = FG_ResourceValidity::UntilPresent;
+    }
 
     if (frameId > 0)
     {
@@ -435,7 +450,7 @@ void Sl_Inputs_Dx12::markPresent(uint64_t frameId)
     std::scoped_lock lock(_frameBoundaryMutex);
     LOG_TRACE("frameId: {}", frameId);
     _isFrameFinished = true;
-    _lastFrameId = static_cast<uint32_t>(frameId);
+    _lastPresentFrameId = static_cast<uint32_t>(frameId);
 
     if (State::Instance().currentFG != nullptr)
         State::Instance().currentFG->SetFrameCount(frameId);

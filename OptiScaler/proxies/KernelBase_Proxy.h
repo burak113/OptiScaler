@@ -95,7 +95,12 @@ class KernelBaseProxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         _FreeLibrary = addr;
         return addr;
@@ -108,7 +113,12 @@ class KernelBaseProxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         _LoadLibraryA = addr;
         return addr;
@@ -121,7 +131,12 @@ class KernelBaseProxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         _LoadLibraryW = addr;
         return addr;
@@ -134,7 +149,12 @@ class KernelBaseProxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         _LoadLibraryExA = addr;
         return addr;
@@ -147,7 +167,12 @@ class KernelBaseProxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         _LoadLibraryExW = addr;
         return addr;
@@ -160,7 +185,12 @@ class KernelBaseProxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         _GetProcAddress = addr;
         return addr;
@@ -173,7 +203,12 @@ class KernelBaseProxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         _GetModuleHandleA = addr;
         return addr;
@@ -186,7 +221,12 @@ class KernelBaseProxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         _GetModuleHandleW = addr;
         return addr;
@@ -199,7 +239,12 @@ class KernelBaseProxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         _GetModuleHandleExA = addr;
         return addr;
@@ -212,7 +257,12 @@ class KernelBaseProxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         _GetModuleHandleExW = addr;
         return addr;

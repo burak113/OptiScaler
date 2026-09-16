@@ -62,7 +62,12 @@ static void hookWintrust()
 
         DetourAttach(&(PVOID&) o_WinVerifyTrust, hkWinVerifyTrust);
 
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("DetourTransactionCommit error: {:X}", detourResult);
+            o_WinVerifyTrust = nullptr;
+        }
     }
 }
 
@@ -74,8 +79,15 @@ static void unhookWintrust()
         DetourUpdateThread(GetCurrentThread());
 
         DetourDetach(&(PVOID&) o_WinVerifyTrust, hkWinVerifyTrust);
-        o_WinVerifyTrust = nullptr;
 
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("DetourTransactionCommit error: {:X}", detourResult);
+        }
+        else
+        {
+            o_WinVerifyTrust = nullptr;
+        }
     }
 }

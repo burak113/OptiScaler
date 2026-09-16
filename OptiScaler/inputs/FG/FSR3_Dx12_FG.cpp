@@ -610,8 +610,7 @@ static Fsr3::FfxErrorCode hkffxFrameInterpolationDispatch(FfxFrameInterpolationC
     fg->SetFrameTimeDelta(params->frameTimeDelta);
     fg->SetReset(params->reset ? 1 : 0);
 
-    if (params->currentBackBuffer_HUDLess.resource != nullptr &&
-        fg->GetResource(FG_ResourceType::HudlessColor) == nullptr)
+    if (params->currentBackBuffer_HUDLess.resource != nullptr && !fg->GetResource(FG_ResourceType::HudlessColor))
     {
         UINT width = params->interpolationRect.width;
         UINT height = params->interpolationRect.height;
@@ -640,7 +639,7 @@ static Fsr3::FfxErrorCode hkffxFrameInterpolationDispatch(FfxFrameInterpolationC
     }
 
     if (_presentCallback != nullptr && params->currentBackBuffer.resource != nullptr &&
-        fg->GetResource(FG_ResourceType::HudlessColor) == nullptr)
+        !fg->GetResource(FG_ResourceType::HudlessColor))
     {
         UINT width = params->interpolationRect.width;
         UINT height = params->interpolationRect.height;
@@ -705,7 +704,7 @@ static Fsr3::FfxErrorCode hkffxFsr3ConfigureFrameGeneration(void* context, Fsr3:
     {
         LOG_DEBUG("frameGenerationEnabled: {} ", config->frameGenerationEnabled);
 
-        s.FSRFGInputActive = config->frameGenerationEnabled;
+        s.fsrfgInputActive = config->frameGenerationEnabled;
 
         if (config->frameGenerationEnabled && !fg->IsActive() && Config::Instance()->FGEnabled.value_or_default())
         {
@@ -789,7 +788,7 @@ static Fsr3::FfxErrorCode hkffxSetFrameGenerationConfigToSwapchainDX12(Fsr3::Ffx
     {
         LOG_DEBUG("frameGenerationEnabled: {} ", config->frameGenerationEnabled);
 
-        s.FSRFGInputActive = config->frameGenerationEnabled;
+        s.fsrfgInputActive = config->frameGenerationEnabled;
 
         if (config->frameGenerationEnabled && !fg->IsActive() && Config::Instance()->FGEnabled.value_or_default())
         {
@@ -821,7 +820,7 @@ static Fsr3::FfxErrorCode hkffxSetFrameGenerationConfigToSwapchainDX12(Fsr3::Ffx
             left = 0;
         }
 
-        if (config->HUDLessColor.resource != nullptr && fg->GetResource(FG_ResourceType::HudlessColor) == nullptr)
+        if (config->HUDLessColor.resource != nullptr && !fg->GetResource(FG_ResourceType::HudlessColor))
         {
             Dx12Resource ui {};
             ui.cmdList = nullptr; // Not sure about this
@@ -943,7 +942,27 @@ void FSR3FG::HookFSR3FGExeInputs()
         DetourAttach(&(PVOID&) o_ffxSetFrameGenerationConfigToSwapchainDX12,
                      hkffxSetFrameGenerationConfigToSwapchainDX12);
 
-    DetourTransactionCommit();
+    auto detourResult = DetourTransactionCommit();
+    if (detourResult != NO_ERROR)
+    {
+        LOG_ERROR("Failed to hook FSR3-FG exe methods, DetourTransactionCommit result: {:X}", detourResult);
+        o_ffxReplaceSwapchainForFrameinterpolationDX12 = nullptr;
+        o_ffxCreateFrameinterpolationSwapchainDX12 = nullptr;
+        o_ffxCreateFrameinterpolationSwapchainForHwndDX12 = nullptr;
+        o_ffxWaitForPresents = nullptr;
+        o_ffxRegisterFrameinterpolationUiResourceDX12 = nullptr;
+        o_ffxGetFrameinterpolationCommandlistDX12 = nullptr;
+        o_ffxGetFrameinterpolationTextureDX12 = nullptr;
+        o_ffxFrameInterpolationContextCreate = nullptr;
+        o_ffxFrameInterpolationDispatch = nullptr;
+        o_ffxFrameInterpolationContextDestroy = nullptr;
+        o_ffxFsr3ConfigureFrameGeneration = nullptr;
+        o_ffxSetFrameGenerationConfigToSwapchainDX12 = nullptr;
+    }
+    else
+    {
+        State::Instance().fsrHooks = o_ffxReplaceSwapchainForFrameinterpolationDX12 != nullptr;
+    }
 }
 
 void FSR3FG::HookFSR3FGInputs()
@@ -1049,7 +1068,27 @@ void FSR3FG::HookFSR3FGInputs()
         DetourAttach(&(PVOID&) o_ffxSetFrameGenerationConfigToSwapchainDX12,
                      hkffxSetFrameGenerationConfigToSwapchainDX12);
 
-    DetourTransactionCommit();
+    auto detourResult = DetourTransactionCommit();
+    if (detourResult != NO_ERROR)
+    {
+        LOG_ERROR("Failed to hook FSR3-FG dll methods, DetourTransactionCommit result: {:X}", detourResult);
+        o_ffxReplaceSwapchainForFrameinterpolationDX12 = nullptr;
+        o_ffxCreateFrameinterpolationSwapchainDX12 = nullptr;
+        o_ffxCreateFrameinterpolationSwapchainForHwndDX12 = nullptr;
+        o_ffxWaitForPresents = nullptr;
+        o_ffxRegisterFrameinterpolationUiResourceDX12 = nullptr;
+        o_ffxGetFrameinterpolationCommandlistDX12 = nullptr;
+        o_ffxGetFrameinterpolationTextureDX12 = nullptr;
+        o_ffxFrameInterpolationContextCreate = nullptr;
+        o_ffxFrameInterpolationDispatch = nullptr;
+        o_ffxFrameInterpolationContextDestroy = nullptr;
+        o_ffxFsr3ConfigureFrameGeneration = nullptr;
+        o_ffxSetFrameGenerationConfigToSwapchainDX12 = nullptr;
+    }
+    else
+    {
+        State::Instance().fsrHooks = o_ffxReplaceSwapchainForFrameinterpolationDX12 != nullptr;
+    }
 }
 
 void FSR3FG::ffxPresentCallback()
@@ -1137,7 +1176,7 @@ void FSR3FG::ffxPresentCallback()
 
         if (result == FFX_API_RETURN_OK)
         {
-            if (fg->GetResource(FG_ResourceType::HudlessColor, fIndex) == nullptr)
+            if (!fg->GetResource(FG_ResourceType::HudlessColor, fIndex))
             {
                 auto hDesc = _hudless[fIndex]->GetDesc();
                 Dx12Resource hudless {};
@@ -1231,7 +1270,7 @@ void FSR3FG::ffxPresentCallback()
 
         if (result == FFX_API_RETURN_OK)
         {
-            if (fg->GetResource(FG_ResourceType::HudlessColor, fIndex) == nullptr)
+            if (!fg->GetResource(FG_ResourceType::HudlessColor, fIndex))
             {
                 auto hDesc = _hudless[fIndex]->GetDesc();
                 Dx12Resource hudless {};
@@ -1417,7 +1456,7 @@ void FSR3FG::SetUpscalerInputs(ID3D12GraphicsCommandList* InCmdList, NVSDK_NGX_P
                 {
                     DepthScale->SetBufferState(InCmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-                    if (DepthScale->Dispatch(_device, InCmdList, paramDepth, DepthScale->Buffer()))
+                    if (DepthScale->Dispatch(InCmdList, paramDepth, DepthScale->Buffer()))
                     {
                         Dx12Resource setResource {};
                         setResource.type = FG_ResourceType::Depth;

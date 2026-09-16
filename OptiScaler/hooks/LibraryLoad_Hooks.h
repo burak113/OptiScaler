@@ -1,12 +1,15 @@
-#pragma once
+#pragma
 #include "SysUtils.h"
 #include "DllNames.h"
 
 class LibraryLoadHooks
 {
   private:
+<<<<<<< HEAD
     inline static std::unordered_map<std::wstring, bool> _overlayMethodsCalled;
 
+=======
+>>>>>>> original/master
     static void CheckModulesInMemory();
     static bool StartsWithInsensitive(std::wstring_view str, std::wstring_view prefix);
 

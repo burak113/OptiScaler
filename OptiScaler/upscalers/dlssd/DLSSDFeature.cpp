@@ -36,6 +36,10 @@ void DLSSDFeature::ProcessEvaluateParams(NVSDK_NGX_Parameter* InParameters)
         }
     }
 
+    uint32_t hwDepth = 1;
+    InParameters->Get("DLSS.Use.HW.Depth", &hwDepth);
+    _depthLinear = hwDepth == 0;
+
     // Read render resolution
     unsigned int width;
     unsigned int height;

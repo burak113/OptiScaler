@@ -1,8 +1,6 @@
 #pragma once
 
-#include "ffx_upscale.h"
-
-#include <upscalers/IFeature.h>
+#include "ffx_upude <upscalers/IFeature.h>
 
 inline static void FfxLogCallback(uint32_t type, const wchar_t* message)
 {
@@ -28,10 +26,9 @@ class FSR31Feature : public virtual IFeature
 
     double GetDeltaTime();
 
-    static inline void parse_version(const char* version_str)
-    {
-        const char* p = version_str;
+    static inline void parse_version(const char* version_str) { _version.parse_version(version_str); }
 
+<<<<<<< HEAD
         // Skip non-digits at front
         while (*p)
         {
@@ -46,6 +43,8 @@ class FSR31Feature : public virtual IFeature
         LOG_WARN("can't parse {0}", version_str);
     }
 
+=======
+>>>>>>> original/master
     static inline void ffxResolveTypelessFormat(uint32_t& format)
     {
         switch (format)
@@ -107,7 +106,6 @@ class FSR31Feature : public virtual IFeature
 
   public:
     feature_version Version() override { return _version; }
-    std::string Name() const override { return _name.c_str(); }
 
     FSR31Feature(unsigned int InHandleId, NVSDK_NGX_Parameter* InParameters);
 

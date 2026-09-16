@@ -29,8 +29,13 @@ class DxgiProxy
         {
             _dll = GetModuleHandle(L"dxgi.dll");
 
+            if (_dll == dllModule)
+                _dll = originalModule;
+
             if (_dll == nullptr)
+            {
                 _dll = NtdllProxy::LoadLibraryExW_Ldr(L"dxgi.dll", NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
+            }
         }
         else
         {
@@ -39,6 +44,8 @@ class DxgiProxy
 
         if (_dll == nullptr)
             return;
+
+        LOG_DEBUG("dxgi.dll loaded at {:X}", (uintptr_t) _dll);
 
         _CreateDxgiFactory = (PFN_CreateDxgiFactory) KernelBaseProxy::GetProcAddress_()(_dll, "CreateDXGIFactory");
         _CreateDxgiFactory1 = (PFN_CreateDxgiFactory1) KernelBaseProxy::GetProcAddress_()(_dll, "CreateDXGIFactory1");
@@ -85,7 +92,12 @@ class DxgiProxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_CreateDxgiFactory = addr;
         return addr;
@@ -98,7 +110,12 @@ class DxgiProxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_CreateDxgiFactory1 = addr;
         return addr;
@@ -111,7 +128,12 @@ class DxgiProxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_CreateDxgiFactory2 = addr;
         return addr;
@@ -124,7 +146,12 @@ class DxgiProxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_DeclareAdepterRemovalSupport = addr;
         return addr;
@@ -137,7 +164,12 @@ class DxgiProxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_GetDebugInterface = addr;
         return addr;
@@ -148,7 +180,12 @@ class DxgiProxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourDetach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to unhook: {:X}", detourResult);
+            return;
+        }
     }
 
   private:

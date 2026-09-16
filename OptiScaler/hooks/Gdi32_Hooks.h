@@ -4,11 +4,14 @@
 #include "detours/detours.h"
 
 #include "Hook_Utils.h"
+#include <misc/IdentifyGpu.h>
 
 typedef decltype(&D3DKMTQueryAdapterInfo) PFN_D3DKMTQueryAdapterInfo;
+typedef decltype(&D3DKMTEnumAdapters) PFN_D3DKMTEnumAdapters;
 typedef decltype(&D3DKMTEnumAdapters2) PFN_D3DKMTEnumAdapters2;
+typedef decltype(&D3DKMTCloseAdapter) PFN_D3DKMTCloseAdapter;
 
-static PFN_D3DKMTQueryAdapterInfo o_D3DKMTQueryAdapterInfo = nullptr;
+inline static PFN_D3DKMTQueryAdapterInfo o_D3DKMTQueryAdapterInfo = nullptr;
 
 VALIDATE_HOOK(hkD3DKMTQueryAdapterInfo, PFN_D3DKMTQueryAdapterInfo)
 static NTSTATUS hkD3DKMTQueryAdapterInfo(const D3DKMT_QUERYADAPTERINFO* data)
@@ -16,7 +19,7 @@ static NTSTATUS hkD3DKMTQueryAdapterInfo(const D3DKMT_QUERYADAPTERINFO* data)
     auto result = o_D3DKMTQueryAdapterInfo(data);
 
     // LOG_INFO("Adapter into type: {}", (uint32_t)data->Type);
-    if (data->Type == KMTQAITYPE_WDDM_2_7_CAPS)
+    if (data->Type == KMTQAITYPE_WDDM_2_7_CAPS && Config::Instance()->SpoofHAGS.value_or_default())
     {
         LOG_INFO("Spoofing HAGS 2.7");
 
@@ -33,7 +36,7 @@ static NTSTATUS hkD3DKMTQueryAdapterInfo(const D3DKMT_QUERYADAPTERINFO* data)
 
         return 0;
     }
-    else if (data->Type == KMTQAITYPE_WDDM_2_9_CAPS)
+    else if (data->Type == KMTQAITYPE_WDDM_2_9_CAPS && Config::Instance()->SpoofHAGS.value_or_default())
     {
         LOG_INFO("Spoofing HAGS 2.9");
 
@@ -48,6 +51,38 @@ static NTSTATUS hkD3DKMTQueryAdapterInfo(const D3DKMT_QUERYADAPTERINFO* data)
         d3dkmt_wddm_2_9_caps->HwSchEnabled = 1;
         return 0;
     }
+    else if (data->Type == KMTQAITYPE_UMDRIVERPRIVATE && data->PrivateDriverDataSize == 608 &&
+             Util::WhoIsTheCaller(_ReturnAddress()).starts_with("amd"))
+    {
+        LOG_DEBUG("Likely FSR 4 GPU Check");
+
+        auto primaryGpu = IdentifyGpu::getPrimaryGpu();
+
+        auto amd_gpu_info = static_cast<uint32_t*>(data->pPrivateDriverData);
+
+        if (primaryGpu.fsr4ForcedSupport || State::Instance().isRunningOnLinux)
+        {
+            // Values as per https://gitlab.freedesktop.org/mesa/mesa/-/blob/main/src/amd/addrlib/src/amdgpu_asic_addr.h
+            // Seem to be asic family and asic revision
+            if (primaryGpu.fsr4Support == FSR4Support::INT8)
+            {
+                amd_gpu_info[12] = 145; // gfx11
+                amd_gpu_info[13] = 1;
+
+                return 1;
+            }
+            else if (primaryGpu.fsr4Support == FSR4Support::FP8)
+            {
+                // Based on 9070xt
+                amd_gpu_info[12] = 152; // gfx12
+                amd_gpu_info[13] = 81;
+
+                return 1;
+            }
+        }
+
+        return result;
+    }
 
     return result;
 }
@@ -57,19 +92,21 @@ static void hookGdi32()
 {
     LOG_FUNC();
 
-    if (Config::Instance()->SpoofHAGS.value_or_default())
+    o_D3DKMTQueryAdapterInfo =
+        reinterpret_cast<PFN_D3DKMTQueryAdapterInfo>(DetourFindFunction("gdi32.dll", "D3DKMTQueryAdapterInfo"));
+
+    if (o_D3DKMTQueryAdapterInfo != nullptr)
     {
-        o_D3DKMTQueryAdapterInfo =
-            reinterpret_cast<PFN_D3DKMTQueryAdapterInfo>(DetourFindFunction("gdi32.dll", "D3DKMTQueryAdapterInfo"));
+        DetourTransactionBegin();
+        DetourUpdateThread(GetCurrentThread());
 
-        if (o_D3DKMTQueryAdapterInfo != nullptr)
+        DetourAttach(&(PVOID&) o_D3DKMTQueryAdapterInfo, hkD3DKMTQueryAdapterInfo);
+
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
         {
-            DetourTransactionBegin();
-            DetourUpdateThread(GetCurrentThread());
-
-            DetourAttach(&(PVOID&) o_D3DKMTQueryAdapterInfo, hkD3DKMTQueryAdapterInfo);
-
-            DetourTransactionCommit();
+            LOG_ERROR("DetourTransactionCommit error: {:X}", detourResult);
+            o_D3DKMTQueryAdapterInfo = nullptr;
         }
     }
 }
@@ -82,8 +119,15 @@ static void unhookGdi32()
         DetourUpdateThread(GetCurrentThread());
 
         DetourDetach(&(PVOID&) o_D3DKMTQueryAdapterInfo, hkD3DKMTQueryAdapterInfo);
-        o_D3DKMTQueryAdapterInfo = nullptr;
 
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("DetourTransactionCommit error: {:X}", detourResult);
+        }
+        else
+        {
+            o_D3DKMTQueryAdapterInfo = nullptr;
+        }
     }
 }

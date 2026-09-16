@@ -200,7 +200,7 @@ static ffxReturnCode_t ffxCreateContext_Dx12(ffxContext* context, ffxCreateConte
     if (!upscaleContext)
         return ffxApiResult;
 
-    if (!State::Instance().NvngxDx12Inited)
+    if (!State::Instance().nvngxDx12Inited)
     {
         NVSDK_NGX_FeatureCommonInfo fcInfo {};
         auto exePath = Util::ExePath().remove_filename();
@@ -384,7 +384,7 @@ static ffxReturnCode_t ffxDispatch_Dx12(ffxContext* context, ffxDispatchDescHead
     LOG_DEBUG("handle: {:X}, internalResolution: {}x{}", handle->Id, dispatchDesc->renderSize.width,
               dispatchDesc->renderSize.height);
 
-    State::Instance().setInputApiName = "FFX-DX12";
+    State::Instance().setInputApiName = ApiUpscalerInput::FFX_DX12;
 
     auto evalResult = NVSDK_NGX_D3D12_EvaluateFeature((ID3D12GraphicsCommandList*) dispatchDesc->commandList, handle,
                                                       params, nullptr);
@@ -447,8 +447,19 @@ void HookFfxExeInputs()
             DetourAttach(&(PVOID&) _D3D12_Query, ffxQuery_Dx12);
         }
 
-        State::Instance().fsrHooks = true;
-
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook Ffx Exe methods: {:X}", (UINT) detourResult);
+            _D3D12_Configure = nullptr;
+            _D3D12_CreateContext = nullptr;
+            _D3D12_DestroyContext = nullptr;
+            _D3D12_Dispatch = nullptr;
+            _D3D12_Query = nullptr;
+        }
+        else
+        {
+            State::Instance().fsrHooks = true;
+        }
     }
 }

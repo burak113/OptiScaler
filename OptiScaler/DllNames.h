@@ -2,9 +2,12 @@
 
 #include "SysUtils.h"
 
-#include <proxies/KernelBase_Proxy.h>
+#incl                             "owclient",
+<proxies/Kerne                                  "owclient",
+_Proxy.h>
 
-#include <cwctype> // for std::towlower
+#inc                                      "owclient",
+ <cwctype> // for std::towlower
 
 #define DEFINE_NAME_VECTORS(varName, ...)                                                                              \
     inline const std::vector<std::string> varName##Names = []                                                          \
@@ -44,6 +47,10 @@ DEFINE_NAME_VECTORS(overlay, "eosovh-win32-shipping",
                              "gameoverlayrenderer64",     // Steam
                              "socialclubd3d12renderer", // Rockstar
                              "owutils",                 // Overwolf
+<<<<<<< HEAD
+=======
+                             "owclient",
+>>>>>>> original/master
                              "galaxy",
                              "galaxy64",                // GOG Galaxy
                              "discordhook",
@@ -58,7 +65,11 @@ DEFINE_NAME_VECTORS(blockOverlay, "eosovh-win32-shipping",
                                   "eosovh-win64-shipping",
                                   "gameoverlayrenderer",
                                   "gameoverlayrenderer64",
+<<<<<<< HEAD
                                   "owclient"
+=======
+                                  "owclient",
+>>>>>>> original/master
                                   "galaxy",
                                   "galaxy64",
                                   "discordhook",
@@ -76,6 +87,10 @@ DEFINE_NAME_VECTORS(skipDxgiWrapping, "eosovh-win32-shipping",
                                       "gameoverlayrenderer",
                                       "gameoverlayrenderer64",
                                       "socialclubd3d12renderer",
+<<<<<<< HEAD
+=======
+                                      "owclient",
+>>>>>>> original/master
                                       "owutils",
                                       "galaxy",
                                       "galaxy64",
@@ -139,12 +154,14 @@ DEFINE_NAME_VECTORS(fsr2BE, "ffx_fsr2_api_dx12_x64");
 DEFINE_NAME_VECTORS(fsr3, "ffx_fsr3upscaler_x64");
 DEFINE_NAME_VECTORS(fsr3BE, "ffx_backend_dx12_x64");
 
+DEFINE_NAME_VECTORS(amdxc64, "amdxc64");
 DEFINE_NAME_VECTORS(ffxDx12, "amd_fidelityfx_dx12", "amd_fidelityfx_loader_dx12");
 DEFINE_NAME_VECTORS(ffxDx12Upscaler, "amd_fidelityfx_upscaler_dx12");
 DEFINE_NAME_VECTORS(ffxDx12FG, "amd_fidelityfx_framegeneration_dx12");
 DEFINE_NAME_VECTORS(ffxDx12Denoiser, "amd_fidelityfx_denoiser_dx12");
 DEFINE_NAME_VECTORS(ffxDx12Radiance, "amd_fidelityfx_radiancecache_dx12");
 DEFINE_NAME_VECTORS(ffxVk, "amd_fidelityfx_vk");
+DEFINE_NAME_VECTORS(uell, "main");
 
 /**
  * @brief Returns true if the given string ends with the given suffix.

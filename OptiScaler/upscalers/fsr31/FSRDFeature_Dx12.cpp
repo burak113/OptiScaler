@@ -1588,7 +1588,7 @@ bool FSRDFeatureDx12::UpdateSize()
     return true;
 }
 
-bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) 
+bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) 
 {
     LOG_FUNC();
 
@@ -1644,12 +1644,6 @@ bool FSRDFeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_N
 
     // Upscale is bypassed if we are in a debug mode that isn't the DenoiserBypass (final raw)
     const bool isUpscaleBypassed = hasAnyDebug && dbgMode != DebugModes::DenoiserBypass;
-
-    // Validate helper features
-    if (!RCAS->IsInit())
-        cfg.RcasEnabled.set_volatile_value(false);
-    if (!OutputScaler->IsInit())
-        cfg.OutputScalingEnabled.set_volatile_value(false);
 
     _isInReset = false;
 

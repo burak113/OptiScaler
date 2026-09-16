@@ -69,22 +69,15 @@ bool IFeature::SetInitParameters(NVSDK_NGX_Parameter* InParameters)
         }
 
         // First check state to prevent upscaler re-init loops
-        if (State::Instance().AutoExposure.has_value())
+        if (State::Instance().autoExposure.has_value())
         {
-            LOG_INFO("AutoExposure flag overrided by OptiScaler: {}", State::Instance().AutoExposure.value());
-            _initFlags.AutoExposure = State::Instance().AutoExposure.value();
+            LOG_INFO("AutoExposure flag overrided by OptiScaler: {}", State::Instance().autoExposure.value());
+            _initFlags.AutoExposure = State::Instance().autoExposure.value();
         }
         else if (Config::Instance()->AutoExposure.has_value())
         {
             LOG_INFO("AutoExposure flag overrided by user: {}", Config::Instance()->AutoExposure.value());
             _initFlags.AutoExposure = Config::Instance()->AutoExposure.value();
-        }
-        else if ((State::Instance().NVNGX_Engine == NVSDK_NGX_ENGINE_TYPE_UNREAL ||
-                  State::Instance().gameQuirks & GameQuirk::ForceUnrealEngine) &&
-                 Name()[0] == 'X')
-        {
-            LOG_INFO("AutoExposure flag overrided by OptiScaler (UE+XeSS): true");
-            _initFlags.AutoExposure = true;
         }
         else
         {
@@ -270,7 +263,7 @@ float IFeature::GetSharpness(const NVSDK_NGX_Parameter* InParameters)
     return sharpness;
 }
 
-void IFeature::TickFrozenCheck()
+void IFeature::TickFrozenCheck(uint32_t presentPerEval)
 {
     static long updatesWithoutFramecountChange = 0;
 
@@ -285,7 +278,7 @@ void IFeature::TickFrozenCheck()
 
         lastFrameCount = _frameCount;
 
-        _featureFrozen = updatesWithoutFramecountChange > 10;
+        _featureFrozen = updatesWithoutFramecountChange > (10 * presentPerEval);
     }
 }
 

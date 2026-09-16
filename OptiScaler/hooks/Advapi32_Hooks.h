@@ -730,7 +730,16 @@ static void hookAdvapi32()
     if (o_RegQueryValueExA)
         DetourAttach(&(PVOID&) o_RegQueryValueExA, hkRegQueryValueExA);
 
-    DetourTransactionCommit();
+    auto detourResult = DetourTransactionCommit();
+    if (detourResult != NO_ERROR)
+    {
+        LOG_ERROR("DetourTransactionCommit error: {:X}", detourResult);
+        o_RegOpenKeyExW = nullptr;
+        o_RegEnumValueW = nullptr;
+        o_RegCloseKey = nullptr;
+        o_RegQueryValueExW = nullptr;
+        o_RegQueryValueExA = nullptr;
+    }
 }
 
 static void unhookAdvapi32()
@@ -739,22 +748,31 @@ static void unhookAdvapi32()
     DetourUpdateThread(GetCurrentThread());
 
     if (o_RegOpenKeyExW)
-    {
         DetourDetach(&(PVOID&) o_RegOpenKeyExW, hkRegOpenKeyExW);
-        o_RegOpenKeyExW = nullptr;
-    }
 
     if (o_RegEnumValueW)
-    {
         DetourDetach(&(PVOID&) o_RegEnumValueW, hkRegEnumValueW);
-        o_RegEnumValueW = nullptr;
-    }
 
     if (o_RegCloseKey)
-    {
         DetourDetach(&(PVOID&) o_RegCloseKey, hkRegCloseKey);
-        o_RegCloseKey = nullptr;
-    }
 
-    DetourTransactionCommit();
+    if (o_RegQueryValueExW)
+        DetourDetach(&(PVOID&) o_RegQueryValueExW, hkRegQueryValueExW);
+
+    if (o_RegQueryValueExA)
+        DetourDetach(&(PVOID&) o_RegQueryValueExA, hkRegQueryValueExA);
+
+    auto detourResult = DetourTransactionCommit();
+    if (detourResult != NO_ERROR)
+    {
+        LOG_ERROR("DetourTransactionCommit error: {:X}", detourResult);
+    }
+    else
+    {
+        o_RegCloseKey = nullptr;
+        o_RegEnumValueW = nullptr;
+        o_RegOpenKeyExW = nullptr;
+        o_RegQueryValueExA = nullptr;
+        o_RegQueryValueExW = nullptr;
+    }
 }

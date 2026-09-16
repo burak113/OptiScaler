@@ -4,23 +4,10 @@
 #include "FSR31Feature_Dx11.h"
 #include "MathUtils.h"
 
-using namespace OptiMath;
-
-#define ASSIGN_DESC(dest, src)                                                                                         \
+using nam                                                                                   \
     dest.Width = src.Width;                                                                                            \
-    dest.Height = src.Height;                                                                                          \
-    dest.Format = src.Format;                                                                                          \
+    dest.Height = src.Height;                                                                                                         \
     dest.BindFlags = src.BindFlags;
-
-#define SAFE_RELEASE(p)                                                                                                \
-    do                                                                                                                 \
-    {                                                                                                                  \
-        if (p && p != nullptr)                                                                                         \
-        {                                                                                                              \
-            (p)->Release();                                                                                            \
-            (p) = nullptr;                                                                                             \
-        }                                                                                                              \
-    } while ((void) 0, 0);
 
 FSR31FeatureDx11::FSR31FeatureDx11(unsigned int InHandleId, NVSDK_NGX_Parameter* InParameters)
     : FSR31Feature(InHandleId, InParameters), IFeature_Dx11(InHandleId, InParameters),
@@ -29,29 +16,14 @@ FSR31FeatureDx11::FSR31FeatureDx11(unsigned int InHandleId, NVSDK_NGX_Parameter*
     _moduleLoaded = true;
 }
 
-bool FSR31FeatureDx11::Init(ID3D11Device* InDevice, ID3D11DeviceContext* InContext, NVSDK_NGX_Parameter* InParameters)
+bool FSR31FeatureDx11::InitInternal(ID3D11DeviceContext* InContext, NVSDK_NGX_Parameter* InParameters)
 {
     LOG_FUNC();
 
     if (IsInited())
         return true;
 
-    Device = InDevice;
-    DeviceContext = InContext;
-
-    if (InitFSR3(InParameters))
-    {
-        if (!Config::Instance()->OverlayMenu.value_or_default() && (Imgui == nullptr || Imgui.get() == nullptr))
-            Imgui = std::make_unique<Menu_Dx11>(Util::GetProcessWindow(), Device);
-
-        OutputScaler = std::make_unique<OS_Dx11>("Output Scaling", InDevice, (TargetWidth() < DisplayWidth()));
-        RCAS = std::make_unique<RCAS_Dx11>("RCAS", InDevice);
-        Bias = std::make_unique<Bias_Dx11>("Bias", InDevice);
-
-        return true;
-    }
-
-    return false;
+    return InitFSR3(InParameters);
 }
 
 // register a DX11 resource to the backend
@@ -84,6 +56,7 @@ bool FSR31FeatureDx11::CopyTexture(ID3D11Resource* InResource, D3D11_TEXTURE2D_R
     if (result != S_OK)
         return false;
 
+    originalTexture->Release();
     originalTexture->GetDesc(&desc);
 
     if (desc.BindFlags == bindFlags)
@@ -137,7 +110,7 @@ void FSR31FeatureDx11::ReleaseResources()
     }
 }
 
-bool FSR31FeatureDx11::Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Parameter* InParameters)
+bool FSR31FeatureDx11::EvaluateInternal(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Parameter* InParameters)
 {
     LOG_FUNC();
 
@@ -147,6 +120,7 @@ bool FSR31FeatureDx11::Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Pa
     auto& state = State::Instance();
     auto& cfg = *Config::Instance();
     const auto& ngxParams = *InParameters;
+<<<<<<< HEAD
 
     if (!RCAS->IsInit())
         Config::Instance()->RcasEnabled.set_volatile_value(false);
@@ -194,6 +168,8 @@ bool FSR31FeatureDx11::Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Pa
     // Unbind RenderTargets
     ID3D11RenderTargetView* nullRTVs[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = {};
     DeviceContext->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, nullRTVs, nullptr);
+=======
+>>>>>>> original/master
 
     Fsr31::FfxFsr3DispatchUpscaleDescription params {};
 
@@ -208,24 +184,8 @@ bool FSR31FeatureDx11::Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Pa
     InParameters->Get(NVSDK_NGX_Parameter_Jitter_Offset_X, &params.jitterOffset.x);
     InParameters->Get(NVSDK_NGX_Parameter_Jitter_Offset_Y, &params.jitterOffset.y);
 
-    if (Config::Instance()->OverrideSharpness.value_or_default())
-        _sharpness = Config::Instance()->Sharpness.value_or_default();
-    else
-        _sharpness = GetSharpness(InParameters);
-
-    if (Config::Instance()->RcasEnabled.value_or_default())
-    {
-        params.enableSharpening = false;
-        params.sharpness = 0.0f;
-    }
-    else
-    {
-        if (_sharpness > 1.0f)
-            _sharpness = 1.0f;
-
-        params.enableSharpening = _sharpness > 0.0f;
-        params.sharpness = _sharpness;
-    }
+    params.enableSharpening = _sharpness > 0.0f;
+    params.sharpness = _sharpness;
 
     LOG_DEBUG("Jitter Offset: {0}x{1}", params.jitterOffset.x, params.jitterOffset.y);
 
@@ -235,9 +195,12 @@ bool FSR31FeatureDx11::Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Pa
 
     GetRenderResolution(InParameters, &params.renderSize.width, &params.renderSize.height);
 
+<<<<<<< HEAD
     bool useSS =
         Config::Instance()->OutputScalingEnabled.value_or_default() && (LowResMV() || RenderWidth() == DisplayWidth());
 
+=======
+>>>>>>> original/master
     LOG_DEBUG("Input Resolution: {0}x{1}", params.renderSize.width, params.renderSize.height);
 
     params.commandList = Fsr31::ffxGetCommandListDX11(DeviceContext);
@@ -292,30 +255,7 @@ bool FSR31FeatureDx11::Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Pa
     if (paramOutput)
     {
         LOG_DEBUG("Output exist..");
-
-        if (useSS)
-        {
-            if (OutputScaler->CreateBufferResource(Device, paramOutput, TargetWidth(), TargetHeight()))
-            {
-                params.upscaleOutput =
-                    ffxGetResource(OutputScaler->Buffer(), L"FSR3_Output", Fsr31::FFX_RESOURCE_STATE_UNORDERED_ACCESS);
-            }
-            else
-                params.upscaleOutput =
-                    ffxGetResource(paramOutput, L"FSR3_Output", Fsr31::FFX_RESOURCE_STATE_UNORDERED_ACCESS);
-        }
-        else
-            params.upscaleOutput =
-                ffxGetResource(paramOutput, L"FSR3_Output", Fsr31::FFX_RESOURCE_STATE_UNORDERED_ACCESS);
-
-        if (Config::Instance()->RcasEnabled.value_or_default() &&
-            (_sharpness > 0.0f || (Config::Instance()->MotionSharpnessEnabled.value_or_default() &&
-                                   Config::Instance()->MotionSharpness.value_or_default() > 0.0f)) &&
-            RCAS->IsInit() && RCAS->CreateBufferResource(Device, (ID3D11Texture2D*) params.upscaleOutput.resource))
-        {
-            params.upscaleOutput =
-                ffxGetResource(RCAS->Buffer(), L"FSR3_Output", Fsr31::FFX_RESOURCE_STATE_UNORDERED_ACCESS);
-        }
+        params.upscaleOutput = ffxGetResource(paramOutput, L"FSR3_Output", Fsr31::FFX_RESOURCE_STATE_UNORDERED_ACCESS);
     }
     else
     {
@@ -359,7 +299,7 @@ bool FSR31FeatureDx11::Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Pa
         else
         {
             LOG_DEBUG("AutoExposure disabled but ExposureTexture is not exist, it may cause problems!!");
-            State::Instance().AutoExposure = true;
+            State::Instance().autoExposure = true;
             State::Instance().changeBackend[Handle()->Id] = true;
             return true;
         }
@@ -501,6 +441,7 @@ bool FSR31FeatureDx11::Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Pa
         return false;
     }
 
+<<<<<<< HEAD
     // apply rcas
     if (Config::Instance()->RcasEnabled.value_or_default() &&
         (_sharpness > 0.0f || (Config::Instance()->MotionSharpnessEnabled.value_or_default() &&
@@ -605,6 +546,8 @@ bool FSR31FeatureDx11::Evaluate(ID3D11DeviceContext* DeviceContext, NVSDK_NGX_Pa
 
     _frameCount++;
 
+=======
+>>>>>>> original/master
     return true;
 }
 
@@ -650,7 +593,7 @@ bool FSR31FeatureDx11::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
     }
 
     {
-        ScopedSkipSpoofing skipSpoofing {};
+        ScopedSkipSpoofingGlobal skipSpoofingGlobal {};
 
         uint64_t versionCount = 0;
         State::Instance().ffxUpscalerVersionIds.resize(versionCount);
@@ -760,6 +703,32 @@ bool FSR31FeatureDx11::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
                 TargetHeight() > DisplayHeight() ? TargetHeight() : DisplayHeight();
             _upscalerContextDesc.maxUpscaleSize.width = TargetWidth();
             _upscalerContextDesc.maxUpscaleSize.height = TargetHeight();
+        }
+
+        // Set stability values as default if not set by user
+        {
+            auto config = Config::Instance();
+            auto const scaleRatioX = (float) TargetWidth() / (float) RenderWidth();
+            auto const scaleRatioY = (float) TargetHeight() / (float) RenderHeight();
+            auto const scaleRatio = std::max(scaleRatioX, scaleRatioY);
+
+            if (scaleRatio > 0.0f && !std::isinf(scaleRatio))
+            {
+                if (config->FsrVelocity.value_for_config() == std::nullopt)
+                    config->FsrVelocity.set_volatile_value(0.5f);
+
+                if (config->FsrReactiveScale.value_for_config() == std::nullopt)
+                    config->FsrReactiveScale.set_volatile_value(0.25f);
+
+                if (config->FsrShadingScale.value_for_config() == std::nullopt)
+                    config->FsrShadingScale.set_volatile_value(0.5f / scaleRatio);
+
+                if (config->FsrAccAddPerFrame.value_for_config() == std::nullopt)
+                    config->FsrAccAddPerFrame.set_volatile_value(scaleRatio / 10.0f);
+
+                if (config->FsrMinDisOccAcc.value_for_config() == std::nullopt)
+                    config->FsrMinDisOccAcc.set_volatile_value(scaleRatio / 20.0f);
+            }
         }
 
         if (Config::Instance()->FfxUpscalerIndex.value_or_default() < 0 ||

@@ -253,12 +253,15 @@ static Fsr3::FfxErrorCode ffxFsr3ContextCreate_Dx12(Fsr3::FfxFsr3UpscalerContext
         _d3d12Device = state.d3d12Devices[state.d3d12Devices.size() - 1];
 
     if (_d3d12Device == nullptr)
+        _d3d12Device = state.currentD3D12Device;
+
+    if (_d3d12Device == nullptr)
     {
-        LOG_WARN("D3D12 device not found!");
+        LOG_ERROR("D3D12 device not found!");
         return ccResult;
     }
 
-    if (!state.NvngxDx12Inited)
+    if (!state.nvngxDx12Inited)
     {
         NVSDK_NGX_FeatureCommonInfo fcInfo {};
         auto exePath = Util::ExePath().remove_filename();
@@ -372,7 +375,7 @@ static Fsr3::FfxErrorCode ffxFsr3ContextDispatch_Dx12(Fsr3::FfxFsr3UpscalerConte
     LOG_DEBUG("handle: {:X}, internalResolution: {}x{}", handle->Id, pDispatchDescription->renderSize.width,
               pDispatchDescription->renderSize.height);
 
-    State::Instance().setInputApiName = "FSR3-DX12";
+    State::Instance().setInputApiName = ApiUpscalerInput::FSR3_DX12;
 
     auto evalResult = NVSDK_NGX_D3D12_EvaluateFeature((ID3D12GraphicsCommandList*) pDispatchDescription->commandList,
                                                       handle, params, nullptr);
@@ -454,45 +457,19 @@ ffxFsr3ContextCreate_Pattern_Dx12(Fsr3::FfxFsr3UpscalerContext* pContext,
         _d3d12Device = state.d3d12Devices[state.d3d12Devices.size() - 1];
 
     if (_d3d12Device == nullptr)
+        _d3d12Device = state.currentD3D12Device;
+
+    if (_d3d12Device == nullptr)
     {
-        LOG_WARN("D3D12 device not found!");
+        LOG_ERROR("D3D12 device not found!");
         return ccResult;
     }
 
-    if (!state.NvngxDx12Inited)
+    if (!state.nvngxDx12Inited)
     {
         NVSDK_NGX_FeatureCommonInfo fcInfo {};
 
         auto exePath = Util::ExePath().remove_filename();
-        auto nvngxDlssPath = Util::FindFilePath(exePath, "nvngx_dlss.dll");
-        auto nvngxDlssDPath = Util::FindFilePath(exePath, "nvngx_dlssd.dll");
-        auto nvngxDlssGPath = Util::FindFilePath(exePath, "nvngx_dlssg.dll");
-
-        std::vector<std::wstring> pathStorage;
-
-        pathStorage.push_back(exePath.wstring());
-
-        if (nvngxDlssPath.has_value())
-            pathStorage.push_back(nvngxDlssPath.value().parent_path().wstring());
-
-        if (nvngxDlssDPath.has_value())
-            pathStorage.push_back(nvngxDlssDPath.value().parent_path().wstring());
-
-        if (nvngxDlssGPath.has_value())
-            pathStorage.push_back(nvngxDlssGPath.value().parent_path().wstring());
-
-        if (Config::Instance()->DLSSFeaturePath.has_value())
-            pathStorage.push_back(Config::Instance()->DLSSFeaturePath.value());
-
-        // Build pointer array
-        wchar_t const** paths = new const wchar_t*[pathStorage.size()];
-        for (size_t i = 0; i < pathStorage.size(); ++i)
-        {
-            paths[i] = pathStorage[i].c_str();
-        }
-
-        fcInfo.PathListInfo.Path = paths;
-        fcInfo.PathListInfo.Length = (int) pathStorage.size();
 
         auto nvResult = NVSDK_NGX_D3D12_Init_with_ProjectID(
             OPTI_GUID, state.NVNGX_Engine, OPTI_VERSION, exePath.c_str(), _d3d12Device, &fcInfo,
@@ -594,7 +571,7 @@ ffxFsr3ContextDispatch_Pattern_Dx12(Fsr3::FfxFsr3UpscalerContext* pContext,
     LOG_DEBUG("handle: {:X}, internalResolution: {}x{}", handle->Id, pDispatchDescription->renderSize.width,
               pDispatchDescription->renderSize.height);
 
-    State::Instance().setInputApiName = "FSR3-DX12";
+    State::Instance().setInputApiName = ApiUpscalerInput::FSR3_DX12;
 
     auto evalResult = NVSDK_NGX_D3D12_EvaluateFeature((ID3D12GraphicsCommandList*) pDispatchDescription->commandList,
                                                       handle, params, nullptr);
@@ -828,9 +805,26 @@ void HookFSR3ExeInputs()
     //    LOG_DEBUG("ffxGetInterfaceDX12: {:X}", (size_t)o_ffxFSR3GetInterfaceDX12);
     //}
 
-    DetourTransactionCommit();
+    auto detourResult = DetourTransactionCommit();
+    if (detourResult != NO_ERROR)
+    {
+        LOG_ERROR("DetourTransactionCommit failed: {:X}", detourResult);
+        o_ffxFSR3GetInterfaceDX12 = nullptr;
+        o_ffxFsr3UpscalerContextCreate_Dx12 = nullptr;
+        o_ffxFsr3UpscalerContextDispatch_Dx12 = nullptr;
+        o_ffxFsr3UpscalerContextDestroy_Dx12 = nullptr;
+        o_ffxFsr3UpscalerGetUpscaleRatioFromQualityMode_Dx12 = nullptr;
+        o_ffxFsr3UpscalerGetRenderResolutionFromQualityMode_Dx12 = nullptr;
 
-    State::Instance().fsrHooks = o_ffxFsr3UpscalerContextCreate_Dx12 != nullptr;
+        o_ffxFsr3UpscalerContextCreate_Pattern_Dx12 = nullptr;
+        o_ffxFsr3UpscalerContextDispatch_Pattern_Dx12 = nullptr;
+        o_ffxFsr3UpscalerContextDestroy_Pattern_Dx12 = nullptr;
+    }
+    else
+    {
+        State::Instance().fsrHooks =
+            o_ffxFsr3UpscalerContextCreate_Dx12 != nullptr || o_ffxFsr3UpscalerContextCreate_Pattern_Dx12 != nullptr;
+    }
 }
 
 void HookFSR3Inputs(HMODULE module)
@@ -905,9 +899,21 @@ void HookFSR3Inputs(HMODULE module)
                       (size_t) o_ffxFsr3UpscalerGetRenderResolutionFromQualityMode_Dx12);
         }
 
-        DetourTransactionCommit();
-
-        State::Instance().fsrHooks = o_ffxFsr3UpscalerContextCreate_Dx12 != nullptr;
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("DetourTransactionCommit failed: {:X}", detourResult);
+            o_ffxFSR3GetInterfaceDX12 = nullptr;
+            o_ffxFsr3UpscalerContextCreate_Dx12 = nullptr;
+            o_ffxFsr3UpscalerContextDispatch_Dx12 = nullptr;
+            o_ffxFsr3UpscalerContextDestroy_Dx12 = nullptr;
+            o_ffxFsr3UpscalerGetUpscaleRatioFromQualityMode_Dx12 = nullptr;
+            o_ffxFsr3UpscalerGetRenderResolutionFromQualityMode_Dx12 = nullptr;
+        }
+        else
+        {
+            State::Instance().fsrHooks = o_ffxFsr3UpscalerContextCreate_Dx12 != nullptr;
+        }
     }
 }
 
@@ -933,6 +939,11 @@ void HookFSR3Dx12Inputs(HMODULE module)
             LOG_DEBUG("ffxGetInterfaceDX12: {:X}", (size_t) o_ffxFSR3GetInterfaceDX12);
         }
 
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("DetourTransactionCommit failed: {:X}", detourResult);
+            o_ffxFSR3GetInterfaceDX12 = nullptr;
+        }
     }
 }

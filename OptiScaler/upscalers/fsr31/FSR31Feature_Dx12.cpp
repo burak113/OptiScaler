@@ -69,11 +69,8 @@ FSR31FeatureDx12::FSR31FeatureDx12(unsigned int InHandleId, NVSDK_NGX_Parameter*
     : FSR31Feature(InHandleId, InParameters), IFeature_Dx12(InHandleId, InParameters),
       IFeature(InHandleId, SetParameters(InParameters)), 
       _isInReset(false), 
-      _isSuperScaling(false),
-      _isSharpening(false), 
       _inputBuffers({}), 
-      _upscalerOutput(nullptr), 
-      _mainOutput(nullptr)
+      _upscalerOutput(nullptr)
 {
     InParameters->Set("OptiScaler.SupportsUpscaleSize", true);
 
@@ -96,36 +93,16 @@ inline FSR31FeatureDx12::~FSR31FeatureDx12()
         FfxApiProxy::D3D12_DestroyContext(&_upscaleCtx, NULL);
 }
 
-bool FSR31FeatureDx12::Init(ID3D12Device* InDevice, ID3D12GraphicsCommandList* InCommandList,
-                            NVSDK_NGX_Parameter* InParameters)
+bool FSR31FeatureDx12::InitInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters)
 {
-    LOG_DEBUG("FSR31FeatureDx12::Init");
+    LOG_DEBUG("FSR31FeatureDx12::InitInternal");
 
     if (IsInited())
         return true;
 
-    Device = InDevice;
-
-    // Attempt to create the FSR context
-    if (InitFSR3(InParameters))
-    {
-        // Initialize ImGui if not already disabled/created
-        if (!Config::Instance()->OverlayMenu.value_or_default() && (Imgui == nullptr || Imgui.get() == nullptr))
-            Imgui = std::make_unique<Menu_Dx12>(Util::GetProcessWindow(), InDevice);
-
-        // OutputScaler: Handles resizing if FSR's internal upscaling isn't used or for custom scaling
-        OutputScaler = std::make_unique<OS_Dx12>("Output Scaling", InDevice, (TargetWidth() < DisplayWidth()));
-
-        // RCAS: Robust Contrast Adaptive Sharpening
-        RCAS = std::make_unique<RCAS_Dx12>("RCAS", InDevice);
-
-        // Bias: Handles DLSS bias -> reactive mask conversion, if enabled
-        Bias = std::make_unique<Bias_Dx12>("Bias", InDevice);
-
-        return true;
-    }
-
-    return false;
+    // Attempt to create the FSR context. Helper shaders and the ImGui overlay are
+    // created by IFeature_Dx12::Init once this succeeds.
+    return InitFSR3(InParameters);
 }
 
 bool FSR31FeatureDx12::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
@@ -359,7 +336,7 @@ uint64_t FSR31FeatureDx12::GetUpscalerOverrideID()
     return state.ffxUpscalerVersionIds[cfg.FfxUpscalerIndex.value_or_default()];
 }
 
-bool FSR31FeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters)
+bool FSR31FeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters)
 {
     LOG_FUNC();
 
@@ -372,12 +349,6 @@ bool FSR31FeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_
     if (cfg.DADepthIsLinear.value_for_config_ignore_default() == std::nullopt)
         cfg.DADepthIsLinear.set_volatile_value(false);
 
-    // Validate helper features
-    if (!RCAS->IsInit())
-        cfg.RcasEnabled.set_volatile_value(false);
-    if (!OutputScaler->IsInit())
-        cfg.OutputScalingEnabled.set_volatile_value(false);
-
     _isInReset = false;
 
     if (uint32_t value = 0; inParams.Get(NVSDK_NGX_Parameter_Reset, &value) == NVSDK_NGX_Result_Success)
@@ -386,17 +357,13 @@ bool FSR31FeatureDx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_
     // Resource Gathering
     ffxDispatchDescUpscale upscalerDesc = {};
 
-    if (!PrepareUpscalerInput(InCommandList, inParams, upscalerDesc)) 
+    if (!PrepareUpscalerInput(InCommandList, inParams, upscalerDesc))
         return false;
 
     // Sets optional, configurable resource barriers
     SetConfigurableBarriers(InCommandList);
 
     bool isUpscalerReady = DispatchUpscaler(InCommandList, upscalerDesc);
-
-    // Post-Process
-    if (isUpscalerReady)
-        PostProcess(InCommandList, inParams, upscalerDesc);
 
     // Cleanup
     ResetConfigurableBarriers(InCommandList);
@@ -508,42 +475,12 @@ bool FSR31FeatureDx12::PrepareUpscalerInput(ID3D12GraphicsCommandList* InCommand
 
 bool FSR31FeatureDx12::SetUpscalerTarget(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams)
 {
-    const auto& cfg = *Config::Instance();
+    // IFeature_Dx12::Evaluate redirects the Output parameter to an intermediate
+    // buffer when post-processing is active, so the upscaler simply writes to
+    // whatever the parameter table points at.
     _upscalerOutput = nullptr;
-    _mainOutput = nullptr;
 
-    if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_Output, _mainOutput))
-        return false;
-
-    const bool isMotionSharpeningSet =
-        (cfg.MotionSharpnessEnabled.value_or_default() && cfg.MotionSharpness.value_or_default() > 0.0f);
-
-    _isSuperScaling = cfg.OutputScalingEnabled.value_or_default() && LowResMV();
-    _isSharpening = cfg.RcasEnabled.value_or_default() && (_sharpness > 0.0f || isMotionSharpeningSet);
-    _upscalerOutput = _mainOutput;
-
-    // If super scaling, swap in OutputScaler buffer
-    if (_isSuperScaling)
-    {
-        if (OutputScaler->CreateBufferResource(Device, _mainOutput, TargetWidth(), TargetHeight(),
-                                               D3D12_RESOURCE_STATE_UNORDERED_ACCESS))
-        {
-            OutputScaler->SetBufferState(InCommandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-            _upscalerOutput = OutputScaler->Buffer();
-        }
-    }
-
-    // If RCAS is enabled, swap in RCAS buffer (chains with SS if both are enabled)
-    if (_isSharpening && RCAS->IsInit())
-    {
-        if (RCAS->CreateBufferResource(Device, _upscalerOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS))
-        {
-            RCAS->SetBufferState(InCommandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-            _upscalerOutput = RCAS->Buffer();
-        }
-    }
-
-    return true;
+    return TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_Output, _upscalerOutput);
 }
 
 void FSR31FeatureDx12::ConfigureUpscaler(const NVSDK_NGX_Parameter& inParams, ffxDispatchDescUpscale& upscalerDesc)
@@ -741,88 +678,6 @@ bool FSR31FeatureDx12::DispatchUpscaler(ID3D12GraphicsCommandList* InCommandList
     return true;
 }
 
-void FSR31FeatureDx12::PostProcess(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams,
-                                   const ffxDispatchDescUpscale& upscaleDesc)
-{
-    auto& state = State::Instance();
-    auto& cfg = *Config::Instance();
-
-    // If enabled, RCAS reads from the FSR output and writes to the next stage, either 
-    // the OutputScaler buffer or the final output.
-    if (_isSharpening)
-    {
-        // Transition FSR output for reading by RCAS
-        if (_upscalerOutput != RCAS->Buffer())
-        {
-            ResourceBarrier(InCommandList, _upscalerOutput, 
-                D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 
-                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-        }
-
-        RCAS->SetBufferState(InCommandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
-        // Configure RCAS
-        RcasConstants rcasConstants {};
-
-        rcasConstants.Sharpness = _sharpness;
-        inParams.Get(NVSDK_NGX_Parameter_MV_Scale_X, &rcasConstants.MvScaleX);
-        inParams.Get(NVSDK_NGX_Parameter_MV_Scale_Y, &rcasConstants.MvScaleY);
-
-        if (DepthInverted())
-        {
-            rcasConstants.CameraNear = upscaleDesc.cameraFar;
-            rcasConstants.CameraFar = upscaleDesc.cameraNear;
-        }
-        else
-        {
-            rcasConstants.CameraNear = upscaleDesc.cameraNear;
-            rcasConstants.CameraFar = upscaleDesc.cameraFar;
-        }
-
-        // Determine RCAS Output Target
-        // If scaling is next, write to the scaler's internal buffer. Otherwise, write to the final app texture.
-        ID3D12Resource* rcasOutput = _isSuperScaling ? OutputScaler->Buffer() : _mainOutput;
-
-        if (!RCAS->Dispatch(Device, InCommandList, _upscalerOutput, _inputBuffers.MotionVectors, rcasConstants,rcasOutput))
-            // Fallback if dispatch fails
-            cfg.RcasEnabled.set_volatile_value(false);
-    }
-
-    // Optional output scaling
-    // Input is always OutputScaler->Buffer() here because:
-    //  If RCAS ran above, it wrote into OutputScaler->Buffer().
-    //  If RCAS did NOT run, Evaluate() configured FSR to write directly into OutputScaler->Buffer().  
-    if (_isSuperScaling)
-    {
-        LOG_DEBUG("Scaling output...");
-        OutputScaler->SetBufferState(InCommandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
-        if (!OutputScaler->Dispatch(Device, InCommandList, OutputScaler->Buffer(), _mainOutput))
-        {
-            cfg.OutputScalingEnabled.set_volatile_value(false);
-            state.changeBackend[Handle()->Id] = true;
-            return;
-        }
-    }
-
-    // Composite ImGui overlay
-    if (!cfg.OverlayMenu.value_or_default() && _frameCount > 30)
-    {
-        if (Imgui != nullptr && Imgui.get() != nullptr)
-        {
-            if (Imgui->IsHandleDifferent())
-                Imgui.reset();
-            else
-                Imgui->Render(InCommandList, _mainOutput);
-        }
-        else
-        {
-            if (Imgui == nullptr || Imgui.get() == nullptr)
-                Imgui = std::make_unique<Menu_Dx12>(GetForegroundWindow(), Device);
-        }
-    }
-}
-
 void FSR31FeatureDx12::GetReactiveAndTransparencyMasks(ID3D12GraphicsCommandList* InCommandList, InputResources& inputs)
 {
     auto& cfg = *Config::Instance();
@@ -907,7 +762,7 @@ void FSR31FeatureDx12::SetConfigurableBarriers(ID3D12GraphicsCommandList* InComm
                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
     // Transition output to UAV for writing
-    TryResourceBarrier(InCommandList, _mainOutput, cfg.OutputResourceBarrier, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    TryResourceBarrier(InCommandList, _upscalerOutput, cfg.OutputResourceBarrier, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
 void FSR31FeatureDx12::ResetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList) const
@@ -921,7 +776,7 @@ void FSR31FeatureDx12::ResetConfigurableBarriers(ID3D12GraphicsCommandList* InCo
                        cfg.MVResourceBarrier);
     TryResourceBarrier(InCommandList, _inputBuffers.Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                        cfg.DepthResourceBarrier);
-    TryResourceBarrier(InCommandList, _mainOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, cfg.OutputResourceBarrier);
+    TryResourceBarrier(InCommandList, _upscalerOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, cfg.OutputResourceBarrier);
 
     if (_inputBuffers.ExposureMap)
         TryResourceBarrier(InCommandList, _inputBuffers.ExposureMap, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,

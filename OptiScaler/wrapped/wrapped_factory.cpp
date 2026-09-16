@@ -23,20 +23,8 @@ static HRESULT hkGetParent(IDXGIAdapter* This, REFIID riid, void** ppParent)
     if (f == nullptr)
         return result;
 
-    // auto ref = f->AddRef() - 1;
-    // f->Release();
-
     auto wf = new WrappedIDXGIFactory7(f);
     *ppParent = wf;
-
-    // if (ref > 1)
-    // {
-    //     auto wfRef = 1;
-    //     do
-    //     {
-    //         wfRef = wf->AddRef();
-    //     } while (wfRef < ref);
-    // }
 
     return result;
 }
@@ -59,7 +47,12 @@ static void AttachToAdapter(IDXGIAdapter* adapter)
 
         DetourAttach(&(PVOID&) o_GetParent, hkGetParent);
 
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to attach GetParent detour: {:X}", detourResult);
+            o_GetParent = nullptr;
+        }
     }
 }
 

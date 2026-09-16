@@ -32,6 +32,7 @@ class D3d12Proxy
         {
             _dll = KernelBaseProxy::GetModuleHandleW_()(L"d3d12.dll");
 
+            // Doing this in games with Agility SDK before they are set up will crash
             if (_dll == nullptr)
                 _dll = NtdllProxy::LoadLibraryExW_Ldr(L"d3d12.dll", NULL, 0);
         }
@@ -133,7 +134,12 @@ class D3d12Proxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_D3D12CreateDevice = addr;
         return addr;
@@ -146,7 +152,12 @@ class D3d12Proxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_D3D12SerializeRootSignature = addr;
         return addr;
@@ -159,7 +170,12 @@ class D3d12Proxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_D3D12CreateRootSignatureDeserializer = addr;
         return addr;
@@ -172,7 +188,12 @@ class D3d12Proxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_D3D12SerializeVersionedRootSignature = addr;
         return addr;
@@ -186,7 +207,12 @@ class D3d12Proxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_D3D12CreateVersionedRootSignatureDeserializer = addr;
         return addr;
@@ -199,7 +225,12 @@ class D3d12Proxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_D3D12GetDebugInterface = addr;
         return addr;
@@ -212,7 +243,12 @@ class D3d12Proxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_D3D12EnableExperimentalFeatures = addr;
         return addr;
@@ -225,7 +261,12 @@ class D3d12Proxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_D3D12GetInterface = addr;
         return addr;

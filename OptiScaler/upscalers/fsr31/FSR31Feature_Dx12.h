@@ -36,22 +36,20 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
 
     feature_version Version() override { return FSR31Feature::Version(); }
 
-    std::string Name() const override { return FSR31Feature::Name(); }
+    Upscaler GetUpscalerType() const override { return Upscaler::FFX; }
 
     /**
      * @brief Initializes the FFX context, selects an FSR version based on configuration and
      availability, and initializes helper shaders.
      * @return true if initialization succeeds.
      */
-    bool Init(ID3D12Device* InDevice, ID3D12GraphicsCommandList* InCommandList,
-              NVSDK_NGX_Parameter* InParameters) override;
+    bool InitInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) override;
 
     /**
      * @brief Executes the upscaling pass. Gathers input and output textures and configuration
-     * from the NGX parameter table. Includes optional, user-configurable pre and post processing
-     * steps for sharpening and scaling.
+     * from the NGX parameter table.
      */
-    bool Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) override;
+    bool EvaluateInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) override;
 
   protected:
     bool _isInReset;
@@ -88,13 +86,6 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
     bool DispatchUpscaler(ID3D12GraphicsCommandList* InCommandList, const ffxDispatchDescUpscale& desc);
 
     /**
-     * @brief Applies optional post-processing to FSR output if configured. Includes options for post-process RCAS,
-     FSR output rescaling and ImGui compositing.
-     */
-    void PostProcess(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams,
-                     const ffxDispatchDescUpscale& upscaleDesc);
-
-    /**
      * @brief Sets optional resource transition barriers. Used in conjunction with game quirk workarounds.
      */
     virtual void SetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList) const;
@@ -105,12 +96,8 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
     virtual void ResetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList) const;
 
   private:
-    bool _isSuperScaling;
-    bool _isSharpening;
-
     InputResources _inputBuffers;
     ID3D12Resource* _upscalerOutput;
-    ID3D12Resource* _mainOutput;
 
     bool CreateUpscalerContext(const NVSDK_NGX_Parameter& ngxParams);
 
@@ -120,6 +107,7 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
 
     uint64_t GetUpscalerOverrideID();
 
+    // Reads the (possibly pipeline-redirected) output target the upscaler must write to.
     bool SetUpscalerTarget(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams);
 
     /**
