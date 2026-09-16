@@ -2,6 +2,7 @@
 #include "nvapi_calls.h"
 #include "proxies/Dxgi_Proxy.h"
 #include <misc/IdentifyGpu.h>
+#include <Config.h>
 #include <NvApiDriverSettings.h>
 #include <hooks/Vulkan_Hooks.h>
 
@@ -153,18 +154,38 @@ NvAPI_Status __cdecl NvAPI_GPU_GetLogicalGpuInfo(NvLogicalGpuHandle logicalHandl
 NvAPI_Status __cdecl NvAPI_GPU_GetPCIIdentifiers(NvPhysicalGpuHandle hPhysicalGpu, NvU32* pDeviceId,
                                                  NvU32* pSubSystemId, NvU32* pRevisionId, NvU32* pExtDeviceId)
 {
-    auto primaryGpu = IdentifyGpu::getPrimaryGpu();
+    // Report the spoofed identity so every vendor check sees the same GPU
+    const NvU32 spoofedVendor = Config::Instance()->SpoofedVendorId.value_or_default();
+    const NvU32 spoofedDevice = Config::Instance()->SpoofedDeviceId.value_or_default();
 
-    *pDeviceId = (primaryGpu.deviceId << 16) | primaryGpu.vendorId;
-    *pSubSystemId = primaryGpu.subsystemId;
-    *pRevisionId = primaryGpu.revisionId;
-    *pExtDeviceId = primaryGpu.deviceId;
+    *pDeviceId = (spoofedDevice << 16) | spoofedVendor;
+    *pSubSystemId = 0;
+    *pRevisionId = 0xA1;
+    *pExtDeviceId = spoofedDevice;
     return OK();
 }
 
 NvAPI_Status __cdecl NvAPI_GPU_GetFullName(NvPhysicalGpuHandle hPhysicalGpu, NvAPI_ShortString szName)
 {
     tonvss(szName, "NVIDIA GeForce RTX 4090");
+    return OK();
+}
+
+NvAPI_Status __cdecl NvAPI_GPU_GetMemoryInfo(NvPhysicalGpuHandle hPhysicalGpu,
+                                             NV_DISPLAY_DRIVER_MEMORY_INFO_V2* pMemoryInfo)
+{
+    if (!pMemoryInfo)
+        return ERROR_VALUE(NVAPI_INVALID_ARGUMENT);
+
+    // Report an RTX 4090-class budget so >= 12 GB VRAM gates pass
+    pMemoryInfo->dedicatedVideoMemory = 24576 * 1024;
+    pMemoryInfo->availableDedicatedVideoMemory = 22000 * 1024;
+    pMemoryInfo->systemVideoMemory = 512 * 1024;
+    pMemoryInfo->sharedSystemMemory = 8192 * 1024;
+
+    if (pMemoryInfo->version >= MAKE_NVAPI_VERSION(NV_DISPLAY_DRIVER_MEMORY_INFO, 2))
+        pMemoryInfo->curAvailableDedicatedVideoMemory = 22000 * 1024;
+
     return OK();
 }
 

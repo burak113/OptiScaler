@@ -419,7 +419,7 @@ template <typename T> NVSDK_NGX_Result NVNGX_Parameters::getT(const char* key, T
         if (k == m_values.end())
             LOG_INFO("NGX param READ: '{}' -> MISSING", key);
         else
-            LOG_INFO("NGX param READ: '{}' -> int {}", key, (int) (long long) (*k).second);
+            LOG_INFO("NGX param READ: '{}' -> int {}", key, static_cast<int>((*k).second));
     }
 
     if (k == m_values.end())
