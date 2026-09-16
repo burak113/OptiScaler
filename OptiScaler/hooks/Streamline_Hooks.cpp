@@ -14,6 +14,8 @@
 #include <imgui/ImGuiNotify.hpp>
 
 #include <json.hpp>
+#include <magic_enum.hpp>
+#include "detours/detours.h"
 #include <sl1_reflex.h>
 #include <NVNGX_Parameter.h>
 
@@ -57,7 +59,6 @@ class ScopedRRActiveEvaluationFrame
 
 
 
-sl::ReflexMode StreamlineHooks::reflexGamesLastMode = sl::ReflexMode::eOff;
 
 static bool TryGetRRTaggedSignal(sl::BufferType type, RRTaggedSignal& signal)
 {
@@ -896,9 +897,6 @@ void StreamlineHooks::logRRSignalTagDiagnostics(uint32_t renderWidth, uint32_t r
     }
 }
 
-
-#include <magic_enum.hpp>
-#include "detours/detours.h"
 
 static bool IsSL1AndDLSSGActive()
 {
