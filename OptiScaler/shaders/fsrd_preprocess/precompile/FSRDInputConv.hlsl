@@ -615,10 +615,13 @@ float3 GetAdaptiveRankFloor(int2 centerPx, float3 centerColor, float centerLuma)
             window[3 * 5 + ry], window[4 * 5 + ry]);
     }
 
-    const float outerMedian = Median3(
-        Median5(rowMedians[0], rowMedians[1], rowMedians[2], rowMedians[3], rowMedians[4]),
-        Median5(colMedians[0], colMedians[1], colMedians[2], colMedians[3], colMedians[4]),
-        innerMedian);
+    const float rowPass =
+        Median5(rowMedians[0], rowMedians[1], rowMedians[2], rowMedians[3], rowMedians[4]);
+
+    const float colPass =
+        Median5(colMedians[0], colMedians[1], colMedians[2], colMedians[3], colMedians[4]);
+
+    const float outerMedian = Median3(rowPass, colPass, innerMedian);
 
     float outerMin = window[0];
     float outerMax = window[0];
@@ -632,25 +635,9 @@ float3 GetAdaptiveRankFloor(int2 centerPx, float3 centerColor, float centerLuma)
         outerMax = max(outerMax, window[oi]);
     }
 
-    // How far each median sits from the extremes of its own window, as a fraction of
-    // that window's range.
-    //
-    // A median pinned against an extreme means the window is mostly noise and the
-    // median describes it badly; a centred one means the population is well resolved.
-    // The classic algorithm makes this a hard yes/no, but the inputs are noisy, so a
-    // pixel sitting near the boundary flips stages between frames - and with nothing
-    // temporal in this path that reads as flicker. Grading the confidence lets the two
-    // stages blend through the ambiguous band instead of snapping across it.
-    //
-    // Where both stages accept the centre the blend is the centre either way, so the
-    // exact-centre property this filter depends on is untouched.
+    // Each window's spread, the scale everything below is measured against.
     const float innerRange = max(innerMax - innerMin, 1e-5f);
     const float outerRange = max(outerMax - outerMin, 1e-5f);
-
-    const float innerConfidence = saturate(
-        2.0f * min(innerMedian - innerMin, innerMax - innerMedian) / innerRange);
-    const float outerConfidence = saturate(
-        2.0f * min(outerMedian - outerMin, outerMax - outerMedian) / outerRange);
 
     // Acceptance by magnitude, not by rank.
     //
@@ -679,10 +666,34 @@ float3 GetAdaptiveRankFloor(int2 centerPx, float3 centerColor, float centerLuma)
             ? center
             : outerMedian;
 
+    // Graded escalation. A median pinned against an extreme of its own window means
+    // that window is mostly noise and describes the population badly, but the inputs
+    // are noisy too, so a hard yes/no lets a pixel near the boundary flip stages
+    // between frames - flicker, with nothing temporal in this path to absorb it.
+    // Grading it lets the two stages blend through the ambiguous band instead.
+    //
+    // The ramp has to be steep. The hard test it replaces asked only whether the
+    // median had collapsed onto an extreme, which is false for almost every real
+    // window, so the graded form has to read 1 across that same majority and fall off
+    // only where the median is nearly pinned. Normalising against half the range
+    // instead tops out at the exact midpoint of min and max alone - an ordinary median
+    // at 30% of the range scores 0.6, which would publish an accepted centre as 60%
+    // itself and 40% coarse median, diluting the exact-centre property everywhere at
+    // once.
+    static const float s_TrustBand = 0.1f;
+
+    const float innerConfidence = saturate(
+        min(innerMedian - innerMin, innerMax - innerMedian) /
+        max(s_TrustBand * innerRange, 1e-6f));
+    const float outerConfidence = saturate(
+        min(outerMedian - outerMin, outerMax - outerMedian) /
+        max(s_TrustBand * outerRange, 1e-6f));
+
     // Escalate only as far as the confidence warrants. The 3x3 answer is preferred
     // wherever it is well resolved, the 5x5 takes over as that confidence falls, and
-    // when neither window resolves a trustworthy median the coarse median is all
-    // that is left.
+    // where neither window resolves a trustworthy median the coarse median is all that
+    // is left. Where both stages accept the centre the blend is the centre either way,
+    // so the exact-centre property is untouched.
     const float result = lerp(
         lerp(outerMedian, outerResult, outerConfidence),
         innerResult,
