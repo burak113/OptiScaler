@@ -1,4 +1,4 @@
-#include <pch.h>
+﻿#include <pch.h>
 
 #include "Streamline_Hooks.h"
 
@@ -81,6 +81,9 @@ static bool TryGetRRTaggedSignal(sl::BufferType type, RRTaggedSignal& signal)
         return true;
     case sl::kBufferTypeSpecularRayDirectionHitDistance:
         signal = RRTaggedSignal::SpecularRayDirectionHitDistance;
+        return true;
+    case sl::kBufferTypeLinearDepth:
+        signal = RRTaggedSignal::LinearDepth;
         return true;
     case sl::kBufferTypeDiffuseHitNoisy:
         signal = RRTaggedSignal::DiffuseNoisy;
@@ -232,6 +235,8 @@ const char* StreamlineHooks::getRRTaggedSignalName(RRTaggedSignal signal)
         return "SpecularHitDistance";
     case RRTaggedSignal::SpecularRayDirectionHitDistance:
         return "SpecularRayDirectionHitDistance";
+    case RRTaggedSignal::LinearDepth:
+        return "LinearDepth";
     case RRTaggedSignal::DiffuseNoisy:
         return "Diffuse.Noisy";
     case RRTaggedSignal::DiffuseDenoised:
@@ -273,6 +278,8 @@ const char* StreamlineHooks::getRRPreferredTagFormat(RRTaggedSignal signal)
         return "DXGI_FORMAT_R16_FLOAT or DXGI_FORMAT_R32_FLOAT";
     case RRTaggedSignal::SpecularRayDirectionHitDistance:
         return "DXGI_FORMAT_R16G16B16A16_FLOAT or DXGI_FORMAT_R32G32B32A32_FLOAT";
+    case RRTaggedSignal::LinearDepth:
+        return "DXGI_FORMAT_R32_FLOAT or DXGI_FORMAT_R16_FLOAT";
     case RRTaggedSignal::DiffuseNoisy:
     case RRTaggedSignal::DiffuseDenoised:
     case RRTaggedSignal::SpecularNoisy:
@@ -330,6 +337,8 @@ bool StreamlineHooks::isRRPreferredTagFormat(RRTaggedSignal signal, DXGI_FORMAT 
     case RRTaggedSignal::SpecularRayDirectionHitDistance:
         return format == DXGI_FORMAT_R16G16B16A16_FLOAT ||
                format == DXGI_FORMAT_R32G32B32A32_FLOAT;
+    case RRTaggedSignal::LinearDepth:
+        return format == DXGI_FORMAT_R32_FLOAT || format == DXGI_FORMAT_R16_FLOAT;
     case RRTaggedSignal::DiffuseNoisy:
     case RRTaggedSignal::DiffuseDenoised:
     case RRTaggedSignal::SpecularNoisy:

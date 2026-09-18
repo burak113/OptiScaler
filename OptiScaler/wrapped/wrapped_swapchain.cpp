@@ -522,6 +522,14 @@ static HRESULT LocalPresent(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
         State::Instance().frameCount = _frameCounter;
     }
 
+    // Deferred feature work (e.g. the FSR-RR denoiser dispatch recorded into
+    // its own command list at evaluate) must execute after every title
+    // submission of this frame and before the next frame's list, which is
+    // exactly this point: the title has submitted all its command lists and
+    // the swapchain has not been presented yet.
+    if (auto* feature = State::Instance().currentFeature)
+        feature->SubmitDeferredCommandLists();
+
     LOG_DEBUG("Calling original present");
 
     // swapchain present

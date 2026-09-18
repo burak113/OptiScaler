@@ -1,10 +1,10 @@
-// FSR-RR Conversion & Packing Shader
+﻿// FSR-RR Conversion & Packing Shader
 #include "FSRDPreprocessCommon.hlsli"
 
 #define MainRS \
     "RootFlags(0), " \
     "CBV(b0), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 14), visibility = SHADER_VISIBILITY_ALL), " \
+    "DescriptorTable(SRV(t0, numDescriptors = 16), visibility = SHADER_VISIBILITY_ALL), " \
     "DescriptorTable(UAV(u0, numDescriptors = 8), visibility = SHADER_VISIBILITY_ALL), "
 
 // Dispatch config
@@ -32,12 +32,20 @@ static const float s_MissingDiffuseHitDistance = s_MaxRayHitDistance;
 static const float s_InvalidSpecularHitDistance = -1.0f;
 static const float s_Type1RoughnessThreshold = 0.5f / 1023.0f;
 
+// The same floor as a runtime value, so the trade it makes can be tuned.
+//
+// Flooring the demodulation divisor caps the gain on dark surfaces, but it also breaks the
+// demodulate/remodulate round trip: whatever the floored divisor could not represent is
+// handed to the skip signal, which reaches the screen without passing the denoiser. On a
+// noisy input that remainder is noise, so a high floor trades amplified noise inside the
+// denoiser for unfiltered noise beside it. Which side of that trade is cheaper depends on the
+// title, so the value is exposed rather than fixed.
+
 // Five-tap Gaussian run along the steered axis. Deliberately broad: the whole point
 // of steering is that a long kernel is safe once it is known not to cross an edge.
-static const float s_SteerWeights[5] = { 0.15f, 0.22f, 0.26f, 0.22f, 0.15f };
 
 // Flags
-#define FLAGS_NON_GAMMA_ALBEDO          (1 << 0)
+
 #define FLAGS_LINEAR_DEPTH              (1 << 1)
 
 #define FLAGS_PACKED_ROUGHNESS          (1 << 2)
@@ -45,11 +53,17 @@ static const float s_SteerWeights[5] = { 0.15f, 0.22f, 0.26f, 0.22f, 0.15f };
 #define FLAGS_HAS_SPEC_HIT_DISTANCE     (1 << 4)
 #define FLAGS_SPECULAR_SIGNAL_INDIRECT  (1 << 5)
 #define FLAGS_HAS_EMISSIVE_INPUT        (1 << 6)
-#define FLAGS_ZERO_ROUGH_HANDOVER       (1 << 7)
+#define FLAGS_FLOOR_HANDOVER       (1 << 7)
 #define FLAGS_MOTION_VECTORS_JITTERED   (1 << 8)
 #define FLAGS_DISPLAY_RESOLUTION_MOTION (1 << 9)
 #define FLAGS_NORMALS_VIEW_SPACE        (1 << 11)
 #define FLAGS_HAS_COMBINED_SPEC_HIT_DISTANCE (1 << 14)
+// Title-published optional inputs. Each is inert unless the resource was validated.
+#define FLAGS_TITLE_LINEAR_DEPTH       (1 << 12)
+#define FLAGS_HAS_RESPONSIVITY_MASK    (1 << 13)
+// InBiasMask holds a real DLSS bias-current-color mask rather than an unused binding.
+#define FLAGS_HAS_BIAS_MASK            (1 << 15)
+// Diagnostic: right half of the frame runs with the floor disabled.
 // Debug Flags
 #define FLAGS_DEBUG                     (1 << 16)
 #define FLAGS_DEBUG_MODE_MASK           (0xFF << 16)
@@ -89,6 +103,22 @@ static const float s_SteerWeights[5] = { 0.15f, 0.22f, 0.26f, 0.22f, 0.15f };
 #define FLAGS_DEBUG_ALBEDO_STRUCTURE    (27 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_ZERO_ROUGH_FLOOR    (28 << 17 | FLAGS_DEBUG)
 
+// Optional-input validation views
+// Value 30 was the removed reflected-image motion disagreement view; it now shows the specular
+// signal's share of the demodulated split. Value 29 went with the input itself.
+#define FLAGS_DEBUG_SPECULAR_SPLIT      (30 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_TITLE_DEPTH      (31 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_TITLE_DEPTH_DIFF    (32 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_RESPONSIVITY     (33 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_IN_BIAS_MASK        (34 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_DEMOD_GAIN          (35 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_HIT_DIST_GATE       (36 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_DENOISER_FRACTION   (37 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_FLOOR_STRUCTURE     (38 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_SKIP_UNMAPPED       (39 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_SKIP_FLOOR          (40 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_SKIP_RAW_INJECT     (41 << 17 | FLAGS_DEBUG)
+
 // DLSS-RR Inputs
 Texture2D<half3> InColor : register(t0); // RGB - NVSDK_NGX_Parameter_Color
 Texture2D<float> InDepth : register(t1); // R - NVSDK_NGX_Parameter_Depth - hardware or linear - inverted or not
@@ -107,6 +137,11 @@ Texture2D<float4> InEmissive : register(t11); // Optional NVSDK_NGX_Parameter_GB
 Texture2D<float4> InSpecularRayDirectionHitDistance : register(t12);
 // Optional diffuse ray length. Read as .r or .a depending on DiffuseHitDistanceMode.
 Texture2D<float4> InDiffuseHitDistance : register(t13);
+// Optional already-linearised view depth published by the title.
+Texture2D<float> InTitleLinearDepth : register(t14);
+// Optional per-pixel responsivity hint. Polarity is a title property, so it is a
+// runtime parameter rather than something this shader may assume.
+Texture2D<float4> InResponsivityMask : register(t15);
 
 // RR 1.2 typed signals. Resource order matches Conversion::SignalResources.
 RWTexture2D<half4> OutIndirectSpecular : register(u0); // RGB: demodulated radiance, A: hit distance
@@ -158,19 +193,50 @@ cbuffer CB_Packing : register(b0)
     // 0 = absent, 1 = scalar in R, 2 = combined ray-direction resource, distance in A.
     uint DiffuseHitDistanceMode;
 
-    // Blends the handover between FloorSeed's isotropic floor (0) and the selected
-    // detail filter (1).
-    float ZeroRoughDetail;
-    // Which detail filter that blend targets. See ZERO_ROUGH_DETAIL_* below.
-    uint ZeroRoughDetailMode;
-    float _Padding0;
-};
+    // Blends the handover between the isotropic floor (0) and the rank filter (1).
+    float FloorHandoverDetail;
+    // 0 = off, 1 = zero-roughness pixels only, 2 = every pixel.
+    uint FloorHandoverMode;
 
-#define ZERO_ROUGH_DETAIL_HYBRID_MEDIAN 0u
-#define ZERO_ROUGH_DETAIL_STEERED       1u
-#define ZERO_ROUGH_DETAIL_KUWAHARA      2u
-#define ZERO_ROUGH_DETAIL_ADAPTIVE_RANK 3u
-#define ZERO_ROUGH_DETAIL_ALBEDO_GUIDED 4u
+    // The responsivity hint is inert at zero. It reads the title's per-pixel statement about
+    // where the denoiser's temporal history cannot be trusted, whose polarity ResponsivityInvert
+    // selects.
+    float ResponsivityTrustThreshold;
+    uint ResponsivityInvert;
+    // Was the trust threshold of the removed reflected-image motion field. The slot is retained
+    // so that every parameter below it keeps the offset this cbuffer and the C++ struct agree
+    // on; a 4-byte mismatch here would silently shift all of them and the size assert would not
+    // see it.
+    float _Padding0;
+    float _Padding1;
+
+    // Fraction of the DLSS bias mask applied when routing pixels around the denoiser.
+    // 0 reproduces the previous behaviour exactly.
+    float BiasMaskStrength;
+
+    // Smoothing radius on the floor/raw clamp. 0 reproduces the exact min().
+    float FloorSoftMin;
+
+    // Scales the floor handover weight. 1.0 is the full graft.
+    float FloorHandoverStrength;
+
+    // Strength of the per-sample floor/raw ceiling clamp. 0 - the default - disables it and
+    // closes the residual instead; above 0 it is restored, with the ceiling taken from a low
+    // pass of the raw as far as the guide allows.
+    float FloorClampSmoothing;
+
+    // Scales the raw-preserving blend inside the floor. 0 is a pure spatial floor and 1.0 the
+    // full blend; exposed so the blend's contribution to the image can be removed outright.
+    float FloorRawBlend;
+
+    // How far the guide structure gate suppresses that blend on flat surfaces.
+    // 0 reproduces the ungated behaviour, 1.0 is fully gated.
+    float FloorStructureGate;
+
+    // Floor on the albedo used as the demodulation divisor. Higher caps the gain on dark
+    // surfaces but hands more of the pixel to the unfiltered skip signal.
+    float DemodDivisorFloor;
+};
 
 bool IsSet(uint mask) { return (Flags & mask) == mask; }
 uint GetDebugMode() { return (Flags & FLAGS_DEBUG_MODE_MASK); }
@@ -209,9 +275,21 @@ float3 GetCanonicalMotionUv(uint2 px)
     return float3(valid ? motionUv : 0.0f, valid ? 1.0f : 0.0f);
 }
 
+// The reflected-image motion input, and the routing it drove, are gone: measured on the one
+// title that published the input, the disagreement it reported tracked the camera's speed
+// rather than any misalignment - 0% of the frame routed while still, 67% while moving - and
+// every routed pixel had its specular radiance republished unfiltered, which put the current
+// frame's raw noise on screen. See docs/007FirstLight_PT_Unlock_RE_notes.md.
+
 float3 GetViewSpacePos(const int2 px)
 {
-    float inDepth = InDepth[px];
+    // A title that publishes its own linear depth is authoritative: it knows which
+    // linearisation it applied, and deriving it from hardware depth is the step that
+    // has to guess that convention.
+    const bool useTitleDepth = IsSet(FLAGS_TITLE_LINEAR_DEPTH);
+    float inDepth = useTitleDepth
+        ? InTitleLinearDepth[clamp(px, int2(0, 0), int2(DstTexSize.xy) - 1) + int2(InputBase5.xy)]
+        : InDepth[px];
     // InvProjMatrix is unjittered, while px addresses the current jittered
     // raster. Remove the current pixel jitter before reconstructing the ray.
     const float2 uv = (float2(px) + 0.5 - JitterOffsets.xy) * DstTexSize.zw;
@@ -219,7 +297,7 @@ float3 GetViewSpacePos(const int2 px)
     float3 viewSpacePos;
 
     [branch]
-    if (IsSet(FLAGS_LINEAR_DEPTH))
+    if (IsSet(FLAGS_LINEAR_DEPTH) || useTitleDepth)
     {
         // InDepth is the signed-linear output of FloorSeed. Scale the complete
         // view ray so XY and Z describe one internally consistent position.
@@ -320,63 +398,6 @@ float GetAlbedoStructure(
     return saturate(maximumDelta * 8.0f);
 }
 
-// Detail-preserving floor for the zero-roughness handover.
-//
-// FloorSeed's floor starts from a 5x5 full median, which is isotropic: it removes any
-// feature thinner than roughly half its kernel. Glyph strokes on a display panel are
-// one or two pixels wide at render resolution, so they are exactly what it deletes,
-// and the a-trous passes then blend what survives into the surrounding colour.
-//
-// A hybrid median takes its medians ALONG the cross and diagonal directions and keeps
-// the middle of those two plus the centre. Impulse noise loses in every direction and
-// is still rejected, but a stroke that is coherent along its own axis wins in at least
-// one, so thin lines, corners and text survive.
-//
-// The correction is applied as a luminance ratio, so the title's chroma is carried
-// through untouched and a pixel whose brightness was never an outlier keeps its
-// original colour exactly.
-float3 GetDetailPreservingFloor(int2 centerPx, float3 centerColor, float centerLuma)
-{
-    const int2 maxBounds = int2(DstTexSize.xy) - 1;
-    const int2 base = int2(InputBase0.xy);
-
-#define FSRD_TAP_LUMA(ox, oy) GetLuminance((float3) GetSafeFP16( \
-    InColor[clamp(centerPx + int2(ox, oy), int2(0, 0), maxBounds) + base].rgb))
-
-    const float crossMedian = Median5(
-        FSRD_TAP_LUMA(-1, 0), FSRD_TAP_LUMA(1, 0),
-        FSRD_TAP_LUMA(0, -1), FSRD_TAP_LUMA(0, 1), centerLuma);
-    const float diagonalMedian = Median5(
-        FSRD_TAP_LUMA(-1, -1), FSRD_TAP_LUMA(1, -1),
-        FSRD_TAP_LUMA(-1, 1), FSRD_TAP_LUMA(1, 1), centerLuma);
-
-#undef FSRD_TAP_LUMA
-
-    const float hybridLuma = Median3(crossMedian, diagonalMedian, centerLuma);
-    return centerColor * (hybridLuma * rcp(max(centerLuma, 1e-4f)));
-}
-
-// Structure-tensor steered floor.
-//
-// The hybrid median above is a rank filter, so it only rejects samples that are
-// outliers among their own neighbours. That works on isolated impulses and fails on
-// clustered noise, where several adjacent samples are wrong together and none of them
-// reads as an outlier. Averaging is what removes that, but an isotropic average is
-// what destroys the text.
-//
-// This resolves the conflict by measuring which direction is safe to average in. The
-// local gradient covariance - the structure tensor - has one eigenvector pointing
-// across the dominant edge and one along it, and the gap between the eigenvalues says
-// how strongly oriented the neighbourhood actually is. Running the kernel along the
-// minor axis sends it down the length of a glyph stroke and never across it, so a
-// stroke survives a far stronger blur than any isotropic kernel could apply. Where
-// nothing is oriented - flat panel background, which is where the noise lives -
-// coherence collapses and the result falls back to an isotropic mean, which is
-// exactly the aggressive smoothing that region wants.
-//
-// Applied as a luminance ratio, so the title's chroma is carried through untouched.
-// Shared 5x5 luminance window. Every detail filter below works from this, and all
-// indices into it are compile-time, so it stays in registers rather than scratch.
 void LoadLumaWindow5x5(int2 centerPx, out float window[25])
 {
     const int2 maxBounds = int2(DstTexSize.xy) - 1;
@@ -395,165 +416,6 @@ void LoadLumaWindow5x5(int2 centerPx, out float window[25])
     }
 }
 
-float3 GetSteeredFloor(int2 centerPx, float3 centerColor, float centerLuma)
-{
-    const int2 maxBounds = int2(DstTexSize.xy) - 1;
-    const int2 base = int2(InputBase0.xy);
-
-    // The tensor takes central differences across the inner 3x3, which reaches one
-    // pixel beyond it in every direction.
-    float window[25];
-    LoadLumaWindow5x5(centerPx, window);
-
-    // Gradient outer products over the inner 3x3, Gaussian weighted so the tensor
-    // describes this pixel rather than its whole block.
-    float jxx = 0.0f;
-    float jxy = 0.0f;
-    float jyy = 0.0f;
-
-    [unroll]
-    for (int gy = 1; gy <= 3; ++gy)
-    {
-        [unroll]
-        for (int gx = 1; gx <= 3; ++gx)
-        {
-            const int idx = gy * 5 + gx;
-            const float dx = 0.5f * (window[idx + 1] - window[idx - 1]);
-            const float dy = 0.5f * (window[idx + 5] - window[idx - 5]);
-            const float w = (gx == 2 && gy == 2)
-                ? 4.0f
-                : ((gx == 2 || gy == 2) ? 2.0f : 1.0f);
-
-            jxx += w * dx * dx;
-            jxy += w * dx * dy;
-            jyy += w * dy * dy;
-        }
-    }
-
-    // Closed-form eigenvalues of the symmetric 2x2.
-    const float trace = jxx + jyy;
-    const float delta = sqrt(max(Square(jxx - jyy) + 4.0f * Square(jxy), 0.0f));
-    const float lambdaMajor = 0.5f * (trace + delta);
-
-    // (major - minor) / (major + minor), which reduces to delta / trace. 1 means a
-    // single dominant orientation, 0 means isotropic.
-    const float coherence = saturate(delta * rcp(max(trace, 1e-6f)));
-
-    // Eigenvector of the major eigenvalue points across the edge. Both closed forms
-    // degenerate on different inputs, so take whichever is better conditioned.
-    float2 across = float2(jxy, lambdaMajor - jxx);
-    const float2 acrossAlt = float2(lambdaMajor - jyy, jxy);
-    if (dot(acrossAlt, acrossAlt) > dot(across, across))
-        across = acrossAlt;
-
-    const float acrossLengthSq = dot(across, across);
-    const float2 alongEdge = acrossLengthSq > 1e-12f
-        ? float2(-across.y, across.x) * rsqrt(acrossLengthSq)
-        : float2(1.0f, 0.0f);
-
-    // Steered pass. InputConv binds no sampler, so taps are rounded to the nearest
-    // texel; duplicates at small offsets simply reweight the centre.
-    float steeredLuma = 0.0f;
-    float steeredWeight = 0.0f;
-
-    [unroll]
-    for (int t = -2; t <= 2; ++t)
-    {
-        const int2 tapPx = clamp(
-            centerPx + int2(round(alongEdge * float(t))), int2(0, 0), maxBounds) + base;
-        const float w = s_SteerWeights[t + 2];
-        steeredLuma += w * GetLuminance((float3) GetSafeFP16(InColor[tapPx].rgb));
-        steeredWeight += w;
-    }
-
-    steeredLuma *= rcp(max(steeredWeight, 1e-6f));
-
-    // Isotropic fallback for the incoherent case, reusing the window already loaded.
-    float isotropicLuma = 0.0f;
-    [unroll]
-    for (int iy = 1; iy <= 3; ++iy)
-    {
-        [unroll]
-        for (int ix = 1; ix <= 3; ++ix)
-        {
-            const float w = (ix == 2 && iy == 2)
-                ? 4.0f
-                : ((ix == 2 || iy == 2) ? 2.0f : 1.0f);
-            isotropicLuma += w * window[iy * 5 + ix];
-        }
-    }
-    isotropicLuma *= (1.0f / 16.0f);
-
-    const float filteredLuma = lerp(isotropicLuma, steeredLuma, coherence);
-    return centerColor * (filteredLuma * rcp(max(centerLuma, 1e-4f)));
-}
-
-// Generalized Kuwahara floor.
-//
-// Nine overlapping 3x3 candidate windows, one centred on each pixel of the inner 3x3.
-// The lowest-variance candidate is the one least likely to straddle an edge, so
-// publishing its mean smooths hard inside a region while never averaging across a
-// boundary. Unlike a rank filter it is an averaging filter, so it clears clustered
-// noise; unlike a plain blur it cannot bleed across a stroke.
-//
-// The classic four-quadrant form rounds corners badly, which matters for glyphs.
-// Using nine symmetric candidates instead of four leaves a corner with a candidate
-// that fits inside it.
-float3 GetKuwaharaFloor(int2 centerPx, float3 centerColor, float centerLuma)
-{
-    float window[25];
-    LoadLumaWindow5x5(centerPx, window);
-
-    float bestMean = window[12];
-    float bestVariance = 1e30f;
-
-    [unroll]
-    for (int cy = 1; cy <= 3; ++cy)
-    {
-        [unroll]
-        for (int cx = 1; cx <= 3; ++cx)
-        {
-            float sum = 0.0f;
-            float sumSq = 0.0f;
-
-            [unroll]
-            for (int sy = -1; sy <= 1; ++sy)
-            {
-                [unroll]
-                for (int sx = -1; sx <= 1; ++sx)
-                {
-                    const float v = window[(cy + sy) * 5 + (cx + sx)];
-                    sum += v;
-                    sumSq += v * v;
-                }
-            }
-
-            const float mean = sum * (1.0f / 9.0f);
-            const float variance = GetVariance(sumSq * (1.0f / 9.0f), mean);
-
-            if (variance < bestVariance)
-            {
-                bestVariance = variance;
-                bestMean = mean;
-            }
-        }
-    }
-
-    return centerColor * (bestMean * rcp(max(centerLuma, 1e-4f)));
-}
-
-// Adaptive-radius rank floor.
-//
-// The classic adaptive median. A rank filter fails on clustered noise because a
-// cluster is not an outlier among its own neighbours - but it stops being a cluster
-// once the window is large enough to contain more clean samples than dirty ones. So
-// rather than fixing a radius, this grows it only where the smaller window could not
-// resolve a trustworthy median.
-//
-// Its key property is the one the hybrid median already showed matters here: whenever
-// the centre is not itself an extreme of the smallest trustworthy window, the centre
-// is published unchanged. Clean pixels come out bit-identical, text included, and only
-// samples that genuinely look like impulses are replaced.
 float3 GetAdaptiveRankFloor(int2 centerPx, float3 centerColor, float centerLuma)
 {
     float window[25];
@@ -615,13 +477,10 @@ float3 GetAdaptiveRankFloor(int2 centerPx, float3 centerColor, float centerLuma)
             window[3 * 5 + ry], window[4 * 5 + ry]);
     }
 
-    const float rowPass =
-        Median5(rowMedians[0], rowMedians[1], rowMedians[2], rowMedians[3], rowMedians[4]);
-
-    const float colPass =
-        Median5(colMedians[0], colMedians[1], colMedians[2], colMedians[3], colMedians[4]);
-
-    const float outerMedian = Median3(rowPass, colPass, innerMedian);
+    const float outerMedian = Median3(
+        Median5(rowMedians[0], rowMedians[1], rowMedians[2], rowMedians[3], rowMedians[4]),
+        Median5(colMedians[0], colMedians[1], colMedians[2], colMedians[3], colMedians[4]),
+        innerMedian);
 
     float outerMin = window[0];
     float outerMax = window[0];
@@ -635,9 +494,25 @@ float3 GetAdaptiveRankFloor(int2 centerPx, float3 centerColor, float centerLuma)
         outerMax = max(outerMax, window[oi]);
     }
 
-    // Each window's spread, the scale everything below is measured against.
+    // How far each median sits from the extremes of its own window, as a fraction of
+    // that window's range.
+    //
+    // A median pinned against an extreme means the window is mostly noise and the
+    // median describes it badly; a centred one means the population is well resolved.
+    // The classic algorithm makes this a hard yes/no, but the inputs are noisy, so a
+    // pixel sitting near the boundary flips stages between frames - and with nothing
+    // temporal in this path that reads as flicker. Grading the confidence lets the two
+    // stages blend through the ambiguous band instead of snapping across it.
+    //
+    // Where both stages accept the centre the blend is the centre either way, so the
+    // exact-centre property this filter depends on is untouched.
     const float innerRange = max(innerMax - innerMin, 1e-5f);
     const float outerRange = max(outerMax - outerMin, 1e-5f);
+
+    const float innerConfidence = saturate(
+        2.0f * min(innerMedian - innerMin, innerMax - innerMedian) / innerRange);
+    const float outerConfidence = saturate(
+        2.0f * min(outerMedian - outerMin, outerMax - outerMedian) / outerRange);
 
     // Acceptance by magnitude, not by rank.
     //
@@ -666,40 +541,55 @@ float3 GetAdaptiveRankFloor(int2 centerPx, float3 centerColor, float centerLuma)
             ? center
             : outerMedian;
 
-    // Graded escalation. A median pinned against an extreme of its own window means
-    // that window is mostly noise and describes the population badly, but the inputs
-    // are noisy too, so a hard yes/no lets a pixel near the boundary flip stages
-    // between frames - flicker, with nothing temporal in this path to absorb it.
-    // Grading it lets the two stages blend through the ambiguous band instead.
-    //
-    // The ramp has to be steep. The hard test it replaces asked only whether the
-    // median had collapsed onto an extreme, which is false for almost every real
-    // window, so the graded form has to read 1 across that same majority and fall off
-    // only where the median is nearly pinned. Normalising against half the range
-    // instead tops out at the exact midpoint of min and max alone - an ordinary median
-    // at 30% of the range scores 0.6, which would publish an accepted centre as 60%
-    // itself and 40% coarse median, diluting the exact-centre property everywhere at
-    // once.
-    static const float s_TrustBand = 0.1f;
-
-    const float innerConfidence = saturate(
-        min(innerMedian - innerMin, innerMax - innerMedian) /
-        max(s_TrustBand * innerRange, 1e-6f));
-    const float outerConfidence = saturate(
-        min(outerMedian - outerMin, outerMax - outerMedian) /
-        max(s_TrustBand * outerRange, 1e-6f));
-
     // Escalate only as far as the confidence warrants. The 3x3 answer is preferred
     // wherever it is well resolved, the 5x5 takes over as that confidence falls, and
-    // where neither window resolves a trustworthy median the coarse median is all that
-    // is left. Where both stages accept the centre the blend is the centre either way,
-    // so the exact-centre property is untouched.
+    // when neither window resolves a trustworthy median the coarse median is all
+    // that is left.
     const float result = lerp(
         lerp(outerMedian, outerResult, outerConfidence),
         innerResult,
         innerConfidence);
 
     return centerColor * (result * rcp(max(centerLuma, 1e-4f)));
+}
+
+// Structure of the diffuse albedo at this pixel's scale, used to gate the raw-preserving
+// blend. The blend asks whether the raw sample resembles the floor, and on a noisy input the
+// noise answers that question itself: flat surfaces pass raw grain through while the floor
+// stays smooth. Albedo answers it noiselessly, being material rather than illumination, so
+// the gate trusts it where it carries information.
+//
+// Near-black albedo carries no material information (unlit billboards, very dark paint), so a
+// confidence term falls back to the ungated behaviour there rather than treating an absence of
+// evidence as evidence of flatness.
+float GetGuideStructure(int2 centerPx, float centerAlbedoLuma)
+{
+    const int2 maxBounds = int2(DstTexSize.xy) - 1;
+    const int2 diffBase = int2(InputBase2.zw);
+
+    float minLuma = centerAlbedoLuma;
+    float maxLuma = centerAlbedoLuma;
+
+    [unroll]
+    for (int y = -1; y <= 1; ++y)
+    {
+        [unroll]
+        for (int x = -1; x <= 1; ++x)
+        {
+            if (x == 0 && y == 0)
+                continue;
+
+            const int2 tapPx = clamp(centerPx + int2(x, y), int2(0, 0), maxBounds);
+            const float luma = GetLuminance(
+                max((float3) GetSafeFP16(InDiffAlbedo[tapPx + diffBase].rgb), 0.0f));
+            minLuma = min(minLuma, luma);
+            maxLuma = max(maxLuma, luma);
+        }
+    }
+
+    const float confidence = SoftAbove(centerAlbedoLuma, 0.02f, 0.015f);
+    const float structure = saturate((maxLuma - minLuma) * 8.0f);
+    return saturate(lerp(1.0f, saturate(structure), FloorStructureGate * confidence));
 }
 
 float3 GetGuideAlbedoAt(int2 px)
@@ -712,70 +602,6 @@ float3 GetGuideAlbedoAt(int2 px)
     return spec + diff;
 }
 
-// Albedo-guided joint bilateral floor.
-//
-// Every filter above has to infer where the edges are from the noisy signal itself.
-// The albedo buffers are G-buffer data and carry no noise at all, so when the panel's
-// structure is present in them they can supply edge weights directly - no inference,
-// no chance of noise being mistaken for structure. That is the textbook arrangement
-// for denoising a demodulated signal.
-//
-// The catch is that flat display albedo carries nothing to guide with, and then every
-// weight collapses to one and this degenerates into a plain 5x5 blur. So the guide's
-// own contrast is measured, and where it has none the result falls back to the hybrid
-// median rather than smearing the panel.
-float3 GetAlbedoGuidedFloor(int2 centerPx, float3 centerColor, float centerLuma)
-{
-    static const float s_GuideSpatial[5] = { 1.0f, 4.0f, 6.0f, 4.0f, 1.0f };
-    static const float s_GuideSigma = 0.05f;
-
-    float window[25];
-    LoadLumaWindow5x5(centerPx, window);
-
-    const float3 guideCenter = GetGuideAlbedoAt(centerPx);
-    const float guideCenterLuma = GetLuminance(guideCenter);
-
-    const float rcpSigmaSq = rcp(Square(s_GuideSigma));
-    float guideMin = guideCenterLuma;
-    float guideMax = guideCenterLuma;
-    float weightedLuma = 0.0f;
-    float totalWeight = 0.0f;
-
-    [unroll]
-    for (int wy = 0; wy < 5; ++wy)
-    {
-        [unroll]
-        for (int wx = 0; wx < 5; ++wx)
-        {
-            const float3 guide = GetGuideAlbedoAt(centerPx + int2(wx - 2, wy - 2));
-            const float guideLuma = GetLuminance(guide);
-            guideMin = min(guideMin, guideLuma);
-            guideMax = max(guideMax, guideLuma);
-
-            // Rational falloff rather than an exponential: same shape where it
-            // matters and no transcendental per tap.
-            const float3 guideDelta = guide - guideCenter;
-            const float rangeWeight = rcp(1.0f + dot(guideDelta, guideDelta) * rcpSigmaSq);
-            const float weight = s_GuideSpatial[wx] * s_GuideSpatial[wy] * rangeWeight;
-
-            weightedLuma += weight * window[wy * 5 + wx];
-            totalWeight += weight;
-        }
-    }
-
-    const float guidedLuma = weightedLuma * rcp(max(totalWeight, 1e-6f));
-    const float3 guided = centerColor * (guidedLuma * rcp(max(centerLuma, 1e-4f)));
-
-    // Below roughly one sigma of spread the guide is flat and tells us nothing.
-    const float guideStructure = saturate((guideMax - guideMin) * rcp(s_GuideSigma));
-    return lerp(
-        GetDetailPreservingFloor(centerPx, centerColor, centerLuma),
-        guided,
-        guideStructure);
-}
-
-// Main Kernel
-//
 [RootSignature(MainRS)]
 [numthreads(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y, 1)]
 void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
@@ -820,7 +646,13 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     const float isZeroRoughness = step(rawRoughness, s_Type1RoughnessThreshold);
 
     const float totalAlbedo = dot(specReflectance.rgb + diffAlbedo.rgb, 1.0f);
-    const float isEmissive = (totalAlbedo > 5.9f);
+    // Emissive reinterpretation, softened.
+    //
+    // As a hard step this flips per frame on any surface whose albedo sits near the
+    // threshold - animated signage and video billboards in particular - and the two sides of
+    // the branch demodulate very differently, so the classification itself becomes a source
+    // of temporal instability. The transition band costs nothing.
+    const float isEmissive = SoftAbove(totalAlbedo, 5.9f, 0.5f);
     // Emissive primary surfaces do not have a meaningful reflection hit distance.
     // Route their radiance through direct diffuse instead of disguising it as
     // indirect specular, where an invalid hit distance can deactivate denoising.
@@ -842,7 +674,6 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     const float rawLuma = GetLuminance(rawColor);
     float4 floorColor = InFloorColor[px];
     const float floorLuma = GetLuminance(floorColor.rgb);
-    floorColor.a = floorLuma;
 
     // The filtered floor before any blend toward raw. This is the median and a-trous
     // result on its own, which is what the zero-roughness handover below publishes.
@@ -857,52 +688,101 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 
     // Clamp floor to minimum and blend in raw values where similar to preserve microcontrast.
     const float floorSimilarity = GetRelativeSimilarity(floorLuma, rawLuma, similarityThreshold);
-    floorColor.rgb = FloorIsolation * lerp(floorColor.rgb, rawColor, saturate(floorSimilarity));
-    floorColor.rgb = min(rawColor, floorColor.rgb);
-    float3 denoiserColor = rawColor - floorColor.rgb;
+    const float isolation = FloorIsolation;
 
-    // Zero-roughness handover
+    // The raw-preserving blend is gated by the guide. Where the surface has structure the raw
+    // sample carries detail the floor's own filtering would have flattened, so keeping it is
+    // the point; where it does not, the only variation a noisy raw sample can contribute is
+    // noise, and the gate refuses it. FloorRawBlend scales the whole term, so the floor can be
+    // reduced to a pure spatial filter for comparison.
+    const float guideStructure = GetGuideStructure(int2(px), GetLuminance(inputDiffAlbedo));
+    const float rawBlend =
+        saturate(floorSimilarity) * guideStructure * saturate(FloorRawBlend);
+
+    floorColor.rgb = isolation * lerp(floorColor.rgb, rawColor, rawBlend);
+    // Transparency / bias mask routing.
     //
-    // RR reads exact-zero roughness as a perfect mirror and reprojects it through a
-    // virtual hit position derived from the specular ray length. Titles that publish
-    // no such length leave that reconstruction undefined, so RR accumulates confident
-    // but misaligned history over these surfaces. Hand them to the spatial floor
-    // instead and withhold the residual, which is the high-frequency part the floor's
-    // median and a-trous passes already rejected. This is a spatial denoise, not a
-    // passthrough: the published colour is the filtered floor, never the raw input.
-    // Every type-1 pixel is handed over whole. A partial handover only ever produced a
-    // ratio of the two paths' faults, and composition now separates them by frequency
-    // instead, which is a better answer to the same question.
-    const float zeroRoughHandover = IsSet(FLAGS_ZERO_ROUGH_HANDOVER) ? isZeroRoughness : 0.0f;
+    // InBiasMask was bound at t8 but never sampled. DLSS-RR marks here every pixel whose
+    // colour should come from the current frame rather than from history: particles, alpha
+    // layers, decals, and animated or video textures. The floor mechanism already provides
+    // the right escape hatch - anything pushed into the floor is subtracted from the denoiser
+    // input and re-added verbatim from the skip signal after denoising - so driving the floor
+    // to the raw colour routes flagged content around the denoiser entirely.
+    const float biasMask = IsSet(FLAGS_HAS_BIAS_MASK)
+        ? saturate((float) InBiasMask[px + int2(InputBase3.zw)])
+        : 0.0f;
+    const float biasWeight = saturate(biasMask * BiasMaskStrength);
+    floorColor.rgb = lerp(floorColor.rgb, rawColor, biasWeight);
+    // Non-negative residual.
+    //
+    // The floor is subtracted from the raw to form the denoiser's input, so a floor above the raw
+    // would ask the denoiser for negative radiance. That guard belongs on the residual, not on the
+    // floor: clamping the floor down to the raw sample would republish the raw's noise through the
+    // skip path on every pixel where the floor wins, which is what the opt-in ceiling clamp below
+    // does when it is enabled. The closure here is deliberately hard - a knee would lift small
+    // negative residuals above zero and publish those pixels on both paths at once.
+    const float3 unclampedFloor = floorColor.rgb;
+    float3 denoiserColor = max(0.0f, rawColor - unclampedFloor);
+
+    // The per-sample ceiling is kept as an opt-in energy guard, off at zero, for a title whose
+    // floor overshoots for a reason other than noise. The share it clamps away is exactly the
+    // share it replaces with the raw sample, so it is also the control that puts the grain
+    // back; the SkipRawInject view shows the pixels it takes.
+    float3 rawInject = 0.0f;
+    [branch]
+    if (FloorClampSmoothing > 0.0f)
+    {
+        // A low pass of the raw is a less noisy ceiling than a single sample: it is what the
+        // surface's neighbourhood supports rather than what one sample happened to read. Where
+        // the guide says the surface carries structure the raw sample is detail worth keeping,
+        // so the ceiling follows the guide between the two.
+        const half3 smoothedRaw = GetSafeFP16(
+            (InColor[clamp(colorPx + int2(-1, -1), int2(0, 0), int2(DstTexSize.xy) - 1)].rgb +
+             InColor[clamp(colorPx + int2( 0, -1), int2(0, 0), int2(DstTexSize.xy) - 1)].rgb * 2.0h +
+             InColor[clamp(colorPx + int2( 1, -1), int2(0, 0), int2(DstTexSize.xy) - 1)].rgb +
+             InColor[clamp(colorPx + int2(-1,  0), int2(0, 0), int2(DstTexSize.xy) - 1)].rgb * 2.0h +
+             InColor[clamp(colorPx                              , int2(0, 0), int2(DstTexSize.xy) - 1)].rgb * 4.0h +
+             InColor[clamp(colorPx + int2( 1,  0), int2(0, 0), int2(DstTexSize.xy) - 1)].rgb * 2.0h +
+             InColor[clamp(colorPx + int2(-1,  1), int2(0, 0), int2(DstTexSize.xy) - 1)].rgb +
+             InColor[clamp(colorPx + int2( 0,  1), int2(0, 0), int2(DstTexSize.xy) - 1)].rgb * 2.0h +
+             InColor[clamp(colorPx + int2( 1,  1), int2(0, 0), int2(DstTexSize.xy) - 1)].rgb) * (1.0f / 16.0f));
+
+        const float clampSmoothing = saturate(FloorClampSmoothing) * (1.0f - guideStructure);
+        const float3 clampCeiling = lerp(rawColor, (float3) smoothedRaw, clampSmoothing);
+        const float3 clampedFloor = SoftMin(clampCeiling, unclampedFloor, FloorSoftMin);
+        rawInject = unclampedFloor - clampedFloor;
+        floorColor.rgb = clampedFloor;
+        denoiserColor = max(0.0f, rawColor - clampedFloor);
+    }
+
+    // Which pixels take the floor handover, and how strongly.
+    //
+    // The graft combines RR's low frequencies with the floor's high frequencies in composition,
+    // so unlike the floor split it takes nothing from the denoiser's input. That is what makes
+    // it safe to widen past the exact-zero-roughness pixels it was written for. See the handover
+    // section of docs/fsrd_pipeline_contract.md for why those pixels needed it and why a partial
+    // handover was rejected.
+    float floorHandover = 0.0f;
+    if (IsSet(FLAGS_FLOOR_HANDOVER))
+    {
+        const float handoverMask = (FloorHandoverMode == 2u) ? 1.0f : isZeroRoughness;
+        floorHandover = saturate(handoverMask * FloorHandoverStrength);
+    }
 
     // The isotropic floor is the wrong tool for panel content: it is what removes the
     // text. Blend toward a directional median that keeps thin structure and leaves
     // non-outlier pixels at their original colour.
     float3 handoverColor = filteredFloor;
     [branch]
-    if (zeroRoughHandover > 0.0f)
+    if (floorHandover > 0.0f)
     {
-        float3 detailFloor;
-        switch (ZeroRoughDetailMode)
-        {
-            case ZERO_ROUGH_DETAIL_STEERED:
-                detailFloor = GetSteeredFloor(int2(px), rawColor, rawLuma);
-                break;
-            case ZERO_ROUGH_DETAIL_KUWAHARA:
-                detailFloor = GetKuwaharaFloor(int2(px), rawColor, rawLuma);
-                break;
-            case ZERO_ROUGH_DETAIL_ADAPTIVE_RANK:
-                detailFloor = GetAdaptiveRankFloor(int2(px), rawColor, rawLuma);
-                break;
-            case ZERO_ROUGH_DETAIL_ALBEDO_GUIDED:
-                detailFloor = GetAlbedoGuidedFloor(int2(px), rawColor, rawLuma);
-                break;
-            default:
-                detailFloor = GetDetailPreservingFloor(int2(px), rawColor, rawLuma);
-                break;
-        }
+        // One filter, not a menu of five. The rank filter was the only one of the set that
+        // left a pixel which was not an outlier exactly as it found it, and the only one that
+        // survived comparison against the others on real content; the averaging variants were
+        // an A/B that had already answered its question.
+        const float3 detailFloor = GetAdaptiveRankFloor(int2(px), rawColor, rawLuma);
 
-        handoverColor = lerp(filteredFloor, detailFloor, saturate(ZeroRoughDetail));
+        handoverColor = lerp(filteredFloor, detailFloor, saturate(FloorHandoverDetail));
     }
 
     // RR's input is never attenuated. The two paths meet in composition, where they
@@ -967,6 +847,41 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 
         const float3 canonicalMotion = GetCanonicalMotionUv(px);
 
+        // Specular motion tracking handover.
+        //
+        // Scaling the ray length by roughness is a continuous handover with a defensible
+        // meaning: a shorter virtual hit distance places the reflection nearer the surface,
+        // so the specular reprojects with the surface as the weight goes to zero. As a hard
+        // cut it toggles per pixel and per frame wherever roughness varies around the
+        // threshold - clearcoat, wet asphalt, painted metal at grazing angles - and each
+        // toggle discontinuously changes how RR reprojects that pixel.
+        //
+        // Bias-masked pixels are excluded: their colour is not a surface reflection and the
+        // hit distance that comes with them is not meaningful.
+        const float specularTracking =
+            SoftBelow(roughness, 0.30f, 0.15f) * (1.0f - isEmissive) * (1.0f - biasWeight);
+
+        // The title's own statement that the specular signal's temporal history cannot be
+        // trusted. Inert at zero, so it does nothing until asked for.
+        const float responsivityRaw = IsSet(FLAGS_HAS_RESPONSIVITY_MASK)
+            ? InResponsivityMask[px].r
+            : 0.0f;
+
+        // How much of the specular radiance leaves the temporal path, 0..1, driven only by the
+        // title's own responsivity hint. A reflected-image motion field used to drive it too and
+        // was measured harmful; see the rejected list in docs/fsrd_pipeline_contract.md.
+        float specularRouteWeight = 0.0f;
+
+        // A responsivity hint is a statement rather than a gradient, so it hands the pixel
+        // over whole.
+        if (IsSet(FLAGS_HAS_RESPONSIVITY_MASK) && ResponsivityTrustThreshold > 0.0f)
+        {
+            const bool unstable = ResponsivityInvert != 0u
+                ? responsivityRaw > ResponsivityTrustThreshold
+                : responsivityRaw < ResponsivityTrustThreshold;
+            specularRouteWeight = max(specularRouteWeight, unstable ? 1.0f : 0.0f);
+        }
+
         // The specular ray length feeds RR's indirect-specular signal. It does not
         // alter RR's primary-surface motion.
         const float rawHitDist = IsSet(FLAGS_HAS_SPEC_HIT_DISTANCE)
@@ -977,12 +892,17 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                 : s_InvalidSpecularHitDistance);
         const bool hasInputHitDist =
             isfinite(rawHitDist) && rawHitDist >= 0.0f && rawHitDist <= 65504.0f;
-        // Preserve the title's specular-ray classification verbatim. A finite value is
-        // a geometry hit and FP16_MAX is a real environment miss; primary-surface depth
-        // is not a substitute for either.
+        // The title's classification is preserved verbatim: a finite value is a geometry hit and
+        // FP16-max is a real environment miss, and primary-surface depth is not a substitute for
+        // either. Where a title publishes neither - 007 First Light does not - the indirect path
+        // falls back to the primary surface's view distance, because RR writes no denoised output
+        // at all for a signal with no finite ray length. See the title quirks in
+        // docs/fsrd_pipeline_contract.md.
         const float reflectionHitDistance = hasInputHitDist
             ? rawHitDist
-            : s_InvalidSpecularHitDistance;
+            : (IsSet(FLAGS_SPECULAR_SIGNAL_INDIRECT)
+                ? max(abs(viewSpacePos.z), 1e-3f)
+                : s_InvalidSpecularHitDistance);
 
         const float2 motionUv = canonicalMotion.xy;
         const float depthDelta = isfinite(prevViewSpacePos.z)
@@ -994,16 +914,50 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 
         const float3 specWeight = saturate(specReflectance.rgb);
         const float3 diffWeight = saturate(diffAlbedo.rgb);
-        const float3 rcpTotalWeight = rcp(diffWeight + specWeight);
-        const float3 specularColor = denoiserColor * (specWeight * rcpTotalWeight);
+        // Split the composited radiance between the two signals by reflectance ratio. Where
+        // both are effectively zero the ratio is meaningless, so the pixel goes down the
+        // diffuse path - it carries no reprojection state and cannot smear.
+        const float3 totalWeight = diffWeight + specWeight;
+        const float3 specFraction = specWeight * rcp(max(totalWeight, DemodDivisorFloor));
+        const float3 isSplitValid =
+            smoothstep(0.5f * DemodDivisorFloor, DemodDivisorFloor, totalWeight);
+
+        const float3 specularColor = denoiserColor * (specFraction * isSplitValid);
         const float3 diffuseColor = denoiserColor - specularColor;
 
-        const half3 demodSpecular = GetSafeFP16(specularColor / specReflectance.rgb);
-        const half3 demodDiffuse = GetSafeFP16(diffuseColor / diffAlbedo.rgb);
+        // A pixel the title itself reports as unresponsive cannot be reprojected with the
+        // primary motion. Publish it through the skip signal instead - composition adds that at
+        // full sharpness from the current frame - and hand the denoiser zero radiance there, so
+        // there is no misaligned history to smear. The pixel's energy is preserved exactly.
+        const float3 routedRadiance = specularColor * specularRouteWeight;
+        floorColor.rgb += routedRadiance;
+
+        // Demodulate against a floored divisor; the remodulation below still uses the true
+        // albedo, so the gap between the two is caught by the residual and routed into the
+        // skip signal rather than silently lost.
+        const float3 specDenom = max(specReflectance.rgb, DemodDivisorFloor);
+        const float3 diffDenom = max(diffAlbedo.rgb, DemodDivisorFloor);
+
+        const half3 demodSpecular =
+            GetSafeFP16((specularColor - routedRadiance) / specDenom);
+        const float demodGain = rcp(min(GetLuminance(specDenom), GetLuminance(diffDenom)));
+
+        const half3 demodDiffuse = GetSafeFP16(diffuseColor / diffDenom);
 
         // Anything that cannot survive modulation and FP16 clamping remains in the skip signal.
         const float3 remodColor = (demodSpecular * specReflectance.rgb) + (demodDiffuse * diffAlbedo.rgb);
-        floorColor.rgb += max(0.0f, denoiserColor - remodColor);
+        // The share of the pixel that modulation could not represent. It travels around the
+        // denoiser in the skip signal, which is what preserves the pixel's energy - and also
+        // what puts it on screen unfiltered, so it is the first place to look when the skip
+        // signal reads noisier than the floor it also carries.
+        const float3 unmappedShare = max(0.0f, denoiserColor - remodColor - routedRadiance);
+        // The routed radiance is already part of the floor colour by this point, so this is the
+        // floor's own share of the skip signal rather than a second contribution to it.
+        const float3 skipFloorShare = floorColor.rgb;
+
+        // The routed radiance is already in the skip signal, so it is excluded here to keep
+        // the split exactly energy conserving.
+        floorColor.rgb += unmappedShare;
 
         // A finite value is a geometry hit and FP16-max is a real environment miss;
         // both are valid distances and are preserved verbatim.
@@ -1018,7 +972,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         // RR's Virtual Hit Pos view reconstructs correctly on titles that supply the
         // guide, so this is a conformance gap rather than an observed fault.
         const half hitDist = IsSet(FLAGS_SPECULAR_SIGNAL_INDIRECT)
-            ? half(reflectionHitDistance)
+            ? half(reflectionHitDistance * specularTracking)
             : half(0.0f);
 
         [branch]
@@ -1055,24 +1009,23 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             OutDirectDiffuse[px] = half4(0.0f, 0.0f, 0.0f, s_MissingDiffuseHitDistance);
         }
 
-        // May be for better perceptual encoding efficiency in some configurations.
-        //
-        // WARNING: demodulation above divided by the LINEAR reflectance, but both
-        // consumers (FSRDOutputComp and the structured-proxy/detail passes) remodulate with
-        // whatever is stored here. Taking this branch therefore multiplies by
-        // sqrt(a) where it divided by a, brightening every surface with albedo < 1.
-        // It is currently unreachable because FSRDFeature_Dx12 always sets
-        // NonGammaAlbedo; making the flag configurable requires matching the
-        // demodulation above and both remodulation sites first.
-        [branch]
-        if (!IsSet(FLAGS_NON_GAMMA_ALBEDO))
-        {
-            specReflectance = sqrt(specReflectance);
-            diffAlbedo = sqrt(diffAlbedo);
-        }
         
-        OutSpecAlbedo[px] = half4(GetSafeFP16(specReflectance), 0.0f);
-        OutDiffAlbedo[px] = half4(GetSafeFP16(diffAlbedo), 0.0f);
+        // How much of this pixel's radiance the denoiser receives through the specular signal
+        // rather than the diffuse one. It is the albedo ratio's share of the demodulated split,
+        // so it is the title's own material split rather than anything this shader decided, and
+        // it is what the debug view and the probe both report.
+        const float specularShare = saturate(GetLuminance(specularColor) *
+                                            rcp(max(GetLuminance(denoiserColor), 1e-3f)));
+        // The specular albedo's alpha has no consumer. Carry that share in it, so the probe can
+        // report how much of the frame reaches the denoiser through the specular signal at all -
+        // a signal it may then refuse to denoise if the ray-length guide is unusable.
+        OutSpecAlbedo[px] = half4(GetSafeFP16(specReflectance), half(specularShare));
+        // The diffuse albedo's alpha has no consumer. Carry whether this pixel's published floor
+        // exceeds its raw sample, so the probe can report the share of the frame the floor path
+        // takes over. That share is what decides how soft the image looks: on it the residual
+        // collapses to zero and the skip signal is the filter's own low pass.
+        const float floorCrossing = GetLuminance(rawColor) <= GetLuminance(unclampedFloor) ? 1.0f : 0.0f;
+        OutDiffAlbedo[px] = half4(GetSafeFP16(diffAlbedo), half(floorCrossing));
         // Skip-signal alpha is the luminance of its own RGB - the composition pass
         // adds it to the denoised luminance to build the raw-correlation reference,
         // and the skip path below writes it that way. floorColor.rgb has been
@@ -1084,8 +1037,15 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         const float3 safeFloorColor = GetSafeFP16(floorColor.rgb);
         OutSkipSignal[px] = half4(safeFloorColor, GetLuminance(safeFloorColor));
 
-        OutHandover[px] = half4(GetSafeFP16(handoverColor), half(zeroRoughHandover));
+        OutHandover[px] = half4(GetSafeFP16(handoverColor), half(floorHandover));
         
+        // Values the optional-input views below report, read once so every view shows
+        // exactly what the logic above used.
+        const float titleDepthRaw = IsSet(FLAGS_TITLE_LINEAR_DEPTH)
+            ? InTitleLinearDepth[clamp(int2(px), int2(0, 0), int2(DstTexSize.xy) - 1) +
+                                 int2(InputBase5.xy)]
+            : 0.0f;
+
         [branch]
         if (IsSet(FLAGS_DEBUG))
         {
@@ -1243,11 +1203,116 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                     // What the handover actually publishes. Non-handover pixels stay
                     // black so the affected surfaces are unambiguous, and the colour
                     // shown is the exact value composition will receive.
-                    debugColor = zeroRoughHandover > 0.0f ? handoverColor : 0.0f;
+                    debugColor = floorHandover > 0.0f ? handoverColor : 0.0f;
                     break;
 
                 case FLAGS_DEBUG_ALBEDO_OVERSHOOT:
                     debugColor = albedoOvershoot;
+                    break;
+
+                // Optional-input validation views.
+
+                // The specular signal's share of the demodulated split: how much of this pixel's
+                // radiance the denoiser receives through the specular signal rather than the
+                // diffuse one. Read from the albedo ratio, so it is the title's material split
+                // rather than anything this shader decided.
+                case FLAGS_DEBUG_SPECULAR_SPLIT:
+                    debugColor = TurboColormap(specularShare);
+                    break;
+
+                case FLAGS_DEBUG_IN_TITLE_DEPTH:
+                    debugColor = IsSet(FLAGS_TITLE_LINEAR_DEPTH)
+                        ? TurboColormap(saturate(
+                            abs(titleDepthRaw) / max(DebugDepthMax, 1e-3f)))
+                        : float3(1.0f, 0.0f, 1.0f);
+                    break;
+
+                case FLAGS_DEBUG_TITLE_DEPTH_DIFF:
+                {
+                    // Title depth minus the depth this converter would have derived, both
+                    // as magnitudes so a sign-convention difference does not read as a
+                    // scale difference. Green means the title reports the surface further
+                    // away, red means nearer; a black field means the two agree.
+                    if (!IsSet(FLAGS_TITLE_LINEAR_DEPTH))
+                        debugColor = float3(1.0f, 0.0f, 1.0f);
+                    else
+                    {
+                        // Signed, not magnitude. A title's linear depth may be a positive
+                        // distance while this converter's is a signed view Z, and comparing
+                        // magnitudes cannot see that - which is precisely the difference that
+                        // decides whether the two fields agree. Green means the title reports
+                        // the surface further along +Z, red means the opposite; black means
+                        // they match in sign and scale.
+                        debugColor = VisualizeSignedDiff(titleDepthRaw - InDepth[px], 1.0f);
+                    }
+                    break;
+                }
+
+                // Where the game is asking for the current frame to be trusted over
+                // history. Should light up on billboards, particles and alpha layers.
+                // Where the guide permits the raw-preserving blend. Blue means the surface
+                // reads as flat and the raw sample is refused, red means it is kept.
+                // The two halves of the skip signal, separated. The floor share is what the
+                // floor path contributes; the unmapped share is what modulation could not
+                // represent and therefore reaches the screen without passing the denoiser.
+                // Grain that lives in the second and not the first is not the floor's.
+                case FLAGS_DEBUG_SKIP_UNMAPPED:
+                    debugColor = TurboColormap(saturate(
+                        GetLuminance(unmappedShare) * rcp(max(GetLuminance(rawColor), 1e-3f))));
+                    break;
+
+                case FLAGS_DEBUG_SKIP_FLOOR:
+                    debugColor = TurboColormap(saturate(
+                        GetLuminance(skipFloorShare) * rcp(max(GetLuminance(rawColor), 1e-3f))));
+                    break;
+
+                // The share of each pixel the ceiling clamp took from the raw sample rather
+                // than from the floor. This is the grain the clamp injects, so it is black
+                // whenever the clamp is off and lights up on exactly the pixels the skip signal
+                // publishes unfiltered instead of filtered.
+                case FLAGS_DEBUG_SKIP_RAW_INJECT:
+                    debugColor = TurboColormap(saturate(
+                        GetLuminance(rawInject) * rcp(max(GetLuminance(rawColor), 1e-3f))));
+                    break;
+
+                case FLAGS_DEBUG_FLOOR_STRUCTURE:
+                    debugColor = TurboColormap(guideStructure);
+                    break;
+
+                case FLAGS_DEBUG_IN_BIAS_MASK:
+                    debugColor = TurboColormap(biasWeight);
+                    break;
+
+                // Demodulation amplification, log2 scaled over [1, 128]. Red areas are where
+                // radiance noise is being multiplied hardest.
+                case FLAGS_DEBUG_DEMOD_GAIN:
+                    debugColor = TurboColormap(saturate(log2(max(demodGain, 1.0f)) * (1.0f / 7.0f)));
+                    break;
+
+                // The specular tracking ramp itself, separated from the buffer it scales.
+                // Blue = closed (the specular reprojects with the surface), red = open.
+                case FLAGS_DEBUG_HIT_DIST_GATE:
+                    debugColor = TurboColormap(specularTracking);
+                    break;
+
+                case FLAGS_DEBUG_DENOISER_FRACTION:
+                {
+                    // Share of the pixel routed to the denoiser rather than around it through
+                    // the skip signal. Blue = travelling around the denoiser, blurred by the
+                    // floor; red = being denoised. Reflections and shadows reading blue is the
+                    // floor capturing lighting it should have passed through.
+                    const float rawLum = GetLuminance(rawColor);
+                    const float denLum = GetLuminance(denoiserColor);
+                    debugColor = TurboColormap(saturate(denLum * rcp(max(rawLum, 1e-3f))));
+                    break;
+                }
+
+                case FLAGS_DEBUG_IN_RESPONSIVITY:
+                    // Magenta when absent. The polarity is printed by the probe rather
+                    // than assumed here, because it is a property of the title.
+                    debugColor = IsSet(FLAGS_HAS_RESPONSIVITY_MASK)
+                        ? TurboColormap(saturate(responsivityRaw))
+                        : float3(1.0f, 0.0f, 1.0f);
                     break;
                 
                 default:

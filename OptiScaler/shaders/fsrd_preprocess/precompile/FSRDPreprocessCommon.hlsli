@@ -1,4 +1,4 @@
-// Types not recognized by Intellisense
+﻿// Types not recognized by Intellisense
 #ifdef __INTELLISENSE__
 #define int16_t  int
 #define uint16_t uint
@@ -287,4 +287,70 @@ float GetRelativeSimilarity(float value, float baseline)
 float GetRelativeSimilarity(float value, float baseline, float threshold)
 {
     return smoothstep(threshold, 1.0f, GetRelativeSimilarity(value, baseline));
+}
+
+// Soft threshold helpers, carried over from the clarity-drafts branch.
+//
+// A binary classification test (x > k) flickers whenever the tested quantity hovers near
+// k: neighbouring pixels and successive frames land on opposite sides of the step, and any
+// branch keyed off the result changes discontinuously. These return the same decision with
+// a C1 transition band of the given width, so downstream blends vary continuously.
+float SoftAbove(float x, float edge, float width)
+{
+    return smoothstep(edge - max(width, 1e-6f), edge, x);
+}
+
+float SoftBelow(float x, float edge, float width)
+{
+    return smoothstep(edge, edge - max(width, 1e-6f), x);
+}
+
+// Edge-stopping weight for surface orientation: 1.0 for coplanar normals, falling off as
+// the angle between them grows. Higher sharpness stops harder at creases.
+float GetNormalWeight(float3 n0, float3 n1, float sharpness)
+{
+    // Floored so pow() stays defined at sharpness 0, where the term disables itself.
+    return pow(max(saturate(dot(n0, n1)), 1e-4f), sharpness);
+}
+
+// Guards the zero vector produced by uninitialized or skipped pixels.
+float3 SafeNormalize(float3 n, float3 fallback)
+{
+    const float len = length(n);
+    return (len > 1e-3f) ? (n * rcp(len)) : fallback;
+}
+
+// Quadratic smooth minimum. k is the blend radius in the units of the inputs; k <= 0
+// returns the exact min(). The result never exceeds min(a, b).
+float3 SoftMin(float3 a, float3 b, float k)
+{
+    if (k <= 0.0f)
+        return min(a, b);
+
+    const float3 h = saturate(0.5f + 0.5f * (b - a) * rcp(k));
+    return lerp(b, a, h) - (k * h) * (1.0f - h);
+}
+
+// Material agreement between two albedo samples.
+//
+// Luminance cannot tell an albedo edge, where a filter should stop, from a shadow or
+// reflection edge, where it should not. Diffuse albedo is the material itself: view
+// independent, illumination free, and free of the Fresnel sweep that makes specular albedo
+// vary across a curved panel with no material change under it.
+//
+// Compared in two parts so a dark and a bright patch of the same paint agree: relative
+// intensity, and chromaticity with intensity divided out.
+float GetAlbedoAgreement(float3 a0, float3 a1)
+{
+    const float l0 = GetLuminance(a0);
+    const float l1 = GetLuminance(a1);
+    const float wIntensity = GetRelativeSimilarity(l0, l1);
+
+    const float3 c0 = a0 * rcp(max(l0, 1e-3f));
+    const float3 c1 = a1 * rcp(max(l1, 1e-3f));
+    const float3 dc = abs(c0 - c1);
+
+    const float wChroma = saturate(1.0f - 0.5f * (dc.r + dc.g + dc.b));
+
+    return wIntensity * wChroma;
 }

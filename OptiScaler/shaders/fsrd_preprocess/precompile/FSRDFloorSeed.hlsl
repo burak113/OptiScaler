@@ -1,4 +1,4 @@
-#include "FSRDPreprocessCommon.hlsli"
+﻿#include "FSRDPreprocessCommon.hlsli"
 
 #define MainRS \
     "RootFlags(0), " \
@@ -72,7 +72,12 @@ Texture2D<float> InDepth : register(t2);
 
 RWTexture2D<half4> OutColor : register(u0);
 RWTexture2D<float> OutLinearDepth : register(u1);
-RWTexture2D<half2> OutDepthGradient : register(u2);
+// RG: View space depth gradient (per-pixel central difference)
+// BA: Octahedrally encoded world normal, used by the floor filter as an edge stop.
+//
+// This aliases the conversion's Motion buffer (RGBA16_FLOAT), which is scratch until the
+// packing shader overwrites it, so the two extra channels cost nothing.
+RWTexture2D<half4> OutDepthGradient : register(u2);
 
 SamplerState LinearSampler : register(s0);
 
@@ -92,6 +97,10 @@ cbuffer CB_Median : register(b0)
     float2 _JitterPadding;
 
     uint4 InputBase; // XY: color origin, ZW: depth origin
+
+    // Origin of the title's normals, which the orientation guide is read from.
+    uint2 NormalBase;
+    float2 _NormalPadding;
 }
 
 bool IsSet(uint mask)
@@ -185,7 +194,12 @@ half4 GetConservativeColor(const uint2 groupID, const int2 gtID)
     const half4 minColor = 0.2h * binColor;
     stableColor.rgb = (half3) lerp(stableColor.rgb, minColor.rgb, instability);
     
-    return half4(stableColor.rgb, instability);
+    // The instability was published here and carried through every filter pass so a runtime
+    // gate could withhold the floor where the seed's neighbourhood was inconsistent. Measured
+    // against the noise it was meant to remove, the gate changed nothing its default did not
+    // already do, so the channel is no longer published. The value still steers the pull toward
+    // the safe lower bound above, which is where it earned its place.
+    return half4(stableColor.rgb, 0.0h);
 }
 
 float2 GetDepthGradient(const uint2 groupID, const int2 gtID)
@@ -296,5 +310,14 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 
     OutColor[px] = color;
     OutLinearDepth[px] = depth;
-    OutDepthGradient[px] = GetSafeSignedFP16(gradient);
+    // Surface orientation guide for the floor filter.
+    //
+    // InNormals was already bound here but never sampled. Depth alone cannot tell a
+    // silhouette from a crease, so the wavelet had to stay conservative everywhere and
+    // raster lighting ended up imprinted in the denoiser signal.
+    const float3 worldNormal = SafeNormalize(InNormals[px + int2(NormalBase)].rgb,
+                                             float3(0.0f, 0.0f, 1.0f));
+    const half2 octNormal = half2(OctahedralEncode(worldNormal));
+
+    OutDepthGradient[px] = half4(gradient, octNormal);
 }

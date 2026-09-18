@@ -7,6 +7,7 @@
 #include "Logger.h"
 #include "resource.h"
 #include "DllNames.h"
+#include <misc/FirstLightPTUnlock.h>
 
 #include "proxies/Dxgi_Proxy.h"
 #include "proxies/Kernel32_Proxy.h"
@@ -1317,6 +1318,9 @@ static void printQuirks(flag_set<GameQuirk>& quirks)
     if (quirks & GameQuirk::CreateSLOnThe2ndDevice)
         stringQuirks.push_back("Create SL on the 2nd device");
 
+    if (quirks & GameQuirk::UnlockPathTracingMenu)
+        stringQuirks.push_back("Unlock Path Tracing / Ray Reconstruction menu options");
+
     state->detectedQuirks.append_range(stringQuirks);
     for (auto& stringQuirk : stringQuirks)
         spdlog::info("Quirk: {}", stringQuirk);
@@ -1663,6 +1667,9 @@ static void CheckQuirks(bool isNvidia)
     State::Instance().gameQuirks = quirks;
 
     printQuirks(quirks);
+
+    if (quirks & GameQuirk::UnlockPathTracingMenu)
+        FirstLightPTUnlock::StartWatcher();
 }
 
 void CheckForExcludedProcess()

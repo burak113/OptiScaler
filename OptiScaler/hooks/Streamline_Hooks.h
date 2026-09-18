@@ -71,6 +71,10 @@ enum class RRTaggedSignal : uint32_t
     ReflectionMotionVectors,
     SpecularHitDistance,
     SpecularRayDirectionHitDistance,
+    // The title's own already-linearised view depth, when it publishes one. Distinct
+    // from the depth the NGX parameters carry, which may be hardware depth that the
+    // title expects its consumer to linearise.
+    LinearDepth,
     DiffuseNoisy,
     DiffuseDenoised,
     SpecularNoisy,

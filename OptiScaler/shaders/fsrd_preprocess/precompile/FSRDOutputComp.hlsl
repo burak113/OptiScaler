@@ -1,4 +1,4 @@
-#include "FSRDPreprocessCommon.hlsli"
+﻿#include "FSRDPreprocessCommon.hlsli"
 
 #define MainRS \
     "RootFlags(0), " \
@@ -92,8 +92,8 @@ cbuffer CB_Comp : register(b0)
     float2 SourceUvOffset;
 
     // Handover refinements, each inert at zero.
-    float ZeroRoughAnchorClamp;
-    float ZeroRoughCorrelationMix;
+    float FloorHandoverAnchorClamp;
+    float FloorHandoverCorrelationMix;
     float _Padding0;
 }
 
@@ -504,7 +504,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                     half3 debugColor = 0.0h;
 
                     [branch]
-                    if (saturate(handover.a) > 0.0h && ZeroRoughAnchorClamp > 0.0f)
+                    if (saturate(handover.a) > 0.0h && FloorHandoverAnchorClamp > 0.0f)
                     {
                         const HandoverBands bands =
                             GetHandoverBands(smID, handover.rgb);
@@ -512,7 +512,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                         const half3 preClamp =
                             max(bands.RRLowBand + bands.DetailHigh, 0.0h);
                         const half3 tolerance =
-                            half(ZeroRoughAnchorClamp) * bands.RRDeviation;
+                            half(FloorHandoverAnchorClamp) * bands.RRDeviation;
                         const half3 postClamp = clamp(
                             preClamp,
                             max(bands.RRLowBand - tolerance, 0.0h),
@@ -544,12 +544,12 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                     half weight = saturate(handover.a);
 
                     [branch]
-                    if (ZeroRoughCorrelationMix > 0.0f && weight > 0.0h)
+                    if (FloorHandoverCorrelationMix > 0.0f && weight > 0.0h)
                     {
                         const half agreement = GetHandoverAgreement(gtID.xy);
                         weight *= lerp(
                             1.0h, 1.0h - agreement,
-                            half(saturate(ZeroRoughCorrelationMix)));
+                            half(saturate(FloorHandoverCorrelationMix)));
                     }
 
                     const half3 debugColor = saturate(handover.a) > 0.0h
@@ -613,7 +613,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                 handoverColor = max(bands.RRLowBand + bands.DetailHigh, 0.0h);
 
                 [branch]
-                if (ZeroRoughAnchorClamp > 0.0f)
+                if (FloorHandoverAnchorClamp > 0.0f)
                 {
                     // RR-anchored clamp.
                     //
@@ -628,7 +628,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                     // untouched, which is why sharpness survives - the clamp only
                     // moves what RR's neighbourhood does not support. This is TAA
                     // history rectification, applied across paths instead of frames.
-                    const half3 tolerance = half(ZeroRoughAnchorClamp) * bands.RRDeviation;
+                    const half3 tolerance = half(FloorHandoverAnchorClamp) * bands.RRDeviation;
 
                     handoverColor = clamp(
                         handoverColor,
@@ -638,7 +638,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             }
 
             [branch]
-            if (ZeroRoughCorrelationMix > 0.0f && handoverWeight > 0.0h)
+            if (FloorHandoverCorrelationMix > 0.0f && handoverWeight > 0.0h)
             {
                 // One global ratio is the wrong instrument, because whether RR damaged
                 // a pixel is a per-pixel fact. Where the two paths agree structurally
@@ -647,7 +647,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                 // exactly the case the handover exists to cover.
                 const half agreement = GetHandoverAgreement(gtID.xy);
                 handoverWeight *= lerp(
-                    1.0h, 1.0h - agreement, half(saturate(ZeroRoughCorrelationMix)));
+                    1.0h, 1.0h - agreement, half(saturate(FloorHandoverCorrelationMix)));
             }
 
             outColor.rgb = lerp(outColor.rgb, handoverColor, handoverWeight);

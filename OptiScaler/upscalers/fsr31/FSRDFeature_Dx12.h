@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "FSR31Feature_Dx12.h"
 #include "hooks/Streamline_Hooks.h"
 #include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
@@ -23,6 +23,10 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     Upscaler GetUpscalerType() const override { return Upscaler::FSR_RR; }
 
     bool EvaluateInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) override;
+
+    // Submits the deferred denoiser dispatch list (DeferredDispatch mode) to
+    // the title's direct queue. Called from the present path, after every
+    // title submission of the frame.
 
   private:
 
@@ -76,6 +80,10 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     DenoiserConfiguration _denoiserAmdDefaults {};
     ffxStructType_t _diffuseSignalDescType = FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE;
     ffxStructType_t _specularSignalDescType = FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR;
+    // Single-signal denoising (DenoiseDiffuse/DenoiseSpecular ini keys): disabled
+    // signals are neither declared at context creation nor dispatched.
+    bool _denoiseDiffuse = true;
+    bool _denoiseSpecular = true;
     // An unset INI value means Auto. Start safely in direct mode, then resolve
     // exactly once from the first frame's validated hit-distance resources.
     ffxStructType_t _autoSpecularSignalDescType = FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR;
@@ -107,6 +115,11 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     // carrying DLSSD create params, so a recreation can arrive without it; the type
     // itself does not change mid-session, and losing it drops the decision back onto
     // an inference that has to guess.
+    // Static on purpose, not by accident: the depth type is a property of the title, not of one
+    // feature instance. NGX publishes it only on a creation that carries DLSSD create params, so
+    // a recreation - a resolution or preset change, or a backend switch - can arrive without it,
+    // and re-deriving per instance would lose a declaration the title already made. See the
+    // reuse path in the constructor for what that costs when it is lost.
     static bool s_ngxDepthTypeSeen;
     static bool s_ngxReportedHWDepth;
 
@@ -128,6 +141,13 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     // lifecycle. Retain whichever optional reprojection sources win selection
     // until this instance has finished submitting the frame.
     Microsoft::WRL::ComPtr<ID3D12Resource> _specularHitDistanceTaggedResource;
+    // Retained per frame: the tag path hands back a resource whose lifetime the caller
+    // must hold for as long as the command list that reads it.
+    Microsoft::WRL::ComPtr<ID3D12Resource> _titleLinearDepthTaggedResource;
+    Microsoft::WRL::ComPtr<ID3D12Resource> _responsivityMaskTaggedResource;
+    // Set when the conversion transitioned a title-owned resource and the frame therefore
+    // owes it a transition back.
+    bool _titleLinearDepthNeedsRestore = false;
     Microsoft::WRL::ComPtr<ID3D12Resource> _specularRayDirectionHitDistanceTaggedResource;
     std::array<uint64_t, static_cast<size_t>(RRTaggedSignal::Count)>
         _lastConsumedSLTagUpdates {};
@@ -158,6 +178,15 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     uint64_t _denoiserDispatchAttempts = 0;
     uint64_t _denoiserDispatchSuccesses = 0;
     uint64_t _denoiserDispatchFailures = 0;
+
+
+    // One-shot GPU probe of the RR diffuse path: copies the denoiser's diffuse
+    // OUTPUT and its (demodulated) INPUT signal into readback buffers on the
+    // deferred list, and logs luma statistics once the fence retires them.
+    // Distinguishes "output is zero", "output is a passthrough of the input"
+    // and "output is actually smoothed" without trusting any visual reading.
+    Microsoft::WRL::ComPtr<ID3D12Resource> _probeReadback[6];
+    DXGI_FORMAT _probeFormats[6] = {};
 
     // Matrices
     // Row-major storage with column-vector multiplication semantics.
@@ -203,10 +232,35 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
      */
     bool PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParams);
 
+    void ResolveSpecularHitDistance(const NVSDK_NGX_Parameter& inParams,
+                                    const RRD3D12SignalTagSnapshot& rrTagSnapshot,
+                                    uint32_t renderWidth, uint32_t renderHeight,
+                                    uint32_t motionWidth, uint32_t motionHeight,
+                                    ID3D12Resource* ngxSpecularHitDistance,
+                                    ID3D12Resource* ngxSpecularRayDirectionHitDistance,
+                                    const DirectX::XMUINT2& ngxSpecularHitDistanceBase,
+                                    const DirectX::XMUINT2& ngxSpecularRayDirectionHitDistanceBase);
+
+    void AcquireOptionalInputs(const NVSDK_NGX_Parameter& inParams,
+                              const RRD3D12SignalTagSnapshot& rrTagSnapshot,
+                              uint32_t renderWidth, uint32_t renderHeight);
+
+    void ResolveDiffuseHitDistance(const NVSDK_NGX_Parameter& inParams,
+                                   uint32_t renderWidth, uint32_t renderHeight);
+
+    bool ResolveCameraMatrices(const NVSDK_NGX_Parameter& inParams,
+                               const sl::Constants& slData, bool hasCurrentSLConstants);
+
+    bool ResolveSignalTypes(bool isReady, bool hasCurrentSLConstants);
+
+
     /**
      * @brief Converts previously retrieved DLSS-RR resources into FSR-RR inputs.
      */
     bool ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InCommandList);
+
+    // Decides whether the title's depth is hardware or already linear, and applies it.
+    void ApplyDepthInterpretation();
 
     /**
      * @brief Dispatches FSR-RR denoiser converted inputs. Runs before upscaler.

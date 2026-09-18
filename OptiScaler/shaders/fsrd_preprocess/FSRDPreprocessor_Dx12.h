@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "SysUtils.h"
 
 #include <DirectXMath.h>
@@ -27,18 +27,20 @@ class FSRDPreprocessor_Dx12
     {
         None = 0,
 
-        NonGammaAlbedo =        1 << 0, // If set, FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO should ALSO be set
         IsDepthLinear =         1 << 1, // Interprets input depth as already linearized for view space calculations
         IsRoughnessPacked =     1 << 2, // Roughness = InNormals.A - NVSDK_NGX_DLSS_Roughness_Mode_Packed (Init param)
         RightHanded =           1 << 3, // View-space forward is negative Z
         HasSpecHitDistance =    1 << 4, // Indirect-specular A contains a valid ray hit distance
         SpecularSignalIndirect = 1 << 5, // Indirect A uses distance/-1; Direct A remains non-negative
         HasEmissiveInput =      1 << 6, // Optional GBuffer.Emissive input is bound
-        ZeroRoughHandover =     1 << 7, // Hand exact-zero-roughness pixels to the spatial floor
+        FloorHandover =     1 << 7, // Hand exact-zero-roughness pixels to the spatial floor
         MotionVectorsJittered = 1 << 8, // Source XY contains previous-current raster jitter
         DisplayResolutionMotion = 1 << 9, // Source MV texture uses display-resolution coordinates
         NormalsViewSpace =     1 << 11, // Transform input view-space normals to world space
         HasCombinedSpecHitDistance = 1 << 14, // Hit distance is combined resource alpha
+        TitleLinearDepth =      1 << 12, // The title publishes its own linearised view depth
+        HasResponsivityMask =   1 << 13, // The title publishes a per-pixel responsivity hint
+        HasBiasMask =           1 << 15, // InBiasMask holds a real DLSS bias-current-color mask
 
         Debug =                 1 << 16, // Denoiser and upscaler bypassed for debug out if this is set
         DebugModeMask =         0xFF << 16,
@@ -80,7 +82,22 @@ class FSRDPreprocessor_Dx12
         DebugInEmissive =        25 << 17 | Debug,
         DebugRRMaterialType =    26 << 17 | Debug,
         DebugAlbedoStructure =   27 << 17 | Debug,
-        DebugZeroRoughFloor =    28 << 17 | Debug,
+        DebugFloorHandover =    28 << 17 | Debug,
+
+        // Optional-input validation views
+        DebugSpecularSplit =     30 << 17 | Debug, // Specular signal's share of the demodulated split
+        DebugInTitleLinearDepth = 31 << 17 | Debug,
+        DebugTitleLinearDepthDiff = 32 << 17 | Debug,
+        DebugInResponsivityMask = 33 << 17 | Debug,
+
+        DebugFloorStructure =    38 << 17 | Debug, // Guide structure gate on the floor's raw blend
+        DebugSkipUnmapped =      39 << 17 | Debug, // Skip share that modulation could not represent
+        DebugSkipFloor =         40 << 17 | Debug, // Skip share contributed by the floor path
+        DebugSkipRawInject =     41 << 17 | Debug, // Skip share the ceiling clamp took from the raw sample
+        DebugInBiasMask =        34 << 17 | Debug, // Bias mask as applied, after strength scaling
+        DebugDemodGain =         35 << 17 | Debug, // 1 / albedo used as the demodulation divisor
+        DebugHitDistGate =       36 << 17 | Debug, // The specular tracking ramp on its own
+        DebugDenoiserFraction =  37 << 17 | Debug, // Share of the pixel reaching the denoiser
     };
 
     enum class CompFlags : uint32_t
@@ -135,11 +152,10 @@ class FSRDPreprocessor_Dx12
             // by hit distance, and the diffuse signal currently declares every pixel a
             // ray miss, so supplying a real length is the whole point of this input.
             ID3D12Resource* InDiffuseHitDistance;
+            ID3D12Resource* InTitleLinearDepth; // Optional title-published linear view depth
+            ID3D12Resource* InResponsivityMask; // Optional per-pixel responsivity hint
         };
 
-        // Must equal the field count of the struct above. The struct is anonymous so
-        // its members can be named directly, which rules out a sizeof-derived count.
-        ID3D12Resource* AsArray[13];
     };
 
     /**
@@ -160,6 +176,13 @@ class FSRDPreprocessor_Dx12
         DirectX::XMFLOAT4 JitterOffsets; // XY: current pixels - ZW: previous pixels
         DirectX::XMUINT2 SpecularHitDistanceBase {};
         DirectX::XMUINT2 DiffuseHitDistanceBase {};
+        // Origin of the title-published linear depth, when one is being consumed, and the
+        // resource state it was validated in.
+        DirectX::XMUINT2 TitleLinearDepthBase {};
+        // The state the title declared for its linear depth, which the conversion records a
+        // barrier out of and back into, and the state the denoiser's input is declared in.
+        uint32_t TitleLinearDepthDeclaredState = 0;
+        uint32_t TitleLinearDepthState = 0;
 
         // How to read InDiffuseHitDistance. 0 = absent, 1 = scalar in R,
         // 2 = combined ray-direction resource with the distance in A.
@@ -179,30 +202,68 @@ class FSRDPreprocessor_Dx12
         float FloorIsolation;
         float RoughnessFloor; // Minimum linear roughness supplied only to RR
         // Whether exact-zero-roughness pixels are handed to the spatial floor at all.
-        bool ZeroRoughHandover = true;
-        // Blends that handover between the isotropic floor (0) and the selected
-        // detail filter (1).
-        float ZeroRoughDetail = 1.0f;
 
-        // Detail filter the blend targets. The rank-based entries republish the centre
-        // untouched wherever it is not an outlier; the averaging entries can clear
-        // clustered noise a rank filter cannot reach, at the cost of never leaving a
-        // pixel exactly as it was.
-        enum class ZeroRoughDetailFilter : uint32_t
-        {
-            HybridMedian = 0,           // rank, fixed 3x3, directional
-            StructureTensorSteered = 1, // averaging, steered along a measured edge
-            Kuwahara = 2,               // averaging, lowest-variance subwindow
-            AdaptiveRank = 3,           // rank, radius grows only where needed
-            AlbedoGuided = 4,           // averaging, edges taken from noise-free albedo
-            Count
-        };
-        ZeroRoughDetailFilter ZeroRoughDetailMode = ZeroRoughDetailFilter::AdaptiveRank;
+        // Strength of the per-sample floor/raw ceiling clamp. It is an energy guard, not a
+        // filter: the share it clamps away is the share it replaces with the raw sample, so
+        // turning it on republishes the raw's noise through the skip signal. 0 - the default -
+        // leaves the floor unclamped and closes the residual instead.
+        float FloorClampSmoothing = 0.0f;
+
+        // Scales the raw-preserving blend inside the floor. 0 removes it entirely.
+        float FloorRawBlend = 1.0f;
+
+        // How far the guide structure gate suppresses that blend on flat surfaces.
+        // 0 reproduces the ungated behaviour.
+        float FloorStructureGate = 1.0f;
+
+        // Floor on the albedo used as the demodulation divisor. Higher caps the gain on dark
+        // surfaces but hands more of the pixel to the unfiltered skip signal.
+        float DemodDivisorFloor = 8e-3f;
+
+        // Which pixels take the floor handover: 0 = off, 1 = exact-zero-roughness pixels
+        // only, 2 = every pixel.
+        uint32_t FloorHandoverMode = 1;
+        // Scales the graft weight. 1.0 is the full handover.
+        float FloorHandoverStrength = 1.0f;
+        // Blends that handover between the isotropic floor (0) and the rank filter (1).
+        float FloorHandoverDetail = 1.0f;
+
+
+        // Turns this frame's probe readbacks on. Off unless asked for: the input probe copies
+        // seven render targets into readback buffers and the output probe adds two more, which is
+        // worth paying for while a number is being chased and worth nothing in a shipped build.
+        bool DiagnosticsEnabled = false;
 
         uint32_t Flags; // Dynamic configuration flags. See: ConfigFlags
         uint32_t InspectorChannel;
         float InspectorScale;
         float DebugDepthMax = 1024.0f; // Full scale for the linear depth debug view
+
+        // The responsivity hint is inert at zero. It reads the title's per-pixel statement about
+        // where the denoiser's temporal history cannot be trusted, whose polarity
+        // ResponsivityInvert selects.
+        float ResponsivityTrustThreshold = 0.0f;
+        bool ResponsivityInvert = false;
+
+        // Floor-filter behaviour, each inert at its neutral value. See FSRDFloor.hlsl.
+        float FloorDetailBoost = 0.0f;
+        float FloorNormalSharpness = 16.0f;
+        float FloorAlbedoGuide = 1.0f;
+        float FloorLumSymmetry = 1.0f;
+        float FloorGrazingSharpness = 0.0f;
+        // How far each a-trous pass returns a downward-biased estimate instead of the bilateral
+        // mean, which bounds the floor below the raw colour rather than letting it drift above.
+        // Off by default, and aimed at a phenomenon that measures far smaller than the note here
+        // once claimed: see the envelope-bias entry in docs/fsrd_pipeline_contract.md before
+        // reaching for it.
+        float FloorEnvelopeBias = 0.0f;
+
+        // Fraction of the DLSS bias mask used to route flagged pixels (particles, alpha
+        // layers, animated textures) around the denoiser via the floor and skip signal.
+        float BiasMaskStrength = 1.0f;
+
+        // Smoothing radius on the floor/raw clamp. 0 reproduces the exact min().
+        float FloorSoftMin = 0.0f;
         bool MotionHistoryValid = false;
         bool MotionVectorsJittered = false;
         bool DisplayResolutionMotion = false;
@@ -222,8 +283,8 @@ class FSRDPreprocessor_Dx12
         uint32_t Flags;
 
         // Handover refinements, each inert at zero. See Composition::Constants.
-        float ZeroRoughAnchorClamp = 0.0f;
-        float ZeroRoughCorrelationMix = 0.0f;
+        float FloorHandoverAnchorClamp = 0.0f;
+        float FloorHandoverCorrelationMix = 0.0f;
 
         ID3D12Resource* InRawColor;
         ID3D12Resource* InColorBeforeParticles; // NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles (Optional)
@@ -288,6 +349,14 @@ class FSRDPreprocessor_Dx12
      */
     void TransitionDenoiserOutputsToRead(ID3D12GraphicsCommandList* cmdList) noexcept;
 
+    void TransitionDenoiserOutputsToUav(ID3D12GraphicsCommandList* cmdList) noexcept;
+
+    /**
+     * @brief Returns a title-owned input the conversion transitioned to its state, so the
+     * title finds the resource where it left it. Safe to call when nothing was transitioned.
+     */
+    void RestoreTitleInputStates(ID3D12GraphicsCommandList* cmdList) noexcept;
+
     /**
      * @brief Publishes the internally denoised AO signal to a tagged game resource and restores
      * both resources to their caller-visible states.
@@ -317,6 +386,22 @@ class FSRDPreprocessor_Dx12
      * @brief Returns the output from the last composition dispatch. Valid until the next conversion dispatch.
      */
     ID3D12Resource* GetCompositionOutput() const;
+
+    /**
+     * @brief Diagnostics: the denoiser's diffuse output texture and the
+     * (demodulated) diffuse input signal it was dispatched with.
+     */
+    ID3D12Resource* GetDenoiserDiffuseOutput() const;
+    ID3D12Resource* GetDenoiserDiffuseInputSignal() const;
+    ID3D12Resource* GetDenoiserSpecularOutput() const;
+
+    /**
+     * @brief Diagnostics: the remaining RR dispatch g-buffer inputs, for the
+     * input-quality probe (normals/roughness, motion vectors, linear depth).
+     */
+    ID3D12Resource* GetDenoiserNormalsInput() const;
+    ID3D12Resource* GetDenoiserMotionInput() const;
+    ID3D12Resource* GetDenoiserLinearDepthInput() const;
 
     /**
      * @brief Copies the contents of the given source texture. Does not automatically set resource barriers.

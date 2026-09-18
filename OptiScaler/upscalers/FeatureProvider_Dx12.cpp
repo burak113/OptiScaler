@@ -78,7 +78,8 @@ bool FeatureProvider_Dx12::GetFeature(Upscaler upscaler, UINT handleId, NVSDK_NG
         else
         {
             // FSR-RR has no upscaler fallback: a Ray Reconstruction request without
-            // the denoiser API is a failure, not a quality downgrade.
+            // the denoiser API is a failure, not a quality downgrade. UpscalerOnly
+            // opts into creating the feature anyway with the denoiser skipped.
             LOG_ERROR("FfxApi denoiser API is not implemented for Dx12");
             return false;
         }

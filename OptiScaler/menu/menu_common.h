@@ -89,6 +89,10 @@ class MenuCommon
     inline static bool _showMipmapCalcWindow = false;
     inline static bool _showHudlessWindow = false;
     inline static bool _showRRResourceInspectorWindow = false;
+
+    // The FSR-RR denoiser tunables, debug views and inspectors draw into their own
+    // window, opened from the FSR-RR page.
+    inline static bool _showRRAdvancedWindow = false;
     inline static bool _rrInspectorActiveOnly = true;
     inline static bool _rrInspectorEmissivePassOnly = false;
     inline static uint64_t _rrInspectorPsoFilter = 0;
@@ -183,6 +187,7 @@ class MenuCommon
     static void RenderMainMenuBottomBar(RenderMenuContext& ctx);
     static void RenderMipmapBiasWindow(RenderMenuContext& ctx, ImGuiWindowFlags flags);
     static void RenderHudlessResourcesWindow(RenderMenuContext& ctx, ImGuiWindowFlags flags);
+    static void RenderRRResourceInspectorWindow(RenderMenuContext& ctx, ImGuiWindowFlags flags);
 
     static void UpdateManualInput(HWND targetHwnd);
 

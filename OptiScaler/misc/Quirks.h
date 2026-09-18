@@ -64,6 +64,7 @@ enum class GameQuirk : uint64_t
     IgnoreTagsWithoutHudlessForFG,
     ForceFGRenderSizeMVs,
     CreateSLOnThe2ndDevice,
+    UnlockPathTracingMenu,
     // Don't forget to add the new entry to printQuirks
     _
 };
@@ -257,9 +258,12 @@ static const QuirkEntry quirkTable[] = {
 
     // 007 First Light
     // SL spoof enough to unlock everything DLSS, uses bindless so restoring compute is complicated
+    // UnlockPathTracingMenu patches the device capability flags that hide Path Tracing / DLSS RR menu options
+    // on non-Nvidia GPUs (offsets are version specific, see FirstLightPTUnlock.cpp)
     QUIRK_ENTRY("007firstlight.exe", GameQuirk::DisableDxgiSpoofing, GameQuirk::RestoreComputeSigOnNonNvidia,
                 GameQuirk::RestoreComputeSigOnNvidia, GameQuirk::ExtendedSigRestore,
-                GameQuirk::IgnoreValidUntilEvaluateForFG, GameQuirk::DoNotLoadAmdxc64),
+                GameQuirk::IgnoreValidUntilEvaluateForFG, GameQuirk::DoNotLoadAmdxc64,
+                GameQuirk::UnlockPathTracingMenu),
 
     // ELDEN RING (for ERSS mod) and ER NIGHTREIGN (for NRSS mod)
     // no spoof needed for DLSS inputs

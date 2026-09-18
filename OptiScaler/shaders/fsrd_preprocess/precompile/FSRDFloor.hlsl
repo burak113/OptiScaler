@@ -1,9 +1,9 @@
-#include "FSRDPreprocessCommon.hlsli"
+﻿#include "FSRDPreprocessCommon.hlsli"
 
 #define MainRS \
     "RootFlags(0), " \
     "CBV(b0), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 3), visibility = SHADER_VISIBILITY_ALL), " \
+    "DescriptorTable(SRV(t0, numDescriptors = 4), visibility = SHADER_VISIBILITY_ALL), " \
     "DescriptorTable(UAV(u0, numDescriptors = 1), visibility = SHADER_VISIBILITY_ALL), " \
     "StaticSampler(s0, " \
         "filter = FILTER_MIN_MAG_MIP_LINEAR, " \
@@ -28,7 +28,12 @@ static const float s_Kernel1D[2] = { 0.44198f, 0.27901f };
 
 Texture2D<half4> InColor : register(t0);
 Texture2D<float> InLinearDepth : register(t1);
-Texture2D<half2> InDepthGradient : register(t2);
+
+// RG: View space depth gradient, BA: Octahedrally encoded world normal
+Texture2D<half4> InDepthGradient : register(t2);
+
+// RGB: Diffuse albedo. The material guide - see GetAlbedoAgreement.
+Texture2D<half3> InDiffAlbedo : register(t3);
 
 RWTexture2D<half4> OutColor : register(u0);
 
@@ -44,11 +49,40 @@ cbuffer CB_Analysis : register(b0)
     int StepSize;
     uint FrameIndex;
     
-    uint Flags;
-    float3 _Padding;
+
+    // Fraction of the Laplacian luminance residual re-injected into the floor.
+    // 0 reproduces the previous behaviour exactly. Only non-zero on the final pass.
+    float DetailBoost;
+
+    // Exponent on the normal edge-stopping weight. Higher stops harder at creases.
+    float NormalSharpness;
+
+    // Fraction of the luminance edge stop released where diffuse albedo says the taps sit
+    // on the same material. 0 reproduces the previous behaviour exactly.
+    float AlbedoGuideStrength;
+
+    // Blends the luminance normaliser from centre-only (0) to max(centre, tap) (1).
+    float LumSymmetry;
+
+    // Additional normal edge-stop exponent applied in proportion to screen space slope.
+    float GrazingSharpness;
+
+    // How far each pass returns a downward-biased estimate instead of the bilateral mean.
+    // See the envelope blend at the end of CSMain.
+    float EnvelopeBias;
+
+    float _Padding;
 }
 
-bool IsSet(uint mask) { return (Flags & mask) == mask; }
+
+// Ceiling on the plane extrapolation, as a fraction of the centre depth. The gradient is a
+// one pixel central difference, so extrapolating it over a 16 pixel stride is only
+// trustworthy up to a point; past this the tap is treated as off-plane.
+static const float s_MaxPlaneOffset = 0.5f;
+
+// Floor on the luminance range norm scale under full albedo agreement. The appearance term
+// is widened, never switched off, so a genuine outlier tap is still rejected.
+static const float s_MinLumScale = 0.1f;
 
 float GetSpatialWeight(int x, int y)
 {
@@ -73,10 +107,19 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     
     const float4 centerColor = InColor[px];    
     const float centerLum = GetLuminance(centerColor.rgb);
-    const float rcpCenterLum = rcp(max(centerLum, 1e-1f));   
+    const float3 centerAlbedo = InDiffAlbedo[px];
+
+    // Albedo carries no material information where it is near black - unlit billboards, very
+    // dark paint, blended transparents whose albedo mixes two surfaces. Relaxing the
+    // luminance stop there would be relaxing it on no evidence, so confidence gates the whole
+    // term and the filter falls back to its previous behaviour.
+    const float albedoConfidence = SoftAbove(GetLuminance(centerAlbedo), 0.02f, 0.015f);
+    const float guideStrength = AlbedoGuideStrength * albedoConfidence;
     
     const float centerDepth = InLinearDepth[px];
-    const float2 centerDepthGrad = InDepthGradient[px];
+    const half4 centerGuide = InDepthGradient[px];
+    const float2 centerDepthGrad = centerGuide.xy;
+    const float3 centerNormal = OctahedralDecode(centerGuide.zw);
 
     // As the scaling increases, bilateral weighting becomes stricter. As smoothness increases,
     // blur strength should decrease. Where smoothness remains low, the weights should allow
@@ -99,9 +142,25 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     // stride-1 tolerance and rejected nearly every tap on sloped geometry.
     const float depthNormScale =
         (1.0f + 2.0f * smoothness) * RcpCrossBlNorm * rcp(1.0f + abs(centerDepth));
+
+    // View depth is signed, so every scale taken from it uses a magnitude: with a negative
+    // centre depth the plane clamp would invert and the slope term would saturate.
+    const float centerDepthMagnitude = max(abs(centerDepth), 1e-2f);
+    const float maxPlaneOffset = s_MaxPlaneOffset * centerDepthMagnitude;
+
+    // Grazing incidence, measured as screen space surface slope.
+    //
+    // The gradient is a one pixel central difference, so on a steeply slanted surface the
+    // kernel spans a large depth range and the plane extrapolation is least reliable exactly
+    // where it is asked to reach furthest. Tightening the orientation stop in proportion to
+    // slope is the geometric counterweight.
+    const float slope = length(centerDepthGrad) * rcp(centerDepthMagnitude);
+    const float grazing = saturate(slope * 64.0f);
+    const float normalSharpness = NormalSharpness + GrazingSharpness * grazing;
     
     const int2 maxBounds = int2(DstTexSize.xy) - 1;
     float4 mean = 0;
+    float3 envelope = 0;
     float totalWeight = 0;
     
     [unroll]
@@ -110,14 +169,33 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         [unroll]
         for (int y = KERNEL_RANGE_MIN; y <= KERNEL_RANGE_MAX; y++)
         {
-            const bool isCenter = (x != 0 || y != 0);
-            const int2 tapPX = clamp(px + (StepSize * int2(x, y)), 0, maxBounds);
-            const float4 color = isCenter ? InColor[tapPX] : centerColor;
-            const float lum = isCenter ? GetLuminance(color.rgb) : centerLum;
+            const bool isTap = (x != 0 || y != 0);
+            const int2 tapOffset = StepSize * int2(x, y);
+            const int2 tapPX = clamp(px + tapOffset, 0, maxBounds);
+            const float4 color = isTap ? InColor[tapPX] : centerColor;
+            const float lum = isTap ? GetLuminance(color.rgb) : centerLum;
 
-            // Bilateral luma weight            
-            float lumDelta = (centerLum - lum) * rcpCenterLum;
-            const float wLum = GetRangeWeight(lumDelta, selfNormScale);
+            // Bilateral luma weight
+            //
+            // Normalising by the centre luminance alone makes the test asymmetric: a dark
+            // centre beside a bright tap stops hard while the bright centre looking back at
+            // the same pair blurs freely, so the two sides of one luminance edge are routed
+            // differently - one into the skip path, one into the denoiser.
+            const float lumNorm = max(lerp(centerLum, max(centerLum, lum), LumSymmetry), 1e-1f);
+            const float lumDelta = (centerLum - lum) * rcp(lumNorm);
+
+            // Material guide.
+            //
+            // Where albedo says the taps sit on the same material, a luminance difference
+            // between them is illumination - a shadow, or a reflection - and it belongs in the
+            // denoiser rather than being preserved into the floor and returned blurred through
+            // the skip signal. The depth and orientation weights still multiply in below, so
+            // this can never blur across a crease or a silhouette; it only releases the
+            // appearance term.
+            const float3 tapAlbedo = isTap ? (float3) InDiffAlbedo[tapPX] : centerAlbedo;
+            const float agreement = isTap ? GetAlbedoAgreement(centerAlbedo, tapAlbedo) : 1.0f;
+            const float lumRelax = lerp(1.0f, s_MinLumScale, guideStrength * agreement);
+            const float wLum = GetRangeWeight(lumDelta, selfNormScale * lumRelax);
 
             // Coplanarity weight. FloorSeed stores a per-pixel central difference of
             // view-space depth, so scaling it by the tap offset predicts the depth this
@@ -126,20 +204,59 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             // plain depth difference, and it is why the gradient is produced at all.
             // The offset comes from the clamped position so border taps stay honest.
             const float depth = InLinearDepth[tapPX];
-            const float2 tapOffset = float2(tapPX - px);
-            const float predictedDepth = centerDepth + dot(centerDepthGrad, tapOffset);
-            const float depthDelta = depth - predictedDepth;
+            const float planeOffset = clamp(dot(centerDepthGrad, float2(tapOffset)),
+                                            -maxPlaneOffset, maxPlaneOffset);
+            const float depthDelta = (centerDepth + planeOffset) - depth;
             const float wDepth = GetRangeWeight(depthDelta, depthNormScale);
 
+            // Orientation weight.
+            //
+            // Stops the kernel at creases and silhouettes that the plane test cannot see,
+            // which is what previously forced the depth and luma norms to stay tight.
+            const float3 tapNormal = OctahedralDecode(InDepthGradient[tapPX].zw);
+            const float wNormal = isTap ? GetNormalWeight(centerNormal, tapNormal, normalSharpness) : 1.0f;
+
             const float wSpatial = GetSpatialWeight(x, y);
-            const float w = wSpatial * wDepth * wLum;
+            const float w = wSpatial * wDepth * wLum * wNormal;
 
             mean += w * color;
+            // The tap clamped below the centre, accumulated with the same weights. Every term is
+            // bounded by the centre, so this sum is too, and it stays an average of the kernel's
+            // lower side rather than a rank filter. The alpha is carried through untouched: the
+            // instability the seed published is a separate channel with its own contract.
+            envelope += w * min(color.rgb, centerColor.rgb);
             totalWeight += w;
         }
     }
 
     mean *= rcp(max(totalWeight, 1e-2f));
+    envelope *= rcp(max(totalWeight, 1e-2f));
+    // Envelope bias, and it is off by default.
+    //
+    // The seed's floor is already a lower estimate, but averaging lets it drift above the raw
+    // colour on some pixels, where it then takes the pixel over: the residual collapses to zero
+    // and the skip signal publishes this filter's own low pass. Blending toward the
+    // clamped-below-centre average bounds each pass's output by its own input, so by induction
+    // the floor can no longer exceed the raw colour.
+    //
+    // Measured on a real frame, the crossing is about 0.1% of pixels, with spikes where detail
+    // boost lifts the floor; the softness this was written for came from something else. See the
+    // envelope-bias entry in docs/fsrd_pipeline_contract.md.
+    mean.rgb = lerp(mean.rgb, envelope, saturate(EnvelopeBias));
 
-    OutColor[px] = GetSafeFP16(mean);
+    // Microcontrast restoration.
+    //
+    // The floor is subtracted from the raw colour to form the denoiser input, and the
+    // remainder travels around the denoiser in the skip signal. Pushing part of the high
+    // frequency residual back into the floor therefore routes texture detail through the skip
+    // path untouched rather than through the denoiser, which is what attenuates it.
+    // DetailBoost is zero on every pass but the last.
+    const float meanLum = GetLuminance(mean.rgb);
+    const float residualLum = centerLum - meanLum;
+    const float3 chroma = mean.rgb * rcp(max(meanLum, 1e-3f));
+
+    float4 outColor = mean;
+    outColor.rgb = max(mean.rgb + (DetailBoost * residualLum) * chroma, 0.0f);
+
+    OutColor[px] = GetSafeFP16(outColor);
 }
