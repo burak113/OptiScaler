@@ -470,7 +470,10 @@ struct RRResourceCandidate
     uint32_t channelCount = 0;
     bool previewSupported = false;
     bool stateKnown = false;
-    bool shaderReadable = false;
+    // The preview pass is compute, so this is the non-pixel read bit, not either shader-read
+    // bit: "shader readable" is ambiguous between the two stages and the ambiguity is what let
+    // a pixel-only resource be handed to it.
+    bool computeReadable = false;
     D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON;
     bool writeObserved = false;
     bool active = false;

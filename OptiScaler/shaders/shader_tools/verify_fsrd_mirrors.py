@@ -44,6 +44,8 @@ CONV_HLSL = os.path.join(PRE, "FSRDInputConv.hlsl")
 COMP_HLSL = os.path.join(PRE, "FSRDOutputComp.hlsl")
 FLOOR_HLSL = os.path.join(PRE, "FSRDFloor.hlsl")
 SEED_HLSL = os.path.join(PRE, "FSRDFloorSeed.hlsl")
+PREPROCESSOR_CPP = os.path.join(ROOT, "OptiScaler", "shaders", "fsrd_preprocess",
+                                "FSRDPreprocessor_Dx12.cpp")
 
 errors = []
 
@@ -607,6 +609,54 @@ def check_debug_mode_names():
                      "select it" % (label, cpp_name))
 
 
+# ---------------------------------------------------------------- albedo storage precision
+
+FORMAT_CONST = re.compile(r"constexpr\s+DXGI_FORMAT\s+(\w+)\s*=\s*DXGI_FORMAT_(\w+)\s*;")
+UNORM_CHANNELS = re.compile(r"^R(\d+)G(\d+)B(\d+)A(\d+)_UNORM$")
+ALBEDO_LEVELS = re.compile(r"static const float s_AlbedoStoreLevels\s*=\s*([0-9.]+)f\s*;")
+
+
+def check_albedo_storage():
+    """The conversion shader quantizes its albedo outputs to the format it stores them in.
+
+    The demodulation divisor, the residual closure and the texel composition remodulates from
+    have to be one number, and the shader gets there by quantizing before the arithmetic
+    rather than letting the texture quantize after it - the difference was 17.6% extra light
+    at an albedo of 0.01. That identity only holds while the storage format is the one the
+    level count was written for, and nothing in either language says so.
+    """
+    formats = {m.group(1): m.group(2) for m in FORMAT_CONST.finditer(read(PREPROCESSOR_CPP))}
+    m = ALBEDO_LEVELS.search(read(CONV_HLSL))
+    if not m:
+        fail("FSRDInputConv.hlsl declares no s_AlbedoStoreLevels, so the albedo quantization "
+             "this check exists for has been removed or renamed")
+        return
+
+    levels = float(m.group(1))
+    for name in ("SpecAlbedo", "DiffAlbedo"):
+        fmt = formats.get(name)
+        if fmt is None:
+            fail("FSRDFormats::%s is not a plain DXGI_FORMAT_* constant, so the format the "
+                 "shader quantizes for cannot be read" % name)
+            continue
+
+        channels = UNORM_CHANNELS.match(fmt)
+        if not channels:
+            fail("FSRDFormats::%s is DXGI_FORMAT_%s but FSRDInputConv.hlsl quantizes it to %g "
+                 "levels; a format without a level count needs the quantization revisited"
+                 % (name, fmt, levels))
+            continue
+
+        widths = {int(bits) for bits in channels.groups()}
+        if len(widths) != 1:
+            fail("FSRDFormats::%s is DXGI_FORMAT_%s, whose channels have different widths, so "
+                 "the shader's single level count cannot describe it" % (name, fmt))
+            continue
+
+        want = float((1 << widths.pop()) - 1)
+        if levels != want:
+            fail("FSRDInputConv.hlsl quantizes albedo to %g levels but FSRDFormats::%s is "
+                 "DXGI_FORMAT_%s, which holds %g" % (levels, name, fmt, want))
 
 
 if __name__ == "__main__":
@@ -614,6 +664,7 @@ if __name__ == "__main__":
     check_flags()
     check_resources()
     check_debug_mode_names()
+    check_albedo_storage()
     if errors:
         print("FSRD mirror check FAILED (%d):" % len(errors))
         for e in errors:

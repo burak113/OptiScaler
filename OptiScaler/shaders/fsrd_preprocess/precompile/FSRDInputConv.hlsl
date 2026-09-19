@@ -283,13 +283,15 @@ float3 GetCanonicalMotionUv(uint2 px)
 
 float3 GetViewSpacePos(const int2 px)
 {
-    // A title that publishes its own linear depth is authoritative: it knows which
-    // linearisation it applied, and deriving it from hardware depth is the step that
-    // has to guess that convention.
-    const bool useTitleDepth = IsSet(FLAGS_TITLE_LINEAR_DEPTH);
-    float inDepth = useTitleDepth
-        ? InTitleLinearDepth[clamp(px, int2(0, 0), int2(DstTexSize.xy) - 1) + int2(InputBase5.xy)]
-        : InDepth[px];
+    // InDepth is the floor seed's canonical signed-linear depth, produced from the
+    // title's published linear depth whenever one was bound and otherwise from the
+    // game's own depth. Every consumer of view-space position - this reconstruction,
+    // the floor passes' depth guide and the denoiser's own depth input - reads that
+    // one field. Re-canonicalising the title's raw resource here instead handed this
+    // pass different geometry from the rest of the chain wherever the derived depth
+    // disagreed with it: motion-Z and view positions built on one depth while RR
+    // reprojected against the other.
+    float inDepth = InDepth[px];
     // InvProjMatrix is unjittered, while px addresses the current jittered
     // raster. Remove the current pixel jitter before reconstructing the ray.
     const float2 uv = (float2(px) + 0.5 - JitterOffsets.xy) * DstTexSize.zw;
@@ -297,7 +299,7 @@ float3 GetViewSpacePos(const int2 px)
     float3 viewSpacePos;
 
     [branch]
-    if (IsSet(FLAGS_LINEAR_DEPTH) || useTitleDepth)
+    if (IsSet(FLAGS_LINEAR_DEPTH))
     {
         // InDepth is the signed-linear output of FloorSeed. Scale the complete
         // view ray so XY and Z describe one internally consistent position.
@@ -348,6 +350,45 @@ float GetRawRoughnessAt(int2 px)
     return saturate(IsSet(FLAGS_PACKED_ROUGHNESS)
         ? normal.a
         : InRoughness[px + int2(InputBase1.zw)]);
+}
+
+// Raw colour for a render-space pixel, taken from the title's colour subrect.
+//
+// The clamp runs on the render-space coordinate and the origin is added after it, in that
+// order - the same two steps LoadLumaWindow5x5 takes. Clamping the texture coordinate instead
+// bounds it by the render size, and that range is anchored at the texture origin: with a
+// non-zero subrect the neighbourhood is read from pixels the render does not cover, and at the
+// subrect's right and bottom edges the taps fold back into its interior instead of stopping at
+// the edge.
+half3 GetRawColorAt(int2 px)
+{
+    px = clamp(px, int2(0, 0), int2(DstTexSize.xy) - 1);
+    return InColor[px + int2(InputBase0.xy)].rgb;
+}
+
+// The albedo outputs are 8-bit UNORM, so the value composition remodulates with is not the
+// value this shader computed - it is round(x * 255) / 255. Demodulating against the computed
+// value and closing the residual against it assumes a round trip the texture cannot perform,
+// and the error is largest where the albedo is smallest: an albedo of 0.01 stores as 3/255,
+// which returns 17.6% more light than the residual accounted for, and that surplus is added
+// rather than filtered because the denoiser never saw it.
+//
+// Quantizing here, before the value is used for anything, makes the demodulation divisor,
+// the residual closure and the stored texel one number, so an identity denoiser returns
+// exactly what was demodulated. Saturating is part of the storage contract as well: a UNORM
+// texel cannot hold a reflectance above 1, and the arithmetic has to agree with the texel
+// rather than with the title's value.
+//
+// The level count is 2^bits - 1 for FSRDFormats::SpecAlbedo / DiffAlbedo in
+// FSRDPreprocessor_Dx12.cpp; verify_fsrd_mirrors.py ties the two together, and the C++
+// static_assert beside those formats fails the build if either stops being 8-bit UNORM.
+static const float s_AlbedoStoreLevels = 255.0f;
+
+float3 QuantizeStoredAlbedo(float3 albedo)
+{
+    // Every result is an exact multiple of 1/255, which is what makes the store lossless:
+    // the FP16 conversion and the UNORM round-to-nearest that follow both land back on it.
+    return round(saturate(albedo) * s_AlbedoStoreLevels) / s_AlbedoStoreLevels;
 }
 
 // Measures whether the title-provided albedos contain spatial material structure in
@@ -504,8 +545,8 @@ float3 GetAdaptiveRankFloor(int2 centerPx, float3 centerColor, float centerLuma)
     // temporal in this path that reads as flicker. Grading the confidence lets the two
     // stages blend through the ambiguous band instead of snapping across it.
     //
-    // Where both stages accept the centre the blend is the centre either way, so the
-    // exact-centre property this filter depends on is untouched.
+    // Confidence grades the median, not the centre: a median pinned against an
+    // extreme can still describe a window that contains the centre perfectly.
     const float innerRange = max(innerMax - innerMin, 1e-5f);
     const float outerRange = max(outerMax - outerMin, 1e-5f);
 
@@ -530,25 +571,29 @@ float3 GetAdaptiveRankFloor(int2 centerPx, float3 centerColor, float centerLuma)
     static const float s_ImpulseMargin = 0.5f;
 
     const float innerMargin = s_ImpulseMargin * innerRange;
-    const float innerResult =
-        (center >= innerMin - innerMargin && center <= innerMax + innerMargin)
-            ? center
-            : innerMedian;
+    const bool innerAccepts =
+        center >= innerMin - innerMargin && center <= innerMax + innerMargin;
+    const float innerResult = innerAccepts ? center : innerMedian;
 
     const float outerMargin = s_ImpulseMargin * outerRange;
-    const float outerResult =
-        (center >= outerMin - outerMargin && center <= outerMax + outerMargin)
-            ? center
-            : outerMedian;
+    const bool outerAccepts =
+        center >= outerMin - outerMargin && center <= outerMax + outerMargin;
+    const float outerResult = outerAccepts ? center : outerMedian;
 
-    // Escalate only as far as the confidence warrants. The 3x3 answer is preferred
-    // wherever it is well resolved, the 5x5 takes over as that confidence falls, and
-    // when neither window resolves a trustworthy median the coarse median is all
-    // that is left.
-    const float result = lerp(
-        lerp(outerMedian, outerResult, outerConfidence),
-        innerResult,
-        innerConfidence);
+    // A centre both stages accepted is kept outright. Acceptance and confidence
+    // answer different questions: both medians can still sit on the background
+    // with zero confidence - a glyph stem one pixel wide in flat ink is exactly
+    // that window - and the escalation blend below would publish that background
+    // over the accepted centre. Only an escalated pixel rides the confidence:
+    // the 3x3 answer is preferred wherever it is well resolved, the 5x5 takes
+    // over as that confidence falls, and when neither window resolves a
+    // trustworthy median the coarse median is all that is left.
+    const float result = innerAccepts && outerAccepts
+        ? center
+        : lerp(
+            lerp(outerMedian, outerResult, outerConfidence),
+            innerResult,
+            innerConfidence);
 
     return centerColor * (result * rcp(max(centerLuma, 1e-4f)));
 }
@@ -666,8 +711,16 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     const float3 albedoOvershoot = max((specReflectance.rgb + diffAlbedo.rgb) - 1.0f, 0.0f);
     specReflectance.rgb = saturate(specReflectance.rgb - albedoOvershoot);
     diffAlbedo.rgb -= max((specReflectance.rgb + diffAlbedo.rgb) - 1.0f, 0.0f);
-    specReflectance.rgb = max(specReflectance.rgb, 1e-4f);
-    diffAlbedo.rgb = max(diffAlbedo.rgb, 1e-4f);
+
+    // Everything downstream - the demodulation divisor, the residual closure, the albedos the
+    // denoiser is handed and the ones composition remodulates with - has to be the value the
+    // 8-bit texture holds, so the quantization is applied once here rather than modeled at
+    // each use. A reflectance that rounds to zero is not a special case to guard against:
+    // composition cannot remodulate it either, so its radiance belongs to the residual by the
+    // same arithmetic that already routes it there, and the demodulation divisor carries its
+    // own floor rather than depending on the albedo for one.
+    specReflectance = QuantizeStoredAlbedo(specReflectance);
+    diffAlbedo = QuantizeStoredAlbedo(diffAlbedo);
     
     // Denoiser input color and floor residual
     const float3 rawColor = GetSafeFP16(InColor[colorPx].rgb);
@@ -736,20 +789,27 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         // surface's neighbourhood supports rather than what one sample happened to read. Where
         // the guide says the surface carries structure the raw sample is detail worth keeping,
         // so the ceiling follows the guide between the two.
+        const int2 localPx = int2(px);
         const half3 smoothedRaw = GetSafeFP16(
-            (InColor[clamp(colorPx + int2(-1, -1), int2(0, 0), int2(DstTexSize.xy) - 1)].rgb +
-             InColor[clamp(colorPx + int2( 0, -1), int2(0, 0), int2(DstTexSize.xy) - 1)].rgb * 2.0h +
-             InColor[clamp(colorPx + int2( 1, -1), int2(0, 0), int2(DstTexSize.xy) - 1)].rgb +
-             InColor[clamp(colorPx + int2(-1,  0), int2(0, 0), int2(DstTexSize.xy) - 1)].rgb * 2.0h +
-             InColor[clamp(colorPx                              , int2(0, 0), int2(DstTexSize.xy) - 1)].rgb * 4.0h +
-             InColor[clamp(colorPx + int2( 1,  0), int2(0, 0), int2(DstTexSize.xy) - 1)].rgb * 2.0h +
-             InColor[clamp(colorPx + int2(-1,  1), int2(0, 0), int2(DstTexSize.xy) - 1)].rgb +
-             InColor[clamp(colorPx + int2( 0,  1), int2(0, 0), int2(DstTexSize.xy) - 1)].rgb * 2.0h +
-             InColor[clamp(colorPx + int2( 1,  1), int2(0, 0), int2(DstTexSize.xy) - 1)].rgb) * (1.0f / 16.0f));
+            (GetRawColorAt(localPx + int2(-1, -1)) +
+             GetRawColorAt(localPx + int2( 0, -1)) * 2.0h +
+             GetRawColorAt(localPx + int2( 1, -1)) +
+             GetRawColorAt(localPx + int2(-1,  0)) * 2.0h +
+             GetRawColorAt(localPx                     ) * 4.0h +
+             GetRawColorAt(localPx + int2( 1,  0)) * 2.0h +
+             GetRawColorAt(localPx + int2(-1,  1)) +
+             GetRawColorAt(localPx + int2( 0,  1)) * 2.0h +
+             GetRawColorAt(localPx + int2( 1,  1))) * (1.0f / 16.0f));
 
         const float clampSmoothing = saturate(FloorClampSmoothing) * (1.0f - guideStructure);
         const float3 clampCeiling = lerp(rawColor, (float3) smoothedRaw, clampSmoothing);
-        const float3 clampedFloor = SoftMin(clampCeiling, unclampedFloor, FloorSoftMin);
+        // SoftMin dips up to k/4 below min(a, b) where its two candidates agree, and
+        // both are near zero on genuinely black pixels. The dip would publish a negative
+        // floor: the residual gains the light the floor lost, while the skip signal's
+        // GetSafeFP16 silently zeroes the negative compensation - so a black input on
+        // nonblack albedo brightens by up to k/4 after remodulation. The floor is
+        // radiance, so the smoothed clamp may not push it below zero.
+        const float3 clampedFloor = max(SoftMin(clampCeiling, unclampedFloor, FloorSoftMin), 0.0f);
         rawInject = unclampedFloor - clampedFloor;
         floorColor.rgb = clampedFloor;
         denoiserColor = max(0.0f, rawColor - clampedFloor);
@@ -932,11 +992,16 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         const float3 routedRadiance = specularColor * specularRouteWeight;
         floorColor.rgb += routedRadiance;
 
-        // Demodulate against a floored divisor; the remodulation below still uses the true
-        // albedo, so the gap between the two is caught by the residual and routed into the
-        // skip signal rather than silently lost.
-        const float3 specDenom = max(specReflectance.rgb, DemodDivisorFloor);
-        const float3 diffDenom = max(diffAlbedo.rgb, DemodDivisorFloor);
+        // Demodulate against a floored divisor. The remodulation below runs on the same
+        // stored albedo composition will remodulate with, so the only gap left is the one the
+        // floor creates - the share of the divisor it could not represent - and the residual
+        // catches exactly that rather than a quantization error compounded by it.
+        //
+        // The divisor carries its own floor: an albedo that quantizes to zero is a legitimate
+        // stored value, so nothing upstream is a promise of a finite divisor any more. This
+        // mirrors the lower bound the feature clamps DemodDivisorFloor to.
+        const float3 specDenom = max(max(specReflectance.rgb, DemodDivisorFloor), 1e-4f);
+        const float3 diffDenom = max(max(diffAlbedo.rgb, DemodDivisorFloor), 1e-4f);
 
         const half3 demodSpecular =
             GetSafeFP16((specularColor - routedRadiance) / specDenom);
@@ -1040,7 +1105,9 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         OutHandover[px] = half4(GetSafeFP16(handoverColor), half(floorHandover));
         
         // Values the optional-input views below report, read once so every view shows
-        // exactly what the logic above used.
+        // exactly what the logic above used. The title depth is no longer consumed by
+        // any production path - the canonical copy in InDepth replaced it - so this is
+        // strictly the raw published value the two title-depth views visualise.
         const float titleDepthRaw = IsSet(FLAGS_TITLE_LINEAR_DEPTH)
             ? InTitleLinearDepth[clamp(int2(px), int2(0, 0), int2(DstTexSize.xy) - 1) +
                                  int2(InputBase5.xy)]
@@ -1229,20 +1296,20 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 
                 case FLAGS_DEBUG_TITLE_DEPTH_DIFF:
                 {
-                    // Title depth minus the depth this converter would have derived, both
-                    // as magnitudes so a sign-convention difference does not read as a
-                    // scale difference. Green means the title reports the surface further
-                    // away, red means nearer; a black field means the two agree.
+                    // The title's published depth against the canonical field this chain
+                    // actually consumes. Both come from the title's resource now - the
+                    // canonical copy is what the floor seed built from it - so a black
+                    // field means the canonicalisation changed nothing, and colour shows
+                    // the sign and range adjustments it applied.
                     if (!IsSet(FLAGS_TITLE_LINEAR_DEPTH))
                         debugColor = float3(1.0f, 0.0f, 1.0f);
                     else
                     {
                         // Signed, not magnitude. A title's linear depth may be a positive
-                        // distance while this converter's is a signed view Z, and comparing
-                        // magnitudes cannot see that - which is precisely the difference that
-                        // decides whether the two fields agree. Green means the title reports
-                        // the surface further along +Z, red means the opposite; black means
-                        // they match in sign and scale.
+                        // distance while the canonical field is a signed view Z, and
+                        // comparing magnitudes cannot see that. Green means the title
+                        // reports the surface further along +Z than the canonical field
+                        // carries, red means the opposite.
                         debugColor = VisualizeSignedDiff(titleDepthRaw - InDepth[px], 1.0f);
                     }
                     break;

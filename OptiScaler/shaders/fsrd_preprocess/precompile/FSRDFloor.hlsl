@@ -71,7 +71,12 @@ cbuffer CB_Analysis : register(b0)
     // See the envelope blend at the end of CSMain.
     float EnvelopeBias;
 
-    float _Padding;
+    // Origin of the title's diffuse albedo subrect. Every other input here is an internal
+    // zero-based buffer, but the material guide is the title's own texture, which is bound
+    // whole - so without this the guide is read from wherever the texture starts rather than
+    // from the region being rendered, and a title with a non-zero subrect gets its material
+    // edges from the wrong pixels. Same origin the conversion pass uses (InputBase2.zw).
+    uint2 AlbedoBase;
 }
 
 
@@ -107,7 +112,12 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     
     const float4 centerColor = InColor[px];    
     const float centerLum = GetLuminance(centerColor.rgb);
-    const float3 centerAlbedo = InDiffAlbedo[px];
+    // The albedo is the title's texture, so its subrect origin applies here the way it does in
+    // the conversion pass. The taps below are clamped to the render bounds, which the feature
+    // has already validated to lie inside the albedo subrect, so adding the origin keeps every
+    // read in range without a second clamp.
+    const int2 albedoPx = px + int2(AlbedoBase);
+    const float3 centerAlbedo = InDiffAlbedo[albedoPx];
 
     // Albedo carries no material information where it is near black - unlit billboards, very
     // dark paint, blended transparents whose albedo mixes two surfaces. Relaxing the
@@ -192,7 +202,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             // the skip signal. The depth and orientation weights still multiply in below, so
             // this can never blur across a crease or a silhouette; it only releases the
             // appearance term.
-            const float3 tapAlbedo = isTap ? (float3) InDiffAlbedo[tapPX] : centerAlbedo;
+            const float3 tapAlbedo = isTap ? (float3) InDiffAlbedo[tapPX + int2(AlbedoBase)] : centerAlbedo;
             const float agreement = isTap ? GetAlbedoAgreement(centerAlbedo, tapAlbedo) : 1.0f;
             const float lumRelax = lerp(1.0f, s_MinLumScale, guideStrength * agreement);
             const float wLum = GetRangeWeight(lumDelta, selfNormScale * lumRelax);

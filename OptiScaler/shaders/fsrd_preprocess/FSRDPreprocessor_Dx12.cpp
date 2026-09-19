@@ -62,6 +62,18 @@ namespace FSRDFormats
     constexpr DXGI_FORMAT DebugView = DXGI_FORMAT_R16G16B16A16_FLOAT;
 }
 
+// The conversion shader pre-quantizes its albedo outputs to the storage format's levels,
+// because the divisor it demodulates with, the value its residual closure accounts for and
+// the texel composition remodulates from all have to be the same number - quantizing after
+// the arithmetic is what let an albedo of 0.01 store as 3/255 and return 17.6% more light
+// than the residual had budgeted. The pairing is cross-language (s_AlbedoStoreLevels in
+// FSRDInputConv.hlsl), so a format that stops being the 8-bit UNORM the shader quantizes for
+// fails the build here instead of quietly reintroducing that gap.
+static_assert(FSRDFormats::SpecAlbedo == DXGI_FORMAT_R8G8B8A8_UNORM,
+              "FSRDInputConv quantizes specular albedo to 8-bit UNORM levels");
+static_assert(FSRDFormats::DiffAlbedo == DXGI_FORMAT_R8G8B8A8_UNORM,
+              "FSRDInputConv quantizes diffuse albedo to 8-bit UNORM levels");
+
 struct ComputeState
 {
     ID3D12Device* m_pDev = nullptr;
@@ -271,7 +283,7 @@ struct FSRDPreprocessor_Dx12::Impl
     // DispatchConversion, immediately after the packing dispatch - see
     // RecordInputProbe for why that instant is the only safe one.
     static constexpr UINT kInputProbeTargetCount = 7;
-    static constexpr UINT kInputProbeLogDelay = 3;  // conversions between record and read
+    static constexpr UINT kInputProbeLogDelay = 3;  // minimum conversions between record and read
     static constexpr UINT kInputProbeInterval = 60; // conversions between recordings
     ComPtr<ID3D12Resource> m_inputProbeReadback[kInputProbeTargetCount];
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_inputProbeFootprint[kInputProbeTargetCount] = {};
@@ -282,6 +294,18 @@ struct FSRDPreprocessor_Dx12::Impl
     UINT m_inputProbeCountdown = 1; // record on the first conversion, then every interval
     UINT m_inputProbePendingLog = 0;
 
+    // Map synchronises with nothing - Microsoft's readback guidance waits on the fence
+    // that follows the submission instead. The copies here ride the title's command
+    // list on the title's queue, a queue this code never sees, so there is no fence to
+    // wait on. The completion gate is therefore written by the GPU itself: each
+    // capture ends with a copy of its generation number into a readback slot, and the
+    // data is read only once that token has landed. Everything the readback holds
+    // before the token is whatever an earlier submission left behind.
+    ComPtr<ID3D12Resource> m_inputProbeGenerationReadback;
+    ComPtr<ID3D12Resource> m_inputProbeGenerationUpload;
+    void* m_inputProbeGenerationUploadPtr = nullptr;
+    UINT64 m_inputProbeGeneration = 0;
+
     void UpdateInputProbe(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
     {
         // Off unless asked for. The probe copies seven render targets into readback buffers and
@@ -291,11 +315,21 @@ struct FSRDPreprocessor_Dx12::Impl
         if (!desc.DiagnosticsEnabled)
             return;
 
-        // A readback heap may be mapped at any time, so the only cost of reading
-        // late is missing fresh bytes - never a stall or a device fault. The delay
-        // covers the copies still sitting in the title's unsubmitted command list.
+        // A readback heap may be mapped at any time, so polling costs nothing - never
+        // a stall or a device fault. The conversion delay is only a floor: the
+        // generation token copied after the data is what proves the submission has
+        // executed, so a late or batched title submission makes the log retry on
+        // later conversions instead of publishing stale or half-written bytes.
         if (m_inputProbePendingLog > 0 && --m_inputProbePendingLog == 0)
-            LogInputProbe();
+        {
+            if (!LogInputProbe())
+                m_inputProbePendingLog = 1;
+        }
+
+        // The readback buffers hold the pending capture until it has been logged;
+        // recording again would overwrite bytes that are still owed a read.
+        if (m_inputProbePendingLog > 0)
+            return;
 
         if (m_inputProbeCountdown > 0 && --m_inputProbeCountdown > 0)
             return;
@@ -354,8 +388,23 @@ struct FSRDPreprocessor_Dx12::Impl
             maxBufferBytes = std::max(maxBufferBytes, bufferBytes);
         }
 
-        if (m_inputProbeReadback[0] == nullptr ||
-            m_inputProbeReadback[0]->GetDesc().Width < maxBufferBytes)
+        // Every buffer has to be present and large enough, not just the first one: the copy loop
+        // below indexes the whole set, so the invariant it depends on is about the whole set.
+        // Testing element 0 alone is what let a resize that failed part way through be read as
+        // complete - the element that had already been replaced was the right size, the test
+        // passed, and the next attempt copied into a null or undersized buffer.
+        bool needsReadbackBuffers = false;
+        for (UINT i = 0; i < kInputProbeTargetCount; i++)
+        {
+            if (m_inputProbeReadback[i] == nullptr ||
+                m_inputProbeReadback[i]->GetDesc().Width < maxBufferBytes)
+            {
+                needsReadbackBuffers = true;
+                break;
+            }
+        }
+
+        if (needsReadbackBuffers)
         {
             D3D12_HEAP_PROPERTIES heapProps = {};
             heapProps.Type = D3D12_HEAP_TYPE_READBACK;
@@ -369,17 +418,62 @@ struct FSRDPreprocessor_Dx12::Impl
             bufDesc.SampleDesc = { 1, 0 };
             bufDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 
+            // Build the whole set before any of it is committed, so the array is never observed
+            // holding a mixture of new, null and stale buffers. A partial commit is exactly the
+            // state the sizing test above can no longer see, and the copies below cannot
+            // survive it. The set being replaced also stays alive until replacements exist.
+            std::array<ComPtr<ID3D12Resource>, kInputProbeTargetCount> allocated;
             for (UINT i = 0; i < kInputProbeTargetCount; i++)
             {
-                m_inputProbeReadback[i].Reset();
                 if (FAILED(m_pDev->CreateCommittedResource(
                         &heapProps, D3D12_HEAP_FLAG_NONE, &bufDesc,
                         D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
-                        IID_PPV_ARGS(&m_inputProbeReadback[i]))))
+                        IID_PPV_ARGS(&allocated[i]))))
                 {
                     LOG_ERROR("[RR_INPUT_PROBE] readback buffer creation failed");
                     return false;
                 }
+            }
+
+            for (UINT i = 0; i < kInputProbeTargetCount; i++)
+                m_inputProbeReadback[i] = std::move(allocated[i]);
+        }
+
+        // The completion token for the capture: one 64-bit generation, written by the
+        // GPU from an upload slot after the data copies below. Created once; the data
+        // readbacks above are the only things that grow with resolution.
+        if (m_inputProbeGenerationReadback == nullptr)
+        {
+            D3D12_HEAP_PROPERTIES tokenHeaps[2] = {};
+            tokenHeaps[0].Type = D3D12_HEAP_TYPE_READBACK;
+            tokenHeaps[1].Type = D3D12_HEAP_TYPE_UPLOAD;
+
+            D3D12_RESOURCE_DESC tokenDesc = {};
+            tokenDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+            tokenDesc.Width = sizeof(UINT64);
+            tokenDesc.Height = 1;
+            tokenDesc.DepthOrArraySize = 1;
+            tokenDesc.MipLevels = 1;
+            tokenDesc.SampleDesc = { 1, 0 };
+            tokenDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+            if (FAILED(m_pDev->CreateCommittedResource(
+                    &tokenHeaps[0], D3D12_HEAP_FLAG_NONE, &tokenDesc,
+                    D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+                    IID_PPV_ARGS(&m_inputProbeGenerationReadback))) ||
+                FAILED(m_pDev->CreateCommittedResource(
+                    &tokenHeaps[1], D3D12_HEAP_FLAG_NONE, &tokenDesc,
+                    D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+                    IID_PPV_ARGS(&m_inputProbeGenerationUpload))) ||
+                FAILED(m_inputProbeGenerationUpload->Map(
+                    0, nullptr, &m_inputProbeGenerationUploadPtr)) ||
+                m_inputProbeGenerationUploadPtr == nullptr)
+            {
+                LOG_ERROR("[RR_INPUT_PROBE] generation token buffer creation failed");
+                m_inputProbeGenerationReadback.Reset();
+                m_inputProbeGenerationUpload.Reset();
+                m_inputProbeGenerationUploadPtr = nullptr;
+                return false;
             }
         }
 
@@ -416,6 +510,18 @@ struct FSRDPreprocessor_Dx12::Impl
             cmdList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
         }
         cmdList->ResourceBarrier(kInputProbeTargetCount, toSrv);
+
+        // Recorded after every data copy: the GPU executes command list operations in
+        // order, so the token's arrival in readback is the completion proof for the
+        // whole batch above. The upload slot is safe to overwrite because recording
+        // only happens once the previous capture's token has been observed, which
+        // means its submission has already executed and consumed the old value.
+        ++m_inputProbeGeneration;
+        memcpy(m_inputProbeGenerationUploadPtr, &m_inputProbeGeneration,
+               sizeof(m_inputProbeGeneration));
+        cmdList->CopyBufferRegion(m_inputProbeGenerationReadback.Get(), 0,
+                                  m_inputProbeGenerationUpload.Get(), 0,
+                                  sizeof(m_inputProbeGeneration));
 
         return true;
     }
@@ -982,11 +1088,40 @@ struct FSRDPreprocessor_Dx12::Impl
                  float(crossing) * 100.0f / float(samples));
     }
 
-    void LogInputProbe()
+    // Returns false when the capture's copy submission has not executed yet, or the
+    // readback could not be mapped this attempt; the caller retries on a later
+    // conversion. Returning true consumes the pending log whatever the outcome.
+    bool LogInputProbe()
     {
-        if (m_pDev == nullptr || m_inputProbeReadback[0] == nullptr ||
-            m_inputProbeWidth == 0 || m_inputProbeHeight == 0)
-            return;
+        if (m_pDev == nullptr || m_inputProbeWidth == 0 || m_inputProbeHeight == 0)
+            return true;
+
+        // The map loop below indexes the whole set, so it checks the whole set rather than
+        // taking element 0 as a proxy for it - the assumption that let a partially rebuilt
+        // array through on the allocation side would be a null dereference here.
+        for (UINT i = 0; i < kInputProbeTargetCount; i++)
+        {
+            if (m_inputProbeReadback[i] == nullptr)
+                return true;
+        }
+
+        if (m_inputProbeGenerationReadback != nullptr)
+        {
+            void* token = nullptr;
+            UINT64 generation = 0;
+            if (SUCCEEDED(m_inputProbeGenerationReadback->Map(0, nullptr, &token)) &&
+                token != nullptr)
+            {
+                memcpy(&generation, token, sizeof(generation));
+                m_inputProbeGenerationReadback->Unmap(0, nullptr);
+            }
+
+            // The token is the GPU's own completion signal for the submission that
+            // carried the data copies. Until it matches, everything mapped below
+            // would be stale or partially written bytes from an earlier capture.
+            if (generation != m_inputProbeGeneration)
+                return false;
+        }
 
         void* mapped[kInputProbeTargetCount] = {};
         for (UINT i = 0; i < kInputProbeTargetCount; i++)
@@ -996,7 +1131,7 @@ struct FSRDPreprocessor_Dx12::Impl
                 LOG_ERROR("[RR_INPUT_PROBE] readback map failed for target {}", i);
                 for (UINT j = 0; j < i; j++)
                     m_inputProbeReadback[j]->Unmap(0, nullptr);
-                return;
+                return false;
             }
         }
 
@@ -1021,6 +1156,8 @@ struct FSRDPreprocessor_Dx12::Impl
 
         for (UINT i = 0; i < kInputProbeTargetCount; i++)
             m_inputProbeReadback[i]->Unmap(0, nullptr);
+
+        return true;
     }
 
     void Initialize(
@@ -1127,21 +1264,32 @@ struct FSRDPreprocessor_Dx12::Impl
                 .Flags = (isDepthLinear ? uint32_t(FloorSeed::Flags::LinearDepth) : 0u) |
                          ((desc.Flags & uint32_t(ConvFlags::RightHanded))
                               ? uint32_t(FloorSeed::Flags::NegativeViewDepth)
+                              : 0u) |
+                         // The title's published linear depth is authoritative for
+                         // geometry: the canonical signed field is seeded from it so
+                         // the floor filter, the packing shader and the denoiser's own
+                         // depth input all describe the same view-space positions.
+                         (((desc.Flags & uint32_t(ConvFlags::TitleLinearDepth)) != 0u &&
+                           desc.Resources.InTitleLinearDepth != nullptr)
+                              ? uint32_t(FloorSeed::Flags::TitleLinearDepth)
                               : 0u),
                 .CurrentJitter = { desc.JitterOffsets.x, desc.JitterOffsets.y },
                 .InputBase = sourceBase,
                 .NormalBase = { desc.InputBase1.x, desc.InputBase1.y },
-                ._NormalPadding = {}
+                ._NormalPadding = {},
+                .TitleDepthBase = { desc.TitleLinearDepthBase.x, desc.TitleLinearDepthBase.y },
+                ._TitleDepthPadding = {}
             };
             const auto cbData = GetAsByteSpan(constants);
 
             // Create median filtered raw color before cross bilateral filtering
             // Write to mip chain at top level
-            FloorSeed::Input in = { .Resources =  
+            FloorSeed::Input in = { .Resources =
             {
                 .InColor = inColor,
                 .InNormals = desc.Resources.InNormals,
-                .InDepth = desc.Resources.InDepth
+                .InDepth = desc.Resources.InDepth,
+                .InTitleLinearDepth = desc.Resources.InTitleLinearDepth
             }};
 
             FloorSeed::Output out = { .Resources =
@@ -1191,7 +1339,9 @@ struct FSRDPreprocessor_Dx12::Impl
                 .LumSymmetry = desc.FloorLumSymmetry,
                 .GrazingSharpness = desc.FloorGrazingSharpness,
                 .EnvelopeBias = desc.FloorEnvelopeBias,
-                ._Padding = {}
+                // The guide is the only title texture this filter reads, so it is the only
+                // input whose subrect origin is not already zero.
+                .AlbedoBase = { desc.InputBase2.z, desc.InputBase2.w }
             };
             const auto cbData = GetAsByteSpan(constants);
 
@@ -1315,10 +1465,16 @@ struct FSRDPreprocessor_Dx12::Impl
         if (!cmdList || !m_maxWidth)
             return;
 
-        // A title-published linear depth replaces the derived one for every consumer of
-        // view-space position, including the denoiser's own depth input. Its declared
-        // state is carried through rather than assumed, because declaring a wider state
-        // than the resource is in records an invalid barrier.
+        // A title-published linear depth reaches every consumer of view-space position
+        // - the floor seed/filter, the packing shader and the denoiser's own depth
+        // input - through the canonical signed copy the floor-seed pass writes into
+        // m_LinearDepth, never as a raw hand-off: the descriptor carries no sign
+        // convention, and a positive distance where an RH view matrix implies negative
+        // view Z leaves RR unable to reproject anything. The raw resource stays bound
+        // for this frame's own reads of it (the debug views that show it as published,
+        // against the canonical copy), so its declared state is carried through rather
+        // than assumed: declaring a wider state than the resource is in records an
+        // invalid barrier.
         if ((desc.Flags & uint32_t(ConvFlags::TitleLinearDepth)) != 0 &&
             desc.Resources.InTitleLinearDepth != nullptr)
         {
@@ -1332,8 +1488,8 @@ struct FSRDPreprocessor_Dx12::Impl
         }
 
         // The title's resource is in whatever state it declared - COMMON for titles that tag
-        // without committing to one. Transition it in for the conversion's read; the caller
-        // hands it back once the denoiser has finished with it.
+        // without committing to one. Transition it in for the floor-seed and packing reads;
+        // the caller hands it back once the denoiser has finished with it.
         m_rrLinearDepthForwarded = false;
         if (m_rrLinearDepth != nullptr &&
             m_rrLinearDepthDeclaredState != static_cast<uint32_t>(kSrvState))
@@ -1635,11 +1791,10 @@ struct FSRDPreprocessor_Dx12::Impl
             .pNext = &signalHeader // Link signal desc to main header
         };
 
-        // Always the converter's own field: it is the one whose sign convention is known.
-        // A title's published linear depth is consumed for reconstruction, where the sign is
-        // applied explicitly, but never handed to the denoiser as-is - the descriptor carries
-        // no convention, and a positive distance where an RH view matrix implies negative
-        // view Z leaves RR unable to reproject anything.
+        // Always the converter's own field: it is the one whose sign convention is known,
+        // and the one every other consumer reads - the floor seed writes it from the
+        // title's published linear depth when one is provided, so the denoiser sees the
+        // same geometry the packing and floor passes describe.
         dispatchDesc.linearDepth = ffxApiGetResourceDX12(
             m_LinearDepth.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
         dispatchDesc.motionVectors = ffxApiGetResourceDX12(outResources.Motion.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);

@@ -587,15 +587,24 @@ static void TrackRRResourceView(ID3D12Resource* resource, DXGI_FORMAT viewFormat
         ++views.rtvViews;
 }
 
-static bool IsRRResourceShaderReadable(D3D12_RESOURCE_STATES state)
+// Whether the preview can read this resource without first transitioning it.
+//
+// The preview is built by the conversion pass, which is a compute shader, so the non-pixel bit
+// is the one that matters. Accepting either shader-read bit let a resource the title had only
+// ever handed to a pixel pass reach that one, where the read is undefined - and the inspector
+// deliberately records no barrier of its own, because the resource belongs to the title and its
+// state is only ever what the tracker observed. Restoring a state that was inferred rather than
+// declared is a worse failure than a preview that declines to run, so a resource in the wrong
+// read state is reported as non-readable and left alone.
+static bool IsRRResourceComputeReadable(D3D12_RESOURCE_STATES state)
 {
-    constexpr D3D12_RESOURCE_STATES kShaderRead =
-        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    constexpr D3D12_RESOURCE_STATES kComputeRead =
+        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
     constexpr D3D12_RESOURCE_STATES kWritable =
         D3D12_RESOURCE_STATE_RENDER_TARGET | D3D12_RESOURCE_STATE_UNORDERED_ACCESS |
         D3D12_RESOURCE_STATE_DEPTH_WRITE | D3D12_RESOURCE_STATE_COPY_DEST |
         D3D12_RESOURCE_STATE_RESOLVE_DEST;
-    return (state & kShaderRead) != 0 && (state & kWritable) == 0;
+    return (state & kComputeRead) != 0 && (state & kWritable) == 0;
 }
 
 static bool IsRRResourceWritable(D3D12_RESOURCE_STATES state)
@@ -788,7 +797,7 @@ void ResTrack_Dx12::RefreshRRResourceCandidates(uint32_t renderWidth, uint32_t r
             {
                 candidate.stateKnown = true;
                 candidate.state = state->second;
-                candidate.shaderReadable = IsRRResourceShaderReadable(candidate.state);
+                candidate.computeReadable = IsRRResourceComputeReadable(candidate.state);
             }
 
             candidate.currentFrame = currentFrame;
@@ -934,7 +943,7 @@ ID3D12Resource* ResTrack_Dx12::AcquireRRResourceCandidate()
     {
         std::scoped_lock stateLock(gRRResourceStateMutex);
         const auto state = gRRResourceStates.find(resource);
-        if (state == gRRResourceStates.end() || !IsRRResourceShaderReadable(state->second))
+        if (state == gRRResourceStates.end() || !IsRRResourceComputeReadable(state->second))
             return nullptr;
     }
 
@@ -960,7 +969,7 @@ void ResTrack_Dx12::LogRRScalarResourceCandidates(uint32_t renderWidth, uint32_t
         LOG_INFO(
             "[RR_RESOURCE_CANDIDATE] candidate[{}]: ptr={:X}, size={}x{}, format={}({}), "
             "flags={:#x}, channels={}, views=[SRV:{}, UAV:{}, RTV:{}], writable={}, "
-            "stateKnown={}, state={:#x}, shaderReadable={}, name='{}', writeObserved={}, "
+            "stateKnown={}, state={:#x}, computeReadable={}, name='{}', writeObserved={}, "
             "active={}, alternating={}, writeAge={}, interval={}, writtenFrames={}, transitions={}, "
             "passWrites={}, emissivePassMatch={}, lastWritePass='{}', producer=[id:{}, hash:{:016X}, "
             "kind:{}, hits:{}, count:{}, ambiguous:{}]",
@@ -970,7 +979,7 @@ void ResTrack_Dx12::LogRRScalarResourceCandidates(uint32_t renderWidth, uint32_t
             static_cast<uint32_t>(candidate.flags), candidate.channelCount,
             candidate.srvViews, candidate.uavViews, candidate.rtvViews,
             !!(candidate.flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
-            candidate.stateKnown, static_cast<uint32_t>(candidate.state), candidate.shaderReadable,
+            candidate.stateKnown, static_cast<uint32_t>(candidate.state), candidate.computeReadable,
             candidate.debugName, candidate.writeObserved, candidate.active, candidate.alternating,
             candidate.writeObserved ? std::to_string(candidate.writeAgeFrames) : "never",
             candidate.lastWriteInterval, candidate.writtenFrameCount,

@@ -1258,6 +1258,14 @@ sl::Result StreamlineHooks::hkslSetTag(const sl::ViewportHandle& viewport, const
         return o_slSetTag(viewport, tags, numTags, cmdBuffer);
     }
 
+    // This rule is about what OptiScaler reports as FG input, and it must not gate the
+    // inventory probes in the loop below. The batch it matches is a DLSS call rather than an
+    // FG frame, but it is still a tagging call, and it is often the only one that carries the
+    // title's RR tags - emissive, hit distance, the title's own linear depth. Returning here
+    // loses the discovery of inputs the RR path later looks for, which is a silent
+    // degradation: the input is simply never bound, exactly as if the title never published
+    // it. Probe every batch; suppress only the tagging.
+    bool skipFgTagging = false;
     if (State::Instance().activeFgInput == FGInput::DLSSG &&
         State::Instance().gameQuirks[GameQuirk::IgnoreTagsWithoutHudlessForFG])
     {
@@ -1280,11 +1288,12 @@ sl::Result StreamlineHooks::hkslSetTag(const sl::ViewportHandle& viewport, const
                 hasHudless = true;
         }
 
-        // Try to skip a DLSS call
+        // Try to skip a DLSS call. The tags still reach Streamline untouched, so only the
+        // bookkeeping below is skipped.
         if (hasDepth && hasMVs && !hasHudless)
         {
             LOG_DEBUG("Skipping the FG tagging of potential DLSS resources");
-            return o_slSetTag(viewport, tags, numTags, cmdBuffer);
+            skipFgTagging = true;
         }
     }
 
@@ -1307,6 +1316,12 @@ sl::Result StreamlineHooks::hkslSetTag(const sl::ViewportHandle& viewport, const
             LOG_TRACE("Resource of type: {} is null, continuing", magic_enum::enum_name(typeEnum));
             continue;
         }
+
+        // A skipped batch carries no hudless colour by definition, so the state repair below -
+        // which exists for that resource - has nothing to act on, and what remains is the FG
+        // reporting this rule is about.
+        if (skipFgTagging)
+            continue;
 
         // Cyberpunk hudless state fix for RDNA 2
         if (State::Instance().gameQuirks & GameQuirk::CyberpunkHudlessState &&
@@ -1354,6 +1369,9 @@ sl::Result StreamlineHooks::hkslSetTagForFrame(const sl::FrameToken& frame, cons
 
     LOG_DEBUG("frameIndex: {}", static_cast<uint32_t>(frame));
 
+    // See hkslSetTag: the FG rule suppresses OptiScaler's FG bookkeeping, not the RR tag
+    // inventory, which this batch may be the only carrier of.
+    bool skipFgTagging = false;
     if (State::Instance().activeFgInput == FGInput::DLSSG &&
         State::Instance().gameQuirks[GameQuirk::IgnoreTagsWithoutHudlessForFG])
     {
@@ -1380,7 +1398,7 @@ sl::Result StreamlineHooks::hkslSetTagForFrame(const sl::FrameToken& frame, cons
         if (hasDepth && hasMVs && !hasHudless)
         {
             LOG_DEBUG("Skipping the FG tagging of potential DLSS resources");
-            return o_slSetTagForFrame(frame, viewport, resources, numResources, cmdBuffer);
+            skipFgTagging = true;
         }
     }
 
@@ -1403,6 +1421,9 @@ sl::Result StreamlineHooks::hkslSetTagForFrame(const sl::FrameToken& frame, cons
             LOG_TRACE("Resource of type: {} is null, continuing", magic_enum::enum_name(typeEnum));
             continue;
         }
+
+        if (skipFgTagging)
+            continue;
 
         if (State::Instance().activeFgInput == FGInput::DLSSG &&
             (resources[i].type == sl::kBufferTypeHUDLessColor || resources[i].type == sl::kBufferTypeDepth ||

@@ -1084,7 +1084,7 @@ FSRDFeatureDx12::~FSRDFeatureDx12()
 
 bool FSRDFeatureDx12::AcquireSLTaggedResource(
     const RRD3D12SignalTagSnapshot& snapshot, RRTaggedSignal signal,
-    const char* sourceName, bool requireShaderRead,
+    const char* sourceName, TagStatePolicy statePolicy,
     Microsoft::WRL::ComPtr<ID3D12Resource>& resource,
     RRTaggedResourceDiagnostic& diagnostic)
 {
@@ -1172,8 +1172,12 @@ bool FSRDFeatureDx12::AcquireSLTaggedResource(
 
     const D3D12_RESOURCE_STATES declaredState =
         static_cast<D3D12_RESOURCE_STATES>(diagnostic.state);
-    if (requireShaderRead &&
-        (declaredState & D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) == 0)
+    const bool declaredShaderReadable =
+        (declaredState & D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) != 0;
+    const bool declaredStateAcceptable =
+        statePolicy == TagStatePolicy::AnyDeclaredState || declaredShaderReadable ||
+        (statePolicy == TagStatePolicy::AllowCommonTransition && diagnostic.state == 0u);
+    if (!declaredStateAcceptable)
     {
         LOG_WARN(
             "[RR_INPUT] {} is not declared NON_PIXEL_SHADER_RESOURCE (state={:#x}); refusing an untracked external-state transition",
@@ -1223,10 +1227,11 @@ bool FSRDFeatureDx12::AcquireTaggedAmbientOcclusionResources(bool logFailure)
     Microsoft::WRL::ComPtr<ID3D12Resource> denoisedResource;
     const bool acquiredNoisy = AcquireSLTaggedResource(
         snapshot, RRTaggedSignal::AmbientOcclusionNoisy,
-        "Streamline.AmbientOcclusionNoisy", true, noisyResource, noisy);
+        "Streamline.AmbientOcclusionNoisy", TagStatePolicy::RequireShaderRead,
+        noisyResource, noisy);
     const bool acquiredDenoised = AcquireSLTaggedResource(
         snapshot, RRTaggedSignal::AmbientOcclusionDenoised,
-        "Streamline.AmbientOcclusionDenoised", false,
+        "Streamline.AmbientOcclusionDenoised", TagStatePolicy::AnyDeclaredState,
         denoisedResource, denoised);
 
     const auto validMetadata = [this](const RRTaggedResourceDiagnostic& resource) {
@@ -2215,7 +2220,8 @@ void FSRDFeatureDx12::ResolveSpecularHitDistance(
         Microsoft::WRL::ComPtr<ID3D12Resource> taggedResource;
         RRTaggedResourceDiagnostic diagnostic {};
         if (!AcquireSLTaggedResource(
-                rrTagSnapshot, signal, sourceName, true,
+                rrTagSnapshot, signal, sourceName,
+                TagStatePolicy::RequireShaderRead,
                 taggedResource, diagnostic))
             return false;
 
@@ -2329,44 +2335,20 @@ void FSRDFeatureDx12::AcquireOptionalInputs(const NVSDK_NGX_Parameter& inParams,
         Microsoft::WRL::ComPtr<ID3D12Resource> taggedLinearDepth;
         RRTaggedResourceDiagnostic linearDepthDiagnostic {};
 
-        // Titles that tag a resource without committing to a state declare COMMON, and
-        // AcquireSLTaggedResource refuses anything without a shader-readable bit. COMMON is
-        // legal to transition from, so this one tag is acquired directly and its declared
-        // state is what the conversion's barrier starts from.
+        // Titles that tag a resource without committing to a state declare COMMON, which
+        // carries no shader-readable bit but is legal to transition from - the conversion
+        // records the barrier out of the declared state and hands the resource back. The
+        // transition allowance is a state policy on the acquisition itself, so this tag
+        // clears the same frame/viewport/lifetime checks as every other signal: a legacy
+        // tag whose Present/Evaluate lifetime may have expired is refused here like
+        // anywhere else, no matter that the snapshot still holds the object alive.
         ID3D12Resource* linearDepthCandidate = nullptr;
         if (AcquireSLTaggedResource(rrTagSnapshot, RRTaggedSignal::LinearDepth,
-                                    "Streamline.LinearDepth", true, taggedLinearDepth,
-                                    linearDepthDiagnostic))
+                                    "Streamline.LinearDepth",
+                                    TagStatePolicy::AllowCommonTransition,
+                                    taggedLinearDepth, linearDepthDiagnostic))
         {
             linearDepthCandidate = taggedLinearDepth.Get();
-        }
-        else
-        {
-            const size_t linearDepthIndex = static_cast<size_t>(RRTaggedSignal::LinearDepth);
-            if (linearDepthIndex < rrTagSnapshot.resources.size())
-            {
-                const RRTaggedResourceDiagnostic& diagnostic =
-                    rrTagSnapshot.resources[linearDepthIndex].diagnostic;
-                const bool usableCommonTag =
-                    diagnostic.observed && diagnostic.present &&
-                    diagnostic.state == 0u &&
-                    diagnostic.lifecycle != sl::ResourceLifecycle::eOnlyValidNow &&
-                    rrTagSnapshot.activeEvaluationFrame != UINT32_MAX &&
-                    rrTagSnapshot.activeEvaluationViewport != UINT32_MAX &&
-                    (diagnostic.frameIndex == UINT32_MAX ||
-                     diagnostic.frameIndex == rrTagSnapshot.activeEvaluationFrame) &&
-                    (diagnostic.viewport == UINT32_MAX ||
-                     diagnostic.viewport == rrTagSnapshot.activeEvaluationViewport);
-
-                if (usableCommonTag &&
-                    rrTagSnapshot.resources[linearDepthIndex].resource &&
-                    static_cast<const void*>(rrTagSnapshot.resources[linearDepthIndex].resource.Get()) ==
-                        diagnostic.resourceAddress)
-                {
-                    taggedLinearDepth = rrTagSnapshot.resources[linearDepthIndex].resource;
-                    linearDepthCandidate = taggedLinearDepth.Get();
-                }
-            }
         }
 
         if (linearDepthCandidate != nullptr)
@@ -2572,30 +2554,13 @@ bool FSRDFeatureDx12::ResolveCameraMatrices(const NVSDK_NGX_Parameter& inParams,
     _viewMatrix = {};
     _viewFromStreamline = false;
 
-    // Builds the view matrix from the Streamline camera basis. Used both when NGX
-    // publishes no matrix at all and when the published one cannot be inverted.
-    const auto buildViewFromStreamline = [&]() -> bool
-    {
-        if (!StreamlineHooks::isSetConstantsHooked() || !hasCurrentSLConstants)
-            return false;
-
-        SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraRight), 0, _invViewMatrix);
-        SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraUp), 1, _invViewMatrix);
-        SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraFwd), 2, _invViewMatrix);
-        SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraPos), 3, _invViewMatrix);
-        _invViewMatrix.r[3].m128_f32[3] = 1.0f;
-
-        _viewMatrix = XMMatrixInverse(nullptr, _invViewMatrix);
-        _viewFromStreamline = true;
-        return true;
-    };
-
-    // A published matrix is only usable if it inverts to a real camera position.
-    // A partially filled or all-zero matrix passes the presence check, and the NaN it
-    // produces then reaches the denoiser as cameraPositionDelta - a value it uses for
-    // its own reprojection. The motion vectors mask the same NaN behind the shader's
-    // isfinite guard, where it reads as a zero depth delta, so "the camera never moved"
-    // and "the camera position was NaN" are indistinguishable from the outside.
+    // A matrix is only usable if it inverts to a real camera position, whichever
+    // source produced it. A partially filled or all-zero one passes a presence
+    // check, and the NaN it produces then reaches the denoiser as
+    // cameraPositionDelta - a value it uses for its own reprojection. The motion
+    // vectors mask the same NaN behind the shader's isfinite guard, where it reads
+    // as a zero depth delta, so "the camera never moved" and "the camera position
+    // was NaN" are indistinguishable from the outside.
     const auto viewMatrixIsUsable = [](const XMMATRIX& view, const XMMATRIX& invView)
     {
         if (!MatrixIsFinite(view) || !MatrixIsFinite(invView))
@@ -2608,6 +2573,44 @@ bool FSRDFeatureDx12::ResolveCameraMatrices(const NVSDK_NGX_Parameter& inParams,
         const XMFLOAT3 cameraPosition = GetFloat3Column(invView, 3);
         return std::isfinite(cameraPosition.x) && std::isfinite(cameraPosition.y) &&
                std::isfinite(cameraPosition.z);
+    };
+
+    // Builds the view matrix from the Streamline camera basis. Used both when NGX
+    // publishes no matrix at all and when the published one cannot be inverted.
+    // The basis is title data too: a degenerate or half-initialised one inverts to
+    // the same poison a sentinel matrix would, so the result clears the same bar
+    // as a published matrix before this fallback may claim success.
+    const auto buildViewFromStreamline = [&]() -> bool
+    {
+        if (!StreamlineHooks::isSetConstantsHooked() || !hasCurrentSLConstants)
+            return false;
+
+        SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraRight), 0, _invViewMatrix);
+        SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraUp), 1, _invViewMatrix);
+        SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraFwd), 2, _invViewMatrix);
+        SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraPos), 3, _invViewMatrix);
+        _invViewMatrix.r[3].m128_f32[3] = 1.0f;
+
+        _viewMatrix = XMMatrixInverse(nullptr, _invViewMatrix);
+
+        if (!viewMatrixIsUsable(_viewMatrix, _invViewMatrix))
+        {
+            static bool loggedDegenerateSLView = false;
+            if (!loggedDegenerateSLView)
+            {
+                loggedDegenerateSLView = true;
+                LOG_ERROR(
+                    "[RR_INPUT] the Streamline camera basis is degenerate; its view "
+                    "matrix cannot be inverted, so camera position and reprojection "
+                    "would read NaN. Rejecting the frame instead");
+            }
+            _viewMatrix = {};
+            _invViewMatrix = {};
+            return false;
+        }
+
+        _viewFromStreamline = true;
+        return true;
     };
 
     XMMATRIX publishedViewMatrix = {};
@@ -2653,6 +2656,8 @@ bool FSRDFeatureDx12::ResolveCameraMatrices(const NVSDK_NGX_Parameter& inParams,
     if (!viewMatrixResolved && !buildViewFromStreamline())
     {
         LOG_ERROR("View matrix missing! Denoiser not ready.");
+        _viewMatrix = {};
+        _invViewMatrix = {};
         isReady = false;
     }
 
@@ -2663,8 +2668,29 @@ bool FSRDFeatureDx12::ResolveCameraMatrices(const NVSDK_NGX_Parameter& inParams,
     _projMatrix = {};
     _projectionFromStreamline = false;
 
+    // The projection is consumed through its inverse by the conversion shaders,
+    // so it is only usable if that inverse exists and is finite, whichever source
+    // produced it. A sentinel fill - one title publishes an all-FLT_MAX
+    // world-to-view matrix - passes a presence check and then poisons every
+    // reconstructed position with NaN.
+    const auto projectionIsUsable = [&](const XMMATRIX& projection)
+    {
+        if (!MatrixIsFinite(projection))
+            return false;
+
+        const float determinant = XMVectorGetX(XMMatrixDeterminant(projection));
+        if (!std::isfinite(determinant) || determinant == 0.0f)
+            return false;
+
+        return MatrixIsFinite(XMMatrixInverse(nullptr, projection));
+    };
+
     // Reconstructs an unjittered projection from the Streamline scalar camera data,
     // which is what both the missing and the unusable published matrix fall back to.
+    // The scalars are title data too: a zero aspect or a NaN FOV passes every
+    // sentinel check and bakes straight into the matrix, so the rebuilt projection
+    // must clear the same bar as a published one before this fallback may claim
+    // success.
     const auto buildProjectionFromStreamline = [&]() -> bool
     {
         if (!StreamlineHooks::isSetConstantsHooked() || !hasCurrentSLConstants)
@@ -2691,24 +2717,26 @@ bool FSRDFeatureDx12::ResolveCameraMatrices(const NVSDK_NGX_Parameter& inParams,
         _projMatrix = CreateColumnVectorPerspectiveProjection(
             fov, slData.cameraAspectRatio, nearPlane, farPlane,
             _isRightHanded, DepthInverted());
+
+        if (!projectionIsUsable(_projMatrix))
+        {
+            static bool loggedDegenerateSLProjection = false;
+            if (!loggedDegenerateSLProjection)
+            {
+                loggedDegenerateSLProjection = true;
+                LOG_ERROR(
+                    "[RR_INPUT] the Streamline projection scalars do not build an "
+                    "invertible matrix (fov={:.4f}, aspect={:.4f}, near={:.4f}, "
+                    "far={:.4f}); camera position and reprojection would read NaN. "
+                    "Rejecting the frame instead",
+                    fov, slData.cameraAspectRatio, nearPlane, farPlane);
+            }
+            _projMatrix = {};
+            return false;
+        }
+
         _projectionFromStreamline = true;
         return true;
-    };
-
-    // The published projection is consumed through its inverse by the conversion
-    // shaders, so it is only usable if that inverse exists and is finite. A sentinel
-    // fill - one title publishes an all-FLT_MAX world-to-view matrix - passes a
-    // presence check and then poisons every reconstructed position with NaN.
-    const auto projectionIsUsable = [&](const XMMATRIX& projection)
-    {
-        if (!MatrixIsFinite(projection))
-            return false;
-
-        const float determinant = XMVectorGetX(XMMatrixDeterminant(projection));
-        if (!std::isfinite(determinant) || determinant == 0.0f)
-            return false;
-
-        return MatrixIsFinite(XMMatrixInverse(nullptr, projection));
     };
 
     XMMATRIX publishedProjMatrix = {};
@@ -2749,6 +2777,7 @@ bool FSRDFeatureDx12::ResolveCameraMatrices(const NVSDK_NGX_Parameter& inParams,
     if (!projMatrixResolved && !buildProjectionFromStreamline())
     {
         LOG_ERROR("Projection matrix missing! Denoiser not ready.");
+        _projMatrix = {};
         isReady = false;
     }
 
@@ -2989,7 +3018,8 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
     {
         _emissiveProbeFromStreamline = AcquireSLTaggedResource(
             rrTagSnapshot, RRTaggedSignal::Emissive, "Streamline.Emissive",
-            true, _emissiveTaggedResource, emissiveTagDiagnostic);
+            TagStatePolicy::RequireShaderRead,
+            _emissiveTaggedResource, emissiveTagDiagnostic);
         if (_emissiveProbeFromStreamline)
             _emissiveProbe = _emissiveTaggedResource.Get();
     }
@@ -3366,6 +3396,12 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
         _convDesc.Flags |= (uint32_t)FSRDConvFlags::MotionVectorsJittered;
     if (_convDesc.DisplayResolutionMotion)
         _convDesc.Flags |= (uint32_t)FSRDConvFlags::DisplayResolutionMotion;
+    // The packing shader selects its debug view from the flag word's debug bits
+    // (GetDebugMode) and writes it to the specular signal output, which is what
+    // the debug blit shows. Nothing else carried the user's selection there, so
+    // every conversion debug mode rendered the packed signal instead. Non-
+    // conversion modes mask to zero here, leaving the pass untouched.
+    _convDesc.Flags |= (uint32_t) GetConvDebugFlags(dbgMode);
     const bool normalsInViewSpace = cfg.FfxDenoiserNormalsInViewSpace.value_or_default();
     if (normalsInViewSpace)
         _convDesc.Flags |= (uint32_t)FSRDConvFlags::NormalsViewSpace;
@@ -3444,18 +3480,6 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
         InvalidateDenoiserHistory();
     }
 
-    // The change check above can invalidate history after
-    // PrepareDenoiseConvInput already froze the reprojection inputs from the old
-    // value of _hasDenoiserHistory. Re-derive them, or the conversion pass would
-    // reproject against a previous-frame depth produced under the previous setting
-    // on the very frame the RR dispatch resets.
-    if (!_hasDenoiserHistory || _isInReset)
-    {
-        _convDesc.MotionHistoryValid = false;
-        _convDesc.JitterOffsets.z = _convDesc.JitterOffsets.x;
-        _convDesc.JitterOffsets.w = _convDesc.JitterOffsets.y;
-    }
-
     if (_roughnessSource == RoughnessSource::Packed)
         _convDesc.Flags |= (uint32_t) FSRDConvFlags::IsRoughnessPacked;
 
@@ -3529,6 +3553,42 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
         _convDesc.Flags |= (uint32_t)FSRDConvFlags::RightHanded;
 
     ApplyDepthInterpretation();
+
+    // What this frame's view-space positions are actually built from. It has to be read here,
+    // after ApplyDepthInterpretation and the right-handed flag, because both are part of the
+    // definition - and it has to be the *effective* outcome of AcquireOptionalInputs rather
+    // than the option that drives it. Enabling the option on a title that publishes no tagged
+    // field leaves the definition untouched, and a title's tag becoming usable or unusable
+    // changes it with no menu interaction at all, which is the half of this that a config
+    // comparison cannot see.
+    const DepthDefinition depthDefinition =
+    {
+        .titleLinearDepth = _convDesc.Resources.InTitleLinearDepth != nullptr,
+        .rightHanded = _isRightHanded
+    };
+
+    if (_hasAppliedDepthDefinition && depthDefinition != _appliedDepthDefinition)
+    {
+        LOG_INFO("[RR_INPUT] depth definition changed: {} (right-handed {}) -> {} "
+                 "(right-handed {}); resetting denoiser history",
+                 _appliedDepthDefinition.titleLinearDepth ? "title linear depth" : "derived depth",
+                 _appliedDepthDefinition.rightHanded,
+                 depthDefinition.titleLinearDepth ? "title linear depth" : "derived depth",
+                 depthDefinition.rightHanded);
+        InvalidateDenoiserHistory();
+    }
+    _appliedDepthDefinition = depthDefinition;
+    _hasAppliedDepthDefinition = true;
+
+    // Every check that resets history - the normal space and roughness floor above, the depth
+    // interpretation just above this, and the depth definition in between - runs after
+    // PrepareDenoiseConvInput already froze the reprojection inputs from the value
+    // _hasDenoiserHistory had at the time. Re-derive them once here, after the last of those
+    // producers and before the conversion dispatch that consumes them, or the conversion pass
+    // reprojects against a previous-frame depth produced under the setting that was just
+    // abandoned on the very frame the RR dispatch resets. The denoiser dispatch that follows
+    // reads _hasDenoiserHistory for its own reset flag, so it sees the same decision.
+    RefreshHistoryDerivedInputs();
 
     // Per-frame lines stay behind the switch: they say nothing a shipped build needs, and a
     // session of them is a large part of a gigabyte of log.
@@ -3660,11 +3720,9 @@ bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
     }
 
     // All four RR 1.2 diffuse/specular descriptor structures have the same
-    // header + signal ABI; these concrete types provide named signal access.
-    const auto& directDiffuse =
-        *reinterpret_cast<const ffxDispatchDescDenoiserDirectDiffuse*>(diffuseHeader);
-    const auto& indirectSpecular =
-        *reinterpret_cast<const ffxDispatchDescDenoiserIndirectSpecular*>(specularHeader);
+    // header + signal ABI. The headers stay nullable: a single-signal chain
+    // legitimately omits one, so references are formed only where that
+    // signal's presence is known.
     const auto* ambientOcclusion = ambientOcclusionHeader
         ? reinterpret_cast<const ffxDispatchDescDenoiserAmbientOcclusion*>(ambientOcclusionHeader)
         : nullptr;
@@ -3681,6 +3739,12 @@ bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
         // chain shape is the information that matters, so log it directly here.
         if (_denoiseDiffuse && _denoiseSpecular)
         {
+            // The validated chain carries both signals here, so the header
+            // dereference below is sound.
+            const auto& directDiffuse =
+                *reinterpret_cast<const ffxDispatchDescDenoiserDirectDiffuse*>(diffuseHeader);
+            const auto& indirectSpecular =
+                *reinterpret_cast<const ffxDispatchDescDenoiserIndirectSpecular*>(specularHeader);
             LogRRDispatchSnapshot(dispatchDesc, directDiffuse, indirectSpecular, ambientOcclusion);
         }
         else
@@ -3967,6 +4031,21 @@ void FSRDFeatureDx12::CommitDenoiserHistory() noexcept
         _convDesc.JitterOffsets.y
     };
     _hasDenoiserHistory = true;
+}
+
+void FSRDFeatureDx12::RefreshHistoryDerivedInputs() noexcept
+{
+    // PrepareDenoiseConvInput derives these from _hasDenoiserHistory while it runs, and it
+    // runs before the change checks in ConvertDenoiserBuffers that can invalidate it. Without
+    // this the conversion pass is told its reprojection history is valid on the frame that
+    // just abandoned it, and reprojects against a previous-frame depth produced under the
+    // previous setting - which is the one frame the reset exists to avoid.
+    if (!_hasDenoiserHistory || _isInReset)
+    {
+        _convDesc.MotionHistoryValid = false;
+        _convDesc.JitterOffsets.z = _convDesc.JitterOffsets.x;
+        _convDesc.JitterOffsets.w = _convDesc.JitterOffsets.y;
+    }
 }
 
 // IEEE 754 half -> float for the probe readback (no DirectXPackedVector here).

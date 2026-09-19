@@ -321,7 +321,9 @@ float3 SafeNormalize(float3 n, float3 fallback)
 }
 
 // Quadratic smooth minimum. k is the blend radius in the units of the inputs; k <= 0
-// returns the exact min(). The result never exceeds min(a, b).
+// returns the exact min(). The result never exceeds min(a, b), and dips below it by up
+// to k/4 where the two inputs agree. Callers that need a bound on the result - such as
+// a radiance floor that must stay non-negative - must clamp it themselves.
 float3 SoftMin(float3 a, float3 b, float k)
 {
     if (k <= 0.0f)

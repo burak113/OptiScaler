@@ -3,7 +3,7 @@
 #define MainRS \
     "RootFlags(0), " \
     "CBV(b0), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 3), visibility = SHADER_VISIBILITY_ALL), " \
+    "DescriptorTable(SRV(t0, numDescriptors = 4), visibility = SHADER_VISIBILITY_ALL), " \
     "DescriptorTable(UAV(u0, numDescriptors = 3), visibility = SHADER_VISIBILITY_ALL), " \
     "StaticSampler(s0, " \
         "filter = FILTER_MIN_MAG_MIP_LINEAR, " \
@@ -22,6 +22,10 @@ static const uint2 s_ThreadGroupSize = uint2(THREAD_GROUP_SIZE_X, THREAD_GROUP_S
 // Flags
 #define FLAGS_LINEAR_DEPTH      (1 << 0)
 #define FLAGS_NEGATIVE_VIEW_DEPTH (1 << 1)
+// The title publishes its own linearised view depth: InTitleLinearDepth replaces InDepth
+// as the source the canonical signed output is derived from, and the linear path is
+// taken regardless of FLAGS_LINEAR_DEPTH (which only describes the game's own depth).
+#define FLAGS_TITLE_LINEAR_DEPTH (1 << 2)
 
 // 5x5 sorting filter config
 #define SORT_KERNEL_SIZE        5
@@ -69,6 +73,10 @@ static const uint SortNetwork[2 * kSortNetworkSize] =
 Texture2D<half3> InColor : register(t0);
 Texture2D<half3> InNormals : register(t1);
 Texture2D<float> InDepth : register(t2);
+// Optional title-published linearised view depth. Read instead of InDepth when
+// FLAGS_TITLE_LINEAR_DEPTH is set, so the canonical signed output - and therefore
+// the geometry every consumer sees - is built on the title's own linearisation.
+Texture2D<float> InTitleLinearDepth : register(t3);
 
 RWTexture2D<half4> OutColor : register(u0);
 RWTexture2D<float> OutLinearDepth : register(u1);
@@ -101,6 +109,10 @@ cbuffer CB_Median : register(b0)
     // Origin of the title's normals, which the orientation guide is read from.
     uint2 NormalBase;
     float2 _NormalPadding;
+
+    // Origin of the title's published linear depth, when it provides one.
+    uint2 TitleDepthBase;
+    float2 _TitleDepthPadding;
 }
 
 bool IsSet(uint mask)
@@ -216,7 +228,16 @@ float2 GetDepthGradient(const uint2 groupID, const int2 gtID)
 
 float3 GetViewSpacePos(const int2 px)
 {
-    float inDepth = InDepth[px + int2(InputBase.zw)];
+    // A title that publishes its own linear depth is authoritative: it knows which
+    // linearisation it applied, and deriving it from hardware depth is the step that
+    // has to guess that convention. This read is where the canonical signed depth is
+    // produced - the floor filter, the packing shader and the denoiser's own depth
+    // input all consume OutLinearDepth - so steering it steers the geometry of the
+    // whole chain, and no consumer is left deriving its own.
+    const bool useTitleDepth = IsSet(FLAGS_TITLE_LINEAR_DEPTH);
+    float inDepth = useTitleDepth
+        ? InTitleLinearDepth[px + int2(TitleDepthBase)]
+        : InDepth[px + int2(InputBase.zw)];
     // InvProjMatrix is unjittered. Convert the current jittered raster
     // coordinate back to the matching unjittered projection ray.
     const float2 uv = (float2(px) + 0.5 - CurrentJitter) * RenderSize.zw;
@@ -224,7 +245,7 @@ float3 GetViewSpacePos(const int2 px)
     float3 viewSpacePos = 0.0f;
     
     [branch]
-    if (IsSet(FLAGS_LINEAR_DEPTH))
+    if (IsSet(FLAGS_LINEAR_DEPTH) || useTitleDepth)
     {
         inDepth = clamp(abs(inDepth), NearPlane, FarPlane);
         inDepth *= depthSign;

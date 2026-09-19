@@ -2878,7 +2878,23 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
 
                                     const bool contextSettingsChanged =
 
-                                        config->FfxDenoiserDiffuseSignalType.value_or_default() != 0 ||
+                                        // Presence, not the effective value: Auto and an explicit
+
+                                        // Direct both read as 0 through value_or_default(), yet
+
+                                        // this reset returns the key to Auto, so any explicit
+
+                                        // choice - Direct included - is a context-creation change.
+
+                                        // A rebuilt context re-runs the automatic classification
+
+                                        // and locks the effective signal type from runtime
+
+                                        // evidence again; an already-Auto key keeps its locked
+
+                                        // type and needs no rebuild.
+
+                                        config->FfxDenoiserDiffuseSignalType.has_value() ||
 
                                         config->FfxDenoiserSpecularSignalType.has_value() ||
 
@@ -2890,7 +2906,17 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
 
 
 
-                                    config->FfxDenoiserDiffuseSignalType = 0;
+                                    // Back to Auto, the constructor default and what the
+
+                                    // combo's "Auto" entry writes. The old explicit Direct
+
+                                    // pin disabled automatic classification for the rest of
+
+                                    // the session while a context auto-locked to Indirect
+
+                                    // kept running.
+
+                                    config->FfxDenoiserDiffuseSignalType.reset();
 
                                     config->FfxDenoiserSpecularSignalType.reset();
 
@@ -4175,7 +4201,7 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
 
                                                         candidate.producerPsoId,
 
-                                                        candidate.shaderReadable ? "ready" :
+                                                        candidate.computeReadable ? "ready" :
 
                                                             (candidate.stateKnown ? "not readable" : "state unknown"),
 
@@ -4311,13 +4337,13 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
 
                                                 }
 
-                                                else if (!selected.shaderReadable)
+                                                else if (!selected.computeReadable)
 
                                                 {
 
                                                     ImGui::TextDisabled(
 
-                                                        "Preview unavailable: current state 0x%X is not shader-readable.",
+                                                        "Preview unavailable: state 0x%X is not readable by the compute pass that builds the preview.",
 
                                                         static_cast<uint32_t>(selected.state));
 

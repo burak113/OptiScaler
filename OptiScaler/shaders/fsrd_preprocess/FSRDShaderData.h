@@ -14,7 +14,10 @@ namespace FSRD
         {
             None = 0,
             LinearDepth = (1 << 0),
-            NegativeViewDepth = (1 << 1)
+            NegativeViewDepth = (1 << 1),
+            // The title publishes its own linearised view depth: InTitleLinearDepth is
+            // the source the canonical signed output is derived from.
+            TitleLinearDepth = (1 << 2)
         };
 
         struct alignas(16) Constants
@@ -36,6 +39,10 @@ namespace FSRD
             // Origin of the title's normals, which the orientation guide is read from.
             XMUINT2 NormalBase;
             XMFLOAT2 _NormalPadding;
+
+            // Origin of the title's published linear depth, when it provides one.
+            XMUINT2 TitleDepthBase;
+            XMFLOAT2 _TitleDepthPadding;
         };
 
         // Boundary fields, so a member that moves or disappears fails this build rather than
@@ -44,7 +51,8 @@ namespace FSRD
         static_assert(offsetof(Constants, RenderSize) == 64, "FSRDFloorSeed layout");
         static_assert(offsetof(Constants, InputBase) == 112, "FSRDFloorSeed layout");
         static_assert(offsetof(Constants, NormalBase) == 128, "FSRDFloorSeed layout");
-        static_assert(sizeof(Constants) == 144,
+        static_assert(offsetof(Constants, TitleDepthBase) == 144, "FSRDFloorSeed layout");
+        static_assert(sizeof(Constants) == 160,
                       "FSRD floor-seed constant-buffer layout must match HLSL");
 
         union Input
@@ -54,6 +62,9 @@ namespace FSRD
                 ID3D12Resource* InColor;
                 ID3D12Resource* InNormals;
                 ID3D12Resource* InDepth;
+                // Optional: bound for every dispatch, read only when Flags carries
+                // TitleLinearDepth.
+                ID3D12Resource* InTitleLinearDepth;
             };
 
             // The number of D3D12 resources in the struct
@@ -126,12 +137,17 @@ namespace FSRD
             // above it on half the frame. 0 reproduces the mean-only behaviour.
             float EnvelopeBias;
 
-            float _Padding;
+            // Origin of the title's diffuse albedo subrect (InputBase2.zw of the conversion).
+            // Every other input the filter reads is an internal zero-based buffer; the albedo
+            // guide is the title's own texture, bound whole, so the origin has to travel with
+            // it or a non-zero subrect puts the material comparison on the wrong pixels.
+            XMUINT2 AlbedoBase;
         };
 
         static_assert(offsetof(Constants, RcpCrossBlNorm) == 16, "FSRDFloor layout");
         static_assert(offsetof(Constants, GrazingSharpness) == 48, "FSRDFloor layout");
         static_assert(offsetof(Constants, EnvelopeBias) == 52, "FSRDFloor layout");
+        static_assert(offsetof(Constants, AlbedoBase) == 56, "FSRDFloor layout");
         static_assert(sizeof(Constants) == 64,
                       "FSRD floor-filter constant-buffer layout must match HLSL");
 
@@ -427,7 +443,7 @@ namespace FSRD
     // no diagnostic: the table overruns and descriptors land in the wrong range.
     // These assertions are the missing third leg of that contract - update the
     // numDescriptors literal in the named shader whenever one of them fires.
-    static_assert(FloorSeed::Input::kCount == 3, "FSRDFloorSeed MainRS SRV count");
+    static_assert(FloorSeed::Input::kCount == 4, "FSRDFloorSeed MainRS SRV count");
     static_assert(FloorSeed::Output::kCount == 3, "FSRDFloorSeed MainRS UAV count");
     static_assert(FloorFilter::Input::kCount == 4, "FSRDFloor MainRS SRV count");
     static_assert(FloorFilter::Output::kCount == 1, "FSRDFloor MainRS UAV count");

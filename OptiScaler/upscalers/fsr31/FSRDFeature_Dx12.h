@@ -165,6 +165,29 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     DirectX::XMFLOAT2 _previousDenoiserJitter {};
     float _appliedRoughnessFloor = -1.0f;
     int _appliedNormalsInViewSpace = -1;
+
+    // The definition of the depth field every view-space position in the chain is built from,
+    // as one comparable token: which source produced it, and the convention that reads it.
+    // A history accumulated under one definition cannot be reprojected onto another, so a
+    // change here has to drop it in the same frame rather than let the two meet.
+    //
+    // The title's resource pointer is deliberately not part of the token. DLSS titles publish
+    // a ring of per-frame buffers, so the pointer moves without the field moving, and a token
+    // that followed it would reset every frame; a format or subrect change on the same source
+    // is a precision or placement change, not a different field.
+    struct DepthDefinition
+    {
+        bool titleLinearDepth = false; // the title's own linearisation, not the derived field
+        bool rightHanded = false;      // the sign convention applied to depth
+
+        bool operator==(const DepthDefinition&) const = default;
+    };
+
+    // False until a frame has resolved one, so the first definition is not reported - and
+    // acted on - as a change from the zero-initialised default.
+    bool _hasAppliedDepthDefinition = false;
+    DepthDefinition _appliedDepthDefinition {};
+
     bool _hasDenoiserHistory = false;
     // True once this instance has recorded preprocessor work into a command list.
     // Releasing the converter's textures after that point can free resources an
@@ -222,9 +245,26 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
 
     bool AcquireTaggedAmbientOcclusionResources(bool logFailure);
     bool PublishAmbientOcclusionOutput(ID3D12GraphicsCommandList* commandList);
+
+    // What declared D3D12 resource states a Streamline tag may carry when acquired.
+    // Every policy shares the same frame/viewport/lifetime validation; only the
+    // state requirement differs.
+    enum class TagStatePolicy : uint8_t
+    {
+        // The tag is read as-is, so the declaration must already carry a
+        // shader-readable bit.
+        RequireShaderRead,
+        // Any declared state is accepted; the consumer owns how the resource is used.
+        AnyDeclaredState,
+        // Shader-readable states plus COMMON. COMMON carries no readable bit but is
+        // legal to transition out of: the consumer records the declared-to-read
+        // barrier and hands the resource back through that state.
+        AllowCommonTransition,
+    };
+
     bool AcquireSLTaggedResource(
         const RRD3D12SignalTagSnapshot& snapshot, RRTaggedSignal signal,
-        const char* sourceName, bool requireShaderRead,
+        const char* sourceName, TagStatePolicy statePolicy,
         Microsoft::WRL::ComPtr<ID3D12Resource>& resource,
         RRTaggedResourceDiagnostic& diagnostic);
 
@@ -270,6 +310,13 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     bool DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList, const ffxDispatchDescDenoiser& dispatchDesc);
 
     void CommitDenoiserHistory() noexcept;
+
+    // Re-derives the conversion inputs that PrepareDenoiseConvInput froze from the value
+    // _hasDenoiserHistory had before a change check invalidated it. Every check that resets
+    // history after that point has to call this, or the conversion pass reprojects against a
+    // previous-frame depth produced under the setting that was just abandoned, on the very
+    // frame the RR dispatch resets.
+    void RefreshHistoryDerivedInputs() noexcept;
 
     void InvalidateDenoiserHistory() noexcept
     {
