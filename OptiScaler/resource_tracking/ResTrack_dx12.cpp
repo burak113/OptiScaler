@@ -109,6 +109,7 @@ typedef void(STDMETHODCALLTYPE* PFN_ExecuteCommandLists)(ID3D12CommandQueue* Thi
                                                          ID3D12CommandList* const* ppCommandLists);
 
 typedef ULONG(STDMETHODCALLTYPE* PFN_Release)(ID3D12Resource* This);
+typedef ULONG(STDMETHODCALLTYPE* PFN_PsoRelease)(ID3D12PipelineState* This);
 
 // Original method calls for device
 static PFN_CreateRenderTargetView o_CreateRenderTargetView = nullptr;
@@ -141,6 +142,13 @@ static PFN_Close o_Close = nullptr;
 
 static PFN_ExecuteCommandLists o_ExecuteCommandLists = nullptr;
 static PFN_Release o_Release = nullptr;
+static PFN_PsoRelease o_PsoRelease = nullptr;
+// Detours rewrites the function body, not the COM vtable slot. Keep the original resource
+// Release entry so a PSO that shares the same implementation can reuse hkRelease instead of
+// attempting to detour the already-detoured address a second time.
+static PVOID gResourceReleaseEntry = nullptr;
+
+static ULONG hkPsoRelease(ID3D12PipelineState* This);
 
 static PFN_OMSetRenderTargets o_OMSetRenderTargets = nullptr;
 static PFN_SetGraphicsRootDescriptorTable o_SetGraphicsRootDescriptorTable = nullptr;
@@ -302,10 +310,76 @@ static uint64_t HashRRComputePipeline(const D3D12_COMPUTE_PIPELINE_STATE_DESC& d
     return HashRRShader(desc.CS, 1469598103934665603ull);
 }
 
+// Caller has proved the object is on its final external reference. Erasing by address is safe
+// for both the dedicated PSO hook and the shared-IUnknown path through hkRelease; a resource
+// address that has no PSO metadata exits immediately.
+static void CleanupRRPsoReferences(void* object)
+{
+    auto* pipelineState = static_cast<ID3D12PipelineState*>(object);
+    std::scoped_lock psoLock(gRRPsoMutex);
+    if (gRRPsoMetadata.erase(pipelineState) == 0)
+        return;
+
+    for (auto& [resource, producers] : gRRResourcePsoProducers)
+        producers.erase(pipelineState);
+
+    // Recorded bindings would re-register the dying pointer through later draws/dispatches on
+    // these command lists, resurrecting metadata for an address the driver may recycle.
+    for (auto& [commandList, state] : gRRCommandListPsoStates)
+    {
+        if (state.currentPso == pipelineState)
+            state.currentPso = nullptr;
+        if (state.lastGraphicsPso == pipelineState)
+            state.lastGraphicsPso = nullptr;
+        if (state.lastComputePso == pipelineState)
+            state.lastComputePso = nullptr;
+    }
+}
+
+// Metadata is keyed by raw pointer, so an entry must die with its object:
+// otherwise a new PSO on a recycled address inherits the dead PSO's id and
+// hash and dead entries pile up over a long session. The Release vtable slot
+// is detoured once, lazily, using the first PSO that reaches this point --
+// building a throwaway PSO for its vtable (like HookResource does) would need
+// valid shader blobs. Caller must hold gRRPsoMutex.
+static void EnsurePsoReleaseHook(ID3D12PipelineState* pipelineState)
+{
+    if (o_PsoRelease != nullptr)
+        return;
+
+    PVOID* pVTable = *(PVOID**) pipelineState;
+    PVOID releaseEntry = pVTable[2];
+
+    // Some D3D12 runtimes share their IUnknown implementation between resources and PSOs.
+    // HookResource has already detoured that entry; hkRelease calls the same PSO cleanup helper
+    // after its reference probe, so attaching a second detour would only create an ambiguous
+    // hook chain.
+    if (releaseEntry == gResourceReleaseEntry)
+        return;
+
+    o_PsoRelease = (PFN_PsoRelease) releaseEntry;
+
+    if (o_PsoRelease == nullptr)
+        return;
+
+    DetourTransactionBegin();
+    DetourUpdateThread(GetCurrentThread());
+    DetourAttach(&(PVOID&) o_PsoRelease, hkPsoRelease);
+
+    auto detourResult = DetourTransactionCommit();
+    if (detourResult != NO_ERROR)
+    {
+        LOG_ERROR("Failed to hook PSO Release: {:X}", detourResult);
+        o_PsoRelease = nullptr;
+    }
+}
+
 static RRPsoMetadata& EnsureRRPsoMetadata(ID3D12PipelineState* pipelineState,
                                          RRPsoKind kind = RRPsoKind::Unknown,
                                          uint64_t hash = 0)
 {
+    EnsurePsoReleaseHook(pipelineState);
+
     RRPsoMetadata& metadata = gRRPsoMetadata[pipelineState];
     if (metadata.id == 0)
         metadata.id = gRRNextPsoId.fetch_add(1, std::memory_order_relaxed);
@@ -674,6 +748,11 @@ void ResTrack_Dx12::SetRRResourceInspectorEnabled(bool enabled)
             std::scoped_lock psoLock(gRRPsoMutex);
             gRRCommandListPsoStates.clear();
             gRRResourcePsoProducers.clear();
+            // PSO metadata is only collected while the inspector is on, so it
+            // is cleared here as well instead of surviving until global
+            // teardown; ids restart on the next enable, matching teardown.
+            gRRPsoMetadata.clear();
+            gRRNextPsoId.store(1, std::memory_order_release);
         }
         {
             // This map is only fed while the inspector is on and otherwise shrinks
@@ -1921,6 +2000,11 @@ ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
                 gRRResourcePsoProducers.erase(This);
             }
 
+            // A runtime may use the same IUnknown::Release implementation for resources and
+            // PSOs. In that case this hook also owns PSO cleanup; the helper is a no-op for an
+            // ordinary resource address.
+            CleanupRRPsoReferences(This);
+
             if (auto it = _trackedResources.find(This); it != _trackedResources.end())
             {
                 toClean = std::move(it->second);
@@ -1941,13 +2025,30 @@ ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
     return o_Release(This);
 }
 
+ULONG hkPsoRelease(ID3D12PipelineState* This)
+{
+    if (State::Instance().isShuttingDown)
+        return o_PsoRelease(This);
+
+    // Same probe as hkRelease: keep the object alive while its metadata is
+    // cleaned up, then perform the caller's release.
+    This->AddRef();
+    auto refCount = o_PsoRelease(This);
+
+    if (refCount <= 1)
+        CleanupRRPsoReferences(This);
+
+    return o_PsoRelease(This);
+}
+
 HRESULT ResTrack_Dx12::hkCreateGraphicsPipelineState(
     ID3D12Device* This, const D3D12_GRAPHICS_PIPELINE_STATE_DESC* pDesc,
     REFIID riid, void** ppPipelineState)
 {
     const HRESULT result = o_CreateGraphicsPipelineState(This, pDesc, riid, ppPipelineState);
     if (SUCCEEDED(result) && pDesc != nullptr && ppPipelineState != nullptr &&
-        *ppPipelineState != nullptr)
+        *ppPipelineState != nullptr &&
+        gRRResourceInspectorEnabled.load(std::memory_order_relaxed))
     {
         std::scoped_lock psoLock(gRRPsoMutex);
         EnsureRRPsoMetadata(static_cast<ID3D12PipelineState*>(*ppPipelineState),
@@ -1962,7 +2063,8 @@ HRESULT ResTrack_Dx12::hkCreateComputePipelineState(
 {
     const HRESULT result = o_CreateComputePipelineState(This, pDesc, riid, ppPipelineState);
     if (SUCCEEDED(result) && pDesc != nullptr && ppPipelineState != nullptr &&
-        *ppPipelineState != nullptr)
+        *ppPipelineState != nullptr &&
+        gRRResourceInspectorEnabled.load(std::memory_order_relaxed))
     {
         std::scoped_lock psoLock(gRRPsoMutex);
         EnsureRRPsoMetadata(static_cast<ID3D12PipelineState*>(*ppPipelineState),
@@ -1977,7 +2079,8 @@ HRESULT ResTrack_Dx12::hkCreatePipelineState(
 {
     const HRESULT result = o_CreatePipelineState(This, pDesc, riid, ppPipelineState);
     if (SUCCEEDED(result) && pDesc != nullptr && ppPipelineState != nullptr &&
-        *ppPipelineState != nullptr)
+        *ppPipelineState != nullptr &&
+        gRRResourceInspectorEnabled.load(std::memory_order_relaxed))
     {
         const uint64_t hash = HashRRBytes(
             pDesc->pPipelineStateSubobjectStream, pDesc->SizeInBytes);
@@ -3157,6 +3260,7 @@ void ResTrack_Dx12::HookResource(ID3D12Device* InDevice)
     if (hr == S_OK)
     {
         PVOID* pVTable = *(PVOID**) tmp;
+        gResourceReleaseEntry = pVTable[2];
         o_Release = (PFN_Release) pVTable[2];
 
         if (o_Release != nullptr)
@@ -3170,6 +3274,7 @@ void ResTrack_Dx12::HookResource(ID3D12Device* InDevice)
             {
                 LOG_ERROR("Failed to hook Heap Release: {:X}", detourResult);
                 o_Release = nullptr;
+                gResourceReleaseEntry = nullptr;
                 tmp->Release();
             }
             else
@@ -3537,6 +3642,9 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
     if (o_Release != nullptr)
         DetourDetach(&(PVOID&) o_Release, hkRelease);
 
+    if (o_PsoRelease != nullptr)
+        DetourDetach(&(PVOID&) o_PsoRelease, hkPsoRelease);
+
     DetourTransactionCommit();
 
     // Device
@@ -3571,6 +3679,8 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
 
     // Resource
     o_Release = nullptr;
+    o_PsoRelease = nullptr;
+    gResourceReleaseEntry = nullptr;
 
     {
         std::scoped_lock resourceLock(gRRTrackedResourceMutex);

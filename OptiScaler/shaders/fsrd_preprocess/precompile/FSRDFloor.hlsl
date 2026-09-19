@@ -208,13 +208,16 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             const float wLum = GetRangeWeight(lumDelta, selfNormScale * lumRelax);
 
             // Coplanarity weight. FloorSeed stores a per-pixel central difference of
-            // view-space depth, so scaling it by the tap offset predicts the depth this
-            // tap would carry if the surface were locally planar. Measuring the residual
-            // against that plane is what makes this a coplanarity test rather than a
+            // view-space depth, so scaling it by the tap displacement predicts the depth
+            // this tap would carry if the surface were locally planar. Measuring the
+            // residual against that plane is what makes this a coplanarity test rather than a
             // plain depth difference, and it is why the gradient is produced at all.
-            // The offset comes from the clamped position so border taps stay honest.
+            // The displacement is taken from the clamped position, not the kernel offset:
+            // a border tap clamped back onto the centre reads the centre's depth, so
+            // predicting from the unclamped stride would score that read against a plane
+            // point that was never sampled and skew the edge weights on sloped surfaces.
             const float depth = InLinearDepth[tapPX];
-            const float planeOffset = clamp(dot(centerDepthGrad, float2(tapOffset)),
+            const float planeOffset = clamp(dot(centerDepthGrad, float2(tapPX - px)),
                                             -maxPlaneOffset, maxPlaneOffset);
             const float depthDelta = (centerDepth + planeOffset) - depth;
             const float wDepth = GetRangeWeight(depthDelta, depthNormScale);

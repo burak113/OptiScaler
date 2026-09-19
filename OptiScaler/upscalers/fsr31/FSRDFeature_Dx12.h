@@ -151,6 +151,15 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     Microsoft::WRL::ComPtr<ID3D12Resource> _titleLinearDepthTaggedResource;
     Microsoft::WRL::ComPtr<ID3D12Resource> _responsivityMaskTaggedResource;
     Microsoft::WRL::ComPtr<ID3D12Resource> _specularRayDirectionHitDistanceTaggedResource;
+    // Instance-local suppression state for the responsivity binding log. Function-static
+    // state races when multiple feature instances evaluate concurrently and lets one instance
+    // suppress another instance's first diagnostic.
+    ID3D12Resource* _loggedResponsivityMask = nullptr;
+    uint64_t _loggedResponsivityWidth = 0;
+    uint32_t _loggedResponsivityHeight = 0;
+    DXGI_FORMAT _loggedResponsivityViewFormat = DXGI_FORMAT_UNKNOWN;
+    float _loggedResponsivityThreshold = -1.0f;
+    bool _loggedResponsivityInvert = false;
     std::array<uint64_t, static_cast<size_t>(RRTaggedSignal::Count)>
         _lastConsumedSLTagUpdates {};
     std::array<uint32_t, static_cast<size_t>(RRTaggedSignal::Count)>

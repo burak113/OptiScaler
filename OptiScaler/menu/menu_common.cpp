@@ -2873,114 +2873,16 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
 
 
                                 if (ImGui::Button("Reset"))
-
                                 {
-
-                                    const bool contextSettingsChanged =
-
-                                        // Presence, not the effective value: Auto and an explicit
-
-                                        // Direct both read as 0 through value_or_default(), yet
-
-                                        // this reset returns the key to Auto, so any explicit
-
-                                        // choice - Direct included - is a context-creation change.
-
-                                        // A rebuilt context re-runs the automatic classification
-
-                                        // and locks the effective signal type from runtime
-
-                                        // evidence again; an already-Auto key keeps its locked
-
-                                        // type and needs no rebuild.
-
-                                        config->FfxDenoiserDiffuseSignalType.has_value() ||
-
-                                        config->FfxDenoiserSpecularSignalType.has_value() ||
-
-                                        config->FfxDenoiserTaggedAmbientOcclusion.value_or_default() ||
-
-                                        config->FfxDenoiserNormalsInViewSpace.value_or_default() ||
-
-                                        config->FfxDenoiserInternalDebugViews.value_or_default();
-
-
-
-                                    // Back to Auto, the constructor default and what the
-
-                                    // combo's "Auto" entry writes. The old explicit Direct
-
-                                    // pin disabled automatic classification for the rest of
-
-                                    // the session while a context auto-locked to Indirect
-
-                                    // kept running.
-
-                                    config->FfxDenoiserDiffuseSignalType.reset();
-
-                                    config->FfxDenoiserSpecularSignalType.reset();
-
-                                    config->FfxDenoiserTaggedAmbientOcclusion = false;
-
-                                    config->FfxDenoiserNormalsInViewSpace = false;
-
-                                    // Back to following NGX. Not part of contextSettingsChanged:
-
-                                    // this only feeds a conversion flag, not context creation.
-
-                                    config->FfxDenoiserHardwareDepth.reset();
-
-                                    config->FfxDenoiserUseAmdDefaults = false;
-
-                                    config->FfxDenoiserDisocThreshold = 0.1f;
-
-                                    config->FfxDenoiserCrossBlNormStr = 0.5f;
-
-                                    config->FfxDenoiserStabilityBias = 0.5f;
-
-                                    config->FfxDenoiserMaxRadiance = 40000.0f;
-
-                                    config->FfxDenoiserRadianceClip = 40.0f;
-
-                                    config->FfxDenoiserGaussKernRelax = 0.5f;
-
-                                    config->FfxDenoiserDebugDepthMax = 1024.0f;
-
-                                    config->FfxDenoiserDebugMode = 0;
-
-                                    config->FfxDenoiserDebugViewport = -1;
-
-                                    config->FfxDenoiserInternalDebugViews = false;
-
-                                    config->FfxDenoiserCorrelationBias = 1.0f;
-
-                                    config->FfxDenoiserDiffuseHitDistance = true;
-
-                                    config->FfxDenoiserFloorIsolation = 1.0f;
-
-                                    config->FfxDenoiserRoughnessFloor = 0.1f;
-
-                                    config->FfxDenoiserFloorHandover = true;
-
-                                    config->FfxDenoiserFloorHandoverDetail = 1.0f;
-
-
-                                    config->FfxDenoiserFloorHandoverAnchorClamp = 2.0f;
-
-                                    config->FfxDenoiserFloorHandoverCorrelationMix = 1.0f;
-
-
-
-                                    if (contextSettingsChanged)
-
+                                    // Config owns the FSR-RR default profile and the
+                                    // context-recreation rules; keeping an assignment
+                                    // list here would silently miss every setting
+                                    // added later.
+                                    if (config->ResetFfxDenoiserSettings())
                                     {
-
                                         state.newBackend = currentBackend;
-
                                         MARK_ALL_BACKENDS_CHANGED();
-
                                     }
-
                                 }
 
                             // The denoiser's own tunables, the debug views and the live resource

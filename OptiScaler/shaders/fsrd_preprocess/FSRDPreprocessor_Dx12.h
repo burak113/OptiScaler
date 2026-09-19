@@ -66,7 +66,7 @@ class FSRDPreprocessor_Dx12
 
         DebugAlbedoError =      15 << 17 | Debug,
 
-        DebugFloorVariance =    16 << 17 | Debug,
+        // 16 was the floor variance view; it went with the seed's unpublished instability channel.
         DebugFloorColor =       17 << 17 | Debug,
 
         // Remodulated RR signal before denoising. This is intentionally a

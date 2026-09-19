@@ -46,6 +46,82 @@ Config::Config()
     Reload(absoluteFileName);
 }
 
+// The one authority on "back to defaults" for the FSR-RR denoiser. Clearing
+// each optional instead of re-assigning a literal keeps the member
+// initializers in Config.h the single source of the default values, so this
+// list can state no stale numbers - it only has to stay complete against the
+// "FSR-RR" reads in Reload.
+bool Config::ResetFfxDenoiserSettings()
+{
+    const bool contextSettingsChanged =
+        // Presence, not the effective value: Auto and an explicit Direct both
+        // read as 0 through value_or_default(), yet this reset returns the key
+        // to Auto, so any explicit choice - Direct included - is a
+        // context-creation change. A rebuilt context re-runs the automatic
+        // classification and locks the effective signal type from runtime
+        // evidence again; an already-Auto key keeps its locked type and needs
+        // no rebuild.
+        FfxDenoiserDiffuseSignalType.has_value() ||
+        FfxDenoiserSpecularSignalType.has_value() ||
+        // Single-signal denoising declares the surviving signals at context
+        // creation; only an explicit false differs from the default.
+        (FfxDenoiserDenoiseDiffuse.has_value() && !FfxDenoiserDenoiseDiffuse.value()) ||
+        (FfxDenoiserDenoiseSpecular.has_value() && !FfxDenoiserDenoiseSpecular.value()) ||
+        // The provider index is resolved when the context is created.
+        (FfxDenoiserIndex.has_value() && FfxDenoiserIndex.value() != 0) ||
+        FfxDenoiserTaggedAmbientOcclusion.value_or_default() ||
+        FfxDenoiserNormalsInViewSpace.value_or_default() ||
+        FfxDenoiserInternalDebugViews.value_or_default();
+
+    FfxDenoiserIndex.reset();
+    FfxDenoiserDebugMode.reset();
+    FfxDenoiserDebugViewport.reset();
+    FfxDenoiserInternalDebugViews.reset();
+    FfxDenoiserDiffuseSignalType.reset();
+    FfxDenoiserSpecularSignalType.reset();
+    FfxDenoiserDenoiseDiffuse.reset();
+    FfxDenoiserDenoiseSpecular.reset();
+    FfxDenoiserTaggedAmbientOcclusion.reset();
+    FfxDenoiserNormalsInViewSpace.reset();
+    FfxDenoiserUseTitleLinearDepth.reset();
+    FfxDenoiserResponsivityThreshold.reset();
+    FfxDenoiserResponsivityInvert.reset();
+    FfxDenoiserBiasMaskStrength.reset();
+    FfxDenoiserFloorDetailBoost.reset();
+    FfxDenoiserFloorNormalSharpness.reset();
+    FfxDenoiserFloorAlbedoGuide.reset();
+    FfxDenoiserFloorLumSymmetry.reset();
+    FfxDenoiserFloorGrazingSharpness.reset();
+    FfxDenoiserFloorEnvelopeBias.reset();
+    FfxDenoiserFloorSoftMin.reset();
+    // Back to following NGX; feeds a conversion flag, not context creation.
+    FfxDenoiserHardwareDepth.reset();
+    FfxDenoiserUseAmdDefaults.reset();
+    FfxDenoiserDisocThreshold.reset();
+    FfxDenoiserCrossBlNormStr.reset();
+    FfxDenoiserStabilityBias.reset();
+    FfxDenoiserMaxRadiance.reset();
+    FfxDenoiserRadianceClip.reset();
+    FfxDenoiserGaussKernRelax.reset();
+    FfxDenoiserDebugDepthMax.reset();
+    FfxDenoiserDiagnostics.reset();
+    FfxDenoiserCorrelationBias.reset();
+    FfxDenoiserDiffuseHitDistance.reset();
+    FfxDenoiserFloorIsolation.reset();
+    FfxDenoiserRoughnessFloor.reset();
+    FfxDenoiserFloorHandover.reset();
+    FfxDenoiserFloorHandoverStrength.reset();
+    FfxDenoiserFloorRawBlend.reset();
+    FfxDenoiserDemodDivisorFloor.reset();
+    FfxDenoiserFloorClampSmoothing.reset();
+    FfxDenoiserFloorStructureGate.reset();
+    FfxDenoiserFloorHandoverDetail.reset();
+    FfxDenoiserFloorHandoverAnchorClamp.reset();
+    FfxDenoiserFloorHandoverCorrelationMix.reset();
+
+    return contextSettingsChanged;
+}
+
 bool Config::Reload(std::filesystem::path iniPath)
 {
     auto pathWStr = iniPath.wstring();
@@ -301,6 +377,8 @@ bool Config::Reload(std::filesystem::path iniPath)
             if (FsrNonLinearPQ.has_value() || FsrNonLinearSRGB.has_value())
                 FsrNonLinearColorSpace.set_volatile_value(true);
         // FSR-RR
+        // Every key read here must also be listed in ResetFfxDenoiserSettings,
+        // which is what the menu's FSR-RR Reset button applies.
         {
             FfxDenoiserUseAmdDefaults.set_from_config(readBool("FSR-RR", "UseAmdDefaults"));
             FfxDenoiserDisocThreshold.set_from_config(readFloat("FSR-RR", "DisocclusionThreshold"));

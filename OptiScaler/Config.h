@@ -822,6 +822,14 @@ class Config
 
     void CheckUpscalerFiles();
 
+    // Applies the FSR-RR denoiser's default profile: every FfxDenoiser* setting
+    // goes back to the default declared on its member. The single place that
+    // knows the complete setting set and which keys take effect at context
+    // creation - the menu's Reset button goes through this instead of keeping
+    // its own assignment list. Returns true when a context-creation setting
+    // changed and the caller must rebuild the RR context.
+    bool ResetFfxDenoiserSettings();
+
     std::vector<std::string> GetConfigLog();
 
     static Config* Instance();

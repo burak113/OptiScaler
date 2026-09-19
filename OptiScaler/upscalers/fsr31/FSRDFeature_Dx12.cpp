@@ -912,7 +912,6 @@ enum class DebugModes : uint64_t
     NormDepth = FSRDConvFlags::DebugNormDepth,
     AlbedoError = FSRDConvFlags::DebugAlbedoError,
 
-    FloorVariance = FSRDConvFlags::DebugFloorVariance,
     FloorColor = FSRDConvFlags::DebugFloorColor,
     RawIndirectSpecular = FSRDConvFlags::DebugRawIndirectSpecular,
     EffectiveRoughness = FSRDConvFlags::DebugEffectiveRoughness,
@@ -1041,7 +1040,6 @@ constexpr auto kDebugModes = std::to_array<ModeNamePair>(
     { "HandoverRRAnchor", (uint64_t) DebugModes::HandoverAnchor },
     { "HandoverEffectiveWeight", (uint64_t) DebugModes::HandoverWeight },
 
-    { "FloorVariance", (uint64_t) DebugModes::FloorVariance },
     { "FloorColor", (uint64_t) DebugModes::FloorColor },
     
     { "RawSpecularSignal", (uint64_t) DebugModes::RawIndirectSpecular },
@@ -2448,15 +2446,43 @@ void FSRDFeatureDx12::AcquireOptionalInputs(const NVSDK_NGX_Parameter& inParams,
             const D3D12_RESOURCE_DESC responsivityDesc = responsivityMask->GetDesc();
             _convDesc.Resources.InResponsivityMask = responsivityMask;
 
-            LOG_INFO("[RR_INPUT] responsivity hint bound: {}x{}, {}, threshold {:.4f} "
-                     "({} counts as unstable)",
-                     responsivityDesc.Width, responsivityDesc.Height,
-                     magic_enum::enum_name(FSRD::GetViewFormat(responsivityDesc.Format)),
-                     cfg.FfxDenoiserResponsivityThreshold.value_or_default(),
-                     cfg.FfxDenoiserResponsivityInvert.value_or_default()
-                         ? "above" : "below");
+            // This runs on every Evaluate, so the log is only re-emitted when the bound
+            // resource or the polarity/threshold configuration actually changes; otherwise
+            // a long session accumulates an identical line per frame. The cache belongs to
+            // this feature instance so independent instances cannot race or suppress one
+            // another's diagnostics.
+            const DXGI_FORMAT responsivityViewFormat = FSRD::GetViewFormat(responsivityDesc.Format);
+            const float responsivityThreshold = cfg.FfxDenoiserResponsivityThreshold.value_or_default();
+            const bool responsivityInvert = cfg.FfxDenoiserResponsivityInvert.value_or_default();
+
+            if (responsivityMask != _loggedResponsivityMask ||
+                responsivityDesc.Width != _loggedResponsivityWidth ||
+                responsivityDesc.Height != _loggedResponsivityHeight ||
+                responsivityViewFormat != _loggedResponsivityViewFormat ||
+                responsivityThreshold != _loggedResponsivityThreshold ||
+                responsivityInvert != _loggedResponsivityInvert)
+            {
+                _loggedResponsivityMask = responsivityMask;
+                _loggedResponsivityWidth = responsivityDesc.Width;
+                _loggedResponsivityHeight = responsivityDesc.Height;
+                _loggedResponsivityViewFormat = responsivityViewFormat;
+                _loggedResponsivityThreshold = responsivityThreshold;
+                _loggedResponsivityInvert = responsivityInvert;
+
+                LOG_INFO("[RR_INPUT] responsivity hint bound: {}x{}, {}, threshold {:.4f} "
+                         "({} counts as unstable)",
+                         responsivityDesc.Width, responsivityDesc.Height,
+                         magic_enum::enum_name(responsivityViewFormat),
+                         responsivityThreshold,
+                         responsivityInvert ? "above" : "below");
+            }
         }
     }
+
+    // Treat disappearance as a binding change, so the same resource is reported when it is
+    // later published again instead of being suppressed by the last successful frame.
+    if (_convDesc.Resources.InResponsivityMask == nullptr)
+        _loggedResponsivityMask = nullptr;
 
 }
 

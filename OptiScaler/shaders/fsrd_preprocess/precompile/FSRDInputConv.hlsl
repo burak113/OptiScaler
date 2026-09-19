@@ -89,7 +89,9 @@ static const float s_Type1RoughnessThreshold = 0.5f / 1023.0f;
 
 #define FLAGS_DEBUG_ALBEDO_OVERSHOOT    (15 << 17 | FLAGS_DEBUG)
 
-#define FLAGS_DEBUG_FLOOR_VARIANCE      (16 << 17 | FLAGS_DEBUG)
+// Value 16 was the floor variance view. It visualised the seed's instability channel, which
+// is no longer published now the floor confidence gate is gone (see FSRDFloorSeed.hlsl), so
+// the view read a constant and went with the channel.
 #define FLAGS_DEBUG_FLOOR_COLOR         (17 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_RAW_INDIRECT_SPEC   (18 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_EFFECTIVE_ROUGHNESS (19 << 17 | FLAGS_DEBUG)
@@ -595,7 +597,23 @@ float3 GetAdaptiveRankFloor(int2 centerPx, float3 centerColor, float centerLuma)
             innerResult,
             innerConfidence);
 
-    return centerColor * (result * rcp(max(centerLuma, 1e-4f)));
+    // Luma-to-colour reconstruction.
+    //
+    // The gain is centreLuma-relative, so the denominator needs a guard - but clamping
+    // the denominator rescales everything below the clamp: a constant 1e-5 field the
+    // filter leaves untouched would come back at a tenth of its input, breaking the
+    // keep-what-is-not-an-outlier promise exactly where that promise matters most. So
+    // an unchanged centre skips the ratio and returns the centre colour outright -
+    // exact unit gain at any positive luma - and only an escalated pixel divides.
+    // Black gets its own guard there: a centre with no measurable luma has no chroma
+    // to preserve, so the replacement luma publishes as grey instead of riding a
+    // denominator clamp that would darken it.
+    if (result == center)
+        return centerColor;
+
+    return centerLuma > 1e-6f
+        ? centerColor * result * rcp(centerLuma)
+        : result.xxx;
 }
 
 // Structure of the diffuse albedo at this pixel's scale, used to gate the raw-preserving
@@ -1202,10 +1220,6 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                     debugColor = diffAlbedo.rgb;
                     break;
 
-                case FLAGS_DEBUG_FLOOR_VARIANCE:
-                    debugColor = TurboColormap(InFloorColor[px].a);
-                    break;
-                
                 case FLAGS_DEBUG_FLOOR_COLOR:
                     debugColor = InFloorColor[px].rgb;
                     break;

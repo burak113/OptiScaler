@@ -273,7 +273,6 @@ CONV_DEBUG_NAMES = {
     "DebugOutDepthDelta": "FLAGS_DEBUG_OUT_DEPTH_DELTA",
     "DebugNormDepth": "FLAGS_DEBUG_NORM_DEPTH",
     "DebugAlbedoError": "FLAGS_DEBUG_ALBEDO_OVERSHOOT",
-    "DebugFloorVariance": "FLAGS_DEBUG_FLOOR_VARIANCE",
     "DebugFloorColor": "FLAGS_DEBUG_FLOOR_COLOR",
     "DebugRawIndirectSpecular": "FLAGS_DEBUG_RAW_INDIRECT_SPEC",
     "DebugEffectiveRoughness": "FLAGS_DEBUG_EFFECTIVE_ROUGHNESS",
