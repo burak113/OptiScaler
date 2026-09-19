@@ -16,7 +16,10 @@ class FSR31Feature : public virtual IFeature
     double _lastFrameTime;
     unsigned int _lastWidth = 0;
     unsigned int _lastHeight = 0;
-    static inline feature_version _version { 3, 1, 2 };
+    // Per instance on purpose: SR and RR features share this base, and each parses
+    // a different provider version (SR upscaler vs RR denoiser) into it. A static
+    // here lets one provider's version leak into every other instance's checks.
+    feature_version _version { 3, 1, 2 };
 
   protected:
     std::string _name = "FSR";
@@ -28,7 +31,7 @@ class FSR31Feature : public virtual IFeature
 
     double GetDeltaTime();
 
-    static inline void parse_version(const char* version_str) { _version.parse_version(version_str); }
+    void parse_version(const char* version_str) { _version.parse_version(version_str); }
 
     static inline void ffxResolveTypelessFormat(uint32_t& format)
     {

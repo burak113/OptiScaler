@@ -364,7 +364,7 @@ namespace FSRD
         struct alignas(16) Constants
         {
             XMFLOAT4 DstTexSize; // XY = Tex Size - ZW = 1 / XY
-            XMUINT4 SourceBase; // XY = raw color origin, ZW = color-before-particles origin
+            XMUINT4 SourceBase; // XY = raw color origin, ZW unused
 
             float CorrelationBias; // Controls the contribution of stable elements to the final image
             uint32_t Flags;
@@ -406,7 +406,6 @@ namespace FSRD
 
                 ID3D12Resource* InSkipSignal;
                 ID3D12Resource* InRawColor;
-                ID3D12Resource* InColorBeforeParticles; // NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles
                 ID3D12Resource* InRawIndirectSpecular;
                 ID3D12Resource* InNormals;
                 ID3D12Resource* InHandover; // RGB: handover image, A: mix weight
@@ -434,6 +433,6 @@ namespace FSRD
     static_assert(FloorFilter::Output::kCount == 1, "FSRDFloor MainRS UAV count");
     static_assert(Conversion::Input::kCount == 16, "FSRDInputConv MainRS SRV count");
     static_assert(Conversion::Output::kCount == 8, "FSRDInputConv MainRS UAV count");
-    static_assert(Composition::Input::kCount == 10, "FSRDOutputComp MainRS SRV count");
+    static_assert(Composition::Input::kCount == 9, "FSRDOutputComp MainRS SRV count");
     static_assert(Composition::kOutputCount == 1, "FSRDOutputComp MainRS UAV count");
 }

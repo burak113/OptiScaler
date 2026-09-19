@@ -108,6 +108,14 @@ class FSRDPreprocessor_Dx12
         DiffuseSignalIndirect = 1 << 2, // The active diffuse output was dispatched as Indirect Diffuse
         SpecularSignalIndirect = 1 << 3, // The active specular output was dispatched as Indirect Specular
 
+        // Single-signal denoise mode. The disabled signal was not in the denoiser
+        // chain this frame, so its ping-pong buffer still holds the floor pass's
+        // intermediate result - remodulating that would tint the channel with the
+        // floor image. Composition reads the packed raw signal instead, which is the
+        // same demodulated radiance the denoiser would have consumed.
+        DiffuseSignalDisabled = 1 << 4, // Diffuse was not denoised this frame
+        SpecularSignalDisabled = 1 << 5, // Specular was not denoised this frame
+
         Debug =                 1 << 16,
         DebugModeMask =         0xFF << 16,
 
@@ -278,7 +286,7 @@ class FSRDPreprocessor_Dx12
     struct CompositionDesc
     {
         DirectX::XMFLOAT4 DstTexSize; // XY = Tex Size - ZW = 1 / XY
-        DirectX::XMUINT4 SourceBase; // XY = raw color origin, ZW = color-before-particles origin
+        DirectX::XMUINT4 SourceBase; // XY = raw color origin, ZW unused
         float CorrelationBias; // Enhances the contribution of stable elements to the final image
         uint32_t Flags;
 
@@ -287,7 +295,6 @@ class FSRDPreprocessor_Dx12
         float FloorHandoverCorrelationMix = 0.0f;
 
         ID3D12Resource* InRawColor;
-        ID3D12Resource* InColorBeforeParticles; // NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles (Optional)
     };
 
   public:

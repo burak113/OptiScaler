@@ -3,7 +3,7 @@
 #define MainRS \
     "RootFlags(0), " \
     "CBV(b0), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 10), visibility = SHADER_VISIBILITY_ALL), " \
+    "DescriptorTable(SRV(t0, numDescriptors = 9), visibility = SHADER_VISIBILITY_ALL), " \
     "DescriptorTable(UAV(u0, numDescriptors = 1), visibility = SHADER_VISIBILITY_ALL), " \
     "StaticSampler(s0, " \
         "filter = FILTER_MIN_MAG_MIP_LINEAR, " \
@@ -68,13 +68,13 @@ Texture2D<half4> InDiffuseAlbedo : register(t3);
 // Secondary buffers
 Texture2D<half4> InSkipSignal : register(t4);
 Texture2D<half4> InRawColor : register(t5);
-Texture2D<half4> InColorBeforeParticles : register(t6);
-Texture2D<half4> InRawIndirectSpecular : register(t7);
-Texture2D<half4> InNormals : register(t8);
+
+Texture2D<half4> InRawIndirectSpecular : register(t6);
+Texture2D<half4> InNormals : register(t7);
 
 // RGB: the zero-roughness handover image, A: 1 on handed-over pixels. The conversion
 // pass owns the type-1 classification; this weight is how it reaches composition.
-Texture2D<half4> InHandover : register(t9);
+Texture2D<half4> InHandover : register(t8);
 
 RWTexture2D<half4> OutColor : register(u0);
 
@@ -83,7 +83,7 @@ SamplerState LinearSampler : register(s0);
 cbuffer CB_Comp : register(b0)
 {
     float4 DstTexSize;
-    uint4 SourceBase;
+    uint4 SourceBase; // XY = raw color origin, ZW unused
     
     float CorrelationBias;
     uint Flags;
@@ -249,17 +249,20 @@ half GetHandoverAgreement(const uint2 gtID)
 // than none at all.
 struct HandoverBands
 {
-    half3 RRLowBand;    // RR's lowpass - what RR contributes to the result
-    half3 DetailHigh;   // handover minus its own lowpass - what the handover contributes
-    half3 RRDeviation;  // RR's local standard deviation, for the anchor clamp
+    float3 RRLowBand;    // RR's lowpass - what RR contributes to the result
+    float3 DetailHigh;   // handover minus its own lowpass - what the handover contributes
+    float3 RRDeviation;  // RR's local standard deviation, for the anchor clamp
 };
 
-HandoverBands GetHandoverBands(const int2 smID, const half3 handoverColor)
+HandoverBands GetHandoverBands(const int2 smID, const float3 handoverColor)
 {
-    half3 lowpassDenoised = 0.0h;
-    half3 lowpassHandover = 0.0h;
-    half3 denoisedSquared = 0.0h;
-    half totalSplitWeight = 0.0h;
+    // Keep the reductions in FP32. Squaring an HDR FP16 sample can overflow well
+    // before the input itself reaches FP16's maximum and poisons the deviation with
+    // INF/NaN, which then propagates through the anchor clamp.
+    float3 lowpassDenoised = 0.0f;
+    float3 lowpassHandover = 0.0f;
+    float3 denoisedSquared = 0.0f;
+    float totalSplitWeight = 0.0f;
 
     [unroll]
     for (int sy = KERNEL_RANGE_MIN; sy <= KERNEL_RANGE_MAX; sy++)
@@ -268,18 +271,18 @@ HandoverBands GetHandoverBands(const int2 smID, const half3 handoverColor)
         for (int sx = KERNEL_RANGE_MIN; sx <= KERNEL_RANGE_MAX; sx++)
         {
             const int2 tapID = smID + int2(sx, sy);
-            const half w = s_SplitWeights[sx - KERNEL_RANGE_MIN] *
-                           s_SplitWeights[sy - KERNEL_RANGE_MIN];
-            const half3 tapDenoised = g_DenoisedColor[tapID.x][tapID.y].rgb;
+            const float w = float(s_SplitWeights[sx - KERNEL_RANGE_MIN]) *
+                            float(s_SplitWeights[sy - KERNEL_RANGE_MIN]);
+            const float3 tapDenoised = float3(g_DenoisedColor[tapID.x][tapID.y].rgb);
 
             lowpassDenoised += w * tapDenoised;
             denoisedSquared += w * tapDenoised * tapDenoised;
-            lowpassHandover += w * g_Handover[tapID.x][tapID.y].rgb;
+            lowpassHandover += w * float3(g_Handover[tapID.x][tapID.y].rgb);
             totalSplitWeight += w;
         }
     }
 
-    const half rcpSplitWeight = half(rcp(max(float(totalSplitWeight), 1e-4f)));
+    const float rcpSplitWeight = rcp(max(totalSplitWeight, 1e-4f));
     lowpassDenoised *= rcpSplitWeight;
     lowpassHandover *= rcpSplitWeight;
     denoisedSquared *= rcpSplitWeight;
@@ -290,7 +293,7 @@ HandoverBands GetHandoverBands(const int2 smID, const half3 handoverColor)
     // represent, so this is a highpass by construction - and signed.
     bands.DetailHigh = handoverColor - lowpassHandover;
     bands.RRDeviation =
-        sqrt(max(denoisedSquared - lowpassDenoised * lowpassDenoised, 0.0h));
+        sqrt(max(denoisedSquared - lowpassDenoised * lowpassDenoised, 0.0f));
     return bands;
 }
 
@@ -442,14 +445,14 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                         const HandoverBands bands =
                             GetHandoverBands(smID, handover.rgb);
 
-                        const half lowLuma = half(GetLuminance(bands.RRLowBand));
-                        const half detailLuma = half(GetLuminance(bands.DetailHigh));
+                        const float lowLuma = GetLuminance(bands.RRLowBand);
+                        const float detailLuma = GetLuminance(bands.DetailHigh);
 
                         if (GetDebugMode() == FLAGS_DEBUG_HANDOVER_RR_BAND)
                         {
                             // RR's contribution on its own: the base the detail is
                             // grafted onto. Soft by nature - that is the point.
-                            debugColor = max(bands.RRLowBand, 0.0h);
+                            debugColor = GetSafeFP16(max(bands.RRLowBand, 0.0f));
                         }
                         else if (GetDebugMode() == FLAGS_DEBUG_HANDOVER_DETAIL_BAND)
                         {
@@ -458,9 +461,9 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                             // brighter is positive, darker is negative. Scaled
                             // against local brightness so it reads the same in HDR as
                             // in a dim scene.
-                            const half rcpLocal = half(rcp(max(float(lowLuma), 1e-3f)));
-                            debugColor = saturate(
-                                0.5h + bands.DetailHigh * rcpLocal * 0.5h);
+                            const float rcpLocal = rcp(max(lowLuma, 1e-3f));
+                            debugColor = GetSafeFP16(saturate(
+                                0.5f + bands.DetailHigh * rcpLocal * 0.5f));
                         }
                         else
                         {
@@ -479,7 +482,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                             // touches, which is what flat panel interior should be.
                             static const float s_MixFullScale = 0.5f;
                             const float relativeDetail =
-                                abs(float(detailLuma)) * rcp(max(abs(float(lowLuma)), 1e-3f));
+                                abs(detailLuma) * rcp(max(abs(lowLuma), 1e-3f));
                             debugColor = (half3) TurboColormap(
                                 saturate(relativeDetail * rcp(s_MixFullScale)));
                         }
@@ -509,13 +512,13 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                         const HandoverBands bands =
                             GetHandoverBands(smID, handover.rgb);
 
-                        const half3 preClamp =
-                            max(bands.RRLowBand + bands.DetailHigh, 0.0h);
-                        const half3 tolerance =
-                            half(FloorHandoverAnchorClamp) * bands.RRDeviation;
-                        const half3 postClamp = clamp(
+                        const float3 preClamp =
+                            max(bands.RRLowBand + bands.DetailHigh, 0.0f);
+                        const float3 tolerance =
+                            FloorHandoverAnchorClamp * bands.RRDeviation;
+                        const float3 postClamp = clamp(
                             preClamp,
-                            max(bands.RRLowBand - tolerance, 0.0h),
+                            max(bands.RRLowBand - tolerance, 0.0f),
                             bands.RRLowBand + tolerance);
 
                         const float displacement =
@@ -580,9 +583,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             // Handover combination. Both sides are finished images by this point -
             // RR's result has been remodulated, correlated against raw and clamped,
             // and the handover carries its own composed colour - so this is a mix of
-            // two complete frames rather than of two partial signals. Applied before
-            // the particle layer so premultiplied particles still land on top of
-            // whichever image won.
+            // two complete frames rather than of two partial signals.
             const half4 handover = g_Handover[smID.x][smID.y];
             half3 handoverColor = handover.rgb;
             half handoverWeight = saturate(handover.a);
@@ -610,7 +611,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 
                 // The high band is signed, so the sum can undershoot where a dark
                 // stroke sits over a darker RR low band.
-                handoverColor = max(bands.RRLowBand + bands.DetailHigh, 0.0h);
+                handoverColor = GetSafeFP16(max(bands.RRLowBand + bands.DetailHigh, 0.0f));
 
                 [branch]
                 if (FloorHandoverAnchorClamp > 0.0f)
@@ -628,12 +629,12 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                     // untouched, which is why sharpness survives - the clamp only
                     // moves what RR's neighbourhood does not support. This is TAA
                     // history rectification, applied across paths instead of frames.
-                    const half3 tolerance = half(FloorHandoverAnchorClamp) * bands.RRDeviation;
+                    const float3 tolerance = FloorHandoverAnchorClamp * bands.RRDeviation;
 
-                    handoverColor = clamp(
-                        handoverColor,
-                        max(bands.RRLowBand - tolerance, 0.0h),
-                        bands.RRLowBand + tolerance);
+                    handoverColor = GetSafeFP16(clamp(
+                        float3(handoverColor),
+                        max(bands.RRLowBand - tolerance, 0.0f),
+                        bands.RRLowBand + tolerance));
                 }
             }
 
@@ -651,18 +652,6 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             }
 
             outColor.rgb = lerp(outColor.rgb, handoverColor, handoverWeight);
-
-
-            // Optional discrete premultiplied alpha buffer
-            uint particleWidth, particleHeight;
-            InColorBeforeParticles.GetDimensions(particleWidth, particleHeight);
-            const int2 particlePx = clamp(
-                int2(px) + int2(SourceBase.zw),
-                int2(0, 0),
-                int2(particleWidth, particleHeight) - 1);
-            half4 particles = GetSafeFP16(InColorBeforeParticles[particlePx]);
-            particles.a = saturate(particles.a);
-            outColor = half3((1.0f - particles.a) * outColor + particles.rgb);
             
             OutColor[px] = (half4)GetSafeFP16(float4(outColor, 1.0f));
         }

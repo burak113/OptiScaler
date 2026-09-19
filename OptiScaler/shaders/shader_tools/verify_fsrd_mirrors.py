@@ -324,6 +324,17 @@ COMP_DEBUG_NAMES = {
 
 MAX_DEBUG_MODE = 0xFF
 
+# Composition flags whose effect is a different resource in the binding list rather than a
+# branch in the shader: the dispatcher swaps the radiance texture it binds, so composition
+# reads the substituted resource and has nothing to test. There is therefore no define to
+# tie them to, and the pair that must stay in step is the feature that sets the flag and the
+# dispatcher that reads it - both C++, both invisible to this verifier. They are listed here
+# rather than left unmapped so that a flag which is neither mapped nor listed still fails,
+# and so that the fields it writes stay accounted for. Its value is still resolved and
+# range-checked by the plain-flag pass; only the comparison against a shader define is
+# skipped, because there is no define on the other side of it.
+COMP_FLAGS_RESOLVED_BY_BINDING = {"DiffuseSignalDisabled", "SpecularSignalDisabled"}
+
 
 def cpp_enum_values(text, enum_name):
     body = brace_body(text, "enum class " + enum_name)
@@ -365,7 +376,8 @@ def evaluate(expr, known, where):
         return None
 
 
-def check_flag_list(cpp_values, hlsl_values, name_map, label, is_mode, debug_bit=None):
+def check_flag_list(cpp_values, hlsl_values, name_map, label, is_mode, debug_bit=None,
+                    resolved_by_binding=frozenset()):
     resolved = {name: None for name in cpp_values}
     if not is_mode:
         # Repeated passes so an entry may reference another one (Debug, DebugModeMask). Modes
@@ -415,6 +427,8 @@ def check_flag_list(cpp_values, hlsl_values, name_map, label, is_mode, debug_bit
                  % (label, cpp_name, cpp_value, shader_name, shader_value))
 
     for cpp_name in cpp_values:
+        if cpp_name in resolved_by_binding:
+            continue
         if cpp_name not in mapped_cpp:
             fail("%s: C++ entry %s is not in the verifier's name map, so nothing ties it to the "
                  "shader. Add it to the map." % (label, cpp_name))
@@ -443,7 +457,8 @@ def check_flags():
     conv_plain, conv_modes = split(conv_cpp, CONV_DEBUG_NAMES)
     comp_plain, comp_modes = split(comp_cpp, COMP_DEBUG_NAMES)
     conv_resolved = check_flag_list(conv_plain, conv_hlsl, CONV_FLAG_NAMES, "ConvFlags", False)
-    comp_resolved = check_flag_list(comp_plain, comp_hlsl, COMP_FLAG_NAMES, "CompFlags", False)
+    comp_resolved = check_flag_list(comp_plain, comp_hlsl, COMP_FLAG_NAMES, "CompFlags", False,
+                                    resolved_by_binding=COMP_FLAGS_RESOLVED_BY_BINDING)
     check_flag_list(conv_modes, conv_hlsl, CONV_DEBUG_NAMES, "ConvFlags debug", True,
                     conv_resolved.get("Debug"))
     check_flag_list(comp_modes, comp_hlsl, COMP_DEBUG_NAMES, "CompFlags debug", True,

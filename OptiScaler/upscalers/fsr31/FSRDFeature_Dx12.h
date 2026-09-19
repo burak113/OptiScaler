@@ -73,6 +73,11 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
 
     ffxContext _pDenoiserCtx;
     ffxCreateContextDescDenoiser _denoiserCtxDesc;
+    // Version parsed from the selected RR provider name. Kept separate from
+    // FSR31Feature::_version so the SR upscaler version that Version() reports -
+    // and every Version()-gated SR behaviour relies on - is never overwritten by
+    // the denoiser provider version on context (re)creation.
+    feature_version _denoiserVersion {};
     DenoiserConfiguration _denoiserSettings;
     // AMD's queried baseline, captured before the per-frame configure pass starts
     // overwriting _denoiserSettings with the INI values. Retained so the A/B switch
@@ -145,9 +150,6 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     // must hold for as long as the command list that reads it.
     Microsoft::WRL::ComPtr<ID3D12Resource> _titleLinearDepthTaggedResource;
     Microsoft::WRL::ComPtr<ID3D12Resource> _responsivityMaskTaggedResource;
-    // Set when the conversion transitioned a title-owned resource and the frame therefore
-    // owes it a transition back.
-    bool _titleLinearDepthNeedsRestore = false;
     Microsoft::WRL::ComPtr<ID3D12Resource> _specularRayDirectionHitDistanceTaggedResource;
     std::array<uint64_t, static_cast<size_t>(RRTaggedSignal::Count)>
         _lastConsumedSLTagUpdates {};

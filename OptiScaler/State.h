@@ -306,7 +306,6 @@ class State
     // FSR-RR
     std::vector<const char*> ffxDenoiserVersionNames {};
     std::vector<uint64_t> ffxDenoiserVersionIds {};
-    feature_version ffxDenoiserUpscalerVersion {};
     // Debug
     std::vector<uint64_t> ffxDenoiserDebugModes;
     std::unordered_map<uint64_t, const char*> ffxDenoiserDebugModeNames;

@@ -51,6 +51,31 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
      */
     bool EvaluateInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) override;
 
+    /**
+     * @brief Owns the optional, configurable barrier window of a dispatch scope: applies the
+     * barriers on construction and restores the previous states on destruction, so every exit
+     * path (including a failed dispatch) hands the resources back in the states the title
+     * declared them in.
+     */
+    class ScopedConfigurableBarriers
+    {
+      public:
+        ScopedConfigurableBarriers(FSR31FeatureDx12& feature, ID3D12GraphicsCommandList* commandList) :
+            _feature(feature), _commandList(commandList)
+        {
+            _feature.SetConfigurableBarriers(_commandList);
+        }
+
+        ~ScopedConfigurableBarriers() { _feature.ResetConfigurableBarriers(_commandList); }
+
+        ScopedConfigurableBarriers(const ScopedConfigurableBarriers&) = delete;
+        ScopedConfigurableBarriers& operator=(const ScopedConfigurableBarriers&) = delete;
+
+      private:
+        FSR31FeatureDx12& _feature;
+        ID3D12GraphicsCommandList* _commandList;
+    };
+
   protected:
     bool _isInReset;
 

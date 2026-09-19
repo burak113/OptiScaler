@@ -28,7 +28,11 @@ def build(name):
         raise SystemExit("dxc failed for " + name)
 
     with open(asm, "r", encoding="utf-8", errors="replace") as f:
-        listing = f.read().replace("\r\n", "\n").rstrip("\n")
+        # DXC emits a few listing lines with trailing spaces. Normalize them here so
+        # regenerated checked-in headers pass git diff --check deterministically.
+        listing = "\n".join(
+            line.rstrip() for line in f.read().replace("\r\n", "\n").splitlines()
+        )
     os.remove(asm)
 
     with open(cso, "rb") as f:

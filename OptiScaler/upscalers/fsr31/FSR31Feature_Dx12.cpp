@@ -392,13 +392,10 @@ bool FSR31FeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList
     if (!PrepareUpscalerInput(InCommandList, inParams, upscalerDesc))
         return false;
 
-    // Sets optional, configurable resource barriers
-    SetConfigurableBarriers(InCommandList);
+    // Sets optional, configurable resource barriers, restored on scope exit
+    ScopedConfigurableBarriers scopedBarriers(*this, InCommandList);
 
-    bool isUpscalerReady = DispatchUpscaler(InCommandList, upscalerDesc);
-
-    // Cleanup
-    ResetConfigurableBarriers(InCommandList);
+    const bool isUpscalerReady = DispatchUpscaler(InCommandList, upscalerDesc);
 
     _frameCount++;
     return isUpscalerReady;
@@ -440,7 +437,10 @@ bool FSR31FeatureDx12::PrepareUpscalerInput(ID3D12GraphicsCommandList* InCommand
         LOG_DEBUG("AutoExposure disabled but ExposureTexture is missing. Forcing AutoExposure and re-initializing.");
         state.autoExposure = true;
         state.changeBackend[Handle()->Id] = true;
-        return true;
+        // This instance was created without auto exposure, so it cannot dispatch
+        // correctly until the requested backend recreation has happened. Returning
+        // success here would send a zero-initialized dispatch descriptor to FFX.
+        return false;
     }
 
     // Resolve Reactive & Transparency Masks
@@ -716,6 +716,13 @@ void FSR31FeatureDx12::GetReactiveAndTransparencyMasks(ID3D12GraphicsCommandList
     ID3D12Resource* activeReactiveMask = nullptr;
     ID3D12Resource* activeTransparencyMask = nullptr;
 
+    // FSRD's conversion path reads the title's DLSS bias mask independently of
+    // whether FSR later selects it as the active reactive mask. Transition it as
+    // soon as it is acquired so native FSR masks and DisableReactiveMask cannot
+    // leave the conversion sampling a UAV or render-target state.
+    TryResourceBarrier(InCommandList, inputs.DlssBiasMaskFallback, cfg.MaskResourceBarrier,
+                       D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
     if (!cfg.DisableReactiveMask.value_or(inputs.ReactiveMask == nullptr && inputs.DlssBiasMaskFallback == nullptr))
     {
         // Prefer explicit FSR masks
@@ -729,10 +736,6 @@ void FSR31FeatureDx12::GetReactiveAndTransparencyMasks(ID3D12GraphicsCommandList
         {
             LOG_DEBUG("Using DLSS Input Bias mask as fallback...");
             cfg.DisableReactiveMask.set_volatile_value(false);
-
-            // Transition Bias mask for reading
-            TryResourceBarrier(InCommandList, inputs.DlssBiasMaskFallback, cfg.MaskResourceBarrier,
-                               D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
             // Handle Bias generation (Compute Shader)
             if (cfg.DlssReactiveMaskBias.value_or_default() > 0.0f && Bias->IsInit() && Bias->CanRender())
@@ -810,17 +813,15 @@ void FSR31FeatureDx12::ResetConfigurableBarriers(ID3D12GraphicsCommandList* InCo
                        cfg.DepthResourceBarrier);
     TryResourceBarrier(InCommandList, _upscalerOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, cfg.OutputResourceBarrier);
 
-    if (_inputBuffers.ExposureMap)
+    if (_inputBuffers.ExposureMap && !AutoExposure())
         TryResourceBarrier(InCommandList, _inputBuffers.ExposureMap, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                            cfg.ExposureResourceBarrier);
 
-    // Note: The original code only restored the reactive mask if it was the fallback dlss mask,
-    // but generally restoring the native mask state is safer if we transitioned it.
-    // Assuming original behavior for now:
-    TryResourceBarrier(InCommandList, _inputBuffers.ReactiveMask, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-                       cfg.MaskResourceBarrier);
-
-    if (_inputBuffers.DlssBiasMaskFallback) // Restore fallback if it was used
+    // GetReactiveAndTransparencyMasks transitions only the title-owned DLSS bias
+    // fallback. ReactiveMask may alias that same resource (or an internal Bias output),
+    // so restoring ReactiveMask as well would either emit the same barrier twice or
+    // invent a reverse transition that had no matching forward transition.
+    if (_inputBuffers.DlssBiasMaskFallback)
         TryResourceBarrier(InCommandList, _inputBuffers.DlssBiasMaskFallback,
             D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, cfg.MaskResourceBarrier);
 }

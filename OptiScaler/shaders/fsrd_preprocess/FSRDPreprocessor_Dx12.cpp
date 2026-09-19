@@ -1393,15 +1393,29 @@ struct FSRDPreprocessor_Dx12::Impl
         // Transition denoiser output buffers to SRV for composition.
         TransitionDenoiserOutputsToRead(cmdList);
 
+        // A signal excluded from the denoiser chain (single-signal denoise mode) is
+        // never written this frame, and its ping-pong buffer is shared with the floor
+        // passes - so it still holds that floor's intermediate image. Multiplied by
+        // the albedo it would add floor light to the disabled channel instead of the
+        // signal. The packed raw signal is the demodulated radiance the denoiser
+        // would otherwise have consumed, so it is the energy-preserving passthrough.
+        ID3D12Resource* const specularRadiance =
+            (desc.Flags & (uint32_t) CompFlags::SpecularSignalDisabled) != 0
+                ? outResources.Signals.IndirectSpecular.Get()
+                : m_outputBuffer1.Get();
+        ID3D12Resource* const diffuseRadiance =
+            (desc.Flags & (uint32_t) CompFlags::DiffuseSignalDisabled) != 0
+                ? outResources.Signals.DirectDiffuse.Get()
+                : m_outputBuffer2.Get();
+
         inputs.Resources =
         {
-            .InIndirectSpecular = m_outputBuffer1.Get(),
+            .InIndirectSpecular = specularRadiance,
             .InSpecularAlbedo = outResources.SpecAlbedo.Get(),
-            .InDirectDiffuse = m_outputBuffer2.Get(),
+            .InDirectDiffuse = diffuseRadiance,
             .InDiffuseAlbedo = outResources.DiffAlbedo.Get(),
             .InSkipSignal = outResources.SkipSignal.Get(),
             .InRawColor = desc.InRawColor,
-            .InColorBeforeParticles = desc.InColorBeforeParticles,
             .InRawIndirectSpecular = outResources.Signals.IndirectSpecular.Get(),
             .InNormals = outResources.Normals.Get(),
             .InHandover = outResources.Handover.Get()

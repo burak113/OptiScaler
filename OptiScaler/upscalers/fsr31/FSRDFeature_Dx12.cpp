@@ -141,14 +141,17 @@ class TitleInputStateGuard
   public:
     TitleInputStateGuard(
         const std::unique_ptr<FSRDPreprocessor_Dx12>& preprocessor,
-        ID3D12GraphicsCommandList* commandList, bool enabled) :
-        _preprocessor(&preprocessor), _commandList(commandList), _enabled(enabled)
+        ID3D12GraphicsCommandList* commandList) :
+        _preprocessor(&preprocessor), _commandList(commandList)
     {
     }
 
     ~TitleInputStateGuard()
     {
-        if (_enabled && _preprocessor && *_preprocessor)
+        // Whether anything owes a transition back is the preprocessor's own
+        // per-frame record, not a bool snapshotted before this frame's binding
+        // decided it - the first frame would otherwise never restore.
+        if (_preprocessor && *_preprocessor)
             (*_preprocessor)->RestoreTitleInputStates(_commandList);
     }
 
@@ -158,7 +161,6 @@ class TitleInputStateGuard
   private:
     const std::unique_ptr<FSRDPreprocessor_Dx12>* _preprocessor;
     ID3D12GraphicsCommandList* _commandList;
-    bool _enabled;
 };
 
 class EvaluationFrameGuard
@@ -1395,8 +1397,9 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
         ? state.ffxDenoiserVersionNames[denoiserIndex]
         : "<unnamed>";
 
-    state.ffxDenoiserUpscalerVersion = Version();
-    parse_version(providerName);
+    // Parse the denoiser provider version into this instance's own field; the
+    // SR upscaler version reported by Version() must stay untouched.
+    _denoiserVersion.parse_version(providerName);
 
     _diffuseSignalDescType = GetDiffuseSignalDescType(
         cfg, _autoDiffuseSignalDescType);
@@ -1482,9 +1485,10 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
 #endif
 
     LOG_INFO(
-        "[RR_DIAG] creating context: providerIndex={}, providerName='{}', providerId={:#x}, "
+        "[RR_DIAG] creating context: providerIndex={}, providerName='{}' ({}.{}.{}), providerId={:#x}, "
         "api={}.{}.{}, maxRenderSize={}x{}, signalFlags={:#x}, checkerboardFlags={:#x}, createFlags={:#x}",
-        denoiserIndex, providerName, state.ffxDenoiserVersionIds[denoiserIndex],
+        denoiserIndex, providerName, _denoiserVersion.major, _denoiserVersion.minor,
+        _denoiserVersion.patch, state.ffxDenoiserVersionIds[denoiserIndex],
         FFX_DENOISER_VERSION_MAJOR, FFX_DENOISER_VERSION_MINOR, FFX_DENOISER_VERSION_PATCH,
         _denoiserCtxDesc.maxRenderSize.width, _denoiserCtxDesc.maxRenderSize.height,
         _denoiserCtxDesc.signalFlags, _denoiserCtxDesc.checkerboardSignalFlags,
@@ -1715,8 +1719,8 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
     const auto& inParams = *InParameters;
 
     // Refresh the current render subrect before deciding whether RR must resize.
-    // PrepareUpscalerInput also queries it, but that happens after conversion and
-    // is skipped entirely by several debug/bypass paths.
+    // PrepareUpscalerInput queries it too, but that runs after this decision, so the
+    // resize would otherwise be made against the previous frame's extent.
     unsigned int currentRenderWidth = RenderWidth();
     unsigned int currentRenderHeight = RenderHeight();
     GetRenderResolution(InParameters, &currentRenderWidth, &currentRenderHeight);
@@ -1735,8 +1739,7 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
     // Conversion leaves the RR signal outputs in UAV state. Always close that
     // state lifetime, including bypass and error paths where composition is skipped.
     DenoiserOutputStateGuard denoiserOutputStateGuard(FSRDConvShader, InCommandList);
-    TitleInputStateGuard titleInputStateGuard(
-        FSRDConvShader, InCommandList, _titleLinearDepthNeedsRestore);
+    TitleInputStateGuard titleInputStateGuard(FSRDConvShader, InCommandList);
 
     const auto dbgMode = static_cast<DebugModes>(cfg.FfxDenoiserDebugMode.value_or_default());
     const bool isDebugVis = (uint32_t)dbgMode & (uint32_t) DebugModes::ConversionDebug;
@@ -1760,6 +1763,23 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
 
     if (uint32_t value = 0; inParams.Get(NVSDK_NGX_Parameter_Reset, &value) == NVSDK_NGX_Result_Success)
         _isInReset = value > 0;
+
+    // The conversion reads the title's color, depth and motion vectors in its very first
+    // dispatch, so those inputs have to be acquired and taken out of their declared starting
+    // states before the denoiser chain begins - acquiring them inside the upscaler branch
+    // below would leave the floor and packing passes reading render-target and unordered-access
+    // resources as if they were shader resources.
+    ffxDispatchDescUpscale upscalerDesc = {};
+    if (!PrepareUpscalerInput(InCommandList, inParams, upscalerDesc))
+    {
+        InvalidateDenoiserHistory();
+        return false;
+    }
+
+    // Optional, configurable resource barriers. The window spans the whole chain and closes on
+    // every exit path, including the debug bypass that never reaches the upscaler dispatch, so
+    // the title finds each resource in the state it declared.
+    FSR31FeatureDx12::ScopedConfigurableBarriers scopedBarriers(*this, InCommandList);
 
     // Denoiser start
     ffxDispatchDescDenoiserAmbientOcclusion ambientOcclusion = {};
@@ -1877,6 +1897,14 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
             compositionFlags |= (uint32_t)FSRDCompFlags::DiffuseSignalIndirect;
         if (_specularSignalDescType == FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR)
             compositionFlags |= (uint32_t) FSRDCompFlags::SpecularSignalIndirect;
+        // A signal left out of the denoiser chain has no output this frame, and the
+        // buffer it would have been written to is one of the floor passes' ping-pong
+        // targets. Flag it so composition reads the raw signal rather than the floor
+        // image that buffer still holds.
+        if (!_denoiseDiffuse)
+            compositionFlags |= (uint32_t)FSRDCompFlags::DiffuseSignalDisabled;
+        if (!_denoiseSpecular)
+            compositionFlags |= (uint32_t)FSRDCompFlags::SpecularSignalDisabled;
 
         FSRDCompDesc compDesc =
         { 
@@ -1892,12 +1920,9 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
         const XMUINT2 rawColorBase = GetSubrectBase(
             inParams, NVSDK_NGX_Parameter_DLSS_Input_Color_Subrect_Base_X,
             NVSDK_NGX_Parameter_DLSS_Input_Color_Subrect_Base_Y);
-        const XMUINT2 colorBeforeParticlesBase = GetSubrectBase(
-            inParams, NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles_Subrect_Base_X,
-            NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles_Subrect_Base_Y);
         compDesc.SourceBase = {
             rawColorBase.x, rawColorBase.y,
-            colorBeforeParticlesBase.x, colorBeforeParticlesBase.y
+            0, 0
         };
 
         if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_Color, compDesc.InRawColor) ||
@@ -1907,14 +1932,10 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
             InvalidateDenoiserHistory();
             return false;
         }
-        TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles, compDesc.InColorBeforeParticles);
-        if (compDesc.InColorBeforeParticles &&
-            !ValidateSourceExtent("ColorBeforeParticles", compDesc.InColorBeforeParticles,
-                                  colorBeforeParticlesBase, RenderWidth(), RenderHeight()))
-        {
-            InvalidateDenoiserHistory();
-            return false;
-        }
+
+        // ColorBeforeParticles is a whole scene guide, not a premultiplied overlay.
+        // It is deliberately absent from composition; the title's Color input already
+        // contains the scene contribution that reaches the final frame.
 
         if (!isFfxDebug)
         {
@@ -1931,14 +1952,11 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
         InvalidateDenoiserHistory();
     }
 
-    // Upscaler start
+    // Upscaler start. Stays true on the debug/bypass paths where no upscale is requested.
+    bool isUpscalerReady = true;
+
     if (!isUpscaleBypassed)
     {
-        ffxDispatchDescUpscale upscalerDesc = {};
-
-        if (!PrepareUpscalerInput(InCommandList, inParams, upscalerDesc))
-            return false;
-
         // Override upscaler config. The composition output is left in
         // NON_PIXEL | PIXEL shader-resource state, so declare both: the default
         // argument is COMPUTE_READ alone, which would leave the resource in a
@@ -1948,17 +1966,9 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
                 FSRDConvShader->GetCompositionOutput(),
                 FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
 
-        // Sets optional, configurable resource barriers
-        FSR31FeatureDx12::SetConfigurableBarriers(InCommandList);
+        isUpscalerReady = DispatchUpscaler(InCommandList, upscalerDesc);
 
-        bool isUpscalerReady = DispatchUpscaler(InCommandList, upscalerDesc);
-
-        // Post-Process
-        if (isUpscalerReady)
-            // Post-processing (RCAS/output scaling/overlay) is run by IFeature_Dx12::Evaluate.
-
-        // Cleanup
-        FSR31FeatureDx12::ResetConfigurableBarriers(InCommandList);
+        // Post-processing (RCAS/output scaling/overlay) is run by IFeature_Dx12::Evaluate.
     }
     else // Debug visualization
     {
@@ -2029,6 +2039,11 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
             { static_cast<float>(debugSourceBase.x),
               static_cast<float>(debugSourceBase.y) });
     }
+
+    // A failed upscale dispatch leaves the frame half finished. Report it to the caller
+    // instead of masking it behind the denoiser result, which may well be true.
+    if (!isUpscalerReady)
+        return false;
 
     return isDenoiserReady || isDenoiseBypassed;
 }
@@ -2305,7 +2320,6 @@ void FSRDFeatureDx12::AcquireOptionalInputs(const NVSDK_NGX_Parameter& inParams,
     _convDesc.TitleLinearDepthState = 0;
     _titleLinearDepthTaggedResource.Reset();
     _responsivityMaskTaggedResource.Reset();
-    _titleLinearDepthNeedsRestore = false;
 
     // The title's own linear depth. Opt-in: every consumer of view-space position switches
     // to it at once, so it is not a change to make by default before it has been compared
@@ -2375,8 +2389,6 @@ void FSRDFeatureDx12::AcquireOptionalInputs(const NVSDK_NGX_Parameter& inParams,
                 // has to travel with the resource rather than be assumed.
                 _convDesc.TitleLinearDepthDeclaredState = linearDepthDiagnostic.state;
                 _convDesc.TitleLinearDepthState = FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ;
-
-                _titleLinearDepthNeedsRestore = cfg.FfxDenoiserUseTitleLinearDepth.value_or_default();
 
                 static bool loggedTitleLinearDepth = false;
                 if (!loggedTitleLinearDepth)
@@ -2894,6 +2906,14 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
     _convDesc.Resources = {};
     _convDesc.SpecularHitDistanceBase = {};
     _convDesc.SpecularHitDistanceFromCombinedAlpha = false;
+    // The flag word is rebuilt from zero every frame, ahead of every producer
+    // (ConvertDenoiserBuffers and ApplyDepthInterpretation, which only OR bits
+    // in). Without this, a flag earned by an earlier frame's resources survives
+    // that resource going away: a stale HasSpecHitDistance pins the scalar path
+    // after the title moves to combined alpha, a stale TitleLinearDepth keeps
+    // the shader reading a texture that is no longer bound, and a linear ->
+    // hardware depth flip carries IsDepthLinear forward.
+    _convDesc.Flags = 0;
     _specularHitDistanceTaggedResource.Reset();
     _specularRayDirectionHitDistanceTaggedResource.Reset();
     const RRD3D12SignalTagSnapshot rrTagSnapshot =
