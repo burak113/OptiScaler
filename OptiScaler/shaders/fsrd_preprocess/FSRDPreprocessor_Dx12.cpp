@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "FSRDPreprocessor_Dx12.h"
 #include "FSRDShaderUtils.h"
 #include "FSRDShaderData.h"
@@ -50,9 +50,8 @@ namespace FSRDFormats
 
     constexpr DXGI_FORMAT SkipSignal = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
-    // Carries a finished HDR image plus its mix weight, so it needs the same range as
-    // the skip signal it is an alternative to.
-    constexpr DXGI_FORMAT Handover = SkipSignal;
+    // Cleaned HDR reference plus sigma; alpha -1 marks explicit detail bypass.
+    constexpr DXGI_FORMAT DetailReference = SkipSignal;
 
     constexpr DXGI_FORMAT OutputBuffer1 = DXGI_FORMAT_R16G16B16A16_FLOAT;
     constexpr DXGI_FORMAT OutputBuffer2 = DXGI_FORMAT_R16G16B16A16_FLOAT;
@@ -236,15 +235,11 @@ struct FSRDPreprocessor_Dx12::Impl
     UINT m_maxWidth = 0;
     UINT m_maxHeight = 0;
 
-    // Drives the a-trous filter's temporal pattern rotation. Per instance, not a
-    // function-local static: the feature can destroy and recreate the converter, and
-    // two live converters would otherwise advance one shared counter twice a frame.
-    uint32_t m_floorFilterFrameIndex = 0;
-
     // Output Targets
     // Internal storage
     Conversion::Output m_out;
     ComPtr<ID3D12Resource> m_LinearDepth;
+    ComPtr<ID3D12Resource> m_floorReference;
     ComPtr<ID3D12Resource> m_outputBuffer1;
     ComPtr<ID3D12Resource> m_outputBuffer2;
 
@@ -872,7 +867,7 @@ struct FSRDPreprocessor_Dx12::Impl
 
         LOG_INFO(
             "[RR_INPUT_PROBE] normals channels: roughness mean={:.4f}, exactZero={:.1f}%, "
-            "materialType 0 (no handover)={:.1f}%, >=1={:.1f}%",
+            "materialType 0={:.1f}%, >=1={:.1f}%",
             float(roughnessSum / double(decodedLengths.size())),
             float(exactZeroRoughness) * rcpCount,
             float(typeZero) * rcpCount, float(decodedLengths.size() - typeZero) * rcpCount);
@@ -1208,7 +1203,7 @@ struct FSRDPreprocessor_Dx12::Impl
         outResources.SpecAlbedo = CreateTex(FSRDFormats::SpecAlbedo, L"FSR_Conv_SpecAlbedo");
         outResources.DiffAlbedo = CreateTex(FSRDFormats::DiffAlbedo, L"FSR_Conv_DiffAlbedo");
         outResources.SkipSignal = CreateTex(FSRDFormats::SkipSignal, L"FSR_Conv_SkipSignal");
-        outResources.Handover = CreateTex(FSRDFormats::Handover, L"FSR_Conv_Handover");
+        outResources.DetailReference = CreateTex(FSRDFormats::DetailReference, L"FSR_Conv_DetailReference");
         m_LinearDepth = CreateTex(FSRDFormats::LinearDepth, L"FSR_Conv_LinearDepth");
         m_outputBuffer1 = CreateTex(FSRDFormats::OutputBuffer1, L"FSR_Conv_OutputBuffer1");
         m_outputBuffer2 = CreateTex(FSRDFormats::OutputBuffer2, L"FSR_Conv_OutputBuffer2");
@@ -1217,6 +1212,7 @@ struct FSRDPreprocessor_Dx12::Impl
         m_specularOcclusionOutput =
             CreateTex(FSRDFormats::SpecularOcclusion, L"FSR_RR_SpecularOcclusion_Output");
 
+        m_floorReference = CreateTex(FSRDFormats::DetailReference, L"FSR_Floor_Reference");
         m_smoothFloor = nullptr;
         m_radianceOutputsInUavState = false;
         m_ambientOcclusionOutputInUavState = false;
@@ -1233,141 +1229,66 @@ struct FSRDPreprocessor_Dx12::Impl
         m_maxHeight = height;
     }
 
-    void DispatchFloorSeed(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
+    void DispatchFloorSeed(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
     {
-        const XMFLOAT2 dispatchSize = { desc.RenderSize.x, desc.RenderSize.y };
-        const bool isDepthLinear = (desc.Flags & (uint32_t) ConvFlags::IsDepthLinear);
-        ID3D12Resource* inColor = desc.Resources.InColor;
-
-        ComPtr<ID3D12Resource>& floorPing = m_outputBuffer1;
-        ComPtr<ID3D12Resource>& floorPong = m_outputBuffer2;
-
-        for (int i = 0; i < FloorSeed::kPasses; i++)
-        {
-            // The game's subrect origin only applies while the colour source is still
-            // the game's texture. From pass 1 on it is the zero-based internal buffer,
-            // so carrying the origin forward would shift every read. Depth keeps its
-            // own origin because it is re-read from the game texture every pass.
-            DirectX::XMUINT4 sourceBase = desc.FloorSourceBase;
-            if (i > 0)
-            {
-                sourceBase.x = 0;
-                sourceBase.y = 0;
-            }
-
-            FloorSeed::Constants constants =
-            {
-                .InvProjMatrix = desc.InvProjMatrix,
-                .RenderSize = desc.RenderSize,
-                .NearPlane = desc.NearPlane,
-                .FarPlane = desc.FarPlane,
-                .Flags = (isDepthLinear ? uint32_t(FloorSeed::Flags::LinearDepth) : 0u) |
-                         ((desc.Flags & uint32_t(ConvFlags::RightHanded))
-                              ? uint32_t(FloorSeed::Flags::NegativeViewDepth)
-                              : 0u) |
-                         // The title's published linear depth is authoritative for
-                         // geometry: the canonical signed field is seeded from it so
-                         // the floor filter, the packing shader and the denoiser's own
-                         // depth input all describe the same view-space positions.
-                         (((desc.Flags & uint32_t(ConvFlags::TitleLinearDepth)) != 0u &&
-                           desc.Resources.InTitleLinearDepth != nullptr)
-                              ? uint32_t(FloorSeed::Flags::TitleLinearDepth)
-                              : 0u),
-                .CurrentJitter = { desc.JitterOffsets.x, desc.JitterOffsets.y },
-                .InputBase = sourceBase,
-                .NormalBase = { desc.InputBase1.x, desc.InputBase1.y },
-                ._NormalPadding = {},
-                .TitleDepthBase = { desc.TitleLinearDepthBase.x, desc.TitleLinearDepthBase.y },
-                ._TitleDepthPadding = {}
-            };
-            const auto cbData = GetAsByteSpan(constants);
-
-            // Create median filtered raw color before cross bilateral filtering
-            // Write to mip chain at top level
-            FloorSeed::Input in = { .Resources =
-            {
-                .InColor = inColor,
-                .InNormals = desc.Resources.InNormals,
-                .InDepth = desc.Resources.InDepth,
-                .InTitleLinearDepth = desc.Resources.InTitleLinearDepth
-            }};
-
-            FloorSeed::Output out = { .Resources =
-            {
-                .OutColor = floorPing.Get(),
-                .OutLinearDepth = m_LinearDepth.Get(),
-                .OutDepthGradient = m_out.Resources.Motion.Get()
-            }};
-
-            m_floorSeedShader.Dispatch(cmdList, cbData, in.AsArray, out.AsArray, dispatchSize);
-
-            std::swap(floorPing, floorPong);
-            inColor = floorPong.Get();
-        }
-
-        m_smoothFloor = floorPong.Get();
+        FloorSeed::Constants constants = {
+            .InvProjMatrix = desc.InvProjMatrix,
+            .RenderSize = desc.RenderSize,
+            .NearPlane = desc.NearPlane,
+            .FarPlane = desc.FarPlane,
+            .Flags = ((desc.Flags & uint32_t(ConvFlags::IsDepthLinear)) ? uint32_t(FloorSeed::Flags::LinearDepth) : 0u) |
+                     ((desc.Flags & uint32_t(ConvFlags::RightHanded)) ? uint32_t(FloorSeed::Flags::NegativeViewDepth) : 0u) |
+                     ((desc.Flags & uint32_t(ConvFlags::TitleLinearDepth)) && desc.Resources.InTitleLinearDepth
+                          ? uint32_t(FloorSeed::Flags::TitleLinearDepth) : 0u),
+            .CurrentJitter = {desc.JitterOffsets.x, desc.JitterOffsets.y},
+            .InputBase = desc.FloorSourceBase,
+            .NormalBase = {desc.InputBase1.x, desc.InputBase1.y},
+            .TitleDepthBase = desc.TitleLinearDepthBase,
+            .AlbedoBase = {desc.InputBase2.z, desc.InputBase2.w},
+            .NoiseSuppression = desc.FloorNoiseSuppression,
+            .FloorEnabled = desc.FloorEnabled ? 1u : 0u
+        };
+        FloorSeed::Input in = {.Resources = {
+            .InColor = desc.Resources.InColor,
+            .InNormals = desc.Resources.InNormals,
+            .InDepth = desc.Resources.InDepth,
+            .InTitleLinearDepth = desc.Resources.InTitleLinearDepth,
+            .InDiffAlbedo = desc.Resources.InDiffAlbedo
+        }};
+        FloorSeed::Output out = {.Resources = {
+            .OutColor = m_outputBuffer2.Get(),
+            .OutLinearDepth = m_LinearDepth.Get(),
+            .OutDepthGradient = m_out.Resources.Motion.Get(),
+            .OutDetailReference = m_floorReference.Get()
+        }};
+        m_floorSeedShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray,
+                                  {desc.RenderSize.x, desc.RenderSize.y});
+        m_smoothFloor = m_outputBuffer2.Get();
     }
 
     void DispatchFloorFilter(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
     {
-        const XMFLOAT2 dispatchSize = { desc.RenderSize.x, desc.RenderSize.y };
-
-        ComPtr<ID3D12Resource>& floorPing = m_outputBuffer1;
-        ComPtr<ID3D12Resource>& floorPong = m_outputBuffer2;
-
-        // Tukey biweight: W = ( 1 - ( (center - tap) * scale )^2 )^2
-        // scale = 2^(i + 1) / norm
-        float rcpCrossNorm = (1.0f / 0.5f);
-        float rcpLumNorm = (1e-2f / 0.3f);
-
-        for (int i = 0; i < FloorFilter::kPasses; i++)
+        if (!desc.FloorEnabled) return;
+        for (int i = 0; i < FloorFilter::kPasses; ++i)
         {
-            // The detail residual is only meaningful once the wavelet has reached its full
-            // support; re-injecting it on every pass would compound it kPasses times.
-            const bool isFinalPass = (i == (FloorFilter::kPasses - 1));
-
-            FloorFilter::Constants constants = 
-            {
+            FloorFilter::Constants constants = {
                 .DstTexSize = desc.RenderSize,
-                .RcpCrossBlNorm = rcpCrossNorm,
-                .RcpSelfBlNorm = rcpLumNorm,
                 .StepSize = 1 << i,
-                .FrameIndex = m_floorFilterFrameIndex,
-                .DetailBoost = isFinalPass ? desc.FloorDetailBoost : 0.0f,
-                .NormalSharpness = desc.FloorNormalSharpness,
-                .AlbedoGuideStrength = desc.FloorAlbedoGuide,
-                .LumSymmetry = desc.FloorLumSymmetry,
-                .GrazingSharpness = desc.FloorGrazingSharpness,
-                .EnvelopeBias = desc.FloorEnvelopeBias,
-                // The guide is the only title texture this filter reads, so it is the only
-                // input whose subrect origin is not already zero.
-                .AlbedoBase = { desc.InputBase2.z, desc.InputBase2.w }
+                .NoiseSuppression = desc.FloorNoiseSuppression,
+                .AlbedoBase = {desc.InputBase2.z, desc.InputBase2.w}
             };
-            const auto cbData = GetAsByteSpan(constants);
-
-            FloorFilter::Input in = { .Resources = 
-            {
+            FloorFilter::Input in = {.Resources = {
                 .InColor = m_smoothFloor,
                 .InLinearDepth = m_LinearDepth.Get(),
                 .InDepthGradient = m_out.Resources.Motion.Get(),
                 .InDiffAlbedo = desc.Resources.InDiffAlbedo
             }};
-
-            FloorFilter::Output out = { .Resources =
-            {
-                // m_smoothFloor always references the pong buffer at the start of
-                // an iteration. Write the opposite buffer, then swap the handles so
-                // the freshly filtered result becomes the next iteration's input.
-                .OutColor = floorPing.Get()
-            }};
-
-            m_floorFilterShader.Dispatch(cmdList, cbData, in.AsArray, out.AsArray, dispatchSize);
-
-            std::swap(floorPing, floorPong);
-            m_smoothFloor = floorPong.Get();
+            FloorFilter::Output out = {.Resources = {.OutColor = m_outputBuffer1.Get()}};
+            m_floorFilterShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray,
+                                        {desc.RenderSize.x, desc.RenderSize.y});
+            std::swap(m_outputBuffer1, m_outputBuffer2);
+            m_smoothFloor = m_outputBuffer2.Get();
         }
-
-        m_floorFilterFrameIndex++;
     }
 
     void DispatchPackingShader(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
@@ -1393,7 +1314,8 @@ struct FSRDPreprocessor_Dx12::Impl
                 desc.Resources.InSpecularRayDirectionHitDistance,
             .InDiffuseHitDistance = desc.Resources.InDiffuseHitDistance,
             .InTitleLinearDepth = desc.Resources.InTitleLinearDepth,
-            .InResponsivityMask = desc.Resources.InResponsivityMask
+            .InResponsivityMask = desc.Resources.InResponsivityMask,
+            .InDetailReference = m_floorReference.Get()
         }};
 
         uint32_t packFlags = desc.Flags | uint32_t(ConvFlags::IsDepthLinear);
@@ -1401,8 +1323,8 @@ struct FSRDPreprocessor_Dx12::Impl
         // "no mask provided" case explicit and visible in the debug views.
         if (desc.Resources.InBiasMask != nullptr)
             packFlags |= uint32_t(ConvFlags::HasBiasMask);
-        if (desc.FloorHandoverMode != 0u)
-            packFlags |= uint32_t(ConvFlags::FloorHandover);
+        if (desc.FloorEnabled)
+            packFlags |= uint32_t(ConvFlags::FloorEnabled);
         if (desc.Resources.InSpecularRayDirectionHitDistance &&
             desc.SpecularHitDistanceFromCombinedAlpha)
         {
@@ -1429,8 +1351,7 @@ struct FSRDPreprocessor_Dx12::Impl
             },
             .NearPlane = desc.NearPlane,
             .FarPlane = desc.FarPlane,
-            .FloorIsolation = desc.FloorIsolation,
-            .RoughnessFloor = desc.RoughnessFloor,
+            .FloorDetailPreservation = desc.FloorDetailPreservation,
             // The packing shader never sees the game's hardware depth. FloorSeed
             // has already converted it to signed linear view-space depth.
             .Flags = packFlags,
@@ -1441,18 +1362,9 @@ struct FSRDPreprocessor_Dx12::Impl
             .DiffuseHitDistanceMode = desc.Resources.InDiffuseHitDistance != nullptr
                 ? desc.DiffuseHitDistanceMode
                 : 0u,
-            .FloorHandoverDetail = desc.FloorHandoverDetail,
-            .FloorHandoverMode = desc.FloorHandoverMode,
             .ResponsivityTrustThreshold = desc.ResponsivityTrustThreshold,
             .ResponsivityInvert = desc.ResponsivityInvert ? 1u : 0u,
-            ._Padding0 = 0.0f,
-            ._Padding1 = 0.0f,
             .BiasMaskStrength = desc.BiasMaskStrength,
-            .FloorSoftMin = desc.FloorSoftMin,
-            .FloorHandoverStrength = desc.FloorHandoverStrength,
-            .FloorClampSmoothing = desc.FloorClampSmoothing,
-            .FloorRawBlend = desc.FloorRawBlend,
-            .FloorStructureGate = desc.FloorStructureGate,
             .DemodDivisorFloor = desc.DemodDivisorFloor
         };
 
@@ -1536,14 +1448,13 @@ struct FSRDPreprocessor_Dx12::Impl
         Composition::Constants constants = 
         {
             .DstTexSize = desc.DstTexSize,
-            .SourceBase = desc.SourceBase,
-            .CorrelationBias = desc.CorrelationBias,
             .Flags = UINT(desc.Flags),
-            .SourceUvScale = { 1.0f, 1.0f },
-            .SourceUvOffset = {},
+            .DetailPreservation = desc.FloorDetailPreservation,
+            .NoiseSuppression = desc.FloorNoiseSuppression,
             .FloorHandoverAnchorClamp = desc.FloorHandoverAnchorClamp,
-            .FloorHandoverCorrelationMix = desc.FloorHandoverCorrelationMix,
-            ._Padding0 = {}
+            .SourceUvScale = {1.0f, 1.0f},
+            .SourceUvOffset = {},
+            .FloorHandoverCorrelationMix = desc.FloorHandoverCorrelationMix
         };
 
         // Transition denoiser output buffers to SRV for composition.
@@ -1571,14 +1482,12 @@ struct FSRDPreprocessor_Dx12::Impl
             .InDirectDiffuse = diffuseRadiance,
             .InDiffuseAlbedo = outResources.DiffAlbedo.Get(),
             .InSkipSignal = outResources.SkipSignal.Get(),
-            .InRawColor = desc.InRawColor,
-            .InRawIndirectSpecular = outResources.Signals.IndirectSpecular.Get(),
             .InNormals = outResources.Normals.Get(),
-            .InHandover = outResources.Handover.Get()
+            .InDetailReference = outResources.DetailReference.Get(),
+            .InLinearDepth = m_LinearDepth.Get()
         };
 
-        // Motion stays a pure motion-vector texture: writing the composed colour there
-        // would feed the denoiser its own output as motion vectors.
+        // Motion is scratch after RR has consumed it; the next seed/conversion rewrites it.
         ID3D12Resource* const compositionTarget = m_out.Resources.Motion.Get();
         std::array<ID3D12Resource*, 1> uavs { compositionTarget };
         const std::span<const byte> cbData((const byte*) &constants, sizeof(constants));
@@ -1993,8 +1902,7 @@ ID3D12Resource* FSRDPreprocessor_Dx12::GetDebugViewOutput() const
 
 ID3D12Resource* FSRDPreprocessor_Dx12::GetCompositionOutput() const
 {
-    // Motion stays a pure motion-vector texture: writing the composed colour there would
-    // feed the denoiser its own output as motion vectors.
+    // Composition reuses Motion only after RR. Seed and conversion overwrite it next frame.
     return m_impl->m_out.Resources.Motion.Get();
 }
 

@@ -1600,6 +1600,9 @@
     <None Include="shaders\fsrd_preprocess\precompile\FSRDPreprocessCommon.hlsli">
       <Filter>Header Files</Filter>
     </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDFloorCommon.hlsli">
+      <Filter>Header Files</Filter>
+    </None>
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFloor.hlsl">
       <Filter>Header Files</Filter>
     </None>

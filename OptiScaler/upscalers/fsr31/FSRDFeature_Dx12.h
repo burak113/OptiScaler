@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "FSR31Feature_Dx12.h"
 #include "hooks/Streamline_Hooks.h"
 #include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
@@ -172,7 +172,11 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     uint32_t _diffuseRayDirectionHitDistanceBaseY = 0;
     DirectX::XMFLOAT3 _lastCamPos {}; // Last successfully dispatched world-space camera position
     DirectX::XMFLOAT2 _previousDenoiserJitter {};
-    float _appliedRoughnessFloor = -1.0f;
+    int _appliedFloorEnabled = -1;
+    float _appliedFloorNoiseSuppression = -1.0f;
+    float _appliedFloorDetailPreservation = -1.0f;
+    float _appliedFloorHandoverAnchorClamp = -1.0f;
+    float _appliedFloorHandoverCorrelationMix = -1.0f;
     int _appliedNormalsInViewSpace = -1;
 
     // The definition of the depth field every view-space position in the chain is built from,

@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include <atomic>
 #include <nvsdk_ngx_defs_dlssd.h>
 #include <DirectXMath.h>
@@ -917,13 +917,13 @@ enum class DebugModes : uint64_t
     EffectiveRoughness = FSRDConvFlags::DebugEffectiveRoughness,
     RawRoughness = FSRDConvFlags::DebugRawRoughness,
     EmissiveMask = FSRDConvFlags::DebugEmissiveMask,
-    AppliedRoughnessFloor = FSRDConvFlags::DebugAppliedRoughnessFloor,
+    AppliedRoughness = FSRDConvFlags::DebugAppliedRoughness,
     ResourceInspector = FSRDConvFlags::DebugResourceInspector,
     MaterialType = FSRDConvFlags::DebugMaterialType,
     InEmissive = FSRDConvFlags::DebugInEmissive,
     RRMaterialType = FSRDConvFlags::DebugRRMaterialType,
     AlbedoStructure = FSRDConvFlags::DebugAlbedoStructure,
-    FloorHandoverOutput = FSRDConvFlags::DebugFloorHandover,
+    FloorResidual = FSRDConvFlags::DebugFloorResidual,
 
     SpecularSplit = FSRDConvFlags::DebugSpecularSplit,
     InTitleLinearDepth = FSRDConvFlags::DebugInTitleLinearDepth,
@@ -931,10 +931,10 @@ enum class DebugModes : uint64_t
     InResponsivityMask = FSRDConvFlags::DebugInResponsivityMask,
 
     InBiasMask = FSRDConvFlags::DebugInBiasMask,
-    FloorStructure = FSRDConvFlags::DebugFloorStructure,
+    FloorNoise = FSRDConvFlags::DebugFloorNoise,
     SkipUnmapped = FSRDConvFlags::DebugSkipUnmapped,
     SkipFloor = FSRDConvFlags::DebugSkipFloor,
-    SkipRawInject = FSRDConvFlags::DebugSkipRawInject,
+    FloorExcess = FSRDConvFlags::DebugFloorExcess,
     DemodGain = FSRDConvFlags::DebugDemodGain,
     HitDistGate = FSRDConvFlags::DebugHitDistGate,
     DenoiserFraction = FSRDConvFlags::DebugDenoiserFraction,
@@ -943,18 +943,16 @@ enum class DebugModes : uint64_t
     CompositionDebug = (uint64_t) FSRDCompFlags::Debug << CompositionDebugOffset,
     CompositionDebugMask = (uint64_t)FSRDCompFlags::DebugModeMask,
 
-    Correlation = (uint64_t)FSRDCompFlags::DebugCorrelation << CompositionDebugOffset,
+    DetailConfidence = (uint64_t)FSRDCompFlags::DebugDetailConfidence << CompositionDebugOffset,
     SkipSignal = (uint64_t) FSRDCompFlags::DebugSkipSignal << CompositionDebugOffset,
     DenoiserOutput = (uint64_t) FSRDCompFlags::DebugDenoiserOutput << CompositionDebugOffset,
     DirectSpecular = (uint64_t) FSRDCompFlags::DebugDirectSpecular << CompositionDebugOffset,
     IndirectSpecular = (uint64_t) FSRDCompFlags::DebugIndirectSpecular << CompositionDebugOffset,
     DirectDiffuse = (uint64_t) FSRDCompFlags::DebugDirectDiffuse << CompositionDebugOffset,
     IndirectDiffuse = (uint64_t) FSRDCompFlags::DebugIndirectDiffuse << CompositionDebugOffset,
-    HandoverRRBand = (uint64_t) FSRDCompFlags::DebugHandoverRRBand << CompositionDebugOffset,
-    HandoverDetailBand = (uint64_t) FSRDCompFlags::DebugHandoverDetailBand << CompositionDebugOffset,
-    HandoverBandMix = (uint64_t) FSRDCompFlags::DebugHandoverBandMix << CompositionDebugOffset,
-    HandoverAnchor = (uint64_t) FSRDCompFlags::DebugHandoverAnchor << CompositionDebugOffset,
-    HandoverWeight = (uint64_t) FSRDCompFlags::DebugHandoverWeight << CompositionDebugOffset,
+    DetailCorrection = (uint64_t) FSRDCompFlags::DebugDetailCorrection << CompositionDebugOffset,
+    DetailReference = (uint64_t) FSRDCompFlags::DebugDetailReference << CompositionDebugOffset,
+    ReconstructedColor = (uint64_t) FSRDCompFlags::DebugReconstructedColor << CompositionDebugOffset,
 };
 
 static FSRDConvFlags GetConvDebugFlags(DebugModes mode) 
@@ -996,7 +994,7 @@ constexpr auto kDebugModes = std::to_array<ModeNamePair>(
     { "InputRoughness", (uint64_t) DebugModes::InRoughness },
     { "RawRoughness", (uint64_t) DebugModes::RawRoughness },
     { "EmissiveMask", (uint64_t) DebugModes::EmissiveMask },
-    { "AppliedRoughnessFloor", (uint64_t) DebugModes::AppliedRoughnessFloor },
+    { "AppliedRoughness", (uint64_t) DebugModes::AppliedRoughness },
     { "ZeroRoughnessMaterialType", (uint64_t) DebugModes::MaterialType },
     { "ResourceInspector", (uint64_t) DebugModes::ResourceInspector },
     { "SpecularHitDistance", (uint64_t) DebugModes::InSpecHitDist },
@@ -1005,7 +1003,7 @@ constexpr auto kDebugModes = std::to_array<ModeNamePair>(
     { "InputEmissive", (uint64_t) DebugModes::InEmissive },
     { "RRMaterialType", (uint64_t) DebugModes::RRMaterialType },
     { "AlbedoStructureAvailability", (uint64_t) DebugModes::AlbedoStructure },
-    { "FloorHandoverOutput", (uint64_t) DebugModes::FloorHandoverOutput },
+    { "FloorResidual", (uint64_t) DebugModes::FloorResidual },
 
     { "SpecularSplit", (uint64_t) DebugModes::SpecularSplit },
     { "InTitleLinearDepth", (uint64_t) DebugModes::InTitleLinearDepth },
@@ -1013,10 +1011,10 @@ constexpr auto kDebugModes = std::to_array<ModeNamePair>(
     { "InResponsivityMask", (uint64_t) DebugModes::InResponsivityMask },
 
     { "InBiasMask", (uint64_t) DebugModes::InBiasMask },
-    { "FloorStructure", (uint64_t) DebugModes::FloorStructure },
+    { "FloorNoise", (uint64_t) DebugModes::FloorNoise },
     { "SkipUnmapped", (uint64_t) DebugModes::SkipUnmapped },
     { "SkipFloor", (uint64_t) DebugModes::SkipFloor },
-    { "SkipRawInject", (uint64_t) DebugModes::SkipRawInject },
+    { "FloorExcess", (uint64_t) DebugModes::FloorExcess },
     { "DemodGain", (uint64_t) DebugModes::DemodGain },
     { "HitDistGate", (uint64_t) DebugModes::HitDistGate },
     { "DenoiserFraction", (uint64_t) DebugModes::DenoiserFraction },
@@ -1032,13 +1030,11 @@ constexpr auto kDebugModes = std::to_array<ModeNamePair>(
     { "NormDepth", (uint64_t) DebugModes::NormDepth },
 
     { "AlbedoError", (uint64_t) DebugModes::AlbedoError },
-    { "Correlation", (uint64_t) DebugModes::Correlation },
+    { "DetailConfidence", (uint64_t) DebugModes::DetailConfidence },
 
-    { "HandoverRRLowBand", (uint64_t) DebugModes::HandoverRRBand },
-    { "HandoverDetailHighBand", (uint64_t) DebugModes::HandoverDetailBand },
-    { "HandoverBandMix", (uint64_t) DebugModes::HandoverBandMix },
-    { "HandoverRRAnchor", (uint64_t) DebugModes::HandoverAnchor },
-    { "HandoverEffectiveWeight", (uint64_t) DebugModes::HandoverWeight },
+    { "DetailCorrection", (uint64_t) DebugModes::DetailCorrection },
+    { "DetailReference", (uint64_t) DebugModes::DetailReference },
+    { "ReconstructedColor", (uint64_t) DebugModes::ReconstructedColor },
 
     { "FloorColor", (uint64_t) DebugModes::FloorColor },
     
@@ -1912,29 +1908,12 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
         FSRDCompDesc compDesc =
         { 
             .DstTexSize = _convDesc.RenderSize,
-            .CorrelationBias = std::clamp(cfg.FfxDenoiserCorrelationBias.value_or_default(), 0.0f, 1.0f),
+            .FloorDetailPreservation = _convDesc.FloorEnabled ? _convDesc.FloorDetailPreservation : 0.0f,
             .Flags = compositionFlags,
-            .FloorHandoverAnchorClamp =
-                std::clamp(cfg.FfxDenoiserFloorHandoverAnchorClamp.value_or_default(), 0.0f, 4.0f),
-            .FloorHandoverCorrelationMix =
-                std::clamp(cfg.FfxDenoiserFloorHandoverCorrelationMix.value_or_default(), 0.0f, 1.0f)
+            .FloorNoiseSuppression = _convDesc.FloorNoiseSuppression,
+            .FloorHandoverAnchorClamp = _appliedFloorHandoverAnchorClamp,
+            .FloorHandoverCorrelationMix = _appliedFloorHandoverCorrelationMix
         };
-
-        const XMUINT2 rawColorBase = GetSubrectBase(
-            inParams, NVSDK_NGX_Parameter_DLSS_Input_Color_Subrect_Base_X,
-            NVSDK_NGX_Parameter_DLSS_Input_Color_Subrect_Base_Y);
-        compDesc.SourceBase = {
-            rawColorBase.x, rawColorBase.y,
-            0, 0
-        };
-
-        if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_Color, compDesc.InRawColor) ||
-            !ValidateSourceExtent("CompositionColor", compDesc.InRawColor, rawColorBase,
-                                  RenderWidth(), RenderHeight()))
-        {
-            InvalidateDenoiserHistory();
-            return false;
-        }
 
         // ColorBeforeParticles is a whole scene guide, not a premultiplied overlay.
         // It is deliberately absent from composition; the title's Color input already
@@ -3447,23 +3426,29 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     }
     if (_specularSignalDescType == FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR)
         _convDesc.Flags |= (uint32_t)FSRDConvFlags::SpecularSignalIndirect;
-    _convDesc.FloorIsolation = std::clamp(cfg.FfxDenoiserFloorIsolation.value_or_default(), 0.0f, 1.0f);
-    _convDesc.RoughnessFloor = std::clamp(
-        cfg.FfxDenoiserRoughnessFloor.value_or_default(), 0.0f, 1.0f);
-    _convDesc.FloorHandoverMode = static_cast<uint32_t>(
-        std::clamp(cfg.FfxDenoiserFloorHandover.value_or_default(), 0, 2));
-    _convDesc.FloorHandoverStrength =
-        std::clamp(cfg.FfxDenoiserFloorHandoverStrength.value_or_default(), 0.0f, 1.0f);
-    _convDesc.FloorRawBlend =
-        std::clamp(cfg.FfxDenoiserFloorRawBlend.value_or_default(), 0.0f, 1.0f);
-    _convDesc.FloorStructureGate =
-        std::clamp(cfg.FfxDenoiserFloorStructureGate.value_or_default(), 0.0f, 1.0f);
-    _convDesc.DemodDivisorFloor =
-        std::clamp(cfg.FfxDenoiserDemodDivisorFloor.value_or_default(), 1e-4f, 0.5f);
-    _convDesc.FloorClampSmoothing =
-        std::clamp(cfg.FfxDenoiserFloorClampSmoothing.value_or_default(), 0.0f, 1.0f);
-    _convDesc.FloorHandoverDetail = std::clamp(
-        cfg.FfxDenoiserFloorHandoverDetail.value_or_default(), 0.0f, 1.0f);
+    _convDesc.FloorEnabled = cfg.FfxDenoiserFloorEnabled.value_or_default();
+    const auto unitValue = [](float value, float fallback) {
+        return std::isfinite(value) ? std::clamp(value, 0.0f, 1.0f) : fallback;
+    };
+    _convDesc.FloorNoiseSuppression = unitValue(cfg.FfxDenoiserFloorNoiseSuppression.value_or_default(), 0.75f);
+    _convDesc.FloorDetailPreservation = unitValue(cfg.FfxDenoiserFloorDetailPreservation.value_or_default(), 0.35f);
+    _convDesc.DemodDivisorFloor = std::clamp(cfg.FfxDenoiserDemodDivisorFloor.value_or_default(), 1e-4f, 0.5f);
+    const float configuredAnchor = cfg.FfxDenoiserFloorHandoverAnchorClamp.value_or_default();
+    const float anchor = std::isfinite(configuredAnchor) ? std::clamp(configuredAnchor, 0.0f, 8.0f) : 4.0f;
+    const float correlationMix = unitValue(cfg.FfxDenoiserFloorHandoverCorrelationMix.value_or_default(), 1.0f);
+    if (_appliedFloorHandoverAnchorClamp != anchor ||
+        _appliedFloorHandoverCorrelationMix != correlationMix ||
+        _appliedFloorEnabled != int(_convDesc.FloorEnabled) ||
+        _appliedFloorNoiseSuppression != _convDesc.FloorNoiseSuppression ||
+        _appliedFloorDetailPreservation != _convDesc.FloorDetailPreservation)
+    {
+        InvalidateDenoiserHistory();
+        _appliedFloorHandoverAnchorClamp = anchor;
+        _appliedFloorHandoverCorrelationMix = correlationMix;
+        _appliedFloorEnabled = int(_convDesc.FloorEnabled);
+        _appliedFloorNoiseSuppression = _convDesc.FloorNoiseSuppression;
+        _appliedFloorDetailPreservation = _convDesc.FloorDetailPreservation;
+    }
 
     _convDesc.Resources.InInspector = nullptr;
     _convDesc.InspectorChannel = ResTrack_Dx12::GetRRResourceChannel();
@@ -3487,24 +3472,9 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
         }
     }
 
-    if (_convDesc.RoughnessFloor != _appliedRoughnessFloor)
-    {
-        if (_appliedRoughnessFloor >= 0.0f)
-        {
-            LOG_INFO(
-                "[RR_DIAG] RR roughness floor changed: floor {:.4f}->{:.4f}; "
-                "resetting denoiser history",
-                _appliedRoughnessFloor, _convDesc.RoughnessFloor);
-        }
-        else
-        {
-            LOG_INFO("[RR_DIAG] RR roughness floor initialized: floor={:.4f}",
-                     _convDesc.RoughnessFloor);
-        }
-
-        _appliedRoughnessFloor = _convDesc.RoughnessFloor;
-        InvalidateDenoiserHistory();
-    }
+    // The zero-rough domain's RR roughness is the packing shader's own compatibility value
+    // now, so the only policy change left to react to is Floor itself - handled by the
+    // Floor-enabled reset above.
 
     if (_roughnessSource == RoughnessSource::Packed)
         _convDesc.Flags |= (uint32_t) FSRDConvFlags::IsRoughnessPacked;
@@ -3528,13 +3498,6 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     _convDesc.DiagnosticsEnabled = cfg.FfxDenoiserDiagnostics.value_or_default();
 
     _convDesc.BiasMaskStrength = cfg.FfxDenoiserBiasMaskStrength.value_or_default();
-    _convDesc.FloorDetailBoost = cfg.FfxDenoiserFloorDetailBoost.value_or_default();
-    _convDesc.FloorNormalSharpness = cfg.FfxDenoiserFloorNormalSharpness.value_or_default();
-    _convDesc.FloorAlbedoGuide = cfg.FfxDenoiserFloorAlbedoGuide.value_or_default();
-    _convDesc.FloorLumSymmetry = cfg.FfxDenoiserFloorLumSymmetry.value_or_default();
-    _convDesc.FloorGrazingSharpness = cfg.FfxDenoiserFloorGrazingSharpness.value_or_default();
-    _convDesc.FloorEnvelopeBias = cfg.FfxDenoiserFloorEnvelopeBias.value_or_default();
-    _convDesc.FloorSoftMin = cfg.FfxDenoiserFloorSoftMin.value_or_default();
 
     StoreHlslColumnVectorMatrix(_convDesc.InvViewMatrix, _invViewMatrix);
 
@@ -3822,7 +3785,8 @@ bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
             dispatchDesc.renderSize.width, dispatchDesc.renderSize.height);
         LOG_INFO(
             "[RR_DIAG] conversion snapshot: viewSource={}, projectionSource={}, handedness={}, depthInput={}, "
-            "depthDirection={}, motionResolution={}, roughness={}, roughnessFloor={:.4f}, "
+            "depthDirection={}, motionResolution={}, roughness={} "
+            "(zero-rough domain auto {:.4f}), "
             "zeroRoughnessMaterialType=unified-type-1, "
             "specularHitDistance={} (invalid={}), diffuseHitDistance={}, diffuseDirectionHitDistance={}, "
             "emissiveInput={} (previewCompatible={})",
@@ -3833,7 +3797,7 @@ bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
             DepthInverted() ? "reversed-Z" : "standard-Z",
             LowResMV() ? "render" : "output",
             _roughnessSource == RoughnessSource::Packed ? "packed" : "separate",
-            _convDesc.RoughnessFloor,
+            0.1f,
             (_convDesc.Resources.InSpecHitDist ||
              _convDesc.Resources.InSpecularRayDirectionHitDistance)
                 ? "present"

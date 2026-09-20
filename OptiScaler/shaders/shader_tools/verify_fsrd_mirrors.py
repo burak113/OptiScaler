@@ -242,7 +242,7 @@ CONV_FLAG_NAMES = {
     "HasSpecHitDistance": "FLAGS_HAS_SPEC_HIT_DISTANCE",
     "SpecularSignalIndirect": "FLAGS_SPECULAR_SIGNAL_INDIRECT",
     "HasEmissiveInput": "FLAGS_HAS_EMISSIVE_INPUT",
-    "FloorHandover": "FLAGS_FLOOR_HANDOVER",
+    "FloorEnabled": "FLAGS_FLOOR_ENABLED",
     "MotionVectorsJittered": "FLAGS_MOTION_VECTORS_JITTERED",
     "DisplayResolutionMotion": "FLAGS_DISPLAY_RESOLUTION_MOTION",
     "NormalsViewSpace": "FLAGS_NORMALS_VIEW_SPACE",
@@ -278,13 +278,13 @@ CONV_DEBUG_NAMES = {
     "DebugEffectiveRoughness": "FLAGS_DEBUG_EFFECTIVE_ROUGHNESS",
     "DebugRawRoughness": "FLAGS_DEBUG_RAW_ROUGHNESS",
     "DebugEmissiveMask": "FLAGS_DEBUG_EMISSIVE_MASK",
-    "DebugAppliedRoughnessFloor": "FLAGS_DEBUG_APPLIED_ROUGHNESS_FLOOR",
+    "DebugAppliedRoughness": "FLAGS_DEBUG_APPLIED_ROUGHNESS",
     "DebugResourceInspector": "FLAGS_DEBUG_RESOURCE_INSPECTOR",
     "DebugMaterialType": "FLAGS_DEBUG_MATERIAL_TYPE",
     "DebugInEmissive": "FLAGS_DEBUG_IN_EMISSIVE",
     "DebugRRMaterialType": "FLAGS_DEBUG_RR_MATERIAL_TYPE",
     "DebugAlbedoStructure": "FLAGS_DEBUG_ALBEDO_STRUCTURE",
-    "DebugFloorHandover": "FLAGS_DEBUG_ZERO_ROUGH_FLOOR",
+    "DebugFloorResidual": "FLAGS_DEBUG_FLOOR_RESIDUAL",
     "DebugSpecularSplit": "FLAGS_DEBUG_SPECULAR_SPLIT",
     "DebugInTitleLinearDepth": "FLAGS_DEBUG_IN_TITLE_DEPTH",
     "DebugTitleLinearDepthDiff": "FLAGS_DEBUG_TITLE_DEPTH_DIFF",
@@ -293,10 +293,10 @@ CONV_DEBUG_NAMES = {
     "DebugDemodGain": "FLAGS_DEBUG_DEMOD_GAIN",
     "DebugHitDistGate": "FLAGS_DEBUG_HIT_DIST_GATE",
     "DebugDenoiserFraction": "FLAGS_DEBUG_DENOISER_FRACTION",
-    "DebugFloorStructure": "FLAGS_DEBUG_FLOOR_STRUCTURE",
+    "DebugFloorNoise": "FLAGS_DEBUG_FLOOR_NOISE",
     "DebugSkipUnmapped": "FLAGS_DEBUG_SKIP_UNMAPPED",
     "DebugSkipFloor": "FLAGS_DEBUG_SKIP_FLOOR",
-    "DebugSkipRawInject": "FLAGS_DEBUG_SKIP_RAW_INJECT",
+    "DebugFloorExcess": "FLAGS_DEBUG_FLOOR_EXCESS",
 }
 
 COMP_FLAG_NAMES = {
@@ -309,17 +309,15 @@ COMP_FLAG_NAMES = {
 }
 
 COMP_DEBUG_NAMES = {
-    "DebugCorrelation": "FLAGS_DEBUG_CORRELATION_BIAS",
+    "DebugDetailConfidence": "FLAGS_DEBUG_DETAIL_CONFIDENCE",
     "DebugSkipSignal": "FLAGS_DEBUG_SKIP_SIGNAL",
     "DebugDenoiserOutput": "FLAGS_DEBUG_DENOISER_OUTPUT",
     "DebugDirectSpecular": "FLAGS_DEBUG_DIRECT_SPECULAR",
     "DebugDirectDiffuse": "FLAGS_DEBUG_DIRECT_DIFFUSE",
     "DebugIndirectDiffuse": "FLAGS_DEBUG_INDIRECT_DIFFUSE",
-    "DebugHandoverRRBand": "FLAGS_DEBUG_HANDOVER_RR_BAND",
-    "DebugHandoverDetailBand": "FLAGS_DEBUG_HANDOVER_DETAIL_BAND",
-    "DebugHandoverBandMix": "FLAGS_DEBUG_HANDOVER_BAND_MIX",
-    "DebugHandoverAnchor": "FLAGS_DEBUG_HANDOVER_ANCHOR",
-    "DebugHandoverWeight": "FLAGS_DEBUG_HANDOVER_WEIGHT",
+    "DebugDetailCorrection": "FLAGS_DEBUG_DETAIL_CORRECTION",
+    "DebugDetailReference": "FLAGS_DEBUG_DETAIL_REFERENCE",
+    "DebugReconstructedColor": "FLAGS_DEBUG_RECONSTRUCTED_COLOR",
     "DebugIndirectSpecular": "FLAGS_DEBUG_INDIRECT_SPECULAR",
 }
 
@@ -378,7 +376,7 @@ def evaluate(expr, known, where):
 
 
 def check_flag_list(cpp_values, hlsl_values, name_map, label, is_mode, debug_bit=None,
-                    resolved_by_binding=frozenset()):
+                    resolved_by_binding=frozenset(), requires_debug=True):
     resolved = {name: None for name in cpp_values}
     if not is_mode:
         # Repeated passes so an entry may reference another one (Debug, DebugModeMask). Modes
@@ -391,7 +389,7 @@ def check_flag_list(cpp_values, hlsl_values, name_map, label, is_mode, debug_bit
                 known = {k: v for k, v in resolved.items() if v is not None}
                 resolved[name] = evaluate(cpp_values[name], known, "C++ %s::%s" % (label, name))
         debug_bit = resolved.get("Debug")
-        if debug_bit is None:
+        if debug_bit is None and requires_debug:
             fail("%s: no Debug entry" % label)
 
     mapped_cpp = set()
@@ -445,6 +443,11 @@ def check_flag_list(cpp_values, hlsl_values, name_map, label, is_mode, debug_bit
 
 def check_flags():
     pre = read(PRE_H)
+    seed = cpp_enum_values(brace_body(read(DATA_H), "namespace FloorSeed"), "Flags")
+    seed.pop("None", None)
+    check_flag_list(seed, hlsl_defines(read(SEED_HLSL)), {
+        "LinearDepth": "FLAGS_LINEAR_DEPTH", "NegativeViewDepth": "FLAGS_NEGATIVE_VIEW_DEPTH",
+        "TitleLinearDepth": "FLAGS_TITLE_LINEAR_DEPTH"}, "FloorSeed flags", False, requires_debug=False)
     conv_cpp = cpp_enum_values(pre, "ConvFlags")
     comp_cpp = cpp_enum_values(pre, "CompFlags")
     conv_hlsl = hlsl_defines(read(CONV_HLSL))
@@ -514,44 +517,40 @@ def check_resources():
     data = read(DATA_H)
     # Each namespace carries its own union Input, and the first one in the file is FloorSeed's,
     # so the conversion's has to be located by its namespace rather than by its name.
-    conv_at = data.find("namespace Conversion")
-    comp_at = data.find("namespace Composition")
-    if conv_at < 0 or comp_at <= conv_at:
-        fail("cannot locate the Conversion and Composition namespaces in %s" % DATA_H)
-        return
-    conv_cpp = cpp_resource_order(data[conv_at:comp_at], "union Input")
-    conv_shader = shader_resource_order(read(CONV_HLSL), "t", "FSRDInputConv")
-    comp_cpp = cpp_resource_order(data[comp_at:], "union Input")
-    comp_shader = shader_resource_order(read(COMP_HLSL), "t", "FSRDOutputComp")
-
-    for label, cpp, shader, shader_file in (
-            ("Conversion", conv_cpp, conv_shader, "FSRDInputConv.hlsl"),
-            ("Composition", comp_cpp, comp_shader, "FSRDOutputComp.hlsl")):
-        if len(cpp) != len(shader):
-            fail("%s input has %d resources in C++ but the shader declares %d bindings"
-                 % (label, len(cpp), len(shader)))
-        for index, (a, b) in enumerate(zip(cpp, shader)):
-            if a != b:
-                fail("%s input slot %d is %s in C++ but %s in the shader (register t%d): the "
-                     "slots are positional, so this binds the wrong resource"
-                     % (label, index, a, b, index))
-        count = len(cpp)
-        m = re.search(r"static_assert\(%s::Input::kCount == (\d+)" % label, data)
-        if m and int(m.group(1)) != count:
-            fail("%s::Input::kCount assert says %s but the struct has %d fields"
-                 % (label, m.group(1), count))
-        if not m:
-            fail("%s::Input::kCount has no static_assert" % label)
-        declared = shader_root_srv_count(shader_file)
-        if declared is not None and declared != len(shader):
-            fail("%s root signature declares numDescriptors = %d but the shader binds %d SRVs"
-                 % (label, declared, len(shader)))
-
-
-def shader_root_srv_count(file_name):
-    text = read(os.path.join(PRE, file_name))
-    m = re.search(r'DescriptorTable\(SRV\(t0,\s*numDescriptors\s*=\s*(\d+)\)', text)
-    return int(m.group(1)) if m else None
+    for namespace, path in (("FloorSeed", SEED_HLSL), ("FloorFilter", FLOOR_HLSL),
+                            ("Conversion", CONV_HLSL), ("Composition", COMP_HLSL)):
+        body = brace_body(data, "namespace " + namespace)
+        shader = read(path)
+        for kind, union in (("t", "Input"), ("u", "Output")):
+            actual = shader_resource_order(shader, kind, namespace)
+            root_kind = "SRV" if kind == "t" else "UAV"
+            root = re.search(r'DescriptorTable\(' + root_kind + r'\(' + kind +
+                             r'0,\s*numDescriptors\s*=\s*(\d+)\)', shader)
+            if not root or int(root.group(1)) != len(actual):
+                fail("%s %s root table differs from shader resources" % (namespace, root_kind))
+            if namespace == "Composition" and kind == "u":
+                expected = ["OutColor"]
+                assertion = "Composition::kOutputCount"
+            elif namespace == "Conversion" and kind == "u":
+                output = brace_body(brace_body(body, "union Output"), "struct Data")
+                signals = brace_body(body, "struct SignalResources")
+                fields = re.findall(r'ComPtr<ID3D12Resource>\s+(\w+)\s*;',
+                                    output.replace("SignalResources Signals;", signals))
+                names = {"IndirectSpecular": "OutIndirectSpecular", "DirectDiffuse": "OutDirectDiffuse",
+                         "Motion": "OutMotion", "Normals": "OutNormals", "SpecAlbedo": "OutSpecAlbedo",
+                         "DiffAlbedo": "OutDiffAlbedo", "SkipSignal": "OutSkipSignal",
+                         "DetailReference": "OutDetailReference"}
+                expected = [names.get(field, "UNMAPPED:" + field) for field in fields]
+                assertion = namespace + "::Output::kCount"
+            else:
+                expected = cpp_resource_order(body, "union " + union)
+                assertion = namespace + "::" + union + "::kCount"
+            if expected != actual:
+                fail("%s %s order differs: C++ %s, HLSL %s" %
+                     (namespace, root_kind, expected, actual))
+            count_assert = re.search(r'static_assert\(' + re.escape(assertion) + r' == (\d+)', data)
+            if not count_assert or int(count_assert.group(1)) != len(actual):
+                fail("%s count assertion differs from shader bindings" % assertion)
 
 
 # ---------------------------------------------------------------- debug mode names
@@ -564,7 +563,7 @@ def check_debug_mode_names():
     checked here is reachability, because a mode that no name-table entry reaches compiles,
     works when something else selects it, and cannot be selected at all. The names are compared
     through the alias table rather than directly, since each list spells them differently
-    (OutRadiance against DebugOutRadiance, Correlation against DebugCorrelation).
+    (OutRadiance against DebugOutRadiance, Correlation against DebugDetailConfidence).
     """
     pre = read(PRE_H)
     feature = read(FEATURE_CPP)

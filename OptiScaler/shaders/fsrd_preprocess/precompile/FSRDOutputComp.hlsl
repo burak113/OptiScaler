@@ -1,659 +1,488 @@
-﻿#include "FSRDPreprocessCommon.hlsli"
+#include "FSRDPreprocessCommon.hlsli"
+#include "FSRDFloorCommon.hlsli"
 
 #define MainRS \
-    "RootFlags(0), " \
-    "CBV(b0), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 9), visibility = SHADER_VISIBILITY_ALL), " \
-    "DescriptorTable(UAV(u0, numDescriptors = 1), visibility = SHADER_VISIBILITY_ALL), " \
-    "StaticSampler(s0, " \
-        "filter = FILTER_MIN_MAG_MIP_LINEAR, " \
-        "addressU = TEXTURE_ADDRESS_CLAMP, " \
-        "addressV = TEXTURE_ADDRESS_CLAMP, " \
-        "addressW = TEXTURE_ADDRESS_CLAMP, " \
-        "visibility = SHADER_VISIBILITY_ALL)"
+    "RootFlags(0), CBV(b0), " \
+    "DescriptorTable(SRV(t0, numDescriptors = 8)), " \
+    "DescriptorTable(UAV(u0, numDescriptors = 1)), " \
+    "StaticSampler(s0, filter = FILTER_MIN_MAG_MIP_LINEAR, " \
+    "addressU = TEXTURE_ADDRESS_CLAMP, addressV = TEXTURE_ADDRESS_CLAMP, addressW = TEXTURE_ADDRESS_CLAMP)"
 
-// Dispatch config
-#define THREAD_GROUP_SIZE_X     8
-#define THREAD_GROUP_SIZE_Y     8
-#define NUM_THREADS             (THREAD_GROUP_SIZE_X * THREAD_GROUP_SIZE_Y)
+#define FLAGS_RAW_SOURCE_BLIT (1 << 0)
+#define FLAGS_SCALE_SRC (1 << 1)
+#define FLAGS_DIFFUSE_SIGNAL_INDIRECT (1 << 2)
+#define FLAGS_SPECULAR_SIGNAL_INDIRECT (1 << 3)
+#define FLAGS_DEBUG (1 << 16)
+#define FLAGS_DEBUG_MODE_MASK (0xFF << 16)
+#define FLAGS_DEBUG_DETAIL_CONFIDENCE (1 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_SKIP_SIGNAL (2 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_DENOISER_OUTPUT (3 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_DIRECT_SPECULAR (4 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_DIRECT_DIFFUSE (5 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_INDIRECT_DIFFUSE (6 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_DETAIL_CORRECTION (7 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_DETAIL_REFERENCE (8 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_INDIRECT_SPECULAR (12 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_RECONSTRUCTED_COLOR (13 << 17 | FLAGS_DEBUG)
 
-static const uint2 s_ThreadGroupSize =  uint2(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y);
-
-// Kernel config
-#define KERNEL_SIZE             5
-#define KERNEL_RANGE_MIN        (-KERNEL_SIZE / 2)
-#define KERNEL_RANGE_MAX        (KERNEL_SIZE / 2)
-
-static const float s_InvKernelSize =    1.0f / (KERNEL_SIZE * KERNEL_SIZE);
-
-// Separable binomial weights defining where the frequency split falls. Wider than a
-// box of the same extent, so the two bands meet without a ringing seam.
-static const half s_SplitWeights[KERNEL_SIZE] = { 1.0h, 4.0h, 6.0h, 4.0h, 1.0h };
-
-// Shared memory config
-DEFINE_LDS_CONFIG(s_SM, KERNEL_SIZE);
-DECLARE_LDS_ARRAY_2D(half4, g_RawColor, KERNEL_SIZE);
-DECLARE_LDS_ARRAY_2D(half4, g_DenoisedColor, KERNEL_SIZE);
-// The band split and the RR anchor both need this neighbourhood, so it joins the tile
-// rather than being resampled per feature.
-DECLARE_LDS_ARRAY_2D(half4, g_Handover, KERNEL_SIZE);
-
-// Feature Flags
-#define FLAGS_RAW_SOURCE_BLIT           (1 << 0)
-#define FLAGS_SCALE_SRC                 (1 << 1)
-#define FLAGS_DIFFUSE_SIGNAL_INDIRECT   (1 << 2)
-#define FLAGS_SPECULAR_SIGNAL_INDIRECT  (1 << 3)
-
-// Debug Flags
-#define FLAGS_DEBUG                     (1 << 16)
-#define FLAGS_DEBUG_MODE_MASK           (0xFF << 16)
-
-#define FLAGS_DEBUG_CORRELATION_BIAS    (1 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_SKIP_SIGNAL         (2 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_DENOISER_OUTPUT     (3 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_DIRECT_SPECULAR     (4 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_DIRECT_DIFFUSE      (5 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_INDIRECT_DIFFUSE    (6 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_HANDOVER_RR_BAND    (7 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_HANDOVER_DETAIL_BAND (8 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_HANDOVER_BAND_MIX   (9 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_HANDOVER_ANCHOR     (10 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_HANDOVER_WEIGHT     (11 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_INDIRECT_SPECULAR   (12 << 17 | FLAGS_DEBUG)
 Texture2D<half4> InIndirectSpecular : register(t0);
 Texture2D<half4> InSpecularAlbedo : register(t1);
 Texture2D<half4> InDirectDiffuse : register(t2);
 Texture2D<half4> InDiffuseAlbedo : register(t3);
-
-// Secondary buffers
 Texture2D<half4> InSkipSignal : register(t4);
-Texture2D<half4> InRawColor : register(t5);
-
-Texture2D<half4> InRawIndirectSpecular : register(t6);
-Texture2D<half4> InNormals : register(t7);
-
-// RGB: the zero-roughness handover image, A: 1 on handed-over pixels. The conversion
-// pass owns the type-1 classification; this weight is how it reaches composition.
-Texture2D<half4> InHandover : register(t8);
-
+Texture2D<half4> InNormals : register(t5);
+Texture2D<half4> InDetailReference : register(t6);
+Texture2D<float> InLinearDepth : register(t7);
 RWTexture2D<half4> OutColor : register(u0);
-
 SamplerState LinearSampler : register(s0);
 
 cbuffer CB_Comp : register(b0)
 {
     float4 DstTexSize;
-    uint4 SourceBase; // XY = raw color origin, ZW unused
-    
-    float CorrelationBias;
     uint Flags;
-
+    float DetailPreservation;
+    float NoiseSuppression;
+    float FloorHandoverAnchorClamp;
     float2 SourceUvScale;
     float2 SourceUvOffset;
-
-    // Handover refinements, each inert at zero.
-    float FloorHandoverAnchorClamp;
     float FloorHandoverCorrelationMix;
-    float _Padding0;
+    float3 _Padding0;
 }
+
+#define THREAD_GROUP_SIZE_X 8
+#define THREAD_GROUP_SIZE_Y 8
+#define NUM_THREADS 64
+static const uint2 s_ThreadGroupSize = uint2(8,8);
+// Search radius five plus a one-pixel patch halo. Every lane loads before the
+// barrier, including lanes outside the logical extent of a partial group.
+DEFINE_LDS_CONFIG(s_SM, 13);
+DECLARE_LDS_ARRAY_2D(half3, g_RR, 13);
+DECLARE_LDS_ARRAY_2D(half4, g_Reference, 13);
+DECLARE_LDS_ARRAY_2D(float, g_Depth, 13);
+DECLARE_LDS_ARRAY_2D(half3, g_Normal, 13);
+DECLARE_LDS_ARRAY_2D(half3, g_Albedo, 13);
 
 bool IsSet(uint mask) { return (Flags & mask) == mask; }
-uint GetDebugMode() { return (Flags & FLAGS_DEBUG_MODE_MASK); }
-
-// Correlates raw noisy input with denoised color using a modified SSIM.
-half GetRawColorSimilarity(const uint2 gtID)
+uint GetDebugMode() { return Flags & FLAGS_DEBUG_MODE_MASK; }
+float3 Reconstruct(int2 p)
 {
-    const int2 smCenter = gtID + s_SM_HaloOffset;    
-    float meanD = 0.0f;
-    float meanR = 0.0f;
-    float meanDD = 0.0f; // D^2
-    float meanRR = 0.0f; // R^2
-    float meanRD = 0.0f; // R*D
-
-    static const float s_RcpSigma = 1.0f / 1.2f;
-    float totalWeight = 0.0f;
-    
-    [unroll]
-    for (int x1 = KERNEL_RANGE_MIN; x1 <= KERNEL_RANGE_MAX; x1++)
-    {
-        [unroll]
-        for (int y1 = KERNEL_RANGE_MIN; y1 <= KERNEL_RANGE_MAX; y1++)
-        {
-            const int2 smID = smCenter + int2(x1, y1);
-            float w = exp(-(Square(x1) + Square(y1)) * s_RcpSigma); // This is precomputed by DXC
-            totalWeight += w;
-            
-            const float lumD = g_DenoisedColor[smID.x][smID.y].a;
-            meanD += w * lumD;
-            meanDD += w * Square(lumD);
-  
-            const float lumR = g_RawColor[smID.x][smID.y].a;
-            meanR += w * lumR;
-            meanRR += w * Square(lumR);
-            meanRD += w * lumR * lumD;
-        }
-    }
-    
-    const float rcpTotalWeight = rcp(totalWeight);   
-    meanD *= rcpTotalWeight;
-    meanR *= rcpTotalWeight;
-    meanDD *= rcpTotalWeight;
-    meanRR *= rcpTotalWeight;
-    meanRD *= rcpTotalWeight;
-    
-    const float meanDSq = Square(meanD);
-    const float meanRSq = Square(meanR);
-    
-    // Variances (std.dev^2)
-    // E[X^2] - (E[X])^2 - Average of squares, less the square of the average
-    const float varD = max(meanDD - meanDSq, 0.0f);
-    const float varR = max(meanRR - meanRSq, 2e-3f);
-    
-    // Std. Deviation
-    const float devD = sqrt(varD);
-    const float devR = sqrt(varR);
-    
-    // Covariance
-    // E[X*Y] - E[X]E[Y] - Average of R*D product, less product of their averages
-    const float covRD = meanRD - (meanD * meanR);
-        
-    // Correlation
-    static const float s_SSIMRelaxation = 0.1f;
-    static const float s_COVThreshold = 0.2f;
-    
-    static const float c1 = Square(1e-2f * s_SSIMRelaxation) + 0.1f;
-    static const float c2 = Square(3e-2f * s_SSIMRelaxation);
-    static const float c3 = 1.0f * c2;
-    
-    // Standard SSIM components
-    const float strucCorrelation = ((covRD + c3) * rcp(devD * devR + c3));
-    const float conCorrelation = (2.0f * devD * devR + c2) * rcp(varD + varR + c2);
-    const float lumCorrelation = (2.0f * meanD * meanR) * rcp(meanDSq + meanRSq + c1);
-    const half ssim = half(strucCorrelation * conCorrelation * lumCorrelation);
-    
-    // Variance gating. The denoiser doesn't destroy genuine detail. It might attenuate details, or even
-    // hallucinate, but if it says it's flat, then almost certainly flat.
-    const half covD = half(devD * rcp(max(meanD, 1e-2f)));
-    const half similarity = half(smoothstep(0.0f, 0.5f, ssim) * smoothstep(0.0f, s_COVThreshold, covD));
-    
-    return min(max(similarity, 0.0h), 1.0h);
+    return FloorRadiance(float3(InIndirectSpecular[p].rgb) * float3(InSpecularAlbedo[p].rgb) +
+        float3(InDirectDiffuse[p].rgb) * float3(InDiffuseAlbedo[p].rgb) + float3(InSkipSignal[p].rgb));
 }
 
-// Agreement between the two paths, as a modified SSIM over their luminance. Same
-// construction as GetRawColorSimilarity, but neither image carries a precomputed luma
-// in alpha here - the handover's alpha is its mix weight - so both are derived from
-// RGB in the loop.
-//
-// High agreement means RR preserved the structure the handover has, and RR is the
-// better pick there because it also carries temporal stability. Low agreement means
-// RR removed something the handover kept, which is the case the handover exists for.
-half GetHandoverAgreement(const uint2 gtID)
+// Rotate the symmetric RGB covariance and its orthonormal basis together.
+// Fixed-size Jacobi sweeps avoid choosing a privileged luminance/chroma axis:
+// equal-luminance coloured lettering is structure, just as grey lettering is.
+void RotateAnchorCovariance(inout float3x3 c, inout float3x3 basis, uint a, uint b)
 {
-    const int2 smCenter = gtID + s_SM_HaloOffset;
-    float meanD = 0.0f;
-    float meanH = 0.0f;
-    float meanDD = 0.0f;
-    float meanHH = 0.0f;
-    float meanDH = 0.0f;
-
-    static const float s_RcpSigma = 1.0f / 1.2f;
-    float totalWeight = 0.0f;
-
+    const float off = c[a][b];
+    if (abs(off) <= max(c[0][0]+c[1][1]+c[2][2],1e-20f)*1e-6f) return;
+    const float tau = (c[b][b]-c[a][a])/(2.0f*off);
+    const float t = (tau >= 0 ? 1.0f : -1.0f)/(abs(tau)+sqrt(1.0f+tau*tau));
+    const float cosine = rsqrt(1.0f+t*t), sine = t*cosine;
+    const float aa = c[a][a], bb = c[b][b];
+    c[a][a] = aa-t*off;
+    c[b][b] = bb+t*off;
+    c[a][b] = c[b][a] = 0;
     [unroll]
-    for (int x1 = KERNEL_RANGE_MIN; x1 <= KERNEL_RANGE_MAX; x1++)
+    for (uint k=0; k<3; ++k)
     {
-        [unroll]
-        for (int y1 = KERNEL_RANGE_MIN; y1 <= KERNEL_RANGE_MAX; y1++)
+        if (k != a && k != b)
         {
-            const int2 smID = smCenter + int2(x1, y1);
-            const float w = exp(-(Square(x1) + Square(y1)) * s_RcpSigma);
-            totalWeight += w;
-
-            const float lumD = GetLuminance(g_DenoisedColor[smID.x][smID.y].rgb);
-            const float lumH = GetLuminance(g_Handover[smID.x][smID.y].rgb);
-
-            meanD += w * lumD;
-            meanH += w * lumH;
-            meanDD += w * Square(lumD);
-            meanHH += w * Square(lumH);
-            meanDH += w * lumD * lumH;
+            const float ka = c[k][a], kb = c[k][b];
+            c[k][a] = c[a][k] = cosine*ka-sine*kb;
+            c[k][b] = c[b][k] = sine*ka+cosine*kb;
         }
+        const float va = basis[k][a], vb = basis[k][b];
+        basis[k][a] = cosine*va-sine*vb;
+        basis[k][b] = sine*va+cosine*vb;
     }
-
-    const float rcpTotalWeight = rcp(totalWeight);
-    meanD *= rcpTotalWeight;
-    meanH *= rcpTotalWeight;
-    meanDD *= rcpTotalWeight;
-    meanHH *= rcpTotalWeight;
-    meanDH *= rcpTotalWeight;
-
-    const float varD = max(meanDD - Square(meanD), 0.0f);
-    const float varH = max(meanHH - Square(meanH), 0.0f);
-    const float covDH = meanDH - (meanD * meanH);
-
-    static const float c1 = 1e-2f;
-    static const float c2 = 1e-3f;
-
-    const float structure = (2.0f * covDH + c2) * rcp(varD + varH + c2);
-    const float luminance =
-        (2.0f * meanD * meanH + c1) * rcp(Square(meanD) + Square(meanH) + c1);
-
-    return half(saturate(structure * luminance));
 }
 
-// The bands the handover combination is built from.
-//
-// Returned as a group rather than computed inline so the debug views read exactly the
-// values composition uses. A separate reimplementation for visualisation would be free
-// to drift from the real path, which is the failure mode that makes a debug view worse
-// than none at all.
-struct HandoverBands
+float3 AnchorColour(float3 candidate, float3 mean, float3 variance, float3 crossVariance, float anchor)
 {
-    float3 RRLowBand;    // RR's lowpass - what RR contributes to the result
-    float3 DetailHigh;   // handover minus its own lowpass - what the handover contributes
-    float3 RRDeviation;  // RR's local standard deviation, for the anchor clamp
-};
-
-HandoverBands GetHandoverBands(const int2 smID, const float3 handoverColor)
-{
-    // Keep the reductions in FP32. Squaring an HDR FP16 sample can overflow well
-    // before the input itself reaches FP16's maximum and poisons the deviation with
-    // INF/NaN, which then propagates through the anchor clamp.
-    float3 lowpassDenoised = 0.0f;
-    float3 lowpassHandover = 0.0f;
-    float3 denoisedSquared = 0.0f;
-    float totalSplitWeight = 0.0f;
-
+    float3x3 covariance = float3x3(
+        variance.x,crossVariance.x,crossVariance.y,
+        crossVariance.x,variance.y,crossVariance.z,
+        crossVariance.y,crossVariance.z,variance.z);
+    float3x3 basis = float3x3(1,0,0,0,1,0,0,0,1);
     [unroll]
-    for (int sy = KERNEL_RANGE_MIN; sy <= KERNEL_RANGE_MAX; sy++)
+    for (uint sweep=0; sweep<3; ++sweep)
     {
-        [unroll]
-        for (int sx = KERNEL_RANGE_MIN; sx <= KERNEL_RANGE_MAX; sx++)
-        {
-            const int2 tapID = smID + int2(sx, sy);
-            const float w = float(s_SplitWeights[sx - KERNEL_RANGE_MIN]) *
-                            float(s_SplitWeights[sy - KERNEL_RANGE_MIN]);
-            const float3 tapDenoised = float3(g_DenoisedColor[tapID.x][tapID.y].rgb);
-
-            lowpassDenoised += w * tapDenoised;
-            denoisedSquared += w * tapDenoised * tapDenoised;
-            lowpassHandover += w * float3(g_Handover[tapID.x][tapID.y].rgb);
-            totalSplitWeight += w;
-        }
+        RotateAnchorCovariance(covariance,basis,0,1);
+        RotateAnchorCovariance(covariance,basis,0,2);
+        RotateAnchorCovariance(covariance,basis,1,2);
     }
-
-    const float rcpSplitWeight = rcp(max(totalSplitWeight, 1e-4f));
-    lowpassDenoised *= rcpSplitWeight;
-    lowpassHandover *= rcpSplitWeight;
-    denoisedSquared *= rcpSplitWeight;
-
-    HandoverBands bands;
-    bands.RRLowBand = lowpassDenoised;
-    // Subtracting a signal's own lowpass leaves only what that lowpass could not
-    // represent, so this is a highpass by construction - and signed.
-    bands.DetailHigh = handoverColor - lowpassHandover;
-    bands.RRDeviation =
-        sqrt(max(denoisedSquared - lowpassDenoised * lowpassDenoised, 0.0f));
-    return bands;
+    const float3 extent = anchor*sqrt(max(float3(covariance[0][0],covariance[1][1],covariance[2][2]),0));
+    const float3 local = mul(candidate-mean,basis);
+    candidate = mean+mul(basis,clamp(local,-extent,extent));
+    // Keep the original per-channel contract as well. Zero Anchor never calls
+    // this function; constant RR therefore still has an exact constant anchor.
+    const float3 tolerance = anchor*sqrt(variance);
+    return clamp(candidate,max(mean-tolerance,0),mean+tolerance);
 }
 
-void PopulateSharedMemory(const uint2 groupID, const int2 gtID)
+// Non-local means: compare small RGB patterns, not just two noisy centre
+// colours. Subtract the expected independent-noise distance before weighting.
+// This is a spatial estimator, not a claim that correlated illumination noise
+// is independent: the RR anchor and correlation control handle that ambiguity.
+float ReferencePatchWeight(int2 sm, int2 offset, int2 p, int2 bounds,
+    float z, float2 gradient, float3 normal, float3 albedo, float variance)
 {
-    const int2 pxOrigin = groupID.xy * s_ThreadGroupSize - s_SM_HaloOffset;
-    const uint flatID = gtID.x + gtID.y * s_ThreadGroupSize.x;
-    const int2 maxBounds = int2(DstTexSize.xy) - 1;
-
+    float distance = 0, support = 0;
     [unroll]
-    for (int i = 0; i < s_SM_LoadsPerThread; i++)
+    for (int py=-1; py<=1; ++py)
     {
-        const uint smFlatID = flatID + i * NUM_THREADS;
-        
-        if (smFlatID < s_SM_ElementCount)
+        [unroll]
+        for (int px=-1; px<=1; ++px)
         {
-            const int2 smID = int2(smFlatID % s_SM_Size.x, smFlatID / s_SM_Size.x);
-            const int2 px = clamp(pxOrigin + smID, int2(0, 0), maxBounds);
-            const float3 denoisedSpecColor = InIndirectSpecular[px].rgb;
-            const float3 denoisedDiffColor = InDirectDiffuse[px].rgb;
-            const float3 specReflectance = InSpecularAlbedo[px].rgb;
-            const float3 diffAlbedo = InDiffuseAlbedo[px].rgb;
-            const half3 totalAlbedo = GetSafeFP16(specReflectance + diffAlbedo);
-            // Preserve the title's per-channel modulation for every material.
-            half3 denoisedColor = GetSafeFP16(
-                (denoisedSpecColor * specReflectance) +
-                (denoisedDiffColor * diffAlbedo));
-
-            uint rawWidth, rawHeight;
-            InRawColor.GetDimensions(rawWidth, rawHeight);
-            const int2 rawPx = clamp(
-                px + int2(SourceBase.xy),
-                int2(0, 0),
-                int2(rawWidth, rawHeight) - 1);
-            const half3 rawColor = GetSafeFP16(
-                InRawColor[rawPx].rgb);
-            const half4 skipColor = GetSafeFP16(InSkipSignal[px]);
-            const half skipLuma = skipColor.a;
-            
-            // Use demodulated color for luma references, but use remodulated color for output colors.
-            const float rcpTotalAlbedo = rcp(max(GetLuminance(totalAlbedo), 1e-2f));
-            const half rawRef = GetSafeFP16(GetLuminance(rawColor) * rcpTotalAlbedo);
-            const half denoisedRef = GetSafeFP16((GetLuminance(denoisedColor) + skipColor.a) * rcpTotalAlbedo);
-            denoisedColor += skipColor.rgb;
-
-            g_RawColor[smID.x][smID.y] = half4(rawColor, rawRef);
-            g_DenoisedColor[smID.x][smID.y] = half4(denoisedColor, denoisedRef);
-            g_Handover[smID.x][smID.y] = GetSafeFP16(InHandover[px]);
+            const int2 a = int2(px,py), b = offset+a;
+            const int2 qa = sm+a, qb = sm+b;
+            const float4 ra = g_Reference[qa.x][qa.y], rb = g_Reference[qb.x][qb.y];
+            // Clamped duplicates outside the image are not independent evidence.
+            if (ra.a < 0 || rb.a < 0 || any(p+a < 0) || any(p+a > bounds) ||
+                any(p+b < 0) || any(p+b > bounds)) continue;
+            const float wa = FloorSurfaceWeight(z,g_Depth[qa.x][qa.y],gradient,float2(a),
+                normal,g_Normal[qa.x][qa.y],albedo,g_Albedo[qa.x][qa.y]);
+            const float wb = FloorSurfaceWeight(z,g_Depth[qb.x][qb.y],gradient,float2(b),
+                normal,g_Normal[qb.x][qb.y],albedo,g_Albedo[qb.x][qb.y]);
+            const float w = min(wa,wb);
+            const float3 delta = ra.rgb-rb.rgb;
+            distance += w*dot(delta,delta)/3.0f;
+            support += w;
         }
     }
-    
-    GroupMemoryBarrierWithGroupSync();
+    if (support < 3.0f) return 0.0f;
+    distance = max(distance/support-2.0f*variance,0.0f);
+    // A one-pixel corner can be outvoted by eight matching background pixels.
+    // Retain its colour distinction while allowing the larger noise uncertainty
+    // of a single sample. This only rejects a match, never invents/sharpens colour.
+    const float3 centreDelta = float3(g_Reference[sm.x][sm.y].rgb)-
+        float3(g_Reference[sm.x+offset.x][sm.y+offset.y].rgb);
+    const float centreDistance = max(dot(centreDelta,centreDelta)/3.0f-4.0f*variance,0.0f);
+    distance = max(distance,0.25f*centreDistance);
+    return exp2(-distance/max(1.5f*variance,1e-12f));
 }
 
 [RootSignature(MainRS)]
-[numthreads(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y, 1)]
+[numthreads(8, 8, 1)]
 void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 {
-    const uint2 px = groupID.xy * s_ThreadGroupSize + gtID.xy;
-    const float2 uv = (float2(px) + 0.5f) * DstTexSize.zw;
-    const bool inBounds = px.x < DstTexSize.x && px.y < DstTexSize.y;
-    
-    [branch]
+    const int2 p = int2(groupID.xy * 8 + gtID.xy);
+    const int2 bounds = int2(DstTexSize.xy)-1;
+    const bool inBounds = all(p <= bounds);
     if (IsSet(FLAGS_RAW_SOURCE_BLIT))
     {
-        if (!inBounds)
-            return;
-
-        [branch]
-        if (IsSet(FLAGS_SCALE_SRC))
-            OutColor[px] = InIndirectSpecular.SampleLevel(
-                LinearSampler, uv * SourceUvScale + SourceUvOffset, 0);
-        else
-            OutColor[px] = InIndirectSpecular[px];
+        if (!inBounds) return;
+        const float2 uv = (float2(p)+0.5f)*DstTexSize.zw;
+        OutColor[p] = IsSet(FLAGS_SCALE_SRC)
+            ? InIndirectSpecular.SampleLevel(LinearSampler, uv*SourceUvScale+SourceUvOffset, 0)
+            : InIndirectSpecular[p];
+        return;
     }
-    else
+    // Uniform fast path: no reference/guide reads or neighbourhood when detail is off.
+    if (DetailPreservation <= 0.0f && !IsSet(FLAGS_DEBUG))
     {
-        const int2 smID = gtID.xy + s_SM_HaloOffset;      
-        PopulateSharedMemory(groupID.xy, gtID.xy);
-
-        // All lanes in a partial group must reach PopulateSharedMemory's group
-        // barrier. Out-of-range lanes may leave only after synchronization.
-        if (!inBounds)
-            return;
-
-        // Correlate raw RT input with denoiser output
-        const half similarity = GetRawColorSimilarity(gtID.xy);
-        const float baseRawWeight = float(similarity) * CorrelationBias;
-        const half rawWeight = half(saturate(baseRawWeight));
-        
-        [branch]
-        if (IsSet(FLAGS_DEBUG))
+        if (inBounds) OutColor[p] = half4(Reconstruct(p), 1);
+        return;
+    }
+    const int2 origin = int2(groupID.xy*8)-int2(s_SM_HaloOffset);
+    const uint tid = gtID.x + gtID.y*8;
+    [unroll]
+    for (uint i=0; i<s_SM_LoadsPerThread; ++i)
+    {
+        const uint flat = tid + i*64;
+        if (flat < s_SM_ElementCount)
         {
-            switch (GetDebugMode())
+            const int2 s = int2(flat%s_SM_Size.x, flat/s_SM_Size.x);
+            const int2 q = clamp(origin+s, 0, bounds);
+            g_RR[s.x][s.y] = Reconstruct(q);
+            g_Reference[s.x][s.y] = InDetailReference[q];
+            g_Depth[s.x][s.y] = InLinearDepth[q];
+            g_Normal[s.x][s.y] = OctahedralDecode(InNormals[q].xy);
+            g_Albedo[s.x][s.y] = InDiffuseAlbedo[q].rgb;
+        }
+    }
+    GroupMemoryBarrierWithGroupSync();
+    // The zero-rough domain is the only consumer of the structure statistic below, and in a
+    // frame that is mostly ordinary material it is the ordinary path that runs: read the
+    // classification first and skip the 9x9 statistic everywhere it cannot be used.
+    if (!inBounds) return;
+    const bool type1 = InNormals[p].a > 0.16f && InNormals[p].a < 0.5f;
+    const int2 sm = int2(gtID.xy+s_SM_HaloOffset);
+    const float3 rr = g_RR[sm.x][sm.y];
+    const float4 reference = g_Reference[sm.x][sm.y];
+    float3 filteredReference = reference.rgb;
+    float confidence = 0.0f;
+    float3 correction = 0.0f;
+    if (reference.a >= 0.0f && (DetailPreservation > 0.0f || GetDebugMode() == FLAGS_DEBUG_DETAIL_REFERENCE))
+    {
+        const float z = g_Depth[sm.x][sm.y];
+        const float2 gradient = float2(
+            FloorDepthDerivative(g_Depth[sm.x-1][sm.y], z, g_Depth[sm.x+1][sm.y]),
+            FloorDepthDerivative(g_Depth[sm.x][sm.y-1], z, g_Depth[sm.x][sm.y+1]));
+        const float3 normal = g_Normal[sm.x][sm.y];
+        const float3 albedo = g_Albedo[sm.x][sm.y];
+        float3 lowRR = 0, lowReference = 0;
+        float3 rrCenteredMean = 0, rrCenteredSquare = 0, rrCenteredCross = 0;
+        float3 refCenteredMean = 0, refCenteredSquare = 0;
+        float crossRGB = 0;
+        float rrLumaMean = 0, refLumaMean = 0, rrLumaSquare = 0, refLumaSquare = 0, crossLuma = 0;
+        float3 rrChromaMean = 0, refChromaMean = 0;
+        float rrChromaSquare = 0, refChromaSquare = 0, crossChroma = 0;
+        float noiseSquared = 0;
+        float noiseKeys[25];
+        uint noiseCount = 0;
+        float3 referenceMin = reference.rgb, referenceMax = reference.rgb;
+        float total = 0;
+        float regionTotal = 0, regionDifference2 = 0;
+        float3 regionMean = 0, regionSquare = 0;
+        const float kernel[5] = {1,4,6,4,1};
+        [unroll]
+        for (int y=-2; y<=2; ++y)
+        {
+            [unroll]
+            for (int x=-2; x<=2; ++x)
             {
-                case FLAGS_DEBUG_CORRELATION_BIAS:
-                    OutColor[px] = half4(TurboColormap(rawWeight), 1.0f);
-                    break;
-                case FLAGS_DEBUG_SKIP_SIGNAL:
-                    OutColor[px] = half4(InSkipSignal[px].rgb, 1.0f);
-                    break;
-                // The specular signal occupies one pair of resources whichever type
-                // it was dispatched as, so these two views differ only in which
-                // dispatch they claim to be showing. Magenta where the claim does not
-                // match the active type, so a mismatched pick is unmistakable rather
-                // than quietly displaying the other signal.
-                case FLAGS_DEBUG_DIRECT_SPECULAR:
-                    OutColor[px] = IsSet(FLAGS_SPECULAR_SIGNAL_INDIRECT)
-                        ? half4(1.0f, 0.0f, 1.0f, 1.0f)
-                        : half4(
-                            InIndirectSpecular[px].rgb * InSpecularAlbedo[px].rgb,
-                            1.0f);
-                    break;
-
-                case FLAGS_DEBUG_INDIRECT_SPECULAR:
-                    OutColor[px] = IsSet(FLAGS_SPECULAR_SIGNAL_INDIRECT)
-                        ? half4(
-                            InIndirectSpecular[px].rgb * InSpecularAlbedo[px].rgb,
-                            1.0f)
-                        : half4(1.0f, 0.0f, 1.0f, 1.0f);
-                    break;
-                case FLAGS_DEBUG_DIRECT_DIFFUSE:
-                    OutColor[px] = IsSet(FLAGS_DIFFUSE_SIGNAL_INDIRECT)
-                        ? half4(1.0f, 0.0f, 1.0f, 1.0f)
-                        : half4(
-                            InDirectDiffuse[px].rgb * InDiffuseAlbedo[px].rgb,
-                            1.0f);
-                    break;
-                case FLAGS_DEBUG_INDIRECT_DIFFUSE:
-                    OutColor[px] = IsSet(FLAGS_DIFFUSE_SIGNAL_INDIRECT)
-                        ? half4(
-                            InDirectDiffuse[px].rgb * InDiffuseAlbedo[px].rgb,
-                            1.0f)
-                        : half4(1.0f, 0.0f, 1.0f, 1.0f);
-                    break;
-                case FLAGS_DEBUG_HANDOVER_RR_BAND:
-                case FLAGS_DEBUG_HANDOVER_DETAIL_BAND:
-                case FLAGS_DEBUG_HANDOVER_BAND_MIX:
+                // Ordinary materials retain the small detail kernel. Only the
+                // reference handover needs the wider split and RR statistics.
+                if (!type1 && (abs(x) > 1 || abs(y) > 1)) continue;
+                const int2 q = sm + int2(x,y);
+                const float4 tapReference = g_Reference[q.x][q.y];
+                const float surface = FloorSurfaceWeight(z, g_Depth[q.x][q.y], gradient,
+                    float2(clamp(p+int2(x,y),0,bounds)-p), normal,
+                    g_Normal[q.x][q.y], albedo, g_Albedo[q.x][q.y]);
+                // An explicitly bypassed tap cannot lend content to detail at its neighbour.
+                const float spatial = type1 ? kernel[x+2]*kernel[y+2] :
+                    (x==0 ? 2.0f : 1.0f) * (y==0 ? 2.0f : 1.0f);
+                const float w = (x==0 && y==0) ? spatial :
+                    spatial*surface*(tapReference.a >= 0.0f ? 1.0f : 0.0f);
+                const float3 tapRR = g_RR[q.x][q.y];
+                if (type1)
                 {
-                    // Handover band inspection. Only handed-over pixels have a split
-                    // at all, so everything else stays black and the affected
-                    // surfaces are unambiguous.
-                    const half4 handover = g_Handover[smID.x][smID.y];
-                    half3 debugColor = 0.0h;
+                    const bool independent = all(p+int2(x,y) >= 0) && all(p+int2(x,y) <= bounds);
+                    const bool accepted = independent && surface > 0.1f && tapReference.a >= 0;
+                    noiseKeys[(y+2)*5+x+2] = accepted ? tapReference.a : 1e20f;
+                    noiseCount += accepted ? 1 : 0;
 
-                    [branch]
-                    if (saturate(handover.a) > 0.0h)
-                    {
-                        const HandoverBands bands =
-                            GetHandoverBands(smID, handover.rgb);
-
-                        const float lowLuma = GetLuminance(bands.RRLowBand);
-                        const float detailLuma = GetLuminance(bands.DetailHigh);
-
-                        if (GetDebugMode() == FLAGS_DEBUG_HANDOVER_RR_BAND)
-                        {
-                            // RR's contribution on its own: the base the detail is
-                            // grafted onto. Soft by nature - that is the point.
-                            debugColor = GetSafeFP16(max(bands.RRLowBand, 0.0f));
-                        }
-                        else if (GetDebugMode() == FLAGS_DEBUG_HANDOVER_DETAIL_BAND)
-                        {
-                            // The handover's contribution, which is signed - a dark
-                            // stroke on a bright panel is negative. Mid grey is zero,
-                            // brighter is positive, darker is negative. Scaled
-                            // against local brightness so it reads the same in HDR as
-                            // in a dim scene.
-                            const float rcpLocal = rcp(max(lowLuma, 1e-3f));
-                            debugColor = GetSafeFP16(saturate(
-                                0.5f + bands.DetailHigh * rcpLocal * 0.5f));
-                        }
-                        else
-                        {
-                            // Detail strength relative to local brightness.
-                            //
-                            // Comparing the bands' raw magnitudes is misleading: the
-                            // low band carries the panel's DC level while the detail
-                            // band carries only its variation, so their ratio is
-                            // driven by how bright the panel is and reads near-zero
-                            // even where the detail is doing real work. What matters
-                            // is detail as a fraction of the level it modulates.
-                            //
-                            // Full red is s_MixFullScale, i.e. detail swinging that
-                            // fraction of local brightness - strong contrast for a
-                            // stroke edge. Blue is a pixel the detail band barely
-                            // touches, which is what flat panel interior should be.
-                            static const float s_MixFullScale = 0.5f;
-                            const float relativeDetail =
-                                abs(detailLuma) * rcp(max(abs(lowLuma), 1e-3f));
-                            debugColor = (half3) TurboColormap(
-                                saturate(relativeDetail * rcp(s_MixFullScale)));
-                        }
-                    }
-
-                    OutColor[px] = half4(GetSafeFP16((float3) debugColor), 1.0f);
-                    break;
                 }
-
-                case FLAGS_DEBUG_HANDOVER_ANCHOR:
+                if (type1)
                 {
-                    // How far the RR anchor had to move the handover, as a fraction
-                    // of its own tolerance.
-                    //
-                    // Black is untouched - the value was already inside RR's local
-                    // distribution, which is the case sharpness depends on, so a
-                    // healthy panel is mostly black with warm specks where genuine
-                    // outliers were pulled in. A panel that is warm everywhere means
-                    // the anchor is overriding the handover rather than stabilising
-                    // it, and the tolerance is set too tight for this content.
-                    const half4 handover = g_Handover[smID.x][smID.y];
-                    half3 debugColor = 0.0h;
-
-                    [branch]
-                    if (saturate(handover.a) > 0.0h && FloorHandoverAnchorClamp > 0.0f)
-                    {
-                        const HandoverBands bands =
-                            GetHandoverBands(smID, handover.rgb);
-
-                        const float3 preClamp =
-                            max(bands.RRLowBand + bands.DetailHigh, 0.0f);
-                        const float3 tolerance =
-                            FloorHandoverAnchorClamp * bands.RRDeviation;
-                        const float3 postClamp = clamp(
-                            preClamp,
-                            max(bands.RRLowBand - tolerance, 0.0f),
-                            bands.RRLowBand + tolerance);
-
-                        const float displacement =
-                            abs(GetLuminance((float3) (postClamp - preClamp))) *
-                            rcp(max(GetLuminance((float3) tolerance), 1e-3f));
-                        debugColor = displacement > 1e-4f
-                            ? (half3) TurboColormap(saturate(displacement))
-                            : 0.0h;
-                    }
-
-                    OutColor[px] = half4(GetSafeFP16((float3) debugColor), 1.0f);
-                    break;
+                    const float3 centeredRR = tapRR-rr;
+                    rrCenteredMean += w*centeredRR;
+                    rrCenteredSquare += w*centeredRR*centeredRR;
+                    rrCenteredCross += w*centeredRR.xxy*centeredRR.yzz;
+                    const float3 centeredReference = tapReference.rgb-reference.rgb;
+                    refCenteredMean += w*centeredReference;
+                    refCenteredSquare += w*centeredReference*centeredReference;
+                    crossRGB += w*dot(centeredRR,centeredReference);
+                    const float lr = GetLuminance(centeredRR);
+                    const float lp = GetLuminance(tapReference.rgb-reference.rgb);
+                    rrLumaMean += w*lr; refLumaMean += w*lp;
+                    rrLumaSquare += w*lr*lr; refLumaSquare += w*lp*lp;
+                    crossLuma += w*lr*lp;
+                    // Equal-luminance colour transitions are real structure too.
+                    // Centre the moments before squaring, as for HDR luminance.
+                    const float3 cr = centeredRR-lr;
+                    const float3 cp = (tapReference.rgb-reference.rgb)-lp;
+                    rrChromaMean += w*cr; refChromaMean += w*cp;
+                    rrChromaSquare += w*dot(cr,cr)/3.0f;
+                    refChromaSquare += w*dot(cp,cp)/3.0f;
+                    crossChroma += w*dot(cr,cp)/3.0f;
                 }
-
-                case FLAGS_DEBUG_HANDOVER_WEIGHT:
+                lowRR += w*tapRR;
+                lowReference += w*tapReference.rgb;
+                if (type1)
+                    noiseSquared += w*max(tapReference.a,0)*max(tapReference.a,0);
+                total += w;
+                if (w > 0.1f)
                 {
-                    // The weight the handover actually ends up with once the
-                    // agreement mix has modulated it - what the mix does, rather than
-                    // what it measures.
-                    //
-                    // Red is a pixel taken entirely from the handover, blue one left
-                    // to RR. With the mix off this is flat red across every type-1
-                    // surface; as it rises, the pixels where the two paths already
-                    // agree fall away to blue because RR wins those on stability.
-                    const half4 handover = g_Handover[smID.x][smID.y];
-                    half weight = saturate(handover.a);
-
-                    [branch]
-                    if (FloorHandoverCorrelationMix > 0.0f && weight > 0.0h)
-                    {
-                        const half agreement = GetHandoverAgreement(gtID.xy);
-                        weight *= lerp(
-                            1.0h, 1.0h - agreement,
-                            half(saturate(FloorHandoverCorrelationMix)));
-                    }
-
-                    const half3 debugColor = saturate(handover.a) > 0.0h
-                        ? (half3) TurboColormap(saturate(float(weight)))
-                        : 0.0h;
-                    OutColor[px] = half4(GetSafeFP16((float3) debugColor), 1.0f);
-                    break;
+                    referenceMin = min(referenceMin, tapReference.rgb);
+                    referenceMax = max(referenceMax, tapReference.rgb);
                 }
-
-                default:
-                    OutColor[px] = half4(
-                        InIndirectSpecular[px].rgb + InDirectDiffuse[px].rgb, 1.0f);
-                    break;
-            }    
+            }
+        }
+        lowRR /= max(total,1e-5f);
+        lowReference /= max(total,1e-5f);
+        const float3 highReference = reference.rgb - lowReference;
+        const float3 highRR = rr - lowRR;
+        const float signal = length(highReference);
+        const float threshold = reference.a * lerp(1.0f,3.0f,NoiseSuppression);
+        confidence = saturate((signal-threshold) / max(signal+threshold,1e-5f));
+        // Only restore missing contrast with a consistent sign. Never replace an
+        // already-sharp RR high band or add a second copy of the same detail.
+        const float3 missing = sign(highReference) * max(abs(highReference)-max(sign(highReference)*highRR,0.0f),0.0f);
+        const float strength = saturate(DetailPreservation * (type1 ? 3.0f : 1.0f));
+        correction = strength * confidence * missing;
+        if (type1)
+        {
+            [unroll]
+            for (uint k=0; k<kSortNetworkSize; ++k)
+            {
+                const uint a = SortNetwork[2*k], b = SortNetwork[2*k+1];
+                const float lo = min(noiseKeys[a],noiseKeys[b]);
+                noiseKeys[b] = max(noiseKeys[a],noiseKeys[b]);
+                noiseKeys[a] = lo;
+            }
+            // Curved/short lettering can occupy half this window. Estimate fine
+            // grain from the quieter quartile so corners do not set the NLM
+            // bandwidth or classify the glyph itself as noise. Coarse uncertainty
+            // is handled separately by the unconditional RR controls below.
+            // Tiny/unsupported patches retain the conservative RMS fallback.
+            float patchNoise = sqrt(noiseSquared / total);
+            [unroll]
+            for (uint rank=0; rank<25; ++rank)
+                if (noiseCount >= 9 && rank == (noiseCount-1)/4) patchNoise = noiseKeys[rank];
+            float3 cleanReference = 0;
+            float cleanReferenceWeight = 0;
+            float cleanReferenceWeightSquared = 0;
+            const float patchVariance = patchNoise*patchNoise*saturate(NoiseSuppression);
+            // Regional RGB evidence is surface bounded. A different object must
+            // not authorize copying noisy pixels here, and chromatic text matters
+            // even when it has exactly the same luminance as its background.
+            [loop]
+            for (int ry=-5; ry<=5; ++ry)
+            {
+                [loop]
+                for (int rx=-5; rx<=5; ++rx)
+                {
+                    const int2 offset = int2(rx,ry), q = sm+offset;
+                    const float4 tap = g_Reference[q.x][q.y];
+                    const bool independent = all(p+offset>=0) && all(p+offset<=bounds);
+                    const float w = (tap.a >= 0 && independent) ?
+                        FloorSurfaceWeight(z,g_Depth[q.x][q.y],gradient,float2(offset),
+                            normal,g_Normal[q.x][q.y],albedo,g_Albedo[q.x][q.y]) : 0.0f;
+                    const float3 centered = tap.rgb-reference.rgb;
+                    const float3 difference = tap.rgb-float3(g_RR[q.x][q.y]);
+                    // Keep confidence support independent of the search radius:
+                    // a wider search must not dilute a small glyph's evidence.
+                    if (abs(rx) <= 4 && abs(ry) <= 4)
+                    {
+                        regionTotal += w;
+                        regionMean += w*centered;
+                        regionSquare += w*centered*centered;
+                        regionDifference2 += w*dot(difference,difference)/3.0f;
+                    }
+                    // Always retain the centre. No noisy-reference processing at
+                    // zero suppression or zero measured noise. A matched patch
+                    // contributes its original centre, not a blurred pilot pixel.
+                    float match = 0;
+                    if (rx == 0 && ry == 0) match = 1;
+                    else if (w > 0.1f && patchVariance > 1e-12f)
+                        match = ReferencePatchWeight(sm,offset,p,bounds,z,gradient,normal,albedo,patchVariance);
+                    const float dw = w*match/(1.0f+0.0625f*dot(float2(offset),float2(offset)));
+                    cleanReference += dw*tap.rgb;
+                    cleanReferenceWeight += dw;
+                    cleanReferenceWeightSquared += dw*dw;
+                }
+            }
+            regionMean /= max(regionTotal,1e-5f);
+            const float3 regionVariance = max(regionSquare/max(regionTotal,1e-5f)-regionMean*regionMean,0);
+            const float amplitude = sqrt(dot(regionVariance,1.0f.xxx)/3.0f);
+            const float regionNoise = patchNoise;
+            regionMean += reference.rgb;
+            // Confidence describes the filtered candidate, not the noisier input.
+            // Effective sample count accounts for uneven NLM weights. This only
+            // estimates independent fine grain; it never relaxes Anchor or Mix.
+            const float effectiveSamples = max(Square(cleanReferenceWeight)/max(cleanReferenceWeightSquared,1e-8f),1.0f);
+            const float candidateNoise = regionNoise*rsqrt(effectiveSamples);
+            const float snr = amplitude/max(candidateNoise,1e-5f);
+            const float structureWeight = step(max(length(regionMean)*1e-4f,1e-6f),amplitude) * smoothstep(1.20f,1.80f,snr) * max(
+                smoothstep(0.22f,0.28f,amplitude/max(candidateNoise+GetLuminance(regionMean),1e-5f)),
+                smoothstep(4.0f,8.0f,snr));
+            // If the difference is explained by the measured noise, RR already
+            // retained the current structure. Do not put that noise back into it.
+            const float rrError = sqrt(regionDifference2/max(regionTotal,1e-5f));
+            const float rrAgreement = 1.0f-smoothstep(0.8f,1.2f,
+                rrError/max(regionNoise,1e-5f));
+            float3 graft = cleanReferenceWeight > 1e-5f ? cleanReference/cleanReferenceWeight : reference.rgb;
+            filteredReference = graft;
+            const float3 meanDelta = rrCenteredMean/total;
+            const float3 variance = max(rrCenteredSquare/total-meanDelta*meanDelta,0);
+            const float3 refMeanDelta = refCenteredMean/total;
+            const float refEnergy = dot(max(refCenteredSquare/total-refMeanDelta*refMeanDelta,0),1.0f.xxx);
+            const float rrEnergy = dot(variance,1.0f.xxx);
+            const float covarianceRGB = crossRGB/total-dot(meanDelta,refMeanDelta);
+            // The reference controls restored on the current, surface-bounded
+            // reconstruction. Both are inert at zero.
+            if (FloorHandoverAnchorClamp > 0)
+            {
+                const float3 crossVariance = rrCenteredCross/total-meanDelta.xxy*meanDelta.yzz;
+                // Like the reference DLL, a positive anchor always constrains
+                // transferred colour. Repeated grain must not switch it off.
+                // This intentionally trades some new-texture contrast for RR
+                // stability; zero is the explicit opt-out, not a hidden gate.
+                const float3 tolerance = FloorHandoverAnchorClamp*sqrt(variance);
+                const float3 boxAnchor = clamp(graft,max(lowRR-tolerance,0),lowRR+tolerance);
+                // The extra colour constraint is valid only if the two patches
+                // agree on their structure. A stale RR palette cannot describe
+                // new colours in an animated screen. The original box anchor
+                // remains unconditional even when this additional test fails.
+                const float paletteAgreement = saturate(covarianceRGB/max(sqrt(rrEnergy*refEnergy),1e-12f));
+                const float colourAnchorWeight = smoothstep(0.65f,0.95f,paletteAgreement);
+                graft = boxAnchor;
+                if (colourAnchorWeight > 0)
+                    graft = lerp(boxAnchor,AnchorColour(boxAnchor,lowRR,variance,crossVariance,
+                        FloorHandoverAnchorClamp),colourAnchorWeight);
+            }
+            const float mr = rrLumaMean/total, mp = refLumaMean/total;
+            const float vr = max(rrLumaSquare/total-mr*mr,0);
+            const float vp = max(refLumaSquare/total-mp*mp,0);
+            const float cov = crossLuma/total-mr*mp;
+            const float lrMean = GetLuminance(lowRR), lpMean = GetLuminance(lowReference);
+            const float lumaAgreement = saturate(((2*cov+1e-3f)/(vr+vp+1e-3f))*
+                ((2*lrMean*lpMean+1e-2f)/(lrMean*lrMean+lpMean*lpMean+1e-2f)));
+            const float3 mcr = rrChromaMean/total, mcp = refChromaMean/total;
+            const float vcr = max(rrChromaSquare/total-dot(mcr,mcr)/3.0f,0.0f);
+            const float vcp = max(refChromaSquare/total-dot(mcp,mcp)/3.0f,0.0f);
+            const float ccp = crossChroma/total-dot(mcr,mcp)/3.0f;
+            const float chromaStabilizer = max(4.0f*patchNoise*patchNoise,1e-6f);
+            const float chromaAgreement = saturate((2.0f*ccp+chromaStabilizer)/
+                max(vcr+vcp+chromaStabilizer,1e-6f));
+            // Only colour structure supported by RR can dispute its luminance
+            // agreement. Random colour grain over neutral/flat RR cannot do so.
+            // The user's Mix is still applied directly to the resulting agreement.
+            const float colourEvidence = vcr/(vcr+vr+chromaStabilizer);
+            const float agreement = lerp(lumaAgreement,min(lumaAgreement,chromaAgreement),colourEvidence);
+            // Direct reference-style correlation rejection. Do not attenuate
+            // the user's mix by a fourth-power sigma/error term: coarse grain
+            // can have a small high-frequency sigma and a very large RR error.
+            confidence = structureWeight*(1.0f-rrAgreement)*
+                (1.0f-saturate(FloorHandoverCorrelationMix)*agreement);
+            correction = strength * confidence * (graft - rr);
         }
         else
         {
-            const half4 denoisedColor = g_DenoisedColor[smID.x][smID.y];
-            const half4 rawColor = g_RawColor[smID.x][smID.y];
-            half3 outColor = GetSafeFP16(lerp(denoisedColor.rgb, rawColor.rgb, baseRawWeight));
-            
-            // Clamp final color within +/- 50% of the denoiser output. The SSIM metric generally stays well 
-            // clear if this threshold, but not always.
-            const half3 minColor = half3(0.5f * denoisedColor.rgb);
-            const half3 maxColor = half3(1.5f * denoisedColor.rgb);
-            outColor.rgb = clamp(outColor.rgb, minColor, maxColor);
-
-            // Handover combination. Both sides are finished images by this point -
-            // RR's result has been remodulated, correlated against raw and clamped,
-            // and the handover carries its own composed colour - so this is a mix of
-            // two complete frames rather than of two partial signals.
-            const half4 handover = g_Handover[smID.x][smID.y];
-            half3 handoverColor = handover.rgb;
-            half handoverWeight = saturate(handover.a);
-
-            // The three refinements below all need RR's local distribution, so the
-            // 5x5 pass is shared rather than repeated per feature.
-            const bool needsRRStatistics = handoverWeight > 0.0h;
-
-            [branch]
-            if (needsRRStatistics)
-            {
-                // Frequency split rather than a ratio mix.
-                //
-                // Blending two whole images trades their strengths against each other:
-                // RR is blurry but temporally informed, the handover is sharp but
-                // spatially filtered only, and any ratio gives a fraction of each
-                // fault. They fail in different bands though. RR's blur is invisible
-                // below the split frequency and fatal above it; the handover's
-                // shrinkage is tuned for exactly the band where text lives.
-                //
-                // So take the low band from RR - where its temporal information is
-                // real and its softness costs nothing - and the high band from the
-                // handover, where the strokes are.
-                const HandoverBands bands = GetHandoverBands(smID, handover.rgb);
-
-                // The high band is signed, so the sum can undershoot where a dark
-                // stroke sits over a darker RR low band.
-                handoverColor = GetSafeFP16(max(bands.RRLowBand + bands.DetailHigh, 0.0f));
-
-                [branch]
-                if (FloorHandoverAnchorClamp > 0.0f)
-                {
-                    // RR-anchored clamp.
-                    //
-                    // The handover path is purely spatial, so it filters an
-                    // independent noise realization every frame and flickers even on
-                    // a static scene. Nothing in the blend modes can fix that: a
-                    // ratio of two images inherits the instability of whichever one
-                    // is unstable.
-                    //
-                    // RR's output is temporally stable, so bound the handover to RR's
-                    // own local distribution. Values already inside that range pass
-                    // untouched, which is why sharpness survives - the clamp only
-                    // moves what RR's neighbourhood does not support. This is TAA
-                    // history rectification, applied across paths instead of frames.
-                    const float3 tolerance = FloorHandoverAnchorClamp * bands.RRDeviation;
-
-                    handoverColor = GetSafeFP16(clamp(
-                        float3(handoverColor),
-                        max(bands.RRLowBand - tolerance, 0.0f),
-                        bands.RRLowBand + tolerance));
-                }
-            }
-
-            [branch]
-            if (FloorHandoverCorrelationMix > 0.0f && handoverWeight > 0.0h)
-            {
-                // One global ratio is the wrong instrument, because whether RR damaged
-                // a pixel is a per-pixel fact. Where the two paths agree structurally
-                // the choice is moot and RR is the better pick for its stability;
-                // where they diverge, RR removed something the handover kept, which is
-                // exactly the case the handover exists to cover.
-                const half agreement = GetHandoverAgreement(gtID.xy);
-                handoverWeight *= lerp(
-                    1.0h, 1.0h - agreement, half(saturate(FloorHandoverCorrelationMix)));
-            }
-
-            outColor.rgb = lerp(outColor.rgb, handoverColor, handoverWeight);
-            
-            OutColor[px] = (half4)GetSafeFP16(float4(outColor, 1.0f));
+            correction = clamp(correction, -abs(highReference), abs(highReference));
+        }
+        // Missing negative contrast must not carve a dark ring below both RR and
+        // the supported reference range (likewise for bright overshoot).
+        correction = clamp(rr + correction, min(rr, referenceMin), max(rr, referenceMax)) - rr;
+    }
+    float3 output = FloorRadiance(rr + correction);
+    if (IsSet(FLAGS_DEBUG))
+    {
+        const uint mode = GetDebugMode();
+        switch (mode)
+        {
+        case FLAGS_DEBUG_DETAIL_CONFIDENCE: output = confidence.xxx; break;
+        case FLAGS_DEBUG_SKIP_SIGNAL: output = InSkipSignal[p].rgb; break;
+        // Historical meaning: demodulated RR signals, with no albedo or Skip added.
+        case FLAGS_DEBUG_DENOISER_OUTPUT:
+            output = float3(InIndirectSpecular[p].rgb) + float3(InDirectDiffuse[p].rgb); break;
+        case FLAGS_DEBUG_RECONSTRUCTED_COLOR: output = rr; break;
+        case FLAGS_DEBUG_DETAIL_REFERENCE: output = reference.a >= 0.0f ? filteredReference : 0.0f; break;
+        case FLAGS_DEBUG_DETAIL_CORRECTION:
+            output = saturate(0.5f + correction / max(GetLuminance(rr),1e-3f)); break;
+        case FLAGS_DEBUG_DIRECT_SPECULAR:
+        case FLAGS_DEBUG_INDIRECT_SPECULAR:
+            output = (IsSet(FLAGS_SPECULAR_SIGNAL_INDIRECT) == (mode == FLAGS_DEBUG_INDIRECT_SPECULAR))
+                ? float3(InIndirectSpecular[p].rgb)*float3(InSpecularAlbedo[p].rgb) : float3(1,0,1); break;
+        case FLAGS_DEBUG_DIRECT_DIFFUSE:
+        case FLAGS_DEBUG_INDIRECT_DIFFUSE:
+            output = (IsSet(FLAGS_DIFFUSE_SIGNAL_INDIRECT) == (mode == FLAGS_DEBUG_INDIRECT_DIFFUSE))
+                ? float3(InDirectDiffuse[p].rgb)*float3(InDiffuseAlbedo[p].rgb) : float3(1,0,1); break;
         }
     }
+    OutColor[p] = half4(FloorRadiance(output),1);
 }

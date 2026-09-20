@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "menu_common.h"
 
 #include "input/input_system.h"
@@ -2889,6 +2889,33 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
                             // inspector are set once, or read while diagnosing a frame, and having
                             // them on the page buried the handful of controls that are actually
                             // tuned per title. They live in their own window now.
+                            ImGui::SeparatorText("Floor");
+                            bool floorEnabled = config->FfxDenoiserFloorEnabled.value_or_default();
+                            if (ImGui::Checkbox("Enable Floor", &floorEnabled))
+                                config->FfxDenoiserFloorEnabled = floorEnabled;
+                            ImGui::BeginDisabled(!floorEnabled);
+                            if (float v = config->FfxDenoiserFloorNoiseSuppression.value_or_default();
+                                ImGui::SliderFloat("Noise Suppression", &v, 0, 1))
+                                config->FfxDenoiserFloorNoiseSuppression = v;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip("Reduces grain in the spatial floor and its detail reference. Zero keeps RR enabled.");
+                            if (float v = config->FfxDenoiserFloorDetailPreservation.value_or_default();
+                                ImGui::SliderFloat("Detail Preservation", &v, 0, 1))
+                                config->FfxDenoiserFloorDetailPreservation = v;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip("Restores supported fine detail after RR. Zero disables detail correction.");
+                            if (float v = config->FfxDenoiserFloorHandoverAnchorClamp.value_or_default();
+                                ImGui::SliderFloat("Handover Anchor", &v, 0, 8))
+                                config->FfxDenoiserFloorHandoverAnchorClamp = v;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip("Constrains zero-rough reference transfer to RR's local colour range and rejects unrelated colour grain where both images agree on structure. Lower positive values clean more strongly and can soften animated text. Higher values preserve more reference detail. Zero disables the anchor.");
+                            if (float v = config->FfxDenoiserFloorHandoverCorrelationMix.value_or_default();
+                                ImGui::SliderFloat("Handover Correlation Mix", &v, 0, 1))
+                                config->FfxDenoiserFloorHandoverCorrelationMix = v;
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip("Directly favours RR where its structure agrees with the reference. Higher values reduce grain but can retain RR blur. Zero disables this additional mix.");
+                            ImGui::EndDisabled();
+
                             if (ImGui::Button("Advanced Settings...", ImVec2(-FLT_MIN, 0.0f)))
                                 _showRRAdvancedWindow = true;
 
@@ -4518,300 +4545,13 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
 
 
 
-                                    ImGui::SeparatorText("Floor Filter");
-
-
-
-                                if (float v = config->FfxDenoiserFloorClampSmoothing.value_or_default();
-                                    ImGui::SliderFloat("Floor Ceiling Clamp", &v, 0, 1))
-                                    config->FfxDenoiserFloorClampSmoothing = v;
-                                if (ImGui::IsItemHovered())
-                                    ImGui::SetTooltip(
-                                        "Opt-in energy guard on the floor/raw clamp: the floor may not\n"
-                                        "exceed the raw, so the share that does is replaced with a low\n"
-                                        "pass of the raw sample. That replacement is the raw's own\n"
-                                        "noise, and the skip signal publishes it unfiltered - so this\n"
-                                        "puts grain back on exactly the pixels it clamps. Averaging the\n"
-                                        "ceiling attenuates it but cannot remove it, because an average\n"
-                                        "of the raw still carries the raw's noise. 0.0 - the default -\n"
-                                        "leaves the floor unclamped and closes the residual instead,\n"
-                                        "which removes the grain rather than reducing it. Watch\n"
-                                        "SkipRawInject to see the pixels the clamp takes.");
-
-    if (float v = config->FfxDenoiserFloorNormalSharpness.value_or_default();
-                                    ImGui::SliderFloat("Floor Normal Sharpness", &v, 0, 64))
-                                    config->FfxDenoiserFloorNormalSharpness = v;
-                                if (ImGui::IsItemHovered())
-                                    ImGui::SetTooltip(
-                                        "Exponent on the floor filter's normal edge-stopping weight. Higher\n"
-                                        "stops harder at creases and silhouettes; 0.0 disables the term.");
-
-                                if (float v = config->FfxDenoiserFloorAlbedoGuide.value_or_default();
-                                    ImGui::SliderFloat("Floor Albedo Guide", &v, 0, 1))
-                                    config->FfxDenoiserFloorAlbedoGuide = v;
-                                if (ImGui::IsItemHovered())
-                                    ImGui::SetTooltip(
-                                        "Releases the floor's luminance edge stop where diffuse albedo says\n"
-                                        "two taps share a material, so shadows and reflections reach the\n"
-                                        "denoiser instead of being captured into the floor and returned\n"
-                                        "blurred. 0.0 restores the previous behaviour.");
-
-                                if (float v = config->FfxDenoiserFloorLumSymmetry.value_or_default();
-                                    ImGui::SliderFloat("Floor Luma Symmetry", &v, 0, 1))
-                                    config->FfxDenoiserFloorLumSymmetry = v;
-                                if (ImGui::IsItemHovered())
-                                    ImGui::SetTooltip(
-                                        "Makes the floor's luminance test symmetric between centre and tap.\n"
-                                        "The centre-only form routes the two sides of one bright edge\n"
-                                        "differently, one into the skip path and one into the denoiser.\n"
-                                        "0.0 restores the previous behaviour.");
-
-                                if (float v = config->FfxDenoiserFloorGrazingSharpness.value_or_default();
-                                    ImGui::SliderFloat("Floor Grazing Sharpness", &v, 0, 32))
-                                    config->FfxDenoiserFloorGrazingSharpness = v;
-                                if (ImGui::IsItemHovered())
-                                    ImGui::SetTooltip(
-                                        "Extra normal edge stop in proportion to screen-space surface slope,\n"
-                                        "where the one-pixel depth gradient is least reliable.\n"
-                                        "0.0 disables the term.");
-
-                                if (float v = config->FfxDenoiserFloorEnvelopeBias.value_or_default();
-                                    ImGui::SliderFloat("Floor Envelope Bias", &v, 0, 1))
-                                    config->FfxDenoiserFloorEnvelopeBias = v;
-                                if (ImGui::IsItemHovered())
-                                    ImGui::SetTooltip(
-                                        "How far each a-trous pass returns a downward-biased estimate\n"
-                                        "instead of the bilateral mean, which bounds the floor below the\n"
-                                        "raw colour rather than letting it drift above it. Off by default:\n"
-                                        "the crossing it removes measures about 0.1% of a typical frame,\n"
-                                        "with spikes in views where detail boost lifts the floor.\n"
-                                        "Floor Detail Boost is the knob that fixes a soft floor.");
-
-                            
-
-
-
-                                ImGui::SeparatorText("Floor Correction");
-
-
-
-                                if (float v = config->FfxDenoiserCorrelationBias.value_or_default();
-
-                                    ImGui::SliderFloat("Correlation Bias", &v, 0, 1))
-
-                                    config->FfxDenoiserCorrelationBias = v;
-
-
-
-                                // Supplying the diffuse ray length is no longer a user
-
-                                // decision: the diffuse signal's Auto mode resolves from
-
-                                // whether that length exists, so exposing a switch that
-
-                                // could contradict the classification only invited a
-
-                                // configuration where Indirect Diffuse was selected and
-
-                                // then starved of the input it reads.
-
-
-
-                                if (float v = config->FfxDenoiserFloorIsolation.value_or_default();
-
-                                    ImGui::SliderFloat("Floor Isolation", &v, 0, 1))
-
-                                    config->FfxDenoiserFloorIsolation = v;
-
-                                                        
-
-                                                            if (float v = config->FfxDenoiserBiasMaskStrength.value_or_default();
+                                ImGui::SeparatorText("Input Compatibility");
+                                if (float v = config->FfxDenoiserBiasMaskStrength.value_or_default();
                                     ImGui::SliderFloat("Bias Mask Strength", &v, 0, 1))
                                     config->FfxDenoiserBiasMaskStrength = v;
                                 if (ImGui::IsItemHovered())
-                                    ImGui::SetTooltip(
-                                        "Routes pixels flagged by the DLSS bias mask (particles, alpha\n"
-                                        "layers, animated and video textures) around the denoiser via the\n"
-                                        "floor and skip signal. 0.0 restores the previous behaviour.\n"
-                                        "Has no effect on titles that provide no mask.");
+                                    ImGui::SetTooltip("Preserves current-frame content explicitly marked by the game.");
 
-                                if (float v = config->FfxDenoiserFloorDetailBoost.value_or_default();
-                                    ImGui::SliderFloat("Floor Detail Boost", &v, 0, 1))
-                                    config->FfxDenoiserFloorDetailBoost = v;
-                                if (ImGui::IsItemHovered())
-                                    ImGui::SetTooltip(
-                                        "Pushes the floor filter's high-frequency luminance residual back\n"
-                                        "into the floor on its final pass, so texture microcontrast reaches\n"
-                                        "the output through the skip signal instead of the denoiser.\n"
-                                        "0.0 restores the previous behaviour.");
-
-                                                            if (float v = std::clamp(
-
-                                        config->FfxDenoiserRoughnessFloor.value_or_default(), 0.0f, 1.0f);
-
-                                    ImGui::SliderFloat("Roughness Addition", &v, 0.0f, 1.0f, "%.4f"))
-
-                                    config->FfxDenoiserRoughnessFloor = v;
-
-                                if (ImGui::IsItemHovered())
-
-                                    ImGui::SetTooltip(
-
-                                        "Roughness added privately for exact-zero (type-1) surfaces only.\n"
-
-                                        "RR reads exact zero as a perfect mirror and reprojects it through a\n"
-
-                                        "virtual hit position it cannot reconstruct; lifting the value gives the\n"
-
-                                        "denoiser something it can filter instead. 0.0000 disables the addition.\n"
-
-                                        "The game G-buffer and the exact-zero classification are unchanged - this\n"
-
-                                        "value never leaves the RR input.");
-
-
-
-
-
-                                const char* floorHandoverModes[] = { "Off", "Zero Roughness", "Full Image" };
-
-                                int floorHandover =
-                                    std::clamp(config->FfxDenoiserFloorHandover.value_or_default(), 0, 2);
-
-                                if (ImGui::Combo("Floor Handover", &floorHandover, floorHandoverModes, 3))
-
-                                    config->FfxDenoiserFloorHandover = floorHandover;
-
-                                if (ImGui::IsItemHovered())
-
-                                    ImGui::SetTooltip(
-
-                                        "Grafts the floor's high frequency detail onto RR's low frequencies,\n"
-
-                                        "in composition, for the pixels the mode selects. Because the two paths\n"
-
-                                        "are combined after denoising, nothing is removed from the denoiser's\n"
-
-                                        "input - which is what lets this widen past the zero-roughness pixels\n"
-
-                                        "it was written for.\n"
-
-                                        "  Zero Roughness: exact-zero (type-1) surfaces only. RR reads exact\n"
-
-                                        "zero roughness as a perfect mirror and reprojects it through a virtual\n"
-
-                                        "hit position it cannot reconstruct without a specular ray length.\n"
-
-                                        "  Full Image: every pixel. Keeps spatial detail that the denoiser\n"
-
-                                        "attenuates, at the cost of the detail filter running everywhere.");
-
-
-
-                                if (float v = std::clamp(
-
-                                        config->FfxDenoiserFloorHandoverStrength.value_or_default(), 0.0f, 1.0f);
-
-                                    ImGui::SliderFloat("Handover Strength", &v, 0.0f, 1.0f, "%.3f"))
-
-                                    config->FfxDenoiserFloorHandoverStrength = v;
-
-                                if (ImGui::IsItemHovered())
-
-                                    ImGui::SetTooltip(
-
-                                        "Scales the graft weight, so the handover can be applied partially.\n"
-
-                                        "1.000 is the full graft and 0.000 is inert.");
-
-
-
-                                ImGui::BeginDisabled(floorHandover == 0);
-
-
-
-                                if (float v = std::clamp(
-
-                                        config->FfxDenoiserFloorHandoverDetail.value_or_default(), 0.0f, 1.0f);
-
-                                    ImGui::SliderFloat("Handover Detail", &v, 0.0f, 1.0f, "%.3f"))
-
-                                    config->FfxDenoiserFloorHandoverDetail = v;
-
-                                if (ImGui::IsItemHovered())
-
-                                    ImGui::SetTooltip(
-
-                                        "How far the handover moves from the floor toward the detail filter.\n"
-
-                                        "0.0: the floor's 5x5 full median and a-trous result. Isotropic, so it\n"
-
-                                        "erases strokes thinner than about 3 pixels - this is what removes panel\n"
-
-                                        "text and blends the original colours.\n"
-
-                                        "1.0: entirely the filter selected below.");
-
-
-
-                                if (float v = std::clamp(
-
-                                        config->FfxDenoiserFloorHandoverAnchorClamp.value_or_default(), 0.0f, 4.0f);
-
-                                    ImGui::SliderFloat("Handover Anchor", &v, 0.0f, 4.0f, "%.2f"))
-
-                                    config->FfxDenoiserFloorHandoverAnchorClamp = v;
-
-                                if (ImGui::IsItemHovered())
-
-                                    ImGui::SetTooltip(
-
-                                        "Bounds the handover to RR's local distribution, in standard deviations.\n"
-
-                                        "The handover path is purely spatial, so it filters a fresh noise\n"
-
-                                        "realization every frame and flickers even on a static scene - no blend\n"
-
-                                        "can fix that, since a mix inherits the instability of whichever side is\n"
-
-                                        "unstable. RR's output is temporally stable, so clamping to its\n"
-
-                                        "neighbourhood lends that stability without lending its blur: values\n"
-
-                                        "already inside the range pass untouched.\n"
-
-                                        "Lower clamps harder. 0 is off.");
-
-
-
-                                if (float v = std::clamp(
-
-                                        config->FfxDenoiserFloorHandoverCorrelationMix.value_or_default(), 0.0f, 1.0f);
-
-                                    ImGui::SliderFloat("Handover Agreement", &v, 0.0f, 1.0f, "%.2f"))
-
-                                    config->FfxDenoiserFloorHandoverCorrelationMix = v;
-
-                                if (ImGui::IsItemHovered())
-
-                                    ImGui::SetTooltip(
-
-                                        "Follows per-pixel agreement between the two paths instead of handing\n"
-
-                                        "over every type-1 pixel equally. Whether RR damaged a pixel is a\n"
-
-                                        "per-pixel fact, so one flat weight is the wrong instrument for it.\n"
-
-                                        "Where the two agree structurally the choice is moot and RR wins on\n"
-
-                                        "stability; where they diverge, RR removed something the floor kept,\n"
-
-                                        "which is the case the handover exists for. 0 is off.");
-
-
-
-
-                                    ImGui::EndDisabled();
                                 }
                                 ImGui::End();
                             }

@@ -1,0 +1,2 @@
+# Validated with Python 3.12; CPU fixtures feed the actual D3D12 shader runner.
+numpy==2.3.5

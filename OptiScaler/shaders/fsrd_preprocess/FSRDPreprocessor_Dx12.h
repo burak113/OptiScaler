@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "SysUtils.h"
 
 #include <DirectXMath.h>
@@ -33,7 +33,7 @@ class FSRDPreprocessor_Dx12
         HasSpecHitDistance =    1 << 4, // Indirect-specular A contains a valid ray hit distance
         SpecularSignalIndirect = 1 << 5, // Indirect A uses distance/-1; Direct A remains non-negative
         HasEmissiveInput =      1 << 6, // Optional GBuffer.Emissive input is bound
-        FloorHandover =     1 << 7, // Hand exact-zero-roughness pixels to the spatial floor
+        FloorEnabled =     1 << 7, // Enable spatial floor and its detail reference
         MotionVectorsJittered = 1 << 8, // Source XY contains previous-current raster jitter
         DisplayResolutionMotion = 1 << 9, // Source MV texture uses display-resolution coordinates
         NormalsViewSpace =     1 << 11, // Transform input view-space normals to world space
@@ -76,13 +76,13 @@ class FSRDPreprocessor_Dx12
         DebugEffectiveRoughness = 19 << 17 | Debug,
         DebugRawRoughness =      20 << 17 | Debug,
         DebugEmissiveMask =      21 << 17 | Debug,
-        DebugAppliedRoughnessFloor = 22 << 17 | Debug,
+        DebugAppliedRoughness = 22 << 17 | Debug,
         DebugResourceInspector = 23 << 17 | Debug,
         DebugMaterialType =      24 << 17 | Debug,
         DebugInEmissive =        25 << 17 | Debug,
         DebugRRMaterialType =    26 << 17 | Debug,
         DebugAlbedoStructure =   27 << 17 | Debug,
-        DebugFloorHandover =    28 << 17 | Debug,
+        DebugFloorResidual =    28 << 17 | Debug,
 
         // Optional-input validation views
         DebugSpecularSplit =     30 << 17 | Debug, // Specular signal's share of the demodulated split
@@ -90,10 +90,10 @@ class FSRDPreprocessor_Dx12
         DebugTitleLinearDepthDiff = 32 << 17 | Debug,
         DebugInResponsivityMask = 33 << 17 | Debug,
 
-        DebugFloorStructure =    38 << 17 | Debug, // Guide structure gate on the floor's raw blend
+        DebugFloorNoise =    38 << 17 | Debug, // Seed's robust local noise estimate
         DebugSkipUnmapped =      39 << 17 | Debug, // Skip share that modulation could not represent
         DebugSkipFloor =         40 << 17 | Debug, // Skip share contributed by the floor path
-        DebugSkipRawInject =     41 << 17 | Debug, // Skip share the ceiling clamp took from the raw sample
+        DebugFloorExcess =     41 << 17 | Debug, // max(Floor - raw colour, 0)
         DebugInBiasMask =        34 << 17 | Debug, // Bias mask as applied, after strength scaling
         DebugDemodGain =         35 << 17 | Debug, // 1 / albedo used as the demodulation divisor
         DebugHitDistGate =       36 << 17 | Debug, // The specular tracking ramp on its own
@@ -119,21 +119,18 @@ class FSRDPreprocessor_Dx12
         Debug =                 1 << 16,
         DebugModeMask =         0xFF << 16,
 
-        DebugCorrelation =      1 << 17 | Debug,
+        DebugDetailConfidence =      1 << 17 | Debug,
         DebugSkipSignal =       2 << 17 | Debug,
         DebugDenoiserOutput =   3 << 17 | Debug,
         DebugDirectSpecular =   4 << 17 | Debug,
         DebugDirectDiffuse =    5 << 17 | Debug,
         DebugIndirectDiffuse =  6 << 17 | Debug,
 
-        // Handover band inspection: RR's low band, the handover's high band, and
-        // which of the two carries each pixel.
-        DebugHandoverRRBand =     7 << 17 | Debug,
-        DebugHandoverDetailBand = 8 << 17 | Debug,
-        DebugHandoverBandMix =    9 << 17 | Debug,
-        DebugHandoverAnchor =     10 << 17 | Debug,
-        DebugHandoverWeight =     11 << 17 | Debug,
+        // Actual detail correction and the cleaned spatial reference.
+        DebugDetailCorrection =     7 << 17 | Debug,
+        DebugDetailReference = 8 << 17 | Debug,
         DebugIndirectSpecular =   12 << 17 | Debug,
+        DebugReconstructedColor = 13 << 17 | Debug,
     };
 
     /**
@@ -207,35 +204,12 @@ class FSRDPreprocessor_Dx12
         float NearPlane; // Near < Far
         float FarPlane;  // Near < Far
 
-        float FloorIsolation;
-        float RoughnessFloor; // Minimum linear roughness supplied only to RR
-        // Whether exact-zero-roughness pixels are handed to the spatial floor at all.
-
-        // Strength of the per-sample floor/raw ceiling clamp. It is an energy guard, not a
-        // filter: the share it clamps away is the share it replaces with the raw sample, so
-        // turning it on republishes the raw's noise through the skip signal. 0 - the default -
-        // leaves the floor unclamped and closes the residual instead.
-        float FloorClampSmoothing = 0.0f;
-
-        // Scales the raw-preserving blend inside the floor. 0 removes it entirely.
-        float FloorRawBlend = 1.0f;
-
-        // How far the guide structure gate suppresses that blend on flat surfaces.
-        // 0 reproduces the ungated behaviour.
-        float FloorStructureGate = 1.0f;
-
-        // Floor on the albedo used as the demodulation divisor. Higher caps the gain on dark
-        // surfaces but hands more of the pixel to the unfiltered skip signal.
+        bool FloorEnabled = true;
+        float FloorNoiseSuppression = 0.75f;
+        float FloorDetailPreservation = 0.35f;
+        // The zero-rough domain's RR roughness is this pipeline's own compatibility value
+        // (s_ZeroRoughRRRoughness), not a caller preference: there is no field for it.
         float DemodDivisorFloor = 8e-3f;
-
-        // Which pixels take the floor handover: 0 = off, 1 = exact-zero-roughness pixels
-        // only, 2 = every pixel.
-        uint32_t FloorHandoverMode = 1;
-        // Scales the graft weight. 1.0 is the full handover.
-        float FloorHandoverStrength = 1.0f;
-        // Blends that handover between the isotropic floor (0) and the rank filter (1).
-        float FloorHandoverDetail = 1.0f;
-
 
         // Turns this frame's probe readbacks on. Off unless asked for: the input probe copies
         // seven render targets into readback buffers and the output probe adds two more, which is
@@ -253,25 +227,7 @@ class FSRDPreprocessor_Dx12
         float ResponsivityTrustThreshold = 0.0f;
         bool ResponsivityInvert = false;
 
-        // Floor-filter behaviour, each inert at its neutral value. See FSRDFloor.hlsl.
-        float FloorDetailBoost = 0.0f;
-        float FloorNormalSharpness = 16.0f;
-        float FloorAlbedoGuide = 1.0f;
-        float FloorLumSymmetry = 1.0f;
-        float FloorGrazingSharpness = 0.0f;
-        // How far each a-trous pass returns a downward-biased estimate instead of the bilateral
-        // mean, which bounds the floor below the raw colour rather than letting it drift above.
-        // Off by default, and aimed at a phenomenon that measures far smaller than the note here
-        // once claimed: see the envelope-bias entry in docs/fsrd_pipeline_contract.md before
-        // reaching for it.
-        float FloorEnvelopeBias = 0.0f;
-
-        // Fraction of the DLSS bias mask used to route flagged pixels (particles, alpha
-        // layers, animated textures) around the denoiser via the floor and skip signal.
         float BiasMaskStrength = 1.0f;
-
-        // Smoothing radius on the floor/raw clamp. 0 reproduces the exact min().
-        float FloorSoftMin = 0.0f;
         bool MotionHistoryValid = false;
         bool MotionVectorsJittered = false;
         bool DisplayResolutionMotion = false;
@@ -286,15 +242,12 @@ class FSRDPreprocessor_Dx12
     struct CompositionDesc
     {
         DirectX::XMFLOAT4 DstTexSize; // XY = Tex Size - ZW = 1 / XY
-        DirectX::XMUINT4 SourceBase; // XY = raw color origin, ZW unused
-        float CorrelationBias; // Enhances the contribution of stable elements to the final image
+        float FloorDetailPreservation = 0.35f;
         uint32_t Flags;
+        float FloorNoiseSuppression = 0.75f;
+        float FloorHandoverAnchorClamp = 4.0f;
+        float FloorHandoverCorrelationMix = 1.0f;
 
-        // Handover refinements, each inert at zero. See Composition::Constants.
-        float FloorHandoverAnchorClamp = 0.0f;
-        float FloorHandoverCorrelationMix = 0.0f;
-
-        ID3D12Resource* InRawColor;
     };
 
   public:

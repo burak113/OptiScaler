@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "description": "Historical development snapshots; optional local source/DXIL pairs, not downloadable dependencies.",
+  "packages": {
+    "baseline": {
+      "FSRDFloorSeed.hlsl": "e803aacab91018b0eae1dc41b40270223ae8c760d7b985beeb36dad1cb7a68bd",
+      "FSRDFloorSeed_Shader.cso": "bc200486e3f547141ac1485c9ee82db83555958fed6d23db606d2bbba7db57b3",
+      "FSRDFloor.hlsl": "943bbef3dde0dfc07d7a905e0317af05b4585009e350048782e646931ddbcddd",
+      "FSRDFloor_Shader.cso": "8d558b06b2f4ec278b17bb308450e9d2685d2d44ad4e0dd0c5576dcd49d00500",
+      "FSRDInputConv.hlsl": "a729f303bac85bcdcb9f9d3e0452e2743a100f9eb88b522fa9a4b7c7dfb459b5",
+      "FSRDInputConv_Shader.cso": "c42ee7ff041c555acfba717473d699617090dcbfe65b0980052dc1ba49e0a1d5",
+      "FSRDOutputComp.hlsl": "3e874f942b90485b3bbba0b17072e4876f40bf921a4af24f139aea95ebc7b291",
+      "FSRDOutputComp_Shader.cso": "f501fdf87862561a25dcf511aa3fa314704484806fa0a5ab852f860be6c8aafa"
+    },
+    "spatial_v1": {
+      "FSRDFloorSeed.hlsl": "2a37878ff95cf6581115250eca33e3d96416469596587b6ffc780a413bb0ea70",
+      "FSRDFloorSeed_Shader.cso": "6bf60664fdb0b3569256e1b7fcdb254744ebda09f497a6dfecbde60b22fadf3c",
+      "FSRDFloor.hlsl": "42897ef3553abdd02580edf48ae298a1725c068dfb5d5615456ffe294fc7632e",
+      "FSRDFloor_Shader.cso": "4001b42c94a491d8839df8f61d6474b2bc460271b764b39ccfe324bfdf589245",
+      "FSRDInputConv.hlsl": "2f02cd1c18e6d14fd1626653a7c8a4b0bdba9291993b1ad82816436ff1d11208",
+      "FSRDInputConv_Shader.cso": "3acb54bffebd4f09659c0657a251fa78d0a55dfa7d5523330e387f0a9913237a",
+      "FSRDOutputComp.hlsl": "2fb1d86a6c9afa98679df9753ccbbd3b1ffbdb9366a3feb88d6dea99d1c49ee5",
+      "FSRDOutputComp_Shader.cso": "e76b5348200754aa0d1079c494689fa6ed24b204053c1afddfa108f4908e2e86"
+    },
+    "spatial_v2": {
+      "FSRDFloorSeed.hlsl": "0c8bd63d10bf11f37574f90459823c108ca6bb4f760f9ea597fcbe70a45d10f2",
+      "FSRDFloorSeed_Shader.cso": "4b980307db2a1346d242ab37c80c22ca0d78afa07980a57df5c59dd8b92f811d",
+      "FSRDFloor.hlsl": "42897ef3553abdd02580edf48ae298a1725c068dfb5d5615456ffe294fc7632e",
+      "FSRDFloor_Shader.cso": "4001b42c94a491d8839df8f61d6474b2bc460271b764b39ccfe324bfdf589245",
+      "FSRDInputConv.hlsl": "a8606ce05508ccc859dd8306d23e018bc47f3059a1f2c147d919beee42a3fdff",
+      "FSRDInputConv_Shader.cso": "2a8c79bf00452d95007e356fbefeabd816c109d4792433fbafcfdf014d9a81fe",
+      "FSRDOutputComp.hlsl": "9dd2014689cce39bbbeef1656c156be8b864e75770d74195793c65eb8680c530",
+      "FSRDOutputComp_Shader.cso": "3ed2d9f9ad153c12cdb74eb2db7e73001f88665e68c14bbdb68222b389f5a18d"
+    },
+    "spatial_v3": {
+      "FSRDFloorSeed.hlsl": "78e9214f10a02175e6423636f3b79562f5ab29463e817511651a87c2b6183070",
+      "FSRDFloorSeed_Shader.cso": "bd730cb57994640cd45dc5ea7b80f9cf208be78ccb803ddcd383d138f397be5a",
+      "FSRDFloor.hlsl": "42897ef3553abdd02580edf48ae298a1725c068dfb5d5615456ffe294fc7632e",
+      "FSRDFloor_Shader.cso": "4001b42c94a491d8839df8f61d6474b2bc460271b764b39ccfe324bfdf589245",
+      "FSRDInputConv.hlsl": "a8606ce05508ccc859dd8306d23e018bc47f3059a1f2c147d919beee42a3fdff",
+      "FSRDInputConv_Shader.cso": "2a8c79bf00452d95007e356fbefeabd816c109d4792433fbafcfdf014d9a81fe",
+      "FSRDOutputComp.hlsl": "fadac21c2b29386cac8f52bfd0e306fa5b600f1309a1ba82b50d54972d4a2e71",
+      "FSRDOutputComp_Shader.cso": "573c13e5924e05092a968e355bcbd2a2c5d91e4c33c4f1891e137725dc0b62fc"
+    },
+    "zero_rough_v7": {
+      "FSRDFloorSeed.hlsl": "1924584f597dcb5f7cd737e78598e8a0bb07a37ae1bec49a4ff236becd819561",
+      "FSRDFloorSeed_Shader.cso": "6fbcae5955a487736ea9452d881efe838198665a86acafdea3be001b001dc726",
+      "FSRDFloor.hlsl": "42897ef3553abdd02580edf48ae298a1725c068dfb5d5615456ffe294fc7632e",
+      "FSRDFloor_Shader.cso": "4001b42c94a491d8839df8f61d6474b2bc460271b764b39ccfe324bfdf589245",
+      "FSRDInputConv.hlsl": "f9ee1aa0b91ac373020a5c76b7a32948dc62b80d3059cb39abe7ccdac333eef3",
+      "FSRDInputConv_Shader.cso": "7998b90948a80ac24ece39bbec99bf7295db1a561a9fd051c57875d45b723a21",
+      "FSRDOutputComp.hlsl": "5266b5a658e3fc9c10ea40c284ecb5b62b6a376669203a3d37299b38576aa5b1",
+      "FSRDOutputComp_Shader.cso": "b28de95a6c9fb9057499765321947db6b18001c365f5b0e1ae3c982719acbb71"
+    },
+    "zero_rough_v8": {
+      "FSRDFloorSeed.hlsl": "fd73366ae2a054d989b96854a5034c5eafe371581d1d36d1b419f0c21c2f692c",
+      "FSRDFloorSeed_Shader.cso": "6cf7d0f77156f5fcb5b75e8ba8c895a100b70c8175b8bad7081f917bca391308",
+      "FSRDFloor.hlsl": "42897ef3553abdd02580edf48ae298a1725c068dfb5d5615456ffe294fc7632e",
+      "FSRDFloor_Shader.cso": "4001b42c94a491d8839df8f61d6474b2bc460271b764b39ccfe324bfdf589245",
+      "FSRDInputConv.hlsl": "f9ee1aa0b91ac373020a5c76b7a32948dc62b80d3059cb39abe7ccdac333eef3",
+      "FSRDInputConv_Shader.cso": "7998b90948a80ac24ece39bbec99bf7295db1a561a9fd051c57875d45b723a21",
+      "FSRDOutputComp.hlsl": "b536b5a0f7b15138ae1b1594fbebf20025c5200a65fae2ac009aede76a984bc8",
+      "FSRDOutputComp_Shader.cso": "499e4c035084afec61a26461a487c8de423e05826b0ad45ec42b11fa9a38bd15"
+    },
+    "zero_rough_v9": {
+      "FSRDFloorSeed.hlsl": "fd73366ae2a054d989b96854a5034c5eafe371581d1d36d1b419f0c21c2f692c",
+      "FSRDFloorSeed_Shader.cso": "6cf7d0f77156f5fcb5b75e8ba8c895a100b70c8175b8bad7081f917bca391308",
+      "FSRDFloor.hlsl": "42897ef3553abdd02580edf48ae298a1725c068dfb5d5615456ffe294fc7632e",
+      "FSRDFloor_Shader.cso": "4001b42c94a491d8839df8f61d6474b2bc460271b764b39ccfe324bfdf589245",
+      "FSRDInputConv.hlsl": "f9ee1aa0b91ac373020a5c76b7a32948dc62b80d3059cb39abe7ccdac333eef3",
+      "FSRDInputConv_Shader.cso": "7998b90948a80ac24ece39bbec99bf7295db1a561a9fd051c57875d45b723a21",
+      "FSRDOutputComp.hlsl": "6e206d6320b99a2c3e98b612ade876188f766214194b3a5bec938a8ffe6ad1df",
+      "FSRDOutputComp_Shader.cso": "e54d92cd9dae7fbd8801655c7e8bb340ee01721d6ff339856ba0b9873e312fa5"
+    },
+    "zero_rough_v10": {
+      "FSRDFloorSeed.hlsl": "fd73366ae2a054d989b96854a5034c5eafe371581d1d36d1b419f0c21c2f692c",
+      "FSRDFloorSeed_Shader.cso": "6cf7d0f77156f5fcb5b75e8ba8c895a100b70c8175b8bad7081f917bca391308",
+      "FSRDFloor.hlsl": "42897ef3553abdd02580edf48ae298a1725c068dfb5d5615456ffe294fc7632e",
+      "FSRDFloor_Shader.cso": "4001b42c94a491d8839df8f61d6474b2bc460271b764b39ccfe324bfdf589245",
+      "FSRDInputConv.hlsl": "f9ee1aa0b91ac373020a5c76b7a32948dc62b80d3059cb39abe7ccdac333eef3",
+      "FSRDInputConv_Shader.cso": "7998b90948a80ac24ece39bbec99bf7295db1a561a9fd051c57875d45b723a21",
+      "FSRDOutputComp.hlsl": "7f632fdbf7de02635d01aefa2ab79b84291c718f6242aa9081e208ecf149dd4a",
+      "FSRDOutputComp_Shader.cso": "1e6ebd9bc84d3e9a781f3f5871f75bae2e9b5c122338c064800721d6b79d93cf"
+    }
+  }
+}

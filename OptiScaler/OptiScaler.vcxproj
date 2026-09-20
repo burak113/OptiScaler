@@ -868,6 +868,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
   <ItemGroup>
     <None Include="shaders\magnifier\precompile\Magnifier_Shader_Vk.spv" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDPreprocessCommon.hlsli" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDFloorCommon.hlsli" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFloor.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFloorSeed.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDInputConv.hlsl" />

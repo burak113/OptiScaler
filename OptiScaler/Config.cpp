@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 
 #include "Config.h"
 
@@ -87,13 +87,7 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserResponsivityThreshold.reset();
     FfxDenoiserResponsivityInvert.reset();
     FfxDenoiserBiasMaskStrength.reset();
-    FfxDenoiserFloorDetailBoost.reset();
-    FfxDenoiserFloorNormalSharpness.reset();
-    FfxDenoiserFloorAlbedoGuide.reset();
-    FfxDenoiserFloorLumSymmetry.reset();
-    FfxDenoiserFloorGrazingSharpness.reset();
-    FfxDenoiserFloorEnvelopeBias.reset();
-    FfxDenoiserFloorSoftMin.reset();
+
     // Back to following NGX; feeds a conversion flag, not context creation.
     FfxDenoiserHardwareDepth.reset();
     FfxDenoiserUseAmdDefaults.reset();
@@ -105,19 +99,17 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserGaussKernRelax.reset();
     FfxDenoiserDebugDepthMax.reset();
     FfxDenoiserDiagnostics.reset();
-    FfxDenoiserCorrelationBias.reset();
+
     FfxDenoiserDiffuseHitDistance.reset();
-    FfxDenoiserFloorIsolation.reset();
-    FfxDenoiserRoughnessFloor.reset();
-    FfxDenoiserFloorHandover.reset();
-    FfxDenoiserFloorHandoverStrength.reset();
-    FfxDenoiserFloorRawBlend.reset();
-    FfxDenoiserDemodDivisorFloor.reset();
-    FfxDenoiserFloorClampSmoothing.reset();
-    FfxDenoiserFloorStructureGate.reset();
-    FfxDenoiserFloorHandoverDetail.reset();
-    FfxDenoiserFloorHandoverAnchorClamp.reset();
+
+    FfxDenoiserFloorEnabled.reset();
+    FfxDenoiserFloorNoiseSuppression.reset();
+    FfxDenoiserFloorDetailPreservation.reset();
     FfxDenoiserFloorHandoverCorrelationMix.reset();
+    FfxDenoiserFloorHandoverAnchorClamp.reset();
+
+    FfxDenoiserDemodDivisorFloor.reset();
+
 
     return contextSettingsChanged;
 }
@@ -394,35 +386,19 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserInternalDebugViews.set_from_config(
                 readBool("FSR-RR", "InternalDebugViews"));
             FfxDenoiserDiagnostics.set_from_config(readBool("FSR-RR", "Diagnostics"));
-            FfxDenoiserCorrelationBias.set_from_config(readFloat("FSR-RR", "CorrelationBias"));
+
             FfxDenoiserDiffuseHitDistance.set_from_config(
                 readBool("FSR-RR", "DiffuseHitDistance"));
-            FfxDenoiserFloorIsolation.set_from_config(readFloat("FSR-RR", "FloorIsolation"));
-            FfxDenoiserRoughnessFloor.set_from_config(readFloat("FSR-RR", "RoughnessFloor"));
-            FfxDenoiserFloorHandover.set_from_config(readInt("FSR-RR", "FloorHandover"));
-            if (!FfxDenoiserFloorHandover.has_value())
-            {
-                // Migrate the boolean this setting replaced, which gated only the
-                // zero-roughness case and therefore maps to mode 1.
-                if (const auto legacy = readBool("FSR-RR", "ZeroRoughHandover"); legacy.has_value())
-                    FfxDenoiserFloorHandover = legacy.value() ? 1 : 0;
-            }
-            FfxDenoiserFloorHandoverStrength.set_from_config(
-                readFloat("FSR-RR", "FloorHandoverStrength"));
-            FfxDenoiserFloorRawBlend.set_from_config(
-                readFloat("FSR-RR", "FloorRawBlend"));
-            FfxDenoiserFloorStructureGate.set_from_config(
-                readFloat("FSR-RR", "FloorStructureGate"));
+
+            FfxDenoiserFloorEnabled.set_from_config(readBool("FSR-RR", "FloorEnabled"));
+            FfxDenoiserFloorNoiseSuppression.set_from_config(readFloat("FSR-RR", "FloorNoiseSuppression"));
+            FfxDenoiserFloorDetailPreservation.set_from_config(readFloat("FSR-RR", "FloorDetailPreservation"));
+            FfxDenoiserFloorHandoverCorrelationMix.set_from_config(readFloat("FSR-RR", "FloorHandoverCorrelationMix"));
+            FfxDenoiserFloorHandoverAnchorClamp.set_from_config(readFloat("FSR-RR", "FloorHandoverAnchorClamp"));
+
             FfxDenoiserDemodDivisorFloor.set_from_config(
                 readFloat("FSR-RR", "DemodDivisorFloor"));
-            FfxDenoiserFloorClampSmoothing.set_from_config(
-                readFloat("FSR-RR", "FloorClampSmoothing"));
-            FfxDenoiserFloorHandoverDetail.set_from_config(
-                readFloat("FSR-RR", "FloorHandoverDetail"));
-            FfxDenoiserFloorHandoverAnchorClamp.set_from_config(
-                readFloat("FSR-RR", "FloorHandoverAnchorClamp"));
-            FfxDenoiserFloorHandoverCorrelationMix.set_from_config(
-                readFloat("FSR-RR", "FloorHandoverCorrelationMix"));
+
             FfxDenoiserDiffuseSignalType.set_from_config(readInt("FSR-RR", "DiffuseSignalType"));
             FfxDenoiserSpecularSignalType.set_from_config(readInt("FSR-RR", "SpecularSignalType"));
             FfxDenoiserDenoiseDiffuse.set_from_config(readBool("FSR-RR", "DenoiseDiffuse"));
@@ -439,20 +415,7 @@ bool Config::Reload(std::filesystem::path iniPath)
                 readBool("FSR-RR", "ResponsivityInvert"));
             FfxDenoiserBiasMaskStrength.set_from_config(
                 readFloat("FSR-RR", "BiasMaskStrength"));
-            FfxDenoiserFloorDetailBoost.set_from_config(
-                readFloat("FSR-RR", "FloorDetailBoost"));
-            FfxDenoiserFloorNormalSharpness.set_from_config(
-                readFloat("FSR-RR", "FloorNormalSharpness"));
-            FfxDenoiserFloorAlbedoGuide.set_from_config(
-                readFloat("FSR-RR", "FloorAlbedoGuide"));
-            FfxDenoiserFloorLumSymmetry.set_from_config(
-                readFloat("FSR-RR", "FloorLumSymmetry"));
-            FfxDenoiserFloorGrazingSharpness.set_from_config(
-                readFloat("FSR-RR", "FloorGrazingSharpness"));
-            FfxDenoiserFloorEnvelopeBias.set_from_config(
-                readFloat("FSR-RR", "FloorEnvelopeBias"));
-            FfxDenoiserFloorSoftMin.set_from_config(
-                readFloat("FSR-RR", "FloorSoftMin"));
+
         }
         }
 
@@ -1321,36 +1284,42 @@ bool Config::SaveIni()
                      GetBoolValue(Instance()->FfxDenoiserInternalDebugViews.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "Diagnostics",
                      GetBoolValue(Instance()->FfxDenoiserDiagnostics.value_or_default()).c_str());
-        ini.SetValue("FSR-RR", "CorrelationBias",
-                     GetFloatValue(Instance()->FfxDenoiserCorrelationBias.value_for_config()).c_str());
+
         ini.SetValue(
             "FSR-RR", "DiffuseHitDistance",
             GetBoolValue(
                 Instance()->FfxDenoiserDiffuseHitDistance.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorIsolation",
-                     GetFloatValue(Instance()->FfxDenoiserFloorIsolation.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "RoughnessFloor",
-                     GetFloatValue(Instance()->FfxDenoiserRoughnessFloor.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorHandover",
-                     GetIntValue(Instance()->FfxDenoiserFloorHandover.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorHandoverStrength",
-                     GetFloatValue(Instance()->FfxDenoiserFloorHandoverStrength.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorRawBlend",
-                     GetFloatValue(Instance()->FfxDenoiserFloorRawBlend.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorStructureGate",
-                     GetFloatValue(Instance()->FfxDenoiserFloorStructureGate.value_for_config()).c_str());
+
+        ini.SetValue("FSR-RR", "FloorEnabled", GetBoolValue(Instance()->FfxDenoiserFloorEnabled.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "FloorNoiseSuppression", GetFloatValue(Instance()->FfxDenoiserFloorNoiseSuppression.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "FloorDetailPreservation", GetFloatValue(Instance()->FfxDenoiserFloorDetailPreservation.value_for_config()).c_str());
+        // Retired keys have no behavioural mapping. Remove only these names when saving.
+        ini.Delete("FSR-RR", "FloorIsolation", true);
+        ini.Delete("FSR-RR", "FloorHandover", true);
+        ini.Delete("FSR-RR", "FloorHandoverStrength", true);
+        ini.Delete("FSR-RR", "FloorHandoverDetail", true);
+        ini.Delete("FSR-RR", "FloorRawBlend", true);
+        ini.Delete("FSR-RR", "FloorStructureGate", true);
+        ini.Delete("FSR-RR", "FloorClampSmoothing", true);
+        ini.SetValue("FSR-RR", "FloorHandoverAnchorClamp", GetFloatValue(Instance()->FfxDenoiserFloorHandoverAnchorClamp.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "FloorHandoverCorrelationMix", GetFloatValue(Instance()->FfxDenoiserFloorHandoverCorrelationMix.value_for_config()).c_str());
+        ini.Delete("FSR-RR", "FloorDetailBoost", true);
+        ini.Delete("FSR-RR", "FloorNormalSharpness", true);
+        ini.Delete("FSR-RR", "FloorAlbedoGuide", true);
+        ini.Delete("FSR-RR", "FloorLumSymmetry", true);
+        ini.Delete("FSR-RR", "FloorGrazingSharpness", true);
+        ini.Delete("FSR-RR", "FloorEnvelopeBias", true);
+        ini.Delete("FSR-RR", "FloorSoftMin", true);
+        ini.Delete("FSR-RR", "CorrelationBias", true);
+        ini.Delete("FSR-RR", "ZeroRoughHandover", true);
+        // The zero-rough domain's RR roughness is the packing shader's own compatibility
+        // value now. There is nothing left to tune, so the old manual key is retired with
+        // the rest rather than written back as a setting that no longer does anything.
+        ini.Delete("FSR-RR", "RoughnessFloor", true);
+
         ini.SetValue("FSR-RR", "DemodDivisorFloor",
                      GetFloatValue(Instance()->FfxDenoiserDemodDivisorFloor.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorClampSmoothing",
-                     GetFloatValue(Instance()->FfxDenoiserFloorClampSmoothing.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorHandoverDetail",
-                     GetFloatValue(Instance()->FfxDenoiserFloorHandoverDetail.value_for_config()).c_str());
-        ini.SetValue(
-            "FSR-RR", "FloorHandoverAnchorClamp",
-            GetFloatValue(Instance()->FfxDenoiserFloorHandoverAnchorClamp.value_for_config()).c_str());
-        ini.SetValue(
-            "FSR-RR", "FloorHandoverCorrelationMix",
-            GetFloatValue(Instance()->FfxDenoiserFloorHandoverCorrelationMix.value_for_config()).c_str());
+
         // Unset is a distinct mode (Auto) for both signal keys, so value_for_config()
         // would discard an explicit choice that happens to equal the class default and
         // silently reload it as Auto.
@@ -1379,20 +1348,7 @@ bool Config::SaveIni()
                      GetBoolValue(Instance()->FfxDenoiserResponsivityInvert.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "BiasMaskStrength",
                      GetFloatValue(Instance()->FfxDenoiserBiasMaskStrength.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorDetailBoost",
-                     GetFloatValue(Instance()->FfxDenoiserFloorDetailBoost.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorNormalSharpness",
-                     GetFloatValue(Instance()->FfxDenoiserFloorNormalSharpness.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorAlbedoGuide",
-                     GetFloatValue(Instance()->FfxDenoiserFloorAlbedoGuide.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorLumSymmetry",
-                     GetFloatValue(Instance()->FfxDenoiserFloorLumSymmetry.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorGrazingSharpness",
-                     GetFloatValue(Instance()->FfxDenoiserFloorGrazingSharpness.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorEnvelopeBias",
-                     GetFloatValue(Instance()->FfxDenoiserFloorEnvelopeBias.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorSoftMin",
-                     GetFloatValue(Instance()->FfxDenoiserFloorSoftMin.value_for_config()).c_str());
+
     }
     }
 

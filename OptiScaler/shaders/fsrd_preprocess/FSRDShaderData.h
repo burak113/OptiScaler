@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "FSRDShaderUtils.h"
 
 #include <cstddef>
@@ -7,8 +7,7 @@ namespace FSRD
 {
     namespace FloorSeed
     {
-        constexpr UINT kPasses = 1;
-        constexpr UINT kBackBufferCount = std::max(3 * (kPasses + 1), 1u);
+        constexpr UINT kBackBufferCount = 3;
 
         enum class Flags : uint32_t
         {
@@ -24,36 +23,35 @@ namespace FSRD
         {
             XMFLOAT4X4 InvProjMatrix;
             XMFLOAT4 RenderSize;
-
             float NearPlane;
             float FarPlane;
-
             uint32_t Flags;
-            float _Padding[1];
-
+            float _Padding;
             XMFLOAT2 CurrentJitter;
-            float _JitterPadding[2];
-
-            XMUINT4 InputBase; // XY: color origin, ZW: depth origin
-
-            // Origin of the title's normals, which the orientation guide is read from.
+            XMFLOAT2 _JitterPadding;
+            XMUINT4 InputBase;
             XMUINT2 NormalBase;
             XMFLOAT2 _NormalPadding;
-
-            // Origin of the title's published linear depth, when it provides one.
             XMUINT2 TitleDepthBase;
             XMFLOAT2 _TitleDepthPadding;
+            XMUINT2 AlbedoBase;
+            float NoiseSuppression;
+            uint32_t FloorEnabled;
         };
 
-        // Boundary fields, so a member that moves or disappears fails this build rather than
-        // only the mirror check. The layout is written twice - here and in the shader's cbuffer -
-        // and the size assert alone cannot see a shift that keeps the total.
+        static_assert(offsetof(Constants, InvProjMatrix) == 0, "FSRDFloorSeed layout");
         static_assert(offsetof(Constants, RenderSize) == 64, "FSRDFloorSeed layout");
+        static_assert(offsetof(Constants, NearPlane) == 80, "FSRDFloorSeed layout");
+        static_assert(offsetof(Constants, FarPlane) == 84, "FSRDFloorSeed layout");
+        static_assert(offsetof(Constants, Flags) == 88, "FSRDFloorSeed layout");
+        static_assert(offsetof(Constants, CurrentJitter) == 96, "FSRDFloorSeed layout");
         static_assert(offsetof(Constants, InputBase) == 112, "FSRDFloorSeed layout");
         static_assert(offsetof(Constants, NormalBase) == 128, "FSRDFloorSeed layout");
         static_assert(offsetof(Constants, TitleDepthBase) == 144, "FSRDFloorSeed layout");
-        static_assert(sizeof(Constants) == 160,
-                      "FSRD floor-seed constant-buffer layout must match HLSL");
+        static_assert(offsetof(Constants, AlbedoBase) == 160, "FSRDFloorSeed layout");
+        static_assert(offsetof(Constants, NoiseSuppression) == 168, "FSRDFloorSeed layout");
+        static_assert(offsetof(Constants, FloorEnabled) == 172, "FSRDFloorSeed layout");
+        static_assert(sizeof(Constants) == 176, "FSRDFloorSeed constant-buffer layout");
 
         union Input
         {
@@ -65,6 +63,7 @@ namespace FSRD
                 // Optional: bound for every dispatch, read only when Flags carries
                 // TitleLinearDepth.
                 ID3D12Resource* InTitleLinearDepth;
+                ID3D12Resource* InDiffAlbedo;
             };
 
             // The number of D3D12 resources in the struct
@@ -82,6 +81,7 @@ namespace FSRD
                 ID3D12Resource* OutColor;
                 ID3D12Resource* OutLinearDepth;
                 ID3D12Resource* OutDepthGradient;
+                ID3D12Resource* OutDetailReference;
             };
 
             // The number of D3D12 resources in the struct
@@ -98,58 +98,19 @@ namespace FSRD
         constexpr UINT kPasses = 5;
         constexpr UINT kBackBufferCount = std::max(3 * (kPasses + 1), 1u);
 
-        enum class Flags : uint32_t
-        {
-            None = 0,
-        };
-
         struct alignas(16) Constants
         {
             XMFLOAT4 DstTexSize;
-
-            float RcpCrossBlNorm;
-            float RcpSelfBlNorm;
-
             int32_t StepSize;
-            uint32_t FrameIndex;
-
-
-            // 0 reproduces the previous behaviour exactly. Only non-zero on the final pass.
-            float DetailBoost;
-
-            // Exponent on the normal edge-stopping weight. Higher stops harder at creases.
-            float NormalSharpness;
-
-            // Fraction of the luminance edge stop released where diffuse albedo says the taps
-            // sit on the same material, so shadows and reflections pass through to the
-            // denoiser instead of being preserved into the floor.
-            float AlbedoGuideStrength;
-
-            // Blends the luminance normaliser from centre-only (0) to max(centre, tap) (1).
-            float LumSymmetry;
-
-            // Additional normal edge-stop exponent applied in proportion to screen-space
-            // surface slope, where the one pixel depth gradient is least reliable.
-            float GrazingSharpness;
-
-            // How far each pass returns a downward-biased estimate instead of the bilateral
-            // mean, which keeps the floor below the raw colour rather than letting it drift
-            // above it on half the frame. 0 reproduces the mean-only behaviour.
-            float EnvelopeBias;
-
-            // Origin of the title's diffuse albedo subrect (InputBase2.zw of the conversion).
-            // Every other input the filter reads is an internal zero-based buffer; the albedo
-            // guide is the title's own texture, bound whole, so the origin has to travel with
-            // it or a non-zero subrect puts the material comparison on the wrong pixels.
+            float NoiseSuppression;
             XMUINT2 AlbedoBase;
         };
 
-        static_assert(offsetof(Constants, RcpCrossBlNorm) == 16, "FSRDFloor layout");
-        static_assert(offsetof(Constants, GrazingSharpness) == 48, "FSRDFloor layout");
-        static_assert(offsetof(Constants, EnvelopeBias) == 52, "FSRDFloor layout");
-        static_assert(offsetof(Constants, AlbedoBase) == 56, "FSRDFloor layout");
-        static_assert(sizeof(Constants) == 64,
-                      "FSRD floor-filter constant-buffer layout must match HLSL");
+        static_assert(offsetof(Constants, DstTexSize) == 0, "FSRDFloor layout");
+        static_assert(offsetof(Constants, StepSize) == 16, "FSRDFloor layout");
+        static_assert(offsetof(Constants, NoiseSuppression) == 20, "FSRDFloor layout");
+        static_assert(offsetof(Constants, AlbedoBase) == 24, "FSRDFloor layout");
+        static_assert(sizeof(Constants) == 32, "FSRDFloor constant-buffer layout");
 
         union Input
         {
@@ -158,7 +119,7 @@ namespace FSRD
                 ID3D12Resource* InColor;
                 ID3D12Resource* InLinearDepth;
                 ID3D12Resource* InDepthGradient; // RG: depth gradient, BA: octahedral normal
-                ID3D12Resource* InDiffAlbedo;    // material guide - see GetAlbedoAgreement
+                ID3D12Resource* InDiffAlbedo;    // material guide - see FloorSurfaceWeight
             };
 
             // The number of D3D12 resources in the struct
@@ -200,93 +161,62 @@ namespace FSRD
          */
         struct alignas(16) Constants
         {
-            XMFLOAT4X4 InvViewMatrix;  // DLSSD WorldToView^1 - Camera matrix
-            XMFLOAT4X4 InvProjMatrix;  // DLSSD ViewToClip^-1 - Projection
-            XMFLOAT4X4 PrevViewMatrix; // DLSSD WorldToView from last frame
-
-            XMFLOAT4 DstTexSize; // HLSL: DstTexSize
+            XMFLOAT4X4 InvViewMatrix;
+            XMFLOAT4X4 InvProjMatrix;
+            XMFLOAT4X4 PrevViewMatrix;
+            XMFLOAT4 DstTexSize;
             XMFLOAT4 MotionInputSize;
             XMFLOAT4 MotionTransform;
             XMFLOAT4 JitterOffsets;
-
             XMUINT4 InputBase0;
             XMUINT4 InputBase1;
             XMUINT4 InputBase2;
             XMUINT4 InputBase3;
             XMUINT4 InputBase4;
-            XMUINT4 InputBase5; // XY: reserved, ZW: specular hit-distance source
-
-            float NearPlane; // Near < Far - IsInverted flag accounts for inversion
-            float FarPlane;  // Near < Far - IsInverted flag accounts for inversion
-
-            float FloorIsolation;
-            float RoughnessFloor; // Minimum linear roughness supplied to RR; zero disables the adjustment
-
-            uint32_t Flags;  // Dynamic configuration flags. See: ConfigFlags
+            XMUINT4 InputBase5;
+            float NearPlane;
+            float FarPlane;
+            float FloorDetailPreservation;
+            uint32_t Flags;
             uint32_t InspectorChannel;
             float InspectorScale;
-
-            // Full-scale view depth for the linear depth debug view. Adjustable so
-            // the reading is a controllable measurement rather than a fixed encoding
-            // against a far plane that may itself be wrong.
             float DebugDepthMax;
-
-            // How to read InDiffuseHitDistance. 0 = absent, so the signal keeps the
-            // FP16-max "ray miss" sentinel; 1 = scalar in R; 2 = combined
-            // ray-direction resource with the distance in A.
             uint32_t DiffuseHitDistanceMode;
-
-            // Blends the handover between the isotropic floor (0) and the rank filter (1).
-            float FloorHandoverDetail;
-
-
-            // 0 = off, 1 = zero-roughness pixels only, 2 = every pixel.
-            uint32_t FloorHandoverMode;
-
-            // The responsivity hint is inert at zero.
             float ResponsivityTrustThreshold;
             uint32_t ResponsivityInvert;
-            // Was the trust threshold of the removed reflected-image motion field. Retained so
-            // that every parameter below keeps the offset the C++ struct and the HLSL cbuffer
-            // agree on: a 4-byte mismatch here would silently shift all of them, and the size
-            // assert on its own could not see it.
+            float BiasMaskStrength;
+            float DemodDivisorFloor;
             float _Padding0;
             float _Padding1;
-
-            // Fraction of the DLSS bias mask applied when routing pixels around the denoiser.
-            float BiasMaskStrength;
-
-            // Smoothing radius on the floor/raw clamp. 0 reproduces the exact min().
-            float FloorSoftMin;
-
-            // Scales the floor handover weight. 1.0 is the full graft.
-            float FloorHandoverStrength;
-
-            // How far the floor/raw clamp uses a low pass of the raw instead of the raw sample.
-            float FloorClampSmoothing;
-
-            // Scales the raw-preserving blend inside the floor. 0 is a pure spatial floor.
-            float FloorRawBlend;
-
-            // How far the guide structure gate suppresses that blend on flat surfaces.
-            float FloorStructureGate;
-
-            // Floor on the albedo used as the demodulation divisor.
-            float DemodDivisorFloor;
+            float _Padding2;
         };
 
-        // Boundary fields: every region of this buffer has one, so a parameter that moves fails
-        // the build here instead of silently changing which value a shader reads.
-        static_assert(offsetof(Constants, DstTexSize) == 192, "FSRD conversion layout");
-        static_assert(offsetof(Constants, InputBase0) == 256, "FSRD conversion layout");
-        static_assert(offsetof(Constants, InputBase5) == 336, "FSRD conversion layout");
-        static_assert(offsetof(Constants, NearPlane) == 352, "FSRD conversion layout");
-        static_assert(offsetof(Constants, Flags) == 368, "FSRD conversion layout");
-        static_assert(offsetof(Constants, DiffuseHitDistanceMode) == 384, "FSRD conversion layout");
-        static_assert(offsetof(Constants, ResponsivityInvert) == 400, "FSRD conversion layout");
-        static_assert(offsetof(Constants, BiasMaskStrength) == 412, "FSRD conversion layout");
-        static_assert(offsetof(Constants, DemodDivisorFloor) == 436, "FSRD conversion layout");
-        static_assert(sizeof(Constants) == 448, "FSRD conversion constant-buffer layout must match HLSL");
+        static_assert(offsetof(Constants, InvViewMatrix) == 0, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, InvProjMatrix) == 64, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, PrevViewMatrix) == 128, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, DstTexSize) == 192, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, MotionInputSize) == 208, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, MotionTransform) == 224, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, JitterOffsets) == 240, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, InputBase0) == 256, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, InputBase1) == 272, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, InputBase2) == 288, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, InputBase3) == 304, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, InputBase4) == 320, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, InputBase5) == 336, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, NearPlane) == 352, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, FarPlane) == 356, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, FloorDetailPreservation) == 360, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, Flags) == 364, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, InspectorChannel) == 368, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, InspectorScale) == 372, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, DebugDepthMax) == 376, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, DiffuseHitDistanceMode) == 380, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, ResponsivityTrustThreshold) == 384, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, ResponsivityInvert) == 388, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, BiasMaskStrength) == 392, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, DemodDivisorFloor) == 396, "FSRDInputConv layout");
+        static_assert(sizeof(Constants) == 416, "FSRDInputConv constant-buffer layout");
 
         union Input
         {
@@ -311,7 +241,8 @@ namespace FSRD
                 ID3D12Resource* InSpecularRayDirectionHitDistance; // t12
                 ID3D12Resource* InDiffuseHitDistance;              // t13
                 ID3D12Resource* InTitleLinearDepth;                 // t14
-                ID3D12Resource* InResponsivityMask;                 // t15
+                ID3D12Resource* InResponsivityMask;
+                ID3D12Resource* InDetailReference;                 // t16
             };
 
             // The number of D3D12 resources in the struct
@@ -340,10 +271,8 @@ namespace FSRD
 
                 ComPtr<ID3D12Resource> SkipSignal;
 
-                // RGB: the finished handover image for this pixel, A: how much of it
-                // composition should mix over the RR result. Zero alpha everywhere in
-                // input-blend mode, so composition needs no mode of its own.
-                ComPtr<ID3D12Resource> Handover;
+                // RGB: cleaned reference. A: sigma, or -1 for explicitly bypassed content.
+                ComPtr<ID3D12Resource> DetailReference;
 
                 Data() {}
                 ~Data() {}
@@ -379,37 +308,27 @@ namespace FSRD
 
         struct alignas(16) Constants
         {
-            XMFLOAT4 DstTexSize; // XY = Tex Size - ZW = 1 / XY
-            XMUINT4 SourceBase; // XY = raw color origin, ZW unused
-
-            float CorrelationBias; // Controls the contribution of stable elements to the final image
+            XMFLOAT4 DstTexSize;
             uint32_t Flags;
-
-            XMFLOAT2 SourceUvScale; // Logical source extent / physical source allocation
-            XMFLOAT2 SourceUvOffset; // Logical source origin / physical source allocation
-
-            // Handover refinements, each disabled at zero. They modify the handover image or
-            // its weight rather than the frequency split that combines it with RR.
-            //
-            // Standard deviations of RR's local distribution the handover may deviate
-            // by. A purely spatial filter has no temporal stability of its own, so
-            // this lends it RR's without lending it RR's blur.
+            float DetailPreservation;
+            float NoiseSuppression;
             float FloorHandoverAnchorClamp;
-            // How far the mix weight follows per-pixel agreement between the two
-            // paths instead of the flat handover weight.
+            XMFLOAT2 SourceUvScale;
+            XMFLOAT2 SourceUvOffset;
             float FloorHandoverCorrelationMix;
-            float _Padding0[2];
+            XMFLOAT3 _Padding0;
         };
 
-        static_assert(offsetof(Constants, SourceBase) == 16, "FSRD composition layout");
-        static_assert(offsetof(Constants, Flags) == 36, "FSRD composition layout");
-        static_assert(offsetof(Constants, SourceUvScale) == 40, "FSRD composition layout");
-        static_assert(offsetof(Constants, FloorHandoverAnchorClamp) == 56, "FSRD composition layout");
-        static_assert(sizeof(Constants) == 80, "FSRD composition constant-buffer layout must match HLSL");
+        static_assert(offsetof(Constants, DstTexSize) == 0, "FSRDOutputComp layout");
+        static_assert(offsetof(Constants, Flags) == 16, "FSRDOutputComp layout");
+        static_assert(offsetof(Constants, DetailPreservation) == 20, "FSRDOutputComp layout");
+        static_assert(offsetof(Constants, NoiseSuppression) == 24, "FSRDOutputComp layout");
+        static_assert(offsetof(Constants, SourceUvScale) == 32, "FSRDOutputComp layout");
+        static_assert(offsetof(Constants, SourceUvOffset) == 40, "FSRDOutputComp layout");
+        static_assert(offsetof(Constants, FloorHandoverAnchorClamp) == 28, "FSRDOutputComp layout");
+        static_assert(offsetof(Constants, FloorHandoverCorrelationMix) == 48, "FSRDOutputComp layout");
+        static_assert(sizeof(Constants) == 64, "FSRDOutputComp constant-buffer layout");
 
-        /**
-         * @brief Resources used for composition after denoising
-         */
         union Input
         {
             struct Data
@@ -421,10 +340,9 @@ namespace FSRD
                 ID3D12Resource* InDiffuseAlbedo;
 
                 ID3D12Resource* InSkipSignal;
-                ID3D12Resource* InRawColor;
-                ID3D12Resource* InRawIndirectSpecular;
                 ID3D12Resource* InNormals;
-                ID3D12Resource* InHandover; // RGB: handover image, A: mix weight
+                ID3D12Resource* InDetailReference;
+                ID3D12Resource* InLinearDepth;
             };
 
             // The number of D3D12 resources in the struct
@@ -443,12 +361,12 @@ namespace FSRD
     // no diagnostic: the table overruns and descriptors land in the wrong range.
     // These assertions are the missing third leg of that contract - update the
     // numDescriptors literal in the named shader whenever one of them fires.
-    static_assert(FloorSeed::Input::kCount == 4, "FSRDFloorSeed MainRS SRV count");
-    static_assert(FloorSeed::Output::kCount == 3, "FSRDFloorSeed MainRS UAV count");
+    static_assert(FloorSeed::Input::kCount == 5, "FSRDFloorSeed MainRS SRV count");
+    static_assert(FloorSeed::Output::kCount == 4, "FSRDFloorSeed MainRS UAV count");
     static_assert(FloorFilter::Input::kCount == 4, "FSRDFloor MainRS SRV count");
     static_assert(FloorFilter::Output::kCount == 1, "FSRDFloor MainRS UAV count");
-    static_assert(Conversion::Input::kCount == 16, "FSRDInputConv MainRS SRV count");
+    static_assert(Conversion::Input::kCount == 17, "FSRDInputConv MainRS SRV count");
     static_assert(Conversion::Output::kCount == 8, "FSRDInputConv MainRS UAV count");
-    static_assert(Composition::Input::kCount == 9, "FSRDOutputComp MainRS SRV count");
+    static_assert(Composition::Input::kCount == 8, "FSRDOutputComp MainRS SRV count");
     static_assert(Composition::kOutputCount == 1, "FSRDOutputComp MainRS UAV count");
 }

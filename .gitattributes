@@ -1,3 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
 *.sh eol=lf
+
+# The FSRD generator emits LF. Keep byte-for-byte verification portable to Windows clones.
+OptiScaler/shaders/fsrd_preprocess/precompile/*_Shader.h text eol=lf
+OptiScaler/shaders/fsrd_preprocess/precompile/*_Shader.cso binary
