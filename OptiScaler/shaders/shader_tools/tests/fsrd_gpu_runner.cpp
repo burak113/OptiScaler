@@ -41,6 +41,7 @@ int pixelBytes(DXGI_FORMAT fmt)
     switch (fmt)
     {
     case DXGI_FORMAT_R32G32B32A32_FLOAT: return 16;
+    case DXGI_FORMAT_R32G32B32A32_UINT: return 16;
     case DXGI_FORMAT_R16G16B16A16_FLOAT: return 8;
     case DXGI_FORMAT_R32_FLOAT:
     case DXGI_FORMAT_R10G10B10A2_UNORM:
@@ -48,34 +49,40 @@ int pixelBytes(DXGI_FORMAT fmt)
     default: throw std::runtime_error("unsupported format");
     }
 }
-int main(int argc, char** argv) try
+int executeJob(const char* path) try
 {
-    if (argc != 2) throw std::runtime_error("usage: fsrd_gpu_runner job.txt");
-    std::ifstream job(argv[1]);
+    std::ifstream job(path);
     std::string shaderPath, cbPath;
     UINT width, height, srvCount, uavCount, repetitions;
     job >> std::quoted(shaderPath) >> std::quoted(cbPath) >> width >> height >> srvCount >> uavCount >> repetitions;
     if (!job || !width || !height || !repetitions) throw std::runtime_error("invalid job");
-    ComPtr<ID3D12Debug> debug;
-    const bool debugEnabled = SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug)));
-    if (debugEnabled) debug->EnableDebugLayer();
-    ComPtr<IDXGIFactory6> factory;
-    check(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory)), "factory");
-    ComPtr<IDXGIAdapter1> adapter;
-    check(factory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&adapter)), "adapter");
+    // Optional worker mode retains only the device/queue between jobs. Every job
+    // still creates and uploads its own resources and waits for GPU completion.
+    // No texture contents or descriptors can accidentally carry over to a test.
+    static ComPtr<ID3D12Debug> debug;
+    static bool debugEnabled = false;
+    static ComPtr<IDXGIFactory6> factory;
+    static ComPtr<IDXGIAdapter1> adapter;
+    static ComPtr<ID3D12Device> dev;
+    static ComPtr<ID3D12InfoQueue> info;
+    static ComPtr<ID3D12CommandQueue> queue;
+    if (!dev)
+    {
+        debugEnabled = SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug)));
+        if (debugEnabled) debug->EnableDebugLayer();
+        check(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory)), "factory");
+        check(factory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&adapter)), "adapter");
+        check(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&dev)), "device");
+        dev.As(&info);
+        D3D12_COMMAND_QUEUE_DESC qdesc {};
+        check(dev->CreateCommandQueue(&qdesc, IID_PPV_ARGS(&queue)), "queue");
+    }
     DXGI_ADAPTER_DESC1 adapterDesc {};
     adapter->GetDesc1(&adapterDesc);
     char adapterName[512] {};
     WideCharToMultiByte(CP_UTF8, 0, adapterDesc.Description, -1, adapterName,
                         sizeof(adapterName), nullptr, nullptr);
     std::cout << "adapter=" << adapterName << '\n';
-    ComPtr<ID3D12Device> dev;
-    check(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&dev)), "device");
-    ComPtr<ID3D12InfoQueue> info;
-    dev.As(&info);
-    ComPtr<ID3D12CommandQueue> queue;
-    D3D12_COMMAND_QUEUE_DESC qdesc {};
-    check(dev->CreateCommandQueue(&qdesc, IID_PPV_ARGS(&queue)), "queue");
     ComPtr<ID3D12CommandAllocator> allocator;
     check(dev->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocator)), "allocator");
     ComPtr<ID3D12GraphicsCommandList> cmd;
@@ -195,14 +202,32 @@ int main(int argc, char** argv) try
         for (UINT y=0;y<t.height;++y) f.write(data+t.footprint.Offset+y*t.footprint.Footprint.RowPitch,size_t(t.width)*pixelBytes(t.format));
         t.transfer->Unmap(0,nullptr);
     }
-    unsigned errors=0;
+    unsigned errors=0, warnings=0;
     if (info) for (UINT64 i=0;i<info->GetNumStoredMessages();++i)
     {
         SIZE_T size=0; info->GetMessage(i,nullptr,&size); std::vector<char> storage(size);
         auto* msg=reinterpret_cast<D3D12_MESSAGE*>(storage.data()); info->GetMessage(i,msg,&size);
         if (msg->Severity <= D3D12_MESSAGE_SEVERITY_ERROR) {std::cerr << msg->pDescription << '\n'; ++errors;}
+        else if (msg->Severity == D3D12_MESSAGE_SEVERITY_WARNING) {std::cerr << msg->pDescription << '\n'; ++warnings;}
     }
+    std::cout << "validation_errors=" << errors << " validation_warnings=" << warnings << '\n';
+    if (info) info->ClearStoredMessages();
     if (errors) throw std::runtime_error("D3D12 validation errors: " + std::to_string(errors));
     return 0;
 }
 catch (const std::exception& e) {std::cerr << e.what() << '\n'; return 1;}
+
+int main(int argc, char** argv)
+{
+    if (argc != 2) {std::cerr << "usage: fsrd_gpu_runner job.txt | --server\n"; return 1;}
+    if (std::string(argv[1]) != "--server") return executeJob(argv[1]);
+    std::string path;
+    while (std::getline(std::cin, path))
+    {
+        if (path.empty()) continue;
+        int result = executeJob(path.c_str());
+        std::cout << "job_complete=" << result << std::endl;
+        if (result) return result;
+    }
+    return 0;
+}

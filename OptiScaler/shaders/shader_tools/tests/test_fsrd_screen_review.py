@@ -46,18 +46,13 @@ def run():
     out=t.compose(stale,ref,z,n,a,anchor=0,mix=0)
     input_error=float(np.sqrt(np.mean((current[crop]-clean[crop])**2)))
     output_error=float(np.sqrt(np.mean((out[crop]-clean[crop])**2)))
-    t.check('moving noisy glyphs reduce grain and recover content (anchor/mix off)',output_error<input_error*.7,
-            input_rms=input_error,output_rms=output_error)
+    t.records.append(dict(retired_nlm_case='moving noisy glyphs, controls off',input_rms=input_error,output_rms=output_error))
     background=np.roll(mask,2,axis=1)&~mask
     target_contrast=float(np.mean(clean[background,0])-np.mean(clean[mask,0]))
     output_contrast=float(np.mean(out[background,0])-np.mean(out[mask,0]))
     t.check('moving noisy glyphs preserve 95 percent contrast (anchor/mix off)',
             abs(output_contrast-target_contrast)<abs(target_contrast)*.05,
             target=target_contrast,output=output_contrast)
-    unsuppressed=t.compose(stale,ref,z,n,a,noise=0,anchor=0,mix=0)
-    unfiltered_error=float(np.sqrt(np.mean((unsuppressed[crop]-clean[crop])**2)))
-    t.check('noise control acts on zero rough screen grain',output_error<unfiltered_error*.8,
-            suppression_zero_rms=unfiltered_error,suppression_default_rms=output_error)
     # Clean current pixels at the image edge are real content, not an excluded margin.
     texture=t.rgba(w,h,(0,0,0))
     for ch,phase in enumerate((0,1.7,3.1)):

@@ -22,18 +22,20 @@ CONV_INPUTS = 17
 COMP_INPUTS = 'spec, specalbedo, diffuse, diffalbedo, skip, normals, reference, depth'
 
 
-def chain_cb(w, h, flags, detail=.35, noise=.75):
+def chain_cb(w, h, flags, detail=1.0, noise=.75):
     return {
         'InvViewMatrix': np.eye(4).ravel(), 'InvProjMatrix': np.eye(4).ravel(),
         'PrevViewMatrix': np.eye(4).ravel(), 'DstTexSize': [w, h, 1 / w, 1 / h],
         'MotionInputSize': [w, h, 1 / w, 1 / h], 'MotionTransform': [1, 1, 0, 0],
         'NearPlane': .1, 'FarPlane': 1000, 'FloorDetailPreservation': detail,
         'Flags': flags, 'DemodDivisorFloor': .008, 'BiasMaskStrength': 1,
+        # Legacy quality/energy fixtures explicitly retain the original Floor.
+        # Automatic/forced routes have independent tests in test_fsrd_rr_routing.
     }
 
 
 def run_chain(colour, depth, normal, spec_albedo, diff_albedo, reference,
-              floor=None, roughness=None, detail=.35, floor_enabled=True, size=None,
+              floor=None, roughness=None, detail=1.0, floor_enabled=True, size=None,
               crop=None, origin=(0, 0)):
     """Floor seed and five passes, conversion, then composition with an identity denoiser.
 
@@ -65,7 +67,7 @@ def run_chain(colour, depth, normal, spec_albedo, diff_albedo, reference,
                         [10, 10, 10, 24, 28, 28, 10, 10], (lw, lh))
     out = t.dispatch('FSRDOutputComp',
                      {'DstTexSize': [lw, lh, 1 / lw, 1 / lh], 'Flags': 0,
-                      'DetailPreservation': detail, 'NoiseSuppression': .75},
+                      'DetailPreservation': detail},
                      [packed[0], packed[4], packed[1], packed[5], packed[6], packed[3],
                       packed[7], depth],
                      [10], (lw, lh))[0]
@@ -252,7 +254,7 @@ def run():
     ones = t.rgba(lw, lh, (1, 1, 1))
     out = t.dispatch('FSRDOutputComp',
                      {'DstTexSize': [lw, lh, 1 / lw, 1 / lh], 'Flags': 0,
-                      'DetailPreservation': .35, 'NoiseSuppression': .75},
+                      'DetailPreservation': 1.0},
                      [zero, ones, rr, ones, zero, packed[3], packed[7], z],
                      [10], (lw, lh))[0]
     target_structure = clean_screen[..., :3] * illumination[..., None]
@@ -298,14 +300,15 @@ def run():
                         [10, 10, 10, 24, 28, 28, 10, 10], (w, h))
     out = t.dispatch('FSRDOutputComp',
                      {'DstTexSize': [w, h, 1 / w, 1 / h], 'Flags': 0,
-                      'DetailPreservation': .35, 'NoiseSuppression': .75},
+                      'DetailPreservation': 1.0},
                      [zero, packed[4], zero, packed[5], packed[6], packed[3], packed[7], z],
                      [10], (w, h))[0]
     retained = float(np.min(np.mean(out[3:-3, 3:-3, :3], axis=(0, 1)) / vol))
     t.check('volume over an incompatible guide keeps its light through composition',
             retained > .9, retained_fraction=retained)
-    # Even a coherent guide cannot identify or discard a composited volume. A
-    # denoiser returning zero must still leave the conservative base intact.
+    # Selected screens now intentionally send the entire light signal through
+    # RR. If RR erases a constant layer, no hidden pedestal may restore it.
+    # The incompatible/unselected guide above still retains volume protection.
     uniform = t.rgba(w, h, vol)
     f, zz, g, reference = t.seed(uniform)
     floor = t.filter_floor(f, zz, g, alb)
@@ -319,14 +322,15 @@ def run():
                         [10, 10, 10, 24, 28, 28, 10, 10], (w, h))
     erased = t.dispatch('FSRDOutputComp',
                         {'DstTexSize': [w, h, 1 / w, 1 / h], 'Flags': 0,
-                         'DetailPreservation': .35, 'NoiseSuppression': .75},
+                         'DetailPreservation': 1.0},
                         [zero, packed[4], zero, packed[5], packed[6], packed[3], packed[7], zz],
                         [10], (w, h))[0]
     t.records.append({
         'metric': 'self-consistent zero-rough layer retained when the denoiser erases',
         'retained_fraction': float(np.mean(erased[3:-3, 3:-3, :3]) / float(np.mean(vol)))})
-    t.check('self-consistent zero-rough volume survives erased RR',
-            np.min(np.mean(erased[3:-3,3:-3,:3],axis=(0,1))/vol) > .9)
+    t.check('selected zero-rough screen does not bypass erased RR with a pedestal',
+            np.max(packed[6][3:-3,3:-3,:3]) == 0 and
+            np.max(erased[3:-3,3:-3,:3]) < .001)
 
     # --- 6. already-sharp denoiser output is left alone -----------------------------
     f, z, g, reference = t.seed(texture)
@@ -339,7 +343,7 @@ def run():
                         [10, 10, 10, 24, 28, 28, 10, 10], (w, h))
     identity = t.dispatch('FSRDOutputComp',
                           {'DstTexSize': [w, h, 1 / w, 1 / h], 'Flags': 0,
-                           'DetailPreservation': .35, 'NoiseSuppression': .75},
+                           'DetailPreservation': 1.0},
                           [packed[0], packed[4], packed[1], packed[5], packed[6], packed[3],
                            packed[7], z],
                           [10], (w, h))[0]

@@ -35,7 +35,7 @@ namespace FSRD
             XMUINT2 TitleDepthBase;
             XMFLOAT2 _TitleDepthPadding;
             XMUINT2 AlbedoBase;
-            float NoiseSuppression;
+            uint32_t _Reserved0;
             uint32_t FloorEnabled;
         };
 
@@ -49,7 +49,7 @@ namespace FSRD
         static_assert(offsetof(Constants, NormalBase) == 128, "FSRDFloorSeed layout");
         static_assert(offsetof(Constants, TitleDepthBase) == 144, "FSRDFloorSeed layout");
         static_assert(offsetof(Constants, AlbedoBase) == 160, "FSRDFloorSeed layout");
-        static_assert(offsetof(Constants, NoiseSuppression) == 168, "FSRDFloorSeed layout");
+        static_assert(offsetof(Constants, _Reserved0) == 168, "FSRDFloorSeed layout");
         static_assert(offsetof(Constants, FloorEnabled) == 172, "FSRDFloorSeed layout");
         static_assert(sizeof(Constants) == 176, "FSRDFloorSeed constant-buffer layout");
 
@@ -102,13 +102,13 @@ namespace FSRD
         {
             XMFLOAT4 DstTexSize;
             int32_t StepSize;
-            float NoiseSuppression;
+            uint32_t _Reserved0;
             XMUINT2 AlbedoBase;
         };
 
         static_assert(offsetof(Constants, DstTexSize) == 0, "FSRDFloor layout");
         static_assert(offsetof(Constants, StepSize) == 16, "FSRDFloor layout");
-        static_assert(offsetof(Constants, NoiseSuppression) == 20, "FSRDFloor layout");
+        static_assert(offsetof(Constants, _Reserved0) == 20, "FSRDFloor layout");
         static_assert(offsetof(Constants, AlbedoBase) == 24, "FSRDFloor layout");
         static_assert(sizeof(Constants) == 32, "FSRDFloor constant-buffer layout");
 
@@ -186,9 +186,9 @@ namespace FSRD
             uint32_t ResponsivityInvert;
             float BiasMaskStrength;
             float DemodDivisorFloor;
-            float _Padding0;
-            float _Padding1;
-            float _Padding2;
+            float SpecularAlbedoDemodulation;
+            float DiffuseAlbedoModulation;
+            uint32_t RecoveryMask;
         };
 
         static_assert(offsetof(Constants, InvViewMatrix) == 0, "FSRDInputConv layout");
@@ -216,6 +216,8 @@ namespace FSRD
         static_assert(offsetof(Constants, ResponsivityInvert) == 388, "FSRDInputConv layout");
         static_assert(offsetof(Constants, BiasMaskStrength) == 392, "FSRDInputConv layout");
         static_assert(offsetof(Constants, DemodDivisorFloor) == 396, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, SpecularAlbedoDemodulation) == 400, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, DiffuseAlbedoModulation) == 404, "FSRDInputConv layout");
         static_assert(sizeof(Constants) == 416, "FSRDInputConv constant-buffer layout");
 
         union Input
@@ -304,30 +306,53 @@ namespace FSRD
     namespace Composition
     {
         constexpr UINT kBackBufferCount = 9;
-        constexpr UINT kOutputCount = 1;
+        constexpr UINT kOutputCount = 3;
 
         struct alignas(16) Constants
         {
             XMFLOAT4 DstTexSize;
             uint32_t Flags;
             float DetailPreservation;
-            float NoiseSuppression;
+            uint32_t RecoveryMask;
             float FloorHandoverAnchorClamp;
             XMFLOAT2 SourceUvScale;
             XMFLOAT2 SourceUvOffset;
             float FloorHandoverCorrelationMix;
-            XMFLOAT3 _Padding0;
+            uint32_t HistoryValid;
+            XMFLOAT2 HistoryJitterDelta;
+            uint32_t WriteHistory;
+            float SpecularAlbedoDemodulation;
+            float DiffuseAlbedoModulation;
+            uint32_t SpatialTemporalMask;
+            float LumaRecovery;
+            float ChromaRecovery;
+            XMFLOAT2 _Padding0;
         };
 
         static_assert(offsetof(Constants, DstTexSize) == 0, "FSRDOutputComp layout");
         static_assert(offsetof(Constants, Flags) == 16, "FSRDOutputComp layout");
         static_assert(offsetof(Constants, DetailPreservation) == 20, "FSRDOutputComp layout");
-        static_assert(offsetof(Constants, NoiseSuppression) == 24, "FSRDOutputComp layout");
+        static_assert(offsetof(Constants, RecoveryMask) == 24, "FSRDOutputComp layout");
         static_assert(offsetof(Constants, SourceUvScale) == 32, "FSRDOutputComp layout");
         static_assert(offsetof(Constants, SourceUvOffset) == 40, "FSRDOutputComp layout");
         static_assert(offsetof(Constants, FloorHandoverAnchorClamp) == 28, "FSRDOutputComp layout");
         static_assert(offsetof(Constants, FloorHandoverCorrelationMix) == 48, "FSRDOutputComp layout");
-        static_assert(sizeof(Constants) == 64, "FSRDOutputComp constant-buffer layout");
+        static_assert(sizeof(Constants) == 96, "FSRDOutputComp constant-buffer layout");
+
+        static_assert(offsetof(Constants, HistoryValid) == 52, "FSRDOutputComp history layout");
+        static_assert(offsetof(Constants, HistoryJitterDelta) == 56, "FSRDOutputComp history layout");
+        static_assert(offsetof(Constants, WriteHistory) == 64, "FSRDOutputComp history layout");
+        union Output
+        {
+            struct Data
+            {
+                ID3D12Resource* OutColor;
+                ID3D12Resource* OutDecisionHistory;
+                ID3D12Resource* OutHistoryMetadata;
+            };
+            Data Resources;
+            ID3D12Resource* AsArray[kOutputCount];
+        };
 
         union Input
         {
@@ -343,6 +368,9 @@ namespace FSRD
                 ID3D12Resource* InNormals;
                 ID3D12Resource* InDetailReference;
                 ID3D12Resource* InLinearDepth;
+                ID3D12Resource* InMotion;
+                ID3D12Resource* InDecisionHistory;
+                ID3D12Resource* InHistoryMetadata;
             };
 
             // The number of D3D12 resources in the struct
@@ -367,6 +395,6 @@ namespace FSRD
     static_assert(FloorFilter::Output::kCount == 1, "FSRDFloor MainRS UAV count");
     static_assert(Conversion::Input::kCount == 17, "FSRDInputConv MainRS SRV count");
     static_assert(Conversion::Output::kCount == 8, "FSRDInputConv MainRS UAV count");
-    static_assert(Composition::Input::kCount == 8, "FSRDOutputComp MainRS SRV count");
-    static_assert(Composition::kOutputCount == 1, "FSRDOutputComp MainRS UAV count");
+    static_assert(Composition::Input::kCount == 11, "FSRDOutputComp MainRS SRV count");
+    static_assert(Composition::kOutputCount == 3, "FSRDOutputComp MainRS UAV count");
 }

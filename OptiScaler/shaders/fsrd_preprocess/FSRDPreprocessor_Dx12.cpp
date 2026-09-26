@@ -240,6 +240,18 @@ struct FSRDPreprocessor_Dx12::Impl
     Conversion::Output m_out;
     ComPtr<ID3D12Resource> m_LinearDepth;
     ComPtr<ID3D12Resource> m_floorReference;
+    ComPtr<ID3D12Resource> m_compositionOutput;
+    std::array<ComPtr<ID3D12Resource>,2> m_decisionHistory;
+    std::array<ComPtr<ID3D12Resource>,2> m_historyMetadata;
+    UINT m_historyRead = 0;
+    bool m_historyValid = false;
+    bool m_historyPending = false;
+    bool m_motionHistoryValid = false;
+    XMFLOAT2 m_historyJitterDelta {};
+    std::array<XMUINT4,6> m_historySourceBases {};
+    XMFLOAT4 m_historyRenderSize {};
+    XMFLOAT4 m_historyInputSettings {};
+    uint32_t m_historyConversionFlags = 0;
     ComPtr<ID3D12Resource> m_outputBuffer1;
     ComPtr<ID3D12Resource> m_outputBuffer2;
 
@@ -1178,10 +1190,12 @@ struct FSRDPreprocessor_Dx12::Impl
         LOG_DEBUG("FSRD interop shaders and resources initialized.");
     }
 
+
     void SetMaxRenderSize(UINT width, UINT height)
     {
         if (m_maxWidth == width && m_maxHeight == height)
             return;
+
 
         // Clear the latch before allocating rather than after. CreateTexture2D
         // throws on failure, which leaves the object holding a mix of new- and
@@ -1191,6 +1205,9 @@ struct FSRDPreprocessor_Dx12::Impl
         // allocation has actually completed.
         m_maxWidth = 0;
         m_maxHeight = 0;
+        m_historyValid = m_historyPending = false;
+        for (auto& resource : m_decisionHistory) resource.Reset();
+        for (auto& resource : m_historyMetadata) resource.Reset();
 
         auto CreateTex = [&](DXGI_FORMAT fmt, LPCWSTR name, UINT mipLevels = 1)
         { 
@@ -1213,6 +1230,7 @@ struct FSRDPreprocessor_Dx12::Impl
             CreateTex(FSRDFormats::SpecularOcclusion, L"FSR_RR_SpecularOcclusion_Output");
 
         m_floorReference = CreateTex(FSRDFormats::DetailReference, L"FSR_Floor_Reference");
+        m_compositionOutput = CreateTex(DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSR_Composition_Output");
         m_smoothFloor = nullptr;
         m_radianceOutputsInUavState = false;
         m_ambientOcclusionOutputInUavState = false;
@@ -1245,7 +1263,6 @@ struct FSRDPreprocessor_Dx12::Impl
             .NormalBase = {desc.InputBase1.x, desc.InputBase1.y},
             .TitleDepthBase = desc.TitleLinearDepthBase,
             .AlbedoBase = {desc.InputBase2.z, desc.InputBase2.w},
-            .NoiseSuppression = desc.FloorNoiseSuppression,
             .FloorEnabled = desc.FloorEnabled ? 1u : 0u
         };
         FloorSeed::Input in = {.Resources = {
@@ -1274,7 +1291,6 @@ struct FSRDPreprocessor_Dx12::Impl
             FloorFilter::Constants constants = {
                 .DstTexSize = desc.RenderSize,
                 .StepSize = 1 << i,
-                .NoiseSuppression = desc.FloorNoiseSuppression,
                 .AlbedoBase = {desc.InputBase2.z, desc.InputBase2.w}
             };
             FloorFilter::Input in = {.Resources = {
@@ -1365,7 +1381,10 @@ struct FSRDPreprocessor_Dx12::Impl
             .ResponsivityTrustThreshold = desc.ResponsivityTrustThreshold,
             .ResponsivityInvert = desc.ResponsivityInvert ? 1u : 0u,
             .BiasMaskStrength = desc.BiasMaskStrength,
-            .DemodDivisorFloor = desc.DemodDivisorFloor
+            .DemodDivisorFloor = desc.DemodDivisorFloor,
+            .SpecularAlbedoDemodulation = desc.SpecularAlbedoDemodulation,
+            .DiffuseAlbedoModulation = desc.DiffuseAlbedoModulation,
+            .RecoveryMask = desc.RecoveryMask,
         };
 
         const std::span<const byte> convCBData((const byte*) &packConstants, sizeof(packConstants));
@@ -1376,6 +1395,24 @@ struct FSRDPreprocessor_Dx12::Impl
     {
         if (!cmdList || !m_maxWidth)
             return;
+
+        const std::array<XMUINT4,6> sourceBases { desc.FloorSourceBase,desc.InputBase0,
+            desc.InputBase1,desc.InputBase2,desc.InputBase3,desc.InputBase4 };
+        const XMFLOAT4 inputSettings { desc.BiasMaskStrength,desc.ResponsivityTrustThreshold,
+            desc.ResponsivityInvert ? 1.0f : 0.0f,desc.DemodDivisorFloor };
+        if (!desc.MotionHistoryValid || !desc.FloorEnabled ||
+            desc.Flags != m_historyConversionFlags ||
+            memcmp(&inputSettings,&m_historyInputSettings,sizeof(inputSettings)) != 0 ||
+            memcmp(sourceBases.data(),m_historySourceBases.data(),sizeof(sourceBases)) != 0 ||
+            memcmp(&desc.RenderSize,&m_historyRenderSize,sizeof(desc.RenderSize)) != 0)
+            m_historyValid = false;
+        m_historySourceBases=sourceBases;
+        m_historyRenderSize=desc.RenderSize;
+        m_historyConversionFlags=desc.Flags;
+        m_historyInputSettings=inputSettings;
+        m_motionHistoryValid=desc.MotionHistoryValid;
+        m_historyJitterDelta={desc.JitterOffsets.z-desc.JitterOffsets.x,
+                              desc.JitterOffsets.w-desc.JitterOffsets.y};
 
         // A title-published linear depth reaches every consumer of view-space position
         // - the floor seed/filter, the packing shader and the denoiser's own depth
@@ -1443,6 +1480,23 @@ struct FSRDPreprocessor_Dx12::Impl
         if (!cmdList || !m_maxWidth)
             return;
 
+        m_historyPending=false;
+        const bool writeHistory=desc.FloorDetailPreservation>0 && desc.RecoveryMask != 0 &&
+            (desc.Flags & uint32_t(CompFlags::Debug))==0;
+        // Dedicated ping-pong decisions/metadata; never alias RR scratch or motion.
+        if (writeHistory)
+        {
+            for (UINT i=0;i<2;++i)
+            {
+                if (!m_decisionHistory[i])
+                    m_decisionHistory[i]=CreateTexture2D(m_pDev,m_maxWidth,m_maxHeight,
+                        DXGI_FORMAT_R16G16B16A16_FLOAT,L"FSR_Handover_Decisions",kSrvState);
+                if (!m_historyMetadata[i])
+                    m_historyMetadata[i]=CreateTexture2D(m_pDev,m_maxWidth,m_maxHeight,
+                        DXGI_FORMAT_R32G32B32A32_UINT,L"FSR_Handover_Metadata",kSrvState);
+            }
+        }
+        const UINT historyWrite=1-m_historyRead;
         auto& outResources = m_out.Resources;
         Composition::Input inputs = {};
         Composition::Constants constants = 
@@ -1450,11 +1504,19 @@ struct FSRDPreprocessor_Dx12::Impl
             .DstTexSize = desc.DstTexSize,
             .Flags = UINT(desc.Flags),
             .DetailPreservation = desc.FloorDetailPreservation,
-            .NoiseSuppression = desc.FloorNoiseSuppression,
+            .RecoveryMask = desc.RecoveryMask,
             .FloorHandoverAnchorClamp = desc.FloorHandoverAnchorClamp,
             .SourceUvScale = {1.0f, 1.0f},
             .SourceUvOffset = {},
-            .FloorHandoverCorrelationMix = desc.FloorHandoverCorrelationMix
+            .FloorHandoverCorrelationMix = desc.FloorHandoverCorrelationMix,
+            .HistoryValid = writeHistory && m_historyValid && m_motionHistoryValid ? 1u : 0u,
+            .HistoryJitterDelta = m_historyJitterDelta,
+            .WriteHistory = writeHistory ? 1u : 0u,
+            .SpecularAlbedoDemodulation = desc.SpecularAlbedoDemodulation,
+            .DiffuseAlbedoModulation = desc.DiffuseAlbedoModulation,
+            .SpatialTemporalMask = desc.SpatialTemporalMask,
+            .LumaRecovery = desc.LumaRecovery,
+            .ChromaRecovery = desc.ChromaRecovery
         };
 
         // Transition denoiser output buffers to SRV for composition.
@@ -1484,16 +1546,21 @@ struct FSRDPreprocessor_Dx12::Impl
             .InSkipSignal = outResources.SkipSignal.Get(),
             .InNormals = outResources.Normals.Get(),
             .InDetailReference = outResources.DetailReference.Get(),
-            .InLinearDepth = m_LinearDepth.Get()
+            .InLinearDepth = m_LinearDepth.Get(),
+            .InMotion = outResources.Motion.Get(),
+            .InDecisionHistory = m_decisionHistory[m_historyRead].Get(),
+            .InHistoryMetadata = m_historyMetadata[m_historyRead].Get(),
         };
 
-        // Motion is scratch after RR has consumed it; the next seed/conversion rewrites it.
-        ID3D12Resource* const compositionTarget = m_out.Resources.Motion.Get();
-        std::array<ID3D12Resource*, 1> uavs { compositionTarget };
+        Composition::Output outputs { .Resources = {
+            .OutColor=m_compositionOutput.Get(),
+            .OutDecisionHistory=writeHistory ? m_decisionHistory[historyWrite].Get() : nullptr,
+            .OutHistoryMetadata=writeHistory ? m_historyMetadata[historyWrite].Get() : nullptr } };
         const std::span<const byte> cbData((const byte*) &constants, sizeof(constants));
         const XMFLOAT2 dstDim = { constants.DstTexSize.x, constants.DstTexSize.y };
 
-        m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, uavs, dstDim, true);
+        m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, outputs.AsArray, dstDim, true);
+        m_historyPending=writeHistory;
     }
 
     void TransitionDenoiserOutputsToRead(ID3D12GraphicsCommandList* cmdList) noexcept
@@ -1684,7 +1751,7 @@ struct FSRDPreprocessor_Dx12::Impl
             }
         };
 
-        std::array<ID3D12Resource*, 1> uavs { dstTex };
+        std::array<ID3D12Resource*, Composition::kOutputCount> uavs { dstTex, nullptr, nullptr };
         const std::span<const byte> cbData((const byte*) &constants, sizeof(constants));
 
         m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, uavs, dstDim, false);
@@ -1710,7 +1777,8 @@ struct FSRDPreprocessor_Dx12::Impl
         dispatchDesc.normals = ffxApiGetResourceDX12(
             outResources.Normals.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
         dispatchDesc.specularAlbedo = ffxApiGetResourceDX12(
-            outResources.SpecAlbedo.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+            outResources.SpecAlbedo.Get(),
+            FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
         dispatchDesc.diffuseAlbedo = ffxApiGetResourceDX12(
             outResources.DiffAlbedo.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
     }
@@ -1738,6 +1806,7 @@ FSRDPreprocessor_Dx12::FSRDPreprocessor_Dx12(std::string_view name, ID3D12Device
 }
 
 FSRDPreprocessor_Dx12::~FSRDPreprocessor_Dx12() = default;
+
 
 bool FSRDPreprocessor_Dx12::IsInit() const { return m_IsInitialized; }
 
@@ -1826,6 +1895,22 @@ bool FSRDPreprocessor_Dx12::DispatchComposition(ID3D12GraphicsCommandList* cmdLi
     return false;
 }
 
+void FSRDPreprocessor_Dx12::InvalidateCompositionHistory() noexcept
+{
+    m_impl->m_historyValid = m_impl->m_historyPending = false;
+}
+
+void FSRDPreprocessor_Dx12::FinishCompositionHistory(bool successfulNormalFrame) noexcept
+{
+    if (successfulNormalFrame && m_impl->m_historyPending)
+    {
+        m_impl->m_historyRead=1-m_impl->m_historyRead;
+        m_impl->m_historyValid=true;
+    }
+    else m_impl->m_historyValid=false;
+    m_impl->m_historyPending=false;
+}
+
 void FSRDPreprocessor_Dx12::TransitionDenoiserOutputsToRead(ID3D12GraphicsCommandList* cmdList) noexcept
 {
     m_impl->TransitionDenoiserOutputsToRead(cmdList);
@@ -1902,8 +1987,7 @@ ID3D12Resource* FSRDPreprocessor_Dx12::GetDebugViewOutput() const
 
 ID3D12Resource* FSRDPreprocessor_Dx12::GetCompositionOutput() const
 {
-    // Composition reuses Motion only after RR. Seed and conversion overwrite it next frame.
-    return m_impl->m_out.Resources.Motion.Get();
+    return m_impl->m_compositionOutput.Get();
 }
 
 ID3D12Resource* FSRDPreprocessor_Dx12::GetDenoiserDiffuseOutput() const

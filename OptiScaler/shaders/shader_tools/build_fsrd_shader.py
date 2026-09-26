@@ -7,6 +7,8 @@ import subprocess
 import sys
 import os
 import argparse
+import io
+import tempfile
 from fsrd_toolchain import dxc
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -39,7 +41,7 @@ def build(name, compiler):
     with open(cso, "rb") as f:
         data = f.read()
 
-    with open(hdr, "w", encoding="utf-8", newline="\n") as f:
+    with io.StringIO() as f:
         f.write("#if 0\n")
         f.write(listing)
         f.write("\n\n#endif\n\n")
@@ -50,6 +52,25 @@ def build(name, compiler):
                 f.write(",")
                 f.write("\n    " if (i + 1) % 12 == 0 else " ")
         f.write("\n};\n")
+        header = f.getvalue().encode('utf-8')
+
+    # Avoid truncating a header while the IDE/indexer reads it. Reproducibility
+    # checks should not rewrite identical artifacts at all; changed headers are
+    # published atomically, so a failed write cannot leave an incomplete array.
+    existing = None
+    if os.path.isfile(hdr):
+        with open(hdr, 'rb') as f:
+            existing = f.read()
+    if existing != header:
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(dir=os.path.dirname(hdr), suffix='.tmp', delete=False) as f:
+                temporary = f.name
+                f.write(header)
+            os.replace(temporary, hdr)
+        finally:
+            if temporary and os.path.exists(temporary):
+                os.remove(temporary)
 
     print("%s: cso %d bytes -> %s" % (name, len(data), hdr))
 

@@ -2894,26 +2894,11 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
                             if (ImGui::Checkbox("Enable Floor", &floorEnabled))
                                 config->FfxDenoiserFloorEnabled = floorEnabled;
                             ImGui::BeginDisabled(!floorEnabled);
-                            if (float v = config->FfxDenoiserFloorNoiseSuppression.value_or_default();
-                                ImGui::SliderFloat("Noise Suppression", &v, 0, 1))
-                                config->FfxDenoiserFloorNoiseSuppression = v;
+                            if (float v = config->FfxDenoiserFloorRecovery.value_or_default();
+                                ImGui::SliderFloat("Floor Recovery", &v, 0, 1))
+                                config->FfxDenoiserFloorRecovery = v;
                             if (ImGui::IsItemHovered())
-                                ImGui::SetTooltip("Reduces grain in the spatial floor and its detail reference. Zero keeps RR enabled.");
-                            if (float v = config->FfxDenoiserFloorDetailPreservation.value_or_default();
-                                ImGui::SliderFloat("Detail Preservation", &v, 0, 1))
-                                config->FfxDenoiserFloorDetailPreservation = v;
-                            if (ImGui::IsItemHovered())
-                                ImGui::SetTooltip("Restores supported fine detail after RR. Zero disables detail correction.");
-                            if (float v = config->FfxDenoiserFloorHandoverAnchorClamp.value_or_default();
-                                ImGui::SliderFloat("Handover Anchor", &v, 0, 8))
-                                config->FfxDenoiserFloorHandoverAnchorClamp = v;
-                            if (ImGui::IsItemHovered())
-                                ImGui::SetTooltip("Constrains zero-rough reference transfer to RR's local colour range and rejects unrelated colour grain where both images agree on structure. Lower positive values clean more strongly and can soften animated text. Higher values preserve more reference detail. Zero disables the anchor.");
-                            if (float v = config->FfxDenoiserFloorHandoverCorrelationMix.value_or_default();
-                                ImGui::SliderFloat("Handover Correlation Mix", &v, 0, 1))
-                                config->FfxDenoiserFloorHandoverCorrelationMix = v;
-                            if (ImGui::IsItemHovered())
-                                ImGui::SetTooltip("Directly favours RR where its structure agrees with the reference. Higher values reduce grain but can retain RR blur. Zero disables this additional mix.");
+                                ImGui::SetTooltip("Master strength for recovery systems enabled in Advanced. Zero disables all detail recovery; Floor still preserves volumetric lighting.");
                             ImGui::EndDisabled();
 
                             if (ImGui::Button("Advanced Settings...", ImVec2(-FLT_MIN, 0.0f)))
@@ -2929,7 +2914,6 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
                                                  ImGuiWindowFlags_NoSavedSettings))
                                 {
                                     ImGui::SeparatorText("Optional Inputs");
-
                                     // Each of these binds a resource the title may or may not
                                     // publish. All three are inert when it publishes nothing, which
                                     // is why they sit here rather than behind another switch.
@@ -4546,6 +4530,61 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
 
 
                                 ImGui::SeparatorText("Input Compatibility");
+                                if (float v = config->FfxDenoiserSpecularAlbedoDemodulation.value_or_default();
+                                    ImGui::SliderFloat("Specular Albedo Demodulation", &v, 0, 1))
+                                    config->FfxDenoiserSpecularAlbedoDemodulation = v;
+                                if (ImGui::IsItemHovered())
+                                    ImGui::SetTooltip("1: original albedo division/multiplication. 0: unity multiplier. Intermediate values use a matching pair before and after RR. Original albedo guides remain available. Changes reset history.");
+                                if (float v = config->FfxDenoiserDiffuseAlbedoModulation.value_or_default();
+                                    ImGui::SliderFloat("Diffuse Albedo Modulation", &v, 0, 1))
+                                    config->FfxDenoiserDiffuseAlbedoModulation = v;
+                                if (ImGui::IsItemHovered())
+                                    ImGui::SetTooltip("1: original albedo division/multiplication. 0: unity multiplier. Intermediate values use a matching pair before and after RR. Original albedo guides remain available. Changes reset history.");
+                                ImGui::SeparatorText("Floor Recovery");
+                                if (bool v = config->FfxDenoiserFloorFlatRecovery.value_or_default();
+                                    ImGui::Checkbox("Flat Albedo & Zero Rough Recovery", &v))
+                                    config->FfxDenoiserFloorFlatRecovery = v;
+                                if (ImGui::IsItemHovered())
+                                    ImGui::SetTooltip("Preserves the existing flat-albedo screen selection. Zero roughness is a hint, not a global mirror selector. This selection takes precedence over lobe recovery.");
+                                ImGui::BeginDisabled(!config->FfxDenoiserFloorFlatRecovery.value_or_default());
+                                if (int v = std::clamp(config->FfxDenoiserFloorFlatNoiseMethod.value_or_default(), 0, 1);
+                                    ImGui::Combo("Noise Removal##Flat", &v, "Anchor / Correlation / Chroma / Luma\0Light Anchor Mix\0"))
+                                    config->FfxDenoiserFloorFlatNoiseMethod = v;
+                                ImGui::EndDisabled();
+                                if (bool v = config->FfxDenoiserFloorSpecularRecovery.value_or_default();
+                                    ImGui::Checkbox("Specular Recovery", &v))
+                                    config->FfxDenoiserFloorSpecularRecovery = v;
+                                if (ImGui::IsItemHovered())
+                                    ImGui::SetTooltip("Restores the estimated specular share of missing detail. Uses the combined reference and albedo split when separate game signals are unavailable. Does not accumulate on top of Flat recovery.");
+                                ImGui::BeginDisabled(!config->FfxDenoiserFloorSpecularRecovery.value_or_default());
+                                if (int v = std::clamp(config->FfxDenoiserFloorSpecularNoiseMethod.value_or_default(), 0, 1);
+                                    ImGui::Combo("Noise Removal##Specular", &v, "Anchor / Correlation / Chroma / Luma\0Light Anchor Mix\0"))
+                                    config->FfxDenoiserFloorSpecularNoiseMethod = v;
+                                ImGui::EndDisabled();
+                                if (bool v = config->FfxDenoiserFloorDiffuseRecovery.value_or_default();
+                                    ImGui::Checkbox("Diffuse Recovery", &v))
+                                    config->FfxDenoiserFloorDiffuseRecovery = v;
+                                if (ImGui::IsItemHovered())
+                                    ImGui::SetTooltip("Restores the estimated diffuse share of missing detail. Uses the combined reference and albedo split when separate game signals are unavailable. Does not accumulate on top of Flat recovery.");
+                                ImGui::BeginDisabled(!config->FfxDenoiserFloorDiffuseRecovery.value_or_default());
+                                if (int v = std::clamp(config->FfxDenoiserFloorDiffuseNoiseMethod.value_or_default(), 0, 1);
+                                    ImGui::Combo("Noise Removal##Diffuse", &v, "Anchor / Correlation / Chroma / Luma\0Light Anchor Mix\0"))
+                                    config->FfxDenoiserFloorDiffuseNoiseMethod = v;
+                                ImGui::EndDisabled();
+                                if (float v = config->FfxDenoiserFloorHandoverAnchorClamp.value_or_default();
+                                    ImGui::SliderFloat("Handover Anchor", &v, 0, 8))
+                                    config->FfxDenoiserFloorHandoverAnchorClamp = v;
+                                if (float v = config->FfxDenoiserFloorHandoverCorrelationMix.value_or_default();
+                                    ImGui::SliderFloat("Handover Correlation Mix", &v, 0, 1))
+                                    config->FfxDenoiserFloorHandoverCorrelationMix = v;
+                                if (float v = config->FfxDenoiserFloorLumaRecovery.value_or_default();
+                                    ImGui::SliderFloat("Luma Recovery", &v, 0, 1))
+                                    config->FfxDenoiserFloorLumaRecovery = v;
+                                if (float v = config->FfxDenoiserFloorChromaRecovery.value_or_default();
+                                    ImGui::SliderFloat("Chroma Recovery", &v, 0, 1))
+                                    config->FfxDenoiserFloorChromaRecovery = v;
+                                if (ImGui::IsItemHovered())
+                                    ImGui::SetTooltip("Anchor, correlation, luma and chroma controls are shared by both recovery methods. Floor Recovery scales their final contribution.");
                                 if (float v = config->FfxDenoiserBiasMaskStrength.value_or_default();
                                     ImGui::SliderFloat("Bias Mask Strength", &v, 0, 1))
                                     config->FfxDenoiserBiasMaskStrength = v;

@@ -63,8 +63,12 @@ def run():
             out=t.compose(rr,r,z,normal,t.rgba(w,h,(1,1,1)))
             before=float(np.mean(np.abs(rr[2:-2,2:-2,:3]-c[2:-2,2:-2,:3])))
             after=float(np.mean(np.abs(out[2:-2,2:-2,:3]-c[2:-2,2:-2,:3])))
-            t.check(f'{orient} restores blurred RR material={material}',after<before*.95,
-                    error_before=before,error_after=after)
+            if material==1:
+                t.check(f'{orient} selected screen restores blurred RR',after<before*.95,
+                        error_before=before,error_after=after)
+            else:
+                t.check(f'{orient} ordinary surface stays on RR plus filtered Floor',
+                        np.array_equal(out[...,:3],rr[...,:3].astype(np.float16).astype(np.float32)))
         # Zero-roughness by itself may never authorize noisy or bypassed detail.
         for sigma in (100,-1):
             blocked=r.copy();blocked[...,3]=sigma

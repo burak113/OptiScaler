@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "SysUtils.h"
 #include "State.h"
 
@@ -510,10 +510,20 @@ class Config
     // 0 restores the behaviour where the mask was bound but unused.
     CustomOptional<float> FfxDenoiserBiasMaskStrength { 1.0f };
 
-    // One spatial floor and one confidence-gated detail path.
+    // Spatial Floor and independently selected, master-scaled recovery paths.
+    CustomOptional<float> FfxDenoiserSpecularAlbedoDemodulation{1.0f};
+    CustomOptional<float> FfxDenoiserDiffuseAlbedoModulation{1.0f};
+    CustomOptional<bool> FfxDenoiserFloorFlatRecovery{true};
+    CustomOptional<bool> FfxDenoiserFloorSpecularRecovery{false};
+    CustomOptional<bool> FfxDenoiserFloorDiffuseRecovery{false};
+    CustomOptional<int> FfxDenoiserFloorFlatNoiseMethod{0};
+    CustomOptional<int> FfxDenoiserFloorSpecularNoiseMethod{1};
+    CustomOptional<int> FfxDenoiserFloorDiffuseNoiseMethod{1};
+    CustomOptional<float> FfxDenoiserFloorLumaRecovery{1.0f};
+    CustomOptional<float> FfxDenoiserFloorChromaRecovery{1.0f};
+
     CustomOptional<bool> FfxDenoiserFloorEnabled { true };
-    CustomOptional<float> FfxDenoiserFloorNoiseSuppression { 0.75f };
-    CustomOptional<float> FfxDenoiserFloorDetailPreservation { 0.35f };
+    CustomOptional<float> FfxDenoiserFloorRecovery { 1.0f };
     CustomOptional<float> FfxDenoiserFloorHandoverCorrelationMix { 1.0f };
     CustomOptional<float> FfxDenoiserFloorHandoverAnchorClamp { 4.0f };
 

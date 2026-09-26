@@ -103,6 +103,7 @@ CPP_SIZES = {
     "XMUINT4": (16, 4),
     "XMUINT3": (12, 4),
     "XMUINT2": (8, 4),
+    "XMINT2": (8, 4),
     "uint64_t": (8, 8),
     "uint32_t": (4, 4),
     "int32_t": (4, 4),
@@ -110,7 +111,7 @@ CPP_SIZES = {
     "bool": (1, 1),
 }
 CPP_FIELD = re.compile(
-    r"^(?:(XMFLOAT4X4|XMFLOAT4|XMFLOAT3|XMFLOAT2|XMUINT4|XMUINT3|XMUINT2|uint64_t|uint32_t|int32_t|float|bool))\s+"
+    r"^(?:(XMFLOAT4X4|XMFLOAT4|XMFLOAT3|XMFLOAT2|XMUINT4|XMUINT3|XMUINT2|XMINT2|uint64_t|uint32_t|int32_t|float|bool))\s+"
     r"(\w+)\s*(?:\[(\d+)\])?\s*(?:=\s*[^;]*)?;$")
 
 # Shader side: constant-buffer packing. A member starts at the next offset allowed by its own
@@ -297,6 +298,7 @@ CONV_DEBUG_NAMES = {
     "DebugSkipUnmapped": "FLAGS_DEBUG_SKIP_UNMAPPED",
     "DebugSkipFloor": "FLAGS_DEBUG_SKIP_FLOOR",
     "DebugFloorExcess": "FLAGS_DEBUG_FLOOR_EXCESS",
+    "DebugDemodRisk": "FLAGS_DEBUG_DEMOD_RISK",
 }
 
 COMP_FLAG_NAMES = {
@@ -318,6 +320,16 @@ COMP_DEBUG_NAMES = {
     "DebugDetailCorrection": "FLAGS_DEBUG_DETAIL_CORRECTION",
     "DebugDetailReference": "FLAGS_DEBUG_DETAIL_REFERENCE",
     "DebugReconstructedColor": "FLAGS_DEBUG_RECONSTRUCTED_COLOR",
+    "DebugDetailSeed": "FLAGS_DEBUG_DETAIL_SEED",
+    "DebugDetailAnchored": "FLAGS_DEBUG_DETAIL_ANCHORED",
+    "DebugHandoverWeights": "FLAGS_DEBUG_HANDOVER_WEIGHTS",
+    "DebugHandoverLimits": "FLAGS_DEBUG_HANDOVER_LIMITS",
+    "DebugCompositionBeforeClamp": "FLAGS_DEBUG_COMPOSITION_BEFORE_CLAMP",
+    "DebugCompositionFinal": "FLAGS_DEBUG_COMPOSITION_FINAL",
+    "DebugDetailBoxAnchored": "FLAGS_DEBUG_DETAIL_BOX_ANCHORED",
+    "DebugHandoverEligibility": "FLAGS_DEBUG_HANDOVER_ELIGIBILITY",
+    "DebugChromaRecovery": "FLAGS_DEBUG_CHROMA_RECOVERY",
+    "DebugLumaRecovery": "FLAGS_DEBUG_LUMA_RECOVERY",
     "DebugIndirectSpecular": "FLAGS_DEBUG_INDIRECT_SPECULAR",
 }
 
@@ -452,7 +464,6 @@ def check_flags():
     comp_cpp = cpp_enum_values(pre, "CompFlags")
     conv_hlsl = hlsl_defines(read(CONV_HLSL))
     comp_hlsl = hlsl_defines(read(COMP_HLSL))
-
     def split(cpp_values, mode_names):
         plain = {k: v for k, v in cpp_values.items() if k not in mode_names and k != "None"}
         modes = {k: v for k, v in cpp_values.items() if k in mode_names}
@@ -529,7 +540,7 @@ def check_resources():
             if not root or int(root.group(1)) != len(actual):
                 fail("%s %s root table differs from shader resources" % (namespace, root_kind))
             if namespace == "Composition" and kind == "u":
-                expected = ["OutColor"]
+                expected = cpp_resource_order(body, "union Output")
                 assertion = "Composition::kOutputCount"
             elif namespace == "Conversion" and kind == "u":
                 output = brace_body(brace_body(body, "union Output"), "struct Data")

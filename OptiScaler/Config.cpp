@@ -102,9 +102,18 @@ bool Config::ResetFfxDenoiserSettings()
 
     FfxDenoiserDiffuseHitDistance.reset();
 
+    FfxDenoiserSpecularAlbedoDemodulation.reset();
+    FfxDenoiserDiffuseAlbedoModulation.reset();
+    FfxDenoiserFloorFlatRecovery.reset();
+    FfxDenoiserFloorSpecularRecovery.reset();
+    FfxDenoiserFloorDiffuseRecovery.reset();
+    FfxDenoiserFloorFlatNoiseMethod.reset();
+    FfxDenoiserFloorSpecularNoiseMethod.reset();
+    FfxDenoiserFloorDiffuseNoiseMethod.reset();
+    FfxDenoiserFloorLumaRecovery.reset();
+    FfxDenoiserFloorChromaRecovery.reset();
     FfxDenoiserFloorEnabled.reset();
-    FfxDenoiserFloorNoiseSuppression.reset();
-    FfxDenoiserFloorDetailPreservation.reset();
+    FfxDenoiserFloorRecovery.reset();
     FfxDenoiserFloorHandoverCorrelationMix.reset();
     FfxDenoiserFloorHandoverAnchorClamp.reset();
 
@@ -391,8 +400,23 @@ bool Config::Reload(std::filesystem::path iniPath)
                 readBool("FSR-RR", "DiffuseHitDistance"));
 
             FfxDenoiserFloorEnabled.set_from_config(readBool("FSR-RR", "FloorEnabled"));
-            FfxDenoiserFloorNoiseSuppression.set_from_config(readFloat("FSR-RR", "FloorNoiseSuppression"));
-            FfxDenoiserFloorDetailPreservation.set_from_config(readFloat("FSR-RR", "FloorDetailPreservation"));
+            FfxDenoiserFloorRecovery.set_from_config(readFloat("FSR-RR", "FloorRecovery"));
+            if (!FfxDenoiserFloorRecovery.has_value())
+            {
+                auto legacyRecovery = readFloat("FSR-RR", "FloorDetailPreservation");
+                if (legacyRecovery.has_value())
+                    FfxDenoiserFloorRecovery.set_from_config(std::clamp(*legacyRecovery * 3.0f, 0.0f, 1.0f));
+            }
+            FfxDenoiserSpecularAlbedoDemodulation.set_from_config(readFloat("FSR-RR", "SpecularAlbedoDemodulation"));
+            FfxDenoiserDiffuseAlbedoModulation.set_from_config(readFloat("FSR-RR", "DiffuseAlbedoModulation"));
+            FfxDenoiserFloorFlatRecovery.set_from_config(readBool("FSR-RR", "FloorFlatRecovery"));
+            FfxDenoiserFloorSpecularRecovery.set_from_config(readBool("FSR-RR", "FloorSpecularRecovery"));
+            FfxDenoiserFloorDiffuseRecovery.set_from_config(readBool("FSR-RR", "FloorDiffuseRecovery"));
+            FfxDenoiserFloorFlatNoiseMethod.set_from_config(readInt("FSR-RR", "FloorFlatNoiseMethod"));
+            FfxDenoiserFloorSpecularNoiseMethod.set_from_config(readInt("FSR-RR", "FloorSpecularNoiseMethod"));
+            FfxDenoiserFloorDiffuseNoiseMethod.set_from_config(readInt("FSR-RR", "FloorDiffuseNoiseMethod"));
+            FfxDenoiserFloorLumaRecovery.set_from_config(readFloat("FSR-RR", "FloorLumaRecovery"));
+            FfxDenoiserFloorChromaRecovery.set_from_config(readFloat("FSR-RR", "FloorChromaRecovery"));
             FfxDenoiserFloorHandoverCorrelationMix.set_from_config(readFloat("FSR-RR", "FloorHandoverCorrelationMix"));
             FfxDenoiserFloorHandoverAnchorClamp.set_from_config(readFloat("FSR-RR", "FloorHandoverAnchorClamp"));
 
@@ -1291,9 +1315,23 @@ bool Config::SaveIni()
                 Instance()->FfxDenoiserDiffuseHitDistance.value_for_config()).c_str());
 
         ini.SetValue("FSR-RR", "FloorEnabled", GetBoolValue(Instance()->FfxDenoiserFloorEnabled.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorNoiseSuppression", GetFloatValue(Instance()->FfxDenoiserFloorNoiseSuppression.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorDetailPreservation", GetFloatValue(Instance()->FfxDenoiserFloorDetailPreservation.value_for_config()).c_str());
+        ini.Delete("FSR-RR", "FloorDetailPreservation", true);
+        ini.SetValue("FSR-RR", "FloorRecovery", GetFloatValue(Instance()->FfxDenoiserFloorRecovery.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "SpecularAlbedoDemodulation", GetFloatValue(Instance()->FfxDenoiserSpecularAlbedoDemodulation.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "DiffuseAlbedoModulation", GetFloatValue(Instance()->FfxDenoiserDiffuseAlbedoModulation.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "FloorFlatRecovery", GetBoolValue(Instance()->FfxDenoiserFloorFlatRecovery.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "FloorSpecularRecovery", GetBoolValue(Instance()->FfxDenoiserFloorSpecularRecovery.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "FloorDiffuseRecovery", GetBoolValue(Instance()->FfxDenoiserFloorDiffuseRecovery.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "FloorFlatNoiseMethod", GetIntValue(Instance()->FfxDenoiserFloorFlatNoiseMethod.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "FloorSpecularNoiseMethod", GetIntValue(Instance()->FfxDenoiserFloorSpecularNoiseMethod.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "FloorDiffuseNoiseMethod", GetIntValue(Instance()->FfxDenoiserFloorDiffuseNoiseMethod.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "FloorLumaRecovery", GetFloatValue(Instance()->FfxDenoiserFloorLumaRecovery.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "FloorChromaRecovery", GetFloatValue(Instance()->FfxDenoiserFloorChromaRecovery.value_for_config()).c_str());
         // Retired keys have no behavioural mapping. Remove only these names when saving.
+        ini.Delete("FSR-RR", "AdaptiveSpecularDemodulation", true);
+        ini.Delete("FSR-RR", "FloorVirtualAlbedo", true);
+        ini.Delete("FSR-RR", "FloorRRRouting", true);
+        ini.Delete("FSR-RR", "FloorNoiseSuppression", true);
         ini.Delete("FSR-RR", "FloorIsolation", true);
         ini.Delete("FSR-RR", "FloorHandover", true);
         ini.Delete("FSR-RR", "FloorHandoverStrength", true);
@@ -1348,6 +1386,13 @@ bool Config::SaveIni()
                      GetBoolValue(Instance()->FfxDenoiserResponsivityInvert.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "BiasMaskStrength",
                      GetFloatValue(Instance()->FfxDenoiserBiasMaskStrength.value_for_config()).c_str());
+        ini.Delete("FSR-RR", "BalanceSpecularRadiance", true);
+        ini.Delete("FSR-RR", "ModulationIsolation", true);
+        ini.Delete("FSR-RR", "RouteBypassedFloor", true);
+        ini.Delete("FSR-RR", "NormalizeAlbedoSum", true);
+        ini.Delete("FSR-RR", "BypassAlbedoModulation", true);
+        ini.Delete("FSR-RR", "FixedRoughnessEnabled", true);
+        ini.Delete("FSR-RR", "FixedRoughness", true);
 
     }
     }

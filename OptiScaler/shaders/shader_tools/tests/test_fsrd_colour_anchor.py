@@ -23,10 +23,11 @@ def run():
     zero = t.rgba(w,h,(0,0,0))
     crop = (slice(6,-6),slice(6,-6),slice(0,3))
     def rms(out,target): return float(np.sqrt(np.mean((out[crop]-target[crop])**2)))
-    def comp(rr,ref,directory=t.PRE,anchor=4,mix=1,flags=0,detail=.35,n=normal,z=depth,a=albedo,skip=zero,noise=.75):
+    def comp(rr,ref,directory=t.PRE,anchor=4,mix=1,flags=0,detail=1.0,n=normal,z=depth,a=albedo,skip=zero,noise=.75):
         return t.dispatch('FSRDOutputComp',{'DstTexSize':[w,h,1/w,1/h],
-            'DetailPreservation':detail,'NoiseSuppression':noise,'FloorHandoverAnchorClamp':anchor,
-            'FloorHandoverCorrelationMix':mix,'Flags':flags},
+            'DetailPreservation':detail,'FloorHandoverAnchorClamp':anchor,
+            'FloorHandoverCorrelationMix':mix,'Flags':flags,
+            **({'NoiseSuppression':noise} if directory != t.PRE else {})},
             [zero,a,rr,a,skip,n,ref,z],[10],(w,h),directory=directory)[0]
     rng = np.random.default_rng(11819)
     shape = .5+.22*np.sin(x*.39+y*.08)+.16*np.cos(y*.34-x*.12)
@@ -96,7 +97,11 @@ def run():
             for version,directory in [('v10',archive),('current',t.PRE)]:
                 errors[version].append(rms(comp(target,ref,directory,flags=(1<<16)|(8<<17)),target))
         e0,e1=float(np.mean(errors['v10'])),float(np.mean(errors['current']))
-        t.check(label+' patch reference retained from V10',abs(e1-e0)<1e-5,v10=e0,current=e1)
+        # V11 only changed Anchor and required identical reference pixels. NLM
+        # now changes intentionally; retain these independent grain/lettering
+        # fixtures as quality bounds, not an identity to the old blur algorithm.
+        t.check(label+' patch reference error remains bounded against V10',
+                e1<=e0*1.05+.0001,v10=e0,current=e1)
     # Held-out noise realizations, independent RGB pattern and exposure. Scaling
     # correlation tolerances must not simply let dark-scene grain return.
     for level in (.01,.1,1):

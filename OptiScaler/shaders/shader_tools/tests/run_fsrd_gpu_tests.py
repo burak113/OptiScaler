@@ -34,15 +34,25 @@ def build_runner():
 
 def constants(shader, values, directory=PRE):
     values = dict(values)
+    if shader in ('FSRDInputConv', 'FSRDOutputComp') and directory == PRE:
+        values.setdefault('SpecularAlbedoDemodulation', 1.0)
+        values.setdefault('DiffuseAlbedoModulation', 1.0)
+        values.setdefault('RecoveryMask', 1)
     # Exercise production defaults, not silently zero-initialized new controls.
     if shader == 'FSRDOutputComp' and directory == PRE:
         values.setdefault('FloorHandoverAnchorClamp', 4.0)
         values.setdefault('FloorHandoverCorrelationMix', 1.0)
+        values.setdefault('LumaRecovery', 1.0)
+        values.setdefault('ChromaRecovery', 1.0)
     text = (directory/(shader+'.hlsl')).read_text(encoding='utf-8')
     marker = {'FSRDFloorSeed':'CB_Median','FSRDFloor':'CB_Analysis','FSRDInputConv':'CB_Packing','FSRDOutputComp':'CB_Comp'}[shader]
     body = mirror.brace_body(text,'cbuffer '+marker)
     fields, size = mirror.hlsl_cbuffer_fields(body, shader)
     assert not mirror.errors, mirror.errors
+    # Pinned historical shaders may still have the retired user control. Give
+    # those shaders their original default, never a silently zero-filled value.
+    if Path(directory).resolve() != PRE.resolve() and any(f[0]=='NoiseSuppression' for f in fields):
+        values.setdefault('NoiseSuppression', .75)
     blob = bytearray(size)
     for name, _, offset, length in fields:
         if name not in values: continue
@@ -57,9 +67,32 @@ def constants(shader, values, directory=PRE):
 
 counter = 0
 timings = []
-def dispatch(shader, values, inputs, output_formats, size, directory=PRE, repetitions=1):
+def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repetitions=1):
     global counter
     w,h = size
+    requested_outputs = len(output_formats)
+    inputs = list(inputs)
+    output_formats = list(output_formats)
+    adaptive_conv = shader == 'FSRDInputConv' and 'InDemodMask' in (directory/(shader+'.hlsl')).read_text()
+    adaptive_comp = shader == 'FSRDOutputComp' and 'InEffectiveSpecAlbedo' in (directory/(shader+'.hlsl')).read_text()
+    if adaptive_conv:
+        if len(inputs) == 17:
+            inputs += [rgba(w,h,(0,0,0))]
+        # Bind the complete production UAV table even for a prepass that only
+        # writes u0. The scratch output is RGBA16F; the effective guide is UNORM8.
+        production_outputs = [10,10,10,24,28,28,10,10,28]
+        output_formats += production_outputs[len(output_formats):]
+    temporal_comp = shader == 'FSRDOutputComp' and 'InHistoryMetadata' in (directory/(shader+'.hlsl')).read_text()
+    if temporal_comp:
+        if len(inputs) == 8:
+            inputs += [rgba(w,h,(0,0,0)), rgba(w,h,(-1,-1,-1),-1),
+                       np.zeros((h,w,4),np.uint32)]
+        if len(output_formats) == 1:
+            output_formats += [10,3]
+    if adaptive_comp and len(inputs) == 11:
+        inputs += [rgba(w,h,(1,1,1))]
+    if shader == 'FSRDOutputComp' and 'InRawSpecular' in (directory/(shader+'.hlsl')).read_text() and len(inputs) == 12:
+        inputs += [inputs[0]]
     d=OUT/f'{counter:03}_{shader}';counter+=1;d.mkdir(exist_ok=True)
     cb=d/'cb.bin';cb.write_bytes(constants(shader,values,directory))
     records=[f'{json.dumps(str(directory/(shader+"_Shader.cso")))} {json.dumps(str(cb))} {w} {h} {len(inputs)} {len(output_formats)} {repetitions}']
@@ -68,16 +101,18 @@ def dispatch(shader, values, inputs, output_formats, size, directory=PRE, repeti
     formats = {
         'FSRDFloorSeed': [10,10,41,41,10],
         'FSRDFloor': [10,41,10,10],
-        'FSRDInputConv': [10,41,10,10,41,41,10,10,41,10,10,10,10,10,41,41,10],
-        'FSRDOutputComp': ([10,28,10,28,10,24,10,41] if len(inputs)==8 else
+        'FSRDInputConv': [10,41,10,10,41,41,10,10,41,10,10,10,10,10,41,41,10,10],
+        'FSRDOutputComp': ([10,28,10,28,10,24,10,41,10,10,3,28,10] if temporal_comp else
+                          [10,28,10,28,10,24,10,41] if len(inputs)==8 else
                            [10,28,10,28,10,10,10,24,10]),
     }[shader]
     for i,a in enumerate(inputs):
-        a=np.asarray(a,dtype=np.float32)
+        a=np.asarray(a,dtype=np.uint32 if formats[i]==3 else np.float32)
         if a.ndim == 2: a=np.repeat(a[...,None],4,axis=2)
         if a.shape[2] < 4: a=np.pad(a,((0,0),(0,0),(0,4-a.shape[2])))
         fmt=formats[i]
         if fmt==10: stored=a.astype('<f2')
+        elif fmt==3: stored=a.astype('<u4')
         elif fmt==41: stored=a[...,0].astype('<f4')
         elif fmt==28: stored=np.rint(np.clip(a,0,1)*255).astype(np.uint8)
         elif fmt==24:
@@ -100,42 +135,66 @@ def dispatch(shader, values, inputs, output_formats, size, directory=PRE, repeti
     for i,fmt in enumerate(output_formats):
         p=d/f'out{i}.bin'
         if fmt==10:a=np.fromfile(p,dtype='<f2').reshape(h,w,4).astype(np.float32)
+        elif fmt==3:a=np.fromfile(p,dtype='<u4').reshape(h,w,4)
         elif fmt==41:a=np.fromfile(p,dtype='<f4').reshape(h,w)
         elif fmt==28:a=np.fromfile(p,dtype=np.uint8).reshape(h,w,4).astype(np.float32)/255
         elif fmt==24:
             packed=np.fromfile(p,dtype='<u4').reshape(h,w)
             a=np.stack([(packed&1023)/1023,((packed>>10)&1023)/1023,((packed>>20)&1023)/1023,((packed>>30)&3)/3],axis=2).astype(np.float32)
         else:raise ValueError(fmt)
-        assert np.all(np.isfinite(a)), f'{shader} produced NaN/Inf'
+        if i < requested_outputs:
+            assert np.all(np.isfinite(a)), f'{shader} produced NaN/Inf'
         result.append(a)
     # Raw staging data is reproducible, and HDR inputs can be hundreds of MB per
     # job. Keep the result metrics rather than accumulating every upload/readback.
     for staging in d.glob('*.bin'):
         staging.unlink()
+    return result[:requested_outputs]
+
+def dispatch(shader, values, inputs, output_formats, size, directory=PRE, repetitions=1):
+    result = _dispatch(shader, values, inputs, output_formats, size, directory, repetitions)
+    # Opt-in lossless optimization gate. Re-run the exact inputs/constants with
+    # frozen pre-change production DXIL; never approximate the shader in Python.
+    baseline = os.environ.get('FSRD_LOSSLESS_BASELINE')
+    if baseline and Path(directory).resolve() == PRE.resolve():
+        baseline = Path(baseline).resolve()
+        if baseline == PRE.resolve():
+            raise ValueError('Lossless baseline must be a separate frozen directory')
+        cb = dict(values)
+        if shader == 'FSRDOutputComp':
+            cb.setdefault('FloorHandoverAnchorClamp', 4.0)
+            cb.setdefault('FloorHandoverCorrelationMix', 1.0)
+        old = _dispatch(shader, cb, inputs, output_formats, size, baseline, 1)
+        differences = [dict(output=i,changed=int(np.count_nonzero(a != b)),
+                            maximum=float(np.max(np.abs(a-b))))
+                       for i,(a,b) in enumerate(zip(old,result)) if not np.array_equal(a,b)]
+        check(f'lossless {shader} dispatch {counter} {size}', not differences,
+              differences=differences)
+        if differences:
+            raise AssertionError(f'{shader} changed stored output: {differences}')
     return result
 
 def rgba(w,h,rgb,alpha=0):
     a=np.zeros((h,w,4),np.float32);a[...,:3]=rgb;a[...,3]=alpha;return a
 
-def seed(color, depth=None, normal=None, albedo=None, enabled=True, base=(0,0), logical=None, noise=.75):
+def seed(color, depth=None, normal=None, albedo=None, enabled=True, base=(0,0), logical=None):
     h,w=color.shape[:2];lw,lh=logical or (w,h)
     depth=depth if depth is not None else np.ones((h,w),np.float32)*10
     normal=normal if normal is not None else rgba(w,h,(0,0,1))
     albedo=albedo if albedo is not None else rgba(w,h,(.5,.5,.5))
     values={'InvProjMatrix':np.eye(4).ravel(),'RenderSize':[lw,lh,1/lw,1/lh], 'NearPlane':.1,'FarPlane':1000,
-        'Flags':1,'InputBase':[*base,*base],'NormalBase':base,'AlbedoBase':base,'FloorEnabled':int(enabled),'NoiseSuppression':noise}
+        'Flags':1,'InputBase':[*base,*base],'NormalBase':base,'AlbedoBase':base,'FloorEnabled':int(enabled)}
     return dispatch('FSRDFloorSeed',values,[color,normal,depth,depth,albedo],[10,41,10,10],(lw,lh))
 
-def filter_floor(floor,depth,guide,albedo,noise=.75):
+def filter_floor(floor,depth,guide,albedo):
     h,w=floor.shape[:2]
     for step in (1,2,4,8,16):
-        floor=dispatch('FSRDFloor',{'DstTexSize':[w,h,1/w,1/h],'StepSize':step,'NoiseSuppression':noise},[floor,depth,guide,albedo],[10],(w,h))[0]
+        floor=dispatch('FSRDFloor',{'DstTexSize':[w,h,1/w,1/h],'StepSize':step},[floor,depth,guide,albedo],[10],(w,h))[0]
     return floor
 
-def compose(rr,reference,depth,normal,albedo,detail=.35,noise=.75,anchor=4,mix=1):
+def compose(rr,reference,depth,normal,albedo,detail=1.0,anchor=4,mix=1):
     h,w=rr.shape[:2];zero=np.zeros_like(rr)
-    return dispatch('FSRDOutputComp',{'DstTexSize':[w,h,1/w,1/h],'DetailPreservation':detail,'NoiseSuppression':noise,
-        'FloorHandoverAnchorClamp':anchor,'FloorHandoverCorrelationMix':mix},
+    return dispatch('FSRDOutputComp',{'DstTexSize':[w,h,1/w,1/h],'DetailPreservation':detail,'FloorHandoverAnchorClamp':anchor,'FloorHandoverCorrelationMix':mix},
         [zero,zero,rr,rgba(w,h,(1,1,1)),zero,normal,reference,depth],[10],(w,h))[0]
 
 checks=[]
@@ -211,7 +270,7 @@ def run():
     check('flat field spatial noise reduced',after<before*.75,input_std=before,floor_std=after)
     # Composition must preserve RR exactly when detail is disabled, unsupported, or bypassed.
     rr=rgba(w,h,(.3,.4,.5));ref=rgba(w,h,(.6,.1,.9),1)
-    n=rgba(w,h,(.5,.5,.5));z=np.ones((h,w),np.float32)*10;a=rgba(w,h,(.5,.5,.5))
+    n=rgba(w,h,(.5,.5,.5),1/3);z=np.ones((h,w),np.float32)*10;a=rgba(w,h,(.5,.5,.5))
     for label,detail,sigma in [('detail off',0,0),('noisy reference',.35,100),('routed reference',.35,-1)]:
         ref[...,3]=sigma
         out=compose(rr,ref,z,n,a,detail)
@@ -227,7 +286,10 @@ def run():
         check(axis+' sharp RR not amplified',error<.045,error=error)
     for sigma in (0,10):
         ref=rgba(w,h,(.1,.1,.1),sigma);ref[:,w//2,:3]=1
-        out=compose(rgba(w,h,(.1,.1,.1)),ref,z,n,a)
+        # This is a selected-screen fixture. Disable Anchor here to isolate
+        # the uncertainty gate, rather than demand a line outside
+        # the constant RR anchor's intentionally zero-width interval.
+        out=compose(rgba(w,h,(.1,.1,.1)),ref,z,n,a,anchor=0,mix=0)
         center=float(out[h//2,w//2,0]);minimum=float(np.min(out[...,:3]))
         check(f'detail correction supported only sigma={sigma}',
               (center>.15 if sigma==0 else abs(center-.1)<.001) and minimum>=.099,

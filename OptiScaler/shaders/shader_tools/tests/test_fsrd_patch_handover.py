@@ -43,10 +43,10 @@ def run():
         for dx in range(-3, 4):
             flat &= ~np.roll(np.roll(ink, dy, 0), dx, 1)
 
-    def compose(rr, ref, anchor=2, mix=1, noise=.75, directory=t.PRE, normal=n, depth=z, detail=.35, flags=0):
+    def compose(rr, ref, anchor=2, mix=1, noise=.75, directory=t.PRE, normal=n, depth=z, detail=1.0, flags=0):
         return t.dispatch('FSRDOutputComp', {
             'DstTexSize': [w, h, 1/w, 1/h], 'DetailPreservation': detail,
-            'NoiseSuppression': noise, 'FloorHandoverAnchorClamp': anchor, 'Flags': flags,
+            'FloorHandoverAnchorClamp': anchor, 'Flags': flags,
             'FloorHandoverCorrelationMix': mix},
             [zero, a, rr, a, zero, normal, ref, depth], [10], (w, h), directory=directory)[0]
 
@@ -67,22 +67,15 @@ def run():
     stale = blur(np.roll(clean, 2, axis=1), 5)
     patch = compose(stale, ref, 0, 0)
     diagnostic = compose(stale, ref, flags=(1 << 16) | (8 << 17))
-    t.check('actual filtered-reference debug view reduces fine grain before RR controls',
-            rms(diagnostic) < rms(ref)*.8, seed=metrics(ref), filtered=metrics(diagnostic))
+    t.check('reference diagnostic is unaveraged seed RGB',np.array_equal(diagnostic[...,:3],ref[...,:3]))
     # Reference diagnostics must show the same pre-anchor candidate regardless of
     # detail strength; they are not a separately implemented visual approximation.
     t.check('filtered-reference debug is independent of detail correction strength',
             np.array_equal(diagnostic, compose(stale, ref, detail=0, flags=(1 << 16) | (8 << 17))))
-    if archive is not None:
-        v8 = compose(stale, ref, 0, 0, directory=archive)
-        t.check('patch matching improves moving noisy glyph reconstruction over V8 with controls off',
-                rms(patch) < rms(v8)*.9, v8=metrics(v8), patch=metrics(patch), raw=metrics(fine))
-    t.check('patch filtering retains thin lettering contrast with controls off',
-            metrics(patch)['ink_rms'] < .045, **metrics(patch))
-    suppression0 = compose(stale, ref, 0, 0, noise=0)
-    t.check('noise suppression materially reduces patch-reference grain',
-            rms(patch) < rms(suppression0)*.85, off=metrics(suppression0), on=metrics(patch))
-
+    # NLM was explicitly withdrawn. Keep its noisy-glyph quality result visible;
+    # do not claim the former denoising threshold passes after removing it.
+    t.records.append(dict(retired_nlm_case='noisy thin lettering, controls off',
+                          former_ink_rms_limit=.045, **metrics(patch)))
     # Coarse, spatially correlated, signed fluctuations plus independent fine grain.
     # Several independent seeds represent changing noise with fixed artwork/camera.
     accumulated = {}
@@ -124,8 +117,7 @@ def run():
         if directory is None:
             continue
         outputs[label] = t.dispatch('FSRDOutputComp', {
-            'DstTexSize':[w,h,1/w,1/h], 'DetailPreservation':.35, 'NoiseSuppression':.75,
-            'FloorHandoverAnchorClamp':2., 'FloorHandoverCorrelationMix':1.},
+            'DstTexSize':[w,h,1/w,1/h], 'DetailPreservation':1.0, 'FloorHandoverAnchorClamp':2., 'FloorHandoverCorrelationMix':1.},
             [zero,packed[4],residual,packed[5],packed[6],packed[3],packed[7],depth],
             [10],(w,h),directory=directory)[0]
     if archive is not None:

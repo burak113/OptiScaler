@@ -1,5 +1,15 @@
 # FSRD Floor yol haritası — V11 sonrası
 
+> Current checkpoint: [Floor recovery and adaptive retirement](fsrd_floor_recovery_release_20260926.md).
+> Dated sections below retain earlier implementation and validation history;
+> the checkpoint supersedes retired options and algorithms.
+
+21 Eylül güncellemesi: Sanal albedo üretimi oyun geri bildirimleri ve nedensel
+testlerden sonra üretimden kaldırıldı. Önceki spatial Floor + Anchor/Correlation
+yolu korunuyor. Sıradaki araştırma, oyunun albedosundaki desen eksikliğini yüzey
+tespitinde yardımcı kanıt olarak değerlendirmek; yeni bir albedo üretmek değil.
+Henüz yeni sınıflandırıcı eklenmedi. [Karar ve doğrulama kapsamı](fsrd_virtual_albedo_retirement.md).
+
 Tarih: 20 Eylül 2026. Bu belge bir geliştirme planıdır; tamamlanmış iş veya oyun
 kabulü raporu değildir.
 
@@ -69,6 +79,31 @@ kararın baskın olduğunu göstermez. Önce kayıp aşaması bulunmalı.
 Çıkış koşulu: en az bir yakın/büyük ve bir uzak/küçük panelde bulanıklığın baskın
 aşaması belirlenmiş; değişiklik yapmadan önce tekrar çalıştırılabilir referans alınmış.
 
+Tanılama araçları eklendi: [aşama görünümleri ve offline GPU replay](fsrd_floor_diagnostics.md).
+Temiz küçük renkli yazının sentetik örneğinde ilk baskın kayıp NLM'de ölçüldü;
+büyük örnekte aynı referans kaybı yoktu. İlk tanılama sürümünde normal görüntü
+algoritması değiştirilmedi; o sürümde oyun karşılaştırması bekleniyordu.
+
+21 Eylül güncellemesi: 801–805 oyun görünümleri, NLM öncesi/sonrası netlik kaybını
+nitel olarak destekledi. Sıradaki hedefli deney uygulandı:
+[küçük ekran NLM gürültü tahmini](fsrd_floor_nlm_recovery.md).
+Oyun girdilerinin ham GPU capture/replay'i hâlâ yok; screenshot'lar farklı kareler.
+Kullanıcı NLM adayında belirgin iyileşme bildirdi; bazı renklerin hâlâ
+bulanıklaşmasını bildirdi. Bunun için [RR destekli renk kontrastı düzeltmesi](fsrd_floor_chroma_recovery.md)
+eklendi. Kullanıcı sonraki karşılaştırmada Detail görünümlerinin net, yalnız
+CompositionFinal'ın bulanık olduğunu bildirdi. Sentetik aşama testi aynı durumu
+yeniden üretti; bu örneklerde son envelope değişiklik yapmıyordu. Bunun üzerine
+[son karışımda parlaklık kontrastı düzeltmesi](fsrd_floor_composition_recovery.md)
+uygulandı. Bu yeni adayın oyun kabulü ayrıca bekleniyor.
+
+Son kalite turunda [bulanıklık kanıtı ve kalan gürültü değerlendirmesi](fsrd_floor_quality_finish.md)
+eklendi. Yeni davranış, referansın hafif bulanık hâlinin RR'yi açıklayıp
+açıklamadığını sınayarak küçük yazıya aktarım izni verir; Anchor korunur.
+Pozlama toleranslarını genel olarak gevşeten prototip reddedildi. Dar temporal
+ayrıntı GPU deneyi %20 titreşim hedefini geçmedi; üretime history eklenmedi.
+Bir piksel yazı ve ortak Skip/RR grain'i açık sınırlar olarak ölçüldü.
+Bu adım oyun kabulü veya optimizasyonun tamamlandığı anlamına gelmez.
+
 ## 2. Güncel dokuyu korurken ışık gürültüsünü sınırlamak
 
 Tek bir hedefi olan deneyler; her biri aynı 4/1 ayarlarında V9/V11 ile karşılaştırılır.
@@ -93,6 +128,13 @@ geri getirdi; NLM merkez ağırlığı azaltımı harfleri yumuşattı. Aynı ya
 bu karşı örnekleri çözen somut yeni kanıtla tekrar denenmeli.
 
 ## 3. Gerekiyorsa seçici temporal deney
+
+21 Eylül: [Zero Noise tabanından sanal albedo deseni deneyi](fsrd_detail_consensus_experiment.md)
+eklendi. En fazla dört içerik eşleşmeli gözlemle ayrıntı kurulup gerçek AMD RR'nin
+DD/IS yollarına veriliyor. Bu, oyun temporal entegrasyonu değildir; CPU içerik
+araması ve ayrı GPU test kaynakları kullanır. İri ve zamansal korelasyonlu gürültü,
+başlangıç/doku kesmesi ve temiz küçük yazı ayrı değerlendirilir. Normal DLL yolu
+bu deneyle değiştirilmedi.
 
 Bu aşama otomatik olarak üretime girecek bir özellik değildir. Kalan sorunun
 kareden kareye kaynama olduğu doğrulanırsa, önce yalnız gürültü tahmini ve aktarım
@@ -158,3 +200,8 @@ Her aday tek bir varsayımı sınar. Önce ölçülebilir sorun, sonra değişik
 aynı girdilerle A/B. İyileşmeyen deneyler çıkarılır; ince taneli olumlu sonuçlar
 ayrı anlarda çekilmiş oyun karelerine genellenmez. Yeni kullanıcı kontrolü ancak
 kanıtlanmış, bağımsız ve anlaşılır bir tercih sunuyorsa eklenir.
+# 2026-09-23 update
+
+Noise Suppression removed at the user's request. Anchor/Mix and the spatial Floor
+base remain. Replacement ideas are research only; see
+[removal and alternatives](fsrd_noise_suppression_retirement.md).

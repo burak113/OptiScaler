@@ -54,7 +54,7 @@ cbuffer CB_Median : register(b0)
     uint2 TitleDepthBase;
     float2 _TitleDepthPadding;
     uint2 AlbedoBase;
-    float NoiseSuppression;
+    uint _Reserved0;
     uint FloorEnabled;
 }
 
@@ -279,7 +279,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     float quietNoise = sigma;
     uint blocks = 0;
     [branch]
-    if (surfaceSupport < 5.0f)
+    if (surfaceSupport < 9.0f)
     {
     [unroll]
     for (uint quadrant = 0; quadrant < 4; ++quadrant)
@@ -338,9 +338,14 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     base *= baseLuma > 0 ? min(1.0f, q25 / baseLuma) : 0;
     // A handful of coincidentally matching guides can still select two bright
     // ray samples. Partial support cannot lift above the independent common level.
-    base = surfaceSupport < 5.0f ? lerp(commonBase, min(base,commonBase), surfaceConfidence) : base;
-    // Strength affects shrinkage, never a blend back to the noisy source.
-    const float suppression = saturate(NoiseSuppression);
+    if (surfaceSupport < 9.0f)
+    {
+        const float3 conservative = lerp(commonBase, min(base,commonBase), surfaceConfidence);
+        // Newly revealed surfaces cross five effective samples continuously.
+        // The former hard switch could jump from the common pedestal to a much
+        // brighter surface estimate in a single camera subpixel step.
+        base = lerp(conservative, base, smoothstep(5.0f,9.0f,surfaceSupport));
+    }
     // Reference rank semantics: a bounded, supported centre keeps its exact RGB.
     // Averaging every accepted sample erased antialiased curves even when no sample
     // was an outlier. Unlike the old luma/chroma rescale, rejected pixels keep the
@@ -402,8 +407,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     const float3 envelope = ringMax - ringMin;
     const float3 overshoot = max(ringMin - center.rgb, center.rgb - ringMax);
     const float3 outlier = saturate(overshoot / max(envelope, 1e-5f) - 1.0f);
-    const float3 robust = lerp(reference, base,
-        suppression * saturate(sigma / max(median + sigma, 1e-5f)) * (1.0f-support) * 0.25f);
+    const float3 robust = reference; // Impulse rejection only; no reference-to-base smoothing.
     reference = rankAccepted ? center.rgb : lerp(center.rgb, robust, outlier);
     // Extrema in two noisy rings are not independent proof of structure. A
     // positive sparse ray must have local colour or directional continuation.

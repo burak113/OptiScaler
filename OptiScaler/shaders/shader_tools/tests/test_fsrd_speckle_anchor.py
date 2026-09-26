@@ -39,8 +39,7 @@ def run():
     normal=t.rgba(w,h,(.5,.5,.1),1/3);zero=t.rgba(w,h,(0,0,0));ones=t.rgba(w,h,(1,1,1))
     def comp(rr,ref,anchor,mix):
         return original('FSRDOutputComp',{'DstTexSize':[w,h,1/w,1/h],
-            'DetailPreservation':.35,'NoiseSuppression':.75,
-            'FloorHandoverAnchorClamp':anchor,'FloorHandoverCorrelationMix':mix},
+            'DetailPreservation':1.0,'FloorHandoverAnchorClamp':anchor,'FloorHandoverCorrelationMix':mix},
             [zero,ones,rr,ones,zero,normal,ref,z],[10],(w,h))[0]
     ref=clean.copy();ref[...,3]=0;ref[h//2,w//2]=[1,1,1,.4]
     off=comp(clean,ref,0,0);on=comp(clean,ref,2,0)
@@ -56,11 +55,12 @@ def run():
     ordinary=normal.copy();ordinary[...,3]=0
     def ordinary_comp(anchor,mix):
         return original('FSRDOutputComp',{'DstTexSize':[w,h,1/w,1/h],
-            'DetailPreservation':.35,'NoiseSuppression':.75,
-            'FloorHandoverAnchorClamp':anchor,'FloorHandoverCorrelationMix':mix},
+            'DetailPreservation':1.0,'FloorHandoverAnchorClamp':anchor,'FloorHandoverCorrelationMix':mix},
             [zero,ones,rr,ones,zero,ordinary,ref,z],[10],(w,h))[0]
     t.check('handover controls do not affect ordinary materials',
             np.array_equal(ordinary_comp(0,0),ordinary_comp(2,1)))
+    t.check('ordinary reconstruction retains RR exactly',
+            np.array_equal(ordinary_comp(2,1)[...,:3],rr[...,:3].astype(np.float16).astype(np.float32)))
     print(json.dumps(t.records,indent=2))
     (t.OUT/'diagnosis.json').write_text(json.dumps(t.records,indent=2))
     (t.OUT/'results.json').write_text(json.dumps({'checks':t.checks,'records':t.records,'dispatches':t.timings},indent=2))

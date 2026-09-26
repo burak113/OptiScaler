@@ -19,9 +19,9 @@ def run():
     normal=t.rgba(w,h,(.5,.5,.1),1/3)
     a=t.rgba(w,h,(1,1,1));zero=t.rgba(w,h,(0,0,0))
     crop=(slice(6,-6),slice(6,-6),slice(0,3))
-    def comp(rr,ref,directory=t.PRE,anchor=4,mix=1,flags=0,detail=.35,n=normal):
+    def comp(rr,ref,directory=t.PRE,anchor=4,mix=1,flags=0,detail=1.0,n=normal):
         return t.dispatch('FSRDOutputComp',{'DstTexSize':[w,h,1/w,1/h],
-            'DetailPreservation':detail,'NoiseSuppression':.75,'FloorHandoverAnchorClamp':anchor,
+            'DetailPreservation':detail,'FloorHandoverAnchorClamp':anchor,
             'FloorHandoverCorrelationMix':mix,'Flags':flags},
             [zero,a,rr,a,zero,n,ref,z],[10],(w,h),directory=directory)[0]
     def rms(out,target):return float(np.sqrt(np.mean((out[crop]-target[crop])**2)))
@@ -108,7 +108,7 @@ def run():
         errors={}
         for version,directory in [('v9',archive),('current',t.PRE)]:
             out=t.dispatch('FSRDOutputComp',{'DstTexSize':[w,h,1/w,1/h],
-                'DetailPreservation':.35,'NoiseSuppression':.75,'FloorHandoverAnchorClamp':4.,
+                'DetailPreservation':1.0,'FloorHandoverAnchorClamp':4.,
                 'FloorHandoverCorrelationMix':1.},
                 [zero,packed[4],residual,packed[5],packed[6],packed[3],packed[7],depth],
                 [10],(w,h),directory=directory)[0]
@@ -117,12 +117,11 @@ def run():
                 errors['current']<=max(.002,errors['v9']*1.1),**errors)
     # Large screen/static RR, HDR, ordinary material and controls-off contracts.
     reference=t.seed(clean)[3]
-    # Isolate the correlation feature: V11 extends the independent Anchor,
-    # which is allowed to act even while Mix is zero.
-    old=comp(blur(clean,2),reference,archive,anchor=0,mix=0)
-    new=comp(blur(clean,2),reference,anchor=0,mix=0)
-    t.check('disabling mix disables colour agreement extension',
-            np.max(np.abs(old[...,:3]-new[...,:3]))<.001)
+    # Zero Mix must remove correlation rejection. Comparing full colour against
+    # V9 conflated that contract with NLM identity: the post-checkpoint filter now
+    # intentionally preserves more detail even while both RR controls are off.
+    weights=comp(blur(clean,2),reference,anchor=0,mix=0,flags=(1<<16)|(16<<17))
+    t.check('disabling mix removes all colour agreement rejection',np.all(weights[...,2]==1))
     for level in (.001,1,40):
         target=clean*level;target[...,3]=0
         ref=t.seed(target)[3];out=comp(target,ref)

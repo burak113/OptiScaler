@@ -24,9 +24,9 @@ def run():
         'MotionInputSize':[w,h,1/w,1/h],'MotionTransform':[1,1,0,0],
         'NearPlane':.1,'FarPlane':1000,'FloorDetailPreservation':.35,
         'Flags':(1<<1)|(1<<7),'DemodDivisorFloor':.008}
-    # The zero-rough classification stays the title's exact-zero reading, and the RR-facing
-    # roughness is now this pipeline's own compatibility value: only the automatic policy
-    # moves, and only while Floor is enabled.
+    # Valid flat original albedos retain the CP77 exact-zero hint. Surface selection
+    # also recognizes unrepresented texture at nonzero roughness; Floor off retains
+    # the prior RR-only encoding and all roughness values.
     packed=t.dispatch('FSRDInputConv',vals,[c,z,zero,n,rough,z,a,a,zero,f,zero,zero,zero,zero,z,zero,ref],
         [10,10,10,24,28,28,10,10],(w,h))
     t.check('exact-zero title roughness keeps unified type1',np.all(np.abs(packed[3][...,3]-1/3)<.001))
@@ -41,8 +41,10 @@ def run():
     rough2=np.full((h,w),.42,np.float32)
     packed2=t.dispatch('FSRDInputConv',vals,[c,z,zero,n,rough2,z,a,a,zero,f,zero,zero,zero,zero,z,zero,ref],
         [10,10,10,24,28,28,10,10],(w,h))
-    t.check('non-zero title roughness is never raised',
-            np.max(np.abs(packed2[3][...,2]-.42))<=1/1023 and np.all(packed2[3][...,3]<.001))
+    t.check('roughness above compatibility floor is unchanged',
+            np.max(np.abs(packed2[3][...,2]-.42))<=1/1023)
+    t.check('nonzero-rough ink with flat albedo selects handover, blank interior does not',
+            packed2[3][12,17,3]>.16 and packed2[3][12,10,3]==0)
     for passes in (2,8,20):
         rr=blur(c,passes)
         # V9: measure maximum recovery with optional RR constraints disabled.

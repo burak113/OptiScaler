@@ -98,6 +98,7 @@ class FSRDPreprocessor_Dx12
         DebugDemodGain =         35 << 17 | Debug, // 1 / albedo used as the demodulation divisor
         DebugHitDistGate =       36 << 17 | Debug, // The specular tracking ramp on its own
         DebugDenoiserFraction =  37 << 17 | Debug, // Share of the pixel reaching the denoiser
+        DebugDemodRisk =         42 << 17 | Debug, // Diagnostic: does the demod divisor implant structure
     };
 
     enum class CompFlags : uint32_t
@@ -131,6 +132,16 @@ class FSRDPreprocessor_Dx12
         DebugDetailReference = 8 << 17 | Debug,
         DebugIndirectSpecular =   12 << 17 | Debug,
         DebugReconstructedColor = 13 << 17 | Debug,
+        DebugDetailSeed = 14 << 17 | Debug,
+        DebugDetailAnchored = 15 << 17 | Debug,
+        DebugHandoverWeights = 16 << 17 | Debug,
+        DebugHandoverLimits = 17 << 17 | Debug,
+        DebugCompositionBeforeClamp = 18 << 17 | Debug,
+        DebugCompositionFinal = 19 << 17 | Debug,
+        DebugDetailBoxAnchored = 20 << 17 | Debug,
+        DebugHandoverEligibility = 21 << 17 | Debug,
+        DebugChromaRecovery = 22 << 17 | Debug,
+        DebugLumaRecovery = 23 << 17 | Debug,
     };
 
     /**
@@ -205,7 +216,6 @@ class FSRDPreprocessor_Dx12
         float FarPlane;  // Near < Far
 
         bool FloorEnabled = true;
-        float FloorNoiseSuppression = 0.75f;
         float FloorDetailPreservation = 0.35f;
         // The zero-rough domain's RR roughness is this pipeline's own compatibility value
         // (s_ZeroRoughRRRoughness), not a caller preference: there is no field for it.
@@ -228,12 +238,14 @@ class FSRDPreprocessor_Dx12
         bool ResponsivityInvert = false;
 
         float BiasMaskStrength = 1.0f;
+        uint32_t RecoveryMask = 1;
+        float SpecularAlbedoDemodulation = 1.0f;
+        float DiffuseAlbedoModulation = 1.0f;
         bool MotionHistoryValid = false;
         bool MotionVectorsJittered = false;
         bool DisplayResolutionMotion = false;
         bool SpecularHitDistanceFromCombinedAlpha = false;
 
-        uint64_t FrameIndex = 0;
     };
 
     /**
@@ -244,9 +256,14 @@ class FSRDPreprocessor_Dx12
         DirectX::XMFLOAT4 DstTexSize; // XY = Tex Size - ZW = 1 / XY
         float FloorDetailPreservation = 0.35f;
         uint32_t Flags;
-        float FloorNoiseSuppression = 0.75f;
+        uint32_t RecoveryMask = 1;
         float FloorHandoverAnchorClamp = 4.0f;
         float FloorHandoverCorrelationMix = 1.0f;
+        float SpecularAlbedoDemodulation = 1.0f;
+        float DiffuseAlbedoModulation = 1.0f;
+        uint32_t SpatialTemporalMask = 0;
+        float LumaRecovery = 1.0f;
+        float ChromaRecovery = 1.0f;
 
     };
 
@@ -308,6 +325,10 @@ class FSRDPreprocessor_Dx12
      * lifetime after a bypassed or failed RR dispatch where composition did not run.
      */
     void TransitionDenoiserOutputsToRead(ID3D12GraphicsCommandList* cmdList) noexcept;
+
+    // Commit helper history only after a successful normal frame, including upscale.
+    void FinishCompositionHistory(bool successfulNormalFrame) noexcept;
+    void InvalidateCompositionHistory() noexcept;
 
     void TransitionDenoiserOutputsToUav(ID3D12GraphicsCommandList* cmdList) noexcept;
 

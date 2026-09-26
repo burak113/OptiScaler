@@ -14,7 +14,7 @@ cbuffer CB_Analysis : register(b0)
 {
     float4 DstTexSize;
     int StepSize;
-    float NoiseSuppression;
+    uint _Reserved0;
     uint2 AlbedoBase;
 }
 
@@ -26,12 +26,8 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     if (any(p > bounds)) return;
     const float4 center = InColor[p];
     const float lum = GetLuminance(center.rgb);
-    const float z = InLinearDepth[p];
-    const float4 guide = InDepthGradient[p];
-    const float3 n = OctahedralDecode(guide.zw);
-    const float3 a = FloorRadiance(InDiffAlbedo[p + int2(AlbedoBase)]);
     const float noise = max(center.a, 0.0f);
-    const float range = max(lum * 0.04f, noise * lerp(1.0f, 4.0f, NoiseSuppression));
+    const float range = max(lum * 0.04f, noise * 3.25f);
     // No noisy evidence: only the small kernel is needed. All five dispatches have
     // the same contract, so later passes can return locally without another buffer.
     if (StepSize > 2 && noise < max(lum * 0.005f, 1e-5f))
@@ -39,6 +35,10 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         OutColor[p] = half4(center);
         return;
     }
+    const float z = InLinearDepth[p];
+    const float4 guide = InDepthGradient[p];
+    const float3 n = OctahedralDecode(guide.zw);
+    const float3 a = FloorRadiance(InDiffAlbedo[p + int2(AlbedoBase)]);
     float3 sum = center.rgb;
     float total = 1.0f;
     // Alternate axial/diagonal support across scales. Four surface-tested taps
@@ -56,7 +56,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         const float surface = FloorSurfaceWeight(z, InLinearDepth[q], guide.xy, float2(q-p),
             n, OctahedralDecode(g.zw), a, FloorRadiance(InDiffAlbedo[q + int2(AlbedoBase)]));
         const float appearance = FloorRangeWeight(GetLuminance(c.rgb)-lum,
-            max(range, max(c.a, noise) * lerp(1.0f, 4.0f, NoiseSuppression)));
+            max(range, max(c.a, noise) * 3.25f));
         const float spatial = diagonal ? 0.25f : 0.5f;
         const float w = surface * appearance * spatial;
         sum += c.rgb*w; total += w;

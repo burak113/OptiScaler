@@ -43,7 +43,7 @@ def run(trials=3, roughness=.5):
             # Identity RR makes the pre/post-processing timing independent of AMD DLL availability.
             inputs=[packed[0],packed[4],packed[1],packed[5],packed[6]]
             inputs += [packed[3],packed[7],z] if rewritten else [color,packed[0],packed[3],packed[7]]
-            t.dispatch('FSRDOutputComp',{'DstTexSize':[w,h,1/w,1/h],'DetailPreservation':.35,'NoiseSuppression':.75,
+            t.dispatch('FSRDOutputComp',{'DstTexSize':[w,h,1/w,1/h],'DetailPreservation':1.0,'NoiseSuppression':.75,
                        'CorrelationBias':1,'FloorHandoverAnchorClamp':2,'FloorHandoverCorrelationMix':1},inputs,[10],(w,h),directory,610)
             stages=t.timings[start:]
             row={'trial':trial,'variant':label,'roughness':roughness,'median_sum_ms':sum(float(x['gpu_ms_median']) for x in stages),

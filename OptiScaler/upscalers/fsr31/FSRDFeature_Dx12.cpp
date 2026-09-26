@@ -932,6 +932,7 @@ enum class DebugModes : uint64_t
 
     InBiasMask = FSRDConvFlags::DebugInBiasMask,
     FloorNoise = FSRDConvFlags::DebugFloorNoise,
+    DemodRisk = FSRDConvFlags::DebugDemodRisk,
     SkipUnmapped = FSRDConvFlags::DebugSkipUnmapped,
     SkipFloor = FSRDConvFlags::DebugSkipFloor,
     FloorExcess = FSRDConvFlags::DebugFloorExcess,
@@ -953,6 +954,16 @@ enum class DebugModes : uint64_t
     DetailCorrection = (uint64_t) FSRDCompFlags::DebugDetailCorrection << CompositionDebugOffset,
     DetailReference = (uint64_t) FSRDCompFlags::DebugDetailReference << CompositionDebugOffset,
     ReconstructedColor = (uint64_t) FSRDCompFlags::DebugReconstructedColor << CompositionDebugOffset,
+    DetailSeed = (uint64_t) FSRDCompFlags::DebugDetailSeed << CompositionDebugOffset,
+    DetailAnchored = (uint64_t) FSRDCompFlags::DebugDetailAnchored << CompositionDebugOffset,
+    HandoverWeights = (uint64_t) FSRDCompFlags::DebugHandoverWeights << CompositionDebugOffset,
+    HandoverLimits = (uint64_t) FSRDCompFlags::DebugHandoverLimits << CompositionDebugOffset,
+    CompositionBeforeClamp = (uint64_t) FSRDCompFlags::DebugCompositionBeforeClamp << CompositionDebugOffset,
+    CompositionFinal = (uint64_t) FSRDCompFlags::DebugCompositionFinal << CompositionDebugOffset,
+    DetailBoxAnchored = (uint64_t) FSRDCompFlags::DebugDetailBoxAnchored << CompositionDebugOffset,
+    HandoverEligibility = (uint64_t) FSRDCompFlags::DebugHandoverEligibility << CompositionDebugOffset,
+    ChromaRecovery = (uint64_t) FSRDCompFlags::DebugChromaRecovery << CompositionDebugOffset,
+    LumaRecovery = (uint64_t) FSRDCompFlags::DebugLumaRecovery << CompositionDebugOffset,
 };
 
 static FSRDConvFlags GetConvDebugFlags(DebugModes mode) 
@@ -1012,6 +1023,7 @@ constexpr auto kDebugModes = std::to_array<ModeNamePair>(
 
     { "InBiasMask", (uint64_t) DebugModes::InBiasMask },
     { "FloorNoise", (uint64_t) DebugModes::FloorNoise },
+    { "DemodRisk", (uint64_t) DebugModes::DemodRisk },
     { "SkipUnmapped", (uint64_t) DebugModes::SkipUnmapped },
     { "SkipFloor", (uint64_t) DebugModes::SkipFloor },
     { "FloorExcess", (uint64_t) DebugModes::FloorExcess },
@@ -1035,6 +1047,16 @@ constexpr auto kDebugModes = std::to_array<ModeNamePair>(
     { "DetailCorrection", (uint64_t) DebugModes::DetailCorrection },
     { "DetailReference", (uint64_t) DebugModes::DetailReference },
     { "ReconstructedColor", (uint64_t) DebugModes::ReconstructedColor },
+    { "DetailSeed", (uint64_t) DebugModes::DetailSeed },
+    { "DetailBoxAnchored", (uint64_t) DebugModes::DetailBoxAnchored },
+    { "DetailAnchored", (uint64_t) DebugModes::DetailAnchored },
+    { "HandoverWeights", (uint64_t) DebugModes::HandoverWeights },
+    { "HandoverLimits", (uint64_t) DebugModes::HandoverLimits },
+    { "CompositionBeforeClamp", (uint64_t) DebugModes::CompositionBeforeClamp },
+    { "CompositionFinal", (uint64_t) DebugModes::CompositionFinal },
+    { "HandoverEligibility", (uint64_t) DebugModes::HandoverEligibility },
+    { "ChromaRecovery", (uint64_t) DebugModes::ChromaRecovery },
+    { "LumaRecovery", (uint64_t) DebugModes::LumaRecovery },
 
     { "FloorColor", (uint64_t) DebugModes::FloorColor },
     
@@ -1605,6 +1627,9 @@ bool FSRDFeatureDx12::QueryDenoiserVersions()
         state.ffxDenoiserDebugModes.push_back(mode.second);
         state.ffxDenoiserDebugModeNames.emplace(mode.second, mode.first);
     }
+    // Retired debug identifiers must not keep an invisible bypass active.
+    if (!state.ffxDenoiserDebugModeNames.contains(Config::Instance()->FfxDenoiserDebugMode.value_or_default()))
+        Config::Instance()->FfxDenoiserDebugMode = 0;
 
     if (versionCount == 0)
     {
@@ -1704,6 +1729,14 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
 {
     LOG_FUNC();
 
+    // The unique_ptr is referenced because UpdateSize may replace the converter.
+    struct CompositionHistoryGuard
+    {
+        std::unique_ptr<FSRDPreprocessor_Dx12>& converter;
+        bool success=false;
+        ~CompositionHistoryGuard() { if (converter) converter->FinishCompositionHistory(success); }
+    } compositionHistoryGuard { FSRDConvShader };
+
     if (!IsInited())
         return false;
 
@@ -1739,7 +1772,6 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
     // state lifetime, including bypass and error paths where composition is skipped.
     DenoiserOutputStateGuard denoiserOutputStateGuard(FSRDConvShader, InCommandList);
     TitleInputStateGuard titleInputStateGuard(FSRDConvShader, InCommandList);
-
     const auto dbgMode = static_cast<DebugModes>(cfg.FfxDenoiserDebugMode.value_or_default());
     const bool isDebugVis = (uint32_t)dbgMode & (uint32_t) DebugModes::ConversionDebug;
     const bool isDebugComp = ((uint64_t)dbgMode & (uint64_t)DebugModes::CompositionDebug);
@@ -1748,7 +1780,6 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
         dbgMode == DebugModes::AmbientOcclusionInput ||
         dbgMode == DebugModes::AmbientOcclusionOutput;
     const bool hasAnyDebug = (dbgMode != DebugModes::None);
-    _convDesc.FrameIndex = static_cast<uint64_t>(_frameCount);
 
     // Denoise is bypassed if we are debugging something OTHER than the final outputs
     const bool isDenoiseBypassed = !isFfxDebug && !isDebugComp &&
@@ -1910,9 +1941,14 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
             .DstTexSize = _convDesc.RenderSize,
             .FloorDetailPreservation = _convDesc.FloorEnabled ? _convDesc.FloorDetailPreservation : 0.0f,
             .Flags = compositionFlags,
-            .FloorNoiseSuppression = _convDesc.FloorNoiseSuppression,
+            .RecoveryMask = _convDesc.RecoveryMask,
             .FloorHandoverAnchorClamp = _appliedFloorHandoverAnchorClamp,
-            .FloorHandoverCorrelationMix = _appliedFloorHandoverCorrelationMix
+            .FloorHandoverCorrelationMix = _appliedFloorHandoverCorrelationMix,
+            .SpecularAlbedoDemodulation = _convDesc.SpecularAlbedoDemodulation,
+            .DiffuseAlbedoModulation = _convDesc.DiffuseAlbedoModulation,
+            .SpatialTemporalMask = _appliedSpatialTemporalMask,
+            .LumaRecovery = _appliedLumaRecovery,
+            .ChromaRecovery = _appliedChromaRecovery
         };
 
         // ColorBeforeParticles is a whole scene guide, not a premultiplied overlay.
@@ -2027,6 +2063,7 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
     if (!isUpscalerReady)
         return false;
 
+    compositionHistoryGuard.success=isDenoiserReady && !isUpscaleBypassed && !isDenoiseBypassed;
     return isDenoiserReady || isDenoiseBypassed;
 }
 
@@ -3430,8 +3467,28 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     const auto unitValue = [](float value, float fallback) {
         return std::isfinite(value) ? std::clamp(value, 0.0f, 1.0f) : fallback;
     };
-    _convDesc.FloorNoiseSuppression = unitValue(cfg.FfxDenoiserFloorNoiseSuppression.value_or_default(), 0.75f);
-    _convDesc.FloorDetailPreservation = unitValue(cfg.FfxDenoiserFloorDetailPreservation.value_or_default(), 0.35f);
+    const float specularModulation = unitValue(cfg.FfxDenoiserSpecularAlbedoDemodulation.value_or_default(), 1.0f);
+    const float diffuseModulation = unitValue(cfg.FfxDenoiserDiffuseAlbedoModulation.value_or_default(), 1.0f);
+    const uint32_t recoveryMask = (cfg.FfxDenoiserFloorFlatRecovery.value_or_default() ? 1u : 0u) |
+        (cfg.FfxDenoiserFloorSpecularRecovery.value_or_default() ? 2u : 0u) |
+        (cfg.FfxDenoiserFloorDiffuseRecovery.value_or_default() ? 4u : 0u);
+    const uint32_t filterMask = recoveryMask &
+        ((cfg.FfxDenoiserFloorFlatNoiseMethod.value_or_default() == 1 ? 1u : 0u) |
+         (cfg.FfxDenoiserFloorSpecularNoiseMethod.value_or_default() == 1 ? 2u : 0u) |
+         (cfg.FfxDenoiserFloorDiffuseNoiseMethod.value_or_default() == 1 ? 4u : 0u));
+    const float luma = unitValue(cfg.FfxDenoiserFloorLumaRecovery.value_or_default(), 1.0f);
+    const float chroma = unitValue(cfg.FfxDenoiserFloorChromaRecovery.value_or_default(), 1.0f);
+    if (_convDesc.SpecularAlbedoDemodulation != specularModulation ||
+        _convDesc.DiffuseAlbedoModulation != diffuseModulation || _convDesc.RecoveryMask != recoveryMask ||
+        _appliedSpatialTemporalMask != filterMask || _appliedLumaRecovery != luma || _appliedChromaRecovery != chroma)
+        InvalidateDenoiserHistory();
+    _convDesc.SpecularAlbedoDemodulation = specularModulation;
+    _convDesc.DiffuseAlbedoModulation = diffuseModulation;
+    _convDesc.RecoveryMask = recoveryMask;
+    _appliedSpatialTemporalMask = filterMask;
+    _appliedLumaRecovery = luma;
+    _appliedChromaRecovery = chroma;
+    _convDesc.FloorDetailPreservation = unitValue(cfg.FfxDenoiserFloorRecovery.value_or_default(), 1.0f);
     _convDesc.DemodDivisorFloor = std::clamp(cfg.FfxDenoiserDemodDivisorFloor.value_or_default(), 1e-4f, 0.5f);
     const float configuredAnchor = cfg.FfxDenoiserFloorHandoverAnchorClamp.value_or_default();
     const float anchor = std::isfinite(configuredAnchor) ? std::clamp(configuredAnchor, 0.0f, 8.0f) : 4.0f;
@@ -3439,14 +3496,12 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     if (_appliedFloorHandoverAnchorClamp != anchor ||
         _appliedFloorHandoverCorrelationMix != correlationMix ||
         _appliedFloorEnabled != int(_convDesc.FloorEnabled) ||
-        _appliedFloorNoiseSuppression != _convDesc.FloorNoiseSuppression ||
         _appliedFloorDetailPreservation != _convDesc.FloorDetailPreservation)
     {
         InvalidateDenoiserHistory();
         _appliedFloorHandoverAnchorClamp = anchor;
         _appliedFloorHandoverCorrelationMix = correlationMix;
         _appliedFloorEnabled = int(_convDesc.FloorEnabled);
-        _appliedFloorNoiseSuppression = _convDesc.FloorNoiseSuppression;
         _appliedFloorDetailPreservation = _convDesc.FloorDetailPreservation;
     }
 
@@ -3472,7 +3527,7 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
         }
     }
 
-    // The zero-rough domain's RR roughness is the packing shader's own compatibility value
+    // The selected surface domain's RR roughness is the packing shader's compatibility value
     // now, so the only policy change left to react to is Floor itself - handled by the
     // Floor-enabled reset above.
 
@@ -3786,8 +3841,8 @@ bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
         LOG_INFO(
             "[RR_DIAG] conversion snapshot: viewSource={}, projectionSource={}, handedness={}, depthInput={}, "
             "depthDirection={}, motionResolution={}, roughness={} "
-            "(zero-rough domain auto {:.4f}), "
-            "zeroRoughnessMaterialType=unified-type-1, "
+            "(selected-domain minimum {:.4f}), "
+            "handoverMaterialType=original-albedo-evidence, "
             "specularHitDistance={} (invalid={}), diffuseHitDistance={}, diffuseDirectionHitDistance={}, "
             "emissiveInput={} (previewCompatible={})",
             _viewFromStreamline ? "Streamline" : "NGX",

@@ -1,10 +1,20 @@
 # FSR-RR Floor pipeline contract
 
-This describes the zero-rough screen reconstruction candidate, not completed game
+> Current checkpoint: [Floor recovery and adaptive retirement](fsrd_floor_recovery_release_20260926.md).
+> Dated sections below retain earlier implementation and validation history;
+> the checkpoint supersedes retired options and algorithms.
+
+This describes the albedo-guided surface reconstruction candidate, not completed game
 acceptance. Reference: commit `3da4808e`. The user supplies 007 First Light and Cyberpunk
-2077 captures/timings. Temporal detail accumulation is **not implemented or accepted** in
-this candidate. Its four-frame A/B remains outstanding. There are no dormant temporal
-settings, history buffers or placeholder history-rejection views.
+2077 captures/timings. Floor and its reference remain spatial. Short, validated
+temporal **decision** helpers are implemented in composition; no previous image or
+correction radiance is accumulated. See [composition optimization](fsrd_composition_temporal_optimization.md)
+for its resource and lifecycle contract. The latest scope and routing override
+is [screen-only handover](fsrd_screen_only_handover.md). The latest spatial volume and
+visibility changes are described in [volume visibility](fsrd_volume_visibility.md).
+Its light-ridge/quiet-filter experiment was subsequently rejected for coarse
+grain; [correlated grain regression](fsrd_correlated_grain.md) is the latest override.
+In-game acceptance remains outstanding.
 
 ## Frame and surface contract
 
@@ -30,8 +40,9 @@ than with zero. When support is insufficient, componentwise minima of independen
 trimmed means estimate this pedestal, bounded by the centre's colour to avoid lifting silhouettes.
 Each block of at least three samples averages its two componentwise minima; smaller blocks
 keep only their minimum. Two bright rays per border quadrant therefore cannot raise its mean.
-Partial surface support
-may lower this pedestal but cannot lift it with a few coincidentally matching bright samples.
+Up to five effective surface samples use this conservative pedestal. Between five and
+nine samples, a smooth transition restores the surface estimate. This removes a hard
+five-sample brightness jump when a surface becomes visible.
 The centre is excluded from those blocks: an isolated bright sample cannot raise the pedestal.
 This explicitly protects volume/transparency layers which need not follow background geometry;
 the pedestal is never used to grant detail eligibility. Replicated border samples cannot count
@@ -47,11 +58,16 @@ median of nine 3x3 mixed RGB derivatives in the supported 5x5 patch. Mixed deriv
 colour ramps and axis-aligned edges; their median rejects isolated glyph corners. The 1.4826
 scaling calibrates scalar Gaussian median absolute deviation (conservative for independent RGB).
 The complete stencil must be in bounds and on the same surface. Otherwise it falls back
-to directional curvature and supported outer-pair differences. Base/filter IQR noise
-is unchanged. Fewer than 2.5 effective
+to directional curvature and supported outer-pair differences. The spatial base/filter
+uses IQR uncertainty; low mixed derivatives do not certify noise-free light.
+Fewer than 2.5 effective
 surface samples invalidate detail (alpha=-1), and conversion preserves this rejection.
 It does not reconstruct RGB from the noisy centre's chroma. Seed also writes canonical depth
 and a depth-gradient/oct-normal guide.
+
+The experimental five-sample ridge lift is removed. Large correlated noisy
+patches can agree along a direction and still be stochastic illumination, so
+spatial continuity alone does not authorize an elevated RR-bypassing pedestal.
 
 A rank-rejected centre is replaced by the robust estimate only in proportion to how far it
 sits outside the **outer ring's** envelope: `outlier = saturate(overshoot / envelope - 1)`.
@@ -65,49 +81,105 @@ involved.
 
 Five filter dispatches retain strides 1/2/4/8/16. Axial support at 1/4/16 alternates with diagonal
 support at 2/8: four neighbours plus centre, using common surface and noise-adaptive range
-weights. Later scales return locally on essentially noise-free pixels. Alpha retains seed
+weights. Later scales return locally on essentially noise-free pixels. Pairwise range
+uses the larger of the centre tolerance and the neighbour's noise tolerance, retaining the accepted smoothing
+of uncertain patches. Alpha retains seed
 noise, not instability. There is no final DetailBoost.
 
 With Floor disabled, seed prepares depth without colour filtering/sorting, filters are skipped,
-conversion uses F=0 and composition skips detail. Noise suppression zero still runs RR and the
-conservative seed.
+conversion uses F=0 and composition skips detail. The Noise Suppression control and
+its reference-denoising stages are removed; the essential spatial base remains. Its range
+tolerance is max(4% of local luminance, 3.25 times the seed noise estimate).
 
-## Zero-rough domain
+## Surface selection from original albedo
 
-The zero-rough domain (title roughness that quantizes to exact zero, classified before any
-remapping) is the screen and mirror domain this Floor exists for, and it is treated
-differently from the ordinary-material one:
+Virtual albedo is retired. Conversion reads the original diffuse/specular albedo to select
+surfaces for the existing type-1 Anchor/Correlation path. It never encodes a Floor pattern
+in either albedo. Normal RR demodulation, compatibility normalization, quantization and
+remodulation still use the title's material inputs.
 
-- **The spatial light pedestal remains active.** In this domain conversion uses
-  `Fz = min(F,C)` componentwise. It cannot brighten a dark glyph above its
-  current-frame value, and identity RR reconstructs C rather than max(C,F).
-  V6 withheld the pedestal on supported surfaces and lost flat volumetry when
-  RR erased it. Surface support cannot identify composited volume light.
-- The cap uses current radiance only as an upper bound, not as a raw blend.
-  It can inherit downward noisy excursions; this remains a limitation to monitor.
-- **RR receives an automatic roughness in that domain** (see Controls), so it filters pixels
-  the title declares perfectly smooth instead of treating them as mirrors.
+Selection uses an in-bounds 5x5 patch with signed depth, one-sided slope prediction, normal
+and original roughness agreement. Both albedos must be finite, nonnegative and within their
+reflectance range. Diffuse luminance must be at least 0.02 and at least one quarter of
+specular luminance; pure mirrors/specular-dominant materials are excluded. Every accepted
+same-geometry material sample is compared in RGB, separately for both albedos, within
+`max(2/255, 4% of center channel)`. An albedo boundary cannot be discarded merely because it
+disagrees. At least nine valid independent reference samples are required.
+
+Original exact-zero roughness remains a CP77 hint **after** those tests; it no longer
+selects all mirrors, invalid guides or textured albedos. Nonzero roughness requires at
+least twelve samples and colour structure unexplained by a best-fitting RGB plane.
+The residual mean RGB energy must exceed both nine times the reference noise energy and
+a 3% relative RMS contrast floor. Thus constant fields, linear illumination ramps and
+ordinary independent grain do not qualify in the synthetic fixtures. Equal-luminance
+colour structure does qualify. Bias-routed pixels cannot select the special domain.
+
+This is a conservative heuristic, not emission detection. Curved lighting, cast shadows
+and mixed diffuse/reflected texture can resemble an unrepresented screen pattern. Selection
+has no temporal state, and animation can change patch evidence. Very small or noisy patches
+can be rejected. See [surface-selection notes](fsrd_surface_selection.md).
+
+Selected surfaces are treated differently from ordinary materials:
+
+- **Selected screens always send their full radiance through RR.** Their
+  spatial pedestal is zero, the full current signal is split/demodulated for RR,
+  and the selected-domain roughness floor of 0.1 remains enabled. Positive FP16
+  rounding errors are not reintroduced through Skip. Genuine divisor/saturation
+  loss and explicit title routing are still preserved. With representable
+  albedos and no explicit routing, Skip is exactly zero. Ordinary surfaces keep
+  their volumetric pedestal. This is distinct from disabling Floor entirely,
+  which also disables surface selection and the local roughness intervention.
+- **At positive Detail Preservation only the selected screens receive detail correction.**
+  Anchor, Correlation Mix, luma/chroma recovery and temporal decision helpers
+  are limited to this domain. Ordinary surfaces retain the spatial filter and
+  RR-plus-Skip reconstruction without these corrections. On unselected original
+  zero-rough pixels conversion uses `Fz = min(F,C+allowance)` componentwise.
+  The allowance is three times the smaller of seed IQR sigma and reference sigma,
+  gated by their agreement. It is zero where an immediate independent neighbour
+  repeats the centre's colour within storage-scale tolerance: a dark stroke or
+  endpoint must not be filled by a corner's mixed derivative.
+  Per-channel deficits of 20% through 50% of the estimated Floor fade this
+  relaxation out. This protects noisy dark lettering that cannot pass an
+  exact-colour match; deep noise excursions can therefore remain deliberately.
+  Clean-input identity tests still reconstruct C within storage tolerance. Noisy
+  inputs can now have a nonzero, explicitly reported Floor excess; identity RR
+  reconstructs `C+max(Fz-C,0)`, not exact C in those channels.
+  A selected screen has Fz=0 instead. This deliberately gives RR responsibility
+  for its entire light signal: composited volume on a selected screen is no
+  longer independently preserved if RR erases it. Ordinary-surface volumetry stays
+  protected. The user's TV A/B showed clean RR reconstruction without the pedestal.
+- A hard raw ceiling reprinted negative noise excursions into Skip after filtering.
+  The bounded uncertainty allowance removes this path where the noise evidence
+  supports it, without averaging the current texture. Explicit bias/responsivity
+  routing and demodulation closure retain their existing contracts.
+- **RR receives a minimum roughness of 0.1 in the selected domain** (see Controls).
+  Values already above 0.1 are unchanged. This is a compatibility measure, not an
+  assertion about why the AMD model denoises a particular material.
+- With Floor disabled, classification is skipped and the previous RR-only roughness
+  and material encoding are preserved exactly; detail is disabled.
 
 ## Single signal split
 
 For finite nonnegative raw colour C, spatial base F and applied title bias weight b:
 
 ```
-Fz = min(F,C) for original zero roughness, otherwise F
+Fz = 0 for selected handover surfaces
+Fz = min(F,C+allowance) for unselected original zero roughness, otherwise F
 R = (1-b) * max(C-Fz, 0)
 Sbase = (1-b) * Fz + b * C
 E = max(Fz-C, 0)
 R = Rspec + Rdiff
 T = specular radiance routed by responsivity
 P = remod(demod(Rspec-T)) + remod(demod(Rdiff))
-U = max(R-P-T, 0)
+U = real divisor/saturation loss for selected screens, otherwise max(R-P-T, 0)
 Skip = Sbase + T + U
 Output = remod(RRspec) + remod(RRdiff) + Skip + DetailCorrection
 ```
 
 Floor is counted once, inside Skip. With identity RR and zero detail the ideal result is
 `C + (1-b)*E`, subject to FP16/UNORM rounding/clamping. `E` is identically zero in the
-zero-rough domain, so the identity result there is exactly `C`. This is **not exact energy
+selected domain, so the identity result there is `C` within storage precision.
+Unselected zero-rough surfaces can have bounded excess under the noise allowance. This is **not exact energy
 conservation** when F exceeds C on ordinary materials. FloorExcess shows E. The diagnostic
 crossing counter means any channel crosses, not that all residual channels are zero.
 
@@ -117,24 +189,20 @@ Dark/invalid albedo follows the same split; unrepresentable residual goes in U i
 selecting a raw-colour bypass. Existing far-plane skip stays explicit and disallows detail.
 Bias routes current-frame colour; responsivity routes its affected specular share once.
 Nonzero applied routing invalidates detail reference (alpha=-1). Absent masks do not route.
-Exact-zero roughness classifies RR material; it never grants detail eligibility by itself.
+The selected surface sets RR material type 1; independent detail/noise/routing checks still apply.
 
 ## Detail correction
 
 Composition reconstructs Q from RR signals and Skip. A surface-aware binomial kernel
-computes low bands of Q and the cleaned reference with identical taps/weights: 3x3 for ordinary
-materials, the reference handover's 5x5 (1,4,6,4,1) split for RR type-1. Routed
-neighbours contribute no detail. Their high bands are Hq and Hr.
-
-For ordinary materials confidence shrinks Hr according to magnitude and seed noise; correction
-restores only missing same-sign contrast, as before.
-
-Type-1 uses current-frame reconstruction with two independent decisions:
+computes low bands of Q and the reference with the same surface-aware 5x5
+(1,4,6,4,1) kernel on selected surfaces without an albedo pattern. Routed neighbours contribute no
+detail. Their high bands are Hq and Hr. Selected materials use the same Anchor,
+Correlation Mix and luminance/chromatic recovery, with two independent decisions:
 
 1. Does the reference contain supported structure? Full 9x9 RGB variance is
    weighted by depth, normal and albedo agreement, excludes out-of-bounds
    duplicates and routed/ineligible samples, and is compared with the quiet quartile
-   of independent noise estimates from the 5x5 patch. RGB supports equal-luminance
+   of local noise estimates from the 5x5 patch. RGB supports equal-luminance
    coloured text. Relative contrast OR high signal-to-noise qualifies structure,
    so clean low-contrast text is not rejected merely for being dim. Centered
    moments and a precision floor keep constant fields from false structure.
@@ -143,24 +211,16 @@ Type-1 uses current-frame reconstruction with two independent decisions:
    retain RR; larger mismatches permit reconstruction. This is approximate,
    not proof of matching texture motion.
 
-A surface-aware non-local-means filter cleans the transfer reference. An 11x11
-search compares 3x3 RGB patches, validating both sides against the centre surface
-and routing eligibility. Out-of-bounds duplicates do not count as evidence. At
-least three weighted matching positions are required. Patch distance subtracts
-the expected independent-noise contribution, then exponentially decays with a
-bandwidth set by the quiet-quartile noise and NoiseSuppression. Matched original
-centre colours are accumulated with a mild spatial falloff. The centre always
-remains available, and zero noise or suppression is identity for this filter.
-V10 also gives the centre colour a minimum share of the match decision: the
-noise-corrected patch distance cannot fall below one quarter of the centre's
-RGB squared distance after subtracting `4*patchVariance`. This prevents eight
-background samples from outvoting a small letter corner. It only rejects
-incompatible candidates; it does not sharpen or generate new pixel values.
-The quiet quartile prevents several letter corners from inflating the bandwidth.
-Effective sample count `(sum(w))^2/sum(w^2)` reduces the estimated candidate's
-fine-grain uncertainty when evaluating structure confidence. It never weakens
-Anchor or Correlation Mix. This estimate assumes independent fine grain, so it
-cannot alone identify broad correlated lighting noise.
+Reference denoising is retired at the user's request. The 11x11 non-local search,
+3x3 patch comparisons and effective-sample-count adjustment are removed.
+The same-surface quiet-pair cap remains solely for confidence: without it, dense
+clean glyph corners inflate sigma and prevent contrast recovery. It does not filter RGB. The selected surface's candidate is now the seed reference itself;
+`DetailReference` equals `DetailSeed` at storage precision before Anchor.
+The 9x9 surface-weighted moments remain solely for Anchor/Mix and contrast confidence.
+The noise estimate still rejects unsupported transfers, but does not average reference RGB.
+Fine grain formerly removed by NLM can consequently return; removal is a performance/scope
+decision, not a claim of equal image quality. The former noisy-glyph denoising thresholds
+are recorded as withdrawn expectations, rather than weakened into passing tests.
 
 Two restored reference handover controls then apply only in this domain:
 
@@ -204,31 +264,99 @@ patterns. The final additional clamp is blended with weight
 Q/reference covariance and Cqr is centred RGB cross-covariance. The denominator has
 a 1e-12 FP32 floor. Low agreement retains the original unconditional channel Anchor,
 so a stale palette is not forcibly treated as the new frame's palette. Anchor=0
-disables both constraints. Mix and reference filtering are unchanged. Q includes
-Skip; noise shared with Skip is not independent evidence and can still survive.
+disables both constraints. Mix remains active; reference filtering is retired. Q includes
+Skip; selected screens now remove the spatial pedestal from Skip. Explicit
+game routing and real unrepresentable energy remain exceptions.
 
 The attempted dark-scene SSIM rescaling and NLM self-weight reduction are **not
 shipped**: the former returned correlated dark noise, the latter increased glyph
-reference error. Correlation stabilizers and patch weights remain V10's values.
+reference error. Correlation stabilizers remain V10's values; patch filtering is now retired.
 
-Let G be the patch-filtered, optionally anchored reference, Q the remodulated RR plus Skip,
+The final quality candidate adds a **forward blur evidence** check instead of
+globally rescaling those stabilizers. A 3x3 binomial reference probe is evaluated
+at accepted positions of the 5x5 comparison window. Every probe stencil must be
+in bounds, non-routed and on the same depth/normal/albedo surface. At least half
+the original kernel weight must have complete stencils. The probe is only an
+explanation of RR blur; its filtered colour is never transferred.
+
+Let `Er` and `Eb` be weighted mean-channel squared errors to Q for the original
+reference and its probe, `N=patchVariance`, `U=max(meanChannel(lowReference^2),1e-12)`.
+Define `M=max(Er-8*N,0)`, `B=max(Eb-.28*N,0)` and
+`H=smoothstep(.60,.85,1-B/max(M,1e-6*U))*smoothstep(1e-4*U,1e-3*U,M)`.
+The conservative noise margin is necessary because the lower-quartile noise
+estimate is not a guarantee of true variance. Insufficient support sets H=0. Effective agreement is `K=Koriginal*(1-H)` everywhere below,
+including the extra colour/luminance budget. This permits a verified blurred
+match to use the sharp seed reference without expanding either Anchor.
+No history, new texture, extra dispatch, root constant or user knob is added.
+
+Let G be the seed-derived, optionally anchored reference, Q the remodulated RR plus Skip,
 S the structure weight, A the noise-based RR agreement, K the SSIM-style agreement,
-m the correlation mix. Correction is
+m the correlation mix. The base correction is
 `strength * S * (1-A) * (1-m*K) * (G-Q)`.
 Strong supported current content can replace stale interiors as well as edges;
 flat regions retain Q. This is estimated selective reconstruction, **not physical
 emission/reflection separation**. Accepting G can replace low-frequency lighting
 differences too; the input does not expose verified separated layers.
 
-`DetailPreservation` still sets strength: ordinary materials use its value; type-1 uses
-`min(3*DetailPreservation,1)`. The same surface, noise and routing gates apply to both.
-A supported reference envelope extended to include Q prevents bright overshoot/dark rings.
-Zero confidence/detail leaves Q unchanged at output storage precision. Signed correction stays
-FP32 until reconstruction. Final radiance is finite, nonnegative and FP16-bounded. RR is never
-replaced by a blurred full image.
+The chromatic-recovery extension handles a different failure: Q can retain sharp
+luminance while attenuating the same colour pattern. Luminance agreement and
+`E=Vcr/(Vcr+Vr+T)` then suppress almost all restoration. The extension keeps the
+base correction and both Anchor operations intact. It uses the existing moments:
+`P=smoothstep(.80,.95,saturate(Ccp/max(sqrt(Vcr*Vcp),1e-12))) * Vcr/(Vcr+T)` and
+`g=min(max(Ccp-Vcr-2*patchVariance,0)/max(Vcr,1e-6),2)`.
+The predicted missing colour is `D=g*(highQ-luminance(highQ))`, so its luminance is
+zero. Independent reference noise has no expected positive covariance gain over
+an already-correct Q, although finite samples are not a perfect separator.
 
-The structure weight is only computed inside the type-1 branch: in a frame that is mostly
-ordinary material the ordinary path is what runs, and the statistic is skipped entirely.
+A single scalar ray limit in [0,1] keeps D inside the per-channel interval between
+zero and `G-Q`; opposite-sign components stop the ray. It never expands G's
+Anchor bounds or performs independent RGB clipping of this extra direction.
+The additional correction is `strength*S*(1-A)*m*K*P*rayLimit*D`. Base and extra
+corrections share the unit budget `(1-m*K) + m*K`; the result remains between Q
+and G in each channel. It is zero when Mix/detail is zero, outside the selected handover domain or for routed content.
+No resources, passes, history, root constants or quality controls are added.
+
+Final composition also restores **supported luminance contrast**. SSIM's high
+agreement is not proof that Q retains the reference's contrast, even when the
+reference and Anchor views are sharp. The additional luminance path retains all
+base decisions and the chromatic correction above. FP32 centred luminance moments
+over the existing surface/routing-bounded 9x9 support corroborate the local 5x5
+moments. Their samples overlap; they are not treated as independent observations.
+
+Let `e=max(referenceMean9/max(QMean9,1e-6),1)`. Local and broad missing covariance
+are `max(Cov-e*Vq-2*patchVariance,0)`; their variance-normalized gains are combined
+with a minimum and capped at 2. This discounts uniform illumination/exposure gain
+instead of labelling it as lost contrast. The broad affine-fit residual is
+`R=max(Vp-Cov^2/max(Vq,1e-12),0)` and the loss evidence is missing broad covariance
+divided by `max(sqrt(Vq*R),1e-12)`. Its permission is `smoothstep(1,2,evidence)`;
+there is no division by sample count that would falsely shrink correlated grain.
+Alignment permission is `smoothstep(.85,.97,min(rho5,rho9))`, multiplied by
+`Vq5/(Vq5+4*patchVariance+1e-6)`. Missing luminance is predicted from Q relative to
+its broad mean, not from the unexplained reference residual or mean brightness.
+
+The chromatic candidate has already consumed part of the rejected-transfer budget.
+The luminance ray is limited to the remaining interval in every RGB channel before
+being multiplied by the same `strength*S*(1-A)*m*K` budget. The sum stays between
+Q and G per channel; Anchor is not expanded. Both restoration terms use the same
+domain/detail/Mix disable rules and noise-confidence tests. This is a heuristic contrast estimator,
+not a physical separation of animated emission and reflected illumination.
+
+`DetailPreservation` sets strength to `min(3*DetailPreservation,1)` on selected surfaces only.
+The surface, noise and routing gates remain in force.
+A supported reference envelope extended to include Q prevents bright overshoot/dark rings.
+Zero detail leaves Q unchanged at output storage precision. The experimental TV
+quadratic residual-grain correction and its diagnostic are removed along with Noise
+Suppression. The base, chromatic and luminance terms remain; signed corrections stay FP32.
+Final radiance is finite, nonnegative and FP16-bounded.
+
+The material-type restriction in composition is removed. Uniform/planar guide
+tiles share regional moment calculations; surface boundaries retain the full
+weighted scan. Planarity includes affine reciprocal view depth, as needed for
+perspective-projected TV planes, with a 2e-6 relative fit tolerance. Blur acceptance
+tests the same nine bits together; quiet-pair selection takes one square root
+after its minimum rather than one per direction. Blur probes and quiet-pair evidence reuse shared work. Temporal
+helpers stabilize bounded decision weights only, with motion/depth/material and
+current-content validation; they never expand the current Anchor interval.
 
 ## Resources and mirrors
 
@@ -241,37 +369,60 @@ hit distance, diffuse/specular albedo and bias. t9 Floor; t10 inspector; t11 emi
 optional ray lengths; t14 raw title depth; t15 responsivity; t16 seed reference. Its final UAV
 contains the reference with routing eligibility applied.
 
-Composition has 8 SRVs and 1 UAV: specular signal/albedo, diffuse signal/albedo, Skip, packed
-normals, eligible reference and depth. No raw-colour SRV. Disabled RR signals bind current
-packed inputs rather than stale RR output. Motion is composition scratch only after RR;
-seed/conversion overwrite it next frame before RR consumption. The block carries a six-pixel
-halo (20x20 shared): radius five search plus radius one patch comparison. The structure
-statistic remains 9x9, independent of search radius.
+Composition has 11 SRVs and 3 UAVs: the existing eight inputs plus canonical
+motion, previous decisions and previous metadata. Outputs are a dedicated
+composition image, next decisions and next metadata. Motion is no longer reused
+as output scratch. Disabled RR signals still bind their packed input signals.
+The shared tile is 16x16 for an 8x8 group and four-pixel halo.
 
-One extra RGBA16 texture costs 8 bytes per allocated render pixel excluding alignment:
-7.03 MiB at 1280x720, 15.82 MiB at 1920x1080, 63.28 MiB at 3840x2160. This is an allocation
-calculation, not game VRAM measurement. No additional temporal resources are allocated.
-Constant buffer sizes: Seed 176, Filter 32, Conversion 416, Composition 64 bytes.
-Composition's declared DXIL groupshared arrays total 12,000 bytes per group
-(7,680 in V8; the earlier document's 9,216 estimate was incorrect);
-no extra texture is allocated. Ordinary materials skip patch matching, though they
-share the larger initial tile load. Performance has not been accepted in-game.
+Four independent ping-pong history targets cost 48 bytes per allocated pixel;
+the separate output adds 8 bytes/pixel. Together this is 49.22 MiB at 1280x720,
+excluding alignment. History is allocated when detail is active, and committed
+only at successful normal-frame completion. Reset, failure, debug/bypass,
+configuration, dimensions or source-origin changes invalidate it.
+
+Constant buffer sizes: Seed 176, Filter 32, Conversion 416, Composition 96 bytes.
+Composition uses padded shared tiles. Temporal support adds no dispatch.
+Groups without a selected screen return before neighbourhood loads/statistics;
+ordinary pixels in mixed groups skip correction after the shared barriers.
+Ordinary history is invalidated, so a later classification change cannot reuse it.
+Subpixel reprojection bilinearly combines decision scalars only after every
+contributing history tap passes depth, normal, material, albedo and colour checks.
+A footprint touching a rejected tap falls back to current-frame decisions.
+
+For current ST-only recovery, tagged decision-history RGB stores the independent
+full reference mean and alpha its temporal deviation. Metadata.w stores the
+slower broad reference band. Full reference colour, rather than that broad band,
+is used for radiance acceptance. Both bands share the validated bilinear surface
+reprojection; neither can survive a rejected footprint. Anchor and mixed
+Anchor/ST pixels retain the original decision/filtered-colour layout. See
+`fsrd_animated_recovery.md` for the radiance-animation regression and validation.
+Invalid decision components remain invalid independently. FP16 motion errors
+smaller than 0.001 pixel around integer coordinates snap to the integer footprint.
+Performance has not been accepted in-game.
 The verifier checks layouts, flags, debug reachability, SRV/UAV order, root-table counts and
 albedo precision. Regenerate affected DXIL and embedded headers together.
 
 ## Controls and diagnostics
 
-Floor controls in [FSR-RR] are `FloorEnabled=true`, `FloorNoiseSuppression=0.75`,
+The experimental Floor RR Routing selector and Floor Zero Noise debug pass
+have been retired at the user's request. `FloorRRRouting` is ignored and deleted
+on normal settings save. Skip alpha is again diagnostic luminance only. There
+are four production shaders; the extra Zero Noise PSO and shader artifacts are
+removed. Existing surface identification and the selected-material roughness
+compatibility treatment remain part of the normal Floor path.
+
+Floor controls in [FSR-RR] are `FloorEnabled=true`,
 `FloorDetailPreservation=0.35`, `FloorHandoverAnchorClamp=4.0` and
 `FloorHandoverCorrelationMix=1.0`. The last two were restored at the user's request.
 V10 adopts the user's preferred 4/1 setting as the default. Stored INI values are
 not overwritten; CPU non-finite fallback and descriptor defaults also use 4.
 Scalars are finite-clamped to [0,1], except anchor [0,8], before dispatch; non-finite
 values use defaults. Changes invalidate RR history. The restored INI values are read and
-preserved; 17 other retired keys are removed on a normal save.
+preserved; 20 retired keys are removed on a normal save.
 The manual Roughness Addition control is **removed**: `RoughnessFloor` no longer exists in the
 config, the menu or the constant buffer, and its INI key is deleted on a normal save together
-with the other retired names. The zero-rough domain's RR roughness is now the packing shader's
+with the other retired names. The selected domain's RR roughness is now the packing shader's
 own compatibility constant (`s_ZeroRoughRRRoughness = 0.1`), applied only while Floor is
 enabled; with Floor disabled the title's roughness is published untouched. 0.1 is the value the
 current comparisons were made with, not an established optimum and not an AMD threshold.
@@ -281,13 +432,21 @@ ZeroRoughHandover are not read/migrated.
 Advanced views show actual FloorColor, FloorResidual, FloorNoise, FloorExcess, DetailReference,
 DetailConfidence and DetailCorrection, alongside RR diagnostics. Correction displays signed
 data around grey 0.5 scaled by reconstructed luminance. Noise uses Turbo display mapping.
-In V9, `DetailReference` displays the actual patch-filtered candidate before Anchor
-on zero-rough pixels (the seed reference on ordinary pixels), also when detail strength
-is zero. It no longer displays the unfiltered seed reference on zero roughness.
-`DetailConfidence` includes the actual direct correlation term. `DetailCorrection`
-includes the effects of Anchor, strength, confidence and the final envelope.
-`AppliedRoughness` (mode 22, formerly AppliedRoughnessFloor) visualises the automatic
-zero-rough value. No history-rejection view exists because this candidate has no detail history.
+`DetailReference` displays the seed candidate before Anchor, also when detail strength is zero.
+`FloorNoiseSuppression` is ignored and deleted on normal settings save; no replacement slider is present.
+`DetailConfidence` includes the actual direct correlation term for the base transfer;
+it is not the total permission of the chromatic extension. `DetailCorrection`
+includes both corrections and the effects of Anchor, strength and the final envelope.
+`ChromaRecovery` (composition mode 22) shows only the additional chromatic correction
+before that envelope, encoded as `saturate(.5 + extra/max(luminance(Q),1e-3))`.
+Neutral grey means zero; saturation limits its display range, not production radiance.
+`LumaRecovery` (composition mode 23) uses the same encoding for the added luminance.
+Both signed diagnostics must be included when reconstructing the final blend from
+Anchor and the three base permission channels. `DetailCorrection` includes all terms.
+`AppliedRoughness` (mode 22, formerly AppliedRoughnessFloor) visualises the actual automatic
+increase, `max(0.1 - originalRoughness, 0)` on selected surfaces, zero elsewhere.
+`MaterialType` / `RRMaterialType` and the red channel of `HandoverEligibility` show the
+actual type-1 selection. No history-rejection view exists because this candidate has no detail history.
 
 `DenoiserOutput` retains the reference build's meaning: the sum of demodulated RR signals,
 without albedo or Skip. `ReconstructedColor` shows remodulated RR plus Skip before detail.
@@ -304,6 +463,29 @@ Source motion resolution, jitter and subrect conventions remain in conversion. R
 disagreement routing stays removed: it previously routed raw noise under camera movement.
 
 ## Validation and outstanding acceptance
+
+The post-checkpoint diagnostic modes expose the unfiltered seed reference, box/colour
+Anchor candidates, independent handover permissions, limiter effects and pre-upscaler
+composition. They observe the existing algorithm; no new quality gate or temporal
+history is introduced. Their meanings, presentation differences and offline replay
+are documented in [fsrd_floor_diagnostics.md](fsrd_floor_diagnostics.md).
+
+Historical note (the NLM filter and its control are now retired): the subsequent
+NLM detail fix capped corner-inflated zero-rough noise estimates using
+surface-bounded quiet RGB pairs. It preserves explicit high uncertainty and the
+Noise Suppression=0 path. Seed/base/conversion are unchanged. See
+[fsrd_floor_nlm_recovery.md](fsrd_floor_nlm_recovery.md) for the estimator, measured
+detail/noise tradeoff, historical test changes and game-acceptance limitations.
+
+The following [chromatic-recovery change](fsrd_floor_chroma_recovery.md) preserves
+that reference filter and adds only RR-supported missing colour contrast. Its
+current-only tests separate luminance and colour error; optional A/B uses the
+immediately preceding delivered NLM shader rather than only older V9/V10 builds.
+
+The subsequent [final-composition contrast fix](fsrd_floor_composition_recovery.md)
+addresses sharp reference/Anchor views followed by a blurred final blend. Its tests
+separate pure illumination gain from blur and include additive/multiplicative coarse
+grain. The initial contrast-only prototype failed those noise tests and is not shipped.
 
 The portable entry point rebuilds/verifies all four shader artifacts, runs current
 GPU contracts and INI checks, and builds Release x64. Toolchain prerequisites,
@@ -389,9 +571,10 @@ original in-game budget is claimed to be met.
 - **Current colour is a composited signal.** Noise and real animated content can
   overlap in colour, scale and frequency. There is no verified independent
   emission/reflection input, so perfect separation is not guaranteed.
-- **The zero-rough base cap can carry dark noisy excursions into Skip.** It avoids
-  filling dark text while preserving volumetry; the final agreement/range filter
-  reduces noise where supported, but this still needs game validation.
+- **The bounded noisy ceiling is heuristic.** Repeated colours veto relaxation
+  to protect thin text. Unsupported noise can therefore survive; allowing Floor
+  above a noisy raw sample also creates measured positive excess. The full-chain
+  grain and clean-stroke tests cover this tradeoff, but game validation is required.
 - **Q includes Skip.** Noise shared by Skip and the reference is not independent RR
   evidence; neither correlation nor anchoring guarantees its removal. The V9
   full-chain fixture measures remaining error instead of setting Skip to zero.
@@ -403,11 +586,22 @@ original in-game budget is claimed to be met.
   frame.** The gate is deliberately biased to keep the current frame where its content is a
   meaningful fraction of the local light, so a dark area whose grain is comparable to its
   content keeps that grain.
-- **Temporal support is not implemented.** A surface motion vector does not describe animated
-  texture motion, and zero surface motion cannot authorize history reuse.
+- **Temporal helpers stabilize decisions only.** They are not a solution for
+  radiance noise already shared by Skip and RR. Primary surface motion cannot
+  track all reflections or animated texture changes; the content check rejects
+  clear changes, but game validation is still required. The earlier unsuccessful
+  full-correction-history experiment is not the production algorithm.
 
 Game acceptance still requires both titles' static/pan/object/text/reflection/
 particle captures, flat-region noise/flicker measurements, clean-edge contrast
 and checks for new trails/halos. Performance optimization follows quality for
 this iteration, per the user's instruction. No game acceptance or successful
 temporal A/B is claimed by the standalone GPU tests.
+## Virtual albedo experiment retired
+
+The virtual albedo runtime, menu toggle, carrier views and history resources
+were removed after in-game blur/noise feedback. The established spatial Floor
+and Anchor/Correlation composition remain. `FloorVirtualAlbedo` is ignored and deleted on normal INI save.
+Albedo structure remains a diagnostic surface cue, not a generated RR material.
+See [the retirement decision](fsrd_virtual_albedo_retirement.md) and
+[the archived noise audit](fsrd_virtual_albedo_noise_audit.md).

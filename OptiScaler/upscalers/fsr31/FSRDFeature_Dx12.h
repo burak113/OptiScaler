@@ -173,9 +173,11 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     DirectX::XMFLOAT3 _lastCamPos {}; // Last successfully dispatched world-space camera position
     DirectX::XMFLOAT2 _previousDenoiserJitter {};
     int _appliedFloorEnabled = -1;
-    float _appliedFloorNoiseSuppression = -1.0f;
     float _appliedFloorDetailPreservation = -1.0f;
     float _appliedFloorHandoverAnchorClamp = -1.0f;
+    uint32_t _appliedSpatialTemporalMask = 0;
+    float _appliedLumaRecovery = 1.0f;
+    float _appliedChromaRecovery = 1.0f;
     float _appliedFloorHandoverCorrelationMix = -1.0f;
     int _appliedNormalsInViewSpace = -1;
 
@@ -333,6 +335,7 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
 
     void InvalidateDenoiserHistory() noexcept
     {
+        if (FSRDConvShader) FSRDConvShader->InvalidateCompositionHistory();
         _hasDenoiserHistory = false;
         _lastDispatchRequestedReset = false;
     }

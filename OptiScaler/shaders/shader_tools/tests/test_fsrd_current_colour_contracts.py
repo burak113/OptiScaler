@@ -26,10 +26,9 @@ def run():
     target[...,1]-=(.2126*red+.0722*blue)/.7152
     crop=(slice(6,-6),slice(6,-6),slice(0,3))
 
-    def comp(rr,ref,n=normal,z=depth,a=albedo,detail=.35,anchor=4,mix=1):
+    def comp(rr,ref,n=normal,z=depth,a=albedo,detail=1.0,anchor=4,mix=1):
         return t.dispatch('FSRDOutputComp',{'DstTexSize':[w,h,1/w,1/h],
-            'DetailPreservation':detail,'NoiseSuppression':.75,
-            'FloorHandoverAnchorClamp':anchor,'FloorHandoverCorrelationMix':mix},
+            'DetailPreservation':detail,'FloorHandoverAnchorClamp':anchor,'FloorHandoverCorrelationMix':mix},
             [zero,a,rr,a,zero,n,ref,z],[10],(w,h))[0]
 
     for level in (.001,.01,.1,1,10,40,100):
@@ -44,10 +43,11 @@ def run():
     random=np.random.default_rng(11819)
     noisy=target.copy(); noisy[...,:3]=np.maximum(target[...,:3]+random.normal(0,.06,(h,w,3)),0)
     ref=t.seed(noisy)[3]; rr=blur(target,3)
-    for label,opts in [('detail disabled',dict(detail=0)),
-                       ('ordinary material',dict(n=t.rgba(w,h,(.5,.5,.1),0)))]:
+    for label,opts in [('detail disabled',dict(detail=0))]:
         t.check(label+' is unaffected by handover controls',
                 np.array_equal(comp(rr,ref,anchor=0,mix=0,**opts),comp(rr,ref,**opts)))
+    t.check('ordinary material excludes Anchor/Mix/recovery',
+            np.array_equal(comp(rr,ref,detail=0),comp(rr,ref,n=t.rgba(w,h,(.5,.5,.1),0))))
     routed=ref.copy(); routed[...,3]=-1
     t.check('routed content excludes correction exactly',
             np.array_equal(comp(rr,routed),comp(rr,routed,detail=0)))
