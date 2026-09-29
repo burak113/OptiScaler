@@ -188,7 +188,7 @@ def write_texture(path, array, fmt):
     return f'"{path.as_posix()}" {fmt} {count}'
 
 
-def run_amd(folder, executable, packed, depth, camera=None):
+def run_amd(folder, executable, packed, depth, camera=None, frame_controls=None):
     folder.mkdir(parents=True, exist_ok=True)
     n = len(packed)
     h, w = depth.shape
@@ -201,6 +201,14 @@ def run_amd(folder, executable, packed, depth, camera=None):
         camera_path.write_text(' '.join(map(str, camera))+'\n')
     elif camera_path.exists():
         camera_path.unlink()
+    controls_path=folder/'frame_controls.txt'
+    if frame_controls is not None:
+        controls=np.asarray(frame_controls,float)
+        if controls.shape!=(n,3) or not np.isfinite(controls).all() or not np.isin(controls[:,0],[0,1]).all():
+            raise ValueError('Expected reset,jitterX,jitterY for each frame')
+        controls_path.write_text(''.join(f'{int(r)} {x:.9g} {y:.9g}\n' for r,x,y in controls))
+    elif controls_path.exists():
+        controls_path.unlink()
     inputs = [folder/f'input{i}.bin' for i in range(7)]
     rows = [write_texture(p, a, fmt) for p, a, fmt in zip(inputs, arrays, formats)]
     save_json(folder/'amd_input_identity.json',
@@ -225,6 +233,19 @@ def run_amd(folder, executable, packed, depth, camera=None):
             raise RuntimeError(f'Truncated {path}')
         return np.fromfile(path, '<f2').reshape(n, h, w, 4).astype(np.float32)
     diff, spec = read(od), read(ospec)
+    applied=folder/'dispatch_controls.bin'
+    if not applied.exists() or applied.stat().st_size!=n*184:
+        raise RuntimeError('Missing/truncated applied AMD dispatch controls')
+    save_json(folder/'amd_context_identity.json',dict(
+        inputs=json.loads((folder/'amd_input_identity.json').read_text()),
+        applied_dispatch_sha256=hashlib.sha256(applied.read_bytes()).hexdigest(),
+        dll_sha256=hashlib.sha256(DLL.read_bytes()).hexdigest(),
+        runner_sha256=hashlib.sha256(Path(executable).read_bytes()).hexdigest(),
+        controls_layout='184 bytes/frame, native Windows little endian: uint32 frame,flags,width,height; float32 motionScale[3],cameraDelta[3],jitter[2],depthBounds[2],view[16],projection[16]',
+        dimensions=[w,h],frames=n,signals=[2,32],reset_every=0,tuning=1,passthrough=0,
+        tuning_values=[.1,.5,.5,40000.,40.,.5],
+        output_sha256={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in (od,ospec)},
+        exposure='No RR exposure field. Source radiance unchanged unless the fixture changes it.'))
     for path in inputs+[od, ospec]:
         path.unlink()
     return diff, spec, log

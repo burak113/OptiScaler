@@ -1,6 +1,7 @@
 #pragma once
 #include <windows.h>
 #include <bcrypt.h>
+#include <d3d12.h>
 #include <array>
 #include <algorithm>
 #include <cmath>
@@ -21,6 +22,47 @@
 
 namespace RRTraceAdditiveIO
 {
+inline void CopyPreSrRoi(ID3D12GraphicsCommandList* cmd, ID3D12Resource* source,
+    ID3D12Resource* readback, const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& footprint,
+    UINT x, UINT y, UINT width, UINT height)
+{
+    if (!cmd || !source || !readback) throw std::runtime_error("Null paired copy resource");
+    const auto desc=source->GetDesc();
+    if (!width || !height || desc.Format!=DXGI_FORMAT_R16G16B16A16_FLOAT ||
+        uint64_t(x)+width>desc.Width || uint64_t(y)+height>desc.Height ||
+        footprint.Footprint.Format!=desc.Format || footprint.Footprint.Width!=width ||
+        footprint.Footprint.Height!=height)
+        throw std::runtime_error("Invalid paired output extent/format");
+    D3D12_RESOURCE_BARRIER barrier {};
+    barrier.Type=D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition={source,D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE|D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+        D3D12_RESOURCE_STATE_COPY_SOURCE};
+    cmd->ResourceBarrier(1,&barrier);
+    D3D12_TEXTURE_COPY_LOCATION src {},dst {};
+    src.pResource=source; src.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    dst.pResource=readback; dst.Type=D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT; dst.PlacedFootprint=footprint;
+    D3D12_BOX box {x,y,0,x+width,y+height,1};
+    cmd->CopyTextureRegion(&dst,0,0,0,&src,&box);
+    std::swap(barrier.Transition.StateBefore,barrier.Transition.StateAfter);
+    cmd->ResourceBarrier(1,&barrier);
+}
+
+template<class T> inline std::string FloatArray(const T& value)
+{
+    static_assert(sizeof(T)%sizeof(float)==0);
+    std::array<float,sizeof(T)/sizeof(float)> values;
+    memcpy(values.data(),&value,sizeof(T));
+    std::ostringstream out;
+    out.imbue(std::locale::classic()); out<<std::setprecision(9)<<'[';
+    for (size_t i=0;i<values.size();++i)
+    {
+        if (!std::isfinite(values[i])) throw std::runtime_error("Nonfinite capture metadata");
+        if (i) out<<',';
+        out<<values[i];
+    }
+    out<<']'; return out.str();
+}
 inline std::string Quote(std::string_view text)
 {
     std::ostringstream out;

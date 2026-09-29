@@ -26,6 +26,7 @@ SUITES = (
     'test_fsrd_additive_capture_reader',
     'test_fsrd_additive_lifetime',
     'test_fsrd_allocation_models',
+    'test_fsrd_statistical_resolve',
     'run_fsrd_gpu_tests', 'test_fsrd_cp2077_regressions', 'test_fsrd_panel_recovery',
     'test_fsrd_textured_reference', 'test_fsrd_volume_handover',
     'test_fsrd_zero_rough_screen', 'test_fsrd_screen_review',
@@ -52,7 +53,7 @@ SUITES = (
 )
 OPTIONAL = {'test_fsrd_small_colour_screen', 'test_fsrd_colour_anchor'}
 CPU = {'test_fsrd_ini_cleanup', 'test_fsrd_reference_integrity', 'test_fsrd_additive_lifetime',
-       'test_fsrd_allocation_models', 'test_fsrd_additive_capture_reader'}
+       'test_fsrd_allocation_models', 'test_fsrd_statistical_resolve', 'test_fsrd_additive_capture_reader'}
 
 
 def digest(path):

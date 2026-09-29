@@ -99,5 +99,37 @@ class CaptureReaderTests(unittest.TestCase):
         self.assertLess(max(stored['maximum_absolute_closure_delta']),1e-7)
         self.assertTrue(all(summary['source_same'].values()))
 
+    def paired(self):
+        self.meta['schema']='fsrd-additive-live-v2'
+        self.meta['paired']=dict(frame_index=91,reset=True,dispatch_flags=1,pre_exposure=2.,
+            view=np.eye(4).ravel().tolist(),projection=np.eye(4).ravel().tolist(),
+            jitter=[.25,-.25],motion_scale=[1,1,1],camera_delta=[0,0,0],
+            linear_depth_bounds=[.1,1000],composition_controls=[0,4,1,1,1,1,1])
+        data=np.full((3,2,4),.25,dtype='<f2').tobytes()
+        (self.folder/'pre_sr_output.f16').write_bytes(data)
+        self.meta['images'].append(dict(name='pre_sr_output',file='pre_sr_output.f16',
+            format='RGBA16_FLOAT',sha256=hashlib.sha256(data).hexdigest()))
+        self.save()
+
+    def test_paired_output_preserves_fp16_and_metadata(self):
+        self.paired();m,a=read_live(self.folder)
+        self.assertEqual(len(a),97)
+        np.testing.assert_array_equal(a['pre_sr_output'],.25)
+        self.assertEqual(m['paired']['frame_index'],91)
+
+    def test_paired_output_required(self):
+        self.paired();self.meta['images'].pop();self.save()
+        with self.assertRaisesRegex(ValueError,'Incomplete'): read_live(self.folder)
+
+    def test_paired_output_integrity(self):
+        self.paired();(self.folder/'pre_sr_output.f16').write_bytes(bytes(48))
+        with self.assertRaisesRegex(ValueError,'hash/size'): read_live(self.folder)
+
+    def test_paired_controls_must_be_finite_consistent(self):
+        self.paired();self.meta['paired']['view'][0]=float('nan');self.save()
+        with self.assertRaisesRegex(ValueError,'paired view'): read_live(self.folder)
+        self.paired();self.meta['paired']['reset']=False;self.save()
+        with self.assertRaisesRegex(ValueError,'paired reset'): read_live(self.folder)
+
 
 if __name__=='__main__': unittest.main()

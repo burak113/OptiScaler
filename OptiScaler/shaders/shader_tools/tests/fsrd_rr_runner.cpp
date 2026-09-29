@@ -155,6 +155,10 @@ int main(int argc,char** argv) try {
     if(diffFlag) { dispatch.header.pNext=&diff.header; if(specFlag) diff.header.pNext=&spec.header; }
     else dispatch.header.pNext=&spec.header;
     unsigned validationErrors=0,validationWarnings=0;
+    // Pointer-free, exact applied controls, not merely the texture identities.
+    std::ofstream controlsOut(std::filesystem::path(argv[1]).parent_path()/"dispatch_controls.bin",std::ios::binary);
+    std::ifstream controlsIn(std::filesystem::path(argv[1]).parent_path()/"frame_controls.txt");
+    if(!controlsOut) throw std::runtime_error("controls output open");
     std::vector<char> row(size_t(w)*8);
     for(unsigned frame=0;frame<frames;++frame) {
         hr(alloc->Reset(),"reset allocator"); hr(cmd->Reset(alloc.Get(),nullptr),"reset list");
@@ -172,6 +176,19 @@ int main(int argc,char** argv) try {
         }
         dispatch.frameIndex=frame;
         dispatch.flags=FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO|((frame==0||resetEvery)?FFX_DENOISER_DISPATCH_RESET:0);
+        if(controlsIn.is_open()) {
+            unsigned reset; float jx,jy;
+            controlsIn>>reset>>jx>>jy;
+            if(!controlsIn||reset>1||!std::isfinite(jx)||!std::isfinite(jy))
+                throw std::runtime_error("invalid per-frame controls");
+            dispatch.flags=FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO|((frame==0||reset)?FFX_DENOISER_DISPATCH_RESET:0);
+            dispatch.jitterOffsets={jx,jy};
+        }
+        auto record=[&](const auto& value) { controlsOut.write(reinterpret_cast<const char*>(&value),sizeof(value)); };
+        record(dispatch.frameIndex); record(dispatch.flags); record(dispatch.renderSize);
+        record(dispatch.motionVectorScale); record(dispatch.cameraPositionDelta);
+        record(dispatch.jitterOffsets); record(dispatch.linearDepthBounds);
+        record(dispatch.view); record(dispatch.projection);
         ff(api.Dispatch(&context,&dispatch.header),"dispatch RR");
         for(unsigned i=7;i<9;++i) {
             if((i==7&&!diffFlag)||(i==8&&!specFlag)) continue;
@@ -200,6 +217,7 @@ int main(int argc,char** argv) try {
             info->ClearStoredMessages();
         }
     }
+    controlsOut.close(); if(!controlsOut) throw std::runtime_error("controls output write");
     ff(api.DestroyContext(&context,nullptr),"destroy RR"); CloseHandle(event); FreeLibrary(module);
     std::cout<<"dispatches="<<frames<<" validation_errors="<<validationErrors<<" validation_warnings="<<validationWarnings<<" sdk_errors="<<sdkErrors<<" sdk_warnings="<<sdkWarnings<<'\n';
     if(validationErrors||sdkErrors) return 2;

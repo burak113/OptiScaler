@@ -396,6 +396,12 @@ class FSRDPreprocessor_Dx12
     static bool RequestAdditiveCapture(uint32_t x, uint32_t y, uint32_t size);
     static std::string GetAdditiveCaptureStatus();
 
+    // Pair the pending input journal with this same evaluation's composed pre-SR
+    // output. Called only after successful normal RR and composition dispatches.
+    void CompleteAdditiveCapture(ID3D12GraphicsCommandList* cmdList,
+        const ffxDispatchDescDenoiser& dispatch, const CompositionDesc& composition,
+        float preExposure, bool preExposureProvided) noexcept;
+
   private:
     struct Impl;
 

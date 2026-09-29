@@ -4556,7 +4556,7 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
                                     ImGui::InputInt("Render ROI Y##Additive",&traceY);
                                     traceX=std::max(traceX,0); traceY=std::max(traceY,0);
                                     ImGui::Combo("ROI size##Additive",&traceSize,"64 x 64\0" "128 x 128\0");
-                                    ImGui::TextWrapped("Origin is aligned down to 8 pixels. Captures RGB rejection reasons, fit, transfer and Floor/Skip at strength 0/1 from the same source frame. Capture adds GPU/readback work.");
+                                    ImGui::TextWrapped("Origin is aligned down to 8 pixels. Records RGB fit/transfer at strength 0/1, plus the same frame's actual color before upscaling and reset/exposure metadata. Use normal rendering. Capture adds GPU/readback work.");
                                     if (ImGui::Button("Capture additive channels"))
                                         FSRDPreprocessor_Dx12::RequestAdditiveCapture(UINT(traceX),UINT(traceY),traceSize ? 128 : 64);
                                     const auto status=FSRDPreprocessor_Dx12::GetAdditiveCaptureStatus();

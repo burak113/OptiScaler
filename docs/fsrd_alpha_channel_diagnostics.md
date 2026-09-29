@@ -1,5 +1,9 @@
 # Additive allocation: channel diagnostics and spatial model research
 
+Follow-up: [paired pre-SR capture and statistical resolve](fsrd_alpha_statistical_resolve.md)
+fixes applied-model validation and extends the capture to v2. Measurements below
+describe the original `5febc967` study, not the corrected allocator.
+
 This package adds a capture path and controlled research tools. It does not
 promote a new allocation algorithm to the game path. The existing additive split
 remains disabled by default. A lower RMSE alone is not quality acceptance.

@@ -15,7 +15,21 @@ LIVE_FIELDS=FIELDS+('source_diffuse','source_specular','source_normal','source_r
 def read_live(folder):
     folder=Path(folder).resolve()
     metadata=json.loads((folder/'capture.json').read_text(encoding='utf-8'))
-    if metadata['schema']!='fsrd-additive-live-v1': raise ValueError('Unsupported capture schema')
+    if metadata['schema'] not in ('fsrd-additive-live-v1','fsrd-additive-live-v2'):
+        raise ValueError('Unsupported capture schema')
+    paired=metadata['schema']=='fsrd-additive-live-v2'
+    if paired:
+        p=metadata['paired']
+        for key,count in (('view',16),('projection',16),('jitter',2),('motion_scale',3),
+                          ('camera_delta',3),('linear_depth_bounds',2),('composition_controls',7)):
+            a=np.asarray(p[key],float)
+            if a.shape!=(count,) or not np.isfinite(a).all(): raise ValueError('Invalid paired '+key)
+        if not np.isfinite(p['pre_exposure']) or p['pre_exposure']<=0:
+            raise ValueError('Invalid paired pre-exposure')
+        if type(p['frame_index']) is not int or not 0<=p['frame_index']<=0xffffffff:
+            raise ValueError('Invalid paired frame index')
+        if type(p['reset']) is not bool or p['reset'] != bool(p['dispatch_flags'] & 1):
+            raise ValueError('Invalid paired reset metadata')
     w,h=metadata['size']
     if not (0<w<=128 and 0<h<=128): raise ValueError('Invalid capture size')
     constants=(folder/'conversion_constants.bin').read_bytes()
@@ -23,15 +37,17 @@ def read_live(folder):
         raise ValueError('Constant buffer hash/size mismatch')
     arrays={}
     expected={f'strength{v}_{name}' for v in (0,1) for name in LIVE_FIELDS}
+    if paired: expected.add('pre_sr_output')
     for item in metadata['images']:
         name=item['name']; filename=item['file']
-        if name not in expected or name in arrays or filename!=name+'.f32':
+        output=name=='pre_sr_output'
+        if name not in expected or name in arrays or filename!=name+('.f16' if output else '.f32'):
             raise ValueError('Invalid/duplicate image identity')
-        if item.get('format')!='RGBA32_FLOAT': raise ValueError('Invalid image format')
+        if item.get('format')!=('RGBA16_FLOAT' if output else 'RGBA32_FLOAT'): raise ValueError('Invalid image format')
         data=(folder/filename).read_bytes()
-        if len(data)!=w*h*16 or hashlib.sha256(data).hexdigest()!=item['sha256']:
+        if len(data)!=w*h*(8 if output else 16) or hashlib.sha256(data).hexdigest()!=item['sha256']:
             raise ValueError('Image hash/size mismatch: '+name)
-        a=np.frombuffer(data,'<f4').reshape(h,w,4)[...,:3].copy()
+        a=np.frombuffer(data,'<f2' if output else '<f4').reshape(h,w,4)[...,:3].astype(np.float32)
         field=name.split('_',1)[1]
         if not (field.startswith('source_') or field=='linear_depth') and not np.isfinite(a).all():
             raise ValueError('Nonfinite computed channel journal: '+name)
@@ -64,6 +80,13 @@ def main():
                                  'source_roughness','source_motion','linear_depth','spatial_floor_rgb')},
         source_nonfinite_rgb={key:(~np.isfinite(value)).sum((0,1)).tolist() for key,value in j[0].items()
                               if key.startswith('source_') or key=='linear_depth'})
+    if 'pre_sr_output' in arrays:
+        residual=j[0]['raw_rgb']-arrays['pre_sr_output']
+        arrays['observed_pre_sr_residual']=residual
+        report['paired_observation']=dict(
+            signed_raw_minus_pre_sr_rgb=residual.mean((0,1)).tolist(),
+            rms_raw_minus_pre_sr_rgb=np.sqrt(np.mean(residual**2,axis=(0,1))).tolist(),
+            note='Same-frame noisy observation difference, not clean-reference error. Output uses the actual configured strength, Floor and recovery controls, not both diagnostic endpoints.')
     # Stored-domain accounting also covers partial Floor restoration, which occurs
     # after the estimator's residual-only R*delta-p journal point.
     spec_strength=np.clip(j[1]['settings'][...,1:2],0,1)

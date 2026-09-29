@@ -5,6 +5,7 @@ Coefficients are shared within that block, not extrapolated from an unobserved
 constant interior. This is a bounded feasibility candidate, not a game algorithm.
 """
 import numpy as np
+from fsrd_small_regression import applied_fit, nnls_small
 
 
 def connected(mask, start):
@@ -40,7 +41,8 @@ def estimate(raw, diffuse, specular, depth, normals, roughness, mode='surface', 
     active=np.zeros_like(p,bool)
     names=('reason','rank','condition','train_rmse','heldout_rmse','baseline_rmse',
            'slope_d','slope_s','intercept','share_uncertainty','additive_rank',
-           'additive_condition','additive_heldout_rmse','additive_intercept')
+           'additive_condition','additive_heldout_rmse','additive_intercept',
+           'unconstrained_slope_d','unconstrained_slope_s','unconstrained_heldout_rmse')
     diag={k:np.zeros_like(p) for k in names}
     accepted_diag={k:np.zeros_like(p) for k in names} if overlap else {}
     # Reason: 1 samples, 2 rank/conditioning, 3 negative coefficients,
@@ -91,7 +93,15 @@ def estimate(raw, diffuse, specular, depth, normals, roughness, mode='surface', 
             cov=np.linalg.inv(Xn.T@Xn)*mse
             cov=cov/scale[:,None]/scale[None,:]
             error=np.sqrt(np.maximum(np.diag(cov),0))
-            trainerr=np.sqrt(mse); validerr=np.sqrt(np.mean((T-V@coef)**2))
+            record('unconstrained_slope_d',coef[0]); record('unconstrained_slope_s',coef[1])
+            record('unconstrained_heldout_rmse',float(np.sqrt(np.mean((T-V@coef)**2))))
+            roundoff=64*np.finfo(np.float64).eps*condition*max(1,float(np.linalg.norm(coef)))
+            # Preserve the evidence that a physical two-positive-lobe explanation
+            # is incompatible. Small negatives are refit, never merely clipped.
+            if np.any(coef < -np.maximum(2*error,roundoff)):
+                record('reason',3); continue
+            coef,cov,trainerr,validerr=applied_fit(X,Y,V,T)
+            error=np.sqrt(np.maximum(np.diag(cov),0))
             a0=a[train]; slope0=np.dot(a0,Y)/max(np.dot(a0,a0),1e-20)
             baseerr=np.sqrt(np.mean((T-a[held]*slope0)**2))
             record('train_rmse',trainerr); record('heldout_rmse',validerr); record('baseline_rmse',baseerr)
@@ -105,18 +115,11 @@ def estimate(raw, diffuse, specular, depth, normals, roughness, mode='surface', 
                 cond3=sv3[0]/max(sv3[-1],1e-20)
                 record('additive_rank',rank3); record('additive_condition',min(float(cond3),1e12))
                 if rank3==3 and cond3<=50:
-                    k3=k3/scale3
+                    k3=nnls_small(X3,Y)
                     e3=np.sqrt(np.mean((T-np.column_stack((V,np.ones(len(V))))@k3)**2))
                     record('additive_heldout_rmse',e3); record('additive_intercept',k3[2])
                     if k3[2]>.01*np.mean(Y) and e3<.8*validerr:
                         record('reason',8); continue # Unknown layer has no safe destination.
-            # A noiseless zero coefficient may be a tiny negative after SVD.
-            # Bound arithmetic roundoff separately from statistical uncertainty;
-            # otherwise identical constant-color blocks get arbitrary acceptance.
-            roundoff=64*np.finfo(np.float64).eps*condition*max(1,float(np.linalg.norm(coef)))
-            if np.any(coef < -np.maximum(2*error,roundoff)):
-                record('reason',3); continue
-            coef=np.maximum(coef,0)
             if validerr>max(.8*baseerr,1e-5):
                 record('reason',4); continue
             # A lighting plane is a competing explanation, not albedo evidence.

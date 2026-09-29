@@ -1,0 +1,425 @@
+{
+  "scope": "Historical same-frame predictive probe. No clean truth, AMD replay or promotion.\n\nThese captures used JointFieldV1, not the current alpha Legacy path. A fit to their\nnoisy observations cannot establish that their faint blotch was corrected.\n",
+  "quality_accepted": false,
+  "results": [
+    {
+      "capture": "frame_2889_stage5_1_44339375",
+      "original_settings": {
+        "backend": "JointFieldV1",
+        "backend_version": 1,
+        "profile": 0,
+        "codec": 0,
+        "guide_policy": 0,
+        "gamma": 0,
+        "e_ref": 0.25,
+        "chroma_beta": 0,
+        "regularization": 1,
+        "p_regularization": 1,
+        "detail_strength": 0,
+        "max_gain": 64,
+        "iterations": 3,
+        "conversion_flags": 52,
+        "recovery_mask": 0,
+        "recovery_enabled": false,
+        "source_version": 1,
+        "composition_flags": 8,
+        "specular_hit_from_combined_alpha": false,
+        "diffuse_hit_distance_mode": 0,
+        "specular_hit_distance_mode": 1,
+        "actual_pass_count": 7
+      },
+      "payload_sha256": {
+        "raw_rgba": "070cecfd9c31489630e7aeedff1e7140aa2fe57ac1c02db92d180f8e69f836d0",
+        "source_diffuse_albedo": "9d5f7353b903f24fd666bc0d1d76641d6eb60ec632c8cc2c775708b3e273bc6b",
+        "source_specular_albedo": "5978c228e2da26b869bdb6e5d686dcb35867f16302ab502b1bcce7ec57cc4bfc",
+        "source_normals": "639951988d6763ef575d17a10b71bcff676f590f6d93560dba0550179030e904",
+        "rr_linear_depth": "6521bf8479f2a0d811202d0c66e89d51a4bc4d1aec5889f63a0e40ee2eeea980",
+        "composition_production": "621b3f02637f6103e045f07656cd863190e5fc162915f671b7a47285fb2098dd"
+      },
+      "roi_xyxy": [
+        5,
+        25,
+        85,
+        85
+      ],
+      "models": {
+        "guide_only": {
+          "activity_rgb": [
+            0.5175,
+            0.5364583333333334,
+            0.5466666666666666
+          ],
+          "signed_correction_rgb": [
+            0.001429432746289809,
+            0.0013429060339953387,
+            0.0009470284189818949
+          ],
+          "noisy_observation_rmse_rgb": [
+            0.029307467276869868,
+            0.02235276812600595,
+            0.015640269835346624
+          ],
+          "baseline_observation_rmse_rgb": [
+            0.036256540566682816,
+            0.030110979452729225,
+            0.020424846559762955
+          ],
+          "confidence_rgb": [
+            0.4492903645833333,
+            0.48121744791666665,
+            0.437236328125
+          ],
+          "warning": "Predictive observation score, not clean-reference quality; same-source feature noise can leak."
+        },
+        "same_frame_rr": {
+          "activity_rgb": [
+            0.5104166666666666,
+            0.531875,
+            0.5122916666666667
+          ],
+          "signed_correction_rgb": [
+            0.001512784083687812,
+            0.0013366261106905236,
+            0.0009646379143424093
+          ],
+          "noisy_observation_rmse_rgb": [
+            0.02965580291147569,
+            0.02253253904310074,
+            0.01579044495027528
+          ],
+          "baseline_observation_rmse_rgb": [
+            0.036256540566682816,
+            0.030110979452729225,
+            0.020424846559762955
+          ],
+          "confidence_rgb": [
+            0.437294921875,
+            0.47407877604166665,
+            0.42458984375
+          ],
+          "warning": "Predictive observation score, not clean-reference quality; same-source feature noise can leak."
+        }
+      }
+    },
+    {
+      "capture": "frame_32314_stage6_1_2881250",
+      "original_settings": {
+        "backend": "JointFieldV1",
+        "backend_version": 2,
+        "profile": 0,
+        "codec": 0,
+        "guide_policy": 1,
+        "gamma": 0,
+        "e_ref": 0.25,
+        "chroma_beta": 0,
+        "regularization": 1,
+        "p_regularization": 1,
+        "detail_strength": 0,
+        "max_gain": 64,
+        "iterations": 3,
+        "conversion_flags": 52,
+        "recovery_mask": 0,
+        "recovery_enabled": false,
+        "source_version": 1,
+        "composition_flags": 8,
+        "specular_hit_from_combined_alpha": false,
+        "diffuse_hit_distance_mode": 0,
+        "specular_hit_distance_mode": 1,
+        "actual_pass_count": 7,
+        "stage6": {
+          "field_policy": 1,
+          "hit_policy": 1,
+          "neutral_strength": 1,
+          "support_noise": 2
+        }
+      },
+      "payload_sha256": {
+        "raw_rgba": "02816d3b9923dfda9e034e0c7fa61411dd9f28644f3583629ba0c4a33e1df4b8",
+        "source_diffuse_albedo": "5fa4260d3ff6c43ca5c73ad7d951aa3c3a528b7b4e970092b3a665f3dd3420d8",
+        "source_specular_albedo": "193f7aa4833e6e039ec10cc5fd633908baf66a41d54f85ab06426889020d60bd",
+        "source_normals": "8220ebff1610811d8c46139e3f6f58a10678b8efd781a9bbde41a39b74b435d1",
+        "rr_linear_depth": "d8af9c547ed6a3172e1115a0b57c43584483b555db79931cfed4323e61fc7793",
+        "composition_production": "8ced26d1d8d278e489b23840aab188e439db9212a6cf89c91b9d35e618ff2993"
+      },
+      "roi_xyxy": [
+        5,
+        25,
+        85,
+        85
+      ],
+      "models": {
+        "guide_only": {
+          "activity_rgb": [
+            0.6727083333333334,
+            0.7154166666666667,
+            0.6991666666666667
+          ],
+          "signed_correction_rgb": [
+            6.91689636353786e-05,
+            -0.00012208506446104725,
+            -0.0007947203988213978
+          ],
+          "noisy_observation_rmse_rgb": [
+            0.03167310812049326,
+            0.028035648703573928,
+            0.025180228532512783
+          ],
+          "baseline_observation_rmse_rgb": [
+            0.046438928693532944,
+            0.045312799513339996,
+            0.03714718297123909
+          ],
+          "confidence_rgb": [
+            0.621435546875,
+            0.6675358072916666,
+            0.5960904947916666
+          ],
+          "warning": "Predictive observation score, not clean-reference quality; same-source feature noise can leak."
+        },
+        "same_frame_rr": {
+          "activity_rgb": [
+            0.675,
+            0.7104166666666667,
+            0.6970833333333334
+          ],
+          "signed_correction_rgb": [
+            0.0003340677860590594,
+            0.0001662693858579525,
+            -0.0006777113376652458
+          ],
+          "noisy_observation_rmse_rgb": [
+            0.03122596184624633,
+            0.028471231485567034,
+            0.02491841220692401
+          ],
+          "baseline_observation_rmse_rgb": [
+            0.046438928693532944,
+            0.045312799513339996,
+            0.03714718297123909
+          ],
+          "confidence_rgb": [
+            0.62470703125,
+            0.6583919270833334,
+            0.6037467447916667
+          ],
+          "warning": "Predictive observation score, not clean-reference quality; same-source feature noise can leak."
+        }
+      }
+    },
+    {
+      "capture": "frame_32732_stage6_2_2890453",
+      "original_settings": {
+        "backend": "JointFieldV1",
+        "backend_version": 2,
+        "profile": 1,
+        "codec": 0,
+        "guide_policy": 1,
+        "gamma": 0.5,
+        "e_ref": 0.25,
+        "chroma_beta": 0,
+        "regularization": 1,
+        "p_regularization": 1,
+        "detail_strength": 0,
+        "max_gain": 64,
+        "iterations": 3,
+        "conversion_flags": 52,
+        "recovery_mask": 0,
+        "recovery_enabled": false,
+        "source_version": 1,
+        "composition_flags": 8,
+        "specular_hit_from_combined_alpha": false,
+        "diffuse_hit_distance_mode": 0,
+        "specular_hit_distance_mode": 1,
+        "actual_pass_count": 7,
+        "stage6": {
+          "field_policy": 1,
+          "hit_policy": 1,
+          "neutral_strength": 1,
+          "support_noise": 2
+        }
+      },
+      "payload_sha256": {
+        "raw_rgba": "59fe555f3f2798c31cc409561b1b180328f32a4f91bc0d68c1ba6ab74e3a714c",
+        "source_diffuse_albedo": "fd16e64b5aef28d5515c101f5a82613b0723f35dea567955cc776650f073bbc7",
+        "source_specular_albedo": "cd45f0803ae6f82414099b2d164cbcc6e34d6964d0b58dd6bee1cd8c31662389",
+        "source_normals": "f7a1128ef53c4c4499790131e00d2ba68078faf0ff01e47e78b1219aa21fa3f2",
+        "rr_linear_depth": "d93b96de8f86d463f8540ff8e65725b87dcfd362f9c98895abd2679e51190f3b",
+        "composition_production": "cb7c8fb362de0607a97320d186530210a900b69a1786468938b942564fe3aa5f"
+      },
+      "roi_xyxy": [
+        5,
+        25,
+        85,
+        85
+      ],
+      "models": {
+        "guide_only": {
+          "activity_rgb": [
+            0.685,
+            0.7166666666666667,
+            0.6954166666666667
+          ],
+          "signed_correction_rgb": [
+            0.0008556421661519214,
+            0.0011133289514277526,
+            0.00043166564555897734
+          ],
+          "noisy_observation_rmse_rgb": [
+            0.03241497552906246,
+            0.027614367964258386,
+            0.023732584475285423
+          ],
+          "baseline_observation_rmse_rgb": [
+            0.04696830362081528,
+            0.04451221972703934,
+            0.03602521866559982
+          ],
+          "confidence_rgb": [
+            0.6095182291666666,
+            0.6605533854166666,
+            0.6169921875
+          ],
+          "warning": "Predictive observation score, not clean-reference quality; same-source feature noise can leak."
+        },
+        "same_frame_rr": {
+          "activity_rgb": [
+            0.631875,
+            0.6772916666666666,
+            0.6608333333333334
+          ],
+          "signed_correction_rgb": [
+            0.0009100707855780867,
+            0.0009571581034246764,
+            0.00027029792481974516
+          ],
+          "noisy_observation_rmse_rgb": [
+            0.03402465785242476,
+            0.029804458120978913,
+            0.025142969904732203
+          ],
+          "baseline_observation_rmse_rgb": [
+            0.04696830362081528,
+            0.04451221972703934,
+            0.03602521866559982
+          ],
+          "confidence_rgb": [
+            0.5658463541666666,
+            0.609677734375,
+            0.5781673177083333
+          ],
+          "warning": "Predictive observation score, not clean-reference quality; same-source feature noise can leak."
+        }
+      }
+    },
+    {
+      "capture": "frame_33098_stage6_3_2898562",
+      "original_settings": {
+        "backend": "JointFieldV1",
+        "backend_version": 2,
+        "profile": 2,
+        "codec": 0,
+        "guide_policy": 1,
+        "gamma": 0.5,
+        "e_ref": 0.25,
+        "chroma_beta": 0.25,
+        "regularization": 1,
+        "p_regularization": 1,
+        "detail_strength": 0,
+        "max_gain": 64,
+        "iterations": 3,
+        "conversion_flags": 52,
+        "recovery_mask": 0,
+        "recovery_enabled": false,
+        "source_version": 1,
+        "composition_flags": 8,
+        "specular_hit_from_combined_alpha": false,
+        "diffuse_hit_distance_mode": 0,
+        "specular_hit_distance_mode": 1,
+        "actual_pass_count": 7,
+        "stage6": {
+          "field_policy": 1,
+          "hit_policy": 1,
+          "neutral_strength": 1,
+          "support_noise": 2
+        }
+      },
+      "payload_sha256": {
+        "raw_rgba": "283aaa5d4755db768b7f8534cede7e9bcddd96b1f4a23ac2eb1be09b0cc178e2",
+        "source_diffuse_albedo": "216095cc9e23127af386c22bfa15f7979ee5b9ea9ba608c9d1679b6fb312b7c2",
+        "source_specular_albedo": "c1bd4c596c7c383a4459cce2247376718f9823956d4a0871615b615fb8896725",
+        "source_normals": "7547d954ea39daa4f0d74f747399acd8a590694fe54a72f45024eaf57b55000b",
+        "rr_linear_depth": "ca94413a3c69f8979d33da35b9668b7b471382807daec8a3566b51cec35468a1",
+        "composition_production": "8f17b4e053e9050844eb27dc7a7c1821f3ff36302e4f9d908eab3085842d30f7"
+      },
+      "roi_xyxy": [
+        5,
+        25,
+        85,
+        85
+      ],
+      "models": {
+        "guide_only": {
+          "activity_rgb": [
+            0.6829166666666666,
+            0.7127083333333334,
+            0.6910416666666667
+          ],
+          "signed_correction_rgb": [
+            0.0005801342716387309,
+            0.00011895241694415301,
+            -0.00032842571133877177
+          ],
+          "noisy_observation_rmse_rgb": [
+            0.031536006677920635,
+            0.027157111688644237,
+            0.023175272660722546
+          ],
+          "baseline_observation_rmse_rgb": [
+            0.046547919511795044,
+            0.043976109474897385,
+            0.035023629665374756
+          ],
+          "confidence_rgb": [
+            0.6182454427083334,
+            0.6590104166666667,
+            0.606162109375
+          ],
+          "warning": "Predictive observation score, not clean-reference quality; same-source feature noise can leak."
+        },
+        "same_frame_rr": {
+          "activity_rgb": [
+            0.6558333333333334,
+            0.6816666666666666,
+            0.68375
+          ],
+          "signed_correction_rgb": [
+            0.0008667327024837187,
+            0.0002570607058268304,
+            -0.00018346322522767782
+          ],
+          "noisy_observation_rmse_rgb": [
+            0.032552465485097284,
+            0.028628278528910586,
+            0.023732096450303098
+          ],
+          "baseline_observation_rmse_rgb": [
+            0.046547919511795044,
+            0.043976109474897385,
+            0.035023629665374756
+          ],
+          "confidence_rgb": [
+            0.5890462239583333,
+            0.6236979166666666,
+            0.592470703125
+          ],
+          "warning": "Predictive observation score, not clean-reference quality; same-source feature noise can leak."
+        }
+      }
+    }
+  ],
+  "source_sha256": {
+    "probe_fsrd_recorded_resolve.py": "32bb129808e27e4858fbb9a096d8fec8067cd12a4c04ec93bad04cb7dc2eed20",
+    "fsrd_statistical_resolve.py": "43733a8cd526b7368f20889cab52ab05a1c96286c2bfb0a6ef46ac8adcbdcd10",
+    "fsrd_allocation_models.py": "386f85e1fb98260735f62445cfa91d0cb43717bcf0914ec2ed465a9e5f1bada7"
+  }
+}

@@ -1959,6 +1959,11 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
         {
             if (!FSRDConvShader->DispatchComposition(InCommandList, compDesc))
                 return false;
+            float capturePreExposure=1.0f;
+            const bool capturePreExposureProvided=InParameters->Get(
+                NVSDK_NGX_Parameter_DLSS_Pre_Exposure,&capturePreExposure)==NVSDK_NGX_Result_Success;
+            FSRDConvShader->CompleteAdditiveCapture(InCommandList,denoiserDesc,compDesc,
+                capturePreExposure,capturePreExposureProvided);
         }
 
         isDenoiserReady = true;

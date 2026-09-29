@@ -2098,6 +2098,13 @@ ID3D12Resource* FSRDPreprocessor_Dx12::GetDenoiserMotionInput() const
     return m_impl->m_out.Resources.Motion.Get();
 }
 
+void FSRDPreprocessor_Dx12::CompleteAdditiveCapture(ID3D12GraphicsCommandList* cmdList,
+    const ffxDispatchDescDenoiser& dispatch, const CompositionDesc& composition,
+    float preExposure, bool preExposureProvided) noexcept
+{
+    m_impl->CompleteAdditiveCapture(cmdList,dispatch,composition,preExposure,preExposureProvided);
+}
+
 ID3D12Resource* FSRDPreprocessor_Dx12::GetDenoiserLinearDepthInput() const
 {
     return m_impl->m_LinearDepth.Get();

@@ -1,0 +1,754 @@
+{
+  "started_utc": "2026-09-29T18:33:49.916263+00:00",
+  "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
+  "root": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler",
+  "references": null,
+  "lossless_baseline": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\alpha_baseline\\precompile",
+  "steps": [
+    {
+      "name": "mirrors",
+      "exit_code": 0,
+      "seconds": 0.1879999999946449,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\mirrors.log",
+      "status": "passed"
+    },
+    {
+      "name": "shaders",
+      "exit_code": 0,
+      "seconds": 10.280999999988126,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\shaders.log",
+      "status": "passed"
+    },
+    {
+      "name": "test_fsrd_additive_split",
+      "exit_code": 0,
+      "seconds": 21.453000000008615,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_additive_split.log",
+      "status": "passed",
+      "checks": 64,
+      "dispatches": 75,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_additive_split\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_additive_diagnostics",
+      "exit_code": 0,
+      "seconds": 32.64100000000326,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_additive_diagnostics.log",
+      "status": "passed",
+      "checks": 121,
+      "dispatches": 56,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_additive_diagnostics\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_additive_capture_reader",
+      "exit_code": 0,
+      "seconds": 2.827999999979511,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_additive_capture_reader.log",
+      "status": "passed"
+    },
+    {
+      "name": "test_fsrd_additive_lifetime",
+      "exit_code": 0,
+      "seconds": 6.844000000011874,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_additive_lifetime.log",
+      "status": "passed"
+    },
+    {
+      "name": "test_fsrd_allocation_models",
+      "exit_code": 0,
+      "seconds": 7.76600000000326,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_allocation_models.log",
+      "status": "passed"
+    },
+    {
+      "name": "test_fsrd_statistical_resolve",
+      "exit_code": 0,
+      "seconds": 0.8589999999967404,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_statistical_resolve.log",
+      "status": "passed"
+    },
+    {
+      "name": "run_fsrd_gpu_tests",
+      "exit_code": 0,
+      "seconds": 44.46799999999348,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\run_fsrd_gpu_tests.log",
+      "status": "passed",
+      "checks": 148,
+      "dispatches": 202,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\run_fsrd_gpu_tests\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_cp2077_regressions",
+      "exit_code": 0,
+      "seconds": 20.90700000000652,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_cp2077_regressions.log",
+      "status": "passed",
+      "checks": 66,
+      "dispatches": 76,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_cp2077_regressions\\cp2077_regressions\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_panel_recovery",
+      "exit_code": 0,
+      "seconds": 11.89000000001397,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_panel_recovery.log",
+      "status": "passed",
+      "checks": 25,
+      "dispatches": 26,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_panel_recovery\\panel_recovery\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_textured_reference",
+      "exit_code": 0,
+      "seconds": 14.39100000000326,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_textured_reference.log",
+      "status": "passed",
+      "checks": 26,
+      "dispatches": 34,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_textured_reference\\textured_reference\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_volume_handover",
+      "exit_code": 0,
+      "seconds": 14.51600000000326,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_volume_handover.log",
+      "status": "passed",
+      "checks": 29,
+      "dispatches": 42,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_volume_handover\\volume_handover\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": [
+        {
+          "status": "skipped",
+          "name": "original reference displaced-stripe and curved glyph A/B comparisons"
+        }
+      ]
+    },
+    {
+      "name": "test_fsrd_zero_rough_screen",
+      "exit_code": 0,
+      "seconds": 80.59399999998277,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_zero_rough_screen.log",
+      "status": "passed",
+      "checks": 224,
+      "dispatches": 380,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_zero_rough_screen\\zero_rough_screen\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_screen_review",
+      "exit_code": 0,
+      "seconds": 12.077999999979511,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_screen_review.log",
+      "status": "passed",
+      "checks": 19,
+      "dispatches": 26,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_screen_review\\screen_review\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_speckle_anchor",
+      "exit_code": 0,
+      "seconds": 11.594000000011874,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_speckle_anchor.log",
+      "status": "passed",
+      "checks": 23,
+      "dispatches": 26,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_speckle_anchor\\speckle_anchor\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": [
+        {
+          "status": "skipped",
+          "name": "sparse-ray historical measurements spatial_v2"
+        },
+        {
+          "status": "skipped",
+          "name": "sparse-ray historical measurements spatial_v3"
+        },
+        {
+          "status": "skipped",
+          "name": "sparse-ray historical measurements zero_rough_v7"
+        }
+      ]
+    },
+    {
+      "name": "test_fsrd_patch_handover",
+      "exit_code": 0,
+      "seconds": 32.953000000008615,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_patch_handover.log",
+      "status": "passed",
+      "checks": 56,
+      "dispatches": 90,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_patch_handover\\patch_handover\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": [
+        {
+          "status": "skipped",
+          "name": "V8 moving glyph, coarse grain and real Skip A/B comparisons"
+        }
+      ]
+    },
+    {
+      "name": "test_fsrd_current_colour_contracts",
+      "exit_code": 0,
+      "seconds": 41.95299999997951,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_current_colour_contracts.log",
+      "status": "passed",
+      "checks": 50,
+      "dispatches": 58,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_current_colour_contracts\\current_colour_contracts\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_surface_selection",
+      "exit_code": 0,
+      "seconds": 71.15599999998813,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_surface_selection.log",
+      "status": "passed",
+      "checks": 149,
+      "dispatches": 170,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_surface_selection\\surface_selection\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_stage_diagnostics",
+      "exit_code": 0,
+      "seconds": 133.48400000002584,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_stage_diagnostics.log",
+      "status": "passed",
+      "checks": 165,
+      "dispatches": 188,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_stage_diagnostics\\stage_diagnostics\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_chroma_recovery",
+      "exit_code": 0,
+      "seconds": 92.45300000000861,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_chroma_recovery.log",
+      "status": "passed",
+      "checks": 145,
+      "dispatches": 150,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_chroma_recovery\\chroma_recovery\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_luma_recovery",
+      "exit_code": 0,
+      "seconds": 164.01600000000326,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_luma_recovery.log",
+      "status": "passed",
+      "checks": 205,
+      "dispatches": 254,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_luma_recovery\\luma_recovery\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_blur_evidence",
+      "exit_code": 0,
+      "seconds": 112.18799999999464,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_blur_evidence.log",
+      "status": "passed",
+      "checks": 193,
+      "dispatches": 250,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_blur_evidence\\blur_evidence\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_composition_temporal",
+      "exit_code": 0,
+      "seconds": 46.0,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_composition_temporal.log",
+      "status": "passed",
+      "checks": 102,
+      "dispatches": 142,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_composition_temporal\\composition_temporal\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_shared_composition",
+      "exit_code": 0,
+      "seconds": 87.26600000000326,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_shared_composition.log",
+      "status": "passed",
+      "checks": 242,
+      "dispatches": 288,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_shared_composition\\shared_composition\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_skip_grain",
+      "exit_code": 0,
+      "seconds": 37.562999999994645,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_skip_grain.log",
+      "status": "passed",
+      "checks": 85,
+      "dispatches": 112,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_skip_grain\\skip_grain\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_screen_only_handover",
+      "exit_code": 0,
+      "seconds": 16.64100000000326,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_screen_only_handover.log",
+      "status": "passed",
+      "checks": 43,
+      "dispatches": 42,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_screen_only_handover\\screen_only_handover\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_volume_visibility",
+      "exit_code": 0,
+      "seconds": 133.42199999999139,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_volume_visibility.log",
+      "status": "passed",
+      "checks": 325,
+      "dispatches": 598,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_volume_visibility\\volume_visibility\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_correlated_grain",
+      "exit_code": 0,
+      "seconds": 66.82800000000861,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_correlated_grain.log",
+      "status": "passed",
+      "checks": 150,
+      "dispatches": 288,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_correlated_grain\\correlated_grain\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_recovery_controls",
+      "exit_code": 0,
+      "seconds": 68.26599999997416,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_recovery_controls.log",
+      "status": "passed",
+      "checks": 181,
+      "dispatches": 214,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_recovery_controls\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_specular_noise_return",
+      "exit_code": 0,
+      "seconds": 105.84299999999348,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_specular_noise_return.log",
+      "status": "passed",
+      "checks": 153,
+      "dispatches": 288,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_specular_noise_return\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_recovery_detail_contrast",
+      "exit_code": 0,
+      "seconds": 86.875,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_recovery_detail_contrast.log",
+      "status": "passed",
+      "checks": 130,
+      "dispatches": 240,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_recovery_detail_contrast\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_animated_recovery",
+      "exit_code": 0,
+      "seconds": 114.3289999999979,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_animated_recovery.log",
+      "status": "passed",
+      "checks": 190,
+      "dispatches": 336,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_animated_recovery\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_light_anchor_mix",
+      "exit_code": 0,
+      "seconds": 10.702999999979511,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_light_anchor_mix.log",
+      "status": "passed",
+      "checks": 17,
+      "dispatches": 16,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_light_anchor_mix\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_demod_risk_view",
+      "exit_code": 0,
+      "seconds": 10.01500000001397,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_demod_risk_view.log",
+      "status": "passed",
+      "checks": 16,
+      "dispatches": 12,
+      "results": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\suites\\test_fsrd_demod_risk_view\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_small_colour_screen",
+      "exit_code": 77,
+      "seconds": 0.20300000000861473,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_small_colour_screen.log",
+      "status": "skipped",
+      "reason": "Historical reference package not supplied; no A/B pass claimed."
+    },
+    {
+      "name": "test_fsrd_colour_anchor",
+      "exit_code": 77,
+      "seconds": 0.2029999999795109,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_colour_anchor.log",
+      "status": "skipped",
+      "reason": "Historical reference package not supplied; no A/B pass claimed."
+    },
+    {
+      "name": "test_fsrd_ini_cleanup",
+      "exit_code": 0,
+      "seconds": 3.562999999994645,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_ini_cleanup.log",
+      "status": "passed"
+    },
+    {
+      "name": "test_fsrd_reference_integrity",
+      "exit_code": 0,
+      "seconds": 0.20300000000861473,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\test_fsrd_reference_integrity.log",
+      "status": "passed"
+    },
+    {
+      "name": "release_x64",
+      "exit_code": 0,
+      "seconds": 43.17200000002049,
+      "log": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\tools_tmp\\resolve_validation\\release_x64.log",
+      "status": "passed"
+    }
+  ],
+  "limitations": "No injected live-game capture or runtime resolve shader. GPU gate has no actual AMD model execution; separate statistical studies provide that. Historical reference packages listed as skipped were unavailable. Focused followup checks cover final CPU and capture-copy changes after their initial suite run.",
+  "numpy": "2.3.5",
+  "dxc": "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.26100.0\\x64\\dxc.exe",
+  "dxc_version": "dxcompiler.dll: 1.8 - 1.8.2502.11 (239921522); dxil.dll: 1.8(1.8.2502.11)",
+  "visual_studio": "F:\\VisualStudio",
+  "generated_hashes": {
+    "FSRDFloorSeed_Shader.cso": "b6a2dca1a679b8cc8f2f3dc7e00e08a7e8810743fcdae2175a7df50c17c0347c",
+    "FSRDFloorSeed_Shader.h": "656f9b9493f96fdc9093c2eae3ad600fb14645111045ab804d17cf24e4bf303c",
+    "FSRDFloor_Shader.cso": "882fd57c2e9822bbb9fd2e10707f3a4067d4593d5f40083fcf188c5c9246edc9",
+    "FSRDFloor_Shader.h": "9707d932e540872a8c18af0d3d17e6de4f3951a65317605e8f4e419e6660b4cb",
+    "FSRDInputConv_Shader.cso": "1eb2b8fb8e971f670e7c7b5fb3a4e269672d0d93427d0e84e7635593e63d4b01",
+    "FSRDInputConv_Shader.h": "c639bcecbfe6614bc9cb48ca7ecbf8636ec979afcedc8d5a7acb415d2b48ab1f",
+    "FSRDOutputComp_Shader.cso": "8f4dd9d8e69626b60badf8fdb1eb4db34d35e65383e7160cc3ba1c96e0c6ed09",
+    "FSRDOutputComp_Shader.h": "cb006c3ce6d2ca45c3f91cc70a8b05f23c4c0908a7bef7a539be07c8be13d4de",
+    "FSRDInputConvAdditive_Shader.cso": "64332e35a56277f373fd119c512108ec309b96c5ea1abcc45096b03a44577c5d",
+    "FSRDInputConvAdditive_Shader.h": "3e752af25fe7efa5f834909f9b25e60c927f6fe6ef6e8de2583bf520575a15ae",
+    "RRTraceAdditive_Shader.cso": "7977fed271960d4a876c7132fbb54ec95d6d35f58674ad622ef39c9cccc85c8d",
+    "RRTraceAdditive_Shader.h": "98d3f695d20adb818e12ba147df26e630aad66f8a554049f4543a1378e6ded6d"
+  },
+  "historical_comparisons_skipped_in": [
+    "test_fsrd_volume_handover",
+    "test_fsrd_speckle_anchor",
+    "test_fsrd_patch_handover",
+    "test_fsrd_small_colour_screen",
+    "test_fsrd_colour_anchor"
+  ],
+  "msbuild": "F:\\VisualStudio\\MSBuild\\Current\\Bin\\MSBuild.exe",
+  "release_dll": {
+    "path": "C:\\Users\\burak\\.codex\\worktrees\\fsrd-alpha\\OptiScaler\\x64\\Release\\a\\OptiScaler.dll",
+    "sha256": "93bef029aa1b499fa7de5a81610f379b73ef9969e0507971ae1532b833cfd831"
+  },
+  "status": "passed",
+  "checks": 3342,
+  "dispatches": 4679,
+  "finished_utc": "2026-09-29T19:03:24.661628+00:00",
+  "followup_checks": {
+    "statistical_cpu": {
+      "tests": 20,
+      "passed": true,
+      "log_sha256": "b49983346000fc54cedc7e7c16765bc3d83ff9fe196b7ea65f820dfd7e27c9b2"
+    },
+    "paired_reader": {
+      "tests": 14,
+      "passed": true,
+      "log_sha256": "b40e65b111db5e3718a5fdfe3fa7b223c3701ce2b59ce37112ad950c297dcc04"
+    },
+    "paired_native": {
+      "state_checks": 11,
+      "warp_roi_state_nonmutation": true,
+      "passed": true,
+      "log_sha256": "e12c1a4abb0396f728a3a5242680eaa1252aeba03a93fb8d80929b47fd85e211"
+    },
+    "supplied_package": {
+      "verified_files": 34,
+      "tests": 35,
+      "passed": true,
+      "archive_sha256": "089f92d9bd7bbda916218e383aa1bffef3656b196c7b99b56ae2cd5813e46b59"
+    }
+  },
+  "package_probe_reproduction": {
+    "predictor_probe": {
+      "conditions": 20,
+      "max_absolute_numeric_difference": 2.220446049250313e-16,
+      "sha256": "54dada1e7e1f854edc3d6cc44f0287e6f6d6a7eefeba013969a3c226bbcf97b1"
+    },
+    "resolve_probe": {
+      "conditions": 20,
+      "max_absolute_numeric_difference": 4.440892098500626e-16,
+      "sha256": "56a40302d1e52233e09664da60acfde24c72456c1adf497b1a7e36c8ec477147"
+    },
+    "resolve_stress": {
+      "conditions": 20,
+      "max_absolute_numeric_difference": 2.220446049250313e-16,
+      "sha256": "c9663358c994256d093d2cb7061157c3b0022743601b808439ed0fbb26f5f3ab"
+    }
+  },
+  "package_game_reproduction": [
+    {
+      "capture": "frame_2889_stage5_1_44339375",
+      "rgb_fits": 771,
+      "maximum_numeric_difference": 6612056422460743.0,
+      "payloads": {
+        "raw_rgba": {
+          "sha256": "070cecfd9c31489630e7aeedff1e7140aa2fe57ac1c02db92d180f8e69f836d0",
+          "bytes": 1048576
+        },
+        "source_diffuse_albedo": {
+          "sha256": "9d5f7353b903f24fd666bc0d1d76641d6eb60ec632c8cc2c775708b3e273bc6b",
+          "bytes": 1048576
+        },
+        "source_specular_albedo": {
+          "sha256": "5978c228e2da26b869bdb6e5d686dcb35867f16302ab502b1bcce7ec57cc4bfc",
+          "bytes": 1048576
+        },
+        "source_normals": {
+          "sha256": "639951988d6763ef575d17a10b71bcff676f590f6d93560dba0550179030e904",
+          "bytes": 1048576
+        },
+        "rr_linear_depth": {
+          "sha256": "6521bf8479f2a0d811202d0c66e89d51a4bc4d1aec5889f63a0e40ee2eeea980",
+          "bytes": 1048576
+        }
+      },
+      "maximum_coefficient_difference": 4.843903056439558e-13,
+      "maximum_prediction_rmse_difference": 2.5847379792054426e-15,
+      "maximum_identified_condition3_difference": 9.734435479913373e-13,
+      "same_ranks_and_decisions": true,
+      "condition_note": "Unidentified rank-deficient third-basis condition numbers near machine singularity differ across Linux/Windows SVD; coefficients and predicted errors agree numerically."
+    },
+    {
+      "capture": "frame_32314_stage6_1_2881250",
+      "rgb_fits": 876,
+      "maximum_numeric_difference": 2458598510863875.5,
+      "payloads": {
+        "raw_rgba": {
+          "sha256": "02816d3b9923dfda9e034e0c7fa61411dd9f28644f3583629ba0c4a33e1df4b8",
+          "bytes": 1048576
+        },
+        "source_diffuse_albedo": {
+          "sha256": "5fa4260d3ff6c43ca5c73ad7d951aa3c3a528b7b4e970092b3a665f3dd3420d8",
+          "bytes": 1048576
+        },
+        "source_specular_albedo": {
+          "sha256": "193f7aa4833e6e039ec10cc5fd633908baf66a41d54f85ab06426889020d60bd",
+          "bytes": 1048576
+        },
+        "source_normals": {
+          "sha256": "8220ebff1610811d8c46139e3f6f58a10678b8efd781a9bbde41a39b74b435d1",
+          "bytes": 1048576
+        },
+        "rr_linear_depth": {
+          "sha256": "d8af9c547ed6a3172e1115a0b57c43584483b555db79931cfed4323e61fc7793",
+          "bytes": 1048576
+        }
+      },
+      "maximum_coefficient_difference": 1.538547067525542e-12,
+      "maximum_prediction_rmse_difference": 2.671474153004283e-15,
+      "maximum_identified_condition3_difference": 8.029132914089132e-13,
+      "same_ranks_and_decisions": true,
+      "condition_note": "Unidentified rank-deficient third-basis condition numbers near machine singularity differ across Linux/Windows SVD; coefficients and predicted errors agree numerically."
+    },
+    {
+      "capture": "frame_32732_stage6_2_2890453",
+      "rgb_fits": 861,
+      "maximum_numeric_difference": 9938395254055184.0,
+      "payloads": {
+        "raw_rgba": {
+          "sha256": "59fe555f3f2798c31cc409561b1b180328f32a4f91bc0d68c1ba6ab74e3a714c",
+          "bytes": 1048576
+        },
+        "source_diffuse_albedo": {
+          "sha256": "fd16e64b5aef28d5515c101f5a82613b0723f35dea567955cc776650f073bbc7",
+          "bytes": 1048576
+        },
+        "source_specular_albedo": {
+          "sha256": "cd45f0803ae6f82414099b2d164cbcc6e34d6964d0b58dd6bee1cd8c31662389",
+          "bytes": 1048576
+        },
+        "source_normals": {
+          "sha256": "f7a1128ef53c4c4499790131e00d2ba68078faf0ff01e47e78b1219aa21fa3f2",
+          "bytes": 1048576
+        },
+        "rr_linear_depth": {
+          "sha256": "d93b96de8f86d463f8540ff8e65725b87dcfd362f9c98895abd2679e51190f3b",
+          "bytes": 1048576
+        }
+      },
+      "maximum_coefficient_difference": 1.7998935675223038e-12,
+      "maximum_prediction_rmse_difference": 2.546574062733953e-15,
+      "maximum_identified_condition3_difference": 5.648814749292796e-13,
+      "same_ranks_and_decisions": true,
+      "condition_note": "Unidentified rank-deficient third-basis condition numbers near machine singularity differ across Linux/Windows SVD; coefficients and predicted errors agree numerically."
+    },
+    {
+      "capture": "frame_33098_stage6_3_2898562",
+      "rgb_fits": 867,
+      "maximum_numeric_difference": 122885741027130.25,
+      "payloads": {
+        "raw_rgba": {
+          "sha256": "283aaa5d4755db768b7f8534cede7e9bcddd96b1f4a23ac2eb1be09b0cc178e2",
+          "bytes": 1048576
+        },
+        "source_diffuse_albedo": {
+          "sha256": "216095cc9e23127af386c22bfa15f7979ee5b9ea9ba608c9d1679b6fb312b7c2",
+          "bytes": 1048576
+        },
+        "source_specular_albedo": {
+          "sha256": "c1bd4c596c7c383a4459cce2247376718f9823956d4a0871615b615fb8896725",
+          "bytes": 1048576
+        },
+        "source_normals": {
+          "sha256": "7547d954ea39daa4f0d74f747399acd8a590694fe54a72f45024eaf57b55000b",
+          "bytes": 1048576
+        },
+        "rr_linear_depth": {
+          "sha256": "ca94413a3c69f8979d33da35b9668b7b471382807daec8a3566b51cec35468a1",
+          "bytes": 1048576
+        }
+      },
+      "maximum_coefficient_difference": 1.0089706847793423e-12,
+      "maximum_prediction_rmse_difference": 5.8043847506183965e-15,
+      "maximum_identified_condition3_difference": 6.039613253960852e-13,
+      "same_ranks_and_decisions": true,
+      "condition_note": "Unidentified rank-deficient third-basis condition numbers near machine singularity differ across Linux/Windows SVD; coefficients and predicted errors agree numerically."
+    }
+  ],
+  "repo_nnls_vs_scipy": {
+    "comparisons": 1000,
+    "maximum_objective_difference": 1.0658141036401503e-14,
+    "passed": true
+  },
+  "metadata_only_exposure_control": {
+    "exposure_metadata_changed": true,
+    "sequence_arrays_identical": {
+      "legacy": true,
+      "additive": true,
+      "allocator": true,
+      "guide_only": true,
+      "same_frame_rr": true,
+      "independent_rr": true,
+      "truth": true,
+      "raw": true,
+      "null_outputs": true
+    },
+    "context_manifests_identical": {
+      "legacy": true,
+      "null_1": true,
+      "null_2": true,
+      "additive": true,
+      "allocator": true,
+      "independent_0": true,
+      "independent_1": true,
+      "independent_2": true,
+      "independent_3": true
+    },
+    "note": "Metadata-only control; not an in-game exposure mapping validation."
+  }
+}

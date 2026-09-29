@@ -124,7 +124,7 @@ def main():
     if (output/'results.json').exists(): raise ValueError('Use a fresh evidence directory')
     fielddir=build_field_shader(output)
     snapshot=output/'source_snapshot'; snapshot.mkdir()
-    for name in ('fsrd_allocation_models.py','probe_fsrd_allocation_models.py','fsrd_alpha_common.py'):
+    for name in ('fsrd_allocation_models.py','fsrd_small_regression.py','probe_fsrd_allocation_models.py','fsrd_alpha_common.py'):
         shutil.copy2(Path(__file__).with_name(name),snapshot/name)
     executable=output/'fsrd_rr_runner.exe'
     compile_cpp(Path(__file__).with_name('fsrd_rr_runner.cpp'),executable,('d3d12.lib','dxgi.lib'))
