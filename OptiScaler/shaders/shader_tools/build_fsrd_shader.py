@@ -1,7 +1,9 @@
-"""Rebuild one fsrd_preprocess shader: cso + generated header (listing prefix + byte array).
+"""Rebuild fsrd_preprocess shaders: cso + generated header (listing prefix + byte array).
 
 Mirrors the layout the existing precompiled headers use, so the checked-in artifacts stay
 in the same shape: an `#if 0` DXIL listing for reference, then the cso bytes.
+FSRDInputConv builds both the original and enabled additive variants so an edit to
+their shared source cannot leave either conversion PSO with a stale artifact.
 """
 import subprocess
 import sys
@@ -77,7 +79,8 @@ def build(name, compiler):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('name', choices=['FSRDFloorSeed', 'FSRDFloor', 'FSRDInputConv', 'FSRDOutputComp', 'all'])
+    parser.add_argument('name', choices=['FSRDFloorSeed', 'FSRDFloor', 'FSRDInputConv',
+                                       'FSRDInputConvAdditive', 'FSRDOutputComp', 'all'])
     parser.add_argument('--dxc', help='DXC executable; otherwise FSRD_DXC, PATH, or latest installed SDK')
     options = parser.parse_args()
     compiler = dxc(options.dxc)
@@ -88,6 +91,12 @@ if __name__ == "__main__":
     check = subprocess.run([sys.executable, VERIFY])
     if check.returncode != 0:
         raise SystemExit("mirror check failed; not compiling")
-    names = ['FSRDFloorSeed', 'FSRDFloor', 'FSRDInputConv', 'FSRDOutputComp'] if options.name == 'all' else [options.name]
+    if options.name == 'all':
+        names = ['FSRDFloorSeed', 'FSRDFloor', 'FSRDInputConv',
+                 'FSRDInputConvAdditive', 'FSRDOutputComp']
+    elif options.name == 'FSRDInputConv':
+        names = ['FSRDInputConv', 'FSRDInputConvAdditive']
+    else:
+        names = [options.name]
     for name in names:
         build(name, compiler)

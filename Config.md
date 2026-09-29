@@ -175,6 +175,18 @@ It can be changed from the in-game menu with real-time results.
 
 ![fsr](images/fsr.png)
 
+### Experimental FSR-RR Additive Light Split
+
+```ini
+[FSR-RR]
+; 0.0 to 1.0 - Default (auto) is 0.0 (disabled)
+AdditiveLightSplit=auto
+```
+
+`AdditiveLightSplit` controls an experimental local color/albedo fit that shifts an estimated additive lighting share toward the specular signal. It preserves the original albedo guides and existing modulation controls. This is a signal estimate, not a physical lighting or material classification.
+
+Zero keeps the existing signal split. Positive values increase the strength and add GPU work to input conversion. Runtime values are clamped to `0.0` through `1.0`; non-finite values disable the setting. Changing the strength resets denoiser and recovery history. The same control is available under **Input Compatibility** in the advanced FSR-RR menu.
+
 ### Sharpness
 DLSS used to have a sharpening option, but later it was removed. So some games have sharpness slider and some do not. With this option you can disable or enable the sharpness of the final image. FSR has built in sharpness but for XeSS CAS option must be enabled.
 

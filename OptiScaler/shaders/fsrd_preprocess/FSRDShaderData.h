@@ -189,6 +189,7 @@ namespace FSRD
             float SpecularAlbedoDemodulation;
             float DiffuseAlbedoModulation;
             uint32_t RecoveryMask;
+            float AdditiveLightSplit;
         };
 
         static_assert(offsetof(Constants, InvViewMatrix) == 0, "FSRDInputConv layout");
@@ -218,6 +219,8 @@ namespace FSRD
         static_assert(offsetof(Constants, DemodDivisorFloor) == 396, "FSRDInputConv layout");
         static_assert(offsetof(Constants, SpecularAlbedoDemodulation) == 400, "FSRDInputConv layout");
         static_assert(offsetof(Constants, DiffuseAlbedoModulation) == 404, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, RecoveryMask) == 408, "FSRDInputConv layout");
+        static_assert(offsetof(Constants, AdditiveLightSplit) == 412, "FSRDInputConv layout");
         static_assert(sizeof(Constants) == 416, "FSRDInputConv constant-buffer layout");
 
         union Input

@@ -983,6 +983,9 @@
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDInputConv_Shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDInputConvAdditive_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDOutputComp_Shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -1600,6 +1603,9 @@
     <None Include="shaders\fsrd_preprocess\precompile\FSRDPreprocessCommon.hlsli">
       <Filter>Header Files</Filter>
     </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDAdditiveSplit.hlsli">
+      <Filter>Header Files</Filter>
+    </None>
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFloorCommon.hlsli">
       <Filter>Header Files</Filter>
     </None>
@@ -1610,6 +1616,9 @@
       <Filter>Header Files</Filter>
     </None>
     <None Include="shaders\fsrd_preprocess\precompile\FSRDInputConv.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDInputConvAdditive.hlsl">
       <Filter>Header Files</Filter>
     </None>
     <None Include="shaders\fsrd_preprocess\precompile\FSRDOutputComp.hlsl">

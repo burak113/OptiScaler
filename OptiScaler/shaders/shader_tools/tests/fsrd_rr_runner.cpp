@@ -15,6 +15,7 @@
 #include <string>
 #include <stdexcept>
 #include <cstring>
+#include <cmath>
 #include "../../../../external/FidelityFX-SDK-v2/Kits/FidelityFX/api/include/ffx_api_loader.h"
 #include "../../../../external/FidelityFX-SDK-v2/Kits/FidelityFX/api/include/dx12/ffx_api_dx12.h"
 #include "../../../../external/FidelityFX-SDK-v2/Kits/FidelityFX/denoisers/include/ffx_denoiser.h"
@@ -122,6 +123,24 @@ int main(int argc,char** argv) try {
     DirectX::XMFLOAT4X4 matrix;
     DirectX::XMStoreFloat4x4(&matrix,DirectX::XMMatrixIdentity()); memcpy(&dispatch.view,&matrix,sizeof(matrix));
     DirectX::XMStoreFloat4x4(&matrix,DirectX::XMMatrixPerspectiveFovLH(DirectX::XM_PI/3.0f,float(w)/h,.1f,1000.f)); memcpy(&dispatch.projection,&matrix,sizeof(matrix));
+    // Optional captured-geometry probes use a verified cropped camera. Existing
+    // jobs retain the synthetic camera above; the override is local to this job.
+    std::ifstream camera(std::filesystem::path(argv[1]).parent_path()/"camera.txt");
+    if(camera) {
+        float view[16],projection[16],jx,jy,lo,hi;
+        for(float& value:view) camera>>value;
+        for(float& value:projection) camera>>value;
+        camera>>jx>>jy>>lo>>hi;
+        if(!camera) throw std::runtime_error("invalid camera override");
+        for(float value:view) if(!std::isfinite(value)) throw std::runtime_error("nonfinite camera view");
+        for(float value:projection) if(!std::isfinite(value)) throw std::runtime_error("nonfinite camera projection");
+        if(!std::isfinite(jx)||!std::isfinite(jy)||!std::isfinite(lo)||!std::isfinite(hi)||lo>=hi)
+            throw std::runtime_error("invalid camera jitter/depth bounds");
+        memcpy(&dispatch.view,view,sizeof(view)); memcpy(&dispatch.projection,projection,sizeof(projection));
+        dispatch.jitterOffsets={jx,jy};
+        if(!passthrough) dispatch.linearDepthBounds={lo,hi};
+        std::cout<<"custom_camera=1\n";
+    }
     dispatch.linearDepth=tex[0].api; dispatch.motionVectors=tex[1].api; dispatch.normals=tex[2].api;
     // The SDK requires an empty descriptor for an unused signal's guide.
     dispatch.specularAlbedo=specFlag?tex[3].api:FfxApiResource{};

@@ -33,6 +33,7 @@ def build_runner():
     compile_cpp(source, runner, ('d3d12.lib', 'dxgi.lib'))
 
 def constants(shader, values, directory=PRE):
+    shader = 'FSRDInputConv' if shader == 'FSRDInputConvAdditive' else shader
     values = dict(values)
     if shader in ('FSRDInputConv', 'FSRDOutputComp') and directory == PRE:
         values.setdefault('SpecularAlbedoDemodulation', 1.0)
@@ -69,11 +70,12 @@ counter = 0
 timings = []
 def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repetitions=1):
     global counter
+    schema = 'FSRDInputConv' if shader == 'FSRDInputConvAdditive' else shader
     w,h = size
     requested_outputs = len(output_formats)
     inputs = list(inputs)
     output_formats = list(output_formats)
-    adaptive_conv = shader == 'FSRDInputConv' and 'InDemodMask' in (directory/(shader+'.hlsl')).read_text()
+    adaptive_conv = schema == 'FSRDInputConv' and 'InDemodMask' in (directory/(schema+'.hlsl')).read_text()
     adaptive_comp = shader == 'FSRDOutputComp' and 'InEffectiveSpecAlbedo' in (directory/(shader+'.hlsl')).read_text()
     if adaptive_conv:
         if len(inputs) == 17:
@@ -105,7 +107,7 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
         'FSRDOutputComp': ([10,28,10,28,10,24,10,41,10,10,3,28,10] if temporal_comp else
                           [10,28,10,28,10,24,10,41] if len(inputs)==8 else
                            [10,28,10,28,10,10,10,24,10]),
-    }[shader]
+    }[schema]
     for i,a in enumerate(inputs):
         a=np.asarray(a,dtype=np.uint32 if formats[i]==3 else np.float32)
         if a.ndim == 2: a=np.repeat(a[...,None],4,axis=2)
@@ -161,13 +163,25 @@ def dispatch(shader, values, inputs, output_formats, size, directory=PRE, repeti
         if baseline == PRE.resolve():
             raise ValueError('Lossless baseline must be a separate frozen directory')
         cb = dict(values)
+        # constants() supplies these defaults only to the current directory.
+        # A lossless A/B must serialize the same effective controls to the frozen
+        # shader too; zero-filled baseline controls compare different algorithms.
+        if shader in ('FSRDInputConv', 'FSRDOutputComp'):
+            cb.setdefault('SpecularAlbedoDemodulation', 1.0)
+            cb.setdefault('DiffuseAlbedoModulation', 1.0)
+            cb.setdefault('RecoveryMask', 1)
         if shader == 'FSRDOutputComp':
             cb.setdefault('FloorHandoverAnchorClamp', 4.0)
             cb.setdefault('FloorHandoverCorrelationMix', 1.0)
+            cb.setdefault('LumaRecovery', 1.0)
+            cb.setdefault('ChromaRecovery', 1.0)
         old = _dispatch(shader, cb, inputs, output_formats, size, baseline, 1)
-        differences = [dict(output=i,changed=int(np.count_nonzero(a != b)),
-                            maximum=float(np.max(np.abs(a-b))))
-                       for i,(a,b) in enumerate(zip(old,result)) if not np.array_equal(a,b)]
+        differences = []
+        for i, (a, b) in enumerate(zip(old, result)):
+            changed = a != b
+            if np.any(changed):
+                differences.append(dict(output=i, changed=int(np.count_nonzero(changed)),
+                                        maximum=float(np.abs(a-b)[changed].max())))
         check(f'lossless {shader} dispatch {counter} {size}', not differences,
               differences=differences)
         if differences:

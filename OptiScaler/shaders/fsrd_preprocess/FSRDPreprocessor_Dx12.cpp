@@ -3,6 +3,7 @@
 #include "FSRDShaderUtils.h"
 #include "FSRDShaderData.h"
 #include "precompile/FSRDInputConv_Shader.h" 
+#include "precompile/FSRDInputConvAdditive_Shader.h"
 #include "precompile/FSRDFloorSeed_Shader.h" 
 #include "precompile/FSRDFloor_Shader.h" 
 #include "precompile/FSRDOutputComp_Shader.h" 
@@ -158,7 +159,8 @@ struct ComputeState
         std::span<ID3D12Resource*> output,
         std::span<const UINT> outputMips,
         XMFLOAT2 outDim,
-        bool autoBarrierOutput = true
+        bool autoBarrierOutput = true,
+        ID3D12PipelineState* pipelineState = nullptr
     )
     {
         if (!cmdList) 
@@ -184,7 +186,7 @@ struct ComputeState
         CreateUAVs(m_pDev, currentHeap, output, outputMips);
 
         // Configure pipeline
-        cmdList->SetPipelineState(m_pso.Get());
+        cmdList->SetPipelineState(pipelineState ? pipelineState : m_pso.Get());
         cmdList->SetComputeRootSignature(m_rootSig.Get());
 
         ID3D12DescriptorHeap* heaps[] = { currentHeap.GetHeapCSU() };
@@ -215,10 +217,11 @@ struct ComputeState
         std::span<ID3D12Resource* const> inputs,
         std::span<ID3D12Resource*> output,
         XMFLOAT2 outDim,
-        bool autoBarrierOutput = true
+        bool autoBarrierOutput = true,
+        ID3D12PipelineState* pipelineState = nullptr
     )
     {
-        Dispatch(cmdList, cbData, inputs, {}, output, {}, outDim, autoBarrierOutput);
+        Dispatch(cmdList, cbData, inputs, {}, output, {}, outDim, autoBarrierOutput, pipelineState);
     }
 };
 
@@ -231,6 +234,10 @@ struct FSRDPreprocessor_Dx12::Impl
     ComputeState m_floorFilterShader;
     ComputeState m_convShader;
     ComputeState m_compShader;
+    // Shares conversion's root signature, descriptor rotation and constant buffer.
+    // The original PSO remains usable if optional pipeline creation fails.
+    ComPtr<ID3D12PipelineState> m_additiveConvPso;
+    bool m_additiveConvPsoFailed = false;
 
     UINT m_maxWidth = 0;
     UINT m_maxHeight = 0;
@@ -1307,7 +1314,32 @@ struct FSRDPreprocessor_Dx12::Impl
         }
     }
 
-    void DispatchPackingShader(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
+    bool EnsureAdditiveConversionPipeline()
+    {
+        if (m_additiveConvPso)
+            return true;
+        if (m_additiveConvPsoFailed)
+            return false;
+
+        ScopedSkipHeapCapture skipHeapCapture {};
+        D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
+        psoDesc.pRootSignature = m_convShader.m_rootSig.Get();
+        psoDesc.CS = { FSRDInputConvAdditive_cso, sizeof(FSRDInputConvAdditive_cso) };
+        ComPtr<ID3D12PipelineState> additivePso;
+        const HRESULT result = m_pDev->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&additivePso));
+        if (FAILED(result))
+        {
+            m_additiveConvPsoFailed = true;
+            LOG_ERROR("FSRD additive conversion pipeline failed to initialize (HRESULT: {}); disable Additive Light Split to use the original pipeline",
+                      static_cast<uint32_t>(result));
+            return false;
+        }
+        m_additiveConvPso = std::move(additivePso);
+        return true;
+    }
+
+    void DispatchPackingShader(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc,
+                               ID3D12PipelineState* conversionPipeline)
     {
         const XMFLOAT2 dispatchSize = { desc.RenderSize.x, desc.RenderSize.y };
 
@@ -1385,16 +1417,25 @@ struct FSRDPreprocessor_Dx12::Impl
             .SpecularAlbedoDemodulation = desc.SpecularAlbedoDemodulation,
             .DiffuseAlbedoModulation = desc.DiffuseAlbedoModulation,
             .RecoveryMask = desc.RecoveryMask,
+            .AdditiveLightSplit = desc.AdditiveLightSplit,
         };
 
         const std::span<const byte> convCBData((const byte*) &packConstants, sizeof(packConstants));
-        m_convShader.Dispatch(cmdList, convCBData, in.AsArray, m_out.AsRawArray, dispatchSize, true);
+        m_convShader.Dispatch(cmdList, convCBData, in.AsArray, m_out.AsRawArray, dispatchSize, true,
+                              conversionPipeline);
     }
 
-    void DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc) 
+    bool DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
     {
         if (!cmdList || !m_maxWidth)
-            return;
+            return false;
+
+        const bool useAdditivePipeline = std::isfinite(desc.AdditiveLightSplit) && desc.AdditiveLightSplit > 0.0f;
+        // Resolve the optional PSO before recording any Floor work or barriers.
+        if (useAdditivePipeline && !EnsureAdditiveConversionPipeline())
+            return false;
+        ID3D12PipelineState* conversionPipeline = useAdditivePipeline
+            ? m_additiveConvPso.Get() : m_convShader.m_pso.Get();
 
         const std::array<XMUINT4,6> sourceBases { desc.FloorSourceBase,desc.InputBase0,
             desc.InputBase1,desc.InputBase2,desc.InputBase3,desc.InputBase4 };
@@ -1455,7 +1496,7 @@ struct FSRDPreprocessor_Dx12::Impl
         DispatchFloorFilter(cmdList, desc);
 
         // DLSS-RR to FSR-RR conversion
-        DispatchPackingShader(cmdList, desc);
+        DispatchPackingShader(cmdList, desc, conversionPipeline);
 
         // Diagnostic: read back the RR-facing linear depth, motion and normals while
         // their state is still the one this code set. The denoiser dispatch below
@@ -1473,6 +1514,7 @@ struct FSRDPreprocessor_Dx12::Impl
             m_ambientOcclusionOutputInUavState = true;
             m_specularOcclusionOutputInUavState = true;
         }
+        return true;
     }
 
     void DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
@@ -1829,10 +1871,11 @@ bool FSRDPreprocessor_Dx12::SetMaxRenderSize(UINT width, UINT height)
 
 bool FSRDPreprocessor_Dx12::DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
 { 
+    if (!m_IsInitialized)
+        return false;
     try
     {
-        m_impl->DispatchConversion(cmdList, desc);
-        return true;
+        return m_impl->DispatchConversion(cmdList, desc);
     }
     catch (const std::exception& err)
     {

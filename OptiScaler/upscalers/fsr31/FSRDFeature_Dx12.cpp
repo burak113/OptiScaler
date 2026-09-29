@@ -3469,6 +3469,7 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     };
     const float specularModulation = unitValue(cfg.FfxDenoiserSpecularAlbedoDemodulation.value_or_default(), 1.0f);
     const float diffuseModulation = unitValue(cfg.FfxDenoiserDiffuseAlbedoModulation.value_or_default(), 1.0f);
+    const float additiveLightSplit = unitValue(cfg.FfxDenoiserAdditiveLightSplit.value_or_default(), 0.0f);
     const uint32_t recoveryMask = (cfg.FfxDenoiserFloorFlatRecovery.value_or_default() ? 1u : 0u) |
         (cfg.FfxDenoiserFloorSpecularRecovery.value_or_default() ? 2u : 0u) |
         (cfg.FfxDenoiserFloorDiffuseRecovery.value_or_default() ? 4u : 0u);
@@ -3480,10 +3481,12 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     const float chroma = unitValue(cfg.FfxDenoiserFloorChromaRecovery.value_or_default(), 1.0f);
     if (_convDesc.SpecularAlbedoDemodulation != specularModulation ||
         _convDesc.DiffuseAlbedoModulation != diffuseModulation || _convDesc.RecoveryMask != recoveryMask ||
+        _convDesc.AdditiveLightSplit != additiveLightSplit ||
         _appliedSpatialTemporalMask != filterMask || _appliedLumaRecovery != luma || _appliedChromaRecovery != chroma)
         InvalidateDenoiserHistory();
     _convDesc.SpecularAlbedoDemodulation = specularModulation;
     _convDesc.DiffuseAlbedoModulation = diffuseModulation;
+    _convDesc.AdditiveLightSplit = additiveLightSplit;
     _convDesc.RecoveryMask = recoveryMask;
     _appliedSpatialTemporalMask = filterMask;
     _appliedLumaRecovery = luma;

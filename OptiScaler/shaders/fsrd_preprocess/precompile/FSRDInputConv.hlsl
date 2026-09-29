@@ -2,6 +2,12 @@
 #include "FSRDPreprocessCommon.hlsli"
 #include "FSRDFloorCommon.hlsli"
 
+// Compile the original conversion separately from the enabled experiment.
+// Runtime selects their PSOs; strength zero never executes experimental DXIL.
+#ifndef FSRD_ADDITIVE_SPLIT_ENABLED
+#define FSRD_ADDITIVE_SPLIT_ENABLED 0
+#endif
+
 #define MainRS \
     "RootFlags(0), " \
     "CBV(b0), " \
@@ -206,6 +212,9 @@ cbuffer CB_Packing : register(b0)
     float SpecularAlbedoDemodulation;
     float DiffuseAlbedoModulation;
     uint RecoveryMask;
+#if FSRD_ADDITIVE_SPLIT_ENABLED
+    float AdditiveLightSplit; // Experimental local split, 0 = ordered baseline.
+#endif
 };
 
 bool IsSet(uint mask) { return (Flags & mask) == mask; }
@@ -520,6 +529,10 @@ bool HasUnrepresentedSurfaceStructure(int2 p, float z, float roughness, bool zer
     return textureEnergy > max(9.0f*noiseEnergy, max(0.0009f*dot(mean,mean)/3.0f,1e-10f));
 }
 
+#if FSRD_ADDITIVE_SPLIT_ENABLED
+#include "FSRDAdditiveSplit.hlsli"
+#endif
+
 // Read-only baseline risk evaluates full demodulation independently of the
 // current slider. No production correction consumes this diagnostic.
 float GetDemodBoundaryRisk(uint2 px)
@@ -683,6 +696,11 @@ float GetDemodBoundaryRisk(uint2 px)
 [numthreads(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y, 1)]
 void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 {
+#if FSRD_ADDITIVE_SPLIT_ENABLED
+    // All threads participate, including threads beyond an odd render extent.
+    // No divergent return may precede the shared halo's group barrier.
+    PrepareAdditiveFitSharedMemory(groupID.xy, gtID.xy);
+#endif
     const uint2 px = groupID.xy * s_ThreadGroupSize + gtID.xy;
     const float2 uv = (float2(px) + 0.5f) * DstTexSize.zw;
     
@@ -969,6 +987,21 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         orderedSpecular *= splitT * splitT;
         orderedSpecular *= 3.0f - 2.0f * splitT;
         float3 specularColor = orderedSpecular;
+#if FSRD_ADDITIVE_SPLIT_ENABLED
+        bool3 additiveFitChannels = false;
+        float3 fittedSpecShare = specFraction * isSplitValid;
+        [branch]
+        if (isfinite(AdditiveLightSplit) && AdditiveLightSplit > 0.0f &&
+            isEmissive == 0.0f && biasWeight == 0.0f &&
+            specularRouteWeight == 0.0f && !handoverSurface)
+        {
+            fittedSpecShare = GetAdditiveSplitShare(int2(px), specWeight, diffWeight,
+                viewSpacePos.z, worldSurfaceNormal.xyz, rawRoughness,
+                remodSpecAlbedo, fittedSpecShare, additiveFitChannels);
+            specularColor = select(additiveFitChannels,
+                denoiserColor * fittedSpecShare, specularColor);
+        }
+#endif
         float3 diffuseColor = denoiserColor - specularColor;
         const bool routeBypassedFloor = IsSet(FLAGS_FLOOR_ENABLED) &&
             (specularStrength < 1.0f || diffuseStrength < 1.0f);
@@ -1005,12 +1038,21 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             // and FP16 rounding even when the experiment is disabled.
             // Split raw independently so an excessive spatial pedestal cannot
             // inflate the restored lobe. The unselected RR input stays untouched.
+#if FSRD_ADDITIVE_SPLIT_ENABLED
+            const float3 specShare = select(additiveFitChannels,
+                fittedSpecShare, specFraction * isSplitValid);
+#else
             const float3 specShare = specFraction * isSplitValid;
+#endif
             const float3 fullSignal = (1.0f - biasWeight) * rawColor;
             precise float3 fullSpecular = fullSignal * specWeight;
             fullSpecular *= rcp(max(totalWeight, DemodDivisorFloor));
             fullSpecular *= splitT * splitT;
             fullSpecular *= 3.0f - 2.0f * splitT;
+#if FSRD_ADDITIVE_SPLIT_ENABLED
+            fullSpecular = select(additiveFitChannels,
+                fullSignal * fittedSpecShare, fullSpecular);
+#endif
             if (specularStrength < 1.0f)
             {
                 specularColor = lerp(fullSpecular, specularColor, specularStrength);
@@ -1038,7 +1080,11 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         // what puts it on screen unfiltered, so it is the first place to look when the skip
         // signal reads noisier than the floor it also carries.
         float3 unmappedShare = max(0.0f, denoiserColor - remodColor - routedRadiance);
+#if FSRD_ADDITIVE_SPLIT_ENABLED
+        if (screenRROnly || routeBypassedFloor || any(additiveFitChannels))
+#else
         if (screenRROnly || routeBypassedFloor)
+#endif
         {
             // Do not route positive FP16 rounding error around RR as grain.
             // Only genuinely unrepresentable energy (divisor/clamp loss) is
@@ -1048,7 +1094,13 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                                        specSignal - 65504.0f * remodSpecAlbedo);
             const float3 diffLost = max(diffuseColor * ((diffDenom - remodDiffAlbedo) / diffDenom),
                                        diffuseColor - 65504.0f * remodDiffAlbedo);
+#if FSRD_ADDITIVE_SPLIT_ENABLED
+            const float3 actualLoss = max(specLost, 0.0f) + max(diffLost, 0.0f);
+            unmappedShare = screenRROnly || routeBypassedFloor
+                ? actualLoss : select(additiveFitChannels, actualLoss, unmappedShare);
+#else
             unmappedShare = max(specLost, 0.0f) + max(diffLost, 0.0f);
+#endif
         }
         // The routed radiance is already part of the floor colour by this point, so this is the
         // floor's own share of the skip signal rather than a second contribution to it.
@@ -1109,9 +1161,8 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 
         
         // How much of this pixel's radiance the denoiser receives through the specular signal
-        // rather than the diffuse one. It is the albedo ratio's share of the demodulated split,
-        // so it is the title's own material split rather than anything this shader decided, and
-        // it is what the debug view and the probe both report.
+        // rather than the diffuse one. The experiment can change that allocation;
+        // this diagnostic reports the actual split, not a physical material lobe.
         const float specularShare = saturate(GetLuminance(specularColor) *
                                             rcp(max(GetLuminance(denoiserColor), 1e-3f)));
         // The specular albedo's alpha has no consumer. Carry that share in it, so the probe can

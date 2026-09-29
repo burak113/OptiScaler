@@ -28,6 +28,7 @@
 
 #include <mutex>
 #include <cstdarg>
+#include <cmath>
 
 #include <array>
 #include <chrono>
@@ -4540,6 +4541,13 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
                                     config->FfxDenoiserDiffuseAlbedoModulation = v;
                                 if (ImGui::IsItemHovered())
                                     ImGui::SetTooltip("1: original albedo division/multiplication. 0: unity multiplier. Intermediate values use a matching pair before and after RR. Original albedo guides remain available. Changes reset history.");
+                                const float configuredAdditiveLightSplit = config->FfxDenoiserAdditiveLightSplit.value_or_default();
+                                if (float v = std::isfinite(configuredAdditiveLightSplit)
+                                        ? std::clamp(configuredAdditiveLightSplit, 0.0f, 1.0f) : 0.0f;
+                                    ImGui::SliderFloat("Additive Light Split (Experimental)", &v, 0, 1))
+                                    config->FfxDenoiserAdditiveLightSplit = v;
+                                if (ImGui::IsItemHovered())
+                                    ImGui::SetTooltip("Experimental local color/albedo fit shifts estimated additive lighting toward the specular signal. Guides and modulation stay unchanged. 0 disables; changes reset history. Adds conversion GPU work.");
                                 ImGui::SeparatorText("Floor Recovery");
                                 if (bool v = config->FfxDenoiserFloorFlatRecovery.value_or_default();
                                     ImGui::Checkbox("Flat Albedo & Zero Rough Recovery", &v))

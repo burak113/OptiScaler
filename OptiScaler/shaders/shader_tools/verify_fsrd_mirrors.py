@@ -163,15 +163,39 @@ def cpp_struct_fields(body, where):
 def hlsl_cbuffer_fields(body, where):
     fields = []
     offset = 0
+    additive_tail = False
+    additive_guard_seen = False
+    additive_member_seen = False
     for raw in body.split("\n"):
         line = strip_line_comment(raw).strip()
         if not line:
+            continue
+        # Conversion's enabled variant uses the original CB's last padding
+        # float. Verify/serialize the complete runtime layout while the original
+        # compiled variant omits the member and retains its frozen DXIL. This
+        # explicitly recognizes only that guard, not arbitrary preprocessing.
+        if line == "#if FSRD_ADDITIVE_SPLIT_ENABLED" and not additive_guard_seen:
+            additive_tail = True
+            additive_guard_seen = True
+            continue
+        if line == "#endif" and additive_tail:
+            if not additive_member_seen:
+                fail("%s: additive cbuffer guard has no AdditiveLightSplit member" % where)
+            additive_tail = False
             continue
         m = HLSL_FIELD.match(line)
         if not m:
             fail("%s: cannot parse HLSL member line: %s" % (where, line))
             continue
         type_name, name, array = m.group(1), m.group(2), m.group(3)
+        if additive_tail:
+            if additive_member_seen or type_name != "float" or name != "AdditiveLightSplit" or array:
+                fail("%s: additive cbuffer guard must contain only float AdditiveLightSplit" % where)
+            if offset != 412:
+                fail("%s: guarded AdditiveLightSplit must occupy original padding at offset 412" % where)
+            additive_member_seen = True
+        elif additive_guard_seen:
+            fail("%s: AdditiveLightSplit guard must be the cbuffer's final member" % where)
         size, align = HLSL_SIZES[type_name]
         count = int(array) if array else 1
         for i in range(count):
@@ -182,6 +206,8 @@ def hlsl_cbuffer_fields(body, where):
             label = name if count == 1 else "%s[%d]" % (name, i)
             fields.append((label, 0, offset, size))
             offset += size
+    if additive_tail:
+        fail("%s: unterminated FSRD_ADDITIVE_SPLIT_ENABLED cbuffer guard" % where)
     offset = (offset + 15) // 16 * 16 if offset % 16 else offset
     return fields, offset
 

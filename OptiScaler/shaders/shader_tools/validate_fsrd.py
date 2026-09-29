@@ -18,8 +18,10 @@ from fsrd_toolchain import dxc, msbuild, visual_studio
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 PRE = ROOT/'OptiScaler/shaders/fsrd_preprocess/precompile'
-SHADERS = ('FSRDFloorSeed', 'FSRDFloor', 'FSRDInputConv', 'FSRDOutputComp')
+BASELINE_SHADERS = ('FSRDFloorSeed', 'FSRDFloor', 'FSRDInputConv', 'FSRDOutputComp')
+SHADERS = (*BASELINE_SHADERS, 'FSRDInputConvAdditive')
 SUITES = (
+    'test_fsrd_additive_split',
     'run_fsrd_gpu_tests', 'test_fsrd_cp2077_regressions', 'test_fsrd_panel_recovery',
     'test_fsrd_textured_reference', 'test_fsrd_volume_handover',
     'test_fsrd_zero_rough_screen', 'test_fsrd_screen_review',
@@ -75,7 +77,7 @@ def main():
     env.pop('FSRD_LOSSLESS_BASELINE', None)
     if args.lossless_baseline is not None:
         baseline = args.lossless_baseline.resolve()
-        if baseline == PRE.resolve() or any(not (baseline/(s+'_Shader.cso')).is_file() for s in SHADERS):
+        if baseline == PRE.resolve() or any(not (baseline/(s+'_Shader.cso')).is_file() for s in BASELINE_SHADERS):
             parser.error('Lossless baseline must be a separate complete precompile snapshot')
         env['FSRD_LOSSLESS_BASELINE'] = str(baseline)
     if args.references is not None:

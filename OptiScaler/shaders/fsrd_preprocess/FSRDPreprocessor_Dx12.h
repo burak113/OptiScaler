@@ -241,6 +241,7 @@ class FSRDPreprocessor_Dx12
         uint32_t RecoveryMask = 1;
         float SpecularAlbedoDemodulation = 1.0f;
         float DiffuseAlbedoModulation = 1.0f;
+        float AdditiveLightSplit = 0.0f;
         bool MotionHistoryValid = false;
         bool MotionVectorsJittered = false;
         bool DisplayResolutionMotion = false;

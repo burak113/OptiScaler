@@ -513,6 +513,8 @@ class Config
     // Spatial Floor and independently selected, master-scaled recovery paths.
     CustomOptional<float> FfxDenoiserSpecularAlbedoDemodulation{1.0f};
     CustomOptional<float> FfxDenoiserDiffuseAlbedoModulation{1.0f};
+    // Experimental local color/albedo fit; zero preserves the existing signal split.
+    CustomOptional<float> FfxDenoiserAdditiveLightSplit{0.0f};
     CustomOptional<bool> FfxDenoiserFloorFlatRecovery{true};
     CustomOptional<bool> FfxDenoiserFloorSpecularRecovery{false};
     CustomOptional<bool> FfxDenoiserFloorDiffuseRecovery{false};
