@@ -77,6 +77,9 @@ def score(out,truth,island):
         a=observed@LUMA;b=target@LUMA;a=a[roi]-a[roi].mean();b=b[roi]-b[roi].mean()
         contrast.append(float(a@b/(b@b)) if b@b>1e-8 else None)
         target_fft=np.fft.rfft2((target@LUMA)-(target@LUMA).mean())
+        # Mean subtraction on FP32 constant images can leave a DC roundoff
+        # residue. DC has no spatial phase and must never select the test mode.
+        target_fft[0,0]=0
         idx=np.unravel_index(np.argmax(abs(target_fft)),target_fft.shape)
         v=target_fft[idx]
         phase.append(float(abs(np.angle(np.fft.rfft2((observed@LUMA)-(observed@LUMA).mean())[idx]/v))) if abs(v)>1e-5 else None)

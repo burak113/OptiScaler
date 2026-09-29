@@ -1,0 +1,26 @@
+[
+  {
+    "file": "source_audit.json",
+    "supplied_sha256": "72f48fccab784a6e9dd7cc345896dd8d68bbda9dc82eb27cf20ae0364e8fcd28",
+    "native_sha256": "4689f2dbf4285a62250f1c8fd3e01543beb9a0cde6302bd7d244b43284ce0ab5",
+    "byte_identical": false
+  },
+  {
+    "file": "full_covariance_probe.json",
+    "supplied_sha256": "aa8c8abae46168505ca1ee8d368e0148df9f85306e9816eca9a2306a6cb6af07",
+    "native_sha256": "a6d27a4904112febb4da255a24e23937e5f5c302ee4d8d07ac720138cd908c95",
+    "byte_identical": false
+  },
+  {
+    "file": "temporal_audit.json",
+    "supplied_sha256": "3c85bdad5b63a8e04bfb1e741670e4c03d1262001161a42b82a49bfde7dbd064",
+    "native_sha256": "4263de6edb418e306ebae49fa1678a2298ee4e11d6beb33d17ec950f87ad31bd",
+    "byte_identical": false
+  },
+  {
+    "file": "calibration_probe.json",
+    "supplied_sha256": "c98e6a92eb82947f1fc5e4f561f3a72f40949783505a98ac8aabeca85953ca4e",
+    "native_sha256": "06b34a177035f8db91573b2dbc313dc842b9b60b65e7a193f711759e97cb7810",
+    "byte_identical": false
+  }
+]

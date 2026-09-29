@@ -1,0 +1,552 @@
+{
+  "started_utc": "2026-09-29T21:24:33.012567+00:00",
+  "python": "3.12.14 (main, Aug 14 2026, 15:40:22) [MSC v.1944 64 bit (AMD64)]",
+  "root": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha",
+  "references": null,
+  "lossless_baseline": null,
+  "steps": [
+    {
+      "name": "mirrors",
+      "exit_code": 0,
+      "seconds": 0.15700000000651926,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\mirrors.log",
+      "status": "passed"
+    },
+    {
+      "name": "shaders",
+      "exit_code": 0,
+      "seconds": 6.921999999991385,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\shaders.log",
+      "status": "passed"
+    },
+    {
+      "name": "test_fsrd_additive_split",
+      "exit_code": 0,
+      "seconds": 15.890999999974156,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_additive_split.log",
+      "status": "passed",
+      "checks": 64,
+      "dispatches": 75,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_additive_split\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_additive_diagnostics",
+      "exit_code": 0,
+      "seconds": 21.5,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_additive_diagnostics.log",
+      "status": "passed",
+      "checks": 121,
+      "dispatches": 56,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_additive_diagnostics\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_additive_capture_reader",
+      "exit_code": 0,
+      "seconds": 2.187999999994645,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_additive_capture_reader.log",
+      "status": "passed"
+    },
+    {
+      "name": "test_fsrd_additive_lifetime",
+      "exit_code": 0,
+      "seconds": 7.2960000000020955,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_additive_lifetime.log",
+      "status": "passed"
+    },
+    {
+      "name": "test_fsrd_allocation_models",
+      "exit_code": 0,
+      "seconds": 7.48499999998603,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_allocation_models.log",
+      "status": "passed"
+    },
+    {
+      "name": "test_fsrd_statistical_resolve",
+      "exit_code": 0,
+      "seconds": 1.25,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_statistical_resolve.log",
+      "status": "passed"
+    },
+    {
+      "name": "run_fsrd_gpu_tests",
+      "exit_code": 0,
+      "seconds": 28.219000000011874,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\run_fsrd_gpu_tests.log",
+      "status": "passed",
+      "checks": 47,
+      "dispatches": 101,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\run_fsrd_gpu_tests\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_cp2077_regressions",
+      "exit_code": 0,
+      "seconds": 14.125,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_cp2077_regressions.log",
+      "status": "passed",
+      "checks": 28,
+      "dispatches": 38,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_cp2077_regressions\\cp2077_regressions\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_panel_recovery",
+      "exit_code": 0,
+      "seconds": 8.547000000020489,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_panel_recovery.log",
+      "status": "passed",
+      "checks": 12,
+      "dispatches": 13,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_panel_recovery\\panel_recovery\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_textured_reference",
+      "exit_code": 0,
+      "seconds": 9.844000000011874,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_textured_reference.log",
+      "status": "passed",
+      "checks": 9,
+      "dispatches": 17,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_textured_reference\\textured_reference\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_volume_handover",
+      "exit_code": 0,
+      "seconds": 10.405999999988126,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_volume_handover.log",
+      "status": "passed",
+      "checks": 8,
+      "dispatches": 21,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_volume_handover\\volume_handover\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": [
+        {
+          "status": "skipped",
+          "name": "original reference displaced-stripe and curved glyph A/B comparisons"
+        }
+      ]
+    },
+    {
+      "name": "test_fsrd_zero_rough_screen",
+      "exit_code": 0,
+      "seconds": 49.735000000015134,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_zero_rough_screen.log",
+      "status": "passed",
+      "checks": 34,
+      "dispatches": 190,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_zero_rough_screen\\zero_rough_screen\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_screen_review",
+      "exit_code": 0,
+      "seconds": 8.562000000005355,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_screen_review.log",
+      "status": "passed",
+      "checks": 6,
+      "dispatches": 13,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_screen_review\\screen_review\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_speckle_anchor",
+      "exit_code": 0,
+      "seconds": 8.34399999998277,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_speckle_anchor.log",
+      "status": "passed",
+      "checks": 10,
+      "dispatches": 13,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_speckle_anchor\\speckle_anchor\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": [
+        {
+          "status": "skipped",
+          "name": "sparse-ray historical measurements spatial_v2"
+        },
+        {
+          "status": "skipped",
+          "name": "sparse-ray historical measurements spatial_v3"
+        },
+        {
+          "status": "skipped",
+          "name": "sparse-ray historical measurements zero_rough_v7"
+        }
+      ]
+    },
+    {
+      "name": "test_fsrd_patch_handover",
+      "exit_code": 0,
+      "seconds": 17.875,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_patch_handover.log",
+      "status": "passed",
+      "checks": 11,
+      "dispatches": 45,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_patch_handover\\patch_handover\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": [
+        {
+          "status": "skipped",
+          "name": "V8 moving glyph, coarse grain and real Skip A/B comparisons"
+        }
+      ]
+    },
+    {
+      "name": "test_fsrd_current_colour_contracts",
+      "exit_code": 0,
+      "seconds": 13.14100000000326,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_current_colour_contracts.log",
+      "status": "passed",
+      "checks": 21,
+      "dispatches": 29,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_current_colour_contracts\\current_colour_contracts\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_surface_selection",
+      "exit_code": 0,
+      "seconds": 28.70299999997951,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_surface_selection.log",
+      "status": "passed",
+      "checks": 64,
+      "dispatches": 85,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_surface_selection\\surface_selection\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_stage_diagnostics",
+      "exit_code": 0,
+      "seconds": 33.937999999994645,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_stage_diagnostics.log",
+      "status": "passed",
+      "checks": 71,
+      "dispatches": 94,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_stage_diagnostics\\stage_diagnostics\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_chroma_recovery",
+      "exit_code": 0,
+      "seconds": 26.34399999998277,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_chroma_recovery.log",
+      "status": "passed",
+      "checks": 70,
+      "dispatches": 75,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_chroma_recovery\\chroma_recovery\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_luma_recovery",
+      "exit_code": 0,
+      "seconds": 42.078000000008615,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_luma_recovery.log",
+      "status": "passed",
+      "checks": 78,
+      "dispatches": 127,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_luma_recovery\\luma_recovery\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_blur_evidence",
+      "exit_code": 0,
+      "seconds": 39.296999999991385,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_blur_evidence.log",
+      "status": "passed",
+      "checks": 68,
+      "dispatches": 125,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_blur_evidence\\blur_evidence\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_composition_temporal",
+      "exit_code": 0,
+      "seconds": 29.530999999988126,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_composition_temporal.log",
+      "status": "passed",
+      "checks": 31,
+      "dispatches": 71,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_composition_temporal\\composition_temporal\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_shared_composition",
+      "exit_code": 0,
+      "seconds": 51.515999999974156,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_shared_composition.log",
+      "status": "passed",
+      "checks": 98,
+      "dispatches": 144,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_shared_composition\\shared_composition\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_skip_grain",
+      "exit_code": 0,
+      "seconds": 24.35899999999674,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_skip_grain.log",
+      "status": "passed",
+      "checks": 29,
+      "dispatches": 56,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_skip_grain\\skip_grain\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_screen_only_handover",
+      "exit_code": 0,
+      "seconds": 11.34299999999348,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_screen_only_handover.log",
+      "status": "passed",
+      "checks": 22,
+      "dispatches": 21,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_screen_only_handover\\screen_only_handover\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_volume_visibility",
+      "exit_code": 0,
+      "seconds": 78.98399999999674,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_volume_visibility.log",
+      "status": "passed",
+      "checks": 26,
+      "dispatches": 299,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_volume_visibility\\volume_visibility\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_correlated_grain",
+      "exit_code": 0,
+      "seconds": 39.296000000002095,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_correlated_grain.log",
+      "status": "passed",
+      "checks": 6,
+      "dispatches": 144,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_correlated_grain\\correlated_grain\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_recovery_controls",
+      "exit_code": 0,
+      "seconds": 36.5,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_recovery_controls.log",
+      "status": "passed",
+      "checks": 74,
+      "dispatches": 107,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_recovery_controls\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_specular_noise_return",
+      "exit_code": 0,
+      "seconds": 52.796000000002095,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_specular_noise_return.log",
+      "status": "passed",
+      "checks": 9,
+      "dispatches": 144,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_specular_noise_return\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_recovery_detail_contrast",
+      "exit_code": 0,
+      "seconds": 44.780999999988126,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_recovery_detail_contrast.log",
+      "status": "passed",
+      "checks": 10,
+      "dispatches": 120,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_recovery_detail_contrast\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_animated_recovery",
+      "exit_code": 0,
+      "seconds": 58.45299999997951,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_animated_recovery.log",
+      "status": "passed",
+      "checks": 22,
+      "dispatches": 168,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_animated_recovery\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_light_anchor_mix",
+      "exit_code": 0,
+      "seconds": 7.5,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_light_anchor_mix.log",
+      "status": "passed",
+      "checks": 9,
+      "dispatches": 8,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_light_anchor_mix\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_demod_risk_view",
+      "exit_code": 0,
+      "seconds": 7.5,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_demod_risk_view.log",
+      "status": "passed",
+      "checks": 10,
+      "dispatches": 6,
+      "results": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\suites\\test_fsrd_demod_risk_view\\gpu_tests\\results.json",
+      "adapters": [
+        "AMD Radeon RX 9070"
+      ],
+      "skipped_comparisons": []
+    },
+    {
+      "name": "test_fsrd_small_colour_screen",
+      "exit_code": 77,
+      "seconds": 0.45300000000861473,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_small_colour_screen.log",
+      "status": "skipped",
+      "reason": "Historical reference package not supplied; no A/B pass claimed."
+    },
+    {
+      "name": "test_fsrd_colour_anchor",
+      "exit_code": 77,
+      "seconds": 0.46900000001187436,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_colour_anchor.log",
+      "status": "skipped",
+      "reason": "Historical reference package not supplied; no A/B pass claimed."
+    },
+    {
+      "name": "test_fsrd_ini_cleanup",
+      "exit_code": 0,
+      "seconds": 5.312000000005355,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_ini_cleanup.log",
+      "status": "passed"
+    },
+    {
+      "name": "test_fsrd_reference_integrity",
+      "exit_code": 0,
+      "seconds": 0.40599999998812564,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\test_fsrd_reference_integrity.log",
+      "status": "passed"
+    },
+    {
+      "name": "release_x64",
+      "exit_code": 0,
+      "seconds": 38.85899999999674,
+      "log": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\release_x64.log",
+      "status": "passed"
+    }
+  ],
+  "limitations": "Synthetic RR inputs; no AMD model execution or in-game acceptance.",
+  "numpy": "2.3.5",
+  "dxc": "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.26100.0\\x64\\dxc.exe",
+  "dxc_version": "dxcompiler.dll: 1.8 - 1.8.2502.11 (239921522); dxil.dll: 1.8(1.8.2502.11)",
+  "visual_studio": "F:\\VisualStudio",
+  "generated_hashes": {
+    "FSRDFloorSeed_Shader.cso": "b6a2dca1a679b8cc8f2f3dc7e00e08a7e8810743fcdae2175a7df50c17c0347c",
+    "FSRDFloorSeed_Shader.h": "656f9b9493f96fdc9093c2eae3ad600fb14645111045ab804d17cf24e4bf303c",
+    "FSRDFloor_Shader.cso": "882fd57c2e9822bbb9fd2e10707f3a4067d4593d5f40083fcf188c5c9246edc9",
+    "FSRDFloor_Shader.h": "9707d932e540872a8c18af0d3d17e6de4f3951a65317605e8f4e419e6660b4cb",
+    "FSRDInputConv_Shader.cso": "1eb2b8fb8e971f670e7c7b5fb3a4e269672d0d93427d0e84e7635593e63d4b01",
+    "FSRDInputConv_Shader.h": "c639bcecbfe6614bc9cb48ca7ecbf8636ec979afcedc8d5a7acb415d2b48ab1f",
+    "FSRDOutputComp_Shader.cso": "8f4dd9d8e69626b60badf8fdb1eb4db34d35e65383e7160cc3ba1c96e0c6ed09",
+    "FSRDOutputComp_Shader.h": "cb006c3ce6d2ca45c3f91cc70a8b05f23c4c0908a7bef7a539be07c8be13d4de",
+    "FSRDInputConvAdditive_Shader.cso": "64332e35a56277f373fd119c512108ec309b96c5ea1abcc45096b03a44577c5d",
+    "FSRDInputConvAdditive_Shader.h": "3e752af25fe7efa5f834909f9b25e60c927f6fe6ef6e8de2583bf520575a15ae",
+    "RRTraceAdditive_Shader.cso": "7977fed271960d4a876c7132fbb54ec95d6d35f58674ad622ef39c9cccc85c8d",
+    "RRTraceAdditive_Shader.h": "98d3f695d20adb818e12ba147df26e630aad66f8a554049f4543a1378e6ded6d"
+  },
+  "historical_comparisons_skipped_in": [
+    "test_fsrd_volume_handover",
+    "test_fsrd_speckle_anchor",
+    "test_fsrd_patch_handover",
+    "test_fsrd_small_colour_screen",
+    "test_fsrd_colour_anchor"
+  ],
+  "msbuild": "F:\\VisualStudio\\MSBuild\\Current\\Bin\\MSBuild.exe",
+  "release_dll": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\x64\\Release\\a\\OptiScaler.dll",
+    "sha256": "fcb28c51556a905eabec0125d1f078708645ef8f37511acb939bb2ff51239240"
+  },
+  "status": "passed",
+  "checks": 1068,
+  "dispatches": 2405,
+  "finished_utc": "2026-09-29T21:39:24.090009+00:00"
+}

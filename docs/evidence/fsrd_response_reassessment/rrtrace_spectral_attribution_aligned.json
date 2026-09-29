@@ -1,0 +1,1400 @@
+{
+  "schema": "rrtrace-frozen-source-native-response-attribution-v1",
+  "status": "completed_attribution_not_quality",
+  "quality_accepted": false,
+  "quality_measured": false,
+  "game_run": false,
+  "runtime_implemented": false,
+  "frames": 32,
+  "roi_xywh": [
+    0,
+    24,
+    96,
+    64
+  ],
+  "split_strengths": [
+    0.0,
+    1.0
+  ],
+  "radiance_fallback_registered": true,
+  "native_extent_policy": "Conservative probe-only multiples-of-16 restriction; not an SDK constraint or proof of arbitrary extent support",
+  "previously_successful_native_extents": [
+    [
+      96,
+      64
+    ],
+    [
+      128,
+      80
+    ],
+    [
+      256,
+      256
+    ]
+  ],
+  "git_head": "14b7cc168bf97f52958bef9ca742e7c10695cd94",
+  "working_status": " M OptiScaler/shaders/shader_tools/tests/probe_fsrd_statistical_resolve.py\n M OptiScaler/shaders/shader_tools/validate_fsrd.py\n?? OptiScaler/shaders/shader_tools/tests/fsrd_response_pilot.py\n?? OptiScaler/shaders/shader_tools/tests/inspect_fsrd_rrtrace_cause.py\n?? OptiScaler/shaders/shader_tools/tests/plot_fsrd_response_calibration.py\n?? OptiScaler/shaders/shader_tools/tests/probe_fsrd_response_calibration.py\n?? OptiScaler/shaders/shader_tools/tests/probe_fsrd_rrtrace_response.py\n?? OptiScaler/shaders/shader_tools/tests/test_fsrd_response_pilot.py\n?? OptiScaler/shaders/shader_tools/tests/test_fsrd_response_protocol.py\n?? OptiScaler/shaders/shader_tools/tests/test_fsrd_rrtrace_response.py\n?? docs/evidence/fsrd_response_reassessment/\n?? docs/fsrd_alpha_response_reassessment.md\n?? docs/images/fsrd_alpha/response_guarded_holdout.png\n?? docs/images/fsrd_alpha/response_spectral_primary.png\n?? docs/images/fsrd_alpha/response_temporal_counterexamples.png\n",
+  "production_shaders": {
+    "FSRDAdditiveSplit.hlsli": "7ca2179f70c380cdb3fc4585c01ef18486690dbacf48b727555daa06de40d7b9",
+    "FSRDFloor.hlsl": "0dcd184a5528e5ae6defe28ce85d79931476ce85835672df8d221d7bbe5ff74a",
+    "FSRDFloor_Shader.cso": "882fd57c2e9822bbb9fd2e10707f3a4067d4593d5f40083fcf188c5c9246edc9",
+    "FSRDFloorCommon.hlsli": "d5a79adda9f36d904ab2fcfbbaf00b4bb3ad8f3fe25fe4d3b953282ad717c999",
+    "FSRDFloorSeed.hlsl": "76d7e2cbd505cb7b2eb20e02556bb9e563e5d924a5ca33652641ae447e79e955",
+    "FSRDFloorSeed_Shader.cso": "b6a2dca1a679b8cc8f2f3dc7e00e08a7e8810743fcdae2175a7df50c17c0347c",
+    "FSRDInputConv.hlsl": "1981a30bc22c5d98762e8e7fd33b657ee8daa4f18e10c79ce89e2102a407f5d3",
+    "FSRDInputConv_Shader.cso": "1eb2b8fb8e971f670e7c7b5fb3a4e269672d0d93427d0e84e7635593e63d4b01",
+    "FSRDInputConvAdditive.hlsl": "acef0b34969e581106ee51e93e859a217fcafa3e17910e595516e73dd0b3c573",
+    "FSRDInputConvAdditive_Shader.cso": "64332e35a56277f373fd119c512108ec309b96c5ea1abcc45096b03a44577c5d",
+    "FSRDOutputComp.hlsl": "65b2abb5710c9d738898c0f499cc22b433e0a29793b8da3b8e5cc6d280c2aee4",
+    "FSRDOutputComp_Shader.cso": "8f4dd9d8e69626b60badf8fdb1eb4db34d35e65383e7160cc3ba1c96e0c6ed09",
+    "FSRDPreprocessCommon.hlsli": "4ca7962c413826950c6025a85cf3502618e6a32182bfaaee3437cac6ef52cc26",
+    "RRTraceAdditive.hlsl": "e8a342a1489d35909c173112a77e6aa4690dd2d9bbffa444c64466380e15909d",
+    "RRTraceAdditive_Shader.cso": "7977fed271960d4a876c7132fbb54ec95d6d35f58674ad622ef39c9cccc85c8d"
+  },
+  "native_provider_sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3",
+  "source_sha256": {
+    "fsrd_alpha_common.py": "691975513a56ada7c1ec8faab7a4f70840508371a3334dba67275e00aef4ba2e",
+    "fsrd_gpu_runner.cpp": "f215e7565d70e3e85aacc524f47cf4138934d523ba019cfc3c8b48849751c953",
+    "fsrd_quality_contours.py": "3d4133849e69685966abafb77fedb6eed0cfe705c8aeb82e0940f82d0c2e8a0e",
+    "fsrd_response_pilot.py": "a8f4197d10d3f6aaade4a3b383758b4c01f6c8be1d231706f05052ead4f7b465",
+    "fsrd_rr_runner.cpp": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077",
+    "fsrd_toolchain.py": "f9e921637631a280f43bee034588897966f1195e16e88517e754ecfdc27978cd",
+    "probe_fsrd_additive_split.py": "38017ce6229419505366e28371afed456ad32e00e1275f17d57bb076eb602c97",
+    "probe_fsrd_response_calibration.py": "c3278b641e9da7489a4a16d7d1fb0ba6d7b0a71cb065c4d890797add9bd0d81b",
+    "probe_fsrd_rrtrace_response.py": "0af5f912b5c2abc3f8e72cd6d2c22d8da8739180e5d2ff528dedc0594edabbb6",
+    "probe_fsrd_statistical_resolve.py": "f804ea74c72aef1b6adf351e2d3cbe4f809c3069b13419492be178401248a3ee",
+    "run_fsrd_gpu_tests.py": "c9e61330f829be4111ffebfb2a9170d685b1eec3bcebfa631e6bbf0c3728e66f",
+    "verify_fsrd_mirrors.py": "721e8122883c41c7af87450fef097e5fee04b09be22323a69f72da2ffbc65625"
+  },
+  "captured_source": {
+    "metadata_path": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_33098_stage6_3_2898562\\capture.json",
+    "metadata_sha256": "949bb2b439f4ee2e38a9ffd6fce308e0ed9441d7f70ed8aa511ac9227e977155",
+    "source_payload_sha256": {
+      "raw_rgba": "283aaa5d4755db768b7f8534cede7e9bcddd96b1f4a23ac2eb1be09b0cc178e2",
+      "source_diffuse_albedo": "216095cc9e23127af386c22bfa15f7979ee5b9ea9ba608c9d1679b6fb312b7c2",
+      "source_specular_albedo": "c1bd4c596c7c383a4459cce2247376718f9823956d4a0871615b615fb8896725",
+      "source_normals": "7547d954ea39daa4f0d74f747399acd8a590694fe54a72f45024eaf57b55000b",
+      "rr_linear_depth": "ca94413a3c69f8979d33da35b9668b7b471382807daec8a3566b51cec35468a1",
+      "source_specular_hit_distance": "840fe26e879c88d6f9252a86c851df0974d3d913424a5517350ce6c34f63100e"
+    },
+    "cropped_payload_sha256": {
+      "raw_rgba": "5949097fbd3f86619176b1f7c810e8f4e8d107a9870fe17cd3875db948dc29ea",
+      "source_diffuse_albedo": "8c1b2ddb561d51bf582af4a30792407c9b9ed5105adf488d855211b2cf53032b",
+      "source_specular_albedo": "2aa9a29ae3f1fda2a95940b455a49a3d3d6ac06bc6d313174fe679aff061f728",
+      "source_normals": "7c4698ad7709b9f38bcdf5e63971f54785bf732b523d707dcb803bd08c12f68a",
+      "rr_linear_depth": "7c6bbaab18c429ecadbef4b0ed91fcb269c5cee27be13c1608ae07507a93c407",
+      "source_specular_hit_distance": "0cfb56b6e71693f7643898071f7c555a21e028381d1af54543c963d6c3a096df"
+    },
+    "original_capture_size": [
+      256,
+      256
+    ],
+    "render_size": [
+      1505,
+      847
+    ],
+    "original_origin_xy": [
+      752,
+      423
+    ],
+    "crop_xywh": [
+      0,
+      24,
+      96,
+      64
+    ],
+    "render_origin_xy": [
+      752,
+      447
+    ],
+    "backend": "JointFieldV1",
+    "source_frame": 33098,
+    "source_format": "Authenticated rgba32f_le",
+    "operator_source_format": "RGB FP16 roundtrip; raw alpha is not radiance input",
+    "raw_fp16_roundtrip_max_delta": 0.0,
+    "geometry": "Captured normals/roughness/depth/specular hit; fixed camera and zero motion",
+    "true_game_history": false,
+    "independent_observations": false,
+    "clean_reference_available": false
+  },
+  "source_crop_npz_sha256": "d3f5ceaab493ffee26115f5ba58affce72ce22e4faafe2cc526b4f4269511b38",
+  "pilot_diagnostics": {
+    "schema": "fsrd-spectral-response-pilot-research-v1",
+    "active_frames": 32,
+    "frames": [
+      {
+        "frame": 0,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 1,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 2,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 3,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 4,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 5,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 6,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 7,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 8,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 9,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 10,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 11,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 12,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 13,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 14,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 15,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 16,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 17,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 18,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 19,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 20,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 21,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 22,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 23,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 24,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 25,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 26,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 27,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 28,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 29,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 30,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 31,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.03972356472279625,
+        "median_coefficient_amplitude": 0.00042192507999655763,
+        "coefficient_threshold": 0.0020271346736515233,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 6144,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 7,
+        "total_rfft_frequencies": 3136,
+        "prediction_min": 0.07244500684095517,
+        "prediction_max": 0.13217927534079532,
+        "signed_mean_delta_rgb": [
+          3.351991716601018e-18,
+          -3.0606123827455387e-18,
+          -2.3829860249420984e-18
+        ],
+        "negative_prediction_fraction": 0.0
+      }
+    ],
+    "quality_accepted": false,
+    "no_clean_truth_input": true,
+    "threshold_sigma_multiplier": 4.0,
+    "source_domain": "current observed RGB only; normalized rfft2",
+    "assumptions": [
+      "Periodic ROI",
+      "Spatial iid approximately Gaussian marginal noise",
+      "Most pooled spectral magnitudes represent noise",
+      "Comparable channel noise scales"
+    ],
+    "limitations": [
+      "No independence or correspondence proof",
+      "No scene boundary/motion model",
+      "Shared persistent source bias is unidentifiable",
+      "Nonperiodic detail leaks across frequencies",
+      "Noise selected by its own amplitude can enter pilot",
+      "RGB common mask can carry weak-channel noise",
+      "Coarse correlated noise and dense material spectra invalidate noise calibration",
+      "Threshold crossings can flicker; no temporal smoothing",
+      "No HLSL/runtime/game acceptance"
+    ]
+  },
+  "guide_correlations": {
+    "rho_diffuse_specular_rgb": [
+      [
+        0.015964470463376037,
+        -0.009305129398447888,
+        -0.006311115836754264
+      ],
+      [
+        0.2786665510263024,
+        0.24859037442121587,
+        0.20698368478916726
+      ]
+    ],
+    "nominal_pixels": 6144,
+    "effective_independent_pixels": null,
+    "interpretation": "Current-source association; no physical attribution or independence proof"
+  },
+  "display": {
+    "linear_rgb_max": 0.25,
+    "signed_rgb_delta_max": 0.05
+  },
+  "amd_completed_sequences": 6,
+  "rows": [
+    {
+      "split_strength": 0.0,
+      "conversion_selection": "original PSO",
+      "source_stats": {
+        "mean_rgb": [
+          0.099557230869929,
+          0.11738245437542598,
+          0.10266321649154027
+        ],
+        "spatial_std_rgb": [
+          0.047554463148117065,
+          0.044445499777793884,
+          0.0353691466152668
+        ],
+        "frozen_operator_temporal_std_rgb": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "invalid_pixel_fraction": 0.0,
+        "nonfinite_value_fraction": 0.0,
+        "minimum": 0.017822265625,
+        "maximum": 0.488525390625
+      },
+      "baseline_stats": {
+        "mean_rgb": [
+          0.09683155175298452,
+          0.1149984795289735,
+          0.09997723484411836
+        ],
+        "spatial_std_rgb": [
+          0.0218493789434433,
+          0.022632595151662827,
+          0.018141038715839386
+        ],
+        "frozen_operator_temporal_std_rgb": [
+          0.0016272204229608178,
+          0.001457354985177517,
+          0.0009554701973684132
+        ],
+        "invalid_pixel_fraction": 0.0,
+        "nonfinite_value_fraction": 0.0,
+        "minimum": 0.0259857177734375,
+        "maximum": 0.26416015625
+      },
+      "pilot_stats": {
+        "mean_rgb": [
+          0.09955730040868123,
+          0.11738275488217671,
+          0.10266357660293579
+        ],
+        "spatial_std_rgb": [
+          0.0098430709913373,
+          0.00777465058490634,
+          0.0048485323786735535
+        ],
+        "frozen_operator_temporal_std_rgb": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "invalid_pixel_fraction": 0.0,
+        "nonfinite_value_fraction": 0.0,
+        "minimum": 0.07244873046875,
+        "maximum": 0.1322021484375
+      },
+      "null_rms": 0.0,
+      "native_contexts": {
+        "observed": {
+          "manifest_sha256": "62e81994dcd42ea7fb5cdff70cb9a57abccc8701d83e482ab07c727c10c1940e",
+          "context": {
+            "inputs": {
+              "input0.bin": "be15c3a9b90733c5db856da1855aa8810ccd556fbe4743c58a3dd012fd31879c",
+              "input1.bin": "04507b7a190782d4de24b5b937101727b344b293ff631112c63b56066361989e",
+              "input2.bin": "aef20982097d72f3f0bb844d3f3d7ec9c1f41d7ded92c7627ae15c6c46ab3ac4",
+              "input3.bin": "28248997c2d94d4ca465e2f25a7af6a499a93fd64a74013f222a820eca5c16e9",
+              "input4.bin": "2a6ff99ec48ecf9d76a08483c1703b36aa1a481599cab9c8387455a74f4e7577",
+              "input5.bin": "8065842c8588921b3db97ab5831e2465f61aadfc123f68bd4239708bf9c9123a",
+              "input6.bin": "c8441f9fe11b009ffec4109fc4ae523320959b424e88f3cece15b4c1ef529802"
+            },
+            "applied_dispatch_sha256": "9a76debc8cd0abfedbbb87920e5f74f482ac9fd53a8950fb5e16add7fe0f24d6",
+            "dll_sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3",
+            "runner_sha256": "cc2b99f7ddfa0db951e803216716d7878532a4c3c38c3c54070924c46b513497",
+            "controls_layout": "184 bytes/frame, native Windows little endian: uint32 frame,flags,width,height; float32 motionScale[3],cameraDelta[3],jitter[2],depthBounds[2],view[16],projection[16]",
+            "dimensions": [
+              96,
+              64
+            ],
+            "frames": 32,
+            "signals": [
+              2,
+              32
+            ],
+            "reset_every": 0,
+            "tuning": 1,
+            "passthrough": 0,
+            "tuning_values": [
+              0.1,
+              0.5,
+              0.5,
+              40000.0,
+              40.0,
+              0.5
+            ],
+            "output_sha256": {
+              "diffuse.bin": "e72bbb19cb4607c16107de8de0dad0e0929586f25bfad41d8b504ec31d1bf6de",
+              "specular.bin": "27473de61d16715edb8c16fb5d36fed5e5f6db46ee6708dfa3bd552aed267642"
+            },
+            "exposure": "No RR exposure field. Source radiance unchanged unless the fixture changes it."
+          },
+          "camera_sha256": "3f030fe443305bf3f769faec16d4aee36eec49bcc60b326a6d756d7ecc6d1345",
+          "frame_controls_sha256": "540822d4c5264f8ace35aa8eae1cdd0dc927bf36c545b27ad2928a2a6ab8e922"
+        },
+        "null_repeat": {
+          "manifest_sha256": "62e81994dcd42ea7fb5cdff70cb9a57abccc8701d83e482ab07c727c10c1940e",
+          "context": {
+            "inputs": {
+              "input0.bin": "be15c3a9b90733c5db856da1855aa8810ccd556fbe4743c58a3dd012fd31879c",
+              "input1.bin": "04507b7a190782d4de24b5b937101727b344b293ff631112c63b56066361989e",
+              "input2.bin": "aef20982097d72f3f0bb844d3f3d7ec9c1f41d7ded92c7627ae15c6c46ab3ac4",
+              "input3.bin": "28248997c2d94d4ca465e2f25a7af6a499a93fd64a74013f222a820eca5c16e9",
+              "input4.bin": "2a6ff99ec48ecf9d76a08483c1703b36aa1a481599cab9c8387455a74f4e7577",
+              "input5.bin": "8065842c8588921b3db97ab5831e2465f61aadfc123f68bd4239708bf9c9123a",
+              "input6.bin": "c8441f9fe11b009ffec4109fc4ae523320959b424e88f3cece15b4c1ef529802"
+            },
+            "applied_dispatch_sha256": "9a76debc8cd0abfedbbb87920e5f74f482ac9fd53a8950fb5e16add7fe0f24d6",
+            "dll_sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3",
+            "runner_sha256": "cc2b99f7ddfa0db951e803216716d7878532a4c3c38c3c54070924c46b513497",
+            "controls_layout": "184 bytes/frame, native Windows little endian: uint32 frame,flags,width,height; float32 motionScale[3],cameraDelta[3],jitter[2],depthBounds[2],view[16],projection[16]",
+            "dimensions": [
+              96,
+              64
+            ],
+            "frames": 32,
+            "signals": [
+              2,
+              32
+            ],
+            "reset_every": 0,
+            "tuning": 1,
+            "passthrough": 0,
+            "tuning_values": [
+              0.1,
+              0.5,
+              0.5,
+              40000.0,
+              40.0,
+              0.5
+            ],
+            "output_sha256": {
+              "diffuse.bin": "e72bbb19cb4607c16107de8de0dad0e0929586f25bfad41d8b504ec31d1bf6de",
+              "specular.bin": "27473de61d16715edb8c16fb5d36fed5e5f6db46ee6708dfa3bd552aed267642"
+            },
+            "exposure": "No RR exposure field. Source radiance unchanged unless the fixture changes it."
+          },
+          "camera_sha256": "3f030fe443305bf3f769faec16d4aee36eec49bcc60b326a6d756d7ecc6d1345",
+          "frame_controls_sha256": "540822d4c5264f8ace35aa8eae1cdd0dc927bf36c545b27ad2928a2a6ab8e922"
+        },
+        "pilot": {
+          "manifest_sha256": "356d1626c298742799de2c7477f413d4fc709c0f2a5290da391e3c18115db9d3",
+          "context": {
+            "inputs": {
+              "input0.bin": "be15c3a9b90733c5db856da1855aa8810ccd556fbe4743c58a3dd012fd31879c",
+              "input1.bin": "04507b7a190782d4de24b5b937101727b344b293ff631112c63b56066361989e",
+              "input2.bin": "aef20982097d72f3f0bb844d3f3d7ec9c1f41d7ded92c7627ae15c6c46ab3ac4",
+              "input3.bin": "d05831a82474dda77523cbed39922c53de9cd37ed6230e9b629cdc1c3e5b3b09",
+              "input4.bin": "2a6ff99ec48ecf9d76a08483c1703b36aa1a481599cab9c8387455a74f4e7577",
+              "input5.bin": "e9805f1ab98cc6e16934ffeb9a7b94c9dd9b0dfaa073b266f5fc9b2106e49435",
+              "input6.bin": "837ab2b898511b11e7aab51d684599c224d5b91d6ca8af1c685c6417e8a3b51a"
+            },
+            "applied_dispatch_sha256": "9a76debc8cd0abfedbbb87920e5f74f482ac9fd53a8950fb5e16add7fe0f24d6",
+            "dll_sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3",
+            "runner_sha256": "cc2b99f7ddfa0db951e803216716d7878532a4c3c38c3c54070924c46b513497",
+            "controls_layout": "184 bytes/frame, native Windows little endian: uint32 frame,flags,width,height; float32 motionScale[3],cameraDelta[3],jitter[2],depthBounds[2],view[16],projection[16]",
+            "dimensions": [
+              96,
+              64
+            ],
+            "frames": 32,
+            "signals": [
+              2,
+              32
+            ],
+            "reset_every": 0,
+            "tuning": 1,
+            "passthrough": 0,
+            "tuning_values": [
+              0.1,
+              0.5,
+              0.5,
+              40000.0,
+              40.0,
+              0.5
+            ],
+            "output_sha256": {
+              "diffuse.bin": "f58e57df5f9dd0b3a3400a63140d81a383290ccbbf26e75c2945cc0dd495cb5d",
+              "specular.bin": "ac6e48a18529e9a4ec7b6edf3ebea3938d66291253503fc6a9b382baf23619dc"
+            },
+            "exposure": "No RR exposure field. Source radiance unchanged unless the fixture changes it."
+          },
+          "camera_sha256": "3f030fe443305bf3f769faec16d4aee36eec49bcc60b326a6d756d7ecc6d1345",
+          "frame_controls_sha256": "540822d4c5264f8ace35aa8eae1cdd0dc927bf36c545b27ad2928a2a6ab8e922"
+        }
+      },
+      "sequences_sha256": "8f86baecaaf36f54f959c3567a62494f3dd90c8046a986e3178401cb6468684a",
+      "variants": {
+        "candidate": {
+          "appearance": {
+            "mean_rgb": [
+              0.09385475097224116,
+              0.11172455409541726,
+              0.09792104829102755
+            ],
+            "spatial_std_rgb": [
+              0.012490578927099705,
+              0.011203381232917309,
+              0.00792226754128933
+            ],
+            "frozen_operator_temporal_std_rgb": [
+              0.0017163926968351007,
+              0.0016731523210182786,
+              0.0013173065381124616
+            ],
+            "invalid_pixel_fraction": 0.0,
+            "nonfinite_value_fraction": 0.0,
+            "minimum": 0.032440185546875,
+            "maximum": 0.1815185546875
+          },
+          "activity": 0.9983757866753472,
+          "candidate_baseline_rms_difference": 0.018955932930111885,
+          "mean_tone_delta_rgb": [
+            -0.0029768007807433605,
+            -0.0032739254335562387,
+            -0.0020561865530908108
+          ],
+          "fallback_pixel_fraction": 0,
+          "interpretation": "Signed change from native baseline; not clean-reference error or quality improvement"
+        },
+        "candidate_safe": {
+          "appearance": {
+            "mean_rgb": [
+              0.09385475097224116,
+              0.11172455409541726,
+              0.09792104829102755
+            ],
+            "spatial_std_rgb": [
+              0.012490578927099705,
+              0.011203381232917309,
+              0.00792226754128933
+            ],
+            "frozen_operator_temporal_std_rgb": [
+              0.0017163926968351007,
+              0.0016731523210182786,
+              0.0013173065381124616
+            ],
+            "invalid_pixel_fraction": 0.0,
+            "nonfinite_value_fraction": 0.0,
+            "minimum": 0.032440185546875,
+            "maximum": 0.1815185546875
+          },
+          "activity": 0.9983757866753472,
+          "candidate_baseline_rms_difference": 0.018955932930111885,
+          "mean_tone_delta_rgb": [
+            -0.0029768007807433605,
+            -0.0032739254335562387,
+            -0.0020561865530908108
+          ],
+          "fallback_pixel_fraction": 0.0,
+          "interpretation": "Signed change from native baseline; not clean-reference error or quality improvement"
+        }
+      }
+    },
+    {
+      "split_strength": 1.0,
+      "conversion_selection": "enabled additive PSO",
+      "source_stats": {
+        "mean_rgb": [
+          0.099557230869929,
+          0.11738245437542598,
+          0.10266321649154027
+        ],
+        "spatial_std_rgb": [
+          0.047554463148117065,
+          0.044445499777793884,
+          0.0353691466152668
+        ],
+        "frozen_operator_temporal_std_rgb": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "invalid_pixel_fraction": 0.0,
+        "nonfinite_value_fraction": 0.0,
+        "minimum": 0.017822265625,
+        "maximum": 0.488525390625
+      },
+      "baseline_stats": {
+        "mean_rgb": [
+          0.09687865502201021,
+          0.11503734881989658,
+          0.09999649622477591
+        ],
+        "spatial_std_rgb": [
+          0.02186162769794464,
+          0.022645259276032448,
+          0.018150396645069122
+        ],
+        "frozen_operator_temporal_std_rgb": [
+          0.0016274667577818036,
+          0.0014556893147528172,
+          0.000954946328420192
+        ],
+        "invalid_pixel_fraction": 0.0,
+        "nonfinite_value_fraction": 0.0,
+        "minimum": 0.0260772705078125,
+        "maximum": 0.264892578125
+      },
+      "pilot_stats": {
+        "mean_rgb": [
+          0.09955730040868123,
+          0.11738275488217671,
+          0.10266357660293579
+        ],
+        "spatial_std_rgb": [
+          0.0098430709913373,
+          0.00777465058490634,
+          0.0048485323786735535
+        ],
+        "frozen_operator_temporal_std_rgb": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "invalid_pixel_fraction": 0.0,
+        "nonfinite_value_fraction": 0.0,
+        "minimum": 0.07244873046875,
+        "maximum": 0.1322021484375
+      },
+      "null_rms": 0.0,
+      "native_contexts": {
+        "observed": {
+          "manifest_sha256": "e8fec21abe37c12e7612cd413c3ac80d7a2195f9a7ae7061be9791e27a3d5500",
+          "context": {
+            "inputs": {
+              "input0.bin": "be15c3a9b90733c5db856da1855aa8810ccd556fbe4743c58a3dd012fd31879c",
+              "input1.bin": "04507b7a190782d4de24b5b937101727b344b293ff631112c63b56066361989e",
+              "input2.bin": "aef20982097d72f3f0bb844d3f3d7ec9c1f41d7ded92c7627ae15c6c46ab3ac4",
+              "input3.bin": "28248997c2d94d4ca465e2f25a7af6a499a93fd64a74013f222a820eca5c16e9",
+              "input4.bin": "2a6ff99ec48ecf9d76a08483c1703b36aa1a481599cab9c8387455a74f4e7577",
+              "input5.bin": "75080196a1c30968007429817707be7ccbde74e4593e3e471d71b3411a5a7903",
+              "input6.bin": "1eef9301d5b2ce4ba8f85bd8b36f88c86ec940f906e5d7eb37d1da47f917d643"
+            },
+            "applied_dispatch_sha256": "9a76debc8cd0abfedbbb87920e5f74f482ac9fd53a8950fb5e16add7fe0f24d6",
+            "dll_sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3",
+            "runner_sha256": "cc2b99f7ddfa0db951e803216716d7878532a4c3c38c3c54070924c46b513497",
+            "controls_layout": "184 bytes/frame, native Windows little endian: uint32 frame,flags,width,height; float32 motionScale[3],cameraDelta[3],jitter[2],depthBounds[2],view[16],projection[16]",
+            "dimensions": [
+              96,
+              64
+            ],
+            "frames": 32,
+            "signals": [
+              2,
+              32
+            ],
+            "reset_every": 0,
+            "tuning": 1,
+            "passthrough": 0,
+            "tuning_values": [
+              0.1,
+              0.5,
+              0.5,
+              40000.0,
+              40.0,
+              0.5
+            ],
+            "output_sha256": {
+              "diffuse.bin": "65306775d78ae3da2c567e6853ff6ac9dabb29c5999887b1542d52e455858133",
+              "specular.bin": "bbc079c2e7f69097896c88a4f204688d83e55a0e7bca11b9cb61b43f78df597c"
+            },
+            "exposure": "No RR exposure field. Source radiance unchanged unless the fixture changes it."
+          },
+          "camera_sha256": "3f030fe443305bf3f769faec16d4aee36eec49bcc60b326a6d756d7ecc6d1345",
+          "frame_controls_sha256": "540822d4c5264f8ace35aa8eae1cdd0dc927bf36c545b27ad2928a2a6ab8e922"
+        },
+        "null_repeat": {
+          "manifest_sha256": "e8fec21abe37c12e7612cd413c3ac80d7a2195f9a7ae7061be9791e27a3d5500",
+          "context": {
+            "inputs": {
+              "input0.bin": "be15c3a9b90733c5db856da1855aa8810ccd556fbe4743c58a3dd012fd31879c",
+              "input1.bin": "04507b7a190782d4de24b5b937101727b344b293ff631112c63b56066361989e",
+              "input2.bin": "aef20982097d72f3f0bb844d3f3d7ec9c1f41d7ded92c7627ae15c6c46ab3ac4",
+              "input3.bin": "28248997c2d94d4ca465e2f25a7af6a499a93fd64a74013f222a820eca5c16e9",
+              "input4.bin": "2a6ff99ec48ecf9d76a08483c1703b36aa1a481599cab9c8387455a74f4e7577",
+              "input5.bin": "75080196a1c30968007429817707be7ccbde74e4593e3e471d71b3411a5a7903",
+              "input6.bin": "1eef9301d5b2ce4ba8f85bd8b36f88c86ec940f906e5d7eb37d1da47f917d643"
+            },
+            "applied_dispatch_sha256": "9a76debc8cd0abfedbbb87920e5f74f482ac9fd53a8950fb5e16add7fe0f24d6",
+            "dll_sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3",
+            "runner_sha256": "cc2b99f7ddfa0db951e803216716d7878532a4c3c38c3c54070924c46b513497",
+            "controls_layout": "184 bytes/frame, native Windows little endian: uint32 frame,flags,width,height; float32 motionScale[3],cameraDelta[3],jitter[2],depthBounds[2],view[16],projection[16]",
+            "dimensions": [
+              96,
+              64
+            ],
+            "frames": 32,
+            "signals": [
+              2,
+              32
+            ],
+            "reset_every": 0,
+            "tuning": 1,
+            "passthrough": 0,
+            "tuning_values": [
+              0.1,
+              0.5,
+              0.5,
+              40000.0,
+              40.0,
+              0.5
+            ],
+            "output_sha256": {
+              "diffuse.bin": "65306775d78ae3da2c567e6853ff6ac9dabb29c5999887b1542d52e455858133",
+              "specular.bin": "bbc079c2e7f69097896c88a4f204688d83e55a0e7bca11b9cb61b43f78df597c"
+            },
+            "exposure": "No RR exposure field. Source radiance unchanged unless the fixture changes it."
+          },
+          "camera_sha256": "3f030fe443305bf3f769faec16d4aee36eec49bcc60b326a6d756d7ecc6d1345",
+          "frame_controls_sha256": "540822d4c5264f8ace35aa8eae1cdd0dc927bf36c545b27ad2928a2a6ab8e922"
+        },
+        "pilot": {
+          "manifest_sha256": "aea5b56cc20f95b5fa0328e72afbe2ae04ac49ceb2164c82bc5912b2cc44eb8d",
+          "context": {
+            "inputs": {
+              "input0.bin": "be15c3a9b90733c5db856da1855aa8810ccd556fbe4743c58a3dd012fd31879c",
+              "input1.bin": "04507b7a190782d4de24b5b937101727b344b293ff631112c63b56066361989e",
+              "input2.bin": "aef20982097d72f3f0bb844d3f3d7ec9c1f41d7ded92c7627ae15c6c46ab3ac4",
+              "input3.bin": "d05831a82474dda77523cbed39922c53de9cd37ed6230e9b629cdc1c3e5b3b09",
+              "input4.bin": "2a6ff99ec48ecf9d76a08483c1703b36aa1a481599cab9c8387455a74f4e7577",
+              "input5.bin": "24a4082530dada58754f99db90e755fd5fa9b75b2fa90e44ecd05109b8cede22",
+              "input6.bin": "ae5ed9c08113928364ff85775393a8c732efd307efe39668839117897fed2d81"
+            },
+            "applied_dispatch_sha256": "9a76debc8cd0abfedbbb87920e5f74f482ac9fd53a8950fb5e16add7fe0f24d6",
+            "dll_sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3",
+            "runner_sha256": "cc2b99f7ddfa0db951e803216716d7878532a4c3c38c3c54070924c46b513497",
+            "controls_layout": "184 bytes/frame, native Windows little endian: uint32 frame,flags,width,height; float32 motionScale[3],cameraDelta[3],jitter[2],depthBounds[2],view[16],projection[16]",
+            "dimensions": [
+              96,
+              64
+            ],
+            "frames": 32,
+            "signals": [
+              2,
+              32
+            ],
+            "reset_every": 0,
+            "tuning": 1,
+            "passthrough": 0,
+            "tuning_values": [
+              0.1,
+              0.5,
+              0.5,
+              40000.0,
+              40.0,
+              0.5
+            ],
+            "output_sha256": {
+              "diffuse.bin": "8e7571c60f8974c3d2266fffa1411fa7ef34e59f7f817e162b43475fa955be7f",
+              "specular.bin": "b0286e87af73aa737b3863d887214190a608bacf9e662d3cf97a50e42f9cfa99"
+            },
+            "exposure": "No RR exposure field. Source radiance unchanged unless the fixture changes it."
+          },
+          "camera_sha256": "3f030fe443305bf3f769faec16d4aee36eec49bcc60b326a6d756d7ecc6d1345",
+          "frame_controls_sha256": "540822d4c5264f8ace35aa8eae1cdd0dc927bf36c545b27ad2928a2a6ab8e922"
+        }
+      },
+      "sequences_sha256": "55baf62db88585175e3a224c9419e4a1c87df6eb75608ef5f31db67878fa0e86",
+      "variants": {
+        "candidate": {
+          "appearance": {
+            "mean_rgb": [
+              0.09392854175530374,
+              0.11179944011382759,
+              0.09796764818020165
+            ],
+            "spatial_std_rgb": [
+              0.012554049491882324,
+              0.01126436423510313,
+              0.007960746064782143
+            ],
+            "frozen_operator_temporal_std_rgb": [
+              0.001720911473967135,
+              0.0016779792495071888,
+              0.0013182712718844414
+            ],
+            "invalid_pixel_fraction": 0.0,
+            "nonfinite_value_fraction": 0.0,
+            "minimum": 0.032440185546875,
+            "maximum": 0.18145751953125
+          },
+          "activity": 0.9983367919921875,
+          "candidate_baseline_rms_difference": 0.01893121935427189,
+          "mean_tone_delta_rgb": [
+            -0.0029501132667064667,
+            -0.0032379087060689926,
+            -0.0020288480445742607
+          ],
+          "fallback_pixel_fraction": 0,
+          "interpretation": "Signed change from native baseline; not clean-reference error or quality improvement"
+        },
+        "candidate_safe": {
+          "appearance": {
+            "mean_rgb": [
+              0.09392854175530374,
+              0.11179944011382759,
+              0.09796764818020165
+            ],
+            "spatial_std_rgb": [
+              0.012554049491882324,
+              0.01126436423510313,
+              0.007960746064782143
+            ],
+            "frozen_operator_temporal_std_rgb": [
+              0.001720911473967135,
+              0.0016779792495071888,
+              0.0013182712718844414
+            ],
+            "invalid_pixel_fraction": 0.0,
+            "nonfinite_value_fraction": 0.0,
+            "minimum": 0.032440185546875,
+            "maximum": 0.18145751953125
+          },
+          "activity": 0.9983367919921875,
+          "candidate_baseline_rms_difference": 0.01893121935427189,
+          "mean_tone_delta_rgb": [
+            -0.0029501132667064667,
+            -0.0032379087060689926,
+            -0.0020288480445742607
+          ],
+          "fallback_pixel_fraction": 0.0,
+          "interpretation": "Signed change from native baseline; not clean-reference error or quality improvement"
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "No clean truth or quality/error/acceptance assessment.",
+    "The same observed source is repeated; not independent noise or a captured game sequence.",
+    "Historical Joint capture is reinterpreted by current conversion and AMD; not an exact game replay.",
+    "Frozen camera, zero motion, captured constant jitter; captured camera delta/motion are not replayed.",
+    "Floor disabled and detail recovery zero; these settings are operator controls, not the configured game output.",
+    "Current-source FFT pilot assumes periodic spatial iid support; actual correlated noise/materials can violate it.",
+    "A second AMD context has cost; signed response subtraction can amplify artifacts or become invalid.",
+    "Fallback rejects invalid pixels to the exact baseline; it does not repair those pixels.",
+    "Null repeats measure observed native variation, not a population confidence bound."
+  ],
+  "runner_sha256": "cc2b99f7ddfa0db951e803216716d7878532a4c3c38c3c54070924c46b513497"
+}

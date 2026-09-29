@@ -1,0 +1,2 @@
+# Preserve exact report/source snapshot bytes for the recorded SHA256 values.
+* -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

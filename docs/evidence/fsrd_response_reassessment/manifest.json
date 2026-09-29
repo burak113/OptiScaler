@@ -1,0 +1,249 @@
+{
+  "scope": "Test evidence only; no accepted runtime or game solution",
+  "quality_accepted": false,
+  "base_commit": "14b7cc168bf97f52958bef9ca742e7c10695cd94",
+  "collection_head": "14b7cc168bf97f52958bef9ca742e7c10695cd94",
+  "completed_contexts": 195,
+  "completed_native_rr_dispatches": 8016,
+  "partial_failed_contexts": 6,
+  "partial_failed_native_rr_dispatches": 288,
+  "studies": [
+    {
+      "name": "reassessment_oracle_primary",
+      "original_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\reassessment_oracle_primary\\results.json",
+      "sha256": "0b50c9c3df47f08ceb1b65ef54e7a64b6c986c7fa45a84ca46fea2b517d4536c",
+      "status": "completed_oracle_diagnostic_not_solution",
+      "contexts": 18,
+      "native_rr_dispatches": 576,
+      "source_snapshot_hashes_valid": null,
+      "split_strength": 0,
+      "noise_distribution": "gaussian",
+      "note": "Completed execution never implies quality acceptance"
+    },
+    {
+      "name": "response_blind_primary",
+      "original_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\response_blind_primary\\results.json",
+      "sha256": "dfb42cd0491ca779aa2983a0d4caf96853831ce9d50e6337c37ff3c30f5910ff",
+      "status": "completed_research_not_solution",
+      "contexts": 21,
+      "native_rr_dispatches": 672,
+      "source_snapshot_hashes_valid": true,
+      "split_strength": 0,
+      "noise_distribution": "gaussian",
+      "note": "Completed execution never implies quality acceptance"
+    },
+    {
+      "name": "response_constant_primary",
+      "original_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\response_constant_primary\\results.json",
+      "sha256": "f39e8c06f02dccbdba54a1f3c47234d2a0bafd78e4cb95708cbaa563313ce8db",
+      "status": "completed_research_not_solution",
+      "contexts": 9,
+      "native_rr_dispatches": 288,
+      "source_snapshot_hashes_valid": true,
+      "split_strength": 0,
+      "noise_distribution": "gaussian",
+      "note": "Completed execution never implies quality acceptance"
+    },
+    {
+      "name": "response_checker_falsification",
+      "original_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\response_checker_falsification\\results.json",
+      "sha256": "d93924509b69bbd9d9097f41b4c55ed1f2949a30d491547092fd0483f05fd510",
+      "status": "completed_research_not_solution",
+      "contexts": 9,
+      "native_rr_dispatches": 288,
+      "source_snapshot_hashes_valid": true,
+      "split_strength": 0,
+      "noise_distribution": "gaussian",
+      "note": "Completed execution never implies quality acceptance"
+    },
+    {
+      "name": "response_guarded_holdout",
+      "original_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\response_guarded_holdout\\results.json",
+      "sha256": "0b67624dacaadc3f6b54a1ae2559a218c00118e259f08c289071e46c66cc554a",
+      "status": "failed",
+      "contexts": 3,
+      "native_rr_dispatches": 192,
+      "source_snapshot_hashes_valid": true,
+      "split_strength": 0,
+      "noise_distribution": "gaussian",
+      "note": "Completed execution never implies quality acceptance"
+    },
+    {
+      "name": "response_guarded_holdout_v2",
+      "original_path": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\response_guarded_holdout_v2\\results.json",
+      "sha256": "904563c0455316b8e0662d71c808a9bfef69ad825076028e64652fc24136cc84",
+      "status": "completed_research_not_solution",
+      "contexts": 15,
+      "native_rr_dispatches": 960,
+      "source_snapshot_hashes_valid": true,
+      "split_strength": 0,
+      "noise_distribution": "gaussian",
+      "note": "Completed execution never implies quality acceptance"
+    },
+    {
+      "name": "response_spectral_primary",
+      "original_path": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\response_spectral_primary\\results.json",
+      "sha256": "b6dae113cf919e86ceb282983c87dee1a019c7851e177646ed4dc28c72b054a5",
+      "status": "completed_research_not_solution",
+      "contexts": 30,
+      "native_rr_dispatches": 960,
+      "source_snapshot_hashes_valid": true,
+      "split_strength": 0,
+      "noise_distribution": "gaussian",
+      "note": "Completed execution never implies quality acceptance"
+    },
+    {
+      "name": "response_temporal_spectral_primary",
+      "original_path": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\response_temporal_spectral_primary\\results.json",
+      "sha256": "48eeb684a59accb3b25ca137c79291dc9849dde4aa72cc4641b5ef018af4ed5a",
+      "status": "completed_research_not_solution",
+      "contexts": 39,
+      "native_rr_dispatches": 1248,
+      "source_snapshot_hashes_valid": true,
+      "split_strength": 0.0,
+      "noise_distribution": "gaussian",
+      "note": "Completed execution never implies quality acceptance"
+    },
+    {
+      "name": "response_captured_alpha_primary",
+      "original_path": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\response_captured_alpha_primary\\results.json",
+      "sha256": "3ae9df2213345d5d34e3ac003107548306c0cd28e5bbc2d71ee75497d7675a59",
+      "status": "failed",
+      "contexts": 3,
+      "native_rr_dispatches": 96,
+      "source_snapshot_hashes_valid": true,
+      "split_strength": 1.0,
+      "noise_distribution": "gaussian",
+      "note": "Completed execution never implies quality acceptance"
+    },
+    {
+      "name": "response_captured_alpha_uniform",
+      "original_path": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\response_captured_alpha_uniform\\results.json",
+      "sha256": "44fe9b35d0a15d7b341ca44d9fc40ac1811ca2298140d98bfbafa3b56afcd6d5",
+      "status": "completed_research_not_solution",
+      "contexts": 6,
+      "native_rr_dispatches": 192,
+      "source_snapshot_hashes_valid": true,
+      "split_strength": 1.0,
+      "noise_distribution": "uniform",
+      "note": "Completed execution never implies quality acceptance"
+    },
+    {
+      "name": "response_captured_alpha_safe_holdout",
+      "original_path": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\response_captured_alpha_safe_holdout\\results.json",
+      "sha256": "70caf3a7bb21db26775217ba885b879c63fec6fd69782f1381b73da4f6a0d822",
+      "status": "completed_research_not_solution",
+      "contexts": 3,
+      "native_rr_dispatches": 144,
+      "source_snapshot_hashes_valid": true,
+      "split_strength": 1.0,
+      "noise_distribution": "uniform",
+      "note": "Completed execution never implies quality acceptance"
+    },
+    {
+      "name": "response_temporal_spectral_alpha_holdout",
+      "original_path": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\response_temporal_spectral_alpha_holdout\\results.json",
+      "sha256": "c0715d70f4e71f3b2fd70dce5632cebd50404bb7ba5e1fc4af384d90a56bbcb0",
+      "status": "completed_research_not_solution",
+      "contexts": 39,
+      "native_rr_dispatches": 2496,
+      "source_snapshot_hashes_valid": true,
+      "split_strength": 1.0,
+      "noise_distribution": "gaussian",
+      "note": "Completed execution never implies quality acceptance"
+    },
+    {
+      "name": "rrtrace_spectral_attribution",
+      "original_path": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\rrtrace_spectral_attribution\\results.json",
+      "sha256": "ed1f6ee48dd6b2957cc8e37a4ee0f8050cb9333d2fd54bbc818993f204292b9b",
+      "status": "failed",
+      "contexts": 0,
+      "native_rr_dispatches": 0,
+      "source_snapshot_hashes_valid": true,
+      "split_strength": 0,
+      "noise_distribution": "gaussian",
+      "note": "Completed execution never implies quality acceptance"
+    },
+    {
+      "name": "rrtrace_spectral_attribution_aligned",
+      "original_path": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\rrtrace_spectral_attribution_aligned\\results.json",
+      "sha256": "5b0c7ab6be945dac289b56889977bfb5a944c13e32614c11dccf34925f696544",
+      "status": "completed_attribution_not_quality",
+      "contexts": 6,
+      "native_rr_dispatches": 192,
+      "source_snapshot_hashes_valid": true,
+      "split_strength": 0,
+      "noise_distribution": "gaussian",
+      "note": "Completed execution never implies quality acceptance"
+    }
+  ],
+  "pending": [],
+  "extra_reports": [
+    {
+      "name": "release_gate",
+      "original_path": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\alpha_f_drive_release_gate\\summary.json",
+      "sha256": "9f79ab492fd76a09a58009ff49923a4ae26b4a00a3af066cb11603a1f10b8a10"
+    },
+    {
+      "name": "historical_rrtrace_audit",
+      "original_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\rrtrace_cause_audit_v3\\results.json",
+      "sha256": "af818a9a9877b5e970d2dfe2bb1647a6ed40fcb49e0fbdac455f3257cfb9d1b4"
+    },
+    {
+      "name": "game_alpha_capture_installation",
+      "original_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\game_alpha_capture_installation.json",
+      "sha256": "61e12018f9e10dec81cf1d5e3b887f7105f9297c0dd61fdcd9c741326e850810"
+    },
+    {
+      "name": "native_numeric_reproducibility",
+      "original_path": "F:\\OptiRevelations\\rr-reassessment-14b7-working\\results\\native_numeric_reproducibility.json",
+      "sha256": "881be401519bc68e78603bfd37a900693cdcecf8bd805dac46cc26767a15ad44"
+    },
+    {
+      "name": "native_reproducibility",
+      "original_path": "F:\\OptiRevelations\\rr-reassessment-14b7-working\\results\\native_reproducibility.json",
+      "sha256": "86c0764f5d55b9042db36cd3b44b57706d42b5db2af4d280d9d5f67eb2fc20c0"
+    },
+    {
+      "name": "numpy_pilot_parity",
+      "original_path": "F:\\OptiRevelations\\rr-reassessment-14b7-working\\results\\numpy_pilot_parity.json",
+      "sha256": "a35291a6c3eb3b3ff7bf65bd27cff97cd8e7ab0de9eeff51a3f7ca643ea5c9c5"
+    },
+    {
+      "name": "delta_history_offline",
+      "original_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\delta_history_offline_20260930\\results.json",
+      "sha256": "106f0c1aafd6344eeaa2cb98d12ad1bf27f2792ac44b4a91adef88175aee49ec"
+    },
+    {
+      "name": "runner_failure_diagnostics_check",
+      "original_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\runner_failure_diagnostics_check.json",
+      "sha256": "e7485d744527405db72152a2ad069641faf18abdf3f1df9bc213a6e98cf4ae60"
+    },
+    {
+      "name": "validation_final",
+      "original_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\validation_final.json",
+      "sha256": "53b2fe448e2c9a8c09350389e2ad64358541f222b029c48b219bb8a709847c91"
+    },
+    {
+      "name": "delta_spectrum_innovation_offline",
+      "original_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\delta_spectrum_innovation_offline_20260930\\results.json",
+      "sha256": "2b92a41cfef24f9675a29bfa43ff178de68066e60d0cf3a5c894617da9ec9569"
+    }
+  ],
+  "offline_source_snapshots": [
+    {
+      "name": "delta_mean16",
+      "original_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\delta_history_offline_20260930\\analyze.py",
+      "archived_path": "docs\\evidence\\fsrd_response_reassessment\\delta_mean16_source.py",
+      "sha256": "35190ce7c43822f2ffe6f418f45f793b7b447a91fe542a8c377e8942784821ae",
+      "note": "Exact source snapshot; its ROOT resolution assumes the original tools_tmp directory"
+    },
+    {
+      "name": "delta_innovation16",
+      "original_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\delta_spectrum_innovation_offline_20260930\\analyze.py",
+      "archived_path": "docs\\evidence\\fsrd_response_reassessment\\delta_innovation16_source.py",
+      "sha256": "95023c9c7a70bf8145364431df462c27527e491d1fd27d117e5c0a25bc79dd8a",
+      "note": "Exact source snapshot; its ROOT resolution assumes the original tools_tmp directory"
+    }
+  ]
+}

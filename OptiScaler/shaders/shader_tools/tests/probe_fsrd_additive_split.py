@@ -221,8 +221,13 @@ def run_amd(folder, executable, packed, depth, camera=None, frame_controls=None)
     proc = subprocess.run([str(executable), str(job)], capture_output=True, text=True, timeout=300)
     log = proc.stdout+proc.stderr
     (folder/'runner.log').write_text(log, encoding='utf-8')
+    save_json(folder/'runner_process.json', dict(
+        returncode=proc.returncode, returncode_hex=f'0x{proc.returncode & 0xffffffff:08x}',
+        runner_sha256=hashlib.sha256(Path(executable).read_bytes()).hexdigest(),
+        log_sha256=hashlib.sha256((folder/'runner.log').read_bytes()).hexdigest()))
     if proc.returncode:
-        raise RuntimeError(log)
+        raise RuntimeError(f'Native AMD runner exited {proc.returncode} '
+                           f'(0x{proc.returncode & 0xffffffff:08x}); log: {folder / "runner.log"}\n{log}')
     for field in ('validation_errors', 'validation_warnings', 'sdk_errors', 'sdk_warnings'):
         if not re.search(r'\b'+field+r'=0\b', log):
             raise RuntimeError(log)

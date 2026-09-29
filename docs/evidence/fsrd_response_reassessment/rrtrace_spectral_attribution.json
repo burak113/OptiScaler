@@ -1,0 +1,841 @@
+{
+  "schema": "rrtrace-frozen-source-native-response-attribution-v1",
+  "status": "failed",
+  "quality_accepted": false,
+  "quality_measured": false,
+  "game_run": false,
+  "runtime_implemented": false,
+  "frames": 32,
+  "roi_xywh": [
+    5,
+    25,
+    80,
+    60
+  ],
+  "split_strengths": [
+    0.0,
+    1.0
+  ],
+  "radiance_fallback_registered": true,
+  "git_head": "14b7cc168bf97f52958bef9ca742e7c10695cd94",
+  "working_status": " M OptiScaler/shaders/shader_tools/tests/probe_fsrd_statistical_resolve.py\n M OptiScaler/shaders/shader_tools/validate_fsrd.py\n?? OptiScaler/shaders/shader_tools/tests/fsrd_response_pilot.py\n?? OptiScaler/shaders/shader_tools/tests/inspect_fsrd_rrtrace_cause.py\n?? OptiScaler/shaders/shader_tools/tests/plot_fsrd_response_calibration.py\n?? OptiScaler/shaders/shader_tools/tests/probe_fsrd_response_calibration.py\n?? OptiScaler/shaders/shader_tools/tests/probe_fsrd_rrtrace_response.py\n?? OptiScaler/shaders/shader_tools/tests/test_fsrd_response_pilot.py\n?? OptiScaler/shaders/shader_tools/tests/test_fsrd_response_protocol.py\n?? OptiScaler/shaders/shader_tools/tests/test_fsrd_rrtrace_response.py\n?? docs/evidence/fsrd_response_reassessment/\n?? docs/fsrd_alpha_response_reassessment.md\n?? docs/images/fsrd_alpha/response_guarded_holdout.png\n?? docs/images/fsrd_alpha/response_spectral_primary.png\n?? docs/images/fsrd_alpha/response_temporal_counterexamples.png\n",
+  "production_shaders": {
+    "FSRDAdditiveSplit.hlsli": "7ca2179f70c380cdb3fc4585c01ef18486690dbacf48b727555daa06de40d7b9",
+    "FSRDFloor.hlsl": "0dcd184a5528e5ae6defe28ce85d79931476ce85835672df8d221d7bbe5ff74a",
+    "FSRDFloor_Shader.cso": "882fd57c2e9822bbb9fd2e10707f3a4067d4593d5f40083fcf188c5c9246edc9",
+    "FSRDFloorCommon.hlsli": "d5a79adda9f36d904ab2fcfbbaf00b4bb3ad8f3fe25fe4d3b953282ad717c999",
+    "FSRDFloorSeed.hlsl": "76d7e2cbd505cb7b2eb20e02556bb9e563e5d924a5ca33652641ae447e79e955",
+    "FSRDFloorSeed_Shader.cso": "b6a2dca1a679b8cc8f2f3dc7e00e08a7e8810743fcdae2175a7df50c17c0347c",
+    "FSRDInputConv.hlsl": "1981a30bc22c5d98762e8e7fd33b657ee8daa4f18e10c79ce89e2102a407f5d3",
+    "FSRDInputConv_Shader.cso": "1eb2b8fb8e971f670e7c7b5fb3a4e269672d0d93427d0e84e7635593e63d4b01",
+    "FSRDInputConvAdditive.hlsl": "acef0b34969e581106ee51e93e859a217fcafa3e17910e595516e73dd0b3c573",
+    "FSRDInputConvAdditive_Shader.cso": "64332e35a56277f373fd119c512108ec309b96c5ea1abcc45096b03a44577c5d",
+    "FSRDOutputComp.hlsl": "65b2abb5710c9d738898c0f499cc22b433e0a29793b8da3b8e5cc6d280c2aee4",
+    "FSRDOutputComp_Shader.cso": "8f4dd9d8e69626b60badf8fdb1eb4db34d35e65383e7160cc3ba1c96e0c6ed09",
+    "FSRDPreprocessCommon.hlsli": "4ca7962c413826950c6025a85cf3502618e6a32182bfaaee3437cac6ef52cc26",
+    "RRTraceAdditive.hlsl": "e8a342a1489d35909c173112a77e6aa4690dd2d9bbffa444c64466380e15909d",
+    "RRTraceAdditive_Shader.cso": "7977fed271960d4a876c7132fbb54ec95d6d35f58674ad622ef39c9cccc85c8d"
+  },
+  "native_provider_sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3",
+  "source_sha256": {
+    "fsrd_alpha_common.py": "691975513a56ada7c1ec8faab7a4f70840508371a3334dba67275e00aef4ba2e",
+    "fsrd_gpu_runner.cpp": "f215e7565d70e3e85aacc524f47cf4138934d523ba019cfc3c8b48849751c953",
+    "fsrd_quality_contours.py": "3d4133849e69685966abafb77fedb6eed0cfe705c8aeb82e0940f82d0c2e8a0e",
+    "fsrd_response_pilot.py": "a8f4197d10d3f6aaade4a3b383758b4c01f6c8be1d231706f05052ead4f7b465",
+    "fsrd_rr_runner.cpp": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077",
+    "fsrd_toolchain.py": "f9e921637631a280f43bee034588897966f1195e16e88517e754ecfdc27978cd",
+    "probe_fsrd_additive_split.py": "38017ce6229419505366e28371afed456ad32e00e1275f17d57bb076eb602c97",
+    "probe_fsrd_response_calibration.py": "c3278b641e9da7489a4a16d7d1fb0ba6d7b0a71cb065c4d890797add9bd0d81b",
+    "probe_fsrd_rrtrace_response.py": "629e4dc4a4cf4add9975f9bc88e5e5754a65032e676f3ca3a3bcb6d1dfc6c41c",
+    "probe_fsrd_statistical_resolve.py": "f804ea74c72aef1b6adf351e2d3cbe4f809c3069b13419492be178401248a3ee",
+    "run_fsrd_gpu_tests.py": "c9e61330f829be4111ffebfb2a9170d685b1eec3bcebfa631e6bbf0c3728e66f",
+    "verify_fsrd_mirrors.py": "721e8122883c41c7af87450fef097e5fee04b09be22323a69f72da2ffbc65625"
+  },
+  "captured_source": {
+    "metadata_path": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_33098_stage6_3_2898562\\capture.json",
+    "metadata_sha256": "949bb2b439f4ee2e38a9ffd6fce308e0ed9441d7f70ed8aa511ac9227e977155",
+    "source_payload_sha256": {
+      "raw_rgba": "283aaa5d4755db768b7f8534cede7e9bcddd96b1f4a23ac2eb1be09b0cc178e2",
+      "source_diffuse_albedo": "216095cc9e23127af386c22bfa15f7979ee5b9ea9ba608c9d1679b6fb312b7c2",
+      "source_specular_albedo": "c1bd4c596c7c383a4459cce2247376718f9823956d4a0871615b615fb8896725",
+      "source_normals": "7547d954ea39daa4f0d74f747399acd8a590694fe54a72f45024eaf57b55000b",
+      "rr_linear_depth": "ca94413a3c69f8979d33da35b9668b7b471382807daec8a3566b51cec35468a1",
+      "source_specular_hit_distance": "840fe26e879c88d6f9252a86c851df0974d3d913424a5517350ce6c34f63100e"
+    },
+    "cropped_payload_sha256": {
+      "raw_rgba": "4c60138a0bf47fed39a12d777b74b922644e3322a247f7528603f0fb4d4530aa",
+      "source_diffuse_albedo": "7e87e68d227e84d9cfab2409b788db86cb1625d699568240190352ef3d7a513d",
+      "source_specular_albedo": "aa834ef0bc6e54e4b810c49d78d539edd869ec3872983f3ea175aea98b9bc3c2",
+      "source_normals": "b4a35692e4f000d599994664d6b18a41602200cb3c52ab7c8229d8d6ff05c868",
+      "rr_linear_depth": "e90152a67adda60394a98becee53aebfb4ba83f32ef2924c7b893153ddf548d5",
+      "source_specular_hit_distance": "952f014976e9503b8261322f4239b8ffa56db610771aaf355e6b3d4f6434bc4d"
+    },
+    "original_capture_size": [
+      256,
+      256
+    ],
+    "render_size": [
+      1505,
+      847
+    ],
+    "original_origin_xy": [
+      752,
+      423
+    ],
+    "crop_xywh": [
+      5,
+      25,
+      80,
+      60
+    ],
+    "render_origin_xy": [
+      757,
+      448
+    ],
+    "backend": "JointFieldV1",
+    "source_frame": 33098,
+    "source_format": "Authenticated rgba32f_le",
+    "operator_source_format": "RGB FP16 roundtrip; raw alpha is not radiance input",
+    "raw_fp16_roundtrip_max_delta": 0.0,
+    "geometry": "Captured normals/roughness/depth/specular hit; fixed camera and zero motion",
+    "true_game_history": false,
+    "independent_observations": false,
+    "clean_reference_available": false
+  },
+  "source_crop_npz_sha256": "4df7170724950789c021a9b71381bc25d5f9e860c10c859fa6e165e3110bd860",
+  "pilot_diagnostics": {
+    "schema": "fsrd-spectral-response-pilot-research-v1",
+    "active_frames": 32,
+    "frames": [
+      {
+        "frame": 0,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 1,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 2,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 3,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 4,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 5,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 6,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 7,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 8,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 9,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 10,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 11,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 12,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 13,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 14,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 15,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 16,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 17,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 18,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 19,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 20,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 21,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 22,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 23,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 24,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 25,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 26,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 27,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 28,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 29,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 30,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      },
+      {
+        "frame": 31,
+        "active": true,
+        "reason": "accepted",
+        "nominal_iid_pixel_sigma": 0.04020847890880552,
+        "median_coefficient_amplitude": 0.00048318089713185084,
+        "coefficient_threshold": 0.0023214376121704254,
+        "threshold_sigma_multiplier": 4.0,
+        "nominal_pixels": 4800,
+        "effective_independent_pixels": null,
+        "retained_frequencies": 8,
+        "total_rfft_frequencies": 2460,
+        "prediction_min": 0.06795818200246603,
+        "prediction_max": 0.1317921277943623,
+        "signed_mean_delta_rgb": [
+          1.09750171913466e-17,
+          4.649058915617843e-18,
+          1.7052331768852014e-17
+        ],
+        "negative_prediction_fraction": 0.0
+      }
+    ],
+    "quality_accepted": false,
+    "no_clean_truth_input": true,
+    "threshold_sigma_multiplier": 4.0,
+    "source_domain": "current observed RGB only; normalized rfft2",
+    "assumptions": [
+      "Periodic ROI",
+      "Spatial iid approximately Gaussian marginal noise",
+      "Most pooled spectral magnitudes represent noise",
+      "Comparable channel noise scales"
+    ],
+    "limitations": [
+      "No independence or correspondence proof",
+      "No scene boundary/motion model",
+      "Shared persistent source bias is unidentifiable",
+      "Nonperiodic detail leaks across frequencies",
+      "Noise selected by its own amplitude can enter pilot",
+      "RGB common mask can carry weak-channel noise",
+      "Coarse correlated noise and dense material spectra invalidate noise calibration",
+      "Threshold crossings can flicker; no temporal smoothing",
+      "No HLSL/runtime/game acceptance"
+    ]
+  },
+  "guide_correlations": {
+    "rho_diffuse_specular_rgb": [
+      [
+        0.018209027709340898,
+        0.0017239950158603027,
+        0.005484089486585986
+      ],
+      [
+        0.26602714810861333,
+        0.24012811131827025,
+        0.20276338913358855
+      ]
+    ],
+    "nominal_pixels": 4800,
+    "effective_independent_pixels": null,
+    "interpretation": "Current-source association; no physical attribution or independence proof"
+  },
+  "display": {
+    "linear_rgb_max": 0.25,
+    "signed_rgb_delta_max": 0.05
+  },
+  "amd_completed_sequences": 0,
+  "rows": [],
+  "limitations": [
+    "No clean truth or quality/error/acceptance assessment.",
+    "The same observed source is repeated; not independent noise or a captured game sequence.",
+    "Historical Joint capture is reinterpreted by current conversion and AMD; not an exact game replay.",
+    "Frozen camera, zero motion, captured constant jitter; captured camera delta/motion are not replayed.",
+    "Floor disabled and detail recovery zero; these settings are operator controls, not the configured game output.",
+    "Current-source FFT pilot assumes periodic spatial iid support; actual correlated noise/materials can violate it.",
+    "A second AMD context has cost; signed response subtraction can amplify artifacts or become invalid.",
+    "Fallback rejects invalid pixels to the exact baseline; it does not repair those pixels.",
+    "Null repeats measure observed native variation, not a population confidence bound."
+  ],
+  "runner_sha256": "6bcd5730c4d669dfd18a2e9e1f3a5df479dd88d1ff32b671de45d5ad9df2aa3b",
+  "error": "adapter=AMD Radeon RX 9070 driver=9007201287738249 debug_layer=1\n"
+}
