@@ -138,6 +138,7 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
         p=d/f'out{i}.bin'
         if fmt==10:a=np.fromfile(p,dtype='<f2').reshape(h,w,4).astype(np.float32)
         elif fmt==3:a=np.fromfile(p,dtype='<u4').reshape(h,w,4)
+        elif fmt==2:a=np.fromfile(p,dtype='<f4').reshape(h,w,4)
         elif fmt==41:a=np.fromfile(p,dtype='<f4').reshape(h,w)
         elif fmt==28:a=np.fromfile(p,dtype=np.uint8).reshape(h,w,4).astype(np.float32)/255
         elif fmt==24:

@@ -38,6 +38,29 @@ measurements do not represent complete RR or game frame time. See the
 Disabled conversion uses the original shader; enabled conversion selects
 `FSRDInputConvAdditive`. Lossless comparison permits no channel exceptions.
 
+Channel attribution and wider-support/two-lobe research are documented in
+[the channel diagnostics report](../../../../docs/fsrd_alpha_channel_diagnostics.md).
+`test_fsrd_additive_diagnostics.py` checks the production estimator journal and
+live ROI shader; `test_fsrd_additive_lifetime.py` tests actual queue/reset fencing
+and invalid submission lifecycles. `test_fsrd_allocation_models.py` covers
+identifiability, unknown additive routing and geometry counterexamples.
+`test_fsrd_additive_capture_reader.py` rejects corrupt, incomplete or misidentified
+capture evidence while preserving invalid source guides for diagnosis. All four
+are in the release gate. They do not certify in-game capture hooks or image quality.
+
+The game menu's **Additive channel capture** creates a bounded same-frame 0/1
+record. Run `inspect_fsrd_additive_capture.py --capture <folder> --output <new-folder>`
+to verify hashes and inspect RGB rejection, fit, transfer and Floor/Skip fractions.
+`probe_fsrd_allocation_models.py --output <new-folder> --frames 64` runs the separate
+research matrix through real AMD; candidates are not part of the normal game PSO.
+The default models are `surface_overlap,lobes_overlap`; explicitly select
+`--models surface,lobes` only to reproduce the original block candidates.
+`plot_fsrd_allocation_models.py --input <probe-folder> --output <image.png>` renders
+the two noise-free islands with identical display/error scales across candidates.
+`summarize_fsrd_allocation_models.py --input <probe-folder> --output <new-json>`
+requires all 33 variants, checks the execution source snapshots, preserves the
+original decisions, and separately applies the island-only radial-width gate.
+
 `probe_fsrd_additive_parity.py --baseline <frozen-measured-additive-snapshot>
 --output <new-directory>` is the separate optimization audit. It authenticates
 the measured prototype DXIL (`398dd3bc...`) and source, then requires exact

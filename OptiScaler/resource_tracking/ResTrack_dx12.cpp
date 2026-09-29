@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "shaders/fsrd_preprocess/RRTraceFence.h"
 #include "ResTrack_dx12.h"
 
 #include <Config.h>
@@ -1830,7 +1831,9 @@ void ResTrack_Dx12::hkExecuteCommandLists(ID3D12CommandQueue* This, UINT NumComm
 
         if (!found.empty())
         {
+            auto additiveTickets = RRTraceFence::BeforeSubmission(This, NumCommandLists, ppCommandLists);
             o_ExecuteCommandLists(This, NumCommandLists, ppCommandLists);
+            RRTraceFence::AfterSubmission(This, additiveTickets);
 
             for (size_t i = 0; i < found.size(); i++)
             {
@@ -1843,7 +1846,9 @@ void ResTrack_Dx12::hkExecuteCommandLists(ID3D12CommandQueue* This, UINT NumComm
 
     LOG_TRACK("Done NumCommandLists: {}", NumCommandLists);
 
+    auto additiveTickets = RRTraceFence::BeforeSubmission(This, NumCommandLists, ppCommandLists);
     o_ExecuteCommandLists(This, NumCommandLists, ppCommandLists);
+    RRTraceFence::AfterSubmission(This, additiveTickets);
 }
 
 #pragma region Heap hooks
@@ -2184,6 +2189,7 @@ HRESULT ResTrack_Dx12::hkReset(ID3D12GraphicsCommandList* This,
                                ID3D12PipelineState* pInitialState)
 {
     const HRESULT result = o_Reset(This, pAllocator, pInitialState);
+    if (SUCCEEDED(result)) RRTraceFence::ResetSucceeded(This);
     if (SUCCEEDED(result) &&
         gRRResourceInspectorEnabled.load(std::memory_order_relaxed))
     {
@@ -3877,4 +3883,14 @@ void ResTrack_Dx12::SetResourceCmdList(FG_ResourceType type, ID3D12GraphicsComma
         _resourceCommandList[index][type] = realCmdList;
         LOG_DEBUG("_resourceCommandList[{}][{}]: {:X}", index, magic_enum::enum_name(type), (size_t) realCmdList);
     }
+}
+
+bool ResTrack_Dx12::EnsureRRTraceHooks(ID3D12Device* device)
+{
+    static std::mutex mutex;
+    std::scoped_lock lock(mutex);
+    if (!device) return false;
+    HookToQueue(device);
+    HookCommandList(device);
+    return o_ExecuteCommandLists != nullptr && o_Reset != nullptr;
 }

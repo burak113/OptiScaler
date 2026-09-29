@@ -51,7 +51,7 @@ def extract_baseline(output):
 class GPUWorker:
     """Use the existing --server mode, checking every job's D3D12 diagnostics."""
     def __init__(self, output):
-        output = Path(output)
+        output = Path(output).resolve()
         output.mkdir(parents=True, exist_ok=True)
         t.OUT = output / 'shader_jobs'
         t.OUT.mkdir(exist_ok=True)
@@ -116,7 +116,7 @@ def conversion_cb(w, h, strength=0, floor=False, indirect=True, **overrides):
 
 def convert(raw, diff, spec, strength=0, *, directory=t.PRE, depth=None, normals=None,
             roughness=None, floor=None, reference=None, motion=None, overrides=None,
-            size=None, origins=None, resources=None, kernel='auto'):
+            size=None, origins=None, resources=None, kernel='auto', output_formats=None):
     h, w = raw.shape[:2]
     lw, lh = size or (w, h)
     zero = np.zeros((h, w, 4), np.float32)
@@ -134,7 +134,10 @@ def convert(raw, diff, spec, strength=0, *, directory=t.PRE, depth=None, normals
               diff, spec, zero, zero if floor is None else floor, zero, zero, zero, zero,
               depth, zero, raw if reference is None else reference]
     for slot, array in (resources or {}).items():
-        inputs[slot] = array
+        if slot == len(inputs):
+            inputs.append(array)
+        else:
+            inputs[slot] = array
     # Mirror the production PSO selection. Original DXIL at applied strength0
     # protects every stored channel from enabled-path compiler reassociation.
     # Historical frozen directories keep their original shader basename.
@@ -145,7 +148,8 @@ def convert(raw, diff, spec, strength=0, *, directory=t.PRE, depth=None, normals
     shader = ('FSRDInputConvAdditive' if kernel == 'additive' or
               (kernel == 'auto' and applied > 0 and Path(directory).resolve() == t.PRE.resolve())
               else 'FSRDInputConv')
-    return t.dispatch(shader, cb, inputs, CONV_FORMATS, (lw, lh), directory=directory)
+    return t.dispatch(shader, cb, inputs, CONV_FORMATS if output_formats is None else output_formats,
+                      (lw, lh), directory=directory)
 
 
 def compose(packed, spec=None, diff=None, *, directory=t.PRE, depth=None, detail=1,

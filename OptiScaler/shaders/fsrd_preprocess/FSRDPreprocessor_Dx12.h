@@ -393,6 +393,9 @@ class FSRDPreprocessor_Dx12
               DirectX::XMFLOAT2 logicalSrcDim = {},
               DirectX::XMFLOAT2 logicalSrcBase = {}) const;
 
+    static bool RequestAdditiveCapture(uint32_t x, uint32_t y, uint32_t size);
+    static std::string GetAdditiveCaptureStatus();
+
   private:
     struct Impl;
 

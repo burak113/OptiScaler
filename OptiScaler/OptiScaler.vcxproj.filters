@@ -971,6 +971,18 @@
     <ClInclude Include="shaders\fsrd_preprocess\FSRDShaderData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\RRTraceAdditiveIO.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\RRTraceFence.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\RRTraceFenceState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\RRTraceAdditive_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="shaders\fsrd_preprocess\FSRDShaderUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -1616,6 +1628,12 @@
       <Filter>Header Files</Filter>
     </None>
     <None Include="shaders\fsrd_preprocess\precompile\FSRDInputConv.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shaders\fsrd_preprocess\precompile\RRTraceAdditive.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shaders\fsrd_preprocess\RRTraceAdditive.inl">
       <Filter>Header Files</Filter>
     </None>
     <None Include="shaders\fsrd_preprocess\precompile\FSRDInputConvAdditive.hlsl">

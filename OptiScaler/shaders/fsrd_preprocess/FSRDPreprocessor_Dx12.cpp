@@ -1,4 +1,11 @@
 #include "pch.h"
+#include "RRTraceFence.h"
+#include "RRTraceAdditiveIO.h"
+#include "precompile/RRTraceAdditive_Shader.h"
+#include "resource_tracking/ResTrack_dx12.h"
+#include "Util.h"
+#include <optional>
+#include <mutex>
 #include "FSRDPreprocessor_Dx12.h"
 #include "FSRDShaderUtils.h"
 #include "FSRDShaderData.h"
@@ -225,10 +232,42 @@ struct ComputeState
     }
 };
 
+
+namespace {
+std::mutex g_additiveTraceMutex;
+std::optional<std::array<UINT,3>> g_additiveTraceRequest;
+bool g_additiveTraceBusy=false;
+std::string g_additiveTraceStatus="No additive channel capture requested.";
+constexpr const char* kAdditiveFieldNames[] = {"rejected","evaluated","eligible","preflight_count","fit_count","mean_albedo","variance_albedo","min_specular","max_specular","mean_specular","mean_residual","variance_residual","covariance","ridge_lambda","data_weight","prior_slope","unregularized_slope","ridge_slope","intercept_unclamped","intercept","intercept_error","fit_rmse","applied_slope","applied_intercept","center_prediction","center_prediction_error","p0","p","delta_p","transferred_rgb","eligible_rgb","skip_rgb","skip_fraction","remodulated_fraction","raw_rgb","spatial_floor_rgb","eligible_fraction","specular_signal","diffuse_signal","settings","source_diffuse","source_specular","source_normal","source_roughness","linear_depth","source_motion","stored_specular","stored_diffuse"};
+}
+bool FSRDPreprocessor_Dx12::RequestAdditiveCapture(uint32_t x,uint32_t y,uint32_t size)
+{
+    std::scoped_lock lock(g_additiveTraceMutex);
+    if (g_additiveTraceBusy || g_additiveTraceRequest || size<16 || size>128) return false;
+    g_additiveTraceRequest=std::array<UINT,3>{x,y,size};
+    g_additiveTraceStatus="Additive capture requested; waiting for FSR-RR conversion.";
+    return true;
+}
+std::string FSRDPreprocessor_Dx12::GetAdditiveCaptureStatus()
+{
+    std::scoped_lock lock(g_additiveTraceMutex);
+    return g_additiveTraceStatus;
+}
+
 // Private implementation
 struct FSRDPreprocessor_Dx12::Impl
 {
     ID3D12Device* m_pDev = nullptr;
+#include "RRTraceAdditive.inl"
+    ~Impl()
+    {
+        if (m_additiveCapture)
+        {
+            std::scoped_lock lock(g_additiveTraceMutex);
+            g_additiveTraceBusy=false;
+            g_additiveTraceStatus="Additive capture owner ended; unfinished capture not exported.";
+        }
+    }
 
     ComputeState m_floorSeedShader;
     ComputeState m_floorFilterShader;
@@ -1420,6 +1459,7 @@ struct FSRDPreprocessor_Dx12::Impl
             .AdditiveLightSplit = desc.AdditiveLightSplit,
         };
 
+        CaptureAdditive(cmdList, packConstants, in.AsArray);
         const std::span<const byte> convCBData((const byte*) &packConstants, sizeof(packConstants));
         m_convShader.Dispatch(cmdList, convCBData, in.AsArray, m_out.AsRawArray, dispatchSize, true,
                               conversionPipeline);

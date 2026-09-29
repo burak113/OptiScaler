@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
 #include "menu_common.h"
 
 #include "input/input_system.h"
@@ -4548,6 +4549,20 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
                                     config->FfxDenoiserAdditiveLightSplit = v;
                                 if (ImGui::IsItemHovered())
                                     ImGui::SetTooltip("Experimental local color/albedo fit shifts estimated additive lighting toward the specular signal. Guides and modulation stay unchanged. 0 disables; changes reset history. Adds conversion GPU work.");
+                                if (ImGui::TreeNode("Additive channel capture"))
+                                {
+                                    static int traceX=0, traceY=0, traceSize=0;
+                                    ImGui::InputInt("Render ROI X##Additive",&traceX);
+                                    ImGui::InputInt("Render ROI Y##Additive",&traceY);
+                                    traceX=std::max(traceX,0); traceY=std::max(traceY,0);
+                                    ImGui::Combo("ROI size##Additive",&traceSize,"64 x 64\0" "128 x 128\0");
+                                    ImGui::TextWrapped("Origin is aligned down to 8 pixels. Captures RGB rejection reasons, fit, transfer and Floor/Skip at strength 0/1 from the same source frame. Capture adds GPU/readback work.");
+                                    if (ImGui::Button("Capture additive channels"))
+                                        FSRDPreprocessor_Dx12::RequestAdditiveCapture(UINT(traceX),UINT(traceY),traceSize ? 128 : 64);
+                                    const auto status=FSRDPreprocessor_Dx12::GetAdditiveCaptureStatus();
+                                    ImGui::TextWrapped("%s",status.c_str());
+                                    ImGui::TreePop();
+                                }
                                 ImGui::SeparatorText("Floor Recovery");
                                 if (bool v = config->FfxDenoiserFloorFlatRecovery.value_or_default();
                                     ImGui::Checkbox("Flat Albedo & Zero Rough Recovery", &v))

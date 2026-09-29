@@ -18,30 +18,46 @@ PRE = "OptiScaler/shaders/fsrd_preprocess/precompile"
 VERIFY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "verify_fsrd_mirrors.py")
 
 
+def publish_if_changed(path, data):
+    if os.path.isfile(path):
+        with open(path, 'rb') as stream:
+            if stream.read() == data:
+                return
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=os.path.dirname(path), suffix='.tmp', delete=False) as stream:
+            temporary = stream.name
+            stream.write(data)
+        os.replace(temporary, path)
+    finally:
+        if temporary and os.path.exists(temporary):
+            os.remove(temporary)
+
+
 def build(name, compiler):
     src = os.path.join(ROOT, PRE, name + ".hlsl")
     cso = os.path.join(ROOT, PRE, name + "_Shader.cso")
-    asm = os.path.join(ROOT, PRE, name + ".asm")
     hdr = os.path.join(ROOT, PRE, name + "_Shader.h")
 
-    args = [str(compiler), "-T", "cs_6_2", "-E", "CSMain", "-enable-16bit-types", "-O3",
-            "-Qstrip_debug", "-Qstrip_reflect", src, "-Fo", cso, "-Fc", asm]
-    res = subprocess.run(args, capture_output=True, text=True)
-    if res.returncode != 0:
-        print(res.stdout)
-        print(res.stderr)
-        raise SystemExit("dxc failed for " + name)
+    # A capture/probe may be reading the existing CSO. Compile elsewhere and
+    # publish only a complete changed artifact, just as for the generated header.
+    with tempfile.TemporaryDirectory(prefix=name+'_', dir=os.path.dirname(cso)) as temporary:
+        compiled = os.path.join(temporary, name+'.cso')
+        asm = os.path.join(temporary, name+'.asm')
+        args = [str(compiler), "-T", "cs_6_2", "-E", "CSMain", "-enable-16bit-types", "-O3",
+                "-Qstrip_debug", "-Qstrip_reflect", src, "-Fo", compiled, "-Fc", asm]
+        res = subprocess.run(args, capture_output=True, text=True)
+        if res.returncode != 0:
+            print(res.stdout)
+            print(res.stderr)
+            raise SystemExit("dxc failed for " + name)
 
-    with open(asm, "r", encoding="utf-8", errors="replace") as f:
-        # DXC emits a few listing lines with trailing spaces. Normalize them here so
-        # regenerated checked-in headers pass git diff --check deterministically.
-        listing = "\n".join(
-            line.rstrip() for line in f.read().replace("\r\n", "\n").splitlines()
-        )
-    os.remove(asm)
-
-    with open(cso, "rb") as f:
-        data = f.read()
+        with open(asm, "r", encoding="utf-8", errors="replace") as f:
+            listing = "\n".join(
+                line.rstrip() for line in f.read().replace("\r\n", "\n").splitlines()
+            )
+        with open(compiled, "rb") as f:
+            data = f.read()
 
     with io.StringIO() as f:
         f.write("#if 0\n")
@@ -59,20 +75,8 @@ def build(name, compiler):
     # Avoid truncating a header while the IDE/indexer reads it. Reproducibility
     # checks should not rewrite identical artifacts at all; changed headers are
     # published atomically, so a failed write cannot leave an incomplete array.
-    existing = None
-    if os.path.isfile(hdr):
-        with open(hdr, 'rb') as f:
-            existing = f.read()
-    if existing != header:
-        temporary = None
-        try:
-            with tempfile.NamedTemporaryFile(dir=os.path.dirname(hdr), suffix='.tmp', delete=False) as f:
-                temporary = f.name
-                f.write(header)
-            os.replace(temporary, hdr)
-        finally:
-            if temporary and os.path.exists(temporary):
-                os.remove(temporary)
+    publish_if_changed(cso, data)
+    publish_if_changed(hdr, header)
 
     print("%s: cso %d bytes -> %s" % (name, len(data), hdr))
 
@@ -80,7 +84,7 @@ def build(name, compiler):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('name', choices=['FSRDFloorSeed', 'FSRDFloor', 'FSRDInputConv',
-                                       'FSRDInputConvAdditive', 'FSRDOutputComp', 'all'])
+                                       'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDOutputComp', 'all'])
     parser.add_argument('--dxc', help='DXC executable; otherwise FSRD_DXC, PATH, or latest installed SDK')
     options = parser.parse_args()
     compiler = dxc(options.dxc)
@@ -93,9 +97,9 @@ if __name__ == "__main__":
         raise SystemExit("mirror check failed; not compiling")
     if options.name == 'all':
         names = ['FSRDFloorSeed', 'FSRDFloor', 'FSRDInputConv',
-                 'FSRDInputConvAdditive', 'FSRDOutputComp']
+                 'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDOutputComp']
     elif options.name == 'FSRDInputConv':
-        names = ['FSRDInputConv', 'FSRDInputConvAdditive']
+        names = ['FSRDInputConv', 'FSRDInputConvAdditive', 'RRTraceAdditive']
     else:
         names = [options.name]
     for name in names:

@@ -78,6 +78,17 @@ static const float s_ZeroRoughRRRoughness = 0.1f;
 #define FLAGS_DEBUG                     (1 << 16)
 #define FLAGS_DEBUG_MODE_MASK           (0xFF << 16)
 
+#ifndef FSRD_CAPTURE_ROI
+#define FSRD_CAPTURE_ROI 0
+#endif
+#if FSRD_CAPTURE_ROI
+#define FSRD_OUTPUT_PIXEL(px) ((px) - uint2(InspectorScale, DebugDepthMax))
+#else
+#define FSRD_OUTPUT_PIXEL(px) (px)
+#endif
+#ifndef FSRD_CONV_UAV_TYPE
+#define FSRD_CONV_UAV_TYPE half4
+#endif
 // Inputs
 #define FLAGS_DEBUG_IN_SPEC_HIT_DIST    (1 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_IN_MOTION           (2 << 17 | FLAGS_DEBUG)
@@ -158,20 +169,20 @@ Texture2D<float4> InResponsivityMask : register(t15);
 Texture2D<half4> InDetailReference : register(t16);
 
 // RR 1.2 typed signals. Resource order matches Conversion::SignalResources.
-RWTexture2D<half4> OutIndirectSpecular : register(u0); // RGB: demodulated radiance, A: hit distance
-RWTexture2D<half4> OutDirectDiffuse : register(u1);    // RGB: demodulated radiance, A: diffuse ray hit distance
+RWTexture2D<FSRD_CONV_UAV_TYPE> OutIndirectSpecular : register(u0); // RGB: demodulated radiance, A: hit distance
+RWTexture2D<FSRD_CONV_UAV_TYPE> OutDirectDiffuse : register(u1);    // RGB: demodulated radiance, A: diffuse ray hit distance
 
 // ffxDispatchDescDenoiser
 // RG: unjittered PreviousUV-CurrentUV, B: corresponding-surface depth delta.
-RWTexture2D<half4> OutMotion : register(u2);
-RWTexture2D<half4> OutNormals : register(u3); // RG: Octahedrally encoded normals, B: Linear Roughness, A: Material Type (Optional)
-RWTexture2D<half4> OutSpecAlbedo : register(u4); // RGB: Specular Albedo, A: dot(Normal, ViewDir)
-RWTexture2D<half4> OutDiffAlbedo : register(u5); // RGB: Diffuse Albedo, A: Metalness (not provided)
+RWTexture2D<FSRD_CONV_UAV_TYPE> OutMotion : register(u2);
+RWTexture2D<FSRD_CONV_UAV_TYPE> OutNormals : register(u3); // RG: Octahedrally encoded normals, B: Linear Roughness, A: Material Type (Optional)
+RWTexture2D<FSRD_CONV_UAV_TYPE> OutSpecAlbedo : register(u4); // RGB: Specular Albedo, A: dot(Normal, ViewDir)
+RWTexture2D<FSRD_CONV_UAV_TYPE> OutDiffAlbedo : register(u5); // RGB: Diffuse Albedo, A: Metalness (not provided)
 
-RWTexture2D<half4> OutSkipSignal : register(u6);
+RWTexture2D<FSRD_CONV_UAV_TYPE> OutSkipSignal : register(u6);
 
 // RGB: cleaned reference; A: noise sigma, or -1 when detail must be bypassed.
-RWTexture2D<half4> OutDetailReference : register(u7);
+RWTexture2D<FSRD_CONV_UAV_TYPE> OutDetailReference : register(u7);
 // RGB: effective multiplier quantized to RR's required RGBA8_UNORM; A: local strength.
 
 cbuffer CB_Packing : register(b0)
@@ -696,6 +707,9 @@ float GetDemodBoundaryRisk(uint2 px)
 [numthreads(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y, 1)]
 void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 {
+#if FSRD_CAPTURE_ROI
+    groupID.xy += uint2(InspectorScale, DebugDepthMax) / s_ThreadGroupSize;
+#endif
 #if FSRD_ADDITIVE_SPLIT_ENABLED
     // All threads participate, including threads beyond an odd render extent.
     // No divergent return may precede the shared halo's group barrier.
@@ -790,6 +804,10 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     // derivative uncertainty must agree with the seed's contrast estimate;
     // clean strokes/ramps keep their original ceiling and volume stays spatial.
     const float3 rawColor = FloorRadiance(InColor[colorPx].rgb);
+#if FSRD_ADDITIVE_DIAGNOSTICS
+    AdditiveCheck(1u, false); // Remains a route rejection unless the fit is visited.
+    ADD_RECORD(34, rawColor);
+#endif
     const float rawLuma = GetLuminance(rawColor);
     float4 floorColor = IsSet(FLAGS_FLOOR_ENABLED) ? float4(InFloorColor[px]) : 0.0f;
     floorColor.rgb = FloorRadiance(floorColor.rgb);
@@ -890,7 +908,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         const float roughness = inputRoughness + appliedRoughness;
 
         // Output: RG=OctNormal, B=Roughness, A=MaterialID
-        OutNormals[px] = GetSafeFP16(float4(octNormal, roughness, materialType));
+        OutNormals[FSRD_OUTPUT_PIXEL(px)] = GetSafeFP16(float4(octNormal, roughness, materialType));
    
         // Motion Vectors & Depth Delta. XY is canonicalized once into unjittered
         // PreviousUV-CurrentUV. RR's B contract is the previous-camera depth of the
@@ -965,7 +983,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             : 0.0f;
 
         const float3 motionOut = float3(motionUv, depthDelta);
-        OutMotion[px] = half4(GetSafeSignedFP16(motionOut), canonicalMotion.z *
+        OutMotion[FSRD_OUTPUT_PIXEL(px)] = half4(GetSafeSignedFP16(motionOut), canonicalMotion.z *
             (isfinite(prevViewSpacePos.z) && abs(depthDelta) <= 65504.0f ? 1.0f : 0.0f));
 
         const float3 specWeight = splitSpecWeight;
@@ -991,16 +1009,32 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         bool3 additiveFitChannels = false;
         float3 fittedSpecShare = specFraction * isSplitValid;
         [branch]
-        if (isfinite(AdditiveLightSplit) && AdditiveLightSplit > 0.0f &&
+        if ((FSRD_ADDITIVE_DIAGNOSTICS || (isfinite(AdditiveLightSplit) && AdditiveLightSplit > 0.0f)) &&
             isEmissive == 0.0f && biasWeight == 0.0f &&
             specularRouteWeight == 0.0f && !handoverSurface)
         {
+#if FSRD_ADDITIVE_DIAGNOSTICS
+            additiveRejected &= ~1u;
+#endif
             fittedSpecShare = GetAdditiveSplitShare(int2(px), specWeight, diffWeight,
                 viewSpacePos.z, worldSurfaceNormal.xyz, rawRoughness,
                 remodSpecAlbedo, fittedSpecShare, additiveFitChannels);
+#if FSRD_ADDITIVE_DIAGNOSTICS
+            additiveFitChannels = and(additiveFitChannels, AdditiveLightSplit > 0.0f);
+#endif
             specularColor = select(additiveFitChannels,
                 denoiserColor * fittedSpecShare, specularColor);
         }
+#endif
+#if FSRD_ADDITIVE_DIAGNOSTICS
+        // Allocation before demodulation; stored-output differences are exported separately.
+        ADD_RECORD(26, orderedSpecular / max(denoiserColor, 1e-20f));
+        ADD_RECORD(27, specularColor / max(denoiserColor, 1e-20f));
+        ADD_RECORD(28, additiveJournal[27] - additiveJournal[26]);
+        ADD_RECORD(29, specularColor - orderedSpecular);
+        ADD_RECORD(30, denoiserColor);
+        ADD_RECORD(35, spatialFloor);
+        ADD_RECORD(36, denoiserColor / max(rawColor, 1e-20f));
 #endif
         float3 diffuseColor = denoiserColor - specularColor;
         const bool routeBypassedFloor = IsSet(FLAGS_FLOOR_ENABLED) &&
@@ -1147,8 +1181,8 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                 }
             }
 
-            OutIndirectSpecular[px] = half4(demodSpecular, hitDist);
-            OutDirectDiffuse[px] = half4(demodDiffuse, diffuseHitDist);
+            OutIndirectSpecular[FSRD_OUTPUT_PIXEL(px)] = half4(demodSpecular, hitDist);
+            OutDirectDiffuse[FSRD_OUTPUT_PIXEL(px)] = half4(demodDiffuse, diffuseHitDist);
         }
         else
         {
@@ -1156,7 +1190,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             // but nothing writes u1. FLAGS_DEBUG also routes every pixel through this
             // branch, so the skip path no longer clears it either: without this write
             // the diffuse signal keeps the last non-debug frame for the whole session.
-            OutDirectDiffuse[px] = half4(0.0f, 0.0f, 0.0f, s_MissingDiffuseHitDistance);
+            OutDirectDiffuse[FSRD_OUTPUT_PIXEL(px)] = half4(0.0f, 0.0f, 0.0f, s_MissingDiffuseHitDistance);
         }
 
         
@@ -1168,20 +1202,20 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         // The specular albedo's alpha has no consumer. Carry that share in it, so the probe can
         // report how much of the frame reaches the denoiser through the specular signal at all -
         // a signal it may then refuse to denoise if the ray-length guide is unusable.
-        OutSpecAlbedo[px] = half4(GetSafeFP16(specReflectance), half(specularShare));
+        OutSpecAlbedo[FSRD_OUTPUT_PIXEL(px)] = half4(GetSafeFP16(specReflectance), half(specularShare));
         // The diffuse albedo's alpha has no consumer. Carry whether this pixel's published floor
         // exceeds any raw channel, so the probe reports crossing pixels. Only the
         // corresponding channels' residuals collapse to zero.
         const float floorCrossing = any(floorExcess > 0.0f) ? 1.0f : 0.0f;
-        OutDiffAlbedo[px] = half4(GetSafeFP16(diffAlbedo), half(floorCrossing));
+        OutDiffAlbedo[FSRD_OUTPUT_PIXEL(px)] = half4(GetSafeFP16(diffAlbedo), half(floorCrossing));
         // RGB carries the radiance closure; alpha is diagnostic luminance.
         const float3 safeFloorColor = GetSafeFP16(floorColor.rgb);
-        OutSkipSignal[px] = half4(safeFloorColor,
+        OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(safeFloorColor,
             GetLuminance(safeFloorColor));
 
         const bool allowDetail = IsSet(FLAGS_FLOOR_ENABLED) && FloorDetailPreservation > 0.0f &&
             detailReference.a >= 0.0f && biasWeight == 0.0f && specularRouteWeight == 0.0f;
-        OutDetailReference[px] = half4(GetSafeFP16(detailReference.rgb),
+        OutDetailReference[FSRD_OUTPUT_PIXEL(px)] = half4(GetSafeFP16(detailReference.rgb),
             allowDetail ? half(max(detailReference.a, 0.0f)) : half(-1.0f));
         
         // Values the optional-input views below report, read once so every view shows
@@ -1455,24 +1489,61 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                     break;
             }
         
-            OutIndirectSpecular[px] = half4(debugColor, 1.0f);
+            OutIndirectSpecular[FSRD_OUTPUT_PIXEL(px)] = half4(debugColor, 1.0f);
         }
     }
     else // Skip
     {
         // FloorSeed temporarily stores depth gradients in OutMotion. Every packing
         // path must overwrite it before RR consumes the texture as motion vectors.
-        OutMotion[px] = 0.0f;
-        OutNormals[px] = 0.0f;
-        OutSpecAlbedo[px] = 0.0f;
-        OutDiffAlbedo[px] = 0.0f;
-        OutIndirectSpecular[px] = half4(
+        OutMotion[FSRD_OUTPUT_PIXEL(px)] = 0.0f;
+        OutNormals[FSRD_OUTPUT_PIXEL(px)] = 0.0f;
+        OutSpecAlbedo[FSRD_OUTPUT_PIXEL(px)] = 0.0f;
+        OutDiffAlbedo[FSRD_OUTPUT_PIXEL(px)] = 0.0f;
+        OutIndirectSpecular[FSRD_OUTPUT_PIXEL(px)] = half4(
             0.0f, 0.0f, 0.0f,
             IsSet(FLAGS_SPECULAR_SIGNAL_INDIRECT) ? s_InvalidSpecularHitDistance : 0.0f);
-        OutDirectDiffuse[px] = half4(0.0f, 0.0f, 0.0f, s_MissingDiffuseHitDistance);
+        OutDirectDiffuse[FSRD_OUTPUT_PIXEL(px)] = half4(0.0f, 0.0f, 0.0f, s_MissingDiffuseHitDistance);
         // Nothing was demodulated on this path, so the composite colour passes through whole.
-        OutSkipSignal[px] = half4(rawColor, rawLuma);
+        OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(rawColor, rawLuma);
         // Far-plane skip has no trusted detail reference.
-        OutDetailReference[px] = half4(0, 0, 0, -1);
+        OutDetailReference[FSRD_OUTPUT_PIXEL(px)] = half4(0, 0, 0, -1);
     }
+#if FSRD_ADDITIVE_DIAGNOSTICS
+    ADD_RECORD(0, float3(additiveRejected));
+    ADD_RECORD(1, float3(additiveEvaluated));
+    ADD_RECORD(31, float3(OutSkipSignal[FSRD_OUTPUT_PIXEL(px)].rgb));
+    ADD_RECORD(32, float3(OutSkipSignal[FSRD_OUTPUT_PIXEL(px)].rgb) / max(rawColor, 1e-20f));
+    // Diagnostic UAVs are FP32. Explicitly reproduce the production UNORM store
+    // before reconstructing signal energy or reporting stored material guides.
+    const float3 journalSpec = QuantizeStoredAlbedo(float3(OutSpecAlbedo[FSRD_OUTPUT_PIXEL(px)].rgb));
+    const float3 journalDiff = QuantizeStoredAlbedo(float3(OutDiffAlbedo[FSRD_OUTPUT_PIXEL(px)].rgb));
+    ADD_RECORD(33, (float3(OutIndirectSpecular[FSRD_OUTPUT_PIXEL(px)].rgb) * lerp(1.0f, journalSpec, saturate(SpecularAlbedoDemodulation)) +
+                   float3(OutDirectDiffuse[FSRD_OUTPUT_PIXEL(px)].rgb) * lerp(1.0f, journalDiff, saturate(DiffuseAlbedoModulation))) / max(rawColor, 1e-20f));
+    ADD_RECORD(37, float3(OutIndirectSpecular[FSRD_OUTPUT_PIXEL(px)].rgb));
+    ADD_RECORD(38, float3(OutDirectDiffuse[FSRD_OUTPUT_PIXEL(px)].rgb));
+    ADD_RECORD(39, float3(AdditiveLightSplit, SpecularAlbedoDemodulation, DiffuseAlbedoModulation));
+#if FSRD_CAPTURE_ROI
+    ADD_RECORD(40, InDiffAlbedo[px + int2(InputBase2.zw)].rgb);
+    ADD_RECORD(41, InSpecAlbedo[px + int2(InputBase3.xy)].rgb);
+    ADD_RECORD(42, InNormals[px + int2(InputBase1.xy)].rgb);
+    ADD_RECORD(43, IsSet(FLAGS_PACKED_ROUGHNESS) ? InNormals[px + int2(InputBase1.xy)].aaa : InRoughness[px + int2(InputBase1.zw)].xxx);
+    ADD_RECORD(44, InDepth[px].xxx);
+    ADD_RECORD(45, InMotionVectors[px + int2(InputBase0.zw)].xyz);
+    ADD_RECORD(46, journalSpec);
+    ADD_RECORD(47, journalDiff);
+    const uint page = InspectorChannel * 8;
+#else
+    const uint page = (FSRD_ADDITIVE_DIAGNOSTICS - 1) * 8;
+#endif
+    OutIndirectSpecular[FSRD_OUTPUT_PIXEL(px)] = float4(additiveJournal[page], 0);
+    OutDirectDiffuse[FSRD_OUTPUT_PIXEL(px)] = float4(additiveJournal[page+1], 0);
+    OutMotion[FSRD_OUTPUT_PIXEL(px)] = float4(additiveJournal[page+2], 0);
+    OutNormals[FSRD_OUTPUT_PIXEL(px)] = float4(additiveJournal[page+3], 0);
+    OutSpecAlbedo[FSRD_OUTPUT_PIXEL(px)] = float4(additiveJournal[page+4], 0);
+    OutDiffAlbedo[FSRD_OUTPUT_PIXEL(px)] = float4(additiveJournal[page+5], 0);
+    OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = float4(additiveJournal[page+6], 0);
+    OutDetailReference[FSRD_OUTPUT_PIXEL(px)] = float4(additiveJournal[page+7], 0);
+#endif
+
 }

@@ -6,6 +6,25 @@
 // https://github.com/Zakrisson-C/OptiScaler/commit/b151554de7cafd17e886a5d61e9983dc78e7cffc
 // This is an estimated signal allocation, not a physical lobe/medium separation.
 // There is no share history. Guides, storage and modulation remain unchanged.
+// Diagnostic builds reuse this implementation and never run in the normal PSO.
+#ifndef FSRD_ADDITIVE_DIAGNOSTICS
+#define FSRD_ADDITIVE_DIAGNOSTICS 0
+#endif
+#if FSRD_ADDITIVE_DIAGNOSTICS
+static float3 additiveJournal[48];
+static uint3 additiveRejected = 0;
+static uint3 additiveEvaluated = 0;
+void AdditiveCheck(uint bit, bool3 pass)
+{
+    additiveEvaluated |= bit;
+    additiveRejected |= select(pass, uint3(0,0,0), uint3(bit,bit,bit));
+}
+#define ADD_RECORD(slot, value) additiveJournal[slot] = (value)
+#define ADD_CHECK(bit, pass) AdditiveCheck(bit, pass)
+#else
+#define ADD_RECORD(slot, value)
+#define ADD_CHECK(bit, pass)
+#endif
 static const int s_AdditiveFitRadius = 3;
 static const float s_AdditiveFitMinSamples = 12.0f;
 
@@ -126,7 +145,7 @@ void PopulateAdditiveFitPreflightMemory(uint2 groupID, uint2 groupThreadID)
     const uint flatThread = groupThreadID.x + groupThreadID.y * s_ThreadGroupSize.x;
     const int2 origin = int2(groupID * s_ThreadGroupSize) - int2(s_AdditiveSM_HaloOffset);
     const int2 bounds = int2(DstTexSize.xy) - 1;
-    const bool active = isfinite(AdditiveLightSplit) && AdditiveLightSplit > 0.0f;
+    const bool active = FSRD_ADDITIVE_DIAGNOSTICS || (isfinite(AdditiveLightSplit) && AdditiveLightSplit > 0.0f);
 
     [unroll]
     for (uint i = 0; i < s_AdditiveSM_LoadsPerThread; ++i)
@@ -229,7 +248,7 @@ void PrepareAdditiveFitSharedMemory(uint2 groupID, uint2 groupThreadID)
     // Float32 moment-rounding error is far below the existing 1%*mean(A)^2+
     // 1e-6 evidence threshold, so no fit can be accepted. No contrast threshold
     // or sample set is changed. Avoid signal/HasStructure work for those groups.
-    if (g_AdditiveNeedsSignal != 0u)
+    if (g_AdditiveNeedsSignal != 0u || FSRD_ADDITIVE_DIAGNOSTICS)
         PopulateAdditiveFitSignalMemory(groupID, groupThreadID);
     GroupMemoryBarrierWithGroupSync();
 }
@@ -248,7 +267,9 @@ float3 GetAdditiveSplitShare(int2 centerPx, float3 centerSpec, float3 centerDiff
     float3 remodSpec, float3 baselineShare, out bool3 fittedChannels)
 {
     fittedChannels = false;
+    ADD_CHECK(1u, true);
     const int2 smCenter = centerPx % int2(s_ThreadGroupSize) + int2(s_AdditiveSM_HaloOffset);
+    ADD_CHECK(2u, (g_AdditiveValid[smCenter.x][smCenter.y] & 2u) != 0u);
     if ((g_AdditiveValid[smCenter.x][smCenter.y] & 2u) == 0u)
         return baselineShare;
 
@@ -284,6 +305,8 @@ float3 GetAdditiveSplitShare(int2 centerPx, float3 centerSpec, float3 centerDiff
             maxS = max(maxS, spec);
         }
     }
+    ADD_RECORD(3, count);
+    ADD_CHECK(4u, count >= s_AdditiveFitMinSamples);
     if (count < s_AdditiveFitMinSamples) return baselineShare;
     float3 meanA = sumA / count;
     float3 varA = max(sumAA / count - meanA * meanA, 0.0f);
@@ -294,7 +317,13 @@ float3 GetAdditiveSplitShare(int2 centerPx, float3 centerSpec, float3 centerDiff
     const bool3 stableSpec = and(minS >= 4.0f / 255.0f,
         and(lerp(1.0f, minS, saturate(SpecularAlbedoDemodulation)) >= safeFloor,
             maxS - minS <= 0.10f * meanS + 1e-6f));
-    if (!any(and(stableSpec, varA >= 0.01f * meanA * meanA + 1e-6f)))
+    ADD_RECORD(5, meanA); ADD_RECORD(6, varA);
+    ADD_RECORD(7, minS); ADD_RECORD(8, maxS); ADD_RECORD(9, meanS);
+    ADD_CHECK(8u, minS >= 4.0f / 255.0f);
+    ADD_CHECK(16u, lerp(1.0f, minS, saturate(SpecularAlbedoDemodulation)) >= safeFloor);
+    ADD_CHECK(32u, maxS - minS <= 0.10f * meanS + 1e-6f);
+    ADD_CHECK(64u, varA >= 0.01f * meanA * meanA + 1e-6f);
+    if (!FSRD_ADDITIVE_DIAGNOSTICS && !any(and(stableSpec, varA >= 0.01f * meanA * meanA + 1e-6f)))
         return baselineShare;
 
     count = 0.0f;
@@ -328,6 +357,8 @@ float3 GetAdditiveSplitShare(int2 centerPx, float3 centerSpec, float3 centerDiff
             sumAC += albedo * color;
         }
     }
+    ADD_RECORD(4, count);
+    ADD_CHECK(128u, count >= s_AdditiveFitMinSamples);
     if (count < s_AdditiveFitMinSamples) return baselineShare;
 
     meanA = sumA / count;
@@ -358,6 +389,21 @@ float3 GetAdditiveSplitShare(int2 centerPx, float3 centerSpec, float3 centerDiff
     fittedChannels = and(fittedChannels, and(fitSlope >= 0.0f, model > 1e-6f));
     fittedChannels = and(fittedChannels, and(isfinite(share), isfinite(intercept)));
     fittedChannels = and(fittedChannels, rawCenter * share <= 65504.0f * remodSpec);
+    ADD_RECORD(5, meanA); ADD_RECORD(6, varA);
+    ADD_RECORD(10, meanC); ADD_RECORD(11, varC); ADD_RECORD(12, covAC);
+    ADD_RECORD(13, lambda); ADD_RECORD(14, varA / (varA + lambda));
+    ADD_RECORD(15, ratioSlope); ADD_RECORD(16, covAC / max(varA, 1e-20f));
+    ADD_RECORD(17, fitSlope); ADD_RECORD(18, meanC - fitSlope * meanA);
+    ADD_RECORD(19, intercept); ADD_RECORD(20, interceptError);
+    ADD_RECORD(21, sqrt(residualVariance)); ADD_RECORD(22, a); ADD_RECORD(23, b);
+    ADD_RECORD(24, model); ADD_RECORD(25, g_AdditiveColor[smCenter.x][smCenter.y] - model);
+    ADD_CHECK(256u, varA >= 0.01f * meanA * meanA + 1e-6f);
+    ADD_CHECK(512u, intercept > max(0.01f * meanC, 2.0f * interceptError));
+    ADD_CHECK(1024u, fitSlope >= 0.0f);
+    ADD_CHECK(2048u, model > 1e-6f);
+    ADD_CHECK(4096u, and(isfinite(share), isfinite(intercept)));
+    ADD_CHECK(8192u, rawCenter * share <= 65504.0f * remodSpec);
+    ADD_RECORD(2, select(fittedChannels, 1.0f, 0.0f));
     return select(fittedChannels, max(share, baselineShare), baselineShare);
 }
 
