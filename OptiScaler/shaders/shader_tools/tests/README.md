@@ -34,7 +34,7 @@ capture metadata, never captured RGB as clean truth.
 `benchmark_fsrd_additive_split.py --baseline <snapshot> --output <new-directory>`
 measures conversion only. Run it without concurrent GPU tests or a game; the
 measurements do not represent complete RR or game frame time. See the
-[alpha findings](../../../../docs/fsrd_alpha_additive_TR.md) for actual outcomes.
+[alpha findings](../../../../docs/fsrd_alpha_additive.md) for actual outcomes.
 Disabled conversion uses the original shader; enabled conversion selects
 `FSRDInputConvAdditive`. Lossless comparison permits no channel exceptions.
 
