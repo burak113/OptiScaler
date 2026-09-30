@@ -1,0 +1,66 @@
+{
+  "schema": "H2-accounting-V3-preparation-CPU-verification-v1",
+  "status": "passed_preparation_NOT_NATIVE_AUTHORIZATION",
+  "preserved_historical_preparation_files_verified": 144,
+  "preserved_historical_preparation_manifest": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\preparation_completion_manifest.json",
+    "bytes": 42520,
+    "sha256": "2b0799ec702398a80a55de93928ba58c7650fb9fd7675b41480d890199778a14"
+  },
+  "all_original_V1_external_sources_frozen_and_verified": true,
+  "freeze_files_verified": {
+    "pre_native_freeze.json": 112,
+    "accounting_v2_pre_native_freeze.json": 9,
+    "accounting_v3_pre_native_freeze.json": 8
+  },
+  "source_and_EXE_unchanged": true,
+  "source": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\fsrd_rr_discard.cpp",
+    "bytes": 20727,
+    "sha256": "5446243c4a7b18f94254f1b1098313102da9d601ee4dcec6433eb3a36993207c"
+  },
+  "EXE": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\fsrd_rr_discard.exe",
+    "bytes": 399360,
+    "sha256": "22cc5cb0d5b4cbe5640c32c4e8b8e21067c4510f58f45c58ac6de35bb0654d65"
+  },
+  "all56_raw_inputs_commands_controls_masks_indices_analysis_unchanged": true,
+  "accounting_V3_registration": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v3_registration.json",
+    "bytes": 2644,
+    "sha256": "57cfe72cf8834c4cada474fe7108c5179ba33f5ef8d493604ab181bb75eb41f6"
+  },
+  "accounting_V3_freeze": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v3_pre_native_freeze.json",
+    "bytes": 2341,
+    "sha256": "3ad25340d5b41e762c39a76ba5e466cc4487f821ced2175c4539e952e02318f1"
+  },
+  "canonical_future_executor": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\run_native_v3.py",
+    "bytes": 6905,
+    "sha256": "1cbc7e8d1615a54603e0257efe254e2d12ca780b05d5743b802b51c3b79fd973"
+  },
+  "accounting_V3_module": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\native_work_accounting_v3.py",
+    "bytes": 8575,
+    "sha256": "a203c59afabe20c1cb49c3ad76d7d0330099eae6216cc49f812c95604aea56b4"
+  },
+  "SIMULATED_CPU_tests": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v3_cpu_check.json",
+    "bytes": 3179,
+    "sha256": "024370559ac9fd2799cadf9fc3b5f3206d26945ffba4f3b3a564fa8dd2f3f39f"
+  },
+  "SIMULATED_CPU_cases": 6,
+  "V1_accounting_qualification": "Frozen V1 driver counted completed native work only after metadata/debug acceptance; it is preserved for review history and is superseded for execution.",
+  "V2_accounting_qualification": "Frozen V2 module max across contradictory count claims could incorrectly call65 exact despite valid64 footer; preserved and superseded for execution.",
+  "V3_accounting_rule": "Valid bounded pinned CPP final footer authoritative before metadata acceptance; invalid conflicting artifact claims retained. Without valid footer, only valid-prefix/capacity artifact lower bounds and unknown totals. Planned counts never fill observations.",
+  "planned_native_contexts": 8,
+  "planned_successful_API_RR_recordings": 462,
+  "planned_discarded_API_RR_recordings": 4,
+  "planned_queued_RR_dispatches": 458,
+  "actual_native_contexts": 0,
+  "actual_successful_API_RR_recordings": 0,
+  "actual_queued_RR_dispatches": 0,
+  "no_actual_native_guard_stdout_output_or_results_artifacts": true,
+  "run_gate": "Preparation only; root authorization after independent source and bounded V3 accounting review."
+}

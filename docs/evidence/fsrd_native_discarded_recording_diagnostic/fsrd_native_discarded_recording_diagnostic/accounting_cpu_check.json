@@ -1,0 +1,18 @@
+{
+  "schema": "explicitly-simulated-accounting-CPU-check-v1",
+  "status": "passed",
+  "SIMULATED_NOT_NATIVE_EVIDENCE": true,
+  "cases": 4,
+  "actual_native_contexts": 0,
+  "actual_API_RR_recordings": 0,
+  "actual_queued_RR_dispatches": 0,
+  "checks": [
+    "Final footer/native64 preserved despite debug error and absent raw metadata acceptance",
+    "Partial source/observed markers remain confirmed lower bounds with unknown extra work",
+    "Provider-only creates confirmed context marker while zero lower bounds never prove no work",
+    "Footer/artifact conflicts retain both evidence sets; planned64 never fills counts",
+    "V2 executor parses without execution"
+  ],
+  "script_sha256": "6978240a7e80e176a0de7b5e57c2c09d7f1ebd3f05331f9473c8a96cbe1614ce",
+  "accounting_module_sha256": "a5c73e7db0a9e33cb8fc9e70c6a8fe651e83682544b7414d9fa711cda6c4446c"
+}

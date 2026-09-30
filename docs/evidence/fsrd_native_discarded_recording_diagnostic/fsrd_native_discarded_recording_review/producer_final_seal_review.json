@@ -1,0 +1,36 @@
+{
+  "schema": "H2-producer-final-prelaunch-seal-independent-verification-v1",
+  "status": "pre_native_ready_for_root_separate_authorization",
+  "producer_manifest": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\preparation_completion_manifest_v3.json",
+    "bytes": 56809,
+    "sha256": "946fca7c28ec6d7d99246fe78ee2b72b0b6e05df879c4a0cb37f9b1293fb01a4"
+  },
+  "producer_manifest_entries_verified": 188,
+  "V1_V2_V3_freezes_unchanged": true,
+  "producer_six_SIMULATED_CPU_checks_hashes_verified": true,
+  "producer_cpu_check": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v3_cpu_check.json",
+    "bytes": 3179,
+    "sha256": "024370559ac9fd2799cadf9fc3b5f3206d26945ffba4f3b3a564fa8dd2f3f39f"
+  },
+  "independent_four_SIMULATED_CPU_checks": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\review_v3_accounting.json",
+    "bytes": 31430,
+    "sha256": "b98ee8e06b6eb9281dd0c91ce34767406f503d6e11e7c65d54fb2f134ed86eb7"
+  },
+  "source_review": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\review.json",
+    "bytes": 26328,
+    "sha256": "f07df573190417feccc6b0f09b3293eb1f59bc255392a54b0abe6b566f17f0ec"
+  },
+  "native_has_not_run": true,
+  "own_GPU_native_build_calls": 0,
+  "canonical_future_executor": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\run_native_v3.py",
+    "bytes": 6905,
+    "sha256": "1cbc7e8d1615a54603e0257efe254e2d12ca780b05d5743b802b51c3b79fd973"
+  },
+  "quality_accepted": false,
+  "qualification": "Source review was sealed before any native launch; later accounting fixes are separate V2/V3 preserved supplements. All simulated bytes remain explicitly labelled and do not count as native evidence. Native root authorization and post-run actual contract audit remain separate."
+}

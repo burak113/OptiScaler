@@ -1,0 +1,1656 @@
+{
+  "schema": "immutable-H2-actual-execution-completion-v1",
+  "status": "completed_native_execution_and_CPU_analysis_not_solution",
+  "actual_native_contexts": 8,
+  "actual_successful_API_RR_recordings": 462,
+  "actual_queued_RR_dispatches": 458,
+  "actual_discarded_API_RR_recordings": 4,
+  "new_native_contexts_in_this_CPU_task": 0,
+  "new_API_RR_recordings_in_this_CPU_task": 0,
+  "preparation_V3_manifest": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\preparation_completion_manifest_v3.json",
+    "bytes": 56809,
+    "sha256": "946fca7c28ec6d7d99246fe78ee2b72b0b6e05df879c4a0cb37f9b1293fb01a4"
+  },
+  "preserved_independent_pre_native_review_manifest": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\completion_ready_manifest.json",
+    "bytes": 6910,
+    "sha256": "7148e5393a4754bf882037036bf7aec8e59fa1c447b1ca49e65d6d1d6276c63f"
+  },
+  "retained_native_console": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\execution_console.log",
+    "bytes": 340,
+    "sha256": "d142fc334e69b673b5dc79ae141b44ec64e69554ed16b1eae397df3121a89c61"
+  },
+  "retained_CPU_analysis_console_command": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\CPU_analysis_command.json",
+    "bytes": 1413,
+    "sha256": "3df7bd54082fdb3818d202bffc5353977d9d001e52556ab0071655c7ecf0be67"
+  },
+  "producer": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\results.json",
+    "bytes": 170957,
+    "sha256": "59e2bbfbf86af99b19cc77ff97da7d761cd5c47144b76b830df4b200bc91b372"
+  },
+  "raw_comparisons": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\raw_comparisons.json",
+    "bytes": 1412448,
+    "sha256": "b56fb6c80c5afa57c267cce9e5b50adfa1d36307c9348e1ea86158e4fd1bd974"
+  },
+  "interpretation": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\execution_interpretation.json",
+    "bytes": 166007,
+    "sha256": "11d977c9f1280d4e34d828091a64ee423d5f1f8b5d74173d330af006c8be77b0"
+  },
+  "compact": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\compact_execution.md",
+    "bytes": 2654,
+    "sha256": "df3d7d2d8988a943e66afa02729e9a7aa99244a2a6625b36e6dbd461763fb5b8"
+  },
+  "files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_cpu_check.json",
+      "bytes": 861,
+      "sha256": "086eb56493b95be7a9ac78858ba07d72755ee98cbcba75d2d89577df5642139f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v2_driver.diff",
+      "bytes": 5751,
+      "sha256": "12a918f7208829f71729489b1f00fff592c7bbf1a1416d82bf608b6e0f28237e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v2_pre_native_freeze.json",
+      "bytes": 2568,
+      "sha256": "975c668e1274e826590df7b5304b15ab331335bb31d0fcbc0b3e31e59ce6d0d2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v2_registration.json",
+      "bytes": 6563,
+      "sha256": "9832c939ea3464636587243bab080d17f86b2a5168a6dde41309bcd000c2e850"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v3_cpu_check.json",
+      "bytes": 3179,
+      "sha256": "024370559ac9fd2799cadf9fc3b5f3206d26945ffba4f3b3a564fa8dd2f3f39f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v3_module.diff",
+      "bytes": 6838,
+      "sha256": "96efddfde5de77e10a2e951a53bbd855ecdc5032a42dc8b3f1cf8da2c8bcf078"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v3_pre_native_freeze.json",
+      "bytes": 2341,
+      "sha256": "3ad25340d5b41e762c39a76ba5e466cc4487f821ced2175c4539e952e02318f1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v3_registration.json",
+      "bytes": 2644,
+      "sha256": "57cfe72cf8834c4cada474fe7108c5179ba33f5ef8d493604ab181bb75eb41f6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\analyze.py",
+      "bytes": 3571,
+      "sha256": "f97697ac4a997038828a2b72c5d8035b0d084f85583ca67400b3cb76ff1815d0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\build.stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\build.stdout.bin",
+      "bytes": 21,
+      "sha256": "3629354cb33b90196a9aeb6fd97ff175799c4987a16968a8045c020e5fa2c066"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\build_command.json",
+      "bytes": 434,
+      "sha256": "cdb9bd041223b65ed91ac74179c5827419727656dcb1357f4fee3503cdeac1c5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\build_runner.py",
+      "bytes": 498,
+      "sha256": "28572c5ee52894299743505485d5c4610a06acf0a0a083b8f840da9c0d14097e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\check_accounting_cpu.py",
+      "bytes": 3780,
+      "sha256": "6978240a7e80e176a0de7b5e57c2c09d7f1ebd3f05331f9473c8a96cbe1614ce"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\check_accounting_v3_cpu.py",
+      "bytes": 7470,
+      "sha256": "2a2a89520f971ce2ddc8e70a63677296f5808d9c091f5078808691ff3f4278e5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\compact_execution.md",
+      "bytes": 2654,
+      "sha256": "df3d7d2d8988a943e66afa02729e9a7aa99244a2a6625b36e6dbd461763fb5b8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\CPU_analysis.stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\CPU_analysis.stdout.bin",
+      "bytes": 195,
+      "sha256": "8c6a361c7f7271729ea82b55c7b0fcc07ff56c1f9ec42224b6768889c6c0b83d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\CPU_analysis_command.json",
+      "bytes": 1413,
+      "sha256": "3df7bd54082fdb3818d202bffc5353977d9d001e52556ab0071655c7ecf0be67"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\results.json",
+      "bytes": 170957,
+      "sha256": "59e2bbfbf86af99b19cc77ff97da7d761cd5c47144b76b830df4b200bc91b372"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "d372224e00154b2e8182f9967c917470a6acd70af20f9e106b1301dace078509"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\expected_applied_dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\expected_observed_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\expected_output_presence.bin",
+      "bytes": 64,
+      "sha256": "7c8975e1e60a5c8337f28edf8c33c3b180360b7279644a9bc1af3c51e6220bf5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\frame_controls.txt",
+      "bytes": 384,
+      "sha256": "768e91fde28c7c3565ead74bbd50708620987ae274031b837e151bd9d66e6ed5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\input0.bin",
+      "bytes": 40960,
+      "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\input1.bin",
+      "bytes": 81920,
+      "sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\input2.bin",
+      "bytes": 40960,
+      "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\input3.bin",
+      "bytes": 40960,
+      "sha256": "d34ccb7d34a8c8e40b0b55d76883f1f82b3e239f824220e4e931043c937f087f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\input4.bin",
+      "bytes": 40960,
+      "sha256": "cdccd8934874f04f273b01f3781140d30dc1f384c16ca2b3a2c788291a1a35ae"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\input5.bin",
+      "bytes": 5242880,
+      "sha256": "2e70feed97c37be146038abe35e4ee349486422a55b5a0be96385f0079e71956"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\input6.bin",
+      "bytes": 5242880,
+      "sha256": "0ae93fa6054f0aeb80cdfb8b59eed6bcd6ba7abb1438be48ca782821d9cdfda1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\job.txt",
+      "bytes": 1459,
+      "sha256": "28a3d5372cdbc4730823925c7a1efea19362f454c49ed5a3f05c170f15bf3dde"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\native_work_accounting.json",
+      "bytes": 7461,
+      "sha256": "ebeaad586a5008ba2a85fec9ad92afd58ef933d2786ddf85f96cbfa054dca6a9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\observed_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "7c8975e1e60a5c8337f28edf8c33c3b180360b7279644a9bc1af3c51e6220bf5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\recorded_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\resource_guard.json",
+      "bytes": 939,
+      "sha256": "df0674f4154b0b267dd49b33a6fed5b2485b22e2ffe246097afa78394cb697be"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "b2b298aa09cc192c3a4707870395569817c16895740d697b6d1a67601deca258"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\stdout.log",
+      "bytes": 491,
+      "sha256": "f0c962eb2f2507b8288f2d4f02f1b90126ed7258b8d70efe82ac6daa79e6c2c6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\diffuse.bin",
+      "bytes": 5160960,
+      "sha256": "c04072f1d2d9ce9a3e537f53abf2edc046b48872469c4089f928396499232cd4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\expected_applied_dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\expected_observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\expected_output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\frame_controls.txt",
+      "bytes": 384,
+      "sha256": "768e91fde28c7c3565ead74bbd50708620987ae274031b837e151bd9d66e6ed5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\input0.bin",
+      "bytes": 40960,
+      "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\input1.bin",
+      "bytes": 81920,
+      "sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\input2.bin",
+      "bytes": 40960,
+      "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\input3.bin",
+      "bytes": 40960,
+      "sha256": "d34ccb7d34a8c8e40b0b55d76883f1f82b3e239f824220e4e931043c937f087f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\input4.bin",
+      "bytes": 40960,
+      "sha256": "cdccd8934874f04f273b01f3781140d30dc1f384c16ca2b3a2c788291a1a35ae"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\input5.bin",
+      "bytes": 5242880,
+      "sha256": "2e70feed97c37be146038abe35e4ee349486422a55b5a0be96385f0079e71956"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\input6.bin",
+      "bytes": 5242880,
+      "sha256": "0ae93fa6054f0aeb80cdfb8b59eed6bcd6ba7abb1438be48ca782821d9cdfda1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\job.txt",
+      "bytes": 1468,
+      "sha256": "8e96c6096f517fc38440e54a0cd321e76f7e9fef3db8f2fede0214268c46f9ec"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\native_work_accounting.json",
+      "bytes": 7461,
+      "sha256": "b0769e0dfdbd127959c8a7e1514636d389877f35deeddf94d1c197994dcd6109"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\recorded_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\resource_guard.json",
+      "bytes": 939,
+      "sha256": "14c0b8db8b9ae53d2745b331cdb771499f532775d74ee6ff2dc91121f2ef2b48"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\specular.bin",
+      "bytes": 5160960,
+      "sha256": "0ccf57a8c791c7b86ce62c71a83f38b449683b5771cd5ed64bf8f4e254ff0e09"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\stdout.log",
+      "bytes": 651,
+      "sha256": "413f70fb46d023c38bd3985a80e3b6d7865eb6bba7d2b98ed7f23590a5d38ef3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\diffuse.bin",
+      "bytes": 5160960,
+      "sha256": "8824625639cb9b7d5e20bc3c86f7f9770ddb514ca693e398e02aeeb4882cbf24"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "5cce99368724bbed6c0c363f7aeffd1a9d324190465af8f3e36ddf4e51c209bd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\expected_applied_dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "5cce99368724bbed6c0c363f7aeffd1a9d324190465af8f3e36ddf4e51c209bd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\expected_observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\expected_output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\frame_controls.txt",
+      "bytes": 384,
+      "sha256": "768e91fde28c7c3565ead74bbd50708620987ae274031b837e151bd9d66e6ed5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\input0.bin",
+      "bytes": 40960,
+      "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\input1.bin",
+      "bytes": 81920,
+      "sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\input2.bin",
+      "bytes": 40960,
+      "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\input3.bin",
+      "bytes": 40960,
+      "sha256": "d34ccb7d34a8c8e40b0b55d76883f1f82b3e239f824220e4e931043c937f087f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\input4.bin",
+      "bytes": 40960,
+      "sha256": "cdccd8934874f04f273b01f3781140d30dc1f384c16ca2b3a2c788291a1a35ae"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\input5.bin",
+      "bytes": 5242880,
+      "sha256": "2e70feed97c37be146038abe35e4ee349486422a55b5a0be96385f0079e71956"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\input6.bin",
+      "bytes": 5242880,
+      "sha256": "0ae93fa6054f0aeb80cdfb8b59eed6bcd6ba7abb1438be48ca782821d9cdfda1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\job.txt",
+      "bytes": 1540,
+      "sha256": "aa2bccd6dc3f8aaad79a0340753585cf4c1b246c7e08753c83127e0d4cc4926e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\native_work_accounting.json",
+      "bytes": 7541,
+      "sha256": "7523790166286697d1395a6f2457c505881447c66fb71c2c2aafe21200835b79"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\recorded_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\resource_guard.json",
+      "bytes": 947,
+      "sha256": "71e87972acbe1d9a037a1982429504002db6436ef0502558331eeb79f7d99877"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\specular.bin",
+      "bytes": 5160960,
+      "sha256": "50a1cbf3535fa96b7ffc40ff232f5570b142f0f1d4c94510c23072c572e52081"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\stdout.log",
+      "bytes": 651,
+      "sha256": "3fbd8b574fa60c023418e1d7cd1f2a96f299d481a958aa96866a3e9ad50da507"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\diffuse.bin",
+      "bytes": 3194880,
+      "sha256": "25eef533afe72763a74f2bc03081d12d001647080c71dae890a38bb329790261"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\dispatch_controls.bin",
+      "bytes": 7176,
+      "sha256": "2a95abfc10355c96e4a138db0e099bbc88c75d9e162067781a643941f9db7b0d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\expected_applied_dispatch_controls.bin",
+      "bytes": 7176,
+      "sha256": "2a95abfc10355c96e4a138db0e099bbc88c75d9e162067781a643941f9db7b0d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\expected_observed_frame_indices.bin",
+      "bytes": 156,
+      "sha256": "382a605a3d8c82ace2e0c612ab3bc721ca4334048a7ecc3a6634f4a6b710c22b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\expected_output_presence.bin",
+      "bytes": 39,
+      "sha256": "f5576efe561214ce478995fd3cad0181ac257b8fe19f3e84e731c15b45a51776"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\frame_controls.txt",
+      "bytes": 234,
+      "sha256": "b5e613644f9b09c673b2f15f6c60f1044e4b982ecbf0d723698b6d982bdca074"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\input0.bin",
+      "bytes": 40960,
+      "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\input1.bin",
+      "bytes": 81920,
+      "sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\input2.bin",
+      "bytes": 40960,
+      "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\input3.bin",
+      "bytes": 40960,
+      "sha256": "d34ccb7d34a8c8e40b0b55d76883f1f82b3e239f824220e4e931043c937f087f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\input4.bin",
+      "bytes": 40960,
+      "sha256": "cdccd8934874f04f273b01f3781140d30dc1f384c16ca2b3a2c788291a1a35ae"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\input5.bin",
+      "bytes": 3194880,
+      "sha256": "35a1ed9aed4fdc4fadacb05e3e26b7965e60ccf20f229133112ed4ab8c5f86a4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\input6.bin",
+      "bytes": 3194880,
+      "sha256": "2c05a6fb15fa0e46c6174e1cffd0b52ee7609aadb474db87d0f6156b66dcc352"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\job.txt",
+      "bytes": 1495,
+      "sha256": "bee554fa1977c05d16a1a4ca26b20c189ea215d161fede6002dc6dbea8646896"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\native_work_accounting.json",
+      "bytes": 6796,
+      "sha256": "425a1175e1c624e7b0baf28f16a4ced1c845c7647a46fe5acd15986c9a652ccb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\observed_frame_indices.bin",
+      "bytes": 156,
+      "sha256": "382a605a3d8c82ace2e0c612ab3bc721ca4334048a7ecc3a6634f4a6b710c22b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\output_presence.bin",
+      "bytes": 39,
+      "sha256": "f5576efe561214ce478995fd3cad0181ac257b8fe19f3e84e731c15b45a51776"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\recorded_frame_indices.bin",
+      "bytes": 156,
+      "sha256": "382a605a3d8c82ace2e0c612ab3bc721ca4334048a7ecc3a6634f4a6b710c22b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\resource_guard.json",
+      "bytes": 943,
+      "sha256": "68eb9c5351314d1ebd48c400786be87a230e18b867929acbf407f641cbd75d2d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\specular.bin",
+      "bytes": 3194880,
+      "sha256": "4a4e7949e248ffb78f2a6abad8003ced16ab0210d5ae5e908d2313054daea7a1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\stdout.log",
+      "bytes": 492,
+      "sha256": "246dd027a3a897170834614fbd471ddef8041781afb8bc647da2d367d53c2add"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "d372224e00154b2e8182f9967c917470a6acd70af20f9e106b1301dace078509"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\expected_applied_dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\expected_observed_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\expected_output_presence.bin",
+      "bytes": 64,
+      "sha256": "7c8975e1e60a5c8337f28edf8c33c3b180360b7279644a9bc1af3c51e6220bf5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\frame_controls.txt",
+      "bytes": 384,
+      "sha256": "768e91fde28c7c3565ead74bbd50708620987ae274031b837e151bd9d66e6ed5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\input0.bin",
+      "bytes": 40960,
+      "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\input1.bin",
+      "bytes": 81920,
+      "sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\input2.bin",
+      "bytes": 40960,
+      "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\input3.bin",
+      "bytes": 40960,
+      "sha256": "d34ccb7d34a8c8e40b0b55d76883f1f82b3e239f824220e4e931043c937f087f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\input4.bin",
+      "bytes": 40960,
+      "sha256": "cdccd8934874f04f273b01f3781140d30dc1f384c16ca2b3a2c788291a1a35ae"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\input5.bin",
+      "bytes": 5242880,
+      "sha256": "2e70feed97c37be146038abe35e4ee349486422a55b5a0be96385f0079e71956"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\input6.bin",
+      "bytes": 5242880,
+      "sha256": "0ae93fa6054f0aeb80cdfb8b59eed6bcd6ba7abb1438be48ca782821d9cdfda1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\job.txt",
+      "bytes": 1459,
+      "sha256": "58456b781863aba847e55c01aa7e0ecd26fa7e76b3c19d6018bb3474efad4cbd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\native_work_accounting.json",
+      "bytes": 7461,
+      "sha256": "304450ed5ffb0c5056026bac34a1b269a642083a773b09f3025a860aa116f0de"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\observed_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "7c8975e1e60a5c8337f28edf8c33c3b180360b7279644a9bc1af3c51e6220bf5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\recorded_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\resource_guard.json",
+      "bytes": 938,
+      "sha256": "251097198b01805e127aea1f8cfee642b1d11763d4ef8a8cd0e803129904c76f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "b2b298aa09cc192c3a4707870395569817c16895740d697b6d1a67601deca258"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_baseline\\stdout.log",
+      "bytes": 491,
+      "sha256": "f0c962eb2f2507b8288f2d4f02f1b90126ed7258b8d70efe82ac6daa79e6c2c6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\diffuse.bin",
+      "bytes": 5160960,
+      "sha256": "c04072f1d2d9ce9a3e537f53abf2edc046b48872469c4089f928396499232cd4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\expected_applied_dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\expected_observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\expected_output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\frame_controls.txt",
+      "bytes": 384,
+      "sha256": "768e91fde28c7c3565ead74bbd50708620987ae274031b837e151bd9d66e6ed5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\input0.bin",
+      "bytes": 40960,
+      "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\input1.bin",
+      "bytes": 81920,
+      "sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\input2.bin",
+      "bytes": 40960,
+      "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\input3.bin",
+      "bytes": 40960,
+      "sha256": "d34ccb7d34a8c8e40b0b55d76883f1f82b3e239f824220e4e931043c937f087f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\input4.bin",
+      "bytes": 40960,
+      "sha256": "cdccd8934874f04f273b01f3781140d30dc1f384c16ca2b3a2c788291a1a35ae"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\input5.bin",
+      "bytes": 5242880,
+      "sha256": "2e70feed97c37be146038abe35e4ee349486422a55b5a0be96385f0079e71956"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\input6.bin",
+      "bytes": 5242880,
+      "sha256": "0ae93fa6054f0aeb80cdfb8b59eed6bcd6ba7abb1438be48ca782821d9cdfda1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\job.txt",
+      "bytes": 1468,
+      "sha256": "abc070ebd93c8160e0ff0a39145407950648fa122f4efd49a48d344d5eff55c0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\native_work_accounting.json",
+      "bytes": 7461,
+      "sha256": "a01052ef0a72aee6d7180111ef5654f79e75ee9559b8cea96eeaac1e445903c0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\recorded_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\resource_guard.json",
+      "bytes": 940,
+      "sha256": "f623fda8301e28b1d3de901f9c71897d0f3486bb661fde9ee446d2e2062eb3d9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\specular.bin",
+      "bytes": 5160960,
+      "sha256": "0ccf57a8c791c7b86ce62c71a83f38b449683b5771cd5ed64bf8f4e254ff0e09"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24\\stdout.log",
+      "bytes": 651,
+      "sha256": "413f70fb46d023c38bd3985a80e3b6d7865eb6bba7d2b98ed7f23590a5d38ef3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\diffuse.bin",
+      "bytes": 5160960,
+      "sha256": "8824625639cb9b7d5e20bc3c86f7f9770ddb514ca693e398e02aeeb4882cbf24"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "5cce99368724bbed6c0c363f7aeffd1a9d324190465af8f3e36ddf4e51c209bd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\expected_applied_dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "5cce99368724bbed6c0c363f7aeffd1a9d324190465af8f3e36ddf4e51c209bd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\expected_observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\expected_output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\frame_controls.txt",
+      "bytes": 384,
+      "sha256": "768e91fde28c7c3565ead74bbd50708620987ae274031b837e151bd9d66e6ed5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\input0.bin",
+      "bytes": 40960,
+      "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\input1.bin",
+      "bytes": 81920,
+      "sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\input2.bin",
+      "bytes": 40960,
+      "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\input3.bin",
+      "bytes": 40960,
+      "sha256": "d34ccb7d34a8c8e40b0b55d76883f1f82b3e239f824220e4e931043c937f087f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\input4.bin",
+      "bytes": 40960,
+      "sha256": "cdccd8934874f04f273b01f3781140d30dc1f384c16ca2b3a2c788291a1a35ae"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\input5.bin",
+      "bytes": 5242880,
+      "sha256": "2e70feed97c37be146038abe35e4ee349486422a55b5a0be96385f0079e71956"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\input6.bin",
+      "bytes": 5242880,
+      "sha256": "0ae93fa6054f0aeb80cdfb8b59eed6bcd6ba7abb1438be48ca782821d9cdfda1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\job.txt",
+      "bytes": 1540,
+      "sha256": "f4719bc755ed82efc5b9f4c51576c824e48713151ff0aaad14212ef2d55cc999"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\native_work_accounting.json",
+      "bytes": 7541,
+      "sha256": "d3a90922b7a2c5fde323612f8cf6ef84e7cf70f33d57f78168f00f9d1493b20d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\recorded_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\resource_guard.json",
+      "bytes": 947,
+      "sha256": "54fb82b1b3230c1f7f827ec57ce0dbbc995a893d5bd45f7fa13df62cd4c89794"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\specular.bin",
+      "bytes": 5160960,
+      "sha256": "50a1cbf3535fa96b7ffc40ff232f5570b142f0f1d4c94510c23072c572e52081"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_discard24_reset25\\stdout.log",
+      "bytes": 651,
+      "sha256": "3fbd8b574fa60c023418e1d7cd1f2a96f299d481a958aa96866a3e9ad50da507"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\diffuse.bin",
+      "bytes": 3194880,
+      "sha256": "25eef533afe72763a74f2bc03081d12d001647080c71dae890a38bb329790261"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\dispatch_controls.bin",
+      "bytes": 7176,
+      "sha256": "2a95abfc10355c96e4a138db0e099bbc88c75d9e162067781a643941f9db7b0d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\expected_applied_dispatch_controls.bin",
+      "bytes": 7176,
+      "sha256": "2a95abfc10355c96e4a138db0e099bbc88c75d9e162067781a643941f9db7b0d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\expected_observed_frame_indices.bin",
+      "bytes": 156,
+      "sha256": "382a605a3d8c82ace2e0c612ab3bc721ca4334048a7ecc3a6634f4a6b710c22b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\expected_output_presence.bin",
+      "bytes": 39,
+      "sha256": "f5576efe561214ce478995fd3cad0181ac257b8fe19f3e84e731c15b45a51776"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\frame_controls.txt",
+      "bytes": 234,
+      "sha256": "b5e613644f9b09c673b2f15f6c60f1044e4b982ecbf0d723698b6d982bdca074"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\input0.bin",
+      "bytes": 40960,
+      "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\input1.bin",
+      "bytes": 81920,
+      "sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\input2.bin",
+      "bytes": 40960,
+      "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\input3.bin",
+      "bytes": 40960,
+      "sha256": "d34ccb7d34a8c8e40b0b55d76883f1f82b3e239f824220e4e931043c937f087f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\input4.bin",
+      "bytes": 40960,
+      "sha256": "cdccd8934874f04f273b01f3781140d30dc1f384c16ca2b3a2c788291a1a35ae"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\input5.bin",
+      "bytes": 3194880,
+      "sha256": "35a1ed9aed4fdc4fadacb05e3e26b7965e60ccf20f229133112ed4ab8c5f86a4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\input6.bin",
+      "bytes": 3194880,
+      "sha256": "2c05a6fb15fa0e46c6174e1cffd0b52ee7609aadb474db87d0f6156b66dcc352"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\job.txt",
+      "bytes": 1495,
+      "sha256": "da0a88f4aec732a6a4882650f965fc73893e492acb3ee37c484c4c57cb376278"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\native_work_accounting.json",
+      "bytes": 6796,
+      "sha256": "9390c01e67052cd435b08e587c0a2b12a5fab97d8f38b6881768d45c455e2cd9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\observed_frame_indices.bin",
+      "bytes": 156,
+      "sha256": "382a605a3d8c82ace2e0c612ab3bc721ca4334048a7ecc3a6634f4a6b710c22b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\output_presence.bin",
+      "bytes": 39,
+      "sha256": "f5576efe561214ce478995fd3cad0181ac257b8fe19f3e84e731c15b45a51776"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\recorded_frame_indices.bin",
+      "bytes": 156,
+      "sha256": "382a605a3d8c82ace2e0c612ab3bc721ca4334048a7ecc3a6634f4a6b710c22b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\resource_guard.json",
+      "bytes": 943,
+      "sha256": "2fa145923618d44157e018eb04d9a219fd856f01c1c75469759ca9e022dcd4fd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\specular.bin",
+      "bytes": 3194880,
+      "sha256": "4a4e7949e248ffb78f2a6abad8003ced16ab0210d5ae5e908d2313054daea7a1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\stdout.log",
+      "bytes": 492,
+      "sha256": "246dd027a3a897170834614fbd471ddef8041781afb8bc647da2d367d53c2add"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\execution_console.log",
+      "bytes": 340,
+      "sha256": "d142fc334e69b673b5dc79ae141b44ec64e69554ed16b1eae397df3121a89c61"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\execution_interpretation.json",
+      "bytes": 166007,
+      "sha256": "11d977c9f1280d4e34d828091a64ee423d5f1f8b5d74173d330af006c8be77b0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\execution_summary_attempt1_qualification.json",
+      "bytes": 984,
+      "sha256": "d07df0f6f40f07f68db3f2bdede2a9148991630f1065d6c15d0e75ad20ad6c59"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\fsrd_rr_discard.build.cmd",
+      "bytes": 543,
+      "sha256": "765c617b7e93dbfdd1e3cfa1e4e727666bc6c0d5fbbc82b709b8d6173cbd650d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\fsrd_rr_discard.cpp",
+      "bytes": 20727,
+      "sha256": "5446243c4a7b18f94254f1b1098313102da9d601ee4dcec6433eb3a36993207c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\fsrd_rr_discard.exe",
+      "bytes": 399360,
+      "sha256": "22cc5cb0d5b4cbe5640c32c4e8b8e21067c4510f58f45c58ac6de35bb0654d65"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\fsrd_rr_discard.obj",
+      "bytes": 947065,
+      "sha256": "8ca5935a7ab9b62694e91ca8619dfa7363e04cdea46e0c542ed49608e6705a4e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\native_resource_guard.py",
+      "bytes": 4837,
+      "sha256": "b70e18d0f13963e0250c371171933429446cf304041c9a16d971e9898d211814"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\native_work_accounting.py",
+      "bytes": 5500,
+      "sha256": "a5c73e7db0a9e33cb8fc9e70c6a8fe651e83682544b7414d9fa711cda6c4446c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\native_work_accounting_v3.py",
+      "bytes": 8575,
+      "sha256": "a203c59afabe20c1cb49c3ad76d7d0330099eae6216cc49f812c95604aea56b4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\original_fsrd_rr_runner.cpp",
+      "bytes": 17182,
+      "sha256": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\pre_native_freeze.json",
+      "bytes": 36214,
+      "sha256": "c1a39719b7c03741f163a823ab6a2ae95b479ec2a95a224aa32320a37b2594cd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\preparation_completion_manifest.json",
+      "bytes": 42520,
+      "sha256": "2b0799ec702398a80a55de93928ba58c7650fb9fd7675b41480d890199778a14"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\preparation_completion_manifest_v3.json",
+      "bytes": 56809,
+      "sha256": "946fca7c28ec6d7d99246fe78ee2b72b0b6e05df879c4a0cb37f9b1293fb01a4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\preparation_cpu_verification.json",
+      "bytes": 3144,
+      "sha256": "f44a968a48bd1d8e6093ad11285a171fbee584d4f717d7d24705358f1ed1a018"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\preparation_cpu_verification_v3.json",
+      "bytes": 3940,
+      "sha256": "e4749c84e32dcd96eb461e4ad810eeff6b77ca55a8c45dee63fddc966df96bb7"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\prepare.py",
+      "bytes": 20286,
+      "sha256": "06f35c5a2447e5cf29df4b05c90eb81601b2c6e0af034d22aaec11c663a82cbd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\prepare_accounting_v2.py",
+      "bytes": 7436,
+      "sha256": "9d195d212ac4528856683286f8e363e0edbef380d87be9a15b2ee81bf623143e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\prepare_accounting_v3.py",
+      "bytes": 9156,
+      "sha256": "70bc48f2319ab8704e56bb6dc69d5d6bdf69fc27d31421be61e29f473eea0c06"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\raw_comparisons.json",
+      "bytes": 1412448,
+      "sha256": "b56fb6c80c5afa57c267cce9e5b50adfa1d36307c9348e1ea86158e4fd1bd974"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\registration.json",
+      "bytes": 86792,
+      "sha256": "b83d9068753f9465efb730d664874fd64885d7bfa1e7f4386657fce884aeca4b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\run_cpu_analysis.py",
+      "bytes": 1692,
+      "sha256": "cdf3da065a9878644fa2efd091ce5d34738d59d5835e200c6a12116d63102731"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\run_native.py",
+      "bytes": 5133,
+      "sha256": "402c7996ee98a18f55520bfb04deaad20056cc186c420b1432ab2a3893ce3bba"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\run_native_v2.py",
+      "bytes": 6892,
+      "sha256": "acf163f3dcb31c6ee919320b844d3f1704237b9268c49842c7a2b65db804ce80"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\run_native_v3.py",
+      "bytes": 6905,
+      "sha256": "1cbc7e8d1615a54603e0257efe254e2d12ca780b05d5743b802b51c3b79fd973"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\seal_preparation.py",
+      "bytes": 6971,
+      "sha256": "e543a0c40aefe292dc7defc7f60a5eb967867063da9e121fc9f9fd8c03f53154"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\seal_preparation_v3.py",
+      "bytes": 5842,
+      "sha256": "4d36f18653af2585390bdcc20941a6485b90e7e7f52bd99a5c24af673f4f4b44"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\complete_footer_metadata_failure\\observed_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\complete_footer_metadata_failure\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "7c8975e1e60a5c8337f28edf8c33c3b180360b7279644a9bc1af3c51e6220bf5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\complete_footer_metadata_failure\\recorded_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\complete_footer_metadata_failure\\SIMULATED_accounting_result.json",
+      "bytes": 7034,
+      "sha256": "51e748a34d02b6abcb8843904b1ac6f6f44b3198f4ec40a462f9b7b3ce9e945d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\complete_footer_metadata_failure\\stderr.log",
+      "bytes": 56,
+      "sha256": "b9f7accafe21634359d1372c7d2b5ed0a5e540cb1375633271a9c9296aefecd4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\complete_footer_metadata_failure\\stdout.log",
+      "bytes": 158,
+      "sha256": "f2658fa6fc71a24f086e8adeec371802cc7c40feb9edffd4ec8a6279868bb71e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\contradictory_footer_artifacts\\observed_frame_indices.bin",
+      "bytes": 168,
+      "sha256": "53803e079daacdf158d3a332a3eca153ece5477af09ab3cfea3cc797ca9dddd7"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\contradictory_footer_artifacts\\output_presence.bin",
+      "bytes": 42,
+      "sha256": "d033834951460a4ef9e023bb8e5903d6050569b4ee6b5c0ecd001521626d8257"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\contradictory_footer_artifacts\\recorded_frame_indices.bin",
+      "bytes": 160,
+      "sha256": "11c971161d650650a9fb22fe9d403b1547a67855e266a350a55451378323a672"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\contradictory_footer_artifacts\\SIMULATED_accounting_result.json",
+      "bytes": 6486,
+      "sha256": "e0f00f00c21ef2f454a0a1eceea9d0ce250df9778e3d26a2d183b29466202ff9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\contradictory_footer_artifacts\\stderr.log",
+      "bytes": 56,
+      "sha256": "b9f7accafe21634359d1372c7d2b5ed0a5e540cb1375633271a9c9296aefecd4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\contradictory_footer_artifacts\\stdout.log",
+      "bytes": 158,
+      "sha256": "f2658fa6fc71a24f086e8adeec371802cc7c40feb9edffd4ec8a6279868bb71e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\partial_flushed_prefix\\observed_frame_indices.bin",
+      "bytes": 8,
+      "sha256": "01acecb507abfe1a354aa8064f4af5d3f1acd019e37db3c11c97523b71c76e9d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\partial_flushed_prefix\\output_presence.bin",
+      "bytes": 2,
+      "sha256": "9dcf97a184f32623d11a73124ceb99a5709b083721e878a16d78f596718ba7b2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\partial_flushed_prefix\\recorded_frame_indices.bin",
+      "bytes": 16,
+      "sha256": "baed642339816affb3fe8719792d0e4ce82f12db72b7373d244eaa65445800fe"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\partial_flushed_prefix\\SIMULATED_accounting_result.json",
+      "bytes": 4847,
+      "sha256": "211b5b550ef78b6ce995c8808ea969d1f658f02e0b55ad79ce2241073b90dcca"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\partial_flushed_prefix\\stderr.log",
+      "bytes": 56,
+      "sha256": "b9f7accafe21634359d1372c7d2b5ed0a5e540cb1375633271a9c9296aefecd4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\partial_flushed_prefix\\stdout.log",
+      "bytes": 20,
+      "sha256": "54e73bf2a5ffa95a4610423af202ce20d8a33e98d6d1fc859069f31496d1e061"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\provider_only\\SIMULATED_accounting_result.json",
+      "bytes": 4501,
+      "sha256": "d07ba2fc23d7afecf96283d10f0662fc4af14bd4cb2eaebc3e36cc94561ab1f6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\provider_only\\stderr.log",
+      "bytes": 56,
+      "sha256": "b9f7accafe21634359d1372c7d2b5ed0a5e540cb1375633271a9c9296aefecd4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_unit_inputs\\provider_only\\stdout.log",
+      "bytes": 20,
+      "sha256": "54e73bf2a5ffa95a4610423af202ce20d8a33e98d6d1fc859069f31496d1e061"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\complete_footer_validation_and_metadata_rejection\\observed_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\complete_footer_validation_and_metadata_rejection\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "7c8975e1e60a5c8337f28edf8c33c3b180360b7279644a9bc1af3c51e6220bf5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\complete_footer_validation_and_metadata_rejection\\recorded_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\complete_footer_validation_and_metadata_rejection\\SIMULATED_accounting_result.json",
+      "bytes": 7938,
+      "sha256": "ac542bae6c44e80061333ea493e7e26016731c8b3cde0b8dfedd6745c099ed69"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\complete_footer_validation_and_metadata_rejection\\stderr.log",
+      "bytes": 58,
+      "sha256": "4f49998963f4ebd53cf6c617d2746a2dbf571ee02bd7d0eeb610c2d54070f986"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\complete_footer_validation_and_metadata_rejection\\stdout.log",
+      "bytes": 156,
+      "sha256": "a4fb39d97994a4f7bedc01efc646bb47533ec5817b98ae2289241365e27ed014"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\discard24_footer64_63_1\\observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\discard24_footer64_63_1\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\discard24_footer64_63_1\\recorded_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\discard24_footer64_63_1\\SIMULATED_accounting_result.json",
+      "bytes": 7668,
+      "sha256": "44fe4fa6cfb4a78914270c920742811479ba1555bb0ea8006c9996d465d318c8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\discard24_footer64_63_1\\stderr.log",
+      "bytes": 58,
+      "sha256": "4f49998963f4ebd53cf6c617d2746a2dbf571ee02bd7d0eeb610c2d54070f986"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\discard24_footer64_63_1\\stdout.log",
+      "bytes": 156,
+      "sha256": "ffc87eb77e54e8cbafa67422cfa9f5de4d7018c1b9f085bde8c9e346fe0bef9b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\footer64_conflicting65_indices\\observed_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\footer64_conflicting65_indices\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "7c8975e1e60a5c8337f28edf8c33c3b180360b7279644a9bc1af3c51e6220bf5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\footer64_conflicting65_indices\\recorded_frame_indices.bin",
+      "bytes": 260,
+      "sha256": "fee16ec542015efdeec7654ea06333eb655815da008a8a349efad6d02e86ed35"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\footer64_conflicting65_indices\\SIMULATED_accounting_result.json",
+      "bytes": 7853,
+      "sha256": "f500e9b1f4dfb2d44c77c8e78b2d059eebf437876dcff94fe1db929e0d919630"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\footer64_conflicting65_indices\\stderr.log",
+      "bytes": 58,
+      "sha256": "4f49998963f4ebd53cf6c617d2746a2dbf571ee02bd7d0eeb610c2d54070f986"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\footer64_conflicting65_indices\\stdout.log",
+      "bytes": 156,
+      "sha256": "dbf2a3a80a5d25c5b3de83f57ba4576810fd429b2bb9802674dec5fad2d534e1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\invalid65_footer_valid_partial_artifacts\\observed_frame_indices.bin",
+      "bytes": 8,
+      "sha256": "01acecb507abfe1a354aa8064f4af5d3f1acd019e37db3c11c97523b71c76e9d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\invalid65_footer_valid_partial_artifacts\\output_presence.bin",
+      "bytes": 2,
+      "sha256": "9dcf97a184f32623d11a73124ceb99a5709b083721e878a16d78f596718ba7b2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\invalid65_footer_valid_partial_artifacts\\recorded_frame_indices.bin",
+      "bytes": 12,
+      "sha256": "ad5dc1478de06a4c2728ea528bd9361a4b945e92a414bf4d180cedaaeaa5f4cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\invalid65_footer_valid_partial_artifacts\\SIMULATED_accounting_result.json",
+      "bytes": 6263,
+      "sha256": "266099475bc26089036bbd6f2b061807ce5f964cbcff257319805de32e334d6a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\invalid65_footer_valid_partial_artifacts\\stderr.log",
+      "bytes": 58,
+      "sha256": "4f49998963f4ebd53cf6c617d2746a2dbf571ee02bd7d0eeb610c2d54070f986"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\invalid65_footer_valid_partial_artifacts\\stdout.log",
+      "bytes": 156,
+      "sha256": "87b2dcd071e5bbdfc3e250181cd2b00d244622ed024842d9006a64079515b0f2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\no_footer_partial_prefix\\observed_frame_indices.bin",
+      "bytes": 8,
+      "sha256": "01acecb507abfe1a354aa8064f4af5d3f1acd019e37db3c11c97523b71c76e9d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\no_footer_partial_prefix\\output_presence.bin",
+      "bytes": 2,
+      "sha256": "9dcf97a184f32623d11a73124ceb99a5709b083721e878a16d78f596718ba7b2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\no_footer_partial_prefix\\recorded_frame_indices.bin",
+      "bytes": 16,
+      "sha256": "baed642339816affb3fe8719792d0e4ce82f12db72b7373d244eaa65445800fe"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\no_footer_partial_prefix\\SIMULATED_accounting_result.json",
+      "bytes": 5602,
+      "sha256": "b5dee65b42e112c5b2118d39a2b9ed5f03e62ca3130463bb561ca7cc011e0db1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\no_footer_partial_prefix\\stderr.log",
+      "bytes": 58,
+      "sha256": "4f49998963f4ebd53cf6c617d2746a2dbf571ee02bd7d0eeb610c2d54070f986"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\no_footer_partial_prefix\\stdout.log",
+      "bytes": 19,
+      "sha256": "32d120787ccda6402e26a18c16cbdd76264ec3da2c1fb75c992597ca55d25ae4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\no_footer_provider_only\\SIMULATED_accounting_result.json",
+      "bytes": 5336,
+      "sha256": "1588a7f83dfe084e55fc24a2b7c317d8325fb0248c09c81369b6446840fea4e9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\no_footer_provider_only\\stderr.log",
+      "bytes": 58,
+      "sha256": "4f49998963f4ebd53cf6c617d2746a2dbf571ee02bd7d0eeb610c2d54070f986"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\SIMULATED_accounting_v3_unit_inputs\\no_footer_provider_only\\stdout.log",
+      "bytes": 19,
+      "sha256": "32d120787ccda6402e26a18c16cbdd76264ec3da2c1fb75c992597ca55d25ae4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\source_insertion_whitelist.diff",
+      "bytes": 9392,
+      "sha256": "32077684465183411854a077342467b57b08c5d2310951940d085d8809573c2d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\source_insertion_whitelist.json",
+      "bytes": 8632,
+      "sha256": "47a93990685f97fab5dc0c2364801b5a17098187a53190a75f6b34977e395ada"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\summarize_execution.py",
+      "bytes": 16620,
+      "sha256": "19a2120667febafba97cdea9c4aab029430503744c103b0a1c273dbdc42711c3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\summarize_execution_attempt1.py",
+      "bytes": 16435,
+      "sha256": "8a4971be05dfa4eb4804cd47e74780422bca300aa5745ef821b93f50ae9c9068"
+    }
+  ],
+  "external_frozen_sources": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\fsrd_rr_runner.cpp",
+      "bytes": 17182,
+      "sha256": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\signedbin\\amd_fidelityfx_denoiser_dx12.dll",
+      "bytes": 13782280,
+      "sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\fsrd_toolchain.py",
+      "bytes": 3116,
+      "sha256": "f9e921637631a280f43bee034588897966f1195e16e88517e754ecfdc27978cd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_remaining_20260930\\evidence\\wave\\harmonic_pilot\\amd_context_identity.json",
+      "bytes": 1644,
+      "sha256": "305371f2902005a20c82828cb859ed94cab87e8d653bdea26c4af02a22786ca7"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_remaining_20260930\\evidence\\wave\\harmonic_pilot\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_remaining_20260930\\evidence\\wave\\harmonic_pilot\\frame_controls.txt",
+      "bytes": 448,
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_remaining_20260930\\evidence\\wave\\harmonic_pilot\\input0.bin",
+      "bytes": 40960,
+      "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_remaining_20260930\\evidence\\wave\\harmonic_pilot\\input1.bin",
+      "bytes": 81920,
+      "sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_remaining_20260930\\evidence\\wave\\harmonic_pilot\\input2.bin",
+      "bytes": 40960,
+      "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_remaining_20260930\\evidence\\wave\\harmonic_pilot\\input3.bin",
+      "bytes": 40960,
+      "sha256": "d34ccb7d34a8c8e40b0b55d76883f1f82b3e239f824220e4e931043c937f087f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_remaining_20260930\\evidence\\wave\\harmonic_pilot\\input4.bin",
+      "bytes": 40960,
+      "sha256": "cdccd8934874f04f273b01f3781140d30dc1f384c16ca2b3a2c788291a1a35ae"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_remaining_20260930\\evidence\\wave\\harmonic_pilot\\input5.bin",
+      "bytes": 5242880,
+      "sha256": "2e70feed97c37be146038abe35e4ee349486422a55b5a0be96385f0079e71956"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_remaining_20260930\\evidence\\wave\\harmonic_pilot\\input6.bin",
+      "bytes": 5242880,
+      "sha256": "0ae93fa6054f0aeb80cdfb8b59eed6bcd6ba7abb1438be48ca782821d9cdfda1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_remaining_20260930\\evidence\\wave\\harmonic_pilot\\job.txt",
+      "bytes": 1450,
+      "sha256": "6e27944c8e0976faf2ea1efc899f3e541a85dbded4dfc2ce19b9577e6738a30a"
+    }
+  ],
+  "review_external_files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\accounting_prelaunch_qualification.json",
+      "bytes": 2034,
+      "sha256": "2bc64b32bcd1ae7810140619a060ab9bfab53da5f56a68f0c60cf19d533a5217"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\completion_final_manifest.json",
+      "bytes": 6399,
+      "sha256": "d673f3a4eaa8d32b4760db70fb4f2f3022aeb96fda5328834dbc32acc9601793"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\completion_manifest.json",
+      "bytes": 1490,
+      "sha256": "a03a0cd9f111b8e7c8f0241bcbfe05a93cd52fd2dd9127c40c2941dbe0856f3b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\count_presence_expectations.json",
+      "bytes": 13600,
+      "sha256": "216e169f5a5772edd754155550ccd1a01e561ae2742794bf5c36af6cb74e89f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\d3d_reset_semantics.json",
+      "bytes": 1251,
+      "sha256": "520b7f5e211e51c98de1c7e47de08caee2ecc1583c1d5004522e43ec9abe4d54"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\preparation_review.json",
+      "bytes": 2421,
+      "sha256": "1f0c9037926f82c26a6959c22f5de7b937a979e43807616ac18a50646f5b803f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\producer_final_seal_review.json",
+      "bytes": 2090,
+      "sha256": "541234c2a26e34f540e4d64959509cc84ccdb168cc2ce858c7f806b4a728e40b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\replay_v2_conflict.py",
+      "bytes": 1071,
+      "sha256": "3d754407684b977e5780e579415778a30ae4174e79c3e5ece534bea6de772a23"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\review.json",
+      "bytes": 26328,
+      "sha256": "f07df573190417feccc6b0f09b3293eb1f59bc255392a54b0abe6b566f17f0ec"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\review.py",
+      "bytes": 12000,
+      "sha256": "665287c450e30da4b5a455aaf7cb760ed1bbc761a1b94ef36e8c829c2a6a286c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\review_v2_accounting_conflict.json",
+      "bytes": 6636,
+      "sha256": "f19c37a617599ea3754f7284274029b99e2e94acfd9a3d5a0fe9a066f459d40b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\review_v3.py",
+      "bytes": 7835,
+      "sha256": "3757e84c51900abd8f2d92408e28b6d04ce3023dfaedcd240644d1857cf88667"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\review_v3_accounting.json",
+      "bytes": 31430,
+      "sha256": "b98ee8e06b6eb9281dd0c91ce34767406f503d6e11e7c65d54fb2f134ed86eb7"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V2_conflicting_accounting_unit_input\\recorded_frame_indices.bin",
+      "bytes": 260,
+      "sha256": "fee16ec542015efdeec7654ea06333eb655815da008a8a349efad6d02e86ed35"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V2_conflicting_accounting_unit_input\\stdout.log",
+      "bytes": 186,
+      "sha256": "57e569655d3c4800cb9d5e8d1a64aac26eea8e86dca012e1733f4690fcb7284b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_footer_debug_error_unit_input\\stdout.log",
+      "bytes": 186,
+      "sha256": "064e48483a6bc100ffd7b1f6433af700423c3b44ceb7e40853399de03cedb75d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_invalid65_no_footer_unit_input\\recorded_frame_indices.bin",
+      "bytes": 260,
+      "sha256": "fee16ec542015efdeec7654ea06333eb655815da008a8a349efad6d02e86ed35"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_invalid65_no_footer_unit_input\\stdout.log",
+      "bytes": 48,
+      "sha256": "bf22b7bbbaeb413fffacb21e2dfd4168ce9646dbc6d2758663aafbce71bac729"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_partial_prefix_unit_input\\diffuse.bin",
+      "bytes": 245760,
+      "sha256": "9eb8fa54d87a9b9775dd55c07b3d164453884695bd1ed83fe2f63259ee9e6afc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_partial_prefix_unit_input\\observed_frame_indices.bin",
+      "bytes": 12,
+      "sha256": "ad5dc1478de06a4c2728ea528bd9361a4b945e92a414bf4d180cedaaeaa5f4cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_partial_prefix_unit_input\\output_presence.bin",
+      "bytes": 3,
+      "sha256": "75c8fd04ad916aec3e3d5cb76a452b116b3d4d0912a0a485e9fb8e3d240e210c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_partial_prefix_unit_input\\recorded_frame_indices.bin",
+      "bytes": 20,
+      "sha256": "e528f4309e1413e6bc35aea5d8db8519384d2fcc33f9dd5d1126d73f104cf92a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_partial_prefix_unit_input\\specular.bin",
+      "bytes": 245760,
+      "sha256": "9eb8fa54d87a9b9775dd55c07b3d164453884695bd1ed83fe2f63259ee9e6afc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_partial_prefix_unit_input\\stdout.log",
+      "bytes": 48,
+      "sha256": "bf22b7bbbaeb413fffacb21e2dfd4168ce9646dbc6d2758663aafbce71bac729"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\completion_ready_manifest.json",
+      "bytes": 6910,
+      "sha256": "7148e5393a4754bf882037036bf7aec8e59fa1c447b1ca49e65d6d1d6276c63f"
+    }
+  ]
+}

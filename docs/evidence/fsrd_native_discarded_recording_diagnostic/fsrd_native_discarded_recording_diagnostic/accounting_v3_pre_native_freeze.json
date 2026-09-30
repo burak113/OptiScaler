@@ -1,0 +1,48 @@
+{
+  "schema": "H2-accounting-V3-before-any-native-byte-freeze-v1",
+  "files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\run_native_v3.py",
+      "bytes": 6905,
+      "sha256": "1cbc7e8d1615a54603e0257efe254e2d12ca780b05d5743b802b51c3b79fd973"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\native_work_accounting_v3.py",
+      "bytes": 8575,
+      "sha256": "a203c59afabe20c1cb49c3ad76d7d0330099eae6216cc49f812c95604aea56b4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\prepare_accounting_v3.py",
+      "bytes": 9156,
+      "sha256": "70bc48f2319ab8704e56bb6dc69d5d6bdf69fc27d31421be61e29f473eea0c06"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v3_module.diff",
+      "bytes": 6838,
+      "sha256": "96efddfde5de77e10a2e951a53bbd855ecdc5032a42dc8b3f1cf8da2c8bcf078"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v3_registration.json",
+      "bytes": 2644,
+      "sha256": "57cfe72cf8834c4cada474fe7108c5179ba33f5ef8d493604ab181bb75eb41f6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\registration.json",
+      "bytes": 86792,
+      "sha256": "b83d9068753f9465efb730d664874fd64885d7bfa1e7f4386657fce884aeca4b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\pre_native_freeze.json",
+      "bytes": 36214,
+      "sha256": "c1a39719b7c03741f163a823ab6a2ae95b479ec2a95a224aa32320a37b2594cd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v2_pre_native_freeze.json",
+      "bytes": 2568,
+      "sha256": "975c668e1274e826590df7b5304b15ab331335bb31d0fcbc0b3e31e59ce6d0d2"
+    }
+  ],
+  "actual_native_contexts": 0,
+  "actual_successful_API_RR_recordings": 0,
+  "actual_queued_RR_dispatches": 0
+}

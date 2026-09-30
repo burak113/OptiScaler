@@ -1,0 +1,18 @@
+{
+  "schema": "discarded-recording-D3D12-reset-scope-v1",
+  "references": {
+    "allocator": "https://learn.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12commandallocator-reset",
+    "list": "https://learn.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12graphicscommandlist-reset"
+  },
+  "verified_primary_API_facts": [
+    "Allocator Reset must not happen while its recorded command lists execute on GPU; actively recording references also prohibit Reset.",
+    "GraphicsCommandList Reset requires a successfully closed list. Unlike allocator Reset, command-list Reset can occur while a prior submission executes."
+  ],
+  "fixture_requirement": "Prior normal frame23 fence completes before frame24 recording. Discard24 must Close successfully before the frame25 allocator/list reset. No submitted frame24 commands exist, but SDK CPU context state may already have changed. Caller external resource state restoration and input stream advance must be checked separately.",
+  "not_claimed": [
+    "Command-list Reset resets opaque SDK context/history.",
+    "RESET flag guarantees fresh-context identity.",
+    "Discarding SDK-generated work is an explicitly supported provider contract."
+  ],
+  "reviewer_GPU_native_calls": 0
+}

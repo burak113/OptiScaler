@@ -1,0 +1,13 @@
+Eight fresh contexts completed: 462 successful API RR recordings, 458 queued and readback-completed frames, four recorded-then-discarded frames. Ordinary D3D12/SDK errors and warnings were zero; all 16 raw lobes were finite. No native/GPU work was added by the CPU analysis.
+
+All four within-condition repeats were exact RGB/RGBA in both lobes. The six full-length contexts matched exactly at sourceframes 0–23 (all 15 context pairs). Discarded frame 24 has presence zero and no raw output; four such missing frames are not measured zero outputs.
+
+With logical sourceframe alignment, baseline versus discard24 first differs at 25 and differs at every frame through 63 in both lobes. Controls match byte for byte. Over that 39-frame tail, diffuse RGB RMS is 0.003900011187146162, max absolute difference 0.02099609375; specular RMS is 0.0037809594298524761, max 0.01904296875. Both rounds reproduce these differences exactly. These are descriptive scalar differences, without quality or truth thresholds.
+
+RESET25 recovery and fresh-tail25 match RGB/RGBA bit for bit across all 39 sourceframes in all four cross-round pairings, with identical 184-byte controls. This observed equality is specific to the frozen sequence; it does not establish a universal RESET or provider determinism contract.
+
+The frozen analysis retains all 28 context pairs, both submitted-ordinal and common-sourceframe alignments, and both lobes. Ordinal alignment can compare different sourceframes and controls after the discard or at the fresh-tail boundary; causal interpretation uses matched sourceframes. Alpha numeric differences are zero across all aligned pairs.
+
+Baseline/discard also removes GPU execution of frame24, so it does not isolate a CPU successful-record effect from missing GPU history. A no-API-Dispatch24 control with the same queued frames is needed for that separation. External resource shadow restoration does not roll back opaque SDK state; support for discarding an SDK recording is not asserted. The direct DLL remains pinned, while its provider version query is unavailable (id0/result6). This synthetic diagnostic establishes no game scheduling, stain cause, image-quality judgment, or fix.
+
+All 188 preparation identities and 24 independent pre-native review identities remained exact. V1/V2 accounting qualifications remain preserved; actual execution used frozen V3. Root performed the native execution; this task only analyzed and sealed its retained bytes. A first CPU summary attempt paired the ready-manifest hash with the final-manifest filename; the corrected filename and retained failure qualification establish no changed frozen byte.

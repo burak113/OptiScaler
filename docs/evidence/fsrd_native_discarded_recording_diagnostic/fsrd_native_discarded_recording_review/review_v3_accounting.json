@@ -1,0 +1,781 @@
+{
+  "schema": "independent-H2-accounting-V3-pre-native-review-v1",
+  "utc": "2026-09-30T12:59:22.363346+00:00",
+  "status": "pre_native_source_and_accounting_ready_for_separate_root_authorization",
+  "native_has_not_run": true,
+  "own_GPU_native_build_calls": 0,
+  "prior_source_review": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\review.json",
+    "bytes": 26328,
+    "sha256": "f07df573190417feccc6b0f09b3293eb1f59bc255392a54b0abe6b566f17f0ec"
+  },
+  "V1_source_inputs_controls_and_metric_analysis_unchanged": true,
+  "V1_V2_V3_freezes_verified": true,
+  "V3_driver_delta_from_V2_exact_three_accounting_identity_changes": true,
+  "physical_work_accounting_before_guard_debug_metadata_acceptance": true,
+  "case_schedule_unchanged": {
+    "contexts": 8,
+    "successful_API_recordings": 462,
+    "discarded_recordings": 4,
+    "queued_RR_dispatches": 458
+  },
+  "V3_pins_pre_and_post": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v3_registration.json",
+      "bytes": 2644,
+      "sha256": "57cfe72cf8834c4cada474fe7108c5179ba33f5ef8d493604ab181bb75eb41f6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v3_pre_native_freeze.json",
+      "bytes": 2341,
+      "sha256": "3ad25340d5b41e762c39a76ba5e466cc4487f821ced2175c4539e952e02318f1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\run_native_v3.py",
+      "bytes": 6905,
+      "sha256": "1cbc7e8d1615a54603e0257efe254e2d12ca780b05d5743b802b51c3b79fd973"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\native_work_accounting_v3.py",
+      "bytes": 8575,
+      "sha256": "a203c59afabe20c1cb49c3ad76d7d0330099eae6216cc49f812c95604aea56b4"
+    }
+  ],
+  "CPU_simulated_checks": [
+    {
+      "name": "V2_conflicting65_indices_now_rejected_footer64_authoritative",
+      "SIMULATED_NOT_NATIVE_EVIDENCE": true,
+      "derived": {
+        "schema": "confirmed-native-work-before-validation-accounting-v1",
+        "case": "SIMULATED_only_baseline64",
+        "attempted_owned_child": true,
+        "guard_status": "completed",
+        "returncode": 0,
+        "created_native_context_confirmed": true,
+        "completed_native_context_final_marker": true,
+        "successful_API_RR_recordings_confirmed": 64,
+        "queued_RR_dispatches_confirmed_completed": 64,
+        "discarded_API_RR_recordings_confirmed": 0,
+        "observed_output_frames_confirmed": 0,
+        "counter_authority": "valid_bounded_final_CPP_footer_under_pinned_source",
+        "final_CPP_footer_valid": true,
+        "semantically_valid_artifact_lower_bounds": {
+          "successful_API_RR_recordings": 0,
+          "queued_RR_dispatches": 0,
+          "discarded_RR_recordings": 0
+        },
+        "totals_unknown": false,
+        "unified_count_status": "authoritative_footer_with_metadata_conflicts",
+        "artifact_validity": {
+          "successful_recorded_indices": false,
+          "observed_indices": true,
+          "presence": true,
+          "raw_lobes": {
+            "diffuse.bin": true,
+            "specular.bin": true
+          }
+        },
+        "final_stdout_counters": {
+          "successful_API_RR_recordings": 64,
+          "queued_RR_dispatches": 64,
+          "discarded_RR_recordings": 0,
+          "validation_errors": 0,
+          "validation_warnings": 0,
+          "sdk_errors": 0,
+          "sdk_warnings": 0
+        },
+        "recording_evidence_counts": {
+          "final_stdout": 64,
+          "successful_recorded_u32_indices": 65
+        },
+        "queue_evidence_counts": {
+          "final_stdout": 64,
+          "observed_u32_indices": 0,
+          "presence_ones": 0,
+          "diffuse_whole_readback_frames": 0,
+          "specular_whole_readback_frames": 0
+        },
+        "discard_evidence_counts": {
+          "final_stdout": 0,
+          "presence_zeros": 0
+        },
+        "successful_recorded_indices": {
+          "present": true,
+          "values": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64
+          ],
+          "whole_u32_records": 65,
+          "trailing_bytes": 0
+        },
+        "observed_indices": {
+          "present": false,
+          "values": [],
+          "whole_u32_records": 0,
+          "trailing_bytes": 0
+        },
+        "presence": {
+          "present": false,
+          "values": [],
+          "ones": 0,
+          "zeros": 0,
+          "invalid_values": 0
+        },
+        "raw_lobes": {
+          "diffuse.bin": {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V2_conflicting_accounting_unit_input\\diffuse.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "whole_raw_frames": 0,
+            "trailing_raw_bytes": 0
+          },
+          "specular.bin": {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V2_conflicting_accounting_unit_input\\specular.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "whole_raw_frames": 0,
+            "trailing_raw_bytes": 0
+          }
+        },
+        "evidence_disagreements": [
+          "recorded_indices_not_registered_prefix",
+          "successful_record_indices_vs_final_stdout",
+          "observed_u32_indices_vs_final_stdout",
+          "presence_ones_vs_final_stdout",
+          "diffuse_whole_readback_frames_vs_final_stdout",
+          "specular_whole_readback_frames_vs_final_stdout"
+        ],
+        "counts_qualification": "Valid bounded CPP footer is authoritative for recorded/completed queued work under pinned source, even when metadata artifacts conflict or validation rejects. All artifact claims remain retained. Without a reliable bounded footer, only semantically valid registered-prefix/capacity artifact lower bounds are aggregated; totals remain unknown. Registered capacities never populate missing measurements.",
+        "incomplete_child_native_work_may_exceed_confirmed_lower_bounds": false,
+        "metadata_acceptance_evaluated": false,
+        "planned_counts_are_measurements": false,
+        "accounting_artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V2_conflicting_accounting_unit_input\\stdout.log",
+            "present": true,
+            "bytes": 186,
+            "sha256": "57e569655d3c4800cb9d5e8d1a64aac26eea8e86dca012e1733f4690fcb7284b"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V2_conflicting_accounting_unit_input\\stderr.log",
+            "present": false,
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V2_conflicting_accounting_unit_input\\recorded_frame_indices.bin",
+            "present": true,
+            "bytes": 260,
+            "sha256": "fee16ec542015efdeec7654ea06333eb655815da008a8a349efad6d02e86ed35"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V2_conflicting_accounting_unit_input\\observed_frame_indices.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V2_conflicting_accounting_unit_input\\output_presence.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V2_conflicting_accounting_unit_input\\diffuse.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V2_conflicting_accounting_unit_input\\specular.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "No_footer_semantically_valid_partial_counts_remain_lower_bounds_totals_unknown",
+      "SIMULATED_NOT_NATIVE_EVIDENCE": true,
+      "derived": {
+        "schema": "confirmed-native-work-before-validation-accounting-v1",
+        "case": "SIMULATED_only_baseline64",
+        "attempted_owned_child": true,
+        "guard_status": "completed",
+        "returncode": 0,
+        "created_native_context_confirmed": true,
+        "completed_native_context_final_marker": false,
+        "successful_API_RR_recordings_confirmed": 5,
+        "queued_RR_dispatches_confirmed_completed": 3,
+        "discarded_API_RR_recordings_confirmed": 0,
+        "observed_output_frames_confirmed": 3,
+        "counter_authority": "semantically_valid_artifact_lower_bounds_totals_unknown",
+        "final_CPP_footer_valid": false,
+        "semantically_valid_artifact_lower_bounds": {
+          "successful_API_RR_recordings": 5,
+          "queued_RR_dispatches": 3,
+          "discarded_RR_recordings": 0
+        },
+        "totals_unknown": true,
+        "unified_count_status": "confirmed_lower_bounds_only_totals_unknown",
+        "artifact_validity": {
+          "successful_recorded_indices": true,
+          "observed_indices": true,
+          "presence": true,
+          "raw_lobes": {
+            "diffuse.bin": true,
+            "specular.bin": true
+          }
+        },
+        "final_stdout_counters": null,
+        "recording_evidence_counts": {
+          "final_stdout": null,
+          "successful_recorded_u32_indices": 5
+        },
+        "queue_evidence_counts": {
+          "final_stdout": null,
+          "observed_u32_indices": 3,
+          "presence_ones": 3,
+          "diffuse_whole_readback_frames": 3,
+          "specular_whole_readback_frames": 3
+        },
+        "discard_evidence_counts": {
+          "final_stdout": null,
+          "presence_zeros": 0
+        },
+        "successful_recorded_indices": {
+          "present": true,
+          "values": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "whole_u32_records": 5,
+          "trailing_bytes": 0
+        },
+        "observed_indices": {
+          "present": true,
+          "values": [
+            0,
+            1,
+            2
+          ],
+          "whole_u32_records": 3,
+          "trailing_bytes": 0
+        },
+        "presence": {
+          "present": true,
+          "values": [
+            1,
+            1,
+            1
+          ],
+          "ones": 3,
+          "zeros": 0,
+          "invalid_values": 0
+        },
+        "raw_lobes": {
+          "diffuse.bin": {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_partial_prefix_unit_input\\diffuse.bin",
+            "present": true,
+            "bytes": 245760,
+            "sha256": "9eb8fa54d87a9b9775dd55c07b3d164453884695bd1ed83fe2f63259ee9e6afc",
+            "whole_raw_frames": 3,
+            "trailing_raw_bytes": 0
+          },
+          "specular.bin": {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_partial_prefix_unit_input\\specular.bin",
+            "present": true,
+            "bytes": 245760,
+            "sha256": "9eb8fa54d87a9b9775dd55c07b3d164453884695bd1ed83fe2f63259ee9e6afc",
+            "whole_raw_frames": 3,
+            "trailing_raw_bytes": 0
+          }
+        },
+        "evidence_disagreements": [],
+        "counts_qualification": "Valid bounded CPP footer is authoritative for recorded/completed queued work under pinned source, even when metadata artifacts conflict or validation rejects. All artifact claims remain retained. Without a reliable bounded footer, only semantically valid registered-prefix/capacity artifact lower bounds are aggregated; totals remain unknown. Registered capacities never populate missing measurements.",
+        "incomplete_child_native_work_may_exceed_confirmed_lower_bounds": true,
+        "metadata_acceptance_evaluated": false,
+        "planned_counts_are_measurements": false,
+        "accounting_artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_partial_prefix_unit_input\\stdout.log",
+            "present": true,
+            "bytes": 48,
+            "sha256": "bf22b7bbbaeb413fffacb21e2dfd4168ce9646dbc6d2758663aafbce71bac729"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_partial_prefix_unit_input\\stderr.log",
+            "present": false,
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_partial_prefix_unit_input\\recorded_frame_indices.bin",
+            "present": true,
+            "bytes": 20,
+            "sha256": "e528f4309e1413e6bc35aea5d8db8519384d2fcc33f9dd5d1126d73f104cf92a"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_partial_prefix_unit_input\\observed_frame_indices.bin",
+            "present": true,
+            "bytes": 12,
+            "sha256": "ad5dc1478de06a4c2728ea528bd9361a4b945e92a414bf4d180cedaaeaa5f4cc"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_partial_prefix_unit_input\\output_presence.bin",
+            "present": true,
+            "bytes": 3,
+            "sha256": "75c8fd04ad916aec3e3d5cb76a452b116b3d4d0912a0a485e9fb8e3d240e210c"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_partial_prefix_unit_input\\diffuse.bin",
+            "present": true,
+            "bytes": 245760,
+            "sha256": "9eb8fa54d87a9b9775dd55c07b3d164453884695bd1ed83fe2f63259ee9e6afc"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_partial_prefix_unit_input\\specular.bin",
+            "present": true,
+            "bytes": 245760,
+            "sha256": "9eb8fa54d87a9b9775dd55c07b3d164453884695bd1ed83fe2f63259ee9e6afc"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Invalid65_prefix_without_footer_is_not_confirmed_count_and_planned64_is_not_filled",
+      "SIMULATED_NOT_NATIVE_EVIDENCE": true,
+      "derived": {
+        "schema": "confirmed-native-work-before-validation-accounting-v1",
+        "case": "SIMULATED_only_baseline64",
+        "attempted_owned_child": true,
+        "guard_status": "completed",
+        "returncode": 0,
+        "created_native_context_confirmed": true,
+        "completed_native_context_final_marker": false,
+        "successful_API_RR_recordings_confirmed": 0,
+        "queued_RR_dispatches_confirmed_completed": 0,
+        "discarded_API_RR_recordings_confirmed": 0,
+        "observed_output_frames_confirmed": 0,
+        "counter_authority": "semantically_valid_artifact_lower_bounds_totals_unknown",
+        "final_CPP_footer_valid": false,
+        "semantically_valid_artifact_lower_bounds": {
+          "successful_API_RR_recordings": 0,
+          "queued_RR_dispatches": 0,
+          "discarded_RR_recordings": 0
+        },
+        "totals_unknown": true,
+        "unified_count_status": "confirmed_lower_bounds_only_totals_unknown",
+        "artifact_validity": {
+          "successful_recorded_indices": false,
+          "observed_indices": true,
+          "presence": true,
+          "raw_lobes": {
+            "diffuse.bin": true,
+            "specular.bin": true
+          }
+        },
+        "final_stdout_counters": null,
+        "recording_evidence_counts": {
+          "final_stdout": null,
+          "successful_recorded_u32_indices": 65
+        },
+        "queue_evidence_counts": {
+          "final_stdout": null,
+          "observed_u32_indices": 0,
+          "presence_ones": 0,
+          "diffuse_whole_readback_frames": 0,
+          "specular_whole_readback_frames": 0
+        },
+        "discard_evidence_counts": {
+          "final_stdout": null,
+          "presence_zeros": 0
+        },
+        "successful_recorded_indices": {
+          "present": true,
+          "values": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64
+          ],
+          "whole_u32_records": 65,
+          "trailing_bytes": 0
+        },
+        "observed_indices": {
+          "present": false,
+          "values": [],
+          "whole_u32_records": 0,
+          "trailing_bytes": 0
+        },
+        "presence": {
+          "present": false,
+          "values": [],
+          "ones": 0,
+          "zeros": 0,
+          "invalid_values": 0
+        },
+        "raw_lobes": {
+          "diffuse.bin": {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_invalid65_no_footer_unit_input\\diffuse.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "whole_raw_frames": 0,
+            "trailing_raw_bytes": 0
+          },
+          "specular.bin": {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_invalid65_no_footer_unit_input\\specular.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "whole_raw_frames": 0,
+            "trailing_raw_bytes": 0
+          }
+        },
+        "evidence_disagreements": [
+          "recorded_indices_not_registered_prefix"
+        ],
+        "counts_qualification": "Valid bounded CPP footer is authoritative for recorded/completed queued work under pinned source, even when metadata artifacts conflict or validation rejects. All artifact claims remain retained. Without a reliable bounded footer, only semantically valid registered-prefix/capacity artifact lower bounds are aggregated; totals remain unknown. Registered capacities never populate missing measurements.",
+        "incomplete_child_native_work_may_exceed_confirmed_lower_bounds": true,
+        "metadata_acceptance_evaluated": false,
+        "planned_counts_are_measurements": false,
+        "accounting_artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_invalid65_no_footer_unit_input\\stdout.log",
+            "present": true,
+            "bytes": 48,
+            "sha256": "bf22b7bbbaeb413fffacb21e2dfd4168ce9646dbc6d2758663aafbce71bac729"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_invalid65_no_footer_unit_input\\stderr.log",
+            "present": false,
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_invalid65_no_footer_unit_input\\recorded_frame_indices.bin",
+            "present": true,
+            "bytes": 260,
+            "sha256": "fee16ec542015efdeec7654ea06333eb655815da008a8a349efad6d02e86ed35"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_invalid65_no_footer_unit_input\\observed_frame_indices.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_invalid65_no_footer_unit_input\\output_presence.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_invalid65_no_footer_unit_input\\diffuse.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_invalid65_no_footer_unit_input\\specular.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "Valid_completed_footer_preserves64_even_when_later_debug_metadata_acceptance_would_fail",
+      "SIMULATED_NOT_NATIVE_EVIDENCE": true,
+      "derived": {
+        "schema": "confirmed-native-work-before-validation-accounting-v1",
+        "case": "SIMULATED_only_baseline64",
+        "attempted_owned_child": true,
+        "guard_status": "completed",
+        "returncode": 0,
+        "created_native_context_confirmed": true,
+        "completed_native_context_final_marker": true,
+        "successful_API_RR_recordings_confirmed": 64,
+        "queued_RR_dispatches_confirmed_completed": 64,
+        "discarded_API_RR_recordings_confirmed": 0,
+        "observed_output_frames_confirmed": 0,
+        "counter_authority": "valid_bounded_final_CPP_footer_under_pinned_source",
+        "final_CPP_footer_valid": true,
+        "semantically_valid_artifact_lower_bounds": {
+          "successful_API_RR_recordings": 0,
+          "queued_RR_dispatches": 0,
+          "discarded_RR_recordings": 0
+        },
+        "totals_unknown": false,
+        "unified_count_status": "authoritative_footer_with_metadata_conflicts",
+        "artifact_validity": {
+          "successful_recorded_indices": true,
+          "observed_indices": true,
+          "presence": true,
+          "raw_lobes": {
+            "diffuse.bin": true,
+            "specular.bin": true
+          }
+        },
+        "final_stdout_counters": {
+          "successful_API_RR_recordings": 64,
+          "queued_RR_dispatches": 64,
+          "discarded_RR_recordings": 0,
+          "validation_errors": 1,
+          "validation_warnings": 2,
+          "sdk_errors": 0,
+          "sdk_warnings": 0
+        },
+        "recording_evidence_counts": {
+          "final_stdout": 64,
+          "successful_recorded_u32_indices": 0
+        },
+        "queue_evidence_counts": {
+          "final_stdout": 64,
+          "observed_u32_indices": 0,
+          "presence_ones": 0,
+          "diffuse_whole_readback_frames": 0,
+          "specular_whole_readback_frames": 0
+        },
+        "discard_evidence_counts": {
+          "final_stdout": 0,
+          "presence_zeros": 0
+        },
+        "successful_recorded_indices": {
+          "present": false,
+          "values": [],
+          "whole_u32_records": 0,
+          "trailing_bytes": 0
+        },
+        "observed_indices": {
+          "present": false,
+          "values": [],
+          "whole_u32_records": 0,
+          "trailing_bytes": 0
+        },
+        "presence": {
+          "present": false,
+          "values": [],
+          "ones": 0,
+          "zeros": 0,
+          "invalid_values": 0
+        },
+        "raw_lobes": {
+          "diffuse.bin": {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_footer_debug_error_unit_input\\diffuse.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "whole_raw_frames": 0,
+            "trailing_raw_bytes": 0
+          },
+          "specular.bin": {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_footer_debug_error_unit_input\\specular.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "whole_raw_frames": 0,
+            "trailing_raw_bytes": 0
+          }
+        },
+        "evidence_disagreements": [
+          "successful_record_indices_vs_final_stdout",
+          "observed_u32_indices_vs_final_stdout",
+          "presence_ones_vs_final_stdout",
+          "diffuse_whole_readback_frames_vs_final_stdout",
+          "specular_whole_readback_frames_vs_final_stdout"
+        ],
+        "counts_qualification": "Valid bounded CPP footer is authoritative for recorded/completed queued work under pinned source, even when metadata artifacts conflict or validation rejects. All artifact claims remain retained. Without a reliable bounded footer, only semantically valid registered-prefix/capacity artifact lower bounds are aggregated; totals remain unknown. Registered capacities never populate missing measurements.",
+        "incomplete_child_native_work_may_exceed_confirmed_lower_bounds": false,
+        "metadata_acceptance_evaluated": false,
+        "planned_counts_are_measurements": false,
+        "accounting_artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_footer_debug_error_unit_input\\stdout.log",
+            "present": true,
+            "bytes": 186,
+            "sha256": "064e48483a6bc100ffd7b1f6433af700423c3b44ceb7e40853399de03cedb75d"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_footer_debug_error_unit_input\\stderr.log",
+            "present": false,
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_footer_debug_error_unit_input\\recorded_frame_indices.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_footer_debug_error_unit_input\\observed_frame_indices.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_footer_debug_error_unit_input\\output_presence.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_footer_debug_error_unit_input\\diffuse.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_review_20260930\\SIMULATED_V3_footer_debug_error_unit_input\\specular.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null
+          }
+        ]
+      }
+    }
+  ],
+  "CPU_simulated_checks_passed": 4,
+  "count_authority": "Bounded final CPP footer is the authoritative child-produced counter under the pinned C++ source. Contradictory artifacts remain explicit and cannot increase the authoritative64 to65. Without this marker only registered-prefix/capacity-valid artifact lower bounds are reported; total work remains unknown.",
+  "qualifications": [
+    "The final marker is an accounting claim from the pinned child, not a GPU quality or SDK validation pass. Debug/metadata rejection must remain separately failed.",
+    "Registered capacities constrain validity only; they are never substituted as measurements. Missing or invalid record streams do not prove no native work.",
+    "Artifact lower bounds are not exhaustive counts. Partial failure after queue/fence completion but before flushed readback markers may leave additional work unquantified.",
+    "Original SDK discard-safe/history rollback gap and no guaranteed RESET-to-fresh identity qualifications remain unchanged. No game, stain cause or accepted fix claim.",
+    "Native launch still belongs to root. This review itself runs only Python CPU derivation on clearly labelled simulated data; no helper executable was invoked."
+  ],
+  "quality_accepted": false
+}

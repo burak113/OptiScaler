@@ -1,0 +1,27 @@
+{
+  "schema": "immutable-H2-post-native-independent-audit-completion-v1",
+  "status": "completed_independent_native_diagnostic_audit_not_solution",
+  "own_GPU_native_build_calls": 0,
+  "files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_post_native_audit_20260930\\audit.json",
+      "bytes": 69227,
+      "sha256": "aaa76be53a6c0faf14b7c03cc87978642d1ef0490f95214a27636bbb6ad87ebb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_post_native_audit_20260930\\audit.py",
+      "bytes": 17745,
+      "sha256": "400bec553ef7f38302aa6145995f677ffd574a3fd764994d7b566a260d788144"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_post_native_audit_20260930\\independent_pair_metrics.json",
+      "bytes": 1411758,
+      "sha256": "8a2bf74671609951e6c15f2e9424a5f8e6ff6a8ed6b31d1178a2431b91c3296e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_post_native_audit_20260930\\trajectory_checks.json",
+      "bytes": 261869,
+      "sha256": "8baf675ca2c51cfeeab867caf6a92bc6b0f1df6cef30900cbd52c5be8a194daf"
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "schema": "H2-accounting-V2-before-any-native-byte-freeze-v1",
+  "files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\run_native_v2.py",
+      "bytes": 6892,
+      "sha256": "acf163f3dcb31c6ee919320b844d3f1704237b9268c49842c7a2b65db804ce80"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\native_work_accounting.py",
+      "bytes": 5500,
+      "sha256": "a5c73e7db0a9e33cb8fc9e70c6a8fe651e83682544b7414d9fa711cda6c4446c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\prepare_accounting_v2.py",
+      "bytes": 7436,
+      "sha256": "9d195d212ac4528856683286f8e363e0edbef380d87be9a15b2ee81bf623143e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v2_driver.diff",
+      "bytes": 5751,
+      "sha256": "12a918f7208829f71729489b1f00fff592c7bbf1a1416d82bf608b6e0f28237e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\accounting_v2_registration.json",
+      "bytes": 6563,
+      "sha256": "9832c939ea3464636587243bab080d17f86b2a5168a6dde41309bcd000c2e850"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\registration.json",
+      "bytes": 86792,
+      "sha256": "b83d9068753f9465efb730d664874fd64885d7bfa1e7f4386657fce884aeca4b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\pre_native_freeze.json",
+      "bytes": 36214,
+      "sha256": "c1a39719b7c03741f163a823ab6a2ae95b479ec2a95a224aa32320a37b2594cd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\run_native.py",
+      "bytes": 5133,
+      "sha256": "402c7996ee98a18f55520bfb04deaad20056cc186c420b1432ab2a3893ce3bba"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\analyze.py",
+      "bytes": 3571,
+      "sha256": "f97697ac4a997038828a2b72c5d8035b0d084f85583ca67400b3cb76ff1815d0"
+    }
+  ],
+  "actual_native_contexts": 0,
+  "actual_successful_API_RR_recordings": 0,
+  "actual_queued_RR_dispatches": 0
+}

@@ -1,0 +1,66 @@
+{
+  "schema": "explicitly-simulated-accounting-CPU-check-v3",
+  "status": "passed",
+  "SIMULATED_NOT_NATIVE_EVIDENCE": true,
+  "cases": 6,
+  "actual_native_contexts": 0,
+  "actual_API_RR_recordings": 0,
+  "actual_queued_RR_dispatches": 0,
+  "checks": [
+    "Authoritative footer64 retained despite validation errors and absent raw readback acceptance",
+    "65-index artifact conflicts retained and rejected while valid footer64 remains exact64",
+    "No-footer prefix gives API4/queued2 lower bounds and unknown totals",
+    "Provider-only gives created-context marker but zero work lower bounds and unknown totals",
+    "Out-of-capacity footer65 rejected; valid prefix API3/queued2 remains only lower bounds",
+    "Discard24 shape retains exact valid footer64/63/1, source24 absent mask and63 observed markers",
+    "No raw lobe, guard, GPU, native process, or actual native evidence fabricated",
+    "V3 executor/module parse without executing their entry points"
+  ],
+  "simulated_results": {
+    "complete_footer_validation_and_metadata_rejection": {
+      "successful_API_RR_recordings_confirmed": 64,
+      "queued_RR_dispatches_confirmed_completed": 64,
+      "discarded_API_RR_recordings_confirmed": 0,
+      "counter_authority": "valid_bounded_final_CPP_footer_under_pinned_source",
+      "totals_unknown": false
+    },
+    "footer64_conflicting65_indices": {
+      "successful_API_RR_recordings_confirmed": 64,
+      "queued_RR_dispatches_confirmed_completed": 64,
+      "discarded_API_RR_recordings_confirmed": 0,
+      "counter_authority": "valid_bounded_final_CPP_footer_under_pinned_source",
+      "totals_unknown": false
+    },
+    "no_footer_partial_prefix": {
+      "successful_API_RR_recordings_confirmed": 4,
+      "queued_RR_dispatches_confirmed_completed": 2,
+      "discarded_API_RR_recordings_confirmed": 0,
+      "counter_authority": "semantically_valid_artifact_lower_bounds_totals_unknown",
+      "totals_unknown": true
+    },
+    "no_footer_provider_only": {
+      "successful_API_RR_recordings_confirmed": 0,
+      "queued_RR_dispatches_confirmed_completed": 0,
+      "discarded_API_RR_recordings_confirmed": 0,
+      "counter_authority": "semantically_valid_artifact_lower_bounds_totals_unknown",
+      "totals_unknown": true
+    },
+    "invalid65_footer_valid_partial_artifacts": {
+      "successful_API_RR_recordings_confirmed": 3,
+      "queued_RR_dispatches_confirmed_completed": 2,
+      "discarded_API_RR_recordings_confirmed": 0,
+      "counter_authority": "semantically_valid_artifact_lower_bounds_totals_unknown",
+      "totals_unknown": true
+    },
+    "discard24_footer64_63_1": {
+      "successful_API_RR_recordings_confirmed": 64,
+      "queued_RR_dispatches_confirmed_completed": 63,
+      "discarded_API_RR_recordings_confirmed": 1,
+      "counter_authority": "valid_bounded_final_CPP_footer_under_pinned_source",
+      "totals_unknown": false
+    }
+  },
+  "script_sha256": "2a2a89520f971ce2ddc8e70a63677296f5808d9c091f5078808691ff3f4278e5",
+  "accounting_module_sha256": "a203c59afabe20c1cb49c3ad76d7d0330099eae6216cc49f812c95604aea56b4",
+  "registration_sha256": "b83d9068753f9465efb730d664874fd64885d7bfa1e7f4386657fce884aeca4b"
+}

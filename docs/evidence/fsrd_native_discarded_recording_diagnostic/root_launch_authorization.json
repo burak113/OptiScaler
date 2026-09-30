@@ -1,0 +1,21 @@
+{
+  "schema": "root-H2-bounded-native-launch-authorization-v1",
+  "branch": "ffxD-experimental-alpha",
+  "head": "73743433d96524eefa6f1fcef0fc8a98ec033d66",
+  "scope": "Only the frozen eight discarded-recording native diagnostic children; no production or game changes",
+  "user_authorization": "Existing request to test causes carefully with agents and continue the stain/wave investigation",
+  "producer_preparation_manifest_sha256": "946fca7c28ec6d7d99246fe78ee2b72b0b6e05df879c4a0cb37f9b1293fb01a4",
+  "V3_registration_sha256": "57cfe72cf8834c4cada474fe7108c5179ba33f5ef8d493604ab181bb75eb41f6",
+  "V3_freeze_sha256": "3ad25340d5b41e762c39a76ba5e466cc4487f821ced2175c4539e952e02318f1",
+  "executor_sha256": "1cbc7e8d1615a54603e0257efe254e2d12ca780b05d5743b802b51c3b79fd973",
+  "independent_ready_manifest_sha256": "7148e5393a4754bf882037036bf7aec8e59fa1c447b1ca49e65d6d1d6276c63f",
+  "independent_final_seal_sha256": "541234c2a26e34f540e4d64959509cc84ccdb168cc2ce858c7f806b4a728e40b",
+  "planned_contexts": 8,
+  "planned_successful_API_RR_recordings": 462,
+  "planned_discarded_recordings": 4,
+  "planned_queued_RR_dispatches": 458,
+  "resource_guard_sha256": "b70e18d0f13963e0250c371171933429446cf304041c9a16d971e9898d211814",
+  "planned_counts_are_actual_measurements": false,
+  "quality_accepted": false,
+  "SDK_discard_or_RESET_fresh_identity_guaranteed": false
+}

@@ -1,0 +1,22 @@
+{
+  "schema": "discarded-recording-prelaunch-accounting-qualification-v1",
+  "utc": "2026-09-30T12:33:16.200132+00:00",
+  "classification": "Executor reporting/accounting defect; source lifetime/payload review unchanged; native launch gate held pending independent accounting reconciliation.",
+  "reported_by": "root before any native launch; independently confirmed source ordering",
+  "driver": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\run_native.py",
+    "bytes": 5133,
+    "sha256": "402c7996ee98a18f55520bfb04deaad20056cc186c420b1432ab2a3893ce3bba"
+  },
+  "evidence": "run_native.py lines36..48 validate completion counts, SDK/D3D messages, controls, masks and raw shape before line54 increments actual totals. A child that completed64 queued frames but fails these assertions may leave main report actual totals0.",
+  "required_separation": [
+    "Observed created/completed native context and successful API/queued RR/discard counts must be retained independently of validation/metadata acceptance.",
+    "Final stdout completion counts and successful-record indices/observed-presence indices provide actual evidence; absent or contradictory evidence remains unknown/partial, never guessed from planned counts.",
+    "Reconciliation must run on success and failure, preserve all bytes, and count previously completed metadata-failed work. It must not relabel failed validation accepted.",
+    "No C++/source inputs, parameters, metrics, thresholds or SDK behavior changes are required. Preserve existing V1 freeze; separate accounting sidecar or explicit accounting-only V2 freeze needs prelaunch pin/review."
+  ],
+  "prior_review_scope": "review.json and completion_manifest.json remain byte-unchanged. Source readiness applies to their exact V1 pins, while native launch readiness now additionally requires the accounting qualification to be resolved.",
+  "quality_accepted": false,
+  "native_has_not_run": true,
+  "own_GPU_native_calls": 0
+}

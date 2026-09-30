@@ -1,0 +1,62 @@
+--- frozen_run_native_v1
++++ accounting_only_run_native_v2
+@@ -3,6 +3,7 @@
+ import hashlib,json,re,struct,sys
+ import numpy as np
+ from native_resource_guard import run_guarded
++from native_work_accounting import derive
+ HERE=Path(__file__).resolve().parent
+ def sha(p):return hashlib.sha256(Path(p).read_bytes()).hexdigest()
+ def identity(p):p=Path(p);return{'path':str(p),'bytes':p.stat().st_size,'sha256':sha(p)}
+@@ -19,18 +20,34 @@
+     reg=json.loads((HERE/'registration.json').read_text());freeze=json.loads((HERE/'pre_native_freeze.json').read_text())
+     assert reg['status']=='prepared_built_preregistered_NOT_AUTHORIZED_TO_RUN'
+     check(freeze['files']);check(freeze['external_sources'])
++    supplement=json.loads((HERE/'accounting_v2_pre_native_freeze.json').read_text());check(supplement['files'])
+     target=HERE/'evidence/results.json'
+     if target.exists()or any((HERE/'evidence'/c['tag']/'resource_guard.json').exists()for c in reg['cases']):raise ValueError('Preserve prior attempt')
+-    report={'schema':'discarded-record-H2-actual-native-evidence-v1','status':'running','registration_sha256':sha(HERE/'registration.json'),
++    report={'schema':'discarded-record-H2-actual-native-evidence-v2-accounted-before-validation','status':'running','registration_sha256':sha(HERE/'registration.json'),
+             'pre_native_freeze_sha256':sha(HERE/'pre_native_freeze.json'),'completed_native_contexts':0,
+-            'successful_API_RR_recordings':0,'queued_RR_dispatches':0,'discarded_RR_recordings':0,'cases':{},'quality_accepted':False,'game_run':False}
++            'successful_API_RR_recordings':0,'queued_RR_dispatches':0,'discarded_RR_recordings':0,'cases':{},'quality_accepted':False,'game_run':False,
++            'attempted_owned_children':0,'created_native_contexts_confirmed':0,'metadata_accepted_native_contexts':0,
++            'observed_output_frames_confirmed':0,'incomplete_children_with_unquantified_native_work':0,
++            'accounting_qualification':'Native work counters are derived before acceptance from actual stdout and flushed artifacts. Incomplete children may have additional unquantified work; no final marker/zero lower bound is not proof of no native work.'}
+     def checkpoint():save(target,report)
+     checkpoint()
+     try:
+         for c in reg['cases']:
+-            check(freeze['files']);check(freeze['external_sources'])
++            check(freeze['files']);check(freeze['external_sources']);check(supplement['files'])
+             folder=HERE/'evidence'/c['tag'];guard=run_guarded(c['command'],folder)
+-            info={'guard':guard};report['cases'][c['tag']]=info;checkpoint()
++            accounting=derive(folder,guard,c)
++            save(folder/'native_work_accounting.json',accounting)
++            info={'guard':guard,'native_work_accounting':accounting,'native_work_accounting_file':identity(folder/'native_work_accounting.json'),'metadata_accepted':False}
++            report['cases'][c['tag']]=info
++            report['attempted_owned_children']+=int(accounting['attempted_owned_child'])
++            report['created_native_contexts_confirmed']+=int(accounting['created_native_context_confirmed'])
++            report['completed_native_contexts']+=int(accounting['completed_native_context_final_marker'])
++            report['successful_API_RR_recordings']+=accounting['successful_API_RR_recordings_confirmed']
++            report['queued_RR_dispatches']+=accounting['queued_RR_dispatches_confirmed_completed']
++            report['discarded_RR_recordings']+=accounting['discarded_API_RR_recordings_confirmed']
++            report['observed_output_frames_confirmed']+=accounting['observed_output_frames_confirmed']
++            report['incomplete_children_with_unquantified_native_work']+=int(accounting['incomplete_child_native_work_may_exceed_confirmed_lower_bounds'])
++            checkpoint()
+             if guard['status']!='completed':raise RuntimeError('Guard/native not completed '+c['tag'])
+             log=(folder/'stdout.log').read_text()+(folder/'stderr.log').read_text();m=re.search(r'RR_recordings=(\d+) queued_RR_dispatches=(\d+) discarded_RR_recordings=(\d+) validation_errors=(\d+) validation_warnings=(\d+) sdk_errors=(\d+) sdk_warnings=(\d+)',log)
+             assert m is not None;counts=list(map(int,m.groups()))
+@@ -51,10 +68,10 @@
+                         'validation_errors':counts[3],'validation_warnings':counts[4],'sdk_errors':counts[5],'sdk_warnings':counts[6]},
+                         recorded_frame_indices=recorded,observed_frame_indices=observed,output_presence=list(presence),lobes=lobes,
+                         applied_controls=identity(folder/'dispatch_controls.bin'),files=[identity(p)for p in sorted(folder.iterdir())if p.is_file()])
+-            report['completed_native_contexts']+=1;report['successful_API_RR_recordings']+=counts[0];report['queued_RR_dispatches']+=counts[1];report['discarded_RR_recordings']+=counts[2];checkpoint()
++            info['metadata_accepted']=True;report['metadata_accepted_native_contexts']+=1;checkpoint()
+             print(c['tag'],'completed',counts[:3],flush=True)
+         assert[report[k]for k in('completed_native_contexts','successful_API_RR_recordings','queued_RR_dispatches','discarded_RR_recordings')]==[8,462,458,4]
+-        check(freeze['files']);check(freeze['external_sources']);report['sources_unchanged']=True
++        check(freeze['files']);check(freeze['external_sources']);check(supplement['files']);report['sources_unchanged']=True
+         report['status']='completed_H2_native_record_discard_diagnostic_not_solution';checkpoint()
+     except BaseException as e:
+         report['status']='failed_preserved';report['error']=type(e).__name__+': '+str(e);checkpoint();raise

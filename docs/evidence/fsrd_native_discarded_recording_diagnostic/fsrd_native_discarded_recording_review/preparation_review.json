@@ -1,0 +1,34 @@
+{
+  "schema": "discarded-recording-independent-preparation-review-v1",
+  "utc": "2026-09-30T12:17:04.382250+00:00",
+  "status": "builder_source_pending_not_native_ready",
+  "GPU_native_calls_by_reviewer": 0,
+  "quality_accepted": false,
+  "checks_required": [
+    "Record24 api.Dispatch then Close list and discard before output Copy/Execute/Signal/Map; prior23 completion fence must precede allocator reuse.",
+    "Discarded external Tex.state bookkeeping must be restored or proven equal to last submitted resource states. Opaque provider bookkeeping rollback is not assumed.",
+    "Seven input payloads/format/upload counts full64 or1 versus fresh-tail39 or1; source stream consumed24 despite discarded copy and next25 correct.",
+    "Separate API-recorded184byte controls from queued output presence; source24 has no GPU readback, never synthetic zero payload represented as native output.",
+    "Tail local dispatch frameIndex0..38 versus original source25..63 and firstRESET policy explicit; reset-tail identity is a hypothesis not SDK guarantee.",
+    "Eight balanced cases baseline64,discard24:63queued,discard24-reset25:63queued,fresh-tail39; total462API/4discard/458queued.",
+    "Actual prereg/runner diff whitelist, source/compiler/provider/binary pins, standard guard and preserved prep failures before any native call."
+  ],
+  "SDK_scope": "Local API and denoiser headers document a command-list pointer and frame controls; inspected sections provide no explicit rollback or discard-safe-context guarantee. Internal CPU history advancement is intentionally opaque; differing outputs would not by itself establish a caller or SDK bug.",
+  "sources": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\fsrd_rr_runner.cpp",
+      "bytes": 17182,
+      "sha256": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\denoisers\\include\\ffx_denoiser.h",
+      "bytes": 27253,
+      "sha256": "1316e406f3499f1c907c258d8efbf763d81aa7ffed1b65209802637907d644ed"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\api\\include\\ffx_api.h",
+      "bytes": 10939,
+      "sha256": "91f7f4a9111d18996e3bae083bf82d47ac6497de144b352abfca44f07d2871c4"
+    }
+  ]
+}
