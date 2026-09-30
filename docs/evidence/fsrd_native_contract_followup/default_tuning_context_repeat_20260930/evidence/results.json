@@ -1,0 +1,111 @@
+{
+  "schema": "pinned-runner-default-tuning-context-repeat-v1",
+  "status": "running",
+  "quality_accepted": false,
+  "game_run": false,
+  "script_sha256": "cf4f54d58901ebf65844ba9d1fd0c381cafe70c47e44d97d89f3fe15b90a05fe",
+  "preregistration_sha256": "e97e7002bb033ac8bb129dfb9661080e25ab0fa7982927f41132cce93cdd47e4",
+  "reference_report_sha256": "8b401634817ca22f7b5f8dd8dcf975b4d25180d5cbd616dda192181d9e5d53d5",
+  "reference_arrays_sha256": {
+    "old": "da74cc1cd54f21a9c0bba9a07f31e0c462f831a55c32bbd4fd306181fe995c50",
+    "new": "4abf5df2cb4070f733ec35dc7c930b8c92644a8162b590684f2041984544b0e3"
+  },
+  "fixture_source_sha256": {
+    "fsrd_alpha_common.py": "691975513a56ada7c1ec8faab7a4f70840508371a3334dba67275e00aef4ba2e",
+    "probe_fsrd_statistical_resolve.py": "f804ea74c72aef1b6adf351e2d3cbe4f809c3069b13419492be178401248a3ee",
+    "probe_fsrd_response_calibration.py": "27b17a36e0da89d922abc51f5bf6825f7c8e5aa57d4e0f35feb125aff602cee1"
+  },
+  "runner_path": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\response_soft_temporal_long_alpha_fresh\\fsrd_rr_runner.exe",
+  "runner_sha256": "3427689a4764380f885545c353250277e4d71944d3310c8a17b3cbba0f3c21d2",
+  "native_provider_sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3",
+  "selected_frames": [
+    0,
+    1,
+    31,
+    32,
+    33,
+    34,
+    63
+  ],
+  "contexts": 0,
+  "dispatches": 0,
+  "runs": [],
+  "pairwise": [],
+  "limitations": [
+    "Four observed contexts are not a population confidence bound.",
+    "Only selected frames are composed; full native lobe arrays are retained exactly.",
+    "Only tuning flag1->0 skips six effect overrides; no output clearing/binary/provider change. Earlier divergence remains evidence.",
+    "Synthetic lighting on one fixed planar surface; no game quality inference."
+  ],
+  "separate_default_query": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\provider_defaults_query_20260930\\evidence\\results.json",
+    "sha256": "cb95621324581c1ad57236246d49ac1283fe67ee9139d59d168e39fac636bb58",
+    "keys": [
+      {
+        "key_id": 6,
+        "returncode": 0,
+        "finite": true,
+        "float32_bits": 1008981770,
+        "value": 0.00999999978,
+        "measured": true
+      },
+      {
+        "key_id": 1,
+        "returncode": 0,
+        "finite": true,
+        "float32_bits": 1065353216,
+        "value": 1.0,
+        "measured": true
+      },
+      {
+        "key_id": 2,
+        "returncode": 0,
+        "finite": true,
+        "float32_bits": 1065353216,
+        "value": 1.0,
+        "measured": true
+      },
+      {
+        "key_id": 3,
+        "returncode": 0,
+        "finite": true,
+        "float32_bits": 1199562752,
+        "value": 65504.0,
+        "measured": true
+      },
+      {
+        "key_id": 4,
+        "returncode": 0,
+        "finite": true,
+        "float32_bits": 1112014848,
+        "value": 50.0,
+        "measured": true
+      },
+      {
+        "key_id": 5,
+        "returncode": 0,
+        "finite": true,
+        "float32_bits": 0,
+        "value": 0.0,
+        "measured": true
+      }
+    ],
+    "not_queried_by_pinned_runner": true
+  },
+  "native_helper_sha256": "1e1993830125a801651f08601aa69f0f45ac70b20d890441f0cc0f5b7b679c72",
+  "source_derivation_sha256": "27bf8a9d96f72002d2ce6172c5420fc7d5efba7ba4b5b4a4c82eee037d1920e2",
+  "input_authentication": {
+    "native_context": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\response_soft_temporal_long_alpha_fresh_shard\\lighting_step\\observed\\amd_context_identity.json",
+    "manifest_sha256": "aff43bfd15843d61c296e49460bad7d673916ed8059460fc63c8282678456cb7",
+    "input_sha256": {
+      "input0.bin": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc",
+      "input1.bin": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4",
+      "input2.bin": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6",
+      "input3.bin": "d3913c35a794f28b97fe8b319912d40b60f007a1ec145b99f5213da3d98728ae",
+      "input4.bin": "55133e7a62a44614cfb0938772d96a61ef5909467003b0dd2150c550662553eb",
+      "input5.bin": "bf1786383216ce62a8c4723a58e38c808911dd0ff53cfc3c07db75615dc886d6",
+      "input6.bin": "b2a09591b9daafdbdb1729787cea477aeef9e9691b1a4345adc19df3e795bc22"
+    },
+    "reset_jitter_sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+  }
+}

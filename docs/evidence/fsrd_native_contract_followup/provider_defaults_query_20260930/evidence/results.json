@@ -1,0 +1,116 @@
+{
+  "schema": "fresh-context-provider-default-query-v1",
+  "quality_accepted": false,
+  "contexts": 1,
+  "native_dispatches": 0,
+  "queries_before_effect_configuration": true,
+  "source_derivation": {
+    "parent": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\fsrd_rr_runner.cpp",
+    "parent_sha256": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077",
+    "generated_source_sha256": "b6e7cb023aa3128dc8b314f6f267eea5d5b3c4a907764c5d10d70da5d8ad880d",
+    "script_sha256": "4af809f1957cf8d457e6442fc0155099fe9c2720f5d902d6457d4dab466ee298",
+    "control": "Add query-only block immediately after context creation and return before Configure/Dispatch; absolute SDK includes"
+  },
+  "runner_sha256": "36c3615252c97f669e65a8ce8f9a2afc0d559d31fbffd492d9995ce1372ef67b",
+  "provider_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\signedbin\\amd_fidelityfx_denoiser_dx12.dll",
+  "provider_sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3",
+  "job_sha256": "65fff140292a70faa0117f12d3032ac5b7730a25d0b0608dab68b34283bd4ff3",
+  "input_identities": {
+    "0": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\matched_camera_input_contract_20260930\\evidence\\frame_0_matched_0_input0.bin",
+      "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc"
+    },
+    "1": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\matched_camera_input_contract_20260930\\evidence\\frame_0_matched_0_input1.bin",
+      "sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4"
+    },
+    "2": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\matched_camera_input_contract_20260930\\evidence\\frame_0_matched_0_input2.bin",
+      "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6"
+    },
+    "3": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\matched_camera_input_contract_20260930\\evidence\\frame_0_matched_0_input3.bin",
+      "sha256": "05fd3ba8975a6d2d5e3f93edace4eeaf8389d8b2e25e5c6e1b759ab0d640831c"
+    },
+    "4": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\matched_camera_input_contract_20260930\\evidence\\frame_0_matched_0_input4.bin",
+      "sha256": "55133e7a62a44614cfb0938772d96a61ef5909467003b0dd2150c550662553eb"
+    },
+    "5": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\matched_camera_input_contract_20260930\\evidence\\frame_0_matched_0_input5.bin",
+      "sha256": "f62e5c93e7f69932a54bbc5f95d8e373a08692818963de69df0817203883767f"
+    },
+    "6": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\matched_camera_input_contract_20260930\\evidence\\frame_0_matched_0_input6.bin",
+      "sha256": "003dd889f0ccebdf6a60dee3671b434e821553677aaf3e8b884ccb691751b871"
+    }
+  },
+  "dimensions": [
+    128,
+    80
+  ],
+  "signals": [
+    2,
+    32
+  ],
+  "context_create_flags": 2,
+  "query_utility_is_existing_pinned_runner": false,
+  "returncode": 0,
+  "log_sha256": "7d3d6b378615fe42bb5e5c87f559aa32d8679f6fb0665016e73fc13ff0c53843",
+  "keys": [
+    {
+      "key_id": 6,
+      "returncode": 0,
+      "finite": true,
+      "float32_bits": 1008981770,
+      "value": 0.00999999978,
+      "measured": true
+    },
+    {
+      "key_id": 1,
+      "returncode": 0,
+      "finite": true,
+      "float32_bits": 1065353216,
+      "value": 1.0,
+      "measured": true
+    },
+    {
+      "key_id": 2,
+      "returncode": 0,
+      "finite": true,
+      "float32_bits": 1065353216,
+      "value": 1.0,
+      "measured": true
+    },
+    {
+      "key_id": 3,
+      "returncode": 0,
+      "finite": true,
+      "float32_bits": 1199562752,
+      "value": 65504.0,
+      "measured": true
+    },
+    {
+      "key_id": 4,
+      "returncode": 0,
+      "finite": true,
+      "float32_bits": 1112014848,
+      "value": 50.0,
+      "measured": true
+    },
+    {
+      "key_id": 5,
+      "returncode": 0,
+      "finite": true,
+      "float32_bits": 0,
+      "value": 0.0,
+      "measured": true
+    }
+  ],
+  "limitations": [
+    "Default query does not expose current configured values.",
+    "Separate query utility; original pinned runner does not perform these queries.",
+    "No RR dispatch or game quality observation.",
+    "Ordinary D3D12 validation; GPU-based validation is not enabled."
+  ]
+}

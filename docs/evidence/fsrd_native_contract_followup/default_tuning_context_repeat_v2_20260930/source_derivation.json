@@ -1,0 +1,10 @@
+{
+  "parent_script": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\controlled_context_repeat_20260930\\analyze.py",
+  "parent_sha256": "725fa874fce31707f77b64777b1e62565f876ebf8dba148c8499e2ecb0c35b55",
+  "function_parent": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\probe_fsrd_additive_split.py",
+  "function_parent_sha256": "caf2d246fc57f7b1488637bee0a9a5dabafd5f28ed7b9694ad443e55b3860b12",
+  "generated_script_sha256": "cf4f54d58901ebf65844ba9d1fd0c381cafe70c47e44d97d89f3fe15b90a05fe",
+  "generated_helper_sha256": "0c5869751e24067d10b642617a70511e05eca490a33f03c8c7612cfbc67fad5b",
+  "generator_sha256": "2932a21f3a4e2b5f47621da15e22579e6fca14a11169dd6765622a3cad4dbb4d",
+  "changed_control": "Job tuning1->0 skips six effect Configure calls; metadata names no unused values as applied"
+}

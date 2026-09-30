@@ -1,0 +1,154 @@
+{
+  "schema": "default-tuning-repeat-independent-interpretation-v1",
+  "audit_sha256": "cdff6bfbc5ff667b28cc63454e015d848f2d8906109301cc594228f7424b905c",
+  "query_audit_sha256": "3df7a9685baa02ce31624c6fff6bc66e1320fc2206b468d7e6556b35f7048b23",
+  "native_contexts": 4,
+  "native_dispatches": 256,
+  "quality_accepted": false,
+  "game_quality_claim": false,
+  "separately_counted_failed_metadata_attempt": {
+    "native_contexts": 1,
+    "native_dispatches": 64,
+    "included_in_repeat_comparisons": false
+  },
+  "same_payload_and_controls": true,
+  "same_pinned_binary_and_provider": true,
+  "SDK_and_ordinary_D3D_debug_errors_or_warnings": 0,
+  "observed_repeat_pattern": "Contexts 0,1,3 exact; context2 differs. Three zero and three nonzero pairs.",
+  "nonzero_pair_RGBA_RMS": 0.0066013059409535954,
+  "nonzero_pair_RGB_RMS": 0.007622531524025268,
+  "alpha_output_all_zero_and_pairwise_equal": true,
+  "first_diffuse_RGB_difference": [
+    24,
+    75,
+    32,
+    0
+  ],
+  "first_specular_RGB_difference": [
+    26,
+    0,
+    10,
+    1
+  ],
+  "nonzero_pair_selected_composed_RMS": 0.0011650992084101428,
+  "window_ranges": [
+    {
+      "control": "tuning1_noreset",
+      "ranges": {
+        "native_RGBA_full": [
+          0.0009816342812501025,
+          0.009697652279239959
+        ],
+        "native_RGB_full": [
+          0.0011334936330510228,
+          0.011197884307853156
+        ],
+        "native_alpha_full": [
+          0.0,
+          0.0
+        ],
+        "native_RGB_pre32": [
+          0.0,
+          0.0003777680805808241
+        ],
+        "native_RGB_from32": [
+          0.0016030020687243089,
+          0.01583182734282033
+        ],
+        "selected_composed_full": [
+          0.00017545060156518122,
+          0.0008449666591352322
+        ],
+        "selected_composed_pre32": [
+          0.0,
+          5.780906290696289e-05
+        ],
+        "selected_composed_from32": [
+          0.00023209932955907468,
+          0.0011169956045013515
+        ]
+      }
+    },
+    {
+      "control": "tuning1_reset32",
+      "ranges": {
+        "native_RGBA_full": [
+          0.00024361133944111136,
+          0.0005451987978579657
+        ],
+        "native_RGB_full": [
+          0.00028129814480794187,
+          0.0006295413454103137
+        ],
+        "native_alpha_full": [
+          0.0,
+          0.0
+        ],
+        "native_RGB_pre32": [
+          0.0,
+          0.0007472156640571555
+        ],
+        "native_RGB_from32": [
+          0.0003742193389821909,
+          0.00048405925520506266
+        ],
+        "selected_composed_full": [
+          3.802780429537789e-05,
+          6.962040240223066e-05
+        ],
+        "selected_composed_pre32": [
+          0.0,
+          8.740430746234492e-05
+        ],
+        "selected_composed_from32": [
+          4.8174557050418634e-05,
+          5.246537936016308e-05
+        ]
+      }
+    },
+    {
+      "control": "tuning0_noreset",
+      "ranges": {
+        "native_RGBA_full": [
+          0.0,
+          0.0066013059409535954
+        ],
+        "native_RGB_full": [
+          0.0,
+          0.007622531524025268
+        ],
+        "native_alpha_full": [
+          0.0,
+          0.0
+        ],
+        "native_RGB_pre32": [
+          0.0,
+          8.023286452370131e-05
+        ],
+        "native_RGB_from32": [
+          0.0,
+          0.010779588876991935
+        ],
+        "selected_composed_full": [
+          0.0,
+          0.0011650992084101428
+        ],
+        "selected_composed_pre32": [
+          0.0,
+          1.956931021846506e-05
+        ],
+        "selected_composed_from32": [
+          0.0,
+          0.0015411882010609793
+        ]
+      }
+    }
+  ],
+  "conclusions": [
+    "Disabling all six effect tuning overrides did not eliminate same-input same-binary native context variability in this four-context sample.",
+    "First native divergence precedes frame32; the light transition is where larger differences occur, not a proven onset or cause.",
+    "Default-key queries were made immediately after context creation in a separate utility; no active-setting query was performed inside these repeated contexts.",
+    "The sample ranges are descriptive and cannot establish statistical confidence, a defective key, internal initialization cause, a caller defect, or a production fix.",
+    "Output-alpha equality only characterizes output alpha. It is not a radiance-quality or input-alpha proof."
+  ]
+}

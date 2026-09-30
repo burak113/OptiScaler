@@ -1,0 +1,378 @@
+{
+  "schema": "original-four-camera-conversion-independent-audit-v1",
+  "analysis_sha256": "6610cb431ac3307bb481d3c331e850d1c80ce349211136a73a9e3cec00c86a06",
+  "original_report_sha256": "4e5bf6dcb5670fdb56eea4b258f2e6a83ec0436c1b0356dce101f1929fdf14ad",
+  "conversion_dispatches": 4,
+  "native_RR_dispatches": 0,
+  "new_GPU_calls": 0,
+  "quality_accepted": false,
+  "rows": [
+    {
+      "arm": "matched",
+      "strength": 0,
+      "payload_sha256": "9e6d0783f59069df6cef46fff6c07c6151bbdc0300a2b05e6e2d007cf4a664fe",
+      "fixture_sha256": "9ef5c09a11ce85b7720aa1a45d5f95d0a7a1f3edffd1f27750af0e00b4595ea2",
+      "job_sha256": "19e80e6a93c3db18d9483d067e22d6ed0c51ef365299c2ef96cd536eea4929c3",
+      "requested_shader_proven_by_job": "FSRDInputConv",
+      "requested_CSO_sha256": "1eb2b8fb8e971f670e7c7b5fb3a4e269672d0d93427d0e84e7635593e63d4b01",
+      "job_dimensions_formats_valid": true,
+      "retained_CB": false,
+      "source_reconstructed_CB_sha256": "6c06f6dc43cab5d4e2bb0880a16b1ed7509f2fa3d4c097ad6e466c5a69fb3cf7",
+      "CB_field_offsets": {
+        "InvViewMatrix": 0,
+        "InvProjMatrix": 64,
+        "PrevViewMatrix": 128,
+        "DstTexSize": 192,
+        "MotionInputSize": 208,
+        "MotionTransform": 224,
+        "JitterOffsets": 240,
+        "InputBase0": 256,
+        "InputBase1": 272,
+        "InputBase2": 288,
+        "InputBase3": 304,
+        "InputBase4": 320,
+        "InputBase5": 336,
+        "NearPlane": 352,
+        "FarPlane": 356,
+        "FloorDetailPreservation": 360,
+        "Flags": 364,
+        "InspectorChannel": 368,
+        "InspectorScale": 372,
+        "DebugDepthMax": 376,
+        "DiffuseHitDistanceMode": 380,
+        "ResponsivityTrustThreshold": 384,
+        "ResponsivityInvert": 388,
+        "BiasMaskStrength": 392,
+        "DemodDivisorFloor": 396,
+        "SpecularAlbedoDemodulation": 400,
+        "DiffuseAlbedoModulation": 404,
+        "RecoveryMask": 408,
+        "AdditiveLightSplit": 412
+      },
+      "retained_per_job_stdout": false,
+      "reconstructed_output_FP16_bytes_sha256": {
+        "packed_0": "6dcb020ef1ca3e4e0e39d377b8b2be9157873676fde594d7d2e08e90bbc8f331",
+        "packed_1": "849da0650247298b2b78214d641fc3128663de76a38f17a455a75aefe23974fc",
+        "packed_2": "1bde0c966cdd73ba09534b8cb44021cf07731fd9f8af309917fb506a4ad7348d",
+        "packed_6": "56b1a4be091b0c5249e0a091ca1e4c1cb828977e4ba5ac39ec4ddc09f27378e9",
+        "packed_7": "8fe298e124b1bb23aee1fb6a26770a2bb0e088595dbd7f67687f75976e8953c1"
+      },
+      "physical_MVZ": {
+        "rms": 4.513679336919124e-05,
+        "maximum_absolute": 0.00011631407103962488,
+        "exact_equal": false
+      },
+      "converter_motion": {
+        "rms": 2.78252284107463e-05,
+        "maximum_absolute": 0.0001220703125,
+        "exact_equal": false
+      },
+      "physical_peak_y_x": [
+        0,
+        110
+      ],
+      "physical_peak_signed_error": 0.00011631407103962488,
+      "motion_alpha_exact_one": true,
+      "spec_alpha_exact10": true,
+      "diff_alpha_exact65504": true,
+      "converter_all_pixel_within_one_FP16_ulp_plus_1e_minus_5": true,
+      "converter_failing_values": 0,
+      "physical_MVZ_all_pixel_within_one_FP16_ulp_plus_1e_minus_5": true,
+      "physical_failing_pixels": 0
+    },
+    {
+      "arm": "matched",
+      "strength": 1,
+      "payload_sha256": "9e6d0783f59069df6cef46fff6c07c6151bbdc0300a2b05e6e2d007cf4a664fe",
+      "fixture_sha256": "9ef5c09a11ce85b7720aa1a45d5f95d0a7a1f3edffd1f27750af0e00b4595ea2",
+      "job_sha256": "4770b09b6c5f9eb2794317b27ab9758519dc872e52210f00f2be81ab54268707",
+      "requested_shader_proven_by_job": "FSRDInputConvAdditive",
+      "requested_CSO_sha256": "64332e35a56277f373fd119c512108ec309b96c5ea1abcc45096b03a44577c5d",
+      "job_dimensions_formats_valid": true,
+      "retained_CB": false,
+      "source_reconstructed_CB_sha256": "57f675d7e61ab999bc840b285fe0b786192c41e99df7afb2be6f8d49989eb9f3",
+      "CB_field_offsets": {
+        "InvViewMatrix": 0,
+        "InvProjMatrix": 64,
+        "PrevViewMatrix": 128,
+        "DstTexSize": 192,
+        "MotionInputSize": 208,
+        "MotionTransform": 224,
+        "JitterOffsets": 240,
+        "InputBase0": 256,
+        "InputBase1": 272,
+        "InputBase2": 288,
+        "InputBase3": 304,
+        "InputBase4": 320,
+        "InputBase5": 336,
+        "NearPlane": 352,
+        "FarPlane": 356,
+        "FloorDetailPreservation": 360,
+        "Flags": 364,
+        "InspectorChannel": 368,
+        "InspectorScale": 372,
+        "DebugDepthMax": 376,
+        "DiffuseHitDistanceMode": 380,
+        "ResponsivityTrustThreshold": 384,
+        "ResponsivityInvert": 388,
+        "BiasMaskStrength": 392,
+        "DemodDivisorFloor": 396,
+        "SpecularAlbedoDemodulation": 400,
+        "DiffuseAlbedoModulation": 404,
+        "RecoveryMask": 408,
+        "AdditiveLightSplit": 412
+      },
+      "retained_per_job_stdout": false,
+      "reconstructed_output_FP16_bytes_sha256": {
+        "packed_0": "6dcb020ef1ca3e4e0e39d377b8b2be9157873676fde594d7d2e08e90bbc8f331",
+        "packed_1": "849da0650247298b2b78214d641fc3128663de76a38f17a455a75aefe23974fc",
+        "packed_2": "1bde0c966cdd73ba09534b8cb44021cf07731fd9f8af309917fb506a4ad7348d",
+        "packed_6": "56b1a4be091b0c5249e0a091ca1e4c1cb828977e4ba5ac39ec4ddc09f27378e9",
+        "packed_7": "8fe298e124b1bb23aee1fb6a26770a2bb0e088595dbd7f67687f75976e8953c1"
+      },
+      "physical_MVZ": {
+        "rms": 4.513679336919124e-05,
+        "maximum_absolute": 0.00011631407103962488,
+        "exact_equal": false
+      },
+      "converter_motion": {
+        "rms": 2.78252284107463e-05,
+        "maximum_absolute": 0.0001220703125,
+        "exact_equal": false
+      },
+      "physical_peak_y_x": [
+        0,
+        110
+      ],
+      "physical_peak_signed_error": 0.00011631407103962488,
+      "motion_alpha_exact_one": true,
+      "spec_alpha_exact10": true,
+      "diff_alpha_exact65504": true,
+      "converter_all_pixel_within_one_FP16_ulp_plus_1e_minus_5": true,
+      "converter_failing_values": 0,
+      "physical_MVZ_all_pixel_within_one_FP16_ulp_plus_1e_minus_5": true,
+      "physical_failing_pixels": 0
+    },
+    {
+      "arm": "identity",
+      "strength": 0,
+      "payload_sha256": "5d07d4b78125df417f0d2aa026c9c77bd0b80ddc15e785ef95a1a8c1273ba97f",
+      "fixture_sha256": "9eb9b0190dbda806ce347781632a5057fd6d1ecc1bda9619d4a3f6a265875606",
+      "job_sha256": "e51314704de59bc4593488f2fe875d4ba72af5ae90ddf02bae828082ff521784",
+      "requested_shader_proven_by_job": "FSRDInputConv",
+      "requested_CSO_sha256": "1eb2b8fb8e971f670e7c7b5fb3a4e269672d0d93427d0e84e7635593e63d4b01",
+      "job_dimensions_formats_valid": true,
+      "retained_CB": false,
+      "source_reconstructed_CB_sha256": "7257693761324e57e46cfd13d68204e3f05ee43ec84d679e2045109133e956fb",
+      "CB_field_offsets": {
+        "InvViewMatrix": 0,
+        "InvProjMatrix": 64,
+        "PrevViewMatrix": 128,
+        "DstTexSize": 192,
+        "MotionInputSize": 208,
+        "MotionTransform": 224,
+        "JitterOffsets": 240,
+        "InputBase0": 256,
+        "InputBase1": 272,
+        "InputBase2": 288,
+        "InputBase3": 304,
+        "InputBase4": 320,
+        "InputBase5": 336,
+        "NearPlane": 352,
+        "FarPlane": 356,
+        "FloorDetailPreservation": 360,
+        "Flags": 364,
+        "InspectorChannel": 368,
+        "InspectorScale": 372,
+        "DebugDepthMax": 376,
+        "DiffuseHitDistanceMode": 380,
+        "ResponsivityTrustThreshold": 384,
+        "ResponsivityInvert": 388,
+        "BiasMaskStrength": 392,
+        "DemodDivisorFloor": 396,
+        "SpecularAlbedoDemodulation": 400,
+        "DiffuseAlbedoModulation": 404,
+        "RecoveryMask": 408,
+        "AdditiveLightSplit": 412
+      },
+      "retained_per_job_stdout": false,
+      "reconstructed_output_FP16_bytes_sha256": {
+        "packed_0": "6dcb020ef1ca3e4e0e39d377b8b2be9157873676fde594d7d2e08e90bbc8f331",
+        "packed_1": "849da0650247298b2b78214d641fc3128663de76a38f17a455a75aefe23974fc",
+        "packed_2": "1aabd6efdabc511ba673a39d60361044c1b5fd17824fe07c9c7a3df56e37497b",
+        "packed_6": "56b1a4be091b0c5249e0a091ca1e4c1cb828977e4ba5ac39ec4ddc09f27378e9",
+        "packed_7": "8fe298e124b1bb23aee1fb6a26770a2bb0e088595dbd7f67687f75976e8953c1"
+      },
+      "physical_MVZ": {
+        "rms": 0.12417872079951278,
+        "maximum_absolute": 0.2134786529314816,
+        "exact_equal": false
+      },
+      "converter_motion": {
+        "rms": 6.170759226098363e-05,
+        "maximum_absolute": 0.000244140625,
+        "exact_equal": false
+      },
+      "physical_peak_y_x": [
+        0,
+        0
+      ],
+      "physical_peak_signed_error": 0.2134786529314816,
+      "motion_alpha_exact_one": true,
+      "spec_alpha_exact10": true,
+      "diff_alpha_exact65504": true,
+      "converter_all_pixel_within_one_FP16_ulp_plus_1e_minus_5": true,
+      "converter_failing_values": 0,
+      "physical_MVZ_all_pixel_within_one_FP16_ulp_plus_1e_minus_5": false,
+      "physical_failing_pixels": 10240
+    },
+    {
+      "arm": "identity",
+      "strength": 1,
+      "payload_sha256": "5d07d4b78125df417f0d2aa026c9c77bd0b80ddc15e785ef95a1a8c1273ba97f",
+      "fixture_sha256": "9eb9b0190dbda806ce347781632a5057fd6d1ecc1bda9619d4a3f6a265875606",
+      "job_sha256": "5696744de84af8bfab646e420be3ef880725ed2cf9349241b9cf53dd9540c68b",
+      "requested_shader_proven_by_job": "FSRDInputConvAdditive",
+      "requested_CSO_sha256": "64332e35a56277f373fd119c512108ec309b96c5ea1abcc45096b03a44577c5d",
+      "job_dimensions_formats_valid": true,
+      "retained_CB": false,
+      "source_reconstructed_CB_sha256": "7379d19bcdaa689f6e252725d2532d271263003e98afad26e04e87b3cf97e1ad",
+      "CB_field_offsets": {
+        "InvViewMatrix": 0,
+        "InvProjMatrix": 64,
+        "PrevViewMatrix": 128,
+        "DstTexSize": 192,
+        "MotionInputSize": 208,
+        "MotionTransform": 224,
+        "JitterOffsets": 240,
+        "InputBase0": 256,
+        "InputBase1": 272,
+        "InputBase2": 288,
+        "InputBase3": 304,
+        "InputBase4": 320,
+        "InputBase5": 336,
+        "NearPlane": 352,
+        "FarPlane": 356,
+        "FloorDetailPreservation": 360,
+        "Flags": 364,
+        "InspectorChannel": 368,
+        "InspectorScale": 372,
+        "DebugDepthMax": 376,
+        "DiffuseHitDistanceMode": 380,
+        "ResponsivityTrustThreshold": 384,
+        "ResponsivityInvert": 388,
+        "BiasMaskStrength": 392,
+        "DemodDivisorFloor": 396,
+        "SpecularAlbedoDemodulation": 400,
+        "DiffuseAlbedoModulation": 404,
+        "RecoveryMask": 408,
+        "AdditiveLightSplit": 412
+      },
+      "retained_per_job_stdout": false,
+      "reconstructed_output_FP16_bytes_sha256": {
+        "packed_0": "6dcb020ef1ca3e4e0e39d377b8b2be9157873676fde594d7d2e08e90bbc8f331",
+        "packed_1": "849da0650247298b2b78214d641fc3128663de76a38f17a455a75aefe23974fc",
+        "packed_2": "1aabd6efdabc511ba673a39d60361044c1b5fd17824fe07c9c7a3df56e37497b",
+        "packed_6": "56b1a4be091b0c5249e0a091ca1e4c1cb828977e4ba5ac39ec4ddc09f27378e9",
+        "packed_7": "8fe298e124b1bb23aee1fb6a26770a2bb0e088595dbd7f67687f75976e8953c1"
+      },
+      "physical_MVZ": {
+        "rms": 0.12417872079951278,
+        "maximum_absolute": 0.2134786529314816,
+        "exact_equal": false
+      },
+      "converter_motion": {
+        "rms": 6.170759226098363e-05,
+        "maximum_absolute": 0.000244140625,
+        "exact_equal": false
+      },
+      "physical_peak_y_x": [
+        0,
+        0
+      ],
+      "physical_peak_signed_error": 0.2134786529314816,
+      "motion_alpha_exact_one": true,
+      "spec_alpha_exact10": true,
+      "diff_alpha_exact65504": true,
+      "converter_all_pixel_within_one_FP16_ulp_plus_1e_minus_5": true,
+      "converter_failing_values": 0,
+      "physical_MVZ_all_pixel_within_one_FP16_ulp_plus_1e_minus_5": false,
+      "physical_failing_pixels": 10240
+    }
+  ],
+  "comparisons": [
+    {
+      "strength": 0,
+      "motion_xy": {
+        "rms": 0.0,
+        "maximum_absolute": 0.0,
+        "exact_equal": true
+      },
+      "motion_z": {
+        "rms": 0.12421697320683689,
+        "maximum_absolute": 0.2135009765625,
+        "exact_equal": false
+      },
+      "normal_roughness_material": {
+        "rms": 0.0,
+        "maximum_absolute": 0.0,
+        "exact_equal": true
+      },
+      "specular_input_rgb": {
+        "rms": 0.0,
+        "maximum_absolute": 0.0,
+        "exact_equal": true
+      },
+      "diffuse_input_rgb": {
+        "rms": 0.0,
+        "maximum_absolute": 0.0,
+        "exact_equal": true
+      }
+    },
+    {
+      "strength": 1,
+      "motion_xy": {
+        "rms": 0.0,
+        "maximum_absolute": 0.0,
+        "exact_equal": true
+      },
+      "motion_z": {
+        "rms": 0.12421697320683689,
+        "maximum_absolute": 0.2135009765625,
+        "exact_equal": false
+      },
+      "normal_roughness_material": {
+        "rms": 0.0,
+        "maximum_absolute": 0.0,
+        "exact_equal": true
+      },
+      "specular_input_rgb": {
+        "rms": 0.0,
+        "maximum_absolute": 0.0,
+        "exact_equal": true
+      },
+      "diffuse_input_rgb": {
+        "rms": 0.0,
+        "maximum_absolute": 0.0,
+        "exact_equal": true
+      }
+    }
+  ],
+  "provenance_qualification": [
+    "Original staging CB/input/output bins were deleted by _dispatch. Expected CBs here are source-reconstructed, not authenticated retained consumed CB bytes.",
+    "Original per-job stdout was checked inside GPUWorker but not retained. Job requests and shader file hashes are directly inspectable; per-job D3D logs cannot be directly re-audited.",
+    "Reported key all_pixel_motion_within_one_ulp_plus_1e5 is a naming typo: source and independent calculation both use one FP16 ulp PLUS 1e-5, not 1e5.",
+    "Current View identity does not establish nonidentity current-view normal-space conformance.",
+    "Identity inverse projection is intentionally mismatched geometry, not a shader-failure/quality result or a cause of old static native variability."
+  ],
+  "strength0_vs1_all_eight_outputs_exact_equal": {
+    "matched": true,
+    "identity": true
+  },
+  "worker_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "worker_stderr_empty": true,
+  "runner_binary_sha256": "96f0d6de5c2635ecd34cef2e66d278ba740eec8801ebaf26002cc8e0454f6e5b",
+  "runner_build_command_sha256": "ab1b6c7c64aa0cb38372d57ee8ddf15d58f3cb38a75ced03e36acdc01b35066d",
+  "CPU_reference_consumed_float32_matrices_verified": true,
+  "original_evidence_unchanged": true
+}

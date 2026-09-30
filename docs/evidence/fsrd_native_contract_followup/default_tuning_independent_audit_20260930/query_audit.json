@@ -1,0 +1,76 @@
+{
+  "schema": "default-query-independent-audit-v1",
+  "analysis_sha256": "ed147ee3e82105201ad8ceb77f69eb4ef2c73eed1fba13117d3064c9d3c5f4e4",
+  "report_sha256": "cb95621324581c1ad57236246d49ac1283fe67ee9139d59d168e39fac636bb58",
+  "source_derivation_reproduced_exactly": true,
+  "header_key_ID_and_query_descriptor_contract_valid": true,
+  "utility_binary_sha256": "36c3615252c97f669e65a8ce8f9a2afc0d559d31fbffd492d9995ce1372ef67b",
+  "provider_sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3",
+  "job_sha256": "65fff140292a70faa0117f12d3032ac5b7730a25d0b0608dab68b34283bd4ff3",
+  "utility_contexts": 1,
+  "native_dispatches": 0,
+  "query_before_effect_key_Configure": true,
+  "all_six_return_OK_finite_floatbits_valid": true,
+  "keys": [
+    {
+      "key_id": 6,
+      "name": "DISOCCLUSION_THRESHOLD",
+      "float32_bits": 1008981770,
+      "exact_decoded_float32": 0.009999999776482582,
+      "reported_decimal": 0.00999999978,
+      "query_returncode": 0
+    },
+    {
+      "key_id": 1,
+      "name": "CROSS_BILATERAL_NORMAL_STRENGTH",
+      "float32_bits": 1065353216,
+      "exact_decoded_float32": 1.0,
+      "reported_decimal": 1.0,
+      "query_returncode": 0
+    },
+    {
+      "key_id": 2,
+      "name": "STABILITY_BIAS",
+      "float32_bits": 1065353216,
+      "exact_decoded_float32": 1.0,
+      "reported_decimal": 1.0,
+      "query_returncode": 0
+    },
+    {
+      "key_id": 3,
+      "name": "MAX_RADIANCE",
+      "float32_bits": 1199562752,
+      "exact_decoded_float32": 65504.0,
+      "reported_decimal": 65504.0,
+      "query_returncode": 0
+    },
+    {
+      "key_id": 4,
+      "name": "RADIANCE_CLIP_STD_K",
+      "float32_bits": 1112014848,
+      "exact_decoded_float32": 50.0,
+      "reported_decimal": 50.0,
+      "query_returncode": 0
+    },
+    {
+      "key_id": 5,
+      "name": "GAUSSIAN_KERNEL_RELAXATION",
+      "float32_bits": 0,
+      "exact_decoded_float32": 0.0,
+      "reported_decimal": 0.0,
+      "query_returncode": 0
+    }
+  ],
+  "all_input_files_rehashed": true,
+  "log_sha256": "7d3d6b378615fe42bb5e5c87f559aa32d8679f6fb0665016e73fc13ff0c53843",
+  "header_sha256": "1316e406f3499f1c907c258d8efbf763d81aa7ffed1b65209802637907d644ed",
+  "all_original_evidence_unchanged": true,
+  "quality_accepted": false,
+  "limitations": [
+    "GET_DEFAULT exposes provider defaults, not current configured or automatically optimized live settings.",
+    "Separate compiled utility; original pinned runner does not query keys. Global-debug Configure runs beforecontextcreation, but no effect-key Configure or dispatch runs.",
+    "Measured defaults scoped to this DLL,driver/adapter,API1.2,signal34,validationflag2,max128x80 fresh context; not proved universal across providers/contexts.",
+    "Utility creates resources/opens input files but performs no upload/native dispatch; defaults are not image-quality measurements.",
+    "No caller bug, tuning parameter causation or quality/game acceptance inferred."
+  ]
+}

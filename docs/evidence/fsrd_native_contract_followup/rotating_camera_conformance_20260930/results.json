@@ -1,0 +1,459 @@
+{
+  "schema": "rotating-camera-conversion-cpu-conformance-v1",
+  "CPU_only": true,
+  "GPU_calls": 0,
+  "native_dispatches": 0,
+  "quality_accepted": false,
+  "analysis_sha256": "ae0de4070e2963ed8b8f6c84efcab6d8ff06c607fdff6849afbe358aa6b5e9a4",
+  "fixture_source_sha256": "bcf37bbbce6c7085f36ec64613c4a5be9c55d8542b870bb5253f474a7b2b4e20",
+  "sources": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDInputConv.hlsl",
+      "sha256": "1981a30bc22c5d98762e8e7fd33b657ee8daa4f18e10c79ce89e2102a407f5d3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDInputConv_Shader.cso",
+      "sha256": "1eb2b8fb8e971f670e7c7b5fb3a4e269672d0d93427d0e84e7635593e63d4b01"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDPreprocessCommon.hlsli",
+      "sha256": "4ca7962c413826950c6025a85cf3502618e6a32182bfaaee3437cac6ef52cc26"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\fsrd_alpha_common.py",
+      "sha256": "691975513a56ada7c1ec8faab7a4f70840508371a3334dba67275e00aef4ba2e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\run_fsrd_gpu_tests.py",
+      "sha256": "c9e61330f829be4111ffebfb2a9170d685b1eec3bcebfa631e6bbf0c3728e66f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\fsrd_rr_runner.cpp",
+      "sha256": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\denoisers\\include\\ffx_denoiser.h",
+      "sha256": "1316e406f3499f1c907c258d8efbf763d81aa7ffed1b65209802637907d644ed"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\synthetic_camera_contract_review_20260930\\review.json",
+      "sha256": "a9e302a59193b2f0e6d8ac62ca491305ad1f3c702ed23c96ea2fe50b3ccef9ae"
+    }
+  ],
+  "checks": [
+    {
+      "roughness": 0.1,
+      "current_pinhole_inverse_closure_max": 2.895807522662608e-07,
+      "previous_ray_world_closure_max": 4.922208258761884e-07,
+      "viewmatrix_wrong_transpose_example_depth_error": 0.07999466359615326,
+      "expected_spec_alpha": 10.0,
+      "expected_diffuse_alpha": 65504.0,
+      "primary_motion_uv_range": [
+        [
+          0.010825762525200844,
+          0.020293856039643288
+        ],
+        [
+          -0.009321728721261024,
+          0.009321728721261024
+        ]
+      ],
+      "physical_MVZ_range": [
+        -0.1852962093579471,
+        0.1812967376935184
+      ],
+      "packed_roughness_equivalent": true,
+      "jitter_cancellation_closes": true,
+      "hardware_depth_closes": true
+    },
+    {
+      "roughness": 0.55,
+      "current_pinhole_inverse_closure_max": 2.895807522662608e-07,
+      "previous_ray_world_closure_max": 4.922208258761884e-07,
+      "viewmatrix_wrong_transpose_example_depth_error": 0.07999466359615326,
+      "expected_spec_alpha": 0.0,
+      "expected_diffuse_alpha": 65504.0,
+      "primary_motion_uv_range": [
+        [
+          0.010825762525200844,
+          0.020293856039643288
+        ],
+        [
+          -0.009321728721261024,
+          0.009321728721261024
+        ]
+      ],
+      "physical_MVZ_range": [
+        -0.1852962093579471,
+        0.1812967376935184
+      ],
+      "packed_roughness_equivalent": true,
+      "jitter_cancellation_closes": true,
+      "hardware_depth_closes": true
+    }
+  ],
+  "counterexample": {
+    "same_supplied_MVXY_depth_normals_roughness_and_radiance": true,
+    "only_InvProjMatrix_differs": true,
+    "identity_vs_physical_MVZ_RMS": 0.1242613643060665,
+    "maximum_absolute_MVZ_error": 0.2135520560515225,
+    "maximum_pixel_y_x": [
+      0,
+      0
+    ],
+    "physical_MVZ_at_peak": 0.1812967376935184,
+    "identity_MVZ_at_peak": 0.3948487937450409,
+    "expected_identity_MVZ_range": [
+      -0.3988482654094696,
+      0.3948487937450409
+    ]
+  },
+  "payloads": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\rotating_camera_conformance_20260930\\fixture_r0.1_matched.npz",
+      "sha256": "9ef5c09a11ce85b7720aa1a45d5f95d0a7a1f3edffd1f27750af0e00b4595ea2",
+      "roughness": 0.1,
+      "matched_inverse_projection": true,
+      "overrides": {
+        "InvViewMatrix": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "InvProjMatrix": [
+          0.9237603545188904,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.5773502588272095,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.1101119838997274e-16,
+          -9.999000549316406,
+          0.0,
+          0.0,
+          1.0,
+          10.0
+        ],
+        "PrevViewMatrix": [
+          0.9998000264167786,
+          0.0,
+          -0.019998665899038315,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.019998665899038315,
+          0.0,
+          0.9998000264167786,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "NearPlane": 0.1,
+        "FarPlane": 1000.0,
+        "Flags": 2082,
+        "JitterOffsets": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "MotionTransform": [
+          1,
+          1,
+          0,
+          0
+        ],
+        "DiffuseHitDistanceMode": 0
+      }
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\rotating_camera_conformance_20260930\\fixture_r0.1_identity.npz",
+      "sha256": "9eb9b0190dbda806ce347781632a5057fd6d1ecc1bda9619d4a3f6a265875606",
+      "roughness": 0.1,
+      "matched_inverse_projection": false,
+      "overrides": {
+        "InvViewMatrix": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "InvProjMatrix": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "PrevViewMatrix": [
+          0.9998000264167786,
+          0.0,
+          -0.019998665899038315,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.019998665899038315,
+          0.0,
+          0.9998000264167786,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "NearPlane": 0.1,
+        "FarPlane": 1000.0,
+        "Flags": 2082,
+        "JitterOffsets": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "MotionTransform": [
+          1,
+          1,
+          0,
+          0
+        ],
+        "DiffuseHitDistanceMode": 0
+      }
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\rotating_camera_conformance_20260930\\fixture_r0.55_matched.npz",
+      "sha256": "e2863e28bb92419da3f0f7526acba2fda980d35e8c42aca8b792908f87190826",
+      "roughness": 0.55,
+      "matched_inverse_projection": true,
+      "overrides": {
+        "InvViewMatrix": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "InvProjMatrix": [
+          0.9237603545188904,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.5773502588272095,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.1101119838997274e-16,
+          -9.999000549316406,
+          0.0,
+          0.0,
+          1.0,
+          10.0
+        ],
+        "PrevViewMatrix": [
+          0.9998000264167786,
+          0.0,
+          -0.019998665899038315,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.019998665899038315,
+          0.0,
+          0.9998000264167786,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "NearPlane": 0.1,
+        "FarPlane": 1000.0,
+        "Flags": 2082,
+        "JitterOffsets": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "MotionTransform": [
+          1,
+          1,
+          0,
+          0
+        ],
+        "DiffuseHitDistanceMode": 0
+      }
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\rotating_camera_conformance_20260930\\fixture_r0.55_identity.npz",
+      "sha256": "9ed14d59bed5f90c956ea98fb2c7598675edb056dbf9a85d6fd6ad461f940edb",
+      "roughness": 0.55,
+      "matched_inverse_projection": false,
+      "overrides": {
+        "InvViewMatrix": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "InvProjMatrix": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "PrevViewMatrix": [
+          0.9998000264167786,
+          0.0,
+          -0.019998665899038315,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.019998665899038315,
+          0.0,
+          0.9998000264167786,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "NearPlane": 0.1,
+        "FarPlane": 1000.0,
+        "Flags": 2082,
+        "JitterOffsets": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "MotionTransform": [
+          1,
+          1,
+          0,
+          0
+        ],
+        "DiffuseHitDistanceMode": 0
+      }
+    }
+  ],
+  "actual_PSO_selection": {
+    "source_sha256": "691975513a56ada7c1ec8faab7a4f70840508371a3334dba67275e00aef4ba2e",
+    "default_kernel": "auto",
+    "current_production_directory": true,
+    "strength0": "FSRDInputConv: applied=0 does not satisfy applied>0",
+    "strength1": "FSRDInputConvAdditive: applied=1 and current t.PRE satisfy positive-strength auto condition",
+    "explicit_original": "kernel=original always selects FSRDInputConv even if strength is positive; use auto for the proposed split0/1 factorial.",
+    "caution": "Historical alternate directories select FSRDInputConv under auto even with positive strength; record actual current directory and shader identity."
+  },
+  "GPU_conversion_spec": {
+    "chosen_roughness": 0.1,
+    "size": [
+      128,
+      80
+    ],
+    "theta_radians": 0.02,
+    "planar_world_Z": 10.0,
+    "current_view": "identity",
+    "matrix_storage": "Row-major row-vector bytes; HLSL default column-major interprets same bytes as transpose, matching mul(matrix,column). No -Zpr in compile command.",
+    "calls": "Load matched/identity NPZ raw,diff,spec,depth,normals,roughness,motion and corresponding overrides. Current production directory only: convert(raw,diff,spec,strength,depth=depth,normals=normals,roughness=roughness,motion=motion,overrides=overrides,kernel=auto), strength0 and1 separately: two matrices x two kernels=4 conversion dispatches. No native RR calls.",
+    "flags_primary": 2082,
+    "resources": "No resource overrides; standard convert slots. Input t1 depth R32 is canonical linear Z, t2 MV RG is PreviousUV-CurrentUV. Separate t4 roughness. Explicit zero jitter.",
+    "expected_outputs": "packed[2] motion RGBA: XY same in both; B differs physically; A=1. packed[3] normal/rough/material independent of previous view and inverse projection. packed[0] indirectspec alpha=10 at .1 and0 at .55, packed[1] directdiff alpha=65504.",
+    "comparisons": "Primary matched/identity only inverse projection changes. Compare geometry and source-input hashes before interpretation. Shader RGB uses unchanged supplied albedo and Z; no implemented NoV/Fresnel, so no predicted RGB camera dependence in this fixture.",
+    "tolerances": "All input matrices first float32 quantized. Compare motion all pixels with |GPU-reference| <= 1 FP16 ulp(reference)+1e-5 absolute to cover float32 arithmetic; alpha exactly1. MVZ additionally compared to independent physical reference with same tolerance. Normal packed R10 channels within 1/1023+1e-4 of pre-storage analytic values. Canonical linear depth exact10. Do not demand CPU64/GPU32 byte equality.",
+    "optional_controls": "theta0 must MVZ0; roughness .55 must same primary motion and specalpha0; packed roughness bit4 and jittered-motion bit256 variants have independent CPU closure. Hardware-depth variant disables bit2 and feeds projected R32 hardware depth, evaluated separately."
+  },
+  "limitations": [
+    "Current View=identity does not independently exercise rotating CURRENT view-space normals; previous rotation must not rotate current world normal.",
+    "This is an infinite fixed planar world surface with analytic correspondence. Pixels projected beyond previous viewport still have finite canonical MV; no disocclusion/game history quality claims.",
+    "MVZ derives previous-camera depth of the same CURRENT world point, not sampling previous depth at destination and not reflecting hit-point motion.",
+    "Old static identity-previous-view fixtures have MVZ0 for both inverse projections; this moving-camera counterexample cannot explain previous same-input native context variability.",
+    "No GPU or native RR result is claimed. No shader or tracked test was changed."
+  ]
+}

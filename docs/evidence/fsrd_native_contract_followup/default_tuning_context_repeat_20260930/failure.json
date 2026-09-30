@@ -1,0 +1,69 @@
+{
+  "status": "native_complete_metadata_python_failure",
+  "error": "NameError: Path not imported in derived native_helper.py",
+  "completed_native_contexts": 1,
+  "completed_native_dispatches": 64,
+  "quality_accepted": false,
+  "context_in_quality_or_four_repeat_comparison": false,
+  "retained_files": {
+    "evidence\\repeat_0\\amd_input_identity.json": {
+      "size": 598,
+      "sha256": "71059372c4e7a863adafb23334c31e88e8ecd56b2dd442b0dc0b06d4bd9c0f89"
+    },
+    "evidence\\repeat_0\\diffuse.bin": {
+      "size": 5242880,
+      "sha256": "6b37e3245f1de2dc0d1cc292717753aa5ef4d2561f94face0ab72ed7e74dce51"
+    },
+    "evidence\\repeat_0\\dispatch_controls.bin": {
+      "size": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    "evidence\\repeat_0\\frame_controls.txt": {
+      "size": 448,
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+    },
+    "evidence\\repeat_0\\input0.bin": {
+      "size": 40960,
+      "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc"
+    },
+    "evidence\\repeat_0\\input1.bin": {
+      "size": 81920,
+      "sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4"
+    },
+    "evidence\\repeat_0\\input2.bin": {
+      "size": 40960,
+      "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6"
+    },
+    "evidence\\repeat_0\\input3.bin": {
+      "size": 2621440,
+      "sha256": "d3913c35a794f28b97fe8b319912d40b60f007a1ec145b99f5213da3d98728ae"
+    },
+    "evidence\\repeat_0\\input4.bin": {
+      "size": 40960,
+      "sha256": "55133e7a62a44614cfb0938772d96a61ef5909467003b0dd2150c550662553eb"
+    },
+    "evidence\\repeat_0\\input5.bin": {
+      "size": 5242880,
+      "sha256": "bf1786383216ce62a8c4723a58e38c808911dd0ff53cfc3c07db75615dc886d6"
+    },
+    "evidence\\repeat_0\\input6.bin": {
+      "size": 5242880,
+      "sha256": "b2a09591b9daafdbdb1729787cea477aeef9e9691b1a4345adc19df3e795bc22"
+    },
+    "evidence\\repeat_0\\job.txt": {
+      "size": 1289,
+      "sha256": "e19975577967a17d89ff21e8ce49d689b90011ccb421d199b0dc5b55b8b85f2e"
+    },
+    "evidence\\repeat_0\\runner.log": {
+      "size": 378,
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b"
+    },
+    "evidence\\repeat_0\\specular.bin": {
+      "size": 5242880,
+      "sha256": "48c0817b1fb2c12d05b2125567e0794955a33ec8dd4e2b15cd42075d671e2166"
+    }
+  },
+  "parent_script_sha256": "cf4f54d58901ebf65844ba9d1fd0c381cafe70c47e44d97d89f3fe15b90a05fe",
+  "helper_sha256": "1e1993830125a801651f08601aa69f0f45ac70b20d890441f0cc0f5b7b679c72",
+  "explanation": "Native executable completed64 frames; Python failed writing process identity before reading/deleting outputs. Keep all original input and output bytes. Retry separately with missing pathlib import fixed."
+}

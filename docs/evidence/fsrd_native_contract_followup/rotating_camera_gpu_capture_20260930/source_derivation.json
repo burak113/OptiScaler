@@ -1,0 +1,8 @@
+{
+  "parent": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\rotating_camera_gpu_conformance_20260930\\analyze.py",
+  "parent_sha256": "26811ae4a3049e4e1f65c3d1320bf8bdb95ae04de2961a85aad27bdd900f03f3",
+  "derived_script_sha256": "206ca3592d4c4807beea38e15c2b694c59e7d3366a38f103d9de586ec9ede30d",
+  "generator_sha256": "9ba8067c339360497e822156eeab795d30ecfe4c10d759b8b8fd5d16d63df8c0",
+  "capture_worker_sha256": "268c956927d8b2fcafc67c16d35a348685a34ad26f634a0b0f7787f896f3d78b",
+  "changed": "Same four fixture/PSO conversion calls. After native server completion but before helper cleanup, retain all job CB/input/output bytes and stdout; correct metadata key spelling1e-5. No algorithm/production change."
+}

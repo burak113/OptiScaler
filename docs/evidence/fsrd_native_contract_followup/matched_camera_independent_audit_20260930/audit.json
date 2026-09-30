@@ -1,0 +1,172 @@
+{
+  "schema": "matched-camera-two-frame-independent-audit-v1",
+  "analysis_sha256": "b4e76daddc57c1aa70b9fa34dc4ff3a06040a3f789f3703be850701c25dcdd86",
+  "report_sha256": "957846fbfae8339c2bd293763299044863351e199a8cc77a0d8f6d0830c0abcd",
+  "generator_sha256": "498ed78b99ce7e9362781383450f758d0e5f56ba445bbd821618262b4e130130",
+  "derived_script_sha256": "c99575bb30e4f714321a0d848f226337f6d3fb2c8198a52a3e80ddf6fcccd3aa",
+  "source_derivation_sha256": "2b07b8e5ff6a4735b9e972871ab31837fa834b0f8e2376707a9fc386ba985cc9",
+  "derivation_reproduced_exact_text": true,
+  "prior_camera_review_sha256": "a9e302a59193b2f0e6d8ac62ca491305ad1f3c702ed23c96ea2fe50b3ccef9ae",
+  "native_dispatches": 0,
+  "quality_accepted": false,
+  "inverse_projection_default_native_closure_max_error": 6.152940841275267e-07,
+  "native_projection_hash_as_recorded": "a8a0ca2937a727f4e9403a8a3b84c3071b0737a5802163b308fbe36cba263b79",
+  "frames": [
+    {
+      "frame": 0,
+      "slots": [
+        {
+          "slot": 0,
+          "DXGI_format": 41,
+          "byte_count": 40960,
+          "old_sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc",
+          "new_sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc",
+          "exact_bytes_equal": true
+        },
+        {
+          "slot": 1,
+          "DXGI_format": 10,
+          "byte_count": 81920,
+          "old_sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4",
+          "new_sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4",
+          "exact_bytes_equal": true
+        },
+        {
+          "slot": 2,
+          "DXGI_format": 24,
+          "byte_count": 40960,
+          "old_sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6",
+          "new_sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6",
+          "exact_bytes_equal": true
+        },
+        {
+          "slot": 3,
+          "DXGI_format": 28,
+          "byte_count": 40960,
+          "old_sha256": "05fd3ba8975a6d2d5e3f93edace4eeaf8389d8b2e25e5c6e1b759ab0d640831c",
+          "new_sha256": "05fd3ba8975a6d2d5e3f93edace4eeaf8389d8b2e25e5c6e1b759ab0d640831c",
+          "exact_bytes_equal": true
+        },
+        {
+          "slot": 4,
+          "DXGI_format": 28,
+          "byte_count": 40960,
+          "old_sha256": "55133e7a62a44614cfb0938772d96a61ef5909467003b0dd2150c550662553eb",
+          "new_sha256": "55133e7a62a44614cfb0938772d96a61ef5909467003b0dd2150c550662553eb",
+          "exact_bytes_equal": true
+        },
+        {
+          "slot": 5,
+          "DXGI_format": 10,
+          "byte_count": 81920,
+          "old_sha256": "f62e5c93e7f69932a54bbc5f95d8e373a08692818963de69df0817203883767f",
+          "new_sha256": "f62e5c93e7f69932a54bbc5f95d8e373a08692818963de69df0817203883767f",
+          "exact_bytes_equal": true
+        },
+        {
+          "slot": 6,
+          "DXGI_format": 10,
+          "byte_count": 81920,
+          "old_sha256": "003dd889f0ccebdf6a60dee3671b434e821553677aaf3e8b884ccb691751b871",
+          "new_sha256": "003dd889f0ccebdf6a60dee3671b434e821553677aaf3e8b884ccb691751b871",
+          "exact_bytes_equal": true
+        }
+      ],
+      "all_seven_hashes_and_bytes_equal": true,
+      "packed_diffuse_specular_FP16_reconstructs_native_format_payload_exactly": true,
+      "spec_input_alpha_exact": 0,
+      "diff_input_alpha_exact": 65504
+    },
+    {
+      "frame": 32,
+      "slots": [
+        {
+          "slot": 0,
+          "DXGI_format": 41,
+          "byte_count": 40960,
+          "old_sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc",
+          "new_sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc",
+          "exact_bytes_equal": true
+        },
+        {
+          "slot": 1,
+          "DXGI_format": 10,
+          "byte_count": 81920,
+          "old_sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4",
+          "new_sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4",
+          "exact_bytes_equal": true
+        },
+        {
+          "slot": 2,
+          "DXGI_format": 24,
+          "byte_count": 40960,
+          "old_sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6",
+          "new_sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6",
+          "exact_bytes_equal": true
+        },
+        {
+          "slot": 3,
+          "DXGI_format": 28,
+          "byte_count": 40960,
+          "old_sha256": "2886a75c4c3a5f0314971458d7dd27f0613013cbfbd32e265f75531672871bf8",
+          "new_sha256": "2886a75c4c3a5f0314971458d7dd27f0613013cbfbd32e265f75531672871bf8",
+          "exact_bytes_equal": true
+        },
+        {
+          "slot": 4,
+          "DXGI_format": 28,
+          "byte_count": 40960,
+          "old_sha256": "55133e7a62a44614cfb0938772d96a61ef5909467003b0dd2150c550662553eb",
+          "new_sha256": "55133e7a62a44614cfb0938772d96a61ef5909467003b0dd2150c550662553eb",
+          "exact_bytes_equal": true
+        },
+        {
+          "slot": 5,
+          "DXGI_format": 10,
+          "byte_count": 81920,
+          "old_sha256": "9a2278cfe8757b1563ba447f8cc491d2b401de0e54a18ebbd4120c919ce7c592",
+          "new_sha256": "9a2278cfe8757b1563ba447f8cc491d2b401de0e54a18ebbd4120c919ce7c592",
+          "exact_bytes_equal": true
+        },
+        {
+          "slot": 6,
+          "DXGI_format": 10,
+          "byte_count": 81920,
+          "old_sha256": "22d08c2d8af60b4312b0b19698caa6a75000fe6b0de777e286d92d97c2ac89b2",
+          "new_sha256": "22d08c2d8af60b4312b0b19698caa6a75000fe6b0de777e286d92d97c2ac89b2",
+          "exact_bytes_equal": true
+        }
+      ],
+      "all_seven_hashes_and_bytes_equal": true,
+      "packed_diffuse_specular_FP16_reconstructs_native_format_payload_exactly": true,
+      "spec_input_alpha_exact": 0,
+      "diff_input_alpha_exact": 65504
+    }
+  ],
+  "native_input_formats_by_slot": [
+    41,
+    10,
+    24,
+    28,
+    28,
+    10,
+    10
+  ],
+  "limitations": [
+    "Only original lighting fixture frames0/32,128x80,linear-depth/staticidentityview,roughness.55 tested.",
+    "Inverse matrix stored in report; actual projection hash is recorded by source script from applied dispatch bytes atoffset120. This audit separately verifies analytic inverse closure, not new native consumption.",
+    "Seven consumed-format input bytes are retained and independently compared; no new RR contexts or quality test.",
+    "Do not generalize two-frame identity to all13families, all64frames, moving cameras, hardwaredepth, different normals/roughness, or captured game history.",
+    "Payload equality rules out this inverse-projection change as an input-difference explanation for these two frames only; it does not determine native context variability cause."
+  ],
+  "dataflow_confirmation": [
+    "GetViewSpacePos linear-depth path changesXY with InvProj, explicitly restoresZ=inDepth. Current native input0 linearZ is fixed.",
+    "World normal normalization/octencoding and input roughness.55 do not consume projection. Input2 bytes agree.",
+    "Current/previous viewidentity preserveZ through worldpoint reprojection; motionZ0/input1 agree despite reconstructedXY difference.",
+    "Additive guide fit consumes reconstructedZ, normal androughness, not fullXY position.",
+    "SpecularRGB share/divisor/remod uses quantized suppliedalbedos. No implemented view-dependent Fresnel/NoV term; NoV is only a source reflectance comment.",
+    "Specular fallback raydistance depends onabsZ, then tracking SoftBelow(.55,.30,.15)=0. Input6alpha0 verified; diffusemissinghit65504/input5 verified.",
+    "Thus all7 native-format fields, including RGBguides/radiance and geometry, are equal in both measuredframepairs."
+  ],
+  "all_original_evidence_unchanged": true
+}

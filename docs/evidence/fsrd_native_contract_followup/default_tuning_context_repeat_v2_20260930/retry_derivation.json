@@ -1,0 +1,8 @@
+{
+  "previous_failure_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\default_tuning_context_repeat_20260930\\failure.json",
+  "previous_failure_sha256": "2246a5afbb21d157a610c4479711d6bfcc8168f2f9a94df511b6b92ca524baac",
+  "previous_generator_sha256": "677d158304f05ec8c167fbbeaa79d7a54d89dc74793e61002c08e8240574fad9",
+  "new_generator_sha256": "2932a21f3a4e2b5f47621da15e22579e6fca14a11169dd6765622a3cad4dbb4d",
+  "only_fix": "Import pathlib.Path in Python metadata helper",
+  "prepare_script_sha256": "0b11e28288b7a06dcde17cc9c4193b021fa4050e5b8d0234729f95d0bbcfa1c8"
+}
