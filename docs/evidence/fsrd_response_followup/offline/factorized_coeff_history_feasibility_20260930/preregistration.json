@@ -1,0 +1,23 @@
+{
+  "schema": "physical-beta-history-cpu-preregistration-v1",
+  "variant": "plain_3SE_mean",
+  "history_including_current": 16,
+  "source_guide_only": true,
+  "guide_noise_ridge_multiplier": 4,
+  "guide_whitened_covariance_snr_minimum": 4,
+  "innovation_anyRGB_Mahalanobis_squared_threshold": 9,
+  "source_shape_shrink_standard_errors": 4,
+  "guide_support_projector_change_tolerance": 0.000001,
+  "insufficient_guide_history": "<=2 preceding observations: exact raw inactive",
+  "unsupported_rank_covariance": "exact raw inactive, coefficient and residual histories cleared",
+  "current_coefficient_covariance": "sigma_source^2/N * A * CovX * A^T, A the physical projected fixed guide-noise ridge inverse",
+  "past_prediction": "previous <=15 physical beta estimates mean, covariance sum(Gamma)/m^2",
+  "selection": "current on any RGB distance>9, otherwise inclusive current+past mean",
+  "shrink": "after selection; perRGB max(0,1-(4 sqrt(tr(CovX Gamma_selected))/sqrt(beta_selected^T CovX beta_selected))^2)",
+  "residual": "signed source minus current guide prediction; frozen source-sigma soft spectral 4RMS / past-only3RMS innovation, currentDC",
+  "age_variant": false,
+  "threshold_sweep": false,
+  "validation": ["13 frozen alpha families, authenticated exact observed/reference/control regeneration", "absolute every-frame detail gain/phase", "shared persistent spatial guide/source noise", "slow linear guide-linked amplitude drift", "lighting/reset/future/unsupported-rank boundaries"],
+  "truth_use": "fixture construction and scoring only; estimator accepts raw,diff,spec,controls",
+  "claims": "CPU source-pilot feasibility only, post-hoc data reuse; no native T(P) reuse, runtime or general solution"
+}

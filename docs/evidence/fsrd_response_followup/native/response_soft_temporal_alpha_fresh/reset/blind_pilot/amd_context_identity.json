@@ -1,0 +1,40 @@
+{
+  "inputs": {
+    "input0.bin": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc",
+    "input1.bin": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4",
+    "input2.bin": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6",
+    "input3.bin": "82e98a1fd93053059ca141af236a35e28e574ddde4de9acfde8563106826d9cf",
+    "input4.bin": "55133e7a62a44614cfb0938772d96a61ef5909467003b0dd2150c550662553eb",
+    "input5.bin": "c588d994eb67727a1a6beda2554eda5b5663fa1f9a04ad1668b1a36d3c2f2b32",
+    "input6.bin": "d3716336f9e4d0fc0077656aaa1aee0a76f122051468640c0fc4ddc54eefef18"
+  },
+  "applied_dispatch_sha256": "57f3e7be1cd1ce0f840595340264e44b5997a61682352ebde2f19e6c60b10898",
+  "dll_sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3",
+  "runner_sha256": "ef639872ace43521a6cbc02b3afef85f7570dafdb41a1671ad1a2d9c34f51a71",
+  "controls_layout": "184 bytes/frame, native Windows little endian: uint32 frame,flags,width,height; float32 motionScale[3],cameraDelta[3],jitter[2],depthBounds[2],view[16],projection[16]",
+  "dimensions": [
+    128,
+    80
+  ],
+  "frames": 64,
+  "signals": [
+    2,
+    32
+  ],
+  "reset_every": 0,
+  "tuning": 1,
+  "passthrough": 0,
+  "tuning_values": [
+    0.1,
+    0.5,
+    0.5,
+    40000.0,
+    40.0,
+    0.5
+  ],
+  "output_sha256": {
+    "diffuse.bin": "2bb98693fa8e7f89263eb7f59fbe024e12d04e310c1293f869061b70f054fcfb",
+    "specular.bin": "3896884cc3278342968913efa0ccd64f26a0198eb92cbb53b2431bc23f680fe8"
+  },
+  "exposure": "No RR exposure field. Source radiance unchanged unless the fixture changes it."
+}

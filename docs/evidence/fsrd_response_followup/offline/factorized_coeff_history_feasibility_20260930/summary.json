@@ -1,0 +1,683 @@
+{
+  "schema": "physical-beta-history-feasibility-compact-v1",
+  "quality_accepted": false,
+  "native_measured": false,
+  "native_response_reused": false,
+  "results_sha256": "d25697954cf5bd65b87e3fc426b379281b576ecd8e38605ce017a16ab4b525f2",
+  "preregistration_sha256": "4cf163f2151cd8fd58fefddae42caf99fa311db859ba69a4fbd00bd4086f5730",
+  "prototype_sha256": "cdb151bcac48fb396111319fb48c019947a0c143247e4823848a02f820cf6e26",
+  "script_sha256": "887bc71e71710eee925c625d98eef51d6062ab77469d944007d35c0e33bb51f8",
+  "self_checks": {
+    "raw_inactive_first_three": true,
+    "no_future": true,
+    "reset_jitter_histories_cut": true,
+    "bounded_16": true,
+    "current_source_DC": true,
+    "unsupported_rank_exact_raw": true,
+    "large_coefficient_step_current": true
+  },
+  "all_original_source_control_report_hashes_unchanged": true,
+  "all_13_authenticated_fixtures_exact": true,
+  "rows": [
+    {
+      "scene": "fake_diffuse",
+      "provenance": {
+        "native_report_sha256": "c0715d70f4e71f3b2fd70dce5632cebd50404bb7ba5e1fc4af384d90a56bbcb0",
+        "native_sequences_sha256": "d75b21a84d3f158014e629c2f9254e0aed9ee4ea09cf900429fafff82b05b4a7",
+        "native_controls_sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+      },
+      "active_fraction": 0.953125,
+      "full": {
+        "absolute_gain_min": null,
+        "absolute_gain_mean": null,
+        "absolute_gain_max": null,
+        "absolute_phase_max": null,
+        "detail_within_5_percent_all_frames": null,
+        "rmse": 0.0026020935567888292,
+        "bias_rgb": [
+          2.239063346067117e-05,
+          1.0935596345977024e-05,
+          -2.989411065433696e-06
+        ],
+        "broad_tone_rms": 4.8371773867672846e-05,
+        "residual_temporal_std": 0.0023776365022712517
+      },
+      "mature": {
+        "absolute_gain_min": null,
+        "absolute_gain_mean": null,
+        "absolute_gain_max": null,
+        "absolute_phase_max": null,
+        "detail_within_5_percent_all_frames": null,
+        "rmse": 0.00013230229532792918,
+        "bias_rgb": [
+          6.042480468748668e-05,
+          7.446289062497132e-05,
+          -3.0517578125111022e-06
+        ],
+        "broad_tone_rms": 5.5393117284538855e-05,
+        "residual_temporal_std": 0.000119581636661154
+      }
+    },
+    {
+      "scene": "fake_specular",
+      "provenance": {
+        "native_report_sha256": "c0715d70f4e71f3b2fd70dce5632cebd50404bb7ba5e1fc4af384d90a56bbcb0",
+        "native_sequences_sha256": "550712e46bc8f706d23b95730a163fef4eae6f114eabd1508e448761bbc793e9",
+        "native_controls_sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+      },
+      "active_fraction": 0.953125,
+      "full": {
+        "absolute_gain_min": null,
+        "absolute_gain_mean": null,
+        "absolute_gain_max": null,
+        "absolute_phase_max": null,
+        "detail_within_5_percent_all_frames": null,
+        "rmse": 0.0026020935567888292,
+        "bias_rgb": [
+          2.239063346067117e-05,
+          1.0935596345977024e-05,
+          -2.989411065433696e-06
+        ],
+        "broad_tone_rms": 4.8371773867672846e-05,
+        "residual_temporal_std": 0.0023776365022712517
+      },
+      "mature": {
+        "absolute_gain_min": null,
+        "absolute_gain_mean": null,
+        "absolute_gain_max": null,
+        "absolute_phase_max": null,
+        "detail_within_5_percent_all_frames": null,
+        "rmse": 0.00013230229532792918,
+        "bias_rgb": [
+          6.042480468748668e-05,
+          7.446289062497132e-05,
+          -3.0517578125111022e-06
+        ],
+        "broad_tone_rms": 5.5393117284538855e-05,
+        "residual_temporal_std": 0.000119581636661154
+      }
+    },
+    {
+      "scene": "material",
+      "provenance": {
+        "native_report_sha256": "c0715d70f4e71f3b2fd70dce5632cebd50404bb7ba5e1fc4af384d90a56bbcb0",
+        "native_sequences_sha256": "b30384fe63a98bdd3ba835dd1a2e965cc3c5058ac76000edd2a37e84fc896690",
+        "native_controls_sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+      },
+      "active_fraction": 0.953125,
+      "full": {
+        "absolute_gain_min": 0.9939303844974492,
+        "absolute_gain_mean": 0.9992613608723375,
+        "absolute_gain_max": 1.0007338665762733,
+        "absolute_phase_max": 0.00878526951872664,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.002602431878247443,
+        "bias_rgb": [
+          1.688035815975599e-05,
+          6.715720562786742e-06,
+          -4.308400242046339e-06
+        ],
+        "broad_tone_rms": 4.7722537752621913e-05,
+        "residual_temporal_std": 0.0023778530550472984
+      },
+      "mature": {
+        "absolute_gain_min": 0.9997701120333093,
+        "absolute_gain_mean": 1.0002718586557706,
+        "absolute_gain_max": 1.0007338665762733,
+        "absolute_phase_max": 2.927950737455046e-05,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.0001300002930045728,
+        "bias_rgb": [
+          5.4952514719513056e-05,
+          6.875743040726998e-05,
+          -1.1789663520517984e-05
+        ],
+        "broad_tone_rms": 5.166777666284431e-05,
+        "residual_temporal_std": 0.00011418112745815746
+      }
+    },
+    {
+      "scene": "wave",
+      "provenance": {
+        "native_report_sha256": "c0715d70f4e71f3b2fd70dce5632cebd50404bb7ba5e1fc4af384d90a56bbcb0",
+        "native_sequences_sha256": "d61ba327ad362e1200d15d827c40196a5dcf58d9ff1e016a808438c3dc3187eb",
+        "native_controls_sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+      },
+      "active_fraction": 0.0,
+      "full": {
+        "absolute_gain_min": 0.9874688701744324,
+        "absolute_gain_mean": 1.0007802716547949,
+        "absolute_gain_max": 1.010980445062343,
+        "absolute_phase_max": 0.019433536674485545,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.011988040585348386,
+        "bias_rgb": [
+          1.50609291934333e-05,
+          4.59316436440385e-06,
+          2.931646646179801e-06
+        ],
+        "broad_tone_rms": 0.00020644247576670813,
+        "residual_temporal_std": 0.01184698386439599
+      },
+      "mature": {
+        "absolute_gain_min": 0.9874688701744324,
+        "absolute_gain_mean": 1.0007428202688369,
+        "absolute_gain_max": 1.0105937913548926,
+        "absolute_phase_max": 0.008929070956230925,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.011967539527411801,
+        "bias_rgb": [
+          4.10644873730901e-05,
+          7.115293514709686e-05,
+          -2.245904327781689e-06
+        ],
+        "broad_tone_rms": 0.00041657128627811956,
+        "residual_temporal_std": 0.011396463887790144
+      }
+    },
+    {
+      "scene": "moving_light",
+      "provenance": {
+        "native_report_sha256": "c0715d70f4e71f3b2fd70dce5632cebd50404bb7ba5e1fc4af384d90a56bbcb0",
+        "native_sequences_sha256": "11f867adfcc5fb769a6863e7c72a9a84dc10d58637d2465d7a9a0f044d920387",
+        "native_controls_sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+      },
+      "active_fraction": 0.0,
+      "full": {
+        "absolute_gain_min": 0.9874673190180203,
+        "absolute_gain_mean": 1.0000861001508352,
+        "absolute_gain_max": 1.012789278985878,
+        "absolute_phase_max": 0.02064345071318019,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.011988030093159362,
+        "bias_rgb": [
+          1.5012170407530312e-05,
+          4.643698546068663e-06,
+          2.8243511921875255e-06
+        ],
+        "broad_tone_rms": 0.00020649002300334522,
+        "residual_temporal_std": 0.011846982997681043
+      },
+      "mature": {
+        "absolute_gain_min": 0.9874673190180203,
+        "absolute_gain_mean": 0.9982190158689122,
+        "absolute_gain_max": 1.0048297895934333,
+        "absolute_phase_max": 0.014645192464993446,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.011967427230603137,
+        "bias_rgb": [
+          4.106224732806334e-05,
+          7.131695309427567e-05,
+          -2.526164681997938e-06
+        ],
+        "broad_tone_rms": 0.00041658333866624993,
+        "residual_temporal_std": 0.011396334873324563
+      }
+    },
+    {
+      "scene": "checker_material",
+      "provenance": {
+        "native_report_sha256": "c0715d70f4e71f3b2fd70dce5632cebd50404bb7ba5e1fc4af384d90a56bbcb0",
+        "native_sequences_sha256": "452f4ffb044f6d782e1738249d63a024cd983cc1d28e1c0358fb9b51d358f7fc",
+        "native_controls_sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+      },
+      "active_fraction": 0.953125,
+      "full": {
+        "absolute_gain_min": 0.9984896183013916,
+        "absolute_gain_mean": 1.0000794949010015,
+        "absolute_gain_max": 1.0016307830810547,
+        "absolute_phase_max": 5.699558970621079e-18,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.0026024426333606243,
+        "bias_rgb": [
+          1.4338565051730257e-05,
+          -2.8624949663935695e-06,
+          -5.284577582642669e-06
+        ],
+        "broad_tone_rms": 4.706208465305728e-05,
+        "residual_temporal_std": 0.0023780970368534327
+      },
+      "mature": {
+        "absolute_gain_min": 0.9993047714233398,
+        "absolute_gain_mean": 0.999791044741869,
+        "absolute_gain_max": 1.0005455017089844,
+        "absolute_phase_max": 0.0,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.00013249773473944515,
+        "bias_rgb": [
+          3.891603773809038e-05,
+          5.9664249420166016e-05,
+          -1.793785486370325e-05
+        ],
+        "broad_tone_rms": 4.241028796560703e-05,
+        "residual_temporal_std": 0.00012018131383229047
+      }
+    },
+    {
+      "scene": "weak_material",
+      "provenance": {
+        "native_report_sha256": "c0715d70f4e71f3b2fd70dce5632cebd50404bb7ba5e1fc4af384d90a56bbcb0",
+        "native_sequences_sha256": "fd5ae9290dcca80af0d4b74a571dc0db623cee2cbd855f3b06bf0e72b596ee27",
+        "native_controls_sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+      },
+      "active_fraction": 0.953125,
+      "full": {
+        "absolute_gain_min": 0.6931836009025574,
+        "absolute_gain_mean": 0.9791537690907717,
+        "absolute_gain_max": 1.0331969261169434,
+        "absolute_phase_max": 9.858563533533598e-18,
+        "detail_within_5_percent_all_frames": false,
+        "rmse": 0.002602604916319251,
+        "bias_rgb": [
+          1.9114379028906114e-05,
+          1.1403588359826244e-05,
+          -2.438071760479943e-06
+        ],
+        "broad_tone_rms": 4.792535632652345e-05,
+        "residual_temporal_std": 0.002378274919465184
+      },
+      "mature": {
+        "absolute_gain_min": 0.9679883718490601,
+        "absolute_gain_mean": 0.9845372475683689,
+        "absolute_gain_max": 1.0290331840515137,
+        "absolute_phase_max": 0.0,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.00013458957255352288,
+        "bias_rgb": [
+          6.179542833706364e-05,
+          7.491100404877216e-05,
+          -4.582107067108154e-06
+        ],
+        "broad_tone_rms": 5.612741765604144e-05,
+        "residual_temporal_std": 0.00011482528498163447
+      }
+    },
+    {
+      "scene": "flat_lighting_step",
+      "provenance": {
+        "native_report_sha256": "c0715d70f4e71f3b2fd70dce5632cebd50404bb7ba5e1fc4af384d90a56bbcb0",
+        "native_sequences_sha256": "93aeb91bb0056ec7106a8101b526e036aff334df2ae435dce606a1a0a3f90ba2",
+        "native_controls_sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+      },
+      "active_fraction": 0.953125,
+      "full": {
+        "absolute_gain_min": null,
+        "absolute_gain_mean": null,
+        "absolute_gain_max": null,
+        "absolute_phase_max": null,
+        "detail_within_5_percent_all_frames": null,
+        "rmse": 0.0026025218667979086,
+        "bias_rgb": [
+          1.8392830726286622e-05,
+          1.153068911941086e-05,
+          -1.6874909112334232e-05
+        ],
+        "broad_tone_rms": 4.878019834778325e-05,
+        "residual_temporal_std": 0.0023782141988285257
+      },
+      "mature": {
+        "absolute_gain_min": null,
+        "absolute_gain_mean": null,
+        "absolute_gain_max": null,
+        "absolute_phase_max": null,
+        "detail_within_5_percent_all_frames": null,
+        "rmse": 0.00014805003676984544,
+        "bias_rgb": [
+          6.005859374996758e-05,
+          9.472656249998046e-05,
+          -5.371093750006217e-05
+        ],
+        "broad_tone_rms": 7.179837772870622e-05,
+        "residual_temporal_std": 0.00012858720776713357
+      }
+    },
+    {
+      "scene": "persistent_shared_bias",
+      "provenance": {
+        "native_report_sha256": "c0715d70f4e71f3b2fd70dce5632cebd50404bb7ba5e1fc4af384d90a56bbcb0",
+        "native_sequences_sha256": "9ec8a7f2028d56054a5518698075d7a9871f8b846ffbb23e80112f6546d639f6",
+        "native_controls_sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+      },
+      "active_fraction": 0.953125,
+      "full": {
+        "absolute_gain_min": null,
+        "absolute_gain_mean": null,
+        "absolute_gain_max": null,
+        "absolute_phase_max": null,
+        "detail_within_5_percent_all_frames": null,
+        "rmse": 0.009037428216118266,
+        "bias_rgb": [
+          -6.258682823644312e-05,
+          -5.709890591899337e-05,
+          -5.284533373669829e-05
+        ],
+        "broad_tone_rms": 0.0067213734528246616,
+        "residual_temporal_std": 0.0023806544564369913
+      },
+      "mature": {
+        "absolute_gain_min": null,
+        "absolute_gain_mean": null,
+        "absolute_gain_max": null,
+        "absolute_phase_max": null,
+        "detail_within_5_percent_all_frames": null,
+        "rmse": 0.008655098999865656,
+        "bias_rgb": [
+          -2.4876167352795935e-05,
+          4.700113439650426e-06,
+          -6.0291613562642326e-05
+        ],
+        "broad_tone_rms": 0.006721115819261447,
+        "residual_temporal_std": 0.00012877067006238584
+      }
+    },
+    {
+      "scene": "guide_noise",
+      "provenance": {
+        "native_report_sha256": "c0715d70f4e71f3b2fd70dce5632cebd50404bb7ba5e1fc4af384d90a56bbcb0",
+        "native_sequences_sha256": "2f39b03b8163f9746d90a6059fb69673f82d0f9ab83045db792c3fc146fb8568",
+        "native_controls_sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+      },
+      "active_fraction": 0.0,
+      "full": {
+        "absolute_gain_min": null,
+        "absolute_gain_mean": null,
+        "absolute_gain_max": null,
+        "absolute_phase_max": null,
+        "detail_within_5_percent_all_frames": null,
+        "rmse": 0.011988060699391742,
+        "bias_rgb": [
+          1.5155870747033345e-05,
+          4.6224109196944504e-06,
+          2.8529409634753916e-06
+        ],
+        "broad_tone_rms": 0.00020648585103345452,
+        "residual_temporal_std": 0.011847007024565176
+      },
+      "mature": {
+        "absolute_gain_min": null,
+        "absolute_gain_mean": null,
+        "absolute_gain_max": null,
+        "absolute_phase_max": null,
+        "detail_within_5_percent_all_frames": null,
+        "rmse": 0.011967488421534405,
+        "bias_rgb": [
+          4.1200762510863646e-05,
+          7.117975710664644e-05,
+          -2.377489288562858e-06
+        ],
+        "broad_tone_rms": 0.00041665410852977927,
+        "residual_temporal_std": 0.011396378943116545
+      }
+    },
+    {
+      "scene": "lighting_step",
+      "provenance": {
+        "native_report_sha256": "c0715d70f4e71f3b2fd70dce5632cebd50404bb7ba5e1fc4af384d90a56bbcb0",
+        "native_sequences_sha256": "019a040af574fd1dcd3fc516cba740cede8e84da4a73a98c2514ceee8f83d3fa",
+        "native_controls_sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+      },
+      "active_fraction": 0.953125,
+      "full": {
+        "absolute_gain_min": 0.9939303844974492,
+        "absolute_gain_mean": 0.999262814337953,
+        "absolute_gain_max": 1.003704369091836,
+        "absolute_phase_max": 0.00878526951872664,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.002603369544733472,
+        "bias_rgb": [
+          1.7034613092553176e-05,
+          6.790159779790814e-06,
+          -4.351179769500268e-06
+        ],
+        "broad_tone_rms": 4.781068171053578e-05,
+        "residual_temporal_std": 0.0023790765898258678
+      },
+      "mature": {
+        "absolute_gain_min": 0.9998595717385879,
+        "absolute_gain_mean": 1.0001766083168364,
+        "absolute_gain_max": 1.0004742960552506,
+        "absolute_phase_max": 2.7878062833049215e-05,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.0001418923879983747,
+        "bias_rgb": [
+          5.497630777345398e-05,
+          6.898551230145385e-05,
+          -1.1655623477386534e-05
+        ],
+        "broad_tone_rms": 5.190917075802585e-05,
+        "residual_temporal_std": 0.0001240773141241407
+      }
+    },
+    {
+      "scene": "disocclusion",
+      "provenance": {
+        "native_report_sha256": "c0715d70f4e71f3b2fd70dce5632cebd50404bb7ba5e1fc4af384d90a56bbcb0",
+        "native_sequences_sha256": "58f4a9a1d5f601e04a9b12e307e8aea1d71d8aca80af8ff22afd193e34012234",
+        "native_controls_sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+      },
+      "active_fraction": 0.953125,
+      "full": {
+        "absolute_gain_min": 0.9939303844974492,
+        "absolute_gain_mean": 0.9989214134510309,
+        "absolute_gain_max": 1.0007727297241307,
+        "absolute_phase_max": 0.00878526951872664,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.00266537862427923,
+        "bias_rgb": [
+          2.385970703286408e-05,
+          4.86677004973704e-06,
+          5.197087602402892e-07
+        ],
+        "broad_tone_rms": 6.897201287705557e-05,
+        "residual_temporal_std": 0.0024304522269166817
+      },
+      "mature": {
+        "absolute_gain_min": 0.999672516133948,
+        "absolute_gain_mean": 1.0001923364671432,
+        "absolute_gain_max": 1.0007180003022795,
+        "absolute_phase_max": 2.277213528658872e-05,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.000274193316434289,
+        "bias_rgb": [
+          6.383272354545769e-05,
+          6.767185808371373e-05,
+          -8.919773478381356e-06
+        ],
+        "broad_tone_rms": 9.247840545322047e-05,
+        "residual_temporal_std": 0.00016992436928851048
+      }
+    },
+    {
+      "scene": "reset",
+      "provenance": {
+        "native_report_sha256": "c0715d70f4e71f3b2fd70dce5632cebd50404bb7ba5e1fc4af384d90a56bbcb0",
+        "native_sequences_sha256": "9a019f643cc5e343c07a912e19dd2bf3214615d5ec68826bf3659b256080ee34",
+        "native_controls_sha256": "b60d5528ea76ca6a65f1020f2d62d41341a1cea65c5eef412fb5f3e7d1df653c"
+      },
+      "active_fraction": 0.90625,
+      "full": {
+        "absolute_gain_min": 0.9939303844974492,
+        "absolute_gain_mean": 0.9992393507963867,
+        "absolute_gain_max": 1.002283120989236,
+        "absolute_phase_max": 0.00878526951872664,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.003683222230929653,
+        "bias_rgb": [
+          1.7514794039738114e-05,
+          5.327697241741229e-06,
+          -4.623828599482402e-06
+        ],
+        "broad_tone_rms": 6.533082433010306e-05,
+        "residual_temporal_std": 0.0035058902868716152
+      },
+      "mature": {
+        "absolute_gain_min": 0.9997701120333093,
+        "absolute_gain_mean": 1.000278115544861,
+        "absolute_gain_max": 1.0007338665762733,
+        "absolute_phase_max": 2.927950737455046e-05,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.00013013977981076786,
+        "bias_rgb": [
+          5.49950028730769e-05,
+          6.877821265629578e-05,
+          -1.1788278037249597e-05
+        ],
+        "broad_tone_rms": 5.171108787894147e-05,
+        "residual_temporal_std": 0.00011413451869033885
+      }
+    }
+  ],
+  "counterexamples": [
+    {
+      "family": "persistent_spatial_noise_shared_with_guide",
+      "active_fraction": 0.90625,
+      "full": {
+        "absolute_gain_min": null,
+        "absolute_gain_mean": null,
+        "absolute_gain_max": null,
+        "absolute_phase_max": null,
+        "detail_within_5_percent_all_frames": null,
+        "rmse": 0.011901413994859156,
+        "bias_rgb": [
+          -6.155281822605649e-05,
+          -9.897940123934095e-05,
+          0.00028915290273953984
+        ],
+        "broad_tone_rms": 0.0016516118368698194,
+        "residual_temporal_std": 5.826084773359428e-06
+      },
+      "mature": {
+        "absolute_gain_min": null,
+        "absolute_gain_mean": null,
+        "absolute_gain_max": null,
+        "absolute_phase_max": null,
+        "detail_within_5_percent_all_frames": null,
+        "rmse": 0.011903431085797403,
+        "bias_rgb": [
+          -6.151256840564088e-05,
+          -9.903525813298203e-05,
+          0.00028922765240602805
+        ],
+        "broad_tone_rms": 0.0016519052216234765,
+        "residual_temporal_std": 6.601892563002085e-08
+      }
+    },
+    {
+      "family": "slow_linear_amplitude_with_projected_noise_counterexample",
+      "active_fraction": 0.90625,
+      "full": {
+        "absolute_gain_min": 0.6833518997798725,
+        "absolute_gain_mean": 0.9188485649504401,
+        "absolute_gain_max": 1.0301890340442625,
+        "absolute_phase_max": 0.04331645832850383,
+        "detail_within_5_percent_all_frames": false,
+        "rmse": 0.00364885002186319,
+        "bias_rgb": [
+          4.082487607964391e-06,
+          -7.520960620764882e-06,
+          -3.3686577185826356e-06
+        ],
+        "broad_tone_rms": 0.00011186576298883433,
+        "residual_temporal_std": 0.003305539744347942
+      },
+      "mature": {
+        "absolute_gain_min": 0.9210877966566127,
+        "absolute_gain_mean": 0.9248386537168509,
+        "absolute_gain_max": 0.928734361155255,
+        "absolute_phase_max": 1.4671626261937446e-15,
+        "detail_within_5_percent_all_frames": false,
+        "rmse": 0.0001045206942956777,
+        "bias_rgb": [
+          -1.3408180945098034e-06,
+          -1.3408180945098034e-06,
+          -1.3408180945098034e-06
+        ],
+        "broad_tone_rms": 6.666806154257508e-05,
+        "residual_temporal_std": 3.158094616932945e-05
+      }
+    },
+    {
+      "family": "large_amplitude_step_same_guide",
+      "active_fraction": 0.90625,
+      "full": {
+        "absolute_gain_min": 0.994108741751649,
+        "absolute_gain_mean": 0.9993505150920821,
+        "absolute_gain_max": 1.0023236325317728,
+        "absolute_phase_max": 0.003255661717310501,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.0036471722667344615,
+        "bias_rgb": [
+          3.2152954779760165e-06,
+          -8.451402468551088e-06,
+          -4.253921196513244e-06
+        ],
+        "broad_tone_rms": 9.077229007967568e-05,
+        "residual_temporal_std": 0.0033050447359893285
+      },
+      "mature": {
+        "absolute_gain_min": 0.9992718010279216,
+        "absolute_gain_mean": 0.9993158550128128,
+        "absolute_gain_max": 0.9999766647861813,
+        "absolute_phase_max": 9.142254360890044e-16,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 4.069632531604485e-05,
+        "bias_rgb": [
+          -3.2055637168633717e-06,
+          -3.2055637168633717e-06,
+          -3.2055637168633717e-06
+        ],
+        "broad_tone_rms": 1.1136389191254458e-05,
+        "residual_temporal_std": 3.2386295525924185e-06
+      }
+    },
+    {
+      "family": "large_amplitude_step_with_reset",
+      "active_fraction": 0.8125,
+      "full": {
+        "absolute_gain_min": 0.994108741751649,
+        "absolute_gain_mean": 0.9997496186416222,
+        "absolute_gain_max": 1.002502493710145,
+        "absolute_phase_max": 0.009220863890661157,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.0051693085488336826,
+        "bias_rgb": [
+          -7.188050962407408e-06,
+          -6.786374183145861e-06,
+          4.0178276115926454e-06
+        ],
+        "broad_tone_rms": 0.0001271946870706598,
+        "residual_temporal_std": 0.004880034510368652
+      },
+      "mature": {
+        "absolute_gain_min": 0.9992718010279216,
+        "absolute_gain_mean": 1.0001140621118934,
+        "absolute_gain_max": 1.002502493710145,
+        "absolute_phase_max": 0.009220863890661157,
+        "detail_within_5_percent_all_frames": true,
+        "rmse": 0.00518087124434783,
+        "bias_rgb": [
+          -2.4012256597630222e-05,
+          1.2449285394708278e-07,
+          1.3337933899348408e-05
+        ],
+        "broad_tone_rms": 0.00019300332797775882,
+        "residual_temporal_std": 0.004619481353703574
+      }
+    }
+  ],
+  "conclusions": [
+    "Material mature source-pilot temporal noise is lower; mature weak-checker absolute gain remains within five percent in this fixture.",
+    "Weak-checker full-sequence gain still falls to 0.693; raw inactive startup and reset frames retain source noise.",
+    "Rank-zero wave, moving-light and noisy-guide families are exact raw/inactive: no correction or wave solution.",
+    "Slow true amplitude drift is averaged into approximately 0.925 mature gain: three-SE innovation is insufficient for this adversary.",
+    "Persistent guide/source-shared spatial bias remains approximately 0.0119 RMSE despite almost zero temporal variation.",
+    "Source-pilot CPU feasibility only. No new native response, runtime implementation or general/game quality acceptance."
+  ],
+  "limitations": [
+    "Post-hoc reuse of alpha fixture families; no independent native or game validation",
+    "Coefficients/source covariances use observable sources only; truth enters fixture construction and scoring",
+    "First <=2 prior guides or unsupported comparison retains exact raw inactive, no startup fix claim",
+    "Spatial/temporal SE independence is not established; guide/source shared bias remains",
+    "Absolute every-frame detail gains are reported separately from RMSE/noise improvement"
+  ]
+}

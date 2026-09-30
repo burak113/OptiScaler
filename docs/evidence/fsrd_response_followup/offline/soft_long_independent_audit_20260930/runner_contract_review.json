@@ -1,0 +1,114 @@
+{
+  "schema": "RR-runner-local-contract-readonly-review-v1",
+  "scope": "Lighting-step current jobs only; no GPU, edits or SDK internal source available",
+  "concrete_current_case_caller_error_found": false,
+  "sources": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\fsrd_rr_runner.cpp",
+      "sha256": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\denoisers\\include\\ffx_denoiser.h",
+      "sha256": "1316e406f3499f1c907c258d8efbf763d81aa7ffed1b65209802637907d644ed"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\api\\include\\dx12\\ffx_api_dx12.h",
+      "sha256": "2082d6c2914e9c2fa9fae6247d35f64c643ccb703311c83c8dba9a35356bc711"
+    }
+  ],
+  "checked_contracts": [
+    {
+      "area": "Descriptor initialization",
+      "runner_lines": [
+        108,
+        109,
+        120,
+        149,
+        152
+      ],
+      "header_lines": [
+        82,
+        158,
+        167
+      ],
+      "finding": "Backend/create/dispatch/signal aggregate initialized. API version, signal2/32 chain and zero checker origin satisfy local header declarations."
+    },
+    {
+      "area": "Upload ordering and size",
+      "runner_lines": [
+        164,
+        166,
+        168,
+        170,
+        175,
+        176,
+        201,
+        203
+      ],
+      "finding": "Full w*h payload uploaded before dispatch. Texture state transitions recorded; each frame fence completed before allocator/upload reuse. At128 pixels all used RGBA16/R32 row strides already align to256: padding hypothesis cannot explain this fixture."
+    },
+    {
+      "area": "Output/readback ordering",
+      "runner_lines": [
+        193,
+        195,
+        198,
+        203,
+        207
+      ],
+      "finding": "UAV output transitions to COPY_SOURCE and returns to UAV. Full resource copy and fence before readback. No visible cross-frame upload/allocator race."
+    },
+    {
+      "area": "Camera/control/reset",
+      "runner_lines": [
+        121,
+        122,
+        125,
+        178,
+        184,
+        185,
+        188
+      ],
+      "header_lines": [
+        217,
+        223,
+        241,
+        267,
+        577
+      ],
+      "finding": "Current immutable dispatch record contains zero camera delta, UV motion scale1, valid row-vector DirectX camera, current jitter, frameIndex and initial reset. Lighting jobs resetEvery0 and explicit controls."
+    },
+    {
+      "area": "Configuration storage",
+      "runner_lines": [
+        115,
+        117,
+        118
+      ],
+      "header_lines": [
+        114,
+        524,
+        529
+      ],
+      "finding": "Configure data uses live local const float arrays during synchronous Configure calls; scalar count1/types match headers. Lifetime after call cannot be judged from unavailable effect internals, and no evidence of retained pointer exists."
+    }
+  ],
+  "latent_noncurrent_behavior": [
+    {
+      "runner_line": 178,
+      "finding": "Any nonzero resetEvery resets every frame; not a modulo-period schedule. Current helpers always set0 and explicit controls override, so irrelevant to lighting divergence. No periodic reset contract is claimed here."
+    }
+  ],
+  "unproven_hypotheses": [
+    "Caller output textures have no explicit clear. Header output describes resulting denoised RGB; it does not require caller prefill. Partial output/internal history initialization cannot be established without implementation/measurement.",
+    "Standard D3D12 debug layer is enabled, but GPU-based validation is not explicitly enabled. Zero ordinary debug errors does not prove every shader access/content assumption.",
+    "Effect internal history/model nondeterminism, allocation-sensitive execution or nonlinear threshold amplification remain unproven; local package exposes headers, not denoiser implementation."
+  ],
+  "diagnostic": {
+    "first": "Four independent pinned-binary same-source/context replays retaining raw lobes, exact upload hashes and applied controls; do not alter initialization.",
+    "conditional_next_control": "If repeated contexts diverge, separately preregister a single additional RESET flag at lighting-step frame32 with otherwise identical inputs/controls/pinned binary. Compare per-lobe divergence before/after32.",
+    "rationale": "Local header explicitly defines RESET as history accumulation reset. This isolates sensitivity to accumulated temporal state across the large radiance step.",
+    "limit": "Reset changes the operator response and does not prove faulty history initialization, SDK nondeterminism cause, or a production solution."
+  },
+  "interpretation": "No concrete current-case caller defect identified. PE timestamp-only difference does not cause/explain the native difference by itself. Preserve prior large null and do not relabel acceptance."
+}

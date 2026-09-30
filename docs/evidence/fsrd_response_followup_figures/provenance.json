@@ -1,0 +1,20 @@
+{
+  "script_sha256": "7559efed3345bb518af4d9e2e4977c2073c463fd2daaa2ba62117c89cc2d9dcf",
+  "native_quality_accepted": false,
+  "game_run": false,
+  "reports": {
+    "16": "987376e02b3c09e6a145b1c6ee4962fb6103402c7b92530ca9d9b04b3ca0c8e1",
+    "64": "8b401634817ca22f7b5f8dd8dcf975b4d25180d5cbd616dda192181d9e5d53d5"
+  },
+  "arrays": [
+    {
+      "path": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\response_soft_temporal_alpha_fresh\\wave\\sequences.npz",
+      "sha256": "617e409a5ad5d4d43cea79ab7e122ef80a8c055c409c8a075cc05f3d900a2809"
+    },
+    {
+      "path": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\response_soft_temporal_long_alpha_fresh\\wave\\sequences.npz",
+      "sha256": "c6e2641da5678924d1f860f1807aa79c7c5fab51cecb1cb8271d9eec6ec272cb"
+    }
+  ],
+  "figure_sha256": "ab882cf30e774d7d11a99d79dcb8c9bd6efc5a6d933b1fbd4b45acf936be4314"
+}

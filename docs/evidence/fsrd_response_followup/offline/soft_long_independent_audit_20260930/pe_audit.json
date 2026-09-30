@@ -1,0 +1,1023 @@
+{
+  "schema": "runner-pe-section-readonly-audit-v1",
+  "analysis_sha256": "a093f7da76ce5e61a66e34a0bcac7a15accb7b39132cc88fa740a19149c80f83",
+  "binaries": [
+    {
+      "path": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\response_soft_temporal_alpha_fresh\\fsrd_rr_runner.exe",
+      "sha256": "ef639872ace43521a6cbc02b3afef85f7570dafdb41a1671ad1a2d9c34f51a71",
+      "file_size": 392704,
+      "machine": 34404,
+      "coff_timestamp": 1790724115,
+      "characteristics": 34,
+      "optional_magic": 523,
+      "checksum": 0,
+      "entrypoint_rva": 101708,
+      "sections": [
+        {
+          "name": ".text",
+          "virtual_size": 278512,
+          "rva": 4096,
+          "raw_size": 278528,
+          "raw_offset": 1024,
+          "characteristics": 1610612768,
+          "sha256": "76a779f4afed2f3bc98f445d1edba7dcf58992d23b170f5ea75d870d93583a02"
+        },
+        {
+          "name": ".rdata",
+          "virtual_size": 89456,
+          "rva": 282624,
+          "raw_size": 89600,
+          "raw_offset": 279552,
+          "characteristics": 1073741888,
+          "sha256": "bb10176357ab184c915a957b450da0eb0a2874b87a051ba94e7455352378b572"
+        },
+        {
+          "name": ".data",
+          "virtual_size": 12584,
+          "rva": 372736,
+          "raw_size": 6144,
+          "raw_offset": 369152,
+          "characteristics": 3221225536,
+          "sha256": "4fb68306f7a29a441bc22046aeb70fe3dc8e2303a236c1e8e9c468d021bc34d5"
+        },
+        {
+          "name": ".pdata",
+          "virtual_size": 13392,
+          "rva": 389120,
+          "raw_size": 13824,
+          "raw_offset": 375296,
+          "characteristics": 1073741888,
+          "sha256": "039858c7fb73df93cdda6b81e6e65095b76d6389dad4a853d109810ad528158c"
+        },
+        {
+          "name": ".fptable",
+          "virtual_size": 256,
+          "rva": 405504,
+          "raw_size": 512,
+          "raw_offset": 389120,
+          "characteristics": 3221225536,
+          "sha256": "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560"
+        },
+        {
+          "name": ".reloc",
+          "virtual_size": 2820,
+          "rva": 409600,
+          "raw_size": 3072,
+          "raw_offset": 389632,
+          "characteristics": 1107296320,
+          "sha256": "b48992863a9da10b562c100633956adfdedfcb61e91c4c13c794221bcc6793d5"
+        }
+      ],
+      "directories": [
+        {
+          "index": 0,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 1,
+          "rva": 369444,
+          "size": 80
+        },
+        {
+          "index": 2,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 3,
+          "rva": 389120,
+          "size": 13392
+        },
+        {
+          "index": 4,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 5,
+          "rva": 409600,
+          "size": 2820
+        },
+        {
+          "index": 6,
+          "rva": 344336,
+          "size": 28
+        },
+        {
+          "index": 7,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 8,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 9,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 10,
+          "rva": 344016,
+          "size": 320
+        },
+        {
+          "index": 11,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 12,
+          "rva": 282624,
+          "size": 792
+        },
+        {
+          "index": 13,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 14,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 15,
+          "rva": 0,
+          "size": 0
+        }
+      ],
+      "imports": [
+        {
+          "dll": "d3d12.dll",
+          "timestamp": 0,
+          "functions": [
+            {
+              "ordinal": 102
+            },
+            {
+              "ordinal": 101
+            }
+          ]
+        },
+        {
+          "dll": "dxgi.dll",
+          "timestamp": 0,
+          "functions": [
+            {
+              "name": "CreateDXGIFactory2"
+            }
+          ]
+        },
+        {
+          "dll": "KERNEL32.dll",
+          "timestamp": 0,
+          "functions": [
+            {
+              "name": "GetCurrentProcessId"
+            },
+            {
+              "name": "SetEndOfFile"
+            },
+            {
+              "name": "HeapSize"
+            },
+            {
+              "name": "GetProcessHeap"
+            },
+            {
+              "name": "SetStdHandle"
+            },
+            {
+              "name": "CloseHandle"
+            },
+            {
+              "name": "GetLastError"
+            },
+            {
+              "name": "WaitForSingleObject"
+            },
+            {
+              "name": "CreateEventW"
+            },
+            {
+              "name": "FreeLibrary"
+            },
+            {
+              "name": "GetModuleFileNameW"
+            },
+            {
+              "name": "GetProcAddress"
+            },
+            {
+              "name": "LoadLibraryExW"
+            },
+            {
+              "name": "WideCharToMultiByte"
+            },
+            {
+              "name": "LocalFree"
+            },
+            {
+              "name": "FormatMessageA"
+            },
+            {
+              "name": "GetLocaleInfoEx"
+            },
+            {
+              "name": "CreateFileW"
+            },
+            {
+              "name": "FindClose"
+            },
+            {
+              "name": "FindFirstFileExW"
+            },
+            {
+              "name": "FindNextFileW"
+            },
+            {
+              "name": "AreFileApisANSI"
+            },
+            {
+              "name": "GetModuleHandleW"
+            },
+            {
+              "name": "MultiByteToWideChar"
+            },
+            {
+              "name": "EnterCriticalSection"
+            },
+            {
+              "name": "LeaveCriticalSection"
+            },
+            {
+              "name": "InitializeCriticalSectionEx"
+            },
+            {
+              "name": "DeleteCriticalSection"
+            },
+            {
+              "name": "EncodePointer"
+            },
+            {
+              "name": "DecodePointer"
+            },
+            {
+              "name": "LCMapStringEx"
+            },
+            {
+              "name": "GetStringTypeW"
+            },
+            {
+              "name": "GetCPInfo"
+            },
+            {
+              "name": "RtlCaptureContext"
+            },
+            {
+              "name": "RtlLookupFunctionEntry"
+            },
+            {
+              "name": "RtlVirtualUnwind"
+            },
+            {
+              "name": "UnhandledExceptionFilter"
+            },
+            {
+              "name": "SetUnhandledExceptionFilter"
+            },
+            {
+              "name": "GetCurrentProcess"
+            },
+            {
+              "name": "TerminateProcess"
+            },
+            {
+              "name": "IsProcessorFeaturePresent"
+            },
+            {
+              "name": "QueryPerformanceCounter"
+            },
+            {
+              "name": "RtlUnwind"
+            },
+            {
+              "name": "GetCurrentThreadId"
+            },
+            {
+              "name": "GetSystemTimeAsFileTime"
+            },
+            {
+              "name": "InitializeSListHead"
+            },
+            {
+              "name": "IsDebuggerPresent"
+            },
+            {
+              "name": "GetStartupInfoW"
+            },
+            {
+              "name": "SetEnvironmentVariableW"
+            },
+            {
+              "name": "RtlPcToFileHeader"
+            },
+            {
+              "name": "RaiseException"
+            },
+            {
+              "name": "RtlUnwindEx"
+            },
+            {
+              "name": "SetLastError"
+            },
+            {
+              "name": "InitializeCriticalSectionAndSpinCount"
+            },
+            {
+              "name": "TlsAlloc"
+            },
+            {
+              "name": "TlsGetValue"
+            },
+            {
+              "name": "TlsSetValue"
+            },
+            {
+              "name": "TlsFree"
+            },
+            {
+              "name": "GetStdHandle"
+            },
+            {
+              "name": "GetFileType"
+            },
+            {
+              "name": "GetModuleHandleExW"
+            },
+            {
+              "name": "WriteConsoleW"
+            },
+            {
+              "name": "WriteFile"
+            },
+            {
+              "name": "ExitProcess"
+            },
+            {
+              "name": "GetCommandLineA"
+            },
+            {
+              "name": "GetCommandLineW"
+            },
+            {
+              "name": "HeapAlloc"
+            },
+            {
+              "name": "HeapFree"
+            },
+            {
+              "name": "OutputDebugStringW"
+            },
+            {
+              "name": "FlsAlloc"
+            },
+            {
+              "name": "FlsGetValue"
+            },
+            {
+              "name": "FlsSetValue"
+            },
+            {
+              "name": "FlsFree"
+            },
+            {
+              "name": "VirtualProtect"
+            },
+            {
+              "name": "CompareStringW"
+            },
+            {
+              "name": "LCMapStringW"
+            },
+            {
+              "name": "GetLocaleInfoW"
+            },
+            {
+              "name": "IsValidLocale"
+            },
+            {
+              "name": "GetUserDefaultLCID"
+            },
+            {
+              "name": "EnumSystemLocalesW"
+            },
+            {
+              "name": "FlushFileBuffers"
+            },
+            {
+              "name": "GetConsoleOutputCP"
+            },
+            {
+              "name": "GetConsoleMode"
+            },
+            {
+              "name": "ReadFile"
+            },
+            {
+              "name": "GetFileSizeEx"
+            },
+            {
+              "name": "SetFilePointerEx"
+            },
+            {
+              "name": "ReadConsoleW"
+            },
+            {
+              "name": "HeapReAlloc"
+            },
+            {
+              "name": "IsValidCodePage"
+            },
+            {
+              "name": "GetACP"
+            },
+            {
+              "name": "GetOEMCP"
+            },
+            {
+              "name": "GetEnvironmentStringsW"
+            },
+            {
+              "name": "FreeEnvironmentStringsW"
+            }
+          ]
+        }
+      ],
+      "debug": [
+        {
+          "type": 13,
+          "timestamp": 1790724115,
+          "size": 880,
+          "rva": 351000,
+          "file_offset": 347928,
+          "sha256": "67475e57045bcdcf582b241f59a7782a30201a3a123475f5a5405aa503bd48e5"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\response_soft_temporal_long_alpha_fresh\\fsrd_rr_runner.exe",
+      "sha256": "3427689a4764380f885545c353250277e4d71944d3310c8a17b3cbba0f3c21d2",
+      "file_size": 392704,
+      "machine": 34404,
+      "coff_timestamp": 1790725748,
+      "characteristics": 34,
+      "optional_magic": 523,
+      "checksum": 0,
+      "entrypoint_rva": 101708,
+      "sections": [
+        {
+          "name": ".text",
+          "virtual_size": 278512,
+          "rva": 4096,
+          "raw_size": 278528,
+          "raw_offset": 1024,
+          "characteristics": 1610612768,
+          "sha256": "76a779f4afed2f3bc98f445d1edba7dcf58992d23b170f5ea75d870d93583a02"
+        },
+        {
+          "name": ".rdata",
+          "virtual_size": 89456,
+          "rva": 282624,
+          "raw_size": 89600,
+          "raw_offset": 279552,
+          "characteristics": 1073741888,
+          "sha256": "7cc6bca6c49cb70dd4f74349565ffca4928a2468caeddc7a72ec67bb23f0eb10"
+        },
+        {
+          "name": ".data",
+          "virtual_size": 12584,
+          "rva": 372736,
+          "raw_size": 6144,
+          "raw_offset": 369152,
+          "characteristics": 3221225536,
+          "sha256": "4fb68306f7a29a441bc22046aeb70fe3dc8e2303a236c1e8e9c468d021bc34d5"
+        },
+        {
+          "name": ".pdata",
+          "virtual_size": 13392,
+          "rva": 389120,
+          "raw_size": 13824,
+          "raw_offset": 375296,
+          "characteristics": 1073741888,
+          "sha256": "039858c7fb73df93cdda6b81e6e65095b76d6389dad4a853d109810ad528158c"
+        },
+        {
+          "name": ".fptable",
+          "virtual_size": 256,
+          "rva": 405504,
+          "raw_size": 512,
+          "raw_offset": 389120,
+          "characteristics": 3221225536,
+          "sha256": "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560"
+        },
+        {
+          "name": ".reloc",
+          "virtual_size": 2820,
+          "rva": 409600,
+          "raw_size": 3072,
+          "raw_offset": 389632,
+          "characteristics": 1107296320,
+          "sha256": "b48992863a9da10b562c100633956adfdedfcb61e91c4c13c794221bcc6793d5"
+        }
+      ],
+      "directories": [
+        {
+          "index": 0,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 1,
+          "rva": 369444,
+          "size": 80
+        },
+        {
+          "index": 2,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 3,
+          "rva": 389120,
+          "size": 13392
+        },
+        {
+          "index": 4,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 5,
+          "rva": 409600,
+          "size": 2820
+        },
+        {
+          "index": 6,
+          "rva": 344336,
+          "size": 28
+        },
+        {
+          "index": 7,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 8,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 9,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 10,
+          "rva": 344016,
+          "size": 320
+        },
+        {
+          "index": 11,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 12,
+          "rva": 282624,
+          "size": 792
+        },
+        {
+          "index": 13,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 14,
+          "rva": 0,
+          "size": 0
+        },
+        {
+          "index": 15,
+          "rva": 0,
+          "size": 0
+        }
+      ],
+      "imports": [
+        {
+          "dll": "d3d12.dll",
+          "timestamp": 0,
+          "functions": [
+            {
+              "ordinal": 102
+            },
+            {
+              "ordinal": 101
+            }
+          ]
+        },
+        {
+          "dll": "dxgi.dll",
+          "timestamp": 0,
+          "functions": [
+            {
+              "name": "CreateDXGIFactory2"
+            }
+          ]
+        },
+        {
+          "dll": "KERNEL32.dll",
+          "timestamp": 0,
+          "functions": [
+            {
+              "name": "GetCurrentProcessId"
+            },
+            {
+              "name": "SetEndOfFile"
+            },
+            {
+              "name": "HeapSize"
+            },
+            {
+              "name": "GetProcessHeap"
+            },
+            {
+              "name": "SetStdHandle"
+            },
+            {
+              "name": "CloseHandle"
+            },
+            {
+              "name": "GetLastError"
+            },
+            {
+              "name": "WaitForSingleObject"
+            },
+            {
+              "name": "CreateEventW"
+            },
+            {
+              "name": "FreeLibrary"
+            },
+            {
+              "name": "GetModuleFileNameW"
+            },
+            {
+              "name": "GetProcAddress"
+            },
+            {
+              "name": "LoadLibraryExW"
+            },
+            {
+              "name": "WideCharToMultiByte"
+            },
+            {
+              "name": "LocalFree"
+            },
+            {
+              "name": "FormatMessageA"
+            },
+            {
+              "name": "GetLocaleInfoEx"
+            },
+            {
+              "name": "CreateFileW"
+            },
+            {
+              "name": "FindClose"
+            },
+            {
+              "name": "FindFirstFileExW"
+            },
+            {
+              "name": "FindNextFileW"
+            },
+            {
+              "name": "AreFileApisANSI"
+            },
+            {
+              "name": "GetModuleHandleW"
+            },
+            {
+              "name": "MultiByteToWideChar"
+            },
+            {
+              "name": "EnterCriticalSection"
+            },
+            {
+              "name": "LeaveCriticalSection"
+            },
+            {
+              "name": "InitializeCriticalSectionEx"
+            },
+            {
+              "name": "DeleteCriticalSection"
+            },
+            {
+              "name": "EncodePointer"
+            },
+            {
+              "name": "DecodePointer"
+            },
+            {
+              "name": "LCMapStringEx"
+            },
+            {
+              "name": "GetStringTypeW"
+            },
+            {
+              "name": "GetCPInfo"
+            },
+            {
+              "name": "RtlCaptureContext"
+            },
+            {
+              "name": "RtlLookupFunctionEntry"
+            },
+            {
+              "name": "RtlVirtualUnwind"
+            },
+            {
+              "name": "UnhandledExceptionFilter"
+            },
+            {
+              "name": "SetUnhandledExceptionFilter"
+            },
+            {
+              "name": "GetCurrentProcess"
+            },
+            {
+              "name": "TerminateProcess"
+            },
+            {
+              "name": "IsProcessorFeaturePresent"
+            },
+            {
+              "name": "QueryPerformanceCounter"
+            },
+            {
+              "name": "RtlUnwind"
+            },
+            {
+              "name": "GetCurrentThreadId"
+            },
+            {
+              "name": "GetSystemTimeAsFileTime"
+            },
+            {
+              "name": "InitializeSListHead"
+            },
+            {
+              "name": "IsDebuggerPresent"
+            },
+            {
+              "name": "GetStartupInfoW"
+            },
+            {
+              "name": "SetEnvironmentVariableW"
+            },
+            {
+              "name": "RtlPcToFileHeader"
+            },
+            {
+              "name": "RaiseException"
+            },
+            {
+              "name": "RtlUnwindEx"
+            },
+            {
+              "name": "SetLastError"
+            },
+            {
+              "name": "InitializeCriticalSectionAndSpinCount"
+            },
+            {
+              "name": "TlsAlloc"
+            },
+            {
+              "name": "TlsGetValue"
+            },
+            {
+              "name": "TlsSetValue"
+            },
+            {
+              "name": "TlsFree"
+            },
+            {
+              "name": "GetStdHandle"
+            },
+            {
+              "name": "GetFileType"
+            },
+            {
+              "name": "GetModuleHandleExW"
+            },
+            {
+              "name": "WriteConsoleW"
+            },
+            {
+              "name": "WriteFile"
+            },
+            {
+              "name": "ExitProcess"
+            },
+            {
+              "name": "GetCommandLineA"
+            },
+            {
+              "name": "GetCommandLineW"
+            },
+            {
+              "name": "HeapAlloc"
+            },
+            {
+              "name": "HeapFree"
+            },
+            {
+              "name": "OutputDebugStringW"
+            },
+            {
+              "name": "FlsAlloc"
+            },
+            {
+              "name": "FlsGetValue"
+            },
+            {
+              "name": "FlsSetValue"
+            },
+            {
+              "name": "FlsFree"
+            },
+            {
+              "name": "VirtualProtect"
+            },
+            {
+              "name": "CompareStringW"
+            },
+            {
+              "name": "LCMapStringW"
+            },
+            {
+              "name": "GetLocaleInfoW"
+            },
+            {
+              "name": "IsValidLocale"
+            },
+            {
+              "name": "GetUserDefaultLCID"
+            },
+            {
+              "name": "EnumSystemLocalesW"
+            },
+            {
+              "name": "FlushFileBuffers"
+            },
+            {
+              "name": "GetConsoleOutputCP"
+            },
+            {
+              "name": "GetConsoleMode"
+            },
+            {
+              "name": "ReadFile"
+            },
+            {
+              "name": "GetFileSizeEx"
+            },
+            {
+              "name": "SetFilePointerEx"
+            },
+            {
+              "name": "ReadConsoleW"
+            },
+            {
+              "name": "HeapReAlloc"
+            },
+            {
+              "name": "IsValidCodePage"
+            },
+            {
+              "name": "GetACP"
+            },
+            {
+              "name": "GetOEMCP"
+            },
+            {
+              "name": "GetEnvironmentStringsW"
+            },
+            {
+              "name": "FreeEnvironmentStringsW"
+            }
+          ]
+        }
+      ],
+      "debug": [
+        {
+          "type": 13,
+          "timestamp": 1790725748,
+          "size": 880,
+          "rva": 351000,
+          "file_offset": 347928,
+          "sha256": "67475e57045bcdcf582b241f59a7782a30201a3a123475f5a5405aa503bd48e5"
+        }
+      ]
+    }
+  ],
+  "section_comparison": [
+    {
+      "name": ".text",
+      "raw_bytes_equal": true,
+      "size_equal": true,
+      "different_byte_count": 0,
+      "different_section_offsets": [],
+      "old_sha256": "76a779f4afed2f3bc98f445d1edba7dcf58992d23b170f5ea75d870d93583a02",
+      "new_sha256": "76a779f4afed2f3bc98f445d1edba7dcf58992d23b170f5ea75d870d93583a02"
+    },
+    {
+      "name": ".rdata",
+      "raw_bytes_equal": false,
+      "size_equal": true,
+      "different_byte_count": 2,
+      "different_section_offsets": [
+        61716,
+        61717
+      ],
+      "old_sha256": "bb10176357ab184c915a957b450da0eb0a2874b87a051ba94e7455352378b572",
+      "new_sha256": "7cc6bca6c49cb70dd4f74349565ffca4928a2468caeddc7a72ec67bb23f0eb10"
+    },
+    {
+      "name": ".data",
+      "raw_bytes_equal": true,
+      "size_equal": true,
+      "different_byte_count": 0,
+      "different_section_offsets": [],
+      "old_sha256": "4fb68306f7a29a441bc22046aeb70fe3dc8e2303a236c1e8e9c468d021bc34d5",
+      "new_sha256": "4fb68306f7a29a441bc22046aeb70fe3dc8e2303a236c1e8e9c468d021bc34d5"
+    },
+    {
+      "name": ".pdata",
+      "raw_bytes_equal": true,
+      "size_equal": true,
+      "different_byte_count": 0,
+      "different_section_offsets": [],
+      "old_sha256": "039858c7fb73df93cdda6b81e6e65095b76d6389dad4a853d109810ad528158c",
+      "new_sha256": "039858c7fb73df93cdda6b81e6e65095b76d6389dad4a853d109810ad528158c"
+    },
+    {
+      "name": ".fptable",
+      "raw_bytes_equal": true,
+      "size_equal": true,
+      "different_byte_count": 0,
+      "different_section_offsets": [],
+      "old_sha256": "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560",
+      "new_sha256": "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560"
+    },
+    {
+      "name": ".reloc",
+      "raw_bytes_equal": true,
+      "size_equal": true,
+      "different_byte_count": 0,
+      "different_section_offsets": [],
+      "old_sha256": "b48992863a9da10b562c100633956adfdedfcb61e91c4c13c794221bcc6793d5",
+      "new_sha256": "b48992863a9da10b562c100633956adfdedfcb61e91c4c13c794221bcc6793d5"
+    }
+  ],
+  "imports_equal": true,
+  "code_sections_equal": true,
+  "different_whole_file_byte_count": 4,
+  "different_file_offsets": [
+    248,
+    249,
+    341268,
+    341269
+  ],
+  "runner_sources": [
+    {
+      "name": "fsrd_rr_runner.cpp",
+      "old_sha256": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077",
+      "new_sha256": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077",
+      "equal": true
+    },
+    {
+      "name": "fsrd_gpu_runner.cpp",
+      "old_sha256": "f215e7565d70e3e85aacc524f47cf4138934d523ba019cfc3c8b48849751c953",
+      "new_sha256": "f215e7565d70e3e85aacc524f47cf4138934d523ba019cfc3c8b48849751c953",
+      "equal": true
+    }
+  ],
+  "conclusion": "PE equality/differences characterize the binaries only; they do not identify the cause of native response variation. No timestamp or caller-bug attribution."
+}

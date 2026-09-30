@@ -1,0 +1,6 @@
+fsrd_gpu_runner.cpp
+completed_context 0
+completed_context 1
+completed_context 2
+completed_context 3
+{"contexts": 4, "dispatches": 256, "pairwise_native_rms": [0.0002891313423155991, 0.0005451987978579657, 0.0002922826639756056, 0.000517269412928143, 0.00024361133944111136, 0.0005117511708391505]}

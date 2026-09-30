@@ -1,0 +1,13 @@
+{
+  "schema": "reset-repeat-bounded-interpretation-v1",
+  "audit_sha256": "c73ac303332b21df5d6dd64948c2ddc4bd7e13d3534d34848c034837906b5362",
+  "generator_sha256": "1af291a87f25202b7cfddc13ef01ea4173b36f47f2c46a2ebd642cbbbb242a41",
+  "generator_hash_valid": true,
+  "reset_control_exact_byte_offset": 5892,
+  "RESET_mask": 1,
+  "frame32_to34_all_six_pairs_both_RGB_lobes_exact_equal": true,
+  "descriptive_range_interpretation": "After32 within-four-context native and composed pair variability is smaller in this recorded reset study. Before32 variation remains and these independently sampled ranges are not paired trials/confidence intervals.",
+  "operator_change": "RESET changes native response: selected composed baseline differs by RMS .0676554 from original long64 for reset run0. No quality or reset-policy acceptance.",
+  "alpha_contract": "All saved output alphas equal0. In the synthetic fixture indirect-spec alpha carries ray-hit distance0. Local ffx_denoiser.h specifies ray-hit distance without a positivity precondition; this review does not label zero invalid.",
+  "cause": "History-sensitive variability is supported; exact cause, caller defect, internal model behavior and production fix remain unestablished."
+}

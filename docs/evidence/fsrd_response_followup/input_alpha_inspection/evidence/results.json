@@ -1,0 +1,56 @@
+{
+  "schema": "source-conversion-ray-alpha-inspection-v1",
+  "native_dispatches": 0,
+  "quality_accepted": false,
+  "script_sha256": "64864b498fd1f19b8411544906c3428f84a783be941f4398c93a03ced56763d5",
+  "reference_report_sha256": "8b401634817ca22f7b5f8dd8dcf975b4d25180d5cbd616dda192181d9e5d53d5",
+  "source_array_sha256": "4abf5df2cb4070f733ec35dc7c930b8c92644a8162b590684f2041984544b0e3",
+  "fixture_source_sha256": {
+    "fsrd_alpha_common.py": "691975513a56ada7c1ec8faab7a4f70840508371a3334dba67275e00aef4ba2e",
+    "probe_fsrd_statistical_resolve.py": "f804ea74c72aef1b6adf351e2d3cbe4f809c3069b13419492be178401248a3ee",
+    "probe_fsrd_response_calibration.py": "27b17a36e0da89d922abc51f5bf6825f7c8e5aa57d4e0f35feb125aff602cee1"
+  },
+  "frames": [
+    {
+      "frame": 0,
+      "specular": {
+        "input_alpha_min": 0.0,
+        "input_alpha_max": 0.0,
+        "positive_fraction": 0.0,
+        "negative_fraction": 0.0,
+        "finite": true,
+        "rgba_fp16_sha256": "003dd889f0ccebdf6a60dee3671b434e821553677aaf3e8b884ccb691751b871"
+      },
+      "diffuse": {
+        "input_alpha_min": 65504.0,
+        "input_alpha_max": 65504.0,
+        "positive_fraction": 1.0,
+        "negative_fraction": 0.0,
+        "finite": true,
+        "rgba_fp16_sha256": "f62e5c93e7f69932a54bbc5f95d8e373a08692818963de69df0817203883767f"
+      },
+      "payload_sha256": "61628edcb053c56089ed600a1ea6043b80fbcc17722435a9769bb62978c33e37"
+    },
+    {
+      "frame": 32,
+      "specular": {
+        "input_alpha_min": 0.0,
+        "input_alpha_max": 0.0,
+        "positive_fraction": 0.0,
+        "negative_fraction": 0.0,
+        "finite": true,
+        "rgba_fp16_sha256": "22d08c2d8af60b4312b0b19698caa6a75000fe6b0de777e286d92d97c2ac89b2"
+      },
+      "diffuse": {
+        "input_alpha_min": 65504.0,
+        "input_alpha_max": 65504.0,
+        "positive_fraction": 1.0,
+        "negative_fraction": 0.0,
+        "finite": true,
+        "rgba_fp16_sha256": "9a2278cfe8757b1563ba447f8cc491d2b401de0e54a18ebbd4120c919ce7c592"
+      },
+      "payload_sha256": "121516c4e8bbf4838e37f6789dd12ee1924c9dcdd00cc840fb9f1a467ef03dae"
+    }
+  ],
+  "status": "completed_input_inspection_not_cause_or_solution"
+}
