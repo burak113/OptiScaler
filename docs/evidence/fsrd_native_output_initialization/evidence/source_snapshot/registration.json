@@ -1,0 +1,44 @@
+{
+  "schema": "isolated-external-output-initialization-registration-v1",
+  "quality_accepted": false,
+  "hypothesis": "Test whether external output UAV initial contents/completeness can influence identicalinput native variation; not identified cause.",
+  "original_runner_source_sha256": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077",
+  "new_runner_source_sha256": "2d07165f7da6bc1b1cc65eff0982b78ca35f1a062c3331b642fa75d9b8b7a187",
+  "new_runner_binary_sha256": "9c9e15c2c0eb1f4f8a59cf67d105eef3db05377b8c296869e6e253b9a0786496",
+  "modes": {
+    "0": "legacy no extra heaps/binding/barriers",
+    "1": "two UAV heaps, bind and UAV barrier only, no clear",
+    "2": "same heaps/binding/barrier + zero firstframe",
+    "3": "same heaps/binding/barrier + zero everyframe",
+    "4": "same heaps/binding/barrier + sentinel firstframe",
+    "5": "same heaps/binding/barrier + sentinel everyframe"
+  },
+  "sentinel_RGBA": [
+    257,
+    513,
+    769,
+    17
+  ],
+  "mode_order": [
+    "round0_mode0",
+    "round0_mode1",
+    "round0_mode2",
+    "round0_mode3",
+    "round0_mode4",
+    "round0_mode5",
+    "round1_mode5",
+    "round1_mode4",
+    "round1_mode3",
+    "round1_mode2",
+    "round1_mode1",
+    "round1_mode0"
+  ],
+  "native_contexts": 12,
+  "RR_calls": 768,
+  "matching": "All7originalwaveP inputs,formats/uploadcounts,184appliedcontrols/provider match; only isolatedrunneroutputlifecycle changes.",
+  "comparisons": "Fresh eachmode repeats/allpairs, rawRGBA + sentinel survival and defaultC vsoldB; no averaging, quality scores or outputpatch",
+  "confounds": "Heap/binding/barrier mode1 separates some resource-allocation/order changes. Two repeats do not establish deterministic or population guarantees.",
+  "no_production_change": true,
+  "no_new_P": true,
+  "no_conversion_or_composition": true
+}
