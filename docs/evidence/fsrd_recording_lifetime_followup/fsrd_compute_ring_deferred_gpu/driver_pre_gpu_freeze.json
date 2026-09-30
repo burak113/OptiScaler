@@ -1,0 +1,42 @@
+{
+  "schema": "compute-ring-runner-before-GPU-byte-freeze-v1",
+  "files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\run_gpu.py",
+      "bytes": 10626,
+      "sha256": "6d782744688fda20592c2e10e579976fea429912d66adf9224ea531229d56b08"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\run_schedule_registration.json",
+      "bytes": 15553,
+      "sha256": "f49431c222175c83a2fd3aee03ec7d1c35e353bf33f9482a41d749044cec02ce"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\registration.json",
+      "bytes": 22794,
+      "sha256": "9c572386bcf10a7e2703e37ff5675851d660e2b3152d7b70d65946357552ae46"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\pre_gpu_freeze.json",
+      "bytes": 33091,
+      "sha256": "382b62a68b9f394e3af0d029772b1c9d16e9488688cbbfd63e3f9578ce98ba8c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\fixture.exe",
+      "bytes": 352768,
+      "sha256": "7a70a16ac1d23c264fb29838ee37e949489bc413e3b57c604593a216f3d69fbc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\identity.cso",
+      "bytes": 3904,
+      "sha256": "4779cd00251c5b16ef605f9f94acd57e1a6e0c2d7f0699d150b44c06281f5b4b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\native_resource_guard.py",
+      "bytes": 4837,
+      "sha256": "b70e18d0f13963e0250c371171933429446cf304041c9a16d971e9898d211814"
+    }
+  ],
+  "GPU_jobs_already_run": 0,
+  "native_SDK_dispatches_already_run": 0
+}

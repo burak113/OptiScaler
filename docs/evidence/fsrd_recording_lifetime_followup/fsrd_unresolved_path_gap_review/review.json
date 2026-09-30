@@ -1,0 +1,81 @@
+{
+  "schema": "fsrd-production-path-gap-review-v1",
+  "head": "18550af88f665103e11c8e08d7c701118be1d156",
+  "branch": "ffxD-experimental-alpha",
+  "worktree": "F:/OptiRevelations/OptiScaler-ffxD-alpha",
+  "status": "Two specific integration hypotheses retained. Neither is a demonstrated cause of the user's stain/wave. No third defensible new hypothesis was elevated.",
+  "execution": "Static code/doc inspection only; no game, GPU/native launch, build, source/config/resource edits, or historical trace-payload inspection. Tests below are proposed, not executed.",
+  "source_sha256": {
+    "OptiScaler/shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.cpp": "891010a733ebe08a6b03a78085b4d67cf674d6b653dbcefcd44ad9c421b41b2c",
+    "OptiScaler/shaders/fsrd_preprocess/FSRDShaderData.h": "e73d7b04af27910484cdc8dc65850a8f7c65ab751947760a21c8a397ec8491c9",
+    "OptiScaler/shaders/fsrd_preprocess/FSRDShaderUtils.h": "bfb5c79f5e6b5e75c7fa3a292716ecdec6eabfc8f462455e294e5247e2cdb2f4",
+    "OptiScaler/shaders/Shader_Dx12Utils.h": "aa3622c139fb56aa813d205ec904aaed5cf4073e0e03f84de43df1ae1fc99136",
+    "OptiScaler/upscalers/IFeature_Dx12.cpp": "3be62e152ce1ef1fac655303a16098344ec97f0f1006ca79167a2f86a2c044c9",
+    "OptiScaler/upscalers/fsr31/FSRDFeature_Dx12.cpp": "31a58616e8008c89e609f2a5b6929f881bfb6d7f169e4407f4f1053242859239",
+    "OptiScaler/upscalers/fsr31/FSRDFeature_Dx12.h": "87933b86e99fced9960b0db9260bfe538703e3d3b67a6bf0d30ec31ba8a2f51e",
+    "OptiScaler/inputs/NVNGX_DLSS_Dx12.cpp": "511b533b2f880a33ed65e79e281f2c41f323e037320e5a39f093d1ebd65fe9a6",
+    "OptiScaler/resource_tracking/ResTrack_dx12.cpp": "ab875b0fece03f8c384a2699e1456d4b22c76482a1b5bea244b92d63d0657432",
+    "OptiScaler/shaders/fsrd_preprocess/RRTraceFence.h": "d35f13d7d421cd12fe44bb0d2c7b244a7699ef3c87a25f9e5171f385d762bbb3",
+    "OptiScaler/shaders/shader_tools/tests/fsrd_rr_runner.cpp": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077",
+    "OptiScaler/shaders/shader_tools/tests/fsrd_gpu_runner.cpp": "f215e7565d70e3e85aacc524f47cf4138934d523ba019cfc3c8b48849751c953"
+  },
+  "evidence_documents": [
+    {"file":"docs/fsrd_native_contract_followup.md","sha256":"5e25cadf3185a2d672e6c2a28d8b01a8d0035b962ee1b7bbdc966c86b93ac30e","lines":[114,116,133,136,140],"scope":"Authenticated per-job conversion camera controls and static-byte native context variation; not batched production CB/SRV lifetime or discarded lists."},
+    {"file":"docs/fsrd_held_input_normal_followup.md","sha256":"4d2144e58e85406a5924d01e41cbc98d75cd8cd467761749e1d4fc836e0775c0","lines":[14,19,27,29],"scope":"Eight isolated conversion jobs with uploaded/consumed payload authentication; no multi-evaluation production recording before submission."},
+    {"file":"docs/fsrd_native_output_initialization.md","sha256":"975d877c4300d04c5edd5e3be425c4d1052339a9c272cbb5ef3979e908ffbbbd","lines":[9,14,16,18,20,50],"scope":"Twelve native contexts vary external output initialization/binding, not production converter/composer CB rings or unsubmitted evaluations."},
+    {"file":"docs/fsrd_continuous_harmonic_followup.md","sha256":"1f6c3f2592048ba52c9924a1edbb8a40ed2409bd3f38c0fd00ced7a62905aad8","lines":[72,86,121,123],"scope":"Authenticated native bytes/applied controls and isolated conversion/composition jobs; timing/lifetime mismatch remains distinct."},
+    {"file":"docs/fsrd_dc_innovation_followup.md","sha256":"dc860228c674105847272b404beca36ff8420434b8b3ef31dc1bc284bd745782","lines":[6,88,90,103,107],"scope":"Saved-response CPU follow-up and audit of existing serialized native jobs, no new production-lifecycle test."}
+  ],
+  "hypotheses": [
+    {
+      "id": "H1",
+      "title": "Mapped constants and shader-visible descriptors can be rewritten before earlier recorded dispatches consume them",
+      "confidence": "High confidence in source lifetime hazard and replay mismatch; actual game trigger and stain causation unknown.",
+      "trigger": "Fourth FloorSeed/conversion call on one feature while the first call has not consumed its slot; can be made unambiguous by recording four production-equivalent evaluations before any ExecuteCommandLists. Actual game CPU frame latency by itself is not proof: an external caller might guarantee retirement before reuse.",
+      "source_refs": [
+        {"file":"OptiScaler/shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.cpp","lines":[92,93,95,98,102,130,131,144,145,149,151,154,179,180,181,183,184,191,192,193,196,199,201,204,209,211,212,213,1227,1231,1233],"meaning":"Upload buffer allocated once, persistently mapped, slot memcpy and modulo advance each Dispatch, same heap rewritten and recorded CB GPU address/table handles; Unmap only in destruction. No completion check in ring reuse."},
+        {"file":"OptiScaler/shaders/fsrd_preprocess/FSRDShaderData.h","lines":[10,98,99,151,311],"meaning":"FloorSeed=3 slots; conversion=3; FloorFilter=18 at 5 calls/evaluation; composition=9 shared by composition and Blit."},
+        {"file":"OptiScaler/shaders/Shader_Dx12Utils.h","lines":[42,45,47,68,73,78,83],"meaning":"Each slot owns shader-visible heap; CreateSRV/UAV overwrites its actual heap positions."},
+        {"file":"OptiScaler/shaders/fsrd_preprocess/FSRDShaderUtils.h","lines":[234,239,248,254,259,278,292,300,302],"meaning":"D3D12 descriptor writes target reused heap CPU handles; table binding does not copy per-dispatch immutable descriptors."},
+        {"file":"OptiScaler/inputs/NVNGX_DLSS_Dx12.cpp","lines":[1095,1096,1103,1106,1121,1219],"meaning":"Outer production NGX caller records feature evaluation on provided command list; no slot retirement guard/queue execution or wait on this path."},
+        {"file":"OptiScaler/upscalers/IFeature_Dx12.cpp","lines":[242,244,246,251,256],"meaning":"Feature and postprocess commands recorded without a completion guard."},
+        {"file":"OptiScaler/shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.cpp","lines":[350,351,352,353],"meaning":"Local input-probe code explicitly notes the title queue is unseen; its generation token does not gate ComputeState ring reuse."},
+        {"file":"OptiScaler/resource_tracking/ResTrack_dx12.cpp","lines":[1834,1835,1836,1849,1850,1851],"meaning":"Queue hook associates and signals trace tickets; it does not wait before ComputeState updates."},
+        {"file":"OptiScaler/shaders/fsrd_preprocess/RRTraceFence.h","lines":[124,140,143,145,153,162,165],"meaning":"Ticket fence tracking is separate from ring slots; no ComputeState Arm registration exists."},
+        {"file":"OptiScaler/shaders/shader_tools/tests/fsrd_rr_runner.cpp","lines":[164,169,171,174,192,200,201,202],"meaning":"Standalone native runner resets/uploads/dispatches each frame, executes and waits before next frame reuse."},
+        {"file":"OptiScaler/shaders/shader_tools/tests/fsrd_gpu_runner.cpp","lines":[185,186,187,188,189],"meaning":"Standalone shader runner similarly completes GPU work before returning/reuse."}
+      ],
+      "impact": "Earlier dispatch may read later frame's jitter, matrix, origins, flags, or source resource views. This invalidates the comparison between intended frozen CPU bytes and actual production-consumed inputs; wrong temporal correspondence or changing radiance split can appear as spatial stains/waves.",
+      "minimal_test": [
+        "Use four small frozen/synthetic frames with distinct per-frame CB fingerprints and immutable per-frame title texture resources. Record 4 production-equivalent FloorSeed/filter/conversion evaluations before first Execute/Signal; preserve stage outputs after each evaluation with GPU copies to dedicated snapshots.",
+        "Capture consumed CB fingerprints/input resource identities on GPU, not only CPU job payloads. Compare original rings against same command order with one immutable CB allocation and shader-visible descriptor heap per dispatch.",
+        "Also test 3 evaluations (pre-wrap negative control). FloorFilter wrap occurs during 4th full evaluation (20 calls >18); test composition with 10 calls (9 slots) and shared composition/Blit call counts independently. Do conversion/composition-only stages first to isolate wrapper lifetime from native variability.",
+        "Only after byte-level stage mismatch is isolated, use matched native replay outputs to measure whether eliminating overwrite removes wave/stain metrics. All tests are proposals and require separate authorization to execute GPU work."
+      ],
+      "falsification": "Within the tested recording envelope, consumed CB fingerprints/resource identities and all intermediate output bits equal immutable-storage arm despite forced wrap, or source/caller proof establishes the first slot is GPU-retired before every reuse. Equal final RGB alone is insufficient with constant CB/resources. Even a positive isolated overwrite does not prove the game ever triggers it."
+    },
+    {
+      "id": "H2",
+      "title": "Discarded successful recordings advance CPU native and composition history without submitted GPU history",
+      "confidence": "High confidence in source bookkeeping mismatch conditional on list discard; occurrence in game and color effect unverified.",
+      "trigger": "Caller records a successful evaluation then Reset/discards its command list without Execute, or drops a partially recorded evaluation after a later stage fails. Next evaluation lacks an explicit Reset. Normal in-order eventual submission is safe for this hypothesis and does not require CPU waiting for GPU completion.",
+      "source_refs": [
+        {"file":"OptiScaler/upscalers/fsr31/FSRDFeature_Dx12.cpp","lines":[1733,1737,1905,1922,1960,2068,2069,2071,2097,2169,2177,3267,3269,3970,4078,4080,4081,4082,4086],"meaning":"CPU previous camera/jitter and has-history commit after API recording succeeds, before submission; successful Evaluate marks composition history commit. A failed later upscale returns false without clearing the already committed native-history flag."},
+        {"file":"OptiScaler/shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.cpp","lines":[1581,1594,1633,1634,1639,1640,1645,1986,1988,1990,1991],"meaning":"CPU ping-pong history read index advances on successful normal Evaluate, not actual submission. Dropping that list selects an older GPU metadata/decision buffer as though newly written."},
+        {"file":"OptiScaler/upscalers/fsr31/FSRDFeature_Dx12.h","lines":[336,338,339],"meaning":"Explicit history invalidation exists, but command-list reset/discard is not wired to it."},
+        {"file":"OptiScaler/resource_tracking/ResTrack_dx12.cpp","lines":[2187,2191,2192],"meaning":"Reset hook calls trace-ticket discard tracking only, not feature history invalidation."},
+        {"file":"OptiScaler/shaders/fsrd_preprocess/RRTraceFence.h","lines":[170,171,178,181,184],"meaning":"ResetSucceeded acts on registered trace tickets only."},
+        {"file":"OptiScaler/shaders/shader_tools/tests/fsrd_rr_runner.cpp","lines":[164,192,200,201,202],"meaning":"All replay frames are submitted/waited; no discarded successful frame exercises the production bookkeeping path."}
+      ],
+      "impact": "Next motion/jitter/previous-camera controls can describe the discarded recording rather than the last submitted frame; native RESET remains false and helper history index references an older GPU write. A dropped frame with different camera/source/jitter can therefore reuse incompatible history.",
+      "minimal_test": [
+        "Warm two submitted synthetic/frozen frames, record a third with a distinct source/jitter token, then legally Reset its unsubmitted command list. Record and submit the next frame with no user Reset.",
+        "Keep immutable CB/descriptors and fence after each actually submitted frame, so H1 cannot confound this test. Compare dropped-list original bookkeeping against a matched arm that invalidates native/helper histories and rebuilds previous controls from the last submitted frame.",
+        "Authenticate emitted RESET flags, current/previous jitter, camera delta, helper-history read index/generation and actual stage RGB. Also run in-order submitted control with identical recording calls.",
+        "Start with CPU state-transition instrumentation (no GPU required) proving the dropped evaluation changes those controls. A later GPU replay is needed to establish actual radiance/history impact; not executed in this review."
+      ],
+      "falsification": "A submission-aware path demonstrably rolls back/invalidates feature native and composition history after unsubmitted Reset, or captured next-frame controls/read generation and RGB equal last-submitted-history reference for nontrivial dropped frames. Caller proof that all successful/partially recorded RR evaluations are eventually submitted in order excludes this trigger in that caller."
+    }
+  ],
+  "not_claimed": ["No current-alpha game capture or game-quality fix.","No SDK defect or native internal race claim.","No new normal/camera/output-alpha sweep or estimator cosmetic recommendation.","A caller-side queue completion policy may prevent H1; lack of a guard in inspected OptiScaler source does not prove absent external synchronization."]
+}

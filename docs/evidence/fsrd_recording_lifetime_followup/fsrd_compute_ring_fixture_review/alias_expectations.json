@@ -1,0 +1,290 @@
+{
+  "status": "passed_independent_CPU_arithmetic_only",
+  "cases": [
+    {
+      "name": "safe3",
+      "dispatches": 3,
+      "CBslots": 3,
+      "SRVslots": 3,
+      "wait_each_before_next_write": false,
+      "independent_readback_ordinal_and_actual_indices": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ]
+      ]
+    },
+    {
+      "name": "deferred4",
+      "dispatches": 4,
+      "CBslots": 3,
+      "SRVslots": 3,
+      "wait_each_before_next_write": false,
+      "independent_readback_ordinal_and_actual_indices": [
+        [
+          0,
+          3,
+          3
+        ],
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ],
+        [
+          3,
+          3,
+          3
+        ]
+      ]
+    },
+    {
+      "name": "deferred5",
+      "dispatches": 5,
+      "CBslots": 3,
+      "SRVslots": 3,
+      "wait_each_before_next_write": false,
+      "independent_readback_ordinal_and_actual_indices": [
+        [
+          0,
+          3,
+          3
+        ],
+        [
+          1,
+          4,
+          4
+        ],
+        [
+          2,
+          2,
+          2
+        ],
+        [
+          3,
+          3,
+          3
+        ],
+        [
+          4,
+          4,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "enough4",
+      "dispatches": 4,
+      "CBslots": 4,
+      "SRVslots": 4,
+      "wait_each_before_next_write": false,
+      "independent_readback_ordinal_and_actual_indices": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ],
+        [
+          3,
+          3,
+          3
+        ]
+      ]
+    },
+    {
+      "name": "enough5",
+      "dispatches": 5,
+      "CBslots": 5,
+      "SRVslots": 5,
+      "wait_each_before_next_write": false,
+      "independent_readback_ordinal_and_actual_indices": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ],
+        [
+          3,
+          3,
+          3
+        ],
+        [
+          4,
+          4,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "wait4",
+      "dispatches": 4,
+      "CBslots": 3,
+      "SRVslots": 3,
+      "wait_each_before_next_write": true,
+      "independent_readback_ordinal_and_actual_indices": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ],
+        [
+          3,
+          3,
+          3
+        ]
+      ]
+    },
+    {
+      "name": "wait5",
+      "dispatches": 5,
+      "CBslots": 3,
+      "SRVslots": 3,
+      "wait_each_before_next_write": true,
+      "independent_readback_ordinal_and_actual_indices": [
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ],
+        [
+          3,
+          3,
+          3
+        ],
+        [
+          4,
+          4,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "CB_only5",
+      "dispatches": 5,
+      "CBslots": 3,
+      "SRVslots": 5,
+      "wait_each_before_next_write": false,
+      "independent_readback_ordinal_and_actual_indices": [
+        [
+          0,
+          3,
+          0
+        ],
+        [
+          1,
+          4,
+          1
+        ],
+        [
+          2,
+          2,
+          2
+        ],
+        [
+          3,
+          3,
+          3
+        ],
+        [
+          4,
+          4,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "SRV_only5",
+      "dispatches": 5,
+      "CBslots": 5,
+      "SRVslots": 3,
+      "wait_each_before_next_write": false,
+      "independent_readback_ordinal_and_actual_indices": [
+        [
+          0,
+          0,
+          3
+        ],
+        [
+          1,
+          1,
+          4
+        ],
+        [
+          2,
+          2,
+          2
+        ],
+        [
+          3,
+          3,
+          3
+        ],
+        [
+          4,
+          4,
+          4
+        ]
+      ]
+    }
+  ],
+  "shader_dispatch_count_if_executed": 40,
+  "actual_GPU_calls": 0,
+  "conditional": "Mutable before-submit binding contents; not static1.1 undefined behavior or actualgame proof.",
+  "no_final_UAV_alias": "Readback ordinal comes from fixture copy destination identity, never mutableCB output ordinal."
+}

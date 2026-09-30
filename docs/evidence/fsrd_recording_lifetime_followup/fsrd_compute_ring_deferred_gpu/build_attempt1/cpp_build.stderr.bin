@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\fsrd_compute_ring_deferred_gpu_20260930\build_cpp.py", line 8, in <module>
+    compile_cpp(HERE/'root_inspector.cpp',HERE/'root_inspector.exe',('d3d12.lib',))
+  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\OptiScaler\shaders\shader_tools\fsrd_toolchain.py", line 71, in compile_cpp
+    subprocess.run(f'cmd /d /s /c ""{command}""', cwd=output.parent, check=True)
+  File "C:\Users\burak\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command 'cmd /d /s /c ""F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\fsrd_compute_ring_deferred_gpu_20260930\root_inspector.build.cmd""' returned non-zero exit status 2.

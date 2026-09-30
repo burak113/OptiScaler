@@ -1,0 +1,128 @@
+{
+  "status": "failed_MSVC_preserved",
+  "error": "root_inspector.cpp missing <string> for std::to_string",
+  "GPU_jobs": 0,
+  "native_SDK_dispatches": 0,
+  "files": [
+    {
+      "name": "build_cpp.py",
+      "bytes": 560,
+      "sha256": "6d82e99b2ec76274fe0e1bc056c90f2a316d352f2cbd695ffba55bdecf3dc43e"
+    },
+    {
+      "name": "cpp_build.stderr.bin",
+      "bytes": 845,
+      "sha256": "22175591d46e22a599942de2aadd57fadf376b18eae973033f89764eb89ba13b"
+    },
+    {
+      "name": "cpp_build.stdout.bin",
+      "bytes": 1046,
+      "sha256": "fc46f44615ab0702bd3ce3e91eb2531a72be71c427ea05949634c3f8dc926659"
+    },
+    {
+      "name": "cpp_build_command.json",
+      "bytes": 419,
+      "sha256": "c13fcb258ff58ee7788877aae7a9615231e0030e60b4b579a0e1a4e5ac513ade"
+    },
+    {
+      "name": "d3dx12.h",
+      "bytes": 147096,
+      "sha256": "6d6dd341ee7e1ea38074a50e37ace24c5bab5a4aa0981e3ff5f76a17519c8f1b"
+    },
+    {
+      "name": "exact_ComputeState.h",
+      "bytes": 5677,
+      "sha256": "56a0f7f697a09c3b103b1f695b51cfc94875f91b289e2ad1b0445e78f9d36964"
+    },
+    {
+      "name": "exact_FrameDescriptorHeap.h",
+      "bytes": 4078,
+      "sha256": "523d26720f93e8231f0599955fb8525a5d15fe35848ff1e6ec7273f0fc494a00"
+    },
+    {
+      "name": "exact_helpers.h",
+      "bytes": 11529,
+      "sha256": "12da72795bed6fe6c00d827f455b95d57bdbcd615bd52f9edc137dcc170782c4"
+    },
+    {
+      "name": "fixture.cpp",
+      "bytes": 10889,
+      "sha256": "0208ea097895bc44f40d027f774544fadaf0de75e0e1f10e394d63e691d0314e"
+    },
+    {
+      "name": "identity.cso",
+      "bytes": 3904,
+      "sha256": "4779cd00251c5b16ef605f9f94acd57e1a6e0c2d7f0699d150b44c06281f5b4b"
+    },
+    {
+      "name": "identity.hlsl",
+      "bytes": 659,
+      "sha256": "f1f37df65a7896f86ac6e80cd2baa8b68e384f69dd09548f814e1b03348d2701"
+    },
+    {
+      "name": "native_resource_guard.py",
+      "bytes": 4837,
+      "sha256": "b70e18d0f13963e0250c371171933429446cf304041c9a16d971e9898d211814"
+    },
+    {
+      "name": "prepare.py",
+      "bytes": 13180,
+      "sha256": "b792210a6fb8c90f22f87ea1cc9d5250a2c37cd1fe4d498a1fd6494c8bc5ad52"
+    },
+    {
+      "name": "preserve_build_failure.py",
+      "bytes": 718,
+      "sha256": "50bb925be14734efb66f7a4446647d1a853372fdf8e6486011134a6d4ae83b16"
+    },
+    {
+      "name": "production_extract.h",
+      "bytes": 6666,
+      "sha256": "ca2f64c4814a234b5d0c1a34cf8be6b724ccd3abff9accd8cc675302daf12499"
+    },
+    {
+      "name": "root_inspector.build.cmd",
+      "bytes": 495,
+      "sha256": "7956d4e61739dd02d39116607d13963775c8301bb344c89ceb5a625ef1c3b4b8"
+    },
+    {
+      "name": "root_inspector.cpp",
+      "bytes": 3544,
+      "sha256": "ee61534c6b38a9bb17c80dab9312fe8486ae5b2f32e935c5af0578e662b5b135"
+    },
+    {
+      "name": "shader_build.stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "shader_build.stdout.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "shader_build_command.json",
+      "bytes": 837,
+      "sha256": "ed79822a9307b6201fbdfb9d5724ce6cb3a3ea053dc9f93afc3f3ba7ee02f9ec"
+    },
+    {
+      "name": "source_FSRDPreprocessor_Dx12.cpp",
+      "bytes": 94696,
+      "sha256": "891010a733ebe08a6b03a78085b4d67cf674d6b653dbcefcd44ad9c421b41b2c"
+    },
+    {
+      "name": "source_FSRDShaderUtils.h",
+      "bytes": 12951,
+      "sha256": "bfb5c79f5e6b5e75c7fa3a292716ecdec6eabfc8f462455e294e5247e2cdb2f4"
+    },
+    {
+      "name": "source_Shader_Dx12Utils.h",
+      "bytes": 5362,
+      "sha256": "aa3622c139fb56aa813d205ec904aaed5cf4073e0e03f84de43df1ae1fc99136"
+    },
+    {
+      "name": "split_index_adaptation.diff",
+      "bytes": 1342,
+      "sha256": "fa81073f168ec37a75c6f187bc5f6806172a9050599801854b19c15b11b2e4fe"
+    }
+  ]
+}

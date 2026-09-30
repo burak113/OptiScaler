@@ -1,0 +1,6 @@
+dispatch=0 cbSlot=0 descriptorSlot=0 cbValue=100 cbTag=200 input=5000 readback=0
+dispatch=1 cbSlot=1 descriptorSlot=1 cbValue=101 cbTag=201 input=5001 readback=1
+dispatch=2 cbSlot=2 descriptorSlot=2 cbValue=102 cbTag=202 input=5002 readback=2
+dispatch=3 cbSlot=3 descriptorSlot=3 cbValue=103 cbTag=203 input=5003 readback=3
+dispatch=4 cbSlot=4 descriptorSlot=4 cbValue=104 cbTag=204 input=5004 readback=4
+completed_final fence=2

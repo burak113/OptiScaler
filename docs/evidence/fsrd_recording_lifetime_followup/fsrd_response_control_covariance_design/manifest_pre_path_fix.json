@@ -1,0 +1,96 @@
+{
+  "schema": "response-control-covariance-design-manifest-v1",
+  "status": "frozen_design_only_no_scores_or_native",
+  "quality_accepted": false,
+  "design": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_response_control_covariance_design_20260930\\design.json",
+    "sha256": "0f4f04d6721c3e3a95a794ceb51ab5404c662f3fba8d4a41c49fd8fe16005bb1",
+    "bytes": 11935
+  },
+  "source_files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\docs\\fsrd_dc_innovation_followup.md",
+      "sha256": "dc860228c674105847272b404beca36ff8420434b8b3ef31dc1bc284bd745782",
+      "bytes": 6673
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\docs\\fsrd_same_pilot_support_followup.md",
+      "sha256": "12f16909cc913f8945f89bde0a4f5a69f189e2cef9d5d6dca9373f5fe4549217",
+      "bytes": 6850
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\docs\\fsrd_continuous_harmonic_followup.md",
+      "sha256": "1f6c3f2592048ba52c9924a1edbb8a40ed2409bd3f38c0fd00ced7a62905aad8",
+      "bytes": 8970
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\docs\\fsrd_harmonic_model_assumptions.md",
+      "sha256": "0fb3c2cca1caf0327faa395a27763ae3945dc48a1c9dec6fa4c8e2867aa5e310",
+      "bytes": 5746
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\docs\\fsrd_native_output_initialization.md",
+      "sha256": "975d877c4300d04c5edd5e3be425c4d1052339a9c272cbb5ef3979e908ffbbbd",
+      "bytes": 3570
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\FSRDShaderData.h",
+      "sha256": "e73d7b04af27910484cdc8dc65850a8f7c65ab751947760a21c8a397ec8491c9",
+      "bytes": 17932
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\FSRDPreprocessor_Dx12.cpp",
+      "sha256": "891010a733ebe08a6b03a78085b4d67cf674d6b653dbcefcd44ad9c421b41b2c",
+      "bytes": 94696
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\upscalers\\fsr31\\FSRDFeature_Dx12.cpp",
+      "sha256": "31a58616e8008c89e609f2a5b6929f881bfb6d7f169e4407f4f1053242859239",
+      "bytes": 192955
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\fsrd_rr_runner.cpp",
+      "sha256": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077",
+      "bytes": 17182
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\test_fsrd_response_pilot.py",
+      "sha256": "a78473b4c9b7d7e7d4339d0346360f167c3dcd596eef393eec797fe613891c46",
+      "bytes": 16670
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\test_fsrd_response_soft_pilot.py",
+      "sha256": "937b6af624bc77eb949570f6f2a9b5f0e59a12553f939c682b97145e687867a8",
+      "bytes": 6935
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\test_fsrd_response_conditioned_pilot.py",
+      "sha256": "4c441007e8be57b50841c22d0f0dec977c5729629399b173d50ebe4a127b6f3a",
+      "bytes": 3636
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\model.py",
+      "sha256": "afb2fd6ce80e46a79fb97509c5eb2bb53860182b3268f6ede26046628043c874",
+      "bytes": 8503
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\results.json",
+      "sha256": "0e9342a8692f65f187f37a4d64b9f7c3d235033f53be95ba6ffd292bdc4a090e",
+      "bytes": 10598979
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\compact_report.json",
+      "sha256": "152b78aa961d0a4bb287a1b2565333c1aa071bd1aa6ea65da7890b3244fc9f48",
+      "bytes": 115634
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_diagnostic_20260930\\output_completeness_summary.json",
+      "sha256": "cb9e85c220e9ce09f2597f481a0b6980bf1fdd77dace67f6098fcf885c5212af",
+      "bytes": 18346
+    }
+  ],
+  "new_native_contexts": 0,
+  "model_implemented": false,
+  "counterfactual_study_scheduled": false,
+  "production_reuse_cause_proven": false
+}

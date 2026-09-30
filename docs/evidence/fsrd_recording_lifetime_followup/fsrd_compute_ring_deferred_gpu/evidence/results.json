@@ -1,0 +1,1815 @@
+{
+  "schema": "extracted-compute-ring-actual-GPU-evidence-v1",
+  "status": "completed_preregistered_GPU_fixture_not_game_causation",
+  "registration_sha256": "9c572386bcf10a7e2703e37ff5675851d660e2b3152d7b70d65946357552ae46",
+  "pre_gpu_freeze_sha256": "382b62a68b9f394e3af0d029772b1c9d16e9488688cbbfd63e3f9578ce98ba8c",
+  "driver_pre_gpu_freeze_sha256": "f557b2ec476d574d977b052441b0732349df5f84db9ddd2840928ba439e235a5",
+  "GPU_child_jobs_launched": 9,
+  "GPU_child_jobs_completed": 9,
+  "identity_shader_dispatches_completed": 40,
+  "native_SDK_contexts": 0,
+  "native_SDK_dispatches": 0,
+  "game_run": false,
+  "quality_accepted": false,
+  "queue_executes": 20,
+  "fence_signals": 20,
+  "fence_waits": 20,
+  "cases": {
+    "safe_three": {
+      "guard": {
+        "schema": "owned-child-native-lightweight-resource-guard-v1",
+        "args": [
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\fixture.exe",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\safe_three\\job.txt",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\identity.cso"
+        ],
+        "timeout_seconds": 240,
+        "maximum_working_set_bytes": 2147483648,
+        "minimum_available_memory_bytes": 1073741824,
+        "sample_interval_seconds": 0.2,
+        "total_physical_bytes": 17098551296,
+        "initial_available_bytes": 7114108928,
+        "minimum_observed_available_bytes": 7086694400,
+        "peak_observed_working_set_bytes": 40370176,
+        "samples": 3,
+        "status": "completed",
+        "child_pid": 19512,
+        "returncode": 0,
+        "terminated_owned_child": false,
+        "termination_reason": null,
+        "elapsed_seconds": 0.6399999999994179
+      },
+      "completion_counts": {
+        "shader_dispatches": 3,
+        "queue_executes": 2,
+        "signals": 2,
+        "fence_waits": 2,
+        "validation_errors": 0,
+        "validation_warnings": 0,
+        "native_SDK_dispatches": 0
+      },
+      "actual": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ]
+      ],
+      "intended": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ]
+      ],
+      "last_CPU_slot_contents_hypothesis": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ]
+      ],
+      "all_match_intended": true,
+      "all_match_last_slot_contents": true,
+      "changed_dispatch_rows": [],
+      "changed_CB_rows": [],
+      "changed_SRV_rows": [],
+      "all_magic_values_correct": true,
+      "payloads": [
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\safe_three\\constants.bin",
+          "bytes": 48,
+          "sha256": "cb9612122adb5e86fc47a7e9ae983af3431563035d12facb362d5f0872e099f4"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\safe_three\\debug_messages.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\safe_three\\inputs.bin",
+          "bytes": 12,
+          "sha256": "a368464d40ecc5ed590bfcedec9dea53042030490cb36a666094bcb72dd6861d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\safe_three\\job.txt",
+          "bytes": 10,
+          "sha256": "0c65cde34a2ed7ea7c47cbdaa1b7089380477319552d3a119554f776ed57825b"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\safe_three\\out0.bin",
+          "bytes": 16,
+          "sha256": "7d27ade64f62f4d3b0644ad5cc9c8654efb27260e716cf72e4b5019a12863430"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\safe_three\\out1.bin",
+          "bytes": 16,
+          "sha256": "4f0b796e929d86a78a6f02cc9979b7940f91ee7829db8bf813809a5919e85575"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\safe_three\\out2.bin",
+          "bytes": 16,
+          "sha256": "f7508b1333b96af557d6c60ad6836b2e268e719f8cb2c7b7cf8650ee23d74790"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\safe_three\\outputs.bin",
+          "bytes": 48,
+          "sha256": "db2bbfd9c240604530d706484ac4e1bc76c276cbb081fa75c0f7813a35d9e861"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\safe_three\\recording_trace.txt",
+          "bytes": 271,
+          "sha256": "7ae9dd57e56282500b1e69e6aa0c4803444b41b341bc88410678f04be800ef9f"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\safe_three\\resource_guard.json",
+          "bytes": 986,
+          "sha256": "9d889b1c54ee4b6056081fe6eebe67a614ccc4bd31f6cf74d685b2de5e7ba2c6"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\safe_three\\stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\safe_three\\stdout.log",
+          "bytes": 385,
+          "sha256": "33825935071157b0651d40881d49b1ffbd3e97408d7edf6b3749c68200ecd801"
+        }
+      ]
+    },
+    "deferred_four": {
+      "guard": {
+        "schema": "owned-child-native-lightweight-resource-guard-v1",
+        "args": [
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\fixture.exe",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_four\\job.txt",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\identity.cso"
+        ],
+        "timeout_seconds": 240,
+        "maximum_working_set_bytes": 2147483648,
+        "minimum_available_memory_bytes": 1073741824,
+        "sample_interval_seconds": 0.2,
+        "total_physical_bytes": 17098551296,
+        "initial_available_bytes": 7088164864,
+        "minimum_observed_available_bytes": 7088164864,
+        "peak_observed_working_set_bytes": 2105344,
+        "samples": 1,
+        "status": "completed",
+        "child_pid": 21128,
+        "returncode": 0,
+        "terminated_owned_child": false,
+        "termination_reason": null,
+        "elapsed_seconds": 0.20300000000133878
+      },
+      "completion_counts": {
+        "shader_dispatches": 4,
+        "queue_executes": 2,
+        "signals": 2,
+        "fence_waits": 2,
+        "validation_errors": 0,
+        "validation_warnings": 0,
+        "native_SDK_dispatches": 0
+      },
+      "actual": [
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ]
+      ],
+      "intended": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ]
+      ],
+      "last_CPU_slot_contents_hypothesis": [
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ]
+      ],
+      "all_match_intended": false,
+      "all_match_last_slot_contents": true,
+      "changed_dispatch_rows": [
+        0
+      ],
+      "changed_CB_rows": [
+        0
+      ],
+      "changed_SRV_rows": [
+        0
+      ],
+      "all_magic_values_correct": true,
+      "payloads": [
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_four\\constants.bin",
+          "bytes": 64,
+          "sha256": "08e5626f1838dd6b90f5d27f8a032fd3298d2104814fcbf4b3bbfbfd21549380"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_four\\debug_messages.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_four\\inputs.bin",
+          "bytes": 16,
+          "sha256": "245f685c7299e3c1226d1c383bc00dd2d6ed8ec5235dd7f749a95a37e838c0cc"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_four\\job.txt",
+          "bytes": 10,
+          "sha256": "314373f6c0463898ad8f1322c94d3e79ef31986c8d82d4b4203efae1c8d40498"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_four\\out0.bin",
+          "bytes": 16,
+          "sha256": "6b92583591e63a52243a8534ffacadb4e218fdd5d84246a0c266560abed6442d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_four\\out1.bin",
+          "bytes": 16,
+          "sha256": "4f0b796e929d86a78a6f02cc9979b7940f91ee7829db8bf813809a5919e85575"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_four\\out2.bin",
+          "bytes": 16,
+          "sha256": "f7508b1333b96af557d6c60ad6836b2e268e719f8cb2c7b7cf8650ee23d74790"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_four\\out3.bin",
+          "bytes": 16,
+          "sha256": "6b92583591e63a52243a8534ffacadb4e218fdd5d84246a0c266560abed6442d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_four\\outputs.bin",
+          "bytes": 64,
+          "sha256": "be9265b4601eb34107aafe9614f7779fa00f3fdba21ed08f4e5c73c174b5402b"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_four\\recording_trace.txt",
+          "bytes": 353,
+          "sha256": "c8b6fdb5061e95a6fbcefed7fa1954f69c55e0359e3b1d0ef395201e4318e77c"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_four\\resource_guard.json",
+          "bytes": 989,
+          "sha256": "bbb0e52700ddd5dd22da744cd597cb05851a72a84ac21b96ccad04a5360d4473"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_four\\stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_four\\stdout.log",
+          "bytes": 443,
+          "sha256": "5a956808b76f21ed895fd132abc9d8748f66f1c2e5d00e2e8dfbf72c1ee410bc"
+        }
+      ]
+    },
+    "deferred_five": {
+      "guard": {
+        "schema": "owned-child-native-lightweight-resource-guard-v1",
+        "args": [
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\fixture.exe",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_five\\job.txt",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\identity.cso"
+        ],
+        "timeout_seconds": 240,
+        "maximum_working_set_bytes": 2147483648,
+        "minimum_available_memory_bytes": 1073741824,
+        "sample_interval_seconds": 0.2,
+        "total_physical_bytes": 17098551296,
+        "initial_available_bytes": 7087759360,
+        "minimum_observed_available_bytes": 7073886208,
+        "peak_observed_working_set_bytes": 41783296,
+        "samples": 2,
+        "status": "completed",
+        "child_pid": 5184,
+        "returncode": 0,
+        "terminated_owned_child": false,
+        "termination_reason": null,
+        "elapsed_seconds": 0.40600000000267755
+      },
+      "completion_counts": {
+        "shader_dispatches": 5,
+        "queue_executes": 2,
+        "signals": 2,
+        "fence_waits": 2,
+        "validation_errors": 0,
+        "validation_warnings": 0,
+        "native_SDK_dispatches": 0
+      },
+      "actual": [
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5004,
+          204,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5004,
+          204,
+          3517317121
+        ]
+      ],
+      "intended": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5004,
+          204,
+          3517317121
+        ]
+      ],
+      "last_CPU_slot_contents_hypothesis": [
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5004,
+          204,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5004,
+          204,
+          3517317121
+        ]
+      ],
+      "all_match_intended": false,
+      "all_match_last_slot_contents": true,
+      "changed_dispatch_rows": [
+        0,
+        1
+      ],
+      "changed_CB_rows": [
+        0,
+        1
+      ],
+      "changed_SRV_rows": [
+        0,
+        1
+      ],
+      "all_magic_values_correct": true,
+      "payloads": [
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_five\\constants.bin",
+          "bytes": 80,
+          "sha256": "6b9c7ad84fdacb5da55d38b0db5390c1c24fcc02998487690c990f02112f032d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_five\\debug_messages.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_five\\inputs.bin",
+          "bytes": 20,
+          "sha256": "279f9562a45bcf4071dd40a30887465e7569b75287b062bb833d4818c5070925"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_five\\job.txt",
+          "bytes": 10,
+          "sha256": "32d65b0345fb7c96b2a4927bfbfbe7c59ad362c457e4c262048cc3a43d2b8804"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_five\\out0.bin",
+          "bytes": 16,
+          "sha256": "6b92583591e63a52243a8534ffacadb4e218fdd5d84246a0c266560abed6442d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_five\\out1.bin",
+          "bytes": 16,
+          "sha256": "87ccea37838acb4130dc5a744c5bb39b9f46ee78138f3151b205ee6e143ecdfc"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_five\\out2.bin",
+          "bytes": 16,
+          "sha256": "f7508b1333b96af557d6c60ad6836b2e268e719f8cb2c7b7cf8650ee23d74790"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_five\\out3.bin",
+          "bytes": 16,
+          "sha256": "6b92583591e63a52243a8534ffacadb4e218fdd5d84246a0c266560abed6442d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_five\\out4.bin",
+          "bytes": 16,
+          "sha256": "87ccea37838acb4130dc5a744c5bb39b9f46ee78138f3151b205ee6e143ecdfc"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_five\\outputs.bin",
+          "bytes": 80,
+          "sha256": "c5564c37212d4fe6079d7ad284b50e1749f7aa36ad41e70a291072deb658ec59"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_five\\recording_trace.txt",
+          "bytes": 435,
+          "sha256": "ccf6851e2600c706903bdd288df0e3e766c69a03e7c61e223452992d1131fd85"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_five\\resource_guard.json",
+          "bytes": 989,
+          "sha256": "5068e2a1e4ecb539a2db5ba38127a924afeec3ceaf998d6c931342f2f3fc4174"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_five\\stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\deferred_five\\stdout.log",
+          "bytes": 501,
+          "sha256": "e0bdef582f7f9849c4ba80baf4bd55e1d51691e84eb611e1d4229782de04d166"
+        }
+      ]
+    },
+    "immutable_four": {
+      "guard": {
+        "schema": "owned-child-native-lightweight-resource-guard-v1",
+        "args": [
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\fixture.exe",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_four\\job.txt",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\identity.cso"
+        ],
+        "timeout_seconds": 240,
+        "maximum_working_set_bytes": 2147483648,
+        "minimum_available_memory_bytes": 1073741824,
+        "sample_interval_seconds": 0.2,
+        "total_physical_bytes": 17098551296,
+        "initial_available_bytes": 7105404928,
+        "minimum_observed_available_bytes": 7105404928,
+        "peak_observed_working_set_bytes": 2105344,
+        "samples": 1,
+        "status": "completed",
+        "child_pid": 26572,
+        "returncode": 0,
+        "terminated_owned_child": false,
+        "termination_reason": null,
+        "elapsed_seconds": 0.2190000000045984
+      },
+      "completion_counts": {
+        "shader_dispatches": 4,
+        "queue_executes": 2,
+        "signals": 2,
+        "fence_waits": 2,
+        "validation_errors": 0,
+        "validation_warnings": 0,
+        "native_SDK_dispatches": 0
+      },
+      "actual": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ]
+      ],
+      "intended": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ]
+      ],
+      "last_CPU_slot_contents_hypothesis": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ]
+      ],
+      "all_match_intended": true,
+      "all_match_last_slot_contents": true,
+      "changed_dispatch_rows": [],
+      "changed_CB_rows": [],
+      "changed_SRV_rows": [],
+      "all_magic_values_correct": true,
+      "payloads": [
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_four\\constants.bin",
+          "bytes": 64,
+          "sha256": "08e5626f1838dd6b90f5d27f8a032fd3298d2104814fcbf4b3bbfbfd21549380"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_four\\debug_messages.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_four\\inputs.bin",
+          "bytes": 16,
+          "sha256": "245f685c7299e3c1226d1c383bc00dd2d6ed8ec5235dd7f749a95a37e838c0cc"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_four\\job.txt",
+          "bytes": 10,
+          "sha256": "f4faf05218405ee8802d7a76328dab488e2380a3f806505a03651153287ddf61"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_four\\out0.bin",
+          "bytes": 16,
+          "sha256": "7d27ade64f62f4d3b0644ad5cc9c8654efb27260e716cf72e4b5019a12863430"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_four\\out1.bin",
+          "bytes": 16,
+          "sha256": "4f0b796e929d86a78a6f02cc9979b7940f91ee7829db8bf813809a5919e85575"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_four\\out2.bin",
+          "bytes": 16,
+          "sha256": "f7508b1333b96af557d6c60ad6836b2e268e719f8cb2c7b7cf8650ee23d74790"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_four\\out3.bin",
+          "bytes": 16,
+          "sha256": "6b92583591e63a52243a8534ffacadb4e218fdd5d84246a0c266560abed6442d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_four\\outputs.bin",
+          "bytes": 64,
+          "sha256": "a681be08a7f2d41fedffe55861bb2dd5c47a88795f12aa8d20fee9bb7d098252"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_four\\recording_trace.txt",
+          "bytes": 353,
+          "sha256": "3f92d78107f9fbcb6b2ecd6850d4d929161c08a82f2ea2efee49c7293efc7b55"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_four\\resource_guard.json",
+          "bytes": 989,
+          "sha256": "139a804faeac36eb29c229e94a593ca78435abafd3b0476457d2894c3b933e93"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_four\\stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_four\\stdout.log",
+          "bytes": 443,
+          "sha256": "1a9276fdcb5745691947010d4e55fb636cf5efe5fb5be30ee33049255b5d07b4"
+        }
+      ]
+    },
+    "immutable_five": {
+      "guard": {
+        "schema": "owned-child-native-lightweight-resource-guard-v1",
+        "args": [
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\fixture.exe",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_five\\job.txt",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\identity.cso"
+        ],
+        "timeout_seconds": 240,
+        "maximum_working_set_bytes": 2147483648,
+        "minimum_available_memory_bytes": 1073741824,
+        "sample_interval_seconds": 0.2,
+        "total_physical_bytes": 17098551296,
+        "initial_available_bytes": 7088852992,
+        "minimum_observed_available_bytes": 7088852992,
+        "peak_observed_working_set_bytes": 2117632,
+        "samples": 1,
+        "status": "completed",
+        "child_pid": 21500,
+        "returncode": 0,
+        "terminated_owned_child": false,
+        "termination_reason": null,
+        "elapsed_seconds": 0.20300000000133878
+      },
+      "completion_counts": {
+        "shader_dispatches": 5,
+        "queue_executes": 2,
+        "signals": 2,
+        "fence_waits": 2,
+        "validation_errors": 0,
+        "validation_warnings": 0,
+        "native_SDK_dispatches": 0
+      },
+      "actual": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5004,
+          204,
+          3517317121
+        ]
+      ],
+      "intended": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5004,
+          204,
+          3517317121
+        ]
+      ],
+      "last_CPU_slot_contents_hypothesis": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5004,
+          204,
+          3517317121
+        ]
+      ],
+      "all_match_intended": true,
+      "all_match_last_slot_contents": true,
+      "changed_dispatch_rows": [],
+      "changed_CB_rows": [],
+      "changed_SRV_rows": [],
+      "all_magic_values_correct": true,
+      "payloads": [
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_five\\constants.bin",
+          "bytes": 80,
+          "sha256": "6b9c7ad84fdacb5da55d38b0db5390c1c24fcc02998487690c990f02112f032d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_five\\debug_messages.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_five\\inputs.bin",
+          "bytes": 20,
+          "sha256": "279f9562a45bcf4071dd40a30887465e7569b75287b062bb833d4818c5070925"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_five\\job.txt",
+          "bytes": 10,
+          "sha256": "e6d3e8bb933dd67f5408ade62df14263996706f394c4797ef55067bf7f85000b"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_five\\out0.bin",
+          "bytes": 16,
+          "sha256": "7d27ade64f62f4d3b0644ad5cc9c8654efb27260e716cf72e4b5019a12863430"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_five\\out1.bin",
+          "bytes": 16,
+          "sha256": "4f0b796e929d86a78a6f02cc9979b7940f91ee7829db8bf813809a5919e85575"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_five\\out2.bin",
+          "bytes": 16,
+          "sha256": "f7508b1333b96af557d6c60ad6836b2e268e719f8cb2c7b7cf8650ee23d74790"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_five\\out3.bin",
+          "bytes": 16,
+          "sha256": "6b92583591e63a52243a8534ffacadb4e218fdd5d84246a0c266560abed6442d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_five\\out4.bin",
+          "bytes": 16,
+          "sha256": "87ccea37838acb4130dc5a744c5bb39b9f46ee78138f3151b205ee6e143ecdfc"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_five\\outputs.bin",
+          "bytes": 80,
+          "sha256": "026ded99d6245a1b36a3be4a836503b648ab991569e00047bb76e41052e88d42"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_five\\recording_trace.txt",
+          "bytes": 435,
+          "sha256": "7babfbfe1e88bac7c1fc0a008b53dd6dd81a41e9b947314d542468b88c480360"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_five\\resource_guard.json",
+          "bytes": 990,
+          "sha256": "5b933036ae6faa7ec3c485fda7e0b861f6c3b8029402c5370c9d5c46c5406be8"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_five\\stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\immutable_five\\stdout.log",
+          "bytes": 501,
+          "sha256": "572417ed252efca821979a34cf3a7962262ffaa3ce6e71acf3248aa489f3a118"
+        }
+      ]
+    },
+    "fenced_four": {
+      "guard": {
+        "schema": "owned-child-native-lightweight-resource-guard-v1",
+        "args": [
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\fixture.exe",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_four\\job.txt",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\identity.cso"
+        ],
+        "timeout_seconds": 240,
+        "maximum_working_set_bytes": 2147483648,
+        "minimum_available_memory_bytes": 1073741824,
+        "sample_interval_seconds": 0.2,
+        "total_physical_bytes": 17098551296,
+        "initial_available_bytes": 7089602560,
+        "minimum_observed_available_bytes": 7089602560,
+        "peak_observed_working_set_bytes": 2105344,
+        "samples": 1,
+        "status": "completed",
+        "child_pid": 22904,
+        "returncode": 0,
+        "terminated_owned_child": false,
+        "termination_reason": null,
+        "elapsed_seconds": 0.20300000000133878
+      },
+      "completion_counts": {
+        "shader_dispatches": 4,
+        "queue_executes": 3,
+        "signals": 3,
+        "fence_waits": 3,
+        "validation_errors": 0,
+        "validation_warnings": 0,
+        "native_SDK_dispatches": 0
+      },
+      "actual": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ]
+      ],
+      "intended": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ]
+      ],
+      "last_CPU_slot_contents_hypothesis": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ]
+      ],
+      "all_match_intended": true,
+      "all_match_last_slot_contents": true,
+      "changed_dispatch_rows": [],
+      "changed_CB_rows": [],
+      "changed_SRV_rows": [],
+      "all_magic_values_correct": true,
+      "payloads": [
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_four\\constants.bin",
+          "bytes": 64,
+          "sha256": "08e5626f1838dd6b90f5d27f8a032fd3298d2104814fcbf4b3bbfbfd21549380"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_four\\debug_messages.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_four\\inputs.bin",
+          "bytes": 16,
+          "sha256": "245f685c7299e3c1226d1c383bc00dd2d6ed8ec5235dd7f749a95a37e838c0cc"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_four\\job.txt",
+          "bytes": 10,
+          "sha256": "d6f2ada2e4103e608981f1791b3d17907f7d9de8a96f28b94a9390ed837a573a"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_four\\out0.bin",
+          "bytes": 16,
+          "sha256": "7d27ade64f62f4d3b0644ad5cc9c8654efb27260e716cf72e4b5019a12863430"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_four\\out1.bin",
+          "bytes": 16,
+          "sha256": "4f0b796e929d86a78a6f02cc9979b7940f91ee7829db8bf813809a5919e85575"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_four\\out2.bin",
+          "bytes": 16,
+          "sha256": "f7508b1333b96af557d6c60ad6836b2e268e719f8cb2c7b7cf8650ee23d74790"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_four\\out3.bin",
+          "bytes": 16,
+          "sha256": "6b92583591e63a52243a8534ffacadb4e218fdd5d84246a0c266560abed6442d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_four\\outputs.bin",
+          "bytes": 64,
+          "sha256": "a681be08a7f2d41fedffe55861bb2dd5c47a88795f12aa8d20fee9bb7d098252"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_four\\recording_trace.txt",
+          "bytes": 392,
+          "sha256": "3bef9f16db441aa3119729dc770ce3185d857e34364b7366da520ee1c7d8d344"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_four\\resource_guard.json",
+          "bytes": 987,
+          "sha256": "49211f7da6b4017c45cbf72838ccf0c51328d848ce38b6602480da99adb14a2b"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_four\\stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_four\\stdout.log",
+          "bytes": 443,
+          "sha256": "e215a8c36fa628f2b692d841c1bc7a8a2e235580f6cf1ffe5e87999ccbdbee54"
+        }
+      ]
+    },
+    "fenced_five": {
+      "guard": {
+        "schema": "owned-child-native-lightweight-resource-guard-v1",
+        "args": [
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\fixture.exe",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_five\\job.txt",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\identity.cso"
+        ],
+        "timeout_seconds": 240,
+        "maximum_working_set_bytes": 2147483648,
+        "minimum_available_memory_bytes": 1073741824,
+        "sample_interval_seconds": 0.2,
+        "total_physical_bytes": 17098551296,
+        "initial_available_bytes": 7101116416,
+        "minimum_observed_available_bytes": 7100932096,
+        "peak_observed_working_set_bytes": 2105344,
+        "samples": 1,
+        "status": "completed",
+        "child_pid": 12320,
+        "returncode": 0,
+        "terminated_owned_child": false,
+        "termination_reason": null,
+        "elapsed_seconds": 0.20300000000133878
+      },
+      "completion_counts": {
+        "shader_dispatches": 5,
+        "queue_executes": 3,
+        "signals": 3,
+        "fence_waits": 3,
+        "validation_errors": 0,
+        "validation_warnings": 0,
+        "native_SDK_dispatches": 0
+      },
+      "actual": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5004,
+          204,
+          3517317121
+        ]
+      ],
+      "intended": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5004,
+          204,
+          3517317121
+        ]
+      ],
+      "last_CPU_slot_contents_hypothesis": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5004,
+          204,
+          3517317121
+        ]
+      ],
+      "all_match_intended": true,
+      "all_match_last_slot_contents": true,
+      "changed_dispatch_rows": [],
+      "changed_CB_rows": [],
+      "changed_SRV_rows": [],
+      "all_magic_values_correct": true,
+      "payloads": [
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_five\\constants.bin",
+          "bytes": 80,
+          "sha256": "6b9c7ad84fdacb5da55d38b0db5390c1c24fcc02998487690c990f02112f032d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_five\\debug_messages.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_five\\inputs.bin",
+          "bytes": 20,
+          "sha256": "279f9562a45bcf4071dd40a30887465e7569b75287b062bb833d4818c5070925"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_five\\job.txt",
+          "bytes": 10,
+          "sha256": "124905f8c70ba8aef9329a66587da843a055c78bb0d257a4320e55ec7c711162"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_five\\out0.bin",
+          "bytes": 16,
+          "sha256": "7d27ade64f62f4d3b0644ad5cc9c8654efb27260e716cf72e4b5019a12863430"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_five\\out1.bin",
+          "bytes": 16,
+          "sha256": "4f0b796e929d86a78a6f02cc9979b7940f91ee7829db8bf813809a5919e85575"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_five\\out2.bin",
+          "bytes": 16,
+          "sha256": "f7508b1333b96af557d6c60ad6836b2e268e719f8cb2c7b7cf8650ee23d74790"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_five\\out3.bin",
+          "bytes": 16,
+          "sha256": "6b92583591e63a52243a8534ffacadb4e218fdd5d84246a0c266560abed6442d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_five\\out4.bin",
+          "bytes": 16,
+          "sha256": "87ccea37838acb4130dc5a744c5bb39b9f46ee78138f3151b205ee6e143ecdfc"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_five\\outputs.bin",
+          "bytes": 80,
+          "sha256": "026ded99d6245a1b36a3be4a836503b648ab991569e00047bb76e41052e88d42"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_five\\recording_trace.txt",
+          "bytes": 474,
+          "sha256": "9ab77835f701d4076424bfb53e913c81a9a02c2c7ad3e3d7de56f8aae1cde1c3"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_five\\resource_guard.json",
+          "bytes": 987,
+          "sha256": "a581846551829caf20fc0318d25d1c4cea242df6f527a3f69bee70a5253c592d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_five\\stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\fenced_five\\stdout.log",
+          "bytes": 501,
+          "sha256": "4ebab4d59755bff8302f63fa347bc11c5f56af4a81def4fb83386a048937cc7f"
+        }
+      ]
+    },
+    "cb_only_five": {
+      "guard": {
+        "schema": "owned-child-native-lightweight-resource-guard-v1",
+        "args": [
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\fixture.exe",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\cb_only_five\\job.txt",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\identity.cso"
+        ],
+        "timeout_seconds": 240,
+        "maximum_working_set_bytes": 2147483648,
+        "minimum_available_memory_bytes": 1073741824,
+        "sample_interval_seconds": 0.2,
+        "total_physical_bytes": 17098551296,
+        "initial_available_bytes": 7106256896,
+        "minimum_observed_available_bytes": 7105257472,
+        "peak_observed_working_set_bytes": 2170880,
+        "samples": 1,
+        "status": "completed",
+        "child_pid": 2208,
+        "returncode": 0,
+        "terminated_owned_child": false,
+        "termination_reason": null,
+        "elapsed_seconds": 0.20300000000133878
+      },
+      "completion_counts": {
+        "shader_dispatches": 5,
+        "queue_executes": 2,
+        "signals": 2,
+        "fence_waits": 2,
+        "validation_errors": 0,
+        "validation_warnings": 0,
+        "native_SDK_dispatches": 0
+      },
+      "actual": [
+        [
+          103,
+          5000,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5001,
+          204,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5004,
+          204,
+          3517317121
+        ]
+      ],
+      "intended": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5004,
+          204,
+          3517317121
+        ]
+      ],
+      "last_CPU_slot_contents_hypothesis": [
+        [
+          103,
+          5000,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5001,
+          204,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5004,
+          204,
+          3517317121
+        ]
+      ],
+      "all_match_intended": false,
+      "all_match_last_slot_contents": true,
+      "changed_dispatch_rows": [
+        0,
+        1
+      ],
+      "changed_CB_rows": [
+        0,
+        1
+      ],
+      "changed_SRV_rows": [],
+      "all_magic_values_correct": true,
+      "payloads": [
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\cb_only_five\\constants.bin",
+          "bytes": 80,
+          "sha256": "6b9c7ad84fdacb5da55d38b0db5390c1c24fcc02998487690c990f02112f032d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\cb_only_five\\debug_messages.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\cb_only_five\\inputs.bin",
+          "bytes": 20,
+          "sha256": "279f9562a45bcf4071dd40a30887465e7569b75287b062bb833d4818c5070925"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\cb_only_five\\job.txt",
+          "bytes": 10,
+          "sha256": "4986715e24f49471e54cf8f6a86bc41510872d642004b41209e60a0d8aaa97df"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\cb_only_five\\out0.bin",
+          "bytes": 16,
+          "sha256": "8efa9cd3ed92c6bfc31de7b2f8a9fde3a0d3b38f69b7bccca664cfd5cb403ebf"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\cb_only_five\\out1.bin",
+          "bytes": 16,
+          "sha256": "ff6bfb6688e46a4171974882b0fc4464c21dd25a8f883f3a101d11b1050d31e0"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\cb_only_five\\out2.bin",
+          "bytes": 16,
+          "sha256": "f7508b1333b96af557d6c60ad6836b2e268e719f8cb2c7b7cf8650ee23d74790"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\cb_only_five\\out3.bin",
+          "bytes": 16,
+          "sha256": "6b92583591e63a52243a8534ffacadb4e218fdd5d84246a0c266560abed6442d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\cb_only_five\\out4.bin",
+          "bytes": 16,
+          "sha256": "87ccea37838acb4130dc5a744c5bb39b9f46ee78138f3151b205ee6e143ecdfc"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\cb_only_five\\outputs.bin",
+          "bytes": 80,
+          "sha256": "8bc9ba9a926a07fe671eb7edb2f8bd235c15fa73bcadbabed0cf88f963584996"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\cb_only_five\\recording_trace.txt",
+          "bytes": 435,
+          "sha256": "3e15e13e385b9d23fb9d41348c02ed74d3274f931ac6ce361bb6e977882d0366"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\cb_only_five\\resource_guard.json",
+          "bytes": 987,
+          "sha256": "85a992eb4f9cc452076a8e9c456af3bd1a8f9e2775231cf1d265b58d9089623d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\cb_only_five\\stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\cb_only_five\\stdout.log",
+          "bytes": 501,
+          "sha256": "0d7a3918a324ceb5ce826cf91405cf62a2ec3bc156a6b2756565570389d3f5d4"
+        }
+      ]
+    },
+    "descriptor_only_five": {
+      "guard": {
+        "schema": "owned-child-native-lightweight-resource-guard-v1",
+        "args": [
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\fixture.exe",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\descriptor_only_five\\job.txt",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\identity.cso"
+        ],
+        "timeout_seconds": 240,
+        "maximum_working_set_bytes": 2147483648,
+        "minimum_available_memory_bytes": 1073741824,
+        "sample_interval_seconds": 0.2,
+        "total_physical_bytes": 17098551296,
+        "initial_available_bytes": 7084257280,
+        "minimum_observed_available_bytes": 7084257280,
+        "peak_observed_working_set_bytes": 2105344,
+        "samples": 1,
+        "status": "completed",
+        "child_pid": 11612,
+        "returncode": 0,
+        "terminated_owned_child": false,
+        "termination_reason": null,
+        "elapsed_seconds": 0.2190000000045984
+      },
+      "completion_counts": {
+        "shader_dispatches": 5,
+        "queue_executes": 2,
+        "signals": 2,
+        "fence_waits": 2,
+        "validation_errors": 0,
+        "validation_warnings": 0,
+        "native_SDK_dispatches": 0
+      },
+      "actual": [
+        [
+          100,
+          5003,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5004,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5004,
+          204,
+          3517317121
+        ]
+      ],
+      "intended": [
+        [
+          100,
+          5000,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5001,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5004,
+          204,
+          3517317121
+        ]
+      ],
+      "last_CPU_slot_contents_hypothesis": [
+        [
+          100,
+          5003,
+          200,
+          3517317121
+        ],
+        [
+          101,
+          5004,
+          201,
+          3517317121
+        ],
+        [
+          102,
+          5002,
+          202,
+          3517317121
+        ],
+        [
+          103,
+          5003,
+          203,
+          3517317121
+        ],
+        [
+          104,
+          5004,
+          204,
+          3517317121
+        ]
+      ],
+      "all_match_intended": false,
+      "all_match_last_slot_contents": true,
+      "changed_dispatch_rows": [
+        0,
+        1
+      ],
+      "changed_CB_rows": [],
+      "changed_SRV_rows": [
+        0,
+        1
+      ],
+      "all_magic_values_correct": true,
+      "payloads": [
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\descriptor_only_five\\constants.bin",
+          "bytes": 80,
+          "sha256": "6b9c7ad84fdacb5da55d38b0db5390c1c24fcc02998487690c990f02112f032d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\descriptor_only_five\\debug_messages.txt",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\descriptor_only_five\\inputs.bin",
+          "bytes": 20,
+          "sha256": "279f9562a45bcf4071dd40a30887465e7569b75287b062bb833d4818c5070925"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\descriptor_only_five\\job.txt",
+          "bytes": 10,
+          "sha256": "e549cb0f6338dd475406e003c00ff6bc6d6497a460a0d3759b1fe77810b409b8"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\descriptor_only_five\\out0.bin",
+          "bytes": 16,
+          "sha256": "6584d3428de66ffea3dfc0ea14a5813ce099095da4324774b2a0a7e9bef42887"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\descriptor_only_five\\out1.bin",
+          "bytes": 16,
+          "sha256": "0ded3b0e62eaf07816cd8f01a22bfd0768ed4f399f0cc1cdb15c4386d2f1994c"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\descriptor_only_five\\out2.bin",
+          "bytes": 16,
+          "sha256": "f7508b1333b96af557d6c60ad6836b2e268e719f8cb2c7b7cf8650ee23d74790"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\descriptor_only_five\\out3.bin",
+          "bytes": 16,
+          "sha256": "6b92583591e63a52243a8534ffacadb4e218fdd5d84246a0c266560abed6442d"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\descriptor_only_five\\out4.bin",
+          "bytes": 16,
+          "sha256": "87ccea37838acb4130dc5a744c5bb39b9f46ee78138f3151b205ee6e143ecdfc"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\descriptor_only_five\\outputs.bin",
+          "bytes": 80,
+          "sha256": "087ca3cda23b9e7ae123f8b1c742cf06bab39c42520a1fd1b5cddd3bf90c82c9"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\descriptor_only_five\\recording_trace.txt",
+          "bytes": 435,
+          "sha256": "d941ce96aa0a9d0b4a693363c6005d471a3c636747e73a2f46df2c49b3ca0205"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\descriptor_only_five\\resource_guard.json",
+          "bytes": 995,
+          "sha256": "94515eea1897186125eb31a93ff92b4d791b905b7f4ea08d5bb94d679deed2d7"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\descriptor_only_five\\stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_compute_ring_deferred_gpu_20260930\\evidence\\descriptor_only_five\\stdout.log",
+          "bytes": 501,
+          "sha256": "8a47ba324ef357aea394f9aa8f3128240a4c891c77ea74e2b6943f9e8d62348c"
+        }
+      ]
+    }
+  },
+  "limits": [
+    "Conditional CB/descriptor lifetime fixture only; actual game submission depth is unmeasured.",
+    "No stain/wave root cause, native provider issue, or accepted runtime fix follows from this test.",
+    "Standalone runner prior results wait every frame and do not reproduce deferred production scheduling."
+  ],
+  "all_safe_controls_exact": true,
+  "all_cases_match_preregistered_last_slot_hypothesis": true,
+  "all_ordinary_debug_errors_warnings_zero": true,
+  "changed_dispatch_rows_total": 7,
+  "changed_CB_rows_total": 5,
+  "changed_SRV_rows_total": 5,
+  "sources_and_originals_unchanged": true
+}
