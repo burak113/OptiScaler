@@ -1,0 +1,104 @@
+{
+  "status": "completed_preparation_contract_review",
+  "source_audit_sha256": "dd58d1b81702d4dfa60b375e695fa4646b8c04668b37180220614f4b65e93a4e",
+  "AST_generator_reconstruction": [
+    {
+      "generator": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\prepare_guide_alpha_wave_continuation_20260930.py",
+      "generator_sha256": "f8c75b126e439d0205ffec159cf037567bc82393be76345281fecbad4f077f82",
+      "source_driver_sha256": "ce80f0892360d1dfbdfe3b63e2d54f675a8797bb2bc591b21c05240c69314e03",
+      "derived_driver_sha256": "74e0fec35ac904c18cb8db58273cb8ea5e64f43f1ff2831fd774f5f5c872a8c4",
+      "replacement_operations": [
+        {
+          "old": "CASES={'material':ROOT/'tools_tmp/native_continuous_harmonic_fresh_retry_20260930/evidence/material',\n       'wave':",
+          "new": "CASES={'wave':",
+          "matched_count": 1
+        },
+        {
+          "old": "native_contexts=8,native_RR_calls=512",
+          "new": "native_contexts=4,native_RR_calls=256",
+          "matched_count": 1
+        },
+        {
+          "old": "assert original_rgba.shape[0]==64\n        source_a=alpha_full(source/'observed')",
+          "new": "assert original_rgba.shape[0] in (1,64)\n        source_a=alpha_full(source/'observed')\n        if original_rgba.shape[0]==1:\n            assert np.array_equal(source_a,np.broadcast_to(source_a[:1],source_a.shape))\n            source_a=source_a[:1]",
+          "matched_count": 1
+        },
+        {
+          "old": "assert report['completed_native_contexts']==8",
+          "new": "assert report['completed_native_contexts']==4",
+          "matched_count": 1
+        },
+        {
+          "old": "{'contexts':8,'RR_calls':512",
+          "new": "{'contexts':4,'RR_calls':256",
+          "matched_count": 1
+        }
+      ],
+      "derived_source_exact": true
+    },
+    {
+      "generator": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\prepare_guide_alpha_wave_identical_repeat_20260930.py",
+      "generator_sha256": "6d247290ba44c2cfeda9cc7bd3ab89c3fc3d4b478bcf7fb4ce3ca5accc1b9daf",
+      "source_driver_sha256": "74e0fec35ac904c18cb8db58273cb8ea5e64f43f1ff2831fd774f5f5c872a8c4",
+      "derived_driver_sha256": "a66e5d4432745e1d3c4b9408aabb7a04373d4061d96a2e2d732b6af50a490770",
+      "replacement_operations": [
+        {
+          "old": "VARIANTS=('original','zero','one','source_alpha')",
+          "new": "VARIANTS=('repeat0','repeat1','repeat2')",
+          "matched_count": 1
+        },
+        {
+          "old": "native_contexts=4,native_RR_calls=256",
+          "new": "native_contexts=3,native_RR_calls=192",
+          "matched_count": 1
+        },
+        {
+          "old": "specular-albedo-diagnostic-alpha-raw-native-ablation-v1",
+          "new": "identical-wave-seven-input-fresh-context-repeat-v1",
+          "matched_count": 1
+        },
+        {
+          "old": "specular-albedo alpha only; original RGB byte-identical",
+          "new": "specular-albedo unchanged; all7 input bytes identical",
+          "matched_count": 1
+        },
+        {
+          "old": "if i==3 and variant!='original':",
+          "new": "if False:",
+          "matched_count": 1
+        },
+        {
+          "old": "if i!=3 or variant=='original':assert",
+          "new": "assert",
+          "matched_count": 1
+        },
+        {
+          "old": "only_changed_resource='specular-albedo input3 alpha'",
+          "new": "only_changed_resource=None",
+          "matched_count": 1
+        },
+        {
+          "old": "case_dir/'original'/name",
+          "new": "case_dir/'repeat0'/name",
+          "matched_count": 1
+        },
+        {
+          "old": "assert report['completed_native_contexts']==4",
+          "new": "assert report['completed_native_contexts']==3",
+          "matched_count": 1
+        },
+        {
+          "old": "{'contexts':4,'RR_calls':256",
+          "new": "{'contexts':3,'RR_calls':192",
+          "matched_count": 1
+        }
+      ],
+      "derived_source_exact": true
+    }
+  ],
+  "initial_failure": "Original material4contexts completed. Wave input3uploadcount1 assertion failed before row/variant folders/native launch. Original failed result and run.log preserved.",
+  "supplemental_import_failure_scope": "Root reported first supplemental import ModuleNotFoundError for guard path before any comparison result; corrected sys.path source and run_v2 log were independently read/pinned. This auditor does not infer missing terminal/failed stdout beyond retained artifacts/root report.",
+  "audit_input_mapping": "input0depth41,input1motion10,input2normal24,input3specAlbedo28,input4diffAlbedo28,input5diffuseRGBA10,input6specularRGBA10. All job uploadcounts retained, count1 is immutable resource reuse, not repeated independent observations.",
+  "raw_units": "Separate per-lobeRGB3/alpha1/RGBA4 plus combined6RGB/2alpha/8RGBA. No compose/output-to-truth quality measure. Alpha padding can dilute combinedRGBA RMS.",
+  "no_authorized_changes_to_producer_or_params": true
+}

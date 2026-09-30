@@ -1,0 +1,94 @@
+{
+  "schema": "harmonic-final-source-DC-innovation-design-v1",
+  "status": "design_only_pending_root_technical_review_no_implementation_or_scores",
+  "quality_accepted": false,
+  "new_P_or_native_response": false,
+  "purpose": "Test only the tradeoff between current-source DC noise and long-mean illumination lag after the same frozen harmonic P and its actually measured T(P). Startup, dense-detail and weak-detail failures remain open.",
+  "novelty": [
+    {
+      "prior": "OptiScaler/shaders/shader_tools/tests/fsrd_response_conditioned_pilot.py: make_dc_conditioned_pilot",
+      "already_tested": "Source-pilot full-image RGB DC uses nominal pooled source sigma, current-versus-prior3RMS and history16. Innovation selects current, but current is then appended to the same uncut DC history. It changes P and requires a fresh T(P).",
+      "difference": "New target is an independent final-composition interior RGB mean estimator; it does not alter P or T(P), uses perRGB source-only plug-in SE, and illumination innovation clears only its own DC history."
+    },
+    {
+      "prior": "tools_tmp/phase_source_dc_normalized_feasibility_20260930/normalized_pilot.py",
+      "already_tested": "Divide source Fourier coefficients by own current perRGB full-image DC, phase-align normalized history and restore current DC. This changes nonDC P and retains current noisy DC.",
+      "difference": "New proposal never normalizes Fourier detail, phase-aligns appearance or changes P. FFT is only a frozen nominal noise-scale estimator for source means."
+    },
+    {
+      "prior": "tools_tmp/native_significant_phase_initial_20260930/probe_significant_phase.py: dc_conservation; native harmonic variants harmonic_dc and harmonic_dc_current",
+      "already_tested": "Final composition uniform RGB shift to current or causal raw mean over history1/16/64, with reset/source-epoch cuts. No source-light innovation cut. Same P/T(P) controls already measured.",
+      "difference": "One current-versus-past source-mean innovation rule adds an observable DC-only change-point cut, so quiet DC may average while nominal large illumination changes select current immediately. No causal lighting identification is asserted."
+    },
+    {
+      "prior": "tools_tmp/response_global_dc_offline_20260930/model.py",
+      "already_tested": "Same-frequency correction regression augmented with global pilot luminance DC, current-inclusive history16 and ridge. Observable correction/P input, no clean truth.",
+      "difference": "New target is only observed RGB means/noise estimates/metadata, without response correction regression or baseline/native response as estimator input."
+    }
+  ],
+  "API_draft": {
+    "name": "make_source_dc_innovation_target",
+    "inputs": ["observed raw[N,H,W,3]", "controls[N,3] reset,jitterX,jitterY", "optional source-only epoch_start_by_frame[N]", "optional supplied exposure metadata[N]"],
+    "outputs": ["target[N,3]", "target_valid[N]", "diagnostics"],
+    "forbidden_estimator_inputs": ["truth", "native baseline", "T(P)", "guide arrays", "scene labels", "future observations"],
+    "postcompose_separate_inputs": "Only the application stage receives existing baseline B, fixed P, measured matching T(P), and existing pilot activity. These cannot influence target or its state."
+  },
+  "frozen_constants": {
+    "history_total_including_current": 64,
+    "maximum_prior_observations": 63,
+    "innovation_SE_multiplier": 3.0,
+    "interior_margin_pixels": 5,
+    "source_mean_minimum_each_RGB": 0.0001,
+    "valid_radiance_maximum": 65504,
+    "sigma_numerical_floor": "float64 eps * max(1,maxabs(current valid frame interior))",
+    "extra_activation_minimum": "none: first valid frame current target; compare innovation whenever at least1 prior mean exists",
+    "parameter_sweeps": false
+  },
+  "source_mean_noise_model": {
+    "ROI": "raw frame[5:-5,5:-5,:], requires nonempty interior with width>=3 for proper-complex coefficients",
+    "M": "number of pixels in that fixed interior",
+    "mean": "mu_i = float64 spatial mean of each current interior RGB channel",
+    "FFT": "F_i = rfft2(interior - mu_i, axes spatial) / M",
+    "selected_noise_coefficients": "All y rows and strictly interior positive x columns. Exclude x=0 and even-width x=Nyquist, so retained coefficients are proper-complex in the nominal spatial IID model. No signal-dependent mask or scene selection.",
+    "sigma_RGB": "sigma_i,c = max(median(abs(F_i[:,:,c]) over the fixed selected columns) * sqrt(M/log(2)), numerical floor)",
+    "current_mean_nominal_variance": "q_i,c = sigma_i,c^2 / M",
+    "scope": "Plug-in nominal spatial IID Gaussian variance for each RGB mean; actual independent pixel count unknown. Off-grid/dense texture, shared spatial noise and correlated RGB/time can invalidate it. Source-adaptive sigma is not an independence or confidence proof."
+  },
+  "algorithm_exact_order": [
+    "Validate shape/dtype metadata. Shape errors raise; per-frame invalid source/control/exposure yields target_valid=false, clears target history, and preserves existing output baseline exactly at application. No clipping or invented target.",
+    "Clear DC mean/variance history on reset, exact jitter change, a changed supplied exposure value, or a new source-only epoch boundary. Exposure absent means unknown. Optional epoch must be an integer between0 and frame index and cannot reference future data.",
+    "For a valid frame compute mu_i and q_i from only current observed interior. Any nonfinite/negative/>65504 source sample or channel mu_i<=1e-4 rejects this target and clears the DC history. No division by radiance mean occurs.",
+    "Let m<=63 be valid preceding means in the current DC epoch. If m=0, target=mu_i, innovation=false, nominal target variance=q_i.",
+    "If m>0: prior_mu = unweighted mean of preceding mu_j; prior_q = sum(q_j)/m^2; threshold_RGB = 3*sqrt(q_i+prior_q). Illumination innovation is any channel abs(mu_i-prior_mu)>threshold_RGB. Equality stays in the quiet branch.",
+    "On innovation: clear all preceding DC means/variances, set new DC epoch to current frame, target=mu_i, target variance=q_i. This is a source-mean change flag, not an identified physical-light event.",
+    "Otherwise target = unweighted mean of preceding means plus current mu_i; nominal target variance=(sum(q_j)+q_i)/(m+1)^2. SharedRGB epoch/reset decisions preserve a single coefficient-history interval across channels.",
+    "Append current valid mu_i and q_i; retain at most63 for the next frame. Thus each target uses at most64 inclusive observations. Never append target instead of observed mean.",
+    "Source means during the frozen pilot's first8 raw inactive warmup feed this DC-only estimator. There is no extra target warmup or spectral/residual state change. Metadata source-epoch cuts still apply. The final output remains exact baseline on existing inactive pilot frames.",
+    "Application: fixed C = B + active*(P-T(P)); for target_valid and existing pilot active apply uniform whole-frame RGB shift target_i - float64 mean(C_i[5:-5,5:-5,:]). Otherwise return exact B_i. Target constructor receives none of C/B/P/T(P).",
+    "Optional mandatory reported safe output uses existing atomic wholeRGB invalidpixel->exactbaseline rule after the shift. Baseline invalid raises. No clamp, no second DC correction after fallback; report target closure before and after fallback separately."
+  ],
+  "diagnostics_required": [
+    "source/controls/optional epoch/exposure hashes; ROI/M and fixed noise coefficient count",
+    "per-frame source mean, perRGB sigma/q, prior mean/q, innovation thresholds and flags",
+    "DC epoch start, reason, m, target RGB and nominal target variance; effective independent N=null",
+    "source-only estimator valid/invalid and exactbaseline/inactive output frames",
+    "uniform shift, pre/postfallback target closure, whole-image invalid/fallback/activity fractions",
+    "all full/mature/startup first8/activation8to16 gates; actual mean-pixel temporal STD and mean temporal variance separately",
+    "perRGB bias, broad tone, contour stain gates, per-frame absolute gain[.95,1.05]/phase<=.05, scene transition arrays",
+    "existing current/history64 finalDC controls preserved; no selection by scene or post-score variant"
+  ],
+  "evaluation_plan_after_review_only": {
+    "source_stage": "All13 authenticated old-alpha source families and the exact22 frozen harmonic CPU adversaries, same source hashes/seeds/controls, truth only in scoring. Regenerate identical frozen harmonic P without changing it. Test target errors and the separate source-domain P-plus-DC-shift proxy, with explicit CPU/source label; this is not a native composition output.",
+    "paired_native_offline_stage": "All6 freshly measured harmonic scenes use only the saved matching B/P/T(P)/activity and controls. Reconstruct existing variants bitexact as controls, then apply the single new target. No new native dispatch or wrong-P old-T(P) substitution.",
+    "coverage_gap": "No harmonic native responses exist for the other7 source families or22 adversaries. Source-stage proxy scores cannot fill this gap; future native coverage, if justified and separately authorized, must use fresh matching P/T(P).",
+    "mandatory_selfchecks": ["future-prefix target AND state decisions exact", "reset/jitter/epoch/exposure cut", "quiet IID means noise reduction nominal only", "large RGB/chromatic illumination step selects current and old mean cannot leak afterward", "subthreshold slow drift lag retained", "one-frame source DC impulse resets target rather than magically rejects source artifact", "colored RGB/shared spatial bias/temporal AR controls", "disocclusion/acceleration/weak startup remain scored", "invalid signed/nonfinite/overflow/nearzero target exactbaseline and epoch cut", "uniform valid RGB shift leaves nonDC detail unchanged before rounding/fallback; fallback masks can change detail"],
+    "strict_failure_preservation": "Keep all failure rows and all original raw/current/history controls. Relative tolerance+1e-4 pass is never actual-noise or absolute-detail acceptance. No threshold tuning after observation."
+  },
+  "information_limits": [
+    "Mean DC fluctuation from true illumination and spatially shared source noise can be observationally identical; this rule cannot identify them.",
+    "The anyRGB3SE event is nominal and has no familywise confidence guarantee, especially with plug-in texture-contaminated sigma and RGB/time covariance.",
+    "Small/slow illumination changes can lag before a cut. A global history cannot establish correspondence after camera motion, moving light, disocclusion or changing material coverage.",
+    "Uniform target shifts address DC only. They cannot repair first8 baseline behavior, nonDC hard support, wrong phase or weak texture loss. Safe fallback can introduce spatial masks and must be scored.",
+    "This differs from the already tested source-DC conditioned pilot only in operator location, perRGB ROI uncertainty, and illumination-triggered DC-history cut. It is a narrow combination hypothesis, not a new denoising mechanism or claim of solution."
+  ]
+}

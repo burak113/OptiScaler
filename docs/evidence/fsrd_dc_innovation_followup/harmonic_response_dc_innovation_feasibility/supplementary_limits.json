@@ -1,0 +1,15 @@
+{
+  "status": "completed_postscore_fixed_model_limits_no_tuning",
+  "model_sha256": "96a1becba58d02e3aa20178be6d205e9aa87d9c9dd283318d5dc118efd4a0ac0",
+  "nominal_quiet_IID_target_to_observed_mean_variance_RGB": [
+    0.0022312701532701466,
+    0.0006087211455230175,
+    0.0015550079021878817
+  ],
+  "slow_true_DC_drift_mature_mean_lag_R": -0.00027048458679313284,
+  "slow_source_mean_innovation_frames": [],
+  "spatially_shared_RGB_artifact_target_current_exact": true,
+  "shared_artifact_innovation_count": 79,
+  "quality_accepted": false,
+  "scope": "Counterexamples/selfchecks only; no estimator change or general variance guarantee."
+}

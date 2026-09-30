@@ -1,0 +1,36 @@
+{
+  "status": "complete_frozen",
+  "quality_accepted": false,
+  "files": [
+    {
+      "path": "audit.json",
+      "bytes": 463572,
+      "sha256": "dd58d1b81702d4dfa60b375e695fa4646b8c04668b37180220614f4b65e93a4e"
+    },
+    {
+      "path": "audit.py",
+      "bytes": 15729,
+      "sha256": "cf6b54f0679fcf39eceb0f6d2228e6d68f6cb70feab2482b771db7ce1d96eba6"
+    },
+    {
+      "path": "compact_report.json",
+      "bytes": 19113,
+      "sha256": "13b3ae04e878ab9789931cf483b0dea62bb2f6d1083438ca5d2b585856579e5b"
+    },
+    {
+      "path": "finalize.py",
+      "bytes": 4834,
+      "sha256": "5fa6d294e4a38db1a755975532c9656d81e825d3876119237bf02fd83e8286de"
+    },
+    {
+      "path": "preparation_contract_review.json",
+      "bytes": 5101,
+      "sha256": "b06a5799f100433c5a82dc5323600e80f6a3ee6b61b7e54521318d251564b9a3"
+    },
+    {
+      "path": "run.log",
+      "bytes": 290,
+      "sha256": "787507d75eda65c0e97f83412f761b38aba73e22979b440fbfaa546ec5fdf0fa"
+    }
+  ]
+}

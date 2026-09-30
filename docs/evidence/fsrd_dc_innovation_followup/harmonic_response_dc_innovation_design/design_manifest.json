@@ -1,0 +1,38 @@
+{
+  "implemented": false,
+  "files": [
+    {
+      "name": "algorithm_clarifications.json",
+      "sha256": "d8d99d18d9a64c221107456463501e9b49deb737463a72dc441924862479e38b"
+    },
+    {
+      "name": "design_preregistration_draft.json",
+      "sha256": "7ebc562f879b17007b4629b50e6876a82d70ccecdc7dfb60998cac7d14a20c4a"
+    }
+  ],
+  "scores_computed": false,
+  "status": "design_only_pending_root_review",
+  "quality_accepted": false,
+  "sources": [
+    {
+      "sha256": "2abead598a928f93bd218f53e704691d6ad1a1c9e1d018d1deaac9d62190f57b",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\fsrd_response_conditioned_pilot.py"
+    },
+    {
+      "sha256": "97d1f4507f7a21ff02922201d05378b8a50f9b415d2afacea9616f6472c94896",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\phase_source_dc_normalized_feasibility_20260930\\normalized_pilot.py"
+    },
+    {
+      "sha256": "a0cec745343e494808c03cc12a025eae349ef5e96f5ad54e196faadff152d7ab",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_significant_phase_initial_20260930\\probe_significant_phase.py"
+    },
+    {
+      "sha256": "6267fce0aaf10ff5b6f90a322ad6d59b87927e4347a1c8f536d1436a2dd0f9ee",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\response_global_dc_offline_20260930\\model.py"
+    },
+    {
+      "sha256": "7dcb48c86024a5667d3909b8fa250f444556fbc02e064dfc8de897a381b2efd7",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_native_variance_attribution_20260930\\results.json"
+    }
+  ]
+}

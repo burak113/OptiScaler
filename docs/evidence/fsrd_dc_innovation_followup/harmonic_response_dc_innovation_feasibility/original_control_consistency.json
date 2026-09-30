@@ -1,0 +1,36 @@
+{
+  "status": "passed",
+  "rows": [
+    {
+      "scene": "material",
+      "original_six_variants_all_four_windows_score_absolute_relative_and_STD_bitexact": true,
+      "original_report_sha256": "261834bff72b867f75160e6ac93ac5f75e6c919e8fb11c185953c75f423b017b"
+    },
+    {
+      "scene": "wave",
+      "original_six_variants_all_four_windows_score_absolute_relative_and_STD_bitexact": true,
+      "original_report_sha256": "16c68f07d3acf45cc395b523ee388c8f25602d2124b01f922a0357e81ca96770"
+    },
+    {
+      "scene": "moving_light",
+      "original_six_variants_all_four_windows_score_absolute_relative_and_STD_bitexact": true,
+      "original_report_sha256": "16c68f07d3acf45cc395b523ee388c8f25602d2124b01f922a0357e81ca96770"
+    },
+    {
+      "scene": "weak_material",
+      "original_six_variants_all_four_windows_score_absolute_relative_and_STD_bitexact": true,
+      "original_report_sha256": "16c68f07d3acf45cc395b523ee388c8f25602d2124b01f922a0357e81ca96770"
+    },
+    {
+      "scene": "lighting_step",
+      "original_six_variants_all_four_windows_score_absolute_relative_and_STD_bitexact": true,
+      "original_report_sha256": "16c68f07d3acf45cc395b523ee388c8f25602d2124b01f922a0357e81ca96770"
+    },
+    {
+      "scene": "reset",
+      "original_six_variants_all_four_windows_score_absolute_relative_and_STD_bitexact": true,
+      "original_report_sha256": "16c68f07d3acf45cc395b523ee388c8f25602d2124b01f922a0357e81ca96770"
+    }
+  ],
+  "results_sha256": "edcb52f9765d1867878f9c2bc58c2086f488c512cfafe9de565303d8d39f87af"
+}
