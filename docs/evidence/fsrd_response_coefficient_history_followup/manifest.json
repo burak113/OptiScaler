@@ -1,0 +1,397 @@
+{
+  "schema": "fsrd-response-coefficient-history-followup-v1",
+  "branch": "ffxD-experimental-alpha",
+  "base_commit": "18550af88f665103e11c8e08d7c701118be1d156",
+  "quality_accepted": false,
+  "runtime_implemented": false,
+  "game_run": false,
+  "new_native_contexts": 0,
+  "new_native_RR_calls": 0,
+  "completed_total_contexts": 382,
+  "completed_total_RR_calls": 20080,
+  "saved_matched_native_scenes": 6,
+  "known_constructed_operator_cases": 24,
+  "V1_contract_failed": true,
+  "V2_contract_repaired": true,
+  "valid_V1_V2_outputs_and_metrics_unchanged": true,
+  "full_absolute_pass_count": 0,
+  "mature_absolute_pass_count": 5,
+  "mature_strict_STD_pass_count": 6,
+  "copied_file_count": 49,
+  "copied_files": [
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_design_20260930\\design_manifest.json",
+      "bytes": 3473,
+      "sha256": "f725a24b3761c2d6c45855a86ff370b548751d7b6bcf5b9c0a7f2b326533624f",
+      "archive": "harmonic_response_coefficient_history_design/design_manifest.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_design_20260930\\design_preregistration_draft.json",
+      "bytes": 17379,
+      "sha256": "5860b8680b21502d94a8b1ce8d2a1cd9166361b63dcb04815f64125764e4c71a",
+      "archive": "harmonic_response_coefficient_history_design/design_preregistration_draft.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\analyze.py",
+      "bytes": 7851,
+      "sha256": "2cf52bdb1820312c0c474de5aa9604eeffcb585190f2307fb82b87a57898aef0",
+      "archive": "harmonic_response_coefficient_history_feasibility/analyze.py"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\capture_source.py",
+      "bytes": 1694,
+      "sha256": "fce63c76c63650c00b51515554a75940653749fa093ad314a276299dd72faa6b",
+      "archive": "harmonic_response_coefficient_history_feasibility/capture_source.py"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\contract_failure_qualification.json",
+      "bytes": 591,
+      "sha256": "4f9ec5acb2b9dd739d021b3e076d580c4fe5baf871bf945839d6ebde52e057ba",
+      "archive": "harmonic_response_coefficient_history_feasibility/contract_failure_qualification.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\known_operators.py",
+      "bytes": 6550,
+      "sha256": "3a220ad4001c3f234b88b295d50cfa241c76892581ddca450aca9a8c2b8b25ea",
+      "archive": "harmonic_response_coefficient_history_feasibility/known_operators.py"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\model.py",
+      "bytes": 8307,
+      "sha256": "84c710ae293e102091d15f70fb08d33edd5ebe1c5a10397c2845303d37e809f0",
+      "archive": "harmonic_response_coefficient_history_feasibility/model.py"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\pre_execution_notes.json",
+      "bytes": 669,
+      "sha256": "5cd0f6c28f2e94d6976533fc67cbf9d4a11648ef515619d31c22014b9b439219",
+      "archive": "harmonic_response_coefficient_history_feasibility/pre_execution_notes.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\pre_score_freeze.json",
+      "bytes": 6861,
+      "sha256": "6d606ed940a09fae990240f7d8d72f4c331426dc16027f5a1bda63e64ab3dc69",
+      "archive": "harmonic_response_coefficient_history_feasibility/pre_score_freeze.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\prepare.log",
+      "bytes": 276,
+      "sha256": "5a59118c20735d7bdf236d00a387251c198e69cd9b064311df64d48d30e60ea7",
+      "archive": "harmonic_response_coefficient_history_feasibility/prepare.log"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\prepare.py",
+      "bytes": 4428,
+      "sha256": "ff85130b0a31a015f92dd165dcdb1e9e312dbb71a6706782592ddea38008abbf",
+      "archive": "harmonic_response_coefficient_history_feasibility/prepare.py"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\preregistration.json",
+      "bytes": 3301,
+      "sha256": "417cbce83e4f4fb98b17f23ef0cc3b9e8c25612ec51d2b52af52b811c7533be0",
+      "archive": "harmonic_response_coefficient_history_feasibility/preregistration.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\results.json",
+      "bytes": 10562208,
+      "sha256": "fb0dc0d7e42fc68cba665b35cf3be7c780dc4798e7446d9e08b3127bef564ef5",
+      "archive": "harmonic_response_coefficient_history_feasibility/results.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\run.log",
+      "bytes": 2198,
+      "sha256": "2ae292f7dbc7c103dc50d6ac820ba73adc21b534a2ff885f772913793aafc45e",
+      "archive": "harmonic_response_coefficient_history_feasibility/run.log"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\selfcheck_results.json",
+      "bytes": 752,
+      "sha256": "28fca8eb7041b686147b0481cda291a1c1b0bc0429470b5ce75274815ad1ce2e",
+      "archive": "harmonic_response_coefficient_history_feasibility/selfcheck_results.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\selfchecks.py",
+      "bytes": 5737,
+      "sha256": "b63864493fbf45a656ffb996da184ac6106cc1677424dc7e91daa6968c6fc96b",
+      "archive": "harmonic_response_coefficient_history_feasibility/selfchecks.py"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\source_authentication.json",
+      "bytes": 1139787,
+      "sha256": "080a7f3b5573c4ca355100822296f2af8bcb38251b267f099886ec96a2702a97",
+      "archive": "harmonic_response_coefficient_history_feasibility/source_authentication.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\analyze.py",
+      "bytes": 7851,
+      "sha256": "2cf52bdb1820312c0c474de5aa9604eeffcb585190f2307fb82b87a57898aef0",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/analyze.py"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\capture_source.py",
+      "bytes": 1694,
+      "sha256": "fce63c76c63650c00b51515554a75940653749fa093ad314a276299dd72faa6b",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/capture_source.py"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\compact_report.json",
+      "bytes": 115634,
+      "sha256": "152b78aa961d0a4bb287a1b2565333c1aa071bd1aa6ea65da7890b3244fc9f48",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/compact_report.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\completion_manifest.json",
+      "bytes": 14106,
+      "sha256": "0037de97f2cd858664da8a2e23d9d915f594353230914a1158f187709be420c5",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/completion_manifest.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\completion_sealing_note.json",
+      "bytes": 352,
+      "sha256": "284c8a7e9cdc98b87b403c129fcb8767fe656b23c8e102c802f421a11bb7a940",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/completion_sealing_note.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\finalize.log",
+      "bytes": 1173,
+      "sha256": "e10ec28bd7d1fa8d67986d63e4ead73839740332e721c422ee5268e0482e901f",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/finalize.log"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\finalize.py",
+      "bytes": 6714,
+      "sha256": "c9c4a106d9d6785702ae83f7d06ded74f4484855bc63ddb2c3e691e5b2b4dbc8",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/finalize.py"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\finalize_pre_schema_fix.log",
+      "bytes": 936,
+      "sha256": "16b4cd94e439198d0d8a0030b8f4b364cfb07d3bf4f6948ddfe82cf9e5e3621c",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/finalize_pre_schema_fix.log"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\finalize_pre_schema_fix.py",
+      "bytes": 6691,
+      "sha256": "23fadc991a334bdc63f7c4bcdcf2e238949e121bda57b302a2f97174ec221afe",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/finalize_pre_schema_fix.py"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\known_operators.py",
+      "bytes": 6550,
+      "sha256": "3a220ad4001c3f234b88b295d50cfa241c76892581ddca450aca9a8c2b8b25ea",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/known_operators.py"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\model.py",
+      "bytes": 8503,
+      "sha256": "afb2fd6ce80e46a79fb97509c5eb2bb53860182b3268f6ede26046628043c874",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/model.py"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\pre_score_freeze.json",
+      "bytes": 9334,
+      "sha256": "65571650383f320e70a10b80ab50b56881c5ab249a3215364625447b6e1f6a75",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/pre_score_freeze.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\prepare_v2.log",
+      "bytes": 76,
+      "sha256": "bc16b4625359e293bab46670ed10673507b593133941a0a49e5063dd7b42a5b3",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/prepare_v2.log"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\prepare_v2.py",
+      "bytes": 2495,
+      "sha256": "02b6bfd841cb8b7be84e0a086292563f16dbc2b0c12d5756a9d9de2812018605",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/prepare_v2.py"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\preregistration.json",
+      "bytes": 3301,
+      "sha256": "417cbce83e4f4fb98b17f23ef0cc3b9e8c25612ec51d2b52af52b811c7533be0",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/preregistration.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\reporting_erratum.json",
+      "bytes": 519,
+      "sha256": "7dee244e81afc26847619674adcc586350a1836469153d3ca067f2848e45eff7",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/reporting_erratum.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\results.json",
+      "bytes": 10598979,
+      "sha256": "0e9342a8692f65f187f37a4d64b9f7c3d235033f53be95ba6ffd292bdc4a090e",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/results.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\run.log",
+      "bytes": 2198,
+      "sha256": "a57f510022078b3117cbb57b3c4f361364726aac5f314e99b733645f8d378a88",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/run.log"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\selfcheck_results.json",
+      "bytes": 996,
+      "sha256": "60791bae5caee4d2245d5f0ce20307604621ee8a8ce7f0ebe9109fb0294d1a46",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/selfcheck_results.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\selfchecks.log",
+      "bytes": 895,
+      "sha256": "78e5564ac0e1ab7db3ac7cc97e1f3e03d2d845ea709b7b0cf325ab994d6ae5e5",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/selfchecks.log"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\selfchecks.py",
+      "bytes": 8138,
+      "sha256": "871b92dc0aec6c7fea53ee05fd1a9a0890f02a736a2b4693d52e7aebda9a6c11",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/selfchecks.py"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\source_authentication.json",
+      "bytes": 1139787,
+      "sha256": "080a7f3b5573c4ca355100822296f2af8bcb38251b267f099886ec96a2702a97",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/source_authentication.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\v1_contract_erratum.json",
+      "bytes": 1235,
+      "sha256": "e8649d566b24dc375dfe2299a89f911c07344bacf3e999563270403e4822a51e",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/v1_contract_erratum.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\v1_v2_valid_data_comparison.json",
+      "bytes": 1317,
+      "sha256": "e005fdac87865dadf4f9b10fce5fca51f61dc124d197e4477f6d14bf070c604f",
+      "archive": "harmonic_response_coefficient_history_feasibility_v2/v1_v2_valid_data_comparison.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_history_root_contract_probe_20260930\\probe.json",
+      "bytes": 1035,
+      "sha256": "860291b852217ceb7e32595899bb99059a25ac9e6b1de63fd20963516a603378",
+      "archive": "harmonic_response_history_root_contract_probe/probe.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_history_root_contract_probe_20260930\\probe.py",
+      "bytes": 1815,
+      "sha256": "daf50c088380643d6a430ed523f40126f82c9b8b6731391890ea7880fb5b446c",
+      "archive": "harmonic_response_history_root_contract_probe/probe.py"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_history_root_contract_probe_20260930\\run.log",
+      "bytes": 1035,
+      "sha256": "860291b852217ceb7e32595899bb99059a25ac9e6b1de63fd20963516a603378",
+      "archive": "harmonic_response_history_root_contract_probe/run.log"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_history_root_v2_contract_probe_20260930\\probe.json",
+      "bytes": 1849,
+      "sha256": "0bf3e5d2f61de00781aa900af780e480af72b966c03ebb7e66dc892377bb439c",
+      "archive": "harmonic_response_history_root_v2_contract_probe/probe.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_history_root_v2_contract_probe_20260930\\probe.py",
+      "bytes": 3114,
+      "sha256": "3be17a1fe90d9c7f25a1a5f14af347f4ebb1779cf79705e66f34503a034d659e",
+      "archive": "harmonic_response_history_root_v2_contract_probe/probe.py"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_history_root_v2_contract_probe_20260930\\run.log",
+      "bytes": 1849,
+      "sha256": "0bf3e5d2f61de00781aa900af780e480af72b966c03ebb7e66dc892377bb439c",
+      "archive": "harmonic_response_history_root_v2_contract_probe/run.log"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_output_alpha_consumers_20260930\\source_mapping.json",
+      "bytes": 5021,
+      "sha256": "300bb2af94502c843b9e8075f37f25ca4882747c306db02421c873e73da3ee88",
+      "archive": "fsrd_native_output_alpha_consumers/source_mapping.json"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\collect_fsrd_response_coefficient_history_followup_20260930.py",
+      "bytes": 3912,
+      "sha256": "111640554f57d830b0072990cead9da68632009961c40c0bd129655a6912c9c1",
+      "archive": "collector_source.py"
+    }
+  ],
+  "external_payload_count": 12,
+  "external_payloads": [
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\lighting_step_outputs.npz",
+      "bytes": 12241689,
+      "sha256": "56c95175598b50e21badbe5775724b66a487e053908c20568e421c73038e399d",
+      "retained_external_payload": true
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\material_outputs.npz",
+      "bytes": 15320825,
+      "sha256": "c43141f062d7a0e449ff17be15c4707f15cc69d1b01fb4eaefef5c27ff556c7c",
+      "retained_external_payload": true
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\moving_light_outputs.npz",
+      "bytes": 13909810,
+      "sha256": "41d35349a86b84a3d70969997c75aed295233e2634d3113b24abd8bd3122861a",
+      "retained_external_payload": true
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\reset_outputs.npz",
+      "bytes": 14122243,
+      "sha256": "5f2bb6df112ad9e8d0060b88163868daf67dbca8fd7d25adaf93600f8344e7ea",
+      "retained_external_payload": true
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\wave_outputs.npz",
+      "bytes": 14780700,
+      "sha256": "ffe2ee9a733cf53b4d87993e69cc6702cec161e8eead5ff784dc102d18399b1a",
+      "retained_external_payload": true
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_20260930\\weak_material_outputs.npz",
+      "bytes": 3568840,
+      "sha256": "db1a3b5a7489b67411b852c934958462f814f9b83a7885dac4653567ec999aa3",
+      "retained_external_payload": true
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\lighting_step_outputs.npz",
+      "bytes": 12241689,
+      "sha256": "56c95175598b50e21badbe5775724b66a487e053908c20568e421c73038e399d",
+      "retained_external_payload": true
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\material_outputs.npz",
+      "bytes": 15320825,
+      "sha256": "c43141f062d7a0e449ff17be15c4707f15cc69d1b01fb4eaefef5c27ff556c7c",
+      "retained_external_payload": true
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\moving_light_outputs.npz",
+      "bytes": 13909810,
+      "sha256": "41d35349a86b84a3d70969997c75aed295233e2634d3113b24abd8bd3122861a",
+      "retained_external_payload": true
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\reset_outputs.npz",
+      "bytes": 14122243,
+      "sha256": "5f2bb6df112ad9e8d0060b88163868daf67dbca8fd7d25adaf93600f8344e7ea",
+      "retained_external_payload": true
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\wave_outputs.npz",
+      "bytes": 14780700,
+      "sha256": "ffe2ee9a733cf53b4d87993e69cc6702cec161e8eead5ff784dc102d18399b1a",
+      "retained_external_payload": true
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\weak_material_outputs.npz",
+      "bytes": 3568840,
+      "sha256": "db1a3b5a7489b67411b852c934958462f814f9b83a7885dac4653567ec999aa3",
+      "retained_external_payload": true
+    }
+  ],
+  "limits": [
+    "Old synthetic matching native responses, no new game quality proof",
+    "Output-alpha consumer review is static source mapping, not emitted-blob/runtime validation",
+    "Weak-detail/startup/true-delta ramp/phase/covariance failure evidence preserved"
+  ]
+}

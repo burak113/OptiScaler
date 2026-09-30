@@ -1,0 +1,8 @@
+{
+  "schema": "v1-response-history-contract-failure-qualification",
+  "status": "contract_failed_completed_metrics_preserved",
+  "model_SHA": "84c710ae293e102091d15f70fb08d33edd5ebe1c5a10397c2845303d37e809f0",
+  "results_SHA": "fb0dc0d7e42fc68cba665b35cf3be7c780dc4798e7446d9e08b3127bef564ef5",
+  "bug": "Exact baseline fallback still passed active=true to frozen final DC apply; valid raw target could shift an invalid P/TP/phase/fit/reconstruction fallback.",
+  "repair_scope": "Separate V2 final application eligibility mask only, unchanged16/source cuts/scorer/no new native."
+}

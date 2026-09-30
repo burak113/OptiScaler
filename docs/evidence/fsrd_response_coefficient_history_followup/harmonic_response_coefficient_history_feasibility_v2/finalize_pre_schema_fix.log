@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\harmonic_response_coefficient_history_feasibility_v2_20260930\finalize.py", line 65, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\harmonic_response_coefficient_history_feasibility_v2_20260930\finalize.py", line 32, in main
+    rows.append(dict(scene=row['scene'],windows={w:compact_window(c[w],d[w]) for w in c},first8_exact_B=row['first8_inactive_exact_B'],
+                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\harmonic_response_coefficient_history_feasibility_v2_20260930\finalize.py", line 13, in compact_window
+    bias_RGB=m['score']['rgb_bias'],invalid_pixels=m['invalid_pixel_fraction'])
+             ~~~~~~~~~~^^^^^^^^^^^^
+KeyError: 'rgb_bias'

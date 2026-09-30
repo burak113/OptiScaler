@@ -1,0 +1,5 @@
+{
+  "schema": "completion_manifest_log_sealing_note",
+  "explanation": "finalize.log prints the writer manifest SHA before post-exit inclusion of that closed log. The separately returned final completion_manifest.json hash is authoritative after sealing; this changes only manifest inventory, not model/results.",
+  "model_results_frozen": true
+}

@@ -1,0 +1,24 @@
+{
+  "status": "passed_pre_score_selfchecks",
+  "model_sha256": "afb2fd6ce80e46a79fb97509c5eb2bb53860182b3268f6ede26046628043c874",
+  "capture_source_sha256": "fce63c76c63650c00b51515554a75940653749fa093ad314a276299dd72faa6b",
+  "checks": [
+    "inclusive_mean_no_new_activation",
+    "source_DC_step_cut",
+    "reset_jitter_cut",
+    "future_output_state_prefix",
+    "no_atom_unsupported_C_control_bitexact",
+    "canonical_sine_Nyquist_rank1",
+    "joint_RGB_lstsq",
+    "current_orthogonal_response_exact",
+    "inactive_exact_B_new_epoch",
+    "invalid_source_cut_signed_D",
+    "invalid_baseline_raises",
+    "invalid_P_TP_exact_B_application_disabled",
+    "invalid_phase_exact_B_application_disabled",
+    "fault_injected_nonfinite_fit_exact_B_application_disabled",
+    "fault_injected_nonfinite_reconstruction_exact_B_application_disabled"
+  ],
+  "known_IID_static_coefficient_variance_ratio": 0.022857449388016093,
+  "no_native_or_truth_estimator_input": true
+}

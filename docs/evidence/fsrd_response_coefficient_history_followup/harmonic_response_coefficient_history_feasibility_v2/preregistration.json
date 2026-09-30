@@ -1,0 +1,21 @@
+{
+  "schema": "physical-response-history-preregistration-v1",
+  "candidate": "physical_delta_phase_history16_sourceDC_safe",
+  "design_draft_SHA": "5860b8680b21502d94a8b1ce8d2a1cd9166361b63dcb04815f64125764e4c71a",
+  "quality_accepted": false,
+  "constants_and_cuts": "Exactly approved draft: inclusive coefficient history16, unchanged source past-only nominal3SE phase, source innovation/illumination/epoch/phase qualification cuts, current orth D, frozen source DC model96a1, atomicRGB fallback.",
+  "pre_freeze_numerical_clarifications": [
+    "n1/no-atom/unsupported projection uses original current C directly, never reconstructs O+A numerically. General case is C+Phi*(mean_beta-current_beta); signed current residual is implicit and preserved.",
+    "Canonical chosen source columns are captured from untouched select_model return without modifying it. P/activity/complete diagnostics compared bitexact with the untouched module and saved FP16 P. Prefix source/control future changes include column decisions.",
+    "Canonical one-column Nyquist may retain sine with centered even-width coordinates. It comes from selected source chosen indices; no assumed cosine or D-dependent column deletion.",
+    "Projection rank threshold64eps*max(s0,1), condition max10000; numerical joint rank loss is unsupported rather than a scene-specific reduced response model.",
+    "Pre-DC candidate retains the original C dtype, matching native FP32 composition. No extra FP16 rounding is applied to postcompose output; unchanged frozen DC application uses its existing dtype semantics.",
+    "Actual D is fitted in float64 from P and TP separately, while C retains its original FP32 arithmetic. n1 direct-C guarantees the control numerical identity despite that distinction. Record hashes, never relabel numerical equality as physical response quality."
+  ],
+  "score_inputs": "All6 saved matching native source/null/P rows; all6 original variants and frozen DC innovation control must reproduce prior4-window metrics exactly before candidate metrics. Known constructed operators are algebra/mechanism controls, not additional native source families.",
+  "windows": ["full","mature_last16","startup_first8","activation8to16","transition24to40"],
+  "gates": "Unchanged frozen relative gates plus separate actual mean-pixel STD ratio<=1 and absolute every-frame gain[.95,1.05]/phase<=.05. Missing gain/phase on truly constant reference remains None, not a failure or invented pass.",
+  "forbidden": ["parameter sweeps","truth in estimator","scene-based output selection","new P with old TP","native/GPU calls","effective IID native count or response SE claims"],
+  "coverage_limit": "Other7 authenticated source families and22 frozen source adversaries have no matching native harmonic response; no proxy can fill that gap. Existing first8 exactB/full0of6 and source detail failures remain.",
+  "known_controls": "Exact design adversaries: static/noisy atom, shared rotating phase, changing RGB amplitude, invisible true D ramp, static response with moving source, light step/drift, acceleration/disocclusion/toggle, metadata cuts, canonical rank1, joint rank loss, correlated RGB/AR/shared bias, B-D cancellation, dense current orth, no-atom and invalid/signed/nearzero behavior. No score-adaptive changes."
+}

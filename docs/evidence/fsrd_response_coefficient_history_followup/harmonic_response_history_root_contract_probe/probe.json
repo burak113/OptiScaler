@@ -1,0 +1,36 @@
+{
+  "schema": "independent-response-history-invalid-P-contract-probe-v1",
+  "quality_accepted": false,
+  "model_sha256": "84c710ae293e102091d15f70fb08d33edd5ebe1c5a10397c2845303d37e809f0",
+  "script_sha256": "daf50c088380643d6a430ed523f40126f82c9b8b6731391890ea7880fb5b446c",
+  "raw_RGB": [
+    0.30000001192092896,
+    0.30000001192092896,
+    0.30000001192092896
+  ],
+  "baseline_RGB": [
+    0.20000000298023224,
+    0.20000000298023224,
+    0.20000000298023224
+  ],
+  "output_RGB": [
+    0.30000001192092896,
+    0.30000001192092896,
+    0.30000001192092896
+  ],
+  "invalid_P_pixel": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "invalid_value": "NaN",
+  "active": true,
+  "reset": true,
+  "pre_DC_candidate_exact_baseline": true,
+  "final_output_exact_baseline": false,
+  "reported_reason": "invalid_or_inactive_exact_baseline",
+  "finding": "Exact-baseline branch still eligible for final source-DC shift; final output violates branch contract",
+  "new_native_contexts": 0,
+  "new_native_RR_calls": 0
+}

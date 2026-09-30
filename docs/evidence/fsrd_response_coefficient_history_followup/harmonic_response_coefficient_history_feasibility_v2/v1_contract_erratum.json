@@ -1,0 +1,12 @@
+{
+  "schema": "response-coefficient-history-v2-erratum",
+  "v1_status": "completed_metrics_but_contract_failed_preserved",
+  "v1_model_SHA": "84c710ae293e102091d15f70fb08d33edd5ebe1c5a10397c2845303d37e809f0",
+  "v1_results_SHA": "fb0dc0d7e42fc68cba665b35cf3be7c780dc4798e7446d9e08b3127bef564ef5",
+  "root_counterexample": "Valid raw=.3, B=.2, active=true, P NaN, TP=.3 and no atoms: V1 sets candidate=B but final DC shifts output to.3. This violates exact baseline fallback.",
+  "only_operator_repair": "Track final DC application eligibility separately from frozen pilot activity; invalid P/TP, invalid phase, nonfinite fit/reconstruction and inactive exact-B fallback disable final DC application. No-atom/unsupported-currentC remains eligible.",
+  "parameters_or_scorer_tuned": false,
+  "native_calls": 0,
+  "fault_injection_scope": "Nonfinite inverse/Phi primitive guards use explicit selfcheck fault injection; this is not a claim that authenticated bounded native inputs reach those branches.",
+  "source_capture": "V1 source-authentication bytes reused exactly: unchanged source P/activity/diagnostics and prefix/selected-column checks already passed. V2 fixes only application eligibility; no source algorithm or P changed."
+}

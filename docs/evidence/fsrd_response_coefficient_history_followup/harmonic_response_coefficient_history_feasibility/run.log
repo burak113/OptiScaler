@@ -1,0 +1,31 @@
+native_saved material STD mature 0.7129742215212462 full abs False
+native_saved wave STD mature 0.942344690321235 full abs False
+native_saved moving_light STD mature 0.02814298506389846 full abs False
+native_saved weak_material STD mature 0.9843136052794277 full abs False
+native_saved lighting_step STD mature 0.18410944350999492 full abs False
+native_saved reset STD mature 0.4957664578379691 full abs False
+known_operator static_offgrid_atom_with_coefficient_noise STD mature None
+known_operator weak_detail_startup_and_real_coefficient STD mature None
+known_operator shared_constant_speed_source_response_phase STD mature 0.07821894119624098
+known_operator moving_phase_slow_RGB_response_amplitude STD mature 0.041281993814839525
+known_operator static_source_true_D_ramp_unobservable STD mature 1.849118439558482e-13
+known_operator moving_source_static_guide_fixed_response STD mature 376.13282119469045
+known_operator chromatic_illumination_step STD mature None
+known_operator subthreshold_illumination_drift STD mature 3.5548134720926052
+known_operator acceleration_past_phase_model_lag STD mature 0.1682036241363027
+known_operator source_disocclusion_innovation_cut STD mature None
+known_operator phase_qualification_toggle_cut STD mature None
+known_operator reset_jitter_exposure_cut STD mature None
+known_operator RGB_common_response_noise STD mature None
+known_operator colored_RGB_response_noise STD mature None
+known_operator temporal_AR_response_noise STD mature None
+known_operator persistent_shared_D_bias STD mature None
+known_operator endogenous_B_D_exact_cancellation STD mature 0.9571969798562745
+known_operator instantaneous_orthogonal_dense_response STD mature 8.752751233322034e-14
+known_operator no_atom_dense_current_response STD mature 8.752751233322034e-14
+known_operator canonical_Nyquist_real_coefficient STD mature None
+known_operator signed_D_invalid_TP_or_output STD mature None
+known_operator nearzero_source_exact_B_cut STD mature None
+known_operator invalid_metadata_cut STD mature None
+known_operator joint_rank_loss_unsupported_current_C STD mature None
+results SHA fb0dc0d7e42fc68cba665b35cf3be7c780dc4798e7446d9e08b3127bef564ef5

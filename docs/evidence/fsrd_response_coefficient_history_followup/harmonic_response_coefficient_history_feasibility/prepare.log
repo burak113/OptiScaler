@@ -1,0 +1,7 @@
+source authentication material
+source authentication wave
+source authentication moving_light
+source authentication weak_material
+source authentication lighting_step
+source authentication reset
+freeze SHA 6d606ed940a09fae990240f7d8d72f4c331426dc16027f5a1bda63e64ab3dc69
