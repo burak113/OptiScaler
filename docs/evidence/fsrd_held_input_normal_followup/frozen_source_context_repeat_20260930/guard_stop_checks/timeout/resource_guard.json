@@ -1,0 +1,23 @@
+{
+  "schema": "owned-child-native-lightweight-resource-guard-v1",
+  "args": [
+    "F:\\OptiRevelations\\OptiScaler\\tools_tmp\\albedo_stage1_venv\\Scripts\\python.exe",
+    "-c",
+    "import time; time.sleep(10)"
+  ],
+  "timeout_seconds": 0.3,
+  "maximum_working_set_bytes": 2147483648,
+  "minimum_available_memory_bytes": 1073741824,
+  "sample_interval_seconds": 0.2,
+  "total_physical_bytes": 17098551296,
+  "initial_available_bytes": 5872541696,
+  "minimum_observed_available_bytes": 5868535808,
+  "peak_observed_working_set_bytes": 5292032,
+  "samples": 3,
+  "status": "failed_or_terminated",
+  "child_pid": 8804,
+  "returncode": 1,
+  "terminated_owned_child": true,
+  "termination_reason": "timeout",
+  "elapsed_seconds": 0.4059999999990396
+}

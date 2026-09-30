@@ -1,0 +1,16 @@
+{
+  "script_sha256": "a29e3f28b17819176bd889f28be18574eb4028247232960ad776d81fcf91c785",
+  "inputs": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\results.json",
+      "sha256": "08d8690d7d2f669fd46daaddd8e493ef88ea897ed2cc2f8142ebb8dafdd36e7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\results.json",
+      "sha256": "0d5f0fb3a7061ceccebc69591790109f95fbb0d8c9f8fa1e395b39b5c602b96c"
+    }
+  ],
+  "output_sha256": "fcf15c2311891a254d1048b8c42c5e84fe42073794a06da382705db3a1254d21",
+  "quality_accepted": false,
+  "interpretation": "Observed maxima are descriptive, not population confidence bounds."
+}

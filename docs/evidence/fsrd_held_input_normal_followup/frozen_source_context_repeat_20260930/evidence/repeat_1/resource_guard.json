@@ -1,0 +1,22 @@
+{
+  "schema": "owned-child-native-lightweight-resource-guard-v1",
+  "args": [
+    "C:\\Users\\burak\\.codex\\visualizations\\2026\\09\\29\\01a0eeeb-48a8-7733-add1-58a3bd1f37ce\\response_soft_temporal_long_alpha_fresh\\fsrd_rr_runner.exe",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_1\\job.txt"
+  ],
+  "timeout_seconds": 240,
+  "maximum_working_set_bytes": 2147483648,
+  "minimum_available_memory_bytes": 1073741824,
+  "sample_interval_seconds": 0.2,
+  "total_physical_bytes": 17098551296,
+  "initial_available_bytes": 5583466496,
+  "minimum_observed_available_bytes": 5532815360,
+  "peak_observed_working_set_bytes": 84729856,
+  "samples": 2,
+  "status": "completed",
+  "child_pid": 20140,
+  "returncode": 0,
+  "terminated_owned_child": false,
+  "termination_reason": null,
+  "elapsed_seconds": 0.4059999999990396
+}

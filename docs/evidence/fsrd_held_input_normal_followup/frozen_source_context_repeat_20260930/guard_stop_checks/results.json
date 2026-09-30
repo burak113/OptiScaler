@@ -1,0 +1,79 @@
+{
+  "all_passed": true,
+  "checks": [
+    {
+      "name": "working_set",
+      "passed": true,
+      "schema": "owned-child-native-lightweight-resource-guard-v1",
+      "args": [
+        "F:\\OptiRevelations\\OptiScaler\\tools_tmp\\albedo_stage1_venv\\Scripts\\python.exe",
+        "-c",
+        "import time; time.sleep(10)"
+      ],
+      "timeout_seconds": 240,
+      "maximum_working_set_bytes": 1,
+      "minimum_available_memory_bytes": 1073741824,
+      "sample_interval_seconds": 0.2,
+      "total_physical_bytes": 17098551296,
+      "initial_available_bytes": 5874245632,
+      "minimum_observed_available_bytes": 5872590848,
+      "peak_observed_working_set_bytes": 2101248,
+      "samples": 1,
+      "status": "failed_or_terminated",
+      "child_pid": 14052,
+      "returncode": 1,
+      "terminated_owned_child": true,
+      "termination_reason": "maximum_child_working_set",
+      "elapsed_seconds": 0.0
+    },
+    {
+      "name": "timeout",
+      "passed": true,
+      "schema": "owned-child-native-lightweight-resource-guard-v1",
+      "args": [
+        "F:\\OptiRevelations\\OptiScaler\\tools_tmp\\albedo_stage1_venv\\Scripts\\python.exe",
+        "-c",
+        "import time; time.sleep(10)"
+      ],
+      "timeout_seconds": 0.3,
+      "maximum_working_set_bytes": 2147483648,
+      "minimum_available_memory_bytes": 1073741824,
+      "sample_interval_seconds": 0.2,
+      "total_physical_bytes": 17098551296,
+      "initial_available_bytes": 5872541696,
+      "minimum_observed_available_bytes": 5868535808,
+      "peak_observed_working_set_bytes": 5292032,
+      "samples": 3,
+      "status": "failed_or_terminated",
+      "child_pid": 8804,
+      "returncode": 1,
+      "terminated_owned_child": true,
+      "termination_reason": "timeout",
+      "elapsed_seconds": 0.4059999999990396
+    },
+    {
+      "name": "not_launched",
+      "passed": true,
+      "schema": "owned-child-native-lightweight-resource-guard-v1",
+      "args": [
+        "F:\\OptiRevelations\\OptiScaler\\tools_tmp\\albedo_stage1_venv\\Scripts\\python.exe",
+        "-c",
+        "import time; time.sleep(10)"
+      ],
+      "timeout_seconds": 240,
+      "maximum_working_set_bytes": 2147483648,
+      "minimum_available_memory_bytes": 17098551297,
+      "sample_interval_seconds": 0.2,
+      "total_physical_bytes": 17098551296,
+      "initial_available_bytes": 5873049600,
+      "minimum_observed_available_bytes": 5873049600,
+      "peak_observed_working_set_bytes": 0,
+      "samples": 0,
+      "status": "not_launched_low_available_memory",
+      "child_pid": null,
+      "returncode": null,
+      "terminated_owned_child": false,
+      "termination_reason": null
+    }
+  ]
+}

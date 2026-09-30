@@ -1,0 +1,2628 @@
+{
+  "schema": "fsrd-held-input-normal-followup-archive-v1",
+  "quality_accepted": false,
+  "game_run": false,
+  "runtime_implemented": false,
+  "archive_parent_head": "b07b5c07cd628deb06a75d67d3a4c488e6b280ba",
+  "archived_files": [
+    {
+      "path": "current_camera_conformance_20260930/analyze.py",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_conformance_20260930\\analyze.py",
+      "sha256": "8b9a9a0c4e592b4a7be7a3275b74229a7597dcb3a16d7335537ffe6d88b3a248",
+      "bytes": 9618
+    },
+    {
+      "path": "current_camera_conformance_20260930/fixture.py",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_conformance_20260930\\fixture.py",
+      "sha256": "fdb76cad6e4bbb315ae903d78c2d27b927f28b8504c3409e63baf4cef74cf3b5",
+      "bytes": 6427
+    },
+    {
+      "path": "current_camera_conformance_20260930/hardware_view.npz",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_conformance_20260930\\hardware_view.npz",
+      "sha256": "21e17055135b6da0fda0ebd616d277391c07398533329f8024fd70b2fec55396",
+      "bytes": 531631
+    },
+    {
+      "path": "current_camera_conformance_20260930/hardware_world.npz",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_conformance_20260930\\hardware_world.npz",
+      "sha256": "b5338e82aed17434c60785776c40c4e5c7c35975ee84fc0d2af39e3c2151225d",
+      "bytes": 531581
+    },
+    {
+      "path": "current_camera_conformance_20260930/linear_view.npz",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_conformance_20260930\\linear_view.npz",
+      "sha256": "6ec783765ea4e403ea67450356202c6e291b1284857c17a1c50edfcfba264ba5",
+      "bytes": 531715
+    },
+    {
+      "path": "current_camera_conformance_20260930/linear_world.npz",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_conformance_20260930\\linear_world.npz",
+      "sha256": "8f269bb8f55ca43702143d2bb7ecccbd75386203ba283a4f8ee18193f5763b6e",
+      "bytes": 531665
+    },
+    {
+      "path": "current_camera_conformance_20260930/README.md",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_conformance_20260930\\README.md",
+      "sha256": "35cef7c25da4a059d00a5b76974c8b5356bc6d8d59e02e2897cb050e595c6e21",
+      "bytes": 3584
+    },
+    {
+      "path": "current_camera_conformance_20260930/results.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_conformance_20260930\\results.json",
+      "sha256": "ecc7e766732bcec20afafca571c0327a2ba2dcbd61a095cb4f53d2764f89700a",
+      "bytes": 17008
+    },
+    {
+      "path": "current_camera_conformance_20260930/seam_analyze.py",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_conformance_20260930\\seam_analyze.py",
+      "sha256": "a008c773a6171922184a27967acb4f4a797e479715906fee066cf5f1cc060bfb",
+      "bytes": 3425
+    },
+    {
+      "path": "current_camera_conformance_20260930/seam_notes.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_conformance_20260930\\seam_notes.json",
+      "sha256": "45a4923494d8048f84620b32efe8314a0d475b391a3ad1f9d05216ebc030e9f9",
+      "bytes": 3948
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/analyze.py",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\analyze.py",
+      "sha256": "b31f3ba8ba92db86a9c125aaa548c5449123e4b73ab79169a8f5723e8ac7b87f",
+      "bytes": 8875
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/capturing_worker.py",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\capturing_worker.py",
+      "sha256": "268c956927d8b2fcafc67c16d35a348685a34ad26f634a0b0f7787f896f3d78b",
+      "bytes": 1561
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/fsrd_gpu_runner.build.cmd",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\fsrd_gpu_runner.build.cmd",
+      "sha256": "fd758669b92fe25499cd8c60fc2c518703e37f4edbe3a99cd0555dcd782de443",
+      "bytes": 513
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/gpu_worker_stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\gpu_worker_stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/cb.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\cb.bin",
+      "sha256": "369135acda800daaeb41496c38c6ed641bb9efac89598079ebefb0d10fb4621e",
+      "bytes": 416
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/in0.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\in0.bin",
+      "sha256": "0d800565ac46660a7130794e5351955e2803d0e94a4f7fa44904d87947618b26",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/in1.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\in1.bin",
+      "sha256": "bf02b463f5280acdd299cbc15bb2cf0d1464fdf294675bbd61c19fd8ffe52406",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/in10.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\in10.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/in11.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\in11.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/in12.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\in12.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/in13.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\in13.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/in14.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\in14.bin",
+      "sha256": "bf02b463f5280acdd299cbc15bb2cf0d1464fdf294675bbd61c19fd8ffe52406",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/in15.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\in15.bin",
+      "sha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/in16.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\in16.bin",
+      "sha256": "0d800565ac46660a7130794e5351955e2803d0e94a4f7fa44904d87947618b26",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/in2.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\in2.bin",
+      "sha256": "7a69f99cea8ab57d160581fe32215a04f9325dc8438ff5de1f74a794887e5040",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/in3.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\in3.bin",
+      "sha256": "fd320d8867495c52f348e5f0e791ebe9b357ebf936f7b1ed971b367975eee244",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/in4.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\in4.bin",
+      "sha256": "f2461b3fb6c18221fcb3b7552ed329e9789a0b4cfc01c76c42466a1f7b256033",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/in5.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\in5.bin",
+      "sha256": "bf02b463f5280acdd299cbc15bb2cf0d1464fdf294675bbd61c19fd8ffe52406",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/in6.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\in6.bin",
+      "sha256": "222616d48a89d32d0a0247343120f5359ec56db65c510127ad9206dc16526827",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/in7.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\in7.bin",
+      "sha256": "0230f99e442efa0c3be3615000424c1a5ab410f063182588b0262ca27d651232",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/in8.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\in8.bin",
+      "sha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/in9.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\in9.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\job.txt",
+      "sha256": "c84dadf2e470bdc8dfa8eac2271f8a55cae37b69e0df51cae0e1ee3407dad6f7",
+      "bytes": 4271
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/out0.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\out0.bin",
+      "sha256": "8a1b18fd9e05214d866290ff894e27dd8aa3248cc6b4981650a9fc7d4576e893",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/out1.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\out1.bin",
+      "sha256": "849da0650247298b2b78214d641fc3128663de76a38f17a455a75aefe23974fc",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/out2.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\out2.bin",
+      "sha256": "1d1002005a372edcb7ca032d323391f61c2846b7b87fb8446dae80cb81d2a86e",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/out3.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\out3.bin",
+      "sha256": "21cc81ebc04577308e970dd9e5ab5d993708d321bf3f4f89961dce0b72c5c276",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/out4.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\out4.bin",
+      "sha256": "243cf52a19826669247f537ff00fe61a569500e6f3cb2de35fe02fddec7b8b73",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/out5.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\out5.bin",
+      "sha256": "498d617c3d8f7f6ed2b80726b8a1ca0ae81c9565dcf7b2219f1f3c2db9759ff4",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/out6.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\out6.bin",
+      "sha256": "56b1a4be091b0c5249e0a091ca1e4c1cb828977e4ba5ac39ec4ddc09f27378e9",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/out7.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\out7.bin",
+      "sha256": "8fe298e124b1bb23aee1fb6a26770a2bb0e088595dbd7f67687f75976e8953c1",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/000_FSRDInputConv/runner.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\000_FSRDInputConv\\runner.log",
+      "sha256": "fa11d3ae8daf381eba655515cb4e4e161141e1de53438f45a2d0e1bf699ffb17",
+      "bytes": 127
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/cb.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\cb.bin",
+      "sha256": "8aaa52516160efb8013462690b5d4e95444f541802066526d01335210da95a03",
+      "bytes": 416
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/in0.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\in0.bin",
+      "sha256": "0d800565ac46660a7130794e5351955e2803d0e94a4f7fa44904d87947618b26",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/in1.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\in1.bin",
+      "sha256": "bf02b463f5280acdd299cbc15bb2cf0d1464fdf294675bbd61c19fd8ffe52406",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/in10.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\in10.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/in11.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\in11.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/in12.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\in12.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/in13.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\in13.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/in14.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\in14.bin",
+      "sha256": "bf02b463f5280acdd299cbc15bb2cf0d1464fdf294675bbd61c19fd8ffe52406",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/in15.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\in15.bin",
+      "sha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/in16.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\in16.bin",
+      "sha256": "0d800565ac46660a7130794e5351955e2803d0e94a4f7fa44904d87947618b26",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/in2.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\in2.bin",
+      "sha256": "7a69f99cea8ab57d160581fe32215a04f9325dc8438ff5de1f74a794887e5040",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/in3.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\in3.bin",
+      "sha256": "fd320d8867495c52f348e5f0e791ebe9b357ebf936f7b1ed971b367975eee244",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/in4.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\in4.bin",
+      "sha256": "f2461b3fb6c18221fcb3b7552ed329e9789a0b4cfc01c76c42466a1f7b256033",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/in5.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\in5.bin",
+      "sha256": "bf02b463f5280acdd299cbc15bb2cf0d1464fdf294675bbd61c19fd8ffe52406",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/in6.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\in6.bin",
+      "sha256": "222616d48a89d32d0a0247343120f5359ec56db65c510127ad9206dc16526827",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/in7.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\in7.bin",
+      "sha256": "0230f99e442efa0c3be3615000424c1a5ab410f063182588b0262ca27d651232",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/in8.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\in8.bin",
+      "sha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/in9.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\in9.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\job.txt",
+      "sha256": "140b03518407f821f38cbc9e8d9f368792f7618b706e88a5c46cf4d90afece6e",
+      "bytes": 4487
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/out0.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\out0.bin",
+      "sha256": "8a1b18fd9e05214d866290ff894e27dd8aa3248cc6b4981650a9fc7d4576e893",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/out1.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\out1.bin",
+      "sha256": "849da0650247298b2b78214d641fc3128663de76a38f17a455a75aefe23974fc",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/out2.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\out2.bin",
+      "sha256": "1d1002005a372edcb7ca032d323391f61c2846b7b87fb8446dae80cb81d2a86e",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/out3.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\out3.bin",
+      "sha256": "21cc81ebc04577308e970dd9e5ab5d993708d321bf3f4f89961dce0b72c5c276",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/out4.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\out4.bin",
+      "sha256": "243cf52a19826669247f537ff00fe61a569500e6f3cb2de35fe02fddec7b8b73",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/out5.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\out5.bin",
+      "sha256": "498d617c3d8f7f6ed2b80726b8a1ca0ae81c9565dcf7b2219f1f3c2db9759ff4",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/out6.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\out6.bin",
+      "sha256": "56b1a4be091b0c5249e0a091ca1e4c1cb828977e4ba5ac39ec4ddc09f27378e9",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/out7.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\out7.bin",
+      "sha256": "8fe298e124b1bb23aee1fb6a26770a2bb0e088595dbd7f67687f75976e8953c1",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/001_FSRDInputConvAdditive/runner.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\001_FSRDInputConvAdditive\\runner.log",
+      "sha256": "f3a7a2d5fd201ab2664c725989be69f7688d69f44ef8a3be9b8eb775c39c7c68",
+      "bytes": 125
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/cb.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\cb.bin",
+      "sha256": "494a6199b58491131182ce7997b2adddc391c9d0e82459ae15b8629a836501e9",
+      "bytes": 416
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/in0.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\in0.bin",
+      "sha256": "0d800565ac46660a7130794e5351955e2803d0e94a4f7fa44904d87947618b26",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/in1.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\in1.bin",
+      "sha256": "bf02b463f5280acdd299cbc15bb2cf0d1464fdf294675bbd61c19fd8ffe52406",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/in10.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\in10.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/in11.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\in11.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/in12.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\in12.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/in13.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\in13.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/in14.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\in14.bin",
+      "sha256": "bf02b463f5280acdd299cbc15bb2cf0d1464fdf294675bbd61c19fd8ffe52406",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/in15.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\in15.bin",
+      "sha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/in16.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\in16.bin",
+      "sha256": "0d800565ac46660a7130794e5351955e2803d0e94a4f7fa44904d87947618b26",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/in2.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\in2.bin",
+      "sha256": "7a69f99cea8ab57d160581fe32215a04f9325dc8438ff5de1f74a794887e5040",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/in3.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\in3.bin",
+      "sha256": "0b5ff23885e29eaa1433059e3dc8e39e84d9eccb95853d26a93b8a81fb7ec8e3",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/in4.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\in4.bin",
+      "sha256": "f2461b3fb6c18221fcb3b7552ed329e9789a0b4cfc01c76c42466a1f7b256033",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/in5.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\in5.bin",
+      "sha256": "bf02b463f5280acdd299cbc15bb2cf0d1464fdf294675bbd61c19fd8ffe52406",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/in6.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\in6.bin",
+      "sha256": "222616d48a89d32d0a0247343120f5359ec56db65c510127ad9206dc16526827",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/in7.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\in7.bin",
+      "sha256": "0230f99e442efa0c3be3615000424c1a5ab410f063182588b0262ca27d651232",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/in8.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\in8.bin",
+      "sha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/in9.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\in9.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\job.txt",
+      "sha256": "0e11487c6159eea6c158dd92e723d06dc28c5982ff6ff91ca51d1c6fe4acacc0",
+      "bytes": 4271
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/out0.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\out0.bin",
+      "sha256": "8a1b18fd9e05214d866290ff894e27dd8aa3248cc6b4981650a9fc7d4576e893",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/out1.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\out1.bin",
+      "sha256": "849da0650247298b2b78214d641fc3128663de76a38f17a455a75aefe23974fc",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/out2.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\out2.bin",
+      "sha256": "1d1002005a372edcb7ca032d323391f61c2846b7b87fb8446dae80cb81d2a86e",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/out3.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\out3.bin",
+      "sha256": "21cc81ebc04577308e970dd9e5ab5d993708d321bf3f4f89961dce0b72c5c276",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/out4.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\out4.bin",
+      "sha256": "243cf52a19826669247f537ff00fe61a569500e6f3cb2de35fe02fddec7b8b73",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/out5.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\out5.bin",
+      "sha256": "498d617c3d8f7f6ed2b80726b8a1ca0ae81c9565dcf7b2219f1f3c2db9759ff4",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/out6.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\out6.bin",
+      "sha256": "56b1a4be091b0c5249e0a091ca1e4c1cb828977e4ba5ac39ec4ddc09f27378e9",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/out7.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\out7.bin",
+      "sha256": "8fe298e124b1bb23aee1fb6a26770a2bb0e088595dbd7f67687f75976e8953c1",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/002_FSRDInputConv/runner.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\002_FSRDInputConv\\runner.log",
+      "sha256": "d4b8fe54f352a52b8b02084bb34306f4bad814650f3ce81366dbec19cebc52c6",
+      "bytes": 125
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/cb.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\cb.bin",
+      "sha256": "ce3c3b917b9ed442cc046d7569bbed758fa76f9fccf8cfe1d324bc361cfe0de9",
+      "bytes": 416
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/in0.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\in0.bin",
+      "sha256": "0d800565ac46660a7130794e5351955e2803d0e94a4f7fa44904d87947618b26",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/in1.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\in1.bin",
+      "sha256": "bf02b463f5280acdd299cbc15bb2cf0d1464fdf294675bbd61c19fd8ffe52406",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/in10.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\in10.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/in11.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\in11.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/in12.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\in12.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/in13.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\in13.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/in14.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\in14.bin",
+      "sha256": "bf02b463f5280acdd299cbc15bb2cf0d1464fdf294675bbd61c19fd8ffe52406",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/in15.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\in15.bin",
+      "sha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/in16.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\in16.bin",
+      "sha256": "0d800565ac46660a7130794e5351955e2803d0e94a4f7fa44904d87947618b26",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/in2.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\in2.bin",
+      "sha256": "7a69f99cea8ab57d160581fe32215a04f9325dc8438ff5de1f74a794887e5040",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/in3.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\in3.bin",
+      "sha256": "0b5ff23885e29eaa1433059e3dc8e39e84d9eccb95853d26a93b8a81fb7ec8e3",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/in4.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\in4.bin",
+      "sha256": "f2461b3fb6c18221fcb3b7552ed329e9789a0b4cfc01c76c42466a1f7b256033",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/in5.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\in5.bin",
+      "sha256": "bf02b463f5280acdd299cbc15bb2cf0d1464fdf294675bbd61c19fd8ffe52406",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/in6.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\in6.bin",
+      "sha256": "222616d48a89d32d0a0247343120f5359ec56db65c510127ad9206dc16526827",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/in7.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\in7.bin",
+      "sha256": "0230f99e442efa0c3be3615000424c1a5ab410f063182588b0262ca27d651232",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/in8.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\in8.bin",
+      "sha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/in9.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\in9.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\job.txt",
+      "sha256": "3a7fca087f51af362db6f00d02598a729f0c51cca46d5c40d72fd07d1eff7017",
+      "bytes": 4487
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/out0.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\out0.bin",
+      "sha256": "8a1b18fd9e05214d866290ff894e27dd8aa3248cc6b4981650a9fc7d4576e893",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/out1.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\out1.bin",
+      "sha256": "849da0650247298b2b78214d641fc3128663de76a38f17a455a75aefe23974fc",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/out2.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\out2.bin",
+      "sha256": "1d1002005a372edcb7ca032d323391f61c2846b7b87fb8446dae80cb81d2a86e",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/out3.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\out3.bin",
+      "sha256": "21cc81ebc04577308e970dd9e5ab5d993708d321bf3f4f89961dce0b72c5c276",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/out4.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\out4.bin",
+      "sha256": "243cf52a19826669247f537ff00fe61a569500e6f3cb2de35fe02fddec7b8b73",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/out5.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\out5.bin",
+      "sha256": "498d617c3d8f7f6ed2b80726b8a1ca0ae81c9565dcf7b2219f1f3c2db9759ff4",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/out6.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\out6.bin",
+      "sha256": "56b1a4be091b0c5249e0a091ca1e4c1cb828977e4ba5ac39ec4ddc09f27378e9",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/out7.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\out7.bin",
+      "sha256": "8fe298e124b1bb23aee1fb6a26770a2bb0e088595dbd7f67687f75976e8953c1",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/003_FSRDInputConvAdditive/runner.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\003_FSRDInputConvAdditive\\runner.log",
+      "sha256": "79fb9f48e3eb337e8ca066ef5cb893b90d85c68e887fef107155d7ab7ed64864",
+      "bytes": 127
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/cb.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\cb.bin",
+      "sha256": "7a790e73d3de9f8613041e8783aac1752647a295b4bbb07c292826078b9b49e7",
+      "bytes": 416
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/in0.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\in0.bin",
+      "sha256": "0d800565ac46660a7130794e5351955e2803d0e94a4f7fa44904d87947618b26",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/in1.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\in1.bin",
+      "sha256": "8e727ae3b26c340a4bc249dc9c29a08ea506f4576a9825459450fee96f2b8611",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/in10.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\in10.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/in11.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\in11.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/in12.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\in12.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/in13.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\in13.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/in14.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\in14.bin",
+      "sha256": "8e727ae3b26c340a4bc249dc9c29a08ea506f4576a9825459450fee96f2b8611",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/in15.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\in15.bin",
+      "sha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/in16.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\in16.bin",
+      "sha256": "0d800565ac46660a7130794e5351955e2803d0e94a4f7fa44904d87947618b26",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/in2.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\in2.bin",
+      "sha256": "7a69f99cea8ab57d160581fe32215a04f9325dc8438ff5de1f74a794887e5040",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/in3.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\in3.bin",
+      "sha256": "fd320d8867495c52f348e5f0e791ebe9b357ebf936f7b1ed971b367975eee244",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/in4.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\in4.bin",
+      "sha256": "f2461b3fb6c18221fcb3b7552ed329e9789a0b4cfc01c76c42466a1f7b256033",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/in5.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\in5.bin",
+      "sha256": "8e727ae3b26c340a4bc249dc9c29a08ea506f4576a9825459450fee96f2b8611",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/in6.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\in6.bin",
+      "sha256": "222616d48a89d32d0a0247343120f5359ec56db65c510127ad9206dc16526827",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/in7.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\in7.bin",
+      "sha256": "0230f99e442efa0c3be3615000424c1a5ab410f063182588b0262ca27d651232",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/in8.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\in8.bin",
+      "sha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/in9.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\in9.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\job.txt",
+      "sha256": "c19e15bbad230eb7f2f364d1b1b1beb86024c43c6019b279cc58220a95592fc5",
+      "bytes": 4271
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/out0.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\out0.bin",
+      "sha256": "ae4d64d83c6cee57a3619d55e0609f326d3269a8b883a8c6bbc38ceafa49aea4",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/out1.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\out1.bin",
+      "sha256": "849da0650247298b2b78214d641fc3128663de76a38f17a455a75aefe23974fc",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/out2.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\out2.bin",
+      "sha256": "b31c925696f4803191801e84856448c74a6139d08d8cb6028f04ec6bbd8ce493",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/out3.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\out3.bin",
+      "sha256": "21cc81ebc04577308e970dd9e5ab5d993708d321bf3f4f89961dce0b72c5c276",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/out4.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\out4.bin",
+      "sha256": "243cf52a19826669247f537ff00fe61a569500e6f3cb2de35fe02fddec7b8b73",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/out5.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\out5.bin",
+      "sha256": "498d617c3d8f7f6ed2b80726b8a1ca0ae81c9565dcf7b2219f1f3c2db9759ff4",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/out6.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\out6.bin",
+      "sha256": "56b1a4be091b0c5249e0a091ca1e4c1cb828977e4ba5ac39ec4ddc09f27378e9",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/out7.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\out7.bin",
+      "sha256": "8fe298e124b1bb23aee1fb6a26770a2bb0e088595dbd7f67687f75976e8953c1",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/004_FSRDInputConv/runner.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\004_FSRDInputConv\\runner.log",
+      "sha256": "a2b356791c5377de3785098d79689970bdd4bf9017ff4852edeb57e418c65fd5",
+      "bytes": 127
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/cb.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\cb.bin",
+      "sha256": "cd5e96a057a90b496dccb5877b88f8f089bbb9bfbbb8dffad5e9a41bf058ca1a",
+      "bytes": 416
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/in0.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\in0.bin",
+      "sha256": "0d800565ac46660a7130794e5351955e2803d0e94a4f7fa44904d87947618b26",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/in1.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\in1.bin",
+      "sha256": "8e727ae3b26c340a4bc249dc9c29a08ea506f4576a9825459450fee96f2b8611",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/in10.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\in10.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/in11.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\in11.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/in12.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\in12.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/in13.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\in13.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/in14.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\in14.bin",
+      "sha256": "8e727ae3b26c340a4bc249dc9c29a08ea506f4576a9825459450fee96f2b8611",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/in15.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\in15.bin",
+      "sha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/in16.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\in16.bin",
+      "sha256": "0d800565ac46660a7130794e5351955e2803d0e94a4f7fa44904d87947618b26",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/in2.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\in2.bin",
+      "sha256": "7a69f99cea8ab57d160581fe32215a04f9325dc8438ff5de1f74a794887e5040",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/in3.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\in3.bin",
+      "sha256": "fd320d8867495c52f348e5f0e791ebe9b357ebf936f7b1ed971b367975eee244",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/in4.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\in4.bin",
+      "sha256": "f2461b3fb6c18221fcb3b7552ed329e9789a0b4cfc01c76c42466a1f7b256033",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/in5.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\in5.bin",
+      "sha256": "8e727ae3b26c340a4bc249dc9c29a08ea506f4576a9825459450fee96f2b8611",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/in6.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\in6.bin",
+      "sha256": "222616d48a89d32d0a0247343120f5359ec56db65c510127ad9206dc16526827",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/in7.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\in7.bin",
+      "sha256": "0230f99e442efa0c3be3615000424c1a5ab410f063182588b0262ca27d651232",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/in8.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\in8.bin",
+      "sha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/in9.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\in9.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\job.txt",
+      "sha256": "e09241ca47377439c482a14f77eb62be4885a9b73ed6264988f3cbbbb6ed76ba",
+      "bytes": 4487
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/out0.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\out0.bin",
+      "sha256": "ae4d64d83c6cee57a3619d55e0609f326d3269a8b883a8c6bbc38ceafa49aea4",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/out1.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\out1.bin",
+      "sha256": "849da0650247298b2b78214d641fc3128663de76a38f17a455a75aefe23974fc",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/out2.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\out2.bin",
+      "sha256": "b31c925696f4803191801e84856448c74a6139d08d8cb6028f04ec6bbd8ce493",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/out3.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\out3.bin",
+      "sha256": "21cc81ebc04577308e970dd9e5ab5d993708d321bf3f4f89961dce0b72c5c276",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/out4.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\out4.bin",
+      "sha256": "243cf52a19826669247f537ff00fe61a569500e6f3cb2de35fe02fddec7b8b73",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/out5.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\out5.bin",
+      "sha256": "498d617c3d8f7f6ed2b80726b8a1ca0ae81c9565dcf7b2219f1f3c2db9759ff4",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/out6.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\out6.bin",
+      "sha256": "56b1a4be091b0c5249e0a091ca1e4c1cb828977e4ba5ac39ec4ddc09f27378e9",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/out7.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\out7.bin",
+      "sha256": "8fe298e124b1bb23aee1fb6a26770a2bb0e088595dbd7f67687f75976e8953c1",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/005_FSRDInputConvAdditive/runner.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\005_FSRDInputConvAdditive\\runner.log",
+      "sha256": "da0f6dc47f1b5a2892ef66b62e78d5cb92bec893b85f4e593556cea044c1fc03",
+      "bytes": 125
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/cb.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\cb.bin",
+      "sha256": "bdabcf7bd913380748283221184d06dd0910b85c1bb3d94642a89ec96b93fe20",
+      "bytes": 416
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/in0.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\in0.bin",
+      "sha256": "0d800565ac46660a7130794e5351955e2803d0e94a4f7fa44904d87947618b26",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/in1.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\in1.bin",
+      "sha256": "8e727ae3b26c340a4bc249dc9c29a08ea506f4576a9825459450fee96f2b8611",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/in10.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\in10.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/in11.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\in11.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/in12.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\in12.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/in13.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\in13.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/in14.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\in14.bin",
+      "sha256": "8e727ae3b26c340a4bc249dc9c29a08ea506f4576a9825459450fee96f2b8611",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/in15.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\in15.bin",
+      "sha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/in16.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\in16.bin",
+      "sha256": "0d800565ac46660a7130794e5351955e2803d0e94a4f7fa44904d87947618b26",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/in2.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\in2.bin",
+      "sha256": "7a69f99cea8ab57d160581fe32215a04f9325dc8438ff5de1f74a794887e5040",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/in3.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\in3.bin",
+      "sha256": "0b5ff23885e29eaa1433059e3dc8e39e84d9eccb95853d26a93b8a81fb7ec8e3",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/in4.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\in4.bin",
+      "sha256": "f2461b3fb6c18221fcb3b7552ed329e9789a0b4cfc01c76c42466a1f7b256033",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/in5.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\in5.bin",
+      "sha256": "8e727ae3b26c340a4bc249dc9c29a08ea506f4576a9825459450fee96f2b8611",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/in6.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\in6.bin",
+      "sha256": "222616d48a89d32d0a0247343120f5359ec56db65c510127ad9206dc16526827",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/in7.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\in7.bin",
+      "sha256": "0230f99e442efa0c3be3615000424c1a5ab410f063182588b0262ca27d651232",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/in8.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\in8.bin",
+      "sha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/in9.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\in9.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\job.txt",
+      "sha256": "da0777f51082bf5cf2acfba0d9993591ca0df4b6dc6e65930ee9670b40a809c2",
+      "bytes": 4271
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/out0.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\out0.bin",
+      "sha256": "ae4d64d83c6cee57a3619d55e0609f326d3269a8b883a8c6bbc38ceafa49aea4",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/out1.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\out1.bin",
+      "sha256": "849da0650247298b2b78214d641fc3128663de76a38f17a455a75aefe23974fc",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/out2.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\out2.bin",
+      "sha256": "b31c925696f4803191801e84856448c74a6139d08d8cb6028f04ec6bbd8ce493",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/out3.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\out3.bin",
+      "sha256": "21cc81ebc04577308e970dd9e5ab5d993708d321bf3f4f89961dce0b72c5c276",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/out4.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\out4.bin",
+      "sha256": "243cf52a19826669247f537ff00fe61a569500e6f3cb2de35fe02fddec7b8b73",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/out5.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\out5.bin",
+      "sha256": "498d617c3d8f7f6ed2b80726b8a1ca0ae81c9565dcf7b2219f1f3c2db9759ff4",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/out6.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\out6.bin",
+      "sha256": "56b1a4be091b0c5249e0a091ca1e4c1cb828977e4ba5ac39ec4ddc09f27378e9",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/out7.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\out7.bin",
+      "sha256": "8fe298e124b1bb23aee1fb6a26770a2bb0e088595dbd7f67687f75976e8953c1",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/006_FSRDInputConv/runner.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\006_FSRDInputConv\\runner.log",
+      "sha256": "fa925a19ea71ca0c25ae96b0129f79868039621cf9d890ac260531dc55e57881",
+      "bytes": 127
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/cb.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\cb.bin",
+      "sha256": "cc89c942a9306e677e1479f9390ab0f69737977483e7e5019a0ece1006e6bcd6",
+      "bytes": 416
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/in0.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\in0.bin",
+      "sha256": "0d800565ac46660a7130794e5351955e2803d0e94a4f7fa44904d87947618b26",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/in1.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\in1.bin",
+      "sha256": "8e727ae3b26c340a4bc249dc9c29a08ea506f4576a9825459450fee96f2b8611",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/in10.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\in10.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/in11.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\in11.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/in12.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\in12.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/in13.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\in13.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/in14.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\in14.bin",
+      "sha256": "8e727ae3b26c340a4bc249dc9c29a08ea506f4576a9825459450fee96f2b8611",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/in15.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\in15.bin",
+      "sha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/in16.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\in16.bin",
+      "sha256": "0d800565ac46660a7130794e5351955e2803d0e94a4f7fa44904d87947618b26",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/in2.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\in2.bin",
+      "sha256": "7a69f99cea8ab57d160581fe32215a04f9325dc8438ff5de1f74a794887e5040",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/in3.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\in3.bin",
+      "sha256": "0b5ff23885e29eaa1433059e3dc8e39e84d9eccb95853d26a93b8a81fb7ec8e3",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/in4.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\in4.bin",
+      "sha256": "f2461b3fb6c18221fcb3b7552ed329e9789a0b4cfc01c76c42466a1f7b256033",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/in5.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\in5.bin",
+      "sha256": "8e727ae3b26c340a4bc249dc9c29a08ea506f4576a9825459450fee96f2b8611",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/in6.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\in6.bin",
+      "sha256": "222616d48a89d32d0a0247343120f5359ec56db65c510127ad9206dc16526827",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/in7.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\in7.bin",
+      "sha256": "0230f99e442efa0c3be3615000424c1a5ab410f063182588b0262ca27d651232",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/in8.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\in8.bin",
+      "sha256": "02b1c2234680617802901a77eae606ad02e4ddb4282ccbc60061eac5b2d90bba",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/in9.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\in9.bin",
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\job.txt",
+      "sha256": "b6ca652ca7b7026e5c541b5fbe5a59bd131f558bd7f3bf6762a48643781d24c2",
+      "bytes": 4487
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/out0.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\out0.bin",
+      "sha256": "ae4d64d83c6cee57a3619d55e0609f326d3269a8b883a8c6bbc38ceafa49aea4",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/out1.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\out1.bin",
+      "sha256": "849da0650247298b2b78214d641fc3128663de76a38f17a455a75aefe23974fc",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/out2.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\out2.bin",
+      "sha256": "b31c925696f4803191801e84856448c74a6139d08d8cb6028f04ec6bbd8ce493",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/out3.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\out3.bin",
+      "sha256": "21cc81ebc04577308e970dd9e5ab5d993708d321bf3f4f89961dce0b72c5c276",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/out4.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\out4.bin",
+      "sha256": "243cf52a19826669247f537ff00fe61a569500e6f3cb2de35fe02fddec7b8b73",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/out5.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\out5.bin",
+      "sha256": "498d617c3d8f7f6ed2b80726b8a1ca0ae81c9565dcf7b2219f1f3c2db9759ff4",
+      "bytes": 40960
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/out6.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\out6.bin",
+      "sha256": "56b1a4be091b0c5249e0a091ca1e4c1cb828977e4ba5ac39ec4ddc09f27378e9",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/out7.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\out7.bin",
+      "sha256": "8fe298e124b1bb23aee1fb6a26770a2bb0e088595dbd7f67687f75976e8953c1",
+      "bytes": 81920
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/007_FSRDInputConvAdditive/runner.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\007_FSRDInputConvAdditive\\runner.log",
+      "sha256": "7220b00e0643bd9fb6d4c69499103287361d4bb8925f0ecca8ee1417cab91a7a",
+      "bytes": 127
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/persisted_shader_jobs/manifest.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\persisted_shader_jobs\\manifest.json",
+      "sha256": "6824f480169c239e6888ec30f5cf3d9f0e58429bfd72b3bb94d0435e446691ca",
+      "bytes": 38265
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/results.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\results.json",
+      "sha256": "f659cfc1406b4c96e1d781a27306e39933f69425931182fa613f82f41a897a21",
+      "bytes": 54013
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/shader_jobs/000_FSRDInputConv/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\shader_jobs\\000_FSRDInputConv\\job.txt",
+      "sha256": "c84dadf2e470bdc8dfa8eac2271f8a55cae37b69e0df51cae0e1ee3407dad6f7",
+      "bytes": 4271
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/shader_jobs/001_FSRDInputConvAdditive/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\shader_jobs\\001_FSRDInputConvAdditive\\job.txt",
+      "sha256": "140b03518407f821f38cbc9e8d9f368792f7618b706e88a5c46cf4d90afece6e",
+      "bytes": 4487
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/shader_jobs/002_FSRDInputConv/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\shader_jobs\\002_FSRDInputConv\\job.txt",
+      "sha256": "0e11487c6159eea6c158dd92e723d06dc28c5982ff6ff91ca51d1c6fe4acacc0",
+      "bytes": 4271
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/shader_jobs/003_FSRDInputConvAdditive/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\shader_jobs\\003_FSRDInputConvAdditive\\job.txt",
+      "sha256": "3a7fca087f51af362db6f00d02598a729f0c51cca46d5c40d72fd07d1eff7017",
+      "bytes": 4487
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/shader_jobs/004_FSRDInputConv/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\shader_jobs\\004_FSRDInputConv\\job.txt",
+      "sha256": "c19e15bbad230eb7f2f364d1b1b1beb86024c43c6019b279cc58220a95592fc5",
+      "bytes": 4271
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/shader_jobs/005_FSRDInputConvAdditive/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\shader_jobs\\005_FSRDInputConvAdditive\\job.txt",
+      "sha256": "e09241ca47377439c482a14f77eb62be4885a9b73ed6264988f3cbbbb6ed76ba",
+      "bytes": 4487
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/shader_jobs/006_FSRDInputConv/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\shader_jobs\\006_FSRDInputConv\\job.txt",
+      "sha256": "da0777f51082bf5cf2acfba0d9993591ca0df4b6dc6e65930ee9670b40a809c2",
+      "bytes": 4271
+    },
+    {
+      "path": "current_camera_gpu_conformance_20260930/evidence/shader_jobs/007_FSRDInputConvAdditive/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\shader_jobs\\007_FSRDInputConvAdditive\\job.txt",
+      "sha256": "b6ca652ca7b7026e5c541b5fbe5a59bd131f558bd7f3bf6762a48643781d24c2",
+      "bytes": 4487
+    },
+    {
+      "path": "current_camera_gpu_independent_audit_20260930/audit.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_independent_audit_20260930\\audit.json",
+      "sha256": "c93bea7c8648a3e28d48071f938eec5cd78c77346ca1c97c41a906387a665fcb",
+      "bytes": 41729
+    },
+    {
+      "path": "current_camera_gpu_independent_audit_20260930/audit.py",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_independent_audit_20260930\\audit.py",
+      "sha256": "00a2719fee4552acc1b0e8264c5d9a886c0451d5aad41e82cca377ddc3176774",
+      "bytes": 14950
+    },
+    {
+      "path": "current_camera_gpu_independent_audit_20260930/normal_contract_analysis.py",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_independent_audit_20260930\\normal_contract_analysis.py",
+      "sha256": "e2d33e84d5495e6bcbf1cbd2e47ee6ca17df9ea1a1548ed243ad20e2a943ad1c",
+      "bytes": 6549
+    },
+    {
+      "path": "current_camera_gpu_independent_audit_20260930/normal_contract_review.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_independent_audit_20260930\\normal_contract_review.json",
+      "sha256": "1ae4cd50d43e9d925daa86c9d2d0603e20b3f8fdd5ac1ec2531a9fac03537d96",
+      "bytes": 6356
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/analyze.py",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\analyze.py",
+      "sha256": "a9b3cc14828e984a40283240203fb17defff9e39728eb420a3a7ed07e4d022bc",
+      "bytes": 6472
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/frozen_inputs/input0.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\frozen_inputs\\input0.bin",
+      "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc",
+      "bytes": 40960
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/frozen_inputs/input1.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\frozen_inputs\\input1.bin",
+      "sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4",
+      "bytes": 81920
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/frozen_inputs/input2.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\frozen_inputs\\input2.bin",
+      "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6",
+      "bytes": 40960
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/frozen_inputs/input3.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\frozen_inputs\\input3.bin",
+      "sha256": "05fd3ba8975a6d2d5e3f93edace4eeaf8389d8b2e25e5c6e1b759ab0d640831c",
+      "bytes": 40960
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/frozen_inputs/input4.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\frozen_inputs\\input4.bin",
+      "sha256": "55133e7a62a44614cfb0938772d96a61ef5909467003b0dd2150c550662553eb",
+      "bytes": 40960
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/frozen_inputs/input5.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\frozen_inputs\\input5.bin",
+      "sha256": "f62e5c93e7f69932a54bbc5f95d8e373a08692818963de69df0817203883767f",
+      "bytes": 81920
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/frozen_inputs/input6.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\frozen_inputs\\input6.bin",
+      "sha256": "003dd889f0ccebdf6a60dee3671b434e821553677aaf3e8b884ccb691751b871",
+      "bytes": 81920
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_0/dispatch_controls.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_0\\dispatch_controls.bin",
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0",
+      "bytes": 11776
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_0/frame_controls.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_0\\frame_controls.txt",
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9",
+      "bytes": 448
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_0/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_0\\job.txt",
+      "sha256": "b5aa153a9259d43be5b1236c5618eb0874316c8a55e8d00a56cbcae8200c699a",
+      "bytes": 1312
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_0/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_0\\resource_guard.json",
+      "sha256": "ece42081c9aae8db8c791fac2cd855f10c98d17f477b8c32c1e412bbd6019858",
+      "bytes": 911
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_0/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_0\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_0/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_0\\stdout.log",
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b",
+      "bytes": 378
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_1/dispatch_controls.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_1\\dispatch_controls.bin",
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0",
+      "bytes": 11776
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_1/frame_controls.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_1\\frame_controls.txt",
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9",
+      "bytes": 448
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_1/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_1\\job.txt",
+      "sha256": "47e6d2e94073440dd3dcd994038a6e0ff695cda33729b2e6b146d3ce0eaa166a",
+      "bytes": 1312
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_1/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_1\\resource_guard.json",
+      "sha256": "65d68f259b311c16bcc232a268f6d246032a9381209b3229c968420ab7ddb614",
+      "bytes": 911
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_1/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_1\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_1/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_1\\stdout.log",
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b",
+      "bytes": 378
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_2/dispatch_controls.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_2\\dispatch_controls.bin",
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0",
+      "bytes": 11776
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_2/frame_controls.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_2\\frame_controls.txt",
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9",
+      "bytes": 448
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_2/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_2\\job.txt",
+      "sha256": "1126885c380ae153b2f0a0aff79707fe99ba5dd0c4a147a4bbd15dc2ac39a170",
+      "bytes": 1312
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_2/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_2\\resource_guard.json",
+      "sha256": "08f7b1379a0083132255a32e626d2d4e831fa177920dc93213bacdcfd2ecd45b",
+      "bytes": 911
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_2/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_2\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_2/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_2\\stdout.log",
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b",
+      "bytes": 378
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_3/dispatch_controls.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_3\\dispatch_controls.bin",
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0",
+      "bytes": 11776
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_3/frame_controls.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_3\\frame_controls.txt",
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9",
+      "bytes": 448
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_3/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_3\\job.txt",
+      "sha256": "d1394502eedeaa3e4599745f18b97e10125de98d773803a1279f7bc3d3382009",
+      "bytes": 1312
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_3/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_3\\resource_guard.json",
+      "sha256": "fda9c97ac8a56a7f8f3358d531aa9fc07bc704f81fb823e9db24bf7689f18b35",
+      "bytes": 911
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_3/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_3\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/repeat_3/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_3\\stdout.log",
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b",
+      "bytes": 378
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/evidence/results.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\results.json",
+      "sha256": "08d8690d7d2f669fd46daaddd8e493ef88ea897ed2cc2f8142ebb8dafdd36e7d",
+      "bytes": 38756
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/guard_smoke/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\guard_smoke\\resource_guard.json",
+      "sha256": "64228126a70ab698c8948826daf05efceddc2c0bbe09e9f8e10f27dc543554fa",
+      "bytes": 779
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/guard_smoke/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\guard_smoke\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/guard_smoke/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\guard_smoke\\stdout.log",
+      "sha256": "6db265e9a933b6b7d1594257ecd3ea4af3af50c3a95ece09322a7154bcaacffb",
+      "bytes": 13
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/guard_stop_checks/not_launched/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\guard_stop_checks\\not_launched\\resource_guard.json",
+      "sha256": "9fd5263e587ebaabf9d0b08415b1f753dd86beae96efc1946eab9945efdbba6b",
+      "bytes": 736
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/guard_stop_checks/results.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\guard_stop_checks\\results.json",
+      "sha256": "d389aea03920f41ba5681dcd9f556ca5ab155c081c0c52684289fa101a908ed6",
+      "bytes": 2752
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/guard_stop_checks/timeout/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\guard_stop_checks\\timeout\\resource_guard.json",
+      "sha256": "ecef6dda7fe2159d9cb927216e10610a3e75e003a8ff62698c06d3600aaf4dfc",
+      "bytes": 771
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/guard_stop_checks/timeout/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\guard_stop_checks\\timeout\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/guard_stop_checks/timeout/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\guard_stop_checks\\timeout\\stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/guard_stop_checks/working_set/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\guard_stop_checks\\working_set\\resource_guard.json",
+      "sha256": "014ae11a9a8c6c1053d4786be41f53e7ccfc113a612892edf9c50dd7d355cbf6",
+      "bytes": 766
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/guard_stop_checks/working_set/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\guard_stop_checks\\working_set\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/guard_stop_checks/working_set/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\guard_stop_checks\\working_set\\stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/guard_stop_checks.py",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\guard_stop_checks.py",
+      "sha256": "57e65bd31ae92896a425be4cafbe45009ac32e2fd4204c6809d16e67dd127d59",
+      "bytes": 1301
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/native_resource_guard.py",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\native_resource_guard.py",
+      "sha256": "b70e18d0f13963e0250c371171933429446cf304041c9a16d971e9898d211814",
+      "bytes": 4837
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/preregistration.md",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\preregistration.md",
+      "sha256": "2a99423a30122f3e9d23fb8f16c45c7387c6c4bc8741d1398f49b610f530cde0",
+      "bytes": 1506
+    },
+    {
+      "path": "frozen_source_context_repeat_20260930/smoke_guard.py",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\smoke_guard.py",
+      "sha256": "bb6979fcbb1c477aad194473baee0a21ea3ee01b520205de6bf51a2bdbeb2aab",
+      "bytes": 566
+    },
+    {
+      "path": "frozen_source_context_independent_audit_20260930/audit.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_independent_audit_20260930\\audit.json",
+      "sha256": "b767603e7faa8eef9ff97f4642631619c854e0c75d4e1f99e6fa6a84629585a8",
+      "bytes": 92104
+    },
+    {
+      "path": "frozen_source_context_independent_audit_20260930/audit.py",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_independent_audit_20260930\\audit.py",
+      "sha256": "b8365510fe22e04fef0fe45314679f9e7b9b739f3d27b04abb7730b0a2badec7",
+      "bytes": 10715
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/analyze.py",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\analyze.py",
+      "sha256": "4640f6cdbee9b747d7f95da9e2b774e3d61f52aaa8b055ae9941c78528102cf5",
+      "bytes": 8466
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat0/dispatch_controls.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat0\\dispatch_controls.bin",
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0",
+      "bytes": 11776
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat0/frame_controls.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat0\\frame_controls.txt",
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9",
+      "bytes": 448
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat0/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat0\\job.txt",
+      "sha256": "6d64c121303e7dabdb1b6fa198236e2e1298663856113e2d6c5dc2d0ed57a58e",
+      "bytes": 1330
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat0/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat0\\resource_guard.json",
+      "sha256": "f916def36041e0762f7a2c5062d42eb9a4e92cdc85a65da0c70c10bf57e83877",
+      "bytes": 920
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat0/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat0\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat0/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat0\\stdout.log",
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b",
+      "bytes": 378
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat1/dispatch_controls.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat1\\dispatch_controls.bin",
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0",
+      "bytes": 11776
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat1/frame_controls.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat1\\frame_controls.txt",
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9",
+      "bytes": 448
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat1/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat1\\job.txt",
+      "sha256": "3f4d2b14b425200718f72f386d2f8636bcf78be562985cdc39aa136c6216dfbe",
+      "bytes": 1330
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat1/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat1\\resource_guard.json",
+      "sha256": "d47224bcfb893e31a71c9e3ef0fb7cb1dc3a0fab6783491fd1dd69e3928953d4",
+      "bytes": 920
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat1/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat1\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat1/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat1\\stdout.log",
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b",
+      "bytes": 378
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat2/dispatch_controls.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat2\\dispatch_controls.bin",
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0",
+      "bytes": 11776
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat2/frame_controls.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat2\\frame_controls.txt",
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9",
+      "bytes": 448
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat2/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat2\\job.txt",
+      "sha256": "197cdbebbc47e481ee67d1c031ca699269020f3bff556b4e22eb5f1637f92766",
+      "bytes": 1330
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat2/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat2\\resource_guard.json",
+      "sha256": "2f15fa56bd9f1324304c5856961d136f56ee4c3b9a19fc84a2e5ead258e12065",
+      "bytes": 920
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat2/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat2\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat2/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat2\\stdout.log",
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b",
+      "bytes": 378
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat3/dispatch_controls.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat3\\dispatch_controls.bin",
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0",
+      "bytes": 11776
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat3/frame_controls.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat3\\frame_controls.txt",
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9",
+      "bytes": 448
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat3/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat3\\job.txt",
+      "sha256": "6151b2c16b2595bc5237d10c0f6dadef63de050e449db6bcb65442af02535a48",
+      "bytes": 1330
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat3/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat3\\resource_guard.json",
+      "sha256": "479753e003fd6920a9fbeab3bb5f85a464a5c377d2f3cc5e759c7cd03432bd67",
+      "bytes": 920
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat3/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat3\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/baseline_repeat3/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat3\\stdout.log",
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b",
+      "bytes": 378
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/normal_inputs/opposite_constant.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\normal_inputs\\opposite_constant.bin",
+      "sha256": "104b3ee224169a0d054389167abf83f50f16db67a3a3d63f561d672e409b68c9",
+      "bytes": 40960
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/normal_inputs/opposite_step.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\normal_inputs\\opposite_step.bin",
+      "sha256": "bce09ac419775a356c687d6d4c2bbb1c239e678ccb1be13fd07b634d999608f9",
+      "bytes": 2621440
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat0/dispatch_controls.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat0\\dispatch_controls.bin",
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0",
+      "bytes": 11776
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat0/frame_controls.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat0\\frame_controls.txt",
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9",
+      "bytes": 448
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat0/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat0\\job.txt",
+      "sha256": "6a8ae3031ed755c2a308f18dde2d6f19b4fab29d355e4f8ccdf0bf1aa2cc4a79",
+      "bytes": 1360
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat0/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat0\\resource_guard.json",
+      "sha256": "6a09cdb58626e0f8bfdfd8f01fb2698a8e4b126e5b86ce9f5340eb2ac61ab224",
+      "bytes": 930
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat0/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat0\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat0/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat0\\stdout.log",
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b",
+      "bytes": 378
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat1/dispatch_controls.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat1\\dispatch_controls.bin",
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0",
+      "bytes": 11776
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat1/frame_controls.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat1\\frame_controls.txt",
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9",
+      "bytes": 448
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat1/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat1\\job.txt",
+      "sha256": "9c596e5f61eeeefa77bddcf3b4a3e12973798c1d735928c9162d6e504c4be260",
+      "bytes": 1360
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat1/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat1\\resource_guard.json",
+      "sha256": "eb49cd309e3f472aa49a56a4b6f937214902c3a235847c69c39b69042003f54a",
+      "bytes": 928
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat1/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat1\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat1/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat1\\stdout.log",
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b",
+      "bytes": 378
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat2/dispatch_controls.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat2\\dispatch_controls.bin",
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0",
+      "bytes": 11776
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat2/frame_controls.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat2\\frame_controls.txt",
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9",
+      "bytes": 448
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat2/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat2\\job.txt",
+      "sha256": "61eeddebfb00e6bc958e4885939da08d8f05d48eea3a28944cf07fcc9afd0c7e",
+      "bytes": 1360
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat2/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat2\\resource_guard.json",
+      "sha256": "fa439f18d0d35f7e22418d64ed5a4bb216925059e0dd5c0f1dc1d6937899fc47",
+      "bytes": 928
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat2/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat2\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat2/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat2\\stdout.log",
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b",
+      "bytes": 378
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat3/dispatch_controls.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat3\\dispatch_controls.bin",
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0",
+      "bytes": 11776
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat3/frame_controls.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat3\\frame_controls.txt",
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9",
+      "bytes": 448
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat3/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat3\\job.txt",
+      "sha256": "9e90979d9e5aa48c65b87838f4fa9857379db278b7cd38e0a3889b1503a6dd42",
+      "bytes": 1360
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat3/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat3\\resource_guard.json",
+      "sha256": "01ab4cc28083ca72931798fad8777364c57ad057c9fa55205c20915985e50360",
+      "bytes": 929
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat3/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat3\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_constant_repeat3/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat3\\stdout.log",
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b",
+      "bytes": 378
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat0/dispatch_controls.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat0\\dispatch_controls.bin",
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0",
+      "bytes": 11776
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat0/frame_controls.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat0\\frame_controls.txt",
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9",
+      "bytes": 448
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat0/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat0\\job.txt",
+      "sha256": "7d732549c388d4e8c1cdebe51812d77190d48dcacb72f93a938268dfdb7903b5",
+      "bytes": 1349
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat0/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat0\\resource_guard.json",
+      "sha256": "dec4cdffaf8ce6460a424e3a8a5c0aa9541a2981372a6628a9731e744597b9b0",
+      "bytes": 925
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat0/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat0\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat0/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat0\\stdout.log",
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b",
+      "bytes": 378
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat1/dispatch_controls.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat1\\dispatch_controls.bin",
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0",
+      "bytes": 11776
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat1/frame_controls.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat1\\frame_controls.txt",
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9",
+      "bytes": 448
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat1/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat1\\job.txt",
+      "sha256": "fc86d031a427da9bf9d438ae00dc756dfe3cf5f4098b8b428398327efbcc8a87",
+      "bytes": 1349
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat1/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat1\\resource_guard.json",
+      "sha256": "6f7b510fbff14612b1b7bb919960eef98b98fdae86d4f47a68c648413a547a42",
+      "bytes": 925
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat1/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat1\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat1/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat1\\stdout.log",
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b",
+      "bytes": 378
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat2/dispatch_controls.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat2\\dispatch_controls.bin",
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0",
+      "bytes": 11776
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat2/frame_controls.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat2\\frame_controls.txt",
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9",
+      "bytes": 448
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat2/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat2\\job.txt",
+      "sha256": "0859d377a3a8f4f7f57c8ca7cf467f3d90586e56e4d74917fa0e0c9597c110c1",
+      "bytes": 1349
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat2/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat2\\resource_guard.json",
+      "sha256": "1ecbf02ac8b2a66edd51dfaafe237ee5df147a97dcb7e09cf2491e5d57de5580",
+      "bytes": 925
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat2/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat2\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat2/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat2\\stdout.log",
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b",
+      "bytes": 378
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat3/dispatch_controls.bin",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat3\\dispatch_controls.bin",
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0",
+      "bytes": 11776
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat3/frame_controls.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat3\\frame_controls.txt",
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9",
+      "bytes": 448
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat3/job.txt",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat3\\job.txt",
+      "sha256": "7efaa8ff80e6ede43785a48d718e85b0406c1f001049edd9954adab2bc99c499",
+      "bytes": 1349
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat3/resource_guard.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat3\\resource_guard.json",
+      "sha256": "1df4d87e28bfb814aad85699e584fdb2b6642d649ffe4318f79fe9b3b58e6698",
+      "bytes": 924
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat3/stderr.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat3\\stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/opposite_step_repeat3/stdout.log",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat3\\stdout.log",
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b",
+      "bytes": 378
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/evidence/results.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\results.json",
+      "sha256": "0d5f0fb3a7061ceccebc69591790109f95fbb0d8c9f8fa1e395b39b5c602b96c",
+      "bytes": 267469
+    },
+    {
+      "path": "oct_corner_native_equivalence_20260930/preregistration.md",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\preregistration.md",
+      "sha256": "9fd745578b261bc8dceee28f2d4002b3f7e012283c53c79b585ed4678c96c5ed",
+      "bytes": 1728
+    },
+    {
+      "path": "oct_corner_native_independent_audit_20260930/audit.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_independent_audit_20260930\\audit.json",
+      "sha256": "34fa9069a47b038c25f933fd7a49bfd14473307212006cbbe7d2d26d6940c21f",
+      "bytes": 260576
+    },
+    {
+      "path": "oct_corner_native_independent_audit_20260930/audit.py",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_independent_audit_20260930\\audit.py",
+      "sha256": "1dbd8842778d966511fab9328bce039f71dbf71713e7aa08ea73a268e2ef118a",
+      "bytes": 9496
+    },
+    {
+      "path": "held_normal_followup_plot_20260930/held_inputs_and_oct_repeat.png",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\held_normal_followup_plot_20260930\\held_inputs_and_oct_repeat.png",
+      "sha256": "fcf15c2311891a254d1048b8c42c5e84fe42073794a06da382705db3a1254d21",
+      "bytes": 131537
+    },
+    {
+      "path": "held_normal_followup_plot_20260930/provenance.json",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\held_normal_followup_plot_20260930\\provenance.json",
+      "sha256": "abab6c92337945190593461e7243176b674c284835b654e1a9a88f89505e9085",
+      "bytes": 791
+    },
+    {
+      "path": "support/collect_fsrd_held_input_normal_evidence_20260930.py",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\collect_fsrd_held_input_normal_evidence_20260930.py",
+      "sha256": "d91f438089555533c5ec7e9cf8d7edfa2884640978a894eb4f5a2282ed99b58a",
+      "bytes": 4236
+    },
+    {
+      "path": "support/verify_fsrd_held_input_normal_archive_20260930.py",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\verify_fsrd_held_input_normal_archive_20260930.py",
+      "sha256": "843901eb344c3d12ce404fa8dd4c09cfb9f3b91f7b4fad4804401dd73049e3b1",
+      "bytes": 1713
+    },
+    {
+      "path": "support/plot_fsrd_held_normal_followup_20260930.py",
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\plot_fsrd_held_normal_followup_20260930.py",
+      "sha256": "a29e3f28b17819176bd889f28be18574eb4028247232960ad776d81fcf91c785",
+      "bytes": 2398
+    }
+  ],
+  "external_files": [
+    {
+      "package": "current_camera_gpu_conformance_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\fsrd_gpu_runner.exe",
+      "sha256": "599cb43d6a69dca2f9c94ec1293732e7a594e54fc7764674c34db18494eff3fe",
+      "bytes": 338944
+    },
+    {
+      "package": "current_camera_gpu_conformance_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\fsrd_gpu_runner.obj",
+      "sha256": "55bf1f329edd8f52f22a49162d2994205f7218e7fec53f34b12c7c0826ed9d46",
+      "bytes": 771138
+    },
+    {
+      "package": "current_camera_gpu_conformance_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\hardware_view_strength0.npz",
+      "sha256": "860aea68f5e751785597c2a4107d784df0eb0cb2d5c0ce9f79dd1324eeab5bf1",
+      "bytes": 42012
+    },
+    {
+      "package": "current_camera_gpu_conformance_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\hardware_view_strength1.npz",
+      "sha256": "860aea68f5e751785597c2a4107d784df0eb0cb2d5c0ce9f79dd1324eeab5bf1",
+      "bytes": 42012
+    },
+    {
+      "package": "current_camera_gpu_conformance_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\hardware_world_strength0.npz",
+      "sha256": "860aea68f5e751785597c2a4107d784df0eb0cb2d5c0ce9f79dd1324eeab5bf1",
+      "bytes": 42012
+    },
+    {
+      "package": "current_camera_gpu_conformance_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\hardware_world_strength1.npz",
+      "sha256": "860aea68f5e751785597c2a4107d784df0eb0cb2d5c0ce9f79dd1324eeab5bf1",
+      "bytes": 42012
+    },
+    {
+      "package": "current_camera_gpu_conformance_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\linear_view_strength0.npz",
+      "sha256": "f7b61570befaaaa06be98b3074cb51d861cbc846222824319bbb41cb8d2cde4f",
+      "bytes": 42011
+    },
+    {
+      "package": "current_camera_gpu_conformance_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\linear_view_strength1.npz",
+      "sha256": "f7b61570befaaaa06be98b3074cb51d861cbc846222824319bbb41cb8d2cde4f",
+      "bytes": 42011
+    },
+    {
+      "package": "current_camera_gpu_conformance_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\linear_world_strength0.npz",
+      "sha256": "f7b61570befaaaa06be98b3074cb51d861cbc846222824319bbb41cb8d2cde4f",
+      "bytes": 42011
+    },
+    {
+      "package": "current_camera_gpu_conformance_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\current_camera_gpu_conformance_20260930\\evidence\\linear_world_strength1.npz",
+      "sha256": "f7b61570befaaaa06be98b3074cb51d861cbc846222824319bbb41cb8d2cde4f",
+      "bytes": 42011
+    },
+    {
+      "package": "frozen_source_context_repeat_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_0\\diffuse.bin",
+      "sha256": "8b5599c05f86cc05ee34c335fe9d5a8ba8392adebd9a3af8d1a809ad98209e3c",
+      "bytes": 5242880
+    },
+    {
+      "package": "frozen_source_context_repeat_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_0\\specular.bin",
+      "sha256": "76f42828cc121096fe45783180b386a8a9bd4df8bd045e6b74207b249060b8da",
+      "bytes": 5242880
+    },
+    {
+      "package": "frozen_source_context_repeat_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_1\\diffuse.bin",
+      "sha256": "51bf0e61ffa6c0715d5bdc733e6485db145dc0ee305f34900ad8d5aa8b7917a2",
+      "bytes": 5242880
+    },
+    {
+      "package": "frozen_source_context_repeat_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_1\\specular.bin",
+      "sha256": "f49dfdc1c9590a2b6ca7f6d8ff6db68246f42d4895099fd08d5258d12830faae",
+      "bytes": 5242880
+    },
+    {
+      "package": "frozen_source_context_repeat_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_2\\diffuse.bin",
+      "sha256": "42475e10287957f5b56477d369105ca350f54df9609eaeac24cffd3cab581952",
+      "bytes": 5242880
+    },
+    {
+      "package": "frozen_source_context_repeat_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_2\\specular.bin",
+      "sha256": "8a3e967a87b8a1f68abba553770993fa109c65a8d4893056ec3f3f2da4c609bf",
+      "bytes": 5242880
+    },
+    {
+      "package": "frozen_source_context_repeat_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_3\\diffuse.bin",
+      "sha256": "42475e10287957f5b56477d369105ca350f54df9609eaeac24cffd3cab581952",
+      "bytes": 5242880
+    },
+    {
+      "package": "frozen_source_context_repeat_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\evidence\\repeat_3\\specular.bin",
+      "sha256": "8a3e967a87b8a1f68abba553770993fa109c65a8d4893056ec3f3f2da4c609bf",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat0\\diffuse.bin",
+      "sha256": "42475e10287957f5b56477d369105ca350f54df9609eaeac24cffd3cab581952",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat0\\specular.bin",
+      "sha256": "8a3e967a87b8a1f68abba553770993fa109c65a8d4893056ec3f3f2da4c609bf",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat1\\diffuse.bin",
+      "sha256": "42475e10287957f5b56477d369105ca350f54df9609eaeac24cffd3cab581952",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat1\\specular.bin",
+      "sha256": "8a3e967a87b8a1f68abba553770993fa109c65a8d4893056ec3f3f2da4c609bf",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat2\\diffuse.bin",
+      "sha256": "42475e10287957f5b56477d369105ca350f54df9609eaeac24cffd3cab581952",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat2\\specular.bin",
+      "sha256": "8a3e967a87b8a1f68abba553770993fa109c65a8d4893056ec3f3f2da4c609bf",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat3\\diffuse.bin",
+      "sha256": "42475e10287957f5b56477d369105ca350f54df9609eaeac24cffd3cab581952",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\baseline_repeat3\\specular.bin",
+      "sha256": "8a3e967a87b8a1f68abba553770993fa109c65a8d4893056ec3f3f2da4c609bf",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat0\\diffuse.bin",
+      "sha256": "42475e10287957f5b56477d369105ca350f54df9609eaeac24cffd3cab581952",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat0\\specular.bin",
+      "sha256": "8a3e967a87b8a1f68abba553770993fa109c65a8d4893056ec3f3f2da4c609bf",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat1\\diffuse.bin",
+      "sha256": "42475e10287957f5b56477d369105ca350f54df9609eaeac24cffd3cab581952",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat1\\specular.bin",
+      "sha256": "8a3e967a87b8a1f68abba553770993fa109c65a8d4893056ec3f3f2da4c609bf",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat2\\diffuse.bin",
+      "sha256": "476ac26acccea9a60f76314aae215aa8e137922697fe8704f642bbb018c07603",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat2\\specular.bin",
+      "sha256": "4f98b19adb0b04b4f9e9b08378f4dfd4f9d6a27bff927cc5e50c05696f5b19f1",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat3\\diffuse.bin",
+      "sha256": "42475e10287957f5b56477d369105ca350f54df9609eaeac24cffd3cab581952",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_constant_repeat3\\specular.bin",
+      "sha256": "8a3e967a87b8a1f68abba553770993fa109c65a8d4893056ec3f3f2da4c609bf",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat0\\diffuse.bin",
+      "sha256": "42475e10287957f5b56477d369105ca350f54df9609eaeac24cffd3cab581952",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat0\\specular.bin",
+      "sha256": "8a3e967a87b8a1f68abba553770993fa109c65a8d4893056ec3f3f2da4c609bf",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat1\\diffuse.bin",
+      "sha256": "42475e10287957f5b56477d369105ca350f54df9609eaeac24cffd3cab581952",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat1\\specular.bin",
+      "sha256": "8a3e967a87b8a1f68abba553770993fa109c65a8d4893056ec3f3f2da4c609bf",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat2\\diffuse.bin",
+      "sha256": "42475e10287957f5b56477d369105ca350f54df9609eaeac24cffd3cab581952",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat2\\specular.bin",
+      "sha256": "8a3e967a87b8a1f68abba553770993fa109c65a8d4893056ec3f3f2da4c609bf",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat3\\diffuse.bin",
+      "sha256": "42475e10287957f5b56477d369105ca350f54df9609eaeac24cffd3cab581952",
+      "bytes": 5242880
+    },
+    {
+      "package": "oct_corner_native_equivalence_20260930",
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\oct_corner_native_equivalence_20260930\\evidence\\opposite_step_repeat3\\specular.bin",
+      "sha256": "8a3e967a87b8a1f68abba553770993fa109c65a8d4893056ec3f3f2da4c609bf",
+      "bytes": 5242880
+    }
+  ],
+  "packages": [
+    {
+      "name": "current_camera_conformance_20260930",
+      "archived_count": 10
+    },
+    {
+      "name": "current_camera_gpu_conformance_20260930",
+      "archived_count": 238
+    },
+    {
+      "name": "current_camera_gpu_independent_audit_20260930",
+      "archived_count": 4
+    },
+    {
+      "name": "frozen_source_context_repeat_20260930",
+      "archived_count": 48
+    },
+    {
+      "name": "frozen_source_context_independent_audit_20260930",
+      "archived_count": 2
+    },
+    {
+      "name": "oct_corner_native_equivalence_20260930",
+      "archived_count": 77
+    },
+    {
+      "name": "oct_corner_native_independent_audit_20260930",
+      "archived_count": 2
+    },
+    {
+      "name": "held_normal_followup_plot_20260930",
+      "archived_count": 2
+    }
+  ],
+  "conversion_dispatches": 8,
+  "held_native_contexts": 4,
+  "held_native_RR_dispatches": 256,
+  "oct_native_contexts": 12,
+  "oct_native_RR_dispatches": 768,
+  "previous_completed_native_contexts": 289,
+  "previous_completed_native_RR_dispatches": 14128,
+  "completed_native_total_including_metadata_failed": 305,
+  "completed_native_RR_total_including_metadata_failed": 15152,
+  "limitations": [
+    "No stain/wave quality solution accepted. Prior archives and installed game DLL preserved.",
+    "Ordinary debug diagnostics do not imply GPU-based validation or hidden provider determinism.",
+    "Observed repeat spread is not a population confidence bound.",
+    "Large full native outputs/binaries remain external with exact byte hashes."
+  ]
+}
