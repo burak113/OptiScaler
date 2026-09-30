@@ -94,6 +94,12 @@ context diverges at frames2–63; smaller repeat differences start at35–39.
 Output alpha stays exact zero. There is no alpha-effect or root-cause claim.
 Preparation assertions/import errors are preserved, without invented logs.
 
+The following retained-lobe plot shows the same-byte wave control at the
+already audited difference maxima, frames7 and59, and its complete temporal
+RGB RMS. It is a synthetic native-context diagnostic, not a game stain image.
+
+![Identical-input native variation](evidence/fsrd_native_identical_wave_visual/identical_input_native_variation.png)
+
 [The compact archive](evidence/fsrd_dc_innovation_followup/manifest.json)
 retains39 files including designs, frozen model/scorer, reports, checks, source
 pins, independent audit and descriptive covariance scripts. Earlier actual
