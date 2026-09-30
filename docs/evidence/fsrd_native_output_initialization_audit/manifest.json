@@ -1,0 +1,134 @@
+{
+  "schema": "fsrd-output-initialization-audit-archive-v1",
+  "branch": "ffxD-experimental-alpha",
+  "base_commit": "81bf64ac98905d355ddb729c596786ef76ad817d",
+  "audited_commit": "18550af88f665103e11c8e08d7c701118be1d156",
+  "status": "completed_passed_with_qualifications",
+  "quality_accepted": false,
+  "new_native_contexts": 0,
+  "new_native_RR_calls": 0,
+  "completed_total_contexts": 382,
+  "completed_total_RR_calls": 20080,
+  "previous_contexts_independently_verified": 12,
+  "previous_RR_calls_independently_verified": 768,
+  "copied_file_count": 19,
+  "copied_files": [
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\audit.json",
+      "archive": "audit.json",
+      "bytes": 737999,
+      "sha256": "6606af0f6b20c944e2cc7a58e0e747d0135bab35d07b2ec5eb9661f9f1cc4fb0"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\audit.py",
+      "archive": "audit.py",
+      "bytes": 32149,
+      "sha256": "a9096fb90bc23cbf5eb9f7fa019566d044a96e41700ce8d5c983e4d2694fa34e"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\audit_attempt1_failure.json",
+      "archive": "audit_attempt1_failure.json",
+      "bytes": 1027,
+      "sha256": "5f4bbef646f38ad998cb0ff70d5ccd6206a43797dcb4172c06adb709b4e270a5"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\audit_v2.py",
+      "archive": "audit_v2.py",
+      "bytes": 33221,
+      "sha256": "cc2b3efe4e5e1d3d941025f81e826daa132088191ee2e00f375c1d3d6483d857"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\baseline_pre_freeze.json",
+      "archive": "baseline_pre_freeze.json",
+      "bytes": 10652,
+      "sha256": "62d94da9dc25d9940e6777c99876a680a48ddd8b26a5fc5857c384ec6bea1e6d"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\close_audit.py",
+      "archive": "close_audit.py",
+      "bytes": 3789,
+      "sha256": "234a0d1d2efa55b0d6ed76a1419b7520271a303b93945ba3007c253bd55aff3e"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\compact.json",
+      "archive": "compact.json",
+      "bytes": 3162,
+      "sha256": "6989dd1d1c576f53c8eea3173a15a3d591875c5413c35ef59511d5a7a9145c23"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\compact_v2.json",
+      "archive": "compact_v2.json",
+      "bytes": 4374,
+      "sha256": "42149c564c681b52ba2fa6914ffbfb8f15af05f2858f2d7df91687879d3db052"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\completion_manifest.json",
+      "archive": "completion_manifest.json",
+      "bytes": 3760,
+      "sha256": "0cd0d13e1974df0782190cbc3fbe729818fb17c5e53d40f70cc873a4f3e5f1e0"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\completion_manifest_v2.json",
+      "archive": "completion_manifest_v2.json",
+      "bytes": 5364,
+      "sha256": "e51a1094ab85a02fdb9b3c87d7f28a0c2f1e611586e56e071d5483bc5f90f513"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\post_audit_freeze.json",
+      "archive": "post_audit_freeze.json",
+      "bytes": 117331,
+      "sha256": "bb3c8ba9f5801c5608c13fe27a70a22e10e2aed9949633c645adfd22702a8ecf"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\pre_audit_freeze.json",
+      "archive": "pre_audit_freeze.json",
+      "bytes": 106717,
+      "sha256": "ca57d3e3a2ca374ce9940f8a0d797588f1d7794271420fd0ecd24e41847f8da5"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\preregistration.json",
+      "archive": "preregistration.json",
+      "bytes": 108548,
+      "sha256": "74bb1220fec3dbe0cd25f3b6a5ef03a5ea43c8e2b09fe1b8707e7455ce969e49"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\qualification.txt",
+      "archive": "qualification.txt",
+      "bytes": 2333,
+      "sha256": "bb7e6eeb13f864faa782f866adc905c55b1e51bc474e8a44ac1354437ee726cd"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\qualification_addendum.json",
+      "archive": "qualification_addendum.json",
+      "bytes": 2648,
+      "sha256": "d04fb01ed63d81ec244d9e31af36a46aa95632c66b4b22376cf668006e8f7597"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\register_audit.py",
+      "archive": "register_audit.py",
+      "bytes": 4087,
+      "sha256": "b96fa5b16cf552017b57644865fe0ae91bb1e4e353a9da6ffc0d3ad7c89198e0"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\repair_audit_attempt.py",
+      "archive": "repair_audit_attempt.py",
+      "bytes": 3728,
+      "sha256": "d2672dfab4c0b9549a1b65ce9ec04c11118a6ddd2d85a62ee0bea4927925b34c"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\source_whitelist.diff",
+      "archive": "source_whitelist.diff",
+      "bytes": 4819,
+      "sha256": "9fb5bb7a390b6af3519a0745e3da8b81d6130b0ec5bfe52ba817fc463c56a773"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\collect_fsrd_output_initialization_audit_20260930.py",
+      "archive": "collector_source.py",
+      "bytes": 2163,
+      "sha256": "8b67e92ecbc7414bc034d15e8a68793000c39edc11b5cde4adf03138f4251f95"
+    }
+  ],
+  "canonical_compact": "compact_v2.json",
+  "canonical_completion": "completion_manifest_v2.json",
+  "payloads": "Previous raw buffers/build binaries stay retained and pinned in the producer archive; no copied evidence modified."
+}

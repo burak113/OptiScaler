@@ -1,0 +1,37 @@
+{
+  "schema": "independent-audit-input-alpha-qualification-addendum-v1",
+  "utc": "2026-09-30T11:43:34.191825+00:00",
+  "audit": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_output_initialization_independent_audit_20260930\\audit.json",
+    "bytes": 737999,
+    "sha256": "6606af0f6b20c944e2cc7a58e0e747d0135bab35d07b2ec5eb9661f9f1cc4fb0"
+  },
+  "original_reports_rewritten": false,
+  "direct_diffuse_input_alpha": [
+    65504,
+    65504
+  ],
+  "indirect_specular_input_alpha": [
+    0,
+    0
+  ],
+  "sentinel_context_output_alpha": 17,
+  "all_sentinel_output_pixels_disagree_with_input_alpha": true,
+  "normal_specular_input_output_zero_equality": "Observed equality of two zero-valued arrays cannot distinguish input copying, no destination write, or a same-value store.",
+  "contract_field_qualification": "The audit.json input_alpha_copy_not_observed boolean is false because it tests that every input/output alpha equality fraction is zero. This strict all-context predicate is not a kernel-copying conclusion. The sentinel contexts disprove unconditional input-alpha copying for this experiment and show empirical destination-alpha retention; they do not establish a general alpha contract.",
+  "audit_method_erratum": {
+    "schema": "independent-audit-attempt1-failure-v1",
+    "script_sha256": "a9096fb90bc23cbf5eb9f7fa019566d044a96e41700ce8d5c983e4d2694fa34e",
+    "observed_tool_returncode": 1,
+    "observed_exception": "AssertionError: original source untouched in HEAD",
+    "observed_location": "audit.py main line 299; require(git show original HEAD blob == original working bytes)",
+    "qualification": "The original working runner has the frozen CRLF bytes and pinned SHA; its pre-existing Git source blob has LF bytes. Attempt 1 therefore used an overly strict physical-byte equality for this source. All raw metrics and archive checks reached before this source check passed. This is an audit-method failure, not a native/producer failure.",
+    "repair": "Audit v2 compares normalized source content to HEAD, confirms source git diff is empty, and retains the exact original working SHA. Existing preregistration, baseline freeze, source diff and failed audit.py remain untouched.",
+    "native_contexts_added": 0,
+    "native_RR_calls_added": 0
+  },
+  "original_source_Git_newline_qualification": "Original source working bytes are pinned CRLF; its pre-existing Git blob is LF. Normalized source content and pristine Git diff are verified. The archive uses -text and is checked by physical byte equality.",
+  "new_native_contexts": 0,
+  "new_native_RR_calls": 0,
+  "quality_accepted": false
+}

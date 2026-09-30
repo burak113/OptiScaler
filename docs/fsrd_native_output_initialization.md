@@ -43,7 +43,14 @@ retains131 files including the isolated source/build command, registrations,
 guarded jobs, applied controls, reports and logs;112 full payload/build binary
 files remain retained at their SHA/size-pinned F-drive paths. The new runner
 SHA is9c9e15c2c0eb1f4f8a59cf67d105eef3db05377b8c296869e6e253b9a0786496.
-The independent audit is recorded separately once complete. Additional
+The [independent audit](evidence/fsrd_native_output_initialization_audit/compact_v2.json)
+is complete: all66 pairs/132 lobes, six repeat pairs, raw input/control
+bytes, guards, logs,131 archive copies,112 external payloads and136
+committed files authenticate. Its canonical V2 report preserves the initial
+audit attempt's source-newline mismatch and qualifies provider-version query
+unavailability, byte-pinned source versus machine-code equivalence, and the
+coincidental equality of zero-valued specular input/output alpha. The audit
+adds no native or GPU work. Additional
 [RGB bit verification](evidence/fsrd_native_output_initialization_rgb_bit_proof.json)
 uses the raw16-bit channel storage, not only numeric RMS equality.
 

@@ -1,0 +1,74 @@
+--- original
++++ isolated_C
+@@ -16,9 +16,9 @@
+ #include <stdexcept>
+ #include <cstring>
+ #include <cmath>
+-#include "../../../../external/FidelityFX-SDK-v2/Kits/FidelityFX/api/include/ffx_api_loader.h"
+-#include "../../../../external/FidelityFX-SDK-v2/Kits/FidelityFX/api/include/dx12/ffx_api_dx12.h"
+-#include "../../../../external/FidelityFX-SDK-v2/Kits/FidelityFX/denoisers/include/ffx_denoiser.h"
++#include "F:/OptiRevelations/OptiScaler-ffxD-alpha/external/FidelityFX-SDK-v2/Kits/FidelityFX/api/include/ffx_api_loader.h"
++#include "F:/OptiRevelations/OptiScaler-ffxD-alpha/external/FidelityFX-SDK-v2/Kits/FidelityFX/api/include/dx12/ffx_api_dx12.h"
++#include "F:/OptiRevelations/OptiScaler-ffxD-alpha/external/FidelityFX-SDK-v2/Kits/FidelityFX/denoisers/include/ffx_denoiser.h"
+ using Microsoft::WRL::ComPtr;
+ void hr(HRESULT h, const char* s) { if(FAILED(h)) throw std::runtime_error(std::string(s)+" HRESULT="+std::to_string(uint32_t(h))); }
+ void ff(ffxReturnCode_t h, const char* s) { if(h) throw std::runtime_error(std::string(s)+" FFX="+std::to_string(h)); }
+@@ -36,7 +36,10 @@
+ };
+ int main(int argc,char** argv) try {
+     std::cout<<std::unitbuf;
+-    if(argc!=2) throw std::runtime_error("usage: fsrd_rr_runner job.txt");
++    if(argc!=2&&argc!=3) throw std::runtime_error("usage: fsrd_rr_output_init job.txt [mode]");
++    const unsigned outputInitMode=argc==3?unsigned(std::stoi(argv[2])):0;
++    if(outputInitMode>5) throw std::runtime_error("invalid output initialization mode");
++    std::cout<<"output_initialization_mode="<<outputInitMode<<'\n';
+     std::ifstream job(argv[1]);
+     unsigned w,h,frames,diffFlag,specFlag,resetEvery,tuning,passthrough;
+     std::string dllPath;
+@@ -93,6 +96,24 @@
+             t.input.seekg(0);
+         }
+     }
++    // Diagnostic only. Mode0 creates no heaps and keeps legacy output lifecycle.
++    // Mode1 heap binding + UAV barriers is the matched allocation/binding control.
++    ComPtr<ID3D12DescriptorHeap> clearVisible,clearCPU;
++    UINT clearStride=dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
++    if(outputInitMode) {
++        D3D12_DESCRIPTOR_HEAP_DESC hd{};hd.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;hd.NumDescriptors=2;
++        hd.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
++        hr(dev->CreateDescriptorHeap(&hd,IID_PPV_ARGS(&clearVisible)),"diagnostic visible UAV heap");
++        hd.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
++        hr(dev->CreateDescriptorHeap(&hd,IID_PPV_ARGS(&clearCPU)),"diagnostic CPU UAV heap");
++        for(unsigned j=0;j<2;++j) {
++            D3D12_UNORDERED_ACCESS_VIEW_DESC ud{};ud.Format=tex[7+j].format;ud.ViewDimension=D3D12_UAV_DIMENSION_TEXTURE2D;
++            auto c=clearCPU->GetCPUDescriptorHandleForHeapStart();c.ptr+=SIZE_T(j)*clearStride;
++            auto v=clearVisible->GetCPUDescriptorHandleForHeapStart();v.ptr+=SIZE_T(j)*clearStride;
++            dev->CreateUnorderedAccessView(tex[7+j].tex.Get(),nullptr,&ud,c);
++            dev->CopyDescriptorsSimple(1,v,c,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
++        }
++    }
+     std::string diffOut,specOut; job>>std::quoted(diffOut)>>std::quoted(specOut);
+     if(!job) throw std::runtime_error("invalid texture records");
+     std::ofstream outD(diffOut,std::ios::binary),outS(specOut,std::ios::binary);
+@@ -189,6 +210,21 @@
+         record(dispatch.motionVectorScale); record(dispatch.cameraPositionDelta);
+         record(dispatch.jitterOffsets); record(dispatch.linearDepthBounds);
+         record(dispatch.view); record(dispatch.projection);
++        if(outputInitMode) {
++            ID3D12DescriptorHeap* heaps[]={clearVisible.Get()};cmd->SetDescriptorHeaps(1,heaps);
++            bool clearNow=(outputInitMode==2||outputInitMode==4)?frame==0:(outputInitMode==3||outputInitMode==5);
++            const float zero[4]={0,0,0,0};const float sentinel[4]={257,513,769,17};
++            const float* value=outputInitMode>=4?sentinel:zero;
++            for(unsigned j=0;j<2;++j) {
++                if((j==0&&!diffFlag)||(j==1&&!specFlag))continue;
++                auto c=clearCPU->GetCPUDescriptorHandleForHeapStart();c.ptr+=SIZE_T(j)*clearStride;
++                auto g=clearVisible->GetGPUDescriptorHandleForHeapStart();g.ptr+=UINT64(j)*clearStride;
++                if(clearNow)cmd->ClearUnorderedAccessViewFloat(g,c,tex[7+j].tex.Get(),value,0,nullptr);
++                // All nonlegacy modes share this barrier, including no-clear mode1.
++                D3D12_RESOURCE_BARRIER ub{};ub.Type=D3D12_RESOURCE_BARRIER_TYPE_UAV;ub.UAV.pResource=tex[7+j].tex.Get();
++                cmd->ResourceBarrier(1,&ub);
++            }
++        }
+         ff(api.Dispatch(&context,&dispatch.header),"dispatch RR");
+         for(unsigned i=7;i<9;++i) {
+             if((i==7&&!diffFlag)||(i==8&&!specFlag)) continue;
