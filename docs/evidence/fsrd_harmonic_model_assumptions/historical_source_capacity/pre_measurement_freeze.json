@@ -1,0 +1,9 @@
+{
+  "schema": "historical-water-premeasurement-freeze-v2",
+  "source_only_diagnostic": true,
+  "quality_accepted": false,
+  "sources": {
+    "preregistration.json": "4f46a502ff3920b62c703143e4e9d054f700cca57355f4d4510a9a9ed8f3fc57",
+    "analyze.py": "6f1bc6a4fed8191f986f5434bb6fb4842c47dd1b77651d9298fd9ec4fc2b5a09"
+  }
+}

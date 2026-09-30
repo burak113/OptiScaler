@@ -1,0 +1,8 @@
+{
+  "schema": "harmonic-frequency-math-freeze-v1",
+  "quality_accepted": false,
+  "sources": {
+    "preregistration.json": "de49d838cbc8238fca4711b42dde66b32848bc3960f803341cc8e8eaadb4f0d7",
+    "analyze.py": "7bcea676bf3f039f0d1c3b8def06fdbb439f6ed7d12d248314fe8df46cc38d3d"
+  }
+}

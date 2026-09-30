@@ -1,0 +1,247 @@
+{
+  "schema": "harmonic-frequency-local-oracle-math-v1",
+  "status": "completed_math_not_estimator_or_quality",
+  "quality_accepted": false,
+  "prototype_changed": false,
+  "native_measured": false,
+  "pre_measurement_freeze": {
+    "schema": "harmonic-frequency-math-freeze-v1",
+    "quality_accepted": false,
+    "sources": {
+      "preregistration.json": "de49d838cbc8238fca4711b42dde66b32848bc3960f803341cc8e8eaadb4f0d7",
+      "analyze.py": "7bcea676bf3f039f0d1c3b8def06fdbb439f6ed7d12d248314fe8df46cc38d3d"
+    }
+  },
+  "selfchecks": {
+    "derivative_max_error": 3.4041380825300394e-11,
+    "joint_inverse_Schur_relative_error": 4.485584394610714e-16
+  },
+  "rows": [
+    {
+      "case": "one_offgrid",
+      "true_oracle_frequency": [
+        [
+          2.37,
+          1.19
+        ]
+      ],
+      "train_pixels": 971,
+      "physical_columns_retained": [
+        0,
+        1,
+        2
+      ],
+      "training_Gram_condition": 2.0345125863729985,
+      "nominal_conditional_current_atom_RMS": 0.0005496970319234049,
+      "frequency_information_eigenvalues": [
+        591084.2090413454,
+        619642.4102884495
+      ],
+      "conditional_pair_envelope_checks": [
+        {
+          "atom": 0,
+          "envelope_minus_cov_min_eigen_sigma1": 1.0534310536985318e-19
+        }
+      ],
+      "frequency_information_status": "invertible_local_oracle",
+      "nominal_past8_frequency_SE_bins": [
+        0.001290913008802309,
+        0.0012803061898173317
+      ],
+      "nominal_extra_current_atom_RMS_from_frequency": 0.00010912204405612016,
+      "omitted_frequency_variance_over_conditional": 0.03940743800679928,
+      "total_local_RMS_over_conditional": 1.019513333903387
+    },
+    {
+      "case": "two_offgrid",
+      "true_oracle_frequency": [
+        [
+          3.1,
+          1.0
+        ],
+        [
+          5.43,
+          -2.21
+        ]
+      ],
+      "train_pixels": 971,
+      "physical_columns_retained": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "training_Gram_condition": 2.054818063549485,
+      "nominal_conditional_current_atom_RMS": 0.0007776038223177332,
+      "frequency_information_eigenvalues": [
+        152292.78713452714,
+        156369.17868200177,
+        613437.1652206394,
+        631605.4091468448
+      ],
+      "conditional_pair_envelope_checks": [
+        {
+          "atom": 0,
+          "envelope_minus_cov_min_eigen_sigma1": -4.945878318577063e-20
+        },
+        {
+          "atom": 1,
+          "envelope_minus_cov_min_eigen_sigma1": 2.1158452888493895e-20
+        }
+      ],
+      "frequency_information_status": "invertible_local_oracle",
+      "nominal_past8_frequency_SE_bins": [
+        0.0012684322728259269,
+        0.001268931985891184,
+        0.0025445071489177446,
+        0.0025458243621314454
+      ],
+      "nominal_extra_current_atom_RMS_from_frequency": 0.00015335436595765353,
+      "omitted_frequency_variance_over_conditional": 0.03889336470909425,
+      "total_local_RMS_over_conditional": 1.019261185716936
+    },
+    {
+      "case": "two_close",
+      "true_oracle_frequency": [
+        [
+          3.1,
+          1.0
+        ],
+        [
+          3.35,
+          1.15
+        ]
+      ],
+      "train_pixels": 971,
+      "physical_columns_retained": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "training_Gram_condition": 15.646407147469132,
+      "nominal_conditional_current_atom_RMS": 0.0007809222149381044,
+      "frequency_information_eigenvalues": [
+        406.60350272290566,
+        15628.716590531547,
+        71033.73926367164,
+        750959.2300557822
+      ],
+      "conditional_pair_envelope_checks": [
+        {
+          "atom": 0,
+          "envelope_minus_cov_min_eigen_sigma1": 1.9312351197398048e-19
+        },
+        {
+          "atom": 1,
+          "envelope_minus_cov_min_eigen_sigma1": -2.167345553786941e-19
+        }
+      ],
+      "frequency_information_status": "invertible_local_oracle",
+      "nominal_past8_frequency_SE_bins": [
+        0.019383972385752367,
+        0.01197819234054597,
+        0.038206724715476106,
+        0.02366058594652892
+      ],
+      "nominal_extra_current_atom_RMS_from_frequency": 0.00015298348515166557,
+      "omitted_frequency_variance_over_conditional": 0.038377223035212314,
+      "total_local_RMS_over_conditional": 1.019007960241338
+    },
+    {
+      "case": "near_DC",
+      "true_oracle_frequency": [
+        [
+          1.03,
+          0.05
+        ]
+      ],
+      "train_pixels": 971,
+      "physical_columns_retained": [
+        0,
+        1,
+        2
+      ],
+      "training_Gram_condition": 2.082725062396012,
+      "nominal_conditional_current_atom_RMS": 0.0005495968423913735,
+      "frequency_information_eigenvalues": [
+        245009.8555253368,
+        603539.4593676775
+      ],
+      "conditional_pair_envelope_checks": [
+        {
+          "atom": 0,
+          "envelope_minus_cov_min_eigen_sigma1": -4.67456307765967e-20
+        }
+      ],
+      "frequency_information_status": "invertible_local_oracle",
+      "nominal_past8_frequency_SE_bins": [
+        0.002019062785369427,
+        0.0012890874415496822
+      ],
+      "nominal_extra_current_atom_RMS_from_frequency": 0.00010683419710199805,
+      "omitted_frequency_variance_over_conditional": 0.03778610466108434,
+      "total_local_RMS_over_conditional": 1.0187178729467175
+    },
+    {
+      "case": "weak_one_offgrid",
+      "true_oracle_frequency": [
+        [
+          2.37,
+          1.19
+        ]
+      ],
+      "train_pixels": 971,
+      "physical_columns_retained": [
+        0,
+        1,
+        2
+      ],
+      "training_Gram_condition": 2.0345125863729985,
+      "nominal_conditional_current_atom_RMS": 0.0005496970319234049,
+      "frequency_information_eigenvalues": [
+        5910.842090413455,
+        6196.424102884497
+      ],
+      "conditional_pair_envelope_checks": [
+        {
+          "atom": 0,
+          "envelope_minus_cov_min_eigen_sigma1": 1.0534310536985318e-19
+        }
+      ],
+      "frequency_information_status": "invertible_local_oracle",
+      "nominal_past8_frequency_SE_bins": [
+        0.012909130088023088,
+        0.012803061898173314
+      ],
+      "nominal_extra_current_atom_RMS_from_frequency": 0.00010912204405612016,
+      "omitted_frequency_variance_over_conditional": 0.03940743800679928,
+      "total_local_RMS_over_conditional": 1.019513333903387
+    },
+    {
+      "case": "one_Nyquist",
+      "true_oracle_frequency": [
+        [
+          20.0,
+          0.0
+        ]
+      ],
+      "train_pixels": 971,
+      "physical_columns_retained": [
+        0,
+        2
+      ],
+      "training_Gram_condition": 1.0399159663865545,
+      "nominal_conditional_current_atom_RMS": 0.00038872211977067123,
+      "frequency_information_eigenvalues": [
+        1.1483442576250792e-24,
+        1.2966289667258693e-24
+      ],
+      "conditional_pair_envelope_checks": [],
+      "frequency_information_status": "singular_nonregular_no_inverse",
+      "frequency_uncertainty_is_zero": false
+    }
+  ]
+}

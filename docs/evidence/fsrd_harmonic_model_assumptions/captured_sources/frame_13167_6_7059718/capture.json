@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "complete": true,
+  "source": "live_gpu",
+  "capture_id": "frame_13167_6_7059718",
+  "frame_index": 13167,
+  "viewport_id": 0,
+  "production_debug_mode": "None",
+  "active_radiance_signals": ["diffuse", "specular"],
+  "gpu_completion_verified": true,
+  "completion_token": "gpu_token_6",
+  "format": "rgba32f_le",
+  "width": 256,
+  "height": 256,
+  "origin_xy": [625, 590],
+  "factors_recomputed_from_stored_albedo": true,
+  "albedo_flags": 0,
+  "specular_strength": 1,
+  "diffuse_strength": 1,
+  "demod_divisor_floor": 0.008
+}

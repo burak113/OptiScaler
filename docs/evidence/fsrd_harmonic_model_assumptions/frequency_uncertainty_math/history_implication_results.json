@@ -1,0 +1,245 @@
+{
+  "schema": "harmonic-fixed-frequency-component-history-implication-v1",
+  "status": "completed_exact_derived_oracle_math_not_estimator",
+  "quality_accepted": false,
+  "source_sha256": "450ef004dea4692735060f7dc97773f4b40565935381c60562ca853281f7e879",
+  "script_sha256": "e7c08dd93feef45d15e15a62f80dc0b961eafafe255aa033317eb172dbb8c8b7",
+  "assumptions": [
+    "Static physical atom and fixed learned frequency from disjoint past8 frames",
+    "Independent current coefficient fits with known IID covariance, no phase innovation or model selection",
+    "The same frequency perturbation is common to every coefficient fit; its firstorder prediction error does not average down"
+  ],
+  "limitations": [
+    "This is the atom component, not combined final pilot variance",
+    "Residual equals source minus current fitted atom; its common error is anticorrelated and can cancel the atom error in a consistent final reconstruction",
+    "Actual selected-frequency/colored uncertainty is absent; no measured estimator/native quality claim",
+    "Counts41 and56 correspond only to possible history lengths after frame8 activation in a64-frame fixture"
+  ],
+  "rows": [
+    {
+      "case": "one_offgrid",
+      "independent_current_coefficient_observations": 1,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 0.0005496970319234049,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00010912204405612016,
+      "common_frequency_variance_over_conditional_mean": 0.039407438006799266,
+      "total_component_local_RMS_over_conditional_mean": 1.019513333903387
+    },
+    {
+      "case": "one_offgrid",
+      "independent_current_coefficient_observations": 16,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 0.00013742425798085123,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00010912204405612016,
+      "common_frequency_variance_over_conditional_mean": 0.6305190081087882,
+      "total_component_local_RMS_over_conditional_mean": 1.276917776565425
+    },
+    {
+      "case": "one_offgrid",
+      "independent_current_coefficient_observations": 41,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 8.584825337447932e-05,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00010912204405612016,
+      "common_frequency_variance_over_conditional_mean": 1.6157049582787701,
+      "total_component_local_RMS_over_conditional_mean": 1.6173141186172741
+    },
+    {
+      "case": "one_offgrid",
+      "independent_current_coefficient_observations": 56,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 7.34563557137114e-05,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00010912204405612016,
+      "common_frequency_variance_over_conditional_mean": 2.206816528380759,
+      "total_component_local_RMS_over_conditional_mean": 1.7907586460438378
+    },
+    {
+      "case": "one_offgrid",
+      "independent_current_coefficient_observations": 64,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 6.871212899042562e-05,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00010912204405612016,
+      "common_frequency_variance_over_conditional_mean": 2.522076032435153,
+      "total_component_local_RMS_over_conditional_mean": 1.876719486880006
+    },
+    {
+      "case": "two_offgrid",
+      "independent_current_coefficient_observations": 1,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 0.0007776038223177332,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00015335436595765353,
+      "common_frequency_variance_over_conditional_mean": 0.03889336470909424,
+      "total_component_local_RMS_over_conditional_mean": 1.019261185716936
+    },
+    {
+      "case": "two_offgrid",
+      "independent_current_coefficient_observations": 16,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 0.0001944009555794333,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00015335436595765353,
+      "common_frequency_variance_over_conditional_mean": 0.6222938353455079,
+      "total_component_local_RMS_over_conditional_mean": 1.2736929910090218
+    },
+    {
+      "case": "two_offgrid",
+      "independent_current_coefficient_observations": 41,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 0.0001214413141903196,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00015335436595765353,
+      "common_frequency_variance_over_conditional_mean": 1.594627953072864,
+      "total_component_local_RMS_over_conditional_mean": 1.6107848872747919
+    },
+    {
+      "case": "two_offgrid",
+      "independent_current_coefficient_observations": 56,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 0.00010391168163424279,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00015335436595765353,
+      "common_frequency_variance_over_conditional_mean": 2.1780284237092773,
+      "total_component_local_RMS_over_conditional_mean": 1.7827025617610126
+    },
+    {
+      "case": "two_offgrid",
+      "independent_current_coefficient_observations": 64,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 9.720047778971665e-05,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00015335436595765353,
+      "common_frequency_variance_over_conditional_mean": 2.4891753413820314,
+      "total_component_local_RMS_over_conditional_mean": 1.867933441368303
+    },
+    {
+      "case": "two_close",
+      "independent_current_coefficient_observations": 1,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 0.0007809222149381044,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00015298348515166557,
+      "common_frequency_variance_over_conditional_mean": 0.03837722303521231,
+      "total_component_local_RMS_over_conditional_mean": 1.019007960241338
+    },
+    {
+      "case": "two_close",
+      "independent_current_coefficient_observations": 16,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 0.0001952305537345261,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00015298348515166557,
+      "common_frequency_variance_over_conditional_mean": 0.6140355685633969,
+      "total_component_local_RMS_over_conditional_mean": 1.2704469955741549
+    },
+    {
+      "case": "two_close",
+      "independent_current_coefficient_observations": 41,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 0.00012195956004926636,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00015298348515166557,
+      "common_frequency_variance_over_conditional_mean": 1.5734661444437048,
+      "total_component_local_RMS_over_conditional_mean": 1.6042026506784313
+    },
+    {
+      "case": "two_close",
+      "independent_current_coefficient_observations": 56,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 0.0001043551205006795,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00015298348515166557,
+      "common_frequency_variance_over_conditional_mean": 2.149124489971889,
+      "total_component_local_RMS_over_conditional_mean": 1.7745772707808158
+    },
+    {
+      "case": "two_close",
+      "independent_current_coefficient_observations": 64,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 9.761527686726305e-05,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00015298348515166557,
+      "common_frequency_variance_over_conditional_mean": 2.4561422742535877,
+      "total_component_local_RMS_over_conditional_mean": 1.8590702714673235
+    },
+    {
+      "case": "near_DC",
+      "independent_current_coefficient_observations": 1,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 0.0005495968423913735,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00010683419710199805,
+      "common_frequency_variance_over_conditional_mean": 0.03778610466108435,
+      "total_component_local_RMS_over_conditional_mean": 1.0187178729467175
+    },
+    {
+      "case": "near_DC",
+      "independent_current_coefficient_observations": 16,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 0.00013739921059784338,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00010683419710199805,
+      "common_frequency_variance_over_conditional_mean": 0.6045776745773496,
+      "total_component_local_RMS_over_conditional_mean": 1.2667192564168863
+    },
+    {
+      "case": "near_DC",
+      "independent_current_coefficient_observations": 41,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 8.583260639836013e-05,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00010683419710199805,
+      "common_frequency_variance_over_conditional_mean": 1.5492302911044578,
+      "total_component_local_RMS_over_conditional_mean": 1.5966309188740075
+    },
+    {
+      "case": "near_DC",
+      "independent_current_coefficient_observations": 56,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 7.344296732433273e-05,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00010683419710199805,
+      "common_frequency_variance_over_conditional_mean": 2.116021861020723,
+      "total_component_local_RMS_over_conditional_mean": 1.7652257252319667
+    },
+    {
+      "case": "near_DC",
+      "independent_current_coefficient_observations": 64,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 6.869960529892169e-05,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00010683419710199805,
+      "common_frequency_variance_over_conditional_mean": 2.4183106983093983,
+      "total_component_local_RMS_over_conditional_mean": 1.848867409607676
+    },
+    {
+      "case": "weak_one_offgrid",
+      "independent_current_coefficient_observations": 1,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 0.0005496970319234049,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00010912204405612016,
+      "common_frequency_variance_over_conditional_mean": 0.039407438006799266,
+      "total_component_local_RMS_over_conditional_mean": 1.019513333903387
+    },
+    {
+      "case": "weak_one_offgrid",
+      "independent_current_coefficient_observations": 16,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 0.00013742425798085123,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00010912204405612016,
+      "common_frequency_variance_over_conditional_mean": 0.6305190081087882,
+      "total_component_local_RMS_over_conditional_mean": 1.276917776565425
+    },
+    {
+      "case": "weak_one_offgrid",
+      "independent_current_coefficient_observations": 41,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 8.584825337447932e-05,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00010912204405612016,
+      "common_frequency_variance_over_conditional_mean": 1.6157049582787701,
+      "total_component_local_RMS_over_conditional_mean": 1.6173141186172741
+    },
+    {
+      "case": "weak_one_offgrid",
+      "independent_current_coefficient_observations": 56,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 7.34563557137114e-05,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00010912204405612016,
+      "common_frequency_variance_over_conditional_mean": 2.206816528380759,
+      "total_component_local_RMS_over_conditional_mean": 1.7907586460438378
+    },
+    {
+      "case": "weak_one_offgrid",
+      "independent_current_coefficient_observations": 64,
+      "frequency_learning_independent_prior_observations": 8,
+      "nominal_conditional_average_atom_RMS": 6.871212899042562e-05,
+      "common_fixed_frequency_firstorder_atom_RMS": 0.00010912204405612016,
+      "common_frequency_variance_over_conditional_mean": 2.522076032435153,
+      "total_component_local_RMS_over_conditional_mean": 1.876719486880006
+    }
+  ]
+}

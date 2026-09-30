@@ -1,0 +1,329 @@
+{
+  "schema": "fsrd-harmonic-assumption-evidence-v1",
+  "branch": "ffxD-experimental-alpha",
+  "base_commit": "8f7bdf61ff74addb8b941f756dc599a9bf07bb92",
+  "quality_accepted": false,
+  "new_native_contexts": 0,
+  "new_native_RR_calls": 0,
+  "copied_files": [
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\historical_water_spectral_capacity_20260930\\analyze.py",
+      "archive": "historical_source_capacity/analyze.py",
+      "bytes": 8608,
+      "sha256": "6f1bc6a4fed8191f986f5434bb6fb4842c47dd1b77651d9298fd9ec4fc2b5a09"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\historical_water_spectral_capacity_20260930\\compact_results.json",
+      "archive": "historical_source_capacity/compact_results.json",
+      "bytes": 6162,
+      "sha256": "b77dc9dbed465f46c1925696a8ac10dbc8f6aa3a0e57dad47f859bbc9f27840f"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\historical_water_spectral_capacity_20260930\\erratum.json",
+      "archive": "historical_source_capacity/erratum.json",
+      "bytes": 652,
+      "sha256": "f1e1b1d9f0543f672a95a4572705829aa4461d9876e8b67b75a13933d3a44775"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\historical_water_spectral_capacity_20260930\\pre_measurement_freeze.json",
+      "archive": "historical_source_capacity/pre_measurement_freeze.json",
+      "bytes": 333,
+      "sha256": "8f61ab2d4e152364787ef42eda76a9481e717d73485117737a85555646011583"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\historical_water_spectral_capacity_20260930\\preparation_v1\\analyze.py",
+      "archive": "historical_source_capacity/preparation_v1/analyze.py",
+      "bytes": 7956,
+      "sha256": "387e079fdf681246037c3afb2016329f8072412c94cb0bcd1a84234f2b1334ee"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\historical_water_spectral_capacity_20260930\\preparation_v1\\pre_measurement_freeze.json",
+      "archive": "historical_source_capacity/preparation_v1/pre_measurement_freeze.json",
+      "bytes": 333,
+      "sha256": "64a47ebd7cd58bcb03fd759f878a3f608282bcd9362f6b1a3b61942d96f569de"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\historical_water_spectral_capacity_20260930\\preparation_v1\\preregistration.json",
+      "archive": "historical_source_capacity/preparation_v1/preregistration.json",
+      "bytes": 2116,
+      "sha256": "d46597b1231f4a18a8ff35562b96d7cfe500f06725acb01ca673b5bf47c0fed0"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\historical_water_spectral_capacity_20260930\\preregistration.json",
+      "archive": "historical_source_capacity/preregistration.json",
+      "bytes": 2350,
+      "sha256": "4f46a502ff3920b62c703143e4e9d054f700cca57355f4d4510a9a9ed8f3fc57"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\historical_water_spectral_capacity_20260930\\results.json",
+      "archive": "historical_source_capacity/results.json",
+      "bytes": 225767,
+      "sha256": "7ba3567c3501792df26324c980b8611f06979bc8dbd052053e7ee47dee62676f"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\historical_water_spectral_capacity_20260930\\run_v2.log",
+      "archive": "historical_source_capacity/run_v2.log",
+      "bytes": 492,
+      "sha256": "30a667c8dc6fd77588c96c41b9a6819e8920a39c885c4f44f00db58bb6562203"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_frequency_uncertainty_math_20260930\\analyze.py",
+      "archive": "frequency_uncertainty_math/analyze.py",
+      "bytes": 7132,
+      "sha256": "7bcea676bf3f039f0d1c3b8def06fdbb439f6ed7d12d248314fe8df46cc38d3d"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_frequency_uncertainty_math_20260930\\history_implication.log",
+      "archive": "frequency_uncertainty_math/history_implication.log",
+      "bytes": 164,
+      "sha256": "44ea0fb0afb20a48bb41028a584d7a200d66bfda366bf33dff9ef59294cca002"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_frequency_uncertainty_math_20260930\\history_implication.py",
+      "archive": "frequency_uncertainty_math/history_implication.py",
+      "bytes": 2564,
+      "sha256": "e7c08dd93feef45d15e15a62f80dc0b961eafafe255aa033317eb172dbb8c8b7"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_frequency_uncertainty_math_20260930\\history_implication_results.json",
+      "archive": "frequency_uncertainty_math/history_implication_results.json",
+      "bytes": 12902,
+      "sha256": "2f28dcda32d9a49c43135e3bf0922994526f71ea73a1c0e61965eb7a3945d3d0"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_frequency_uncertainty_math_20260930\\pre_measurement_freeze.json",
+      "archive": "frequency_uncertainty_math/pre_measurement_freeze.json",
+      "bytes": 290,
+      "sha256": "7ee7917d3415e5535f32e8a3150afea11c9463cdcf50a6f24062aee5ba62457e"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_frequency_uncertainty_math_20260930\\preregistration.json",
+      "archive": "frequency_uncertainty_math/preregistration.json",
+      "bytes": 1629,
+      "sha256": "de49d838cbc8238fca4711b42dde66b32848bc3960f803341cc8e8eaadb4f0d7"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_frequency_uncertainty_math_20260930\\results.json",
+      "archive": "frequency_uncertainty_math/results.json",
+      "bytes": 7284,
+      "sha256": "450ef004dea4692735060f7dc97773f4b40565935381c60562ca853281f7e879"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_frequency_uncertainty_math_20260930\\run.log",
+      "archive": "frequency_uncertainty_math/run.log",
+      "bytes": 7284,
+      "sha256": "450ef004dea4692735060f7dc97773f4b40565935381c60562ca853281f7e879"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_112037_stage4_1_22933453\\capture.json",
+      "archive": "captured_sources/frame_112037_stage4_1_22933453/capture.json",
+      "bytes": 13052,
+      "sha256": "bcd9e8d6ed7e24de0c00514f35583c643c135b844696f6a0f9e40d883c601d7b"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_112037_stage4_1_22933453\\raw_rgb.rgba32f",
+      "archive": "captured_sources/frame_112037_stage4_1_22933453/raw_rgb.rgba32f",
+      "bytes": 1048576,
+      "sha256": "1a4fc966d0ec530e2418c7ef3125743d83c42ca56ed3f70492e1091c3fe24ed6"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_113299_stage4_2_22958437\\capture.json",
+      "archive": "captured_sources/frame_113299_stage4_2_22958437/capture.json",
+      "bytes": 13039,
+      "sha256": "b2b3fa6464e7979ce98900df6e78b9f1e04eb375cbafc076dcc6da743e893b78"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_113299_stage4_2_22958437\\raw_rgb.rgba32f",
+      "archive": "captured_sources/frame_113299_stage4_2_22958437/raw_rgb.rgba32f",
+      "bytes": 1048576,
+      "sha256": "b8ba19b136bced02d4dd72cd466f0d79ec6258f0c774b5e3ada44bec8d78da2c"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_12066_4_6876093\\capture.json",
+      "archive": "captured_sources/frame_12066_4_6876093/capture.json",
+      "bytes": 555,
+      "sha256": "49365a6922d23c2fcda243870fe93601f6864a3473508bf2a8093c42313b1fed"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_13113_5_7058671\\capture.json",
+      "archive": "captured_sources/frame_13113_5_7058671/capture.json",
+      "bytes": 555,
+      "sha256": "6d91b60594c69aee642b091e527ff5789d437ecc5c4a671c34b837d4ca44e922"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_13167_6_7059718\\capture.json",
+      "archive": "captured_sources/frame_13167_6_7059718/capture.json",
+      "bytes": 555,
+      "sha256": "ebde2273cc37a5b75e91fd55a60f726922a10a5ca828df47671092562a9ddcb2"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_2386_stage4_1_44328765\\capture.json",
+      "archive": "captured_sources/frame_2386_stage4_1_44328765/capture.json",
+      "bytes": 13058,
+      "sha256": "9455ba531e25070dcec444d96150a62ef8500d37c07682cae4861c2aecb844ee"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_2386_stage4_1_44328765\\raw_rgb.rgba32f",
+      "archive": "captured_sources/frame_2386_stage4_1_44328765/raw_rgb.rgba32f",
+      "bytes": 1048576,
+      "sha256": "a63a24518be71cb7e311d85444014f1ac288827bb61dd0d9b388a9c512b3a5d0"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_2772_stage4_1_27031953\\capture.json",
+      "archive": "captured_sources/frame_2772_stage4_1_27031953/capture.json",
+      "bytes": 13049,
+      "sha256": "30cae2704f07f5b6096bd6ac5a6d7514ce1b049c01422ca9027853f91bac853c"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_2772_stage4_1_27031953\\raw_rgb.rgba32f",
+      "archive": "captured_sources/frame_2772_stage4_1_27031953/raw_rgb.rgba32f",
+      "bytes": 1048576,
+      "sha256": "3d909c097155d692df0d5e0405cce40aadb4351d12fad9a5c7942da4724f2adc"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_2826_1_6560750\\capture.json",
+      "archive": "captured_sources/frame_2826_1_6560750/capture.json",
+      "bytes": 549,
+      "sha256": "998b6b6d0207b2223aab8dcee787fb2a82aab253b7264c120fc7c85045da7982"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_2889_stage5_1_44339375\\capture.json",
+      "archive": "captured_sources/frame_2889_stage5_1_44339375/capture.json",
+      "bytes": 13788,
+      "sha256": "15f1e381d07ca47a9eb0a124a3b61f73199a8e0bffaa6ffd0ce1307f1bf3c04a"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_2889_stage5_1_44339375\\raw_rgba.rgba32f",
+      "archive": "captured_sources/frame_2889_stage5_1_44339375/raw_rgba.rgba32f",
+      "bytes": 1048576,
+      "sha256": "070cecfd9c31489630e7aeedff1e7140aa2fe57ac1c02db92d180f8e69f836d0"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_3029_2_6564656\\capture.json",
+      "archive": "captured_sources/frame_3029_2_6564656/capture.json",
+      "bytes": 547,
+      "sha256": "e31a4af2eaf16c7d1ba6466793de04a79c22d8438cbc34b282c2806e138f419f"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_3066_stage5_2_44343281\\capture.json",
+      "archive": "captured_sources/frame_3066_stage5_2_44343281/capture.json",
+      "bytes": 13775,
+      "sha256": "b10f9ec54d2f96c13275c4c013e370e6a4599e90113b1d8db5bc9b5d0282770b"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_3066_stage5_2_44343281\\raw_rgba.rgba32f",
+      "archive": "captured_sources/frame_3066_stage5_2_44343281/raw_rgba.rgba32f",
+      "bytes": 1048576,
+      "sha256": "65e20feebb2c4e5ad9142cee87575d4c620b8935230b5a12796cdd653e373b68"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_3147_3_6566921\\capture.json",
+      "archive": "captured_sources/frame_3147_3_6566921/capture.json",
+      "bytes": 549,
+      "sha256": "75fadfeb8622ccb266920f556a9c02b914dc9be0c5d8097702e9959e7df4b5b2"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_32314_stage6_1_2881250\\capture.json",
+      "archive": "captured_sources/frame_32314_stage6_1_2881250/capture.json",
+      "bytes": 14125,
+      "sha256": "87c5b936716bc8a2f84dfccfb88517f83c868534a73aaf86598b6b7a109eec89"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_32314_stage6_1_2881250\\raw_rgba.rgba32f",
+      "archive": "captured_sources/frame_32314_stage6_1_2881250/raw_rgba.rgba32f",
+      "bytes": 1048576,
+      "sha256": "02816d3b9923dfda9e034e0c7fa61411dd9f28644f3583629ba0c4a33e1df4b8"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_3262_stage5_3_44347609\\capture.json",
+      "archive": "captured_sources/frame_3262_stage5_3_44347609/capture.json",
+      "bytes": 13790,
+      "sha256": "55e969c452e1d779682de02c2b6383f27beca726cc4d23d0bd1d4d6d117512e7"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_3262_stage5_3_44347609\\raw_rgba.rgba32f",
+      "archive": "captured_sources/frame_3262_stage5_3_44347609/raw_rgba.rgba32f",
+      "bytes": 1048576,
+      "sha256": "d31a0bb23be617e7f572ceb42e9ac50aacbb527264e3c3695694f547c4be985e"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_32732_stage6_2_2890453\\capture.json",
+      "archive": "captured_sources/frame_32732_stage6_2_2890453/capture.json",
+      "bytes": 14118,
+      "sha256": "18c0e9d26379639f91f1fb61a776366b20cc02664d95be28102fe114fa988025"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_32732_stage6_2_2890453\\raw_rgba.rgba32f",
+      "archive": "captured_sources/frame_32732_stage6_2_2890453/raw_rgba.rgba32f",
+      "bytes": 1048576,
+      "sha256": "59fe555f3f2798c31cc409561b1b180328f32a4f91bc0d68c1ba6ab74e3a714c"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_3303_stage4_2_27041953\\capture.json",
+      "archive": "captured_sources/frame_3303_stage4_2_27041953/capture.json",
+      "bytes": 13050,
+      "sha256": "52ffc0da2532f2c31005505bcefcdf6bdcbcc485f81e3f3fc97da25cb75b40c0"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_3303_stage4_2_27041953\\raw_rgb.rgba32f",
+      "archive": "captured_sources/frame_3303_stage4_2_27041953/raw_rgb.rgba32f",
+      "bytes": 1048576,
+      "sha256": "6b1f0eb73d704fa6b8a169d1017ceb5fea18c10da0d8272756304496c2e90d22"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_33098_stage6_3_2898562\\capture.json",
+      "archive": "captured_sources/frame_33098_stage6_3_2898562/capture.json",
+      "bytes": 14113,
+      "sha256": "949bb2b439f4ee2e38a9ffd6fce308e0ed9441d7f70ed8aa511ac9227e977155"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_33098_stage6_3_2898562\\raw_rgba.rgba32f",
+      "archive": "captured_sources/frame_33098_stage6_3_2898562/raw_rgba.rgba32f",
+      "bytes": 1048576,
+      "sha256": "283aaa5d4755db768b7f8534cede7e9bcddd96b1f4a23ac2eb1be09b0cc178e2"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_3992_stage4_3_27054890\\capture.json",
+      "archive": "captured_sources/frame_3992_stage4_3_27054890/capture.json",
+      "bytes": 13064,
+      "sha256": "d32af5b4631826ff474ab07ce22b5f8491caa679148ad54990b32f8523d760f6"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_3992_stage4_3_27054890\\raw_rgb.rgba32f",
+      "archive": "captured_sources/frame_3992_stage4_3_27054890/raw_rgb.rgba32f",
+      "bytes": 1048576,
+      "sha256": "ad97d78a55d80b10304d49b20cda7e9ee06f4fb323723744dbf5283ba5c179b8"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_5101_stage3_1_14981296\\capture.json",
+      "archive": "captured_sources/frame_5101_stage3_1_14981296/capture.json",
+      "bytes": 12898,
+      "sha256": "0ca27ef32813559efa1f8e9dc0743596a1aefb2b68cd508f3e570c97236118f3"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_5101_stage3_1_14981296\\raw_rgb.rgba32f",
+      "archive": "captured_sources/frame_5101_stage3_1_14981296/raw_rgb.rgba32f",
+      "bytes": 1048576,
+      "sha256": "fb8cee7864a283ebceae8d0a05d84f14059b45da7441c58284f73b137110c7af"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_5917_stage3_2_14996656\\capture.json",
+      "archive": "captured_sources/frame_5917_stage3_2_14996656/capture.json",
+      "bytes": 12883,
+      "sha256": "e635c858380ed44abeb2b3c610d6551f0f9fa6c8190a356a69c30b6ee7383833"
+    },
+    {
+      "source": "F:\\Ultra Yedek 2\\overwrite\\bin\\x64\\RRTraceCaptures\\frame_5917_stage3_2_14996656\\raw_rgb.rgba32f",
+      "archive": "captured_sources/frame_5917_stage3_2_14996656/raw_rgb.rgba32f",
+      "bytes": 1048576,
+      "sha256": "162ed2654102c059da340038419b7bd28ae88813da701b4594af62d6a542e44b"
+    }
+  ],
+  "copied_file_count": 52,
+  "captured_source_raw_images": 14,
+  "capture_metadata_inventory": 20,
+  "limitations": [
+    "Historical source appearance only; no noise classification or temporal quality",
+    "Local oracle frequency math; no selected-model confidence or final-pilot variance claim"
+  ]
+}
