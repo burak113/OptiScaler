@@ -1958,12 +1958,7 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
         if (!isFfxDebug)
         {
             if (!FSRDConvShader->DispatchComposition(InCommandList, compDesc))
-            {
-                // The caller may discard this incomplete recording after RR succeeded.
-                // Request a history reset on the next denoiser evaluation.
-                InvalidateDenoiserHistory();
                 return false;
-            }
             float capturePreExposure=1.0f;
             const bool capturePreExposureProvided=InParameters->Get(
                 NVSDK_NGX_Parameter_DLSS_Pre_Exposure,&capturePreExposure)==NVSDK_NGX_Result_Success;
@@ -2071,10 +2066,7 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
     // A failed upscale dispatch leaves the frame half finished. Report it to the caller
     // instead of masking it behind the denoiser result, which may well be true.
     if (!isUpscalerReady)
-    {
-        InvalidateDenoiserHistory();
         return false;
-    }
 
     compositionHistoryGuard.success=isDenoiserReady && !isUpscaleBypassed && !isDenoiseBypassed;
     return isDenoiserReady || isDenoiseBypassed;

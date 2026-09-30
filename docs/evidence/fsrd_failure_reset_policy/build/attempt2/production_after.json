@@ -1,0 +1,1372 @@
+{
+  "schema": "after-full-Release-provider-shader-byte-snapshot-v1",
+  "head": "5cb10122b7de5c802fe93e90c6ba860be240d72e",
+  "files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\api\\include\\dx12\\ffx_api_dx12.h",
+      "bytes": 11595,
+      "sha256": "2082d6c2914e9c2fa9fae6247d35f64c643ccb703311c83c8dba9a35356bc711"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\api\\include\\ffx_api.h",
+      "bytes": 10939,
+      "sha256": "91f7f4a9111d18996e3bae083bf82d47ac6497de144b352abfca44f07d2871c4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\api\\include\\ffx_api_loader.h",
+      "bytes": 3039,
+      "sha256": "10795186fd2a8ff53bb13aa0c81079c7ffd4a0b1bb501c629ed0b874c492a20b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\api\\include\\ffx_api_types.h",
+      "bytes": 13892,
+      "sha256": "b54fbd96a0eed82662a49c00e28e5368ab69959f9856dae5c12fed109d123d66"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\denoisers\\include\\ffx_denoiser.h",
+      "bytes": 27253,
+      "sha256": "1316e406f3499f1c907c258d8efbf763d81aa7ffed1b65209802637907d644ed"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\signedbin\\amd_fidelityfx_denoiser_dx12.dll",
+      "bytes": 13782280,
+      "sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\signedbin\\amd_fidelityfx_framegeneration_dx12.dll",
+      "bytes": 40085776,
+      "sha256": "02297beedd285e822d3a64f314cf00faf378dcec0edc47ff0c4dd71b3a8c2f18"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\signedbin\\amd_fidelityfx_loader_dx12.dll",
+      "bytes": 26376,
+      "sha256": "e2d85aa05a9bd9ed8b38935fdf5199372cca6f74c12015143bb6f945ee1608aa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\signedbin\\amd_fidelityfx_radiancecache_dx12.dll",
+      "bytes": 798992,
+      "sha256": "256db18d924c8cd38923d04e3ecd210695d3f0f796b240eab9663ad4d54e31a0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\signedbin\\amd_fidelityfx_upscaler_dx12.dll",
+      "bytes": 28761864,
+      "sha256": "d0dcccc74a43c44ba435b7a369b456e0970d8a4464e4bd683119b374f2c9fb46"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\OptiScaler.vcxproj",
+      "bytes": 58841,
+      "sha256": "0043e6d9f5dbcab39fe9d68d273e8d65b60c24950610612fa5e300aa6e788022"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\resource_build_commit.h",
+      "bytes": 37,
+      "sha256": "77d53730801950c692029eb2c59703394ebca6118ac4ad7a1e4c71f633ba4138"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\resource_build_date.h",
+      "bytes": 42,
+      "sha256": "8e7df7a14194c05698e9dfed36625b88682391fb76d61b156e4397f5dba09195"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\bias\\Bias_Common.h",
+      "bytes": 404,
+      "sha256": "894df40e8b0293d643e51e8bcd7b164e620cf0d79795f7abb8f72a354dc99aea"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\bias\\Bias_Dx11.cpp",
+      "bytes": 3824,
+      "sha256": "f482af9bb05a8f9398510e87008a8940d0f2586d59a76d82d0a8c3313f895928"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\bias\\Bias_Dx11.h",
+      "bytes": 714,
+      "sha256": "5b40a86f39cddc566250f22bd1c8bd39089c0b8f7f2506644b3b201d13e3aa5d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\bias\\Bias_Dx12.cpp",
+      "bytes": 4011,
+      "sha256": "07c05bfec35f00e44596098dfa6c4728ee4472a35240775048f9799208bcdc1c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\bias\\Bias_Dx12.h",
+      "bytes": 1112,
+      "sha256": "8000b4b8be96278c249bedf8a97e0a5716ffeaa57a6a41cb955209e33c21fdca"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\bias\\precompile\\bias.hlsl",
+      "bytes": 325,
+      "sha256": "61f1fa400aec340944702453dc5b1dc007c2730f8bb55f214d3b101d46b002e4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\bias\\precompile\\Bias_Shader.cso",
+      "bytes": 3608,
+      "sha256": "b81dc2c3262d8b543ce98f68455ce0616edfb1a4daf8416298b82af152e25dd2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\bias\\precompile\\Bias_Shader.h",
+      "bytes": 22667,
+      "sha256": "0c28567794909a1fb2dca51d85d6fe72865a3cf801ffc7634c6a53987e119141"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\bias\\precompile\\Bias_Shader_Dx11.cso",
+      "bytes": 820,
+      "sha256": "59343e2a08a70bd740a1b857290762985057da0d1faac41edc556018c30bcde5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\bias\\precompile\\Bias_Shader_Dx11.h",
+      "bytes": 5209,
+      "sha256": "8691466bf10f72e8e8e0e78b0543d38577e046da19c1e613089e26f66347ded7"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_invert\\DI_Common.h",
+      "bytes": 497,
+      "sha256": "55049d73aa092431aec2fdce3b4ea21d00740285c3cf108d6c6cd47a851cabaa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_invert\\DI_Dx12.cpp",
+      "bytes": 3336,
+      "sha256": "4c6956a7e6f7b244292a476f07228bd12b9e0f014fe3a1653984074f18d94d94"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_invert\\DI_Dx12.h",
+      "bytes": 1091,
+      "sha256": "60dd3c87e891ca6aff637abbf8ae1d1d4d0185c2bd372cba8d5c6e4616339f2c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_invert\\precompiled\\DI.hlsl",
+      "bytes": 407,
+      "sha256": "4378a7322110fa3ce5f8e6fa9d1d70ef7d8fc5dc601869f94eb44aa6d4439107"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_invert\\precompiled\\DI_Shader.cso",
+      "bytes": 3228,
+      "sha256": "d3dabc1dd4a5accfc2cd0c1f32661e23ce0b072a5fddb084f296216d7645056c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_invert\\precompiled\\DI_Shader.h",
+      "bytes": 20287,
+      "sha256": "c7f09c97a1eb73718b16db9e41b2357e4289f898c618c871d12fb035e0a2fa2f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_scale\\DS_Common.h",
+      "bytes": 886,
+      "sha256": "9ec81a1befbbaeabcd6f44d67913174b40578d91e7680316b80cd1b1ddb7b001"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_scale\\DS_Dx12.cpp",
+      "bytes": 4737,
+      "sha256": "83854c0145622a320764406f272b5ecee4ac590fd18e76c9c6b3a9e381c06bfd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_scale\\DS_Dx12.h",
+      "bytes": 1091,
+      "sha256": "8b77badcef4348fd4925b7efef7b6312c6e082f1549d350c188437412f8e507c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_scale\\precompiled\\DS.hlsl",
+      "bytes": 731,
+      "sha256": "58b045dcdb4be3a333b0043a999c38bc7af704fb1b0372e4ba6110be5a89e70b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_scale\\precompiled\\DS_Shader.cso",
+      "bytes": 3584,
+      "sha256": "7f21e18044aefdff0f049528357b9f7406d9a2676368809a67ad749d4eb606d3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_scale\\precompiled\\DS_Shader.h",
+      "bytes": 22516,
+      "sha256": "82bdb1b377558819f4c6fd3883588506b21a1103f7ba1c25773035acf5e32b90"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_transfer\\DT_Common.h",
+      "bytes": 449,
+      "sha256": "0c18f132646c8eef13c74732c044cdfe0e3a923b8fc77f18a6ef67a2d8894ffc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_transfer\\DT_Dx11.cpp",
+      "bytes": 3106,
+      "sha256": "7c30ce53dc1d2c383472675ab6a964a43650cc051e511d0096df8b682fc59a06"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_transfer\\DT_Dx11.h",
+      "bytes": 637,
+      "sha256": "06f73ef1c527b0bc72dae6615987afea9adb00222ac3a51bb137ad89560dac01"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_transfer\\DT_Vk.cpp",
+      "bytes": 6124,
+      "sha256": "c84df420f5083aa314e85098db2d695f4b11ed68898f76ffe625904e1681ce32"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_transfer\\DT_Vk.h",
+      "bytes": 1531,
+      "sha256": "8efac4f27adeeaa3a9a5f9d0f8e4006df7afb7a2b245eedebcb9ace1b1ad4825"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_transfer\\precompile\\dt.hlsl",
+      "bytes": 346,
+      "sha256": "f2d23bae24139707142ea00b33b3f5c88ddc2b1e6ad4a256eff986bfe516520e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_transfer\\precompile\\dt_dx11.hlsl",
+      "bytes": 359,
+      "sha256": "b38307ced15caaf969dfe221f0139aea779d650b9d687a1068072e1c87ffcb3e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_transfer\\precompile\\dt_dx11_Shader_Dx11.cso",
+      "bytes": 644,
+      "sha256": "011356acff435a0c73f0b1d591f21c005dbeec66fd9c9c2e15155dca75101f54"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_transfer\\precompile\\dt_dx11_Shader_Dx11.h",
+      "bytes": 4106,
+      "sha256": "d3a198ce5a4ce9f6a185accb78cd05a7a877a04ccf3c5f2339ff6a53f4531de5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_transfer\\precompile\\dt_int.hlsl",
+      "bytes": 413,
+      "sha256": "f1963577c38614d1bbbc1ab768b627a85e519ed0d2c7d4395851dfb61ff9262f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_transfer\\precompile\\dt_int_Shader_Vk.h",
+      "bytes": 6088,
+      "sha256": "a92649aabfc1ff6f257c7d7fa380427ec05af4352118f08babe4cfcbf2635e06"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_transfer\\precompile\\dt_int_Shader_Vk.spv",
+      "bytes": 960,
+      "sha256": "a05aaadd725f260e0bbf90c5c3391368777258ad2fd45eb4dbd8d1a9a38f68ab"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_transfer\\precompile\\dt_Shader_Dx11.cso",
+      "bytes": 592,
+      "sha256": "21d5014741190d7228414e580b586b0bacf1c57514102faea6b88663b6499011"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_transfer\\precompile\\dt_Shader_Dx11.h",
+      "bytes": 3779,
+      "sha256": "13358445b9429fad3cff55cf0f217418a7137cc92903490d40100b769754d073"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_transfer\\precompile\\dt_Shader_Vk.h",
+      "bytes": 5781,
+      "sha256": "c3236bc7ccbf91bada996bb8e62da6a95aeaf0c84cc0605afbcb0dbddcb248ae"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\depth_transfer\\precompile\\dt_Shader_Vk.spv",
+      "bytes": 912,
+      "sha256": "f873271af1b5f2ba56e163d6a0d37ed13b689876401ba2fe637a8620fd54bc2c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\format_transfer\\FT_Common.h",
+      "bytes": 428,
+      "sha256": "ce8e42f432fd9056f5174e8eff7c12514950e8c66b99cd76183217833ccff398"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\format_transfer\\FT_Dx12.cpp",
+      "bytes": 4114,
+      "sha256": "464642a4bc3d289a8ba0058643d518760bd87297bc1078744a21fffc42619820"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\format_transfer\\FT_Dx12.h",
+      "bytes": 1240,
+      "sha256": "9968e7e64fb98213015a66d766e38ff0673e348000704c0fb48a60652b55b445"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\format_transfer\\precompile\\FT.hlsl",
+      "bytes": 328,
+      "sha256": "0a86f4002816bc4575cea06b06a418fba6c745db58be9f50596b349b34a5d031"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\format_transfer\\precompile\\FT_Shader.cso",
+      "bytes": 3348,
+      "sha256": "5d708d451360d7b1186975434ce1d18b9861768b76d5eaa942648b19f644d313"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\format_transfer\\precompile\\FT_Shader.h",
+      "bytes": 21042,
+      "sha256": "acb639ec7dbb3d33c0bc926182a2e5198af81c641126b37d512aa56c9f884897"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\FSRDPreprocessor_Dx12.cpp",
+      "bytes": 94696,
+      "sha256": "891010a733ebe08a6b03a78085b4d67cf674d6b653dbcefcd44ad9c421b41b2c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\FSRDPreprocessor_Dx12.h",
+      "bytes": 19918,
+      "sha256": "5e5e19ad00bb7e6baf1db5a5ae727a02e6c4924e8d0cedcbbfa669ed886a5172"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\FSRDShaderData.h",
+      "bytes": 17932,
+      "sha256": "e73d7b04af27910484cdc8dc65850a8f7c65ab751947760a21c8a397ec8491c9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\FSRDShaderUtils.h",
+      "bytes": 12951,
+      "sha256": "bfb5c79f5e6b5e75c7fa3a292716ecdec6eabfc8f462455e294e5247e2cdb2f4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDAdditiveSplit.hlsli",
+      "bytes": 19131,
+      "sha256": "7ca2179f70c380cdb3fc4585c01ef18486690dbacf48b727555daa06de40d7b9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDFloor.hlsl",
+      "bytes": 2772,
+      "sha256": "0dcd184a5528e5ae6defe28ce85d79931476ce85835672df8d221d7bbe5ff74a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDFloor_Shader.cso",
+      "bytes": 7684,
+      "sha256": "882fd57c2e9822bbb9fd2e10707f3a4067d4593d5f40083fcf188c5c9246edc9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDFloor_Shader.h",
+      "bytes": 99672,
+      "sha256": "9707d932e540872a8c18af0d3d17e6de4f3951a65317605e8f4e419e6660b4cb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDFloorCommon.hlsli",
+      "bytes": 3211,
+      "sha256": "d5a79adda9f36d904ab2fcfbbaf00b4bb3ad8f3fe25fe4d3b953282ad717c999"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDFloorSeed.hlsl",
+      "bytes": 19531,
+      "sha256": "76d7e2cbd505cb7b2eb20e02556bb9e563e5d924a5ca33652641ae447e79e955"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDFloorSeed_Shader.cso",
+      "bytes": 60520,
+      "sha256": "b6a2dca1a679b8cc8f2f3dc7e00e08a7e8810743fcdae2175a7df50c17c0347c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDFloorSeed_Shader.h",
+      "bytes": 890737,
+      "sha256": "656f9b9493f96fdc9093c2eae3ad600fb14645111045ab804d17cf24e4bf303c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDInputConv.hlsl",
+      "bytes": 82630,
+      "sha256": "1981a30bc22c5d98762e8e7fd33b657ee8daa4f18e10c79ce89e2102a407f5d3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDInputConv_Shader.cso",
+      "bytes": 132516,
+      "sha256": "1eb2b8fb8e971f670e7c7b5fb3a4e269672d0d93427d0e84e7635593e63d4b01"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDInputConv_Shader.h",
+      "bytes": 1880861,
+      "sha256": "c639bcecbfe6614bc9cb48ca7ecbf8636ec979afcedc8d5a7acb415d2b48ab1f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDInputConvAdditive.hlsl",
+      "bytes": 151,
+      "sha256": "acef0b34969e581106ee51e93e859a217fcafa3e17910e595516e73dd0b3c573"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDInputConvAdditive_Shader.cso",
+      "bytes": 215252,
+      "sha256": "64332e35a56277f373fd119c512108ec309b96c5ea1abcc45096b03a44577c5d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDInputConvAdditive_Shader.h",
+      "bytes": 3083528,
+      "sha256": "3e752af25fe7efa5f834909f9b25e60c927f6fe6ef6e8de2583bf520575a15ae"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDOutputComp.hlsl",
+      "bytes": 76985,
+      "sha256": "65b2abb5710c9d738898c0f499cc22b433e0a29793b8da3b8e5cc6d280c2aee4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDOutputComp_Shader.cso",
+      "bytes": 184840,
+      "sha256": "8f4dd9d8e69626b60badf8fdb1eb4db34d35e65383e7160cc3ba1c96e0c6ed09"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDOutputComp_Shader.h",
+      "bytes": 2828230,
+      "sha256": "cb006c3ce6d2ca45c3f91cc70a8b05f23c4c0908a7bef7a539be07c8be13d4de"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDPreprocessCommon.hlsli",
+      "bytes": 7358,
+      "sha256": "4ca7962c413826950c6025a85cf3502618e6a32182bfaaee3437cac6ef52cc26"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\RRTraceAdditive.hlsl",
+      "bytes": 251,
+      "sha256": "e8a342a1489d35909c173112a77e6aa4690dd2d9bbffa444c64466380e15909d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\RRTraceAdditive_Shader.cso",
+      "bytes": 222316,
+      "sha256": "7977fed271960d4a876c7132fbb54ec95d6d35f58674ad622ef39c9cccc85c8d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\RRTraceAdditive_Shader.h",
+      "bytes": 3189125,
+      "sha256": "98d3f695d20adb818e12ba147df26e630aad66f8a554049f4543a1378e6ded6d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\RRTraceAdditiveIO.h",
+      "bytes": 5548,
+      "sha256": "8326f819d5036f64b1e88d3b8fbcec0aaf19aeef5f747b844e0d8f2f05facc62"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\RRTraceFence.h",
+      "bytes": 6372,
+      "sha256": "d35f13d7d421cd12fe44bb0d2c7b244a7699ef3c87a25f9e5171f385d762bbb3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\RRTraceFenceState.h",
+      "bytes": 1824,
+      "sha256": "006bc5eebce50e922c74b67975f61ed079baf3f0be43d057a5a49b6bbcb0d376"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hud_copy\\HudCopy_Common.h",
+      "bytes": 1437,
+      "sha256": "de84fc39bc0df82c0e5effb3daa66b55faaf2c3247d69809b4e5dc27261ce593"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hud_copy\\HudCopy_Dx12.cpp",
+      "bytes": 5797,
+      "sha256": "4af7e0252155df776ba20e797460ff80eb95eac7125771e69bc810618e89a4c3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hud_copy\\HudCopy_Dx12.h",
+      "bytes": 1042,
+      "sha256": "067ff109a158aaf5903cda0d3ed5012b0eb72c5c99738fb2b3d4057f58af9a76"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hud_copy\\HudCopy_Vk.cpp",
+      "bytes": 7528,
+      "sha256": "0b5bb8c271810bae7ee4e5de1d2f3809d5da6cd1643890378aacc09ac7571138"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hud_copy\\HudCopy_Vk.h",
+      "bytes": 577,
+      "sha256": "543383de0dd29bb1fa72837ee94bdd51b0bdf6b613de0f03da584168359c08d0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hud_copy\\precompile\\HudCopy.hlsl",
+      "bytes": 953,
+      "sha256": "cf7c1cf4c8f0ef3844a8e22742180781de8b0dc85a6daad6f87ce5fdcb6c4ba1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hud_copy\\precompile\\HudCopy_Shader.cso",
+      "bytes": 2244,
+      "sha256": "34e589dceb2f539c704277d161f07f258194a226d0254167591f47714acc7ed4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hud_copy\\precompile\\HudCopy_Shader.h",
+      "bytes": 14133,
+      "sha256": "8347e430eef51c6728a37a13f937704422313ea4364faf2a29e353c9f404581b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hud_copy\\precompile\\HudCopy_Shader_Vk.h",
+      "bytes": 10246,
+      "sha256": "f8b56f027bcb7a128568a463267e924dc13cbaf161d659cbff6e2a6e188c3140"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hud_copy\\precompile\\HudCopy_Shader_Vk.spv",
+      "bytes": 1624,
+      "sha256": "48ab1b06b8266b173055a05b89687212a2890209521e668a92d031e29a616cc0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hudless_compare\\HC_Common.h",
+      "bytes": 1233,
+      "sha256": "685ef0fbbb89f663f91b31e0493ed12690534a6eb6b0146ccfdeefd58ee162b1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hudless_compare\\HC_Dx12.cpp",
+      "bytes": 12230,
+      "sha256": "bf4592e45da71f5e5c038134ff1e54a528393f60286d5378c189d7d9681a5276"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hudless_compare\\HC_Dx12.h",
+      "bytes": 1399,
+      "sha256": "9cc13545dfc61052c3ee1d0f1bc085806fd9d071c31508e57aafce4e3391c26c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hudless_compare\\precompile\\hudless_compare.hlsl",
+      "bytes": 1019,
+      "sha256": "4455b90150e57d74691778a0e2b7aff4f1b98a6bcfcca4cf9b81f901e204f57b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hudless_compare\\precompile\\hudless_compare_PShader.cso",
+      "bytes": 2692,
+      "sha256": "12add7d8bea2ac7fcce9495a4114f73c03b6d53bb6aba3bd47aa73d00aae5a35"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hudless_compare\\precompile\\hudless_compare_PShader.h",
+      "bytes": 16945,
+      "sha256": "26bc4805f6ff87c8cd9312abb351e1815d4d988ec3881cb1a282174873ae5da4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hudless_compare\\precompile\\hudless_compare_VShader.cso",
+      "bytes": 1760,
+      "sha256": "317768180743cdd6a26d776c322b17fe016f991cc18ed653014877ea05130784"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hudless_compare\\precompile\\hudless_compare_VShader.h",
+      "bytes": 11108,
+      "sha256": "2f7ba5f0448dd20a0acb566a659a64dc7834c6467aca9f294bd6c82fbc980f39"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hudless_compare_compute\\HCC_Common.h",
+      "bytes": 899,
+      "sha256": "c4026cdb6677187eeb57c5833f94c15c6b2117cda430fc26ff024d34cf6c702a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hudless_compare_compute\\HCC_Dx12.cpp",
+      "bytes": 5823,
+      "sha256": "0b53bd0009cf702494c0f966131715766fd6d6ca502966177022db44385f3b50"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hudless_compare_compute\\HCC_Dx12.h",
+      "bytes": 1077,
+      "sha256": "f2ae86d68a5f2c6688fe12e85fdfff1e56c38746282d0a5cb6d4f91e34bf1925"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hudless_compare_compute\\precompile\\HCC.hlsl",
+      "bytes": 821,
+      "sha256": "20adc75b2eb71112ab1d48ea7e0a6baff1b037dbb75fb51d3e30665c440b8d4a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hudless_compare_compute\\precompile\\HCC_Shader.cso",
+      "bytes": 2284,
+      "sha256": "899b8ec79b4b008e43d05e84cc9f0c4700b299af8598eb59563d011aeda4bc9a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\hudless_compare_compute\\precompile\\HCC_Shader.h",
+      "bytes": 14377,
+      "sha256": "b249e3dfc5a9ffaeb5bf5c2345195b1d9e6d210814de9c8581d6797ee99b0a34"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\magnifier\\Magnifier_Common.cpp",
+      "bytes": 1998,
+      "sha256": "343fdfb0d4eef8f4eda463eda0424b19c96d945c3db0f0ae8a9503249266e9a0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\magnifier\\Magnifier_Common.h",
+      "bytes": 4048,
+      "sha256": "472666a67a39db9a85dc7ee7a981f9620d288f32b3065587c8ebb689b7effd38"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\magnifier\\Magnifier_Dx11.cpp",
+      "bytes": 3943,
+      "sha256": "d635b3cdf688fce5f6a04ed4b7feb1201fba9d3e87104b737fe9987ee6343629"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\magnifier\\Magnifier_Dx11.h",
+      "bytes": 642,
+      "sha256": "a9bfe2375fa11842b02d2203c6635c163ef53bd4bcf5936e996169d22e7b752d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\magnifier\\Magnifier_Dx12.cpp",
+      "bytes": 4737,
+      "sha256": "7efb562c24925dfc2c42f21b73852469d96d8ec1c2c00810571b922c8c3b42ff"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\magnifier\\Magnifier_Dx12.h",
+      "bytes": 1348,
+      "sha256": "9a59cff0d809c8be29b9fdf308f3be564b091b1515a3fcf158ac6f9f9ead0058"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\magnifier\\Magnifier_Vk.cpp",
+      "bytes": 4783,
+      "sha256": "4d0296b78dfba5816ca1af05e67b6c6b55f3f6fb39e5accffe9f4367a2fa5055"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\magnifier\\Magnifier_Vk.h",
+      "bytes": 1343,
+      "sha256": "561438fff90386fbb299488dbe0bcc249a1a8ad87420450e1f3a405f3da9fce5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\magnifier\\precompile\\Magnifier.hlsl",
+      "bytes": 2613,
+      "sha256": "a96ab3c8aa6a42371b4525be5497a4edd20b4eced2682c47d0f7658f213f3f92"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\magnifier\\precompile\\Magnifier_Shader.cso",
+      "bytes": 2508,
+      "sha256": "cf40d593a68ba9e36915fed91f87c70ac40de565855dee2946c9a6cf6e86ba9c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\magnifier\\precompile\\Magnifier_Shader.h",
+      "bytes": 15784,
+      "sha256": "24090d42ca2b9589a9d270b162052882a0fe34ae2ae23d35073dc8a8703b7036"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\magnifier\\precompile\\Magnifier_Shader_Dx11.cso",
+      "bytes": 1992,
+      "sha256": "79bd8c89bd884485389fe740f039e3ff15f9fec6b5f11943ab7a527af5f1353e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\magnifier\\precompile\\Magnifier_Shader_Dx11.h",
+      "bytes": 12553,
+      "sha256": "15713215c9ba3d456bbeb66e63721d6025cf3176605897e1d41b99c5dbd6cd09"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\magnifier\\precompile\\Magnifier_Shader_Vk.h",
+      "bytes": 18342,
+      "sha256": "037a2c6515e59af9f143fdbd730c0c8a10d821c7ffcb0b1b1aeeae1314fb07a1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\magnifier\\precompile\\Magnifier_Shader_Vk.spv",
+      "bytes": 2916,
+      "sha256": "91445639f44d083d5310aa19c1e302dddfee420cc7fab0e6653bfe4f324a04ce"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\fsr1\\ffx_a.h",
+      "bytes": 195194,
+      "sha256": "1b161667a5b3bf8ce0d08a3662202c94e7c736ca3697b184ffc9f0c9692d2058"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\fsr1\\ffx_fsr1.h",
+      "bytes": 66932,
+      "sha256": "7bb0829548d7b5fb212557f1a3c3082e34adb24af9b304e71361a5423102f132"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\fsr1\\fsr_easu.hlsl",
+      "bytes": 2327,
+      "sha256": "5e47ef4f791cbf593b00a3e85d78ef4e289e157b5bca9cded25b235ab072ffb1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\fsr1\\FSR_EASU_Shader.cso",
+      "bytes": 40460,
+      "sha256": "a5c89c900c44882ba202bf65328315793c3d2c7bb821524bb249fef964e4dedd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\fsr1\\FSR_EASU_Shader.h",
+      "bytes": 253483,
+      "sha256": "d9a074d7621d979d114fe58fd6311f178515ddc010ed4663c5e62eb8aeef986b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\fsr1\\FSR_EASU_Shader_Dx11.cso",
+      "bytes": 40460,
+      "sha256": "a5c89c900c44882ba202bf65328315793c3d2c7bb821524bb249fef964e4dedd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\fsr1\\FSR_EASU_Shader_Dx11.h",
+      "bytes": 253483,
+      "sha256": "d9a074d7621d979d114fe58fd6311f178515ddc010ed4663c5e62eb8aeef986b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\fsr1\\FSR_EASU_Shader_Vk.h",
+      "bytes": 380529,
+      "sha256": "23a776f1f61f0bd10f280670e7929671e4c7a1eab76afcdb3a9b1f48cea10cef"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\fsr1\\FSR_EASU_Shader_Vk.spv",
+      "bytes": 60744,
+      "sha256": "58b6ea4e5fb1d39229e0f84f84c8e8e26fc9cc813e1a9f54f7471d28872a0e9b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\fsr1\\fsr_rcas.hlsl",
+      "bytes": 1809,
+      "sha256": "89f4b664d32d304e48671907bddc0c8f1afc4e51df067a1c8cc1f42d773e3667"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\fsr1\\FSR_RCAS_Shader.cso",
+      "bytes": 7492,
+      "sha256": "bdcd389e2985b63665d9671f7fca439153b5c58da98097038d018e71f969515d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\fsr1\\FSR_RCAS_Shader.h",
+      "bytes": 47000,
+      "sha256": "168707be544e586690fe78140febaa28bb119a159af42fc2c52f9712caa8a287"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\OS_Common.h",
+      "bytes": 34901,
+      "sha256": "63e4de3a06bdc38f81f3c7aeffdb3759471f1bb329509f7b3006130bcfbdc342"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\OS_Dx11.cpp",
+      "bytes": 8713,
+      "sha256": "9a22aa9c8c7804d29f3a1b04f91e3791449868011e257d0da625db9863a0b953"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\OS_Dx11.h",
+      "bytes": 755,
+      "sha256": "2d4ed38258f92e0955d0f4b7cb334d533db90365793c5e7852826d0e05a1b2ca"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\OS_Dx12.cpp",
+      "bytes": 8256,
+      "sha256": "4d0e96647b4c4a4409c5972c56fcaa2a8d5d2e9a03038a1cc0ec639d14321023"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\OS_Dx12.h",
+      "bytes": 1167,
+      "sha256": "ebfe60509736242e9b4d8a06b3434b2aa9fd0515bdf6cf02c04cfb429abd9227"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\OS_Vk.cpp",
+      "bytes": 8367,
+      "sha256": "f4aa42084e361f4f551249603ecd9538bba55fa997fc7ea2ba4826fffc642d2b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\OS_Vk.h",
+      "bytes": 1069,
+      "sha256": "77a615df91f6c8bc39743a0f7eff3c7f7ab72a647afdb6730527de4f9ff14b03"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_bicubic.hlsl",
+      "bytes": 4107,
+      "sha256": "203f787ae4105fa8476c9f34f352b5291f4a5090839ff3e3e5cd34885540d15e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_bicubic_Shader.cso",
+      "bytes": 4332,
+      "sha256": "5e3190943ad79cab04c2b16a4cfa436791a00cabb4341240e4a9beee76aefabc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_bicubic_Shader.h",
+      "bytes": 27211,
+      "sha256": "9dbb06835896a52ba74487d867e2e6b6e13251ca92afd08694c9ac944ebdd469"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_bicubic_Shader_Dx11.cso",
+      "bytes": 4332,
+      "sha256": "5e3190943ad79cab04c2b16a4cfa436791a00cabb4341240e4a9beee76aefabc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_bicubic_Shader_Dx11.h",
+      "bytes": 27211,
+      "sha256": "9dbb06835896a52ba74487d867e2e6b6e13251ca92afd08694c9ac944ebdd469"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_bicubic_Shader_Vk.h",
+      "bytes": 54067,
+      "sha256": "959eca76953f08944974e71550473180e6d2de5743b2d9138f74450bd5efd6d6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_bicubic_Shader_Vk.spv",
+      "bytes": 8620,
+      "sha256": "4ac02bc2c0195e7bb3534b429802d7755536f0fff1abfa9f93690bf890623a78"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_catmull.hlsl",
+      "bytes": 3136,
+      "sha256": "3a172728ba2271ccce93eb11939c01cb4bf83ce1bf920a37cc934ec410b0b853"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_catmull_Shader.cso",
+      "bytes": 4332,
+      "sha256": "d9805122f1ad3e78272c01366bcb28a77a2186b437393a8d8af1ab5afcbf592d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_catmull_Shader.h",
+      "bytes": 27211,
+      "sha256": "3733eeacf7b39658830de0b34936120ba08b4574b894b6c727602da8046d3071"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_catmull_Shader_Dx11.cso",
+      "bytes": 4332,
+      "sha256": "d9805122f1ad3e78272c01366bcb28a77a2186b437393a8d8af1ab5afcbf592d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_catmull_Shader_Dx11.h",
+      "bytes": 27211,
+      "sha256": "3733eeacf7b39658830de0b34936120ba08b4574b894b6c727602da8046d3071"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_catmull_Shader_Vk.h",
+      "bytes": 54293,
+      "sha256": "ab4f244e07aa6b1b7240db945bf93ef21b166aadb6c3a1b5770bbbbc8bced4d6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_catmull_Shader_Vk.spv",
+      "bytes": 8656,
+      "sha256": "5de62230c9fd7fdb3d72295d851eb623bab9a2601af3838b15499d93164b7bed"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_kaiser2.hlsl",
+      "bytes": 4501,
+      "sha256": "570b060c4ec45f2545c624920bebc865f305eaaf801ee8f497d5fccce4387540"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_kaiser2_Shader.cso",
+      "bytes": 12536,
+      "sha256": "4362fdbc19f94da3f27e6099b83829d99e5973cad7d0d1dce5550cb3369b6c07"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_kaiser2_Shader.h",
+      "bytes": 78593,
+      "sha256": "c2654af4a6c7c3438738e43bbe3013a1aadbb24f2740975ff751124870692647"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_kaiser2_Shader_Dx11.cso",
+      "bytes": 12536,
+      "sha256": "4362fdbc19f94da3f27e6099b83829d99e5973cad7d0d1dce5550cb3369b6c07"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_kaiser2_Shader_Dx11.h",
+      "bytes": 78593,
+      "sha256": "c2654af4a6c7c3438738e43bbe3013a1aadbb24f2740975ff751124870692647"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_kaiser2_Shader_Vk.h",
+      "bytes": 83704,
+      "sha256": "be8b99b0b9f10f33259c86624bd03c24bc4e16f5df6070763cb80f1a9ee1b4c1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_kaiser2_Shader_Vk.spv",
+      "bytes": 13352,
+      "sha256": "5117ebca23f97ddacbb04abbe2a11fc433cc7a1dc99f198707b3e6ca31607cc8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_kaiser3.hlsl",
+      "bytes": 4294,
+      "sha256": "79379639d606524fb38e995a3c942bd1d1c44c476171272e34cdfd76868caad6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_kaiser3_Shader.cso",
+      "bytes": 20532,
+      "sha256": "1ee4ac3c118a48ba4c21ab0c63f69adf5b0944b3b3116ae0a863fa00a4cb3a5c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_kaiser3_Shader.h",
+      "bytes": 128676,
+      "sha256": "a35e93637a4302b4f34101766883e386bf7dc924ad0a9181e4854611a0912766"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_kaiser3_Shader_Dx11.cso",
+      "bytes": 20532,
+      "sha256": "1ee4ac3c118a48ba4c21ab0c63f69adf5b0944b3b3116ae0a863fa00a4cb3a5c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_kaiser3_Shader_Dx11.h",
+      "bytes": 128676,
+      "sha256": "a35e93637a4302b4f34101766883e386bf7dc924ad0a9181e4854611a0912766"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_kaiser3_Shader_Vk.h",
+      "bytes": 124392,
+      "sha256": "15fdc94d3fc2b7262b10433690c1d6d267636c2b582043f22ecccb71c17ccce8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_kaiser3_Shader_Vk.spv",
+      "bytes": 19848,
+      "sha256": "5f6a2ca0abac100eee754d032d0cb99120473cb5f139e77abc351fc7faafc6d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_lanczos2.hlsl",
+      "bytes": 3215,
+      "sha256": "6c543aa4f5736cdfa508faa83c26c39aa033479e045d9423194de09ff3820fa8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_lanczos2_Shader.cso",
+      "bytes": 6424,
+      "sha256": "3ab260cf94265c267541669b730b210e83ea52b354472b72c593a45944ab5c80"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_lanczos2_Shader.h",
+      "bytes": 40317,
+      "sha256": "3238c761ee6efd3b855fc4a223bd71d174a1f5cfa205b49728b5aa9c9ee00bef"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_lanczos2_Shader_Dx11.cso",
+      "bytes": 6424,
+      "sha256": "3ab260cf94265c267541669b730b210e83ea52b354472b72c593a45944ab5c80"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_lanczos2_Shader_Dx11.h",
+      "bytes": 40317,
+      "sha256": "3238c761ee6efd3b855fc4a223bd71d174a1f5cfa205b49728b5aa9c9ee00bef"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_lanczos2_Shader_Vk.h",
+      "bytes": 87840,
+      "sha256": "7447b436b41994bf43abfe826a012134fa4540f10394932d212cc912573c1e58"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_lanczos2_Shader_Vk.spv",
+      "bytes": 14012,
+      "sha256": "ee9ebbdc0e833309cebe42bf80e4acf05dceec8b1fa6aab7320a61edecc5f859"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_lanczos3.hlsl",
+      "bytes": 3350,
+      "sha256": "f63b269279b702388cf257f01f869a5fbb722eb11dd91f33c807d8e5acb252cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_lanczos3_Shader.cso",
+      "bytes": 11072,
+      "sha256": "dd1d6ac1a28a2f7a4cc538f7bedefc449f694bbf3d1586f43f467a43c942eab8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_lanczos3_Shader.h",
+      "bytes": 69425,
+      "sha256": "8c89b56c772ac359366aa7f9033272bae00bbecad342b7f62cbe0fa35938f763"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_lanczos3_Shader_Dx11.cso",
+      "bytes": 11072,
+      "sha256": "dd1d6ac1a28a2f7a4cc538f7bedefc449f694bbf3d1586f43f467a43c942eab8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_lanczos3_Shader_Dx11.h",
+      "bytes": 69425,
+      "sha256": "8c89b56c772ac359366aa7f9033272bae00bbecad342b7f62cbe0fa35938f763"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_lanczos3_Shader_Vk.h",
+      "bytes": 141878,
+      "sha256": "75237aeb094decb21d9a99f9a29fb162907f890f314891a20f30d16c5e222144"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_lanczos3_Shader_Vk.spv",
+      "bytes": 22640,
+      "sha256": "5dcf95eb63a86c0d7fd3ac5e38ce46f1fb6e4de78ba7ad8c3272fbaf4f78f550"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_magc.hlsl",
+      "bytes": 6238,
+      "sha256": "07a6a007fcaa4239be67dceb5f87e43fa837f5d3c21a6a5be995913d287b558b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_magc_Shader.cso",
+      "bytes": 11828,
+      "sha256": "8373823c5f7257347ccb3a7674cd7431f33daf32d17a07f16789688c706b9d8b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_magc_Shader.h",
+      "bytes": 74157,
+      "sha256": "d164680bf4a3e7d737952005be4623b68c610b8b6e3cef2ee7d0c91f15710abc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_magc_Shader_Dx11.cso",
+      "bytes": 11828,
+      "sha256": "8373823c5f7257347ccb3a7674cd7431f33daf32d17a07f16789688c706b9d8b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_magc_Shader_Dx11.h",
+      "bytes": 74157,
+      "sha256": "d164680bf4a3e7d737952005be4623b68c610b8b6e3cef2ee7d0c91f15710abc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_magc_Shader_Vk.h",
+      "bytes": 77116,
+      "sha256": "47700f08be6309cc677f7fa34acece980c4c07e0b0d5969864db6f0af2d56e22"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcds_magc_Shader_Vk.spv",
+      "bytes": 12300,
+      "sha256": "7a144ff7c067c4e4d9002e997f8a4f93407e3a4f36b2afc80ff6ba3b7c780f19"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcus.hlsl",
+      "bytes": 5337,
+      "sha256": "3fce17be66d62d669c3c6196772e306852907bb3deb29f4d329841828b21747c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\BCUS_Shader.cso",
+      "bytes": 4272,
+      "sha256": "e7a64857368c36f9abbc22fe6ba0fc5f46a1d1abb6c420609d436151d5dc6da6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\BCUS_Shader.h",
+      "bytes": 26828,
+      "sha256": "331409425bb5765d7fd4e9c3ebca5c8ae4270821b694308dde17ea2b3fceb63a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\BCUS_Shader_Dx11.cso",
+      "bytes": 4272,
+      "sha256": "e7a64857368c36f9abbc22fe6ba0fc5f46a1d1abb6c420609d436151d5dc6da6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\BCUS_Shader_Dx11.h",
+      "bytes": 26828,
+      "sha256": "331409425bb5765d7fd4e9c3ebca5c8ae4270821b694308dde17ea2b3fceb63a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcus_Shader_Vk.h",
+      "bytes": 43337,
+      "sha256": "277e0dcb40cf45a3545e3bfb672e49165fa4f4b8ecaa6f73a3f1b458676e6b68"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\output_scaling\\precompile\\bcus_Shader_Vk.spv",
+      "bytes": 6908,
+      "sha256": "f1317d2ebc422a4d2cc1f4cbf248463b344e0797dcd421777942af3cf6d9e8fa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\da_das_sharpen.hlsl",
+      "bytes": 26378,
+      "sha256": "491423794ba9c5b5b29d92b9f411a5d03aac87a8e4817638e33fab2cfa520681"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\da_das_sharpen_Shader.cso",
+      "bytes": 25468,
+      "sha256": "4ed77bf9ffdb537be5add44b4fe720c292c6769be3ca0d8c899e67772d8a5c65"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\da_das_sharpen_Shader.h",
+      "bytes": 159592,
+      "sha256": "1c45318bed2d6b1e81baf34a8b35c03b5e45a1dea6ce94f345e4919f9bfc986d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\da_das_sharpen_Shader_Dx11.cso",
+      "bytes": 25468,
+      "sha256": "4ed77bf9ffdb537be5add44b4fe720c292c6769be3ca0d8c899e67772d8a5c65"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\da_das_sharpen_Shader_Dx11.h",
+      "bytes": 159592,
+      "sha256": "1c45318bed2d6b1e81baf34a8b35c03b5e45a1dea6ce94f345e4919f9bfc986d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\da_das_sharpen_Shader_Vk.h",
+      "bytes": 189354,
+      "sha256": "3896eb4ca10b7fbf752ceb6ca5473f909826ec6666d1e72c87ef5fbb0261eea1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\da_das_sharpen_Shader_Vk.spv",
+      "bytes": 30220,
+      "sha256": "281f6736acd58f24b8d5597c11f4559b872151b13a8ca400fda06d2413fe3e92"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\da_rcas_sharpen.hlsl",
+      "bytes": 14492,
+      "sha256": "60fb9ec1d18b9b0f3fac6a3e224fc5d5dcc7f2ec3d82b8201f256333eaabfbcb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\da_rcas_sharpen_Shader.cso",
+      "bytes": 12744,
+      "sha256": "0fc255576dda515623b8a4b221cdbed01846d308abe807a16f9fb27818a57655"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\da_rcas_sharpen_Shader.h",
+      "bytes": 79901,
+      "sha256": "ee35680da1290cc9291ef88c4fd28cbde5d9bcf097cb18acaf372c9eb9445ee0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\da_rcas_sharpen_Shader_Dx11.cso",
+      "bytes": 12744,
+      "sha256": "0fc255576dda515623b8a4b221cdbed01846d308abe807a16f9fb27818a57655"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\da_rcas_sharpen_Shader_Dx11.h",
+      "bytes": 79901,
+      "sha256": "ee35680da1290cc9291ef88c4fd28cbde5d9bcf097cb18acaf372c9eb9445ee0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\da_rcas_sharpen_Shader_Vk.h",
+      "bytes": 122763,
+      "sha256": "ee5d8bb102d667984e84ccf4cbbf5aa302d4c76e7be65f330d3d2fb8134efb31"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\da_rcas_sharpen_Shader_Vk.spv",
+      "bytes": 19588,
+      "sha256": "c7b6e61db51bfb5bfbfd73997375f193c854d53794227dbf4a4ed3dd931ea16a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\rcas.hlsl",
+      "bytes": 5075,
+      "sha256": "ace1f2cf5611f2925a8475be440e43581499ad00cf4100fa47155a4681c306be"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\RCAS_Shader.cso",
+      "bytes": 4440,
+      "sha256": "ecfde2eb465a012274a1b3cb7fa342ae4c17b419da44043249eaa3926c484460"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\RCAS_Shader.h",
+      "bytes": 27881,
+      "sha256": "211135577aa8bc82c3817564ddc9b30435990ef4e0555ac95911b77bc0833b19"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\RCAS_Shader_Dx11.cso",
+      "bytes": 5756,
+      "sha256": "1e3851f92284949ce2fc26e66ff6cd41b74dc33017c83930202dac50781c4772"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\RCAS_Shader_Dx11.h",
+      "bytes": 36120,
+      "sha256": "7ae559ca7860da3e090dfb5b62209c80b4d3ed1d9a53ba063699a53bde4bebe7"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\RCAS_Shader_Vk.h",
+      "bytes": 54208,
+      "sha256": "f5761f9a5972920edfed920e39929e114d4d57470fa59da0c0cd63c8ec2a5e1b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\precompile\\RCAS_Shader_Vk.spv",
+      "bytes": 8644,
+      "sha256": "be29681bc2f1824dade6fbebb508499bcf8ba951938fbd5e172bff1a12f92465"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\RCAS_Common.cpp",
+      "bytes": 3212,
+      "sha256": "37fa31d1d99f699892af771e716adfb49e58708dfb12657302aa878a82ecb8f5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\RCAS_Common.h",
+      "bytes": 1899,
+      "sha256": "72b0deec20071f6ef87bd8751217142a751cd67d55ce66edeebb812e45b5b81f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\RCAS_Dx11.cpp",
+      "bytes": 12120,
+      "sha256": "ed696409faccf5392383cd255816059a199927f81408d480b4eabb3d7104e714"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\RCAS_Dx11.h",
+      "bytes": 2175,
+      "sha256": "b8c40a23572baa9c9d113d5d4962b26769dd14157d81e1a17031a827657123d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\RCAS_Dx12.cpp",
+      "bytes": 8560,
+      "sha256": "8577d21d3ee859c8f8923b6b9b59d70e5251227b455b41c9a17c7a01be28a97e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\RCAS_Dx12.h",
+      "bytes": 1898,
+      "sha256": "842eb1705e155b4d6cd6b30f44817f982378466e0fd3aed79164853d275511e3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\RCAS_Vk.cpp",
+      "bytes": 13744,
+      "sha256": "255e50fb9f25543212cc6f7b3dce07d6a98446995c03956f5d8d223e9fec3856"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\RCAS_Vk.h",
+      "bytes": 3410,
+      "sha256": "12f2ca1119e6b8b38945d1c727f171607451751ea1ef7144f0d7d35b1b62b65d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\shaders\\DA_DAS_Shader.h",
+      "bytes": 26514,
+      "sha256": "3e8478654913b7806e746af9dee80aefcc711e95dd8ce2bbe922334b365d82d4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\shaders\\DA_RCAS_Shader.h",
+      "bytes": 14663,
+      "sha256": "b8a071154dd58afa52c755d0aefcb74e7d2008bffc5b1a7f0f73d146b92eb008"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\rcas\\shaders\\RCAS_Shader.h",
+      "bytes": 5186,
+      "sha256": "682a1b844d871a1bb1880983532c486cd2cafc8170648db4805391e0461257c8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\render_ui\\precompile\\render_ui.hlsl",
+      "bytes": 671,
+      "sha256": "5f82d6acd88c5cee2edce90346d2efb4488b3b22ee11a97b38b2684acc29f9ab"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\render_ui\\precompile\\render_ui_pm.hlsl",
+      "bytes": 764,
+      "sha256": "0befe63e8b057fecf64666e299123415eaed05c7a8682307ed9d44acf58c12f3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\render_ui\\precompile\\render_ui_pm_PShader.cso",
+      "bytes": 4048,
+      "sha256": "a9914a7eea42817d8bdcab1b0388538012dcbae9062d35c085580187dde708ba"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\render_ui\\precompile\\render_ui_pm_PShader.h",
+      "bytes": 25438,
+      "sha256": "b01a85ccacfbaec9f16369936ba50ef2667253566d250a51682446b66d032c92"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\render_ui\\precompile\\render_ui_pm_VShader.cso",
+      "bytes": 3024,
+      "sha256": "6b38788b9f6f3167b724eae2d66a5a2a84ccf783cbc9f804e56c441e606f3213"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\render_ui\\precompile\\render_ui_pm_VShader.h",
+      "bytes": 19026,
+      "sha256": "05634ad4f32c18a6dd54d0479ec599606740523b9ab3af1267f5b6408ac8c85c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\render_ui\\precompile\\render_ui_PShader.cso",
+      "bytes": 4036,
+      "sha256": "b3541ceb929c84c8e1358545afaf7a61872093236df7b7641790c87200f55630"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\render_ui\\precompile\\render_ui_PShader.h",
+      "bytes": 25358,
+      "sha256": "2fea90a5c757087dcfdd3680010dd2327f58701487873583f80e1c8d9c8a9206"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\render_ui\\precompile\\render_ui_VShader.cso",
+      "bytes": 3024,
+      "sha256": "6b38788b9f6f3167b724eae2d66a5a2a84ccf783cbc9f804e56c441e606f3213"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\render_ui\\precompile\\render_ui_VShader.h",
+      "bytes": 19023,
+      "sha256": "28996cdbf3492495d33889b95a768bd40bc22d03c4526a92b3e706ca7a418be3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\render_ui\\RUI_Common.h",
+      "bytes": 1693,
+      "sha256": "aee1765016ce60eec7dadb736514a294c25f5eee1ede59db550ef878d3826a9d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\render_ui\\RUI_Dx12.cpp",
+      "bytes": 10403,
+      "sha256": "d7560af21708d2354569e9057e2108beb2ce9229fc14ef6d0a269ae239001a7b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\render_ui\\RUI_Dx12.h",
+      "bytes": 1327,
+      "sha256": "1943177f8757ca94d6a6ca25fb0ac3a06c9f80eacf9a1cc0953e341de098adf1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\resource_copy\\precompile\\rc.hlsl",
+      "bytes": 458,
+      "sha256": "a4e97e4129e222d2b32397e8a305dad11720429047dd95f667c18c0b08be5797"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\resource_copy\\precompile\\rc_Shader_Vk.h",
+      "bytes": 5755,
+      "sha256": "e5701da6f3eda9acbc3f9477e3f53e1f5228713017d645a7d52499adf1e84a80"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\resource_copy\\precompile\\rc_Shader_Vk.spv",
+      "bytes": 908,
+      "sha256": "03495301263a0373ff444ea888f045450b53673df4455e05e1002b2942e82932"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\resource_copy\\RC_Vk.cpp",
+      "bytes": 3894,
+      "sha256": "769bf458a42172f258065d6725c5e86b0eb2a526b4a923deb6050e40980c617c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\resource_copy\\RC_Vk.h",
+      "bytes": 1358,
+      "sha256": "36c14b13f20e3f77986bf9943906f0d6e7e127360cf8433d6e75a29eef46836b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\resource_flip\\precompiled\\RF.hlsl",
+      "bytes": 864,
+      "sha256": "aae96592ff08dc0438703b4b165aeb04f37dc42f30f4fdf8935d17c8d598ec38"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\resource_flip\\precompiled\\RF_Shader.cso",
+      "bytes": 3856,
+      "sha256": "03677a360b9c0e403f1bb311232a5b9fff8c9c1276bcdd03b38d32e322edb2c3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\resource_flip\\precompiled\\RF_Shader.h",
+      "bytes": 24218,
+      "sha256": "745ed8f3d6152478539b8a75e75c880451023230048451a080daca754398ce76"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\resource_flip\\RF_Common.h",
+      "bytes": 1067,
+      "sha256": "4de88048860d556cb3fdee3f98019c20267573c8a3c27c36b42a6414fdab7fef"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\resource_flip\\RF_Dx12.cpp",
+      "bytes": 4029,
+      "sha256": "024c4dc75a717f10f95b2e8a725e398f8edcc0220f603b67cc8fc2372b7ab2d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\resource_flip\\RF_Dx12.h",
+      "bytes": 639,
+      "sha256": "f349bb187547de1ff7f6aae0f56d2005a1567b5febcd72c23dbc18e7908486a5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\Shader_Common.cpp",
+      "bytes": 1051,
+      "sha256": "6900850329523977e4093f1e0bce996346a5c1aa230ca9a9b4baafc76fb7c1b3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\Shader_Common.h",
+      "bytes": 135,
+      "sha256": "0b747d6f71e21a0e64cf277d1691cf6492d1516236264cd2dd8bea1d6d584299"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\Shader_Dx11.cpp",
+      "bytes": 6032,
+      "sha256": "23a065689f17145e0f0da714440de83519130c11080277c4da9545b7a851d9ed"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\Shader_Dx11.h",
+      "bytes": 1914,
+      "sha256": "e73c0f78c52ff467346ebd74594eb519407c4d6360a20499c89f4afe6bb5d844"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\Shader_Dx12.cpp",
+      "bytes": 17265,
+      "sha256": "ea7d880eb6de53912983a0d2fe2d8ce3b83081a40d8c765735c7800f939210d6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\Shader_Dx12.h",
+      "bytes": 3175,
+      "sha256": "983551c0968d0797df12ef1913791548b5b298e4fd726da9aefeab45301a326e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\Shader_Dx12Utils.h",
+      "bytes": 5362,
+      "sha256": "aa3622c139fb56aa813d205ec904aaed5cf4073e0e03f84de43df1ae1fc99136"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\fsrd_toolchain.py",
+      "bytes": 3116,
+      "sha256": "f9e921637631a280f43bee034588897966f1195e16e88517e754ecfdc27978cd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\fsrd_additive_fence_state_test.cpp",
+      "bytes": 2041,
+      "sha256": "fa7e35f59e7ca8dbb34d11d7be9255eb31ab365d366e9a6aa2749145714cd4ad"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\fsrd_additive_fence_test.cpp",
+      "bytes": 8687,
+      "sha256": "db46cabf45a9bc4d72455eecac5ed632b186434ea41aeb82f0446529ef50e0b8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\fsrd_detail_consensus.hlsl",
+      "bytes": 7354,
+      "sha256": "7ce30c27c55def0f1d5de33804557565849764f4b9233ea5b2bfa12650c8e554"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\fsrd_gpu_runner.cpp",
+      "bytes": 13429,
+      "sha256": "f215e7565d70e3e85aacc524f47cf4138934d523ba019cfc3c8b48849751c953"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\fsrd_rr_runner.cpp",
+      "bytes": 17182,
+      "sha256": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\Shader_Vk.cpp",
+      "bytes": 15410,
+      "sha256": "8cdd937161c76fc300bbc663c2e73f3fe8e39f20f38447b84be4e04bb1db392d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\Shader_Vk.h",
+      "bytes": 4114,
+      "sha256": "d4ec22eacb55edb823429acb5b6b2544cc035c27aa8505e9e39b7188e5a14904"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\Shader_VkUtils.h",
+      "bytes": 4948,
+      "sha256": "6cc76e8943ec5416923badabe20bba1715204fead6406c9ea4b3b172de84863a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\upscalers\\fsr31\\FSRDFeature_Dx12.cpp",
+      "bytes": 193233,
+      "sha256": "d2cb58c65f6e9d3699e56e34675e6d50593b2bd89bd568025083cb8e09fdd628"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler.sln",
+      "bytes": 1881,
+      "sha256": "9286e49706bb967f7a7e2338c418d127adc124d14352654a1d7399f3ecd240ca"
+    }
+  ],
+  "all_before_after_byte_identities_exact": true
+}

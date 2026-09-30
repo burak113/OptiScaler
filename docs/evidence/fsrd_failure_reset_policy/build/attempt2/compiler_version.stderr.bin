@@ -1,0 +1,14 @@
+x64 için Microsoft (R) C/C++ İyileştirmeli Derleyicisi Sürüm 19.44.35228
+Telif Hakkı (C) Microsoft Corporation. Tüm hakları saklıdır.
+
+Derleyici Geçişleri:
+ F:\VisualStudio\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\cl.exe:        Sürüm 19.44.35228.0
+ F:\VisualStudio\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\c1.dll:        Sürüm 19.44.35228.0
+ F:\VisualStudio\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\c1xx.dll:      Sürüm 19.44.35228.0
+ F:\VisualStudio\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\c2.dll:        Sürüm 19.44.35228.0
+ F:\VisualStudio\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\c1xx.dll:      Sürüm 19.44.35228.0
+ F:\VisualStudio\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\link.exe:      Sürüm 14.44.35228.0
+ F:\VisualStudio\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\mspdb140.dll:  Sürüm 14.44.35228.0
+ F:\VisualStudio\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\1055\clui.dll: Sürüm 19.44.35228.0
+
+cl: Komut satırı error D8003: eksik kaynak dosya adı

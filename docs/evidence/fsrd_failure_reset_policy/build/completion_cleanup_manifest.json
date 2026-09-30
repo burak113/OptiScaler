@@ -1,0 +1,52 @@
+{
+  "schema": "generated-solution-helper-cleanup-completion-manifest-v1",
+  "UTC": "2026-09-30T15:07:11.350265+00:00",
+  "original_completion_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_failure_reset_policy_build_20260930\\completion_manifest.json",
+      "bytes": 12711,
+      "sha256": "867371c78dbfafc0ec76ee69c37d98119bd7c0b2e7894aa968403ced17ecb609"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_failure_reset_policy_build_20260930\\completion_manifest.sha256",
+      "bytes": 91,
+      "sha256": "7765dd74c40fcc82fd20f90edaa25193ecb2f624a64c41834ca520dbd81497a8"
+    }
+  ],
+  "new_supplement_files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_failure_reset_policy_build_20260930\\preserve_generated_metaproj_cleanup.py",
+      "bytes": 4671,
+      "sha256": "3419646e90143dc8a671545765bba7e14bfd33573505a2ef34c78e06e53aa17d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_failure_reset_policy_build_20260930\\generated_OptiScaler.sln.metaproj",
+      "bytes": 41383,
+      "sha256": "68aae6adfe79a0c3c1f20c22075c3cddbbdf396d1b595f61b4746cb44332d6a6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_failure_reset_policy_build_20260930\\generated_helper_cleanup.stdout.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_failure_reset_policy_build_20260930\\generated_helper_cleanup.stderr.bin",
+      "bytes": 562,
+      "sha256": "58b314283fe09bcc1b1b9f8786ab688f4c91d4ca498c835db00327327b71edd2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_failure_reset_policy_build_20260930\\git_status_after_generated_helper_cleanup.bin",
+      "bytes": 88,
+      "sha256": "93f90ef49e0147b4a30a9e620065a04af750a78b2504c2da0083f15f91ddc005"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_failure_reset_policy_build_20260930\\completion_cleanup_supplement.json",
+      "bytes": 2663,
+      "sha256": "e52e24b6c7e961a1de6d047ac8c1e93308a4b35123991058e7c511a5764ae456"
+    }
+  ],
+  "new_compiles": 0,
+  "new_nativeSDK_dispatches": 0,
+  "new_GPU_jobs": 0,
+  "new_game_runs": 0
+}
