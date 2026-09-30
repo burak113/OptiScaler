@@ -1,0 +1,498 @@
+{
+  "status": "PASSED_SPECULAR_HIT_ALPHA_NATIVE_RAW_EVIDENCE_REVIEW",
+  "blocking_findings": [],
+  "actual_new_work": {
+    "contexts": 4,
+    "counts": {
+      "api": 256,
+      "queued": 256,
+      "executes": 256,
+      "signals": 256,
+      "events": 256,
+      "waits": 256,
+      "completed_GPU": 256,
+      "observed_readback_pairs": 256
+    },
+    "totals_unknown": 0,
+    "metadata_accepted_contexts": 4,
+    "new_composition_helpers": 0,
+    "review_GPU_native_build_scorer": 0
+  },
+  "source_validation": {
+    "direct_pre_post": 131,
+    "inherited_anchor_records_pre_post": 5677,
+    "expanded_unique": 5787,
+    "inherited_manifest_pinned_once": true
+  },
+  "sourcequalified_contexts": [
+    {
+      "tag": "A0_r0",
+      "counts": {
+        "api": 64,
+        "queued": 64,
+        "executes": 64,
+        "signals": 64,
+        "events": 64,
+        "waits": 64,
+        "completed_GPU": 64,
+        "observed_readback_pairs": 64
+      },
+      "exact_totals": true,
+      "context_created_completed": true,
+      "accepted": true,
+      "diagnostics_all_zero": true,
+      "outputs": {
+        "diffuse.bin": {
+          "RGB_finite": true,
+          "alpha_all_positive_zero_bits": true,
+          "RGB_min": 0.58056640625,
+          "RGB_max": 0.66552734375
+        },
+        "specular.bin": {
+          "RGB_finite": true,
+          "alpha_all_positive_zero_bits": true,
+          "RGB_min": 0.58056640625,
+          "RGB_max": 0.6650390625
+        }
+      },
+      "PID": 10112
+    },
+    {
+      "tag": "A10_r0",
+      "counts": {
+        "api": 64,
+        "queued": 64,
+        "executes": 64,
+        "signals": 64,
+        "events": 64,
+        "waits": 64,
+        "completed_GPU": 64,
+        "observed_readback_pairs": 64
+      },
+      "exact_totals": true,
+      "context_created_completed": true,
+      "accepted": true,
+      "diagnostics_all_zero": true,
+      "outputs": {
+        "diffuse.bin": {
+          "RGB_finite": true,
+          "alpha_all_positive_zero_bits": true,
+          "RGB_min": 0.58056640625,
+          "RGB_max": 0.66552734375
+        },
+        "specular.bin": {
+          "RGB_finite": true,
+          "alpha_all_positive_zero_bits": true,
+          "RGB_min": 0.58056640625,
+          "RGB_max": 0.6650390625
+        }
+      },
+      "PID": 27716
+    },
+    {
+      "tag": "A10_r1",
+      "counts": {
+        "api": 64,
+        "queued": 64,
+        "executes": 64,
+        "signals": 64,
+        "events": 64,
+        "waits": 64,
+        "completed_GPU": 64,
+        "observed_readback_pairs": 64
+      },
+      "exact_totals": true,
+      "context_created_completed": true,
+      "accepted": true,
+      "diagnostics_all_zero": true,
+      "outputs": {
+        "diffuse.bin": {
+          "RGB_finite": true,
+          "alpha_all_positive_zero_bits": true,
+          "RGB_min": 0.58056640625,
+          "RGB_max": 0.66552734375
+        },
+        "specular.bin": {
+          "RGB_finite": true,
+          "alpha_all_positive_zero_bits": true,
+          "RGB_min": 0.58056640625,
+          "RGB_max": 0.6650390625
+        }
+      },
+      "PID": 15256
+    },
+    {
+      "tag": "A0_r1",
+      "counts": {
+        "api": 64,
+        "queued": 64,
+        "executes": 64,
+        "signals": 64,
+        "events": 64,
+        "waits": 64,
+        "completed_GPU": 64,
+        "observed_readback_pairs": 64
+      },
+      "exact_totals": true,
+      "context_created_completed": true,
+      "accepted": true,
+      "diagnostics_all_zero": true,
+      "outputs": {
+        "diffuse.bin": {
+          "RGB_finite": true,
+          "alpha_all_positive_zero_bits": true,
+          "RGB_min": 0.58056640625,
+          "RGB_max": 0.66552734375
+        },
+        "specular.bin": {
+          "RGB_finite": true,
+          "alpha_all_positive_zero_bits": true,
+          "RGB_min": 0.58056640625,
+          "RGB_max": 0.6650390625
+        }
+      },
+      "PID": 12752
+    }
+  ],
+  "seven_input_contract": {
+    "full_other6_bytes_and_input6RGB_equal": true,
+    "input6A_only_0_vs10": true,
+    "static_upload_counts": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "controls64x184_exact": true,
+    "SDK_source_indices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63
+    ],
+    "camera_override_absent": true
+  },
+  "pair_summaries": [
+    {
+      "left": "A0_r0",
+      "right": "A10_r0",
+      "kind": "between_dose",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 6.316175709918757e-05,
+          "RGB_max_abs": 0.00048828125
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 9.069437734961502e-05,
+          "RGB_max_abs": 0.00048828125
+        }
+      }
+    },
+    {
+      "left": "A0_r0",
+      "right": "A10_r1",
+      "kind": "between_dose",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 6.316175709918757e-05,
+          "RGB_max_abs": 0.00048828125
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 9.069437734961502e-05,
+          "RGB_max_abs": 0.00048828125
+        }
+      }
+    },
+    {
+      "left": "A0_r0",
+      "right": "A0_r1",
+      "kind": "within_dose_repeat",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 6.370944164778266e-05,
+          "RGB_max_abs": 0.00048828125
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 9.039906965433945e-05,
+          "RGB_max_abs": 0.00048828125
+        }
+      }
+    },
+    {
+      "left": "A10_r0",
+      "right": "A10_r1",
+      "kind": "within_dose_repeat",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 0.0,
+          "RGB_max_abs": 0.0
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 0.0,
+          "RGB_max_abs": 0.0
+        }
+      }
+    },
+    {
+      "left": "A10_r0",
+      "right": "A0_r1",
+      "kind": "between_dose",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 6.038297464043612e-05,
+          "RGB_max_abs": 0.00048828125
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 8.790442680674867e-05,
+          "RGB_max_abs": 0.00048828125
+        }
+      }
+    },
+    {
+      "left": "A10_r1",
+      "right": "A0_r1",
+      "kind": "between_dose",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 6.038297464043612e-05,
+          "RGB_max_abs": 0.00048828125
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 8.790442680674867e-05,
+          "RGB_max_abs": 0.00048828125
+        }
+      }
+    }
+  ],
+  "frame_summary": [
+    {
+      "left": "A0_r0",
+      "right": "A10_r0",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_RMS": 5.469968619555856e-05,
+          "alpha_RMS": 0.0,
+          "first_different_frame": 39,
+          "last_different_frame": 63,
+          "different_RGB_frames": 25
+        },
+        "specular.bin": {
+          "RGBA_RMS": 7.85436347651786e-05,
+          "alpha_RMS": 0.0,
+          "first_different_frame": 39,
+          "last_different_frame": 63,
+          "different_RGB_frames": 25
+        }
+      }
+    },
+    {
+      "left": "A0_r0",
+      "right": "A10_r1",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_RMS": 5.469968619555856e-05,
+          "alpha_RMS": 0.0,
+          "first_different_frame": 39,
+          "last_different_frame": 63,
+          "different_RGB_frames": 25
+        },
+        "specular.bin": {
+          "RGBA_RMS": 7.85436347651786e-05,
+          "alpha_RMS": 0.0,
+          "first_different_frame": 39,
+          "last_different_frame": 63,
+          "different_RGB_frames": 25
+        }
+      }
+    },
+    {
+      "left": "A0_r0",
+      "right": "A0_r1",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_RMS": 5.517399492790211e-05,
+          "alpha_RMS": 0.0,
+          "first_different_frame": 39,
+          "last_different_frame": 63,
+          "different_RGB_frames": 25
+        },
+        "specular.bin": {
+          "RGBA_RMS": 7.82878907991369e-05,
+          "alpha_RMS": 0.0,
+          "first_different_frame": 39,
+          "last_different_frame": 63,
+          "different_RGB_frames": 25
+        }
+      }
+    },
+    {
+      "left": "A10_r0",
+      "right": "A10_r1",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_RMS": 0.0,
+          "alpha_RMS": 0.0,
+          "first_different_frame": null,
+          "last_different_frame": null,
+          "different_RGB_frames": 0
+        },
+        "specular.bin": {
+          "RGBA_RMS": 0.0,
+          "alpha_RMS": 0.0,
+          "first_different_frame": null,
+          "last_different_frame": null,
+          "different_RGB_frames": 0
+        }
+      }
+    },
+    {
+      "left": "A10_r0",
+      "right": "A0_r1",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_RMS": 5.229318999468921e-05,
+          "alpha_RMS": 0.0,
+          "first_different_frame": 40,
+          "last_different_frame": 63,
+          "different_RGB_frames": 24
+        },
+        "specular.bin": {
+          "RGBA_RMS": 7.612746671975415e-05,
+          "alpha_RMS": 0.0,
+          "first_different_frame": 40,
+          "last_different_frame": 63,
+          "different_RGB_frames": 24
+        }
+      }
+    },
+    {
+      "left": "A10_r1",
+      "right": "A0_r1",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_RMS": 5.229318999468921e-05,
+          "alpha_RMS": 0.0,
+          "first_different_frame": 40,
+          "last_different_frame": 63,
+          "different_RGB_frames": 24
+        },
+        "specular.bin": {
+          "RGBA_RMS": 7.612746671975415e-05,
+          "alpha_RMS": 0.0,
+          "first_different_frame": 40,
+          "last_different_frame": 63,
+          "different_RGB_frames": 24
+        }
+      }
+    }
+  ],
+  "all_producer_raw_metrics_exact": true,
+  "limitations": [
+    "The within-dose A0 pair varies while A10 pair is exact; between-dose differences are therefore not isolated alpha-cause proof. Four contexts do not establish a distribution or significance.",
+    "+10 is a view-depth proxy, not traced ray length; no ray-validity, privateSDK mechanism, API-violation or game-quality inference.",
+    "256 successful API/queued/fence/readback counts follow the pinned source serial64 complete footer/readback contract. Historical EXE identity is pinned; no fresh compile linkage or private internal shader-dispatch count is invented.",
+    "All64 applied184-byte controls match, flags3/2 mean NON_GAMMA_ALBEDO2|RESET1. Controls are written before API and independently are not success proof.",
+    "Raw outputRGB is demodulated and finite; outputA positivezero describes destination storage and does not prove provider writes/preservation. No composition, clean-truth scoring or estimator used."
+  ],
+  "quality_accepted": false,
+  "game_run": false
+}

@@ -1,0 +1,104 @@
+{
+  "status": "PASSED_CLEAN_ROUNDTRIP_EVIDENCE_AND_EXACT_SINGLETON_METRIC_REVIEW",
+  "blocking_findings": [],
+  "source_records_checked_pre_post": 2355,
+  "prelaunch": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_prelaunch_review_20260930\\review.json",
+    "bytes": 696744,
+    "sha256": "39ba2d5853b476c3041e88b27815a998483c6b97aff98a6de678facdfae65271"
+  },
+  "prelaunch_seal": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_prelaunch_review_20260930\\completion_manifest.json",
+    "bytes": 677296,
+    "sha256": "5b64437dfb16dcc1d7e5b07b5654926725c49ae40e2fe50b633bb5cbe2e8388d"
+  },
+  "root_authorization": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_root_authorization_20260930.json",
+    "bytes": 5216,
+    "sha256": "3d649c84b3478f89d90199ddcdefeeb70b865eeb8c98a27101d74591a760cf4f"
+  },
+  "root_tool_observations": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_root_tool_observations_20260930.json",
+    "bytes": 5959,
+    "sha256": "48bce8e159824933251360ee20f71dd9d48ead2fa589c906385f7d801d233ddb"
+  },
+  "producer_execution": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\execution_results.json",
+    "bytes": 15602,
+    "sha256": "94b31ae3f743ec3d18b4110d4888f49a29a2ede350f4405215a3514ea6ffa6eb"
+  },
+  "producer_metrics": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\roundtrip_metrics.json",
+    "bytes": 115159,
+    "sha256": "60d2356cca68e9f371ed695fee8b0b1da22f1b569775433ce8f16bc8e6e1d52c"
+  },
+  "producer_NPZ": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\roundtrip_sequences.npz",
+    "bytes": 1064,
+    "sha256": "6e15a70ba21e27d7fc0cf75ea1ec3337e5f4058856a016096196108c9c8585a2"
+  },
+  "metric_reproduction": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_postrun_review_20260930\\metric_reproduction.json",
+    "bytes": 105811,
+    "sha256": "1eb0a0c03ac374c563f44c7c8666ca0ccc1eef55a306a4541ebd9b07d440976c"
+  },
+  "actual_counts": {
+    "helper_children": 2,
+    "explicit_helper_shader_dispatches": 2,
+    "postfence_proofs": 2,
+    "metadata_accepted": 2,
+    "retained_outputs": 6,
+    "new_native_API": 0,
+    "new_native_contexts": 0
+  },
+  "cases": [
+    {
+      "arm": "R0",
+      "PID": 18196,
+      "guard_direct_equals_stored": true,
+      "postfence_marker_sourcequalified": true,
+      "helper_shader_counts_each1": true,
+      "metadata_accepted": true,
+      "all3_raw_sizes_hashes_verified": true,
+      "stderr_empty": true,
+      "debug_errors_warnings0": true
+    },
+    {
+      "arm": "R1",
+      "PID": 25372,
+      "guard_direct_equals_stored": true,
+      "postfence_marker_sourcequalified": true,
+      "helper_shader_counts_each1": true,
+      "metadata_accepted": true,
+      "all3_raw_sizes_hashes_verified": true,
+      "stderr_empty": true,
+      "debug_errors_warnings0": true
+    }
+  ],
+  "matches": {
+    "all3_R0_R1_fullbits_exact": true,
+    "NPZ_actual_one_frame_RGBA_bits_exact": true,
+    "R_color_RGB_bits_exact_encodedraw": true,
+    "singleton_scores_exact": true,
+    "independent_signed_Nyquist_DC_beta_exact": true,
+    "R_minus_q_zero": true,
+    "historicalT64_scores_and_T_minus_staticR_exact": true
+  },
+  "actual_review": {
+    "GPU": 0,
+    "native": 0,
+    "build": 0,
+    "devicequery": 0,
+    "model": 0,
+    "threshold_changes": 0
+  },
+  "quality_accepted": false,
+  "qualifications": [
+    "Measured R0/R1 are two single-graph helper observations, not64 measured roundtrip frames. Frozen N1 temporal fields are noninferential; no duplicatedR64 temporal noise estimate.",
+    "Raw encoded input quantization versus constructedtruth is separate from actual converter+composition roundtrip. Measured R RGB exactly equals encodedraw under these settings.",
+    "T-R is prior measured SDK path plus composition response against static roundtrip reference. DestinationAlpha differs from converterAlpha; actualCSO alpha-invariance not isolated by this run, so no pure intrinsic SDK-only RGB cause claim.",
+    "Allthreeoutputbytes retained. Auxiliary UAV repeatbytes do not prove shader historywrites when WriteHistory0. Native/RGB sourcefastpath interpretation remains source/CSO provenance qualified.",
+    "Helper postfence timing/source contract and positive child guard prove2explicit helper shaderdispatches. This review launches0helpers/SDK/build; current SDKtotal unchanged.",
+    "Exact scalar/phase/detail comparisons are bounded to constructed weakchecker fixture. Neither physical clean truth nor general game-quality/cause proof is established."
+  ]
+}

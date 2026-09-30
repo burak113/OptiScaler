@@ -1,0 +1,810 @@
+{
+  "status": "PINNED_QUERY_EXTERNAL_BINARIES_AND_EXPANDED_SOURCE_EVIDENCE",
+  "records": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\fsrd_toolchain.py",
+      "bytes": 3116,
+      "sha256": "f9e921637631a280f43bee034588897966f1195e16e88517e754ecfdc27978cd",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\api\\include\\dx12\\ffx_api_dx12.h",
+      "bytes": 11595,
+      "sha256": "2082d6c2914e9c2fa9fae6247d35f64c643ccb703311c83c8dba9a35356bc711",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\api\\include\\ffx_api.h",
+      "bytes": 10939,
+      "sha256": "91f7f4a9111d18996e3bae083bf82d47ac6497de144b352abfca44f07d2871c4",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\api\\include\\ffx_api_loader.h",
+      "bytes": 3039,
+      "sha256": "10795186fd2a8ff53bb13aa0c81079c7ffd4a0b1bb501c629ed0b874c492a20b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\api\\include\\ffx_api_types.h",
+      "bytes": 13892,
+      "sha256": "b54fbd96a0eed82662a49c00e28e5368ab69959f9856dae5c12fed109d123d66",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\denoisers\\include\\ffx_denoiser.h",
+      "bytes": 27253,
+      "sha256": "1316e406f3499f1c907c258d8efbf763d81aa7ffed1b65209802637907d644ed",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\signedbin\\amd_fidelityfx_denoiser_dx12.dll",
+      "bytes": 13782280,
+      "sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\executor_evidence.py",
+      "bytes": 3825,
+      "sha256": "ade35d872077f2153f9c9177734f33da06316efbd396b1db391a166c297f9e35",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\native_resource_guard.py",
+      "bytes": 4837,
+      "sha256": "b70e18d0f13963e0250c371171933429446cf304041c9a16d971e9898d211814",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_design_20260930\\completion_manifest.json",
+      "bytes": 1500,
+      "sha256": "7cf0457942518513a01053831ab1029c678288ce5787ef2bfc2221cd937bd35e",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_design_20260930\\design.json",
+      "bytes": 8790,
+      "sha256": "bb80daa56058ef57f7be03d37ef217acaaca8f4ad285b5bee4cad1ddf3f372e6",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_postrun_review_20261001\\pins_after.json",
+      "bytes": 52737,
+      "sha256": "49b1d9c1a1e99db9b7b89ac6c7d6951976a9b59cb864b8913ed1575ee9f2f3b7",
+      "purpose": "Binary or expanded CPU/source pin evidence; retained at sealed original path."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_postrun_review_20261001\\pins_before.json",
+      "bytes": 52703,
+      "sha256": "1a22cfc618d3723bf22e079d1707243174448cd6df7ff61ad515e1e7c5b6da26",
+      "purpose": "Binary or expanded CPU/source pin evidence; retained at sealed original path."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\context_metadata_mismatch_preserves_returned_work\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\context_metadata_mismatch_preserves_returned_work\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\context_metadata_mismatch_preserves_returned_work\\stdout.log",
+      "bytes": 7652,
+      "sha256": "237afe5332718b93ca1224eecfe31977ba01fc11f111f9c6e6bfe3239667288c",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\duplicate_JSON_key_retains_prior_work\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\duplicate_JSON_key_retains_prior_work\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\duplicate_JSON_key_retains_prior_work\\stdout.log",
+      "bytes": 7660,
+      "sha256": "0589d7e69c6f1956faf623daa9dea82b33e42aef8fd9d32f516a474bdde247da",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\failed_Create_nonnull_keeps_ownership_uncertain\\query_values.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\failed_Create_nonnull_keeps_ownership_uncertain\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\failed_Create_nonnull_keeps_ownership_uncertain\\stdout.log",
+      "bytes": 1842,
+      "sha256": "7ae849d48455dc5618bb202fc67b773d82cb70a91064b6e625a4b90fb3052eea",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\failed_Destroy_keeps_ownership_uncertain\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\failed_Destroy_keeps_ownership_uncertain\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\failed_Destroy_keeps_ownership_uncertain\\stdout.log",
+      "bytes": 7648,
+      "sha256": "9e102f51050ab6b275dec8bf653ba5f0f2c34bc06c421bf0d08bc6158352dca9",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\impossible_RR64_never_work\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\impossible_RR64_never_work\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\impossible_RR64_never_work\\stdout.log",
+      "bytes": 7653,
+      "sha256": "80e61b1aa6a467c1349d76f7b9a764f938948cf0519dc3888fa73d17f49e4f59",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\malformed_JSON_footer_retains_prior_work\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\malformed_JSON_footer_retains_prior_work\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\malformed_JSON_footer_retains_prior_work\\stdout.log",
+      "bytes": 7650,
+      "sha256": "5fc1a37c03475da2a7a94f2041c850eb6a080d7f75079824c0d6b80d56b3c201",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\ordinary_warning_rejection_preserves_work\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\ordinary_warning_rejection_preserves_work\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\ordinary_warning_rejection_preserves_work\\stdout.log",
+      "bytes": 7651,
+      "sha256": "1d14f80f35f3c16a74453c4fdb1a29d8794a4fb37c52498f8cf88ab523da1e3c",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\raw_float_tamper_preserves_returned_work\\query_values.bin",
+      "bytes": 24,
+      "sha256": "99a26ba9fc2db57e78777395e97f0a92e021d87438427efb2c470a0b7cd36599",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\raw_float_tamper_preserves_returned_work\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_INDEPENDENT\\raw_float_tamper_preserves_returned_work\\stdout.log",
+      "bytes": 7652,
+      "sha256": "a7587ec22249ed0afab075c51bc50bf599f3cc0123bdc5a182817be5ddaf8d0a",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\CPU_checks.json",
+      "bytes": 173097,
+      "sha256": "f714500602443e55ab755d5992e56a96c28cba95cc6d6f89a0db88e29984c718",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\CPU_pending_entry_check.json",
+      "bytes": 5280,
+      "sha256": "f20ac56ca4b5b0b714044acb4148086501d4119234983d9ffe76bc9f33d96b21",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\complete6\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\complete6\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\complete6\\stdout.log",
+      "bytes": 7652,
+      "sha256": "a7587ec22249ed0afab075c51bc50bf599f3cc0123bdc5a182817be5ddaf8d0a",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\duplicate_terminal_no_exact\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\duplicate_terminal_no_exact\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\duplicate_terminal_no_exact\\stdout.log",
+      "bytes": 8059,
+      "sha256": "03f2a30d3087dc9be04b27080eaf0fbd03bf209c15681f0f7e19d1a8e3890a6c",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\explicit_nochild_stale_footer0\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\explicit_nochild_stale_footer0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\explicit_nochild_stale_footer0\\stdout.log",
+      "bytes": 7652,
+      "sha256": "a7587ec22249ed0afab075c51bc50bf599f3cc0123bdc5a182817be5ddaf8d0a",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\failed_query3_preserved\\query_values.bin",
+      "bytes": 12,
+      "sha256": "06868f90786e5a8c98ff0600cbb31b730911d76043491a36ed77cba308e7685a",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\failed_query3_preserved\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\failed_query3_preserved\\stdout.log",
+      "bytes": 5158,
+      "sha256": "b90143485f59edefecfc003dbe0936292656371c367fe621dc47f5cb958b3c98",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\fresh_missing_guard_lowerbounds\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\fresh_missing_guard_lowerbounds\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\fresh_missing_guard_lowerbounds\\stdout.log",
+      "bytes": 7652,
+      "sha256": "a7587ec22249ed0afab075c51bc50bf599f3cc0123bdc5a182817be5ddaf8d0a",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\impossible_counter64_not_capacity\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\impossible_counter64_not_capacity\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\impossible_counter64_not_capacity\\stdout.log",
+      "bytes": 7653,
+      "sha256": "c0923cf824119dfd58e3dc5ed2e9e8ece2e36319b5c49ced19e19f9c49bad6a1",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\metadata_raw_missing_retains6\\query_values.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\metadata_raw_missing_retains6\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\metadata_raw_missing_retains6\\stdout.log",
+      "bytes": 7652,
+      "sha256": "a7587ec22249ed0afab075c51bc50bf599f3cc0123bdc5a182817be5ddaf8d0a",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\missing_footer_unknown_not_false0\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\missing_footer_unknown_not_false0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\missing_footer_unknown_not_false0\\stdout.log",
+      "bytes": 7245,
+      "sha256": "c4ea4ca5c83ef75cae84715a0a16a25849514e0a1ccce94ba6103fb244a50c6c",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\returned_child_stored_nochild\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\returned_child_stored_nochild\\resource_guard.json",
+      "bytes": 86,
+      "sha256": "7699ebf3212911ebefccab813656294de4aa83dc94c84e423020eace5bb47054",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\returned_child_stored_nochild\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\returned_child_stored_nochild\\stdout.log",
+      "bytes": 7652,
+      "sha256": "a7587ec22249ed0afab075c51bc50bf599f3cc0123bdc5a182817be5ddaf8d0a",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\returned_nochild_stored_child\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\returned_nochild_stored_child\\resource_guard.json",
+      "bytes": 58,
+      "sha256": "1d0618d88e0630b17a662b5d7322322f615f87395be56ff9aeab9493b52c9daa",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\returned_nochild_stored_child\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\returned_nochild_stored_child\\stdout.log",
+      "bytes": 7652,
+      "sha256": "a7587ec22249ed0afab075c51bc50bf599f3cc0123bdc5a182817be5ddaf8d0a",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\truncated_terminal_prefix_retains6\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\truncated_terminal_prefix_retains6\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_CPU\\truncated_terminal_prefix_retains6\\stdout.log",
+      "bytes": 7651,
+      "sha256": "7b6dfa608873c0a01ffadfd0920d28ddaedc62e4a80219bcf3a5a5507f05361f",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_pending_entry\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\SIMULATED_pending_entry\\stdout.log",
+      "bytes": 1849,
+      "sha256": "d097949457e6a06fc1d008d97eca2d0784cb4fd9ed0e3a5b75fdf037b14f3342",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\check_pending_entry_cpu.py",
+      "bytes": 1188,
+      "sha256": "4ac1795a71433b28ff94c6dc9346b608f594d40a015197c92a5c91866978e7c6",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\check_query_cpu.py",
+      "bytes": 6203,
+      "sha256": "1624e9a1f3cf7953a5fea14244f0762c9298906da67e0c98aa4a2cf7b92351a0",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\executor_evidence.py",
+      "bytes": 3825,
+      "sha256": "ade35d872077f2153f9c9177734f33da06316efbd396b1db391a166c297f9e35",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\fsrd_default_query.cpp",
+      "bytes": 7916,
+      "sha256": "68c4b30fd9d2a9805a235cc45996f60461217bc2e677e287a62bfbabafaa36e5",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\SIMULATED_REPLAY\\query_accounting.py",
+      "bytes": 8271,
+      "sha256": "4e24c0d98123909b764655e2b6e3197078cfa2f55baa5449653d8b9ce01eb731",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\independent_checks.json",
+      "bytes": 118018,
+      "sha256": "c81e707ca4d8293734aa9bac29ae66b7e8ec4a27d8e8a5cf7f8d1de2295fbabc",
+      "purpose": "Binary or expanded CPU/source pin evidence; retained at sealed original path."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\pins_after.json",
+      "bytes": 25763,
+      "sha256": "ea38f1aa94b08588d557a495443922f75124763853f3b15d0afd80bf83429301",
+      "purpose": "Binary or expanded CPU/source pin evidence; retained at sealed original path."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\pins_before.json",
+      "bytes": 24284,
+      "sha256": "f7056fb2207bc9031ca91931703c3a2d08bb62e0ddb0a0c5a6d9a5ac83667f19",
+      "purpose": "Binary or expanded CPU/source pin evidence; retained at sealed original path."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\CPU_checks.json",
+      "bytes": 172338,
+      "sha256": "f09207f5829564bc4445936227eba334b1f30256402c3cc643ff45d538f83ed4",
+      "purpose": "Binary or expanded CPU/source pin evidence; retained at sealed original path."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\complete6\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\complete6\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\complete6\\stdout.log",
+      "bytes": 7652,
+      "sha256": "a7587ec22249ed0afab075c51bc50bf599f3cc0123bdc5a182817be5ddaf8d0a",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\duplicate_terminal_no_exact\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\duplicate_terminal_no_exact\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\duplicate_terminal_no_exact\\stdout.log",
+      "bytes": 8059,
+      "sha256": "03f2a30d3087dc9be04b27080eaf0fbd03bf209c15681f0f7e19d1a8e3890a6c",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\explicit_nochild_stale_footer0\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\explicit_nochild_stale_footer0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\explicit_nochild_stale_footer0\\stdout.log",
+      "bytes": 7652,
+      "sha256": "a7587ec22249ed0afab075c51bc50bf599f3cc0123bdc5a182817be5ddaf8d0a",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\failed_query3_preserved\\query_values.bin",
+      "bytes": 12,
+      "sha256": "06868f90786e5a8c98ff0600cbb31b730911d76043491a36ed77cba308e7685a",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\failed_query3_preserved\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\failed_query3_preserved\\stdout.log",
+      "bytes": 5158,
+      "sha256": "b90143485f59edefecfc003dbe0936292656371c367fe621dc47f5cb958b3c98",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\fresh_missing_guard_lowerbounds\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\fresh_missing_guard_lowerbounds\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\fresh_missing_guard_lowerbounds\\stdout.log",
+      "bytes": 7652,
+      "sha256": "a7587ec22249ed0afab075c51bc50bf599f3cc0123bdc5a182817be5ddaf8d0a",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\impossible_counter64_not_capacity\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\impossible_counter64_not_capacity\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\impossible_counter64_not_capacity\\stdout.log",
+      "bytes": 7653,
+      "sha256": "c0923cf824119dfd58e3dc5ed2e9e8ece2e36319b5c49ced19e19f9c49bad6a1",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\metadata_raw_missing_retains6\\query_values.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\metadata_raw_missing_retains6\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\metadata_raw_missing_retains6\\stdout.log",
+      "bytes": 7652,
+      "sha256": "a7587ec22249ed0afab075c51bc50bf599f3cc0123bdc5a182817be5ddaf8d0a",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\missing_footer_unknown_not_false0\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\missing_footer_unknown_not_false0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\missing_footer_unknown_not_false0\\stdout.log",
+      "bytes": 7245,
+      "sha256": "c4ea4ca5c83ef75cae84715a0a16a25849514e0a1ccce94ba6103fb244a50c6c",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\returned_child_stored_nochild\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\returned_child_stored_nochild\\resource_guard.json",
+      "bytes": 86,
+      "sha256": "7699ebf3212911ebefccab813656294de4aa83dc94c84e423020eace5bb47054",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\returned_child_stored_nochild\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\returned_child_stored_nochild\\stdout.log",
+      "bytes": 7652,
+      "sha256": "a7587ec22249ed0afab075c51bc50bf599f3cc0123bdc5a182817be5ddaf8d0a",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\returned_nochild_stored_child\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\returned_nochild_stored_child\\resource_guard.json",
+      "bytes": 58,
+      "sha256": "1d0618d88e0630b17a662b5d7322322f615f87395be56ff9aeab9493b52c9daa",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\returned_nochild_stored_child\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\returned_nochild_stored_child\\stdout.log",
+      "bytes": 7652,
+      "sha256": "a7587ec22249ed0afab075c51bc50bf599f3cc0123bdc5a182817be5ddaf8d0a",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\truncated_terminal_prefix_retains6\\query_values.bin",
+      "bytes": 24,
+      "sha256": "f46913286d895f62d646314f400fc3d7a543cf34eb4ae56df87f43dc4582a36b",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\truncated_terminal_prefix_retains6\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_CPU\\truncated_terminal_prefix_retains6\\stdout.log",
+      "bytes": 7651,
+      "sha256": "7b6dfa608873c0a01ffadfd0920d28ddaedc62e4a80219bcf3a5a5507f05361f",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_pending_entry\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\SIMULATED_pending_entry\\stdout.log",
+      "bytes": 1849,
+      "sha256": "d097949457e6a06fc1d008d97eca2d0784cb4fd9ed0e3a5b75fdf037b14f3342",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\compile_runtime\\resource_guard.json",
+      "bytes": 1468,
+      "sha256": "8a90d840eba548774f55342b89c70518f765f00fb5a249688002051853649468",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\compile_runtime\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\compile_runtime\\stdout.log",
+      "bytes": 24,
+      "sha256": "3647f9a3d15019ad477ef32a1905e81750ff3794ed007310582b9001c438827f",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\fsrd_default_query.exe",
+      "bytes": 307200,
+      "sha256": "cb1db4d103665c49d1e956222d69b9c407903d2290e25928593d2e95bb259b27",
+      "purpose": "Binary or expanded CPU/source pin evidence; retained at sealed original path."
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\fsrd_default_query.obj",
+      "bytes": 669347,
+      "sha256": "86f018c303ed467826fd647ea475653df86f0d12f3bcde8ee48411b13a015340",
+      "purpose": "Binary or expanded CPU/source pin evidence; retained at sealed original path."
+    },
+    {
+      "path": "F:\\VisualStudio\\VC\\Auxiliary\\Build\\Microsoft.VCToolsVersion.default.txt",
+      "bytes": 13,
+      "sha256": "030613df718548a88970e4c1844a8605d17aba9aa36bfea0b4359d8f28fd62bf",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\VisualStudio\\VC\\Auxiliary\\Build\\vcvars64.bat",
+      "bytes": 39,
+      "sha256": "6b516d8fcf543c14b2d861e1f45661e0029230fe0dc48e86ce78522801822209",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\VisualStudio\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+      "bytes": 677736,
+      "sha256": "88c8344236a27a6e727e0a8edc49aaa2690bdc7a9464b9d18cc7abe70a9f1c0d",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    },
+    {
+      "path": "F:\\VisualStudio\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\link.exe",
+      "bytes": 3252576,
+      "sha256": "ca11e6c45debd34bf652dfe984c5360a531a005ed78bf72852330c9c2590cf0d",
+      "purpose": "Required original source/header/provider/compile identity referenced by the inherited query preparation and reviews."
+    }
+  ],
+  "inheritance": [
+    {
+      "manifest": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\completion_manifest.json",
+      "record_keys": [
+        "owned",
+        "external_sources"
+      ],
+      "records": 87
+    },
+    {
+      "manifest": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_prelaunch_review_20260930\\completion_manifest.json",
+      "record_keys": [
+        "owned",
+        "external_records"
+      ],
+      "records": 85
+    }
+  ],
+  "scope": "Copied compact manifests carry full original paths. Full source/compile checks need the external binary/header/large pin records; no SDK invocation is performed by this collector."
+}

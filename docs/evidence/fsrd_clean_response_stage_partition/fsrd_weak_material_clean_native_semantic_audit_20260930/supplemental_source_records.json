@@ -1,0 +1,325 @@
+{
+  "records": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\api\\include\\dx12\\ffx_api_dx12.h",
+      "bytes": 11595,
+      "sha256": "2082d6c2914e9c2fa9fae6247d35f64c643ccb703311c83c8dba9a35356bc711"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\01\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\02\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\03\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\04\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\05\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\06\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\07\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\08\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\09\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\10\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\11\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\12\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\13\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\14\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\15\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\16\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\17\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\18\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\19\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\20\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\21\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\22\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\23\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\24\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\25\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\26\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\27\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\28\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\29\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\30\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\31\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\32\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\33\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\34\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\35\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\36\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\37\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\38\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\39\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\40\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\41\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\42\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\43\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\44\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\45\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\46\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\47\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\48\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\49\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\50\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\51\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\52\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\53\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\54\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\55\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\56\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\57\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\58\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\59\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\60\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\61\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\62\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\historical_templates\\63\\cb.bin",
+      "bytes": 416,
+      "sha256": "98a7bad89cfde0cab698a9758b71fd78c9ef5ae57915f996653ef8007b86fb7d"
+    }
+  ],
+  "reason": "Exact native DXGI-to-API format map and all remaining CBs used by field inspection. No producer edits."
+}

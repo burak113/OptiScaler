@@ -1,0 +1,1064 @@
+{
+  "schema": "SIMULATED-clean-native-B342-prefix-and-terminal-CPU-checks",
+  "checks": [
+    {
+      "name": "trusted_footer_metadata_output_missing_retains_actual64",
+      "passed": true,
+      "result": {
+        "schema": "B342-pinned-serial64-native-physical-work-before-metadata",
+        "counts": {
+          "api": 64,
+          "queued": 64,
+          "executes": 64,
+          "signals": 64,
+          "events": 64,
+          "waits": 64,
+          "completed_GPU": 64,
+          "observed_readback_pairs": 64
+        },
+        "exact_totals": true,
+        "totals_unknown": false,
+        "attempted_owned_child": true,
+        "created_context_confirmed": true,
+        "completed_context_confirmed": true,
+        "created_context_physical_lowerbound": 1,
+        "completed_context_physical_lowerbound": 1,
+        "terminal_stdout_claim": {
+          "dispatches": 64,
+          "validation_errors": 0,
+          "validation_warnings": 0,
+          "sdk_errors": 0,
+          "sdk_warnings": 0
+        },
+        "stdout_footer_claims": [
+          "dispatches=64 validation_errors=0 validation_warnings=0 sdk_errors=0 sdk_warnings=0\n"
+        ],
+        "stderr_footer_claims": [],
+        "output_prefix_claims": {
+          "diffuse.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          },
+          "specular.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          }
+        },
+        "applied_controls_whole_records": 0,
+        "controls_never_API_success_proof": true,
+        "evidence_disagreements": [
+          "diffuse.bin_vs_trusted_completed_footer",
+          "specular.bin_vs_trusted_completed_footer"
+        ],
+        "artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\trusted_footer_metadata_output_missing_retains_actual64\\stdout.log",
+            "present": true,
+            "bytes": 84,
+            "sha256": "ad33832a73f8dad6d42d46584174cb2c1b2e65b995716f026e5c9dbeeb3cdd53"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\trusted_footer_metadata_output_missing_retains_actual64\\stderr.log",
+            "present": true,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\trusted_footer_metadata_output_missing_retains_actual64\\dispatch_controls.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\trusted_footer_metadata_output_missing_retains_actual64\\\\dispatch_controls.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\trusted_footer_metadata_output_missing_retains_actual64\\diffuse.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\trusted_footer_metadata_output_missing_retains_actual64\\\\diffuse.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\trusted_footer_metadata_output_missing_retains_actual64\\specular.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\trusted_footer_metadata_output_missing_retains_actual64\\\\specular.bin'"
+          }
+        ],
+        "successful_not_submitted_exact": 0,
+        "discarded_or_omitted_exact": 0,
+        "authority": "exact_source_terminal_after_full_loop_DestroyContext",
+        "limits": "Source interpretation is bounded to byte-pinned B342 EXE and serial64 job header. Unique64 footer is only emitted after all64 loops and DestroyContext. Missing footer yields qualified lowerbounds from actually written readback prefixes; controls-before-API are never success counts. Fresh unidentified terminal is a lowerbound, not exact totals. Unseen queued/inflight work may exceed prefix; never infer discards from missing outputs. Historical EXE has no per-frame API journal or GetCompletedValue log; no new compilation provenance claim."
+      }
+    },
+    {
+      "name": "nochild_stale_footer_claims_zero",
+      "passed": true,
+      "result": {
+        "schema": "B342-pinned-serial64-native-physical-work-before-metadata",
+        "counts": {
+          "api": 0,
+          "queued": 0,
+          "executes": 0,
+          "signals": 0,
+          "events": 0,
+          "waits": 0,
+          "completed_GPU": 0,
+          "observed_readback_pairs": 0
+        },
+        "exact_totals": false,
+        "totals_unknown": true,
+        "attempted_owned_child": false,
+        "created_context_confirmed": false,
+        "completed_context_confirmed": false,
+        "created_context_physical_lowerbound": 0,
+        "completed_context_physical_lowerbound": 0,
+        "terminal_stdout_claim": {
+          "dispatches": 64,
+          "validation_errors": 0,
+          "validation_warnings": 0,
+          "sdk_errors": 0,
+          "sdk_warnings": 0
+        },
+        "stdout_footer_claims": [
+          "dispatches=64 validation_errors=0 validation_warnings=0 sdk_errors=0 sdk_warnings=0\n"
+        ],
+        "stderr_footer_claims": [],
+        "output_prefix_claims": {
+          "diffuse.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          },
+          "specular.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          }
+        },
+        "applied_controls_whole_records": 0,
+        "controls_never_API_success_proof": true,
+        "evidence_disagreements": [
+          "no_current_child_claims_not_work",
+          "diffuse.bin_vs_trusted_completed_footer",
+          "specular.bin_vs_trusted_completed_footer"
+        ],
+        "artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\nochild_stale_footer_claims_zero\\stdout.log",
+            "present": true,
+            "bytes": 84,
+            "sha256": "ad33832a73f8dad6d42d46584174cb2c1b2e65b995716f026e5c9dbeeb3cdd53"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\nochild_stale_footer_claims_zero\\stderr.log",
+            "present": true,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\nochild_stale_footer_claims_zero\\dispatch_controls.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\nochild_stale_footer_claims_zero\\\\dispatch_controls.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\nochild_stale_footer_claims_zero\\diffuse.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\nochild_stale_footer_claims_zero\\\\diffuse.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\nochild_stale_footer_claims_zero\\specular.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\nochild_stale_footer_claims_zero\\\\specular.bin'"
+          }
+        ],
+        "successful_not_submitted_exact": null,
+        "discarded_or_omitted_exact": null,
+        "authority": "no_current_child",
+        "limits": "Source interpretation is bounded to byte-pinned B342 EXE and serial64 job header. Unique64 footer is only emitted after all64 loops and DestroyContext. Missing footer yields qualified lowerbounds from actually written readback prefixes; controls-before-API are never success counts. Fresh unidentified terminal is a lowerbound, not exact totals. Unseen queued/inflight work may exceed prefix; never infer discards from missing outputs. Historical EXE has no per-frame API journal or GetCompletedValue log; no new compilation provenance claim."
+      }
+    },
+    {
+      "name": "stderr_footer_not_authority",
+      "passed": true,
+      "result": {
+        "schema": "B342-pinned-serial64-native-physical-work-before-metadata",
+        "counts": {
+          "api": 0,
+          "queued": 0,
+          "executes": 0,
+          "signals": 0,
+          "events": 0,
+          "waits": 0,
+          "completed_GPU": 0,
+          "observed_readback_pairs": 0
+        },
+        "exact_totals": false,
+        "totals_unknown": true,
+        "attempted_owned_child": true,
+        "created_context_confirmed": false,
+        "completed_context_confirmed": false,
+        "created_context_physical_lowerbound": 0,
+        "completed_context_physical_lowerbound": 0,
+        "terminal_stdout_claim": null,
+        "stdout_footer_claims": [],
+        "stderr_footer_claims": [
+          "dispatches=64 validation_errors=0 validation_warnings=0 sdk_errors=0 sdk_warnings=0"
+        ],
+        "output_prefix_claims": {
+          "diffuse.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          },
+          "specular.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          }
+        },
+        "applied_controls_whole_records": 0,
+        "controls_never_API_success_proof": true,
+        "evidence_disagreements": [
+          "stderr_footer_claims_not_authority"
+        ],
+        "artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\stderr_footer_not_authority\\stdout.log",
+            "present": true,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\stderr_footer_not_authority\\stderr.log",
+            "present": true,
+            "bytes": 84,
+            "sha256": "ad33832a73f8dad6d42d46584174cb2c1b2e65b995716f026e5c9dbeeb3cdd53"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\stderr_footer_not_authority\\dispatch_controls.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\stderr_footer_not_authority\\\\dispatch_controls.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\stderr_footer_not_authority\\diffuse.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\stderr_footer_not_authority\\\\diffuse.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\stderr_footer_not_authority\\specular.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\stderr_footer_not_authority\\\\specular.bin'"
+          }
+        ],
+        "successful_not_submitted_exact": null,
+        "discarded_or_omitted_exact": null,
+        "authority": "fresh_or_current_source_readback_or_terminal_physical_lowerbounds_totals_unknown",
+        "limits": "Source interpretation is bounded to byte-pinned B342 EXE and serial64 job header. Unique64 footer is only emitted after all64 loops and DestroyContext. Missing footer yields qualified lowerbounds from actually written readback prefixes; controls-before-API are never success counts. Fresh unidentified terminal is a lowerbound, not exact totals. Unseen queued/inflight work may exceed prefix; never infer discards from missing outputs. Historical EXE has no per-frame API journal or GetCompletedValue log; no new compilation provenance claim."
+      }
+    },
+    {
+      "name": "duplicate_footer_not_authority",
+      "passed": true,
+      "result": {
+        "schema": "B342-pinned-serial64-native-physical-work-before-metadata",
+        "counts": {
+          "api": 0,
+          "queued": 0,
+          "executes": 0,
+          "signals": 0,
+          "events": 0,
+          "waits": 0,
+          "completed_GPU": 0,
+          "observed_readback_pairs": 0
+        },
+        "exact_totals": false,
+        "totals_unknown": true,
+        "attempted_owned_child": true,
+        "created_context_confirmed": false,
+        "completed_context_confirmed": false,
+        "created_context_physical_lowerbound": 0,
+        "completed_context_physical_lowerbound": 0,
+        "terminal_stdout_claim": null,
+        "stdout_footer_claims": [
+          "dispatches=64 validation_errors=0 validation_warnings=0 sdk_errors=0 sdk_warnings=0\n",
+          "dispatches=64 validation_errors=0 validation_warnings=0 sdk_errors=0 sdk_warnings=0\n"
+        ],
+        "stderr_footer_claims": [],
+        "output_prefix_claims": {
+          "diffuse.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          },
+          "specular.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          }
+        },
+        "applied_controls_whole_records": 0,
+        "controls_never_API_success_proof": true,
+        "evidence_disagreements": [
+          "stdout_footer_unknown_truncated_duplicate_or_impossible"
+        ],
+        "artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\duplicate_footer_not_authority\\stdout.log",
+            "present": true,
+            "bytes": 168,
+            "sha256": "ae67fee16ec6fa64bac153a4d856b46b85bd9f99f30ff71bd690d8db1ffaf222"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\duplicate_footer_not_authority\\stderr.log",
+            "present": true,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\duplicate_footer_not_authority\\dispatch_controls.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\duplicate_footer_not_authority\\\\dispatch_controls.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\duplicate_footer_not_authority\\diffuse.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\duplicate_footer_not_authority\\\\diffuse.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\duplicate_footer_not_authority\\specular.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\duplicate_footer_not_authority\\\\specular.bin'"
+          }
+        ],
+        "successful_not_submitted_exact": null,
+        "discarded_or_omitted_exact": null,
+        "authority": "fresh_or_current_source_readback_or_terminal_physical_lowerbounds_totals_unknown",
+        "limits": "Source interpretation is bounded to byte-pinned B342 EXE and serial64 job header. Unique64 footer is only emitted after all64 loops and DestroyContext. Missing footer yields qualified lowerbounds from actually written readback prefixes; controls-before-API are never success counts. Fresh unidentified terminal is a lowerbound, not exact totals. Unseen queued/inflight work may exceed prefix; never infer discards from missing outputs. Historical EXE has no per-frame API journal or GetCompletedValue log; no new compilation provenance claim."
+      }
+    },
+    {
+      "name": "truncated_footer_not_authority",
+      "passed": true,
+      "result": {
+        "schema": "B342-pinned-serial64-native-physical-work-before-metadata",
+        "counts": {
+          "api": 0,
+          "queued": 0,
+          "executes": 0,
+          "signals": 0,
+          "events": 0,
+          "waits": 0,
+          "completed_GPU": 0,
+          "observed_readback_pairs": 0
+        },
+        "exact_totals": false,
+        "totals_unknown": true,
+        "attempted_owned_child": true,
+        "created_context_confirmed": false,
+        "completed_context_confirmed": false,
+        "created_context_physical_lowerbound": 0,
+        "completed_context_physical_lowerbound": 0,
+        "terminal_stdout_claim": null,
+        "stdout_footer_claims": [
+          "dispatches=64 validation_errors=0 validation_warnings=0 sdk_errors=0 sdk_warnings=0"
+        ],
+        "stderr_footer_claims": [],
+        "output_prefix_claims": {
+          "diffuse.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          },
+          "specular.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          }
+        },
+        "applied_controls_whole_records": 0,
+        "controls_never_API_success_proof": true,
+        "evidence_disagreements": [
+          "stdout_footer_unknown_truncated_duplicate_or_impossible"
+        ],
+        "artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\truncated_footer_not_authority\\stdout.log",
+            "present": true,
+            "bytes": 83,
+            "sha256": "d78dea792e414f136a3c5e981e3a7e0036d3d4cc64d92b2b5e84c5a30e27b868"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\truncated_footer_not_authority\\stderr.log",
+            "present": true,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\truncated_footer_not_authority\\dispatch_controls.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\truncated_footer_not_authority\\\\dispatch_controls.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\truncated_footer_not_authority\\diffuse.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\truncated_footer_not_authority\\\\diffuse.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\truncated_footer_not_authority\\specular.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\truncated_footer_not_authority\\\\specular.bin'"
+          }
+        ],
+        "successful_not_submitted_exact": null,
+        "discarded_or_omitted_exact": null,
+        "authority": "fresh_or_current_source_readback_or_terminal_physical_lowerbounds_totals_unknown",
+        "limits": "Source interpretation is bounded to byte-pinned B342 EXE and serial64 job header. Unique64 footer is only emitted after all64 loops and DestroyContext. Missing footer yields qualified lowerbounds from actually written readback prefixes; controls-before-API are never success counts. Fresh unidentified terminal is a lowerbound, not exact totals. Unseen queued/inflight work may exceed prefix; never infer discards from missing outputs. Historical EXE has no per-frame API journal or GetCompletedValue log; no new compilation provenance claim."
+      }
+    },
+    {
+      "name": "wrong_capacity_footer_not_authority",
+      "passed": true,
+      "result": {
+        "schema": "B342-pinned-serial64-native-physical-work-before-metadata",
+        "counts": {
+          "api": 0,
+          "queued": 0,
+          "executes": 0,
+          "signals": 0,
+          "events": 0,
+          "waits": 0,
+          "completed_GPU": 0,
+          "observed_readback_pairs": 0
+        },
+        "exact_totals": false,
+        "totals_unknown": true,
+        "attempted_owned_child": true,
+        "created_context_confirmed": false,
+        "completed_context_confirmed": false,
+        "created_context_physical_lowerbound": 0,
+        "completed_context_physical_lowerbound": 0,
+        "terminal_stdout_claim": null,
+        "stdout_footer_claims": [
+          "dispatches=1 validation_errors=0 validation_warnings=0 sdk_errors=0 sdk_warnings=0\n"
+        ],
+        "stderr_footer_claims": [],
+        "output_prefix_claims": {
+          "diffuse.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          },
+          "specular.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          }
+        },
+        "applied_controls_whole_records": 0,
+        "controls_never_API_success_proof": true,
+        "evidence_disagreements": [
+          "stdout_footer_unknown_truncated_duplicate_or_impossible"
+        ],
+        "artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\wrong_capacity_footer_not_authority\\stdout.log",
+            "present": true,
+            "bytes": 83,
+            "sha256": "770b007a71ba237dbe845eb1a607cfb4a115b5f323e67a5cc0762ef1b7265e05"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\wrong_capacity_footer_not_authority\\stderr.log",
+            "present": true,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\wrong_capacity_footer_not_authority\\dispatch_controls.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\wrong_capacity_footer_not_authority\\\\dispatch_controls.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\wrong_capacity_footer_not_authority\\diffuse.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\wrong_capacity_footer_not_authority\\\\diffuse.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\wrong_capacity_footer_not_authority\\specular.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\wrong_capacity_footer_not_authority\\\\specular.bin'"
+          }
+        ],
+        "successful_not_submitted_exact": null,
+        "discarded_or_omitted_exact": null,
+        "authority": "fresh_or_current_source_readback_or_terminal_physical_lowerbounds_totals_unknown",
+        "limits": "Source interpretation is bounded to byte-pinned B342 EXE and serial64 job header. Unique64 footer is only emitted after all64 loops and DestroyContext. Missing footer yields qualified lowerbounds from actually written readback prefixes; controls-before-API are never success counts. Fresh unidentified terminal is a lowerbound, not exact totals. Unseen queued/inflight work may exceed prefix; never infer discards from missing outputs. Historical EXE has no per-frame API journal or GetCompletedValue log; no new compilation provenance claim."
+      }
+    },
+    {
+      "name": "controls_before_API_not_success",
+      "passed": true,
+      "result": {
+        "schema": "B342-pinned-serial64-native-physical-work-before-metadata",
+        "counts": {
+          "api": 0,
+          "queued": 0,
+          "executes": 0,
+          "signals": 0,
+          "events": 0,
+          "waits": 0,
+          "completed_GPU": 0,
+          "observed_readback_pairs": 0
+        },
+        "exact_totals": false,
+        "totals_unknown": true,
+        "attempted_owned_child": true,
+        "created_context_confirmed": false,
+        "completed_context_confirmed": false,
+        "created_context_physical_lowerbound": 0,
+        "completed_context_physical_lowerbound": 0,
+        "terminal_stdout_claim": null,
+        "stdout_footer_claims": [],
+        "stderr_footer_claims": [],
+        "output_prefix_claims": {
+          "diffuse.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          },
+          "specular.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          }
+        },
+        "applied_controls_whole_records": 10,
+        "controls_never_API_success_proof": true,
+        "evidence_disagreements": [],
+        "artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\controls_before_API_not_success\\stdout.log",
+            "present": true,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\controls_before_API_not_success\\stderr.log",
+            "present": true,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\controls_before_API_not_success\\dispatch_controls.bin",
+            "present": true,
+            "bytes": 1840,
+            "sha256": "e830a58c5fb341b0909304355d8035c82c8f09fcb9da49f537bfc4717a9b246d"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\controls_before_API_not_success\\diffuse.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\controls_before_API_not_success\\\\diffuse.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\controls_before_API_not_success\\specular.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\controls_before_API_not_success\\\\specular.bin'"
+          }
+        ],
+        "successful_not_submitted_exact": null,
+        "discarded_or_omitted_exact": null,
+        "authority": "fresh_or_current_source_readback_or_terminal_physical_lowerbounds_totals_unknown",
+        "limits": "Source interpretation is bounded to byte-pinned B342 EXE and serial64 job header. Unique64 footer is only emitted after all64 loops and DestroyContext. Missing footer yields qualified lowerbounds from actually written readback prefixes; controls-before-API are never success counts. Fresh unidentified terminal is a lowerbound, not exact totals. Unseen queued/inflight work may exceed prefix; never infer discards from missing outputs. Historical EXE has no per-frame API journal or GetCompletedValue log; no new compilation provenance claim."
+      }
+    },
+    {
+      "name": "asymmetric_readback_prefix_physical_lowerbounds",
+      "passed": true,
+      "result": {
+        "schema": "B342-pinned-serial64-native-physical-work-before-metadata",
+        "counts": {
+          "api": 2,
+          "queued": 2,
+          "executes": 2,
+          "signals": 2,
+          "events": 2,
+          "waits": 2,
+          "completed_GPU": 2,
+          "observed_readback_pairs": 1
+        },
+        "exact_totals": false,
+        "totals_unknown": true,
+        "attempted_owned_child": true,
+        "created_context_confirmed": true,
+        "completed_context_confirmed": false,
+        "created_context_physical_lowerbound": 1,
+        "completed_context_physical_lowerbound": 0,
+        "terminal_stdout_claim": null,
+        "stdout_footer_claims": [],
+        "stderr_footer_claims": [],
+        "output_prefix_claims": {
+          "diffuse.bin": {
+            "whole_frames": 2,
+            "trailing_bytes": 0,
+            "within_capacity": true
+          },
+          "specular.bin": {
+            "whole_frames": 1,
+            "trailing_bytes": 0,
+            "within_capacity": true
+          }
+        },
+        "applied_controls_whole_records": 0,
+        "controls_never_API_success_proof": true,
+        "evidence_disagreements": [],
+        "artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\asymmetric_readback_prefix_physical_lowerbounds\\stdout.log",
+            "present": true,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\asymmetric_readback_prefix_physical_lowerbounds\\stderr.log",
+            "present": true,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\asymmetric_readback_prefix_physical_lowerbounds\\dispatch_controls.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\asymmetric_readback_prefix_physical_lowerbounds\\\\dispatch_controls.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\asymmetric_readback_prefix_physical_lowerbounds\\diffuse.bin",
+            "present": true,
+            "bytes": 163840,
+            "sha256": "6cdd259c8ecbe61fbc369f3293c1961541386954a223b17a37899d7fd9ad42da"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\asymmetric_readback_prefix_physical_lowerbounds\\specular.bin",
+            "present": true,
+            "bytes": 81920,
+            "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357"
+          }
+        ],
+        "successful_not_submitted_exact": null,
+        "discarded_or_omitted_exact": null,
+        "authority": "fresh_or_current_source_readback_or_terminal_physical_lowerbounds_totals_unknown",
+        "limits": "Source interpretation is bounded to byte-pinned B342 EXE and serial64 job header. Unique64 footer is only emitted after all64 loops and DestroyContext. Missing footer yields qualified lowerbounds from actually written readback prefixes; controls-before-API are never success counts. Fresh unidentified terminal is a lowerbound, not exact totals. Unseen queued/inflight work may exceed prefix; never infer discards from missing outputs. Historical EXE has no per-frame API journal or GetCompletedValue log; no new compilation provenance claim."
+      }
+    },
+    {
+      "name": "warning_footer_preserves_actual_before_rejection",
+      "passed": true,
+      "result": {
+        "schema": "B342-pinned-serial64-native-physical-work-before-metadata",
+        "counts": {
+          "api": 64,
+          "queued": 64,
+          "executes": 64,
+          "signals": 64,
+          "events": 64,
+          "waits": 64,
+          "completed_GPU": 64,
+          "observed_readback_pairs": 64
+        },
+        "exact_totals": true,
+        "totals_unknown": false,
+        "attempted_owned_child": true,
+        "created_context_confirmed": true,
+        "completed_context_confirmed": true,
+        "created_context_physical_lowerbound": 1,
+        "completed_context_physical_lowerbound": 1,
+        "terminal_stdout_claim": {
+          "dispatches": 64,
+          "validation_errors": 0,
+          "validation_warnings": 0,
+          "sdk_errors": 0,
+          "sdk_warnings": 1
+        },
+        "stdout_footer_claims": [
+          "dispatches=64 validation_errors=0 validation_warnings=0 sdk_errors=0 sdk_warnings=1\n"
+        ],
+        "stderr_footer_claims": [],
+        "output_prefix_claims": {
+          "diffuse.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          },
+          "specular.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          }
+        },
+        "applied_controls_whole_records": 0,
+        "controls_never_API_success_proof": true,
+        "evidence_disagreements": [
+          "diffuse.bin_vs_trusted_completed_footer",
+          "specular.bin_vs_trusted_completed_footer"
+        ],
+        "artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\warning_footer_preserves_actual_before_rejection\\stdout.log",
+            "present": true,
+            "bytes": 84,
+            "sha256": "76d016a302030f33cc9aea039aeadf36d559dcfdfa311509195a081399ef3577"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\warning_footer_preserves_actual_before_rejection\\stderr.log",
+            "present": true,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\warning_footer_preserves_actual_before_rejection\\dispatch_controls.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\warning_footer_preserves_actual_before_rejection\\\\dispatch_controls.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\warning_footer_preserves_actual_before_rejection\\diffuse.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\warning_footer_preserves_actual_before_rejection\\\\diffuse.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\warning_footer_preserves_actual_before_rejection\\specular.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\warning_footer_preserves_actual_before_rejection\\\\specular.bin'"
+          }
+        ],
+        "successful_not_submitted_exact": 0,
+        "discarded_or_omitted_exact": 0,
+        "authority": "exact_source_terminal_after_full_loop_DestroyContext",
+        "limits": "Source interpretation is bounded to byte-pinned B342 EXE and serial64 job header. Unique64 footer is only emitted after all64 loops and DestroyContext. Missing footer yields qualified lowerbounds from actually written readback prefixes; controls-before-API are never success counts. Fresh unidentified terminal is a lowerbound, not exact totals. Unseen queued/inflight work may exceed prefix; never infer discards from missing outputs. Historical EXE has no per-frame API journal or GetCompletedValue log; no new compilation provenance claim."
+      }
+    },
+    {
+      "name": "fresh_unknown_guard_footer_lowerbound_not_exact",
+      "passed": true,
+      "result": {
+        "schema": "B342-pinned-serial64-native-physical-work-before-metadata",
+        "counts": {
+          "api": 64,
+          "queued": 64,
+          "executes": 64,
+          "signals": 64,
+          "events": 64,
+          "waits": 64,
+          "completed_GPU": 64,
+          "observed_readback_pairs": 64
+        },
+        "exact_totals": false,
+        "totals_unknown": true,
+        "attempted_owned_child": false,
+        "created_context_confirmed": false,
+        "completed_context_confirmed": false,
+        "created_context_physical_lowerbound": 1,
+        "completed_context_physical_lowerbound": 1,
+        "terminal_stdout_claim": {
+          "dispatches": 64,
+          "validation_errors": 0,
+          "validation_warnings": 0,
+          "sdk_errors": 0,
+          "sdk_warnings": 0
+        },
+        "stdout_footer_claims": [
+          "dispatches=64 validation_errors=0 validation_warnings=0 sdk_errors=0 sdk_warnings=0\n"
+        ],
+        "stderr_footer_claims": [],
+        "output_prefix_claims": {
+          "diffuse.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          },
+          "specular.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          }
+        },
+        "applied_controls_whole_records": 0,
+        "controls_never_API_success_proof": true,
+        "evidence_disagreements": [
+          "fresh_attempt_physical_lowerbounds_process_identity_and_totals_unknown",
+          "diffuse.bin_vs_trusted_completed_footer",
+          "specular.bin_vs_trusted_completed_footer"
+        ],
+        "artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\fresh_unknown_guard_footer_lowerbound_not_exact\\stdout.log",
+            "present": true,
+            "bytes": 84,
+            "sha256": "ad33832a73f8dad6d42d46584174cb2c1b2e65b995716f026e5c9dbeeb3cdd53"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\fresh_unknown_guard_footer_lowerbound_not_exact\\stderr.log",
+            "present": true,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\fresh_unknown_guard_footer_lowerbound_not_exact\\dispatch_controls.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\fresh_unknown_guard_footer_lowerbound_not_exact\\\\dispatch_controls.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\fresh_unknown_guard_footer_lowerbound_not_exact\\diffuse.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\fresh_unknown_guard_footer_lowerbound_not_exact\\\\diffuse.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\fresh_unknown_guard_footer_lowerbound_not_exact\\specular.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\fresh_unknown_guard_footer_lowerbound_not_exact\\\\specular.bin'"
+          }
+        ],
+        "successful_not_submitted_exact": null,
+        "discarded_or_omitted_exact": null,
+        "authority": "fresh_or_current_source_readback_or_terminal_physical_lowerbounds_totals_unknown",
+        "limits": "Source interpretation is bounded to byte-pinned B342 EXE and serial64 job header. Unique64 footer is only emitted after all64 loops and DestroyContext. Missing footer yields qualified lowerbounds from actually written readback prefixes; controls-before-API are never success counts. Fresh unidentified terminal is a lowerbound, not exact totals. Unseen queued/inflight work may exceed prefix; never infer discards from missing outputs. Historical EXE has no per-frame API journal or GetCompletedValue log; no new compilation provenance claim."
+      }
+    },
+    {
+      "name": "returned_child_stored_nochild",
+      "passed": true,
+      "result": {
+        "schema": "B342-pinned-serial64-native-physical-work-before-metadata",
+        "counts": {
+          "api": 64,
+          "queued": 64,
+          "executes": 64,
+          "signals": 64,
+          "events": 64,
+          "waits": 64,
+          "completed_GPU": 64,
+          "observed_readback_pairs": 64
+        },
+        "exact_totals": true,
+        "totals_unknown": false,
+        "attempted_owned_child": true,
+        "created_context_confirmed": true,
+        "completed_context_confirmed": true,
+        "created_context_physical_lowerbound": 1,
+        "completed_context_physical_lowerbound": 1,
+        "terminal_stdout_claim": {
+          "dispatches": 64,
+          "validation_errors": 0,
+          "validation_warnings": 0,
+          "sdk_errors": 0,
+          "sdk_warnings": 0
+        },
+        "stdout_footer_claims": [
+          "dispatches=64 validation_errors=0 validation_warnings=0 sdk_errors=0 sdk_warnings=0\n"
+        ],
+        "stderr_footer_claims": [],
+        "output_prefix_claims": {
+          "diffuse.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          },
+          "specular.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          }
+        },
+        "applied_controls_whole_records": 0,
+        "controls_never_API_success_proof": true,
+        "evidence_disagreements": [
+          "diffuse.bin_vs_trusted_completed_footer",
+          "specular.bin_vs_trusted_completed_footer"
+        ],
+        "artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\returned_child_stored_nochild\\stdout.log",
+            "present": true,
+            "bytes": 84,
+            "sha256": "ad33832a73f8dad6d42d46584174cb2c1b2e65b995716f026e5c9dbeeb3cdd53"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\returned_child_stored_nochild\\stderr.log",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\returned_child_stored_nochild\\\\stderr.log'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\returned_child_stored_nochild\\dispatch_controls.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\returned_child_stored_nochild\\\\dispatch_controls.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\returned_child_stored_nochild\\diffuse.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\returned_child_stored_nochild\\\\diffuse.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\returned_child_stored_nochild\\specular.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\returned_child_stored_nochild\\\\specular.bin'"
+          }
+        ],
+        "successful_not_submitted_exact": 0,
+        "discarded_or_omitted_exact": 0,
+        "authority": "exact_source_terminal_after_full_loop_DestroyContext",
+        "limits": "Source interpretation is bounded to byte-pinned B342 EXE and serial64 job header. Unique64 footer is only emitted after all64 loops and DestroyContext. Missing footer yields qualified lowerbounds from actually written readback prefixes; controls-before-API are never success counts. Fresh unidentified terminal is a lowerbound, not exact totals. Unseen queued/inflight work may exceed prefix; never infer discards from missing outputs. Historical EXE has no per-frame API journal or GetCompletedValue log; no new compilation provenance claim."
+      }
+    },
+    {
+      "name": "returned_nochild_stored_child",
+      "passed": true,
+      "result": {
+        "schema": "B342-pinned-serial64-native-physical-work-before-metadata",
+        "counts": {
+          "api": 0,
+          "queued": 0,
+          "executes": 0,
+          "signals": 0,
+          "events": 0,
+          "waits": 0,
+          "completed_GPU": 0,
+          "observed_readback_pairs": 0
+        },
+        "exact_totals": false,
+        "totals_unknown": true,
+        "attempted_owned_child": false,
+        "created_context_confirmed": false,
+        "completed_context_confirmed": false,
+        "created_context_physical_lowerbound": 0,
+        "completed_context_physical_lowerbound": 0,
+        "terminal_stdout_claim": {
+          "dispatches": 64,
+          "validation_errors": 0,
+          "validation_warnings": 0,
+          "sdk_errors": 0,
+          "sdk_warnings": 0
+        },
+        "stdout_footer_claims": [
+          "dispatches=64 validation_errors=0 validation_warnings=0 sdk_errors=0 sdk_warnings=0\n"
+        ],
+        "stderr_footer_claims": [],
+        "output_prefix_claims": {
+          "diffuse.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          },
+          "specular.bin": {
+            "whole_frames": 0,
+            "trailing_bytes": 0,
+            "within_capacity": false
+          }
+        },
+        "applied_controls_whole_records": 0,
+        "controls_never_API_success_proof": true,
+        "evidence_disagreements": [
+          "no_current_child_claims_not_work",
+          "diffuse.bin_vs_trusted_completed_footer",
+          "specular.bin_vs_trusted_completed_footer"
+        ],
+        "artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\returned_nochild_stored_child\\stdout.log",
+            "present": true,
+            "bytes": 84,
+            "sha256": "ad33832a73f8dad6d42d46584174cb2c1b2e65b995716f026e5c9dbeeb3cdd53"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\returned_nochild_stored_child\\stderr.log",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\returned_nochild_stored_child\\\\stderr.log'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\returned_nochild_stored_child\\dispatch_controls.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\returned_nochild_stored_child\\\\dispatch_controls.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\returned_nochild_stored_child\\diffuse.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\returned_nochild_stored_child\\\\diffuse.bin'"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\SIMULATED_accounting\\returned_nochild_stored_child\\specular.bin",
+            "present": false,
+            "bytes": null,
+            "sha256": null,
+            "read_error": "FileNotFoundError: [Errno 2] No such file or directory: 'F:\\\\OptiRevelations\\\\OptiScaler-ffxD-alpha\\\\tools_tmp\\\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\\\SIMULATED_accounting\\\\returned_nochild_stored_child\\\\specular.bin'"
+          }
+        ],
+        "successful_not_submitted_exact": null,
+        "discarded_or_omitted_exact": null,
+        "authority": "no_current_child",
+        "limits": "Source interpretation is bounded to byte-pinned B342 EXE and serial64 job header. Unique64 footer is only emitted after all64 loops and DestroyContext. Missing footer yields qualified lowerbounds from actually written readback prefixes; controls-before-API are never success counts. Fresh unidentified terminal is a lowerbound, not exact totals. Unseen queued/inflight work may exceed prefix; never infer discards from missing outputs. Historical EXE has no per-frame API journal or GetCompletedValue log; no new compilation provenance claim."
+      }
+    }
+  ],
+  "all_passed": true,
+  "native_GPU_build": 0
+}

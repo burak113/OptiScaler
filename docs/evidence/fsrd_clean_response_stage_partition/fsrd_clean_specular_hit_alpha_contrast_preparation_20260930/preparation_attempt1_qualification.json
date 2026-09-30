@@ -1,0 +1,13 @@
+{
+  "schema": "preserved-preparation-CPU-only-failure",
+  "tool": "exec_command",
+  "chunk_id": "a70b80",
+  "exit_code": 1,
+  "failure": "AssertionError at prepare.py line27: final clean-native postreview SHA9d231 was paired with historical completion_manifest.json instead of completion_manifest_final.json.",
+  "stage": "CPU provenance assertions before payload/job/guard creation",
+  "preserved_source": "preparation_attempt1_source.py.txt",
+  "corrective_delta": "Three references to POST/completion_manifest.json changed to POST/completion_manifest_final.json; exact original final SHA retained. No producer source/result or law changes.",
+  "tool_stderr_observed": "Python traceback ended at the explicit source-manifest assertion. No redirected stdout/stderr file was created; this is labelled tool-observation metadata, not a reconstructed child log.",
+  "actual_new_work": {"native_contexts": 0, "SDK_API": 0, "GPU_jobs": 0, "builds": 0, "models": 0, "scores": 0},
+  "failed_attempt_preserved": true
+}

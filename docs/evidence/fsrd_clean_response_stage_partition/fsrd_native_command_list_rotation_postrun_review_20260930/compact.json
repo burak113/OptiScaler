@@ -1,0 +1,36 @@
+{
+  "status": "PASSED_NATIVE_COMMAND_LIST_ROTATION_CPU_POSTREVIEW",
+  "review": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_command_list_rotation_postrun_review_20260930\\review.json",
+    "bytes": 19317,
+    "sha256": "b54af267bf4e476e4c8827c5adacb59a8d0113738d9309517f6e128b47241cfe"
+  },
+  "actual": {
+    "created_contexts": 4,
+    "fully_completed_contexts": 4,
+    "accepted_contexts": 4,
+    "successful_API_RR": 256,
+    "queued_logical_RR": 256,
+    "fence_completed_logical_RR": 256,
+    "observed_logical_RR": 256,
+    "Execute_calls": 256,
+    "Signal_event_wait_attempts_and_successes": {
+      "signal_attempts": 256,
+      "signals": 256,
+      "event_attempts": 256,
+      "events": 256,
+      "wait_attempts": 256,
+      "waits": 256
+    },
+    "discarded_successful_records": 0,
+    "no_API_omissions": 0,
+    "SDK_shader_dispatches": "opaque; not inferred"
+  },
+  "current_all6pairs_12lobes_bit_exact": true,
+  "source_aligned_frames": 64,
+  "all_diagnostics_zero": true,
+  "before_after_records": 786,
+  "prior_batch_P4_pairs": 6,
+  "actual_new_review_native_API_GPU": 0,
+  "quality_accepted": false
+}

@@ -1,0 +1,74 @@
+{
+  "schema": "root_API_tool_result_observations_not_redirected_raw_process_console",
+  "native_driver": {
+    "session_id": 67454,
+    "initial_chunk": "e260f9",
+    "initial_output": "",
+    "final_chunk": "ba0412",
+    "final_exit_code": 0,
+    "final_output": "",
+    "separate_redirected_console_available": false
+  },
+  "analyzer": {
+    "chunk": "c81a00",
+    "exit_code": 0,
+    "output": "",
+    "separate_redirected_console_available": false
+  },
+  "primary_raw_native_consoles": [
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_batched_recording_diagnostic_20260930\\new_v2\\evidence\\round0_K1\\stdout.log",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_batched_recording_diagnostic_20260930\\new_v2\\evidence\\round0_K1\\stderr.log",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_batched_recording_diagnostic_20260930\\new_v2\\evidence\\round0_K2\\stdout.log",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_batched_recording_diagnostic_20260930\\new_v2\\evidence\\round0_K2\\stderr.log",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_batched_recording_diagnostic_20260930\\new_v2\\evidence\\round0_K4\\stdout.log",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_batched_recording_diagnostic_20260930\\new_v2\\evidence\\round0_K4\\stderr.log",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_batched_recording_diagnostic_20260930\\new_v2\\evidence\\round1_K4\\stdout.log",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_batched_recording_diagnostic_20260930\\new_v2\\evidence\\round1_K4\\stderr.log",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_batched_recording_diagnostic_20260930\\new_v2\\evidence\\round1_K2\\stdout.log",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_batched_recording_diagnostic_20260930\\new_v2\\evidence\\round1_K2\\stderr.log",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_batched_recording_diagnostic_20260930\\new_v2\\evidence\\round1_K1\\stdout.log",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_batched_recording_diagnostic_20260930\\new_v2\\evidence\\round1_K1\\stderr.log"
+  ],
+  "results": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_batched_recording_diagnostic_20260930\\new_v5\\evidence\\results.json",
+    "bytes": 2443078,
+    "sha256": "2dc484f2e6cc39a73499624caefbf28a3b75d8c05d804dc9bfbc77a832c35585"
+  },
+  "raw_comparisons": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_batched_recording_diagnostic_20260930\\new_v5\\raw_comparisons.json",
+    "bytes": 184036,
+    "sha256": "e012bdd18583f00cab18158a6be9693eec4aa08fe373ddc83d00e03c33bd3be9"
+  },
+  "root_authorization": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_batch_v5_root_authorization_20260930.json",
+    "bytes": 3715,
+    "sha256": "ef3808a6cc81c0c2b724d0d26b5d3bf15dd613f2d4792e2a68083c1babd18837"
+  },
+  "initial_CPU_only_directory_failure": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_batch_v5_initial_driver_directory_failure_20260930.json",
+    "bytes": 660,
+    "sha256": "a9848909cbd815bcfd87b4e9484385947edfcec9e690e69dc33a7a7038fca9dd"
+  },
+  "source_line_erratum": {
+    "qualified_failure_json_claimed_first_run_guarded_line": 45,
+    "actual_pinned_run_guarded_line": 44,
+    "first_checkpoint_line": 34,
+    "qualification": "Off-by-one documentary line label corrected here; source ordering and zero-native-work conclusion unchanged; original failure qualification preserved."
+  },
+  "actual_new_native_contexts": 6,
+  "actual_successful_API": 384,
+  "actual_queued_and_fence_completed_logical_RR": 384,
+  "actual_Execute_calls": 384,
+  "actual_Signal_event_wait_groups": 224,
+  "cumulative": {
+    "native_contexts": 404,
+    "successful_API": 21434,
+    "queued_RR": 21426,
+    "recorded_only_discards": 8,
+    "no_API_omissions_separate": 4
+  },
+  "SDK_shader_dispatch_count": "opaque, not equated with API record count",
+  "GPU_process_currently_running": false,
+  "quality_accepted": false,
+  "game_run": false
+}

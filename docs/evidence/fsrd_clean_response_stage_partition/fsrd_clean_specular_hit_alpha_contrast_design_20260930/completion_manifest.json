@@ -1,0 +1,146 @@
+{
+  "schema": "self-excluded-design-completion",
+  "files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_design_20260930\\freeze_design.py",
+      "bytes": 5798,
+      "sha256": "4b4b1f447d4d0fe04d6a848569d0288c0cf2c27a83039eb7e0c52669b7e3a4bd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_design_20260930\\protocol.md",
+      "bytes": 5818,
+      "sha256": "f5717c77e8ea24a77c4c2bcf5cb5f69dca7f4a69daf9c00e01eb1bc8989b494c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_design_20260930\\protocol_design.json",
+      "bytes": 7598,
+      "sha256": "805fe618e51d961ca1bc4ad5a97b9f250df0b8fd502535262839d838ba13cead"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_design_20260930\\source_pins.json",
+      "bytes": 6395,
+      "sha256": "6d82ca097bf1c7d8f13cf319cefc6fd98c0c6b91162ed70a4ee7aa595d8c4a12"
+    }
+  ],
+  "external_records": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_semantic_audit_20260930\\audit.json",
+      "bytes": 3986,
+      "sha256": "c4cc31e356d970d4f4bc77dca16ced22cfa02be4991c0547449104d4de5ced32"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_semantic_audit_20260930\\report.md",
+      "bytes": 9311,
+      "sha256": "093e71e3cd6eba6f8adb139c701e4471f9322aca35d6199aa14b9527ceea4628"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_semantic_audit_20260930\\completion_manifest.json",
+      "bytes": 35566,
+      "sha256": "19b462d8f3debca527bcf003d5951fa5c87811a2309d0b0b2b4826343ab9f546"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\registration.json",
+      "bytes": 15023,
+      "sha256": "510071ced272b175470de23d6c731bfe3b4e20d96d76e7e980c8cb5e70c07a89"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\frozen_runner\\source_reference.cpp",
+      "bytes": 17182,
+      "sha256": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\frozen_runner\\fsrd_rr_runner.exe",
+      "bytes": 392704,
+      "sha256": "3427689a4764380f885545c353250277e4d71944d3310c8a17b3cbba0f3c21d2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\native_resource_guard.py",
+      "bytes": 4837,
+      "sha256": "b70e18d0f13963e0250c371171933429446cf304041c9a16d971e9898d211814"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\native_work_accounting.py",
+      "bytes": 5847,
+      "sha256": "01183b96b94ff89d5f6ea55729affcb59d46b1fdf98ea4543d970eb9e101c227"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\executor_evidence.py",
+      "bytes": 3825,
+      "sha256": "ade35d872077f2153f9c9177734f33da06316efbd396b1db391a166c297f9e35"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\planned_native\\C0\\job.txt",
+      "bytes": 1326,
+      "sha256": "03d4076ebe0a82dc1557d6721eaeb6537604e57179a2cc959d89d3f8626f1d30"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\planned_native\\C0\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\planned_native\\C0\\frame_controls.txt",
+      "bytes": 448,
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\denoisers\\include\\ffx_denoiser.h",
+      "bytes": 27253,
+      "sha256": "1316e406f3499f1c907c258d8efbf763d81aa7ffed1b65209802637907d644ed"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\signedbin\\amd_fidelityfx_denoiser_dx12.dll",
+      "bytes": 13782280,
+      "sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_postrun_review_20260930\\review.json",
+      "bytes": 68001,
+      "sha256": "0d7dcda2d476ce0223cf16d3d24214c5f0a6c9d903fb9e992402e4da115eef07"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\design.txt",
+      "bytes": 998,
+      "sha256": "d3247e574af65b51b7353ed399725b0a11d159566052ca43778add5b5bfb4bf6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\inputs\\input0.bin",
+      "bytes": 40960,
+      "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\inputs\\input1.bin",
+      "bytes": 81920,
+      "sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\inputs\\input2.bin",
+      "bytes": 40960,
+      "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\inputs\\input3.bin",
+      "bytes": 40960,
+      "sha256": "5805732520ca23e4756801cd4e228a9f4a1d6e358d43913633633a70c770f9da"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\inputs\\input4.bin",
+      "bytes": 40960,
+      "sha256": "ebf43c86086a67de6c44bb1a09b94b4be8b04ce80ae291fde29fc571ca03fa0b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\inputs\\input5.bin",
+      "bytes": 81920,
+      "sha256": "4b66181857d401282f400107fcd906581c943b4b5e07c58d07328f500f0fcbf6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\inputs\\input6.bin",
+      "bytes": 81920,
+      "sha256": "89481cbb3b3b3a61d7a1614dcf9cbf46ff1a58d11c9b750e3a5ea7387e2919f1"
+    }
+  ],
+  "self_entry_excluded": true,
+  "status": "FROZEN_DESIGN_NOT_PREPARATION_OR_EXECUTION_AUTHORIZATION",
+  "actual_new_native_GPU_build_scores": 0,
+  "before_after_pins_exact": true
+}

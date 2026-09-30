@@ -1,0 +1,133 @@
+{
+  "status": "READY_FOR_ROOT_SPECULAR_HIT_ALPHA_CONTRAST_AUTHORIZATION_SUBJECT_TO_FINAL_RZ_GATE",
+  "blocking_findings": [],
+  "checks": {
+    "producer_expected_seals_and_unique_sources_before": true,
+    "only_input6_A_mutation": true,
+    "full7_formats_counts_bytes": true,
+    "all256_expected184_controls_and_flags_exact": true,
+    "four_fresh_order_0_10_10_0": true,
+    "owned_F_TEMP_empty": true,
+    "all56_runtime_targets_absent": true,
+    "EXE_provider_source_unchanged": true,
+    "all4_accounting_modules_byte_exact": true,
+    "executor_exact_whitelist_only": true,
+    "physical_work_checkpoint_before_metadata": true,
+    "analyzer_6pairs12lobes_descriptive_only": true,
+    "existing12_SIM_independent_replay_passed": true,
+    "all_unique_sources_and_runtime_absence_stable_after": true
+  },
+  "actual_new_native_GPU_build_scores": 0,
+  "reviewer_IO_qualification": "Initial read used guessed producer readiness.json and returned file missing. Correct sealed artifact is prelaunch_ready_manifest.json; reviewer lookup error only, no producer mutation or launch.",
+  "source_verification": {
+    "unique_records": 5744,
+    "existing_expanded_manifest": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_postrun_review_20260930\\completion_manifest_final.json",
+      "bytes": 1678987,
+      "sha256": "9d231d55386869cdcd72d6e1095bf7548f42bbc3d4d990922fabb971f3cb18c1"
+    },
+    "expanded_manifest_reads": 1,
+    "table_not_duplicated": true,
+    "unique_index_sha256": "764f44a5ea4dcdf8f09dad66fbddef508cf0cc7bc6b69c55b017cd256789077b"
+  },
+  "payload_summary": [
+    {
+      "tag": "A0_r0",
+      "dose": 0,
+      "input6_RGB_exact": true,
+      "other6_full_bytes_exact": true,
+      "changed_bytes": 0,
+      "controls64x184_exact": true
+    },
+    {
+      "tag": "A10_r0",
+      "dose": 10,
+      "input6_RGB_exact": true,
+      "other6_full_bytes_exact": true,
+      "changed_bytes": 10240,
+      "controls64x184_exact": true
+    },
+    {
+      "tag": "A10_r1",
+      "dose": 10,
+      "input6_RGB_exact": true,
+      "other6_full_bytes_exact": true,
+      "changed_bytes": 10240,
+      "controls64x184_exact": true
+    },
+    {
+      "tag": "A0_r1",
+      "dose": 0,
+      "input6_RGB_exact": true,
+      "other6_full_bytes_exact": true,
+      "changed_bytes": 0,
+      "controls64x184_exact": true
+    }
+  ],
+  "SIM_replay": {
+    "probes": 12,
+    "passed": 12,
+    "native_GPU_build_scores": 0,
+    "result": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_prelaunch_review_20260930\\SIMULATED_replay\\CPU_accounting_checks.json",
+      "bytes": 61595,
+      "sha256": "039595b5843088fc34c58fa539d370bcf9a8972553fa6de17a21771742220f98"
+    },
+    "stdout": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_prelaunch_review_20260930\\SIMULATED_replay.stdout.bin",
+      "bytes": 59,
+      "sha256": "ccf8364b93707e1ae412e914543c608b208436b0227d911b4f1a9743d53ae105"
+    },
+    "stderr": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_prelaunch_review_20260930\\SIMULATED_replay.stderr.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "producer_seals": {
+    "prelaunch_ready_manifest.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\prelaunch_ready_manifest.json",
+      "bytes": 25023,
+      "sha256": "8fa973050ac156ef3895e9c7e9deaf61fe0dfa3552626d8d0eb9eaea5c1d2295"
+    },
+    "completion_manifest.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\completion_manifest.json",
+      "bytes": 26352,
+      "sha256": "b025ca512ceb2f8a89633346aa41d60633116d295e851967fa874f78355bc81d"
+    },
+    "registration.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\registration.json",
+      "bytes": 20421,
+      "sha256": "fb300d09a738fed1b946b0e14c64c91a2c73c1f9eebe418aed1cd069d12237b2"
+    },
+    "pre_native_freeze.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\pre_native_freeze.json",
+      "bytes": 24572,
+      "sha256": "5afd215fc53a4175dbca1063fb735afb8eede838727abb9cb336a86b0cbb6ae3"
+    }
+  },
+  "required_external_gates": {
+    "R": "PASSED_SEALED_AND_PINNED_IN_PREPARATION",
+    "RZ": "Final independent RZ postreview and completion seal must be passed and pinned by separate immutable root preauthorization; this audit does not assume that pass.",
+    "root_authorization": "Root must verify R/RZ/prelaunch seals and reconsideration before executing; CLI flag and preparation READY do not enforce these external gates by themselves."
+  },
+  "planned_only_if_completed": {
+    "contexts": 4,
+    "successful_API": 256,
+    "queued_RR": 256,
+    "Execute": 256,
+    "Signal": 256,
+    "event": 256,
+    "wait": 256,
+    "completed_GPU_RR": 256,
+    "observed_pair_frames": 256
+  },
+  "limits": [
+    "+10 is a view-depth proxy, not traced ray length; no positive minimum or private-provider zero contract is established.",
+    "Public indirect specular A is hit distance; changing only A tests native sensitivity for this synthetic cohort, not API violation or game cause.",
+    "B342 source is a byte-pinned historical reference; no new build/source-to-EXE equivalence is proved. Original serial lifecycle/output initialization remains unchanged.",
+    "Unique legal stdout64 footer after full loop/DestroyContext provides source-qualified physical totals under current child evidence; warnings/errors remain acceptance blockers after work checkpoint. Missing footer only proves readback-prefix lowerbounds, not unseen API/queued/discard totals. Controls precede API and never prove success.",
+    "Fresh unknown guard retains physical lowerbounds with process identity/exact totals unknown; explicit no-child and canonical direct-return contradictions remain conservative.",
+    "No composition or quality scores are planned by this raw native contrast; all6 pair12lobe RGB/RGBA output comparisons are descriptive."
+  ]
+}

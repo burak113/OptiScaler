@@ -1,0 +1,13 @@
+{
+  "status": "preserved_CPU_seal_source_anchor_lookup_failure",
+  "source": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_command_list_rotation_preparation_20260930\\seal.py",
+    "bytes": 9551,
+    "sha256": "9145659c7e32c5198b0eac95e56a6fa53e08730310ff9b50def4cec381512505"
+  },
+  "error": "AssertionError: create_all_four for(unsigned i=0;i<4;++i)",
+  "reason": "Metadata lookup guessed variablei; actual unchanged source uses slot. Original seal stopped before writing any source_pins/registration/freeze/ready. V2 uses verified actual source anchors (also exact fence and Dispatch syntax); source/EXE/law/jobs untouched.",
+  "correction": "New seal_v2.py; original seal.py retained.",
+  "actual_native_API_GPU": 0,
+  "compile_not_repeated": true
+}

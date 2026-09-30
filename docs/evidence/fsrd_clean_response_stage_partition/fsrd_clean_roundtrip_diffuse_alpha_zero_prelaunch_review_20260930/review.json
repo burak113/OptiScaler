@@ -1,0 +1,170 @@
+{
+  "status": "READY_FOR_ROOT_DIFFUSE_ALPHA_ZERO_AUTHORIZATION",
+  "blocking_findings": [],
+  "producer_pins": {
+    "registration.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\registration.json",
+      "bytes": 15560,
+      "sha256": "a8be39dd76218594e890c73aa9cd04343a49e0b2a4b81a052c48514f6cb4eb0b"
+    },
+    "pre_execution_freeze.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\pre_execution_freeze.json",
+      "bytes": 35077,
+      "sha256": "757075d9715495446d7f8a5b28349098de918a87244c7499ef6c99f78dacb950"
+    },
+    "readiness.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\readiness.json",
+      "bytes": 3409,
+      "sha256": "1eab6425998c218391ce2442322e23f9120e03bb6fce3f36d78ec7b2958726c0"
+    },
+    "completion_manifest.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\completion_manifest.json",
+      "bytes": 22142,
+      "sha256": "143bcea870991f0ed49fa2eae4331cdc281f920b2f1db0ba40a8164bed1b20a8"
+    }
+  },
+  "direct_records_checked_pre_post": 116,
+  "inherited_records_checked_pre_post": 2252,
+  "expanded_unique_records": 2368,
+  "inherited_source_manifest": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\external_source_pins.json",
+    "bytes": 652948,
+    "sha256": "7088e708c6c6a0c38cd3b4d411e36f0866e6d094cff4d3f51fb33e74342d2a6a",
+    "records_key": "records",
+    "record_count": 2252
+  },
+  "exact_change": {
+    "slot": "t2 diffuse alpha only",
+    "format": 10,
+    "old_u16": 31743,
+    "new_u16": 0,
+    "changed_halfwords": 10240,
+    "changed_bytes": 20480,
+    "RGB_bits_unchanged": true,
+    "other10_fullfields_unchanged": true,
+    "CB96_unchanged": true,
+    "specularA0_unchanged": true
+  },
+  "copies": {
+    "historicalEXE_CSO_source_mature_parser_directguard_resourceguard_byteexact": true
+  },
+  "runtime": {
+    "jobs": [
+      {
+        "arm": "RZ0",
+        "same_graph1": true,
+        "parent_exists_only_job": true,
+        "all3output_guard_logs_absent": true
+      },
+      {
+        "arm": "RZ1",
+        "same_graph1": true,
+        "parent_exists_only_job": true,
+        "all3output_guard_logs_absent": true
+      }
+    ],
+    "all6outputs_and6logs_absent": true,
+    "results_TEMP_absent": true
+  },
+  "accounting": {
+    "physical_checkpoint_before_acceptance": true,
+    "canonical_returned_guard": true,
+    "nochild0_stale_claims_rejected": true,
+    "fresh_missing_guard_partial_marker_qualified": true,
+    "six_inherited_existing_SIM_replays": [
+      {
+        "name": "valid_helper_marker_outputs",
+        "bitexact": true,
+        "dispatch_lowerbound": 1,
+        "exact_total": 1,
+        "metadata_accepted": true
+      },
+      {
+        "name": "diagnostic_reject_retains_dispatch",
+        "bitexact": true,
+        "dispatch_lowerbound": 1,
+        "exact_total": 1,
+        "metadata_accepted": false
+      },
+      {
+        "name": "nochild_stale_marker_reject",
+        "bitexact": true,
+        "dispatch_lowerbound": 0,
+        "exact_total": 0,
+        "metadata_accepted": false
+      },
+      {
+        "name": "stored_child_returned_nochild_canonical",
+        "bitexact": true,
+        "dispatch_lowerbound": 0,
+        "exact_total": 0,
+        "metadata_accepted": false
+      },
+      {
+        "name": "stored_nochild_returned_child_canonical",
+        "bitexact": true,
+        "dispatch_lowerbound": 1,
+        "exact_total": null,
+        "metadata_accepted": false
+      },
+      {
+        "name": "fresh_missing_guard_marker_lowerbound",
+        "bitexact": true,
+        "dispatch_lowerbound": 1,
+        "exact_total": null,
+        "metadata_accepted": false
+      }
+    ]
+  },
+  "analysis": {
+    "six_unordered_pairs": [
+      [
+        "RZ0",
+        "RZ1"
+      ],
+      [
+        "RZ0",
+        "R0"
+      ],
+      [
+        "RZ0",
+        "R1"
+      ],
+      [
+        "RZ1",
+        "R0"
+      ],
+      [
+        "RZ1",
+        "R1"
+      ],
+      [
+        "R0",
+        "R1"
+      ]
+    ],
+    "fullRGBA_RGB_alpha_bits_only": true,
+    "prior_R0_R1_raw_outputs_pinned": true,
+    "no_score_or_R64_temporal_fields": true
+  },
+  "planned_only": {
+    "helper_children": 2,
+    "explicit_helper_shader_dispatches": 2,
+    "outputs": 6,
+    "SDK_API": 0
+  },
+  "actual_review": {
+    "GPU": 0,
+    "native": 0,
+    "build": 0,
+    "devicequery": 0,
+    "scores": 0
+  },
+  "quality_accepted": false,
+  "qualification": [
+    "Prelaunch only. Whether this actual historical CSO changes color RGB when t2A becomes0 is an unmeasured hypothesis; future output comparison closes that question for this graph only.",
+    "Source/CSO/EXE pinned; no fresh compilation equivalence claim. Same actual converterRGB and fixedCB8/detail0/history0 retained.",
+    "Auxiliary UAV repeatbytes are retained, but WriteHistory0 source fastpath may not write them; colorRGB effect must be separated from auxiliary semantics.",
+    "Only two fresh helper observations with zero SDK calls. No temporal independence, game cause, native alpha preservation, quality or universal SDK conclusion."
+  ]
+}

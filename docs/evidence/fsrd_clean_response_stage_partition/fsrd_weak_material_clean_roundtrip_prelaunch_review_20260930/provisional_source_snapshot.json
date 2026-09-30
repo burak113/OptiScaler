@@ -1,0 +1,61 @@
+{
+  "status": "PROVISIONAL_SOURCE_READ_NOT_READINESS",
+  "source_records": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\registration.json",
+      "bytes": 21329,
+      "sha256": "c0773b00053139dc75d537dc8db3c3d276175d82df799be8908d580a70f266a5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\graph_identity_proof.json",
+      "bytes": 334926,
+      "sha256": "657006e6ea88eb2832b709f87f27b403b1b4d027de120b19126ea38f47d8bb41"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\run_roundtrip_only.py",
+      "bytes": 5979,
+      "sha256": "b77810817cbec831ada21a4f7c96205b3c8eb67c713ded766769d391e1b380f8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\analyze_roundtrip_cpu.py",
+      "bytes": 7259,
+      "sha256": "7d32b0a420681b40c9bc1a17847e8c002b23017085cd4096c4c574d6add555b3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\check_preparation_cpu.py",
+      "bytes": 6395,
+      "sha256": "37a0d53e28fd28e332ee4c0cac2221f7596899a96e1d025e15a2a1ecc7ef16a1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\helper_work_accounting.py",
+      "bytes": 6141,
+      "sha256": "141d2122eddfa9d0693672ed132a5e259eabd1234df878fad3ba5f20ae73b014"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\helper_guard_evidence.py",
+      "bytes": 2206,
+      "sha256": "ddfa3a0f990c7f58691359bbc5671dc7cb22ce3d22b573924ce8fd751bc4c4fa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\native_resource_guard.py",
+      "bytes": 4837,
+      "sha256": "b70e18d0f13963e0250c371171933429446cf304041c9a16d971e9898d211814"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\fsrd_gpu_runner.exe",
+      "bytes": 338944,
+      "sha256": "3dfeefb2c109e7dc3d3e0bf515ff9f58ddbf00968521e74364acc89598ecb21c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\helper_source_reference.cpp",
+      "bytes": 13429,
+      "sha256": "f215e7565d70e3e85aacc524f47cf4138934d523ba019cfc3c8b48849751c953"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\CPU_checks.json",
+      "bytes": 26221,
+      "sha256": "1dff5c5826974d919795df6bb80cbd33d2d76208562c3259b2085734f5fa17ea"
+    }
+  ],
+  "actual_GPU_native_build_score": 0
+}

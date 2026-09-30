@@ -1,0 +1,14 @@
+{
+  "returncode": 0,
+  "stdout": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\CPU_checks.stdout.bin",
+    "bytes": 77,
+    "sha256": "35d54a07e072032fa68c48f2a5daa1210309a71b94904776c8b34951d37b7907"
+  },
+  "stderr": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\CPU_checks.stderr.bin",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "actual_query_native_GPU": 0
+}

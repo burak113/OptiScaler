@@ -1,0 +1,35 @@
+--- frozen_fsrd_rr_batch.cpp_e105
++++ fsrd_rr_rotation.cpp
+@@ -40,9 +40,12 @@
+ };
+ int main(int argc,char** argv) try {
+     std::cout<<std::unitbuf;
+-    if(argc!=3) throw std::runtime_error("usage: fsrd_rr_batch job.txt K");
++    if(argc!=4) throw std::runtime_error("usage: fsrd_rr_rotation job.txt K rotation");
+     const unsigned batchSize=unsigned(std::stoul(argv[2]));
+-    if(batchSize!=1&&batchSize!=2&&batchSize!=4) throw std::runtime_error("K must be 1/2/4");
++    if(batchSize!=1||std::string(argv[2])!="1") throw std::runtime_error("K must be 1");
++    const std::string rotationArg=argv[3];
++    if(rotationArg!="1"&&rotationArg!="4") throw std::runtime_error("rotation must be 1/4");
++    const unsigned poolRotation=rotationArg=="1"?1u:4u;
+     std::ifstream job(argv[1]);
+     unsigned w,h,frames,diffFlag,specFlag,resetEvery,tuning,passthrough;
+     std::string dllPath;
+@@ -243,7 +246,7 @@
+         for(unsigned begin=0;begin<64;begin+=batchSize) {
+             if(inFlight || (retiredFence && fence->GetCompletedValue()<retiredFence)) throw std::runtime_error("pool not retired");
+             for(unsigned frame=begin;frame<begin+batchSize;++frame) {
+-                const unsigned slot=frame%4; cmd=commands[slot];
++                const unsigned slot=frame%poolRotation; cmd=commands[slot];
+                 hr(allocators[slot]->Reset(),"reset allocator"); hr(cmd->Reset(allocators[slot].Get(),nullptr),"reset list");
+                 if(frame==0) for(unsigned i=7;i<9;++i) {
+                     auto& t=tex[i];barrier(t,D3D12_RESOURCE_STATE_COPY_DEST);
+@@ -281,7 +284,7 @@
+             }
+             snapshot("group_recorded",int(begin+batchSize-1),0);
+             for(unsigned frame=begin;frame<begin+batchSize;++frame) {
+-                ID3D12CommandList* list=commands[frame%4].Get();inFlight=true;queue->ExecuteCommandLists(1,&list);
++                ID3D12CommandList* list=commands[frame%poolRotation].Get();inFlight=true;queue->ExecuteCommandLists(1,&list);
+                 ++counts.executes;++counts.queued;writeIndex(queuedOut,frame);snapshot("execute",frame,0);
+             }
+             const UINT64 target=begin+batchSize;

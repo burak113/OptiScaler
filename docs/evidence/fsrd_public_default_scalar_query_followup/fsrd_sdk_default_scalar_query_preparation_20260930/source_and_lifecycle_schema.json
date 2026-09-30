@@ -1,0 +1,53 @@
+{
+  "status": "PINNED_FIXED_QUERY_PROBE_SCHEMA",
+  "HEAD": "50e376ce8c99739efbd9a86055dbe4995d50155e",
+  "source": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\fsrd_default_query.cpp",
+    "bytes": 7916,
+    "sha256": "68c4b30fd9d2a9805a235cc45996f60461217bc2e677e287a62bfbabafaa36e5"
+  },
+  "EXE": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\fsrd_default_query.exe",
+    "bytes": 307200,
+    "sha256": "cb1db4d103665c49d1e956222d69b9c407903d2290e25928593d2e95bb259b27"
+  },
+  "query_key_order": [
+    6,
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "query_count": 1,
+  "float_elements": 1,
+  "float_bytes": 4,
+  "query_output_bits_authoritative": true,
+  "context": {
+    "api": 4202496,
+    "max_render_size": [
+      128,
+      80
+    ],
+    "signals": 34,
+    "checkerboard": 0,
+    "create_flags": 2,
+    "allocator_callbacks": "nullptr",
+    "same_B342_create_descriptor": true,
+    "global_debug_Configure_omitted": true
+  },
+  "source_API_sites": {
+    "Create": 1,
+    "Query": 1,
+    "Query_loop_capacity": 6,
+    "Destroy": 1,
+    "Configure": 0,
+    "Dispatch": 0,
+    "caller_Execute": 0
+  },
+  "grammar": "QUERY_EVENT strictJSON v1/seq/stage/key/rc/nonnull/rawbits/12physical-or-entrycounters/d3d_errors/d3d_warnings/ownership_uncertain/accepted; exactfull-line stdoutonly. QUERY_META contains exact context/adapter/driver/path-check; metadata is a separate acceptancegate.",
+  "prefix_law": "Entry marker is a pending call boundary, not a successful/returnedcall. Legal returnevent counts before acceptance; call-before-egress gap, truncation/unknown/duplicate terminals keep lowerbounds and unknown totals. Metadata/file/diagnostic rejection preserves actualwork.",
+  "cleanup": "Create/backend/device/values/module descriptors remainalive until explicitDestroy. One cleanupattempt forKnownLive even if stdout start loggingfails. FailedCreate-nonnull/failedDestroy retainsowners until ExitProcess; no speculative retry/unload or inventedDestroycount.",
+  "unknowns": "Provider-internalGPU/initialization/queues and privatecallbackwarnings unknown. Configure0 means no SDK loggingcallback. Query support and numericdefaults still unmeasured.",
+  "source_cpp_no_RR_no_configuration_no_caller_submission": true
+}

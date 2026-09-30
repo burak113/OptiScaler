@@ -1,0 +1,38 @@
+{
+  "status": "READY_FOR_ROOT_SPECULAR_HIT_ALPHA_CONTRAST_AUTHORIZATION_SUBJECT_TO_FINAL_RZ_GATE",
+  "blocking_findings": [],
+  "review": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_prelaunch_review_20260930\\review.json",
+    "bytes": 6442,
+    "sha256": "1d801f5e272587665137bba7227068b9612a1202876f5636ec7e14435c6177dc"
+  },
+  "unique_sources_verified_stable": 5744,
+  "existing_SIM_independently_replayed": 12,
+  "all56_runtime_targets_absent": true,
+  "treatment": "Only SDKinput6 FP16 A+0/+10(0x4900); RGB+other6fullinputs+64x184 controls exact. +10view-depth proxy, not traced ray.",
+  "order": [
+    "A0_r0",
+    "A10_r0",
+    "A10_r1",
+    "A0_r1"
+  ],
+  "planned_only_if_completed": {
+    "contexts": 4,
+    "successful_API": 256,
+    "queued_RR": 256,
+    "Execute": 256,
+    "Signal": 256,
+    "event": 256,
+    "wait": 256,
+    "completed_GPU_RR": 256,
+    "observed_pair_frames": 256
+  },
+  "required_gates": {
+    "R": "PASSED_SEALED_AND_PINNED_IN_PREPARATION",
+    "RZ": "Final independent RZ postreview and completion seal must be passed and pinned by separate immutable root preauthorization; this audit does not assume that pass.",
+    "root_authorization": "Root must verify R/RZ/prelaunch seals and reconsideration before executing; CLI flag and preparation READY do not enforce these external gates by themselves."
+  },
+  "actual_new_native_GPU_build_scores": 0,
+  "limitations": "No private-zero/minimum contract, historical compiler equivalence, quality, composition or game-cause claim. Source-qualified exact legal footer versus unknown prefix lowerbounds unchanged.",
+  "reviewer_lookup_error_preserved": "Initial read used guessed producer readiness.json and returned file missing. Correct sealed artifact is prelaunch_ready_manifest.json; reviewer lookup error only, no producer mutation or launch."
+}

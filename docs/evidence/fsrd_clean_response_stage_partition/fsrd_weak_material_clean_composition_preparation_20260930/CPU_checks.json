@@ -1,0 +1,1118 @@
+{
+  "status": "PASSED_BOUNDED_CPU_PREPARATION_CHECKS",
+  "SIMULATED_helper_checks": [
+    {
+      "name": "valid_helper_marker_outputs",
+      "SIMULATED": true,
+      "passed": true,
+      "guard": {
+        "status": "completed",
+        "child_pid": 123,
+        "returncode": 0,
+        "terminated_owned_child": false
+      },
+      "guard_artifact": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\valid_helper_marker_outputs\\resource_guard.json",
+        "exists": true,
+        "sha256": "219eeef9e8c49600bc141d5a407aae1e608cdd2b2d3261e2aed9fc3aed3b9048",
+        "bytes": 93,
+        "read_error": null,
+        "parse_error": null,
+        "returned_guard_claim": {
+          "status": "completed",
+          "child_pid": 123,
+          "returncode": 0,
+          "terminated_owned_child": false
+        },
+        "stored_guard_claim": {
+          "status": "completed",
+          "child_pid": 123,
+          "returncode": 0,
+          "terminated_owned_child": false
+        },
+        "returned_stored_conflict": false,
+        "authority": "direct_returned_guard"
+      },
+      "work": {
+        "helper_child_PID_claim": 123,
+        "helper_returncode_claim": 0,
+        "helper_terminal_return_confirmed": true,
+        "confirmed_helper_children_lower_bound": 1,
+        "exact_helper_child_total": 1,
+        "confirmed_shader_dispatches_lower_bound": 1,
+        "confirmed_fence_completions_lower_bound": 1,
+        "exact_shader_dispatch_total": 1,
+        "partial_dispatch_total_unknown": false,
+        "fresh_scope_authenticated": true,
+        "explicit_post_fence_stdout_proof": true,
+        "output_sizes_match": true,
+        "output_sizes_are_not_dispatch_proof": true,
+        "outputs": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\valid_helper_marker_outputs\\out0.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\valid_helper_marker_outputs\\out1.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\valid_helper_marker_outputs\\out2.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          }
+        ],
+        "fields": {
+          "timing": {
+            "median_ms": 0.1,
+            "p95_ms": 0.1,
+            "debug_layer": 1
+          },
+          "diagnostic": {
+            "errors": 0,
+            "warnings": 0
+          },
+          "timing_claim_lines": [
+            "gpu_ms_median=0.1 gpu_ms_p95=0.1 debug_layer=1"
+          ],
+          "diagnostic_claim_lines": [
+            "validation_errors=0 validation_warnings=0"
+          ],
+          "stderr_marker_claim_lines": [],
+          "stdout_unterminated_tail": "",
+          "timing_grammar_unique_finite_full_line_valid": true,
+          "diagnostic_grammar_unique_integer_full_line_valid": true
+        },
+        "evidence_conflicts": [],
+        "monitor_exception": null,
+        "stdout_sha256": "958f7d0ad1bdcc8e1456d0a35462871bd0d772962b4bfa1039af48418888f6da",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "source_scope": "Exact pinned repetition1 helper emits timing after fence wait/device check. Source reading is a reference, not new historical EXE compilation proof. No SDK/native work.",
+        "known_no_child": false,
+        "metadata_accepted": true,
+        "strict_match_accepted": false
+      }
+    },
+    {
+      "name": "diagnostic_reject_retains_dispatch",
+      "SIMULATED": true,
+      "passed": true,
+      "guard": {
+        "status": "completed",
+        "child_pid": 123,
+        "returncode": 0,
+        "terminated_owned_child": false
+      },
+      "guard_artifact": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\diagnostic_reject_retains_dispatch\\resource_guard.json",
+        "exists": true,
+        "sha256": "219eeef9e8c49600bc141d5a407aae1e608cdd2b2d3261e2aed9fc3aed3b9048",
+        "bytes": 93,
+        "read_error": null,
+        "parse_error": null,
+        "returned_guard_claim": {
+          "status": "completed",
+          "child_pid": 123,
+          "returncode": 0,
+          "terminated_owned_child": false
+        },
+        "stored_guard_claim": {
+          "status": "completed",
+          "child_pid": 123,
+          "returncode": 0,
+          "terminated_owned_child": false
+        },
+        "returned_stored_conflict": false,
+        "authority": "direct_returned_guard"
+      },
+      "work": {
+        "helper_child_PID_claim": 123,
+        "helper_returncode_claim": 0,
+        "helper_terminal_return_confirmed": true,
+        "confirmed_helper_children_lower_bound": 1,
+        "exact_helper_child_total": 1,
+        "confirmed_shader_dispatches_lower_bound": 1,
+        "confirmed_fence_completions_lower_bound": 1,
+        "exact_shader_dispatch_total": 1,
+        "partial_dispatch_total_unknown": false,
+        "fresh_scope_authenticated": true,
+        "explicit_post_fence_stdout_proof": true,
+        "output_sizes_match": true,
+        "output_sizes_are_not_dispatch_proof": true,
+        "outputs": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\diagnostic_reject_retains_dispatch\\out0.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\diagnostic_reject_retains_dispatch\\out1.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\diagnostic_reject_retains_dispatch\\out2.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          }
+        ],
+        "fields": {
+          "timing": {
+            "median_ms": 0.1,
+            "p95_ms": 0.1,
+            "debug_layer": 1
+          },
+          "diagnostic": {
+            "errors": 0,
+            "warnings": 1
+          },
+          "timing_claim_lines": [
+            "gpu_ms_median=0.1 gpu_ms_p95=0.1 debug_layer=1"
+          ],
+          "diagnostic_claim_lines": [
+            "validation_errors=0 validation_warnings=1"
+          ],
+          "stderr_marker_claim_lines": [],
+          "stdout_unterminated_tail": "",
+          "timing_grammar_unique_finite_full_line_valid": true,
+          "diagnostic_grammar_unique_integer_full_line_valid": true
+        },
+        "evidence_conflicts": [],
+        "monitor_exception": null,
+        "stdout_sha256": "6fa55307a7c1140c02f3ed06144488e2ea961a618b79202835f1a627e39b7f08",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "source_scope": "Exact pinned repetition1 helper emits timing after fence wait/device check. Source reading is a reference, not new historical EXE compilation proof. No SDK/native work.",
+        "known_no_child": false,
+        "metadata_accepted": false,
+        "strict_match_accepted": false
+      }
+    },
+    {
+      "name": "nochild_stale_marker_reject",
+      "SIMULATED": true,
+      "passed": true,
+      "guard": {
+        "status": "not_launched_low_available_memory",
+        "child_pid": null,
+        "returncode": null
+      },
+      "guard_artifact": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\nochild_stale_marker_reject\\resource_guard.json",
+        "exists": true,
+        "sha256": "7cd394f4cea8a821ec3c15623623096c8aaf47384893a56669f620db17a08088",
+        "bytes": 88,
+        "read_error": null,
+        "parse_error": null,
+        "returned_guard_claim": {
+          "status": "not_launched_low_available_memory",
+          "child_pid": null,
+          "returncode": null
+        },
+        "stored_guard_claim": {
+          "status": "not_launched_low_available_memory",
+          "child_pid": null,
+          "returncode": null
+        },
+        "returned_stored_conflict": false,
+        "authority": "direct_returned_guard"
+      },
+      "work": {
+        "helper_child_PID_claim": null,
+        "helper_returncode_claim": null,
+        "helper_terminal_return_confirmed": false,
+        "confirmed_helper_children_lower_bound": 0,
+        "exact_helper_child_total": 0,
+        "confirmed_shader_dispatches_lower_bound": 0,
+        "confirmed_fence_completions_lower_bound": 0,
+        "exact_shader_dispatch_total": 0,
+        "partial_dispatch_total_unknown": false,
+        "fresh_scope_authenticated": true,
+        "explicit_post_fence_stdout_proof": false,
+        "output_sizes_match": true,
+        "output_sizes_are_not_dispatch_proof": true,
+        "outputs": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\nochild_stale_marker_reject\\out0.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\nochild_stale_marker_reject\\out1.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\nochild_stale_marker_reject\\out2.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          }
+        ],
+        "fields": {
+          "timing": {
+            "median_ms": 0.1,
+            "p95_ms": 0.1,
+            "debug_layer": 1
+          },
+          "diagnostic": {
+            "errors": 0,
+            "warnings": 0
+          },
+          "timing_claim_lines": [
+            "gpu_ms_median=0.1 gpu_ms_p95=0.1 debug_layer=1"
+          ],
+          "diagnostic_claim_lines": [
+            "validation_errors=0 validation_warnings=0"
+          ],
+          "stderr_marker_claim_lines": [],
+          "stdout_unterminated_tail": "",
+          "timing_grammar_unique_finite_full_line_valid": true,
+          "diagnostic_grammar_unique_integer_full_line_valid": true
+        },
+        "evidence_conflicts": [
+          "no_child_guard_with_artifact_or_log_claims_not_current_work"
+        ],
+        "monitor_exception": null,
+        "stdout_sha256": "958f7d0ad1bdcc8e1456d0a35462871bd0d772962b4bfa1039af48418888f6da",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "source_scope": "Exact pinned repetition1 helper emits timing after fence wait/device check. Source reading is a reference, not new historical EXE compilation proof. No SDK/native work.",
+        "known_no_child": true,
+        "metadata_accepted": false,
+        "strict_match_accepted": false
+      }
+    },
+    {
+      "name": "stored_child_returned_nochild_canonical",
+      "SIMULATED": true,
+      "passed": true,
+      "guard": {
+        "status": "not_launched_low_available_memory",
+        "child_pid": null,
+        "returncode": null
+      },
+      "guard_artifact": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\stored_child_returned_nochild_canonical\\resource_guard.json",
+        "exists": true,
+        "sha256": "219eeef9e8c49600bc141d5a407aae1e608cdd2b2d3261e2aed9fc3aed3b9048",
+        "bytes": 93,
+        "read_error": null,
+        "parse_error": null,
+        "returned_guard_claim": {
+          "status": "not_launched_low_available_memory",
+          "child_pid": null,
+          "returncode": null
+        },
+        "stored_guard_claim": {
+          "status": "completed",
+          "child_pid": 123,
+          "returncode": 0,
+          "terminated_owned_child": false
+        },
+        "returned_stored_conflict": true,
+        "authority": "direct_returned_guard"
+      },
+      "work": {
+        "helper_child_PID_claim": null,
+        "helper_returncode_claim": null,
+        "helper_terminal_return_confirmed": false,
+        "confirmed_helper_children_lower_bound": 0,
+        "exact_helper_child_total": 0,
+        "confirmed_shader_dispatches_lower_bound": 0,
+        "confirmed_fence_completions_lower_bound": 0,
+        "exact_shader_dispatch_total": 0,
+        "partial_dispatch_total_unknown": false,
+        "fresh_scope_authenticated": true,
+        "explicit_post_fence_stdout_proof": false,
+        "output_sizes_match": true,
+        "output_sizes_are_not_dispatch_proof": true,
+        "outputs": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\stored_child_returned_nochild_canonical\\out0.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\stored_child_returned_nochild_canonical\\out1.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\stored_child_returned_nochild_canonical\\out2.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          }
+        ],
+        "fields": {
+          "timing": {
+            "median_ms": 0.1,
+            "p95_ms": 0.1,
+            "debug_layer": 1
+          },
+          "diagnostic": {
+            "errors": 0,
+            "warnings": 0
+          },
+          "timing_claim_lines": [
+            "gpu_ms_median=0.1 gpu_ms_p95=0.1 debug_layer=1"
+          ],
+          "diagnostic_claim_lines": [
+            "validation_errors=0 validation_warnings=0"
+          ],
+          "stderr_marker_claim_lines": [],
+          "stdout_unterminated_tail": "",
+          "timing_grammar_unique_finite_full_line_valid": true,
+          "diagnostic_grammar_unique_integer_full_line_valid": true
+        },
+        "evidence_conflicts": [
+          "no_child_guard_with_artifact_or_log_claims_not_current_work"
+        ],
+        "monitor_exception": "returned guard and stored guard disagree; direct returned authority retained",
+        "stdout_sha256": "958f7d0ad1bdcc8e1456d0a35462871bd0d772962b4bfa1039af48418888f6da",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "source_scope": "Exact pinned repetition1 helper emits timing after fence wait/device check. Source reading is a reference, not new historical EXE compilation proof. No SDK/native work.",
+        "known_no_child": true,
+        "metadata_accepted": false,
+        "strict_match_accepted": false
+      }
+    },
+    {
+      "name": "stored_nochild_returned_child_canonical",
+      "SIMULATED": true,
+      "passed": true,
+      "guard": {
+        "status": "completed",
+        "child_pid": 123,
+        "returncode": 0,
+        "terminated_owned_child": false
+      },
+      "guard_artifact": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\stored_nochild_returned_child_canonical\\resource_guard.json",
+        "exists": true,
+        "sha256": "7cd394f4cea8a821ec3c15623623096c8aaf47384893a56669f620db17a08088",
+        "bytes": 88,
+        "read_error": null,
+        "parse_error": null,
+        "returned_guard_claim": {
+          "status": "completed",
+          "child_pid": 123,
+          "returncode": 0,
+          "terminated_owned_child": false
+        },
+        "stored_guard_claim": {
+          "status": "not_launched_low_available_memory",
+          "child_pid": null,
+          "returncode": null
+        },
+        "returned_stored_conflict": true,
+        "authority": "direct_returned_guard"
+      },
+      "work": {
+        "helper_child_PID_claim": 123,
+        "helper_returncode_claim": 0,
+        "helper_terminal_return_confirmed": false,
+        "confirmed_helper_children_lower_bound": 1,
+        "exact_helper_child_total": 1,
+        "confirmed_shader_dispatches_lower_bound": 1,
+        "confirmed_fence_completions_lower_bound": 1,
+        "exact_shader_dispatch_total": null,
+        "partial_dispatch_total_unknown": true,
+        "fresh_scope_authenticated": true,
+        "explicit_post_fence_stdout_proof": true,
+        "output_sizes_match": true,
+        "output_sizes_are_not_dispatch_proof": true,
+        "outputs": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\stored_nochild_returned_child_canonical\\out0.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\stored_nochild_returned_child_canonical\\out1.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\stored_nochild_returned_child_canonical\\out2.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          }
+        ],
+        "fields": {
+          "timing": {
+            "median_ms": 0.1,
+            "p95_ms": 0.1,
+            "debug_layer": 1
+          },
+          "diagnostic": {
+            "errors": 0,
+            "warnings": 0
+          },
+          "timing_claim_lines": [
+            "gpu_ms_median=0.1 gpu_ms_p95=0.1 debug_layer=1"
+          ],
+          "diagnostic_claim_lines": [
+            "validation_errors=0 validation_warnings=0"
+          ],
+          "stderr_marker_claim_lines": [],
+          "stdout_unterminated_tail": "",
+          "timing_grammar_unique_finite_full_line_valid": true,
+          "diagnostic_grammar_unique_integer_full_line_valid": true
+        },
+        "evidence_conflicts": [],
+        "monitor_exception": "returned guard and stored guard disagree; direct returned authority retained",
+        "stdout_sha256": "958f7d0ad1bdcc8e1456d0a35462871bd0d772962b4bfa1039af48418888f6da",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "source_scope": "Exact pinned repetition1 helper emits timing after fence wait/device check. Source reading is a reference, not new historical EXE compilation proof. No SDK/native work.",
+        "known_no_child": false,
+        "metadata_accepted": false,
+        "strict_match_accepted": false
+      }
+    },
+    {
+      "name": "fresh_missing_guard_marker_lowerbound",
+      "SIMULATED": true,
+      "passed": true,
+      "guard": {},
+      "guard_artifact": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\fresh_missing_guard_marker_lowerbound\\resource_guard.json",
+        "exists": false,
+        "sha256": null,
+        "bytes": null,
+        "read_error": null,
+        "parse_error": null,
+        "returned_guard_claim": {},
+        "stored_guard_claim": null,
+        "returned_stored_conflict": false,
+        "authority": "no_valid_guard_fresh_marker_lowerbounds_only"
+      },
+      "work": {
+        "helper_child_PID_claim": null,
+        "helper_returncode_claim": null,
+        "helper_terminal_return_confirmed": false,
+        "confirmed_helper_children_lower_bound": 1,
+        "exact_helper_child_total": null,
+        "confirmed_shader_dispatches_lower_bound": 1,
+        "confirmed_fence_completions_lower_bound": 1,
+        "exact_shader_dispatch_total": null,
+        "partial_dispatch_total_unknown": true,
+        "fresh_scope_authenticated": true,
+        "explicit_post_fence_stdout_proof": true,
+        "output_sizes_match": true,
+        "output_sizes_are_not_dispatch_proof": true,
+        "outputs": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\fresh_missing_guard_marker_lowerbound\\out0.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\fresh_missing_guard_marker_lowerbound\\out1.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\SIMULATED_CPU\\fresh_missing_guard_marker_lowerbound\\out2.bin",
+            "expected_bytes": 4,
+            "exists": true,
+            "actual_bytes": 4,
+            "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+          }
+        ],
+        "fields": {
+          "timing": {
+            "median_ms": 0.1,
+            "p95_ms": 0.1,
+            "debug_layer": 1
+          },
+          "diagnostic": {
+            "errors": 0,
+            "warnings": 0
+          },
+          "timing_claim_lines": [
+            "gpu_ms_median=0.1 gpu_ms_p95=0.1 debug_layer=1"
+          ],
+          "diagnostic_claim_lines": [
+            "validation_errors=0 validation_warnings=0"
+          ],
+          "stderr_marker_claim_lines": [],
+          "stdout_unterminated_tail": "",
+          "timing_grammar_unique_finite_full_line_valid": true,
+          "diagnostic_grammar_unique_integer_full_line_valid": true
+        },
+        "evidence_conflicts": [],
+        "monitor_exception": "guard file absent; totals unknown",
+        "stdout_sha256": "958f7d0ad1bdcc8e1456d0a35462871bd0d772962b4bfa1039af48418888f6da",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "source_scope": "Exact pinned repetition1 helper emits timing after fence wait/device check. Source reading is a reference, not new historical EXE compilation proof. No SDK/native work.",
+        "known_no_child": false,
+        "metadata_accepted": false,
+        "strict_match_accepted": false
+      }
+    }
+  ],
+  "SIMULATED_passed": 6,
+  "SIMULATED_failed": 0,
+  "frozen_oldB_metric_checks": [
+    {
+      "window": "full",
+      "exact_to_original_report": true,
+      "metrics": {
+        "score": {
+          "rmse": 0.001410098746418953,
+          "frame_rmse": [
+            0.0005757845938205719,
+            0.0006501597235910594,
+            0.0006546422373503447,
+            0.000721464806701988,
+            0.0007818855810910463,
+            0.0008339706109836698,
+            0.0008983369334600866,
+            0.0009481399320065975,
+            0.0009939555311575532,
+            0.0010462510399520397,
+            0.0010925940005108714,
+            0.0011336301686242223,
+            0.001160036656074226,
+            0.0011869242880493402,
+            0.001224598498083651,
+            0.001245470135472715,
+            0.0012664302485063672,
+            0.0012922411551699042,
+            0.001302859396673739,
+            0.0013160932576283813,
+            0.0013295874232426286,
+            0.001349109224975109,
+            0.0013647350715473294,
+            0.001378459855914116,
+            0.001390468212775886,
+            0.0014101281994953752,
+            0.001422701170668006,
+            0.001438613049685955,
+            0.0014506062725558877,
+            0.001467258669435978,
+            0.0014847763814032078,
+            0.001495517324656248,
+            0.0015004221349954605,
+            0.001512313261628151,
+            0.0015169737162068486,
+            0.001524773659184575,
+            0.001528689288534224,
+            0.0015331238973885775,
+            0.0015352930640801787,
+            0.0015427254838868976,
+            0.0015476960688829422,
+            0.0015561063773930073,
+            0.0015597587917000055,
+            0.0015697902999818325,
+            0.0015726002166047692,
+            0.0015800462570041418,
+            0.0015857809921726584,
+            0.0015892263036221266,
+            0.00159306894056499,
+            0.0015977515140548348,
+            0.0016020999755710363,
+            0.0016112478915601969,
+            0.0016182477120310068,
+            0.0016274529043585062,
+            0.0016365175833925605,
+            0.001644422416575253,
+            0.001650864607654512,
+            0.0016536519397050142,
+            0.0016591044841334224,
+            0.0016641427064314485,
+            0.0016682250425219536,
+            0.0016721375286579132,
+            0.0016746290493756533,
+            0.0016805322375148535
+          ],
+          "bias_rgb": [
+            -0.001336876885034144,
+            -0.001380403176881373,
+            -0.0013266841415315866
+          ],
+          "broad_tone_rms": 0.0013522745703638825,
+          "residual_temporal_std": 0.0003245102125220001,
+          "ring_width": 0.0,
+          "contrast_gain": [
+            1.2392656803131104,
+            1.2376623153686523,
+            1.2392992973327637,
+            1.238500714302063,
+            1.2380921840667725,
+            1.237924337387085,
+            1.2374640703201294,
+            1.2362029552459717,
+            1.2373452186584473,
+            1.2373580932617188,
+            1.2371426820755005,
+            1.2389386892318726,
+            1.2387944459915161,
+            1.2387398481369019,
+            1.2366116046905518,
+            1.2360796928405762,
+            1.235931158065796,
+            1.235534906387329,
+            1.2350051403045654,
+            1.2357804775238037,
+            1.2356934547424316,
+            1.2347030639648438,
+            1.2342450618743896,
+            1.2341761589050293,
+            1.2341831922531128,
+            1.2345192432403564,
+            1.2340320348739624,
+            1.2353010177612305,
+            1.2344307899475098,
+            1.2337714433670044,
+            1.2347954511642456,
+            1.2330503463745117,
+            1.2336732149124146,
+            1.2340188026428223,
+            1.233449935913086,
+            1.2328218221664429,
+            1.2334541082382202,
+            1.2332428693771362,
+            1.2333357334136963,
+            1.2327711582183838,
+            1.2322207689285278,
+            1.2333427667617798,
+            1.2324656248092651,
+            1.2334270477294922,
+            1.2320610284805298,
+            1.231755256652832,
+            1.2333141565322876,
+            1.2330985069274902,
+            1.2320964336395264,
+            1.2331855297088623,
+            1.232967495918274,
+            1.2335084676742554,
+            1.2325907945632935,
+            1.232537865638733,
+            1.2328917980194092,
+            1.2322111129760742,
+            1.2325533628463745,
+            1.2324647903442383,
+            1.2317911386489868,
+            1.2324073314666748,
+            1.2325167655944824,
+            1.2327780723571777,
+            1.2329504489898682,
+            1.2323554754257202
+          ],
+          "phase_error_radians": [
+            9.279298049549451e-18,
+            1.120584305521608e-17,
+            4.664864384977486e-18,
+            2.2122758539912288e-17,
+            9.544322581908378e-18,
+            5.5416807973673704e-18,
+            9.136645789831006e-18,
+            4.623380243282186e-19,
+            1.2303339674506537e-17,
+            3.5600782365389055e-18,
+            2.1287994335503374e-17,
+            7.176943662900495e-19,
+            7.946091351628334e-18,
+            1.6405711316780613e-17,
+            4.928798693289068e-18,
+            7.653434850907073e-18,
+            1.6398411034284526e-18,
+            4.696321236492265e-18,
+            9.60226410227588e-19,
+            1.9573770049466856e-17,
+            1.2065801526722134e-17,
+            3.7563359358538494e-18,
+            1.4807335329893372e-17,
+            7.410756602796265e-18,
+            3.345316093330844e-18,
+            6.468490351618735e-18,
+            1.3095834949613991e-17,
+            6.858271427185646e-20,
+            4.940360610301028e-18,
+            1.2228734600699154e-17,
+            2.4699656517815565e-18,
+            1.0713835199688927e-17,
+            1.9466552552828958e-17,
+            4.735770307085531e-18,
+            1.4453470772565637e-17,
+            3.4353013498577315e-18,
+            3.6911028183866925e-18,
+            1.8712246138651546e-18,
+            5.220444792892096e-18,
+            4.72172932977775e-18,
+            1.0739845273665197e-18,
+            4.806581103423133e-18,
+            6.1145310821108626e-18,
+            2.775741650608215e-18,
+            5.755065684855531e-18,
+            6.66720270940143e-18,
+            3.0731755329572762e-18,
+            4.893325879900344e-18,
+            8.471312990291329e-18,
+            8.82354634745111e-18,
+            1.5893400313118346e-17,
+            1.3163467718038164e-17,
+            1.5609181054645125e-17,
+            5.256147148900803e-18,
+            1.277778648562919e-17,
+            2.5421880318344802e-18,
+            1.1319960892523896e-17,
+            3.814253467983587e-18,
+            3.53972752551857e-18,
+            5.567779172874031e-18,
+            1.5891857000890475e-18,
+            1.532479801441062e-17,
+            1.9930232367508314e-18,
+            1.2954348187378633e-17
+          ],
+          "finite": true
+        },
+        "absolute_gain_min": 1.231755256652832,
+        "absolute_gain_mean": 1.234544288367033,
+        "absolute_gain_max": 1.2392992973327637,
+        "absolute_phase_max": 2.2122758539912288e-17,
+        "detail_within_5_percent_all_frames": false,
+        "absolute_gain_failing_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56,
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63
+        ],
+        "absolute_phase_failing_frames": [],
+        "per_frame_absolute_detail_pass": false
+      }
+    },
+    {
+      "window": "mature",
+      "exact_to_original_report": true,
+      "metrics": {
+        "score": {
+          "rmse": 0.0016411248361691833,
+          "frame_rmse": [
+            0.00159306894056499,
+            0.0015977515140548348,
+            0.0016020999755710363,
+            0.0016112478915601969,
+            0.0016182477120310068,
+            0.0016274529043585062,
+            0.0016365175833925605,
+            0.001644422416575253,
+            0.001650864607654512,
+            0.0016536519397050142,
+            0.0016591044841334224,
+            0.0016641427064314485,
+            0.0016682250425219536,
+            0.0016721375286579132,
+            0.0016746290493756533,
+            0.0016805322375148535
+          ],
+          "bias_rgb": [
+            -0.001617832574993372,
+            -0.001636682660318911,
+            -0.0015968645457178354
+          ],
+          "broad_tone_rms": 0.0016248913964559814,
+          "residual_temporal_std": 7.168256706790999e-05,
+          "ring_width": 0.0,
+          "contrast_gain": [
+            1.2320964336395264,
+            1.2331855297088623,
+            1.232967495918274,
+            1.2335084676742554,
+            1.2325907945632935,
+            1.232537865638733,
+            1.2328917980194092,
+            1.2322111129760742,
+            1.2325533628463745,
+            1.2324647903442383,
+            1.2317911386489868,
+            1.2324073314666748,
+            1.2325167655944824,
+            1.2327780723571777,
+            1.2329504489898682,
+            1.2323554754257202
+          ],
+          "phase_error_radians": [
+            8.471312990291329e-18,
+            8.82354634745111e-18,
+            1.5893400313118346e-17,
+            1.3163467718038164e-17,
+            1.5609181054645125e-17,
+            5.256147148900803e-18,
+            1.277778648562919e-17,
+            2.5421880318344802e-18,
+            1.1319960892523896e-17,
+            3.814253467983587e-18,
+            3.53972752551857e-18,
+            5.567779172874031e-18,
+            1.5891857000890475e-18,
+            1.532479801441062e-17,
+            1.9930232367508314e-18,
+            1.2954348187378633e-17
+          ],
+          "finite": true
+        },
+        "absolute_gain_min": 1.2317911386489868,
+        "absolute_gain_mean": 1.232612930238247,
+        "absolute_gain_max": 1.2335084676742554,
+        "absolute_phase_max": 1.5893400313118346e-17,
+        "detail_within_5_percent_all_frames": false,
+        "absolute_gain_failing_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "absolute_phase_failing_frames": [],
+        "per_frame_absolute_detail_pass": false
+      }
+    },
+    {
+      "window": "startup_first8",
+      "exact_to_original_report": true,
+      "metrics": {
+        "score": {
+          "rmse": 0.0007677999092265964,
+          "frame_rmse": [
+            0.0005757845938205719,
+            0.0006501597235910594,
+            0.0006546422373503447,
+            0.000721464806701988,
+            0.0007818855810910463,
+            0.0008339706109836698,
+            0.0008983369334600866,
+            0.0009481399320065975
+          ],
+          "bias_rgb": [
+            -0.0007091514999046922,
+            -0.0006654650205746293,
+            -0.0006732521578669548
+          ],
+          "broad_tone_rms": 0.0006979492477027956,
+          "residual_temporal_std": 0.00020370856509543955,
+          "ring_width": 0.0,
+          "contrast_gain": [
+            1.2392656803131104,
+            1.2376623153686523,
+            1.2392992973327637,
+            1.238500714302063,
+            1.2380921840667725,
+            1.237924337387085,
+            1.2374640703201294,
+            1.2362029552459717
+          ],
+          "phase_error_radians": [
+            9.279298049549451e-18,
+            1.120584305521608e-17,
+            4.664864384977486e-18,
+            2.2122758539912288e-17,
+            9.544322581908378e-18,
+            5.5416807973673704e-18,
+            9.136645789831006e-18,
+            4.623380243282186e-19
+          ],
+          "finite": true
+        },
+        "absolute_gain_min": 1.2362029552459717,
+        "absolute_gain_mean": 1.2380514442920685,
+        "absolute_gain_max": 1.2392992973327637,
+        "absolute_phase_max": 2.2122758539912288e-17,
+        "detail_within_5_percent_all_frames": false,
+        "absolute_gain_failing_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "absolute_phase_failing_frames": [],
+        "per_frame_absolute_detail_pass": false
+      }
+    },
+    {
+      "window": "activation8to16",
+      "exact_to_original_report": true,
+      "metrics": {
+        "score": {
+          "rmse": 0.0011383561650291085,
+          "frame_rmse": [
+            0.0009939555311575532,
+            0.0010462510399520397,
+            0.0010925940005108714,
+            0.0011336301686242223,
+            0.001160036656074226,
+            0.0011869242880493402,
+            0.001224598498083651,
+            0.001245470135472715
+          ],
+          "bias_rgb": [
+            -0.0010945670073851943,
+            -0.0011477901134639978,
+            -0.001066644792445004
+          ],
+          "broad_tone_rms": 0.0011072821484151714,
+          "residual_temporal_std": 0.00010933995508821681,
+          "ring_width": 0.0,
+          "contrast_gain": [
+            1.2373452186584473,
+            1.2373580932617188,
+            1.2371426820755005,
+            1.2389386892318726,
+            1.2387944459915161,
+            1.2387398481369019,
+            1.2366116046905518,
+            1.2360796928405762
+          ],
+          "phase_error_radians": [
+            1.2303339674506537e-17,
+            3.5600782365389055e-18,
+            2.1287994335503374e-17,
+            7.176943662900495e-19,
+            7.946091351628334e-18,
+            1.6405711316780613e-17,
+            4.928798693289068e-18,
+            7.653434850907073e-18
+          ],
+          "finite": true
+        },
+        "absolute_gain_min": 1.2360796928405762,
+        "absolute_gain_mean": 1.2376262843608856,
+        "absolute_gain_max": 1.2389386892318726,
+        "absolute_phase_max": 2.1287994335503374e-17,
+        "detail_within_5_percent_all_frames": false,
+        "absolute_gain_failing_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "absolute_phase_failing_frames": [],
+        "per_frame_absolute_detail_pass": false
+      }
+    }
+  ],
+  "frozen_oldB_four_windows_exact": true,
+  "registered192jobs": true,
+  "registered576outputs_absent": true,
+  "runtime1152_job_paths_absent": true,
+  "helper_source_one_explicit_Dispatch_per_repetition1": true,
+  "source_timing_after_wait_before_output_diagnostics": true,
+  "driver_actual_checkpoint_before_gates": true,
+  "driver_all_runtime_preflight_before_guard_import": true,
+  "actual_helper_GPU_native_build_model_trials": 0,
+  "quality_accepted": false
+}

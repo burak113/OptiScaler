@@ -1,0 +1,49 @@
+{
+  "status": "READY_FOR_ROOT_CLEAN_ROUNDTRIP_AUTHORIZATION",
+  "blocking_findings": [],
+  "review": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_prelaunch_review_20260930\\review.json",
+    "bytes": 696744,
+    "sha256": "39ba2d5853b476c3041e88b27815a998483c6b97aff98a6de678facdfae65271"
+  },
+  "source_records": 2333,
+  "graph_classes": 1,
+  "source_frames_authenticated": 64,
+  "planned_only": {
+    "helpers": 2,
+    "explicit_helper_shader_dispatches": 2,
+    "outputs": 6,
+    "native_API": 0,
+    "graph_classes": 1
+  },
+  "actual_review": {
+    "GPU": 0,
+    "native": 0,
+    "build": 0,
+    "devicequery": 0,
+    "scores": 0
+  },
+  "runtime": {
+    "two_parents_ready": true,
+    "all6outputs_and6guard_logs_absent": true,
+    "globalresults_metrics_NPZ_TEMP_absent": true,
+    "jobs": [
+      {
+        "arm": "R0",
+        "parent_exists_only_job": true,
+        "all3_outputs_and_guard_logs_absent": true,
+        "CB11inputs_same_class": true,
+        "repetition1": true
+      },
+      {
+        "arm": "R1",
+        "parent_exists_only_job": true,
+        "all3_outputs_and_guard_logs_absent": true,
+        "CB11inputs_same_class": true,
+        "repetition1": true
+      }
+    ]
+  },
+  "provenance_qualification": "HistoricalCSO/EXE and source identities/past observed replay pinned. Source fastpath RGB-only branch supports alpha-unused interpretation; no separate actualCSO alpha-dataflow disassembly or empirical alpha-insensitivity control establishes that property. Do not assert pure SDK-only RGB cause.",
+  "quality_accepted": false
+}

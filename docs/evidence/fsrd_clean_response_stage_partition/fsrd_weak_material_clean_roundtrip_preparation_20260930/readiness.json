@@ -1,0 +1,43 @@
+{
+  "status": "READY_FOR_INDEPENDENT_ROUNDTRIP_PRELAUNCH_REVIEW_NOT_EXECUTION_AUTHORIZATION",
+  "blockers": [],
+  "registration": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\registration.json",
+    "bytes": 21329,
+    "sha256": "c0773b00053139dc75d537dc8db3c3d276175d82df799be8908d580a70f266a5"
+  },
+  "freeze": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\pre_execution_freeze.json",
+    "bytes": 677998,
+    "sha256": "722f90048bafeb8474edcd4584383c1bfa1ef674be170e66cc49e50c10f7779d"
+  },
+  "CPU_checks": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\CPU_checks.json",
+    "bytes": 26221,
+    "sha256": "1dff5c5826974d919795df6bb80cbd33d2d76208562c3259b2085734f5fa17ea"
+  },
+  "future_analysis": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\analysis_plan.json",
+    "bytes": 4050,
+    "sha256": "3f3fce44178ef7c652daba8f205c399b92010e7f27d1dd1b74b86b8f5de71a9d"
+  },
+  "graph_classes": 1,
+  "all64_full11SRV_CB_bytes_equal": true,
+  "actual_preparation_helper_GPU_native_build_scores": 0,
+  "inherited_SIMULATED_checks_passed": 6,
+  "all_runtime_targets_absent": true,
+  "commands_after_independent_review_and_root_authorization_only": [
+    "python -B run_roundtrip_only.py --execute-roundtrip-only",
+    "python -B analyze_roundtrip_cpu.py --analyze-roundtrip"
+  ],
+  "python_runtime_read_only": "F:/OptiRevelations/OptiScaler/tools_tmp/albedo_stage1_venv/Scripts/python.exe",
+  "limitations": [
+    "R is actual OutputComp GPU output from captured InputConv fullRGBA lobes and fixed guides. No CPU radiance remodulation substitutes for R.",
+    "R-q measures the frozen converter+composition roundtrip relative to encodedraw q; T-R measures the extra opaque SDK path and downstream composition response. This is a directional stage contrast, not a proof of private SDK-only intrinsic error or a causal game result.",
+    "The original additive InputConv variant and all settings are frozen. No new calibration, filter, threshold, fit or shader changes are introduced.",
+    "Converter diffuse alpha0x7bff versus SDKoutputalpha0 is retained. Frozen flags8/detail0/history0 normal fastpath reads only lobergb and writes coloralpha1. All three output bytes are retained; WriteHistory0 leaves auxiliary UAVs unwritten by that path, so no semantic history claim follows from them.",
+    "Two fresh helper/device executions of one byte-identical fullgraph are2 shader dispatches,0 SDK calls. Broadcast to64 validated graph sourceindices is an analytical representation, never64 physical observations.",
+    "Source/CSO and helperEXE identities plus64 prior observed replays are pinned; source reading does not newly prove historical compiler equivalence or private-provider implementation.",
+    "Rawtruth and quantizedraw references remain distinct; frozen windows/score functions and rank1 signedNyquist DC/beta descriptive method are unchanged. RMS/gain ratios are not additive error terms; pixel/DC/signedbeta differences are directional."
+  ]
+}

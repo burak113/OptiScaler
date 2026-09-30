@@ -1,0 +1,102 @@
+{
+  "status": "PREPARED_QUERY_ONLY_NOT_AUTHORIZED",
+  "job": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\planned_query\\job.txt",
+  "command": [
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\fsrd_default_query.exe",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\planned_query\\job.txt"
+  ],
+  "provider": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\signedbin\\amd_fidelityfx_denoiser_dx12.dll",
+    "bytes": 13782280,
+    "sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3"
+  },
+  "source": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\fsrd_default_query.cpp",
+    "bytes": 7916,
+    "sha256": "68c4b30fd9d2a9805a235cc45996f60461217bc2e677e287a62bfbabafaa36e5"
+  },
+  "EXE": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\fsrd_default_query.exe",
+    "bytes": 307200,
+    "sha256": "cb1db4d103665c49d1e956222d69b9c407903d2290e25928593d2e95bb259b27"
+  },
+  "query_keys": [
+    6,
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "design": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_design_20260930\\design.json",
+    "bytes": 8790,
+    "sha256": "bb80daa56058ef57f7be03d37ef217acaaca8f4ad285b5bee4cad1ddf3f372e6"
+  },
+  "schema": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\source_and_lifecycle_schema.json",
+    "bytes": 2377,
+    "sha256": "815864e01e3fe537d068028243bbe6151eeb16a4b9b77b936a29eabfc7b5cf52"
+  },
+  "provider_signature": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\provider_signature.json",
+    "bytes": 519,
+    "sha256": "3e9f7b5a899a7bc6af35a46a22e2b874f4a9e28e8e4448c1832b28f06371125a"
+  },
+  "planned_only_if_completed": {
+    "fresh_created_contexts": 1,
+    "successful_default_queries": 6,
+    "returned_default_queries": 6,
+    "successfully_destroyed_contexts": 1,
+    "RRDispatch_API": 0,
+    "Configure_API": 0,
+    "caller_Execute": 0
+  },
+  "actual_query_work": {
+    "contexts": 0,
+    "queries": 0,
+    "RRDispatch_API": 0,
+    "caller_Execute": 0
+  },
+  "actual_CPU_compiles": 1,
+  "query_EXE_invocations": 0,
+  "guard": {
+    "timeout_seconds": 240,
+    "maximum_working_set_bytes": 2147483648,
+    "minimum_available_memory_bytes": 1073741824,
+    "interval_seconds": 0.2,
+    "TEMP_TMP": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\execution_TEMP",
+    "single_owned_child": true
+  },
+  "authorization_contract": {
+    "required": true,
+    "status": "ROOT_AUTHORIZED_ONE_DEFAULT_SCALAR_QUERY_CONTEXT",
+    "fields": [
+      "registration_sha256",
+      "freeze_sha256",
+      "command",
+      "independent_prelaunch_review.path",
+      "independent_prelaunch_review.sha256"
+    ],
+    "review_status": "READY_FOR_ROOT_PUBLIC_DEFAULT_SCALAR_QUERY_AUTHORIZATION",
+    "query_once_only": true
+  },
+  "runtime_paths": [
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\planned_query\\resource_guard.json",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\planned_query\\stdout.log",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\planned_query\\stderr.log",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\planned_query\\query_values.bin",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\planned_query\\executor_attempt.json",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\planned_query\\query_work_accounting.json",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\execution_results.json",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\default_values.json"
+  ],
+  "actual_defaults_unobserved": true,
+  "no_defaults_assumed_or_applied": true,
+  "no_models_scores_or_RRsettings": true,
+  "provider_internal_GPU": "unknown",
+  "SDK_private_callback_warnings": "unavailable_unknown",
+  "quality_accepted": false,
+  "invocation_after_review_root_authorization_only": "python -B run_query.py --execute-query --authorization <immutable root authorization.json>",
+  "cleanup_limit": "OSowned-process exit after unresolved ownership is not API-cleanup proof; no other process is terminated or inspected."
+}

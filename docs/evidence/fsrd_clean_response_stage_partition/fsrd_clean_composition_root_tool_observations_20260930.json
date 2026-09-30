@@ -1,0 +1,2953 @@
+{
+  "schema": "root-tool-observations-not-redirected-console-logs",
+  "root_authorization": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_composition_root_authorization_20260930.json",
+    "bytes": 3803,
+    "sha256": "e8abe0ed7de98d10bfff932683ef78739f63992d496f7d1f5a564f3d00965663"
+  },
+  "root_authorization_tool": {
+    "chunk_id": "399774",
+    "exit_code": 0,
+    "actual_helper_GPU_native_API": 0
+  },
+  "root_driver_tool": {
+    "initial_chunk_id": "eb6c09",
+    "session_id": 11867,
+    "final_chunk_id": "56b5ec",
+    "exit_code": 0,
+    "output": "",
+    "separately_redirected_root_console_log": false
+  },
+  "root_CPU_analysis_tool": {
+    "chunk_id": "b3017b",
+    "exit_code": 0,
+    "tool_output_contains_pre_analysis_gate_summary": true,
+    "separately_redirected_analyzer_console_log": false,
+    "analysis_runs": 1,
+    "actual_new_helper_GPU_native_API": 0
+  },
+  "producer_result": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\execution_results.json",
+    "bytes": 1433241,
+    "sha256": "f25d746c8f250c5269c71fd9569cafaf23ee27af55d06908c931dec83bc0e05e"
+  },
+  "composition_metrics": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\composition_metrics.json",
+    "bytes": 1014164,
+    "sha256": "70723dda196adbf33e6823c107de6f39639c840da665bb9eddadcc801947a2f3"
+  },
+  "composed_sequences": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\composed_sequences.npz",
+    "bytes": 1423802,
+    "sha256": "139cd50c40c32c5bf1b6e47bc545a1173add9e575d122d2423ebd32a811ea379"
+  },
+  "actual_new_helper_children": 192,
+  "source_qualified_explicit_helper_shader_Dispatches": 192,
+  "actual_post_fence_marker_completions": 192,
+  "metadata_and_strict_accepted_jobs": 192,
+  "actual_original_all3_output_exact_replays": 64,
+  "retained_raw_outputs": 576,
+  "actual_new_native_contexts": 0,
+  "actual_new_FFX_API": 0,
+  "true_child_raw_log_records": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\00\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "8396bb2b973900de348ffd2a42c37ff5a91c06e5203b3a38f7c1ec80b3ea506d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\00\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\00\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "9dd4b0d1f3e181eb61f9a92930c038d633b72da8650ef423874a8d656e209bf0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\00\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\00\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\00\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "8fd1c1404d0e4669cb9cc3c12fee44038cd73fa1be1acc349a6745840498e4d9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\00\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "f12a1ce2d542f5fbe4a7de77da30c580e7345f32c57497f3b082efb40cc522cb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\00\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\00\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "286463d34452bb25eb9fdc166613c0054918900b85356ab82c289a1d36ca8719"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\01\\observed_control\\stdout.log",
+      "bytes": 125,
+      "sha256": "b03dbde2eee003b3564b19b23923aefaf5bbfe84f4be1e3e40a0df4e99d62b05"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\01\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\01\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "929f2cbc2097f72b0ae75acb781795ea433cbd687c38fd504a8f07a7f7e639e8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\01\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\01\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\01\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "b39b35f0e7f27029a10622f8cfeb0f869a82a0af53c253cd04906da35992468b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\01\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "1960985598ec7046cda10b1d0932976a22f4e9f1e7be58f9f129143ed0073c2e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\01\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\01\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "cfe2c6ec2d763e48c5cf5db369b8fd60fd1aa2dfd7802c1cf14100a2105ea6bb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\02\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\02\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\02\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "b243cde4d4afdfc45a872d9ac25bf5fbd578247f23008440a7690dbe15e1407b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\02\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\02\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\02\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "1629290b16004f892f0e84ddb72489f84cd4d56117ae2c36a72d4ccd52fd51bb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\02\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\02\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\02\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "055ad0ce557154899204d1a3d09cbf1717cfc85b7213c190453273ede08a5fc7"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\03\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\03\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\03\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "72c1883926662c2262ce7e5914e5db331c035586125f7df269ace38652189cb0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\03\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\03\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\03\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "0bf6d6d3fe6f90b9db6a160a28d7d9f7de8d490d2901fd43c475797875d665ce"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\03\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\03\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\03\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "bda3b7b4b1d3ff1672105d676c91e9e45f79ae7c89c707b593c2346f00971d1c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\04\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "7178ef8c10a892f65f544df42c4972936b25fe34c3d972d4676370889af877eb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\04\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\04\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "4bf141ca10441235f181f9e58441b1aacf1e47c30b2e524a91efd70164ddca84"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\04\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\04\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\04\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "fe7737d20f6fbd8b32de554e626d1a36d1c40742dc96916f8b561b948257b3b2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\04\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\04\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\04\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "59b5cb696c71f6531b7eb964a5d46cdb312156c77aa17b858253eb1f5d0bcdc9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\05\\observed_control\\stdout.log",
+      "bytes": 125,
+      "sha256": "218fd6a44c471ca9ad529e1ea2d1ddfaea1764ed17b84b7b75964b85374094c1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\05\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\05\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "378e697704074a4ec77d439fbb8ae0403c849615c07cd79fd8350cb041570ad2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\05\\C0\\stdout.log",
+      "bytes": 123,
+      "sha256": "61cdef358b8e0c7e011d6cf15f38954441660f63485c39b39ad1218af5904799"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\05\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\05\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "0b62f4e6122b1a5f04857e0cecb9cb67c77bd327972058c45b29baa30734e804"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\05\\C1\\stdout.log",
+      "bytes": 123,
+      "sha256": "61cdef358b8e0c7e011d6cf15f38954441660f63485c39b39ad1218af5904799"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\05\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\05\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "8f11dcea704d033c0ad703c04fd4bf18513fa3baa7240fb6949b07cc45862830"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\06\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\06\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\06\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "f37ba32bf034c0145aac276869066f235c29f95c3baf17496a1e82b1fe1c0c0b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\06\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\06\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\06\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "1ea5dfdac979ed94bceb97dd216b6a87d414aebb1e81cab3f3c6d75982aea7bd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\06\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\06\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\06\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "a0d40c15fa2cf42f0a63cde34d960b2700d181185bf7d2191b5a00a1037458bf"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\07\\observed_control\\stdout.log",
+      "bytes": 125,
+      "sha256": "065bd74d3b2f740806cd57a032484d93e662913eb56ab713cf881fb26c6b42a1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\07\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\07\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "9da5c07799b769905a5cc58a886c50a6a6a713c0b00b306f7e42450c513ac028"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\07\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\07\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\07\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "a1f5a8cc9bb9ec119c132040a0d239eedb9e98dcc625c125a40bb583acfbc1af"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\07\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\07\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\07\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "19d7ca22833c5b9247b654db5825e2dd8fb80c00381746fe3591b2f9afcb2e24"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\08\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "41388560b1d2d18720d64946c4bc0ab34d47f25578fd413afc227a84d2f9da7a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\08\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\08\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "4bac8f43c269ca60721bb2333dc3b5679383ed514f2d469d86e1a02393f1053e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\08\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\08\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\08\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "779e3f816e5ce67a97627d371e6d36ce08aa737abefd78c0f83833a4b3db0545"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\08\\C1\\stdout.log",
+      "bytes": 125,
+      "sha256": "b03dbde2eee003b3564b19b23923aefaf5bbfe84f4be1e3e40a0df4e99d62b05"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\08\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\08\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "e7f8d5d0401b558af53dbe257db9ba5929c128a50983f31a471b1472df976816"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\09\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\09\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\09\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "8348b432228a55727eb3d7134aab1564fe8ce896083c64ff330e11ac3e24975a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\09\\C0\\stdout.log",
+      "bytes": 125,
+      "sha256": "b03dbde2eee003b3564b19b23923aefaf5bbfe84f4be1e3e40a0df4e99d62b05"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\09\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\09\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "1233451ecc881d2a32dc7983ce98f8200a6f2e3044ed0dbbfd2c82b7a48bcad1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\09\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\09\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\09\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "6e4682042dac67c4a9fc51687c36efa666781dfe4db2ef09bacecb159bd71c29"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\10\\observed_control\\stdout.log",
+      "bytes": 125,
+      "sha256": "43874081f5005b17db24e55c5f44acfa88bb5e326dc1894a618d9d3917cf8abb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\10\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\10\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "fbe6c2634a047c6828bcbb5e3514e9bb47827f9ebd3a14327561ef9cc1d22ebc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\10\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "40101d774bb928bf79ff2ad762ef5d85d15757eac14f1806342ffb04367d7ca8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\10\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\10\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "4a6bca02c1133850e366e4f151d5ecd96126d4782c8d0f1f7d4188724fae15b5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\10\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\10\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\10\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "310dc06626f9572ccd9f55448310a9582f1ba77f20e8d5f8f52c301ec8efb1ff"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\11\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "90dc42ce43651276669e3ac9e6703f529ceb5bd05415976e5fcff45e95765bc0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\11\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\11\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "ad9005155c4e3b7eba28cf25fe905ba2f0db58450ce756357b3ca16787b4c633"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\11\\C0\\stdout.log",
+      "bytes": 125,
+      "sha256": "b03dbde2eee003b3564b19b23923aefaf5bbfe84f4be1e3e40a0df4e99d62b05"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\11\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\11\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "7fd34c4f376087037a9c87c9bff744eaea4cf172fba465ff3e1fcd37d98fd063"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\11\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "2008465bb7e22d2c03effc6de41ec9d5d8bab547f29d7e3fed7276f1c804ecdb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\11\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\11\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "f981c72ec8302d16681e0b7d4f58cdfef926d9d180291cf3deec793b4c51b7ae"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\12\\observed_control\\stdout.log",
+      "bytes": 123,
+      "sha256": "61cdef358b8e0c7e011d6cf15f38954441660f63485c39b39ad1218af5904799"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\12\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\12\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "1d6ab6a1f78ce9ac11dc77e9bd4cb00e5a7e47d6dda8b760ecfde9eb37e194dc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\12\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\12\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\12\\C0\\resource_guard.json",
+      "bytes": 912,
+      "sha256": "e1fbc25454d37ce1af6ad2f8d393d8b1d85d124ecd2c9a0165c68797420c6ac8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\12\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\12\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\12\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "78ba86b0615d32ac897776a4502c48667b761ab8aaa8b2acc2cb6512cdd6193e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\13\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\13\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\13\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "fb7d198067c42d21830740695945934f56322de98151eda35cc5e360b278a32f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\13\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "f12a1ce2d542f5fbe4a7de77da30c580e7345f32c57497f3b082efb40cc522cb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\13\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\13\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "7d81acf4095f97b1af481a521588361d254683e11cda59fb1e555eb893a6fc8b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\13\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "456add54d08281605b675b93a07e01a85516df9696e914943ee30f7a24cb141d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\13\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\13\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "31025056f66126d26968dece7987fc418851271fe883e6f82008184b6803c98a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\14\\observed_control\\stdout.log",
+      "bytes": 125,
+      "sha256": "b03dbde2eee003b3564b19b23923aefaf5bbfe84f4be1e3e40a0df4e99d62b05"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\14\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\14\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "9cdb3e68cba61be5e5b3aa45cb22cccd3fe58c9541df0e7234790a55b3671915"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\14\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\14\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\14\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "2029b9fc36cae362f1d72ef73dcae06f5d585a39c76762ee98f6f251ffdea6d8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\14\\C1\\stdout.log",
+      "bytes": 123,
+      "sha256": "61cdef358b8e0c7e011d6cf15f38954441660f63485c39b39ad1218af5904799"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\14\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\14\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "0b5b22916ee6f2696df5ce3d33627e2d9a3ec0f44dd05a32c3a72e6f19a098db"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\15\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\15\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\15\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "f6043894a00e38829bed159c3a0a59d6824cf1cb409e2597d50b088e886b059a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\15\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\15\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\15\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "786fdef29cc98d7427362c79d46874884fdd26a6e5f9668bcc8240267d5e716b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\15\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\15\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\15\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "64e7868b1b0ffc5970c820ac79f965a3976344889acb34df22224272938622db"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\16\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "41388560b1d2d18720d64946c4bc0ab34d47f25578fd413afc227a84d2f9da7a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\16\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\16\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "1e4cef82901044297a3974152c15c5f10055dd202ac7bef821c27dc7f3064eda"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\16\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\16\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\16\\C0\\resource_guard.json",
+      "bytes": 912,
+      "sha256": "51de2feaf74db1c6cb059c688f0ec55c398c9baa857e2e82518cad22f7687c52"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\16\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\16\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\16\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "dc3e070960aef53408b22d804ec8f5495f528dbaf5693139b21c353455b4639f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\17\\observed_control\\stdout.log",
+      "bytes": 123,
+      "sha256": "61cdef358b8e0c7e011d6cf15f38954441660f63485c39b39ad1218af5904799"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\17\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\17\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "c0f0fe1cbcd1d8d259cc11ef3a651f00e487cdb47ccfbbbfb4f0ec4b5c031c2d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\17\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\17\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\17\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "6b975adb49c058802a93fc2272821cc49673b21194d91a194150415fd7b044a2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\17\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\17\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\17\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "fd1f077579665acbb0945705182b4ceed9086151518abc301792097bb9f83a74"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\18\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\18\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\18\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "6f47a42a6e8486ce19895612b69b3de3771d766c34e7d18de9df9b0129630d15"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\18\\C0\\stdout.log",
+      "bytes": 125,
+      "sha256": "b03dbde2eee003b3564b19b23923aefaf5bbfe84f4be1e3e40a0df4e99d62b05"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\18\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\18\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "e395b2e197b7a24c5d55b55b26a7edf1ced54ca84cb81041ebdf61a3c06bed4b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\18\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\18\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\18\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "8a4bca03a30d86e715561ec0eb541211716b17e8b63aa0c1c9e335de8a7c2dd4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\19\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\19\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\19\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "d0473c28fd0847d0db688b26a321add5e40713ea4504487fd1a91a6c23c795d1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\19\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\19\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\19\\C0\\resource_guard.json",
+      "bytes": 912,
+      "sha256": "b2c02e30f4e2ef8c512527a0930029e22caab710d954155ef35cef32f7b0cf93"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\19\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\19\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\19\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "03389ee14ada088515144268d56fa2f249da5d45b69b4d15192b133e8b090b5e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\20\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\20\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\20\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "aad05d7db00879865628b848e8ecdb4d546193f6e9c4e84d6cdc50bfffe61e16"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\20\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "41388560b1d2d18720d64946c4bc0ab34d47f25578fd413afc227a84d2f9da7a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\20\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\20\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "f9bc7385176d4efbf38e882bd1bc85065e681824907f507d5b5bd725eac3e468"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\20\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\20\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\20\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "dbf64a28b0c32e4e97b5db6ee1c497de3e2c8aa1c037b48bb8d631a7adb97263"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\21\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\21\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\21\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "08a613a9210f5138bc2e8c5ae38a0b9e1a2562ba32205a29b719950a08dee640"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\21\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\21\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\21\\C0\\resource_guard.json",
+      "bytes": 912,
+      "sha256": "a1f7daa0ae5d3b8890317a6ca854ec4554489ec72eaeafdd3ccba98e9e60e21b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\21\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\21\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\21\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "631435f3a8be024474b0a12724f8e127702f448d4357bf0ff8db8a3abbea460c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\22\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "75fc975a0585fc3a4cc9a51e0eda91c881b0f8bb42ded0ab228f0f13ba3eed16"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\22\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\22\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "9d167d3e7e432f30e2b5f3e7cc2ebdfcf45c1c3583582ef1ad81f5dc217df39d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\22\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "6842755958841626b81229e292c651824f75a98d142ad0ac8f9a598733d644ed"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\22\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\22\\C0\\resource_guard.json",
+      "bytes": 912,
+      "sha256": "b7e5a972d5a01a1b773c4070a88d9be61d6fe67dea27a31010e79bb555dec2df"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\22\\C1\\stdout.log",
+      "bytes": 125,
+      "sha256": "b03dbde2eee003b3564b19b23923aefaf5bbfe84f4be1e3e40a0df4e99d62b05"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\22\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\22\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "009d4f9c69baa249154ac5be6c82c40922a3f922dc56a0c6ce4ede99b7d38f7a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\23\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "50d2dc333e7ea379f4eab05adac5578526d0d38d6e047e19287e1436829cce99"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\23\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\23\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "967f30903817f88625063267a2d3eb03344db596251f85799f4bfb1c221767b8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\23\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "75fc975a0585fc3a4cc9a51e0eda91c881b0f8bb42ded0ab228f0f13ba3eed16"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\23\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\23\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "22b08ed3fa5ef11e6653f68e0d7499789a4aea02ec41ac7747ec000131b4e177"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\23\\C1\\stdout.log",
+      "bytes": 125,
+      "sha256": "065bd74d3b2f740806cd57a032484d93e662913eb56ab713cf881fb26c6b42a1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\23\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\23\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "1142f4fe027b3eaac75fd0fa12eee835841bcb6aa6557d2db152a1bcaf75bd55"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\24\\observed_control\\stdout.log",
+      "bytes": 123,
+      "sha256": "61cdef358b8e0c7e011d6cf15f38954441660f63485c39b39ad1218af5904799"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\24\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\24\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "549fe55bf39a41d09b8b32deca9278080b001fceabf1124d536d5ff2c7b40b0f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\24\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\24\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\24\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "afdd83ee8b960caec2e8918be3aade659d84af60a88fc1dcd9f777a779dd1987"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\24\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "f12a1ce2d542f5fbe4a7de77da30c580e7345f32c57497f3b082efb40cc522cb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\24\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\24\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "3fb9fbd5540114419ae6333a19311164eae2f916e208b442b9e1430d89fe8416"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\25\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "a69a4adf46f1f97c88b153c12751fe0f32a999709b4e608616f2f4263a80ad98"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\25\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\25\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "7ecda2e8b222aef2fe9b850b602dc82866de7bb71d177d348c7dbb36454e761c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\25\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "bc8907a2f871bbfdbf13477f2ae61c4b74aa81336675bc568a0208a3b2deb430"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\25\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\25\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "78c6bccf843b4a9086c35429b9e8bcd4ce5534144d8206fa55f12f250a545a12"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\25\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "456add54d08281605b675b93a07e01a85516df9696e914943ee30f7a24cb141d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\25\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\25\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "63b2367fab47fe7cda106a838c616cb0a3bbd297de799e8fbe45f07bab020ee5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\26\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "affbcdfb545f3366010493088d88f899bf2136950bcb876b813cb731c25fa3fa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\26\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\26\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "c3dfba13cf331618340ccbf38909809256ccfaa868d8e49d6c1d75a59e4c594c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\26\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\26\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\26\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "07fee7fabbee238e09b171358c289d015a137eb5f6fa2d86163dfc336cbf6d4a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\26\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\26\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\26\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "ed57ea8a84d38679d8d8bab4281a9f3b491d91342f33593693f7b40dc896feed"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\27\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\27\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\27\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "25825ef8fa4b731c55849697d4f0888d46b110ac0154903fdf014a8a85dca759"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\27\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\27\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\27\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "01278ff446986f6c69d86855c5673da723f9719030d701b5eb2199b5f24e7372"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\27\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "456add54d08281605b675b93a07e01a85516df9696e914943ee30f7a24cb141d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\27\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\27\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "242a8e7712c1157f8c6e6aed4c1636dade24bf4ef3d9b87dd281cf009ed7feec"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\28\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "6842755958841626b81229e292c651824f75a98d142ad0ac8f9a598733d644ed"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\28\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\28\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "8e4081c0c832ceaaddd409fd43a20ccb0318901664a7687683a6498cdbf727e3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\28\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\28\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\28\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "79094e15ece470972aa93339e27b3e083ffc60b9fcf9788d648fd376456be65d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\28\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "02dc691f648ba71ab4191739873f96b9c155c1d3eb2aed555a548c0e79d59711"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\28\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\28\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "c3e487b24bc7f0c474395a405055f4943a1ba628f4828b31750d8425cbf544f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\29\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "13909a02cdf9a3cefd0f046f0784188bac2b2a86f24878ca70c81c659b621af0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\29\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\29\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "b298048002f76191f8e16dbfa4eed971116b15b096b12fd6c728b8df23536784"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\29\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\29\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\29\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "2123f46752edd477f7f144b44efda8f19976cb6d539eb63e3870c2cd1d6a4668"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\29\\C1\\stdout.log",
+      "bytes": 123,
+      "sha256": "61cdef358b8e0c7e011d6cf15f38954441660f63485c39b39ad1218af5904799"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\29\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\29\\C1\\resource_guard.json",
+      "bytes": 912,
+      "sha256": "273b8620c56476aed1df80c8f4eb4719d3af6f06098c75ac9f21f61e969cca7e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\30\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\30\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\30\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "0a98f45d14db4041fab2bc4af699d0649a6d872b2cf33f2ab5771897c596aff8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\30\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\30\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\30\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "4253d8c535658c6d0190a888ca0bcf6084a34665b6420cc3cfe8c971e4a2a941"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\30\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "0e5e4876a0f4548d2c763ed319bd912b614f74a385f8559e1c8dd566cc839022"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\30\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\30\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "11b922b49152dc1b70c4822e0aa2c3ced9f390108119bde698d27a5144d32594"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\31\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "0e5e4876a0f4548d2c763ed319bd912b614f74a385f8559e1c8dd566cc839022"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\31\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\31\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "5ce7cf161219ec69b869200091ca2f750963e4bfba615ebe397f488c77ec6ad9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\31\\C0\\stdout.log",
+      "bytes": 125,
+      "sha256": "b03dbde2eee003b3564b19b23923aefaf5bbfe84f4be1e3e40a0df4e99d62b05"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\31\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\31\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "3230cc296d243d5d857d3af2255e6f383cf3af9e3fbcecb5499dd0b8b35a2082"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\31\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "41388560b1d2d18720d64946c4bc0ab34d47f25578fd413afc227a84d2f9da7a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\31\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\31\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "d81686465b158b345485010cda3a21b15e2323d065f3a6436f8e0c649c46c977"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\32\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\32\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\32\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "e89ae388b4e41ac978b4ac5dfff28f1771a4abc3231573c206e9bb8b80ee28d9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\32\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\32\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\32\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "895b3b10f1d088f2026e94d9cdde106b558c4fa61818aaca76283538f79f1801"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\32\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\32\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\32\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "e45fc8e7e8b879ede631a173144af392617f19b8f5f029727ad79898463f7a7a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\33\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\33\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\33\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "bfa6cfae0a55bba0c55c761475f9a933c7b75b4b0f4afde269ef5611c94cd6a9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\33\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\33\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\33\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "7de7f9b8c7435dac9dc3d13401c14b34b75abffb5cb941105853707983e93d2d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\33\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\33\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\33\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "956c66a55e7deaef30217e6b7fcb8e645a9b31385911740655071dacb23757c6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\34\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\34\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\34\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "6864272d84b39452ff11cb159f60b55ecd5c66e341a7488b3de72d6575dff431"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\34\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\34\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\34\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "d09879f8c16e4f1d52cd48ec69495449627a089e80bad52170e472b47e13392a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\34\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\34\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\34\\C1\\resource_guard.json",
+      "bytes": 912,
+      "sha256": "488e96f8c635e16cd40efe5ce6ebfd392ac8d001498ce432f41433bde5cbf207"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\35\\observed_control\\stdout.log",
+      "bytes": 125,
+      "sha256": "b03dbde2eee003b3564b19b23923aefaf5bbfe84f4be1e3e40a0df4e99d62b05"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\35\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\35\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "797250a37c0ac4907563971c99c0ed3cd9098723dca4cc9b1eadd24b875af2e0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\35\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\35\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\35\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "1c966aa87291f5d6376e19ffebb165a558b62399b9b4d65adc910722a0a94f90"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\35\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\35\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\35\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "8f6905ce9bb2baf3735c5e534423b10b4fe5cbcd6af4075ddf22d15b64d3d51d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\36\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\36\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\36\\observed_control\\resource_guard.json",
+      "bytes": 926,
+      "sha256": "12a864a16edb27f9f1ca172dc52be02ad321b1fd0e8741300b55860ea1d0a191"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\36\\C0\\stdout.log",
+      "bytes": 125,
+      "sha256": "53d0715154ce0f30e62d836cddbfd77054cdc93daa2316a0c5e373cb96be142d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\36\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\36\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "98e675826614dc9a73b9affe76e68e9a4380b33b4156d9284a024334da248656"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\36\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "8396bb2b973900de348ffd2a42c37ff5a91c06e5203b3a38f7c1ec80b3ea506d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\36\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\36\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "d51d87800e52b9153626cf597f2d1ec999a0043dd1b1ee197f630ac740d520a4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\37\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\37\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\37\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "dfe0f1d0d846bae90612b5e9d2f1294aa87050657e0beac75675ff41cf5191de"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\37\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\37\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\37\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "5f0004a719282657a5a8622525227d21dd31b86aef9378eb9fb8ea12607dbbc3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\37\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "fb84b5ac9c1e11caf8c122677c80b1293670b7f938882a0e530903f06075389d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\37\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\37\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "31cdbac20ce499ff609eee637f079db4eb47db33e102787e18c7ac972072b85b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\38\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\38\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\38\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "ae584abc7e78529ae30ee2edc98639d634c1ac320054d5cfdc6d35ad0a3d06a3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\38\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\38\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\38\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "d38c206b273266645d646a2d236658bc9c1ff067ca22ba5b5f6db5859bb66c6c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\38\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "1960985598ec7046cda10b1d0932976a22f4e9f1e7be58f9f129143ed0073c2e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\38\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\38\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "a780be3bd3785474e65ccc441e5afbd31f6b7f9ffe16a6c20737501329eb0105"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\39\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "41388560b1d2d18720d64946c4bc0ab34d47f25578fd413afc227a84d2f9da7a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\39\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\39\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "8dd662bd09513fb27570a1f845034b7c24b6553ef2cb1a8f7420d687ec553de1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\39\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\39\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\39\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "e7b0eedd32e1eebe400a3c9cf2b3fc7694225462ee85a156d3295cade78eefee"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\39\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "affbcdfb545f3366010493088d88f899bf2136950bcb876b813cb731c25fa3fa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\39\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\39\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "d37a9c349edd162667c73efd14456d718a8bae007fe3886269309bacaeb22e43"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\40\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\40\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\40\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "e6caed18065df4e6b6862a51ce0716a6a5149560e9ea80ea36dbd8655be0092e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\40\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "41388560b1d2d18720d64946c4bc0ab34d47f25578fd413afc227a84d2f9da7a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\40\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\40\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "d66bfd2cff5e37745f02f84ef3db6cf3c80380ddbdd4506e23bdca3786f508bf"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\40\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "a69a4adf46f1f97c88b153c12751fe0f32a999709b4e608616f2f4263a80ad98"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\40\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\40\\C1\\resource_guard.json",
+      "bytes": 912,
+      "sha256": "468ef48fe2a14c7a45bb41b8cc006f5cdadc420be01438a09d57275ac17df534"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\41\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "d23540637b9757dc1f8f79fecdc968fe75e4e453bfde85fda424ef5817126b3e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\41\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\41\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "2492eb3f1b5a0a13cc8948bb60d610b73fa767dc301ee3eaa8a2474b6e68a312"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\41\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\41\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\41\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "a523e8a4f906d60d98021cde078a8a02e4ebd03fdfc6f759dc26bf8a6007990a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\41\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\41\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\41\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "bc8ca7419d0133e8223fbe536d6ac3c2df4b2ea63c3ca32e52f5e9abeb671680"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\42\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\42\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\42\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "42f66ba750de3d242f2ab8da9bd54d1704d37e2867b8b9ef457ad39ed15b0426"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\42\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "848bbd7c41bf87a7d11921324d67277a76b6d0bd6e668393220f0f825a62424b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\42\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\42\\C0\\resource_guard.json",
+      "bytes": 912,
+      "sha256": "171e408bf7f6828073072e75843c14d697188fea234e4f75b37d46e763ae129f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\42\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "b25a9c4ede7f9378aedb2522223d36f547bc7df48f3954a014c931d851cd8974"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\42\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\42\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "75762945d16db65051c82640ecaddd8df5bb6240c6132f230d262be2d213ff12"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\43\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\43\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\43\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "1fdf4a82d80c56dece8837165db9c1f2be80ddee66ec621cc0b4f91d974b3850"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\43\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\43\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\43\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "13b23168531807905279b9acff364d7676258fb44e573e5a06dd4ce12e23a86c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\43\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\43\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\43\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "f2638c234590e90d94ee2c817c37be8b88f5af26631d227dd70c6bd7b89bd9cb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\44\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\44\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\44\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "b90b74479c07766f6b29e527fdd48969bde926c2db9734686521a3c36fda7919"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\44\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\44\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\44\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "9c15df2b399b77db74305d26620a57db3b4fafeda3df637e58d4f3e046d8d98f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\44\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\44\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\44\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "a66988e7dee511651a121f34b78b96db4ba26f32b58f58bd2cefaa247a1d9591"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\45\\observed_control\\stdout.log",
+      "bytes": 123,
+      "sha256": "61cdef358b8e0c7e011d6cf15f38954441660f63485c39b39ad1218af5904799"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\45\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\45\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "2f459a5a2a970b05d7860b8169680ed9e962294c172ba6a904b0990b315c2df5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\45\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\45\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\45\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "38b8bf3219588eb76ed4e64c5666bbc89919574c613f53fa158913d79ca3243b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\45\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\45\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\45\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "59f9d490e7faa626d37f60639e9d4e8df956b1bc4b07189e03e5d5594cb0e9e3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\46\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\46\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\46\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "f2fdcee8593c8f7241e6d4884e808ca5d6790b134f036eb14db8539563d39c26"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\46\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\46\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\46\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "e87a5a203809af0f506dc37a267c9f859a26e160e1816c0ae4bd7047f102d471"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\46\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "8396bb2b973900de348ffd2a42c37ff5a91c06e5203b3a38f7c1ec80b3ea506d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\46\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\46\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "4009ae907f741e5f490dc792dad30332ac95f38572b45f6a7d996db52a4807b8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\47\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "6842755958841626b81229e292c651824f75a98d142ad0ac8f9a598733d644ed"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\47\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\47\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "d705bfd3d6f9e35522ccbc9b9d657256cf8e6d7420008ca98afb9da824491132"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\47\\C0\\stdout.log",
+      "bytes": 123,
+      "sha256": "61cdef358b8e0c7e011d6cf15f38954441660f63485c39b39ad1218af5904799"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\47\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\47\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "44868277064d28bd843e10e97398a0b4fc01b081b72f794b214a3609033ff45f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\47\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\47\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\47\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "c382c26482fce43076b1cf32dd881e71574bef3e53e727dd5828a93715ac16c2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\48\\observed_control\\stdout.log",
+      "bytes": 123,
+      "sha256": "61cdef358b8e0c7e011d6cf15f38954441660f63485c39b39ad1218af5904799"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\48\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\48\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "e2f52e8c5b9dd206cfef35f636c024431a429fa484202531b7e396a8d1139f3e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\48\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\48\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\48\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "d09341267220a1089861b5c5d6a61353d7f874c9487eed27458dba396b7076d4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\48\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "473ed312d6732f14b801e04c5de53d4680ee35ae32cbc915ddfee11eb3a9c2e2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\48\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\48\\C1\\resource_guard.json",
+      "bytes": 912,
+      "sha256": "07ef8d7f076a61725d49f4ad1a5890b2ab755e06eb613ebcc07a3ba70eebbdda"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\49\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\49\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\49\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "f74c570f4b3fe2412cf430ae6931422dcba10ca533b655e4d21c7cece9f9e3ef"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\49\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\49\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\49\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "6fb1dde93e9d888c72ea61507d6862b017e151b9e3951bc5c012bcb3c12f634b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\49\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "bc8907a2f871bbfdbf13477f2ae61c4b74aa81336675bc568a0208a3b2deb430"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\49\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\49\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "e848c0565b513143ae8aedfe5b53c679aa653d56c181d695d2a2c0ac532ef71c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\50\\observed_control\\stdout.log",
+      "bytes": 125,
+      "sha256": "b03dbde2eee003b3564b19b23923aefaf5bbfe84f4be1e3e40a0df4e99d62b05"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\50\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\50\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "c60168a7997664adbdcff78c0844f3143b62ba7bf4a313d623245de8db8ed5ce"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\50\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "65d24a29e349dfd299f4666abbeca60b8792d0b50320fd1783cb68e079bc6cb3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\50\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\50\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "8430161ae8048dcc9647c93427cb2cd68c0a02956b1a1cee08f5a3625e97ba1f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\50\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\50\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\50\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "56ac8cc2e0233c36a10d3180b367d3c97ac6cb6c2042aa90fe095665347320c8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\51\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\51\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\51\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "4dcbef565150e9d9e3639ddd3ba3991489772d093cae11600a02a170b03c7b43"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\51\\C0\\stdout.log",
+      "bytes": 125,
+      "sha256": "b03dbde2eee003b3564b19b23923aefaf5bbfe84f4be1e3e40a0df4e99d62b05"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\51\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\51\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "cc337f0a91c277e677163666d0a695ebca43b4f5be30e03b1c9cd1820f44a2ae"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\51\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\51\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\51\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "27bd850257f6db942fded7f31cc947cfabfe9671ed4fb93261cb171c9951a372"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\52\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\52\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\52\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "21fd952bf60fbef34da044ae89e85d8361ecdbf96cb03db028357e510b423763"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\52\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\52\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\52\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "4b0dad11efe1dde45b0a5c4ededbe70c940d0dad2f3e26af575f8bc7fc121988"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\52\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\52\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\52\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "035de5a25751f7493a5fb58920ba0ec8f2c15f926e4b63c2c97b156f3ef18dc6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\53\\observed_control\\stdout.log",
+      "bytes": 123,
+      "sha256": "61cdef358b8e0c7e011d6cf15f38954441660f63485c39b39ad1218af5904799"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\53\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\53\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "534c62eb2b15d54bed1d3a71571a901a00b833c985bcc7a5f27e666fe1b6138e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\53\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "affbcdfb545f3366010493088d88f899bf2136950bcb876b813cb731c25fa3fa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\53\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\53\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "09e8b989b0e1285a68ed091610d5723fd093865fa73860a06e5f483d0b4d8f1d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\53\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\53\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\53\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "627a34180d17c37be9403dffab988e8d419e028a59cef46abfea1f1fd0770e29"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\54\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\54\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\54\\observed_control\\resource_guard.json",
+      "bytes": 926,
+      "sha256": "aeb02ec8ff9bf899b1180db4190b0b8c1a9e3614cf69b40f5cbfec9b37652da2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\54\\C0\\stdout.log",
+      "bytes": 123,
+      "sha256": "61cdef358b8e0c7e011d6cf15f38954441660f63485c39b39ad1218af5904799"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\54\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\54\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "5fe7d45f9454148f3b6adc233c5f9bbaa5c185be0007d36e44558dd6d4e4c185"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\54\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "fb84b5ac9c1e11caf8c122677c80b1293670b7f938882a0e530903f06075389d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\54\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\54\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "5d2200e1d37ec408d70cb849ed42bdf54662b7e644be4b1550b017267c9c272b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\55\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\55\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\55\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "a6cb292dc0d35b93b5256e182d2005cb6025fb22c209b845baa94fd95ab6fdda"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\55\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "41388560b1d2d18720d64946c4bc0ab34d47f25578fd413afc227a84d2f9da7a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\55\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\55\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "c35fab447e1fe6889d8767a14f4541d890638d70c79042e39ab910d6fb6e558e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\55\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\55\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\55\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "e435219c0039daec3816739f63e55f36a9ce6ea636d76070f1070e0aeb6218e2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\56\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "137c17d3a56036b648d4d30a348b706da76f0c6b5a14ea38b08016eeab11085e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\56\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\56\\observed_control\\resource_guard.json",
+      "bytes": 926,
+      "sha256": "5b18f7e28ab33733821584109c9eb87e0d848487cd2d8cd00df78f7560fedf2b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\56\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "2008465bb7e22d2c03effc6de41ec9d5d8bab547f29d7e3fed7276f1c804ecdb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\56\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\56\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "1adc877252f391b6af4e3bb9133197887d278bec0c33b821037dfa890cf4cf99"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\56\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\56\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\56\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "03f7d8b4617e9779f5d2ed26c75cb81b5bbddbbabfea11c2d8835855ba4de515"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\57\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "f12a1ce2d542f5fbe4a7de77da30c580e7345f32c57497f3b082efb40cc522cb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\57\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\57\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "ad94b5c552ed7b9b0c159e54b3608826216eb1fb412b7f904c8e9f463bbd9b14"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\57\\C0\\stdout.log",
+      "bytes": 125,
+      "sha256": "b03dbde2eee003b3564b19b23923aefaf5bbfe84f4be1e3e40a0df4e99d62b05"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\57\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\57\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "d027b0652c93123ae464387f00f53a1b78fcaa1896e59a406da9d2a9b7b143de"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\57\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\57\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\57\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "569369b42a3559537070fbb68fb42ab5b0ee920399378d1a5085aa1b3e013400"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\58\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\58\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\58\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "4cf7c652cc40c9286a82652dd5ab95bf85edf6e96985b28b1f340c3af0b3d127"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\58\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "d1108b667d7ac4bdd3dfc64cd30a7436e56ea9620f393f85bd47f6a68f49e6b4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\58\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\58\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "64a3c37bad679df77045a02efb144d39872593bb756ad16acc15309a634fc95d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\58\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\58\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\58\\C1\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "3c83434db54d3d7fd67e841e80600215cbf983afc549056bc1e4007acfe5ba88"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\59\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\59\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\59\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "134aa4c693fe40dc2d1d91cb4fc6fb855357c5cd0f596936b72486c5c0332abb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\59\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "a69a4adf46f1f97c88b153c12751fe0f32a999709b4e608616f2f4263a80ad98"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\59\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\59\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "1fa04f25459cec6c70c2ed23532a44cca907040e0d66e63d2fa96a35b7e5865a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\59\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\59\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\59\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "0d319f1f7b2558e4f89550197c9a01204c231717425cc509f2e6c7b0ce77f274"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\60\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\60\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\60\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "0ca9fdeda082055982e743133003864160cfade72204488d4f5c9ce8cc93b555"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\60\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\60\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\60\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "9650de26a2f949c5a808aa41a95170686eaf786297763b3d90cd3bbeaed338e6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\60\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "95fad785934373b32381c85d75ebd78fce262ecd4c2369f1c6916e1f0244e703"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\60\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\60\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "a917740ab5c607726830576a428e2392351979f27706370623701350bac4f2bb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\61\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "266072a24b4b0286f1b3095e2d60a9dda07cc69be13b23f472ef277388325176"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\61\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\61\\observed_control\\resource_guard.json",
+      "bytes": 928,
+      "sha256": "75c81a785cd5dd899b97664cc0d47e58103e5bbcf095e9e472507ddaa40ee544"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\61\\C0\\stdout.log",
+      "bytes": 123,
+      "sha256": "61cdef358b8e0c7e011d6cf15f38954441660f63485c39b39ad1218af5904799"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\61\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\61\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "b1b9365529db66a66ce6cc6ccfc726626397d7ea10564f59970a3f2c2d51ccdf"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\61\\C1\\stdout.log",
+      "bytes": 123,
+      "sha256": "61cdef358b8e0c7e011d6cf15f38954441660f63485c39b39ad1218af5904799"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\61\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\61\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "2e2faf96213e72e624dbc6ab91a0b13fc07d87e00ead5092fd115a373bf65f18"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\62\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\62\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\62\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "13f0cbf3acc970a67e7f62041daf99a7c8ddcc15ca875bf60124e3e7f3f94734"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\62\\C0\\stdout.log",
+      "bytes": 123,
+      "sha256": "61cdef358b8e0c7e011d6cf15f38954441660f63485c39b39ad1218af5904799"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\62\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\62\\C0\\resource_guard.json",
+      "bytes": 914,
+      "sha256": "df07d3ca8bc226ad99b4506f0ea783126041b2a49ddbc2f6c4c5195e4ff31970"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\62\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\62\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\62\\C1\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "48fbbd351f3b85c50463e88eef0c3afa0dd20489f16f9fd61953e50aca0e6da6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\63\\observed_control\\stdout.log",
+      "bytes": 127,
+      "sha256": "13909a02cdf9a3cefd0f046f0784188bac2b2a86f24878ca70c81c659b621af0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\63\\observed_control\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\63\\observed_control\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "2a07f82c1ac262216f909385b01ed30d30e605060e4776aa993a4f99698cc031"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\63\\C0\\stdout.log",
+      "bytes": 127,
+      "sha256": "52154a30ba96bfa95c8c4ad12a825430d0d421c969a46a97a8cb9fcab9a51175"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\63\\C0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\63\\C0\\resource_guard.json",
+      "bytes": 913,
+      "sha256": "fed7a70960acf71d1aa5d0a5bf8a97851e2e042036af982bc374ad3720abfb0f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\63\\C1\\stdout.log",
+      "bytes": 127,
+      "sha256": "8fa2ca5de6ffe97abbea19aacd55f915d42f1267d34ae311a30eb1c2ac141122"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\63\\C1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\planned_jobs\\63\\C1\\resource_guard.json",
+      "bytes": 912,
+      "sha256": "3c897f4b29bfa82b71b9ed3056f2667d96ed8943c845c271e2cf6c89cc8bf20b"
+    }
+  ],
+  "native_cumulative_contexts": 410,
+  "native_cumulative_API_RR_recordings": 21818,
+  "native_cumulative_queued_completed_logical_RR": 21810,
+  "native_recorded_only_discards": 8,
+  "native_no_API_omissions_separate": 4,
+  "this_clean_pipeline_helper_children_converter_plus_composition": 320,
+  "opaque_signed_SDK_shader_dispatch_count_known": false,
+  "scorer_thresholds_models_unchanged": true,
+  "limitations": [
+    "Genuine composition is only produced by future helper dispatch through the pinned original CSO; no CPU remodulation or oldB+oldP-oldTP construction substitutes for Tclean.",
+    "Fresh helper/device perjob differs from original reusable server-worker cadence. Every observed all3-output replay must pass bit-exact before clean arms of that frame; mismatch stops immediately without threshold or retry.",
+    "Clean constructed radiance and its FP16 quantized raw encoding are distinct scoring references. Clean SDK response is not physical ground truth or a quality acceptance oracle.",
+    "Tclean vs oldB/oldTP also differs in source noise/distribution and opaque context history. Two clean repeats do not establish game behavior, statistical independence/confidence, or a SDK/private storage mechanism.",
+    "Native and composition alpha bytes are retained descriptively; no claim that SDK output alpha preserves its inputs. Composition history remains disabled exactly as in original templates.",
+    "Nyquist beta/DC is a frozen signed rank1 descriptive decomposition; sign phase is not a continuous off-grid quadrature estimate. Frozen full64/mature16/startup/activation scorer and thresholds are unchanged."
+  ],
+  "production_changes": false,
+  "game_run": false,
+  "quality_accepted": false
+}

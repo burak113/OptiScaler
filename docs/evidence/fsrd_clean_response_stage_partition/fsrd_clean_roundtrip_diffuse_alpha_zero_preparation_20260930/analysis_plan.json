@@ -1,0 +1,24 @@
+{
+  "status": "FROZEN_BITS_ONLY_FUTURE_ANALYSIS_NOT_EXECUTED",
+  "observations": {
+    "new_RZ": 2,
+    "prior_R": 2,
+    "static_graph": 1
+  },
+  "arms": [
+    "RZ0",
+    "RZ1",
+    "R0",
+    "R1"
+  ],
+  "pairs": "All6 unordered pairs; all3 buffers per pair, serialized RGBA/RGB/alpha exactness and differing channel element counts only.",
+  "color_interpretation": "If every pair color RGB bit-exact, diffuse alpha65504-vs0 caveat is empirically closed for this actual CSO and complete frozen graph. Does not prove all branches, SDK-alpha behavior, real ray length or game cause.",
+  "retained_alpha": "Explicit t2 A0x7bff\u21920 synthetic control; no silent input repair. t0 specular A already0; both lobe RGB untouched.",
+  "no_scorer": true,
+  "no_models": true,
+  "no_64_measured_series": true,
+  "no_SDK_calls": true,
+  "output_provenance": "Same historical EXE/CSO/law identities. Auxiliary UAV bytes retained and compared but may be unwritten in active history0 fast path; no semantic history claim.",
+  "strict_contract": "Zero ordinary helper validation errors/warnings required. Canonical direct guard and physical checkpoint precede metadata/output gates; failed prefix retained, no retry.",
+  "execution_authorization": "Final R independent gate pinned; separate RZ independent prelaunch review and root authorization still required."
+}

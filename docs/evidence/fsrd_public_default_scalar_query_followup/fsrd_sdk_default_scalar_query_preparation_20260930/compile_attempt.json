@@ -1,0 +1,27 @@
+{
+  "command": [
+    "F:\\VisualStudio\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+    "/nologo",
+    "/std:c++20",
+    "/EHsc",
+    "/O2",
+    "/IF:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\api\\include",
+    "/IF:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\denoisers\\include",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\fsrd_default_query.cpp",
+    "/Fe:F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\fsrd_default_query.exe",
+    "/Fo:F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\fsrd_default_query.obj",
+    "/link",
+    "d3d12.lib",
+    "dxgi.lib"
+  ],
+  "actual_started_compile_invocations": 1,
+  "guard_child_is_direct_cl_exe": true,
+  "TEMP": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\compile_TEMP",
+  "TMP": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\compile_TEMP",
+  "pre_compile_freeze": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\pre_compile_freeze.json",
+    "bytes": 20074,
+    "sha256": "f76bf230c630e224f34dfef8ad3a8dba654e2d6ac5aa4957a552e0cdc0dc34e9"
+  },
+  "query_EXE_invoked": false
+}

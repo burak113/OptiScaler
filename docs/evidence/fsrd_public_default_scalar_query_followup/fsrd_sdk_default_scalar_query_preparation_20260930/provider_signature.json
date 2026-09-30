@@ -1,0 +1,9 @@
+{
+  "Path": "F:/OptiRevelations/OptiScaler-ffxD-alpha/external/FidelityFX-SDK-v2/Kits/FidelityFX/signedbin/amd_fidelityfx_denoiser_dx12.dll",
+  "Status": "Valid",
+  "StatusMessage": "Signature verified.",
+  "SignerSubject": "CN=Advanced Micro Devices, O=Advanced Micro Devices, S=California, C=US",
+  "SignerThumbprint": "33D35682079E201671B738B7209B4586103BC271",
+  "TimeStamperSubject": "CN=DigiCert SHA256 RSA4096 Timestamp Responder 2025 1, O=\"DigiCert, Inc.\", C=US",
+  "MetadataOnlyNoSDKLoaded": true
+}

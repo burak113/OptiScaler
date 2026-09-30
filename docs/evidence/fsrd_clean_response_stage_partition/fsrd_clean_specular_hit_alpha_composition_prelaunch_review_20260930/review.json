@@ -1,0 +1,150 @@
+{
+  "status": "READY_FOR_ROOT_SPECULAR_HIT_ALPHA_COMPOSITION_V2_AUTHORIZATION",
+  "blocking_findings": [],
+  "producer_pins": {
+    "readiness_v2.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\readiness_v2.json",
+      "bytes": 3693,
+      "sha256": "e32359cd871236b0049570d12c8e442f675aa52343d150b95f832cc76a310181"
+    },
+    "registration_v2.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\registration_v2.json",
+      "bytes": 2244,
+      "sha256": "98e4267c0879cc894a7e7cd52d6b3bf6769bee545615edf67e4273557eb4e86c"
+    },
+    "pre_execution_freeze_v2.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\pre_execution_freeze_v2.json",
+      "bytes": 2535,
+      "sha256": "a89ed7f26ee96bb3a36d54b9f8256d944de46fd79b890e931b70650c83ab4a5e"
+    },
+    "completion_manifest_v2.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\completion_manifest_v2.json",
+      "bytes": 3173,
+      "sha256": "b11ba9acbf4d7ce069ced6e270e5d208d597d95b6c9570d62ffec2dacfae823a"
+    },
+    "registration.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\registration.json",
+      "bytes": 1089838,
+      "sha256": "b0ed588f4af7ccb2bc38dedbc7777fce6bbf4c1c0a1c7f2d607160f5700ddc7b"
+    },
+    "pre_execution_freeze.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\pre_execution_freeze.json",
+      "bytes": 226928,
+      "sha256": "dffb689bd3c3084e10c468ee47462e74ad704e34fe0d126327dbae6b4cf95c6a"
+    },
+    "completion_manifest.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\completion_manifest.json",
+      "bytes": 227545,
+      "sha256": "c30215d2acb49e377648d311000382d79b983b48d61e8072c69af4408f86ed58"
+    }
+  },
+  "source_validation": {
+    "direct_pre_post": 1366,
+    "inherited_unique_pre_post": 9986,
+    "expanded_unique": 10645,
+    "inherited_seals_pinned_once": 3,
+    "source_bytes_unchanged": true
+  },
+  "graph": {
+    "frames": 64,
+    "traces": 3,
+    "jobs": 192,
+    "planned_outputs": 576,
+    "order": "frame0..63 A0_r0,A10_r0,A0_r1",
+    "t0_spec_t2_diff_fullRGBA_actual_slices": true,
+    "other9_fullbytes_andCB96_priorC0_exact": true,
+    "Flags8_Detail0_HistoryValid0_WriteHistory0": true,
+    "excluded_A10_r1_full64_native_lobes_exact": true,
+    "new_fourth_composed_trace_claim": false
+  },
+  "runtime": {
+    "PREP_exists": true,
+    "evidence_parent_PREP_exists": true,
+    "all192_job_parents_exist_only_immutable_in0_in2_job": true,
+    "all1152_job_targets_absent": true,
+    "three_global_results_and_TEMP_absent": true
+  },
+  "accounting": {
+    "existing6_SIM_exact": [
+      {
+        "name": "valid_helper_marker_outputs",
+        "exact_existing_SIM_replay": true
+      },
+      {
+        "name": "diagnostic_reject_retains_dispatch",
+        "exact_existing_SIM_replay": true
+      },
+      {
+        "name": "nochild_stale_marker_reject",
+        "exact_existing_SIM_replay": true
+      },
+      {
+        "name": "stored_child_returned_nochild_canonical",
+        "exact_existing_SIM_replay": true
+      },
+      {
+        "name": "stored_nochild_returned_child_canonical",
+        "exact_existing_SIM_replay": true
+      },
+      {
+        "name": "fresh_missing_guard_marker_lowerbound",
+        "exact_existing_SIM_replay": true
+      }
+    ],
+    "parser_guard_EXE_CSO_byteexact": true,
+    "physical_checkpoint_before_metadata": true,
+    "owned_F_TEMP_exclusive": true,
+    "source_one_Dispatch_per_repetition1_postfence_marker": true,
+    "no_retries": true
+  },
+  "analysis": {
+    "V1_schema_failure_preserved": true,
+    "V2_only_one_metadata_lookup_key_repair": true,
+    "prior384_output_records_authenticated": true,
+    "scored_values9_references2_windows4_fixed": true,
+    "metric_AST_byteexact": [
+      {
+        "name": "LUMA",
+        "AST_and_source_bytes_exact": true,
+        "executed": false
+      },
+      {
+        "name": "blur",
+        "AST_and_source_bytes_exact": true,
+        "executed": false
+      },
+      {
+        "name": "score",
+        "AST_and_source_bytes_exact": true,
+        "executed": false
+      },
+      {
+        "name": "moments",
+        "AST_and_source_bytes_exact": true,
+        "executed": false
+      },
+      {
+        "name": "detail",
+        "AST_and_source_bytes_exact": true,
+        "executed": false
+      }
+    ],
+    "oldB_four_window_checks_inherited_not_rerun": true,
+    "raw_constructed_truth_static_not_native_response": true,
+    "quantized_truth_actual_format10_encoder_exact": true,
+    "future_once_only_after192accepted": true,
+    "no_scorer_executed": true,
+    "no_future_actual_output_scores": true
+  },
+  "limitations": [
+    "Only3 selectedactual64-frame native traces feed192 planned composition helpers. A10_r1 is input-equivalent toA10_r0 but not a fourth measured composition trace.",
+    "Within-doseA0 native repeats differ; conditional between-dose composition metrics cannot isolate alpha causation.",
+    "All other9 full SRV fields and96CB match priorC0 graphs. Inherited64 observed all3-buffer replay is historical sealed evidence;0new observed replay jobs.",
+    "Helper timing fence interpretation is source-qualified, historical EXE/CSO bytes pinned; no new compile linkage or SDK/private shader-dispatch claim.",
+    "WriteHistory0 auxiliary UAV bytes may be unwritten. All3 outputs will be retained but consumedRGB interpretation remains separate.",
+    "No scorer executed during this review; oldB4-window score checks remain inherited sealed evidence. Fixed metrics/reference thresholds and signed rank1Nyquist phase are retained.",
+    "+10 is view-depth proxy, not traced ray length; no vendor/game cause or quality acceptance."
+  ],
+  "actual_review_GPU_native_build_new_scores": 0,
+  "quality_accepted": false
+}

@@ -1,0 +1,10 @@
+{
+  "status": "CPU_ROOT_PREFLIGHT_FAILED_BEFORE_AUTHORIZATION_OR_GPU",
+  "source_preserved": "tools_tmp/authorize_fsrd_diffuse_alpha_zero_20260930_attempt1.py",
+  "tool_chunk": "95d296",
+  "exit_code": 1,
+  "error": "KeyError: repetitions at root verifier line 58; registration stores repetition in the frozen job text, not job dictionary",
+  "actual_new_GPU_helpers_native_API": 0,
+  "producer_or_review_changes": false,
+  "correction": "Root verifier checks frozen job header width128 height80 SRV11 UAV3 repetitions1 and three outputs; no test input or frozen runner change"
+}

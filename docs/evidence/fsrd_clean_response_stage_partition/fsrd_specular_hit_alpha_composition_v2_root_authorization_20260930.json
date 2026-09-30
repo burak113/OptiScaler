@@ -1,0 +1,169 @@
+{
+  "status": "ROOT_AUTHORIZED_EXACT_THREE_TRACE_COMPOSITION_V2_ONCE",
+  "command": [
+    "F:/OptiRevelations/OptiScaler/tools_tmp/albedo_stage1_venv/Scripts/python.exe",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\run_composition_only.py",
+    "--execute-composition-only"
+  ],
+  "preparation_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\registration.json",
+      "bytes": 1089838,
+      "sha256": "b0ed588f4af7ccb2bc38dedbc7777fce6bbf4c1c0a1c7f2d607160f5700ddc7b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\pre_execution_freeze.json",
+      "bytes": 226928,
+      "sha256": "dffb689bd3c3084e10c468ee47462e74ad704e34fe0d126327dbae6b4cf95c6a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\completion_manifest.json",
+      "bytes": 227545,
+      "sha256": "c30215d2acb49e377648d311000382d79b983b48d61e8072c69af4408f86ed58"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\registration_v2.json",
+      "bytes": 2244,
+      "sha256": "98e4267c0879cc894a7e7cd52d6b3bf6769bee545615edf67e4273557eb4e86c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\pre_execution_freeze_v2.json",
+      "bytes": 2535,
+      "sha256": "a89ed7f26ee96bb3a36d54b9f8256d944de46fd79b890e931b70650c83ab4a5e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\readiness_v2.json",
+      "bytes": 3693,
+      "sha256": "e32359cd871236b0049570d12c8e442f675aa52343d150b95f832cc76a310181"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\completion_manifest_v2.json",
+      "bytes": 3173,
+      "sha256": "b11ba9acbf4d7ce069ced6e270e5d208d597d95b6c9570d62ffec2dacfae823a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\analyze_composed_cpu_v2.py",
+      "bytes": 7376,
+      "sha256": "51706feb59239b9f6da9555a13b7bba51183912b10c27461127c28122891abd5"
+    }
+  ],
+  "independent_review": {
+    "path": "tools_tmp\\fsrd_clean_specular_hit_alpha_composition_prelaunch_review_20260930\\review.json",
+    "bytes": 6308,
+    "sha256": "f460f343c9ec7efa2303d9bea6a63d1cc65f3ad44c77c767fcbd0706ae743900"
+  },
+  "independent_review_manifest": {
+    "path": "tools_tmp\\fsrd_clean_specular_hit_alpha_composition_prelaunch_review_20260930\\completion_manifest.json",
+    "bytes": 393310,
+    "sha256": "cd209fa1d2da9be1e6b014e505366a278576a3b46a0e1fcf1d51aa19ad81bad9"
+  },
+  "root_verifier": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\authorize_fsrd_specular_hit_alpha_composition_v2_20260930.py",
+    "bytes": 7019,
+    "sha256": "c6553f156edb2dd04b073526ce82909a38dc085dfec0da3b9e11bce9578cc429"
+  },
+  "root_seal_library": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\authorize_fsrd_specular_hit_alpha_20260930.py",
+    "bytes": 8582,
+    "sha256": "9fe5ac64096d2b99c88a2a766b77579ec2bfad3067a2bb0c47eecd80668dce03"
+  },
+  "checked_records": {
+    "pre_execution_freeze.json": {
+      "owned": 645,
+      "external_sources": 132
+    },
+    "completion_manifest.json": {
+      "files": 647,
+      "external_records": 132
+    },
+    "pre_execution_freeze_v2.json": {
+      "owned": 6,
+      "external_sources": 2
+    },
+    "completion_manifest_v2.json": {
+      "files": 8,
+      "external_records": 2
+    },
+    "review": {
+      "files": 5,
+      "external_sources": 1366,
+      "inherited_source_manifests": 3,
+      "inherited_0": {
+        "files": 4,
+        "external_sources": 4539
+      },
+      "inherited_1": {
+        "files": 7,
+        "external_sources": 131,
+        "inherited_source_manifests": 1,
+        "inherited_0": {
+          "files": 5,
+          "external_records": 5672
+        }
+      },
+      "inherited_2": {
+        "files": 5,
+        "external_records": 5672
+      }
+    },
+    "native_gate_expanded": {
+      "files": 7,
+      "external_sources": 131,
+      "inherited_source_manifests": 1,
+      "inherited_0": {
+        "files": 5,
+        "external_records": 5672
+      }
+    },
+    "prior_composition_seal": {
+      "files": 4,
+      "external_sources": 4539
+    }
+  },
+  "absent_runtime_paths": 1156,
+  "fixed_order": "frame0..63 A0_r0,A10_r0,A0_r1",
+  "planned_only_helper_children": 192,
+  "planned_only_explicit_helper_shader_Dispatches": 192,
+  "planned_only_output_files": 576,
+  "authorized_new_native_contexts": 0,
+  "authorized_new_FFX_API": 0,
+  "actual_new_helper_GPU_native_API": 0,
+  "CPU_analysis_after_all192_accepted": [
+    "F:/OptiRevelations/OptiScaler/tools_tmp/albedo_stage1_venv/Scripts/python.exe",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\analyze_composed_cpu_v2.py"
+  ],
+  "V1_analyzer_forbidden": true,
+  "V1_metadata_issue_preserved": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\preparation_v1_analyzer_qualification.json",
+    "bytes": 1515,
+    "sha256": "8f30c9dff19bd585d62656f3f3e5347f88112cf8b778fa5c2e3ca46fe2cebb52"
+  },
+  "native_cumulative_contexts": 414,
+  "native_cumulative_API": 22074,
+  "native_cumulative_queued_completed_RR": 22066,
+  "native_recorded_only_discards": 8,
+  "native_no_API_omissions_separate": 4,
+  "clean_pipeline_helpers_before_this_run": 324,
+  "guards": {
+    "timeout_seconds": 240,
+    "maximum_working_set_bytes": 2147483648,
+    "minimum_available_memory_bytes": 1073741824,
+    "sample_interval_seconds": 0.2,
+    "only_sequential_owned_children": true,
+    "no_other_process_kills": true
+  },
+  "required_environment": "Driver exclusively creates owned F execution_TEMP and sets TEMP/TMP/OPENBLAS_NUM_THREADS=1",
+  "limitations": [
+    "Three actual native traces,192future helperjobs; A10_r1 omitted only by full64rawRGBA equality. No fourth measured composition or independent-noise-sample claim.",
+    "A0 native repeats differ and between-dose differences have comparable scale; composition is descriptive, not isolated alpha causation.",
+    "Positive specular A10 is a primary-view-depth proxy, not traced secondary-ray length; no API-violation/private-zero/production-fix claim.",
+    "Prior64observed all3output replays passed with identicalCSO/helper/template. No new observed replay is scheduled; actual inherited fixed9+CB are checked perjob before launch.",
+    "Historical helper EXE identity and current source reference retained; no newly proved historical compilation provenance.",
+    "Fixed full64/mature16/startup8/activation8to16 scorers, references and thresholds; signed rank1Nyquist beta/DC is descriptive, not continuous quadrature or physical oracle.",
+    "All actual outputs retained; color RGB finite checked, alpha never repaired. No game cause or quality acceptance."
+  ],
+  "no_retries": true,
+  "production_changes": false,
+  "game_run": false,
+  "quality_accepted": false
+}

@@ -1,0 +1,33 @@
+{
+  "status": "PASSED_EXACT_ONLY_T2_ALPHA_CONTROL",
+  "original_R0_job": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R0\\job.txt",
+    "bytes": 2215,
+    "sha256": "47deb9b4b1a1f56afa4037c007605afcc47e4850db6544df9b3fa0802222bbbb"
+  },
+  "original_diffuse": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\payloads\\in2.bin",
+    "bytes": 81920,
+    "sha256": "4b66181857d401282f400107fcd906581c943b4b5e07c58d07328f500f0fcbf6"
+  },
+  "control_diffuse": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in2.bin",
+    "bytes": 81920,
+    "sha256": "89481cbb3b3b3a61d7a1614dcf9cbf46ff1a58d11c9b750e3a5ea7387e2919f1"
+  },
+  "format": 10,
+  "dimensions": [
+    128,
+    80
+  ],
+  "changed_channel": "t2 FP16 A only",
+  "old_A_bits": "0x7bff",
+  "new_A_bits": "0x0000",
+  "alpha_elements_changed": 10240,
+  "bytes_changed": 20480,
+  "diffuse_RGB_bits_unchanged": true,
+  "other10_input_full_bytes_unchanged": true,
+  "CB_full_bytes_unchanged": true,
+  "specular_A_already_positive_zero": true,
+  "intended_scope": "Synthetic actual-CSO alpha-dataflow control matching observed SDK output A=0. Not input repair, confidence, traced-raylength or native quality claim."
+}

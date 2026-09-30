@@ -1,0 +1,83 @@
+{
+  "status": "ROOT_AUTHORIZED_TWO_GENUINE_CLEAN_NATIVE_CONTEXTS_ONCE",
+  "command": [
+    "F:/OptiRevelations/OptiScaler/tools_tmp/albedo_stage1_venv/Scripts/python.exe",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\run_native.py",
+    "--execute-clean-native"
+  ],
+  "exact_preparation_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\prelaunch_ready_manifest.json",
+      "bytes": 1642602,
+      "sha256": "72443c5257990fc952843ffd3bece15d7727bd5f8744df3464f72dd672d23aca"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\pre_native_freeze.json",
+      "bytes": 1642209,
+      "sha256": "127f62617d010d18ed04087226f23bacff8d913c09b46bfdea3abc0f9f502b90"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\registration.json",
+      "bytes": 15023,
+      "sha256": "510071ced272b175470de23d6c731bfe3b4e20d96d76e7e980c8cb5e70c07a89"
+    }
+  ],
+  "review": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_prelaunch_review_20260930\\review.json",
+    "bytes": 6789,
+    "sha256": "dcd4ce7c68a7b745404da7906de813226872d6889d70391194f8318a487d1ffd"
+  },
+  "review_manifest": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_prelaunch_review_20260930\\completion_manifest.json",
+    "bytes": 1671199,
+    "sha256": "7b2a660bb112104b2246c6d8cd80c88aa749b6aef368ee8f73db3c25c8c00f99"
+  },
+  "root_verifier": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\authorize_fsrd_clean_native_20260930.py",
+    "bytes": 4579,
+    "sha256": "0de101e6482a4ddb85242b1b49c7a3bd997b7ade1e9684001c8fb7e2c2fc2f38"
+  },
+  "streaming_pin_library": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\authorize_fsrd_clean_converter_v4_20260930.py",
+    "bytes": 5313,
+    "sha256": "7c83fd2f119d297e1f1e07b47ae40e73eb169a6fe737876607ebb42b68df7533"
+  },
+  "checked_records": {
+    "files": 57,
+    "external_sources": 5590,
+    "freeze_files": 56,
+    "freeze_external_sources": 5590,
+    "review_files": 2,
+    "review_external_records": 5647
+  },
+  "absent_runtime_paths": 16,
+  "fixed_order": [
+    "C0",
+    "C1"
+  ],
+  "planned_only_native_contexts": 2,
+  "planned_only_successful_API": 128,
+  "planned_only_queued_RR": 128,
+  "planned_only_Execute_Signal_waits": 128,
+  "current_actual_new_native_API_GPU": 0,
+  "previous_native_contexts": 404,
+  "previous_successful_API": 21434,
+  "previous_queued_RR": 21426,
+  "previous_recorded_only_discards": 8,
+  "previous_no_API_omissions_separate": 4,
+  "guard_policy": {
+    "timeout_seconds": 240,
+    "maximum_working_set_bytes": 2147483648,
+    "minimum_available_memory_bytes": 1073741824,
+    "sample_interval_seconds": 0.2,
+    "single_sequential_owned_child": true,
+    "TEMP_TMP": "owned F execution_TEMP"
+  },
+  "per_process_environment": "Driver sets/asserts owned F TEMP/TMP; root sets OPENBLAS_NUM_THREADS=1",
+  "frozen_descriptive_CPU_repeat_analysis_authorized_only_after_two_accepted": true,
+  "historical_B_TP_references_count_as_new_native": 0,
+  "composition_GPU_authorized": false,
+  "new_estimator": false,
+  "quality_accepted": false,
+  "game_run": false
+}

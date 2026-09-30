@@ -1,0 +1,1493 @@
+{
+  "schema": "clean-specular-hit-alpha-four-fresh-contexts-native-raw-only",
+  "status": "completed_specular_alpha_native_raw_only_not_composed_not_quality_accepted",
+  "jobs": [
+    {
+      "tag": "A0_r0",
+      "guard": {
+        "schema": "owned-child-native-lightweight-resource-guard-v1",
+        "args": [
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\frozen_runner\\fsrd_rr_runner.exe",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\job.txt"
+        ],
+        "timeout_seconds": 240,
+        "maximum_working_set_bytes": 2147483648,
+        "minimum_available_memory_bytes": 1073741824,
+        "sample_interval_seconds": 0.2,
+        "total_physical_bytes": 17098551296,
+        "initial_available_bytes": 5393928192,
+        "minimum_observed_available_bytes": 5312253952,
+        "peak_observed_working_set_bytes": 79618048,
+        "samples": 2,
+        "status": "completed",
+        "child_pid": 10112,
+        "returncode": 0,
+        "terminated_owned_child": false,
+        "termination_reason": null,
+        "elapsed_seconds": 0.40600000000267755,
+        "executor_launch_attempt": {
+          "invocation_started": true,
+          "fresh_runtime_files_verified_absent": true,
+          "case_command_matches": true,
+          "before_guard_call_checkpointed": true,
+          "command": [
+            "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\frozen_runner\\fsrd_rr_runner.exe",
+            "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\job.txt"
+          ],
+          "preflight": {
+            "files": [
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\resource_guard.json",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\stdout.log",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\stderr.log",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\stage_events.jsonl",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\recorded_frame_indices.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\queued_frame_indices.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\completed_frame_indices.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\observed_frame_indices.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\output_presence.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\dispatch_controls.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\diffuse.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\specular.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\native_work_accounting.json",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\executor_attempt.json",
+                "absent": true
+              }
+            ],
+            "all_absent": true
+          }
+        },
+        "guard_load_evidence": {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\resource_guard.json",
+          "present": true,
+          "bytes": 926,
+          "sha256": "8b4d60f190233f6c0d65bdebc8773b1bd5a8c76c7d889e628f94d3b6ebeff479",
+          "errors": [],
+          "stored_guard_claim": {
+            "schema": "owned-child-native-lightweight-resource-guard-v1",
+            "args": [
+              "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\frozen_runner\\fsrd_rr_runner.exe",
+              "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\job.txt"
+            ],
+            "timeout_seconds": 240,
+            "maximum_working_set_bytes": 2147483648,
+            "minimum_available_memory_bytes": 1073741824,
+            "sample_interval_seconds": 0.2,
+            "total_physical_bytes": 17098551296,
+            "initial_available_bytes": 5393928192,
+            "minimum_observed_available_bytes": 5312253952,
+            "peak_observed_working_set_bytes": 79618048,
+            "samples": 2,
+            "status": "completed",
+            "child_pid": 10112,
+            "returncode": 0,
+            "terminated_owned_child": false,
+            "termination_reason": null,
+            "elapsed_seconds": 0.40600000000267755
+          },
+          "stored_guard_valid": true,
+          "returned_guard_valid": true,
+          "authority": "direct_owned_guard_return"
+        }
+      },
+      "work": {
+        "schema": "B342-pinned-serial64-native-physical-work-before-metadata",
+        "counts": {
+          "api": 64,
+          "queued": 64,
+          "executes": 64,
+          "signals": 64,
+          "events": 64,
+          "waits": 64,
+          "completed_GPU": 64,
+          "observed_readback_pairs": 64
+        },
+        "exact_totals": true,
+        "totals_unknown": false,
+        "attempted_owned_child": true,
+        "created_context_confirmed": true,
+        "completed_context_confirmed": true,
+        "created_context_physical_lowerbound": 1,
+        "completed_context_physical_lowerbound": 1,
+        "terminal_stdout_claim": {
+          "dispatches": 64,
+          "validation_errors": 0,
+          "validation_warnings": 0,
+          "sdk_errors": 0,
+          "sdk_warnings": 0
+        },
+        "stdout_footer_claims": [
+          "dispatches=64 validation_errors=0 validation_warnings=0 sdk_errors=0 sdk_warnings=0\r\n"
+        ],
+        "stderr_footer_claims": [],
+        "output_prefix_claims": {
+          "diffuse.bin": {
+            "whole_frames": 64,
+            "trailing_bytes": 0,
+            "within_capacity": true
+          },
+          "specular.bin": {
+            "whole_frames": 64,
+            "trailing_bytes": 0,
+            "within_capacity": true
+          }
+        },
+        "applied_controls_whole_records": 64,
+        "controls_never_API_success_proof": true,
+        "evidence_disagreements": [],
+        "artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\stdout.log",
+            "present": true,
+            "bytes": 378,
+            "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\stderr.log",
+            "present": true,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\dispatch_controls.bin",
+            "present": true,
+            "bytes": 11776,
+            "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\diffuse.bin",
+            "present": true,
+            "bytes": 5242880,
+            "sha256": "8511b3e2efff44bc6e70c37191fa33db985cc3217f170f9af4ddb8ff92a0b489"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\specular.bin",
+            "present": true,
+            "bytes": 5242880,
+            "sha256": "f33a6dd5c03803a5ead94532780533ff1468ac9b4ab42f35ca5869d9b9e5fb70"
+          }
+        ],
+        "successful_not_submitted_exact": 0,
+        "discarded_or_omitted_exact": 0,
+        "authority": "exact_source_terminal_after_full_loop_DestroyContext",
+        "limits": "Source interpretation is bounded to byte-pinned B342 EXE and serial64 job header. Unique64 footer is only emitted after all64 loops and DestroyContext. Missing footer yields qualified lowerbounds from actually written readback prefixes; controls-before-API are never success counts. Fresh unidentified terminal is a lowerbound, not exact totals. Unseen queued/inflight work may exceed prefix; never infer discards from missing outputs. Historical EXE has no per-frame API journal or GetCompletedValue log; no new compilation provenance claim."
+      },
+      "guard_error": null,
+      "accepted": true,
+      "runtime_folder": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0",
+      "outputs": {
+        "diffuse.bin": {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\diffuse.bin",
+          "bytes": 5242880,
+          "sha256": "8511b3e2efff44bc6e70c37191fa33db985cc3217f170f9af4ddb8ff92a0b489",
+          "observed_source_frame_indices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63
+          ],
+          "RGB_finite": true,
+          "output_A_retained_not_consumed_or_finite_gate": true
+        },
+        "specular.bin": {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\specular.bin",
+          "bytes": 5242880,
+          "sha256": "f33a6dd5c03803a5ead94532780533ff1468ac9b4ab42f35ca5869d9b9e5fb70",
+          "observed_source_frame_indices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63
+          ],
+          "RGB_finite": true,
+          "output_A_retained_not_consumed_or_finite_gate": true
+        }
+      },
+      "controls": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\dispatch_controls.bin",
+        "bytes": 11776,
+        "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+      }
+    },
+    {
+      "tag": "A10_r0",
+      "guard": {
+        "schema": "owned-child-native-lightweight-resource-guard-v1",
+        "args": [
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\frozen_runner\\fsrd_rr_runner.exe",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\job.txt"
+        ],
+        "timeout_seconds": 240,
+        "maximum_working_set_bytes": 2147483648,
+        "minimum_available_memory_bytes": 1073741824,
+        "sample_interval_seconds": 0.2,
+        "total_physical_bytes": 17098551296,
+        "initial_available_bytes": 5335875584,
+        "minimum_observed_available_bytes": 5255938048,
+        "peak_observed_working_set_bytes": 88125440,
+        "samples": 2,
+        "status": "completed",
+        "child_pid": 27716,
+        "returncode": 0,
+        "terminated_owned_child": false,
+        "termination_reason": null,
+        "elapsed_seconds": 0.4210000000020955,
+        "executor_launch_attempt": {
+          "invocation_started": true,
+          "fresh_runtime_files_verified_absent": true,
+          "case_command_matches": true,
+          "before_guard_call_checkpointed": true,
+          "command": [
+            "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\frozen_runner\\fsrd_rr_runner.exe",
+            "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\job.txt"
+          ],
+          "preflight": {
+            "files": [
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\resource_guard.json",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\stdout.log",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\stderr.log",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\stage_events.jsonl",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\recorded_frame_indices.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\queued_frame_indices.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\completed_frame_indices.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\observed_frame_indices.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\output_presence.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\dispatch_controls.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\diffuse.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\specular.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\native_work_accounting.json",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\executor_attempt.json",
+                "absent": true
+              }
+            ],
+            "all_absent": true
+          }
+        },
+        "guard_load_evidence": {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\resource_guard.json",
+          "present": true,
+          "bytes": 926,
+          "sha256": "8a0f410f60bcad436fb950206bf8326b45fc298b26c4a99f1de4a3e4108ca329",
+          "errors": [],
+          "stored_guard_claim": {
+            "schema": "owned-child-native-lightweight-resource-guard-v1",
+            "args": [
+              "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\frozen_runner\\fsrd_rr_runner.exe",
+              "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\job.txt"
+            ],
+            "timeout_seconds": 240,
+            "maximum_working_set_bytes": 2147483648,
+            "minimum_available_memory_bytes": 1073741824,
+            "sample_interval_seconds": 0.2,
+            "total_physical_bytes": 17098551296,
+            "initial_available_bytes": 5335875584,
+            "minimum_observed_available_bytes": 5255938048,
+            "peak_observed_working_set_bytes": 88125440,
+            "samples": 2,
+            "status": "completed",
+            "child_pid": 27716,
+            "returncode": 0,
+            "terminated_owned_child": false,
+            "termination_reason": null,
+            "elapsed_seconds": 0.4210000000020955
+          },
+          "stored_guard_valid": true,
+          "returned_guard_valid": true,
+          "authority": "direct_owned_guard_return"
+        }
+      },
+      "work": {
+        "schema": "B342-pinned-serial64-native-physical-work-before-metadata",
+        "counts": {
+          "api": 64,
+          "queued": 64,
+          "executes": 64,
+          "signals": 64,
+          "events": 64,
+          "waits": 64,
+          "completed_GPU": 64,
+          "observed_readback_pairs": 64
+        },
+        "exact_totals": true,
+        "totals_unknown": false,
+        "attempted_owned_child": true,
+        "created_context_confirmed": true,
+        "completed_context_confirmed": true,
+        "created_context_physical_lowerbound": 1,
+        "completed_context_physical_lowerbound": 1,
+        "terminal_stdout_claim": {
+          "dispatches": 64,
+          "validation_errors": 0,
+          "validation_warnings": 0,
+          "sdk_errors": 0,
+          "sdk_warnings": 0
+        },
+        "stdout_footer_claims": [
+          "dispatches=64 validation_errors=0 validation_warnings=0 sdk_errors=0 sdk_warnings=0\r\n"
+        ],
+        "stderr_footer_claims": [],
+        "output_prefix_claims": {
+          "diffuse.bin": {
+            "whole_frames": 64,
+            "trailing_bytes": 0,
+            "within_capacity": true
+          },
+          "specular.bin": {
+            "whole_frames": 64,
+            "trailing_bytes": 0,
+            "within_capacity": true
+          }
+        },
+        "applied_controls_whole_records": 64,
+        "controls_never_API_success_proof": true,
+        "evidence_disagreements": [],
+        "artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\stdout.log",
+            "present": true,
+            "bytes": 378,
+            "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\stderr.log",
+            "present": true,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\dispatch_controls.bin",
+            "present": true,
+            "bytes": 11776,
+            "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\diffuse.bin",
+            "present": true,
+            "bytes": 5242880,
+            "sha256": "cba9898fd39bd435fb5be1e3be9074a10826bbb83d5937fe076c5af6a9b2e215"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\specular.bin",
+            "present": true,
+            "bytes": 5242880,
+            "sha256": "359e37ab391ac2201767bd9ee4f65e0f119d1666779a48249d75b3e4e0f95ffa"
+          }
+        ],
+        "successful_not_submitted_exact": 0,
+        "discarded_or_omitted_exact": 0,
+        "authority": "exact_source_terminal_after_full_loop_DestroyContext",
+        "limits": "Source interpretation is bounded to byte-pinned B342 EXE and serial64 job header. Unique64 footer is only emitted after all64 loops and DestroyContext. Missing footer yields qualified lowerbounds from actually written readback prefixes; controls-before-API are never success counts. Fresh unidentified terminal is a lowerbound, not exact totals. Unseen queued/inflight work may exceed prefix; never infer discards from missing outputs. Historical EXE has no per-frame API journal or GetCompletedValue log; no new compilation provenance claim."
+      },
+      "guard_error": null,
+      "accepted": true,
+      "runtime_folder": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0",
+      "outputs": {
+        "diffuse.bin": {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\diffuse.bin",
+          "bytes": 5242880,
+          "sha256": "cba9898fd39bd435fb5be1e3be9074a10826bbb83d5937fe076c5af6a9b2e215",
+          "observed_source_frame_indices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63
+          ],
+          "RGB_finite": true,
+          "output_A_retained_not_consumed_or_finite_gate": true
+        },
+        "specular.bin": {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\specular.bin",
+          "bytes": 5242880,
+          "sha256": "359e37ab391ac2201767bd9ee4f65e0f119d1666779a48249d75b3e4e0f95ffa",
+          "observed_source_frame_indices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63
+          ],
+          "RGB_finite": true,
+          "output_A_retained_not_consumed_or_finite_gate": true
+        }
+      },
+      "controls": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\dispatch_controls.bin",
+        "bytes": 11776,
+        "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+      }
+    },
+    {
+      "tag": "A10_r1",
+      "guard": {
+        "schema": "owned-child-native-lightweight-resource-guard-v1",
+        "args": [
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\frozen_runner\\fsrd_rr_runner.exe",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\job.txt"
+        ],
+        "timeout_seconds": 240,
+        "maximum_working_set_bytes": 2147483648,
+        "minimum_available_memory_bytes": 1073741824,
+        "sample_interval_seconds": 0.2,
+        "total_physical_bytes": 17098551296,
+        "initial_available_bytes": 5319008256,
+        "minimum_observed_available_bytes": 5267181568,
+        "peak_observed_working_set_bytes": 88064000,
+        "samples": 2,
+        "status": "completed",
+        "child_pid": 15256,
+        "returncode": 0,
+        "terminated_owned_child": false,
+        "termination_reason": null,
+        "elapsed_seconds": 0.40600000000267755,
+        "executor_launch_attempt": {
+          "invocation_started": true,
+          "fresh_runtime_files_verified_absent": true,
+          "case_command_matches": true,
+          "before_guard_call_checkpointed": true,
+          "command": [
+            "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\frozen_runner\\fsrd_rr_runner.exe",
+            "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\job.txt"
+          ],
+          "preflight": {
+            "files": [
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\resource_guard.json",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\stdout.log",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\stderr.log",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\stage_events.jsonl",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\recorded_frame_indices.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\queued_frame_indices.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\completed_frame_indices.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\observed_frame_indices.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\output_presence.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\dispatch_controls.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\diffuse.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\specular.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\native_work_accounting.json",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\executor_attempt.json",
+                "absent": true
+              }
+            ],
+            "all_absent": true
+          }
+        },
+        "guard_load_evidence": {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\resource_guard.json",
+          "present": true,
+          "bytes": 927,
+          "sha256": "6d3718765609bd560a0096c07eb001267ed7ab115f93225e7085685790711e71",
+          "errors": [],
+          "stored_guard_claim": {
+            "schema": "owned-child-native-lightweight-resource-guard-v1",
+            "args": [
+              "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\frozen_runner\\fsrd_rr_runner.exe",
+              "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\job.txt"
+            ],
+            "timeout_seconds": 240,
+            "maximum_working_set_bytes": 2147483648,
+            "minimum_available_memory_bytes": 1073741824,
+            "sample_interval_seconds": 0.2,
+            "total_physical_bytes": 17098551296,
+            "initial_available_bytes": 5319008256,
+            "minimum_observed_available_bytes": 5267181568,
+            "peak_observed_working_set_bytes": 88064000,
+            "samples": 2,
+            "status": "completed",
+            "child_pid": 15256,
+            "returncode": 0,
+            "terminated_owned_child": false,
+            "termination_reason": null,
+            "elapsed_seconds": 0.40600000000267755
+          },
+          "stored_guard_valid": true,
+          "returned_guard_valid": true,
+          "authority": "direct_owned_guard_return"
+        }
+      },
+      "work": {
+        "schema": "B342-pinned-serial64-native-physical-work-before-metadata",
+        "counts": {
+          "api": 64,
+          "queued": 64,
+          "executes": 64,
+          "signals": 64,
+          "events": 64,
+          "waits": 64,
+          "completed_GPU": 64,
+          "observed_readback_pairs": 64
+        },
+        "exact_totals": true,
+        "totals_unknown": false,
+        "attempted_owned_child": true,
+        "created_context_confirmed": true,
+        "completed_context_confirmed": true,
+        "created_context_physical_lowerbound": 1,
+        "completed_context_physical_lowerbound": 1,
+        "terminal_stdout_claim": {
+          "dispatches": 64,
+          "validation_errors": 0,
+          "validation_warnings": 0,
+          "sdk_errors": 0,
+          "sdk_warnings": 0
+        },
+        "stdout_footer_claims": [
+          "dispatches=64 validation_errors=0 validation_warnings=0 sdk_errors=0 sdk_warnings=0\r\n"
+        ],
+        "stderr_footer_claims": [],
+        "output_prefix_claims": {
+          "diffuse.bin": {
+            "whole_frames": 64,
+            "trailing_bytes": 0,
+            "within_capacity": true
+          },
+          "specular.bin": {
+            "whole_frames": 64,
+            "trailing_bytes": 0,
+            "within_capacity": true
+          }
+        },
+        "applied_controls_whole_records": 64,
+        "controls_never_API_success_proof": true,
+        "evidence_disagreements": [],
+        "artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\stdout.log",
+            "present": true,
+            "bytes": 378,
+            "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\stderr.log",
+            "present": true,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\dispatch_controls.bin",
+            "present": true,
+            "bytes": 11776,
+            "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\diffuse.bin",
+            "present": true,
+            "bytes": 5242880,
+            "sha256": "cba9898fd39bd435fb5be1e3be9074a10826bbb83d5937fe076c5af6a9b2e215"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\specular.bin",
+            "present": true,
+            "bytes": 5242880,
+            "sha256": "359e37ab391ac2201767bd9ee4f65e0f119d1666779a48249d75b3e4e0f95ffa"
+          }
+        ],
+        "successful_not_submitted_exact": 0,
+        "discarded_or_omitted_exact": 0,
+        "authority": "exact_source_terminal_after_full_loop_DestroyContext",
+        "limits": "Source interpretation is bounded to byte-pinned B342 EXE and serial64 job header. Unique64 footer is only emitted after all64 loops and DestroyContext. Missing footer yields qualified lowerbounds from actually written readback prefixes; controls-before-API are never success counts. Fresh unidentified terminal is a lowerbound, not exact totals. Unseen queued/inflight work may exceed prefix; never infer discards from missing outputs. Historical EXE has no per-frame API journal or GetCompletedValue log; no new compilation provenance claim."
+      },
+      "guard_error": null,
+      "accepted": true,
+      "runtime_folder": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1",
+      "outputs": {
+        "diffuse.bin": {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\diffuse.bin",
+          "bytes": 5242880,
+          "sha256": "cba9898fd39bd435fb5be1e3be9074a10826bbb83d5937fe076c5af6a9b2e215",
+          "observed_source_frame_indices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63
+          ],
+          "RGB_finite": true,
+          "output_A_retained_not_consumed_or_finite_gate": true
+        },
+        "specular.bin": {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\specular.bin",
+          "bytes": 5242880,
+          "sha256": "359e37ab391ac2201767bd9ee4f65e0f119d1666779a48249d75b3e4e0f95ffa",
+          "observed_source_frame_indices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63
+          ],
+          "RGB_finite": true,
+          "output_A_retained_not_consumed_or_finite_gate": true
+        }
+      },
+      "controls": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\dispatch_controls.bin",
+        "bytes": 11776,
+        "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+      }
+    },
+    {
+      "tag": "A0_r1",
+      "guard": {
+        "schema": "owned-child-native-lightweight-resource-guard-v1",
+        "args": [
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\frozen_runner\\fsrd_rr_runner.exe",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\job.txt"
+        ],
+        "timeout_seconds": 240,
+        "maximum_working_set_bytes": 2147483648,
+        "minimum_available_memory_bytes": 1073741824,
+        "sample_interval_seconds": 0.2,
+        "total_physical_bytes": 17098551296,
+        "initial_available_bytes": 5307183104,
+        "minimum_observed_available_bytes": 5243629568,
+        "peak_observed_working_set_bytes": 87953408,
+        "samples": 2,
+        "status": "completed",
+        "child_pid": 12752,
+        "returncode": 0,
+        "terminated_owned_child": false,
+        "termination_reason": null,
+        "elapsed_seconds": 0.40600000000267755,
+        "executor_launch_attempt": {
+          "invocation_started": true,
+          "fresh_runtime_files_verified_absent": true,
+          "case_command_matches": true,
+          "before_guard_call_checkpointed": true,
+          "command": [
+            "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\frozen_runner\\fsrd_rr_runner.exe",
+            "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\job.txt"
+          ],
+          "preflight": {
+            "files": [
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\resource_guard.json",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\stdout.log",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\stderr.log",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\stage_events.jsonl",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\recorded_frame_indices.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\queued_frame_indices.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\completed_frame_indices.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\observed_frame_indices.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\output_presence.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\dispatch_controls.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\diffuse.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\specular.bin",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\native_work_accounting.json",
+                "absent": true
+              },
+              {
+                "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\executor_attempt.json",
+                "absent": true
+              }
+            ],
+            "all_absent": true
+          }
+        },
+        "guard_load_evidence": {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\resource_guard.json",
+          "present": true,
+          "bytes": 926,
+          "sha256": "6010c9aeec5923b5ea1e46992f18cc3ace9962416a3d6d4a05212aae7733565e",
+          "errors": [],
+          "stored_guard_claim": {
+            "schema": "owned-child-native-lightweight-resource-guard-v1",
+            "args": [
+              "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\frozen_runner\\fsrd_rr_runner.exe",
+              "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\job.txt"
+            ],
+            "timeout_seconds": 240,
+            "maximum_working_set_bytes": 2147483648,
+            "minimum_available_memory_bytes": 1073741824,
+            "sample_interval_seconds": 0.2,
+            "total_physical_bytes": 17098551296,
+            "initial_available_bytes": 5307183104,
+            "minimum_observed_available_bytes": 5243629568,
+            "peak_observed_working_set_bytes": 87953408,
+            "samples": 2,
+            "status": "completed",
+            "child_pid": 12752,
+            "returncode": 0,
+            "terminated_owned_child": false,
+            "termination_reason": null,
+            "elapsed_seconds": 0.40600000000267755
+          },
+          "stored_guard_valid": true,
+          "returned_guard_valid": true,
+          "authority": "direct_owned_guard_return"
+        }
+      },
+      "work": {
+        "schema": "B342-pinned-serial64-native-physical-work-before-metadata",
+        "counts": {
+          "api": 64,
+          "queued": 64,
+          "executes": 64,
+          "signals": 64,
+          "events": 64,
+          "waits": 64,
+          "completed_GPU": 64,
+          "observed_readback_pairs": 64
+        },
+        "exact_totals": true,
+        "totals_unknown": false,
+        "attempted_owned_child": true,
+        "created_context_confirmed": true,
+        "completed_context_confirmed": true,
+        "created_context_physical_lowerbound": 1,
+        "completed_context_physical_lowerbound": 1,
+        "terminal_stdout_claim": {
+          "dispatches": 64,
+          "validation_errors": 0,
+          "validation_warnings": 0,
+          "sdk_errors": 0,
+          "sdk_warnings": 0
+        },
+        "stdout_footer_claims": [
+          "dispatches=64 validation_errors=0 validation_warnings=0 sdk_errors=0 sdk_warnings=0\r\n"
+        ],
+        "stderr_footer_claims": [],
+        "output_prefix_claims": {
+          "diffuse.bin": {
+            "whole_frames": 64,
+            "trailing_bytes": 0,
+            "within_capacity": true
+          },
+          "specular.bin": {
+            "whole_frames": 64,
+            "trailing_bytes": 0,
+            "within_capacity": true
+          }
+        },
+        "applied_controls_whole_records": 64,
+        "controls_never_API_success_proof": true,
+        "evidence_disagreements": [],
+        "artifacts": [
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\stdout.log",
+            "present": true,
+            "bytes": 378,
+            "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\stderr.log",
+            "present": true,
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\dispatch_controls.bin",
+            "present": true,
+            "bytes": 11776,
+            "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\diffuse.bin",
+            "present": true,
+            "bytes": 5242880,
+            "sha256": "9aad609916da5f5b01cf7b6a78e4b6a462599731fda9052be14580c471db9492"
+          },
+          {
+            "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\specular.bin",
+            "present": true,
+            "bytes": 5242880,
+            "sha256": "a8673d9a2fc589ff9291d7118f78744103c3c51eeb16e100dccb339633d15f80"
+          }
+        ],
+        "successful_not_submitted_exact": 0,
+        "discarded_or_omitted_exact": 0,
+        "authority": "exact_source_terminal_after_full_loop_DestroyContext",
+        "limits": "Source interpretation is bounded to byte-pinned B342 EXE and serial64 job header. Unique64 footer is only emitted after all64 loops and DestroyContext. Missing footer yields qualified lowerbounds from actually written readback prefixes; controls-before-API are never success counts. Fresh unidentified terminal is a lowerbound, not exact totals. Unseen queued/inflight work may exceed prefix; never infer discards from missing outputs. Historical EXE has no per-frame API journal or GetCompletedValue log; no new compilation provenance claim."
+      },
+      "guard_error": null,
+      "accepted": true,
+      "runtime_folder": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1",
+      "outputs": {
+        "diffuse.bin": {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\diffuse.bin",
+          "bytes": 5242880,
+          "sha256": "9aad609916da5f5b01cf7b6a78e4b6a462599731fda9052be14580c471db9492",
+          "observed_source_frame_indices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63
+          ],
+          "RGB_finite": true,
+          "output_A_retained_not_consumed_or_finite_gate": true
+        },
+        "specular.bin": {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\specular.bin",
+          "bytes": 5242880,
+          "sha256": "a8673d9a2fc589ff9291d7118f78744103c3c51eeb16e100dccb339633d15f80",
+          "observed_source_frame_indices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63
+          ],
+          "RGB_finite": true,
+          "output_A_retained_not_consumed_or_finite_gate": true
+        }
+      },
+      "controls": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\dispatch_controls.bin",
+        "bytes": 11776,
+        "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+      }
+    }
+  ],
+  "contexts_created_confirmed": 4,
+  "contexts_completed_confirmed": 4,
+  "executor_invocations": 4,
+  "counts": {
+    "api": 256,
+    "queued": 256,
+    "executes": 256,
+    "signals": 256,
+    "events": 256,
+    "waits": 256,
+    "completed_GPU": 256,
+    "observed_readback_pairs": 256
+  },
+  "totals_unknown_children": 0,
+  "accepted_contexts": 4,
+  "composition_GPU_jobs": 0,
+  "old_B_TP_new_native": 0,
+  "quality_accepted": false,
+  "game_run": false,
+  "owned_child_environment": {
+    "TMP": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\execution_TEMP",
+    "TEMP": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\execution_TEMP"
+  }
+}

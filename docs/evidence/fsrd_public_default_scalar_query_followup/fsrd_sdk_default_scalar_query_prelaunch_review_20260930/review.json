@@ -1,0 +1,164 @@
+{
+  "status": "READY_FOR_ROOT_PUBLIC_DEFAULT_SCALAR_QUERY_AUTHORIZATION",
+  "blocking_findings": [],
+  "scope": "Independent CPU-only prelaunch review of the sealed fixed six-key query probe. No query executable, SDK, GPU, build or scorer invocation.",
+  "producer": {
+    "registration": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\registration.json",
+      "bytes": 5050,
+      "sha256": "395b85ba6b02456d253a5ba57bd2d525141bd2c0c693a87df96506e20bf47ab6"
+    },
+    "freeze": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\pre_query_freeze.json",
+      "bytes": 23537,
+      "sha256": "5ddeb8978550a316dc858e7ac9f0807f2f5bb9ea934e952c8e58eb3b6bba7aae"
+    },
+    "readiness": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\readiness.json",
+      "bytes": 2824,
+      "sha256": "d024a4520e73bf53840bbffd373c9dc3c8c5ba705db90ee1e11c495ba334b262"
+    },
+    "completion": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\completion_manifest.json",
+      "bytes": 24154,
+      "sha256": "8606b76754f334665026d41c6815d3609de019808dc3961b0ec72c47d60e5f5d"
+    },
+    "source": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\fsrd_default_query.cpp",
+      "bytes": 7916,
+      "sha256": "68c4b30fd9d2a9805a235cc45996f60461217bc2e677e287a62bfbabafaa36e5"
+    },
+    "EXE": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\fsrd_default_query.exe",
+      "bytes": 307200,
+      "sha256": "cb1db4d103665c49d1e956222d69b9c407903d2290e25928593d2e95bb259b27"
+    },
+    "provider": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\signedbin\\amd_fidelityfx_denoiser_dx12.dll",
+      "bytes": 13782280,
+      "sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3"
+    },
+    "design": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_design_20260930\\design.json",
+      "bytes": 8790,
+      "sha256": "bb80daa56058ef57f7be03d37ef217acaaca8f4ad285b5bee4cad1ddf3f372e6"
+    }
+  },
+  "source_and_header_findings": {
+    "API": 4202496,
+    "max_render_size": [
+      128,
+      80
+    ],
+    "signals": 34,
+    "checkerboard": 0,
+    "validation_flags": 2,
+    "adapter": "First high-performance adapter, feature level12.0, same B342 selection",
+    "strict_debug_layer": true,
+    "default_scalar_keys": [
+      6,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "query_count_per_key": 1,
+    "scalar_bytes": 4,
+    "source_Create_sites": 1,
+    "source_Query_sites": 1,
+    "loop_maximum_queries": 6,
+    "source_Destroy_sites": 1,
+    "Configure_calls": 0,
+    "RR_calls": 0,
+    "caller_Execute_calls": 0,
+    "caller_queues_lists_fences_textures": false,
+    "query_before_any_configuration": true,
+    "public_query_desc_matches_local_header": true,
+    "no_actual_defaults_observed": true
+  },
+  "lifetime_findings": [
+    "Create/backend descriptors, device and provider module remain alive through explicit successful DestroyContext.",
+    "Known-live context receives one cleanup attempt even if destroy_start logging fails. The attempt is not automatically counted as success.",
+    "Failed Create with non-null context or failed Destroy marks ownership uncertain and invokes ExitProcess while descriptors/device/module remain alive; no speculative retry/unload or quiescence claim.",
+    "Logging or output failure may leave missing return events/footer: returned totals then remain unknown; observed source-valid prefix is retained."
+  ],
+  "accounting_findings": {
+    "call_entry_markers_are_not_returned_API_proof": true,
+    "separate_counters": [
+      "create_entry",
+      "create_returned",
+      "created",
+      "query_entry",
+      "query_returned",
+      "query_ok",
+      "destroy_entry",
+      "destroy_returned",
+      "destroyed"
+    ],
+    "source_fixed_sequence_and_query_order": true,
+    "exact_zero_Configure_RR_callerExecute": true,
+    "physical_checkpoint_before_strict_acceptance": true,
+    "canonical_direct_guard_authority": true,
+    "explicit_nochild_stale_claims_not_actual_work": true,
+    "fresh_missing_guard_prefix": "Qualified lowerbounds only; process identity and exact totals unknown",
+    "metadata_raw_numeric_or_diagnostic_rejection_preserves_work": true,
+    "duplicate_truncated_impossible_events_rejected": true
+  },
+  "verification": {
+    "completion_owned_records": 72,
+    "completion_external_records": 15,
+    "freeze_owned_records": 70,
+    "freeze_external_records": 15,
+    "self_excluded_manifests": true,
+    "unique_before_after_records_checked": 88,
+    "all_byte_exact": true,
+    "provider_signature_valid": true,
+    "producer_CPU_compile_invocations": 1,
+    "compiler_stdout_bytes": 24,
+    "compiler_stdout": "fsrd_default_query.cpp CRLF",
+    "compiler_stderr_bytes": 0,
+    "compiler_exit": 0,
+    "compiler_warnings_observed": 0,
+    "compiler_guard_current_child": true,
+    "CPU_fixed_replay_checks": 12,
+    "CPU_independent_SIMULATED_checks": 8,
+    "all_checks_passed": true,
+    "runtime_paths_absent": 8,
+    "owned_F_TEMP_empty": true
+  },
+  "guard_contract": {
+    "timeout_seconds": 240,
+    "maximum_working_set_bytes": 2147483648,
+    "minimum_available_memory_bytes": 1073741824,
+    "interval_seconds": 0.2,
+    "owned_child_only": true,
+    "guard_byte_exact": true,
+    "F_TEMP_TMP": true
+  },
+  "actual_review_work": {
+    "SDK_contexts": 0,
+    "SDK_queries": 0,
+    "native_RR_API": 0,
+    "GPU_jobs": 0,
+    "builds": 0,
+    "scores": 0
+  },
+  "planned_only_if_completed": {
+    "fresh_created_contexts": 1,
+    "successful_default_queries": 6,
+    "returned_default_queries": 6,
+    "successfully_destroyed_contexts": 1,
+    "RRDispatch_API": 0,
+    "Configure_API": 0,
+    "caller_Execute": 0
+  },
+  "qualifications": [
+    "This is prelaunch readiness, not execution authorization. Root must bind the exact registration/freeze/command and this review hash in its immutable authorization.",
+    "SDK private callback warnings are unavailable/unknown because Configure is intentionally zero; ordinary D3D InfoQueue messages and public return codes remain strict acceptance evidence.",
+    "Provider internal queues, initialization/GPU work and private semantics remain unknown. Caller submission is structurally zero.",
+    "Source-equivalent B342 creation does not imply old tuned settings equal provider defaults. No settings are assumed or applied.",
+    "OS process exit after uncertain ownership does not prove successful API cleanup or GPU quiescence.",
+    "No quality, game-cause, model or production behavior claim follows from these queries."
+  ]
+}

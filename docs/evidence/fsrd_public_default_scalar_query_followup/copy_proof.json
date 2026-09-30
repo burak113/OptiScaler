@@ -1,0 +1,24 @@
+{
+  "status": "ALL_QUERY_COPIES_SOURCE_IDENTITIES_AND_PRIOR_ARCHIVE_BYTES_VERIFIED",
+  "copied_count": 62,
+  "copied_bytes": 306366,
+  "external_count": 131,
+  "prior_archive_file_count": 334,
+  "prior_archive_all_bytes_unchanged": true,
+  "prior_archive_manifest": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\docs\\evidence\\fsrd_clean_response_stage_partition\\manifest.json",
+    "bytes": 217092,
+    "sha256": "6e2e0ef8fc0ffc97f4a4acfaee5381f15ffadaa65e6e7a3c04b62f0b627279d6"
+  },
+  "historical_stage_document": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\docs\\evidence\\fsrd_public_default_scalar_query_followup\\historical_stage_document_before_query_followup.md",
+    "bytes": 9343,
+    "sha256": "9cf05417b76e5138c0fa543b5903f4147f2fd099fd88feebfc278aacc5a3e74a"
+  },
+  "historical_document_identity_resolution": "The prior archive authored-record path denotes the pre-followup live document version; its original bytes are preserved at historical_stage_document_before_query_followup.md in this separate archive. Original archive seal/snapshots were not rewritten.",
+  "actual_new_SDK_GPU_native_build_scorer": 0,
+  "overwrite_delete_stage_commit": 0,
+  "measured_original_query_contexts": 1,
+  "successful_original_public_queries": 6,
+  "default_vector_RR_image_test_measured": false
+}

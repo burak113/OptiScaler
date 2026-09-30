@@ -1,0 +1,7 @@
+Passed public default scalar query evidence review; no blocking findings. Independently reconstructed all18 events:1 created context,6 entered/returned/successful Queries,1 successful Destroy,0 RR/Configure/caller Execute. All return codes were0; the unique complete footer and matching direct/stored owned-child guard establish exact returned totals. Ordinary D3D errors/warnings were0 and child stderr was empty.
+
+In key order6,1,2,3,4,5, actual float32 defaults are0.009999999776482582,1,1,65504,50,0. The24 raw bytes exactly match child return bits and saved JSON values. These correspond to disocclusion threshold, normal strength, stability bias, maximum radiance, clipping K and Gaussian relaxation. All six differ from the original runner's tuned vector0.1,0.5,0.5,40000,40,0.5. No settings were applied and no image response was measured.
+
+All72 preparation records plus15 external pins,70+15 freeze records and84 prelaunch records remained exact. The review ran only saved-evidence CPU checks:0 SDK/probe/GPU/build/scorer work. Prior root totals carry forward to415 completed SDK contexts, comprising414 RR workloads and1 query-only context; RR API22074/queued22066 are unchanged, with8 recorded discards and4 separate no-API omissions. The6 public Queries are a separate count.
+
+SDK callback warnings and provider-internal GPU work remain unknown. Successful Destroy is public API cleanup evidence without a private quiescence guarantee. These defaults support a separately prepared matched diagnostic; they establish no quality, game cause or production fix.

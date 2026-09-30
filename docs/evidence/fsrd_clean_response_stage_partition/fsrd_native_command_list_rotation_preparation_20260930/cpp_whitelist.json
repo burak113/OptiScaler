@@ -1,0 +1,29 @@
+{
+  "before": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_batched_recording_diagnostic_20260930\\fsrd_rr_batch.cpp",
+    "bytes": 25276,
+    "sha256": "e105a36441e92fa0e4df6c6e180ed9284bb099fda49c4ff1472b772d06a23495"
+  },
+  "after": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_command_list_rotation_preparation_20260930\\fsrd_rr_rotation.cpp",
+    "bytes": 25497,
+    "sha256": "c749777d1148e2ecc95788d5e5a47780c14e5e58125d560c98f7e2d943add456"
+  },
+  "replacements": [
+    {
+      "before": "    if(argc!=3) throw std::runtime_error(\"usage: fsrd_rr_batch job.txt K\");\n    const unsigned batchSize=unsigned(std::stoul(argv[2]));\n    if(batchSize!=1&&batchSize!=2&&batchSize!=4) throw std::runtime_error(\"K must be 1/2/4\");",
+      "after": "    if(argc!=4) throw std::runtime_error(\"usage: fsrd_rr_rotation job.txt K rotation\");\n    const unsigned batchSize=unsigned(std::stoul(argv[2]));\n    if(batchSize!=1||std::string(argv[2])!=\"1\") throw std::runtime_error(\"K must be 1\");\n    const std::string rotationArg=argv[3];\n    if(rotationArg!=\"1\"&&rotationArg!=\"4\") throw std::runtime_error(\"rotation must be 1/4\");\n    const unsigned poolRotation=rotationArg==\"1\"?1u:4u;"
+    },
+    {
+      "before": "const unsigned slot=frame%4; cmd=commands[slot];",
+      "after": "const unsigned slot=frame%poolRotation; cmd=commands[slot];"
+    },
+    {
+      "before": "ID3D12CommandList* list=commands[frame%4].Get();",
+      "after": "ID3D12CommandList* list=commands[frame%poolRotation].Get();"
+    }
+  ],
+  "inverse_recovers_every_original_byte": true,
+  "arg_policy": "K exactly1, rotation exactly1/4; invalid arguments fail before D3D/provider creation",
+  "unchanged": "All other bytes, four created allocator/list objects,64 stable records,133 source uploads,128 readbacks,2 outputzero initializers, barriers,64 Execute/Signal/event/wait stages and CPP stage/footer grammar."
+}

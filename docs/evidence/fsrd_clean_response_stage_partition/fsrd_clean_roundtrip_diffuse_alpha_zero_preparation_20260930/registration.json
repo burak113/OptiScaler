@@ -1,0 +1,330 @@
+{
+  "schema": "actual-CSO-diffuse-alpha-zero-control-v1",
+  "status": "PREPARED_ALPHA_ZERO_CPU_ONLY_NO_GPU_AUTHORIZATION",
+  "jobs": [
+    {
+      "frame": 0,
+      "arm": "RZ0",
+      "job": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\planned_jobs\\RZ0\\job.txt",
+      "command": [
+        "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\fsrd_gpu_runner.exe",
+        "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\planned_jobs\\RZ0\\job.txt"
+      ],
+      "inputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in0.bin",
+          "bytes": 81920,
+          "sha256": "89481cbb3b3b3a61d7a1614dcf9cbf46ff1a58d11c9b750e3a5ea7387e2919f1"
+        },
+        {
+          "slot": 1,
+          "format": 28,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in1.bin",
+          "bytes": 40960,
+          "sha256": "5805732520ca23e4756801cd4e228a9f4a1d6e358d43913633633a70c770f9da"
+        },
+        {
+          "slot": 2,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in2.bin",
+          "bytes": 81920,
+          "sha256": "89481cbb3b3b3a61d7a1614dcf9cbf46ff1a58d11c9b750e3a5ea7387e2919f1"
+        },
+        {
+          "slot": 3,
+          "format": 28,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in3.bin",
+          "bytes": 40960,
+          "sha256": "ebf43c86086a67de6c44bb1a09b94b4be8b04ce80ae291fde29fc571ca03fa0b"
+        },
+        {
+          "slot": 4,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in4.bin",
+          "bytes": 81920,
+          "sha256": "80cf9a6bc6b136f5c6e381db8ab8237af58d60f9bdd58cb96941683bccd21da2"
+        },
+        {
+          "slot": 5,
+          "format": 24,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in5.bin",
+          "bytes": 40960,
+          "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6"
+        },
+        {
+          "slot": 6,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in6.bin",
+          "bytes": 81920,
+          "sha256": "fb4a92711f0015eb5f3feb7531ea99682455528019c27f5006e7a82b48a4f523"
+        },
+        {
+          "slot": 7,
+          "format": 41,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in7.bin",
+          "bytes": 40960,
+          "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc"
+        },
+        {
+          "slot": 8,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in8.bin",
+          "bytes": 81920,
+          "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357"
+        },
+        {
+          "slot": 9,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in9.bin",
+          "bytes": 81920,
+          "sha256": "d75419f4a88316428344172f4b31fbe9b3451c47ff45a45cc6fc91b1c825428c"
+        },
+        {
+          "slot": 10,
+          "format": 3,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in10.bin",
+          "bytes": 163840,
+          "sha256": "6cdd259c8ecbe61fbc369f3293c1961541386954a223b17a37899d7fd9ad42da"
+        }
+      ],
+      "CB": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\cb.bin",
+        "bytes": 96,
+        "sha256": "0d1016de63241d08d5f4f3ced3fa256c0824a8d2f472c37c80447ae14d97af79"
+      },
+      "outputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\planned_jobs\\RZ0\\out0.bin",
+          "bytes": 81920
+        },
+        {
+          "slot": 1,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\planned_jobs\\RZ0\\out1.bin",
+          "bytes": 81920
+        },
+        {
+          "slot": 2,
+          "format": 3,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\planned_jobs\\RZ0\\out2.bin",
+          "bytes": 163840
+        }
+      ]
+    },
+    {
+      "frame": 0,
+      "arm": "RZ1",
+      "job": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\planned_jobs\\RZ1\\job.txt",
+      "command": [
+        "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\fsrd_gpu_runner.exe",
+        "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\planned_jobs\\RZ1\\job.txt"
+      ],
+      "inputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in0.bin",
+          "bytes": 81920,
+          "sha256": "89481cbb3b3b3a61d7a1614dcf9cbf46ff1a58d11c9b750e3a5ea7387e2919f1"
+        },
+        {
+          "slot": 1,
+          "format": 28,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in1.bin",
+          "bytes": 40960,
+          "sha256": "5805732520ca23e4756801cd4e228a9f4a1d6e358d43913633633a70c770f9da"
+        },
+        {
+          "slot": 2,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in2.bin",
+          "bytes": 81920,
+          "sha256": "89481cbb3b3b3a61d7a1614dcf9cbf46ff1a58d11c9b750e3a5ea7387e2919f1"
+        },
+        {
+          "slot": 3,
+          "format": 28,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in3.bin",
+          "bytes": 40960,
+          "sha256": "ebf43c86086a67de6c44bb1a09b94b4be8b04ce80ae291fde29fc571ca03fa0b"
+        },
+        {
+          "slot": 4,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in4.bin",
+          "bytes": 81920,
+          "sha256": "80cf9a6bc6b136f5c6e381db8ab8237af58d60f9bdd58cb96941683bccd21da2"
+        },
+        {
+          "slot": 5,
+          "format": 24,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in5.bin",
+          "bytes": 40960,
+          "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6"
+        },
+        {
+          "slot": 6,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in6.bin",
+          "bytes": 81920,
+          "sha256": "fb4a92711f0015eb5f3feb7531ea99682455528019c27f5006e7a82b48a4f523"
+        },
+        {
+          "slot": 7,
+          "format": 41,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in7.bin",
+          "bytes": 40960,
+          "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc"
+        },
+        {
+          "slot": 8,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in8.bin",
+          "bytes": 81920,
+          "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357"
+        },
+        {
+          "slot": 9,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in9.bin",
+          "bytes": 81920,
+          "sha256": "d75419f4a88316428344172f4b31fbe9b3451c47ff45a45cc6fc91b1c825428c"
+        },
+        {
+          "slot": 10,
+          "format": 3,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\in10.bin",
+          "bytes": 163840,
+          "sha256": "6cdd259c8ecbe61fbc369f3293c1961541386954a223b17a37899d7fd9ad42da"
+        }
+      ],
+      "CB": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\payloads\\cb.bin",
+        "bytes": 96,
+        "sha256": "0d1016de63241d08d5f4f3ced3fa256c0824a8d2f472c37c80447ae14d97af79"
+      },
+      "outputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\planned_jobs\\RZ1\\out0.bin",
+          "bytes": 81920
+        },
+        {
+          "slot": 1,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\planned_jobs\\RZ1\\out1.bin",
+          "bytes": 81920
+        },
+        {
+          "slot": 2,
+          "format": 3,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\planned_jobs\\RZ1\\out2.bin",
+          "bytes": 163840
+        }
+      ]
+    }
+  ],
+  "source_manifest": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\source_manifest.json",
+    "bytes": 10656,
+    "sha256": "5a3c137554ea10805cf0c46b622b1dba3b91c119852f7397362e08ba9ceabc56"
+  },
+  "alpha_change_proof": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\alpha_change_proof.json",
+    "bytes": 1431,
+    "sha256": "81883422c30af2459caf02a8dca2f31feb5955d6c800ec7e142dfe13dfb5a1d3"
+  },
+  "prior_R_outputs": [
+    {
+      "arm": "R0",
+      "outputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R0\\out0.bin",
+          "bytes": 81920,
+          "sha256": "e520ea3e29cf2b0ba0577f2dd923c07459953a64881487b4306067a1e5651008"
+        },
+        {
+          "slot": 1,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R0\\out1.bin",
+          "bytes": 81920,
+          "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357"
+        },
+        {
+          "slot": 2,
+          "format": 3,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R0\\out2.bin",
+          "bytes": 163840,
+          "sha256": "6cdd259c8ecbe61fbc369f3293c1961541386954a223b17a37899d7fd9ad42da"
+        }
+      ]
+    },
+    {
+      "arm": "R1",
+      "outputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R1\\out0.bin",
+          "bytes": 81920,
+          "sha256": "e520ea3e29cf2b0ba0577f2dd923c07459953a64881487b4306067a1e5651008"
+        },
+        {
+          "slot": 1,
+          "format": 10,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R1\\out1.bin",
+          "bytes": 81920,
+          "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357"
+        },
+        {
+          "slot": 2,
+          "format": 3,
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R1\\out2.bin",
+          "bytes": 163840,
+          "sha256": "6cdd259c8ecbe61fbc369f3293c1961541386954a223b17a37899d7fd9ad42da"
+        }
+      ]
+    }
+  ],
+  "prior_roundtrip_independent_postreview": {
+    "passed_at_freeze": true,
+    "status": "PASSED_CLEAN_ROUNDTRIP_EVIDENCE_AND_EXACT_SINGLETON_METRIC_REVIEW",
+    "review": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_postrun_review_20260930\\review.json",
+      "bytes": 4952,
+      "sha256": "781527903c10be0e17291a766c07db040d564b23b70aeeeded766f74d62bc97d"
+    },
+    "seal": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_postrun_review_20260930\\completion_manifest.json",
+      "bytes": 683224,
+      "sha256": "200230c6abf03940cc2d4ee0c784503fbcbc41c93378386eebb0ecdc2dbb09fc"
+    },
+    "root_tool_observations": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_root_tool_observations_20260930.json",
+      "bytes": 5959,
+      "sha256": "48bce8e159824933251360ee20f71dd9d48ead2fa589c906385f7d801d233ddb"
+    }
+  },
+  "planned_helpers_only_if_completed": 2,
+  "planned_explicit_shader_Dispatches_only_if_completed": 2,
+  "planned_SDK_API": 0,
+  "planned_output_files_only_if_completed": 6,
+  "actual_helpers_GPU_native_build_scores": 0,
+  "quality_accepted": false,
+  "game_run": false,
+  "root_authorization_required_after_independent_prelaunch_review": true,
+  "limitations": [
+    "One static complete graph; two fresh helper observations only. No64-series inference.",
+    "Only converter diffuse A changes from65504 to positive0. Diffuse RGB, remaining10 full inputs and96byte CB are exact.",
+    "Compare all3 raw output buffers against each other and actual R0/R1; auxiliary UAV bytes may be unwritten in active WriteHistory0 path, so color RGB interpretation is separate.",
+    "Historical source/CSO/EXE identities preserved. No guaranteed historical compilation equivalence, real ray-length treatment, SDK correctness or game cause.",
+    "No scorer, quality model, filtering, fitting, settings or threshold changes."
+  ]
+}

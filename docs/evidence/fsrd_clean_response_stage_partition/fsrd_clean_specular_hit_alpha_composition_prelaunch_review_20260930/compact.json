@@ -1,0 +1,112 @@
+{
+  "status": "READY_FOR_ROOT_SPECULAR_HIT_ALPHA_COMPOSITION_V2_AUTHORIZATION",
+  "blocking_findings": [],
+  "source_validation": {
+    "direct_pre_post": 1366,
+    "inherited_unique_pre_post": 9986,
+    "expanded_unique": 10645,
+    "inherited_seals_pinned_once": 3,
+    "source_bytes_unchanged": true
+  },
+  "graph": {
+    "frames": 64,
+    "traces": 3,
+    "jobs": 192,
+    "planned_outputs": 576,
+    "order": "frame0..63 A0_r0,A10_r0,A0_r1",
+    "t0_spec_t2_diff_fullRGBA_actual_slices": true,
+    "other9_fullbytes_andCB96_priorC0_exact": true,
+    "Flags8_Detail0_HistoryValid0_WriteHistory0": true,
+    "excluded_A10_r1_full64_native_lobes_exact": true,
+    "new_fourth_composed_trace_claim": false
+  },
+  "runtime": {
+    "PREP_exists": true,
+    "evidence_parent_PREP_exists": true,
+    "all192_job_parents_exist_only_immutable_in0_in2_job": true,
+    "all1152_job_targets_absent": true,
+    "three_global_results_and_TEMP_absent": true
+  },
+  "accounting": {
+    "existing6_SIM_exact": [
+      {
+        "name": "valid_helper_marker_outputs",
+        "exact_existing_SIM_replay": true
+      },
+      {
+        "name": "diagnostic_reject_retains_dispatch",
+        "exact_existing_SIM_replay": true
+      },
+      {
+        "name": "nochild_stale_marker_reject",
+        "exact_existing_SIM_replay": true
+      },
+      {
+        "name": "stored_child_returned_nochild_canonical",
+        "exact_existing_SIM_replay": true
+      },
+      {
+        "name": "stored_nochild_returned_child_canonical",
+        "exact_existing_SIM_replay": true
+      },
+      {
+        "name": "fresh_missing_guard_marker_lowerbound",
+        "exact_existing_SIM_replay": true
+      }
+    ],
+    "parser_guard_EXE_CSO_byteexact": true,
+    "physical_checkpoint_before_metadata": true,
+    "owned_F_TEMP_exclusive": true,
+    "source_one_Dispatch_per_repetition1_postfence_marker": true,
+    "no_retries": true
+  },
+  "analysis": {
+    "V1_schema_failure_preserved": true,
+    "V2_only_one_metadata_lookup_key_repair": true,
+    "prior384_output_records_authenticated": true,
+    "scored_values9_references2_windows4_fixed": true,
+    "metric_AST_byteexact": [
+      {
+        "name": "LUMA",
+        "AST_and_source_bytes_exact": true,
+        "executed": false
+      },
+      {
+        "name": "blur",
+        "AST_and_source_bytes_exact": true,
+        "executed": false
+      },
+      {
+        "name": "score",
+        "AST_and_source_bytes_exact": true,
+        "executed": false
+      },
+      {
+        "name": "moments",
+        "AST_and_source_bytes_exact": true,
+        "executed": false
+      },
+      {
+        "name": "detail",
+        "AST_and_source_bytes_exact": true,
+        "executed": false
+      }
+    ],
+    "oldB_four_window_checks_inherited_not_rerun": true,
+    "raw_constructed_truth_static_not_native_response": true,
+    "quantized_truth_actual_format10_encoder_exact": true,
+    "future_once_only_after192accepted": true,
+    "no_scorer_executed": true,
+    "no_future_actual_output_scores": true
+  },
+  "limitations": [
+    "Only3 selectedactual64-frame native traces feed192 planned composition helpers. A10_r1 is input-equivalent toA10_r0 but not a fourth measured composition trace.",
+    "Within-doseA0 native repeats differ; conditional between-dose composition metrics cannot isolate alpha causation.",
+    "All other9 full SRV fields and96CB match priorC0 graphs. Inherited64 observed all3-buffer replay is historical sealed evidence;0new observed replay jobs.",
+    "Helper timing fence interpretation is source-qualified, historical EXE/CSO bytes pinned; no new compile linkage or SDK/private shader-dispatch claim.",
+    "WriteHistory0 auxiliary UAV bytes may be unwritten. All3 outputs will be retained but consumedRGB interpretation remains separate.",
+    "No scorer executed during this review; oldB4-window score checks remain inherited sealed evidence. Fixed metrics/reference thresholds and signed rank1Nyquist phase are retained.",
+    "+10 is view-depth proxy, not traced ray length; no vendor/game cause or quality acceptance."
+  ],
+  "actual_review_GPU_native_build_new_scores": 0
+}

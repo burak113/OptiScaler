@@ -5,3 +5,9 @@
 # The FSRD generator emits LF. Keep byte-for-byte verification portable to Windows clones.
 OptiScaler/shaders/fsrd_preprocess/precompile/*_Shader.h text eol=lf
 OptiScaler/shaders/fsrd_preprocess/precompile/*_Shader.cso binary
+
+# Preserve the byte identities recorded in the sealed FSRD evidence manifests.
+docs/evidence/fsrd_clean_response_stage_partition/** -text
+docs/evidence/fsrd_public_default_scalar_query_followup/** -text
+docs/fsrd_clean_material_response_stage_partition.md -text
+docs/fsrd_public_default_scalar_query_followup.md -text

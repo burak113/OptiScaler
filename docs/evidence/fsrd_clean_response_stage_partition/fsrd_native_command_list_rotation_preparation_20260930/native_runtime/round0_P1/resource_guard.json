@@ -1,0 +1,24 @@
+{
+  "schema": "owned-child-native-lightweight-resource-guard-v1",
+  "args": [
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_command_list_rotation_preparation_20260930\\fsrd_rr_rotation.exe",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_command_list_rotation_preparation_20260930\\native_runtime\\round0_P1\\job.txt",
+    "1",
+    "1"
+  ],
+  "timeout_seconds": 240,
+  "maximum_working_set_bytes": 2147483648,
+  "minimum_available_memory_bytes": 1073741824,
+  "sample_interval_seconds": 0.2,
+  "total_physical_bytes": 17098551296,
+  "initial_available_bytes": 5241110528,
+  "minimum_observed_available_bytes": 5096775680,
+  "peak_observed_working_set_bytes": 182386688,
+  "samples": 25,
+  "status": "completed",
+  "child_pid": 12964,
+  "returncode": 0,
+  "terminated_owned_child": false,
+  "termination_reason": null,
+  "elapsed_seconds": 5.046999999998661
+}

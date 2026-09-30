@@ -1,0 +1,10 @@
+{
+  "status": "PASSED_CPU_METADATA_ONLY_SCHEMA_REPAIR",
+  "one_line_whitelist_exact": true,
+  "all384_prior_C0_C1_raw_output_records_found_and_SHA_exact": true,
+  "prior_seal_key": "external_sources",
+  "all_V1_preparation_source_pins_unchanged": true,
+  "AST_parsed": true,
+  "scorer_executed": false,
+  "new_helper_GPU_native_build_scores": 0
+}

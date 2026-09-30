@@ -1,0 +1,13 @@
+{
+  "status": "preserved_CPU_check_report_writer_failure",
+  "source": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_command_list_rotation_preparation_20260930\\check_preparation_cpu.py",
+    "bytes": 7305,
+    "sha256": "37ff70d512a0f798ea8a6660fe8b26ceb8ea1b10f5545daab97649c11c3efed7"
+  },
+  "error_type": "FileExistsError",
+  "error": "Final save(target,report) targeted existing native_resource_guard.py because target was reused as a structural-loop variable. Exclusive creation raised before any existing file write. All six synthetic fixture folders retained; no final report written.",
+  "correction": "New V2 checker changes only report variable/output and new SIM fixture directory; original checker/fixtures unchanged.",
+  "actual_native_API_GPU": 0,
+  "production_payload_source_EXE_modified": false
+}

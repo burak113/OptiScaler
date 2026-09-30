@@ -1,0 +1,108 @@
+{
+  "schema": "root-tool-observations-not-redirected-console-logs",
+  "root_authorization": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_root_authorization_20260930.json",
+    "bytes": 5216,
+    "sha256": "3d649c84b3478f89d90199ddcdefeeb70b865eeb8c98a27101d74591a760cf4f"
+  },
+  "root_authorization_tool": {
+    "chunk_id": "12076b",
+    "exit_code": 0,
+    "actual_new_helper_GPU_native_API": 0
+  },
+  "root_driver_tool": {
+    "chunk_id": "4142ae",
+    "exit_code": 0,
+    "output": "",
+    "wall_time_seconds": 7.5541792,
+    "session_id_returned": false,
+    "separately_redirected_root_console_log": false
+  },
+  "root_CPU_analysis_tool": {
+    "chunk_id": "e22497",
+    "exit_code": 0,
+    "tool_output_contains_pre_analysis_gate_summary": true,
+    "separately_redirected_analyzer_console_log": false,
+    "analysis_runs": 1,
+    "actual_new_helper_GPU_native_API": 0
+  },
+  "producer_result": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\execution_results.json",
+    "bytes": 15602,
+    "sha256": "94b31ae3f743ec3d18b4110d4888f49a29a2ede350f4405215a3514ea6ffa6eb"
+  },
+  "metrics": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\roundtrip_metrics.json",
+    "bytes": 115159,
+    "sha256": "60d2356cca68e9f371ed695fee8b0b1da22f1b569775433ce8f16bc8e6e1d52c"
+  },
+  "sequences": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\roundtrip_sequences.npz",
+    "bytes": 1064,
+    "sha256": "6e15a70ba21e27d7fc0cf75ea1ec3337e5f4058856a016096196108c9c8585a2"
+  },
+  "actual_new_helper_children": 2,
+  "source_qualified_explicit_helper_shader_Dispatches": 2,
+  "actual_post_fence_marker_completions": 2,
+  "metadata_accepted_jobs": 2,
+  "retained_raw_outputs": 6,
+  "actual_new_native_contexts": 0,
+  "actual_new_FFX_API": 0,
+  "true_child_raw_logs": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R0\\stdout.log",
+      "bytes": 127,
+      "sha256": "f93065fef582cca2cbf1d38a5b83640e38fe8ef9f5e54b98a8a9402eda73cd5c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R0\\resource_guard.json",
+      "bytes": 905,
+      "sha256": "6b1fe0d245597ddae77b75c9e3f9eda9a0a2c6be359dc75bc3fe3b1d7599a747"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R1\\stdout.log",
+      "bytes": 127,
+      "sha256": "bcd2696e157c2364e1dc5c321e81fccfb2222383f43aeda8e0d2820b9834e629"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R1\\resource_guard.json",
+      "bytes": 906,
+      "sha256": "4249463f3198137aa78b32e72f2a00e7efff18d3a3e1a381f87a1dc550a31ef0"
+    }
+  ],
+  "actual_single_graph_observations": 2,
+  "proven_identical_source_graphs": 64,
+  "independent_measured_temporal_R64_samples": 0,
+  "all3_R0_R1_output_bits_exact": true,
+  "roundtrip_RGB_equals_encodedraw": true,
+  "native_cumulative_contexts": 410,
+  "native_cumulative_API_RR_recordings": 21818,
+  "native_cumulative_queued_completed_logical_RR": 21810,
+  "native_recorded_only_discards": 8,
+  "native_no_API_omissions_separate": 4,
+  "this_clean_pipeline_converter_composition_roundtrip_helpers": 322,
+  "opaque_signed_SDK_shader_dispatch_count_known": false,
+  "scorer_thresholds_models_unchanged": true,
+  "limitations": [
+    "R is actual OutputComp GPU output from captured InputConv fullRGBA lobes and fixed guides. No CPU radiance remodulation substitutes for R.",
+    "R-q measures the frozen converter+composition roundtrip relative to encodedraw q; T-R measures the extra opaque SDK path and downstream composition response. This is a directional stage contrast, not a proof of private SDK-only intrinsic error or a causal game result.",
+    "The original additive InputConv variant and all settings are frozen. No new calibration, filter, threshold, fit or shader changes are introduced.",
+    "Converter diffuse alpha0x7bff versus SDKoutputalpha0 is retained. Frozen flags8/detail0/history0 normal fastpath reads only lobergb and writes coloralpha1. All three output bytes are retained; WriteHistory0 leaves auxiliary UAVs unwritten by that path, so no semantic history claim follows from them.",
+    "Two fresh helper/device executions of one byte-identical fullgraph are2 shader dispatches,0 SDK calls. Broadcast to64 validated graph sourceindices is an analytical representation, never64 physical observations.",
+    "Source/CSO and helperEXE identities plus64 prior observed replays are pinned; source reading does not newly prove historical compiler equivalence or private-provider implementation.",
+    "Rawtruth and quantizedraw references remain distinct; frozen windows/score functions and rank1 signedNyquist DC/beta descriptive method are unchanged. RMS/gain ratios are not additive error terms; pixel/DC/signedbeta differences are directional."
+  ],
+  "production_changes": false,
+  "game_run": false,
+  "quality_accepted": false
+}

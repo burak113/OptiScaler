@@ -1,0 +1,283 @@
+{
+  "status": "COMPLETED_SAVED_BITS_ONLY_ALPHA_CONTROL_NOT_QUALITY_ACCEPTED",
+  "actual_new_helper_observations": 2,
+  "prior_R_actual_observations": 2,
+  "static_graphs": 1,
+  "new_SDK_API": 0,
+  "new_scores": 0,
+  "output_records": {
+    "RZ0": [
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\planned_jobs\\RZ0\\out0.bin",
+        "bytes": 81920,
+        "sha256": "e520ea3e29cf2b0ba0577f2dd923c07459953a64881487b4306067a1e5651008"
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\planned_jobs\\RZ0\\out1.bin",
+        "bytes": 81920,
+        "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357"
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\planned_jobs\\RZ0\\out2.bin",
+        "bytes": 163840,
+        "sha256": "6cdd259c8ecbe61fbc369f3293c1961541386954a223b17a37899d7fd9ad42da"
+      }
+    ],
+    "RZ1": [
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\planned_jobs\\RZ1\\out0.bin",
+        "bytes": 81920,
+        "sha256": "e520ea3e29cf2b0ba0577f2dd923c07459953a64881487b4306067a1e5651008"
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\planned_jobs\\RZ1\\out1.bin",
+        "bytes": 81920,
+        "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357"
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\planned_jobs\\RZ1\\out2.bin",
+        "bytes": 163840,
+        "sha256": "6cdd259c8ecbe61fbc369f3293c1961541386954a223b17a37899d7fd9ad42da"
+      }
+    ],
+    "R0": [
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R0\\out0.bin",
+        "bytes": 81920,
+        "sha256": "e520ea3e29cf2b0ba0577f2dd923c07459953a64881487b4306067a1e5651008"
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R0\\out1.bin",
+        "bytes": 81920,
+        "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357"
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R0\\out2.bin",
+        "bytes": 163840,
+        "sha256": "6cdd259c8ecbe61fbc369f3293c1961541386954a223b17a37899d7fd9ad42da"
+      }
+    ],
+    "R1": [
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R1\\out0.bin",
+        "bytes": 81920,
+        "sha256": "e520ea3e29cf2b0ba0577f2dd923c07459953a64881487b4306067a1e5651008"
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R1\\out1.bin",
+        "bytes": 81920,
+        "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357"
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R1\\out2.bin",
+        "bytes": 163840,
+        "sha256": "6cdd259c8ecbe61fbc369f3293c1961541386954a223b17a37899d7fd9ad42da"
+      }
+    ]
+  },
+  "pairs": [
+    {
+      "arms": [
+        "RZ0",
+        "RZ1"
+      ],
+      "outputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 1,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 2,
+          "format": 3,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        }
+      ]
+    },
+    {
+      "arms": [
+        "RZ0",
+        "R0"
+      ],
+      "outputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 1,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 2,
+          "format": 3,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        }
+      ]
+    },
+    {
+      "arms": [
+        "RZ0",
+        "R1"
+      ],
+      "outputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 1,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 2,
+          "format": 3,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        }
+      ]
+    },
+    {
+      "arms": [
+        "RZ1",
+        "R0"
+      ],
+      "outputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 1,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 2,
+          "format": 3,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        }
+      ]
+    },
+    {
+      "arms": [
+        "RZ1",
+        "R1"
+      ],
+      "outputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 1,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 2,
+          "format": 3,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        }
+      ]
+    },
+    {
+      "arms": [
+        "R0",
+        "R1"
+      ],
+      "outputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 1,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 2,
+          "format": 3,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        }
+      ]
+    }
+  ],
+  "color_RGB_alpha_caveat_closed_for_this_graph": true,
+  "no_64_measured_series": true,
+  "quality_accepted": false,
+  "game_run": false,
+  "limits": [
+    "One static complete graph; two fresh helper observations only. No64-series inference.",
+    "Only converter diffuse A changes from65504 to positive0. Diffuse RGB, remaining10 full inputs and96byte CB are exact.",
+    "Compare all3 raw output buffers against each other and actual R0/R1; auxiliary UAV bytes may be unwritten in active WriteHistory0 path, so color RGB interpretation is separate.",
+    "Historical source/CSO/EXE identities preserved. No guaranteed historical compilation equivalence, real ray-length treatment, SDK correctness or game cause.",
+    "No scorer, quality model, filtering, fitting, settings or threshold changes."
+  ]
+}

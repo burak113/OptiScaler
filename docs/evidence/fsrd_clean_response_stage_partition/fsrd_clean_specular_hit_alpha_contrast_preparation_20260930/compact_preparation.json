@@ -1,0 +1,82 @@
+{
+  "status": "READY_FOR_INDEPENDENT_PREPARATION_REVIEW_RZ_AND_ROOT_EXECUTION_AUTHORIZATION_PENDING",
+  "registration": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\registration.json",
+    "bytes": 20421,
+    "sha256": "fb300d09a738fed1b946b0e14c64c91a2c73c1f9eebe418aed1cd069d12237b2"
+  },
+  "freeze": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\pre_native_freeze.json",
+    "bytes": 24572,
+    "sha256": "5afd215fc53a4175dbca1063fb735afb8eede838727abb9cb336a86b0cbb6ae3"
+  },
+  "ready": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\prelaunch_ready_manifest.json",
+    "bytes": 25023,
+    "sha256": "8fa973050ac156ef3895e9c7e9deaf61fe0dfa3552626d8d0eb9eaea5c1d2295"
+  },
+  "fixed_order": [
+    "A0_r0",
+    "A10_r0",
+    "A10_r1",
+    "A0_r1"
+  ],
+  "specular_alpha_doses": [
+    0,
+    10,
+    10,
+    0
+  ],
+  "planned_only_if_all_complete": {
+    "contexts": 4,
+    "successful_API": 256,
+    "queued_RR": 256,
+    "Execute": 256,
+    "Signal": 256,
+    "event": 256,
+    "wait": 256,
+    "completed_GPU_RR": 256,
+    "observed_pair_frames": 256
+  },
+  "actual_new_work": {
+    "native_contexts": 0,
+    "SDK_API": 0,
+    "GPU_jobs": 0,
+    "builds": 0,
+    "models": 0,
+    "scores": 0
+  },
+  "all56_registered_runtime_artifacts_absent": true,
+  "result_and_analysis_absent": true,
+  "sole_mutation": "input6 alpha halfwords0x0000\u21920x4900 in A10; 10240 bytes at offsets8*p+7; RGB unchanged.",
+  "source_CPP_sha256": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077",
+  "EXE_sha256": "3427689a4764380f885545c353250277e4d71944d3310c8a17b3cbba0f3c21d2",
+  "provider_sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3",
+  "unchanged_four_accounting_guard_test_modules": true,
+  "existing_SIMULATED_CPU_checks_passed": 12,
+  "R_gate": "PASSED_SEALED",
+  "RZ_gate": "PENDING_NOT_READ",
+  "root_authorization": false,
+  "composition_authorization": false,
+  "quality_accepted": false,
+  "failed_preparation_attempts_preserved": 1,
+  "qualification": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\preparation_attempt1_qualification.json",
+    "bytes": 1011,
+    "sha256": "6d1865d7c41b36da60a6dabe805c8351782b90e324f1e6818941e36edecb3556"
+  },
+  "successful_CPU_preparation_tool_observation": {
+    "tool": "exec_command",
+    "chunk_id": "5fdf00",
+    "exit_code": 0,
+    "redirected_console_file": null,
+    "note": "Tool stdout carried registration/freeze/ready identities. CPU checks have actual saved stdout/stderr; no native child logs exist."
+  },
+  "expanded_source_graph_via_existing_manifest": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_postrun_review_20260930\\completion_manifest_final.json",
+    "bytes": 1678987,
+    "sha256": "9d231d55386869cdcd72d6e1095bf7548f42bbc3d4d990922fabb971f3cb18c1"
+  },
+  "external_unique_records": 26,
+  "no_new_native_GPU_build_score": true
+}

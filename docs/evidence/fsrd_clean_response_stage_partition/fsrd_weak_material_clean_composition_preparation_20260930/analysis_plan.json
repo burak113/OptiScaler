@@ -1,0 +1,182 @@
+{
+  "fixed_windows": {
+    "full": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63
+    ],
+    "mature": [
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63
+    ],
+    "startup_first8": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "activation8to16": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ]
+  },
+  "references": [
+    "raw_constructed_truth",
+    "quantized_raw_reference"
+  ],
+  "same_exact_frozen_detail_score_AST": true,
+  "metric_source_records": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\LUMA_source.py",
+      "bytes": 9680,
+      "sha256": "691975513a56ada7c1ec8faab7a4f70840508371a3334dba67275e00aef4ba2e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\blur_source.py",
+      "bytes": 29239,
+      "sha256": "caf2d246fc57f7b1488637bee0a9a5dabafd5f28ed7b9694ad443e55b3860b12"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\score_source.py",
+      "bytes": 16460,
+      "sha256": "f804ea74c72aef1b6adf351e2d3cbe4f809c3069b13419492be178401248a3ee"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\moments_source.py",
+      "bytes": 8466,
+      "sha256": "947e3c3e7c2b6d248062bf546b01d857df24a51163af5562b7d88d8cbd6e0745"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\detail_source.py",
+      "bytes": 8996,
+      "sha256": "c2b5b70c571a222bddd31a8c8713fb6c0c0307954215c1fca76aa8eb23c0b8f1"
+    }
+  ],
+  "metric_function_extraction": [
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\LUMA_source.py",
+      "name": "LUMA"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\blur_source.py",
+      "name": "blur"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\score_source.py",
+      "name": "score"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\moments_source.py",
+      "name": "moments"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\detail_source.py",
+      "name": "detail"
+    }
+  ],
+  "descriptive_all_RGB_DC_beta": true,
+  "beta_atom": [
+    64,
+    -40
+  ],
+  "beta_ROI": "5-pixel interior; centered real rank1 Nyquist atom, same frozen raw-quantization design",
+  "rank1_sign_phase_not_continuous_quadrature": true,
+  "oldB_four_windows_exact_required_before_new_metrics": true,
+  "comparators": [
+    "oldB",
+    "oldTP",
+    "old_observed",
+    "old_pilot",
+    "raw_constructed_truth",
+    "quantized_raw_reference"
+  ],
+  "output_RGBA_repeat_and_RGB_alpha_bits_retained": true,
+  "model_or_scorer_changed": false,
+  "quality_accepted": false,
+  "actual_GPU_native": 0
+}

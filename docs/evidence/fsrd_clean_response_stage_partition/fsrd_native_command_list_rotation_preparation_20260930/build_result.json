@@ -1,0 +1,38 @@
+{
+  "returncode": 0,
+  "error": null,
+  "stdout": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_command_list_rotation_preparation_20260930\\build.stdout.bin",
+    "bytes": 22,
+    "sha256": "5491215cb2f4f679443703fe4405a346725666aa2664665691230eccf4e3b996"
+  },
+  "stderr": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_command_list_rotation_preparation_20260930\\build.stderr.bin",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "compile_attempt": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_command_list_rotation_preparation_20260930\\compile_attempt.json",
+    "bytes": 2471,
+    "sha256": "95a324e48fa5009aba09a4eaadf2b8d05d5df608d406af55c14bda08446430d2"
+  },
+  "actual_CPU_compile_invocations": 1,
+  "actual_diagnostic_EXE_launches": 0,
+  "actual_native_API_GPU": 0,
+  "fsrd_rr_rotation.build.cmd": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_command_list_rotation_preparation_20260930\\fsrd_rr_rotation.build.cmd",
+    "bytes": 555,
+    "sha256": "fdf5f557bf38d331906fdba03acf942bf8328f17af66732488819c5210957526"
+  },
+  "fsrd_rr_rotation.obj": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_command_list_rotation_preparation_20260930\\fsrd_rr_rotation.obj",
+    "bytes": 1106921,
+    "sha256": "28cab426f55799af620b44e846c8f59caeaa146af3654d649a2b57fc6ad71ce9"
+  },
+  "fsrd_rr_rotation.exe": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_command_list_rotation_preparation_20260930\\fsrd_rr_rotation.exe",
+    "bytes": 413696,
+    "sha256": "13c4fbd83fa0a95c0ceb695f2940b36e35c7abba09f4f31560da37dfdb87149b"
+  },
+  "accepted_compile": true
+}

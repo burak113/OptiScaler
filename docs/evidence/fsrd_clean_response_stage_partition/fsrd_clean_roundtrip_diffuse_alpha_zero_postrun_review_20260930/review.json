@@ -1,0 +1,267 @@
+{
+  "status": "PASSED_DIFFUSE_ALPHA_ZERO_RAW_EVIDENCE_REVIEW",
+  "blocking_findings": [],
+  "physical_new_work": {
+    "helper_children": 2,
+    "explicit_helper_Dispatches": 2,
+    "post_fence_helpers": 2,
+    "metadata_accepted_jobs": 2,
+    "outputs": 6,
+    "new_SDK_contexts": 0,
+    "new_SDK_API": 0
+  },
+  "source_validation": {
+    "direct_pre_post": 139,
+    "inherited_pre_post": 2252,
+    "expanded_unique": 2391,
+    "prelaunch_producer_and_review_stable": true,
+    "inherited_manifest_pinned_once": true
+  },
+  "root_chronology": {
+    "initial_CPU_preflight_error": {
+      "status": "CPU_ROOT_PREFLIGHT_FAILED_BEFORE_AUTHORIZATION_OR_GPU",
+      "source_preserved": "tools_tmp/authorize_fsrd_diffuse_alpha_zero_20260930_attempt1.py",
+      "tool_chunk": "95d296",
+      "exit_code": 1,
+      "error": "KeyError: repetitions at root verifier line 58; registration stores repetition in the frozen job text, not job dictionary",
+      "actual_new_GPU_helpers_native_API": 0,
+      "producer_or_review_changes": false,
+      "correction": "Root verifier checks frozen job header width128 height80 SRV11 UAV3 repetitions1 and three outputs; no test input or frozen runner change"
+    },
+    "then_corrected_authorization": true,
+    "producer_unchanged": true,
+    "once_original_bits_analyzer_observed": true,
+    "no_separate_analyzer_log_claim": true
+  },
+  "work": [
+    {
+      "arm": "RZ0",
+      "PID": 26188,
+      "helper": 1,
+      "explicit_post_fence_dispatch": 1,
+      "metadata_accepted": true,
+      "diagnostic_errors": 0,
+      "diagnostic_warnings": 0,
+      "guard_authority": "direct_returned_guard",
+      "stdout_sha256": "262b2c57aa8acc60afa3c20330548f1571da12b2cd749e7be29804db21e06b52",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "arm": "RZ1",
+      "PID": 25572,
+      "helper": 1,
+      "explicit_post_fence_dispatch": 1,
+      "metadata_accepted": true,
+      "diagnostic_errors": 0,
+      "diagnostic_warnings": 0,
+      "guard_authority": "direct_returned_guard",
+      "stdout_sha256": "0c7a52d8db64b2b713d36fab845125b648bd4d38496be92eaddb9b1f86c974b9",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "pairs": [
+    {
+      "arms": [
+        "RZ0",
+        "RZ1"
+      ],
+      "outputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 1,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 2,
+          "format": 3,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        }
+      ]
+    },
+    {
+      "arms": [
+        "RZ0",
+        "R0"
+      ],
+      "outputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 1,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 2,
+          "format": 3,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        }
+      ]
+    },
+    {
+      "arms": [
+        "RZ0",
+        "R1"
+      ],
+      "outputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 1,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 2,
+          "format": 3,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        }
+      ]
+    },
+    {
+      "arms": [
+        "RZ1",
+        "R0"
+      ],
+      "outputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 1,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 2,
+          "format": 3,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        }
+      ]
+    },
+    {
+      "arms": [
+        "RZ1",
+        "R1"
+      ],
+      "outputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 1,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 2,
+          "format": 3,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        }
+      ]
+    },
+    {
+      "arms": [
+        "R0",
+        "R1"
+      ],
+      "outputs": [
+        {
+          "slot": 0,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 1,
+          "format": 10,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        },
+        {
+          "slot": 2,
+          "format": 3,
+          "full_RGBA_serialized_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "differing_channel_elements": 0
+        }
+      ]
+    }
+  ],
+  "color_RGB_alpha_caveat_closed_for_this_static_graph": true,
+  "limitations": [
+    "Two new helper observations of one static full graph, plus two historical observations; not a measured64-frame roundtrip series.",
+    "Actual pinned CSO colorRGB is unchanged for this graph when t2 diffuseA65504 becomes positive0. This closes this graph alphaRGB confound only; it does not establish privateSDK, general shader, or game correctness.",
+    "All auxiliary buffers are bit-exact, but WriteHistory0 active-path auxiliary UAVs may be unwritten; byte equality is not proof of writes or semantic validity.",
+    "Timing is post-fence in the pinned source reference; historical EXE and CSO bytes are authenticated, but no fresh compile linkage is invented.",
+    "No scoring/model/threshold changes or new scoring calls; output sizes alone are not dispatch proof."
+  ],
+  "quality_accepted": false,
+  "game_run": false,
+  "review_actual_GPU_native_build_score": 0
+}

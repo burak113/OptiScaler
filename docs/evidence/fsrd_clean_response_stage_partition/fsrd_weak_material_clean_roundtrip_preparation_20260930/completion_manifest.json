@@ -1,0 +1,419 @@
+{
+  "status": "SEALED_CPU_PREPARATION_AWAITING_INDEPENDENT_REVIEW",
+  "records": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\accounting_reuse.json",
+      "bytes": 5092,
+      "sha256": "4093a556f11831d9340420902d222313372e5076feb69f00935708b4f3823d7c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\analysis_plan.json",
+      "bytes": 4050,
+      "sha256": "3f3fce44178ef7c652daba8f205c399b92010e7f27d1dd1b74b86b8f5de71a9d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\analyze_roundtrip_cpu.py",
+      "bytes": 7259,
+      "sha256": "7d32b0a420681b40c9bc1a17847e8c002b23017085cd4096c4c574d6add555b3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\check_preparation_cpu.py",
+      "bytes": 6395,
+      "sha256": "37a0d53e28fd28e332ee4c0cac2221f7596899a96e1d025e15a2a1ecc7ef16a1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\CPU_checks.json",
+      "bytes": 26221,
+      "sha256": "1dff5c5826974d919795df6bb80cbd33d2d76208562c3259b2085734f5fa17ea"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\design.txt",
+      "bytes": 998,
+      "sha256": "d3247e574af65b51b7353ed399725b0a11d159566052ca43778add5b5bfb4bf6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\executor_adaptation.diff",
+      "bytes": 7352,
+      "sha256": "432157524aa0f300594eb867462557c463472d57e72251ca70ca0d871a333e22"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\external_source_pins.json",
+      "bytes": 652948,
+      "sha256": "7088e708c6c6a0c38cd3b4d411e36f0866e6d094cff4d3f51fb33e74342d2a6a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\frozen_metric_sources\\blur_source.py",
+      "bytes": 29239,
+      "sha256": "caf2d246fc57f7b1488637bee0a9a5dabafd5f28ed7b9694ad443e55b3860b12"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\frozen_metric_sources\\detail_source.py",
+      "bytes": 8996,
+      "sha256": "c2b5b70c571a222bddd31a8c8713fb6c0c0307954215c1fca76aa8eb23c0b8f1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\frozen_metric_sources\\LUMA_source.py",
+      "bytes": 9680,
+      "sha256": "691975513a56ada7c1ec8faab7a4f70840508371a3334dba67275e00aef4ba2e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\frozen_metric_sources\\moments_source.py",
+      "bytes": 8466,
+      "sha256": "947e3c3e7c2b6d248062bf546b01d857df24a51163af5562b7d88d8cbd6e0745"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\frozen_metric_sources\\score_source.py",
+      "bytes": 16460,
+      "sha256": "f804ea74c72aef1b6adf351e2d3cbe4f809c3069b13419492be178401248a3ee"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\frozen_shader\\FSRDFloorCommon.hlsli",
+      "bytes": 3211,
+      "sha256": "d5a79adda9f36d904ab2fcfbbaf00b4bb3ad8f3fe25fe4d3b953282ad717c999"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\frozen_shader\\FSRDOutputComp.hlsl",
+      "bytes": 76985,
+      "sha256": "65b2abb5710c9d738898c0f499cc22b433e0a29793b8da3b8e5cc6d280c2aee4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\frozen_shader\\FSRDOutputComp_Shader.cso",
+      "bytes": 184840,
+      "sha256": "8f4dd9d8e69626b60badf8fdb1eb4db34d35e65383e7160cc3ba1c96e0c6ed09"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\frozen_shader\\FSRDPreprocessCommon.hlsli",
+      "bytes": 7358,
+      "sha256": "4ca7962c413826950c6025a85cf3502618e6a32182bfaaee3437cac6ef52cc26"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\fsrd_gpu_runner.exe",
+      "bytes": 338944,
+      "sha256": "3dfeefb2c109e7dc3d3e0bf515ff9f58ddbf00968521e74364acc89598ecb21c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\graph_identity_proof.json",
+      "bytes": 334926,
+      "sha256": "657006e6ea88eb2832b709f87f27b403b1b4d027de120b19126ea38f47d8bb41"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\helper_guard_evidence.py",
+      "bytes": 2206,
+      "sha256": "ddfa3a0f990c7f58691359bbc5671dc7cb22ce3d22b573924ce8fd751bc4c4fa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\helper_source_reference.cpp",
+      "bytes": 13429,
+      "sha256": "f215e7565d70e3e85aacc524f47cf4138934d523ba019cfc3c8b48849751c953"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\helper_work_accounting.py",
+      "bytes": 6141,
+      "sha256": "141d2122eddfa9d0693672ed132a5e259eabd1234df878fad3ba5f20ae73b014"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\historical_gpu_runner.build.cmd",
+      "bytes": 525,
+      "sha256": "dfe119fed54cf1e6c174bf93e635876778a21446d2759f55407b24cd07a1742c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\initial_CPU_runtime_failure.json",
+      "bytes": 404,
+      "sha256": "27926fe75900f9970931f2c33555f5302401935d6da92a4d46fcd0b37c6acc01"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\native_resource_guard.py",
+      "bytes": 4837,
+      "sha256": "b70e18d0f13963e0250c371171933429446cf304041c9a16d971e9898d211814"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\payloads\\cb.bin",
+      "bytes": 96,
+      "sha256": "0d1016de63241d08d5f4f3ced3fa256c0824a8d2f472c37c80447ae14d97af79"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\payloads\\in0.bin",
+      "bytes": 81920,
+      "sha256": "89481cbb3b3b3a61d7a1614dcf9cbf46ff1a58d11c9b750e3a5ea7387e2919f1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\payloads\\in1.bin",
+      "bytes": 40960,
+      "sha256": "5805732520ca23e4756801cd4e228a9f4a1d6e358d43913633633a70c770f9da"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\payloads\\in10.bin",
+      "bytes": 163840,
+      "sha256": "6cdd259c8ecbe61fbc369f3293c1961541386954a223b17a37899d7fd9ad42da"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\payloads\\in2.bin",
+      "bytes": 81920,
+      "sha256": "4b66181857d401282f400107fcd906581c943b4b5e07c58d07328f500f0fcbf6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\payloads\\in3.bin",
+      "bytes": 40960,
+      "sha256": "ebf43c86086a67de6c44bb1a09b94b4be8b04ce80ae291fde29fc571ca03fa0b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\payloads\\in4.bin",
+      "bytes": 81920,
+      "sha256": "80cf9a6bc6b136f5c6e381db8ab8237af58d60f9bdd58cb96941683bccd21da2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\payloads\\in5.bin",
+      "bytes": 40960,
+      "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\payloads\\in6.bin",
+      "bytes": 81920,
+      "sha256": "fb4a92711f0015eb5f3feb7531ea99682455528019c27f5006e7a82b48a4f523"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\payloads\\in7.bin",
+      "bytes": 40960,
+      "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\payloads\\in8.bin",
+      "bytes": 81920,
+      "sha256": "fa569e2360c540e6280e34a4627516770f1a5f34d81d35689334a99cc1013357"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\payloads\\in9.bin",
+      "bytes": 81920,
+      "sha256": "d75419f4a88316428344172f4b31fbe9b3451c47ff45a45cc6fc91b1c825428c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R0\\job.txt",
+      "bytes": 2215,
+      "sha256": "47deb9b4b1a1f56afa4037c007605afcc47e4850db6544df9b3fa0802222bbbb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\planned_jobs\\R1\\job.txt",
+      "bytes": 2215,
+      "sha256": "4d1194d40313227bbe4e2640fd3b57f2cc62c22285dd074b992c3a1135e6a7ac"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\pre_execution_freeze.json",
+      "bytes": 677998,
+      "sha256": "722f90048bafeb8474edcd4584383c1bfa1ef674be170e66cc49e50c10f7779d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\prepare.py",
+      "bytes": 15199,
+      "sha256": "4d3d6db53901be63c689a0f7caf8066cbbba18080aad1b4f330a2a7676c81109"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\readiness.json",
+      "bytes": 3278,
+      "sha256": "45b1a0caa029a662180d9d994b0c67df217d8e7242856cadde89111e4dccbb70"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\registration.json",
+      "bytes": 21329,
+      "sha256": "c0773b00053139dc75d537dc8db3c3d276175d82df799be8908d580a70f266a5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\run_roundtrip_only.py",
+      "bytes": 5979,
+      "sha256": "b77810817cbec831ada21a4f7c96205b3c8eb67c713ded766769d391e1b380f8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\seal_preparation_cpu.py",
+      "bytes": 7552,
+      "sha256": "b83fe3fdebf6f93b85822806711f72c429b75081bf16efb97535fabd8bbdf2bd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\diagnostic_reject_retains_dispatch\\out0.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\diagnostic_reject_retains_dispatch\\out1.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\diagnostic_reject_retains_dispatch\\out2.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\diagnostic_reject_retains_dispatch\\resource_guard.json",
+      "bytes": 93,
+      "sha256": "219eeef9e8c49600bc141d5a407aae1e608cdd2b2d3261e2aed9fc3aed3b9048"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\diagnostic_reject_retains_dispatch\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\diagnostic_reject_retains_dispatch\\stdout.log",
+      "bytes": 107,
+      "sha256": "6fa55307a7c1140c02f3ed06144488e2ea961a618b79202835f1a627e39b7f08"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\fresh_missing_guard_marker_lowerbound\\out0.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\fresh_missing_guard_marker_lowerbound\\out1.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\fresh_missing_guard_marker_lowerbound\\out2.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\fresh_missing_guard_marker_lowerbound\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\fresh_missing_guard_marker_lowerbound\\stdout.log",
+      "bytes": 107,
+      "sha256": "958f7d0ad1bdcc8e1456d0a35462871bd0d772962b4bfa1039af48418888f6da"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\nochild_stale_marker_reject\\out0.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\nochild_stale_marker_reject\\out1.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\nochild_stale_marker_reject\\out2.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\nochild_stale_marker_reject\\resource_guard.json",
+      "bytes": 88,
+      "sha256": "7cd394f4cea8a821ec3c15623623096c8aaf47384893a56669f620db17a08088"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\nochild_stale_marker_reject\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\nochild_stale_marker_reject\\stdout.log",
+      "bytes": 107,
+      "sha256": "958f7d0ad1bdcc8e1456d0a35462871bd0d772962b4bfa1039af48418888f6da"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\stored_child_returned_nochild_canonical\\out0.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\stored_child_returned_nochild_canonical\\out1.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\stored_child_returned_nochild_canonical\\out2.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\stored_child_returned_nochild_canonical\\resource_guard.json",
+      "bytes": 93,
+      "sha256": "219eeef9e8c49600bc141d5a407aae1e608cdd2b2d3261e2aed9fc3aed3b9048"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\stored_child_returned_nochild_canonical\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\stored_child_returned_nochild_canonical\\stdout.log",
+      "bytes": 107,
+      "sha256": "958f7d0ad1bdcc8e1456d0a35462871bd0d772962b4bfa1039af48418888f6da"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\stored_nochild_returned_child_canonical\\out0.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\stored_nochild_returned_child_canonical\\out1.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\stored_nochild_returned_child_canonical\\out2.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\stored_nochild_returned_child_canonical\\resource_guard.json",
+      "bytes": 88,
+      "sha256": "7cd394f4cea8a821ec3c15623623096c8aaf47384893a56669f620db17a08088"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\stored_nochild_returned_child_canonical\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\stored_nochild_returned_child_canonical\\stdout.log",
+      "bytes": 107,
+      "sha256": "958f7d0ad1bdcc8e1456d0a35462871bd0d772962b4bfa1039af48418888f6da"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\valid_helper_marker_outputs\\out0.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\valid_helper_marker_outputs\\out1.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\valid_helper_marker_outputs\\out2.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\valid_helper_marker_outputs\\resource_guard.json",
+      "bytes": 93,
+      "sha256": "219eeef9e8c49600bc141d5a407aae1e608cdd2b2d3261e2aed9fc3aed3b9048"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\valid_helper_marker_outputs\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\SIMULATED_CPU\\valid_helper_marker_outputs\\stdout.log",
+      "bytes": 107,
+      "sha256": "958f7d0ad1bdcc8e1456d0a35462871bd0d772962b4bfa1039af48418888f6da"
+    }
+  ],
+  "self_excluded": true,
+  "external_source_record_count": 2252,
+  "external_source_manifest": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\external_source_pins.json",
+    "bytes": 652948,
+    "sha256": "7088e708c6c6a0c38cd3b4d411e36f0866e6d094cff4d3f51fb33e74342d2a6a"
+  },
+  "prior_CPU_failure_preserved": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\initial_CPU_runtime_failure.json",
+    "bytes": 404,
+    "sha256": "27926fe75900f9970931f2c33555f5302401935d6da92a4d46fcd0b37c6acc01"
+  },
+  "runtime_absence_verified": true,
+  "no_GPU_native_build_scores": true
+}

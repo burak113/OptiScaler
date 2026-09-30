@@ -1,0 +1,10 @@
+{
+  "status": "PRESERVED_AUDITOR_RAW_ENCODER_ALPHA_EXPECTATION_FAILURE_NO_PRODUCER_CHANGE",
+  "tool_chunks": ["077b2a", "74d39f"],
+  "exit_code": 1,
+  "issue": "Auditor source-reference check incorrectly filled constructed raw alpha1. Pinned original rgba encoder fills alpha0; output color alpha1 is a different field.",
+  "source_preserved": "review_cpu_attempt1.py.txt",
+  "correction": "Use original raw-format10 alpha0 convention; encodedRGB already bit-exact. No producer, job, analyzer, metric, threshold or source-law changes.",
+  "source_evidence": "fsrd_weak_material_clean_response_design_20260930/prepare_design.py lines26-34 and65: rgba(truth), write_texture format10, actual alpha0.",
+  "actual_review_GPU_native_build_scorer": 0
+}

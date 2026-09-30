@@ -1,0 +1,8 @@
+{
+  "status": "preserved_CPU_inspection_import_failure",
+  "runtime": "C:/Users/burak/AppData/Local/Programs/Python/Python311/python.exe",
+  "error": "ModuleNotFoundError: No module named numpy",
+  "stage": "stdin graph inspection import before any data checks",
+  "repair": "Use exact existing albedo_stage1_venv Python; no package install/source/payload change",
+  "actual_native_GPU_build_score": 0
+}

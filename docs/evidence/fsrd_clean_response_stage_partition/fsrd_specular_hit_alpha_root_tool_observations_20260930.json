@@ -1,0 +1,347 @@
+{
+  "status": "ROOT_OBSERVED_FOUR_COMPLETED_NATIVE_CONTEXTS_AND_FROZEN_RAW_ANALYSIS_PENDING_INDEPENDENT_REVIEW",
+  "authorization": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_specular_hit_alpha_root_authorization_20260930.json",
+    "bytes": 5820,
+    "sha256": "746ca13b1dc339f378a2a9e18771094130f4af2e8002e458869ce2bc2dbfe4b0"
+  },
+  "execution": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\execution_results.json",
+    "bytes": 58836,
+    "sha256": "291bc4315db0b30fef60c5e5ca3eb7c670253669b4151ca61775d0eea855b6b0"
+  },
+  "analysis": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\raw_comparisons.json",
+    "bytes": 37770,
+    "sha256": "7dc7659eb00a397878444541679311f7a5c1aea0b5792988dffc36d5d54908a7"
+  },
+  "actual_child_artifacts": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\resource_guard.json",
+      "bytes": 926,
+      "sha256": "8b4d60f190233f6c0d65bdebc8773b1bd5a8c76c7d889e628f94d3b6ebeff479"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\stdout.log",
+      "bytes": 378,
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\native_work_accounting.json",
+      "bytes": 3472,
+      "sha256": "62baebaf77b15ee125522ae6efec52e7a909afd89eb98dd5dc6d040a725f08b5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\executor_attempt.json",
+      "bytes": 3600,
+      "sha256": "327c2945abaac396b0890ba065bf957e024ce3cfeafbf90541dac6ee35326709"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "8511b3e2efff44bc6e70c37191fa33db985cc3217f170f9af4ddb8ff92a0b489"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r0\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "f33a6dd5c03803a5ead94532780533ff1468ac9b4ab42f35ca5869d9b9e5fb70"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\resource_guard.json",
+      "bytes": 926,
+      "sha256": "8a0f410f60bcad436fb950206bf8326b45fc298b26c4a99f1de4a3e4108ca329"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\stdout.log",
+      "bytes": 378,
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\native_work_accounting.json",
+      "bytes": 3477,
+      "sha256": "3b29db64bbbe6030ec268f19f7d420342f96d44304e99621f9ab03af0aa55f2d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\executor_attempt.json",
+      "bytes": 3615,
+      "sha256": "078b4846af1db6cb000679ff171a342ca0cbf4270b719af092a6d0fb25b5df15"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "cba9898fd39bd435fb5be1e3be9074a10826bbb83d5937fe076c5af6a9b2e215"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r0\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "359e37ab391ac2201767bd9ee4f65e0f119d1666779a48249d75b3e4e0f95ffa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\resource_guard.json",
+      "bytes": 927,
+      "sha256": "6d3718765609bd560a0096c07eb001267ed7ab115f93225e7085685790711e71"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\stdout.log",
+      "bytes": 378,
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\native_work_accounting.json",
+      "bytes": 3477,
+      "sha256": "b895465ea74f3a9d985c89582435796d935dd75b9a606174bf5e69cc1395ac0a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\executor_attempt.json",
+      "bytes": 3615,
+      "sha256": "c1c813c70f14b4dc71e99f9a559b811f6f820c02fa346c790882de6501426ecc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "cba9898fd39bd435fb5be1e3be9074a10826bbb83d5937fe076c5af6a9b2e215"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A10_r1\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "359e37ab391ac2201767bd9ee4f65e0f119d1666779a48249d75b3e4e0f95ffa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\resource_guard.json",
+      "bytes": 926,
+      "sha256": "6010c9aeec5923b5ea1e46992f18cc3ace9962416a3d6d4a05212aae7733565e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\stdout.log",
+      "bytes": 378,
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\native_work_accounting.json",
+      "bytes": 3472,
+      "sha256": "6d12b4f32b499c43ac90c18d159906e4a423998e50f64ddbabf627f6bc17e8e0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\executor_attempt.json",
+      "bytes": 3600,
+      "sha256": "6c3bdeef75a3389d97ae085cb19e5b3331bf17a7fb7f4a3f2e9c6b6c6c68fbc1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "9aad609916da5f5b01cf7b6a78e4b6a462599731fda9052be14580c471db9492"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\\planned_native\\A0_r1\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "a8673d9a2fc589ff9291d7118f78744103c3c51eeb16e100dccb339633d15f80"
+    }
+  ],
+  "tool_observations": [
+    {
+      "chunk": "54ea13",
+      "exit_code": 0,
+      "phase": "Exact four-context execution driver",
+      "wall_time_seconds": 2.5971986
+    },
+    {
+      "chunk": "3fb3cd",
+      "exit_code": 0,
+      "phase": "Four-accepted summary then once original frozen descriptive raw analyzer; combined stdout; no separate analyzer stdout log"
+    }
+  ],
+  "actual_new_native_contexts_created": 4,
+  "actual_new_native_contexts_completed": 4,
+  "actual_new_successful_FFX_API_recordings": 256,
+  "actual_new_queued_completed_logical_RR": 256,
+  "actual_source_qualified_counts": {
+    "api": 256,
+    "queued": 256,
+    "executes": 256,
+    "signals": 256,
+    "events": 256,
+    "waits": 256,
+    "completed_GPU": 256,
+    "observed_readback_pairs": 256
+  },
+  "actual_new_composition_helpers": 0,
+  "actual_new_builds": 0,
+  "native_cumulative_contexts": 414,
+  "native_cumulative_API": 22074,
+  "native_cumulative_queued_completed_RR": 22066,
+  "native_recorded_only_discards": 8,
+  "native_no_API_omissions_separate": 4,
+  "SDK_shader_dispatch_count": "Opaque signed provider; unknown. API/logicalRR counts are distinct from internal shader dispatches.",
+  "raw_pair_summaries": [
+    {
+      "left": "A0_r0",
+      "right": "A10_r0",
+      "kind": "between_dose",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 6.316175709918757e-05,
+          "RGB_max_abs": 0.00048828125
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 9.069437734961502e-05,
+          "RGB_max_abs": 0.00048828125
+        }
+      }
+    },
+    {
+      "left": "A0_r0",
+      "right": "A10_r1",
+      "kind": "between_dose",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 6.316175709918757e-05,
+          "RGB_max_abs": 0.00048828125
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 9.069437734961502e-05,
+          "RGB_max_abs": 0.00048828125
+        }
+      }
+    },
+    {
+      "left": "A0_r0",
+      "right": "A0_r1",
+      "kind": "within_dose_repeat",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 6.370944164778266e-05,
+          "RGB_max_abs": 0.00048828125
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 9.039906965433945e-05,
+          "RGB_max_abs": 0.00048828125
+        }
+      }
+    },
+    {
+      "left": "A10_r0",
+      "right": "A10_r1",
+      "kind": "within_dose_repeat",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 0.0,
+          "RGB_max_abs": 0.0
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 0.0,
+          "RGB_max_abs": 0.0
+        }
+      }
+    },
+    {
+      "left": "A10_r0",
+      "right": "A0_r1",
+      "kind": "between_dose",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 6.038297464043612e-05,
+          "RGB_max_abs": 0.00048828125
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 8.790442680674867e-05,
+          "RGB_max_abs": 0.00048828125
+        }
+      }
+    },
+    {
+      "left": "A10_r1",
+      "right": "A0_r1",
+      "kind": "between_dose",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 6.038297464043612e-05,
+          "RGB_max_abs": 0.00048828125
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 8.790442680674867e-05,
+          "RGB_max_abs": 0.00048828125
+        }
+      }
+    }
+  ],
+  "limitations": "A10 is a view-depth proxy, not traced ray length. Separate within-dose repeats from conditional between-dose sensitivity. OutputA storage descriptive only. Native RGB is demodulated, not composed truth; no private mechanism, API violation, quality or game-cause inference.",
+  "production_changed": false,
+  "game_run": false,
+  "quality_accepted": false
+}

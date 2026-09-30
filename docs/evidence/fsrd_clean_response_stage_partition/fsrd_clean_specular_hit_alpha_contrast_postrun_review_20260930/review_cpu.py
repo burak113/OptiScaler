@@ -1,0 +1,111 @@
+"""Independent read-only four-context alpha contrast; saved raw bytes, no scorer."""
+from pathlib import Path
+import hashlib,importlib.util,itertools,json,shlex,sys
+import numpy as np
+sys.dont_write_bytecode=True
+HERE=Path(__file__).resolve().parent;BASE=HERE.parent
+PREP=BASE/'fsrd_clean_specular_hit_alpha_contrast_preparation_20260930'
+def read(p):return json.loads(Path(p).read_text())
+def ident(p):
+ p=Path(p);h=hashlib.sha256()
+ with p.open('rb')as f:
+  for b in iter(lambda:f.read(1048576),b''):h.update(b)
+ return dict(path=str(p),bytes=p.stat().st_size,sha256=h.hexdigest())
+def verify(r):
+ p=Path(r['path']);p=p if p.is_absolute()else BASE.parent/p
+ a=ident(p);assert(a['bytes'],a['sha256'])==(r['bytes'],r['sha256']),str(p);return a
+def save(n,d):
+ with(HERE/n).open('x',encoding='utf-8',newline='\n')as f:json.dump(d,f,indent=2,allow_nan=False);f.write('\n')
+def module(n,p):
+ s=importlib.util.spec_from_file_location(n,p);m=importlib.util.module_from_spec(s);s.loader.exec_module(m);return m
+def metrics(a,b):
+ x=a.view('<u2');y=b.view('<u2');d=a[...,:3].astype('f8')-b[...,:3].astype('f8')
+ return dict(RGBA_bits_exact=bool(np.array_equal(x,y)),RGB_bits_exact=bool(np.array_equal(x[...,:3],y[...,:3])),alpha_bits_exact=bool(np.array_equal(x[...,3],y[...,3])),RGB_RMS=float(np.sqrt(np.mean(d*d))),RGB_max_abs=float(np.max(abs(d))),RGB_per_source_frame_RMS=np.sqrt(np.mean(d*d,axis=(1,2,3))).tolist(),RGB_per_source_frame_bits_exact=[bool(np.array_equal(xx,yy))for xx,yy in zip(x[...,:3],y[...,:3])])
+def main():
+ assert not(HERE/'review.json').exists(),'Preserve prior attempt'
+ direct={}
+ for n,h in [('fsrd_specular_hit_alpha_root_authorization_20260930.json','746ca13b1dc339f378a2a9e18771094130f4af2e8002e458869ce2bc2dbfe4b0'),('fsrd_specular_hit_alpha_root_tool_observations_20260930.json','53be003c8c0a41695467623fb1a25e5ca82e5bc9d36129493adfbce58ff5182d')]:
+  a=ident(BASE/n);assert a['sha256']==h;direct[a['path']]=a
+ auth=read(BASE/'fsrd_specular_hit_alpha_root_authorization_20260930.json');obs=read(BASE/'fsrd_specular_hit_alpha_root_tool_observations_20260930.json')
+ for r in auth['preparation_pins']+[auth['review'],auth['review_manifest'],auth['RZ_review'],auth['RZ_manifest'],auth['RZ_comparison'],auth['root_verifier'],obs['execution'],obs['analysis']]+obs['actual_child_artifacts']:
+  a=verify(r);direct[a['path']]=a
+ for n,key,ext in [('completion_manifest.json','files','external_records'),('pre_native_freeze.json','files','external_sources'),('prelaunch_ready_manifest.json','files','external_sources')]:
+  d=read(PREP/n);assert d['self_entry_excluded']
+  for r in d[key]+d[ext]:
+   a=verify(r);assert Path(a['path']).resolve()!=(PREP/n).resolve();direct[a['path']]=a
+  direct[str(PREP/n)]=ident(PREP/n)
+ reuse=read(PREP/'source_reuse.json');anchor=reuse['expanded_reviewed_provenance_manifest'];verify(anchor)
+ inherited=read(anchor['path']);expanded=inherited['files']+inherited['external_records']
+ for r in expanded:verify(r)
+ for r in reuse['exact_law_modules']:
+  assert verify(r['source'])['sha256']==verify(r['clone'])['sha256'] and Path(r['source']['path']).read_bytes()==Path(r['clone']['path']).read_bytes()
+ reg=read(PREP/'registration.json');run=read(PREP/'execution_results.json');analysis=read(PREP/'raw_comparisons.json')
+ assert reg['fixed_order']==['A0_r0','A10_r0','A10_r1','A0_r1'] and [r['tag']for r in run['jobs']]==reg['fixed_order']
+ assert run['status']=='completed_specular_alpha_native_raw_only_not_composed_not_quality_accepted'
+ assert run['contexts_created_confirmed']==run['contexts_completed_confirmed']==run['accepted_contexts']==4 and run['totals_unknown_children']==0
+ assert all(x==256 for x in run['counts'].values()) and run['composition_GPU_jobs']==run['old_B_TP_new_native']==0
+ for r in [reg['runner'],reg['provider'],reg['source_reference'],reg['guard']]:a=verify(r);direct[a['path']]=a
+ assert reg['runner']['sha256']=='3427689a4764380f885545c353250277e4d71944d3310c8a17b3cbba0f3c21d2'
+ assert reg['provider']['sha256']=='48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3'
+ assert reg['six_tuning_values']==[.1,.5,.5,40000.,40.,.5]
+ original=[Path(r['path']).read_bytes()for r in reg['cases'][0]['inputs']]
+ law=module('SpecAlpha_post_law',PREP/'native_work_accounting.py');guardlaw=module('SpecAlpha_post_guard',PREP/'executor_evidence.py')
+ raw={};summary=[];controls0=None
+ for c,row in zip(reg['cases'],run['jobs']):
+  folder=Path(c['job']).parent;assert row['tag']==c['tag'] and row['accepted'] and row['guard_error']is None
+  lines=[shlex.split(x)for x in Path(c['job']).read_text().splitlines()]
+  assert lines[0][:8]==['128','80','64','2','32','0','1','0'] and Path(lines[0][8]).resolve()==Path(reg['provider']['path']).resolve()
+  assert len(lines)==9 and c['input_upload_counts']==[1]*7 and c['source_frame_indices']==list(range(64))
+  for i,(t,r,fmt)in enumerate(zip(lines[1:8],c['inputs'],[41,10,24,28,28,10,10])):
+   a=verify(r);direct[a['path']]=a;assert Path(t[0]).resolve()==Path(r['path']).resolve()and t[1:]==[str(fmt),'1']
+   data=Path(r['path']).read_bytes()
+   if i!=6:assert data==original[i]
+   else:
+    x=np.frombuffer(original[i],'<u2').reshape(80,128,4);y=np.frombuffer(data,'<u2').reshape(80,128,4)
+    assert x[...,:3].tobytes()==y[...,:3].tobytes()and np.all(x[...,3]==0)and np.all(y[...,3]==(0 if c['specular_input_A']==0 else 0x4900))
+    if c['specular_input_A']==10:assert np.count_nonzero(x!=y)==10240 and np.count_nonzero(np.frombuffer(data,'u1')!=np.frombuffer(original[i],'u1'))==10240
+  assert [Path(s).name for s in lines[8]]==['diffuse.bin','specular.bin']
+  verify(c['expected_controls']);control=(folder/'dispatch_controls.bin').read_bytes();assert len(control)==64*184 and control==Path(c['expected_controls']['path']).read_bytes()
+  if controls0 is None:controls0=control
+  assert control==controls0
+  words=np.frombuffer(control,'<u4').reshape(64,46);assert np.array_equal(words[:,0],np.arange(64))and words[0,1]==3 and np.all(words[1:,1]==2)and np.all(words[:,2]==128)and np.all(words[:,3]==80)
+  textcontrols=[x.split()for x in(folder/'frame_controls.txt').read_text().splitlines()];assert len(textcontrols)==64 and all(x==['1'if i==0 else'0','0','0']for i,x in enumerate(textcontrols))
+  g=row['guard'];stored=read(folder/'resource_guard.json');assert g['guard_load_evidence']['stored_guard_claim']==stored and not g['guard_load_evidence']['errors']
+  derivedguard=guardlaw.safe_guard_load(folder,g['executor_launch_attempt'],c['command'],stored);assert derivedguard==g
+  w=law.derive(folder,g);assert w==row['work']==read(folder/'native_work_accounting.json')
+  assert w['exact_totals']and not w['totals_unknown']and all(v==64 for v in w['counts'].values())and w['evidence_disagreements']==[]
+  assert w['terminal_stdout_claim']==dict(dispatches=64,validation_errors=0,validation_warnings=0,sdk_errors=0,sdk_warnings=0)
+  assert g['status']=='completed'and g['returncode']==0 and not g['terminated_owned_child'] and(folder/'stderr.log').read_bytes()==b''
+  assert g['timeout_seconds']==240 and g['maximum_working_set_bytes']==2**31 and g['minimum_available_memory_bytes']==2**30
+  assert g['executor_launch_attempt']['preflight']['all_absent']
+  raw[c['tag']]={};outputstats={}
+  for n in('diffuse.bin','specular.bin'):
+   verify(row['outputs'][n]);a=np.fromfile(folder/n,'<f2').reshape(64,80,128,4);assert np.isfinite(a[...,:3]).all()
+   assert np.all(a[...,3].view('<u2')==0)
+   raw[c['tag']][n]=a;outputstats[n]=dict(RGB_finite=True,alpha_all_positive_zero_bits=True,RGB_min=float(a[...,:3].min()),RGB_max=float(a[...,:3].max()))
+  for n in('resource_guard.json','stdout.log','stderr.log','dispatch_controls.bin','native_work_accounting.json','executor_attempt.json','diffuse.bin','specular.bin'):a=ident(folder/n);direct[a['path']]=a
+  summary.append(dict(tag=c['tag'],counts=w['counts'],exact_totals=True,context_created_completed=True,accepted=True,diagnostics_all_zero=True,outputs=outputstats,PID=g['child_pid']))
+ temp=Path(run['owned_child_environment']['TMP']);assert temp.resolve()==Path(run['owned_child_environment']['TEMP']).resolve()and PREP.resolve()in temp.resolve().parents
+ doses={c['tag']:c['specular_input_A']for c in reg['cases']};pairs=[];extras=[]
+ for a,b in itertools.combinations(reg['fixed_order'],2):
+  lobes={n:metrics(raw[a][n],raw[b][n])for n in('diffuse.bin','specular.bin')}
+  pairs.append(dict(left=a,right=b,kind='within_dose_repeat'if doses[a]==doses[b]else'between_dose',same_actual_controls184=True,lobes=lobes))
+  ex={}
+  for n,m in lobes.items():
+   d=raw[a][n].astype('f8')-raw[b][n].astype('f8');different=np.flatnonzero(np.logical_not(m['RGB_per_source_frame_bits_exact']))
+   ex[n]=dict(RGBA_RMS=float(np.sqrt(np.mean(d*d))),alpha_RMS=float(np.sqrt(np.mean(d[...,3]**2))),first_different_frame=int(different[0])if len(different)else None,last_different_frame=int(different[-1])if len(different)else None,different_RGB_frames=len(different))
+  extras.append(dict(left=a,right=b,lobes=ex))
+ assert pairs==analysis['pairs']and analysis['pair_count']==6 and analysis['lobe_comparison_count']==12
+ assert analysis['quality_scores']is None and analysis['composition_results']is None and not analysis['quality_accepted']
+ stable=list(direct.values())
+ for r in stable+expanded:verify(r)
+ unique=len({str(Path(r['path']).resolve()).lower()for r in stable+expanded})
+ limits=['The within-dose A0 pair varies while A10 pair is exact; between-dose differences are therefore not isolated alpha-cause proof. Four contexts do not establish a distribution or significance.', '+10 is a view-depth proxy, not traced ray length; no ray-validity, privateSDK mechanism, API-violation or game-quality inference.', '256 successful API/queued/fence/readback counts follow the pinned source serial64 complete footer/readback contract. Historical EXE identity is pinned; no fresh compile linkage or private internal shader-dispatch count is invented.', 'All64 applied184-byte controls match, flags3/2 mean NON_GAMMA_ALBEDO2|RESET1. Controls are written before API and independently are not success proof.', 'Raw outputRGB is demodulated and finite; outputA positivezero describes destination storage and does not prove provider writes/preservation. No composition, clean-truth scoring or estimator used.']
+ save('raw_pair_reproduction.json',dict(pairs=pairs,additional_RGBA_alpha_and_frame_summary=extras,all_producer_raw_metrics_exact=True))
+ report=dict(status='PASSED_SPECULAR_HIT_ALPHA_NATIVE_RAW_EVIDENCE_REVIEW',blocking_findings=[],actual_new_work=dict(contexts=4,counts=run['counts'],totals_unknown=0,metadata_accepted_contexts=4,new_composition_helpers=0,review_GPU_native_build_scorer=0),source_validation=dict(direct_pre_post=len(stable),inherited_anchor_records_pre_post=len(expanded),expanded_unique=unique,inherited_manifest_pinned_once=True),sourcequalified_contexts=summary,seven_input_contract=dict(full_other6_bytes_and_input6RGB_equal=True,input6A_only_0_vs10=True,static_upload_counts=[1]*7,controls64x184_exact=True,SDK_source_indices=list(range(64)),camera_override_absent=True),pair_summaries=[dict(left=p['left'],right=p['right'],kind=p['kind'],lobes={n:{k:m[k]for k in('RGBA_bits_exact','RGB_bits_exact','alpha_bits_exact','RGB_RMS','RGB_max_abs')}for n,m in p['lobes'].items()})for p in pairs],frame_summary=extras,all_producer_raw_metrics_exact=True,limitations=limits,quality_accepted=False,game_run=False)
+ save('review.json',report)
+ save('compact.json',dict(status=report['status'],blocking_findings=[],actual_new_work=report['actual_new_work'],source_validation=report['source_validation'],pair_summaries=report['pair_summaries'],frame_summary=extras,limitations=limits,quality_accepted=False))
+ inheritedref=dict(**anchor,records_keys=['files','external_records'],record_count=len(expanded))
+ save('completion_manifest.json',dict(status='SEALED_SPECULAR_ALPHA_RAW_POSTREVIEW',files=[ident(HERE/n)for n in('review_cpu.py','raw_pair_reproduction.json','review.json','compact.json')],external_sources=stable,inherited_source_manifests=[inheritedref],expanded_unique_record_count=unique,self_entry_excluded=True,review_GPU_native_build_scorer=0))
+ print(json.dumps(dict(status=report['status'],direct=len(stable),inherited=len(expanded),unique=unique,pins={n:ident(HERE/n)for n in('review.json','compact.json','completion_manifest.json')})))
+if __name__=='__main__':main()

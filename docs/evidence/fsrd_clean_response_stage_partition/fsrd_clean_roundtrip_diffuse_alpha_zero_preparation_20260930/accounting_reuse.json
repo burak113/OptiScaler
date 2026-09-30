@@ -1,0 +1,146 @@
+{
+  "copied_byte_exact": [
+    {
+      "original": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\helper_work_accounting.py",
+        "bytes": 6141,
+        "sha256": "141d2122eddfa9d0693672ed132a5e259eabd1234df878fad3ba5f20ae73b014"
+      },
+      "copy": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\helper_work_accounting.py",
+        "bytes": 6141,
+        "sha256": "141d2122eddfa9d0693672ed132a5e259eabd1234df878fad3ba5f20ae73b014"
+      },
+      "byte_exact": true
+    },
+    {
+      "original": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\helper_guard_evidence.py",
+        "bytes": 2206,
+        "sha256": "ddfa3a0f990c7f58691359bbc5671dc7cb22ce3d22b573924ce8fd751bc4c4fa"
+      },
+      "copy": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\helper_guard_evidence.py",
+        "bytes": 2206,
+        "sha256": "ddfa3a0f990c7f58691359bbc5671dc7cb22ce3d22b573924ce8fd751bc4c4fa"
+      },
+      "byte_exact": true
+    },
+    {
+      "original": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\native_resource_guard.py",
+        "bytes": 4837,
+        "sha256": "b70e18d0f13963e0250c371171933429446cf304041c9a16d971e9898d211814"
+      },
+      "copy": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\native_resource_guard.py",
+        "bytes": 4837,
+        "sha256": "b70e18d0f13963e0250c371171933429446cf304041c9a16d971e9898d211814"
+      },
+      "byte_exact": true
+    },
+    {
+      "original": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\fsrd_gpu_runner.exe",
+        "bytes": 338944,
+        "sha256": "3dfeefb2c109e7dc3d3e0bf515ff9f58ddbf00968521e74364acc89598ecb21c"
+      },
+      "copy": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\fsrd_gpu_runner.exe",
+        "bytes": 338944,
+        "sha256": "3dfeefb2c109e7dc3d3e0bf515ff9f58ddbf00968521e74364acc89598ecb21c"
+      },
+      "byte_exact": true
+    },
+    {
+      "original": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\helper_source_reference.cpp",
+        "bytes": 13429,
+        "sha256": "f215e7565d70e3e85aacc524f47cf4138934d523ba019cfc3c8b48849751c953"
+      },
+      "copy": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\helper_source_reference.cpp",
+        "bytes": 13429,
+        "sha256": "f215e7565d70e3e85aacc524f47cf4138934d523ba019cfc3c8b48849751c953"
+      },
+      "byte_exact": true
+    },
+    {
+      "original": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\historical_gpu_runner.build.cmd",
+        "bytes": 525,
+        "sha256": "dfe119fed54cf1e6c174bf93e635876778a21446d2759f55407b24cd07a1742c"
+      },
+      "copy": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\historical_gpu_runner.build.cmd",
+        "bytes": 525,
+        "sha256": "dfe119fed54cf1e6c174bf93e635876778a21446d2759f55407b24cd07a1742c"
+      },
+      "byte_exact": true
+    },
+    {
+      "original": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\frozen_shader\\FSRDFloorCommon.hlsli",
+        "bytes": 3211,
+        "sha256": "d5a79adda9f36d904ab2fcfbbaf00b4bb3ad8f3fe25fe4d3b953282ad717c999"
+      },
+      "copy": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\frozen_shader\\FSRDFloorCommon.hlsli",
+        "bytes": 3211,
+        "sha256": "d5a79adda9f36d904ab2fcfbbaf00b4bb3ad8f3fe25fe4d3b953282ad717c999"
+      },
+      "byte_exact": true
+    },
+    {
+      "original": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\frozen_shader\\FSRDOutputComp.hlsl",
+        "bytes": 76985,
+        "sha256": "65b2abb5710c9d738898c0f499cc22b433e0a29793b8da3b8e5cc6d280c2aee4"
+      },
+      "copy": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\frozen_shader\\FSRDOutputComp.hlsl",
+        "bytes": 76985,
+        "sha256": "65b2abb5710c9d738898c0f499cc22b433e0a29793b8da3b8e5cc6d280c2aee4"
+      },
+      "byte_exact": true
+    },
+    {
+      "original": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\frozen_shader\\FSRDOutputComp_Shader.cso",
+        "bytes": 184840,
+        "sha256": "8f4dd9d8e69626b60badf8fdb1eb4db34d35e65383e7160cc3ba1c96e0c6ed09"
+      },
+      "copy": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\frozen_shader\\FSRDOutputComp_Shader.cso",
+        "bytes": 184840,
+        "sha256": "8f4dd9d8e69626b60badf8fdb1eb4db34d35e65383e7160cc3ba1c96e0c6ed09"
+      },
+      "byte_exact": true
+    },
+    {
+      "original": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\frozen_shader\\FSRDPreprocessCommon.hlsli",
+        "bytes": 7358,
+        "sha256": "4ca7962c413826950c6025a85cf3502618e6a32182bfaaee3437cac6ef52cc26"
+      },
+      "copy": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\frozen_shader\\FSRDPreprocessCommon.hlsli",
+        "bytes": 7358,
+        "sha256": "4ca7962c413826950c6025a85cf3502618e6a32182bfaaee3437cac6ef52cc26"
+      },
+      "byte_exact": true
+    }
+  ],
+  "existing_six_probe_report": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_roundtrip_preparation_20260930\\CPU_checks.json",
+    "bytes": 26221,
+    "sha256": "1dff5c5826974d919795df6bb80cbd33d2d76208562c3259b2085734f5fa17ea"
+  },
+  "driver_adaptation": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_roundtrip_diffuse_alpha_zero_preparation_20260930\\executor_adaptation.diff",
+    "bytes": 5472,
+    "sha256": "cb2118e05b08c194fd2631fa86d491d41802dd2088483ecbdc189e60d40fc488"
+  },
+  "physical_checkpoint_guard_and_parser_law_unchanged": true,
+  "old_source_provenance_limit": "Historical source references are not new compiler equivalence proof. This planned actual-CSO dataflow control empirically tests its color result."
+}

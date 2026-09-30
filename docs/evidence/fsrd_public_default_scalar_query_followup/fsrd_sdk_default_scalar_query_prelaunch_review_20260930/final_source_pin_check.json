@@ -1,0 +1,20 @@
+{
+  "all_before_after_exact": true,
+  "records_checked": 88,
+  "runtime_paths_absent": [
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\planned_query\\resource_guard.json",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\planned_query\\stdout.log",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\planned_query\\stderr.log",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\planned_query\\query_values.bin",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\planned_query\\executor_attempt.json",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\planned_query\\query_work_accounting.json",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\execution_results.json",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\default_values.json"
+  ],
+  "execution_TEMP_empty": true,
+  "actual_queries": 0,
+  "actual_native_RR": 0,
+  "actual_GPU_jobs": 0,
+  "actual_builds": 0,
+  "actual_scores": 0
+}

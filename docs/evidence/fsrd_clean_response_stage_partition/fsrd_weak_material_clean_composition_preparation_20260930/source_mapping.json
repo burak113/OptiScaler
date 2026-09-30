@@ -1,0 +1,1306 @@
+{
+  "status": "PASSED_CPU_FROZEN_COMPOSITION_SOURCE_MAPPING",
+  "post_native_gate": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_postrun_review_20260930\\review.json",
+    "bytes": 68001,
+    "sha256": "0d7dcda2d476ce0223cf16d3d24214c5f0a6c9d903fb9e992402e4da115eef07"
+  },
+  "post_native_final_seal": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_postrun_review_20260930\\completion_manifest_final.json",
+    "bytes": 1678987,
+    "sha256": "9d231d55386869cdcd72d6e1095bf7548f42bbc3d4d990922fabb971f3cb18c1"
+  },
+  "frames": [
+    {
+      "frame": 0,
+      "template_name": "768_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\00\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\00\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\00\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\00\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\00\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 1,
+      "template_name": "769_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\01\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\01\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\01\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\01\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\01\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 2,
+      "template_name": "770_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\02\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\02\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\02\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\02\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\02\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 3,
+      "template_name": "771_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\03\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\03\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\03\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\03\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\03\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 4,
+      "template_name": "772_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\04\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\04\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\04\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\04\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\04\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 5,
+      "template_name": "773_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\05\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\05\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\05\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\05\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\05\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 6,
+      "template_name": "774_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\06\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\06\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\06\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\06\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\06\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 7,
+      "template_name": "775_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\07\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\07\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\07\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\07\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\07\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 8,
+      "template_name": "776_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\08\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\08\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\08\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\08\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\08\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 9,
+      "template_name": "777_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\09\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\09\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\09\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\09\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\09\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 10,
+      "template_name": "778_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\10\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\10\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\10\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\10\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\10\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 11,
+      "template_name": "779_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\11\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\11\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\11\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\11\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\11\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 12,
+      "template_name": "780_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\12\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\12\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\12\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\12\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\12\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 13,
+      "template_name": "781_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\13\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\13\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\13\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\13\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\13\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 14,
+      "template_name": "782_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\14\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\14\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\14\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\14\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\14\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 15,
+      "template_name": "783_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\15\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\15\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\15\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\15\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\15\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 16,
+      "template_name": "784_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\16\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\16\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\16\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\16\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\16\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 17,
+      "template_name": "785_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\17\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\17\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\17\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\17\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\17\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 18,
+      "template_name": "786_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\18\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\18\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\18\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\18\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\18\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 19,
+      "template_name": "787_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\19\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\19\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\19\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\19\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\19\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 20,
+      "template_name": "788_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\20\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\20\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\20\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\20\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\20\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 21,
+      "template_name": "789_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\21\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\21\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\21\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\21\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\21\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 22,
+      "template_name": "790_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\22\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\22\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\22\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\22\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\22\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 23,
+      "template_name": "791_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\23\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\23\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\23\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\23\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\23\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 24,
+      "template_name": "792_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\24\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\24\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\24\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\24\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\24\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 25,
+      "template_name": "793_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\25\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\25\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\25\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\25\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\25\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 26,
+      "template_name": "794_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\26\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\26\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\26\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\26\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\26\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 27,
+      "template_name": "795_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\27\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\27\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\27\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\27\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\27\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 28,
+      "template_name": "796_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\28\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\28\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\28\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\28\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\28\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 29,
+      "template_name": "797_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\29\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\29\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\29\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\29\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\29\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 30,
+      "template_name": "798_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\30\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\30\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\30\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\30\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\30\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 31,
+      "template_name": "799_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\31\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\31\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\31\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\31\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\31\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 32,
+      "template_name": "800_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\32\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\32\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\32\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\32\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\32\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 33,
+      "template_name": "801_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\33\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\33\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\33\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\33\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\33\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 34,
+      "template_name": "802_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\34\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\34\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\34\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\34\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\34\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 35,
+      "template_name": "803_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\35\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\35\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\35\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\35\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\35\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 36,
+      "template_name": "804_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\36\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\36\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\36\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\36\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\36\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 37,
+      "template_name": "805_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\37\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\37\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\37\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\37\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\37\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 38,
+      "template_name": "806_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\38\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\38\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\38\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\38\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\38\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 39,
+      "template_name": "807_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\39\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\39\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\39\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\39\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\39\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 40,
+      "template_name": "808_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\40\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\40\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\40\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\40\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\40\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 41,
+      "template_name": "809_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\41\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\41\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\41\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\41\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\41\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 42,
+      "template_name": "810_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\42\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\42\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\42\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\42\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\42\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 43,
+      "template_name": "811_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\43\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\43\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\43\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\43\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\43\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 44,
+      "template_name": "812_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\44\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\44\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\44\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\44\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\44\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 45,
+      "template_name": "813_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\45\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\45\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\45\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\45\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\45\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 46,
+      "template_name": "814_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\46\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\46\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\46\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\46\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\46\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 47,
+      "template_name": "815_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\47\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\47\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\47\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\47\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\47\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 48,
+      "template_name": "816_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\48\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\48\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\48\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\48\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\48\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 49,
+      "template_name": "817_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\49\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\49\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\49\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\49\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\49\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 50,
+      "template_name": "818_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\50\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\50\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\50\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\50\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\50\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 51,
+      "template_name": "819_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\51\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\51\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\51\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\51\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\51\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 52,
+      "template_name": "820_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\52\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\52\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\52\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\52\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\52\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 53,
+      "template_name": "821_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\53\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\53\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\53\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\53\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\53\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 54,
+      "template_name": "822_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\54\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\54\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\54\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\54\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\54\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 55,
+      "template_name": "823_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\55\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\55\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\55\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\55\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\55\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 56,
+      "template_name": "824_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\56\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\56\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\56\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\56\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\56\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 57,
+      "template_name": "825_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\57\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\57\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\57\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\57\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\57\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 58,
+      "template_name": "826_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\58\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\58\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\58\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\58\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\58\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 59,
+      "template_name": "827_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\59\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\59\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\59\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\59\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\59\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 60,
+      "template_name": "828_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\60\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\60\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\60\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\60\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\60\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 61,
+      "template_name": "829_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\61\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\61\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\61\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\61\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\61\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 62,
+      "template_name": "830_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\62\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\62\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\62\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\62\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\62\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    },
+    {
+      "frame": 63,
+      "template_name": "831_FSRDOutputComp",
+      "CB_exact_fixed96": true,
+      "all11_formats_exact": true,
+      "all3_UAV_formats_exact": true,
+      "observed_native_lobes_full_RGBA_exact": true,
+      "observed_converter_mapping_full_bytes_exact": true,
+      "observed_output0_RGB_exact_old_baseline": true,
+      "clean_converter_output_paths": {
+        "1": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\63\\clean\\out4.bin",
+        "3": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\63\\clean\\out5.bin",
+        "4": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\63\\clean\\out6.bin",
+        "5": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\63\\clean\\out3.bin",
+        "6": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_converter_preparation_20260930\\planned_jobs\\63\\clean\\out7.bin"
+      },
+      "immutable_depth_motion_history_metadata_exact": true
+    }
+  ],
+  "SRV_mapping": [
+    {
+      "slot": 0,
+      "role": "InIndirectSpecular",
+      "format": 10,
+      "observed": "old observed native specular frame bytes",
+      "clean": "C0 or C1 actual native specular frame bytes, full RGBA retained"
+    },
+    {
+      "slot": 1,
+      "role": "InSpecularAlbedo",
+      "format": 28,
+      "observed": "observed converter out4",
+      "clean": "actual clean converter out4 inclA"
+    },
+    {
+      "slot": 2,
+      "role": "InDirectDiffuse",
+      "format": 10,
+      "observed": "old observed native diffuse frame bytes",
+      "clean": "C0 or C1 actual native diffuse frame bytes, full RGBA retained"
+    },
+    {
+      "slot": 3,
+      "role": "InDiffuseAlbedo",
+      "format": 28,
+      "observed": "observed converter out5",
+      "clean": "actual clean converter out5 inclA"
+    },
+    {
+      "slot": 4,
+      "role": "InSkipSignal",
+      "format": 10,
+      "observed": "observed converter out6",
+      "clean": "actual clean converter out6 fullRGBA"
+    },
+    {
+      "slot": 5,
+      "role": "InNormals",
+      "format": 24,
+      "observed": "observed converter out3",
+      "clean": "actual clean converter out3 all packed normal/alpha bits"
+    },
+    {
+      "slot": 6,
+      "role": "InDetailReference",
+      "format": 10,
+      "observed": "observed converter out7",
+      "clean": "actual clean converter out7 fullRGBA; not CPU reference remodulation"
+    },
+    {
+      "slot": 7,
+      "role": "InLinearDepth",
+      "format": 41,
+      "observed": "original compose template in7",
+      "clean": "same original in7; exact to actual clean native input0"
+    },
+    {
+      "slot": 8,
+      "role": "InMotion",
+      "format": 10,
+      "observed": "original zero motion RGBA16F",
+      "clean": "same immutable original template bytes"
+    },
+    {
+      "slot": 9,
+      "role": "InDecisionHistory",
+      "format": 10,
+      "observed": "original allminus1 RGBA16F sentinel",
+      "clean": "same immutable original template bytes; HistoryValid0/WriteHistory0"
+    },
+    {
+      "slot": 10,
+      "role": "InHistoryMetadata",
+      "format": 3,
+      "observed": "original allzero RGBA32_UINT",
+      "clean": "same immutable original template bytes"
+    }
+  ],
+  "CB": {
+    "bytes": 96,
+    "DstTexSize": [
+      128,
+      80,
+      0.0078125,
+      0.0125
+    ],
+    "Flags": 8,
+    "DetailPreservation": 0,
+    "RecoveryMask": 1,
+    "FloorHandoverAnchorClamp": 4,
+    "SourceUvScale": [
+      0,
+      0
+    ],
+    "SourceUvOffset": [
+      0,
+      0
+    ],
+    "FloorHandoverCorrelationMix": 1,
+    "HistoryValid": 0,
+    "HistoryJitterDelta": [
+      0,
+      0
+    ],
+    "WriteHistory": 0,
+    "SpecularAlbedoDemodulation": 1,
+    "DiffuseAlbedoModulation": 1,
+    "SpatialTemporalMask": 0,
+    "LumaRecovery": 1,
+    "ChromaRecovery": 1,
+    "padding": [
+      0,
+      0
+    ]
+  },
+  "UAVs": [
+    {
+      "slot": 0,
+      "format": 10,
+      "role": "OutColor"
+    },
+    {
+      "slot": 1,
+      "format": 10,
+      "role": "OutDecisionHistory"
+    },
+    {
+      "slot": 2,
+      "format": 3,
+      "role": "OutHistoryMetadata"
+    }
+  ],
+  "planned_order": "frame0..63: observed_control,C0,C1;192 fresh repetition1 helper jobs, all3 outputs retained",
+  "helper_cadence_qualification": "Historical templates ran through reusable server worker. New helper freshprocess/device perjob cadence is allowed only if each observed all3 outputs bitreplays original before either clean arm. Any mismatch stops without retry or threshold.",
+  "native_API_new": 0,
+  "composition_GPU_actual": 0,
+  "no_CPU_composition": true,
+  "quality_accepted": false
+}

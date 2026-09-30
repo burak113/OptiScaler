@@ -1,0 +1,17 @@
+{
+  "status": "preserved_failed_test_expectation_not_accounting_failure",
+  "source": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_command_list_rotation_preparation_20260930\\check_preparation_cpu_v2.py",
+    "bytes": 7332,
+    "sha256": "fbc26b125a70dd548ce00ff00c4bf3bc7f282865712ef9daad889c3a5f71b78c"
+  },
+  "report": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_command_list_rotation_preparation_20260930\\CPU_preparation_checks_v2.json",
+    "bytes": 1650167,
+    "sha256": "0e13351b853d8cd2f27fb63e4831372477fa1c6fe7297bbddf6488dbd8f7763b"
+  },
+  "failed_test": "K1_allowed_complete_then_caught_failed_pair",
+  "expected_false_was_wrong": "Full valid normal ledger still establishes registered_stage_pattern_exact=true. Specific complete\u2192caught failed stdout pair preserves completed physical work and reports disagreement; nonzero/failed owned guard rejects acceptance before metadata. This is V5 intended semantics.",
+  "correction": "V3 changes only that expected normal-ledger boolean and new report/fixture paths; no law, driver, guard, source, payload, EXE changes.",
+  "actual_native_API_GPU": 0
+}

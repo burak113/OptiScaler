@@ -1,0 +1,46 @@
+{
+  "status": "READY_FOR_INDEPENDENT_ALPHA_THREE_TRACE_COMPOSITION_PRELAUNCH_REVIEW_NOT_EXECUTION_AUTHORIZATION",
+  "blocking_findings": [],
+  "registration": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\registration.json",
+    "bytes": 1089838,
+    "sha256": "b0ed588f4af7ccb2bc38dedbc7777fce6bbf4c1c0a1c7f2d607160f5700ddc7b"
+  },
+  "pre_execution_freeze": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\pre_execution_freeze.json",
+    "bytes": 226928,
+    "sha256": "dffb689bd3c3084e10c468ee47462e74ad704e34fe0d126327dbae6b4cf95c6a"
+  },
+  "CPU_checks": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_composition_preparation_20260930\\CPU_checks.json",
+    "bytes": 25899,
+    "sha256": "22c576f7b819b0ae0d697b8c40873ab508cc1d40063d2e836a9f2f6995678780"
+  },
+  "planned_only_helper_jobs": 192,
+  "planned_only_explicit_helper_shader_Dispatches": 192,
+  "planned_only_outputs": 576,
+  "selected_native_traces": [
+    "A0_r0",
+    "A10_r0",
+    "A0_r1"
+  ],
+  "A10_r1_saved_raw_equal_not_measured_composition": true,
+  "native_independent_gate": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_postrun_review_20260930\\review.json",
+    "bytes": 12497,
+    "sha256": "3bf5116b7030bce0ed3a59620c017bebf1b088558a893bddc1779f8d0a53dfad"
+  },
+  "native_final_seal": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_specular_hit_alpha_contrast_postrun_review_20260930\\completion_manifest_final.json",
+    "bytes": 40380,
+    "sha256": "722aedb3f81256afb5015286021c4cf70b695338e16ab34543227e450dcb8ab4"
+  },
+  "source_CSO_helper_accounting_guard_exact": true,
+  "fixed9_inputs_CB_exact": true,
+  "runtime1152_job_paths_absent": true,
+  "actual_helper_GPU_native_build_scores": 0,
+  "original_scoring_sources_frozen_byte_exact_no_scores_now": true,
+  "existing_6_SIMULATED_checks_passed": true,
+  "root_authorization_required": true,
+  "quality_accepted": false
+}

@@ -1,0 +1,13 @@
+{
+  "status": "CPU_DRIVER_FAILURE_BEFORE_INITIAL_CHECKPOINT_AND_NATIVE_CHILD",
+  "error": "FileNotFoundError: new_v5/evidence/results.json parent absent",
+  "failed_source_line": 34,
+  "first_run_guarded_source_line": 45,
+  "native_guards_and_logs_absent": 48,
+  "actual_native_contexts": 0,
+  "actual_API_RR": 0,
+  "actual_GPU": 0,
+  "root_authorization_sha256": "ef3808a6cc81c0c2b724d0d26b5d3bf15dd613f2d4792e2a68083c1babd18837",
+  "repair": "Create only owned missing empty results directory; no frozen driver/input/job/guard/provider modification",
+  "no_native_retry": "No native child was created; first actual native run remains pending"
+}
