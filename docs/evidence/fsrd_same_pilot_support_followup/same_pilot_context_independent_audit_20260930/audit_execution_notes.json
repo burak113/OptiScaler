@@ -1,0 +1,8 @@
+{
+  "schema": "independent-audit-execution-note-v1",
+  "producer_files_changed": false,
+  "first_audit_attempt": "Stopped at a reviewer assertion that assumed applied flag RESET alone. Actual flag3 at first frame includes documented caller NON_GAMMA_ALBEDO value2 plus RESET value1; subsequent flag2 is correct. Original failure run.log retained.",
+  "corrected_audit_attempt": "Only independent audit assertion was corrected to NON_GAMMA_ALBEDO2|reset1, then every native and shader-byte check passed. This is not a producer/caller error finding.",
+  "source_CPU_compact_attempt": "Compact reporting initially requested nonexistent score key per_rgb_bias; changed reporting-only key to existing bias_rgb before first compact output. Frozen preregistration, candidate module, analyzer and results remained unchanged.",
+  "native_control_byte_contract": "184bytes/frame; uint32 frame/flags/width/height followed by float32 motionScale3,cameraDelta3,jitter2,depthBounds2,view16,projection16. Provider API query unavailable in native log; exact effectDLL SHA identity audited separately."
+}

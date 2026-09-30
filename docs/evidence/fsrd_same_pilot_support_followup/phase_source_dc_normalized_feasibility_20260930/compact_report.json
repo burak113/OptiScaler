@@ -1,0 +1,2464 @@
+{
+  "schema": "DC-normalized-source-feasibility-compact-v1",
+  "source_result_sha256": "369c37934321f8edea1fc5c3f0d42dc5b4d94302658fffe33aa93d81db9386b0",
+  "freeze": {
+    "registered_before_scene_scoring": true,
+    "utc": "2026-09-30T08:10:02.5492876Z",
+    "sources": {
+      "preregistration.json": "7c301dae108d2ad6a3012fea0678770f45bcc97dda532f33cbad92b19f27daa6",
+      "normalized_pilot.py": "97d1f4507f7a21ff02922201d05378b8a50f9b415d2afacea9616f6472c94896",
+      "analyze.py": "26b26a7d81b0ebcd1e0cab9f5d94cad443fb2257d75203273c99c72254e43aa0"
+    },
+    "frozen_reference_significant_pilot_sha256": "8c68c808482226284377734d941c95553d91e29ebfb33ede121d184585c3fa48"
+  },
+  "selfchecks": {
+    "no_future": true,
+    "reset_jitter_epoch": true,
+    "history64": true,
+    "current_DC": true,
+    "no_truth_guide_API": true,
+    "exact_noiseless_multiplicative_RGB_closure": true,
+    "constant_RGB": true,
+    "invalid_Gibbs_raw": true,
+    "invalid_fallbacks": {
+      "nearzero": true,
+      "negative": true,
+      "nan": true,
+      "overflow": true,
+      "metadata": true
+    }
+  },
+  "quality_accepted": false,
+  "native_measured": false,
+  "source_family_count": 13,
+  "adversary_count": 11,
+  "rows": [
+    {
+      "family": "fake_diffuse",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.000119581636661154,
+      "significant_mature_STD": 0.000119581636661154,
+      "mature_STD_ratio": 1.0,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 64
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 64
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.00013037591322849888,
+          "STD": 0.00012924007597527073,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            2.0370483398424177e-05,
+            9.613037109362788e-06,
+            -3.0517578125111022e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.00013230229532792918,
+          "STD": 0.000119581636661154,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            6.042480468748668e-05,
+            7.446289062497132e-05,
+            -3.0517578125111022e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.00011695839420902001,
+          "STD": 0.00011333036117841056,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -6.103515625133227e-07,
+            -1.8310546875122125e-06,
+            -4.88281250000111e-05
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "fake_specular",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.000119581636661154,
+      "significant_mature_STD": 0.000119581636661154,
+      "mature_STD_ratio": 1.0,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 64
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 64
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.00013037591322849888,
+          "STD": 0.00012924007597527073,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            2.0370483398424177e-05,
+            9.613037109362788e-06,
+            -3.0517578125111022e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.00013230229532792918,
+          "STD": 0.000119581636661154,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            6.042480468748668e-05,
+            7.446289062497132e-05,
+            -3.0517578125111022e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.00011695839420902001,
+          "STD": 0.00011333036117841056,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -6.103515625133227e-07,
+            -1.8310546875122125e-06,
+            -4.88281250000111e-05
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "material",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.00037263831360791183,
+      "significant_mature_STD": 0.00037184590932519423,
+      "mature_STD_ratio": 1.0021310017478897,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 1,
+          "mature_retained_innovation_sum": 1,
+          "full_retained_frequency_sum": 33048
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 1,
+          "mature_retained_innovation_sum": 1,
+          "full_retained_frequency_sum": 33052
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.001374152404242993,
+          "STD": 0.0010945794349257953,
+          "absolute_gain_min": 0.9966445450439918,
+          "absolute_gain_max": 1.0009046699479103,
+          "absolute_phase_max": 0.007846248786211448,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -2.672668860026737e-05,
+            -3.503651047168379e-05,
+            -4.6672206682570604e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.0009062272045797225,
+          "STD": 0.00037263831360791183,
+          "absolute_gain_min": 0.999209533003899,
+          "absolute_gain_max": 1.0009046699479103,
+          "absolute_phase_max": 0.0011023404432757586,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            1.2996386730711652e-05,
+            2.9266077152928534e-05,
+            -5.3836309749520633e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.0023476445065179034,
+          "STD": 0.001591945972738601,
+          "absolute_gain_min": 0.9966445450439918,
+          "absolute_gain_max": 0.999359777166803,
+          "absolute_phase_max": 0.007846248786211448,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -2.003030159333685e-05,
+            -3.667599900594149e-05,
+            -6.507950647247955e-05
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "wave",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.00025416739601022783,
+      "significant_mature_STD": 0.00025364332744585007,
+      "mature_STD_ratio": 1.002066163417958,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 13418
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 13415
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.0009047616816083687,
+          "STD": 0.0007216771100954954,
+          "absolute_gain_min": 0.9936512806413479,
+          "absolute_gain_max": 1.0024993907808197,
+          "absolute_phase_max": 0.0074813888059436125,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -2.7265931026600654e-05,
+            -3.7444938051110404e-05,
+            -4.5919569741626794e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.0006158115225138611,
+          "STD": 0.00025416739601022783,
+          "absolute_gain_min": 1.0004657023020211,
+          "absolute_gain_max": 1.0021847223209497,
+          "absolute_phase_max": 0.0005361976436475034,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            2.0330268433925418e-05,
+            3.146715240742461e-05,
+            -4.446157951552771e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.001528835875996183,
+          "STD": 0.0010228166160765849,
+          "absolute_gain_min": 0.9936512806413479,
+          "absolute_gain_max": 1.0016856228850437,
+          "absolute_phase_max": 0.0074813888059436125,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -2.746982798093162e-05,
+            -4.5562946348344695e-05,
+            -7.016691242166399e-05
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "moving_light",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.0017410963823852388,
+      "significant_mature_STD": 0.0017426970592813054,
+      "mature_STD_ratio": 0.9990814944642606,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 568,
+          "mature_retained_innovation_sum": 104,
+          "full_retained_frequency_sum": 1830
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 565,
+          "mature_retained_innovation_sum": 103,
+          "full_retained_frequency_sum": 1830
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.0019649154107974675,
+          "STD": 0.001782247268870693,
+          "absolute_gain_min": 0.9907072028073822,
+          "absolute_gain_max": 1.0113300813336892,
+          "absolute_phase_max": 0.009824051401078275,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            1.5728811628103392e-05,
+            5.859344657139036e-06,
+            -4.451052363989652e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [
+              "early_or_transition_frame"
+            ],
+            "nonregression": false,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.0019746293415835105,
+          "STD": 0.0017410963823852388,
+          "absolute_gain_min": 0.9940255265955806,
+          "absolute_gain_max": 1.0045785979238093,
+          "absolute_phase_max": 0.005009139497889274,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            5.466215109054821e-05,
+            6.921194218184024e-05,
+            -1.2043511080303066e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.002111008140386841,
+          "STD": 0.0018650137746446917,
+          "absolute_gain_min": 0.9920262265345257,
+          "absolute_gain_max": 1.0113300813336892,
+          "absolute_phase_max": 0.009824051401078275,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            1.4137600962549559e-05,
+            -2.8785350775710414e-06,
+            -3.353613937822831e-05
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "checker_material",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.00011685506615322083,
+      "significant_mature_STD": 0.00011881435057148337,
+      "mature_STD_ratio": 0.9835096988803237,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 128
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 128
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.00013739767018705606,
+          "STD": 0.0001309286308242008,
+          "absolute_gain_min": 0.998576283454895,
+          "absolute_gain_max": 1.001591682434082,
+          "absolute_phase_max": 0.0,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            1.6979873180389404e-05,
+            2.4437904357910156e-06,
+            -5.539506673812866e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.00013453909195959568,
+          "STD": 0.00011685506615322083,
+          "absolute_gain_min": 0.9993047118186951,
+          "absolute_gain_max": 1.001591682434082,
+          "absolute_phase_max": 0.0,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            4.654638541978784e-05,
+            6.729364395141602e-05,
+            -1.603013151907362e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.00012631424760911614,
+          "STD": 0.00010779772128444165,
+          "absolute_gain_min": 0.998576283454895,
+          "absolute_gain_max": 0.9998176693916321,
+          "absolute_phase_max": 0.0,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            1.2211501598358154e-05,
+            -1.2814998626708984e-05,
+            -3.892038148478605e-05
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "weak_material",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.00011117981921415776,
+      "significant_mature_STD": 0.00011117981921415776,
+      "mature_STD_ratio": 1.0,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 128
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 128
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.00013261601270642132,
+          "STD": 0.00013124270481057465,
+          "absolute_gain_min": 0.9373253583908081,
+          "absolute_gain_max": 1.0375993251800537,
+          "absolute_phase_max": 0.0,
+          "absolute_gain_failing_frames": [
+            3,
+            4
+          ],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": false,
+          "RGB_bias": [
+            1.697242259979248e-05,
+            1.2919306755065918e-05,
+            -6.489455699920654e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.0001238748518517241,
+          "STD": 0.00011117981921415776,
+          "absolute_gain_min": 0.9765509963035583,
+          "absolute_gain_max": 1.0375993251800537,
+          "absolute_phase_max": 0.0,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            5.798041820526123e-05,
+            7.109565194696188e-05,
+            -1.2211501598358154e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.00013088848209008574,
+          "STD": 0.00011843204265460372,
+          "absolute_gain_min": 0.9373253583908081,
+          "absolute_gain_max": 0.9853777885437012,
+          "absolute_phase_max": 0.0,
+          "absolute_gain_failing_frames": [
+            3,
+            4
+          ],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": false,
+          "RGB_bias": [
+            -3.0547380447387695e-06,
+            -5.200505256652832e-06,
+            -3.510071474011056e-05
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "flat_lighting_step",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.00012858720776713357,
+      "significant_mature_STD": 0.00012858720776713357,
+      "mature_STD_ratio": 1.0,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 64
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 64
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.00013866170210081886,
+          "STD": 0.00013752423054612338,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            1.637268066403963e-05,
+            1.0208129882796624e-05,
+            -1.6937255859411637e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.00014805003676984544,
+          "STD": 0.00012858720776713357,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            6.005859374996758e-05,
+            9.472656249998046e-05,
+            -5.371093750006217e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.00011695839420902001,
+          "STD": 0.00011333036117841056,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -6.103515625133227e-07,
+            -1.8310546875122125e-06,
+            -4.88281250000111e-05
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "persistent_shared_bias",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.0002185029508710777,
+      "significant_mature_STD": 0.00021170688948785849,
+      "mature_STD_ratio": 1.0321012764377182,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 10285
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 10284
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.00870899423919122,
+          "STD": 0.0005853812805266947,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -7.936237510700957e-05,
+            -7.158090069568667e-05,
+            -6.037081702281932e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.008695225991561653,
+          "STD": 0.0002185029508710777,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -2.0941394870577413e-05,
+            2.880512080503898e-06,
+            -5.6440893732040464e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.008753969970223647,
+          "STD": 0.0007772176340651514,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -0.0001321425911300863,
+            -0.00011971351309495747,
+            -0.00012568365286393066
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "guide_noise",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.000119581636661154,
+      "significant_mature_STD": 0.000119581636661154,
+      "mature_STD_ratio": 1.0,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 64
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 64
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.00013037591322849888,
+          "STD": 0.00012924007597527073,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            2.0370483398424177e-05,
+            9.613037109362788e-06,
+            -3.0517578125111022e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.00013230229532792918,
+          "STD": 0.000119581636661154,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            6.042480468748668e-05,
+            7.446289062497132e-05,
+            -3.0517578125111022e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.00011695839420902001,
+          "STD": 0.00011333036117841056,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -6.103515625133227e-07,
+            -1.8310546875122125e-06,
+            -4.88281250000111e-05
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "lighting_step",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.000492806226934462,
+      "significant_mature_STD": 0.001413855320188568,
+      "mature_STD_ratio": 0.3485549192322845,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 1,
+          "mature_retained_innovation_sum": 1,
+          "full_retained_frequency_sum": 34651
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 1278,
+          "mature_retained_innovation_sum": 517,
+          "full_retained_frequency_sum": 35536
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.0015690244267452657,
+          "STD": 0.0012154208261085163,
+          "absolute_gain_min": 0.9966445450439918,
+          "absolute_gain_max": 1.000287461196037,
+          "absolute_phase_max": 0.007846248786211448,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -4.045982520814546e-05,
+            -4.7280402993906876e-05,
+            -6.112793773717425e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": true,
+            "effective_success": true
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": true,
+            "effective_success": true
+          }
+        },
+        "mature": {
+          "RMSE": 0.0013246635469896491,
+          "STD": 0.000492806226934462,
+          "absolute_gain_min": 0.999228418757273,
+          "absolute_gain_max": 1.000287461196037,
+          "absolute_phase_max": 0.0008741722015986056,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -8.205423887033291e-06,
+            1.3319565544209005e-05,
+            -7.503501741749727e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": true,
+            "effective_success": true
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": true,
+            "effective_success": true
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.0023476445065179034,
+          "STD": 0.001591945972738601,
+          "absolute_gain_min": 0.9966445450439918,
+          "absolute_gain_max": 0.999359777166803,
+          "absolute_phase_max": 0.007846248786211448,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -2.003030159333685e-05,
+            -3.667599900594149e-05,
+            -6.507950647247955e-05
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "disocclusion",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.0012365310436926527,
+      "significant_mature_STD": 0.001094307768725439,
+      "mature_STD_ratio": 1.129966430863288,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 1200,
+          "mature_retained_innovation_sum": 538,
+          "full_retained_frequency_sum": 33874
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 921,
+          "mature_retained_innovation_sum": 429,
+          "full_retained_frequency_sum": 33904
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.0017693947640159105,
+          "STD": 0.0014715495370994187,
+          "absolute_gain_min": 0.9966445450439918,
+          "absolute_gain_max": 1.0095175226330524,
+          "absolute_phase_max": 0.009604141462039459,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -1.3789877130035013e-05,
+            -2.6682762196333622e-05,
+            -3.268189682644077e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [
+              "rmse",
+              "early_or_transition_frame"
+            ],
+            "nonregression": false,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [
+              "rmse",
+              "early_or_transition_frame"
+            ],
+            "nonregression": false,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.0017812301309586102,
+          "STD": 0.0012365310436926527,
+          "absolute_gain_min": 0.9998734518356777,
+          "absolute_gain_max": 1.0095175226330524,
+          "absolute_phase_max": 0.009604141462039459,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            2.0407983292166077e-05,
+            4.381937813516638e-05,
+            -3.6857119929888973e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [
+              "rmse",
+              "early_or_transition_frame"
+            ],
+            "nonregression": false,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [
+              "rmse",
+              "early_or_transition_frame"
+            ],
+            "nonregression": false,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.0023476445065179034,
+          "STD": 0.001591945972738601,
+          "absolute_gain_min": 0.9966445450439918,
+          "absolute_gain_max": 0.999359777166803,
+          "absolute_phase_max": 0.007846248786211448,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -2.003030159333685e-05,
+            -3.667599900594149e-05,
+            -6.507950647247955e-05
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "reset",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.0006595080188675611,
+      "significant_mature_STD": 0.0006588777659112702,
+      "mature_STD_ratio": 1.000956555204772,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 1,
+          "mature_retained_innovation_sum": 1,
+          "full_retained_frequency_sum": 23726
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 1,
+          "mature_retained_innovation_sum": 1,
+          "full_retained_frequency_sum": 23726
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.0016804464637427405,
+          "STD": 0.0014320424561004058,
+          "absolute_gain_min": 0.9966445450439918,
+          "absolute_gain_max": 1.0064673617616082,
+          "absolute_phase_max": 0.007846248786211448,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -2.6221333578123283e-05,
+            -3.8440411948232116e-05,
+            -4.600036275434201e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.0012779106881802352,
+          "STD": 0.0006595080188675611,
+          "absolute_gain_min": 1.0005767800228995,
+          "absolute_gain_max": 1.0021864538028666,
+          "absolute_phase_max": 0.0013501934695057487,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            1.3721918135590208e-05,
+            2.30743524265078e-05,
+            -5.253395547723699e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.0023476445065179034,
+          "STD": 0.001591945972738601,
+          "absolute_gain_min": 0.9966445450439918,
+          "absolute_gain_max": 0.999359777166803,
+          "absolute_phase_max": 0.007846248786211448,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -2.003030159333685e-05,
+            -3.667599900594149e-05,
+            -6.507950647247955e-05
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    }
+  ],
+  "counterexamples": [
+    {
+      "family": "slow_constant_phase",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.0001378284011482963,
+      "significant_mature_STD": 0.00013759051349419456,
+      "mature_STD_ratio": 1.0017289538941345,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 1,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 128
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 1,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 128
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.00020518564679933843,
+          "STD": 0.00019978863864683594,
+          "absolute_gain_min": 0.963325464785524,
+          "absolute_gain_max": 1.0092168619342377,
+          "absolute_phase_max": 0.06371828876737284,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [
+            5,
+            6
+          ],
+          "absolute_detail_pass": false,
+          "RGB_bias": [
+            -4.066398061254313e-06,
+            2.8329368112378605e-05,
+            2.2384305351835713e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": true,
+            "effective_success": true
+          }
+        },
+        "mature": {
+          "RMSE": 0.00014998726592963538,
+          "STD": 0.0001378284011482963,
+          "absolute_gain_min": 1.00037825717806,
+          "absolute_gain_max": 1.003037364858245,
+          "absolute_phase_max": 0.020455375803807848,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            1.4475517528746032e-05,
+            3.306929171149526e-05,
+            6.755766257784864e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": true,
+            "effective_success": true
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.000291081365108025,
+          "STD": 0.0002055050701371605,
+          "absolute_gain_min": 0.963325464785524,
+          "absolute_gain_max": 1.0092168619342377,
+          "absolute_phase_max": 0.06371828876737284,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [
+            5,
+            6
+          ],
+          "absolute_detail_pass": false,
+          "RGB_bias": [
+            -5.681120138474037e-05,
+            -5.1872794847070846e-05,
+            -8.340560504033928e-06
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "phase_acceleration",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.00023152566944530892,
+      "significant_mature_STD": 0.00023152566944530892,
+      "mature_STD_ratio": 1.0,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 45,
+          "mature_retained_innovation_sum": 16,
+          "full_retained_frequency_sum": 128
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 44,
+          "mature_retained_innovation_sum": 16,
+          "full_retained_frequency_sum": 128
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.00028465518119436906,
+          "STD": 0.00027630587184657043,
+          "absolute_gain_min": 0.9622830280434498,
+          "absolute_gain_max": 1.0417333322400886,
+          "absolute_phase_max": 0.09161809630755346,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [
+            7,
+            13,
+            14,
+            16,
+            17,
+            18,
+            19,
+            20
+          ],
+          "absolute_detail_pass": false,
+          "RGB_bias": [
+            -3.2212708744948447e-06,
+            2.7591609504379392e-05,
+            2.291071967488671e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [
+              "early_or_transition_frame",
+              "phase_error_radians"
+            ],
+            "nonregression": false,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.00023628163595983804,
+          "STD": 0.00023152566944530892,
+          "absolute_gain_min": 0.9793719715697105,
+          "absolute_gain_max": 1.0341505640921211,
+          "absolute_phase_max": 0.03552674348469337,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            1.6873036428338708e-05,
+            3.261482333584038e-05,
+            7.903076449737237e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.00022865615591543056,
+          "STD": 0.00015975385376951854,
+          "absolute_gain_min": 0.999045426051075,
+          "absolute_gain_max": 1.0110094611466993,
+          "absolute_phase_max": 0.05214665892131612,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [
+            7
+          ],
+          "absolute_detail_pass": false,
+          "RGB_bias": [
+            -5.766591209464808e-05,
+            -5.162351048268912e-05,
+            -8.46913159662647e-06
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "multiplicative_illumination_step",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.00014386968982171047,
+      "significant_mature_STD": 0.0002381435263998174,
+      "mature_STD_ratio": 0.6041301730796105,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 128
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 32,
+          "mature_retained_innovation_sum": 16,
+          "full_retained_frequency_sum": 128
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.0001839765700529396,
+          "STD": 0.00017891128307126477,
+          "absolute_gain_min": 0.997632695153822,
+          "absolute_gain_max": 1.0122370133236407,
+          "absolute_phase_max": 0.011311469173935548,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -3.5970520681728278e-06,
+            2.7633522875639058e-05,
+            2.186383433262659e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": true,
+            "effective_success": true
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": true,
+            "effective_success": true
+          }
+        },
+        "mature": {
+          "RMSE": 0.00015391336800277565,
+          "STD": 0.00014386968982171047,
+          "absolute_gain_min": 0.9984045688322754,
+          "absolute_gain_max": 1.0003854329038229,
+          "absolute_phase_max": 0.0033740601039595505,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            1.5951604956057678e-05,
+            3.240310298274534e-05,
+            4.504227459556816e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": true,
+            "effective_success": true
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": true,
+            "effective_success": true
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.00017559228971293091,
+          "STD": 0.00014312152569373568,
+          "absolute_gain_min": 0.9990569927494197,
+          "absolute_gain_max": 1.0122370133236407,
+          "absolute_phase_max": 0.011311469173935548,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -5.778684024785929e-05,
+            -5.242786415807948e-05,
+            -6.234213118095086e-06
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "additive_DC_only_illumination_step",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.00023953706097642306,
+      "significant_mature_STD": 0.00014428016287110099,
+      "mature_STD_ratio": 1.6602217256326777,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 32,
+          "mature_retained_innovation_sum": 16,
+          "full_retained_frequency_sum": 128
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 128
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.00023333957801374296,
+          "STD": 0.00023037972014104747,
+          "absolute_gain_min": 0.9613817431335656,
+          "absolute_gain_max": 1.0312116454427678,
+          "absolute_phase_max": 0.035034101220467934,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -3.0646958310051113e-06,
+            2.776748803317105e-05,
+            2.190662132554097e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [
+              "early_or_transition_frame"
+            ],
+            "nonregression": false,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [
+              "early_or_transition_frame"
+            ],
+            "nonregression": false,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.0002448539510822083,
+          "STD": 0.00023953706097642306,
+          "absolute_gain_min": 0.975530128705316,
+          "absolute_gain_max": 1.0312116454427678,
+          "absolute_phase_max": 0.030345308641793214,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            1.64906054902553e-05,
+            3.234082048541034e-05,
+            5.664225223042228e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [
+              "early_or_transition_frame"
+            ],
+            "nonregression": false,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [
+              "early_or_transition_frame"
+            ],
+            "nonregression": false,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.00017559228971293091,
+          "STD": 0.00014312152569373568,
+          "absolute_gain_min": 0.9990569927494197,
+          "absolute_gain_max": 1.0122370133236407,
+          "absolute_phase_max": 0.011311469173935548,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -5.778684024785929e-05,
+            -5.242786415807948e-05,
+            -6.234213118095086e-06
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "colored_multiplicative_illumination",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.000135916610969591,
+      "significant_mature_STD": 0.0002334932709072836,
+      "mature_STD_ratio": 0.5821007622252261,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 128
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 32,
+          "mature_retained_innovation_sum": 16,
+          "full_retained_frequency_sum": 128
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.00018026086144249585,
+          "STD": 0.00017507432708920465,
+          "absolute_gain_min": 0.9970679373618355,
+          "absolute_gain_max": 1.0122370133236407,
+          "absolute_phase_max": 0.011311469173935548,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -3.5970520681728278e-06,
+            2.7772553436296965e-05,
+            2.1951626317125333e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": true,
+            "effective_success": true
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": true,
+            "effective_success": true
+          }
+        },
+        "mature": {
+          "RMSE": 0.00014453235273774592,
+          "STD": 0.000135916610969591,
+          "absolute_gain_min": 0.998071545582261,
+          "absolute_gain_max": 1.0007822103850974,
+          "absolute_phase_max": 0.005464949666617162,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            1.5951604956057678e-05,
+            3.2701699726722694e-05,
+            6.472981999368118e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": true,
+            "effective_success": true
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": true,
+            "effective_success": true
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.00017559228971293091,
+          "STD": 0.00014312152569373568,
+          "absolute_gain_min": 0.9990569927494197,
+          "absolute_gain_max": 1.0122370133236407,
+          "absolute_phase_max": 0.011311469173935548,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -5.778684024785929e-05,
+            -5.242786415807948e-05,
+            -6.234213118095086e-06
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "disocclusion_shape_swap",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.00024399696632062417,
+      "significant_mature_STD": 0.00024399696632062417,
+      "mature_STD_ratio": 1.0,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 32,
+          "mature_retained_innovation_sum": 16,
+          "full_retained_frequency_sum": 128
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 32,
+          "mature_retained_innovation_sum": 16,
+          "full_retained_frequency_sum": 128
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.0002345317090510183,
+          "STD": 0.0002311985281619009,
+          "absolute_gain_min": 0.9561349472333319,
+          "absolute_gain_max": 1.0268366649539273,
+          "absolute_phase_max": 0.06108745840966929,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [
+            62
+          ],
+          "absolute_detail_pass": false,
+          "RGB_bias": [
+            -3.9250777477539235e-06,
+            2.8198796781839035e-05,
+            2.2124770310981136e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": true,
+            "effective_success": true
+          }
+        },
+        "mature": {
+          "RMSE": 0.000249917248216894,
+          "STD": 0.00024399696632062417,
+          "absolute_gain_min": 0.9759802205037421,
+          "absolute_gain_max": 1.0258716328588275,
+          "absolute_phase_max": 0.06108745840966929,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [
+            14
+          ],
+          "absolute_detail_pass": false,
+          "RGB_bias": [
+            1.4736163235592595e-05,
+            3.39279347502486e-05,
+            7.466552813374411e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": true,
+            "effective_success": true
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.00017559228971293091,
+          "STD": 0.00014312152569373568,
+          "absolute_gain_min": 0.9990569927494197,
+          "absolute_gain_max": 1.0122370133236407,
+          "absolute_phase_max": 0.011311469173935548,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -5.778684024785929e-05,
+            -5.242786415807948e-05,
+            -6.234213118095086e-06
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "weak_Nyquist_startup",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.00014190435155940592,
+      "significant_mature_STD": 0.00014190435155940592,
+      "mature_STD_ratio": 1.0,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 1,
+          "mature_retained_innovation_sum": 1,
+          "full_retained_frequency_sum": 128
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 1,
+          "mature_retained_innovation_sum": 1,
+          "full_retained_frequency_sum": 128
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.00017607514403557138,
+          "STD": 0.00017200793660320312,
+          "absolute_gain_min": 0.9210407733917265,
+          "absolute_gain_max": 1.4283414930105325,
+          "absolute_phase_max": 0.0,
+          "absolute_gain_failing_frames": [
+            0,
+            2,
+            4,
+            20,
+            21,
+            23,
+            24,
+            25,
+            26,
+            27,
+            29,
+            30,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            41,
+            48,
+            57
+          ],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": false,
+          "RGB_bias": [
+            -1.9073486329235223e-07,
+            3.604888916014515e-05,
+            2.5558471679676398e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.00014776675413639417,
+          "STD": 0.00014190435155940592,
+          "absolute_gain_min": 0.9372550994157827,
+          "absolute_gain_max": 1.4283414930105325,
+          "absolute_phase_max": 0.0,
+          "absolute_gain_failing_frames": [
+            0,
+            9
+          ],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": false,
+          "RGB_bias": [
+            1.2207031249988898e-05,
+            4.65393066406139e-05,
+            4.577636718738898e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": false,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.00015294585095860212,
+          "STD": 0.00013271295755858253,
+          "absolute_gain_min": 1.0135397315025327,
+          "absolute_gain_max": 1.0898429900407838,
+          "absolute_phase_max": 0.0,
+          "absolute_gain_failing_frames": [
+            0,
+            2,
+            4
+          ],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": false,
+          "RGB_bias": [
+            -4.88281250000111e-05,
+            -4.11987304687611e-05,
+            -1.8310546875011102e-05
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "colored_RGB_noise",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.003848675179577119,
+      "significant_mature_STD": 0.003848610733097575,
+      "mature_STD_ratio": 1.000016745387885,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 6130,
+          "mature_retained_innovation_sum": 1538,
+          "full_retained_frequency_sum": 11489
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 6130,
+          "mature_retained_innovation_sum": 1538,
+          "full_retained_frequency_sum": 11488
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.005471644804378273,
+          "STD": 0.004067777794208887,
+          "absolute_gain_min": 0.9389396165832335,
+          "absolute_gain_max": 1.014709626002647,
+          "absolute_phase_max": 0.041448013315027815,
+          "absolute_gain_failing_frames": [
+            9
+          ],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": false,
+          "RGB_bias": [
+            -3.074602215376188e-06,
+            2.606708919129438e-05,
+            5.2566256673865984e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.005371984609347416,
+          "STD": 0.003848675179577119,
+          "absolute_gain_min": 0.9856233948412566,
+          "absolute_gain_max": 1.0044653905036731,
+          "absolute_phase_max": 0.003760433456535605,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            6.055946332439206e-06,
+            3.103219203842408e-05,
+            8.052008855149961e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.005653042293575164,
+          "STD": 0.003764053242595841,
+          "absolute_gain_min": 1.0023717637636713,
+          "absolute_gain_max": 1.014709626002647,
+          "absolute_phase_max": 0.013608109991791273,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -2.715097693632829e-05,
+            -5.584499176897525e-05,
+            1.5791805922031485e-06
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "current_RGB_fully_correlated_noise",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.00012846939172787923,
+      "significant_mature_STD": 0.00012885331811659384,
+      "mature_STD_ratio": 0.9970204384774383,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 128
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 128
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.00018719731690135884,
+          "STD": 0.0001821884894596914,
+          "absolute_gain_min": 0.9988432011453334,
+          "absolute_gain_max": 1.0308882154168004,
+          "absolute_phase_max": 0.027377242854450715,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -4.042651467645581e-06,
+            -4.042651467645581e-06,
+            -4.042651467645581e-06
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [
+              "early_or_transition_frame"
+            ],
+            "nonregression": false,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.00013391954135657882,
+          "STD": 0.00012846939172787923,
+          "absolute_gain_min": 1.001013198878152,
+          "absolute_gain_max": 1.0038573067472507,
+          "absolute_phase_max": 0.027377242854450715,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            1.5114620200938882e-05,
+            1.5114620200938882e-05,
+            1.5114620200938882e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [
+              "early_or_transition_frame"
+            ],
+            "nonregression": false,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.00017251950595686722,
+          "STD": 0.0001329881479786189,
+          "absolute_gain_min": 1.004857280149382,
+          "absolute_gain_max": 1.0308882154168004,
+          "absolute_phase_max": 0.017885211981135872,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -5.778684024785929e-05,
+            -5.778684024785929e-05,
+            -5.778684024785929e-05
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "temporal_AR_source_noise",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.0010593941476289741,
+      "significant_mature_STD": 0.0010589981583832852,
+      "mature_STD_ratio": 1.0003739281721635,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 57080
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 57087
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.004006826407019942,
+          "STD": 0.0026919257504821243,
+          "absolute_gain_min": 0.9939750701242958,
+          "absolute_gain_max": 1.0164288777018096,
+          "absolute_phase_max": 0.013498067100400841,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -3.713334311214823e-05,
+            6.06375778047945e-05,
+            6.174937641569513e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.0034827195864902665,
+          "STD": 0.0010593941476289741,
+          "absolute_gain_min": 0.994823777337494,
+          "absolute_gain_max": 0.9983817935148677,
+          "absolute_phase_max": 0.011238225788280772,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -5.42757385994613e-06,
+            6.529218203728021e-05,
+            4.380863503358585e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.0027607302176532694,
+          "STD": 0.001857298499812555,
+          "absolute_gain_min": 1.00737415387684,
+          "absolute_gain_max": 1.0154506615187202,
+          "absolute_phase_max": 0.013498067100400841,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            -0.00015717596823053845,
+            -0.00020262705115507804,
+            -5.598956255251322e-05
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    },
+    {
+      "family": "persistent_correlated_source_bias",
+      "activity": 1.0,
+      "invalid_fraction": 0.0,
+      "candidate_mature_STD": 0.00013195351629092763,
+      "significant_mature_STD": 0.0001321125978889621,
+      "mature_STD_ratio": 0.9987958635241723,
+      "innovation_counts": {
+        "candidate": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 128
+        },
+        "frozen_significant": {
+          "full_retained_innovation_sum": 0,
+          "mature_retained_innovation_sum": 0,
+          "full_retained_frequency_sum": 128
+        }
+      },
+      "windows": {
+        "full": {
+          "RMSE": 0.004629225761731429,
+          "STD": 0.0001727984609917201,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            6.406974628194377e-05,
+            8.276414501573503e-05,
+            6.343724910396546e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "mature": {
+          "RMSE": 0.004618655332850844,
+          "STD": 0.00013195351629092763,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            8.314200047270907e-05,
+            8.768940875490115e-05,
+            4.796694312805065e-05
+          ],
+          "relative_gate_vs_significant": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          },
+          "relative_gate_vs_hard": {
+            "failures": [],
+            "nonregression": true,
+            "active": true,
+            "exceeds_observed_null": false,
+            "effective_success": false
+          }
+        },
+        "startup_first8": {
+          "RMSE": 0.004686461643842364,
+          "STD": 0.00014316939296407213,
+          "absolute_gain_min": null,
+          "absolute_gain_max": null,
+          "absolute_phase_max": null,
+          "absolute_gain_failing_frames": [],
+          "absolute_phase_failing_frames": [],
+          "absolute_detail_pass": true,
+          "RGB_bias": [
+            1.035389666100311e-05,
+            2.395932167166977e-06,
+            3.394521997468743e-05
+          ],
+          "relative_gate_vs_significant": null,
+          "relative_gate_vs_hard": null
+        }
+      }
+    }
+  ],
+  "scope": "CPU source only; normalized-source estimator never consumes truth, guides or prior native pilot response",
+  "qualifications": [
+    "Relative gate/effective is against another source pilot with null0; no native acceptance",
+    "Frozen analyzer uses full sequence activity for both full and mature relative gates, as prior source benchmark did; absolute per-frame detail independent of this activity",
+    "Mature frame indices in metric lists are local0..15; full frame indices0..63",
+    "Hard64 vs significant differences include currentORmean-support vs selected-support; significant is closest control",
+    "Source nominal IID covariance, random ratios and estimated phase uncertainty are assumptions, not confidence",
+    "DC normalization did not improve static material/wave noise floor; shared bias remains unidentifiable"
+  ]
+}

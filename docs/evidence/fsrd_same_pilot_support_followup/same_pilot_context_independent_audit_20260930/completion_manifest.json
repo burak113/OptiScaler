@@ -1,0 +1,17 @@
+{
+  "status": "completed_not_solution",
+  "source_or_original_evidence_changed": false,
+  "GPU_calls": 0,
+  "files": {
+    "audit_erratum.json": "b8d721b0c95ec5f33ec49fcf7bd3a6dfeb5f53011afb5ce8f6700d54271807e1",
+    "audit_execution_notes.json": "965829a5c990f95733a34f3d0facfa762d0f37566f364df484fbefe1e1467038",
+    "audit.json": "11adf4d7c048a0285822588710fe38a62dfb77501c933a33b8def5e5385babfc",
+    "audit.py": "8a820533d00d06a9cbfed741a84c44f9633a1ccbadfcaa33a4ad9fdb16b09d63",
+    "harmonic_novelty_note.json": "f08767135eb7fa3ed96a535fe59e0220fe74e8f11bfb6ec879166ca7ff2ff463",
+    "run_v2.log": "bed9fe4a39d22e3100594a59ed15d0aad3d7dff09e206170dcba786cc758e596",
+    "run.log": "918e67483b993eabb4670e31a6c82adde1de11050c149bdd982e41c9570f795b",
+    "support_review.json": "f462f59d4cdb0df9e597cf69cee4435814185abb86f951681dabb9b7542ed91d",
+    "support_review.log": "d9d56325ccecf31575512504f50009cf9a86961969c2d2a435d6a7f038d15aaf",
+    "support_review.py": "6c12029722c3f1b73d3badeb746931876e8b87ab659516b5bb4e51eaa62a0e8c"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "schema": "same-pilot-auditor-control-expectation-erratum-v1",
+  "original_failed_audit_log": "run.log",
+  "corrected_completed_audit_log": "run_v2.log",
+  "mistake": "First independent auditor assertion expected native dispatch flags RESET alone:1 at frame0,0 subsequently. Retained applied bytes actually contain3 at frame0 and2 subsequently.",
+  "correction": "Auditor expectation now matches caller: NON_GAMMA_ALBEDO value2 OR RESET value1 on first/explicit-reset frames. This is native flag bit1 for NON_GAMMA_ALBEDO, not a linear-depth bit. Shader conversion Flags are a different namespace.",
+  "local_header_evidence": {
+    "path": "external/FidelityFX-SDK-v2/Kits/FidelityFX/denoisers/include/ffx_denoiser.h",
+    "RESET_line": 577,
+    "RESET_declaration": "FFX_DENOISER_DISPATCH_RESET = (1 << 0)",
+    "NON_GAMMA_ALBEDO_line": 579,
+    "NON_GAMMA_ALBEDO_declaration": "FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO = (1 << 1)"
+  },
+  "caller_evidence": {
+    "path": "OptiScaler/shaders/shader_tools/tests/fsrd_rr_runner.cpp",
+    "lines": [178,184],
+    "expression": "FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO | ((frame==0||reset)?FFX_DENOISER_DISPATCH_RESET:0)"
+  },
+  "applied_byte_contract": "184bytes/frame: uint32 frameIndex,flags,width,height followed by42float32 values. flags is bytes4:8 little-endian. Original and all3new native contexts have identical full184byte records and matching applied SHA.",
+  "producer_evidence_or_original_logs_changed": false,
+  "production_code_changed": false,
+  "new_native_calls": 0,
+  "threshold_or_acceptance_tuning": false,
+  "scope": "Correction to an independent audit expectation, not a caller error, SDK violation, variance cause or image-quality claim. Original failed audit log preserved."
+}

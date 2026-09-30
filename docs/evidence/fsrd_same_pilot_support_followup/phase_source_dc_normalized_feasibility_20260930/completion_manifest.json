@@ -1,0 +1,15 @@
+{
+  "status": "completed_not_solution",
+  "source_or_original_evidence_changed": false,
+  "GPU_calls": 0,
+  "files": {
+    "analyze.py": "26b26a7d81b0ebcd1e0cab9f5d94cad443fb2257d75203273c99c72254e43aa0",
+    "compact_report.json": "02f71b02f84c1f01dee5bfa83ac9b8513a4ba857e31699372fec678a14e2fc8c",
+    "compact.py": "d57669eaaeb1bda89625516c7981953484b03a6e27e90e650be90b97b104bffb",
+    "normalized_pilot.py": "97d1f4507f7a21ff02922201d05378b8a50f9b415d2afacea9616f6472c94896",
+    "pre_score_freeze.json": "290bb32b26d16681754dc0c12ef3ea5ec97948711bd015858fce106a3122dfc0",
+    "preregistration.json": "7c301dae108d2ad6a3012fea0678770f45bcc97dda532f33cbad92b19f27daa6",
+    "results.json": "369c37934321f8edea1fc5c3f0d42dc5b4d94302658fffe33aa93d81db9386b0",
+    "run.log": "ae45af125e0ddc4a4cb748d938648f542fad23578e0dee2fc6c3f33d22c822b2"
+  }
+}

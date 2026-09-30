@@ -1,0 +1,218 @@
+{
+  "schema": "support-decomposition-independent-review-v1",
+  "status": "completed_diagnostic_not_solution",
+  "quality_accepted": false,
+  "producer_result_sha256": "3936d9b145e25120e00a58942e4433247cf9acf2b61f09f83e6aa9af66685082",
+  "producer_script_sha256": "b0e279f772e4f24cd77a08b4f18d7276e2366a24c718c5f3425052dfab7c0fb7",
+  "prototype_sha256": "8c68c808482226284377734d941c95553d91e29ebfb33ede121d184585c3fa48",
+  "producer_instrumented_source_sha256": "7138b5e749f0ce23dba0461cfe69e31f27319eab1683219f74e1281fabafaff6",
+  "audit_source_sha256": "6c12029722c3f1b73d3badeb746931876e8b87ab659516b5bb4e51eaa62a0e8c",
+  "removing_only_observer_call_restores_original_AST_exact": true,
+  "truth_fields_not_read": true,
+  "new_GPU_calls": 0,
+  "rows": [
+    {
+      "scene": "material",
+      "saved_source_and_pilot_hash_exact": true,
+      "unhooked_vs_independent_hook_P_active_diagnostics_exact": true,
+      "windows": {
+        "full": {
+          "reference_frame": 0,
+          "component_covariance_matrix": [
+            [
+              1.0869742079372931e-07,
+              2.9774595068338916e-09,
+              1.8193925728319574e-11
+            ],
+            [
+              2.9774595068338916e-09,
+              1.200066093332936e-06,
+              -2.1815564533781036e-11
+            ],
+            [
+              1.8193925728319574e-11,
+              -2.1815564533781036e-11,
+              1.1523011355129114e-09
+            ]
+          ],
+          "actual_variance": 1.3158634909982382e-06,
+          "identity_error": 3.1763735522036263e-21,
+          "support_min": 75,
+          "support_max": 732,
+          "support_mean": 513.765625,
+          "changed_at_least_once": 669,
+          "adjacent_change_mean": 16.49206349206349,
+          "retained_phase_mean": 0.046875,
+          "retained_innovation_mean": 0.015625
+        },
+        "mature": {
+          "reference_frame": 48,
+          "component_covariance_matrix": [
+            [
+              4.703780036554579e-08,
+              -1.4920441126268616e-08,
+              1.1430440572342693e-11
+            ],
+            [
+              -1.4920441126268616e-08,
+              1.028375952241825e-07,
+              -6.603972895087316e-12
+            ],
+            [
+              1.1430440572342693e-11,
+              -6.603972895087316e-12,
+              1.098240686828224e-09
+            ]
+          ],
+          "actual_variance": 1.211424069593738e-07,
+          "identity_error": 0.0,
+          "support_min": 670,
+          "support_max": 732,
+          "support_mean": 701.125,
+          "changed_at_least_once": 84,
+          "adjacent_change_mean": 10.133333333333333,
+          "retained_phase_mean": 0.0,
+          "retained_innovation_mean": 0.0625
+        }
+      }
+    },
+    {
+      "scene": "wave",
+      "saved_source_and_pilot_hash_exact": true,
+      "unhooked_vs_independent_hook_P_active_diagnostics_exact": true,
+      "windows": {
+        "full": {
+          "reference_frame": 0,
+          "component_covariance_matrix": [
+            [
+              4.850479898527161e-08,
+              -2.040072522035324e-10,
+              2.815889177969068e-12
+            ],
+            [
+              -2.040072522035324e-10,
+              4.972312079904412e-07,
+              -7.193220863372452e-12
+            ],
+            [
+              2.815889177969068e-12,
+              -7.193220863372452e-12,
+              1.1412022378779755e-09
+            ]
+          ],
+          "actual_variance": 5.464604400458117e-07,
+          "identity_error": 1.2705494208814505e-21,
+          "support_min": 31,
+          "support_max": 305,
+          "support_mean": 207.921875,
+          "changed_at_least_once": 291,
+          "adjacent_change_mean": 7.746031746031746,
+          "retained_phase_mean": 0.015625,
+          "retained_innovation_mean": 0.0
+        },
+        "mature": {
+          "reference_frame": 48,
+          "component_covariance_matrix": [
+            [
+              1.603281511690925e-08,
+              1.621002566038986e-10,
+              -8.781766417490793e-12
+            ],
+            [
+              1.621002566038986e-10,
+              5.2700893158793206e-08,
+              6.423926067407843e-13
+            ],
+            [
+              -8.781766417490793e-12,
+              6.423926067407843e-13,
+              1.0847576609087814e-09
+            ]
+          ],
+          "actual_variance": 7.012638770219741e-08,
+          "identity_error": 1.1911400820763599e-22,
+          "support_min": 271,
+          "support_max": 305,
+          "support_mean": 288.75,
+          "changed_at_least_once": 56,
+          "adjacent_change_mean": 7.333333333333333,
+          "retained_phase_mean": 0.0,
+          "retained_innovation_mean": 0.0
+        }
+      }
+    },
+    {
+      "scene": "reset",
+      "saved_source_and_pilot_hash_exact": true,
+      "unhooked_vs_independent_hook_P_active_diagnostics_exact": true,
+      "windows": {
+        "full": {
+          "reference_frame": 0,
+          "component_covariance_matrix": [
+            [
+              2.1917021089103852e-07,
+              6.041895412937496e-09,
+              4.141426738531581e-12
+            ],
+            [
+              6.041895412937496e-09,
+              1.9527822317378934e-06,
+              1.5073061029152484e-11
+            ],
+            [
+              4.141426738531581e-12,
+              1.5073061029152484e-11,
+              1.151237085866711e-09
+            ]
+          ],
+          "actual_variance": 2.185225899516218e-06,
+          "identity_error": 8.893845946170154e-21,
+          "support_min": 75,
+          "support_max": 563,
+          "support_mean": 370.625,
+          "changed_at_least_once": 537,
+          "adjacent_change_mean": 28.285714285714285,
+          "retained_phase_mean": 0.046875,
+          "retained_innovation_mean": 0.0
+        },
+        "mature": {
+          "reference_frame": 48,
+          "component_covariance_matrix": [
+            [
+              6.150803348805399e-08,
+              2.281410831726003e-09,
+              -9.585485142101424e-12
+            ],
+            [
+              2.281410831726003e-09,
+              4.2377385540059655e-07,
+              1.4244741872241555e-11
+            ],
+            [
+              -9.585485142101424e-12,
+              1.4244741872241555e-11,
+              1.096567207266436e-09
+            ]
+          ],
+          "actual_variance": 4.909505962728296e-07,
+          "identity_error": 3.1763735522036263e-22,
+          "support_min": 396,
+          "support_max": 563,
+          "support_mean": 484.9375,
+          "changed_at_least_once": 186,
+          "adjacent_change_mean": 19.133333333333333,
+          "retained_phase_mean": 0.0,
+          "retained_innovation_mean": 0.0
+        }
+      }
+    }
+  ],
+  "conclusions": [
+    "Static mature material/wave/reset support changes occur while retained phase use is0 and retained innovation rare/0",
+    "Changing-support B variance is descriptively large; B also includes real weak details and covariance, so B/total is not a causal noise fraction",
+    "First-window support atframe48 is an algebra reference, not clean/safe support or a proposed filter",
+    "A includes genuine signal, noisy coefficients and settling; exact A+B+Q identity does not label errors",
+    "Variance is fullRGB5px interior70x118, temporal64/16; sqrtvariance differs from meanpixelSTD acceptancegate",
+    "No changedP/nativeT(P) substitution, production change, confidence, image quality acceptance or game fix"
+  ]
+}
