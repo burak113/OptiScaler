@@ -1,0 +1,62 @@
+{
+  "original_analyzer": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\analyze.py",
+    "sha256": "2cf52bdb1820312c0c474de5aa9604eeffcb585190f2307fb82b87a57898aef0"
+  },
+  "operations": [
+    {
+      "label": "scope",
+      "before": "\"\"\"One frozen conditioner: saved matching responses plus known operator controls.\"\"\"",
+      "after": "\"\"\"Frozen reconstruction endpoint OLS: execute only after separate root law review.\"\"\"",
+      "occurrences": 1
+    },
+    {
+      "label": "exact_V2_comparator_loader",
+      "before": "def sha(p):",
+      "after": "oldsp=importlib.util.spec_from_file_location('frozen_V2_delta_history',ROOT/'tools_tmp/harmonic_response_coefficient_history_feasibility_v2_20260930/model.py');old_v2=importlib.util.module_from_spec(oldsp);oldsp.loader.exec_module(old_v2)\n\ndef sha(p):",
+      "occurrences": 1
+    },
+    {
+      "label": "known_V2_comparator_before_truth",
+      "before": "    original=B+active[:,None,None,None]*(P-TP);epochs=",
+      "after": "    old_output,old_diag,old_pre=old_v2.make_response_history(raw,P,TP,B,active,ctrl,a['diag'],a['descriptors'],a.get('exposure'))\n    original=B+active[:,None,None,None]*(P-TP);epochs=",
+      "occurrences": 1
+    },
+    {
+      "label": "known_V2_metric_variant",
+      "before": "('candidate',output)]",
+      "after": "('frozen_V2_delta_history',old_output),('candidate',output)]",
+      "occurrences": 1
+    },
+    {
+      "label": "native_V2_comparator_before_truth",
+      "before": "            original=B+active[:,None,None,None]*(P-TP);assert original.tobytes()",
+      "after": "            old_output,old_diag,old_pre=old_v2.make_response_history(raw,P,TP,B,active,ctrl,hook['source_diagnostics'],hook['descriptors'])\n            original=B+active[:,None,None,None]*(P-TP);assert original.tobytes()",
+      "occurrences": 1
+    },
+    {
+      "label": "native_V2_metric_variant",
+      "before": "            variants['candidate']=metrics(output,truth,B,row['null_rms'],scene)",
+      "after": "            variants['frozen_V2_delta_history']=metrics(old_output,truth,B,row['null_rms'],scene)\n            variants['candidate']=metrics(output,truth,B,row['null_rms'],scene)",
+      "occurrences": 1
+    },
+    {
+      "label": "distinct_result_schema",
+      "before": "schema='physical-actual-response-coefficient-history-feasibility-v1'",
+      "after": "schema='current-reconstruction-endpoint-OLS16-feasibility-v1'",
+      "occurrences": 1
+    },
+    {
+      "label": "additional_limit",
+      "before": "'D covariance is endogenous/unknown; source nominal SE is not D confidence or effective independent count.'",
+      "after": "'C/R0 covariance is endogenous/unknown; endpoint IID noise-gain algebra is not confidence. Exact constant/linear invariance only in transported coordinates; acceleration/static reconstruction moving source phase can fail.'",
+      "occurrences": 1
+    }
+  ],
+  "unchanged_24_known_operator_generator_SHA": "3a220ad4001c3f234b88b295d50cfa241c76892581ddca450aca9a8c2b8b25ea",
+  "operator_import_replacement_only": {
+    "before": "from selfchecks import descriptor,physical,source_records",
+    "after": "from frozen_operator_helpers import descriptor,physical,source_records"
+  },
+  "helper_extraction": "Exact prefix before def run() from frozenV2selfchecks; definitions only, no model checks or knownoperators invoked."
+}

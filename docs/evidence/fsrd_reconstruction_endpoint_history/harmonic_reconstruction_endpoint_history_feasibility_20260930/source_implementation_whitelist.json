@@ -1,0 +1,55 @@
+{
+  "frozen_V2_model": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_response_coefficient_history_feasibility_v2_20260930\\model.py",
+    "sha256": "afb2fd6ce80e46a79fb97509c5eb2bb53860182b3268f6ede26046628043c874"
+  },
+  "operations": [
+    {
+      "label": "scope_doc",
+      "before": "\"\"\"One frozen actual-response coefficient history; no clean/guide input.\"\"\"",
+      "after": "\"\"\"Current reconstruction endpoint OLS; saved matching B/P/TP, no clean/guide input.\"\"\""
+    },
+    {
+      "label": "endpoint_weight_helper",
+      "before": "def physical_projection(descriptor,h,w):",
+      "after": "def endpoint_weights(n):\n    if not 1<=n<=HISTORY:raise ValueError('history count outside1..16')\n    if n==1:return np.ones(1)\n    t=np.arange(n,dtype=float);centered=t-t.mean()\n    return np.ones(n)/n+centered*centered[-1]/np.dot(centered,centered)\n\ndef physical_projection(descriptor,h,w):"
+    },
+    {
+      "label": "distinct_API",
+      "before": "def make_response_history(",
+      "after": "def make_reconstruction_endpoint_history("
+    },
+    {
+      "label": "fit_current_reconstruction",
+      "before": "D=(P[i].astype(float)-TP[i].astype(float));roi=D[MARGIN:-MARGIN,MARGIN:-MARGIN];",
+      "after": "R0=C[i].astype(float);roi=R0[MARGIN:-MARGIN,MARGIN:-MARGIN];"
+    },
+    {
+      "label": "endpoint_not_mean",
+      "before": "chosen=sum(r['z']*np.exp(1j*(psi-r['psi']))[:,None] for r in history)/len(history)",
+      "after": "weights=endpoint_weights(len(history))\n        chosen=sum(weight*r['z']*np.exp(1j*(psi-r['psi']))[:,None] for weight,r in zip(weights,history))"
+    },
+    {
+      "label": "diagnostic_reason",
+      "before": "else 'transported_physical_coefficient_mean'",
+      "after": "else 'transported_reconstruction_coefficient_endpoint_OLS'"
+    },
+    {
+      "label": "diagnostic_weights",
+      "before": "history_count=len(history),history_frames=[r['frame'] for r in history]",
+      "after": "history_count=len(history),endpoint_weights=weights.tolist(),nominal_IID_weight_square_sum=float(np.dot(weights,weights)),history_frames=[r['frame'] for r in history]"
+    },
+    {
+      "label": "distinct_schema",
+      "before": "schema='actual-physical-response-history-v1'",
+      "after": "schema='current-reconstruction-endpoint-OLS-v1'"
+    },
+    {
+      "label": "diagnostic_scope",
+      "before": "history=HISTORY,quality_accepted=False)",
+      "after": "history=HISTORY,polynomial_degree=1,filtered_observable='C=B+active*(P-TP)',quality_accepted=False)"
+    }
+  ],
+  "suffix_only": "\n# Existing analyzer-compatible API; this module is a distinct law.\nmake_response_history=make_reconstruction_endpoint_history\n",
+  "new_model_SHA": "3f807416726e6bd1e11c3f6b16e9259151dbd4b0a8232ca28f37cca01ca94126"
+}

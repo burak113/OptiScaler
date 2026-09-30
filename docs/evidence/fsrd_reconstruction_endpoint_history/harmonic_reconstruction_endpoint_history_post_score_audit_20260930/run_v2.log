@@ -1,0 +1,7 @@
+saved-array score verified material
+saved-array score verified wave
+saved-array score verified moving_light
+saved-array score verified weak_material
+saved-array score verified lighting_step
+saved-array score verified reset
+{"audit": {"path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_reconstruction_endpoint_history_post_score_audit_20260930\\audit.json", "bytes": 383955, "sha256": "984c9e022b24f003d439c5f5bfcfc246a947e90d8ece18361058e8d386d8ccd5"}, "counts": {"full": {"rows": 6, "relative_effective": 3, "strict_STD_le1": 3, "absolute_GAIN": 0, "absolute_PHASE": 4, "absolute_GAIN_AND_PHASE": 0, "relative_AND_strict_STD_AND_GAIN_AND_PHASE": 0}, "mature": {"rows": 6, "relative_effective": 6, "strict_STD_le1": 5, "absolute_GAIN": 5, "absolute_PHASE": 6, "absolute_GAIN_AND_PHASE": 5, "relative_AND_strict_STD_AND_GAIN_AND_PHASE": 5}}, "checks": {"native_input_record_equalities": 48, "recomputed_native_metric_dicts": 108, "native_comparator_metric_dicts_equal_previous_V2": 240, "native_original6_metric_dicts_equal_previous_DC": 144, "native_DC_metric_dicts_equal_previous_DC": 24, "known_operator_input_digest_equalities": 144, "known_comparator_metric_dicts_equal_previous": 360}}

@@ -1,0 +1,12 @@
+{
+  "scope": "read_only_diagnostic_check_only",
+  "failure": "Initial independent scalar-dot versus SVD beta check used3e\u221217 absolute tolerance; maximumviolatingdifference3.40439482e\u221217 fromFP64 summation.",
+  "preserved_script": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_response_bias_diagnosis_20260930\\preparation_roundoff_assertion.py.txt",
+    "bytes": 12128,
+    "sha256": "9f368b141a66930f8e64aea91a0517d49d50f9a3406cee62935b0d3a029ab9e7"
+  },
+  "correction": "16*FP64machineeps bound for diagnostic consistency, unchanged scalarprojection, arrays, estimator/models, qualitygates and sourcefiles. No estimator/native/scorer rerun occurred; only newdiagnostic script repeated after failed assertion.",
+  "native_GPU_calls": 0,
+  "original_evidence_modified": false
+}

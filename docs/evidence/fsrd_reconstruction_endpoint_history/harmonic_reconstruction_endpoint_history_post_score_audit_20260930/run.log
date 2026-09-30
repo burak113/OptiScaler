@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\harmonic_reconstruction_endpoint_history_post_score_audit_20260930\audit.py", line 171, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\harmonic_reconstruction_endpoint_history_post_score_audit_20260930\audit.py", line 116, in main
+    full={v:compact(m['full'])for v,m in metrics.items()},mature={v:compact(m['mature'])for v,m in metrics.items()})
+            ^^^^^^^
+UnboundLocalError: cannot access local variable 'compact' where it is not associated with a value

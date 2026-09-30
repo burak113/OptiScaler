@@ -1,0 +1,26 @@
+{
+  "schema": "endpoint-reconstruction-preCPU-readiness-v1",
+  "status": "prepared_waiting_root_law_review_not_scored",
+  "model": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_reconstruction_endpoint_history_feasibility_20260930\\model.py",
+    "bytes": 9121,
+    "sha256": "3f807416726e6bd1e11c3f6b16e9259151dbd4b0a8232ca28f37cca01ca94126"
+  },
+  "pre_cpu_freeze": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_reconstruction_endpoint_history_feasibility_20260930\\pre_cpu_freeze.json",
+    "bytes": 13441,
+    "sha256": "9d5e3e66255a684e4941cbbfc59379f713f4ae36a7d7ce93348b592af90cb48f"
+  },
+  "analyzer_expected_freeze_alias": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\harmonic_reconstruction_endpoint_history_feasibility_20260930\\pre_score_freeze.json",
+    "bytes": 13441,
+    "sha256": "9d5e3e66255a684e4941cbbfc59379f713f4ae36a7d7ce93348b592af90cb48f"
+  },
+  "alias_qualification": "Byte-exact alias for inherited analyzer filename; no new law or sources, no scores.",
+  "all_Python_AST_parse_pass": true,
+  "all61_preCPU_sources_SHA_equal": true,
+  "selfcheck_count": 14,
+  "cohort_known_operator_scores_run": 0,
+  "native_GPU_calls": 0,
+  "quality_accepted": false
+}
