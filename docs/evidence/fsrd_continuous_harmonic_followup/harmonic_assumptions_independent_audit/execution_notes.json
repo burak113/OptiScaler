@@ -1,0 +1,18 @@
+{
+  "scope": "Independent CPU archive and local oracle mathematics audit; no GPU or quality acceptance",
+  "preparation_assertion_correction": {
+    "first_execution": "Stopped before writing audit.json at Nyquist auditor assertion eigen_min < 1e-12 * eigen_max",
+    "reason": "Both local eigenvalues can be near zero. A purely relative minimum/maximum assertion does not cover the absolute-zero nonregular case.",
+    "correction": "Assert nonpositive maximum or minimum below 1e-12 * max(1, maximum). This classifies singular information without inversion or zero-uncertainty inference.",
+    "producer_or_evidence_changed": false,
+    "threshold_or_prototype_changed": false
+  },
+  "independent_methods": [
+    "Streamed SHA256 and byte count for all 52 archived files and original paths",
+    "rFFT interior conjugate multiplicity two; boundary columns explicitly collapse y conjugate pairs",
+    "Complex exponential physical basis, independent rank check and QR nuisance projection without a dense pixel projector",
+    "Current refit atom finite differences, small joint Fisher inverse versus QR Schur, all 25 static-history algebra rows",
+    "Unfiltered atom plus residual cancellation algebra; no claim for filtered residual"
+  ],
+  "fixed_scope": "No old/new prototype edits, no threshold selection, no native response substitution, no game quality claim"
+}

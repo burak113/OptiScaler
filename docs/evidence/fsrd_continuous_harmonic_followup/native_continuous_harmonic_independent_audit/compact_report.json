@@ -1,0 +1,4466 @@
+{
+  "status": "completed_independent_native_diagnostic_not_solution",
+  "quality_accepted": false,
+  "source_audit_sha256": "7a5816add0025330787207758ed0b1c53dc00cb8312263ba180a6ae6bf5c61d8",
+  "native_contexts": 18,
+  "RR_calls": 1152,
+  "completed_GPU_jobs": 1920,
+  "separate_zero_native_attempt_GPU_jobs": 128,
+  "selected_harmonic_dc_current_safe_totals": {
+    "full": {
+      "relative_nonregression": 3,
+      "relative_effective": 3,
+      "absolute_detail": 0,
+      "strict_STD_nonincrease": 3
+    },
+    "mature": {
+      "relative_nonregression": 6,
+      "relative_effective": 6,
+      "absolute_detail": 5,
+      "strict_STD_nonincrease": 3
+    },
+    "startup_first8": {
+      "relative_nonregression": 6,
+      "relative_effective": 0,
+      "absolute_detail": 0,
+      "strict_STD_nonincrease": 6
+    },
+    "activation8to16": {
+      "relative_nonregression": 6,
+      "relative_effective": 5,
+      "absolute_detail": 5,
+      "strict_STD_nonincrease": 2
+    }
+  },
+  "rows": [
+    {
+      "scene": "material",
+      "null_RGB_RMS": 0.0,
+      "guide_diagnostic_A_changed_fraction": {
+        "input3.bin": 0.791259765625,
+        "input4.bin": 0.0
+      },
+      "variants": {
+        "harmonic": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.63017396562498,
+              "baseline_STD": 0.0008091033997140231,
+              "candidate_STD": 0.0013189792977124624,
+              "absolute_gain_range": [
+                0.9813741408642637,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.002416287465272001,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.1765581210992968,
+              "baseline_STD": 0.00016238070711879703,
+              "candidate_STD": 0.00019105033967046703,
+              "absolute_gain_range": [
+                0.9813741408642637,
+                0.9877009805699566
+              ],
+              "absolute_phase_max": 0.0006028036192740875,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.1786298308553145,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00014430635928825786,
+              "absolute_gain_range": [
+                0.9983246112340907,
+                1.000298742793119
+              ],
+              "absolute_phase_max": 0.002416287465272001,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_dc": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.4361179602023983,
+              "baseline_STD": 0.0008091033997140231,
+              "candidate_STD": 0.0011619679239901286,
+              "absolute_gain_range": [
+                0.9813741425720165,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.002416287465272001,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.7213469118763287,
+              "baseline_STD": 0.00016238070711879703,
+              "candidate_STD": 0.00011713282162843882,
+              "absolute_gain_range": [
+                0.9813741425720165,
+                0.9877009826597151
+              ],
+              "absolute_phase_max": 0.0006028036192740875,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.9175460148853636,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00011234038153562608,
+              "absolute_gain_range": [
+                0.9983245860200876,
+                1.0002987360338282
+              ],
+              "absolute_phase_max": 0.002416287465272001,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_dc_current": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.4509292269738578,
+              "baseline_STD": 0.0008091033997140231,
+              "candidate_STD": 0.0011739517702889879,
+              "absolute_gain_range": [
+                0.9813741452424849,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0024162683928270834,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.0390250096558822,
+              "baseline_STD": 0.00016238070711879703,
+              "candidate_STD": 0.00016871761578203705,
+              "absolute_gain_range": [
+                0.9813741452424849,
+                0.9877009722594542
+              ],
+              "absolute_phase_max": 0.0006028036192740875,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.274436590090983,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00015603652618083772,
+              "absolute_gain_range": [
+                0.9983246249701587,
+                1.0002987415032731
+              ],
+              "absolute_phase_max": 0.0024162683928270834,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.63017396562498,
+              "baseline_STD": 0.0008091033997140231,
+              "candidate_STD": 0.0013189792977124624,
+              "absolute_gain_range": [
+                0.9813741408642637,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.002416287465272001,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.1765581210992968,
+              "baseline_STD": 0.00016238070711879703,
+              "candidate_STD": 0.00019105033967046703,
+              "absolute_gain_range": [
+                0.9813741408642637,
+                0.9877009805699566
+              ],
+              "absolute_phase_max": 0.0006028036192740875,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.1786298308553145,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00014430635928825786,
+              "absolute_gain_range": [
+                0.9983246112340907,
+                1.000298742793119
+              ],
+              "absolute_phase_max": 0.002416287465272001,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        },
+        "harmonic_dc_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.4361179602023983,
+              "baseline_STD": 0.0008091033997140231,
+              "candidate_STD": 0.0011619679239901286,
+              "absolute_gain_range": [
+                0.9813741425720165,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.002416287465272001,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.7213469118763287,
+              "baseline_STD": 0.00016238070711879703,
+              "candidate_STD": 0.00011713282162843882,
+              "absolute_gain_range": [
+                0.9813741425720165,
+                0.9877009826597151
+              ],
+              "absolute_phase_max": 0.0006028036192740875,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.9175460148853636,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00011234038153562608,
+              "absolute_gain_range": [
+                0.9983245860200876,
+                1.0002987360338282
+              ],
+              "absolute_phase_max": 0.002416287465272001,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        },
+        "harmonic_dc_current_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.4509292269738578,
+              "baseline_STD": 0.0008091033997140231,
+              "candidate_STD": 0.0011739517702889879,
+              "absolute_gain_range": [
+                0.9813741452424849,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0024162683928270834,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.0390250096558822,
+              "baseline_STD": 0.00016238070711879703,
+              "candidate_STD": 0.00016871761578203705,
+              "absolute_gain_range": [
+                0.9813741452424849,
+                0.9877009722594542
+              ],
+              "absolute_phase_max": 0.0006028036192740875,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.274436590090983,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00015603652618083772,
+              "absolute_gain_range": [
+                0.9983246249701587,
+                1.0002987415032731
+              ],
+              "absolute_phase_max": 0.0024162683928270834,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        }
+      }
+    },
+    {
+      "scene": "wave",
+      "null_RGB_RMS": 0.0,
+      "guide_diagnostic_A_changed_fraction": {
+        "input3.bin": 0.0,
+        "input4.bin": 0.0
+      },
+      "variants": {
+        "harmonic": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 2.406796676824529,
+              "baseline_STD": 0.0014994036151563075,
+              "candidate_STD": 0.0036087596381768855,
+              "absolute_gain_range": [
+                0.0008044291682342881,
+                1.0173757659221372
+              ],
+              "absolute_phase_max": 0.1954422580964455,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.1286100306048743,
+              "baseline_STD": 0.00016566478808464463,
+              "candidate_STD": 0.00018697094155036077,
+              "absolute_gain_range": [
+                1.0089297834321929,
+                1.0173757659221372
+              ],
+              "absolute_phase_max": 0.0037433691195446184,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.001462187339004313,
+              "candidate_STD": 0.001462187339004313,
+              "absolute_gain_range": [
+                0.0008044291682342881,
+                0.331677850103658
+              ],
+              "absolute_phase_max": 0.1954422580964455,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.5266051734198542,
+              "baseline_STD": 0.00031812961037475573,
+              "candidate_STD": 0.00016752869864138892,
+              "absolute_gain_range": [
+                0.9966212959104577,
+                1.0077093268885458
+              ],
+              "absolute_phase_max": 0.004022090728209068,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_dc": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 2.4050712425521295,
+              "baseline_STD": 0.0014994036151563075,
+              "candidate_STD": 0.003606172515791135,
+              "absolute_gain_range": [
+                0.0008044291682342881,
+                1.0173757679105582
+              ],
+              "absolute_phase_max": 0.1954422580964455,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.9602478650438598,
+              "baseline_STD": 0.00016566478808464463,
+              "candidate_STD": 0.00015907925907122347,
+              "absolute_gain_range": [
+                1.008929803058825,
+                1.0173757679105582
+              ],
+              "absolute_phase_max": 0.0037433637873087308,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.001462187339004313,
+              "candidate_STD": 0.001462187339004313,
+              "absolute_gain_range": [
+                0.0008044291682342881,
+                0.331677850103658
+              ],
+              "absolute_phase_max": 0.1954422580964455,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.45876000582683624,
+              "baseline_STD": 0.00031812961037475573,
+              "candidate_STD": 0.00014594514190921208,
+              "absolute_gain_range": [
+                0.9966213392732228,
+                1.0077093852559422
+              ],
+              "absolute_phase_max": 0.004022107032068126,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_dc_current": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 2.407570271176716,
+              "baseline_STD": 0.0014994036151563075,
+              "candidate_STD": 0.0036099195683452195,
+              "absolute_gain_range": [
+                0.0008044291682342881,
+                1.0173758109719437
+              ],
+              "absolute_phase_max": 0.1954422580964455,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.2053424021584176,
+              "baseline_STD": 0.00016566478808464463,
+              "candidate_STD": 0.00019968279362301075,
+              "absolute_gain_range": [
+                1.0089298067997712,
+                1.0173758109719437
+              ],
+              "absolute_phase_max": 0.0037433637873087308,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.001462187339004313,
+              "candidate_STD": 0.001462187339004313,
+              "absolute_gain_range": [
+                0.0008044291682342881,
+                0.331677850103658
+              ],
+              "absolute_phase_max": 0.1954422580964455,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.5684743217108067,
+              "baseline_STD": 0.00031812961037475573,
+              "candidate_STD": 0.00018084851447391247,
+              "absolute_gain_range": [
+                0.9966213375157239,
+                1.0077093147629976
+              ],
+              "absolute_phase_max": 0.004022089429521184,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 2.406796676824529,
+              "baseline_STD": 0.0014994036151563075,
+              "candidate_STD": 0.0036087596381768855,
+              "absolute_gain_range": [
+                0.0008044291682342881,
+                1.0173757659221372
+              ],
+              "absolute_phase_max": 0.1954422580964455,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.1286100306048743,
+              "baseline_STD": 0.00016566478808464463,
+              "candidate_STD": 0.00018697094155036077,
+              "absolute_gain_range": [
+                1.0089297834321929,
+                1.0173757659221372
+              ],
+              "absolute_phase_max": 0.0037433691195446184,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.001462187339004313,
+              "candidate_STD": 0.001462187339004313,
+              "absolute_gain_range": [
+                0.0008044291682342881,
+                0.331677850103658
+              ],
+              "absolute_phase_max": 0.1954422580964455,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.5266051734198542,
+              "baseline_STD": 0.00031812961037475573,
+              "candidate_STD": 0.00016752869864138892,
+              "absolute_gain_range": [
+                0.9966212959104577,
+                1.0077093268885458
+              ],
+              "absolute_phase_max": 0.004022090728209068,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        },
+        "harmonic_dc_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 2.4050712425521295,
+              "baseline_STD": 0.0014994036151563075,
+              "candidate_STD": 0.003606172515791135,
+              "absolute_gain_range": [
+                0.0008044291682342881,
+                1.0173757679105582
+              ],
+              "absolute_phase_max": 0.1954422580964455,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.9602478650438598,
+              "baseline_STD": 0.00016566478808464463,
+              "candidate_STD": 0.00015907925907122347,
+              "absolute_gain_range": [
+                1.008929803058825,
+                1.0173757679105582
+              ],
+              "absolute_phase_max": 0.0037433637873087308,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.001462187339004313,
+              "candidate_STD": 0.001462187339004313,
+              "absolute_gain_range": [
+                0.0008044291682342881,
+                0.331677850103658
+              ],
+              "absolute_phase_max": 0.1954422580964455,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.45876000582683624,
+              "baseline_STD": 0.00031812961037475573,
+              "candidate_STD": 0.00014594514190921208,
+              "absolute_gain_range": [
+                0.9966213392732228,
+                1.0077093852559422
+              ],
+              "absolute_phase_max": 0.004022107032068126,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        },
+        "harmonic_dc_current_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 2.407570271176716,
+              "baseline_STD": 0.0014994036151563075,
+              "candidate_STD": 0.0036099195683452195,
+              "absolute_gain_range": [
+                0.0008044291682342881,
+                1.0173758109719437
+              ],
+              "absolute_phase_max": 0.1954422580964455,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.2053424021584176,
+              "baseline_STD": 0.00016566478808464463,
+              "candidate_STD": 0.00019968279362301075,
+              "absolute_gain_range": [
+                1.0089298067997712,
+                1.0173758109719437
+              ],
+              "absolute_phase_max": 0.0037433637873087308,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.001462187339004313,
+              "candidate_STD": 0.001462187339004313,
+              "absolute_gain_range": [
+                0.0008044291682342881,
+                0.331677850103658
+              ],
+              "absolute_phase_max": 0.1954422580964455,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.5684743217108067,
+              "baseline_STD": 0.00031812961037475573,
+              "candidate_STD": 0.00018084851447391247,
+              "absolute_gain_range": [
+                0.9966213375157239,
+                1.0077093147629976
+              ],
+              "absolute_phase_max": 0.004022089429521184,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        }
+      }
+    },
+    {
+      "scene": "moving_light",
+      "null_RGB_RMS": 0.0,
+      "guide_diagnostic_A_changed_fraction": {
+        "input3.bin": 0.0,
+        "input4.bin": 0.0
+      },
+      "variants": {
+        "harmonic": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.3476263301646364,
+              "baseline_STD": 0.015096028319367632,
+              "candidate_STD": 0.005247776924723194,
+              "absolute_gain_range": [
+                -0.038009823387589584,
+                1.0166346704804918
+              ],
+              "absolute_phase_max": 2.036906197999645,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.028865453169491656,
+              "baseline_STD": 0.015149483616522042,
+              "candidate_STD": 0.0004372967098746981,
+              "absolute_gain_range": [
+                0.9964296864290233,
+                1.0092647651087994
+              ],
+              "absolute_phase_max": 0.013395782907646508,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.01460036078657617,
+              "candidate_STD": 0.01460036078657617,
+              "absolute_gain_range": [
+                -0.038009823387589584,
+                0.22197982422881635
+              ],
+              "absolute_phase_max": 2.036906197999645,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.026044055675703275,
+              "baseline_STD": 0.01503967029985251,
+              "candidate_STD": 0.00039169401063357973,
+              "absolute_gain_range": [
+                0.991886366999059,
+                1.0146850271978225
+              ],
+              "absolute_phase_max": 0.016857686262481564,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_dc": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.3475767645596564,
+              "baseline_STD": 0.015096028319367632,
+              "candidate_STD": 0.0052470286809467494,
+              "absolute_gain_range": [
+                -0.038009823387589584,
+                1.016634686837708
+              ],
+              "absolute_phase_max": 2.036906197999645,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.02806753551110021,
+              "baseline_STD": 0.015149483616522042,
+              "candidate_STD": 0.0004252086693815632,
+              "absolute_gain_range": [
+                0.9964296638233283,
+                1.009264774326014
+              ],
+              "absolute_phase_max": 0.013395782907646508,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.01460036078657617,
+              "candidate_STD": 0.01460036078657617,
+              "absolute_gain_range": [
+                -0.038009823387589584,
+                0.22197982422881635
+              ],
+              "absolute_phase_max": 2.036906197999645,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.02545510087842019,
+              "baseline_STD": 0.01503967029985251,
+              "candidate_STD": 0.00038283632466092564,
+              "absolute_gain_range": [
+                0.9918863843994765,
+                1.014685067137012
+              ],
+              "absolute_phase_max": 0.016857718620552815,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_dc_current": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.347668437604027,
+              "baseline_STD": 0.015096028319367632,
+              "candidate_STD": 0.00524841257982069,
+              "absolute_gain_range": [
+                -0.038009823387589584,
+                1.0166346888409357
+              ],
+              "absolute_phase_max": 2.036906197999645,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.029226139613762924,
+              "baseline_STD": 0.015149483616522042,
+              "candidate_STD": 0.0004427609232528873,
+              "absolute_gain_range": [
+                0.9964296933246115,
+                1.0092648166230638
+              ],
+              "absolute_phase_max": 0.013395836963332864,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.01460036078657617,
+              "candidate_STD": 0.01460036078657617,
+              "absolute_gain_range": [
+                -0.038009823387589584,
+                0.22197982422881635
+              ],
+              "absolute_phase_max": 2.036906197999645,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.026434663704517344,
+              "baseline_STD": 0.01503967029985251,
+              "candidate_STD": 0.0003975686266034187,
+              "absolute_gain_range": [
+                0.9918864028031226,
+                1.0146849961331106
+              ],
+              "absolute_phase_max": 0.016857710081148766,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.3476263301646364,
+              "baseline_STD": 0.015096028319367632,
+              "candidate_STD": 0.005247776924723194,
+              "absolute_gain_range": [
+                -0.038009823387589584,
+                1.0166346704804918
+              ],
+              "absolute_phase_max": 2.036906197999645,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.028865453169491656,
+              "baseline_STD": 0.015149483616522042,
+              "candidate_STD": 0.0004372967098746981,
+              "absolute_gain_range": [
+                0.9964296864290233,
+                1.0092647651087994
+              ],
+              "absolute_phase_max": 0.013395782907646508,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.01460036078657617,
+              "candidate_STD": 0.01460036078657617,
+              "absolute_gain_range": [
+                -0.038009823387589584,
+                0.22197982422881635
+              ],
+              "absolute_phase_max": 2.036906197999645,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.026044055675703275,
+              "baseline_STD": 0.01503967029985251,
+              "candidate_STD": 0.00039169401063357973,
+              "absolute_gain_range": [
+                0.991886366999059,
+                1.0146850271978225
+              ],
+              "absolute_phase_max": 0.016857686262481564,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        },
+        "harmonic_dc_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.3475767645596564,
+              "baseline_STD": 0.015096028319367632,
+              "candidate_STD": 0.0052470286809467494,
+              "absolute_gain_range": [
+                -0.038009823387589584,
+                1.016634686837708
+              ],
+              "absolute_phase_max": 2.036906197999645,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.02806753551110021,
+              "baseline_STD": 0.015149483616522042,
+              "candidate_STD": 0.0004252086693815632,
+              "absolute_gain_range": [
+                0.9964296638233283,
+                1.009264774326014
+              ],
+              "absolute_phase_max": 0.013395782907646508,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.01460036078657617,
+              "candidate_STD": 0.01460036078657617,
+              "absolute_gain_range": [
+                -0.038009823387589584,
+                0.22197982422881635
+              ],
+              "absolute_phase_max": 2.036906197999645,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.02545510087842019,
+              "baseline_STD": 0.01503967029985251,
+              "candidate_STD": 0.00038283632466092564,
+              "absolute_gain_range": [
+                0.9918863843994765,
+                1.014685067137012
+              ],
+              "absolute_phase_max": 0.016857718620552815,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        },
+        "harmonic_dc_current_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.347668437604027,
+              "baseline_STD": 0.015096028319367632,
+              "candidate_STD": 0.00524841257982069,
+              "absolute_gain_range": [
+                -0.038009823387589584,
+                1.0166346888409357
+              ],
+              "absolute_phase_max": 2.036906197999645,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.029226139613762924,
+              "baseline_STD": 0.015149483616522042,
+              "candidate_STD": 0.0004427609232528873,
+              "absolute_gain_range": [
+                0.9964296933246115,
+                1.0092648166230638
+              ],
+              "absolute_phase_max": 0.013395836963332864,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.01460036078657617,
+              "candidate_STD": 0.01460036078657617,
+              "absolute_gain_range": [
+                -0.038009823387589584,
+                0.22197982422881635
+              ],
+              "absolute_phase_max": 2.036906197999645,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ]
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.026434663704517344,
+              "baseline_STD": 0.01503967029985251,
+              "candidate_STD": 0.0003975686266034187,
+              "absolute_gain_range": [
+                0.9918864028031226,
+                1.0146849961331106
+              ],
+              "absolute_phase_max": 0.016857710081148766,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        }
+      }
+    },
+    {
+      "scene": "weak_material",
+      "null_RGB_RMS": 5.553989467443898e-05,
+      "guide_diagnostic_A_changed_fraction": {
+        "input3.bin": 0.0,
+        "input4.bin": 0.0
+      },
+      "variants": {
+        "harmonic": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.8105955415949259,
+              "baseline_STD": 0.0003245102125220001,
+              "candidate_STD": 0.00026304653147235513,
+              "absolute_gain_range": [
+                0.8813576698303223,
+                1.2392992973327637
+              ],
+              "absolute_phase_max": 2.9019560531169143e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                9,
+                11,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39,
+                40,
+                42,
+                43,
+                44,
+                45,
+                48,
+                49,
+                50,
+                51,
+                53,
+                55,
+                56,
+                58,
+                61,
+                62
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.8338883657564364,
+              "baseline_STD": 7.168256706790999e-05,
+              "candidate_STD": 0.0001314578257733956,
+              "absolute_gain_range": [
+                0.8813576698303223,
+                0.99853515625
+              ],
+              "absolute_phase_max": 2.9019560531169143e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                5,
+                7,
+                8,
+                10,
+                13,
+                14
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00020370856509543955,
+              "candidate_STD": 0.00020370856509543955,
+              "absolute_gain_range": [
+                1.2362029552459717,
+                1.2392992973327637
+              ],
+              "absolute_phase_max": 2.2122758539912288e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.349089263872287,
+              "baseline_STD": 0.00010933995508821681,
+              "candidate_STD": 0.00014750935952179134,
+              "absolute_gain_range": [
+                0.9239581227302551,
+                1.0694499015808105
+              ],
+              "absolute_phase_max": 1.347077027868529e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                1,
+                3,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_dc": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.8453877396102595,
+              "baseline_STD": 0.0003245102125220001,
+              "candidate_STD": 0.0002743369550444186,
+              "absolute_gain_range": [
+                0.8813568949699402,
+                1.2392992973327637
+              ],
+              "absolute_phase_max": 3.3598035000152203e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                9,
+                11,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39,
+                40,
+                42,
+                43,
+                44,
+                45,
+                48,
+                49,
+                50,
+                51,
+                53,
+                55,
+                56,
+                58,
+                61,
+                62
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.110537813882432,
+              "baseline_STD": 7.168256706790999e-05,
+              "candidate_STD": 7.960620132507756e-05,
+              "absolute_gain_range": [
+                0.8813568949699402,
+                0.9985330700874329
+              ],
+              "absolute_phase_max": 2.0043954398893023e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                5,
+                7,
+                8,
+                10,
+                13,
+                14
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00020370856509543955,
+              "candidate_STD": 0.00020370856509543955,
+              "absolute_gain_range": [
+                1.2362029552459717,
+                1.2392992973327637
+              ],
+              "absolute_phase_max": 2.2122758539912288e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.9662373202212546,
+              "baseline_STD": 0.00010933995508821681,
+              "candidate_STD": 0.00010564834519755095,
+              "absolute_gain_range": [
+                0.9239563345909119,
+                1.0694478750228882
+              ],
+              "absolute_phase_max": 1.5785564085382258e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                1,
+                3,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_dc_current": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.930413182463346,
+              "baseline_STD": 0.0003245102125220001,
+              "candidate_STD": 0.00030192857957445085,
+              "absolute_gain_range": [
+                0.8813580274581909,
+                1.2392992973327637
+              ],
+              "absolute_phase_max": 3.0776359803333765e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                9,
+                11,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39,
+                40,
+                42,
+                43,
+                44,
+                45,
+                48,
+                49,
+                50,
+                51,
+                53,
+                55,
+                56,
+                58,
+                61,
+                62
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.979684077622187,
+              "baseline_STD": 7.168256706790999e-05,
+              "candidate_STD": 0.00014190883666742593,
+              "absolute_gain_range": [
+                0.8813580274581909,
+                0.9985344409942627
+              ],
+              "absolute_phase_max": 2.225766011729111e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                5,
+                7,
+                8,
+                10,
+                13,
+                14
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00020370856509543955,
+              "candidate_STD": 0.00020370856509543955,
+              "absolute_gain_range": [
+                1.2362029552459717,
+                1.2392992973327637
+              ],
+              "absolute_phase_max": 2.2122758539912288e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.3823485355482314,
+              "baseline_STD": 0.00010933995508821681,
+              "candidate_STD": 0.0001511459267931059,
+              "absolute_gain_range": [
+                0.9239549040794373,
+                1.0694466829299927
+              ],
+              "absolute_phase_max": 2.1167631284570783e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                1,
+                3,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.8105955415949259,
+              "baseline_STD": 0.0003245102125220001,
+              "candidate_STD": 0.00026304653147235513,
+              "absolute_gain_range": [
+                0.8813576698303223,
+                1.2392992973327637
+              ],
+              "absolute_phase_max": 2.9019560531169143e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                9,
+                11,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39,
+                40,
+                42,
+                43,
+                44,
+                45,
+                48,
+                49,
+                50,
+                51,
+                53,
+                55,
+                56,
+                58,
+                61,
+                62
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.8338883657564364,
+              "baseline_STD": 7.168256706790999e-05,
+              "candidate_STD": 0.0001314578257733956,
+              "absolute_gain_range": [
+                0.8813576698303223,
+                0.99853515625
+              ],
+              "absolute_phase_max": 2.9019560531169143e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                5,
+                7,
+                8,
+                10,
+                13,
+                14
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00020370856509543955,
+              "candidate_STD": 0.00020370856509543955,
+              "absolute_gain_range": [
+                1.2362029552459717,
+                1.2392992973327637
+              ],
+              "absolute_phase_max": 2.2122758539912288e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.349089263872287,
+              "baseline_STD": 0.00010933995508821681,
+              "candidate_STD": 0.00014750935952179134,
+              "absolute_gain_range": [
+                0.9239581227302551,
+                1.0694499015808105
+              ],
+              "absolute_phase_max": 1.347077027868529e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                1,
+                3,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        },
+        "harmonic_dc_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.8453877396102595,
+              "baseline_STD": 0.0003245102125220001,
+              "candidate_STD": 0.0002743369550444186,
+              "absolute_gain_range": [
+                0.8813568949699402,
+                1.2392992973327637
+              ],
+              "absolute_phase_max": 3.3598035000152203e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                9,
+                11,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39,
+                40,
+                42,
+                43,
+                44,
+                45,
+                48,
+                49,
+                50,
+                51,
+                53,
+                55,
+                56,
+                58,
+                61,
+                62
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.110537813882432,
+              "baseline_STD": 7.168256706790999e-05,
+              "candidate_STD": 7.960620132507756e-05,
+              "absolute_gain_range": [
+                0.8813568949699402,
+                0.9985330700874329
+              ],
+              "absolute_phase_max": 2.0043954398893023e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                5,
+                7,
+                8,
+                10,
+                13,
+                14
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00020370856509543955,
+              "candidate_STD": 0.00020370856509543955,
+              "absolute_gain_range": [
+                1.2362029552459717,
+                1.2392992973327637
+              ],
+              "absolute_phase_max": 2.2122758539912288e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.9662373202212546,
+              "baseline_STD": 0.00010933995508821681,
+              "candidate_STD": 0.00010564834519755095,
+              "absolute_gain_range": [
+                0.9239563345909119,
+                1.0694478750228882
+              ],
+              "absolute_phase_max": 1.5785564085382258e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                1,
+                3,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        },
+        "harmonic_dc_current_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.930413182463346,
+              "baseline_STD": 0.0003245102125220001,
+              "candidate_STD": 0.00030192857957445085,
+              "absolute_gain_range": [
+                0.8813580274581909,
+                1.2392992973327637
+              ],
+              "absolute_phase_max": 3.0776359803333765e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                9,
+                11,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39,
+                40,
+                42,
+                43,
+                44,
+                45,
+                48,
+                49,
+                50,
+                51,
+                53,
+                55,
+                56,
+                58,
+                61,
+                62
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.979684077622187,
+              "baseline_STD": 7.168256706790999e-05,
+              "candidate_STD": 0.00014190883666742593,
+              "absolute_gain_range": [
+                0.8813580274581909,
+                0.9985344409942627
+              ],
+              "absolute_phase_max": 2.225766011729111e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                5,
+                7,
+                8,
+                10,
+                13,
+                14
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00020370856509543955,
+              "candidate_STD": 0.00020370856509543955,
+              "absolute_gain_range": [
+                1.2362029552459717,
+                1.2392992973327637
+              ],
+              "absolute_phase_max": 2.2122758539912288e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.3823485355482314,
+              "baseline_STD": 0.00010933995508821681,
+              "candidate_STD": 0.0001511459267931059,
+              "absolute_gain_range": [
+                0.9239549040794373,
+                1.0694466829299927
+              ],
+              "absolute_phase_max": 2.1167631284570783e-17,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                1,
+                3,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        }
+      }
+    },
+    {
+      "scene": "lighting_step",
+      "null_RGB_RMS": 0.0013698481488972902,
+      "guide_diagnostic_A_changed_fraction": {
+        "input3.bin": 0.76292724609375,
+        "input4.bin": 0.0
+      },
+      "variants": {
+        "harmonic": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.14734138835044885,
+              "baseline_STD": 0.027486274527316737,
+              "candidate_STD": 0.004049865849436425,
+              "absolute_gain_range": [
+                0.9961779586689671,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0075318630469007304,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.20632447325514658,
+              "baseline_STD": 0.0030194870366513937,
+              "candidate_STD": 0.0006229940723378423,
+              "absolute_gain_range": [
+                1.002394932221946,
+                1.0102662097082902
+              ],
+              "absolute_phase_max": 0.006440999373886618,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.1786298308553145,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00014430635928825786,
+              "absolute_gain_range": [
+                0.9983246112340907,
+                1.000298742793119
+              ],
+              "absolute_phase_max": 0.002416287465272001,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_dc": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "rmse",
+                  "broad_tone_rms",
+                  "residual_temporal_std",
+                  "RGB_bias",
+                  "early_or_transition_frame"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.3523654228703994,
+              "baseline_STD": 0.027486274527316737,
+              "candidate_STD": 0.037171487274266585,
+              "absolute_gain_range": [
+                0.9961779387968052,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.007531835429722888,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [
+                  "rmse",
+                  "broad_tone_rms",
+                  "residual_temporal_std",
+                  "RGB_bias",
+                  "early_or_transition_frame"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.622598048153287,
+              "baseline_STD": 0.0030194870366513937,
+              "candidate_STD": 0.004899413772094703,
+              "absolute_gain_range": [
+                1.0023949147510947,
+                1.010266184663764
+              ],
+              "absolute_phase_max": 0.006441027566997487,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 0.9175460148853636,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00011234038153562608,
+              "absolute_gain_range": [
+                0.9983245860200876,
+                1.0002987360338282
+              ],
+              "absolute_phase_max": 0.002416287465272001,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_dc_current": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.07301547259072382,
+              "baseline_STD": 0.027486274527316737,
+              "candidate_STD": 0.0020069233243704054,
+              "absolute_gain_range": [
+                0.996177938397379,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0075318630469007304,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.18834501745270965,
+              "baseline_STD": 0.0030194870366513937,
+              "candidate_STD": 0.0005687053386163373,
+              "absolute_gain_range": [
+                1.0023948710285986,
+                1.0102661480829582
+              ],
+              "absolute_phase_max": 0.006441031234962282,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.274436590090983,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00015603652618083772,
+              "absolute_gain_range": [
+                0.9983246249701587,
+                1.0002987415032731
+              ],
+              "absolute_phase_max": 0.0024162683928270834,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.14734138835044885,
+              "baseline_STD": 0.027486274527316737,
+              "candidate_STD": 0.004049865849436425,
+              "absolute_gain_range": [
+                0.9961779586689671,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0075318630469007304,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.20632447325514658,
+              "baseline_STD": 0.0030194870366513937,
+              "candidate_STD": 0.0006229940723378423,
+              "absolute_gain_range": [
+                1.002394932221946,
+                1.0102662097082902
+              ],
+              "absolute_phase_max": 0.006440999373886618,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.1786298308553145,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00014430635928825786,
+              "absolute_gain_range": [
+                0.9983246112340907,
+                1.000298742793119
+              ],
+              "absolute_phase_max": 0.002416287465272001,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        },
+        "harmonic_dc_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "rmse",
+                  "broad_tone_rms",
+                  "residual_temporal_std",
+                  "RGB_bias",
+                  "early_or_transition_frame"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.3523654228703994,
+              "baseline_STD": 0.027486274527316737,
+              "candidate_STD": 0.037171487274266585,
+              "absolute_gain_range": [
+                0.9961779387968052,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.007531835429722888,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [
+                  "rmse",
+                  "broad_tone_rms",
+                  "residual_temporal_std",
+                  "RGB_bias",
+                  "early_or_transition_frame"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.622598048153287,
+              "baseline_STD": 0.0030194870366513937,
+              "candidate_STD": 0.004899413772094703,
+              "absolute_gain_range": [
+                1.0023949147510947,
+                1.010266184663764
+              ],
+              "absolute_phase_max": 0.006441027566997487,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 0.9175460148853636,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00011234038153562608,
+              "absolute_gain_range": [
+                0.9983245860200876,
+                1.0002987360338282
+              ],
+              "absolute_phase_max": 0.002416287465272001,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        },
+        "harmonic_dc_current_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.07301547259072382,
+              "baseline_STD": 0.027486274527316737,
+              "candidate_STD": 0.0020069233243704054,
+              "absolute_gain_range": [
+                0.996177938397379,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0075318630469007304,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.18834501745270965,
+              "baseline_STD": 0.0030194870366513937,
+              "candidate_STD": 0.0005687053386163373,
+              "absolute_gain_range": [
+                1.0023948710285986,
+                1.0102661480829582
+              ],
+              "absolute_phase_max": 0.006441031234962282,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.274436590090983,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00015603652618083772,
+              "absolute_gain_range": [
+                0.9983246249701587,
+                1.0002987415032731
+              ],
+              "absolute_phase_max": 0.0024162683928270834,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        }
+      }
+    },
+    {
+      "scene": "reset",
+      "null_RGB_RMS": 4.0805392927723005e-05,
+      "guide_diagnostic_A_changed_fraction": {
+        "input3.bin": 0.6777969360351562,
+        "input4.bin": 0.0
+      },
+      "variants": {
+        "harmonic": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 2.961198994909603,
+              "baseline_STD": 0.0004852546901845993,
+              "candidate_STD": 0.0014369357008498064,
+              "absolute_gain_range": [
+                0.9961145644889406,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.004274245203465538,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.8159709066900033,
+              "baseline_STD": 0.00022483739836440196,
+              "candidate_STD": 0.00018346077580122253,
+              "absolute_gain_range": [
+                0.9994531581949517,
+                1.0020409115753584
+              ],
+              "absolute_phase_max": 0.00265409291254404,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.1786298308553145,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00014430635928825786,
+              "absolute_gain_range": [
+                0.9983246112340907,
+                1.000298742793119
+              ],
+              "absolute_phase_max": 0.002416287465272001,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_dc": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 2.8963523122032533,
+              "baseline_STD": 0.0004852546901845993,
+              "candidate_STD": 0.0014054685439236375,
+              "absolute_gain_range": [
+                0.9961145605371557,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.004274226287365677,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.4830955555793468,
+              "baseline_STD": 0.00022483739836440196,
+              "candidate_STD": 0.00010861794787786568,
+              "absolute_gain_range": [
+                0.999453170119536,
+                1.0020409274468238
+              ],
+              "absolute_phase_max": 0.00265409291254404,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.9175460148853636,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00011234038153562608,
+              "absolute_gain_range": [
+                0.9983245860200876,
+                1.0002987360338282
+              ],
+              "absolute_phase_max": 0.002416287465272001,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_dc_current": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 2.9166622343511244,
+              "baseline_STD": 0.0004852546901845993,
+              "candidate_STD": 0.001415324028903176,
+              "absolute_gain_range": [
+                0.9961145825934112,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.004274245203465538,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.7221908774874792,
+              "baseline_STD": 0.00022483739836440196,
+              "candidate_STD": 0.00016237551801678938,
+              "absolute_gain_range": [
+                0.9994531505757385,
+                1.0020409086845337
+              ],
+              "absolute_phase_max": 0.00265409291254404,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.274436590090983,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00015603652618083772,
+              "absolute_gain_range": [
+                0.9983246249701587,
+                1.0002987415032731
+              ],
+              "absolute_phase_max": 0.0024162683928270834,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0
+        },
+        "harmonic_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 2.961198994909603,
+              "baseline_STD": 0.0004852546901845993,
+              "candidate_STD": 0.0014369357008498064,
+              "absolute_gain_range": [
+                0.9961145644889406,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.004274245203465538,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.8159709066900033,
+              "baseline_STD": 0.00022483739836440196,
+              "candidate_STD": 0.00018346077580122253,
+              "absolute_gain_range": [
+                0.9994531581949517,
+                1.0020409115753584
+              ],
+              "absolute_phase_max": 0.00265409291254404,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.1786298308553145,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00014430635928825786,
+              "absolute_gain_range": [
+                0.9983246112340907,
+                1.000298742793119
+              ],
+              "absolute_phase_max": 0.002416287465272001,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        },
+        "harmonic_dc_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 2.8963523122032533,
+              "baseline_STD": 0.0004852546901845993,
+              "candidate_STD": 0.0014054685439236375,
+              "absolute_gain_range": [
+                0.9961145605371557,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.004274226287365677,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.4830955555793468,
+              "baseline_STD": 0.00022483739836440196,
+              "candidate_STD": 0.00010861794787786568,
+              "absolute_gain_range": [
+                0.999453170119536,
+                1.0020409274468238
+              ],
+              "absolute_phase_max": 0.00265409291254404,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.9175460148853636,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00011234038153562608,
+              "absolute_gain_range": [
+                0.9983245860200876,
+                1.0002987360338282
+              ],
+              "absolute_phase_max": 0.002416287465272001,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        },
+        "harmonic_dc_current_safe": {
+          "windows": {
+            "full": {
+              "relative_gate": {
+                "failures": [
+                  "residual_temporal_std"
+                ],
+                "nonregression": false,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 2.9166622343511244,
+              "baseline_STD": 0.0004852546901845993,
+              "candidate_STD": 0.001415324028903176,
+              "absolute_gain_range": [
+                0.9961145825934112,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.004274245203465538,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "mature": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 0.7221908774874792,
+              "baseline_STD": 0.00022483739836440196,
+              "candidate_STD": 0.00016237551801678938,
+              "absolute_gain_range": [
+                0.9994531505757385,
+                1.0020409086845337
+              ],
+              "absolute_phase_max": 0.00265409291254404,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "startup_first8": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": false,
+                "exceeds_observed_null": false,
+                "effective_success": false
+              },
+              "actual_STD_ratio": 1.0,
+              "baseline_STD": 0.00018640856884684134,
+              "candidate_STD": 0.00018640856884684134,
+              "absolute_gain_range": [
+                1.1237292860777717,
+                1.1267362596886208
+              ],
+              "absolute_phase_max": 0.0008354145187912027,
+              "absolute_detail_pass": false,
+              "absolute_gain_failing_frame_indices_local_to_window": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7
+              ],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            },
+            "activation8to16": {
+              "relative_gate": {
+                "failures": [],
+                "nonregression": true,
+                "active": true,
+                "exceeds_observed_null": true,
+                "effective_success": true
+              },
+              "actual_STD_ratio": 1.274436590090983,
+              "baseline_STD": 0.00012243569228477514,
+              "candidate_STD": 0.00015603652618083772,
+              "absolute_gain_range": [
+                0.9983246249701587,
+                1.0002987415032731
+              ],
+              "absolute_phase_max": 0.0024162683928270834,
+              "absolute_detail_pass": true,
+              "absolute_gain_failing_frame_indices_local_to_window": [],
+              "absolute_phase_failing_frame_indices_local_to_window": []
+            }
+          },
+          "invalid_pixel_fraction": 0.0,
+          "atomic_fallback_pixel_fraction": 0.0
+        }
+      }
+    }
+  ],
+  "interpretation": "Mature relative success6/6 is not quality acceptance: strict STD improves3/6 and absolute full detail0/6; weak mature fails absolute detail. Same-input null variation remains."
+}

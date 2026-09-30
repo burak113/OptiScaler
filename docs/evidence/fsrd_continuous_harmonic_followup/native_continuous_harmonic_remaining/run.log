@@ -1,0 +1,6 @@
+fsrd_gpu_runner.cpp
+wave {'mature_STD_ratio': 1.2053424021584176, 'full_absolute_detail': False, 'mature_absolute_detail': True, 'full_relative_failures': ['residual_temporal_std']}
+moving_light {'mature_STD_ratio': 0.029226139613762924, 'full_absolute_detail': False, 'mature_absolute_detail': True, 'full_relative_failures': []}
+weak_material {'mature_STD_ratio': 1.979684077622187, 'full_absolute_detail': False, 'mature_absolute_detail': False, 'full_relative_failures': []}
+lighting_step {'mature_STD_ratio': 0.18834501745270965, 'full_absolute_detail': False, 'mature_absolute_detail': True, 'full_relative_failures': []}
+reset {'mature_STD_ratio': 0.7221908774874792, 'full_absolute_detail': False, 'mature_absolute_detail': True, 'full_relative_failures': ['residual_temporal_std']}

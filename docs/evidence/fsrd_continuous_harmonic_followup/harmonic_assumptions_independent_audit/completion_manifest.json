@@ -1,0 +1,21 @@
+{
+  "status": "complete_frozen",
+  "files": [
+    {
+      "path": "analyze.py",
+      "bytes": 12368,
+      "sha256": "030024685259cedbb17577d7920068448905825c2f235168fde807d351f46c7f"
+    },
+    {
+      "path": "audit.json",
+      "bytes": 64968,
+      "sha256": "f167a423c2c5b8bdfa52adc7ae453997a109c0f7507f36dbad6a6a1e20bed120"
+    },
+    {
+      "path": "execution_notes.json",
+      "bytes": 1370,
+      "sha256": "5c22ed097ec71b8e4c9af8d4fdd1d23c67b3e08afea742cabe99018f3426e206"
+    }
+  ],
+  "quality_accepted": false
+}

@@ -1,0 +1,7 @@
+material byte graph/formulas/metrics verified
+wave byte graph/formulas/metrics verified
+moving_light byte graph/formulas/metrics verified
+weak_material byte graph/formulas/metrics verified
+lighting_step byte graph/formulas/metrics verified
+reset byte graph/formulas/metrics verified
+audit SHA 7a5816add0025330787207758ed0b1c53dc00cb8312263ba180a6ae6bf5c61d8 totals {'full': {'relative_nonregression': 3, 'relative_effective': 3, 'absolute_detail': 0, 'strict_STD_nonincrease': 3}, 'mature': {'relative_nonregression': 6, 'relative_effective': 6, 'absolute_detail': 5, 'strict_STD_nonincrease': 3}, 'startup_first8': {'relative_nonregression': 6, 'relative_effective': 0, 'absolute_detail': 0, 'strict_STD_nonincrease': 6}, 'activation8to16': {'relative_nonregression': 6, 'relative_effective': 5, 'absolute_detail': 5, 'strict_STD_nonincrease': 2}}

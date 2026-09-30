@@ -1,0 +1,9 @@
+128 80 64 2 32 0 1 0 "F:/OptiRevelations/OptiScaler-ffxD-alpha/external/FidelityFX-SDK-v2/Kits/FidelityFX/signedbin/amd_fidelityfx_denoiser_dx12.dll"
+"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/native_guide_alpha_ablation_20260930/evidence/material/original/input0.bin" 41 1
+"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/native_guide_alpha_ablation_20260930/evidence/material/original/input1.bin" 10 1
+"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/native_guide_alpha_ablation_20260930/evidence/material/original/input2.bin" 24 1
+"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/native_guide_alpha_ablation_20260930/evidence/material/original/input3.bin" 28 64
+"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/native_guide_alpha_ablation_20260930/evidence/material/original/input4.bin" 28 1
+"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/native_guide_alpha_ablation_20260930/evidence/material/original/input5.bin" 10 64
+"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/native_guide_alpha_ablation_20260930/evidence/material/original/input6.bin" 10 64
+"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/native_guide_alpha_ablation_20260930/evidence/material/original/diffuse.bin" "F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/native_guide_alpha_ablation_20260930/evidence/material/original/specular.bin"

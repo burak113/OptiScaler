@@ -1,0 +1,82 @@
+{
+  "schema": "continuous-two-atom-source-pilot-design-draft-v1",
+  "status": "awaiting_root_technical_review_not_implemented_not_scored",
+  "candidate_count": 1,
+  "quality_accepted": false,
+  "native_requested": false,
+  "purpose": "Represent a few coherent noninteger-frequency source components directly, subtract them before filtering the residual, then add their causal coefficient prediction. Avoid representing a single off-grid wave with hundreds of integer DFT leakage bins. Dense detail remains in residual; this does not prove its preservation.",
+  "novelty_scope": "Reviewed prior hard/soft/conditioned/factorized/physical-beta/phase/normalized-source and affine-response packages have no continuous spatial-frequency atom refinement with disjoint-pixel held-out selection. Not an exhaustive repository claim.",
+  "inputs": {
+    "source": "observed raw N,H,W,3 RGB only, consumed asfloat64 for CPU math",
+    "controls": "reset,jitterX,jitterY perframe, causal; reset or anyjitter change clears allstate",
+    "exposure": "Optional supplied positive finite perframe scalar metadata; if present, anychange returns exactraw inactive for thatframe and clears allstate. If absent, exposure isunknown: no invariance/identification claim, and illumination is handled only by observable coefficients/currentDC.",
+    "forbidden": ["cleantruth", "scene labels", "guides", "future frames", "native T(P) from another pilot"]
+  },
+  "fixed_constants": {
+    "atom_capacity": 2,
+    "selection_prior_frames": 8,
+    "coefficient_history_current_inclusive": 64,
+    "proposal_peaks_per_slot": 4,
+    "initial_local_grid_offsets_in_bins": [-0.5,0,0.5],
+    "Gauss_Newton_iterations_per_proposal": 8,
+    "frequency_step_limit_Linf_bins": 0.125,
+    "minimum_coarse_peak_distance_bins": 1.5,
+    "minimum_frequency_radius_bins": 1,
+    "training_validation_mask_seed": 117003,
+    "validation_pixel_fraction_nominal": 0.2,
+    "validation_prediction_noise_cost_multiplier": 4,
+    "phase_min_prior_coefficients": 8,
+    "phase_power_ratio_strictly_above": 16,
+    "phase_raw_coherence_minimum": 0.8,
+    "nominal_phase_significance_SE": 3,
+    "coefficient_innovation_RMS": 3,
+    "numerical_Gram_condition_maximum": 10000,
+    "numerical_zero_column_relative_tolerance": "64*float64eps",
+    "source_RGB_DC_nearzero_fallback": 0.0001,
+    "radiance_maximum": 65504
+  },
+  "spatial_basis": {
+    "frequency_coordinates": "fx cycles across width, fy cycles across height; phase=2pi[fx*(x-(W-1)/2)/W+fy*(y-(H-1)/2)/H]. Canonical conjugate halfplane fx>=0, fy signed; fx=0 tie fy>=0. Frequencies outside Nyquist rectangle rejected.",
+    "columns": "Each atom has cosphase and sinphase, each centered by itsfullimage arithmetic mean to give exactzero spatialDC. A separate nuisance intercept is fitted ontraining pixels. Reconstruction omits thisintercept and restores observed fullimage currentRGBDC through residual.",
+    "degenerate_self_conjugate": "Exact integer Nyquist/parity atoms can have onlyone independent real column; deterministically omit a numericalzero/redundant column using64eps criterion. Their phaseincrement isexact0. Other condition>10000 models rejected, never arbitrarily inverted.",
+    "identity": "Frequency, physical cos/sin signs, coordinate origin, slotorder and mask are fixed after first selection for anepoch. No eigenspace-sign coordinate history. Newbasis selection/reset starts fresh residual/coefficient epoch. No framewise frequency jitter or score-driven reoptimization."
+  },
+  "source_noise_model": {
+    "pixel_sigma": "Same frozen robust nominal estimate median(abs normalized interior rFFT RGB)*sqrt(HW/log2), with numericalepsilon floor, per sourceframe. Dense/nonperiodic details can inflate it; colored/sharednoise can invalidate it.",
+    "OLS": "Joint training design includes intercept and all accepted/candidate physicalcolumns. Gamma=(Xtrain^TXtrain)^-1 after deterministicrank checks. Nominal coefficient covariance perRGB sigma_j^2Gamma; RGB/time/pixel IID is anassumption only.",
+    "complex_coefficient": "For a fullpair, z=(beta_cos-i*beta_sin)/2. Circular envelope q_z=sigma_j^2*lambda_max(Gamma_pair)/2; itsreal2D covariance q_z*I/2 dominates thefixed-basis nominal OLS2D covariance. Thisdoesnot make selected-frequency noiseproper, independent or aconfidence bound.",
+    "one_column": "Use itsphysical real coefficient with variance sigma_j^2Gamma_aa; no phasealignment. Source-only averaging/innovation uses thatnominal scalar variance.",
+    "frequency_uncertainty": "Frequency was learned from samepast source and thenfixed; coefficientSE conditional on frequency ignores random frequency-selection/refinement error. Record this as acritical limitation and measure held-out/source adversaries; no coverage claims."
+  },
+  "proposal_refinement_selection": [
+    "First8valid epochframes output exactobserved raw inactive; thispreserves observedstartup details and avoids unsupported atom predictions, but can introduce lateractivation transitions and doesnot denoise startup. At nextframe, frequencyselection uses onlythose8past frames.",
+    "Fixed hash ofpixel x,y andseed117003 assignsvalidation whenhash mod5==0; remainingpixels train. No source-dependent mask. Mask isidentical acrossRGB/time andpreserved inmetadata. Pixelpartition isnot independent undercorrelatednoise.",
+    "Compute training-only, training-mean-removed masked rFFT periodogram averaged over8frames; subtract nominal mask-noise energy forranking only. ExcludeDC/radius<1, conjugate duplicates andpeakswithin1.5bins ofacceptedatoms. Take4highest proposals withdeterministiclexicographic tie breaks.",
+    "For eachproposal, evaluate3x3initialfrequency grid, then8bounded variable-projection Gauss-Newton steps using analytic derivatives ofthecentered cos/sincolumns. Solve perframe/RGB linearcoefficients ontraining only. Keep lowertrainingRSS iterate; reject nonfinite/rank/condition failure. Accepted prioratomfrequencies remainfixed; jointcoefficients/intercepts are refitted. Selectone lowesttrainingRSS proposal before readingvalidation.",
+    "Compare selectedproposal held-out RSS to currentaccepted-model held-out RSS acrosssame8frames/RGB. Baseline withnoatoms istraining intercept only. Accept only DeltaRSS >4*sum_frames,RGB sigma_j^2*trace(Xval_full Gamma_full Xval_full^T). Thiscost includes nuisanceintercept andallmodelcolumns and is conservative ratherthan adof/confidence test. Validation isonlybinary acceptance, not frequency/rank/threshold tuning.",
+    "If firstcandidate rejects, stop. If accepted, repeat proposal/refinement onceontraining residual forslot2 andapply sameheld-out rule versus acceptedslot1. Fixedcapacity2. No furtherreselection within epoch. Persistentfalsefeatures/sharedbias canpass thisrule; no cleanlabel inferred.",
+    "If noatom isaccepted, afterwarmup useunchanged frozen significant-phase sourcepilot. Thisis anexplicit unsupported-model control, notsuccessful harmonic reconstruction; knownweak/dense sourcepilot failures remain."
+  ],
+  "causal_coefficient_history": {
+    "current_fit": "Jointphysical beta ofacceptedfixedatoms from currenttraining source only; maintain current-inclusive <=64observations afterselection. CurrentfullRGBDC alwaysretained; noDCnormalization inthiscandidate.",
+    "past_phase": "Use same frozen significant-phase nominalrules peratom: past-only sharedRGB lag1complex correlation C=sumadjacent,sumRGB z_jconj(z_j-1); min8,power>16,coherence>=.8; endpoint+quadratic circularIID nominalphaseSE with q_z. Use theta onlyif abs(theta)>3SE; otherwiseexacttheta0. One-column atoms theta0.",
+    "alignment_and_uncertainty": "Align pastz_j byexp(i*theta*age); prior andinclusive means. Useactual i*sum(age*aligned_z)/count derivative; first-order Cauchy RMS variance includingthetaSE asprior model. Pairnoise envelope, random frequency andphase plugins are nominal limitations.",
+    "innovation": "AnyRGB currentcoefficient−pastprediction >3sqrt(qcurrent+vprior) selects current forwholeatom/RGBshared decision; otherwise inclusivealignedmean. No softshrink or hardatom amplitude removal afterselection. Thisavoids another4sigma coefficient suppression ofacceptedweaksignal; detection/rejection itself canstillloseweakdetail.",
+    "limitations": "Slow nonsignificant phase, earlyphase warmup, acceleration/amplitude drift andimproper/colored covariance remain mandatorycounterexamples. Few current-fit coefficients shouldhave lower aggregate noise thanhundredsleakbins, but thisis unmeasured andfrequencyfit error can dominate."
+  },
+  "residual": {
+    "construction": "Subtract current raw-fit nonDC atommodel A_current fromraw C toform signedR, independently ofsmoothed atomprediction. Add perframe spatialconstant carrier L=max(0,1e-4-minRGBpixelR), rununchanged frozen significant-phase residualpilot, subtractcurrentL, thenadd causalpredicted atomA_hat. CurrentRGBDC isexact because allatomcolumns globallycentered andresidualpilot forcescurrentDC.",
+    "history_correspondence": "Atomfrequencies/cos-sinbasis fixed throughoutresidualepoch. Cut residualhistory atmodelactivation ormetadata reset; never mix residuals fromdifferentbases. Perframe carrier affects onlyDC algebra; originalfrozen medianFFT noiseestimate isused andrecorded.",
+    "safety": "If carrierinputnonfinite/negative/>65504, residualstage unsupported: exactrawwholeframe inactive andclearepoch. If final signedprediction nonfinite/<0/>65504, exactrawwholeframe inactive andclearepoch. No clamp, maximumRGBshiftedcarrier itself mustremainvalid.",
+    "dense_detail_limit": "Residual isnot discarded or forcedlowrank. Frozen residualspectralfilter maystillremove trueweak/dense/nonperiodic detail andusesnominalIID assumptions invalidated evenbytrainingprojection. Preserve allresidual failure metrics. Exactinput passthrough ratherthan filtering wouldretainnoise floor, so simultaneousunconditionaldetailpreservation anddenoising cannotbepromised."
+  },
+  "metadata_fallback": "Shape errors raise. Signed/nonfinite/>65504input, RGBDC<=1e-4, invalidreset/jitter/exposuremetadata orinvalidfit/prediction returns exactraw inactive andcuts bothatom/residual epochs. Atomproposal rejection isnot invaliddata: usesexplicit oldpilot fallbackafterwarmup. Optionalexposure absent isrecordedunknown; cannotinfer whetherobservedlightingchange isexposure orsceneillumination.",
+  "bounded_CPU_cost": "At mostone selection event perepoch,2slots*4proposals*(9grid+8GN) =136frequency fits on8pastframes. H*W<=10240 primaryscope; design<=5columns includingintercept; Cholesky/SVD<=5x5. FFTresidualhistory unchanged64; each64frame fixture requiresatmost1ordinary residualpilot epochcall pluswarmup/noatomcontrol, not64full-history replays. A later implementation mustrecordactualfit/FFTcounts andwalltime; no realtimeHLSL orCPUcostpromise.",
+  "mandatory_evaluation_before_native": {
+    "source_families": "Same13exactauthenticated old-alpha fixtures; raw/frozenhard64/frozensignificant64 controls. No changedP witholdT(P).",
+    "adversaries": ["offgridstationaryonewave", "twooffgridwaves", "densematerialmorethan2components", "closefrequencyillconditioning", "weakstartupandlateweakappearance", "slowmovingphase", "phaseacceleration", "frequencydrift", "multiplicativeandadditiveillumination", "disocclusion", "reset/jitter/exposuremetadatachange", "coloredandtemporallycorrelatednoise", "fixedsharedbias", "Nyquistrealchecker", "signed/nearzero/overflow/carrierfallback"],
+    "checks": ["no-futureincludingfrequencyselection", "currentDCexact", "physicalbasisidentityandfreshreset", "samevalidationmaskandhash", "rawfallbackexact", "no oracle/guide API", "frequency/atomcapacity andfitbudget", "conditionalSE matrixalgebra includingrank1cases"],
+    "metrics": "Frozenfull/mature/earlysource scores plus absoluteeveryframegain[.95,1.05],phase<=.05, genuinecontrast/waveform,candidate-versusraw andcontrols broadtone/RGBbias/fullROI contours, actualnoiseSTD, activationtransitionframes, fallback/activity, atomfrequencyerroronlyin scorer, residualenergy/supportchurn. Relativegatewith+1e-4 isnotacceptance."
+  },
+  "information_limits": ["Observedsourceequivalence betweenpersistent artifact andtruematerial cannotberesolved", "No estimator canunconditionally preserve weaktexture andremove indistinguishable noise inshortstartup", "Training/validationnominal separation fails underpixel/time/RGBsharednoise", "Frequencyfit noise couplesatoms,residual andhistory; IIDlinearSE isnotfullselectedmodeluncertainty", "Capacity2cannotrepresentdense trueappearance; residualmustcarryit", "Fixedfrequencyidentity avoidsjitter butmissestruefrequencydrift; residual/currentinnovation maynotprotectphase", "Rawwarmup/modelactivation canfail fulltemporal gates evenwithmatureimprovement", "Passing sourceCPU alonewouldnot establishnativeT(P), quality,cost orgamefix"]
+}

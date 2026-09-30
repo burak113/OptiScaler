@@ -1,0 +1,21 @@
+{
+  "schema": "continuous-harmonic-fresh-native-diagnostic-prereg-v1",
+  "quality_accepted": false,
+  "reason": "The frozen two-atom source candidate materially reduced mature static/moving source noise, unlike the previous significant-phase pilot. Source weak-startup and adversarial failures remain. Measure whether its new native response preserves that improvement; not a production promotion.",
+  "cases": ["material","wave","moving_light","weak_material","lighting_step","reset"],
+  "shape": [64,80,128,3],
+  "seed": 950301,
+  "source_noise": "Gaussian sigma.012, source FP16 roundtrip as frozen original native fixture",
+  "contexts_per_case": ["fresh observed baseline","fresh identical source null repeat","fresh current frozen harmonic P"],
+  "native_count": 18,
+  "RR_calls": 1152,
+  "split_strength": 1,
+  "counterfactual_contract": "Same depth, motion, normals, guide RGB, signal alpha, reset/jitter and184-byte applied controls. Only radiance changes. All consumed raw bytes/outputs retained. No old T(P), oracle, reused baseline/null or repeat averaging.",
+  "provider_sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3",
+  "runner_sha256": "3427689a4764380f885545c353250277e4d71944d3310c8a17b3cbba0f3c21d2",
+  "prototype_sha256": "be66624153a286c6b3299735fc2a1bbf5162ffe24a52d7f9421d1c4b90a52173",
+  "candidate": "harmonic_dc_current_safe: B+active*(P-Tfresh(P)); current interior observed RGB DC constraint, baseline whole-RGB invalid-radiance fallback. Chosen before new native scores. Diagnostic plain/historyDC/currentDC and their safe variants all retained; no variant selection from scores.",
+  "metrics": "Frozen statistical full/mature gates plus absolute everyframe gain .95..1.05/phase<=.05, actual temporalSTD versus B, startup8 andactivation8:16; null drift reported. Truth only fixture/scorer.",
+  "resources": "Byte-identical owned-child native guard:240seconds,2GiB working-set,1GiB free memory minimum,.2second samples. Guard failures terminate owned child only. No heavy GPU validation matrix. Persist actual converter/composer CB/allinputs/alloutputs/logs before existing helper cleanup.",
+  "limitations": ["Global planar synthetic radiance; no real game temporal correspondence", "Failed source adversaries remain, no broad acceptance", "CurrentDC preservation retains its observed noise", "Few atoms and old residual filter may miss weak/dense/drifting appearance", "Additional native context cost not a runtime performance claim"]
+}

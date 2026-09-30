@@ -1,0 +1,62 @@
+{
+  "schema": "continuous-harmonic-root-physical-math-review-v1",
+  "status": "passed_independent_microchecks_not_quality",
+  "quality_accepted": false,
+  "native_measured": false,
+  "prototype_sha256": "be66624153a286c6b3299735fc2a1bbf5162ffe24a52d7f9421d1c4b90a52173",
+  "review_script_sha256": "d4307c1858395df7d846ad54d0f476960a5ff201c748788a9f9e240bf9e2e59b",
+  "seed": 383173,
+  "shape": [
+    8,
+    14,
+    20,
+    3
+  ],
+  "known_oracle_values_only_in_algebra_check": true,
+  "physical_basis_max_error": 0.0,
+  "OLS_beta_max_error": 3.3306690738754696e-16,
+  "Gamma_max_error": 0.0,
+  "current_atom_max_error": 8.673617379884035e-17,
+  "current_atom_DC_max_error": 1.5116876004940748e-18,
+  "changing_validation_pixels_does_not_change_current_conditional_fit": true,
+  "profile_RSS_gradients": [
+    {
+      "atom": 0,
+      "axis": 0,
+      "profile_RSS_gradient": -0.04802347436938525,
+      "analytic_gradient": -0.04802347441699192,
+      "absolute_error": 4.7606668607258484e-11
+    },
+    {
+      "atom": 0,
+      "axis": 1,
+      "profile_RSS_gradient": 0.0027526539270184,
+      "analytic_gradient": 0.0027526539249157454,
+      "absolute_error": 2.102654422103667e-12
+    },
+    {
+      "atom": 1,
+      "axis": 0,
+      "profile_RSS_gradient": 0.01490883171362256,
+      "analytic_gradient": 0.014908831617340801,
+      "absolute_error": 9.628175860754151e-11
+    },
+    {
+      "atom": 1,
+      "axis": 1,
+      "profile_RSS_gradient": -0.11615491073979632,
+      "analytic_gradient": -0.1161549107740753,
+      "absolute_error": 3.4278982430357985e-11
+    }
+  ],
+  "estimator_API_parameters": [
+    "raw",
+    "controls",
+    "exposure"
+  ],
+  "limitations": [
+    "These checks validate physical coordinates and conditional OLS/gradient algebra",
+    "Frequency search, heldout acceptance and final-pilot quality not accepted by this check",
+    "Full-source sigma enters heldout acceptance and secondslot reuses the heldout partition"
+  ]
+}

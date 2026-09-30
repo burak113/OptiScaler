@@ -1,0 +1,9 @@
+fsrd_gpu_runner.cpp
+Traceback (most recent call last):
+  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\native_continuous_harmonic_fresh_retry_20260930\analyze.py", line 127, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\native_continuous_harmonic_fresh_retry_20260930\analyze.py", line 116, in main
+    'full_absolute_detail':chosen['full']['absolute_detail_pass'],
+                           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+KeyError: 'absolute_detail_pass'

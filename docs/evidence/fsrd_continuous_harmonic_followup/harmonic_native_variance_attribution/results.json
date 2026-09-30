@@ -1,0 +1,2086 @@
+{
+  "schema": "harmonic-native-saved-array-variance-attribution-v1",
+  "status": "completed_descriptive_variance_identity_not_solution",
+  "quality_accepted": false,
+  "native_rerun": false,
+  "new_pilot_created": false,
+  "source_pins": {
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_fresh_retry_20260930\\evidence\\results.json": "261834bff72b867f75160e6ac93ac5f75e6c919e8fb11c185953c75f423b017b",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_remaining_20260930\\evidence\\results.json": "16c68f07d3acf45cc395b523ee388c8f25602d2124b01f922a0357e81ca96770",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_fresh_retry_20260930\\evidence\\material\\sequences.npz": "5b44eab3cfd911ab29227b9cbd4ab4cd50c623382f2f31d5ca143c8c78cf4a75",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_remaining_20260930\\evidence\\wave\\sequences.npz": "759da0a183291f54ddf01aff2293674e71c236e858682014df32d620f446e8c1",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_remaining_20260930\\evidence\\moving_light\\sequences.npz": "8f651246f3e5cbadbe0790ea9b2903507dc2d074613585ade05b5a846e1740d0",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_remaining_20260930\\evidence\\weak_material\\sequences.npz": "ad58b53a753e6cb90e19b2389991c8cf57d35bde9997fae660afe920b1e530b6",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_remaining_20260930\\evidence\\lighting_step\\sequences.npz": "ce8f034263612fc9228c82044ff581b6ee3f1e68c7ee56336f85b57f9801d193",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_continuous_harmonic_remaining_20260930\\evidence\\reset\\sequences.npz": "8afe40d23dbbd0bf1767afc43c67a009afea4e96e7250b130b627ac9aa6fec54"
+  },
+  "fixed_selected_candidate": "harmonic_dc_current_safe",
+  "rows": [
+    {
+      "scene": "material",
+      "ideal_to_actual_FP32_correction_max_difference": 0.0,
+      "fallback_max_magnitude": 0.0,
+      "windows": {
+        "full": {
+          "total": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                7.838172747756051e-07,
+                -1.0299868941601364e-09,
+                -4.2892982462821486e-07,
+                0.0
+              ],
+              [
+                -1.0299868941601364e-09,
+                1.55721046260868e-06,
+                1.1788651616589154e-07,
+                0.0
+              ],
+              [
+                -4.2892982462821486e-07,
+                1.1788651616589154e-07,
+                3.077561417383628e-07,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 2.0246372884096965e-06,
+            "covariance_sum_identity_error": 1.5670109524204556e-20
+          },
+          "spatial_DC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                6.398303134678197e-07,
+                -1.9400036741904292e-07,
+                -4.289298226013678e-07,
+                0.0
+              ],
+              [
+                -1.9400036741904292e-07,
+                8.178628875434871e-08,
+                1.178865461591619e-07,
+                0.0
+              ],
+              [
+                -4.289298226013678e-07,
+                1.178865461591619e-07,
+                3.077561417365424e-07,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 1.928545623621297e-08,
+            "covariance_sum_identity_error": 2.6138907356675675e-22
+          },
+          "spatial_nonDC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                1.4398696130778585e-07,
+                1.9297038052488307e-07,
+                -2.026847236391921e-15,
+                0.0
+              ],
+              [
+                1.9297038052488307e-07,
+                1.4754241738543367e-06,
+                -2.9993270343742326e-14,
+                0.0
+              ],
+              [
+                -2.026847236391921e-15,
+                -2.9993270343742326e-14,
+                1.8367408048069547e-18,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 2.0053518321734843e-06,
+            "covariance_sum_identity_error": 5.929230630780102e-21
+          },
+          "baseline_mean_pixel_temporal_STD": 0.0008091033997140231,
+          "selected_mean_pixel_temporal_STD": 0.0011739517702889879,
+          "ideal_active_P_minus_TP": {
+            "pilot_error_temporal_variance": 1.4977492260407594e-08,
+            "response_error_temporal_variance": 1.5214070486988588e-06,
+            "pilot_response_error_covariance": -1.0412960824706718e-08,
+            "correction_temporal_variance": 1.55721046260868e-06
+          },
+          "all_registered_variants": {
+            "harmonic": {
+              "mean_pixel_temporal_STD_float64": 0.0013189792977124624,
+              "reported_mean_pixel_temporal_STD_float32": 0.0013189792977124624,
+              "ratio_to_baseline": 1.63017396562498,
+              "reported_absolute_gain_min": 0.9813741408642637,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.002416287465272001
+            },
+            "harmonic_dc": {
+              "mean_pixel_temporal_STD_float64": 0.0011619679239901286,
+              "reported_mean_pixel_temporal_STD_float32": 0.0011619679239901286,
+              "ratio_to_baseline": 1.4361179602023983,
+              "reported_absolute_gain_min": 0.9813741425720165,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.002416287465272001
+            },
+            "harmonic_dc_current": {
+              "mean_pixel_temporal_STD_float64": 0.0011739517702889879,
+              "reported_mean_pixel_temporal_STD_float32": 0.0011739517702889879,
+              "ratio_to_baseline": 1.4509292269738578,
+              "reported_absolute_gain_min": 0.9813741452424849,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.0024162683928270834
+            },
+            "harmonic_safe": {
+              "mean_pixel_temporal_STD_float64": 0.0013189792977124624,
+              "reported_mean_pixel_temporal_STD_float32": 0.0013189792977124624,
+              "ratio_to_baseline": 1.63017396562498,
+              "reported_absolute_gain_min": 0.9813741408642637,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.002416287465272001
+            },
+            "harmonic_dc_safe": {
+              "mean_pixel_temporal_STD_float64": 0.0011619679239901286,
+              "reported_mean_pixel_temporal_STD_float32": 0.0011619679239901286,
+              "ratio_to_baseline": 1.4361179602023983,
+              "reported_absolute_gain_min": 0.9813741425720165,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.002416287465272001
+            },
+            "harmonic_dc_current_safe": {
+              "mean_pixel_temporal_STD_float64": 0.0011739517702889879,
+              "reported_mean_pixel_temporal_STD_float32": 0.0011739517702889879,
+              "ratio_to_baseline": 1.4509292269738578,
+              "reported_absolute_gain_min": 0.9813741452424849,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.0024162683928270834
+            }
+          }
+        },
+        "mature": {
+          "total": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                3.333755927062665e-08,
+                -1.563193981969448e-09,
+                -1.6450001803376186e-08,
+                0.0
+              ],
+              [
+                -1.563193981969448e-09,
+                1.1383225704235859e-08,
+                1.3323708836965205e-09,
+                0.0
+              ],
+              [
+                -1.6450001803376186e-08,
+                1.3323708836965205e-09,
+                1.9037626061289912e-08,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 3.039676123285432e-08,
+            "covariance_sum_identity_error": 1.257314531080602e-22
+          },
+          "spatial_DC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                1.8392174146013044e-08,
+                -1.3816466956234185e-09,
+                -1.645000441186291e-08,
+                0.0
+              ],
+              [
+                -1.3816466956234185e-09,
+                9.594803024528644e-09,
+                1.3323712192479748e-09,
+                0.0
+              ],
+              [
+                -1.645000441186291e-08,
+                1.3323712192479748e-09,
+                1.9037626059594602e-08,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 1.4026043453659575e-08,
+            "covariance_sum_identity_error": 4.963083675318166e-24
+          },
+          "spatial_nonDC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                1.4945385124613508e-08,
+                -1.8154728634597528e-10,
+                2.608486803726009e-15,
+                0.0
+              ],
+              [
+                -1.8154728634597528e-10,
+                1.7884226797072087e-09,
+                -3.35551455760767e-16,
+                0.0
+              ],
+              [
+                2.608486803726009e-15,
+                -3.35551455760767e-16,
+                1.695434824574891e-18,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 1.637071777919491e-08,
+            "covariance_sum_identity_error": 9.926167350636332e-24
+          },
+          "baseline_mean_pixel_temporal_STD": 0.00016238070711879703,
+          "selected_mean_pixel_temporal_STD": 0.00016871761578203705,
+          "ideal_active_P_minus_TP": {
+            "pilot_error_temporal_variance": 1.086662625394088e-08,
+            "response_error_temporal_variance": 6.797065711456191e-10,
+            "pilot_response_error_covariance": 8.155356042532069e-11,
+            "correction_temporal_variance": 1.1383225704235859e-08
+          },
+          "all_registered_variants": {
+            "harmonic": {
+              "mean_pixel_temporal_STD_float64": 0.00019105033967046703,
+              "reported_mean_pixel_temporal_STD_float32": 0.00019105033967046703,
+              "ratio_to_baseline": 1.1765581210992968,
+              "reported_absolute_gain_min": 0.9813741408642637,
+              "reported_absolute_gain_max": 0.9877009805699566,
+              "reported_absolute_phase_max": 0.0006028036192740875
+            },
+            "harmonic_dc": {
+              "mean_pixel_temporal_STD_float64": 0.00011713282162843882,
+              "reported_mean_pixel_temporal_STD_float32": 0.00011713282162843882,
+              "ratio_to_baseline": 0.7213469118763287,
+              "reported_absolute_gain_min": 0.9813741425720165,
+              "reported_absolute_gain_max": 0.9877009826597151,
+              "reported_absolute_phase_max": 0.0006028036192740875
+            },
+            "harmonic_dc_current": {
+              "mean_pixel_temporal_STD_float64": 0.00016871761578203705,
+              "reported_mean_pixel_temporal_STD_float32": 0.00016871761578203705,
+              "ratio_to_baseline": 1.0390250096558822,
+              "reported_absolute_gain_min": 0.9813741452424849,
+              "reported_absolute_gain_max": 0.9877009722594542,
+              "reported_absolute_phase_max": 0.0006028036192740875
+            },
+            "harmonic_safe": {
+              "mean_pixel_temporal_STD_float64": 0.00019105033967046703,
+              "reported_mean_pixel_temporal_STD_float32": 0.00019105033967046703,
+              "ratio_to_baseline": 1.1765581210992968,
+              "reported_absolute_gain_min": 0.9813741408642637,
+              "reported_absolute_gain_max": 0.9877009805699566,
+              "reported_absolute_phase_max": 0.0006028036192740875
+            },
+            "harmonic_dc_safe": {
+              "mean_pixel_temporal_STD_float64": 0.00011713282162843882,
+              "reported_mean_pixel_temporal_STD_float32": 0.00011713282162843882,
+              "ratio_to_baseline": 0.7213469118763287,
+              "reported_absolute_gain_min": 0.9813741425720165,
+              "reported_absolute_gain_max": 0.9877009826597151,
+              "reported_absolute_phase_max": 0.0006028036192740875
+            },
+            "harmonic_dc_current_safe": {
+              "mean_pixel_temporal_STD_float64": 0.00016871761578203705,
+              "reported_mean_pixel_temporal_STD_float32": 0.00016871761578203705,
+              "ratio_to_baseline": 1.0390250096558822,
+              "reported_absolute_gain_min": 0.9813741452424849,
+              "reported_absolute_gain_max": 0.9877009722594542,
+              "reported_absolute_phase_max": 0.0006028036192740875
+            }
+          }
+        }
+      }
+    },
+    {
+      "scene": "wave",
+      "ideal_to_actual_FP32_correction_max_difference": 0.0,
+      "fallback_max_magnitude": 0.0,
+      "windows": {
+        "full": {
+          "total": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                2.6822991036093355e-06,
+                2.464945319844271e-06,
+                -4.948255459895369e-09,
+                0.0
+              ],
+              [
+                2.464945319844271e-06,
+                8.483743311956784e-06,
+                6.396945206572174e-09,
+                0.0
+              ],
+              [
+                -4.948255459895369e-09,
+                6.396945206572174e-09,
+                5.651871937279853e-09,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 1.6104482306685296e-05,
+            "covariance_sum_identity_error": 0.0
+          },
+          "spatial_DC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                1.5693608469124782e-07,
+                -2.3350120574891236e-07,
+                -4.948271356487235e-09,
+                0.0
+              ],
+              [
+                -2.3350120574891236e-07,
+                4.079944046612627e-07,
+                6.396700071645506e-09,
+                0.0
+              ],
+              [
+                -4.948271356487235e-09,
+                6.396700071645506e-09,
+                5.651871935554679e-09,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 1.0647680722055725e-07,
+            "covariance_sum_identity_error": 1.9852334701272664e-22
+          },
+          "spatial_nonDC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                2.525363018918089e-06,
+                2.6984465255931767e-06,
+                1.5896591897601025e-14,
+                0.0
+              ],
+              [
+                2.6984465255931767e-06,
+                8.075748907295566e-06,
+                2.451349266683683e-13,
+                0.0
+              ],
+              [
+                1.5896591897601025e-14,
+                2.451349266683683e-13,
+                1.7251719209075215e-18,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 1.5998005499464736e-05,
+            "covariance_sum_identity_error": 3.3881317890172014e-20
+          },
+          "baseline_mean_pixel_temporal_STD": 0.0014994036151563075,
+          "selected_mean_pixel_temporal_STD": 0.0036099195683452195,
+          "ideal_active_P_minus_TP": {
+            "pilot_error_temporal_variance": 1.266782470800373e-08,
+            "response_error_temporal_variance": 8.467721506031055e-06,
+            "pilot_response_error_covariance": -1.6769906088627903e-09,
+            "correction_temporal_variance": 8.483743311956784e-06
+          },
+          "all_registered_variants": {
+            "harmonic": {
+              "mean_pixel_temporal_STD_float64": 0.0036087596381768855,
+              "reported_mean_pixel_temporal_STD_float32": 0.0036087596381768855,
+              "ratio_to_baseline": 2.406796676824529,
+              "reported_absolute_gain_min": 0.0008044291682342881,
+              "reported_absolute_gain_max": 1.0173757659221372,
+              "reported_absolute_phase_max": 0.1954422580964455
+            },
+            "harmonic_dc": {
+              "mean_pixel_temporal_STD_float64": 0.003606172515791135,
+              "reported_mean_pixel_temporal_STD_float32": 0.003606172515791135,
+              "ratio_to_baseline": 2.4050712425521295,
+              "reported_absolute_gain_min": 0.0008044291682342881,
+              "reported_absolute_gain_max": 1.0173757679105582,
+              "reported_absolute_phase_max": 0.1954422580964455
+            },
+            "harmonic_dc_current": {
+              "mean_pixel_temporal_STD_float64": 0.0036099195683452195,
+              "reported_mean_pixel_temporal_STD_float32": 0.0036099195683452195,
+              "ratio_to_baseline": 2.407570271176716,
+              "reported_absolute_gain_min": 0.0008044291682342881,
+              "reported_absolute_gain_max": 1.0173758109719437,
+              "reported_absolute_phase_max": 0.1954422580964455
+            },
+            "harmonic_safe": {
+              "mean_pixel_temporal_STD_float64": 0.0036087596381768855,
+              "reported_mean_pixel_temporal_STD_float32": 0.0036087596381768855,
+              "ratio_to_baseline": 2.406796676824529,
+              "reported_absolute_gain_min": 0.0008044291682342881,
+              "reported_absolute_gain_max": 1.0173757659221372,
+              "reported_absolute_phase_max": 0.1954422580964455
+            },
+            "harmonic_dc_safe": {
+              "mean_pixel_temporal_STD_float64": 0.003606172515791135,
+              "reported_mean_pixel_temporal_STD_float32": 0.003606172515791135,
+              "ratio_to_baseline": 2.4050712425521295,
+              "reported_absolute_gain_min": 0.0008044291682342881,
+              "reported_absolute_gain_max": 1.0173757679105582,
+              "reported_absolute_phase_max": 0.1954422580964455
+            },
+            "harmonic_dc_current_safe": {
+              "mean_pixel_temporal_STD_float64": 0.0036099195683452195,
+              "reported_mean_pixel_temporal_STD_float32": 0.0036099195683452195,
+              "ratio_to_baseline": 2.407570271176716,
+              "reported_absolute_gain_min": 0.0008044291682342881,
+              "reported_absolute_gain_max": 1.0173758109719437,
+              "reported_absolute_phase_max": 0.1954422580964455
+            }
+          }
+        },
+        "mature": {
+          "total": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                3.1988560319806754e-08,
+                -4.9686686532711725e-09,
+                -3.3813645217151133e-10,
+                0.0
+              ],
+              [
+                -4.9686686532711725e-09,
+                1.62814038935703e-08,
+                3.758491160483881e-10,
+                0.0
+              ],
+              [
+                -3.3813645217151133e-10,
+                3.758491160483881e-10,
+                4.384424093365414e-09,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 4.2792476327953876e-08,
+            "covariance_sum_identity_error": 0.0
+          },
+          "spatial_DC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                1.4913186271958092e-09,
+                -7.160082548635756e-10,
+                -3.381460946864994e-10,
+                0.0
+              ],
+              [
+                -7.160082548635756e-10,
+                9.51662998702058e-09,
+                3.75851316260734e-10,
+                0.0
+              ],
+              [
+                -3.381460946864994e-10,
+                3.75851316260734e-10,
+                4.384424090577095e-09,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 1.4035766638214802e-08,
+            "covariance_sum_identity_error": 1.6543612251060553e-24
+          },
+          "spatial_nonDC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                3.0497241692610945e-08,
+                -4.252660398407585e-09,
+                9.642514974793613e-15,
+                0.0
+              ],
+              [
+                -4.252660398407585e-09,
+                6.764773906549721e-09,
+                -2.2002123476108735e-15,
+                0.0
+              ],
+              [
+                9.642514974793613e-15,
+                -2.2002123476108735e-15,
+                2.788319258063972e-18,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 2.875670968973909e-08,
+            "covariance_sum_identity_error": 1.9852334701272664e-23
+          },
+          "baseline_mean_pixel_temporal_STD": 0.00016566478808464463,
+          "selected_mean_pixel_temporal_STD": 0.00019968279362301075,
+          "ideal_active_P_minus_TP": {
+            "pilot_error_temporal_variance": 1.0824726956135039e-08,
+            "response_error_temporal_variance": 6.340005205037663e-09,
+            "pilot_response_error_covariance": 4.416641338012024e-10,
+            "correction_temporal_variance": 1.62814038935703e-08
+          },
+          "all_registered_variants": {
+            "harmonic": {
+              "mean_pixel_temporal_STD_float64": 0.00018697094155036077,
+              "reported_mean_pixel_temporal_STD_float32": 0.00018697094155036077,
+              "ratio_to_baseline": 1.1286100306048743,
+              "reported_absolute_gain_min": 1.0089297834321929,
+              "reported_absolute_gain_max": 1.0173757659221372,
+              "reported_absolute_phase_max": 0.0037433691195446184
+            },
+            "harmonic_dc": {
+              "mean_pixel_temporal_STD_float64": 0.00015907925907122347,
+              "reported_mean_pixel_temporal_STD_float32": 0.00015907925907122347,
+              "ratio_to_baseline": 0.9602478650438598,
+              "reported_absolute_gain_min": 1.008929803058825,
+              "reported_absolute_gain_max": 1.0173757679105582,
+              "reported_absolute_phase_max": 0.0037433637873087308
+            },
+            "harmonic_dc_current": {
+              "mean_pixel_temporal_STD_float64": 0.00019968279362301075,
+              "reported_mean_pixel_temporal_STD_float32": 0.00019968279362301075,
+              "ratio_to_baseline": 1.2053424021584176,
+              "reported_absolute_gain_min": 1.0089298067997712,
+              "reported_absolute_gain_max": 1.0173758109719437,
+              "reported_absolute_phase_max": 0.0037433637873087308
+            },
+            "harmonic_safe": {
+              "mean_pixel_temporal_STD_float64": 0.00018697094155036077,
+              "reported_mean_pixel_temporal_STD_float32": 0.00018697094155036077,
+              "ratio_to_baseline": 1.1286100306048743,
+              "reported_absolute_gain_min": 1.0089297834321929,
+              "reported_absolute_gain_max": 1.0173757659221372,
+              "reported_absolute_phase_max": 0.0037433691195446184
+            },
+            "harmonic_dc_safe": {
+              "mean_pixel_temporal_STD_float64": 0.00015907925907122347,
+              "reported_mean_pixel_temporal_STD_float32": 0.00015907925907122347,
+              "ratio_to_baseline": 0.9602478650438598,
+              "reported_absolute_gain_min": 1.008929803058825,
+              "reported_absolute_gain_max": 1.0173757679105582,
+              "reported_absolute_phase_max": 0.0037433637873087308
+            },
+            "harmonic_dc_current_safe": {
+              "mean_pixel_temporal_STD_float64": 0.00019968279362301075,
+              "reported_mean_pixel_temporal_STD_float32": 0.00019968279362301075,
+              "ratio_to_baseline": 1.2053424021584176,
+              "reported_absolute_gain_min": 1.0089298067997712,
+              "reported_absolute_gain_max": 1.0173758109719437,
+              "reported_absolute_phase_max": 0.0037433637873087308
+            }
+          }
+        }
+      }
+    },
+    {
+      "scene": "moving_light",
+      "ideal_to_actual_FP32_correction_max_difference": 0.0,
+      "fallback_max_magnitude": 0.0,
+      "windows": {
+        "full": {
+          "total": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                0.00022793248687837,
+                -0.00020118233109179984,
+                -1.1095032468106353e-09,
+                0.0
+              ],
+              [
+                -0.00020118233109179984,
+                0.00020201472769436918,
+                2.3795620575488567e-09,
+                0.0
+              ],
+              [
+                -1.1095032468106353e-09,
+                2.3795620575488567e-09,
+                4.244625014190285e-09,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 2.7589337131775895e-05,
+            "covariance_sum_identity_error": 7.318364664277155e-19
+          },
+          "spatial_DC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                3.2543949592453027e-07,
+                -4.3607524771533424e-07,
+                -1.1089299456636889e-09,
+                0.0
+              ],
+              [
+                -4.3607524771533424e-07,
+                6.418418730353502e-07,
+                2.3789859235522195e-09,
+                0.0
+              ],
+              [
+                -1.1089299456636889e-09,
+                2.3789859235522195e-09,
+                4.2446250128039904e-09,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 1.0191561049779324e-07,
+            "covariance_sum_identity_error": 2.117582368135751e-22
+          },
+          "spatial_nonDC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                0.00022760704738244495,
+                -0.00020074625584408457,
+                -5.733011469953078e-13,
+                0.0
+              ],
+              [
+                -0.00020074625584408457,
+                0.00020137288582133307,
+                5.76133996636796e-13,
+                0.0
+              ],
+              [
+                -5.733011469953078e-13,
+                5.76133996636796e-13,
+                1.3862959742303212e-18,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 2.7487421521278104e-05,
+            "covariance_sum_identity_error": 2.1311348952918197e-18
+          },
+          "baseline_mean_pixel_temporal_STD": 0.015096028319367632,
+          "selected_mean_pixel_temporal_STD": 0.00524841257982069,
+          "ideal_active_P_minus_TP": {
+            "pilot_error_temporal_variance": 1.8560527420595796e-08,
+            "response_error_temporal_variance": 0.00020224770727303066,
+            "pilot_response_error_covariance": 1.2577005304102567e-07,
+            "correction_temporal_variance": 0.00020201472769436918
+          },
+          "all_registered_variants": {
+            "harmonic": {
+              "mean_pixel_temporal_STD_float64": 0.005247776924723194,
+              "reported_mean_pixel_temporal_STD_float32": 0.005247776924723194,
+              "ratio_to_baseline": 0.3476263301646364,
+              "reported_absolute_gain_min": -0.038009823387589584,
+              "reported_absolute_gain_max": 1.0166346704804918,
+              "reported_absolute_phase_max": 2.036906197999645
+            },
+            "harmonic_dc": {
+              "mean_pixel_temporal_STD_float64": 0.0052470286809467494,
+              "reported_mean_pixel_temporal_STD_float32": 0.0052470286809467494,
+              "ratio_to_baseline": 0.3475767645596564,
+              "reported_absolute_gain_min": -0.038009823387589584,
+              "reported_absolute_gain_max": 1.016634686837708,
+              "reported_absolute_phase_max": 2.036906197999645
+            },
+            "harmonic_dc_current": {
+              "mean_pixel_temporal_STD_float64": 0.00524841257982069,
+              "reported_mean_pixel_temporal_STD_float32": 0.00524841257982069,
+              "ratio_to_baseline": 0.347668437604027,
+              "reported_absolute_gain_min": -0.038009823387589584,
+              "reported_absolute_gain_max": 1.0166346888409357,
+              "reported_absolute_phase_max": 2.036906197999645
+            },
+            "harmonic_safe": {
+              "mean_pixel_temporal_STD_float64": 0.005247776924723194,
+              "reported_mean_pixel_temporal_STD_float32": 0.005247776924723194,
+              "ratio_to_baseline": 0.3476263301646364,
+              "reported_absolute_gain_min": -0.038009823387589584,
+              "reported_absolute_gain_max": 1.0166346704804918,
+              "reported_absolute_phase_max": 2.036906197999645
+            },
+            "harmonic_dc_safe": {
+              "mean_pixel_temporal_STD_float64": 0.0052470286809467494,
+              "reported_mean_pixel_temporal_STD_float32": 0.0052470286809467494,
+              "ratio_to_baseline": 0.3475767645596564,
+              "reported_absolute_gain_min": -0.038009823387589584,
+              "reported_absolute_gain_max": 1.016634686837708,
+              "reported_absolute_phase_max": 2.036906197999645
+            },
+            "harmonic_dc_current_safe": {
+              "mean_pixel_temporal_STD_float64": 0.00524841257982069,
+              "reported_mean_pixel_temporal_STD_float32": 0.00524841257982069,
+              "ratio_to_baseline": 0.347668437604027,
+              "reported_absolute_gain_min": -0.038009823387589584,
+              "reported_absolute_gain_max": 1.0166346888409357,
+              "reported_absolute_phase_max": 2.036906197999645
+            }
+          }
+        },
+        "mature": {
+          "total": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                0.00022955407802702785,
+                -0.0002299300070909512,
+                8.824857294418825e-11,
+                0.0
+              ],
+              [
+                -0.0002299300070909512,
+                0.00023053162356627082,
+                -2.461591228584171e-10,
+                0.0
+              ],
+              [
+                8.824857294418825e-11,
+                -2.461591228584171e-10,
+                4.2588956078490954e-09,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 2.2963048590448172e-07,
+            "covariance_sum_identity_error": 1.7406527066075872e-19
+          },
+          "spatial_DC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                1.71818591036981e-09,
+                -5.248504477291511e-10,
+                9.056337982556142e-11,
+                0.0
+              ],
+              [
+                -5.248504477291511e-10,
+                9.39600945632437e-09,
+                -2.484808704619064e-10,
+                0.0
+              ],
+              [
+                9.056337982556142e-11,
+                -2.484808704619064e-10,
+                4.258895606877157e-09,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 1.4007555096840346e-08,
+            "covariance_sum_identity_error": 0.0
+          },
+          "spatial_nonDC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                0.00022955235984111773,
+                -0.00022992948224050353,
+                -2.3148068814691398e-12,
+                0.0
+              ],
+              [
+                -0.00022992948224050353,
+                0.00023052222755681469,
+                2.321747603487837e-12,
+                0.0
+              ],
+              [
+                -2.3148068814691398e-12,
+                2.321747603487837e-12,
+                9.719370756298542e-19,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 2.1562293080764087e-07,
+            "covariance_sum_identity_error": 1.5820987267934229e-19
+          },
+          "baseline_mean_pixel_temporal_STD": 0.015149483616522042,
+          "selected_mean_pixel_temporal_STD": 0.0004427609232528873,
+          "ideal_active_P_minus_TP": {
+            "pilot_error_temporal_variance": 1.5017623285475373e-08,
+            "response_error_temporal_variance": 0.00023086702269098366,
+            "pilot_response_error_covariance": 1.7520837399915908e-07,
+            "correction_temporal_variance": 0.00023053162356627082
+          },
+          "all_registered_variants": {
+            "harmonic": {
+              "mean_pixel_temporal_STD_float64": 0.0004372967098746981,
+              "reported_mean_pixel_temporal_STD_float32": 0.0004372967098746981,
+              "ratio_to_baseline": 0.028865453169491656,
+              "reported_absolute_gain_min": 0.9964296864290233,
+              "reported_absolute_gain_max": 1.0092647651087994,
+              "reported_absolute_phase_max": 0.013395782907646508
+            },
+            "harmonic_dc": {
+              "mean_pixel_temporal_STD_float64": 0.0004252086693815632,
+              "reported_mean_pixel_temporal_STD_float32": 0.0004252086693815632,
+              "ratio_to_baseline": 0.02806753551110021,
+              "reported_absolute_gain_min": 0.9964296638233283,
+              "reported_absolute_gain_max": 1.009264774326014,
+              "reported_absolute_phase_max": 0.013395782907646508
+            },
+            "harmonic_dc_current": {
+              "mean_pixel_temporal_STD_float64": 0.0004427609232528873,
+              "reported_mean_pixel_temporal_STD_float32": 0.0004427609232528873,
+              "ratio_to_baseline": 0.029226139613762924,
+              "reported_absolute_gain_min": 0.9964296933246115,
+              "reported_absolute_gain_max": 1.0092648166230638,
+              "reported_absolute_phase_max": 0.013395836963332864
+            },
+            "harmonic_safe": {
+              "mean_pixel_temporal_STD_float64": 0.0004372967098746981,
+              "reported_mean_pixel_temporal_STD_float32": 0.0004372967098746981,
+              "ratio_to_baseline": 0.028865453169491656,
+              "reported_absolute_gain_min": 0.9964296864290233,
+              "reported_absolute_gain_max": 1.0092647651087994,
+              "reported_absolute_phase_max": 0.013395782907646508
+            },
+            "harmonic_dc_safe": {
+              "mean_pixel_temporal_STD_float64": 0.0004252086693815632,
+              "reported_mean_pixel_temporal_STD_float32": 0.0004252086693815632,
+              "ratio_to_baseline": 0.02806753551110021,
+              "reported_absolute_gain_min": 0.9964296638233283,
+              "reported_absolute_gain_max": 1.009264774326014,
+              "reported_absolute_phase_max": 0.013395782907646508
+            },
+            "harmonic_dc_current_safe": {
+              "mean_pixel_temporal_STD_float64": 0.0004427609232528873,
+              "reported_mean_pixel_temporal_STD_float32": 0.0004427609232528873,
+              "ratio_to_baseline": 0.029226139613762924,
+              "reported_absolute_gain_min": 0.9964296933246115,
+              "reported_absolute_gain_max": 1.0092648166230638,
+              "reported_absolute_phase_max": 0.013395836963332864
+            }
+          }
+        }
+      }
+    },
+    {
+      "scene": "weak_material",
+      "ideal_to_actual_FP32_correction_max_difference": 0.0,
+      "fallback_max_magnitude": 0.0,
+      "windows": {
+        "full": {
+          "total": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                1.098067972299724e-07,
+                -8.571634674393117e-08,
+                -6.202385961055726e-08,
+                0.0
+              ],
+              [
+                -8.571634674393117e-08,
+                1.3356464308119228e-07,
+                5.0835239965129144e-08,
+                0.0
+              ],
+              [
+                -6.202385961055726e-08,
+                5.0835239965129144e-08,
+                4.8867298622151966e-08,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 9.842880615461382e-08,
+            "covariance_sum_identity_error": 1.5749518863009647e-20
+          },
+          "spatial_DC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                9.484757664529412e-08,
+                -8.609376321552313e-08,
+                -6.202385961055723e-08,
+                0.0
+              ],
+              [
+                -8.609376321552313e-08,
+                1.2056801955773444e-07,
+                5.083523996512917e-08,
+                0.0
+              ],
+              [
+                -6.202385961055723e-08,
+                5.083523996512917e-08,
+                4.886729862216768e-08,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 6.971812910329374e-08,
+            "covariance_sum_identity_error": 1.1911400820763599e-22
+          },
+          "spatial_nonDC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                1.4959220584678272e-08,
+                3.774164715919347e-10,
+                0.0,
+                0.0
+              ],
+              [
+                3.774164715919347e-10,
+                1.2996623523457912e-08,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 2.8710677051320063e-08,
+            "covariance_sum_identity_error": 9.926167350636332e-24
+          },
+          "baseline_mean_pixel_temporal_STD": 0.00032451021585064635,
+          "selected_mean_pixel_temporal_STD": 0.00030192861206648774,
+          "ideal_active_P_minus_TP": {
+            "pilot_error_temporal_variance": 1.3491225451037203e-08,
+            "response_error_temporal_variance": 1.2031314889723146e-07,
+            "pilot_response_error_covariance": 1.198656335381801e-10,
+            "correction_temporal_variance": 1.3356464308119228e-07
+          },
+          "all_registered_variants": {
+            "harmonic": {
+              "mean_pixel_temporal_STD_float64": 0.0002630465484489709,
+              "reported_mean_pixel_temporal_STD_float32": 0.00026304653147235513,
+              "ratio_to_baseline": 0.8105955855948654,
+              "reported_absolute_gain_min": 0.8813576698303223,
+              "reported_absolute_gain_max": 1.2392992973327637,
+              "reported_absolute_phase_max": 2.9019560531169143e-17
+            },
+            "harmonic_dc": {
+              "mean_pixel_temporal_STD_float64": 0.00027433695492102574,
+              "reported_mean_pixel_temporal_STD_float32": 0.0002743369550444186,
+              "ratio_to_baseline": 0.8453877305584965,
+              "reported_absolute_gain_min": 0.8813568949699402,
+              "reported_absolute_gain_max": 1.2392992973327637,
+              "reported_absolute_phase_max": 3.3598035000152203e-17
+            },
+            "harmonic_dc_current": {
+              "mean_pixel_temporal_STD_float64": 0.00030192861206648774,
+              "reported_mean_pixel_temporal_STD_float32": 0.00030192857957445085,
+              "ratio_to_baseline": 0.9304132730460737,
+              "reported_absolute_gain_min": 0.8813580274581909,
+              "reported_absolute_gain_max": 1.2392992973327637,
+              "reported_absolute_phase_max": 3.0776359803333765e-17
+            },
+            "harmonic_safe": {
+              "mean_pixel_temporal_STD_float64": 0.0002630465484489709,
+              "reported_mean_pixel_temporal_STD_float32": 0.00026304653147235513,
+              "ratio_to_baseline": 0.8105955855948654,
+              "reported_absolute_gain_min": 0.8813576698303223,
+              "reported_absolute_gain_max": 1.2392992973327637,
+              "reported_absolute_phase_max": 2.9019560531169143e-17
+            },
+            "harmonic_dc_safe": {
+              "mean_pixel_temporal_STD_float64": 0.00027433695492102574,
+              "reported_mean_pixel_temporal_STD_float32": 0.0002743369550444186,
+              "ratio_to_baseline": 0.8453877305584965,
+              "reported_absolute_gain_min": 0.8813568949699402,
+              "reported_absolute_gain_max": 1.2392992973327637,
+              "reported_absolute_phase_max": 3.3598035000152203e-17
+            },
+            "harmonic_dc_current_safe": {
+              "mean_pixel_temporal_STD_float64": 0.00030192861206648774,
+              "reported_mean_pixel_temporal_STD_float32": 0.00030192857957445085,
+              "ratio_to_baseline": 0.9304132730460737,
+              "reported_absolute_gain_min": 0.8813580274581909,
+              "reported_absolute_gain_max": 1.2392992973327637,
+              "reported_absolute_phase_max": 3.0776359803333765e-17
+            }
+          }
+        },
+        "mature": {
+          "total": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                5.7561198832757345e-09,
+                -5.40264810738398e-12,
+                -5.320695656639624e-10,
+                0.0
+              ],
+              [
+                -5.40264810738398e-12,
+                1.245665554140632e-08,
+                -1.1952043839973251e-09,
+                0.0
+              ],
+              [
+                -5.320695656639624e-10,
+                -1.1952043839973251e-09,
+                5.940386762065079e-09,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 2.068780899120979e-08,
+            "covariance_sum_identity_error": 0.0
+          },
+          "spatial_DC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                8.753968909664726e-10,
+                2.911423591490022e-11,
+                -5.320695656639613e-10,
+                0.0
+              ],
+              [
+                2.911423591490022e-11,
+                1.0593102085825826e-08,
+                -1.1952043839973255e-09,
+                0.0
+              ],
+              [
+                -5.320695656639613e-10,
+                -1.1952043839973255e-09,
+                5.940386762065079e-09,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 1.4012566311364608e-08,
+            "covariance_sum_identity_error": 3.308722450212111e-24
+          },
+          "spatial_nonDC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                4.880722992309256e-09,
+                -3.451688402228425e-11,
+                0.0,
+                0.0
+              ],
+              [
+                -3.451688402228425e-11,
+                1.8635534555805034e-09,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 6.675242679845187e-09,
+            "covariance_sum_identity_error": 4.963083675318166e-24
+          },
+          "baseline_mean_pixel_temporal_STD": 7.168256687598934e-05,
+          "selected_mean_pixel_temporal_STD": 0.0001419088381381286,
+          "ideal_active_P_minus_TP": {
+            "pilot_error_temporal_variance": 1.084602748354276e-08,
+            "response_error_temporal_variance": 1.6837470275534075e-09,
+            "pilot_response_error_covariance": 3.65594848449236e-11,
+            "correction_temporal_variance": 1.245665554140632e-08
+          },
+          "all_registered_variants": {
+            "harmonic": {
+              "mean_pixel_temporal_STD_float64": 0.00013145783496832305,
+              "reported_mean_pixel_temporal_STD_float32": 0.0001314578257733956,
+              "ratio_to_baseline": 1.8338884989392856,
+              "reported_absolute_gain_min": 0.8813576698303223,
+              "reported_absolute_gain_max": 0.99853515625,
+              "reported_absolute_phase_max": 2.9019560531169143e-17
+            },
+            "harmonic_dc": {
+              "mean_pixel_temporal_STD_float64": 7.960620088964208e-05,
+              "reported_mean_pixel_temporal_STD_float32": 7.960620132507756e-05,
+              "ratio_to_baseline": 1.1105378107812545,
+              "reported_absolute_gain_min": 0.8813568949699402,
+              "reported_absolute_gain_max": 0.9985330700874329,
+              "reported_absolute_phase_max": 2.0043954398893023e-17
+            },
+            "harmonic_dc_current": {
+              "mean_pixel_temporal_STD_float64": 0.0001419088381381286,
+              "reported_mean_pixel_temporal_STD_float32": 0.00014190883666742593,
+              "ratio_to_baseline": 1.9796841034394115,
+              "reported_absolute_gain_min": 0.8813580274581909,
+              "reported_absolute_gain_max": 0.9985344409942627,
+              "reported_absolute_phase_max": 2.225766011729111e-17
+            },
+            "harmonic_safe": {
+              "mean_pixel_temporal_STD_float64": 0.00013145783496832305,
+              "reported_mean_pixel_temporal_STD_float32": 0.0001314578257733956,
+              "ratio_to_baseline": 1.8338884989392856,
+              "reported_absolute_gain_min": 0.8813576698303223,
+              "reported_absolute_gain_max": 0.99853515625,
+              "reported_absolute_phase_max": 2.9019560531169143e-17
+            },
+            "harmonic_dc_safe": {
+              "mean_pixel_temporal_STD_float64": 7.960620088964208e-05,
+              "reported_mean_pixel_temporal_STD_float32": 7.960620132507756e-05,
+              "ratio_to_baseline": 1.1105378107812545,
+              "reported_absolute_gain_min": 0.8813568949699402,
+              "reported_absolute_gain_max": 0.9985330700874329,
+              "reported_absolute_phase_max": 2.0043954398893023e-17
+            },
+            "harmonic_dc_current_safe": {
+              "mean_pixel_temporal_STD_float64": 0.0001419088381381286,
+              "reported_mean_pixel_temporal_STD_float32": 0.00014190883666742593,
+              "ratio_to_baseline": 1.9796841034394115,
+              "reported_absolute_gain_min": 0.8813580274581909,
+              "reported_absolute_gain_max": 0.9985344409942627,
+              "reported_absolute_phase_max": 2.225766011729111e-17
+            }
+          }
+        }
+      }
+    },
+    {
+      "scene": "lighting_step",
+      "ideal_to_actual_FP32_correction_max_difference": 0.0,
+      "fallback_max_magnitude": 0.0,
+      "windows": {
+        "full": {
+          "total": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                0.0007879903723440552,
+                -0.0008526155043831749,
+                6.666857667018986e-05,
+                0.0
+              ],
+              [
+                -0.0008526155043831749,
+                0.0009349683615290212,
+                -7.979942673165769e-05,
+                0.0
+              ],
+              [
+                6.666857667018986e-05,
+                -7.979942673165769e-05,
+                1.3144161535857347e-05,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 4.610186519645532e-06,
+            "covariance_sum_identity_error": 2.8392544391964147e-18
+          },
+          "spatial_DC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                0.0007526603270638247,
+                -0.0008192657048923627,
+                6.666857529559036e-05,
+                0.0
+              ],
+              [
+                -0.0008192657048923627,
+                0.0008990079054465042,
+                -7.979942519733355e-05,
+                0.0
+              ],
+              [
+                6.666857529559036e-05,
+                -7.979942519733355e-05,
+                1.3144161535845301e-05,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 1.928445796214632e-08,
+            "covariance_sum_identity_error": 2.4808800931690406e-19
+          },
+          "spatial_nonDC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                3.533004528023256e-05,
+                -3.334979949081498e-05,
+                1.3745996711376413e-12,
+                0.0
+              ],
+              [
+                -3.334979949081498e-05,
+                3.596045608251687e-05,
+                -1.5343239504317874e-12,
+                0.0
+              ],
+              [
+                1.3745996711376413e-12,
+                -1.5343239504317874e-12,
+                1.2070483640255197e-17,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 4.590902061683385e-06,
+            "covariance_sum_identity_error": 3.9641141931501256e-19
+          },
+          "baseline_mean_pixel_temporal_STD": 0.027486274527316737,
+          "selected_mean_pixel_temporal_STD": 0.0020069233243704054,
+          "ideal_active_P_minus_TP": {
+            "pilot_error_temporal_variance": 5.01536951669798e-08,
+            "response_error_temporal_variance": 0.000934038515151291,
+            "pilot_response_error_covariance": -4.3984634128166516e-07,
+            "correction_temporal_variance": 0.0009349683615290212
+          },
+          "all_registered_variants": {
+            "harmonic": {
+              "mean_pixel_temporal_STD_float64": 0.004049865849436425,
+              "reported_mean_pixel_temporal_STD_float32": 0.004049865849436425,
+              "ratio_to_baseline": 0.14734138835044885,
+              "reported_absolute_gain_min": 0.9961779586689671,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.0075318630469007304
+            },
+            "harmonic_dc": {
+              "mean_pixel_temporal_STD_float64": 0.037171487274266585,
+              "reported_mean_pixel_temporal_STD_float32": 0.037171487274266585,
+              "ratio_to_baseline": 1.3523654228703994,
+              "reported_absolute_gain_min": 0.9961779387968052,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.007531835429722888
+            },
+            "harmonic_dc_current": {
+              "mean_pixel_temporal_STD_float64": 0.0020069233243704054,
+              "reported_mean_pixel_temporal_STD_float32": 0.0020069233243704054,
+              "ratio_to_baseline": 0.07301547259072382,
+              "reported_absolute_gain_min": 0.996177938397379,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.0075318630469007304
+            },
+            "harmonic_safe": {
+              "mean_pixel_temporal_STD_float64": 0.004049865849436425,
+              "reported_mean_pixel_temporal_STD_float32": 0.004049865849436425,
+              "ratio_to_baseline": 0.14734138835044885,
+              "reported_absolute_gain_min": 0.9961779586689671,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.0075318630469007304
+            },
+            "harmonic_dc_safe": {
+              "mean_pixel_temporal_STD_float64": 0.037171487274266585,
+              "reported_mean_pixel_temporal_STD_float32": 0.037171487274266585,
+              "ratio_to_baseline": 1.3523654228703994,
+              "reported_absolute_gain_min": 0.9961779387968052,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.007531835429722888
+            },
+            "harmonic_dc_current_safe": {
+              "mean_pixel_temporal_STD_float64": 0.0020069233243704054,
+              "reported_mean_pixel_temporal_STD_float32": 0.0020069233243704054,
+              "ratio_to_baseline": 0.07301547259072382,
+              "reported_absolute_gain_min": 0.996177938397379,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.0075318630469007304
+            }
+          }
+        },
+        "mature": {
+          "total": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                1.0709878960141387e-05,
+                -1.1267841835432033e-05,
+                6.306804247631499e-07,
+                0.0
+              ],
+              [
+                -1.1267841835432033e-05,
+                1.2308416795309691e-05,
+                -7.212765249374681e-07,
+                0.0
+              ],
+              [
+                6.306804247631499e-07,
+                -7.212765249374681e-07,
+                9.470987855422415e-08,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 3.9612976279260205e-07,
+            "covariance_sum_identity_error": 1.9058241313221758e-21
+          },
+          "spatial_DC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                9.150397737901986e-06,
+                -9.78931099898304e-06,
+                6.306806842699546e-07,
+                0.0
+              ],
+              [
+                -9.78931099898304e-06,
+                1.0528736012664855e-05,
+                -7.212768417402685e-07,
+                0.0
+              ],
+              [
+                6.306806842699546e-07,
+                -7.212768417402685e-07,
+                9.470987853480107e-08,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 1.4029316194934507e-08,
+            "covariance_sum_identity_error": 4.284795573024683e-22
+          },
+          "spatial_nonDC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                1.559481222239372e-06,
+                -1.4785308364489738e-06,
+                -2.5950680860560757e-13,
+                0.0
+              ],
+              [
+                -1.4785308364489738e-06,
+                1.7796807826448358e-06,
+                3.1680280049532056e-13,
+                0.0
+              ],
+              [
+                -2.5950680860560757e-13,
+                3.1680280049532056e-13,
+                1.9423586594901295e-17,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 3.821004465976671e-07,
+            "covariance_sum_identity_error": 6.352747104407253e-22
+          },
+          "baseline_mean_pixel_temporal_STD": 0.0030194870366513937,
+          "selected_mean_pixel_temporal_STD": 0.0005687053386163373,
+          "ideal_active_P_minus_TP": {
+            "pilot_error_temporal_variance": 6.658360003129165e-08,
+            "response_error_temporal_variance": 1.2208847209809896e-05,
+            "pilot_response_error_covariance": -1.6492992734252398e-08,
+            "correction_temporal_variance": 1.2308416795309691e-05
+          },
+          "all_registered_variants": {
+            "harmonic": {
+              "mean_pixel_temporal_STD_float64": 0.0006229940723378423,
+              "reported_mean_pixel_temporal_STD_float32": 0.0006229940723378423,
+              "ratio_to_baseline": 0.20632447325514658,
+              "reported_absolute_gain_min": 1.002394932221946,
+              "reported_absolute_gain_max": 1.0102662097082902,
+              "reported_absolute_phase_max": 0.006440999373886618
+            },
+            "harmonic_dc": {
+              "mean_pixel_temporal_STD_float64": 0.004899413772094703,
+              "reported_mean_pixel_temporal_STD_float32": 0.004899413772094703,
+              "ratio_to_baseline": 1.622598048153287,
+              "reported_absolute_gain_min": 1.0023949147510947,
+              "reported_absolute_gain_max": 1.010266184663764,
+              "reported_absolute_phase_max": 0.006441027566997487
+            },
+            "harmonic_dc_current": {
+              "mean_pixel_temporal_STD_float64": 0.0005687053386163373,
+              "reported_mean_pixel_temporal_STD_float32": 0.0005687053386163373,
+              "ratio_to_baseline": 0.18834501745270965,
+              "reported_absolute_gain_min": 1.0023948710285986,
+              "reported_absolute_gain_max": 1.0102661480829582,
+              "reported_absolute_phase_max": 0.006441031234962282
+            },
+            "harmonic_safe": {
+              "mean_pixel_temporal_STD_float64": 0.0006229940723378423,
+              "reported_mean_pixel_temporal_STD_float32": 0.0006229940723378423,
+              "ratio_to_baseline": 0.20632447325514658,
+              "reported_absolute_gain_min": 1.002394932221946,
+              "reported_absolute_gain_max": 1.0102662097082902,
+              "reported_absolute_phase_max": 0.006440999373886618
+            },
+            "harmonic_dc_safe": {
+              "mean_pixel_temporal_STD_float64": 0.004899413772094703,
+              "reported_mean_pixel_temporal_STD_float32": 0.004899413772094703,
+              "ratio_to_baseline": 1.622598048153287,
+              "reported_absolute_gain_min": 1.0023949147510947,
+              "reported_absolute_gain_max": 1.010266184663764,
+              "reported_absolute_phase_max": 0.006441027566997487
+            },
+            "harmonic_dc_current_safe": {
+              "mean_pixel_temporal_STD_float64": 0.0005687053386163373,
+              "reported_mean_pixel_temporal_STD_float32": 0.0005687053386163373,
+              "ratio_to_baseline": 0.18834501745270965,
+              "reported_absolute_gain_min": 1.0023948710285986,
+              "reported_absolute_gain_max": 1.0102661480829582,
+              "reported_absolute_phase_max": 0.006441031234962282
+            }
+          }
+        }
+      }
+    },
+    {
+      "scene": "reset",
+      "ideal_to_actual_FP32_correction_max_difference": 0.0,
+      "fallback_max_magnitude": 0.0,
+      "windows": {
+        "full": {
+          "total": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                2.59344371606109e-07,
+                1.8825772284482937e-08,
+                -8.116494929859709e-08,
+                0.0
+              ],
+              [
+                1.8825772284482937e-08,
+                2.7225574218161065e-06,
+                4.1922887624577457e-08,
+                0.0
+              ],
+              [
+                -8.116494929859709e-08,
+                4.1922887624577457e-08,
+                3.824404619358698e-08,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 2.979313260836729e-06,
+            "covariance_sum_identity_error": 0.0
+          },
+          "spatial_DC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                2.1568192750998812e-07,
+                -1.1442410668718668e-07,
+                -8.116495102153787e-08,
+                0.0
+              ],
+              [
+                -1.1442410668718668e-07,
+                7.564742284194123e-08,
+                4.192292150818681e-08,
+                0.0
+              ],
+              [
+                -8.116495102153787e-08,
+                4.192292150818681e-08,
+                3.824404619206014e-08,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 2.224112414291384e-08,
+            "covariance_sum_identity_error": 1.4558378780933287e-22
+          },
+          "spatial_nonDC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                4.366244409612072e-08,
+                1.3324987897167044e-07,
+                1.7229408214341888e-15,
+                0.0
+              ],
+              [
+                1.3324987897167044e-07,
+                2.646909998974191e-06,
+                -3.388360935229296e-14,
+                0.0
+              ],
+              [
+                1.7229408214341888e-15,
+                -3.388360935229296e-14,
+                1.5269864621618034e-18,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 2.9570721366938154e-06,
+            "covariance_sum_identity_error": 2.710505431213761e-20
+          },
+          "baseline_mean_pixel_temporal_STD": 0.0004852546901845993,
+          "selected_mean_pixel_temporal_STD": 0.001415324028903176,
+          "ideal_active_P_minus_TP": {
+            "pilot_error_temporal_variance": 1.8198225225707947e-08,
+            "response_error_temporal_variance": 2.7001319281227147e-06,
+            "pilot_response_error_covariance": -2.1136342338417443e-09,
+            "correction_temporal_variance": 2.7225574218161065e-06
+          },
+          "all_registered_variants": {
+            "harmonic": {
+              "mean_pixel_temporal_STD_float64": 0.0014369357008498064,
+              "reported_mean_pixel_temporal_STD_float32": 0.0014369357008498064,
+              "ratio_to_baseline": 2.961198994909603,
+              "reported_absolute_gain_min": 0.9961145644889406,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.004274245203465538
+            },
+            "harmonic_dc": {
+              "mean_pixel_temporal_STD_float64": 0.0014054685439236375,
+              "reported_mean_pixel_temporal_STD_float32": 0.0014054685439236375,
+              "ratio_to_baseline": 2.8963523122032533,
+              "reported_absolute_gain_min": 0.9961145605371557,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.004274226287365677
+            },
+            "harmonic_dc_current": {
+              "mean_pixel_temporal_STD_float64": 0.001415324028903176,
+              "reported_mean_pixel_temporal_STD_float32": 0.001415324028903176,
+              "ratio_to_baseline": 2.9166622343511244,
+              "reported_absolute_gain_min": 0.9961145825934112,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.004274245203465538
+            },
+            "harmonic_safe": {
+              "mean_pixel_temporal_STD_float64": 0.0014369357008498064,
+              "reported_mean_pixel_temporal_STD_float32": 0.0014369357008498064,
+              "ratio_to_baseline": 2.961198994909603,
+              "reported_absolute_gain_min": 0.9961145644889406,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.004274245203465538
+            },
+            "harmonic_dc_safe": {
+              "mean_pixel_temporal_STD_float64": 0.0014054685439236375,
+              "reported_mean_pixel_temporal_STD_float32": 0.0014054685439236375,
+              "ratio_to_baseline": 2.8963523122032533,
+              "reported_absolute_gain_min": 0.9961145605371557,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.004274226287365677
+            },
+            "harmonic_dc_current_safe": {
+              "mean_pixel_temporal_STD_float64": 0.001415324028903176,
+              "reported_mean_pixel_temporal_STD_float32": 0.001415324028903176,
+              "ratio_to_baseline": 2.9166622343511244,
+              "reported_absolute_gain_min": 0.9961145825934112,
+              "reported_absolute_gain_max": 1.1267362596886208,
+              "reported_absolute_phase_max": 0.004274245203465538
+            }
+          }
+        },
+        "mature": {
+          "total": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                6.072604601704413e-08,
+                -3.000342480584985e-08,
+                -2.4338950443770224e-08,
+                0.0
+              ],
+              [
+                -3.000342480584985e-08,
+                3.622654078286246e-08,
+                1.1184461812548223e-08,
+                0.0
+              ],
+              [
+                -2.4338950443770224e-08,
+                1.1184461812548223e-08,
+                1.739173861052758e-08,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 2.8028498536290508e-08,
+            "covariance_sum_identity_error": 2.9778502051908996e-23
+          },
+          "spatial_DC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                4.727923798738333e-08,
+                -2.2124272913775306e-08,
+                -2.4338954397832617e-08,
+                0.0
+              ],
+              [
+                -2.2124272913775306e-08,
+                1.9912509375981005e-08,
+                1.1184462612492108e-08,
+                0.0
+              ],
+              [
+                -2.4338954397832617e-08,
+                1.1184462612492108e-08,
+                1.739173860867567e-08,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 1.4025956573808383e-08,
+            "covariance_sum_identity_error": 9.926167350636332e-24
+          },
+          "spatial_nonDC": {
+            "names": [
+              "baseline_error",
+              "actual_pilot_correction",
+              "actual_current_DC_constraint",
+              "actual_RGB_fallback"
+            ],
+            "temporal_covariance_matrix": [
+              [
+                1.344680802966104e-08,
+                -7.879151892074603e-09,
+                3.954062355979188e-15,
+                0.0
+              ],
+              [
+                -7.879151892074603e-09,
+                1.6314031406881454e-08,
+                -7.99943882706855e-16,
+                0.0
+              ],
+              [
+                3.954062355979188e-15,
+                -7.99943882706855e-16,
+                1.8519357946744103e-18,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ]
+            ],
+            "total_temporal_variance": 1.400254196248218e-08,
+            "covariance_sum_identity_error": 9.926167350636332e-24
+          },
+          "baseline_mean_pixel_temporal_STD": 0.00022483739836440196,
+          "selected_mean_pixel_temporal_STD": 0.00016237551801678938,
+          "ideal_active_P_minus_TP": {
+            "pilot_error_temporal_variance": 1.1696618052591857e-08,
+            "response_error_temporal_variance": 2.6181738933020657e-08,
+            "pilot_response_error_covariance": 8.259081013750246e-10,
+            "correction_temporal_variance": 3.622654078286246e-08
+          },
+          "all_registered_variants": {
+            "harmonic": {
+              "mean_pixel_temporal_STD_float64": 0.00018346077580122253,
+              "reported_mean_pixel_temporal_STD_float32": 0.00018346077580122253,
+              "ratio_to_baseline": 0.8159709066900033,
+              "reported_absolute_gain_min": 0.9994531581949517,
+              "reported_absolute_gain_max": 1.0020409115753584,
+              "reported_absolute_phase_max": 0.00265409291254404
+            },
+            "harmonic_dc": {
+              "mean_pixel_temporal_STD_float64": 0.00010861794787786568,
+              "reported_mean_pixel_temporal_STD_float32": 0.00010861794787786568,
+              "ratio_to_baseline": 0.4830955555793468,
+              "reported_absolute_gain_min": 0.999453170119536,
+              "reported_absolute_gain_max": 1.0020409274468238,
+              "reported_absolute_phase_max": 0.00265409291254404
+            },
+            "harmonic_dc_current": {
+              "mean_pixel_temporal_STD_float64": 0.00016237551801678938,
+              "reported_mean_pixel_temporal_STD_float32": 0.00016237551801678938,
+              "ratio_to_baseline": 0.7221908774874792,
+              "reported_absolute_gain_min": 0.9994531505757385,
+              "reported_absolute_gain_max": 1.0020409086845337,
+              "reported_absolute_phase_max": 0.00265409291254404
+            },
+            "harmonic_safe": {
+              "mean_pixel_temporal_STD_float64": 0.00018346077580122253,
+              "reported_mean_pixel_temporal_STD_float32": 0.00018346077580122253,
+              "ratio_to_baseline": 0.8159709066900033,
+              "reported_absolute_gain_min": 0.9994531581949517,
+              "reported_absolute_gain_max": 1.0020409115753584,
+              "reported_absolute_phase_max": 0.00265409291254404
+            },
+            "harmonic_dc_safe": {
+              "mean_pixel_temporal_STD_float64": 0.00010861794787786568,
+              "reported_mean_pixel_temporal_STD_float32": 0.00010861794787786568,
+              "ratio_to_baseline": 0.4830955555793468,
+              "reported_absolute_gain_min": 0.999453170119536,
+              "reported_absolute_gain_max": 1.0020409274468238,
+              "reported_absolute_phase_max": 0.00265409291254404
+            },
+            "harmonic_dc_current_safe": {
+              "mean_pixel_temporal_STD_float64": 0.00016237551801678938,
+              "reported_mean_pixel_temporal_STD_float32": 0.00016237551801678938,
+              "ratio_to_baseline": 0.7221908774874792,
+              "reported_absolute_gain_min": 0.9994531505757385,
+              "reported_absolute_gain_max": 1.0020409086845337,
+              "reported_absolute_phase_max": 0.00265409291254404
+            }
+          }
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Temporal residual variance contains deterministic appearance error as well as noise",
+    "Covariance terms are descriptive identities, not isolated intervention causes",
+    "Mean pixel STD differs from square root of mean temporal variance",
+    "Actual recorded correction/DC/fallback differences include FP32 rounding",
+    "Truth used only to decompose scored residual, never estimator input or tuning"
+  ],
+  "script_sha256": "e1e0ed573a46240673701b24ce2a8e5a61df3cd24cc10ef9d630bff921e4a093"
+}
