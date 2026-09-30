@@ -1,0 +1,87 @@
+{
+  "schema": "observable-globalDC-response-concept-review-v1",
+  "analysis_sha256": "e24817f664e50ecf6b85e93db6dd72cfcdfec4eba834077b34096bd4f95ebbda",
+  "source_sha256": {
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\response_affine_spectrum_offline_20260930\\analyze.py": "acc74480089129e382c8fb0c07e19b53e030cfcfa3eb33c2e27473adea2b9abc",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\response_affine_spectrum_offline_20260930\\results.json": "4afacae528523c8688d0e946509a8aff0ee39b52bb45327543b9b22340587793",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\response_transfer_offline_20260930\\analyze.py": "65b4d35ce2029ee646b8d41c41e67c2285f65e94f46e24c23a87349e177069fd",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\response_transfer_offline_20260930\\results.json": "90d56e1a4a788a02aea7ec2c71af616e2f6c91b085ceb953dfdaaeda71047f32",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\response_transfer_offline_20260930\\summary.json": "57636b4d3a90c93df9b9f84ea4658bbf2866a587227684f33c5b3ee29cd12fb5"
+  },
+  "prior_affine_counts": {
+    "response_spectral_primary": {
+      "affine_pilot_dc_current_safe": {
+        "total": 10,
+        "effective_full_and_mature": 6
+      },
+      "affine_pilot_age_dc_current_safe": {
+        "total": 10,
+        "effective_full_and_mature": 6
+      }
+    },
+    "response_temporal_spectral_alpha_holdout": {
+      "affine_pilot_dc_current_safe": {
+        "total": 13,
+        "effective_full_and_mature": 6
+      },
+      "affine_pilot_age_dc_current_safe": {
+        "total": 13,
+        "effective_full_and_mature": 7
+      }
+    },
+    "response_temporal_spectral_primary": {
+      "affine_pilot_dc_current_safe": {
+        "total": 13,
+        "effective_full_and_mature": 9
+      },
+      "affine_pilot_age_dc_current_safe": {
+        "total": 13,
+        "effective_full_and_mature": 9
+      }
+    }
+  },
+  "new_GPU_native_calls": 0,
+  "quality_accepted": false,
+  "root_prototype_not_yet_reviewed": true,
+  "sound_scope": [
+    "Adding a real globalDC feature can model same-frequency D artifacts even when pilot P_k is0. It extends the previous diagonal complex-affine model with an observable nonlocal regressor.",
+    "A stationary linear response map conditioned on source illumination can be a useful hypothesis; no causal identification or unknown-native-covariance proof follows.",
+    "Keep previous affine pilot control and exact reset/jitter/inactive epochs. No old native response substitution when a new source pilot changes."
+  ],
+  "conceptual_risks": [
+    "Current-inclusive fit target D=P-TP includes the same P predictor; correlation is partly algebraic and not evidence of a true response transfer.",
+    "GlobalDC and local P_k can be nearly collinear on slowly moving/illumination-correlated material, leaving coefficients unidentifiable. Ridge chooses a decomposition rather than identifying its cause.",
+    "A new DC impulse is high leverage: one same-frame response error can train a full spatial artifact map through one real feature, since gamma is free complex perfrequency/channel.",
+    "Luminance DC noise variance sum(w\u00b2)q assumes RGB independent, equal sigma and spatialIID. RGB covariance changes it to wT K w; temporal/native response history correlation remains unknown.",
+    "Native response can depend on lagged illumination, nonlinear thresholds or private state; current globalDC cannot generally condition those histories.",
+    "Warmup m<8 rawdelta followed by fitted delta can create a new transition. No-future alone does not establish independent prediction or smoothing quality.",
+    "Complex normal equations must use conjugation with the realDC feature and perfeature ridge units; a complex coefficient on DC is valid but self-conjugate boundary outputs must remain real-compatible."
+  ],
+  "proposed_observable_adversary": {
+    "name": "one_DC_pulse_with_independent_nonlocal_response_impulse",
+    "history": 16,
+    "minimum_count": 8,
+    "source_size": [
+      128,
+      80
+    ],
+    "source_sigma": 0.012,
+    "luma_weights": [
+      0.2126,
+      0.7152,
+      0.0722
+    ],
+    "construction": "P_t=.2 constantRGB for t0..14; P_15=.25 constantRGB. At nonDC kA=(4,0), all P_kA=0. D_kA=0 before15; at15 D_kA=eta (arbitrary complex response-noise impulse). TP=P-D, eta small enough for positive RGB. Optional genuine moving wave at distinct kD=(3,0) with D_kD=.2P_kD is scored for absolute gain/phase while DC pulse stays same.",
+    "filter_inputs_only": "P,TP,observable source nominal variance,reset/jitter/activity. No cleantruth or scene label enters estimator.",
+    "causal_ambiguity": "One same-frame impulse correlated with a unique DC jump is observationally identical, on the fit window, to a real DC-induced nonlocal response. Preserve both labels as diagnostic constructions; do not infer causal gamma.",
+    "globalDC_nominal_noise_variance": 7.902037125e-09,
+    "globalDC_ridge": 3.16081485e-08,
+    "centered_DC_variance": 0.00014648437500000002,
+    "analytic_current_prediction_fraction_of_impulse": 0.9997977514904383,
+    "old_affine_constant_P_prediction_fraction_of_impulse": 0.0625,
+    "expected_check": "Report large current response-noise retention vs old affine16mean, plus per-frame moving-detail gain/phase. Do not reject or tune threshold based on true scene label."
+  },
+  "recommended_positive_control": "Spread DC variation over16 observations with exactly D_kA=gamma*(DC-DCmean), P_kA=0, no response noise. This validates intended nonlocal feature recovery; keep singlepulse noise adversary beside it.",
+  "conclusion": "Hypothesis is coherent as a posthoc conditional predictor, but current-inclusive DC leverage creates a concrete response-noise-copying failure. Measure both controlled nonlocal response and moving detail; no production/native/game claim.",
+  "all_prior_evidence_unchanged": true
+}

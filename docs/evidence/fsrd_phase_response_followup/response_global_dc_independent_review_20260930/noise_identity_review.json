@@ -1,0 +1,343 @@
+{
+  "schema": "significant-phase-native-exact-noise-identity-independent-review-v1",
+  "analysis_sha256": "b971ac8af41084ed699ca6357638e47097261ce761a5ae1818e40e58b60353a5",
+  "root_results_sha256": "c2da09c9cc133d48e0b4264d5c647e1aa0b10d14aeedb2333ce621913c06d293",
+  "root_script_sha256": "7b5aa84f820d8405ad52551a2a2cf4c09c0fadb451f8ce7f7c5ef8e656cae847",
+  "all_original_evidence_unchanged": true,
+  "new_GPU_native_calls": 0,
+  "quality_accepted": false,
+  "rows": [
+    {
+      "scene": "material",
+      "actual_mature_identities_recomputed": {
+        "pilot_response_difference": {
+          "variance_a": 1.211424069593738e-07,
+          "variance_b": 3.460534702448281e-09,
+          "covariance": 7.402579242978441e-10,
+          "measured_variance": 1.231224258132264e-07,
+          "predicted_variance": 1.2312242581322637e-07,
+          "identity_absolute_error": 2.6469779601696886e-23
+        },
+        "non_dc_difference": {
+          "variance_a": 1.1138916999632977e-07,
+          "variance_b": 2.3914740857380053e-09,
+          "covariance": 4.918764149842888e-10,
+          "measured_variance": 1.1279689125209922e-07,
+          "predicted_variance": 1.127968912520992e-07,
+          "identity_absolute_error": 1.3234889800848443e-23
+        },
+        "baseline_residual_plus_correction": {
+          "variance_a": 3.333755927062665e-08,
+          "variance_b": 1.231224258132264e-07,
+          "covariance": -1.3946049350228902e-09,
+          "measured_variance": 1.5367077521380727e-07,
+          "predicted_variance": 1.5367077521380727e-07,
+          "identity_absolute_error": 0.0
+        }
+      },
+      "mature_temporal_energies": {
+        "pilot": {
+          "temporal_RMS": 0.0003480551780384452,
+          "non_DC_temporal_RMS": 0.0003337501610431518,
+          "DC_variance_fraction": 0.0805105099679482
+        },
+        "native_pilot_response": {
+          "temporal_RMS": 5.882630961099192e-05,
+          "non_DC_temporal_RMS": 4.8902700188619494e-05,
+          "DC_variance_fraction": 0.3089293154476795
+        },
+        "correction": {
+          "temporal_RMS": 0.0003508880531070079,
+          "non_DC_temporal_RMS": 0.00033585248436195797,
+          "DC_variance_fraction": 0.0838639629858395
+        },
+        "baseline_residual": {
+          "temporal_RMS": 0.00018258575867418205,
+          "non_DC_temporal_RMS": 0.00012225131952095042,
+          "DC_variance_fraction": 0.5516952814904534
+        }
+      },
+      "global_fullimage_vs_scoreROI_DC_temporal_difference_RMS": 4.304073976400365e-06,
+      "score_mean_pixel_std_baseline": 0.00016238070711879703,
+      "score_mean_pixel_std_candidate": 0.0003716791123335466
+    },
+    {
+      "scene": "wave",
+      "actual_mature_identities_recomputed": {
+        "pilot_response_difference": {
+          "variance_a": 7.012638770219741e-08,
+          "variance_b": 7.450949386381593e-09,
+          "covariance": 1.6958548317575426e-09,
+          "measured_variance": 7.418562742506392e-08,
+          "predicted_variance": 7.418562742506391e-08,
+          "identity_absolute_error": 1.3234889800848443e-23
+        },
+        "non_dc_difference": {
+          "variance_a": 6.043076551780604e-08,
+          "variance_b": 6.837212052714008e-09,
+          "covariance": 1.5126311548637787e-09,
+          "measured_variance": 6.424271526079248e-08,
+          "predicted_variance": 6.424271526079248e-08,
+          "identity_absolute_error": 0.0
+        },
+        "baseline_residual_plus_correction": {
+          "variance_a": 3.1988560319806754e-08,
+          "variance_b": 7.418562742506392e-08,
+          "covariance": -1.0341290956554007e-09,
+          "measured_variance": 1.0410592955355987e-07,
+          "predicted_variance": 1.0410592955355987e-07,
+          "identity_absolute_error": 0.0
+        }
+      },
+      "mature_temporal_energies": {
+        "pilot": {
+          "temporal_RMS": 0.00026481387369659736,
+          "non_DC_temporal_RMS": 0.00024582669813876207,
+          "DC_variance_fraction": 0.13825925592467753
+        },
+        "native_pilot_response": {
+          "temporal_RMS": 8.631888198060488e-05,
+          "non_DC_temporal_RMS": 8.268743588184367e-05,
+          "DC_variance_fraction": 0.08237035333904248
+        },
+        "correction": {
+          "temporal_RMS": 0.0002723703864686173,
+          "non_DC_temporal_RMS": 0.0002534614670138096,
+          "DC_variance_fraction": 0.13402747283245572
+        },
+        "baseline_residual": {
+          "temporal_RMS": 0.0001788534604636062,
+          "non_DC_temporal_RMS": 0.0001746345947760952,
+          "DC_variance_fraction": 0.04662037341744358
+        }
+      },
+      "global_fullimage_vs_scoreROI_DC_temporal_difference_RMS": 1.0058288150414232e-05,
+      "score_mean_pixel_std_baseline": 0.00016566478808464463,
+      "score_mean_pixel_std_candidate": 0.00030782217142824364
+    },
+    {
+      "scene": "moving_light",
+      "actual_mature_identities_recomputed": {
+        "pilot_response_difference": {
+          "variance_a": 0.0002445180810593509,
+          "variance_b": 9.477011463097488e-07,
+          "covariance": 5.78143578090369e-06,
+          "measured_variance": 0.00023390291064385326,
+          "predicted_variance": 0.00023390291064385326,
+          "identity_absolute_error": 0.0
+        },
+        "non_dc_difference": {
+          "variance_a": 0.00024450687195395394,
+          "variance_b": 9.465536340987991e-07,
+          "covariance": 5.780595326633834e-06,
+          "measured_variance": 0.00023389223493478504,
+          "predicted_variance": 0.00023389223493478506,
+          "identity_absolute_error": 2.710505431213761e-20
+        },
+        "baseline_residual_plus_correction": {
+          "variance_a": 0.00022955407802702747,
+          "variance_b": 0.00023390291064385326,
+          "covariance": -0.00022982053950129245,
+          "measured_variance": 3.815909668295906e-06,
+          "predicted_variance": 3.8159096682958255e-06,
+          "identity_absolute_error": 8.046812998915853e-20
+        }
+      },
+      "mature_temporal_energies": {
+        "pilot": {
+          "temporal_RMS": 0.015637073928946903,
+          "non_DC_temporal_RMS": 0.01563671551042462,
+          "DC_variance_fraction": 4.5841621807342226e-05
+        },
+        "native_pilot_response": {
+          "temporal_RMS": 0.0009734994331327311,
+          "non_DC_temporal_RMS": 0.0009729098797415921,
+          "DC_variance_fraction": 0.0012108376310590923
+        },
+        "correction": {
+          "temporal_RMS": 0.015293884746651299,
+          "non_DC_temporal_RMS": 0.015293535723788174,
+          "DC_variance_fraction": 4.564162557375396e-05
+        },
+        "baseline_residual": {
+          "temporal_RMS": 0.015151042143266168,
+          "non_DC_temporal_RMS": 0.015150985441254873,
+          "DC_variance_fraction": 7.484885152715574e-06
+        }
+      },
+      "global_fullimage_vs_scoreROI_DC_temporal_difference_RMS": 1.009385768062458e-05,
+      "score_mean_pixel_std_baseline": 0.015149483616522042,
+      "score_mean_pixel_std_candidate": 0.0017700882974205803
+    },
+    {
+      "scene": "weak_material",
+      "actual_mature_identities_recomputed": {
+        "pilot_response_difference": {
+          "variance_a": 1.132139004766941e-08,
+          "variance_b": 1.0771189062368303e-09,
+          "covariance": 1.9344298997360243e-10,
+          "measured_variance": 1.2011622973959037e-08,
+          "predicted_variance": 1.2011622973959035e-08,
+          "identity_absolute_error": 1.6543612251060553e-24
+        },
+        "non_dc_difference": {
+          "variance_a": 9.070693825682005e-10,
+          "variance_b": 5.524964401790956e-10,
+          "covariance": 3.3188702221403593e-11,
+          "measured_variance": 1.3931884183044886e-09,
+          "predicted_variance": 1.3931884183044888e-09,
+          "identity_absolute_error": 2.0679515313825692e-25
+        },
+        "baseline_residual_plus_correction": {
+          "variance_a": 5.804236337115584e-09,
+          "variance_b": 1.2011622973959037e-08,
+          "covariance": 1.0922979984411412e-10,
+          "measured_variance": 1.803431891076285e-08,
+          "predicted_variance": 1.803431891076285e-08,
+          "identity_absolute_error": 0.0
+        }
+      },
+      "mature_temporal_energies": {
+        "pilot": {
+          "temporal_RMS": 0.00010640202088151057,
+          "non_DC_temporal_RMS": 3.0117592575904876e-05,
+          "DC_variance_fraction": 0.9198800342759211
+        },
+        "native_pilot_response": {
+          "temporal_RMS": 3.281948973151213e-05,
+          "non_DC_temporal_RMS": 2.350524282323192e-05,
+          "DC_variance_fraction": 0.48706086488699757
+        },
+        "correction": {
+          "temporal_RMS": 0.00010959755003629888,
+          "non_DC_temporal_RMS": 3.732543929151389e-05,
+          "DC_variance_fraction": 0.8840133076666747
+        },
+        "baseline_residual": {
+          "temporal_RMS": 7.618553889758596e-05,
+          "non_DC_temporal_RMS": 7.006204440445825e-05,
+          "DC_variance_fraction": 0.15429183426882068
+        }
+      },
+      "global_fullimage_vs_scoreROI_DC_temporal_difference_RMS": 0.0,
+      "score_mean_pixel_std_baseline": 7.199000832481427e-05,
+      "score_mean_pixel_std_candidate": 0.00013195729279188127
+    },
+    {
+      "scene": "lighting_step",
+      "actual_mature_identities_recomputed": {
+        "pilot_response_difference": {
+          "variance_a": 1.831867359935654e-06,
+          "variance_b": 9.417217015072665e-06,
+          "covariance": 4.037774767038128e-09,
+          "measured_variance": 1.1241008825474242e-05,
+          "predicted_variance": 1.1241008825474244e-05,
+          "identity_absolute_error": 1.6940658945086007e-21
+        },
+        "non_dc_difference": {
+          "variance_a": 1.8222888022826775e-06,
+          "variance_b": 1.397948199540949e-06,
+          "covariance": -1.1247548604467734e-08,
+          "measured_variance": 3.242732099032562e-06,
+          "predicted_variance": 3.242732099032562e-06,
+          "identity_absolute_error": 0.0
+        },
+        "baseline_residual_plus_correction": {
+          "variance_a": 1.0178455921283474e-05,
+          "variance_b": 1.1241008825474242e-05,
+          "covariance": -9.66520228926705e-06,
+          "measured_variance": 2.0890601682236162e-06,
+          "predicted_variance": 2.089060168223617e-06,
+          "identity_absolute_error": 8.470329472543003e-22
+        }
+      },
+      "mature_temporal_energies": {
+        "pilot": {
+          "temporal_RMS": 0.0013534649459574688,
+          "non_DC_temporal_RMS": 0.0013499217763569403,
+          "DC_variance_fraction": 0.0052288489125723895
+        },
+        "native_pilot_response": {
+          "temporal_RMS": 0.0030687484444106307,
+          "non_DC_temporal_RMS": 0.0011823485947642298,
+          "DC_variance_fraction": 0.8515539997322507
+        },
+        "correction": {
+          "temporal_RMS": 0.003352761373177972,
+          "non_DC_temporal_RMS": 0.0018007587564781026,
+          "DC_variance_fraction": 0.7115265943316474
+        },
+        "baseline_residual": {
+          "temporal_RMS": 0.003190369245288619,
+          "non_DC_temporal_RMS": 0.0012518774760655038,
+          "DC_variance_fraction": 0.8460280000031117
+        }
+      },
+      "global_fullimage_vs_scoreROI_DC_temporal_difference_RMS": 7.247318655491151e-06,
+      "score_mean_pixel_std_baseline": 0.0029298079449433783,
+      "score_mean_pixel_std_candidate": 0.0014145651783105298
+    },
+    {
+      "scene": "reset",
+      "actual_mature_identities_recomputed": {
+        "pilot_response_difference": {
+          "variance_a": 4.909505962728296e-07,
+          "variance_b": 4.506359474216321e-08,
+          "covariance": 3.22465097536938e-09,
+          "measured_variance": 5.295648890642541e-07,
+          "predicted_variance": 5.295648890642541e-07,
+          "identity_absolute_error": 0.0
+        },
+        "non_dc_difference": {
+          "variance_a": 4.811766152882631e-07,
+          "variance_b": 1.7700949225365144e-08,
+          "covariance": 2.6673438441850258e-09,
+          "measured_variance": 4.935428768252583e-07,
+          "predicted_variance": 4.935428768252583e-07,
+          "identity_absolute_error": 0.0
+        },
+        "baseline_residual_plus_correction": {
+          "variance_a": 6.072604601704413e-08,
+          "variance_b": 5.295648890642541e-07,
+          "covariance": -4.0682098804578436e-08,
+          "measured_variance": 5.089267374721414e-07,
+          "predicted_variance": 5.089267374721414e-07,
+          "identity_absolute_error": 0.0
+        }
+      },
+      "mature_temporal_energies": {
+        "pilot": {
+          "temporal_RMS": 0.0007006786683443629,
+          "non_DC_temporal_RMS": 0.0006936689522302862,
+          "DC_variance_fraction": 0.019908278060497775
+        },
+        "native_pilot_response": {
+          "temporal_RMS": 0.00021228187567986866,
+          "non_DC_temporal_RMS": 0.00013304491431605022,
+          "DC_variance_fraction": 0.6072006832423449
+        },
+        "correction": {
+          "temporal_RMS": 0.000727712092152009,
+          "non_DC_temporal_RMS": 0.0007025260684310998,
+          "DC_variance_fraction": 0.06802190436500995
+        },
+        "baseline_residual": {
+          "temporal_RMS": 0.00024642655298697853,
+          "non_DC_temporal_RMS": 0.00011596037266955069,
+          "DC_variance_fraction": 0.7785660534215145
+        }
+      },
+      "global_fullimage_vs_scoreROI_DC_temporal_difference_RMS": 4.331494663090728e-06,
+      "score_mean_pixel_std_baseline": 0.00022483739836440196,
+      "score_mean_pixel_std_candidate": 0.0006776596636295091
+    }
+  ],
+  "qualifications": [
+    "full means full64 time window; spatial energies use5-pixel-interior scoreROI70x118, not full128x80 image. mature16/early8 same ROI.",
+    "Temporal RMS=sqrt(mean variance) differs from mean(pixel temporalSTD) used by gates; these must not be interchanged.",
+    "Root decomposes raw significant_phase=baseline+active(P-TP), not currentDC/fallback selected variant. CurrentDC removes a different ROI mean; no identity equates their exact metrics.",
+    "DC-to-spatial association uses pilot scoreROI mean, whereas globalDC estimator uses fullimage pilot luminance. Their regressors differ, particularly with nonperiodic/moving detail.",
+    "DC/shape temporal orthogonality and exact variance identities are algebraic, not independence or causal evidence. Cleanreference enters baseline-residual decomposition only, no predictor.",
+    "Heavy DC-spatial least-squares/LOO association was code reviewed, not independently rerun. All stored identities were arithmetically checked; actual mature sequence identities and energies recomputed."
+  ]
+}

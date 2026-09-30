@@ -1,0 +1,746 @@
+{
+  "schema": "phase-aligned-source-pilot-compact-summary-v1",
+  "quality_accepted": false,
+  "native_recommended_from_this_evidence": false,
+  "native_measured": false,
+  "native_response_reused": false,
+  "frozen_results_sha256": "ba84d2f2b9572b11f2168d751d88a3e99ff13f0fa167d5348143c4c1f6bde39d",
+  "preregistration_sha256": "13073c7d2674f5eea721c6431589646bc4203655d1a2e3f5328a95bd644245e2",
+  "prototype_sha256": "11aa0d0d51408cecb5c6d8ae9e0d8c3b9f9b9fbf3aa174ba80885ff4b3aa4904",
+  "analysis_sha256": "c2b5b70c571a222bddd31a8c8713fb6c0c0307954215c1fca76aa8eb23c0b8f1",
+  "summary_script_sha256": "1249110f0feb123b43a47fe966a00c491210d224b36d985fcb51aab976875012",
+  "selfchecks": {
+    "no_future": true,
+    "past_only_phase_no_qualification_before8": true,
+    "reset_jitter_fresh": true,
+    "current_DC": true,
+    "history_bounded63_prior": true,
+    "no_guide_or_truth_parameter": true,
+    "constant_RGB_preserved": true,
+    "invalid_signed_Gibbs_exact_raw_inactive": true
+  },
+  "old_families": 13,
+  "counterexamples": 7,
+  "relative_source_nonregression_full": 10,
+  "relative_source_nonregression_mature": 12,
+  "relative_source_effective_full": 0,
+  "relative_source_effective_mature": 1,
+  "rows": [
+    {
+      "name": "fake_diffuse",
+      "is_old_fixture": true,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        null,
+        null
+      ],
+      "full_absolute_phase_max": null,
+      "full_absolute_gain_failing_frames": [],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        null,
+        null
+      ],
+      "mature_absolute_phase_max": null,
+      "mature_STD_old": 0.000119581636661154,
+      "mature_STD_phase": 0.000119581636661154,
+      "mature_STD_change_fraction": 0.0,
+      "full_bias_rgb": [
+        2.0370483398424177e-05,
+        9.613037109362788e-06,
+        -3.0517578125111022e-06
+      ],
+      "full_RMSE": 0.00013037591322849888,
+      "mature_RMSE": 0.00013230229532792918,
+      "final_phase_qualified_frequency_count": 0,
+      "final_max_qualified_phase_increment": null
+    },
+    {
+      "name": "fake_specular",
+      "is_old_fixture": true,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        null,
+        null
+      ],
+      "full_absolute_phase_max": null,
+      "full_absolute_gain_failing_frames": [],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        null,
+        null
+      ],
+      "mature_absolute_phase_max": null,
+      "mature_STD_old": 0.000119581636661154,
+      "mature_STD_phase": 0.000119581636661154,
+      "mature_STD_change_fraction": 0.0,
+      "full_bias_rgb": [
+        2.0370483398424177e-05,
+        9.613037109362788e-06,
+        -3.0517578125111022e-06
+      ],
+      "full_RMSE": 0.00013037591322849888,
+      "mature_RMSE": 0.00013230229532792918,
+      "final_phase_qualified_frequency_count": 0,
+      "final_max_qualified_phase_increment": null
+    },
+    {
+      "name": "material",
+      "is_old_fixture": true,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        0.997012775434361,
+        0.9996644890933616
+      ],
+      "full_absolute_phase_max": 0.00794273717422316,
+      "full_absolute_gain_failing_frames": [],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        0.9991472390320218,
+        0.9996644890933616
+      ],
+      "mature_absolute_phase_max": 0.00794273717422316,
+      "mature_STD_old": 0.00036308936082368883,
+      "mature_STD_phase": 0.0004522164999621783,
+      "mature_STD_change_fraction": 0.24546888109389786,
+      "full_bias_rgb": [
+        -2.6954485140977968e-05,
+        -3.52274762488431e-05,
+        -4.681052409553122e-05
+      ],
+      "full_RMSE": 0.0014369561123376492,
+      "mature_RMSE": 0.0010158626691835555,
+      "final_phase_qualified_frequency_count": 61,
+      "final_max_qualified_phase_increment": 0.005160552132474062
+    },
+    {
+      "name": "wave",
+      "is_old_fixture": true,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [
+        "early_or_transition_frame"
+      ],
+      "mature_relative_source_failures": [
+        "early_or_transition_frame"
+      ],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        0.9936512806413479,
+        1.0014592029853462
+      ],
+      "full_absolute_phase_max": 0.00910708665535439,
+      "full_absolute_gain_failing_frames": [],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        1.000372755124225,
+        1.0009716150932566
+      ],
+      "mature_absolute_phase_max": 0.006197064805620287,
+      "mature_STD_old": 0.00025364332744585007,
+      "mature_STD_phase": 0.0003093462033148404,
+      "mature_STD_change_fraction": 0.21961104370420403,
+      "full_bias_rgb": [
+        -2.7127151785883903e-05,
+        -3.7270367159293685e-05,
+        -4.573553138080941e-05
+      ],
+      "full_RMSE": 0.0009534273297316528,
+      "mature_RMSE": 0.0007065187150110579,
+      "final_phase_qualified_frequency_count": 21,
+      "final_max_qualified_phase_increment": 0.00707704969786547
+    },
+    {
+      "name": "moving_light",
+      "is_old_fixture": true,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [
+        "early_or_transition_frame"
+      ],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": true,
+      "full_absolute_gain_range": [
+        0.9904983180098195,
+        1.0113300813336892
+      ],
+      "full_absolute_phase_max": 0.009824051401078275,
+      "full_absolute_gain_failing_frames": [],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        0.993608829798166,
+        1.003811890620615
+      ],
+      "mature_absolute_phase_max": 0.004842326967023621,
+      "mature_STD_old": 0.0018620731687301636,
+      "mature_STD_phase": 0.001734180929368796,
+      "mature_STD_change_fraction": -0.06868271425047356,
+      "full_bias_rgb": [
+        1.5792082030693074e-05,
+        5.7378839572771296e-06,
+        -4.514553680457379e-06
+      ],
+      "full_RMSE": 0.0019611582549861643,
+      "mature_RMSE": 0.0019696346929878677,
+      "final_phase_qualified_frequency_count": 21,
+      "final_max_qualified_phase_increment": 0.803678195564491
+    },
+    {
+      "name": "checker_material",
+      "is_old_fixture": true,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        0.998576283454895,
+        1.0009416341781616
+      ],
+      "full_absolute_phase_max": 0.0,
+      "full_absolute_gain_failing_frames": [],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        0.9992704391479492,
+        1.0009063482284546
+      ],
+      "mature_absolute_phase_max": 0.0,
+      "mature_STD_old": 0.00011881435057148337,
+      "mature_STD_phase": 0.00011881435057148337,
+      "mature_STD_change_fraction": 0.0,
+      "full_bias_rgb": [
+        2.4609267711639404e-05,
+        -2.3245811462402344e-06,
+        -1.2479722499847412e-06
+      ],
+      "full_RMSE": 0.0001337699213763699,
+      "mature_RMSE": 0.00012870108184870332,
+      "final_phase_qualified_frequency_count": 0,
+      "final_max_qualified_phase_increment": null
+    },
+    {
+      "name": "weak_material",
+      "is_old_fixture": true,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        0.9373253583908081,
+        1.0375993251800537
+      ],
+      "full_absolute_phase_max": 0.0,
+      "full_absolute_gain_failing_frames": [
+        3,
+        4
+      ],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        0.9765509963035583,
+        1.0375993251800537
+      ],
+      "mature_absolute_phase_max": 0.0,
+      "mature_STD_old": 0.00011117981921415776,
+      "mature_STD_phase": 0.00011117981921415776,
+      "mature_STD_change_fraction": 0.0,
+      "full_bias_rgb": [
+        1.697242259979248e-05,
+        1.2919306755065918e-05,
+        -6.489455699920654e-06
+      ],
+      "full_RMSE": 0.00013261601270642132,
+      "mature_RMSE": 0.0001238748518517241,
+      "final_phase_qualified_frequency_count": 0,
+      "final_max_qualified_phase_increment": null
+    },
+    {
+      "name": "flat_lighting_step",
+      "is_old_fixture": true,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        null,
+        null
+      ],
+      "full_absolute_phase_max": null,
+      "full_absolute_gain_failing_frames": [],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        null,
+        null
+      ],
+      "mature_absolute_phase_max": null,
+      "mature_STD_old": 0.00012858720776713357,
+      "mature_STD_phase": 0.00012858720776713357,
+      "mature_STD_change_fraction": 0.0,
+      "full_bias_rgb": [
+        1.637268066403963e-05,
+        1.0208129882796624e-05,
+        -1.6937255859411637e-05
+      ],
+      "full_RMSE": 0.00013866170210081886,
+      "mature_RMSE": 0.00014805003676984544,
+      "final_phase_qualified_frequency_count": 0,
+      "final_max_qualified_phase_increment": null
+    },
+    {
+      "name": "persistent_shared_bias",
+      "is_old_fixture": true,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        null,
+        null
+      ],
+      "full_absolute_phase_max": null,
+      "full_absolute_gain_failing_frames": [],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        null,
+        null
+      ],
+      "mature_absolute_phase_max": null,
+      "mature_STD_old": 0.00024172983304491123,
+      "mature_STD_phase": 0.0002390632234389111,
+      "mature_STD_change_fraction": -0.011031363288554918,
+      "full_bias_rgb": [
+        -7.736266092297131e-05,
+        -7.004301426777702e-05,
+        -5.926404680525629e-05
+      ],
+      "full_RMSE": 0.008708591198690194,
+      "mature_RMSE": 0.00869374980812774,
+      "final_phase_qualified_frequency_count": 12,
+      "final_max_qualified_phase_increment": 0.006967580797094345
+    },
+    {
+      "name": "guide_noise",
+      "is_old_fixture": true,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        null,
+        null
+      ],
+      "full_absolute_phase_max": null,
+      "full_absolute_gain_failing_frames": [],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        null,
+        null
+      ],
+      "mature_absolute_phase_max": null,
+      "mature_STD_old": 0.000119581636661154,
+      "mature_STD_phase": 0.000119581636661154,
+      "mature_STD_change_fraction": 0.0,
+      "full_bias_rgb": [
+        2.0370483398424177e-05,
+        9.613037109362788e-06,
+        -3.0517578125111022e-06
+      ],
+      "full_RMSE": 0.00013037591322849888,
+      "mature_RMSE": 0.00013230229532792918,
+      "final_phase_qualified_frequency_count": 0,
+      "final_max_qualified_phase_increment": null
+    },
+    {
+      "name": "lighting_step",
+      "is_old_fixture": true,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        0.997012775434361,
+        1.0051269541806966
+      ],
+      "full_absolute_phase_max": 0.007851257339300767,
+      "full_absolute_gain_failing_frames": [],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        0.998347213565564,
+        1.00435657043139
+      ],
+      "mature_absolute_phase_max": 0.006079765259819595,
+      "mature_STD_old": 0.0014130858511336069,
+      "mature_STD_phase": 0.0014390449021446964,
+      "mature_STD_change_fraction": 0.018370469841067827,
+      "full_bias_rgb": [
+        -3.714505648853006e-05,
+        -4.5646340935783596e-05,
+        -5.6784101319964494e-05
+      ],
+      "full_RMSE": 0.002052419266673897,
+      "mature_RMSE": 0.0022065111666548483,
+      "final_phase_qualified_frequency_count": 83,
+      "final_max_qualified_phase_increment": 0.005861093173755102
+    },
+    {
+      "name": "disocclusion",
+      "is_old_fixture": true,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [
+        "early_or_transition_frame"
+      ],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        0.9969818571190235,
+        1.0016520107118434
+      ],
+      "full_absolute_phase_max": 0.007918944460031323,
+      "full_absolute_gain_failing_frames": [],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        0.9969818571190235,
+        1.0016520107118434
+      ],
+      "mature_absolute_phase_max": 0.007918944460031323,
+      "mature_STD_old": 0.0010912403079752022,
+      "mature_STD_phase": 0.0011239872566932631,
+      "mature_STD_change_fraction": 0.030008925145757148,
+      "full_bias_rgb": [
+        -1.1308476596354247e-05,
+        -2.584777761325246e-05,
+        -3.206466403037446e-05
+      ],
+      "full_RMSE": 0.0016317261819676924,
+      "mature_RMSE": 0.0015202125051890425,
+      "final_phase_qualified_frequency_count": 72,
+      "final_max_qualified_phase_increment": 0.013984938448968356
+    },
+    {
+      "name": "reset",
+      "is_old_fixture": true,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        0.997012775434361,
+        1.0064673617616082
+      ],
+      "full_absolute_phase_max": 0.007851257339300767,
+      "full_absolute_gain_failing_frames": [],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        1.0003450110779797,
+        1.0010525375258985
+      ],
+      "mature_absolute_phase_max": 0.0050338753930408865,
+      "mature_STD_old": 0.0006576232958993487,
+      "mature_STD_phase": 0.0007156181659768573,
+      "mature_STD_change_fraction": 0.08818858826799358,
+      "full_bias_rgb": [
+        -2.6261166222089405e-05,
+        -3.841501142164501e-05,
+        -4.6071484228785866e-05
+      ],
+      "full_RMSE": 0.0017217684986921549,
+      "mature_RMSE": 0.0013470165873415581,
+      "final_phase_qualified_frequency_count": 62,
+      "final_max_qualified_phase_increment": 0.007438488226258488
+    },
+    {
+      "name": "slow_constant_phase",
+      "is_old_fixture": false,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": true,
+      "mature_relative_source_effective_success": true,
+      "full_absolute_gain_range": [
+        0.963325464785524,
+        1.0090097219896625
+      ],
+      "full_absolute_phase_max": 0.06376450885749219,
+      "full_absolute_gain_failing_frames": [],
+      "full_absolute_phase_failing_frames": [
+        5,
+        6
+      ],
+      "mature_absolute_gain_range": [
+        1.0002806577365737,
+        1.0026799260937456
+      ],
+      "mature_absolute_phase_max": 0.02040032336790434,
+      "mature_STD_old": 0.00023172680999465907,
+      "mature_STD_phase": 0.00013759051349419456,
+      "mature_STD_change_fraction": -0.4062382617817688,
+      "full_bias_rgb": [
+        -4.182629685519164e-06,
+        2.863452746513049e-05,
+        2.2311198535160304e-05
+      ],
+      "full_RMSE": 0.0002051088138538504,
+      "mature_RMSE": 0.00014968370122194933,
+      "final_phase_qualified_frequency_count": 1,
+      "final_max_qualified_phase_increment": 0.020226962830883797
+    },
+    {
+      "name": "phase_acceleration",
+      "is_old_fixture": false,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [
+        "phase_error_radians"
+      ],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        0.9622830280434498,
+        1.0417333322400886
+      ],
+      "full_absolute_phase_max": 0.05578393404630307,
+      "full_absolute_gain_failing_frames": [],
+      "full_absolute_phase_failing_frames": [
+        7,
+        13,
+        14,
+        16,
+        17
+      ],
+      "mature_absolute_gain_range": [
+        0.9793719715697105,
+        1.0341505640921211
+      ],
+      "mature_absolute_phase_max": 0.03552674348469337,
+      "mature_STD_old": 0.00023152566944530892,
+      "mature_STD_phase": 0.00023152566944530892,
+      "mature_STD_change_fraction": 0.0,
+      "full_bias_rgb": [
+        -3.1797889167183475e-06,
+        2.7374753329072543e-05,
+        2.2759988204550318e-05
+      ],
+      "full_RMSE": 0.00027259788952954363,
+      "mature_RMSE": 0.00023628163595983804,
+      "final_phase_qualified_frequency_count": 1,
+      "final_max_qualified_phase_increment": 0.09260330287600377
+    },
+    {
+      "name": "lighting_amplitude_step",
+      "is_old_fixture": false,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        0.977649244813632,
+        1.017623464507072
+      ],
+      "full_absolute_phase_max": 0.026124199508977666,
+      "full_absolute_gain_failing_frames": [],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        0.9852646839622442,
+        1.017623464507072
+      ],
+      "mature_absolute_phase_max": 0.01837474929905373,
+      "mature_STD_old": 0.0002318659761509582,
+      "mature_STD_phase": 0.0002318659761509582,
+      "mature_STD_change_fraction": 0.0,
+      "full_bias_rgb": [
+        -3.640160447264824e-06,
+        2.7330844226104013e-05,
+        2.2821632202062602e-05
+      ],
+      "full_RMSE": 0.00023276310248026484,
+      "mature_RMSE": 0.00023664608590287585,
+      "final_phase_qualified_frequency_count": 1,
+      "final_max_qualified_phase_increment": 0.0005015964901955666
+    },
+    {
+      "name": "lighting_step_reset",
+      "is_old_fixture": false,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        0.9950372148697132,
+        1.01193471050667
+      ],
+      "full_absolute_phase_max": 0.026124199508977666,
+      "full_absolute_gain_failing_frames": [],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        0.9968618808046197,
+        0.999402465043452
+      ],
+      "mature_absolute_phase_max": 0.016721287662878823,
+      "mature_STD_old": 0.0001320333671102692,
+      "mature_STD_phase": 0.00013837618286484575,
+      "mature_STD_change_fraction": 0.04803949102713756,
+      "full_bias_rgb": [
+        -3.6791781303219275e-06,
+        2.767255698719359e-05,
+        2.2289348862673067e-05
+      ],
+      "full_RMSE": 0.00019418455819881987,
+      "mature_RMSE": 0.00016063701613084496,
+      "final_phase_qualified_frequency_count": 1,
+      "final_max_qualified_phase_increment": 0.001144579267027726
+    },
+    {
+      "name": "weak_Nyquist_startup",
+      "is_old_fixture": false,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        0.9210407733917265,
+        1.4283414930105325
+      ],
+      "full_absolute_phase_max": 0.0,
+      "full_absolute_gain_failing_frames": [
+        0,
+        2,
+        4,
+        20,
+        21,
+        23,
+        24,
+        25,
+        26,
+        27,
+        29,
+        30,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        41,
+        48,
+        57
+      ],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        0.9372550994157827,
+        1.4283414930105325
+      ],
+      "mature_absolute_phase_max": 0.0,
+      "mature_STD_old": 0.00014190435155940592,
+      "mature_STD_phase": 0.00014190435155940592,
+      "mature_STD_change_fraction": 0.0,
+      "full_bias_rgb": [
+        -1.9073486329235223e-07,
+        3.604888916014515e-05,
+        2.5558471679676398e-05
+      ],
+      "full_RMSE": 0.00017607514403557138,
+      "mature_RMSE": 0.00014776675413639417,
+      "final_phase_qualified_frequency_count": 0,
+      "final_max_qualified_phase_increment": null
+    },
+    {
+      "name": "colored_RGB_noise",
+      "is_old_fixture": false,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        0.9389599031108202,
+        1.017494709080221
+      ],
+      "full_absolute_phase_max": 0.041564236245306224,
+      "full_absolute_gain_failing_frames": [
+        9
+      ],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        0.9856265569976851,
+        1.017494709080221
+      ],
+      "mature_absolute_phase_max": 0.026042503486631778,
+      "mature_STD_old": 0.003973834665460049,
+      "mature_STD_phase": 0.0038495847578326804,
+      "mature_STD_change_fraction": -0.03126700481711764,
+      "full_bias_rgb": [
+        -2.9953347119022834e-06,
+        2.6272034705457484e-05,
+        5.2742863028756035e-05
+      ],
+      "full_RMSE": 0.00547255432794113,
+      "mature_RMSE": 0.005373134685242859,
+      "final_phase_qualified_frequency_count": 1,
+      "final_max_qualified_phase_increment": 9.250415540123778e-05
+    },
+    {
+      "name": "persistent_correlated_source_bias",
+      "is_old_fixture": false,
+      "active_fraction": 1.0,
+      "full_relative_source_failures": [],
+      "mature_relative_source_failures": [],
+      "full_relative_source_effective_success": false,
+      "mature_relative_source_effective_success": false,
+      "full_absolute_gain_range": [
+        null,
+        null
+      ],
+      "full_absolute_phase_max": null,
+      "full_absolute_gain_failing_frames": [],
+      "full_absolute_phase_failing_frames": [],
+      "mature_absolute_gain_range": [
+        null,
+        null
+      ],
+      "mature_absolute_phase_max": null,
+      "mature_STD_old": 0.0001321125978889621,
+      "mature_STD_phase": 0.00013843362305974668,
+      "mature_STD_change_fraction": 0.04784574122217533,
+      "full_bias_rgb": [
+        6.50382062466664e-05,
+        8.19640771568378e-05,
+        6.367094448985485e-05
+      ],
+      "full_RMSE": 0.004628981748797414,
+      "mature_RMSE": 0.0046181314696125235,
+      "final_phase_qualified_frequency_count": 1,
+      "final_max_qualified_phase_increment": 0.0004212726940059152
+    }
+  ],
+  "conclusions": [
+    "Source phase alignment reduces slow constant-phase mature STD by about41%, but early absolute phase exceeds.05rad. Acceleration fails full relative phase and absolute early phase.",
+    "Static material/wave mature source STD increases by about25%/22%; no source noise-floor solution and native testing not justified by these results.",
+    "Weak material loses6.27% contrast at startup and weak Nyquist counterexample has broad absolute gain failures despite relative gates passing.",
+    "Persistent correlated source bias remains even when its source-pilot temporal noise is low; flat truth has no meaningful true phase/gain gate.",
+    "Colored RGB noise leaves a high residual floor; pooled nominal noise assumptions are not universally valid.",
+    "Relative gates allow additive1e-4 STD tolerance and are not absolute detail/noise acceptance. New pilot native response was not computed or substituted.",
+    "Old hard pilot has current-OR-mean support while preregistered phase candidate uses selected-coefficient support. This comparison is feasibility, not an isolated causal phase-only ablation. Small qualified static theta is observed, but its sole responsibility for noise increase is not proven."
+  ]
+}

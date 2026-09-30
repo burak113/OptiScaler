@@ -1,0 +1,25 @@
+{
+  "schema": "retained-guarded-significant-phase-native-derivation-v1",
+  "native_calls_by_generator": 0,
+  "GPU_calls_by_generator": 0,
+  "generator_sha256": "8848e09a938ec977006d225bd7a1af3cebaf4961e55ed890fb65b0a19a4b9a7f",
+  "original_calibration_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\probe_fsrd_response_calibration.py",
+  "original_calibration_sha256": "27b17a36e0da89d922abc51f5bf6825f7c8e5aa57d4e0f35feb125aff602cee1",
+  "original_helper_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\probe_fsrd_additive_split.py",
+  "original_helper_sha256": "caf2d246fc57f7b1488637bee0a9a5dabafd5f28ed7b9694ad443e55b3860b12",
+  "generated_driver_sha256": "a0cec745343e494808c03cc12a025eae349ef5e96f5ad54e196faadff152d7ab",
+  "generated_helper_sha256": "f9e917c3e15abb8a4c3a4c7bc60f727a3082903a5df03813e36270e75515a2fa",
+  "prototype_source_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\significant_phase_pilot_feasibility_20260930\\significant_pilot.py",
+  "prototype_sha256": "8c68c808482226284377734d941c95553d91e29ebfb33ede121d184585c3fa48",
+  "guard_source_path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\native_resource_guard.py",
+  "guard_sha256": "b70e18d0f13963e0250c371171933429446cf304041c9a16d971e9898d211814",
+  "changes": [
+    "New explicit significant_phase mode/API, exact prototype snapshot; current causal DC epoch list derived from diagnostics.",
+    "Pinned existing native runner B rather than a fresh build.",
+    "Native owned-child memory/timeout monitoring and preservation of all consumed/raw output bytes.",
+    "Extra source snapshots and actual driver/prototype identities; no old native source or response reuse.",
+    "Synthetic fixture, six native configuration values, GPU conversion/composition, scoring/fallback unchanged."
+  ],
+  "prepared_v1_original_preserved": "preparation_v1",
+  "preexecution_metadata_revision": "requested replaces measured: successful native completion proven by actual logs/rawoutputs/contextcount"
+}

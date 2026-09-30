@@ -1,0 +1,71 @@
+{
+  "schema": "local-indirect-specular-hit-distance-contract-review-v1",
+  "new_GPU_or_native_calls": 0,
+  "sources": {
+    "header": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\denoisers\\include\\ffx_denoiser.h",
+      "sha256": "1316e406f3499f1c907c258d8efbf763d81aa7ffed1b65209802637907d644ed",
+      "lines": {
+        "413": "    ///   * @c input:  Indirect diffuse ray hit distance",
+        "433": "    ///   * @c input:  Indirect specular ray hit distance",
+        "434": "    ///   * @c output: Preserved (or input if passthrough)"
+      }
+    },
+    "docs": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\docs\\techniques\\denoising.md",
+      "sha256": "5c7f8eed851f44888e3c689719aaf2e6b5f54a1974852f9913fa4ca1bc34eea0",
+      "lines": {
+        "546": "| [`signal`](../../denoisers/include/ffx_denoiser.h#L415) | Indirect diffuse radiance signal to denoise.<br><br>Channels:<br>`RGB`:<br>&nbsp;&nbsp;&nbsp;&nbsp;`input`: indirect diffuse radiance to denoise.<br>&nbsp;&nbsp;&nbsp;&nbsp;`output`: denoised indirect diffuse radiance (or input if passthrough).<br>`A`:<br>&nbsp;&nbsp;&nbsp;&nbsp;`input`: indirect diffuse ray hit distance (must be valid if the signal is active; otherwise negative).<br>&nbsp;&nbsp;&nbsp;&nbsp;`output`: preserved (or input if passthrough).<br><br>Preferred format: `RGBA16_FLOAT` |",
+        "552": "| [`signal`](../../denoisers/include/ffx_denoiser.h#L435) | Indirect specular radiance signal to denoise.<br><br>Channels:<br>`RGB`:<br>&nbsp;&nbsp;&nbsp;&nbsp;`input`: indirect specular radiance to denoise.<br>&nbsp;&nbsp;&nbsp;&nbsp;`output`: denoised indirect specular radiance (or input if passthrough).<br>`A`:<br>&nbsp;&nbsp;&nbsp;&nbsp;`input`: indirect specular ray hit distance (must be valid if the signal is active; otherwise negative).<br>&nbsp;&nbsp;&nbsp;&nbsp;`output`: preserved (or input if passthrough).<br><br>Preferred format: `RGBA16_FLOAT` |",
+        "806": "| `Virtual Hit Pos`        | Reconstructed virtual hit position used for low-roughness specular samples.<br>This information is useful to validate that input camera parameters and specular ray length are correct. |"
+      }
+    },
+    "sample": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\samples\\Denoisers\\FidelityFX_Denoiser\\dx12\\shaders\\trace_rays_denoiser.hlsl",
+      "sha256": "d133785b02edd47171dcdf734013a4198bc427c36d5e84d17b535782d2604a0d",
+      "lines": {
+        "227": "        float  indirectSpecularHitDistance = 65504.0f;",
+        "229": "        float  indirectDiffuseHitDistance  = 65504.0f;",
+        "250": "                    indirectSpecularHitDistance = length(secondaryRay.origin - secondaryHit.worldPosition);",
+        "269": "                    indirectDiffuseHitDistance = length(secondaryRay.origin - secondaryHit.worldPosition);",
+        "299": "            g_IndirectSpecularTarget[checkerboardPixel] = float4(indirectSpecularRadiance, indirectSpecularHitDistance);",
+        "300": "            g_IndirectDiffuseTarget[checkerboardPixel]  = float4(indirectDiffuseRadiance, indirectDiffuseHitDistance);",
+        "323": "            g_IndirectSpecularTarget[checkerboardPixel]        = float4(0.0f, 0.0f, 0.0f, 65504.0f);",
+        "324": "            g_IndirectDiffuseTarget[checkerboardPixel]         = float4(0.0f, 0.0f, 0.0f, 65504.0f);"
+      }
+    },
+    "converter": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDInputConv.hlsl",
+      "sha256": "1981a30bc22c5d98762e8e7fd33b657ee8daa4f18e10c79ce89e2102a407f5d3",
+      "lines": {
+        "923": "        // Specular motion tracking handover.",
+        "926": "        // meaning: a shorter virtual hit distance places the reflection nearer the surface,",
+        "934": "        const float specularTracking =",
+        "935": "            SoftBelow(roughness, 0.30f, 0.15f) * (1.0f - isEmissive) * (1.0f - biasWeight);",
+        "967": "            isfinite(rawHitDist) && rawHitDist >= 0.0f && rawHitDist <= 65504.0f;",
+        "974": "        const float reflectionHitDistance = hasInputHitDist",
+        "977": "                ? max(abs(viewSpacePos.z), 1e-3f)",
+        "1158": "        const half hitDist = IsSet(FLAGS_SPECULAR_SIGNAL_INDIRECT)",
+        "1159": "            ? half(reflectionHitDistance * specularTracking)"
+      }
+    },
+    "common": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDPreprocessCommon.hlsli",
+      "sha256": "4ca7962c413826950c6025a85cf3502618e6a32182bfaaee3437cac6ef52cc26",
+      "lines": {
+        "213": "float SoftBelow(float x, float edge, float width)",
+        "215": "    return smoothstep(edge, edge - max(width, 1e-6f), x);"
+      }
+    }
+  },
+  "findings": [
+    "Header specifies indirect-specular input alpha as ray hit distance and output as preserved. It gives no strict-positive requirement or zero-is-miss assertion.",
+    "Packaged docs say hit distance must be valid for active signal, otherwise negative; they do not explicitly exclude zero. Validity at zero cannot be certified from this wording.",
+    "SDK sample initializes untraced/miss distance65504 and writes65504 for primary sky; geometric secondary hits use actual ray-origin-to-hit distance. Zero is not its miss/sky sentinel.",
+    "Local converter accepts finite input distance in[0,65504]; missing indirect input falls back to max(abs(viewSpacePos.z),.001). It then multiplies indirect-specular distance by custom roughness tracking SoftBelow(.30,.15).",
+    "At roughness.55 tracking is0, so finite input/fallback yields alpha0 as measured. This local virtual-hit handover is not a documented SDK default or positivity violation proof.",
+    "Direct-signal undefined nonnegative alpha and dominant-visibility[0,FP16_MAX] semantics must not be substituted for indirect-specular hit semantics.",
+    "Uniform alpha0 is an observable diagnostic input. Changing it to positive changes operator virtual geometry; no provider/history cause or game quality fix follows."
+  ],
+  "analysis_sha256": "f0f15a11b00724139d8306dc1027f599083c6f04b0467e2475af7449dcf88887"
+}

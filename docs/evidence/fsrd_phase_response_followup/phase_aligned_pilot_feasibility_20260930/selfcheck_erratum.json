@@ -1,0 +1,5 @@
+{
+ "first_attempt_completed_scores":0,
+ "first_attempt_error":"Signed-validity selfcheck incorrectly required all16 binary-step predictions to be invalid. Some predictions are exactly representable/nonnegative and may validly activate.",
+ "correction":"Selfcheck now requires invalid predictions exist, every invalid frame is exact raw inactive, and all returned radiance nonnegative. No prototype, preregistration or constants changed; no scored output existed."
+}

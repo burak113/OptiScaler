@@ -1,0 +1,18 @@
+{
+  "script_sha256": "2eb23438a2abf29d3c1de54c8b3d514c563753c0dc155201d9bfe09b5e7571b5",
+  "sources": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_significant_phase_independent_audit_20260930\\compact_report.json",
+      "sha256": "e7273a112744efab31495b2117ac057cd636608e40f02e29f40a3c4ef1342517"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\response_global_dc_offline_20260930\\results.json",
+      "sha256": "242c472180bb70642002c2405251ec6631da427455ace1a10d4baeb4111e3036"
+    }
+  ],
+  "image_sha256": "0c175e92129bec8b78d3283294fc8fc2de2b61c2ded2711fec8da96f2965a5a8",
+  "native_contexts": 18,
+  "native_RR_dispatches": 1152,
+  "new_GPU_calls": 0,
+  "quality_accepted": false
+}

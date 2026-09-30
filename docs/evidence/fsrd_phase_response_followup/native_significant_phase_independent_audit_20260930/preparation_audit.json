@@ -1,0 +1,67 @@
+{
+  "schema": "significant-phase-fresh-native-preparation-independent-audit-v1",
+  "analysis_sha256": "5cbfe75739795c5f1a1c592ff2224808ccd736c3f37260c03463ce737bb8e406",
+  "derivation_sha256": "5c068ffa779900876cade0dbe0342606126915014a7b7e4520c2612e3247b456",
+  "authenticated_source_hashes": {
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_significant_phase_initial_20260930\\generate.py": "8848e09a938ec977006d225bd7a1af3cebaf4961e55ed890fb65b0a19a4b9a7f",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_significant_phase_initial_20260930\\probe_significant_phase.py": "a0cec745343e494808c03cc12a025eae349ef5e96f5ad54e196faadff152d7ab",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\native_significant_phase_initial_20260930\\native_helper.py": "f9e917c3e15abb8a4c3a4c7bc60f727a3082903a5df03813e36270e75515a2fa",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\probe_fsrd_response_calibration.py": "27b17a36e0da89d922abc51f5bf6825f7c8e5aa57d4e0f35feb125aff602cee1",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\tests\\probe_fsrd_additive_split.py": "caf2d246fc57f7b1488637bee0a9a5dabafd5f28ed7b9694ad443e55b3860b12",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\significant_phase_pilot_feasibility_20260930\\significant_pilot.py": "8c68c808482226284377734d941c95553d91e29ebfb33ede121d184585c3fa48",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\frozen_source_context_repeat_20260930\\native_resource_guard.py": "b70e18d0f13963e0250c371171933429446cf304041c9a16d971e9898d211814"
+  },
+  "source_snapshot_sha256": {
+    "derivation.json": "5c068ffa779900876cade0dbe0342606126915014a7b7e4520c2612e3247b456",
+    "fsrd_alpha_common.py": "691975513a56ada7c1ec8faab7a4f70840508371a3334dba67275e00aef4ba2e",
+    "fsrd_gpu_runner.cpp": "f215e7565d70e3e85aacc524f47cf4138934d523ba019cfc3c8b48849751c953",
+    "fsrd_quality_contours.py": "3d4133849e69685966abafb77fedb6eed0cfe705c8aeb82e0940f82d0c2e8a0e",
+    "fsrd_response_conditioned_pilot.py": "2abead598a928f93bd218f53e704691d6ad1a1c9e1d018d1deaac9d62190f57b",
+    "fsrd_response_pilot.py": "a8f4197d10d3f6aaade4a3b383758b4c01f6c8be1d231706f05052ead4f7b465",
+    "fsrd_response_soft_pilot.py": "6e2e2ef5b9eeb672c9c1aacaeb29ab4fd5b78df64134fe3fee121e0c03b74561",
+    "fsrd_rr_runner.cpp": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077",
+    "fsrd_toolchain.py": "f9e921637631a280f43bee034588897966f1195e16e88517e754ecfdc27978cd",
+    "generate.py": "8848e09a938ec977006d225bd7a1af3cebaf4961e55ed890fb65b0a19a4b9a7f",
+    "native_helper.py": "f9e917c3e15abb8a4c3a4c7bc60f727a3082903a5df03813e36270e75515a2fa",
+    "native_resource_guard.py": "b70e18d0f13963e0250c371171933429446cf304041c9a16d971e9898d211814",
+    "preregistration.md": "adc1afa41bbcf18f52e6d5d02e54323762f2c00904f73da9ffac44aae88731ae",
+    "probe_fsrd_additive_split.py": "caf2d246fc57f7b1488637bee0a9a5dabafd5f28ed7b9694ad443e55b3860b12",
+    "probe_fsrd_response_calibration.py": "27b17a36e0da89d922abc51f5bf6825f7c8e5aa57d4e0f35feb125aff602cee1",
+    "probe_fsrd_statistical_resolve.py": "f804ea74c72aef1b6adf351e2d3cbe4f809c3069b13419492be178401248a3ee",
+    "probe_significant_phase.py": "a0cec745343e494808c03cc12a025eae349ef5e96f5ad54e196faadff152d7ab",
+    "run_fsrd_gpu_tests.py": "c9e61330f829be4111ffebfb2a9170d685b1eec3bcebfa631e6bbf0c3728e66f",
+    "significant_pilot.py": "8c68c808482226284377734d941c95553d91e29ebfb33ede121d184585c3fa48",
+    "verify_fsrd_mirrors.py": "721e8122883c41c7af87450fef097e5fee04b09be22323a69f72da2ffbc65625"
+  },
+  "unchanged_original_function_AST": [
+    "digest",
+    "research_fixture",
+    "prepare_capture",
+    "captured_research_fixture",
+    "captured_roi_score",
+    "radiance_fallback",
+    "authenticate_reused_source",
+    "assert_counterfactual_contract",
+    "dc_conservation"
+  ],
+  "helper_AST_exact_three_documented_changes": true,
+  "pilot_bytes_exact_frozen_CPU": true,
+  "guard_bytes_exact": true,
+  "significant_mode_disallows_oracle_and_reuse": true,
+  "source_pilot_call_inputs": [
+    "observedRGB",
+    "reset/jitter controls"
+  ],
+  "distinct_source_null_pilot_context_calls": true,
+  "old_native_TP_reuse": false,
+  "baseline_plus_active_P_minus_fresh_TP": true,
+  "quality_accepted": false,
+  "successful_native_measurement_claim": false,
+  "new_GPU_native_calls": 0,
+  "qualifications": [
+    "Preparation lineage is verified; completed context/control/raw-output validation and quality await finalized evidence.",
+    "The driver retains unused oracle/reuse branches for other modes, but significantmode rejects them. Native helper shadows original run_amd deliberately after its import.",
+    "CurrentDC/radiance fallback/fixture/scoring functions are AST-equal to original; only main research mode, pinned runner, snapshots and retained guarded helper are derived.",
+    "Global requested flag is preparation intent, not native completion evidence. Source-stage diagnostics native_measuredFalse do not describe the later independent GPU response."
+  ]
+}

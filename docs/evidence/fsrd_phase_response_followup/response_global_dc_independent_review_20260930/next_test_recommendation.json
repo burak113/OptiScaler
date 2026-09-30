@@ -1,0 +1,17 @@
+{
+ "schema":"bounded-next-diagnostic-recommendation-v1",
+ "new_GPU_or_native_calls":0,
+ "quality_accepted":false,
+ "test":"In a separate future package, replay identical retained blind_pilot seven-input/control trajectories for material and wave in fresh contexts. Compare same-P native spread with common temporal correction; pin runner/provider/tuning and retain actual composition payloads.",
+ "not_duplicate":"Previous context cohorts replayed noisy source C, source-frame0, or altered reset/tuning/oct/hit-alpha. Initial significant-phase has only one T(P) context per scene; it does not measure identical-P cohort spread.",
+ "interpretation":"Within-context-cohort variance of P-T(P) equals T(P) variance for fixed P. Common correction variance remains a mixture of pilot fluctuations, deterministic native settling and input/guide transfer. Cohort covariance alone is not pilot-noise causation.",
+ "dominant_shared_pilot_limit":{
+  "material_mature_P_nonDC_RMS":0.00033375,
+  "material_mature_TP_nonDC_RMS":0.00004890,
+  "wave_mature_P_nonDC_RMS":0.00024583,
+  "wave_mature_TP_nonDC_RMS":0.00008269,
+  "qualification":"Repeated-context averaging cannot remove shared P fluctuations. This diagnoses native context contribution, not a material/wave solution; dominant pilot noise still needs a separate source-pilot hypothesis."
+ },
+ "current_package_status":"Completed immutable independent review; globalDC model failed. No further source/CPU work or native run in this package.",
+ "full_recommendation_sha256":"a5303cec888828a4dfd9eaa2e57c3f5610ae39778114a0779e12150c6d484812"
+}
