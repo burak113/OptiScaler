@@ -1,0 +1,55 @@
+{
+  "schema": "root-matched-GPU-gap-bounded-native-launch-authorization-v1",
+  "branch": "ffxD-experimental-alpha",
+  "head": "00e662dce4b4672738a048dea04b8d84e202f72b",
+  "scope": "Only the frozen eight matched-gap native diagnostic children; no production or game changes",
+  "user_authorization": "Existing request to investigate causes carefully with agents and continue the stain/wave goal",
+  "pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\preparation_completion_manifest.json",
+      "sha256": "19b63ab8f27ceaa6a03632b29414afc654a273a47e5636f7f30f079de8d04317"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\registration.json",
+      "sha256": "013d235048694e20650ae1ce4f779428c0b80422b3ee165b3e2c2289ecefd3ed"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\pre_native_freeze.json",
+      "sha256": "aed2ca795adf7a04f3a1404f9622bc89cd56f845b09cb358ea92d27e1bd4528f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\run_native.py",
+      "sha256": "f0d0f2e2669ddf3a07fa44b008858ef5c679194acc4245cb2dde53f8201debef"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\fsrd_rr_gap_control.cpp",
+      "sha256": "84ca72c54ab173299d7f82056a297b6daf3f4e2ef12c8c0c0691f9748321b8f3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\fsrd_rr_gap_control.exe",
+      "sha256": "e3769339c4089e8c0af46434a949c2ffabbef1ab4b5084e701aae939f5248fc1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\native_resource_guard.py",
+      "sha256": "b70e18d0f13963e0250c371171933429446cf304041c9a16d971e9898d211814"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\final_pre_native_review.json",
+      "sha256": "450a55e22db99a80fd882c9f3a90635729c5e07ef81185fda6915f7e94710220"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\completion_ready_manifest.json",
+      "sha256": "1acb148c4492657abcfcfe44530245c2d69616225903d82bd80b77a78d899a3b"
+    }
+  ],
+  "verified_manifest_references": 287,
+  "planned_contexts": 8,
+  "planned_successful_API_RR_recordings": 508,
+  "planned_queued_RR_dispatches": 504,
+  "planned_discarded_API_records": 4,
+  "planned_no_API_frame_omissions": 4,
+  "planned_counts_are_measurements": false,
+  "prior_H2_counts_are_new_work": false,
+  "quality_accepted": false,
+  "SDK_discard_or_RESET_fresh_identity_guaranteed": false
+}

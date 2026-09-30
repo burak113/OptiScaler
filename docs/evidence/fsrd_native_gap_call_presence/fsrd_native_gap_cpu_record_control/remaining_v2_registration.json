@@ -1,0 +1,139 @@
+{
+  "schema": "matched-gap-six-remaining-post-observation-diagnostic-retention-amendment-v2",
+  "UTC": "2026-09-30T14:04:15.029747+00:00",
+  "status": "prepared_post_observation_NOT_AUTHORIZED_TO_RUN",
+  "post_observation": true,
+  "chronology": "V1 completed two fresh contexts before metadata rejection of noAPI24 due one SDK frame-index gap reset warning. This amendment was made after observing that warning/output; it does not alter original acceptance or reinterpret it as preregistered. Root approved preparation of six unattempted original cases and bounded diagnostic retention, not their execution.",
+  "original_registration": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\registration.json",
+    "bytes": 105519,
+    "sha256": "013d235048694e20650ae1ce4f779428c0b80422b3ee165b3e2c2289ecefd3ed"
+  },
+  "original_pre_native_freeze": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\pre_native_freeze.json",
+    "bytes": 47002,
+    "sha256": "aed2ca795adf7a04f3a1404f9622bc89cd56f845b09cb358ea92d27e1bd4528f"
+  },
+  "original_results_failed_preserved": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\results.json",
+    "bytes": 38656,
+    "sha256": "2ecbff156a2bc599ff6d146b3d5969064ead9878fa3a9e3ffe30b8b831f76770"
+  },
+  "original_execution_console": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\execution_console.log",
+    "bytes": 626,
+    "sha256": "1048e121c1ae41ec5dd0b3f18cb0af0288449c17bf7a5cbb63ea7754704858ef"
+  },
+  "original_first2_inspection": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\partial_v1_inspection.json",
+    "bytes": 237847,
+    "sha256": "2c868bc463566a5b32fd83169f5541023b65cf6dbc0880a98fb84ae1f866ab15"
+  },
+  "original_first2_completion_manifest": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\partial_v1_completion_manifest.json",
+    "bytes": 67833,
+    "sha256": "82b78b5c6628eae7c44afd23d492b6ccd43f6ab5a47e79142dde9c16c5f1eab2"
+  },
+  "original_V1_actual_counts": {
+    "contexts": 2,
+    "successful_API_RR_recordings": 127,
+    "queued_RR_dispatches": 126,
+    "SDK_record_discards": 1,
+    "no_API_omissions": 1,
+    "metadata_accepted_contexts": 1,
+    "SDK_warnings": 1
+  },
+  "remaining_case_tags": [
+    "round0_record_discard24_reset25",
+    "round0_no_api24_reset25",
+    "round1_no_api24_reset25",
+    "round1_record_discard24_reset25",
+    "round1_no_api24",
+    "round1_record_discard24"
+  ],
+  "commands": [
+    [
+      "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\fsrd_rr_gap_control.exe",
+      "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24_reset25\\job.txt",
+      "24",
+      "25",
+      "0",
+      "-1"
+    ],
+    [
+      "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\fsrd_rr_gap_control.exe",
+      "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24_reset25\\job.txt",
+      "-1",
+      "25",
+      "0",
+      "24"
+    ],
+    [
+      "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\fsrd_rr_gap_control.exe",
+      "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round1_no_api24_reset25\\job.txt",
+      "-1",
+      "25",
+      "0",
+      "24"
+    ],
+    [
+      "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\fsrd_rr_gap_control.exe",
+      "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round1_record_discard24_reset25\\job.txt",
+      "24",
+      "25",
+      "0",
+      "-1"
+    ],
+    [
+      "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\fsrd_rr_gap_control.exe",
+      "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round1_no_api24\\job.txt",
+      "-1",
+      "-1",
+      "0",
+      "24"
+    ],
+    [
+      "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\fsrd_rr_gap_control.exe",
+      "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round1_record_discard24\\job.txt",
+      "24",
+      "-1",
+      "0",
+      "-1"
+    ]
+  ],
+  "planned_new_native_contexts": 6,
+  "planned_new_API_RR_recordings": 381,
+  "planned_new_queued_RR_dispatches": 378,
+  "planned_new_SDK_record_discards": 3,
+  "planned_new_no_API_omissions": 3,
+  "actual_new_native_contexts": 0,
+  "actual_new_API_RR_recordings": 0,
+  "actual_new_queued_RR_dispatches": 0,
+  "new_executor": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\run_remaining_native_v2.py",
+    "bytes": 9603,
+    "sha256": "36fe9e824e9bec32c92828733484157ef2583f2e43e0626cf0fd6f99d965baac"
+  },
+  "exact_warning_policy": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\diagnostic_warning_policy_v2.py",
+    "bytes": 1318,
+    "sha256": "d1d52e956043eb0346a30308e787c681455c51c93562394762e032883b8a80ab"
+  },
+  "diagnostic_admissibility": "Record-discard requires zero SDK warnings. noAPI allows0or1 only exactstderr ASCII bytes SDK: Frame index jump detected. Resetting... followed by CRLF if1; otherwise empty. All D3D12 errors/warnings and SDK errors zero. Any other message/count rejected after actual work accounting. Actual warning counts/bytes retained; never a quality score/pass.",
+  "unchanged": [
+    "C++",
+    "EXE",
+    "DLL/headers",
+    "all7inputs percase",
+    "original case commands/controls/sourceframes",
+    "guard",
+    "V3 stage accounting"
+  ],
+  "analysis_plan": "After new6 actual completion, write new merged CPU report/all28pairs2alignments2lobes from actual old2 plusactualnew6, preserving original acceptedfalse on noAPI first2. Count old2 andnew6 separately; onlythen combined8 ifactuallycompleted. OldH2eight remain references only.",
+  "causal_qualification": "API presence can change SDK frame-gap reset behavior. Equal queued184controls/inputs do not prove equal opaque effective history. Warning reset is an observed mediator; no universal autoRESET/quality/gamecause claim.",
+  "guard_policy": "Unchanged240sec/2GiB/free1GiB/0.2 guard; sequential onlyowned child; no otherprocess kills.",
+  "quality_accepted": false,
+  "production_changes": false,
+  "game_run": false,
+  "requires_before_any_native": "SolHigh boundedV2 review and new root authorization for exactlysix unattempted cases. No automatic GPU retry."
+}

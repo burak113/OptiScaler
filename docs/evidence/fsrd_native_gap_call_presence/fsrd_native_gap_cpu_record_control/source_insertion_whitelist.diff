@@ -1,0 +1,73 @@
+--- pinned_H2_runner
++++ isolated_matched_gap_runner
+@@ -37,12 +37,14 @@
+ };
+ int main(int argc,char** argv) try {
+     std::cout<<std::unitbuf;
+-    if(argc<2||argc>5) throw std::runtime_error("usage: fsrd_rr_discard job.txt [skip_frame=-1] [recovery_reset_frame=-1] [source_frame_start=0]");
++    if(argc<2||argc>6) throw std::runtime_error("usage: fsrd_rr_gap_control job.txt [skip_frame=-1] [recovery_reset_frame=-1] [source_frame_start=0] [no_api_frame=-1]");
+     const int skipFrame=argc>=3?std::stoi(argv[2]):-1;
+     const int recoveryResetFrame=argc>=4?std::stoi(argv[3]):-1;
+     const unsigned sourceFrameStart=argc>=5?unsigned(std::stoul(argv[4])):0;
+-    if(skipFrame < -1 || recoveryResetFrame < -1 || sourceFrameStart>63) throw std::runtime_error("invalid diagnostic frame arguments");
+-    std::cout<<"skip_frame="<<skipFrame<<" recovery_reset_frame="<<recoveryResetFrame<<" source_frame_start="<<sourceFrameStart<<'\n';
++    const int noApiFrame=argc>=6?std::stoi(argv[5]):-1;
++    if(skipFrame < -1 || recoveryResetFrame < -1 || sourceFrameStart>63 || noApiFrame < -1 || (skipFrame>=0 && noApiFrame>=0))
++        throw std::runtime_error("invalid or competing diagnostic frame arguments");
++    std::cout<<"skip_frame="<<skipFrame<<" recovery_reset_frame="<<recoveryResetFrame<<" source_frame_start="<<sourceFrameStart<<" no_api_frame="<<noApiFrame<<'\n';
+     std::ifstream job(argv[1]);
+     unsigned w,h,frames,diffFlag,specFlag,resetEvery,tuning,passthrough;
+     std::string dllPath;
+@@ -51,6 +53,8 @@
+     if(sourceFrameStart+frames>64 || (skipFrame>=0 && (unsigned(skipFrame)<sourceFrameStart || unsigned(skipFrame)>=sourceFrameStart+frames)) ||
+        (recoveryResetFrame>=0 && (unsigned(recoveryResetFrame)<sourceFrameStart || unsigned(recoveryResetFrame)>=sourceFrameStart+frames)))
+         throw std::runtime_error("diagnostic source frame outside job");
++    if(noApiFrame>=0 && (unsigned(noApiFrame)<sourceFrameStart || unsigned(noApiFrame)>=sourceFrameStart+frames))
++        throw std::runtime_error("no-API source frame outside job");
+     ComPtr<ID3D12Debug> debug;
+     bool debugOn=SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug)));
+     if(debugOn) debug->EnableDebugLayer();
+@@ -172,7 +176,9 @@
+     std::ofstream frameIndicesOut(std::filesystem::path(argv[1]).parent_path()/"observed_frame_indices.bin",std::ios::binary);
+     std::ofstream recordedFrameIndicesOut(std::filesystem::path(argv[1]).parent_path()/"recorded_frame_indices.bin",std::ios::binary);
+     if(!presenceOut||!frameIndicesOut||!recordedFrameIndicesOut) throw std::runtime_error("presence/index output open");
+-    unsigned successfulRecordings=0,queuedDispatches=0,discardedRecordings=0;
++    std::ofstream omittedAPIFrameIndicesOut(std::filesystem::path(argv[1]).parent_path()/"omitted_API_frame_indices.bin",std::ios::binary);
++    if(!omittedAPIFrameIndicesOut) throw std::runtime_error("omitted API indices output open");
++    unsigned successfulRecordings=0,queuedDispatches=0,discardedRecordings=0,omittedAPIRecordings=0;
+     int previousSubmittedSourceFrame=-1; UINT64 previousCompletedFence=0;
+     std::vector<char> row(size_t(w)*8);
+     for(unsigned frame=0;frame<frames;++frame) {
+@@ -203,6 +209,20 @@
+             dispatch.jitterOffsets={jx,jy};
+         }
+         if(recoveryResetFrame>=0 && sourceFrame==unsigned(recoveryResetFrame)) dispatch.flags|=FFX_DENOISER_DISPATCH_RESET;
++        if(noApiFrame>=0 && sourceFrame==unsigned(noApiFrame)) {
++            // Inputs, transitions, and frame controls were consumed normally.
++            // Deliberately omit the SDK API call and its applied-control packet.
++            // Both arms abandon frame24 GPU work after completed sourceframe23.
++            if(previousSubmittedSourceFrame!=int(sourceFrame)-1 || previousCompletedFence==0)
++                throw std::runtime_error("no-API omission requires completed immediately prior submission");
++            hr(cmd->Close(),"close no-API discarded recording");
++            for(unsigned i=0;i<9;++i) tex[i].state=externalStatesBeforeRecording[i];
++            const char absent=0; presenceOut.write(&absent,1); ++omittedAPIRecordings;
++            omittedAPIFrameIndicesOut.write(reinterpret_cast<const char*>(&sourceFrame),sizeof(sourceFrame));
++            std::cout<<"omitted_API_recording source_frame="<<sourceFrame<<" previous_submitted_source_frame="<<previousSubmittedSourceFrame
++                     <<" previous_completed_fence="<<previousCompletedFence<<" external_state_shadow_restored=1 API_called=0 queued=0 observed_output=0\n";
++            continue;
++        }
+         auto record=[&](const auto& value) { controlsOut.write(reinterpret_cast<const char*>(&value),sizeof(value)); };
+         record(dispatch.frameIndex); record(dispatch.flags); record(dispatch.renderSize);
+         record(dispatch.motionVectorScale); record(dispatch.cameraPositionDelta);
+@@ -257,9 +277,10 @@
+     controlsOut.close(); if(!controlsOut) throw std::runtime_error("controls output write");
+     presenceOut.close(); frameIndicesOut.close(); recordedFrameIndicesOut.close();
+     if(!presenceOut||!frameIndicesOut||!recordedFrameIndicesOut) throw std::runtime_error("presence/index output write");
++    omittedAPIFrameIndicesOut.close(); if(!omittedAPIFrameIndicesOut) throw std::runtime_error("omitted API indices output write");
+     ff(api.DestroyContext(&context,nullptr),"destroy RR"); CloseHandle(event); FreeLibrary(module);
+     std::cout<<"RR_recordings="<<successfulRecordings<<" queued_RR_dispatches="<<queuedDispatches<<" discarded_RR_recordings="<<discardedRecordings
+-             <<" validation_errors="<<validationErrors<<" validation_warnings="<<validationWarnings<<" sdk_errors="<<sdkErrors<<" sdk_warnings="<<sdkWarnings<<'\n';
++             <<" validation_errors="<<validationErrors<<" validation_warnings="<<validationWarnings<<" sdk_errors="<<sdkErrors<<" sdk_warnings="<<sdkWarnings<<" no_API_omissions="<<omittedAPIRecordings<<'\n';
+     if(validationErrors||sdkErrors) return 2;
+     return 0;
+ } catch(const std::exception& e) { std::cerr<<e.what()<<'\n'; return 1; }

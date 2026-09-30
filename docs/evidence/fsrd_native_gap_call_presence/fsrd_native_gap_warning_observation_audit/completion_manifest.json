@@ -1,0 +1,31 @@
+{
+  "files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_warning_observation_audit_20260930\\audit.json",
+      "bytes": 30222,
+      "sha256": "da361c55f493a2d38c82286c7a650ab484f6f2595ee1aa1977a0cc0241130f76"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_warning_observation_audit_20260930\\audit.py",
+      "bytes": 10468,
+      "sha256": "ac0b4248cd0e9c3ee14f9d59da73969082aaa3ecf1fc7fb93f1e691294b5d3b1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_warning_observation_audit_20260930\\independent_comparisons.json",
+      "bytes": 312110,
+      "sha256": "355c03214c5cbc3ee7ede1c522c5d89fd4920907a5b2921ef861c21cc1e00ef0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_warning_observation_audit_20260930\\round0_no_api24_derived_queued_controls.bin",
+      "bytes": 11592,
+      "sha256": "eca9ac5fb887bf1bb5b5d3efdcf86b42911f73ff4902d2e4372c79aa894c4daa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_warning_observation_audit_20260930\\round0_record_discard24_derived_queued_controls.bin",
+      "bytes": 11592,
+      "sha256": "eca9ac5fb887bf1bb5b5d3efdcf86b42911f73ff4902d2e4372c79aa894c4daa"
+    }
+  ],
+  "producer_files_changed": false,
+  "native_GPU_calls": 0
+}

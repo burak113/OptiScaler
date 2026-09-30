@@ -1,0 +1,9 @@
+round0_record_discard24 completed [64, 63, 1] omitted_API 0
+Traceback (most recent call last):
+  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\fsrd_native_gap_cpu_record_control_20260930\run_native.py", line 84, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\fsrd_native_gap_cpu_record_control_20260930\run_native.py", line 57, in main
+    assert counts[3:7]==[0,0,0,0],'ordinary D3D12/SDK diagnostics';assert'debug_layer=1'in log
+           ^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ordinary D3D12/SDK diagnostics

@@ -1,0 +1,86 @@
+{
+  "frozen_V1_driver": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\run_native.py",
+    "bytes": 8425,
+    "sha256": "f0d0f2e2669ddf3a07fa44b008858ef5c679194acc4245cb2dde53f8201debef"
+  },
+  "new_V2_driver": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\run_remaining_native_v2.py",
+    "bytes": 9603,
+    "sha256": "36fe9e824e9bec32c92828733484157ef2583f2e43e0626cf0fd6f99d965baac"
+  },
+  "operations": [
+    {
+      "label": "V2_scope",
+      "before": "\"\"\"Future guarded sequential executor. Preparation never passes --execute-native.\"\"\"",
+      "after": "\"\"\"Post-observation V2: only six unattempted cases; new root authorization required.\"\"\"",
+      "occurrences": 1
+    },
+    {
+      "label": "exact_warning_policy",
+      "before": "from native_work_accounting import derive",
+      "after": "from native_work_accounting import derive\nfrom diagnostic_warning_policy_v2 import evaluate as evaluate_diagnostics",
+      "occurrences": 1
+    },
+    {
+      "label": "new_explicit_gate",
+      "before": "if sys.argv[1:]!=['--execute-native']:raise RuntimeError('Preparation only: root authorization after independent prelaunch review is required before --execute-native.')",
+      "after": "if sys.argv[1:]!=['--execute-remaining-native']:raise RuntimeError('Post-observation preparation only: new root authorization after V2 review is required for only six unattempted cases.')",
+      "occurrences": 1
+    },
+    {
+      "label": "original_commands_remaining_subset",
+      "before": "    reg=json.loads((HERE/'registration.json').read_text());freeze=json.loads((HERE/'pre_native_freeze.json').read_text())",
+      "after": "    original_reg=json.loads((HERE/'registration.json').read_text());freeze=json.loads((HERE/'pre_native_freeze.json').read_text())\n    amendment=json.loads((HERE/'remaining_v2_registration.json').read_text())\n    assert amendment['status']=='prepared_post_observation_NOT_AUTHORIZED_TO_RUN'\n    assert amendment['remaining_case_tags']==original_reg['mode_order'][2:]\n    reg={**original_reg,'cases':[c for c in original_reg['cases']if c['tag']in amendment['remaining_case_tags']]}\n    assert len(reg['cases'])==6 and[c['tag']for c in reg['cases']]==amendment['remaining_case_tags']\n    supplement=json.loads((HERE/'remaining_v2_pre_native_freeze.json').read_text())\n    partial=json.loads((HERE/'partial_v1_completion_manifest.json').read_text())",
+      "occurrences": 1
+    },
+    {
+      "label": "all_original_and_V2_pins_preserved",
+      "before": "check(freeze['files']);check(freeze['external_sources'])",
+      "after": "check(freeze['files']);check(freeze['external_sources']);check(supplement['files']);check(partial['files'])",
+      "occurrences": 3
+    },
+    {
+      "label": "unique_results_target",
+      "before": "target=HERE/'evidence/results.json'",
+      "after": "target=HERE/'evidence/remaining_v2_results.json'",
+      "occurrences": 1
+    },
+    {
+      "label": "distinct_actual_evidence_schema",
+      "before": "'schema':'matched-gap-CPU-record-actual-native-stage-evidence-v1'",
+      "after": "'schema':'matched-gap-six-remaining-post-observation-native-stage-evidence-v2'",
+      "occurrences": 1
+    },
+    {
+      "label": "prior2_not_new_counts",
+      "before": "'prior_H2_reference_contexts':8,'prior_H2_reference_contexts_count_as_new':False,",
+      "after": "'prior_H2_reference_contexts':8,'prior_H2_reference_contexts_count_as_new':False,\n        'previous_V1_completed_contexts_reference_only':2,'previous_V1_results_sha256':sha(HERE/'evidence/results.json'),\n        'post_observation_amendment_sha256':sha(HERE/'remaining_v2_registration.json'),'only6remaining_contexts_counted_here':True,",
+      "occurrences": 1
+    },
+    {
+      "label": "bounded_diagnostic_retention_only",
+      "before": "            assert counts[3:7]==[0,0,0,0],'ordinary D3D12/SDK diagnostics';assert'debug_layer=1'in log",
+      "after": "            info['diagnostic_warning_admissibility']=evaluate_diagnostics(c,counts,(folder/'stderr.log').read_bytes())\n            checkpoint();assert'debug_layer=1'in log",
+      "occurrences": 1
+    },
+    {
+      "label": "retain_actual_known_warning_bytes",
+      "before": "            assert(folder/'stderr.log').stat().st_size==0\n",
+      "after": "",
+      "occurrences": 1
+    },
+    {
+      "label": "remaining6_expected_counts",
+      "before": "==[8,508,504,4,4,8]",
+      "after": "==[6,381,378,3,3,6]",
+      "occurrences": 1
+    },
+    {
+      "label": "remaining_only_completion_status",
+      "before": "completed_matched_gap_CPU_record_diagnostic_not_solution",
+      "after": "completed_matched_gap_CPU_record_remaining_V2_diagnostic_not_solution",
+      "occurrences": 1
+    }
+  ]
+}

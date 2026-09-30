@@ -1,0 +1,28 @@
+{
+  "schema": "frozen-combined-V2-CPU-analysis-execution-v1",
+  "command": [
+    "F:\\OptiRevelations\\OptiScaler\\tools_tmp\\albedo_stage1_venv\\Scripts\\python.exe",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\analyze_combined_v2.py"
+  ],
+  "cwd": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930",
+  "started_UTC": "2026-09-30T14:15:34.521288+00:00",
+  "finished_UTC": "2026-09-30T14:15:45.233269+00:00",
+  "returncode": 0,
+  "frozen_analysis": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\analyze_combined_v2.py",
+    "bytes": 5694,
+    "sha256": "59cc1b6d5d196e8a6ed801c983d5ef41b13860bc5acf1f75b2f24c00b99dcd76"
+  },
+  "stdout": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\combined_CPU_analysis.stdout.bin",
+    "bytes": 210,
+    "sha256": "6c58eb3a1d47d6d2ab3bdca7c100d952515ffe9aa04394328989d34e0c658688"
+  },
+  "stderr": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\combined_CPU_analysis.stderr.bin",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "new_native_contexts": 0,
+  "new_API_RR_recordings": 0
+}

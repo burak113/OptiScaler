@@ -1,0 +1,564 @@
+{
+  "schema": "matched-gap-first-warning-independent-audit-v1",
+  "UTC": "2026-09-30T13:55:53.140119+00:00",
+  "status": "completed_preserved_first_two_warning_observation_not_solution",
+  "actual_counts": {
+    "completed_contexts": 2,
+    "successful_API_records": 127,
+    "queued_completed_RR": 126,
+    "SDK_discard": 1,
+    "noAPI_omission": 1,
+    "metadata_accepted_contexts": 1
+  },
+  "new_native_GPU_build_calls": 0,
+  "source_pre_and_post_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\results.json",
+      "bytes": 38656,
+      "sha256": "2ecbff156a2bc599ff6d146b3d5969064ead9878fa3a9e3ffe30b8b831f76770"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\results.json",
+      "bytes": 170957,
+      "sha256": "59e2bbfbf86af99b19cc77ff97da7d761cd5c47144b76b830df4b200bc91b372"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\registration.json",
+      "bytes": 105519,
+      "sha256": "013d235048694e20650ae1ce4f779428c0b80422b3ee165b3e2c2289ecefd3ed"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\pre_native_freeze.json",
+      "bytes": 47002,
+      "sha256": "aed2ca795adf7a04f3a1404f9622bc89cd56f845b09cb358ea92d27e1bd4528f"
+    }
+  ],
+  "all_current_evidence_and_reference_hashes": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\diffuse.bin",
+      "bytes": 5160960,
+      "sha256": "c04072f1d2d9ce9a3e537f53abf2edc046b48872469c4089f928396499232cd4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\expected_applied_dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\expected_observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\expected_omitted_API_frame_indices.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\expected_output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\expected_queued_dispatch_controls.bin",
+      "bytes": 11592,
+      "sha256": "eca9ac5fb887bf1bb5b5d3efdcf86b42911f73ff4902d2e4372c79aa894c4daa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\expected_recorded_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\frame_controls.txt",
+      "bytes": 448,
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\input0.bin",
+      "bytes": 40960,
+      "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\input1.bin",
+      "bytes": 81920,
+      "sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\input2.bin",
+      "bytes": 40960,
+      "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\input3.bin",
+      "bytes": 40960,
+      "sha256": "d34ccb7d34a8c8e40b0b55d76883f1f82b3e239f824220e4e931043c937f087f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\input4.bin",
+      "bytes": 40960,
+      "sha256": "cdccd8934874f04f273b01f3781140d30dc1f384c16ca2b3a2c788291a1a35ae"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\input5.bin",
+      "bytes": 5242880,
+      "sha256": "2e70feed97c37be146038abe35e4ee349486422a55b5a0be96385f0079e71956"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\input6.bin",
+      "bytes": 5242880,
+      "sha256": "0ae93fa6054f0aeb80cdfb8b59eed6bcd6ba7abb1438be48ca782821d9cdfda1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\job.txt",
+      "bytes": 1459,
+      "sha256": "4e809a6d74fd60d6c8cb78c0fd417c0c8fdfca3cc57e7181d68a5cab142531b0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\native_work_accounting.json",
+      "bytes": 8719,
+      "sha256": "5cffd1a8a9ee90ef2523d2b298401dbd9ac62a65a71dfc28a920401ddfc98b3d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\omitted_API_frame_indices.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\queued_dispatch_controls.bin",
+      "bytes": 11592,
+      "sha256": "eca9ac5fb887bf1bb5b5d3efdcf86b42911f73ff4902d2e4372c79aa894c4daa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\recorded_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\resource_guard.json",
+      "bytes": 945,
+      "sha256": "9d1818fb085f022bedba4b3f7997378af8a54017cde99dd65afffc550ceb21ee"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\specular.bin",
+      "bytes": 5160960,
+      "sha256": "0ccf57a8c791c7b86ce62c71a83f38b449683b5771cd5ed64bf8f4e254ff0e09"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\stdout.log",
+      "bytes": 686,
+      "sha256": "d332cad275243db3ef363b318658598c09deb0918ba18830e950c21e06e15bf3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\diffuse.bin",
+      "bytes": 5160960,
+      "sha256": "8824625639cb9b7d5e20bc3c86f7f9770ddb514ca693e398e02aeeb4882cbf24"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\dispatch_controls.bin",
+      "bytes": 11592,
+      "sha256": "eca9ac5fb887bf1bb5b5d3efdcf86b42911f73ff4902d2e4372c79aa894c4daa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\expected_applied_dispatch_controls.bin",
+      "bytes": 11592,
+      "sha256": "eca9ac5fb887bf1bb5b5d3efdcf86b42911f73ff4902d2e4372c79aa894c4daa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\expected_observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\expected_omitted_API_frame_indices.bin",
+      "bytes": 4,
+      "sha256": "17fa9c7f5e9039a2d46e73e17d8e094a796ee4c313199bad42db4ee1dc30d865"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\expected_output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\expected_queued_dispatch_controls.bin",
+      "bytes": 11592,
+      "sha256": "eca9ac5fb887bf1bb5b5d3efdcf86b42911f73ff4902d2e4372c79aa894c4daa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\expected_recorded_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\frame_controls.txt",
+      "bytes": 448,
+      "sha256": "27a63daae81cabb10a059a77b790158b0a3eda563f1bf7658277507a70c79ed9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\input0.bin",
+      "bytes": 40960,
+      "sha256": "c8ea856b656300965174af001537ba7044ce0b820449ba901dc1b2dc1894dbfc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\input1.bin",
+      "bytes": 81920,
+      "sha256": "eb8199eeb812b2446bc37b87c7881424318762017f1096747f22e854be6720c4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\input2.bin",
+      "bytes": 40960,
+      "sha256": "b18dd0f3abf99f6de182b1e946e6f0381e5b1cfa993d3a20cee13bd4da380ee6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\input3.bin",
+      "bytes": 40960,
+      "sha256": "d34ccb7d34a8c8e40b0b55d76883f1f82b3e239f824220e4e931043c937f087f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\input4.bin",
+      "bytes": 40960,
+      "sha256": "cdccd8934874f04f273b01f3781140d30dc1f384c16ca2b3a2c788291a1a35ae"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\input5.bin",
+      "bytes": 5242880,
+      "sha256": "2e70feed97c37be146038abe35e4ee349486422a55b5a0be96385f0079e71956"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\input6.bin",
+      "bytes": 5242880,
+      "sha256": "0ae93fa6054f0aeb80cdfb8b59eed6bcd6ba7abb1438be48ca782821d9cdfda1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\job.txt",
+      "bytes": 1387,
+      "sha256": "ed2372ef8dfe5b8e855d9c69bd828ad5f701e7fc366e87bef06ae63828857ea8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\native_work_accounting.json",
+      "bytes": 8636,
+      "sha256": "8a8f3b0715ff67ed6eb21573900efdcfc38a4057fbbe0da05849decf576674a4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\omitted_API_frame_indices.bin",
+      "bytes": 4,
+      "sha256": "17fa9c7f5e9039a2d46e73e17d8e094a796ee4c313199bad42db4ee1dc30d865"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\recorded_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\resource_guard.json",
+      "bytes": 938,
+      "sha256": "fa18fea2219564c71d8bc70f88bb812becb955d074755e82ffdc1dfd005ee424"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\specular.bin",
+      "bytes": 5160960,
+      "sha256": "50a1cbf3535fa96b7ffc40ff232f5570b142f0f1d4c94510c23072c572e52081"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\stderr.log",
+      "bytes": 46,
+      "sha256": "877fbb9b1046be5bace08903a34877eeaaa823afd11985d520d299fde66f8775"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\stdout.log",
+      "bytes": 701,
+      "sha256": "08f3bfb86c9aaeb3514914cd1afede9ff5b43c23e8a27d51997ca380b260eb6b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "d372224e00154b2e8182f9967c917470a6acd70af20f9e106b1301dace078509"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "b2b298aa09cc192c3a4707870395569817c16895740d697b6d1a67601deca258"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\observed_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\recorded_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_baseline\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\diffuse.bin",
+      "bytes": 5160960,
+      "sha256": "c04072f1d2d9ce9a3e537f53abf2edc046b48872469c4089f928396499232cd4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\specular.bin",
+      "bytes": 5160960,
+      "sha256": "0ccf57a8c791c7b86ce62c71a83f38b449683b5771cd5ed64bf8f4e254ff0e09"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\recorded_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\diffuse.bin",
+      "bytes": 5160960,
+      "sha256": "8824625639cb9b7d5e20bc3c86f7f9770ddb514ca693e398e02aeeb4882cbf24"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\specular.bin",
+      "bytes": 5160960,
+      "sha256": "50a1cbf3535fa96b7ffc40ff232f5570b142f0f1d4c94510c23072c572e52081"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\recorded_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_discard24_reset25\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "5cce99368724bbed6c0c363f7aeffd1a9d324190465af8f3e36ddf4e51c209bd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\diffuse.bin",
+      "bytes": 3194880,
+      "sha256": "25eef533afe72763a74f2bc03081d12d001647080c71dae890a38bb329790261"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\specular.bin",
+      "bytes": 3194880,
+      "sha256": "4a4e7949e248ffb78f2a6abad8003ced16ab0210d5ae5e908d2313054daea7a1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\observed_frame_indices.bin",
+      "bytes": 156,
+      "sha256": "382a605a3d8c82ace2e0c612ab3bc721ca4334048a7ecc3a6634f4a6b710c22b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\recorded_frame_indices.bin",
+      "bytes": 156,
+      "sha256": "382a605a3d8c82ace2e0c612ab3bc721ca4334048a7ecc3a6634f4a6b710c22b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round0_fresh_tail25\\dispatch_controls.bin",
+      "bytes": 7176,
+      "sha256": "2a95abfc10355c96e4a138db0e099bbc88c75d9e162067781a643941f9db7b0d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\diffuse.bin",
+      "bytes": 3194880,
+      "sha256": "25eef533afe72763a74f2bc03081d12d001647080c71dae890a38bb329790261"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\specular.bin",
+      "bytes": 3194880,
+      "sha256": "4a4e7949e248ffb78f2a6abad8003ced16ab0210d5ae5e908d2313054daea7a1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\observed_frame_indices.bin",
+      "bytes": 156,
+      "sha256": "382a605a3d8c82ace2e0c612ab3bc721ca4334048a7ecc3a6634f4a6b710c22b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\recorded_frame_indices.bin",
+      "bytes": 156,
+      "sha256": "382a605a3d8c82ace2e0c612ab3bc721ca4334048a7ecc3a6634f4a6b710c22b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_discarded_recording_diagnostic_20260930\\evidence\\round1_fresh_tail25\\dispatch_controls.bin",
+      "bytes": 7176,
+      "sha256": "2a95abfc10355c96e4a138db0e099bbc88c75d9e162067781a643941f9db7b0d"
+    }
+  ],
+  "cases": [
+    {
+      "tag": "round0_record_discard24",
+      "footer": [
+        64,
+        63,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "metadata_accepted": true,
+      "native_completed": true,
+      "guard": {
+        "schema": "owned-child-native-lightweight-resource-guard-v1",
+        "args": [
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\fsrd_rr_gap_control.exe",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\job.txt",
+          "24",
+          "-1",
+          "0",
+          "-1"
+        ],
+        "timeout_seconds": 240,
+        "maximum_working_set_bytes": 2147483648,
+        "minimum_available_memory_bytes": 1073741824,
+        "sample_interval_seconds": 0.2,
+        "total_physical_bytes": 17098551296,
+        "initial_available_bytes": 6521843712,
+        "minimum_observed_available_bytes": 6410665984,
+        "peak_observed_working_set_bytes": 154251264,
+        "samples": 23,
+        "status": "completed",
+        "child_pid": 8640,
+        "returncode": 0,
+        "terminated_owned_child": false,
+        "termination_reason": null,
+        "elapsed_seconds": 4.671999999998661
+      },
+      "derived_queued_controls": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_warning_observation_audit_20260930\\round0_record_discard24_derived_queued_controls.bin",
+        "bytes": 11592,
+        "sha256": "eca9ac5fb887bf1bb5b5d3efdcf86b42911f73ff4902d2e4372c79aa894c4daa"
+      },
+      "stderr_literal": "",
+      "raw_lobes": [
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\diffuse.bin",
+          "bytes": 5160960,
+          "sha256": "c04072f1d2d9ce9a3e537f53abf2edc046b48872469c4089f928396499232cd4"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_record_discard24\\specular.bin",
+          "bytes": 5160960,
+          "sha256": "0ccf57a8c791c7b86ce62c71a83f38b449683b5771cd5ed64bf8f4e254ff0e09"
+        }
+      ],
+      "SDK_warning_is_not_D3D_warning_or_error": true,
+      "sourceframe24_absent_output_no_fabrication": true
+    },
+    {
+      "tag": "round0_no_api24",
+      "footer": [
+        63,
+        63,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "metadata_accepted": false,
+      "native_completed": true,
+      "guard": {
+        "schema": "owned-child-native-lightweight-resource-guard-v1",
+        "args": [
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\fsrd_rr_gap_control.exe",
+          "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\job.txt",
+          "-1",
+          "-1",
+          "0",
+          "24"
+        ],
+        "timeout_seconds": 240,
+        "maximum_working_set_bytes": 2147483648,
+        "minimum_available_memory_bytes": 1073741824,
+        "sample_interval_seconds": 0.2,
+        "total_physical_bytes": 17098551296,
+        "initial_available_bytes": 6500237312,
+        "minimum_observed_available_bytes": 6425886720,
+        "peak_observed_working_set_bytes": 80039936,
+        "samples": 2,
+        "status": "completed",
+        "child_pid": 22944,
+        "returncode": 0,
+        "terminated_owned_child": false,
+        "termination_reason": null,
+        "elapsed_seconds": 0.40600000000267755
+      },
+      "derived_queued_controls": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_warning_observation_audit_20260930\\round0_no_api24_derived_queued_controls.bin",
+        "bytes": 11592,
+        "sha256": "eca9ac5fb887bf1bb5b5d3efdcf86b42911f73ff4902d2e4372c79aa894c4daa"
+      },
+      "stderr_literal": "SDK: Frame index jump detected. Resetting...\n",
+      "raw_lobes": [
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\diffuse.bin",
+          "bytes": 5160960,
+          "sha256": "8824625639cb9b7d5e20bc3c86f7f9770ddb514ca693e398e02aeeb4882cbf24"
+        },
+        {
+          "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\round0_no_api24\\specular.bin",
+          "bytes": 5160960,
+          "sha256": "50a1cbf3535fa96b7ffc40ff232f5570b142f0f1d4c94510c23072c572e52081"
+        }
+      ],
+      "SDK_warning_is_not_D3D_warning_or_error": true,
+      "sourceframe24_absent_output_no_fabrication": true
+    }
+  ],
+  "remaining_six_have_not_run": true,
+  "matched_all7_inputs_and_actual_queued_184controls": true,
+  "comparisons": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_warning_observation_audit_20260930\\independent_comparisons.json",
+    "bytes": 312110,
+    "sha256": "355c03214c5cbc3ee7ede1c522c5d89fd4920907a5b2921ef861c21cc1e00ef0"
+  },
+  "warning_scope": "Actual noAPI24 arm reports exactly one SDK warning: Frame index jump detected. Resetting... . This is an observed diagnostic, not an SDK error or D3D warning. Applied flags/source indices remain byte-authenticated; warning indicates SDK may change effective history despite identical queued application controls. No warning timestamp pinpoints its exact emitting API call in retained stderr.",
+  "causal_qualification": "Successful record24/discard versus noAPI24 contrasts API presence while queued GPU inputs match. Warning/internal reset is a plausible measured mediator of any tail difference, not evidence of a universal SDK contract, game trigger, visual quality, or stain cause. H2 comparisons use different isolated runner binary and context and are descriptive.",
+  "report_rejection_does_not_erase_completed_work": true,
+  "quality_accepted": false,
+  "general_fix": false
+}

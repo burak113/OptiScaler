@@ -1,0 +1,153 @@
+{
+  "schema": "matched-gap-actual-stage-accounting-before-acceptance-v1",
+  "case": "SIMULATED_provider_only_unknown",
+  "attempted_owned_child": true,
+  "guard_status": "SIMULATED_NOT_NATIVE",
+  "returncode": 2,
+  "created_native_context_confirmed": true,
+  "completed_native_context_final_marker": false,
+  "successful_API_RR_recordings_confirmed": 0,
+  "queued_RR_dispatches_confirmed_completed": 0,
+  "discarded_API_RR_recordings_confirmed": 0,
+  "observed_output_frames_confirmed": 0,
+  "counter_authority": "semantically_valid_artifact_lower_bounds_totals_unknown",
+  "final_CPP_footer_valid": false,
+  "semantically_valid_artifact_lower_bounds": {
+    "successful_API_RR_recordings": 0,
+    "queued_RR_dispatches": 0,
+    "discarded_RR_recordings": 0
+  },
+  "totals_unknown": true,
+  "unified_count_status": "qualified_per_stage_counts_totals_unknown",
+  "artifact_validity": {
+    "successful_recorded_indices": true,
+    "observed_indices": true,
+    "presence": true,
+    "raw_lobes": {
+      "diffuse.bin": true,
+      "specular.bin": true
+    },
+    "omitted_API_indices": true
+  },
+  "final_stdout_counters": null,
+  "recording_evidence_counts": {
+    "final_stdout": null,
+    "successful_recorded_u32_indices": 0
+  },
+  "queue_evidence_counts": {
+    "final_stdout": null,
+    "observed_u32_indices": 0,
+    "presence_ones": 0,
+    "diffuse_whole_readback_frames": 0,
+    "specular_whole_readback_frames": 0
+  },
+  "discard_evidence_counts": {
+    "final_stdout": null,
+    "missing_output_presence_zeros": 0,
+    "valid_successful_API_discard_presence_lower_bound": 0
+  },
+  "successful_recorded_indices": {
+    "present": false,
+    "values": [],
+    "whole_u32_records": 0,
+    "trailing_bytes": 0
+  },
+  "observed_indices": {
+    "present": false,
+    "values": [],
+    "whole_u32_records": 0,
+    "trailing_bytes": 0
+  },
+  "presence": {
+    "present": false,
+    "values": [],
+    "ones": 0,
+    "zeros": 0,
+    "invalid_values": 0
+  },
+  "raw_lobes": {
+    "diffuse.bin": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\SIMULATED_accounting_unit_inputs\\provider_only_unknown\\diffuse.bin",
+      "present": false,
+      "bytes": null,
+      "sha256": null,
+      "whole_raw_frames": 0,
+      "trailing_raw_bytes": 0
+    },
+    "specular.bin": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\SIMULATED_accounting_unit_inputs\\provider_only_unknown\\specular.bin",
+      "present": false,
+      "bytes": null,
+      "sha256": null,
+      "whole_raw_frames": 0,
+      "trailing_raw_bytes": 0
+    }
+  },
+  "evidence_disagreements": [],
+  "counts_qualification": "Valid bounded CPP footer is authoritative for recorded/completed queued work under pinned source, even when metadata artifacts conflict or validation rejects. All artifact claims remain retained. Without a reliable bounded footer, only semantically valid registered-prefix/capacity artifact lower bounds are aggregated; totals remain unknown. Registered capacities never populate missing measurements.",
+  "incomplete_child_native_work_may_exceed_confirmed_lower_bounds": true,
+  "metadata_acceptance_evaluated": false,
+  "planned_counts_are_measurements": false,
+  "accounting_artifacts": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\SIMULATED_accounting_unit_inputs\\provider_only_unknown\\stdout.log",
+      "present": true,
+      "bytes": 19,
+      "sha256": "32d120787ccda6402e26a18c16cbdd76264ec3da2c1fb75c992597ca55d25ae4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\SIMULATED_accounting_unit_inputs\\provider_only_unknown\\stderr.log",
+      "present": true,
+      "bytes": 48,
+      "sha256": "d1bd71bf814fb669d8503271d93036746898368a16412eae4fee1619f9aab3b6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\SIMULATED_accounting_unit_inputs\\provider_only_unknown\\recorded_frame_indices.bin",
+      "present": false,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\SIMULATED_accounting_unit_inputs\\provider_only_unknown\\observed_frame_indices.bin",
+      "present": false,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\SIMULATED_accounting_unit_inputs\\provider_only_unknown\\output_presence.bin",
+      "present": false,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\SIMULATED_accounting_unit_inputs\\provider_only_unknown\\diffuse.bin",
+      "present": false,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\SIMULATED_accounting_unit_inputs\\provider_only_unknown\\specular.bin",
+      "present": false,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\SIMULATED_accounting_unit_inputs\\provider_only_unknown\\omitted_API_frame_indices.bin",
+      "present": false,
+      "bytes": null,
+      "sha256": null
+    }
+  ],
+  "omitted_API_frame_indices": {
+    "present": false,
+    "values": [],
+    "whole_u32_records": 0,
+    "trailing_bytes": 0
+  },
+  "no_API_omissions_confirmed": 0,
+  "final_stdout_no_API_omissions": null,
+  "omission_counter_authority": "valid_omitted_index_prefix_lower_bound_total_unknown",
+  "API_RR_totals_unknown": true,
+  "omission_total_unknown": true,
+  "stage_count_qualification": "API/queue/discard footer partition is successfulAPI=queued+SDKdiscard. Missing-output presence zeros combine SDKdiscard and noAPIomission and alone never prove a successful SDK discard. Omissions have their own pinned CPP footer and source-index evidence. Valid bounded footer counters are retained despite metadata rejection; without reliable footer only valid semantic prefix lower bounds are confirmed and totals remain unknown."
+}

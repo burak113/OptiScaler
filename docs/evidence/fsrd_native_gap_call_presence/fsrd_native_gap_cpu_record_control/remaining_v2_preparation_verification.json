@@ -1,0 +1,49 @@
+{
+  "schema": "post-observation-remaining6-V2-preparation-CPU-verification-v1",
+  "status": "prepared_NOT_AUTHORIZED_TO_RUN",
+  "original199_preparation_and23external_verified": true,
+  "original_first2_all_sealed_bytes_verified": true,
+  "V2_frozen_files_verified": 236,
+  "original_results_status": "failed_preserved",
+  "original_V1_metadata_accepted_contexts": 1,
+  "original_V1_actual_counts": {
+    "contexts": 2,
+    "successful_API_RR_recordings": 127,
+    "queued_RR_dispatches": 126,
+    "SDK_record_discards": 1,
+    "no_API_omissions": 1,
+    "metadata_accepted_contexts": 1,
+    "SDK_warnings": 1
+  },
+  "planned_new_counts": {
+    "contexts": 6,
+    "API": 381,
+    "queued": 378,
+    "SDKdiscard": 3,
+    "noAPIomit": 3
+  },
+  "actual_new_native_contexts": 0,
+  "actual_new_API_RR_recordings": 0,
+  "actual_new_queued_RR_dispatches": 0,
+  "only6unattempted_original_cases_no_existing_guard_or_output": true,
+  "unchanged_CPP_EXE_inputs_controls_guard_accounting": true,
+  "diagnostic_CPU_check": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\remaining_v2_CPU_check.json",
+    "bytes": 7159,
+    "sha256": "d625a4639d2e4c52041b1a52afab194084861af64668219fe17b14485f240fa9"
+  },
+  "SIMULATED_cases": 11,
+  "quality_accepted": false,
+  "remaining_V2_registration": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\remaining_v2_registration.json",
+    "bytes": 7166,
+    "sha256": "8c126e93e85260af70e7ca5e13801c7ed7a0e5bc09e2d38a1f382829e6ff9e79"
+  },
+  "remaining_V2_freeze": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\remaining_v2_pre_native_freeze.json",
+    "bytes": 69272,
+    "sha256": "82209ebfaa0b7ec5cb61dc9e5167633a987b81949eceea6543a4ba3b17687799"
+  },
+  "warning_policy": "noAPI0or1 exactknownwarning bytes; recordstrict0; allSDKerrors/D3Derrorswarnings0. Post-observation diagnostic retention only; warning counts retained.",
+  "new_run_gate": "Independent SolHigh V2 readiness and root newauthorization for exactlysix pending cases; no retry or native launch in preparation."
+}

@@ -1,0 +1,332 @@
+{
+  "schema": "immutable-gap-control-independent-pre-native-review-completion-v1",
+  "files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\final_pre_native_review.json",
+      "bytes": 7221,
+      "sha256": "450a55e22db99a80fd882c9f3a90635729c5e07ef81185fda6915f7e94710220"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\final_verify.py",
+      "bytes": 8418,
+      "sha256": "c5d86972aec20e82535481a6d96810533e0e796e266f493f62718d12ebd29dc1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\final_verify_v2.py",
+      "bytes": 8669,
+      "sha256": "533bd6375f706822723ddcb82e4895fd076a71e2e70f14bcaf89f8ee1c5afe4f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\preliminary_review.json",
+      "bytes": 2571,
+      "sha256": "eae6afbecbb61589c64fbccd952c1b33956acfc6d8d1439c60c40b3673a4d32a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\preparation_expectation_failure.py.txt",
+      "bytes": 8418,
+      "sha256": "c5d86972aec20e82535481a6d96810533e0e796e266f493f62718d12ebd29dc1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\preparation_syntax_failure.py.txt",
+      "bytes": 10432,
+      "sha256": "5699e750b298ce2365293123c99c95b8b4a9850e146933aa8ce4f7051c555b1a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\review.py",
+      "bytes": 10438,
+      "sha256": "2cd77a22d8d6c1af7afb638d4947518108163477ed6ef6dd543c7b1edf1fb07a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_noAPI_footer1_reject2_omissions\\observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_noAPI_footer1_reject2_omissions\\omitted_API_frame_indices.bin",
+      "bytes": 8,
+      "sha256": "ad2318b425509c788114056f31c4134c9157f5e125b75504099aa76b92172c11"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_noAPI_footer1_reject2_omissions\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_noAPI_footer1_reject2_omissions\\recorded_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_noAPI_footer1_reject2_omissions\\stdout.log",
+      "bytes": 210,
+      "sha256": "cbda4080e70299580425007cee3e8768524a230f5a4649533c3b66421c5e0bea"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_noAPI_footer1_reject2_omissions.json",
+      "bytes": 8873,
+      "sha256": "8829a989d734146f93b450e2eb6fb59d1b85f401b8d78bda3ddc536c11f783cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_noAPI_footer63_reject64_indices\\observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_noAPI_footer63_reject64_indices\\omitted_API_frame_indices.bin",
+      "bytes": 4,
+      "sha256": "17fa9c7f5e9039a2d46e73e17d8e094a796ee4c313199bad42db4ee1dc30d865"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_noAPI_footer63_reject64_indices\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_noAPI_footer63_reject64_indices\\recorded_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_noAPI_footer63_reject64_indices\\stdout.log",
+      "bytes": 210,
+      "sha256": "cbda4080e70299580425007cee3e8768524a230f5a4649533c3b66421c5e0bea"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_noAPI_footer63_reject64_indices.json",
+      "bytes": 8875,
+      "sha256": "01c0bf2c1cc29fe14024dc058ed6ae6a7498d1a2a79110daf4b5cfa5492d7aaa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_noAPI_partial_nofooter\\observed_frame_indices.bin",
+      "bytes": 100,
+      "sha256": "ba16acbd7faf010e73c258467622d30d960df26c9a82dd16413be9ab5f90e7f3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_noAPI_partial_nofooter\\omitted_API_frame_indices.bin",
+      "bytes": 4,
+      "sha256": "17fa9c7f5e9039a2d46e73e17d8e094a796ee4c313199bad42db4ee1dc30d865"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_noAPI_partial_nofooter\\output_presence.bin",
+      "bytes": 26,
+      "sha256": "c95819b4e8a0f80bcdc8c97bad2ad4edce20cca01488cb7660dcf7da37c10882"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_noAPI_partial_nofooter\\recorded_frame_indices.bin",
+      "bytes": 100,
+      "sha256": "ba16acbd7faf010e73c258467622d30d960df26c9a82dd16413be9ab5f90e7f3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_noAPI_partial_nofooter\\stdout.log",
+      "bytes": 53,
+      "sha256": "604049d637ad4e3e1ec7945a59960e5a64ecf01364be469e7b6b8a63131668e5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_invalid_footer_capacity\\observed_frame_indices.bin",
+      "bytes": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_invalid_footer_capacity\\omitted_API_frame_indices.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_invalid_footer_capacity\\output_presence.bin",
+      "bytes": 1,
+      "sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_invalid_footer_capacity\\recorded_frame_indices.bin",
+      "bytes": 12,
+      "sha256": "ad5dc1478de06a4c2728ea528bd9361a4b945e92a414bf4d180cedaaeaa5f4cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_invalid_footer_capacity\\stdout.log",
+      "bytes": 210,
+      "sha256": "675b87e76c57be4f055592fb37351e07251c66890cca5e6d66c84213df47d7a0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_invalid_footer_capacity.json",
+      "bytes": 7148,
+      "sha256": "2c5eccfa7db681cd7eb860e136b4035dfd28b67cee7f8d9313c4b5192d5dccc8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_footer1_reject2_omissions\\observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_footer1_reject2_omissions\\omitted_API_frame_indices.bin",
+      "bytes": 8,
+      "sha256": "ad2318b425509c788114056f31c4134c9157f5e125b75504099aa76b92172c11"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_footer1_reject2_omissions\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_footer1_reject2_omissions\\recorded_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_footer1_reject2_omissions\\stdout.log",
+      "bytes": 210,
+      "sha256": "cbda4080e70299580425007cee3e8768524a230f5a4649533c3b66421c5e0bea"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_footer1_reject2_omissions.json",
+      "bytes": 8903,
+      "sha256": "bf77bb5f7fee9948536bf25128a0cc9bae06670214fbc02d6c8ae16457c063ce"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_footer63_reject64_indices\\observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_footer63_reject64_indices\\omitted_API_frame_indices.bin",
+      "bytes": 4,
+      "sha256": "17fa9c7f5e9039a2d46e73e17d8e094a796ee4c313199bad42db4ee1dc30d865"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_footer63_reject64_indices\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_footer63_reject64_indices\\recorded_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_footer63_reject64_indices\\stdout.log",
+      "bytes": 210,
+      "sha256": "cbda4080e70299580425007cee3e8768524a230f5a4649533c3b66421c5e0bea"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_footer63_reject64_indices.json",
+      "bytes": 8905,
+      "sha256": "2fabcec035d81fab544da99d2f4976221199d651e9e7eb0f8dfb68333f4c7835"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_partial_nofooter\\observed_frame_indices.bin",
+      "bytes": 100,
+      "sha256": "ba16acbd7faf010e73c258467622d30d960df26c9a82dd16413be9ab5f90e7f3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_partial_nofooter\\omitted_API_frame_indices.bin",
+      "bytes": 4,
+      "sha256": "17fa9c7f5e9039a2d46e73e17d8e094a796ee4c313199bad42db4ee1dc30d865"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_partial_nofooter\\output_presence.bin",
+      "bytes": 26,
+      "sha256": "c95819b4e8a0f80bcdc8c97bad2ad4edce20cca01488cb7660dcf7da37c10882"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_partial_nofooter\\recorded_frame_indices.bin",
+      "bytes": 100,
+      "sha256": "ba16acbd7faf010e73c258467622d30d960df26c9a82dd16413be9ab5f90e7f3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_partial_nofooter\\stdout.log",
+      "bytes": 53,
+      "sha256": "604049d637ad4e3e1ec7945a59960e5a64ecf01364be469e7b6b8a63131668e5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_noAPI_partial_nofooter.json",
+      "bytes": 7286,
+      "sha256": "b7134a5a755e1ace6d06fa74daa82dd51e581dc53dfea057478680a824941bf1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_record_partial_nofooter\\observed_frame_indices.bin",
+      "bytes": 100,
+      "sha256": "ba16acbd7faf010e73c258467622d30d960df26c9a82dd16413be9ab5f90e7f3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_record_partial_nofooter\\omitted_API_frame_indices.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_record_partial_nofooter\\output_presence.bin",
+      "bytes": 26,
+      "sha256": "c95819b4e8a0f80bcdc8c97bad2ad4edce20cca01488cb7660dcf7da37c10882"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_record_partial_nofooter\\recorded_frame_indices.bin",
+      "bytes": 104,
+      "sha256": "103b5eb5079b0de01e6b81c94ea99d851037921c4771adb01de02e4cdf7b7d7b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_record_partial_nofooter\\stdout.log",
+      "bytes": 53,
+      "sha256": "604049d637ad4e3e1ec7945a59960e5a64ecf01364be469e7b6b8a63131668e5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_final_v2_record_partial_nofooter.json",
+      "bytes": 7293,
+      "sha256": "8218b1d43d25108cffea71fc540a8bfe8f41b97de36023b8e2640b44357ba083"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_unit_API_discard\\observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_unit_API_discard\\omitted_API_frame_indices.bin",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_unit_API_discard\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_unit_API_discard\\recorded_frame_indices.bin",
+      "bytes": 256,
+      "sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_unit_API_discard\\stdout.log",
+      "bytes": 204,
+      "sha256": "8716a7cb22320197c2c57b2c901be555a608fc7ac04d78c544941ce742fc400e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_unit_no_api\\observed_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_unit_no_api\\omitted_API_frame_indices.bin",
+      "bytes": 4,
+      "sha256": "17fa9c7f5e9039a2d46e73e17d8e094a796ee4c313199bad42db4ee1dc30d865"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_unit_no_api\\output_presence.bin",
+      "bytes": 64,
+      "sha256": "2d21ba750a07df8055d5ff838da374ec79133056df5117ddac7be5f64d7c85cc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_unit_no_api\\recorded_frame_indices.bin",
+      "bytes": 252,
+      "sha256": "836c2c8d052bea8f2218eb7b745ca66b5df92067acc463f4b8329280bcc764d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\SIMULATED_unit_no_api\\stdout.log",
+      "bytes": 204,
+      "sha256": "a6a0edcaf4f6f53c2ce23b5891ab9b4254c35c3b983fef3eaab87c57da98cf1c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\source_review.json",
+      "bytes": 27835,
+      "sha256": "2ae609cea62c1ca8d9362e250879bdcc4606c685d50cb7175ab0244503b4470e"
+    }
+  ],
+  "actual_native_has_not_run_at_seal": true,
+  "quality_accepted": false
+}

@@ -1,0 +1,31 @@
+{
+  "files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_full_post_native_audit_20260930\\audit.json",
+      "bytes": 86638,
+      "sha256": "498bd7fcccb87a50d078a279da405c6827d44e118c80250e99c8b41080444d63"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_full_post_native_audit_20260930\\audit.py",
+      "bytes": 13731,
+      "sha256": "fccba72381d9ea230d04286e1c15def16cd6707cd22b0a6b7c2ab17f14162357"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_full_post_native_audit_20260930\\independent_pair_metrics.json",
+      "bytes": 1497219,
+      "sha256": "ea7e875697cec289fb543abb4dbf80af6e7f9fbb67be9662145288ecec29dc03"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_full_post_native_audit_20260930\\reference_and_repeat_checks.json",
+      "bytes": 488883,
+      "sha256": "c8857d927d01b7ba0273c5d260869b73afaa4823702bf7cc21ddabcb50901117"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_full_post_native_audit_20260930\\round0_no_api24_derived_queued_controls.bin",
+      "bytes": 11592,
+      "sha256": "eca9ac5fb887bf1bb5b5d3efdcf86b42911f73ff4902d2e4372c79aa894c4daa"
+    }
+  ],
+  "producer_changed": false,
+  "native_GPU_calls": 0
+}

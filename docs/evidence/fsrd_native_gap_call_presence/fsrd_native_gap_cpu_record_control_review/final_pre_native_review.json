@@ -1,0 +1,190 @@
+{
+  "schema": "matched-gap-CPUrecord-final-independent-pre-native-seal-v1",
+  "UTC": "2026-09-30T13:47:00.324531+00:00",
+  "status": "ready_for_root_authorized_bounded_native_diagnostic",
+  "actual_native_has_not_run": true,
+  "own_GPU_native_build_calls": 0,
+  "producer_owned199_external23_all_hashes_verified_before_and_after": true,
+  "producer_completion_manifest": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\preparation_completion_manifest.json",
+    "bytes": 65750,
+    "sha256": "19b63ab8f27ceaa6a03632b29414afc654a273a47e5636f7f30f079de8d04317"
+  },
+  "producer_CPU_verification": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\preparation_cpu_verification.json",
+    "bytes": 3193,
+    "sha256": "4a6b39d4e32be33d89a85e0b006651673ce830b6063b4a44693e9964051a3345"
+  },
+  "source_review": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_review_20260930\\source_review.json",
+    "bytes": 27835,
+    "sha256": "2ae609cea62c1ca8d9362e250879bdcc4606c685d50cb7175ab0244503b4470e"
+  },
+  "source_reg_freeze_and_executable": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\registration.json",
+      "bytes": 105519,
+      "sha256": "013d235048694e20650ae1ce4f779428c0b80422b3ee165b3e2c2289ecefd3ed"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\pre_native_freeze.json",
+      "bytes": 47002,
+      "sha256": "aed2ca795adf7a04f3a1404f9622bc89cd56f845b09cb358ea92d27e1bd4528f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\fsrd_rr_gap_control.cpp",
+      "bytes": 22714,
+      "sha256": "84ca72c54ab173299d7f82056a297b6daf3f4e2ef12c8c0c0691f9748321b8f3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\fsrd_rr_gap_control.exe",
+      "bytes": 401408,
+      "sha256": "e3769339c4089e8c0af46434a949c2ffabbef1ab4b5084e701aae939f5248fc1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\run_native.py",
+      "bytes": 8425,
+      "sha256": "f0d0f2e2669ddf3a07fa44b008858ef5c679194acc4245cb2dde53f8201debef"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\native_work_accounting.py",
+      "bytes": 4875,
+      "sha256": "48fa1fc8a4b062ebcd5077737e9d35ecabe17a6c741156976614c068f3169529"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\native_work_accounting_core_v3.py",
+      "bytes": 8575,
+      "sha256": "a203c59afabe20c1cb49c3ad76d7d0330099eae6216cc49f812c95604aea56b4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\native_resource_guard.py",
+      "bytes": 4837,
+      "sha256": "b70e18d0f13963e0250c371171933429446cf304041c9a16d971e9898d211814"
+    }
+  ],
+  "controls": [
+    {
+      "case": "round0_record_discard24",
+      "184_byte_packets": 64,
+      "SDK_frameIndex_absolute_source_index": true,
+      "flags_NON_GAMMA_ALBEDO_2_and_RESET_1": true
+    },
+    {
+      "case": "round0_no_api24",
+      "184_byte_packets": 63,
+      "SDK_frameIndex_absolute_source_index": true,
+      "flags_NON_GAMMA_ALBEDO_2_and_RESET_1": true
+    },
+    {
+      "case": "round0_record_discard24_reset25",
+      "184_byte_packets": 64,
+      "SDK_frameIndex_absolute_source_index": true,
+      "flags_NON_GAMMA_ALBEDO_2_and_RESET_1": true
+    },
+    {
+      "case": "round0_no_api24_reset25",
+      "184_byte_packets": 63,
+      "SDK_frameIndex_absolute_source_index": true,
+      "flags_NON_GAMMA_ALBEDO_2_and_RESET_1": true
+    },
+    {
+      "case": "round1_no_api24_reset25",
+      "184_byte_packets": 63,
+      "SDK_frameIndex_absolute_source_index": true,
+      "flags_NON_GAMMA_ALBEDO_2_and_RESET_1": true
+    },
+    {
+      "case": "round1_record_discard24_reset25",
+      "184_byte_packets": 64,
+      "SDK_frameIndex_absolute_source_index": true,
+      "flags_NON_GAMMA_ALBEDO_2_and_RESET_1": true
+    },
+    {
+      "case": "round1_no_api24",
+      "184_byte_packets": 63,
+      "SDK_frameIndex_absolute_source_index": true,
+      "flags_NON_GAMMA_ALBEDO_2_and_RESET_1": true
+    },
+    {
+      "case": "round1_record_discard24",
+      "184_byte_packets": 64,
+      "SDK_frameIndex_absolute_source_index": true,
+      "flags_NON_GAMMA_ALBEDO_2_and_RESET_1": true
+    }
+  ],
+  "producer_SIMULATED_checks_authenticated": 8,
+  "own_additional_SIMULATED_checks": [
+    {
+      "SIMULATED_NOT_NATIVE_EVIDENCE": true,
+      "name": "noAPI_footer63_reject64_indices",
+      "counts": [
+        63,
+        63,
+        0,
+        1
+      ],
+      "totals_unknown": false,
+      "raw_output_files_created": false
+    },
+    {
+      "SIMULATED_NOT_NATIVE_EVIDENCE": true,
+      "name": "noAPI_footer1_reject2_omissions",
+      "counts": [
+        63,
+        63,
+        0,
+        1
+      ],
+      "totals_unknown": false,
+      "raw_output_files_created": false
+    },
+    {
+      "SIMULATED_NOT_NATIVE_EVIDENCE": true,
+      "name": "noAPI_partial_nofooter",
+      "counts": [
+        25,
+        25,
+        0,
+        1
+      ],
+      "totals_unknown": true,
+      "raw_output_files_created": false
+    },
+    {
+      "SIMULATED_NOT_NATIVE_EVIDENCE": true,
+      "name": "record_partial_nofooter",
+      "counts": [
+        26,
+        25,
+        1,
+        0
+      ],
+      "totals_unknown": true,
+      "raw_output_files_created": false
+    },
+    {
+      "SIMULATED_NOT_NATIVE_EVIDENCE": true,
+      "name": "invalid_footer_capacity",
+      "counts": [
+        3,
+        1,
+        0,
+        0
+      ],
+      "totals_unknown": true,
+      "raw_output_files_created": false
+    }
+  ],
+  "reviewer_preparation_erratum": "Initial own review.py had else64/else1/else0 lexical syntax errors and failed before imports, source reads, checks or measurements. That exact initial script is preserved as preparation_syntax_failure.py.txt; whitespace-only correction succeeded. An additional own assertion incorrectly required metadata disagreement for a valid incomplete no-footer prefix; preserved preparation_expectation_failure.py.txt. Corrected to require rejection only for completed footer cases. No producer/evidence change.",
+  "planned_only": {
+    "contexts": 8,
+    "API_recordings": 508,
+    "queued_RR": 504,
+    "SDK_discard": 4,
+    "noAPI_omission": 4
+  },
+  "causal_scope": "Same queued source input bytes and controls, matched RESET25 factor. API24 successful record versus noAPI24 while both abandon GPU24. A conditional difference does not identify opaque SDK CPU bookkeeping/private-resource mutation, establish discard support, or imply game behavior.",
+  "readiness_is_not_execution_authorization": true,
+  "quality_accepted": false,
+  "general_stain_wave_fix": false
+}

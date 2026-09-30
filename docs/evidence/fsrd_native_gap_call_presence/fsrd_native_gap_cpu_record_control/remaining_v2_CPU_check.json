@@ -1,0 +1,247 @@
+{
+  "schema": "SIMULATED-post-observation-remaining6-diagnostic-retention-CPU-check-v2",
+  "status": "passed",
+  "SIMULATED_NOT_NATIVE_EVIDENCE": true,
+  "tests": 11,
+  "outcomes": [
+    {
+      "SIMULATED_case": "noAPI_zero_empty",
+      "counts": [
+        63,
+        63,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "stderr_hex": "",
+      "expected_admissible": true,
+      "actual_admissible": true,
+      "result": {
+        "schema": "post-observation-exact-diagnostic-warning-admissibility-v2",
+        "diagnostic_retention_admissible": true,
+        "no_API_arm": true,
+        "actual_SDK_warning_count": 0,
+        "stderr_bytes": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "known_warning_present": false,
+        "warning_count_is_quality_score": false,
+        "quality_accepted": false,
+        "qualification": "Post-observation retention amendment allows noAPI0or1 only this exactSDKwarning. It retains actual warning counts; absence in explicitRESET arms is admissible. It establishes no universal automatic RESET contract or image-quality pass."
+      },
+      "rejection": null
+    },
+    {
+      "SIMULATED_case": "noAPI_one_exact",
+      "counts": [
+        63,
+        63,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "stderr_hex": "53444b3a204672616d6520696e646578206a756d702064657465637465642e20526573657474696e672e2e2e0d0a",
+      "expected_admissible": true,
+      "actual_admissible": true,
+      "result": {
+        "schema": "post-observation-exact-diagnostic-warning-admissibility-v2",
+        "diagnostic_retention_admissible": true,
+        "no_API_arm": true,
+        "actual_SDK_warning_count": 1,
+        "stderr_bytes": 46,
+        "stderr_sha256": "877fbb9b1046be5bace08903a34877eeaaa823afd11985d520d299fde66f8775",
+        "known_warning_present": true,
+        "warning_count_is_quality_score": false,
+        "quality_accepted": false,
+        "qualification": "Post-observation retention amendment allows noAPI0or1 only this exactSDKwarning. It retains actual warning counts; absence in explicitRESET arms is admissible. It establishes no universal automatic RESET contract or image-quality pass."
+      },
+      "rejection": null
+    },
+    {
+      "SIMULATED_case": "record_zero_empty",
+      "counts": [
+        64,
+        63,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "stderr_hex": "",
+      "expected_admissible": true,
+      "actual_admissible": true,
+      "result": {
+        "schema": "post-observation-exact-diagnostic-warning-admissibility-v2",
+        "diagnostic_retention_admissible": true,
+        "no_API_arm": false,
+        "actual_SDK_warning_count": 0,
+        "stderr_bytes": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "known_warning_present": false,
+        "warning_count_is_quality_score": false,
+        "quality_accepted": false,
+        "qualification": "Post-observation retention amendment allows noAPI0or1 only this exactSDKwarning. It retains actual warning counts; absence in explicitRESET arms is admissible. It establishes no universal automatic RESET contract or image-quality pass."
+      },
+      "rejection": null
+    },
+    {
+      "SIMULATED_case": "noAPI_two_reject",
+      "counts": [
+        63,
+        63,
+        0,
+        0,
+        0,
+        0,
+        2,
+        1
+      ],
+      "stderr_hex": "53444b3a204672616d6520696e646578206a756d702064657465637465642e20526573657474696e672e2e2e0d0a53444b3a204672616d6520696e646578206a756d702064657465637465642e20526573657474696e672e2e2e0d0a",
+      "expected_admissible": false,
+      "actual_admissible": false,
+      "result": null,
+      "rejection": "noAPI SDK warning count outside0or1"
+    },
+    {
+      "SIMULATED_case": "noAPI_other_warning_reject",
+      "counts": [
+        63,
+        63,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "stderr_hex": "53444b3a204f74686572207761726e696e670d0a",
+      "expected_admissible": false,
+      "actual_admissible": false,
+      "result": null,
+      "rejection": "SDK warning bytes outside exact known allowlist"
+    },
+    {
+      "SIMULATED_case": "noAPI_extra_line_reject",
+      "counts": [
+        63,
+        63,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "stderr_hex": "53444b3a204672616d6520696e646578206a756d702064657465637465642e20526573657474696e672e2e2e0d0a65787472610d0a",
+      "expected_admissible": false,
+      "actual_admissible": false,
+      "result": null,
+      "rejection": "SDK warning bytes outside exact known allowlist"
+    },
+    {
+      "SIMULATED_case": "noAPI_count_zero_message_reject",
+      "counts": [
+        63,
+        63,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "stderr_hex": "53444b3a204672616d6520696e646578206a756d702064657465637465642e20526573657474696e672e2e2e0d0a",
+      "expected_admissible": false,
+      "actual_admissible": false,
+      "result": null,
+      "rejection": "SDK warning bytes outside exact known allowlist"
+    },
+    {
+      "SIMULATED_case": "record_one_warning_reject",
+      "counts": [
+        64,
+        63,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      "stderr_hex": "53444b3a204672616d6520696e646578206a756d702064657465637465642e20526573657474696e672e2e2e0d0a",
+      "expected_admissible": false,
+      "actual_admissible": false,
+      "result": null,
+      "rejection": "record-discard requires no SDK warnings/messages"
+    },
+    {
+      "SIMULATED_case": "SDK_error_reject",
+      "counts": [
+        63,
+        63,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1
+      ],
+      "stderr_hex": "",
+      "expected_admissible": false,
+      "actual_admissible": false,
+      "result": null,
+      "rejection": "D3D12 errors/warnings or SDK errors"
+    },
+    {
+      "SIMULATED_case": "D3D_warning_reject",
+      "counts": [
+        63,
+        63,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1
+      ],
+      "stderr_hex": "",
+      "expected_admissible": false,
+      "actual_admissible": false,
+      "result": null,
+      "rejection": "D3D12 errors/warnings or SDK errors"
+    },
+    {
+      "SIMULATED_case": "D3D_error_reject",
+      "counts": [
+        63,
+        63,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1
+      ],
+      "stderr_hex": "",
+      "expected_admissible": false,
+      "actual_admissible": false,
+      "result": null,
+      "rejection": "D3D12 errors/warnings or SDK errors"
+    }
+  ],
+  "driver_whitelist_exact": true,
+  "future_scripts_parse_without_entrypoint_execution": true,
+  "new_native_contexts": 0,
+  "new_API_RR_recordings": 0,
+  "new_queued_RR_dispatches": 0,
+  "script_sha256": "b599457f8b2e80daf66fe75d6dd4098c4b9f59cb3ef4941eced6239cab4d9d0a",
+  "policy_sha256": "d1d52e956043eb0346a30308e787c681455c51c93562394762e032883b8a80ab",
+  "driver_sha256": "36fe9e824e9bec32c92828733484157ef2583f2e43e0626cf0fd6f99d965baac"
+}

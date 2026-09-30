@@ -1,0 +1,14 @@
+{
+  "returncode": 0,
+  "stdout": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\build.stdout.bin",
+    "bytes": 25,
+    "sha256": "6c116a7a5ccd7d4555c1d65ffe2517c301456210b9bca153065dd062ad2de0db"
+  },
+  "stderr": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\build.stderr.bin",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "new_native_contexts": 0
+}

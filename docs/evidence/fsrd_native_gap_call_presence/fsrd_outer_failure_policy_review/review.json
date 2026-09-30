@@ -1,0 +1,115 @@
+{
+  "schema":"fsrd.outer-failure-policy-review.v1",
+  "workspace":"F:/OptiRevelations/OptiScaler-ffxD-alpha",
+  "branch":"ffxD-experimental-alpha",
+  "head":"00e662dce4b4672738a048dea04b8d84e202f72b",
+  "verification":"Read-only source review. No production changes, build, GPU/native execution, game verification, or new runtime test. Source hashes below pin the reviewed production code.",
+  "answer":"No explicit outer false/error return follows a successful FSRD EvaluateInternal in the inspected DX12/NGX path. Optional shader dispatch failures are deliberately returned as true by IFeature_Dx12::Evaluate; overlay return status is ignored; wrapper restoration warnings do not change evalSuccess. These indicate optional final-output uncertainty, not evidence that native RR history is invalid.",
+  "source_pins":[
+    {"path":"OptiScaler/upscalers/IFeature_Dx12.cpp","sha256":"3be62e152ce1ef1fac655303a16098344ec97f0f1006ca79167a2f86a2c044c9"},
+    {"path":"OptiScaler/upscalers/IFeature_Dx12.h","sha256":"c46310abc96e5857934eabf4039e5d1624a2414f38d568fd8bd3ece9e645b70b"},
+    {"path":"OptiScaler/upscalers/IFeature.h","sha256":"aa41c0d39e40ee1e7360c7cd1d4d7a48aa4c3e803a1a39be22c9975386e900eb"},
+    {"path":"OptiScaler/upscalers/fsr31/FSRDFeature_Dx12.cpp","sha256":"31a58616e8008c89e609f2a5b6929f881bfb6d7f169e4407f4f1053242859239"},
+    {"path":"OptiScaler/upscalers/fsr31/FSRDFeature_Dx12.h","sha256":"87933b86e99fced9960b0db9260bfe538703e3d3b67a6bf0d30ec31ba8a2f51e"},
+    {"path":"OptiScaler/shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.cpp","sha256":"891010a733ebe08a6b03a78085b4d67cf674d6b653dbcefcd44ad9c421b41b2c"},
+    {"path":"OptiScaler/shaders/fsrd_preprocess/FSRDShaderUtils.h","sha256":"bfb5c79f5e6b5e75c7fa3a292716ecdec6eabfc8f462455e294e5247e2cdb2f4"},
+    {"path":"OptiScaler/inputs/NVNGX_DLSS_Dx12.cpp","sha256":"511b533b2f880a33ed65e79e281f2c41f323e037320e5a39f093d1ebd65fe9a6"},
+    {"path":"OptiScaler/shaders/rcas/RCAS_Dx12.cpp","sha256":"8577d21d3ee859c8f8923b6b9b59d70e5251227b455b41c9a17c7a01be28a97e"},
+    {"path":"OptiScaler/shaders/output_scaling/OS_Dx12.cpp","sha256":"4d0e96647b4c4a4409c5972c56fcaa2a8d5d2e9a03038a1cc0ec639d14321023"},
+    {"path":"OptiScaler/shaders/magnifier/Magnifier_Dx12.cpp","sha256":"7efb562c24925dfc2c42f21b73852469d96d8ec1c2c00810571b922c8c3b42ff"},
+    {"path":"OptiScaler/shaders/Shader_Dx12Utils.h","sha256":"aa3622c139fb56aa813d205ec904aaed5cf4073e0e03f84de43df1ae1fc99136"},
+    {"path":"OptiScaler/shaders/Shader_Dx12.cpp","sha256":"ea7d880eb6de53912983a0d2fe2d8ce3b83081a40d8c765735c7800f939210d6"},
+    {"path":"OptiScaler/menu/Menu_Dx12.cpp","sha256":"ec5e45e9e2abfda5655f62894d036159f94ab1fda51d1dd0268b9f4dc62bba36"},
+    {"path":"OptiScaler/hooks/D3D12_Hooks.cpp","sha256":"3c155b29e2ed8aa04f377d00a8bb03c85988473c00fb5471d6f38724b014d483"},
+    {"path":"OptiScaler/gpu_time/GpuTime_Dx12.cpp","sha256":"d638478d8787ea2fcd14bb88578486838095b89242c3ca7d39ffbbf16c2e13eb"},
+    {"path":"OptiScaler/upscalers/fsr31/FSR31Feature_Dx12.cpp","sha256":"8782f912b5091038239d967f787615cccc333a0fd8d613b28933cd29df78fbb0"},
+    {"path":"OptiScaler/OptiTypes.h","sha256":"6cad33fb58e59782f78040d55f848cefd32f0be599cce46a02f89a57f29f7a35"}
+  ],
+  "successful_core_to_wrapper":{
+    "core_commit":{"file":"OptiScaler/upscalers/fsr31/FSRDFeature_Dx12.cpp","lines":[1733,1735,1737,1922,2071,2072,4078,4086],"finding":"Native CPU history commits before composition/upscale. On normal successful return the composition guard finishes before control reaches base postprocessing, and its success flag enables history completion."},
+    "composition_finish":{"file":"OptiScaler/shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.cpp","lines":[1986,1988,1990,1991,1993,1994],"finding":"Only successfulNormalFrame with pending history flips the read index and sets valid. All other closures clear valid/pending without flipping."},
+    "base_return":{"file":"OptiScaler/upscalers/IFeature_Dx12.cpp","lines":[244,246,248,249,251,254,256,258,274,282,284],"finding":"The only post-internal explicit false propagates a false internal result. Once internal result is true, pass failure returns true, overlay status is ignored, and the normal final return remains true. GPU timer End is void and supplies no checked failure."},
+    "wrapper_return":{"file":"OptiScaler/inputs/NVNGX_DLSS_Dx12.cpp","lines":[1103,1106,1109,1111,1117,1119,1121,1219],"finding":"Wrapper records evalSuccess, logs false, performs void root restoration and maps only evalSuccess to NGX Success/Fail. It does not turn a successful core/postprocessing result into failure or invalidate FSRD history."},
+    "timer":{"file":"OptiScaler/gpu_time/GpuTime_Dx12.cpp","lines":[53,63,65,67,69,72],"finding":"Start/End record query commands through void APIs. No late CPU false result is propagated."}
+  },
+  "optional_failures_after_core_success":[
+    {
+      "stage":"Output scaling",
+      "reachability":"Enabled iff OutputScalingEnabled and (LowResMV or RenderWidth==DisplayWidth), with initialized shader; setup must have supplied non-null pass input/output.",
+      "base_file":"OptiScaler/upscalers/IFeature_Dx12.cpp",
+      "base_lines":[86,89,103,119,122,123,124,125,126,254,256,258],
+      "trigger_file":"OptiScaler/shaders/output_scaling/OS_Dx12.cpp",
+      "trigger_lines":[54,56,57,81,84,89,92,95],
+      "concrete_trigger":"Shared CreateConstantsBuffer maps upload storage at Shader_Dx12Utils.h:139; non-S_OK Map returns false at146 (including device removal). OS propagates this false. Null/init prechecks also return false, but healthy initialized/non-null caller setup excludes them; do not present them as demonstrated normal FSRD failures.",
+      "result":"Existing lambda disables output scaling and requests backend change, then aggregate returns true. Remaining passes and final parameter restoration are skipped. No FSRD invalidation. Do not broaden this review into altering those existing backend policies."
+    },
+    {
+      "stage":"RCAS / depth-adaptive sharpening",
+      "reachability":"RcasEnabled/nonzero sharpness or motion sharpening, initialized shader and successful setup. Wrapper intentionally skips dispatch with true if CanRender false or paramMotion/paramOutput absent.",
+      "base_file":"OptiScaler/upscalers/IFeature_Dx12.cpp",
+      "base_lines":[65,69,71,75,81,153,155,190,192,193,256,258],
+      "trigger_file":"OptiScaler/shaders/rcas/RCAS_Dx12.cpp",
+      "trigger_lines":[15,16,34,37,59,60,82,85,126,128,140,142,145,147,150,152,156],
+      "concrete_trigger":"Upload Map failure via CreateConstantsBuffer is propagated by both RCAS and depth-adaptive paths. Depth-adaptive also rejects null depth/PSO; caller only guards motion/output, although normal mandatory FSRD depth acquisition may exclude absent depth. Unsupported enum returns false at156, but all three declared valid SharpenShader values (OptiTypes.h:89–94) are handled; malformed enum is not a demonstrated ordinary configuration trigger.",
+      "result":"Lambda disables RCAS and returns false; aggregate returns true. Native/core/helper history remains committed, even though final output chain is incomplete. This does not establish invalid native history."
+    },
+    {
+      "stage":"Magnifier",
+      "reachability":"ShouldRun and successful setup; wrapper skips with true if CanRender false or paramMotion/paramOutput absent.",
+      "base_file":"OptiScaler/upscalers/IFeature_Dx12.cpp",
+      "base_lines":[198,204,206,216,218,222,256,258],
+      "trigger_file":"OptiScaler/shaders/magnifier/Magnifier_Dx12.cpp",
+      "trigger_lines":[23,26,27,43,46],
+      "concrete_trigger":"Upload Map failure produces false at46; null/init prechecks exist but are normally excluded by outer gating.",
+      "result":"Aggregate suppresses dispatch false into true. No FSRD invalidation; no new global recovery policy is justified by this path."
+    },
+    {
+      "stage":"Overlay / copy route",
+      "reachability":"Inline menu mode and frameCount>30; an existing matching Imgui instance is required to call Render.",
+      "base_file":"OptiScaler/upscalers/IFeature_Dx12.cpp",
+      "base_lines":[264,268,274,282,284],
+      "trigger_file":"OptiScaler/menu/Menu_Dx12.cpp",
+      "trigger_lines":[43,45,46,48,49,87,95,96,106,134,157,186,197],
+      "concrete_trigger":"Menu Render can return false for overlay-mode/invalid arguments or failed DX12 ImGui initialization. Configuration gating usually excludes overlay-mode rejection. Both CopyResource calls are void, with no checked bool/CPU error return.",
+      "result":"Render's bool is ignored and base returns true. No later copy/overlay failure becomes NGX Fail. Optional output and GPU validation failures are outside this explicit CPU-return contract."
+    },
+    {
+      "stage":"NGX root restoration",
+      "file":"OptiScaler/hooks/D3D12_Hooks.cpp",
+      "lines":[2548,2564,2567,2574,2577,2583,2586,2593,2596,2600,2603,2606,2609,2614],
+      "result":"RestoreRoot is void. Missing restore hooks/state or helper failures log warnings/errors but do not change wrapper evalSuccess. They are not evidence of missing native RR execution."
+    }
+  ],
+  "setup_failures_before_core":[
+    {"file":"OptiScaler/shaders/Shader_Dx12.cpp","lines":[108,113,114,145,147,150,155,158,161],"finding":"Shader buffer setup can fail for missing device/source, GetHeapProperties failure or CreateCommittedResource failure."},
+    {"file":"OptiScaler/upscalers/IFeature_Dx12.cpp","lines":[103,107,110,143,148,204,210,226,230,232,235,240],"finding":"A nullptr Setup result leaves that pass inactive and retains the prior target. This occurs before EvaluateInternal, not after a native commit. No failure return is emitted solely for skipping setup."}
+  ],
+  "bounded_policy_design":{
+    "recommendation":"Keep optional postprocessing true/NGX Success behavior unchanged. Add no automatic history reset merely because optional postprocessing or overlay reports false. Smallest defensible FSRD-only recovery extension is native/helper CPU invalidation on its two remaining explicit false returns after native commit: composition false and upscaler false. No new base virtual hook or wrapper changes are needed for current paths.",
+    "composition_false":{"file":"OptiScaler/upscalers/fsr31/FSRDFeature_Dx12.cpp","lines":[1922,1958,1960,1961],"trigger":"DispatchComposition catches a std::exception and returns false at FSRDPreprocessor_Dx12.cpp:1966–1978. One concrete path is lazy history texture allocation when detail>0, RecoveryMask!=0 and not debug (1566–1578); CreateTexture2D propagates failed CreateCommittedResource as runtime_error at FSRDShaderUtils.h:20–23,108–130. Composition guard already finishes false; native CPU valid remains true today."},
+    "upscale_false":{"file":"OptiScaler/upscalers/fsr31/FSRDFeature_Dx12.cpp","lines":[1992,2068,2069],"trigger":"FSR31Feature_Dx12.cpp:695–707 returns false for any non-OK upscale API result; only runtime error requests recreation. Existing composition guard already finishes false. Previous read-only review covered this branch; it is included here only to define the complete current post-commit false cohort."},
+    "helper":"Private noexcept FSRDFeatureDx12::InvalidateDenoiserHistory() at FSRDFeature_Dx12.h:336–340 calls converter InvalidateCompositionHistory and clears _hasDenoiserHistory/_lastDispatchRequestedReset. Invoke it before each of the two false returns. This changes CPU flags only; no recorded command/resource destruction or global backend changes are added.",
+    "next_call_contract":"After these reported FSRD failures, next normal Evaluate disables motion history and uses current jitter as previous (3267–3273), zeroes camera delta (2097–2100), and requests native RESET (2176–2177). Frame count remains monotonic; do not undo native frame-index advancement.",
+    "why_no_outer_extension":"After true internal return, native and composition GPU commands may still validly execute. Optional shader failure alone gives no submission/discard information. Resetting native history would be an extra quality policy, not proof-based recovery of this explicit-false cohort. If a future outer path genuinely returns false after core success, introduce an explicit synchronous failure notification only for that new path; do not infer it from currently suppressed optional status.",
+    "existing_virtual_hooks":"IFeature_Dx12.h:44 provides virtual EvaluateInternal. Evaluate at48 is nonvirtual; FSRD hiding/overloading Evaluate cannot intercept NVNGX wrapper calls through IFeature_Dx12*. No existing failure/history callback was found in IFeature.h or IFeature_Dx12.h. A protected virtual no-op failure callback plus FSRD override would be needed for a future base-level failure path, but is unnecessary scope today.",
+    "classification":"Conservative error-recovery contract for known FSRD false exits; quality tradeoff if failed frame's valid native prefix is actually submitted. Does not cure successful evaluations later discarded, arbitrary queue ordering, already-recorded successors, native context lifetimes, or upscaler internal history. No stain/wave cause is established."
+  },
+  "guard_and_cpu_lifetime_cautions":[
+    "Existing CompositionHistoryGuard references the feature's unique_ptr because UpdateSize can replace the converter (FSRDFeature_Dx12.cpp:1732–1738). Capturing a raw converter pointer across replacement risks a dangling pointer.",
+    "The current inner guard is already destroyed before IFeature postprocessing begins; base cannot mark that completed guard failed later. An outer reset could invalidate flags after a successful flip, but must not try to roll back its read index or clear submitted GPU resources.",
+    "Do not use compositionHistoryGuard.success as generic native-evaluation success: it is intentionally false for successful upscale/denoise bypass or debug paths (2071), including early debug true at2058. Such a guard would introduce new native resets on successful debug calls.",
+    "For the present two branches, explicit calls to the existing noexcept helper avoid new guard ownership/destruction rules. Any future RAII failure guard must distinguish actual bool failure from successful bypass, run synchronously while Feature is alive, tolerate converter replacement, and never store this/raw Feature callbacks for later queue work.",
+    "Exceptions/asserts/device errors after core success are not caught and converted to false by the inspected base/NGX functions. Do not invent an existing late-false cohort from hypothetical exception recovery. Concurrent feature destruction is not made safe by a CPU scope guard."
+  ],
+  "minimal_validation_proposed":{
+    "cpu_contract_checks":[
+      "Inject composition false after native Commit; assert returned false, native/helper CPU valid false, no composition read-index flip, frame count advances once and next dispatch has RESET/current-as-previous jitter/MotionHistoryValid=false.",
+      "Inject non-runtime upscale API failure after native+composition recording; assert same recovery contract and no added changeBackend/global config side effect.",
+      "Normal successful control preserves native commit and expected composition flip; successful debug/bypass and early debug true remain successful with their existing history policy.",
+      "Inject optional scaling/RCAS/Magnifier dispatch false after successful core; assert base still returns true/NGX Success and no new FSRD invalidation. Preserve existing stage-specific config/backend behavior.",
+      "Inject overlay Render false or RestoreRoot helper warning; assert no new NGX failure/history reset. Verify tests distinguish intended skip from explicit FSRD false."
+    ],
+    "runtime_quality_checks_when_authorized":"Separate CPU error policy from GPU execution discontinuity: compare an error-only arm that still submits the failed frame's valid RR prefix, with a discard arm that omits that RR frame before next evaluation; independently toggle the proposed next-call reset in each arm. Include an all-success sequential control and compare histories/output. Existing dropped-recording/reset-recovery cohort establishes only that cohort's recovery; it does not alone isolate CPU API failure versus missing GPU frame.",
+    "status":"All checks are proposed here, not executed. Existing parent fixture results are not reclassified as production/game verification."
+  }
+}

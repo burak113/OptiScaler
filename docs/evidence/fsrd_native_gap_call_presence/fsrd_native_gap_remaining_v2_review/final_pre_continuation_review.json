@@ -1,0 +1,85 @@
+{
+  "schema": "gap-remaining6-independent-final-pre-continuation-review-v2",
+  "UTC": "2026-09-30T14:10:29.301102+00:00",
+  "status": "ready_for_new_root_authorized_exactly_six_continuation",
+  "new_native_GPU_build_calls": 0,
+  "new_native_work_has_not_run_at_seal": true,
+  "producer241_owned23_external_SHA_verified_before_after": true,
+  "producer_completion_manifest": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\remaining_v2_preparation_completion_manifest.json",
+    "bytes": 77647,
+    "sha256": "e2c6a2d5fb90b111e22c534f0cdf9d8a395fdbfcd2014ff327a6209850bca342"
+  },
+  "producer_verification": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\remaining_v2_preparation_verification.json",
+    "bytes": 2211,
+    "sha256": "a86437ca6657396166c0cd2836c67c6c52bb13c2df265579a52701e824a6d4b4"
+  },
+  "producer11_SIMULATED_policy_checks_independently_recomputed": true,
+  "own14_SIMULATED_adversarial_checks_passed": true,
+  "source_review": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_remaining_v2_review_20260930\\source_review_v2.json",
+    "bytes": 8075,
+    "sha256": "9d554aded3d14db086805135f429065a02625d5cb8e2ab36fcbc6a8a0e85f9b8"
+  },
+  "source_pins_unchanged": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\remaining_v2_registration.json",
+      "bytes": 7166,
+      "sha256": "8c126e93e85260af70e7ca5e13801c7ed7a0e5bc09e2d38a1f382829e6ff9e79"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\remaining_v2_pre_native_freeze.json",
+      "bytes": 69272,
+      "sha256": "82209ebfaa0b7ec5cb61dc9e5167633a987b81949eceea6543a4ba3b17687799"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\remaining_v2_driver_whitelist.json",
+      "bytes": 4861,
+      "sha256": "01d2b64e5d5d4649dd693d2970326bea0ad6257c459dc10a7d198950004fb466"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\run_remaining_native_v2.py",
+      "bytes": 9603,
+      "sha256": "36fe9e824e9bec32c92828733484157ef2583f2e43e0626cf0fd6f99d965baac"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\diagnostic_warning_policy_v2.py",
+      "bytes": 1318,
+      "sha256": "d1d52e956043eb0346a30308e787c681455c51c93562394762e032883b8a80ab"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\analyze_combined_v2.py",
+      "bytes": 5694,
+      "sha256": "59cc1b6d5d196e8a6ed801c983d5ef41b13860bc5acf1f75b2f24c00b99dcd76"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_native_gap_cpu_record_control_20260930\\evidence\\results.json",
+      "bytes": 38656,
+      "sha256": "2ecbff156a2bc599ff6d146b3d5969064ead9878fa3a9e3ffe30b8b831f76770"
+    }
+  ],
+  "unchanged_CPP_EXE_inputs_controls_guard_accounting_whitelist_exact": true,
+  "first2_original_failed_V1_and_accepted1_protected": true,
+  "first2_not_rerun_counted_as_reference_only": true,
+  "planned_new_only": [
+    6,
+    381,
+    378,
+    3,
+    3
+  ],
+  "actual_original_only": [
+    2,
+    127,
+    126,
+    1,
+    1
+  ],
+  "warning_policy": "noAPI SDKwarnings0 empty or1 exact measured ASCII CRLF warning only; record-discard0 empty; all D3Derrors/warnings and SDKerrors0. Counts/messages retained, work accounted before any admissibility rejection.",
+  "chronology": "Post-observation diagnostic-retention amendment after original2 completed and V1 noAPI warning rejection. This cannot relabel8 as original zero-warning accepted successes.",
+  "causal_scope": "Static synthetic wave/camera/jitter/provider/device context only; unframed warning does not prove exact emitting frame or universal SDK behavior/game stain cause.",
+  "readiness_is_not_launch_authorization": true,
+  "quality_accepted": false,
+  "general_fix": false
+}

@@ -1,0 +1,79 @@
+{
+  "schema": "explicitly-SIMULATED-matched-gap-stage-accounting-CPU-check-v1",
+  "status": "passed",
+  "SIMULATED_NOT_NATIVE_EVIDENCE": true,
+  "cases": 8,
+  "actual_native_contexts": 0,
+  "actual_API_RR_recordings": 0,
+  "actual_queued_RR_dispatches": 0,
+  "actual_no_API_omissions": 0,
+  "script_sha256": "254fa0f25619366748ae28282df09b326a6dc8171e8b89544955cb4501a43046",
+  "wrapper_sha256": "48fa1fc8a4b062ebcd5077737e9d35ecabe17a6c741156976614c068f3169529",
+  "results": {
+    "noAPI_footer_validation_metadata_reject": {
+      "API": 63,
+      "queued": 63,
+      "SDKdiscard": 0,
+      "noAPIomit": 1,
+      "totals_unknown": false,
+      "authority": "valid_bounded_final_CPP_footer_under_pinned_source"
+    },
+    "record_discard_footer": {
+      "API": 64,
+      "queued": 63,
+      "SDKdiscard": 1,
+      "noAPIomit": 0,
+      "totals_unknown": false,
+      "authority": "valid_bounded_final_CPP_footer_under_pinned_source"
+    },
+    "noAPI_footer63_conflicting64_API_indices": {
+      "API": 63,
+      "queued": 63,
+      "SDKdiscard": 0,
+      "noAPIomit": 1,
+      "totals_unknown": false,
+      "authority": "valid_bounded_final_CPP_footer_under_pinned_source"
+    },
+    "no_footer_noAPI_partial_after25": {
+      "API": 25,
+      "queued": 25,
+      "SDKdiscard": 0,
+      "noAPIomit": 1,
+      "totals_unknown": true,
+      "authority": "semantically_valid_artifact_lower_bounds_totals_unknown"
+    },
+    "no_footer_record_discard_partial_after25": {
+      "API": 26,
+      "queued": 25,
+      "SDKdiscard": 1,
+      "noAPIomit": 0,
+      "totals_unknown": true,
+      "authority": "semantically_valid_artifact_lower_bounds_totals_unknown"
+    },
+    "invalid_overcapacity_footer_valid_prefix": {
+      "API": 4,
+      "queued": 2,
+      "SDKdiscard": 0,
+      "noAPIomit": 0,
+      "totals_unknown": true,
+      "authority": "semantically_valid_artifact_lower_bounds_totals_unknown"
+    },
+    "provider_only_unknown": {
+      "API": 0,
+      "queued": 0,
+      "SDKdiscard": 0,
+      "noAPIomit": 0,
+      "totals_unknown": true,
+      "authority": "semantically_valid_artifact_lower_bounds_totals_unknown"
+    },
+    "omission_footer1_conflicting2_indices": {
+      "API": 63,
+      "queued": 63,
+      "SDKdiscard": 0,
+      "noAPIomit": 1,
+      "totals_unknown": false,
+      "authority": "valid_bounded_final_CPP_footer_under_pinned_source"
+    }
+  },
+  "qualification": "All fixture stdout/index/presence bytes explicitly simulated and outside nativecase evidence. Missing raw lobes intentionally reject metadata and never fabricate an observed zero. These are checks of accounting only; not native measurements."
+}
