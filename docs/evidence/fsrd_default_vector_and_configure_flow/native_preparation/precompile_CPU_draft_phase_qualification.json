@@ -1,0 +1,49 @@
+{
+  "scope": "Pre-compile phase history qualification; no source/EXE/build or old frozen evidence rewrite.",
+  "pre_compile_freeze": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\pre_compile_freeze.json",
+    "bytes": 20249,
+    "sha256": "bc745dde5fb2cb14c182033919e65a1af478f37e5161876e7dfc988d07cf25e5"
+  },
+  "CPU_draft_adaptations_after_compile": [
+    {
+      "precompile_historical_record": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\analyze_raw_cpu.py",
+        "bytes": 3040,
+        "sha256": "2e522f78a6120540012a60b4cdd53e99c530b0f7a97c4aa3ce09848fad42cd81"
+      },
+      "byte_exact_preserved_snapshot": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\analyze_raw_before_historical_extension.py.txt",
+        "bytes": 3040,
+        "sha256": "2e522f78a6120540012a60b4cdd53e99c530b0f7a97c4aa3ce09848fad42cd81"
+      },
+      "final_pre_native_record": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\analyze_raw_cpu.py",
+        "bytes": 3876,
+        "sha256": "b243a250e81b0b355d01fc6ae475070e9cc71210b460fd4b886989099fc34b16"
+      }
+    },
+    {
+      "precompile_historical_record": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\run_native.py",
+        "bytes": 5783,
+        "sha256": "212399ade65f089919ada4895aaffed9003d9c0c771b1845e1031429fe1d5e41"
+      },
+      "byte_exact_preserved_snapshot": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\run_native_pre_sidecar_validation.py.txt",
+        "bytes": 5783,
+        "sha256": "212399ade65f089919ada4895aaffed9003d9c0c771b1845e1031429fe1d5e41"
+      },
+      "final_pre_native_record": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\run_native.py",
+        "bytes": 6188,
+        "sha256": "fd7b27581ada1a93796f93a76166aa07bd4aa1b5af0e4b64d9a4afdd2103872f"
+      }
+    }
+  ],
+  "all_other_precompile_owned_records_current_byte_exact": true,
+  "all_precompile_external_records_current_byte_exact": true,
+  "native_CPP_stays_equal_precompile_record": true,
+  "reason": "The common native CPP was frozen before its one compile. Subsequently authorized CPU-only metadata work added exact sidecar prevalidation and all historical A0 descriptive comparisons. Their previous CPU drafts are retained verbatim; final executable driver/analyzer hashes are in the later pre_native_freeze. Earlier phase drafts are not asserted to equal current extended files.",
+  "no_extra_compile_RR_SDK_GPU_score": 0
+}

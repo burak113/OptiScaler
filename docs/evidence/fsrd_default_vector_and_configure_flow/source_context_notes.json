@@ -1,0 +1,67 @@
+{
+  "status": "DOCUMENTATION_SOURCE_CONTEXT_NO_NEW_EXPERIMENT",
+  "production_CPP": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\upscalers\\fsr31\\FSRDFeature_Dx12.cpp",
+    "bytes": 193233,
+    "sha256": "d2cb58c65f6e9d3699e56e34675e6d50593b2bd89bd568025083cb8e09fdd628"
+  },
+  "production_Config": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\Config.h",
+    "bytes": 33325,
+    "sha256": "5ed1db1a4465f4f6321e68896788606717c8010352a3cf78e10537d02d174983"
+  },
+  "Config_default_lines": [
+    537,
+    540,
+    542,
+    543,
+    544,
+    545,
+    546,
+    547
+  ],
+  "production_query_cache_lines": [
+    1540,
+    1552,
+    1554,
+    1564,
+    4152,
+    4157
+  ],
+  "production_compare_Configure_retry_lines": [
+    3889,
+    3895,
+    3896,
+    3902,
+    3907
+  ],
+  "configuration_flow_qualification": "Production queries/caches defaults, compares requested values each frame and restores previous cached value on Configure failure to retry. NoScalar contrast omits six scalar Configure calls but does not perform the complete production key7/proxy/cache/Release0 flow.",
+  "projected_contrast_gain": {
+    "source": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\score_source.py",
+      "bytes": 16460,
+      "sha256": "f804ea74c72aef1b6adf351e2d3cbe4f809c3069b13419492be178401248a3ee"
+    },
+    "source_lines": [
+      73,
+      77,
+      78
+    ],
+    "formula": "g=(a dot b)/(b dot b), a=output luma in interior ROI centered by its own mean, b=reference luma in same ROI centered by its own mean. The ROI excludes5pixels at every edge. If b dot b<=1e-8, gain=None.",
+    "direction": "Signed output/reference projected contrast. Values>1 mean amplified projected output contrast; no inverse or abs transformation.",
+    "summary_source": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\moments_source.py",
+      "bytes": 8466,
+      "sha256": "947e3c3e7c2b6d248062bf546b01d857df24a51163af5562b7d88d8cbd6e0745"
+    },
+    "summary_lines": [
+      64,
+      65,
+      66,
+      67
+    ],
+    "summary": "absolute_gain_min/mean/max labels summarize original signed g values, without abs or inversion."
+  },
+  "tuning_history_qualification": "The six fork defaults are inherited edits, not a parameter fit in this fixture. Narrow prior read-only history review found stability.7->.5 in03b16ef398fb187105430cf51e046e6f2ffcb220 and Gaussian0->.5 incd4b968129e57a20172e2c4abff77d15b8eda59d; bundled commit context does not establish isolated numeric quality rationale. No new history experiment or parameter recommendation.",
+  "new_SDK_GPU_build_scorer": 0
+}

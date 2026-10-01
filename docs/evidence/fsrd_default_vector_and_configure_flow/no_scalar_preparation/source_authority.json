@@ -1,0 +1,35 @@
+{
+  "source": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\frozen_runner\\source\\source_reference.cpp",
+    "bytes": 17613,
+    "sha256": "a91ff423f49f90d7ccb16a6182f06bea82dd38fbb642885b4cb806fe08eca9d4"
+  },
+  "EXE": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\frozen_runner\\fsrd_rr_runner.exe",
+    "bytes": 393728,
+    "sha256": "bf9774a1e83855590f5b254163953898690431a73b859235e41bd79121ac5ebf"
+  },
+  "original_compile_evidence": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\build_result.json",
+    "bytes": 2829,
+    "sha256": "cd77938427506db74b5e5d827543c1bbdbf53ffae62ddd570a23925573b2d32f"
+  },
+  "original_compile_command": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\actual_compiler_command.txt",
+    "bytes": 749,
+    "sha256": "84039dfbb7ec14b2754837631010f0bf5cf81c19734bcf1e0c8b74a1810afbfb"
+  },
+  "unchanged_CPP_EXE": true,
+  "new_compile_calls": 0,
+  "if_tuning_block": "    if(tuning) {\n        const uint64_t keys[]={FFX_API_CONFIGURE_DENOISER_KEY_DISOCCLUSION_THRESHOLD,FFX_API_CONFIGURE_DENOISER_KEY_CROSS_BILATERAL_NORMAL_STRENGTH,FFX_API_CONFIGURE_DENOISER_KEY_STABILITY_BIAS,FFX_API_CONFIGURE_DENOISER_KEY_MAX_RADIANCE,FFX_API_CONFIGURE_DENOISER_KEY_RADIANCE_CLIP_STD_K,FFX_API_CONFIGURE_DENOISER_KEY_GAUSSIAN_KERNEL_RELAXATION};\n        float values[6]{};\n        std::ifstream valuesFile(std::filesystem::path(argv[1]).parent_path()/\"tuning_values.bin\",std::ios::binary);\n        valuesFile.read(reinterpret_cast<char*>(values),sizeof(values));\n        if(!valuesFile||valuesFile.peek()!=std::char_traits<char>::eof()) throw std::runtime_error(\"tuning_values.bin must contain exactly six float32 values\");\n        for(float value:values) if(!std::isfinite(value)) throw std::runtime_error(\"nonfinite tuning value\");\n        for(unsigned i=0;i<6;++i) { ffxConfigureDescDenoiserKeyValue c{{FFX_API_CONFIGURE_DESC_TYPE_DENOISER_KEYVALUE,nullptr},keys[i],1,values+i}; ff(api.Configure(&context,&c.header),\"configuration\"); }\n    }\n",
+  "explicit_scalar_calls_per_completed_context": 6,
+  "NoScalar_scalar_calls": 0,
+  "NoScalar_native_sidecar_read": false,
+  "CPU_sidecar_prevalidation_all_arms": true,
+  "global_debug_Configure_beforeCreate": 1,
+  "informational_version_Query_afterCreate": 1,
+  "successful_scalar_Queries": 0,
+  "active_internal_NoScalar_settings_known": false,
+  "controls_beforeAPI_not_proof": true,
+  "full64footer_after_serial_readbacks_DestroyContext": true
+}

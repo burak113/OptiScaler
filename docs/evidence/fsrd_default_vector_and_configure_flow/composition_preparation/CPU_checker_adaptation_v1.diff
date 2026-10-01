@@ -1,0 +1,11 @@
+--- completed_alpha_composition_V2
++++ fork_defaults_cardinality_path_adapter
+@@ -10,7 +10,7 @@
+  with(HERE/n).open('x',encoding='utf-8',newline='\n')as f:json.dump(o,f,indent=2,allow_nan=False);f.write('\n')
+ def module(n,p):s=importlib.util.spec_from_file_location(n,p);m=importlib.util.module_from_spec(s);s.loader.exec_module(m);return m
+ def main():
+- reg=read(HERE/'registration.json');assert len(reg['jobs'])==192
++ reg=read(HERE/'assembled_registration_v1.json');assert len(reg['jobs'])==reg['planned_only_helper_jobs']
+  m=module('composition_helper_accounting_CPU',HERE/'helper_work_accounting.py');g=module('composition_guard_loader_CPU',HERE/'helper_guard_evidence.py')
+  YES=dict(status='completed',child_pid=123,returncode=0,terminated_owned_child=False);NO=dict(status='not_launched_low_available_memory',child_pid=None,returncode=None)
+  checks=[];root=HERE/'SIMULATED_CPU';root.mkdir(exist_ok=False)

@@ -1,0 +1,26 @@
+--- F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\fsrd_clean_specular_hit_alpha_contrast_preparation_20260930\run_native.py
++++ F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\run_native.py
+@@ -1,4 +1,4 @@
+-"""Frozen future alpha-contrast executor. Root must verify sealed R/RZ gates and authorize; preparation never calls main."""
++"""Frozen future scalar-vector contrast executor. Root must verify query and preparation seals and authorize; preparation never calls main."""
+ from pathlib import Path
+ import argparse,hashlib,json,os,sys
+ sys.dont_write_bytecode=True
+@@ -21,7 +21,7 @@
+     for c in reg['cases']:assert fresh_runtime(Path(c['job']).parent)['all_absent'],'No prior runtime allowed'
+     temp=(HERE/'execution_TEMP').resolve();assert temp.drive.upper()=='F:'and HERE in temp.parents
+     temp.mkdir(exist_ok=True);os.environ['TMP']=str(temp);os.environ['TEMP']=str(temp)
+-    report={'schema':'clean-specular-hit-alpha-four-fresh-contexts-native-raw-only','status':'running','jobs':[],'contexts_created_confirmed':0,'contexts_completed_confirmed':0,
++    report={'schema':'clean-fork-versus-public-default-vector-four-fresh-contexts-native-raw-only','status':'running','jobs':[],'contexts_created_confirmed':0,'contexts_completed_confirmed':0,
+         'executor_invocations':0,'counts':{k:0 for k in KEYS},'totals_unknown_children':0,'accepted_contexts':0,'composition_GPU_jobs':0,'old_B_TP_new_native':0,
+         'quality_accepted':False,'game_run':False,'owned_child_environment':{'TMP':str(temp),'TEMP':str(temp)}}
+     def checkpoint():save(result,report)
+@@ -63,7 +63,7 @@
+         verify(freeze['files']);verify(freeze['external_sources'])
+         assert report['accepted_contexts']==report['contexts_created_confirmed']==report['contexts_completed_confirmed']==4 and report['totals_unknown_children']==0
+         assert all(v==256 for v in report['counts'].values())
+-        report['status']='completed_specular_alpha_native_raw_only_not_composed_not_quality_accepted';checkpoint()
++        report['status']='completed_fork_versus_defaults_native_raw_only_not_composed_not_quality_accepted';checkpoint()
+     except BaseException as e:
+         report.update(status='failed_preserved_no_retry',error=type(e).__name__+': '+str(e));checkpoint();raise
+ if __name__=='__main__':main()

@@ -1,0 +1,23 @@
+{
+  "status": "PRESERVED_DOCUMENTATION_ONLY_CPU_SELECTION_FAILURE",
+  "observed": "First inline selection script raised AssertionError at add(), duplicate target carried same original path/bytes/SHA with a second category label. No native/SDK/GPU/scorer/build or archive/document copies.",
+  "traceback": "File <stdin>, line40; add line27; AssertionError",
+  "native_source_evidence_changed": false,
+  "docs_destination_present": false,
+  "archive_destination_present": false,
+  "selection_final_absent": true,
+  "correction": "Permit duplicate semantic category only when source path/bytes/SHA exactly equal; retain one source-target record and list its categories.",
+  "tool_chunk_not_recorded": "The wrapper printed only output; no chunk identifier is invented.",
+  "preserved_pre_failure_notes": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_default_vector_and_configure_flow_documentation_20261001\\source_context_notes.json",
+      "bytes": 2827,
+      "sha256": "5bd62dc7500e9ca29f2fa78a7acb44ce6eb7eec2bd295b44370d98374ae76bf3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_default_vector_and_configure_flow_documentation_20261001\\compact_root_tool_chronology.json",
+      "bytes": 5727,
+      "sha256": "af783467304abb82b63cf9b32472ab39790c2363eefccac3c73707d5debf39e8"
+    }
+  ]
+}

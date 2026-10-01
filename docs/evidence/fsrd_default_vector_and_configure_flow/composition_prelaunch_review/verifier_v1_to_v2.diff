@@ -1,0 +1,23 @@
+--- verify_preparation.py
++++ verify_preparation_v2.py
+@@ -53,18 +53,14 @@
+ frozen = recordmap(rows(freeze,['owned','external_sources']))
+ assert len(before)==1619 and len(frozen)==1617
+ assert set(before)-set(frozen)=={key(PREP/'pre_execution_freeze.json'),key(PREP/'readiness.json')}
+-save('before_pin_summary.json',dict(producer_manifest=identity(PREP/'preparation_completion_manifest.json'),
++save('before_pin_summary_v2.json',dict(producer_manifest=identity(PREP/'preparation_completion_manifest.json'),
+  freeze=identity(PREP/'pre_execution_freeze.json'),verified_owned=677,verified_external=942,verified_unique=1619,
+  record_list_digest=hashlib.sha256(json.dumps(sorted((k,v['bytes'],v['sha256']) for k,v in before.items()),separators=(',',':')).encode()).hexdigest(),
+  actual_helpers=0,actual_GPU=0,actual_native=0,actual_builds=0,actual_scorer=0,accounting_tests_rerun=0))
+ 
+ head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+ assert head=='94b18f86a696a9dbd0e98461d8a6d5825269f195'
+-cpp=ROOT/'OptiScaler/ffx/FSRDFeature_Dx12.cpp'
+-if not cpp.exists():
+-    # Exact tracked path discovered read-only, not an inferred alternate source.
+-    names=subprocess.check_output(['rg','--files','-g','FSRDFeature_Dx12.cpp'],cwd=ROOT,text=True).splitlines()
+-    assert len(names)==1; cpp=ROOT/names[0]
++cpp=ROOT/'OptiScaler/upscalers/fsr31/FSRDFeature_Dx12.cpp'
+ assert digest(cpp)=='d2cb58c65f6e9d3699e56e34675e6d50593b2bd89bd568025083cb8e09fdd628'
+ prod_pin=identity(cpp)
+ assert reg['status']=='PREPARED_CPU_ONLY_NO_COMPOSITION_GPU_AUTHORIZATION'

@@ -1,0 +1,75 @@
+{
+  "invocation_started": true,
+  "fresh_runtime_files_verified_absent": true,
+  "case_command_matches": true,
+  "before_guard_call_checkpointed": true,
+  "command": [
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\frozen_runner\\fsrd_rr_runner.exe",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\job.txt"
+  ],
+  "preflight": {
+    "files": [
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\resource_guard.json",
+        "absent": true
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\stdout.log",
+        "absent": true
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\stderr.log",
+        "absent": true
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\stage_events.jsonl",
+        "absent": true
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\recorded_frame_indices.bin",
+        "absent": true
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\queued_frame_indices.bin",
+        "absent": true
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\completed_frame_indices.bin",
+        "absent": true
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\observed_frame_indices.bin",
+        "absent": true
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\output_presence.bin",
+        "absent": true
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\dispatch_controls.bin",
+        "absent": true
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\diffuse.bin",
+        "absent": true
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\specular.bin",
+        "absent": true
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\native_work_accounting.json",
+        "absent": true
+      },
+      {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\executor_attempt.json",
+        "absent": true
+      }
+    ],
+    "all_absent": true
+  },
+  "child_environment": {
+    "TMP": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\execution_TEMP\\NoScalar_r1",
+    "TEMP": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\execution_TEMP\\NoScalar_r1"
+  }
+}

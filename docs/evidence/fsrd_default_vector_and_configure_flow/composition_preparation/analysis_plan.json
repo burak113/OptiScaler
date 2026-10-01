@@ -1,0 +1,189 @@
+{
+  "historical_values9": [
+    "raw_constructed_truth",
+    "quantized_raw_reference",
+    "oldB",
+    "oldTP",
+    "old_observed",
+    "old_pilot",
+    "A0_r0",
+    "A10_r0",
+    "A0_r1"
+  ],
+  "logical_new_values4": [
+    "Fork_r0",
+    "AMD_r0",
+    "AMD_r1",
+    "Fork_r1"
+  ],
+  "actual_new_composed_representatives": [
+    "Fork_r0",
+    "AMD_r0",
+    "AMD_r1"
+  ],
+  "inherited_logical_rows": {
+    "Fork_r1": "Fork_r0"
+  },
+  "references": [
+    "raw_constructed_truth",
+    "quantized_raw_reference"
+  ],
+  "windows": {
+    "full": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63
+    ],
+    "mature": [
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63
+    ],
+    "startup_first8": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "activation8to16": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ]
+  },
+  "metric_function_extraction": [
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_composition_preparation_20261001\\frozen_metric_sources\\LUMA_source.py",
+      "name": "LUMA"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_composition_preparation_20261001\\frozen_metric_sources\\blur_source.py",
+      "name": "blur"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_composition_preparation_20261001\\frozen_metric_sources\\score_source.py",
+      "name": "score"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_composition_preparation_20261001\\frozen_metric_sources\\moments_source.py",
+      "name": "moments"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_composition_preparation_20261001\\frozen_metric_sources\\detail_source.py",
+      "name": "detail"
+    }
+  ],
+  "metric_source_records": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_composition_preparation_20261001\\frozen_metric_sources\\LUMA_source.py",
+      "bytes": 9680,
+      "sha256": "691975513a56ada7c1ec8faab7a4f70840508371a3334dba67275e00aef4ba2e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_composition_preparation_20261001\\frozen_metric_sources\\blur_source.py",
+      "bytes": 29239,
+      "sha256": "caf2d246fc57f7b1488637bee0a9a5dabafd5f28ed7b9694ad443e55b3860b12"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_composition_preparation_20261001\\frozen_metric_sources\\score_source.py",
+      "bytes": 16460,
+      "sha256": "f804ea74c72aef1b6adf351e2d3cbe4f809c3069b13419492be178401248a3ee"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_composition_preparation_20261001\\frozen_metric_sources\\moments_source.py",
+      "bytes": 8466,
+      "sha256": "947e3c3e7c2b6d248062bf546b01d857df24a51163af5562b7d88d8cbd6e0745"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_composition_preparation_20261001\\frozen_metric_sources\\detail_source.py",
+      "bytes": 8996,
+      "sha256": "c2b5b70c571a222bddd31a8c8713fb6c0c0307954215c1fca76aa8eb23c0b8f1"
+    }
+  ],
+  "actual_scoring_now": false,
+  "future_analysis_once_after_all192accepted": true,
+  "quality_accepted": false
+}

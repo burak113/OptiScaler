@@ -1,0 +1,28 @@
+--- verify_preparation.py
++++ verify_preparation_v2.py
+@@ -53,13 +53,13 @@
+ assert hashlib.sha256(inverse).hexdigest()=='f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077'
+ assert inverse==(ROOT/'OptiScaler/shaders/shader_tools/tests/fsrd_rr_runner.cpp').read_bytes()
+ source_text=src.decode();assert source_text.index('if(tuning) {')<source_text.index('valuesFile.read')<source_text.index('api.Configure(&context,&c.header)')<source_text.index('ffxDispatchDescDenoiser dispatch')
+-assert source_text.index('api.Configure(nullptr,&logging.header)')<source_text.index('api.CreateContext')<source_text.index('auto versionResult=api.Query')<source_text.index('if(tuning) {')
++assert source_text.index('api.Configure(nullptr,&logging.header)')<source_text.index('ff(api.CreateContext')<source_text.index('auto versionResult=api.Query')<source_text.index('if(tuning) {')
+ assert 'FFX_DENOISER_ENABLE_VALIDATION' in source_text and 'diffFlag|specFlag,0,'in source_text
+ assert source_text.index('ff(api.DestroyContext')<source_text.index('"dispatches="')
+ oldreg=read(OLD/'registration.json');oldcase=next(c for c in oldreg['cases']if c['tag']=='AMD_r0');oldjob=tokens(oldcase['job'])
+ baseline=None;runtime=[];controls=[]
+ for c in reg['cases']:
+- lines=tokens(c['job']);assert len(lines)==11 and lines[0][:6]==['128','80','64','2','32','0']and lines[0][6]==str(c['tuning'])and lines[0][7]=='0'
++ lines=tokens(c['job']);assert len(lines)==len(oldjob)==9 and lines[0][:6]==['128','80','64','2','32','0']and lines[0][6]==str(c['tuning'])and lines[0][7]=='0'
+  assert key(lines[0][8])==key(reg['provider']['path'])
+  erased=lines[0].copy();erased[6]='TUNING'
+  if baseline is None:baseline=erased
+@@ -80,7 +80,8 @@
+  folder=Path(c['job']).parent;assert folder.is_dir()and P.resolve()in folder.resolve().parents
+  for n in ('resource_guard.json','stdout.log','stderr.log','stage_events.jsonl','recorded_frame_indices.bin','queued_frame_indices.bin','completed_frame_indices.bin','observed_frame_indices.bin','output_presence.bin','dispatch_controls.bin','diffuse.bin','specular.bin','native_work_accounting.json','executor_attempt.json'):runtime.append(folder/n)
+  assert key(c['child_TEMP_TMP'])==key(P/'execution_TEMP'/c['tag'])
+- assert lines[8]==oldjob[8]and lines[9]==oldjob[9]and lines[10]==oldjob[10]
++ assert len(lines[8])==2 and [Path(x).name for x in lines[8]]==['diffuse.bin','specular.bin']
++ assert all(Path(x).parent.resolve()==folder.resolve()for x in lines[8])
+ runtime.extend(P/n for n in ['execution_results.json','raw_comparisons.json','execution_TEMP']);runtime.extend(Path(c['child_TEMP_TMP'])for c in reg['cases'])
+ assert len(runtime)==len({key(p)for p in runtime})==63 and not any(p.exists()for p in runtime)
+ for n in ['native_work_accounting.py','executor_evidence.py','native_resource_guard.py','check_accounting_cpu.py']:assert(P/n).read_bytes()==(OLD/n).read_bytes()

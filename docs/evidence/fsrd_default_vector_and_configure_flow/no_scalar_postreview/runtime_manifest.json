@@ -1,0 +1,178 @@
+{
+  "records": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\ExplicitAMD_r0\\resource_guard.json",
+      "bytes": 948,
+      "sha256": "26fc478ad36b8e7c4362fd8e99482ec613445c793650b63622a00596411a88a0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\ExplicitAMD_r0\\stdout.log",
+      "bytes": 378,
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\ExplicitAMD_r0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\ExplicitAMD_r0\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\ExplicitAMD_r0\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "fc489e5bd96dcaa3c0137aadac3c4af144395580d21ba8064e5dad59662d2bd2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\ExplicitAMD_r0\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "b745925824da18d8be4555c4154d95fd759fc13ed774d30e27e9775499d7f856"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\ExplicitAMD_r0\\native_work_accounting.json",
+      "bytes": 3532,
+      "sha256": "6d0cc552238e610947db7cd21a850e2e9464c3b8cd6ce0e523b34b427257c248"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\ExplicitAMD_r0\\executor_attempt.json",
+      "bytes": 4148,
+      "sha256": "eb770d8f4ea5d2d3e6d4577fc5832d9a97c7e92d9de9c0723723bb1fcdfa1cdb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r0\\resource_guard.json",
+      "bytes": 945,
+      "sha256": "1a267e2678914eac75df6661da0f98212150d796042ef24e623b6b2e8980fde5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r0\\stdout.log",
+      "bytes": 378,
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r0\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r0\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r0\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "9c486d7d721fdc11f8a1956d57e7f3fe1ec886e9e597f1bc754f801ecfefa127"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r0\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "679e49ea43a62b958109833b49e76d2512c16780af4df1c87e18054239d761ae"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r0\\native_work_accounting.json",
+      "bytes": 3517,
+      "sha256": "b565070ca00bdbd699a1a43a665dd0f104ac8caf18c771566c89c9c3b12ff81f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r0\\executor_attempt.json",
+      "bytes": 4097,
+      "sha256": "70c2b42d409cd29c803dd5028c32db09b58c02d45e295785ac80a368dc1c004c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\resource_guard.json",
+      "bytes": 945,
+      "sha256": "365001bef129712d335fcd24c41c612331773bd78ccc7ffca4d694ed5f21cb64"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\stdout.log",
+      "bytes": 378,
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "b784e00168b16f8a0907de1fe0c22b187833f90732b84ac0409540cc2496a0ef"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "c7dd247c3069d323bca1d353ad2aa7d5924b458c6f5e77e1b27613338da113d2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\native_work_accounting.json",
+      "bytes": 3517,
+      "sha256": "8f3268fa0704043fea305efa593bb008fe8ec67d856f476bb7ed35f2e8758b1a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\NoScalar_r1\\executor_attempt.json",
+      "bytes": 4097,
+      "sha256": "bbab68725471fd78c7ea49770cdaf593f45e5054c18b98d880da62c4aa4a4e9a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\ExplicitAMD_r1\\resource_guard.json",
+      "bytes": 948,
+      "sha256": "ddd316010331347e3eb9289940a0fa1f3055280df5ca6b9c1a81093e94bfe4a5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\ExplicitAMD_r1\\stdout.log",
+      "bytes": 378,
+      "sha256": "30f4d631ec982e05662f79d309bf89e523def909d0ad6dcc4b6bccd1cd7c4a8b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\ExplicitAMD_r1\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\ExplicitAMD_r1\\dispatch_controls.bin",
+      "bytes": 11776,
+      "sha256": "7e0b704eea9b7035dddab1517f4dd9bd4ee2a7e0d6fb04e90f4d8ec4a2b5d3f0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\ExplicitAMD_r1\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "8d7eff18720d67e658db4c8a38e7d1675efa215e2fd4b9d917b0d741c8612ecb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\ExplicitAMD_r1\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "85b09912da4120b30e8b3b201673171a04efb7535ea6a1a2457489df833094a6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\ExplicitAMD_r1\\native_work_accounting.json",
+      "bytes": 3532,
+      "sha256": "42233d79e0ef9263e0a9b8179dab5087e8ad4368d0c9e6c808b22fe7274fc675"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\planned_native\\ExplicitAMD_r1\\executor_attempt.json",
+      "bytes": 4148,
+      "sha256": "ee2dc49582426cbf4a08d4d9e046e7fd491e4c1c2f80b72ec8c4d8bd38473cd6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\execution_results.json",
+      "bytes": 64049,
+      "sha256": "d084520f4a07f09e1faec6224ac3481acb0a0f94d5449f843f84f7db0242bb12"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\raw_comparisons.json",
+      "bytes": 169581,
+      "sha256": "ddb971547ddeaf42c4854bc2b878ad1ca52654729df5921b41d6836ef907555a"
+    }
+  ],
+  "total_records": 34,
+  "actual_child_records": 32,
+  "self_excluded": true,
+  "read_only_source_artifacts": true
+}

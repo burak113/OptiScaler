@@ -1,0 +1,15 @@
+{
+  "original": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\analyze_raw_cpu.py",
+    "bytes": 3876,
+    "sha256": "b243a250e81b0b355d01fc6ae475070e9cc71210b460fd4b886989099fc34b16"
+  },
+  "new": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\analyze_raw_cpu.py",
+    "bytes": 4276,
+    "sha256": "df1f76be798003bf1c60332a926b9f3499dc618bea6c2522ba65d6a2628607fd"
+  },
+  "raw_metric_function_AST_exact": true,
+  "initial_raw_metric_AST_reuse_is_pre_field_rename_snapshot": true,
+  "actual_scores": 0
+}

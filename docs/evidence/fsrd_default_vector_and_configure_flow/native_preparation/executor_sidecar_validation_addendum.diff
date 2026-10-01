@@ -1,0 +1,40 @@
+--- preserved run_native_pre_sidecar_validation.py.txt
++++ run_native.py
+@@ -1,6 +1,6 @@
+ """Frozen future scalar-vector contrast executor. Root must verify query and preparation seals and authorize; preparation never calls main."""
+ from pathlib import Path
+-import argparse,hashlib,json,os,sys
++import argparse,hashlib,json,os,struct,sys
+ sys.dont_write_bytecode=True
+ HERE=Path(__file__).resolve().parent
+ from executor_evidence import fresh_runtime,safe_guard_load
+@@ -12,13 +12,20 @@
+     with Path(p).open('w',encoding='utf-8',newline='\n')as f:json.dump(v,f,indent=2,allow_nan=False);f.write('\n')
+ def verify(records):
+     for r in records:assert ident(r['path'])==r,r['path']
++def verify_tuning(c):
++    p=Path(c['job']).parent/'tuning_values.bin';raw=p.read_bytes()
++    assert len(raw)==24 and list(struct.unpack('<6I',raw))==c['tuning_float32_bits'],'Frozen sidecar exact length/bits'
++    assert ident(p)==c['tuning_sidecar'],'Frozen sidecar identity'
++
+ def main():
+     arg=argparse.ArgumentParser();arg.add_argument('--execute-native',action='store_true',required=True);arg.parse_args()
+     reg=json.loads((HERE/'registration.json').read_text());freeze=json.loads((HERE/'pre_native_freeze.json').read_text())
+     verify(freeze['files']);verify(freeze['external_sources'])
+     assert reg['status']=='PREPARED_CPU_ONLY_NOT_AUTHORIZED_NATIVE'
+     result=HERE/'execution_results.json';assert not result.exists(),'No native retry/result overwrite'
+-    for c in reg['cases']:assert fresh_runtime(Path(c['job']).parent)['all_absent'],'No prior runtime allowed'
++    for c in reg['cases']:
++        verify_tuning(c)
++        assert fresh_runtime(Path(c['job']).parent)['all_absent'],'No prior runtime allowed'
+     temp=(HERE/'execution_TEMP').resolve();assert temp.drive.upper()=='F:'and HERE in temp.parents
+     temp.mkdir(exist_ok=True);os.environ['TMP']=str(temp);os.environ['TEMP']=str(temp)
+     report={'schema':'clean-fork-versus-public-default-vector-four-fresh-contexts-native-raw-only','status':'running','jobs':[],'contexts_created_confirmed':0,'contexts_completed_confirmed':0,
+@@ -30,6 +37,7 @@
+     try:
+         for c in reg['cases']:
+             verify(freeze['files']);verify(freeze['external_sources']);folder=Path(c['job']).parent
++            verify_tuning(c) # exact sidecar bytes/bits/length before this owned child
+             preflight=fresh_runtime(folder);assert preflight['all_absent']
+             attempt={'invocation_started':True,'fresh_runtime_files_verified_absent':True,'case_command_matches':True,'before_guard_call_checkpointed':True,'command':c['command'],'preflight':preflight}
+             save(folder/'executor_attempt.json',attempt);report['executor_invocations']+=1;checkpoint()

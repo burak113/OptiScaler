@@ -1,0 +1,550 @@
+{
+  "status": "PASSED_FORK_VS_PUBLIC_DEFAULTS_NATIVE_RAW_EVIDENCE_REVIEW",
+  "blocking_findings": [],
+  "scope": "Independent CPU-only post-run review of four actual matched-vector contexts and saved raw comparisons; no native/GPU/build/frozen-analyzer/scorer or CPU-law rerun.",
+  "source_pins": {
+    "preparation": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\completion_manifest.json",
+      "bytes": 40479,
+      "sha256": "b22233c16d8f9a7e967babc30cecb43cc4d1226dfabd7adbf9e8cebf558499d2"
+    },
+    "prelaunch": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_prelaunch_review_20261001\\completion_manifest_v2.json",
+      "bytes": 2011,
+      "sha256": "5091b0c26014f4b2066c01419c6b69b18d038acb14b4ec8a8c6cda2365912717"
+    },
+    "source_CPP": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\frozen_runner\\source\\source_reference.cpp",
+      "bytes": 17613,
+      "sha256": "a91ff423f49f90d7ccb16a6182f06bea82dd38fbb642885b4cb806fe08eca9d4"
+    },
+    "common_EXE": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\frozen_runner\\fsrd_rr_runner.exe",
+      "bytes": 393728,
+      "sha256": "bf9774a1e83855590f5b254163953898690431a73b859235e41bd79121ac5ebf"
+    },
+    "provider": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\signedbin\\amd_fidelityfx_denoiser_dx12.dll",
+      "bytes": 13782280,
+      "sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3"
+    },
+    "root_authorization": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_fork_vs_public_defaults_root_authorization_20261001.json",
+      "bytes": 5554,
+      "sha256": "a1c87db15f7d700b10dc7ea7147e56c822bf319181ab45c7df63ec73563027ea"
+    },
+    "root_receipt": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_fork_vs_public_defaults_root_tool_observations_20261001.json",
+      "bytes": 74185,
+      "sha256": "ae15fc33102d2ca859ed5e9f14623c6639b54552490ea0317fd38c18f7d6599e"
+    },
+    "root_receipt_generator": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\record_fsrd_fork_vs_public_defaults_root_observations_20261001.py",
+      "bytes": 17862,
+      "sha256": "bc1c28a2798cb3da14792b2e5e6de076ad243c17cfec1e65fc11ca06df5a010f"
+    },
+    "execution": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\execution_results.json",
+      "bytes": 58199,
+      "sha256": "5afac8549616a846cfb26f5eebaa10dcb9085f650163b29d8ad961f1f31ec004"
+    },
+    "raw_analysis": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\raw_comparisons.json",
+      "bytes": 70049,
+      "sha256": "27bd6845972bd23709779fd0f59e42ebbfa965bc0ed59b0588c58d27db43a668"
+    }
+  },
+  "actual_counts": {
+    "created_contexts": 4,
+    "successfully_destroyed_source_qualified_contexts": 4,
+    "completed_contexts": 4,
+    "accepted_contexts": 4,
+    "unknown_children": 0,
+    "logical_RR_stage_counts": {
+      "api": 256,
+      "queued": 256,
+      "executes": 256,
+      "signals": 256,
+      "events": 256,
+      "waits": 256,
+      "completed_GPU": 256,
+      "observed_readback_pairs": 256
+    },
+    "ordinary_D3D_errors": 0,
+    "ordinary_D3D_warnings": 0,
+    "SDK_callback_errors": 0,
+    "SDK_callback_warnings": 0,
+    "child_stderr_bytes": 0,
+    "default_scalar_Query_calls": 0,
+    "informational_provider_version_Query_calls_returns": 4,
+    "informational_provider_version_Query_return_codes": [
+      6,
+      6,
+      6,
+      6
+    ],
+    "successful_informational_version_Queries": 0,
+    "scalar_Configure_source_qualified_calls": 24,
+    "global_debug_Configure_source_qualified_calls": 4,
+    "new_composition_helpers": 0
+  },
+  "counts_qualification": "The unique64 footers follow the source-qualified complete serial loop and successful Destroy. This runner has no intermediate API-success journal or GetCompletedValue log. Per-stage64 totals are source-qualified from current owned child/footer/full readbacks, not capacity or accepted-context substitution. Configure and informational Query counts are source-qualified, not independent journals. Version Query rc6 is unchanged tolerated informational behavior, distinct from callback diagnostic0 and previous6 successful public default-scalar Queries.",
+  "actual_cases": [
+    {
+      "tag": "Fork_r0",
+      "child_pid": 26692,
+      "counts": {
+        "api": 64,
+        "queued": 64,
+        "executes": 64,
+        "signals": 64,
+        "events": 64,
+        "waits": 64,
+        "completed_GPU": 64,
+        "observed_readback_pairs": 64
+      },
+      "exact": true,
+      "ordinary_D3D_errors": 0,
+      "ordinary_D3D_warnings": 0,
+      "SDK_callback_errors": 0,
+      "SDK_callback_warnings": 0,
+      "informational_version_Query_calls": 1,
+      "informational_version_Query_return_code": 6,
+      "default_scalar_Query_calls": 0,
+      "successful_destroy_source_qualified": true,
+      "control_bytes": 11776,
+      "alpha_bit_patterns": {
+        "diffuse.bin": [
+          0
+        ],
+        "specular.bin": [
+          0
+        ]
+      },
+      "guard_elapsed_seconds": 0.6879999999946449
+    },
+    {
+      "tag": "AMD_r0",
+      "child_pid": 25296,
+      "counts": {
+        "api": 64,
+        "queued": 64,
+        "executes": 64,
+        "signals": 64,
+        "events": 64,
+        "waits": 64,
+        "completed_GPU": 64,
+        "observed_readback_pairs": 64
+      },
+      "exact": true,
+      "ordinary_D3D_errors": 0,
+      "ordinary_D3D_warnings": 0,
+      "SDK_callback_errors": 0,
+      "SDK_callback_warnings": 0,
+      "informational_version_Query_calls": 1,
+      "informational_version_Query_return_code": 6,
+      "default_scalar_Query_calls": 0,
+      "successful_destroy_source_qualified": true,
+      "control_bytes": 11776,
+      "alpha_bit_patterns": {
+        "diffuse.bin": [
+          0
+        ],
+        "specular.bin": [
+          0
+        ]
+      },
+      "guard_elapsed_seconds": 0.40600000000267755
+    },
+    {
+      "tag": "AMD_r1",
+      "child_pid": 26052,
+      "counts": {
+        "api": 64,
+        "queued": 64,
+        "executes": 64,
+        "signals": 64,
+        "events": 64,
+        "waits": 64,
+        "completed_GPU": 64,
+        "observed_readback_pairs": 64
+      },
+      "exact": true,
+      "ordinary_D3D_errors": 0,
+      "ordinary_D3D_warnings": 0,
+      "SDK_callback_errors": 0,
+      "SDK_callback_warnings": 0,
+      "informational_version_Query_calls": 1,
+      "informational_version_Query_return_code": 6,
+      "default_scalar_Query_calls": 0,
+      "successful_destroy_source_qualified": true,
+      "control_bytes": 11776,
+      "alpha_bit_patterns": {
+        "diffuse.bin": [
+          0
+        ],
+        "specular.bin": [
+          0
+        ]
+      },
+      "guard_elapsed_seconds": 0.40600000000267755
+    },
+    {
+      "tag": "Fork_r1",
+      "child_pid": 25960,
+      "counts": {
+        "api": 64,
+        "queued": 64,
+        "executes": 64,
+        "signals": 64,
+        "events": 64,
+        "waits": 64,
+        "completed_GPU": 64,
+        "observed_readback_pairs": 64
+      },
+      "exact": true,
+      "ordinary_D3D_errors": 0,
+      "ordinary_D3D_warnings": 0,
+      "SDK_callback_errors": 0,
+      "SDK_callback_warnings": 0,
+      "informational_version_Query_calls": 1,
+      "informational_version_Query_return_code": 6,
+      "default_scalar_Query_calls": 0,
+      "successful_destroy_source_qualified": true,
+      "control_bytes": 11776,
+      "alpha_bit_patterns": {
+        "diffuse.bin": [
+          0
+        ],
+        "specular.bin": [
+          0
+        ]
+      },
+      "guard_elapsed_seconds": 0.40600000000267755
+    }
+  ],
+  "checks": {
+    "direct_and_stored_guards_match": true,
+    "four_unique_current_child_PIDs": true,
+    "all_guards_completed_no_termination": true,
+    "exact_registered_commands": true,
+    "fresh_attempt_preflights_retained": true,
+    "resource_limits_met": true,
+    "source_inputs_sidecars_expected_and_applied_controls_before_after_exact": true,
+    "actual_control_bytes_each": 11776,
+    "actual_raw_bytes_each_lobe": 5242880,
+    "all64_source_indices_matched": true,
+    "actual_native_RGB_finite": true,
+    "output_alpha_positive_zero_all_streams": true,
+    "prep_files_verified": 98,
+    "prep_external_verified": 45,
+    "freeze_files_verified": 91,
+    "freeze_external_verified": 45,
+    "ready_files_verified": 96,
+    "ready_external_verified": 45,
+    "inherited_unique_records_verified": 5677,
+    "prelaunch_V1_V2_preserved": true,
+    "all20_raw_lobe_metric_objects_exact_match": true,
+    "raw_analysis_not_rerun": true,
+    "root_receipt_and_generator_byte_pins_verified": true
+  },
+  "current_pair_summaries": [
+    {
+      "left": "Fork_r0",
+      "right": "AMD_r0",
+      "kind": "between_vectors",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 0.013657721269641048,
+          "RGB_max_abs": 0.0224609375,
+          "first_RGB_changed_frame": 0,
+          "last_RGB_changed_frame": 63,
+          "RGB_changed_frame_count": 64
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 0.013799569925536777,
+          "RGB_max_abs": 0.02294921875,
+          "first_RGB_changed_frame": 0,
+          "last_RGB_changed_frame": 63,
+          "RGB_changed_frame_count": 64
+        }
+      }
+    },
+    {
+      "left": "Fork_r0",
+      "right": "AMD_r1",
+      "kind": "between_vectors",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 0.01368006098133179,
+          "RGB_max_abs": 0.0224609375,
+          "first_RGB_changed_frame": 0,
+          "last_RGB_changed_frame": 63,
+          "RGB_changed_frame_count": 64
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 0.013794718120456016,
+          "RGB_max_abs": 0.0224609375,
+          "first_RGB_changed_frame": 0,
+          "last_RGB_changed_frame": 63,
+          "RGB_changed_frame_count": 64
+        }
+      }
+    },
+    {
+      "left": "Fork_r0",
+      "right": "Fork_r1",
+      "kind": "within_vector_repeat",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 0.0,
+          "RGB_max_abs": 0.0,
+          "first_RGB_changed_frame": null,
+          "last_RGB_changed_frame": null,
+          "RGB_changed_frame_count": 0
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": true,
+          "RGB_bits_exact": true,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 0.0,
+          "RGB_max_abs": 0.0,
+          "first_RGB_changed_frame": null,
+          "last_RGB_changed_frame": null,
+          "RGB_changed_frame_count": 0
+        }
+      }
+    },
+    {
+      "left": "AMD_r0",
+      "right": "AMD_r1",
+      "kind": "within_vector_repeat",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 0.00016632182153044413,
+          "RGB_max_abs": 0.0009765625,
+          "first_RGB_changed_frame": 15,
+          "last_RGB_changed_frame": 63,
+          "RGB_changed_frame_count": 49
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 0.00017900816646920046,
+          "RGB_max_abs": 0.0009765625,
+          "first_RGB_changed_frame": 17,
+          "last_RGB_changed_frame": 63,
+          "RGB_changed_frame_count": 47
+        }
+      }
+    },
+    {
+      "left": "AMD_r0",
+      "right": "Fork_r1",
+      "kind": "between_vectors",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 0.013657721269641048,
+          "RGB_max_abs": 0.0224609375,
+          "first_RGB_changed_frame": 0,
+          "last_RGB_changed_frame": 63,
+          "RGB_changed_frame_count": 64
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 0.013799569925536777,
+          "RGB_max_abs": 0.02294921875,
+          "first_RGB_changed_frame": 0,
+          "last_RGB_changed_frame": 63,
+          "RGB_changed_frame_count": 64
+        }
+      }
+    },
+    {
+      "left": "AMD_r1",
+      "right": "Fork_r1",
+      "kind": "between_vectors",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 0.01368006098133179,
+          "RGB_max_abs": 0.0224609375,
+          "first_RGB_changed_frame": 0,
+          "last_RGB_changed_frame": 63,
+          "RGB_changed_frame_count": 64
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 0.013794718120456016,
+          "RGB_max_abs": 0.0224609375,
+          "first_RGB_changed_frame": 0,
+          "last_RGB_changed_frame": 63,
+          "RGB_changed_frame_count": 64
+        }
+      }
+    }
+  ],
+  "historical_pair_summaries": [
+    {
+      "current": "Fork_r0",
+      "historical": "A0_r0",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 6.316175709918757e-05,
+          "RGB_max_abs": 0.00048828125,
+          "first_RGB_changed_frame": 39,
+          "last_RGB_changed_frame": 63
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 9.069437734961502e-05,
+          "RGB_max_abs": 0.00048828125,
+          "first_RGB_changed_frame": 39,
+          "last_RGB_changed_frame": 63
+        }
+      },
+      "qualification": "Historical B342 EXE/source and fresh process/cohort differ from new common sidecar EXE; descriptive comparison does not isolate the six-value intervention."
+    },
+    {
+      "current": "Fork_r1",
+      "historical": "A0_r0",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 6.316175709918757e-05,
+          "RGB_max_abs": 0.00048828125,
+          "first_RGB_changed_frame": 39,
+          "last_RGB_changed_frame": 63
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 9.069437734961502e-05,
+          "RGB_max_abs": 0.00048828125,
+          "first_RGB_changed_frame": 39,
+          "last_RGB_changed_frame": 63
+        }
+      },
+      "qualification": "Historical B342 EXE/source and fresh process/cohort differ from new common sidecar EXE; descriptive comparison does not isolate the six-value intervention."
+    },
+    {
+      "current": "Fork_r0",
+      "historical": "A0_r1",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 6.038297464043612e-05,
+          "RGB_max_abs": 0.00048828125,
+          "first_RGB_changed_frame": 40,
+          "last_RGB_changed_frame": 63
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 8.790442680674867e-05,
+          "RGB_max_abs": 0.00048828125,
+          "first_RGB_changed_frame": 40,
+          "last_RGB_changed_frame": 63
+        }
+      },
+      "qualification": "Historical B342 EXE/source and fresh process/cohort differ from new common sidecar EXE; descriptive comparison does not isolate the six-value intervention."
+    },
+    {
+      "current": "Fork_r1",
+      "historical": "A0_r1",
+      "lobes": {
+        "diffuse.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 6.038297464043612e-05,
+          "RGB_max_abs": 0.00048828125,
+          "first_RGB_changed_frame": 40,
+          "last_RGB_changed_frame": 63
+        },
+        "specular.bin": {
+          "RGBA_bits_exact": false,
+          "RGB_bits_exact": false,
+          "alpha_bits_exact": true,
+          "RGB_RMS": 8.790442680674867e-05,
+          "RGB_max_abs": 0.00048828125,
+          "first_RGB_changed_frame": 40,
+          "last_RGB_changed_frame": 63
+        }
+      },
+      "qualification": "Historical B342 EXE/source and fresh process/cohort differ from new common sidecar EXE; descriptive comparison does not isolate the six-value intervention."
+    }
+  ],
+  "observed_interpretation": [
+    "Fork_r0 and Fork_r1 are full64 RGBA/RGB/alpha bit-exact for both lobes.",
+    "AMD_r0 and AMD_r1 are not bit-exact: first diffuse difference15, first specular17, last63; RMS0.00016632182153044413/0.00017900816646920046, maximum0.0009765625. Alpha remains exact.",
+    "All four between-vector comparisons differ in RGB on all64 frames. Diffuse RMS spans0.013657721269641048..0.01368006098133179; specular0.013794718120456016..0.013799569925536777. These are descriptive matched six-value vector comparisons, with within-AMD variation retained.",
+    "Each current Fork differs from both historical A0 traces: first39 versus historical A0_r0 and40 versus A0_r1, maximum0.00048828125. Source/EXE/process/time cohort differ, so this does not isolate vector treatment or invalidate prior observations."
+  ],
+  "cumulative_accounting": {
+    "qualification": "Earlier totals are carried forward from pinned root authorization/receipt, not independently re-derived here.",
+    "all_SDK_contexts": 419,
+    "RR_workload_contexts": 418,
+    "query_only_contexts": 1,
+    "successful_RR_API": 22330,
+    "queued_completed_RR": 22322,
+    "recorded_only_discards": 8,
+    "no_API_omissions_separate": 4,
+    "previous_successful_public_default_scalar_queries_separate": 6
+  },
+  "actual_review_work": {
+    "SDK_or_runner_invocations": 0,
+    "GPU_jobs": 0,
+    "builds": 0,
+    "frozen_analyzer_reruns": 0,
+    "quality_scorer_calls": 0,
+    "CPU_accounting_law_reruns": 0
+  },
+  "limitations": [
+    "All six scalar values change together. No individual-key causality or private mechanism is identified; default-vector repeats are nonexact.",
+    "These are raw demodulated native lobes, not genuine composed T outputs or quality scores. New composition requires separate preparation, review and root authorization.",
+    "Original B342 local-array/exception-cleanup/output-initialization and partial-footer limits remain. Actual completed footers do not prove a general API/private lifetime contract.",
+    "Signed-provider internal shader dispatch count and hidden GPU semantics remain unknown; logical RR API/submission stages are counted separately.",
+    "Synthetic clean inputs are a constructed fixture, not a physical rendering oracle. No game cause, vendor defect, production fix or quality acceptance is claimed.",
+    "Root driver/analyzer tool output was empty. Root receipt labels actual exit/chunk observations separately from retained real child stdout/stderr/guard records, and preserves the initial CPU relative-path expansion error."
+  ]
+}

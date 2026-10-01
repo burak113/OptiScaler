@@ -1,0 +1,30 @@
+{
+  "status": "PRESERVED_REVIEWER_ONLY_CPU_PARSE_FAILURE",
+  "attempt1_tool_chunk": "0a97ab",
+  "exit_code": 1,
+  "actual_native_GPU_build_scorer_law_analyzer_invocations": 0,
+  "files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_postrun_review_20261001\\audit.py",
+      "bytes": 25397,
+      "sha256": "7dd855f150c102015607b109742743a138602b3e92d54b5cf8c8ab4d3491fdd1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_postrun_review_20261001\\audit_stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_postrun_review_20261001\\audit_stderr.log",
+      "bytes": 283,
+      "sha256": "7b78c6ad24a7c1599ce03c3af8041c7b44e2a54fada05a1fee0916a8d21490e9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_postrun_review_20261001\\identity_before.json",
+      "bytes": 2976,
+      "sha256": "0ac3fc94c258ac2efc0423a94be2b80f2daff53307d2e74e866f6a5547e780e0"
+    }
+  ],
+  "cause": "Provider line was followed by the dispatch footer. Reviewer V1 regex incorrectly required end-of-line after consuming newline. The valid raw provider line was rejected; no producer evidence failed.",
+  "repair": "Separate V2 fixes provider line EOL grammar and writes a separate before snapshot; no producer or pinned source bytes changed."
+}

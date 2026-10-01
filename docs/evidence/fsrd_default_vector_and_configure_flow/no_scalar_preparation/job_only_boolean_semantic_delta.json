@@ -1,0 +1,41 @@
+{
+  "fixed_header_fields_without_tuning": [
+    "128",
+    "80",
+    "64",
+    "2",
+    "32",
+    "0",
+    "TUNING_BOOLEAN_ONLY",
+    "0",
+    "F:/OptiRevelations/OptiScaler-ffxD-alpha/external/FidelityFX-SDK-v2/Kits/FidelityFX/signedbin/amd_fidelityfx_denoiser_dx12.dll"
+  ],
+  "headers_equal_after_boolean_erasure": true,
+  "seven_fullownedinputbytes_equal_to_original": true,
+  "formats": [
+    41,
+    10,
+    24,
+    28,
+    28,
+    10,
+    10
+  ],
+  "static_upload_counts": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+  ],
+  "controls64x184_byte_exact": true,
+  "camera_override_absent_in_original_and_all4": true,
+  "source_default_camera_unchanged": true,
+  "global_debug_versionQuery_createflag2_same": true,
+  "sidecar24B_all4_identical_native_NoScalarunused": true,
+  "NoScalar_active_internal_settings_known": false,
+  "outputpaths_only_housekeeping_difference": true,
+  "new_CPP_EXE_build_changes": 0
+}

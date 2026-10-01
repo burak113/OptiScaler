@@ -1,0 +1,20 @@
+--- audit_v2.py
++++ audit_v3.py
+@@ -99,7 +99,7 @@
+ assert receipt['generator']['sha256']=='9046f2f575ae2f2cad8cdb5f35cefe08015c6e2225590f4a7f41216df7a450c8'
+ before = dict(all_verified)
+ head_before = subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+-save('identity_before_v2.json',dict(HEAD=head_before,preparation=preparation,freeze=freeze,prelaunch=prelaunch,
++save('identity_before_v3.json',dict(HEAD=head_before,preparation=preparation,freeze=freeze,prelaunch=prelaunch,
+     inherited_seals=inheritance,total_unique_verified_files=len(before),
+     inheritance='Listed identities expanded and verified once; manifests retained as compact authority instead of duplicating pin tables.',
+     all_exact=True,actual_review_calls=dict(native=0,GPU=0,build=0,scorer=0,producer_analyzer=0,CPU_law_reruns=0)))
+@@ -188,7 +188,7 @@
+     assert work['created_context_confirmed'] and work['completed_context_confirmed'] and work['evidence_disagreements']==[]
+     assert work['successful_not_submitted_exact']==work['discarded_or_omitted_exact']==0
+     assert rr['informational_provider_version_Query_return_code_actual']==6 and rr['informational_provider_version_Query_successes_actual']==0
+-    source_nonrr=dict(scalar_Configure=6*c['tuning'],global_debug_Configure=1,informational_version_Query=1,default_scalar_Query=0)
++    source_nonrr=dict(scalar_Configure=6*c['tuning'],global_debug_Configure=1,informational_provider_version_Query=1,default_scalar_Query=0)
+     assert j['source_qualified_nonRR_calls_if_complete']==source_nonrr
+     assert rr['source_derived_after_fullfooter']['scalar_Configure']==6*c['tuning']
+     controls=(folder/'dispatch_controls.bin').read_bytes()

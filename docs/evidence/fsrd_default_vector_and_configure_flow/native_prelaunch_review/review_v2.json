@@ -1,0 +1,349 @@
+{
+  "status": "READY_FOR_ROOT_FOUR_FORK_VS_PUBLIC_DEFAULTS_NATIVE_AUTHORIZATION",
+  "blocking_findings": [],
+  "scope": "Independent CPU-only prelaunch review of the exact sealed four-context scalar-vector native diagnostic. No runner, SDK, GPU, build, scorer or CPU accounting-law rerun.",
+  "preparation_pins": {
+    "registration.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\registration.json",
+      "bytes": 29336,
+      "sha256": "17be50125258f4fd3bc2f5037791e0f805c0d9e67606da5579103e76e19337a4"
+    },
+    "pre_native_freeze.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\pre_native_freeze.json",
+      "bytes": 38605,
+      "sha256": "b5ef89895626602199a3e0cb8e0ebd100c238b12ddbc2f07346ba07bc86083cb"
+    },
+    "prelaunch_ready_manifest.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\prelaunch_ready_manifest.json",
+      "bytes": 42931,
+      "sha256": "79d7129a9589dd80db2ae78593e09d0059c95d9572284aa0d9ebaaeb17a01d51"
+    },
+    "completion_manifest.json": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\completion_manifest.json",
+      "bytes": 40479,
+      "sha256": "b22233c16d8f9a7e967babc30cecb43cc4d1226dfabd7adbf9e8cebf558499d2"
+    }
+  },
+  "source": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\frozen_runner\\source\\source_reference.cpp",
+    "bytes": 17613,
+    "sha256": "a91ff423f49f90d7ccb16a6182f06bea82dd38fbb642885b4cb806fe08eca9d4"
+  },
+  "common_EXE": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\frozen_runner\\fsrd_rr_runner.exe",
+    "bytes": 393728,
+    "sha256": "bf9774a1e83855590f5b254163953898690431a73b859235e41bd79121ac5ebf"
+  },
+  "provider": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\signedbin\\amd_fidelityfx_denoiser_dx12.dll",
+    "bytes": 13782280,
+    "sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3"
+  },
+  "source_findings": {
+    "original_B342_inverse_sha256": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077",
+    "inverse_byte_equality": true,
+    "sole_hunk_old_line": 117,
+    "sole_hunk_new_lines": [
+      117,
+      118,
+      119,
+      120,
+      121
+    ],
+    "sidecar_exact_bytes": 24,
+    "finite_float6": true,
+    "local_scope_and_scalar_Configure_count1_preserved": true,
+    "keys": [
+      6,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "six_scalar_Configure_calls": true,
+    "existing_one_global_debug_Configure_unchanged": true,
+    "relative_include_bytes_unchanged_and_four_deep_paths_resolve": true,
+    "loop_lifecycle_barriers_output_initialization_and_footer_unchanged": true
+  },
+  "producer_compile": {
+    "actual_invocations": 1,
+    "compiler_exit": 0,
+    "compiler_stdout_filename_only_bytes": 22,
+    "compiler_stderr_bytes": 0,
+    "compiler_warnings_observed": 0,
+    "current_owned_child_guard": true,
+    "build_result": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\build_result.json",
+      "bytes": 2829,
+      "sha256": "cd77938427506db74b5e5d827543c1bbdbf53ffae62ddd570a23925573b2d32f"
+    },
+    "EXE_bytes": 393728,
+    "source_build_subset_report": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_prelaunch_review_20261001\\source_build_subset_review.json",
+      "bytes": 4153,
+      "sha256": "658b559be10998ac37065093c23c16894bfa915f037f5237e8cc187cfe90dfff"
+    }
+  },
+  "payload_and_cohort": {
+    "order": [
+      "Fork_r0",
+      "AMD_r0",
+      "AMD_r1",
+      "Fork_r1"
+    ],
+    "context_frames": 64,
+    "input_formats": [
+      41,
+      10,
+      24,
+      28,
+      28,
+      10,
+      10
+    ],
+    "input_upload_counts": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "seven_full_input_bytes_identical": true,
+    "input_alpha_bytes_unchanged": true,
+    "specular_input_A_positive_zero_bits": true,
+    "controls_64x184_identical": true,
+    "flags_first3_rest2": true,
+    "absolute_source_frame_indices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63
+    ],
+    "camera_motion_jitter_unchanged": true,
+    "only_semantic_arm_difference": "Exact24-byte six-float vector; tags/output paths route owned evidence.",
+    "Fork_float32_bits": [
+      1036831949,
+      1056964608,
+      1056964608,
+      1193033728,
+      1109393408,
+      1056964608
+    ],
+    "AMD_float32_bits": [
+      1008981770,
+      1065353216,
+      1065353216,
+      1199562752,
+      1112014848,
+      0
+    ],
+    "AMD_bytes_equal_measured_query": true,
+    "actual_query_postreview": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_postrun_review_20261001\\review.json",
+      "bytes": 8938,
+      "sha256": "cfe3660e3b0d6f253aeedd131be321bb2f6161305754e9166ed88cceb6194da6"
+    },
+    "actual_query_postseal": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_postrun_review_20261001\\completion_manifest.json",
+      "bytes": 6511,
+      "sha256": "609dbef57ca419418568d9b4ff81fdf4d5572fa8713f33078af6898424d637bc"
+    }
+  },
+  "accounting_and_guard": {
+    "old_executor_inverse_exact": true,
+    "only_driver_semantic_addition": "Exact sidecar length/bits/hash prevalidation before the cohort and before each child",
+    "four_mature_guard_parser_test_modules_byte_exact": true,
+    "existing_producer_CPU_checks_passed": 12,
+    "independent_CPU_law_reruns": 0,
+    "physical_checkpoint_before_strict_acceptance": true,
+    "canonical_guard_load_exception_recovery_preserved": true,
+    "known_nochild_stale_claims_not_actual_work": true,
+    "partial_footer_prefix_unknown_limits_preserved": true,
+    "strict_ordinary_D3D_and_SDK_errors_warnings_zero": true,
+    "empty_stderr_required": true,
+    "timeout_seconds": 240,
+    "maximum_working_set_bytes": 2147483648,
+    "minimum_available_memory_bytes": 1073741824,
+    "interval_seconds": 0.2,
+    "F_TEMP_TMP": true,
+    "sequential_owned_child_only": true
+  },
+  "verification": {
+    "preparation_local_records": 98,
+    "preparation_external_records": 45,
+    "freeze_local_records": 91,
+    "freeze_external_records": 45,
+    "ready_local_records": 96,
+    "ready_external_records": 45,
+    "self_excluded": true,
+    "inherited_manifest": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_postrun_review_20260930\\completion_manifest_final.json",
+      "bytes": 1678987,
+      "sha256": "9d231d55386869cdcd72d6e1095bf7548f42bbc3d4d990922fabb971f3cb18c1"
+    },
+    "inherited_unique_records_verified": 5677,
+    "inherited_fingerprint": "117c25fbc9211fa5bf07925a31232791a0ac43c46a9ce85a322e81b86d424c9b",
+    "large_inherited_tables_not_duplicated": true,
+    "all_direct_source_build_before_after_exact": true,
+    "runtime_targets_absent": 56,
+    "execution_results_absent": true,
+    "raw_comparisons_absent": true,
+    "owned_F_TEMP_empty": true,
+    "quarantine_empty": true
+  },
+  "phase_provenance": "Historical precompile analyzer/driver CPU drafts are preserved as exact snapshots; two later CPU-only extensions are pinned by the final pre-native freeze. All other precompile records remain exact. Two producer CPU setup failures and two reviewer metadata-only read failures remain qualified; none is native/GPU work.",
+  "future_raw_analysis": {
+    "all_six_new_pairs": true,
+    "both_lobes": true,
+    "all64_source_frames": true,
+    "within_vector_repeats_separate_from_between_vectors": true,
+    "RGBA_RGB_alpha_bits_and_RGB_error_metrics": true,
+    "quality_scores": null,
+    "historical_currentFork_vs_oldA0_pairs": 4,
+    "historical_source_EXE_process_cohort_qualified": true,
+    "composition_outside_authorization": true
+  },
+  "planned_only_if_all_completed": {
+    "contexts": 4,
+    "successful_API": 256,
+    "queued_RR": 256,
+    "Execute": 256,
+    "Signal": 256,
+    "event": 256,
+    "wait": 256,
+    "completed_GPU_RR": 256,
+    "observed_pair_frames": 256,
+    "scalar_Configure_calls_source_qualified": 24,
+    "global_debug_Configure_calls_source_qualified": 4
+  },
+  "actual_preparation_native_SDK_GPU_scores": 0,
+  "actual_review_runner_SDK_GPU_build_scores_law_reruns": 0,
+  "limitations": [
+    "Six values vary together. This can measure a conditional vector response; it cannot isolate an individual key or establish private parameter semantics.",
+    "Both arms use one new common EXE. Historical B342 comparisons differ in source/EXE/process/time cohort and are descriptive.",
+    "Original B342 local-array lifetime, output initialization and failed Create/Configure/Dispatch/Destroy cleanup remain unchanged. No undocumented retained-pointer/copy/quiescence behavior is asserted.",
+    "A sidecar read/finite-validation failure happens after Create in unchanged local tuning scope. Before-child exact bytes are prevalidated; unexpected source failures retain original partial/unknown ownership and accounting limits.",
+    "Unique64 footer is source-qualified after complete serial loops and successful Destroy; no intermediate API-success journal exists. Missing footer retains readback lowerbounds and unknown totals, with no invented skipped/discarded work or private shader count.",
+    "Scalar Configure counts are source-qualified for completed contexts; exact partial Configure counts are not independently journaled.",
+    "Global-debug Configure differs from the query-only probe but is unchanged and common across all four native arms. Provider-internal behavior remains unknown.",
+    "This review is readiness, not execution permission. Root must verify the immutable review/seal, complete source inheritance and fresh-runtime absence, then authorize only these four sequential jobs.",
+    "Raw demodulated lobe comparisons alone do not establish composed quality, physical truth, game cause, vendor defect or a production fix. Composition/scoring requires later separate preparation and authorization."
+  ],
+  "query_count_qualification": {
+    "schema": "source-qualified-informational-version-Query-count-only-supplement",
+    "scope": "Parent count distinction arrived immediately after V1 review/seal. Preserve V1 and clarify final review only; no producer/source/job/gate/accounting/metric changes.",
+    "original_review": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_prelaunch_review_20261001\\review.json",
+      "bytes": 11058,
+      "sha256": "af128332153c102da149c52e0561fbe3bce1f4edd678522e0b678da8a48acf22"
+    },
+    "original_seal": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_prelaunch_review_20261001\\completion_manifest.json",
+      "bytes": 4505,
+      "sha256": "a4682a263e9a567323a4e64edcb2423a8781b73c039d33eef5f01381002050f5"
+    },
+    "source": {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\frozen_runner\\source\\source_reference.cpp",
+      "bytes": 17613,
+      "sha256": "a91ff423f49f90d7ccb16a6182f06bea82dd38fbb642885b4cb806fe08eca9d4"
+    },
+    "unchanged_source_sites": {
+      "one_informational_provider_version_Query_per_context": true,
+      "source_declaration_line": 112,
+      "source_call_line": 113,
+      "source_printed_return_line": 114,
+      "default_scalar_Query_calls_in_contrast": 0
+    },
+    "planned_only_if_all_four_complete": {
+      "informational_provider_version_Query_calls": 4,
+      "informational_provider_version_Query_returns": 4,
+      "informational_provider_version_Query_successes": "Do not assume; inspect printed return codes. Nonzero/unavailable is permitted by unchanged B342 source.",
+      "default_scalar_Queries": 0,
+      "RR_API_recordings": 256,
+      "scalar_Configure_calls_source_qualified": 24,
+      "global_debug_Configure_calls_source_qualified": 4
+    },
+    "prior_default_query_measurement": {
+      "successful_scalar_Queries": 6,
+      "separate_previous_query_only_context": true
+    },
+    "current_actual_SDK_queries0_is_preexecution_only": true,
+    "no_blanket_future_all_SDK_Query0_assertion_found": true,
+    "no_future_metadata_assertion_correction_required": true,
+    "source_whitelist_loop_lifecycle_guard_and_acceptance_unchanged": true,
+    "actual_review_runner_SDK_GPU_build_scores_law_reruns": 0
+  },
+  "prior_review_preserved": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_prelaunch_review_20261001\\review.json",
+    "bytes": 11058,
+    "sha256": "af128332153c102da149c52e0561fbe3bce1f4edd678522e0b678da8a48acf22"
+  },
+  "prior_review_seal_preserved": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_prelaunch_review_20261001\\completion_manifest.json",
+    "bytes": 4505,
+    "sha256": "a4682a263e9a567323a4e64edcb2423a8781b73c039d33eef5f01381002050f5"
+  }
+}

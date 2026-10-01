@@ -1,0 +1,71 @@
+{
+  "status": "PASSED_ACTUAL_ROOT_RECEIPT_AND_GENERATOR_PINS",
+  "root_receipt": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_fork_vs_public_defaults_root_tool_observations_20261001.json",
+    "bytes": 74185,
+    "sha256": "ae15fc33102d2ca859ed5e9f14623c6639b54552490ea0317fd38c18f7d6599e"
+  },
+  "generator": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\record_fsrd_fork_vs_public_defaults_root_observations_20261001.py",
+    "bytes": 17862,
+    "sha256": "bc1c28a2798cb3da14792b2e5e6de076ad243c17cfec1e65fc11ca06df5a010f"
+  },
+  "child_artifact_records_verified": 32,
+  "all_counts_guard_work_and_pair_summaries_match_independent": true,
+  "actual_root_driver_tool": {
+    "chunk": "d19226",
+    "exit_code": 0,
+    "phase": "four-context native execution driver",
+    "wall_time_seconds": 4.0872179,
+    "authority": "Actual values supplied by root CLI; no invented tool success or stdout log"
+  },
+  "actual_root_analyzer_tool": {
+    "phase": "once frozen descriptive raw analyzer",
+    "invoked": true,
+    "chunk": "664ff6",
+    "exit_code": 0,
+    "wall_time_seconds": 1.2536614,
+    "authority": "Actual values supplied by root CLI; generator does not create analyzer stdout logs"
+  },
+  "CPU_root_relative_read_error_preserved": [
+    {
+      "chunk": "c67006",
+      "exit_code": 0,
+      "phase": "immutable root authorization generator",
+      "authority": "Actual root message; separate from raw child logs"
+    },
+    {
+      "chunk": "7ecbf9",
+      "exit_code": 1,
+      "phase": "first V1-review expansion CPU read",
+      "error": "FileNotFoundError from relative path/cwd;0native",
+      "authority": "Actual root message; failure preserved, no manufactured raw log"
+    },
+    {
+      "chunk": "bf2a14",
+      "exit_code": 0,
+      "phase": "corrected absolute ROOT CPU read",
+      "verified_owned": 11,
+      "verified_external": 2,
+      "authority": "Actual root message"
+    },
+    {
+      "chunk": "99f2b2",
+      "exit_code": 0,
+      "phase": "process preflight",
+      "stdout": "root reported empty",
+      "authority": "Actual root message"
+    }
+  ],
+  "actual_root_receipt_tool": {
+    "chunk": "6d5faf",
+    "exit_code": 0,
+    "authority": "Trusted parent message; distinct from actual raw child logs"
+  },
+  "review_core_CPU_tool": {
+    "chunk": "243cbe",
+    "exit_code": 0,
+    "authority": "Actual review tool observation"
+  },
+  "actual_review_SDK_GPU_build_scorer_law_reruns": 0
+}

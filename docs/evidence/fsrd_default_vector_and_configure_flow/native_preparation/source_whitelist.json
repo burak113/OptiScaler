@@ -1,0 +1,31 @@
+{
+  "status": "EXACT_ONE_HUNK_INVERSE_RECOVERS_OLD_SHA",
+  "original": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_preparation_20260930\\frozen_runner\\source_reference.cpp",
+    "bytes": 17182,
+    "sha256": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077"
+  },
+  "clone": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\frozen_runner\\source\\source_reference.cpp",
+    "bytes": 17613,
+    "sha256": "a91ff423f49f90d7ccb16a6182f06bea82dd38fbb642885b4cb806fe08eca9d4"
+  },
+  "diff": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\source_adaptation.diff",
+    "bytes": 1785,
+    "sha256": "fc315067292962b03c88282c8905da3dabe213247ae5f1844206d485a7cb90de"
+  },
+  "inverse_sha256": "f6cfbecc4704d7f4f891f5c2ae88baf69546a316a9738ed03da0413d6ef0d077",
+  "sole_old_line": 117,
+  "new_lines": [
+    117,
+    118,
+    119,
+    120,
+    121
+  ],
+  "other_bytes_identical": true,
+  "include_placement_root": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha",
+  "same_local_float_array_scope": true,
+  "no_lifecycle_output_initialization_or_footer_change": true
+}

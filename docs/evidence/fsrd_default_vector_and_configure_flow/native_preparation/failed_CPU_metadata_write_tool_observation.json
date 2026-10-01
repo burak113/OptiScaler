@@ -1,0 +1,13 @@
+{
+  "kind": "CPU metadata write tool observation, not a saved raw native-child log",
+  "tool": "exec_command",
+  "chunk_id": "87a206",
+  "exit_code": 1,
+  "observed_error": "Python SyntaxError: invalid syntax at nested function=b triple-single-quoted literal in outer r triple-single-quoted script.",
+  "affected_action": "Attempted write of prepare_jobs_cpu.py; outer Python parse failed before any statement ran.",
+  "job_registration_freeze_written": false,
+  "CPP_EXE_changed": false,
+  "additional_compile": 0,
+  "native_SDK_GPU_scores": 0,
+  "correction": "Use inner triple-double-quoted bytes literals; preserve failed observation, continue authorized CPU preparation only."
+}

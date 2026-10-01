@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\verify_preparation_v2.py", line 112, in <module>
+    seal=read(reg[keyseal]['path']);rs=seal['files']+seal['external_records']
+                                       ~~~~^^^^^^^^^
+KeyError: 'files'

@@ -1,0 +1,14 @@
+{
+  "tool": "exec_command",
+  "chunk_id": "523aea",
+  "exit_code": 1,
+  "observed_traceback": "prepare_jobs_cpu.py line36 assert new.count(needle)==1 failed because reused Python driver source uses LF, not CRLF.",
+  "raw_child_log_saved": false,
+  "preserved_failed_script_sha256": "51bf275ebeef6f3da6bacf90f6507bed408b55c5e67e34ca24133f51709ec7d2",
+  "corrected_CPU_script_sha256": "a6051bfb36abe95adc818f6e3f68f12305a51f252339b30f3b5b94d3cae113bf",
+  "delta": "LF-aware text substitutions; existing before-sidecar-validation snapshot reused only after exact byte equality.",
+  "CPP_EXE_build_unchanged": true,
+  "jobs_registration_freeze_written_before_failure": false,
+  "extra_compile": 0,
+  "native_SDK_GPU_scores": 0
+}

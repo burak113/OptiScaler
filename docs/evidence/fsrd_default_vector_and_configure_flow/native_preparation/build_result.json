@@ -1,0 +1,60 @@
+{
+  "guard": {
+    "schema": "owned-child-native-lightweight-resource-guard-v1",
+    "args": [
+      "F:\\VisualStudio\\VC\\Tools\\MSVC\\14.44.35207\\bin\\Hostx64\\x64\\cl.exe",
+      "/nologo",
+      "/std:c++20",
+      "/EHsc",
+      "/O2",
+      "/IF:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\api\\include",
+      "/IF:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\denoisers\\include",
+      "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\frozen_runner\\source\\source_reference.cpp",
+      "/Fe:F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\frozen_runner\\fsrd_rr_runner.exe",
+      "/Fo:F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\frozen_runner\\fsrd_rr_runner.obj",
+      "/link",
+      "d3d12.lib",
+      "dxgi.lib"
+    ],
+    "timeout_seconds": 240,
+    "maximum_working_set_bytes": 2147483648,
+    "minimum_available_memory_bytes": 1073741824,
+    "sample_interval_seconds": 0.2,
+    "total_physical_bytes": 17098551296,
+    "initial_available_bytes": 6077816832,
+    "minimum_observed_available_bytes": 5890834432,
+    "peak_observed_working_set_bytes": 194523136,
+    "samples": 25,
+    "status": "completed",
+    "child_pid": 10576,
+    "returncode": 0,
+    "terminated_owned_child": false,
+    "termination_reason": null,
+    "elapsed_seconds": 5.01600000000326
+  },
+  "error": null,
+  "compiler_stdout": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\compile_runtime\\stdout.log",
+    "bytes": 22,
+    "sha256": "548fc8c527ed965f3f966bc837587dd9835f1be7a0bf3b0981d3f51a224b9ebf"
+  },
+  "compiler_stderr": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\compile_runtime\\stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "actual_compile_invocations": 1,
+  "RR_EXE_invocations": 0,
+  "actual_RR_SDK_GPU_scores": 0,
+  "fsrd_rr_runner.exe": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\frozen_runner\\fsrd_rr_runner.exe",
+    "bytes": 393728,
+    "sha256": "bf9774a1e83855590f5b254163953898690431a73b859235e41bd79121ac5ebf"
+  },
+  "fsrd_rr_runner.obj": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\frozen_runner\\fsrd_rr_runner.obj",
+    "bytes": 935396,
+    "sha256": "65db5fb7e9f5f590de116702d40393c500c495d5ec3a0c8168cd9e1f3e1c566d"
+  },
+  "passed": true
+}

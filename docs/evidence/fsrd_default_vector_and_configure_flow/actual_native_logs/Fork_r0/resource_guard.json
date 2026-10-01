@@ -1,0 +1,22 @@
+{
+  "schema": "owned-child-native-lightweight-resource-guard-v1",
+  "args": [
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\frozen_runner\\fsrd_rr_runner.exe",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\planned_native\\Fork_r0\\job.txt"
+  ],
+  "timeout_seconds": 240,
+  "maximum_working_set_bytes": 2147483648,
+  "minimum_available_memory_bytes": 1073741824,
+  "sample_interval_seconds": 0.2,
+  "total_physical_bytes": 17098551296,
+  "initial_available_bytes": 4371841024,
+  "minimum_observed_available_bytes": 4280025088,
+  "peak_observed_working_set_bytes": 91484160,
+  "samples": 3,
+  "status": "completed",
+  "child_pid": 26692,
+  "returncode": 0,
+  "terminated_owned_child": false,
+  "termination_reason": null,
+  "elapsed_seconds": 0.6879999999946449
+}

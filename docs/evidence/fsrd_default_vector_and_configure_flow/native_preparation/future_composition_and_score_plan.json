@@ -1,0 +1,190 @@
+{
+  "status": "FUTURE_COMPOSITION_AND_SCORES_NOT_AUTHORIZED_OR_RUN",
+  "full_four_context_native_outputs_retained": true,
+  "fixed_windows": {
+    "full": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63
+    ],
+    "mature": [
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63
+    ],
+    "startup_first8": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "activation8to16": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ]
+  },
+  "unchanged_stage_partition_plan": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\analysis_plan.json",
+    "bytes": 4338,
+    "sha256": "177537a01a9eeb8e1252606eae11c6b66e60a5d0f18379cd1441342d24b1ca99"
+  },
+  "unchanged_metric_source_records": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\LUMA_source.py",
+      "bytes": 9680,
+      "sha256": "691975513a56ada7c1ec8faab7a4f70840508371a3334dba67275e00aef4ba2e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\blur_source.py",
+      "bytes": 29239,
+      "sha256": "caf2d246fc57f7b1488637bee0a9a5dabafd5f28ed7b9694ad443e55b3860b12"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\score_source.py",
+      "bytes": 16460,
+      "sha256": "f804ea74c72aef1b6adf351e2d3cbe4f809c3069b13419492be178401248a3ee"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\moments_source.py",
+      "bytes": 8466,
+      "sha256": "947e3c3e7c2b6d248062bf546b01d857df24a51163af5562b7d88d8cbd6e0745"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\detail_source.py",
+      "bytes": 8996,
+      "sha256": "c2b5b70c571a222bddd31a8c8713fb6c0c0307954215c1fca76aa8eb23c0b8f1"
+    }
+  ],
+  "unchanged_function_extraction": [
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\LUMA_source.py",
+      "name": "LUMA"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\blur_source.py",
+      "name": "blur"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\score_source.py",
+      "name": "score"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\moments_source.py",
+      "name": "moments"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_metric_sources\\detail_source.py",
+      "name": "detail"
+    }
+  ],
+  "nine_score_fields": [
+    "rmse",
+    "frame_rmse",
+    "bias_rgb",
+    "broad_tone_rms",
+    "residual_temporal_std",
+    "ring_width",
+    "contrast_gain",
+    "phase_error_radians",
+    "finite"
+  ],
+  "thresholds_unchanged": true,
+  "references": [
+    "original raw constructed truth",
+    "quantized encoded raw",
+    "actual measured R0/R1 singleton roundtrip as proven static reference; any64broadcast is not64measured roundtrip frames"
+  ],
+  "all_four_windows_all_contexts_no_selection": true,
+  "six_value_vector_not_individual_key_attribution": true,
+  "fourth_composition_omission_rule": {
+    "allowed_only": "Fork_r1 full64 diffuse AND specular raw RGBA bytes exactly equal Fork_r0 after independent completed native review, and all other composition graph inputs/CB/settings/controls identical per frame.",
+    "otherwise": "Compose all four full64 contexts; no RGB-only, tolerance, window-only or score-selected omission.",
+    "if_omitted": "Report Fork_r1 metrics as inherited exact-input equivalence to Fork_r0, not independently measured GPU composition; preserve all256RR outputs/counts.",
+    "composition_requires": "Separate preparation/review/immutable root authorization after native postreview."
+  },
+  "no_calibration_fit_grid_or_threshold_change": true
+}

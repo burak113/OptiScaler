@@ -1,0 +1,23 @@
+{
+  "status": "PRESERVED_REVIEWER_PATH_SPELLING_FAILURE_V1",
+  "tool_chunk": "2c719c",
+  "actual_returncode": 1,
+  "reason": "First CB path assertion compared slash spelling strings despite equivalent resolved file path and already verified identical bytes. Job writer uses forward slash; pinned JSON uses Windows backslash. Producer graph/source/law/metrics unchanged.",
+  "failed_source": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_composition_preparation_20261001\\check_assembled_protocol_cpu.py",
+    "bytes": 5354,
+    "sha256": "12c392eb7c92b31f59502fdf3c6e8d0cdd07bba8eef42e9c879c17ff1d21437a"
+  },
+  "new_v2_change": "Use resolved Path identity after byte SHA verification instead of literal path-string spelling. No output/scorer/GPU/native/helper executed.",
+  "supplement_preparation_tool_errors": [
+    {
+      "chunk": "b3e0af",
+      "reason": "PowerShell nested string quoting stopped before Python or file creation."
+    },
+    {
+      "chunk": "19cfdd",
+      "reason": "V2 file missing after rejected preparation command; no Python script executed."
+    }
+  ],
+  "actual_GPU_native_build_scorer": 0
+}

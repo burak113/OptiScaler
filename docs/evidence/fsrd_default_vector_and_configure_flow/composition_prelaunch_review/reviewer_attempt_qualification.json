@@ -1,0 +1,17 @@
+{
+  "status": "PRESERVED_REVIEWER_METADATA_ONLY_ATTEMPTS",
+  "attempts": [
+    {
+      "tool_chunk": "e118fd",
+      "exit_code": 1,
+      "issue": "One-off metadata inspection used jobs for native registration, which declares cases. No file write or execution."
+    },
+    {
+      "tool_chunk": "8c24c2",
+      "exit_code": 1,
+      "issue": "Independent verifier broad rg path discovery saw archived copies of production CPP and refused ambiguous source. All manifest pins passed before failure. Correct exact tracked production path verified by git ls-files chunk912633."
+    }
+  ],
+  "repair": "Separate verify_preparation_v2.py uses exact tracked live CPP path, preserves V1 source/log/before-pin summary. No producer or old sealed byte changed.",
+  "actual_GPU_native_helper_build_scorer_law_test": 0
+}

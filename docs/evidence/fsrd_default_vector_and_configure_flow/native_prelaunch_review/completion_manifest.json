@@ -1,0 +1,96 @@
+{
+  "status": "SEALED_READY_FOUR_FORK_VS_PUBLIC_DEFAULTS_NATIVE_PRELAUNCH_REVIEW",
+  "blocking_findings": [],
+  "self_entry_excluded": true,
+  "files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_prelaunch_review_20261001\\compact.md",
+      "bytes": 1589,
+      "sha256": "79ce5e6df04a58d7f051c3dce6218325fca333d8353ba168ba848ee1992fb647"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_prelaunch_review_20261001\\direct_final_pins.json",
+      "bytes": 40354,
+      "sha256": "31996e8d0b9ed38442b660b09fed2c9d47bc44b7365033686c3bf18bd55a5b57"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_prelaunch_review_20261001\\final_preparation_checks.json",
+      "bytes": 16717,
+      "sha256": "5f72cfa10a909bc741c068d83ef0f7cc9ed93efdbf083bce3b8949c00b876dce"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_prelaunch_review_20261001\\inherited_manifest_verification.json",
+      "bytes": 562,
+      "sha256": "821d5ec0e5e79727b5e326dabf63f0362bfa89da3741f2d44efddd5138caafa4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_prelaunch_review_20261001\\review.json",
+      "bytes": 11058,
+      "sha256": "af128332153c102da149c52e0561fbe3bce1f4edd678522e0b678da8a48acf22"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_prelaunch_review_20261001\\review_final_preparation_cpu.py",
+      "bytes": 13273,
+      "sha256": "ba75886f7583874321cd489d7f2199e26008020fe7c621777aee06e3e1b6437e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_prelaunch_review_20261001\\review_source_build_cpu.py",
+      "bytes": 5996,
+      "sha256": "5651759a24eea80ca29b1e8a232203954abd91c5e9e712fe8b93e1cc571a5684"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_prelaunch_review_20261001\\review_tool_qualifications.json",
+      "bytes": 1042,
+      "sha256": "ef74b519061cfd5c8ab02dc768dbc17cd29c4961f9f5f96454e094f523f572bd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_prelaunch_review_20261001\\seal_review.py",
+      "bytes": 10739,
+      "sha256": "0a3d879eb754a2bc7893e685c6f3940681499d054c6774599a1fceef80b47bd0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_prelaunch_review_20261001\\source_build_pins_before_after.json",
+      "bytes": 10971,
+      "sha256": "308bf9ee211c13cb293f0750381ff9b396ea0c31e4bca7c7166d005731d4f2ff"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_prelaunch_review_20261001\\source_build_subset_review.json",
+      "bytes": 4153,
+      "sha256": "658b559be10998ac37065093c23c16894bfa915f037f5237e8cc187cfe90dfff"
+    }
+  ],
+  "external_records": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\completion_manifest.json",
+      "bytes": 40479,
+      "sha256": "b22233c16d8f9a7e967babc30cecb43cc4d1226dfabd7adbf9e8cebf558499d2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_postrun_review_20260930\\completion_manifest_final.json",
+      "bytes": 1678987,
+      "sha256": "9d231d55386869cdcd72d6e1095bf7548f42bbc3d4d990922fabb971f3cb18c1"
+    }
+  ],
+  "inheritance": [
+    {
+      "manifest": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\completion_manifest.json",
+      "record_keys": [
+        "files",
+        "external_records"
+      ],
+      "local_records": 98,
+      "external_records": 45
+    },
+    {
+      "manifest": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_native_postrun_review_20260930\\completion_manifest_final.json",
+      "record_keys": [
+        "files",
+        "external_records"
+      ],
+      "unique_records_verified": 5677,
+      "tables_duplicated": false
+    }
+  ],
+  "actual_review_runner_SDK_GPU_build_scores_law_reruns": 0,
+  "all_native_work_planned_only": true
+}

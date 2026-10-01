@@ -1,0 +1,251 @@
+{
+  "status": "READY_FOR_ROOT_FOUR_NO_SCALAR_VS_EXPLICIT_DEFAULTS_NATIVE_AUTHORIZATION",
+  "blocking_findings": [],
+  "files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\compact.md",
+      "bytes": 1929,
+      "sha256": "afd922fb63f1b1c2957f03b330ef29a972a827693e7228d6fa4687a600076f2a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\pins_after.json",
+      "bytes": 3980,
+      "sha256": "bf5684d7ee86cee814cf495a47df9af2ac5bf08851653332f9ada0061ab28c9b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\pins_before.json",
+      "bytes": 691,
+      "sha256": "5330af40cfe9600c680aa537d26626679af494953318aee962bf0051716fc131"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\pins_before_v3.json",
+      "bytes": 691,
+      "sha256": "5330af40cfe9600c680aa537d26626679af494953318aee962bf0051716fc131"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\review.json",
+      "bytes": 16787,
+      "sha256": "f45336dd5d3e3ee62249dbeb60e9dd355e793737642a984c37f474357e78c5e8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\reviewer_blueprint_qualification.json",
+      "bytes": 426,
+      "sha256": "df1be0eb88e5c7aeb05395a6fd476433ee0ec493c585d23c7968984299d30d60"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\reviewer_schema_read_failure_qualification.json",
+      "bytes": 636,
+      "sha256": "1804e3bbd4ab00bcdaa0d81f747be2dffe27653b0acac251e4a03d63937e898c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\reviewer_unexecuted_blueprint_v1_to_v2.diff",
+      "bytes": 2902,
+      "sha256": "1480ee1306c1846933d97bd58378747991dbb62108cf8f73ab6a4af217dc263a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\reviewer_v2_to_v3_query_seal_schema.diff",
+      "bytes": 2994,
+      "sha256": "2ae4a4d24caec43dc97c76d03682fdcc981a913a016e2576bda507bb72736dda"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\seal_review.py",
+      "bytes": 12315,
+      "sha256": "d11646f23169e3807d58bc81b54e1d3420597ae00331dbb4327ce7b25f5c3205"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\verification_results.json",
+      "bytes": 4712,
+      "sha256": "ade83347ae6a16a7405803d74efef885c6b8ef23f9d1dfb13b91582e39750982"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\verification_stderr.log",
+      "bytes": 365,
+      "sha256": "ab43091a507f913621d9504989adef360641a1f3df004e719210ceb8670a1f80"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\verification_stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\verification_v3_stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\verification_v3_stdout.log",
+      "bytes": 148,
+      "sha256": "aed5016b8a5557c29cc6d32d8fe8426da695540ecaaa95588f1038baff1ba605"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\verify_preparation.py",
+      "bytes": 14273,
+      "sha256": "9f0d2535f4e0d185d7983898b54b088b840a9c895f3ffc37e816ef77a2e78320"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\verify_preparation_v2.py",
+      "bytes": 14379,
+      "sha256": "6f679cb244420678c08a3ff35fba26c77b58c5405aa25e31d982e219396ae265"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_prelaunch_review_20261001\\verify_preparation_v3.py",
+      "bytes": 14482,
+      "sha256": "48b8bfda4bfd9cff9c557e70bbe5a7dbbdc6f256a66cb9f16747edb771980e23"
+    }
+  ],
+  "external_records": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\readiness.json",
+      "bytes": 1528,
+      "sha256": "7355db4a38f159d047f2ca215bb65695431fa87d3029b56d39eab121357fa4aa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\registration.json",
+      "bytes": 30417,
+      "sha256": "7c13f28ec5d96f92b34b017fc6d636732ca509aeb54dc41c17768a2d7a82cd1a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\pre_native_freeze.json",
+      "bytes": 35226,
+      "sha256": "3842b4c47ec1cd8f860a73676ce6205b4decadb9819625015407dad5e950039d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\preparation_completion_manifest.json",
+      "bytes": 35726,
+      "sha256": "bba113b252aca4cfc479b52b1bc115a0406a90f60dc5e3eb82a245c7de611a7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\run_native.py",
+      "bytes": 7035,
+      "sha256": "57d6df60e6a6293e5df669d451e8e024d4abd3c84bb6883e29bc5576bec5d3d5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\analyze_raw_cpu.py",
+      "bytes": 4276,
+      "sha256": "df1f76be798003bf1c60332a926b9f3499dc618bea6c2522ba65d6a2628607fd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\CPU_accounting_checks.json",
+      "bytes": 59625,
+      "sha256": "f4f68e03123e8ad99efaa75de608c1036aa740e942264c431af2655717e45714"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\preparation_cpu_verification.json",
+      "bytes": 14452,
+      "sha256": "b0de43d86758f073b292cd8d6c8f6a1d6fd47ca579e41ff4d7ef9ba13f0b68b8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\source_authority.json",
+      "bytes": 2766,
+      "sha256": "5b178f195123fd8b0cc6f8db61ce69997e5b126bcbd837ce67b84ad38a8556bd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\job_only_boolean_semantic_delta.json",
+      "bytes": 922,
+      "sha256": "6046922ec953405ea8c542a7d76dd1ff334c8612355bc1d5753e079cf4fdf65e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\raw_metric_AST_reuse_final.json",
+      "bytes": 668,
+      "sha256": "8cfd5fd6f06853b0317f96cdf1ece96d4af3d579a4d938e06ffadf6e7c30d787"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\frozen_runner\\fsrd_rr_runner.exe",
+      "bytes": 393728,
+      "sha256": "bf9774a1e83855590f5b254163953898690431a73b859235e41bd79121ac5ebf"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\frozen_runner\\source\\source_reference.cpp",
+      "bytes": 17613,
+      "sha256": "a91ff423f49f90d7ccb16a6182f06bea82dd38fbb642885b4cb806fe08eca9d4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\external\\FidelityFX-SDK-v2\\Kits\\FidelityFX\\signedbin\\amd_fidelityfx_denoiser_dx12.dll",
+      "bytes": 13782280,
+      "sha256": "48f1e5888ba6a0a3d59a98b9751e37c392b0f7b8c223d0082d5c1f40642879d3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\upscalers\\fsr31\\FSRDFeature_Dx12.cpp",
+      "bytes": 193233,
+      "sha256": "d2cb58c65f6e9d3699e56e34675e6d50593b2bd89bd568025083cb8e09fdd628"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\\build_result.json",
+      "bytes": 2829,
+      "sha256": "cd77938427506db74b5e5d827543c1bbdbf53ffae62ddd570a23925573b2d32f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_preparation_20260930\\planned_query\\query_values.bin",
+      "bytes": 24,
+      "sha256": "5da237f78cc5546c678d4473ee415b19fc6aab3bd7ca6d5a839e562808895274"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_postrun_review_20261001\\review.json",
+      "bytes": 20161,
+      "sha256": "f2dfdcde3a1e99d330d1147ea554ccb3285ac23530a22a9475af3db5188ca04b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_postrun_review_20261001\\completion_manifest.json",
+      "bytes": 15206,
+      "sha256": "7dc58e15d890d5a8ed75cecaecf966520ae373f48e98492fa471b3ad0425ab20"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_composition_postrun_review_20261001\\review.json",
+      "bytes": 18612,
+      "sha256": "568598b0f8b2d1da64eef653e5d84676add90671113bc8ca332a440f8754e66e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_fork_vs_sdk_defaults_composition_postrun_review_20261001\\completion_manifest.json",
+      "bytes": 13376,
+      "sha256": "bdbb3f1dc7c4b7489ae2162639636a3eba414acdd2c841f52262df0a55c0a254"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_postrun_review_20261001\\review.json",
+      "bytes": 8938,
+      "sha256": "cfe3660e3b0d6f253aeedd131be321bb2f6161305754e9166ed88cceb6194da6"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_sdk_default_scalar_query_postrun_review_20261001\\completion_manifest.json",
+      "bytes": 6511,
+      "sha256": "609dbef57ca419418568d9b4ff81fdf4d5572fa8713f33078af6898424d637bc"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\native_work_accounting.py",
+      "bytes": 5847,
+      "sha256": "01183b96b94ff89d5f6ea55729affcb59d46b1fdf98ea4543d970eb9e101c227"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\executor_evidence.py",
+      "bytes": 3825,
+      "sha256": "ade35d872077f2153f9c9177734f33da06316efbd396b1db391a166c297f9e35"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\native_resource_guard.py",
+      "bytes": 4837,
+      "sha256": "b70e18d0f13963e0250c371171933429446cf304041c9a16d971e9898d211814"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\check_accounting_cpu.py",
+      "bytes": 3870,
+      "sha256": "937ec91d642783ee385523de199b631ba651ba5413104b4e9312e49f1eb20350"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_clean_no_scalar_vs_explicit_defaults_preparation_20261001\\preparation_checker_erratum.json",
+      "bytes": 618,
+      "sha256": "c8a4d681c79a2ca10638291a18623b261d21e7f1c9565803f52af4ccd7377d85"
+    }
+  ],
+  "self_excluded": true,
+  "expanded_current_preparation_record_count": 123,
+  "inherited_expansions_in_verification_report": true,
+  "actual_review": {
+    "native_contexts": 0,
+    "RR_API": 0,
+    "SDK_queries": 0,
+    "GPU_jobs": 0,
+    "builds": 0,
+    "scorer_runs": 0,
+    "accounting_SIM_reruns": 0
+  },
+  "review_sha256": "f45336dd5d3e3ee62249dbeb60e9dd355e793737642a984c37f474357e78c5e8"
+}

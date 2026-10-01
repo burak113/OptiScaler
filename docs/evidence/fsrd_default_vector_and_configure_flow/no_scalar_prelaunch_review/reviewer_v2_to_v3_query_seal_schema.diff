@@ -1,0 +1,23 @@
+--- verify_preparation_v2.py
++++ verify_preparation_v3.py
+@@ -34,7 +34,7 @@
+ assert key(P/'preparation_completion_manifest.json')not in {key(r['path'])for r in completion['records']}
+ for r in allpins:verify(r)
+ assert {key(r['path'])for r in completion['records']}-{key(r['path'])for r in freeze['files']}=={key(P/'pre_native_freeze.json'),key(P/'readiness.json')}
+-save('pins_before.json',dict(preparation=ident(P/'preparation_completion_manifest.json'),freeze=ident(P/'pre_native_freeze.json'),verified_owned=77,verified_external=46,unique=123,actual_new_GPU_native_build_scorer_law=0))
++save('pins_before_v3.json',dict(preparation=ident(P/'preparation_completion_manifest.json'),freeze=ident(P/'pre_native_freeze.json'),verified_owned=77,verified_external=46,unique=123,actual_new_GPU_native_build_scorer_law=0))
+ assert ready['blocking_findings']==[]and reg['status']=='PREPARED_CPU_ONLY_NOT_AUTHORIZED_NATIVE'and not reg['quality_accepted']and not reg['composition_authorized']
+ assert all(v==0 for v in reg['current_actual'].values())and reg['new_compile_invocations']==0
+ assert reg['fixed_order']==['ExplicitAMD_r0','NoScalar_r0','NoScalar_r1','ExplicitAMD_r1']and [c['tag']for c in reg['cases']]==reg['fixed_order']
+@@ -109,9 +109,9 @@
+ inherited={}
+ for keygate,keyseal,expected_status in [('completed_vector_native_gate','completed_vector_native_seal','PASSED_FORK_VS_PUBLIC_DEFAULTS_NATIVE_RAW_EVIDENCE_REVIEW'),('completed_vector_composition_gate','completed_vector_composition_seal','PASSED_FORK_VS_PUBLIC_DEFAULTS_COMPOSITION_EVIDENCE_REVIEW'),('actual_default_query_gate','actual_default_query_seal','PASSED_PUBLIC_DEFAULT_SCALAR_QUERY_EVIDENCE_REVIEW')]:
+  gate=read(reg[keygate]['path']);assert gate['status']==expected_status and gate['blocking_findings']==[]
+- seal=read(reg[keyseal]['path']);rs=seal['files']+seal['external_records']
++ seal=read(reg[keyseal]['path']);owned_key='owned'if keyseal=='actual_default_query_seal'else'files';rs=seal[owned_key]+seal['external_records']
+  for r in rs:verify(r)
+- inherited[keyseal]=dict(pin=reg[keyseal],files=len(seal['files']),external_records=len(seal['external_records']),verified_unique=len({key(r['path'])for r in rs}))
++ inherited[keyseal]=dict(pin=reg[keyseal],owned_key=owned_key,owned_records=len(seal[owned_key]),external_records=len(seal['external_records']),verified_unique=len({key(r['path'])for r in rs}))
+ assert reg['planned_only_if_all_completed']==dict(contexts=4,RR_API=256,queued_RR=256,Execute=256,Signal=256,event=256,wait=256,readback_pairs=256,scalar_Configure_sourcequalified=12,global_debug_Configure_sourcequalified=4,informational_version_Query_sourcequalified=4,default_scalar_Query=0)
+ assert reg['guard']==dict(timeout_seconds=240,maximum_working_set_bytes=2147483648,minimum_available_memory_bytes=1073741824,interval_seconds=.2,sequential_owned_child=True,isolated_F_TEMP_TMP_perchild=True)
+ auth=T/'fsrd_no_scalar_vs_explicit_defaults_root_authorization_20261001.json';assert not auth.exists()

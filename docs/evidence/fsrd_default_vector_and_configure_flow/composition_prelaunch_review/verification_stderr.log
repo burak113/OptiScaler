@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\fsrd_clean_fork_vs_sdk_defaults_composition_prelaunch_review_20261001\verify_preparation.py", line 67, in <module>
+    assert len(names)==1; cpp=ROOT/names[0]
+           ^^^^^^^^^^^^^
+AssertionError

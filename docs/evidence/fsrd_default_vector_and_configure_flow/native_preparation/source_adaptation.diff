@@ -1,0 +1,15 @@
+--- F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\fsrd_weak_material_clean_native_preparation_20260930\frozen_runner\source_reference.cpp
++++ F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\fsrd_clean_fork_vs_sdk_defaults_preparation_20261001\frozen_runner\source\source_reference.cpp
+@@ -114,7 +114,11 @@
+     std::cout<<"provider="<<(version.versionName?version.versionName:"unavailable from direct effect DLL")<<" id="<<version.versionId<<" version_query_result="<<versionResult<<" requested_api="<<FFX_DENOISER_VERSION<<'\n';
+     if(tuning) {
+         const uint64_t keys[]={FFX_API_CONFIGURE_DENOISER_KEY_DISOCCLUSION_THRESHOLD,FFX_API_CONFIGURE_DENOISER_KEY_CROSS_BILATERAL_NORMAL_STRENGTH,FFX_API_CONFIGURE_DENOISER_KEY_STABILITY_BIAS,FFX_API_CONFIGURE_DENOISER_KEY_MAX_RADIANCE,FFX_API_CONFIGURE_DENOISER_KEY_RADIANCE_CLIP_STD_K,FFX_API_CONFIGURE_DENOISER_KEY_GAUSSIAN_KERNEL_RELAXATION};
+-        const float values[]={.1f,.5f,.5f,40000.f,40.f,.5f};
++        float values[6]{};
++        std::ifstream valuesFile(std::filesystem::path(argv[1]).parent_path()/"tuning_values.bin",std::ios::binary);
++        valuesFile.read(reinterpret_cast<char*>(values),sizeof(values));
++        if(!valuesFile||valuesFile.peek()!=std::char_traits<char>::eof()) throw std::runtime_error("tuning_values.bin must contain exactly six float32 values");
++        for(float value:values) if(!std::isfinite(value)) throw std::runtime_error("nonfinite tuning value");
+         for(unsigned i=0;i<6;++i) { ffxConfigureDescDenoiserKeyValue c{{FFX_API_CONFIGURE_DESC_TYPE_DENOISER_KEYVALUE,nullptr},keys[i],1,values+i}; ff(api.Configure(&context,&c.header),"configuration"); }
+     }
+     ffxDispatchDescDenoiser dispatch{}; dispatch.header.type=FFX_API_DISPATCH_DESC_TYPE_DENOISER;

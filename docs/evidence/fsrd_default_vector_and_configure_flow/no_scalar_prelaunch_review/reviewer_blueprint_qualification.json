@@ -1,0 +1,8 @@
+{
+  "status": "PRESERVED_UNEXECUTED_REVIEWER_BLUEPRINT_CORRECTION",
+  "issue": "Before execution, direct source/job reading corrected guessed11-line job grammar to actual9 lines with one2-path output line, and CreateContext-call search to avoid earlier export-presence check.",
+  "V1_never_executed": true,
+  "V2_separate_source": true,
+  "producer_and_root_files_untouched": true,
+  "actual_GPU_native_build_scorer_law": 0
+}
