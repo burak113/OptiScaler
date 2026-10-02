@@ -23,24 +23,22 @@ using Microsoft::WRL::ComPtr;
 
 #include <Config.h>
 
-static Constants constants {};
-static UpscaleShaderConstants fsr1Constants {};
-
 #pragma warning(disable : 4244)
 
 bool OS_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* InSource, uint32_t InWidth,
-                                   uint32_t InHeight, D3D12_RESOURCE_STATES InState)
+                                   uint32_t InHeight, D3D12_RESOURCE_STATES InState,
+                                   ID3D12GraphicsCommandList* InCommandList)
 {
     auto resourceFlags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS |
                          D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS;
 
     auto result =
-        Shader_Dx12::CreateBufferResource(InDevice, InSource, InState, &_buffer, resourceFlags, InWidth, InHeight);
+        Shader_Dx12::CreateBufferResource(InDevice, InSource, InState, &_buffer, resourceFlags, InWidth, InHeight, DXGI_FORMAT_UNKNOWN, InCommandList);
 
     if (result)
     {
         _buffer->SetName(L"OS_Buffer");
-        _bufferState = InState;
+        _bufferState = _recordedLifetime ? D3D12_RESOURCE_STATE_COMMON : InState;
     }
 
     return result;
@@ -58,15 +56,24 @@ bool OS_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InR
 
     LOG_DEBUG("[{0}] Start!", _name);
 
+    auto lease = AcquireDispatchLease(InCmdList, _pipelineState, { InResource, OutResource });
+    if (_recordedLifetime && !lease)
+        return false;
     ScopedGpuTime_Dx12 scopedGpuTime(GpuTime.get(), InCmdList);
 
-    _counter++;
-    _counter = _counter % OS_NUM_OF_HEAPS;
-    FrameDescriptorHeap& currentHeap = _frameHeaps[_counter];
+    if (!_recordedLifetime)
+    {
+        _counter++;
+        _counter = _counter % OS_NUM_OF_HEAPS;
+    }
+    FrameDescriptorHeap& currentHeap = lease ? lease->slot->heap : _frameHeaps[_counter];
+    auto* constantsBuffer = lease ? lease->slot->constants.Get() : _constantBuffer;
 
     CreateShaderResourceView(_device, InResource, currentHeap.GetSrvCPU(0));
     CreateUnorderedAccessView(_device, OutResource, currentHeap.GetUavCPU(0), 0);
 
+    Constants constants {};
+    UpscaleShaderConstants fsr1Constants {};
     FsrEasuCon(fsr1Constants.const0, fsr1Constants.const1, fsr1Constants.const2, fsr1Constants.const3,
                State::Instance().currentFeature->TargetWidth(), State::Instance().currentFeature->TargetHeight(),
                State::Instance().currentFeature->TargetWidth(), State::Instance().currentFeature->TargetHeight(),
@@ -82,11 +89,11 @@ bool OS_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InR
     if (Config::Instance()->OutputScalingDownscaler.value_or_default() == Scaler::FSR1)
     {
         createdConstantsBuffer =
-            CreateConstantsBuffer(_device, _constantBuffer, fsr1Constants, currentHeap.GetCbvCPU(0));
+            CreateConstantsBuffer(_device, constantsBuffer, fsr1Constants, currentHeap.GetCbvCPU(0));
     }
     else
     {
-        createdConstantsBuffer = CreateConstantsBuffer(_device, _constantBuffer, constants, currentHeap.GetCbvCPU(0));
+        createdConstantsBuffer = CreateConstantsBuffer(_device, constantsBuffer, constants, currentHeap.GetCbvCPU(0));
     }
 
     if (!createdConstantsBuffer)

@@ -10,13 +10,23 @@
 
 bool RCAS_Dx12::DispatchRCAS(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InResource,
                              ID3D12Resource* InMotionVectors, RcasConstants InConstants, ID3D12Resource* OutResource,
-                             FrameDescriptorHeap& currentHeap)
+                             FrameDescriptorHeap& currentHeap, ID3D12Resource* constantsBuffer)
 {
     if (InMotionVectors == nullptr || _device == nullptr)
         return false;
 
     CreateShaderResourceView(_device, InResource, currentHeap.GetSrvCPU(0));
     CreateShaderResourceView(_device, InMotionVectors, currentHeap.GetSrvCPU(1));
+    if (_recordedLifetime)
+    {
+        // Plain RCAS does not sample depth, but the complete table still needs a valid t2.
+        D3D12_SHADER_RESOURCE_VIEW_DESC nullDepth {};
+        nullDepth.Format = DXGI_FORMAT_R32_FLOAT;
+        nullDepth.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        nullDepth.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        nullDepth.Texture2D.MipLevels = 1;
+        _device->CreateShaderResourceView(nullptr, &nullDepth, currentHeap.GetSrvCPU(2));
+    }
     CreateUnorderedAccessView(_device, OutResource, currentHeap.GetUavCPU(0), 0);
 
     InternalConstants constants {};
@@ -31,7 +41,7 @@ bool RCAS_Dx12::DispatchRCAS(ID3D12GraphicsCommandList* InCmdList, ID3D12Resourc
 
     FillMotionConstants(constants, InConstants);
 
-    if (!CreateConstantsBuffer(_device, _constantBuffer, constants, currentHeap.GetCbvCPU(0)))
+    if (!CreateConstantsBuffer(_device, constantsBuffer, constants, currentHeap.GetCbvCPU(0)))
     {
         LOG_ERROR("[{0}] Failed to create a constants buffer", _name);
         return false;
@@ -54,7 +64,7 @@ bool RCAS_Dx12::DispatchRCAS(ID3D12GraphicsCommandList* InCmdList, ID3D12Resourc
 bool RCAS_Dx12::DispatchDepthAdaptive(ID3D12PipelineState* pipelineState, ID3D12GraphicsCommandList* InCmdList,
                                       ID3D12Resource* InResource, ID3D12Resource* InMotionVectors,
                                       ID3D12Resource* InDepth, RcasConstants InConstants, ID3D12Resource* OutResource,
-                                      FrameDescriptorHeap& currentHeap)
+                                      FrameDescriptorHeap& currentHeap, ID3D12Resource* constantsBuffer)
 {
     if (InDepth == nullptr || pipelineState == nullptr || _device == nullptr)
         return false;
@@ -79,7 +89,7 @@ bool RCAS_Dx12::DispatchDepthAdaptive(ID3D12PipelineState* pipelineState, ID3D12
 
     FillMotionConstants(constants, InConstants);
 
-    if (!CreateConstantsBuffer(_device, _constantBuffer, constants, currentHeap.GetCbvCPU(0)))
+    if (!CreateConstantsBuffer(_device, constantsBuffer, constants, currentHeap.GetCbvCPU(0)))
     {
         LOG_ERROR("[{0}] Failed to create a constants buffer", _name);
         return false;
@@ -98,17 +108,18 @@ bool RCAS_Dx12::DispatchDepthAdaptive(ID3D12PipelineState* pipelineState, ID3D12
     return true;
 }
 
-bool RCAS_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* InSource, D3D12_RESOURCE_STATES InState)
+bool RCAS_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* InSource, D3D12_RESOURCE_STATES InState,
+                                   ID3D12GraphicsCommandList* InCommandList)
 {
     auto resourceFlags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS |
                          D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS;
 
-    auto result = Shader_Dx12::CreateBufferResource(InDevice, InSource, InState, &_buffer, resourceFlags);
+    auto result = Shader_Dx12::CreateBufferResource(InDevice, InSource, InState, &_buffer, resourceFlags, 0, 0, DXGI_FORMAT_UNKNOWN, InCommandList);
 
     if (result)
     {
         _buffer->SetName(L"RCAS_DA_Buffer");
-        _bufferState = InState;
+        _bufferState = _recordedLifetime ? D3D12_RESOURCE_STATE_COMMON : InState;
     }
 
     return result;
@@ -129,27 +140,40 @@ bool RCAS_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* I
 
     LOG_DEBUG("[{0}] Start!", _name);
 
+    auto sharpnessShader = Config::Instance()->SharpnessShader.value_or_default();
+    auto selectedPSO = sharpnessShader == SharpenShader::LocalContrastDepthAware ? _pipelineStateDASDA :
+                       sharpnessShader == SharpenShader::DepthAware ? _pipelineStateDA : _pipelineState;
+    if (_recordedLifetime &&
+        ((sharpnessShader != SharpenShader::RCAS && sharpnessShader != SharpenShader::DepthAware &&
+          sharpnessShader != SharpenShader::LocalContrastDepthAware) ||
+         (sharpnessShader != SharpenShader::RCAS && !InDepth)))
+        return false;
+    auto lease = AcquireDispatchLease(InCmdList, selectedPSO, { InResource, InMotionVectors, InDepth, OutResource });
+    if (_recordedLifetime && !lease)
+        return false;
     ScopedGpuTime_Dx12 scopedGpuTime(GpuTime.get(), InCmdList);
 
-    _counter++;
-    _counter = _counter % RCAS_NUM_OF_HEAPS;
-    FrameDescriptorHeap& currentHeap = _frameHeaps[_counter];
-
-    auto sharpnessShader = Config::Instance()->SharpnessShader.value_or_default();
+    if (!_recordedLifetime)
+    {
+        _counter++;
+        _counter = _counter % RCAS_NUM_OF_HEAPS;
+    }
+    FrameDescriptorHeap& currentHeap = lease ? lease->slot->heap : _frameHeaps[_counter];
+    auto* constantsBuffer = lease ? lease->slot->constants.Get() : _constantBuffer;
 
     if (sharpnessShader == SharpenShader::LocalContrastDepthAware)
     {
         return DispatchDepthAdaptive(_pipelineStateDASDA, InCmdList, InResource, InMotionVectors, InDepth, InConstants,
-                                     OutResource, currentHeap);
+                                     OutResource, currentHeap, constantsBuffer);
     }
     else if (sharpnessShader == SharpenShader::DepthAware)
     {
         return DispatchDepthAdaptive(_pipelineStateDA, InCmdList, InResource, InMotionVectors, InDepth, InConstants,
-                                     OutResource, currentHeap);
+                                     OutResource, currentHeap, constantsBuffer);
     }
     else if (sharpnessShader == SharpenShader::RCAS)
     {
-        return DispatchRCAS(InCmdList, InResource, InMotionVectors, InConstants, OutResource, currentHeap);
+        return DispatchRCAS(InCmdList, InResource, InMotionVectors, InConstants, OutResource, currentHeap, constantsBuffer);
     }
     else
     {

@@ -36,6 +36,10 @@ bool IFeature_Dx12::Init(ID3D12Device* InDevice, ID3D12GraphicsCommandList* InCo
         OutputScaler = std::make_unique<OS_Dx12>("Output Scaling", InDevice, (TargetWidth() < DisplayWidth()));
         RCAS = std::make_unique<RCAS_Dx12>("RCAS", InDevice);
         Bias = std::make_unique<Bias_Dx12>("Bias", InDevice); // TODO: not needed on DLSS/DLSSD
+        const bool recordedRR = GetUpscalerType() == Upscaler::FSR_RR;
+        OutputScaler->SetRecordedLifetimeEnabled(recordedRR);
+        RCAS->SetRecordedLifetimeEnabled(recordedRR);
+        Bias->SetRecordedLifetimeEnabled(recordedRR);
         Magnifier = std::make_unique<Magnifier_Dx12>("Magnifier", InDevice);
 
         UpscalerTime = std::make_unique<GpuTime_Dx12>(InDevice);
@@ -95,6 +99,39 @@ bool IFeature_Dx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX
     InParameters->Get(NVSDK_NGX_Parameter_MotionVectors, &paramMotion);
     InParameters->Get(NVSDK_NGX_Parameter_Depth, &paramDepth);
 
+    const bool recordedRR = upscaler == Upscaler::FSR_RR;
+    struct RecordedCleanup
+    {
+        std::vector<std::function<void()>> buffers;
+        NVSDK_NGX_Parameter* parameters;
+        ID3D12Resource* originalOutput;
+        bool enabled;
+        bool outputChanged = false;
+        bool success = false;
+        float originalSharpness;
+        float& sharpness;
+        std::optional<float>& actualSharpness;
+        ~RecordedCleanup()
+        {
+            if (!enabled)
+                return;
+            for (auto it = buffers.rbegin(); it != buffers.rend(); ++it)
+                (*it)();
+            if (outputChanged)
+                parameters->Set(NVSDK_NGX_Parameter_Output, originalOutput);
+            if (!success)
+            {
+                sharpness = originalSharpness;
+                actualSharpness.reset();
+                parameters->Set(NVSDK_NGX_Parameter_Sharpness, originalSharpness);
+            }
+        }
+    } cleanup { {}, InParameters, paramOutput, recordedRR, false, false, _sharpness, _sharpness, _actualSharpness };
+    // Reserve before any intermediate admission/barrier, so cleanup cannot allocate afterward.
+    if (recordedRR)
+        cleanup.buffers.reserve(2);
+    bool helperSetupFailed = false;
+
     // Order is important as that's the order of shader dispatch
     std::vector<ShaderPass> pipeline;
 
@@ -105,11 +142,14 @@ bool IFeature_Dx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX
               [&](ID3D12Resource* nextOutput) -> ID3D12Resource*
               {
                   if (OutputScaler->CreateBufferResource(Device, nextOutput, TargetWidth(), TargetHeight(),
-                                                         D3D12_RESOURCE_STATE_UNORDERED_ACCESS))
+                                                         D3D12_RESOURCE_STATE_UNORDERED_ACCESS, InCommandList))
                   {
+                      if (recordedRR)
+                          cleanup.buffers.push_back(OutputScaler->RecordedBufferCleanup(InCommandList));
                       OutputScaler->SetBufferState(InCommandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
                       return OutputScaler->Buffer();
                   }
+                  helperSetupFailed = recordedRR;
                   return nullptr;
               },
 
@@ -140,11 +180,14 @@ bool IFeature_Dx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX
                   InParameters->Set(NVSDK_NGX_Parameter_Sharpness, 0.0f);
                   _sharpness = 0.0f;
 
-                  if (RCAS->CreateBufferResource(Device, nextOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS))
+                  if (RCAS->CreateBufferResource(Device, nextOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, InCommandList))
                   {
+                      if (recordedRR)
+                          cleanup.buffers.push_back(RCAS->RecordedBufferCleanup(InCommandList));
                       RCAS->SetBufferState(InCommandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
                       return RCAS->Buffer();
                   }
+                  helperSetupFailed = recordedRR;
                   return nullptr;
               },
 
@@ -152,7 +195,7 @@ bool IFeature_Dx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX
               [&](ID3D12Resource* input, ID3D12Resource* output) -> bool
               {
                   if (!RCAS->CanRender() || !paramMotion || !paramOutput)
-                      return true;
+                      return !recordedRR;
 
                   RCAS->SetBufferState(InCommandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
@@ -228,6 +271,8 @@ bool IFeature_Dx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX
     for (auto it = pipeline.rbegin(); it != pipeline.rend(); ++it)
     {
         ID3D12Resource* requiredInput = it->Setup(currentTarget);
+        if (helperSetupFailed)
+            return false;
         if (requiredInput)
         {
             it->outputBuffer = currentTarget;
@@ -238,6 +283,7 @@ bool IFeature_Dx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX
 
     // Upscaler will write to the first active shader, or just output
     InParameters->Set(NVSDK_NGX_Parameter_Output, currentTarget);
+    cleanup.outputChanged = recordedRR;
 
     UpscalerTime->Start(InCommandList);
 
@@ -255,7 +301,7 @@ bool IFeature_Dx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX
         {
             if (!pass.Dispatch(pass.inputBuffer, pass.outputBuffer))
             {
-                return true;
+                return !recordedRR;
             }
         }
     }
@@ -281,6 +327,7 @@ bool IFeature_Dx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX
 
     InParameters->Set(NVSDK_NGX_Parameter_Output, paramOutput);
 
+    cleanup.success = evalResult;
     return evalResult;
 }
 

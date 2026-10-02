@@ -1,12 +1,13 @@
 #include "pch.h"
 #include "Shader_Dx12.h"
 #include <d3dx/d3dx12.h>
+#include <resource_tracking/ResTrack_dx12.h>
 
 using Microsoft::WRL::ComPtr;
 
 Shader_Dx12::Shader_Dx12(std::string InName, ID3D12Device* InDevice) : _name(InName), _device(InDevice)
 {
-    GpuTime = std::make_unique<GpuTime_Dx12>(InDevice);
+    GpuTime = std::make_shared<GpuTime_Dx12>(InDevice);
 }
 
 Shader_Dx12::~Shader_Dx12()
@@ -108,7 +109,7 @@ bool Shader_Dx12::CreateComputePipeline(ID3D12Device* device, ID3D12PipelineStat
 bool Shader_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* InResource,
                                        D3D12_RESOURCE_STATES InState, ID3D12Resource** OutResource,
                                        D3D12_RESOURCE_FLAGS ResourceFlags, uint64_t InWidth, uint32_t InHeight,
-                                       DXGI_FORMAT InFormat)
+                                       DXGI_FORMAT InFormat, ID3D12GraphicsCommandList* InCommandList)
 {
     if (InDevice == nullptr || InResource == nullptr)
         return false;
@@ -123,6 +124,37 @@ bool Shader_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* I
 
     if (InFormat != DXGI_FORMAT_UNKNOWN)
         inDesc.Format = InFormat;
+
+    if (_recordedLifetime)
+    {
+        if (!InCommandList || !(ResourceFlags & D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS))
+            return false;
+        // One owner per Evaluate setup: no resize/rebinding of an executable intermediate.
+        auto owner = std::make_shared<ShaderDispatchLease::Intermediate>();
+        D3D12_HEAP_PROPERTIES props {};
+        D3D12_HEAP_FLAGS sourceHeapFlags {};
+        if (FAILED(InResource->GetHeapProperties(&props, &sourceHeapFlags)))
+            return false;
+        inDesc.Flags |= ResourceFlags;
+        if (FAILED(InDevice->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &inDesc,
+                                                    D3D12_RESOURCE_STATE_COMMON, nullptr,
+                                                    IID_PPV_ARGS(owner->resource.GetAddressOf()))))
+            return false;
+        // Admission precedes replacement, barriers, and the SDK writing this texture.
+        if (!ResTrack_Dx12::RetainComputeDispatch(InDevice, InCommandList, owner))
+            return false;
+        _recordedIntermediates.erase(
+            std::remove_if(_recordedIntermediates.begin(), _recordedIntermediates.end(),
+                           [](const auto& item) { return item.expired(); }), _recordedIntermediates.end());
+        _recordedIntermediates.push_back(owner);
+        _recordedBuffer = owner;
+        owner->resource->AddRef(); // Preserve the legacy raw Buffer()/destructor ownership.
+        auto previous = *OutResource;
+        *OutResource = owner->resource.Get();
+        if (previous)
+            previous->Release();
+        return true;
+    }
 
     if (*OutResource != nullptr)
     {
@@ -168,6 +200,22 @@ bool Shader_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* I
 void Shader_Dx12::SetBufferState(ID3D12GraphicsCommandList* InCommandList, D3D12_RESOURCE_STATES InState,
                                  ID3D12Resource* Buffer, D3D12_RESOURCE_STATES* BufferState)
 {
+    std::shared_ptr<ShaderDispatchLease::Intermediate> owner;
+    if (_recordedLifetime)
+    {
+        for (auto& weak : _recordedIntermediates)
+            if (auto candidate = weak.lock(); candidate && candidate->resource.Get() == Buffer)
+            {
+                owner = std::move(candidate);
+                break;
+            }
+        if (!owner)
+            throw std::runtime_error("Unleased RR helper intermediate");
+        // Public state calls can target a different recording; admit this exact owner first.
+        if (!ResTrack_Dx12::RetainComputeDispatch(_device, InCommandList, owner))
+            throw std::runtime_error("RR helper barrier lifetime admission failed");
+        BufferState = &owner->state;
+    }
     if (BufferState == nullptr || *BufferState == InState)
         return;
 
@@ -180,6 +228,73 @@ void Shader_Dx12::SetBufferState(ID3D12GraphicsCommandList* InCommandList, D3D12
     InCommandList->ResourceBarrier(1, &barrier);
 
     *BufferState = InState;
+}
+
+std::function<void()> Shader_Dx12::RecordedBufferCleanup(ID3D12GraphicsCommandList* list)
+{
+    if (!_recordedLifetime || !_recordedBuffer)
+        return {};
+    // Capture this setup's exact owner; a later setup cannot redirect its final barrier.
+    return [owner = _recordedBuffer, list]()
+    {
+        if (owner->state == D3D12_RESOURCE_STATE_COMMON)
+            return;
+        auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(owner->resource.Get(), owner->state,
+                                                          D3D12_RESOURCE_STATE_COMMON);
+        list->ResourceBarrier(1, &barrier);
+        owner->state = D3D12_RESOURCE_STATE_COMMON;
+    };
+}
+
+std::shared_ptr<ShaderDispatchLease::Dispatch> Shader_Dx12::AcquireDispatchLease(
+    ID3D12GraphicsCommandList* list, ID3D12PipelineState* selectedPSO,
+    std::initializer_list<ID3D12Resource*> resources)
+{
+    if (!_recordedLifetime)
+        return nullptr;
+    if (!list || !_device || !_rootSignature || !selectedPSO || !_constantBuffer)
+        return nullptr;
+    auto lease = std::make_shared<ShaderDispatchLease::Dispatch>();
+    {
+        std::lock_guard lock(_dispatchSlotMutex);
+        for (auto& slot : _dispatchSlots)
+            if (slot.use_count() == 1)
+            {
+                lease->slot = slot; // Reserve before unlocking; no COM destruction under this lock.
+                break;
+            }
+    }
+    if (!lease->slot)
+    {
+        auto slot = std::make_shared<ShaderDispatchLease::Slot>();
+        if (!slot->heap.Initialize(_device, _srcCount, _uavCount, _cbvCount, _rtvCount))
+            return nullptr;
+        auto desc = _constantBuffer->GetDesc();
+        auto props = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc,
+                                                   D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+                                                   IID_PPV_ARGS(slot->constants.GetAddressOf()))))
+            return nullptr;
+        lease->slot = slot;
+        std::lock_guard lock(_dispatchSlotMutex);
+        _dispatchSlots.push_back(slot);
+    }
+    lease->device = _device;
+    lease->root = _rootSignature;
+    lease->pipeline = selectedPSO;
+    lease->timer = GpuTime;
+    for (auto* resource : resources)
+        if (resource)
+        {
+            lease->resources.emplace_back(resource);
+            for (auto& weak : _recordedIntermediates)
+                if (auto owner = weak.lock(); owner && owner->resource.Get() == resource)
+                    lease->intermediates.push_back(std::move(owner));
+        }
+    // No timestamp, upload write, or descriptor write occurs before this succeeds.
+    if (!ResTrack_Dx12::RetainComputeDispatch(_device, list, lease))
+        return nullptr;
+    return lease;
 }
 
 // From DirectXHelpers.cpp licensed under MIT

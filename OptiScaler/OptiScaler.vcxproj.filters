@@ -980,6 +980,9 @@
     <ClInclude Include="misc\RecordedComputeLease_Dx12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="misc\ShaderDispatchLease_Dx12.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="shaders\fsrd_preprocess\RRTraceFenceState.h">
       <Filter>Header Files</Filter>
     </ClInclude>

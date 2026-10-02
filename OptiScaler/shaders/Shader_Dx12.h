@@ -1,6 +1,8 @@
 #pragma once
 #include <d3d12.h>
 #include "Shader_Common.h"
+#include <misc/ShaderDispatchLease_Dx12.h>
+#include <functional>
 #include <gpu_time/GpuTime_Dx12.h>
 
 class Shader_Dx12
@@ -17,13 +19,23 @@ class Shader_Dx12
     bool _init = false;
     int _counter = 0;
 
-    std::unique_ptr<GpuTime_Dx12> GpuTime = nullptr;
+    std::shared_ptr<GpuTime_Dx12> GpuTime = nullptr;
 
     ID3D12RootSignature* _rootSignature = nullptr;
     ID3D12PipelineState* _pipelineState = nullptr;
 
     ID3D12Device* _device = nullptr;
     ID3D12Resource* _constantBuffer = nullptr;
+
+    // Enabled only for FSR_RR by IFeature_Dx12. Legacy helpers keep their old path.
+    bool _recordedLifetime = false;
+    std::mutex _dispatchSlotMutex;
+    std::vector<std::shared_ptr<ShaderDispatchLease::Slot>> _dispatchSlots;
+    std::shared_ptr<ShaderDispatchLease::Intermediate> _recordedBuffer;
+    std::vector<std::weak_ptr<ShaderDispatchLease::Intermediate>> _recordedIntermediates;
+    std::shared_ptr<ShaderDispatchLease::Dispatch> AcquireDispatchLease(
+        ID3D12GraphicsCommandList* list, ID3D12PipelineState* selectedPSO,
+        std::initializer_list<ID3D12Resource*> resources);
 
     std::vector<CD3DX12_DESCRIPTOR_RANGE1> _descriptorRanges;
 
@@ -33,11 +45,12 @@ class Shader_Dx12
                                     D3D12_SHADER_BYTECODE byteCode);
     bool CreateComputePipeline(ID3D12Device* device, ID3D12PipelineState** pipelineState, const void* bytecode,
                                size_t bytecodeSize, const char* source);
-    static bool CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* InResource, D3D12_RESOURCE_STATES InState,
+    bool CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* InResource, D3D12_RESOURCE_STATES InState,
                                      ID3D12Resource** OutResource, D3D12_RESOURCE_FLAGS ResourceFlags,
                                      uint64_t InWidth = 0, uint32_t InHeight = 0,
-                                     DXGI_FORMAT InFormat = DXGI_FORMAT_UNKNOWN);
-    static void SetBufferState(ID3D12GraphicsCommandList* InCommandList, D3D12_RESOURCE_STATES InState,
+                                     DXGI_FORMAT InFormat = DXGI_FORMAT_UNKNOWN,
+                                     ID3D12GraphicsCommandList* InCommandList = nullptr);
+    void SetBufferState(ID3D12GraphicsCommandList* InCommandList, D3D12_RESOURCE_STATES InState,
                                ID3D12Resource* Buffer, D3D12_RESOURCE_STATES* BufferState);
 
     void CreateShaderResourceView(ID3D12Device* device, ID3D12Resource* tex, D3D12_CPU_DESCRIPTOR_HANDLE srvDescriptor,
@@ -57,6 +70,9 @@ class Shader_Dx12
     bool InitHeaps(ID3D12Device* InDevice, FrameDescriptorHeap* pHeaps, size_t numOFHeaps);
 
   public:
+    void SetRecordedLifetimeEnabled(bool enabled) { _recordedLifetime = enabled; }
+    // Explicit end state makes a complete recorded sequence safe to resubmit in one batch.
+    std::function<void()> RecordedBufferCleanup(ID3D12GraphicsCommandList* list);
     bool IsInit() const { return _init; }
     std::string Name() const { return _name; }
     std::optional<double> ReadGpuTime(ID3D12CommandQueue* commandQueue) { return GpuTime->ReadGpuTime(commandQueue); }
