@@ -1,0 +1,66 @@
+{
+  "status": "PASS_BOUNDED_THREE_FILE_SOURCE_MATH_ATTRIBUTION_ONLY",
+  "date": "2026-10-02",
+  "owner": "/root/rgb_material_prior_falsifier",
+  "blocking_findings": [],
+  "source_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\attribution.py",
+      "bytes": 9356,
+      "sha256": "a41bfa5c149d64a1cb855e9fdb78ac923231192b6f549deb2e208b99e78a0ea3",
+      "author_final_pin_equal": true
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\PROTOCOL.md",
+      "bytes": 4030,
+      "sha256": "e271fc8c949e8882aaffba93a87cc8500a85040a779f24082b434ea45d4e3415",
+      "author_final_pin_equal": true
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\source_handoff.json",
+      "bytes": 2190,
+      "sha256": "fadac660101edc23637cd51af4ae85926d3b3991ba50511a7484ef0a4872352c",
+      "author_final_pin_equal": true
+    }
+  ],
+  "frozen_mean_schedule_source": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_statistical_recovery_quality_preparation_20261002\\recovery_filter.py",
+    "bytes": 7830,
+    "sha256": "b791800725ff52f88be7dbbfb31f508f64a65caa64f282e397938726b5919e47"
+  },
+  "review_note": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_independent_SOURCE_20261002\\SOURCE_REVIEW.md",
+    "bytes": 3723,
+    "sha256": "423b3ff9c17243a6b2c13ea1fcb499e256c19c0a2d262346f7d145efa77dfd46"
+  },
+  "verified": [
+    "Exact originalfactor normalized same-support clipped3x3 mean schedule and fully-compatible8x8 support prerequisite",
+    "C allowed ONLY original eligibility qualification, no HH/w/candidate recomputation",
+    "Require actual CLOSED zero-fallback telemetry and mean supportall before attribution",
+    "B=MmuD;H=savedT-R-B explicitly includes HALF rounding; E_T=E_R+B+H",
+    "Pixel pooled/perRGB Gram retains all signed cross terms",
+    "Exact old linear material-profile operator applied to allcomponents and actualE_T",
+    "Complex BASE=outputR/B/H/T carrier closure with fixed currenttruth denominator; no amplitude/phase addition",
+    "No output alignment, parameter fit, counterfactual acceptance, newlaw or candidate rerun"
+  ],
+  "required_parent_prerequisites": [
+    "Loader pins CLOSED P/reference and actual R/T/factors/truth plus fixed regions",
+    "Fresh root guarded authority and ordinary physical closure",
+    "Preserve rejected fixed law and interpret only saved-frame error budget"
+  ],
+  "runtime_gate": "Parent loader/driver not part of this three-file math receipt; separate bounded gate beforeexecution",
+  "limits": [
+    "No causal isolation/privateSDK/game/lobe/confidence claim",
+    "Noall64/temporal/noisevariance acceptance",
+    "Useful illumination and adverse material may share SAMEmean component; Gram/carriers diagnose budget without selecting newgate"
+  ],
+  "execution": {
+    "source_imports": 0,
+    "binary_or_array_reads": 0,
+    "numerical_or_metric_execution": 0,
+    "compiler": 0,
+    "GPU": 0,
+    "SDK": 0,
+    "production_or_author_edits": 0
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "status": "SOURCE_ONLY_DECISION_CRITERIA_PENDING_SELECTED_ATTRIBUTION_POST",
+  "note": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_decision_SOURCE_20261002\\DECISION_CRITERIA.md",
+    "bytes": 3868,
+    "sha256": "0f9ee1cfbf5d75f6a91cdd897349b6335f54c5a62bfdad3df1314084602c54cb"
+  },
+  "source_and_saved_metadata_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_statistical_recovery_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 5834,
+      "sha256": "19419f96f1602914d857de2462e4c307743f72ee8c8a53988c9109742a539484"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_statistical_recovery_quality_preparation_20261002\\endpoint_once\\completion.json",
+      "bytes": 1666,
+      "sha256": "1f14ed71aa7d92929e07dffc86bb03062a78e9940d075caa26489bb2b68ff5d1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_statistical_recovery_quality_preparation_20261002\\endpoint_once\\result.json",
+      "bytes": 65736,
+      "sha256": "3f83745a43338e07e25373788769734b74566985abdefbfa5c450000015d41aa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_statistical_recovery_root_adapter_SOURCE_20261002\\ACTUAL_IMPLEMENTATION_DECISION.md",
+      "bytes": 2777,
+      "sha256": "d77ee39a0a9c4896f5bcb047b7dc5e004fb9c579ec5de35925d6012ca7584721"
+    }
+  ],
+  "before_after_equal": true,
+  "new_operator_selected": false,
+  "new_threshold_selected": false,
+  "mean_dominance_established": false,
+  "pending_measurement": "exact saved B=MmuD and H=T-R-B error/profile closure with cross terms, both pairings",
+  "existing_recovery_rejection_preserved": true,
+  "partial_clean_and_RMSE_benefits_preserved": true,
+  "RGB89_scope_unchanged": true,
+  "activity": {
+    "source_code_exploration": 0,
+    "binary_reads": 0,
+    "imports": 0,
+    "arrays": 0,
+    "metrics_execution": 0,
+    "numerical_recompute": 0,
+    "GPU_or_SDK": 0,
+    "production_changes": 0
+  }
+}

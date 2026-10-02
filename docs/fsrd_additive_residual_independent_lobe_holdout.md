@@ -1895,3 +1895,66 @@ implementation decisiond77ee39a retain the partial improvements and strict rejec
 Zero new GPU/RR/context/compiler/build calls; historical ledger503/502/1/1973/
 27482/27474/8 is unchanged. This turn's two distinct fixed CPU quality endpoints
 and zero-numeric preimport naming failure are separate from that native ledger.
+
+### Saved recovery component attribution and next separating operation (2026-10-02)
+
+The fixed P/native recovery's actual clean-detail and whole/animated-noisy error
+improvements remain valid. Its necessary conjunction remains rejected. One saved
+CPU attribution now distinguishes its failure routes without rerunning P or T.
+Original full1 factors and the two paired actual baselines remain unchanged.
+
+The exact applied local mean is B=M*(mu(P/M)-mu(R/M)). The saved remainder is
+H=T-R-B, including HALF rounding. Baseline error plus B plus H reproduces the
+stored candidate error. Raw physical and linear material-profile Gram matrices
+retain all baseline/B/H cross terms; complex carrier Re/Im contributions close.
+Magnitude and phase are scored on final outputs and are not added as components.
+
+The SAME B carries most clean illumination correction and substantial adverse
+material-profile variation in whole and both noisy regions. Its clean same-phase
+illumination contribution is .5908-.5996 static and .8795-.8884 animated; H supplies
+.0336-.0339 and .0445-.0466. These are additive complex-carrier projections, not
+phase-independent amplitudes or a new percentage efficacy measure. The previous
+comparison table retains the actual final-output amplitudes and phases.
+
+The static-noisy physical-error failure also has a distinct remainder route. In
+the declared mean-first error-budget order, B with its baseline cross term reduces
+MSE by about7.9e-6/8.4e-6, while H with its cross terms adds about1.935e-4 in A1/A2.
+The same order attributes about6.10e-6 of about7.92e-6 static-noisy material-profile
+MSE increase to B. All cross terms are preserved: reordering assigns the B/H
+interaction differently. These algebraic subtotals are not accepted counterfactual
+quality endpoints, independent noise estimates or a unique-cause decomposition.
+A B-only explanation of static-noisy RMSE failure is therefore unsupported.
+
+The implementation decision is to retain the rejection and avoid a global
+Anchor, mix or mean-weight scan. A different operation must address useful light
+and adverse material/colour content together, plus the centered remainder route.
+The initial third-agent decision found no justified operation in the existing
+local confidence witness. A subsequently concrete empirical SOURCE hypothesis
+was selected for bounded review: project normalized P-minus-R residual into a
+local spatial subspace constrained by the original material-guide nuisance span,
+and add it to retained native R. This uses existing guides, not a new SDK guide.
+It has no truth, region/frequency labels, history or scalar recovery dose.
+
+This projection assumes usable illumination content can survive the constrained
+low-order model. Genuine guide-correlated light or sharper detail can be removed.
+Local normalized orthogonality does not guarantee global physical material-error
+removal after original M multiplication and overlap. Prior polynomial/detail
+failures require an exact novelty check before this candidate's numerical gate.
+SOURCE selection is not execution or acceptance; the existing hard clean RGB
+gain/phase and all-region paired physical/structured-error gates remain in force.
+No additional quality candidate was evaluated by this attribution. The direct
+water-stain question, temporal efficacy and all64 quality remain unmeasured.
+
+#### Appendix: saved component attribution evidence
+
+Frozen author SOURCE, separate math/adapter gates, one guarded saved-output POST,
+and independent actual interpretation/implementation decision are archived in
+`docs/evidence/fsrd_P_native_recovery_component_attribution_20261002/`.
+Root toolad8189 closed normally, driver12840/owned CPU child21516, rc0,4.609s;
+source/input pins unchanged, no child termination. Result110273B SHA256
+11036296753254e83df85878352f9f75d2b73dba575a7758ee9babcf873339eb;
+completion a393dc6d9707e1c51fe981261d99fe3e5a47ed33d2e99ae55b7442347a7e59b1.
+Root actual receipt a6cf1322, independent interpretation58542fc1/4facfd74,
+third initial actual decisionb3ea3ca7/800de03d preserve every preceding rejection.
+Zero new candidate executions, GPU/RR/context/compiler/build calls; the native
+historical ledger is unchanged. Original HH/noise weight is never recomputed.

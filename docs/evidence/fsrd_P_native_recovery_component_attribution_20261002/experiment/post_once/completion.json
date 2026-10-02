@@ -1,0 +1,36 @@
+{
+  "status": "CLOSED_ACTUAL_SAVED_COMPONENT_POST",
+  "quality_decision": "CLOSED_SAVED_COMPONENT_ATTRIBUTION_ONLY_REJECT_UNCHANGED",
+  "driver_PID": 12840,
+  "guard": {
+    "status": "completed",
+    "child_pid": 21516,
+    "args": [
+      "C:\\Users\\burak\\AppData\\Roaming\\uv\\python\\cpython-3.12.14-windows-x86_64-none\\python.exe",
+      "-B",
+      "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\saved_attribution_once.py"
+    ],
+    "working_directory": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha",
+    "TEMP": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\post_once\\guard\\TEMP",
+    "TMP": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\post_once\\guard\\TEMP",
+    "returncode": 0,
+    "actual_CLOSED": true,
+    "terminated_owned_child": false,
+    "maximum_working_set_bytes": 2147483648,
+    "minimum_available_bytes": 1073741824,
+    "sample_interval_seconds": 0.2,
+    "initial_available_bytes": 4768743424,
+    "minimum_observed_available_bytes": 4723560448,
+    "peak_working_set_bytes": 61296640,
+    "samples": 23,
+    "elapsed_seconds": 4.60899999999674
+  },
+  "source_unchanged": true,
+  "new_GPU_dispatches": 0,
+  "new_RR_dispatches": 0,
+  "result": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\post_once\\result.json",
+    "bytes": 110273,
+    "sha256": "11036296753254e83df85878352f9f75d2b73dba575a7758ee9babcf873339eb"
+  }
+}

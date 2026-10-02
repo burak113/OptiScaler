@@ -1,0 +1,64 @@
+{
+  "status": "ACTUAL_ATTRIBUTION_DECISION_NO_JUSTIFIED_NEW_SEPARATING_IMPLEMENTATION",
+  "note": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_actual_decision_20261002\\ACTUAL_NEXT_IMPLEMENTATION_DECISION.md",
+    "bytes": 4106,
+    "sha256": "b3ea3ca71444d407a1243439fbd1e26b1385f56122e93d25e1eb920d35073097"
+  },
+  "saved_source_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\post_once\\completion.json",
+      "bytes": 1648,
+      "sha256": "a393dc6d9707e1c51fe981261d99fe3e5a47ed33d2e99ae55b7442347a7e59b1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\post_once\\result.json",
+      "bytes": 110273,
+      "sha256": "11036296753254e83df85878352f9f75d2b73dba575a7758ee9babcf873339eb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_statistical_recovery_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 5834,
+      "sha256": "19419f96f1602914d857de2462e4c307743f72ee8c8a53988c9109742a539484"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_statistical_recovery_root_adapter_SOURCE_20261002\\ACTUAL_IMPLEMENTATION_DECISION.md",
+      "bytes": 2777,
+      "sha256": "d77ee39a0a9c4896f5bcb047b7dc5e004fb9c579ec5de35925d6012ca7584721"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_decision_SOURCE_20261002\\DECISION_CRITERIA.md",
+      "bytes": 3868,
+      "sha256": "0f9ee1cfbf5d75f6a91cdd897349b6335f54c5a62bfdad3df1314084602c54cb"
+    }
+  ],
+  "before_after_equal": true,
+  "ordinary_CLOSED_read_before_result": true,
+  "driver_PID": 12840,
+  "child_PID": 21516,
+  "B_contains_useful_clean_illumination_and_adverse_material_profile": true,
+  "mean_only_fix_insufficient": true,
+  "H_static_noisy_error_route_requires_cross_terms": true,
+  "expansion_order_qualification_preserved": true,
+  "new_operator_selected": false,
+  "new_threshold_or_bank_selected": false,
+  "new_probe_requested": false,
+  "required_discriminants": [
+    "observable illumination coherence distinct from material-shaped error",
+    "uncertainty of actual centered P-R correction preserving true detail"
+  ],
+  "present_operands_certify_discriminants": false,
+  "prior_recovery_and_P_rejections_preserved": true,
+  "partial_benefits_and_RGB89_scope_preserved": true,
+  "GPU_port": false,
+  "all64_continuation": false,
+  "production_adoption": false,
+  "activity": {
+    "payload_reads": 0,
+    "imports": 0,
+    "arrays": 0,
+    "numeric_recomputation": 0,
+    "executions": 0,
+    "production_edits": 0
+  }
+}

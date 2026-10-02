@@ -1,0 +1,497 @@
+{
+  "status": "CLOSED_ACTUAL_ONE_SAVED_COMPONENT_ATTRIBUTION_POST",
+  "root_tool": "ad8189",
+  "driver_PID": 12840,
+  "CPU_child_PID": 21516,
+  "returncode": 0,
+  "elapsed_seconds": 4.60899999999674,
+  "ordinary_guard_CLOSED": true,
+  "source_and_input_pins_unchanged": true,
+  "new_quality_candidates": 0,
+  "new_candidate_executions": 0,
+  "new_GPU": 0,
+  "new_RR": 0,
+  "new_contexts": 0,
+  "new_compiler": 0,
+  "no_HH_or_weight_recomputation": true,
+  "original_recovery_REJECT_unchanged": true,
+  "parent_P_output_REJECT_unchanged": true,
+  "all64_quality": null,
+  "temporal_efficacy": null,
+  "direct_water_stain": null,
+  "sequential_split_warning": "R then B then H is an algebraic reporting order; 2BH reassigned under reversed order. All Gram cross terms retained. These are not accepted counterfactual endpoints or unique causal attribution.",
+  "rows": [
+    {
+      "arm": "A1",
+      "region": "WHOLE",
+      "pixel_gram_terms_order": "RR,BB,HH,2RB,2RH,2BH",
+      "pixel_terms": [
+        0.00021709704702718428,
+        0.00017282971432531311,
+        4.696215240425974E-05,
+        -0.0002930840593813768,
+        -1.1145625623760067E-05,
+        1.0770725118080352E-05
+      ],
+      "profile_terms": [
+        6.770470503170145E-07,
+        5.645182732535036E-06,
+        3.5695458106581867E-07,
+        6.637731738446282E-07,
+        1.0498962852020107E-08,
+        6.656620020839063E-08
+      ],
+      "profile_delta_total": 6.742975650505892E-06,
+      "profile_sequential_B_increment": 6.308955906379665E-06,
+      "profile_sequential_H_increment": 4.340197441262294E-07,
+      "pixel_sequential_B_increment": -0.0001202543450560637,
+      "pixel_sequential_H_increment": 4.6587251898580025E-05,
+      "mean_illumination_Re_RGB": [
+        0.5865971818211833,
+        0.5027269596550632,
+        0.5384444794656441
+      ],
+      "remainder_illumination_Re_RGB": [
+        0.01877283006564588,
+        0.019716366837436786,
+        0.019392830332903066
+      ],
+      "closure": [
+        2.710505431213761E-20,
+        -8.470329472543003E-22,
+        1.3877787807814457E-17
+      ]
+    },
+    {
+      "arm": "A1",
+      "region": "STATIC_CLEAN",
+      "pixel_gram_terms_order": "RR,BB,HH,2RB,2RH,2BH",
+      "pixel_terms": [
+        0.00013960498528023084,
+        0.0001235913335951593,
+        2.8589840174271774E-06,
+        -0.00026033034126789786,
+        -1.8889176492895844E-05,
+        1.3169270928901384E-05
+      ],
+      "profile_terms": [
+        2.206039243901614E-07,
+        2.2049692410951605E-07,
+        4.435232796934202E-09,
+        -4.368818081085235E-07,
+        -4.6809012512391205E-09,
+        -3.706189678309282E-09
+      ],
+      "profile_delta_total": -2.2033674213162157E-07,
+      "profile_sequential_B_increment": -2.1638488399900743E-07,
+      "profile_sequential_H_increment": -3.9518581326142E-09,
+      "pixel_sequential_B_increment": -0.00013673900767273856,
+      "pixel_sequential_H_increment": -2.8609215465672817E-06,
+      "mean_illumination_Re_RGB": [
+        0.5910471909997265,
+        0.5995830758843813,
+        0.5946842868475959
+      ],
+      "remainder_illumination_Re_RGB": [
+        0.03360022442954686,
+        0.033925123333456264,
+        0.03373742961685218
+      ],
+      "closure": [
+        -2.6963606427391043E-20,
+        8.892191584945048E-23,
+        2.168404344971009E-19
+      ]
+    },
+    {
+      "arm": "A1",
+      "region": "ANIM_CLEAN",
+      "pixel_gram_terms_order": "RR,BB,HH,2RB,2RH,2BH",
+      "pixel_terms": [
+        0.0002634495815174078,
+        0.00023941286927638676,
+        4.113745495671823E-06,
+        -0.0004981668066517942,
+        -2.7562785991987466E-05,
+        1.9137845494571284E-05
+      ],
+      "profile_terms": [
+        2.747791798659212E-07,
+        2.8852418821607084E-07,
+        3.415213039404596E-08,
+        -5.188502314286464E-07,
+        -3.5565794075047605E-08,
+        -3.225634311072681E-08
+      ],
+      "profile_delta_total": -2.639960500043041E-07,
+      "profile_sequential_B_increment": -2.303260432125756E-07,
+      "profile_sequential_H_increment": -3.367000679172845E-08,
+      "pixel_sequential_B_increment": -0.0002587539373754074,
+      "pixel_sequential_H_increment": -4.311195001744359E-06,
+      "mean_illumination_Re_RGB": [
+        0.8795264539238381,
+        0.8818403172818929,
+        0.88763231066635
+      ],
+      "remainder_illumination_Re_RGB": [
+        0.0465549115191379,
+        0.04631872757163242,
+        0.04447324922122582
+      ],
+      "closure": [
+        4.409865281642701E-20,
+        -7.940933880509066E-23,
+        8.673617379884035E-19
+      ]
+    },
+    {
+      "arm": "A1",
+      "region": "STATIC_NOISY",
+      "pixel_gram_terms_order": "RR,BB,HH,2RB,2RH,2BH",
+      "pixel_terms": [
+        0.00017204262139784986,
+        0.00022439064396582184,
+        0.00018087090552214102,
+        -0.000232317142288221,
+        1.8850663095503536E-06,
+        1.0783193933214206E-05
+      ],
+      "profile_terms": [
+        2.347233476029942E-07,
+        5.77662088107206E-06,
+        1.3852716086468719E-06,
+        3.2103444311448014E-07,
+        6.658132122450909E-08,
+        3.775140497410524E-07
+      ],
+      "profile_delta_total": 7.927022303798972E-06,
+      "profile_sequential_B_increment": 6.097655324186541E-06,
+      "profile_sequential_H_increment": 1.8293669796124334E-06,
+      "pixel_sequential_B_increment": -7.926498322399165E-06,
+      "pixel_sequential_H_increment": 0.00019353916576490558,
+      "mean_illumination_Re_RGB": [
+        0.4764582042030646,
+        0.2953756685750302,
+        0.41696288867796116
+      ],
+      "remainder_illumination_Re_RGB": [
+        -0.003285861287365777,
+        0.00019226614636909075,
+        -0.002100872043374148
+      ],
+      "closure": [
+        -5.421010862427522E-20,
+        0.0,
+        1.3877787807814457E-17
+      ]
+    },
+    {
+      "arm": "A1",
+      "region": "ANIM_NOISY",
+      "pixel_gram_terms_order": "RR,BB,HH,2RB,2RH,2BH",
+      "pixel_terms": [
+        0.0002932909999132486,
+        0.00010392401046388451,
+        4.9745817989541084E-09,
+        -0.00018152194731759416,
+        -1.560631970730585E-08,
+        -7.409884365469616E-09
+      ],
+      "profile_terms": [
+        4.958643664091747E-07,
+        2.2982241079476937E-06,
+        7.660156014014295E-11,
+        -5.034458184932676E-07,
+        2.3904292192009392E-09,
+        -2.9837588617988754E-09
+      ],
+      "profile_delta_total": 1.7942615613719679E-06,
+      "profile_sequential_B_increment": 1.794778289454426E-06,
+      "profile_sequential_H_increment": -5.167280824577933E-10,
+      "pixel_sequential_B_increment": -7.759793685370965E-05,
+      "pixel_sequential_H_increment": -1.8041622273821356E-08,
+      "mean_illumination_Re_RGB": [
+        0.3766281005927073,
+        0.25810606040402667,
+        0.2324161525654229
+      ],
+      "remainder_illumination_Re_RGB": [
+        0.00011298115983213862,
+        -5.927775105709811E-05,
+        -7.700954550169237E-05
+      ],
+      "closure": [
+        5.421010862427522E-20,
+        0.0,
+        1.734723475976807E-18
+      ]
+    },
+    {
+      "arm": "A2",
+      "region": "WHOLE",
+      "pixel_gram_terms_order": "RR,BB,HH,2RB,2RH,2BH",
+      "pixel_terms": [
+        0.00021715337479084456,
+        0.00017284413358368167,
+        4.6985102755978834E-05,
+        -0.0002931514832591013,
+        -1.1165311867194405E-05,
+        1.0764287544065929E-05
+      ],
+      "profile_terms": [
+        6.560317092407786E-07,
+        5.635261337888809E-06,
+        3.577631177248408E-07,
+        6.947892244527917E-07,
+        7.634276268939111E-09,
+        6.586954009111812E-08
+      ],
+      "profile_delta_total": 6.7613174964265005E-06,
+      "profile_sequential_B_increment": 6.330050562341601E-06,
+      "profile_sequential_H_increment": 4.31266934084898E-07,
+      "pixel_sequential_B_increment": -0.00012030734967541964,
+      "pixel_sequential_H_increment": 4.6584078432850356E-05,
+      "mean_illumination_Re_RGB": [
+        0.5871197429649844,
+        0.5034418806124344,
+        0.5385657030403208
+      ],
+      "remainder_illumination_Re_RGB": [
+        0.018760071006274585,
+        0.01971901200569192,
+        0.01938428606690492
+      ],
+      "closure": [
+        8.131516293641283E-20,
+        1.6940658945086007E-21,
+        1.3877787807814457E-17
+      ]
+    },
+    {
+      "arm": "A2",
+      "region": "STATIC_CLEAN",
+      "pixel_gram_terms_order": "RR,BB,HH,2RB,2RH,2BH",
+      "pixel_terms": [
+        0.0001397283506371928,
+        0.0001236994737149857,
+        2.8594593486539846E-06,
+        -0.0002605610509293382,
+        -1.890610586784363E-05,
+        1.3184924953387695E-05
+      ],
+      "profile_terms": [
+        2.2383465572299126E-07,
+        2.2298728531007228E-07,
+        4.373096056192206E-09,
+        -4.426282512427502E-07,
+        -5.491005422093201E-09,
+        -2.8093257616339208E-09
+      ],
+      "profile_delta_total": -2.2356820106021284E-07,
+      "profile_sequential_B_increment": -2.1964096593267794E-07,
+      "profile_sequential_H_increment": -3.927235127534916E-09,
+      "pixel_sequential_B_increment": -0.0001368615772143525,
+      "pixel_sequential_H_increment": -2.8617215658019516E-06,
+      "mean_illumination_Re_RGB": [
+        0.5907584355151312,
+        0.5987425428089879,
+        0.593942190942657
+      ],
+      "remainder_illumination_Re_RGB": [
+        0.033564731381487245,
+        0.033913082853210735,
+        0.03365856736095588
+      ],
+      "closure": [
+        -6.483441641190631E-21,
+        2.54358038360056E-23,
+        4.336808689942018E-19
+      ]
+    },
+    {
+      "arm": "A2",
+      "region": "ANIM_CLEAN",
+      "pixel_gram_terms_order": "RR,BB,HH,2RB,2RH,2BH",
+      "pixel_terms": [
+        0.0002631548485139016,
+        0.0002390995901833617,
+        4.117318828317739E-06,
+        -0.0004975577801749847,
+        -2.7566988160258298E-05,
+        1.913533312283205E-05
+      ],
+      "profile_terms": [
+        2.7071698847673064E-07,
+        2.8304798722894013E-07,
+        3.407918486323455E-08,
+        -5.089119242551935E-07,
+        -3.5408182551893826E-08,
+        -3.216114831266164E-08
+      ],
+      "profile_delta_total": -2.593540830275743E-07,
+      "profile_sequential_B_increment": -2.258639370262534E-07,
+      "profile_sequential_H_increment": -3.349014600132091E-08,
+      "pixel_sequential_B_increment": -0.00025845818999162295,
+      "pixel_sequential_H_increment": -4.31433620910851E-06,
+      "mean_illumination_Re_RGB": [
+        0.8795483259780198,
+        0.8825637192577064,
+        0.8883791714083679
+      ],
+      "remainder_illumination_Re_RGB": [
+        0.046541915135097464,
+        0.0463482631736038,
+        0.0444618664741416
+      ],
+      "closure": [
+        1.053497228147536E-19,
+        -5.293955920339377E-23,
+        8.673617379884035E-19
+      ]
+    },
+    {
+      "arm": "A2",
+      "region": "STATIC_NOISY",
+      "pixel_gram_terms_order": "RR,BB,HH,2RB,2RH,2BH",
+      "pixel_terms": [
+        0.00017257658279454013,
+        0.00022457998639406455,
+        0.00018095869282113152,
+        -0.00023300785400767144,
+        1.8171409142882067E-06,
+        1.0741931349279143E-05
+      ],
+      "profile_terms": [
+        2.3592355319124178E-07,
+        5.797544503601603E-06,
+        1.388796021304011E-06,
+        2.964470648163128E-07,
+        5.764314532619364E-08,
+        3.7519157638149576E-07
+      ],
+      "profile_delta_total": 7.915622311429616E-06,
+      "profile_sequential_B_increment": 6.093991568417915E-06,
+      "profile_sequential_H_increment": 1.8216307430117004E-06,
+      "pixel_sequential_B_increment": -8.427867613606887E-06,
+      "pixel_sequential_H_increment": 0.00019351776508469887,
+      "mean_illumination_Re_RGB": [
+        0.4789705301874436,
+        0.2992592364867367,
+        0.41867210188118975
+      ],
+      "remainder_illumination_Re_RGB": [
+        -0.0032391251618251733,
+        0.00021688424149227258,
+        -0.002154213577445572
+      ],
+      "closure": [
+        0.0,
+        0.0,
+        1.3877787807814457E-17
+      ]
+    },
+    {
+      "arm": "A2",
+      "region": "ANIM_NOISY",
+      "pixel_gram_terms_order": "RR,BB,HH,2RB,2RH,2BH",
+      "pixel_terms": [
+        0.0002931537172177438,
+        0.00010399748404231484,
+        4.940025812031375E-09,
+        -0.000181479247924411,
+        -5.294354963890277E-09,
+        -5.03924923518409E-09
+      ],
+      "profile_terms": [
+        4.840065897345388E-07,
+        2.292526509313261E-06,
+        5.6496696849246416E-11,
+        -4.840189951757085E-07,
+        -1.0508726880769299E-09,
+        -2.5614548725920636E-09
+      ],
+      "profile_delta_total": 1.8049516832737325E-06,
+      "profile_sequential_B_increment": 1.8085075141375527E-06,
+      "profile_sequential_H_increment": -3.555830863819747E-09,
+      "pixel_sequential_B_increment": -7.748176388209615E-05,
+      "pixel_sequential_H_increment": -5.393578387042992E-09,
+      "mean_illumination_Re_RGB": [
+        0.3769924278348877,
+        0.2578556854367529,
+        0.23182039560057013
+      ],
+      "remainder_illumination_Re_RGB": [
+        3.5213497165659054E-05,
+        1.4187328288159752E-05,
+        -1.1828871400664597E-05
+      ],
+      "closure": [
+        0.0,
+        -4.235164736271502E-22,
+        1.734723475976807E-18
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\ROOT_POST_INTENT.json",
+      "bytes": 1205,
+      "sha256": "2517b91206b48509d854e8d5555e02d80e26971b090cd93f02646bdf7d2ce9ca"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\ROOT_ONCE_AUTHORIZATION.json",
+      "bytes": 4171,
+      "sha256": "d260eaaddbf1fdf538cb47a71cb277d1b9a4730fedd4448c80d5037a645cc3e8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\attribution.py",
+      "bytes": 9356,
+      "sha256": "a41bfa5c149d64a1cb855e9fdb78ac923231192b6f549deb2e208b99e78a0ea3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\PROTOCOL.md",
+      "bytes": 4030,
+      "sha256": "e271fc8c949e8882aaffba93a87cc8500a85040a779f24082b434ea45d4e3415"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\source_handoff.json",
+      "bytes": 2190,
+      "sha256": "fadac660101edc23637cd51af4ae85926d3b3991ba50511a7484ef0a4872352c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\saved_attribution_once.py",
+      "bytes": 11023,
+      "sha256": "cfcfa49acb0a3d39cc2e589f389b3df0b4eda6b89e0c4dd2b57c750b5f4b87ab"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\run_saved_attribution_once.py",
+      "bytes": 2813,
+      "sha256": "7d8ecb6738b5139e200bc1246d57404194918cc397c19eb166f68bd316830694"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\post_once\\result.json",
+      "bytes": 110273,
+      "sha256": "11036296753254e83df85878352f9f75d2b73dba575a7758ee9babcf873339eb"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\post_once\\completion.json",
+      "bytes": 1648,
+      "sha256": "a393dc6d9707e1c51fe981261d99fe3e5a47ed33d2e99ae55b7442347a7e59b1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\post_once\\guard\\resource_guard.json",
+      "bytes": 1102,
+      "sha256": "b344cd37223cca11f34007b1197a001bb375df68efda991acd3043458f80c98f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\post_once\\guard\\stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_POST_20261002\\post_once\\guard\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}
