@@ -3,6 +3,7 @@
 #include "RRTraceAdditiveIO.h"
 #include "precompile/RRTraceAdditive_Shader.h"
 #include "resource_tracking/ResTrack_dx12.h"
+#include "misc/RecordedComputeLease_Dx12.h"
 #include "Util.h"
 #include <optional>
 #include <mutex>
@@ -87,21 +88,58 @@ struct ComputeState
     
     ComPtr<ID3D12RootSignature> m_rootSig;
     ComPtr<ID3D12PipelineState> m_pso;
-    std::vector<FrameDescriptorHeap> m_frameHeaps;
-
-    ComPtr<ID3D12Resource> m_constUploadBuffer;
-    byte* m_cbMappedData = nullptr;
-    UINT m_cbSlotSize = 0;
-    UINT m_cbCurrentFrameIndex = 0;
-    UINT backBufferCount = kBackBufferCount;
-
-    ~ComputeState()
+    struct DispatchSlot
     {
-        if (m_constUploadBuffer && m_cbMappedData)
+        FrameDescriptorHeap heap;
+        ComPtr<ID3D12Resource> upload;
+        byte* mapped = nullptr;
+        ~DispatchSlot() { if (upload && mapped) upload->Unmap(0, nullptr); }
+    };
+    struct DispatchLease
+    {
+        std::shared_ptr<DispatchSlot> slot;
+        ComPtr<ID3D12Device> device;
+        ComPtr<ID3D12RootSignature> root;
+        ComPtr<ID3D12PipelineState> pipeline;
+        std::vector<ComPtr<ID3D12Resource>> resources;
+    };
+    ComPtr<ID3D12Device> m_device;
+    std::mutex m_poolMutex;
+    std::vector<std::shared_ptr<DispatchSlot>> m_slots;
+    UINT m_cbSlotSize = 0;
+    UINT m_numSrvs = 0, m_numUavs = 0;
+    std::wstring m_cbName;
+
+    std::shared_ptr<DispatchSlot> AcquireSlot()
+    {
         {
-            m_constUploadBuffer->Unmap(0, nullptr);
-            m_cbMappedData = nullptr;
+            std::lock_guard lock(m_poolMutex);
+            for (const auto& slot : m_slots)
+                if (slot.use_count() == 1) return slot;
         }
+        // No pool/registry lock across resource allocation, mapping or heap creation.
+        auto slot = std::make_shared<DispatchSlot>();
+        D3D12_HEAP_PROPERTIES heapProps = { D3D12_HEAP_TYPE_UPLOAD };
+        D3D12_RESOURCE_DESC bufferDesc = {};
+        bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        bufferDesc.Width = m_cbSlotSize;
+        bufferDesc.Height = 1;
+        bufferDesc.DepthOrArraySize = 1;
+        bufferDesc.MipLevels = 1;
+        bufferDesc.SampleDesc.Count = 1;
+        bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        ThrowIfFailed(m_pDev->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &bufferDesc,
+            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&slot->upload)), "Failed to create dispatch constants");
+        slot->upload->SetName(m_cbName.c_str());
+        D3D12_RANGE readRange = { 0, 0 };
+        ThrowIfFailed(slot->upload->Map(0, &readRange, reinterpret_cast<void**>(&slot->mapped)), "Failed to map dispatch constants");
+        if (!slot->heap.Initialize(m_pDev, m_numSrvs, m_numUavs, 0, 0))
+            throw std::runtime_error("Failed to create dispatch descriptor heap");
+        {
+            std::lock_guard lock(m_poolMutex);
+            m_slots.push_back(slot);
+        }
+        return slot;
     }
 
     void Initialize(
@@ -114,7 +152,11 @@ struct ComputeState
         UINT backBufferCount = kBackBufferCount)
     {
         m_pDev = pDev;
-        this->backBufferCount = backBufferCount;
+        m_device = pDev;
+        m_slots.reserve(backBufferCount); // reservation is not a GPU-completion bound
+        m_numSrvs = numSrvs;
+        m_numUavs = numUavs;
+        m_cbName = cbName;
 
         // Create Root Signature
         ThrowIfFailed(m_pDev->CreateRootSignature(0, bytecode.data(), bytecode.size(), IID_PPV_ARGS(&m_rootSig)),
@@ -126,36 +168,7 @@ struct ComputeState
         psoDesc.CS = { bytecode.data(), bytecode.size() };
         ThrowIfFailed(m_pDev->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&m_pso)), "Failed to create PSO");
 
-        // Create Constant Buffer Upload Heap
         m_cbSlotSize = AlignTo256(cbDataSize);
-        const UINT bufferSize = m_cbSlotSize * backBufferCount;
-
-        D3D12_HEAP_PROPERTIES heapProps = { D3D12_HEAP_TYPE_UPLOAD };
-        D3D12_RESOURCE_DESC bufferDesc = {};
-        bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-        bufferDesc.Width = bufferSize;
-        bufferDesc.Height = 1;
-        bufferDesc.DepthOrArraySize = 1;
-        bufferDesc.MipLevels = 1;
-        bufferDesc.SampleDesc.Count = 1;
-        bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-        bufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-        ThrowIfFailed(m_pDev->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &bufferDesc, 
-        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_constUploadBuffer)), "Failed to create Constant Buffer");
-        
-        m_constUploadBuffer->SetName(cbName);
-        D3D12_RANGE readRange = { 0, 0 }; 
-        ThrowIfFailed(m_constUploadBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_cbMappedData)), "Failed to map Constant Buffer");
-
-        m_frameHeaps.resize(backBufferCount);
-
-        // Create Descriptor Heaps
-        for (auto& heap : m_frameHeaps)
-        {
-            if (!heap.Initialize(m_pDev, numSrvs, numUavs, 0, 0))
-                throw std::runtime_error("Failed to initialize FrameDescriptorHeap");
-        }
     }
 
     void Dispatch(
@@ -175,20 +188,26 @@ struct ComputeState
 
         ScopedSkipHeapCapture skipHeapCapture {};
 
-        // Constant Buffer Updates
-        const UINT currentFrame = m_cbCurrentFrameIndex;
-        const UINT currentOffset = currentFrame * m_cbSlotSize;
-        memcpy(m_cbMappedData + currentOffset, cbData.data(), cbData.size());
-
-        D3D12_GPU_VIRTUAL_ADDRESS cbAddress = m_constUploadBuffer->GetGPUVirtualAddress() + currentOffset;
-        m_cbCurrentFrameIndex = (m_cbCurrentFrameIndex + 1) % backBufferCount;
+        if (cbData.size() > m_cbSlotSize)
+            throw std::runtime_error("Oversized dispatch constants");
+        auto lease = std::make_shared<DispatchLease>();
+        lease->slot = AcquireSlot();
+        lease->device = m_device;
+        lease->root = m_rootSig;
+        lease->pipeline = pipelineState ? pipelineState : m_pso.Get();
+        for (auto* resource : inputs) if (resource) lease->resources.emplace_back(resource);
+        for (auto* resource : output) if (resource) lease->resources.emplace_back(resource);
+        if (!ResTrack_Dx12::RetainComputeDispatch(m_pDev, cmdList, lease))
+            throw std::runtime_error("Compute dispatch lifetime tracking unavailable");
+        memcpy(lease->slot->mapped, cbData.data(), cbData.size());
+        D3D12_GPU_VIRTUAL_ADDRESS cbAddress = lease->slot->upload->GetGPUVirtualAddress();
 
         // Transitions SRV -> UAV
         if (autoBarrierOutput)
             AddBarriers(cmdList, output, outputMips, kSrvState, kUavState);
 
         // Update descriptors
-        FrameDescriptorHeap& currentHeap = m_frameHeaps[currentFrame];
+        FrameDescriptorHeap& currentHeap = lease->slot->heap;
         CreateSRVs(m_pDev, currentHeap, inputs, inputMips);
         CreateUAVs(m_pDev, currentHeap, output, outputMips);
 
@@ -273,7 +292,7 @@ struct FSRDPreprocessor_Dx12::Impl
     ComputeState m_floorFilterShader;
     ComputeState m_convShader;
     ComputeState m_compShader;
-    // Shares conversion's root signature, descriptor rotation and constant buffer.
+    // Shares conversion's root signature, per-dispatch descriptors and constants.
     // The original PSO remains usable if optional pipeline creation fails.
     ComPtr<ID3D12PipelineState> m_additiveConvPso;
     bool m_additiveConvPsoFailed = false;

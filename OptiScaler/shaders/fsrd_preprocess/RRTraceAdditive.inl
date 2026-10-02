@@ -165,8 +165,11 @@
             for (auto* input:inputs) if (input) c->ticket->Retain(input);
             c->ticket->Retain(c->shader.m_rootSig.Get());
             c->ticket->Retain(c->shader.m_pso.Get());
-            c->ticket->Retain(c->shader.m_constUploadBuffer.Get());
-            for (auto& heap:c->shader.m_frameHeaps) c->ticket->Retain(heap.GetHeapCSU());
+            // Every Dispatch below registers its exact shared DispatchLease, including
+            // its immutable CB/heap slot, before writing or recording commands. The
+            // generic recording/submission registry retains it independently of this
+            // capture/ticket through Reset and every queue completion. Raw COM holds
+            // of pool slots would not prevent shared-slot reuse and are not sufficient.
             m_additiveCapture=std::move(c);
             auto& capture=*m_additiveCapture;
             auto constants=original;
@@ -180,6 +183,8 @@
                 {
                     constants.AdditiveLightSplit=float(strength);
                     constants.InspectorChannel=page;
+                    // ComputeState::Dispatch is void and throws on unavailable tracking;
+                    // failure enters the capture catch before any readback copy below.
                     capture.shader.Dispatch(cmd,{reinterpret_cast<const byte*>(&constants),sizeof(constants)},
                         inputs,outputs,{float(capture.width),float(capture.height)});
                     for (UINT slot=0;slot<8;++slot)

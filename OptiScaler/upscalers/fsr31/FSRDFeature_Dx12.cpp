@@ -1729,6 +1729,17 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
 {
     LOG_FUNC();
 
+    struct UpscalerContinuityGuard
+    {
+        bool& pendingReset;
+        bool dispatchSucceeded = false;
+        ~UpscalerContinuityGuard() noexcept
+        {
+            if (!dispatchSucceeded)
+                pendingReset = true;
+        }
+    } upscalerContinuityGuard { _upscalerResetPending };
+
     // The unique_ptr is referenced because UpdateSize may replace the converter.
     struct CompositionHistoryGuard
     {
@@ -1994,7 +2005,10 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
                 FSRDConvShader->GetCompositionOutput(),
                 FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
 
+        upscalerDesc.reset = upscalerDesc.reset || _upscalerResetPending;
         isUpscalerReady = DispatchUpscaler(InCommandList, upscalerDesc);
+        _upscalerResetPending = !isUpscalerReady;
+        upscalerContinuityGuard.dispatchSucceeded = isUpscalerReady;
 
         // Post-processing (RCAS/output scaling/overlay) is run by IFeature_Dx12::Evaluate.
     }

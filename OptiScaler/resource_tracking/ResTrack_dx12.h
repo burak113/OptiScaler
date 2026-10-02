@@ -17,6 +17,8 @@
 #include <shared_mutex>
 #include <vector>
 
+namespace RecordedComputeLease { struct Submission; }
+
 // #define DEBUG_TRACKING
 
 #ifdef DEBUG_TRACKING
@@ -597,6 +599,8 @@ class ResTrack_Dx12
 
     static void hkExecuteCommandLists(ID3D12CommandQueue* This, UINT NumCommandLists,
                                       ID3D12CommandList* const* ppCommandLists);
+    static std::shared_ptr<RecordedComputeLease::Submission> BeforeComputeSubmission(
+        ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* lists) noexcept;
 
     static HRESULT hkCreateDescriptorHeap(ID3D12Device* This, D3D12_DESCRIPTOR_HEAP_DESC* pDescriptorHeapDesc,
                                           REFIID riid, void** ppvHeap);
@@ -641,6 +645,8 @@ class ResTrack_Dx12
     }
 
   public:
+    static bool RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCommandList* list,
+                                      const std::shared_ptr<void>& lease);
     static bool EnsureRRTraceHooks(ID3D12Device* device);
     static void HookDevice(ID3D12Device* device);
     static void ReleaseHooks();

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "shaders/fsrd_preprocess/RRTraceFence.h"
+#include "misc/RecordedComputeLease_Dx12.h"
 #include "ResTrack_dx12.h"
 
 #include <Config.h>
@@ -111,6 +112,7 @@ typedef void(STDMETHODCALLTYPE* PFN_ExecuteCommandLists)(ID3D12CommandQueue* Thi
 
 typedef ULONG(STDMETHODCALLTYPE* PFN_Release)(ID3D12Resource* This);
 typedef ULONG(STDMETHODCALLTYPE* PFN_PsoRelease)(ID3D12PipelineState* This);
+typedef ULONG(STDMETHODCALLTYPE* PFN_CommandListRelease)(IUnknown* This);
 
 // Original method calls for device
 static PFN_CreateRenderTargetView o_CreateRenderTargetView = nullptr;
@@ -143,13 +145,61 @@ static PFN_Close o_Close = nullptr;
 
 static PFN_ExecuteCommandLists o_ExecuteCommandLists = nullptr;
 static PFN_Release o_Release = nullptr;
+// Bound to the private resource observer from class scope when its shared entry
+// is installed. Free Release detours use this route without exposing hook APIs.
+static ULONG (*gSharedResourceReleaseObserver)(ID3D12Resource*) = nullptr;
 static PFN_PsoRelease o_PsoRelease = nullptr;
 // Detours rewrites the function body, not the COM vtable slot. Keep the original resource
 // Release entry so a PSO that shares the same implementation can reuse hkRelease instead of
 // attempting to detour the already-detoured address a second time.
 static PVOID gResourceReleaseEntry = nullptr;
+static PVOID gPsoReleaseEntry = nullptr;
+static PVOID gCommandListReleaseEntry = nullptr;
+static PVOID gComputeResetEntry = nullptr;
+static PVOID gComputeExecuteEntry = nullptr;
+static Microsoft::WRL::ComPtr<IUnknown> gComputeQueueDeviceIdentity;
+static PFN_CommandListRelease o_CommandListRelease = nullptr;
+static bool gResourceReleaseSharesCommandList = false;
+static bool gResourceReleaseSharesPso = false;
+static std::atomic<bool> gComputeListHooksAvailable { false };
+static std::atomic<bool> gComputeQueueHookAvailable { false };
+static std::mutex gComputeHookInitMutex;
 
 static ULONG hkPsoRelease(ID3D12PipelineState* This);
+static ULONG STDMETHODCALLTYPE hkCommandListRelease(IUnknown* This);
+
+static void PublishComputeHookAvailability()
+{
+    RecordedComputeLease::SetHooksAvailable(gComputeListHooksAvailable.load(),
+                                            gComputeQueueHookAvailable.load());
+}
+
+std::shared_ptr<RecordedComputeLease::Submission> ResTrack_Dx12::BeforeComputeSubmission(
+    ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* lists) noexcept
+{
+    try
+    {
+        std::vector<Microsoft::WRL::ComPtr<IUnknown>> owners;
+        std::vector<IUnknown*> keys;
+        for (UINT i = 0; lists && i < count; ++i)
+        {
+            if (!lists[i]) continue;
+            IUnknown* real = lists[i];
+            IUnknown* unwrapped = nullptr;
+            if (ResTrack_Dx12::CheckForRealObject(__FUNCTION__, real, &unwrapped)) real = unwrapped;
+            Microsoft::WRL::ComPtr<IUnknown> identity;
+            if (FAILED(real->QueryInterface(IID_PPV_ARGS(&identity))))
+            {
+                RecordedComputeLease::FailCompletion();
+                return nullptr;
+            }
+            keys.push_back(identity.Get());
+            owners.push_back(std::move(identity));
+        }
+        return RecordedComputeLease::BeforeSubmission(queue, keys);
+    }
+    catch (...) { RecordedComputeLease::FailCompletion(); return nullptr; }
+}
 
 static PFN_OMSetRenderTargets o_OMSetRenderTargets = nullptr;
 static PFN_SetGraphicsRootDescriptorTable o_SetGraphicsRootDescriptorTable = nullptr;
@@ -355,9 +405,10 @@ static void EnsurePsoReleaseHook(ID3D12PipelineState* pipelineState)
     // HookResource has already detoured that entry; hkRelease calls the same PSO cleanup helper
     // after its reference probe, so attaching a second detour would only create an ambiguous
     // hook chain.
-    if (releaseEntry == gResourceReleaseEntry)
+    if (releaseEntry == gResourceReleaseEntry || releaseEntry == gCommandListReleaseEntry)
         return;
 
+    gPsoReleaseEntry = releaseEntry;
     o_PsoRelease = (PFN_PsoRelease) releaseEntry;
 
     if (o_PsoRelease == nullptr)
@@ -365,13 +416,14 @@ static void EnsurePsoReleaseHook(ID3D12PipelineState* pipelineState)
 
     DetourTransactionBegin();
     DetourUpdateThread(GetCurrentThread());
-    DetourAttach(&(PVOID&) o_PsoRelease, hkPsoRelease);
-
-    auto detourResult = DetourTransactionCommit();
+    const auto attachResult = DetourAttach(&(PVOID&) o_PsoRelease, hkPsoRelease);
+    const auto commitResult = attachResult == NO_ERROR ? DetourTransactionCommit() : DetourTransactionAbort();
+    const auto detourResult = attachResult == NO_ERROR ? commitResult : attachResult;
     if (detourResult != NO_ERROR)
     {
         LOG_ERROR("Failed to hook PSO Release: {:X}", detourResult);
         o_PsoRelease = nullptr;
+        gPsoReleaseEntry = nullptr;
     }
 }
 
@@ -1832,7 +1884,9 @@ void ResTrack_Dx12::hkExecuteCommandLists(ID3D12CommandQueue* This, UINT NumComm
         if (!found.empty())
         {
             auto additiveTickets = RRTraceFence::BeforeSubmission(This, NumCommandLists, ppCommandLists);
+            auto computeIntent = BeforeComputeSubmission(This, NumCommandLists, ppCommandLists);
             o_ExecuteCommandLists(This, NumCommandLists, ppCommandLists);
+            RecordedComputeLease::AfterSubmission(computeIntent);
             RRTraceFence::AfterSubmission(This, additiveTickets);
 
             for (size_t i = 0; i < found.size(); i++)
@@ -1847,7 +1901,9 @@ void ResTrack_Dx12::hkExecuteCommandLists(ID3D12CommandQueue* This, UINT NumComm
     LOG_TRACK("Done NumCommandLists: {}", NumCommandLists);
 
     auto additiveTickets = RRTraceFence::BeforeSubmission(This, NumCommandLists, ppCommandLists);
+    auto computeIntent = BeforeComputeSubmission(This, NumCommandLists, ppCommandLists);
     o_ExecuteCommandLists(This, NumCommandLists, ppCommandLists);
+    RecordedComputeLease::AfterSubmission(computeIntent);
     RRTraceFence::AfterSubmission(This, additiveTickets);
 }
 
@@ -1982,6 +2038,7 @@ ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
 {
     if (State::Instance().isShuttingDown)
         return o_Release(This);
+    auto computeRecording = RecordedComputeLease::BeginRelease(This);
 
     std::vector<TrackedResourceSlot> toClean;
     {
@@ -2027,13 +2084,18 @@ ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
             heap->ClearSlotIfMatches(slot.index, This);
     }
 
-    return o_Release(This);
+    const ULONG result = o_Release(This);
+    RecordedComputeLease::EndRelease(computeRecording, result == 0);
+    return result;
 }
 
 ULONG hkPsoRelease(ID3D12PipelineState* This)
 {
+    if (gResourceReleaseSharesPso)
+        return gSharedResourceReleaseObserver(reinterpret_cast<ID3D12Resource*>(This));
     if (State::Instance().isShuttingDown)
         return o_PsoRelease(This);
+    auto computeRecording = RecordedComputeLease::BeginRelease(This);
 
     // Same probe as hkRelease: keep the object alive while its metadata is
     // cleaned up, then perform the caller's release.
@@ -2043,7 +2105,25 @@ ULONG hkPsoRelease(ID3D12PipelineState* This)
     if (refCount <= 1)
         CleanupRRPsoReferences(This);
 
-    return o_PsoRelease(This);
+    const ULONG result = o_PsoRelease(This);
+    RecordedComputeLease::EndRelease(computeRecording, result == 0);
+    return result;
+}
+
+static ULONG STDMETHODCALLTYPE hkCommandListRelease(IUnknown* This)
+{
+    if (gResourceReleaseSharesCommandList)
+        return gSharedResourceReleaseObserver(reinterpret_cast<ID3D12Resource*>(This));
+    if (State::Instance().isShuttingDown)
+        return o_CommandListRelease(This);
+    auto computeRecording = RecordedComputeLease::BeginRelease(This);
+    // May also be a PSO using the same original IUnknown entry.
+    This->AddRef();
+    const ULONG remaining = o_CommandListRelease(This);
+    if (remaining <= 1) CleanupRRPsoReferences(This);
+    const ULONG result = o_CommandListRelease(This);
+    RecordedComputeLease::EndRelease(computeRecording, result == 0);
+    return result;
 }
 
 HRESULT ResTrack_Dx12::hkCreateGraphicsPipelineState(
@@ -2188,7 +2268,9 @@ HRESULT ResTrack_Dx12::hkReset(ID3D12GraphicsCommandList* This,
                                ID3D12CommandAllocator* pAllocator,
                                ID3D12PipelineState* pInitialState)
 {
+    auto computeRecording = RecordedComputeLease::Capture(This);
     const HRESULT result = o_Reset(This, pAllocator, pInitialState);
+    if (SUCCEEDED(result)) RecordedComputeLease::Detach(computeRecording);
     if (SUCCEEDED(result)) RRTraceFence::ResetSucceeded(This);
     if (SUCCEEDED(result) &&
         gRRResourceInspectorEnabled.load(std::memory_order_relaxed))
@@ -3267,20 +3349,38 @@ void ResTrack_Dx12::HookResource(ID3D12Device* InDevice)
     {
         PVOID* pVTable = *(PVOID**) tmp;
         gResourceReleaseEntry = pVTable[2];
+        gSharedResourceReleaseObserver = hkRelease;
+        if (gResourceReleaseEntry == gCommandListReleaseEntry && o_CommandListRelease)
+        {
+            // Already detoured for command lists: use that observer for this shared entry.
+            o_Release = reinterpret_cast<PFN_Release>(o_CommandListRelease);
+            gResourceReleaseSharesCommandList = true;
+            tmp->Release();
+            return;
+        }
+        if (gResourceReleaseEntry == gPsoReleaseEntry && o_PsoRelease)
+        {
+            o_Release = reinterpret_cast<PFN_Release>(o_PsoRelease);
+            gResourceReleaseSharesPso = true;
+            tmp->Release();
+            return;
+        }
         o_Release = (PFN_Release) pVTable[2];
 
         if (o_Release != nullptr)
         {
             DetourTransactionBegin();
             DetourUpdateThread(GetCurrentThread());
-            DetourAttach(&(PVOID&) o_Release, hkRelease);
-            auto detourResult = DetourTransactionCommit();
+            const auto attachResult = DetourAttach(&(PVOID&) o_Release, hkRelease);
+            const auto commitResult = attachResult == NO_ERROR ? DetourTransactionCommit() : DetourTransactionAbort();
+            const auto detourResult = attachResult == NO_ERROR ? commitResult : attachResult;
 
             if (detourResult != NO_ERROR)
             {
                 LOG_ERROR("Failed to hook Heap Release: {:X}", detourResult);
                 o_Release = nullptr;
                 gResourceReleaseEntry = nullptr;
+                gSharedResourceReleaseObserver = nullptr;
                 tmp->Release();
             }
             else
@@ -3324,7 +3424,19 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
             o_DrawIndexedInstanced = (PFN_DrawIndexedInstanced) pVTable[13];
             o_Dispatch = (PFN_Dispatch) pVTable[14];
             o_Close = (PFN_Close) pVTable[9];
-            o_Reset = (PFN_Reset) pVTable[10];
+            const bool resetAlreadyHooked = o_Reset != nullptr;
+            const bool releaseAlreadyHooked = o_CommandListRelease != nullptr;
+            if (!resetAlreadyHooked) o_Reset = (PFN_Reset) pVTable[10];
+            const bool resetEntryMatches = !resetAlreadyHooked || gComputeResetEntry == pVTable[10];
+            if (!resetAlreadyHooked) gComputeResetEntry = pVTable[10];
+            const PVOID releaseEntry = pVTable[2];
+            const bool sharedRelease = releaseEntry == gResourceReleaseEntry ||
+                releaseEntry == gPsoReleaseEntry;
+            if (!sharedRelease && !releaseAlreadyHooked)
+            {
+                gCommandListReleaseEntry = releaseEntry;
+                o_CommandListRelease = reinterpret_cast<PFN_CommandListRelease>(releaseEntry);
+            }
             o_SetPipelineState = (PFN_SetPipelineState) pVTable[25];
             o_ResourceBarrier = (PFN_ResourceBarrier) pVTable[26];
             o_SetMarker = (PFN_SetMarker) pVTable[56];
@@ -3366,8 +3478,11 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
                 if (o_Close != nullptr)
                     DetourAttach(&(PVOID&) o_Close, hkClose);
 
-                if (o_Reset != nullptr)
-                    DetourAttach(&(PVOID&) o_Reset, hkReset);
+                const auto resetAttachResult = resetAlreadyHooked ? NO_ERROR :
+                    (o_Reset ? DetourAttach(&(PVOID&) o_Reset, hkReset) : ERROR_INVALID_FUNCTION);
+                const auto releaseAttachResult = releaseAlreadyHooked ? NO_ERROR : (o_CommandListRelease ?
+                    DetourAttach(&(PVOID&) o_CommandListRelease, hkCommandListRelease) :
+                    (sharedRelease ? NO_ERROR : ERROR_INVALID_FUNCTION));
 
                 if (o_SetPipelineState != nullptr)
                     DetourAttach(&(PVOID&) o_SetPipelineState, hkSetPipelineState);
@@ -3387,7 +3502,9 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
                 if (o_ExecuteBundle != nullptr)
                     DetourAttach(&(PVOID&) o_ExecuteBundle, hkExecuteBundle);
 
-                auto detourResult = DetourTransactionCommit();
+                const auto criticalAttachResult = resetAttachResult != NO_ERROR ? resetAttachResult : releaseAttachResult;
+                const auto commitResult = criticalAttachResult == NO_ERROR ? DetourTransactionCommit() : DetourTransactionAbort();
+                const auto detourResult = criticalAttachResult == NO_ERROR ? commitResult : criticalAttachResult;
                 if (detourResult != NO_ERROR)
                 {
                     LOG_ERROR("Failed to hook CommandList methods: {:X}", detourResult);
@@ -3399,7 +3516,12 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
                     o_Close = nullptr;
                     o_SetComputeRootDescriptorTable = nullptr;
                     o_ExecuteBundle = nullptr;
+                    if (!resetAlreadyHooked) { o_Reset = nullptr; gComputeResetEntry = nullptr; }
+                    if (!releaseAlreadyHooked) { o_CommandListRelease = nullptr; gCommandListReleaseEntry = nullptr; }
                 }
+                gComputeListHooksAvailable.store(detourResult == NO_ERROR && resetEntryMatches && o_Reset &&
+                    (sharedRelease || o_CommandListRelease));
+                PublishComputeHookAvailability();
             }
 
             commandList->Close();
@@ -3435,22 +3557,86 @@ void ResTrack_Dx12::HookToQueue(ID3D12Device* InDevice)
         PVOID* pVTable = *(PVOID**) realQueue;
 
         o_ExecuteCommandLists = (PFN_ExecuteCommandLists) pVTable[10];
+        gComputeExecuteEntry = pVTable[10];
+        IUnknown* actualDevice = InDevice;
+        IUnknown* unwrappedDevice = nullptr;
+        if (CheckForRealObject(__FUNCTION__, actualDevice, &unwrappedDevice)) actualDevice = unwrappedDevice;
+        const bool deviceIdentityAvailable = SUCCEEDED(actualDevice->QueryInterface(IID_PPV_ARGS(&gComputeQueueDeviceIdentity)));
+
+        // ComputeState may be submitted on DIRECT or COMPUTE queues. Publish eligibility
+        // only when both implementations use the entry that this detour observes.
+        Microsoft::WRL::ComPtr<ID3D12CommandQueue> computeQueue;
+        queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+        bool computeEntryMatches = false;
+        if (SUCCEEDED(InDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&computeQueue))))
+        {
+            ID3D12CommandQueue* actualCompute = computeQueue.Get();
+            IUnknown* unwrapped = nullptr;
+            if (CheckForRealObject(__FUNCTION__, actualCompute, &unwrapped))
+                actualCompute = static_cast<ID3D12CommandQueue*>(unwrapped);
+            computeEntryMatches = (*reinterpret_cast<PVOID**>(actualCompute))[10] == gComputeExecuteEntry;
+        }
 
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
 
-        if (o_ExecuteCommandLists != nullptr)
-            DetourAttach(&(PVOID&) o_ExecuteCommandLists, hkExecuteCommandLists);
-
-        auto detourResult = DetourTransactionCommit();
+        const auto attachResult = o_ExecuteCommandLists ?
+            DetourAttach(&(PVOID&) o_ExecuteCommandLists, hkExecuteCommandLists) : ERROR_INVALID_FUNCTION;
+        const auto commitResult = attachResult == NO_ERROR ? DetourTransactionCommit() : DetourTransactionAbort();
+        const auto detourResult = attachResult == NO_ERROR ? commitResult : attachResult;
         if (detourResult != NO_ERROR)
         {
             LOG_ERROR("Failed to hook CommandList methods: {:X}", detourResult);
             o_ExecuteCommandLists = nullptr;
+            gComputeExecuteEntry = nullptr;
         }
+        gComputeQueueHookAvailable.store(detourResult == NO_ERROR && o_ExecuteCommandLists &&
+            computeEntryMatches && deviceIdentityAvailable);
+        PublishComputeHookAvailability();
 
         queue->Release();
     }
+}
+
+bool ResTrack_Dx12::RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCommandList* list,
+                                         const std::shared_ptr<void>& lease)
+{
+    if (!device || !list || !lease || State::Instance().isShuttingDown) return false;
+    IUnknown* actualDevice = device;
+    IUnknown* unwrappedDevice = nullptr;
+    if (CheckForRealObject(__FUNCTION__, actualDevice, &unwrappedDevice)) actualDevice = unwrappedDevice;
+    Microsoft::WRL::ComPtr<IUnknown> deviceIdentity;
+    if (FAILED(actualDevice->QueryInterface(IID_PPV_ARGS(&deviceIdentity)))) return false;
+    {
+        std::lock_guard lock(gComputeHookInitMutex);
+        HookResource(device); // shared Release entry must be known before attaching a list observer
+        HookCommandList(device);
+        HookToQueue(device);
+        if (deviceIdentity.Get() != gComputeQueueDeviceIdentity.Get()) return false;
+    }
+    if (!RecordedComputeLease::Available()) return false;
+    ID3D12GraphicsCommandList* actual = list;
+    IUnknown* unwrapped = nullptr;
+    if (CheckForRealObject(__FUNCTION__, list, &unwrapped))
+        actual = static_cast<ID3D12GraphicsCommandList*>(unwrapped);
+    if (actual->GetType() != D3D12_COMMAND_LIST_TYPE_DIRECT &&
+        actual->GetType() != D3D12_COMMAND_LIST_TYPE_COMPUTE) return false; // bundles require parent propagation
+    Microsoft::WRL::ComPtr<ID3D12Device> listDevice;
+    if (FAILED(actual->GetDevice(IID_PPV_ARGS(&listDevice)))) return false;
+    IUnknown* actualListDevice = listDevice.Get();
+    IUnknown* unwrappedListDevice = nullptr;
+    if (CheckForRealObject(__FUNCTION__, actualListDevice, &unwrappedListDevice)) actualListDevice = unwrappedListDevice;
+    Microsoft::WRL::ComPtr<IUnknown> listDeviceIdentity;
+    if (FAILED(actualListDevice->QueryInterface(IID_PPV_ARGS(&listDeviceIdentity))) ||
+        listDeviceIdentity.Get() != deviceIdentity.Get()) return false;
+    PVOID* vtable = *reinterpret_cast<PVOID**>(actual);
+    if (vtable[10] != gComputeResetEntry ||
+        (vtable[2] != gCommandListReleaseEntry && vtable[2] != gResourceReleaseEntry &&
+         vtable[2] != gPsoReleaseEntry)) return false;
+    Microsoft::WRL::ComPtr<IUnknown> identity;
+    if (FAILED(actual->QueryInterface(IID_PPV_ARGS(&identity)))) return false;
+    return RecordedComputeLease::Track(identity.Get(),
+        { list, actual, static_cast<ID3D12CommandList*>(actual), identity.Get() }, lease);
 }
 
 void ResTrack_Dx12::HookDevice(ID3D12Device* device)
@@ -3558,13 +3744,19 @@ void ResTrack_Dx12::HookDevice(ID3D12Device* device)
     if (device2 != nullptr)
         device2->Release();
 
-    HookToQueue(device);
-    HookCommandList(device);
-    HookResource(device);
+    {
+        std::lock_guard lock(gComputeHookInitMutex);
+        HookResource(device);
+        HookToQueue(device);
+        HookCommandList(device);
+    }
 }
 
 void ResTrack_Dx12::ReleaseDeviceHooks()
 {
+    gComputeListHooksAvailable.store(false);
+    gComputeQueueHookAvailable.store(false);
+    PublishComputeHookAvailability();
     LOG_DEBUG("");
 
     DetourTransactionBegin();
@@ -3625,6 +3817,8 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
 
     if (o_Reset != nullptr)
         DetourDetach(&(PVOID&) o_Reset, hkReset);
+    if (o_CommandListRelease != nullptr)
+        DetourDetach(&(PVOID&) o_CommandListRelease, hkCommandListRelease);
 
     if (o_SetPipelineState != nullptr)
         DetourDetach(&(PVOID&) o_SetPipelineState, hkSetPipelineState);
@@ -3645,7 +3839,7 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
         DetourDetach(&(PVOID&) o_ExecuteBundle, hkExecuteBundle);
 
     // Resource
-    if (o_Release != nullptr)
+    if (o_Release != nullptr && !gResourceReleaseSharesCommandList && !gResourceReleaseSharesPso)
         DetourDetach(&(PVOID&) o_Release, hkRelease);
 
     if (o_PsoRelease != nullptr)
@@ -3676,6 +3870,9 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
     o_Dispatch = nullptr;
     o_Close = nullptr;
     o_Reset = nullptr;
+    o_CommandListRelease = nullptr;
+    gCommandListReleaseEntry = nullptr;
+    gComputeResetEntry = nullptr;
     o_SetPipelineState = nullptr;
     o_ResourceBarrier = nullptr;
     o_SetMarker = nullptr;
@@ -3685,8 +3882,14 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
 
     // Resource
     o_Release = nullptr;
+    gSharedResourceReleaseObserver = nullptr;
     o_PsoRelease = nullptr;
     gResourceReleaseEntry = nullptr;
+    gPsoReleaseEntry = nullptr;
+    gResourceReleaseSharesCommandList = false;
+    gResourceReleaseSharesPso = false;
+    gComputeExecuteEntry = nullptr;
+    gComputeQueueDeviceIdentity.Reset();
 
     {
         std::scoped_lock resourceLock(gRRTrackedResourceMutex);
@@ -3779,8 +3982,8 @@ void ResTrack_Dx12::ReleaseHooks()
     if (o_Close != nullptr)
         DetourDetach(&(PVOID&) o_Close, hkClose);
 
-    if (o_Reset != nullptr)
-        DetourDetach(&(PVOID&) o_Reset, hkReset);
+    // HUD-only teardown must preserve RR recording retirement observers. Full
+    // ReleaseDeviceHooks disables admission before detaching these device hooks.
 
     if (o_SetPipelineState != nullptr)
         DetourDetach(&(PVOID&) o_SetPipelineState, hkSetPipelineState);
@@ -3807,7 +4010,6 @@ void ResTrack_Dx12::ReleaseHooks()
     o_DrawInstanced = nullptr;
     o_Dispatch = nullptr;
     o_Close = nullptr;
-    o_Reset = nullptr;
     o_SetPipelineState = nullptr;
     o_ResourceBarrier = nullptr;
     o_SetMarker = nullptr;

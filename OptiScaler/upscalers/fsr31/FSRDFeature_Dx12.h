@@ -204,6 +204,8 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     DepthDefinition _appliedDepthDefinition {};
 
     bool _hasDenoiserHistory = false;
+    // SR continuity depends on actual SR dispatches, independently of RR history.
+    bool _upscalerResetPending = true;
     // True once this instance has recorded preprocessor work into a command list.
     // Releasing the converter's textures after that point can free resources an
     // already-submitted command list still references, so the automatic

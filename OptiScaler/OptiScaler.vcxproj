@@ -347,6 +347,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="shaders\fsrd_preprocess\FSRDShaderUtils.h" />
     <ClInclude Include="shaders\fsrd_preprocess\RRTraceAdditiveIO.h" />
     <ClInclude Include="shaders\fsrd_preprocess\RRTraceFence.h" />
+    <ClInclude Include="misc\RecordedComputeLease_Dx12.h" />
     <ClInclude Include="shaders\fsrd_preprocess\RRTraceFenceState.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\RRTraceAdditive_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFloorSeed_Shader.h" />
