@@ -1187,3 +1187,136 @@ stay unchanged; goal ACTIVE, no-progress counter0. Root plans to preserve
 validated code locally; no PR/push is claimed here. This append performs no
 production edit, numeric/runtime work, build or DLL inspection/load.
 
+
+### 2026-10-02 current detail status and selected shared-helper validation
+
+User asked whether specular-detail tests passed while verifying a synthetic
+stain repair. Answer: no joint end-to-end full1 stain-fix/detail PASS exists.
+Current bounded passes are converter delayed7 RX correctness, mocked SR
+continuity118checks and DLL compile/link. These establish their named scopes,
+not a quality/detail acceptance. Earlier CLEAN/detail rejection evidence
+remains intact. Static-camera demod0 blur remains the user's observation;
+no demodulation reduction or new game/capture request follows.
+
+The complete71,930B doc/adc7e1f5 was locally committed as a9194f8b by root;
+the earlier open request returned queued, not confirmed visible. Production
+is not committed by this append.
+
+Selected shared-helper production V2
+[source receipt](../tools_tmp/fsrd_shared_shader_lease_port_20261002/source_receipt_V2.json)
+152d9558 binds12files, pending final independent SOURCE gate at this boundary.
+Exact original baseline snapshot66462d27 remains preserved. First actual
+standalone OS compile3d9746 CLOSED with clPID9472/rc2: diagnostic pch shim
+omitted FrameDescriptorHeap. No GPU ran and no output/detail predicate was
+measured.
+[Failed driver](../tools_tmp/fsrd_shared_shader_recorded_slots_regression_20261002/baseline_once/compile/driver_result.json)
+and adjacent logs/guard remain immutable in baseline_once. Author/peer are
+preparing a fresh V2 shim correction; this is harness compilation failure,
+not evidence against or acceptance of the helper lifetime repair.
+
+Root alone executes future gated validation. Historical SDK ledger is
+unchanged; shared-helper standalone compile is a separate integration
+attempt. Goal ACTIVE/full1 unchanged/counter0; no deployment or game fix.
+This doc/progress append performs no production edit, numeric/runtime work,
+compiler invocation or payload read.
+
+
+### 2026-10-02 recovered RGB89 PASS history and actual shared-OS repair
+
+The user's recalled numbers are authenticated as RGB89 colored trueSPEC
+32PASS/13FAIL out of45, not a32-to13 conversion. WholeC89/89PASS and gray
+SPEC0/44 remain the measured record. These earlier passes are valid:
+11 fully active intended-model anchors carry SPEC gain about.9992..1.0006
+and phase<.0011 through the declared full1 CPU transport. Recent "no joint
+end-to-end PASS" statements concern general/native/game acceptance; they do
+not erase this conditional synthetic success.
+[Closed causal diagnosis](../tools_tmp/fsrd_RGB89_closed_causal_diagnosis_SOURCE_20261002/CAUSAL_DIAGNOSIS.md)
+retains the positive result and limitations. Synthetic C included separated
+SPEC/DIFF plus colored B; all-active COLORED_DIFF_LIGHT gain.825101 fails,
+and same-observation IN_PLANE gain.986174 passes amplitude but phase.097434
+fails. Whole-color agreement cannot select the correct physical lobe.
+Next actual-water applicability had no arm meeting all cap<=8 conditions,
+with SPEC medians121–128. Later native CLEAN split gain1.241055727 and
+unitpair1.208545804 exceed1.05 and reject those distinct candidates.
+No successful RGB89 row was rerun or reclassified by these failures.
+
+Shared OS V2 baseline compile3a09cf/cl19116 PASS then RX95eb52/PID9524
+ordinarily CLOSEDrc1/GPUcompleted:6of7 delayed outputs mismatch serial
+golden; changed-word counts[254,256,256,256,256,128,0]. Exactly6STATIC
+diagnostics/other0 retain the debug-invalid baseline, not a safe/clean PASS.
+[Baseline receipt](../tools_tmp/fsrd_shared_shader_recorded_slots_regression_20261002/v2/ROOT_actual_baseline_physical_receipt.json)
+44f294ba binds immutable evidence. Fixed SOURCE07a2d2cb/peer26e52fc3,
+compile2623ec/cl29796 PASS then RX6a457b/PID18344 ordinarily CLOSEDrc0,
+GPUcompleted, all7 changed-word counts0/debug0/stderr0.
+[Fixed receipt](../tools_tmp/fsrd_shared_shader_recorded_slots_regression_20261002/fixed_SOURCE/v2/ROOT_actual_fixed_physical_receipt.json)
+b302395b records real generic14retains,8PRE/POST pairs,8Reset detaches and
+delayed Reset before gate release. Caller resources and local recording/
+submission tokens were held; intermediate was borrowed, timer inert.
+Registry-only reclamation, real detours, RCAS SPEC detail and game behavior
+are not physically proven by this OS test. Do not repeat either fixture.
+
+Shared production V2 source152d9558/peerb230fc78 binds12files, not yet
+committed at this boundary. Full DLL3 actual2234f6/session74428
+CLOSED1f2a96/MSBuild27464/rc0 at05:03:37 UTC after4m15.84s,
+source unchanged,76warnings/0errors. Warning preexistence was not measured.
+[Root artifact receipt](../tools_tmp/fsrd_recorded_dispatch_release_build_20261002/runtime_attempt3/ROOT_build_artifact_receipt.json)
+b84e6acb binds DLL26,984,448B,
+SHA2561db7f23413ddb10ce2674220fc0bd2ffc615cd61a154283a5fe01e6925eec7fd.
+No load/deployment/game acceptance follows. Next RCAS DA/DASDA owned-
+intermediate/real-timer/sharpness/detail proposal94f60052 is SOURCE only;
+execution requires root's separate peer-gated selection.
+
+Shared integration:3standalone cl attempts(1FAIL/2PASS),2RX runs and1full
+DLL build. SDK quality calls0; historical SDK ledger unchanged. Full1/math
+unchanged, static demod0 blur observation retained, goal ACTIVE/counter0.
+This memory update performs no code edit, commit, numeric/runtime/build work.
+
+
+### 2026-10-02 four-point mapping, signed Skip and RCAS CLOSED checkpoint
+
+The user's four-point plan maps to RAW3/RAW7, not RGB89. It was implemented
+and CLOSED in the CPU packet: raw material roles separated from stored
+normalization factors; RAW7 has independent local SPEC/DIFF x/y light fields;
+explicit raw*den/Qc^2*I/full1 transport plus signed residual H; exact inactive
+fallback and whole-field metrics including fallback. Both arms pass color
+44/44; trueSPEC passes25/44 RAW3 and24/44 RAW7. Shared-light gains.49774/
+.58885 and RAW7 moving-frame8 phase failure reject them as sufficient.
+The earlier32coloredPASS/13FAIL and WholeC89PASS belong to separate RGB89.
+Neither the four-point estimator nor signed H was ported into current alpha.
+Current alpha retains stored-albedo ratio allocation and optional shared-
+slope/intercept AdditiveLightSplit; full1 strengths stay1. Recent production
+changes repair lifetimes/SR reset, not the illumination allocation law.
+
+Clarify earlier signed-writer wording: Skip is already
+R16G16B16A16_FLOAT (FSRDPreprocessor:60), and Reconstruct adds Skip before
+final sanitation (OutputComp:137). Ordinary shares/floor/loss construction
+is nonnegative; InputConv:1212 sanitizes negative values. Storage capability
+alone is not a novel repair. FloorExcess can require an upstream negative
+closure, but FloorOFF Flags54 water excludes that term. Earlier signed-H
+CPU evidence already retained117negative words and exposed allocation
+failure before half transport/H. Do not rerun a signed-only bank.
+
+RCAS actual compileacd115/cl11896 CLOSEDrc0; EXE348,160B,
+SHA25640a73a1d7ff5800ce08877d52a227d5c65e1bf993ae515c2dfb7fdaca351f857.
+RXcff18b/PID11300 ordinarily CLOSEDrc2/stderr0, disposition
+INCONCLUSIVE_NO_RETRY after six serial goldens, at the unobservable-motion
+prerequisite before queued/replay. EXE identity after closure matches compile.
+[Root physical receipt](../tools_tmp/fsrd_RCAS_DA_DASDA_detail_lifetime_SOURCE_20261002/root_SOURCE/ROOT_actual_INCONCLUSIVE_physical_receipt.json)
+5f05bd54 preserves immutable results. Authorfb7b8297/independent60538360
+confirm active motion wiring and no adapter defect: the selected line-center
+limiter is invariant under adaptive sharpness. No retuned rerun, owned-
+lifetime/timer/reclamation, queued/replay or SPEC-detail PASS follows.
+
+Root locally committed the12 shared production files as fa319a82,
+"Preserve RR helper resources across pending GPU dispatches"
+(307insertions/48deletions), retaining source152d9558 after OS7exact and DLL
+compile/link PASS. This is bounded SOURCE/CB-heap OS GPU/build validation;
+real detours, RCAS owned timers/reclamation and game quality remain unproved.
+No HLSL/math/demod reduction, DLL load or deployment is claimed.
+
+Separate RCAS integration adds1compilePASS/1RXINCONCLUSIVE, SDK0; historical
+SDK ledger unchanged. Next quality-information frontier is SOURCE only,
+with no old-bank replay selected. Full1 goal ACTIVE/counter0; static demod0
+blur observation retained. This append edits only memory, makes no commit
+and invokes no source-code test, numerical/runtime/GPU/build work.
+
