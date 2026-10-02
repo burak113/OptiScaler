@@ -1,0 +1,17 @@
+{
+  "status": "SOURCE_READY_PEER_PASS_ROOT_EXECUTION_ONLY",
+  "source_freeze": {
+    "path": "F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002/source_freeze.json",
+    "bytes": 3086,
+    "sha256": "c118bafa4c29a508d2a4f747beba46342e663fe5026d6b5b3b6b248f60e62d7d"
+  },
+  "independent_SOURCE_PASS": {
+    "path": "F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/fsrd_observable_radiance_SPEC_guide_full1_quality_independent_SOURCE_20261002/completion_manifest.json",
+    "bytes": 3890,
+    "sha256": "fa90eb6f3f38c919eb1a51b8ba6f989d4f39540417c93e0630dac3b36a0a8567"
+  },
+  "supersedes_pending_peer_status_only": "completion_manifest.json",
+  "no_author_execution_or_runtime": true,
+  "root_fresh_stage_authority_required": true,
+  "quality_not_measured": true
+}

@@ -1537,3 +1537,64 @@ selected. The final note c1745c41 supersedes its exploratory plan and is
 archived as `temporal_mean_SOURCE_CLOSED.md`. A separate SOURCE-only
 question now considers observable radiance-content SDK guidance with the
 original full1 caller fixed; there is no selected mapping or execution yet.
+### Actual source-radiance guide decision: moving illumination is still lost (2026-10-02)
+
+One additional fixed, empirical guide-feature mapping ran: nearest-even
+R8(saturate(decoded original stored HALF noisy source RGB)), copying the
+original guide alpha. Only SDK slot3 changed. Original caller t1/Qc,
+other six native inputs, Skip, full1 strengths and all controls stayed fixed.
+This is a radiance-content guide experiment, not a physical BRDF albedo
+correction. The new colored fixture contained both static and animated
+RGB illumination at static geometry, with independent RGB noise on the
+right half. Physical truth moved with each frame; no time-averaged target
+or luma-only carrier score hid animated/color loss.
+
+Both B repeats failed the necessary clean illumination-detail conjunction
+at frame63. Static material RGB gains were 0.988294/0.991956/0.989668;
+animated material gains were 0.985082/0.984989/0.986125. All passed.
+Static illumination gains were only 0.564289/0.550150/0.559751, while
+animated gains were 0.076284/0.076724/0.073825. Animated phases were
+0.410186/0.429498/0.383255 radians, far above the fixed0.05 limit.
+Thus the visible material pattern remained while illumination contrast and
+its timing were not preserved. This is a synthetic-fixture result, not
+proof of the game's stain cause or a defect inside the private SDK.
+
+Conditional benefits remain: A1 static illumination gains were about
+0.376/0.364/0.372, and static clean TOTAL RMSE improved from0.01181546
+to0.00891745. Animated clean RMSE improved modestly from0.01623113
+to0.01594624. However, static-noisy structured material error worsened to
+0.000519267 from A1 0.000484483 and A2 0.000485720, despite lower RMSE.
+No claim that every endpoint metric improved is justified. Endpoint pair
+efficacy is explicitly null; all64 efficacy/noise/temporal/startup/mature
+checks were not evaluated. Top-level quality and continuation are false.
+
+Decision: reject only this fixed saturated-RNE source-RGB guide on this
+colored static/animated fixture. No port, mapping/dose sweep or remaining
+252 compositions. Earlier fixed64 rejection and historical conditional
+RGB89 successes retain their scopes. Guide replacement alone was
+insufficient in these two candidates; that does not close every possible
+guide law. The full1 stain/detail repair remains unresolved.
+
+The next bounded SOURCE question concerns current-frame, spatially steered
+filtering of observable visible illumination, avoiding temporal color
+averaging. It must be distinguished from RAW3/RAW7, RGB89 and existing
+Floor/LightAnchor filters before any new operator or test is selected.
+No such implementation or numerical experiment is yet authorized.
+
+Provenance appendix: archived evidence is in
+`docs/evidence/fsrd_observable_radiance_SPEC_guide_full1_quality_20261002/`.
+Freeze c118bafa, SOURCE peerfa90eb6f and interpretation peer50314e7c
+were separate. Root actual completion is9618B SHA256
+419cc7d2e87d6cd66cf5c7a2828f166638cedcaa1af0fc139e278e5baa547211.
+Five stages/76 owned children closed ordinarily with source/input identities
+equal before/after and zero ordinary diagnostics/unknown work prefix.
+Actual work:64 converter dispatches, four fresh joint RR contexts with256
+RR dispatches, and4 unchanged-currentCSO TOTAL endpoint compositions;
+72 GPU/native helpers and4 CPU workers, zero compilers/builds or remaining
+compositions. Only the declared Bguide saturator clipped2347 RGB words;
+raw source and signal inputs were not clipped. Flags2/32, converter54 and
+caller strengths1 stayed fixed. Full metrics, raw native logs, child PIDs,
+output identities and receipts remain in the appendix, with verbatim
+snapshot attributes. Historical ledger now SDK503/RR502/query1/helpers1973,
+RR API27482/queued27474/failed8; isolated-query/historical failure counts
+are unchanged. There was no DLL deployment/load/game quality verification.

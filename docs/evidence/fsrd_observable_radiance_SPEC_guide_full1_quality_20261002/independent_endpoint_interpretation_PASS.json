@@ -1,0 +1,130 @@
+{
+  "status": "INDEPENDENT_SAVED_RESULT_INTERPRETATION_PASS_NO_EXECUTION",
+  "blocking_findings": [],
+  "candidate_status": "REJECT_FIXED_SOURCE_RADIANCE_GUIDE_DETAIL",
+  "endpoint_only": true,
+  "frames": [
+    63
+  ],
+  "both_pairs_detail_and_combined_PASS": false,
+  "endpoint_pair_efficacy_quality_PASS": null,
+  "top_level_quality_PASS": false,
+  "continuation_permitted": false,
+  "all64_noise_or_efficacy_proof": false,
+  "static_noisy_material_error_adverse_endpoint_retained": true,
+  "remaining_and_score_all_absent": true,
+  "saved_stages": [
+    {
+      "stage": "assemble",
+      "status": "CLOSED_QUALIFIED_ASSEMBLE",
+      "stage_PASS": true,
+      "all_children_CLOSED": true,
+      "ordinary_terminal_children": 1,
+      "after_SOURCE_inputs_equal": true,
+      "actual_helper_children": 0,
+      "actual_GPU_shader_dispatches": 0,
+      "actual_RR_dispatches": 0,
+      "qualified_RR_contexts": 0
+    },
+    {
+      "stage": "produce",
+      "status": "CLOSED_QUALIFIED_PRODUCE",
+      "stage_PASS": true,
+      "all_children_CLOSED": true,
+      "ordinary_terminal_children": 65,
+      "after_SOURCE_inputs_equal": true,
+      "actual_helper_children": 64,
+      "actual_GPU_shader_dispatches": 64,
+      "actual_RR_dispatches": 0,
+      "qualified_RR_contexts": 0
+    },
+    {
+      "stage": "native",
+      "status": "CLOSED_QUALIFIED_NATIVE",
+      "stage_PASS": true,
+      "all_children_CLOSED": true,
+      "ordinary_terminal_children": 4,
+      "after_SOURCE_inputs_equal": true,
+      "actual_helper_children": 0,
+      "actual_GPU_shader_dispatches": 0,
+      "actual_RR_dispatches": 256,
+      "qualified_RR_contexts": 4
+    },
+    {
+      "stage": "endpoint",
+      "status": "CLOSED_QUALIFIED_ENDPOINT",
+      "stage_PASS": true,
+      "all_children_CLOSED": true,
+      "ordinary_terminal_children": 5,
+      "after_SOURCE_inputs_equal": true,
+      "actual_helper_children": 4,
+      "actual_GPU_shader_dispatches": 4,
+      "actual_RR_dispatches": 0,
+      "qualified_RR_contexts": 0
+    },
+    {
+      "stage": "score_endpoint",
+      "status": "CLOSED_ACTUAL_SCORE_REJECT_FIXED_SOURCE_RADIANCE_GUIDE_DETAIL",
+      "stage_PASS": false,
+      "all_children_CLOSED": true,
+      "ordinary_terminal_children": 1,
+      "after_SOURCE_inputs_equal": true,
+      "actual_helper_children": 0,
+      "actual_GPU_shader_dispatches": 0,
+      "actual_RR_dispatches": 0,
+      "qualified_RR_contexts": 0
+    }
+  ],
+  "text_pins_before_after_equal": true,
+  "pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\score_endpoint\\score.json",
+      "bytes": 82757,
+      "sha256": "7cfaba8e27bb7031394d96f9b8f215472837706da36e09b66c61ead16ef98c1a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\worker.py",
+      "bytes": 16958,
+      "sha256": "f7e10a47bded4b7ab9a91896ee6f4354a334f0e9663b767dcf728b91cd248da3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\source_freeze.json",
+      "bytes": 3086,
+      "sha256": "c118bafa4c29a508d2a4f747beba46342e663fe5026d6b5b3b6b248f60e62d7d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\assemble\\execution_results.json",
+      "bytes": 57403,
+      "sha256": "454774053073a34c26e3b0e10321899124e012e3222c073a8221eb5b3c460783"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\produce\\execution_results.json",
+      "bytes": 481550,
+      "sha256": "6b4e729097f7c8e6a8a122ef24631575658e540a6949856bd5c410cfdf8e6f00"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\execution_results.json",
+      "bytes": 307910,
+      "sha256": "4121b0e074cedd4ead73b26df001f512a260167933de53484b69967360dc5aca"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\endpoint\\execution_results.json",
+      "bytes": 324897,
+      "sha256": "4e71b522f7cb4c63a78b6deb52b00578d3aeb5011f7f2df58c4ca0787170dcad"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\score_endpoint\\execution_results.json",
+      "bytes": 314976,
+      "sha256": "af8196771e1fea5badc45026cee1d2241307acde9df5a1cdb9c388f1bd72233c"
+    }
+  ],
+  "interpretation": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_independent_SOURCE_20261002\\actual_endpoint_interpretation\\INTERPRETATION.md",
+    "bytes": 2727,
+    "sha256": "d679246d0a72935fcea48d618ef1fa306babf042b7d76f524eb4899d5e1cac57"
+  },
+  "array_or_binary_reads": false,
+  "source_imports_or_metric_recomputation_or_compiler_or_native_or_GPU_execution": false,
+  "author_or_production_edits": false,
+  "SDK_bug_or_gamecause_or_lobe_allocation_claim": false
+}

@@ -1,0 +1,24 @@
+{
+  "status": "AUTHOR_SOURCE_COMPLETE_NO_EXECUTION",
+  "source_freeze": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\source_freeze.json",
+    "bytes": 3086,
+    "sha256": "c118bafa4c29a508d2a4f747beba46342e663fe5026d6b5b3b6b248f60e62d7d"
+  },
+  "scope": "Selected empirical fixed observed HALF source radiance SDK SPEC guide only; full1 caller unchanged",
+  "runtime_absent": true,
+  "no_import_pycompile_payload_numeric_compiler_GPU_native": true,
+  "peer_status": "Final exact SOURCE receipt pending; root alone decides authority",
+  "command": "<pinned Python> -B <absolute packet>/run_stage.py <stage> <fresh root authority.json>",
+  "authority_schema": "ROOT_AUTHORIZATION_SCHEMA.json",
+  "stage_order": [
+    "assemble",
+    "produce",
+    "native",
+    "endpoint",
+    "score_endpoint",
+    "remaining only after necessary endpoint PASS",
+    "score_all"
+  ],
+  "prior_CLOSED_decisions_preserved": true
+}

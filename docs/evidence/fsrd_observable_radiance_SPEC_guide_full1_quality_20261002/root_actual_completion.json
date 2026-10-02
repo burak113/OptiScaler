@@ -1,0 +1,259 @@
+{
+  "status": "ROOT_ACTUAL_CLOSED_REJECT_FIXED_SOURCE_RADIANCE_GUIDE_DETAIL",
+  "source_freeze": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\source_freeze.json",
+    "bytes": 3086,
+    "sha256": "c118bafa4c29a508d2a4f747beba46342e663fe5026d6b5b3b6b248f60e62d7d"
+  },
+  "source_peer": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_independent_SOURCE_20261002\\completion_manifest.json",
+    "bytes": 3890,
+    "sha256": "fa90eb6f3f38c919eb1a51b8ba6f989d4f39540417c93e0630dac3b36a0a8567"
+  },
+  "score": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\score_endpoint\\score.json",
+    "bytes": 82757,
+    "sha256": "7cfaba8e27bb7031394d96f9b8f215472837706da36e09b66c61ead16ef98c1a"
+  },
+  "stages": [
+    {
+      "stage": "assemble",
+      "result": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\assemble\\result.json",
+        "bytes": 56468,
+        "sha256": "c08dcba256be47c3651b8e1026934a2c39b7c9e40f81941a3a10523a48d54815"
+      },
+      "status": "CLOSED_QUALIFIED_ASSEMBLE",
+      "stage_PASS": true,
+      "driver_PID": 7104,
+      "child_PIDs": [
+        4940
+      ],
+      "all_ordinary_CLOSED": true,
+      "source_input_before_after_equal": true,
+      "RR_dispatches": 0,
+      "shader_dispatches": 0
+    },
+    {
+      "stage": "produce",
+      "result": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\produce\\result.json",
+        "bytes": 473828,
+        "sha256": "0141e6e3551ab7045f60efd8cccadfbe007cc461f44af91ed19f92e94c2a78a8"
+      },
+      "status": "CLOSED_QUALIFIED_PRODUCE",
+      "stage_PASS": true,
+      "driver_PID": 31036,
+      "child_PIDs": [
+        25072,
+        20312,
+        26948,
+        22564,
+        18784,
+        26960,
+        22080,
+        18504,
+        25216,
+        17928,
+        20424,
+        31272,
+        15204,
+        12964,
+        24904,
+        14148,
+        24600,
+        12752,
+        8808,
+        19828,
+        28724,
+        6396,
+        20076,
+        24040,
+        10568,
+        26560,
+        30652,
+        11932,
+        25120,
+        3576,
+        28704,
+        22628,
+        21184,
+        13360,
+        22060,
+        20188,
+        15756,
+        15672,
+        11584,
+        24960,
+        8072,
+        15636,
+        11812,
+        20024,
+        22140,
+        20932,
+        19116,
+        23628,
+        5840,
+        28176,
+        16972,
+        27556,
+        1348,
+        21692,
+        25360,
+        30452,
+        19412,
+        21856,
+        25292,
+        11708,
+        28628,
+        5184,
+        9684,
+        19760,
+        12880
+      ],
+      "all_ordinary_CLOSED": true,
+      "source_input_before_after_equal": true,
+      "RR_dispatches": 0,
+      "shader_dispatches": 64
+    },
+    {
+      "stage": "native",
+      "result": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\result.json",
+        "bytes": 303058,
+        "sha256": "e10b1f75b552016842571dcacbd2047b14ef218b4627443f2dae8ac2ea85a6c6"
+      },
+      "status": "CLOSED_QUALIFIED_NATIVE",
+      "stage_PASS": true,
+      "driver_PID": 30472,
+      "child_PIDs": [
+        27008,
+        7236,
+        7620,
+        15004
+      ],
+      "all_ordinary_CLOSED": true,
+      "source_input_before_after_equal": true,
+      "RR_dispatches": 256,
+      "shader_dispatches": 0
+    },
+    {
+      "stage": "endpoint",
+      "result": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\endpoint\\result.json",
+        "bytes": 319780,
+        "sha256": "c5609b6fa62f2d379857e203b622bc4f80d661ce9f85689a63daffa4fc10bcfa"
+      },
+      "status": "CLOSED_QUALIFIED_ENDPOINT",
+      "stage_PASS": true,
+      "driver_PID": 9280,
+      "child_PIDs": [
+        5384,
+        4456,
+        9584,
+        15748,
+        28884
+      ],
+      "all_ordinary_CLOSED": true,
+      "source_input_before_after_equal": true,
+      "RR_dispatches": 0,
+      "shader_dispatches": 4
+    },
+    {
+      "stage": "score_endpoint",
+      "result": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\score_endpoint\\result.json",
+        "bytes": 310024,
+        "sha256": "97a5382a6ba88093c34a920f6301a53cd5a1f5522514cfc9b8ca0ac37c8b949b"
+      },
+      "status": "CLOSED_ACTUAL_SCORE_REJECT_FIXED_SOURCE_RADIANCE_GUIDE_DETAIL",
+      "stage_PASS": false,
+      "driver_PID": 10484,
+      "child_PIDs": [
+        22220
+      ],
+      "all_ordinary_CLOSED": true,
+      "source_input_before_after_equal": true,
+      "RR_dispatches": 0,
+      "shader_dispatches": 0
+    }
+  ],
+  "native_outputs": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\outputs\\A1\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "bd969603a52475c6d6a1e702c78885bf044eb23ff3c621011e0b2d92af788be2"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\outputs\\A1\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "2ea6ae60fad987316047237eb4dbfe84c192f9433e7b1a25c55e9ec3332a5e20"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\outputs\\A2\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "0d6622d6dd00095d5dde21424d39598ae35368980ee8924281dfc8d7dfa06a56"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\outputs\\A2\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "3333e23f0d0a1a7bc32016b9d88bd6912f86012d4e9fff446f6fbe9302d17589"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\outputs\\B1\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "1c6bc3ab43f47025856603f15c864a2a17c351c481379b7f9f05c2ae1020c110"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\outputs\\B1\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "2fa863f59ad0e79055e430bc3e10e4e6457a85f8e1405666b3dcaed0410da496"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\outputs\\B2\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "1c6bc3ab43f47025856603f15c864a2a17c351c481379b7f9f05c2ae1020c110"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\outputs\\B2\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "2fa863f59ad0e79055e430bc3e10e4e6457a85f8e1405666b3dcaed0410da496"
+    }
+  ],
+  "mapping": "R8 nearest-even(saturate(decoded original stored HALF noisy C RGB)); no fitted mean/floor/filter",
+  "guide_only_clipped_RGB_words": 2347,
+  "actual_delta": {
+    "converter_dispatches": 64,
+    "RR_contexts": 4,
+    "RR_dispatches": 256,
+    "composition_dispatches": 4,
+    "GPU_native_helper_children": 72,
+    "CPU_worker_children": 4,
+    "compiler_or_builds": 0,
+    "remaining_compositions": 0
+  },
+  "ledger_before": {
+    "SDK": 499,
+    "RR": 498,
+    "isolated_query": 1,
+    "GPU_native_helpers": 1901,
+    "RR_API_dispatches": 27226,
+    "queued_dispatches": 27218,
+    "failed_dispatches": 8
+  },
+  "ledger_after": {
+    "SDK": 503,
+    "RR": 502,
+    "isolated_query": 1,
+    "GPU_native_helpers": 1973,
+    "RR_API_dispatches": 27482,
+    "queued_dispatches": 27474,
+    "failed_dispatches": 8
+  },
+  "decision": "Both B mandatory static and animated clean RGB illumination detail fail at frame63; material details pass. Reject fixed saturated RNE sourceRGB guide; no252remaining/no all64efficacy/no port/sweep",
+  "endpoint_adverse_fact": "Static-noisy structured material error B0.0005192669545760442 > A1 0.0004844825565518269 and A2 0.0004857196240540851 despite lower RMSE",
+  "scope": "One synthetic colored static/animated visibleTOTAL fixture, empirical nonphysical feature guide; no true lobe/BRDF contract/SDK bug/game stain cause claim",
+  "efficacy": "Endpoint only; pair efficacy=null, all64 startup/mature/noise/temporal conjunction not evaluated",
+  "remaining_namespace_exists": false,
+  "score_all_namespace_exists": false
+}
