@@ -1,0 +1,56 @@
+{
+  "status": "SOURCE_ONLY_FIXED_SPECTRAL_RESIDUAL_NO_EXECUTION",
+  "operator": "GD Frobenius singular-value shrinkage of normalized observable P/native residual, unknown sigma from all-singular median and numerical MP median",
+  "interface": "apply_frame(np,Qspec,Qdiff,P,R,geometry_valid,*,linear_depth,normals,depth_gradient,roughness_codes,material_codes) -> modeled HALF RGB promoted float64, scalar telemetry",
+  "primary_sources": [
+    {
+      "url": "https://arxiv.org/pdf/1405.7511",
+      "location": "Eq7; Sec8.1 Eq51",
+      "role": "Frobenius shrinker and unknown-noise scaling; asymptotic IID white-noise model only"
+    },
+    {
+      "url": "https://arxiv.org/pdf/1305.5870",
+      "location": "Eq26",
+      "role": "MP eigenvalue median and squared support endpoints; hard-threshold law is not used"
+    }
+  ],
+  "fixed_law": {
+    "M": "original typed Qspec+Qdiff perRGB",
+    "D": "P/M-R/M",
+    "matrix": "complete supported spatial rectangle, independently perRGB, uncentered",
+    "domain": "whole field first; reciprocal same-surface all-central-pixel admission; otherwise split BOTH axes at midpoint; dimensions below2 pairedR fallback; no missing-data fill",
+    "scale": "median(all singular values)/sqrt(MP_eigenvalue_median)=sigma_hat*sqrt(max_dimension)",
+    "shrink": "one GD Frobenius eta; no selected rank",
+    "MP_quadrature_order": 128,
+    "MP_bisection_steps": 64,
+    "zero_scale": "exact identity residual, no epsilon/noise floor",
+    "output": "R+M*Dhat, modeled HALF store; atomic RGB pairedR fallback on invalid/unsupported arithmetic",
+    "absent_inputs": [
+      "truth",
+      "regions",
+      "frequency",
+      "frame",
+      "history",
+      "seed",
+      "original C",
+      "noise confidence",
+      "native uncertainty"
+    ]
+  },
+  "scope": "One fixed empirical law; asymptotic white-noise optimality does not certify correlated heteroskedastic P-R. Lowrank material/colour bias may survive. No general physical separation/material-null or GPU/runtime claim.",
+  "decision": "Same saved f63 hard clean RGB gain/phase + strict material-profile improvement/nonworse physicalRMSE and absRGBbias in all5 regions against BOTH paired actual baselines. Failure rejects; endpointPASS inconclusive. No new thresholds/retune/bank/all64/GPU authority.",
+  "preserved": "All previous guide/P/native/projection rejections stay CLOSED; production and other-owner files untouched",
+  "author_execution": "None: no imports, arrays, numerical runs, binary payload reads, compiler/GPU/native calls",
+  "pins": [
+    {
+      "path": "F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/fsrd_P_native_spectral_residual_quality_preparation_20261002/lowrank_filter.py",
+      "bytes": 10848,
+      "sha256": "e20b5950451ad1c49de4a8fe312ef6bb0f48cddc94ce95fa707f760c28ca7051"
+    },
+    {
+      "path": "F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/fsrd_P_native_spectral_residual_quality_preparation_20261002/PROTOCOL.md",
+      "bytes": 7624,
+      "sha256": "3b729e918c49eaec2525cb0feefaf62fe152756e3367c7af44a84c06a07a640f"
+    }
+  ]
+}

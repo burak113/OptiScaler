@@ -1,0 +1,64 @@
+{
+  "status": "PASS_SOURCE_ONLY_FIXED_SPECTRAL_RESIDUAL_FIVE_FILES",
+  "reviewer": "/root/rgb_material_prior_falsifier",
+  "source_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_quality_preparation_20261002\\lowrank_filter.py",
+      "bytes": 10848,
+      "sha256": "e20b5950451ad1c49de4a8fe312ef6bb0f48cddc94ce95fa707f760c28ca7051"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 7624,
+      "sha256": "3b729e918c49eaec2525cb0feefaf62fe152756e3367c7af44a84c06a07a640f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_quality_preparation_20261002\\source_handoff.json",
+      "bytes": 3132,
+      "sha256": "1a7773ff726e235a9bbc29769d3e0f4c64c2c942e10c659fe2ef60974049f88e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_quality_preparation_20261002\\saved_endpoint_once.py",
+      "bytes": 11970,
+      "sha256": "478068e6ef2bf727dab284fb615075587c58154ef4261f4c4fc53e93d72d58ca"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_quality_preparation_20261002\\run_saved_endpoint_once.py",
+      "bytes": 2823,
+      "sha256": "08894e37d7fad2c9ff9a37215303df3063aeee4ef428dc225f3e7f69ca912f79"
+    }
+  ],
+  "before_after_source_identity_equal": true,
+  "review_note": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_independent_SOURCE_20261002\\SOURCE_REVIEW.md",
+    "bytes": 4253,
+    "sha256": "9c4a74a4156248d089ff48488f40767f4ce2acd21f79f78be3f8f47ecd1ca00a"
+  },
+  "checks": [
+    "rectangular GD Frobenius shrinker/scaling and independent angular MP density derivation",
+    "stored HALF original factor normalization and atomic paired R fallback",
+    "geometry-only recursive rectangular support; no truth/intensity-rank tile selection",
+    "closed P/R provenance typed loader and score-only truth",
+    "unchanged clean RGB gain/phase and all-region strict material/error gates against both baselines",
+    "owned guard ordinary rc0 closure before output reads; no retry; source/PID checks"
+  ],
+  "blocking_findings": [],
+  "scope": "One potential separately root-authorized saved f63 CPU endpoint only. IID low-rank theory empirical for correlated heteroskedastic normalized residual. No physical/noise/confidence/stain/game/SDK/production guarantee.",
+  "primary_sources": [
+    "https://arxiv.org/pdf/1405.7511 Eq7 and Eq51-53",
+    "https://arxiv.org/pdf/1305.5870 Eq26"
+  ],
+  "execution": {
+    "python_imports": 0,
+    "payload_reads": 0,
+    "arrays": 0,
+    "numerical_checks": 0,
+    "compiler": 0,
+    "GPU": 0,
+    "native": 0,
+    "candidate_runs": 0
+  },
+  "authority": "Fresh root once authorization required; this review authorizes no execution",
+  "preserved": "All prior source proofs, candidates and closed rejection evidence untouched",
+  "metadata_note": "An earlier PowerShell parse failed before any receipt writing or source execution; corrected only shell metadata syntax."
+}

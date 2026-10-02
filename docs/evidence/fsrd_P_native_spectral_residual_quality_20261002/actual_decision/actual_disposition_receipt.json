@@ -1,0 +1,95 @@
+{
+  "status": "ACTUAL_FIXED_SPECTRAL_LAW_REJECT_STOP_NO_RETUNING",
+  "note": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_actual_decision_20261002\\ACTUAL_IMPLEMENTATION_DISPOSITION.md",
+    "bytes": 3429,
+    "sha256": "92a73a07fecb861d1f6e9af94a276e3b45ee5f9c1b3ebda2a7655131fe8acc17"
+  },
+  "closed_source_metadata_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_quality_preparation_20261002\\endpoint_once\\completion.json",
+      "bytes": 1653,
+      "sha256": "7a0fc379e9ebac11656c78aed7ba84b0c2d5b88340e30d6d1aef9a421ff0dd7b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_quality_preparation_20261002\\endpoint_once\\result.json",
+      "bytes": 66559,
+      "sha256": "2782a3b899b8e5a3bb5a6c981e7e3e1060e305357e9c83db331db4384563d9fd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 7624,
+      "sha256": "3b729e918c49eaec2525cb0feefaf62fe152756e3367c7af44a84c06a07a640f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_novelty_SOURCE_20261002\\novelty_receipt.json",
+      "bytes": 3232,
+      "sha256": "16f6b40140c16b9509aef402a0b125c2d4981c6f4ed40317fde0683294243a08"
+    }
+  ],
+  "before_after_equal": true,
+  "closure_read_before_result": true,
+  "driver_PID": 25084,
+  "child_PID": 11816,
+  "ordinary_CLOSED_rc0": true,
+  "pairs": [
+    {
+      "baseline": "A1",
+      "detail_PASS": false,
+      "endpoint_necessary_quality_PASS": false,
+      "combined_endpoint_PASS": false,
+      "failures": [
+        "absolute_clean_detail",
+        "WHOLE/material_no_strict_improvement",
+        "STATIC_NOISY/material_no_strict_improvement",
+        "STATIC_NOISY/physical_rmse_worse",
+        "ANIM_NOISY/material_no_strict_improvement"
+      ]
+    },
+    {
+      "baseline": "A2",
+      "detail_PASS": false,
+      "endpoint_necessary_quality_PASS": false,
+      "combined_endpoint_PASS": false,
+      "failures": [
+        "absolute_clean_detail",
+        "WHOLE/material_no_strict_improvement",
+        "STATIC_NOISY/material_no_strict_improvement",
+        "STATIC_NOISY/physical_rmse_worse",
+        "ANIM_NOISY/material_no_strict_improvement"
+      ]
+    }
+  ],
+  "static_clean_green_illumination_phase": [
+    0.06050144660558306,
+    0.06027969487514939
+  ],
+  "whole_and_animated_noisy_RMSE_benefits_retained": true,
+  "static_noisy_RMSE_worse": true,
+  "whole_and_both_noisy_material_profile_worse": true,
+  "all_region_absolute_RGB_bias_nonworse": true,
+  "accepted_tile_dimensions": "80x128",
+  "tiles_per_pair": 1,
+  "changed_pixels_per_pair": 10240,
+  "fallback_pixels_per_pair": 0,
+  "retained_modes_RGB": [
+    20,
+    23,
+    24
+  ],
+  "unique_cause_established": false,
+  "all_matrix_denoising_rejected": false,
+  "new_test_or_retuning_selected": false,
+  "all64_continuation": false,
+  "GPU_port": false,
+  "production_adoption": false,
+  "prior_rejects_partial_benefits_and_RGB89_scope_preserved": true,
+  "activity": {
+    "payload_reads": 0,
+    "imports": 0,
+    "arrays": 0,
+    "numerical_recompute": 0,
+    "executions": 0,
+    "source_or_production_changes": 0
+  }
+}

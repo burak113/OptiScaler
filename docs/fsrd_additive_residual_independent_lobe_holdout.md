@@ -2036,3 +2036,84 @@ Root actual receipt9fe657be, independent interpretation251b51f4/a6a27806 and
 implementation dispositionac91ca40/e837eee7 preserve the failed full conjunction.
 Zero new GPU/RR/context/compiler/build calls; historical native ledger unchanged.
 Author outcome202d44f5/f4860b19 independently retains the same gains and fixed-law rejection; no next law is selected.
+
+### Singular-spectrum residual recovery: amplitude retained, phase/error conjunction rejected (2026-10-02)
+
+The preceding turn made concrete quality progress: fixed nuisance projection
+preserved clean detail and improved physical RMSE/bias in all five regions, while
+whole/both-noisy material-profile gates still failed. Its measured gains remain
+valid. Runtime ownership repairs and test machinery retain their separate scopes;
+conditional RGB89 successes and every exact SDK-guide/joint-arm closure remain.
+No new guide, global Anchor/mix ratio or parameter bank was opened.
+
+One different empirical separating law was selected: normalize D=P/M-R/M using
+original M, learn current supported matrix singular vectors, and shrink their
+values with a single bulk-median noise-scale rule before returning R+M*Dhat as HALF.
+The fixed law follows Gavish-Donoho's [primary singular-value shrinkage result](https://arxiv.org/pdf/1405.7511)
+and [MP-median definition](https://arxiv.org/pdf/1305.5870). Its normalized-matrix
+white IID low-rank assumptions are empirical here: P/native correlation and guide
+heteroskedasticity prevent a calibrated noise or physical-risk guarantee.
+
+Geometry-only recursive rectangular support, with reciprocal frozen surface
+admission and exact roughness/material codes, handles supported scene interiors;
+unsupported/invalid final output falls back atomically to paired R. No zero-filled
+irregular mask, intensity-driven tile choice, truth/frequency/region label, history,
+shared RGB light, fitted rank or scalar recovery dose enters. Coherent light might
+concentrate in retained modes; coherent colour bias and smooth noise can do so too.
+Genuine higher-rank detail can be mistaken for bulk. These risks preceded the SAME
+saved frame63 hard paired quality test. This targets deleted amplitude already
+observed at the native boundary; no temporal-delay correction is asserted.
+
+Actual result: clean material gains/phases remain within bounds and independent
+illumination amplitudes are close to one. Animated-clean illumination detail passes.
+STATIC_CLEAN green illumination spatial phase is .060501/.060280 rad in A1/A2,
+above the fixed .05 gate: both complete clean-detail conjunctions FAIL. Whole and
+animated-noisy physical RMSE improve against both baselines; all-region absolute
+RGB bias is nonworse. Static-noisy physical RMSE worsens, and whole plus both noisy
+material-profile errors worsen. Result: REJECT_FIXED_P_NATIVE_SPECTRAL_RESIDUAL_DETAIL.
+The amplitude/material and partial-error benefits remain recorded; they cannot
+waive the phase or physical/structured-error requirements.
+
+Comparison uses static / animated CLEAN carrier ranges and static / animated NOISY
+error. Material gain is Re(O/T); illumination amplitude is abs(O/T), and listed phase
+is the maximum abs(arg(O/T)) RGB spatial-carrier offset in radians. Both paired
+candidate outputs are included. These phase values are not temporal-lag measurements.
+
+| Output | Clean material gain, static / animated | Clean illumination amplitude; maximum phase, static / animated | Noisy physical RMSE, static / animated | Noisy material-profile error, static / animated | Actually changed area |
+| --- | --- | --- | --- | --- | --- |
+| A1 actual full1 baseline | .985290-.988423 / .982201-.983957 | .364680-.376028; .035365 / .077624-.083634; .613938 | .01311650 / .01712574 | .00048448 / .00070418 | Existing reference output |
+| A2 actual full1 baseline | .985200-.988233 / .982351-.984109 | .365550-.376315; .033726 / .077796-.084376; .641032 | .01313684 / .01712173 | .00048572 / .00069571 | Existing reference output |
+| Fixed spectral residual, both pairs | 1.000476-1.001737 / 1.000749-1.001400 | .969436-.990383; .060501 / .978800-.990356; .043388 | .02181889-.02182083 / .01601274-.01601350 | .00282831-.00282915 / .00148338-.00148517 | All10240/10240 TOTAL pixels vs each R; modeled HALF CPU |
+
+Whole RMSE is .0135544164/.0135533301 against .0147342135/.0147361248;
+whole material-profile error is .0026945836/.0026957408 against
+.0008228287/.0008099578. A single80x128 qualified matrix is processed per pair,
+with all10240 pixels changed, no geometry split and no fallback. Observable mode
+counts are20/23/24 perRGB in both outputs; the corresponding sigma estimates are
+empirical rather than native-calibrated confidence. Support shortage/fragmentation
+is not an explanation of this actual result. It does not identify a unique sigma,
+phase, noise, normalization or private-SDK cause.
+
+The hard negative closes this fixed spectral member on this fixture. No noise-scale,
+threshold, rank, tiling or dose scan, all64 continuation, GPU port, production adoption
+or deployment follows. It does not retire every matrix denoiser or erase the stronger
+all-region error/clean-phase gains of the preceding fixed projection. Current spatial
+coherence alone does not establish the required light/material separation. No next
+law/test is selected from failure alone. The full1 stain/detail objective remains
+ACTIVE; direct water-stain and temporal/all64 efficacy remain unmeasured. Physical
+RMSE includes noise and signal error. The fixture is not counted as a water-stain fix.
+
+#### Appendix: spectral residual execution and evidence
+
+Frozen law/protocol/handoff, five-file math/adapter gate, bounded exact-history
+novelty review, both HALF outputs and three actual interpretations are archived in
+`docs/evidence/fsrd_P_native_spectral_residual_quality_20261002/`.
+SOURCEe20b5950/3b729e91/1a7773ff, gate6504454e and novelty16f6b401 preceded execution.
+Root tool048d26 closed normally, driver25084/owned CPU child11816, rc0,1.609s;
+source/input pins unchanged, no termination. Result66559B SHA256
+2782a3b899b8e5a3bb5a6c981e7e3e1060e305357e9c83db331db4384563d9fd;
+completion7a0fc379e9ebac11656c78aed7ba84b0c2d5b88340e30d6d1aef9a421ff0dd7b.
+Root actual receipt1d5dbbc2, independent interpretationf44d0a16/aff1330a,
+implementation disposition92a73a07/d1fbb949 and author424bd1bc/9b0daa2c preserve
+partial successes and the failed full conjunction. Zero new GPU/RR/context/compiler/
+build calls; historical native ledger unchanged. No old candidate or stage was rerun.

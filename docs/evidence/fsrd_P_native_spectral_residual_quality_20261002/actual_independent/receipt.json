@@ -1,0 +1,86 @@
+{
+  "status": "PASS_SAVED_ACTUAL_INTERPRETATION_FIXED_SPECTRAL_DETAIL_REJECTION",
+  "pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_quality_preparation_20261002\\endpoint_once\\completion.json",
+      "bytes": 1653,
+      "sha256": "7a0fc379e9ebac11656c78aed7ba84b0c2d5b88340e30d6d1aef9a421ff0dd7b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_quality_preparation_20261002\\endpoint_once\\result.json",
+      "bytes": 66559,
+      "sha256": "2782a3b899b8e5a3bb5a6c981e7e3e1060e305357e9c83db331db4384563d9fd"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_actual_independent_20261002\\INTERPRETATION.md",
+      "bytes": 2642,
+      "sha256": "f44d0a1611285145792a12a2f8b89c8ccca30c260fd5e45047785246f158ab86"
+    }
+  ],
+  "closure": {
+    "driver_PID": 25084,
+    "child_PID": 11816,
+    "returncode": 0,
+    "elapsed_seconds": 1.6089999999967404,
+    "ordinary_CLOSED": true,
+    "source_unchanged": true,
+    "new_GPU_dispatches": 0,
+    "new_RR_dispatches": 0
+  },
+  "saved_decision": "REJECT_FIXED_P_NATIVE_SPECTRAL_RESIDUAL_DETAIL",
+  "pairs": [
+    {
+      "baseline": "A1",
+      "detail_PASS": false,
+      "endpoint_necessary_quality_PASS": false,
+      "combined_endpoint_PASS": false,
+      "failures": [
+        "absolute_clean_detail",
+        "WHOLE/material_no_strict_improvement",
+        "STATIC_NOISY/material_no_strict_improvement",
+        "STATIC_NOISY/physical_rmse_worse",
+        "ANIM_NOISY/material_no_strict_improvement"
+      ]
+    },
+    {
+      "baseline": "A2",
+      "detail_PASS": false,
+      "endpoint_necessary_quality_PASS": false,
+      "combined_endpoint_PASS": false,
+      "failures": [
+        "absolute_clean_detail",
+        "WHOLE/material_no_strict_improvement",
+        "STATIC_NOISY/material_no_strict_improvement",
+        "STATIC_NOISY/physical_rmse_worse",
+        "ANIM_NOISY/material_no_strict_improvement"
+      ]
+    }
+  ],
+  "continuation_permitted": false,
+  "all64_quality_PASS": null,
+  "temporal_efficacy": null,
+  "actual_GPU_candidate": false,
+  "paired_candidate_equal": false,
+  "used_pins_before_after_equal": true,
+  "key_scalars": {
+    "static_green_phase_A1": 0.06050144660558306,
+    "static_green_phase_A2": 0.06027969487514939,
+    "whole_rmse_A1": 0.013554416364290446,
+    "whole_rmse_A2": 0.013553330122464608,
+    "static_noisy_rmse_A1": 0.021820827369736194,
+    "static_noisy_rmse_A2": 0.021818892546325682,
+    "animated_noisy_rmse_A1": 0.016013495786598175,
+    "animated_noisy_rmse_A2": 0.0160127434606143
+  },
+  "scope": "One synthetic saved f63 modeled HALF CPU endpoint. Keep useful illumination/error gains and fixed-law rejection. No calibrated sigma, unique cause, temporal lag, all64, GPU, SDK defect, direct stain or game claim.",
+  "review_execution": {
+    "JSON_text_reads_only": true,
+    "arrays": 0,
+    "binary_payloads": 0,
+    "numerical_recompute": 0,
+    "candidate_runs": 0,
+    "imports": 0,
+    "GPU": 0
+  },
+  "next_action": "No scan, retune, continuation or port selected by this interpretation"
+}

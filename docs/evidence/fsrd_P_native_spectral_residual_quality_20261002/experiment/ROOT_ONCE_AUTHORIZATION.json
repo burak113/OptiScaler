@@ -1,0 +1,69 @@
+{
+  "root_authorized_once": true,
+  "fixed_operator_no_sweep": true,
+  "frame": 63,
+  "new_GPU_or_RR_dispatches": 0,
+  "intent": "One fixed empirical singular-spectrum P/native residual recovery; original full1 and all hard paired quality gates unchanged",
+  "source_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_quality_preparation_20261002\\lowrank_filter.py",
+      "bytes": 10848,
+      "sha256": "e20b5950451ad1c49de4a8fe312ef6bb0f48cddc94ce95fa707f760c28ca7051"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 7624,
+      "sha256": "3b729e918c49eaec2525cb0feefaf62fe152756e3367c7af44a84c06a07a640f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_quality_preparation_20261002\\source_handoff.json",
+      "bytes": 3132,
+      "sha256": "1a7773ff726e235a9bbc29769d3e0f4c64c2c942e10c659fe2ef60974049f88e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_quality_preparation_20261002\\saved_endpoint_once.py",
+      "bytes": 11970,
+      "sha256": "478068e6ef2bf727dab284fb615075587c58154ef4261f4c4fc53e93d72d58ca"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_quality_preparation_20261002\\run_saved_endpoint_once.py",
+      "bytes": 2823,
+      "sha256": "08894e37d7fad2c9ff9a37215303df3063aeee4ef428dc225f3e7f69ca912f79"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_quality_preparation_20261002\\ROOT_EXPERIMENT_INTENT.json",
+      "bytes": 2441,
+      "sha256": "f1d91d33260e1b0526b71feeb69dab664c1a05afc5b900db102d1f5b06f57074"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_independent_SOURCE_20261002\\SOURCE_REVIEW.md",
+      "bytes": 4253,
+      "sha256": "9c4a74a4156248d089ff48488f40767f4ce2acd21f79f78be3f8f47ecd1ca00a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_independent_SOURCE_20261002\\receipt.json",
+      "bytes": 3327,
+      "sha256": "6504454e0ce15f9e7475db0a5b59f175ea2c31913841efac8453e56b59afb484"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_novelty_SOURCE_20261002\\NOVELTY_IMPLEMENTATION_CONSEQUENCES.md",
+      "bytes": 5093,
+      "sha256": "b762b4076cc92dc18fe57f7a31780c35ff547d3972cda8359ec5ea59c21ec398"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_spectral_residual_novelty_SOURCE_20261002\\novelty_receipt.json",
+      "bytes": 3232,
+      "sha256": "16f6b40140c16b9509aef402a0b125c2d4981c6f4ed40317fde0683294243a08"
+    },
+    {
+      "path": "C:\\Users\\burak\\AppData\\Roaming\\uv\\python\\cpython-3.12.14-windows-x86_64-none\\python.exe",
+      "bytes": 91648,
+      "sha256": "4eb51b7d5963d9e0dc356bd209b1d55360c73db39d8d458ceee084610ca48fd1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\native_resource_guard.py",
+      "bytes": 3995,
+      "sha256": "47ff642dccd74c8f8830420ccb03c898dd9c6a7363121d8584c1fa366afe8225"
+    }
+  ]
+}
