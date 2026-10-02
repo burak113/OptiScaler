@@ -1,0 +1,265 @@
+{
+  "status": "ROOT_ACTUAL_CLOSED_REJECT_FIXED_CONSTANT64_GUIDE_DETAIL",
+  "source_freeze": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_variable_SPEC_guide_full1_quality_preparation_20261002\\source_freeze.json",
+    "bytes": 2754,
+    "sha256": "bc61f1ca37519141dbc47629284e473ee891561baeff697462e577ea10596120"
+  },
+  "source_peer": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_variable_SPEC_guide_full1_quality_independent_SOURCE_20261002\\completion_manifest.json",
+    "bytes": 3114,
+    "sha256": "246cb0b5a775b92db783345faef9441bb51ee979f4713ba1d94288578acfde51"
+  },
+  "score": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_variable_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\score_endpoint\\score.json",
+    "bytes": 42197,
+    "sha256": "0091b4d8560a31618d12009f83d4c519b27ad0c1982d8c1228fc1bace134f0e9"
+  },
+  "stages": [
+    {
+      "stage": "assemble",
+      "result": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_variable_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\assemble\\result.json",
+        "bytes": 55280,
+        "sha256": "2bf0ea2544716aeb5a1381010318c7d3291226eb7dfd927b901b9ff07467fc4c"
+      },
+      "status": "CLOSED_QUALIFIED_ASSEMBLE",
+      "stage_PASS": true,
+      "driver_PID": 13064,
+      "child_PIDs": [
+        25948
+      ],
+      "all_ordinary_CLOSED": true,
+      "source_inputs_before_after_equal": true,
+      "RR_dispatches": 0,
+      "shader_dispatches": 0
+    },
+    {
+      "stage": "produce",
+      "result": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_variable_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\produce\\result.json",
+        "bytes": 459650,
+        "sha256": "997183e5dc54092d6bdf3893c40766e3dee544c0a3bbfbfa0453af5497e8dc9e"
+      },
+      "status": "CLOSED_QUALIFIED_PRODUCE",
+      "stage_PASS": true,
+      "driver_PID": 12816,
+      "child_PIDs": [
+        9056,
+        18984,
+        24348,
+        19828,
+        24196,
+        21572,
+        19776,
+        24512,
+        18472,
+        26800,
+        7100,
+        15232,
+        28652,
+        17844,
+        22864,
+        6916,
+        13080,
+        27460,
+        18520,
+        21148,
+        1140,
+        3912,
+        7736,
+        27916,
+        18024,
+        29956,
+        21888,
+        29840,
+        11896,
+        9488,
+        11388,
+        31400,
+        15844,
+        27100,
+        20476,
+        27464,
+        27872,
+        30164,
+        4212,
+        22860,
+        13028,
+        18480,
+        29660,
+        6344,
+        29384,
+        3580,
+        31108,
+        28896,
+        24836,
+        26368,
+        4684,
+        20940,
+        15888,
+        4272,
+        20528,
+        28972,
+        10332,
+        28332,
+        22000,
+        16476,
+        15200,
+        22048,
+        19852,
+        30896,
+        23364
+      ],
+      "all_ordinary_CLOSED": true,
+      "source_inputs_before_after_equal": true,
+      "RR_dispatches": 0,
+      "shader_dispatches": 64
+    },
+    {
+      "stage": "native",
+      "result": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_variable_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\result.json",
+        "bytes": 293355,
+        "sha256": "78d1493a9c6d5515f3caffaeabe15b7a0163fd599dfb5cb5eb9042ce64f6bafd"
+      },
+      "status": "CLOSED_QUALIFIED_NATIVE",
+      "stage_PASS": true,
+      "driver_PID": 8164,
+      "child_PIDs": [
+        17868,
+        28572,
+        30612,
+        21500
+      ],
+      "all_ordinary_CLOSED": true,
+      "source_inputs_before_after_equal": true,
+      "RR_dispatches": 256,
+      "shader_dispatches": 0
+    },
+    {
+      "stage": "endpoint",
+      "result": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_variable_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\endpoint\\result.json",
+        "bytes": 349783,
+        "sha256": "4eda7b3248ccff265e13d5cab0d6d0958f27bf930b5169e1f7665267106dba13"
+      },
+      "status": "CLOSED_QUALIFIED_ENDPOINT",
+      "stage_PASS": true,
+      "driver_PID": 27520,
+      "child_PIDs": [
+        24644,
+        4348,
+        14088,
+        18412,
+        18028,
+        6272,
+        25772,
+        24584,
+        30136,
+        19692,
+        28520,
+        19124,
+        27792
+      ],
+      "all_ordinary_CLOSED": true,
+      "source_inputs_before_after_equal": true,
+      "RR_dispatches": 0,
+      "shader_dispatches": 12
+    },
+    {
+      "stage": "score_endpoint",
+      "result": {
+        "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_variable_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\score_endpoint\\result.json",
+        "bytes": 317332,
+        "sha256": "7b10fcde94681bc3b751b7ad7b3d179c5edef58021eca96846746cbff3f54440"
+      },
+      "status": "CLOSED_ACTUAL_SCORE_REJECT_FIXED_CONSTANT_SPEC_GUIDE_DETAIL",
+      "stage_PASS": false,
+      "driver_PID": 26088,
+      "child_PIDs": [
+        30244
+      ],
+      "all_ordinary_CLOSED": true,
+      "source_inputs_before_after_equal": true,
+      "RR_dispatches": 0,
+      "shader_dispatches": 0
+    }
+  ],
+  "native_outputs": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_variable_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\outputs\\A1\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "57daa43e5c77b74eae9478a7b02e95569b8368ea5144ea213b1aee13368e4318"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_variable_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\outputs\\A1\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "c896dc9acfd566c81a9cfc6c7a53ffceb1eb4897badd19ee543651a14c7522e5"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_variable_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\outputs\\A2\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "f758b4c7dfa15d31b048a7073c697420a1c7074d9833e61f62f035daf87486f9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_variable_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\outputs\\A2\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "94d88c9702fdf480b708774ceb54d3566579439d55c7712a92c054a5e72cc560"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_variable_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\outputs\\B1\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "f21003746a80eaf635de1d8a12f10fd9f3a56a5c9ac11cb678700b1520d8352f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_variable_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\outputs\\B1\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "7bffcfd8e167a6c75a351f328268da8b0c970fd68563017c7acb55c1654cf48f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_variable_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\outputs\\B2\\diffuse.bin",
+      "bytes": 5242880,
+      "sha256": "f21003746a80eaf635de1d8a12f10fd9f3a56a5c9ac11cb678700b1520d8352f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_variable_SPEC_guide_full1_quality_preparation_20261002\\runtime_once\\native\\outputs\\B2\\specular.bin",
+      "bytes": 5242880,
+      "sha256": "7bffcfd8e167a6c75a351f328268da8b0c970fd68563017c7acb55c1654cf48f"
+    }
+  ],
+  "actual_delta": {
+    "converter_dispatches": 64,
+    "RR_contexts": 4,
+    "RR_dispatches": 256,
+    "composition_dispatches": 12,
+    "GPU_native_helper_children": 80,
+    "CPU_worker_children": 4,
+    "compiler_or_builds": 0,
+    "remaining_compositions": 0
+  },
+  "historical_ledger_before": {
+    "SDK_runs": 495,
+    "RR_runs": 494,
+    "isolated_query_runs": 1,
+    "GPU_native_helpers": 1821,
+    "RR_API_dispatches": 26970,
+    "queued_dispatches": 26962,
+    "failed_dispatches": 8
+  },
+  "ledger_after": {
+    "SDK_runs": 499,
+    "RR_runs": 498,
+    "isolated_query_runs": 1,
+    "GPU_native_helpers": 1901,
+    "RR_API_dispatches": 27226,
+    "queued_dispatches": 27218,
+    "failed_dispatches": 8
+  },
+  "decision": "Both B repeats fail mandatory clean illumination detail at frame63; fixed64 candidate rejected; remaining756 not authorized; no production port/dose sweep",
+  "quality_PASS_endpoint_field_interpretation": "pairs.quality_PASS=true is unexecuted endpoint-branch default; only detail and combined gates were evaluated; all64 efficacy unmeasured",
+  "scope": "Synthetic fixed material/illumination/noise fixture; no game repair, general guide theorem or independent lobe allocation acceptance",
+  "observation": "User reports demod0 blur also persisted with static camera; observation does not identify a stage or prove this synthetic mechanism",
+  "remaining_namespace_exists": false,
+  "score_all_namespace_exists": false
+}

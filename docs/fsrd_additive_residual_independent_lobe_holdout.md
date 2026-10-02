@@ -1468,3 +1468,61 @@ interaction. Existing pinned receipts retain their hashes/PIDs/counters;
 historical SDK/helper totals do not increase during this refocus. This
 append preserves the prior document prefix and makes no image-code change.
 
+### Actual variable-SPEC guide decision: illumination detail remains insufficient (2026-10-02)
+
+The selected guide-only quality experiment now ran. Full1 caller factors,
+signals and Skip stayed fixed; only the separate SPEC SDK guide changed
+from the actual varying R8 codes to RGB64, with original alpha preserved.
+Both independent B repeats failed the required noiseless illumination-detail
+gate at frame63. This closes **only the fixed constant64 guide candidate on
+this synthetic fixture**. It does not reject every guide intervention,
+identify the game stain's cause, or erase prior RGB89 conditional successes.
+
+Material detail survived: the B TOTAL material-carrier gain was
+0.9886121, within the fixed [0.95,1.05] gate. Illumination detail did not:
+B TOTAL gain was 0.6287255, SPEC 0.5969703 and DIFF 0.6649936.
+Their phases passed, but their amplitudes fell far below 0.95. A1 TOTAL
+illumination gain was 0.5176647 (A2 0.5171076), while A TOTAL material
+gain remained about 0.994. Thus constant64 improved the measured endpoint
+illumination response and error but did not preserve the required detail.
+
+The endpoint improvements remain valid within that scope. Clean TOTAL
+physical RMSE changed from A1 0.01087123 to B1 0.00894221; noisy-half
+TOTAL RMSE changed from 0.01253485 to 0.01075395. Both paired repeats
+also reduced endpoint structured error. These are frame63 observations;
+all64 efficacy, startup/mature behavior and temporal-noise nonregression
+were **not evaluated**. In the immutable score, endpoint pair
+`quality_PASS=true` is the initialized value of a skipped efficacy branch,
+not an acceptance result. Top-level quality and continuation are false.
+
+Decision: no constant64 guide port and no mean/dose sweep. The necessary
+detail conjunction failed, so the remaining756 compositions were not
+authorized or run. Production shader mathematics and demod/remod strengths
+remain unchanged. The user's observation that demod0 blur also persisted
+with a static camera is retained; it alone does not localize a faulty stage.
+
+The next bounded SOURCE question is whether an observable, reprojected
+temporal estimate of source-C minus full1-composed-C can restore persistent
+visible illumination detail while rejecting stochastic noise. Existing
+recovery/history coverage must be checked before selecting an operator;
+there is no new implementation, experiment or independent-lobe claim yet.
+
+Actual provenance appendix: evidence is archived in
+`docs/evidence/fsrd_variable_SPEC_guide_full1_quality_20261002/`.
+SOURCE freeze bc61f1ca, SOURCE peer246cb0b5 and saved-result interpretation
+peer22345e15 were sealed separately. Root completion is9451B SHA256
+048052bfc05dcbe21e0a3cb0f74a07722768928ae5a1b88ab20d992ea188ec3a.
+All five executed stages and84 owned children closed ordinarily, with
+source/input identities equal before/after and no unknown work prefix.
+Actual GPU work:64 converter dispatches, four fresh joint RR contexts with
+256 RR dispatches, and12 unchanged-current-CSO endpoint compositions.
+There were80 GPU/native helper children and4 CPU workers, zero builds,
+zero remaining compositions and no production/deployment/game run.
+Native DIFF/SPEC flags were2/32 throughout; converter Flags54 and caller
+strengths1 stayed fixed. Normal diagnostics were zero. Stage receipts,
+native raw logs, output identities, all endpoint metrics and PIDs are
+preserved in the appendix files rather than used as image-quality claims.
+Historical execution ledger advances from SDK495/RR494/query1/helpers1821
+to SDK499/RR498/query1/helpers1901, and RR API26970/queued26962/failed8
+to27226/27218/8. Isolated-query count and historical failures are unchanged.
+
