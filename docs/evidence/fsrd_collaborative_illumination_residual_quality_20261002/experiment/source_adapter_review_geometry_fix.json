@@ -1,0 +1,60 @@
+{
+  "status": "PASS_SOURCE_GEOMETRY_ASSERTION_CORRECTION_ONLY_NO_EXECUTION",
+  "pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\saved_endpoint_once.py",
+      "bytes": 10415,
+      "sha256": "e20b0676c2c776cad19eb02e1c43bbc7aa817d8cce1cb834ceb86f8f0513cc54"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\run_saved_endpoint_once.py",
+      "bytes": 2811,
+      "sha256": "d825cff8d78436904d6567e21c2fd2ae8d98480ff8ea3cd2c3b229cd3a706c86"
+    },
+    {
+      "path": "F:/OptiRevelations/OptiScaler-ffxD-alpha/OptiScaler/shaders/fsrd_preprocess/precompile/FSRDPreprocessCommon.hlsli",
+      "bytes": 7358,
+      "sha256": "4ca7962c413826950c6025a85cf3502618e6a32182bfaaee3437cac6ef52cc26"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\source_adapter_review_final.json",
+      "bytes": 3271,
+      "sha256": "ef4f8544cb57ddc795e4c1cf87b890aabbda7aabe59f288bc4dd8c48c5aaa998"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\operator.py",
+      "bytes": 10066,
+      "sha256": "49fbe3dfd9b19945d10cd4d68041f0c41e1087a11a12c73577fb3b555713a026"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 6812,
+      "sha256": "10eb51fd7e1bf18f6d7cc4fe17ea72d60e44111fa6dc149e3694bd1510ee4425"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\source_handoff.json",
+      "bytes": 2410,
+      "sha256": "ca998ae0ccc27bf07bbcaa53de98e47ece0fc13e7abc5f24e74953202037e492"
+    }
+  ],
+  "correction": "Root adapter asserts packed octahedral RG0/0 rather than1023/1023. Actual decoded normal remains(0,0,-1).",
+  "primary_proof": "FSRDPreprocessCommon.hlsli33–43: strict N.x/y>0 chooses negative sign at zero; negative Z folds zeroXY to(-1,-1), maps UV(0,0). Decode47–57 unfolds UV0 to normal(0,0,-1).",
+  "scope": "Pre-execution schema assertion correction, not a changed physical geometry/operator or measured packed-input finding. Runtime must still prove actual packed RG==0.",
+  "unchanged": [
+    "operator/protocol/handoff exact",
+    "root driver240s/ordinary closure/PID check unchanged",
+    "truth score-only and paired fallback unchanged",
+    "amplitude abs(O/T) separate from coherent Re(O/T) gates",
+    "previous reviews preserved; their earlier packed1023 expectation superseded"
+  ],
+  "author_execution": {
+    "imports": 0,
+    "payload_reads": 0,
+    "arrays": 0,
+    "numeric_execution": 0,
+    "compiler": 0,
+    "GPU": 0,
+    "native": 0
+  },
+  "blockers": []
+}

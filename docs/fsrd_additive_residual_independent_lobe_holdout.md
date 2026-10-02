@@ -1700,3 +1700,98 @@ context, SDK dispatch, GPU composition or compiler was invoked; historical
 SDK/RR/helper ledger503/502/1973 is unchanged. The64-frame native proxies
 are saved-byte analysis only, and the original candidate REJECT is intact.
 Independent saved-POST interpretation95749ba8 also preserves the rejection, first-boundary scope, actual-endpoint/proxy distinction and unresolved implementation; its exact note and manifest are in the same appendix.
+
+### One fixed collaborative correction: clean detail recovered, noisy quality rejected (2026-10-02)
+
+The correction targets the lost illumination amplitude observed before composition,
+while preserving full1 and the original caller factors. The user's recollection
+that demod0 blur persisted with a static camera remains evidence against an
+explanation based only on camera motion. It does not identify an SDK subpass.
+
+One current-frame observable law was frozen: normalize stored source total C by
+M=Qs+Qd, group compatible nonoverlapping patches, hard-shrink an orthonormal group
+transform with an empirical source-HH variance estimate, then remodulate with the
+same M. Valid estimates fully replace native visible total R; this is not a
+certified native-confidence blend. Source and baseline already include visible
+Skip, so Skip is not added again. The operator receives no truth, fixture labels,
+frame index, carrier frequency, noise seed or history. The protocol in the appendix
+preserves the exact law and its statistical limitations. This is a standalone
+collaborative variant, not restoration of the retired DetailReference path.
+
+Root evaluated the already-saved frame63 once, using two existing actual current-CSO
+full1 baselines A1/A2 and each paired fallback. Candidate output is a CPU float64
+schedule with modeled HALF storage, not an actual GPU output. Original native
+signals, SDK guides, caller factors and Skip were unchanged. No new SDK guide or
+parameter scan was performed.
+
+Both clean regions pass the original per-RGB material AND illumination gain
+[.95,1.05] and phase <=.05 gates. Clean illumination amplitude is restored near1,
+with material detail retained. Nevertheless, WHOLE, STATIC_NOISY and ANIM_NOISY
+physical clean-target RMSE and structured-material error are worse than BOTH
+baselines. Absolute RGB bias does not fail. The fixed operator is therefore
+REJECT_FIXED_COLLABORATIVE_ILLUMINATION_ENDPOINT_QUALITY. Clean recovery is a
+retained conditional success, not complete acceptance.
+
+The single comparison below reports RGB ranges in static / animated clean regions
+for the carriers, and static / animated noisy regions for physical clean-target
+RMSE. Illumination amplitude is abs(O/T), independently of phase; the phase column
+is abs(arg(O/T)) in radians. Material gain remains the original Re(O/T) gate.
+
+| Output | Material gain, static / animated | Illumination amplitude, static / animated | Illumination phase, static / animated | Physical RMSE, static-noisy / animated-noisy | Actually changed area |
+| --- | --- | --- | --- | --- | --- |
+| A1 actual full1 baseline | .985290-.988423 / .982201-.983957 | .364680-.376028 / .077624-.083634 | .030845-.035365 / .497584-.613938 | .01311650 / .01712574 | Existing reference output |
+| A2 actual full1 baseline | .985200-.988233 / .982351-.984109 | .365550-.376315 / .077796-.084376 | .028641-.033726 / .511476-.641032 | .01313684 / .01712173 | Existing reference output |
+| Fixed CPU collaborative candidate | .999756-1.000585 / .999962-1.000088 | .998011-1.000705 / .997770-1.000421 | .000098-.000576 / .000238-.000779 | .02398261 / .01911658 | All10240/10240 visible-TOTAL pixels, vs each baseline; modeled HALF CPU only |
+
+The paired candidate outputs are identical. All589 eligible reference groups
+completed, with zero fallback and zero arithmetic rejection, so this is actual
+replacement rather than a no-op. Static-noisy structured-material error is
+.003099819 versus A1 .000484483 / A2 .000485720; animated-noisy .001855292 versus
+.000704176 / .000695706. Whole RMSE is .015335294 versus .014734213 / .014736125;
+whole structured-material error is .002843763 versus .000822829 / .000809958.
+One-frame temporal_std=0 is not temporal evidence. All64 quality and temporal
+efficacy remain unmeasured; no remaining-frame continuation or GPU port follows
+this necessary endpoint failure.
+
+This result closes this fixed law/settings/fixture conjunction, not the broad
+collaborative-filter family. It does not reverse the constant64/radiance SDK-guide
+rejections, the covered temporal-mean rejection, or the conditional RGB89
+successes. Runtime source-lifetime repairs remain separate engineering fixes;
+this CPU experiment makes no additional runtime claim. No production image
+algorithm, full1 strength, shader, DLL or game deployment changed.
+
+There is no direct water-stain metric in this synthetic fixture. Structured
+material error is not renamed as the game stain. The full1 stain/detail goal
+remains ACTIVE and unresolved. What advanced is narrower: clean lost amplitude
+can be recovered without losing the tested material carrier, but this source
+replacement fails the necessary noisy quality requirement. A future correction
+must justify a coherent illumination residual while retaining native noise
+quality. No replacement law, retuned threshold, new guide, parameter bank or
+new capture requirement is selected by this failure.
+
+#### Appendix: exact endpoint and three-agent interpretation
+
+Byte-exact source, protocol, both modeled HALF candidate files, complete metrics,
+normal closure, preimport failure and three-agent SOURCE/interpretation records
+are archived in `docs/evidence/fsrd_collaborative_illumination_residual_quality_20261002/`.
+The operative result is `experiment/endpoint_once/result.json`; root's scoped
+receipt is `experiment/ROOT_actual_quality_receipt.json`. Source manifests preserve
+original paths and dependency pins; archived research scripts are evidence records.
+
+The first driver launch failed at line2 before its body because packet-local
+operator.py shadowed Python's stdlib operator. There was no endpoint directory,
+guard, worker or numerical candidate evaluation. Rename to collaborative_filter.py
+preserved the exact operator bytes; the root adapter changed only that filename.
+The old authority/source and superseded SOURCE reviews were preserved, and a new
+independent naming-only review and authority preceded the first numerical attempt.
+This setup error is not a failed quality trial or an unknown numerical prefix.
+
+Actual numerical endpoint: root toolfc79b2/session44482, normal closure6f57c2,
+driver7988, CPU child8072, rc0,23.641s; no child termination, source/pins unchanged,
+empty stdout/stderr. Result64435B SHA256
+adc0c4c571d34d0516f7b59f93d654251313cccd44e1d3f4c20ae552da8f92db;
+completion1698B d535d4de91b2e5df592cc2ffc775d064e48dfdd5803a041105372dfb54af201e.
+Independent actual interpretation9f75af58, author outcomea04d95cc and implementation
+decision264901a1 all retain clean success and the failed full conjunction.
+There are zero new GPU/RR/context/compiler/build calls; the historical ledger
+SDK503/RR502/query1/helpers1973/RRAPI27482/queued27474/failed8 is unchanged.

@@ -1,0 +1,60 @@
+{
+  "root_authorized_once": true,
+  "fixed_operator_no_sweep": true,
+  "frame": 63,
+  "new_GPU_or_RR_dispatches": 0,
+  "original_radiance_guide_REJECT_unchanged": true,
+  "intent": "One fixed current-frame collaborative visible-illumination operator; necessary endpoint detail/noise gates versus BOTH existing actual full1 baselines",
+  "source_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\operator.py",
+      "bytes": 10066,
+      "sha256": "49fbe3dfd9b19945d10cd4d68041f0c41e1087a11a12c73577fb3b555713a026"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 6812,
+      "sha256": "10eb51fd7e1bf18f6d7cc4fe17ea72d60e44111fa6dc149e3694bd1510ee4425"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\source_handoff.json",
+      "bytes": 2410,
+      "sha256": "ca998ae0ccc27bf07bbcaa53de98e47ece0fc13e7abc5f24e74953202037e492"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\saved_endpoint_once.py",
+      "bytes": 10415,
+      "sha256": "e20b0676c2c776cad19eb02e1c43bbc7aa817d8cce1cb834ceb86f8f0513cc54"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\run_saved_endpoint_once.py",
+      "bytes": 2811,
+      "sha256": "d825cff8d78436904d6567e21c2fd2ae8d98480ff8ea3cd2c3b229cd3a706c86"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\source_adapter_review_geometry_fix.json",
+      "bytes": 3094,
+      "sha256": "471260f623ea0b5a738becce58fa0a4d6958ea53ae24a239acd7de9188b8373a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_independent_SOURCE_20261002\\completion_manifest.json",
+      "bytes": 2869,
+      "sha256": "caf66fc34def926f71cddec365c9406ad571f95f6e1639adee7c21c21e432fb3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_GPU_feasibility_SOURCE_20261002\\completion_manifest.json",
+      "bytes": 2062,
+      "sha256": "81742ec162c4c6d134fce62b0e4b33c7b56822969b0128b9249827b00d16babc"
+    },
+    {
+      "path": "C:\\Users\\burak\\AppData\\Roaming\\uv\\python\\cpython-3.12.14-windows-x86_64-none\\python.exe",
+      "bytes": 91648,
+      "sha256": "4eb51b7d5963d9e0dc356bd209b1d55360c73db39d8d458ceee084610ca48fd1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\native_resource_guard.py",
+      "bytes": 3995,
+      "sha256": "47ff642dccd74c8f8830420ccb03c898dd9c6a7363121d8584c1fa366afe8225"
+    }
+  ]
+}

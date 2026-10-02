@@ -1,0 +1,134 @@
+{
+  "status": "INDEPENDENT_ACTUAL_CPU_ENDPOINT_INTERPRETATION_PASS_NO_EXECUTION",
+  "blocking_findings": [],
+  "candidate_status": "REJECT_FIXED_COLLABORATIVE_ILLUMINATION_ENDPOINT_QUALITY",
+  "both_clean_detail_gates_PASS": true,
+  "both_paired_endpoint_quality_FAIL": true,
+  "absolute_RGB_bias_failure": false,
+  "adverse_saved_scalar_rows": [
+    {
+      "baseline": "A1",
+      "region": "WHOLE",
+      "baseline_RMSE": 0.014734213485191,
+      "candidate_RMSE": 0.01533529433352067,
+      "baseline_material_error": 0.0008228286883167203,
+      "candidate_material_error": 0.0028437633421789787
+    },
+    {
+      "baseline": "A1",
+      "region": "STATIC_NOISY",
+      "baseline_RMSE": 0.01311650187351223,
+      "candidate_RMSE": 0.02398261437580195,
+      "baseline_material_error": 0.0004844825565518269,
+      "candidate_material_error": 0.003099818800192912
+    },
+    {
+      "baseline": "A1",
+      "region": "ANIM_NOISY",
+      "baseline_RMSE": 0.01712574085735413,
+      "candidate_RMSE": 0.019116584883578685,
+      "baseline_material_error": 0.0007041763745036997,
+      "candidate_material_error": 0.0018552920737808611
+    },
+    {
+      "baseline": "A2",
+      "region": "WHOLE",
+      "baseline_RMSE": 0.014736124822722036,
+      "candidate_RMSE": 0.01533529433352067,
+      "baseline_material_error": 0.0008099578441133703,
+      "candidate_material_error": 0.0028437633421789787
+    },
+    {
+      "baseline": "A2",
+      "region": "STATIC_NOISY",
+      "baseline_RMSE": 0.013136840670212155,
+      "candidate_RMSE": 0.02398261437580195,
+      "baseline_material_error": 0.0004857196240540851,
+      "candidate_material_error": 0.003099818800192912
+    },
+    {
+      "baseline": "A2",
+      "region": "ANIM_NOISY",
+      "baseline_RMSE": 0.017121732307735213,
+      "candidate_RMSE": 0.019116584883578685,
+      "baseline_material_error": 0.0006957058212596318,
+      "candidate_material_error": 0.0018552920737808611
+    }
+  ],
+  "paired_candidate_equal": true,
+  "all_pixels_replaced": 10240,
+  "fallback_pixels": 0,
+  "all64_quality_PASS": null,
+  "temporal_efficacy": null,
+  "actual_GPU_candidate": false,
+  "continuation_permitted": false,
+  "entire_collaborative_family_retired": false,
+  "pure_noise_or_direct_stain_metric_claim": false,
+  "actual_driver_PID": 7988,
+  "actual_guard": {
+    "status": "completed",
+    "child_pid": 8072,
+    "args": [
+      "C:\\Users\\burak\\AppData\\Roaming\\uv\\python\\cpython-3.12.14-windows-x86_64-none\\python.exe",
+      "-B",
+      "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\saved_endpoint_once.py"
+    ],
+    "working_directory": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha",
+    "TEMP": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\endpoint_once\\guard\\TEMP",
+    "TMP": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\endpoint_once\\guard\\TEMP",
+    "returncode": 0,
+    "actual_CLOSED": true,
+    "terminated_owned_child": false,
+    "maximum_working_set_bytes": 2147483648,
+    "minimum_available_bytes": 1073741824,
+    "sample_interval_seconds": 0.2,
+    "initial_available_bytes": 4349808640,
+    "minimum_observed_available_bytes": 4297883648,
+    "peak_working_set_bytes": 63959040,
+    "samples": 118,
+    "elapsed_seconds": 23.64100000000326
+  },
+  "new_GPU_dispatches": 0,
+  "new_RR_dispatches": 0,
+  "text_pins_before_after_equal": true,
+  "pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\endpoint_once\\completion.json",
+      "bytes": 1698,
+      "sha256": "d535d4de91b2e5df592cc2ffc775d064e48dfdd5803a041105372dfb54af201e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\endpoint_once\\result.json",
+      "bytes": 64435,
+      "sha256": "adc0c4c571d34d0516f7b59f93d654251313cccd44e1d3f4c20ae552da8f92db"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\collaborative_filter.py",
+      "bytes": 10066,
+      "sha256": "49fbe3dfd9b19945d10cd4d68041f0c41e1087a11a12c73577fb3b555713a026"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\saved_endpoint_once.py",
+      "bytes": 10427,
+      "sha256": "8b98fe534e2db4e4a761f12f57d1388f11da5a7a0546fc729a123bd11253416e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\run_saved_endpoint_once.py",
+      "bytes": 2811,
+      "sha256": "d825cff8d78436904d6567e21c2fd2ae8d98480ff8ea3cd2c3b229cd3a706c86"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_independent_SOURCE_20261002\\module_naming_fix\\completion_manifest.json",
+      "bytes": 3218,
+      "sha256": "651d2a479c16a611c468d5dc5a76a8f89b966dce50a1e7f3cc7229aaacab2933"
+    }
+  ],
+  "interpretation": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_independent_SOURCE_20261002\\actual_endpoint_interpretation\\INTERPRETATION.md",
+    "bytes": 3212,
+    "sha256": "c07bfc6ffca8135e9158de1cd103c98163e324e177f1ab846f413b327988e56e"
+  },
+  "source_imports_or_array_or_binary_reads_or_metric_recomputation_or_numerical_or_compiler_or_native_or_GPU_execution_by_reviewer": false,
+  "author_root_or_production_edits": false,
+  "earlier_SOURCE_and_REJECT_records_preserved": true
+}

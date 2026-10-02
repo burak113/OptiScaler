@@ -1,0 +1,9 @@
+Naming-only SOURCE amendment PASS
+
+collaborative_filter.py is exactly the previously reviewed10066-byte operator law with SHA49fbe3df; no math, constants, calibration, grouping, fallback or quality gates changed. The obsolete top-level operator.py and operator.pyc are absent, so the specific local stdlib operator collision is removed. No endpoint_once or __pycache__ namespace exists at this source gate.
+
+The root saved_endpoint_preimport_source.py preserves the exact prior e20b0676 adapter. Operative saved_endpoint_once.py is byte-for-byte its single filename substitution: HERE/'operator.py' -> HERE/'collaborative_filter.py'. The driver remains exact d825cff8. Historical authority is preserved as ROOT_PREIMPORT_ATTEMPT_AUTHORIZATION.json; prior author handoff/reviews remain historical SOURCE evidence and are not relabeled as current operative paths. Fresh root authority must bind the corrected module and adapter identities plus this peer receipt.
+
+ROOT_preimport_failure_receipt.json truthfully records the prior tool82d871 rc1 at driver line2 pathlib import, before driver body, owned guard, child worker or numerical candidate evaluation, with no quality result. This peer reads that root-reported closure/scope record and verifies current namespace absence; it does not invent an owned-guard receipt for that earlier preimport failure. The rename is an import correction before the first actual numerical endpoint evaluation, not replacement of a failed quality outcome.
+
+No new algorithm review, numerical execution, Python imports, arrays/binaries, compiler/native/GPU calls or edits to author/root/production sources were performed. Earlier independent SOURCE seals are preserved. This PASS qualifies corrected source naming only; root alone owns future guarded evaluation.

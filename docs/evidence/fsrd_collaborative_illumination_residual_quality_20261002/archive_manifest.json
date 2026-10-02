@@ -1,0 +1,200 @@
+{
+  "status": "BYTE_EXACT_EVIDENCE_ARCHIVE_NO_EXECUTION",
+  "source_HEAD": "d46a3ce8",
+  "records": [
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\author_actual_outcome.json",
+      "archive": "experiment/author_actual_outcome.json",
+      "bytes": 6870,
+      "sha256": "a04d95cc8d1f882c502a3f9b5955f4c47e3aaee704c1c3c80bba84d9e3d41c50"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\collaborative_filter.py",
+      "archive": "experiment/collaborative_filter.py",
+      "bytes": 10066,
+      "sha256": "49fbe3dfd9b19945d10cd4d68041f0c41e1087a11a12c73577fb3b555713a026"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\PROTOCOL.md",
+      "archive": "experiment/PROTOCOL.md",
+      "bytes": 6812,
+      "sha256": "10eb51fd7e1bf18f6d7cc4fe17ea72d60e44111fa6dc149e3694bd1510ee4425"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\ROOT_actual_quality_receipt.json",
+      "archive": "experiment/ROOT_actual_quality_receipt.json",
+      "bytes": 4299,
+      "sha256": "dc2ab7a84fa2fc4bc568b94971d783074738dc086d677d4ac6099f3be4453df9"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\ROOT_ONCE_AUTHORIZATION.json",
+      "archive": "experiment/ROOT_ONCE_AUTHORIZATION.json",
+      "bytes": 4858,
+      "sha256": "9c60d911e057bd6ff37bcda5a529168f9b8ddbb76729acdcfc7f54e839ba8b2b"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\ROOT_PREIMPORT_ATTEMPT_AUTHORIZATION.json",
+      "archive": "experiment/ROOT_PREIMPORT_ATTEMPT_AUTHORIZATION.json",
+      "bytes": 3210,
+      "sha256": "4e326922e8ea3357a8efb3c2e763b6567bfe91bebd4c4583245a3483be4a53f5"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\ROOT_preimport_failure_receipt.json",
+      "archive": "experiment/ROOT_preimport_failure_receipt.json",
+      "bytes": 797,
+      "sha256": "00ce8c3b4ce5c7813d3d8f41af40c78f88074a66567d2e5738b20ef760f5220a"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\run_saved_endpoint_once.py",
+      "archive": "experiment/run_saved_endpoint_once.py",
+      "bytes": 2811,
+      "sha256": "d825cff8d78436904d6567e21c2fd2ae8d98480ff8ea3cd2c3b229cd3a706c86"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\saved_endpoint_once.py",
+      "archive": "experiment/saved_endpoint_once.py",
+      "bytes": 10427,
+      "sha256": "8b98fe534e2db4e4a761f12f57d1388f11da5a7a0546fc729a123bd11253416e"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\saved_endpoint_preimport_source.py",
+      "archive": "experiment/saved_endpoint_preimport_source.py",
+      "bytes": 10415,
+      "sha256": "e20b0676c2c776cad19eb02e1c43bbc7aa817d8cce1cb834ceb86f8f0513cc54"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\source_adapter_review_final.json",
+      "archive": "experiment/source_adapter_review_final.json",
+      "bytes": 3271,
+      "sha256": "ef4f8544cb57ddc795e4c1cf87b890aabbda7aabe59f288bc4dd8c48c5aaa998"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\source_adapter_review_geometry_fix.json",
+      "archive": "experiment/source_adapter_review_geometry_fix.json",
+      "bytes": 3094,
+      "sha256": "471260f623ea0b5a738becce58fa0a4d6958ea53ae24a239acd7de9188b8373a"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\source_adapter_review.json",
+      "archive": "experiment/source_adapter_review.json",
+      "bytes": 4071,
+      "sha256": "4eb4e8960544c60ada14f5f133354939d560a00c5e0c816fa4e25e3d8a6cc1b3"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\source_handoff_module_fix.json",
+      "archive": "experiment/source_handoff_module_fix.json",
+      "bytes": 2874,
+      "sha256": "f3b48577337f16db41cbe7c18ae1dc5ac46f0e91d083f574eae8afbdee898520"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\source_handoff.json",
+      "archive": "experiment/source_handoff.json",
+      "bytes": 2410,
+      "sha256": "ca998ae0ccc27bf07bbcaa53de98e47ece0fc13e7abc5f24e74953202037e492"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\endpoint_once\\A1_candidate_f63_RGBA16.bin",
+      "archive": "experiment/endpoint_once/A1_candidate_f63_RGBA16.bin",
+      "bytes": 81920,
+      "sha256": "9d965b2614b9787e9953837115a8b6f81fdbe9791cbd13d2486431582673e855"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\endpoint_once\\A2_candidate_f63_RGBA16.bin",
+      "archive": "experiment/endpoint_once/A2_candidate_f63_RGBA16.bin",
+      "bytes": 81920,
+      "sha256": "9d965b2614b9787e9953837115a8b6f81fdbe9791cbd13d2486431582673e855"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\endpoint_once\\completion.json",
+      "archive": "experiment/endpoint_once/completion.json",
+      "bytes": 1698,
+      "sha256": "d535d4de91b2e5df592cc2ffc775d064e48dfdd5803a041105372dfb54af201e"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\endpoint_once\\result.json",
+      "archive": "experiment/endpoint_once/result.json",
+      "bytes": 64435,
+      "sha256": "adc0c4c571d34d0516f7b59f93d654251313cccd44e1d3f4c20ae552da8f92db"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\endpoint_once\\guard\\resource_guard.json",
+      "archive": "experiment/endpoint_once/guard/resource_guard.json",
+      "bytes": 1141,
+      "sha256": "b60282923a11d4264a2f7b7ea562abb655459256d47d57a4c8d048f53262f56c"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\endpoint_once\\guard\\stderr.log",
+      "archive": "experiment/endpoint_once/guard/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\endpoint_once\\guard\\stdout.log",
+      "archive": "experiment/endpoint_once/guard/stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_independent_SOURCE_20261002\\completion_manifest.json",
+      "archive": "independent_SOURCE/completion_manifest.json",
+      "bytes": 2869,
+      "sha256": "caf66fc34def926f71cddec365c9406ad571f95f6e1639adee7c21c21e432fb3"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_independent_SOURCE_20261002\\SOURCE_REVIEW.md",
+      "archive": "independent_SOURCE/SOURCE_REVIEW.md",
+      "bytes": 4592,
+      "sha256": "c96cc4ebb05a80281e4288376d40d54f50a00e018cd37b050290807fe5a110c9"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_independent_SOURCE_20261002\\actual_endpoint_interpretation\\completion_manifest.json",
+      "archive": "independent_SOURCE/actual_endpoint_interpretation/completion_manifest.json",
+      "bytes": 6033,
+      "sha256": "9f75af581a712b0716e5a7cd24b4cd383cb4880e212e60f31dee566eb97d7189"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_independent_SOURCE_20261002\\actual_endpoint_interpretation\\INTERPRETATION.md",
+      "archive": "independent_SOURCE/actual_endpoint_interpretation/INTERPRETATION.md",
+      "bytes": 3212,
+      "sha256": "c07bfc6ffca8135e9158de1cd103c98163e324e177f1ab846f413b327988e56e"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_independent_SOURCE_20261002\\module_naming_fix\\completion_manifest.json",
+      "archive": "independent_SOURCE/module_naming_fix/completion_manifest.json",
+      "bytes": 3218,
+      "sha256": "651d2a479c16a611c468d5dc5a76a8f89b966dce50a1e7f3cc7229aaacab2933"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_independent_SOURCE_20261002\\module_naming_fix\\SOURCE_REVIEW.md",
+      "archive": "independent_SOURCE/module_naming_fix/SOURCE_REVIEW.md",
+      "bytes": 1793,
+      "sha256": "773d23fc3a3e02a73317256d3e3c3e0eb415a34534266f6ca99073e0f75cdbf9"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_GPU_feasibility_SOURCE_20261002\\ACTUAL_CPU_IMPLEMENTATION_DECISION_receipt.json",
+      "archive": "GPU_feasibility_SOURCE/ACTUAL_CPU_IMPLEMENTATION_DECISION_receipt.json",
+      "bytes": 1756,
+      "sha256": "275c5297cb5d201748d76665159ee6d8e67c28c2898a16c2057e9ddf7b8f230d"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_GPU_feasibility_SOURCE_20261002\\ACTUAL_CPU_IMPLEMENTATION_DECISION.md",
+      "archive": "GPU_feasibility_SOURCE/ACTUAL_CPU_IMPLEMENTATION_DECISION.md",
+      "bytes": 2854,
+      "sha256": "264901a1cea5c0272d9e68a2c46d311cb7085f04d1adfb923a82729ca962d2c1"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_GPU_feasibility_SOURCE_20261002\\completion_manifest.json",
+      "archive": "GPU_feasibility_SOURCE/completion_manifest.json",
+      "bytes": 2062,
+      "sha256": "81742ec162c4c6d134fce62b0e4b33c7b56822969b0128b9249827b00d16babc"
+    },
+    {
+      "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_GPU_feasibility_SOURCE_20261002\\IMPLEMENTATION_DECISION.md",
+      "archive": "GPU_feasibility_SOURCE/IMPLEMENTATION_DECISION.md",
+      "bytes": 9849,
+      "sha256": "957d8c302a47445eae92ffb853b49971c374be9c05ccb2032bdd13ae6bc5cfee"
+    }
+  ],
+  "historical_input_binaries": "Pinned by result.used_pins at original tools_tmp paths; not duplicated here",
+  "scope": "One CPU numerical endpoint plus preserved preimport failure and three SOURCE/interpretation roles; no production adoption"
+}

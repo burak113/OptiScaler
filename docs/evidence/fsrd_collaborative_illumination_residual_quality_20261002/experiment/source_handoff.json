@@ -1,0 +1,49 @@
+{
+  "status": "SOURCE_ONLY_FIXED_OPERATOR_UNEXECUTED",
+  "owned_files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\operator.py",
+      "bytes": 10066,
+      "sha256": "49fbe3dfd9b19945d10cd4d68041f0c41e1087a11a12c73577fb3b555713a026"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 6812,
+      "sha256": "10eb51fd7e1bf18f6d7cc4fe17ea72d60e44111fa6dc149e3694bd1510ee4425"
+    }
+  ],
+  "interface": "apply_frame(np,C,Qspec,Qdiff,R,geometry_valid,*,linear_depth,normals,depth_gradient,roughness_codes,material_codes)",
+  "result": "stored HALF RGB promoted float64 + scalar diagnostics",
+  "extent": "H/W inferred only from C.shape",
+  "constants": {
+    "patch": 8,
+    "group": 8,
+    "stride": 4,
+    "search_radius": 32,
+    "sigma_multiplier": 3.0,
+    "HH_square_Gaussian_median": 0.4549364231195727
+  },
+  "group_rule": "reference first + seven deterministic distance-ranked pairwise nonoverlapping patches, otherwise baseline fallback",
+  "aggregation": "reference-only weighted overlap gather; no foreign scatter",
+  "valid_output": "fully replaces normalized baseline; no certified native blend confidence",
+  "invalid_output": "atomic RGB exact baseline R",
+  "geometry": "positive CompositionSurfaceWeight guideFlags1 support + same signed-depth side + exact stored roughness/material codes",
+  "limitations": [
+    "local HH Gaussian variance calibration empirical",
+    "conditional diagonal-noise propagation does not certify data-dependent matching/correlated noise/noisy factors",
+    "CPU transform/HALF store not hardware output parity",
+    "endpoint passing does not certify all64 or temporal efficacy"
+  ],
+  "primary_reference": "https://webpages.tuni.fi/foi/GCF-BM3D/BM3D_TIP_2007.pdf",
+  "root_owned_adapter": "saved_endpoint_once.py + run_saved_endpoint_once.py (not author-sealed; root may add phase-independent amplitude reporting)",
+  "author_execution": {
+    "source_imports": 0,
+    "runtime_calls": 0,
+    "arrays": 0,
+    "numeric_experiments": 0,
+    "compiler": 0,
+    "GPU": 0,
+    "native_SDK": 0
+  },
+  "scope": "Only three author files. Root stage files and production preserved."
+}

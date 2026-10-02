@@ -1,0 +1,18 @@
+{
+  "status": "CLOSED_PREIMPORT_MODULE_NAME_COLLISION",
+  "tool": "82d871",
+  "returncode": 1,
+  "failure": "driver line 2 pathlib import -> fnmatch/re/enum -> local operator.py shadows stdlib operator; missing or_",
+  "observed_endpoint_directory_exists": false,
+  "observed_module_cache_exists": false,
+  "driver_body_reached": false,
+  "owned_guard_started": false,
+  "worker_started": false,
+  "numeric_candidate_evaluations": 0,
+  "new_GPU": 0,
+  "new_RR": 0,
+  "quality_result": null,
+  "corrective_action": "Rename module, unchanged author bytes; change only adapter import filename; re-pin SOURCE before first actual endpoint evaluation",
+  "preserved_authority": "ROOT_PREIMPORT_ATTEMPT_AUTHORIZATION.json",
+  "preserved_adapter": "saved_endpoint_preimport_source.py"
+}

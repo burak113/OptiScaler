@@ -1,0 +1,52 @@
+{
+  "status": "SOURCE_ONLY_MODULE_COLLISION_FIXED_LAW_UNCHANGED",
+  "module": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\collaborative_filter.py",
+    "bytes": 10066,
+    "sha256": "49fbe3dfd9b19945d10cd4d68041f0c41e1087a11a12c73577fb3b555713a026"
+  },
+  "superseded_filename": "operator.py",
+  "reason": "Packet-local operator.py shadows Python stdlib operator during pathlib import. Rename removes the local top-level stdlib-name collision.",
+  "source_law": "Exact10066 bytes/SHA49fbe3df unchanged; interface/constants/geometry/variance/shrinkage/fallback/fixtures/truth/gates unchanged.",
+  "immutable_preimport_records": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 6812,
+      "sha256": "10eb51fd7e1bf18f6d7cc4fe17ea72d60e44111fa6dc149e3694bd1510ee4425"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\source_handoff.json",
+      "bytes": 2410,
+      "sha256": "ca998ae0ccc27bf07bbcaa53de98e47ece0fc13e7abc5f24e74953202037e492"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\source_adapter_review.json",
+      "bytes": 4071,
+      "sha256": "4eb4e8960544c60ada14f5f133354939d560a00c5e0c816fa4e25e3d8a6cc1b3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\source_adapter_review_final.json",
+      "bytes": 3271,
+      "sha256": "ef4f8544cb57ddc795e4c1cf87b890aabbda7aabe59f288bc4dd8c48c5aaa998"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\source_adapter_review_geometry_fix.json",
+      "bytes": 3094,
+      "sha256": "471260f623ea0b5a738becce58fa0a4d6958ea53ae24a239acd7de9188b8373a"
+    }
+  ],
+  "supersession": "Previous handoff/reviews preserve pre-import SOURCE content and old filename. Operative module path is now collaborative_filter.py. Root owns changing its adapter import path and authority pins.",
+  "root_reported_failed_attempt": "tool82d871 failed at pathlib import before driver body, endpoint namespace, guard, child or numeric execution; no quality outcome inferred.",
+  "author_actions": {
+    "filesystem_rename": true,
+    "metadata_hash_only": true,
+    "imports": 0,
+    "numeric_execution": 0,
+    "arrays": 0,
+    "compiler": 0,
+    "GPU": 0,
+    "native": 0
+  },
+  "old_module_path_absent": true,
+  "root_files_edited": false
+}
