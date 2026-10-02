@@ -1598,3 +1598,17 @@ output identities and receipts remain in the appendix, with verbatim
 snapshot attributes. Historical ledger now SDK503/RR502/query1/helpers1973,
 RR API27482/queued27474/failed8; isolated-query/historical failure counts
 are unchanged. There was no DLL deployment/load/game quality verification.
+SOURCE selection follow-up: the proposed gradient-steered5-tap/5x5 proxy
+filter was novel in the inspected implementations, but **unselected and
+deprioritized**. Its valid-pixel output replaced native R with filtered
+source F; the coherence weight selected line versus isotropic filtering,
+not confidence that a residual correction preserved native noise quality.
+The small current-frame footprint did not justify the required native
+noise-nonregression decision, and no fixed, observable correction-confidence
+law for R+confidence*(F-R) was established. No retuned footprint, blend
+relabeling, executable preparation or numerical test followed. This is a
+SOURCE prioritization decision, not an experimental rejection of every
+steered-filter or residual-correction family. Original concept b08e520d
+and final clarification bf5bace1 are preserved in the evidence appendix.
+The next narrow SOURCE question checks explicitly exposed quality controls
+in the six Fork scalars; no new parameter sweep or test is selected.
