@@ -1,0 +1,23 @@
+{
+  "status": "completed",
+  "child_pid": 16964,
+  "args": [
+    "C:\\Users\\burak\\AppData\\Roaming\\uv\\python\\cpython-3.12.14-windows-x86_64-none\\python.exe",
+    "-B",
+    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\saved_endpoint_once.py"
+  ],
+  "working_directory": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha",
+  "TEMP": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\endpoint_once\\guard\\TEMP",
+  "TMP": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\endpoint_once\\guard\\TEMP",
+  "returncode": 0,
+  "actual_CLOSED": true,
+  "terminated_owned_child": false,
+  "maximum_working_set_bytes": 2147483648,
+  "minimum_available_bytes": 1073741824,
+  "sample_interval_seconds": 0.2,
+  "initial_available_bytes": 4751011840,
+  "minimum_observed_available_bytes": 4690911232,
+  "peak_working_set_bytes": 60985344,
+  "samples": 9,
+  "elapsed_seconds": 1.812999999994645
+}

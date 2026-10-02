@@ -1,0 +1,62 @@
+{
+  "status": "AFFIRM_BOUNDED_NOVELTY_ELIGIBILITY_FINAL_PROTOCOL_ACK_SOURCE_ONLY",
+  "original_review_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_decision_SOURCE_20261002\\NOVELTY_IMPLEMENTATION_DECISION.md",
+      "bytes": 4544,
+      "sha256": "49417cb69ae09deee69dab6220faee2127fade9ed189fe98219ef3f88d976739"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_decision_SOURCE_20261002\\decision_receipt.json",
+      "bytes": 2911,
+      "sha256": "8c34569e4d85fe6944e0d387ddc2103f426addb151e6bd8b96f21dabf4d1b96b"
+    }
+  ],
+  "final_author_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\projection_filter.py",
+      "bytes": 7394,
+      "sha256": "2bcec3857d99d1e335541cf5ec8d61471ffb3eeedeae2f5a66ac504470f3769f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 5609,
+      "sha256": "157499f24c93e777f3d80a772233d69e9fa66352dc876f6792b5bf9f7304b260"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\source_handoff.json",
+      "bytes": 2476,
+      "sha256": "743c2c67d632d9fb95efee8c76f83145be151e17c0cee29661bc85528de6f8d3"
+    }
+  ],
+  "before_after_equal": true,
+  "originals_preserved": true,
+  "operator_code_unchanged": true,
+  "superseded_protocol_identity": {
+    "bytes": 4805,
+    "sha256": "243ff9a5302a96c6e0f6eac3331bd7801ac3ef485d05032211675c1f7d748228",
+    "scope": "Historical snapshot only, not current protocol pin"
+  },
+  "qualifications": [
+    "A pixel uses available successful eligible patch contributors whenever count is positive; failure of other covering patches does not force fallback.",
+    "Orthogonality is local patchwise normalized Euclidean against Z under declared finite rank and arithmetic; multiplication by M and gathering do not prove global physical material-null correction.",
+    "A spans residualized polynomials; removing guide-space components can introduce guide-shaped structure. Ordinary smooth-polynomial reproduction must not be inferred.",
+    "Column normalization preserves exact span but can change finite relative-SVD rank; this declared convention remains frozen."
+  ],
+  "novelty_boundary": "Affirm: no exact prior-law veto or truth-axis/region tailoring/native variance box found. Concrete empirical fixed quality test remains eligible, independently of a general confidence certificate.",
+  "prior_decisions_preserved": true,
+  "actual_quality": "UNEXECUTED",
+  "math_and_adapter_gates": "Separate owners, pending root final gates",
+  "negative_scope": "Hard required failure rejects this fixed law, no retuning",
+  "positive_scope": "Endpoint pass inconclusive; separate all64 quality and implementation/parity authorization only, no game/stain fix",
+  "activity": {
+    "reads": "Final protocol and handoff text, metadata pins only",
+    "imports": 0,
+    "arrays": 0,
+    "numerical_execution": 0,
+    "GPU": 0,
+    "SDK": 0,
+    "compiler": 0,
+    "production_changes": 0
+  }
+}

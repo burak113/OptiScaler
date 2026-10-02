@@ -1,0 +1,60 @@
+{
+  "status": "NO_BOUNDED_NOVELTY_VETO_FIXED_EMPIRICAL_QUALITY_TEST_ELIGIBLE",
+  "note": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_decision_SOURCE_20261002\\NOVELTY_IMPLEMENTATION_DECISION.md",
+    "bytes": 4544,
+    "sha256": "49417cb69ae09deee69dab6220faee2127fade9ed189fe98219ef3f88d976739"
+  },
+  "reviewed_snapshot_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\projection_filter.py",
+      "bytes": 7394,
+      "sha256": "2bcec3857d99d1e335541cf5ec8d61471ffb3eeedeae2f5a66ac504470f3769f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 4805,
+      "sha256": "243ff9a5302a96c6e0f6eac3331bd7801ac3ef485d05032211675c1f7d748228"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_separating_operation_SOURCE_20261002\\SEPARATING_OPERATION.md",
+      "bytes": 7090,
+      "sha256": "50cdbb51fcaf6916c662ddadf7b5a8e606ee93e1d103763bfd0649e7e9761923"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_statistical_recovery_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 5834,
+      "sha256": "19419f96f1602914d857de2462e4c307743f72ee8c8a53988c9109742a539484"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_external_full1_lobe_denoiser_feasibility_SOURCE_20261002\\FINDINGS.md",
+      "bytes": 8330,
+      "sha256": "db05ff6f374145f837d1f3c8e5a05d92c73d0c095aa2b83e2b1200521f099f37"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_recovery_component_attribution_actual_decision_20261002\\ACTUAL_NEXT_IMPLEMENTATION_DECISION.md",
+      "bytes": 4106,
+      "sha256": "b3ea3ca71444d407a1243439fbd1e26b1385f56122e93d25e1eb920d35073097"
+    }
+  ],
+  "before_after_equal": true,
+  "review_scope": "novelty and implementation consequences; independent mathematical and root adapter gates separate",
+  "truth_axis_or_region_tailoring_found": false,
+  "native_variance_block_found": false,
+  "exact_prior_law_execution_found": false,
+  "historical_no_justified_operation_decision_preserved": true,
+  "new_physical_certificate_claim": false,
+  "positive_endpoint_scope": "separately authorized all64 quality and implementation/parity decision only",
+  "negative_scope": "reject this fixed law only; no retuning",
+  "quality_actual": "UNEXECUTED",
+  "production_adoption": false,
+  "activity": {
+    "imports": 0,
+    "arrays": 0,
+    "numerical_execution": 0,
+    "GPU": 0,
+    "SDK": 0,
+    "compiler": 0,
+    "production_changes": 0
+  }
+}

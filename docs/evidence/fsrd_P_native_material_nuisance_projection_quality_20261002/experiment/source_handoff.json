@@ -1,0 +1,36 @@
+{
+  "status": "SOURCE_ONLY_ONE_FIXED_MATERIAL_NUISANCE_PROJECTOR_UNEXECUTED",
+  "owned_files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\projection_filter.py",
+      "bytes": 7394,
+      "sha256": "2bcec3857d99d1e335541cf5ec8d61471ffb3eeedeae2f5a66ac504470f3769f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 5609,
+      "sha256": "157499f24c93e777f3d80a772233d69e9fa66352dc876f6792b5bf9f7304b260"
+    }
+  ],
+  "interface": "apply_frame(np,Qspec,Qdiff,P,R,geometry_valid,*,linear_depth,normals,depth_gradient,roughness_codes,material_codes)",
+  "result": "modeled HALF total RGB promotedfloat64 +scalar telemetry",
+  "law": "D=P/M-R/M; Z=demeaned6original guideRGB columns/unitnonzeroL2; N=I-Z@pinv(Z); X=symmetric1,x,y,x2,xy,y2; A=N@X; d_hat=A@(pinv(A)@D); output=R+M*equaloverlap(d_hat)",
+  "schedule": "8x8 fullysame-surface references,stride4 with finaledgeorigin included; uniform overlap counts",
+  "numerical_rank": "SVD strictly s>max(matrix.shape)*eps_float64*smax; allzero pinv0",
+  "fallback": "Invalid/unsupported domain, uncovered or negative/nonfinite/saturated finalRGB->atomic exactpairedR; SVD failure skipspatch",
+  "observable_inputs": "Original typed full1 Qs/Qd and already-CLOSED P/R; no C/noise/HH/truth/region/frame/frequency/history/confidence input",
+  "telemetry": "rankZ/rankA histograms, support/coverage/overlap/changed/fallback scalars",
+  "hypothesis_scope": "Empirical material-nuisance constrained residual projection, not semantically guaranteed illumination decomposition or calibrated noise confidence. Genuine guide-correlated light may be removed; smooth stochastic/noise may pass.",
+  "closed_prior_decisions": "Collaborative and P/native fixed laws remain REJECTED; no reruns/reclassification",
+  "quality": "Same frozen cleanperRGBdetail and allregion paired necessaryerrors vsBOTH baselines. Anyrequired fail rejects; endpointpass inconclusive, no all64/GPU/stain/game acceptance.",
+  "author_execution": {
+    "imports": 0,
+    "arrays": 0,
+    "numeric_execution": 0,
+    "compiler": 0,
+    "GPU": 0,
+    "native": 0,
+    "production_edits": 0
+  },
+  "ownership": "Author only3files; parent owns loader/guard/authority/actualexecution/results"
+}

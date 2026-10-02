@@ -1,0 +1,74 @@
+{
+  "root_authorized_once": true,
+  "fixed_operator_no_sweep": true,
+  "frame": 63,
+  "new_GPU_or_RR_dispatches": 0,
+  "intent": "One fixed empirical material-nuisance-constrained P/native residual projection; original full1 and all hard paired quality gates unchanged",
+  "source_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\projection_filter.py",
+      "bytes": 7394,
+      "sha256": "2bcec3857d99d1e335541cf5ec8d61471ffb3eeedeae2f5a66ac504470f3769f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 5609,
+      "sha256": "157499f24c93e777f3d80a772233d69e9fa66352dc876f6792b5bf9f7304b260"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\source_handoff.json",
+      "bytes": 2476,
+      "sha256": "743c2c67d632d9fb95efee8c76f83145be151e17c0cee29661bc85528de6f8d3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\saved_endpoint_once.py",
+      "bytes": 12031,
+      "sha256": "bc89ece780a006833c04cabf07de93b2ba2911b50952bb5ad13928af27002c79"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\run_saved_endpoint_once.py",
+      "bytes": 2825,
+      "sha256": "eedc5425614926861bee509475696d15b6ed1aed57d1bcf84453f8d8442b8c36"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\ROOT_EXPERIMENT_INTENT.json",
+      "bytes": 2111,
+      "sha256": "d3c8e0e261e8632e09e59f26a3aff0bec6d25e3e49089db5b1f1257e2cf7c36a"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_independent_SOURCE_20261002\\SOURCE_REVIEW.md",
+      "bytes": 4188,
+      "sha256": "ac0380627d03ce56dfcc61e9afb336f06de2ec8dfe18909f5ad80c9d8b560f86"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_independent_SOURCE_20261002\\receipt.json",
+      "bytes": 4601,
+      "sha256": "b8ed4c3c3f00413da5590981a6794e6d70750d51617ab320ec4202918745ee21"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_decision_SOURCE_20261002\\NOVELTY_IMPLEMENTATION_DECISION.md",
+      "bytes": 4544,
+      "sha256": "49417cb69ae09deee69dab6220faee2127fade9ed189fe98219ef3f88d976739"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_decision_SOURCE_20261002\\decision_receipt.json",
+      "bytes": 2911,
+      "sha256": "8c34569e4d85fe6944e0d387ddc2103f426addb151e6bd8b96f21dabf4d1b96b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_decision_SOURCE_20261002\\final_protocol_ack.json",
+      "bytes": 3425,
+      "sha256": "c30024e94e1d492aa43c513bafbdabbbed29de3b80aeb0bfab1e8fe895c60982"
+    },
+    {
+      "path": "C:\\Users\\burak\\AppData\\Roaming\\uv\\python\\cpython-3.12.14-windows-x86_64-none\\python.exe",
+      "bytes": 91648,
+      "sha256": "4eb51b7d5963d9e0dc356bd209b1d55360c73db39d8d458ceee084610ca48fd1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\native_resource_guard.py",
+      "bytes": 3995,
+      "sha256": "47ff642dccd74c8f8830420ccb03c898dd9c6a7363121d8584c1fa366afe8225"
+    }
+  ]
+}

@@ -1958,3 +1958,81 @@ Root actual receipt a6cf1322, independent interpretation58542fc1/4facfd74,
 third initial actual decisionb3ea3ca7/800de03d preserve every preceding rejection.
 Zero new candidate executions, GPU/RR/context/compiler/build calls; the native
 historical ledger is unchanged. Original HH/noise weight is never recomputed.
+
+### Material-nuisance residual projection: broader error gains, material gate still rejected (2026-10-02)
+
+The component attribution led to one distinct empirical separating operation,
+not a smaller Anchor/mix/mean dose. It retains paired native R and projects
+D=P/M-R/M using the original six Qs/Qd guide columns as a local nuisance span.
+For each fixed8x8 same-surface patch, demeaned column-normalized Z gives N=I-ZZ+;
+X contains symmetric [1,x,y,x²,xy,y²], A=N*X, and d_hat=A*A+*D. Stride4/final-edge
+patches gather equally; output R+M*d_hat is stored HALF with paired atomic fallback.
+Neither a new SDK guide, truth/region/frequency label, history nor fitted dose enters.
+Original full1 factors/signals/Skip and every hard paired quality gate stay fixed.
+
+The source-backed hypothesis constrains material-guide-linked residual variation
+and residual outside a low-dimensional spatial model, while preserving native
+base. Its risks were explicit before execution: guide-correlated real light and
+sharp detail can be removed, constant residual/DC and coarse noise can remain,
+and A is residualized polynomials rather than necessarily smooth polynomials.
+Patch normalized orthogonality does not guarantee physical material-profile
+removal after original M and overlap. Prior analytic polynomial5tap detail/phase
+failures were reviewed as a risk precedent, not an already-run equivalent law.
+
+Actual result: clean material AND illumination RGB detail gates PASS in both
+pairings. Physical clean-target RMSE and absolute each-RGB bias are nonworse in
+ALL five regions against each actual baseline. The static-noisy RMSE regression
+of the preceding recovery is removed in this fixture. Whole and animated-noisy
+error gains are also retained and extended. These are genuine measured benefits.
+However, WHOLE/STATIC_NOISY/ANIM_NOISY material-profile errors remain worse against
+BOTH baselines. Those are the only failed necessary metrics in the frozen result:
+REJECT_FIXED_P_NATIVE_MATERIAL_NUISANCE_PROJECTION_ENDPOINT_QUALITY.
+
+The single comparison uses static / animated CLEAN carrier RGB ranges, and static /
+animated NOISY physical RMSE and material-profile error. Illumination amplitude is
+abs(O/T); phase is abs(arg(O/T)) in radians, reported here as maximum perRGB. Material
+gain is the frozen Re(O/T) metric. Candidate ranges contain both paired outputs.
+
+| Output | Clean material gain, static / animated | Clean illumination amplitude; maximum phase, static / animated | Noisy physical RMSE, static / animated | Noisy material-profile error, static / animated | Actually changed area |
+| --- | --- | --- | --- | --- | --- |
+| A1 actual full1 baseline | .985290-.988423 / .982201-.983957 | .364680-.376028; .035365 / .077624-.083634; .613938 | .01311650 / .01712574 | .00048448 / .00070418 | Existing reference output |
+| A2 actual full1 baseline | .985200-.988233 / .982351-.984109 | .365550-.376315; .033726 / .077796-.084376; .641032 | .01313684 / .01712173 | .00048572 / .00069571 | Existing reference output |
+| Fixed nuisance projection, both pairs | 1.000888-1.002610 / .999288-1.002108 | .997779-1.000578; .001347 / .985908-.990254; .010286 | .01160778-.01161009 / .01426944-.01427088 | .00233181-.00233219 / .00134029-.00134542 | All10240/10240 TOTAL pixels vs each R; modeled HALF CPU |
+
+Whole RMSE is .0093364264/.0093371688 against .0147342135/.0147361248;
+whole material-profile error is .0025941496/.0025953341 against
+.0008228287/.0008099578. All589 patches qualify and succeed per pair, each with
+nuisance rank2 and residualized spatial rank6. All10240 pixels are covered/changed;
+no fallback or arithmetic rejection occurs. Thus observed support shortage is
+not an explanation for this result. Outputs are paired separately and differ.
+
+The implementation decision closes this fixed projection on this fixture. No
+rank, degree, footprint, guide-column, nuisance-strength or globalweight retune,
+all64 continuation, GPU port, production adoption or deployment follows. Its
+improvements preserve the earlier recovery's genuine clean/error successes and
+all prior scoped rejections/conditional RGB89 passes. Local normalized constraints
+proved insufficient for the required physical profile gate, without assigning a
+unique DC/M/gather/rank/SDK cause. No next law or test is selected from this failure
+alone. The remaining target is material/colour error control at preserved light
+amplitude; the main full1 stain/detail goal remains ACTIVE. This known-truth fixture
+still has no direct water-stain metric. Temporal/all64 efficacy remain unmeasured;
+physical RMSE includes signal error and noise, not pure noise variance.
+
+#### Appendix: projection execution and evidence
+
+Final pure law/protocol/handoff, independent five-file math/adapter gate, original
+and final novelty receipts, both HALF outputs and three actual interpretations
+are archived in `docs/evidence/fsrd_P_native_material_nuisance_projection_quality_20261002/`.
+SOURCE pins2bcec385/157499f2/743c2c67 and gateb8ed4c3c preceded execution;
+novelty acknowledgmentc30024e9 verifies the final protocol wording. A root receipt
+filename mistake during authority preparation failed before authority, driver or
+numerical work; its zero-evaluation record is preserved. Metadata path correction
+changed no law/runner source and created no second quality attempt.
+Root toold7dc59 completed normally, driver20940/owned CPU child16964, rc0,1.813s,
+source/input pins unchanged, no termination. Result66149B SHA256
+b1e00ec226eb86347bfd27b45eedccb2b64eb4b726baa5b10739a2d56bdc2694;
+completionfcdd834e994a7aeade888db515842f0d8f32fafc531c2b213061670b4a3a2d65.
+Root actual receipt9fe657be, independent interpretation251b51f4/a6a27806 and
+implementation dispositionac91ca40/e837eee7 preserve the failed full conjunction.
+Zero new GPU/RR/context/compiler/build calls; historical native ledger unchanged.
+Author outcome202d44f5/f4860b19 independently retains the same gains and fixed-law rejection; no next law is selected.

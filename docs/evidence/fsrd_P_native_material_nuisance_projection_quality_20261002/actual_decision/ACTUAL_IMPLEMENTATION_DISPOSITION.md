@@ -1,0 +1,15 @@
+# Actual fixed projection disposition
+
+Stop this fixed material-nuisance projection. Both paired baselines fail required structured-material-profile improvement in WHOLE, STATIC_NOISY and ANIM_NOISY. No degree, rank, footprint, guide-column, stride or gain tuning, GPU port, all64 continuation or production adoption is selected. This closes this law, not the broader empirical recovery family.
+
+Ordinary CLOSED completion was read before result scalars: driver20940, child16964, rc0, 1.813 seconds, source unchanged, zero new GPU/RR dispatches. Result66149B SHAb1e00ec226eb86347bfd27b45eedccb2b64eb4b726baa5b10739a2d56bdc2694 records REJECT_FIXED_P_NATIVE_MATERIAL_NUISANCE_PROJECTION_ENDPOINT_QUALITY.
+
+Retain the positive evidence. Both clean static and animated perRGB material/illumination detail gates pass. Physical RMSE and absolute perRGB bias are nonworse in all five regions against BOTH A1/A2. Whole RMSE improves from0.01473421/0.01473612 to0.00933643/0.00933717; static noisy from0.01311650/0.01313684 to0.01160778/0.01161009; animated noisy from0.01712574/0.01712173 to0.01427088/0.01426944. Clean structured material error also improves. These measured benefits do not satisfy the remaining conjunction.
+
+The adverse material-profile values are whole0.00259415/0.00259533 against baselines0.000822829/0.000809958, static noisy0.00233181/0.00233219 against0.000484483/0.000485720, and animated noisy0.00134029/0.00134542 against0.000704176/0.000695706. These are the only saved hard-failure categories for each pairing; no threshold was relaxed.
+
+All589 patches qualified and succeeded in each pairing, with nuisance rank2 and projected-spatial rank6 throughout. All10240 pixels changed, coverage was complete and fallback zero. The result therefore is not explained by unavailable support or fallback preserving a bad baseline. Paired candidates differ. This is not evidence of a unique DC, overlap, remultiplication, rank or SDK cause; no decomposition of this new endpoint identifies one.
+
+The concrete demonstrated boundary is that this local normalized guide-orthogonality construction does not suffice for physical visible-field material-profile acceptance, even with successful solves and preserved clean detail. The final protocol already warns that residualized polynomials can contain guide-shaped structure and M/gather do not guarantee global material-null correction. The measured failure confirms insufficiency of the complete operation, without assigning a unique source to it. No source-backed next separating law follows from these scalars, so no further quality test is selected merely because the profile failed.
+
+Prior collaborative replacement and HH/covariance recovery rejections remain intact with their genuine partial benefits; conditional RGB89 scope is unchanged. Full1 factors/signals/Skip and SDK settings remain unchanged. All64 quality and temporal efficacy remain null, actual GPU candidate false, and no direct water-stain metric exists. Interpretation used saved JSON/source metadata only, with no arrays, imports, numerical recomputation, execution or production edits.

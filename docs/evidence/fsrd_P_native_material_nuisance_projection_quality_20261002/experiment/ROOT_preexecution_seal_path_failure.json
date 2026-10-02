@@ -1,0 +1,12 @@
+{
+  "status": "PREEXECUTION_AUTHORITY_PATH_ERROR_ZERO_NUMERICAL_WORK",
+  "tool": "41f771",
+  "incorrect_receipt_name": "receipt.json",
+  "correct_receipt_name": "decision_receipt.json",
+  "authority_written": false,
+  "endpoint_directory_created": false,
+  "driver_or_child_started": false,
+  "numerical_evaluations": 0,
+  "law_source_changed": false,
+  "correction": "Root metadata path only; author/math/adapter pins unchanged"
+}
