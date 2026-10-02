@@ -1320,3 +1320,151 @@ with no old-bank replay selected. Full1 goal ACTIVE/counter0; static demod0
 blur observation retained. This append edits only memory, makes no commit
 and invokes no source-code test, numerical/runtime/GPU/build work.
 
+### 2026-10-02 user refocus: full1 image quality before further diagnostics
+
+The user redirected the active goal to stain removal while preserving true
+material and illumination detail at demod/remod strength1. New capture is
+not a prerequisite. No new native test or agent was started before the
+short refocus summary. Pending additive-DC-gauge certificate/assembly work
+was interrupted and retained as unexecuted SOURCE preparation. That
+diagnostic is deprioritized: its result did not yet select an image repair.
+
+**Quality algorithms.** RGB89 retains WholeC89/89 and colored SPEC32/45
+PASS, alongside13 colored failures and44 gray fallback failures. Its
+intended-model anchors preserve material and shared/moving scalar-light
+detail. Colored diffuse light and identical-observation/different-SPEC
+metamers prevent general physical-allocation acceptance. These later
+failures do not erase the conditional successes. RAW3/RAW7 preserve whole
+Color44/44 each but fail sufficient true-SPEC coverage25/44 and24/44.
+Neither proposal has been accepted as an alpha image fix.
+
+**Runtime repairs.** Recorded converter/shared-helper resource ownership
+and SR reset-gap changes address concrete execution hazards. The measured
+OS queued-dispatch repair and DLL builds validate those bounded claims.
+They do not demonstrate reduced stains, improved sharpness, corrected
+physical allocation or settled game history.
+
+**Test infrastructure.** Source reviews, serializers, guards and saved-output
+checks qualify measurements. Their integrity PASS is separate from image
+quality. RCAS motion observability remains INCONCLUSIVE, not a sharpening
+quality rejection or success. No newly reduced image defect is claimed in
+this refocus. The user's remembered static-camera demod0 blur still stands;
+reducing modulation remains excluded as a solution.
+
+#### Exact counterparts of the two original questions
+
+1. **Variable SPEC SDK-guide intervention with original full1 caller factors
+   fixed:** the12-context guide-RGB-only packet is not this counterpart.
+   Its SPEC guide is spatially constant; only DIFF RGB is flattened to the
+   lower/upper mean. Signals and caller factors were fixed, but the requested
+   variable SPEC field was not intervened on. The earlier112-case real-RR
+   study has variable SPEC guide-only controls, but they are separate-lobe
+   direct-output experiments rather than the matched current full1 caller
+   graph. R8/F32, gamma/sqrt and coupled caller-factor variants also cannot
+   substitute for the one-field intervention. No exact completed counterpart
+   is established by these records. Missing coverage alone does not select
+   a new run.
+2. **Same-joint-flags four radiance arms:** the16-context cross-input packet
+   does supply (U,U),(U,0),(0,U),(0,0) for both N/L carriers and repeats.
+   Root read the original input5/6 bytes: RGB is exactly identical for each
+   carrier; differing hit/validity alpha is preserved within every arm.
+   Every job retains DIFF2/SPEC32, both descriptors, other five inputs,
+   original guides and applied controls. The independent CLOSED review
+   authenticates the actual native runs and all pair/repeat comparisons.
+   This is independent evidence from the later joint-versus-split experiment.
+   Its stored metrics are unsigned pairwise departures, not a computed
+   four-term signed interaction J(U,U)-J(U,0)-J(0,U)+J(0,0), composed-image
+   quality, or a proprietary-cause proof. Same-arm variation remains visible;
+   do not launch the native four-arm experiment again to fill a POST label.
+
+Sources: guide packet [review](../tools_tmp/fsrd_SDK_guide_RGB_only_native_postrun_review_20261001/review.json),
+four-arm [compact evidence](../tools_tmp/fsrd_joint_lobe_cross_input_native_postrun_review_20261001/compact.md)
+and [analysis source](../tools_tmp/fsrd_joint_lobe_cross_input_native_preparation_20261001/analyze_raw_cpu.py),
+plus [historical separate-lobe study](fsrd_real_rr_albedo_experiment.md).
+
+#### One selected quality hypothesis and its application decision
+
+Hypothesis: spatial variation of the SPEC SDK guide can introduce an
+undesired material-shaped illumination response even while full1 caller
+division/multiplication remains correct. A separate constant SPEC guide
+within a homogeneous diagnostic patch may reduce that response without
+removing the original material carrier from caller remodulation.
+
+Evidence is conditional: native guide-shaped departures exist, the DIFF-only
+guide intervention affected both lobes, and current clean native response
+fails detail gain after a good direct roundtrip. RGB89's intended anchors
+show that full1 detail is transportable in their declared CPU model. None
+identifies variable SPEC guidance as the actual game-stain cause.
+
+Smallest decision experiment: one known-truth static fixture with genuinely
+varying SPEC material, a separate illumination-detail carrier and a fixed
+noise-control region. Use an intended shared-light allocation so wrong-lobe
+allocation is not introduced as an additional explanation. Reuse existing
+typed/native/composition tools. Compare original SDK guide versus one
+predeclared constant SPEC RGB guide in the same R8 format; preserve guide
+alpha, DIFF guide, both converted signal RGB/A, original caller Qc, Skip,
+geometry, roughness, controls and strengths1. The replacement SDK resource
+must not overwrite/alias the caller factor used for composition. Include
+two fresh repetitions per arm because earlier cohorts varied. Score actual
+composed outputs against known material, illumination and whole-color truth,
+plus noise retention, across fixed full/startup/mature windows and the
+entire field. Do not judge only changed native RGB or selected good pixels.
+The proposed new input/metric packet is not yet generated or executed.
+
+Positive decision: both candidate repetitions must reduce the structured
+image error while preserving material and illumination detail under the
+existing gain[.95,1.05]/phase<=.05 gates and not worsening noise or whole
+Color. That selects a bounded experimental SDK-guide/caller-factor
+separation path for implementation, rather than another attribution audit.
+It accepts only this tested patch/model; actual game quality stays open.
+Negative decision: if detail/noise/whole-color fails, retire this constant-
+SPEC-guide candidate at the fixed operating point without a mean/dose sweep.
+If repeat variation prevents distinguishing the change, retain INCONCLUSIVE
+and make no production quality change. Mere output sensitivity is not PASS.
+
+#### Appendix: scope of CLOSED/REJECT statements used in this refocus
+
+- Single-slope additive residual: four independent-S/D static/noise helper
+  observations reject that candidate's derived-SPEC and residual stability
+  claims; they do not reject every additive-light or residual architecture.
+- Rank-two NNLS allocation: four observed-only predictions reject that
+  allocation's declared SPEC carrier claim, despite whole-color closure.
+- Floor-free volume/history proposal:100 CPU cases/78 failed checks reject
+  that filter's grain/detail/uniform-light treatment on its bank, not all
+  volume-aware methods. Identical-observation semantics remain ambiguous.
+- RAW3/RAW7:44-case paired CPU bank rejects those affine light-field models
+  as sufficient full-detail solutions. Their whole-color passes survive.
+- RGB89:89 CPU predictions reject general acceptance of its scalar-light/
+  patch-B physical allocation;32 colored SPEC passes and89 color passes
+  survive. Gray inactive fallback does not test an active gray replacement.
+- Old-water RGB cap test:3 captures x2 typed material arms show no receivers
+  meeting that law's all-channel cap<=8. It neither measures current-alpha
+  fallback coverage nor rejects every RGB method.
+- SDK-guide-RGB12: CLOSED integrity/descriptive DIFF-guide result; it does
+  not close variable SPEC guide/caller-full1 or SPEC sharpness acceptance.
+- Joint four-arm16: CLOSED raw native contrasts/repeats on S-constant
+  constructed carriers; no composed-image or true SPEC sharpness acceptance.
+- Current CLEAN joint-versus-split: six native contexts and actual-CSO
+  frame63 failure reject that split-context candidate's required all-frame
+  gain claim. This is not the four-arm radiance experiment or a rejection
+  of every independently observed-lobe integration.
+- CLEAN unit-pair/coupled precision/format controls: their specific encoded
+  paths failed or did not provide an accepted repair. They do not close the
+  fixed-signal/fixed-caller variable-SPEC-guide intervention.
+- Water hit-alpha32: original versus constant1 under reset/continue closes
+  those descriptive contrasts only. Reused captured motion limits history
+  attribution; it does not explain the user's settled static-camera blur.
+- RCAS DA/DASDA fixture: CLOSED INCONCLUSIVE at an unobservable motion
+  predicate before queued/replay. No RCAS image or ownership quality claim.
+- Converter/shared-helper/SR integration: bounded source, CPU, OS-GPU and
+  build PASS; no measured stain/detail improvement follows.
+- Additive-DC-gauge: unexecuted SOURCE plan only, interrupted/deprioritized;
+  neither a CLOSED numerical result nor a rejected quality algorithm.
+
+Refocus provenance appendix: root actual tool b74b39 performed only an
+existing four-file RGB byte-identity check, not model/metric/native replay.
+The existing joint raw analyzer records pairwise RMS, not four-term signed
+interaction. Existing pinned receipts retain their hashes/PIDs/counters;
+historical SDK/helper totals do not increase during this refocus. This
+append preserves the prior document prefix and makes no image-code change.
+
