@@ -1,0 +1,45 @@
+{
+  "status": "SOURCE_PREMISE_PRIOR_NORMALIZED_PROJECTION_NOT_EQUIVALENT_FINAL_COLOUR_CONSTRAINT",
+  "pins": [
+    {
+      "path": "C:/Users/burak/.codex/attachments/add47e7b-7f0a-4acf-9ddc-5882d4b933b3/goal-objective.md",
+      "bytes": 4788,
+      "sha256": "1d10bac928240df538399dc8eae0206f7d3f91e27be1d0008a426380e95e6e1c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 5609,
+      "sha256": "157499f24c93e777f3d80a772233d69e9fa66352dc876f6792b5bf9f7304b260"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_material_nuisance_projection_quality_preparation_20261002\\projection_filter.py",
+      "bytes": 7394,
+      "sha256": "2bcec3857d99d1e335541cf5ec8d61471ffb3eeedeae2f5a66ac504470f3769f"
+    }
+  ],
+  "note": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_visible_colour_material_constraint_independent_SOURCE_20261002\\PREMISE.md",
+    "bytes": 3806,
+    "sha256": "a175a3b2d328eeecd2328c103e36a3dc306dadf21301743e88bba6357308c57c"
+  },
+  "findings": [
+    "local normalized guide orthogonality does not imply final visible coefficient preservation after spatial/perRGB M, gather and HALF",
+    "whole scored profile preservation would pre-store retain baseline error equality and fail strict-improvement conjunction",
+    "smaller frozen typed-guide span leaves ambiguity of material bias versus guide-correlated genuine lighting",
+    "HALF stored constraint must not be conflated with exact pre-store algebra"
+  ],
+  "status_limit": "Not final implementation SOURCE gate; await one exact author law/pins",
+  "preserved": "Prior projection/spectral/other rejection evidence remains closed; temporal registration unselected SOURCE, no numerical rejection",
+  "authority": "No run, rerun, retune, guide/globaldose/oracle-label change authorized by review",
+  "execution": {
+    "imports": 0,
+    "arrays": 0,
+    "numerics": 0,
+    "binary_reads": 0,
+    "tests": 0,
+    "builds": 0,
+    "GPU": 0,
+    "native": 0,
+    "production_edits": 0
+  }
+}

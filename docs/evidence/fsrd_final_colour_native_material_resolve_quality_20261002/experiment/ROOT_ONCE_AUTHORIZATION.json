@@ -1,0 +1,70 @@
+{
+  "root_authorized_once": true,
+  "fixed_operator_no_sweep": true,
+  "frame": 63,
+  "new_GPU_or_RR_dispatches": 0,
+  "full1_unchanged": true,
+  "fixed_saved_J_no_rerun": true,
+  "source_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\resolve_filter.py",
+      "bytes": 9055,
+      "sha256": "93a3349f8171b8e834c8f81fa9f4fd2d3690edf57bce1044eaeb686f0ff20c4e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 6485,
+      "sha256": "49c9bf62123c2234ed9693dcd7429c998b0c03733c850248f7269f3f339ea7df"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\source_handoff.json",
+      "bytes": 4242,
+      "sha256": "5b2bcf41b7632c0a73c40d8bbbfef50a2bf5db81740434055bc250668e395363"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\saved_endpoint_once.py",
+      "bytes": 13881,
+      "sha256": "b4b52621e6ae2556b7148b66889243a45891228578f7cd3e5413ae5783a0f92f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\run_saved_endpoint_once.py",
+      "bytes": 2824,
+      "sha256": "a8d5c04c27c516feb646c9b3a2adf97bbcf886e91aa5d3f4fc9ed9663b148fb8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\ROOT_EXPERIMENT_INTENT.json",
+      "bytes": 2837,
+      "sha256": "623f1ae5bdaeb5e4c391282d325a584a1355f185f6d36db966e8094034bdec70"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_visible_colour_material_constraint_independent_SOURCE_20261002\\source_receipt.json",
+      "bytes": 3789,
+      "sha256": "505ab7f6f26a6568fc46a7cacb741b8eb29ef73585a7ff9573a12164adc688fe"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_visible_colour_material_constraint_independent_SOURCE_20261002\\SOURCE_REVIEW.md",
+      "bytes": 4873,
+      "sha256": "22224a5e9158432abe3cf35706f09f61842e25deeca0e30dbf09eacacab93537"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_visible_colour_material_resolve_decision_SOURCE_20261002\\composition_decision_receipt.json",
+      "bytes": 3394,
+      "sha256": "8c262450cefdddf1140b75d8a303df1761a7dd770cae5de3de80b5aa8d2fec09"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_visible_colour_material_resolve_decision_SOURCE_20261002\\FINAL_COMPOSITION_DECISION.md",
+      "bytes": 4019,
+      "sha256": "d86d29924a5dbe29a026406b7677926b0fba1f2571ddc91a5f6c1d893e913a93"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\native_resource_guard.py",
+      "bytes": 3995,
+      "sha256": "47ff642dccd74c8f8830420ccb03c898dd9c6a7363121d8584c1fa366afe8225"
+    },
+    {
+      "path": "C:\\Users\\burak\\AppData\\Roaming\\uv\\python\\cpython-3.12.14-windows-x86_64-none\\python.exe",
+      "bytes": 91648,
+      "sha256": "4eb51b7d5963d9e0dc356bd209b1d55360c73db39d8d458ceee084610ca48fd1"
+    }
+  ]
+}

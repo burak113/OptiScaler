@@ -1,0 +1,290 @@
+{
+  "status": "CLOSED_ACTUAL_ONE_FIXED_FINAL_COLOUR_MATERIAL_RESOLVE_QUALITY_REJECT",
+  "root_tool": "b23cd7",
+  "driver_PID": 31432,
+  "CPU_child_PID": 31736,
+  "returncode": 0,
+  "elapsed_seconds": 1.6089999999967404,
+  "ordinary_guard_CLOSED": true,
+  "source_and_input_pins_unchanged": true,
+  "actual_numeric_endpoints": 1,
+  "SOURCE_template_CRLF_match_failure_numeric_evaluations": 0,
+  "full1_preserved": true,
+  "fixed_J_and_R_preserved": true,
+  "clean_detail_both_PASS": true,
+  "all_regions_physical_RMSE_both_NONWORSE": true,
+  "all_regions_absolute_RGB_bias_both_NONWORSE": true,
+  "both_noisy_RMSE_gain_retained": true,
+  "whole_and_both_noisy_material_profile_both_FAIL": true,
+  "material_error_all5_worse_vs_saved_J": true,
+  "RMSE_all5_slightly_worse_vs_saved_J": true,
+  "actually_changed_pixels_each": 10240,
+  "resolve_changed_vs_J_pixels_each": 7680,
+  "fallback_pixels_each": 0,
+  "geometry_components_each": 1,
+  "material_rank_each_RGB": [
+    1,
+    1,
+    1
+  ],
+  "pre_store_constraint_RMS_max": 1.3911334764404263E-17,
+  "post_store_constraint_RMS_max": 4.71088765391178E-05,
+  "post_store_exact_constraint_claim": false,
+  "paired_candidate_equal": false,
+  "continuation_permitted": false,
+  "all64_quality": null,
+  "temporal_efficacy": null,
+  "direct_stain": null,
+  "new_GPU": 0,
+  "new_RR": 0,
+  "new_contexts": 0,
+  "new_compiler": 0,
+  "production_adoption": false,
+  "prior_projection_REJECT_and_gains_unchanged": true,
+  "prior_recovery_spectral_guide_scoped_decisions_unchanged": true,
+  "scope": "Only this fixed final physical perRGB guide-span resolve at saved f63 is rejected; no method-family or unique HALf/DC/space/SDK cause",
+  "independent_measurement_verdict": "Both detail pass; only WHOLE and both noisy material profiles fail; every regional RMSE/profile worsens vs J but native RMSE/bias gains retained.",
+  "final_composition_verdict": "Constraint actually applied without fallback. Rank1 spans combined varying guide component, not separate physical SPEC/DIFF truth or whole scored profile. Pixel changes are not proof every pixel improved.",
+  "summaries": [
+    {
+      "arm": "A1",
+      "kind": "baseline",
+      "materialGainStatic": [
+        0.9852903102215792,
+        0.9884228248182241
+      ],
+      "materialGainAnimated": [
+        0.9822010861216596,
+        0.9839569812574275
+      ],
+      "illumAmpStatic": [
+        0.36467964694905847,
+        0.3760284475840026
+      ],
+      "illumAmpAnimated": [
+        0.07762381601183396,
+        0.08363354819149978
+      ],
+      "illumMaxPhaseStatic": 0.03536524208681853,
+      "illumMaxPhaseAnimated": 0.6139376833568806,
+      "RMSEWhole": 0.014734213485191,
+      "RMSEStaticNoisy": 0.01311650187351223,
+      "RMSEAnimatedNoisy": 0.01712574085735413,
+      "profileWhole": 0.0008228286883167203,
+      "profileStaticNoisy": 0.0004844825565518269,
+      "profileAnimatedNoisy": 0.0007041763745036997
+    },
+    {
+      "arm": "A1",
+      "kind": "candidate",
+      "materialGainStatic": [
+        0.9879259491041987,
+        0.990622027287315
+      ],
+      "materialGainAnimated": [
+        0.9846066193564545,
+        0.9903039441433232
+      ],
+      "illumAmpStatic": [
+        0.99777948689099,
+        1.0004412004804157
+      ],
+      "illumAmpAnimated": [
+        0.9860240121009306,
+        0.9902536753518949
+      ],
+      "illumMaxPhaseStatic": 0.001346731325474864,
+      "illumMaxPhaseAnimated": 0.010138791436857622,
+      "RMSEWhole": 0.009347841349589289,
+      "RMSEStaticNoisy": 0.011618557610328276,
+      "RMSEAnimatedNoisy": 0.014284985808397108,
+      "profileWhole": 0.0026353738529418694,
+      "profileStaticNoisy": 0.0023868561108551425,
+      "profileAnimatedNoisy": 0.0014829150229766336
+    },
+    {
+      "arm": "A1",
+      "kind": "projection_input",
+      "materialGainStatic": [
+        1.0009898071672674,
+        1.0026069501564154
+      ],
+      "materialGainAnimated": [
+        0.9992876204086714,
+        1.0021082399947547
+      ],
+      "illumAmpStatic": [
+        0.99777948689099,
+        1.0004412004804157
+      ],
+      "illumAmpAnimated": [
+        0.9860240121009306,
+        0.9902536753518949
+      ],
+      "illumMaxPhaseStatic": 0.001346731325474864,
+      "illumMaxPhaseAnimated": 0.010138791436857622,
+      "RMSEWhole": 0.00933642644279247,
+      "RMSEStaticNoisy": 0.011607776257621957,
+      "RMSEAnimatedNoisy": 0.01427088458046413,
+      "profileWhole": 0.0025941496434230857,
+      "profileStaticNoisy": 0.0023318109811564245,
+      "profileAnimatedNoisy": 0.0013402850921322216
+    },
+    {
+      "arm": "A2",
+      "kind": "baseline",
+      "materialGainStatic": [
+        0.9852002992758019,
+        0.9882329891686455
+      ],
+      "materialGainAnimated": [
+        0.9823505276700965,
+        0.9841092477676048
+      ],
+      "illumAmpStatic": [
+        0.36555015054837037,
+        0.37631500662769973
+      ],
+      "illumAmpAnimated": [
+        0.07779554197073729,
+        0.08437591383793566
+      ],
+      "illumMaxPhaseStatic": 0.03372617448024505,
+      "illumMaxPhaseAnimated": 0.641032443114319,
+      "RMSEWhole": 0.014736124822722036,
+      "RMSEStaticNoisy": 0.013136840670212155,
+      "RMSEAnimatedNoisy": 0.017121732307735213,
+      "profileWhole": 0.0008099578441133703,
+      "profileStaticNoisy": 0.0004857196240540851,
+      "profileAnimatedNoisy": 0.0006957058212596318
+    },
+    {
+      "arm": "A2",
+      "kind": "candidate",
+      "materialGainStatic": [
+        0.9879286501562021,
+        0.9905202242545029
+      ],
+      "materialGainAnimated": [
+        0.9846408881011246,
+        0.9900963575960624
+      ],
+      "illumAmpStatic": [
+        0.9981135929987236,
+        1.0005775741416834
+      ],
+      "illumAmpAnimated": [
+        0.9859076520295352,
+        0.9901724158880613
+      ],
+      "illumMaxPhaseStatic": 0.00131660692756292,
+      "illumMaxPhaseAnimated": 0.010285674305506408,
+      "RMSEWhole": 0.00934876361517663,
+      "RMSEStaticNoisy": 0.01162088911419342,
+      "RMSEAnimatedNoisy": 0.014283896102175925,
+      "profileWhole": 0.002637180683547978,
+      "profileStaticNoisy": 0.002387319156967371,
+      "profileAnimatedNoisy": 0.0014909714921656706
+    },
+    {
+      "arm": "A2",
+      "kind": "projection_input",
+      "materialGainStatic": [
+        1.0008880041344554,
+        1.002609651208419
+      ],
+      "materialGainAnimated": [
+        0.9993218891533416,
+        1.0019006534474941
+      ],
+      "illumAmpStatic": [
+        0.9981135929987236,
+        1.0005775741416834
+      ],
+      "illumAmpAnimated": [
+        0.9859076520295352,
+        0.9901724158880613
+      ],
+      "illumMaxPhaseStatic": 0.00131660692756292,
+      "illumMaxPhaseAnimated": 0.010285674305506408,
+      "RMSEWhole": 0.009337168844579701,
+      "RMSEStaticNoisy": 0.011610089872416438,
+      "RMSEAnimatedNoisy": 0.014269437553122844,
+      "profileWhole": 0.0025953341092434102,
+      "profileStaticNoisy": 0.002332185220460694,
+      "profileAnimatedNoisy": 0.0013454204603641925
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 6485,
+      "sha256": "49c9bf62123c2234ed9693dcd7429c998b0c03733c850248f7269f3f339ea7df"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\resolve_filter.py",
+      "bytes": 9055,
+      "sha256": "93a3349f8171b8e834c8f81fa9f4fd2d3690edf57bce1044eaeb686f0ff20c4e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\ROOT_EXPERIMENT_INTENT.json",
+      "bytes": 2837,
+      "sha256": "623f1ae5bdaeb5e4c391282d325a584a1355f185f6d36db966e8094034bdec70"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\ROOT_ONCE_AUTHORIZATION.json",
+      "bytes": 3628,
+      "sha256": "850cd68abe5749b13ea31f5314531753c8d5a1ef8405d22d460d183b4dcfe3e8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\run_saved_endpoint_once.py",
+      "bytes": 2824,
+      "sha256": "a8d5c04c27c516feb646c9b3a2adf97bbcf886e91aa5d3f4fc9ed9663b148fb8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\saved_endpoint_once.py",
+      "bytes": 13881,
+      "sha256": "b4b52621e6ae2556b7148b66889243a45891228578f7cd3e5413ae5783a0f92f"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\source_handoff.json",
+      "bytes": 4242,
+      "sha256": "5b2bcf41b7632c0a73c40d8bbbfef50a2bf5db81740434055bc250668e395363"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\endpoint_once\\A1_candidate_f63_RGBA16.bin",
+      "bytes": 81920,
+      "sha256": "15dc383479409e0e6093db71d0fe421630f8cbcb5e0cf0e74454c6c4337e9d2c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\endpoint_once\\A2_candidate_f63_RGBA16.bin",
+      "bytes": 81920,
+      "sha256": "51ad81daf2c0752e1f902404eaa850ff2b70ce0c7b63e71fda60f47fa0cd810b"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\endpoint_once\\completion.json",
+      "bytes": 1713,
+      "sha256": "616d02aa9f9b14e836838c88e3d3808325a702bc820914047bb313acca3dc0c0"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\endpoint_once\\result.json",
+      "bytes": 95848,
+      "sha256": "d2066513490091e61f0d1de728a917dbefec591c7b3842f85e3cdf76365f2ae8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\endpoint_once\\guard\\resource_guard.json",
+      "bytes": 1144,
+      "sha256": "aa447f637278cd985fd734e6f41b03dc4f778adb82a7798e78f803deec8897e9"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\endpoint_once\\guard\\stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_final_colour_native_material_resolve_quality_preparation_20261002\\endpoint_once\\guard\\stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

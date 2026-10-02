@@ -2117,3 +2117,99 @@ Root actual receipt1d5dbbc2, independent interpretationf44d0a16/aff1330a,
 implementation disposition92a73a07/d1fbb949 and author424bd1bc/9b0daa2c preserve
 partial successes and the failed full conjunction. Zero new GPU/RR/context/compiler/
 build calls; historical native ledger unchanged. No old candidate or stage was rerun.
+
+### Final-visible native material resolve: light retained, material-profile rejection (2026-10-02)
+
+The updated human goal selected ONE material-preserving resolve, rather than
+more denoising, a new SDK guide or a global recovery ratio. The previous spatial
+projector did not already impose this final-colour constraint: its local
+orthogonality applied to normalized P/M-R/M before remodulation by varying M,
+overlap gather and HALF storage. Its protocol explicitly disclaimed a global
+physical material-null result. The new operation consumed its saved CLOSED
+paired J outputs; neither J's law nor the native baselines were rerun or retuned.
+The brief illumination-history SOURCE exploration was stopped/unselected when
+the human changed the objective; it produced no numerical experiment or reject.
+
+The fixed resolve acted on final visible Delta=J-R. Within each observable
+mutually supported four-connected geometry component, each RGB channel's U
+spanned two demeaned original typed Qspec_c/Qdiff_c columns, with nonzero column
+normalization and fixed dimension/machine-epsilon SVD rank. K=J-U(U^T Delta)
+kept native's projection onto this declared varying material span and J's
+orthogonal correction/DC. No divide, M remodulation, gather or extra Skip
+followed. A final HALF store and component-atomic fallback completed the law.
+This small empirical guide span is not separately identified physical lobe
+coefficients, the full scored profile, or a guaranteed separation of light and
+material. Guide-correlated genuine light may also be removed.
+
+ONE actual saved frame63 test applied that resolve to both fixed A1/A2 pairs.
+The original score-only clean target, typed caller factors, full1, SDK guides,
+Skip, clean RGB gain/phase gates and strict all-region material-profile gate
+were unchanged. Both noisy regions additionally had to retain strictly lower
+RMSE than each baseline, as the updated goal requested. All three agents had
+distinct roles: operator/source, independent measurement/acceptance, and final
+composition/bounds/error interpretation. No extra audit chain or test bank ran.
+
+**Actual result: REJECT_FIXED_FINAL_COLOUR_NATIVE_MATERIAL_RESOLVE_ENDPOINT_QUALITY.**
+Both clean material and light conjunctions passed. The clean light amplitudes
+and phases were numerically identical to saved J in the recorded scalar
+precision: static RGB amplitude .997779-1.000578/max phase .001347; animated
+amplitude .985908-.990254/max phase .010286. All five regions' RMSE and absolute
+RGB bias remained nonworse than BOTH native baselines, and both noisy RMSE gains
+survived. Whole RMSE was .00934784/.00934876 versus .01473421/.01473612.
+
+The remaining required failure was material-profile error in WHOLE and BOTH
+noisy regions for BOTH pairs. It also became worse than J in every region;
+regional RMSE was slightly worse than J everywhere. Thus this new constraint
+retained useful earlier recovery but did not repair the remaining material/
+colour defect. The old projector's quality rejection and genuine light/RMSE
+benefits both remain recorded.
+
+One comparison follows. Each slash separates static/animated illumination
+regions. Material gain and light amplitude are RGB ranges in CLEAN regions;
+phase is maximum absolute spatial carrier phase in radians, not a temporal-lag
+measurement. Profile error and RMSE use the corresponding NOISY regions. The
+candidate row ranges span both paired applications, not independent noise runs.
+
+| Output | Clean material Re gain, static / animated | Noisy material-profile error, static / animated | Clean light amplitude; max phase, static / animated | Noisy RMSE, static / animated | Actually changed area |
+| --- | --- | --- | --- | --- | --- |
+| Native A1 | .985290-.988423 / .982201-.983957 | .000484483 / .000704176 | .364680-.376028; .035365 / .077624-.083634; .613938 | .013116502 / .017125741 | Reference |
+| Native A2 | .985200-.988233 / .982351-.984109 | .000485720 / .000695706 | .365550-.376315; .033726 / .077796-.084376; .641032 | .013136841 / .017121732 | Reference |
+| Final material resolve, both pairs | .987926-.990622 / .984607-.990304 | .002386856-.002387319 / .001482915-.001490971 | .997779-1.000578; .001347 / .985908-.990254; .010286 | .011618558-.011620889 / .014283896-.014284986 | 10240/10240 vs each R; new resolve changed7680/10240 vs each saved J |
+
+The declared constraint was actually applied: one geometry component, rank1
+per RGB, all10240 resolved, zero fallback. Pre-store protected-span drift was
+approximately1e-17; post-HALF drift reached4.71e-5. The stored constraint is not
+claimed exact. Those change/drift counts do not prove every pixel improved,
+identify a physical stain cause, or assign the remaining error uniquely to
+HALF/DC/material-space/private SDK. The result closes this one fixed final
+factor-span resolve on this fixture. It does not reject the method family.
+
+**Implementation decision:** retain the old projection as a rejected candidate
+with real conditional light/RMSE gains; do not adopt this resolve, retune its
+rank/guide/component/strength, run all64, or port it to GPU. No further quality
+law is selected at this boundary. Runtime lifetime repairs and test closure are
+separate engineering results, not an image fix. RGB89's earlier conditional
+passes and all other fixed-guide/recovery/spectral reject scopes are preserved.
+The fixture has no direct water-stain metric: the stain question remains OPEN,
+and the full1 stain/detail goal remains ACTIVE. No fresh capture is required to
+make the recorded negative decision.
+
+#### Appendix: final-colour resolve execution and evidence
+
+- Exact21-file SOURCE/actual archive plus manifest/attributes:
+  `docs/evidence/fsrd_final_colour_native_material_resolve_quality_20261002/`.
+- Pure operator93a3349f; protocol49c9bf62; handoff5b2bcf41; root saved-J
+  loaderb4b52621/drivera8d5c04c. Independent measurement SOURCE505ab7f6;
+  focused final-composition SOURCE8c262450. Twelve exact SOURCE/runtime pins
+  qualified root authority045d94 before execution. No source changed afterward.
+- Root actualb23cd7; driver31432/owned CPU child31736; ordinary CLOSEDrc0,
+  1.609s, no termination/monitor error; peakWS61,739,008B/minfree3,216,531,456B.
+  No new GPU, RR, context, compiler, build, deployment or production adoption.
+- Completion1713B616d02aa9f9b14e836838c88e3d3808325a702bc820914047bb313acca3dc0c0;
+  result95848Bd2066513490091e61f0d1de728a917dbefec591c7b3842f85e3cdf76365f2ae8;
+  root actual receipt11406B009980d23e97db1369c4c7601dce3ce677370209b640ea1c00cb57264487b6fd.
+- Root adapter text preparation initially failed a CRLF block match before any
+  file write/import/driver/guard/array evaluation; corrected SOURCE text only,
+  then the one actual endpoint above. No numerical retry or unknown prefix work.
+- Historical native ledger remains SDK503/RR502/query1/helpers1973,
+  API27482/queued27474/failed8. This saved CPU resolve adds no native work.
