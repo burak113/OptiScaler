@@ -1,0 +1,17 @@
+{
+  "status": "SOURCE_CLOSED_SIMPLE_TEMPORAL_RESIDUAL_MEAN_COVERED_NO_NEW_OPERATOR_SELECTED",
+  "decision": {
+    "path": "F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/fsrd_temporal_visible_residual_quality_SOURCE_20261002/FINAL_NOVELTY_DECISION.md",
+    "bytes": 3518,
+    "sha256": "c1745c411a6f1f5ec743ffe227e8e4316f5ac3a74811e3c8cbef283de229a33b"
+  },
+  "prior_exploratory_receipt": {
+    "path": "F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/fsrd_temporal_visible_residual_quality_SOURCE_20261002/completion_manifest.json",
+    "bytes": 1909,
+    "sha256": "2c816890d2c9fa7d02754c318bc1c6e5419cae7c90d18fa6fa0e049cb41d94cc"
+  },
+  "prior_resource_plan_selected": false,
+  "production_changes": false,
+  "author_execution_calls": 0,
+  "new_test_authority": false
+}

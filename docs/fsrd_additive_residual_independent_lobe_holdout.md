@@ -1526,3 +1526,14 @@ Historical execution ledger advances from SDK495/RR494/query1/helpers1821
 to SDK499/RR498/query1/helpers1901, and RR API26970/queued26962/failed8
 to27226/27218/8. Isolated-query count and historical failures are unchanged.
 
+SOURCE follow-up (no numerical execution): simple visible-residual temporal
+averaging was closed as a covered operator family. Fixed remod factors
+commute with averaging signed lobe-response errors; this requires neither
+linearity of the opaque denoiser nor FP16 bitwise identity. Previously
+rejected16-history and3-sigma innovation variants lost animated-light
+phase/gain. Geometry reprojection alone does not resolve changing light on
+static geometry. No relabeled average, threshold or resource plan was
+selected. The final note c1745c41 supersedes its exploratory plan and is
+archived as `temporal_mean_SOURCE_CLOSED.md`. A separate SOURCE-only
+question now considers observable radiance-content SDK guidance with the
+original full1 caller fixed; there is no selected mapping or execution yet.
