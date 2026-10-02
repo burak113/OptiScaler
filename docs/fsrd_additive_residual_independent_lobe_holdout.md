@@ -1612,3 +1612,91 @@ steered-filter or residual-correction family. Original concept b08e520d
 and final clarification bf5bace1 are preserved in the evidence appendix.
 The next narrow SOURCE question checks explicitly exposed quality controls
 in the six Fork scalars; no new parameter sweep or test is selected.
+
+### 2026-10-02 saved illumination amplitude/phase clarification
+
+The image-quality decision is unchanged: the fixed source-radiance SPEC
+SDK-guide mapping remains rejected. Its material carrier was retained, but
+illumination detail failed and static-noisy material error worsened. No
+full1 stain fix is claimed. RGB89's conditional WholeC89/89 and colored
+SPEC32/45 successes retain their original scope; these later failures do
+not erase them. Runtime source-lifetime/SR repairs remain runtime results,
+and the resource/identity harness remains measurement infrastructure.
+The user's static-camera demod0 blur also remains an observation, not a
+reason to weaken demodulation/remodulation.
+
+The two original counterparts are now explicit. The constant64 and
+source-radiance packets actually intervened on a varying SPEC SDK field
+while keeping the original full1 caller factors, signals and Skip fixed;
+each rejection closes only its fixed guide mapping and declared fixture.
+The previously completed same-joint-flags (U,U),(U,0),(0,U),(0,0) native
+packet remains the radiance-interaction counterpart. It is not replaced by
+format or joint-versus-split controls. Its signed four-term interaction was
+not evaluated, and no native rerun is selected to fill that POST label.
+
+**The reported 7-8% is an in-phase projection, not amplitude.** The frozen
+score defines z=O/T for each RGB spatial illumination fundamental, then
+reports gain=Re(z) and phase=abs(arg(z)). A saved-byte POST now also records
+abs(z) and signed phase without aligning, fitting or changing the truth.
+For the rejected B candidate at frame63, actual current-CSO animated clean
+amplitudes are RGB[0.083184165,0.084388424,0.079599431]: about7.96-8.44%.
+The existing phases0.383-0.429 radians cannot hide a unit-amplitude signal;
+phase-only realignment would still leave less than9% of the correct
+illumination. The original gain/phase acceptance gates are not redefined.
+
+**First observable loss:** across the saved64 frames, clean source HALF
+and converter signals reconstructed with the original typed caller factors
+retain illumination amplitude about99.82-100.09%, with essentially zero
+phase error. By frame63 the B native-output reconstruction is about55-56%
+for static light and7.95-8.43% for animated light, with animated phase
+0.382-0.430 radians. The actual existing composition remains at the same
+attenuated level. The original A baseline also loses amplitude: about36-38%
+static and7.76-8.37% animated in the native reconstruction. Thus the large
+loss first appears between preserved converter input and saved native
+output in this fixture, before composition. Native attenuation is already
+visible in reset frame0; a history-only/phase-only account is insufficient.
+This locates an observable transfer loss, not a private SDK subpass or the
+cause of the game's water stain. Signed spatial phase is not itself a
+measured temporal delay.
+
+All stage comparisons weight SPEC and DIFF per pixel with ORIGINAL caller
+R8 UNORM -> RN32 -> HALF factors plus the SAME converter Skip, before
+profile averaging. Native/converter reconstructions are float64 diagnostic
+proxies; only frame63 composition was actually executed by the current CSO.
+Their endpoint maximum pixel difference is0.000244081, and the original
+composition gain/phase measurements reproduce within1e-12. The diagnostic
+proxy is not relabeled as an actual all64 GPU composition or quality PASS.
+
+**Next single quality hypothesis:** recover the illumination amplitude
+present in the current full1 source but removed in the native transfer,
+through a noise-controlled source/native illumination residual. Keep the
+original full1 factors and material/DC response; retain the phase gate.
+A total-output gain or phase-only compensation does not target this loss.
+The smallest implementation-decision experiment, once ONE fixed observable
+residual operator is justified, uses the already saved raw/native/factor
+bytes: endpoint static/animated clean carrier gates first, then the saved64
+frames and noisy regions under the existing material-error, bias, noise and
+temporal conjunction. Positive full-conjunction evidence would justify
+porting that exact operator into composition and checking shader parity;
+a negative clean/noise gate stops that operator without guide/parameter or
+history retuning. No such operator is accepted or launched by this POST.
+The covered temporal residual mean and unselected replacement filter do
+not acquire new authority from the stage finding. Defining a fixed residual
+law that preserves native noise quality remains the implementation question.
+No new guide or parameter scan, capture dependency, build or deployment was
+introduced. The source check of six exposed Fork scalars supplied no new
+principled correction operating point, so it selects no parameter test.
+
+#### Appendix: saved POST evidence and execution scope
+
+Exact sources, result, guard, root receipt and independent interpretations
+are in `docs/evidence/fsrd_radiance_phase_amplitude_saved_POST_20261002/`.
+Root's once-authorized saved CPU POST completed normally: driver15692,
+owned CPU child25904, toolaa5f02. Result1477595B SHA256
+283e961ed99e564d99b0b564e0114aa316f360704793a9a585d7617a7fae88d2;
+all consumed historical pins match before/after. Independent SOURCE gate
+b414c942 follows the distinct metric derivation b8083567. No new native
+context, SDK dispatch, GPU composition or compiler was invoked; historical
+SDK/RR/helper ledger503/502/1973 is unchanged. The64-frame native proxies
+are saved-byte analysis only, and the original candidate REJECT is intact.
+Independent saved-POST interpretation95749ba8 also preserves the rejection, first-boundary scope, actual-endpoint/proxy distinction and unresolved implementation; its exact note and manifest are in the same appendix.

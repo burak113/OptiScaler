@@ -1,0 +1,34 @@
+{
+  "root_authorized_once": true,
+  "read_only_existing_CLOSED_bytes": true,
+  "new_GPU_or_RR_dispatches": 0,
+  "original_candidate_REJECT_unchanged": true,
+  "intent": "Clarify in-phase vs amplitude and first observable stage loss using saved bytes only",
+  "source_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_radiance_phase_amplitude_saved_POST_20261002\\worker.py",
+      "bytes": 8459,
+      "sha256": "54ffee6f96ecc80901b2b9406827e1331a3b445204146b7d30cd34965717213c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_radiance_phase_amplitude_saved_POST_20261002\\run_once.py",
+      "bytes": 2528,
+      "sha256": "54f46b13c336e9f9b05ecd4187c037a869459972879956e30204e694aca1575d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_radiance_phase_amplitude_POST_SOURCE_20261002\\source_review.json",
+      "bytes": 2664,
+      "sha256": "b414c942e7f20ef24a79e20a71af1492902e29097620148369f6a1637075b498"
+    },
+    {
+      "path": "C:\\Users\\burak\\AppData\\Roaming\\uv\\python\\cpython-3.12.14-windows-x86_64-none\\python.exe",
+      "bytes": 91648,
+      "sha256": "4eb51b7d5963d9e0dc356bd209b1d55360c73db39d8d458ceee084610ca48fd1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\native_resource_guard.py",
+      "bytes": 3995,
+      "sha256": "47ff642dccd74c8f8830420ccb03c898dd9c6a7363121d8584c1fa366afe8225"
+    }
+  ]
+}

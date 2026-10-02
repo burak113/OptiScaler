@@ -1,0 +1,55 @@
+{
+  "status": "SOURCE_PEER_PASS_SAVED_CPU_POST_UNEXECUTED",
+  "blocking_findings": [],
+  "source_pins_before_after_equal": true,
+  "pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_radiance_phase_amplitude_saved_POST_20261002\\worker.py",
+      "bytes": 8459,
+      "sha256": "54ffee6f96ecc80901b2b9406827e1331a3b445204146b7d30cd34965717213c"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_radiance_phase_amplitude_saved_POST_20261002\\run_once.py",
+      "bytes": 2528,
+      "sha256": "54f46b13c336e9f9b05ecd4187c037a869459972879956e30204e694aca1575d"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\worker.py",
+      "bytes": 16958,
+      "sha256": "f7e10a47bded4b7ab9a91896ee6f4354a334f0e9663b767dcf728b91cd248da3"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\native_resource_guard.py",
+      "bytes": 3995,
+      "sha256": "47ff642dccd74c8f8830420ccb03c898dd9c6a7363121d8584c1fa366afe8225"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_observable_radiance_SPEC_guide_full1_quality_preparation_20261002\\root_actual_completion.json",
+      "bytes": 9618,
+      "sha256": "419cc7d2e87d6cd66cf5c7a2828f166638cedcaa1af0fc139e278e5baa547211"
+    }
+  ],
+  "review": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_radiance_phase_amplitude_POST_SOURCE_20261002\\SOURCE_POST_PRE_EXECUTION_REVIEW.md",
+    "bytes": 2726,
+    "sha256": "9a2a5abe10a6a20ac5168b21d0834621a60782827a735384dae5dccd70953c4b"
+  },
+  "exact_old_metric_algebra": true,
+  "old_metric_value_reproduction": "actual f63 real ratio/abs phase versus saved score; fixed rtol0 atol1e-12",
+  "original_factor_law": "R8 UNORM explicit FP32 divide255 -> HALF -> float64",
+  "per_pixel_factors_before_averaging": true,
+  "SPEC_input": 6,
+  "DIFF_input": 5,
+  "same_original_Skip": true,
+  "actual_current_CSO_frames": [
+    63
+  ],
+  "all64_scope": "float64 converter/native proxy only; no all64 composition/acceptance",
+  "candidate_REJECT_preserved": true,
+  "root_fresh_once_authority_required": true,
+  "execution_namespace_absent": true,
+  "source_imports_or_arrays_or_binary_reads_or_metric_execution_or_compiler_or_native_or_GPU_calls": false,
+  "root_or_production_source_edits": false,
+  "new_correction_test_or_port_authorized": false,
+  "measured_first_loss_claim": false
+}

@@ -1,0 +1,41 @@
+{
+  "status": "SOURCE_HALF_ALIAS_FLOAT_HYPOTHESIS_CONTRADICTED_BY_MATCHED_FROZEN_BYTECODE_LISTING",
+  "records": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDOutputComp_Shader.h",
+      "bytes": 2828230,
+      "sha256": "cb006c3ce6d2ca45c3f91cc70a8b05f23c4c0908a7bef7a539be07c8be13d4de"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_shader\\FSRDOutputComp_Shader.cso",
+      "bytes": 184840,
+      "sha256": "8f4dd9d8e69626b60badf8fdb1eb4db34d35e65383e7160cc3ba1c96e0c6ed09"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\frozen_shader\\FSRDOutputComp.hlsl",
+      "bytes": 76985,
+      "sha256": "65b2abb5710c9d738898c0f499cc22b433e0a29793b8da3b8e5cc6d280c2aee4"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\shader_tools\\build_fsrd_shader.py",
+      "bytes": 4703,
+      "sha256": "32d195f62672e8c9d30a1f25213a54851e6d0844f2c4e1ac4950c8874e172be8"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\OptiScaler\\shaders\\fsrd_preprocess\\precompile\\FSRDOutputComp_Shader.cso",
+      "bytes": 184840,
+      "sha256": "8f4dd9d8e69626b60badf8fdb1eb4db34d35e65383e7160cc3ba1c96e0c6ed09"
+    }
+  ],
+  "embedded_CSO_equal_frozen": true,
+  "frozen_CSO_bytes": 184840,
+  "shader_model": "cs_6_2",
+  "native_low_precision": true,
+  "t1_t3_textureLoad": "f16",
+  "subsequent_promotion": "fpext half to float",
+  "fast_arithmetic": true,
+  "CPU_round_half_caller_factor_step_consistent_with_this_listing": true,
+  "representation_mismatch_confirmed": false,
+  "CPU_GPU_endpoint_parity_confirmed": false,
+  "limits": "No compiler/toolchain/EXE/SDK invocation; no radiance payload or array reads; no numerical explanation of observed gain gap established."
+}
