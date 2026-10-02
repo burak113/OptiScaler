@@ -1795,3 +1795,103 @@ Independent actual interpretation9f75af58, author outcomea04d95cc and implementa
 decision264901a1 all retain clean success and the failed full conjunction.
 There are zero new GPU/RR/context/compiler/build calls; the historical ledger
 SDK503/RR502/query1/helpers1973/RRAPI27482/queued27474/failed8 is unchanged.
+
+### P-reference/native statistical recovery: partial error improvement, conjunction rejected (2026-10-02)
+
+The user's Anchor/Correlation Mix suggestion led to one concrete recovery quality
+candidate. Recentring remained explicit: quality needs clean material/light AND
+noise/error preservation; source-lifetime fixes and test machinery do not supply
+image acceptance. Conditional RGB89 successes retain their original scopes.
+The exact variable SDK-guide and same-joint four-arm question closures above
+remain unchanged; no guide or parameter sweep was introduced.
+
+The three-agent SOURCE lookup found an actual post-native Anchor/Mix mechanism.
+Full Anchor uses an RR-centred variance envelope; this can reject unsupported
+grain but also cap light amplitude missing from RR. Mix is an SSIM-like agreement
+gate with additional bounded luma/chroma branches, not monotonic generic noise
+strength. Existing Light Anchor has an observable clean predicate, not truth
+access. Its live reference is seed-derived and carries its own noise/support alpha.
+Historical completed synthetic recovery/noise tests are real, but their primary
+noise fixtures use demod0 and injected RR; a shared-noise PASS permits5% worsening.
+They cannot establish the present full1, strict BOTH-baseline conjunction.
+
+The user's revised target was detailed P as reference and native as a limited
+statistical anchor, rather than an increased Anchor scalar. One new fixed law was
+therefore selected. It uses the already-saved rejected collaborative output as P,
+not a new accepted whole output. Normalize U=P/M,V=R/M by original M=Qs+Qd. Compute
+current eligible 3x3 means, variances and covariance; residual D=U-V has local
+mean muD and variance max(varU+varV-2cov,0). Original C/M and R/M provide empirical
+49-HH median noise witnesses. Set nu=(sqrt(vC)+sqrt(vR_HH))^2 and
+w=saturate(1-nu/vD), with vD0 giving w0. Store M*(V+muD+w*(D-muD)) as HALF, with
+atomic paired R fallback on unsupported/invalid output. No native variance box,
+SSIM dose, truth, frame/frequency labels, history, fitted gain or phase shift enters.
+This is a new empirical recovery law, not a claim that existing Anchor/CMR code
+was executed. Original C is only a noise witness, not the transferred reference.
+
+This targets lost current-frame amplitude observed before composition. Exact
+zero noise allowance or constant residual can preserve P; a clean P is not an
+unconditional mathematical fixed point. The Cauchy-inspired allowance is not a
+certified P/native noise variance bound. Local mean transfer is unconditional and
+can retain noisy or biased coarse structure. These risks were frozen before the
+single smallest decision test: saved frame63 against BOTH actual full1 A1/A2,
+with unchanged clean gain/phase and per-region physical/structured-error gates.
+A full endpoint conjunction would justify deciding all64 and implementation
+parity; any necessary failure stops this law without a dose/footprint retune.
+
+Actual result: both clean material AND illumination per-RGB gain/phase gates PASS.
+Whole and animated-noisy physical clean-target RMSE improve against BOTH baselines.
+Static-noisy RMSE worsens, and whole plus BOTH noisy-region structured-material
+error worsen. No absolute RGB bias gate fails. The result is
+REJECT_FIXED_P_NATIVE_RECOVERY_ENDPOINT_QUALITY. Its real clean and partial-error
+improvements are retained; they do not replace the required full conjunction.
+
+The comparison reports static / animated CLEAN RGB ranges for carriers and static /
+animated NOISY physical clean-target RMSE. Illumination amplitude is abs(O/T), phase
+is abs(arg(O/T)) in radians; material gain is the unchanged Re(O/T) metric. Candidate
+ranges include BOTH paired outputs, so no favourable repeat is selected.
+
+| Output | Material gain, static / animated | Illumination amplitude, static / animated | Illumination phase, static / animated | Physical RMSE, static-noisy / animated-noisy | Actually changed area |
+| --- | --- | --- | --- | --- | --- |
+| A1 actual full1 baseline | .985290-.988423 / .982201-.983957 | .364680-.376028 / .077624-.083634 | .030845-.035365 / .497584-.613938 | .01311650 / .01712574 | Existing reference output |
+| A2 actual full1 baseline | .985200-.988233 / .982351-.984109 | .365550-.376315 / .077796-.084376 | .028641-.033726 / .511476-.641032 | .01313684 / .01712173 | Existing reference output |
+| Fixed P/native recovery, both pairs | .999756-1.000575 / .999994-1.001078 | .997960-1.000677 / .996521-.998925 | .000080-.000576 / .001399-.001947 | .01891178-.01891207 / .01468559-.01468588 | All10240/10240 visible-total pixels versus each R; modeled HALF CPU only |
+
+Whole RMSE is .0119762245/.0119762308 versus A1 .0147342135/A2 .0147361248.
+Static-noisy structured-material error is .0028568769/.0028550912 versus
+.0004844826/.0004857196; animated-noisy .0015133162/.0015129304 versus
+.0007041764/.0006957058. Both outputs change all10240 pixels, with no fallback or
+arithmetic rejection. Each suppresses the centered residual completely in15534
+RGB channel samples; this global counter is not a measured area/noise-variance
+map. Outputs differ because native statistics and fallback are correctly paired.
+The remaining error is compatible with unconditional coarse/mean transfer, but
+no isolated causal decomposition established it as the unique cause.
+
+No all64 continuation, GPU port, shader/DLL production adoption or deployment
+follows this necessary failure. This closes the fixed operator on this fixture,
+not all statistically anchored recovery. It preserves the previous P-output and
+SDK-guide rejections, historical conditional passes and runtime-repair scopes.
+Temporal efficacy/all64 quality remain null. Physical RMSE includes signal error
+and noise; it is not a pure remaining-noise variance. This fixture has no direct
+water-stain metric, and its material profile error is not renamed as the stain.
+The main full1 stain/detail goal remains ACTIVE. The unresolved quality target is
+now clear: suppress reference-derived noisy material/coarse error while retaining
+the demonstrated recovered illumination. No new law or parameter scan is selected.
+
+#### Appendix: P/native recovery execution and evidence
+
+Exact context, frozen operator/protocol, both HALF candidate files, complete metrics
+and three-agent source/interpretation receipts are archived in
+`docs/evidence/fsrd_P_native_statistical_recovery_quality_20261002/`.
+The result is `experiment/endpoint_once/result.json`; parent P lineage stays in
+`fsrd_collaborative_illumination_residual_quality_20261002/`. No old stage was rerun.
+
+Root tool5f8173 completed normally, driver30516/owned CPU child30956, rc0,7.422s;
+source and input pins unchanged, no termination and empty stdout/stderr. Result
+65736B SHA256 3f83745a43338e07e25373788769734b74566985abdefbfa5c450000015d41aa;
+completion1666B 1f14ed71aa7d92929e07dffc86bb03062a78e9940d075caa26489bb2b68ff5d1.
+SOURCE math gate3dc354f2 and adapter gate449c4479 bound the final law/runner before
+execution. Author outcome68cc1570, independent actual interpretationa4c53022 and
+implementation decisiond77ee39a retain the partial improvements and strict rejection.
+Zero new GPU/RR/context/compiler/build calls; historical ledger503/502/1/1973/
+27482/27474/8 is unchanged. This turn's two distinct fixed CPU quality endpoints
+and zero-numeric preimport naming failure are separate from that native ledger.

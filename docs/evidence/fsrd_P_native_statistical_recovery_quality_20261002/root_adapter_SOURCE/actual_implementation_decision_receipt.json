@@ -1,0 +1,92 @@
+{
+  "status": "ACTUAL_CLOSED_FIXED_RECOVERY_REJECT_NO_GPU_PORT_OR_ALL64_CONTINUATION",
+  "decision_note": {
+    "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_statistical_recovery_root_adapter_SOURCE_20261002\\ACTUAL_IMPLEMENTATION_DECISION.md",
+    "bytes": 2777,
+    "sha256": "d77ee39a0a9c4896f5bcb047b7dc5e004fb9c579ec5de35925d6012ca7584721"
+  },
+  "saved_metadata_pins": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_statistical_recovery_quality_preparation_20261002\\endpoint_once\\completion.json",
+      "bytes": 1666,
+      "sha256": "1f14ed71aa7d92929e07dffc86bb03062a78e9940d075caa26489bb2b68ff5d1"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_statistical_recovery_quality_preparation_20261002\\endpoint_once\\result.json",
+      "bytes": 65736,
+      "sha256": "3f83745a43338e07e25373788769734b74566985abdefbfa5c450000015d41aa"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_statistical_recovery_root_adapter_SOURCE_20261002\\root_adapter_source_receipt.json",
+      "bytes": 3447,
+      "sha256": "449c447963ee5ede5b78c8ddb1d4c5018928e5ba2b774bf03375ebb3cc146341"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\endpoint_once\\completion.json",
+      "bytes": 1698,
+      "sha256": "d535d4de91b2e5df592cc2ffc775d064e48dfdd5803a041105372dfb54af201e"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_collaborative_illumination_residual_quality_preparation_20261002\\ROOT_actual_quality_receipt.json",
+      "bytes": 4299,
+      "sha256": "dc2ab7a84fa2fc4bc568b94971d783074738dc086d677d4ac6099f3be4453df9"
+    }
+  ],
+  "pins_before_after_equal": true,
+  "closure_read_before_result": true,
+  "driver_PID": 30516,
+  "child_PID": 30956,
+  "ordinary_CLOSED_rc0": true,
+  "frame": 63,
+  "clean_detail_both_PASS": true,
+  "whole_and_animated_noisy_RMSE_both_improved": true,
+  "static_noisy_RMSE_both_worse": true,
+  "whole_and_both_noisy_structured_material_error_both_worse": true,
+  "pairs": [
+    {
+      "baseline": "A1",
+      "detail_PASS": true,
+      "endpoint_necessary_quality_PASS": false,
+      "combined_endpoint_PASS": false,
+      "failures": [
+        "WHOLE/material_no_strict_improvement",
+        "STATIC_NOISY/material_no_strict_improvement",
+        "STATIC_NOISY/physical_rmse_worse",
+        "ANIM_NOISY/material_no_strict_improvement"
+      ]
+    },
+    {
+      "baseline": "A2",
+      "detail_PASS": true,
+      "endpoint_necessary_quality_PASS": false,
+      "combined_endpoint_PASS": false,
+      "failures": [
+        "WHOLE/material_no_strict_improvement",
+        "STATIC_NOISY/material_no_strict_improvement",
+        "STATIC_NOISY/physical_rmse_worse",
+        "ANIM_NOISY/material_no_strict_improvement"
+      ]
+    }
+  ],
+  "changed_pixels_per_pair": 10240,
+  "fallback_pixels_per_pair": 0,
+  "paired_candidate_equal": false,
+  "prior_P_rejection_preserved": true,
+  "guide_rejection_preserved": true,
+  "GPU_port_selected": false,
+  "all64_continuation_selected": false,
+  "production_adoption": false,
+  "all64_quality": null,
+  "temporal_efficacy": null,
+  "direct_water_stain_metric": null,
+  "activity": {
+    "binary_reads": 0,
+    "binary_hashes": 0,
+    "arrays": 0,
+    "imports": 0,
+    "numerical_recomputation": 0,
+    "reruns": 0,
+    "GPU_or_native_calls": 0,
+    "production_changes": 0
+  }
+}

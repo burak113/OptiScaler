@@ -1,0 +1,30 @@
+{
+  "status": "SOURCE_FIXED_QUALITY_HYPOTHESIS_BEFORE_FIRST_NUMERICAL_TEST",
+  "hypothesis": "Detailed saved P can restore lost illumination while an empirical covariance/noise-aware local P-minus-native recovery retains lower-error native highband",
+  "target": "lost current-frame amplitude, not a fitted temporal-delay/phase shift",
+  "smallest_decision": "Existing closed saved frame63, both A1/A2 paired native baselines, unchanged physical truth scoring; one fixed CPU operator and HALF store",
+  "operands": "Original C only normalized HH noise witness; saved rejected P only reference operand; R each actual full1 baseline; Q original R8float32toHALF factors",
+  "fixed_law": "M=Qs+Qd; U=P/M; V=R/M; D=U-V. Eligible3x3 uniform moments muD and vD=varU+varV-2cov. Empirical49HH median/.4549364231195727 on C/M andV; nu=(sqrt(vC)+sqrt(vR))^2. w=clip(1-nu/vD,0,1),vD0w0. Store M*(V+muD+w*(D-muD))HALF, invalid exactpairedR.",
+  "positive_decision": "Necessary endpoint conjunction must pass BOTH baselines before deciding all64 test; final quality conjunction would justify exact implementation+typed shader parity, not automatic game acceptance",
+  "negative_decision": "Stop this fixed operator; no variance/footprint/guide/threshold/Anchor retune or GPU port",
+  "clean_gates": "Original perRGB material AND illumination Re(q) .95..1.05 and abs phase<=.05, static+animated clean",
+  "noise_error_gates": "Strict structured-material-error improvement and physicalclean-targetRMSE/absoluteRGBbiasnonincrease in all5 regions vsBOTH A1/A2",
+  "independent_amplitude": "abs(q) reported independently of unchanged Re(q) acceptance",
+  "limitations": [
+    "Unconditionallocalmean cantransfercoarse/DCnoise",
+    "Empirical HH variances do not certify P-noise or native confidence",
+    "CleanP maynotbeidentityunlessw1 orconstantresidual",
+    "Oneframe cannotprove temporal/all64, directwaterstainmetricabsent"
+  ],
+  "prior_rejections_preserved": [
+    "SDKconstant64",
+    "SDKsource-radiance guide",
+    "Full sourceP output",
+    "Coveredtemporalmean"
+  ],
+  "new_SDK_guides": 0,
+  "new_parameter_scan": 0,
+  "new_GPU": 0,
+  "new_RR": 0,
+  "original_full1_fixed": true
+}

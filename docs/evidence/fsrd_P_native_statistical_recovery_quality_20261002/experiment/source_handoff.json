@@ -1,0 +1,47 @@
+{
+  "status": "SOURCE_ONLY_FIXED_EMPIRICAL_P_NATIVE_RECOVERY_UNEXECUTED",
+  "owned_files": [
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_statistical_recovery_quality_preparation_20261002\\recovery_filter.py",
+      "bytes": 7830,
+      "sha256": "b791800725ff52f88be7dbbfb31f508f64a65caa64f282e397938726b5919e47"
+    },
+    {
+      "path": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_P_native_statistical_recovery_quality_preparation_20261002\\PROTOCOL.md",
+      "bytes": 5834,
+      "sha256": "19419f96f1602914d857de2462e4c307743f72ee8c8a53988c9109742a539484"
+    }
+  ],
+  "interface": "apply_frame(np,C,Qspec,Qdiff,P,R,geometry_valid,*,linear_depth,normals,depth_gradient,roughness_codes,material_codes)",
+  "result": "modeled HALF RGB promotedfloat64 +scalar telemetry",
+  "law": "M=Qs+Qd;U=P/M;V=R/M;D=U-V;muD=muP-muR;vD=max(varP+varR-2cov,0);nu=(sqrt(vC_HH)+sqrt(vR_HH))^2;w=saturate(1-nu/vD),vD0->w0;output=M*(V+muD+w*(D-muD))",
+  "scope": "OriginalC only empirical normalizedHH noise witness; P already-CLOSED observable saved collaborative HALF endpoint; paired actualR full1 visible total, no truth into operator.",
+  "support": "In-bounds eligible same-surface3x3 uniform moments,count>=2 inclcenter; fullysupported8x8 block49HH median; original frozen guideFlags1 positive-depth/normal +exact rough/material compatibility",
+  "constants": {
+    "moment_footprint": 3,
+    "minimum_accepted_including_centre": 2,
+    "HH_patch": 8,
+    "HH_observations": 49,
+    "HH_Gaussian_square_median": 0.4549364231195727
+  },
+  "fallback": "Unsupported/domain/nonfinite/negative/saturated arithmetic->atomic exact pairedR; modeledHALF store validated",
+  "qualification": [
+    "No RR mean/variance box or old Anchor dose change",
+    "muD transferred unconditionally; confidence affects centered residual only",
+    "Noise witnesses empirical; sumstd bound motivation not certified variance of P-R",
+    "P preserved only w1 or locallyconstant residual, not every clean image",
+    "No calibratedWiener or privateGPU arithmetic claim",
+    "One endpoint may reject; pass onlyinconclusive, all64/GPU/stain remainunmeasured"
+  ],
+  "closed_prior": "Collaborative fixedfullreplacement endpoint REJECTED; not rerun or reclassified.",
+  "author_execution": {
+    "imports": 0,
+    "arrays": 0,
+    "numeric_experiments": 0,
+    "compiler": 0,
+    "GPU": 0,
+    "native": 0,
+    "production_edits": 0
+  },
+  "root_ownership": "Adapter/stage/authority/run/results; author owns onlyrecovery_filter.py/PROTOCOL.md/source_handoff.json"
+}
