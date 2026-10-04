@@ -16,6 +16,7 @@
 #include "FeatureProvider_Dx11.h"
 #include <proxies/FfxApi_Proxy.h>
 #include <misc/IdentifyGpu.h>
+#include <nvsdk_ngx_defs_dlssd.h>
 
 bool FeatureProvider_Dx12::GetFeature(Upscaler upscaler, UINT handleId, NVSDK_NGX_Parameter* parameters,
                                       std::unique_ptr<IFeature_Dx12>* feature)
@@ -64,23 +65,20 @@ bool FeatureProvider_Dx12::GetFeature(Upscaler upscaler, UINT handleId, NVSDK_NG
         }
         else
         {
-            *feature = std::make_unique<FSR2FeatureDx12_212>(handleId, parameters);
-            upscaler = Upscaler::FSR21;
-            break;
+            LOG_ERROR("Native Ray Reconstruction provider is unavailable");
+            return false;
         }
 
     case Upscaler::FSR_RR:
-        if (FfxApiProxy::IsDenoiserApiImplementedDx12())
+        if (FfxApiProxy::IsDenoiserApiImplementedDx12() ||
+            (primaryGpu.dlssCapable && state.NVNGX_DLSSD_Path.has_value()))
         {
             *feature = std::make_unique<FSRDFeatureDx12>(handleId, parameters);
             break;
         }
         else
         {
-            // FSR-RR has no upscaler fallback: a Ray Reconstruction request without
-            // the denoiser API is a failure, not a quality downgrade. UpscalerOnly
-            // opts into creating the feature anyway with the denoiser skipped.
-            LOG_ERROR("FfxApi denoiser API is not implemented for Dx12");
+            LOG_ERROR("Neither FSR-RR nor a native Ray Reconstruction provider is available");
             return false;
         }
 
@@ -94,6 +92,8 @@ bool FeatureProvider_Dx12::GetFeature(Upscaler upscaler, UINT handleId, NVSDK_NG
 
     if (!loaded)
     {
+        if (upscaler == Upscaler::FSR_RR || upscaler == Upscaler::DLSSD)
+            return false;
         // Fail after the constructor
         ImGui::InsertNotification({ ImGuiToastType::Warning, 10000, "Falling back to FSR 2.1.2" });
         *feature = std::make_unique<FSR2FeatureDx12_212>(handleId, parameters);
@@ -104,6 +104,8 @@ bool FeatureProvider_Dx12::GetFeature(Upscaler upscaler, UINT handleId, NVSDK_NG
     // DLSSD is stored in the config as DLSS
     if (upscaler == Upscaler::DLSSD)
         upscaler = Upscaler::DLSS;
+    else if (upscaler == Upscaler::FSR_RR)
+        upscaler = Upscaler::FFX;
 
     cfg.Dx12Upscaler = upscaler;
 
@@ -116,6 +118,13 @@ bool FeatureProvider_Dx12::ChangeFeature(Upscaler upscaler, ID3D12Device* device
 {
     State& state = State::Instance();
     Config& cfg = *Config::Instance();
+    const auto releaseCreationParameters = [&]()
+    {
+        if (contextData->ownsCreateParams && contextData->createParams)
+            TryDestroyNGXParameters(contextData->createParams, NVNGXProxy::D3D12_DestroyParameters());
+        contextData->createParams = nullptr;
+        contextData->ownsCreateParams = false;
+    };
 
     if (!state.changeBackend[handleId])
         return false;
@@ -126,9 +135,8 @@ bool FeatureProvider_Dx12::ChangeFeature(Upscaler upscaler, ID3D12Device* device
 
     if (contextData->featureID == NVSDK_NGX_Feature_RayReconstruction)
     {
-        // RR features are not allowed to change. They can only init/reinit.
-        if (state.newBackend != contextData->featureKey)
-            state.newBackend = contextData->featureKey;
+        state.newBackend = (state.newBackend == Upscaler::FFX || state.newBackend == Upscaler::FSR_RR)
+            ? Upscaler::FSR_RR : Upscaler::DLSSD;
     }
 
     contextData->changeBackendCounter++;
@@ -152,6 +160,8 @@ bool FeatureProvider_Dx12::ChangeFeature(Upscaler upscaler, ID3D12Device* device
             // Use given params if using DLSS passthrough
             const bool isPassthrough = state.newBackend == Upscaler::DLSSD || state.newBackend == Upscaler::DLSS;
 
+            releaseCreationParameters();
+            contextData->ownsCreateParams = !isPassthrough;
             contextData->createParams = isPassthrough ? parameters : GetNGXParameters(API::DX12, false);
             contextData->createParams->Set(NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags, dc->GetFeatureFlags());
             contextData->createParams->Set(NVSDK_NGX_Parameter_Width, dc->RenderWidth());
@@ -159,6 +169,18 @@ bool FeatureProvider_Dx12::ChangeFeature(Upscaler upscaler, ID3D12Device* device
             contextData->createParams->Set(NVSDK_NGX_Parameter_OutWidth, dc->DisplayWidth());
             contextData->createParams->Set(NVSDK_NGX_Parameter_OutHeight, dc->DisplayHeight());
             contextData->createParams->Set(NVSDK_NGX_Parameter_PerfQualityValue, dc->PerfQualityValue());
+            if (contextData->featureID == NVSDK_NGX_Feature_RayReconstruction)
+            {
+                for (const char* key : { NVSDK_NGX_Parameter_DLSS_Denoise_Mode,
+                                        NVSDK_NGX_Parameter_DLSS_Roughness_Mode,
+                                        NVSDK_NGX_Parameter_Use_HW_Depth })
+                {
+                    int value = 0;
+                    if (parameters->Get(key, &value) == NVSDK_NGX_Result_Success)
+                        contextData->createParams->Set(key, value);
+                }
+                dc->CopyRecreationParameters(contextData->createParams);
+            }
 
             dc = nullptr;
 
@@ -179,11 +201,7 @@ bool FeatureProvider_Dx12::ChangeFeature(Upscaler upscaler, ID3D12Device* device
             state.newBackend = Upscaler::Reset;
             state.changeBackend[handleId] = false;
 
-            if (contextData->createParams != nullptr)
-            {
-                TryDestroyNGXParameters(contextData->createParams, NVNGXProxy::D3D12_DestroyParameters());
-                contextData->createParams = nullptr;
-            }
+            releaseCreationParameters();
 
             contextData->changeBackendCounter = 0;
 
@@ -202,6 +220,9 @@ bool FeatureProvider_Dx12::ChangeFeature(Upscaler upscaler, ID3D12Device* device
         if (!GetFeature(state.newBackend, handleId, contextData->createParams, &contextData->feature))
         {
             LOG_ERROR("Upscaler can't created");
+            releaseCreationParameters();
+            contextData->changeBackendCounter = 0;
+            state.changeBackend[handleId] = false;
             return false;
         }
 
@@ -211,13 +232,22 @@ bool FeatureProvider_Dx12::ChangeFeature(Upscaler upscaler, ID3D12Device* device
     // init feature
     if (contextData->changeBackendCounter == 3)
     {
-        auto initResult = contextData->feature->Init(device, cmdList, contextData->createParams);
+        auto initResult = contextData->feature && contextData->feature->Init(device, cmdList, contextData->createParams);
 
         contextData->changeBackendCounter = 0;
 
         if (!initResult)
         {
             LOG_ERROR("init failed with {0} feature", UpscalerDisplayName(state.newBackend));
+            releaseCreationParameters();
+
+            if (contextData->featureID == NVSDK_NGX_Feature_RayReconstruction)
+            {
+                // Raw SR cannot fulfill an RR request containing undenoised radiance.
+                state.changeBackend[handleId] = false;
+                state.currentFeature = contextData->feature.get();
+                return false;
+            }
 
             if (state.newBackend != Upscaler::DLSSD)
             {
@@ -246,18 +276,13 @@ bool FeatureProvider_Dx12::ChangeFeature(Upscaler upscaler, ID3D12Device* device
         {
             LOG_INFO("init successful for {0}, upscaler changed", UpscalerDisplayName(state.newBackend));
 
+            contextData->featureKey = state.newBackend;
+
             state.newBackend = Upscaler::Reset;
             state.changeBackend[handleId] = false;
         }
 
-        // If this is an OptiScaler fake NVNGX param table, delete it
-        int optiParam = 0;
-
-        if (contextData->createParams->Get("OptiScaler", &optiParam) == NVSDK_NGX_Result_Success && optiParam == 1)
-        {
-            TryDestroyNGXParameters(contextData->createParams, NVNGXProxy::D3D12_DestroyParameters());
-            contextData->createParams = nullptr;
-        }
+        releaseCreationParameters();
     }
 
     // if initial feature can't be inited

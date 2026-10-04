@@ -46,13 +46,84 @@ Config::Config()
     Reload(absoluteFileName);
 }
 
-// The one authority on "back to defaults" for the FSR-RR denoiser. Clearing
-// each optional instead of re-assigning a literal keeps the member
-// initializers in Config.h the single source of the default values, so this
-// list can state no stale numbers - it only has to stay complete against the
-// "FSR-RR" reads in Reload.
+// Profiles own the Floor/recovery policy; manual edits are persisted as Custom.
+void Config::ApplyFfxDenoiserProfile(int profile)
+{
+    profile = std::clamp(profile, 0, 2);
+    FfxDenoiserProfile = profile;
+    FfxDenoiserFloorEnabled = profile != 0;
+    FfxDenoiserFloorFastMode = profile == 1;
+    FfxDenoiserFloorRecovery = profile == 0 ? 0.0f : 1.0f;
+    FfxDenoiserFloorFlatRecovery = profile != 0;
+    FfxDenoiserFloorSpecularRecovery = profile != 0;
+    FfxDenoiserFloorDiffuseRecovery = profile == 2;
+    FfxDenoiserFloorFlatNoiseMethod = 0;
+    FfxDenoiserFloorSpecularNoiseMethod = 1;
+    FfxDenoiserFloorDiffuseNoiseMethod = 1;
+    FfxDenoiserFloorHandoverAnchorClamp.reset();
+    FfxDenoiserFloorHandoverCorrelationMix.reset();
+    FfxDenoiserFloorLumaRecovery.reset();
+    FfxDenoiserFloorChromaRecovery.reset();
+    FfxDenoiserUnsupportedAlbedoRecovery = profile == 2;
+    FfxDenoiserSpecularAlbedoDemodulation.reset();
+    FfxDenoiserDiffuseAlbedoModulation.reset();
+    FfxDenoiserAdditiveLightSplit.reset();
+    FfxDenoiserDiffuseSignalType.reset();
+    FfxDenoiserSpecularSignalType.reset();
+    FfxDenoiserDenoiseDiffuse.reset();
+    FfxDenoiserDenoiseSpecular.reset();
+    FfxDenoiserSignalCount.reset();
+    if (profile == 2)
+    {
+        // The alternate unmodulated specular reconstruction needs its own RR slot.
+        FfxDenoiserSignalCount = 3;
+        FfxDenoiserSignal1 = 0;
+        FfxDenoiserSignal2 = 3;
+        FfxDenoiserSignal3 = 1;
+    }
+}
+
+int Config::GetFfxDenoiserProfile() const
+{
+    for (int profile = 0; profile < 3; ++profile)
+    {
+        if (FfxDenoiserFloorEnabled.value_or_default() != (profile != 0) ||
+            FfxDenoiserFloorFastMode.value_or_default() != (profile == 1) ||
+            FfxDenoiserFloorRecovery.value_or_default() != (profile == 0 ? 0.0f : 1.0f) ||
+            FfxDenoiserFloorFlatRecovery.value_or_default() != (profile != 0) ||
+            FfxDenoiserFloorSpecularRecovery.value_or_default() != (profile != 0) ||
+            FfxDenoiserFloorDiffuseRecovery.value_or_default() != (profile == 2) ||
+            FfxDenoiserUnsupportedAlbedoRecovery.value_or_default() != (profile == 2) ||
+            FfxDenoiserFloorFlatNoiseMethod.value_or_default() != 0 ||
+            FfxDenoiserFloorSpecularNoiseMethod.value_or_default() != 1 ||
+            FfxDenoiserFloorDiffuseNoiseMethod.value_or_default() != 1 ||
+            FfxDenoiserSpecularAlbedoDemodulation.value_or_default() != 1.0f ||
+            FfxDenoiserDiffuseAlbedoModulation.value_or_default() != 1.0f ||
+            FfxDenoiserAdditiveLightSplit.value_or_default() != 0.0f)
+            continue;
+        // Save manual signal/anchor changes as Custom, so reloading keeps them.
+        if (FfxDenoiserFloorHandoverAnchorClamp.value_or_default() != 4.0f ||
+            FfxDenoiserFloorHandoverCorrelationMix.value_or_default() != 1.0f ||
+            FfxDenoiserFloorLumaRecovery.value_or_default() != 1.0f ||
+            FfxDenoiserFloorChromaRecovery.value_or_default() != 1.0f ||
+            FfxDenoiserDiffuseSignalType.has_value() || FfxDenoiserSpecularSignalType.has_value() ||
+            !FfxDenoiserDenoiseDiffuse.value_or_default() || !FfxDenoiserDenoiseSpecular.value_or_default())
+            continue;
+        if (profile == 2 ? (FfxDenoiserSignalCount.value_or_default() != 3 ||
+                            FfxDenoiserSignal1.value_or_default() != 0 ||
+                            FfxDenoiserSignal2.value_or_default() != 3 ||
+                            FfxDenoiserSignal3.value_or_default() != 1)
+                         : FfxDenoiserSignalCount.has_value())
+            continue;
+        return profile;
+    }
+    return -1;
+}
+
 bool Config::ResetFfxDenoiserSettings()
 {
+    FfxDenoiserEnabled.reset();
+    FfxDenoiserProfile.reset();
     const bool contextSettingsChanged =
         // Presence, not the effective value: Auto and an explicit Direct both
         // read as 0 through value_or_default(), yet this reset returns the key
@@ -395,6 +466,8 @@ bool Config::Reload(std::filesystem::path iniPath)
         // Every key read here must also be listed in ResetFfxDenoiserSettings,
         // which is what the menu's FSR-RR Reset button applies.
         {
+            FfxDenoiserEnabled.set_from_config(readBool("FSR-RR", "Enabled"));
+            FfxDenoiserProfile.set_from_config(readInt("FSR-RR", "Profile"));
             FfxDenoiserUseAmdDefaults.set_from_config(readBool("FSR-RR", "UseAmdDefaults"));
             FfxDenoiserDisocThreshold.set_from_config(readFloat("FSR-RR", "DisocclusionThreshold"));
             FfxDenoiserCrossBlNormStr.set_from_config(readFloat("FSR-RR", "CrossBilateralNormalStrength"));
@@ -464,6 +537,9 @@ bool Config::Reload(std::filesystem::path iniPath)
                 readBool("FSR-RR", "ResponsivityInvert"));
             FfxDenoiserBiasMaskStrength.set_from_config(
                 readFloat("FSR-RR", "BiasMaskStrength"));
+
+            if (FfxDenoiserProfile.value_or_default() >= 0)
+                ApplyFfxDenoiserProfile(FfxDenoiserProfile.value_or_default());
 
         }
         }
@@ -1307,6 +1383,8 @@ bool Config::SaveIni()
                      GetBoolValue(Instance()->FsrAgilitySDKUpgrade.value_for_config()).c_str());
     // FSR-RR
     {
+        ini.SetValue("FSR-RR", "Enabled", GetBoolValue(Instance()->FfxDenoiserEnabled.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "Profile", std::to_string(Instance()->GetFfxDenoiserProfile()).c_str());
         ini.SetValue("FSR-RR", "UseAmdDefaults",
                      GetBoolValue(Instance()->FfxDenoiserUseAmdDefaults.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "DisocclusionThreshold",

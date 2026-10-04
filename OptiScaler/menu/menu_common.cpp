@@ -446,7 +446,10 @@ class Keybind
 Upscaler MenuCommon::GetBackendCode(const API api)
 {
     if (auto feature = State::Instance().currentFeature)
-        return feature->GetUpscalerType();
+    {
+        const auto type = feature->GetUpscalerType();
+        return type == Upscaler::DLSSD ? Upscaler::DLSS : type == Upscaler::FSR_RR ? Upscaler::FFX : type;
+    }
 
     Upscaler upscaler;
 
@@ -457,7 +460,7 @@ Upscaler MenuCommon::GetBackendCode(const API api)
     else
         upscaler = Config::Instance()->VulkanUpscaler.value_or_default();
 
-    return upscaler;
+    return upscaler == Upscaler::FSR_RR ? Upscaler::FFX : upscaler;
 }
 
 void MenuCommon::GetCurrentBackendInfo(const API api, Upscaler& upscaler, std::string* name)
@@ -481,6 +484,14 @@ void MenuCommon::RenderUpscalerCombo(const API api, Upscaler currentUpscaler, co
     {
         for (auto opt : options)
         {
+            FSRDRuntimeSnapshot snapshot;
+            auto* feature = State::Instance().currentFeature;
+            const bool rrActive = api == DX12 && feature &&
+                (feature->GetUpscalerType() == Upscaler::DLSSD ||
+                 (feature->ReadRayRegenerationDiagnostics(snapshot) && snapshot.rayReconstruction));
+            // Only these backends can fulfill a game Ray Reconstruction request.
+            if (rrActive && opt != Upscaler::FFX && opt != Upscaler::DLSS)
+                continue;
             // Check if GPU is capable of a given backend
             if (opt == Upscaler::DLSS && !primaryGpu.dlssCapable)
                 continue;
@@ -2442,6 +2453,27 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
     auto& menuResScale = ctx.menuResScale;
     auto& primaryGpu = *ctx.primaryGpu;
 
+    if (state.api == DX12)
+    {
+        FSRDRuntimeSnapshot snapshot;
+        const bool hasSnapshot = currentFeature && currentFeature->ReadRayRegenerationDiagnostics(snapshot);
+        const bool active = currentFeature && !currentFeature->IsFrozen();
+        const bool nativeRR = active && currentFeature->GetUpscalerType() == Upscaler::DLSSD;
+        const bool nvRR = active && (nativeRR || (hasSnapshot && snapshot.rayReconstruction));
+        const bool ffxActive = currentFeature && GetBackendCode(DX12) == Upscaler::FFX;
+        ImGui::SeparatorText("Denoiser");
+        const bool profileChanged = FSRDMenu::DrawProfile(*config);
+        const bool retry = FSRDMenu::DrawDenoiser(*config, snapshot, ffxActive, nvRR,
+                                                FfxApiProxy::IsDenoiserApiImplementedDx12());
+        if ((profileChanged || retry) && ffxActive && nvRR)
+        {
+            state.newBackend = Upscaler::FFX;
+            MARK_ALL_BACKENDS_CHANGED();
+        }
+        FSRDMenu::DrawWorkflow(snapshot);
+        FSRDMenu::DrawInputs(snapshot);
+    }
+
     if (currentFeature != nullptr && !currentFeature->IsFrozen())
     {
         // UPSCALERS -----------------------------
@@ -2491,8 +2523,7 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
             spoofingText = config->DxgiSpoofing.value_or_default() ? "On" : "Off";
             ImGui::Text("| Spoof: %s", spoofingText.c_str());
 
-            if (!usesDlssd)
-                AddDx12Backends(currentBackend);
+            AddDx12Backends(currentBackend);
 
             break;
 
@@ -2527,7 +2558,7 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
 
         ImGui::PopItemWidth();
 
-        if (!usesDlssd)
+        if (!usesDlssd || state.api == DX12)
         {
             ImGui::SameLine(0.0f, 6.0f);
 
@@ -2686,9 +2717,9 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
 
                     // FSR Ray Regeneration
 
-                    if (currentFeature->GetUpscalerType() == Upscaler::FSR_RR)
+                    if (state.api == DX12)
                     {
-                        if (auto ch = ScopedCollapsingHeader("FSR-RR"); ch.IsHeaderOpen())
+                        if (auto ch = ScopedCollapsingHeader("FSR-RR Advanced Settings"); ch.IsHeaderOpen())
                         {
                             FSRDRuntimeSnapshot rrSnapshot;
                             currentFeature->ReadRayRegenerationDiagnostics(rrSnapshot);
@@ -2950,7 +2981,7 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
                                 if (int v =
                                         std::clamp(config->FfxDenoiserFloorFlatNoiseMethod.value_or_default(), 0, 1);
                                     ImGui::Combo("Noise Removal##Flat", &v,
-                                                 "Anchor / Correlation / Chroma / Luma\0Light Anchor Mix\0"))
+                                                 "Full Anchor\0Light Anchor Mix\0"))
                                     config->FfxDenoiserFloorFlatNoiseMethod = v;
                                 ImGui::EndDisabled();
                                 if (bool v = config->FfxDenoiserFloorSpecularRecovery.value_or_default();
@@ -2965,7 +2996,7 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
                                 if (int v = std::clamp(config->FfxDenoiserFloorSpecularNoiseMethod.value_or_default(),
                                                        0, 1);
                                     ImGui::Combo("Noise Removal##Specular", &v,
-                                                 "Anchor / Correlation / Chroma / Luma\0Light Anchor Mix\0"))
+                                                 "Full Anchor\0Light Anchor Mix\0"))
                                     config->FfxDenoiserFloorSpecularNoiseMethod = v;
                                 ImGui::EndDisabled();
                                 if (bool v = config->FfxDenoiserFloorDiffuseRecovery.value_or_default();
@@ -2980,7 +3011,7 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
                                 if (int v =
                                         std::clamp(config->FfxDenoiserFloorDiffuseNoiseMethod.value_or_default(), 0, 1);
                                     ImGui::Combo("Noise Removal##Diffuse", &v,
-                                                 "Anchor / Correlation / Chroma / Luma\0Light Anchor Mix\0"))
+                                                 "Full Anchor\0Light Anchor Mix\0"))
                                     config->FfxDenoiserFloorDiffuseNoiseMethod = v;
                                 ImGui::EndDisabled();
                                 if (float v = config->FfxDenoiserFloorHandoverAnchorClamp.value_or_default();
@@ -3656,10 +3687,10 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
         // FFX -----------------
         if (!usesDlssd && (currentBackend == Upscaler::FFX || currentBackend == Upscaler::FFX_on12 || currentBackend == Upscaler::FSR_RR))
         {
-            // The heading only exists where the section has content. Under FSR-RR nothing below
-            // draws, and an empty "FFX Settings" separator was just a label over nothing.
-            const bool showsFfxBackendSettings = currentBackend == Upscaler::FFX ||
-                (currentBackend == Upscaler::FFX_on12 && !state.ffxUpscalerVersionNames.empty());
+            // RR can fall back to native even if no FFX provider was enumerated.
+            const size_t versionCount = std::min(state.ffxUpscalerVersionNames.size(), state.ffxUpscalerVersionIds.size());
+            const bool showsFfxBackendSettings = versionCount > 0 &&
+                (currentBackend == Upscaler::FFX || currentBackend == Upscaler::FFX_on12);
 
             if (showsFfxBackendSettings)
                 ImGui::SeparatorText("FFX Settings");
@@ -3669,12 +3700,13 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
 
             if (showsFfxBackendSettings)
             {
+                _ffxUpscalerIndex = std::clamp(_ffxUpscalerIndex, 0, static_cast<int>(versionCount) - 1);
                 ImGui::PushItemWidth(135.0f * menuResScale);
 
                 auto currentName = StrFmt("FSR %s", state.ffxUpscalerVersionNames[_ffxUpscalerIndex]);
                 if (ImGui::BeginCombo("FFX Upscaler", currentName.c_str()))
                 {
-                    for (int n = 0; n < state.ffxUpscalerVersionIds.size(); n++)
+                    for (int n = 0; n < static_cast<int>(versionCount); n++)
                     {
                         auto name = StrFmt("FSR %s##%d", state.ffxUpscalerVersionNames[n], n);
                         if (ImGui::Selectable(name.c_str(), config->FfxUpscalerIndex.value_or_default() == n))

@@ -36,7 +36,7 @@ bool IFeature_Dx12::Init(ID3D12Device* InDevice, ID3D12GraphicsCommandList* InCo
         OutputScaler = std::make_unique<OS_Dx12>("Output Scaling", InDevice, (TargetWidth() < DisplayWidth()));
         RCAS = std::make_unique<RCAS_Dx12>("RCAS", InDevice);
         Bias = std::make_unique<Bias_Dx12>("Bias", InDevice); // TODO: not needed on DLSS/DLSSD
-        const bool recordedRR = GetUpscalerType() == Upscaler::FSR_RR;
+        const bool recordedRR = UsesRecordedComputeLifetime();
         OutputScaler->SetRecordedLifetimeEnabled(recordedRR);
         RCAS->SetRecordedLifetimeEnabled(recordedRR);
         Bias->SetRecordedLifetimeEnabled(recordedRR);
@@ -99,7 +99,7 @@ bool IFeature_Dx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX
     InParameters->Get(NVSDK_NGX_Parameter_MotionVectors, &paramMotion);
     InParameters->Get(NVSDK_NGX_Parameter_Depth, &paramDepth);
 
-    const bool recordedRR = upscaler == Upscaler::FSR_RR;
+    const bool recordedRR = UsesRecordedComputeLifetime();
     struct RecordedCleanup
     {
         std::vector<std::function<void()>> buffers;

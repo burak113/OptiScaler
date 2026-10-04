@@ -4,9 +4,12 @@
 #include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
 #include <array>
 #include <atomic>
+#include <mutex>
 #include "FSRDSignalPolicy.h"
 #include "gpu_time/FSRDStageTimings_Dx12.h"
 #include <DirectXMath.h>
+
+class DLSSDFeatureDx12;
 
 /**
  * @brief Unfied denoiser-upscaler utilising AMD FSR Ray Regeneration and Super Resolution with
@@ -23,7 +26,14 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
 
     feature_version Version() override { return FSR31FeatureDx12::Version(); }
 
-    Upscaler GetUpscalerType() const override { return Upscaler::FSR_RR; }
+    Upscaler GetUpscalerType() const override { return Upscaler::FFX; }
+    bool UsesRecordedComputeLifetime() const override { return true; }
+
+    bool InitInternal(ID3D12GraphicsCommandList*, NVSDK_NGX_Parameter*) override;
+    bool EvaluateFallback(ID3D12GraphicsCommandList*, NVSDK_NGX_Parameter*) override;
+    void OnEvaluationStarting(NVSDK_NGX_Parameter*) override;
+    void OnEvaluationFinished(bool success) override;
+    void CopyRecreationParameters(NVSDK_NGX_Parameter*) const override;
 
     bool EvaluateInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) override;
 
@@ -31,6 +41,8 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     // Bits 8..11: effective radiance signals, after safe fallback for missing guides.
     bool ReadRayRegenerationDiagnostics(FSRDRuntimeSnapshot& snapshot) const override
     {
+        std::lock_guard lock(_runtimeMutex);
+        snapshot = _publishedRuntime;
         snapshot.signalStatus = _signalStatus.load(std::memory_order_relaxed);
         snapshot.timings = _stageTimings.GetSnapshot();
         return true;
@@ -119,6 +131,18 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     uint32_t _appliedApproximationMask = ~0u;
     std::atomic<uint32_t> _signalStatus { 0 };
     FSRDStageTimings _stageTimings;
+    mutable std::mutex _runtimeMutex;
+    FSRDRuntimeSnapshot _runtime, _publishedRuntime;
+    std::unique_ptr<DLSSDFeatureDx12> _nativeDenoiser;
+    bool _rrInitialized = false, _rrFaulted = false, _nativeAttempted = false;
+    bool _nativeWasActive = false;
+    uint64_t _evaluationNumber = 0;
+    std::string _rrFailure;
+    FSRDRuntimeSnapshot::Step _failedStep = FSRDRuntimeSnapshot::Inputs;
+
+    bool EvaluateRayRegeneration(ID3D12GraphicsCommandList*, NVSDK_NGX_Parameter*);
+    bool EvaluateNative(ID3D12GraphicsCommandList*, NVSDK_NGX_Parameter*, bool fullPipeline);
+    void FailRayRegeneration(const char* reason);
     ffxDispatchDescDenoiserIndirectDiffuse _indirectDiffuseSignal {};
     ffxDispatchDescDenoiserDirectSpecular _directSpecularSignal {};
     Microsoft::WRL::ComPtr<ID3D12Resource> _ambientOcclusionNoisy;

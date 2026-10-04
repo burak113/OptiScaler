@@ -349,6 +349,7 @@ struct FSRDPreprocessor_Dx12::Impl
     ComPtr<ID3D12Resource> m_outputBuffer2;
     // RR direct-specular output (denoised unmodulated specular) and the trust ping-pong.
     FSRDStageTimings* m_stageTimings = nullptr;
+    FSRDRuntimeSnapshot* m_runtime = nullptr;
     bool m_extraDiffuse = false, m_extraSpecular = false, m_albedoRecovery = false;
     ComPtr<ID3D12Resource> m_directSpecularOutput;
     ComPtr<ID3D12Resource> m_indirectDiffuseOutput;
@@ -1485,6 +1486,7 @@ struct FSRDPreprocessor_Dx12::Impl
 
     bool DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
     {
+        if (m_runtime) m_runtime->Begin(FSRDRuntimeSnapshot::Floor);
         if (!cmdList || !m_maxWidth)
             return false;
 
@@ -1555,12 +1557,19 @@ struct FSRDPreprocessor_Dx12::Impl
             DispatchFloorSeed(cmdList, desc);
             DispatchFloorFilter(cmdList, desc);
         }
+        if (m_runtime)
+        {
+            m_runtime->steps[FSRDRuntimeSnapshot::Floor] = desc.FloorEnabled
+                ? FSRDRuntimeSnapshot::Passed : FSRDRuntimeSnapshot::Disabled;
+            m_runtime->Begin(FSRDRuntimeSnapshot::Conversion);
+        }
 
         // DLSS-RR to FSR-RR conversion
         {
             FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::Conversion);
             DispatchPackingShader(cmdList, desc, conversionPipeline);
         }
+        if (m_runtime) m_runtime->Complete(FSRDRuntimeSnapshot::Conversion);
 
         // Diagnostic: read back the RR-facing linear depth, motion and normals while
         // their state is still the one this code set. The denoiser dispatch below
@@ -1640,6 +1649,7 @@ struct FSRDPreprocessor_Dx12::Impl
 
     void DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
     {
+        if (m_runtime) m_runtime->Begin(FSRDRuntimeSnapshot::Composition);
         if (!cmdList || !m_maxWidth)
             throw std::runtime_error("Composition requires a command list and allocated resources");
 
@@ -1703,7 +1713,14 @@ struct FSRDPreprocessor_Dx12::Impl
                 : m_outputBuffer2.Get();
 
         if (desc.UnsupportedAlbedoRecovery > 0.0f)
+        {
+            if (m_runtime) m_runtime->Begin(FSRDRuntimeSnapshot::AlbedoRecovery);
             DispatchAlbedoTrust(cmdList, desc, diffuseRadiance);
+            if (m_runtime) m_runtime->Complete(FSRDRuntimeSnapshot::AlbedoRecovery);
+        }
+        else if (m_runtime)
+            m_runtime->steps[FSRDRuntimeSnapshot::AlbedoRecovery] = FSRDRuntimeSnapshot::Disabled;
+        if (m_runtime) m_runtime->Begin(FSRDRuntimeSnapshot::Composition);
 
         inputs.Resources =
         {
@@ -1752,6 +1769,7 @@ struct FSRDPreprocessor_Dx12::Impl
                                       CompositionPipeline(desc));
         }
         m_historyPending=writeHistory;
+        if (m_runtime) m_runtime->Complete(FSRDRuntimeSnapshot::Composition);
     }
 
     // Unsupported-albedo evidence from RR's unmodulated specular output, then six
@@ -2091,6 +2109,11 @@ bool FSRDPreprocessor_Dx12::DispatchConversion(ID3D12GraphicsCommandList* cmdLis
 void FSRDPreprocessor_Dx12::SetStageTimings(FSRDStageTimings* timings)
 {
     m_impl->m_stageTimings = timings;
+}
+
+void FSRDPreprocessor_Dx12::SetRuntimeSnapshot(FSRDRuntimeSnapshot* snapshot)
+{
+    m_impl->m_runtime = snapshot;
 }
 
 bool FSRDPreprocessor_Dx12::ConfigureSignalResources(bool extraDiffuse, bool extraSpecular, bool albedoRecovery)

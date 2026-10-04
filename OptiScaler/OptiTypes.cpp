@@ -80,7 +80,7 @@ std::string UpscalerDisplayName(Upscaler upscaler, API api)
         return "DLSSD";
 
     case Upscaler::FSR_RR:
-        return "FSR-RR";
+        return "FSR";
     }
 
     return "????";

@@ -651,7 +651,7 @@ static NVSDK_NGX_Result TryCreateOptiFeature(ID3D12GraphicsCommandList* InCmdLis
     }
     else
     {
-        if (IdentifyGpu::getPrimaryGpu().vendorId == VendorId::Nvidia)
+        if (GetUpscalerBackend() != Upscaler::FFX)
         {
             upscalerBackend = Upscaler::DLSSD;
             LOG_INFO("Creating DLSSD (Ray Reconstruction) feature");
@@ -701,6 +701,7 @@ static NVSDK_NGX_Result TryCreateOptiFeature(ID3D12GraphicsCommandList* InCmdLis
     }
 
     // Assign handle
+    const bool allocatedHandle = *OutHandle == nullptr;
     if (*OutHandle == nullptr)
         *OutHandle = new NVSDK_NGX_Handle { handleId };
     else
@@ -710,6 +711,7 @@ static NVSDK_NGX_Result TryCreateOptiFeature(ID3D12GraphicsCommandList* InCmdLis
 
     IFeature_Dx12* feature = Dx12Contexts[handleId].feature.get();
 
+    bool failedRayReconstruction = false;
     // Initialize feature
     if (feature->Init(D3D12Device, InCmdList, InParameters))
     {
@@ -721,11 +723,15 @@ static NVSDK_NGX_Result TryCreateOptiFeature(ID3D12GraphicsCommandList* InCmdLis
     }
     else
     {
-        LOG_ERROR("Feature '{}' initialization failed falling back to FSR 2.1.2", UpscalerDisplayName(upscalerBackend));
-        state.newBackend = Upscaler::FSR21;
-        Dx12Contexts[handleId].featureKey = Upscaler::FSR21;
-        Dx12Contexts[handleId].featureID = InFeatureID;
-        state.changeBackend[handleId] = true;
+        failedRayReconstruction = InFeatureID == NVSDK_NGX_Feature_RayReconstruction;
+        LOG_ERROR("Feature '{}' initialization failed", UpscalerDisplayName(upscalerBackend));
+        if (!failedRayReconstruction)
+        {
+            state.newBackend = Upscaler::FSR21;
+            Dx12Contexts[handleId].featureKey = Upscaler::FSR21;
+            Dx12Contexts[handleId].featureID = InFeatureID;
+            state.changeBackend[handleId] = true;
+        }
     }
 
     // Restore root signatures
@@ -733,6 +739,17 @@ static NVSDK_NGX_Result TryCreateOptiFeature(ID3D12GraphicsCommandList* InCmdLis
         D3D12Hooks::RestoreRoot(InCmdList);
 
     D3D12Hooks::SetRootSignatureTracking(true);
+
+    if (failedRayReconstruction)
+    {
+        Dx12Contexts.erase(handleId);
+        if (allocatedHandle)
+        {
+            delete *OutHandle;
+            *OutHandle = nullptr;
+        }
+        return NVSDK_NGX_Result_Fail;
+    }
 
     if (state.activeFgInput == FGInput::Upscaler)
         state.fgChanged = true;
@@ -876,16 +893,12 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_ReleaseFeature(NVSDK_NGX_Handle* 
     if (auto it = Dx12Contexts.find(handleId); it != Dx12Contexts.end())
     {
         auto& entry = it->second;
-
-        if (auto* deviceContext = entry.feature.get())
-        {
-            // Clear global reference if it matches
-            if (deviceContext == State::Instance().currentFeature)
-                State::Instance().currentFeature = nullptr;
-
-            // Erase from map (smart pointer reset is implicit on erase)
-            Dx12Contexts.erase(it);
-        }
+        if (entry.feature.get() == State::Instance().currentFeature)
+            State::Instance().currentFeature = nullptr;
+        if (entry.ownsCreateParams && entry.createParams)
+            TryDestroyNGXParameters(entry.createParams, NVNGXProxy::D3D12_DestroyParameters());
+        // Also erase entries released between recreation phases, while feature is null.
+        Dx12Contexts.erase(it);
     }
     else
     {
@@ -907,6 +920,8 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_GetFeatureRequirements(
     IDXGIAdapter* Adapter, const NVSDK_NGX_FeatureDiscoveryInfo* FeatureDiscoveryInfo,
     NVSDK_NGX_FeatureRequirement* OutSupported)
 {
+    if (!FeatureDiscoveryInfo)
+        return NVSDK_NGX_Result_FAIL_InvalidParameter;
     LOG_DEBUG("for ({0})", (int) FeatureDiscoveryInfo->FeatureID);
 
     const bool isUpscaling = FeatureDiscoveryInfo->FeatureID == NVSDK_NGX_Feature_SuperSampling;
@@ -944,7 +959,8 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_GetFeatureRequirements(
         can be done there. All this does is allow the game to actually checks the params
         instead of failing early.
         */
-        if (FfxApiProxy::IsSRReady() && FfxApiProxy::IsDenoiserReady())
+        if (GetUpscalerBackend() == Upscaler::FFX && FfxApiProxy::IsSRReady() &&
+            FfxApiProxy::IsDenoiserApiImplementedDx12())
         {
             LOG_DEBUG("Reporting support for DLSSD -> FSR Ray Regeneration");
 
@@ -984,7 +1000,8 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_GetFeatureRequirements(
         LOG_DEBUG("D3D12_GetFeatureRequirements not available for ({0})", (int) FeatureDiscoveryInfo->FeatureID);
     }
 
-    OutSupported->FeatureSupported = NVSDK_NGX_FeatureSupportResult_AdapterUnsupported;
+    if (OutSupported)
+        OutSupported->FeatureSupported = NVSDK_NGX_FeatureSupportResult_AdapterUnsupported;
     return NVSDK_NGX_Result_FAIL_FeatureNotSupported;
 }
 
@@ -1036,7 +1053,8 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(ID3D12GraphicsCommandList* InCmdL
         if (!D3D12Hooks::CanRestoreRootSignature(InCmdList))
         {
             LOG_DEBUG("Skipping upscaling because can't restore root signature");
-            return NVSDK_NGX_Result_Success;
+            return ctxData.featureID == NVSDK_NGX_Feature_RayReconstruction
+                ? NVSDK_NGX_Result_Fail : NVSDK_NGX_Result_Success;
         }
     }
 
@@ -1048,7 +1066,9 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(ID3D12GraphicsCommandList* InCmdL
     {
         const bool isFFX =
             feature->GetUpscalerType() == Upscaler::FFX || feature->GetUpscalerType() == Upscaler::FFX_on12;
-        const bool isFSR31OrLater = isFFX && feature->Version() >= feature_version { 3, 1, 0 };
+        // RR also owns a native fallback context with a fixed output size.
+        const bool isFSR31OrLater = isFFX && !feature->UsesRecordedComputeLifetime() &&
+                                   feature->Version() >= feature_version { 3, 1, 0 };
 
         // FSR 3.1 supports upscaleSize that doesn't need reinit to change output resolution
         if (!isFSR31OrLater && feature->UpdateOutputResolution(InParameters))
@@ -1063,17 +1083,35 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(ID3D12GraphicsCommandList* InCmdL
     {
         UpscalerInputsDx12::Reset();
 
-        auto successfulPhase = FeatureProvider_Dx12::ChangeFeature(state.newBackend, D3D12Device, InCmdList, handleId,
-                                                                   InParameters, &ctxData);
+        bool successfulPhase = false;
+        do
+        {
+            successfulPhase = FeatureProvider_Dx12::ChangeFeature(state.newBackend, D3D12Device, InCmdList, handleId,
+                                                                    InParameters, &ctxData);
+            // An RR profile change must finish recreation before this evaluation
+            // returns: intermediate phases have no denoised image to hand back.
+            // Old resources still follow the existing delayed-destruction path.
+        } while (ctxData.featureID == NVSDK_NGX_Feature_RayReconstruction && successfulPhase &&
+                 ctxData.changeBackendCounter != 0);
         feature = ctxData.feature.get();
 
         evalCounter = 0;
 
         if (ctxData.changeBackendCounter != 0 || !successfulPhase)
         {
+            if (shouldRestoreSigs)
+                D3D12Hooks::RestoreRoot(InCmdList);
             D3D12Hooks::SetRootSignatureTracking(true);
-            return NVSDK_NGX_Result_Success;
+            return ctxData.featureID == NVSDK_NGX_Feature_RayReconstruction
+                ? NVSDK_NGX_Result_Fail : NVSDK_NGX_Result_Success;
         }
+    }
+
+    if (!feature || (!feature->IsInited() && ctxData.featureID == NVSDK_NGX_Feature_RayReconstruction))
+    {
+        if (shouldRestoreSigs) D3D12Hooks::RestoreRoot(InCmdList);
+        D3D12Hooks::SetRootSignatureTracking(true);
+        return NVSDK_NGX_Result_Fail;
     }
 
     // Fallback to FSR 2.1.2 if feature failed to initialize and user didn't explicitly request it
@@ -1103,14 +1141,30 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(ID3D12GraphicsCommandList* InCmdL
         UpscalerInputsDx12::UpscaleEnd(InCmdList, InParameters, feature);
 
         ScopedSkipHeapCapture skip {};
-        evalSuccess = feature->Evaluate(InCmdList, InParameters);
+        feature->OnEvaluationStarting(InParameters);
+        try
+        {
+            evalSuccess = feature->Evaluate(InCmdList, InParameters);
+        }
+        catch (const std::exception& error)
+        {
+            LOG_ERROR("Feature evaluation exception: {}", error.what());
+        }
+        catch (...)
+        {
+            LOG_ERROR("Unknown feature evaluation exception");
+        }
+        if (!evalSuccess)
+            evalSuccess = feature->EvaluateFallback(InCmdList, InParameters);
+        feature->OnEvaluationFinished(evalSuccess);
     }
 
-    if (!evalSuccess)
+    if (!evalSuccess && !ctxData.evaluationFailed)
     {
         LOG_ERROR("Feature evaluation failed for '{}'", feature->Name());
         ImGui::InsertNotification({ ImGuiToastType::Error, 10000, "Upscaler failed to run!" });
     }
+    ctxData.evaluationFailed = !evalSuccess;
 
     // Restore root signatures
     if (shouldRestoreSigs)

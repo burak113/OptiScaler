@@ -6,6 +6,166 @@
 
 namespace FSRDMenu
 {
+inline bool DrawProfile(Config& cfg)
+{
+    const char* names[] = { "Fast", "Balanced", "Quality" };
+    const int profile = cfg.GetFfxDenoiserProfile();
+    bool changed = false;
+    if (ImGui::BeginCombo("Profile", profile >= 0 ? names[profile] : "Custom"))
+    {
+        for (int i = 0; i < 3; ++i)
+            if (ImGui::Selectable(names[i], profile == i))
+            {
+                cfg.ApplyFfxDenoiserProfile(i);
+                changed = true;
+            }
+        ImGui::EndCombo();
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Fast: Floor and recovery off.\n"
+                          "Balanced (default): Fast Floor, Full Anchor flat/zero-rough recovery, Light Anchor Mix specular.\n"
+                          "Quality: normal Floor, Full Anchor flat/zero-rough, Light Anchor Mix specular + diffuse, "
+                          "and Unsupported Albedo recovery.\nManual edits are saved as Custom.");
+    return changed;
+}
+
+inline bool DrawDenoiser(Config& cfg, const FSRDRuntimeSnapshot& snapshot,
+                         bool ffxActive, bool nvRRActive, bool providerAvailable)
+{
+    const ImVec4 red(1.0f, 0.32f, 0.28f, 1.0f), green(0.3f, 0.9f, 0.45f, 1.0f);
+    const bool eligible = ffxActive && nvRRActive && providerAvailable;
+    const bool requested = eligible && cfg.FfxDenoiserEnabled.value_or(true);
+    bool retry = false;
+    if (ImGui::BeginCombo("Denoiser", requested ? "FSR-RR" : "Native"))
+    {
+        const bool nativeAvailable = !nvRRActive || snapshot.nativeAvailable || !ffxActive;
+        ImGui::BeginDisabled(!nativeAvailable);
+        if (ImGui::Selectable("Native", !requested))
+        {
+            if (nvRRActive && ffxActive) cfg.FfxDenoiserEnabled = false;
+            else cfg.FfxDenoiserEnabled.reset();
+        }
+        ImGui::EndDisabled();
+        if (!nativeAvailable && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip("Disable NV Ray Reconstruction in the game to restore its native denoiser. "
+                              "No native NVIDIA RR provider is available on this device.");
+        ImGui::BeginDisabled(!eligible);
+        if (ImGui::Selectable("FSR-RR", requested))
+        {
+            cfg.FfxDenoiserEnabled = true;
+            retry = !snapshot.failure.empty();
+        }
+        ImGui::EndDisabled();
+        ImGui::EndCombo();
+    }
+    if (!eligible)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, red);
+        ImGui::TextWrapped("FSR-RR unavailable: %s", !ffxActive ? "select the FSR (FFX) upscaler."
+            : !nvRRActive ? "enable NV Ray Reconstruction in the game."
+                          : "the AMD Ray Regeneration provider is missing or incompatible.");
+        ImGui::PopStyleColor();
+    }
+    if (snapshot.rayReconstruction)
+    {
+        const bool fresh = snapshot.updated.time_since_epoch().count() != 0 &&
+            std::chrono::steady_clock::now() - snapshot.updated < std::chrono::seconds(2);
+        const bool running = fresh && snapshot.success && snapshot.rrDispatched && !snapshot.nativeActive;
+        ImGui::TextColored(running ? green : red, "FSR-RR: %s", running ? "running" : "not running");
+        if (snapshot.nativeActive && fresh)
+            ImGui::TextColored(green, "Native NVIDIA RR + SR: %s", snapshot.fallback ? "fallback active" : "active");
+        if (!snapshot.failure.empty())
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, red);
+            ImGui::TextWrapped("%s", snapshot.failure.c_str());
+            ImGui::PopStyleColor();
+        }
+        if (eligible && !snapshot.failure.empty() && ImGui::Button("Retry FSR-RR"))
+        {
+            cfg.FfxDenoiserEnabled = true;
+            retry = true;
+        }
+    }
+    else if (nvRRActive)
+        ImGui::TextWrapped("Native NVIDIA Ray Reconstruction is selected. Select FSR as the upscaler to enable FSR-RR.");
+    else
+        ImGui::TextWrapped("Native is selected while NV Ray Reconstruction is off. Enabling NV RR with "
+                          "the FSR upscaler automatically selects FSR-RR unless Native was explicitly saved.");
+    return retry;
+}
+
+inline void DrawWorkflow(const FSRDRuntimeSnapshot& snapshot)
+{
+    if (!ImGui::CollapsingHeader("How it works / Live pipeline")) return;
+    using R = FSRDRuntimeSnapshot;
+    const char* steps[] = {
+        "1. Validate color, depth, motion, normals, roughness, albedo and camera transforms.",
+        "2. Floor filters stable scene lighting and prepares the detail reference.",
+        "3. Convert guides and split scene color into the selected RR signals.",
+        "4. AMD Ray Regeneration denoises the bound diffuse/specular signals.",
+        "5. Unsupported Albedo recovery builds surface trust from alternate specular.",
+        "6. Compose denoised light, restore material color and apply enabled recovery.",
+        "7. FSR Super Resolution upscales the composed image.",
+        "8. Finish sharpening/output scaling and return the final output to the game."
+    };
+    const char* status[] = { "not run", "in progress", "completed", "FAILED", "off / bypassed" };
+    const bool fresh = snapshot.updated.time_since_epoch().count() != 0 &&
+        std::chrono::steady_clock::now() - snapshot.updated < std::chrono::seconds(2);
+    for (int i = 0; i < R::StepCount; ++i)
+    {
+        const auto value = fresh ? snapshot.steps[i] : R::NotRun;
+        ImGui::PushStyleColor(ImGuiCol_Text, value == R::Passed ? ImVec4(0.3f, 0.9f, 0.45f, 1.0f)
+                                                             : ImVec4(1.0f, 0.32f, 0.28f, 1.0f));
+        ImGui::TextWrapped("%s [%s]", steps[i], status[value]);
+        ImGui::PopStyleColor();
+    }
+    ImGui::TextWrapped("Green means validation/command recording succeeded in the latest evaluation; "
+                      "it is not a GPU completion check. Red also marks deliberately disabled or bypassed stages. "
+                      "A failed stage stops FSR-RR until Retry or context recreation. Native NVIDIA RR + SR is used "
+                      "when available; otherwise NV RR must be disabled in the game to restore its denoiser.");
+}
+
+inline void DrawInputs(const FSRDRuntimeSnapshot& snapshot)
+{
+    if (!ImGui::CollapsingHeader("Live inputs / What RR receives")) return;
+    using R = FSRDRuntimeSnapshot;
+    const bool fresh = snapshot.updated.time_since_epoch().count() != 0 &&
+        std::chrono::steady_clock::now() - snapshot.updated < std::chrono::seconds(2);
+    if (ImGui::BeginTable("RRInputs", 4, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchProp))
+    {
+        ImGui::TableSetupColumn("Input");
+        ImGui::TableSetupColumn("Received");
+        ImGui::TableSetupColumn("Preprocess");
+        ImGui::TableSetupColumn("Bound to RR");
+        ImGui::TableHeadersRow();
+        for (int i = 0; i < R::InputCount; ++i)
+        {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::TextUnformatted(R::InputNames[i]);
+            const bool values[] = { (snapshot.received & (1u << i)) != 0,
+                                    (snapshot.prepared & (1u << i)) != 0,
+                                    snapshot.rrDispatched && (snapshot.submitted & (1u << i)) != 0 };
+            for (int j = 0; j < 3; ++j)
+            {
+                ImGui::TableSetColumnIndex(j + 1);
+                const bool yes = fresh && values[j];
+                ImGui::TextColored(yes ? ImVec4(0.3f, 0.9f, 0.45f, 1.0f) : ImVec4(1.0f, 0.32f, 0.28f, 1.0f),
+                                   "%s", yes ? "Yes" : "No");
+            }
+        }
+        ImGui::EndTable();
+    }
+    ImGui::TextWrapped("Received: NGX resources or validated Streamline tags (roughness may be packed in normals). "
+                      "Preprocess: selected, validated source guides. Bound to RR: converted guides/signals in an "
+                      "accepted AMD dispatch, not direct copies of the game textures. Color becomes radiance; "
+                      "normals include roughness; ray distances use signal alpha. A generated ray estimate may be "
+                      "bound without a received source. Bias, emissive and responsivity affect preprocessing only; "
+                      "title linear depth contributes to converted Depth. View/projection and jitter are constants. "
+                      "Exposure is an SR input, not an RR guide. "
+                      "The provider does not expose which inputs its model reads internally.");
+}
+
 inline FSRDSignals::Layout RequestedLayout(const Config& cfg, uint32_t status)
 {
     if (cfg.FfxDenoiserSignalCount.has_value())

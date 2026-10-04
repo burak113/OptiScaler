@@ -108,10 +108,11 @@ bool DLSSDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList
     return true;
 }
 
-DLSSDFeatureDx12::DLSSDFeatureDx12(unsigned int InHandleId, NVSDK_NGX_Parameter* InParameters)
+DLSSDFeatureDx12::DLSSDFeatureDx12(unsigned int InHandleId, NVSDK_NGX_Parameter* InParameters, bool recordedComputeLifetime)
     : IFeature(InHandleId, InParameters), IFeature_Dx12(InHandleId, InParameters),
       DLSSDFeature(InHandleId, InParameters)
 {
+    _recordedComputeLifetime = recordedComputeLifetime;
     if (NVNGXProxy::NVNGXModule() == nullptr)
     {
         LOG_INFO("nvngx.dll not loaded, now loading");

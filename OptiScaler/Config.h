@@ -475,6 +475,9 @@ class Config
     CustomOptional<float> FsrMinDisOccAcc { -0.333f };
 
     // FSR-RR
+    // Unset selects Native for SR and automatically selects FSR-RR for FFX + NV RR.
+    CustomOptional<bool, NoDefault> FfxDenoiserEnabled;
+    CustomOptional<int> FfxDenoiserProfile { 1 }; // 0 Fast, 1 Balanced, 2 Quality; -1 custom
     CustomOptional<int> FfxDenoiserIndex { 0 };
     CustomOptional<uint64_t> FfxDenoiserDebugMode { 0 };
     // -1: overview, 0..FFX_API_DENOISER_DEBUG_VIEW_MAX_VIEWPORTS-1: fullscreen viewport
@@ -529,7 +532,7 @@ class Config
     // over a sea floor). Requires a compatible 3/4-signal layout and 1/1 modulation.
     CustomOptional<bool> FfxDenoiserUnsupportedAlbedoRecovery{false};
     CustomOptional<bool> FfxDenoiserFloorFlatRecovery{true};
-    CustomOptional<bool> FfxDenoiserFloorSpecularRecovery{false};
+    CustomOptional<bool> FfxDenoiserFloorSpecularRecovery{true};
     CustomOptional<bool> FfxDenoiserFloorDiffuseRecovery{false};
     CustomOptional<int> FfxDenoiserFloorFlatNoiseMethod{0};
     CustomOptional<int> FfxDenoiserFloorSpecularNoiseMethod{1};
@@ -538,8 +541,8 @@ class Config
     CustomOptional<float> FfxDenoiserFloorChromaRecovery{1.0f};
 
     CustomOptional<bool> FfxDenoiserFloorEnabled { true };
-    // Opt-in reduced Floor pass policy; the full five-pass policy remains default.
-    CustomOptional<bool> FfxDenoiserFloorFastMode { false };
+    // Reduced Floor pass policy is the Balanced default; Quality uses five passes.
+    CustomOptional<bool> FfxDenoiserFloorFastMode { true };
     CustomOptional<float> FfxDenoiserFloorRecovery { 1.0f };
     CustomOptional<float> FfxDenoiserFloorHandoverCorrelationMix { 1.0f };
     CustomOptional<float> FfxDenoiserFloorHandoverAnchorClamp { 4.0f };
@@ -782,6 +785,8 @@ class Config
     // its own assignment list. Returns true when a context-creation setting
     // changed and the caller must rebuild the RR context.
     bool ResetFfxDenoiserSettings();
+    void ApplyFfxDenoiserProfile(int profile);
+    int GetFfxDenoiserProfile() const;
 
     std::vector<std::string> GetConfigLog();
 

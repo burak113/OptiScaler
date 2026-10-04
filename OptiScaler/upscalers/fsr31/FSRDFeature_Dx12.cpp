@@ -12,6 +12,8 @@
 #include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
 #include "shaders/fsrd_preprocess/FSRDShaderUtils.h"
 #include "MathUtils.h"
+#include "upscalers/dlssd/DLSSDFeature_Dx12.h"
+#include "misc/IdentifyGpu.h"
 
 using namespace DirectX;
 using namespace OptiMath;
@@ -1129,7 +1131,8 @@ FSRDFeatureDx12::FSRDFeatureDx12(uint32_t InHandleId, NVSDK_NGX_Parameter* InPar
     _denoiserSettings({}), 
     _convDesc({})
 {
-    _moduleLoaded = FfxApiProxy::IsDenoiserApiImplementedDx12();
+    _moduleLoaded = FfxApiProxy::IsDenoiserApiImplementedDx12() ||
+        (IdentifyGpu::getPrimaryGpu().dlssCapable && State::Instance().NVNGX_DLSSD_Path.has_value());
 
     if (FfxApiProxy::IsDenoiserApiImplementedDx12())
         LOG_INFO("amd_fidelityfx_denoiser_dx12.dll methods loaded!");
@@ -1358,6 +1361,257 @@ bool FSRDFeatureDx12::PublishAmbientOcclusionOutput(ID3D12GraphicsCommandList* c
 bool FSRDFeatureDx12::s_ngxDepthTypeSeen = false;
 bool FSRDFeatureDx12::s_ngxReportedHWDepth = false;
 
+bool FSRDFeatureDx12::InitInternal(ID3D12GraphicsCommandList* commandList, NVSDK_NGX_Parameter* parameters)
+{
+    try
+    {
+        _rrInitialized = FfxApiProxy::IsDenoiserApiImplementedDx12() &&
+            FSR31FeatureDx12::InitInternal(commandList, parameters);
+    }
+    catch (const std::exception& error)
+    {
+        LOG_ERROR("[RR_HEALTH] FSR-RR initialization exception: {}", error.what());
+        _rrInitialized = false;
+    }
+    _rrFaulted = !_rrInitialized;
+    if (_rrFaulted)
+        _rrFailure = "FSR-RR context initialization failed or the AMD provider is unavailable.";
+
+    // A native NGX RR context is the only native denoiser callable through this API.
+    // The game's internal denoiser is not exposed by a Ray Reconstruction request.
+    if (IdentifyGpu::getPrimaryGpu().dlssCapable && State::Instance().NVNGX_DLSSD_Path.has_value())
+    {
+        // Native initialization writes its target extent back into the table.
+        // Keep the game's creation values for FSR's dynamic-output handling.
+        struct CreationParametersGuard
+        {
+            NVSDK_NGX_Parameter* parameters;
+            const char* keys[5] = { NVSDK_NGX_Parameter_Width, NVSDK_NGX_Parameter_Height,
+                NVSDK_NGX_Parameter_OutWidth, NVSDK_NGX_Parameter_OutHeight,
+                NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags };
+            std::optional<unsigned int> values[5];
+            explicit CreationParametersGuard(NVSDK_NGX_Parameter* params) : parameters(params)
+            {
+                for (int i = 0; i < 5; ++i)
+                {
+                    unsigned int value = 0;
+                    if (params->Get(keys[i], &value) == NVSDK_NGX_Result_Success) values[i] = value;
+                }
+            }
+            ~CreationParametersGuard()
+            {
+                for (int i = 0; i < 5; ++i)
+                    if (values[i]) parameters->Set(keys[i], *values[i]);
+            }
+        } restore(parameters);
+        try
+        {
+            _nativeDenoiser = std::make_unique<DLSSDFeatureDx12>(Handle()->Id, parameters, true);
+            if (!_nativeDenoiser->Init(Device, commandList, parameters))
+                _nativeDenoiser.reset();
+        }
+        catch (const std::exception& error)
+        {
+            LOG_ERROR("[RR_HEALTH] native RR initialization exception: {}", error.what());
+            _nativeDenoiser.reset();
+        }
+    }
+    _name = "FSR";
+    SetInit(_rrInitialized || _nativeDenoiser != nullptr);
+    _runtime.rayReconstruction = true;
+    _runtime.nativeAvailable = _nativeDenoiser != nullptr;
+    _runtime.failure = _rrFailure;
+    if (_rrFaulted) _runtime.steps[_failedStep] = FSRDRuntimeSnapshot::Failed;
+    {
+        std::lock_guard lock(_runtimeMutex);
+        _publishedRuntime = _runtime;
+    }
+    return IsInited();
+}
+
+void FSRDFeatureDx12::CopyRecreationParameters(NVSDK_NGX_Parameter* parameters) const
+{
+    parameters->Set(NVSDK_NGX_Parameter_DLSS_Denoise_Mode, int(NVSDK_NGX_DLSS_Denoise_Mode_DLUnified));
+    if (_hasNGXDepthType)
+        parameters->Set(NVSDK_NGX_Parameter_Use_HW_Depth,
+                        int(_ngxReportedHWDepth ? NVSDK_NGX_DLSS_Depth_Type_HW : NVSDK_NGX_DLSS_Depth_Type_Linear));
+    if (_roughnessSource != RoughnessSource::Unknown)
+        parameters->Set(NVSDK_NGX_Parameter_DLSS_Roughness_Mode,
+                        int(_roughnessSource == RoughnessSource::Packed ? NVSDK_NGX_DLSS_Roughness_Mode_Packed
+                                                                      : NVSDK_NGX_DLSS_Roughness_Mode_Unpacked));
+}
+
+void FSRDFeatureDx12::OnEvaluationStarting(NVSDK_NGX_Parameter* parameters)
+{
+    _runtime = {};
+    _runtime.frame = ++_evaluationNumber;
+    _runtime.rayReconstruction = true;
+    _runtime.nativeAvailable = _nativeDenoiser && _nativeDenoiser->IsInited();
+    _runtime.failure = _rrFailure;
+    _nativeAttempted = false;
+    if (_rrFaulted)
+        _runtime.steps[_failedStep] = FSRDRuntimeSnapshot::Failed;
+    else if (Config::Instance()->FfxDenoiserEnabled.value_or(true))
+        _runtime.Begin(FSRDRuntimeSnapshot::Inputs);
+    if (!parameters)
+        return;
+    using R = FSRDRuntimeSnapshot;
+    const std::pair<R::Input, const char*> inputs[] = {
+        {R::Color, NVSDK_NGX_Parameter_Color}, {R::Depth, NVSDK_NGX_Parameter_Depth},
+        {R::Motion, NVSDK_NGX_Parameter_MotionVectors}, {R::Normals, NVSDK_NGX_Parameter_GBuffer_Normals},
+        {R::Roughness, NVSDK_NGX_Parameter_GBuffer_Roughness},
+        {R::DiffuseAlbedo, NVSDK_NGX_Parameter_DiffuseAlbedo},
+        {R::SpecularAlbedo, NVSDK_NGX_Parameter_SpecularAlbedo},
+        {R::SpecularDistance, NVSDK_NGX_Parameter_DLSSD_SpecularHitDistance},
+        {R::SpecularDistance, NVSDK_NGX_Parameter_DLSSD_SpecularRayDirectionHitDistance},
+        {R::DiffuseDistance, NVSDK_NGX_Parameter_DLSSD_DiffuseHitDistance},
+        {R::DiffuseDistance, NVSDK_NGX_Parameter_DLSSD_DiffuseRayDirectionHitDistance},
+        {R::Bias, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask},
+        {R::Emissive, NVSDK_NGX_Parameter_GBuffer_Emissive},
+        {R::Responsivity, "DLSSD.ResponsivityMask"},
+        {R::Exposure, NVSDK_NGX_Parameter_ExposureTexture}
+    };
+    for (const auto& [input, key] : inputs)
+    {
+        ID3D12Resource* resource = nullptr;
+        if (TryGetNGXVoidPointer(*parameters, key, resource))
+            _runtime.received |= R::Bit(input);
+    }
+}
+
+void FSRDFeatureDx12::FailRayRegeneration(const char* reason)
+{
+    _runtime.steps[_runtime.activeStep] = FSRDRuntimeSnapshot::Failed;
+    _failedStep = _runtime.activeStep;
+    _rrFaulted = true;
+    _rrFailure = std::string(FSRDRuntimeSnapshot::StepNames[_failedStep]) + ": " + reason;
+    _runtime.failure = _rrFailure;
+    _upscalerResetPending = true;
+    InvalidateDenoiserHistory();
+    LOG_ERROR("[RR_HEALTH] {} (stage {})", reason, static_cast<int>(_runtime.activeStep));
+}
+
+bool FSRDFeatureDx12::EvaluateNative(ID3D12GraphicsCommandList* commandList,
+                                    NVSDK_NGX_Parameter* parameters, bool fullPipeline)
+{
+    if (_nativeAttempted || !commandList || !parameters || !_runtime.nativeAvailable)
+        return false;
+    _nativeAttempted = true;
+    if (FAILED(Device->GetDeviceRemovedReason()))
+    {
+        _runtime.failure += " D3D12 device is unavailable; native fallback cannot run.";
+        return false;
+    }
+    unsigned int reset = 0;
+    float sharpness = 0.0f;
+    parameters->Get(NVSDK_NGX_Parameter_Reset, &reset);
+    parameters->Get(NVSDK_NGX_Parameter_Sharpness, &sharpness);
+    struct ResetGuard
+    {
+        NVSDK_NGX_Parameter* parameters;
+        unsigned int reset;
+        float sharpness;
+        ~ResetGuard()
+        {
+            parameters->Set(NVSDK_NGX_Parameter_Reset, reset);
+            parameters->Set(NVSDK_NGX_Parameter_Sharpness, sharpness);
+        }
+    } resetGuard { parameters, reset, sharpness };
+    if (!_nativeWasActive)
+        parameters->Set(NVSDK_NGX_Parameter_Reset, 1u);
+    bool success = false;
+    try
+    {
+        success = fullPipeline ? _nativeDenoiser->Evaluate(commandList, parameters)
+                               : _nativeDenoiser->EvaluateInternal(commandList, parameters);
+    }
+    catch (const std::exception& error)
+    {
+        LOG_ERROR("[RR_HEALTH] native RR exception: {}", error.what());
+    }
+    catch (...)
+    {
+        LOG_ERROR("[RR_HEALTH] native RR raised an unknown exception");
+    }
+    _runtime.nativeActive = success;
+    if (!fullPipeline)
+        ++_frameCount;
+    if (!success)
+        _runtime.failure += " Native NVIDIA RR also failed.";
+    return success;
+}
+
+bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* commandList, NVSDK_NGX_Parameter* parameters)
+{
+    const bool requested = Config::Instance()->FfxDenoiserEnabled.value_or(true);
+    if (!requested || _rrFaulted)
+    {
+        _runtime.fallback = requested;
+        if (!_runtime.nativeAvailable)
+            _runtime.failure += " No callable native RR provider. Disable NV Ray Reconstruction in the game to use its native denoiser.";
+        InvalidateDenoiserHistory();
+        _upscalerResetPending = true;
+        return EvaluateNative(commandList, parameters, false);
+    }
+    _nativeWasActive = false;
+    try
+    {
+        if (EvaluateRayRegeneration(commandList, parameters))
+        {
+            if (FAILED(Device->GetDeviceRemovedReason()))
+            {
+                FailRayRegeneration("D3D12 device was removed during the pipeline.");
+                return false;
+            }
+            _runtime.Begin(FSRDRuntimeSnapshot::Output);
+            return true;
+        }
+        FailRayRegeneration("FSR-RR stopped after a failed validation or dispatch. See the failing stage and log.");
+    }
+    catch (const std::exception& error)
+    {
+        FailRayRegeneration(error.what());
+    }
+    catch (...)
+    {
+        FailRayRegeneration("Unknown exception in the FSR-RR pipeline.");
+    }
+    // IFeature_Dx12 must unwind its resource/parameter guards before native retry.
+    return false;
+}
+
+bool FSRDFeatureDx12::EvaluateFallback(ID3D12GraphicsCommandList* commandList, NVSDK_NGX_Parameter* parameters)
+{
+    if (_nativeAttempted)
+        return false;
+    if (!_rrFaulted && Config::Instance()->FfxDenoiserEnabled.value_or(true))
+        FailRayRegeneration("FSR-RR input or output processing failed. Native fallback requested.");
+    _runtime.fallback = Config::Instance()->FfxDenoiserEnabled.value_or(true);
+    if (!_runtime.nativeAvailable)
+    {
+        _runtime.failure += " Native fallback unavailable; disable NV Ray Reconstruction in the game.";
+        return false;
+    }
+    return EvaluateNative(commandList, parameters, true);
+}
+
+void FSRDFeatureDx12::OnEvaluationFinished(bool success)
+{
+    _runtime.success = success;
+    // A successful native retry does not erase the original RR output failure.
+    if (!_runtime.fallback || _failedStep != FSRDRuntimeSnapshot::Output)
+        _runtime.steps[FSRDRuntimeSnapshot::Output] = success ? FSRDRuntimeSnapshot::Passed : FSRDRuntimeSnapshot::Failed;
+    _nativeWasActive = success && _runtime.nativeActive;
+    if (!success)
+    {
+        InvalidateDenoiserHistory();
+        _upscalerResetPending = true;
+    }
+    _runtime.updated = std::chrono::steady_clock::now();
+    std::lock_guard lock(_runtimeMutex);
+    _publishedRuntime = _runtime;
+}
+
 bool FSRDFeatureDx12::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
 {
     LOG_FUNC();
@@ -1368,7 +1622,7 @@ bool FSRDFeatureDx12::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
         SetInit(false);
 
         LOG_DEBUG("FSR Ray Regeneration Initializing");
-        _name = "FSR-RR";
+        _name = "FSR";
 
         if (int value; InParameters->Get(NVSDK_NGX_Parameter_Use_HW_Depth, &value) == NVSDK_NGX_Result_Success)
         {
@@ -1796,7 +2050,7 @@ bool FSRDFeatureDx12::UpdateSize()
     return true;
 }
 
-bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) 
+bool FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters)
 {
     LOG_FUNC();
 
@@ -1923,6 +2177,7 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
     // Dispatch denoiser
     if (!isDenoiseBypassed)
     {
+        _runtime.Begin(FSRDRuntimeSnapshot::RayRegeneration);
         ffxDispatchDescDenoiserDebugView dispatchDebugView = {};
 
         if (isFfxDebug)
@@ -2008,6 +2263,7 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
             InvalidateDenoiserHistory();
             return false;
         }
+        _runtime.rrDispatched = true;
 
         if (!PublishAmbientOcclusionOutput(InCommandList))
         {
@@ -2016,6 +2272,7 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
         }
 
         CommitDenoiserHistory();
+        _runtime.Complete(FSRDRuntimeSnapshot::RayRegeneration);
 
         // Compose denoised signals
         uint32_t compositionFlags = (uint32_t)GetCompDebugFlags(dbgMode);
@@ -2085,6 +2342,7 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
         // A skipped RR frame breaks temporal continuity. The next real dispatch
         // must reset instead of reusing history across the gap.
         InvalidateDenoiserHistory();
+        _runtime.steps[FSRDRuntimeSnapshot::RayRegeneration] = FSRDRuntimeSnapshot::Disabled;
     }
 
     // Upscaler start. Stays true on the debug/bypass paths where no upscale is requested.
@@ -2092,6 +2350,7 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
 
     if (!isUpscaleBypassed)
     {
+        _runtime.Begin(FSRDRuntimeSnapshot::SuperResolution);
         // Override upscaler config. The composition output is left in
         // NON_PIXEL | PIXEL shader-resource state, so declare both: the default
         // argument is COMPUTE_READ alone, which would leave the resource in a
@@ -2108,11 +2367,14 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
         }
         _upscalerResetPending = !isUpscalerReady;
         upscalerContinuityGuard.dispatchSucceeded = isUpscalerReady;
+        if (isUpscalerReady) _runtime.Complete(FSRDRuntimeSnapshot::SuperResolution);
 
         // Post-processing (RCAS/output scaling/overlay) is run by IFeature_Dx12::Evaluate.
     }
     else // Debug visualization
     {
+        _runtime.steps[FSRDRuntimeSnapshot::SuperResolution] = FSRDRuntimeSnapshot::Disabled;
+        _runtime.Begin(FSRDRuntimeSnapshot::Output);
         ID3D12Resource* srcTex = nullptr;
         XMUINT2 debugSourceBase {};
         XMFLOAT2 debugSourceLogicalSize {
@@ -2218,6 +2480,8 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
     if (!PrepareDenoiseConvInput(inParams))
         return false;   
 
+    _runtime.Complete(FSRDRuntimeSnapshot::Inputs);
+
     if (!ConvertDenoiserBuffers(InCommandList))
         return false;
 
@@ -2318,6 +2582,22 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
             dispatchDesc, directDiffuse, indirectSpecular, activeAmbientOcclusion,
             _extraSpecularSignal ? &_directSpecularSignal : nullptr))
         return false;
+
+    using R = FSRDRuntimeSnapshot;
+    _runtime.submitted = R::Bit(R::Color) | R::Bit(R::Depth) | R::Bit(R::Motion) |
+                         R::Bit(R::Normals) | R::Bit(R::Roughness);
+    if (activeAmbientOcclusion)
+    {
+        _runtime.received |= R::Bit(R::AmbientOcclusion);
+        _runtime.prepared |= R::Bit(R::AmbientOcclusion);
+        _runtime.submitted |= R::Bit(R::AmbientOcclusion);
+    }
+    if (_denoiseDiffuse) _runtime.submitted |= R::Bit(R::DiffuseAlbedo);
+    if (_denoiseSpecular) _runtime.submitted |= R::Bit(R::SpecularAlbedo);
+    if (_denoiseDiffuse && (_diffuseSignalDescType == FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE || _extraDiffuseSignal))
+        _runtime.submitted |= R::Bit(R::DiffuseDistance);
+    if (_denoiseSpecular && _specularSignalDescType == FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR)
+        _runtime.submitted |= R::Bit(R::SpecularDistance);
     
     if (resetHistory)
         dispatchDesc.flags |= FFX_DENOISER_DISPATCH_RESET;
@@ -3475,6 +3755,24 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
     if (!ResolveSignalTypes(isReady))
         return false;
 
+    if (isReady)
+    {
+        using R = FSRDRuntimeSnapshot;
+        const auto& resources = _convDesc.Resources;
+        _runtime.prepared = R::Bit(R::Color) | R::Bit(R::Depth) | R::Bit(R::Motion) |
+                            R::Bit(R::Normals) | R::Bit(R::Roughness) |
+                            R::Bit(R::DiffuseAlbedo) | R::Bit(R::SpecularAlbedo);
+        if (resources.InSpecHitDist || resources.InSpecularRayDirectionHitDistance)
+            _runtime.prepared |= R::Bit(R::SpecularDistance);
+        if (resources.InDiffuseHitDistance) _runtime.prepared |= R::Bit(R::DiffuseDistance);
+        if (resources.InBiasMask) _runtime.prepared |= R::Bit(R::Bias);
+        if (resources.InEmissive) _runtime.prepared |= R::Bit(R::Emissive);
+        if (resources.InTitleLinearDepth) _runtime.prepared |= R::Bit(R::LinearDepth);
+        if (resources.InResponsivityMask) _runtime.prepared |= R::Bit(R::Responsivity);
+        // Includes validated Streamline guides and packed normal-alpha roughness.
+        _runtime.received |= _runtime.prepared;
+    }
+
     return isReady;
 }
 
@@ -3856,6 +4154,7 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
 
     // Dispatch resource converter. Outputs are automatically transitioned for reading.
     FSRDConvShader->SetStageTimings(&_stageTimings);
+    FSRDConvShader->SetRuntimeSnapshot(&_runtime);
     if (!FSRDConvShader->DispatchConversion(InCommandList, _convDesc))
     {
         _convDesc.Resources.InInspector = nullptr;
@@ -4184,11 +4483,8 @@ bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
             }
         }
 
-        if (result == FFX_API_RETURN_ERROR_RUNTIME_ERROR)
-        {
-            LOG_WARN("Trying to recover by recreating the feature");
-            state.changeBackend[Handle()->Id] = true;
-        }
+        // The provider is latched off by EvaluateInternal and native fallback is
+        // attempted once. Recreating it automatically here would retry every frame.
 
         if (infoQueue)
             infoQueue->Release();

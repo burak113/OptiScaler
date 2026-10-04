@@ -8,6 +8,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <string>
 
 // One immutable query allocation per sampled evaluation. The caller's recording /
 // submission lease must retain it through command-list Reset and GPU fence completion.
@@ -199,6 +200,27 @@ class FSRDStageTimings
 
 struct FSRDRuntimeSnapshot
 {
+    enum Step { Inputs, Floor, Conversion, RayRegeneration, AlbedoRecovery, Composition, SuperResolution, Output, StepCount };
+    enum Status { NotRun, Running, Passed, Failed, Disabled };
+    static constexpr const char* StepNames[] = { "Input validation", "Floor", "Conversion", "Ray Regeneration",
+        "Unsupported Albedo recovery", "Composition", "FSR Super Resolution", "Output" };
+    enum Input { Color, Depth, Motion, Normals, Roughness, DiffuseAlbedo, SpecularAlbedo,
+                 SpecularDistance, DiffuseDistance, Bias, Emissive, LinearDepth, Responsivity,
+                 AmbientOcclusion, Exposure, InputCount };
+    static constexpr const char* InputNames[] = { "Color / radiance", "Depth", "Motion vectors", "Normals",
+        "Roughness", "Diffuse albedo", "Specular albedo", "Specular hit distance", "Diffuse hit distance",
+        "Current-color bias", "Emissive", "Title linear depth", "Responsivity", "Ambient occlusion", "Exposure" };
+    static constexpr uint32_t Bit(Input input) { return 1u << input; }
+    std::array<Status, StepCount> steps {};
+    Step activeStep = Inputs;
+    uint32_t received = 0, prepared = 0, submitted = 0;
+    bool rayReconstruction = false, nativeAvailable = false, nativeActive = false, fallback = false;
+    bool rrDispatched = false, success = false;
+    uint64_t frame = 0;
+    std::string failure;
+    std::chrono::steady_clock::time_point updated {};
     uint32_t signalStatus = 0;
     FSRDStageTimings::Snapshot timings;
+    void Begin(Step step) { activeStep = step; steps[step] = Running; }
+    void Complete(Step step) { steps[step] = Passed; }
 };

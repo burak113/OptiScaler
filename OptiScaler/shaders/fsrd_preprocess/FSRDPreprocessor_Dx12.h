@@ -8,6 +8,7 @@
 #include <string_view>
 
 class FSRDStageTimings;
+struct FSRDRuntimeSnapshot;
 struct ID3D12Device;
 struct ID3D12GraphicsCommandList;
 struct ID3D12Resource;
@@ -27,6 +28,7 @@ class FSRDPreprocessor_Dx12
   public:
 
     void SetStageTimings(FSRDStageTimings* timings);
+    void SetRuntimeSnapshot(FSRDRuntimeSnapshot* snapshot);
     // Configure before the first allocation; inactive optional slots use tiny placeholders.
     bool ConfigureSignalResources(bool extraDiffuse, bool extraSpecular, bool albedoRecovery);
 
