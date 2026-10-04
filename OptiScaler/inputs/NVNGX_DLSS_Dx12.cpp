@@ -9,6 +9,7 @@
 
 #include <upscalers/FeatureProvider_Dx12.h>
 #include "upscalers/dlss/DLSSFeature_Dx12.h"
+#include <gpu_time/FSRDStageTimings_Dx12.h>
 
 #include <framegen/nvngx/Nvngx_FG.h>
 #include "FG/FSR3_Dx12_FG.h"
@@ -685,7 +686,8 @@ static NVSDK_NGX_Result TryCreateOptiFeature(ID3D12GraphicsCommandList* InCmdLis
         D3D12Hooks::SetRootSignatureTracking(true);
 
         Dx12Contexts.erase(handleId);
-        return NVSDK_NGX_Result_Fail;
+        return InFeatureID == NVSDK_NGX_Feature_RayReconstruction
+            ? NVSDK_NGX_Result_FAIL_FeatureNotSupported : NVSDK_NGX_Result_Fail;
     }
 
     // Ensure D3D12 device
@@ -748,7 +750,7 @@ static NVSDK_NGX_Result TryCreateOptiFeature(ID3D12GraphicsCommandList* InCmdLis
             delete *OutHandle;
             *OutHandle = nullptr;
         }
-        return NVSDK_NGX_Result_Fail;
+        return NVSDK_NGX_Result_FAIL_FeatureNotSupported;
     }
 
     if (state.activeFgInput == FGInput::Upscaler)
@@ -1162,7 +1164,9 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(ID3D12GraphicsCommandList* InCmdL
     if (!evalSuccess && !ctxData.evaluationFailed)
     {
         LOG_ERROR("Feature evaluation failed for '{}'", feature->Name());
-        ImGui::InsertNotification({ ImGuiToastType::Error, 10000, "Upscaler failed to run!" });
+        ImGui::InsertNotification({ ImGuiToastType::Error, 10000,
+            ctxData.featureID == NVSDK_NGX_Feature_RayReconstruction
+                ? "Ray reconstruction stopped. See Denoiser status." : "Upscaler failed to run!" });
     }
     ctxData.evaluationFailed = !evalSuccess;
 
@@ -1172,6 +1176,21 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(ID3D12GraphicsCommandList* InCmdL
 
     D3D12Hooks::SetRootSignatureTracking(true);
 
+    if (ctxData.featureID == NVSDK_NGX_Feature_RayReconstruction)
+    {
+        if (evalSuccess)
+        {
+            // A user-requested retry can recover using the same NGX parameter table.
+            InParameters->Set("SuperSamplingDenoising.Available", 1);
+            InParameters->Set("SuperSamplingDenoising.FeatureInitResult", static_cast<int>(NVSDK_NGX_Result_Success));
+        }
+        else
+        {
+            FSRDRuntimeSnapshot snapshot;
+            if (feature->ReadRayRegenerationDiagnostics(snapshot) && snapshot.gameNativeRequested)
+                return NVSDK_NGX_Result_FAIL_FeatureNotSupported;
+        }
+    }
     return evalSuccess ? NVSDK_NGX_Result_Success : NVSDK_NGX_Result_Fail;
 }
 

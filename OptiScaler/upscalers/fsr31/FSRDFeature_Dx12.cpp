@@ -1131,8 +1131,10 @@ FSRDFeatureDx12::FSRDFeatureDx12(uint32_t InHandleId, NVSDK_NGX_Parameter* InPar
     _denoiserSettings({}), 
     _convDesc({})
 {
+    const auto gpu = IdentifyGpu::getPrimaryGpu();
+    _preferNativeRR = gpu.vendorId == VendorId::Nvidia && gpu.dlssCapable;
     _moduleLoaded = FfxApiProxy::IsDenoiserApiImplementedDx12() ||
-        (IdentifyGpu::getPrimaryGpu().dlssCapable && State::Instance().NVNGX_DLSSD_Path.has_value());
+        (_preferNativeRR && State::Instance().NVNGX_DLSSD_Path.has_value());
 
     if (FfxApiProxy::IsDenoiserApiImplementedDx12())
         LOG_INFO("amd_fidelityfx_denoiser_dx12.dll methods loaded!");
@@ -1361,6 +1363,30 @@ bool FSRDFeatureDx12::PublishAmbientOcclusionOutput(ID3D12GraphicsCommandList* c
 bool FSRDFeatureDx12::s_ngxDepthTypeSeen = false;
 bool FSRDFeatureDx12::s_ngxReportedHWDepth = false;
 
+bool FSRDFeatureDx12::WantsFsrRR() const
+{
+    // Auto is NVIDIA RR on a capable NVIDIA GPU, FSR-RR on other GPUs.
+    // An explicit menu/INI selection still overrides the automatic choice.
+    return Config::Instance()->FfxDenoiserEnabled.value_or(!_preferNativeRR);
+}
+
+void FSRDFeatureDx12::RequestGameNative(NVSDK_NGX_Parameter* parameters)
+{
+    _runtime.gameNativeRequested = true;
+    _runtime.nativeActive = false;
+    // This requests a change in the engine; it does not dispatch NRD or turn
+    // an undenoised RR Color buffer into a valid game-native output.
+    if (parameters)
+    {
+        parameters->Set("SuperSamplingDenoising.Available", 0);
+        parameters->Set("SuperSamplingDenoising.FeatureInitResult",
+                        static_cast<int>(NVSDK_NGX_Result_FAIL_FeatureNotSupported));
+    }
+    if (!_runtime.failure.empty()) _runtime.failure += " ";
+    _runtime.failure += "Game-native denoising requested (NRD if provided by the game). "
+                        "NGX cannot run or confirm the game's NRD passes; disable NV RR if the game does not switch automatically.";
+}
+
 bool FSRDFeatureDx12::InitInternal(ID3D12GraphicsCommandList* commandList, NVSDK_NGX_Parameter* parameters)
 {
     try
@@ -1379,7 +1405,7 @@ bool FSRDFeatureDx12::InitInternal(ID3D12GraphicsCommandList* commandList, NVSDK
 
     // A native NGX RR context is the only native denoiser callable through this API.
     // The game's internal denoiser is not exposed by a Ray Reconstruction request.
-    if (IdentifyGpu::getPrimaryGpu().dlssCapable && State::Instance().NVNGX_DLSSD_Path.has_value())
+    if (_preferNativeRR && State::Instance().NVNGX_DLSSD_Path.has_value())
     {
         // Native initialization writes its target extent back into the table.
         // Keep the game's creation values for FSR's dynamic-output handling.
@@ -1419,9 +1445,11 @@ bool FSRDFeatureDx12::InitInternal(ID3D12GraphicsCommandList* commandList, NVSDK
     _name = "FSR";
     SetInit(_rrInitialized || _nativeDenoiser != nullptr);
     _runtime.rayReconstruction = true;
+    _runtime.nativeRRPreferred = _preferNativeRR;
     _runtime.nativeAvailable = _nativeDenoiser != nullptr;
-    _runtime.failure = _rrFailure;
+    _runtime.failure = WantsFsrRR() ? _rrFailure : "";
     if (_rrFaulted) _runtime.steps[_failedStep] = FSRDRuntimeSnapshot::Failed;
+    if (!IsInited()) RequestGameNative(parameters);
     {
         std::lock_guard lock(_runtimeMutex);
         _publishedRuntime = _runtime;
@@ -1446,12 +1474,13 @@ void FSRDFeatureDx12::OnEvaluationStarting(NVSDK_NGX_Parameter* parameters)
     _runtime = {};
     _runtime.frame = ++_evaluationNumber;
     _runtime.rayReconstruction = true;
+    _runtime.nativeRRPreferred = _preferNativeRR;
     _runtime.nativeAvailable = _nativeDenoiser && _nativeDenoiser->IsInited();
-    _runtime.failure = _rrFailure;
+    _runtime.failure = WantsFsrRR() ? _rrFailure : "";
     _nativeAttempted = false;
     if (_rrFaulted)
         _runtime.steps[_failedStep] = FSRDRuntimeSnapshot::Failed;
-    else if (Config::Instance()->FfxDenoiserEnabled.value_or(true))
+    else if (WantsFsrRR())
         _runtime.Begin(FSRDRuntimeSnapshot::Inputs);
     if (!parameters)
         return;
@@ -1543,15 +1572,15 @@ bool FSRDFeatureDx12::EvaluateNative(ID3D12GraphicsCommandList* commandList,
 
 bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* commandList, NVSDK_NGX_Parameter* parameters)
 {
-    const bool requested = Config::Instance()->FfxDenoiserEnabled.value_or(true);
+    const bool requested = WantsFsrRR();
     if (!requested || _rrFaulted)
     {
         _runtime.fallback = requested;
-        if (!_runtime.nativeAvailable)
-            _runtime.failure += " No callable native RR provider. Disable NV Ray Reconstruction in the game to use its native denoiser.";
         InvalidateDenoiserHistory();
         _upscalerResetPending = true;
-        return EvaluateNative(commandList, parameters, false);
+        const bool success = EvaluateNative(commandList, parameters, false);
+        if (!success) RequestGameNative(parameters);
+        return success;
     }
     _nativeWasActive = false;
     try
@@ -1582,17 +1611,26 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* commandList, N
 
 bool FSRDFeatureDx12::EvaluateFallback(ID3D12GraphicsCommandList* commandList, NVSDK_NGX_Parameter* parameters)
 {
-    if (_nativeAttempted)
+    if (_runtime.gameNativeRequested)
         return false;
-    if (!_rrFaulted && Config::Instance()->FfxDenoiserEnabled.value_or(true))
-        FailRayRegeneration("FSR-RR input or output processing failed. Native fallback requested.");
-    _runtime.fallback = Config::Instance()->FfxDenoiserEnabled.value_or(true);
-    if (!_runtime.nativeAvailable)
+    if (_nativeAttempted)
     {
-        _runtime.failure += " Native fallback unavailable; disable NV Ray Reconstruction in the game.";
+        // Native dispatch may have succeeded before the shared output pass failed.
+        // Repeating it cannot repair that failure; ask the game for its own path.
+        RequestGameNative(parameters);
         return false;
     }
-    return EvaluateNative(commandList, parameters, true);
+    if (!_rrFaulted && WantsFsrRR())
+        FailRayRegeneration("FSR-RR input or output processing failed. Native fallback requested.");
+    _runtime.fallback = WantsFsrRR();
+    if (!_runtime.nativeAvailable)
+    {
+        RequestGameNative(parameters);
+        return false;
+    }
+    const bool success = EvaluateNative(commandList, parameters, true);
+    if (!success) RequestGameNative(parameters);
+    return success;
 }
 
 void FSRDFeatureDx12::OnEvaluationFinished(bool success)
@@ -1601,6 +1639,11 @@ void FSRDFeatureDx12::OnEvaluationFinished(bool success)
     // A successful native retry does not erase the original RR output failure.
     if (!_runtime.fallback || _failedStep != FSRDRuntimeSnapshot::Output)
         _runtime.steps[FSRDRuntimeSnapshot::Output] = success ? FSRDRuntimeSnapshot::Passed : FSRDRuntimeSnapshot::Failed;
+    using R = FSRDRuntimeSnapshot;
+    _runtime.rrValidated = success && _runtime.rrDispatched && !_runtime.nativeActive &&
+        _runtime.steps[R::Inputs] == R::Passed && _runtime.steps[R::Conversion] == R::Passed &&
+        _runtime.steps[R::RayRegeneration] == R::Passed && _runtime.steps[R::Composition] == R::Passed &&
+        _runtime.steps[R::SuperResolution] == R::Passed && _runtime.steps[R::Output] == R::Passed;
     _nativeWasActive = success && _runtime.nativeActive;
     if (!success)
     {

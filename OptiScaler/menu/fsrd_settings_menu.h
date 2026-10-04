@@ -30,34 +30,51 @@ inline bool DrawProfile(Config& cfg)
 }
 
 inline bool DrawDenoiser(Config& cfg, const FSRDRuntimeSnapshot& snapshot,
-                         bool ffxActive, bool nvRRActive, bool providerAvailable)
+                         bool ffxActive, bool nvRRActive, bool providerAvailable, bool nativeRRPreferred)
 {
     const ImVec4 red(1.0f, 0.32f, 0.28f, 1.0f), green(0.3f, 0.9f, 0.45f, 1.0f);
     const bool eligible = ffxActive && nvRRActive && providerAvailable;
-    const bool requested = eligible && cfg.FfxDenoiserEnabled.value_or(true);
-    bool retry = false;
-    if (ImGui::BeginCombo("Denoiser", requested ? "FSR-RR" : "Native"))
+    const bool automatic = !cfg.FfxDenoiserEnabled.has_value();
+    const bool requested = ffxActive && nvRRActive && cfg.FfxDenoiserEnabled.value_or(!nativeRRPreferred);
+    const bool fresh = snapshot.updated.time_since_epoch().count() != 0 &&
+        std::chrono::steady_clock::now() - snapshot.updated < std::chrono::seconds(2);
+    const bool running = fresh && snapshot.rrValidated;
+    const char* selected = !nvRRActive ? "Native / NRD (game)"
+        : snapshot.gameNativeRequested ? "Native / NRD requested"
+        : requested ? (running ? "FSR-RR" : snapshot.failure.empty() ? "Checking FSR-RR" : "FSR-RR stopped")
+        : nativeRRPreferred ? "NVIDIA RR + SR" : "Native / NRD (game)";
+    const std::string preview = (automatic ? "Auto: " : "") + std::string(selected);
+    bool rebuild = false;
+    if (ImGui::BeginCombo("Denoiser", preview.c_str()))
     {
-        const bool nativeAvailable = !nvRRActive || snapshot.nativeAvailable || !ffxActive;
+        if (ImGui::Selectable("Auto (GPU default)", automatic))
+        {
+            cfg.FfxDenoiserEnabled.reset();
+            rebuild = ffxActive && nvRRActive;
+        }
+        const bool nativeAvailable = !nativeRRPreferred || !nvRRActive || snapshot.nativeAvailable || !ffxActive;
         ImGui::BeginDisabled(!nativeAvailable);
-        if (ImGui::Selectable("Native", !requested))
+        if (ImGui::Selectable(nativeRRPreferred ? "NVIDIA RR + SR" : "Native / NRD (game)", !automatic && !requested))
         {
             if (nvRRActive && ffxActive) cfg.FfxDenoiserEnabled = false;
             else cfg.FfxDenoiserEnabled.reset();
         }
         ImGui::EndDisabled();
         if (!nativeAvailable && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("Disable NV Ray Reconstruction in the game to restore its native denoiser. "
-                              "No native NVIDIA RR provider is available on this device.");
+            ImGui::SetTooltip("The NVIDIA RR provider did not initialize. Disable NV Ray Reconstruction in the game "
+                              "to restore its own denoiser.");
         ImGui::BeginDisabled(!eligible);
-        if (ImGui::Selectable("FSR-RR", requested))
+        if (ImGui::Selectable("FSR-RR", !automatic && requested))
         {
             cfg.FfxDenoiserEnabled = true;
-            retry = !snapshot.failure.empty();
+            rebuild = !requested || !snapshot.failure.empty();
         }
         ImGui::EndDisabled();
         ImGui::EndCombo();
     }
+    ImGui::TextWrapped("Auto: supported NVIDIA GPUs use NVIDIA RR + SR. AMD GPUs use FSR-RR with FSR/FFX "
+                      "and active NV RR input only after the required runtime stages succeed. A failed check "
+                      "requests the game's native denoiser (NRD where the game provides it).");
     if (!eligible)
     {
         ImGui::PushStyleColor(ImGuiCol_Text, red);
@@ -68,12 +85,14 @@ inline bool DrawDenoiser(Config& cfg, const FSRDRuntimeSnapshot& snapshot,
     }
     if (snapshot.rayReconstruction)
     {
-        const bool fresh = snapshot.updated.time_since_epoch().count() != 0 &&
-            std::chrono::steady_clock::now() - snapshot.updated < std::chrono::seconds(2);
-        const bool running = fresh && snapshot.success && snapshot.rrDispatched && !snapshot.nativeActive;
         ImGui::TextColored(running ? green : red, "FSR-RR: %s", running ? "running" : "not running");
-        if (snapshot.nativeActive && fresh)
-            ImGui::TextColored(green, "Native NVIDIA RR + SR: %s", snapshot.fallback ? "fallback active" : "active");
+        if (requested)
+            ImGui::TextColored(running ? green : red, "Runtime gate: %s", running ? "passed"
+                : !snapshot.failure.empty() ? "failed" : "waiting for a complete frame");
+        if (snapshot.nativeActive && fresh && snapshot.success)
+            ImGui::TextColored(green, "NVIDIA RR + SR: %s", snapshot.fallback ? "fallback active" : "active");
+        if (snapshot.gameNativeRequested)
+            ImGui::TextColored(red, "Native / NRD: waiting for the game to switch; not confirmed active");
         if (!snapshot.failure.empty())
         {
             ImGui::PushStyleColor(ImGuiCol_Text, red);
@@ -83,15 +102,16 @@ inline bool DrawDenoiser(Config& cfg, const FSRDRuntimeSnapshot& snapshot,
         if (eligible && !snapshot.failure.empty() && ImGui::Button("Retry FSR-RR"))
         {
             cfg.FfxDenoiserEnabled = true;
-            retry = true;
+            rebuild = true;
         }
     }
     else if (nvRRActive)
-        ImGui::TextWrapped("Native NVIDIA Ray Reconstruction is selected. Select FSR as the upscaler to enable FSR-RR.");
+        ImGui::TextWrapped("NVIDIA RR + SR is selected. FSR-RR remains available with the FSR/FFX upscaler "
+                          "as an explicit denoiser choice.");
     else
-        ImGui::TextWrapped("Native is selected while NV Ray Reconstruction is off. Enabling NV RR with "
-                          "the FSR upscaler automatically selects FSR-RR unless Native was explicitly saved.");
-    return retry;
+        ImGui::TextWrapped("NV Ray Reconstruction is off: denoising belongs to the game. "
+                          "NGX does not report whether its internal denoiser is NRD.");
+    return rebuild;
 }
 
 inline void DrawWorkflow(const FSRDRuntimeSnapshot& snapshot)
@@ -122,7 +142,8 @@ inline void DrawWorkflow(const FSRDRuntimeSnapshot& snapshot)
     ImGui::TextWrapped("Green means validation/command recording succeeded in the latest evaluation; "
                       "it is not a GPU completion check. Red also marks deliberately disabled or bypassed stages. "
                       "A failed stage stops FSR-RR until Retry or context recreation. Native NVIDIA RR + SR is used "
-                      "when available; otherwise NV RR must be disabled in the game to restore its denoiser.");
+                      "when available; otherwise an unsupported-feature result requests game-native denoising. "
+                      "If the game does not switch automatically, disable NV RR in its settings.");
 }
 
 inline void DrawInputs(const FSRDRuntimeSnapshot& snapshot)

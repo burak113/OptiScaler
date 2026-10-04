@@ -475,7 +475,7 @@ class Config
     CustomOptional<float> FsrMinDisOccAcc { -0.333f };
 
     // FSR-RR
-    // Unset selects Native for SR and automatically selects FSR-RR for FFX + NV RR.
+    // Auto: game-native for SR, NVIDIA RR on capable NVIDIA GPUs, otherwise validated FFX + FSR-RR.
     CustomOptional<bool, NoDefault> FfxDenoiserEnabled;
     CustomOptional<int> FfxDenoiserProfile { 1 }; // 0 Fast, 1 Balanced, 2 Quality; -1 custom
     CustomOptional<int> FfxDenoiserIndex { 0 };

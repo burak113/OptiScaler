@@ -135,6 +135,7 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     FSRDRuntimeSnapshot _runtime, _publishedRuntime;
     std::unique_ptr<DLSSDFeatureDx12> _nativeDenoiser;
     bool _rrInitialized = false, _rrFaulted = false, _nativeAttempted = false;
+    bool _preferNativeRR = false;
     bool _nativeWasActive = false;
     uint64_t _evaluationNumber = 0;
     std::string _rrFailure;
@@ -143,6 +144,8 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     bool EvaluateRayRegeneration(ID3D12GraphicsCommandList*, NVSDK_NGX_Parameter*);
     bool EvaluateNative(ID3D12GraphicsCommandList*, NVSDK_NGX_Parameter*, bool fullPipeline);
     void FailRayRegeneration(const char* reason);
+    bool WantsFsrRR() const;
+    void RequestGameNative(NVSDK_NGX_Parameter* parameters);
     ffxDispatchDescDenoiserIndirectDiffuse _indirectDiffuseSignal {};
     ffxDispatchDescDenoiserDirectSpecular _directSpecularSignal {};
     Microsoft::WRL::ComPtr<ID3D12Resource> _ambientOcclusionNoisy;

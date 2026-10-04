@@ -2464,7 +2464,9 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
         ImGui::SeparatorText("Denoiser");
         const bool profileChanged = FSRDMenu::DrawProfile(*config);
         const bool retry = FSRDMenu::DrawDenoiser(*config, snapshot, ffxActive, nvRR,
-                                                FfxApiProxy::IsDenoiserApiImplementedDx12());
+                                                FfxApiProxy::IsDenoiserApiImplementedDx12(),
+                                                hasSnapshot ? snapshot.nativeRRPreferred
+                                                    : primaryGpu.vendorId == VendorId::Nvidia && primaryGpu.dlssCapable);
         if ((profileChanged || retry) && ffxActive && nvRR)
         {
             state.newBackend = Upscaler::FFX;

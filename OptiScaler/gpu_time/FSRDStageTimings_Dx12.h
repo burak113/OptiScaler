@@ -215,6 +215,7 @@ struct FSRDRuntimeSnapshot
     Step activeStep = Inputs;
     uint32_t received = 0, prepared = 0, submitted = 0;
     bool rayReconstruction = false, nativeAvailable = false, nativeActive = false, fallback = false;
+    bool nativeRRPreferred = false, gameNativeRequested = false, rrValidated = false;
     bool rrDispatched = false, success = false;
     uint64_t frame = 0;
     std::string failure;
