@@ -445,3 +445,32 @@ CyberFSR/imgui.ini
 /tools_tmp/
 /.venv/
 /OptiScaler/shaders/fsrd_preprocess/precompile/test_sdk.cso
+
+# Project documentation, research evidence and illustrations are kept locally.
+/docs/
+/images/
+*.md
+*.markdown
+*.mdx
+*.rst
+*.adoc
+*.asciidoc
+*.pdf
+*.doc
+*.docx
+*.odt
+*.rtf
+*.tex
+*.ppt
+*.pptx
+*.txt
+*.ipynb
+# License notices and build/dependency manifests are repository metadata.
+!**/LICENSE*
+!**/license*
+!**/COPYING*
+!**/copying*
+!**/NOTICE*
+!**/notice*
+!**/CMakeLists.txt
+!**/requirements*.txt

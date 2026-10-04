@@ -1,7 +1,0 @@
-adapter=AMD Radeon RX 9070 driver=9007201287738249 debug_layer=1 gpu_validation=0
-observation=0 cb=100 srv=5003 cbTag=200 magic=3517317121
-observation=1 cb=101 srv=5004 cbTag=201 magic=3517317121
-observation=2 cb=102 srv=5002 cbTag=202 magic=3517317121
-observation=3 cb=103 srv=5003 cbTag=203 magic=3517317121
-observation=4 cb=104 srv=5004 cbTag=204 magic=3517317121
-shader_dispatches=5 queue_executes=2 signals=2 fence_waits=2 validation_errors=0 validation_warnings=0 native_SDK_dispatches=0

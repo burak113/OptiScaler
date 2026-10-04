@@ -1,9 +1,0 @@
-128 80 1 2 32 0 0 0 "F:/OptiRevelations/OptiScaler-ffxD-alpha/external/FidelityFX-SDK-v2/Kits/FidelityFX/signedbin/amd_fidelityfx_denoiser_dx12.dll"
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/matched_camera_input_contract_20260930/evidence/frame_0_matched_0_input0.bin" 41 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/matched_camera_input_contract_20260930/evidence/frame_0_matched_0_input1.bin" 10 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/matched_camera_input_contract_20260930/evidence/frame_0_matched_0_input2.bin" 24 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/matched_camera_input_contract_20260930/evidence/frame_0_matched_0_input3.bin" 28 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/matched_camera_input_contract_20260930/evidence/frame_0_matched_0_input4.bin" 28 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/matched_camera_input_contract_20260930/evidence/frame_0_matched_0_input5.bin" 10 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/matched_camera_input_contract_20260930/evidence/frame_0_matched_0_input6.bin" 10 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/provider_defaults_query_20260930/evidence/unused_diffuse.bin" "F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/provider_defaults_query_20260930/evidence/unused_specular.bin"

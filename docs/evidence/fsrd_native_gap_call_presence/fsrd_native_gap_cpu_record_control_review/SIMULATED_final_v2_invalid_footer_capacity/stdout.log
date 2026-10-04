@@ -1,3 +1,0 @@
-SIMULATED ONLY; no native child
-provider=SIMULATED
-RR_recordings=64 queued_RR_dispatches=64 discarded_RR_recordings=0 validation_errors=1 validation_warnings=0 sdk_errors=0 sdk_warnings=0 no_API_omissions=0

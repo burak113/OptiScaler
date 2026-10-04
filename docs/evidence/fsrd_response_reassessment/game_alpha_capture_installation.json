@@ -1,9 +1,0 @@
-{
-  "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\x64\\Release\\a\\OptiScaler.dll",
-  "target": "F:\\SteamLibrary\\steamapps\\common\\Cyberpunk 2077\\bin\\x64\\dxgi.dll",
-  "backup": "F:\\SteamLibrary\\steamapps\\common\\Cyberpunk 2077\\bin\\x64\\dxgi.before-ffxd-alpha-14b7-reassessment-20260930.bak",
-  "old_sha256": "855DBA13E76847CEDFDE6181DCA5D2B8D76499BF79C9A1C0299C35A160BF38AC",
-  "new_sha256": "FCB28C51556A905EABEC0125D1F078708645EF8F37511ACB939BB2FF51239240",
-  "config_changed": false,
-  "game_quality_accepted": false
-}

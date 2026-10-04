@@ -1,7 +1,0 @@
-{
-  "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\source_alpha_contract_20260930\\analyze.py",
-  "source_sha256": "64864b498fd1f19b8411544906c3428f84a783be941f4398c93a03ced56763d5",
-  "generated_sha256": "c99575bb30e4f714321a0d848f226337f6d3fb2c8198a52a3e80ddf6fcccd3aa",
-  "generator_sha256": "498ed78b99ce7e9362781383450f758d0e5f56ba445bbd821618262b4e130130",
-  "control": "Only conversion inverse projection uses inverse of actual native dispatch projection; frames0/32, exactseveninputhashes"
-}

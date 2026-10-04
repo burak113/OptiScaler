@@ -1,9 +1,0 @@
-256 256 96 2 32 0 1 0 "F:/OptiRevelations/OptiScaler-ffxD-alpha/external/FidelityFX-SDK-v2/Kits/FidelityFX/signedbin/amd_fidelityfx_denoiser_dx12.dll"
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/response_soft_temporal_long_captured_alpha_fresh/recorded_wave/observed/input0.bin" 41 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/response_soft_temporal_long_captured_alpha_fresh/recorded_wave/observed/input1.bin" 10 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/response_soft_temporal_long_captured_alpha_fresh/recorded_wave/observed/input2.bin" 24 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/response_soft_temporal_long_captured_alpha_fresh/recorded_wave/observed/input3.bin" 28 96
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/response_soft_temporal_long_captured_alpha_fresh/recorded_wave/observed/input4.bin" 28 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/response_soft_temporal_long_captured_alpha_fresh/recorded_wave/observed/input5.bin" 10 96
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/response_soft_temporal_long_captured_alpha_fresh/recorded_wave/observed/input6.bin" 10 96
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/response_soft_temporal_long_captured_alpha_fresh/recorded_wave/observed/diffuse.bin" "F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/response_soft_temporal_long_captured_alpha_fresh/recorded_wave/observed/specular.bin"

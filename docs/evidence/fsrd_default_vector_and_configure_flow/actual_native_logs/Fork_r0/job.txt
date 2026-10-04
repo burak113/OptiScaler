@@ -1,9 +1,0 @@
-128 80 64 2 32 0 1 0 "F:/OptiRevelations/OptiScaler-ffxD-alpha/external/FidelityFX-SDK-v2/Kits/FidelityFX/signedbin/amd_fidelityfx_denoiser_dx12.dll"
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/fsrd_weak_material_clean_native_preparation_20260930/inputs/input0.bin" 41 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/fsrd_weak_material_clean_native_preparation_20260930/inputs/input1.bin" 10 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/fsrd_weak_material_clean_native_preparation_20260930/inputs/input2.bin" 24 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/fsrd_weak_material_clean_native_preparation_20260930/inputs/input3.bin" 28 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/fsrd_weak_material_clean_native_preparation_20260930/inputs/input4.bin" 28 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/fsrd_weak_material_clean_native_preparation_20260930/inputs/input5.bin" 10 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/fsrd_weak_material_clean_native_preparation_20260930/inputs/input6.bin" 10 1
-"F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/fsrd_clean_fork_vs_sdk_defaults_preparation_20261001/planned_native/Fork_r0/diffuse.bin" "F:/OptiRevelations/OptiScaler-ffxD-alpha/tools_tmp/fsrd_clean_fork_vs_sdk_defaults_preparation_20261001/planned_native/Fork_r0/specular.bin"

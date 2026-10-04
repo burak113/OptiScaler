@@ -1,7 +1,0 @@
-{
-  "source": "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\controlled_context_repeat_20260930\\analyze.py",
-  "source_sha256": "725fa874fce31707f77b64777b1e62565f876ebf8dba148c8499e2ecb0c35b55",
-  "generated_sha256": "09c67d782c5aaab632f377aa7215b819eaf0d8c43972e227fd62631a08d9000a",
-  "generator_sha256": "1af291a87f25202b7cfddc13ef01ea4173b36f47f2c46a2ebd642cbbbb242a41",
-  "only_control_change": "RESET at frame32; applied bytes verified"
-}

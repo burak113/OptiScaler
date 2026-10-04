@@ -1,8 +1,0 @@
-Traceback (most recent call last):
-  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\native_continuous_harmonic_independent_audit_20260930\audit.py", line 227, in <module>
-    if __name__=='__main__':main()
-                            ^^^^^^
-  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\native_continuous_harmonic_independent_audit_20260930\audit.py", line 152, in main
-    assert report1['error']=='absolute_detail_pass' and report2['completed_native_contexts']==15 and report2['native_RR_calls']==960
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-AssertionError

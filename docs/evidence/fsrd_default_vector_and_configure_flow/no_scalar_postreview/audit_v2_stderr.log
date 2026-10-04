@@ -1,5 +1,0 @@
-Traceback (most recent call last):
-  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\fsrd_clean_no_scalar_vs_explicit_defaults_postrun_review_20261001\audit_v2.py", line 192, in <module>
-    assert j['source_qualified_nonRR_calls_if_complete']==source_nonrr
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-AssertionError

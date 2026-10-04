@@ -1,7 +1,0 @@
-Independent saved-array audit passed: all108 full/mature metric dictionaries matched the frozen result exactly, all61 source pins matched before/after, and completion/preparation/authorization hashes verified. Six candidate arrays retain first8 baseline bytes, finite valid RGB, matching saved digests and zero recorded fallback. Original6/DC/V2 comparator metrics and all24 constructed-control input records/comparators remain unchanged.
-
-Full-window candidate: relative3/6; strictSTD<=B3/6; gain0/6; phase4/6; gain AND phase0/6. Mature16: relative6/6; strictSTD<=B5/6; gain5/6; phase6/6; gain AND phase5/6. Weak material still worsens matureSTD by6.93% vsB and8.64% vsV2, and fails gain. Relative slack does not establish strict noise reduction.
-
-Reported constructed examples repair V2 cancellation, static-D-ramp and moving-source/static-response mechanisms, but shared bias remains (gain1.1667), phase-toggle remains invalid (phase.08579), and shared constant-speed response develops a gain regression (1.05745). These known candidate arrays were not saved, so those claims are frozen report evidence, not independent numeric rescoring.
-
-The first local audit attempt completed18 material score checks then failed in report assembly; script/log/registration were preserved and the naming-only correction completed108 checks. Total actual metric-dictionary recomputations126, distinct dictionaries108. No estimator/model/analyzer/operator-generation execution and no native/GPU/build/game. General feasibility and runtime quality are not established.

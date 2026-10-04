@@ -1,3 +1,0 @@
-fsrd_rr_runner.cpp
-fsrd_gpu_runner.cpp
-recorded_wave {'soft_temporal': {'rmse': 0.0009242218220606446, 'full_fail': [], 'mature_fail': []}, 'soft_temporal_dc': {'rmse': 0.0009164627990685403, 'full_fail': [], 'mature_fail': []}, 'soft_temporal_dc_current': {'rmse': 0.0009177375468425453, 'full_fail': [], 'mature_fail': []}, 'soft_temporal_safe': {'rmse': 0.0009242218220606446, 'full_fail': [], 'mature_fail': []}, 'soft_temporal_dc_safe': {'rmse': 0.0009164627990685403, 'full_fail': [], 'mature_fail': []}, 'soft_temporal_dc_current_safe': {'rmse': 0.0009177375468425453, 'full_fail': [], 'mature_fail': []}}

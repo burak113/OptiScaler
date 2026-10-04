@@ -1,8 +1,0 @@
-{
-  "schema": "output-alpha-interpretation-erratum-v1",
-  "prior_interpretation_sha256": "6d817ba9c8ec4094fa75d45e13c41220d5ab8a33da12b75b101d6f82e7c7eb81",
-  "correction": "Saved native OUTPUT alpha is exact zero, but consumed input alpha has not yet been directly verified. Prior sentence that synthetic indirect-spec input hit distance was zero was an unverified inference and is withdrawn.",
-  "local_header": "ffx_denoiser.h lines428-433 specify input alpha ray-hit distance and output alpha Preserved (or input if passthrough). That wording does not explicitly promise output alpha equals input alpha under denoising; destination preservation is a possible interpretation.",
-  "source_shader": "FSRDInputConv.hlsl lines974-978 fallback is max(abs(viewSpacePos.z),1e-3) for indirect when no validated hit guide; output multiplies it by specularTracking. Actual consumed input alpha needs pinned reconstruction and input hash check.",
-  "unaffected": "Native RGB repeat differences and alpha output equality remain byte-authenticated. No input validity, contract violation, caller defect or visual cause is inferred from output zeros."
-}

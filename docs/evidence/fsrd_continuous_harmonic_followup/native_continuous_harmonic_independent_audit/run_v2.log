@@ -1,8 +1,0 @@
-Traceback (most recent call last):
-  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\native_continuous_harmonic_independent_audit_20260930\audit.py", line 227, in <module>
-    if __name__=='__main__':main()
-                            ^^^^^^
-  File "F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\native_continuous_harmonic_independent_audit_20260930\audit.py", line 187, in main
-    for slot in (2,3,4,5):assert (sourceconv[f]['path']/f'out{slot}.bin').read_bytes()==(pilotconv[f]['path']/f'out{slot}.bin').read_bytes()
-                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-AssertionError

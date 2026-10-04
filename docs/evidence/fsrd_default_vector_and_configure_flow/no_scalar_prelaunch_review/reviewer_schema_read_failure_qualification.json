@@ -1,9 +1,0 @@
-{
-  "status": "PRESERVED_REVIEWER_ONLY_CPU_SCHEMA_READ_FAILURE",
-  "tool_chunk": "083702",
-  "exit_code": 1,
-  "issue": "V2 verifier assumed files for every inherited manifest. Actual frozen default-query postseal uses owned+external_records; native/composition postseals use files+external_records. Failure followed passed currentpins/job/source/law/12existingSIM checks.",
-  "evidence_schema_read_chunk": "5365de",
-  "repair": "SeparateV3 chooses exact recorded key by known inherited package type; preserves V2 source/stdout/stderr/pins. No producer/root source or sealed bytes changed.",
-  "actual_GPU_native_build_scorer_law": 0
-}

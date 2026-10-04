@@ -1,7 +1,0 @@
-root_inspector.cpp
-F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\fsrd_compute_ring_deferred_gpu_20260930\root_inspector.cpp(18): error C2039: 'to_string': bir 'std' üyesi değil
-F:\VisualStudio\VC\Tools\MSVC\14.44.35207\include\vector(29): note: 'std' bildirimine bakın
-F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\fsrd_compute_ring_deferred_gpu_20260930\root_inspector.cpp(18): error C3861: 'to_string': tanımlayıcı bulunamadı
-F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\fsrd_compute_ring_deferred_gpu_20260930\root_inspector.cpp(18): error C2512: 'std::runtime_error': kullanılabilir uygun varsayılan oluşturucu yok
-F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\fsrd_compute_ring_deferred_gpu_20260930\root_inspector.cpp(18): note: 'std::runtime_error::runtime_error': kullanılabilir uygun varsayılan oluşturucu yok
-F:\OptiRevelations\OptiScaler-ffxD-alpha\tools_tmp\fsrd_compute_ring_deferred_gpu_20260930\root_inspector.cpp(18): note: '()' bağımsız değişken listesi eşlenmeye çalışılırken

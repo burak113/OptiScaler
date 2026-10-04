@@ -1,9 +1,0 @@
-{
-  "schema": "harmonic-frequency-uncertainty-math-prereg-v1",
-  "purpose": "Independent first-order oracle math showing the uncertainty omitted by conditioning a learned continuous frequency as fixed. This does not implement or score an estimator.",
-  "model": "Eight independent past source frames with per-frame/RGB nuisance intercept and physical cos/sin coefficients, shared continuous frequencies. Known IID per-RGB sigma, known true frequencies/amplitudes only for Jacobian evaluation. A fresh current frame has independent noise; the learned past-frequency covariance propagates through current conditional coefficient refitting.",
-  "constants": {"shape": [30,40], "past_frames": 8, "mask_seed": 718315, "train_fraction": 0.8, "sigma_RGB": [0.012,0.01,0.014]},
-  "cases": ["one_offgrid", "two_offgrid", "two_close", "near_DC", "weak_one_offgrid", "one_Nyquist"],
-  "checks": ["Analytic centered-basis Jacobian against finite differences", "Schur frequency information against joint inverse Fisher", "Conditional complex q envelope against real2D coefficient covariance", "Frequency covariance propagated after current coefficient refit", "PSD and numerical rank checks"],
-  "limitations": ["Local linear Gaussian oracle, no global nonlinear coverage", "No random selection/multiple proposal or correlated covariance model", "No frequency estimate, prototype input, truth quality score, native job or game conclusion", "First-order information is singular for exact real Nyquist cases; do not invert or infer zero uncertainty", "This math is distinct from actual selected-model error; frozen design remains unchanged"]
-}

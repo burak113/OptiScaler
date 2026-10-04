@@ -1,9 +1,0 @@
-{
-  "schema": "guide-alpha-upload-dedup-continuation-erratum-v1",
-  "original_driver_sha256": "ce80f0892360d1dfbdfe3b63e2d54f675a8797bb2bc591b21c05240c69314e03",
-  "preserved_original_result_sha256": "a7c32653373aa515e86aa64df43ab4e6dc3f9b6b31bc4af146bf1e2703dcd8ad",
-  "completed_original_material_contexts": 4,
-  "completed_original_RR_calls": 256,
-  "failure": "Root driver assumed specguide uploadcount64; wave input3 legitimately has uploadcount1. Failed before wave native launch.",
-  "continuation": "Wave4 contexts only; accept originaluploadcount1 or64, require source alpha constant when count1. All job uploadcounts retained, no output replay or parameter change."
-}

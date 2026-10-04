@@ -1,6 +1,0 @@
-{
-  "schema": "coefficient-history-derived-compact-schema-erratum",
-  "failure": "First derived compact writer used rgb_bias instead of scorer's existing bias_rgb key; KeyError before compact report/manifest. Failed writer/log snapshot preserved.",
-  "fix": "Use actual existing bias_rgb key. No model, source, scorer, scores, constants or outcomes changed.",
-  "live_log_manifest_scope": "Completion writer log is hashed after the writer exits so its own final stdout cannot invalidate a prematurely recorded hash."
-}

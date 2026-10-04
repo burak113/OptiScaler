@@ -1,8 +1,0 @@
-{
-  "status": "before_preCPU_freeze",
-  "scope": "own selfcheck preparation only",
-  "issue": "Current orthogonal carrier expected array had shape N,H,W,1 while output is RGB. numpy assert_allclose does not broadcast expected operands.",
-  "repair": "Explicit broadcast expected addition to output RGB shape; same numeric tolerance3e-16, unchanged model/constants. First script preserved as selfchecks_preparation_broadcast_failure.py.txt.",
-  "cohort_known_operator_scores_before_fix": 0,
-  "native_GPU_calls": 0
-}

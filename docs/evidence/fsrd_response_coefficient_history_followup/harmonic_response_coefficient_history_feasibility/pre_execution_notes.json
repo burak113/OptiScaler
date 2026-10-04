@@ -1,9 +1,0 @@
-{
-  "schema": "coefficient-history-pre-score-preparation-notes-v1",
-  "first_selfcheck_exit": 1,
-  "first_failure": "Orthogonal response algebra assertion compared H,W,RGB actual with H,W,1 expected; numpy assert_allclose rejects shape mismatch even though broadcasting is valid in the operator.",
-  "repair": "Explicitly broadcast the known one-channel expected addition to RGB in the selfcheck; no model constants, algorithm or score thresholds changed.",
-  "score_rows_before_repair": 0,
-  "native_dispatches": 0,
-  "before_test_review": "Removed an unexecuted reassociated B+P-TP equality assertion before first selfcheck run; authoritative control is B+(P-TP)."
-}

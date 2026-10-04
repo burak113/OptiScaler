@@ -1,8 +1,0 @@
-round0_baseline completed [64, 64, 0]
-round0_discard24 completed [64, 63, 1]
-round0_discard24_reset25 completed [64, 63, 1]
-round0_fresh_tail25 completed [39, 39, 0]
-round1_fresh_tail25 completed [39, 39, 0]
-round1_discard24_reset25 completed [64, 63, 1]
-round1_discard24 completed [64, 63, 1]
-round1_baseline completed [64, 64, 0]

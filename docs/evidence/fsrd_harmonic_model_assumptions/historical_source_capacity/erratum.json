@@ -1,9 +1,0 @@
-{
-  "schema": "historical-water-preparation-erratum-v1",
-  "failure": "StopIteration: first schema4 capture names raw_rgb, not raw_rgba",
-  "scored_source_captures_before_failure": 0,
-  "assumption_corrected": "The20-directory inventory contains six schema1 captures without capture-recorded image hashes and with origin0,0; fourteen schema3-6 captures with raw_rgb/raw_rgba aliases and recorded hashes",
-  "repair": "Accept recorded image-name aliases, inventory/exclude schema1 before any spectral measurement, preserve metadata pins for all20",
-  "thresholds_changed": false,
-  "error_basis": "Metadata inventory only, no quality scores"
-}

@@ -1,8 +1,0 @@
-{
-  "command": [
-    "F:\\OptiRevelations\\OptiScaler\\tools_tmp\\albedo_stage1_venv\\Scripts\\python.exe",
-    "F:\\OptiRevelations\\OptiScaler-ffxD-alpha\\tools_tmp\\fsrd_weak_material_clean_composition_preparation_20260930\\check_preparation_cpu.py"
-  ],
-  "exitcode": 0,
-  "actual_GPU_native_build": 0
-}

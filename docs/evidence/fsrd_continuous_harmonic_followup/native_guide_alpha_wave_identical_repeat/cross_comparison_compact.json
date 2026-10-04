@@ -1,8 +1,0 @@
-{
-  "contexts": 8,
-  "pairs": 28,
-  "identical_input_pairs": 15,
-  "nonexact_identical_input_pairs": 9,
-  "maximum_identical_input_RGB_RMS": 0.0005299768191824865,
-  "result_sha256": "f45dd2e52b3452f40a0f8a02d443136df3e7d9d33b81c29163a3b8161d62ec6d"
-}

@@ -1,9 +1,0 @@
-safe_three completed 3 shader dispatches; intended=True last-slot=True
-deferred_four completed 4 shader dispatches; intended=False last-slot=True
-deferred_five completed 5 shader dispatches; intended=False last-slot=True
-immutable_four completed 4 shader dispatches; intended=True last-slot=True
-immutable_five completed 5 shader dispatches; intended=True last-slot=True
-fenced_four completed 4 shader dispatches; intended=True last-slot=True
-fenced_five completed 5 shader dispatches; intended=True last-slot=True
-cb_only_five completed 5 shader dispatches; intended=False last-slot=True
-descriptor_only_five completed 5 shader dispatches; intended=False last-slot=True

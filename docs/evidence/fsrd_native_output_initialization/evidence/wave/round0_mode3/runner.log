@@ -1,5 +1,0 @@
-output_initialization_mode=3
-adapter=AMD Radeon RX 9070 driver=9007201287738249 debug_layer=1
-dll=F:\OptiRevelations\OptiScaler-ffxD-alpha\external\FidelityFX-SDK-v2\Kits\FidelityFX\signedbin\amd_fidelityfx_denoiser_dx12.dll
-provider=unavailable from direct effect DLL id=0 version_query_result=6 requested_api=4202496
-dispatches=64 validation_errors=0 validation_warnings=0 sdk_errors=0 sdk_warnings=0
