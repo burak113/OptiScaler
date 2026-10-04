@@ -344,6 +344,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="shaders\hud_copy\precompile\HudCopy_Shader_Vk.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDPreprocessor_Dx12.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDShaderData.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDCompositionVariant.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDShaderUtils.h" />
     <ClInclude Include="shaders\fsrd_preprocess\RRTraceAdditiveIO.h" />
     <ClInclude Include="shaders\fsrd_preprocess\RRTraceFence.h" />
@@ -356,6 +357,10 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDInputConv_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDInputConvAdditive_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDOutputComp_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompLight_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompNoRecovery_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompTileLight_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompTileAnchor_Shader.h" />
     <ClInclude Include="upscalers\fsr31\FSRDFeature_Dx12.h" />
     <ClInclude Include="shaders\magnifier\Magnifier_Dx11.h" />
     <ClInclude Include="menu\input\input_system.h" />
@@ -884,6 +889,10 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <None Include="shaders\fsrd_preprocess\precompile\RRTraceAdditive.hlsl" />
     <None Include="shaders\fsrd_preprocess\RRTraceAdditive.inl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDOutputComp.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompLight.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompNoRecovery.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompTileLight.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompTileAnchor.hlsl" />
     <None Include="Source.def" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

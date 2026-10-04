@@ -85,6 +85,15 @@ cbuffer CB_Comp : register(b0)
     float DemodDivisorFloor;
 }
 
+// 0 keeps the complete Anchor/Light/debug program. Runtime selects variants 1/2
+// only after proving that the removed path cannot contribute to this dispatch.
+#ifndef FSRD_COMPOSITION_VARIANT
+#define FSRD_COMPOSITION_VARIANT 0
+#endif
+#if FSRD_COMPOSITION_VARIANT < 0 || FSRD_COMPOSITION_VARIANT > 4
+#error Invalid FSRD composition variant
+#endif
+
 #define THREAD_GROUP_SIZE_X 8
 #define THREAD_GROUP_SIZE_Y 8
 #define NUM_THREADS 64
@@ -94,6 +103,7 @@ static const uint2 s_ThreadGroupSize = uint2(8, 8);
 DEFINE_LDS_CONFIG(s_SM, 9);
 // Rows first: adjacent X lanes must not stride an entire tile in LDS.
 // One padding column also separates the banks used by consecutive rows.
+#if FSRD_COMPOSITION_VARIANT == 0 || FSRD_COMPOSITION_VARIANT == 4
 groupshared half3 g_RR[16][17];
 groupshared half4 g_Reference[16][17];
 groupshared float g_Depth[16][17];
@@ -102,10 +112,18 @@ groupshared half3 g_Albedo[16][17];
 groupshared float3 g_Blurred[16][17];
 groupshared float g_QuietPair[16][17];
 groupshared uint g_VaryingGuides;
+#endif
+#if FSRD_COMPOSITION_VARIANT != 2
 groupshared uint g_HasHandover;
+// The light path needs only a radius-one RR neighbourhood. Keep it in FP32:
+// reusing the half-precision handover tile would quantize the recovery input.
+groupshared float3 g_LightRR[10][11];
+#endif
+#if FSRD_COMPOSITION_VARIANT == 0 || FSRD_COMPOSITION_VARIANT == 4
 groupshared float4 g_RegionA[16][9];
 groupshared float4 g_RegionB[16][9];
 groupshared float4 g_RegionC[16][9];
+#endif
 
 // Uniform material guides on planar display surfaces are common. Only FP32-scale
 // depth roundoff is ignored; normal length remains the actual decoded FP16 value.
@@ -419,12 +437,14 @@ float3 FilterRecoveryDelta(float3 filtered, float3 rr, float noise)
 // extend the structure test to coarse scales the 3x3 footprint cannot see;
 // unlike the retired Spatial+Temporal wide pairs they never contribute colour.
 // No history is read or written by this path.
+#if FSRD_COMPOSITION_VARIANT != 2
 float3 LightAnchorRecovery(int2 p, float4 reference, float3 rr, out float3 anchoredReference,
                            out float3 chromaCorrection, out float lumaCorrection)
 {
     chromaCorrection = 0;
     lumaCorrection = 0;
     const int2 bounds = int2(DstTexSize.xy) - 1;
+    const int2 local = (p & 7) + 1;
     const float z = InLinearDepth[p];
     const float3 n = OctahedralDecode(InNormals[p].xy);
     const float3 a = InDiffuseAlbedo[p].rgb;
@@ -446,7 +466,7 @@ float3 LightAnchorRecovery(int2 p, float4 reference, float3 rr, out float3 ancho
     {
         const int2 q = clamp(p + int2(x, y), 0, bounds);
         const float4 tap = InDetailReference[q];
-        const float3 tapRR = Reconstruct(q);
+        const float3 tapRR = g_LightRR[local.y + y][local.x + x];
         float w = CompositionSurfaceWeight(z, InLinearDepth[q], gradient, float2(x, y), n,
                                            OctahedralDecode(InNormals[q].xy), a, InDiffuseAlbedo[q].rgb, 3u);
         w *= tap.a >= 0.0f ? 1.0f : 0.0f;
@@ -589,6 +609,28 @@ float3 LightAnchorRecovery(int2 p, float4 reference, float3 rr, out float3 ancho
     // retained the current structure. Do not put that noise back into it.
     const float rrError = sqrt(rrDifference2 / max(total, 1e-5f));
     const float rrAgreement = 1.0f - smoothstep(0.8f, 1.2f, rrError / max(patchNoise, 1e-5f));
+    const float lrMean = GetLuminance(lowRR), lpMean = GetLuminance(lowReference);
+    const float3 mcr = rrChromaMean / max(total, 1e-5f), mcp = refChromaMean / max(total, 1e-5f);
+    const float vcr = max(rrChromaSquare / max(total, 1e-5f) - dot(mcr, mcr) / 3.0f, 0.0f);
+    const float vcp = max(refChromaSquare / max(total, 1e-5f) - dot(mcp, mcp) / 3.0f, 0.0f);
+    const float ccp = crossChroma / max(total, 1e-5f) - dot(mcr, mcp) / 3.0f;
+    const float lumaCoherence = saturate(cov / max(sqrt(vr * vp), 1e-12f));
+    const float chromaCoherence = saturate(ccp / max(sqrt(vcr * vcp), 1e-12f));
+    const float patchVariance = patchNoise * patchNoise * 0.75f;
+    // Correlation divided by reference variance shrinks with RR's contrast.
+    // Use normalized pattern agreement to recognize the same attenuated detail,
+    // while keeping the existing noise, structure and already-sharp vetoes.
+    // Normalize contrast by the local light level: exposure alone is not blur.
+    const float retainedContrast = sqrt((vr + vcr) / max(vp + vcp - 2.0f * patchVariance, 1e-12f)) *
+                                   max(lpMean, 1e-5f) / max(lrMean, 1e-5f);
+    // A nearly flat RR patch cannot certify smooth reference grain merely
+    // because their local slopes align. Likewise, shared noise can correlate
+    // strongly but cannot authorize more contrast without a high reference SNR.
+    const float rrStructureSupport =
+        smoothstep(0.005f, 0.015f, sqrt(vr + vcr) / max(lrMean, 1e-5f)) * smoothstep(2.5f, 6.5f, snr);
+    const float supportedAttenuation =
+        max(smoothstep(0.85f, 0.97f, lumaCoherence), smoothstep(0.85f, 0.97f, chromaCoherence)) *
+        rrStructureSupport * structureWeight * (1.0f - rrAgreement) * saturate(1.0f - retainedContrast);
     // Box anchor into local statistics. Per-channel only: the full colour
     // covariance rotation stays with the handover Anchor algorithm. RR's
     // variance is exactly what attenuation removed, so once the measured
@@ -607,27 +649,21 @@ float3 LightAnchorRecovery(int2 p, float4 reference, float3 rr, out float3 ancho
         // reference's variance that RR's local pattern also carries may widen
         // the anchor. Grain over flat RR correlates with nothing, so a
         // per-pixel residual underestimate cannot certify it as structure.
-        const float relaxEvidence = saturate(cov / max(vp, 1e-12f));
+        const float relaxEvidence = max(saturate(cov / max(vp, 1e-12f)), supportedAttenuation);
         const float anchorRelax = smoothstep(0.06f, 0.10f, structureContrast) * relaxEvidence;
         const float3 tolerance =
             FloorHandoverAnchorClamp * sqrt(max(varianceRR, anchorRelax * structureVariance));
         graft = clamp(graft, max(lowRR - tolerance, 0), lowRR + tolerance);
     }
     anchoredReference = graft;
-    const float lrMean = GetLuminance(lowRR), lpMean = GetLuminance(lowReference);
     const float lumaAgreement =
         saturate(((2.0f * cov + 1e-3f) / (vr + vp + 1e-3f)) *
                  ((2.0f * lrMean * lpMean + 1e-2f) / (lrMean * lrMean + lpMean * lpMean + 1e-2f)));
-    const float3 mcr = rrChromaMean / max(total, 1e-5f), mcp = refChromaMean / max(total, 1e-5f);
-    const float vcr = max(rrChromaSquare / max(total, 1e-5f) - dot(mcr, mcr) / 3.0f, 0.0f);
-    const float vcp = max(refChromaSquare / max(total, 1e-5f) - dot(mcp, mcp) / 3.0f, 0.0f);
-    const float ccp = crossChroma / max(total, 1e-5f) - dot(mcr, mcp) / 3.0f;
     const float chromaStabilizer = max(4.0f * patchNoise * patchNoise, 1e-6f);
     const float chromaAgreement =
         saturate((2.0f * ccp + chromaStabilizer) / max(vcr + vcp + chromaStabilizer, 1e-6f));
     const float colourEvidence = vcr / (vcr + vr + chromaStabilizer);
     float agreement = lerp(lumaAgreement, min(lumaAgreement, chromaAgreement), colourEvidence);
-    const float patchVariance = patchNoise * patchNoise * 0.75f;
     // Blur-hypothesis stand-in (the handover path probes a blurred reference
     // instead): reference contrast persistently above RR beyond the measured
     // noise is attenuation, not disagreement. Blur raises agreement exactly
@@ -635,6 +671,7 @@ float3 LightAnchorRecovery(int2 p, float4 reference, float3 rr, out float3 ancho
     // ratio. Structure, anchor and residual-noise gates still protect a clean
     // RR result from grain with inflated variance.
     agreement *= saturate(vr / max(vp - 2.0f * patchVariance, 1e-6f));
+    agreement *= 1.0f - supportedAttenuation;
     // The correlation opt-out reuses the measured-clean verdict above.
     const float mixGate = cleanStructure ? 1.0f : 1.0f - saturate(FloorHandoverCorrelationMix) * agreement;
     const float confidence = structureWeight * (1.0f - rrAgreement) * mixGate;
@@ -648,7 +685,6 @@ float3 LightAnchorRecovery(int2 p, float4 reference, float3 rr, out float3 ancho
     {
         // Chromatic contrast: recover only the colour RR's own local pattern
         // predicts, ray-limited so luminance is untouched.
-        const float chromaCoherence = saturate(ccp / max(sqrt(vcr * vcp), 1e-12f));
         const float colourSupport =
             smoothstep(0.80f, 0.95f, chromaCoherence) * vcr / (vcr + chromaStabilizer);
         const float missingGain = min(max(ccp - vcr - 2.0f * patchVariance, 0.0f) / max(vcr, 1e-6f), 2.0f);
@@ -664,7 +700,6 @@ float3 LightAnchorRecovery(int2 p, float4 reference, float3 rr, out float3 ancho
         // Luminance contrast: RR attenuated a pattern it still carries. The
         // gain comes from RR's own high band after a noise allowance; a
         // uniform illumination gain must not be read as blur.
-        const float lumaCoherence = saturate(cov / max(sqrt(vr * vp), 1e-12f));
         const float lightingGain =
             max((GetLuminance(reference.rgb) + mp) / max(GetLuminance(rr) + mr, 1e-6f), 1.0f);
         const float localLoss = max(cov - vr * lightingGain - 2.0f * patchVariance, 0.0f);
@@ -692,6 +727,7 @@ float3 LightAnchorRecovery(int2 p, float4 reference, float3 rr, out float3 ancho
     const float3 totalCorrection = correction + chromaCorrection + lumaCorrection;
     return clamp(rr + totalCorrection, min(rr, referenceMin), max(rr, referenceMax)) - rr;
 }
+#endif
 void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 colour, bool active)
 {
     if (WriteHistory == 0) return;
@@ -724,7 +760,12 @@ void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 col
         return;
     }
     // Uniform fast path: no reference/guide reads or neighbourhood when detail is off.
+#if FSRD_COMPOSITION_VARIANT == 2
+    // The CPU predicate proves this original uniform fast path for every lane.
+    if (true)
+#else
     if ((DetailPreservation <= 0.0f || RecoveryMask == 0) && !IsSet(FLAGS_DEBUG))
+#endif
     {
         if (inBounds)
         {
@@ -737,10 +778,13 @@ void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 col
         }
         return;
     }
+#if FSRD_COMPOSITION_VARIANT != 2
     const uint tid = gtID.x + gtID.y * 8;
     if (tid == 0)
     {
+#if FSRD_COMPOSITION_VARIANT == 0 || FSRD_COMPOSITION_VARIANT == 4
         g_VaryingGuides = 0;
+#endif
         g_HasHandover = 0;
     }
     GroupMemoryBarrierWithGroupSync();
@@ -749,12 +793,47 @@ void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 col
     float3 anchorWeight = 0, filterWeight = 0;
     if (inBounds) RecoveryWeights(p, anchorWeight, filterWeight);
     const bool handoverSurface = any(anchorWeight > 0);
-    if (handoverSurface)
-        InterlockedOr(g_HasHandover, 1u);
+#if FSRD_COMPOSITION_VARIANT == 1
+    // All selected bits are Light; no lane can contribute the Anchor bit.
+    const uint recoveryMethods = any(filterWeight > 0) ? 2u : 0u;
+#else
+    const uint recoveryMethods = (handoverSurface ? 1u : 0u) | (any(filterWeight > 0) ? 2u : 0u);
+#endif
+    if (recoveryMethods != 0)
+        InterlockedOr(g_HasHandover, recoveryMethods);
     GroupMemoryBarrierWithGroupSync();
+#if FSRD_COMPOSITION_VARIANT == 3
+    // Every lane contributed original RecoveryWeights before this uniform guard.
+    // The companion Anchor shader owns every pixel/history write in these tiles.
+    if ((g_HasHandover & 1u) != 0) return;
+#elif FSRD_COMPOSITION_VARIANT == 4
+    // Includes ordinary/no-selection tiles: the small shader owns them all.
+    if ((g_HasHandover & 1u) == 0) return;
+#endif
+    if ((g_HasHandover & 2u) != 0)
+    {
+        // 100 reconstructions per 64 pixels instead of nine per light pixel.
+        // All lanes load the halo, including lanes outside a partial group.
+        [unroll] for (uint i = 0; i < 2; ++i)
+        {
+            const uint index = tid + i * 64;
+            if (index < 100)
+            {
+                const int2 s = int2(index % 10, index / 10);
+                const int2 q = clamp(int2(groupID.xy * 8) + s - 1, 0, bounds);
+                g_LightRR[s.y][s.x] = Reconstruct(q);
+            }
+        }
+        GroupMemoryBarrierWithGroupSync();
+    }
     // This return is uniform across the group, before all tile barriers.
     // Ordinary surfaces keep spatial Floor + RR without screen reconstruction.
-    if (g_HasHandover == 0 && !IsSet(FLAGS_DEBUG))
+#if FSRD_COMPOSITION_VARIANT == 1 || FSRD_COMPOSITION_VARIANT == 3
+    // Proven uniformly by the CPU predicate or the whole-tile guard; keep the existing Light path verbatim.
+    if (true)
+#else
+    if ((g_HasHandover & 1u) == 0 && !IsSet(FLAGS_DEBUG))
+#endif
     {
         if (inBounds)
         {
@@ -781,6 +860,7 @@ void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 col
         }
         return;
     }
+#if FSRD_COMPOSITION_VARIANT == 0 || FSRD_COMPOSITION_VARIANT == 4
     const uint tileSide = s_SM_Size.x;
     const int tileOffset = 0;
     const int2 origin = int2(groupID.xy * 8) - int2(s_SM_HaloOffset);
@@ -1430,4 +1510,6 @@ void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 col
         }
     }
     OutColor[p] = half4(FloorRadiance(output), 1);
+#endif
+#endif
 }

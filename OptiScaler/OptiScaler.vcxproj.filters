@@ -971,6 +971,9 @@
     <ClInclude Include="shaders\fsrd_preprocess\FSRDShaderData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDCompositionVariant.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="shaders\fsrd_preprocess\RRTraceAdditiveIO.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -1005,6 +1008,18 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDOutputComp_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompLight_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompNoRecovery_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompTileLight_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompTileAnchor_Shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="upscalers\fsr31\FSRDFeature_Dx12.h">
@@ -1646,6 +1661,18 @@
       <Filter>Header Files</Filter>
     </None>
     <None Include="shaders\fsrd_preprocess\precompile\FSRDOutputComp.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompLight.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompNoRecovery.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompTileLight.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompTileAnchor.hlsl">
       <Filter>Header Files</Filter>
     </None>
     <None Include="shaders\magnifier\precompile\Magnifier_Shader_Vk.spv" />

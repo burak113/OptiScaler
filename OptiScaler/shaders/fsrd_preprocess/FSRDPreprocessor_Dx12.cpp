@@ -11,11 +11,16 @@
 #include "gpu_time/FSRDStageTimings_Dx12.h"
 #include "FSRDShaderUtils.h"
 #include "FSRDShaderData.h"
+#include "FSRDCompositionVariant.h"
 #include "precompile/FSRDInputConv_Shader.h" 
 #include "precompile/FSRDInputConvAdditive_Shader.h"
 #include "precompile/FSRDFloorSeed_Shader.h" 
 #include "precompile/FSRDFloor_Shader.h" 
-#include "precompile/FSRDOutputComp_Shader.h" 
+#include "precompile/FSRDOutputComp_Shader.h"
+#include "precompile/FSRDOutputCompLight_Shader.h"
+#include "precompile/FSRDOutputCompNoRecovery_Shader.h"
+#include "precompile/FSRDOutputCompTileLight_Shader.h"
+#include "precompile/FSRDOutputCompTileAnchor_Shader.h"
 #include "precompile/FSRDAlbedoTrustEvidence_Shader.h"
 #include "precompile/FSRDAlbedoTrustPropagate_Shader.h"
 
@@ -38,6 +43,10 @@
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace FSRD;
+
+// Keep the portable pipeline selector tied to the actual shader flag contract.
+static_assert(uint32_t(FSRDPreprocessor_Dx12::CompFlags::RawSourceBlit) == 1u);
+static_assert(uint32_t(FSRDPreprocessor_Dx12::CompFlags::Debug) == (1u << 16));
 
 constexpr UINT kBackBufferCount = 3;
 
@@ -300,6 +309,14 @@ struct FSRDPreprocessor_Dx12::Impl
     ComputeState m_floorFilterShader;
     ComputeState m_convShader;
     ComputeState m_compShader;
+    // Reuse generic root signature, descriptors and leased constants/resources.
+    ComPtr<ID3D12PipelineState> m_lightCompPso;
+    ComPtr<ID3D12PipelineState> m_noRecoveryCompPso;
+    bool m_lightCompPsoFailed = false;
+    bool m_noRecoveryCompPsoFailed = false;
+    ComPtr<ID3D12PipelineState> m_tileLightCompPso;
+    ComPtr<ID3D12PipelineState> m_tileAnchorCompPso;
+    bool m_splitCompPsoFailed = false;
     ComputeState m_trustEvidenceShader;
     ComputeState m_trustPropagateShader;
     // Shares conversion's root signature, per-dispatch descriptors and constants.
@@ -1385,11 +1402,15 @@ struct FSRDPreprocessor_Dx12::Impl
     void DispatchFloorFilter(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
     {
         if (!desc.FloorEnabled) return;
-        for (int i = 0; i < FloorFilter::kPasses; ++i)
+        static constexpr std::array<int, FloorFilter::kPasses> fullSteps {1, 2, 4, 8, 16};
+        static constexpr std::array<int, 3> fastSteps {1, 2, 16};
+        const std::span<const int> steps = desc.FloorFastMode
+            ? std::span<const int>(fastSteps) : std::span<const int>(fullSteps);
+        for (int step : steps)
         {
             FloorFilter::Constants constants = {
                 .DstTexSize = desc.RenderSize,
-                .StepSize = 1 << i,
+                .StepSize = step,
                 .AlbedoBase = {desc.InputBase2.z, desc.InputBase2.w}
             };
             FloorFilter::Input in = {.Resources = {
@@ -1618,6 +1639,61 @@ struct FSRDPreprocessor_Dx12::Impl
         return true;
     }
 
+    bool EnsureSplitCompositionPipelines()
+    {
+        if (m_tileLightCompPso && m_tileAnchorCompPso) return true;
+        if (m_splitCompPsoFailed) return false;
+        ScopedSkipHeapCapture skipHeapCapture {};
+        // Ensure BOTH before recording either dispatch. Failure keeps the original
+        // single generic dispatch, so no partial output/history can be published.
+        const auto create = [&](D3D12_SHADER_BYTECODE code, ComPtr<ID3D12PipelineState>& result) {
+            if (result) return true;
+            D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
+            desc.pRootSignature = m_compShader.m_rootSig.Get();
+            desc.CS = code;
+            const HRESULT status = m_pDev->CreateComputePipelineState(&desc, IID_PPV_ARGS(&result));
+            if (SUCCEEDED(status)) return true;
+            result.Reset();
+            LOG_WARN("FSRD optional split composition pipeline failed (HRESULT: {}); using generic composition",
+                     static_cast<uint32_t>(status));
+            return false;
+        };
+        if (!create({ FSRDOutputCompTileLight_cso, sizeof(FSRDOutputCompTileLight_cso) }, m_tileLightCompPso) ||
+            !create({ FSRDOutputCompTileAnchor_cso, sizeof(FSRDOutputCompTileAnchor_cso) }, m_tileAnchorCompPso))
+        {
+            m_splitCompPsoFailed = true;
+            return false;
+        }
+        return true;
+    }
+
+    ID3D12PipelineState* CompositionPipeline(const CompositionDesc& desc)
+    {
+        const auto variant = Composition::ChoosePipeline(desc.Flags, desc.FloorDetailPreservation,
+                                                         desc.RecoveryMask, desc.SpatialTemporalMask);
+        if (variant == Composition::PipelineVariant::Generic) return m_compShader.m_pso.Get();
+        const bool light = variant == Composition::PipelineVariant::Light;
+        auto& pipeline = light ? m_lightCompPso : m_noRecoveryCompPso;
+        auto& failed = light ? m_lightCompPsoFailed : m_noRecoveryCompPsoFailed;
+        if (!pipeline && !failed)
+        {
+            ScopedSkipHeapCapture skipHeapCapture {};
+            D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
+            psoDesc.pRootSignature = m_compShader.m_rootSig.Get();
+            psoDesc.CS = light
+                ? D3D12_SHADER_BYTECODE { FSRDOutputCompLight_cso, sizeof(FSRDOutputCompLight_cso) }
+                : D3D12_SHADER_BYTECODE { FSRDOutputCompNoRecovery_cso, sizeof(FSRDOutputCompNoRecovery_cso) };
+            const HRESULT result = m_pDev->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&pipeline));
+            if (FAILED(result))
+            {
+                failed = true;
+                LOG_WARN("FSRD optional composition pipeline failed (HRESULT: {}); using generic composition",
+                         static_cast<uint32_t>(result));
+            }
+        }
+        return pipeline ? pipeline.Get() : m_compShader.m_pso.Get();
+    }
+
     void DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
     {
         if (!cmdList || !m_maxWidth)
@@ -1714,7 +1790,22 @@ struct FSRDPreprocessor_Dx12::Impl
 
         {
             FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::Composition);
-            m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, outputs.AsArray, dstDim, true);
+            if (Composition::CanSplitTiles(desc.Flags, desc.FloorDetailPreservation,
+                                           desc.RecoveryMask, desc.SpatialTemporalMask) &&
+                EnsureSplitCompositionPipelines())
+            {
+                // Each call creates its own retained dispatch lease/CBV/descriptors.
+                // Both use unchanged SRVs and the same non-aliased history WRITE UAVs.
+                // autoBarrierOutput restores SRV state after the first pass before the
+                // second transitions it back to UAV; it also orders the disjoint writes.
+                m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, outputs.AsArray, dstDim, true,
+                                      m_tileLightCompPso.Get());
+                m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, outputs.AsArray, dstDim, true,
+                                      m_tileAnchorCompPso.Get());
+            }
+            else
+                m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, outputs.AsArray, dstDim, true,
+                                      CompositionPipeline(desc));
         }
         m_historyPending=writeHistory;
     }

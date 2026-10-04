@@ -23,7 +23,7 @@ def run():
     for key in keys:
         if key != 'FloorDetailPreservation':  # Read-only migration to the linear master.
             assert not re.search(r'read(?:Float|Int|Bool)\("FSR-RR", "'+key+r'"',text),key
-    new = {'FloorEnabled','FloorRecovery','FloorHandoverAnchorClamp','FloorHandoverCorrelationMix',
+    new = {'FloorEnabled','FloorFastMode','FloorRecovery','FloorHandoverAnchorClamp','FloorHandoverCorrelationMix',
            'SpecularAlbedoDemodulation','DiffuseAlbedoModulation','FloorFlatRecovery',
            'FloorSpecularRecovery','FloorDiffuseRecovery','FloorFlatNoiseMethod',
            'FloorSpecularNoiseMethod','FloorDiffuseNoiseMethod','FloorLumaRecovery','FloorChromaRecovery'}
@@ -36,7 +36,7 @@ def run():
         assert f'ini.SetValue("FSR-RR", "{key}"' in text,key
     OUT.mkdir(parents=True,exist_ok=True)
     fixture='[FSR-RR]\n'+''.join(k+'=123\n' for k in keys)
-    fixture+='FloorEnabled=false\nFloorNoiseSuppression=0.4\nFloorRecovery=0.6\n'
+    fixture+='FloorEnabled=false\nFloorFastMode=true\nFloorNoiseSuppression=0.4\nFloorRecovery=0.6\n'
     fixture+='FloorHandoverAnchorClamp=2.5\nFloorHandoverCorrelationMix=0.6\n'
     fixture+='FloorRRRouting=1\n'
     fixture+='RoughnessFloor=0.15\nDemodDivisorFloor=0.008\nUnrelated=keep\n[Other]\nFloorHandover=keep\n'
@@ -54,6 +54,7 @@ def run():
         'assert(std::string(reload.GetValue("FSR-RR","Unrelated",""))=="keep");\n'
         'assert(reload.GetValue("FSR-RR","FloorNoiseSuppression",nullptr)==nullptr);\n'
         'assert(std::string(reload.GetValue("FSR-RR","FloorRecovery",""))=="0.6");\n'
+        'assert(std::string(reload.GetValue("FSR-RR","FloorFastMode",""))=="true");\n'
         'assert(reload.GetValue("FSR-RR","FloorRRRouting",nullptr)==nullptr);\n'
         'assert(reload.GetValue("FSR-RR","FloorVirtualAlbedo",nullptr)==nullptr);\n'
         'assert(std::string(reload.GetValue("FSR-RR","FloorHandoverAnchorClamp",""))=="2.5");\n'

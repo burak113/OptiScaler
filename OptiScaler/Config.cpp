@@ -126,6 +126,7 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserFloorLumaRecovery.reset();
     FfxDenoiserFloorChromaRecovery.reset();
     FfxDenoiserFloorEnabled.reset();
+    FfxDenoiserFloorFastMode.reset();
     FfxDenoiserFloorRecovery.reset();
     FfxDenoiserFloorHandoverCorrelationMix.reset();
     FfxDenoiserFloorHandoverAnchorClamp.reset();
@@ -413,6 +414,7 @@ bool Config::Reload(std::filesystem::path iniPath)
                 readBool("FSR-RR", "DiffuseHitDistance"));
 
             FfxDenoiserFloorEnabled.set_from_config(readBool("FSR-RR", "FloorEnabled"));
+            FfxDenoiserFloorFastMode.set_from_config(readBool("FSR-RR", "FloorFastMode"));
             FfxDenoiserFloorRecovery.set_from_config(readFloat("FSR-RR", "FloorRecovery"));
             if (!FfxDenoiserFloorRecovery.has_value())
             {
@@ -1338,6 +1340,7 @@ bool Config::SaveIni()
                 Instance()->FfxDenoiserDiffuseHitDistance.value_for_config()).c_str());
 
         ini.SetValue("FSR-RR", "FloorEnabled", GetBoolValue(Instance()->FfxDenoiserFloorEnabled.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "FloorFastMode", GetBoolValue(Instance()->FfxDenoiserFloorFastMode.value_for_config()).c_str());
         ini.Delete("FSR-RR", "FloorDetailPreservation", true);
         ini.SetValue("FSR-RR", "FloorRecovery", GetFloatValue(Instance()->FfxDenoiserFloorRecovery.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "SpecularAlbedoDemodulation", GetFloatValue(Instance()->FfxDenoiserSpecularAlbedoDemodulation.value_for_config()).c_str());

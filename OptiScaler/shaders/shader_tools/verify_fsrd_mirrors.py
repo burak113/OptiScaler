@@ -711,12 +711,27 @@ def check_albedo_storage():
                  "DXGI_FORMAT_%s, which holds %g" % (levels, name, fmt, want))
 
 
+def check_composition_variants():
+    # Wrappers inherit the complete canonical CBV/SRV/UAV contract. Reject a
+    # wrapper that silently replaces it or adds per-variant bindings/constants.
+    for name, variant in [('FSRDOutputCompLight', 1), ('FSRDOutputCompNoRecovery', 2),
+                          ('FSRDOutputCompTileLight', 3), ('FSRDOutputCompTileAnchor', 4)]:
+        expected = '#define FSRD_COMPOSITION_VARIANT %d\n#include "FSRDOutputComp.hlsl"\n' % variant
+        path = os.path.join(PRE, name + '.hlsl')
+        if not os.path.isfile(path) or read(path) != expected:
+            fail(name + ': must be the exact canonical composition wrapper')
+    source = read(COMP_HLSL)
+    if '#ifndef FSRD_COMPOSITION_VARIANT\n#define FSRD_COMPOSITION_VARIANT 0\n#endif' not in source:
+        fail('FSRDOutputComp: default must retain the complete generic shader')
+
+
 if __name__ == "__main__":
     check_constants()
     check_flags()
     check_resources()
     check_debug_mode_names()
     check_albedo_storage()
+    check_composition_variants()
     if errors:
         print("FSRD mirror check FAILED (%d):" % len(errors))
         for e in errors:

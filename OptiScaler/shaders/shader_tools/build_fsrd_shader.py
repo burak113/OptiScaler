@@ -85,6 +85,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('name', choices=['FSRDFloorSeed', 'FSRDFloor', 'FSRDInputConv',
                                        'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDOutputComp',
+                                       'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
+                                       'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor',
                                        'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate', 'all'])
     parser.add_argument('--dxc', help='DXC executable; otherwise FSRD_DXC, PATH, or latest installed SDK')
     options = parser.parse_args()
@@ -99,9 +101,16 @@ if __name__ == "__main__":
     if options.name == 'all':
         names = ['FSRDFloorSeed', 'FSRDFloor', 'FSRDInputConv',
                  'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDOutputComp',
+                 'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
+                 'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor',
                  'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate']
     elif options.name == 'FSRDInputConv':
         names = ['FSRDInputConv', 'FSRDInputConvAdditive', 'RRTraceAdditive']
+    elif options.name in ('FSRDOutputComp', 'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
+                 'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor'):
+        # Every wrapper shares the composition source. Rebuild all dependents.
+        names = ['FSRDOutputComp', 'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
+                 'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor']
     else:
         names = [options.name]
     for name in names:

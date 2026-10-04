@@ -2910,11 +2910,21 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
                                 bool floorEnabled = config->FfxDenoiserFloorEnabled.value_or_default();
                                 if (ImGui::Checkbox("Enable Floor", &floorEnabled))
                                     config->FfxDenoiserFloorEnabled = floorEnabled;
+                                ImGui::BeginDisabled(!floorEnabled);
+                                if (bool v = config->FfxDenoiserFloorFastMode.value_or_default();
+                                    ImGui::Checkbox("Faster Floor filtering", &v))
+                                    config->FfxDenoiserFloorFastMode = v;
+                                if (ImGui::IsItemHovered())
+                                    ImGui::SetTooltip("Reduces Floor filtering cost. Can change lighting smoothness and leave more noise. Disable for full quality.");
+                                ImGui::EndDisabled();
                                 ImGui::TextWrapped(
-                                    "Separates smooth lighting before RR. Enabled: one seed and five filter passes. "
-                                    "Disabled: the seed still prepares depth; five filters are skipped.");
+                                    "Separates smooth lighting before RR. Enabled: one seed and five filter passes "
+                                    "(three with faster filtering). Disabled: only the seed prepares depth.");
                                 if (ImGui::Button("Reset Floor"))
+                                {
                                     config->FfxDenoiserFloorEnabled.reset();
+                                    config->FfxDenoiserFloorFastMode.reset();
+                                }
                             }
                             if (ImGui::CollapsingHeader("Composition & Recovery"))
                             {

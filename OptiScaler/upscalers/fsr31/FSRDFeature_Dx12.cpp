@@ -3659,6 +3659,10 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     if (cfg.FfxDenoiserApproximateRayHitDistance.value_or_default())
         _convDesc.Flags |= uint32_t(FSRDConvFlags::ApproximateRayHitDistance);
     _convDesc.FloorEnabled = cfg.FfxDenoiserFloorEnabled.value_or_default();
+    const bool floorFastMode = cfg.FfxDenoiserFloorFastMode.value_or_default();
+    if (_convDesc.FloorFastMode != floorFastMode)
+        InvalidateDenoiserHistory();
+    _convDesc.FloorFastMode = floorFastMode;
     const auto unitValue = [](float value, float fallback) {
         return std::isfinite(value) ? std::clamp(value, 0.0f, 1.0f) : fallback;
     };

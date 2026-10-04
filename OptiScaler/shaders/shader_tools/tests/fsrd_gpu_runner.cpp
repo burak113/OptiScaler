@@ -13,10 +13,13 @@
 #include <iomanip>
 #include <iostream>
 #include <stdexcept>
+#include <sstream>
 #include <string>
 #include <vector>
 
 using Microsoft::WRL::ComPtr;
+constexpr D3D12_RESOURCE_STATES kOutputReadState =
+    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 void check(HRESULT hr, const char* what)
 {
     if (FAILED(hr)) throw std::runtime_error(std::string(what) + " HRESULT=" + std::to_string(uint32_t(hr)));
@@ -57,6 +60,14 @@ int executeJob(const char* path) try
     UINT width, height, srvCount, uavCount, repetitions;
     job >> std::quoted(shaderPath) >> std::quoted(cbPath) >> width >> height >> srvCount >> uavCount >> repetitions;
     if (!job || !width || !height || !repetitions) throw std::runtime_error("invalid job");
+    // Optional two-pass parameters on the same header line. Original one-pass
+    // job records remain valid. Both passes bind the SAME output textures.
+    std::string secondShaderPath, extra;
+    bool initializeSentinel = false;
+    std::getline(job, extra);
+    std::istringstream options(extra);
+    options >> std::quoted(secondShaderPath) >> initializeSentinel;
+    const bool graphRequested = !secondShaderPath.empty() || initializeSentinel;
     // Optional worker mode retains only the device/queue between jobs. Every job
     // still creates and uploads its own resources and waits for GPU completion.
     // No texture contents or descriptors can accidentally carry over to a test.
@@ -123,7 +134,8 @@ int executeJob(const char* path) try
         d.Flags = output ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
         D3D12_HEAP_PROPERTIES hp {}; hp.Type = D3D12_HEAP_TYPE_DEFAULT;
         check(dev->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &d,
-            output ? D3D12_RESOURCE_STATE_UNORDERED_ACCESS : D3D12_RESOURCE_STATE_COPY_DEST,
+            output ? (graphRequested ? kOutputReadState : D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+                   : D3D12_RESOURCE_STATE_COPY_DEST,
             nullptr, IID_PPV_ARGS(&t.resource)), "texture");
         dev->GetCopyableFootprints(&d, 0, 1, 0, &t.footprint, nullptr, nullptr, &t.size);
         t.transfer = buffer(t.size, output ? D3D12_HEAP_TYPE_READBACK : D3D12_HEAP_TYPE_UPLOAD);
@@ -159,26 +171,133 @@ int executeJob(const char* path) try
     check(dev->CreateRootSignature(0,shader.data(),shader.size(),IID_PPV_ARGS(&signature)),"root signature");
     D3D12_COMPUTE_PIPELINE_STATE_DESC ps {}; ps.pRootSignature = signature.Get(); ps.CS = {shader.data(),shader.size()};
     ComPtr<ID3D12PipelineState> pso; check(dev->CreateComputePipelineState(&ps,IID_PPV_ARGS(&pso)),"PSO");
+    // Mirror two independent ComputeState leases: two heaps/CBV uploads with
+    // identical descriptors/constants, retained until the common fence completes.
+    ComPtr<ID3D12PipelineState> secondPso;
+    ComPtr<ID3D12DescriptorHeap> secondHeap;
+    ComPtr<ID3D12Resource> secondCb;
+    if (!secondShaderPath.empty())
+    {
+        const auto secondShader = bytes(secondShaderPath);
+        ps.CS = {secondShader.data(), secondShader.size()};
+        check(dev->CreateComputePipelineState(&ps, IID_PPV_ARGS(&secondPso)), "second PSO");
+        check(dev->CreateDescriptorHeap(&hd, IID_PPV_ARGS(&secondHeap)), "second heap");
+        for (UINT i=0; i<textures.size(); ++i)
+        {
+            auto target = secondHeap->GetCPUDescriptorHandleForHeapStart();
+            target.ptr += SIZE_T(i) * increment;
+            auto& texture = textures[i];
+            if (i >= srvCount)
+            {
+                D3D12_UNORDERED_ACCESS_VIEW_DESC view {};
+                view.Format = texture.format;
+                view.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+                dev->CreateUnorderedAccessView(texture.resource.Get(), nullptr, &view, target);
+            }
+            else
+            {
+                D3D12_SHADER_RESOURCE_VIEW_DESC view {};
+                view.Format = texture.format;
+                view.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+                view.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+                view.Texture2D.MipLevels = 1;
+                dev->CreateShaderResourceView(texture.resource.Get(), &view, target);
+            }
+        }
+        secondCb = buffer((constants.size()+255)&~size_t(255), D3D12_HEAP_TYPE_UPLOAD);
+        check(secondCb->Map(0, &empty, &mapped), "second CB map");
+        memcpy(mapped, constants.data(), constants.size());
+        secondCb->Unmap(0, nullptr);
+    }
+    ComPtr<ID3D12DescriptorHeap> clearHeap;
+    if (initializeSentinel)
+    {
+        // Clear's CPU descriptor lives in a non-shader-visible heap. Its GPU
+        // descriptor remains in the bound heap used by both dispatches.
+        auto clearDescription = hd;
+        clearDescription.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+        check(dev->CreateDescriptorHeap(&clearDescription, IID_PPV_ARGS(&clearHeap)), "clear heap");
+        ID3D12DescriptorHeap* clearHeaps[] = {heap.Get()};
+        cmd->SetDescriptorHeaps(1, clearHeaps);
+        for (UINT i=srvCount; i<textures.size(); ++i)
+        {
+            auto& texture = textures[i];
+            auto cpu = clearHeap->GetCPUDescriptorHandleForHeapStart();
+            auto gpu = heap->GetGPUDescriptorHandleForHeapStart();
+            cpu.ptr += SIZE_T(i) * increment;
+            gpu.ptr += UINT64(i) * increment;
+            D3D12_UNORDERED_ACCESS_VIEW_DESC clearView {};
+            clearView.Format = texture.format;
+            clearView.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+            dev->CreateUnorderedAccessView(texture.resource.Get(), nullptr, &clearView, cpu);
+            barrier(texture.resource.Get(), kOutputReadState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            if (texture.format == DXGI_FORMAT_R32G32B32A32_UINT)
+            {
+                const UINT sentinel[] = {0xdeadbeef,0xdeadbeef,0xdeadbeef,0xdeadbeef};
+                cmd->ClearUnorderedAccessViewUint(gpu, cpu, texture.resource.Get(), sentinel, 0, nullptr);
+            }
+            else
+            {
+                const float sentinel[] = {-8192.f,-8192.f,-8192.f,-8192.f};
+                cmd->ClearUnorderedAccessViewFloat(gpu, cpu, texture.resource.Get(), sentinel, 0, nullptr);
+            }
+            barrier(texture.resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kOutputReadState);
+        }
+    }
     D3D12_QUERY_HEAP_DESC queryDesc {}; queryDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP; queryDesc.Count = repetitions*2;
     ComPtr<ID3D12QueryHeap> query; check(dev->CreateQueryHeap(&queryDesc,IID_PPV_ARGS(&query)),"query heap");
     auto timings = buffer(UINT64(repetitions)*16,D3D12_HEAP_TYPE_READBACK);
-    cmd->SetPipelineState(pso.Get()); cmd->SetComputeRootSignature(signature.Get());
-    ID3D12DescriptorHeap* heaps[] = {heap.Get()}; cmd->SetDescriptorHeaps(1,heaps);
-    cmd->SetComputeRootConstantBufferView(0,cb->GetGPUVirtualAddress());
-    auto gpu = heap->GetGPUDescriptorHandleForHeapStart(); cmd->SetComputeRootDescriptorTable(1,gpu);
-    gpu.ptr += UINT64(srvCount)*increment; cmd->SetComputeRootDescriptorTable(2,gpu);
-    for (UINT r=0;r<repetitions;++r)
+    if (graphRequested)
     {
-        cmd->EndQuery(query.Get(),D3D12_QUERY_TYPE_TIMESTAMP,2*r);
-        cmd->Dispatch((width+7)/8,(height+7)/8,1);
-        cmd->EndQuery(query.Get(),D3D12_QUERY_TYPE_TIMESTAMP,2*r+1);
-        D3D12_RESOURCE_BARRIER u {}; u.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-        cmd->ResourceBarrier(1,&u);
+        const auto dispatch = [&](ID3D12PipelineState* pipeline, ID3D12DescriptorHeap* descriptors,
+                                  ID3D12Resource* upload) {
+            for (UINT i=srvCount; i<textures.size(); ++i)
+                barrier(textures[i].resource.Get(), kOutputReadState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            cmd->SetPipelineState(pipeline);
+            cmd->SetComputeRootSignature(signature.Get());
+            ID3D12DescriptorHeap* heaps[] = {descriptors};
+            cmd->SetDescriptorHeaps(1, heaps);
+            cmd->SetComputeRootConstantBufferView(0, upload->GetGPUVirtualAddress());
+            auto gpu = descriptors->GetGPUDescriptorHandleForHeapStart();
+            cmd->SetComputeRootDescriptorTable(1, gpu);
+            gpu.ptr += UINT64(srvCount) * increment;
+            cmd->SetComputeRootDescriptorTable(2, gpu);
+            cmd->Dispatch((width+7)/8, (height+7)/8, 1);
+            for (UINT i=srvCount; i<textures.size(); ++i)
+                barrier(textures[i].resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kOutputReadState);
+        };
+        for (UINT r=0;r<repetitions;++r)
+        {
+            // One interval covers BOTH dispatches and all production-style output
+            // transitions/root/heap/CBV bindings. Never sum separate stage medians.
+            cmd->EndQuery(query.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 2*r);
+            dispatch(pso.Get(), heap.Get(), cb.Get());
+            if (secondPso) dispatch(secondPso.Get(), secondHeap.Get(), secondCb.Get());
+            cmd->EndQuery(query.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 2*r+1);
+        }
+        std::cout << "graph_dispatches=" << (secondPso ? 2 : 1) << " sentinel_initialized=" << initializeSentinel << '\n';
+    }
+    else
+    {
+        cmd->SetPipelineState(pso.Get()); cmd->SetComputeRootSignature(signature.Get());
+        ID3D12DescriptorHeap* heaps[] = {heap.Get()}; cmd->SetDescriptorHeaps(1,heaps);
+        cmd->SetComputeRootConstantBufferView(0,cb->GetGPUVirtualAddress());
+        auto gpu = heap->GetGPUDescriptorHandleForHeapStart(); cmd->SetComputeRootDescriptorTable(1,gpu);
+        gpu.ptr += UINT64(srvCount)*increment; cmd->SetComputeRootDescriptorTable(2,gpu);
+        for (UINT r=0;r<repetitions;++r)
+        {
+            cmd->EndQuery(query.Get(),D3D12_QUERY_TYPE_TIMESTAMP,2*r);
+            cmd->Dispatch((width+7)/8,(height+7)/8,1);
+            cmd->EndQuery(query.Get(),D3D12_QUERY_TYPE_TIMESTAMP,2*r+1);
+            D3D12_RESOURCE_BARRIER u {}; u.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+            cmd->ResourceBarrier(1,&u);
+        }
     }
     cmd->ResolveQueryData(query.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0,repetitions*2,timings.Get(),0);
     for (UINT i=srvCount;i<textures.size();++i)
     {
-        auto& t=textures[i]; barrier(t.resource.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COPY_SOURCE);
+        auto& t=textures[i]; barrier(t.resource.Get(), graphRequested ? kOutputReadState :
+            D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
         D3D12_TEXTURE_COPY_LOCATION src {}; src.pResource=t.resource.Get(); src.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
         D3D12_TEXTURE_COPY_LOCATION dst {}; dst.pResource=t.transfer.Get(); dst.Type=D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT; dst.PlacedFootprint=t.footprint;
         cmd->CopyTextureRegion(&dst,0,0,0,&src,nullptr);

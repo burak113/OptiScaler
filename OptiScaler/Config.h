@@ -538,6 +538,8 @@ class Config
     CustomOptional<float> FfxDenoiserFloorChromaRecovery{1.0f};
 
     CustomOptional<bool> FfxDenoiserFloorEnabled { true };
+    // Opt-in reduced Floor pass policy; the full five-pass policy remains default.
+    CustomOptional<bool> FfxDenoiserFloorFastMode { false };
     CustomOptional<float> FfxDenoiserFloorRecovery { 1.0f };
     CustomOptional<float> FfxDenoiserFloorHandoverCorrelationMix { 1.0f };
     CustomOptional<float> FfxDenoiserFloorHandoverAnchorClamp { 4.0f };

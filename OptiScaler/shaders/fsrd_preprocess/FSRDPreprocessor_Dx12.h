@@ -231,6 +231,8 @@ class FSRDPreprocessor_Dx12
         float FarPlane;  // Near < Far
 
         bool FloorEnabled = true;
+        // CPU dispatch policy only; no shader constant-buffer or resource layout change.
+        bool FloorFastMode = false;
         float FloorDetailPreservation = 0.35f;
         // The zero-rough domain's RR roughness is this pipeline's own compatibility value
         // (s_ZeroRoughRRRoughness), not a caller preference: there is no field for it.
