@@ -34,10 +34,43 @@ inline void StoreLayout(Config& cfg, const FSRDSignals::Layout& layout)
 inline bool DrawSignals(Config& cfg, uint32_t status)
 {
     bool rebuild = false;
+    const bool legacyOverrides = cfg.FfxDenoiserDiffuseSignalType.has_value() ||
+                                 cfg.FfxDenoiserSpecularSignalType.has_value() ||
+                                 !cfg.FfxDenoiserDenoiseDiffuse.value_or_default() ||
+                                 !cfg.FfxDenoiserDenoiseSpecular.value_or_default();
+    bool automatic = !cfg.FfxDenoiserSignalCount.has_value() && !legacyOverrides;
+    if (ImGui::Checkbox("Automatic Signal Layout", &automatic))
+    {
+        if (automatic)
+        {
+            cfg.FfxDenoiserSignalCount.reset();
+            cfg.FfxDenoiserDiffuseSignalType.reset();
+            cfg.FfxDenoiserSpecularSignalType.reset();
+            cfg.FfxDenoiserDenoiseDiffuse.reset();
+            cfg.FfxDenoiserDenoiseSpecular.reset();
+        }
+        else
+            StoreLayout(cfg, RequestedLayout(cfg, status));
+        rebuild = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Selects one diffuse and one specular signal from the game's validated inputs. "
+                          "Editing a signal below switches to a custom layout.");
     bool approxSpec = cfg.FfxDenoiserApproximateSpecHitDistance.value_or_default();
     bool approxRay = cfg.FfxDenoiserApproximateRayHitDistance.value_or_default();
     const bool observed = (status & 4u) != 0, nativeSpec = observed && (status & 1u),
                nativeRay = observed && (status & 2u);
+    if (observed)
+    {
+        std::string active;
+        for (int signal : FSRDSignals::Preferred)
+            if ((status >> 8) & FSRDSignals::Bit(signal))
+            {
+                if (!active.empty()) active += " + ";
+                active += FSRDSignals::Names[signal];
+            }
+        ImGui::TextWrapped("Active RR signals: %s", active.empty() ? "None" : active.c_str());
+    }
     const auto source = [&](bool native, bool approximate)
     {
         return native        ? "Game input"
@@ -118,7 +151,9 @@ inline bool DrawSignals(Config& cfg, uint32_t status)
         ImGui::PopID();
     }
     if (!cfg.FfxDenoiserSignalCount.has_value())
-        ImGui::TextDisabled("Automatic game classification; editing a slot saves a fixed layout.");
+        ImGui::TextDisabled("%s", automatic
+            ? "Automatic game classification; editing a slot saves a fixed layout."
+            : "Legacy signal overrides active; enable Automatic or edit a slot to replace them.");
     if (observed && ((layout.mask & available) != layout.mask))
     {
         if (cfg.FfxDenoiserSignalCount.has_value() && (((status >> 8) & 15u & ~available) == 0))
@@ -146,7 +181,6 @@ inline bool DrawSignals(Config& cfg, uint32_t status)
         cfg.FfxDenoiserDenoiseSpecular.reset();
         cfg.FfxDenoiserApproximateSpecHitDistance.reset();
         cfg.FfxDenoiserApproximateRayHitDistance.reset();
-        cfg.FfxDenoiserUnsupportedAlbedoRecovery.reset();
         rebuild = true;
     }
     return rebuild;
