@@ -27,7 +27,8 @@ SUITES = (
     'test_fsrd_dispatch_chain',
     'test_fsrd_composition_variants',
     'test_fsrd_composition_graph',
-    'test_fsrd_signal_modes', 'test_fsrd_unsupported_albedo', 'test_fsrd_signal_policy',
+    'test_fsrd_signal_modes', 'test_fsrd_unsupported_albedo', 'test_fsrd_albedo_support', 'test_fsrd_signal_policy',
+    'test_fsrd_host_lifetimes',
     'test_fsrd_stage_timings',
     'test_fsrd_additive_split',
     'test_fsrd_additive_diagnostics',
@@ -66,7 +67,7 @@ SUITES = (
     'test_fsrd_ini_cleanup', 'test_fsrd_reference_integrity',
 )
 OPTIONAL = {'test_fsrd_small_colour_screen', 'test_fsrd_colour_anchor'}
-CPU = {'test_fsrd_dispatch_chain', 'test_fsrd_signal_policy', 'test_fsrd_stage_timings', 'test_fsrd_ini_cleanup', 'test_fsrd_reference_integrity', 'test_fsrd_additive_lifetime',
+CPU = {'test_fsrd_dispatch_chain', 'test_fsrd_signal_policy', 'test_fsrd_host_lifetimes', 'test_fsrd_stage_timings', 'test_fsrd_ini_cleanup', 'test_fsrd_reference_integrity', 'test_fsrd_additive_lifetime',
        'test_fsrd_allocation_models', 'test_fsrd_statistical_resolve', 'test_fsrd_additive_capture_reader',
        'test_fsrd_response_pilot', 'test_fsrd_response_protocol', 'test_fsrd_rrtrace_response',
        'test_fsrd_response_conditioned_pilot', 'test_fsrd_response_soft_pilot'}
@@ -74,6 +75,25 @@ CPU = {'test_fsrd_dispatch_chain', 'test_fsrd_signal_policy', 'test_fsrd_stage_t
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def validate_release_package(dll):
+    if not dll.is_file():
+        raise RuntimeError(f'Release output missing: {dll}')
+    image=dll.read_bytes()
+    for name in SHADERS:
+        if (PRE/(name+'_Shader.cso')).read_bytes() not in image:
+            raise RuntimeError(f'Built DLL does not embed validated {name} bytecode')
+    denoiser=dll.parent/'OptiScaler/amd_fidelityfx_denoiser_dx12.dll'
+    source=ROOT/'external/FidelityFX-SDK-v2/Kits/FidelityFX/signedbin/amd_fidelityfx_denoiser_dx12.dll'
+    if not denoiser.is_file() or digest(denoiser)!=digest(source):
+        raise RuntimeError('Release package is missing the validated AMD denoiser DLL')
+    for sdk, version in (('FidelityFX-SDK', 'v1'), ('FidelityFX-SDK-v2', 'v2')):
+        notice=dll.parent/f'Licenses/FidelityFX_{version}_LICENSE.md'
+        if not notice.is_file() or digest(notice)!=digest(ROOT/'external'/sdk/'docs/license.md'):
+            raise RuntimeError(f'Release package is missing the FidelityFX {version} license')
+    return {'release_dll':{'path':str(dll),'sha256':digest(dll)},
+            'denoiser_dll':{'path':str(denoiser),'sha256':digest(denoiser)}}
 
 
 def main():
@@ -187,14 +207,7 @@ def main():
             report['msbuild']=str(builder)
             required('release_x64',[builder,ROOT/'OptiScaler.sln','/p:Configuration=Release',
                                     '/p:Platform=x64','/m','/v:minimal','/nologo'])
-            dll=ROOT/'x64/Release/a/OptiScaler.dll'
-            if not dll.is_file():
-                raise RuntimeError(f'Release output missing: {dll}')
-            image=dll.read_bytes()
-            for name in SHADERS:
-                if (PRE/(name+'_Shader.cso')).read_bytes() not in image:
-                    raise RuntimeError(f'Built DLL does not embed validated {name} bytecode')
-            report['release_dll']={'path':str(dll),'sha256':digest(dll)}
+            report.update(validate_release_package(ROOT/'x64/Release/a/OptiScaler.dll'))
         if any(digest(p)!=after[p.name] for p in generated):
             raise RuntimeError('Shader artifacts changed during the build')
         report['status']='passed'

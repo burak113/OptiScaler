@@ -73,13 +73,17 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         if (flat < 256)
         {
             const int2 s = int2(flat % 16, flat / 16);
-            const int2 q = clamp(origin + s, 0, bounds);
+            const int2 source = origin + s;
+            const int2 q = clamp(source, 0, bounds);
             const float3 spec = InSpecularAlbedo[q].rgb, diff = InDiffuseAlbedo[q].rgb;
             const float3 witness = float3(InDirectSpecularDenoised[q].rgb) +
                 (float3(InDirectDiffuse[q].rgb) +
                  ((Flags & 1u) != 0 ? float3(InIndirectDiffuseDenoised[q].rgb) : 0.0f)) * diff +
                 float3(InSkipSignal[q].rgb) * (1.0f - SpecularShare(spec, diff));
-            const bool eligible = InDirectSpecularSignal[q].a >= 0.5f;
+            // Clamping makes loads safe, but repeated border texels cannot count
+            // as independent support. Mark them invalid once while loading LDS.
+            const bool eligible = all(source >= 0) && all(source <= bounds) &&
+                InDirectSpecularSignal[q].a >= 0.5f;
             const float z = InLinearDepth[q];
             g_LogAlbedo[s.y][s.x] = log(max(GetLuminance(spec + diff), 1.0f / 255.0f));
             g_LogLight[s.y][s.x] = log(max(GetLuminance(max(witness, 0.0f)), 1e-4f));
@@ -119,6 +123,11 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                 sumL += l; sumLL += l * l;
             }
         }
+    }
+    if (count <= 10.0f)
+    {
+        OutAlbedoTrust[p] = 0.0f;
+        return;
     }
     const float meanA = sumA / count, meanL = sumL / count;
     const float albedoVariance = max(sumAA / count - meanA * meanA, 0.0f);

@@ -297,6 +297,7 @@ struct FSRDPreprocessor_Dx12::Impl
 #include "RRTraceAdditive.inl"
     ~Impl()
     {
+        ReleaseInputProbe();
         if (m_additiveCapture)
         {
             std::scoped_lock lock(g_additiveTraceMutex);
@@ -357,12 +358,6 @@ struct FSRDPreprocessor_Dx12::Impl
     ComPtr<ID3D12Resource> m_ambientOcclusionOutput;
     ComPtr<ID3D12Resource> m_specularOcclusionOutput;
     ComPtr<ID3D12Resource> m_debugViewOutput;
-    // A replaced debug target cannot be freed while an earlier command list can still
-    // reference it. Retain one full descriptor/constant-buffer rotation rather than
-    // assuming resolution changes are separated by several frames: DRS may resize on
-    // consecutive frames.
-    std::array<ComPtr<ID3D12Resource>, kBackBufferCount> m_retiredDebugViewOutputs;
-    UINT m_retiredDebugViewOutputIndex = 0;
     UINT m_debugViewWidth = 0;
     UINT m_debugViewHeight = 0;
 
@@ -389,7 +384,6 @@ struct FSRDPreprocessor_Dx12::Impl
     // DispatchConversion, immediately after the packing dispatch - see
     // RecordInputProbe for why that instant is the only safe one.
     static constexpr UINT kInputProbeTargetCount = 7;
-    static constexpr UINT kInputProbeLogDelay = 3;  // minimum conversions between record and read
     static constexpr UINT kInputProbeInterval = 60; // conversions between recordings
     ComPtr<ID3D12Resource> m_inputProbeReadback[kInputProbeTargetCount];
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_inputProbeFootprint[kInputProbeTargetCount] = {};
@@ -398,43 +392,38 @@ struct FSRDPreprocessor_Dx12::Impl
     UINT m_inputProbeWidth = 0;
     UINT m_inputProbeHeight = 0;
     UINT m_inputProbeCountdown = 1; // record on the first conversion, then every interval
-    UINT m_inputProbePendingLog = 0;
+    // A CPU frame delay or a value copied into a readback heap is not a GPU fence.
+    // The ticket also waits for Reset, so a still-executable list cannot overwrite
+    // these buffers while the CPU reads them or after the next capture reuses them.
+    std::shared_ptr<RRTraceFence::Ticket> m_inputProbeTicket;
 
-    // Map synchronises with nothing - Microsoft's readback guidance waits on the fence
-    // that follows the submission instead. The copies here ride the title's command
-    // list on the title's queue, a queue this code never sees, so there is no fence to
-    // wait on. The completion gate is therefore written by the GPU itself: each
-    // capture ends with a copy of its generation number into a readback slot, and the
-    // data is read only once that token has landed. Everything the readback holds
-    // before the token is whatever an earlier submission left behind.
-    ComPtr<ID3D12Resource> m_inputProbeGenerationReadback;
-    ComPtr<ID3D12Resource> m_inputProbeGenerationUpload;
-    void* m_inputProbeGenerationUploadPtr = nullptr;
-    UINT64 m_inputProbeGeneration = 0;
+    void ReleaseInputProbe()
+    {
+        if (!m_inputProbeTicket) return;
+        m_inputProbeTicket->Abandon();
+        RRTraceFence::Forget(m_inputProbeTicket);
+        m_inputProbeTicket.reset();
+        // An invalid/resubmitted recording may still use the old buffers. Its
+        // abandoned ticket retains them; the next capture gets a fresh allocation.
+        for (auto& buffer : m_inputProbeReadback) buffer.Reset();
+    }
 
     void UpdateInputProbe(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
     {
-        // Off unless asked for. The probe copies seven render targets into readback buffers and
-        // logs six lines every kInputProbeInterval conversions; that is worth its cost while a
-        // number is being chased and worth nothing at all in a shipping configuration, where it
-        // also wrote a gigabyte of log in a session.
-        if (!desc.DiagnosticsEnabled)
-            return;
-
-        // A readback heap may be mapped at any time, so polling costs nothing - never
-        // a stall or a device fault. The conversion delay is only a floor: the
-        // generation token copied after the data is what proves the submission has
-        // executed, so a late or batched title submission makes the log retry on
-        // later conversions instead of publishing stale or half-written bytes.
-        if (m_inputProbePendingLog > 0 && --m_inputProbePendingLog == 0)
+        if (m_inputProbeTicket)
         {
-            if (!LogInputProbe())
-                m_inputProbePendingLog = 1;
+            if (m_inputProbeTicket->Invalid())
+                ReleaseInputProbe();
+            else if (m_inputProbeTicket->Ready() && (!desc.DiagnosticsEnabled || LogInputProbe()))
+            {
+                // Completed, detached buffers can be reused without reallocating.
+                RRTraceFence::Forget(m_inputProbeTicket);
+                m_inputProbeTicket.reset();
+            }
         }
 
-        // The readback buffers hold the pending capture until it has been logged;
-        // recording again would overwrite bytes that are still owed a read.
-        if (m_inputProbePendingLog > 0)
+        // Poll outstanding captures even after diagnostics are disabled.
+        if (!desc.DiagnosticsEnabled || m_inputProbeTicket)
             return;
 
         if (m_inputProbeCountdown > 0 && --m_inputProbeCountdown > 0)
@@ -443,11 +432,10 @@ struct FSRDPreprocessor_Dx12::Impl
         m_inputProbeWidth = static_cast<UINT>(desc.RenderSize.x);
         m_inputProbeHeight = static_cast<UINT>(desc.RenderSize.y);
         m_inputProbeMotionTransform = desc.MotionTransform;
-        if (RecordInputProbe(cmdList))
-        {
-            m_inputProbePendingLog = kInputProbeLogDelay;
-            m_inputProbeCountdown = kInputProbeInterval;
-        }
+        // Also back off after an allocation/hook failure; diagnostics must not
+        // retry an expensive failing allocation on every rendered frame.
+        m_inputProbeCountdown = kInputProbeInterval;
+        RecordInputProbe(cmdList);
     }
 
     // Copies linear depth, motion vectors and normals into readback buffers.
@@ -460,7 +448,7 @@ struct FSRDPreprocessor_Dx12::Impl
     // the device (GPUCrashReport 0xCCCF0D).
     bool RecordInputProbe(ID3D12GraphicsCommandList* cmdList)
     {
-        if (m_pDev == nullptr)
+        if (m_pDev == nullptr || cmdList == nullptr || !ResTrack_Dx12::EnsureRRTraceHooks(m_pDev))
             return false;
 
         ID3D12Resource* sources[kInputProbeTargetCount] = {
@@ -545,42 +533,23 @@ struct FSRDPreprocessor_Dx12::Impl
                 m_inputProbeReadback[i] = std::move(allocated[i]);
         }
 
-        // The completion token for the capture: one 64-bit generation, written by the
-        // GPU from an upload slot after the data copies below. Created once; the data
-        // readbacks above are the only things that grow with resolution.
-        if (m_inputProbeGenerationReadback == nullptr)
+        // Arm and retain everything before recording the first copy or barrier.
+        // Failure is diagnostic-only and must not abort the rendering chain.
+        try
         {
-            D3D12_HEAP_PROPERTIES tokenHeaps[2] = {};
-            tokenHeaps[0].Type = D3D12_HEAP_TYPE_READBACK;
-            tokenHeaps[1].Type = D3D12_HEAP_TYPE_UPLOAD;
-
-            D3D12_RESOURCE_DESC tokenDesc = {};
-            tokenDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-            tokenDesc.Width = sizeof(UINT64);
-            tokenDesc.Height = 1;
-            tokenDesc.DepthOrArraySize = 1;
-            tokenDesc.MipLevels = 1;
-            tokenDesc.SampleDesc = { 1, 0 };
-            tokenDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
-            if (FAILED(m_pDev->CreateCommittedResource(
-                    &tokenHeaps[0], D3D12_HEAP_FLAG_NONE, &tokenDesc,
-                    D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
-                    IID_PPV_ARGS(&m_inputProbeGenerationReadback))) ||
-                FAILED(m_pDev->CreateCommittedResource(
-                    &tokenHeaps[1], D3D12_HEAP_FLAG_NONE, &tokenDesc,
-                    D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
-                    IID_PPV_ARGS(&m_inputProbeGenerationUpload))) ||
-                FAILED(m_inputProbeGenerationUpload->Map(
-                    0, nullptr, &m_inputProbeGenerationUploadPtr)) ||
-                m_inputProbeGenerationUploadPtr == nullptr)
+            m_inputProbeTicket = RRTraceFence::Arm(m_pDev, cmdList);
+            for (UINT i = 0; i < kInputProbeTargetCount; ++i)
             {
-                LOG_ERROR("[RR_INPUT_PROBE] generation token buffer creation failed");
-                m_inputProbeGenerationReadback.Reset();
-                m_inputProbeGenerationUpload.Reset();
-                m_inputProbeGenerationUploadPtr = nullptr;
-                return false;
+                m_inputProbeTicket->Retain(sources[i]);
+                m_inputProbeTicket->Retain(m_inputProbeReadback[i].Get());
             }
+        }
+        catch (const std::exception& error)
+        {
+            if (m_inputProbeTicket) m_inputProbeTicket->CancelUnrecorded();
+            ReleaseInputProbe();
+            LOG_ERROR("[RR_INPUT_PROBE] capture lifetime setup failed: {}", error.what());
+            return false;
         }
 
         D3D12_RESOURCE_BARRIER toCopy[kInputProbeTargetCount] = {};
@@ -617,17 +586,7 @@ struct FSRDPreprocessor_Dx12::Impl
         }
         cmdList->ResourceBarrier(kInputProbeTargetCount, toSrv);
 
-        // Recorded after every data copy: the GPU executes command list operations in
-        // order, so the token's arrival in readback is the completion proof for the
-        // whole batch above. The upload slot is safe to overwrite because recording
-        // only happens once the previous capture's token has been observed, which
-        // means its submission has already executed and consumed the old value.
-        ++m_inputProbeGeneration;
-        memcpy(m_inputProbeGenerationUploadPtr, &m_inputProbeGeneration,
-               sizeof(m_inputProbeGeneration));
-        cmdList->CopyBufferRegion(m_inputProbeGenerationReadback.Get(), 0,
-                                  m_inputProbeGenerationUpload.Get(), 0,
-                                  sizeof(m_inputProbeGeneration));
+        m_inputProbeTicket->Recorded();
 
         return true;
     }
@@ -1211,23 +1170,8 @@ struct FSRDPreprocessor_Dx12::Impl
                 return true;
         }
 
-        if (m_inputProbeGenerationReadback != nullptr)
-        {
-            void* token = nullptr;
-            UINT64 generation = 0;
-            if (SUCCEEDED(m_inputProbeGenerationReadback->Map(0, nullptr, &token)) &&
-                token != nullptr)
-            {
-                memcpy(&generation, token, sizeof(generation));
-                m_inputProbeGenerationReadback->Unmap(0, nullptr);
-            }
-
-            // The token is the GPU's own completion signal for the submission that
-            // carried the data copies. Until it matches, everything mapped below
-            // would be stale or partially written bytes from an earlier capture.
-            if (generation != m_inputProbeGeneration)
-                return false;
-        }
+        if (!m_inputProbeTicket || !m_inputProbeTicket->Ready())
+            return false;
 
         void* mapped[kInputProbeTargetCount] = {};
         for (UINT i = 0; i < kInputProbeTargetCount; i++)
@@ -1697,7 +1641,7 @@ struct FSRDPreprocessor_Dx12::Impl
     void DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
     {
         if (!cmdList || !m_maxWidth)
-            return;
+            throw std::runtime_error("Composition requires a command list and allocated resources");
 
         m_historyPending=false;
         const bool writeHistory=desc.FloorDetailPreservation>0 && desc.RecoveryMask != 0 &&
@@ -1970,12 +1914,6 @@ struct FSRDPreprocessor_Dx12::Impl
         {
             auto newOutput = CreateTexture2D(m_pDev, width, height, FSRDFormats::DebugView,
                                              L"FSR_RR_DebugView_Output", kUavState);
-            // Retire rather than release. The ring matches this preprocessor's
-            // frames-in-flight reuse horizon even when DRS reallocates every frame.
-            m_retiredDebugViewOutputs[m_retiredDebugViewOutputIndex] =
-                std::move(m_debugViewOutput);
-            m_retiredDebugViewOutputIndex =
-                (m_retiredDebugViewOutputIndex + 1u) % kBackBufferCount;
             m_debugViewOutput = std::move(newOutput);
             m_debugViewWidth = width;
             m_debugViewHeight = height;
@@ -1984,7 +1922,13 @@ struct FSRDPreprocessor_Dx12::Impl
             LOG_INFO("[RR_DIAG] created dedicated AMD debug-view output: {}x{}, "
                      "DXGI_FORMAT_R16G16B16A16_FLOAT, UAV", width, height);
         }
-        else if (!m_debugViewOutputInUavState)
+        // RR may record writes even if its dispatch or the following blit fails.
+        // Retain the target before either happens, through Reset and every queued
+        // submission. A fixed number of CPU frames is not a retirement guarantee.
+        auto lease = std::make_shared<ComPtr<ID3D12Resource>>(m_debugViewOutput);
+        if (!ResTrack_Dx12::RetainComputeDispatch(m_pDev, cmdList, lease))
+            throw std::runtime_error("Debug-view output lifetime tracking unavailable");
+        if (!m_debugViewOutputInUavState)
         {
             AddBarrier(cmdList, m_debugViewOutput.Get(), kSrvState, kUavState);
             m_debugViewOutputInUavState = true;
@@ -2007,7 +1951,7 @@ struct FSRDPreprocessor_Dx12::Impl
               XMFLOAT2 logicalSrcBase)
     {
         if (!cmdList || !srcTex || !dstTex)
-            return;
+            throw std::runtime_error("Blit requires a command list, source and destination");
 
         const D3D12_RESOURCE_DESC srcDesc = srcTex->GetDesc();
         const XMFLOAT2 physicalSrcDim {
@@ -2029,7 +1973,7 @@ struct FSRDPreprocessor_Dx12::Impl
             logicalSrcBase.x + logicalSrcDim.x > physicalSrcDim.x ||
             logicalSrcBase.y + logicalSrcDim.y > physicalSrcDim.y ||
             dstDim.x <= 0.0f || dstDim.y <= 0.0f)
-            return;
+            throw std::runtime_error("Blit source subrect or destination extent is invalid");
 
         Composition::Input inputs = {};
         inputs.Resources.InIndirectSpecular = srcTex;

@@ -246,17 +246,19 @@
     </Link>
     <PostBuildEvent>
       <Command>md $(SolutionDir)x64\Release\a\
-move $(SolutionDir)x64\Release\$(TargetFileName) $(SolutionDir)x64\Release\a\
+move /Y "$(SolutionDir)x64\Release\$(TargetFileName)" "$(SolutionDir)x64\Release\a\"
 md $(SolutionDir)x64\Release\a\Licenses
 del /Q $(SolutionDir)x64\Release\a\Licenses\*.*
 copy $(SolutionDir)external\xess\LICENSE.txt $(SolutionDir)x64\Release\a\Licenses\XeSS_LICENSE.txt /Y
 md $(SolutionDir)x64\Release\a\OptiScaler
 copy $(SolutionDir)external\xess\bin\*.dll $(SolutionDir)x64\Release\a\OptiScaler\ /Y
-copy $(SolutionDir)external\FidelityFX-SDK\docs\license.md $(SolutionDir)x64\Release\a\OptiScaler\Licenses\FidelityFX_v1_LICENSE.md /Y
+copy "$(SolutionDir)external\FidelityFX-SDK\docs\license.md" "$(SolutionDir)x64\Release\a\Licenses\FidelityFX_v1_LICENSE.md" /Y
 copy $(SolutionDir)external\FidelityFX-SDK\PrebuiltSignedDLL\amd_fidelityfx_vk.dll $(SolutionDir)x64\Release\a\OptiScaler\ /Y
 copy $(SolutionDir)external\FidelityFX-SDK-v2\Kits\FidelityFX\signedbin\amd_fidelityfx_loader_dx12.dll $(SolutionDir)x64\Release\a\OptiScaler\ /Y
 copy $(SolutionDir)external\FidelityFX-SDK-v2\Kits\FidelityFX\signedbin\amd_fidelityfx_upscaler_dx12.dll $(SolutionDir)x64\Release\a\OptiScaler\ /Y
 copy $(SolutionDir)external\FidelityFX-SDK-v2\Kits\FidelityFX\signedbin\amd_fidelityfx_framegeneration_dx12.dll $(SolutionDir)x64\Release\a\OptiScaler\ /Y
+copy "$(SolutionDir)external\FidelityFX-SDK-v2\Kits\FidelityFX\signedbin\amd_fidelityfx_denoiser_dx12.dll" "$(SolutionDir)x64\Release\a\OptiScaler\" /Y
+if errorlevel 1 exit /b 1
 copy $(SolutionDir)external\FidelityFX-SDK-v2\docs\license.md $(SolutionDir)x64\Release\a\Licenses\FidelityFX_v2_LICENSE.md /Y
 copy $(SolutionDir)OptiScaler.ini $(SolutionDir)x64\Release\a\ /Y
 copy $(SolutionDir)setup_windows.bat $(SolutionDir)x64\Release\a\ /Y

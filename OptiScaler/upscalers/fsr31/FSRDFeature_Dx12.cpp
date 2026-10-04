@@ -1819,7 +1819,7 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
         ~CompositionHistoryGuard() { if (converter) converter->FinishCompositionHistory(success); }
     } compositionHistoryGuard { FSRDConvShader };
 
-    if (!IsInited())
+    if (!IsInited() || !InCommandList || !InParameters)
         return false;
 
     // The application submitted a new evaluation even when a later validation,
@@ -2173,12 +2173,19 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
         ID3D12Resource* dstTex;
 
         if (!srcTex || !TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_Output, dstTex))
-            return true;
+        {
+            InvalidateDenoiserHistory();
+            return false;
+        }
 
-        FSRDConvShader->Blit(
+        if (!FSRDConvShader->Blit(
             InCommandList, srcTex, dstTex, {}, debugSourceLogicalSize,
             { static_cast<float>(debugSourceBase.x),
-              static_cast<float>(debugSourceBase.y) });
+              static_cast<float>(debugSourceBase.y) }))
+        {
+            InvalidateDenoiserHistory();
+            return false;
+        }
     }
 
     // A failed upscale dispatch leaves the frame half finished. Report it to the caller
@@ -2976,7 +2983,7 @@ bool FSRDFeatureDx12::ResolveCameraMatrices(const NVSDK_NGX_Parameter& inParams,
 // lock is permanent, so a frame about to be rejected must not set it. The first
 // Evaluate often arrives before the title has tagged its optional guides, and
 // locking there would pin the classification for the life of the context.
-bool FSRDFeatureDx12::ResolveSignalTypes(bool isReady, bool hasCurrentSLConstants)
+bool FSRDFeatureDx12::ResolveSignalTypes(bool isReady)
 {
     const auto& cfg = *Config::Instance();
 
@@ -3465,25 +3472,12 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
 
     isReady &= ResolveCameraMatrices(inParams, slData, hasCurrentSLConstants);
 
-    if (!ResolveSignalTypes(isReady, hasCurrentSLConstants))
+    if (!ResolveSignalTypes(isReady))
         return false;
 
     return isReady;
 }
 
-// Decides whether the title's depth is hardware or already linear, and applies it.
-//
-// The precedence is user override, then conclusive evidence from the resource itself, then the
-// title's NGX declaration, then a base-rate assumption - and the declaration deliberately does
-// not outrank a depth-stencil resource. NGX publishes DLSS.Use.HW.Depth from
-// NVSDK_NGX_DLSSD_Create_Params::depthType, where Linear is zero, so every title that
-// zero-initializes that struct "declares" linear without meaning to. A declaration is therefore
-// only trustworthy when the resource does not contradict it, and nothing writes a linearised
-// view-space distance into a depth-stencil attachment.
-//
-// Applied per frame rather than latched at init so it can be toggled while watching the depth
-// debug view. Switching changes the units of the internal previous-depth texture, so it resets
-// temporal history.
 // Decides whether the title's depth is hardware or already linear, and applies it.
 //
 // The precedence is user override, then conclusive evidence from the resource itself, then the
@@ -3593,6 +3587,24 @@ void FSRDFeatureDx12::ApplyDepthInterpretation()
     if (!_isHWDepth)
         _convDesc.Flags |= (uint32_t) FSRDConvFlags::IsDepthLinear;
 
+}
+
+void FSRDFeatureDx12::ApplyRoutingSettings(float biasStrength, float responsivityThreshold, bool responsivityInvert)
+{
+    biasStrength = std::isfinite(biasStrength) ? std::clamp(biasStrength, 0.0f, 1.0f) : 1.0f;
+    responsivityThreshold = std::isfinite(responsivityThreshold) ? std::max(responsivityThreshold, 0.0f) : 0.0f;
+    if (_convDesc.BiasMaskStrength != biasStrength ||
+        _convDesc.ResponsivityTrustThreshold != responsivityThreshold ||
+        _convDesc.ResponsivityInvert != responsivityInvert)
+    {
+        // These controls move radiance between Skip and RR. Old RR radiance
+        // cannot be combined with the new Skip partition without a brightness
+        // transient. Reset before conversion freezes the reprojection inputs.
+        InvalidateDenoiserHistory();
+    }
+    _convDesc.BiasMaskStrength = biasStrength;
+    _convDesc.ResponsivityTrustThreshold = responsivityThreshold;
+    _convDesc.ResponsivityInvert = responsivityInvert;
 }
 
 bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InCommandList)
@@ -3752,12 +3764,10 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     if (_convDesc.Resources.InResponsivityMask != nullptr)
         _convDesc.Flags |= (uint32_t) FSRDConvFlags::HasResponsivityMask;
 
-    _convDesc.ResponsivityTrustThreshold =
-        std::max(cfg.FfxDenoiserResponsivityThreshold.value_or_default(), 0.0f);
-    _convDesc.ResponsivityInvert = cfg.FfxDenoiserResponsivityInvert.value_or_default();
+    ApplyRoutingSettings(cfg.FfxDenoiserBiasMaskStrength.value_or_default(),
+                         cfg.FfxDenoiserResponsivityThreshold.value_or_default(),
+                         cfg.FfxDenoiserResponsivityInvert.value_or_default());
     _convDesc.DiagnosticsEnabled = cfg.FfxDenoiserDiagnostics.value_or_default();
-
-    _convDesc.BiasMaskStrength = cfg.FfxDenoiserBiasMaskStrength.value_or_default();
 
     StoreHlslColumnVectorMatrix(_convDesc.InvViewMatrix, _invViewMatrix);
 
@@ -4265,46 +4275,6 @@ void FSRDFeatureDx12::RefreshHistoryDerivedInputs() noexcept
         _convDesc.JitterOffsets.z = _convDesc.JitterOffsets.x;
         _convDesc.JitterOffsets.w = _convDesc.JitterOffsets.y;
     }
-}
-
-// IEEE 754 half -> float for the probe readback (no DirectXPackedVector here).
-static float ProbeHalfToFloat(uint16_t h)
-{
-    const uint32_t sign = (h >> 15) & 1u;
-    uint32_t exponent = (h >> 10) & 0x1Fu;
-    uint32_t mantissa = h & 0x3FFu;
-
-    uint32_t bits = 0;
-    if (exponent == 0u)
-    {
-        if (mantissa == 0u)
-        {
-            bits = sign << 31;
-        }
-        else
-        {
-            exponent = 1u;
-            while ((mantissa & 0x400u) == 0u)
-            {
-                mantissa <<= 1;
-                exponent--;
-            }
-            mantissa &= 0x3FFu;
-            bits = (sign << 31) | ((exponent - 15u + 127u) << 23) | (mantissa << 13);
-        }
-    }
-    else if (exponent == 0x1Fu)
-    {
-        bits = (sign << 31) | 0x7F800000u | (mantissa << 13);
-    }
-    else
-    {
-        bits = (sign << 31) | ((exponent - 15u + 127u) << 23) | (mantissa << 13);
-    }
-
-    float result = 0.0f;
-    memcpy(&result, &bits, sizeof(result));
-    return result;
 }
 
 bool FSRDFeatureDx12::SetDefaultConfiguration()

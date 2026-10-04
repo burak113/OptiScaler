@@ -36,10 +36,6 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
         return true;
     }
 
-    // Submits the deferred denoiser dispatch list (DeferredDispatch mode) to
-    // the title's direct queue. Called from the present path, after every
-    // title submission of the frame.
-
   private:
 
     struct DenoiserConfiguration
@@ -248,14 +244,6 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     uint64_t _denoiserDispatchFailures = 0;
 
 
-    // One-shot GPU probe of the RR diffuse path: copies the denoiser's diffuse
-    // OUTPUT and its (demodulated) INPUT signal into readback buffers on the
-    // deferred list, and logs luma statistics once the fence retires them.
-    // Distinguishes "output is zero", "output is a passthrough of the input"
-    // and "output is actually smoothed" without trusting any visual reading.
-    Microsoft::WRL::ComPtr<ID3D12Resource> _probeReadback[6];
-    DXGI_FORMAT _probeFormats[6] = {};
-
     // Matrices
     // Row-major storage with column-vector multiplication semantics.
     DirectX::XMMATRIX _invViewMatrix;   // Camera rotation and translation
@@ -336,13 +324,15 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     bool ResolveCameraMatrices(const NVSDK_NGX_Parameter& inParams,
                                const sl::Constants& slData, bool hasCurrentSLConstants);
 
-    bool ResolveSignalTypes(bool isReady, bool hasCurrentSLConstants);
+    bool ResolveSignalTypes(bool isReady);
 
 
     /**
      * @brief Converts previously retrieved DLSS-RR resources into FSR-RR inputs.
      */
     bool ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InCommandList);
+
+    void ApplyRoutingSettings(float biasStrength, float responsivityThreshold, bool responsivityInvert);
 
     // Decides whether the title's depth is hardware or already linear, and applies it.
     void ApplyDepthInterpretation();
