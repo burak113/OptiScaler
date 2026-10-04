@@ -44,6 +44,8 @@ CONV_HLSL = os.path.join(PRE, "FSRDInputConv.hlsl")
 COMP_HLSL = os.path.join(PRE, "FSRDOutputComp.hlsl")
 FLOOR_HLSL = os.path.join(PRE, "FSRDFloor.hlsl")
 SEED_HLSL = os.path.join(PRE, "FSRDFloorSeed.hlsl")
+TRUST_EVIDENCE_HLSL = os.path.join(PRE, "FSRDAlbedoTrustEvidence.hlsl")
+TRUST_PROPAGATE_HLSL = os.path.join(PRE, "FSRDAlbedoTrustPropagate.hlsl")
 PREPROCESSOR_CPP = os.path.join(ROOT, "OptiScaler", "shaders", "fsrd_preprocess",
                                 "FSRDPreprocessor_Dx12.cpp")
 
@@ -217,6 +219,8 @@ CONSTANT_PAIRS = [
     ("FloorFilter", "struct alignas(16) Constants", FLOOR_HLSL, "cbuffer CB_Analysis", {}),
     ("Conversion", "struct alignas(16) Constants", CONV_HLSL, "cbuffer CB_Packing", {}),
     ("Composition", "struct alignas(16) Constants", COMP_HLSL, "cbuffer CB_Comp", {}),
+    ("TrustEvidence", "struct alignas(16) Constants", TRUST_EVIDENCE_HLSL, "cbuffer CB_AlbedoTrust", {}),
+    ("TrustPropagate", "struct alignas(16) Constants", TRUST_PROPAGATE_HLSL, "cbuffer CB_AlbedoTrust", {}),
 ]
 
 
@@ -277,6 +281,11 @@ CONV_FLAG_NAMES = {
     "HasResponsivityMask": "FLAGS_HAS_RESPONSIVITY_MASK",
     "HasCombinedSpecHitDistance": "FLAGS_HAS_COMBINED_SPEC_HIT_DISTANCE",
     "HasBiasMask": "FLAGS_HAS_BIAS_MASK",
+    "HalfDiffuse": "FLAGS_HALF_DIFFUSE",
+    "HalfSpecular": "FLAGS_HALF_SPECULAR",
+    "ApproximateSpecHitDistance": "FLAGS_APPROXIMATE_SPEC_HIT_DISTANCE",
+    "ApproximateRayHitDistance": "FLAGS_APPROXIMATE_RAY_HIT_DISTANCE",
+    "UnsupportedAlbedo": "FLAGS_UNSUPPORTED_ALBEDO",
     "Debug": "FLAGS_DEBUG",
     "DebugModeMask": "FLAGS_DEBUG_MODE_MASK",
 }
@@ -329,6 +338,10 @@ CONV_DEBUG_NAMES = {
 
 COMP_FLAG_NAMES = {
     "RawSourceBlit": "FLAGS_RAW_SOURCE_BLIT",
+    "ExtraDiffuse": "FLAGS_EXTRA_DIFFUSE",
+    "ExtraSpecular": "FLAGS_EXTRA_SPECULAR",
+    "DiffuseSignalDisabled": "FLAGS_DIFFUSE_SIGNAL_DISABLED",
+    "SpecularSignalDisabled": "FLAGS_SPECULAR_SIGNAL_DISABLED",
     "ScaleSrc": "FLAGS_SCALE_SRC",
     "DiffuseSignalIndirect": "FLAGS_DIFFUSE_SIGNAL_INDIRECT",
     "SpecularSignalIndirect": "FLAGS_SPECULAR_SIGNAL_INDIRECT",
@@ -357,9 +370,10 @@ COMP_DEBUG_NAMES = {
     "DebugChromaRecovery": "FLAGS_DEBUG_CHROMA_RECOVERY",
     "DebugLumaRecovery": "FLAGS_DEBUG_LUMA_RECOVERY",
     "DebugIndirectSpecular": "FLAGS_DEBUG_INDIRECT_SPECULAR",
+    "DebugAlbedoTrust": "FLAGS_DEBUG_ALBEDO_TRUST",
 }
 
-MAX_DEBUG_MODE = 0xFF
+MAX_DEBUG_MODE = 0x7F
 
 # Composition flags whose effect is a different resource in the binding list rather than a
 # branch in the shader: the dispatcher swaps the radiance texture it binds, so composition
@@ -370,7 +384,7 @@ MAX_DEBUG_MODE = 0xFF
 # and so that the fields it writes stay accounted for. Its value is still resolved and
 # range-checked by the plain-flag pass; only the comparison against a shader define is
 # skipped, because there is no define on the other side of it.
-COMP_FLAGS_RESOLVED_BY_BINDING = {"DiffuseSignalDisabled", "SpecularSignalDisabled"}
+COMP_FLAGS_RESOLVED_BY_BINDING = set()
 
 
 def cpp_enum_values(text, enum_name):
@@ -472,8 +486,8 @@ def check_flag_list(cpp_values, hlsl_values, name_map, label, is_mode, debug_bit
 
     if not is_mode and debug_bit is not None:
         for cpp_name, value in resolved.items():
-            if value is not None and value != debug_bit and value >= 1 << 24:
-                fail("%s: %s sits at bit 24 or above, inside the debug mode field "
+            if value is not None and cpp_name not in ("Debug", "DebugModeMask") and value & (0xFF << 16):
+                fail("%s: %s overlaps the debug mode field "
                      "(mode << 17, masks 0xFF << 16). A debug mode would set it by itself."
                      % (label, cpp_name))
     return resolved
@@ -555,7 +569,9 @@ def check_resources():
     # Each namespace carries its own union Input, and the first one in the file is FloorSeed's,
     # so the conversion's has to be located by its namespace rather than by its name.
     for namespace, path in (("FloorSeed", SEED_HLSL), ("FloorFilter", FLOOR_HLSL),
-                            ("Conversion", CONV_HLSL), ("Composition", COMP_HLSL)):
+                            ("Conversion", CONV_HLSL), ("Composition", COMP_HLSL),
+                            ("TrustEvidence", TRUST_EVIDENCE_HLSL),
+                            ("TrustPropagate", TRUST_PROPAGATE_HLSL)):
         body = brace_body(data, "namespace " + namespace)
         shader = read(path)
         for kind, union in (("t", "Input"), ("u", "Output")):
@@ -576,7 +592,8 @@ def check_resources():
                 names = {"IndirectSpecular": "OutIndirectSpecular", "DirectDiffuse": "OutDirectDiffuse",
                          "Motion": "OutMotion", "Normals": "OutNormals", "SpecAlbedo": "OutSpecAlbedo",
                          "DiffAlbedo": "OutDiffAlbedo", "SkipSignal": "OutSkipSignal",
-                         "DetailReference": "OutDetailReference"}
+                         "DetailReference": "OutDetailReference",
+                         "DirectSpecular": "OutDirectSpecular"}
                 expected = [names.get(field, "UNMAPPED:" + field) for field in fields]
                 assertion = namespace + "::Output::kCount"
             else:

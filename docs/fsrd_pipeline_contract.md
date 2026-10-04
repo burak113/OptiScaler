@@ -364,13 +364,15 @@ Seed has 5 SRVs and 4 UAVs: base/sigma, R32 depth, gradient/oct-normal scratch a
 reference/sigma. Filter has 4 SRVs and 1 UAV. Its colour buffers are reused by RR only after
 conversion consumes Floor.
 
-Conversion has 17 SRVs and 8 UAVs. t0..t8 are colour, canonical depth, motion, normals, roughness,
+Conversion has 17 SRVs and 9 UAVs. t0..t8 are colour, canonical depth, motion, normals, roughness,
 hit distance, diffuse/specular albedo and bias. t9 Floor; t10 inspector; t11 emissive; t12/t13
-optional ray lengths; t14 raw title depth; t15 responsivity; t16 seed reference. Its final UAV
-contains the reference with routing eligibility applied.
+optional ray lengths; t14 raw title depth; t15 responsivity; t16 seed reference. u7 contains
+the reference with routing eligibility applied; u8 is the optional unmodulated specular
+alternate for Unsupported Albedo. The additive diagnostic variant retains its eight-UAV ABI.
 
-Composition has 11 SRVs and 3 UAVs: the existing eight inputs plus canonical
-motion, previous decisions and previous metadata. Outputs are a dedicated
+Composition has 15 SRVs and 3 UAVs: the existing eight inputs plus canonical
+motion, previous decisions and previous metadata, the optional Direct Specular output,
+its unmodulated input/eligibility, albedo trust, and the optional second diffuse output. Outputs are a dedicated
 composition image, next decisions and next metadata. Motion is no longer reused
 as output scratch. Disabled RR signals still bind their packed input signals.
 The shared tile is 16x16 for an 8x8 group and four-pixel halo.
@@ -429,7 +431,7 @@ current comparisons were made with, not an established optimum and not an AMD th
 DemodDivisorFloor is independent and retained. Other legacy Floor controls, CorrelationBias and
 ZeroRoughHandover are not read/migrated.
 
-Advanced views show actual FloorColor, FloorResidual, FloorNoise, FloorExcess, DetailReference,
+The main FSR-RR menu's Debug group shows actual FloorColor, FloorResidual, FloorNoise, FloorExcess, DetailReference,
 DetailConfidence and DetailCorrection, alongside RR diagnostics. Correction displays signed
 data around grey 0.5 scaled by reconstructed luminance. Noise uses Turbo display mapping.
 `DetailReference` displays the seed candidate before Anchor, also when detail strength is zero.
@@ -456,8 +458,11 @@ captures cannot directly establish an RR quality difference from brightness alon
 ## Retained title/RR contracts
 
 Camera matrices must be finite/invertible. Earlier 007 First Light investigation found invalid
-NGX WorldToView and used the validated Streamline fallback. Missing specular ray length retains
-the primary-depth fallback for indirect dispatch, an RR compatibility approximation.
+NGX WorldToView and used the validated Streamline fallback. Missing/invalid specular ray length
+uses primary view depth only with `ApproximateSpecHitDistance=true`; the corresponding diffuse
+option is `ApproximateRayHitDistance`. Both are off by default and preserve valid native guide
+selection. Estimates are clamped below the FP16 environment-miss sentinel. The existing
+roughness-dependent specular tracking weight still applies to the virtual hit distance.
 Canonical motion remains unjittered PreviousUV-CurrentUV with corresponding-surface depth delta.
 Source motion resolution, jitter and subrect conventions remain in conversion. Reflected-motion
 disagreement routing stays removed: it previously routed raw noise under camera movement.
@@ -605,3 +610,57 @@ and Anchor/Correlation composition remain. `FloorVirtualAlbedo` is ignored and d
 Albedo structure remains a diagnostic surface cue, not a generated RR material.
 See [the retirement decision](fsrd_virtual_albedo_retirement.md) and
 [the archived noise audit](fsrd_virtual_albedo_noise_audit.md).
+
+## Main-menu signal layouts and stage timings (2026-10-04)
+
+The Advanced RR popup is replaced by Signal Modes, AMD Tuning, Conversion & Modulation,
+Floor, Composition & Recovery, Debug, and Experiments in the main FSR-RR panel. Existing
+inspectors remain reachable. No Stage-branch features are imported.
+
+`SignalCount=auto` preserves the existing legacy Direct/Indirect configuration and Auto
+classification. Selecting 1, 2, 3 or 4 makes the layout explicit and displays that many
+assignment rows. `Signal1..4` use 0=Direct Diffuse, 1=Direct Specular, 2=Indirect Diffuse,
+3=Indirect Specular. Duplicates cannot be selected. Availability uses the converter's actual
+format/extent/lifetime-validated bindings, not a non-null raw game pointer. Indirect Specular
+needs specular distance; Indirect Diffuse needs diffuse ray distance. The corresponding
+explicit approximation can satisfy the missing guide. Unavailable entries/counts are disabled.
+An explicit saved layout that loses a guide falls back to supported signals and recreates the
+context through the existing safe backend lifecycle; requested assignments remain saved.
+
+The title supplies combined colour, not four independently observed noisy lobes. If both
+Direct and Indirect are selected for a family, conversion divides its estimated RGB equally
+after routing/Skip closure, dispatches two distinct RR outputs, and composition sums them.
+This is experimental classification; it does not recover physical direct/indirect separation.
+Unselected families retain the existing raw-signal passthrough. Context flags and the sorted
+dispatch chain share one effective mask. Unused SDK albedo descriptors are empty.
+
+Unsupported Albedo comes from `OSA-stain` (the implementation associated with
+`OSA-stain-work`), independently of its other Light Recovery changes. It is off by default.
+It needs a selected Direct Specular, Indirect Specular and diffuse signal, both modulation
+strengths at 1, and Additive Light Split at 0. The Direct Specular slot becomes an unmodulated
+alternate; the main specular RGB is therefore not halved. A 9x9 same-surface evidence pass
+and six propagation passes guide a replacement of the remodulated specular plus its Skip
+share. The alternate is never added on top as another lighting contribution. Four-signal
+evidence sums both diffuse outputs. Invalid prerequisites pause the feature with a menu
+explanation. Debug includes UnsupportedAlbedoTrust and separate selected-lobe outputs.
+
+Optional extra outputs and recovery fields allocate full resolution only for layouts that
+can use them; other slots bind 1x1 placeholders. This avoids the new full-resolution buffers
+in the default two-signal layout. Compatible three/four-signal layouts reserve recovery
+storage so the checkbox can change live without reallocating resources in flight.
+
+`GpuTimings=true` samples every 16 evaluations. Floor (seed plus filters), Conversion,
+AMD RR / ML, Albedo Recovery, Composition, and Super Resolution have independent GPU
+timestamps. RR timing covers the entire public AMD denoiser dispatch; the closed provider
+does not expose an isolated neural-network-only interval. Detail recovery is inside the
+composition shader and is included in Composition. Measurements use the executing queue's
+frequency and are published only when all recording/submission leases retire after GPU fence
+completion. Failed, discarded, resubmitted and removed-device samples are not published.
+There is no CPU/GPU wait in the runtime timer. Missing or stale measurements are labeled.
+
+Validation entry points are `validate_fsrd.py --build`, `test_fsrd_signal_policy.py`,
+`test_fsrd_stage_timings.py`, `test_fsrd_signal_modes.py`, `test_fsrd_unsupported_albedo.py`,
+and the separate `test_fsrd_native_signal_modes.py`. The latter executes all 15 nonempty
+layouts with the real AMD provider and production ABI. Synthetic fixtures verify wiring,
+finite output, energy closure and validation diagnostics; they do not establish in-game
+quality or representative performance. Game acceptance still requires motion/reflection tests.

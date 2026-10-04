@@ -46,7 +46,8 @@ def constants(shader, values, directory=PRE):
         values.setdefault('LumaRecovery', 1.0)
         values.setdefault('ChromaRecovery', 1.0)
     text = (directory/(shader+'.hlsl')).read_text(encoding='utf-8')
-    marker = {'FSRDFloorSeed':'CB_Median','FSRDFloor':'CB_Analysis','FSRDInputConv':'CB_Packing','FSRDOutputComp':'CB_Comp'}[shader]
+    marker = {'FSRDFloorSeed':'CB_Median','FSRDFloor':'CB_Analysis','FSRDInputConv':'CB_Packing','FSRDOutputComp':'CB_Comp',
+              'FSRDAlbedoTrustEvidence':'CB_AlbedoTrust','FSRDAlbedoTrustPropagate':'CB_AlbedoTrust'}[shader]
     body = mirror.brace_body(text,'cbuffer '+marker)
     fields, size = mirror.hlsl_cbuffer_fields(body, shader)
     assert not mirror.errors, mirror.errors
@@ -84,13 +85,27 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
         # writes u0. The scratch output is RGBA16F; the effective guide is UNORM8.
         production_outputs = [10,10,10,24,28,28,10,10,28]
         output_formats += production_outputs[len(output_formats):]
+    # Unsupported-albedo recovery adds u8 to conversion. Callers written for the eight
+    # original outputs still bind the complete production UAV table.
+    direct_conv = schema == 'FSRDInputConv' and 'OutDirectSpecular' in (directory/(schema+'.hlsl')).read_text()
+    if direct_conv and not adaptive_conv and len(output_formats) == 8:
+        output_formats += [10]
     temporal_comp = shader == 'FSRDOutputComp' and 'InHistoryMetadata' in (directory/(shader+'.hlsl')).read_text()
+    trust_comp = shader == 'FSRDOutputComp' and 'InAlbedoTrust' in (directory/(shader+'.hlsl')).read_text()
     if temporal_comp:
         if len(inputs) == 8:
             inputs += [rgba(w,h,(0,0,0)), rgba(w,h,(-1,-1,-1),-1),
                        np.zeros((h,w,4),np.uint32)]
         if len(output_formats) == 1:
             output_formats += [10,3]
+    if trust_comp and len(inputs) == 11:
+        # Recovery disabled by default: its three inputs are bound but never read.
+        inputs += [rgba(w,h,(0,0,0)), rgba(w,h,(0,0,0)), np.zeros((h,w,2),np.float32)]
+    multi_comp = shader == 'FSRDOutputComp' and 'InIndirectDiffuseDenoised' in (directory/(shader+'.hlsl')).read_text()
+    if multi_comp and len(inputs) == 14:
+        inputs += [rgba(w,h,(0,0,0))]
+    if shader == 'FSRDAlbedoTrustEvidence' and len(inputs) == 8:
+        inputs += [rgba(w,h,(0,0,0))]
     if adaptive_comp and len(inputs) == 11:
         inputs += [rgba(w,h,(1,1,1))]
     if shader == 'FSRDOutputComp' and 'InRawSpecular' in (directory/(shader+'.hlsl')).read_text() and len(inputs) == 12:
@@ -104,9 +119,12 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
         'FSRDFloorSeed': [10,10,41,41,10],
         'FSRDFloor': [10,41,10,10],
         'FSRDInputConv': [10,41,10,10,41,41,10,10,41,10,10,10,10,10,41,41,10,10],
-        'FSRDOutputComp': ([10,28,10,28,10,24,10,41,10,10,3,28,10] if temporal_comp else
+        'FSRDOutputComp': ([10,28,10,28,10,24,10,41,10,10,3,10,10,16,10] if trust_comp else
+                           [10,28,10,28,10,24,10,41,10,10,3,28,10] if temporal_comp else
                           [10,28,10,28,10,24,10,41] if len(inputs)==8 else
                            [10,28,10,28,10,10,10,24,10]),
+        'FSRDAlbedoTrustEvidence': [10,10,28,28,10,41,24,10,10],
+        'FSRDAlbedoTrustPropagate': [16,41,24],
     }[schema]
     for i,a in enumerate(inputs):
         a=np.asarray(a,dtype=np.uint32 if formats[i]==3 else np.float32)
@@ -116,6 +134,7 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
         if fmt==10: stored=a.astype('<f2')
         elif fmt==3: stored=a.astype('<u4')
         elif fmt==41: stored=a[...,0].astype('<f4')
+        elif fmt==16: stored=a[...,:2].astype('<f4')
         elif fmt==28: stored=np.rint(np.clip(a,0,1)*255).astype(np.uint8)
         elif fmt==24:
             u=np.rint(np.clip(a,0,1)*[1023,1023,1023,3]).astype(np.uint32)
@@ -140,6 +159,7 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
         elif fmt==3:a=np.fromfile(p,dtype='<u4').reshape(h,w,4)
         elif fmt==2:a=np.fromfile(p,dtype='<f4').reshape(h,w,4)
         elif fmt==41:a=np.fromfile(p,dtype='<f4').reshape(h,w)
+        elif fmt==16:a=np.fromfile(p,dtype='<f4').reshape(h,w,2)
         elif fmt==28:a=np.fromfile(p,dtype=np.uint8).reshape(h,w,4).astype(np.float32)/255
         elif fmt==24:
             packed=np.fromfile(p,dtype='<u4').reshape(h,w)

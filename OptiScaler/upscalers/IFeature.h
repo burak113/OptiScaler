@@ -38,6 +38,8 @@ struct DetailedGpuTime
     bool includedInUpscalerTime = false;
 };
 
+struct FSRDRuntimeSnapshot;
+
 class IFeature
 {
   private:
@@ -120,6 +122,8 @@ class IFeature
     std::string ShortName() const { return UpscalerShortName(GetUpscalerType()); }; // Without the version
     virtual std::optional<double> ReadUpscalerTime(void* commandQueue) { return std::nullopt; }
     virtual void ReadDetailedGpuTimes(void* commandQueue, std::vector<DetailedGpuTime>& detailedGpuTimes) {};
+    // Optional RR diagnostics, including builds with RTTI disabled.
+    virtual bool ReadRayRegenerationDiagnostics(FSRDRuntimeSnapshot& snapshot) const { return false; }
 
     // Features that record GPU work into their own command lists and submit
     // them at present time (after the title's own submissions, before the

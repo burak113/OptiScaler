@@ -3599,7 +3599,8 @@ void ResTrack_Dx12::HookToQueue(ID3D12Device* InDevice)
 }
 
 bool ResTrack_Dx12::RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCommandList* list,
-                                         const std::shared_ptr<void>& lease)
+                                         const std::shared_ptr<void>& lease,
+                                         std::function<void(ID3D12CommandQueue*)> beforeSubmit)
 {
     if (!device || !list || !lease || State::Instance().isShuttingDown) return false;
     IUnknown* actualDevice = device;
@@ -3636,7 +3637,7 @@ bool ResTrack_Dx12::RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCo
     Microsoft::WRL::ComPtr<IUnknown> identity;
     if (FAILED(actual->QueryInterface(IID_PPV_ARGS(&identity)))) return false;
     return RecordedComputeLease::Track(identity.Get(),
-        { list, actual, static_cast<ID3D12CommandList*>(actual), identity.Get() }, lease);
+        { list, actual, static_cast<ID3D12CommandList*>(actual), identity.Get() }, lease, std::move(beforeSubmit));
 }
 
 void ResTrack_Dx12::HookDevice(ID3D12Device* device)

@@ -8,6 +8,7 @@
 #include <optional>
 #include <mutex>
 #include "FSRDPreprocessor_Dx12.h"
+#include "gpu_time/FSRDStageTimings_Dx12.h"
 #include "FSRDShaderUtils.h"
 #include "FSRDShaderData.h"
 #include "precompile/FSRDInputConv_Shader.h" 
@@ -15,6 +16,8 @@
 #include "precompile/FSRDFloorSeed_Shader.h" 
 #include "precompile/FSRDFloor_Shader.h" 
 #include "precompile/FSRDOutputComp_Shader.h" 
+#include "precompile/FSRDAlbedoTrustEvidence_Shader.h"
+#include "precompile/FSRDAlbedoTrustPropagate_Shader.h"
 
 #include "dx12/ffx_api_dx12.h"
 #include "fsr-rr/ffx_denoiser.h"
@@ -68,6 +71,11 @@ namespace FSRDFormats
     constexpr DXGI_FORMAT AmbientOcclusion = DXGI_FORMAT_R8_UNORM;
     constexpr DXGI_FORMAT SpecularOcclusion = DXGI_FORMAT_R8_UNORM;
     constexpr DXGI_FORMAT DebugView = DXGI_FORMAT_R16G16B16A16_FLOAT;
+
+    // Unsupported-albedo recovery: RR direct-specular input/output and the
+    // (unsupported, structure) vote sums, which reach several thousand after propagation.
+    constexpr DXGI_FORMAT DirectSpecular = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    constexpr DXGI_FORMAT AlbedoTrust = DXGI_FORMAT_R32G32_FLOAT;
 }
 
 // The conversion shader pre-quantizes its albedo outputs to the storage format's levels,
@@ -292,6 +300,8 @@ struct FSRDPreprocessor_Dx12::Impl
     ComputeState m_floorFilterShader;
     ComputeState m_convShader;
     ComputeState m_compShader;
+    ComputeState m_trustEvidenceShader;
+    ComputeState m_trustPropagateShader;
     // Shares conversion's root signature, per-dispatch descriptors and constants.
     // The original PSO remains usable if optional pipeline creation fails.
     ComPtr<ID3D12PipelineState> m_additiveConvPso;
@@ -319,6 +329,13 @@ struct FSRDPreprocessor_Dx12::Impl
     uint32_t m_historyConversionFlags = 0;
     ComPtr<ID3D12Resource> m_outputBuffer1;
     ComPtr<ID3D12Resource> m_outputBuffer2;
+    // RR direct-specular output (denoised unmodulated specular) and the trust ping-pong.
+    FSRDStageTimings* m_stageTimings = nullptr;
+    bool m_extraDiffuse = false, m_extraSpecular = false, m_albedoRecovery = false;
+    ComPtr<ID3D12Resource> m_directSpecularOutput;
+    ComPtr<ID3D12Resource> m_indirectDiffuseOutput;
+    std::array<ComPtr<ID3D12Resource>, 2> m_albedoTrust;
+    UINT m_albedoTrustResult = 0;
 
     ComPtr<ID3D12Resource> m_ambientOcclusionOutput;
     ComPtr<ID3D12Resource> m_specularOcclusionOutput;
@@ -1251,6 +1268,14 @@ struct FSRDPreprocessor_Dx12::Impl
             Conversion::Input::kCount, Conversion::Output::kCount, L"FSRD_Conv_Constants", Conversion::kBackBufferCount);
         m_compShader.Initialize(m_pDev, compByteCode, sizeof(Composition::Constants), 
             Composition::Input::kCount, Composition::kOutputCount, L"FSRD_Comp_Constants", Composition::kBackBufferCount);
+        m_trustEvidenceShader.Initialize(m_pDev,
+            { reinterpret_cast<const byte*>(FSRDAlbedoTrustEvidence_cso), sizeof(FSRDAlbedoTrustEvidence_cso) },
+            sizeof(TrustEvidence::Constants), TrustEvidence::Input::kCount, TrustEvidence::Output::kCount,
+            L"FSRD_TrustEvidence_Constants", TrustEvidence::kBackBufferCount);
+        m_trustPropagateShader.Initialize(m_pDev,
+            { reinterpret_cast<const byte*>(FSRDAlbedoTrustPropagate_cso), sizeof(FSRDAlbedoTrustPropagate_cso) },
+            sizeof(TrustPropagate::Constants), TrustPropagate::Input::kCount, TrustPropagate::Output::kCount,
+            L"FSRD_TrustPropagate_Constants", TrustPropagate::kBackBufferCount);
 
         LOG_DEBUG("FSRD interop shaders and resources initialized.");
     }
@@ -1286,6 +1311,15 @@ struct FSRDPreprocessor_Dx12::Impl
         outResources.DiffAlbedo = CreateTex(FSRDFormats::DiffAlbedo, L"FSR_Conv_DiffAlbedo");
         outResources.SkipSignal = CreateTex(FSRDFormats::SkipSignal, L"FSR_Conv_SkipSignal");
         outResources.DetailReference = CreateTex(FSRDFormats::DetailReference, L"FSR_Conv_DetailReference");
+        const auto optional = [&](bool enabled, DXGI_FORMAT format, LPCWSTR name) {
+            return CreateTexture2D(m_pDev, enabled ? width : 1u, enabled ? height : 1u, format, name, kSrvState);
+        };
+        outResources.DirectSpecular = optional(m_albedoRecovery, FSRDFormats::DirectSpecular, L"FSR_Conv_DirectSpecular");
+        m_directSpecularOutput = optional(m_extraSpecular, FSRDFormats::DirectSpecular, L"FSR_RR_DirectSpecular_Output");
+        m_indirectDiffuseOutput = optional(m_extraDiffuse, FSRDFormats::DirectSpecular, L"FSR_RR_IndirectDiffuse_Output");
+        m_albedoTrust[0] = optional(m_albedoRecovery, FSRDFormats::AlbedoTrust, L"FSR_AlbedoTrust_0");
+        m_albedoTrust[1] = optional(m_albedoRecovery, FSRDFormats::AlbedoTrust, L"FSR_AlbedoTrust_1");
+        m_albedoTrustResult = 0;
         m_LinearDepth = CreateTex(FSRDFormats::LinearDepth, L"FSR_Conv_LinearDepth");
         m_outputBuffer1 = CreateTex(FSRDFormats::OutputBuffer1, L"FSR_Conv_OutputBuffer1");
         m_outputBuffer2 = CreateTex(FSRDFormats::OutputBuffer2, L"FSR_Conv_OutputBuffer2");
@@ -1551,11 +1585,17 @@ struct FSRDPreprocessor_Dx12::Impl
         TransitionDenoiserOutputsToRead(cmdList);
 
         // Filtered raster lighting estimate
-        DispatchFloorSeed(cmdList, desc);
-        DispatchFloorFilter(cmdList, desc);
+        {
+            FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::Floor);
+            DispatchFloorSeed(cmdList, desc);
+            DispatchFloorFilter(cmdList, desc);
+        }
 
         // DLSS-RR to FSR-RR conversion
-        DispatchPackingShader(cmdList, desc, conversionPipeline);
+        {
+            FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::Conversion);
+            DispatchPackingShader(cmdList, desc, conversionPipeline);
+        }
 
         // Diagnostic: read back the RR-facing linear depth, motion and normals while
         // their state is still the one this code set. The denoiser dispatch below
@@ -1567,6 +1607,8 @@ struct FSRDPreprocessor_Dx12::Impl
         {
             AddBarrier(cmdList, m_outputBuffer1.Get(), kSrvState, kUavState);
             AddBarrier(cmdList, m_outputBuffer2.Get(), kSrvState, kUavState);
+            AddBarrier(cmdList, m_directSpecularOutput.Get(), kSrvState, kUavState);
+            AddBarrier(cmdList, m_indirectDiffuseOutput.Get(), kSrvState, kUavState);
             AddBarrier(cmdList, m_ambientOcclusionOutput.Get(), kSrvState, kUavState);
             AddBarrier(cmdList, m_specularOcclusionOutput.Get(), kSrvState, kUavState);
             m_radianceOutputsInUavState = true;
@@ -1617,7 +1659,9 @@ struct FSRDPreprocessor_Dx12::Impl
             .DiffuseAlbedoModulation = desc.DiffuseAlbedoModulation,
             .SpatialTemporalMask = desc.SpatialTemporalMask,
             .LumaRecovery = desc.LumaRecovery,
-            .ChromaRecovery = desc.ChromaRecovery
+            .ChromaRecovery = desc.ChromaRecovery,
+            .UnsupportedAlbedoRecovery = desc.UnsupportedAlbedoRecovery,
+            .DemodDivisorFloor = desc.DemodDivisorFloor
         };
 
         // Transition denoiser output buffers to SRV for composition.
@@ -1638,6 +1682,9 @@ struct FSRDPreprocessor_Dx12::Impl
                 ? outResources.Signals.DirectDiffuse.Get()
                 : m_outputBuffer2.Get();
 
+        if (desc.UnsupportedAlbedoRecovery > 0.0f)
+            DispatchAlbedoTrust(cmdList, desc, diffuseRadiance);
+
         inputs.Resources =
         {
             .InIndirectSpecular = specularRadiance,
@@ -1651,6 +1698,11 @@ struct FSRDPreprocessor_Dx12::Impl
             .InMotion = outResources.Motion.Get(),
             .InDecisionHistory = m_decisionHistory[m_historyRead].Get(),
             .InHistoryMetadata = m_historyMetadata[m_historyRead].Get(),
+            // Always bound; read only while UnsupportedAlbedoRecovery is nonzero.
+            .InDirectSpecularDenoised = m_directSpecularOutput.Get(),
+            .InDirectSpecularSignal = outResources.DirectSpecular.Get(),
+            .InAlbedoTrust = m_albedoTrust[m_albedoTrustResult].Get(),
+            .InIndirectDiffuseDenoised = m_indirectDiffuseOutput.Get(),
         };
 
         Composition::Output outputs { .Resources = {
@@ -1660,8 +1712,62 @@ struct FSRDPreprocessor_Dx12::Impl
         const std::span<const byte> cbData((const byte*) &constants, sizeof(constants));
         const XMFLOAT2 dstDim = { constants.DstTexSize.x, constants.DstTexSize.y };
 
-        m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, outputs.AsArray, dstDim, true);
+        {
+            FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::Composition);
+            m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, outputs.AsArray, dstDim, true);
+        }
         m_historyPending=writeHistory;
+    }
+
+    // Unsupported-albedo evidence from RR's unmodulated specular output, then six
+    // same-surface a-trous steps that spread it over continuous surfaces. Requires the
+    // denoiser outputs in SRV state; leaves the result in m_albedoTrust[m_albedoTrustResult].
+    void DispatchAlbedoTrust(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc,
+                             ID3D12Resource* diffuseRadiance)
+    {
+        FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::AlbedoRecovery);
+        auto& outResources = m_out.Resources;
+        const XMFLOAT2 dim = { desc.DstTexSize.x, desc.DstTexSize.y };
+        TrustEvidence::Constants evidenceConstants = {
+            .DstTexSize = desc.DstTexSize,
+            .StepSize = 0,
+            .Flags = (desc.Flags & uint32_t(CompFlags::ExtraDiffuse)) != 0 ? 1u : 0u,
+            .DemodDivisorFloor = desc.DemodDivisorFloor
+        };
+        TrustEvidence::Input evidenceIn = { .Resources = {
+            .InDirectSpecularDenoised = m_directSpecularOutput.Get(),
+            .InDirectDiffuse = diffuseRadiance,
+            .InSpecularAlbedo = outResources.SpecAlbedo.Get(),
+            .InDiffuseAlbedo = outResources.DiffAlbedo.Get(),
+            .InSkipSignal = outResources.SkipSignal.Get(),
+            .InLinearDepth = m_LinearDepth.Get(),
+            .InNormals = outResources.Normals.Get(),
+            .InDirectSpecularSignal = outResources.DirectSpecular.Get(),
+            .InIndirectDiffuseDenoised = m_indirectDiffuseOutput.Get()
+        }};
+        TrustEvidence::Output evidenceOut = { .Resources = { .OutAlbedoTrust = m_albedoTrust[0].Get() } };
+        m_trustEvidenceShader.Dispatch(cmdList, GetAsByteSpan(evidenceConstants), evidenceIn.AsArray,
+                                       evidenceOut.AsArray, dim);
+
+        UINT read = 0;
+        for (UINT pass = 0; pass < TrustPropagate::kPasses; ++pass)
+        {
+            TrustPropagate::Constants constants = {
+                .DstTexSize = desc.DstTexSize,
+                .StepSize = 1 << pass,
+                .Flags = 0,
+                .DemodDivisorFloor = desc.DemodDivisorFloor
+            };
+            TrustPropagate::Input in = { .Resources = {
+                .InAlbedoTrust = m_albedoTrust[read].Get(),
+                .InLinearDepth = m_LinearDepth.Get(),
+                .InNormals = outResources.Normals.Get()
+            }};
+            TrustPropagate::Output out = { .Resources = { .OutAlbedoTrust = m_albedoTrust[1 - read].Get() } };
+            m_trustPropagateShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray, dim);
+            read = 1 - read;
+        }
+        m_albedoTrustResult = read;
     }
 
     void TransitionDenoiserOutputsToRead(ID3D12GraphicsCommandList* cmdList) noexcept
@@ -1671,7 +1777,9 @@ struct FSRDPreprocessor_Dx12::Impl
 
         if (m_radianceOutputsInUavState)
         {
-            std::array<ID3D12Resource*, 2> buffers = { m_outputBuffer1.Get(), m_outputBuffer2.Get() };
+            // The direct-specular output shares the radiance outputs' state lifetime.
+            std::array<ID3D12Resource*, 4> buffers = { m_outputBuffer1.Get(), m_outputBuffer2.Get(),
+                m_directSpecularOutput.Get(), m_indirectDiffuseOutput.Get() };
             AddBarriers(cmdList, buffers, kUavState, kSrvState);
             m_radianceOutputsInUavState = false;
         }
@@ -1696,7 +1804,8 @@ struct FSRDPreprocessor_Dx12::Impl
 
         if (!m_radianceOutputsInUavState)
         {
-            std::array<ID3D12Resource*, 2> buffers = { m_outputBuffer1.Get(), m_outputBuffer2.Get() };
+            std::array<ID3D12Resource*, 4> buffers = { m_outputBuffer1.Get(), m_outputBuffer2.Get(),
+                m_directSpecularOutput.Get(), m_indirectDiffuseOutput.Get() };
             AddBarriers(cmdList, buffers, kSrvState, kUavState);
             m_radianceOutputsInUavState = true;
         }
@@ -1944,6 +2053,20 @@ bool FSRDPreprocessor_Dx12::DispatchConversion(ID3D12GraphicsCommandList* cmdLis
     return false;
 }
 
+void FSRDPreprocessor_Dx12::SetStageTimings(FSRDStageTimings* timings)
+{
+    m_impl->m_stageTimings = timings;
+}
+
+bool FSRDPreprocessor_Dx12::ConfigureSignalResources(bool extraDiffuse, bool extraSpecular, bool albedoRecovery)
+{
+    if (m_impl->m_maxWidth != 0) return false;
+    m_impl->m_extraDiffuse = extraDiffuse;
+    m_impl->m_extraSpecular = extraSpecular;
+    m_impl->m_albedoRecovery = albedoRecovery;
+    return true;
+}
+
 void FSRDPreprocessor_Dx12::GetSignals(ffxDispatchDescDenoiser& dispatchDesc,
                                        ffxDispatchDescDenoiserDirectDiffuse& directDiffuse,
                                        ffxDispatchDescDenoiserIndirectSpecular& indirectSpecular) const
@@ -1980,6 +2103,37 @@ void FSRDPreprocessor_Dx12::GetSignals(ffxDispatchDescDenoiser& dispatchDesc,
     };
 
     m_impl->SetDescResources(directDiffuse.header, dispatchDesc);
+}
+
+void FSRDPreprocessor_Dx12::GetDirectSpecularSignal(ffxDispatchDescDenoiserDirectSpecular& directSpecular, bool unmodulated) const
+{
+    directSpecular =
+    {
+        .header = { .type = FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR },
+        .signal =
+        {
+            .input = ffxApiGetResourceDX12(unmodulated ? m_impl->m_out.Resources.DirectSpecular.Get()
+                : m_impl->m_out.Resources.Signals.IndirectSpecular.Get(),
+                                           FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
+            .output = ffxApiGetResourceDX12(m_impl->m_directSpecularOutput.Get(),
+                                            FFX_API_RESOURCE_STATE_UNORDERED_ACCESS),
+            .checkerboardOrigin = 0
+        }
+    };
+}
+
+void FSRDPreprocessor_Dx12::GetIndirectDiffuseSignal(ffxDispatchDescDenoiserIndirectDiffuse& indirectDiffuse) const
+{
+    indirectDiffuse = {
+        .header = { .type = FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE },
+        .signal = {
+            .input = ffxApiGetResourceDX12(m_impl->m_out.Resources.Signals.DirectDiffuse.Get(),
+                                           FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
+            .output = ffxApiGetResourceDX12(m_impl->m_indirectDiffuseOutput.Get(),
+                                            FFX_API_RESOURCE_STATE_UNORDERED_ACCESS),
+            .checkerboardOrigin = 0
+        }
+    };
 }
 
 bool FSRDPreprocessor_Dx12::DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)

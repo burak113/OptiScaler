@@ -86,6 +86,29 @@ static uint32_t GetSignalFlag(ffxStructType_t descriptorType)
     }
 }
 
+static constexpr ffxStructType_t SignalDescriptors[] = {
+    FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE,
+    FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR,
+    FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE,
+    FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR
+};
+
+static FSRDSignals::Layout ConfiguredSignalLayout(const Config& cfg, uint32_t available = FSRDSignals::All)
+{
+    return FSRDSignals::Resolve(cfg.FfxDenoiserSignalCount.value_or_default(), {
+        cfg.FfxDenoiserSignal1.value_or_default(), cfg.FfxDenoiserSignal2.value_or_default(),
+        cfg.FfxDenoiserSignal3.value_or_default(), cfg.FfxDenoiserSignal4.value_or_default() }, available);
+}
+
+static bool UseUnsupportedAlbedo(const Config& cfg, uint32_t mask)
+{
+    return cfg.FfxDenoiserUnsupportedAlbedoRecovery.value_or_default() &&
+        FSRDSignals::SupportsUnsupportedAlbedo(mask) &&
+        cfg.FfxDenoiserSpecularAlbedoDemodulation.value_or_default() == 1.0f &&
+        cfg.FfxDenoiserDiffuseAlbedoModulation.value_or_default() == 1.0f &&
+        cfg.FfxDenoiserAdditiveLightSplit.value_or_default() == 0.0f;
+}
+
 static const char* GetSignalTypeName(ffxStructType_t descriptorType)
 {
     switch (descriptorType)
@@ -425,19 +448,29 @@ static RequiredRRResources GetRequiredRRResources(
     const ffxDispatchDescDenoiser& dispatchDesc,
     const ffxDispatchDescDenoiserDirectDiffuse& directDiffuse,
     const ffxDispatchDescDenoiserIndirectSpecular& indirectSpecular,
-    const ffxDispatchDescDenoiserAmbientOcclusion* ambientOcclusion)
+    const ffxDispatchDescDenoiserAmbientOcclusion* ambientOcclusion,
+    const ffxDispatchDescDenoiserDirectSpecular* recoverySpecular)
 {
     RequiredRRResources resources {
         { "LinearDepth", dispatchDesc.linearDepth, DXGI_FORMAT_R32_FLOAT },
         { "MotionVectors", dispatchDesc.motionVectors, DXGI_FORMAT_R16G16B16A16_FLOAT },
         { "Normals", dispatchDesc.normals, DXGI_FORMAT_R10G10B10A2_UNORM },
-        { "SpecularAlbedo", dispatchDesc.specularAlbedo, DXGI_FORMAT_R8G8B8A8_UNORM },
-        { "DiffuseAlbedo", dispatchDesc.diffuseAlbedo, DXGI_FORMAT_R8G8B8A8_UNORM },
         { "DiffuseSignal.Input", directDiffuse.signal.input, DXGI_FORMAT_R16G16B16A16_FLOAT },
         { "DiffuseSignal.Output", directDiffuse.signal.output, DXGI_FORMAT_R16G16B16A16_FLOAT },
         { "SpecularSignal.Input", indirectSpecular.signal.input, DXGI_FORMAT_R16G16B16A16_FLOAT },
         { "SpecularSignal.Output", indirectSpecular.signal.output, DXGI_FORMAT_R16G16B16A16_FLOAT },
     };
+
+    bool needsDiffuse = false, needsSpecular = false;
+    for (const auto* signal = dispatchDesc.header.pNext; signal; signal = signal->pNext)
+    {
+        needsDiffuse |= signal->type == FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE ||
+                        signal->type == FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE;
+        needsSpecular |= signal->type == FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR ||
+                         signal->type == FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR;
+    }
+    if (needsDiffuse) resources.push_back({ "DiffuseAlbedo", dispatchDesc.diffuseAlbedo, DXGI_FORMAT_R8G8B8A8_UNORM });
+    if (needsSpecular) resources.push_back({ "SpecularAlbedo", dispatchDesc.specularAlbedo, DXGI_FORMAT_R8G8B8A8_UNORM });
 
     if (ambientOcclusion)
     {
@@ -447,16 +480,33 @@ static RequiredRRResources GetRequiredRRResources(
             { "AmbientOcclusion.Output", ambientOcclusion->signal.output, DXGI_FORMAT_R8_UNORM });
     }
 
+    if (recoverySpecular)
+    {
+        resources.push_back(
+            { "RecoverySpecular.Input", recoverySpecular->signal.input, DXGI_FORMAT_R16G16B16A16_FLOAT });
+        resources.push_back(
+            { "RecoverySpecular.Output", recoverySpecular->signal.output, DXGI_FORMAT_R16G16B16A16_FLOAT });
+    }
+
+    for (const auto* signal = dispatchDesc.header.pNext; signal; signal = signal->pNext)
+        if (signal->type == FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE &&
+            directDiffuse.header.type != signal->type)
+        {
+            const auto* extra = reinterpret_cast<const ffxDispatchDescDenoiserIndirectDiffuse*>(signal);
+            resources.push_back({ "ExtraDiffuse.Input", extra->signal.input, DXGI_FORMAT_R16G16B16A16_FLOAT });
+            resources.push_back({ "ExtraDiffuse.Output", extra->signal.output, DXGI_FORMAT_R16G16B16A16_FLOAT });
+        }
     return resources;
 }
 
 static bool ValidateRequiredRRResources(const ffxDispatchDescDenoiser& dispatchDesc,
                                         const ffxDispatchDescDenoiserDirectDiffuse& directDiffuse,
                                         const ffxDispatchDescDenoiserIndirectSpecular& indirectSpecular,
-                                        const ffxDispatchDescDenoiserAmbientOcclusion* ambientOcclusion)
+                                        const ffxDispatchDescDenoiserAmbientOcclusion* ambientOcclusion,
+                                        const ffxDispatchDescDenoiserDirectSpecular* recoverySpecular)
 {
     const RequiredRRResources requirements =
-        GetRequiredRRResources(dispatchDesc, directDiffuse, indirectSpecular, ambientOcclusion);
+        GetRequiredRRResources(dispatchDesc, directDiffuse, indirectSpecular, ambientOcclusion, recoverySpecular);
 
     bool valid = true;
 
@@ -502,7 +552,8 @@ static bool ValidateRequiredRRResources(const ffxDispatchDescDenoiser& dispatchD
 static void LogRRDispatchSnapshot(const ffxDispatchDescDenoiser& dispatchDesc,
                                   const ffxDispatchDescDenoiserDirectDiffuse& directDiffuse,
                                   const ffxDispatchDescDenoiserIndirectSpecular& indirectSpecular,
-                                  const ffxDispatchDescDenoiserAmbientOcclusion* ambientOcclusion)
+                                  const ffxDispatchDescDenoiserAmbientOcclusion* ambientOcclusion,
+                                  const ffxDispatchDescDenoiserDirectSpecular* recoverySpecular)
 {
     ID3D12GraphicsCommandList* commandList =
         static_cast<ID3D12GraphicsCommandList*>(dispatchDesc.commandList);
@@ -533,7 +584,7 @@ static void LogRRDispatchSnapshot(const ffxDispatchDescDenoiser& dispatchDesc,
     LOG_INFO("[RR_DIAG] chain: {} -> tail=0x0", chain);
 
     const RequiredRRResources requirements =
-        GetRequiredRRResources(dispatchDesc, directDiffuse, indirectSpecular, ambientOcclusion);
+        GetRequiredRRResources(dispatchDesc, directDiffuse, indirectSpecular, ambientOcclusion, recoverySpecular);
 
     for (const RequiredRRResource& requirement : requirements)
     {
@@ -964,6 +1015,7 @@ enum class DebugModes : uint64_t
     HandoverEligibility = (uint64_t) FSRDCompFlags::DebugHandoverEligibility << CompositionDebugOffset,
     ChromaRecovery = (uint64_t) FSRDCompFlags::DebugChromaRecovery << CompositionDebugOffset,
     LumaRecovery = (uint64_t) FSRDCompFlags::DebugLumaRecovery << CompositionDebugOffset,
+    AlbedoTrust = (uint64_t) FSRDCompFlags::DebugAlbedoTrust << CompositionDebugOffset,
 };
 
 static FSRDConvFlags GetConvDebugFlags(DebugModes mode) 
@@ -1057,6 +1109,7 @@ constexpr auto kDebugModes = std::to_array<ModeNamePair>(
     { "HandoverEligibility", (uint64_t) DebugModes::HandoverEligibility },
     { "ChromaRecovery", (uint64_t) DebugModes::ChromaRecovery },
     { "LumaRecovery", (uint64_t) DebugModes::LumaRecovery },
+    { "UnsupportedAlbedoTrust", (uint64_t) DebugModes::AlbedoTrust },
 
     { "FloorColor", (uint64_t) DebugModes::FloorColor },
     
@@ -1437,6 +1490,26 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
         _denoiseDiffuse = true;
         _denoiseSpecular = true;
     }
+    if (cfg.FfxDenoiserSignalCount.has_value())
+        _signalMask = _resolvedSignalMask ? _resolvedSignalMask : ConfiguredSignalLayout(cfg).mask;
+    else
+    {
+        _signalMask = 0;
+        for (int i = 0; i < 4; ++i)
+            if ((_denoiseDiffuse && SignalDescriptors[i] == _diffuseSignalDescType) ||
+                (_denoiseSpecular && SignalDescriptors[i] == _specularSignalDescType))
+                _signalMask |= FSRDSignals::Bit(i);
+    }
+    _denoiseDiffuse = (_signalMask & 5u) != 0;
+    _denoiseSpecular = (_signalMask & 10u) != 0;
+    _extraDiffuseSignal = (_signalMask & 5u) == 5u;
+    _extraSpecularSignal = (_signalMask & 10u) == 10u;
+    _diffuseSignalDescType = (_signalMask & FSRDSignals::Bit(FSRDSignals::DirectDiffuse))
+        ? FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE : FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE;
+    _specularSignalDescType = (_signalMask & FSRDSignals::Bit(FSRDSignals::IndirectSpecular))
+        ? FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR : FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR;
+    _signalStatus.store((_signalStatus.load(std::memory_order_relaxed) & 7u) | (_signalMask << 8),
+                        std::memory_order_relaxed);
     _ambientOcclusionEnabled =
         cfg.FfxDenoiserTaggedAmbientOcclusion.value_or_default() &&
         AcquireTaggedAmbientOcclusionResources(true);
@@ -1445,14 +1518,10 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
     _specularOcclusionEnabled = false;
 
     uint32_t selectedSignalFlags = 0;
-    if (_denoiseDiffuse)
-        selectedSignalFlags |= GetSignalFlag(_diffuseSignalDescType);
-    if (_denoiseSpecular)
-        selectedSignalFlags |= GetSignalFlag(_specularSignalDescType);
-    if (selectedSignalFlags == 0)
-        selectedSignalFlags = GetSignalFlag(_diffuseSignalDescType) | GetSignalFlag(_specularSignalDescType);
-    if (_ambientOcclusionEnabled)
-        selectedSignalFlags |= FFX_DENOISER_SIGNAL_AMBIENT_OCCLUSION;
+    for (int i = 0; i < 4; ++i)
+        if (_signalMask & FSRDSignals::Bit(i)) selectedSignalFlags |= GetSignalFlag(SignalDescriptors[i]);
+    if (_ambientOcclusionEnabled) selectedSignalFlags |= FFX_DENOISER_SIGNAL_AMBIENT_OCCLUSION;
+    _unsupportedAlbedoRecovery = UseUnsupportedAlbedo(cfg, _signalMask);
 
     ffxOverrideVersion vidOverride = 
     {
@@ -1515,9 +1584,9 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
         _denoiserCtxDesc.signalFlags, _denoiserCtxDesc.checkerboardSignalFlags,
         _denoiserCtxDesc.flags);
     LOG_INFO("[RR_DIAG] signal classification: diffuse={}, specular={}, ambientOcclusion={}, "
-             "specularOcclusion={} (no semantic source)",
+             "specularOcclusion={} (no semantic source), unsupportedAlbedoRecovery={}",
              GetSignalTypeName(_diffuseSignalDescType), GetSignalTypeName(_specularSignalDescType),
-             _ambientOcclusionEnabled, _specularOcclusionEnabled);
+             _ambientOcclusionEnabled, _specularOcclusionEnabled, _unsupportedAlbedoRecovery);
     spdlog::info(L"" __FUNCTIONW__ L" [RR_DIAG] denoiser module: {}",
                  FfxApiProxy::Dx12Module_Denoiser_Path());
 
@@ -1574,7 +1643,9 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
         return false;
     }
 
-    if (!newConverter->SetMaxRenderSize(
+    if (!newConverter->ConfigureSignalResources(_extraDiffuseSignal, _extraSpecularSignal,
+                                               FSRDSignals::SupportsUnsupportedAlbedo(_signalMask)) ||
+        !newConverter->SetMaxRenderSize(
             _denoiserCtxDesc.maxRenderSize.width,
             _denoiserCtxDesc.maxRenderSize.height))
     {
@@ -1760,6 +1831,17 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
     auto& state = State::Instance();
     auto& cfg = *Config::Instance();
     const auto& inParams = *InParameters;
+    _stageTimings.BeginFrame(Device, InCommandList, cfg.FfxDenoiserGpuTimings.value_or_default(),
+        [&](const std::shared_ptr<void>& lease, std::function<void(ID3D12CommandQueue*)> beforeSubmit) {
+            return ResTrack_Dx12::RetainComputeDispatch(Device, InCommandList, lease, std::move(beforeSubmit));
+        });
+    struct TimingFrameGuard
+    {
+        FSRDStageTimings& timer;
+        bool success = false;
+        ~TimingFrameGuard() { timer.FinishFrame(success); }
+    } timingFrameGuard { _stageTimings };
+
 
     // Refresh the current render subrect before deciding whether RR must resize.
     // PrepareUpscalerInput queries it too, but that runs after this decision, so the
@@ -1913,7 +1995,10 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
             chainTail->pNext = &dispatchDebugView.header;
         }
 
-        isDenoiserReady = DispatchDenoiser(InCommandList, denoiserDesc);
+        {
+            FSRDStageTimings::Scope timing(&_stageTimings, FSRDStageTimings::RayRegeneration);
+            isDenoiserReady = DispatchDenoiser(InCommandList, denoiserDesc);
+        }
 
         if (isFfxDebug)
             FSRDConvShader->TransitionDebugViewOutputToRead(InCommandList);
@@ -1947,6 +2032,10 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
         if (!_denoiseSpecular)
             compositionFlags |= (uint32_t)FSRDCompFlags::SpecularSignalDisabled;
 
+        if (_extraDiffuseSignal) compositionFlags |= uint32_t(FSRDCompFlags::ExtraDiffuse);
+        if (_extraSpecularSignal && !_unsupportedAlbedoRecovery)
+            compositionFlags |= uint32_t(FSRDCompFlags::ExtraSpecular);
+
         FSRDCompDesc compDesc =
         { 
             .DstTexSize = _convDesc.RenderSize,
@@ -1959,7 +2048,14 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
             .DiffuseAlbedoModulation = _convDesc.DiffuseAlbedoModulation,
             .SpatialTemporalMask = _appliedSpatialTemporalMask,
             .LumaRecovery = _appliedLumaRecovery,
-            .ChromaRecovery = _appliedChromaRecovery
+            .ChromaRecovery = _appliedChromaRecovery,
+            // The blend replaces the full-strength specular reconstruction, so it only
+            // applies at the default 1/1 modulation and with the ordered signal split.
+            .UnsupportedAlbedoRecovery = _unsupportedAlbedoRecovery &&
+                    _convDesc.SpecularAlbedoDemodulation >= 1.0f &&
+                    _convDesc.DiffuseAlbedoModulation >= 1.0f && _convDesc.AdditiveLightSplit <= 0.0f
+                ? 1.0f : 0.0f,
+            .DemodDivisorFloor = _convDesc.DemodDivisorFloor
         };
 
         // ColorBeforeParticles is a whole scene guide, not a premultiplied overlay.
@@ -2006,7 +2102,10 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
                 FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
 
         upscalerDesc.reset = upscalerDesc.reset || _upscalerResetPending;
-        isUpscalerReady = DispatchUpscaler(InCommandList, upscalerDesc);
+        {
+            FSRDStageTimings::Scope timing(&_stageTimings, FSRDStageTimings::SuperResolution);
+            isUpscalerReady = DispatchUpscaler(InCommandList, upscalerDesc);
+        }
         _upscalerResetPending = !isUpscalerReady;
         upscalerContinuityGuard.dispatchSucceeded = isUpscalerReady;
 
@@ -2091,7 +2190,8 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
     }
 
     compositionHistoryGuard.success=isDenoiserReady && !isUpscaleBypassed && !isDenoiseBypassed;
-    return isDenoiserReady || isDenoiseBypassed;
+    timingFrameGuard.success = isDenoiserReady || isDenoiseBypassed;
+    return timingFrameGuard.success;
 }
 
 bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams,
@@ -2173,7 +2273,7 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
     // Keeping this generic prevents future AO/SO additions from hard-coding pairwise links.
     // Single-signal mode (DenoiseDiffuse/DenoiseSpecular): disabled signals are not
     // linked into the chain at all, so the denoiser only sees the enabled ones.
-    std::array<ffxDispatchDescHeader*, 3> signals { nullptr, nullptr, nullptr };
+    std::array<ffxDispatchDescHeader*, 5> signals {};
     size_t signalCount = 0;
     if (_denoiseDiffuse)
         signals[signalCount++] = &directDiffuse.header;
@@ -2181,6 +2281,17 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
         signals[signalCount++] = &indirectSpecular.header;
     if (activeAmbientOcclusion)
         signals[signalCount++] = &ambientOcclusion.header;
+    if (_extraSpecularSignal)
+    {
+        FSRDConvShader->GetDirectSpecularSignal(_directSpecularSignal, _unsupportedAlbedoRecovery);
+        signals[signalCount++] = &_directSpecularSignal.header;
+    }
+
+    if (_extraDiffuseSignal)
+    {
+        FSRDConvShader->GetIndirectDiffuseSignal(_indirectDiffuseSignal);
+        signals[signalCount++] = &_indirectDiffuseSignal.header;
+    }
 
     std::sort(signals.begin(), signals.begin() + signalCount,
               [](const ffxDispatchDescHeader* left, const ffxDispatchDescHeader* right) {
@@ -2191,8 +2302,14 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
     for (size_t i = 0; i < signalCount; ++i)
         signals[i]->pNext = i + 1 < signalCount ? signals[i + 1] : nullptr;
 
+    // RR's unused albedo guides are empty descriptors. The converter retains both
+    // textures for the undenoised family's composition passthrough.
+    if (!_denoiseDiffuse) dispatchDesc.diffuseAlbedo = {};
+    if (!_denoiseSpecular) dispatchDesc.specularAlbedo = {};
+
     if (!ValidateRequiredRRResources(
-            dispatchDesc, directDiffuse, indirectSpecular, activeAmbientOcclusion))
+            dispatchDesc, directDiffuse, indirectSpecular, activeAmbientOcclusion,
+            _extraSpecularSignal ? &_directSpecularSignal : nullptr))
         return false;
     
     if (resetHistory)
@@ -2863,6 +2980,34 @@ bool FSRDFeatureDx12::ResolveSignalTypes(bool isReady, bool hasCurrentSLConstant
 {
     const auto& cfg = *Config::Instance();
 
+    const bool nativeSpec = _convDesc.Resources.InSpecHitDist || _convDesc.Resources.InSpecularRayDirectionHitDistance;
+    const bool nativeRay = _convDesc.Resources.InDiffuseHitDistance && _convDesc.DiffuseHitDistanceMode != 0;
+    if (isReady)
+        _signalStatus.store((nativeSpec ? 1u : 0u) | (nativeRay ? 2u : 0u) | 4u | (_signalMask << 8),
+                            std::memory_order_relaxed);
+    if (cfg.FfxDenoiserSignalCount.has_value())
+    {
+        if (!isReady) return false;
+        const uint32_t mask = ConfiguredSignalLayout(cfg, FSRDSignals::Available(nativeSpec, nativeRay,
+            cfg.FfxDenoiserApproximateSpecHitDistance.value_or_default(),
+            cfg.FfxDenoiserApproximateRayHitDistance.value_or_default())).mask;
+        if (mask != _signalMask)
+        {
+            InvalidateDenoiserHistory();
+            // As with Auto classification, only an instance with no recorded GPU work
+            // can rebuild in place. Never destroy an in-flight RR context or its textures.
+            if (_preprocessorHasRecordedWork)
+            {
+                State::Instance().changeBackend[Handle()->Id] = true;
+                return false;
+            }
+            _resolvedSignalMask = mask;
+            DestroyDenoiserContext();
+            if (!CreateDenoiserContext()) return false;
+        }
+        return true;
+    }
+
     // AMD RR 1.2 requires a valid ray length in alpha for every active indirect-
     // specular pixel. The INI's unset value is Auto: resolve it once from a
     // semantically named, format/extent-validated guide, then keep the context
@@ -2879,7 +3024,8 @@ bool FSRDFeatureDx12::ResolveSignalTypes(bool isReady, bool hasCurrentSLConstant
         // the frame's result rather than of the step's local selection.
         const bool hasSpecularHitDistanceGuide =
             _convDesc.Resources.InSpecHitDist != nullptr ||
-            _convDesc.Resources.InSpecularRayDirectionHitDistance != nullptr;
+            _convDesc.Resources.InSpecularRayDirectionHitDistance != nullptr ||
+            cfg.FfxDenoiserApproximateSpecHitDistance.value_or_default();
 
         const ffxStructType_t resolvedType = hasSpecularHitDistanceGuide
             ? FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR
@@ -2944,8 +3090,8 @@ bool FSRDFeatureDx12::ResolveSignalTypes(bool isReady, bool hasCurrentSLConstant
     if (isReady && !cfg.FfxDenoiserDiffuseSignalType.has_value() &&
         !_autoDiffuseSignalResolved)
     {
-        const bool hasDiffuseRayLength = _convDesc.Resources.InDiffuseHitDistance != nullptr &&
-            _convDesc.DiffuseHitDistanceMode != 0u;
+        const bool hasDiffuseRayLength = (_convDesc.Resources.InDiffuseHitDistance != nullptr &&
+            _convDesc.DiffuseHitDistanceMode != 0u) || cfg.FfxDenoiserApproximateRayHitDistance.value_or_default();
 
         const ffxStructType_t resolvedType = hasDiffuseRayLength
             ? FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE
@@ -3490,6 +3636,28 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     }
     if (_specularSignalDescType == FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR)
         _convDesc.Flags |= (uint32_t)FSRDConvFlags::SpecularSignalIndirect;
+    const bool unsupportedAlbedo = UseUnsupportedAlbedo(cfg, _signalMask);
+    if (_unsupportedAlbedoRecovery != unsupportedAlbedo)
+    {
+        // The Direct Specular input switches between a half demodulated lobe and
+        // a full unmodulated alternate. Neither RR history is compatible across it.
+        _unsupportedAlbedoRecovery = unsupportedAlbedo;
+        InvalidateDenoiserHistory();
+    }
+    const uint32_t approximationMask = (cfg.FfxDenoiserApproximateSpecHitDistance.value_or_default() ? 1u : 0u) |
+        (cfg.FfxDenoiserApproximateRayHitDistance.value_or_default() ? 2u : 0u);
+    if (_appliedApproximationMask != approximationMask)
+    {
+        _appliedApproximationMask = approximationMask;
+        InvalidateDenoiserHistory();
+    }
+    if (_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::UnsupportedAlbedo);
+    if (_extraDiffuseSignal) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfDiffuse);
+    if (_extraSpecularSignal && !_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfSpecular);
+    if (cfg.FfxDenoiserApproximateSpecHitDistance.value_or_default())
+        _convDesc.Flags |= uint32_t(FSRDConvFlags::ApproximateSpecHitDistance);
+    if (cfg.FfxDenoiserApproximateRayHitDistance.value_or_default())
+        _convDesc.Flags |= uint32_t(FSRDConvFlags::ApproximateRayHitDistance);
     _convDesc.FloorEnabled = cfg.FfxDenoiserFloorEnabled.value_or_default();
     const auto unitValue = [](float value, float fallback) {
         return std::isfinite(value) ? std::clamp(value, 0.0f, 1.0f) : fallback;
@@ -3519,7 +3687,10 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     _appliedLumaRecovery = luma;
     _appliedChromaRecovery = chroma;
     _convDesc.FloorDetailPreservation = unitValue(cfg.FfxDenoiserFloorRecovery.value_or_default(), 1.0f);
-    _convDesc.DemodDivisorFloor = std::clamp(cfg.FfxDenoiserDemodDivisorFloor.value_or_default(), 1e-4f, 0.5f);
+    const float requestedDivisor = cfg.FfxDenoiserDemodDivisorFloor.value_or_default();
+    const float divisor = std::isfinite(requestedDivisor) ? std::clamp(requestedDivisor, 1e-4f, 0.5f) : 8e-3f;
+    if (_convDesc.DemodDivisorFloor != divisor) InvalidateDenoiserHistory();
+    _convDesc.DemodDivisorFloor = divisor;
     const float configuredAnchor = cfg.FfxDenoiserFloorHandoverAnchorClamp.value_or_default();
     const float anchor = std::isfinite(configuredAnchor) ? std::clamp(configuredAnchor, 0.0f, 8.0f) : 4.0f;
     const float correlationMix = unitValue(cfg.FfxDenoiserFloorHandoverCorrelationMix.value_or_default(), 1.0f);
@@ -3670,6 +3841,7 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
         LOG_DEBUG("Dispatching FSRD Input Converter");
 
     // Dispatch resource converter. Outputs are automatically transitioned for reading.
+    FSRDConvShader->SetStageTimings(&_stageTimings);
     if (!FSRDConvShader->DispatchConversion(InCommandList, _convDesc))
     {
         _convDesc.Resources.InInspector = nullptr;
@@ -3686,77 +3858,41 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
 
 static bool ValidateRRDispatchChain(ID3D12GraphicsCommandList* commandList,
                                     const ffxDispatchDescDenoiser& dispatchDesc,
-                                    ffxStructType_t expectedDiffuseType,
-                                    ffxStructType_t expectedSpecularType,
-                                    bool expectDiffuseSignal,
-                                    bool expectSpecularSignal,
-                                    bool expectedAmbientOcclusion)
+                                    uint32_t expectedMask, bool expectedAmbientOcclusion)
 {
-    if (!commandList || dispatchDesc.commandList != commandList)
-    {
-        LOG_ERROR("RR 1.2 dispatch has a null or mismatched D3D12 command list");
+    if (!commandList || dispatchDesc.commandList != commandList ||
+        dispatchDesc.header.type != FFX_API_DISPATCH_DESC_TYPE_DENOISER)
         return false;
-    }
-
-    if (dispatchDesc.header.type != FFX_API_DISPATCH_DESC_TYPE_DENOISER)
+    uint32_t foundMask = 0;
+    bool foundAO = false;
+    unsigned descriptors = 0;
+    for (const auto* signal = dispatchDesc.header.pNext; signal; signal = signal->pNext)
     {
-        LOG_ERROR("RR 1.2 dispatch head has an invalid descriptor type: {0:X}", dispatchDesc.header.type);
-        return false;
-    }
-
-    bool foundDiffuse = false;
-    bool foundSpecular = false;
-    bool foundAmbientOcclusion = false;
-    bool foundDebugView = false;
-
-    for (const ffxDispatchDescHeader* signal = dispatchDesc.header.pNext;
-         signal != nullptr; signal = signal->pNext)
-    {
+        // Also bound malformed/cyclic descriptor chains.
+        if (++descriptors > 6) return false;
         if (signal->type == FFX_API_DISPATCH_DESC_TYPE_DENOISER_DEBUG_VIEW)
         {
-            if (foundDebugView || signal->pNext)
-            {
-                LOG_ERROR("RR 1.2 debug descriptor must appear once at the chain tail");
-                return false;
-            }
-
-            foundDebugView = true;
+            if (signal->pNext) return false;
             continue;
         }
-
-        bool* found = nullptr;
-        if (signal->type == expectedDiffuseType)
-            found = &foundDiffuse;
-        else if (signal->type == expectedSpecularType)
-            found = &foundSpecular;
-        else if (signal->type == FFX_API_DISPATCH_DESC_TYPE_DENOISER_AMBIENT_OCCLUSION)
-            found = &foundAmbientOcclusion;
-        else
+        if (signal->type == FFX_API_DISPATCH_DESC_TYPE_DENOISER_AMBIENT_OCCLUSION)
         {
-            LOG_ERROR("RR 1.2 dispatch contains unexpected descriptor {} ({:#x})",
-                      GetSignalTypeName(signal->type), signal->type);
-            return false;
+            if (foundAO) return false;
+            foundAO = true;
+            continue;
         }
-
-        if (*found)
-        {
-            LOG_ERROR("RR 1.2 dispatch contains duplicate {} descriptor",
-                      GetSignalTypeName(signal->type));
-            return false;
-        }
-        *found = true;
+        uint32_t bit = 0;
+        for (int i = 0; i < 4; ++i)
+            if (signal->type == SignalDescriptors[i]) bit = FSRDSignals::Bit(i);
+        if (!bit || (foundMask & bit)) return false;
+        foundMask |= bit;
     }
-
-    if (foundDiffuse != expectDiffuseSignal || foundSpecular != expectSpecularSignal ||
-        foundAmbientOcclusion != expectedAmbientOcclusion)
+    if (foundMask != expectedMask || foundAO != expectedAmbientOcclusion)
     {
-        LOG_ERROR("RR 1.2 dispatch signal mismatch: diffuse={}, specular={}, AO={}; "
-                  "expected diffuse={}, specular={}, AO={}",
-                  foundDiffuse, foundSpecular, foundAmbientOcclusion,
-                  expectDiffuseSignal, expectSpecularSignal, expectedAmbientOcclusion);
+        LOG_ERROR("RR dispatch/context mismatch: radiance mask={} expected={}, AO={} expected={}",
+                  foundMask, expectedMask, foundAO, expectedAmbientOcclusion);
         return false;
     }
-
     return true;
 }
 
@@ -3773,15 +3909,13 @@ bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
     }
 
 
-    if (!ValidateRRDispatchChain(InCommandList, dispatchDesc,
-                                 _diffuseSignalDescType, _specularSignalDescType,
-                                 _denoiseDiffuse, _denoiseSpecular,
-                                 _ambientOcclusionEnabled))
+    if (!ValidateRRDispatchChain(InCommandList, dispatchDesc, _signalMask, _ambientOcclusionEnabled))
         return false;
 
     const ffxDispatchDescHeader* diffuseHeader = nullptr;
     const ffxDispatchDescHeader* specularHeader = nullptr;
     const ffxDispatchDescHeader* ambientOcclusionHeader = nullptr;
+    const ffxDispatchDescHeader* recoverySpecularHeader = nullptr;
     for (const ffxDispatchDescHeader* signal = dispatchDesc.header.pNext;
          signal != nullptr; signal = signal->pNext)
     {
@@ -3791,6 +3925,8 @@ bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
             specularHeader = signal;
         else if (signal->type == FFX_API_DISPATCH_DESC_TYPE_DENOISER_AMBIENT_OCCLUSION)
             ambientOcclusionHeader = signal;
+        else if (signal->type == FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR)
+            recoverySpecularHeader = signal;
     }
 
     // All four RR 1.2 diffuse/specular descriptor structures have the same
@@ -3799,6 +3935,9 @@ bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
     // signal's presence is known.
     const auto* ambientOcclusion = ambientOcclusionHeader
         ? reinterpret_cast<const ffxDispatchDescDenoiserAmbientOcclusion*>(ambientOcclusionHeader)
+        : nullptr;
+    const auto* recoverySpecular = recoverySpecularHeader
+        ? reinterpret_cast<const ffxDispatchDescDenoiserDirectSpecular*>(recoverySpecularHeader)
         : nullptr;
     const bool resetRequested = !!(dispatchDesc.flags & FFX_DENOISER_DISPATCH_RESET);
     const bool resetTransition = resetRequested && !_lastDispatchRequestedReset;
@@ -3819,13 +3958,14 @@ bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
                 *reinterpret_cast<const ffxDispatchDescDenoiserDirectDiffuse*>(diffuseHeader);
             const auto& indirectSpecular =
                 *reinterpret_cast<const ffxDispatchDescDenoiserIndirectSpecular*>(specularHeader);
-            LogRRDispatchSnapshot(dispatchDesc, directDiffuse, indirectSpecular, ambientOcclusion);
+            LogRRDispatchSnapshot(dispatchDesc, directDiffuse, indirectSpecular, ambientOcclusion, recoverySpecular);
         }
         else
         {
-            LOG_INFO("[RR_DIAG] single-signal dispatch: head={:#x} -> {} -> tail=0x0, frame={}, reset={}",
+            LOG_INFO("[RR_DIAG] single-lobe dispatch: head={:#x}, main={}, recoverySpecular={}, frame={}, reset={}",
                      dispatchDesc.header.type, GetSignalTypeName(_denoiseDiffuse ? _diffuseSignalDescType : _specularSignalDescType),
-                     dispatchDesc.frameIndex, !!(dispatchDesc.flags & FFX_DENOISER_DISPATCH_RESET));
+                     recoverySpecular != nullptr, dispatchDesc.frameIndex,
+                     !!(dispatchDesc.flags & FFX_DENOISER_DISPATCH_RESET));
         }
         if (_denoiseDiffuse && _denoiseSpecular)
         {

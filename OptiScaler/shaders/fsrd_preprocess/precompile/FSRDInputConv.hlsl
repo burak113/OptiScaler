@@ -8,11 +8,25 @@
 #define FSRD_ADDITIVE_SPLIT_ENABLED 0
 #endif
 
+#ifndef FSRD_ADDITIVE_DIAGNOSTICS
+#define FSRD_ADDITIVE_DIAGNOSTICS 0
+#endif
+
+// Production conversion also publishes the unmodulated specular signal (u8). The
+// additive capture journal keeps its original eight-output layout.
+#if !FSRD_ADDITIVE_DIAGNOSTICS
+#define MainRS \
+    "RootFlags(0), " \
+    "CBV(b0), " \
+    "DescriptorTable(SRV(t0, numDescriptors = 17), visibility = SHADER_VISIBILITY_ALL), " \
+    "DescriptorTable(UAV(u0, numDescriptors = 9), visibility = SHADER_VISIBILITY_ALL), "
+#else
 #define MainRS \
     "RootFlags(0), " \
     "CBV(b0), " \
     "DescriptorTable(SRV(t0, numDescriptors = 17), visibility = SHADER_VISIBILITY_ALL), " \
     "DescriptorTable(UAV(u0, numDescriptors = 8), visibility = SHADER_VISIBILITY_ALL), "
+#endif
 
 // Dispatch config
 #define THREAD_GROUP_SIZE_X     8
@@ -149,6 +163,12 @@ Texture2D<float> InDepth : register(t1); // R - NVSDK_NGX_Parameter_Depth - hard
 Texture2D<float3> InMotionVectors : register(t2); // RG - NVSDK_NGX_Parameter_MotionVectors
 Texture2D<float4> InNormals : register(t3); // RGB: Normals, A: Roughness (Optional) - NVSDK_NGX_Parameter_GBuffer_Normals
 Texture2D<float> InRoughness : register(t4); // R - May be packed in normals. NVSDK_NGX_Parameter_GBuffer_Roughness
+#define FLAGS_HALF_DIFFUSE (1 << 24)
+#define FLAGS_HALF_SPECULAR (1 << 25)
+#define FLAGS_APPROXIMATE_SPEC_HIT_DISTANCE (1 << 26)
+#define FLAGS_APPROXIMATE_RAY_HIT_DISTANCE (1 << 27)
+#define FLAGS_UNSUPPORTED_ALBEDO (1 << 28)
+
 Texture2D<float> InSpecHitDist : register(t5); // R - NVSDK_NGX_Parameter_DLSSD_SpecularHitDistance
 Texture2D<half3> InDiffAlbedo : register(t6); // RGB - NVSDK_NGX_Parameter_GBuffer_DiffuseAlbedo
 Texture2D<half3> InSpecAlbedo : register(t7); // RGB - NVSDK_NGX_Parameter_GBuffer_SpecularAlbedo
@@ -183,7 +203,13 @@ RWTexture2D<FSRD_CONV_UAV_TYPE> OutSkipSignal : register(u6);
 
 // RGB: cleaned reference; A: noise sigma, or -1 when detail must be bypassed.
 RWTexture2D<FSRD_CONV_UAV_TYPE> OutDetailReference : register(u7);
-// RGB: effective multiplier quantized to RR's required RGBA8_UNORM; A: local strength.
+#if !FSRD_ADDITIVE_DIAGNOSTICS
+// Unsupported-albedo recovery input for RR's direct-specular signal. RGB: the pixel's
+// specular share before Floor subtraction and without albedo division, i.e. what the
+// specular lobe carries at Specular Albedo Demodulation 0. A: 1 where composition may
+// blend toward it (no title routing, emission or selected screen), otherwise 0.
+RWTexture2D<FSRD_CONV_UAV_TYPE> OutDirectSpecular : register(u8);
+#endif
 
 cbuffer CB_Packing : register(b0)
 {
@@ -965,17 +991,11 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                 : s_InvalidSpecularHitDistance);
         const bool hasInputHitDist =
             isfinite(rawHitDist) && rawHitDist >= 0.0f && rawHitDist <= 65504.0f;
-        // The title's classification is preserved verbatim: a finite value is a geometry hit and
-        // FP16-max is a real environment miss, and primary-surface depth is not a substitute for
-        // either. Where a title publishes neither - 007 First Light does not - the indirect path
-        // falls back to the primary surface's view distance, because RR writes no denoised output
-        // at all for a signal with no finite ray length. See the title quirks in
-        // docs/fsrd_pipeline_contract.md.
-        const float reflectionHitDistance = hasInputHitDist
-            ? rawHitDist
-            : (IsSet(FLAGS_SPECULAR_SIGNAL_INDIRECT)
-                ? max(abs(viewSpacePos.z), 1e-3f)
-                : s_InvalidSpecularHitDistance);
+        // Native ray lengths take precedence. Primary view depth is only a user-enabled
+        // heuristic; it cannot recover the actual secondary ray and is kept below the miss sentinel.
+        const float reflectionHitDistance = hasInputHitDist ? rawHitDist :
+            (IsSet(FLAGS_APPROXIMATE_SPEC_HIT_DISTANCE)
+                ? clamp(abs(viewSpacePos.z), 1e-3f, 65472.0f) : s_InvalidSpecularHitDistance);
 
         const float2 motionUv = canonicalMotion.xy;
         const float depthDelta = isfinite(prevViewSpacePos.z)
@@ -1156,7 +1176,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         // RR's Virtual Hit Pos view reconstructs correctly on titles that supply the
         // guide, so this is a conformance gap rather than an observed fault.
         const half hitDist = IsSet(FLAGS_SPECULAR_SIGNAL_INDIRECT)
-            ? half(reflectionHitDistance * specularTracking)
+            ? half(reflectionHitDistance < 0.0f ? s_InvalidSpecularHitDistance : reflectionHitDistance * specularTracking)
             : half(0.0f);
 
         [branch]
@@ -1165,7 +1185,8 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             // Supply the real ray length whenever the title provides one. Without one
             // the pixel keeps the FP16-max miss, matching what AMD's sample writes for
             // its own untraced and sky pixels.
-            float diffuseHitDist = s_MissingDiffuseHitDistance;
+            float diffuseHitDist = IsSet(FLAGS_APPROXIMATE_RAY_HIT_DISTANCE)
+                ? clamp(abs(viewSpacePos.z), 1e-3f, 65472.0f) : s_MissingDiffuseHitDistance;
             [branch]
             if (DiffuseHitDistanceMode != 0u)
             {
@@ -1181,8 +1202,35 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                 }
             }
 
-            OutIndirectSpecular[FSRD_OUTPUT_PIXEL(px)] = half4(demodSpecular, hitDist);
-            OutDirectDiffuse[FSRD_OUTPUT_PIXEL(px)] = half4(demodDiffuse, diffuseHitDist);
+            // Combined title colour has no separate direct/indirect radiance. Split
+            // the estimated lobe equally when both are selected, then sum both RR outputs.
+            // Routing/Skip above uses the full lobe, so no energy is added or lost.
+            OutIndirectSpecular[FSRD_OUTPUT_PIXEL(px)] = half4(
+                demodSpecular * (IsSet(FLAGS_HALF_SPECULAR) ? 0.5f : 1.0f), hitDist);
+            OutDirectDiffuse[FSRD_OUTPUT_PIXEL(px)] = half4(
+                demodDiffuse * (IsSet(FLAGS_HALF_DIFFUSE) ? 0.5f : 1.0f), diffuseHitDist);
+#if !FSRD_ADDITIVE_DIAGNOSTICS
+            [branch]
+            if (IsSet(FLAGS_UNSUPPORTED_ALBEDO))
+            {
+            // Unsupported-albedo recovery denoises this second, unmodulated copy of the
+            // specular share as RR direct specular. Where the title's albedo carries a
+            // surface the radiance does not show (a sea floor under water), dividing by it
+            // and multiplying back after RR prints that surface into the image; this copy
+            // never sees the albedo pattern. It is recomputed here rather than reusing the
+            // routed values above, so the original signals keep their exact arithmetic.
+            precise float3 unmodulatedSpecular = (1.0f - biasWeight) * rawColor * specWeight;
+            unmodulatedSpecular *= rcp(max(totalWeight, DemodDivisorFloor));
+            unmodulatedSpecular *= splitT * splitT;
+            unmodulatedSpecular *= 3.0f - 2.0f * splitT;
+            const bool recoveryEligible = biasWeight == 0.0f && specularRouteWeight == 0.0f &&
+                !handoverSurface && isEmissive == 0.0f;
+            OutDirectSpecular[FSRD_OUTPUT_PIXEL(px)] = half4(
+                GetSafeFP16(unmodulatedSpecular * (1.0f - specularRouteWeight)),
+                recoveryEligible ? 1.0f : 0.0f);
+            }
+            else OutDirectSpecular[FSRD_OUTPUT_PIXEL(px)] = 0.0f;
+#endif
         }
         else
         {
@@ -1191,6 +1239,9 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             // branch, so the skip path no longer clears it either: without this write
             // the diffuse signal keeps the last non-debug frame for the whole session.
             OutDirectDiffuse[FSRD_OUTPUT_PIXEL(px)] = half4(0.0f, 0.0f, 0.0f, s_MissingDiffuseHitDistance);
+#if !FSRD_ADDITIVE_DIAGNOSTICS
+            OutDirectSpecular[FSRD_OUTPUT_PIXEL(px)] = 0.0f;
+#endif
         }
 
         
@@ -1508,6 +1559,10 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(rawColor, rawLuma);
         // Far-plane skip has no trusted detail reference.
         OutDetailReference[FSRD_OUTPUT_PIXEL(px)] = half4(0, 0, 0, -1);
+#if !FSRD_ADDITIVE_DIAGNOSTICS
+        // Nothing reaches RR here; the recovery signal is empty and ineligible.
+        OutDirectSpecular[FSRD_OUTPUT_PIXEL(px)] = 0.0f;
+#endif
     }
 #if FSRD_ADDITIVE_DIAGNOSTICS
     ADD_RECORD(0, float3(additiveRejected));

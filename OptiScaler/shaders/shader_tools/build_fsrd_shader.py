@@ -84,7 +84,8 @@ def build(name, compiler):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('name', choices=['FSRDFloorSeed', 'FSRDFloor', 'FSRDInputConv',
-                                       'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDOutputComp', 'all'])
+                                       'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDOutputComp',
+                                       'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate', 'all'])
     parser.add_argument('--dxc', help='DXC executable; otherwise FSRD_DXC, PATH, or latest installed SDK')
     options = parser.parse_args()
     compiler = dxc(options.dxc)
@@ -97,7 +98,8 @@ if __name__ == "__main__":
         raise SystemExit("mirror check failed; not compiling")
     if options.name == 'all':
         names = ['FSRDFloorSeed', 'FSRDFloor', 'FSRDInputConv',
-                 'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDOutputComp']
+                 'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDOutputComp',
+                 'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate']
     elif options.name == 'FSRDInputConv':
         names = ['FSRDInputConv', 'FSRDInputConvAdditive', 'RRTraceAdditive']
     else:

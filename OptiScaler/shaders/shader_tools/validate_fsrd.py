@@ -19,8 +19,11 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 PRE = ROOT/'OptiScaler/shaders/fsrd_preprocess/precompile'
 BASELINE_SHADERS = ('FSRDFloorSeed', 'FSRDFloor', 'FSRDInputConv', 'FSRDOutputComp')
-SHADERS = (*BASELINE_SHADERS, 'FSRDInputConvAdditive', 'RRTraceAdditive')
+SHADERS = (*BASELINE_SHADERS, 'FSRDInputConvAdditive', 'RRTraceAdditive',
+           'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate')
 SUITES = (
+    'test_fsrd_signal_modes', 'test_fsrd_unsupported_albedo', 'test_fsrd_signal_policy',
+    'test_fsrd_stage_timings',
     'test_fsrd_additive_split',
     'test_fsrd_additive_diagnostics',
     'test_fsrd_additive_capture_reader',
@@ -57,7 +60,7 @@ SUITES = (
     'test_fsrd_ini_cleanup', 'test_fsrd_reference_integrity',
 )
 OPTIONAL = {'test_fsrd_small_colour_screen', 'test_fsrd_colour_anchor'}
-CPU = {'test_fsrd_ini_cleanup', 'test_fsrd_reference_integrity', 'test_fsrd_additive_lifetime',
+CPU = {'test_fsrd_signal_policy', 'test_fsrd_stage_timings', 'test_fsrd_ini_cleanup', 'test_fsrd_reference_integrity', 'test_fsrd_additive_lifetime',
        'test_fsrd_allocation_models', 'test_fsrd_statistical_resolve', 'test_fsrd_additive_capture_reader',
        'test_fsrd_response_pilot', 'test_fsrd_response_protocol', 'test_fsrd_rrtrace_response',
        'test_fsrd_response_conditioned_pilot', 'test_fsrd_response_soft_pilot'}

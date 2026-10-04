@@ -12,6 +12,7 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <functional>
 #include <mutex>
 #include <new>
 #include <shared_mutex>
@@ -646,7 +647,8 @@ class ResTrack_Dx12
 
   public:
     static bool RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCommandList* list,
-                                      const std::shared_ptr<void>& lease);
+                                      const std::shared_ptr<void>& lease,
+                                      std::function<void(ID3D12CommandQueue*)> beforeSubmit = {});
     static bool EnsureRRTraceHooks(ID3D12Device* device);
     static void HookDevice(ID3D12Device* device);
     static void ReleaseHooks();

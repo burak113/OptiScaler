@@ -3,6 +3,7 @@
 #include <d3d12.h>
 #include <wrl/client.h>
 #include <algorithm>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -18,6 +19,9 @@ struct Recording
     IUnknown* identity = nullptr; // weak canonical identity; owning it prevents final Release
     std::vector<void*> aliases;
     std::vector<std::shared_ptr<void>> leases;
+    // Optional gated work can learn the ACTUAL queue immediately before Execute.
+    // Every gate starts denied and owns its private upload storage through a lease.
+    std::vector<std::function<void(ID3D12CommandQueue*)>> prepareSubmission;
     size_t releasesInFlight = 0;
 };
 struct Submission
@@ -25,6 +29,7 @@ struct Submission
     ComPtr<ID3D12CommandQueue> queue;
     ComPtr<ID3D12Fence> fence; // distinct fence per submission; no cross-thread value ordering
     std::vector<std::shared_ptr<void>> leases;
+    std::vector<std::function<void(ID3D12CommandQueue*)>> prepareSubmission;
     bool signalPublished = false;
 };
 struct Registry
@@ -90,7 +95,8 @@ inline void Poll() noexcept
     catch (...) { FailCompletion(); }
 }
 inline bool Track(IUnknown* identity, const std::vector<void*>& aliases,
-                  const std::shared_ptr<void>& lease)
+                  const std::shared_ptr<void>& lease,
+                  std::function<void(ID3D12CommandQueue*)> prepareSubmission = {})
 {
     if (!identity || !lease) return false;
     Poll();
@@ -116,6 +122,7 @@ inline bool Track(IUnknown* identity, const std::vector<void*>& aliases,
         r.aliases[alias] = rec;
     }
     rec->leases.push_back(lease);
+    if (prepareSubmission) rec->prepareSubmission.push_back(std::move(prepareSubmission));
     return true;
 }
 // Capture BEFORE real Reset/Release. The generation token prevents post-call address ABA.
@@ -187,6 +194,8 @@ inline std::shared_ptr<Submission> BeforeSubmission(
                     auto it = r.recordings.find(key);
                     if (it == r.recordings.end()) continue;
                     s->leases.insert(s->leases.end(), it->second->leases.begin(), it->second->leases.end());
+                    s->prepareSubmission.insert(s->prepareSubmission.end(),
+                        it->second->prepareSubmission.begin(), it->second->prepareSubmission.end());
                 }
                 if (s->leases.empty()) return nullptr;
                 // Registry owns the intent BEFORE Execute; Reset in the post-call gap is safe.
@@ -199,6 +208,15 @@ inline std::shared_ptr<Submission> BeforeSubmission(
                 r.completionFailed = true;
                 throw;
             }
+        }
+        // Do not call consumers, COM or queue methods under the registry lock.
+        // This function completes before the hook calls the real ExecuteCommandLists.
+        // Consumers must keep work denied if preparation throws; uncertainty also
+        // latches the existing completion failure policy and retains every lease.
+        for (const auto& prepare : s->prepareSubmission)
+        {
+            try { prepare(s->queue.Get()); }
+            catch (...) { FailCompletion(); }
         }
         return s;
     }

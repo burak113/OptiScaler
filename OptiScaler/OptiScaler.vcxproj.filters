@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Header Files">
@@ -1649,5 +1649,14 @@
       <Filter>Header Files</Filter>
     </None>
     <None Include="shaders\magnifier\precompile\Magnifier_Shader_Vk.spv" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="menu\fsrd_settings_menu.h" />
+    <ClInclude Include="upscalers\fsr31\FSRDSignalPolicy.h" />
+    <ClInclude Include="gpu_time\FSRDStageTimings_Dx12.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDAlbedoTrustEvidence_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDAlbedoTrustEvidence.hlsl" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDAlbedoTrustPropagate_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDAlbedoTrustPropagate.hlsl" />
   </ItemGroup>
 </Project>

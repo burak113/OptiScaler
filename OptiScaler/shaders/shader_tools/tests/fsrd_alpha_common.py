@@ -31,7 +31,10 @@ def frozen_identity(directory):
             raise ValueError(f'{cso} is not genuine {BASE} DXIL')
         records[name] = dict(source_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
                              dxil_sha256=hashlib.sha256(cso.read_bytes()).hexdigest())
-    for name in ('FSRDFloorSeed', 'FSRDFloor', 'FSRDOutputComp'):
+    # Composition later gained unsupported-albedo recovery. Its disabled path is held to
+    # bit-identical outputs by the lossless gate (validate_fsrd.py --lossless-baseline)
+    # rather than to identical DXIL bytes.
+    for name in ('FSRDFloorSeed', 'FSRDFloor'):
         if (directory / (name + '_Shader.cso')).read_bytes() != (t.PRE / (name + '_Shader.cso')).read_bytes():
             raise ValueError(f'Unrelated production shader changed: {name}')
     return dict(commit=BASE, directory=str(directory), shaders=records)
@@ -107,7 +110,10 @@ def conversion_cb(w, h, strength=0, floor=False, indirect=True, **overrides):
               PrevViewMatrix=np.eye(4).ravel(), DstTexSize=[w, h, 1/w, 1/h],
               MotionInputSize=[w, h, 1/w, 1/h], MotionTransform=[1, 1, 0, 0],
               NearPlane=.1, FarPlane=10000, FloorDetailPreservation=1,
-              Flags=(1 << 1) | ((1 << 5) if indirect else 0) | ((1 << 7) if floor else 0),
+              # t5 supplies a valid synthetic hit-distance texture. Mark it bound so
+              # additive baseline comparisons do not depend on the historical implicit
+              # missing-distance fallback, which is now an explicit user option.
+              Flags=(1 << 1) | (1 << 4) | ((1 << 5) if indirect else 0) | ((1 << 7) if floor else 0),
               DemodDivisorFloor=.008, BiasMaskStrength=1, SpecularAlbedoDemodulation=1,
               DiffuseAlbedoModulation=1, RecoveryMask=1, AdditiveLightSplit=strength)
     cb.update(overrides)

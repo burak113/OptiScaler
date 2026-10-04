@@ -71,7 +71,10 @@ bool Config::ResetFfxDenoiserSettings()
         (FfxDenoiserIndex.has_value() && FfxDenoiserIndex.value() != 0) ||
         FfxDenoiserTaggedAmbientOcclusion.value_or_default() ||
         FfxDenoiserNormalsInViewSpace.value_or_default() ||
-        FfxDenoiserInternalDebugViews.value_or_default();
+        FfxDenoiserInternalDebugViews.value_or_default() ||
+        // Signal declarations and legacy Auto classification are resolved at context creation.
+        FfxDenoiserSignalCount.has_value() || FfxDenoiserApproximateSpecHitDistance.value_or_default() ||
+        FfxDenoiserApproximateRayHitDistance.value_or_default() || FfxDenoiserUnsupportedAlbedoRecovery.value_or_default();
 
     FfxDenoiserIndex.reset();
     FfxDenoiserDebugMode.reset();
@@ -81,6 +84,14 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserSpecularSignalType.reset();
     FfxDenoiserDenoiseDiffuse.reset();
     FfxDenoiserDenoiseSpecular.reset();
+    FfxDenoiserSignalCount.reset();
+    FfxDenoiserSignal1.reset();
+    FfxDenoiserSignal2.reset();
+    FfxDenoiserSignal3.reset();
+    FfxDenoiserSignal4.reset();
+    FfxDenoiserApproximateSpecHitDistance.reset();
+    FfxDenoiserApproximateRayHitDistance.reset();
+    FfxDenoiserGpuTimings.reset();
     FfxDenoiserTaggedAmbientOcclusion.reset();
     FfxDenoiserNormalsInViewSpace.reset();
     FfxDenoiserUseTitleLinearDepth.reset();
@@ -105,6 +116,7 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserSpecularAlbedoDemodulation.reset();
     FfxDenoiserDiffuseAlbedoModulation.reset();
     FfxDenoiserAdditiveLightSplit.reset();
+    FfxDenoiserUnsupportedAlbedoRecovery.reset();
     FfxDenoiserFloorFlatRecovery.reset();
     FfxDenoiserFloorSpecularRecovery.reset();
     FfxDenoiserFloorDiffuseRecovery.reset();
@@ -411,6 +423,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserSpecularAlbedoDemodulation.set_from_config(readFloat("FSR-RR", "SpecularAlbedoDemodulation"));
             FfxDenoiserDiffuseAlbedoModulation.set_from_config(readFloat("FSR-RR", "DiffuseAlbedoModulation"));
             FfxDenoiserAdditiveLightSplit.set_from_config(readFloat("FSR-RR", "AdditiveLightSplit"));
+            FfxDenoiserUnsupportedAlbedoRecovery.set_from_config(readBool("FSR-RR", "UnsupportedAlbedoRecovery"));
             FfxDenoiserFloorFlatRecovery.set_from_config(readBool("FSR-RR", "FloorFlatRecovery"));
             FfxDenoiserFloorSpecularRecovery.set_from_config(readBool("FSR-RR", "FloorSpecularRecovery"));
             FfxDenoiserFloorDiffuseRecovery.set_from_config(readBool("FSR-RR", "FloorDiffuseRecovery"));
@@ -429,6 +442,14 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserSpecularSignalType.set_from_config(readInt("FSR-RR", "SpecularSignalType"));
             FfxDenoiserDenoiseDiffuse.set_from_config(readBool("FSR-RR", "DenoiseDiffuse"));
             FfxDenoiserDenoiseSpecular.set_from_config(readBool("FSR-RR", "DenoiseSpecular"));
+            FfxDenoiserSignalCount.set_from_config(readInt("FSR-RR", "SignalCount"));
+            FfxDenoiserSignal1.set_from_config(readInt("FSR-RR", "Signal1"));
+            FfxDenoiserSignal2.set_from_config(readInt("FSR-RR", "Signal2"));
+            FfxDenoiserSignal3.set_from_config(readInt("FSR-RR", "Signal3"));
+            FfxDenoiserSignal4.set_from_config(readInt("FSR-RR", "Signal4"));
+            FfxDenoiserApproximateSpecHitDistance.set_from_config(readBool("FSR-RR", "ApproximateSpecHitDistance"));
+            FfxDenoiserApproximateRayHitDistance.set_from_config(readBool("FSR-RR", "ApproximateRayHitDistance"));
+            FfxDenoiserGpuTimings.set_from_config(readBool("FSR-RR", "GpuTimings"));
             FfxDenoiserTaggedAmbientOcclusion.set_from_config(
                 readBool("FSR-RR", "TaggedAmbientOcclusion"));
             FfxDenoiserNormalsInViewSpace.set_from_config(
@@ -1322,6 +1343,7 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "SpecularAlbedoDemodulation", GetFloatValue(Instance()->FfxDenoiserSpecularAlbedoDemodulation.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "DiffuseAlbedoModulation", GetFloatValue(Instance()->FfxDenoiserDiffuseAlbedoModulation.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "AdditiveLightSplit", GetFloatValue(Instance()->FfxDenoiserAdditiveLightSplit.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "UnsupportedAlbedoRecovery", GetBoolValue(Instance()->FfxDenoiserUnsupportedAlbedoRecovery.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "FloorFlatRecovery", GetBoolValue(Instance()->FfxDenoiserFloorFlatRecovery.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "FloorSpecularRecovery", GetBoolValue(Instance()->FfxDenoiserFloorSpecularRecovery.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "FloorDiffuseRecovery", GetBoolValue(Instance()->FfxDenoiserFloorDiffuseRecovery.value_for_config()).c_str());
@@ -1377,6 +1399,14 @@ bool Config::SaveIni()
                      GetIntValue(Instance()->FfxDenoiserSpecularSignalType
                                      .value_for_config_ignore_default())
                          .c_str());
+        ini.SetValue("FSR-RR", "SignalCount", GetIntValue(Instance()->FfxDenoiserSignalCount.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "Signal1", GetIntValue(Instance()->FfxDenoiserSignal1.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "Signal2", GetIntValue(Instance()->FfxDenoiserSignal2.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "Signal3", GetIntValue(Instance()->FfxDenoiserSignal3.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "Signal4", GetIntValue(Instance()->FfxDenoiserSignal4.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "ApproximateSpecHitDistance", GetBoolValue(Instance()->FfxDenoiserApproximateSpecHitDistance.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "ApproximateRayHitDistance", GetBoolValue(Instance()->FfxDenoiserApproximateRayHitDistance.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "GpuTimings", GetBoolValue(Instance()->FfxDenoiserGpuTimings.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "TaggedAmbientOcclusion",
                      GetBoolValue(Instance()->FfxDenoiserTaggedAmbientOcclusion.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NormalsInViewSpace",

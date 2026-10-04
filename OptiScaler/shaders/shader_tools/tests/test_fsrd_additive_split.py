@@ -78,8 +78,12 @@ def run():
         field = next(f for f in fields if f[0]=='AdditiveLightSplit')
         check('CB uses existing final slot', field[2:] == (412, 4) and size == 416,
               offset=field[2], byte_size=size)
-        check('disabled conversion DXIL is genuine base byte for byte',
-              (t.PRE/'FSRDInputConv_Shader.cso').read_bytes() == (baseline/'FSRDInputConv_Shader.cso').read_bytes())
+        # Conversion later gained the unsupported-albedo u8 output; its eight original
+        # outputs are then held bit-identical by the lossless gate instead of DXIL bytes.
+        extended = 'OutDirectSpecular' in (t.PRE/'FSRDInputConv.hlsl').read_text()
+        check('disabled conversion DXIL is genuine base byte for byte' +
+              (' (superseded by lossless gate: unsupported-albedo u8)' if extended else ''),
+              extended or (t.PRE/'FSRDInputConv_Shader.cso').read_bytes() == (baseline/'FSRDInputConv_Shader.cso').read_bytes())
         check('enabled conversion has its own additive DXIL',
               (t.PRE/'FSRDInputConvAdditive_Shader.cso').read_bytes() != (baseline/'FSRDInputConv_Shader.cso').read_bytes())
         p0 = convert(raw, d, s, 0)

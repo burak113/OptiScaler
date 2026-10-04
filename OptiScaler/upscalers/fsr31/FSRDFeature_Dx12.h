@@ -3,6 +3,9 @@
 #include "hooks/Streamline_Hooks.h"
 #include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
 #include <array>
+#include <atomic>
+#include "FSRDSignalPolicy.h"
+#include "gpu_time/FSRDStageTimings_Dx12.h"
 #include <DirectXMath.h>
 
 /**
@@ -23,6 +26,15 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     Upscaler GetUpscalerType() const override { return Upscaler::FSR_RR; }
 
     bool EvaluateInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) override;
+
+    // Bits 0/1: native specular/diffuse ray guide; bit 2: validated frame seen.
+    // Bits 8..11: effective radiance signals, after safe fallback for missing guides.
+    bool ReadRayRegenerationDiagnostics(FSRDRuntimeSnapshot& snapshot) const override
+    {
+        snapshot.signalStatus = _signalStatus.load(std::memory_order_relaxed);
+        snapshot.timings = _stageTimings.GetSnapshot();
+        return true;
+    }
 
     // Submits the deferred denoiser dispatch list (DeferredDispatch mode) to
     // the title's direct queue. Called from the present path, after every
@@ -99,6 +111,20 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     bool _autoDiffuseSignalResolved = false;
     bool _ambientOcclusionEnabled = false;
     bool _specularOcclusionEnabled = false;
+    // Unsupported-albedo recovery: the context also denoises the unmodulated specular
+    // share as RR direct specular, and composition blends toward it where the albedo's
+    // structure is absent from the light (water over a visible sea floor in the G-buffer).
+    // The layout reserves the slot at context creation; activation can change live.
+    bool _unsupportedAlbedoRecovery = false;
+    bool _extraSpecularSignal = false;
+    bool _extraDiffuseSignal = false;
+    uint32_t _signalMask = 0;
+    uint32_t _resolvedSignalMask = 0;
+    uint32_t _appliedApproximationMask = ~0u;
+    std::atomic<uint32_t> _signalStatus { 0 };
+    FSRDStageTimings _stageTimings;
+    ffxDispatchDescDenoiserIndirectDiffuse _indirectDiffuseSignal {};
+    ffxDispatchDescDenoiserDirectSpecular _directSpecularSignal {};
     Microsoft::WRL::ComPtr<ID3D12Resource> _ambientOcclusionNoisy;
     Microsoft::WRL::ComPtr<ID3D12Resource> _ambientOcclusionDenoised;
     D3D12_RESOURCE_STATES _ambientOcclusionNoisyState = D3D12_RESOURCE_STATE_COMMON;

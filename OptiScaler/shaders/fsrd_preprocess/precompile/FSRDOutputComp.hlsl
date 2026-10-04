@@ -3,7 +3,7 @@
 
 #define MainRS                                                                                                         \
     "RootFlags(0), CBV(b0), "                                                                                          \
-    "DescriptorTable(SRV(t0, numDescriptors = 11)), "                                                                  \
+    "DescriptorTable(SRV(t0, numDescriptors = 15)), "                                                                  \
     "DescriptorTable(UAV(u0, numDescriptors = 3)), "                                                                   \
     "StaticSampler(s0, filter = FILTER_MIN_MAG_MIP_LINEAR, "                                                           \
     "addressU = TEXTURE_ADDRESS_CLAMP, addressV = TEXTURE_ADDRESS_CLAMP, addressW = TEXTURE_ADDRESS_CLAMP)"
@@ -34,6 +34,7 @@
 #define FLAGS_DEBUG_HANDOVER_ELIGIBILITY (21 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_CHROMA_RECOVERY (22 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_LUMA_RECOVERY (23 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_ALBEDO_TRUST (24 << 17 | FLAGS_DEBUG)
 
 Texture2D<half4> InIndirectSpecular : register(t0);
 Texture2D<half4> InSpecularAlbedo : register(t1);
@@ -46,6 +47,16 @@ Texture2D<float> InLinearDepth : register(t7);
 Texture2D<half4> InMotion : register(t8);
 Texture2D<half4> InDecisionHistory : register(t9);
 Texture2D<uint4> InHistoryMetadata : register(t10);
+// Unsupported-albedo recovery: RR direct-specular output of the unmodulated specular
+// share, its conversion input (A: eligibility) and the propagated evidence votes.
+Texture2D<half4> InDirectSpecularDenoised : register(t11);
+Texture2D<half4> InDirectSpecularSignal : register(t12);
+Texture2D<float2> InAlbedoTrust : register(t13);
+Texture2D<half4> InIndirectDiffuseDenoised : register(t14);
+#define FLAGS_EXTRA_DIFFUSE (1 << 6)
+#define FLAGS_EXTRA_SPECULAR (1 << 7)
+#define FLAGS_DIFFUSE_SIGNAL_DISABLED (1 << 4)
+#define FLAGS_SPECULAR_SIGNAL_DISABLED (1 << 5)
 RWTexture2D<half4> OutColor : register(u0);
 // FP32 UAV stores convert to the unchanged RGBA16_FLOAT resource format.
 RWTexture2D<float4> OutDecisionHistory : register(u1);
@@ -70,7 +81,8 @@ cbuffer CB_Comp : register(b0)
     uint SpatialTemporalMask;
     float LumaRecovery;
     float ChromaRecovery;
-    float2 _Padding0;
+    float UnsupportedAlbedoRecovery;
+    float DemodDivisorFloor;
 }
 
 #define THREAD_GROUP_SIZE_X 8
@@ -134,11 +146,50 @@ float3 DiffuseMultiplier(int2 p)
 {
     return lerp(1.0f, float3(InDiffuseAlbedo[p].rgb), saturate(DiffuseAlbedoModulation));
 }
+// Blend weight toward the unmodulated specular path: how much of the nearby same-surface
+// albedo structure the light does not show (see FSRDAlbedoTrustEvidence/Propagate). Zero
+// where conversion excluded the pixel or where the surface has no albedo structure at all.
+float UnsupportedAlbedoWeight(int2 p)
+{
+    if (UnsupportedAlbedoRecovery <= 0.0f || InDirectSpecularSignal[p].a < 0.5f)
+        return 0.0f;
+    const float2 votes = InAlbedoTrust[p];
+    return saturate(UnsupportedAlbedoRecovery) * smoothstep(0.4f, 0.8f, votes.x / max(votes.y, 1e-3f)) *
+           smoothstep(0.5f, 3.0f, votes.y);
+}
+// Replaces the specular part of the reconstruction - RR's remodulated specular plus the
+// specular share of Skip - with RR's denoising of the same share never divided by albedo.
+float3 UnsupportedAlbedoCorrection(int2 p, float3 specular)
+{
+    const float weight = UnsupportedAlbedoWeight(p);
+    if (weight <= 0.0f)
+        return 0.0f;
+    const float3 spec = InSpecularAlbedo[p].rgb, diff = InDiffuseAlbedo[p].rgb;
+    const float3 total = spec + diff;
+    const float3 splitT = saturate((total - 0.5f * DemodDivisorFloor) / (0.5f * DemodDivisorFloor));
+    const float3 share = spec * rcp(max(total, DemodDivisorFloor)) * splitT * splitT * (3.0f - 2.0f * splitT);
+    const float3 modulatedPath = specular + float3(InSkipSignal[p].rgb) * share;
+    return weight * (float3(InDirectSpecularDenoised[p].rgb) - modulatedPath);
+}
+float3 SpecularRadiance(int2 p)
+{
+    return float3(InIndirectSpecular[p].rgb) +
+        (IsSet(FLAGS_EXTRA_SPECULAR) ? float3(InDirectSpecularDenoised[p].rgb) : 0.0f);
+}
+float3 DiffuseRadiance(int2 p)
+{
+    return float3(InDirectDiffuse[p].rgb) +
+        (IsSet(FLAGS_EXTRA_DIFFUSE) ? float3(InIndirectDiffuseDenoised[p].rgb) : 0.0f);
+}
 float3 Reconstruct(int2 p)
 {
-    const float3 specular = float3(InIndirectSpecular[p].rgb) * SpecularMultiplier(p);
-    return FloorRadiance(specular +
-                         float3(InDirectDiffuse[p].rgb) * DiffuseMultiplier(p) + float3(InSkipSignal[p].rgb));
+    const float3 specular = SpecularRadiance(p) * SpecularMultiplier(p);
+    float3 radiance = specular +
+                      DiffuseRadiance(p) * DiffuseMultiplier(p) + float3(InSkipSignal[p].rgb);
+    [branch]
+    if (UnsupportedAlbedoRecovery > 0.0f)
+        radiance += UnsupportedAlbedoCorrection(p, specular);
+    return FloorRadiance(radiance);
 }
 
 // Albedo split is only an estimate when the title supplies combined colour.
@@ -1306,7 +1357,7 @@ void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 col
             break;
         // Historical meaning: demodulated RR signals, with no albedo or Skip added.
         case FLAGS_DEBUG_DENOISER_OUTPUT:
-            output = float3(InIndirectSpecular[p].rgb) + float3(InDirectDiffuse[p].rgb);
+            output = SpecularRadiance(p) + DiffuseRadiance(p);
             break;
         case FLAGS_DEBUG_RECONSTRUCTED_COLOR:
             output = rr;
@@ -1349,17 +1400,32 @@ void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 col
         case FLAGS_DEBUG_LUMA_RECOVERY:
             output = saturate(0.5f + lumaCorrection / max(GetLuminance(rr), 1e-3f));
             break;
+        // Red: applied unsupported-albedo blend weight. Green/blue: dimmed scene for orientation.
+        case FLAGS_DEBUG_ALBEDO_TRUST:
+        {
+            const float scene = 0.35f * GetLuminance(rr) / (1.0f + GetLuminance(rr));
+            output = float3(UnsupportedAlbedoWeight(p), scene, scene);
+            break;
+        }
         case FLAGS_DEBUG_DIRECT_SPECULAR:
+            output = IsSet(FLAGS_SPECULAR_SIGNAL_DISABLED) ? float3(1, 0, 1) :
+                (UnsupportedAlbedoRecovery > 0.0f ? float3(InDirectSpecularDenoised[p].rgb) :
+                 IsSet(FLAGS_EXTRA_SPECULAR) ? float3(InDirectSpecularDenoised[p].rgb) * SpecularMultiplier(p) :
+                 !IsSet(FLAGS_SPECULAR_SIGNAL_INDIRECT) ? float3(InIndirectSpecular[p].rgb) * SpecularMultiplier(p) : float3(1, 0, 1));
+            break;
         case FLAGS_DEBUG_INDIRECT_SPECULAR:
-            output = (IsSet(FLAGS_SPECULAR_SIGNAL_INDIRECT) == (mode == FLAGS_DEBUG_INDIRECT_SPECULAR))
+            output = !IsSet(FLAGS_SPECULAR_SIGNAL_DISABLED) && IsSet(FLAGS_SPECULAR_SIGNAL_INDIRECT)
                          ? float3(InIndirectSpecular[p].rgb) * SpecularMultiplier(p)
                          : float3(1, 0, 1);
             break;
         case FLAGS_DEBUG_DIRECT_DIFFUSE:
+            output = !IsSet(FLAGS_DIFFUSE_SIGNAL_DISABLED) && !IsSet(FLAGS_DIFFUSE_SIGNAL_INDIRECT)
+                         ? float3(InDirectDiffuse[p].rgb) * DiffuseMultiplier(p) : float3(1, 0, 1);
+            break;
         case FLAGS_DEBUG_INDIRECT_DIFFUSE:
-            output = (IsSet(FLAGS_DIFFUSE_SIGNAL_INDIRECT) == (mode == FLAGS_DEBUG_INDIRECT_DIFFUSE))
-                         ? float3(InDirectDiffuse[p].rgb) * DiffuseMultiplier(p)
-                         : float3(1, 0, 1);
+            output = IsSet(FLAGS_DIFFUSE_SIGNAL_DISABLED) ? float3(1, 0, 1) :
+                (IsSet(FLAGS_EXTRA_DIFFUSE) ? float3(InIndirectDiffuseDenoised[p].rgb) * DiffuseMultiplier(p) :
+                 IsSet(FLAGS_DIFFUSE_SIGNAL_INDIRECT) ? float3(InDirectDiffuse[p].rgb) * DiffuseMultiplier(p) : float3(1, 0, 1));
             break;
         }
     }

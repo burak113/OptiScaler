@@ -279,6 +279,10 @@ namespace FSRD
                 // RGB: cleaned reference. A: sigma, or -1 for explicitly bypassed content.
                 ComPtr<ID3D12Resource> DetailReference;
 
+                // RGB: unmodulated specular share for RR's direct-specular signal (unsupported-
+                // albedo recovery). A: 1 where composition may blend toward its denoised result.
+                ComPtr<ID3D12Resource> DirectSpecular;
+
                 Data() {}
                 ~Data() {}
             };
@@ -329,7 +333,10 @@ namespace FSRD
             uint32_t SpatialTemporalMask;
             float LumaRecovery;
             float ChromaRecovery;
-            XMFLOAT2 _Padding0;
+            // Blend strength toward the unmodulated specular path where the albedo's structure
+            // is absent from the light; zero keeps the original reconstruction exactly.
+            float UnsupportedAlbedoRecovery;
+            float DemodDivisorFloor;
         };
 
         static_assert(offsetof(Constants, DstTexSize) == 0, "FSRDOutputComp layout");
@@ -345,6 +352,8 @@ namespace FSRD
         static_assert(offsetof(Constants, HistoryValid) == 52, "FSRDOutputComp history layout");
         static_assert(offsetof(Constants, HistoryJitterDelta) == 56, "FSRDOutputComp history layout");
         static_assert(offsetof(Constants, WriteHistory) == 64, "FSRDOutputComp history layout");
+        static_assert(offsetof(Constants, UnsupportedAlbedoRecovery) == 88, "FSRDOutputComp layout");
+        static_assert(offsetof(Constants, DemodDivisorFloor) == 92, "FSRDOutputComp layout");
         union Output
         {
             struct Data
@@ -374,6 +383,10 @@ namespace FSRD
                 ID3D12Resource* InMotion;
                 ID3D12Resource* InDecisionHistory;
                 ID3D12Resource* InHistoryMetadata;
+                ID3D12Resource* InDirectSpecularDenoised;
+                ID3D12Resource* InDirectSpecularSignal;
+                ID3D12Resource* InAlbedoTrust;
+                ID3D12Resource* InIndirectDiffuseDenoised;
             };
 
             // The number of D3D12 resources in the struct
@@ -381,6 +394,99 @@ namespace FSRD
 
             Data Resources;
 
+            ID3D12Resource* AsArray[kCount];
+        };
+    }
+
+
+    // Unsupported-albedo recovery evidence: per pixel, whether the albedo's local structure
+    // appears in RR's unmodulated light. Runs after RR and before composition.
+    namespace TrustEvidence
+    {
+        constexpr UINT kBackBufferCount = 3;
+
+        struct alignas(16) Constants
+        {
+            XMFLOAT4 DstTexSize;
+            int32_t StepSize;
+            uint32_t Flags;
+            float DemodDivisorFloor;
+            float _Reserved0;
+        };
+        static_assert(offsetof(Constants, StepSize) == 16, "FSRDAlbedoTrustEvidence layout");
+        static_assert(offsetof(Constants, DemodDivisorFloor) == 24, "FSRDAlbedoTrustEvidence layout");
+        static_assert(sizeof(Constants) == 32, "FSRDAlbedoTrustEvidence constant-buffer layout");
+
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InDirectSpecularDenoised;
+                ID3D12Resource* InDirectDiffuse;
+                ID3D12Resource* InSpecularAlbedo;
+                ID3D12Resource* InDiffuseAlbedo;
+                ID3D12Resource* InSkipSignal;
+                ID3D12Resource* InLinearDepth;
+                ID3D12Resource* InNormals;
+                ID3D12Resource* InDirectSpecularSignal;
+                ID3D12Resource* InIndirectDiffuseDenoised;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+
+        union Output
+        {
+            struct Data
+            {
+                ID3D12Resource* OutAlbedoTrust;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+    }
+
+    // One a-trous step (stride 1 << pass) of the same-surface normalized convolution that
+    // spreads the evidence over a continuous surface.
+    namespace TrustPropagate
+    {
+        constexpr UINT kPasses = 6;
+        constexpr UINT kBackBufferCount = 3 * kPasses;
+
+        struct alignas(16) Constants
+        {
+            XMFLOAT4 DstTexSize;
+            int32_t StepSize;
+            uint32_t Flags;
+            float DemodDivisorFloor;
+            float _Reserved0;
+        };
+        static_assert(offsetof(Constants, StepSize) == 16, "FSRDAlbedoTrustPropagate layout");
+        static_assert(sizeof(Constants) == 32, "FSRDAlbedoTrustPropagate constant-buffer layout");
+
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InAlbedoTrust;
+                ID3D12Resource* InLinearDepth;
+                ID3D12Resource* InNormals;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+
+        union Output
+        {
+            struct Data
+            {
+                ID3D12Resource* OutAlbedoTrust;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
             ID3D12Resource* AsArray[kCount];
         };
     }
@@ -397,7 +503,11 @@ namespace FSRD
     static_assert(FloorFilter::Input::kCount == 4, "FSRDFloor MainRS SRV count");
     static_assert(FloorFilter::Output::kCount == 1, "FSRDFloor MainRS UAV count");
     static_assert(Conversion::Input::kCount == 17, "FSRDInputConv MainRS SRV count");
-    static_assert(Conversion::Output::kCount == 8, "FSRDInputConv MainRS UAV count");
-    static_assert(Composition::Input::kCount == 11, "FSRDOutputComp MainRS SRV count");
+    static_assert(Conversion::Output::kCount == 9, "FSRDInputConv MainRS UAV count");
+    static_assert(Composition::Input::kCount == 15, "FSRDOutputComp MainRS SRV count");
     static_assert(Composition::kOutputCount == 3, "FSRDOutputComp MainRS UAV count");
+    static_assert(TrustEvidence::Input::kCount == 9, "FSRDAlbedoTrustEvidence MainRS SRV count");
+    static_assert(TrustEvidence::Output::kCount == 1, "FSRDAlbedoTrustEvidence MainRS UAV count");
+    static_assert(TrustPropagate::Input::kCount == 3, "FSRDAlbedoTrustPropagate MainRS SRV count");
+    static_assert(TrustPropagate::Output::kCount == 1, "FSRDAlbedoTrustPropagate MainRS UAV count");
 }

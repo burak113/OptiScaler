@@ -7,12 +7,15 @@
 #include <memory>
 #include <string_view>
 
+class FSRDStageTimings;
 struct ID3D12Device;
 struct ID3D12GraphicsCommandList;
 struct ID3D12Resource;
 
 struct ffxDispatchDescDenoiserDirectDiffuse;
 struct ffxDispatchDescDenoiserIndirectSpecular;
+struct ffxDispatchDescDenoiserDirectSpecular;
+struct ffxDispatchDescDenoiserIndirectDiffuse;
 struct ffxDispatchDescDenoiser;
 
 /**
@@ -22,6 +25,10 @@ struct ffxDispatchDescDenoiser;
 class FSRDPreprocessor_Dx12
 {
   public:
+
+    void SetStageTimings(FSRDStageTimings* timings);
+    // Configure before the first allocation; inactive optional slots use tiny placeholders.
+    bool ConfigureSignalResources(bool extraDiffuse, bool extraSpecular, bool albedoRecovery);
 
     enum class ConvFlags : uint32_t
     {
@@ -98,6 +105,11 @@ class FSRDPreprocessor_Dx12
         DebugDemodGain =         35 << 17 | Debug, // 1 / albedo used as the demodulation divisor
         DebugHitDistGate =       36 << 17 | Debug, // The specular tracking ramp on its own
         DebugDenoiserFraction =  37 << 17 | Debug, // Share of the pixel reaching the denoiser
+        HalfDiffuse = 1 << 24,
+        HalfSpecular = 1 << 25,
+        ApproximateSpecHitDistance = 1 << 26,
+        ApproximateRayHitDistance = 1 << 27,
+        UnsupportedAlbedo = 1 << 28,
         DebugDemodRisk =         42 << 17 | Debug, // Diagnostic: does the demod divisor implant structure
     };
 
@@ -115,6 +127,8 @@ class FSRDPreprocessor_Dx12
         // floor image. Composition reads the packed raw signal instead, which is the
         // same demodulated radiance the denoiser would have consumed.
         DiffuseSignalDisabled = 1 << 4, // Diffuse was not denoised this frame
+        ExtraDiffuse = 1 << 6,
+        ExtraSpecular = 1 << 7,
         SpecularSignalDisabled = 1 << 5, // Specular was not denoised this frame
 
         Debug =                 1 << 16,
@@ -142,6 +156,7 @@ class FSRDPreprocessor_Dx12
         DebugHandoverEligibility = 21 << 17 | Debug,
         DebugChromaRecovery = 22 << 17 | Debug,
         DebugLumaRecovery = 23 << 17 | Debug,
+        DebugAlbedoTrust = 24 << 17 | Debug,
     };
 
     /**
@@ -265,7 +280,10 @@ class FSRDPreprocessor_Dx12
         uint32_t SpatialTemporalMask = 0;
         float LumaRecovery = 1.0f;
         float ChromaRecovery = 1.0f;
-
+        // Nonzero only when RR also denoised the unmodulated specular signal this frame
+        // (GetDirectSpecularSignal). Runs the albedo-trust passes before composition.
+        float UnsupportedAlbedoRecovery = 0.0f;
+        float DemodDivisorFloor = 8e-3f;
     };
 
   public:
@@ -313,6 +331,15 @@ class FSRDPreprocessor_Dx12
     void GetSignals(ffxDispatchDescDenoiser& dispatchDesc,
                     ffxDispatchDescDenoiserDirectDiffuse& directDiffuse,
                     ffxDispatchDescDenoiserIndirectSpecular& indirectSpecular) const;
+
+    /**
+     * @brief Configures RR's direct-specular signal with the unmodulated specular share
+     * the conversion publishes for unsupported-albedo recovery. Only valid when the
+     * context was created with FFX_DENOISER_SIGNAL_DIRECT_SPECULAR and the main specular
+     * signal is indirect. Input is shader-readable; output is in UAV state.
+     */
+    void GetDirectSpecularSignal(ffxDispatchDescDenoiserDirectSpecular& directSpecular, bool unmodulated) const;
+    void GetIndirectDiffuseSignal(ffxDispatchDescDenoiserIndirectDiffuse& indirectDiffuse) const;
 
     /**
      * @brief Composes the denoised radiance from FSR-RR with the skip signal previously generated 
