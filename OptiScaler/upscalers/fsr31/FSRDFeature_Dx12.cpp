@@ -9,6 +9,7 @@
 #include "hooks/Streamline_Hooks.h"
 #include "resource_tracking/ResTrack_Dx12.h"
 #include "FSRDFeature_Dx12.h"
+#include "FSRDResultClassification.h"
 #include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
 #include "shaders/fsrd_preprocess/FSRDShaderUtils.h"
 #include "MathUtils.h"
@@ -17,6 +18,7 @@
 
 using namespace DirectX;
 using namespace OptiMath;
+using FSRD::RRResult;
 
 using FSRDConvDesc = FSRDPreprocessor_Dx12::ConversionDesc;
 using FSRDCompDesc = FSRDPreprocessor_Dx12::CompositionDesc;
@@ -1329,6 +1331,15 @@ bool FSRDFeatureDx12::WantsFsrRR() const
 
 void FSRDFeatureDx12::RequestGameNative(NVSDK_NGX_Parameter* parameters)
 {
+    if (_rrRetryPolicy.Result() == RRResult::DeviceLost)
+        return;
+    if (WantsFsrRR() && !_rrRetryPolicy.IsLatched())
+    {
+        const char* message = " Native fallback unavailable for this frame; automatic FSR-RR retry pending.";
+        if (_runtime.failure.find(message) == std::string::npos)
+            _runtime.failure += message;
+        return;
+    }
     _runtime.gameNativeRequested = true;
     _runtime.nativeActive = false;
     // This requests a change in the engine; it does not dispatch NRD or turn
@@ -1348,21 +1359,31 @@ bool FSRDFeatureDx12::InitInternal(ID3D12GraphicsCommandList* commandList, NVSDK
 {
     try
     {
-        _rrInitialized = FfxApiProxy::IsDenoiserApiImplementedDx12() &&
-            FSR31FeatureDx12::InitInternal(commandList, parameters);
+        if (!FfxApiProxy::IsDenoiserApiImplementedDx12())
+            FailRayRegeneration(ClassifyRayRegenerationFailure(FFX_API_RETURN_NO_PROVIDER, false),
+                                "AMD Ray Regeneration provider is unavailable.");
+        else
+            _rrInitialized = FSR31FeatureDx12::InitInternal(commandList, parameters);
+        if (!_rrInitialized && _rrRetryPolicy.Result() == RRResult::Success)
+            FailRayRegeneration(ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false),
+                                "FSR-RR context initialization failed.");
     }
     catch (const std::exception& error)
     {
-        LOG_ERROR("[RR_HEALTH] FSR-RR initialization exception: {}", error.what());
         _rrInitialized = false;
+        FailRayRegeneration(ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false), error.what());
     }
-    _rrFaulted = !_rrInitialized;
-    if (_rrFaulted)
-        _rrFailure = "FSR-RR context initialization failed or the AMD provider is unavailable.";
+    catch (...)
+    {
+        _rrInitialized = false;
+        FailRayRegeneration(ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false),
+                            "Unknown exception during FSR-RR initialization.");
+    }
 
     // A native NGX RR context is the only native denoiser callable through this API.
     // The game's internal denoiser is not exposed by a Ray Reconstruction request.
-    if (_preferNativeRR && State::Instance().NVNGX_DLSSD_Path.has_value())
+    if (_rrRetryPolicy.Result() != RRResult::DeviceLost &&
+        _preferNativeRR && State::Instance().NVNGX_DLSSD_Path.has_value())
     {
         // Native initialization writes its target extent back into the table.
         // Keep the game's creation values for FSR's dynamic-output handling.
@@ -1405,7 +1426,8 @@ bool FSRDFeatureDx12::InitInternal(ID3D12GraphicsCommandList* commandList, NVSDK
     _runtime.nativeRRPreferred = _preferNativeRR;
     _runtime.nativeAvailable = _nativeDenoiser != nullptr;
     _runtime.failure = WantsFsrRR() ? _rrFailure : "";
-    if (_rrFaulted) _runtime.steps[_failedStep] = FSRDRuntimeSnapshot::Failed;
+    _runtime.recoveryResult = _rrRetryPolicy.Result();
+    if (_rrRetryPolicy.IsLatched()) _runtime.steps[_failedStep] = FSRDRuntimeSnapshot::Failed;
     if (!IsInited()) RequestGameNative(parameters);
     {
         std::lock_guard lock(_runtimeMutex);
@@ -1435,7 +1457,10 @@ void FSRDFeatureDx12::OnEvaluationStarting(NVSDK_NGX_Parameter* parameters)
     _runtime.nativeAvailable = _nativeDenoiser && _nativeDenoiser->IsInited();
     _runtime.failure = WantsFsrRR() ? _rrFailure : "";
     _nativeAttempted = false;
-    if (_rrFaulted)
+    _rrFailureRecordedThisEvaluation = false;
+    _runtime.recoveryResult = _rrRetryPolicy.Result();
+    _runtime.retryFramesRemaining = _rrRetryPolicy.SkippedFramesRemaining();
+    if (_rrRetryPolicy.Result() != RRResult::Success)
         _runtime.steps[_failedStep] = FSRDRuntimeSnapshot::Failed;
     else if (WantsFsrRR())
         _runtime.Begin(FSRDRuntimeSnapshot::Inputs);
@@ -1465,16 +1490,28 @@ void FSRDFeatureDx12::OnEvaluationStarting(NVSDK_NGX_Parameter* parameters)
     }
 }
 
-void FSRDFeatureDx12::FailRayRegeneration(const char* reason)
+RRResult FSRDFeatureDx12::ClassifyRayRegenerationFailure(
+    ffxReturnCode_t result, bool dynamicInput) const noexcept
 {
+    return FSRD::ClassifyRRApiFailure(result, dynamicInput,
+                                    Device && FAILED(Device->GetDeviceRemovedReason()));
+}
+
+void FSRDFeatureDx12::FailRayRegeneration(RRResult result, const char* reason)
+{
+    const RRResult previousResult = _rrRetryPolicy.Result();
+    _rrRetryPolicy.Record(result);
+    _rrFailureRecordedThisEvaluation = true;
     _runtime.steps[_runtime.activeStep] = FSRDRuntimeSnapshot::Failed;
     _failedStep = _runtime.activeStep;
-    _rrFaulted = true;
     _rrFailure = std::string(FSRDRuntimeSnapshot::StepNames[_failedStep]) + ": " + reason;
     _runtime.failure = _rrFailure;
     _upscalerResetPending = true;
     InvalidateDenoiserHistory();
-    LOG_ERROR("[RR_HEALTH] {} (stage {})", reason, static_cast<int>(_runtime.activeStep));
+    if (previousResult != _rrRetryPolicy.Result())
+        LOG_WARN("[RR_HEALTH] {} (stage {}, recovery={}, skippedFrames={})", reason,
+                 static_cast<int>(_runtime.activeStep), magic_enum::enum_name(_rrRetryPolicy.Result()),
+                 _rrRetryPolicy.SkippedFramesRemaining());
 }
 
 bool FSRDFeatureDx12::EvaluateNative(ID3D12GraphicsCommandList* commandList,
@@ -1483,9 +1520,9 @@ bool FSRDFeatureDx12::EvaluateNative(ID3D12GraphicsCommandList* commandList,
     if (_nativeAttempted || !commandList || !parameters || !_runtime.nativeAvailable)
         return false;
     _nativeAttempted = true;
-    if (FAILED(Device->GetDeviceRemovedReason()))
+    if (_rrRetryPolicy.Result() == RRResult::DeviceLost || !Device || FAILED(Device->GetDeviceRemovedReason()))
     {
-        _runtime.failure += " D3D12 device is unavailable; native fallback cannot run.";
+        FailRayRegeneration(RRResult::DeviceLost, "D3D12 device is unavailable; native fallback cannot run.");
         return false;
     }
     unsigned int reset = 0;
@@ -1519,6 +1556,11 @@ bool FSRDFeatureDx12::EvaluateNative(ID3D12GraphicsCommandList* commandList,
     {
         LOG_ERROR("[RR_HEALTH] native RR raised an unknown exception");
     }
+    if (Device && FAILED(Device->GetDeviceRemovedReason()))
+    {
+        FailRayRegeneration(RRResult::DeviceLost, "D3D12 device was removed during native fallback.");
+        success = false;
+    }
     _runtime.nativeActive = success;
     if (!fullPipeline)
         ++_frameCount;
@@ -1529,38 +1571,50 @@ bool FSRDFeatureDx12::EvaluateNative(ID3D12GraphicsCommandList* commandList,
 
 bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* commandList, NVSDK_NGX_Parameter* parameters)
 {
-    const bool requested = WantsFsrRR();
-    if (!requested || _rrFaulted)
+    if (Device && FAILED(Device->GetDeviceRemovedReason()))
     {
+        FailRayRegeneration(RRResult::DeviceLost, "D3D12 device was removed before evaluation.");
+        return false;
+    }
+    const bool requested = WantsFsrRR();
+    if (!requested || !_rrRetryPolicy.CanAttempt())
+    {
+        // A cooldown/fallback frame is not another rejected RR attempt.
+        _rrFailureRecordedThisEvaluation = true;
         _runtime.fallback = requested;
         InvalidateDenoiserHistory();
         _upscalerResetPending = true;
+        if (_rrRetryPolicy.Result() == RRResult::DeviceLost)
+            return false;
         const bool success = EvaluateNative(commandList, parameters, false);
         if (!success) RequestGameNative(parameters);
         return success;
     }
     _nativeWasActive = false;
+    _runtime.steps = {};
+    _runtime.Begin(FSRDRuntimeSnapshot::Inputs);
+    _runtime.failure.clear();
     try
     {
-        if (EvaluateRayRegeneration(commandList, parameters))
+        RRResult result = EvaluateRayRegeneration(commandList, parameters);
+        if (Device && FAILED(Device->GetDeviceRemovedReason()))
+            result = RRResult::DeviceLost;
+        if (result == RRResult::Success)
         {
-            if (FAILED(Device->GetDeviceRemovedReason()))
-            {
-                FailRayRegeneration("D3D12 device was removed during the pipeline.");
-                return false;
-            }
+            // Commit recovery only after the shared output passes also succeed.
             _runtime.Begin(FSRDRuntimeSnapshot::Output);
             return true;
         }
-        FailRayRegeneration("FSR-RR stopped after a failed validation or dispatch. See the failing stage and log.");
+        FailRayRegeneration(result, "FSR-RR validation or dispatch failed. See the failing stage and log.");
     }
     catch (const std::exception& error)
     {
-        FailRayRegeneration(error.what());
+        FailRayRegeneration(ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false), error.what());
     }
     catch (...)
     {
-        FailRayRegeneration("Unknown exception in the FSR-RR pipeline.");
+        FailRayRegeneration(ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false),
+                            "Unknown exception in the FSR-RR pipeline.");
     }
     // IFeature_Dx12 must unwind its resource/parameter guards before native retry.
     return false;
@@ -1568,8 +1622,18 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* commandList, N
 
 bool FSRDFeatureDx12::EvaluateFallback(ID3D12GraphicsCommandList* commandList, NVSDK_NGX_Parameter* parameters)
 {
-    if (_runtime.gameNativeRequested)
+    if (Device && FAILED(Device->GetDeviceRemovedReason()))
+        FailRayRegeneration(RRResult::DeviceLost, "D3D12 device was removed before native fallback.");
+    if (_runtime.gameNativeRequested || _rrRetryPolicy.Result() == RRResult::DeviceLost)
         return false;
+    if (!_rrFailureRecordedThisEvaluation && WantsFsrRR() && !_rrRetryPolicy.IsLatched())
+    {
+        // Shared input validation can fail before EvaluateInternal. Once RR or
+        // its output processing started, usability requires context recreation.
+        const RRResult result = _runtime.rrDispatched || _runtime.activeStep != FSRDRuntimeSnapshot::Inputs
+            ? RRResult::NeedsRecreation : RRResult::RetryableInputFailure;
+        FailRayRegeneration(result, "FSR-RR input or output processing failed. Native fallback requested.");
+    }
     if (_nativeAttempted)
     {
         // Native dispatch may have succeeded before the shared output pass failed.
@@ -1577,8 +1641,6 @@ bool FSRDFeatureDx12::EvaluateFallback(ID3D12GraphicsCommandList* commandList, N
         RequestGameNative(parameters);
         return false;
     }
-    if (!_rrFaulted && WantsFsrRR())
-        FailRayRegeneration("FSR-RR input or output processing failed. Native fallback requested.");
     _runtime.fallback = WantsFsrRR();
     if (!_runtime.nativeAvailable)
     {
@@ -1601,6 +1663,14 @@ void FSRDFeatureDx12::OnEvaluationFinished(bool success)
         _runtime.steps[R::Inputs] == R::Passed && _runtime.steps[R::Conversion] == R::Passed &&
         _runtime.steps[R::RayRegeneration] == R::Passed && _runtime.steps[R::Composition] == R::Passed &&
         _runtime.steps[R::SuperResolution] == R::Passed && _runtime.steps[R::Output] == R::Passed;
+    if (_runtime.rrValidated)
+    {
+        _rrRetryPolicy.Record(RRResult::Success);
+        _rrFailure.clear();
+        _runtime.failure.clear();
+    }
+    _runtime.recoveryResult = _rrRetryPolicy.Result();
+    _runtime.retryFramesRemaining = _rrRetryPolicy.SkippedFramesRemaining();
     _nativeWasActive = success && _runtime.nativeActive;
     if (!success)
     {
@@ -1686,8 +1756,12 @@ bool FSRDFeatureDx12::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
         _seenDiffuseDistance = false;
         _signalsObserved = false;
 
-        if (!CreateDenoiserContext())
+        const RRResult result = CreateDenoiserContext();
+        if (result != RRResult::Success)
+        {
+            FailRayRegeneration(result, "FSR-RR context initialization failed.");
             return false;
+        }
 
         LOG_INFO("FSR Ray Regeneration Initialized");
 
@@ -1698,14 +1772,15 @@ bool FSRDFeatureDx12::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
     return false;
 }
 
-bool FSRDFeatureDx12::CreateDenoiserContext() 
+RRResult FSRDFeatureDx12::CreateDenoiserContext()
 {
     ScopedSkipSpoofingGlobal skipSpoofingGlobal {};
     auto& state = State::Instance();
     const auto& cfg = *Config::Instance();
 
-    if (!QueryDenoiserVersions())
-        return false;
+    const RRResult versionsResult = QueryDenoiserVersions();
+    if (versionsResult != RRResult::Success)
+        return versionsResult;
 
     InvalidateDenoiserHistory();
 
@@ -1836,7 +1911,7 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
         if (ret != FFX_API_RETURN_OK)
         {
             LOG_ERROR("_denoiserCtx error: {0}", FfxApiProxy::ReturnCodeToString(ret));
-            return false;
+            return ClassifyRayRegenerationFailure(ret, false);
         }
 
         LOG_INFO("[RR_DIAG] context creation succeeded: context={:X}",
@@ -1844,11 +1919,12 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
     }
 
     // Query default settings
-    if (!SetDefaultConfiguration())
+    const RRResult defaultsResult = SetDefaultConfiguration();
+    if (defaultsResult != RRResult::Success)
     {
         LOG_ERROR("Failed to query the RR 1.2 default configuration");
         DestroyDenoiserContext();
-        return false;
+        return defaultsResult;
     }
 
     // The queried values are AMD's tuned baseline, but the per-frame configure pass
@@ -1877,8 +1953,9 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
     if (!newConverter->IsInit())
     {
         LOG_ERROR("Failed to initialize the FSR-RR input converter");
+        const RRResult result = ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
         DestroyDenoiserContext();
-        return false;
+        return result;
     }
 
     if (!newConverter->ConfigureSignalResources(_extraDiffuseSignal, _extraSpecularSignal, _plan.albedoFix) ||
@@ -1887,8 +1964,9 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
             _denoiserCtxDesc.maxRenderSize.height))
     {
         LOG_ERROR("Failed to allocate the FSR-RR input converter");
+        const RRResult result = ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_MEMORY, false);
         DestroyDenoiserContext();
-        return false;
+        return result;
     }
 
     FSRDConvShader = std::move(newConverter);
@@ -1898,10 +1976,12 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
     _logNextDenoiserDispatch = true;
     _lastDispatchRequestedReset = false;
 
-    return true;
+    _rrRetryPolicy.Reset();
+    _rrFailure.clear();
+    return RRResult::Success;
 }
 
-bool FSRDFeatureDx12::QueryDenoiserVersions() 
+RRResult FSRDFeatureDx12::QueryDenoiserVersions()
 {
     ScopedSkipSpoofingGlobal skipSpoofingGlobal {};
     auto& state = State::Instance();
@@ -1921,7 +2001,7 @@ bool FSRDFeatureDx12::QueryDenoiserVersions()
     {
         LOG_ERROR("Failed to query RR provider count: {}",
                   FfxApiProxy::ReturnCodeToString(countResult));
-        return false;
+        return ClassifyRayRegenerationFailure(countResult, false);
     }
 
     state.ffxDenoiserVersionIds.resize(versionCount);
@@ -1942,7 +2022,7 @@ bool FSRDFeatureDx12::QueryDenoiserVersions()
     if (versionCount == 0)
     {
         LOG_ERROR("No FSR-RR denoisers were found.");
-        return false;
+        return ClassifyRayRegenerationFailure(FFX_API_RETURN_NO_PROVIDER, false);
     }
     else
         LOG_DEBUG("Found {} versions of FSR-RR", versionCount);
@@ -1957,7 +2037,7 @@ bool FSRDFeatureDx12::QueryDenoiserVersions()
     {
         LOG_ERROR("Failed to query RR providers: {}",
                   FfxApiProxy::ReturnCodeToString(versionsResult));
-        return false;
+        return ClassifyRayRegenerationFailure(versionsResult, false);
     }
 
     for (size_t i = 0; i < state.ffxDenoiserVersionIds.size(); ++i)
@@ -1967,7 +2047,7 @@ bool FSRDFeatureDx12::QueryDenoiserVersions()
                  state.ffxDenoiserVersionIds[i]);
     }
 
-    return true;
+    return RRResult::Success;
 }
 
 void FSRDFeatureDx12::DestroyDenoiserContext() 
@@ -1996,7 +2076,7 @@ void FSRDFeatureDx12::DestroyDenoiserContext()
     InvalidateDenoiserHistory();
 }
 
-bool FSRDFeatureDx12::UpdateSize()
+RRResult FSRDFeatureDx12::UpdateSize()
 {
     const uint32_t renderWidth = RenderWidth();
     const uint32_t renderHeight = RenderHeight();
@@ -2013,7 +2093,7 @@ bool FSRDFeatureDx12::UpdateSize()
             renderWidth, renderHeight, maxWidth, maxHeight);
         InvalidateDenoiserHistory();
         State::Instance().changeBackend[Handle()->Id] = true;
-        return false;
+        return RRResult::NeedsRecreation;
     }
 
     if (_lastDenoiserRenderWidth != 0 &&
@@ -2030,10 +2110,10 @@ bool FSRDFeatureDx12::UpdateSize()
     _lastDenoiserRenderWidth = renderWidth;
     _lastDenoiserRenderHeight = renderHeight;
 
-    return true;
+    return RRResult::Success;
 }
 
-bool FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters)
+RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters)
 {
     LOG_FUNC();
 
@@ -2056,8 +2136,10 @@ bool FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InComma
         ~CompositionHistoryGuard() { if (converter) converter->FinishCompositionHistory(success); }
     } compositionHistoryGuard { FSRDConvShader };
 
-    if (!IsInited() || !InCommandList || !InParameters)
-        return false;
+    if (!_rrInitialized || !IsInited())
+        return RRResult::NeedsRecreation;
+    if (!InCommandList || !InParameters)
+        return RRResult::RetryableInputFailure;
 
     // The application submitted a new evaluation even when a later validation,
     // composition, or upscaler step fails. Keep RR frame indices unique on every
@@ -2090,11 +2172,12 @@ bool FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InComma
     {
         LOG_ERROR("[RR_INPUT] current render resolution is zero");
         InvalidateDenoiserHistory();
-        return false;
+        return RRResult::RetryableInputFailure;
     }
 
-    if (!UpdateSize())
-        return false;
+    const RRResult sizeResult = UpdateSize();
+    if (sizeResult != RRResult::Success)
+        return sizeResult;
 
     StreamlineHooks::probeRRNGXPointerParameters(inParams);
 
@@ -2133,7 +2216,10 @@ bool FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InComma
     if (!PrepareUpscalerInput(InCommandList, inParams, upscalerDesc))
     {
         InvalidateDenoiserHistory();
-        return false;
+        // Missing exposure can request a different SR creation configuration.
+        if (state.changeBackend[Handle()->Id])
+            return RRResult::NeedsRecreation;
+        return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_PARAMETER, true);
     }
 
     // Optional, configurable resource barriers. The window spans the whole chain and closes on
@@ -2150,11 +2236,12 @@ bool FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InComma
 
     // Pull configuration and input buffers for DLSS-RR from the param table, convert and 
     // repack input buffers into intermediate FSR-RR input buffers, and configure descriptors.
-    if (!PrepareDenoiserInput(InCommandList, *InParameters, denoiserDesc, ambientOcclusion,
-                              directDiffuse, indirectSpecular))
+    const RRResult inputResult = PrepareDenoiserInput(InCommandList, *InParameters, denoiserDesc,
+        ambientOcclusion, directDiffuse, indirectSpecular);
+    if (inputResult != RRResult::Success)
     {
         InvalidateDenoiserHistory();
-        return false;
+        return inputResult;
     }
 
     // Dispatch denoiser
@@ -2169,7 +2256,7 @@ bool FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InComma
             {
                 LOG_ERROR("RR debug view requested, but this denoiser context was not created with debugging enabled");
                 InvalidateDenoiserHistory();
-                return false;
+                return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
             }
 
             ID3D12Resource* debugOutput = FSRDConvShader->PrepareDebugViewOutput(
@@ -2177,7 +2264,7 @@ bool FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InComma
             if (!debugOutput)
             {
                 InvalidateDenoiserHistory();
-                return false;
+                return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
             }
 
             const D3D12_RESOURCE_DESC debugOutputDesc = debugOutput->GetDesc();
@@ -2201,7 +2288,7 @@ bool FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InComma
                     debugOutputDesc.DepthOrArraySize, debugOutputDesc.MipLevels,
                     debugOutputDesc.SampleDesc.Count, static_cast<uint32_t>(debugOutputDesc.Flags));
                 InvalidateDenoiserHistory();
-                return false;
+                return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
             }
 
             const int debugViewport =
@@ -2227,16 +2314,18 @@ bool FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InComma
             {
                 LOG_ERROR("RR 1.2 debug view could not find the typed-signal chain tail");
                 InvalidateDenoiserHistory();
-                return false;
+                return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
             }
 
             chainTail->pNext = &dispatchDebugView.header;
         }
 
+        RRResult dispatchResult;
         {
             FSRDStageTimings::Scope timing(&_stageTimings, FSRDStageTimings::RayRegeneration);
-            isDenoiserReady = DispatchDenoiser(InCommandList, denoiserDesc);
+            dispatchResult = DispatchDenoiser(InCommandList, denoiserDesc);
         }
+        isDenoiserReady = dispatchResult == RRResult::Success;
 
         if (isFfxDebug)
             FSRDConvShader->TransitionDebugViewOutputToRead(InCommandList);
@@ -2244,14 +2333,14 @@ bool FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InComma
         if (!isDenoiserReady)
         {
             InvalidateDenoiserHistory();
-            return false;
+            return dispatchResult;
         }
         _runtime.rrDispatched = true;
 
         if (!PublishAmbientOcclusionOutput(InCommandList))
         {
             InvalidateDenoiserHistory();
-            return false;
+            return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
         }
 
         CommitDenoiserHistory();
@@ -2304,18 +2393,20 @@ bool FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InComma
 
         if (!isFfxDebug)
         {
+            _runtime.Begin(FSRDRuntimeSnapshot::Composition);
             if (!FSRDConvShader->DispatchComposition(InCommandList, compDesc))
             {
                 // The caller may discard this incomplete recording after RR succeeded.
                 // Request a history reset on the next denoiser evaluation.
                 InvalidateDenoiserHistory();
-                return false;
+                return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
             }
             float capturePreExposure=1.0f;
             const bool capturePreExposureProvided=InParameters->Get(
                 NVSDK_NGX_Parameter_DLSS_Pre_Exposure,&capturePreExposure)==NVSDK_NGX_Result_Success;
             FSRDConvShader->CompleteAdditiveCapture(InCommandList,denoiserDesc,compDesc,
                 capturePreExposure,capturePreExposureProvided);
+            _runtime.Complete(FSRDRuntimeSnapshot::Composition);
         }
 
         isDenoiserReady = true;
@@ -2420,7 +2511,7 @@ bool FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InComma
         if (!srcTex || !TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_Output, dstTex))
         {
             InvalidateDenoiserHistory();
-            return false;
+            return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
         }
 
         if (!FSRDConvShader->Blit(
@@ -2429,7 +2520,7 @@ bool FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InComma
               static_cast<float>(debugSourceBase.y) }))
         {
             InvalidateDenoiserHistory();
-            return false;
+            return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
         }
     }
 
@@ -2438,15 +2529,15 @@ bool FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InComma
     if (!isUpscalerReady)
     {
         InvalidateDenoiserHistory();
-        return false;
+        return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
     }
 
     compositionHistoryGuard.success=isDenoiserReady && !isUpscaleBypassed && !isDenoiseBypassed;
     timingFrameGuard.success = isDenoiserReady || isDenoiseBypassed;
-    return timingFrameGuard.success;
+    return timingFrameGuard.success ? RRResult::Success : RRResult::NeedsRecreation;
 }
 
-bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams,
+RRResult FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams,
     ffxDispatchDescDenoiser& dispatchDesc, ffxDispatchDescDenoiserAmbientOcclusion& ambientOcclusion,
     ffxDispatchDescDenoiserDirectDiffuse& directDiffuse,
     ffxDispatchDescDenoiserIndirectSpecular& indirectSpecular)
@@ -2456,17 +2547,23 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
     if (_ambientOcclusionEnabled && !AcquireTaggedAmbientOcclusionResources(true))
     {
         LOG_ERROR("[RR_AO] context requires AO, but a valid tagged pair was unavailable for this frame");
-        return false;
+        return RRResult::RetryableInputFailure;
     }
 
     // Gather DLSS-RR input buffers for conversion and repacking for FSR-RR
-    if (!PrepareDenoiseConvInput(inParams))
-        return false;   
+    const RRResult inputResult = PrepareDenoiseConvInput(inParams);
+    if (inputResult != RRResult::Success)
+        return inputResult;
 
     _runtime.Complete(FSRDRuntimeSnapshot::Inputs);
 
+    // Even a rejected recorder may leave a prefix referencing converter textures.
+    // Future layout changes must not destroy those resources in place.
+    _preprocessorHasRecordedWork = true;
+    _runtime.Begin(FSRDRuntimeSnapshot::Conversion);
     if (!ConvertDenoiserBuffers(InCommandList))
-        return false;
+        return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
+    _runtime.Complete(FSRDRuntimeSnapshot::Conversion);
 
     // Camera matrix - translation and rotation, from viewMatrix^-1
     const XMFLOAT3 camPos = GetFloat3Column(_invViewMatrix, 3);
@@ -2564,7 +2661,7 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
     if (!ValidateRequiredRRResources(
             dispatchDesc, directDiffuse, indirectSpecular, activeAmbientOcclusion,
             _extraSpecularSignal ? &_directSpecularSignal : nullptr))
-        return false;
+        return RRResult::NeedsRecreation;
 
     using R = FSRDRuntimeSnapshot;
     _runtime.submitted = R::Bit(R::Color) | R::Bit(R::Depth) | R::Bit(R::Motion) |
@@ -2593,7 +2690,7 @@ bool FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandL
 
     LOG_DEBUG("Jitter pixels [{:.6f}, {:.6f}]", dispatchDesc.jitterOffsets.x, dispatchDesc.jitterOffsets.y);
 
-    return true;
+    return RRResult::Success;
 }
 
 // Picks the specular ray length RR will read, from the title's candidates.
@@ -3246,24 +3343,38 @@ bool FSRDFeatureDx12::ResolveCameraMatrices(const NVSDK_NGX_Parameter& inParams,
 // arrives before the title has tagged its optional guides. A guide seen on a validated
 // frame stays available for this context, so a tag that drops out for a frame cannot flip
 // the layout back and forth; a guide that appears later upgrades the plan once.
-bool FSRDFeatureDx12::ResolveSignalTypes(bool isReady)
+RRResult FSRDFeatureDx12::ResolveSignalTypes(bool isReady)
 {
     if (!isReady)
-        return false;
+        return RRResult::RetryableInputFailure;
 
     const auto& cfg = *Config::Instance();
+    const auto request = FSRDSignals::RequestFrom(cfg);
+    const bool nativeSpec = _convDesc.Resources.InSpecHitDist != nullptr ||
+                            _convDesc.Resources.InSpecularRayDirectionHitDistance != nullptr;
+    const bool nativeDiffuse = _convDesc.Resources.InDiffuseHitDistance != nullptr &&
+                               _convDesc.DiffuseHitDistanceMode != 0u;
+    const uint32_t available = FSRDSignals::Bit(FSRDSignals::DirectDiffuse) |
+                              FSRDSignals::Bit(FSRDSignals::DirectSpecular) |
+        ((nativeSpec || request.estimate) ? FSRDSignals::Bit(FSRDSignals::IndirectSpecular) : 0u) |
+        ((nativeDiffuse || request.estimate) ? FSRDSignals::Bit(FSRDSignals::IndirectDiffuse) : 0u);
     _seenSpecularDistance |= _convDesc.Resources.InSpecHitDist != nullptr ||
                              _convDesc.Resources.InSpecularRayDirectionHitDistance != nullptr;
     _seenDiffuseDistance |= _convDesc.Resources.InDiffuseHitDistance != nullptr &&
                             _convDesc.DiffuseHitDistanceMode != 0u;
     _signalsObserved = true;
 
-    const auto plan = FSRDSignals::MakePlan(FSRDSignals::RequestFrom(cfg), _seenSpecularDistance,
+    const auto plan = FSRDSignals::MakePlan(request, _seenSpecularDistance,
                                             _seenDiffuseDistance);
     if (plan.mask == _plan.mask && plan.albedoFix == _plan.albedoFix)
     {
         _plan.notes = plan.notes;
-        return true;
+        PublishSignalStatus();
+        // A one-frame guide dropout keeps the latched plan and its resources.
+        // It cannot safely dispatch an active indirect signal without a distance.
+        if (_preprocessorHasRecordedWork && (_signalMask & ~available) != 0)
+            return RRResult::RetryableInputFailure;
+        return RRResult::Success;
     }
 
     LOG_INFO("[RR_INPUT] signal plan {:#x}{} -> {:#x}{} (specular hit distance: {}, diffuse hit distance: {})",
@@ -3276,19 +3387,19 @@ bool FSRDFeatureDx12::ResolveSignalTypes(bool isReady)
     if (_preprocessorHasRecordedWork)
     {
         State::Instance().changeBackend[Handle()->Id] = true;
-        return false;
+        return RRResult::NeedsRecreation;
     }
     DestroyDenoiserContext();
-    if (!CreateDenoiserContext())
+    const RRResult createResult = CreateDenoiserContext();
+    if (createResult != RRResult::Success)
     {
-        LOG_ERROR("[RR_INPUT] failed to recreate the RR context for the new signal plan; requesting a feature rebuild");
-        State::Instance().changeBackend[Handle()->Id] = true;
-        return false;
+        LOG_ERROR("[RR_INPUT] failed to recreate the RR context for the new signal plan");
+        return createResult;
     }
-    return true;
+    return RRResult::Success;
 }
 
-bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParams)
+RRResult FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParams)
 {
     const auto& cfg = *Config::Instance();
     const SLConstantsSnapshot slConstantsSnapshot =
@@ -3615,8 +3726,9 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
 
     isReady &= ResolveCameraMatrices(inParams, slData, hasCurrentSLConstants);
 
-    if (!ResolveSignalTypes(isReady))
-        return false;
+    const RRResult layoutResult = ResolveSignalTypes(isReady);
+    if (layoutResult != RRResult::Success)
+        return layoutResult;
 
     if (isReady)
     {
@@ -3636,7 +3748,7 @@ bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParam
         _runtime.received |= _runtime.prepared;
     }
 
-    return isReady;
+    return isReady ? RRResult::Success : RRResult::RetryableInputFailure;
 }
 
 // Decides whether the title's depth is hardware or already linear, and applies it.
@@ -4072,21 +4184,20 @@ static bool ValidateRRDispatchChain(ID3D12GraphicsCommandList* commandList,
     return true;
 }
 
-bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
+RRResult FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
                                        const ffxDispatchDescDenoiser& dispatchDesc)
 {
-    auto& state = State::Instance();
     const auto& cfg = *Config::Instance();
 
     if (!_pDenoiserCtx)
     {
         LOG_ERROR("RR 1.2 dispatch attempted without a denoiser context");
-        return false;
+        return RRResult::NeedsRecreation;
     }
 
 
     if (!ValidateRRDispatchChain(InCommandList, dispatchDesc, _signalMask, _ambientOcclusionEnabled))
-        return false;
+        return RRResult::NeedsRecreation;
 
     const ffxDispatchDescHeader* diffuseHeader = nullptr;
     const ffxDispatchDescHeader* specularHeader = nullptr;
@@ -4224,42 +4335,33 @@ bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
     {
         const float requestedValue = useAmdDefaults ? amdDefault : cfgValue.value_or_default();
         if (requestedValue == currentValue)
-            return true;
+            return RRResult::Success;
 
         const float previousValue = currentValue;
         currentValue = requestedValue;
 
         const ffxReturnCode_t result = ApplyConfiguration(key);
         if (result == FFX_API_RETURN_OK)
-            return true;
+            return RRResult::Success;
 
-        // Retry on the next frame instead of treating the failed value as applied.
+        // Roll back the cached value; the failure class decides whether to retry.
         currentValue = previousValue;
         LOG_ERROR("[RR_DIAG] RR 1.2 configure key {} failed: {}", static_cast<uint64_t>(key),
                   FfxApiProxy::ReturnCodeToString(result));
-        return false;
+        return ClassifyRayRegenerationFailure(result, true);
     };
 
-    if (!updateConfiguration(cfg.FfxDenoiserDisocThreshold, _denoiserAmdDefaults.m_DisocclusionThreshold,
-                             _denoiserSettings.m_DisocclusionThreshold,
-                             FFX_API_CONFIGURE_DENOISER_KEY_DISOCCLUSION_THRESHOLD) ||
-        !updateConfiguration(cfg.FfxDenoiserCrossBlNormStr, _denoiserAmdDefaults.m_CrossBilateralNormalStrength,
-                             _denoiserSettings.m_CrossBilateralNormalStrength,
-                             FFX_API_CONFIGURE_DENOISER_KEY_CROSS_BILATERAL_NORMAL_STRENGTH) ||
-        !updateConfiguration(cfg.FfxDenoiserStabilityBias, _denoiserAmdDefaults.m_StabilityBias,
-                             _denoiserSettings.m_StabilityBias,
-                             FFX_API_CONFIGURE_DENOISER_KEY_STABILITY_BIAS) ||
-        !updateConfiguration(cfg.FfxDenoiserMaxRadiance, _denoiserAmdDefaults.m_MaxRadiance,
-                             _denoiserSettings.m_MaxRadiance,
-                             FFX_API_CONFIGURE_DENOISER_KEY_MAX_RADIANCE) ||
-        !updateConfiguration(cfg.FfxDenoiserRadianceClip, _denoiserAmdDefaults.m_RadianceClipStdK,
-                             _denoiserSettings.m_RadianceClipStdK,
-                             FFX_API_CONFIGURE_DENOISER_KEY_RADIANCE_CLIP_STD_K) ||
-        !updateConfiguration(cfg.FfxDenoiserGaussKernRelax, _denoiserAmdDefaults.m_GaussianKernelRelaxation,
-                             _denoiserSettings.m_GaussianKernelRelaxation,
-                             FFX_API_CONFIGURE_DENOISER_KEY_GAUSSIAN_KERNEL_RELAXATION))
+    const std::array<const CustomOptional<float>*, 6> tuning {{
+        &cfg.FfxDenoiserCrossBlNormStr, &cfg.FfxDenoiserStabilityBias, &cfg.FfxDenoiserMaxRadiance,
+        &cfg.FfxDenoiserRadianceClip, &cfg.FfxDenoiserGaussKernRelax, &cfg.FfxDenoiserDisocThreshold
+    }};
+    for (int index = 0; index < static_cast<int>(tuning.size()); ++index)
     {
-        return false;
+        const RRResult configureResult = updateConfiguration(*tuning[index],
+            _denoiserAmdDefaults.ScalarValues[index], _denoiserSettings.ScalarValues[index],
+            DenoiserConfiguration::GetIndexKey(index));
+        if (configureResult != RRResult::Success)
+            return configureResult;
     }
 
     const float requestedDebugDepthMax =
@@ -4276,7 +4378,7 @@ bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
             _denoiserSettings.m_DebugViewLinearDepthBounds = previousBounds;
             LOG_ERROR("[RR_DIAG] RR 1.2 debug linear-depth bounds configure failed: {}",
                       FfxApiProxy::ReturnCodeToString(result));
-            return false;
+            return ClassifyRayRegenerationFailure(result, true);
         }
     }
 
@@ -4346,13 +4448,10 @@ bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
             }
         }
 
-        // The provider is latched off by EvaluateInternal and native fallback is
-        // attempted once. Recreating it automatically here would retry every frame.
-
         if (infoQueue)
             infoQueue->Release();
 
-        return false;
+        return ClassifyRayRegenerationFailure(result, true);
     }
 
     ++_denoiserDispatchSuccesses;
@@ -4407,7 +4506,7 @@ bool FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
     if (infoQueue)
         infoQueue->Release();
 
-    return true;
+    return RRResult::Success;
 }
 
 void FSRDFeatureDx12::CommitDenoiserHistory() noexcept
@@ -4436,7 +4535,7 @@ void FSRDFeatureDx12::RefreshHistoryDerivedInputs() noexcept
     }
 }
 
-bool FSRDFeatureDx12::SetDefaultConfiguration()
+RRResult FSRDFeatureDx12::SetDefaultConfiguration()
 {
     for (int i = 0; i < DenoiserConfiguration::kKeyCount; i++)
     {
@@ -4446,11 +4545,11 @@ bool FSRDFeatureDx12::SetDefaultConfiguration()
         {
             LOG_ERROR("RR 1.2 default query for key {} failed: {}", static_cast<uint64_t>(key),
                       FfxApiProxy::ReturnCodeToString(result));
-            return false;
+            return ClassifyRayRegenerationFailure(result, false);
         }
     }
 
-    return true;
+    return RRResult::Success;
 }
 
 ffxReturnCode_t FSRDFeatureDx12::SetDefaultConfiguration(FfxApiConfigureDenoiserKey key)

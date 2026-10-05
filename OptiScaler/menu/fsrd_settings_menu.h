@@ -46,9 +46,11 @@ inline DenoiserChoice DrawDenoiser(Config& cfg, const FSRDRuntimeSnapshot& snaps
     const bool fresh = snapshot.updated.time_since_epoch().count() != 0 &&
         std::chrono::steady_clock::now() - snapshot.updated < std::chrono::seconds(2);
     const bool running = fresh && snapshot.rrValidated;
+    const bool retrying = snapshot.recoveryResult == FSRD::RRResult::RetryableInputFailure;
     const char* selected = !nvRRActive ? "Native / NRD (game)"
         : snapshot.gameNativeRequested ? "Native / NRD requested"
-        : requested ? (running ? "FSR-RR" : snapshot.failure.empty() ? "Checking FSR-RR" : "FSR-RR stopped")
+        : requested ? (running ? "FSR-RR" : snapshot.failure.empty() ? "Checking FSR-RR"
+            : retrying ? "FSR-RR retry pending" : "FSR-RR stopped")
         : nativeRRPreferred ? "NVIDIA RR + SR" : "Native / NRD (game)";
     const std::string preview = (automatic ? "Auto: " : "") + std::string(selected);
     bool rebuild = false;
@@ -80,8 +82,9 @@ inline DenoiserChoice DrawDenoiser(Config& cfg, const FSRDRuntimeSnapshot& snaps
         ImGui::EndCombo();
     }
     ImGui::TextWrapped("Auto: supported NVIDIA GPUs use NVIDIA RR + SR. AMD GPUs use FSR-RR with FSR/FFX "
-                      "and active NV RR input only after the required runtime stages succeed. A failed check "
-                      "requests the game's native denoiser (NRD where the game provides it).");
+                      "and active NV RR input only after the required runtime stages succeed. Temporary input "
+                      "failures retry automatically. A persistent context/provider fault uses native fallback "
+                      "or requests the game's native denoiser (NRD where the game provides it).");
     if (!eligible)
     {
         ImGui::PushStyleColor(ImGuiCol_Text, red);
@@ -95,7 +98,17 @@ inline DenoiserChoice DrawDenoiser(Config& cfg, const FSRDRuntimeSnapshot& snaps
         ImGui::TextColored(running ? green : red, "FSR-RR: %s", running ? "running" : "not running");
         if (requested)
             ImGui::TextColored(running ? green : red, "Runtime gate: %s", running ? "passed"
+                : retrying ? "automatic retry pending"
                 : !snapshot.failure.empty() ? "failed" : "waiting for a complete frame");
+        if (requested && retrying)
+            ImGui::TextWrapped("Temporary input/configuration failure. Existing context retained; retry in %u frame(s).",
+                               snapshot.retryFramesRemaining);
+        else if (requested && snapshot.recoveryResult == FSRD::RRResult::NeedsRecreation)
+            ImGui::TextWrapped("Context recovery required. Use Retry FSR-RR or recreate the feature.");
+        else if (requested && snapshot.recoveryResult == FSRD::RRResult::UnsupportedProvider)
+            ImGui::TextWrapped("AMD RR provider is missing or incompatible. Automatic retries are stopped.");
+        else if (snapshot.recoveryResult == FSRD::RRResult::DeviceLost)
+            ImGui::TextWrapped("D3D12 device lost. RR and native dispatches remain stopped until device recovery.");
         if (snapshot.nativeActive && fresh && snapshot.success)
             ImGui::TextColored(green, "NVIDIA RR + SR: %s", snapshot.fallback ? "fallback active" : "active");
         if (snapshot.gameNativeRequested)
@@ -148,8 +161,10 @@ inline void DrawWorkflow(const FSRDRuntimeSnapshot& snapshot)
     }
     ImGui::TextWrapped("Green means validation/command recording succeeded in the latest evaluation; "
                       "it is not a GPU completion check. Red also marks deliberately disabled or bypassed stages. "
-                      "A failed stage stops FSR-RR until Retry or context recreation. Native NVIDIA RR + SR is used "
-                      "when available; otherwise an unsupported-feature result requests game-native denoising. "
+                      "Temporary input/configuration failures keep the context and retry automatically with "
+                      "at most 60 skipped frames between attempts. Context, provider or device faults stop FSR-RR "
+                      "until Retry or recreation. Native NVIDIA RR + SR is used when available; a persistent "
+                      "fault without native fallback requests game-native denoising. "
                       "If the game does not switch automatically, disable NV RR in its settings.");
 }
 

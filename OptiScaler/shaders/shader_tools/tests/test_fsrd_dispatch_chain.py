@@ -105,7 +105,7 @@ def run():
     source = ROOT / 'OptiScaler/upscalers/fsr31/FSRDFeature_Dx12.cpp'
     text = source.read_text(encoding='utf-8-sig')
     start = text.index('static bool ValidateRRDispatchChain(')
-    end = text.index('\nbool FSRDFeatureDx12::DispatchDenoiser(', start)
+    end = text.index('\nRRResult FSRDFeatureDx12::DispatchDenoiser(', start)
     function = text[start:end]
     start = text.index('static constexpr ffxStructType_t SignalDescriptors[]')
     mapping = text[start:text.index('};', start) + 2]

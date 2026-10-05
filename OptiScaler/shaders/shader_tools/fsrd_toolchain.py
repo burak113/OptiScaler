@@ -65,19 +65,21 @@ def _sha256(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def _build(source, output, libraries, vs_root, dependencies=None):
+def _build(source, output, libraries, vs_root, dependencies=None, include_dirs=()):
     vcvars = vs_root/'VC/Auxiliary/Build/vcvars64.bat'
     command = output.with_suffix('.build.cmd')
     command.write_text(
         f'@call "{vcvars}" >nul\n@if errorlevel 1 exit /b %errorlevel%\n'
-        f'@cl /nologo /std:c++20 /EHsc /O2 "{source}" '
+        f'@cl /nologo /std:c++20 /EHsc /O2 '
+        + ''.join(f'/I"{directory}" ' for directory in include_dirs)
+        + f'"{source}" '
         f'/Fe:"{output}" /Fo:"{output.with_suffix(".obj")}" '
         + (f'/sourceDependencies "{dependencies}" ' if dependencies else '')
         + ('/link ' + ' '.join(libraries) if libraries else '') + '\n', encoding='utf-8')
     subprocess.run(f'cmd /d /s /c ""{command}""', cwd=output.parent, check=True)
 
 
-def compile_cpp(source, output, libraries=()):
+def compile_cpp(source, output, libraries=(), include_dirs=()):
     """Build an x64 test helper, reusing an earlier build of exactly the same inputs.
 
     A cached executable is used only when the source, every file the compiler included
@@ -87,15 +89,16 @@ def compile_cpp(source, output, libraries=()):
     """
     output = Path(output)
     source = Path(source).resolve()
+    include_dirs = tuple(str(Path(directory).resolve()) for directory in include_dirs)
     output.parent.mkdir(parents=True, exist_ok=True)
     vs_root = visual_studio()
     setting = os.environ.get('FSRD_CPP_CACHE', '')
     if setting == '0':
-        _build(source, output, libraries, vs_root)
+        _build(source, output, libraries, vs_root, include_dirs=include_dirs)
         return
     toolset = vs_root/'VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt'
     key = hashlib.sha256(json.dumps([
-        _sha256(source), str(source), list(libraries), os.environ.get('CL', ''), str(vs_root),
+        _sha256(source), str(source), list(libraries), list(include_dirs), os.environ.get('CL', ''), str(vs_root),
         toolset.read_text(encoding='utf-8').strip() if toolset.is_file() else '',
         _sha256(__file__)]).encode()).hexdigest()[:32]
     cache = Path(setting) if setting else Path(__file__).resolve().parents[3]/'tools_tmp/fsrd_cpp_cache'
@@ -112,7 +115,7 @@ def compile_cpp(source, output, libraries=()):
         staging = Path(tempfile.mkdtemp(prefix=key + '_', dir=cache))
         try:
             built = staging/output.name
-            _build(source, built, libraries, vs_root, staging/'dependencies.json')
+            _build(source, built, libraries, vs_root, staging/'dependencies.json', include_dirs)
             includes = json.loads((staging/'dependencies.json').read_text(encoding='utf-8'))['Data']['Includes']
             files = {str(Path(p).resolve()): _sha256(p) for p in [source, *includes]}
             (staging/'manifest.json').write_text(json.dumps(files, indent=1), encoding='utf-8')

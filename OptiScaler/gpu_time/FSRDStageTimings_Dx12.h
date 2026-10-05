@@ -1,5 +1,6 @@
 #pragma once
 #include <d3d12.h>
+#include "../upscalers/fsr31/FSRDRetryPolicy.h"
 #include <wrl/client.h>
 #include <array>
 #include <atomic>
@@ -218,6 +219,8 @@ struct FSRDRuntimeSnapshot
     bool nativeRRPreferred = false, gameNativeRequested = false, rrValidated = false;
     bool rrDispatched = false, success = false;
     uint64_t frame = 0;
+    FSRD::RRResult recoveryResult = FSRD::RRResult::Success;
+    uint32_t retryFramesRemaining = 0;
     std::string failure;
     std::chrono::steady_clock::time_point updated {};
     uint32_t signalStatus = 0;

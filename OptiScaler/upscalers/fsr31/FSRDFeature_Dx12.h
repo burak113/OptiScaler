@@ -6,6 +6,7 @@
 #include <atomic>
 #include <mutex>
 #include "FSRDSignalPolicy.h"
+#include "FSRDRetryPolicy.h"
 #include "gpu_time/FSRDStageTimings_Dx12.h"
 #include <DirectXMath.h>
 
@@ -49,6 +50,10 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     }
 
   private:
+    using RRResult = FSRD::RRResult;
+    FSRD::RRRetryPolicy _rrRetryPolicy;
+    bool _rrFailureRecordedThisEvaluation = false;
+    RRResult ClassifyRayRegenerationFailure(ffxReturnCode_t result, bool dynamicInput) const noexcept;
 
     struct DenoiserConfiguration
     {
@@ -131,16 +136,16 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     mutable std::mutex _runtimeMutex;
     FSRDRuntimeSnapshot _runtime, _publishedRuntime;
     std::unique_ptr<DLSSDFeatureDx12> _nativeDenoiser;
-    bool _rrInitialized = false, _rrFaulted = false, _nativeAttempted = false;
+    bool _rrInitialized = false, _nativeAttempted = false;
     bool _preferNativeRR = false;
     bool _nativeWasActive = false;
     uint64_t _evaluationNumber = 0;
     std::string _rrFailure;
     FSRDRuntimeSnapshot::Step _failedStep = FSRDRuntimeSnapshot::Inputs;
 
-    bool EvaluateRayRegeneration(ID3D12GraphicsCommandList*, NVSDK_NGX_Parameter*);
+    RRResult EvaluateRayRegeneration(ID3D12GraphicsCommandList*, NVSDK_NGX_Parameter*);
     bool EvaluateNative(ID3D12GraphicsCommandList*, NVSDK_NGX_Parameter*, bool fullPipeline);
-    void FailRayRegeneration(const char* reason);
+    void FailRayRegeneration(RRResult result, const char* reason);
     bool WantsFsrRR() const;
     void RequestGameNative(NVSDK_NGX_Parameter* parameters);
     ffxDispatchDescDenoiserIndirectDiffuse _indirectDiffuseSignal {};
@@ -280,19 +285,19 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
 
     bool InitFSR3(const NVSDK_NGX_Parameter* InParameters) override;
 
-    bool CreateDenoiserContext();
+    RRResult CreateDenoiserContext();
 
-    bool QueryDenoiserVersions();
+    RRResult QueryDenoiserVersions();
 
     void DestroyDenoiserContext();
 
-    bool UpdateSize();
+    RRResult UpdateSize();
 
     /**
      * @brief Generates FFX denoiser configuration and input buffers from DLSS-RR inputs and NGX configurations.
      * Converts and repacks resources internally.
      */
-    bool PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& ngxParams,
+    RRResult PrepareDenoiserInput(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& ngxParams,
                               ffxDispatchDescDenoiser& dispatchDesc,
                               ffxDispatchDescDenoiserAmbientOcclusion& ambientOcclusion,
                               ffxDispatchDescDenoiserDirectDiffuse& directDiffuse,
@@ -327,7 +332,7 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
      * @brief Retrieves DLSS-RR inputs to populate the inputs for the interop layer in order to generate
      FSR-RR compatible buffers.
      */
-    bool PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParams);
+    RRResult PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParams);
 
     void ResolveSpecularHitDistance(const NVSDK_NGX_Parameter& inParams,
                                     const RRD3D12SignalTagSnapshot& rrTagSnapshot,
@@ -348,7 +353,7 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     bool ResolveCameraMatrices(const NVSDK_NGX_Parameter& inParams,
                                const sl::Constants& slData, bool hasCurrentSLConstants);
 
-    bool ResolveSignalTypes(bool isReady);
+    RRResult ResolveSignalTypes(bool isReady);
     void PublishSignalStatus()
     {
         const FSRDSignals::Status status { _signalsObserved, _seenSpecularDistance, _seenDiffuseDistance,
@@ -370,7 +375,7 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     /**
      * @brief Dispatches FSR-RR denoiser converted inputs. Runs before upscaler.
      */
-    bool DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList, const ffxDispatchDescDenoiser& dispatchDesc);
+    RRResult DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList, const ffxDispatchDescDenoiser& dispatchDesc);
 
     void CommitDenoiserHistory() noexcept;
 
@@ -388,7 +393,7 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
         _lastDispatchRequestedReset = false;
     }
 
-    bool SetDefaultConfiguration();
+    RRResult SetDefaultConfiguration();
 
     ffxReturnCode_t SetDefaultConfiguration(FfxApiConfigureDenoiserKey key);
 
