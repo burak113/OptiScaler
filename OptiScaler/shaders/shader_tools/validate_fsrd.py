@@ -37,7 +37,13 @@ SHADERS = (*BASELINE_SHADERS, 'FSRDInputConvAdditive', 'RRTraceAdditive',
            'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
            'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor',
            'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate')
+HOST_CORRECTNESS = (
+    'test_fsrd_roughness_acceptance', 'test_fsr_output_scaling',
+    'test_fsrd_camera_matrices', 'test_fsrd_sr_alignment',
+    'test_fsr_upscale_settings', 'test_fsrd_title_linear_depth_extent',
+)
 SUITES = (
+    *HOST_CORRECTNESS,
     'test_fsrd_dispatch_chain',
     'test_fsrd_composition_variants',
     'test_fsrd_composition_graph',
@@ -83,6 +89,7 @@ SUITES = (
     'test_fsrd_ini_cleanup', 'test_fsrd_reference_integrity',
 )
 QUICK = (
+    *HOST_CORRECTNESS,
     'test_fsrd_dispatch_chain', 'test_fsrd_signal_policy', 'test_fsrd_host_lifetimes',
     'test_fsrd_magnifier_lifetime',
     'test_fsrd_stage_timings', 'test_fsrd_rr_retry_policy', 'test_fsrd_ini_cleanup', 'test_fsrd_reference_integrity',
@@ -98,7 +105,7 @@ CPU = {'test_fsrd_dispatch_chain', 'test_fsrd_signal_policy', 'test_fsrd_host_li
        'test_fsrd_magnifier_lifetime',
        'test_fsrd_allocation_models', 'test_fsrd_statistical_resolve', 'test_fsrd_additive_capture_reader',
        'test_fsrd_response_pilot', 'test_fsrd_response_protocol', 'test_fsrd_rrtrace_response',
-       'test_fsrd_response_conditioned_pilot', 'test_fsrd_response_soft_pilot'}
+       'test_fsrd_response_conditioned_pilot', 'test_fsrd_response_soft_pilot'} | set(HOST_CORRECTNESS)
 
 
 def digest(path):

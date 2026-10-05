@@ -10,6 +10,9 @@
 #include "resource_tracking/ResTrack_Dx12.h"
 #include "FSRDFeature_Dx12.h"
 #include "FSRDResultClassification.h"
+#include "FSRInputAlignment.h"
+#include "FSRDCameraMatrices.h"
+#include "FSRDTaggedResourceExtent.h"
 #include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
 #include "shaders/fsrd_preprocess/FSRDShaderUtils.h"
 #include "MathUtils.h"
@@ -301,35 +304,56 @@ static bool SupportsPackedRoughness(ID3D12Resource* normals)
     }
 }
 
-static void SetColumn(const XMVECTOR& vec, int col, XMMATRIX& mat)
+static bool SupportsSeparateRoughness(ID3D12Resource* roughness)
 {
-    mat.r[0].m128_f32[col] = vec.m128_f32[0];
-    mat.r[1].m128_f32[col] = vec.m128_f32[1];
-    mat.r[2].m128_f32[col] = vec.m128_f32[2];
-    mat.r[3].m128_f32[col] = vec.m128_f32[3];
+    if (!roughness)
+        return false;
+
+    // The converter reads the red channel through Texture2D<float>. Integer,
+    // depth/stencil and compressed views are not roughness inputs for this path.
+    switch (roughness->GetDesc().Format)
+    {
+    case DXGI_FORMAT_R8_TYPELESS:
+    case DXGI_FORMAT_R8_UNORM:
+    case DXGI_FORMAT_R8_SNORM:
+    case DXGI_FORMAT_R16_TYPELESS:
+    case DXGI_FORMAT_R16_UNORM:
+    case DXGI_FORMAT_R16_SNORM:
+    case DXGI_FORMAT_R16_FLOAT:
+    case DXGI_FORMAT_R32_TYPELESS:
+    case DXGI_FORMAT_R32_FLOAT:
+    case DXGI_FORMAT_R8G8_TYPELESS:
+    case DXGI_FORMAT_R8G8_UNORM:
+    case DXGI_FORMAT_R8G8_SNORM:
+    case DXGI_FORMAT_R16G16_TYPELESS:
+    case DXGI_FORMAT_R16G16_UNORM:
+    case DXGI_FORMAT_R16G16_SNORM:
+    case DXGI_FORMAT_R16G16_FLOAT:
+    case DXGI_FORMAT_R32G32_TYPELESS:
+    case DXGI_FORMAT_R32G32_FLOAT:
+    case DXGI_FORMAT_R32G32B32_TYPELESS:
+    case DXGI_FORMAT_R32G32B32_FLOAT:
+    case DXGI_FORMAT_R32G32B32A32_TYPELESS:
+    case DXGI_FORMAT_R32G32B32A32_FLOAT:
+    case DXGI_FORMAT_R16G16B16A16_TYPELESS:
+    case DXGI_FORMAT_R16G16B16A16_FLOAT:
+    case DXGI_FORMAT_R16G16B16A16_UNORM:
+    case DXGI_FORMAT_R16G16B16A16_SNORM:
+    case DXGI_FORMAT_R10G10B10A2_TYPELESS:
+    case DXGI_FORMAT_R10G10B10A2_UNORM:
+    case DXGI_FORMAT_R11G11B10_FLOAT:
+    case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+    case DXGI_FORMAT_R8G8B8A8_UNORM:
+    case DXGI_FORMAT_R8G8B8A8_SNORM:
+        return true;
+    default:
+        return false;
+    }
 }
 
 static XMFLOAT3 GetFloat3Column(const XMMATRIX& mat, int col)
 {
     return { mat.r[0].m128_f32[col], mat.r[1].m128_f32[col], mat.r[2].m128_f32[col] };
-}
-
-// A published matrix is only trustworthy if every element is finite. Titles that do
-// not have a value to report sometimes publish a sentinel fill instead of omitting the
-// parameter - an all-FLT_MAX matrix is one observed case - and such a matrix passes a
-// presence check while making every derived quantity NaN.
-static bool MatrixIsFinite(const XMMATRIX& matrix)
-{
-    for (int row = 0; row < 4; row++)
-    {
-        for (int column = 0; column < 4; column++)
-        {
-            if (!std::isfinite(matrix.r[row].m128_f32[column]))
-                return false;
-        }
-    }
-
-    return true;
 }
 
 /**
@@ -351,44 +375,6 @@ static FfxApiMatrix4x4 GetRRMatrix(const XMMATRIX& columnVectorMatrix)
 static void StoreHlslColumnVectorMatrix(XMFLOAT4X4& destination, const XMMATRIX& columnVectorMatrix)
 {
     XMStoreFloat4x4(&destination, XMMatrixTranspose(columnVectorMatrix));
-}
-
-/**
- * @brief Creates an unjittered perspective projection in the interop layer's
- * column-vector convention. A zero far distance is treated as an infinite far plane.
- */
-static XMMATRIX CreateColumnVectorPerspectiveProjection(float verticalFov, float aspectRatio,
-                                                        float nearPlane, float farPlane,
-                                                        bool isRightHanded, bool isDepthInverted)
-{
-    XMMATRIX rowVectorProjection = {};
-
-    if (farPlane == 0.0f)
-    {
-        const float yScale = 1.0f / std::tan(verticalFov * 0.5f);
-        const float xScale = yScale / aspectRatio;
-        const float W = isRightHanded ? -1.0f : 1.0f;
-        const float A = isDepthInverted ? 0.0f : W;
-        const float B = isDepthInverted ? nearPlane : -nearPlane;
-
-        rowVectorProjection = XMMatrixSet(
-            xScale, 0.0f,   0.0f, 0.0f,
-            0.0f,   yScale, 0.0f, 0.0f,
-            0.0f,   0.0f,   A,    W,
-            0.0f,   0.0f,   B,    0.0f);
-    }
-    else
-    {
-        // Swapping the physical near/far arguments produces a reversed-Z projection.
-        const float matrixNear = isDepthInverted ? farPlane : nearPlane;
-        const float matrixFar = isDepthInverted ? nearPlane : farPlane;
-
-        rowVectorProjection = isRightHanded
-            ? XMMatrixPerspectiveFovRH(verticalFov, aspectRatio, matrixNear, matrixFar)
-            : XMMatrixPerspectiveFovLH(verticalFov, aspectRatio, matrixNear, matrixFar);
-    }
-
-    return XMMatrixTranspose(rowVectorProjection);
 }
 
 static ID3D12Resource* GetD3D12ResFromFFX(const FfxApiResource& resource)
@@ -1230,6 +1216,16 @@ bool FSRDFeatureDx12::AcquireSLTaggedResource(
         LOG_WARN(
             "[RR_INPUT] {} resource description no longer matches its atomic tag metadata",
             sourceName);
+        return false;
+    }
+
+    if (!FSRD::HasValidTaggedResourceExtent(diagnostic))
+    {
+        LOG_WARN(
+            "[RR_INPUT] {} has an invalid Streamline tag region: native={}x{}, effective={}x{}, base=({}, {}), usesExtent={}",
+            sourceName, diagnostic.nativeWidth, diagnostic.nativeHeight,
+            diagnostic.effectiveWidth, diagnostic.effectiveHeight,
+            diagnostic.extentLeft, diagnostic.extentTop, diagnostic.usesExtent);
         return false;
     }
 
@@ -2213,7 +2209,12 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
     // below would leave the floor and packing passes reading render-target and unordered-access
     // resources as if they were shader resources.
     ffxDispatchDescUpscale upscalerDesc = {};
-    if (!PrepareUpscalerInput(InCommandList, inParams, upscalerDesc))
+    // SR uses the composition only after every preceding RR stage succeeds.
+    // A failure returns before SR dispatch; debug paths that bypass SR retain
+    // RR's independent subrect support without imposing the SR origin contract.
+    const UpscalerInputMode upscalerInputMode = isUpscaleBypassed ? UpscalerInputMode::Bypassed :
+        (isDenoiseBypassed ? UpscalerInputMode::OriginalColor : UpscalerInputMode::RRComposition);
+    if (!PrepareUpscalerInput(InCommandList, inParams, upscalerDesc, upscalerInputMode))
     {
         InvalidateDenoiserHistory();
         // Missing exposure can request a different SR creation configuration.
@@ -2425,11 +2426,20 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
     if (!isUpscaleBypassed)
     {
         _runtime.Begin(FSRDRuntimeSnapshot::SuperResolution);
+        // Preparation may admit an offset original color only under this
+        // composition contract. Enforce it again at the actual SR handoff.
+        if (upscalerInputMode == UpscalerInputMode::RRComposition &&
+            (!isDenoiserReady || !FSRDConvShader->GetCompositionOutput()))
+        {
+            LOG_ERROR("[SR_INPUT] RR composition is unavailable for the prepared SR input contract");
+            InvalidateDenoiserHistory();
+            return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_PARAMETER, true);
+        }
         // Override upscaler config. The composition output is left in
         // NON_PIXEL | PIXEL shader-resource state, so declare both: the default
         // argument is COMPUTE_READ alone, which would leave the resource in a
         // narrower state than the preprocessor expects on the next frame.
-        if (isDenoiserReady)
+        if (upscalerInputMode == UpscalerInputMode::RRComposition)
             upscalerDesc.color = ffxApiGetResourceDX12(
                 FSRDConvShader->GetCompositionOutput(),
                 FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
@@ -2886,6 +2896,8 @@ void FSRDFeatureDx12::AcquireOptionalInputs(const NVSDK_NGX_Parameter& inParams,
 
             if ((linearDepthViewFormat == DXGI_FORMAT_R32_FLOAT ||
                  linearDepthViewFormat == DXGI_FORMAT_R16_FLOAT) &&
+                FSRD::TaggedResourceExtentCovers(linearDepthDiagnostic,
+                                                renderWidth, renderHeight) &&
                 ValidateSourceExtent("TitleLinearDepth", linearDepthCandidate, base,
                                      renderWidth, renderHeight))
             {
@@ -2915,9 +2927,11 @@ void FSRDFeatureDx12::AcquireOptionalInputs(const NVSDK_NGX_Parameter& inParams,
                 if (!loggedTitleLinearDepthRejection)
                 {
                     loggedTitleLinearDepthRejection = true;
-                    LOG_WARN("[RR_INPUT] title linear depth present but unusable: {}x{} "
-                             "(base ({}, {})), required {}x{}+({}, {})",
-                             linearDepthDesc.Width, linearDepthDesc.Height, base.x, base.y,
+                    LOG_WARN("[RR_INPUT] title linear depth present but unusable: native={}x{}, "
+                             "effective={}x{}, base=({}, {}), required {}x{}+({}, {})",
+                             linearDepthDesc.Width, linearDepthDesc.Height,
+                             linearDepthDiagnostic.effectiveWidth,
+                             linearDepthDiagnostic.effectiveHeight, base.x, base.y,
                              renderWidth, renderHeight, base.x, base.y);
                 }
             }
@@ -3100,241 +3114,72 @@ void FSRDFeatureDx12::ResolveDiffuseHitDistance(const NVSDK_NGX_Parameter& inPar
 bool FSRDFeatureDx12::ResolveCameraMatrices(const NVSDK_NGX_Parameter& inParams,
     const sl::Constants& slData, bool hasCurrentSLConstants)
 {
-    bool isReady = true;
-
-    // Get DLSSD matrices and derive related values
-    // World to view/camera space (V)
-    _viewMatrix = {};
-    _viewFromStreamline = false;
-
-    // A matrix is only usable if it inverts to a real camera position, whichever
-    // source produced it. A partially filled or all-zero one passes a presence
-    // check, and the NaN it produces then reaches the denoiser as
-    // cameraPositionDelta - a value it uses for its own reprojection. The motion
-    // vectors mask the same NaN behind the shader's isfinite guard, where it reads
-    // as a zero depth delta, so "the camera never moved" and "the camera position
-    // was NaN" are indistinguishable from the outside.
-    const auto viewMatrixIsUsable = [](const XMMATRIX& view, const XMMATRIX& invView)
-    {
-        if (!MatrixIsFinite(view) || !MatrixIsFinite(invView))
-            return false;
-
-        const float determinant = XMVectorGetX(XMMatrixDeterminant(view));
-        if (!std::isfinite(determinant) || determinant == 0.0f)
-            return false;
-
-        const XMFLOAT3 cameraPosition = GetFloat3Column(invView, 3);
-        return std::isfinite(cameraPosition.x) && std::isfinite(cameraPosition.y) &&
-               std::isfinite(cameraPosition.z);
-    };
-
-    // Builds the view matrix from the Streamline camera basis. Used both when NGX
-    // publishes no matrix at all and when the published one cannot be inverted.
-    // The basis is title data too: a degenerate or half-initialised one inverts to
-    // the same poison a sentinel matrix would, so the result clears the same bar
-    // as a published matrix before this fallback may claim success.
-    const auto buildViewFromStreamline = [&]() -> bool
-    {
-        if (!StreamlineHooks::isSetConstantsHooked() || !hasCurrentSLConstants)
-            return false;
-
-        SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraRight), 0, _invViewMatrix);
-        SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraUp), 1, _invViewMatrix);
-        SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraFwd), 2, _invViewMatrix);
-        SetColumn(XMLoadFloat3((XMFLOAT3*) &slData.cameraPos), 3, _invViewMatrix);
-        _invViewMatrix.r[3].m128_f32[3] = 1.0f;
-
-        _viewMatrix = XMMatrixInverse(nullptr, _invViewMatrix);
-
-        if (!viewMatrixIsUsable(_viewMatrix, _invViewMatrix))
-        {
-            static bool loggedDegenerateSLView = false;
-            if (!loggedDegenerateSLView)
-            {
-                loggedDegenerateSLView = true;
-                LOG_ERROR(
-                    "[RR_INPUT] the Streamline camera basis is degenerate; its view "
-                    "matrix cannot be inverted, so camera position and reprojection "
-                    "would read NaN. Rejecting the frame instead");
-            }
-            _viewMatrix = {};
-            _invViewMatrix = {};
-            return false;
-        }
-
-        _viewFromStreamline = true;
-        return true;
-    };
-
     XMMATRIX publishedViewMatrix = {};
     const bool hasPublishedViewMatrix =
         TryGetNGXColumnVectorMatrix(inParams, NVSDK_NGX_Parameter_DLSS_WORLD_TO_VIEW_MATRIX, publishedViewMatrix);
-
-    bool viewMatrixResolved = false;
-    if (hasPublishedViewMatrix)
-    {
-        _viewMatrix = publishedViewMatrix;
-        _invViewMatrix = XMMatrixInverse(nullptr, _viewMatrix);
-        viewMatrixResolved = viewMatrixIsUsable(_viewMatrix, _invViewMatrix);
-
-        if (!viewMatrixResolved)
-        {
-            static bool loggedDegenerateViewMatrix = false;
-            if (!loggedDegenerateViewMatrix)
-            {
-                loggedDegenerateViewMatrix = true;
-                const XMFLOAT3 cameraPosition = GetFloat3Column(_invViewMatrix, 3);
-                LOG_ERROR(
-                    "[RR_INPUT] the title's {} matrix cannot be inverted; camera position "
-                    "reads ({}, {}, {}) and determinant is {}. Every consumer of the camera "
-                    "position would receive NaN. Falling back to the Streamline camera "
-                    "constants. Raw published matrix (row-major): "
-                    "[{:.6f}, {:.6f}, {:.6f}, {:.6f}], [{:.6f}, {:.6f}, {:.6f}, {:.6f}], "
-                    "[{:.6f}, {:.6f}, {:.6f}, {:.6f}], [{:.6f}, {:.6f}, {:.6f}, {:.6f}]",
-                    NVSDK_NGX_Parameter_DLSS_WORLD_TO_VIEW_MATRIX,
-                    cameraPosition.x, cameraPosition.y, cameraPosition.z,
-                    XMVectorGetX(XMMatrixDeterminant(_viewMatrix)),
-                    _viewMatrix.r[0].m128_f32[0], _viewMatrix.r[0].m128_f32[1],
-                    _viewMatrix.r[0].m128_f32[2], _viewMatrix.r[0].m128_f32[3],
-                    _viewMatrix.r[1].m128_f32[0], _viewMatrix.r[1].m128_f32[1],
-                    _viewMatrix.r[1].m128_f32[2], _viewMatrix.r[1].m128_f32[3],
-                    _viewMatrix.r[2].m128_f32[0], _viewMatrix.r[2].m128_f32[1],
-                    _viewMatrix.r[2].m128_f32[2], _viewMatrix.r[2].m128_f32[3],
-                    _viewMatrix.r[3].m128_f32[0], _viewMatrix.r[3].m128_f32[1],
-                    _viewMatrix.r[3].m128_f32[2], _viewMatrix.r[3].m128_f32[3]);
-            }
-        }
-    }
-
-    if (!viewMatrixResolved && !buildViewFromStreamline())
-    {
-        LOG_ERROR("View matrix missing! Denoiser not ready.");
-        _viewMatrix = {};
-        _invViewMatrix = {};
-        isReady = false;
-    }
-
-    if (_isInReset || !_hasDenoiserHistory)
-        _prevViewMatrix = _viewMatrix;
-
-    // Perspective projection matrix (P)
-    _projMatrix = {};
-    _projectionFromStreamline = false;
-
-    // The projection is consumed through its inverse by the conversion shaders,
-    // so it is only usable if that inverse exists and is finite, whichever source
-    // produced it. A sentinel fill - one title publishes an all-FLT_MAX
-    // world-to-view matrix - passes a presence check and then poisons every
-    // reconstructed position with NaN.
-    const auto projectionIsUsable = [&](const XMMATRIX& projection)
-    {
-        if (!MatrixIsFinite(projection))
-            return false;
-
-        const float determinant = XMVectorGetX(XMMatrixDeterminant(projection));
-        if (!std::isfinite(determinant) || determinant == 0.0f)
-            return false;
-
-        return MatrixIsFinite(XMMatrixInverse(nullptr, projection));
-    };
-
-    // Reconstructs an unjittered projection from the Streamline scalar camera data,
-    // which is what both the missing and the unusable published matrix fall back to.
-    // The scalars are title data too: a zero aspect or a NaN FOV passes every
-    // sentinel check and bakes straight into the matrix, so the rebuilt projection
-    // must clear the same bar as a published one before this fallback may claim
-    // success.
-    const auto buildProjectionFromStreamline = [&]() -> bool
-    {
-        if (!StreamlineHooks::isSetConstantsHooked() || !hasCurrentSLConstants)
-            return false;
-
-        if (slData.cameraFOV == sl::INVALID_FLOAT ||
-            slData.cameraNear == sl::INVALID_FLOAT ||
-            slData.cameraFar == sl::INVALID_FLOAT ||
-            slData.cameraAspectRatio == sl::INVALID_FLOAT ||
-            slData.cameraNear == slData.cameraFar)
-        {
-            LOG_ERROR("Streamline projection data is incomplete! Denoiser not ready.");
-            return false;
-        }
-
-        // These measurements are supposed to be in radians, but some titles supply degrees.
-        // Valid FOV in radians never exceeds PI. Realistic FOV in degrees is basically never in the single
-        // digits.
-        const float fov = (slData.cameraFOV < 4.0f) ? slData.cameraFOV : GetRadiansFromDeg(slData.cameraFOV);
-        const float nearPlane = slData.cameraNear;
-        const float farPlane = slData.cameraFar;
-        _isRightHanded = slData.cameraViewToClip[2].w < 0.0f;
-
-        _projMatrix = CreateColumnVectorPerspectiveProjection(
-            fov, slData.cameraAspectRatio, nearPlane, farPlane,
-            _isRightHanded, DepthInverted());
-
-        if (!projectionIsUsable(_projMatrix))
-        {
-            static bool loggedDegenerateSLProjection = false;
-            if (!loggedDegenerateSLProjection)
-            {
-                loggedDegenerateSLProjection = true;
-                LOG_ERROR(
-                    "[RR_INPUT] the Streamline projection scalars do not build an "
-                    "invertible matrix (fov={:.4f}, aspect={:.4f}, near={:.4f}, "
-                    "far={:.4f}); camera position and reprojection would read NaN. "
-                    "Rejecting the frame instead",
-                    fov, slData.cameraAspectRatio, nearPlane, farPlane);
-            }
-            _projMatrix = {};
-            return false;
-        }
-
-        _projectionFromStreamline = true;
-        return true;
-    };
-
     XMMATRIX publishedProjMatrix = {};
     const bool hasPublishedProjMatrix =
         TryGetNGXColumnVectorMatrix(inParams, NVSDK_NGX_Parameter_DLSS_VIEW_TO_CLIP_MATRIX, publishedProjMatrix);
 
-    bool projMatrixResolved = false;
-    if (hasPublishedProjMatrix)
-    {
-        _projMatrix = publishedProjMatrix;
-        projMatrixResolved = projectionIsUsable(_projMatrix);
+    const bool canUseStreamline = StreamlineHooks::isSetConstantsHooked() && hasCurrentSLConstants;
+    const auto camera = FSRDCamera::Resolve(
+        hasPublishedViewMatrix ? &publishedViewMatrix : nullptr,
+        hasPublishedProjMatrix ? &publishedProjMatrix : nullptr,
+        canUseStreamline ? &slData : nullptr, DepthInverted());
+    _viewMatrix = camera.view;
+    _invViewMatrix = camera.inverseView;
+    _projMatrix = camera.projection;
+    _viewFromStreamline = camera.viewSource == FSRDCamera::Source::StreamlineBasis;
+    _projectionFromStreamline = camera.projectionSource == FSRDCamera::Source::StreamlineMatrix ||
+                               camera.projectionSource == FSRDCamera::Source::StreamlineScalars;
+    _isRightHanded = camera.isRightHanded;
 
-        if (!projMatrixResolved)
+    // Report rejected published values once. The resolver checks full matrices,
+    // including sentinel elements, before trying complete Streamline data or scalars.
+    const auto logRejectedMatrix = [](const char* key, const XMMATRIX& matrix)
+    {
+        LOG_ERROR(
+            "[RR_INPUT] the title's {} matrix is uninitialized or not invertible. "
+            "Trying the current Streamline camera constants. Raw published matrix (row-major): "
+            "[{:.6f}, {:.6f}, {:.6f}, {:.6f}], [{:.6f}, {:.6f}, {:.6f}, {:.6f}], "
+            "[{:.6f}, {:.6f}, {:.6f}, {:.6f}], [{:.6f}, {:.6f}, {:.6f}, {:.6f}]",
+            key,
+            matrix.r[0].m128_f32[0], matrix.r[0].m128_f32[1],
+            matrix.r[0].m128_f32[2], matrix.r[0].m128_f32[3],
+            matrix.r[1].m128_f32[0], matrix.r[1].m128_f32[1],
+            matrix.r[1].m128_f32[2], matrix.r[1].m128_f32[3],
+            matrix.r[2].m128_f32[0], matrix.r[2].m128_f32[1],
+            matrix.r[2].m128_f32[2], matrix.r[2].m128_f32[3],
+            matrix.r[3].m128_f32[0], matrix.r[3].m128_f32[1],
+            matrix.r[3].m128_f32[2], matrix.r[3].m128_f32[3]);
+    };
+    if (hasPublishedViewMatrix && camera.viewSource != FSRDCamera::Source::NGX)
+    {
+        static bool loggedDegenerateViewMatrix = false;
+        if (!loggedDegenerateViewMatrix)
         {
-            static bool loggedDegenerateProjMatrix = false;
-            if (!loggedDegenerateProjMatrix)
-            {
-                loggedDegenerateProjMatrix = true;
-                LOG_ERROR(
-                    "[RR_INPUT] the title's {} matrix is not invertible, so no view-space "
-                    "position can be reconstructed from it. Falling back to the Streamline "
-                    "camera scalars. Raw published matrix (row-major): "
-                    "[{:.6f}, {:.6f}, {:.6f}, {:.6f}], [{:.6f}, {:.6f}, {:.6f}, {:.6f}], "
-                    "[{:.6f}, {:.6f}, {:.6f}, {:.6f}], [{:.6f}, {:.6f}, {:.6f}, {:.6f}]",
-                    NVSDK_NGX_Parameter_DLSS_VIEW_TO_CLIP_MATRIX,
-                    _projMatrix.r[0].m128_f32[0], _projMatrix.r[0].m128_f32[1],
-                    _projMatrix.r[0].m128_f32[2], _projMatrix.r[0].m128_f32[3],
-                    _projMatrix.r[1].m128_f32[0], _projMatrix.r[1].m128_f32[1],
-                    _projMatrix.r[1].m128_f32[2], _projMatrix.r[1].m128_f32[3],
-                    _projMatrix.r[2].m128_f32[0], _projMatrix.r[2].m128_f32[1],
-                    _projMatrix.r[2].m128_f32[2], _projMatrix.r[2].m128_f32[3],
-                    _projMatrix.r[3].m128_f32[0], _projMatrix.r[3].m128_f32[1],
-                    _projMatrix.r[3].m128_f32[2], _projMatrix.r[3].m128_f32[3]);
-            }
+            loggedDegenerateViewMatrix = true;
+            logRejectedMatrix(NVSDK_NGX_Parameter_DLSS_WORLD_TO_VIEW_MATRIX, publishedViewMatrix);
+        }
+    }
+    if (hasPublishedProjMatrix && camera.projectionSource != FSRDCamera::Source::NGX)
+    {
+        static bool loggedDegenerateProjMatrix = false;
+        if (!loggedDegenerateProjMatrix)
+        {
+            loggedDegenerateProjMatrix = true;
+            logRejectedMatrix(NVSDK_NGX_Parameter_DLSS_VIEW_TO_CLIP_MATRIX, publishedProjMatrix);
         }
     }
 
-    if (!projMatrixResolved && !buildProjectionFromStreamline())
-    {
-        LOG_ERROR("Projection matrix missing! Denoiser not ready.");
-        _projMatrix = {};
-        isReady = false;
-    }
+    if (camera.viewSource == FSRDCamera::Source::Missing)
+        LOG_ERROR("View matrix unavailable or degenerate, or fallback projection convention unknown! Denoiser not ready.");
+    if (camera.projectionSource == FSRDCamera::Source::Missing)
+        LOG_ERROR("Projection matrix unavailable or degenerate, including Streamline matrix and scalars! Denoiser not ready.");
 
-    return isReady;
+    if (_isInReset || !_hasDenoiserHistory)
+        _prevViewMatrix = _viewMatrix;
+    return camera.Complete();
 }
 
 // Derives the RR signal plan from the settings and the title's hit-distance guides.
@@ -3442,23 +3287,22 @@ RRResult FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inP
     if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_GBuffer_Normals, _convDesc.Resources.InNormals))
         isReady = false;
 
-    // Roughness mode is instance state. When creation metadata is absent, lock it
-    // once from the first usable frame; never flip modes because one resource is
-    // temporarily missing, as that changes shader bindings and invalidates history.
+    // Roughness mode is instance state. Infer a candidate when creation metadata
+    // is absent, but commit it only after the whole frame has been accepted.
+    // A rejected frame must not determine later shader bindings or history.
     const bool hasSeparateRoughness = TryGetNGXVoidPointer(
         inParams, NVSDK_NGX_Parameter_GBuffer_Roughness,
         _convDesc.Resources.InRoughness);
-    if (_roughnessSource == RoughnessSource::Unknown)
+    RoughnessSource roughnessCandidate = _roughnessSource;
+    if (roughnessCandidate == RoughnessSource::Unknown)
     {
         if (hasSeparateRoughness)
         {
-            _roughnessSource = RoughnessSource::Separate;
-            LOG_INFO("DLSSD roughness metadata absent; locked this instance to the separate resource");
+            roughnessCandidate = RoughnessSource::Separate;
         }
         else if (SupportsPackedRoughness(_convDesc.Resources.InNormals))
         {
-            _roughnessSource = RoughnessSource::Packed;
-            LOG_INFO("DLSSD roughness metadata absent; locked this instance to normals alpha");
+            roughnessCandidate = RoughnessSource::Packed;
         }
         else
         {
@@ -3467,7 +3311,7 @@ RRResult FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inP
             isReady = false;
         }
     }
-    else if (_roughnessSource == RoughnessSource::Separate && !hasSeparateRoughness)
+    else if (roughnessCandidate == RoughnessSource::Separate && !hasSeparateRoughness)
     {
         LOG_ERROR("DLSSD instance requires separate roughness, but the resource is missing this frame");
         InvalidateDenoiserHistory();
@@ -3589,47 +3433,28 @@ RRResult FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inP
     uint32_t motionHeight = LowResMV() ? RenderHeight() : DisplayHeight();
     bool displayResolutionMotion = !LowResMV();
 
-    // Streamline may replace a title's display-resolution MV with its own
-    // camera-completed render-resolution texture before forwarding the NGX call.
-    // Feature-creation metadata still describes the original resource, so the
-    // actual D3D12 extent must win when the two contracts no longer fit.
+    // Keep the effective motion origin/resolution identical to the SR input
+    // contract, including Streamline's already localized MV replacement.
     if (_convDesc.Resources.InMotionVectors)
     {
         const D3D12_RESOURCE_DESC motionDesc =
             _convDesc.Resources.InMotionVectors->GetDesc();
-        const bool declaredExtentFits =
-            uint64_t(motionBase.x) + motionWidth <= motionDesc.Width &&
-            uint64_t(motionBase.y) + motionHeight <= motionDesc.Height;
-        const bool zeroBasedLogicalExtentFits =
-            uint64_t(motionWidth) <= motionDesc.Width &&
-            uint64_t(motionHeight) <= motionDesc.Height;
-        const bool zeroBasedRenderExtentFits =
-            uint64_t(RenderWidth()) <= motionDesc.Width &&
-            uint64_t(RenderHeight()) <= motionDesc.Height;
-        if (!declaredExtentFits && zeroBasedLogicalExtentFits)
+        const auto motionRegion = FSRInputAlignment::ResolveMotionRegion(
+            { declaredMotionBase.x, declaredMotionBase.y }, { renderWidth, renderHeight },
+            { DisplayWidth(), DisplayHeight() }, LowResMV(), motionDesc.Width, motionDesc.Height);
+        if (motionRegion.correction != FSRInputAlignment::MotionCorrection::None)
         {
             LOG_WARN(
                 "[RR_INPUT] NGX motion resource is {}x{} and cannot contain the declared "
-                "subrect {}x{}+({},{}); retaining its logical resolution with a "
-                "zero-based origin",
+                "subrect {}x{}+({},{}); using zero-based {}-resolution motion {}x{}",
                 motionDesc.Width, motionDesc.Height, motionWidth, motionHeight,
-                motionBase.x, motionBase.y);
-            motionBase = { 0u, 0u };
+                motionBase.x, motionBase.y, motionRegion.displayResolution ? "display" : "render",
+                motionRegion.extent.width, motionRegion.extent.height);
         }
-        else if (!declaredExtentFits && displayResolutionMotion &&
-                 zeroBasedRenderExtentFits)
-        {
-            LOG_WARN(
-                "[RR_INPUT] NGX motion resource is {}x{} and cannot contain the declared "
-                "display-resolution subrect {}x{}+({},{}); treating it as Streamline's "
-                "zero-based render-resolution camera-completed motion",
-                motionDesc.Width, motionDesc.Height, motionWidth, motionHeight,
-                motionBase.x, motionBase.y);
-            motionWidth = RenderWidth();
-            motionHeight = RenderHeight();
-            motionBase = { 0u, 0u };
-            displayResolutionMotion = false;
-        }
+        motionWidth = motionRegion.extent.width;
+        motionHeight = motionRegion.extent.height;
+        motionBase = { motionRegion.origin.x, motionRegion.origin.y };
+        displayResolutionMotion = motionRegion.displayResolution;
     }
 
     _convDesc.InputBase0 = { colorBase.x, colorBase.y, motionBase.x, motionBase.y };
@@ -3711,9 +3536,22 @@ RRResult FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inP
                                     motionBase, motionWidth, motionHeight);
     isReady &= ValidateSourceExtent("Normals", _convDesc.Resources.InNormals,
                                     normalBase, renderWidth, renderHeight);
-    if (_roughnessSource == RoughnessSource::Separate)
+    if (roughnessCandidate == RoughnessSource::Separate)
+    {
+        if (!SupportsSeparateRoughness(_convDesc.Resources.InRoughness))
+        {
+            LOG_ERROR("DLSSD separate roughness requires a floating-point or normalized color format");
+            isReady = false;
+        }
         isReady &= ValidateSourceExtent("Roughness", _convDesc.Resources.InRoughness,
                                         roughnessBase, renderWidth, renderHeight);
+    }
+    else if (roughnessCandidate == RoughnessSource::Packed &&
+             !SupportsPackedRoughness(_convDesc.Resources.InNormals))
+    {
+        LOG_ERROR("DLSSD packed roughness requires a normals format with a supported alpha channel");
+        isReady = false;
+    }
     isReady &= ValidateSourceExtent("DiffuseAlbedo", _convDesc.Resources.InDiffAlbedo,
                                     diffuseAlbedoBase, renderWidth, renderHeight);
     isReady &= ValidateSourceExtent("SpecularAlbedo", _convDesc.Resources.InSpecAlbedo,
@@ -3732,6 +3570,13 @@ RRResult FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inP
 
     if (isReady)
     {
+        if (_roughnessSource == RoughnessSource::Unknown)
+        {
+            _roughnessSource = roughnessCandidate;
+            LOG_INFO("DLSSD roughness metadata absent; locked this instance to {}",
+                     _roughnessSource == RoughnessSource::Packed ? "normals alpha" : "the separate resource");
+        }
+
         using R = FSRDRuntimeSnapshot;
         const auto& resources = _convDesc.Resources;
         _runtime.prepared = R::Bit(R::Color) | R::Bit(R::Depth) | R::Bit(R::Motion) |

@@ -508,7 +508,11 @@ static RRTaggedResourceDiagnostic CaptureSLResourceTag(
     result.arraySize = desc.DepthOrArraySize;
     result.sampleCount = desc.SampleDesc.Count;
 
-    result.usesExtent = static_cast<bool>(tag.extent);
+    // Streamline's bool conversion ignores partially zero extents. Preserve any
+    // supplied extent fields so consumers can reject malformed regions instead
+    // of treating them as a request for the entire native resource.
+    result.usesExtent = tag.extent.left != 0 || tag.extent.top != 0 ||
+        tag.extent.width != 0 || tag.extent.height != 0;
     result.extentLeft = tag.extent.left;
     result.extentTop = tag.extent.top;
     result.effectiveWidth = result.usesExtent

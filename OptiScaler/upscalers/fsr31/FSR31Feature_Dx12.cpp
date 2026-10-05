@@ -3,8 +3,10 @@
 #include <Util.h>
 #include <proxies/FfxApi_Proxy.h>
 #include "FSR31Feature_Dx12.h"
+#include "FSROutputScaling.h"
 #include "NVNGX_Parameter.h"
 #include "MathUtils.h"
+#include "FSRInputAlignment.h"
 
 #define FFX_UPSCALER_VERSION_MAJOR 4
 #define FFX_UPSCALER_VERSION_MINOR 0
@@ -70,25 +72,14 @@ static bool TryGetLoggedResource(const NVSDK_NGX_Parameter& ngxParams, const cha
     return success;
 }
 
-static void SetFfxUpscaleKeyValue(ffxContext* ctx, float& currentValue, const CustomOptional<float>& newValue,
-                                        uint64_t key, const char* featureName)
+static void SetFfxUpscaleKeyValue(ffxContext* ctx, FSR31::UpscaleSettingState& state,
+                                  const CustomOptional<float>& newValue, uint64_t key, const char* featureName)
 {
-    const float val = newValue.value_or_default();
-
-    if (currentValue != val)
-    {
-        currentValue = val;
-
-        ffxConfigureDescUpscaleKeyValue config {};
-        config.header.type = FFX_API_CONFIGURE_DESC_TYPE_UPSCALE_KEYVALUE;
-        config.key = key;
-        config.ptr = &currentValue;
-
-        const ffxReturnCode_t result = FfxApiProxy::D3D12_Configure(ctx, &config.header);
-
-        if (result != FFX_API_RETURN_OK)
-            LOG_WARN("{} configure result: {}", featureName, (UINT) result);
-    }
+    const auto update = FSR31::ApplyUpscaleSetting(ctx, state, newValue.value_or_default(), key,
+                                                 FfxApiProxy::D3D12_Configure);
+    if (update.reportFailure)
+        LOG_WARN("{} configure result: {}{}", featureName, (UINT) update.result,
+                 state.unsupported ? "; unsupported descriptor on this context" : "; will retry");
 }
 
 NVSDK_NGX_Parameter* FSR31FeatureDx12::SetParameters(NVSDK_NGX_Parameter* InParameters)
@@ -211,6 +202,17 @@ bool FSR31FeatureDx12::CreateUpscalerContext(const NVSDK_NGX_Parameter& ngxParam
     // Context description
     ConfigureUpscalerContext(ngxParams);
 
+    if (!FSROutputScaling::IsValidSize({ TargetWidth(), TargetHeight() }, D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION) ||
+        !FSROutputScaling::IsValidSize({ _upscaleCtxDesc.maxRenderSize.width, _upscaleCtxDesc.maxRenderSize.height },
+                                      D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION) ||
+        !FSROutputScaling::IsValidSize({ _upscaleCtxDesc.maxUpscaleSize.width, _upscaleCtxDesc.maxUpscaleSize.height },
+                                      D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION))
+    {
+        LOG_ERROR("Invalid FSR context resolution: render {}x{}, display {}x{}", RenderWidth(), RenderHeight(),
+                  DisplayWidth(), DisplayHeight());
+        return false;
+    }
+
     LOG_DEBUG("_upscaleCtx!");
 
     {
@@ -224,6 +226,9 @@ bool FSR31FeatureDx12::CreateUpscalerContext(const NVSDK_NGX_Parameter& ngxParam
             LOG_ERROR("_upscaleCtx error: {0}", FfxApiProxy::ReturnCodeToString(ret));
             return false;
         }
+
+        // A new context starts with SDK defaults and may expose different keys.
+        _upscaleSettings.ResetForContext();
     }
 
     return true;
@@ -278,53 +283,22 @@ void FSR31FeatureDx12::ConfigureUpscalerContext(const NVSDK_NGX_Parameter& ngxPa
 void FSR31FeatureDx12::SetResolutionConfig() 
 {
     auto& cfg = *Config::Instance();
+    const bool useOutputScaling = cfg.OutputScalingEnabled.value_or_default() && LowResMV();
+    const bool extendedOutput = cfg.ExtendedLimits.value_or_default() && RenderWidth() > DisplayWidth();
+    const auto sizes = FSROutputScaling::ResolveContextSizes(
+        { DisplayWidth(), DisplayHeight() }, { RenderWidth(), RenderHeight() },
+        cfg.OutputScalingEnabled.value_or_default(), LowResMV(), cfg.ExtendedLimits.value_or_default(),
+        cfg.OutputScalingMultiplier.value_or_default(), D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION);
 
-    // Handle Output Scaling Multiplier (Manual resizing of the output)
-    if (cfg.OutputScalingEnabled.value_or_default() && LowResMV())
-    {
-        const float ssMulti = std::clamp(cfg.OutputScalingMultiplier.value_or_default(), 0.5f, 3.0f);
-        cfg.OutputScalingMultiplier.set_volatile_value(ssMulti);
+    if (useOutputScaling || extendedOutput)
+        cfg.OutputScalingMultiplier.set_volatile_value(sizes.multiplier);
 
-        _targetWidth = static_cast<uint32_t>(DisplayWidth() * ssMulti);
-        _targetHeight = static_cast<uint32_t>(DisplayHeight() * ssMulti);
-    }
-    else
-    {
-        _targetWidth = DisplayWidth();
-        _targetHeight = DisplayHeight();
-    }
-
-    // Extended limits: Support rendering at higher than display resolution
-    if (cfg.ExtendedLimits.value_or_default() && RenderWidth() > DisplayWidth())
-    {
-        _upscaleCtxDesc.maxRenderSize.width = RenderWidth();
-        _upscaleCtxDesc.maxRenderSize.height = RenderHeight();
-
-        cfg.OutputScalingMultiplier.set_volatile_value(1.0f);
-
-        // If output scaling active, let it handle downsampling
-        if (cfg.OutputScalingEnabled.value_or_default() && LowResMV())
-        {
-            _upscaleCtxDesc.maxUpscaleSize.width = _upscaleCtxDesc.maxRenderSize.width;
-            _upscaleCtxDesc.maxUpscaleSize.height = _upscaleCtxDesc.maxRenderSize.height;
-
-            // update target res
-            _targetWidth = _upscaleCtxDesc.maxRenderSize.width;
-            _targetHeight = _upscaleCtxDesc.maxRenderSize.height;
-        }
-        else
-        {
-            _upscaleCtxDesc.maxUpscaleSize.width = DisplayWidth();
-            _upscaleCtxDesc.maxUpscaleSize.height = DisplayHeight();
-        }
-    }
-    else
-    {
-        _upscaleCtxDesc.maxRenderSize.width = TargetWidth() > DisplayWidth() ? TargetWidth() : DisplayWidth();
-        _upscaleCtxDesc.maxRenderSize.height = TargetHeight() > DisplayHeight() ? TargetHeight() : DisplayHeight();
-        _upscaleCtxDesc.maxUpscaleSize.width = TargetWidth();
-        _upscaleCtxDesc.maxUpscaleSize.height = TargetHeight();
-    }
+    _targetWidth = sizes.target.width;
+    _targetHeight = sizes.target.height;
+    _upscaleCtxDesc.maxRenderSize.width = sizes.maxRender.width;
+    _upscaleCtxDesc.maxRenderSize.height = sizes.maxRender.height;
+    _upscaleCtxDesc.maxUpscaleSize.width = sizes.maxUpscale.width;
+    _upscaleCtxDesc.maxUpscaleSize.height = sizes.maxUpscale.height;
 }
 
 bool FSR31FeatureDx12::QueryUpscalerVersions()
@@ -402,7 +376,8 @@ bool FSR31FeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList
 }
 
 bool FSR31FeatureDx12::PrepareUpscalerInput(ID3D12GraphicsCommandList* InCommandList,
-                                            const NVSDK_NGX_Parameter& inParams, ffxDispatchDescUpscale& upscalerDesc)
+                                            const NVSDK_NGX_Parameter& inParams, ffxDispatchDescUpscale& upscalerDesc,
+                                            UpscalerInputMode inputMode)
 {
     auto& state = State::Instance();
     auto& cfg = *Config::Instance();
@@ -423,6 +398,56 @@ bool FSR31FeatureDx12::PrepareUpscalerInput(ID3D12GraphicsCommandList* InCommand
         return false;
     if (!TryGetLoggedResource(inParams, NVSDK_NGX_Parameter_Depth, _inputBuffers.Depth) && LowResMV())
         return false;
+
+    if (inputMode != UpscalerInputMode::Bypassed)
+    {
+        using namespace FSRInputAlignment;
+        const auto getOrigin = [&](const char* xKey, const char* yKey) {
+            Origin origin {};
+            inParams.Get(xKey, &origin.x);
+            inParams.Get(yKey, &origin.y);
+            return origin;
+        };
+        const Origin colorOrigin = getOrigin(NVSDK_NGX_Parameter_DLSS_Input_Color_Subrect_Base_X,
+                                             NVSDK_NGX_Parameter_DLSS_Input_Color_Subrect_Base_Y);
+        const Origin depthOrigin = getOrigin(NVSDK_NGX_Parameter_DLSS_Input_Depth_Subrect_Base_X,
+                                             NVSDK_NGX_Parameter_DLSS_Input_Depth_Subrect_Base_Y);
+        const Origin declaredMotionOrigin = getOrigin(NVSDK_NGX_Parameter_DLSS_Input_MV_SubrectBase_X,
+                                                      NVSDK_NGX_Parameter_DLSS_Input_MV_SubrectBase_Y);
+        const Extent render { upscalerDesc.renderSize.width, upscalerDesc.renderSize.height };
+        const D3D12_RESOURCE_DESC motionDesc = _inputBuffers.MotionVectors->GetDesc();
+        const MotionRegion motion = ResolveMotionRegion(declaredMotionOrigin, render,
+            { DisplayWidth(), DisplayHeight() }, LowResMV(), motionDesc.Width, motionDesc.Height);
+        const bool contextDisplayMotion =
+            (_upscaleCtxDesc.flags & FFX_UPSCALE_ENABLE_DISPLAY_RESOLUTION_MOTION_VECTORS) != 0;
+        const Refusal refusal = ValidateSRRegions(colorOrigin, depthOrigin, _inputBuffers.Depth != nullptr,
+            motion, inputMode == UpscalerInputMode::RRComposition, contextDisplayMotion);
+        if (refusal != Refusal::None)
+        {
+            LOG_WARN("[SR_INPUT] refusing unsupported input region (reason={}): color=({},{}), depth=({},{}), "
+                     "motion=({},{}), effectiveMotion={}x{} display={}, contextDisplay={}",
+                RefusalName(refusal), colorOrigin.x, colorOrigin.y, depthOrigin.x, depthOrigin.y,
+                motion.origin.x, motion.origin.y, motion.extent.width, motion.extent.height,
+                motion.displayResolution, contextDisplayMotion);
+            return false;
+        }
+
+        const auto coversTexture = [](ID3D12Resource* resource, Origin origin, Extent extent) {
+            if (!resource)
+                return false;
+            const D3D12_RESOURCE_DESC desc = resource->GetDesc();
+            return desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D && desc.DepthOrArraySize == 1 &&
+                   desc.SampleDesc.Count == 1 && CoversRegion(desc.Width, desc.Height, origin, extent);
+        };
+        if (!coversTexture(_inputBuffers.Color, colorOrigin, render) ||
+            (_inputBuffers.Depth && !coversTexture(_inputBuffers.Depth, depthOrigin, render)) ||
+            !coversTexture(_inputBuffers.MotionVectors, motion.origin, motion.extent) ||
+            !coversTexture(_upscalerOutput, {}, { upscalerDesc.upscaleSize.width, upscalerDesc.upscaleSize.height }))
+        {
+            LOG_WARN("[SR_INPUT] refusing input/output textures that do not cover the SR dispatch extents");
+            return false;
+        }
+    }
 
     // Optional Resources
     TryGetNGXVoidPointer(inParams, OptiKeys::FSR_TransparencyAndComp, _inputBuffers.TransparencyMask);
@@ -657,33 +682,35 @@ void FSR31FeatureDx12::ConfigureUpscaler(const NVSDK_NGX_Parameter& inParams, ff
     // Velocity Factor (FSR 3.1.1+)
     if (Version() >= feature_version { 3, 1, 1 })
     {
-        SetFfxUpscaleKeyValue(&_upscaleCtx, _velocity, cfg.FsrVelocity, FFX_API_CONFIGURE_UPSCALE_KEY_FVELOCITYFACTOR,
+        SetFfxUpscaleKeyValue(&_upscaleCtx, _upscaleSettings.velocity, cfg.FsrVelocity,
+                              FFX_API_CONFIGURE_UPSCALE_KEY_FVELOCITYFACTOR,
                               "Velocity");
     }
 
     // Reactiveness, Shading, and Accumulation (FSR 3.1.4+)
     if (Version() >= feature_version { 3, 1, 4 })
     {
-        SetFfxUpscaleKeyValue(&_upscaleCtx, _reactiveScale, cfg.FsrReactiveScale,
+        SetFfxUpscaleKeyValue(&_upscaleCtx, _upscaleSettings.reactiveScale, cfg.FsrReactiveScale,
                               FFX_API_CONFIGURE_UPSCALE_KEY_FREACTIVENESSSCALE, "Reactive Scale");
-        SetFfxUpscaleKeyValue(&_upscaleCtx, _shadingScale, cfg.FsrShadingScale,
+        SetFfxUpscaleKeyValue(&_upscaleCtx, _upscaleSettings.shadingScale, cfg.FsrShadingScale,
                               FFX_API_CONFIGURE_UPSCALE_KEY_FSHADINGCHANGESCALE, "Shading Scale");
-        SetFfxUpscaleKeyValue(&_upscaleCtx, _accAddPerFrame, cfg.FsrAccAddPerFrame,
+        SetFfxUpscaleKeyValue(&_upscaleCtx, _upscaleSettings.accAddPerFrame, cfg.FsrAccAddPerFrame,
                               FFX_API_CONFIGURE_UPSCALE_KEY_FACCUMULATIONADDEDPERFRAME, "Acc. Add Per Frame");
-        SetFfxUpscaleKeyValue(&_upscaleCtx, _minDisOccAcc, cfg.FsrMinDisOccAcc,
+        SetFfxUpscaleKeyValue(&_upscaleCtx, _upscaleSettings.minDisOccAcc, cfg.FsrMinDisOccAcc,
                               FFX_API_CONFIGURE_UPSCALE_KEY_FMINDISOCCLUSIONACCUMULATION, "Min Disocclusion Acc.");
     }
 
-    // Output Scaling Override
-    if (cfg.OutputScalingEnabled.value_or_default())
-    {
-        // If external output scaling is enabled, we may need to adjust the reported upscale size
-        if (inParams.Get(OptiKeys::FSR_UpscaleWidth, &upscalerDesc.upscaleSize.width) == NVSDK_NGX_Result_Success)
-            upscalerDesc.upscaleSize.width *= static_cast<uint32_t>(cfg.OutputScalingMultiplier.value_or_default());
-
-        if (inParams.Get(OptiKeys::FSR_UpscaleHeight, &upscalerDesc.upscaleSize.height) == NVSDK_NGX_Result_Success)
-            upscalerDesc.upscaleSize.height *= static_cast<uint32_t>(cfg.OutputScalingMultiplier.value_or_default());
-    }
+    uint32_t requestedWidth = 0;
+    uint32_t requestedHeight = 0;
+    const bool hasWidth = inParams.Get(OptiKeys::FSR_UpscaleWidth, &requestedWidth) == NVSDK_NGX_Result_Success;
+    const bool hasHeight = inParams.Get(OptiKeys::FSR_UpscaleHeight, &requestedHeight) == NVSDK_NGX_Result_Success;
+    const auto outputSize = FSROutputScaling::ResolveDispatchSize(
+        { TargetWidth(), TargetHeight() }, { _upscaleCtxDesc.maxUpscaleSize.width, _upscaleCtxDesc.maxUpscaleSize.height },
+        cfg.OutputScalingEnabled.value_or_default() && LowResMV(), cfg.OutputScalingMultiplier.value_or_default(),
+        hasWidth ? std::optional<uint32_t>(requestedWidth) : std::nullopt,
+        hasHeight ? std::optional<uint32_t>(requestedHeight) : std::nullopt);
+    upscalerDesc.upscaleSize.width = outputSize.width;
+    upscalerDesc.upscaleSize.height = outputSize.height;
 }
 
 bool FSR31FeatureDx12::DispatchUpscaler(ID3D12GraphicsCommandList* InCommandList,

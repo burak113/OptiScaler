@@ -1,5 +1,6 @@
 #pragma once
 #include "FSR31Feature.h"
+#include "FSRUpscaleSettings.h"
 #include <upscalers/IFeature_Dx12.h>
 
 #include "dx12/ffx_api_dx12.h"
@@ -92,12 +93,20 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
 
     // Evaluate utils
 
+    enum class UpscalerInputMode
+    {
+        OriginalColor,
+        RRComposition,
+        Bypassed
+    };
+
     /**
      * @brief Prepares upscaler inputs and configuration from a generic NGX param table, converting input buffers
      * if needed, into a native ffx descriptor struct.
      */
     bool PrepareUpscalerInput(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams,
-                              ffxDispatchDescUpscale& upscalerDesc);
+                              ffxDispatchDescUpscale& upscalerDesc,
+                              UpscalerInputMode inputMode = UpscalerInputMode::OriginalColor);
 
     /**
      * @brief Attempts to populate reactive and transparency masks for FSR input, converting/repurposing DLSS bias mask
@@ -123,6 +132,9 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
   private:
     InputResources _inputBuffers;
     ID3D12Resource* _upscalerOutput;
+
+    // Applied settings and provider support are scoped to the current context.
+    FSR31::UpscaleSettings _upscaleSettings {};
 
     bool CreateUpscalerContext(const NVSDK_NGX_Parameter& ngxParams);
 

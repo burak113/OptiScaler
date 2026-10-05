@@ -1682,6 +1682,11 @@
     <ClInclude Include="upscalers\fsr31\FSRDSignalPolicy.h" />
     <ClInclude Include="upscalers\fsr31\FSRDRetryPolicy.h" />
     <ClInclude Include="upscalers\fsr31\FSRDResultClassification.h" />
+    <ClInclude Include="upscalers\fsr31\FSRDCameraMatrices.h" />
+    <ClInclude Include="upscalers\fsr31\FSRDTaggedResourceExtent.h" />
+    <ClInclude Include="upscalers\fsr31\FSRInputAlignment.h" />
+    <ClInclude Include="upscalers\fsr31\FSROutputScaling.h" />
+    <ClInclude Include="upscalers\fsr31\FSRUpscaleSettings.h" />
     <ClInclude Include="gpu_time\FSRDStageTimings_Dx12.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDAlbedoTrustEvidence_Shader.h" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDAlbedoTrustEvidence.hlsl" />
