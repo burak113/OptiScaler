@@ -12,14 +12,14 @@
 #define FSRD_ADDITIVE_DIAGNOSTICS 0
 #endif
 
-// Production conversion also publishes the unmodulated specular signal (u8). The
-// additive capture journal keeps its original eight-output layout.
+// Production conversion also publishes the unmodulated specular and diffuse signals (u8,
+// u9). The additive capture journal keeps its original eight-output layout.
 #if !FSRD_ADDITIVE_DIAGNOSTICS
 #define MainRS \
     "RootFlags(0), " \
     "CBV(b0), " \
     "DescriptorTable(SRV(t0, numDescriptors = 17), visibility = SHADER_VISIBILITY_ALL), " \
-    "DescriptorTable(UAV(u0, numDescriptors = 9), visibility = SHADER_VISIBILITY_ALL), "
+    "DescriptorTable(UAV(u0, numDescriptors = 10), visibility = SHADER_VISIBILITY_ALL), "
 #else
 #define MainRS \
     "RootFlags(0), " \
@@ -209,6 +209,10 @@ RWTexture2D<FSRD_CONV_UAV_TYPE> OutDetailReference : register(u7);
 // specular lobe carries at Specular Albedo Demodulation 0. A: 1 where composition may
 // blend toward it (no title routing, emission or selected screen), otherwise 0.
 RWTexture2D<FSRD_CONV_UAV_TYPE> OutDirectSpecular : register(u8);
+// The same for the diffuse share, denoised as RR indirect diffuse. RGB: the colour that is
+// not the specular share above, without albedo division. A: the title's diffuse ray length,
+// or primary view depth where it supplies none (replays show the length does not matter).
+RWTexture2D<FSRD_CONV_UAV_TYPE> OutIndirectDiffuse : register(u9);
 #endif
 
 cbuffer CB_Packing : register(b0)
@@ -1228,8 +1232,16 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             OutDirectSpecular[FSRD_OUTPUT_PIXEL(px)] = half4(
                 GetSafeFP16(unmodulatedSpecular * (1.0f - specularRouteWeight)),
                 recoveryEligible ? 1.0f : 0.0f);
+            const float3 unmodulatedDiffuse = max((1.0f - biasWeight) * rawColor - unmodulatedSpecular, 0.0f);
+            OutIndirectDiffuse[FSRD_OUTPUT_PIXEL(px)] = half4(GetSafeFP16(unmodulatedDiffuse),
+                diffuseHitDist < s_MissingDiffuseHitDistance ? diffuseHitDist
+                                                             : clamp(abs(viewSpacePos.z), 1e-3f, 65472.0f));
             }
-            else OutDirectSpecular[FSRD_OUTPUT_PIXEL(px)] = 0.0f;
+            else
+            {
+                OutDirectSpecular[FSRD_OUTPUT_PIXEL(px)] = 0.0f;
+                OutIndirectDiffuse[FSRD_OUTPUT_PIXEL(px)] = 0.0f;
+            }
 #endif
         }
         else
@@ -1241,6 +1253,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             OutDirectDiffuse[FSRD_OUTPUT_PIXEL(px)] = half4(0.0f, 0.0f, 0.0f, s_MissingDiffuseHitDistance);
 #if !FSRD_ADDITIVE_DIAGNOSTICS
             OutDirectSpecular[FSRD_OUTPUT_PIXEL(px)] = 0.0f;
+            OutIndirectDiffuse[FSRD_OUTPUT_PIXEL(px)] = 0.0f;
 #endif
         }
 
@@ -1560,8 +1573,9 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         // Far-plane skip has no trusted detail reference.
         OutDetailReference[FSRD_OUTPUT_PIXEL(px)] = half4(0, 0, 0, -1);
 #if !FSRD_ADDITIVE_DIAGNOSTICS
-        // Nothing reaches RR here; the recovery signal is empty and ineligible.
+        // Nothing reaches RR here; the recovery signals are empty and ineligible.
         OutDirectSpecular[FSRD_OUTPUT_PIXEL(px)] = 0.0f;
+        OutIndirectDiffuse[FSRD_OUTPUT_PIXEL(px)] = 0.0f;
 #endif
     }
 #if FSRD_ADDITIVE_DIAGNOSTICS

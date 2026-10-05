@@ -71,12 +71,14 @@ static void CheckPlan()
                 const uint32_t specularBits = fix ? SpecularBits
                     : denoiseSpecular ? ExpectedLobe(specular, specularDistance, DirectSpecular, IndirectSpecular)
                                       : 0u;
-                CHECK(plan.mask == (diffuseBits | specularBits));
+                // The fix denoises an unmodulated copy of each lobe in its second slot.
+                CHECK(plan.mask == (fix ? All : diffuseBits | specularBits));
                 CHECK(plan.albedoFix == fix);
                 CHECK(!plan.albedoFix || SupportsUnsupportedAlbedo(plan.mask));
                 // A route that needs a distance falls back to Direct and says why.
                 const auto routed = [](int route) { route = std::clamp(route, 0, 3); return route == Indirect || route == Split; };
-                CHECK(bool(plan.notes & DiffuseNeedsDistance) == (denoiseDiffuse && routed(diffuse) && !diffuseDistance));
+                CHECK(bool(plan.notes & DiffuseNeedsDistance) ==
+                      (!fix && denoiseDiffuse && routed(diffuse) && !diffuseDistance));
                 CHECK(bool(plan.notes & SpecularNeedsDistance) ==
                       (!fix && denoiseSpecular && routed(specular) && !specularDistance));
                 CHECK(bool(plan.notes & FixNeedsBothLobes) == (request.albedoFix && !(denoiseDiffuse && denoiseSpecular)));
@@ -116,10 +118,10 @@ static void CheckLegacy()
                             else if (legacy == (Bit(DirectDiffuse) | SpecularBits))
                                 // The Quality profile's layout becomes Auto routing plus the fix.
                                 CHECK(request.diffuse == Auto && request.specular == Auto && plan.albedoFix &&
-                                      plan.mask == (Bit(IndirectDiffuse) | SpecularBits));
+                                      plan.mask == All);
                             else if ((legacy & DiffuseBits) && (legacy & SpecularBits))
-                                // The fix now adds the slot it needs instead of pausing.
-                                CHECK(plan.albedoFix && plan.mask == (legacy | SpecularBits));
+                                // The fix now adds the slots it needs instead of pausing.
+                                CHECK(plan.albedoFix && plan.mask == All);
                             else
                                 CHECK(!plan.albedoFix && plan.mask == legacy && (plan.notes & FixNeedsBothLobes));
                             // Without guides a legacy Indirect choice falls back to Direct, as the slot did.

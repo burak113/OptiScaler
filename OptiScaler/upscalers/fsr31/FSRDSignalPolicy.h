@@ -118,7 +118,9 @@ enum Note : uint32_t
 struct Plan
 {
     uint32_t mask = 0;
-    bool albedoFix = false; // Direct Specular carries the unmodulated alternate
+    // All four signals: Direct Specular and Indirect Diffuse carry the unmodulated copies of
+    // the main Indirect Specular and Direct Diffuse.
+    bool albedoFix = false;
     uint32_t notes = 0;
     constexpr bool operator==(const Plan&) const = default;
 };
@@ -131,6 +133,14 @@ constexpr Plan MakePlan(Request request, bool specularGuide, bool diffuseGuide)
         request.denoiseDiffuse = request.denoiseSpecular = true;
     const bool specularDistance = specularGuide || request.estimate;
     const bool diffuseDistance = diffuseGuide || request.estimate;
+    // The diffuse copy reads its ray length from the title or primary view depth; replays
+    // show the length does not change RR's result, so only the specular main needs a guide.
+    if (request.albedoFix && request.denoiseDiffuse && request.denoiseSpecular && specularDistance)
+    {
+        plan.albedoFix = true;
+        plan.mask = All;
+        return plan;
+    }
     const auto lobe = [&plan](int route, bool distance, int direct, int indirect, uint32_t note)
     {
         route = std::clamp(route, int(Auto), int(Split));
@@ -144,20 +154,9 @@ constexpr Plan MakePlan(Request request, bool specularGuide, bool diffuseGuide)
     };
     if (request.denoiseDiffuse)
         plan.mask |= lobe(request.diffuse, diffuseDistance, DirectDiffuse, IndirectDiffuse, DiffuseNeedsDistance);
+    // The specular copy is denoised as Direct Specular, so the main specular needs Indirect.
     if (request.albedoFix)
-    {
-        // The alternate is denoised as Direct Specular, so the main specular needs Indirect.
-        if (!request.denoiseDiffuse || !request.denoiseSpecular)
-            plan.notes |= FixNeedsBothLobes;
-        else if (!specularDistance)
-            plan.notes |= FixNeedsDistance;
-        else
-        {
-            plan.albedoFix = true;
-            plan.mask |= SpecularBits;
-            return plan;
-        }
-    }
+        plan.notes |= !request.denoiseDiffuse || !request.denoiseSpecular ? FixNeedsBothLobes : FixNeedsDistance;
     if (request.denoiseSpecular)
         plan.mask |= lobe(request.specular, specularDistance, DirectSpecular, IndirectSpecular, SpecularNeedsDistance);
     return plan;

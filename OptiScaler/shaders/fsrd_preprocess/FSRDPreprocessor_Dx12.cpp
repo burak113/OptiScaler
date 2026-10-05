@@ -1277,6 +1277,7 @@ struct FSRDPreprocessor_Dx12::Impl
             return CreateTexture2D(m_pDev, enabled ? width : 1u, enabled ? height : 1u, format, name, kSrvState);
         };
         outResources.DirectSpecular = optional(m_albedoRecovery, FSRDFormats::DirectSpecular, L"FSR_Conv_DirectSpecular");
+        outResources.IndirectDiffuse = optional(m_albedoRecovery, FSRDFormats::DirectSpecular, L"FSR_Conv_IndirectDiffuse");
         m_directSpecularOutput = optional(m_extraSpecular, FSRDFormats::DirectSpecular, L"FSR_RR_DirectSpecular_Output");
         m_indirectDiffuseOutput = optional(m_extraDiffuse, FSRDFormats::DirectSpecular, L"FSR_RR_IndirectDiffuse_Output");
         m_albedoTrust[0] = optional(m_albedoRecovery, FSRDFormats::AlbedoTrust, L"FSR_AlbedoTrust_0");
@@ -2184,12 +2185,14 @@ void FSRDPreprocessor_Dx12::GetDirectSpecularSignal(ffxDispatchDescDenoiserDirec
     };
 }
 
-void FSRDPreprocessor_Dx12::GetIndirectDiffuseSignal(ffxDispatchDescDenoiserIndirectDiffuse& indirectDiffuse) const
+void FSRDPreprocessor_Dx12::GetIndirectDiffuseSignal(ffxDispatchDescDenoiserIndirectDiffuse& indirectDiffuse,
+                                                     bool unmodulated) const
 {
     indirectDiffuse = {
         .header = { .type = FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE },
         .signal = {
-            .input = ffxApiGetResourceDX12(m_impl->m_out.Resources.Signals.DirectDiffuse.Get(),
+            .input = ffxApiGetResourceDX12(unmodulated ? m_impl->m_out.Resources.IndirectDiffuse.Get()
+                                                       : m_impl->m_out.Resources.Signals.DirectDiffuse.Get(),
                                            FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ),
             .output = ffxApiGetResourceDX12(m_impl->m_indirectDiffuseOutput.Get(),
                                             FFX_API_RESOURCE_STATE_UNORDERED_ACCESS),

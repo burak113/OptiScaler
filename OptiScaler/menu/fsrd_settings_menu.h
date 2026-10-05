@@ -219,7 +219,8 @@ inline std::string DescribePlan(const FSRDSignals::Plan& plan)
                                                                                             : "Direct + Indirect (split)";
     };
     const int count = Count(plan.mask);
-    return "Diffuse " + lobe(DirectDiffuse, IndirectDiffuse) + " | Specular " +
+    return "Diffuse " + (plan.albedoFix ? std::string("Direct + fix copy") : lobe(DirectDiffuse, IndirectDiffuse)) +
+           " | Specular " +
            (plan.albedoFix ? std::string("Indirect + fix copy") : lobe(DirectSpecular, IndirectSpecular)) + " | " +
            std::to_string(count) + (count == 1 ? " RR signal" : " RR signals");
 }
@@ -258,8 +259,9 @@ inline bool DrawAlbedoFix(Config& cfg, const FSRDSignals::Status& status)
     }
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Fixes surfaces whose albedo shows something the lighting does not, such as a sea floor "
-                          "printed onto water. Denoises one extra unmodulated specular copy (one more RR signal and "
-                          "seven small passes) and uses it only where the surface evidence rejects the albedo.\n"
+                          "printed onto water. Denoises unmodulated copies of the specular and diffuse light (two "
+                          "more RR signals and seven small passes) and uses them only where the surface evidence "
+                          "rejects the albedo; the diffuse copy only on mostly reflective surfaces.\n"
                           "Needs both modulation strengths at 1. Off by default; enable it for games that show the "
                           "problem.");
     if (!enabled)
@@ -321,7 +323,7 @@ inline bool DrawRouting(Config& cfg, const FSRDSignals::Status& status)
     const auto request = RequestFrom(cfg);
     const auto plan = WantedPlan(cfg, status);
     const auto route = [&](const char* label, CustomOptional<int>& setting, bool denoised, int direct, int indirect,
-                           bool guide, bool locked)
+                           bool guide, const char* locked)
     {
         const uint32_t bits = plan.mask & (Bit(direct) | Bit(indirect));
         const int current = std::clamp(setting.value_or_default(), int(Auto), int(Split));
@@ -330,7 +332,7 @@ inline bool DrawRouting(Config& cfg, const FSRDSignals::Status& status)
                                 : guide                 ? "Auto: Indirect (game distance)"
                                                         : "Auto: Indirect (estimated)";
         const std::string preview = !denoised ? "Off (Debug)"
-            : locked                          ? "Indirect + fix copy"
+            : locked                          ? std::string(locked)
             : current == Auto                 ? std::string(automatic)
             : current == Split                ? "Split (INI)"
                                               : std::string(current == Direct ? "Direct" : "Indirect");
@@ -354,7 +356,7 @@ inline bool DrawRouting(Config& cfg, const FSRDSignals::Status& status)
         }
         ImGui::EndDisabled();
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("%s", locked ? "Set by the Albedo Bleed Fix: Indirect carries the specular, Direct the "
+            ImGui::SetTooltip("%s", locked ? "Set by the Albedo Bleed Fix: each lobe's second RR path carries its "
                                              "unmodulated copy."
                                 : !denoised ? "Turned off under Debug."
                                             : "Auto checks this lobe on its own: Indirect when the game "
@@ -363,9 +365,9 @@ inline bool DrawRouting(Config& cfg, const FSRDSignals::Status& status)
                                               "either way; this only picks the RR path.");
     };
     route("Diffuse Path", cfg.FfxDenoiserDiffuseRoute, plan.mask & DiffuseBits, DirectDiffuse, IndirectDiffuse,
-          status.diffuseGuide, false);
+          status.diffuseGuide, plan.albedoFix ? "Direct + fix copy" : nullptr);
     route("Specular Path", cfg.FfxDenoiserSpecularRoute, plan.mask & SpecularBits, DirectSpecular, IndirectSpecular,
-          status.specularGuide, plan.albedoFix);
+          status.specularGuide, plan.albedoFix ? "Indirect + fix copy" : nullptr);
 
     if (bool estimate = request.estimate; ImGui::Checkbox("Estimate Missing Hit Distances (experimental)", &estimate))
     {

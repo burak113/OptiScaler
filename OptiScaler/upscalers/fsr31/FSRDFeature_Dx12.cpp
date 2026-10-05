@@ -2363,9 +2363,14 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
         if (!_denoiseSpecular)
             compositionFlags |= (uint32_t)FSRDCompFlags::SpecularSignalDisabled;
 
-        if (_extraDiffuseSignal) compositionFlags |= uint32_t(FSRDCompFlags::ExtraDiffuse);
+        // With the albedo fix the second slot of each lobe carries its unmodulated copy;
+        // while the fix pauses (changed modulation) both slots split the lobe instead.
+        if (_extraDiffuseSignal && !_unsupportedAlbedoRecovery)
+            compositionFlags |= uint32_t(FSRDCompFlags::ExtraDiffuse);
         if (_extraSpecularSignal && !_unsupportedAlbedoRecovery)
             compositionFlags |= uint32_t(FSRDCompFlags::ExtraSpecular);
+        if (_extraDiffuseSignal && _unsupportedAlbedoRecovery)
+            compositionFlags |= uint32_t(FSRDCompFlags::DiffuseAlternate);
 
         FSRDCompDesc compDesc =
         { 
@@ -2651,7 +2656,7 @@ RRResult FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InComm
 
     if (_extraDiffuseSignal)
     {
-        FSRDConvShader->GetIndirectDiffuseSignal(_indirectDiffuseSignal);
+        FSRDConvShader->GetIndirectDiffuseSignal(_indirectDiffuseSignal, _unsupportedAlbedoRecovery);
         signals[signalCount++] = &_indirectDiffuseSignal.header;
     }
 
@@ -3784,7 +3789,7 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
         InvalidateDenoiserHistory();
     }
     if (_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::UnsupportedAlbedo);
-    if (_extraDiffuseSignal) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfDiffuse);
+    if (_extraDiffuseSignal && !_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfDiffuse);
     if (_extraSpecularSignal && !_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfSpecular);
     if (estimateHitDistances)
         _convDesc.Flags |= uint32_t(FSRDConvFlags::ApproximateSpecHitDistance) |

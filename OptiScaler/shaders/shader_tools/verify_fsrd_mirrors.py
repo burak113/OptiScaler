@@ -340,6 +340,7 @@ COMP_FLAG_NAMES = {
     "RawSourceBlit": "FLAGS_RAW_SOURCE_BLIT",
     "ExtraDiffuse": "FLAGS_EXTRA_DIFFUSE",
     "ExtraSpecular": "FLAGS_EXTRA_SPECULAR",
+    "DiffuseAlternate": "FLAGS_DIFFUSE_ALTERNATE",
     "DiffuseSignalDisabled": "FLAGS_DIFFUSE_SIGNAL_DISABLED",
     "SpecularSignalDisabled": "FLAGS_SPECULAR_SIGNAL_DISABLED",
     "ScaleSrc": "FLAGS_SCALE_SRC",
@@ -593,7 +594,7 @@ def check_resources():
                          "Motion": "OutMotion", "Normals": "OutNormals", "SpecAlbedo": "OutSpecAlbedo",
                          "DiffAlbedo": "OutDiffAlbedo", "SkipSignal": "OutSkipSignal",
                          "DetailReference": "OutDetailReference",
-                         "DirectSpecular": "OutDirectSpecular"}
+                         "DirectSpecular": "OutDirectSpecular", "IndirectDiffuse": "OutIndirectDiffuse"}
                 expected = [names.get(field, "UNMAPPED:" + field) for field in fields]
                 assertion = namespace + "::Output::kCount"
             else:

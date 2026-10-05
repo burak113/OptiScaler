@@ -59,6 +59,8 @@ Texture2D<half4> InIndirectSpecularSignal : register(t15);
 Texture2D<half4> InDirectDiffuseSignal : register(t16);
 #define FLAGS_EXTRA_DIFFUSE (1 << 6)
 #define FLAGS_EXTRA_SPECULAR (1 << 7)
+// InIndirectDiffuseDenoised holds RR's denoising of the unmodulated diffuse share.
+#define FLAGS_DIFFUSE_ALTERNATE (1 << 8)
 #define FLAGS_DIFFUSE_SIGNAL_DISABLED (1 << 4)
 #define FLAGS_SPECULAR_SIGNAL_DISABLED (1 << 5)
 RWTexture2D<half4> OutColor : register(u0);
@@ -203,20 +205,6 @@ float3 SpecularSkip(int2 p, float3 spec, float3 diff, float3 share)
     const float3 diffLoss = DiffuseSignalInput(p) * (max(max(diff, DemodDivisorFloor), 1e-4f) - diff);
     return (float3(InSkipSignal[p].rgb) - specLoss - diffLoss) * share + specLoss;
 }
-// Replaces the specular part of the reconstruction - RR's remodulated specular plus the
-// specular part of Skip - with RR's denoising of the same share never divided by albedo.
-float3 UnsupportedAlbedoCorrection(int2 p, float3 specular)
-{
-    const float weight = UnsupportedAlbedoWeight(p);
-    if (weight <= 0.0f)
-        return 0.0f;
-    const float3 spec = InSpecularAlbedo[p].rgb, diff = InDiffuseAlbedo[p].rgb;
-    const float3 total = spec + diff;
-    const float3 splitT = saturate((total - 0.5f * DemodDivisorFloor) / (0.5f * DemodDivisorFloor));
-    const float3 share = spec * rcp(max(total, DemodDivisorFloor)) * splitT * splitT * (3.0f - 2.0f * splitT);
-    const float3 modulatedPath = specular + SpecularSkip(p, spec, diff, share);
-    return weight * (float3(InDirectSpecularDenoised[p].rgb) - modulatedPath);
-}
 float3 SpecularRadiance(int2 p)
 {
     return float3(InIndirectSpecular[p].rgb) +
@@ -226,6 +214,33 @@ float3 DiffuseRadiance(int2 p)
 {
     return float3(InDirectDiffuse[p].rgb) +
         (IsSet(FLAGS_EXTRA_DIFFUSE) ? float3(InIndirectDiffuseDenoised[p].rgb) : 0.0f);
+}
+// Replaces the specular part of the reconstruction - RR's remodulated specular plus the
+// specular part of Skip - with RR's denoising of the same share never divided by albedo.
+// With the diffuse alternate the diffuse part follows on mostly reflective surfaces: the
+// diffuse albedo of water or glass is the surface seen through it, while on a diffuse-
+// dominant surface it is the surface itself (real-RR replays: the stain edge drops by a
+// further quarter to two fifths, with no change off the water).
+float3 UnsupportedAlbedoCorrection(int2 p, float3 specular)
+{
+    const float weight = UnsupportedAlbedoWeight(p);
+    if (weight <= 0.0f)
+        return 0.0f;
+    const float3 spec = InSpecularAlbedo[p].rgb, diff = InDiffuseAlbedo[p].rgb;
+    const float3 total = spec + diff;
+    const float3 splitT = saturate((total - 0.5f * DemodDivisorFloor) / (0.5f * DemodDivisorFloor));
+    const float3 share = spec * rcp(max(total, DemodDivisorFloor)) * splitT * splitT * (3.0f - 2.0f * splitT);
+    const float3 specularSkip = SpecularSkip(p, spec, diff, share);
+    float3 correction = weight * (float3(InDirectSpecularDenoised[p].rgb) - (specular + specularSkip));
+    [branch]
+    if (IsSet(FLAGS_DIFFUSE_ALTERNATE))
+    {
+        const float reflective = smoothstep(0.5f, 0.7f, GetLuminance(spec) / max(GetLuminance(total), 1e-4f));
+        // Skip less its specular part is the diffuse part, divisor-floor loss included.
+        const float3 diffusePath = DiffuseRadiance(p) * DiffuseMultiplier(p) + float3(InSkipSignal[p].rgb) - specularSkip;
+        correction += weight * reflective * (float3(InIndirectDiffuseDenoised[p].rgb) - diffusePath);
+    }
+    return correction;
 }
 float3 Reconstruct(int2 p)
 {

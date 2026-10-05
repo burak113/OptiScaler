@@ -131,6 +131,7 @@ class FSRDPreprocessor_Dx12
         DiffuseSignalDisabled = 1 << 4, // Diffuse was not denoised this frame
         ExtraDiffuse = 1 << 6,
         ExtraSpecular = 1 << 7,
+        DiffuseAlternate = 1 << 8, // The indirect-diffuse output is the unmodulated diffuse share
         SpecularSignalDisabled = 1 << 5, // Specular was not denoised this frame
 
         Debug =                 1 << 16,
@@ -285,7 +286,8 @@ class FSRDPreprocessor_Dx12
         float LumaRecovery = 1.0f;
         float ChromaRecovery = 1.0f;
         // Nonzero only when RR also denoised the unmodulated specular signal this frame
-        // (GetDirectSpecularSignal). Runs the albedo-trust passes before composition.
+        // (GetDirectSpecularSignal) and, with CompFlags::DiffuseAlternate, the unmodulated
+        // diffuse one (GetIndirectDiffuseSignal). Runs the albedo-trust passes before composition.
         float UnsupportedAlbedoRecovery = 0.0f;
         float DemodDivisorFloor = 8e-3f;
     };
@@ -343,7 +345,7 @@ class FSRDPreprocessor_Dx12
      * signal is indirect. Input is shader-readable; output is in UAV state.
      */
     void GetDirectSpecularSignal(ffxDispatchDescDenoiserDirectSpecular& directSpecular, bool unmodulated) const;
-    void GetIndirectDiffuseSignal(ffxDispatchDescDenoiserIndirectDiffuse& indirectDiffuse) const;
+    void GetIndirectDiffuseSignal(ffxDispatchDescDenoiserIndirectDiffuse& indirectDiffuse, bool unmodulated) const;
 
     /**
      * @brief Composes the denoised radiance from FSR-RR with the skip signal previously generated 

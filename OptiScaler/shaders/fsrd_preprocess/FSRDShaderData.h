@@ -282,6 +282,8 @@ namespace FSRD
                 // RGB: unmodulated specular share for RR's direct-specular signal (unsupported-
                 // albedo recovery). A: 1 where composition may blend toward its denoised result.
                 ComPtr<ID3D12Resource> DirectSpecular;
+                // RGB: the unmodulated diffuse share for RR's indirect-diffuse signal. A: ray length.
+                ComPtr<ID3D12Resource> IndirectDiffuse;
 
                 Data() {}
                 ~Data() {}
@@ -508,7 +510,7 @@ namespace FSRD
     static_assert(FloorFilter::Input::kCount == 4, "FSRDFloor MainRS SRV count");
     static_assert(FloorFilter::Output::kCount == 1, "FSRDFloor MainRS UAV count");
     static_assert(Conversion::Input::kCount == 17, "FSRDInputConv MainRS SRV count");
-    static_assert(Conversion::Output::kCount == 9, "FSRDInputConv MainRS UAV count");
+    static_assert(Conversion::Output::kCount == 10, "FSRDInputConv MainRS UAV count");
     static_assert(Composition::Input::kCount == 17, "FSRDOutputComp MainRS SRV count");
     static_assert(Composition::kOutputCount == 3, "FSRDOutputComp MainRS UAV count");
     static_assert(TrustEvidence::Input::kCount == 11, "FSRDAlbedoTrustEvidence MainRS SRV count");

@@ -523,10 +523,10 @@ class Config
     CustomOptional<float> FfxDenoiserDiffuseAlbedoModulation{1.0f};
     // Experimental local color/albedo fit; zero preserves the existing signal split.
     CustomOptional<float> FfxDenoiserAdditiveLightSplit{0.0f};
-    // Albedo bleed fix (INI AlbedoBleedFix): denoises an unmodulated copy of the specular
-    // share as RR Direct Specular and blends toward it where the title's albedo shows a
-    // surface the light does not (water over a sea floor). Independent of the profile;
-    // needs a specular hit distance and runs only at 1/1 modulation.
+    // Albedo bleed fix (INI AlbedoBleedFix): denoises unmodulated copies of the specular and
+    // diffuse shares as RR Direct Specular / Indirect Diffuse and blends toward them where the
+    // title's albedo shows a surface the light does not (water over a sea floor). Independent
+    // of the profile; needs a specular hit distance and runs only at 1/1 modulation.
     CustomOptional<bool> FfxDenoiserUnsupportedAlbedoRecovery{false};
     CustomOptional<bool> FfxDenoiserFloorFlatRecovery{true};
     CustomOptional<bool> FfxDenoiserFloorSpecularRecovery{true};

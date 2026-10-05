@@ -173,6 +173,10 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
     direct_conv = schema == 'FSRDInputConv' and 'OutDirectSpecular' in (directory/(schema+'.hlsl')).read_text()
     if direct_conv and not adaptive_conv and len(output_formats) == 8:
         output_formats += [10]
+    # The diffuse alternate adds u9 the same way.
+    diffuse_alt_conv = schema == 'FSRDInputConv' and 'OutIndirectDiffuse' in (directory/(schema+'.hlsl')).read_text()
+    if diffuse_alt_conv and not adaptive_conv and len(output_formats) == 9:
+        output_formats += [10]
     temporal_comp = shader == 'FSRDOutputComp' and 'InHistoryMetadata' in (directory/(shader+'.hlsl')).read_text()
     trust_comp = shader == 'FSRDOutputComp' and 'InAlbedoTrust' in (directory/(shader+'.hlsl')).read_text()
     if temporal_comp:
