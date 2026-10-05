@@ -1586,7 +1586,6 @@ bool FSRDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* commandList, N
         if (!success) RequestGameNative(parameters);
         return success;
     }
-    _nativeWasActive = false;
     _runtime.steps = {};
     _runtime.Begin(FSRDRuntimeSnapshot::Inputs);
     _runtime.failure.clear();
@@ -1667,6 +1666,8 @@ void FSRDFeatureDx12::OnEvaluationFinished(bool success)
     }
     _runtime.recoveryResult = _rrRetryPolicy.Result();
     _runtime.retryFramesRemaining = _rrRetryPolicy.SkippedFramesRemaining();
+    // Commit the completed path here: an RR probe that falls back to native
+    // does not interrupt native history, but failed output or a successful RR frame does.
     _nativeWasActive = success && _runtime.nativeActive;
     if (!success)
     {

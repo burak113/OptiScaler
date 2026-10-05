@@ -11,6 +11,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 using FSRD::RRResult;
 #define LOG_WARN(...) ((void)0)
@@ -184,15 +185,16 @@ struct FSRDFeatureDx12
     bool EvaluateFallback(ID3D12GraphicsCommandList*, NVSDK_NGX_Parameter*);
     void OnEvaluationFinished(bool);
 
-    bool Frame(bool outputSucceeds = true, bool sharedInputSucceeds = true)
+    bool Frame(bool outputSucceeds = true, bool sharedInputSucceeds = true, unsigned gameReset = 0)
     {
         ID3D12GraphicsCommandList list;
         NVSDK_NGX_Parameter parameters;
+        parameters.Set(NVSDK_NGX_Parameter_Reset, gameReset);
         OnEvaluationStarting(&parameters);
         bool success = sharedInputSucceeds && EvaluateInternal(&list, &parameters) && outputSucceeds;
         if (!success) success = EvaluateFallback(&list, &parameters);
         OnEvaluationFinished(success);
-        assert(parameters.integers["Reset"] == 0 && parameters.sharpness == 0.25f);
+        assert(parameters.integers["Reset"] == gameReset && parameters.sharpness == 0.25f);
         if (_rrRetryPolicy.Result() == RRResult::RetryableInputFailure)
             assert(parameters.integers["SuperSamplingDenoising.Available"] == 1);
         return success;
@@ -202,6 +204,70 @@ struct FSRDFeatureDx12
 
 int main()
 {
+    // These methods are the real production methods, not a retry-state model.
+    // Every evaluation completes through native while RR-only inputs keep
+    // failing; probing RR must not interrupt the previous native history.
+    FSRDFeatureDx12 continuousNative;
+    continuousNative.nextRR = RRResult::RetryableInputFailure;
+    std::vector<unsigned> rrAttemptFrames, nativeResetFrames;
+    for (unsigned frame = 1; frame <= 129; ++frame)
+    {
+        const unsigned previousAttempts = continuousNative.rrCalls;
+        assert(continuousNative.Frame());
+        assert(continuousNative._nativeWasActive && continuousNative._runtime.nativeActive);
+        if (continuousNative.rrCalls != previousAttempts) rrAttemptFrames.push_back(frame);
+        if (continuousNative._nativeDenoiser->resetSeen) nativeResetFrames.push_back(frame);
+    }
+    std::cout << "Production native continuity, 129 evaluations: RR attempts=";
+    for (const auto frame : rrAttemptFrames) std::cout << frame << ',';
+    std::cout << " native resets=";
+    for (const auto frame : nativeResetFrames) std::cout << frame << ',';
+    std::cout << std::endl;
+    assert((rrAttemptFrames == std::vector<unsigned> {1, 2, 4, 8, 16, 32, 64, 125}));
+    assert((nativeResetFrames == std::vector<unsigned> {1}));
+    assert(continuousNative._nativeDenoiser->calls == 129);
+
+    // A game-requested reset is still delivered during continuous native
+    // fallback, and the guard restores the game's exact parameter afterward.
+    assert(continuousNative.Frame(true, true, 1));
+    assert(continuousNative._nativeDenoiser->resetSeen == 1);
+    assert(continuousNative.Frame(true, true, 7));
+    assert(continuousNative._nativeDenoiser->resetSeen == 7);
+    assert(continuousNative.Frame());
+    assert(continuousNative._nativeDenoiser->resetSeen == 0);
+
+    // Selecting native after a completed FSR-RR/SR frame is a real history gap.
+    // Staying on the requested native path must then preserve continuity.
+    FSRDFeatureDx12 pathTransition;
+    Config::Instance()->FfxDenoiserEnabled = false;
+    assert(pathTransition.Frame() && pathTransition._nativeDenoiser->resetSeen == 1);
+    assert(pathTransition.Frame() && pathTransition._nativeDenoiser->resetSeen == 0);
+    Config::Instance()->FfxDenoiserEnabled = true;
+    assert(pathTransition.Frame() && pathTransition._runtime.rrValidated && !pathTransition._nativeWasActive);
+    Config::Instance()->FfxDenoiserEnabled = false;
+    assert(pathTransition.Frame() && pathTransition._nativeDenoiser->resetSeen == 1);
+    assert(pathTransition.Frame() && pathTransition._nativeDenoiser->resetSeen == 0);
+
+    // A native dispatch cannot establish continuity if final output fails.
+    assert(!pathTransition.Frame(false) && !pathTransition._nativeWasActive);
+    assert(pathTransition.Frame() && pathTransition._nativeDenoiser->resetSeen == 1);
+    assert(pathTransition.Frame() && pathTransition._nativeDenoiser->resetSeen == 0);
+
+    // Failed native dispatch also creates a genuine gap, even though it ran.
+    pathTransition._nativeDenoiser->succeeds = false;
+    assert(!pathTransition.Frame() && !pathTransition._nativeWasActive);
+    pathTransition._nativeDenoiser->succeeds = true;
+    assert(pathTransition.Frame() && pathTransition._nativeDenoiser->resetSeen == 1);
+    assert(pathTransition.Frame() && pathTransition._nativeDenoiser->resetSeen == 0);
+
+    // Native context recreation creates a new feature instance; history state
+    // must start false, independently of a still-active prior instance.
+    FSRDFeatureDx12 recreatedNative;
+    assert(!recreatedNative._nativeWasActive && pathTransition._nativeWasActive);
+    assert(recreatedNative.Frame() && recreatedNative._nativeDenoiser->resetSeen == 1);
+    assert(recreatedNative.Frame() && recreatedNative._nativeDenoiser->resetSeen == 0);
+    Config::Instance()->FfxDenoiserEnabled = true;
+
     FSRDFeatureDx12 transient;
     transient.nextRR = RRResult::RetryableInputFailure;
     assert(transient.Frame()); // Native fallback safely completes the rejected frame.
