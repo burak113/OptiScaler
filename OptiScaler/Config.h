@@ -484,25 +484,21 @@ class Config
     CustomOptional<int> FfxDenoiserDebugViewport { -1 };
     // Enables AMD's internal RR debug descriptors. Requires context recreation.
     CustomOptional<bool> FfxDenoiserInternalDebugViews { false };
-    CustomOptional<int> FfxDenoiserDiffuseSignalType { 0 };  // 0: Direct, 1: Indirect
-    CustomOptional<int> FfxDenoiserSpecularSignalType { 1 }; // 0: Direct, 1: Indirect
+    // Per-lobe RR path, FSRDSignals::Route: 0 Auto, 1 Direct, 2 Indirect, 3 Split. The RR
+    // signal layout is derived from these, the albedo fix and the title's guides.
+    CustomOptional<int> FfxDenoiserDiffuseRoute { 0 };
+    CustomOptional<int> FfxDenoiserSpecularRoute { 0 };
+    // Primary view depth stands in for a missing or invalid hit distance.
+    CustomOptional<bool> FfxDenoiserEstimateHitDistances { false };
     // Single-signal denoising: dispatch only the enabled signals. A title whose raw
     // signal content only makes sense for one of the two can denoise the surviving
     // signal alone; the disabled signal's output stays zero and composition falls
     // back to the floor/raw-correlation path for it. Requires context recreation.
     CustomOptional<bool> FfxDenoiserDenoiseDiffuse { true };
     CustomOptional<bool> FfxDenoiserDenoiseSpecular { true };
+    CustomOptional<bool> FfxDenoiserGpuTimings{true};
     // Uses only semantic Streamline AO noisy/denoised tags. Resource-inspector
     // candidates are deliberately never promoted to signal inputs.
-    // An unset count keeps legacy Auto classification. Explicit layouts contain unique RR signals.
-    CustomOptional<int> FfxDenoiserSignalCount{2};
-    CustomOptional<int> FfxDenoiserSignal1{0};
-    CustomOptional<int> FfxDenoiserSignal2{3};
-    CustomOptional<int> FfxDenoiserSignal3{1};
-    CustomOptional<int> FfxDenoiserSignal4{2};
-    CustomOptional<bool> FfxDenoiserApproximateSpecHitDistance{false};
-    CustomOptional<bool> FfxDenoiserApproximateRayHitDistance{false};
-    CustomOptional<bool> FfxDenoiserGpuTimings{true};
     CustomOptional<bool> FfxDenoiserTaggedAmbientOcclusion { false };
     // Disabled preserves the existing contract that RR input normals are world-space.
     CustomOptional<bool> FfxDenoiserNormalsInViewSpace { false };
@@ -527,9 +523,10 @@ class Config
     CustomOptional<float> FfxDenoiserDiffuseAlbedoModulation{1.0f};
     // Experimental local color/albedo fit; zero preserves the existing signal split.
     CustomOptional<float> FfxDenoiserAdditiveLightSplit{0.0f};
-    // Uses the selected RR direct-specular slot for an unmodulated alternate and
-    // blends toward it where the title's albedo shows a surface the light does not (water
-    // over a sea floor). Requires a compatible 3/4-signal layout and 1/1 modulation.
+    // Albedo bleed fix (INI AlbedoBleedFix): denoises an unmodulated copy of the specular
+    // share as RR Direct Specular and blends toward it where the title's albedo shows a
+    // surface the light does not (water over a sea floor). Independent of the profile;
+    // needs a specular hit distance and runs only at 1/1 modulation.
     CustomOptional<bool> FfxDenoiserUnsupportedAlbedoRecovery{false};
     CustomOptional<bool> FfxDenoiserFloorFlatRecovery{true};
     CustomOptional<bool> FfxDenoiserFloorSpecularRecovery{true};

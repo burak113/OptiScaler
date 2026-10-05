@@ -109,14 +109,12 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     // signals are neither declared at context creation nor dispatched.
     bool _denoiseDiffuse = true;
     bool _denoiseSpecular = true;
-    // An unset INI value means Auto. Start safely in direct mode, then resolve
-    // exactly once from the first frame's validated hit-distance resources.
-    ffxStructType_t _autoSpecularSignalDescType = FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR;
-    bool _autoSpecularSignalResolved = false;
-    // Same contract for diffuse: unset means Auto, resolved once from the first
-    // validated frame that either has a diffuse ray length or does not.
-    ffxStructType_t _autoDiffuseSignalDescType = FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE;
-    bool _autoDiffuseSignalResolved = false;
+    // The context's RR layout, derived by FSRDSignals::MakePlan from the settings and the
+    // hit-distance guides the title supplied on a validated frame (latched per instance).
+    FSRDSignals::Plan _plan;
+    bool _seenSpecularDistance = false;
+    bool _seenDiffuseDistance = false;
+    bool _signalsObserved = false;
     bool _ambientOcclusionEnabled = false;
     bool _specularOcclusionEnabled = false;
     // Unsupported-albedo recovery: the context also denoises the unmodulated specular
@@ -127,7 +125,6 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     bool _extraSpecularSignal = false;
     bool _extraDiffuseSignal = false;
     uint32_t _signalMask = 0;
-    uint32_t _resolvedSignalMask = 0;
     uint32_t _appliedApproximationMask = ~0u;
     std::atomic<uint32_t> _signalStatus { 0 };
     FSRDStageTimings _stageTimings;
@@ -352,6 +349,12 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
                                const sl::Constants& slData, bool hasCurrentSLConstants);
 
     bool ResolveSignalTypes(bool isReady);
+    void PublishSignalStatus()
+    {
+        const FSRDSignals::Status status { _signalsObserved, _seenSpecularDistance, _seenDiffuseDistance,
+                                           _unsupportedAlbedoRecovery, _plan };
+        _signalStatus.store(status.Pack(), std::memory_order_relaxed);
+    }
 
 
     /**

@@ -3,9 +3,11 @@
 #include <imgui/imgui.h>
 #include "upscalers/fsr31/FSRDSignalPolicy.h"
 #include "gpu_time/FSRDStageTimings_Dx12.h"
+#include <string>
 
 namespace FSRDMenu
 {
+inline const ImVec4 Red(1.0f, 0.32f, 0.28f, 1.0f), Green(0.3f, 0.9f, 0.45f, 1.0f), Amber(1.0f, 0.72f, 0.25f, 1.0f);
 inline bool DrawProfile(Config& cfg)
 {
     const char* names[] = { "Fast", "Balanced", "Quality" };
@@ -24,15 +26,20 @@ inline bool DrawProfile(Config& cfg)
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Fast: Floor and recovery off.\n"
                           "Balanced (default): Fast Floor, Full Anchor flat/zero-rough recovery, Light Anchor Mix specular.\n"
-                          "Quality: normal Floor, Full Anchor flat/zero-rough, Light Anchor Mix specular + diffuse, "
-                          "and Unsupported Albedo recovery.\nManual edits are saved as Custom.");
+                          "Quality: normal Floor, Full Anchor flat/zero-rough, Light Anchor Mix specular + diffuse.\n"
+                          "Manual edits are saved as Custom. Signal routing and the Albedo Bleed Fix are separate.");
     return changed;
 }
 
-inline bool DrawDenoiser(Config& cfg, const FSRDRuntimeSnapshot& snapshot,
-                         bool ffxActive, bool nvRRActive, bool providerAvailable, bool nativeRRPreferred)
+struct DenoiserChoice
 {
-    const ImVec4 red(1.0f, 0.32f, 0.28f, 1.0f), green(0.3f, 0.9f, 0.45f, 1.0f);
+    bool rebuild = false;
+    bool fsrRR = false; // FSR-RR is the selected denoiser; its settings are shown
+};
+inline DenoiserChoice DrawDenoiser(Config& cfg, const FSRDRuntimeSnapshot& snapshot,
+                                   bool ffxActive, bool nvRRActive, bool providerAvailable, bool nativeRRPreferred)
+{
+    const ImVec4 red = Red, green = Green;
     const bool eligible = ffxActive && nvRRActive && providerAvailable;
     const bool automatic = !cfg.FfxDenoiserEnabled.has_value();
     const bool requested = ffxActive && nvRRActive && cfg.FfxDenoiserEnabled.value_or(!nativeRRPreferred);
@@ -111,7 +118,7 @@ inline bool DrawDenoiser(Config& cfg, const FSRDRuntimeSnapshot& snapshot,
     else
         ImGui::TextWrapped("NV Ray Reconstruction is off: denoising belongs to the game. "
                           "NGX does not report whether its internal denoiser is NRD.");
-    return rebuild;
+    return { rebuild, requested };
 }
 
 inline void DrawWorkflow(const FSRDRuntimeSnapshot& snapshot)
@@ -123,7 +130,7 @@ inline void DrawWorkflow(const FSRDRuntimeSnapshot& snapshot)
         "2. Floor filters stable scene lighting and prepares the detail reference.",
         "3. Convert guides and split scene color into the selected RR signals.",
         "4. AMD Ray Regeneration denoises the bound diffuse/specular signals.",
-        "5. Unsupported Albedo recovery builds surface trust from alternate specular.",
+        "5. Albedo Bleed Fix builds surface trust from the alternate specular copy.",
         "6. Compose denoised light, restore material color and apply enabled recovery.",
         "7. FSR Super Resolution upscales the composed image.",
         "8. Finish sharpening/output scaling and return the final output to the game."
@@ -187,208 +194,217 @@ inline void DrawInputs(const FSRDRuntimeSnapshot& snapshot)
                       "The provider does not expose which inputs its model reads internally.");
 }
 
-inline FSRDSignals::Layout RequestedLayout(const Config& cfg, uint32_t status)
+inline std::string DescribePlan(const FSRDSignals::Plan& plan)
 {
-    if (cfg.FfxDenoiserSignalCount.has_value())
-        return FSRDSignals::Resolve(
-            cfg.FfxDenoiserSignalCount.value_or_default(),
-            { cfg.FfxDenoiserSignal1.value_or_default(), cfg.FfxDenoiserSignal2.value_or_default(),
-              cfg.FfxDenoiserSignal3.value_or_default(), cfg.FfxDenoiserSignal4.value_or_default() });
-    FSRDSignals::Layout result;
-    const uint32_t mask = (status >> 8) & 15u;
-    if (!mask)
-        return FSRDSignals::Resolve(2, { FSRDSignals::DirectDiffuse, FSRDSignals::DirectSpecular, -1, -1 });
-    for (int signal : FSRDSignals::Preferred)
-        if (mask & FSRDSignals::Bit(signal))
-            result.slots[result.count++] = signal;
-    result.mask = mask;
-    return result;
+    using namespace FSRDSignals;
+    const auto lobe = [&plan](int direct, int indirect) -> std::string
+    {
+        const uint32_t bits = plan.mask & (Bit(direct) | Bit(indirect));
+        return !bits ? "not denoised" : bits == Bit(direct) ? "Direct" : bits == Bit(indirect) ? "Indirect"
+                                                                                            : "Direct + Indirect (split)";
+    };
+    const int count = Count(plan.mask);
+    return "Diffuse " + lobe(DirectDiffuse, IndirectDiffuse) + " | Specular " +
+           (plan.albedoFix ? std::string("Indirect + fix copy") : lobe(DirectSpecular, IndirectSpecular)) + " | " +
+           std::to_string(count) + (count == 1 ? " RR signal" : " RR signals");
 }
-inline void StoreLayout(Config& cfg, const FSRDSignals::Layout& layout)
+
+// The plan the current settings ask for, given the guides the running context reported.
+inline FSRDSignals::Plan WantedPlan(const Config& cfg, const FSRDSignals::Status& status)
 {
-    cfg.FfxDenoiserSignalCount = layout.count;
-    cfg.FfxDenoiserSignal1 = layout.slots[0];
-    cfg.FfxDenoiserSignal2 = layout.slots[1];
-    cfg.FfxDenoiserSignal3 = layout.slots[2];
-    cfg.FfxDenoiserSignal4 = layout.slots[3];
+    return FSRDSignals::MakePlan(FSRDSignals::RequestFrom(cfg), status.specularGuide, status.diffuseGuide);
 }
-inline bool DrawSignals(Config& cfg, uint32_t status)
+
+inline void DrawSignalSummary(const Config& cfg, const FSRDSignals::Status& status)
+{
+    if (!status.observed)
+    {
+        ImGui::TextDisabled("RR input: waiting for the first validated frame");
+        return;
+    }
+    ImGui::TextWrapped("RR input: %s", DescribePlan(status.plan).c_str());
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("What AMD Ray Regeneration receives. The game supplies one combined colour; Direct and "
+                          "Indirect are RR paths, and Indirect also uses the game's hit distance.");
+    const auto wanted = WantedPlan(cfg, status);
+    if (wanted.mask != status.plan.mask || wanted.albedoFix != status.plan.albedoFix)
+        ImGui::TextDisabled("Applying: %s", DescribePlan(wanted).c_str());
+}
+
+// Returns true when the RR context must be rebuilt.
+inline bool DrawAlbedoFix(Config& cfg, const FSRDSignals::Status& status)
 {
     bool rebuild = false;
-    const bool legacyOverrides = cfg.FfxDenoiserDiffuseSignalType.has_value() ||
-                                 cfg.FfxDenoiserSpecularSignalType.has_value() ||
-                                 !cfg.FfxDenoiserDenoiseDiffuse.value_or_default() ||
-                                 !cfg.FfxDenoiserDenoiseSpecular.value_or_default();
-    bool automatic = !cfg.FfxDenoiserSignalCount.has_value() && !legacyOverrides;
-    if (ImGui::Checkbox("Automatic Signal Layout", &automatic))
+    bool enabled = cfg.FfxDenoiserUnsupportedAlbedoRecovery.value_or_default();
+    if (ImGui::Checkbox("Albedo Bleed Fix (water, glass)", &enabled))
     {
-        if (automatic)
+        cfg.FfxDenoiserUnsupportedAlbedoRecovery = enabled;
+        rebuild = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Fixes surfaces whose albedo shows something the lighting does not, such as a sea floor "
+                          "printed onto water. Denoises one extra unmodulated specular copy (one more RR signal and "
+                          "seven small passes) and uses it only where the surface evidence rejects the albedo.\n"
+                          "Needs both modulation strengths at 1. Off by default; enable it for games that show the "
+                          "problem.");
+    if (!enabled)
+        return rebuild;
+
+    const auto plan = WantedPlan(cfg, status);
+    ImGui::Indent();
+    if (!status.observed)
+        ImGui::TextDisabled("Waiting for the first validated frame.");
+    else if (plan.notes & FSRDSignals::FixNeedsBothLobes)
+    {
+        ImGui::TextColored(Amber, "Paused: diffuse or specular denoising is off.");
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Denoise both"))
         {
-            cfg.FfxDenoiserSignalCount.reset();
-            cfg.FfxDenoiserDiffuseSignalType.reset();
-            cfg.FfxDenoiserSpecularSignalType.reset();
             cfg.FfxDenoiserDenoiseDiffuse.reset();
             cfg.FfxDenoiserDenoiseSpecular.reset();
+            rebuild = true;
         }
-        else
-            StoreLayout(cfg, RequestedLayout(cfg, status));
-        rebuild = true;
     }
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Selects one diffuse and one specular signal from the game's validated inputs. "
-                          "Editing a signal below switches to a custom layout.");
-    bool approxSpec = cfg.FfxDenoiserApproximateSpecHitDistance.value_or_default();
-    bool approxRay = cfg.FfxDenoiserApproximateRayHitDistance.value_or_default();
-    const bool observed = (status & 4u) != 0, nativeSpec = observed && (status & 1u),
-               nativeRay = observed && (status & 2u);
-    if (observed)
+    else if (plan.notes & FSRDSignals::FixNeedsDistance)
     {
-        std::string active;
-        for (int signal : FSRDSignals::Preferred)
-            if ((status >> 8) & FSRDSignals::Bit(signal))
-            {
-                if (!active.empty()) active += " + ";
-                active += FSRDSignals::Names[signal];
-            }
-        ImGui::TextWrapped("Active RR signals: %s", active.empty() ? "None" : active.c_str());
-    }
-    const auto source = [&](bool native, bool approximate)
-    {
-        return native        ? "Game input"
-               : approximate ? "Approximate (view depth)"
-               : observed    ? "Not supplied"
-                             : "Waiting for game input";
-    };
-    ImGui::Text("Spec hit distance: %s", source(nativeSpec, approxSpec));
-    ImGui::Text("Ray hit distance (diffuse): %s", source(nativeRay, approxRay));
-    if (ImGui::Checkbox("Approximate Spec Hit Distance", &approxSpec))
-    {
-        cfg.FfxDenoiserApproximateSpecHitDistance = approxSpec;
-        rebuild = true;
-    }
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip(
-            "Uses primary view depth only when the specular ray length is missing or invalid. This is an experimental "
-            "estimate of secondary distance; native valid hits and environment misses take priority.");
-    if (ImGui::Checkbox("Approximate Ray Hit Distance", &approxRay))
-    {
-        cfg.FfxDenoiserApproximateRayHitDistance = approxRay;
-        rebuild = true;
-    }
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Uses primary view depth when diffuse ray hit distance is missing or invalid. Enables "
-                          "Indirect Diffuse without a native guide. It cannot reconstruct the real secondary ray.");
-    const uint32_t available = FSRDSignals::Available(nativeSpec, nativeRay, approxSpec, approxRay);
-    auto layout = RequestedLayout(cfg, status);
-    const char* counts[] { "1 signal", "2 signals", "3 signals", "4 signals" };
-    if (ImGui::BeginCombo("Signal Count", counts[layout.count - 1]))
-    {
-        for (int count = 1; count <= 4; ++count)
+        ImGui::TextColored(Amber, "Paused: the game supplies no specular hit distance.");
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Estimate it"))
         {
-            const bool supported = count <= FSRDSignals::Count(available);
-            ImGui::BeginDisabled(!supported);
-            if (ImGui::Selectable(counts[count - 1], layout.count == count))
-            {
-                layout = FSRDSignals::Resolve(count, layout.slots, available);
-                StoreLayout(cfg, layout);
-                rebuild = true;
-            }
-            ImGui::EndDisabled();
-            if (!supported && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("Needs more indirect-signal guides. Supply the corresponding game hit distance or "
-                                  "enable its approximation above.");
+            cfg.FfxDenoiserEstimateHitDistances = true;
+            rebuild = true;
         }
-        ImGui::EndCombo();
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Enables Advanced > Signal Routing > Estimate Missing Hit Distances (experimental).");
     }
-    for (int slot = 0; slot < layout.count; ++slot)
+    else if (!FSRDSignals::AlbedoFixAllowed(cfg))
     {
-        ImGui::PushID(slot);
-        const std::string label = "Signal " + std::to_string(slot + 1);
-        if (ImGui::BeginCombo(label.c_str(), FSRDSignals::Names[layout.slots[slot]]))
+        ImGui::TextColored(Amber, "Paused: albedo modulation or Additive Light Split changed.");
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Restore"))
         {
-            for (int signal = 0; signal < 4; ++signal)
+            cfg.FfxDenoiserSpecularAlbedoDemodulation.reset();
+            cfg.FfxDenoiserDiffuseAlbedoModulation.reset();
+            cfg.FfxDenoiserAdditiveLightSplit.reset();
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Resets both albedo modulation strengths to 1 and Additive Light Split to 0.");
+    }
+    else if (status.albedoFixActive)
+        ImGui::TextColored(Green, "Running.");
+    else
+        ImGui::TextDisabled("Starting...");
+    ImGui::Unindent();
+    return rebuild;
+}
+
+// Advanced per-lobe routing. Returns true when the RR context must be rebuilt.
+inline bool DrawRouting(Config& cfg, const FSRDSignals::Status& status)
+{
+    using namespace FSRDSignals;
+    bool rebuild = false;
+    const auto request = RequestFrom(cfg);
+    const auto plan = WantedPlan(cfg, status);
+    const auto route = [&](const char* label, CustomOptional<int>& setting, bool denoised, int direct, int indirect,
+                           bool guide, bool locked)
+    {
+        const uint32_t bits = plan.mask & (Bit(direct) | Bit(indirect));
+        const int current = std::clamp(setting.value_or_default(), int(Auto), int(Split));
+        const char* automatic = !status.observed   ? "Auto (waiting for the game)"
+                                : bits != Bit(indirect) ? "Auto: Direct (no distance)"
+                                : guide                 ? "Auto: Indirect (game distance)"
+                                                        : "Auto: Indirect (estimated)";
+        const std::string preview = !denoised ? "Off (Debug)"
+            : locked                          ? "Indirect + fix copy"
+            : current == Auto                 ? std::string(automatic)
+            : current == Split                ? "Split (INI)"
+                                              : std::string(current == Direct ? "Direct" : "Indirect");
+        ImGui::BeginDisabled(!denoised || locked);
+        if (ImGui::BeginCombo(label, preview.c_str()))
+        {
+            const char* names[] { "Auto", "Direct", "Indirect", "Split (INI)" };
+            for (int value = Auto; value <= Split; ++value)
             {
-                const bool selected = layout.slots[slot] == signal;
-                const bool duplicate = !selected && (layout.mask & FSRDSignals::Bit(signal));
-                const bool missing = !(available & FSRDSignals::Bit(signal));
-                ImGui::BeginDisabled(duplicate || missing);
-                if (ImGui::Selectable(FSRDSignals::Names[signal], selected))
+                // Split has no measured benefit; it stays reachable only from the INI.
+                if (value == Split && current != Split)
+                    continue;
+                if (ImGui::Selectable(names[value], current == value))
                 {
-                    layout.slots[slot] = signal;
-                    layout = FSRDSignals::Resolve(layout.count, layout.slots);
-                    StoreLayout(cfg, layout);
+                    if (value == Auto) setting.reset();
+                    else setting = value;
                     rebuild = true;
                 }
-                ImGui::EndDisabled();
-                if ((duplicate || missing) && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                    ImGui::SetTooltip(
-                        "%s",
-                        duplicate
-                            ? "Already assigned to another slot."
-                            : "Required hit distance is missing. Enable its approximation or use a supplied signal.");
             }
             ImGui::EndCombo();
         }
-        ImGui::PopID();
-    }
-    if (!cfg.FfxDenoiserSignalCount.has_value())
-        ImGui::TextDisabled("%s", automatic
-            ? "Automatic game classification; editing a slot saves a fixed layout."
-            : "Legacy signal overrides active; enable Automatic or edit a slot to replace them.");
-    if (observed && ((layout.mask & available) != layout.mask))
+        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip("%s", locked ? "Set by the Albedo Bleed Fix: Indirect carries the specular, Direct the "
+                                             "unmodulated copy."
+                                : !denoised ? "Turned off under Debug."
+                                            : "Auto checks this lobe on its own: Indirect when the game "
+                                              "supplies its hit distance, otherwise Direct.\nIndirect without a "
+                                              "hit distance falls back to Direct. The game's colour is combined "
+                                              "either way; this only picks the RR path.");
+    };
+    route("Diffuse Path", cfg.FfxDenoiserDiffuseRoute, plan.mask & DiffuseBits, DirectDiffuse, IndirectDiffuse,
+          status.diffuseGuide, false);
+    route("Specular Path", cfg.FfxDenoiserSpecularRoute, plan.mask & SpecularBits, DirectSpecular, IndirectSpecular,
+          status.specularGuide, plan.albedoFix);
+
+    if (bool estimate = request.estimate; ImGui::Checkbox("Estimate Missing Hit Distances (experimental)", &estimate))
     {
-        if (cfg.FfxDenoiserSignalCount.has_value() && (((status >> 8) & 15u & ~available) == 0))
-            ImGui::TextWrapped(
-                "A saved assignment is unavailable. RR uses %d supported signals until its guide returns.",
-                FSRDSignals::Count((status >> 8) & 15u));
-        else
-            ImGui::TextWrapped("A selected indirect signal has no distance guide. Choose a supported assignment or "
-                               "enable its approximation.");
+        cfg.FfxDenoiserEstimateHitDistances = estimate;
+        rebuild = true;
     }
-    if ((layout.mask & 5u) == 5u || (layout.mask & 10u) == 10u)
-        ImGui::TextWrapped("Experimental: the game supplies combined lighting. Selecting both Direct and Indirect "
-                           "splits that lobe 50/50, then combines the denoised outputs. Unsupported Albedo uses Direct "
-                           "Specular as its alternate reconstruction instead.");
-    if (ImGui::Button("Reset Signal Modes"))
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Uses primary view depth where the game supplies no valid hit distance, so Indirect paths "
+                          "work without a game guide. It cannot reconstruct the real secondary ray and has no "
+                          "measured quality gain yet.");
+    const auto guide = [&status](bool present)
+    { return !status.observed ? "waiting" : present ? "supplied" : "missing"; };
+    ImGui::TextDisabled("Game hit distances: specular %s, diffuse %s", guide(status.specularGuide),
+                        guide(status.diffuseGuide));
+    if (status.observed && (plan.notes & (DiffuseNeedsDistance | SpecularNeedsDistance)))
+        ImGui::TextColored(Amber, "%s Indirect needs a hit distance the game does not supply; using Direct.",
+                           (plan.notes & DiffuseNeedsDistance) && (plan.notes & SpecularNeedsDistance) ? "Diffuse and specular"
+                           : (plan.notes & DiffuseNeedsDistance) ? "Diffuse"
+                                                                 : "Specular");
+    if (ImGui::Button("Reset Signal Routing"))
     {
-        cfg.FfxDenoiserSignalCount.reset();
-        cfg.FfxDenoiserSignal1.reset();
-        cfg.FfxDenoiserSignal2.reset();
-        cfg.FfxDenoiserSignal3.reset();
-        cfg.FfxDenoiserSignal4.reset();
-        cfg.FfxDenoiserDiffuseSignalType.reset();
-        cfg.FfxDenoiserSpecularSignalType.reset();
-        cfg.FfxDenoiserDenoiseDiffuse.reset();
-        cfg.FfxDenoiserDenoiseSpecular.reset();
-        cfg.FfxDenoiserApproximateSpecHitDistance.reset();
-        cfg.FfxDenoiserApproximateRayHitDistance.reset();
+        cfg.FfxDenoiserDiffuseRoute.reset();
+        cfg.FfxDenoiserSpecularRoute.reset();
+        cfg.FfxDenoiserEstimateHitDistances.reset();
         rebuild = true;
     }
     return rebuild;
 }
-inline void DrawUnsupportedAlbedo(Config& cfg, uint32_t status)
+
+// Debug-only single-lobe denoising. Returns true when the RR context must be rebuilt.
+inline bool DrawDenoiseLobes(Config& cfg)
 {
-    const auto layout = RequestedLayout(cfg, status);
-    const bool compatible = FSRDSignals::SupportsUnsupportedAlbedo(layout.mask) &&
-                            FSRDSignals::SupportsUnsupportedAlbedo((status >> 8) & 15u) &&
-                            cfg.FfxDenoiserSpecularAlbedoDemodulation.value_or_default() == 1.0f &&
-                            cfg.FfxDenoiserDiffuseAlbedoModulation.value_or_default() == 1.0f &&
-                            cfg.FfxDenoiserAdditiveLightSplit.value_or_default() == 0.0f;
-    bool enabled = cfg.FfxDenoiserUnsupportedAlbedoRecovery.value_or_default();
-    ImGui::BeginDisabled(!compatible && !enabled);
-    if (ImGui::Checkbox("Unsupported Albedo", &enabled))
-        cfg.FfxDenoiserUnsupportedAlbedoRecovery = enabled;
-    ImGui::EndDisabled();
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        ImGui::SetTooltip(
-            "Uses the selected Direct Specular slot for an unmodulated alternate. Same-surface evidence replaces the "
-            "specular reconstruction where lighting does not support the albedo pattern (for example water over a "
-            "visible sea floor). Adds seven recovery passes. Off by default; validate per game.");
-    if (!compatible)
-        ImGui::TextWrapped("%sRequires Direct Specular + Indirect Specular + a diffuse signal, both modulation "
-                           "strengths at 1, and Additive Light Split at 0.",
-                           enabled ? "Paused. " : "");
+    bool rebuild = false;
+    bool diffuse = cfg.FfxDenoiserDenoiseDiffuse.value_or_default();
+    bool specular = cfg.FfxDenoiserDenoiseSpecular.value_or_default();
+    if (ImGui::Checkbox("Denoise Diffuse", &diffuse))
+    {
+        if (diffuse) cfg.FfxDenoiserDenoiseDiffuse.reset();
+        else cfg.FfxDenoiserDenoiseDiffuse = false;
+        rebuild = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Checkbox("Denoise Specular", &specular))
+    {
+        if (specular) cfg.FfxDenoiserDenoiseSpecular.reset();
+        else cfg.FfxDenoiserDenoiseSpecular = false;
+        rebuild = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("A lobe that is off bypasses RR and is composed from its raw signal. Turning both off "
+                          "denoises both.");
+    return rebuild;
 }
+
 inline void DrawTimings(Config& cfg, const FSRDStageTimings::Snapshot& timing)
 {
     bool enabled = cfg.FfxDenoiserGpuTimings.value_or_default();

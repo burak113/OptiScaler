@@ -7,6 +7,7 @@
 #include "nvapi/fakenvapi.h"
 #include <hooks/Streamline_Hooks.h>
 #include <misc/IdentifyGpu.h>
+#include <upscalers/fsr31/FSRDSignalPolicy.h>
 
 #include <SimpleIni.h>
 
@@ -47,6 +48,7 @@ Config::Config()
 }
 
 // Profiles own the Floor/recovery policy; manual edits are persisted as Custom.
+// Signal routing and the albedo fix are per-game choices outside the profile.
 void Config::ApplyFfxDenoiserProfile(int profile)
 {
     profile = std::clamp(profile, 0, 2);
@@ -64,23 +66,9 @@ void Config::ApplyFfxDenoiserProfile(int profile)
     FfxDenoiserFloorHandoverCorrelationMix.reset();
     FfxDenoiserFloorLumaRecovery.reset();
     FfxDenoiserFloorChromaRecovery.reset();
-    FfxDenoiserUnsupportedAlbedoRecovery = profile == 2;
     FfxDenoiserSpecularAlbedoDemodulation.reset();
     FfxDenoiserDiffuseAlbedoModulation.reset();
     FfxDenoiserAdditiveLightSplit.reset();
-    FfxDenoiserDiffuseSignalType.reset();
-    FfxDenoiserSpecularSignalType.reset();
-    FfxDenoiserDenoiseDiffuse.reset();
-    FfxDenoiserDenoiseSpecular.reset();
-    FfxDenoiserSignalCount.reset();
-    if (profile == 2)
-    {
-        // The alternate unmodulated specular reconstruction needs its own RR slot.
-        FfxDenoiserSignalCount = 3;
-        FfxDenoiserSignal1 = 0;
-        FfxDenoiserSignal2 = 3;
-        FfxDenoiserSignal3 = 1;
-    }
 }
 
 int Config::GetFfxDenoiserProfile() const
@@ -93,7 +81,6 @@ int Config::GetFfxDenoiserProfile() const
             FfxDenoiserFloorFlatRecovery.value_or_default() != (profile != 0) ||
             FfxDenoiserFloorSpecularRecovery.value_or_default() != (profile != 0) ||
             FfxDenoiserFloorDiffuseRecovery.value_or_default() != (profile == 2) ||
-            FfxDenoiserUnsupportedAlbedoRecovery.value_or_default() != (profile == 2) ||
             FfxDenoiserFloorFlatNoiseMethod.value_or_default() != 0 ||
             FfxDenoiserFloorSpecularNoiseMethod.value_or_default() != 1 ||
             FfxDenoiserFloorDiffuseNoiseMethod.value_or_default() != 1 ||
@@ -101,19 +88,11 @@ int Config::GetFfxDenoiserProfile() const
             FfxDenoiserDiffuseAlbedoModulation.value_or_default() != 1.0f ||
             FfxDenoiserAdditiveLightSplit.value_or_default() != 0.0f)
             continue;
-        // Save manual signal/anchor changes as Custom, so reloading keeps them.
+        // Save manual anchor changes as Custom, so reloading keeps them.
         if (FfxDenoiserFloorHandoverAnchorClamp.value_or_default() != 4.0f ||
             FfxDenoiserFloorHandoverCorrelationMix.value_or_default() != 1.0f ||
             FfxDenoiserFloorLumaRecovery.value_or_default() != 1.0f ||
-            FfxDenoiserFloorChromaRecovery.value_or_default() != 1.0f ||
-            FfxDenoiserDiffuseSignalType.has_value() || FfxDenoiserSpecularSignalType.has_value() ||
-            !FfxDenoiserDenoiseDiffuse.value_or_default() || !FfxDenoiserDenoiseSpecular.value_or_default())
-            continue;
-        if (profile == 2 ? (FfxDenoiserSignalCount.value_or_default() != 3 ||
-                            FfxDenoiserSignal1.value_or_default() != 0 ||
-                            FfxDenoiserSignal2.value_or_default() != 3 ||
-                            FfxDenoiserSignal3.value_or_default() != 1)
-                         : FfxDenoiserSignalCount.has_value())
+            FfxDenoiserFloorChromaRecovery.value_or_default() != 1.0f)
             continue;
         return profile;
     }
@@ -132,8 +111,8 @@ bool Config::ResetFfxDenoiserSettings()
         // classification and locks the effective signal type from runtime
         // evidence again; an already-Auto key keeps its locked type and needs
         // no rebuild.
-        FfxDenoiserDiffuseSignalType.has_value() ||
-        FfxDenoiserSpecularSignalType.has_value() ||
+        FfxDenoiserDiffuseRoute.value_or_default() != FSRDSignals::Auto ||
+        FfxDenoiserSpecularRoute.value_or_default() != FSRDSignals::Auto ||
         // Single-signal denoising declares the surviving signals at context
         // creation; only an explicit false differs from the default.
         (FfxDenoiserDenoiseDiffuse.has_value() && !FfxDenoiserDenoiseDiffuse.value()) ||
@@ -143,25 +122,18 @@ bool Config::ResetFfxDenoiserSettings()
         FfxDenoiserTaggedAmbientOcclusion.value_or_default() ||
         FfxDenoiserNormalsInViewSpace.value_or_default() ||
         FfxDenoiserInternalDebugViews.value_or_default() ||
-        // Signal declarations and legacy Auto classification are resolved at context creation.
-        FfxDenoiserSignalCount.has_value() || FfxDenoiserApproximateSpecHitDistance.value_or_default() ||
-        FfxDenoiserApproximateRayHitDistance.value_or_default() || FfxDenoiserUnsupportedAlbedoRecovery.value_or_default();
+        // The signal plan is declared at context creation.
+        FfxDenoiserEstimateHitDistances.value_or_default() || FfxDenoiserUnsupportedAlbedoRecovery.value_or_default();
 
     FfxDenoiserIndex.reset();
     FfxDenoiserDebugMode.reset();
     FfxDenoiserDebugViewport.reset();
     FfxDenoiserInternalDebugViews.reset();
-    FfxDenoiserDiffuseSignalType.reset();
-    FfxDenoiserSpecularSignalType.reset();
+    FfxDenoiserDiffuseRoute.reset();
+    FfxDenoiserSpecularRoute.reset();
     FfxDenoiserDenoiseDiffuse.reset();
     FfxDenoiserDenoiseSpecular.reset();
-    FfxDenoiserSignalCount.reset();
-    FfxDenoiserSignal1.reset();
-    FfxDenoiserSignal2.reset();
-    FfxDenoiserSignal3.reset();
-    FfxDenoiserSignal4.reset();
-    FfxDenoiserApproximateSpecHitDistance.reset();
-    FfxDenoiserApproximateRayHitDistance.reset();
+    FfxDenoiserEstimateHitDistances.reset();
     FfxDenoiserGpuTimings.reset();
     FfxDenoiserTaggedAmbientOcclusion.reset();
     FfxDenoiserNormalsInViewSpace.reset();
@@ -498,6 +470,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserSpecularAlbedoDemodulation.set_from_config(readFloat("FSR-RR", "SpecularAlbedoDemodulation"));
             FfxDenoiserDiffuseAlbedoModulation.set_from_config(readFloat("FSR-RR", "DiffuseAlbedoModulation"));
             FfxDenoiserAdditiveLightSplit.set_from_config(readFloat("FSR-RR", "AdditiveLightSplit"));
+            FfxDenoiserUnsupportedAlbedoRecovery.set_from_config(readBool("FSR-RR", "AlbedoBleedFix"));
             FfxDenoiserUnsupportedAlbedoRecovery.set_from_config(readBool("FSR-RR", "UnsupportedAlbedoRecovery"));
             FfxDenoiserFloorFlatRecovery.set_from_config(readBool("FSR-RR", "FloorFlatRecovery"));
             FfxDenoiserFloorSpecularRecovery.set_from_config(readBool("FSR-RR", "FloorSpecularRecovery"));
@@ -513,17 +486,42 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserDemodDivisorFloor.set_from_config(
                 readFloat("FSR-RR", "DemodDivisorFloor"));
 
-            FfxDenoiserDiffuseSignalType.set_from_config(readInt("FSR-RR", "DiffuseSignalType"));
-            FfxDenoiserSpecularSignalType.set_from_config(readInt("FSR-RR", "SpecularSignalType"));
+            const auto readRoute = [this](const char* key) {
+                return readString("FSR-RR", key, true).transform(
+                    [](const std::string& code) { return FSRDSignals::RouteFromCode(code); });
+            };
+            FfxDenoiserDiffuseRoute.set_from_config(readRoute("DiffuseSignal"));
+            FfxDenoiserSpecularRoute.set_from_config(readRoute("SpecularSignal"));
             FfxDenoiserDenoiseDiffuse.set_from_config(readBool("FSR-RR", "DenoiseDiffuse"));
             FfxDenoiserDenoiseSpecular.set_from_config(readBool("FSR-RR", "DenoiseSpecular"));
-            FfxDenoiserSignalCount.set_from_config(readInt("FSR-RR", "SignalCount"));
-            FfxDenoiserSignal1.set_from_config(readInt("FSR-RR", "Signal1"));
-            FfxDenoiserSignal2.set_from_config(readInt("FSR-RR", "Signal2"));
-            FfxDenoiserSignal3.set_from_config(readInt("FSR-RR", "Signal3"));
-            FfxDenoiserSignal4.set_from_config(readInt("FSR-RR", "Signal4"));
-            FfxDenoiserApproximateSpecHitDistance.set_from_config(readBool("FSR-RR", "ApproximateSpecHitDistance"));
-            FfxDenoiserApproximateRayHitDistance.set_from_config(readBool("FSR-RR", "ApproximateRayHitDistance"));
+            FfxDenoiserEstimateHitDistances.set_from_config(readBool("FSR-RR", "EstimateHitDistances"));
+            // SignalCount/Signal1-4, Diffuse/SpecularSignalType and the two Approximate* keys were
+            // replaced by the keys above. Read them once here; saving removes them.
+            if (!FfxDenoiserDiffuseRoute.has_value() && !FfxDenoiserSpecularRoute.has_value())
+            {
+                const auto count = readInt("FSR-RR", "SignalCount");
+                FSRDSignals::Request request;
+                request.albedoFix = FfxDenoiserUnsupportedAlbedoRecovery.value_or_default();
+                request = FSRDSignals::FromLegacy(
+                    request, count.has_value(), count.value_or(2),
+                    { readInt("FSR-RR", "Signal1").value_or(0), readInt("FSR-RR", "Signal2").value_or(3),
+                      readInt("FSR-RR", "Signal3").value_or(1), readInt("FSR-RR", "Signal4").value_or(2) },
+                    readInt("FSR-RR", "DiffuseSignalType").value_or(-1),
+                    readInt("FSR-RR", "SpecularSignalType").value_or(-1));
+                if (request.diffuse != FSRDSignals::Auto)
+                    FfxDenoiserDiffuseRoute = request.diffuse;
+                if (request.specular != FSRDSignals::Auto)
+                    FfxDenoiserSpecularRoute = request.specular;
+                // An explicit layout without a lobe is that lobe's single-signal mode.
+                if (count.has_value() && !request.denoiseDiffuse)
+                    FfxDenoiserDenoiseDiffuse = false;
+                if (count.has_value() && !request.denoiseSpecular)
+                    FfxDenoiserDenoiseSpecular = false;
+            }
+            if (!FfxDenoiserEstimateHitDistances.has_value() &&
+                (readBool("FSR-RR", "ApproximateSpecHitDistance").value_or(false) ||
+                 readBool("FSR-RR", "ApproximateRayHitDistance").value_or(false)))
+                FfxDenoiserEstimateHitDistances = true;
             FfxDenoiserGpuTimings.set_from_config(readBool("FSR-RR", "GpuTimings"));
             FfxDenoiserTaggedAmbientOcclusion.set_from_config(
                 readBool("FSR-RR", "TaggedAmbientOcclusion"));
@@ -1424,7 +1422,7 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "SpecularAlbedoDemodulation", GetFloatValue(Instance()->FfxDenoiserSpecularAlbedoDemodulation.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "DiffuseAlbedoModulation", GetFloatValue(Instance()->FfxDenoiserDiffuseAlbedoModulation.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "AdditiveLightSplit", GetFloatValue(Instance()->FfxDenoiserAdditiveLightSplit.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "UnsupportedAlbedoRecovery", GetBoolValue(Instance()->FfxDenoiserUnsupportedAlbedoRecovery.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "AlbedoBleedFix", GetBoolValue(Instance()->FfxDenoiserUnsupportedAlbedoRecovery.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "FloorFlatRecovery", GetBoolValue(Instance()->FfxDenoiserFloorFlatRecovery.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "FloorSpecularRecovery", GetBoolValue(Instance()->FfxDenoiserFloorSpecularRecovery.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "FloorDiffuseRecovery", GetBoolValue(Instance()->FfxDenoiserFloorDiffuseRecovery.value_for_config()).c_str());
@@ -1464,29 +1462,26 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "DemodDivisorFloor",
                      GetFloatValue(Instance()->FfxDenoiserDemodDivisorFloor.value_for_config()).c_str());
 
-        // Unset is a distinct mode (Auto) for both signal keys, so value_for_config()
-        // would discard an explicit choice that happens to equal the class default and
-        // silently reload it as Auto.
-        ini.SetValue("FSR-RR", "DiffuseSignalType",
-                     GetIntValue(Instance()->FfxDenoiserDiffuseSignalType
-                                     .value_for_config_ignore_default())
-                         .c_str());
-        // This is the one FSR-RR key where "unset" is a distinct mode (Auto) rather
-        // than a synonym for the class default. value_for_config() discards a value
-        // that equals the default, so an explicit "Indirect" - which happens to be
-        // the default 1 - would be written back as auto and reload as Auto, silently
-        // discarding the user's choice. Preserve whatever was actually set.
-        ini.SetValue("FSR-RR", "SpecularSignalType",
-                     GetIntValue(Instance()->FfxDenoiserSpecularSignalType
-                                     .value_for_config_ignore_default())
-                         .c_str());
-        ini.SetValue("FSR-RR", "SignalCount", GetIntValue(Instance()->FfxDenoiserSignalCount.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "Signal1", GetIntValue(Instance()->FfxDenoiserSignal1.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "Signal2", GetIntValue(Instance()->FfxDenoiserSignal2.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "Signal3", GetIntValue(Instance()->FfxDenoiserSignal3.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "Signal4", GetIntValue(Instance()->FfxDenoiserSignal4.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "ApproximateSpecHitDistance", GetBoolValue(Instance()->FfxDenoiserApproximateSpecHitDistance.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "ApproximateRayHitDistance", GetBoolValue(Instance()->FfxDenoiserApproximateRayHitDistance.value_for_config()).c_str());
+        const auto routeCode = [](const std::optional<int>& route) {
+            return route.transform([](int value) {
+                return std::string(FSRDSignals::RouteCodes[std::clamp(value, 0, 3)]);
+            }).value_or("auto");
+        };
+        ini.SetValue("FSR-RR", "DiffuseSignal",
+                     routeCode(Instance()->FfxDenoiserDiffuseRoute.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "SpecularSignal",
+                     routeCode(Instance()->FfxDenoiserSpecularRoute.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "DenoiseDiffuse",
+                     GetBoolValue(Instance()->FfxDenoiserDenoiseDiffuse.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "DenoiseSpecular",
+                     GetBoolValue(Instance()->FfxDenoiserDenoiseSpecular.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "EstimateHitDistances",
+                     GetBoolValue(Instance()->FfxDenoiserEstimateHitDistances.value_for_config()).c_str());
+        // Migrated to the keys above when the INI was loaded.
+        for (const char* key : { "SignalCount", "Signal1", "Signal2", "Signal3", "Signal4", "DiffuseSignalType",
+                                 "SpecularSignalType", "ApproximateSpecHitDistance", "ApproximateRayHitDistance",
+                                 "UnsupportedAlbedoRecovery" })
+            ini.Delete("FSR-RR", key, true);
         ini.SetValue("FSR-RR", "GpuTimings", GetBoolValue(Instance()->FfxDenoiserGpuTimings.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "TaggedAmbientOcclusion",
                      GetBoolValue(Instance()->FfxDenoiserTaggedAmbientOcclusion.value_for_config()).c_str());

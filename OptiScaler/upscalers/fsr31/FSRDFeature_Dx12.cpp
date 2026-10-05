@@ -40,33 +40,6 @@ static_assert(sizeof(ffxDispatchDescDenoiserIndirectDiffuse) == 120u);
 static_assert(sizeof(ffxDispatchDescDenoiserIndirectSpecular) == 120u);
 static_assert(sizeof(ffxDispatchDescDenoiserSpecularOcclusion) == 120u);
 
-static bool UseIndirectSignal(const CustomOptional<int>& setting)
-{
-    return std::clamp(setting.value_or_default(), 0, 1) == 1;
-}
-
-static ffxStructType_t GetDiffuseSignalDescType(
-    const Config& cfg, ffxStructType_t automaticSignalType)
-{
-    if (!cfg.FfxDenoiserDiffuseSignalType.has_value())
-        return automaticSignalType;
-
-    return UseIndirectSignal(cfg.FfxDenoiserDiffuseSignalType)
-        ? FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE
-        : FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE;
-}
-
-static ffxStructType_t GetSpecularSignalDescType(
-    const Config& cfg, ffxStructType_t automaticSignalType)
-{
-    if (!cfg.FfxDenoiserSpecularSignalType.has_value())
-        return automaticSignalType;
-
-    return UseIndirectSignal(cfg.FfxDenoiserSpecularSignalType)
-        ? FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR
-        : FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR;
-}
-
 static uint32_t GetSignalFlag(ffxStructType_t descriptorType)
 {
     switch (descriptorType)
@@ -94,22 +67,6 @@ static constexpr ffxStructType_t SignalDescriptors[] = {
     FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE,
     FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR
 };
-
-static FSRDSignals::Layout ConfiguredSignalLayout(const Config& cfg, uint32_t available = FSRDSignals::All)
-{
-    return FSRDSignals::Resolve(cfg.FfxDenoiserSignalCount.value_or_default(), {
-        cfg.FfxDenoiserSignal1.value_or_default(), cfg.FfxDenoiserSignal2.value_or_default(),
-        cfg.FfxDenoiserSignal3.value_or_default(), cfg.FfxDenoiserSignal4.value_or_default() }, available);
-}
-
-static bool UseUnsupportedAlbedo(const Config& cfg, uint32_t mask)
-{
-    return cfg.FfxDenoiserUnsupportedAlbedoRecovery.value_or_default() &&
-        FSRDSignals::SupportsUnsupportedAlbedo(mask) &&
-        cfg.FfxDenoiserSpecularAlbedoDemodulation.value_or_default() == 1.0f &&
-        cfg.FfxDenoiserDiffuseAlbedoModulation.value_or_default() == 1.0f &&
-        cfg.FfxDenoiserAdditiveLightSplit.value_or_default() == 0.0f;
-}
 
 static const char* GetSignalTypeName(ffxStructType_t descriptorType)
 {
@@ -1725,10 +1682,9 @@ bool FSRDFeatureDx12::InitFSR3(const NVSDK_NGX_Parameter* InParameters)
                  _hasNGXDepthType ? (_ngxReportedHWDepth ? "hardware" : "linear") : "absent",
                  roughnessSource);
 
-        _autoSpecularSignalDescType = FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR;
-        _autoSpecularSignalResolved = false;
-        _autoDiffuseSignalDescType = FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE;
-        _autoDiffuseSignalResolved = false;
+        _seenSpecularDistance = false;
+        _seenDiffuseDistance = false;
+        _signalsObserved = false;
 
         if (!CreateDenoiserContext())
             return false;
@@ -1772,31 +1728,16 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
     // SR upscaler version reported by Version() must stay untouched.
     _denoiserVersion.parse_version(providerName);
 
-    _diffuseSignalDescType = GetDiffuseSignalDescType(
-        cfg, _autoDiffuseSignalDescType);
-    _specularSignalDescType = GetSpecularSignalDescType(
-        cfg, _autoSpecularSignalDescType);
     // Single-signal mode: a disabled signal is neither dispatched nor declared at
-    // context creation. Both disabled is a configuration error - fall back to both.
-    _denoiseDiffuse = cfg.FfxDenoiserDenoiseDiffuse.value_or_default();
-    _denoiseSpecular = cfg.FfxDenoiserDenoiseSpecular.value_or_default();
-    if (!_denoiseDiffuse && !_denoiseSpecular)
-    {
+    // context creation. Both disabled is a configuration error - the plan keeps both.
+    const auto request = FSRDSignals::RequestFrom(cfg);
+    if (!request.denoiseDiffuse && !request.denoiseSpecular)
         LOG_WARN("FSR-RR DenoiseDiffuse and DenoiseSpecular are both false; "
                  "denoising both signals instead");
-        _denoiseDiffuse = true;
-        _denoiseSpecular = true;
-    }
-    if (cfg.FfxDenoiserSignalCount.has_value())
-        _signalMask = _resolvedSignalMask ? _resolvedSignalMask : ConfiguredSignalLayout(cfg).mask;
-    else
-    {
-        _signalMask = 0;
-        for (int i = 0; i < 4; ++i)
-            if ((_denoiseDiffuse && SignalDescriptors[i] == _diffuseSignalDescType) ||
-                (_denoiseSpecular && SignalDescriptors[i] == _specularSignalDescType))
-                _signalMask |= FSRDSignals::Bit(i);
-    }
+    // Before a validated frame reports the title's hit distances only Direct paths (or
+    // estimates) are known to work; ResolveSignalTypes rebuilds once a guide appears.
+    _plan = FSRDSignals::MakePlan(request, _seenSpecularDistance, _seenDiffuseDistance);
+    _signalMask = _plan.mask;
     _denoiseDiffuse = (_signalMask & 5u) != 0;
     _denoiseSpecular = (_signalMask & 10u) != 0;
     _extraDiffuseSignal = (_signalMask & 5u) == 5u;
@@ -1805,8 +1746,6 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
         ? FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE : FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE;
     _specularSignalDescType = (_signalMask & FSRDSignals::Bit(FSRDSignals::IndirectSpecular))
         ? FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR : FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR;
-    _signalStatus.store((_signalStatus.load(std::memory_order_relaxed) & 7u) | (_signalMask << 8),
-                        std::memory_order_relaxed);
     _ambientOcclusionEnabled =
         cfg.FfxDenoiserTaggedAmbientOcclusion.value_or_default() &&
         AcquireTaggedAmbientOcclusionResources(true);
@@ -1818,7 +1757,8 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
     for (int i = 0; i < 4; ++i)
         if (_signalMask & FSRDSignals::Bit(i)) selectedSignalFlags |= GetSignalFlag(SignalDescriptors[i]);
     if (_ambientOcclusionEnabled) selectedSignalFlags |= FFX_DENOISER_SIGNAL_AMBIENT_OCCLUSION;
-    _unsupportedAlbedoRecovery = UseUnsupportedAlbedo(cfg, _signalMask);
+    _unsupportedAlbedoRecovery = _plan.albedoFix && FSRDSignals::AlbedoFixAllowed(cfg);
+    PublishSignalStatus();
 
     ffxOverrideVersion vidOverride = 
     {
@@ -1880,10 +1820,11 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
         _denoiserCtxDesc.maxRenderSize.width, _denoiserCtxDesc.maxRenderSize.height,
         _denoiserCtxDesc.signalFlags, _denoiserCtxDesc.checkerboardSignalFlags,
         _denoiserCtxDesc.flags);
-    LOG_INFO("[RR_DIAG] signal classification: diffuse={}, specular={}, ambientOcclusion={}, "
-             "specularOcclusion={} (no semantic source), unsupportedAlbedoRecovery={}",
-             GetSignalTypeName(_diffuseSignalDescType), GetSignalTypeName(_specularSignalDescType),
-             _ambientOcclusionEnabled, _specularOcclusionEnabled, _unsupportedAlbedoRecovery);
+    LOG_INFO("[RR_DIAG] signal plan: mask={:#x}, diffuse={}, specular={}, ambientOcclusion={}, "
+             "specularOcclusion={} (no semantic source), albedoFix={} (running={}), notes={:#x}",
+             _signalMask, GetSignalTypeName(_diffuseSignalDescType), GetSignalTypeName(_specularSignalDescType),
+             _ambientOcclusionEnabled, _specularOcclusionEnabled, _plan.albedoFix, _unsupportedAlbedoRecovery,
+             _plan.notes);
     spdlog::info(L"" __FUNCTIONW__ L" [RR_DIAG] denoiser module: {}",
                  FfxApiProxy::Dx12Module_Denoiser_Path());
 
@@ -1940,8 +1881,7 @@ bool FSRDFeatureDx12::CreateDenoiserContext()
         return false;
     }
 
-    if (!newConverter->ConfigureSignalResources(_extraDiffuseSignal, _extraSpecularSignal,
-                                               FSRDSignals::SupportsUnsupportedAlbedo(_signalMask)) ||
+    if (!newConverter->ConfigureSignalResources(_extraDiffuseSignal, _extraSpecularSignal, _plan.albedoFix) ||
         !newConverter->SetMaxRenderSize(
             _denoiserCtxDesc.maxRenderSize.width,
             _denoiserCtxDesc.maxRenderSize.height))
@@ -3300,172 +3240,52 @@ bool FSRDFeatureDx12::ResolveCameraMatrices(const NVSDK_NGX_Parameter& inParams,
     return isReady;
 }
 
-// Resolves the automatic diffuse and specular signal classification.
+// Derives the RR signal plan from the settings and the title's hit-distance guides.
 //
-// Runs last, and only for a frame that cleared every validation before it: the
-// lock is permanent, so a frame about to be rejected must not set it. The first
-// Evaluate often arrives before the title has tagged its optional guides, and
-// locking there would pin the classification for the life of the context.
+// Acts only on a frame that cleared every validation before it: the first Evaluate often
+// arrives before the title has tagged its optional guides. A guide seen on a validated
+// frame stays available for this context, so a tag that drops out for a frame cannot flip
+// the layout back and forth; a guide that appears later upgrades the plan once.
 bool FSRDFeatureDx12::ResolveSignalTypes(bool isReady)
 {
-    const auto& cfg = *Config::Instance();
+    if (!isReady)
+        return false;
 
-    const bool nativeSpec = _convDesc.Resources.InSpecHitDist || _convDesc.Resources.InSpecularRayDirectionHitDistance;
-    const bool nativeRay = _convDesc.Resources.InDiffuseHitDistance && _convDesc.DiffuseHitDistanceMode != 0;
-    if (isReady)
-        _signalStatus.store((nativeSpec ? 1u : 0u) | (nativeRay ? 2u : 0u) | 4u | (_signalMask << 8),
-                            std::memory_order_relaxed);
-    if (cfg.FfxDenoiserSignalCount.has_value())
+    const auto& cfg = *Config::Instance();
+    _seenSpecularDistance |= _convDesc.Resources.InSpecHitDist != nullptr ||
+                             _convDesc.Resources.InSpecularRayDirectionHitDistance != nullptr;
+    _seenDiffuseDistance |= _convDesc.Resources.InDiffuseHitDistance != nullptr &&
+                            _convDesc.DiffuseHitDistanceMode != 0u;
+    _signalsObserved = true;
+
+    const auto plan = FSRDSignals::MakePlan(FSRDSignals::RequestFrom(cfg), _seenSpecularDistance,
+                                            _seenDiffuseDistance);
+    if (plan.mask == _plan.mask && plan.albedoFix == _plan.albedoFix)
     {
-        if (!isReady) return false;
-        const uint32_t mask = ConfiguredSignalLayout(cfg, FSRDSignals::Available(nativeSpec, nativeRay,
-            cfg.FfxDenoiserApproximateSpecHitDistance.value_or_default(),
-            cfg.FfxDenoiserApproximateRayHitDistance.value_or_default())).mask;
-        if (mask != _signalMask)
-        {
-            InvalidateDenoiserHistory();
-            // As with Auto classification, only an instance with no recorded GPU work
-            // can rebuild in place. Never destroy an in-flight RR context or its textures.
-            if (_preprocessorHasRecordedWork)
-            {
-                State::Instance().changeBackend[Handle()->Id] = true;
-                return false;
-            }
-            _resolvedSignalMask = mask;
-            DestroyDenoiserContext();
-            if (!CreateDenoiserContext()) return false;
-        }
+        _plan.notes = plan.notes;
         return true;
     }
 
-    // AMD RR 1.2 requires a valid ray length in alpha for every active indirect-
-    // specular pixel. The INI's unset value is Auto: resolve it once from a
-    // semantically named, format/extent-validated guide, then keep the context
-    // classification stable even if an optional tag temporarily disappears.
-    //
-    // This runs last, and only for a frame that cleared every validation above. The
-    // lock is permanent, so a frame that is about to be rejected must not set it -
-    // the first Evaluate frequently arrives before the title has tagged its optional
-    // guides, and locking there would pin the classification to Direct for good.
-    if (isReady && !cfg.FfxDenoiserSpecularSignalType.has_value() &&
-        !_autoSpecularSignalResolved)
+    LOG_INFO("[RR_INPUT] signal plan {:#x}{} -> {:#x}{} (specular hit distance: {}, diffuse hit distance: {})",
+             _plan.mask, _plan.albedoFix ? " + albedo fix" : "", plan.mask, plan.albedoFix ? " + albedo fix" : "",
+             _seenSpecularDistance, _seenDiffuseDistance);
+    InvalidateDenoiserHistory();
+    // Recreating in place would destroy converter textures that an already-submitted
+    // command list can still reference. UpdateSize refuses exactly this; take the same
+    // escape hatch and let the rebuilt instance plan on its own first validated frame.
+    if (_preprocessorHasRecordedWork)
     {
-        // A guide is present when the specular step bound one - the same question, asked of
-        // the frame's result rather than of the step's local selection.
-        const bool hasSpecularHitDistanceGuide =
-            _convDesc.Resources.InSpecHitDist != nullptr ||
-            _convDesc.Resources.InSpecularRayDirectionHitDistance != nullptr ||
-            cfg.FfxDenoiserApproximateSpecHitDistance.value_or_default();
-
-        const ffxStructType_t resolvedType = hasSpecularHitDistanceGuide
-            ? FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR
-            : FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR;
-
-        LOG_INFO(
-            "[RR_INPUT] automatic specular classification resolved to {} on the first validated frame ({})",
-            GetSignalTypeName(resolvedType),
-            hasSpecularHitDistanceGuide
-                ? "validated hit-distance guide present"
-                : "no validated hit-distance guide; keeping every specular pixel active");
-
-        if (_specularSignalDescType == resolvedType)
-        {
-            _autoSpecularSignalDescType = resolvedType;
-            _autoSpecularSignalResolved = true;
-        }
-        else if (_preprocessorHasRecordedWork)
-        {
-            // Recreating in place here would destroy converter textures that an
-            // already-submitted command list can still reference. UpdateSize refuses
-            // exactly this for exactly this reason; take the same escape hatch and let
-            // the rebuilt instance resolve on its own first frame, where nothing has
-            // been recorded yet. The resolution is deliberately not latched, so the
-            // fresh instance repeats it rather than inheriting a stale decision.
-            LOG_INFO(
-                "[RR_INPUT] automatic specular classification needs {} -> {}; requesting a feature rebuild because this instance has already recorded GPU work",
-                GetSignalTypeName(_specularSignalDescType),
-                GetSignalTypeName(resolvedType));
-            InvalidateDenoiserHistory();
-            State::Instance().changeBackend[Handle()->Id] = true;
-            return false;
-        }
-        else
-        {
-            LOG_INFO(
-                "[RR_INPUT] recreating RR context for automatic specular classification: {} -> {}",
-                GetSignalTypeName(_specularSignalDescType),
-                GetSignalTypeName(resolvedType));
-            _autoSpecularSignalDescType = resolvedType;
-            _autoSpecularSignalResolved = true;
-            DestroyDenoiserContext();
-            if (!CreateDenoiserContext())
-            {
-                LOG_ERROR(
-                    "[RR_INPUT] failed to recreate RR context for automatic specular classification; requesting a feature rebuild");
-                State::Instance().changeBackend[Handle()->Id] = true;
-                return false;
-            }
-        }
+        State::Instance().changeBackend[Handle()->Id] = true;
+        return false;
     }
-
-    // Same contract for the diffuse signal, resolved from the guide that signal
-    // actually consumes: indirect diffuse reads a ray length from its alpha, direct
-    // diffuse leaves that channel undefined. A title that supplies no diffuse ray
-    // length therefore has nothing for the indirect path to work from, and every
-    // pixel is better served staying active on the direct one.
-    //
-    // Deliberately a separate block rather than folded into the specular one above:
-    // that block can return early to request a rebuild, and the two classifications
-    // must not become order-dependent on each other.
-    if (isReady && !cfg.FfxDenoiserDiffuseSignalType.has_value() &&
-        !_autoDiffuseSignalResolved)
+    DestroyDenoiserContext();
+    if (!CreateDenoiserContext())
     {
-        const bool hasDiffuseRayLength = (_convDesc.Resources.InDiffuseHitDistance != nullptr &&
-            _convDesc.DiffuseHitDistanceMode != 0u) || cfg.FfxDenoiserApproximateRayHitDistance.value_or_default();
-
-        const ffxStructType_t resolvedType = hasDiffuseRayLength
-            ? FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE
-            : FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE;
-
-        LOG_INFO(
-            "[RR_INPUT] automatic diffuse classification resolved to {} on the first validated frame ({})",
-            GetSignalTypeName(resolvedType),
-            hasDiffuseRayLength
-                ? "validated diffuse ray length present"
-                : "no diffuse ray length; keeping every diffuse pixel active");
-
-        if (_diffuseSignalDescType == resolvedType)
-        {
-            _autoDiffuseSignalDescType = resolvedType;
-            _autoDiffuseSignalResolved = true;
-        }
-        else if (_preprocessorHasRecordedWork)
-        {
-            LOG_INFO(
-                "[RR_INPUT] automatic diffuse classification needs {} -> {}; requesting a feature rebuild because this instance has already recorded GPU work",
-                GetSignalTypeName(_diffuseSignalDescType), GetSignalTypeName(resolvedType));
-            InvalidateDenoiserHistory();
-            State::Instance().changeBackend[Handle()->Id] = true;
-            return false;
-        }
-        else
-        {
-            LOG_INFO("[RR_INPUT] recreating RR context for automatic diffuse classification: {} -> {}",
-                     GetSignalTypeName(_diffuseSignalDescType), GetSignalTypeName(resolvedType));
-            _autoDiffuseSignalDescType = resolvedType;
-            _autoDiffuseSignalResolved = true;
-            DestroyDenoiserContext();
-            if (!CreateDenoiserContext())
-            {
-                LOG_ERROR(
-                    "[RR_INPUT] failed to recreate RR context for automatic diffuse classification; requesting a feature rebuild");
-                State::Instance().changeBackend[Handle()->Id] = true;
-                return false;
-            }
-        }
+        LOG_ERROR("[RR_INPUT] failed to recreate the RR context for the new signal plan; requesting a feature rebuild");
+        State::Instance().changeBackend[Handle()->Id] = true;
+        return false;
     }
-
-    return isReady;
+    return true;
 }
 
 bool FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inParams)
@@ -3989,7 +3809,7 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     }
     if (_specularSignalDescType == FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR)
         _convDesc.Flags |= (uint32_t)FSRDConvFlags::SpecularSignalIndirect;
-    const bool unsupportedAlbedo = UseUnsupportedAlbedo(cfg, _signalMask);
+    const bool unsupportedAlbedo = _plan.albedoFix && FSRDSignals::AlbedoFixAllowed(cfg);
     if (_unsupportedAlbedoRecovery != unsupportedAlbedo)
     {
         // The Direct Specular input switches between a half demodulated lobe and
@@ -3997,8 +3817,9 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
         _unsupportedAlbedoRecovery = unsupportedAlbedo;
         InvalidateDenoiserHistory();
     }
-    const uint32_t approximationMask = (cfg.FfxDenoiserApproximateSpecHitDistance.value_or_default() ? 1u : 0u) |
-        (cfg.FfxDenoiserApproximateRayHitDistance.value_or_default() ? 2u : 0u);
+    PublishSignalStatus();
+    const bool estimateHitDistances = cfg.FfxDenoiserEstimateHitDistances.value_or_default();
+    const uint32_t approximationMask = estimateHitDistances ? 3u : 0u;
     if (_appliedApproximationMask != approximationMask)
     {
         _appliedApproximationMask = approximationMask;
@@ -4007,10 +3828,9 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     if (_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::UnsupportedAlbedo);
     if (_extraDiffuseSignal) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfDiffuse);
     if (_extraSpecularSignal && !_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfSpecular);
-    if (cfg.FfxDenoiserApproximateSpecHitDistance.value_or_default())
-        _convDesc.Flags |= uint32_t(FSRDConvFlags::ApproximateSpecHitDistance);
-    if (cfg.FfxDenoiserApproximateRayHitDistance.value_or_default())
-        _convDesc.Flags |= uint32_t(FSRDConvFlags::ApproximateRayHitDistance);
+    if (estimateHitDistances)
+        _convDesc.Flags |= uint32_t(FSRDConvFlags::ApproximateSpecHitDistance) |
+                           uint32_t(FSRDConvFlags::ApproximateRayHitDistance);
     _convDesc.FloorEnabled = cfg.FfxDenoiserFloorEnabled.value_or_default();
     const bool floorFastMode = cfg.FfxDenoiserFloorFastMode.value_or_default();
     if (_convDesc.FloorFastMode != floorFastMode)

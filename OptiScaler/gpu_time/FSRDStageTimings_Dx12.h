@@ -27,7 +27,7 @@ class FSRDStageTimings
         Count
     };
     static constexpr const char* Names[] { "Floor",           "Conversion",  "AMD RR / ML",
-                                           "Albedo Recovery", "Composition", "Super Resolution" };
+                                           "Albedo Bleed Fix", "Composition", "Super Resolution" };
     struct Snapshot
     {
         std::array<double, Count> milliseconds {};
@@ -203,7 +203,7 @@ struct FSRDRuntimeSnapshot
     enum Step { Inputs, Floor, Conversion, RayRegeneration, AlbedoRecovery, Composition, SuperResolution, Output, StepCount };
     enum Status { NotRun, Running, Passed, Failed, Disabled };
     static constexpr const char* StepNames[] = { "Input validation", "Floor", "Conversion", "Ray Regeneration",
-        "Unsupported Albedo recovery", "Composition", "FSR Super Resolution", "Output" };
+        "Albedo Bleed Fix", "Composition", "FSR Super Resolution", "Output" };
     enum Input { Color, Depth, Motion, Normals, Roughness, DiffuseAlbedo, SpecularAlbedo,
                  SpecularDistance, DiffuseDistance, Bias, Emissive, LinearDepth, Responsivity,
                  AmbientOcclusion, Exposure, InputCount };
