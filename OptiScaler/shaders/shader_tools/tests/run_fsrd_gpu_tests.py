@@ -104,8 +104,16 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
     multi_comp = shader == 'FSRDOutputComp' and 'InIndirectDiffuseDenoised' in (directory/(shader+'.hlsl')).read_text()
     if multi_comp and len(inputs) == 14:
         inputs += [rgba(w,h,(0,0,0))]
+    # Recovery's per-lobe Skip accounting reads the main RR inputs. Zero inputs carry no
+    # divisor-floor loss, which is the previous accounting exactly.
+    loss_comp = shader == 'FSRDOutputComp' and 'InDirectDiffuseSignal' in (directory/(shader+'.hlsl')).read_text()
+    if loss_comp and len(inputs) == 15:
+        inputs += [rgba(w,h,(0,0,0)), rgba(w,h,(0,0,0))]
     if shader == 'FSRDAlbedoTrustEvidence' and len(inputs) == 8:
         inputs += [rgba(w,h,(0,0,0))]
+    loss_evidence = shader == 'FSRDAlbedoTrustEvidence' and 'InDirectDiffuseSignal' in (directory/(shader+'.hlsl')).read_text()
+    if loss_evidence and len(inputs) == 9:
+        inputs += [rgba(w,h,(0,0,0)), rgba(w,h,(0,0,0))]
     if adaptive_comp and len(inputs) == 11:
         inputs += [rgba(w,h,(1,1,1))]
     if shader == 'FSRDOutputComp' and 'InRawSpecular' in (directory/(shader+'.hlsl')).read_text() and len(inputs) == 12:
@@ -119,11 +127,11 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
         'FSRDFloorSeed': [10,10,41,41,10],
         'FSRDFloor': [10,41,10,10],
         'FSRDInputConv': [10,41,10,10,41,41,10,10,41,10,10,10,10,10,41,41,10,10],
-        'FSRDOutputComp': ([10,28,10,28,10,24,10,41,10,10,3,10,10,16,10] if trust_comp else
+        'FSRDOutputComp': ([10,28,10,28,10,24,10,41,10,10,3,10,10,16,10] + ([10,10] if loss_comp else []) if trust_comp else
                            [10,28,10,28,10,24,10,41,10,10,3,28,10] if temporal_comp else
                           [10,28,10,28,10,24,10,41] if len(inputs)==8 else
                            [10,28,10,28,10,10,10,24,10]),
-        'FSRDAlbedoTrustEvidence': [10,10,28,28,10,41,24,10,10],
+        'FSRDAlbedoTrustEvidence': [10,10,28,28,10,41,24,10,10] + ([10,10] if loss_evidence else []),
         'FSRDAlbedoTrustPropagate': [16,41,24],
     }[schema]
     for i,a in enumerate(inputs):

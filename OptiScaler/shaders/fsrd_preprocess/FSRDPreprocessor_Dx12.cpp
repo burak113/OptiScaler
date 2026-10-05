@@ -1740,6 +1740,8 @@ struct FSRDPreprocessor_Dx12::Impl
             .InDirectSpecularSignal = outResources.DirectSpecular.Get(),
             .InAlbedoTrust = m_albedoTrust[m_albedoTrustResult].Get(),
             .InIndirectDiffuseDenoised = m_indirectDiffuseOutput.Get(),
+            .InIndirectSpecularSignal = outResources.Signals.IndirectSpecular.Get(),
+            .InDirectDiffuseSignal = outResources.Signals.DirectDiffuse.Get(),
         };
 
         Composition::Output outputs { .Resources = {
@@ -1796,7 +1798,9 @@ struct FSRDPreprocessor_Dx12::Impl
             .InLinearDepth = m_LinearDepth.Get(),
             .InNormals = outResources.Normals.Get(),
             .InDirectSpecularSignal = outResources.DirectSpecular.Get(),
-            .InIndirectDiffuseDenoised = m_indirectDiffuseOutput.Get()
+            .InIndirectDiffuseDenoised = m_indirectDiffuseOutput.Get(),
+            .InIndirectSpecularSignal = outResources.Signals.IndirectSpecular.Get(),
+            .InDirectDiffuseSignal = outResources.Signals.DirectDiffuse.Get()
         }};
         TrustEvidence::Output evidenceOut = { .Resources = { .OutAlbedoTrust = m_albedoTrust[0].Get() } };
         m_trustEvidenceShader.Dispatch(cmdList, GetAsByteSpan(evidenceConstants), evidenceIn.AsArray,

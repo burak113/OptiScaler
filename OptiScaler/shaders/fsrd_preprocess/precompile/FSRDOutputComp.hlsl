@@ -3,7 +3,7 @@
 
 #define MainRS                                                                                                         \
     "RootFlags(0), CBV(b0), "                                                                                          \
-    "DescriptorTable(SRV(t0, numDescriptors = 15)), "                                                                  \
+    "DescriptorTable(SRV(t0, numDescriptors = 17)), "                                                                  \
     "DescriptorTable(UAV(u0, numDescriptors = 3)), "                                                                   \
     "StaticSampler(s0, filter = FILTER_MIN_MAG_MIP_LINEAR, "                                                           \
     "addressU = TEXTURE_ADDRESS_CLAMP, addressV = TEXTURE_ADDRESS_CLAMP, addressW = TEXTURE_ADDRESS_CLAMP)"
@@ -53,6 +53,10 @@ Texture2D<half4> InDirectSpecularDenoised : register(t11);
 Texture2D<half4> InDirectSpecularSignal : register(t12);
 Texture2D<float2> InAlbedoTrust : register(t13);
 Texture2D<half4> InIndirectDiffuseDenoised : register(t14);
+// The main specular and diffuse RR inputs, still unmodified after RR. Recovery rebuilds from
+// them how much energy each lobe's demodulation could not represent and left in Skip.
+Texture2D<half4> InIndirectSpecularSignal : register(t15);
+Texture2D<half4> InDirectDiffuseSignal : register(t16);
 #define FLAGS_EXTRA_DIFFUSE (1 << 6)
 #define FLAGS_EXTRA_SPECULAR (1 << 7)
 #define FLAGS_DIFFUSE_SIGNAL_DISABLED (1 << 4)
@@ -164,6 +168,11 @@ float3 DiffuseMultiplier(int2 p)
 {
     return lerp(1.0f, float3(InDiffuseAlbedo[p].rgb), saturate(DiffuseAlbedoModulation));
 }
+// The demodulated diffuse lobe conversion produced. Two diffuse signals each received half.
+float3 DiffuseSignalInput(int2 p)
+{
+    return float3(InDirectDiffuseSignal[p].rgb) * (IsSet(FLAGS_EXTRA_DIFFUSE) ? 2.0f : 1.0f);
+}
 // Blend weight toward the unmodulated specular path: how much of the nearby same-surface
 // albedo structure the light does not show (see FSRDAlbedoTrustEvidence/Propagate). Zero
 // where conversion excluded the pixel or where the surface has no albedo structure at all.
@@ -172,11 +181,30 @@ float UnsupportedAlbedoWeight(int2 p)
     if (UnsupportedAlbedoRecovery <= 0.0f || InDirectSpecularSignal[p].a < 0.5f)
         return 0.0f;
     const float2 votes = InAlbedoTrust[p];
-    return saturate(UnsupportedAlbedoRecovery) * smoothstep(0.4f, 0.8f, votes.x / max(votes.y, 1e-3f)) *
-           smoothstep(0.5f, 3.0f, votes.y);
+    const float weight = saturate(UnsupportedAlbedoRecovery) *
+        smoothstep(0.4f, 0.8f, votes.x / max(votes.y, 1e-3f)) * smoothstep(0.5f, 3.0f, votes.y);
+    // A lobe clamped at the FP16 limit left an unknown amount of energy in Skip, so its
+    // specular part cannot be rebuilt. Such isolated highlights keep path A. GetSafeFP16's
+    // 65500 ceiling is stored as 65472.
+    [branch]
+    if (weight > 0.0f && (any(float3(InIndirectSpecularSignal[p].rgb) >= 65472.0f) ||
+                          any(DiffuseSignalInput(p) >= 65472.0f)))
+        return 0.0f;
+    return weight;
+}
+// The specular part of Skip. Below the demodulation divisor floor (an albedo channel under
+// DemodDivisorFloor) conversion cannot represent a lobe's full energy and leaves the rest in
+// Skip; that loss belongs to its own lobe, not to the albedo ratio. Rebuild each lobe's loss
+// from its RR input exactly as conversion divided it; the remaining Skip (the Floor base)
+// was split by the albedo ratio, like the unmodulated alternate.
+float3 SpecularSkip(int2 p, float3 spec, float3 diff, float3 share)
+{
+    const float3 specLoss = float3(InIndirectSpecularSignal[p].rgb) * (max(max(spec, DemodDivisorFloor), 1e-4f) - spec);
+    const float3 diffLoss = DiffuseSignalInput(p) * (max(max(diff, DemodDivisorFloor), 1e-4f) - diff);
+    return (float3(InSkipSignal[p].rgb) - specLoss - diffLoss) * share + specLoss;
 }
 // Replaces the specular part of the reconstruction - RR's remodulated specular plus the
-// specular share of Skip - with RR's denoising of the same share never divided by albedo.
+// specular part of Skip - with RR's denoising of the same share never divided by albedo.
 float3 UnsupportedAlbedoCorrection(int2 p, float3 specular)
 {
     const float weight = UnsupportedAlbedoWeight(p);
@@ -186,7 +214,7 @@ float3 UnsupportedAlbedoCorrection(int2 p, float3 specular)
     const float3 total = spec + diff;
     const float3 splitT = saturate((total - 0.5f * DemodDivisorFloor) / (0.5f * DemodDivisorFloor));
     const float3 share = spec * rcp(max(total, DemodDivisorFloor)) * splitT * splitT * (3.0f - 2.0f * splitT);
-    const float3 modulatedPath = specular + float3(InSkipSignal[p].rgb) * share;
+    const float3 modulatedPath = specular + SpecularSkip(p, spec, diff, share);
     return weight * (float3(InDirectSpecularDenoised[p].rgb) - modulatedPath);
 }
 float3 SpecularRadiance(int2 p)

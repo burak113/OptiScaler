@@ -8,7 +8,7 @@
 // carries the albedo's structure (or structure of its own), on a hidden surface it is flat.
 //
 // The light is judged on RR's own output of the unmodulated specular path plus the
-// remodulated diffuse path and the diffuse share of Skip. That witness is denoised and,
+// remodulated diffuse path and the diffuse part of Skip. That witness is denoised and,
 // unlike the final image, contains no albedo imprint of its own, so a strong existing stain
 // cannot vouch for the albedo that caused it. Output: x = unsupported structure, y = albedo
 // structure mass; FSRDAlbedoTrustPropagate spreads both over the surface before
@@ -17,7 +17,7 @@
 
 #define MainRS \
     "RootFlags(0), CBV(b0), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 9)), " \
+    "DescriptorTable(SRV(t0, numDescriptors = 11)), " \
     "DescriptorTable(UAV(u0, numDescriptors = 1))"
 
 Texture2D<half4> InDirectSpecularDenoised : register(t0);
@@ -30,6 +30,9 @@ Texture2D<half4> InNormals : register(t6);
 // A: conversion's eligibility; ineligible pixels neither vote nor receive the blend.
 Texture2D<half4> InDirectSpecularSignal : register(t7);
 Texture2D<half4> InIndirectDiffuseDenoised : register(t8);
+// The main specular and diffuse RR inputs: each lobe's divisor-floor loss in Skip.
+Texture2D<half4> InIndirectSpecularSignal : register(t9);
+Texture2D<half4> InDirectDiffuseSignal : register(t10);
 RWTexture2D<float2> OutAlbedoTrust : register(u0);
 
 cbuffer CB_AlbedoTrust : register(b0)
@@ -51,13 +54,23 @@ groupshared float g_LogLight[16][16];
 groupshared float g_Depth[16][16];
 groupshared half3 g_Normal[16][16];
 
-// The share of a channel the conversion allocated to the specular lobe; the remaining
-// share of Skip belongs to the diffuse half of the witness.
+// The share of a channel the conversion allocated to the specular lobe.
 float3 SpecularShare(float3 spec, float3 diff)
 {
     const float3 total = spec + diff;
     const float3 splitT = saturate((total - 0.5f * DemodDivisorFloor) / (0.5f * DemodDivisorFloor));
     return spec * rcp(max(total, DemodDivisorFloor)) * splitT * splitT * (3.0f - 2.0f * splitT);
+}
+
+// The diffuse part of Skip, which belongs to the diffuse half of the witness. Each lobe's
+// divisor-floor loss stays with its own lobe; the remaining Skip follows the albedo ratio
+// (see SpecularSkip in FSRDOutputComp).
+float3 DiffuseSkip(int2 q, float3 spec, float3 diff)
+{
+    const float3 specLoss = float3(InIndirectSpecularSignal[q].rgb) * (max(max(spec, DemodDivisorFloor), 1e-4f) - spec);
+    const float3 diffLoss = float3(InDirectDiffuseSignal[q].rgb) * ((Flags & 1u) != 0 ? 2.0f : 1.0f) *
+        (max(max(diff, DemodDivisorFloor), 1e-4f) - diff);
+    return (float3(InSkipSignal[q].rgb) - specLoss - diffLoss) * (1.0f - SpecularShare(spec, diff)) + diffLoss;
 }
 
 [RootSignature(MainRS)]
@@ -79,7 +92,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             const float3 witness = float3(InDirectSpecularDenoised[q].rgb) +
                 (float3(InDirectDiffuse[q].rgb) +
                  ((Flags & 1u) != 0 ? float3(InIndirectDiffuseDenoised[q].rgb) : 0.0f)) * diff +
-                float3(InSkipSignal[q].rgb) * (1.0f - SpecularShare(spec, diff));
+                DiffuseSkip(q, spec, diff);
             // Clamping makes loads safe, but repeated border texels cannot count
             // as independent support. Mark them invalid once while loading LDS.
             const bool eligible = all(source >= 0) && all(source <= bounds) &&
