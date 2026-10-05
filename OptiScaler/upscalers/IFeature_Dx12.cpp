@@ -41,6 +41,7 @@ bool IFeature_Dx12::Init(ID3D12Device* InDevice, ID3D12GraphicsCommandList* InCo
         RCAS->SetRecordedLifetimeEnabled(recordedRR);
         Bias->SetRecordedLifetimeEnabled(recordedRR);
         Magnifier = std::make_unique<Magnifier_Dx12>("Magnifier", InDevice);
+        Magnifier->SetRecordedLifetimeEnabled(recordedRR);
 
         UpscalerTime = std::make_unique<GpuTime_Dx12>(InDevice);
     }
@@ -129,7 +130,7 @@ bool IFeature_Dx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX
     } cleanup { {}, InParameters, paramOutput, recordedRR, false, false, _sharpness, _sharpness, _actualSharpness };
     // Reserve before any intermediate admission/barrier, so cleanup cannot allocate afterward.
     if (recordedRR)
-        cleanup.buffers.reserve(2);
+        cleanup.buffers.reserve(3);
     bool helperSetupFailed = false;
 
     // Order is important as that's the order of shader dispatch
@@ -245,12 +246,15 @@ bool IFeature_Dx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX
             { // Setup
               [&](ID3D12Resource* nextOutput) -> ID3D12Resource*
               {
-                  if (Magnifier->CreateBufferResource(Device, nextOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS))
+                  if (Magnifier->CreateBufferResource(Device, nextOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                                                     InCommandList))
                   {
+                      if (recordedRR)
+                          cleanup.buffers.push_back(Magnifier->RecordedBufferCleanup(InCommandList));
                       Magnifier->SetBufferState(InCommandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
                       return Magnifier->Buffer();
                   }
-
+                  helperSetupFailed = recordedRR;
                   return nullptr;
               },
 
@@ -258,7 +262,7 @@ bool IFeature_Dx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX
               [&](ID3D12Resource* input, ID3D12Resource* output) -> bool
               {
                   if (!Magnifier->CanRender() || !paramMotion || !paramOutput)
-                      return true;
+                      return !recordedRR;
 
                   Magnifier->SetBufferState(InCommandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 

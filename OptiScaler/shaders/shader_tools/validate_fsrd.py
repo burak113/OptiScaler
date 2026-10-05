@@ -49,6 +49,7 @@ SUITES = (
     'test_fsrd_additive_diagnostics',
     'test_fsrd_additive_capture_reader',
     'test_fsrd_additive_lifetime',
+    'test_fsrd_magnifier_lifetime',
     'test_fsrd_allocation_models',
     'test_fsrd_statistical_resolve',
     'test_fsrd_response_pilot',
@@ -83,6 +84,7 @@ SUITES = (
 )
 QUICK = (
     'test_fsrd_dispatch_chain', 'test_fsrd_signal_policy', 'test_fsrd_host_lifetimes',
+    'test_fsrd_magnifier_lifetime',
     'test_fsrd_stage_timings', 'test_fsrd_ini_cleanup', 'test_fsrd_reference_integrity',
     'run_fsrd_gpu_tests', 'test_fsrd_composition_variants', 'test_fsrd_composition_graph',
     'test_fsrd_signal_modes', 'test_fsrd_unsupported_albedo', 'test_fsrd_unsupported_albedo_skip',
@@ -93,6 +95,7 @@ OPTIONAL = {'test_fsrd_small_colour_screen', 'test_fsrd_colour_anchor'}
 # Previous suite durations, so the longest start first and the parallel run ends early.
 DURATIONS = ROOT/'tools_tmp/fsrd_validation/durations.json'
 CPU = {'test_fsrd_dispatch_chain', 'test_fsrd_signal_policy', 'test_fsrd_host_lifetimes', 'test_fsrd_stage_timings', 'test_fsrd_ini_cleanup', 'test_fsrd_reference_integrity', 'test_fsrd_additive_lifetime',
+       'test_fsrd_magnifier_lifetime',
        'test_fsrd_allocation_models', 'test_fsrd_statistical_resolve', 'test_fsrd_additive_capture_reader',
        'test_fsrd_response_pilot', 'test_fsrd_response_protocol', 'test_fsrd_rrtrace_response',
        'test_fsrd_response_conditioned_pilot', 'test_fsrd_response_soft_pilot'}

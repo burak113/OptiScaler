@@ -26,11 +26,18 @@ bool Magnifier_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resour
     if (!_init || _device == nullptr || InCmdList == nullptr || InResource == nullptr || OutResource == nullptr)
         return false;
 
+    auto lease = AcquireDispatchLease(InCmdList, _pipelineState, { InResource, OutResource });
+    if (_recordedLifetime && !lease)
+        return false;
     ScopedGpuTime_Dx12 scopedGpuTime(GpuTime.get(), InCmdList);
 
-    _counter++;
-    _counter = _counter % Magnifier_NUM_OF_HEAPS;
-    FrameDescriptorHeap& currentHeap = _frameHeaps[_counter];
+    if (!_recordedLifetime)
+    {
+        _counter++;
+        _counter = _counter % Magnifier_NUM_OF_HEAPS;
+    }
+    FrameDescriptorHeap& currentHeap = lease ? lease->slot->heap : _frameHeaps[_counter];
+    auto* constantsBuffer = lease ? lease->slot->constants.Get() : _constantBuffer;
 
     CreateShaderResourceView(_device, InResource, currentHeap.GetSrvCPU(0));
     CreateUnorderedAccessView(_device, OutResource, currentHeap.GetUavCPU(0), 0);
@@ -40,7 +47,7 @@ bool Magnifier_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resour
     auto outDesc = OutResource->GetDesc();
     FilloutStruct((float) outDesc.Width, (float) outDesc.Height, constants);
 
-    if (!CreateConstantsBuffer(_device, _constantBuffer, constants, currentHeap.GetCbvCPU(0)))
+    if (!CreateConstantsBuffer(_device, constantsBuffer, constants, currentHeap.GetCbvCPU(0)))
     {
         LOG_ERROR("[{0}] Failed to create a constants buffer", _name);
         return false;
@@ -66,17 +73,18 @@ void Magnifier_Dx12::SetBufferState(ID3D12GraphicsCommandList* InCommandList, D3
 }
 
 bool Magnifier_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* InSource,
-                                          D3D12_RESOURCE_STATES InState)
+                                          D3D12_RESOURCE_STATES InState, ID3D12GraphicsCommandList* InCommandList)
 {
     auto resourceFlags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS |
                          D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS;
 
-    auto result = Shader_Dx12::CreateBufferResource(InDevice, InSource, InState, &_buffer, resourceFlags);
+    auto result = Shader_Dx12::CreateBufferResource(InDevice, InSource, InState, &_buffer, resourceFlags,
+                                                  0, 0, DXGI_FORMAT_UNKNOWN, InCommandList);
 
     if (result)
     {
         _buffer->SetName(L"Magnifier_Buffer");
-        _bufferState = InState;
+        _bufferState = _recordedLifetime ? D3D12_RESOURCE_STATE_COMMON : InState;
     }
 
     return result;
