@@ -11,6 +11,7 @@ import os
 import argparse
 import io
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from fsrd_toolchain import dxc
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -113,5 +114,7 @@ if __name__ == "__main__":
                  'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor']
     else:
         names = [options.name]
-    for name in names:
-        build(name, compiler)
+    # Each shader compiles in its own dxc process and temporary directory and publishes
+    # atomically, so independent shaders can build at the same time.
+    with ThreadPoolExecutor(max_workers=min(len(names), os.cpu_count() or 4)) as pool:
+        list(pool.map(lambda name: build(name, compiler), names))

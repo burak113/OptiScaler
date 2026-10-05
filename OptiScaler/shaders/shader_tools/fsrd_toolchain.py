@@ -1,8 +1,11 @@
 """Windows tool discovery shared by the FSRD shader/build/test entry points."""
 from pathlib import Path
+import hashlib
+import json
 import os
 import shutil
 import subprocess
+import tempfile
 
 
 def executable(value, name):
@@ -58,14 +61,69 @@ def msbuild(explicit=None):
     return executable(str(visual_studio()/'MSBuild/Current/Bin/MSBuild.exe'), 'MSBuild.exe')
 
 
-def compile_cpp(source, output, libraries=()):
-    """Build x64 test helpers with all intermediates alongside their output."""
-    output.parent.mkdir(parents=True, exist_ok=True)
-    vcvars = visual_studio()/'VC/Auxiliary/Build/vcvars64.bat'
+def _sha256(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _build(source, output, libraries, vs_root, dependencies=None):
+    vcvars = vs_root/'VC/Auxiliary/Build/vcvars64.bat'
     command = output.with_suffix('.build.cmd')
     command.write_text(
         f'@call "{vcvars}" >nul\n@if errorlevel 1 exit /b %errorlevel%\n'
         f'@cl /nologo /std:c++20 /EHsc /O2 "{source}" '
         f'/Fe:"{output}" /Fo:"{output.with_suffix(".obj")}" '
+        + (f'/sourceDependencies "{dependencies}" ' if dependencies else '')
         + ('/link ' + ' '.join(libraries) if libraries else '') + '\n', encoding='utf-8')
     subprocess.run(f'cmd /d /s /c ""{command}""', cwd=output.parent, check=True)
+
+
+def compile_cpp(source, output, libraries=()):
+    """Build an x64 test helper, reusing an earlier build of exactly the same inputs.
+
+    A cached executable is used only when the source, every file the compiler included
+    (recorded by /sourceDependencies), the libraries, CL and the MSVC toolset all hash the
+    same, so an executable from another checkout or an edited header is never reused.
+    FSRD_CPP_CACHE=0 always rebuilds; FSRD_CPP_CACHE=<dir> moves the cache.
+    """
+    output = Path(output)
+    source = Path(source).resolve()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    vs_root = visual_studio()
+    setting = os.environ.get('FSRD_CPP_CACHE', '')
+    if setting == '0':
+        _build(source, output, libraries, vs_root)
+        return
+    toolset = vs_root/'VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt'
+    key = hashlib.sha256(json.dumps([
+        _sha256(source), str(source), list(libraries), os.environ.get('CL', ''), str(vs_root),
+        toolset.read_text(encoding='utf-8').strip() if toolset.is_file() else '',
+        _sha256(__file__)]).encode()).hexdigest()[:32]
+    cache = Path(setting) if setting else Path(__file__).resolve().parents[3]/'tools_tmp/fsrd_cpp_cache'
+    entry = cache/key
+    manifest = entry/'manifest.json'
+    cached = entry/output.name
+    try:
+        recorded = json.loads(manifest.read_text(encoding='utf-8'))
+        valid = cached.is_file() and all(Path(p).is_file() and _sha256(p) == h for p, h in recorded.items())
+    except (OSError, ValueError):
+        valid = False
+    if not valid:
+        cache.mkdir(parents=True, exist_ok=True)
+        staging = Path(tempfile.mkdtemp(prefix=key + '_', dir=cache))
+        try:
+            built = staging/output.name
+            _build(source, built, libraries, vs_root, staging/'dependencies.json')
+            includes = json.loads((staging/'dependencies.json').read_text(encoding='utf-8'))['Data']['Includes']
+            files = {str(Path(p).resolve()): _sha256(p) for p in [source, *includes]}
+            (staging/'manifest.json').write_text(json.dumps(files, indent=1), encoding='utf-8')
+            shutil.rmtree(entry, ignore_errors=True)
+            try:
+                os.replace(staging, entry)
+            except OSError:
+                # A parallel validation published the same key first; use our own build.
+                shutil.copy2(built, output)
+                return
+        finally:
+            shutil.rmtree(staging, ignore_errors=True)
+    if not output.is_file() or _sha256(output) != _sha256(cached):
+        shutil.copy2(cached, output)

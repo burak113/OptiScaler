@@ -13,6 +13,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import time
 
 sys.dont_write_bytecode = True
 import numpy as np
@@ -166,6 +167,7 @@ def run():
     t.check('native composition selection contract', True, output=native.stdout.strip())
     records = []
 
+    last_save = [time.monotonic()]
     def save():
         (output / 'results.json').write_text(json.dumps(dict(checks=t.checks, dispatches=t.timings,
             records=records, identity=identity, selector_header_sha256=selector_hash,
@@ -192,7 +194,11 @@ def run():
         records.append(dict(case=label, size=list(size), variant=variant, controls=cb,
                             cb_sha256=hashlib.sha256(old_cb).hexdigest(), differences=differences))
         t.check('composition specialization ' + label, not differences, differences=differences)
-        save()
+        # finally and a failing case always write the report. Rewriting the whole growing
+        # report after every passing case was a quadratic share of the suite runtime.
+        if differences or time.monotonic() - last_save[0] > 5:
+            save()
+            last_save[0] = time.monotonic()
         if differences:
             raise AssertionError(label + ': specialization changed stored colour/history/metadata')
         return old, new

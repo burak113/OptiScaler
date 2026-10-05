@@ -4,6 +4,7 @@ python OptiScaler/shaders/shader_tools/tests/run_fsrd_gpu_tests.py
 Requires MSVC, Windows SDK and numpy. Outputs live in tools_tmp/floor_rewrite/gpu_tests.
 """
 from pathlib import Path
+import atexit
 import importlib.util
 import hashlib
 import json
@@ -12,6 +13,7 @@ import re
 import struct
 import subprocess
 import sys
+import types
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from fsrd_toolchain import compile_cpp
@@ -28,9 +30,90 @@ runner = OUT/'fsrd_gpu_runner.exe'
 source = Path(__file__).with_name('fsrd_gpu_runner.cpp')
 
 def build_runner():
-    # Deliberately rebuild: an executable from another checkout/toolchain must
-    # not silently satisfy validation because it has a newer filesystem mtime.
+    # compile_cpp reuses a build only for identical source, included files and toolchain;
+    # an executable from another checkout cannot satisfy validation by its mtime.
+    # A worker still running the old file would lock it, so stop that one first.
+    _close_worker(runner)
     compile_cpp(source, runner, ('d3d12.lib', 'dxgi.lib'))
+
+
+class _RunnerWorker:
+    """One `fsrd_gpu_runner --server` per executable and test process.
+
+    The runner keeps only its device, queue and compiled pipelines between jobs. Every
+    job still creates, uploads and reads back its own resources, waits for the GPU and
+    reports its own D3D12 validation counts, exactly as a separate process would.
+    """
+    def __init__(self, executable):
+        self.log_path = OUT/f'gpu_worker_{os.getpid()}_{id(self)}.stderr.log'
+        self.log = self.log_path.open('w', encoding='utf-8')
+        self.process = subprocess.Popen([str(executable), '--server'], stdin=subprocess.PIPE,
+                                        stdout=subprocess.PIPE, stderr=self.log, text=True, bufsize=1)
+
+    def run(self, job):
+        start = self.log_path.stat().st_size
+        lines, code = [], None
+        try:
+            self.process.stdin.write(str(job) + '\n')
+            self.process.stdin.flush()
+            for line in self.process.stdout:
+                if line.startswith('job_complete='):
+                    code = int(line.split('=', 1)[1])
+                    break
+                lines.append(line)
+        except OSError:
+            pass
+        if code is None:
+            code = self.process.wait() or 1
+        self.log.flush()
+        with self.log_path.open('r', encoding='utf-8', errors='replace') as stream:
+            stream.seek(start)
+            stderr = stream.read()
+        return subprocess.CompletedProcess([str(job)], code, ''.join(lines), stderr)
+
+    def close(self):
+        try:
+            self.process.stdin.close()
+            self.process.wait(timeout=30)
+        except Exception:
+            self.process.kill()
+        self.log.close()
+
+
+_workers = {}
+
+def _close_worker(executable):
+    worker = _workers.pop(str(Path(executable).resolve()), None)
+    if worker: worker.close()
+
+@atexit.register
+def _close_workers():
+    for key in list(_workers):
+        _close_worker(key)
+
+def run_runner(job):
+    # A suite that replaced this module's subprocess (fsrd_alpha_common.GPUWorker) or
+    # FSRD_GPU_RUNNER_WORKER=0 keeps the original one-process-per-job execution.
+    if os.environ.get('FSRD_GPU_RUNNER_WORKER', '1') == '0' or not isinstance(subprocess, types.ModuleType):
+        return subprocess.run([str(runner), str(job)], capture_output=True, text=True)
+    key = str(Path(runner).resolve())
+    worker = _workers.get(key)
+    if worker is None or worker.process.poll() is not None:
+        if worker: _close_worker(key)
+        worker = _workers[key] = _RunnerWorker(runner)
+    result = worker.run(job)
+    if result.returncode:
+        # The server exits after a failed job; the next dispatch starts a fresh one.
+        _close_worker(key)
+    elif os.environ.get('FSRD_GPU_RUNNER_CROSSCHECK') == '1':
+        # Proof mode for runner changes: the same job in a fresh process with freshly
+        # created resources must write byte-identical outputs.
+        outputs = sorted(Path(job).parent.glob('out*.bin'))
+        pooled = [p.read_bytes() for p in outputs]
+        fresh = subprocess.run([str(runner), str(job)], capture_output=True, text=True)
+        if fresh.returncode or pooled != [p.read_bytes() for p in outputs]:
+            raise AssertionError(f'worker and fresh-process outputs differ for {job}')
+    return result
 
 def constants(shader, values, directory=PRE):
     shader = 'FSRDInputConv' if shader == 'FSRDInputConvAdditive' else shader
@@ -152,7 +235,7 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
         records.append(f'{json.dumps(str(p))} {a.shape[1]} {a.shape[0]} {fmt}')
     for i,fmt in enumerate(output_formats):records.append(f'{json.dumps(str(d/f"out{i}.bin"))} {w} {h} {fmt}')
     job=d/'job.txt';job.write_text('\n'.join(records))
-    result=subprocess.run([str(runner),str(job)],capture_output=True,text=True)
+    result=run_runner(job)
     if result.returncode: raise RuntimeError(shader+'\n'+result.stdout+result.stderr)
     times=dict(re.findall(r'(\w+)=([\d.eE+-]+)',result.stdout))
     adapter=re.search(r'adapter=(.+)',result.stdout)

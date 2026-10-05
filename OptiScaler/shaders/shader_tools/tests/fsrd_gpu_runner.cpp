@@ -12,6 +12,8 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <map>
+#include <tuple>
 #include <stdexcept>
 #include <sstream>
 #include <string>
@@ -26,9 +28,14 @@ void check(HRESULT hr, const char* what)
 }
 std::vector<char> bytes(const std::string& path)
 {
-    std::ifstream f(path, std::ios::binary);
+    // One block read: a character iterator dominated worker jobs with many inputs.
+    std::ifstream f(path, std::ios::binary | std::ios::ate);
     if (!f) throw std::runtime_error("Cannot read " + path);
-    return {std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
+    std::vector<char> data(size_t(f.tellg()));
+    f.seekg(0);
+    if (!data.empty() && !f.read(data.data(), std::streamsize(data.size())))
+        throw std::runtime_error("Cannot read " + path);
+    return data;
 }
 struct Texture
 {
@@ -68,9 +75,10 @@ int executeJob(const char* path) try
     std::istringstream options(extra);
     options >> std::quoted(secondShaderPath) >> initializeSentinel;
     const bool graphRequested = !secondShaderPath.empty() || initializeSentinel;
-    // Optional worker mode retains only the device/queue between jobs. Every job
-    // still creates and uploads its own resources and waits for GPU completion.
-    // No texture contents or descriptors can accidentally carry over to a test.
+    // Optional worker mode retains the device/queue, compiled pipelines and a pool of
+    // textures between jobs. Every job re-uploads all of its inputs, clears all of its
+    // outputs to zero (what a newly created committed resource reads as), records its
+    // own descriptors and waits for GPU completion, so no content carries over.
     static ComPtr<ID3D12Debug> debug;
     static bool debugEnabled = false;
     static ComPtr<IDXGIFactory6> factory;
@@ -120,7 +128,20 @@ int executeJob(const char* path) try
     ComPtr<ID3D12DescriptorHeap> heap;
     check(dev->CreateDescriptorHeap(&hd, IID_PPV_ARGS(&heap)), "heap");
     const UINT increment = dev->GetDescriptorHandleIncrementSize(hd.Type);
+    // Creating and releasing committed resources dominated a worker job. Pooled textures
+    // carry the state the previous job left them in; inputs end in shader-read state and
+    // outputs in copy-source state after their readback.
+    struct Pooled { ComPtr<ID3D12Resource> resource, transfer; D3D12_RESOURCE_STATES state; UINT64 bytes; };
+    using PoolKey = std::tuple<UINT, UINT, int, bool>;
+    static std::multimap<PoolKey, Pooled> pool;
+    static UINT64 pooledBytes = 0;
     std::vector<Texture> textures(srvCount + uavCount);
+    std::vector<Pooled> taken(textures.size());
+    D3D12_DESCRIPTOR_HEAP_DESC zeroDesc = hd; zeroDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    ComPtr<ID3D12DescriptorHeap> zeroHeap;
+    if (uavCount) check(dev->CreateDescriptorHeap(&zeroDesc, IID_PPV_ARGS(&zeroHeap)), "zero heap");
+    ID3D12DescriptorHeap* jobHeaps[] = {heap.Get()};
+    cmd->SetDescriptorHeaps(1, jobHeaps);
     for (UINT i = 0; i < textures.size(); ++i)
     {
         auto& t = textures[i]; int format;
@@ -132,18 +153,52 @@ int executeJob(const char* path) try
         d.Width = t.width; d.Height = t.height; d.DepthOrArraySize = 1; d.MipLevels = 1;
         d.Format = t.format; d.SampleDesc.Count = 1;
         d.Flags = output ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
-        D3D12_HEAP_PROPERTIES hp {}; hp.Type = D3D12_HEAP_TYPE_DEFAULT;
-        check(dev->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &d,
-            output ? (graphRequested ? kOutputReadState : D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
-                   : D3D12_RESOURCE_STATE_COPY_DEST,
-            nullptr, IID_PPV_ARGS(&t.resource)), "texture");
         dev->GetCopyableFootprints(&d, 0, 1, 0, &t.footprint, nullptr, nullptr, &t.size);
-        t.transfer = buffer(t.size, output ? D3D12_HEAP_TYPE_READBACK : D3D12_HEAP_TYPE_UPLOAD);
+        auto& slot = taken[i];
+        const auto found = pool.find(PoolKey(t.width, t.height, format, output));
+        if (found != pool.end())
+        {
+            slot = found->second;
+            pooledBytes -= slot.bytes;
+            pool.erase(found);
+        }
+        else
+        {
+            const D3D12_RESOURCE_STATES created = output ? D3D12_RESOURCE_STATE_UNORDERED_ACCESS : D3D12_RESOURCE_STATE_COPY_DEST;
+            D3D12_HEAP_PROPERTIES hp {}; hp.Type = D3D12_HEAP_TYPE_DEFAULT;
+            check(dev->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &d, created,
+                nullptr, IID_PPV_ARGS(&slot.resource)), "texture");
+            slot.transfer = buffer(t.size, output ? D3D12_HEAP_TYPE_READBACK : D3D12_HEAP_TYPE_UPLOAD);
+            slot.state = created;
+            slot.bytes = 2 * t.size;
+        }
+        t.resource = slot.resource;
+        t.transfer = slot.transfer;
         auto handle = heap->GetCPUDescriptorHandleForHeapStart(); handle.ptr += SIZE_T(i) * increment;
         if (output)
         {
             D3D12_UNORDERED_ACCESS_VIEW_DESC u {}; u.Format = t.format; u.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
             dev->CreateUnorderedAccessView(t.resource.Get(), nullptr, &u, handle);
+            auto cpu = zeroHeap->GetCPUDescriptorHandleForHeapStart(); cpu.ptr += SIZE_T(i) * increment;
+            dev->CreateUnorderedAccessView(t.resource.Get(), nullptr, &u, cpu);
+            if (slot.state != D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+                barrier(t.resource.Get(), slot.state, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            auto gpu = heap->GetGPUDescriptorHandleForHeapStart(); gpu.ptr += UINT64(i) * increment;
+            if (t.format == DXGI_FORMAT_R32G32B32A32_UINT)
+            {
+                const UINT zero[] = {0, 0, 0, 0};
+                cmd->ClearUnorderedAccessViewUint(gpu, cpu, t.resource.Get(), zero, 0, nullptr);
+            }
+            else
+            {
+                const float zero[] = {0, 0, 0, 0};
+                cmd->ClearUnorderedAccessViewFloat(gpu, cpu, t.resource.Get(), zero, 0, nullptr);
+            }
+            D3D12_RESOURCE_BARRIER cleared {}; cleared.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+            cleared.UAV.pResource = t.resource.Get();
+            cmd->ResourceBarrier(1, &cleared);
+            if (graphRequested)
+                barrier(t.resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kOutputReadState);
         }
         else
         {
@@ -154,6 +209,8 @@ int executeJob(const char* path) try
             check(t.transfer->Map(0, &empty, reinterpret_cast<void**>(&mapped)), "upload map");
             for (UINT y=0;y<t.height;++y) memcpy(mapped + t.footprint.Offset + y*t.footprint.Footprint.RowPitch, data.data()+y*row, row);
             t.transfer->Unmap(0,nullptr);
+            if (slot.state != D3D12_RESOURCE_STATE_COPY_DEST)
+                barrier(t.resource.Get(), slot.state, D3D12_RESOURCE_STATE_COPY_DEST);
             D3D12_TEXTURE_COPY_LOCATION src {}; src.pResource = t.transfer.Get(); src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT; src.PlacedFootprint = t.footprint;
             D3D12_TEXTURE_COPY_LOCATION dst {}; dst.pResource = t.resource.Get(); dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
             cmd->CopyTextureRegion(&dst,0,0,0,&src,nullptr);
@@ -167,10 +224,27 @@ int executeJob(const char* path) try
     auto cb = buffer((constants.size()+255)&~size_t(255), D3D12_HEAP_TYPE_UPLOAD);
     void* mapped; D3D12_RANGE empty {0,0}; check(cb->Map(0,&empty,&mapped),"cb map");
     memcpy(mapped,constants.data(),constants.size()); cb->Unmap(0,nullptr);
-    ComPtr<ID3D12RootSignature> signature;
-    check(dev->CreateRootSignature(0,shader.data(),shader.size(),IID_PPV_ARGS(&signature)),"root signature");
-    D3D12_COMPUTE_PIPELINE_STATE_DESC ps {}; ps.pRootSignature = signature.Get(); ps.CS = {shader.data(),shader.size()};
-    ComPtr<ID3D12PipelineState> pso; check(dev->CreateComputePipelineState(&ps,IID_PPV_ARGS(&pso)),"PSO");
+    // Worker mode compiles each distinct DXIL blob once. The key is the blob itself, not
+    // its path, so a shader rebuilt in place between jobs can never reuse a stale pipeline.
+    struct Pipeline { ComPtr<ID3D12RootSignature> signature; ComPtr<ID3D12PipelineState> pso; };
+    static std::map<std::string, Pipeline> pipelines;
+    const auto pipeline = [&](const std::vector<char>& blob, ID3D12RootSignature* sharedSignature) -> Pipeline& {
+        std::string key(blob.begin(), blob.end());
+        key += std::to_string(reinterpret_cast<uintptr_t>(sharedSignature));
+        auto& entry = pipelines[key];
+        if (!entry.pso)
+        {
+            if (sharedSignature) entry.signature = sharedSignature;
+            else check(dev->CreateRootSignature(0, blob.data(), blob.size(), IID_PPV_ARGS(&entry.signature)), "root signature");
+            D3D12_COMPUTE_PIPELINE_STATE_DESC desc {}; desc.pRootSignature = entry.signature.Get();
+            desc.CS = {blob.data(), blob.size()};
+            check(dev->CreateComputePipelineState(&desc, IID_PPV_ARGS(&entry.pso)), sharedSignature ? "second PSO" : "PSO");
+        }
+        return entry;
+    };
+    const Pipeline& first = pipeline(shader, nullptr);
+    ComPtr<ID3D12RootSignature> signature = first.signature;
+    ComPtr<ID3D12PipelineState> pso = first.pso;
     // Mirror two independent ComputeState leases: two heaps/CBV uploads with
     // identical descriptors/constants, retained until the common fence completes.
     ComPtr<ID3D12PipelineState> secondPso;
@@ -178,9 +252,8 @@ int executeJob(const char* path) try
     ComPtr<ID3D12Resource> secondCb;
     if (!secondShaderPath.empty())
     {
-        const auto secondShader = bytes(secondShaderPath);
-        ps.CS = {secondShader.data(), secondShader.size()};
-        check(dev->CreateComputePipelineState(&ps, IID_PPV_ARGS(&secondPso)), "second PSO");
+        // Production binds the generic composition root signature to both passes.
+        secondPso = pipeline(bytes(secondShaderPath), signature.Get()).pso;
         check(dev->CreateDescriptorHeap(&hd, IID_PPV_ARGS(&secondHeap)), "second heap");
         for (UINT i=0; i<textures.size(); ++i)
         {
@@ -322,6 +395,16 @@ int executeJob(const char* path) try
         for (UINT y=0;y<t.height;++y) f.write(data+t.footprint.Offset+y*t.footprint.Footprint.RowPitch,size_t(t.width)*pixelBytes(t.format));
         t.transfer->Unmap(0,nullptr);
     }
+    // The GPU has finished with every resource; return them for the next job.
+    for (UINT i=0;i<textures.size();++i)
+    {
+        auto& slot = taken[i];
+        slot.state = i >= srvCount ? D3D12_RESOURCE_STATE_COPY_SOURCE : D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+        pooledBytes += slot.bytes;
+        pool.emplace(PoolKey(textures[i].width, textures[i].height, int(textures[i].format), i >= srvCount), std::move(slot));
+    }
+    // Suites sweep many sizes, including HDR fixtures of hundreds of MB; bound the pool.
+    if (pooledBytes > (UINT64(1) << 30)) { pool.clear(); pooledBytes = 0; }
     unsigned errors=0, warnings=0;
     if (info) for (UINT64 i=0;i<info->GetNumStoredMessages();++i)
     {
