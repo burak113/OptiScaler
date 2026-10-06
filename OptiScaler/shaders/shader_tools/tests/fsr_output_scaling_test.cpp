@@ -145,8 +145,35 @@ static void CheckAllocationDispatchAgreement()
             }
 }
 
+// FSR 3.1 features that follow upscaleSize without recreation (FFX on DX12/Vulkan, FSR 3.1 on DX11).
+static void CheckDynamicDispatch()
+{
+    const Size target { 1920, 1080 };
+    // No output scaler: the request is honoured on both axes, inside the target.
+    CHECK(ResolveDynamicDispatchSize(target, false, 1280, 720) == Size { 1280, 720 });
+    CHECK(ResolveDynamicDispatchSize(target, false, 1920, 1080) == target);
+    CHECK(ResolveDynamicDispatchSize(target, false, 2560, 720) == Size { 1920, 720 });
+    for (const auto& [w, h] : { std::pair { std::optional<uint32_t> {}, std::optional<uint32_t> { 720u } },
+                                std::pair { std::optional<uint32_t> { 1280u }, std::optional<uint32_t> {} },
+                                std::pair { std::optional<uint32_t> { 0u }, std::optional<uint32_t> { 720u } } })
+        CHECK(ResolveDynamicDispatchSize(target, false, w, h) == target);
+    // With the scaler the dispatch always covers the target it reads: 1.5x, and ExtendedLimits
+    // where the request equals the display but the target is the render size.
+    const auto scaled = ResolveContextSizes(target, { 1280, 720 }, true, true, false, 1.5f, TextureLimit);
+    CHECK(ResolveDynamicDispatchSize(scaled.target, true, 1280, 720) == scaled.target);
+    CHECK(ResolveDynamicDispatchSize(scaled.target, true, 1920, 1080) == scaled.target);
+    const auto extended = ResolveContextSizes(target, { 2560, 1440 }, true, true, true, 2.5f, TextureLimit);
+    CHECK(ResolveDynamicDispatchSize(extended.target, true, 1920, 1080) == Size { 2560, 1440 });
+    // The recreation that applies the new size derives a target matching the request.
+    const auto display = ResolveDynamicDisplay(1280, 720, target);
+    CHECK(display == Size { 1280, 720 });
+    const auto rebuilt = ResolveContextSizes(*display, { 853, 480 }, true, true, false, 1.5f, TextureLimit);
+    CHECK(ResolveDynamicDispatchSize(rebuilt.target, true, 1280, 720) == Size { 1920, 1080 });
+}
+
 int main()
 {
+    CheckDynamicDispatch();
     CheckFractionalScaling();
     CheckDispatchCoversScalerSource();
     CheckDynamicDisplay();

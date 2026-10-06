@@ -106,6 +106,18 @@ inline Size ResolveDispatchSize(Size target, Size contextMaximum)
     return size.width == 0 || size.height == 0 ? Size {} : size;
 }
 
+// The SR dispatch extent of a feature that follows the title's dynamic upscaleSize request
+// without recreation. Without the output scaler the request is honoured on both axes, within
+// the target the context and the output were sized for. With the scaler the dispatch is the
+// whole target (see ResolveDispatchSize); the caller recreates the feature for a new size.
+inline Size ResolveDynamicDispatchSize(Size target, bool outputScalerActive, std::optional<uint32_t> requestWidth,
+                                       std::optional<uint32_t> requestHeight)
+{
+    if (outputScalerActive || requestWidth.value_or(0) == 0 || requestHeight.value_or(0) == 0)
+        return target;
+    return { std::min(*requestWidth, target.width), std::min(*requestHeight, target.height) };
+}
+
 // A dynamic output request (FSR.upscaleSize) names the display size and needs both axes.
 // Returns the new display size when it differs from the current one on either axis; the
 // target follows from it when the feature is recreated, exactly as at creation.

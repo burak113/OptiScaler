@@ -3,6 +3,7 @@
 #include <Util.h>
 #include "FSR31Feature_Dx11.h"
 #include "MathUtils.h"
+#include "upscalers/fsr31/FSROutputScaling.h"
 
 using namespace OptiMath;
 
@@ -355,28 +356,23 @@ bool FSR31FeatureDx11::EvaluateInternal(ID3D11DeviceContext* DeviceContext, NVSD
             LOG_WARN("Velocity configure result: {}", (UINT) result);
     }
 
-    if (InParameters->Get("FSR.upscaleSize.width", &params.upscaleSize.width) == NVSDK_NGX_Result_Success &&
-        Config::Instance()->OutputScalingEnabled.value_or_default())
+    // The title's dynamic output size. The output scaler reads the whole target, so while it
+    // runs the dispatch covers the target and a new size is applied by recreating the feature.
     {
-        auto originalWidth = static_cast<float>(params.upscaleSize.width);
-        params.upscaleSize.width =
-            static_cast<uint32_t>(originalWidth * Config::Instance()->OutputScalingMultiplier.value_or_default());
-    }
-    else if (params.upscaleSize.width == 0)
-    {
-        params.upscaleSize.width = TargetWidth();
-    }
-
-    if (InParameters->Get("FSR.upscaleSize.height", &params.upscaleSize.height) == NVSDK_NGX_Result_Success &&
-        Config::Instance()->OutputScalingEnabled.value_or_default())
-    {
-        auto originalHeight = static_cast<float>(params.upscaleSize.height);
-        params.upscaleSize.height =
-            static_cast<uint32_t>(originalHeight * Config::Instance()->OutputScalingMultiplier.value_or_default());
-    }
-    else if (params.upscaleSize.height == 0)
-    {
-        params.upscaleSize.height = TargetHeight();
+        uint32_t requestedWidth = 0;
+        uint32_t requestedHeight = 0;
+        const bool hasWidth =
+            InParameters->Get("FSR.upscaleSize.width", &requestedWidth) == NVSDK_NGX_Result_Success;
+        const bool hasHeight =
+            InParameters->Get("FSR.upscaleSize.height", &requestedHeight) == NVSDK_NGX_Result_Success;
+        const bool outputScalerActive = Config::Instance()->OutputScalingEnabled.value_or_default() &&
+                                        (LowResMV() || RenderWidth() == DisplayWidth());
+        const auto size = FSROutputScaling::ResolveDynamicDispatchSize(
+            { TargetWidth(), TargetHeight() }, outputScalerActive,
+            hasWidth ? std::optional<uint32_t>(requestedWidth) : std::nullopt,
+            hasHeight ? std::optional<uint32_t>(requestedHeight) : std::nullopt);
+        params.upscaleSize.width = size.width;
+        params.upscaleSize.height = size.height;
     }
 
     LOG_DEBUG("Dispatch!!");

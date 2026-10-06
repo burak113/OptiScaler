@@ -995,6 +995,9 @@
     <ClInclude Include="shaders\fsrd_preprocess\precompile\RRTraceAdditive_Shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDBlitMapping.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="shaders\fsrd_preprocess\FSRDShaderUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>

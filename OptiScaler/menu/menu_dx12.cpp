@@ -150,8 +150,13 @@ bool Menu_Dx12::Render(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* outT
     bufferBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
     bufferBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
 
-    D3D12_RESOURCE_BARRIER barriers[] = { bufferBarrier, outBarrier };
-    pCmdList->ResourceBarrier(2, barriers);
+    // An array would be a copy: rebuild it from the edited barriers every time it is issued.
+    const auto issueBoth = [&]()
+    {
+        const D3D12_RESOURCE_BARRIER pair[] = { bufferBarrier, outBarrier };
+        pCmdList->ResourceBarrier(2, pair);
+    };
+    issueBoth();
 
     // Copy out to buffer
     pCmdList->CopyResource(_renderTargetResource[backbuf], outTexture);
@@ -180,7 +185,7 @@ bool Menu_Dx12::Render(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* outT
 
         bufferBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
         bufferBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-        pCmdList->ResourceBarrier(2, barriers);
+        issueBoth();
 
         // Copy back buffer to out
         pCmdList->CopyResource(outTexture, _renderTargetResource[backbuf]);
@@ -191,7 +196,14 @@ bool Menu_Dx12::Render(ID3D12GraphicsCommandList* pCmdList, ID3D12Resource* outT
 
         outBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
         outBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-        pCmdList->ResourceBarrier(2, barriers);
+        issueBoth();
+    }
+    else
+    {
+        // Nothing drawn: the output was only copied from. Hand it back as the UAV it came in as.
+        outBarrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+        outBarrier.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+        pCmdList->ResourceBarrier(1, &outBarrier);
     }
 
     return true;

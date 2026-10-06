@@ -41,6 +41,7 @@ HOST_CORRECTNESS = (
     'test_fsrd_roughness_acceptance', 'test_fsr_output_scaling',
     'test_fsrd_camera_matrices', 'test_fsrd_sr_alignment',
     'test_fsr_upscale_settings', 'test_fsrd_title_linear_depth_extent', 'test_fsr_reactive_masks',
+    'test_fsrd_blit_mapping',
     'test_fsrd_toolchain_cache',
 )
 SUITES = (

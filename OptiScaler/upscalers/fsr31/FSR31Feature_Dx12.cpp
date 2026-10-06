@@ -792,7 +792,9 @@ void FSR31FeatureDx12::GetReactiveAndTransparencyMasks(ID3D12GraphicsCommandList
     TryResourceBarrier(InCommandList, inputs.DlssBiasMaskFallback, cfg.MaskResourceBarrier,
                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-    if (!cfg.DisableReactiveMask.value_or(inputs.ReactiveMask == nullptr && inputs.DlssBiasMaskFallback == nullptr))
+    // Auto keeps masks on whenever the title supplies any of them, a T&C mask alone included.
+    if (!cfg.DisableReactiveMask.value_or(inputs.ReactiveMask == nullptr && inputs.TransparencyMask == nullptr &&
+                                          inputs.DlssBiasMaskFallback == nullptr))
     {
         // Prefer explicit FSR masks
         if (inputs.TransparencyMask)

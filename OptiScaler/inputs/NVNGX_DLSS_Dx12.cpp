@@ -1072,8 +1072,12 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(ID3D12GraphicsCommandList* InCmdL
         const bool isFSR31OrLater = isFFX && !feature->UsesRecordedComputeLifetime() &&
                                    feature->Version() >= feature_version { 3, 1, 0 };
 
-        // FSR 3.1 supports upscaleSize that doesn't need reinit to change output resolution
-        if (!isFSR31OrLater && feature->UpdateOutputResolution(InParameters))
+        // FSR 3.1 supports upscaleSize that doesn't need reinit to change output resolution,
+        // but the output scaler reads the whole target and cannot follow it: with output
+        // scaling a new size is applied by recreation, like for the other upscalers.
+        const bool followsUpscaleSize =
+            isFSR31OrLater && !Config::Instance()->OutputScalingEnabled.value_or_default();
+        if (!followsUpscaleSize && feature->UpdateOutputResolution(InParameters))
             state.changeBackend[handleId] = true;
     }
 

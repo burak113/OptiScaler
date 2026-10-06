@@ -187,6 +187,7 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     static bool s_ngxReportedHWDepth;
 
     bool _isHWDepth = false;
+    bool _warnedLinearSRDepth = false;
     bool _ngxReportedHWDepth = false;
     bool _hasNGXDepthType = false;
     int _appliedHardwareDepth = -1;

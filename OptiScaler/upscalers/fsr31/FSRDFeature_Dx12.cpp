@@ -2362,6 +2362,14 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
             compositionFlags |= uint32_t(FSRDCompFlags::ExtraSpecular);
         if (_extraDiffuseSignal && _unsupportedAlbedoRecovery)
             compositionFlags |= uint32_t(FSRDCompFlags::DiffuseAlternate);
+        // The shader's Indirect Diffuse view knows only the split lobe and shows the live
+        // alternate as missing (magenta). Present it as denoised, unmodulated: the split
+        // read with a unit albedo multiplier. A paused split shows its modulated half, an
+        // empty or disabled slot stays magenta. Debug frames never commit composition history.
+        const bool showDiffuseAlternate =
+            dbgMode == DebugModes::IndirectDiffuse && _fixDiffuse == FSRDSignals::FixDiffuse::Alternate;
+        if (showDiffuseAlternate)
+            compositionFlags |= uint32_t(FSRDCompFlags::ExtraDiffuse);
 
         FSRDCompDesc compDesc =
         { 
@@ -2372,7 +2380,7 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
             .FloorHandoverAnchorClamp = _appliedFloorHandoverAnchorClamp,
             .FloorHandoverCorrelationMix = _appliedFloorHandoverCorrelationMix,
             .SpecularAlbedoDemodulation = _convDesc.SpecularAlbedoDemodulation,
-            .DiffuseAlbedoModulation = _convDesc.DiffuseAlbedoModulation,
+            .DiffuseAlbedoModulation = showDiffuseAlternate ? 0.0f : _convDesc.DiffuseAlbedoModulation,
             .SpatialTemporalMask = _appliedSpatialTemporalMask,
             .LumaRecovery = _appliedLumaRecovery,
             .ChromaRecovery = _appliedChromaRecovery,
@@ -2442,6 +2450,15 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                 FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
 
         upscalerDesc.reset = upscalerDesc.reset || _upscalerResetPending;
+        // FFX SR reads device depth (no linear mode: its view depth is b / (d - a)). RR accepts
+        // a linear main depth, SR gets the same resource unconverted: it still runs, but its
+        // depth-based dilation and disocclusion use wrong distances. Say so once per instance.
+        if (!_isHWDepth && !_warnedLinearSRDepth)
+        {
+            _warnedLinearSRDepth = true;
+            LOG_WARN("[SR_INPUT] the title's main depth is linear; FSR SR expects device depth, so its "
+                     "disocclusion and depth dilation are approximate on this title");
+        }
         {
             FSRDStageTimings::Scope timing(&_stageTimings, FSRDStageTimings::SuperResolution);
             isUpscalerReady = DispatchUpscaler(InCommandList, upscalerDesc);

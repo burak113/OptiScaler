@@ -163,6 +163,19 @@ int main() try
         need(in.ReactiveMask == nullptr && in.TransparencyMask == nullptr && f.Bias->allocations == 0,
              "an offset bias mask never reaches SR");
     }
+    for (int mode = 0; mode != 3; ++mode)
+    {
+        // A frame with only a T&C mask: Auto and explicit enable keep it, explicit disable drops it.
+        *Config::Instance() = {};
+        if (mode == 1) Config::Instance()->DisableReactiveMask.value = false;
+        if (mode == 2) Config::Instance()->DisableReactiveMask.value = true;
+        FSR31FeatureDx12 f;
+        FSR31FeatureDx12::InputResources in;
+        in.TransparencyMask = &nativeTransparency;
+        f.GetReactiveAndTransparencyMasks(&list, in);
+        need(in.TransparencyMask == (mode == 2 ? nullptr : &nativeTransparency), "T&C-only frame follows the mask switch");
+        need(in.ReactiveMask == nullptr && f.Bias->allocations == 0, "T&C-only frame invents no reactive mask");
+    }
     std::cout << "SR reactive masks: " << checks << " production mask selection checks passed\n";
     return 0;
 }

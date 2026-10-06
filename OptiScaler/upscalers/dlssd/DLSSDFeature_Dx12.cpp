@@ -2,6 +2,7 @@
 #include "DLSSDFeature_Dx12.h"
 #include <dxgi1_4.h>
 #include <Config.h>
+#include <resource_tracking/ResTrack_Dx12.h>
 
 bool DLSSDFeatureDx12::InitInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters)
 {
@@ -43,14 +44,16 @@ bool DLSSDFeatureDx12::InitDLSSD(ID3D12GraphicsCommandList* InCommandList, NVSDK
     {
         ProcessInitParams(InParameters);
 
-        _p_dlssdHandle = &_dlssdHandle;
+        // The owner provides the handle storage, so the handle outlives this object while
+        // recorded work still names it.
+        auto owner = std::make_shared<HandleOwner>();
 
         NVSDK_NGX_Result nvResult;
         {
             ScopedSkipHeapCapture skipHeapCapture {};
 
             nvResult = NVNGXProxy::D3D12_CreateFeature()(InCommandList, NVSDK_NGX_Feature_RayReconstruction,
-                                                         InParameters, &_p_dlssdHandle);
+                                                         InParameters, &owner->handle);
         }
 
         if (nvResult != NVSDK_NGX_Result_Success)
@@ -60,6 +63,9 @@ bool DLSSDFeatureDx12::InitDLSSD(ID3D12GraphicsCommandList* InCommandList, NVSDK
         }
         else
         {
+            owner->created = owner->handle != nullptr;
+            _handleOwner = std::move(owner);
+            _p_dlssdHandle = _handleOwner->handle;
             LOG_INFO("_CreateFeature result: NVSDK_NGX_Result_Success, HandleId: {0}", _p_dlssdHandle->Id);
         }
     }
@@ -88,6 +94,13 @@ bool DLSSDFeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList
     if (NVNGXProxy::D3D12_EvaluateFeature() != nullptr)
     {
         ProcessEvaluateParams(InParameters);
+
+        if (_recordedComputeLifetime &&
+            (!_handleOwner || !ResTrack_Dx12::RetainComputeDispatch(Device, InCommandList, _handleOwner)))
+        {
+            LOG_ERROR("Cannot tie the NGX feature to this command list's lifetime; skipping the evaluation");
+            return false;
+        }
 
         nvResult = NVNGXProxy::D3D12_EvaluateFeature()(InCommandList, _p_dlssdHandle, InParameters, NULL);
 
@@ -122,11 +135,20 @@ DLSSDFeatureDx12::DLSSDFeatureDx12(unsigned int InHandleId, NVSDK_NGX_Parameter*
     LOG_INFO("binding complete!");
 }
 
-DLSSDFeatureDx12::~DLSSDFeatureDx12()
+DLSSDFeatureDx12::HandleOwner::~HandleOwner()
 {
-    if (State::Instance().isShuttingDown)
+    if (!created || State::Instance().isShuttingDown || NVNGXProxy::D3D12_ReleaseFeature() == nullptr)
         return;
 
-    if (NVNGXProxy::D3D12_ReleaseFeature() != nullptr && _p_dlssdHandle != nullptr)
-        NVNGXProxy::D3D12_ReleaseFeature()(_p_dlssdHandle);
+    const auto result = NVNGXProxy::D3D12_ReleaseFeature()(handle);
+    if (result != NVSDK_NGX_Result_Success)
+        LOG_ERROR("DLSSD ReleaseFeature result: {0:X}", (unsigned int) result);
+}
+
+DLSSDFeatureDx12::~DLSSDFeatureDx12()
+{
+    // Recorded lists and unfinished submissions may still hold the handle; the last of
+    // them releases it.
+    _p_dlssdHandle = nullptr;
+    _handleOwner.reset();
 }

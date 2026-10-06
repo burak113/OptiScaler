@@ -278,7 +278,7 @@ bool FSR2FeatureVk::EvaluateInternal(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Para
     NVSDK_NGX_Resource_VK* paramReactiveMask2 = nullptr;
     InParameters->Get(NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, (void**) &paramReactiveMask2);
 
-    if (!Config::Instance()->DisableReactiveMask.value_or(paramReactiveMask == nullptr &&
+    if (!Config::Instance()->DisableReactiveMask.value_or(paramReactiveMask == nullptr && paramTransparency == nullptr &&
                                                           paramReactiveMask2 == nullptr))
     {
         if (paramTransparency != nullptr)

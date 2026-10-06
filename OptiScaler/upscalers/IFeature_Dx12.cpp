@@ -355,7 +355,17 @@ bool IFeature_Dx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX
                 Imgui.reset();
             }
             else
+            {
+                // The menu draws on a UAV-state output. With post-processing the title's
+                // output is still UAV here (titleOutputTransition); otherwise the upscaler has
+                // already returned it to its configured state, so move it for the menu.
+                const auto menuState = _internalOutput ? std::nullopt : TitleOutputState(paramOutput);
+                if (menuState)
+                    ResourceBarrier(InCommandList, paramOutput, *menuState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
                 Imgui->Render(InCommandList, paramOutput);
+                if (menuState)
+                    ResourceBarrier(InCommandList, paramOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, *menuState);
+            }
         }
         else
         {

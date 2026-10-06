@@ -185,7 +185,7 @@ bool FSR2FeatureDx12::EvaluateInternal(ID3D12GraphicsCommandList* InCommandList,
     ID3D12Resource* paramReactiveMask2 = nullptr;
     InParameters->Get(NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, (void**) &paramReactiveMask2);
 
-    if (!Config::Instance()->DisableReactiveMask.value_or(paramReactiveMask == nullptr &&
+    if (!Config::Instance()->DisableReactiveMask.value_or(paramReactiveMask == nullptr && paramTransparency == nullptr &&
                                                           paramReactiveMask2 == nullptr))
     {
         if (paramTransparency != nullptr)

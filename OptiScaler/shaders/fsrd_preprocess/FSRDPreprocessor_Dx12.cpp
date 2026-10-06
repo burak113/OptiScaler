@@ -8,6 +8,7 @@
 #include <optional>
 #include <mutex>
 #include "FSRDPreprocessor_Dx12.h"
+#include "FSRDBlitMapping.h"
 #include "gpu_time/FSRDStageTimings_Dx12.h"
 #include "FSRDShaderUtils.h"
 #include "FSRDShaderData.h"
@@ -2001,6 +2002,8 @@ struct FSRDPreprocessor_Dx12::Impl
         Composition::Input inputs = {};
         inputs.Resources.InIndirectSpecular = srcTex;
 
+        const auto mapX = FSRDBlitMapping::Resolve(logicalSrcDim.x, logicalSrcBase.x, physicalSrcDim.x, dstDim.x);
+        const auto mapY = FSRDBlitMapping::Resolve(logicalSrcDim.y, logicalSrcBase.y, physicalSrcDim.y, dstDim.y);
         const Composition::Constants constants = 
         {
             .DstTexSize = 
@@ -2009,14 +2012,8 @@ struct FSRDPreprocessor_Dx12::Impl
                 (1.0f / dstDim.x),  (1.0f / dstDim.y)
             },
             .Flags = (UINT)CompFlags::RawSourceBlit | (UINT)CompFlags::ScaleSrc,
-            .SourceUvScale = {
-                logicalSrcDim.x / physicalSrcDim.x,
-                logicalSrcDim.y / physicalSrcDim.y
-            },
-            .SourceUvOffset = {
-                logicalSrcBase.x / physicalSrcDim.x,
-                logicalSrcBase.y / physicalSrcDim.y
-            }
+            .SourceUvScale = { mapX.scale, mapY.scale },
+            .SourceUvOffset = { mapX.offset, mapY.offset }
         };
 
         std::array<ID3D12Resource*, Composition::kOutputCount> uavs { dstTex, nullptr, nullptr };
