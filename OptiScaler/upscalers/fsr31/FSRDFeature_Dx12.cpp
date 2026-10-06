@@ -1893,10 +1893,10 @@ RRResult FSRDFeatureDx12::CreateDenoiserContext()
         _denoiserCtxDesc.signalFlags, _denoiserCtxDesc.checkerboardSignalFlags,
         _denoiserCtxDesc.flags);
     LOG_INFO("[RR_DIAG] signal plan: mask={:#x}, diffuse={}, specular={}, ambientOcclusion={}, "
-             "specularOcclusion={} (no semantic source), albedoFix={} (running={}), notes={:#x}",
+             "specularOcclusion={} (no semantic source), albedoFix={} (diffuse copy={}, running={}), notes={:#x}",
              _signalMask, GetSignalTypeName(_diffuseSignalDescType), GetSignalTypeName(_specularSignalDescType),
-             _ambientOcclusionEnabled, _specularOcclusionEnabled, _plan.albedoFix, _unsupportedAlbedoRecovery,
-             _plan.notes);
+             _ambientOcclusionEnabled, _specularOcclusionEnabled, _plan.albedoFix, _plan.diffuseCopy,
+             _unsupportedAlbedoRecovery, _plan.notes);
     spdlog::info(L"" __FUNCTIONW__ L" [RR_DIAG] denoiser module: {}",
                  FfxApiProxy::Dx12Module_Denoiser_Path());
 
@@ -1955,7 +1955,8 @@ RRResult FSRDFeatureDx12::CreateDenoiserContext()
         return result;
     }
 
-    if (!newConverter->ConfigureSignalResources(_extraDiffuseSignal, _extraSpecularSignal, _plan.albedoFix) ||
+    if (!newConverter->ConfigureSignalResources(_extraDiffuseSignal, _extraSpecularSignal, _plan.albedoFix,
+                                                _plan.diffuseCopy) ||
         !newConverter->SetMaxRenderSize(
             _denoiserCtxDesc.maxRenderSize.width,
             _denoiserCtxDesc.maxRenderSize.height))
@@ -2363,13 +2364,14 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
         if (!_denoiseSpecular)
             compositionFlags |= (uint32_t)FSRDCompFlags::SpecularSignalDisabled;
 
-        // With the albedo fix the second slot of each lobe carries its unmodulated copy;
+        // With the albedo fix the second slot of each fixed lobe carries its unmodulated copy;
         // while the fix pauses (changed modulation) both slots split the lobe instead.
-        if (_extraDiffuseSignal && !_unsupportedAlbedoRecovery)
+        const bool diffuseCopy = _unsupportedAlbedoRecovery && _plan.diffuseCopy;
+        if (_extraDiffuseSignal && !diffuseCopy)
             compositionFlags |= uint32_t(FSRDCompFlags::ExtraDiffuse);
         if (_extraSpecularSignal && !_unsupportedAlbedoRecovery)
             compositionFlags |= uint32_t(FSRDCompFlags::ExtraSpecular);
-        if (_extraDiffuseSignal && _unsupportedAlbedoRecovery)
+        if (diffuseCopy)
             compositionFlags |= uint32_t(FSRDCompFlags::DiffuseAlternate);
 
         FSRDCompDesc compDesc =
@@ -2656,7 +2658,8 @@ RRResult FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InComm
 
     if (_extraDiffuseSignal)
     {
-        FSRDConvShader->GetIndirectDiffuseSignal(_indirectDiffuseSignal, _unsupportedAlbedoRecovery);
+        FSRDConvShader->GetIndirectDiffuseSignal(_indirectDiffuseSignal,
+                                                 _unsupportedAlbedoRecovery && _plan.diffuseCopy);
         signals[signalCount++] = &_indirectDiffuseSignal.header;
     }
 
@@ -3205,10 +3208,6 @@ RRResult FSRDFeatureDx12::ResolveSignalTypes(bool isReady)
                             _convDesc.Resources.InSpecularRayDirectionHitDistance != nullptr;
     const bool nativeDiffuse = _convDesc.Resources.InDiffuseHitDistance != nullptr &&
                                _convDesc.DiffuseHitDistanceMode != 0u;
-    const uint32_t available = FSRDSignals::Bit(FSRDSignals::DirectDiffuse) |
-                              FSRDSignals::Bit(FSRDSignals::DirectSpecular) |
-        ((nativeSpec || request.estimate) ? FSRDSignals::Bit(FSRDSignals::IndirectSpecular) : 0u) |
-        ((nativeDiffuse || request.estimate) ? FSRDSignals::Bit(FSRDSignals::IndirectDiffuse) : 0u);
     _seenSpecularDistance |= _convDesc.Resources.InSpecHitDist != nullptr ||
                              _convDesc.Resources.InSpecularRayDirectionHitDistance != nullptr;
     _seenDiffuseDistance |= _convDesc.Resources.InDiffuseHitDistance != nullptr &&
@@ -3217,20 +3216,22 @@ RRResult FSRDFeatureDx12::ResolveSignalTypes(bool isReady)
 
     const auto plan = FSRDSignals::MakePlan(request, _seenSpecularDistance,
                                             _seenDiffuseDistance);
-    if (plan.mask == _plan.mask && plan.albedoFix == _plan.albedoFix)
+    if (plan.mask == _plan.mask && plan.albedoFix == _plan.albedoFix && plan.diffuseCopy == _plan.diffuseCopy)
     {
         _plan.notes = plan.notes;
         PublishSignalStatus();
         // A one-frame guide dropout keeps the latched plan and its resources.
         // It cannot safely dispatch an active indirect signal without a distance.
-        if (_preprocessorHasRecordedWork && (_signalMask & ~available) != 0)
+        const uint32_t feedable = FSRDSignals::Feedable(_plan, request.estimate, nativeSpec, nativeDiffuse);
+        if (_preprocessorHasRecordedWork && (_signalMask & ~feedable) != 0)
             return RRResult::RetryableInputFailure;
         return RRResult::Success;
     }
 
+    const auto fixName = [](const FSRDSignals::Plan& p)
+    { return p.diffuseCopy ? " + albedo fix" : p.albedoFix ? " + specular albedo fix" : ""; };
     LOG_INFO("[RR_INPUT] signal plan {:#x}{} -> {:#x}{} (specular hit distance: {}, diffuse hit distance: {})",
-             _plan.mask, _plan.albedoFix ? " + albedo fix" : "", plan.mask, plan.albedoFix ? " + albedo fix" : "",
-             _seenSpecularDistance, _seenDiffuseDistance);
+             _plan.mask, fixName(_plan), plan.mask, fixName(plan), _seenSpecularDistance, _seenDiffuseDistance);
     InvalidateDenoiserHistory();
     // Recreating in place would destroy converter textures that an already-submitted
     // command list can still reference. UpdateSize refuses exactly this; take the same
@@ -3789,11 +3790,15 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
         InvalidateDenoiserHistory();
     }
     if (_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::UnsupportedAlbedo);
-    if (_extraDiffuseSignal && !_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfDiffuse);
+    if (_extraDiffuseSignal && !(_unsupportedAlbedoRecovery && _plan.diffuseCopy))
+        _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfDiffuse);
     if (_extraSpecularSignal && !_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfSpecular);
     if (estimateHitDistances)
-        _convDesc.Flags |= uint32_t(FSRDConvFlags::ApproximateSpecHitDistance) |
-                           uint32_t(FSRDConvFlags::ApproximateRayHitDistance);
+        _convDesc.Flags |= uint32_t(FSRDConvFlags::ApproximateSpecHitDistance);
+    // The diffuse copy's slot reads a ray length even without the title's (Feedable): primary
+    // view depth, for the copy and for the lobe half it carries while the fix pauses.
+    if (estimateHitDistances || _plan.diffuseCopy)
+        _convDesc.Flags |= uint32_t(FSRDConvFlags::ApproximateRayHitDistance);
     _convDesc.FloorEnabled = cfg.FfxDenoiserFloorEnabled.value_or_default();
     const bool floorFastMode = cfg.FfxDenoiserFloorFastMode.value_or_default();
     if (_convDesc.FloorFastMode != floorFastMode)

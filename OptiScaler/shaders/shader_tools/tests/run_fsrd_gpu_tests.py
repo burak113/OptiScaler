@@ -152,6 +152,8 @@ def constants(shader, values, directory=PRE):
 
 counter = 0
 timings = []
+# The albedo-trust vote pair (FSRDFormats::AlbedoTrust): DXGI_FORMAT_R16G16_FLOAT.
+TRUST = 34
 def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repetitions=1):
     global counter
     schema = 'FSRDInputConv' if shader == 'FSRDInputConvAdditive' else shader
@@ -208,18 +210,21 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
     d=OUT/f'{counter:03}_{shader}';counter+=1;d.mkdir(exist_ok=True)
     cb=d/'cb.bin';cb.write_bytes(constants(shader,values,directory))
     records=[f'{json.dumps(str(directory/(shader+"_Shader.cso")))} {json.dumps(str(cb))} {w} {h} {len(inputs)} {len(output_formats)} {repetitions}']
+    # The runner dispatches 8x8 groups unless the job names another thread-group size.
+    group=re.search(r'\[numthreads\((\d+),\s*(\d+),\s*1\)\]',(directory/(schema+'.hlsl')).read_text(encoding='utf-8-sig'))
+    if group and (group[1],group[2])!=('8','8'): records[0]+=f' "" 0 {group[1]} {group[2]}'
     # Internal formats match the production resources. External title inputs use a
     # documented RGBA16_FLOAT/R32_FLOAT fixture (actual title formats may differ).
     formats = {
         'FSRDFloorSeed': [10,10,41,41,10],
         'FSRDFloor': [10,41,10,10],
         'FSRDInputConv': [10,41,10,10,41,41,10,10,41,10,10,10,10,10,41,41,10,10],
-        'FSRDOutputComp': ([10,28,10,28,10,24,10,41,10,10,3,10,10,16,10] + ([10,10] if loss_comp else []) if trust_comp else
+        'FSRDOutputComp': ([10,28,10,28,10,24,10,41,10,10,3,10,10,TRUST,10] + ([10,10] if loss_comp else []) if trust_comp else
                            [10,28,10,28,10,24,10,41,10,10,3,28,10] if temporal_comp else
                           [10,28,10,28,10,24,10,41] if len(inputs)==8 else
                            [10,28,10,28,10,10,10,24,10]),
         'FSRDAlbedoTrustEvidence': [10,10,28,28,10,41,24,10,10] + ([10,10] if loss_evidence else []),
-        'FSRDAlbedoTrustPropagate': [16,41,24],
+        'FSRDAlbedoTrustPropagate': [TRUST,41,24],
     }[schema]
     for i,a in enumerate(inputs):
         a=np.asarray(a,dtype=np.uint32 if formats[i]==3 else np.float32)
@@ -230,6 +235,7 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
         elif fmt==3: stored=a.astype('<u4')
         elif fmt==41: stored=a[...,0].astype('<f4')
         elif fmt==16: stored=a[...,:2].astype('<f4')
+        elif fmt==34: stored=a[...,:2].astype('<f2')
         elif fmt==28: stored=np.rint(np.clip(a,0,1)*255).astype(np.uint8)
         elif fmt==24:
             u=np.rint(np.clip(a,0,1)*[1023,1023,1023,3]).astype(np.uint32)
@@ -255,6 +261,7 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
         elif fmt==2:a=np.fromfile(p,dtype='<f4').reshape(h,w,4)
         elif fmt==41:a=np.fromfile(p,dtype='<f4').reshape(h,w)
         elif fmt==16:a=np.fromfile(p,dtype='<f4').reshape(h,w,2)
+        elif fmt==34:a=np.fromfile(p,dtype='<f2').reshape(h,w,2).astype(np.float32)
         elif fmt==28:a=np.fromfile(p,dtype=np.uint8).reshape(h,w,4).astype(np.float32)/255
         elif fmt==24:
             packed=np.fromfile(p,dtype='<u4').reshape(h,w)

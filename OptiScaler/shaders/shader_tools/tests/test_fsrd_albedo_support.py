@@ -14,7 +14,7 @@ def evidence(w, h, depth):
                       {'DstTexSize': [w, h, 1 / w, 1 / h], 'DemodDivisorFloor': .008},
                       [t.rgba(w, h, (.2, .2, .2)), zero, spec, zero, zero,
                        depth, t.rgba(w, h, (.5, .5, .2)), t.rgba(w, h, (0, 0, 0), 1)],
-                      [16], (w, h))[0]
+                      [t.TRUST], (w, h))[0]
 
 
 def run():

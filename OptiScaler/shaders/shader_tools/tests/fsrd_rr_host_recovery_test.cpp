@@ -72,6 +72,7 @@ struct Config
     Setting<int> FfxDenoiserDiffuseRoute { FSRDSignals::Auto }, FfxDenoiserSpecularRoute { FSRDSignals::Auto };
     Setting<bool> FfxDenoiserDenoiseDiffuse { true }, FfxDenoiserDenoiseSpecular { true };
     Setting<bool> FfxDenoiserUnsupportedAlbedoRecovery { false }, FfxDenoiserEstimateHitDistances { false };
+    Setting<bool> FfxDenoiserAlbedoBleedFixDiffuse { true };
     static Config* Instance() { static Config value; return &value; }
 };
 struct State
@@ -377,6 +378,45 @@ int main()
     invalidInput._convDesc.Resources.InSpecHitDist = &guide;
     assert(invalidInput.ResolveSignalTypes(false) == RRResult::RetryableInputFailure);
     assert(!invalidInput._seenSpecularDistance && invalidInput.contextCreates == 0);
+
+    // The albedo fix's diffuse copy reads primary view depth, so a title without a diffuse
+    // hit distance keeps feeding all four signals after the first recorded frame. Only the
+    // main specular still needs its guide on every frame.
+    using namespace FSRDSignals;
+    State::Instance().changeBackend[0] = false;
+    Config::Instance()->FfxDenoiserUnsupportedAlbedoRecovery.value = true;
+    FSRDFeatureDx12 fix;
+    fix._convDesc.Resources.InSpecHitDist = &guide;
+    assert(fix.ResolveSignalTypes(true) == RRResult::Success && fix._plan.diffuseCopy && fix._signalMask == All);
+    fix._preprocessorHasRecordedWork = true;
+    for (int frame = 0; frame < 4; ++frame)
+        assert(fix.ResolveSignalTypes(true) == RRResult::Success);
+    fix._convDesc.Resources.InSpecHitDist = nullptr;
+    assert(fix.ResolveSignalTypes(true) == RRResult::RetryableInputFailure);
+    fix._convDesc.Resources.InSpecHitDist = &guide;
+    assert(fix.ResolveSignalTypes(true) == RRResult::Success);
+    assert(fix.contextCreates == 1 && !State::Instance().changeBackend[0]);
+
+    // Specular only leaves the diffuse lobe on its own route: its Indirect path does need the
+    // title's distance, and losing it for a frame skips that frame.
+    Config::Instance()->FfxDenoiserAlbedoBleedFixDiffuse.value = false;
+    FSRDFeatureDx12 specularFix;
+    specularFix._convDesc.Resources.InSpecHitDist = &guide;
+    specularFix._convDesc.Resources.InDiffuseHitDistance = &guide;
+    assert(specularFix.ResolveSignalTypes(true) == RRResult::Success);
+    assert(specularFix._plan.albedoFix && !specularFix._plan.diffuseCopy &&
+           specularFix._signalMask == (Bit(IndirectDiffuse) | SpecularBits));
+    specularFix._preprocessorHasRecordedWork = true;
+    specularFix._convDesc.Resources.InDiffuseHitDistance = nullptr;
+    assert(specularFix.ResolveSignalTypes(true) == RRResult::RetryableInputFailure);
+    specularFix._convDesc.Resources.InDiffuseHitDistance = &guide;
+    assert(specularFix.ResolveSignalTypes(true) == RRResult::Success && specularFix.contextCreates == 1);
+    // Switching to the full fix is a plan change: a deliberate rebuild, not a stall.
+    Config::Instance()->FfxDenoiserAlbedoBleedFixDiffuse.value = true;
+    assert(specularFix.ResolveSignalTypes(true) == RRResult::NeedsRecreation && State::Instance().changeBackend[0]);
+    Config::Instance()->FfxDenoiserUnsupportedAlbedoRecovery.value = false;
+    State::Instance().changeBackend[0] = false;
+    std::cout << "Production signal recovery: albedo fix without a diffuse hit distance keeps running\n";
     std::cout << "Production signal recovery: guide dropout, plan upgrades, safe recreation and provider rejection passed\n";
     std::cout << "Production RR host recovery: transient/native fallback, cooldown accounting, output faults, and device loss passed\n";
 }

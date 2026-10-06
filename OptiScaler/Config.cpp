@@ -160,6 +160,7 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserDiffuseAlbedoModulation.reset();
     FfxDenoiserAdditiveLightSplit.reset();
     FfxDenoiserUnsupportedAlbedoRecovery.reset();
+    FfxDenoiserAlbedoBleedFixDiffuse.reset();
     FfxDenoiserFloorFlatRecovery.reset();
     FfxDenoiserFloorSpecularRecovery.reset();
     FfxDenoiserFloorDiffuseRecovery.reset();
@@ -472,6 +473,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserAdditiveLightSplit.set_from_config(readFloat("FSR-RR", "AdditiveLightSplit"));
             FfxDenoiserUnsupportedAlbedoRecovery.set_from_config(readBool("FSR-RR", "AlbedoBleedFix"));
             FfxDenoiserUnsupportedAlbedoRecovery.set_from_config(readBool("FSR-RR", "UnsupportedAlbedoRecovery"));
+            FfxDenoiserAlbedoBleedFixDiffuse.set_from_config(readBool("FSR-RR", "AlbedoBleedFixDiffuse"));
             FfxDenoiserFloorFlatRecovery.set_from_config(readBool("FSR-RR", "FloorFlatRecovery"));
             FfxDenoiserFloorSpecularRecovery.set_from_config(readBool("FSR-RR", "FloorSpecularRecovery"));
             FfxDenoiserFloorDiffuseRecovery.set_from_config(readBool("FSR-RR", "FloorDiffuseRecovery"));
@@ -1423,6 +1425,7 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "DiffuseAlbedoModulation", GetFloatValue(Instance()->FfxDenoiserDiffuseAlbedoModulation.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "AdditiveLightSplit", GetFloatValue(Instance()->FfxDenoiserAdditiveLightSplit.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "AlbedoBleedFix", GetBoolValue(Instance()->FfxDenoiserUnsupportedAlbedoRecovery.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "AlbedoBleedFixDiffuse", GetBoolValue(Instance()->FfxDenoiserAlbedoBleedFixDiffuse.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "FloorFlatRecovery", GetBoolValue(Instance()->FfxDenoiserFloorFlatRecovery.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "FloorSpecularRecovery", GetBoolValue(Instance()->FfxDenoiserFloorSpecularRecovery.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "FloorDiffuseRecovery", GetBoolValue(Instance()->FfxDenoiserFloorDiffuseRecovery.value_for_config()).c_str());

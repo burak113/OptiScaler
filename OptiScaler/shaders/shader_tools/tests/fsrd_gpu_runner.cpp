@@ -54,6 +54,7 @@ int pixelBytes(DXGI_FORMAT fmt)
     case DXGI_FORMAT_R32G32B32A32_UINT: return 16;
     case DXGI_FORMAT_R16G16B16A16_FLOAT: return 8;
     case DXGI_FORMAT_R32G32_FLOAT: return 8;
+    case DXGI_FORMAT_R16G16_FLOAT:
     case DXGI_FORMAT_R32_FLOAT:
     case DXGI_FORMAT_R10G10B10A2_UNORM:
     case DXGI_FORMAT_R8G8B8A8_UNORM: return 4;
@@ -74,6 +75,10 @@ int executeJob(const char* path) try
     std::getline(job, extra);
     std::istringstream options(extra);
     options >> std::quoted(secondShaderPath) >> initializeSentinel;
+    // Optional thread-group size after them (shaders other than 8x8).
+    UINT groupX = 0, groupY = 0;
+    options >> groupX >> groupY;
+    if (!groupX || !groupY) groupX = groupY = 8;
     const bool graphRequested = !secondShaderPath.empty() || initializeSentinel;
     // Optional worker mode retains the device/queue, compiled pipelines and a pool of
     // textures between jobs. Every job re-uploads all of its inputs, clears all of its
@@ -335,7 +340,7 @@ int executeJob(const char* path) try
             cmd->SetComputeRootDescriptorTable(1, gpu);
             gpu.ptr += UINT64(srvCount) * increment;
             cmd->SetComputeRootDescriptorTable(2, gpu);
-            cmd->Dispatch((width+7)/8, (height+7)/8, 1);
+            cmd->Dispatch((width+groupX-1)/groupX, (height+groupY-1)/groupY, 1);
             for (UINT i=srvCount; i<textures.size(); ++i)
                 barrier(textures[i].resource.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, kOutputReadState);
         };
@@ -360,7 +365,7 @@ int executeJob(const char* path) try
         for (UINT r=0;r<repetitions;++r)
         {
             cmd->EndQuery(query.Get(),D3D12_QUERY_TYPE_TIMESTAMP,2*r);
-            cmd->Dispatch((width+7)/8,(height+7)/8,1);
+            cmd->Dispatch((width+groupX-1)/groupX,(height+groupY-1)/groupY,1);
             cmd->EndQuery(query.Get(),D3D12_QUERY_TYPE_TIMESTAMP,2*r+1);
             D3D12_RESOURCE_BARRIER u {}; u.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
             cmd->ResourceBarrier(1,&u);

@@ -726,6 +726,19 @@ def check_composition_variants():
         fail('FSRDOutputComp: default must retain the complete generic shader')
 
 
+def check_thread_groups():
+    # ComputeState::Dispatch sizes the grid from the C++ group size; a mismatch would leave
+    # output pixels unwritten or launch groups that only load their tile.
+    source = read(TRUST_EVIDENCE_HLSL)
+    group = re.search(r"\[numthreads\((\d+), (\d+), 1\)\]", source)
+    size = re.search(r"namespace TrustEvidence\s*\{[^}]*?constexpr UINT kThreadGroupSize = (\d+);", read(DATA_H))
+    if not group or not size or group.group(1) != size.group(1) or group.group(2) != size.group(1):
+        fail("FSRDAlbedoTrustEvidence: [numthreads] must equal TrustEvidence::kThreadGroupSize in both axes")
+    if "m_trustEvidenceShader.m_groupX = m_trustEvidenceShader.m_groupY = TrustEvidence::kThreadGroupSize;" \
+            not in read(PREPROCESSOR_CPP):
+        fail("FSRDAlbedoTrustEvidence: the preprocessor must dispatch with TrustEvidence::kThreadGroupSize")
+
+
 if __name__ == "__main__":
     check_constants()
     check_flags()
@@ -733,6 +746,7 @@ if __name__ == "__main__":
     check_debug_mode_names()
     check_albedo_storage()
     check_composition_variants()
+    check_thread_groups()
     if errors:
         print("FSRD mirror check FAILED (%d):" % len(errors))
         for e in errors:

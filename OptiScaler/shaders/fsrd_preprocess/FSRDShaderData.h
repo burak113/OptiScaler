@@ -409,6 +409,9 @@ namespace FSRD
     namespace TrustEvidence
     {
         constexpr UINT kBackBufferCount = 3;
+        // [numthreads] of FSRDAlbedoTrustEvidence: a 16x16 group loads a 24x24 tile, 2.25
+        // samples per output instead of 4 with 8x8 (1.00 -> 0.77 ms at 1440p, RX 9070).
+        constexpr UINT kThreadGroupSize = 16;
 
         struct alignas(16) Constants
         {

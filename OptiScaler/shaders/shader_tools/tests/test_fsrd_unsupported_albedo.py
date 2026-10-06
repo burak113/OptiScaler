@@ -79,16 +79,16 @@ def run():
 
     evidence = t.dispatch('FSRDAlbedoTrustEvidence',
                           {'DstTexSize': [w, h, 1 / w, 1 / h], 'DemodDivisorFloor': floor},
-                          [path_b, rr_diff, qs, qd, skip, depth, n, signal], [16], (w, h))[0]
+                          [path_b, rr_diff, qs, qd, skip, depth, n, signal], [t.TRUST], (w, h))[0]
     evidence_four = t.dispatch('FSRDAlbedoTrustEvidence',
                                {'DstTexSize': [w, h, 1 / w, 1 / h], 'DemodDivisorFloor': floor, 'Flags': 1},
-                               [path_b, rr_diff * .5, qs, qd, skip, depth, n, signal, rr_diff * .5], [16], (w, h))[0]
+                               [path_b, rr_diff * .5, qs, qd, skip, depth, n, signal, rr_diff * .5], [t.TRUST], (w, h))[0]
     t.check('four-signal evidence sums both diffuse outputs', np.array_equal(evidence, evidence_four))
     votes = evidence
     for step in range(6):
         votes = t.dispatch('FSRDAlbedoTrustPropagate',
                            {'DstTexSize': [w, h, 1 / w, 1 / h], 'StepSize': 1 << step},
-                           [votes, depth, n], [16], (w, h))[0]
+                           [votes, depth, n], [t.TRUST], (w, h))[0]
     t.check('trust votes finite and nonnegative', np.all(np.isfinite(votes)) and np.all(votes >= 0))
 
     def compose(strength, four=False):

@@ -8,9 +8,10 @@
 // carries the albedo's structure (or structure of its own), on a hidden surface it is flat.
 //
 // The light is judged on RR's own output of the unmodulated specular path plus the
-// remodulated diffuse path and the diffuse part of Skip. That witness is denoised and,
-// unlike the final image, contains no albedo imprint of its own, so a strong existing stain
-// cannot vouch for the albedo that caused it. Output: x = unsupported structure, y = albedo
+// remodulated diffuse path and the diffuse part of Skip. Before RR these parts add up to the
+// title's colour; the albedo reaches the witness only through RR's denoising of the
+// demodulated diffuse part, a small share on the reflective surfaces this targets. So a
+// strong existing stain can barely vouch for the albedo that caused it. Output: x = unsupported structure, y = albedo
 // structure mass; FSRDAlbedoTrustPropagate spreads both over the surface before
 // composition takes their ratio.
 #include "FSRDPreprocessCommon.hlsli"
@@ -44,15 +45,20 @@ cbuffer CB_AlbedoTrust : register(b0)
     float _Reserved0;
 }
 
-#define THREAD_GROUP_SIZE_X 8
-#define THREAD_GROUP_SIZE_Y 8
-#define NUM_THREADS 64
+// A 16x16 group loads a 24x24 tile, 2.25 source samples per output instead of 4 with 8x8.
+// TrustEvidence::kThreadGroupSize (FSRDShaderData.h) dispatches it.
+#define THREAD_GROUP_SIZE_X 16
+#define THREAD_GROUP_SIZE_Y 16
+#define NUM_THREADS (THREAD_GROUP_SIZE_X * THREAD_GROUP_SIZE_Y)
 // Radius four: the 9x9 window the replayed captures were evaluated with.
+#define TILE_X (THREAD_GROUP_SIZE_X + 8)
+#define TILE_Y (THREAD_GROUP_SIZE_Y + 8)
 DEFINE_LDS_CONFIG(s_SM, 9);
-groupshared float g_LogAlbedo[16][16];
-groupshared float g_LogLight[16][16];
-groupshared float g_Depth[16][16];
-groupshared half3 g_Normal[16][16];
+groupshared float g_LogAlbedo[TILE_Y][TILE_X];
+groupshared float g_LogLight[TILE_Y][TILE_X];
+groupshared float g_Depth[TILE_Y][TILE_X];
+// Padded to half4: one aligned LDS read per tap.
+groupshared half4 g_Normal[TILE_Y][TILE_X];
 
 // The share of a channel the conversion allocated to the specular lobe.
 float3 SpecularShare(float3 spec, float3 diff)
@@ -74,18 +80,18 @@ float3 DiffuseSkip(int2 q, float3 spec, float3 diff)
 }
 
 [RootSignature(MainRS)]
-[numthreads(8, 8, 1)]
+[numthreads(16, 16, 1)]
 void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 {
     const int2 bounds = int2(DstTexSize.xy) - 1;
-    const int2 origin = int2(groupID.xy * 8) - int2(s_SM_HaloOffset);
-    const uint tid = gtID.x + gtID.y * 8;
+    const int2 origin = int2(groupID.xy * uint2(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y)) - int2(s_SM_HaloOffset);
+    const uint tid = gtID.x + gtID.y * THREAD_GROUP_SIZE_X;
     [unroll] for (uint i = 0; i < s_SM_LoadsPerThread; ++i)
     {
-        const uint flat = tid + i * 64;
-        if (flat < 256)
+        const uint flat = tid + i * NUM_THREADS;
+        if (flat < TILE_X * TILE_Y)
         {
-            const int2 s = int2(flat % 16, flat / 16);
+            const int2 s = int2(flat % TILE_X, flat / TILE_X);
             const int2 source = origin + s;
             const int2 q = clamp(source, 0, bounds);
             const float3 spec = InSpecularAlbedo[q].rgb, diff = InDiffuseAlbedo[q].rgb;
@@ -102,12 +108,12 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             g_LogLight[s.y][s.x] = log(max(GetLuminance(max(witness, 0.0f)), 1e-4f));
             // An ineligible tap carries no depth, which removes it from every window.
             g_Depth[s.y][s.x] = eligible && isfinite(z) ? z : 0.0f;
-            g_Normal[s.y][s.x] = half3(OctahedralDecode(InNormals[q].xy));
+            g_Normal[s.y][s.x] = half4(half3(OctahedralDecode(InNormals[q].xy)), 0.0h);
         }
     }
     GroupMemoryBarrierWithGroupSync();
 
-    const int2 p = int2(groupID.xy * 8 + gtID.xy);
+    const int2 p = int2(groupID.xy * uint2(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y) + gtID.xy);
     if (any(p > bounds))
         return;
     const int2 c = int2(gtID.xy) + int2(s_SM_HaloOffset);
@@ -117,7 +123,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         OutAlbedoTrust[p] = 0.0f;
         return;
     }
-    const float3 n = float3(g_Normal[c.y][c.x]);
+    const float3 n = float3(g_Normal[c.y][c.x].xyz);
     const float depthTolerance = max(0.02f * abs(z), 1e-3f);
     float count = 0, sumA = 0, sumAA = 0, sumL = 0, sumLL = 0;
     [unroll] for (int y = -4; y <= 4; ++y)
@@ -128,7 +134,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             const float tapZ = g_Depth[s.y][s.x];
             const float reach = 1.0f + 0.5f * float(max(abs(x), abs(y)));
             if (tapZ * z > 0.0f && abs(tapZ - z) <= depthTolerance * reach &&
-                dot(float3(g_Normal[s.y][s.x]), n) >= 0.9f)
+                dot(float3(g_Normal[s.y][s.x].xyz), n) >= 0.9f)
             {
                 const float a = g_LogAlbedo[s.y][s.x], l = g_LogLight[s.y][s.x];
                 count += 1.0f;

@@ -30,7 +30,7 @@ class FSRDPreprocessor_Dx12
     void SetStageTimings(FSRDStageTimings* timings);
     void SetRuntimeSnapshot(FSRDRuntimeSnapshot* snapshot);
     // Configure before the first allocation; inactive optional slots use tiny placeholders.
-    bool ConfigureSignalResources(bool extraDiffuse, bool extraSpecular, bool albedoRecovery);
+    bool ConfigureSignalResources(bool extraDiffuse, bool extraSpecular, bool albedoRecovery, bool diffuseCopy);
 
     enum class ConvFlags : uint32_t
     {

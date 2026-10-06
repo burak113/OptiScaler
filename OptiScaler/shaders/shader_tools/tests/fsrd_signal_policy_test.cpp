@@ -53,10 +53,10 @@ static void CheckPlan()
 {
     for (int diffuse = -1; diffuse <= 4; ++diffuse)
         for (int specular = -1; specular <= 4; ++specular)
-            for (int flags = 0; flags < 64; ++flags)
+            for (int flags = 0; flags < 128; ++flags)
             {
-                const Request request { diffuse,          specular,         (flags & 1) != 0,
-                                        (flags & 2) != 0, (flags & 4) != 0, (flags & 8) != 0 };
+                const Request request { diffuse,          specular,         (flags & 1) != 0, (flags & 2) != 0,
+                                        (flags & 4) != 0, (flags & 8) != 0, (flags & 64) != 0 };
                 const bool specularGuide = flags & 16, diffuseGuide = flags & 32;
                 const Plan plan = MakePlan(request, specularGuide, diffuseGuide);
                 const bool both = !request.denoiseDiffuse && !request.denoiseSpecular;
@@ -68,17 +68,25 @@ static void CheckPlan()
                 const uint32_t diffuseBits =
                     denoiseDiffuse ? ExpectedLobe(diffuse, diffuseDistance, DirectDiffuse, IndirectDiffuse) : 0u;
                 const bool fix = request.albedoFix && denoiseDiffuse && denoiseSpecular && specularDistance;
+                const bool diffuseCopy = fix && request.fixDiffuse;
                 const uint32_t specularBits = fix ? SpecularBits
                     : denoiseSpecular ? ExpectedLobe(specular, specularDistance, DirectSpecular, IndirectSpecular)
                                       : 0u;
-                // The fix denoises an unmodulated copy of each lobe in its second slot.
-                CHECK(plan.mask == (fix ? All : diffuseBits | specularBits));
-                CHECK(plan.albedoFix == fix);
+                // The fix denoises an unmodulated copy of each fixed lobe in its second slot;
+                // without the diffuse copy the diffuse lobe keeps its own route.
+                CHECK(plan.mask == (diffuseCopy ? All : diffuseBits | specularBits));
+                CHECK(plan.albedoFix == fix && plan.diffuseCopy == diffuseCopy);
                 CHECK(!plan.albedoFix || SupportsUnsupportedAlbedo(plan.mask));
+                // A plan made from this frame's guides can be fed on this frame...
+                CHECK((plan.mask & ~Feedable(plan, request.estimate, specularGuide, diffuseGuide)) == 0);
+                // ...and a guide dropout stops only Indirect paths that read the title's distance.
+                const uint32_t needsTitle = Bit(IndirectSpecular) | (diffuseCopy ? 0u : Bit(IndirectDiffuse));
+                CHECK((plan.mask & ~Feedable(plan, request.estimate, false, false)) ==
+                      (request.estimate ? 0u : plan.mask & needsTitle));
                 // A route that needs a distance falls back to Direct and says why.
                 const auto routed = [](int route) { route = std::clamp(route, 0, 3); return route == Indirect || route == Split; };
                 CHECK(bool(plan.notes & DiffuseNeedsDistance) ==
-                      (!fix && denoiseDiffuse && routed(diffuse) && !diffuseDistance));
+                      (!diffuseCopy && denoiseDiffuse && routed(diffuse) && !diffuseDistance));
                 CHECK(bool(plan.notes & SpecularNeedsDistance) ==
                       (!fix && denoiseSpecular && routed(specular) && !specularDistance));
                 CHECK(bool(plan.notes & FixNeedsBothLobes) == (request.albedoFix && !(denoiseDiffuse && denoiseSpecular)));
@@ -121,7 +129,7 @@ static void CheckLegacy()
                                       plan.mask == All);
                             else if ((legacy & DiffuseBits) && (legacy & SpecularBits))
                                 // The fix now adds the slots it needs instead of pausing.
-                                CHECK(plan.albedoFix && plan.mask == All);
+                                CHECK(plan.albedoFix && plan.diffuseCopy && plan.mask == All);
                             else
                                 CHECK(!plan.albedoFix && plan.mask == legacy && (plan.notes & FixNeedsBothLobes));
                             // Without guides a legacy Indirect choice falls back to Direct, as the slot did.
@@ -151,6 +159,7 @@ struct FakeConfig
     Setting<int> FfxDenoiserDiffuseRoute { 9 }, FfxDenoiserSpecularRoute { -3 };
     Setting<bool> FfxDenoiserDenoiseDiffuse { true }, FfxDenoiserDenoiseSpecular { false };
     Setting<bool> FfxDenoiserUnsupportedAlbedoRecovery { true }, FfxDenoiserEstimateHitDistances { true };
+    Setting<bool> FfxDenoiserAlbedoBleedFixDiffuse { false };
     Setting<float> FfxDenoiserSpecularAlbedoDemodulation { 1.0f }, FfxDenoiserDiffuseAlbedoModulation { 1.0f };
     Setting<float> FfxDenoiserAdditiveLightSplit { 0.0f };
 };
@@ -160,7 +169,8 @@ static void CheckConfigAdapters()
     FakeConfig cfg;
     const Request request = RequestFrom(cfg);
     CHECK(request.diffuse == Split && request.specular == Auto);
-    CHECK(request.denoiseDiffuse && !request.denoiseSpecular && request.albedoFix && request.estimate);
+    CHECK(request.denoiseDiffuse && !request.denoiseSpecular && request.albedoFix && request.estimate &&
+          !request.fixDiffuse);
     CHECK(AlbedoFixAllowed(cfg));
     cfg.FfxDenoiserDiffuseAlbedoModulation.value = 0.5f;
     CHECK(!AlbedoFixAllowed(cfg));

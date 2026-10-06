@@ -528,6 +528,8 @@ class Config
     // title's albedo shows a surface the light does not (water over a sea floor). Independent
     // of the profile; needs a specular hit distance and runs only at 1/1 modulation.
     CustomOptional<bool> FfxDenoiserUnsupportedAlbedoRecovery{false};
+    // INI AlbedoBleedFixDiffuse: false keeps only the specular copy, one RR signal fewer.
+    CustomOptional<bool> FfxDenoiserAlbedoBleedFixDiffuse{true};
     CustomOptional<bool> FfxDenoiserFloorFlatRecovery{true};
     CustomOptional<bool> FfxDenoiserFloorSpecularRecovery{true};
     CustomOptional<bool> FfxDenoiserFloorDiffuseRecovery{false};

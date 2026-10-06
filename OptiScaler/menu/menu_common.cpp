@@ -3386,6 +3386,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                 if (ImGui::Button("Reset Conversion"))
                 {
                     config->FfxDenoiserUnsupportedAlbedoRecovery.reset();
+                    config->FfxDenoiserAlbedoBleedFixDiffuse.reset();
                     config->FfxDenoiserSpecularAlbedoDemodulation.reset();
                     config->FfxDenoiserDiffuseAlbedoModulation.reset();
                     config->FfxDenoiserDemodDivisorFloor.reset();

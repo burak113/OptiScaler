@@ -8,6 +8,9 @@
 // of such a surface. Composition takes the ratio, so isolated false evidence on a textured
 // facade is outvoted by the surrounding structure that the light does show, and a region
 // without albedo structure keeps the original demodulation. Only geometry stops the spread.
+// A stride compares its two ends only, so a thin occluder between two pieces of one plane
+// does not stop it, and pixels conversion excluded (particles, bypassed surfaces) relay
+// votes across the surface they cover; composition still leaves those pixels unchanged.
 #include "FSRDPreprocessCommon.hlsli"
 
 #define MainRS \

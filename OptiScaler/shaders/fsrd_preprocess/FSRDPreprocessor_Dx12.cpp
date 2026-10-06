@@ -82,9 +82,12 @@ namespace FSRDFormats
     constexpr DXGI_FORMAT DebugView = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
     // Unsupported-albedo recovery: RR direct-specular input/output and the
-    // (unsupported, structure) vote sums, which reach several thousand after propagation.
+    // (unsupported, structure) vote sums. Six five-tap propagation steps bound the sums at
+    // 5^6 = 15625, inside FP16; each pass accumulates in FP32 and composition reads only
+    // their ratio and the structure mass. At 1440p half storage cut the propagation passes
+    // from 0.80 to 0.71 ms (RX 9070) and moved the blend weight by at most 0.0023.
     constexpr DXGI_FORMAT DirectSpecular = DXGI_FORMAT_R16G16B16A16_FLOAT;
-    constexpr DXGI_FORMAT AlbedoTrust = DXGI_FORMAT_R32G32_FLOAT;
+    constexpr DXGI_FORMAT AlbedoTrust = DXGI_FORMAT_R16G16_FLOAT;
 }
 
 // The conversion shader pre-quantizes its albedo outputs to the storage format's levels,
@@ -125,6 +128,8 @@ struct ComputeState
     std::vector<std::shared_ptr<DispatchSlot>> m_slots;
     UINT m_cbSlotSize = 0;
     UINT m_numSrvs = 0, m_numUavs = 0;
+    // The shader's [numthreads]; Dispatch covers outDim with groups of this size.
+    UINT m_groupX = kThreadGroupSizeX, m_groupY = kThreadGroupSizeY;
     std::wstring m_cbName;
 
     std::shared_ptr<DispatchSlot> AcquireSlot()
@@ -245,8 +250,8 @@ struct ComputeState
         cmdList->SetComputeRootDescriptorTable(2, uavTable);
 
         // Dispatch
-        const UINT dimX = ((UINT)outDim.x + (kThreadGroupSizeX - 1)) / kThreadGroupSizeX;
-        const UINT dimY = ((UINT)outDim.y + (kThreadGroupSizeY - 1)) / kThreadGroupSizeY;
+        const UINT dimX = ((UINT)outDim.x + (m_groupX - 1)) / m_groupX;
+        const UINT dimY = ((UINT)outDim.y + (m_groupY - 1)) / m_groupY;
         cmdList->Dispatch(dimX, dimY, 1);
 
         // Transition the UAVs back to SRV
@@ -350,7 +355,7 @@ struct FSRDPreprocessor_Dx12::Impl
     // RR direct-specular output (denoised unmodulated specular) and the trust ping-pong.
     FSRDStageTimings* m_stageTimings = nullptr;
     FSRDRuntimeSnapshot* m_runtime = nullptr;
-    bool m_extraDiffuse = false, m_extraSpecular = false, m_albedoRecovery = false;
+    bool m_extraDiffuse = false, m_extraSpecular = false, m_albedoRecovery = false, m_diffuseCopy = false;
     ComPtr<ID3D12Resource> m_directSpecularOutput;
     ComPtr<ID3D12Resource> m_indirectDiffuseOutput;
     std::array<ComPtr<ID3D12Resource>, 2> m_albedoTrust;
@@ -1234,6 +1239,7 @@ struct FSRDPreprocessor_Dx12::Impl
             { reinterpret_cast<const byte*>(FSRDAlbedoTrustEvidence_cso), sizeof(FSRDAlbedoTrustEvidence_cso) },
             sizeof(TrustEvidence::Constants), TrustEvidence::Input::kCount, TrustEvidence::Output::kCount,
             L"FSRD_TrustEvidence_Constants", TrustEvidence::kBackBufferCount);
+        m_trustEvidenceShader.m_groupX = m_trustEvidenceShader.m_groupY = TrustEvidence::kThreadGroupSize;
         m_trustPropagateShader.Initialize(m_pDev,
             { reinterpret_cast<const byte*>(FSRDAlbedoTrustPropagate_cso), sizeof(FSRDAlbedoTrustPropagate_cso) },
             sizeof(TrustPropagate::Constants), TrustPropagate::Input::kCount, TrustPropagate::Output::kCount,
@@ -1277,7 +1283,7 @@ struct FSRDPreprocessor_Dx12::Impl
             return CreateTexture2D(m_pDev, enabled ? width : 1u, enabled ? height : 1u, format, name, kSrvState);
         };
         outResources.DirectSpecular = optional(m_albedoRecovery, FSRDFormats::DirectSpecular, L"FSR_Conv_DirectSpecular");
-        outResources.IndirectDiffuse = optional(m_albedoRecovery, FSRDFormats::DirectSpecular, L"FSR_Conv_IndirectDiffuse");
+        outResources.IndirectDiffuse = optional(m_diffuseCopy, FSRDFormats::DirectSpecular, L"FSR_Conv_IndirectDiffuse");
         m_directSpecularOutput = optional(m_extraSpecular, FSRDFormats::DirectSpecular, L"FSR_RR_DirectSpecular_Output");
         m_indirectDiffuseOutput = optional(m_extraDiffuse, FSRDFormats::DirectSpecular, L"FSR_RR_IndirectDiffuse_Output");
         m_albedoTrust[0] = optional(m_albedoRecovery, FSRDFormats::AlbedoTrust, L"FSR_AlbedoTrust_0");
@@ -2121,12 +2127,16 @@ void FSRDPreprocessor_Dx12::SetRuntimeSnapshot(FSRDRuntimeSnapshot* snapshot)
     m_impl->m_runtime = snapshot;
 }
 
-bool FSRDPreprocessor_Dx12::ConfigureSignalResources(bool extraDiffuse, bool extraSpecular, bool albedoRecovery)
+bool FSRDPreprocessor_Dx12::ConfigureSignalResources(bool extraDiffuse, bool extraSpecular, bool albedoRecovery,
+                                                     bool diffuseCopy)
 {
     if (m_impl->m_maxWidth != 0) return false;
     m_impl->m_extraDiffuse = extraDiffuse;
     m_impl->m_extraSpecular = extraSpecular;
     m_impl->m_albedoRecovery = albedoRecovery;
+    // Conversion still writes u9 without the diffuse copy. Like every disabled slot it is a
+    // 1x1 placeholder, and typed UAV stores outside it are discarded.
+    m_impl->m_diffuseCopy = albedoRecovery && diffuseCopy;
     return true;
 }
 

@@ -219,7 +219,7 @@ inline std::string DescribePlan(const FSRDSignals::Plan& plan)
                                                                                             : "Direct + Indirect (split)";
     };
     const int count = Count(plan.mask);
-    return "Diffuse " + (plan.albedoFix ? std::string("Direct + fix copy") : lobe(DirectDiffuse, IndirectDiffuse)) +
+    return "Diffuse " + (plan.diffuseCopy ? std::string("Direct + fix copy") : lobe(DirectDiffuse, IndirectDiffuse)) +
            " | Specular " +
            (plan.albedoFix ? std::string("Indirect + fix copy") : lobe(DirectSpecular, IndirectSpecular)) + " | " +
            std::to_string(count) + (count == 1 ? " RR signal" : " RR signals");
@@ -243,7 +243,8 @@ inline void DrawSignalSummary(const Config& cfg, const FSRDSignals::Status& stat
         ImGui::SetTooltip("What AMD Ray Regeneration receives. The game supplies one combined colour; Direct and "
                           "Indirect are RR paths, and Indirect also uses the game's hit distance.");
     const auto wanted = WantedPlan(cfg, status);
-    if (wanted.mask != status.plan.mask || wanted.albedoFix != status.plan.albedoFix)
+    if (wanted.mask != status.plan.mask || wanted.albedoFix != status.plan.albedoFix ||
+        wanted.diffuseCopy != status.plan.diffuseCopy)
         ImGui::TextDisabled("Applying: %s", DescribePlan(wanted).c_str());
 }
 
@@ -251,17 +252,30 @@ inline void DrawSignalSummary(const Config& cfg, const FSRDSignals::Status& stat
 inline bool DrawAlbedoFix(Config& cfg, const FSRDSignals::Status& status)
 {
     bool rebuild = false;
-    bool enabled = cfg.FfxDenoiserUnsupportedAlbedoRecovery.value_or_default();
-    if (ImGui::Checkbox("Albedo Bleed Fix (water, glass)", &enabled))
+    const bool enabled = cfg.FfxDenoiserUnsupportedAlbedoRecovery.value_or_default();
+    const int mode = !enabled ? 0 : cfg.FfxDenoiserAlbedoBleedFixDiffuse.value_or_default() ? 2 : 1;
+    const char* modes[] { "Off", "Specular only", "Full" };
+    if (ImGui::BeginCombo("Albedo Bleed Fix (water, glass)", modes[mode]))
     {
-        cfg.FfxDenoiserUnsupportedAlbedoRecovery = enabled;
-        rebuild = true;
+        for (int value = 0; value < 3; ++value)
+            if (ImGui::Selectable(modes[value], value == mode) && value != mode)
+            {
+                cfg.FfxDenoiserUnsupportedAlbedoRecovery = value != 0;
+                if (value != 0)
+                    cfg.FfxDenoiserAlbedoBleedFixDiffuse = value == 2;
+                rebuild = true;
+            }
+        ImGui::EndCombo();
     }
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Fixes surfaces whose albedo shows something the lighting does not, such as a sea floor "
-                          "printed onto water. Denoises unmodulated copies of the specular and diffuse light (two "
-                          "more RR signals and seven small passes) and uses them only where the surface evidence "
-                          "rejects the albedo; the diffuse copy only on mostly reflective surfaces.\n"
+                          "printed onto water. Denoises unmodulated copies of the light and uses them only where "
+                          "the surface evidence rejects the albedo.\n"
+                          "Specular only: one more RR signal; the diffuse lobe keeps its own path.\n"
+                          "Full: two more RR signals; also fixes the diffuse share on mostly reflective surfaces "
+                          "(cleaner water edges).\n"
+                          "AMD lists about 0.4 ms at 1080p and 0.8 ms at 1440p per RR signal, timed under "
+                          "AMD RR / ML; the seven small passes show as Albedo Bleed Fix.\n"
                           "Needs both modulation strengths at 1. Off by default; enable it for games that show the "
                           "problem.");
     if (!enabled)
@@ -356,7 +370,7 @@ inline bool DrawRouting(Config& cfg, const FSRDSignals::Status& status)
         }
         ImGui::EndDisabled();
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("%s", locked ? "Set by the Albedo Bleed Fix: each lobe's second RR path carries its "
+            ImGui::SetTooltip("%s", locked ? "Set by the Albedo Bleed Fix: this lobe's second RR path carries its "
                                              "unmodulated copy."
                                 : !denoised ? "Turned off under Debug."
                                             : "Auto checks this lobe on its own: Indirect when the game "
@@ -365,7 +379,7 @@ inline bool DrawRouting(Config& cfg, const FSRDSignals::Status& status)
                                               "either way; this only picks the RR path.");
     };
     route("Diffuse Path", cfg.FfxDenoiserDiffuseRoute, plan.mask & DiffuseBits, DirectDiffuse, IndirectDiffuse,
-          status.diffuseGuide, plan.albedoFix ? "Direct + fix copy" : nullptr);
+          status.diffuseGuide, plan.diffuseCopy ? "Direct + fix copy" : nullptr);
     route("Specular Path", cfg.FfxDenoiserSpecularRoute, plan.mask & SpecularBits, DirectSpecular, IndirectSpecular,
           status.specularGuide, plan.albedoFix ? "Indirect + fix copy" : nullptr);
 

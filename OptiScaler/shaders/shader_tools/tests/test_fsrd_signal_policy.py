@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[4]
 RETIRED = ['SignalCount', 'Signal1', 'Signal2', 'Signal3', 'Signal4', 'DiffuseSignalType', 'SpecularSignalType',
            'ApproximateSpecHitDistance', 'ApproximateRayHitDistance', 'UnsupportedAlbedoRecovery']
 KEYS = ['DiffuseSignal', 'SpecularSignal', 'EstimateHitDistances', 'DenoiseDiffuse', 'DenoiseSpecular',
-        'AlbedoBleedFix']
+        'AlbedoBleedFix', 'AlbedoBleedFixDiffuse']
 
 
 def check_sources():
@@ -37,7 +37,8 @@ def check_sources():
     reset = config[config.index('bool Config::ResetFfxDenoiserSettings'):]
     reset = reset[:reset.index('\n}\n') if '\n}\n' in reset else reset.index('\r\n}\r\n')]
     for field in ['FfxDenoiserDiffuseRoute', 'FfxDenoiserSpecularRoute', 'FfxDenoiserEstimateHitDistances',
-                  'FfxDenoiserDenoiseDiffuse', 'FfxDenoiserDenoiseSpecular', 'FfxDenoiserUnsupportedAlbedoRecovery']:
+                  'FfxDenoiserDenoiseDiffuse', 'FfxDenoiserDenoiseSpecular', 'FfxDenoiserUnsupportedAlbedoRecovery',
+                  'FfxDenoiserAlbedoBleedFixDiffuse']:
         assert field + '.reset()' in reset, field
 
     feature = (ROOT/'OptiScaler/upscalers/fsr31/FSRDFeature_Dx12.cpp').read_text(encoding='utf-8-sig')
@@ -45,6 +46,17 @@ def check_sources():
     assert feature.count('FSRDSignals::MakePlan(') == 2
     assert 'FfxDenoiserSignalCount' not in feature and 'Approximate' not in feature.replace(
         'FSRDConvFlags::Approximate', '')
+    # The per-frame guide check uses the policy's contract, which knows the diffuse copy's
+    # slot has a view-depth ray length; conversion must then supply that length.
+    resolve = feature[feature.index('RRResult FSRDFeatureDx12::ResolveSignalTypes('):]
+    resolve = resolve[:resolve.index('\nRRResult FSRDFeatureDx12::')]
+    assert 'FSRDSignals::Feedable(_plan,' in resolve and 'available' not in resolve
+    assert re.search(r'if \(estimateHitDistances \|\| _plan\.diffuseCopy\)\s*_convDesc\.Flags \|= '
+                     r'uint32_t\(FSRDConvFlags::ApproximateRayHitDistance\)', feature)
+    # Only the diffuse copy replaces the diffuse lobe's second slot; specular-only keeps routing.
+    assert re.search(r'GetIndirectDiffuseSignal\(_indirectDiffuseSignal,\s*_unsupportedAlbedoRecovery && '
+                     r'_plan\.diffuseCopy\);', feature)
+    assert 'ConfigureSignalResources(_extraDiffuseSignal, _extraSpecularSignal, _plan.albedoFix,' in feature
 
     menu = (ROOT/'OptiScaler/menu/menu_common.cpp').read_text(encoding='utf-8-sig')
     upscalers = menu.index('void MenuCommon::RenderActiveUpscalerSettings(')
