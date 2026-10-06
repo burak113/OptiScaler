@@ -104,7 +104,7 @@ template <class T, HasDefaultValue defaultState = WithDefault> class CustomOptio
             return this->has_value() ? std::move(this->value()) : std::move(_defaultValue);
         }
 
-        constexpr std::optional<T> value_for_config(bool forceSave = false)
+        constexpr std::optional<T> value_for_config()
             requires(defaultState == WithDefault)
     {
         if (_volatile)
@@ -115,22 +115,10 @@ template <class T, HasDefaultValue defaultState = WithDefault> class CustomOptio
             return std::nullopt;
         }
 
-        if (!this->has_value() || (!forceSave && *this == _defaultValue))
+        if (!this->has_value() || *this == _defaultValue)
             return std::nullopt;
 
         return this->value();
-    }
-
-    constexpr std::optional<T> value_for_config_ignore_default()
-        requires(defaultState == WithDefault)
-    {
-        if (_volatile)
-            return _configIni;
-
-        if (this->has_value())
-            return this->value();
-
-        return std::nullopt;
     }
 
     constexpr std::optional<T> value_for_config()
@@ -154,9 +142,33 @@ template <class T, HasDefaultValue defaultState = WithDefault> class CustomOptio
         else
             return other;
     }
+
+    // Like value_for_config(), but keeps an explicit value that happens to equal
+    // the class default - "unset" stays a distinct state.
+    constexpr std::optional<T> value_for_config_ignore_default()
+        requires(defaultState == WithDefault)
+    {
+        if (_volatile)
+            return _configIni;
+
+        if (this->has_value())
+            return this->value();
+
+        return std::nullopt;
+    }
 };
 
 constexpr inline int UnboundKey = -1;
+constexpr uint32_t NV_PRESET_LATEST = 0x00FFFFFF;
+
+enum FpsOverlayPos : uint32_t
+{
+    FpsOverlayPos_TopLeft,
+    FpsOverlayPos_TopRight,
+    FpsOverlayPos_BottomLeft,
+    FpsOverlayPos_BottomRight,
+    FpsOverlayPos_COUNT,
+};
 
 enum FpsOverlay : uint32_t
 {
@@ -184,6 +196,44 @@ enum class Scaler : uint32_t
     Count
 };
 
+enum class ForceReflex : uint32_t
+{
+    InGame,
+    ForceDisable,
+    ForceEnable,
+    Count
+};
+
+enum class LFXMode : uint32_t
+{
+    Conservative,
+    Aggressive,
+    ReflexIDs,
+    Count
+};
+
+enum class LowLatencyInput : uint32_t
+{
+    None,
+    Auto,
+    AntiLag2,
+    Reflex,
+    XeLL,
+    UeLowLatency,
+    _
+};
+
+enum class LowLatencyMode : uint32_t
+{
+    None,
+    Auto,
+    LatencyFlex,
+    AntiLag2,
+    XeLL,
+    AntiLagVk,
+    Reflex
+};
+
 class Config
 {
   public:
@@ -205,7 +255,7 @@ class Config
     CustomOptional<bool> LogToNGX { false };
     CustomOptional<bool> OpenConsole { false };
     CustomOptional<bool> DebugWait { false }; // not in ini
-    CustomOptional<int> LogLevel { 1 };
+    CustomOptional<int> LogLevel { 0 };
     CustomOptional<std::wstring> LogFileName { L"OptiScaler.log" };
     CustomOptional<bool> LogSingleFile { true };
     CustomOptional<bool> LogAsync { false };
@@ -215,14 +265,9 @@ class Config
     CustomOptional<bool> BuildPipelines { true };
     CustomOptional<int32_t> NetworkModel { 0 };
     CustomOptional<bool> CreateHeaps { true };
-    CustomOptional<std::wstring, NoDefault> XeSSLibrary;
-    CustomOptional<std::wstring, NoDefault> XeSSDx11Library;
 
     // DLSS
     CustomOptional<bool> DLSSEnabled { true };
-    CustomOptional<std::wstring, NoDefault> NvngxPath;
-    CustomOptional<std::wstring, NoDefault> NVNGX_DLSS_Library;
-    CustomOptional<std::wstring, NoDefault> DLSSFeaturePath;
     CustomOptional<bool> RenderPresetOverride { false };
     CustomOptional<uint32_t> RenderPresetForAll { 0 };
     CustomOptional<uint32_t> RenderPresetDLAA { 0 };
@@ -243,21 +288,59 @@ class Config
     CustomOptional<uint32_t> DLSSDRenderPresetUltraPerformance { 0 };
 
     // Nukems
-    CustomOptional<bool> MakeDepthCopy { false };
+    CustomOptional<bool> NvngxFGMakeDepthCopy { false };
 
-    // CAS
+    // Libraries
+    CustomOptional<std::wstring, NoDefault> MainDllPath;
+    CustomOptional<std::wstring, NoDefault> FfxDx12Path;
+    CustomOptional<std::wstring, NoDefault> FfxDx12SRPath;
+    CustomOptional<std::wstring, NoDefault> FfxDx12FGPath;
+    CustomOptional<std::wstring, NoDefault> FfxDx12RRPath;
+    CustomOptional<std::wstring, NoDefault> FfxDx12RCPath;
+    CustomOptional<std::wstring, NoDefault> FfxVkPath;
+    CustomOptional<std::wstring, NoDefault> XeSSLibrary;
+    CustomOptional<std::wstring, NoDefault> XeFGLibrary;
+    CustomOptional<std::wstring, NoDefault> XeLLLibrary;
+    CustomOptional<std::wstring, NoDefault> XeSSDx11Library;
+    CustomOptional<std::wstring, NoDefault> NvngxPath;
+    CustomOptional<std::wstring, NoDefault> NVNGX_DLSS_Library;
+    CustomOptional<std::wstring, NoDefault> DLSSFeaturePath;
+    CustomOptional<std::wstring, NoDefault> NvapiDllPath;
+
+    // Sharpness
+    CustomOptional<SharpenShader> SharpnessShader { SharpenShader::RCAS };
+    CustomOptional<bool> OverrideSharpness { false };
+    CustomOptional<float> Sharpness { 0.4f };
+
+    // RCAS
     CustomOptional<bool> RcasEnabled { false };
+    CustomOptional<bool> ContrastEnabled { false };
+    CustomOptional<float> Contrast { -0.3f };
+
+    // DA Sharpening
+    CustomOptional<float, NoDefault> DADepthScale;
+    CustomOptional<float, NoDefault> DADepthBias;
+    CustomOptional<bool, NoDefault> DAClampOutput;
+    CustomOptional<bool> UseDepthAwareSharpen { false };
+    CustomOptional<bool> UseDASDepthAwareSharpen { false };
+    CustomOptional<bool> DADepthIsLinear { false };
+
+    // MAS
     CustomOptional<bool> MotionSharpnessEnabled { false };
     CustomOptional<bool> MotionSharpnessDebug { false };
-    CustomOptional<float> MotionSharpness { 0.4f };
+    CustomOptional<float> MotionSharpness { 0.2f };
     CustomOptional<float> MotionThreshold { 0.0f };
     CustomOptional<float> MotionScaleLimit { 10.0f };
 
-    // Sharpness
-    CustomOptional<bool> OverrideSharpness { false };
-    CustomOptional<float> Sharpness { 0.3f };
-    CustomOptional<bool> ContrastEnabled { false };
-    CustomOptional<float> Contrast { 0.0f };
+    // Magnifier
+    CustomOptional<bool> MagnifierEnabled { false };
+    CustomOptional<float> MagnifierSize { 15.f }; // % of screen Height
+    CustomOptional<int> MagnifierZoomFactor { 4 };
+    CustomOptional<float> MagnifierBorderSize { 0.3f };   // % of screen Height
+    CustomOptional<float> MagnifierCursorOffsetX { 0.f }; // Pixels
+    CustomOptional<float> MagnifierCursorOffsetY { 0.f }; // Pixels
+    CustomOptional<float, NoDefault> MagnifierStaticPosX; // % of screen Width, static pos enabled if both are defined
+    CustomOptional<float, NoDefault> MagnifierStaticPosY; // % of screen Height
 
     // Menu
     CustomOptional<float, NoDefault> MenuScale;
@@ -266,7 +349,7 @@ class Config
     CustomOptional<bool> ExtendedLimits { false };
     CustomOptional<bool> ShowFps { false };
     /// 0 Top Left, 1 Top Right, 2 Bottom Left, 3 Bottom Right
-    CustomOptional<int> FpsOverlayPos { 0 };
+    CustomOptional<FpsOverlayPos> FpsOverlayPosition { FpsOverlayPos_TopLeft };
     /// 0 Only FPS, 1 +Avg FPS & Upscaler info 2 +Frame Time,
     /// 3 +Upscaler Time, 4 +Frame Time Graph, 5 +Upscaler Time Graph
     /// 6 +Reflex timings
@@ -278,8 +361,18 @@ class Config
     CustomOptional<float, NoDefault> FpsScale; // No value means same as MenuScale
     CustomOptional<bool> UseHQFont { true };
     CustomOptional<bool> DisableSplash { false };
+    CustomOptional<float> FontSize { 14.0f };
     CustomOptional<std::wstring, NoDefault> TTFFontPath;
     CustomOptional<int> FGShortcutKey { VK_END };
+    CustomOptional<bool> LightTheme { false };
+    CustomOptional<bool> OverlaysUseTheme { false };
+    CustomOptional<float> MenuAccentColorR { 0.00f };
+    CustomOptional<float> MenuAccentColorG { 0.40f };
+    CustomOptional<float> MenuAccentColorB { 0.77f };
+    CustomOptional<float> MenuBGColorR { 0.0f };
+    CustomOptional<float> MenuBGColorG { 0.0f };
+    CustomOptional<float> MenuBGColorB { 0.0f };
+    CustomOptional<float> MenuBGColorA { 0.99f };
 
     // Hooks
     CustomOptional<bool> HookOriginalNvngxOnly { false };
@@ -306,16 +399,19 @@ class Config
     // ProcessFilter
     CustomOptional<std::wstring, NoDefault> TargetProcess;
     CustomOptional<std::wstring> ProcessExclusionList = {
-        L"crashpad_handler.exe|crashreport.exe|crashreporter.exe|crs-handler.exe|unitycrashhandler64.exe|"
-        L"idtechlauncher.exe|cefviewwing.exe|ace-setup64.exe|ace-service64.exe|qtwebengineprocess.exe|"
-        L"platformprocess.exe|bugsplathd64.exe|bssndrpt64.exe|pspcsdkappmgr.exe|pspcsdkcore.exe|pspcsdkstttts.exe|"
-        L"pspcsdktelemetry.exe|pspcsdkui.exe|pspcsdkupdatechecker.exe|pspcsdkvoicechat.exe|pspcsdkwebview.exe|windhawk."
-        L"exe|vscodium.exe|crash_reporter.exe|steamerrorreporter64.exe|crashreportclient.exe"
+        L"crashpad_handler.exe|crashreport.exe|crashreporter.exe|crs-handler.exe|crs-uploader.exe|crs-video.exe|"
+        L"unitycrashhandler64.exe|idtechlauncher.exe|cefviewwing.exe|ace-setup64.exe|ace-service64.exe|"
+        L"qtwebengineprocess.exe|platformprocess.exe|bugsplathd64.exe|bssndrpt64.exe|pspcsdkappmgr.exe|pspcsdkcore.exe|"
+        L"pspcsdkstttts.exe|pspcsdktelemetry.exe|pspcsdkui.exe|pspcsdkupdatechecker.exe|pspcsdkvoicechat.exe|"
+        L"pspcsdkwebview.exe|windhawk.exe|vscodium.exe|crash_reporter.exe|steamerrorreporter64.exe|crashreportclient."
+        L"exe|edcefcrashpadprocess.exe|edcefrenderprocess.exe"
     };
 
     // Hotfixes
     CustomOptional<bool> CheckForUpdate { true };
-    CustomOptional<bool> DisableOverlays { false };
+    CustomOptional<bool, SoftDefault> DisableOverlays { false };
+
+    CustomOptional<bool> SimulateWaitableObject { false };
 
     CustomOptional<float, NoDefault> MipmapBiasOverride; // disabled by default
     CustomOptional<bool> MipmapBiasFixedOverride { false };
@@ -333,11 +429,12 @@ class Config
     CustomOptional<int, NoDefault> SkipFirstFrames; // disabled by default
     CustomOptional<bool> RestoreComputeSignature { false };
     CustomOptional<bool> RestoreGraphicSignature { false };
+    CustomOptional<bool> ExtendedStateRestore { false };
 
     CustomOptional<bool> UsePrecompiledShaders { true };
 
     CustomOptional<bool> UseGenericAppIdWithDlss { false };
-    CustomOptional<bool> PreferDedicatedGpu { false };
+    CustomOptional<bool> PreferDedicatedGpu { true };
     CustomOptional<bool> PreferFirstDedicatedGpu { false };
 
     CustomOptional<int32_t, NoDefault> ColorResourceBarrier;    // disabled by default
@@ -347,12 +444,12 @@ class Config
     CustomOptional<int32_t, NoDefault> MaskResourceBarrier;     // disabled by default
     CustomOptional<int32_t, NoDefault> OutputResourceBarrier;   // disabled by default
 
-    CustomOptional<bool> DontCreateD3D12DeviceForLuma { false };
+    CustomOptional<bool> CreateD3D12DeviceForLuma { false };
 
     // Upscalers
-    CustomOptional<std::string, SoftDefault> Dx11Upscaler { std::string(OptiKeys::FSR22) };
-    CustomOptional<std::string, SoftDefault> Dx12Upscaler { std::string(OptiKeys::XeSS) };
-    CustomOptional<std::string, SoftDefault> VulkanUpscaler { std::string(OptiKeys::FSR22) };
+    CustomOptional<Upscaler, SoftDefault> Dx11Upscaler { Upscaler::FSR22 };
+    CustomOptional<Upscaler, SoftDefault> Dx12Upscaler { Upscaler::XeSS };
+    CustomOptional<Upscaler, SoftDefault> VulkanUpscaler { Upscaler::FSR22 };
 
     // Output Scaling
     CustomOptional<bool> OutputScalingEnabled { false };
@@ -361,17 +458,16 @@ class Config
 
     // FSR
     CustomOptional<bool> FsrDebugView { false };
+    CustomOptional<bool> Fsr4EnableDebugView { false };
     CustomOptional<int> FfxUpscalerIndex { 0 };
     CustomOptional<int> FfxFGIndex { 0 };
     CustomOptional<bool> FsrUseMaskForTransparency { true };
-    CustomOptional<bool> Fsr4Update { false };
-    CustomOptional<uint32_t, NoDefault> Fsr4Model;
-    CustomOptional<bool> Fsr4EnableDebugView { false };
-    CustomOptional<bool> Fsr4EnableWatermark { false };
     CustomOptional<bool> FsrNonLinearColorSpace { false };
     CustomOptional<bool> FsrNonLinearSRGB { false };
     CustomOptional<bool> FsrNonLinearPQ { false };
     CustomOptional<bool> FsrAgilitySDKUpgrade { false };
+
+    // These default values will be overwritten at upscaler init time with optimized values
     CustomOptional<float> FsrVelocity { 1.0f };
     CustomOptional<float> FsrReactiveScale { 1.0f };
     CustomOptional<float> FsrShadingScale { 1.0f };
@@ -379,19 +475,107 @@ class Config
     CustomOptional<float> FsrMinDisOccAcc { -0.333f };
 
     // FSR-RR
+    // Auto: game-native for SR, NVIDIA RR on capable NVIDIA GPUs, otherwise validated FFX + FSR-RR.
+    CustomOptional<bool, NoDefault> FfxDenoiserEnabled;
+    CustomOptional<int> FfxDenoiserProfile { 1 }; // 0 Fast, 1 Balanced, 2 Quality; -1 custom
     CustomOptional<int> FfxDenoiserIndex { 0 };
-    CustomOptional<int> FfxDenoiserMode { 0 };
     CustomOptional<uint64_t> FfxDenoiserDebugMode { 0 };
+    // -1: overview, 0..FFX_API_DENOISER_DEBUG_VIEW_MAX_VIEWPORTS-1: fullscreen viewport
+    CustomOptional<int> FfxDenoiserDebugViewport { -1 };
+    // Enables AMD's internal RR debug descriptors. Requires context recreation.
+    CustomOptional<bool> FfxDenoiserInternalDebugViews { false };
+    // Per-lobe RR path, FSRDSignals::Route: 0 Auto, 1 Direct, 2 Indirect, 3 Split. The RR
+    // signal layout is derived from these, the albedo fix and the title's guides.
+    CustomOptional<int> FfxDenoiserDiffuseRoute { 0 };
+    CustomOptional<int> FfxDenoiserSpecularRoute { 0 };
+    // Primary view depth stands in for a missing or invalid hit distance.
+    CustomOptional<bool> FfxDenoiserEstimateHitDistances { false };
+    // Single-signal denoising: dispatch only the enabled signals. A title whose raw
+    // signal content only makes sense for one of the two can denoise the surviving
+    // signal alone; the disabled signal's output stays zero and composition falls
+    // back to the floor/raw-correlation path for it. Requires context recreation.
+    CustomOptional<bool> FfxDenoiserDenoiseDiffuse { true };
+    CustomOptional<bool> FfxDenoiserDenoiseSpecular { true };
+    CustomOptional<bool> FfxDenoiserGpuTimings{true};
+    // Uses only semantic Streamline AO noisy/denoised tags. Resource-inspector
+    // candidates are deliberately never promoted to signal inputs.
+    CustomOptional<bool> FfxDenoiserTaggedAmbientOcclusion { false };
+    // Disabled preserves the existing contract that RR input normals are world-space.
+    CustomOptional<bool> FfxDenoiserNormalsInViewSpace { false };
+    // Prefer the title's own linearised view depth when it publishes one, instead of
+    // deriving it from the title's depth buffer and the projection. Off by default: the
+    // derived path is the one every title so far has been validated against.
+    CustomOptional<bool> FfxDenoiserUseTitleLinearDepth { false };
+    // Responsivity values on the unstable side of this threshold route the specular
+    // radiance through the spatial path as well. Zero disables the test.
+    CustomOptional<float> FfxDenoiserResponsivityThreshold { 0.0f };
+    // Selects which side of that threshold counts as unstable, since the polarity of the
+    // title's mask is a title property.
+    CustomOptional<bool> FfxDenoiserResponsivityInvert { false };
+
+    // Routes pixels flagged by the DLSS bias-current-color mask (particles, alpha layers,
+    // animated and video textures) around the denoiser via the floor and skip signal.
+    // 0 restores the behaviour where the mask was bound but unused.
+    CustomOptional<float> FfxDenoiserBiasMaskStrength { 1.0f };
+
+    // Spatial Floor and independently selected, master-scaled recovery paths.
+    CustomOptional<float> FfxDenoiserSpecularAlbedoDemodulation{1.0f};
+    CustomOptional<float> FfxDenoiserDiffuseAlbedoModulation{1.0f};
+    // Experimental local color/albedo fit; zero preserves the existing signal split.
+    CustomOptional<float> FfxDenoiserAdditiveLightSplit{0.0f};
+    // Albedo bleed fix (INI AlbedoBleedFix): denoises unmodulated copies of the specular and
+    // diffuse shares as RR Direct Specular / Indirect Diffuse and blends toward them where the
+    // title's albedo shows a surface the light does not (water over a sea floor). Independent
+    // of the profile; needs a specular hit distance and runs only at 1/1 modulation.
+    CustomOptional<bool> FfxDenoiserUnsupportedAlbedoRecovery{false};
+    CustomOptional<bool> FfxDenoiserFloorFlatRecovery{true};
+    CustomOptional<bool> FfxDenoiserFloorSpecularRecovery{true};
+    CustomOptional<bool> FfxDenoiserFloorDiffuseRecovery{false};
+    CustomOptional<int> FfxDenoiserFloorFlatNoiseMethod{0};
+    CustomOptional<int> FfxDenoiserFloorSpecularNoiseMethod{1};
+    CustomOptional<int> FfxDenoiserFloorDiffuseNoiseMethod{1};
+    CustomOptional<float> FfxDenoiserFloorLumaRecovery{1.0f};
+    CustomOptional<float> FfxDenoiserFloorChromaRecovery{1.0f};
+
+    CustomOptional<bool> FfxDenoiserFloorEnabled { true };
+    // Reduced Floor pass policy is the Balanced default; Quality uses five passes.
+    CustomOptional<bool> FfxDenoiserFloorFastMode { true };
+    CustomOptional<float> FfxDenoiserFloorRecovery { 1.0f };
+    CustomOptional<float> FfxDenoiserFloorHandoverCorrelationMix { 1.0f };
+    CustomOptional<float> FfxDenoiserFloorHandoverAnchorClamp { 4.0f };
+
+    // Overrides the DLSS.Use.HW.Depth interpretation. Unset follows NGX, which
+    // defaults to linear when the title publishes nothing - and reading a hardware
+    // depth buffer as linear collapses the whole scene to sub-unit distances.
+    CustomOptional<bool, NoDefault> FfxDenoiserHardwareDepth;
+
+    // Pushes AMD's own queried baseline for the six tunable RR keys instead of the
+    // values below. A/B reference only - the fork's defaults remain the shipping
+    // configuration, and the sliders keep their values while this is enabled.
+    CustomOptional<bool> FfxDenoiserUseAmdDefaults { false };
 
     CustomOptional<float> FfxDenoiserDisocThreshold { 0.1f };
     CustomOptional<float> FfxDenoiserCrossBlNormStr { 0.5f };
     CustomOptional<float> FfxDenoiserStabilityBias { 0.5f };
-    CustomOptional<float> FfxDenoiserMaxRadiance { 2e4f };
+    CustomOptional<float> FfxDenoiserMaxRadiance { 4e4f };
     CustomOptional<float> FfxDenoiserRadianceClip { 40.0f };
     CustomOptional<float> FfxDenoiserGaussKernRelax { 0.5f };
+    CustomOptional<float> FfxDenoiserDebugDepthMax { 1024.0f };
 
-    CustomOptional<float> FfxDenoiserCorrelationBias { 1.0f };
-    CustomOptional<float> FfxDenoiserFloorIsolation { 1.0f };
+    // Records the probe readbacks: seven render targets per input probe interval plus two per
+    // denoiser output probe, and the log lines that report them. Off by default - the numbers
+    // are for diagnosis, and an always-on probe wrote a gigabyte of log in a session.
+    CustomOptional<bool> FfxDenoiserDiagnostics { false };
+
+    CustomOptional<bool> FfxDenoiserDiffuseHitDistance { true };
+    // Only the demodulation divisor is floored; unrepresentable energy is routed once.
+    CustomOptional<float> FfxDenoiserDemodDivisorFloor { 8e-3f };
+
+    // FSR4
+    CustomOptional<FSR4Support> Fsr4ForceModel { FSR4Support::None };
+    CustomOptional<uint32_t, NoDefault> Fsr4Preset;
+    CustomOptional<bool> Fsr4EnableWatermark { false };
+    CustomOptional<bool> Fsr4DoNotLoadAmdxc64 { false };
 
     // FSR Common
     CustomOptional<float> FsrVerticalFov { 60.0f };
@@ -399,9 +583,6 @@ class Config
     CustomOptional<float> FsrCameraNear { 0.1f };
     CustomOptional<float> FsrCameraFar { 100000.0f };
     CustomOptional<bool> FsrUseFsrInputValues { true };
-
-    CustomOptional<std::wstring, NoDefault> FfxDx12Path;
-    CustomOptional<std::wstring, NoDefault> FfxVkPath;
 
     // dx11wdx12
     CustomOptional<bool> Dx11DelayedInit { false };
@@ -412,13 +593,10 @@ class Config
     CustomOptional<bool> VulkanUseCopyForOutput { false };
 
     // NVAPI Override
-    CustomOptional<bool> OverrideNvapiDll { false };
-    CustomOptional<bool> DontUseFakenvapiForXeLLOnNvidia { false };
-    CustomOptional<std::wstring, NoDefault> NvapiDllPath;
     CustomOptional<bool> DisableFlipMetering { false };
 
     // Spoofing
-    CustomOptional<bool> DxgiSpoofing { true };
+    CustomOptional<bool, SoftDefault> DxgiSpoofing { true };
     CustomOptional<bool> DxgiFactoryWrapping { false };
     CustomOptional<bool> StreamlineSpoofing { true };
     CustomOptional<std::string, NoDefault> DxgiBlacklist; // disabled by default
@@ -429,24 +607,27 @@ class Config
     CustomOptional<bool> SpoofHAGS { false };
     CustomOptional<bool> SpoofFeatureLevel { false };
     CustomOptional<uint32_t> SpoofedVendorId { VendorId::Nvidia };
-    CustomOptional<uint32_t> SpoofedDeviceId { 0x2684 };
+    CustomOptional<uint32_t> SpoofedDeviceId { 0x2B85 };
     CustomOptional<uint32_t, NoDefault> TargetVendorId;
     CustomOptional<uint32_t, NoDefault> TargetDeviceId;
-    CustomOptional<std::wstring> SpoofedGPUName { L"NVIDIA GeForce RTX 4090" };
+    CustomOptional<std::wstring> SpoofedGPUName { L"NVIDIA GeForce RTX 5090" };
     CustomOptional<bool> UESpoofIntelAtomics64 { false };
     CustomOptional<bool> SpoofRegistry { false };
     CustomOptional<bool> SpoofUser32 { false };
     CustomOptional<std::wstring> SpoofedDriver { L"32.0.15.9155" };
 
     // Plugins
-    CustomOptional<std::wstring> PluginPath { L"plugins" };
+    CustomOptional<std::wstring, NoDefault> PluginPath;
     CustomOptional<bool> LoadSpecialK { false };
     CustomOptional<bool> LoadReShade { false };
+    CustomOptional<bool> LoadCustomAmdxc64OnRdna2 { false };
     CustomOptional<bool> LoadAsiPlugins { false };
+    CustomOptional<int> LateAsiPluginsDelay { 30 };
 
     // Frame Generation
     CustomOptional<FGInput> FGInput { FGInput::NoFG };
     CustomOptional<FGOutput> FGOutput { FGOutput::NoFG };
+    CustomOptional<FGNvngxReplacement> FGNvngxReplacement { FGNvngxReplacement::None };
     CustomOptional<bool> FGDrawUIOverFG { false };
     CustomOptional<bool> FGUIPremultipliedAlpha { true };
     CustomOptional<bool> FGDisableHudless { false };
@@ -458,9 +639,10 @@ class Config
     CustomOptional<bool> FGHudlessValidNow { false };
     CustomOptional<bool> FGOnlyAcceptFirstHudless { false };
     CustomOptional<bool> FGPreserveSwapChain { true };
-    CustomOptional<bool> FGSkipResizeBuffers { true };
+    CustomOptional<bool> FGSkipResizeBuffers { false };
     CustomOptional<bool> FGModifyBufferState { false };
     CustomOptional<bool> FGModifySCIndex { false };
+    CustomOptional<float> FGHudCutoff { 0.0f };
     CustomOptional<FrameTimeSource> FTInput { FrameTimeSource::Input };
 
     // OptiFG
@@ -521,22 +703,40 @@ class Config
     CustomOptional<bool> FSRFGSkipDispatchForHudless { false };
     CustomOptional<bool> FSRFGEnableWatermark { false };
 
-    // OptiFG - XeFG
+    // XeFG
     CustomOptional<bool> FGXeFGIgnoreInitChecks { false };
     CustomOptional<int> FGXeFGInterpolationCount { 1 };
     CustomOptional<bool> FGXeFGUIComposition { false };
-    CustomOptional<bool> FGXeFGDepthInverted { false };
+    CustomOptional<bool> FGXeFGDepthInverted { true };
     CustomOptional<bool> FGXeFGJitteredMV { false };
     CustomOptional<bool> FGXeFGHighResMV { false };
     CustomOptional<bool> FGXeFGDebugView { false };
     CustomOptional<bool> FGXeFGForceBorderless { false };
 
+    // DLSSG
+    CustomOptional<int> FGDLSSGInterpolationCount { 1 }; // For Opti's own SL instance
+    CustomOptional<bool> FGDLSSGUseGamesReflexMarkers { true };
+    CustomOptional<int, NoDefault>
+        FGDLSSGOverrideInterpolationCount; // For overriding game's value sent to SL, could be Nvngx FG, could be noFG
+                                           // but someone just uses real DLSSG
+    CustomOptional<bool> FGDLSSGOverrideForceDMFG { false };   // Overrides game's DLSSG mode to Dynamic
+    CustomOptional<bool> FGDLSSGForceDMFG { false };           // Overrides Opti's DLSSG mode to Dynamic
+    CustomOptional<float> FGDLSSGFramerateTargetDMFG { 0.0f }; // 0.0 means auto-detects the display refresh rate
+
+    // As per
+    // https://github.com/artur-graniszewski/dlss-enabler-main/blob/a92464d468eb0d91ae17befa66c6bf6229f20b9f/Utils/DlssgProxy.cpp#L1033
+    CustomOptional<uint32_t> NvngxFGDispatchFlags { 0x10000000 }; // IGNORE_UI_TEXTURE
+    CustomOptional<bool> NvngxFGShowDebug { false };
+    CustomOptional<bool> NvngxFGDisableHudless { false };
+
     // fakenvapi
-    CustomOptional<bool> FN_EnableLogs { true };
-    CustomOptional<bool> FN_EnableTraceLogs { false };
+    CustomOptional<bool> UseFakenvapi { true };
+    CustomOptional<bool> ForceXeLL { false };
     CustomOptional<bool> FN_ForceLatencyFlex { false };
-    CustomOptional<uint32_t> FN_LatencyFlexMode { 0 }; // conservative - aggressive - reflex ids
-    CustomOptional<uint32_t> FN_ForceReflex { 0 };     // in-game - force disable - force enable
+    CustomOptional<LFXMode> FN_LatencyFlexMode { LFXMode::Conservative };
+    CustomOptional<ForceReflex> FN_ForceReflex { ForceReflex::InGame };
+    CustomOptional<LowLatencyInput> LowLatencyInput { LowLatencyInput::Auto }; // TODO: no reading/saving to config
+    CustomOptional<LowLatencyMode> LowLatencyOutput { LowLatencyMode::Auto };
 
     // Inputs
     CustomOptional<bool> EnableDlssInputs { true };
@@ -566,14 +766,24 @@ class Config
     CustomOptional<bool, NoDefault> ForceVsync;
     CustomOptional<UINT> VsyncInterval { 0 };
 
+    // Old configs for compat reasons
+    CustomOptional<bool, NoDefault> _DONTUSE_Fsr4ForceEnableInt8;
+
     bool LoadFromPath(const wchar_t* InPath);
     bool SaveIni();
     bool SaveXeFG();
 
-    bool ReloadFakenvapi();
-    bool SaveFakenvapiIni();
-
     void CheckUpscalerFiles();
+
+    // Applies the FSR-RR denoiser's default profile: every FfxDenoiser* setting
+    // goes back to the default declared on its member. The single place that
+    // knows the complete setting set and which keys take effect at context
+    // creation - the menu's Reset button goes through this instead of keeping
+    // its own assignment list. Returns true when a context-creation setting
+    // changed and the caller must rebuild the RR context.
+    bool ResetFfxDenoiserSettings();
+    void ApplyFfxDenoiserProfile(int profile);
+    int GetFfxDenoiserProfile() const;
 
     std::vector<std::string> GetConfigLog();
 
@@ -594,4 +804,6 @@ class Config
     std::optional<int> readInt(std::string section, std::string key);
     std::optional<uint32_t> readUInt(std::string section, std::string key);
     std::optional<bool> readBool(std::string section, std::string key);
+
+    template <typename Enum> std::optional<Enum> readEnum(std::string section, std::string key);
 };

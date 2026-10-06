@@ -9,19 +9,32 @@ void DLSSFeature::ProcessEvaluateParams(NVSDK_NGX_Parameter* InParameters)
     LOG_FUNC();
 
     // override sharpness
-    if (Config::Instance()->OverrideSharpness.value_or_default() &&
-        !(State::Instance().api != Vulkan && Config::Instance()->RcasEnabled.value_or_default()))
+    if (Config::Instance()->OverrideSharpness.value_or_default() && !Config::Instance()->RcasEnabled.value_or_default())
     {
         auto sharpness = Config::Instance()->Sharpness.value_or_default();
-
         sharpness = std::min(sharpness, 1.0f);
-
         InParameters->Set(NVSDK_NGX_Parameter_Sharpness, sharpness);
     }
     // rcas enabled
     else
     {
         InParameters->Set(NVSDK_NGX_Parameter_Sharpness, 0.0f);
+
+        UINT hwDepth = 10;
+        if (InParameters->Get("DLSS.Use.HW.Depth", &hwDepth) == NVSDK_NGX_Result_Success)
+        {
+            LOG_DEBUG("DLSS.Use.HW.Depth: {}", hwDepth);
+
+            if (hwDepth == 0)
+                Config::Instance()->DADepthIsLinear.set_volatile_value(true);
+            else
+                Config::Instance()->DADepthIsLinear.set_volatile_value(false);
+        }
+        else
+        {
+            if (Config::Instance()->DADepthIsLinear.value_for_config_ignore_default() == std::nullopt)
+                Config::Instance()->DADepthIsLinear.set_volatile_value(false);
+        }
     }
 
     // Read render resolution
@@ -29,8 +42,8 @@ void DLSSFeature::ProcessEvaluateParams(NVSDK_NGX_Parameter* InParameters)
     unsigned int height;
     GetRenderResolution(InParameters, &width, &height);
 
-    LOG_INFO("Render Size: {}x{}, Target Size: {}x{}, Display Size: {}x{}", RenderWidth(), RenderHeight(),
-             TargetWidth(), TargetHeight(), DisplayWidth(), DisplayHeight());
+    LOG_DEBUG("Render Size: {}x{}, Target Size: {}x{}, Display Size: {}x{}", RenderWidth(), RenderHeight(),
+              TargetWidth(), TargetHeight(), DisplayWidth(), DisplayHeight());
 }
 
 void DLSSFeature::ProcessInitParams(NVSDK_NGX_Parameter* InParameters)
@@ -107,8 +120,8 @@ void DLSSFeature::ProcessInitParams(NVSDK_NGX_Parameter* InParameters)
     InParameters->Set(NVSDK_NGX_Parameter_OutWidth, TargetWidth());
     InParameters->Set(NVSDK_NGX_Parameter_OutHeight, TargetHeight());
 
-    LOG_INFO("Render Size: {}x{}, Target Size: {}x{}, Display Size: {}x{}", RenderWidth(), RenderHeight(),
-             TargetWidth(), TargetHeight(), DisplayWidth(), DisplayHeight());
+    LOG_DEBUG("Render Size: {}x{}, Target Size: {}x{}, Display Size: {}x{}", RenderWidth(), RenderHeight(),
+              TargetWidth(), TargetHeight(), DisplayWidth(), DisplayHeight());
 
     if (Config::Instance()->RenderPresetOverride.value_or_default())
     {
@@ -153,6 +166,15 @@ void DLSSFeature::ProcessInitParams(NVSDK_NGX_Parameter* InParameters)
 
         if (Config::Instance()->RenderPresetOverride.value_or_default())
         {
+            LOG_DEBUG("RenderPresetForAll: {}", Config::Instance()->RenderPresetForAll.value_or_default());
+            LOG_DEBUG("RenderPresetDLAA: {}", Config::Instance()->RenderPresetDLAA.value_or_default());
+            LOG_DEBUG("RenderPresetUltraQuality: {}", Config::Instance()->RenderPresetUltraQuality.value_or_default());
+            LOG_DEBUG("RenderPresetQuality: {}", Config::Instance()->RenderPresetQuality.value_or_default());
+            LOG_DEBUG("RenderPresetBalanced: {}", Config::Instance()->RenderPresetBalanced.value_or_default());
+            LOG_DEBUG("RenderPresetPerformance: {}", Config::Instance()->RenderPresetPerformance.value_or_default());
+            LOG_DEBUG("RenderPresetUltraPerformance: {}",
+                      Config::Instance()->RenderPresetUltraPerformance.value_or_default());
+
             RenderPresetDLAA = Config::Instance()->RenderPresetForAll.value_or(
                 Config::Instance()->RenderPresetDLAA.value_or(RenderPresetDLAA));
             RenderPresetUltraQuality = Config::Instance()->RenderPresetForAll.value_or(
@@ -207,6 +229,22 @@ void DLSSFeature::ProcessInitParams(NVSDK_NGX_Parameter* InParameters)
         }
         else
         {
+            if (State::Instance().dlssPresetsOverriddenExternally)
+            {
+                InParameters->Set(NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_DLAA,
+                                  State::Instance().dlssRenderPresetExternal);
+                InParameters->Set(NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraQuality,
+                                  State::Instance().dlssRenderPresetExternal);
+                InParameters->Set(NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Quality,
+                                  State::Instance().dlssRenderPresetExternal);
+                InParameters->Set(NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Balanced,
+                                  State::Instance().dlssRenderPresetExternal);
+                InParameters->Set(NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Performance,
+                                  State::Instance().dlssRenderPresetExternal);
+                InParameters->Set(NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraPerformance,
+                                  State::Instance().dlssRenderPresetExternal);
+            }
+
             InParameters->Get(NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_DLAA,
                               &State::Instance().dlssRenderPresetDLAA);
             InParameters->Get(NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraQuality,

@@ -1,21 +1,125 @@
 #include "pch.h"
+
 #include "RCAS_Dx12.h"
 
 #include "precompile/RCAS_Shader.h"
+#include "precompile/da_das_sharpen_Shader.h"
+#include "precompile/da_rcas_sharpen_Shader.h"
 
 #include <Config.h>
 
-bool RCAS_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* InSource, D3D12_RESOURCE_STATES InState)
+bool RCAS_Dx12::DispatchRCAS(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InResource,
+                             ID3D12Resource* InMotionVectors, RcasConstants InConstants, ID3D12Resource* OutResource,
+                             FrameDescriptorHeap& currentHeap, ID3D12Resource* constantsBuffer)
+{
+    if (InMotionVectors == nullptr || _device == nullptr)
+        return false;
+
+    CreateShaderResourceView(_device, InResource, currentHeap.GetSrvCPU(0));
+    CreateShaderResourceView(_device, InMotionVectors, currentHeap.GetSrvCPU(1));
+    if (_recordedLifetime)
+    {
+        // Plain RCAS does not sample depth, but the complete table still needs a valid t2.
+        D3D12_SHADER_RESOURCE_VIEW_DESC nullDepth {};
+        nullDepth.Format = DXGI_FORMAT_R32_FLOAT;
+        nullDepth.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        nullDepth.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        nullDepth.Texture2D.MipLevels = 1;
+        _device->CreateShaderResourceView(nullptr, &nullDepth, currentHeap.GetSrvCPU(2));
+    }
+    CreateUnorderedAccessView(_device, OutResource, currentHeap.GetUavCPU(0), 0);
+
+    InternalConstants constants {};
+
+    auto outDesc = OutResource->GetDesc();
+    auto mvsDesc = InMotionVectors->GetDesc();
+
+    constants.OutputWidth = (uint32_t) outDesc.Width;
+    constants.OutputHeight = outDesc.Height;
+    constants.MotionWidth = (uint32_t) mvsDesc.Width;
+    constants.MotionHeight = mvsDesc.Height;
+
+    FillMotionConstants(constants, InConstants);
+
+    if (!CreateConstantsBuffer(_device, constantsBuffer, constants, currentHeap.GetCbvCPU(0)))
+    {
+        LOG_ERROR("[{0}] Failed to create a constants buffer", _name);
+        return false;
+    }
+
+    ID3D12DescriptorHeap* heaps[] = { currentHeap.GetHeapCSU() };
+    InCmdList->SetDescriptorHeaps(_countof(heaps), heaps);
+    InCmdList->SetComputeRootSignature(_rootSignature);
+    InCmdList->SetPipelineState(_pipelineState);
+    InCmdList->SetComputeRootDescriptorTable(0, currentHeap.GetTableGPUStart());
+
+    auto inDesc = InResource->GetDesc();
+    UINT dispatchWidth = static_cast<UINT>((inDesc.Width + InNumThreadsX - 1) / InNumThreadsX);
+    UINT dispatchHeight = (inDesc.Height + InNumThreadsY - 1) / InNumThreadsY;
+    InCmdList->Dispatch(dispatchWidth, dispatchHeight, 1);
+
+    return true;
+}
+
+bool RCAS_Dx12::DispatchDepthAdaptive(ID3D12PipelineState* pipelineState, ID3D12GraphicsCommandList* InCmdList,
+                                      ID3D12Resource* InResource, ID3D12Resource* InMotionVectors,
+                                      ID3D12Resource* InDepth, RcasConstants InConstants, ID3D12Resource* OutResource,
+                                      FrameDescriptorHeap& currentHeap, ID3D12Resource* constantsBuffer)
+{
+    if (InDepth == nullptr || pipelineState == nullptr || _device == nullptr)
+        return false;
+
+    CreateShaderResourceView(_device, InResource, currentHeap.GetSrvCPU(0));
+    CreateShaderResourceView(_device, InMotionVectors, currentHeap.GetSrvCPU(1));
+    CreateShaderResourceView(_device, InDepth, currentHeap.GetSrvCPU(2));
+    CreateUnorderedAccessView(_device, OutResource, currentHeap.GetUavCPU(0), 0);
+
+    InternalConstantsDA constants {};
+
+    auto outDesc = OutResource->GetDesc();
+    auto mvsDesc = InMotionVectors->GetDesc();
+    auto depthDesc = InDepth->GetDesc();
+
+    constants.OutputWidth = (uint32_t) outDesc.Width;
+    constants.OutputHeight = outDesc.Height;
+    constants.MotionWidth = (uint32_t) mvsDesc.Width;
+    constants.MotionHeight = mvsDesc.Height;
+    constants.DepthWidth = (uint32_t) depthDesc.Width;
+    constants.DepthHeight = depthDesc.Height;
+
+    FillMotionConstants(constants, InConstants);
+
+    if (!CreateConstantsBuffer(_device, constantsBuffer, constants, currentHeap.GetCbvCPU(0)))
+    {
+        LOG_ERROR("[{0}] Failed to create a constants buffer", _name);
+        return false;
+    }
+
+    ID3D12DescriptorHeap* heaps[] = { currentHeap.GetHeapCSU() };
+    InCmdList->SetDescriptorHeaps(_countof(heaps), heaps);
+    InCmdList->SetComputeRootSignature(_rootSignature);
+    InCmdList->SetPipelineState(pipelineState);
+    InCmdList->SetComputeRootDescriptorTable(0, currentHeap.GetTableGPUStart());
+
+    UINT dispatchWidth = static_cast<UINT>((constants.OutputWidth + InNumThreadsX - 1) / InNumThreadsX);
+    UINT dispatchHeight = (constants.OutputHeight + InNumThreadsY - 1) / InNumThreadsY;
+    InCmdList->Dispatch(dispatchWidth, dispatchHeight, 1);
+
+    return true;
+}
+
+bool RCAS_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* InSource, D3D12_RESOURCE_STATES InState,
+                                   ID3D12GraphicsCommandList* InCommandList)
 {
     auto resourceFlags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS |
                          D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS;
 
-    auto result = Shader_Dx12::CreateBufferResource(InDevice, InSource, InState, &_buffer, resourceFlags);
+    auto result = Shader_Dx12::CreateBufferResource(InDevice, InSource, InState, &_buffer, resourceFlags, 0, 0, DXGI_FORMAT_UNKNOWN, InCommandList);
 
     if (result)
     {
-        _buffer->SetName(L"RCAS_Buffer");
-        _bufferState = InState;
+        _buffer->SetName(L"RCAS_DA_Buffer");
+        _bufferState = _recordedLifetime ? D3D12_RESOURCE_STATE_COMMON : InState;
     }
 
     return result;
@@ -26,121 +130,55 @@ void RCAS_Dx12::SetBufferState(ID3D12GraphicsCommandList* InCommandList, D3D12_R
     return Shader_Dx12::SetBufferState(InCommandList, InState, _buffer, &_bufferState);
 }
 
-bool RCAS_Dx12::Dispatch(ID3D12Device* InDevice, ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InResource,
-                         ID3D12Resource* InMotionVectors, RcasConstants InConstants, ID3D12Resource* OutResource)
+bool RCAS_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InResource,
+                         ID3D12Resource* InMotionVectors, RcasConstants InConstants, ID3D12Resource* OutResource,
+                         ID3D12Resource* InDepth)
 {
-    if (!_init || InDevice == nullptr || InCmdList == nullptr || InResource == nullptr || OutResource == nullptr ||
+    if (!_init || _device == nullptr || InCmdList == nullptr || InResource == nullptr || OutResource == nullptr ||
         InMotionVectors == nullptr)
         return false;
 
     LOG_DEBUG("[{0}] Start!", _name);
 
-    _counter++;
-    _counter = _counter % RCAS_NUM_OF_HEAPS;
-    FrameDescriptorHeap& currentHeap = _frameHeaps[_counter];
+    auto sharpnessShader = Config::Instance()->SharpnessShader.value_or_default();
+    auto selectedPSO = sharpnessShader == SharpenShader::LocalContrastDepthAware ? _pipelineStateDASDA :
+                       sharpnessShader == SharpenShader::DepthAware ? _pipelineStateDA : _pipelineState;
+    if (_recordedLifetime &&
+        ((sharpnessShader != SharpenShader::RCAS && sharpnessShader != SharpenShader::DepthAware &&
+          sharpnessShader != SharpenShader::LocalContrastDepthAware) ||
+         (sharpnessShader != SharpenShader::RCAS && !InDepth)))
+        return false;
+    auto lease = AcquireDispatchLease(InCmdList, selectedPSO, { InResource, InMotionVectors, InDepth, OutResource });
+    if (_recordedLifetime && !lease)
+        return false;
+    ScopedGpuTime_Dx12 scopedGpuTime(GpuTime.get(), InCmdList);
 
-    auto inDesc = InResource->GetDesc();
-    auto mvDesc = InMotionVectors->GetDesc();
-    auto outDesc = OutResource->GetDesc();
-
-    // Create SRV for Input Texture
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Format = Shader_Dx12::TranslateTypelessFormats(inDesc.Format);
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Texture2D.MipLevels = 1;
-
-    InDevice->CreateShaderResourceView(InResource, &srvDesc, currentHeap.GetSrvCPU(0));
-
-    // Create SRV for Motion Texture
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc2 = {};
-    srvDesc2.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc2.Format = Shader_Dx12::TranslateTypelessFormats(mvDesc.Format);
-    srvDesc2.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc2.Texture2D.MipLevels = 1;
-
-    InDevice->CreateShaderResourceView(InMotionVectors, &srvDesc2, currentHeap.GetSrvCPU(1));
-
-    // Create UAV for Output Texture
-    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-    uavDesc.Format = Shader_Dx12::TranslateTypelessFormats(outDesc.Format);
-    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-    uavDesc.Texture2D.MipSlice = 0;
-
-    InDevice->CreateUnorderedAccessView(OutResource, nullptr, &uavDesc, currentHeap.GetUavCPU(0));
-
-    InternalConstants constants {};
-
-    if (Config::Instance()->ContrastEnabled.value_or_default())
-        constants.Contrast = Config::Instance()->Contrast.value_or_default() * -1.0f;
-    else
-        constants.Contrast = -100.0f;
-
-    constants.DisplayHeight = InConstants.DisplayHeight;
-    constants.DisplayWidth = InConstants.DisplayWidth;
-    constants.DynamicSharpenEnabled = Config::Instance()->MotionSharpnessEnabled.value_or_default() ? 1 : 0;
-    constants.MotionSharpness = Config::Instance()->MotionSharpness.value_or_default();
-    constants.MvScaleX = InConstants.MvScaleX;
-    constants.MvScaleY = InConstants.MvScaleY;
-    constants.Sharpness = InConstants.Sharpness;
-    constants.Debug = Config::Instance()->MotionSharpnessDebug.value_or_default() ? 1 : 0;
-    constants.Threshold = Config::Instance()->MotionThreshold.value_or_default();
-    constants.ScaleLimit = Config::Instance()->MotionScaleLimit.value_or_default();
-    constants.DisplaySizeMV = InConstants.DisplaySizeMV ? 1 : 0;
-
-    if (InConstants.RenderWidth == 0 || InConstants.DisplayWidth == 0)
-        constants.MotionTextureScale = 1.0f;
-    else
-        constants.MotionTextureScale = (float) InConstants.RenderWidth / (float) InConstants.DisplayWidth;
-
-    // Copy the updated constant buffer data to the constant buffer resource
-    BYTE* pCBDataBegin;
-    CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU
-    auto result = _constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pCBDataBegin));
-
-    if (result != S_OK)
+    if (!_recordedLifetime)
     {
-        LOG_ERROR("[{0}] _constantBuffer->Map error {1:x}", _name, (unsigned int) result);
+        _counter++;
+        _counter = _counter % RCAS_NUM_OF_HEAPS;
+    }
+    FrameDescriptorHeap& currentHeap = lease ? lease->slot->heap : _frameHeaps[_counter];
+    auto* constantsBuffer = lease ? lease->slot->constants.Get() : _constantBuffer;
 
-        if (result == DXGI_ERROR_DEVICE_REMOVED && _device != nullptr)
-            Util::GetDeviceRemovedReason(_device);
-
+    if (sharpnessShader == SharpenShader::LocalContrastDepthAware)
+    {
+        return DispatchDepthAdaptive(_pipelineStateDASDA, InCmdList, InResource, InMotionVectors, InDepth, InConstants,
+                                     OutResource, currentHeap, constantsBuffer);
+    }
+    else if (sharpnessShader == SharpenShader::DepthAware)
+    {
+        return DispatchDepthAdaptive(_pipelineStateDA, InCmdList, InResource, InMotionVectors, InDepth, InConstants,
+                                     OutResource, currentHeap, constantsBuffer);
+    }
+    else if (sharpnessShader == SharpenShader::RCAS)
+    {
+        return DispatchRCAS(InCmdList, InResource, InMotionVectors, InConstants, OutResource, currentHeap, constantsBuffer);
+    }
+    else
+    {
         return false;
     }
-
-    if (pCBDataBegin == nullptr)
-    {
-        _constantBuffer->Unmap(0, nullptr);
-        LOG_ERROR("[{0}] pCBDataBegin is null!", _name);
-
-        return false;
-    }
-
-    memcpy(pCBDataBegin, &constants, sizeof(constants));
-    _constantBuffer->Unmap(0, nullptr);
-
-    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-    cbvDesc.BufferLocation = _constantBuffer->GetGPUVirtualAddress();
-    cbvDesc.SizeInBytes = sizeof(constants);
-    InDevice->CreateConstantBufferView(&cbvDesc, currentHeap.GetCbvCPU(0));
-
-    ID3D12DescriptorHeap* heaps[] = { currentHeap.GetHeapCSU() };
-    InCmdList->SetDescriptorHeaps(_countof(heaps), heaps);
-
-    InCmdList->SetComputeRootSignature(_rootSignature);
-    InCmdList->SetPipelineState(_pipelineState);
-
-    InCmdList->SetComputeRootDescriptorTable(0, currentHeap.GetTableGPUStart());
-
-    UINT dispatchWidth = 0;
-    UINT dispatchHeight = 0;
-
-    dispatchWidth = static_cast<UINT>((inDesc.Width + InNumThreadsX - 1) / InNumThreadsX);
-    dispatchHeight = (inDesc.Height + InNumThreadsY - 1) / InNumThreadsY;
-
-    InCmdList->Dispatch(dispatchWidth, dispatchHeight, 1);
-
-    return true;
 }
 
 RCAS_Dx12::RCAS_Dx12(std::string InName, ID3D12Device* InDevice) : Shader_Dx12(InName, InDevice)
@@ -153,24 +191,13 @@ RCAS_Dx12::RCAS_Dx12(std::string InName, ID3D12Device* InDevice) : Shader_Dx12(I
 
     LOG_DEBUG("{0} start!", _name);
 
-    CD3DX12_DESCRIPTOR_RANGE1 descriptorRanges[] = {
-        // 2 SRVs starting at register t0, space 0
-        CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0),
+    if (!SetupRootSignature(InDevice, 3, 1, 1))
+    {
+        LOG_ERROR("Failed to setup root signature");
+        return;
+    }
 
-        // 1 UAV starting at register u0, space 0
-        CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0),
-
-        // 1 CBV starting at register b0, space 0
-        CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0)
-    };
-
-    CD3DX12_ROOT_PARAMETER1 rootParameter {};
-    rootParameter.InitAsDescriptorTable(std::size(descriptorRanges), descriptorRanges);
-
-    CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSigDesc;
-    rootSigDesc.Init_1_1(1, &rootParameter);
-
-    D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(InternalConstants));
+    D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(InternalConstantsDA));
     auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
     auto result =
@@ -183,101 +210,27 @@ RCAS_Dx12::RCAS_Dx12(std::string InName, ID3D12Device* InDevice) : Shader_Dx12(I
         return;
     }
 
-    ID3DBlob* errorBlob;
-    ID3DBlob* signatureBlob;
-
-    do
+    if (!CreateComputePipeline(InDevice, &_pipelineState, rcas_cso, sizeof(rcas_cso), rcasCode.c_str()))
     {
-        auto hr = D3D12SerializeVersionedRootSignature(&rootSigDesc, &signatureBlob, &errorBlob);
-
-        if (FAILED(hr))
-        {
-            LOG_ERROR("[{0}] D3D12SerializeVersionedRootSignature error {1:x}", _name, (unsigned int) hr);
-            break;
-        }
-
-        hr = InDevice->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(),
-                                           IID_PPV_ARGS(&_rootSignature));
-
-        if (FAILED(hr))
-        {
-            LOG_ERROR("[{0}] CreateRootSignature error {1:x}", _name, (unsigned int) hr);
-            break;
-        }
-
-    } while (false);
-
-    if (errorBlob != nullptr)
-    {
-        errorBlob->Release();
-        errorBlob = nullptr;
-    }
-
-    if (signatureBlob != nullptr)
-    {
-        signatureBlob->Release();
-        signatureBlob = nullptr;
-    }
-
-    if (_rootSignature == nullptr)
-    {
-        LOG_ERROR("[{0}] _rootSignature is null!", _name);
+        LOG_ERROR("[{0}] Failed to create compute pipeline", _name);
         return;
     }
 
-    if (Config::Instance()->UsePrecompiledShaders.value_or_default())
+    if (!CreateComputePipeline(InDevice, &_pipelineStateDA, da_rcas_sharpen_cso, sizeof(da_rcas_sharpen_cso),
+                               daRcasSharpenCode.c_str()))
     {
-        D3D12_COMPUTE_PIPELINE_STATE_DESC computePsoDesc = {};
-        computePsoDesc.pRootSignature = _rootSignature;
-        computePsoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
-        computePsoDesc.CS = CD3DX12_SHADER_BYTECODE(reinterpret_cast<const void*>(rcas_cso), sizeof(rcas_cso));
-        auto hr = InDevice->CreateComputePipelineState(&computePsoDesc, __uuidof(ID3D12PipelineState*),
-                                                       (void**) &_pipelineState);
-
-        if (FAILED(hr))
-        {
-            LOG_ERROR("[{0}] CreateComputePipelineState error: {1:X}", _name, hr);
-            return;
-        }
-    }
-    else
-    {
-        // Compile shader blobs
-        ID3DBlob* _recEncodeShader = RCAS_CompileShader(rcasCode.c_str(), "CSMain", "cs_5_0");
-
-        if (_recEncodeShader == nullptr)
-        {
-            LOG_ERROR("[{0}] RCAS_CompileShader error!", _name);
-            return;
-        }
-
-        // create pso objects
-        if (!Shader_Dx12::CreateComputeShader(InDevice, _rootSignature, &_pipelineState, _recEncodeShader))
-        {
-            LOG_ERROR("[{0}] CreateComputeShader error!", _name);
-            return;
-        }
-
-        if (_recEncodeShader != nullptr)
-        {
-            _recEncodeShader->Release();
-            _recEncodeShader = nullptr;
-        }
+        LOG_ERROR("[{0}] Failed to create compute pipeline DA", _name);
+        return;
     }
 
-    ScopedSkipHeapCapture skipHeapCapture {};
-
-    for (int i = 0; i < RCAS_NUM_OF_HEAPS; i++)
+    if (!CreateComputePipeline(InDevice, &_pipelineStateDASDA, da_das_sharpen_cso, sizeof(da_das_sharpen_cso),
+                               dasDASharpenCode.c_str()))
     {
-        if (!_frameHeaps[i].Initialize(InDevice, 2, 1, 1))
-        {
-            LOG_ERROR("[{0}] Failed to init heap", _name);
-            _init = false;
-            return;
-        }
+        LOG_ERROR("[{0}] Failed to create compute pipeline DAS DA", _name);
+        return;
     }
 
-    _init = true;
+    _init = InitHeaps(InDevice, _frameHeaps, RCAS_NUM_OF_HEAPS);
 }
 
 RCAS_Dx12::~RCAS_Dx12()
@@ -285,32 +238,13 @@ RCAS_Dx12::~RCAS_Dx12()
     if (!_init || State::Instance().isShuttingDown)
         return;
 
-    if (_rootSignature != nullptr)
-    {
-        _rootSignature->Release();
-        _rootSignature = nullptr;
-    }
-
-    if (_pipelineState != nullptr)
-    {
-        _pipelineState->Release();
-        _pipelineState = nullptr;
-    }
+    SAFE_RELEASE(_pipelineStateDA);
+    SAFE_RELEASE(_pipelineStateDASDA);
 
     for (int i = 0; i < RCAS_NUM_OF_HEAPS; i++)
     {
         _frameHeaps[i].ReleaseHeaps();
     }
 
-    if (_buffer != nullptr)
-    {
-        _buffer->Release();
-        _buffer = nullptr;
-    }
-
-    if (_constantBuffer != nullptr)
-    {
-        _constantBuffer->Release();
-        _constantBuffer = nullptr;
-    }
+    SAFE_RELEASE(_buffer);
 }

@@ -7,17 +7,22 @@
 class DLSSDFeatureDx12 : public DLSSDFeature, public IFeature_Dx12
 {
   private:
+    bool _recordedComputeLifetime = false;
   protected:
+    bool InitDLSSD(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters);
+
   public:
-    bool Init(ID3D12Device* InDevice, ID3D12GraphicsCommandList* InCommandList,
-              NVSDK_NGX_Parameter* InParameters) override;
-    bool Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) override;
+    bool InitInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) override;
+    bool EvaluateInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) override;
 
     feature_version Version() override { return DLSSDFeature::Version(); }
-    std::string Name() const override { return DLSSDFeature::Name(); }
+    Upscaler GetUpscalerType() const final { return DLSSDFeature::GetUpscalerType(); }
+    API Api() const override { return IFeature_Dx12::Api(); }
+    bool CallsUpscalerEndByItself() override { return IFeature_Dx12::CallsUpscalerEndByItself(); }
 
     bool IsWithDx12() override { return false; }
+    bool UsesRecordedComputeLifetime() const override { return _recordedComputeLifetime; }
 
-    DLSSDFeatureDx12(unsigned int InHandleId, NVSDK_NGX_Parameter* InParameters);
+    DLSSDFeatureDx12(unsigned int InHandleId, NVSDK_NGX_Parameter* InParameters, bool recordedComputeLifetime = false);
     ~DLSSDFeatureDx12();
 };

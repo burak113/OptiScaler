@@ -63,7 +63,9 @@ void CSMain(uint3 id : SV_DispatchThreadID,
             uint3 tid : SV_GroupThreadID)
 {
     // k < 1 for downsample: k = DstDim / SrcDim = 1 / _Scale
-    float2 k = 1.0f / _Scale;
+    float2 k = float2(
+        (float) _DstWidth / (float) _SrcWidth,
+        (float) _DstHeight / (float) _SrcHeight);
 
     // ----------------------------
     // 1) Compute the source tile footprint for the *whole* 8x8 output block.

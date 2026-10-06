@@ -1,135 +1,66 @@
 #include "FSRDPreprocessCommon.hlsli"
+#include "FSRDFloorCommon.hlsli"
 
 #define MainRS \
-    "RootFlags(0), " \
-    "CBV(b0), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 3), visibility = SHADER_VISIBILITY_ALL), " \
-    "DescriptorTable(UAV(u0, numDescriptors = 1), visibility = SHADER_VISIBILITY_ALL), " \
-    "StaticSampler(s0, " \
-        "filter = FILTER_MIN_MAG_MIP_LINEAR, " \
-        "addressU = TEXTURE_ADDRESS_CLAMP, " \
-        "addressV = TEXTURE_ADDRESS_CLAMP, " \
-        "addressW = TEXTURE_ADDRESS_CLAMP, " \
-        "visibility = SHADER_VISIBILITY_ALL)"
-
-// Dispatch config
-#define THREAD_GROUP_SIZE_X     8
-#define THREAD_GROUP_SIZE_Y     8
-#define NUM_THREADS             (THREAD_GROUP_SIZE_X * THREAD_GROUP_SIZE_Y)
-
-static const uint2 s_ThreadGroupSize = uint2(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y);
-
-// A-Trous kernel config
-#define KERNEL_SIZE             3
-#define KERNEL_RANGE_MIN        (-KERNEL_SIZE / 2)
-#define KERNEL_RANGE_MAX        (KERNEL_SIZE / 2)
-
-static const float s_Kernel1D[2] = { 0.44198f, 0.27901f };
-
+    "RootFlags(0), CBV(b0), " \
+    "DescriptorTable(SRV(t0, numDescriptors = 4)), " \
+    "DescriptorTable(UAV(u0, numDescriptors = 1))"
 Texture2D<half4> InColor : register(t0);
 Texture2D<float> InLinearDepth : register(t1);
-Texture2D<half2> InDepthGradient : register(t2);
-
+Texture2D<half4> InDepthGradient : register(t2);
+Texture2D<float3> InDiffAlbedo : register(t3);
 RWTexture2D<half4> OutColor : register(u0);
-
-SamplerState LinearSampler : register(s0);
-
 cbuffer CB_Analysis : register(b0)
 {
     float4 DstTexSize;
-
-    float RcpCrossBlNorm;
-    float RcpSelfBlNorm;
-    
     int StepSize;
-    uint FrameIndex;
-    
-    uint Flags;
-    float3 _Padding;
-}
-
-bool IsSet(uint mask) { return (Flags & mask) == mask; }
-
-float GetSpatialWeight(int x, int y)
-{
-    return s_Kernel1D[abs(x)] * s_Kernel1D[abs(y)];
-}
-
-float GetRangeWeight(float delta, float scale)
-{
-    // W = ( 1 - ( (center - tap) * scale )^2 )^2
-    // scale = 1 / norm
-    return Square(max(1.0f - Square(delta * scale), 0.0f));
+    uint _Reserved0;
+    uint2 AlbedoBase;
 }
 
 [RootSignature(MainRS)]
-[numthreads(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y, 1)]
-void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
+[numthreads(8, 8, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
 {
-    const int2 px = groupID.xy * s_ThreadGroupSize + gtID.xy;
-    
-    if (px.x >= DstTexSize.x || px.y >= DstTexSize.y)
+    const int2 p = int2(id.xy), bounds = int2(DstTexSize.xy)-1;
+    if (any(p > bounds)) return;
+    const float4 center = InColor[p];
+    const float lum = GetLuminance(center.rgb);
+    const float noise = max(center.a, 0.0f);
+    const float range = max(lum * 0.04f, noise * 3.25f);
+    // No noisy evidence: only the small kernel is needed. All five dispatches have
+    // the same contract, so later passes can return locally without another buffer.
+    if (StepSize > 2 && noise < max(lum * 0.005f, 1e-5f))
     {
-        OutColor[px] = half4(0, 0, 0, 0);
+        OutColor[p] = half4(center);
         return;
     }
-    
-    const float4 centerColor = InColor[px];    
-    const float centerLum = GetLuminance(centerColor.rgb);
-    const float rcpCenterLum = rcp(max(centerLum, 1e-1f));   
-    
-    const float centerDepth = InLinearDepth[px];
-    const float2 centerDepthGrad = InDepthGradient[px];   
-    const float rcpDepthScale = rcp((1.0f + centerDepth) * float(StepSize));
-    
-    // As the scaling increases, bilateral weighting becomes stricter. As smoothness increases,
-    // blur strength should decrease. Where smoothness remains low, the weights should allow
-    // more blending.
-    //
-    // StepSize scaling keeps range strictness consistent as the stride increases.
-    const float smoothness = saturate(1.0f - 2.0f * centerColor.a);
-    const float adaptiveScale = float(StepSize) * (1.0f + 2.0f * smoothness);
-      
-    const float depthNormScale = adaptiveScale * (rcpDepthScale * RcpCrossBlNorm);
-    const float selfNormScale = adaptiveScale * RcpSelfBlNorm;
-    
-    const int2 maxBounds = int2(DstTexSize.xy) - 1;
-    float4 mean = 0;
-    float totalWeight = 0;
-    
+    const float z = InLinearDepth[p];
+    const float4 guide = InDepthGradient[p];
+    const float3 n = OctahedralDecode(guide.zw);
+    const float3 a = FloorRadiance(InDiffAlbedo[p + int2(AlbedoBase)]);
+    float3 sum = center.rgb;
+    float total = 1.0f;
+    // Alternate axial/diagonal support across scales. Four surface-tested taps
+    // avoid reading both crosses at every scale while retaining both orientations.
+    const bool diagonal = StepSize == 2 || StepSize == 8;
+    const int2 offsets[4] = {int2(-1,0),int2(1,0),int2(0,-1),int2(0,1)};
     [unroll]
-    for (int x = KERNEL_RANGE_MIN; x <= KERNEL_RANGE_MAX; x++)
+    for (uint i=0; i<4; ++i)
     {
-        [unroll]
-        for (int y = KERNEL_RANGE_MIN; y <= KERNEL_RANGE_MAX; y++)
-        {
-            const bool isCenter = (x != 0 || y != 0);
-            const int2 tapPX = clamp(px + (StepSize * int2(x, y)), 0, maxBounds);
-            const float4 color = isCenter ? InColor[tapPX] : centerColor;
-            const float lum = isCenter ? GetLuminance(color.rgb) : centerLum;
-
-            // Bilateral luma weight            
-            float lumDelta = (centerLum - lum) * rcpCenterLum;
-            const float wLum = GetRangeWeight(lumDelta, selfNormScale);
-
-            // Coplaniarity weight
-            const float depth = InLinearDepth[tapPX];
-            const float2 depthGrad = InDepthGradient[tapPX];
-            const float depthDelta = (centerDepth - depth);
-            const float wDepth = GetRangeWeight(depthDelta, depthNormScale);
-
-            const float wSpatial = GetSpatialWeight(x, y);
-            const float w = wSpatial * wDepth * wLum;
-
-            mean += w * color;
-            totalWeight += w;
-        }
+        const int2 o = offsets[i];
+        const int2 offset = diagonal ? int2(o.x-o.y,o.x+o.y) : o;
+        const int2 q = clamp(p + StepSize * offset, 0, bounds);
+        const float4 c = InColor[q];
+        const float4 g = InDepthGradient[q];
+        const float surface = FloorSurfaceWeight(z, InLinearDepth[q], guide.xy, float2(q-p),
+            n, OctahedralDecode(g.zw), a, FloorRadiance(InDiffAlbedo[q + int2(AlbedoBase)]));
+        const float appearance = FloorRangeWeight(GetLuminance(c.rgb)-lum,
+            max(range, max(c.a, noise) * 3.25f));
+        const float spatial = diagonal ? 0.25f : 0.5f;
+        const float w = surface * appearance * spatial;
+        sum += c.rgb*w; total += w;
     }
-
-    mean *= rcp(max(totalWeight, 1e-2f));
-    
-    // Laplacian residual of luminance for detail levels
-    const float residualLum = centerLum - GetLuminance(mean.rgb);
-    
-    OutColor[px] = GetSafeFP16(mean);
+    // Alpha is the original local uncertainty, not a vanished confidence channel.
+    OutColor[p] = half4(FloorRadiance(sum/total), center.a);
 }

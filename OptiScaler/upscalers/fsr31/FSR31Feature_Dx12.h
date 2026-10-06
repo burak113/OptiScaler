@@ -1,9 +1,11 @@
 #pragma once
 #include "FSR31Feature.h"
+#include "FSRUpscaleSettings.h"
 #include <upscalers/IFeature_Dx12.h>
 
 #include "dx12/ffx_api_dx12.h"
 #include "proxies/FfxApi_Proxy.h"
+#include "misc/FfxContextOwner.h"
 
 /**
  * @brief DirectX 12 implementation of FSR 3.1/4 for OptiScaler. Translates semi-generalized
@@ -24,6 +26,9 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
         ID3D12Resource* ReactiveMask;
         ID3D12Resource* DlssBiasMaskFallback;
         ID3D12Resource* ExposureMap;
+        // The bias mask is still transitioned for FSRD's conversion, which reads it at its
+        // declared origin, but SR masks have no origin: an offset or short mask stays out of SR.
+        bool DlssBiasMaskMisaligned;
     };
 
     /**
@@ -36,22 +41,45 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
 
     feature_version Version() override { return FSR31Feature::Version(); }
 
-    std::string Name() const override { return FSR31Feature::Name(); }
+    Upscaler GetUpscalerType() const override { return Upscaler::FFX; }
 
     /**
      * @brief Initializes the FFX context, selects an FSR version based on configuration and
      availability, and initializes helper shaders.
      * @return true if initialization succeeds.
      */
-    bool Init(ID3D12Device* InDevice, ID3D12GraphicsCommandList* InCommandList,
-              NVSDK_NGX_Parameter* InParameters) override;
+    bool InitInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) override;
 
     /**
      * @brief Executes the upscaling pass. Gathers input and output textures and configuration
-     * from the NGX parameter table. Includes optional, user-configurable pre and post processing
-     * steps for sharpening and scaling.
+     * from the NGX parameter table.
      */
-    bool Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) override;
+    bool EvaluateInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) override;
+
+    /**
+     * @brief Owns the optional, configurable barrier window of a dispatch scope: applies the
+     * barriers on construction and restores the previous states on destruction, so every exit
+     * path (including a failed dispatch) hands the resources back in the states the title
+     * declared them in.
+     */
+    class ScopedConfigurableBarriers
+    {
+      public:
+        ScopedConfigurableBarriers(FSR31FeatureDx12& feature, ID3D12GraphicsCommandList* commandList) :
+            _feature(feature), _commandList(commandList)
+        {
+            _feature.SetConfigurableBarriers(_commandList);
+        }
+
+        ~ScopedConfigurableBarriers() { _feature.ResetConfigurableBarriers(_commandList); }
+
+        ScopedConfigurableBarriers(const ScopedConfigurableBarriers&) = delete;
+        ScopedConfigurableBarriers& operator=(const ScopedConfigurableBarriers&) = delete;
+
+      private:
+        FSR31FeatureDx12& _feature;
+        ID3D12GraphicsCommandList* _commandList;
+    };
 
   protected:
     bool _isInReset;
@@ -69,12 +97,20 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
 
     // Evaluate utils
 
+    enum class UpscalerInputMode
+    {
+        OriginalColor,
+        RRComposition,
+        Bypassed
+    };
+
     /**
      * @brief Prepares upscaler inputs and configuration from a generic NGX param table, converting input buffers
      * if needed, into a native ffx descriptor struct.
      */
     bool PrepareUpscalerInput(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams,
-                              ffxDispatchDescUpscale& upscalerDesc);
+                              ffxDispatchDescUpscale& upscalerDesc,
+                              UpscalerInputMode inputMode = UpscalerInputMode::OriginalColor);
 
     /**
      * @brief Attempts to populate reactive and transparency masks for FSR input, converting/repurposing DLSS bias mask
@@ -88,28 +124,36 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
     bool DispatchUpscaler(ID3D12GraphicsCommandList* InCommandList, const ffxDispatchDescUpscale& desc);
 
     /**
-     * @brief Applies optional post-processing to FSR output if configured. Includes options for post-process RCAS,
-     FSR output rescaling and ImGui compositing.
-     */
-    void PostProcess(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams);
-
-    /**
      * @brief Sets optional resource transition barriers. Used in conjunction with game quirk workarounds.
      */
-    virtual void SetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList) const;
+    virtual void SetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList);
 
     /**
      * @brief Resets optional resource transition barriers. Used in conjunction with game quirk workarounds.
      */
-    virtual void ResetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList) const;
+    virtual void ResetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList);
+
+    /**
+     * @brief Takes ownership of a provider context created through FfxApiProxy's DX12 entry.
+     */
+    static std::shared_ptr<FfxContextOwner> AdoptContextDx12(ffxContext context, const char* name);
+
+    /**
+     * @brief Before a provider dispatch is recorded: a recorded-lifetime feature leases the
+     * context to the list, so it outlives the feature until that recording is retired.
+     * @return false when the lease is unavailable; the dispatch must then not be recorded.
+     */
+    bool RetainProviderContext(ID3D12GraphicsCommandList* InCommandList,
+                               const std::shared_ptr<FfxContextOwner>& owner);
+
+    std::shared_ptr<FfxContextOwner> _upscaleCtxOwner;
 
   private:
-    bool _isSuperScaling;
-    bool _isSharpening;
-
     InputResources _inputBuffers;
     ID3D12Resource* _upscalerOutput;
-    ID3D12Resource* _mainOutput;
+
+    // Applied settings and provider support are scoped to the current context.
+    FSR31::UpscaleSettings _upscaleSettings {};
 
     bool CreateUpscalerContext(const NVSDK_NGX_Parameter& ngxParams);
 
@@ -119,6 +163,7 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
 
     uint64_t GetUpscalerOverrideID();
 
+    // Reads the (possibly pipeline-redirected) output target the upscaler must write to.
     bool SetUpscalerTarget(ID3D12GraphicsCommandList* InCommandList, const NVSDK_NGX_Parameter& inParams);
 
     /**

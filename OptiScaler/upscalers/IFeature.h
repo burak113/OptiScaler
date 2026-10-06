@@ -21,6 +21,25 @@ struct InitFlags
     bool JitteredMV;
 };
 
+static auto sumOpts(const auto&... opts) -> std::optional<double>
+{
+    if ((opts.has_value() || ... || false))
+    {
+        return (opts.value_or(0.0) + ... + 0.0);
+    }
+
+    return std::nullopt;
+}
+
+struct DetailedGpuTime
+{
+    std::string name;
+    double time = 0.0;
+    bool includedInUpscalerTime = false;
+};
+
+struct FSRDRuntimeSnapshot;
+
 class IFeature
 {
   private:
@@ -56,7 +75,8 @@ class IFeature
     bool _initParameters = false;
     NVSDK_NGX_Handle* _handle = nullptr;
 
-    float _sharpness = 0;
+    float _sharpness = 0; // Used by the feature itself, might get spoofed to 0 when RCAS is used
+    std::optional<float> _actualSharpness = std::nullopt;
     bool _hasColor = false;
     bool _hasDepth = false;
     bool _hasMV = false;
@@ -64,6 +84,7 @@ class IFeature
     bool _accessToReactiveMask = false;
     bool _hasExposure = false;
     bool _hasOutput = false;
+    bool _depthLinear = false;
 
     unsigned int _renderWidth = 0;
     unsigned int _renderHeight = 0;
@@ -75,6 +96,10 @@ class IFeature
     long _frameCount = 0;
     bool _featureFrozen = false;
     bool _moduleLoaded = false;
+
+    std::optional<double> lastUpscalerTime {};
+    std::optional<double> lastRcasTime {};
+    std::optional<double> lastOutputScalingTime {};
 
     void SetHandle(unsigned int InHandleId);
     bool SetInitParameters(NVSDK_NGX_Parameter* InParameters);
@@ -91,39 +116,60 @@ class IFeature
 
     virtual bool IsWithDx12() = 0;
     virtual feature_version Version() = 0;
-    virtual std::string Name() const = 0;
+    virtual Upscaler GetUpscalerType() const = 0;
+    virtual API Api() const = 0;
+    std::string Name() const { return UpscalerDisplayName(GetUpscalerType()); };
+    std::string ShortName() const { return UpscalerShortName(GetUpscalerType()); }; // Without the version
+    virtual std::optional<double> ReadUpscalerTime(void* commandQueue) { return std::nullopt; }
+    virtual void ReadDetailedGpuTimes(void* commandQueue, std::vector<DetailedGpuTime>& detailedGpuTimes) {};
+    // Optional RR diagnostics, including builds with RTTI disabled.
+    virtual bool ReadRayRegenerationDiagnostics(FSRDRuntimeSnapshot& snapshot) const { return false; }
 
-    size_t JitterCount() { return _jitterInfo.size(); }
+    // Features that record GPU work into their own command lists and submit
+    // them at present time (after the title's own submissions, before the
+    // swapchain present) override this. Called once per present; no-op by
+    // default.
+    virtual void SubmitDeferredCommandLists() {};
 
-    void TickFrozenCheck();
-    bool IsFrozen() const { return _featureFrozen; };
-    bool UpdateOutputResolution(const NVSDK_NGX_Parameter* InParameters);
-    unsigned int DisplayWidth() const { return _displayWidth; };
-    unsigned int DisplayHeight() const { return _displayHeight; };
-    unsigned int TargetWidth() const { return _targetWidth; };
-    unsigned int TargetHeight() const { return _targetHeight; };
-    unsigned int RenderWidth() const { return _renderWidth; };
-    unsigned int RenderHeight() const { return _renderHeight; };
-    NVSDK_NGX_PerfQuality_Value PerfQualityValue() const { return _perfQualityValue; }
-    bool IsInitParameters() const { return _initParameters; };
-    bool IsInited() const { return _isInited; }
-    float Sharpness() const { return _sharpness; }
-    bool HasColor() const { return _hasColor; }
-    bool HasDepth() const { return _hasDepth; }
-    bool HasMV() const { return _hasMV; }
-    bool HasTM() const { return _hasTM; }
-    bool AccessToReactiveMask() const { return _accessToReactiveMask; }
-    bool HasExposure() const { return _hasExposure; }
-    bool HasOutput() const { return _hasOutput; }
-    bool ModuleLoaded() const { return _moduleLoaded; }
-    long FrameCount() { return _frameCount; }
+    virtual size_t JitterCount() { return _jitterInfo.size(); }
 
-    bool AutoExposure() const { return _initFlags.AutoExposure; }
-    bool DepthInverted() const { return _initFlags.DepthInverted; }
-    bool IsHdr() const { return _initFlags.IsHdr; }
-    bool JitteredMV() const { return _initFlags.JitteredMV; }
-    bool LowResMV() const { return _initFlags.LowResMV; }
-    bool SharpenEnabled() const { return _initFlags.SharpenEnabled; }
+    virtual void TickFrozenCheck(uint32_t presentPerEval = 1);
+    virtual bool IsFrozen() { return _featureFrozen; };
+    virtual bool UpdateOutputResolution(const NVSDK_NGX_Parameter* InParameters);
+    virtual unsigned int DisplayWidth() { return _displayWidth; };
+    virtual unsigned int DisplayHeight() { return _displayHeight; };
+    virtual unsigned int TargetWidth() { return _targetWidth; };
+    virtual unsigned int TargetHeight() { return _targetHeight; };
+    virtual unsigned int RenderWidth() { return _renderWidth; };
+    virtual unsigned int RenderHeight() { return _renderHeight; };
+    virtual NVSDK_NGX_PerfQuality_Value PerfQualityValue() { return _perfQualityValue; }
+    virtual bool IsInitParameters() { return _initParameters; };
+    virtual bool IsInited() { return _isInited; }
+    virtual float Sharpness()
+    {
+        if (_actualSharpness.has_value())
+            return _actualSharpness.value();
+        return _sharpness;
+    }
+    virtual bool HasColor() { return _hasColor; }
+    virtual bool HasDepth() { return _hasDepth; }
+    virtual bool HasMV() { return _hasMV; }
+    virtual bool HasTM() { return _hasTM; }
+    virtual bool AccessToReactiveMask() { return _accessToReactiveMask; }
+    virtual bool HasExposure() { return _hasExposure; }
+    virtual bool HasOutput() { return _hasOutput; }
+    virtual bool ModuleLoaded() { return _moduleLoaded; }
+    virtual long FrameCount() { return _frameCount; }
+    virtual bool DepthLinear() { return _depthLinear; }
+
+    virtual bool AutoExposure() { return _initFlags.AutoExposure; }
+    virtual bool DepthInverted() { return _initFlags.DepthInverted; }
+    virtual bool IsHdr() { return _initFlags.IsHdr; }
+    virtual bool JitteredMV() { return _initFlags.JitteredMV; }
+    virtual bool LowResMV() { return _initFlags.LowResMV; }
+    virtual bool SharpenEnabled() { return _initFlags.SharpenEnabled; }
+
+    virtual bool CallsUpscalerEndByItself() { return false; }
 
     IFeature(unsigned int InHandleId, NVSDK_NGX_Parameter* InParameters) { SetHandle(InHandleId); }
 

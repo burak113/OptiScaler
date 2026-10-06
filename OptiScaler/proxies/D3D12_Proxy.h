@@ -14,61 +14,14 @@
 class D3d12Proxy
 {
   public:
-    typedef struct D3D12_ROOT_SIGNATURE_DESC_L
-    {
-        UINT NumParameters;
-        D3D12_ROOT_PARAMETER* pParameters;
-        UINT NumStaticSamplers;
-        D3D12_STATIC_SAMPLER_DESC* pStaticSamplers;
-        D3D12_ROOT_SIGNATURE_FLAGS Flags;
-    } D3D12_ROOT_SIGNATURE_DESC_L;
-
-    typedef struct D3D12_ROOT_SIGNATURE_DESC1_L
-    {
-        UINT NumParameters;
-        D3D12_ROOT_PARAMETER1* pParameters;
-        UINT NumStaticSamplers;
-        D3D12_STATIC_SAMPLER_DESC* pStaticSamplers;
-        D3D12_ROOT_SIGNATURE_FLAGS Flags;
-    } D3D12_ROOT_SIGNATURE_DESC1_L;
-
-    typedef struct D3D12_ROOT_SIGNATURE_DESC2_L
-    {
-        UINT NumParameters;
-        D3D12_ROOT_PARAMETER1* pParameters;
-        UINT NumStaticSamplers;
-        D3D12_STATIC_SAMPLER_DESC1* pStaticSamplers;
-        D3D12_ROOT_SIGNATURE_FLAGS Flags;
-    } D3D12_ROOT_SIGNATURE_DESC2_L;
-
-    typedef struct D3D12_VERSIONED_ROOT_SIGNATURE_DESC_L
-    {
-        D3D_ROOT_SIGNATURE_VERSION Version;
-        union
-        {
-            D3D12_ROOT_SIGNATURE_DESC_L Desc_1_0;
-            D3D12_ROOT_SIGNATURE_DESC1_L Desc_1_1;
-            D3D12_ROOT_SIGNATURE_DESC2_L Desc_1_2;
-        };
-    } D3D12_VERSIONED_ROOT_SIGNATURE_DESC_L;
-
-    typedef HRESULT (*PFN_D3D12CreateDevice)(IUnknown*, D3D_FEATURE_LEVEL, REFIID, void**);
-    typedef HRESULT (*PFN_D3D12SerializeRootSignature)(D3D12_ROOT_SIGNATURE_DESC_L* pRootSignature,
-                                                       D3D_ROOT_SIGNATURE_VERSION Version, ID3DBlob** ppBlob,
-                                                       ID3DBlob** ppErrorBlob);
-    typedef HRESULT (*PFN_D3D12CreateRootSignatureDeserializer)(LPCVOID pSrcData, SIZE_T SrcDataSizeInBytes,
-                                                                REFIID pRootSignatureDeserializerInterface,
-                                                                void** ppRootSignatureDeserializer);
-    typedef HRESULT (*PFN_D3D12SerializeVersionedRootSignature)(D3D12_VERSIONED_ROOT_SIGNATURE_DESC_L* pRootSignature,
-                                                                ID3DBlob** ppBlob, ID3DBlob** ppErrorBlob);
-    typedef HRESULT (*PFN_D3D12CreateVersionedRootSignatureDeserializer)(LPCVOID pSrcData, SIZE_T SrcDataSizeInBytes,
-                                                                         REFIID pRootSignatureDeserializerInterface,
-                                                                         void** ppRootSignatureDeserializer);
-    typedef HRESULT (*PFN_D3D12GetDebugInterface)(REFIID, void**);
-    typedef HRESULT (*PFN_D3D12EnableExperimentalFeatures)(UINT NumFeatures, const IID* pIIDs,
-                                                           void* pConfigurationStructs,
-                                                           UINT* pConfigurationStructSizes);
-    typedef HRESULT (*PFN_D3D12GetInterface)(REFCLSID, REFIID, void**);
+    typedef decltype(&D3D12CreateDevice) PFN_D3D12CreateDevice;
+    typedef decltype(&D3D12SerializeRootSignature) PFN_D3D12SerializeRootSignature;
+    typedef decltype(&D3D12CreateRootSignatureDeserializer) PFN_D3D12CreateRootSignatureDeserializer;
+    typedef decltype(&D3D12SerializeVersionedRootSignature) PFN_D3D12SerializeVersionedRootSignature;
+    typedef decltype(&D3D12CreateVersionedRootSignatureDeserializer) PFN_D3D12CreateVersionedRootSignatureDeserializer;
+    typedef decltype(&D3D12GetDebugInterface) PFN_D3D12GetDebugInterface;
+    typedef decltype(&D3D12EnableExperimentalFeatures) PFN_D3D12EnableExperimentalFeatures;
+    typedef decltype(&D3D12GetInterface) PFN_D3D12GetInterface;
 
     static void Init(HMODULE module = nullptr)
     {
@@ -79,6 +32,7 @@ class D3d12Proxy
         {
             _dll = KernelBaseProxy::GetModuleHandleW_()(L"d3d12.dll");
 
+            // Doing this in games with Agility SDK before they are set up will crash
             if (_dll == nullptr)
                 _dll = NtdllProxy::LoadLibraryExW_Ldr(L"d3d12.dll", NULL, 0);
         }
@@ -180,7 +134,12 @@ class D3d12Proxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_D3D12CreateDevice = addr;
         return addr;
@@ -193,7 +152,12 @@ class D3d12Proxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_D3D12SerializeRootSignature = addr;
         return addr;
@@ -206,7 +170,12 @@ class D3d12Proxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_D3D12CreateRootSignatureDeserializer = addr;
         return addr;
@@ -219,7 +188,12 @@ class D3d12Proxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_D3D12SerializeVersionedRootSignature = addr;
         return addr;
@@ -233,7 +207,12 @@ class D3d12Proxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_D3D12CreateVersionedRootSignatureDeserializer = addr;
         return addr;
@@ -246,7 +225,12 @@ class D3d12Proxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_D3D12GetDebugInterface = addr;
         return addr;
@@ -259,7 +243,12 @@ class D3d12Proxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_D3D12EnableExperimentalFeatures = addr;
         return addr;
@@ -272,7 +261,12 @@ class D3d12Proxy
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
         DetourAttach(&(PVOID&) addr, method);
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook: {:X}", detourResult);
+            return nullptr;
+        }
 
         //_D3D12GetInterface = addr;
         return addr;

@@ -1,4 +1,4 @@
-// Types not recognized by Intellisense
+﻿// Types not recognized by Intellisense
 #ifdef __INTELLISENSE__
 #define int16_t  int
 #define uint16_t uint
@@ -82,8 +82,16 @@ float3 InvProjectPosition(float3 coord, float4x4 mat)
 {
     coord.xy = UVToNDC(coord.xy);
     float4 projected = mul(mat, float4(coord, 1.0f));
-    projected.xyz /= projected.w;
-    
+    // An infinite far plane drives w to exactly zero at the NDC depth that maps to
+    // infinity: z = 1 for standard-Z, z = 0 for reversed-Z. Dividing there yields
+    // Inf, and a caller that then rescales the ray by depth/rayZ turns Inf * 0 into
+    // NaN. Clamp the magnitude so the result stays a finite, very distant point that
+    // the callers' near/far clamps can resolve.
+    const float safeW = (projected.w < 0.0f)
+        ? min(projected.w, -1e-6f)
+        : max(projected.w, 1e-6f);
+    projected.xyz /= safeW;
+
     return projected.xyz;
 }
 
@@ -162,9 +170,20 @@ half2 GetSafeFP16(float2 v)
 {
     return (half2) min(max(v, 0.0f), 65500.0f);
 }
+
 half1 GetSafeFP16(float v)
 {
     return (half) min(max(v, 0.0f), 65500.0f);
+}
+
+half3 GetSafeSignedFP16(float3 v)
+{
+    return (half3) clamp(v, -65500.0f, 65500.0f);
+}
+
+half2 GetSafeSignedFP16(float2 v)
+{
+    return (half2) clamp(v, -65500.0f, 65500.0f);
 }
 
 float Square(float x) { return x * x; }
@@ -180,41 +199,18 @@ float GetLuminance(float3 color)
     return dot(color, float3(0.2126f, 0.7152f, 0.0722f));
 }
 
-// Computes statistical variance/spread using the mean of squares and mean.
-// Var(X) = E[X^2] - (E[X])^2 = sigma^2
-float GetVariance(float meanSq, float mean)
+// Soft threshold helpers, carried over from the clarity-drafts branch.
+//
+// A binary classification test (x > k) flickers whenever the tested quantity hovers near
+// k: neighbouring pixels and successive frames land on opposite sides of the step, and any
+// branch keyed off the result changes discontinuously. These return the same decision with
+// a C1 transition band of the given width, so downstream blends vary continuously.
+float SoftAbove(float x, float edge, float width)
 {
-    return max(meanSq - Square(mean), 0.0f);
+    return smoothstep(edge - max(width, 1e-6f), edge, x);
 }
 
-// Computes squared coefficient of variation for a scale-invariant measure 
-// of variance. (sigma / mu)^2
-float GetCOVSquared(float meanSq, float mean)
+float SoftBelow(float x, float edge, float width)
 {
-    const float squaredMean = Square(mean);
-    const float variance = max(meanSq - squaredMean, 0.0f);
-    return variance * rcp(max(squaredMean, 1e-4f));
-}
-
-// Computes coefficient of variation for a scale-invariant measure 
-// of variance. sigma / mu
-float GetCOV(float meanSq, float mean)
-{
-    const float variance = max(meanSq - Square(mean), 0.0f);
-    return sqrt(variance) * rcp(max(mean, 1e-2f));
-}
-
-// Computes a relative similarity score between value and baseline.
-// Returns 1.0 when values are identical, and falls off based on relative difference.
-float GetRelativeSimilarity(float value, float baseline)
-{
-    const float delta = abs(baseline - value) * rcp(max(baseline, 1e-2f));
-    return saturate(1.0f - delta);
-}
-
-// Computes a relative similarity score between value and baseline. 
-// Returns 0 below threshold, smoothly transitions to 1.0 as similarity approaches 1.
-float GetRelativeSimilarity(float value, float baseline, float threshold)
-{
-    return smoothstep(threshold, 1.0f, GetRelativeSimilarity(value, baseline));
+    return smoothstep(edge, edge - max(width, 1e-6f), x);
 }

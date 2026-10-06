@@ -8,21 +8,37 @@
 void DLSSDFeature::ProcessEvaluateParams(NVSDK_NGX_Parameter* InParameters)
 {
     // override sharpness
-    if (Config::Instance()->OverrideSharpness.value_or_default() &&
-        !(State::Instance().api == DX12 && Config::Instance()->RcasEnabled.value_or_default()))
+    if (Config::Instance()->OverrideSharpness.value_or_default() && !Config::Instance()->RcasEnabled.value_or_default())
     {
         auto sharpness = Config::Instance()->Sharpness.value_or_default();
-
-        if (sharpness > 1.0f)
-            sharpness = 1.0f;
-
+        sharpness = std::min(sharpness, 1.0f);
         InParameters->Set(NVSDK_NGX_Parameter_Sharpness, sharpness);
     }
     // rcas enabled
     else
     {
         InParameters->Set(NVSDK_NGX_Parameter_Sharpness, 0.0f);
+
+        UINT hwDepth = 10;
+        if (InParameters->Get("DLSS.Use.HW.Depth", &hwDepth) == NVSDK_NGX_Result_Success)
+        {
+            LOG_DEBUG("DLSS.Use.HW.Depth: {}", hwDepth);
+
+            if (hwDepth == 0)
+                Config::Instance()->DADepthIsLinear.set_volatile_value(true);
+            else
+                Config::Instance()->DADepthIsLinear.set_volatile_value(false);
+        }
+        else
+        {
+            if (Config::Instance()->DADepthIsLinear.value_for_config_ignore_default() == std::nullopt)
+                Config::Instance()->DADepthIsLinear.set_volatile_value(false);
+        }
     }
+
+    uint32_t hwDepth = 1;
+    InParameters->Get("DLSS.Use.HW.Depth", &hwDepth);
+    _depthLinear = hwDepth == 0;
 
     // Read render resolution
     unsigned int width;
@@ -195,6 +211,22 @@ void DLSSDFeature::ProcessInitParams(NVSDK_NGX_Parameter* InParameters)
         }
         else
         {
+            if (State::Instance().dlssPresetsOverriddenExternally)
+            {
+                InParameters->Set("RayReconstruction.Hint.Render.Preset.DLAA",
+                                  State::Instance().dlssdRenderPresetExternal);
+                InParameters->Set("RayReconstruction.Hint.Render.Preset.UltraQuality",
+                                  State::Instance().dlssdRenderPresetExternal);
+                InParameters->Set("RayReconstruction.Hint.Render.Preset.Quality",
+                                  State::Instance().dlssdRenderPresetExternal);
+                InParameters->Set("RayReconstruction.Hint.Render.Preset.Balanced",
+                                  State::Instance().dlssdRenderPresetExternal);
+                InParameters->Set("RayReconstruction.Hint.Render.Preset.Performance",
+                                  State::Instance().dlssdRenderPresetExternal);
+                InParameters->Set("RayReconstruction.Hint.Render.Preset.UltraPerformance",
+                                  State::Instance().dlssdRenderPresetExternal);
+            }
+
             InParameters->Get("RayReconstruction.Hint.Render.Preset.DLAA", &State::Instance().dlssdRenderPresetDLAA);
             InParameters->Get("RayReconstruction.Hint.Render.Preset.UltraQuality",
                               &State::Instance().dlssdRenderPresetUltraQuality);

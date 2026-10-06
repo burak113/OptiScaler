@@ -23,7 +23,7 @@ enum CaptureInfo
     CreateSRV = 2,
     CreateUAV = 4,
     OMSetRTV = 8,
-    Upscaler = 16,
+    UpscalerCapture = 16,
     SetCR = 32,
     SetGR = 64,
     Dispatch = 256,
@@ -111,9 +111,6 @@ class Hudfix_Dx12
     static void HudlessFound(ID3D12GraphicsCommandList* cmdList);
 
     static int GetIndex();
-
-    inline static IID streamlineRiid {};
-    static bool CheckForRealObject(std::string functionName, IUnknown* pObject, IUnknown** ppRealObject);
 
   public:
     // Trig for upscaling start

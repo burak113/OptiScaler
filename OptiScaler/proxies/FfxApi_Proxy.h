@@ -20,6 +20,16 @@
 #include <fsr-rr/ffx_denoiser.h>
 
 #include <magic_enum.hpp>
+// BISECT bridge: fork-only wide-log macros used by the fork proxy body
+#include <spdlog/spdlog.h>
+#include <string>
+#include <mutex>
+#include <optional>
+#define WLOG_DEBUG(...) spdlog::debug(__VA_ARGS__)
+#define WLOG_INFO(...) spdlog::info(__VA_ARGS__)
+#define WLOG_WARN(...) spdlog::warn(__VA_ARGS__)
+#define WLOG_ERROR(...) spdlog::error(__VA_ARGS__)
+#include <imgui/ImGuiNotify.hpp>
 
 // A mess to be able to import both
 #define FFX_API_CONFIGURE_FG_SWAPCHAIN_KEY_WAITCALLBACK FFX_API_CONFIGURE_FG_SWAPCHAIN_KEY_WAITCALLBACK_DX12
@@ -51,10 +61,23 @@ enum class FFXStructType
     Unknown,
 };
 
+// The denoiser DLL can be present even when its ABI is not compatible with the
+// implementation compiled into OptiScaler. Keep provider detection separate
+// from implementation readiness so a new SDK cannot receive old descriptors.
+enum class FfxDenoiserApiGeneration
+{
+    NotLoaded,
+    Unknown,
+    V1_1,
+    V1_2,
+    Unsupported,
+};
+
 struct FfxModule
 {
     HMODULE dll = nullptr;
     feature_version version { 0, 0, 0 };
+    std::wstring filePath;
 
     bool skipCreateCalls = false;
     bool skipConfigureCalls = false;
@@ -62,6 +85,7 @@ struct FfxModule
     bool skipDispatchCalls = false;
 
     bool isLoader = false;
+    bool hooked = false;
 
     PfnFfxCreateContext CreateContext = nullptr;
     PfnFfxDestroyContext DestroyContext = nullptr;
@@ -78,10 +102,46 @@ class FfxApiProxy
     inline static FfxModule fg_dx12;
     inline static FfxModule denoiser_dx12;
     inline static FfxModule radiance_dx12;
-
     inline static FfxModule main_vk;
 
+    inline static FfxModule main_dx12_hooked;
+    inline static FfxModule upscaling_dx12_hooked;
+    inline static FfxModule fg_dx12_hooked;
+    inline static FfxModule denoiser_dx12_hooked;
+    inline static FfxModule radiance_dx12_hooked;
+    inline static FfxModule main_vk_hooked;
+
+    // Contexts are created on the render thread and may be destroyed on whichever thread
+    // releases their last owner, so every access goes through these helpers. The lock is
+    // never held across a provider call (a provider may re-enter the proxy).
     inline static ankerl::unordered_dense::map<ffxContext, FFXStructType> contextToType;
+    inline static std::mutex contextToTypeMutex;
+
+    static void RecordContextType(ffxContext context, FFXStructType type)
+    {
+        std::lock_guard lock(contextToTypeMutex);
+        contextToType[context] = type;
+    }
+
+    // Removes the mapping before the provider destroys the context: once destroyed, its
+    // address may be handed to a new context on another thread.
+    static std::optional<FFXStructType> TakeContextType(ffxContext context)
+    {
+        std::lock_guard lock(contextToTypeMutex);
+        const auto it = contextToType.find(context);
+        if (it == contextToType.end())
+            return std::nullopt;
+        const FFXStructType type = it->second;
+        contextToType.erase(it);
+        return type;
+    }
+
+    // A failed destroy leaves the context alive, so its routing must survive for a retry.
+    static void RestoreContextType(ffxContext context, FFXStructType type)
+    {
+        std::lock_guard lock(contextToTypeMutex);
+        contextToType.try_emplace(context, type);
+    }
 
     inline static bool _skipDestroyCalls = false;
 
@@ -247,11 +307,16 @@ class FfxApiProxy
     static HMODULE Dx12Module_Denoiser() { return denoiser_dx12.dll; }
     static HMODULE Dx12Module_Radiance() { return radiance_dx12.dll; }
 
-    // Returns true if the FFX framegen module is loaded
-    static bool IsFGReady() { return (main_dx12.dll && !main_dx12.isLoader) || fg_dx12.dll != nullptr; }
+    static std::wstring Dx12Module_Path() { return main_dx12.filePath; }
+    static std::wstring Dx12Module_SR_Path() { return upscaling_dx12.filePath; }
+    static std::wstring Dx12Module_FG_Path() { return fg_dx12.filePath; }
+    static std::wstring Dx12Module_Denoiser_Path() { return denoiser_dx12.filePath; }
+    static std::wstring Dx12Module_Radiance_Path() { return radiance_dx12.filePath; }
+
+    static bool IsFGReady(bool = false) { return (main_dx12.dll && !main_dx12.isLoader) || fg_dx12.dll != nullptr; }
     // Returns true if the FSR upscaler module is loaded
-    static bool IsSRReady() { return (main_dx12.dll && !main_dx12.isLoader) || upscaling_dx12.dll != nullptr; }
-    static bool IsDenoiserReady() { return IsSRReady() && denoiser_dx12.dll != nullptr; }
+    static bool IsSRReady(bool = false) { return (main_dx12.dll && !main_dx12.isLoader) || upscaling_dx12.dll != nullptr; }
+    static bool IsDenoiserReady(bool = false) { return IsSRReady() && denoiser_dx12.dll != nullptr; }
     static bool IsRadianceReady() { return (main_dx12.dll && !main_dx12.isLoader) || radiance_dx12.dll != nullptr; }
 
     static FFXStructType GetType(ffxStructType_t type)
@@ -307,63 +372,62 @@ class FfxApiProxy
 
         spdlog::info("");
 
-        // Check if loader if not null
-        if (module != nullptr)
+        // This is module loaded by game, need to hook it to use inputs
+        if (module != nullptr && main_dx12_hooked.dll == nullptr)
         {
-            wchar_t path[MAX_PATH];
-            DWORD len = GetModuleFileNameW(module, path, MAX_PATH);
-
-            main_dx12.isLoader = IsLoader(path);
-            main_dx12.dll = module;
+            main_dx12_hooked.dll = module;
         }
 
+        // Try loading Opti's dlls first
         if (main_dx12.dll == nullptr)
         {
-            const auto& cfg = *Config::Instance();
-            // Try new api first
+            std::vector<std::wstring> dllNames = { L"amd_fidelityfx_loader_dx12.dll", L"amd_fidelityfx_dx12.dll" };
 
-            for (const std::wstring& name : ffxDx12NamesW)
+            auto optiPath = Config::Instance()->MainDllPath.value();
+
+            for (size_t i = 0; i < dllNames.size(); i++)
             {
-                WLOG_DEBUG(L"Trying to load {}", name);
+                WLOG_DEBUG(L"Trying to load {}", dllNames[i]);
 
-                // Search config directory
-                if (main_dx12.dll == nullptr && cfg.FfxDx12Path.has_value())
+                auto overridePath = Config::Instance()->FfxDx12Path.value_or(L"");
+
+                if (main_dx12_hooked.dll == nullptr)
                 {
-                    std::filesystem::path libPath(cfg.FfxDx12Path.value());
-                    std::wstring fileName;
-
-                    if (libPath.has_filename())
-                        fileName = libPath.wstring();
-                    else
-                        fileName = (libPath / name).wstring();
-
-                    main_dx12.dll = NtdllProxy::LoadLibraryExW_Ldr(fileName.c_str(), NULL, 0);
-
-                    if (main_dx12.dll != nullptr)
-                    {
-                        WLOG_INFO(L"{} loaded from {}", name, cfg.FfxDx12Path.value());
-
-                        // hacky but works for now
-                        main_dx12.isLoader = IsLoader(fileName);
-                        break;
-                    }
+                    Util::LoadProxyLibrary(dllNames[i], optiPath, overridePath, &main_dx12_hooked.dll, &main_dx12.dll);
+                }
+                else
+                {
+                    HMODULE memModule = nullptr;
+                    Util::LoadProxyLibrary(dllNames[i], optiPath, overridePath, &memModule, &main_dx12.dll);
                 }
 
-                // Search parent directory
-                if (main_dx12.dll == nullptr)
+                if (main_dx12.dll != nullptr)
                 {
-                    std::filesystem::path filePath = (Util::DllPath().parent_path() / name);
-                    main_dx12.dll = NtdllProxy::LoadLibraryExW_Ldr(filePath.c_str(), NULL, 0);
-
-                    if (main_dx12.dll != nullptr)
-                    {
-                        WLOG_INFO(L"{} loaded from exe folder", name);
-
-                        // hacky but works for now
-                        main_dx12.isLoader = IsLoader(filePath.c_str());
-                        break;
-                    }
+                    break;
                 }
+            }
+        }
+
+        // Can't find Opti dlls, use just loaded module
+        if (main_dx12.dll == nullptr && main_dx12_hooked.dll != nullptr)
+        {
+            main_dx12 = main_dx12_hooked;
+        }
+
+        if (main_dx12.dll != nullptr)
+        {
+            wchar_t modulePath[MAX_PATH];
+            DWORD len = GetModuleFileNameW(main_dx12.dll, modulePath, MAX_PATH);
+            main_dx12.filePath = std::wstring(modulePath);
+
+            LOG_INFO("Loaded from {}", wstring_to_string(main_dx12.filePath));
+
+            // hacky but works for now
+            main_dx12.isLoader = IsLoader(main_dx12.filePath);
+
+            if (!main_dx12.isLoader)
+            {
+                FSR4ModelSelection::Hook(main_dx12.dll, FSR4Source::SDK);
             }
         }
 
@@ -417,6 +481,12 @@ class FfxApiProxy
                 main_dx12.version = VersionDx12_FG();
         }
 
+        if (denoiser_dx12.version.major == 0 && denoiser_dx12.Query != nullptr)
+            denoiser_dx12.version = VersionDx12_RR();
+
+        if (radiance_dx12.version.major == 0 && radiance_dx12.Query != nullptr)
+            radiance_dx12.version = VersionDx12_RC();
+
         return main_dx12.version;
     }
 
@@ -443,26 +513,65 @@ class FfxApiProxy
         if (denoiser_dx12.Query == nullptr)
             return VersionDx12();
 
-        UpdateFeatureVersionDx12(denoiser_dx12, FFX_API_CREATE_CONTEXT_DESC_TYPE_DENOISER, "RR");
+        // RR 1.2 enumerates providers by effect ID, matching AMD's SDK sample.
+        UpdateFeatureVersionDx12(denoiser_dx12, FFX_API_EFFECT_ID_DENOISER, "RR");
         return denoiser_dx12.version;
     }
 
-    static feature_version VersionTarget_RR() 
+    static feature_version VersionDx12_RC()
     {
-        return 
-        {
-            .major = FFX_DENOISER_VERSION_MAJOR,
-            .minor = FFX_DENOISER_VERSION_MINOR,
-            .patch = FFX_DENOISER_VERSION_PATCH
-        };
+        if (radiance_dx12.Query == nullptr)
+            return VersionDx12();
+
+        UpdateFeatureVersionDx12(radiance_dx12, FFX_API_DISPATCH_DESC_TYPE_RADIANCECACHE, "RC");
+        return radiance_dx12.version;
+    }
+
+    // Version implemented by the typed-signal FSR-RR dispatch backend.
+    static feature_version VersionImplemented_RR()
+    {
+        feature_version v {};
+        v.major = FFX_DENOISER_VERSION_MAJOR;
+        v.minor = FFX_DENOISER_VERSION_MINOR;
+        v.patch = FFX_DENOISER_VERSION_PATCH;
+        return v;
+    }
+
+    static FfxDenoiserApiGeneration DenoiserApiGenerationDx12()
+    {
+        if (!IsDenoiserReady())
+            return FfxDenoiserApiGeneration::NotLoaded;
+
+        const feature_version version = VersionDx12_RR();
+
+        if (version.major == 0)
+            return FfxDenoiserApiGeneration::Unknown;
+        if (version == feature_version { 1, 1, 0 })
+            return FfxDenoiserApiGeneration::V1_1;
+        if (version == feature_version { 1, 2, 0 })
+            return FfxDenoiserApiGeneration::V1_2;
+
+        return FfxDenoiserApiGeneration::Unsupported;
+    }
+
+    // This is the guard for every path that can instantiate or dispatch FSR-RR.
+    static bool IsDenoiserApiImplementedDx12()
+    {
+        return DenoiserApiGenerationDx12() == FfxDenoiserApiGeneration::V1_2;
     }
 
     static ffxReturnCode_t D3D12_CreateContext(ffxContext* context, ffxCreateContextDescHeader* desc,
                                                const ffxAllocationCallbacks* memCb)
     {
         const FFXStructType type = GetType(desc->type);
-        contextToType[context] = type;
         FfxModule* pModule = nullptr;
+        const auto recordContextType = [context, type](ffxReturnCode_t result)
+        {
+            if (result == FFX_API_RETURN_OK && context && *context)
+                RecordContextType(*context, type);
+
+            return result;
+        };
 
         // Module routing
         switch (type)
@@ -475,7 +584,7 @@ class FfxApiProxy
                 break;
 
             LOG_DEBUG("Creating with fg_dx12");
-            return fg_dx12.CreateContext(context, desc, memCb);
+            return recordContextType(fg_dx12.CreateContext(context, desc, memCb));
 
         case FFXStructType::Denoiser:
             pModule = &denoiser_dx12;
@@ -484,7 +593,7 @@ class FfxApiProxy
                 break;
 
             LOG_DEBUG("Creating with denoiser_dx12");
-            return denoiser_dx12.CreateContext(context, desc, memCb);
+            return recordContextType(denoiser_dx12.CreateContext(context, desc, memCb));
         case FFXStructType::RadianceCache:
             pModule = &radiance_dx12;
 
@@ -492,7 +601,7 @@ class FfxApiProxy
                 break;
 
             LOG_DEBUG("Creating with radiance_dx12");
-            return radiance_dx12.CreateContext(context, desc, memCb);
+            return recordContextType(radiance_dx12.CreateContext(context, desc, memCb));
 
         case FFXStructType::Upscaling:
         default:
@@ -503,8 +612,8 @@ class FfxApiProxy
                 break;
 
             LOG_DEBUG("Creating with upscaling_dx12");
-            auto result = upscaling_dx12.CreateContext(context, desc, memCb);
-            contextToType[*context] = type;
+            const ffxReturnCode_t result =
+                recordContextType(upscaling_dx12.CreateContext(context, desc, memCb));
             LOG_DEBUG("Created with upscaling_dx12: {:X}", (size_t) *context);
             return result;
         }
@@ -518,7 +627,7 @@ class FfxApiProxy
             ffxReturnCode_t result = main_dx12.CreateContext(context, desc, memCb);
             pModule->skipCreateCalls = false;
 
-            return result;
+            return recordContextType(result);
         }
 
         return FFX_API_RETURN_NO_PROVIDER;
@@ -526,19 +635,29 @@ class FfxApiProxy
 
     static ffxReturnCode_t D3D12_DestroyContext(ffxContext* context, const ffxAllocationCallbacks* memCb)
     {
-        ffxReturnCode_t result = FFX_API_RETURN_ERROR;
-        auto type = FFXStructType::Unknown;
+        if (context == nullptr)
+            return FFX_API_RETURN_ERROR_PARAMETER;
 
-        if (contextToType.contains(*context))
-        {
-            type = contextToType[*context];
-            LOG_DEBUG("Found context type mapping: {}", magic_enum::enum_name(type));
-            contextToType.erase(*context);
-        }
+        const ffxContext key = *context;
+        const auto mapped = TakeContextType(key);
+        if (mapped.has_value())
+            LOG_DEBUG("Found context type mapping: {}", magic_enum::enum_name(*mapped));
         else
-        {
             LOG_DEBUG("No context type mapping found, defaulting to Unknown");
-        }
+
+        const ffxReturnCode_t result =
+            D3D12_DestroyRouted(context, memCb, mapped.value_or(FFXStructType::Unknown));
+        // Keep a context that no module destroyed routable. A destroyed key is never
+        // restored: its address may already belong to a new context.
+        if (result != FFX_API_RETURN_OK && mapped.has_value())
+            RestoreContextType(key, *mapped);
+        return result;
+    }
+
+    static ffxReturnCode_t D3D12_DestroyRouted(ffxContext* context, const ffxAllocationCallbacks* memCb,
+                                               FFXStructType type)
+    {
+        ffxReturnCode_t result = FFX_API_RETURN_ERROR;
 
         // Normal destructor routing
         switch (type)
@@ -769,6 +888,7 @@ class FfxApiProxy
     }
 
     static HMODULE VkModule() { return main_vk.dll; }
+    static std::wstring VkModule_Path() { return main_vk.filePath; }
 
     static bool InitFfxVk(HMODULE module = nullptr)
     {
@@ -778,32 +898,46 @@ class FfxApiProxy
 
         spdlog::info("");
 
-        LOG_DEBUG("Loading amd_fidelityfx_vk.dll methods");
-
         if (module != nullptr)
             main_vk.dll = module;
 
-        if (main_vk.dll == nullptr && Config::Instance()->FfxVkPath.has_value())
+        if (main_vk.dll == nullptr)
         {
-            std::filesystem::path libPath(Config::Instance()->FfxVkPath.value().c_str());
+            // Try new api first
+            std::vector<std::wstring> dllNames = { L"amd_fidelityfx_vk.dll" };
 
-            if (libPath.has_filename())
-                main_vk.dll = NtdllProxy::LoadLibraryExW_Ldr(libPath.c_str(), NULL, 0);
-            else
-                main_vk.dll = NtdllProxy::LoadLibraryExW_Ldr((libPath / L"amd_fidelityfx_vk.dll").c_str(), NULL, 0);
+            auto optiPath = Config::Instance()->MainDllPath.value();
 
-            if (main_vk.dll != nullptr)
+            for (size_t i = 0; i < dllNames.size(); i++)
             {
-                WLOG_INFO(L"amd_fidelityfx_vk.dll loaded from {0}", Config::Instance()->FfxVkPath.value());
+                LOG_DEBUG("Trying to load {}", wstring_to_string(dllNames[i]));
+
+                auto overridePath = Config::Instance()->FfxVkPath.value_or(L"");
+
+                if (main_vk_hooked.dll == nullptr)
+                {
+                    Util::LoadProxyLibrary(dllNames[i], optiPath, overridePath, &main_vk_hooked.dll, &main_vk.dll);
+                }
+                else
+                {
+                    HMODULE memModule = nullptr;
+                    Util::LoadProxyLibrary(dllNames[i], optiPath, overridePath, &memModule, &main_vk.dll);
+                }
+
+                if (main_vk.dll != nullptr)
+                {
+                    break;
+                }
             }
         }
 
-        if (main_vk.dll == nullptr)
+        if (main_vk.dll != nullptr)
         {
-            main_vk.dll = NtdllProxy::LoadLibraryExW_Ldr(L"amd_fidelityfx_vk.dll", NULL, 0);
+            wchar_t modulePath[MAX_PATH];
+            DWORD len = GetModuleFileNameW(main_vk.dll, modulePath, MAX_PATH);
+            main_vk.filePath = std::wstring(modulePath);
 
-            if (main_vk.dll != nullptr)
-                LOG_INFO("amd_fidelityfx_vk.dll loaded from exe folder");
+            LOG_INFO("Loaded from {}", wstring_to_string(main_vk.filePath));
         }
 
         if (main_vk.dll != nullptr && main_vk.CreateContext == nullptr)
@@ -1112,6 +1246,43 @@ class FfxApiProxy
 
         case 0x0005000bu:
             return std::format("QUERY_DESC_TYPE_DENOISER_GET_DEFAULT_SETTINGS ({:X})", type);
+
+        // Denoiser 1.2
+        case 0x00050021u:
+            return std::format("CONFIGURE_DESC_TYPE_DENOISER_KEYVALUE ({:X})", type);
+
+        case 0x00050041u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_1_2 ({:X})", type);
+
+        case 0x00050042u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_DEBUG_VIEW ({:X})", type);
+
+        case 0x00050043u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_AMBIENT_OCCLUSION ({:X})", type);
+
+        case 0x00050044u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE ({:X})", type);
+
+        case 0x00050045u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR ({:X})", type);
+
+        case 0x00050046u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_DOMINANT_LIGHT ({:X})", type);
+
+        case 0x00050047u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE ({:X})", type);
+
+        case 0x00050048u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR ({:X})", type);
+
+        case 0x00050049u:
+            return std::format("DISPATCH_DESC_TYPE_DENOISER_SPECULAR_OCCLUSION ({:X})", type);
+
+        case 0x00050081u:
+            return std::format("QUERY_DESC_TYPE_DENOISER_GET_DEFAULT_KEYVALUE ({:X})", type);
+
+        case 0x00050082u:
+            return std::format("QUERY_DESC_TYPE_DENOISER_GPU_MEMORY_USAGE_1_2 ({:X})", type);
 
         // Radiance Cache
         case 0x00060002u:

@@ -16,7 +16,10 @@ class FSR31Feature : public virtual IFeature
     double _lastFrameTime;
     unsigned int _lastWidth = 0;
     unsigned int _lastHeight = 0;
-    static inline feature_version _version { 3, 1, 2 };
+    // Per instance on purpose: SR and RR features share this base, and each parses
+    // a different provider version (SR upscaler vs RR denoiser) into it. A static
+    // here lets one provider's version leak into every other instance's checks.
+    feature_version _version { 3, 1, 2 };
 
   protected:
     std::string _name = "FSR";
@@ -28,23 +31,7 @@ class FSR31Feature : public virtual IFeature
 
     double GetDeltaTime();
 
-    static inline void parse_version(const char* version_str)
-    {
-        const char* p = version_str;
-
-        // Skip non-digits at front
-        while (*p)
-        {
-            if (isdigit((unsigned char) p[0]))
-            {
-                if (sscanf(p, "%u.%u.%u", &_version.major, &_version.minor, &_version.patch) == 3)
-                    return;
-            }
-            ++p;
-        }
-
-        LOG_WARN("can't parse {0}", version_str);
-    }
+    void parse_version(const char* version_str) { _version.parse_version(version_str); }
 
     static inline void ffxResolveTypelessFormat(uint32_t& format)
     {
@@ -107,7 +94,6 @@ class FSR31Feature : public virtual IFeature
 
   public:
     feature_version Version() override { return _version; }
-    std::string Name() const override { return _name.c_str(); }
 
     FSR31Feature(unsigned int InHandleId, NVSDK_NGX_Parameter* InParameters);
 

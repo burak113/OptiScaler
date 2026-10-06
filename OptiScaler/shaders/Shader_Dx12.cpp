@@ -1,8 +1,24 @@
 #include "pch.h"
 #include "Shader_Dx12.h"
 #include <d3dx/d3dx12.h>
+#include <resource_tracking/ResTrack_dx12.h>
 
-Shader_Dx12::Shader_Dx12(std::string InName, ID3D12Device* InDevice) : _name(InName), _device(InDevice) {}
+using Microsoft::WRL::ComPtr;
+
+Shader_Dx12::Shader_Dx12(std::string InName, ID3D12Device* InDevice) : _name(InName), _device(InDevice)
+{
+    GpuTime = std::make_shared<GpuTime_Dx12>(InDevice);
+}
+
+Shader_Dx12::~Shader_Dx12()
+{
+    if (!_init || State::Instance().isShuttingDown)
+        return;
+
+    SAFE_RELEASE(_pipelineState);
+    SAFE_RELEASE(_rootSignature);
+    SAFE_RELEASE(_constantBuffer);
+}
 
 DXGI_FORMAT Shader_Dx12::TranslateTypelessFormats(DXGI_FORMAT format)
 {
@@ -54,12 +70,17 @@ DXGI_FORMAT Shader_Dx12::TranslateTypelessFormats(DXGI_FORMAT format)
 }
 
 bool Shader_Dx12::CreateComputeShader(ID3D12Device* device, ID3D12RootSignature* rootSignature,
-                                      ID3D12PipelineState** pipelineState, ID3DBlob* shaderBlob)
+                                      ID3D12PipelineState** pipelineState, ID3DBlob* shaderBlob,
+                                      D3D12_SHADER_BYTECODE byteCode)
 {
     D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
     psoDesc.pRootSignature = rootSignature;
     psoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
-    psoDesc.CS = CD3DX12_SHADER_BYTECODE(shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize());
+
+    if (shaderBlob != nullptr)
+        psoDesc.CS = CD3DX12_SHADER_BYTECODE(shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize());
+    else
+        psoDesc.CS = byteCode;
 
     HRESULT hr = device->CreateComputePipelineState(&psoDesc, __uuidof(ID3D12PipelineState*), (void**) pipelineState);
 
@@ -72,10 +93,23 @@ bool Shader_Dx12::CreateComputeShader(ID3D12Device* device, ID3D12RootSignature*
     return true;
 }
 
+bool Shader_Dx12::CreateComputePipeline(ID3D12Device* device, ID3D12PipelineState** pipelineState, const void* bytecode,
+                                        size_t bytecodeSize, const char* source)
+{
+    ComPtr<ID3DBlob> shaderBlob;
+
+    // Compile if not using precompiled
+    if (!Config::Instance()->UsePrecompiledShaders.value_or_default() && source)
+        shaderBlob = CompileShader(source, "CSMain", "cs_5_0");
+
+    return CreateComputeShader(device, _rootSignature, pipelineState, shaderBlob.Get(),
+                               CD3DX12_SHADER_BYTECODE(bytecode, bytecodeSize));
+}
+
 bool Shader_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* InResource,
                                        D3D12_RESOURCE_STATES InState, ID3D12Resource** OutResource,
                                        D3D12_RESOURCE_FLAGS ResourceFlags, uint64_t InWidth, uint32_t InHeight,
-                                       DXGI_FORMAT InFormat)
+                                       DXGI_FORMAT InFormat, ID3D12GraphicsCommandList* InCommandList)
 {
     if (InDevice == nullptr || InResource == nullptr)
         return false;
@@ -90,6 +124,37 @@ bool Shader_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* I
 
     if (InFormat != DXGI_FORMAT_UNKNOWN)
         inDesc.Format = InFormat;
+
+    if (_recordedLifetime)
+    {
+        if (!InCommandList || !(ResourceFlags & D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS))
+            return false;
+        // One owner per Evaluate setup: no resize/rebinding of an executable intermediate.
+        auto owner = std::make_shared<ShaderDispatchLease::Intermediate>();
+        D3D12_HEAP_PROPERTIES props {};
+        D3D12_HEAP_FLAGS sourceHeapFlags {};
+        if (FAILED(InResource->GetHeapProperties(&props, &sourceHeapFlags)))
+            return false;
+        inDesc.Flags |= ResourceFlags;
+        if (FAILED(InDevice->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &inDesc,
+                                                    D3D12_RESOURCE_STATE_COMMON, nullptr,
+                                                    IID_PPV_ARGS(owner->resource.GetAddressOf()))))
+            return false;
+        // Admission precedes replacement, barriers, and the SDK writing this texture.
+        if (!ResTrack_Dx12::RetainComputeDispatch(InDevice, InCommandList, owner))
+            return false;
+        _recordedIntermediates.erase(
+            std::remove_if(_recordedIntermediates.begin(), _recordedIntermediates.end(),
+                           [](const auto& item) { return item.expired(); }), _recordedIntermediates.end());
+        _recordedIntermediates.push_back(owner);
+        _recordedBuffer = owner;
+        owner->resource->AddRef(); // Preserve the legacy raw Buffer()/destructor ownership.
+        auto previous = *OutResource;
+        *OutResource = owner->resource.Get();
+        if (previous)
+            previous->Release();
+        return true;
+    }
 
     if (*OutResource != nullptr)
     {
@@ -135,6 +200,22 @@ bool Shader_Dx12::CreateBufferResource(ID3D12Device* InDevice, ID3D12Resource* I
 void Shader_Dx12::SetBufferState(ID3D12GraphicsCommandList* InCommandList, D3D12_RESOURCE_STATES InState,
                                  ID3D12Resource* Buffer, D3D12_RESOURCE_STATES* BufferState)
 {
+    std::shared_ptr<ShaderDispatchLease::Intermediate> owner;
+    if (_recordedLifetime)
+    {
+        for (auto& weak : _recordedIntermediates)
+            if (auto candidate = weak.lock(); candidate && candidate->resource.Get() == Buffer)
+            {
+                owner = std::move(candidate);
+                break;
+            }
+        if (!owner)
+            throw std::runtime_error("Unleased RR helper intermediate");
+        // Public state calls can target a different recording; admit this exact owner first.
+        if (!ResTrack_Dx12::RetainComputeDispatch(_device, InCommandList, owner))
+            throw std::runtime_error("RR helper barrier lifetime admission failed");
+        BufferState = &owner->state;
+    }
     if (BufferState == nullptr || *BufferState == InState)
         return;
 
@@ -147,4 +228,372 @@ void Shader_Dx12::SetBufferState(ID3D12GraphicsCommandList* InCommandList, D3D12
     InCommandList->ResourceBarrier(1, &barrier);
 
     *BufferState = InState;
+}
+
+std::function<void()> Shader_Dx12::RecordedBufferCleanup(ID3D12GraphicsCommandList* list)
+{
+    if (!_recordedLifetime || !_recordedBuffer)
+        return {};
+    // Capture this setup's exact owner; a later setup cannot redirect its final barrier.
+    return [owner = _recordedBuffer, list]()
+    {
+        if (owner->state == D3D12_RESOURCE_STATE_COMMON)
+            return;
+        auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(owner->resource.Get(), owner->state,
+                                                          D3D12_RESOURCE_STATE_COMMON);
+        list->ResourceBarrier(1, &barrier);
+        owner->state = D3D12_RESOURCE_STATE_COMMON;
+    };
+}
+
+std::shared_ptr<ShaderDispatchLease::Dispatch> Shader_Dx12::AcquireDispatchLease(
+    ID3D12GraphicsCommandList* list, ID3D12PipelineState* selectedPSO,
+    std::initializer_list<ID3D12Resource*> resources)
+{
+    if (!_recordedLifetime)
+        return nullptr;
+    if (!list || !_device || !_rootSignature || !selectedPSO || !_constantBuffer)
+        return nullptr;
+    auto lease = std::make_shared<ShaderDispatchLease::Dispatch>();
+    {
+        std::lock_guard lock(_dispatchSlotMutex);
+        for (auto& slot : _dispatchSlots)
+            if (slot.use_count() == 1)
+            {
+                lease->slot = slot; // Reserve before unlocking; no COM destruction under this lock.
+                break;
+            }
+    }
+    if (!lease->slot)
+    {
+        auto slot = std::make_shared<ShaderDispatchLease::Slot>();
+        if (!slot->heap.Initialize(_device, _srcCount, _uavCount, _cbvCount, _rtvCount))
+            return nullptr;
+        auto desc = _constantBuffer->GetDesc();
+        auto props = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        if (FAILED(_device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc,
+                                                   D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+                                                   IID_PPV_ARGS(slot->constants.GetAddressOf()))))
+            return nullptr;
+        lease->slot = slot;
+        std::lock_guard lock(_dispatchSlotMutex);
+        _dispatchSlots.push_back(slot);
+    }
+    lease->device = _device;
+    lease->root = _rootSignature;
+    lease->pipeline = selectedPSO;
+    lease->timer = GpuTime;
+    for (auto* resource : resources)
+        if (resource)
+        {
+            lease->resources.emplace_back(resource);
+            for (auto& weak : _recordedIntermediates)
+                if (auto owner = weak.lock(); owner && owner->resource.Get() == resource)
+                    lease->intermediates.push_back(std::move(owner));
+        }
+    // No timestamp, upload write, or descriptor write occurs before this succeeds.
+    if (!ResTrack_Dx12::RetainComputeDispatch(_device, list, lease))
+        return nullptr;
+    return lease;
+}
+
+// From DirectXHelpers.cpp licensed under MIT
+void Shader_Dx12::CreateShaderResourceView(ID3D12Device* device, ID3D12Resource* tex,
+                                           D3D12_CPU_DESCRIPTOR_HANDLE srvDescriptor, DXGI_FORMAT format)
+{
+    if (!device || !tex)
+        throw std::invalid_argument("Direct3D device and resource must be valid");
+
+    const auto desc = tex->GetDesc();
+
+    if ((desc.Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) != 0)
+    {
+        LOG_ERROR("ERROR: CreateShaderResourceView called on a resource created without support for SRV");
+        throw std::runtime_error("Can't have D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE");
+    }
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = TranslateTypelessFormats((format != DXGI_FORMAT_UNKNOWN) ? format : desc.Format);
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+    const UINT mipLevels = (desc.MipLevels) ? static_cast<UINT>(desc.MipLevels) : static_cast<UINT>(-1);
+
+    switch (desc.Dimension)
+    {
+    case D3D12_RESOURCE_DIMENSION_TEXTURE1D:
+        if (desc.DepthOrArraySize > 1)
+        {
+            srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
+            srvDesc.Texture1DArray.MipLevels = mipLevels;
+            srvDesc.Texture1DArray.ArraySize = static_cast<UINT>(desc.DepthOrArraySize);
+        }
+        else
+        {
+            srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;
+            srvDesc.Texture1D.MipLevels = mipLevels;
+        }
+        break;
+
+    case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
+        if (desc.DepthOrArraySize > 1)
+        {
+            srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+            srvDesc.Texture2DArray.MipLevels = mipLevels;
+            srvDesc.Texture2DArray.ArraySize = static_cast<UINT>(desc.DepthOrArraySize);
+        }
+        else
+        {
+            srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+            srvDesc.Texture2D.MipLevels = mipLevels;
+        }
+        break;
+
+    case D3D12_RESOURCE_DIMENSION_TEXTURE3D:
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
+        srvDesc.Texture3D.MipLevels = mipLevels;
+        break;
+
+    case D3D12_RESOURCE_DIMENSION_BUFFER:
+        LOG_ERROR("ERROR: CreateShaderResourceView cannot be used with DIMENSION_BUFFER. Use "
+                  "CreateBufferShaderResourceView.");
+        throw std::invalid_argument("buffer resources not supported");
+
+    case D3D12_RESOURCE_DIMENSION_UNKNOWN:
+    default:
+        LOG_ERROR("ERROR: CreateShaderResourceView cannot be used with DIMENSION_UNKNOWN ({}).",
+                  (uint32_t) desc.Dimension);
+        throw std::invalid_argument("unknown resource dimension");
+    }
+
+    device->CreateShaderResourceView(tex, &srvDesc, srvDescriptor);
+}
+
+void Shader_Dx12::CreateUnorderedAccessView(ID3D12Device* device, ID3D12Resource* tex,
+                                            D3D12_CPU_DESCRIPTOR_HANDLE uavDescriptor, uint32_t mipLevel)
+{
+    if (!device || !tex)
+        throw std::invalid_argument("Direct3D device and resource must be valid");
+
+    const auto desc = tex->GetDesc();
+
+    if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) == 0)
+    {
+        LOG_ERROR("ERROR: CreateUnorderedResourceView called on a resource created without support for UAV.");
+        throw std::runtime_error("Requires D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS");
+    }
+
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.Format = TranslateTypelessFormats(desc.Format);
+
+    switch (desc.Dimension)
+    {
+    case D3D12_RESOURCE_DIMENSION_TEXTURE1D:
+        if (desc.DepthOrArraySize > 1)
+        {
+            uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1DARRAY;
+            uavDesc.Texture1DArray.MipSlice = mipLevel;
+            uavDesc.Texture1DArray.FirstArraySlice = 0;
+            uavDesc.Texture1DArray.ArraySize = desc.DepthOrArraySize;
+        }
+        else
+        {
+            uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE1D;
+            uavDesc.Texture1D.MipSlice = mipLevel;
+        }
+        break;
+
+    case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
+        if (desc.DepthOrArraySize > 1)
+        {
+            uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+            uavDesc.Texture2DArray.MipSlice = mipLevel;
+            uavDesc.Texture2DArray.ArraySize = desc.DepthOrArraySize;
+        }
+        else
+        {
+            uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+            uavDesc.Texture2D.MipSlice = mipLevel;
+        }
+        break;
+
+    case D3D12_RESOURCE_DIMENSION_TEXTURE3D:
+        uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
+        uavDesc.Texture3D.MipSlice = mipLevel;
+        uavDesc.Texture3D.WSize = desc.DepthOrArraySize;
+        break;
+
+    case D3D12_RESOURCE_DIMENSION_BUFFER:
+        LOG_ERROR("ERROR: CreateUnorderedResourceView cannot be used with DIMENSION_BUFFER. Use "
+                  "CreateBufferUnorderedAccessView.");
+        throw std::invalid_argument("buffer resources not supported");
+
+    case D3D12_RESOURCE_DIMENSION_UNKNOWN:
+    default:
+        LOG_ERROR("ERROR: CreateUnorderedResourceView cannot be used with DIMENSION_UNKNOWN ({}).",
+                  (uint32_t) desc.Dimension);
+        throw std::invalid_argument("unknown resource dimension");
+    }
+    device->CreateUnorderedAccessView(tex, nullptr, &uavDesc, uavDescriptor);
+}
+
+void Shader_Dx12::CreateRenderTargetView(ID3D12Device* device, ID3D12Resource* tex,
+                                         D3D12_CPU_DESCRIPTOR_HANDLE rtvDescriptor, uint32_t mipLevel)
+{
+    if (!device || !tex)
+        throw std::invalid_argument("Direct3D device and resource must be valid");
+
+    const auto desc = tex->GetDesc();
+
+    if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) == 0)
+    {
+        LOG_ERROR("ERROR: CreateRenderTargetView called on a resource created without support for RTV.");
+        throw std::runtime_error("Requires D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET");
+    }
+
+    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+    rtvDesc.Format = TranslateTypelessFormats(desc.Format);
+
+    switch (desc.Dimension)
+    {
+    case D3D12_RESOURCE_DIMENSION_TEXTURE1D:
+        if (desc.DepthOrArraySize > 1)
+        {
+            rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE1DARRAY;
+            rtvDesc.Texture1DArray.MipSlice = mipLevel;
+            rtvDesc.Texture1DArray.FirstArraySlice = 0;
+            rtvDesc.Texture1DArray.ArraySize = desc.DepthOrArraySize;
+        }
+        else
+        {
+            rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE1D;
+            rtvDesc.Texture1D.MipSlice = mipLevel;
+        }
+        break;
+
+    case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
+        if (desc.SampleDesc.Count > 1)
+        {
+            if (desc.DepthOrArraySize > 1)
+            {
+                rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY;
+                rtvDesc.Texture2DMSArray.ArraySize = desc.DepthOrArraySize;
+            }
+            else
+            {
+                rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMS;
+            }
+        }
+        else if (desc.DepthOrArraySize > 1)
+        {
+            rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+            rtvDesc.Texture2DArray.MipSlice = mipLevel;
+            rtvDesc.Texture2DArray.ArraySize = desc.DepthOrArraySize;
+        }
+        else
+        {
+            rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+            rtvDesc.Texture2D.MipSlice = mipLevel;
+        }
+        break;
+
+    case D3D12_RESOURCE_DIMENSION_TEXTURE3D:
+        rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE3D;
+        rtvDesc.Texture3D.MipSlice = mipLevel;
+        rtvDesc.Texture3D.WSize = desc.DepthOrArraySize;
+        break;
+
+    case D3D12_RESOURCE_DIMENSION_BUFFER:
+        LOG_ERROR("ERROR: CreateRenderTargetView cannot be used with DIMENSION_BUFFER.");
+        throw std::invalid_argument("buffer resources not supported");
+
+    case D3D12_RESOURCE_DIMENSION_UNKNOWN:
+    default:
+        LOG_ERROR("ERROR: CreateRenderTargetView cannot be used with DIMENSION_UNKNOWN ({}).",
+                  (uint32_t) desc.Dimension);
+        throw std::invalid_argument("unknown resource dimension");
+    }
+    device->CreateRenderTargetView(tex, &rtvDesc, rtvDescriptor);
+}
+
+bool Shader_Dx12::SetupRootSignature(ID3D12Device* InDevice, uint32_t srcCount, uint32_t uavCount, uint32_t cbvCount,
+                                     uint32_t rtvCount, uint32_t samplerCount, uint32_t staticSamplerCount,
+                                     const D3D12_STATIC_SAMPLER_DESC* pStaticSamplers, D3D12_ROOT_SIGNATURE_FLAGS flags)
+{
+    if (_init)
+    {
+        LOG_ERROR("Already inited");
+        return true;
+    }
+
+    _srcCount = srcCount;
+    _uavCount = uavCount;
+    _cbvCount = cbvCount;
+    _rtvCount = rtvCount;
+    _samplerCount = samplerCount;
+
+    if (_srcCount > 0)
+        _descriptorRanges.emplace_back(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, _srcCount, 0);
+
+    if (_uavCount > 0)
+        _descriptorRanges.emplace_back(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, _uavCount, 0);
+
+    if (_cbvCount > 0)
+        _descriptorRanges.emplace_back(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, _cbvCount, 0);
+
+    if (_samplerCount > 0)
+        _descriptorRanges.emplace_back(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, _samplerCount, 0);
+
+    CD3DX12_ROOT_PARAMETER1 rootParameter {};
+    rootParameter.InitAsDescriptorTable(static_cast<UINT>(_descriptorRanges.size()), _descriptorRanges.data());
+
+    CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSigDesc {};
+    rootSigDesc.Init_1_1(1, &rootParameter, staticSamplerCount, pStaticSamplers, flags);
+
+    ComPtr<ID3DBlob> errorBlob;
+    ComPtr<ID3DBlob> signatureBlob;
+
+    do
+    {
+        auto hr = D3D12SerializeVersionedRootSignature(&rootSigDesc, &signatureBlob, &errorBlob);
+
+        if (FAILED(hr))
+        {
+            LOG_ERROR("[{0}] D3D12SerializeVersionedRootSignature error {1:x}", _name, hr);
+            break;
+        }
+
+        hr = InDevice->CreateRootSignature(0, signatureBlob->GetBufferPointer(), signatureBlob->GetBufferSize(),
+                                           IID_PPV_ARGS(&_rootSignature));
+
+        if (FAILED(hr))
+        {
+            LOG_ERROR("[{0}] CreateRootSignature error {1:x}", _name, hr);
+            break;
+        }
+
+    } while (false);
+
+    if (_rootSignature == nullptr)
+    {
+        LOG_ERROR("[{0}] _rootSignature is null!", _name);
+        return false;
+    }
+
+    return true;
+}
+
+bool Shader_Dx12::InitHeaps(ID3D12Device* InDevice, FrameDescriptorHeap* pHeaps, size_t numOFHeaps)
+{
+    ScopedSkipHeapCapture skipHeapCapture {};
+
+    for (size_t i = 0; i < numOFHeaps; i++)
+    {
+        if (!pHeaps[i].Initialize(InDevice, _srcCount, _uavCount, _cbvCount, _rtvCount))
+        {
+            LOG_ERROR("[{0}] Failed to init heap", _name);
+            return false;
+        }
+    }
+
+    return true;
 }

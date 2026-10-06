@@ -5,7 +5,6 @@
 #include "Streamline_Hooks.h"
 #include "LibraryLoad_Hooks.h"
 
-#include <fsr4/FSR4Upgrade.h>
 #include <fsr4/FSR4ModelSelection.h>
 
 #include <Util.h>
@@ -13,7 +12,11 @@
 #include <Config.h>
 
 #include <cwctype>
+#include <misc/IdentifyGpu.h>
 
+#include "Hook_Utils.h"
+
+#include "Amdxc64_Hooks.h"
 #pragma intrinsic(_ReturnAddress)
 
 static inline void NormalizePath(std::string& path)
@@ -83,6 +86,7 @@ static inline HMODULE CheckLoad(const std::wstring& name)
     return nullptr;
 }
 
+VALIDATE_HOOK(hk_K32_GetProcAddress, Kernel32Proxy::PFN_GetProcAddress)
 FARPROC WINAPI KernelHooks::hk_K32_GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
 {
 
@@ -104,22 +108,22 @@ FARPROC WINAPI KernelHooks::hk_K32_GetProcAddress(HMODULE hModule, LPCSTR lpProc
     // 2nd check is amdxcffx64.dll trying to queue amdxc64 but amdxc64 not being loaded.
     // Also skip the internal call of amdxc64
     if (lpProcName != nullptr && (hModule == amdxc64Mark || hModule == nullptr) &&
-        lstrcmpA(lpProcName, "AmdExtD3DCreateInterface") == 0 && Config::Instance()->Fsr4Update.value_or_default() &&
+        lstrcmpA(lpProcName, "AmdExtD3DCreateInterface") == 0 &&
+        IdentifyGpu::getPrimaryGpu().fsr4Support != FSR4Support::None &&
         Util::GetCallerModule(_ReturnAddress()) != KernelBaseProxy::GetModuleHandleW_()(L"amdxc64.dll"))
     {
-        return (FARPROC) &hkAmdExtD3DCreateInterface;
+        LOG_TRACE("Giving hkAmdExtD3DCreateInterface");
+        return (FARPROC) &Amdxc64Hooks::hkAmdExtD3DCreateInterface;
     }
-
-    if (State::Instance().isRunningOnLinux && lpProcName != nullptr &&
-        hModule == KernelBaseProxy::GetModuleHandleW_()(L"gdi32.dll") &&
-        lstrcmpA(lpProcName, "D3DKMTEnumAdapters2") == 0)
+    else if (hModule == amdxc64Mark)
     {
-        return (FARPROC) &customD3DKMTEnumAdapters2;
+        return o_K32_GetProcAddress(KernelBaseProxy::GetModuleHandleW_()(L"amdxc64.dll"), lpProcName);
     }
 
     return o_K32_GetProcAddress(hModule, lpProcName);
 }
 
+VALIDATE_HOOK(hk_K32_GetModuleHandleA, Kernel32Proxy::PFN_GetModuleHandleA)
 HMODULE WINAPI KernelHooks::hk_K32_GetModuleHandleA(LPCSTR lpModuleName)
 {
     if (lpModuleName != NULL)
@@ -137,13 +141,16 @@ HMODULE WINAPI KernelHooks::hk_K32_GetModuleHandleA(LPCSTR lpModuleName)
             // Therefore it should be safe for us to return a custom implementation when it's not loaded
             // This can get removed if Proton starts to ship amdxc64
 
-            CheckForGPU();
+            // For system with amdxc64 loaded - we should've caught the load and hooked it
+            // For systems without - we provide that app with a fake handle and track the usage that way
 
             auto original = o_K32_GetModuleHandleA(lpModuleName);
 
-            if (original == nullptr && Config::Instance()->Fsr4Update.value_or_default())
+            auto primaryGpu = IdentifyGpu::getPrimaryGpu();
+
+            if (original == nullptr && primaryGpu.fsr4Support != FSR4Support::None)
             {
-                LOG_INFO("amdxc64.dll is not loaded, giving a fake HMODULE");
+                LOG_INFO("giving a fake HMODULE for amdxc64.dll");
                 return amdxc64Mark;
             }
 
@@ -154,6 +161,46 @@ HMODULE WINAPI KernelHooks::hk_K32_GetModuleHandleA(LPCSTR lpModuleName)
     return o_K32_GetModuleHandleA(lpModuleName);
 }
 
+VALIDATE_HOOK(hk_K32_GetModuleHandleW, Kernel32Proxy::PFN_GetModuleHandleW)
+HMODULE WINAPI KernelHooks::hk_K32_GetModuleHandleW(LPCWSTR lpModuleName)
+{
+    if (lpModuleName != NULL)
+    {
+        if (wcscmp(lpModuleName, L"amdxc64.dll") == 0)
+        {
+            LOG_TRACE("amdxc64.dll call");
+
+
+            auto original = o_K32_GetModuleHandleW(lpModuleName);
+
+            auto primaryGpu = IdentifyGpu::getPrimaryGpu();
+
+            if (original == nullptr && primaryGpu.fsr4Support != FSR4Support::None)
+            {
+                LOG_INFO("giving a fake HMODULE for amdxc64.dll");
+                return amdxc64Mark;
+            }
+
+            return original;
+        }
+    }
+
+    return o_K32_GetModuleHandleW(lpModuleName);
+}
+
+VALIDATE_HOOK(hk_K32_GetModuleHandleExA, Kernel32Proxy::PFN_GetModuleHandleExA)
+BOOL WINAPI KernelHooks::hk_K32_GetModuleHandleExA(DWORD dwFlags, LPCSTR lpModuleName, HMODULE* phModule)
+{
+    if (lpModuleName && dwFlags == 0 && strcmp("libxell.dll", lpModuleName) == 0 && phModule)
+    {
+        *phModule = dllModule;
+        return true;
+    }
+
+    return o_K32_GetModuleHandleExA(dwFlags, lpModuleName, phModule);
+}
+
+VALIDATE_HOOK(hk_K32_GetModuleHandleExW, Kernel32Proxy::PFN_GetModuleHandleExW)
 BOOL WINAPI KernelHooks::hk_K32_GetModuleHandleExW(DWORD dwFlags, LPCWSTR lpModuleName, HMODULE* phModule)
 {
     if (lpModuleName && dwFlags == GET_MODULE_HANDLE_EX_FLAG_PIN && lstrcmpW(L"nvapi64.dll", lpModuleName) == 0 &&
@@ -167,6 +214,7 @@ BOOL WINAPI KernelHooks::hk_K32_GetModuleHandleExW(DWORD dwFlags, LPCWSTR lpModu
     return o_K32_GetModuleHandleExW(dwFlags, lpModuleName, phModule);
 }
 
+VALIDATE_HOOK(hk_KB_GetProcAddress, KernelBaseProxy::PFN_GetProcAddress)
 FARPROC WINAPI KernelHooks::hk_KB_GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
 {
     if ((size_t) lpProcName < 0x000000000000F000)
@@ -183,14 +231,10 @@ FARPROC WINAPI KernelHooks::hk_KB_GetProcAddress(HMODULE hModule, LPCSTR lpProcN
     //               Util::WhoIsTheCaller(_ReturnAddress()));
     // }
 
-    if (State::Instance().isRunningOnLinux && lpProcName != nullptr &&
-        hModule == KernelBaseProxy::GetModuleHandleW_()(L"gdi32.dll") &&
-        lstrcmpA(lpProcName, "D3DKMTEnumAdapters2") == 0)
-        return (FARPROC) &customD3DKMTEnumAdapters2;
-
     return o_KB_GetProcAddress(hModule, lpProcName);
 }
 
+VALIDATE_HOOK(hk_K32_GetFileAttributesW, Kernel32Proxy::PFN_GetFileAttributesW)
 DWORD WINAPI KernelHooks::hk_K32_GetFileAttributesW(LPCWSTR lpFileName)
 {
     if (!State::Instance().nvngxExists && State::Instance().nvngxReplacement.has_value() &&
@@ -211,6 +255,7 @@ DWORD WINAPI KernelHooks::hk_K32_GetFileAttributesW(LPCWSTR lpFileName)
     return o_K32_GetFileAttributesW(lpFileName);
 }
 
+VALIDATE_HOOK(hk_K32_CreateFileW, Kernel32Proxy::PFN_CreateFileW)
 HANDLE WINAPI KernelHooks::hk_K32_CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
                                               LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition,
                                               DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
@@ -222,14 +267,17 @@ HANDLE WINAPI KernelHooks::hk_K32_CreateFileW(LPCWSTR lpFileName, DWORD dwDesire
         auto path = wstring_to_string(std::wstring(lpFileName));
         to_lower_in_place(path);
 
-        static auto signedDll = Util::FindFilePath(Util::ExePath().remove_filename(), "nvngx_dlss.dll");
-
         if (path.contains("nvngx.dll") && !path.contains("_nvngx.dll") && // apply the override to just one path
-            !IsInsideWindowsDirectory(path) && signedDll.has_value())
+            !IsInsideWindowsDirectory(path))
         {
-            LOG_DEBUG("Overriding CreateFileW for nvngx with a signed dll, original path: {}", path);
-            return o_K32_CreateFileW(signedDll.value().c_str(), dwDesiredAccess, dwShareMode, lpSecurityAttributes,
-                                     dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+            static auto& signedDll = State::Instance().nvngxReplacement;
+
+            if (signedDll.has_value())
+            {
+                LOG_DEBUG("Overriding CreateFileW for nvngx with a signed dll, original path: {}", path);
+                return o_K32_CreateFileW(signedDll.value().c_str(), dwDesiredAccess, dwShareMode, lpSecurityAttributes,
+                                         dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+            }
         }
     }
 
@@ -237,8 +285,39 @@ HANDLE WINAPI KernelHooks::hk_K32_CreateFileW(LPCWSTR lpFileName, DWORD dwDesire
                              dwFlagsAndAttributes, hTemplateFile);
 }
 
+VALIDATE_HOOK(hk_K32_OutputDebugStringW, Kernel32Proxy::PFN_OutputDebugStringW)
+VOID WINAPI KernelHooks::hk_K32_OutputDebugStringW(LPCWSTR lpOutputString)
+{
+    o_K32_OutputDebugStringW(lpOutputString);
+
+    std::wstring result(lpOutputString);
+
+    while (!result.empty() && (result.back() == L'\n' || result.back() == L'\r'))
+    {
+        result.pop_back();
+    }
+
+    LOG_TRACE(L"{}", result);
+}
+
+VALIDATE_HOOK(hk_K32_OutputDebugStringA, Kernel32Proxy::PFN_OutputDebugStringA)
+VOID WINAPI KernelHooks::hk_K32_OutputDebugStringA(LPCSTR lpOutputString)
+{
+    o_K32_OutputDebugStringA(lpOutputString);
+
+    std::string result(lpOutputString);
+
+    while (!result.empty() && (result.back() == '\n' || result.back() == '\r'))
+    {
+        result.pop_back();
+    }
+
+    LOG_TRACE("{}", result);
+}
+
 // Load Library checks
 
+VALIDATE_HOOK(hk_K32_LoadLibraryW, Kernel32Proxy::PFN_LoadLibraryW)
 HMODULE KernelHooks::hk_K32_LoadLibraryW(LPCWSTR lpLibFileName)
 {
     if (lpLibFileName == nullptr)
@@ -258,6 +337,7 @@ HMODULE KernelHooks::hk_K32_LoadLibraryW(LPCWSTR lpLibFileName)
     return o_K32_LoadLibraryW(lpLibFileName);
 }
 
+VALIDATE_HOOK(hk_K32_LoadLibraryA, Kernel32Proxy::PFN_LoadLibraryA)
 HMODULE KernelHooks::hk_K32_LoadLibraryA(LPCSTR lpLibFileName)
 {
     if (lpLibFileName == nullptr)
@@ -278,6 +358,7 @@ HMODULE KernelHooks::hk_K32_LoadLibraryA(LPCSTR lpLibFileName)
     return o_K32_LoadLibraryA(lpLibFileName);
 }
 
+VALIDATE_HOOK(hk_K32_LoadLibraryExW, Kernel32Proxy::PFN_LoadLibraryExW)
 HMODULE KernelHooks::hk_K32_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
     if (lpLibFileName == nullptr)
@@ -297,6 +378,7 @@ HMODULE KernelHooks::hk_K32_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, 
     return o_K32_LoadLibraryExW(lpLibFileName, hFile, dwFlags);
 }
 
+VALIDATE_HOOK(hk_K32_LoadLibraryExA, Kernel32Proxy::PFN_LoadLibraryExA)
 HMODULE KernelHooks::hk_K32_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
     if (lpLibFileName == nullptr)
@@ -317,6 +399,7 @@ HMODULE KernelHooks::hk_K32_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, D
     return o_K32_LoadLibraryExA(lpLibFileName, hFile, dwFlags);
 }
 
+VALIDATE_HOOK(hk_KB_LoadLibraryExW, KernelBaseProxy::PFN_LoadLibraryExW)
 HMODULE KernelHooks::hk_KB_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
     if (lpLibFileName == nullptr)
@@ -336,6 +419,7 @@ HMODULE KernelHooks::hk_KB_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, D
     return o_KB_LoadLibraryExW(lpLibFileName, hFile, dwFlags);
 }
 
+VALIDATE_HOOK(hk_K32_FreeLibrary, Kernel32Proxy::PFN_FreeLibrary)
 BOOL KernelHooks::hk_K32_FreeLibrary(HMODULE lpLibrary)
 {
     if (lpLibrary == nullptr)

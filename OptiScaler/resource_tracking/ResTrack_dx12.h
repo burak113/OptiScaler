@@ -7,15 +7,23 @@
 
 #include <ankerl/unordered_dense.h>
 
-#include <new>
-#include <mutex>
+#include <algorithm>
+#include <array>
 #include <atomic>
+#include <cstdint>
+#include <memory>
+#include <functional>
+#include <mutex>
+#include <new>
 #include <shared_mutex>
+#include <vector>
+
+namespace RecordedComputeLease { struct Submission; }
 
 // #define DEBUG_TRACKING
 
 #ifdef DEBUG_TRACKING
-static void TestResource(ResourceInfo* info)
+static void TestResource(const ResourceInfo* info)
 {
     if (info == nullptr || info->buffer == nullptr)
         return;
@@ -120,138 +128,180 @@ struct SpinLock
 #endif
 #endif
 
-static ankerl::unordered_dense::map<ID3D12Resource*, std::vector<ResourceInfo*>> _trackedResources;
+struct HeapInfo;
+
+struct TrackedResourceSlot
+{
+    std::weak_ptr<HeapInfo> heap;
+    uint64_t heapVersion = 0;
+    UINT index = 0;
+};
+
+inline ankerl::unordered_dense::map<ID3D12Resource*, std::vector<TrackedResourceSlot>> _trackedResources;
 #ifdef USE_SPINLOCK_MUTEX
-static SpinLock _trackedResourcesMutex;
+inline SpinLock _trackedResourcesMutex;
 #else
-static std::mutex _trackedResourcesMutex;
+inline std::mutex _trackedResourcesMutex;
 #endif
 
-struct HeapInfo
+struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
 {
-    // mutable std::shared_mutex mutex;
+    // Avoiding one lock object per descriptor
+    static constexpr size_t DESCRIPTOR_LOCK_STRIPE_COUNT = 256;
+    static_assert((DESCRIPTOR_LOCK_STRIPE_COUNT & (DESCRIPTOR_LOCK_STRIPE_COUNT - 1)) == 0);
+
+    mutable std::array<std::shared_mutex, DESCRIPTOR_LOCK_STRIPE_COUNT> descriptorLocks;
 
     ID3D12DescriptorHeap* heap = nullptr;
-    SIZE_T cpuStart = NULL;
-    SIZE_T cpuEnd = NULL;
-    SIZE_T gpuStart = NULL;
-    SIZE_T gpuEnd = NULL;
+    SIZE_T cpuStart = 0;
+    SIZE_T cpuEnd = 0;
+    SIZE_T gpuStart = 0;
+    SIZE_T gpuEnd = 0;
     UINT numDescriptors = 0;
     UINT increment = 0;
     UINT type = 0;
     std::shared_ptr<ResourceInfo[]> info;
     UINT lastOffset = 0;
-    bool active = true;
+    std::atomic<bool> active { true };
     std::atomic<uint64_t> version { 0 };
 
     HeapInfo(ID3D12DescriptorHeap* heap, SIZE_T cpuStart, SIZE_T cpuEnd, SIZE_T gpuStart, SIZE_T gpuEnd,
              UINT numResources, UINT increment, UINT type)
-        : cpuStart(cpuStart), cpuEnd(cpuEnd), gpuStart(gpuStart), gpuEnd(gpuEnd), numDescriptors(numResources),
-          increment(increment), info(new ResourceInfo[numResources]), type(type), heap(heap)
+        : heap(heap), cpuStart(cpuStart), cpuEnd(cpuEnd), gpuStart(gpuStart), gpuEnd(gpuEnd),
+          numDescriptors(numResources), increment(increment), type(type), info(new ResourceInfo[numResources])
     {
         static std::atomic<uint64_t> globalHeapVersion { 1 };
         version.store(globalHeapVersion.fetch_add(1, std::memory_order_relaxed), std::memory_order_relaxed);
 
         for (size_t i = 0; i < numDescriptors; i++)
-        {
             info[i].buffer = nullptr;
-        }
     }
 
-    void DetachFromOldResource(SIZE_T index) const
+    bool GetCpuIndex(SIZE_T cpuHandle, UINT& index) const
     {
-        if (info[index].buffer == nullptr)
+        if (increment == 0 || cpuHandle < cpuStart || cpuHandle >= cpuEnd)
+            return false;
+
+        auto calculated = (cpuHandle - cpuStart) / increment;
+        if (calculated >= numDescriptors)
+            return false;
+
+        index = static_cast<UINT>(calculated);
+        return true;
+    }
+
+    bool GetGpuIndex(SIZE_T gpuHandle, UINT& index) const
+    {
+        if (increment == 0 || gpuHandle < gpuStart || gpuHandle >= gpuEnd)
+            return false;
+
+        auto calculated = (gpuHandle - gpuStart) / increment;
+        if (calculated >= numDescriptors)
+            return false;
+
+        index = static_cast<UINT>(calculated);
+        return true;
+    }
+
+    // Caller must hold the descriptor stripe exclusively.
+    void DetachFromOldResourceLocked(UINT index)
+    {
+        auto* oldResource = info[index].buffer;
+        if (oldResource == nullptr)
             return;
 
         std::scoped_lock lock(_trackedResourcesMutex);
         LOG_TRACK("Heap: {:X}, Index: {}, Resource: {:X}, Res: {}x{}, Format: {}", (size_t) this, index,
-                  (size_t) info[index].buffer, info[index].width, info[index].height, (UINT) info[index].format);
-        auto it = _trackedResources.find(info[index].buffer);
-        if (it != _trackedResources.end())
-        {
-            auto& vec = it->second;
-            vec.erase(std::remove(vec.begin(), vec.end(), &info[index]), vec.end());
-            if (vec.empty())
-                _trackedResources.erase(it);
-        }
+                  (size_t) oldResource, info[index].width, info[index].height, (UINT) info[index].format);
+
+        auto it = _trackedResources.find(oldResource);
+        if (it == _trackedResources.end())
+            return;
+
+        const auto currentVersion = version.load(std::memory_order_relaxed);
+        auto& vec = it->second;
+        vec.erase(std::remove_if(vec.begin(), vec.end(), [currentVersion, index](const TrackedResourceSlot& slot)
+                                 { return slot.heapVersion == currentVersion && slot.index == index; }),
+                  vec.end());
+        if (vec.empty())
+            _trackedResources.erase(it);
     }
 
-    void AttachToNewResource(SIZE_T index) const
+    void AttachToNewResourceLocked(UINT index)
     {
+        auto* newResource = info[index].buffer;
+        if (newResource == nullptr)
+            return;
+
         std::scoped_lock lock(_trackedResourcesMutex);
         LOG_TRACK("Heap: {:X}, Index: {}, Resource: {:X}, Res: {}x{}, Format: {}", (size_t) this, index,
-                  (size_t) info[index].buffer, info[index].width, info[index].height, (UINT) info[index].format);
-        auto& vec = _trackedResources[info[index].buffer];
-        if (std::find(vec.begin(), vec.end(), &info[index]) == vec.end())
-            vec.push_back(&info[index]);
+                  (size_t) newResource, info[index].width, info[index].height, (UINT) info[index].format);
+
+        const auto currentVersion = version.load(std::memory_order_relaxed);
+        auto& vec = _trackedResources[newResource];
+        auto found = std::find_if(vec.begin(), vec.end(), [currentVersion, index](const TrackedResourceSlot& slot)
+                                  { return slot.heapVersion == currentVersion && slot.index == index; });
+
+        if (found == vec.end())
+            vec.push_back({ shared_from_this(), currentVersion, index });
     }
 
-    ResourceInfo* GetByCpuHandle(SIZE_T cpuHandle) const
+    bool GetByCpuHandle(SIZE_T cpuHandle, ResourceInfo& outInfo) const
     {
-        auto index = (cpuHandle - cpuStart) / increment;
+        if (!active.load(std::memory_order_acquire))
+            return false;
 
-        if (index >= numDescriptors)
-            return nullptr;
+        UINT index = 0;
+        if (!GetCpuIndex(cpuHandle, index))
+            return false;
 
-        // std::shared_lock<std::shared_mutex> lock(mutex);
+        std::shared_lock lock(GetDescriptorLock(index));
+        if (!active.load(std::memory_order_acquire) || info[index].buffer == nullptr)
+            return false;
 
-        if (info[index].buffer == nullptr)
-            return nullptr;
+        outInfo = info[index];
 
 #ifdef DEBUG_TRACKING
-        TestResource(&info[index]);
+        TestResource(&outInfo);
 #endif
 
-        return &info[index];
+        return true;
     }
 
-    ResourceInfo* GetByGpuHandle(SIZE_T gpuHandle) const
+    bool GetByGpuHandle(SIZE_T gpuHandle, ResourceInfo& outInfo) const
     {
-        auto index = (gpuHandle - gpuStart) / increment;
+        if (!active.load(std::memory_order_acquire))
+            return false;
 
-        if (index >= numDescriptors)
-            return nullptr;
+        UINT index = 0;
+        if (!GetGpuIndex(gpuHandle, index))
+            return false;
 
-        // std::shared_lock<std::shared_mutex> lock(mutex);
+        std::shared_lock lock(GetDescriptorLock(index));
+        if (!active.load(std::memory_order_acquire) || info[index].buffer == nullptr)
+            return false;
 
-        if (info[index].buffer == nullptr)
-            return nullptr;
+        outInfo = info[index];
 
 #ifdef DEBUG_TRACKING
-        TestResource(&info[index]);
+        TestResource(&outInfo);
 #endif
 
-        return &info[index];
+        return true;
     }
 
-    void SetByCpuHandle(SIZE_T cpuHandle, ResourceInfo setInfo) const
+    void SetByCpuHandle(SIZE_T cpuHandle, const ResourceInfo& setInfo)
     {
-        auto index = (cpuHandle - cpuStart) / increment;
-
-        if (index >= numDescriptors)
+        if (!active.load(std::memory_order_acquire))
             return;
 
-        // std::unique_lock<std::shared_mutex> lock(mutex);
-
-#ifdef DEBUG_TRACKING
-        TestResource(&setInfo);
-#endif
-        if (info[index].buffer != setInfo.buffer)
-        {
-            DetachFromOldResource(index);
-            info[index] = setInfo;
-            AttachToNewResource(index);
-        }
-    }
-
-    void SetByGpuHandle(SIZE_T gpuHandle, ResourceInfo setInfo) const
-    {
-        auto index = (gpuHandle - gpuStart) / increment;
-
-        if (index >= numDescriptors)
+        UINT index = 0;
+        if (!GetCpuIndex(cpuHandle, index))
             return;
 
-        // std::unique_lock<std::shared_mutex> lock(mutex);
+        std::unique_lock lock(GetDescriptorLock(index));
+        if (!active.load(std::memory_order_acquire))
+            return;
 
 #ifdef DEBUG_TRACKING
         TestResource(&setInfo);
@@ -259,48 +309,142 @@ struct HeapInfo
 
         if (info[index].buffer != setInfo.buffer)
         {
-            DetachFromOldResource(index);
+            DetachFromOldResourceLocked(index);
             info[index] = setInfo;
-            AttachToNewResource(index);
+            AttachToNewResourceLocked(index);
+        }
+        else
+        {
+            info[index] = setInfo;
         }
     }
 
-    void ClearByCpuHandle(SIZE_T cpuHandle) const
+    void SetByGpuHandle(SIZE_T gpuHandle, const ResourceInfo& setInfo)
     {
-        auto index = (cpuHandle - cpuStart) / increment;
-
-        if (index >= numDescriptors)
+        if (!active.load(std::memory_order_acquire))
             return;
 
-        // std::unique_lock<std::shared_mutex> lock(mutex);
+        UINT index = 0;
+        if (!GetGpuIndex(gpuHandle, index))
+            return;
 
-        if (info[index].buffer != nullptr)
+        std::unique_lock lock(GetDescriptorLock(index));
+        if (!active.load(std::memory_order_acquire))
+            return;
+
+#ifdef DEBUG_TRACKING
+        TestResource(&setInfo);
+#endif
+
+        if (info[index].buffer != setInfo.buffer)
         {
-            LOG_TRACK("Resource: {:X}, Res: {}x{}, Format: {}", (size_t) info[index].buffer, info[index].width,
-                      info[index].height, (UINT) info[index].format);
-
-            DetachFromOldResource(index);
+            DetachFromOldResourceLocked(index);
+            info[index] = setInfo;
+            AttachToNewResourceLocked(index);
         }
+        else
+        {
+            info[index] = setInfo;
+        }
+    }
+
+    void ClearByCpuHandle(SIZE_T cpuHandle)
+    {
+        if (!active.load(std::memory_order_acquire))
+            return;
+
+        UINT index = 0;
+        if (!GetCpuIndex(cpuHandle, index))
+            return;
+
+        std::unique_lock lock(GetDescriptorLock(index));
+        if (!active.load(std::memory_order_acquire))
+            return;
+
+        ClearSlotLocked(index, true);
+    }
+
+    void ClearByGpuHandle(SIZE_T gpuHandle)
+    {
+        if (!active.load(std::memory_order_acquire))
+            return;
+
+        UINT index = 0;
+        if (!GetGpuIndex(gpuHandle, index))
+            return;
+
+        std::unique_lock lock(GetDescriptorLock(index));
+        if (!active.load(std::memory_order_acquire))
+            return;
+
+        ClearSlotLocked(index, true);
+    }
+
+    void ClearSlotIfMatches(UINT index, ID3D12Resource* resource)
+    {
+        if (!active.load(std::memory_order_acquire) || index >= numDescriptors)
+            return;
+
+        std::unique_lock lock(GetDescriptorLock(index));
+        if (!active.load(std::memory_order_acquire) || info[index].buffer != resource)
+            return;
 
         info[index].buffer = nullptr;
         info[index].lastUsedFrame = 0;
     }
 
-    void ClearByGpuHandle(SIZE_T gpuHandle) const
+    bool DeactivateAndClear()
     {
-        auto index = (gpuHandle - gpuStart) / increment;
+        if (!active.exchange(false, std::memory_order_acq_rel))
+            return false;
 
-        if (index >= numDescriptors)
-            return;
+        std::array<std::unique_lock<std::shared_mutex>, DESCRIPTOR_LOCK_STRIPE_COUNT> locks;
+        for (size_t i = 0; i < DESCRIPTOR_LOCK_STRIPE_COUNT; ++i)
+            locks[i] = std::unique_lock<std::shared_mutex>(descriptorLocks[i]);
 
-        // std::unique_lock<std::shared_mutex> lock(mutex);
+        std::scoped_lock trackedLock(_trackedResourcesMutex);
+        for (UINT index = 0; index < numDescriptors; ++index)
+        {
+            auto* resource = info[index].buffer;
+            if (resource == nullptr)
+                continue;
 
+            if (auto it = _trackedResources.find(resource); it != _trackedResources.end())
+            {
+                const auto currentVersion = version.load(std::memory_order_relaxed);
+                auto& vec = it->second;
+                vec.erase(std::remove_if(vec.begin(), vec.end(),
+                                         [currentVersion, index](const TrackedResourceSlot& slot)
+                                         { return slot.heapVersion == currentVersion && slot.index == index; }),
+                          vec.end());
+                if (vec.empty())
+                    _trackedResources.erase(it);
+            }
+
+            info[index].buffer = nullptr;
+            info[index].lastUsedFrame = 0;
+        }
+
+        info.reset();
+
+        return true;
+    }
+
+  private:
+    std::shared_mutex& GetDescriptorLock(UINT index) const
+    {
+        return descriptorLocks[index & (DESCRIPTOR_LOCK_STRIPE_COUNT - 1)];
+    }
+
+    void ClearSlotLocked(UINT index, bool detach)
+    {
         if (info[index].buffer != nullptr)
         {
             LOG_TRACK("Resource: {:X}, Res: {}x{}, Format: {}", (size_t) info[index].buffer, info[index].width,
                       info[index].height, (UINT) info[index].format);
 
-            DetachFromOldResource(index);
+            if (detach)
+                DetachFromOldResourceLocked(index);
         }
 
         info[index].buffer = nullptr;
@@ -314,6 +458,46 @@ struct ResourceHeapInfo
     SIZE_T gpuStart = NULL;
 };
 
+struct RRResourceCandidate
+{
+    void* resourceAddress = nullptr;
+    std::string debugName;
+    std::string lastWritePass;
+    uint64_t width = 0;
+    uint32_t height = 0;
+    DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
+    D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE;
+    uint32_t srvViews = 0;
+    uint32_t uavViews = 0;
+    uint32_t rtvViews = 0;
+    uint32_t channelCount = 0;
+    bool previewSupported = false;
+    bool stateKnown = false;
+    // The preview pass is compute, so this is the non-pixel read bit, not either shader-read
+    // bit: "shader readable" is ambiguous between the two stages and the ambiguity is what let
+    // a pixel-only resource be handed to it.
+    bool computeReadable = false;
+    D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON;
+    bool writeObserved = false;
+    bool active = false;
+    bool alternating = false;
+    uint64_t currentFrame = 0;
+    uint64_t lastWriteFrame = 0;
+    uint64_t previousWriteFrame = 0;
+    uint64_t writeAgeFrames = std::numeric_limits<uint64_t>::max();
+    uint64_t lastWriteInterval = 0;
+    uint64_t writtenFrameCount = 0;
+    uint64_t writeTransitionCount = 0;
+    uint64_t passWriteCount = 0;
+    bool emissivePassMatch = false;
+    uint64_t producerPsoId = 0;
+    uint64_t producerPsoHash = 0;
+    uint64_t producerHitCount = 0;
+    uint32_t producerCount = 0;
+    uint8_t producerKind = 0;
+    bool producerAmbiguous = false;
+};
+
 #ifdef USE_SPINLOCK_MUTEX
 // Force each struct to start on a new cache line
 struct alignas(CACHE_LINE_SIZE) CommandListShard
@@ -323,7 +507,7 @@ struct alignas(CACHE_LINE_SIZE) CommandListShard
                                  ankerl::unordered_dense::map<ID3D12Resource*, ResourceInfo>>
         map;
 
-    char padding[CACHE_LINE_SIZE - (sizeof(SpinLock) + sizeof(void*) % CACHE_LINE_SIZE)] = {};
+    char padding[CACHE_LINE_SIZE - ((sizeof(SpinLock) + sizeof(void*)) % CACHE_LINE_SIZE)] = {};
 };
 #else
 struct alignas(CACHE_LINE_SIZE) CommandListShard
@@ -333,7 +517,7 @@ struct alignas(CACHE_LINE_SIZE) CommandListShard
                                  ankerl::unordered_dense::map<ID3D12Resource*, ResourceInfo>>
         map;
 
-    char padding[CACHE_LINE_SIZE - (sizeof(std::mutex) + sizeof(void*) % CACHE_LINE_SIZE)] = {};
+    char padding[CACHE_LINE_SIZE - ((sizeof(std::mutex) + sizeof(void*)) % CACHE_LINE_SIZE)] = {};
 };
 #endif
 
@@ -373,6 +557,16 @@ class ResTrack_Dx12
                                      D3D12_CPU_DESCRIPTOR_HANDLE* pDepthStencilDescriptor);
     static void hkSetComputeRootDescriptorTable(ID3D12GraphicsCommandList* This, UINT RootParameterIndex,
                                                 D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor);
+    static void hkResourceBarrier(ID3D12GraphicsCommandList* This, UINT NumBarriers,
+                                  const D3D12_RESOURCE_BARRIER* pBarriers);
+    static void hkSetPipelineState(ID3D12GraphicsCommandList* This,
+                                   ID3D12PipelineState* pPipelineState);
+    static HRESULT hkReset(ID3D12GraphicsCommandList* This,
+                           ID3D12CommandAllocator* pAllocator,
+                           ID3D12PipelineState* pInitialState);
+    static void hkSetMarker(ID3D12GraphicsCommandList* This, UINT Metadata, const void* pData, UINT Size);
+    static void hkBeginEvent(ID3D12GraphicsCommandList* This, UINT Metadata, const void* pData, UINT Size);
+    static void hkEndEvent(ID3D12GraphicsCommandList* This);
 
     static void hkDrawInstanced(ID3D12GraphicsCommandList* This, UINT VertexCountPerInstance, UINT InstanceCount,
                                 UINT StartVertexLocation, UINT StartInstanceLocation);
@@ -394,9 +588,20 @@ class ResTrack_Dx12
     static void hkCreateUnorderedAccessView(ID3D12Device* This, ID3D12Resource* pResource,
                                             ID3D12Resource* pCounterResource, D3D12_UNORDERED_ACCESS_VIEW_DESC* pDesc,
                                             D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+    static HRESULT hkCreateGraphicsPipelineState(
+        ID3D12Device* This, const D3D12_GRAPHICS_PIPELINE_STATE_DESC* pDesc,
+        REFIID riid, void** ppPipelineState);
+    static HRESULT hkCreateComputePipelineState(
+        ID3D12Device* This, const D3D12_COMPUTE_PIPELINE_STATE_DESC* pDesc,
+        REFIID riid, void** ppPipelineState);
+    static HRESULT hkCreatePipelineState(
+        ID3D12Device2* This, const D3D12_PIPELINE_STATE_STREAM_DESC* pDesc,
+        REFIID riid, void** ppPipelineState);
 
     static void hkExecuteCommandLists(ID3D12CommandQueue* This, UINT NumCommandLists,
                                       ID3D12CommandList* const* ppCommandLists);
+    static std::shared_ptr<RecordedComputeLease::Submission> BeforeComputeSubmission(
+        ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* lists) noexcept;
 
     static HRESULT hkCreateDescriptorHeap(ID3D12Device* This, D3D12_DESCRIPTOR_HEAP_DESC* pDescriptorHeapDesc,
                                           REFIID riid, void** ppvHeap);
@@ -420,13 +625,13 @@ class ResTrack_Dx12
     static SIZE_T GetGPUHandle(ID3D12Device* This, SIZE_T cpuHandle, D3D12_DESCRIPTOR_HEAP_TYPE type);
     static SIZE_T GetCPUHandle(ID3D12Device* This, SIZE_T gpuHandle, D3D12_DESCRIPTOR_HEAP_TYPE type);
 
-    static HeapInfo* GetHeapByCpuHandleCBV(SIZE_T cpuHandle);
-    static HeapInfo* GetHeapByCpuHandleRTV(SIZE_T cpuHandle);
-    static HeapInfo* GetHeapByCpuHandleSRV(SIZE_T cpuHandle);
-    static HeapInfo* GetHeapByCpuHandleUAV(SIZE_T cpuHandle);
-    static HeapInfo* GetHeapByCpuHandle(SIZE_T cpuHandle);
-    static HeapInfo* GetHeapByGpuHandleGR(SIZE_T gpuHandle);
-    static HeapInfo* GetHeapByGpuHandleCR(SIZE_T gpuHandle);
+    static std::shared_ptr<HeapInfo> GetHeapByCpuHandleCBV(SIZE_T cpuHandle);
+    static std::shared_ptr<HeapInfo> GetHeapByCpuHandleRTV(SIZE_T cpuHandle);
+    static std::shared_ptr<HeapInfo> GetHeapByCpuHandleSRV(SIZE_T cpuHandle);
+    static std::shared_ptr<HeapInfo> GetHeapByCpuHandleUAV(SIZE_T cpuHandle);
+    static std::shared_ptr<HeapInfo> GetHeapByCpuHandle(SIZE_T cpuHandle);
+    static std::shared_ptr<HeapInfo> GetHeapByGpuHandleGR(SIZE_T gpuHandle);
+    static std::shared_ptr<HeapInfo> GetHeapByGpuHandleCR(SIZE_T gpuHandle);
 
     static void FillResourceInfo(ID3D12Resource* resource, ResourceInfo* info);
 
@@ -441,9 +646,30 @@ class ResTrack_Dx12
     }
 
   public:
+    static bool RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCommandList* list,
+                                      const std::shared_ptr<void>& lease,
+                                      std::function<void(ID3D12CommandQueue*)> beforeSubmit = {});
+    static bool EnsureRRTraceHooks(ID3D12Device* device);
     static void HookDevice(ID3D12Device* device);
     static void ReleaseHooks();
     static void ReleaseDeviceHooks();
     static void ClearPossibleHudless();
     static void SetResourceCmdList(FG_ResourceType type, ID3D12GraphicsCommandList* cmdList);
+    static void SetRRResourceInspectorEnabled(bool enabled);
+    static bool IsRRResourceInspectorEnabled();
+    static void NotifyRRResourceInspectorFrame(uint64_t frameIndex);
+    static void RefreshRRResourceCandidates(uint32_t renderWidth, uint32_t renderHeight);
+    static std::vector<RRResourceCandidate> GetRRResourceCandidates();
+    static void SetRRResourceCandidateIndex(int index);
+    static int GetRRResourceCandidateIndex();
+    static void SetRRResourceChannel(uint32_t channel);
+    static uint32_t GetRRResourceChannel();
+    static void SetRRResourceViewScale(float scale);
+    static float GetRRResourceViewScale();
+    // Returns an AddRef'd resource only when the selected texture can be safely
+    // sampled without modifying the game's resource state.
+    static ID3D12Resource* AcquireRRResourceCandidate();
+    static void LogRRScalarResourceCandidates(uint32_t renderWidth, uint32_t renderHeight);
+    static void LogRREmissivePassSnapshot(uint32_t renderWidth, uint32_t renderHeight);
+    static void LogRRPsoProducerSnapshot(uint32_t renderWidth, uint32_t renderHeight);
 };

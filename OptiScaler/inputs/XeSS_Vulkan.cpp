@@ -129,39 +129,10 @@ xess_result_t hk_xessVKCreateContext(VkInstance instance, VkPhysicalDevice physi
     _physicalDevice = physicalDevice;
     _device = device;
 
-    if (!State::Instance().NvngxVkInited)
+    if (!State::Instance().nvngxVkInited)
     {
         NVSDK_NGX_FeatureCommonInfo fcInfo {};
-
         auto exePath = Util::ExePath().remove_filename();
-        auto nvngxDlssPath = Util::FindFilePath(exePath, "nvngx_dlss.dll");
-        auto nvngxDlssDPath = Util::FindFilePath(exePath, "nvngx_dlssd.dll");
-        auto nvngxDlssGPath = Util::FindFilePath(exePath, "nvngx_dlssg.dll");
-
-        std::vector<std::wstring> pathStorage;
-
-        pathStorage.push_back(exePath.wstring());
-        if (nvngxDlssPath.has_value())
-            pathStorage.push_back(nvngxDlssPath.value().parent_path().wstring());
-
-        if (nvngxDlssDPath.has_value())
-            pathStorage.push_back(nvngxDlssDPath.value().parent_path().wstring());
-
-        if (nvngxDlssGPath.has_value())
-            pathStorage.push_back(nvngxDlssGPath.value().parent_path().wstring());
-
-        if (Config::Instance()->DLSSFeaturePath.has_value())
-            pathStorage.push_back(Config::Instance()->DLSSFeaturePath.value());
-
-        // Build pointer array
-        wchar_t const** paths = new const wchar_t*[pathStorage.size()];
-        for (size_t i = 0; i < pathStorage.size(); ++i)
-        {
-            paths[i] = pathStorage[i].c_str();
-        }
-
-        fcInfo.PathListInfo.Path = paths;
-        fcInfo.PathListInfo.Length = (int) pathStorage.size();
 
         auto nvResult = NVSDK_NGX_VULKAN_Init_ProjectID_Ext(
             OPTI_GUID, NVSDK_NGX_ENGINE_TYPE_CUSTOM, OPTI_VERSION, exePath.c_str(), _instance, _physicalDevice, _device,
@@ -356,7 +327,7 @@ xess_result_t hk_xessVKExecute(xess_context_handle_t hContext, VkCommandBuffer c
     params->Set(NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_SubrectBase_Y,
                 pExecParams->inputResponsiveMaskBase.y);
 
-    State::Instance().setInputApiName = "XeSS";
+    State::Instance().setInputApiName = ApiUpscalerInput::XeSS_VK;
 
     if (NVSDK_NGX_VULKAN_EvaluateFeature(commandBuffer, handle, params, nullptr) == NVSDK_NGX_Result_Success)
         return XESS_RESULT_SUCCESS;
@@ -399,8 +370,6 @@ xess_result_t hk_xessVKGetRequiredInstanceExtensions(uint32_t* instanceExtension
 {
     LOG_FUNC();
 
-    ScopedSkipSpoofing skipSpoofing {};
-
     auto result =
         XeSSProxy::VKGetRequiredInstanceExtensions()(instanceExtensionsCount, instanceExtensions, minVkApiVersion);
 
@@ -413,7 +382,7 @@ xess_result_t hk_xessVKGetRequiredDeviceExtensions(VkInstance instance, VkPhysic
 {
     LOG_FUNC();
 
-    ScopedSkipSpoofing skipSpoofing {};
+    ScopedSkipSpoofingGlobal skipSpoofingGlobal {};
 
     auto result =
         XeSSProxy::VKGetRequiredDeviceExtensions()(instance, physicalDevice, deviceExtensionsCount, deviceExtensions);
@@ -425,7 +394,7 @@ xess_result_t hk_xessVKGetRequiredDeviceFeatures(VkInstance instance, VkPhysical
 {
     LOG_FUNC();
 
-    ScopedSkipSpoofing skipSpoofing {};
+    ScopedSkipSpoofingGlobal skipSpoofingGlobal {};
 
     auto result = XeSSProxy::VKGetRequiredDeviceFeatures()(instance, physicalDevice, features);
 

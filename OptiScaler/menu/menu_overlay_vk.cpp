@@ -480,7 +480,7 @@ void MenuOverlayVk::DestroyVulkanObjects(bool shutdown)
             fd->BackbufferView = VK_NULL_HANDLE;
         }
 
-        if (fd->BackbufferView != VK_NULL_HANDLE)
+        if (fd->Framebuffer != VK_NULL_HANDLE)
         {
             vkDestroyFramebuffer(_ImVulkan_Info.Device, fd->Framebuffer, VK_NULL_HANDLE);
             fd->Framebuffer = VK_NULL_HANDLE;
@@ -604,8 +604,8 @@ bool MenuOverlayVk::QueuePresent(VkQueue queue, VkPresentInfoKHR* pPresentInfo)
 }
 
 void MenuOverlayVk::CreateSwapchain(VkDevice device, VkPhysicalDevice pd, VkInstance instance, HWND hwnd,
-                                    const VkSwapchainCreateInfoKHR* pCreateInfo, VkAllocationCallbacks* pAllocator,
-                                    VkSwapchainKHR* pSwapchain)
+                                    const VkSwapchainCreateInfoKHR* pCreateInfo,
+                                    const VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchain)
 {
     LOG_FUNC();
 

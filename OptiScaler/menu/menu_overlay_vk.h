@@ -6,7 +6,7 @@
 namespace MenuOverlayVk
 {
 void CreateSwapchain(VkDevice device, VkPhysicalDevice pd, VkInstance instance, HWND hwnd,
-                     const VkSwapchainCreateInfoKHR* pCreateInfo, VkAllocationCallbacks* pAllocator,
+                     const VkSwapchainCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator,
                      VkSwapchainKHR* pSwapchain);
 bool QueuePresent(VkQueue queue, VkPresentInfoKHR* pPresentInfo);
 void DestroyVulkanObjects(bool shutdown);

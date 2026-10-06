@@ -7,11 +7,13 @@
 
 #include <proxies/Ntdll_Proxy.h>
 #include <proxies/KernelBase_Proxy.h>
+#include <hooks/Xell_Hooks.h>
 
 #include <xell.h>
 #include <xell_d3d12.h>
 
 #include <magic_enum.hpp>
+#include <low_latency/input/input_xell.h>
 
 #pragma comment(lib, "Version.lib")
 
@@ -28,12 +30,57 @@ typedef decltype(&xellGetFramesReports) PFN_xellGetFramesReports;
 // Dx12
 typedef decltype(&xellD3D12CreateContext) PFN_xellD3D12CreateContext;
 
+// Extra
+typedef decltype(&xellD3D12SetAppQueue) PFN_xellD3D12SetAppQueue;
+typedef decltype(&xellSetDisplayInfo) PFN_xellSetDisplayInfo;
+typedef decltype(&xellSetFgEnabled) PFN_xellSetFgEnabled;
+typedef decltype(&xellSetGeneratedFramesCount) PFN_xellSetGeneratedFramesCount;
+typedef decltype(&xellGetLastPresentStartFrameId) PFN_xellGetLastPresentStartFrameId;
+
+// This callback runs once for every function exported by the Old DLL
+static int ExportCallback(PVOID hNewDll, ULONG nOrdinal, LPCSTR pszName, PVOID pOldFunction)
+{
+    if (pszName == NULL)
+        return true;
+
+    auto pNewFunction = GetProcAddress((HMODULE) hNewDll, pszName);
+
+    if (pNewFunction && pNewFunction != pOldFunction)
+    {
+        // pOldFunction doesn't get stored because we don't plan on calling the old DLL
+        if (DetourAttach(&pOldFunction, pNewFunction))
+            LOG_TRACE("Failed to detour {}", pszName);
+    }
+
+    return true;
+}
+
+static void RedirectAllExports(HMODULE hOld, HMODULE hNew)
+{
+    if (!hOld || !hNew)
+    {
+        LOG_ERROR("Could not find modules");
+        return;
+    }
+
+    DetourTransactionBegin();
+    DetourUpdateThread(GetCurrentThread());
+
+    DetourEnumerateExports(hOld, hNew, ExportCallback);
+
+    auto detourResult = DetourTransactionCommit();
+    if (detourResult != NO_ERROR)
+        LOG_ERROR("Failed to commit detours: {:X}", detourResult);
+}
+
 class XeLLProxy
 {
   private:
     inline static HMODULE _dll = nullptr;
+    inline static HMODULE _memoryDll = nullptr;
+    inline static std::wstring _dllPath;
 
-    inline static feature_version _xellVersion {};
+    inline static xell_version_t _xellVersion {};
 
     inline static xell_context_handle_t _xellContext = nullptr;
 
@@ -72,53 +119,29 @@ class XeLLProxy
     // Dx12
     inline static PFN_xellD3D12CreateContext _xellD3D12CreateContext = nullptr;
 
+    // Extra
+    inline static PFN_xellD3D12SetAppQueue _xellD3D12SetAppQueue = nullptr;
+    inline static PFN_xellSetDisplayInfo _xellSetDisplayInfo = nullptr;
+    inline static PFN_xellSetFgEnabled _xellSetFgEnabled = nullptr;
+    inline static PFN_xellSetGeneratedFramesCount _xellSetGeneratedFramesCount = nullptr;
+    inline static PFN_xellGetLastPresentStartFrameId _xellGetLastPresentStartFrameId = nullptr;
+
     inline static xell_version_t GetDLLVersion(std::wstring dllPath)
     {
-        // Step 1: Get the size of the version information
-        DWORD handle = 0;
-        DWORD versionSize = GetFileVersionInfoSizeW(dllPath.c_str(), &handle);
-        xell_version_t version { 0, 0, 0 };
+        xell_version_t xellVersion {};
+        version_t tempVersion {};
+        auto result = Util::GetFileVersion(dllPath, &tempVersion);
 
-        if (versionSize == 0)
+        // Don't assume that the structs are identical
+        if (result)
         {
-            LOG_ERROR("Failed to get version info size: {0:X}", GetLastError());
-            return version;
+            xellVersion.major = tempVersion.major;
+            xellVersion.minor = tempVersion.minor;
+            xellVersion.patch = tempVersion.patch;
+            xellVersion.reserved = tempVersion.reserved;
         }
 
-        // Step 2: Allocate buffer and get the version information
-        std::vector<BYTE> versionInfo(versionSize);
-        if (handle == 0 && !GetFileVersionInfoW(dllPath.c_str(), handle, versionSize, versionInfo.data()))
-        {
-            LOG_ERROR("Failed to get version info: {0:X}", GetLastError());
-            return version;
-        }
-
-        // Step 3: Extract the version information
-        VS_FIXEDFILEINFO* fileInfo = nullptr;
-        UINT size = 0;
-        if (!VerQueryValueW(versionInfo.data(), L"\\", reinterpret_cast<LPVOID*>(&fileInfo), &size))
-        {
-            LOG_ERROR("Failed to query version value: {0:X}", GetLastError());
-            return version;
-        }
-
-        if (fileInfo != nullptr)
-        {
-            // Extract major, minor, build, and revision numbers from version information
-            DWORD fileVersionMS = fileInfo->dwFileVersionMS;
-            DWORD fileVersionLS = fileInfo->dwFileVersionLS;
-
-            version.major = (fileVersionMS >> 16) & 0xffff;
-            version.minor = (fileVersionMS >> 0) & 0xffff;
-            version.patch = (fileVersionLS >> 16) & 0xffff;
-            version.reserved = (fileVersionLS >> 0) & 0xffff;
-        }
-        else
-        {
-            LOG_ERROR("No version information found!");
-        }
-
-        return version;
+        return xellVersion;
     }
 
     inline static std::filesystem::path DllPath(HMODULE module)
@@ -135,52 +158,90 @@ class XeLLProxy
         return dll;
     }
 
-  public:
-    static HMODULE Module() { return _dll; }
-
-    static bool InitXeLL()
+    static bool InitXeLLProper()
     {
         if (_dll != nullptr)
             return true;
 
         HMODULE mainModule = nullptr;
 
-        do
+        std::vector<std::wstring> dllNames = { L"libxell.dll" };
+
+        auto& optiPath = Config::Instance()->MainDllPath.value();
+
+        for (size_t i = 0; i < dllNames.size(); i++)
         {
-            mainModule = GetModuleHandle(L"libxell.dll");
+            LOG_DEBUG("Trying to load {}", wstring_to_string(dllNames[i]));
+
+            auto overridePath = Config::Instance()->XeLLLibrary.value_or(L"");
+
+            Util::LoadProxyLibrary(dllNames[i], optiPath, overridePath, &_memoryDll, &mainModule);
+
             if (mainModule != nullptr)
             {
-                _dll = mainModule;
+                // We don't control which XeLL dll XeFG will pick
+                // Detouring GetModuleHandleExA seemingly isn't enough
+#ifndef LOW_LATENCY_INPUTS
+                if (_memoryDll && mainModule != _memoryDll)
+                    RedirectAllExports(_memoryDll, mainModule);
+#endif
+
                 break;
             }
-
-            auto dllPath = Util::DllPath();
-            std::wstring libraryName = L"libxell.dll";
-
-            // we would like to prioritize file pointed at ini
-            // if (Config::Instance()->XeSSLibrary.has_value())
-            //{
-            //    std::filesystem::path cfgPath(Config::Instance()->XeSSLibrary.value().c_str());
-            //    LOG_INFO(L"Trying to load libxell.dll from ini path: {}", cfgPath.wstring());
-
-            //    cfgPath = cfgPath / libraryName;
-            //    mainModule = KernelBaseProxy::LoadLibraryExW_()(cfgPath.c_str(), NULL, 0);
-            //}
-
-            if (mainModule == nullptr)
-            {
-                std::filesystem::path libXeLLPath = dllPath.parent_path() / libraryName;
-                LOG_INFO(L"Trying to load libxell.dll from dll path: {}", libXeLLPath.wstring());
-                mainModule = NtdllProxy::LoadLibraryExW_Ldr(libXeLLPath.c_str(), NULL, 0);
-            }
-
-        } while (false);
+        }
 
         if (mainModule != nullptr)
+        {
+            wchar_t modulePath[MAX_PATH];
+            DWORD len = GetModuleFileNameW(mainModule, modulePath, MAX_PATH);
+            _dllPath = std::wstring(modulePath);
+
+            LOG_INFO("Loaded from {}", wstring_to_string(_dllPath));
             return HookXeLL(mainModule);
+        }
 
         return false;
     }
+
+    static bool InitXeLLInput()
+    {
+#ifndef LOW_LATENCY_INPUTS
+        return true;
+#endif
+
+        // TODO: add hooks to redirect already loaded libxell into dllModule
+
+        HMODULE mainModule = nullptr;
+
+        GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           (LPCSTR) InputXeLL::D3D12CreateContext, &mainModule);
+
+        if (_dll != nullptr)
+        {
+            // If our xell and the one in memory aren't the same then
+            // hook the in-memory functions with our xell inputs ones
+            if (_memoryDll && _dll != _memoryDll)
+                RedirectAllExports(_memoryDll, dllModule);
+        }
+
+        if (mainModule != nullptr)
+        {
+            wchar_t modulePath[MAX_PATH];
+            DWORD len = GetModuleFileNameW(mainModule, modulePath, MAX_PATH);
+            _dllPath = std::wstring(modulePath);
+
+            LOG_INFO("Loaded from {}", wstring_to_string(_dllPath));
+            return HookXeLL(mainModule);
+        }
+
+        return false;
+    }
+
+  public:
+    static HMODULE Module() { return _dll; }
+    static std::wstring Module_Path() { return _dllPath; }
+
+    static bool InitXeLL() { return InitXeLLProper() && InitXeLLInput(); }
 
     static bool HookXeLL(HMODULE libxellModule)
     {
@@ -215,6 +276,17 @@ class XeLLProxy
 
                 _xellD3D12CreateContext =
                     (PFN_xellD3D12CreateContext) KernelBaseProxy::GetProcAddress_()(_dll, "xellD3D12CreateContext");
+
+                _xellD3D12SetAppQueue =
+                    (PFN_xellD3D12SetAppQueue) KernelBaseProxy::GetProcAddress_()(_dll, "xellD3D12SetAppQueue");
+                _xellSetDisplayInfo =
+                    (PFN_xellSetDisplayInfo) KernelBaseProxy::GetProcAddress_()(_dll, "xellSetDisplayInfo");
+                _xellSetFgEnabled = (PFN_xellSetFgEnabled) KernelBaseProxy::GetProcAddress_()(_dll, "xellSetFgEnabled");
+                _xellSetGeneratedFramesCount = (PFN_xellSetGeneratedFramesCount) KernelBaseProxy::GetProcAddress_()(
+                    _dll, "xellSetGeneratedFramesCount");
+                _xellGetLastPresentStartFrameId =
+                    (PFN_xellGetLastPresentStartFrameId) KernelBaseProxy::GetProcAddress_()(
+                        _dll, "xellGetLastPresentStartFrameId");
             }
         }
 
@@ -223,15 +295,18 @@ class XeLLProxy
         return loadResult;
     }
 
-    static feature_version Version()
+    static xell_version_t Version()
     {
         if (_xellVersion.major == 0 && _xellGetVersion != nullptr)
         {
-            if (auto result = _xellGetVersion((xell_version_t*) &_xellVersion); result == XESS_RESULT_SUCCESS)
-
+            if (auto result = _xellGetVersion(&_xellVersion); result == XELL_RESULT_SUCCESS)
+            {
                 LOG_INFO("XeLL Version: v{}.{}.{}", _xellVersion.major, _xellVersion.minor, _xellVersion.patch);
+            }
             else
+            {
                 LOG_ERROR("Can't get XeLL version: {}", (UINT) result);
+            }
         }
 
         if (_xellVersion.major == 0)
@@ -244,6 +319,37 @@ class XeLLProxy
         return _xellVersion;
     }
 
+#ifdef LOW_LATENCY_INPUTS
+    // We export / implement those functions
+    static PFN_xellDestroyContext DestroyContext() { return xellDestroyContext; }
+    static PFN_xellSetSleepMode SetSleepMode() { return xellSetSleepMode; }
+    static PFN_xellGetSleepMode GetSleepMode() { return xellGetSleepMode; }
+    static PFN_xellSleep Sleep() { return xellSleep; }
+    static PFN_xellAddMarkerData AddMarkerData() { return xellAddMarkerData; }
+    static PFN_xellGetVersion GetVersion() { return xellGetVersion; }
+    static PFN_xellSetLoggingCallback SetLoggingCallback() { return xellSetLoggingCallback; }
+    static PFN_xellGetFramesReports GetFramesReports() { return xellGetFramesReports; }
+    static PFN_xellD3D12CreateContext D3D12CreateContext() { return xellD3D12CreateContext; }
+
+    // Pointing to the actual DLL
+    static PFN_xellDestroyContext RealDestroyContext() { return _xellDestroyContext; }
+    static PFN_xellSetSleepMode RealSetSleepMode() { return _xellSetSleepMode; }
+    static PFN_xellGetSleepMode RealGetSleepMode() { return _xellGetSleepMode; }
+    static PFN_xellSleep RealSleep() { return _xellSleep; }
+    static PFN_xellAddMarkerData RealAddMarkerData() { return _xellAddMarkerData; }
+    static PFN_xellGetVersion RealGetVersion() { return _xellGetVersion; }
+    static PFN_xellSetLoggingCallback RealSetLoggingCallback() { return _xellSetLoggingCallback; }
+    static PFN_xellGetFramesReports RealGetFramesReports() { return _xellGetFramesReports; }
+    static PFN_xellD3D12CreateContext RealD3D12CreateContext() { return _xellD3D12CreateContext; }
+    static PFN_xellD3D12SetAppQueue RealD3D12SetAppQueue() { return _xellD3D12SetAppQueue; }
+    static PFN_xellSetDisplayInfo RealSetDisplayInfo() { return _xellSetDisplayInfo; }
+    static PFN_xellSetFgEnabled RealSetFgEnabled() { return _xellSetFgEnabled; }
+    static PFN_xellSetGeneratedFramesCount RealSetGeneratedFramesCount() { return _xellSetGeneratedFramesCount; }
+    static PFN_xellGetLastPresentStartFrameId RealGetLastPresentStartFrameId()
+    {
+        return _xellGetLastPresentStartFrameId;
+    }
+#else
     static PFN_xellDestroyContext DestroyContext() { return _xellDestroyContext; }
     static PFN_xellSetSleepMode SetSleepMode() { return _xellSetSleepMode; }
     static PFN_xellGetSleepMode GetSleepMode() { return _xellGetSleepMode; }
@@ -252,64 +358,6 @@ class XeLLProxy
     static PFN_xellGetVersion GetVersion() { return _xellGetVersion; }
     static PFN_xellSetLoggingCallback SetLoggingCallback() { return _xellSetLoggingCallback; }
     static PFN_xellGetFramesReports GetFramesReports() { return _xellGetFramesReports; }
-
     static PFN_xellD3D12CreateContext D3D12CreateContext() { return _xellD3D12CreateContext; }
-
-    static bool DestroyXeLLContext()
-    {
-        LOG_DEBUG("");
-
-        if (_xellContext != nullptr)
-        {
-            auto context = _xellContext;
-            _xellContext = nullptr;
-            auto xellResult = _xellDestroyContext(context);
-
-            LOG_INFO("XeLL DestroyContext result: {} ({})", magic_enum::enum_name(xellResult), (UINT) xellResult);
-
-            // Set it back because context is not destroyed
-            if (xellResult != XELL_RESULT_SUCCESS)
-                _xellContext = context;
-        }
-
-        return true;
-    }
-
-    static bool CreateContext(ID3D12Device* device)
-    {
-        if (!InitXeLL())
-        {
-            LOG_ERROR("XeLL proxy can't find libxell.dll!");
-            return false;
-        }
-
-        if (_xellContext != nullptr)
-            DestroyXeLLContext();
-
-        xell_result_t xellResult;
-        {
-            ScopedSkipSpoofing skipSpoofing {};
-            xellResult = _xellD3D12CreateContext(device, &_xellContext);
-        }
-
-        if (xellResult != XELL_RESULT_SUCCESS)
-        {
-            LOG_ERROR("XeLL D3D12CreateContext error: {} ({})", magic_enum::enum_name(xellResult), (UINT) xellResult);
-            return false;
-        }
-        else
-        {
-            LOG_INFO("XeLL context created");
-        }
-
-        xellResult = SetLoggingCallback()(_xellContext, XELL_LOGGING_LEVEL_DEBUG, xellLogCallback);
-        if (xellResult != XELL_RESULT_SUCCESS)
-        {
-            LOG_ERROR("XeLL SetLoggingCallback error: {} ({})", magic_enum::enum_name(xellResult), (UINT) xellResult);
-        }
-
-        return true;
-    }
-
-    static xell_context_handle_t Context() { return _xellContext; }
+#endif
 };

@@ -1,6 +1,7 @@
 #include <pch.h>
 #include <Config.h>
 #include "IFeature.h"
+#include "fsr31/FSROutputScaling.h"
 
 void IFeature::SetHandle(unsigned int InHandleId)
 {
@@ -69,22 +70,15 @@ bool IFeature::SetInitParameters(NVSDK_NGX_Parameter* InParameters)
         }
 
         // First check state to prevent upscaler re-init loops
-        if (State::Instance().AutoExposure.has_value())
+        if (State::Instance().autoExposure.has_value())
         {
-            LOG_INFO("AutoExposure flag overrided by OptiScaler: {}", State::Instance().AutoExposure.value());
-            _initFlags.AutoExposure = State::Instance().AutoExposure.value();
+            LOG_INFO("AutoExposure flag overrided by OptiScaler: {}", State::Instance().autoExposure.value());
+            _initFlags.AutoExposure = State::Instance().autoExposure.value();
         }
         else if (Config::Instance()->AutoExposure.has_value())
         {
             LOG_INFO("AutoExposure flag overrided by user: {}", Config::Instance()->AutoExposure.value());
             _initFlags.AutoExposure = Config::Instance()->AutoExposure.value();
-        }
-        else if ((State::Instance().NVNGX_Engine == NVSDK_NGX_ENGINE_TYPE_UNREAL ||
-                  State::Instance().gameQuirks & GameQuirk::ForceUnrealEngine) &&
-                 Name()[0] == 'X')
-        {
-            LOG_INFO("AutoExposure flag overrided by OptiScaler (UE+XeSS): true");
-            _initFlags.AutoExposure = true;
         }
         else
         {
@@ -270,7 +264,7 @@ float IFeature::GetSharpness(const NVSDK_NGX_Parameter* InParameters)
     return sharpness;
 }
 
-void IFeature::TickFrozenCheck()
+void IFeature::TickFrozenCheck(uint32_t presentPerEval)
 {
     static long updatesWithoutFramecountChange = 0;
 
@@ -285,7 +279,7 @@ void IFeature::TickFrozenCheck()
 
         lastFrameCount = _frameCount;
 
-        _featureFrozen = updatesWithoutFramecountChange > 10;
+        _featureFrozen = updatesWithoutFramecountChange > (10 * presentPerEval);
     }
 }
 
@@ -298,45 +292,27 @@ bool IFeature::UpdateOutputResolution(const NVSDK_NGX_Parameter* InParameters)
     InParameters->Get("FSR.upscaleSize.width", &fsrDynamicOutputWidth);
     InParameters->Get("FSR.upscaleSize.height", &fsrDynamicOutputHeight);
 
-    if (Config::Instance()->OutputScalingEnabled.value_or_default())
-    {
-        if (_targetWidth == fsrDynamicOutputWidth || _targetHeight == fsrDynamicOutputHeight)
-            return false;
+    // The request is a display size. Compare it with the display on both axes: the target is
+    // derived from the display when the feature is recreated (scaled, or the render size under
+    // ExtendedLimits), so comparing the request with the target mixes the two spaces.
+    const auto display = FSROutputScaling::ResolveDynamicDisplay(fsrDynamicOutputWidth, fsrDynamicOutputHeight,
+                                                                  { _displayWidth, _displayHeight });
+    if (!display.has_value())
+        return false;
 
-        if (fsrDynamicOutputWidth > 0 && fsrDynamicOutputHeight > 0 &&
-            ((unsigned int) (fsrDynamicOutputWidth * Config::Instance()->OutputScalingMultiplier.value_or_default()) !=
-                 _targetWidth ||
-             fsrDynamicOutputWidth != _displayWidth ||
-             (unsigned int) (fsrDynamicOutputHeight * Config::Instance()->OutputScalingMultiplier.value_or_default()) !=
-                 _targetHeight ||
-             fsrDynamicOutputHeight != _displayHeight))
-        {
-            _targetWidth = static_cast<unsigned int>(fsrDynamicOutputWidth *
-                                                     Config::Instance()->OutputScalingMultiplier.value_or_default());
-            _displayWidth = fsrDynamicOutputWidth;
-            _targetHeight = static_cast<unsigned int>(fsrDynamicOutputHeight *
-                                                      Config::Instance()->OutputScalingMultiplier.value_or_default());
-            _displayHeight = fsrDynamicOutputHeight;
+    _displayWidth = display->width;
+    _displayHeight = display->height;
 
-            return true;
-        }
-    }
-    else
-    {
-        if (fsrDynamicOutputWidth > 0 && fsrDynamicOutputHeight > 0 &&
-            (fsrDynamicOutputWidth != _targetWidth || fsrDynamicOutputWidth != _displayWidth ||
-             fsrDynamicOutputHeight != _targetHeight || fsrDynamicOutputHeight != _displayHeight))
-        {
-            _targetWidth = fsrDynamicOutputWidth;
-            _displayWidth = fsrDynamicOutputWidth;
-            _targetHeight = fsrDynamicOutputHeight;
-            _displayHeight = fsrDynamicOutputHeight;
+    // Provisional until the recreation this requests derives the feature's own target.
+    const auto& cfg = *Config::Instance();
+    const auto target = cfg.OutputScalingEnabled.value_or_default()
+                            ? FSROutputScaling::ResolveSize(*display, cfg.OutputScalingMultiplier.value_or_default(),
+                                                            std::numeric_limits<uint32_t>::max())
+                            : *display;
+    _targetWidth = target.width;
+    _targetHeight = target.height;
 
-            return true;
-        }
-    }
-
-    return false;
+    return true;
 }
 
 void IFeature::GetDynamicOutputResolution(NVSDK_NGX_Parameter* InParameters, unsigned int* width, unsigned int* height)

@@ -207,12 +207,14 @@ ffxReturnCode_t ffxCreateContext_Dx12(ffxContext* context, ffxCreateContextDescH
     // Game is creating FSR-FG swapchain and calling present twice per frame
     // So when using OptiFG I am hijacking FSR-FG swapchain
     // It would crash the games which uses swapchain for FG
-    if ((type == FFXStructType::SwapchainDX12 || type == FFXStructType::FG) &&
-        (state.activeFgInput == FGInput::FSRFG ||
-         (Config::Instance()->FGAlwaysCaptureFSRFGSwapchain.value_or_default() &&
-          state.activeFgOutput != FGOutput::NoFG && state.activeFgOutput != FGOutput::Nukems &&
-          (desc->type == FFX_API_CREATE_CONTEXT_DESC_TYPE_FRAMEGENERATIONSWAPCHAIN_NEW_DX12 ||
-           desc->type == FFX_API_CREATE_CONTEXT_DESC_TYPE_FRAMEGENERATIONSWAPCHAIN_FOR_HWND_DX12))))
+    const bool isFgType = type == FFXStructType::SwapchainDX12 || type == FFXStructType::FG;
+    const bool swapchainCreationType =
+        desc->type == FFX_API_CREATE_CONTEXT_DESC_TYPE_FRAMEGENERATIONSWAPCHAIN_NEW_DX12 ||
+        desc->type == FFX_API_CREATE_CONTEXT_DESC_TYPE_FRAMEGENERATIONSWAPCHAIN_FOR_HWND_DX12;
+    const bool unaffectedOutput = state.activeFgOutput == FGOutput::NoFG || state.activeFgInput == FGInput::NvngxFG;
+    const bool shouldCaptureGamesSwapchain = Config::Instance()->FGAlwaysCaptureFSRFGSwapchain.value_or_default() &&
+                                             !unaffectedOutput && swapchainCreationType;
+    if (isFgType && (state.activeFgInput == FGInput::FSRFG || shouldCaptureGamesSwapchain))
     {
         auto result = ffxCreateContext_Dx12FG(context, desc, memCb);
 
@@ -255,39 +257,10 @@ ffxReturnCode_t ffxCreateContext_Dx12(ffxContext* context, ffxCreateContextDescH
             return ffxApiResult;
     }
 
-    if (!state.NvngxDx12Inited)
+    if (!state.nvngxDx12Inited)
     {
         NVSDK_NGX_FeatureCommonInfo fcInfo {};
-
         auto exePath = Util::ExePath().remove_filename();
-        auto nvngxDlssPath = Util::FindFilePath(exePath, "nvngx_dlss.dll");
-        auto nvngxDlssDPath = Util::FindFilePath(exePath, "nvngx_dlssd.dll");
-        auto nvngxDlssGPath = Util::FindFilePath(exePath, "nvngx_dlssg.dll");
-
-        std::vector<std::wstring> pathStorage;
-
-        pathStorage.push_back(exePath.wstring());
-        if (nvngxDlssPath.has_value())
-            pathStorage.push_back(nvngxDlssPath.value().parent_path().wstring());
-
-        if (nvngxDlssDPath.has_value())
-            pathStorage.push_back(nvngxDlssDPath.value().parent_path().wstring());
-
-        if (nvngxDlssGPath.has_value())
-            pathStorage.push_back(nvngxDlssGPath.value().parent_path().wstring());
-
-        if (Config::Instance()->DLSSFeaturePath.has_value())
-            pathStorage.push_back(Config::Instance()->DLSSFeaturePath.value());
-
-        // Build pointer array
-        wchar_t const** paths = new const wchar_t*[pathStorage.size()];
-        for (size_t i = 0; i < pathStorage.size(); ++i)
-        {
-            paths[i] = pathStorage[i].c_str();
-        }
-
-        fcInfo.PathListInfo.Path = paths;
-        fcInfo.PathListInfo.Length = (int) pathStorage.size();
 
         auto nvResult = NVSDK_NGX_D3D12_Init_with_ProjectID(
             OPTI_GUID, state.NVNGX_Engine, OPTI_VERSION, exePath.c_str(), _d3d12Device, &fcInfo,
@@ -428,9 +401,9 @@ ffxReturnCode_t ffxQuery_Dx12(ffxContext* context, ffxQueryDescHeader* desc)
     if (desc == nullptr)
         return FFX_API_RETURN_ERROR_PARAMETER;
 
-    LOG_DEBUG("type: {}", FfxApiProxy::GetTypeName(desc->type));
-
     auto type = FfxApiProxy::GetIndirectType(desc);
+    LOG_DEBUG("Header type: {}, Indirect type: {}", FfxApiProxy::GetTypeName(desc->type), magic_enum::enum_name(type));
+
     if (type == FFXStructType::SwapchainDX12 || type == FFXStructType::FG)
     {
         ffxReturnCode_t result = PASSTHRU_RETURN_CODE;
@@ -510,6 +483,20 @@ ffxReturnCode_t ffxQuery_Dx12(ffxContext* context, ffxQueryDescHeader* desc)
         else if (type == FFXStructType::Upscaling)
         {
             ver = FfxApiProxy::VersionDx12_SR();
+
+            providerDesc->versionId =
+                0xF5A5'CA1Eui64 << 32 | (((ver.major << 22) | (ver.minor << 12) | ver.patch) & 0xFFFFFFFF);
+        }
+        else if (type == FFXStructType::Denoiser)
+        {
+            ver = FfxApiProxy::VersionDx12_RR();
+
+            providerDesc->versionId =
+                0xF5A5'CA1Eui64 << 32 | (((ver.major << 22) | (ver.minor << 12) | ver.patch) & 0xFFFFFFFF);
+        }
+        else if (type == FFXStructType::RadianceCache)
+        {
+            ver = FfxApiProxy::VersionDx12_RC();
 
             providerDesc->versionId =
                 0xF5A5'CA1Eui64 << 32 | (((ver.major << 22) | (ver.minor << 12) | ver.patch) & 0xFFFFFFFF);
@@ -669,7 +656,7 @@ ffxReturnCode_t ffxDispatch_Dx12(ffxContext* context, ffxDispatchDescHeader* des
     LOG_DEBUG("handle: {:X}, internalResolution: {}x{}", handle->Id, dispatchDesc->renderSize.width,
               dispatchDesc->renderSize.height);
 
-    State::Instance().setInputApiName = "FFX-DX12";
+    State::Instance().setInputApiName = ApiUpscalerInput::FFX_DX12;
 
     auto evalResult = NVSDK_NGX_D3D12_EvaluateFeature((ID3D12GraphicsCommandList*) dispatchDesc->commandList, handle,
                                                       params, nullptr);

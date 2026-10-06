@@ -200,40 +200,10 @@ static ffxReturnCode_t ffxCreateContext_Dx12(ffxContext* context, ffxCreateConte
     if (!upscaleContext)
         return ffxApiResult;
 
-    if (!State::Instance().NvngxDx12Inited)
+    if (!State::Instance().nvngxDx12Inited)
     {
         NVSDK_NGX_FeatureCommonInfo fcInfo {};
-
         auto exePath = Util::ExePath().remove_filename();
-        auto nvngxDlssPath = Util::FindFilePath(exePath, "nvngx_dlss.dll");
-        auto nvngxDlssDPath = Util::FindFilePath(exePath, "nvngx_dlssd.dll");
-        auto nvngxDlssGPath = Util::FindFilePath(exePath, "nvngx_dlssg.dll");
-
-        std::vector<std::wstring> pathStorage;
-
-        pathStorage.push_back(exePath.wstring());
-
-        if (nvngxDlssPath.has_value())
-            pathStorage.push_back(nvngxDlssPath.value().parent_path().wstring());
-
-        if (nvngxDlssDPath.has_value())
-            pathStorage.push_back(nvngxDlssDPath.value().parent_path().wstring());
-
-        if (nvngxDlssGPath.has_value())
-            pathStorage.push_back(nvngxDlssGPath.value().parent_path().wstring());
-
-        if (Config::Instance()->DLSSFeaturePath.has_value())
-            pathStorage.push_back(Config::Instance()->DLSSFeaturePath.value());
-
-        // Build pointer array
-        wchar_t const** paths = new const wchar_t*[pathStorage.size()];
-        for (size_t i = 0; i < pathStorage.size(); ++i)
-        {
-            paths[i] = pathStorage[i].c_str();
-        }
-
-        fcInfo.PathListInfo.Path = paths;
-        fcInfo.PathListInfo.Length = (int) pathStorage.size();
 
         auto nvResult = NVSDK_NGX_D3D12_Init_with_ProjectID(
             OPTI_GUID, State::Instance().NVNGX_Engine, OPTI_VERSION, exePath.c_str(), _d3d12Device, &fcInfo,
@@ -414,7 +384,7 @@ static ffxReturnCode_t ffxDispatch_Dx12(ffxContext* context, ffxDispatchDescHead
     LOG_DEBUG("handle: {:X}, internalResolution: {}x{}", handle->Id, dispatchDesc->renderSize.width,
               dispatchDesc->renderSize.height);
 
-    State::Instance().setInputApiName = "FFX-DX12";
+    State::Instance().setInputApiName = ApiUpscalerInput::FFX_DX12;
 
     auto evalResult = NVSDK_NGX_D3D12_EvaluateFeature((ID3D12GraphicsCommandList*) dispatchDesc->commandList, handle,
                                                       params, nullptr);
@@ -477,8 +447,19 @@ void HookFfxExeInputs()
             DetourAttach(&(PVOID&) _D3D12_Query, ffxQuery_Dx12);
         }
 
-        State::Instance().fsrHooks = true;
-
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("Failed to hook Ffx Exe methods: {:X}", (UINT) detourResult);
+            _D3D12_Configure = nullptr;
+            _D3D12_CreateContext = nullptr;
+            _D3D12_DestroyContext = nullptr;
+            _D3D12_Dispatch = nullptr;
+            _D3D12_Query = nullptr;
+        }
+        else
+        {
+            State::Instance().fsrHooks = true;
+        }
     }
 }

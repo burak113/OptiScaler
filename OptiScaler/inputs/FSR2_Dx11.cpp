@@ -214,39 +214,10 @@ static FfxErrorCode ffxFsr2ContextCreate_Dx11(FfxFsr2Context* context, FfxFsr2Co
         return ccResult;
     }
 
-    if (!state.NvngxDx11Inited)
+    if (!state.nvngxDx11Inited)
     {
         NVSDK_NGX_FeatureCommonInfo fcInfo {};
-
         auto exePath = Util::ExePath().remove_filename();
-        auto nvngxDlssPath = Util::FindFilePath(exePath, "nvngx_dlss.dll");
-        auto nvngxDlssDPath = Util::FindFilePath(exePath, "nvngx_dlssd.dll");
-        auto nvngxDlssGPath = Util::FindFilePath(exePath, "nvngx_dlssg.dll");
-
-        std::vector<std::wstring> pathStorage;
-
-        pathStorage.push_back(exePath.wstring());
-        if (nvngxDlssPath.has_value())
-            pathStorage.push_back(nvngxDlssPath.value().parent_path().wstring());
-
-        if (nvngxDlssDPath.has_value())
-            pathStorage.push_back(nvngxDlssDPath.value().parent_path().wstring());
-
-        if (nvngxDlssGPath.has_value())
-            pathStorage.push_back(nvngxDlssGPath.value().parent_path().wstring());
-
-        if (Config::Instance()->DLSSFeaturePath.has_value())
-            pathStorage.push_back(Config::Instance()->DLSSFeaturePath.value());
-
-        // Build pointer array
-        wchar_t const** paths = new const wchar_t*[pathStorage.size()];
-        for (size_t i = 0; i < pathStorage.size(); ++i)
-        {
-            paths[i] = pathStorage[i].c_str();
-        }
-
-        fcInfo.PathListInfo.Path = paths;
-        fcInfo.PathListInfo.Length = (int) pathStorage.size();
 
         auto nvResult = NVSDK_NGX_D3D11_Init_with_ProjectID(
             OPTI_GUID, state.NVNGX_Engine, OPTI_VERSION, exePath.c_str(), _d3d11Device, &fcInfo,
@@ -331,7 +302,7 @@ static FfxErrorCode ffxFsr2ContextDispatch_Dx11(FfxFsr2Context* context,
     LOG_DEBUG("handle: {:X}, internalResolution: {}x{}", handle->Id, dispatchDescription->renderSize.width,
               dispatchDescription->renderSize.height);
 
-    State::Instance().setInputApiName = "FSR2.X";
+    State::Instance().setInputApiName = ApiUpscalerInput::FSR2X_DX11;
 
     auto evalResult = NVSDK_NGX_D3D11_EvaluateFeature((ID3D11DeviceContext*) dispatchDescription->commandList, handle,
                                                       params, nullptr);
@@ -502,7 +473,19 @@ void HookFSR2Dx11ExeInputs()
         LOG_DEBUG("o_ffxFsr2GetJitterPhaseCount_Dx11: {:X}", (size_t) o_ffxFsr2GetJitterPhaseCount_Dx11);
     }
 
-    State::Instance().fsrHooks = o_ffxFsr2ContextCreate_Dx11 != nullptr;
-
-    DetourTransactionCommit();
+    auto detourResult = DetourTransactionCommit();
+    if (detourResult != NO_ERROR)
+    {
+        LOG_ERROR("Failed to hook FSR2 Dx11 methods, error code: {:X}", detourResult);
+        o_ffxFsr2ContextCreate_Dx11 = nullptr;
+        o_ffxFsr2ContextDispatch_Dx11 = nullptr;
+        o_ffxFsr2ContextDestroy_Dx11 = nullptr;
+        o_ffxFsr2GetUpscaleRatioFromQualityMode_Dx11 = nullptr;
+        o_ffxFsr2GetRenderResolutionFromQualityMode_Dx11 = nullptr;
+        o_ffxFsr2GetJitterPhaseCount_Dx11 = nullptr;
+    }
+    else
+    {
+        State::Instance().fsrHooks = o_ffxFsr2ContextCreate_Dx11 != nullptr;
+    }
 }

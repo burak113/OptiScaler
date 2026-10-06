@@ -6,9 +6,12 @@
 #include <WinTrust.h>
 #include <Softpub.h>
 
+#include "Hook_Utils.h"
+
 typedef decltype(&WinVerifyTrust) PFN_WinVerifyTrust;
 static PFN_WinVerifyTrust o_WinVerifyTrust = nullptr;
 
+VALIDATE_HOOK(hkWinVerifyTrust, PFN_WinVerifyTrust)
 static LONG hkWinVerifyTrust(HWND hwnd, GUID* pgActionID, LPVOID pWVTData)
 {
     if (!pWVTData || !IsEqualGUID(*pgActionID, WINTRUST_ACTION_GENERIC_VERIFY_V2))
@@ -59,7 +62,12 @@ static void hookWintrust()
 
         DetourAttach(&(PVOID&) o_WinVerifyTrust, hkWinVerifyTrust);
 
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("DetourTransactionCommit error: {:X}", detourResult);
+            o_WinVerifyTrust = nullptr;
+        }
     }
 }
 
@@ -71,8 +79,15 @@ static void unhookWintrust()
         DetourUpdateThread(GetCurrentThread());
 
         DetourDetach(&(PVOID&) o_WinVerifyTrust, hkWinVerifyTrust);
-        o_WinVerifyTrust = nullptr;
 
-        DetourTransactionCommit();
+        auto detourResult = DetourTransactionCommit();
+        if (detourResult != NO_ERROR)
+        {
+            LOG_ERROR("DetourTransactionCommit error: {:X}", detourResult);
+        }
+        else
+        {
+            o_WinVerifyTrust = nullptr;
+        }
     }
 }
