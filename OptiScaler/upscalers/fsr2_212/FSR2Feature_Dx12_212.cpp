@@ -117,10 +117,8 @@ bool FSR2FeatureDx12_212::EvaluateInternal(ID3D12GraphicsCommandList* InCommandL
     {
         LOG_DEBUG("Output exist..");
 
-        if (Config::Instance()->OutputResourceBarrier.has_value())
-            ResourceBarrier(InCommandList, paramOutput,
-                            (D3D12_RESOURCE_STATES) Config::Instance()->OutputResourceBarrier.value(),
-                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        if (const auto outputState = TitleOutputState(paramOutput))
+            ResourceBarrier(InCommandList, paramOutput, *outputState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
         params.output = Fsr212::ffxGetResourceDX12_212(&_context, paramOutput, (wchar_t*) L"FSR2_Output",
                                                        Fsr212::FFX_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -338,9 +336,8 @@ bool FSR2FeatureDx12_212::EvaluateInternal(ID3D12GraphicsCommandList* InCommandL
         ResourceBarrier(InCommandList, paramVelocity, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                         (D3D12_RESOURCE_STATES) Config::Instance()->MVResourceBarrier.value());
 
-    if (paramOutput && Config::Instance()->OutputResourceBarrier.has_value())
-        ResourceBarrier(InCommandList, paramOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-                        (D3D12_RESOURCE_STATES) Config::Instance()->OutputResourceBarrier.value());
+    if (const auto outputState = TitleOutputState(paramOutput))
+        ResourceBarrier(InCommandList, paramOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, *outputState);
 
     if (paramDepth && Config::Instance()->DepthResourceBarrier.has_value())
         ResourceBarrier(InCommandList, paramDepth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,

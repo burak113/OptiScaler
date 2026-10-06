@@ -97,6 +97,8 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     };
 
     ffxContext _pDenoiserCtx;
+    // Destroys the RR context once the feature and all recorded work referencing it let go.
+    std::shared_ptr<FfxContextOwner> _denoiserCtxOwner;
     ffxCreateContextDescDenoiser _denoiserCtxDesc;
     // Version parsed from the selected RR provider name. Kept separate from
     // FSR31Feature::_version so the SR upscaler version that Version() reports -
@@ -127,6 +129,11 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     // structure is absent from the light (water over a visible sea floor in the G-buffer).
     // The layout reserves the slot at context creation; activation can change live.
     bool _unsupportedAlbedoRecovery = false;
+    // What the Indirect Diffuse slot of a fix plan carries this frame (see FixDiffuseRole).
+    FSRDSignals::FixDiffuse _fixDiffuse = FSRDSignals::FixDiffuse::None;
+    // Settings snapshot taken by ResolveSignalTypes for the frame being prepared.
+    FSRDSignals::Request _frameRequest;
+    bool _frameAlbedoFixAllowed = false;
     bool _extraSpecularSignal = false;
     bool _extraDiffuseSignal = false;
     uint32_t _signalMask = 0;

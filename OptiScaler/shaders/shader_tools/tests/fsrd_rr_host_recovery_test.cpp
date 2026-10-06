@@ -72,6 +72,8 @@ struct Config
     Setting<int> FfxDenoiserDiffuseRoute { FSRDSignals::Auto }, FfxDenoiserSpecularRoute { FSRDSignals::Auto };
     Setting<bool> FfxDenoiserDenoiseDiffuse { true }, FfxDenoiserDenoiseSpecular { true };
     Setting<bool> FfxDenoiserUnsupportedAlbedoRecovery { false }, FfxDenoiserEstimateHitDistances { false };
+    Setting<float> FfxDenoiserSpecularAlbedoDemodulation { 1.0f }, FfxDenoiserDiffuseAlbedoModulation { 1.0f };
+    Setting<float> FfxDenoiserAdditiveLightSplit { 0.0f };
     static Config* Instance() { static Config value; return &value; }
 };
 struct State
@@ -127,6 +129,8 @@ struct FSRDFeatureDx12
     uint32_t _signalMask = _plan.mask, signalStatus = 0;
     bool _seenSpecularDistance = false, _seenDiffuseDistance = false, _signalsObserved = false;
     bool _preprocessorHasRecordedWork = false;
+    FSRDSignals::Request _frameRequest;
+    bool _frameAlbedoFixAllowed = false;
     unsigned contextCreates = 0, contextDestroys = 0;
     RRResult nextCreate = RRResult::Success;
     struct
@@ -377,6 +381,50 @@ int main()
     invalidInput._convDesc.Resources.InSpecHitDist = &guide;
     assert(invalidInput.ResolveSignalTypes(false) == RRResult::RetryableInputFailure);
     assert(!invalidInput._seenSpecularDistance && invalidInput.contextCreates == 0);
+    // The albedo fix plans all four signals with only a specular guide: its Indirect
+    // Diffuse slot carries the unmodulated copy, whose ray length falls back to view
+    // depth. Every combination must keep resolving after work has been recorded, and a
+    // live pause must only ask for a diffuse guide when the paused slot splits the lobe.
+    auto& cfg = *Config::Instance();
+    for (int combo = 0; combo < 8; ++combo)
+    {
+        const bool fix = combo & 1, estimate = combo & 2, diffuseGuide = combo & 4;
+        cfg.FfxDenoiserUnsupportedAlbedoRecovery.value = fix;
+        cfg.FfxDenoiserEstimateHitDistances.value = estimate;
+        FSRDFeatureDx12 planned;
+        planned._convDesc.Resources.InSpecHitDist = &guide;
+        planned._convDesc.Resources.InDiffuseHitDistance = diffuseGuide ? &guide : nullptr;
+        planned._seenSpecularDistance = true;
+        planned._seenDiffuseDistance = diffuseGuide;
+        planned.CreateDenoiserContext();
+        assert(planned._plan.albedoFix == fix);
+        for (const bool recorded : {false, true})
+        {
+            planned._preprocessorHasRecordedWork = recorded;
+            for (int frame = 0; frame < 128; ++frame)
+                assert(planned.ResolveSignalTypes(true) == RRResult::Success);
+        }
+        // Pause the fix live (changed modulation), then re-enable it.
+        cfg.FfxDenoiserDiffuseAlbedoModulation.value = 0.5f;
+        const auto paused = FSRDSignals::FixDiffuseRole(planned._plan, false, diffuseGuide || estimate);
+        assert(planned.ResolveSignalTypes(true) == RRResult::Success);
+        assert(!fix || paused == (diffuseGuide || estimate ? FSRDSignals::FixDiffuse::Split
+                                                           : FSRDSignals::FixDiffuse::Empty));
+        // A split half loses its guide for a frame: retry, as any routed Indirect would.
+        planned._convDesc.Resources.InDiffuseHitDistance = nullptr;
+        const bool guideLost = diffuseGuide && !estimate;
+        assert(planned.ResolveSignalTypes(true) ==
+               (guideLost ? RRResult::RetryableInputFailure : RRResult::Success));
+        // The live fix's copy needs no title ray length.
+        cfg.FfxDenoiserDiffuseAlbedoModulation.value = 1.0f;
+        assert(planned.ResolveSignalTypes(true) ==
+               (guideLost && !fix ? RRResult::RetryableInputFailure : RRResult::Success));
+        assert(planned.contextCreates == 1 && !State::Instance().changeBackend[0]);
+    }
+    cfg.FfxDenoiserUnsupportedAlbedoRecovery.value = false;
+    cfg.FfxDenoiserEstimateHitDistances.value = false;
+    std::cout << "Production signal recovery: albedo fix with and without a diffuse guide, live pause/resume passed\n";
+
     std::cout << "Production signal recovery: guide dropout, plan upgrades, safe recreation and provider rejection passed\n";
     std::cout << "Production RR host recovery: transient/native fallback, cooldown accounting, output faults, and device loss passed\n";
 }

@@ -169,8 +169,35 @@ static void CheckConfigAdapters()
     CHECK(!AlbedoFixAllowed(cfg));
 }
 
+// Every plan's guide requirement follows what its slots carry on the frame, including the
+// fix's diffuse slot while the fix runs and while it pauses.
+static void CheckFrameRequirements()
+{
+    for (int flags = 0; flags < 64; ++flags)
+    {
+        const Request request { Auto, Auto, true, true, (flags & 1) != 0, (flags & 2) != 0 };
+        const bool specularGuide = flags & 4, diffuseGuide = flags & 8, fixLive = flags & 16;
+        const bool diffuseNow = flags & 32;
+        const Plan plan = MakePlan(request, specularGuide, diffuseGuide);
+        const bool diffuseDistance = diffuseGuide || request.estimate;
+        const FixDiffuse role = FixDiffuseRole(plan, fixLive, diffuseDistance);
+        CHECK((role == FixDiffuse::None) == !plan.albedoFix);
+        if (plan.albedoFix)
+            CHECK(role == (fixLive ? FixDiffuse::Alternate : diffuseDistance ? FixDiffuse::Split : FixDiffuse::Empty));
+        const uint32_t available = Available(specularGuide || request.estimate, diffuseNow || request.estimate, role);
+        // Planned with its guides present, a fix plan dispatches every slot unless a split
+        // half has lost the diffuse distance that made it a split.
+        if (plan.albedoFix && specularGuide)
+            CHECK(((plan.mask & ~available) == 0) == (role != FixDiffuse::Split || diffuseNow || request.estimate));
+        // Only a split lobe is halved; the fix's copies and the empty stand-in leave it whole.
+        CHECK(SplitsDiffuse(plan.mask, role) ==
+              ((plan.mask & DiffuseBits) == DiffuseBits && (role == FixDiffuse::None || role == FixDiffuse::Split)));
+    }
+}
+
 int main()
 {
+    CheckFrameRequirements();
     CheckResolve();
     CheckPlan();
     CheckLegacy();

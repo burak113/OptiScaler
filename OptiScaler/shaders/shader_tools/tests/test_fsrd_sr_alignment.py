@@ -60,6 +60,8 @@ KEY(NVSDK_NGX_Parameter_DLSS_Input_Depth_Subrect_Base_Y);
 KEY(NVSDK_NGX_Parameter_DLSS_Input_MV_SubrectBase_X);
 KEY(NVSDK_NGX_Parameter_DLSS_Input_MV_SubrectBase_Y);
 KEY(NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask);
+KEY(NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_SubrectBase_X);
+KEY(NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_SubrectBase_Y);
 namespace OptiKeys { KEY(FSR_TransparencyAndComp); KEY(FSR_Reactive); }
 struct D3D12_RESOURCE_DESC {
     uint64_t Width=0; uint32_t Height=0; int Dimension=D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -115,7 +117,7 @@ struct FSR31FeatureDx12 {
     struct InputResources { ID3D12Resource* Color=nullptr; ID3D12Resource* MotionVectors=nullptr;
         ID3D12Resource* Depth=nullptr; ID3D12Resource* TransparencyMask=nullptr;
         ID3D12Resource* ReactiveMask=nullptr; ID3D12Resource* DlssBiasMaskFallback=nullptr;
-        ID3D12Resource* ExposureMap=nullptr; } _inputBuffers;
+        ID3D12Resource* ExposureMap=nullptr; bool DlssBiasMaskMisaligned=false; } _inputBuffers;
     ID3D12Resource* _upscalerOutput=nullptr;
     struct { uint32_t flags=0; } _upscaleCtxDesc;
     bool lowRes=true,autoExposure=true,inited=true,_isInReset=false;
@@ -289,6 +291,20 @@ int main() try {
         ffxDispatchDescUpscale d;
         need(s.feature.PrepareUpscalerInput(&s.list,s.params,d),"unbound optional display-MV depth origin irrelevant");
         need(d.depth.resource==nullptr,"absent optional depth stays absent");
+    }
+    // Masks: SR binds them from zero. A bias mask whose declared origin RR's conversion
+    // honours is kept away from SR instead of being read at other pixels, and the frame runs.
+    for(int origin=0;origin!=4;++origin) {
+        Scenario s; ID3D12Resource bias{704,392,77};
+        s.params.resources[NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask]=&bias;
+        if(origin==1) s.params.integers[NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_SubrectBase_X]=64;
+        if(origin==2) s.params.integers[NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_SubrectBase_Y]=32;
+        if(origin==3) bias.desc.Width=639;
+        ffxDispatchDescUpscale d;
+        need(s.feature.PrepareUpscalerInput(&s.list,s.params,d),"mask origin never refuses the frame");
+        need(s.feature._inputBuffers.DlssBiasMaskFallback==&bias,"bias mask still reaches conversion barriers");
+        need(s.feature._inputBuffers.DlssBiasMaskMisaligned==(origin!=0),"only an offset or short bias mask is kept from SR");
+        need(s.feature.maskWork==1,"mask selection still runs");
     }
     need(!CoversRegion(0xffffffffu,0xffffffffu,{0xffffffffu,0xffffffffu},{1,1}),"offset sums never wrap");
     auto stale=ResolveMotionRegion({64,32},{640,360},{1280,720},true,704,392);

@@ -162,6 +162,39 @@ constexpr Plan MakePlan(Request request, bool specularGuide, bool diffuseGuide)
     return plan;
 }
 
+// What the Indirect Diffuse slot of a four-signal fix plan carries on a frame. The live fix
+// sends the unmodulated diffuse copy, whose ray length falls back to primary view depth, so
+// it needs no guide. A paused fix (changed modulation, additive split) splits the lobe as
+// before when a diffuse ray length exists; without one it sends the empty copy and keeps the
+// whole lobe on Direct Diffuse, so a paused frame never dispatches an unguided half.
+enum class FixDiffuse : int
+{
+    None,      // no fix plan: the slot follows the diffuse route
+    Alternate, // live fix: unmodulated diffuse copy
+    Split,     // paused fix with a diffuse ray length: half of the lobe
+    Empty      // paused fix without one: an empty signal, the lobe stays on Direct
+};
+constexpr FixDiffuse FixDiffuseRole(const Plan& plan, bool fixLive, bool diffuseDistance)
+{
+    if (!plan.albedoFix) return FixDiffuse::None;
+    if (fixLive) return FixDiffuse::Alternate;
+    return diffuseDistance ? FixDiffuse::Split : FixDiffuse::Empty;
+}
+// Whether the lobe is halved across its two slots (conversion HalfDiffuse, composition sum).
+constexpr bool SplitsDiffuse(uint32_t mask, FixDiffuse role)
+{
+    return (mask & DiffuseBits) == DiffuseBits && (role == FixDiffuse::None || role == FixDiffuse::Split);
+}
+// The signals a frame can dispatch with the hit distances it carries. Indirect Specular and
+// a routed Indirect Diffuse read the title's (or estimated) distance from the signal alpha;
+// the fix's own diffuse copy and its empty stand-in supply their own.
+constexpr uint32_t Available(bool specularDistance, bool diffuseDistance, FixDiffuse role)
+{
+    const bool selfGuided = role == FixDiffuse::Alternate || role == FixDiffuse::Empty;
+    return Bit(DirectDiffuse) | Bit(DirectSpecular) | (specularDistance ? Bit(IndirectSpecular) : 0u) |
+           (diffuseDistance || selfGuided ? Bit(IndirectDiffuse) : 0u);
+}
+
 // Maps the retired SignalCount/Signal1-4 or Diffuse/SpecularSignalType keys (0 Direct,
 // 1 Indirect, -1 unset) to routing. Every saved layout survives with all guides present.
 constexpr Request FromLegacy(Request request, bool hasLayout, int count, std::array<int, 4> slots, int diffuseType,

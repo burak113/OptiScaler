@@ -5,6 +5,7 @@
 
 #include "dx12/ffx_api_dx12.h"
 #include "proxies/FfxApi_Proxy.h"
+#include "misc/FfxContextOwner.h"
 
 /**
  * @brief DirectX 12 implementation of FSR 3.1/4 for OptiScaler. Translates semi-generalized
@@ -25,6 +26,9 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
         ID3D12Resource* ReactiveMask;
         ID3D12Resource* DlssBiasMaskFallback;
         ID3D12Resource* ExposureMap;
+        // The bias mask is still transitioned for FSRD's conversion, which reads it at its
+        // declared origin, but SR masks have no origin: an offset or short mask stays out of SR.
+        bool DlssBiasMaskMisaligned;
     };
 
     /**
@@ -128,6 +132,21 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
      * @brief Resets optional resource transition barriers. Used in conjunction with game quirk workarounds.
      */
     virtual void ResetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList);
+
+    /**
+     * @brief Takes ownership of a provider context created through FfxApiProxy's DX12 entry.
+     */
+    static std::shared_ptr<FfxContextOwner> AdoptContextDx12(ffxContext context, const char* name);
+
+    /**
+     * @brief Before a provider dispatch is recorded: a recorded-lifetime feature leases the
+     * context to the list, so it outlives the feature until that recording is retired.
+     * @return false when the lease is unavailable; the dispatch must then not be recorded.
+     */
+    bool RetainProviderContext(ID3D12GraphicsCommandList* InCommandList,
+                               const std::shared_ptr<FfxContextOwner>& owner);
+
+    std::shared_ptr<FfxContextOwner> _upscaleCtxOwner;
 
   private:
     InputResources _inputBuffers;

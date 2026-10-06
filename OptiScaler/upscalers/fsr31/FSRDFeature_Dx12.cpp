@@ -1913,6 +1913,7 @@ RRResult FSRDFeatureDx12::CreateDenoiserContext()
 
         LOG_INFO("[RR_DIAG] context creation succeeded: context={:X}",
                  reinterpret_cast<uintptr_t>(_pDenoiserCtx));
+        _denoiserCtxOwner = AdoptContextDx12(_pDenoiserCtx, "FSR-RR");
     }
 
     // Query default settings
@@ -2049,22 +2050,11 @@ RRResult FSRDFeatureDx12::QueryDenoiserVersions()
 
 void FSRDFeatureDx12::DestroyDenoiserContext() 
 {
-    if (_pDenoiserCtx != nullptr)
-    {
-        const uintptr_t contextAddress = reinterpret_cast<uintptr_t>(_pDenoiserCtx);
-        const ffxReturnCode_t result = FfxApiProxy::D3D12_DestroyContext(&_pDenoiserCtx, nullptr);
-
-        if (result == FFX_API_RETURN_OK)
-        {
-            LOG_INFO("[RR_DIAG] context destruction succeeded: context={:X}", contextAddress);
-        }
-        else
-        {
-            LOG_ERROR("[RR_DIAG] context destruction failed: context={:X}, result={}",
-                      contextAddress, FfxApiProxy::ReturnCodeToString(result));
-        }
-    }
-
+    // A recorded list or an unfinished submission may still reference the context;
+    // the owner destroys it once the last of them retires.
+    if (_denoiserCtxOwner)
+        LOG_INFO("[RR_DIAG] context released: context={:X}", reinterpret_cast<uintptr_t>(_pDenoiserCtx));
+    _denoiserCtxOwner.reset();
     _pDenoiserCtx = nullptr;
     _ambientOcclusionEnabled = false;
     _specularOcclusionEnabled = false;
@@ -2364,8 +2354,9 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
             compositionFlags |= (uint32_t)FSRDCompFlags::SpecularSignalDisabled;
 
         // With the albedo fix the second slot of each lobe carries its unmodulated copy;
-        // while the fix pauses (changed modulation) both slots split the lobe instead.
-        if (_extraDiffuseSignal && !_unsupportedAlbedoRecovery)
+        // while the fix pauses (changed modulation) both slots split the lobe instead,
+        // except a diffuse lobe without a ray length, which stays whole on Direct.
+        if (FSRDSignals::SplitsDiffuse(_signalMask, _fixDiffuse))
             compositionFlags |= uint32_t(FSRDCompFlags::ExtraDiffuse);
         if (_extraSpecularSignal && !_unsupportedAlbedoRecovery)
             compositionFlags |= uint32_t(FSRDCompFlags::ExtraSpecular);
@@ -2656,7 +2647,10 @@ RRResult FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InComm
 
     if (_extraDiffuseSignal)
     {
-        FSRDConvShader->GetIndirectDiffuseSignal(_indirectDiffuseSignal, _unsupportedAlbedoRecovery);
+        // The paused fix's empty stand-in is the alternate texture conversion cleared.
+        FSRDConvShader->GetIndirectDiffuseSignal(_indirectDiffuseSignal,
+                                                 _fixDiffuse == FSRDSignals::FixDiffuse::Alternate ||
+                                                     _fixDiffuse == FSRDSignals::FixDiffuse::Empty);
         signals[signalCount++] = &_indirectDiffuseSignal.header;
     }
 
@@ -3201,18 +3195,16 @@ RRResult FSRDFeatureDx12::ResolveSignalTypes(bool isReady)
 
     const auto& cfg = *Config::Instance();
     const auto request = FSRDSignals::RequestFrom(cfg);
+    // One settings snapshot per frame: conversion derives the fix's diffuse slot role and
+    // the estimate flag from it, so the requirement checked here is the one dispatched.
+    _frameRequest = request;
+    _frameAlbedoFixAllowed = FSRDSignals::AlbedoFixAllowed(cfg);
     const bool nativeSpec = _convDesc.Resources.InSpecHitDist != nullptr ||
                             _convDesc.Resources.InSpecularRayDirectionHitDistance != nullptr;
     const bool nativeDiffuse = _convDesc.Resources.InDiffuseHitDistance != nullptr &&
                                _convDesc.DiffuseHitDistanceMode != 0u;
-    const uint32_t available = FSRDSignals::Bit(FSRDSignals::DirectDiffuse) |
-                              FSRDSignals::Bit(FSRDSignals::DirectSpecular) |
-        ((nativeSpec || request.estimate) ? FSRDSignals::Bit(FSRDSignals::IndirectSpecular) : 0u) |
-        ((nativeDiffuse || request.estimate) ? FSRDSignals::Bit(FSRDSignals::IndirectDiffuse) : 0u);
-    _seenSpecularDistance |= _convDesc.Resources.InSpecHitDist != nullptr ||
-                             _convDesc.Resources.InSpecularRayDirectionHitDistance != nullptr;
-    _seenDiffuseDistance |= _convDesc.Resources.InDiffuseHitDistance != nullptr &&
-                            _convDesc.DiffuseHitDistanceMode != 0u;
+    _seenSpecularDistance |= nativeSpec;
+    _seenDiffuseDistance |= nativeDiffuse;
     _signalsObserved = true;
 
     const auto plan = FSRDSignals::MakePlan(request, _seenSpecularDistance,
@@ -3222,7 +3214,13 @@ RRResult FSRDFeatureDx12::ResolveSignalTypes(bool isReady)
         _plan.notes = plan.notes;
         PublishSignalStatus();
         // A one-frame guide dropout keeps the latched plan and its resources.
-        // It cannot safely dispatch an active indirect signal without a distance.
+        // It cannot safely dispatch an active indirect signal without a distance. What a
+        // slot needs follows what it carries this frame: the fix's diffuse copy brings its
+        // own ray length, a paused fix's split half needs the title's (or the estimate).
+        const auto role = FSRDSignals::FixDiffuseRole(_plan, _frameAlbedoFixAllowed,
+                                                      _seenDiffuseDistance || request.estimate);
+        const uint32_t available = FSRDSignals::Available(nativeSpec || request.estimate,
+                                                          nativeDiffuse || request.estimate, role);
         if (_preprocessorHasRecordedWork && (_signalMask & ~available) != 0)
             return RRResult::RetryableInputFailure;
         return RRResult::Success;
@@ -3772,16 +3770,19 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     }
     if (_specularSignalDescType == FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR)
         _convDesc.Flags |= (uint32_t)FSRDConvFlags::SpecularSignalIndirect;
-    const bool unsupportedAlbedo = _plan.albedoFix && FSRDSignals::AlbedoFixAllowed(cfg);
-    if (_unsupportedAlbedoRecovery != unsupportedAlbedo)
+    const bool estimateHitDistances = _frameRequest.estimate;
+    const bool unsupportedAlbedo = _plan.albedoFix && _frameAlbedoFixAllowed;
+    const auto fixDiffuse = FSRDSignals::FixDiffuseRole(_plan, _frameAlbedoFixAllowed,
+                                                        _seenDiffuseDistance || estimateHitDistances);
+    if (_unsupportedAlbedoRecovery != unsupportedAlbedo || _fixDiffuse != fixDiffuse)
     {
-        // The Direct Specular input switches between a half demodulated lobe and
-        // a full unmodulated alternate. Neither RR history is compatible across it.
+        // The second slots switch between half lobes, the unmodulated alternates and
+        // an empty signal. No RR history is compatible across it.
         _unsupportedAlbedoRecovery = unsupportedAlbedo;
+        _fixDiffuse = fixDiffuse;
         InvalidateDenoiserHistory();
     }
     PublishSignalStatus();
-    const bool estimateHitDistances = cfg.FfxDenoiserEstimateHitDistances.value_or_default();
     const uint32_t approximationMask = estimateHitDistances ? 3u : 0u;
     if (_appliedApproximationMask != approximationMask)
     {
@@ -3789,7 +3790,7 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
         InvalidateDenoiserHistory();
     }
     if (_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::UnsupportedAlbedo);
-    if (_extraDiffuseSignal && !_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfDiffuse);
+    if (FSRDSignals::SplitsDiffuse(_signalMask, _fixDiffuse)) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfDiffuse);
     if (_extraSpecularSignal && !_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfSpecular);
     if (estimateHitDistances)
         _convDesc.Flags |= uint32_t(FSRDConvFlags::ApproximateSpecHitDistance) |
@@ -4258,6 +4259,9 @@ RRResult FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandL
                   GetSignalTypeName(_diffuseSignalDescType),
                   GetSignalTypeName(_specularSignalDescType));
     }
+    // Same policy as the converter's own leases: without one nothing is recorded.
+    if (!RetainProviderContext(InCommandList, _denoiserCtxOwner))
+        return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
     const ffxReturnCode_t result = FfxApiProxy::D3D12_Dispatch(&_pDenoiserCtx, &dispatchDesc.header);
     _lastDispatchRequestedReset = resetRequested;
 

@@ -37,10 +37,7 @@ static void CheckFractionalScaling()
         CHECK(context.maxUpscale == example.expected);
         CHECK(context.maxRender.width >= display.width && context.maxRender.width >= context.target.width);
         CHECK(context.maxRender.height >= display.height && context.maxRender.height >= context.target.height);
-        CHECK(ResolveDispatchSize(context.target, context.maxUpscale, true, example.multiplier,
-                                  display.width, display.height) == example.expected);
-        CHECK(ResolveDispatchSize(context.target, context.maxUpscale, true, example.multiplier,
-                                  std::nullopt, std::nullopt) == example.expected);
+        CHECK(ResolveDispatchSize(context.target, context.maxUpscale) == example.expected);
     }
 
     // Fractional pixels truncate after the float product, as target allocation did before.
@@ -50,41 +47,55 @@ static void CheckFractionalScaling()
     CHECK(ResolveDimension(1920, 1.3f, TextureLimit) == 2496);
 }
 
-static void CheckOverridesAndBounds()
+// The output scaler reads the whole target, so the SR dispatch always writes all of it.
+static void CheckDispatchCoversScalerSource()
 {
     const Size target { 2880, 1620 };
-    CHECK(ResolveDispatchSize(target, target, true, 1.5f, 1280, std::nullopt) == Size { 1920, 1620 });
-    CHECK(ResolveDispatchSize(target, target, true, 1.5f, std::nullopt, 720) == Size { 2880, 1080 });
-    CHECK(ResolveDispatchSize(target, target, true, 1.5f, 0, 0) == target);
-    CHECK(ResolveDispatchSize(target, target, true, 1.5f, 1280, 0) == Size { 1920, 1620 });
-    CHECK(ResolveDispatchSize(target, target, true, 1.5f, 99999, 99999) == target);
-    CHECK(ResolveDispatchSize(target, { 2000, 1200 }, true, 1.5f, 99999, 99999) == Size { 2000, 1200 });
-    CHECK(ResolveDispatchSize({ 2000, 1200 }, target, true, 1.5f, 99999, 99999) == Size { 2000, 1200 });
-    CHECK(ResolveDispatchSize(target, { 0, 1620 }, true, 1.5f, 1920, 1080) == Size {});
-    CHECK(ResolveDispatchSize({ 0, 1620 }, target, true, 1.5f, 1920, 1080) == Size {});
+    CHECK(ResolveDispatchSize(target, target) == target);
+    CHECK(ResolveDispatchSize(target, { 2000, 1200 }) == Size { 2000, 1200 });
+    CHECK(ResolveDispatchSize({ 2000, 1200 }, target) == Size { 2000, 1200 });
+    CHECK(ResolveDispatchSize(target, { 0, 1620 }) == Size {});
+    CHECK(ResolveDispatchSize({ 0, 1620 }, target) == Size {});
 
-    // Disabled scaling and display-resolution MV ignore scaling-only size overrides.
-    for (const bool lowResMV : { false, true })
-    {
-        const auto context = ResolveContextSizes({ 1920, 1080 }, { 1280, 720 }, false, lowResMV, false,
-                                                2.5f, TextureLimit);
-        CHECK(context.valid && context.target == Size { 1920, 1080 });
-        CHECK(ResolveDispatchSize(context.target, context.maxUpscale, false, 2.5f, 1280, 720) == context.target);
-    }
-    const auto displayMotion = ResolveContextSizes({ 1920, 1080 }, { 1280, 720 }, true, false, false,
-                                                  2.5f, TextureLimit);
-    CHECK(displayMotion.target == Size { 1920, 1080 });
-    CHECK(ResolveDispatchSize(displayMotion.target, displayMotion.maxUpscale, false, 2.5f, 1920, 1080) ==
-          displayMotion.target);
+    // ExtendedLimits: the target is the render size; a request equal to the display used to
+    // shrink the dispatch to 1920x1080 while the scaler read 2560x1440.
+    const auto extended = ResolveContextSizes({ 1920, 1080 }, { 2560, 1440 }, true, true, true, 2.5f, TextureLimit);
+    CHECK(ResolveDispatchSize(extended.target, extended.maxUpscale) == extended.target);
 
     const auto saturated = ResolveContextSizes({ 7680, 4320 }, { 3840, 2160 }, true, true, false, 3.0f, TextureLimit);
     CHECK(saturated.valid && saturated.target == Size { 16384, 12960 });
-    CHECK(ResolveDispatchSize(saturated.target, saturated.maxUpscale, true, 3.0f, 7680, 4320) == saturated.target);
+    CHECK(ResolveDispatchSize(saturated.target, saturated.maxUpscale) == saturated.target);
     CHECK(ResolveDimension(1, 0.5f, TextureLimit) == 1);
     CHECK(ResolveDimension(0, 1.5f, TextureLimit) == 0);
     CHECK(ResolveDimension(1920, 1.5f, 0) == 0);
     CHECK(ResolveDimension(std::numeric_limits<uint32_t>::max(), 3.0f,
                            std::numeric_limits<uint32_t>::max()) == std::numeric_limits<uint32_t>::max());
+}
+
+// A dynamic output request is a display size: one axis alone, either axis changing, or both.
+static void CheckDynamicDisplay()
+{
+    const Size display { 1920, 1080 };
+    CHECK(!ResolveDynamicDisplay(1920, 1080, display).has_value());
+    CHECK(ResolveDynamicDisplay(1920, 1200, display) == Size { 1920, 1200 });
+    CHECK(ResolveDynamicDisplay(2560, 1080, display) == Size { 2560, 1080 });
+    CHECK(ResolveDynamicDisplay(2560, 1440, display) == Size { 2560, 1440 });
+    CHECK(ResolveDynamicDisplay(16384, 16384, display) == Size { 16384, 16384 });
+    // Incomplete requests never resize.
+    for (const auto& request : { std::pair { 0, 1200 }, std::pair { 1920, 0 }, std::pair { -1, 1200 }, std::pair { 0, 0 } })
+        CHECK(!ResolveDynamicDisplay(request.first, request.second, display).has_value());
+    // The old check compared the request with the scaled target and gave up when either axis
+    // matched: at 1.0 a 1920x1080 -> 1920x1200 request was dropped. The display decides now,
+    // whatever the multiplier.
+    for (const float multiplier : { 1.0f, 0.75f, 1.5f, 3.0f })
+    {
+        const auto context = ResolveContextSizes(display, { 1280, 720 }, true, true, false, multiplier, TextureLimit);
+        const auto next = ResolveDynamicDisplay(1920, 1200, display);
+        CHECK(next == Size { 1920, 1200 });
+        const auto rebuilt = ResolveContextSizes(*next, { 1280, 720 }, true, true, false, multiplier, TextureLimit);
+        CHECK(rebuilt.valid && rebuilt.target.height >= context.target.height);
+        CHECK(!ResolveDynamicDisplay(1920, 1200, *next).has_value());
+    }
 }
 
 static void CheckInvalidAndExtendedLimits()
@@ -98,7 +109,7 @@ static void CheckInvalidAndExtendedLimits()
         const auto context = ResolveContextSizes({ 1920, 1080 }, { 1280, 720 }, true, true, false,
                                                 invalid, TextureLimit);
         CHECK(context.valid && context.target == Size { 1920, 1080 });
-        CHECK(ResolveDispatchSize(context.target, context.maxUpscale, true, invalid, 1920, 1080) == context.target);
+        CHECK(ResolveDispatchSize(context.target, context.maxUpscale) == context.target);
     }
     for (const Size invalid : { Size { 0, 1080 }, Size { 1920, 0 }, Size { 16385, 1080 }, Size { 1920, 16385 } })
     {
@@ -113,10 +124,7 @@ static void CheckInvalidAndExtendedLimits()
     CHECK(extended.valid && extended.multiplier == 1.0f);
     CHECK(extended.target == Size { 2560, 1440 });
     CHECK(extended.maxUpscale == extended.target && extended.maxRender == extended.target);
-    CHECK(ResolveDispatchSize(extended.target, extended.maxUpscale, true, extended.multiplier,
-                              std::nullopt, std::nullopt) == extended.target);
-    CHECK(ResolveDispatchSize(extended.target, extended.maxUpscale, true, extended.multiplier,
-                              1920, 1080) == Size { 1920, 1080 });
+    CHECK(ResolveDispatchSize(extended.target, extended.maxUpscale) == extended.target);
     const auto extendedDisplayMV = ResolveContextSizes({ 1920, 1080 }, { 2560, 1440 }, true, false, true,
                                                       2.5f, TextureLimit);
     CHECK(extendedDisplayMV.target == Size { 1920, 1080 });
@@ -133,21 +141,15 @@ static void CheckAllocationDispatchAgreement()
                 const Size display { width, height };
                 const auto context = ResolveContextSizes(display, display, true, true, false, multiplier, TextureLimit);
                 CHECK(context.valid && IsValidSize(context.target, TextureLimit));
-                CHECK(ResolveDispatchSize(context.target, context.maxUpscale, true, context.multiplier,
-                                          width, height) == context.target);
-                CHECK(ResolveDispatchSize(context.target, context.maxUpscale, true, context.multiplier,
-                                          std::nullopt, std::nullopt) == context.target);
-                const auto oversized = ResolveDispatchSize(context.target, context.maxUpscale, true, multiplier,
-                                                           std::numeric_limits<uint32_t>::max(),
-                                                           std::numeric_limits<uint32_t>::max());
-                CHECK(oversized == context.target);
+                CHECK(ResolveDispatchSize(context.target, context.maxUpscale) == context.target);
             }
 }
 
 int main()
 {
     CheckFractionalScaling();
-    CheckOverridesAndBounds();
+    CheckDispatchCoversScalerSource();
+    CheckDynamicDisplay();
     CheckInvalidAndExtendedLimits();
     CheckAllocationDispatchAgreement();
     std::cout << "PASS: " << checks << " FSR output scaling checks\n";

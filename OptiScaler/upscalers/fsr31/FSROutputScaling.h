@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <optional>
 
 namespace FSROutputScaling
@@ -89,24 +90,32 @@ inline ContextSizes ResolveContextSizes(Size display, Size render, bool outputSc
     return sizes;
 }
 
-inline Size ResolveDispatchSize(Size target, Size contextMaximum, bool useOutputScaling, float multiplier,
-                                std::optional<uint32_t> overrideWidth, std::optional<uint32_t> overrideHeight)
+// The SR dispatch extent. Parent pipeline allocations use target; the SDK allocations use
+// contextMaximum, so the dispatch cannot grow past either.
+//
+// A title's dynamic upscaleSize request is not followed here. Without output scaling the
+// feature has always dispatched its target. With it, the output scaler reads the whole target
+// (its sampling spans the texture) and writes the whole display, so an SR dispatch smaller than
+// the target leaves the scaler reading texels SR never wrote this frame: a one-axis request,
+// any smaller request, and even a request equal to the display under ExtendedLimits (whose
+// target is the render size, not display x multiplier). Features that rebuild on a new output
+// size (IFeature::UpdateOutputResolution) get a target that already matches the request.
+inline Size ResolveDispatchSize(Size target, Size contextMaximum)
 {
-    // Parent pipeline allocations use target; the SDK allocations use contextMaximum.
-    // Dynamic/partial requests can shrink either axis, but cannot grow past either.
-    Size size { std::min(target.width, contextMaximum.width), std::min(target.height, contextMaximum.height) };
-    if (size.width == 0 || size.height == 0)
-        return {};
+    const Size size { std::min(target.width, contextMaximum.width), std::min(target.height, contextMaximum.height) };
+    return size.width == 0 || size.height == 0 ? Size {} : size;
+}
 
-    if (useOutputScaling)
-    {
-        // Zero overrides are invalid requests: retain the configured size for that axis.
-        if (overrideWidth.value_or(0) > 0)
-            size.width = ResolveDimension(*overrideWidth, multiplier, size.width);
-        if (overrideHeight.value_or(0) > 0)
-            size.height = ResolveDimension(*overrideHeight, multiplier, size.height);
-    }
-
-    return size;
+// A dynamic output request (FSR.upscaleSize) names the display size and needs both axes.
+// Returns the new display size when it differs from the current one on either axis; the
+// target follows from it when the feature is recreated, exactly as at creation.
+inline std::optional<Size> ResolveDynamicDisplay(int requestWidth, int requestHeight, Size currentDisplay)
+{
+    if (requestWidth <= 0 || requestHeight <= 0)
+        return std::nullopt;
+    const Size requested { static_cast<uint32_t>(requestWidth), static_cast<uint32_t>(requestHeight) };
+    if (requested == currentDisplay)
+        return std::nullopt;
+    return requested;
 }
 } // namespace FSROutputScaling

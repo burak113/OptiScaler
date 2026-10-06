@@ -9,7 +9,8 @@
 #include <unordered_map>
 #include <vector>
 
-// ComputeState ownership only: this does not retire the opaque RR provider/context.
+// Leases are opaque owners: helper-shader state and, for recorded-lifetime features, the
+// FFX provider contexts (FfxContextOwner) whose dispatches the list recorded.
 // COM calls and destruction of retained objects always occur outside the registry lock.
 namespace RecordedComputeLease
 {

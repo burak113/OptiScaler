@@ -40,6 +40,17 @@ class IFeature_Dx12 : public virtual IFeature
     void ResourceBarrier(ID3D12GraphicsCommandList* InCommandList, ID3D12Resource* InResource,
                          D3D12_RESOURCE_STATES InBeforeState, D3D12_RESOURCE_STATES InAfterState) const;
 
+    // While post-processing runs, the NGX Output parameter names an internal target, not the
+    // title's output. The configured output state (OutputResourceBarrier) describes only the
+    // title's resource: Evaluate applies it to that resource at the pipeline boundary, and an
+    // upscaler applies it only when it writes the title's resource itself.
+    std::optional<D3D12_RESOURCE_STATES> TitleOutputState(ID3D12Resource* output) const;
+
+  private:
+    ID3D12Resource* _internalOutput = nullptr;
+
+  protected:
+
     virtual bool InitInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) = 0;
     virtual bool EvaluateInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters) = 0;
 

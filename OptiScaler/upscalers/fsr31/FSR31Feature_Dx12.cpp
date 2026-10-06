@@ -2,6 +2,7 @@
 #include <Config.h>
 #include <Util.h>
 #include <proxies/FfxApi_Proxy.h>
+#include <resource_tracking/ResTrack_Dx12.h>
 #include "FSR31Feature_Dx12.h"
 #include "FSROutputScaling.h"
 #include "NVNGX_Parameter.h"
@@ -109,11 +110,38 @@ FSR31FeatureDx12::FSR31FeatureDx12(unsigned int InHandleId, NVSDK_NGX_Parameter*
 
 inline FSR31FeatureDx12::~FSR31FeatureDx12()
 {
-    if (State::Instance().isShuttingDown)
-        return;
+    // Recorded lists and unfinished submissions may still hold the context; the
+    // last of them destroys it.
+    _upscaleCtxOwner.reset();
+    _upscaleCtx = nullptr;
+}
 
-    if (_upscaleCtx != nullptr)
-        FfxApiProxy::D3D12_DestroyContext(&_upscaleCtx, NULL);
+std::shared_ptr<FfxContextOwner> FSR31FeatureDx12::AdoptContextDx12(ffxContext context, const char* name)
+{
+    return std::make_shared<FfxContextOwner>(
+        context, name, FfxApiProxy::D3D12_DestroyContext, [] { return State::Instance().isShuttingDown; },
+        [](const char* contextName, ffxContext destroyed, ffxReturnCode_t result)
+        {
+            if (result == FFX_API_RETURN_OK)
+                LOG_INFO("{} context destroyed after its recorded work retired: context={:X}", contextName,
+                         reinterpret_cast<uintptr_t>(destroyed));
+            else
+                LOG_ERROR("{} context destruction failed: context={:X}, result={}", contextName,
+                          reinterpret_cast<uintptr_t>(destroyed), FfxApiProxy::ReturnCodeToString(result));
+        });
+}
+
+bool FSR31FeatureDx12::RetainProviderContext(ID3D12GraphicsCommandList* InCommandList,
+                                             const std::shared_ptr<FfxContextOwner>& owner)
+{
+    if (!owner)
+        return false;
+    if (!UsesRecordedComputeLifetime())
+        return true;
+    if (ResTrack_Dx12::RetainComputeDispatch(Device, InCommandList, owner))
+        return true;
+    LOG_ERROR("Cannot tie the provider context to this command list's lifetime; skipping the dispatch");
+    return false;
 }
 
 bool FSR31FeatureDx12::InitInternal(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters)
@@ -226,6 +254,7 @@ bool FSR31FeatureDx12::CreateUpscalerContext(const NVSDK_NGX_Parameter& ngxParam
             LOG_ERROR("_upscaleCtx error: {0}", FfxApiProxy::ReturnCodeToString(ret));
             return false;
         }
+        _upscaleCtxOwner = AdoptContextDx12(_upscaleCtx, "FSR SR");
 
         // A new context starts with SDK defaults and may expose different keys.
         _upscaleSettings.ResetForContext();
@@ -455,6 +484,24 @@ bool FSR31FeatureDx12::PrepareUpscalerInput(ID3D12GraphicsCommandList* InCommand
     TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask,
                          _inputBuffers.DlssBiasMaskFallback);
     TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_ExposureTexture, _inputBuffers.ExposureMap);
+
+    // Only the bias mask can carry an origin; FFX's own masks never do. Leave it out of SR
+    // unless SR's zero-origin read sees the same pixels RR's conversion reads at the origin.
+    if (_inputBuffers.DlssBiasMaskFallback)
+    {
+        using namespace FSRInputAlignment;
+        Origin biasOrigin {};
+        inParams.Get(NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_SubrectBase_X, &biasOrigin.x);
+        inParams.Get(NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_SubrectBase_Y, &biasOrigin.y);
+        const D3D12_RESOURCE_DESC biasDesc = _inputBuffers.DlssBiasMaskFallback->GetDesc();
+        _inputBuffers.DlssBiasMaskMisaligned =
+            biasOrigin.x != 0 || biasOrigin.y != 0 ||
+            !CoversRegion(biasDesc.Width, biasDesc.Height, {},
+                          { upscalerDesc.renderSize.width, upscalerDesc.renderSize.height });
+        if (_inputBuffers.DlssBiasMaskMisaligned)
+            LOG_DEBUG("[SR_INPUT] DLSS bias mask origin ({},{}) or extent does not match SR's zero-origin "
+                      "masks; SR runs without it", biasOrigin.x, biasOrigin.y);
+    }
 
     // If not AutoExposure, we must have an exposure texture. If missing, force AutoExposure reset.
     if (!AutoExposure() && !_inputBuffers.ExposureMap)
@@ -700,15 +747,8 @@ void FSR31FeatureDx12::ConfigureUpscaler(const NVSDK_NGX_Parameter& inParams, ff
                               FFX_API_CONFIGURE_UPSCALE_KEY_FMINDISOCCLUSIONACCUMULATION, "Min Disocclusion Acc.");
     }
 
-    uint32_t requestedWidth = 0;
-    uint32_t requestedHeight = 0;
-    const bool hasWidth = inParams.Get(OptiKeys::FSR_UpscaleWidth, &requestedWidth) == NVSDK_NGX_Result_Success;
-    const bool hasHeight = inParams.Get(OptiKeys::FSR_UpscaleHeight, &requestedHeight) == NVSDK_NGX_Result_Success;
     const auto outputSize = FSROutputScaling::ResolveDispatchSize(
-        { TargetWidth(), TargetHeight() }, { _upscaleCtxDesc.maxUpscaleSize.width, _upscaleCtxDesc.maxUpscaleSize.height },
-        cfg.OutputScalingEnabled.value_or_default() && LowResMV(), cfg.OutputScalingMultiplier.value_or_default(),
-        hasWidth ? std::optional<uint32_t>(requestedWidth) : std::nullopt,
-        hasHeight ? std::optional<uint32_t>(requestedHeight) : std::nullopt);
+        { TargetWidth(), TargetHeight() }, { _upscaleCtxDesc.maxUpscaleSize.width, _upscaleCtxDesc.maxUpscaleSize.height });
     upscalerDesc.upscaleSize.width = outputSize.width;
     upscalerDesc.upscaleSize.height = outputSize.height;
 }
@@ -719,6 +759,8 @@ bool FSR31FeatureDx12::DispatchUpscaler(ID3D12GraphicsCommandList* InCommandList
     auto& state = State::Instance();
 
     LOG_DEBUG("Dispatching FSR...");
+    if (!RetainProviderContext(InCommandList, _upscaleCtxOwner))
+        return false;
     const ffxReturnCode_t result = FfxApiProxy::D3D12_Dispatch(&_upscaleCtx, &fsrParams.header);
 
     if (result != FFX_API_RETURN_OK)
@@ -759,16 +801,20 @@ void FSR31FeatureDx12::GetReactiveAndTransparencyMasks(ID3D12GraphicsCommandList
             activeReactiveMask = inputs.ReactiveMask;
 
         // Fallback to DLSS Bias mask if FSR reactive is missing
-        if (!activeReactiveMask && inputs.DlssBiasMaskFallback)
+        if (!activeReactiveMask && inputs.DlssBiasMaskFallback && !inputs.DlssBiasMaskMisaligned)
         {
             LOG_DEBUG("Using DLSS Input Bias mask as fallback...");
             cfg.DisableReactiveMask.set_volatile_value(false);
 
-            // Handle Bias generation (Compute Shader)
-            if (cfg.DlssReactiveMaskBias.value_or_default() > 0.0f && Bias->IsInit() && Bias->CanRender())
+            // Handle Bias generation (Compute Shader). A bias of 0 turns the reactive mask off;
+            // the raw mask is no reactive mask (it may still serve as transparency below).
+            // The buffer is allocated first: CanRender() asks whether it exists. A recorded-
+            // lifetime feature allocates a leased buffer per list, so the list is required.
+            if (cfg.DlssReactiveMaskBias.value_or_default() > 0.0f && Bias->IsInit())
             {
                 if (Bias->CreateBufferResource(Device, inputs.DlssBiasMaskFallback,
-                                               D3D12_RESOURCE_STATE_UNORDERED_ACCESS))
+                                               D3D12_RESOURCE_STATE_UNORDERED_ACCESS, InCommandList) &&
+                    Bias->CanRender())
                 {
                     Bias->SetBufferState(InCommandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -780,9 +826,14 @@ void FSR31FeatureDx12::GetReactiveAndTransparencyMasks(ID3D12GraphicsCommandList
                     }
                     else
                     {
-                        LOG_DEBUG("Skipping reactive mask, Bias: {0}, Bias Init: {1}, Bias CanRender: {2}",
-                                  cfg.DlssReactiveMaskBias.value_or_default(), Bias->IsInit(), Bias->CanRender());
+                        LOG_DEBUG("Skipping reactive mask, Bias dispatch failed: {0}",
+                                  cfg.DlssReactiveMaskBias.value_or_default());
                     }
+                }
+                else
+                {
+                    // SR still runs, only without the reactive mask.
+                    LOG_DEBUG("Skipping reactive mask, Bias buffer allocation failed");
                 }
             }
 
@@ -823,8 +874,10 @@ void FSR31FeatureDx12::SetConfigurableBarriers(ID3D12GraphicsCommandList* InComm
         TryResourceBarrier(InCommandList, _inputBuffers.ExposureMap, cfg.ExposureResourceBarrier,
                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-    // Transition output to UAV for writing
-    TryResourceBarrier(InCommandList, _upscalerOutput, cfg.OutputResourceBarrier, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    // Transition output to UAV for writing. An internal post-processing target has its own
+    // state owner; the title's output is then handled by IFeature_Dx12::Evaluate.
+    if (const auto outputState = TitleOutputState(_upscalerOutput))
+        ResourceBarrier(InCommandList, _upscalerOutput, *outputState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
 void FSR31FeatureDx12::ResetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList)
@@ -838,7 +891,8 @@ void FSR31FeatureDx12::ResetConfigurableBarriers(ID3D12GraphicsCommandList* InCo
                        cfg.MVResourceBarrier);
     TryResourceBarrier(InCommandList, _inputBuffers.Depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                        cfg.DepthResourceBarrier);
-    TryResourceBarrier(InCommandList, _upscalerOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, cfg.OutputResourceBarrier);
+    if (const auto outputState = TitleOutputState(_upscalerOutput))
+        ResourceBarrier(InCommandList, _upscalerOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, *outputState);
 
     if (_inputBuffers.ExposureMap && !AutoExposure())
         TryResourceBarrier(InCommandList, _inputBuffers.ExposureMap, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,

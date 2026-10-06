@@ -23,6 +23,8 @@
 // BISECT bridge: fork-only wide-log macros used by the fork proxy body
 #include <spdlog/spdlog.h>
 #include <string>
+#include <mutex>
+#include <optional>
 #define WLOG_DEBUG(...) spdlog::debug(__VA_ARGS__)
 #define WLOG_INFO(...) spdlog::info(__VA_ARGS__)
 #define WLOG_WARN(...) spdlog::warn(__VA_ARGS__)
@@ -109,7 +111,37 @@ class FfxApiProxy
     inline static FfxModule radiance_dx12_hooked;
     inline static FfxModule main_vk_hooked;
 
+    // Contexts are created on the render thread and may be destroyed on whichever thread
+    // releases their last owner, so every access goes through these helpers. The lock is
+    // never held across a provider call (a provider may re-enter the proxy).
     inline static ankerl::unordered_dense::map<ffxContext, FFXStructType> contextToType;
+    inline static std::mutex contextToTypeMutex;
+
+    static void RecordContextType(ffxContext context, FFXStructType type)
+    {
+        std::lock_guard lock(contextToTypeMutex);
+        contextToType[context] = type;
+    }
+
+    // Removes the mapping before the provider destroys the context: once destroyed, its
+    // address may be handed to a new context on another thread.
+    static std::optional<FFXStructType> TakeContextType(ffxContext context)
+    {
+        std::lock_guard lock(contextToTypeMutex);
+        const auto it = contextToType.find(context);
+        if (it == contextToType.end())
+            return std::nullopt;
+        const FFXStructType type = it->second;
+        contextToType.erase(it);
+        return type;
+    }
+
+    // A failed destroy leaves the context alive, so its routing must survive for a retry.
+    static void RestoreContextType(ffxContext context, FFXStructType type)
+    {
+        std::lock_guard lock(contextToTypeMutex);
+        contextToType.try_emplace(context, type);
+    }
 
     inline static bool _skipDestroyCalls = false;
 
@@ -536,7 +568,7 @@ class FfxApiProxy
         const auto recordContextType = [context, type](ffxReturnCode_t result)
         {
             if (result == FFX_API_RETURN_OK && context && *context)
-                contextToType[*context] = type;
+                RecordContextType(*context, type);
 
             return result;
         };
@@ -603,19 +635,29 @@ class FfxApiProxy
 
     static ffxReturnCode_t D3D12_DestroyContext(ffxContext* context, const ffxAllocationCallbacks* memCb)
     {
-        ffxReturnCode_t result = FFX_API_RETURN_ERROR;
-        auto type = FFXStructType::Unknown;
+        if (context == nullptr)
+            return FFX_API_RETURN_ERROR_PARAMETER;
 
-        if (contextToType.contains(*context))
-        {
-            type = contextToType[*context];
-            LOG_DEBUG("Found context type mapping: {}", magic_enum::enum_name(type));
-            contextToType.erase(*context);
-        }
+        const ffxContext key = *context;
+        const auto mapped = TakeContextType(key);
+        if (mapped.has_value())
+            LOG_DEBUG("Found context type mapping: {}", magic_enum::enum_name(*mapped));
         else
-        {
             LOG_DEBUG("No context type mapping found, defaulting to Unknown");
-        }
+
+        const ffxReturnCode_t result =
+            D3D12_DestroyRouted(context, memCb, mapped.value_or(FFXStructType::Unknown));
+        // Keep a context that no module destroyed routable. A destroyed key is never
+        // restored: its address may already belong to a new context.
+        if (result != FFX_API_RETURN_OK && mapped.has_value())
+            RestoreContextType(key, *mapped);
+        return result;
+    }
+
+    static ffxReturnCode_t D3D12_DestroyRouted(ffxContext* context, const ffxAllocationCallbacks* memCb,
+                                               FFXStructType type)
+    {
+        ffxReturnCode_t result = FFX_API_RETURN_ERROR;
 
         // Normal destructor routing
         switch (type)

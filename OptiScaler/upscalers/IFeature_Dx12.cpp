@@ -6,6 +6,14 @@
 #include "IFeature_Dx12.h"
 #include "State.h"
 
+std::optional<D3D12_RESOURCE_STATES> IFeature_Dx12::TitleOutputState(ID3D12Resource* output) const
+{
+    const auto& configured = Config::Instance()->OutputResourceBarrier;
+    if (output == nullptr || output == _internalOutput || !configured.has_value())
+        return std::nullopt;
+    return static_cast<D3D12_RESOURCE_STATES>(configured.value());
+}
+
 void IFeature_Dx12::ResourceBarrier(ID3D12GraphicsCommandList* InCommandList, ID3D12Resource* InResource,
                                     D3D12_RESOURCE_STATES InBeforeState, D3D12_RESOURCE_STATES InAfterState) const
 {
@@ -289,6 +297,14 @@ bool IFeature_Dx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX
     InParameters->Set(NVSDK_NGX_Parameter_Output, currentTarget);
     cleanup.outputChanged = recordedRR;
 
+    // The upscaler must not apply the title's output state to the internal target.
+    struct InternalOutputScope
+    {
+        ID3D12Resource*& internalOutput;
+        ~InternalOutputScope() { internalOutput = nullptr; }
+    } internalOutputScope { _internalOutput };
+    _internalOutput = currentTarget != paramOutput ? currentTarget : nullptr;
+
     UpscalerTime->Start(InCommandList);
 
     auto evalResult = EvaluateInternal(InCommandList, InParameters);
@@ -297,6 +313,25 @@ bool IFeature_Dx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX
 
     if (!evalResult)
         return false;
+
+    // The last pass writes the title's output as a UAV. Move it out of its configured
+    // state for the passes and back afterwards, on every exit path.
+    struct TitleOutputTransition
+    {
+        const IFeature_Dx12& feature;
+        ID3D12GraphicsCommandList* list;
+        ID3D12Resource* output;
+        std::optional<D3D12_RESOURCE_STATES> state;
+        ~TitleOutputTransition()
+        {
+            if (state)
+                feature.ResourceBarrier(list, output, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, *state);
+        }
+    } titleOutputTransition { *this, InCommandList, paramOutput,
+                              _internalOutput ? TitleOutputState(paramOutput) : std::nullopt };
+    if (titleOutputTransition.state)
+        ResourceBarrier(InCommandList, paramOutput, *titleOutputTransition.state,
+                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
     // Iterate FORWARDS to execute the shaders in the defined order
     for (auto& pass : pipeline)
