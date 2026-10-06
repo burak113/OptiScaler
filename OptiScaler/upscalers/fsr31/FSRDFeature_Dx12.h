@@ -2,6 +2,7 @@
 #include "FSR31Feature_Dx12.h"
 #include "hooks/Streamline_Hooks.h"
 #include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
+#include "shaders/depth_encode/DE_Dx12.h"
 #include <array>
 #include <atomic>
 #include <mutex>
@@ -188,6 +189,12 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
 
     bool _isHWDepth = false;
     bool _warnedLinearSRDepth = false;
+    // Re-encodes RR's canonical linear depth as device depth for SR when the title's main
+    // depth is linear; FFX SR has no linear-depth mode.
+    std::unique_ptr<DE_Dx12> _srDepthEncoder;
+    bool _srDepthEncoded = false;
+    bool EncodeSRDepth(ID3D12GraphicsCommandList* InCommandList, ffxDispatchDescUpscale& upscalerDesc,
+                       std::function<void()>& cleanup);
     bool _ngxReportedHWDepth = false;
     bool _hasNGXDepthType = false;
     int _appliedHardwareDepth = -1;

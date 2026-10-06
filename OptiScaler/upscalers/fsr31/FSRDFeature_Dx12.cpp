@@ -2048,6 +2048,49 @@ RRResult FSRDFeatureDx12::QueryDenoiserVersions()
     return RRResult::Success;
 }
 
+bool FSRDFeatureDx12::EncodeSRDepth(ID3D12GraphicsCommandList* InCommandList, ffxDispatchDescUpscale& upscalerDesc,
+                                    std::function<void()>& cleanup)
+{
+    // The floor seed's canonical signed-linear depth: render-local, in the units of
+    // NearPlane/FarPlane, and left in the shader-resource state composition read it in.
+    ID3D12Resource* linearDepth = FSRDConvShader ? FSRDConvShader->GetDenoiserLinearDepthInput() : nullptr;
+    if (!linearDepth || !InCommandList)
+        return false;
+
+    if (!_srDepthEncoder)
+    {
+        _srDepthEncoder = std::make_unique<DE_Dx12>("SR Depth Encode", Device);
+        _srDepthEncoder->SetRecordedLifetimeEnabled(true);
+    }
+    if (!_srDepthEncoder->IsInit())
+        return false;
+
+    // Encode for the planes handed to SR below and for the flags its context was created
+    // with, so SR's decode returns RR's distance.
+    const DE_Dx12::Encoding encoding {
+        _convDesc.NearPlane, _convDesc.FarPlane,
+        (_upscaleCtxDesc.flags & FFX_UPSCALE_ENABLE_DEPTH_INVERTED) != 0,
+        (_upscaleCtxDesc.flags & FFX_UPSCALE_ENABLE_DEPTH_INFINITE) != 0
+    };
+
+    if (!_srDepthEncoder->CreateBufferResource(Device, linearDepth, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                                               InCommandList))
+        return false;
+    cleanup = _srDepthEncoder->RecordedBufferCleanup(InCommandList);
+
+    ID3D12Resource* deviceDepth = _srDepthEncoder->Buffer();
+    _srDepthEncoder->SetBufferState(InCommandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    if (!_srDepthEncoder->Dispatch(InCommandList, linearDepth, encoding, upscalerDesc.renderSize.width,
+                                   upscalerDesc.renderSize.height, deviceDepth))
+        return false;
+    _srDepthEncoder->SetBufferState(InCommandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+    upscalerDesc.depth = ffxApiGetResourceDX12(deviceDepth, FFX_API_RESOURCE_STATE_COMPUTE_READ);
+    upscalerDesc.cameraNear = encoding.cameraNear;
+    upscalerDesc.cameraFar = encoding.cameraFar;
+    return true;
+}
+
 void FSRDFeatureDx12::DestroyDenoiserContext() 
 {
     // A recorded list or an unfinished submission may still reference the context;
@@ -2450,15 +2493,28 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                 FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
 
         upscalerDesc.reset = upscalerDesc.reset || _upscalerResetPending;
-        // FFX SR reads device depth (no linear mode: its view depth is b / (d - a)). RR accepts
-        // a linear main depth, SR gets the same resource unconverted: it still runs, but its
-        // depth-based dilation and disocclusion use wrong distances. Say so once per instance.
-        if (!_isHWDepth && !_warnedLinearSRDepth)
+        // FFX SR reads device depth (no linear mode: its view depth is b / (d - a)). With a
+        // linear main depth, SR reads RR's canonical linear depth re-encoded for its planes
+        // and flags. Should that fail, SR gets the title's resource as before: it still
+        // runs, with approximate depth dilation and disocclusion. Say so once per instance.
+        struct SRDepthCleanup
+        {
+            std::function<void()> run;
+            ~SRDepthCleanup() { if (run) run(); }
+        } srDepthCleanup;
+        const bool srDepthEncoded = !_isHWDepth && upscalerInputMode == UpscalerInputMode::RRComposition &&
+                                    EncodeSRDepth(InCommandList, upscalerDesc, srDepthCleanup.run);
+        if (!_isHWDepth && !srDepthEncoded && !_warnedLinearSRDepth)
         {
             _warnedLinearSRDepth = true;
-            LOG_WARN("[SR_INPUT] the title's main depth is linear; FSR SR expects device depth, so its "
-                     "disocclusion and depth dilation are approximate on this title");
+            LOG_WARN("[SR_INPUT] the title's main depth is linear and reaches FSR SR unconverted "
+                     "(re-encoding failed or a debug path skips it); SR disocclusion and depth "
+                     "dilation are approximate");
         }
+        // SR's depth history is in the encoding it last saw; restart it on a switch.
+        if (srDepthEncoded != _srDepthEncoded)
+            upscalerDesc.reset = true;
+        _srDepthEncoded = srDepthEncoded;
         {
             FSRDStageTimings::Scope timing(&_stageTimings, FSRDStageTimings::SuperResolution);
             isUpscalerReady = DispatchUpscaler(InCommandList, upscalerDesc);
