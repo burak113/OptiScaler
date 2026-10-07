@@ -288,7 +288,6 @@ CONV_FLAG_NAMES = {
     "ApproximateSpecHitDistance": "FLAGS_APPROXIMATE_SPEC_HIT_DISTANCE",
     "ApproximateRayHitDistance": "FLAGS_APPROXIMATE_RAY_HIT_DISTANCE",
     "UnsupportedAlbedo": "FLAGS_UNSUPPORTED_ALBEDO",
-    "ExperimentBleedModelSource": "FLAGS_EXPERIMENT_BLEED_MODEL_SOURCE",
     "Debug": "FLAGS_DEBUG",
     "DebugModeMask": "FLAGS_DEBUG_MODE_MASK",
 }
@@ -623,6 +622,52 @@ def check_additive_capture_heap():
         fail("RRTraceAdditive capture heap SRV count must use Conversion::Input::kCount")
 
 
+def check_additive_capture_flags():
+    # Evaluate the production helper itself, rather than reproducing its mask here.
+    # The former 0xffff mask kept ordinary guides but silently dropped Bleed Fix,
+    # half-lobe splits and estimated hit distances from the diagnostic dispatch.
+    source = read(ADDITIVE_CAPTURE_INL)
+    helper = brace_body(source, "uint32_t AdditiveConversionFlags(")
+    returned = re.search(r'\breturn\s+([^;]+);', helper)
+    if not returned:
+        fail("RRTraceAdditive flag helper must return a conversion flag expression")
+        return
+    expression = re.sub(r'uint32_t\((ConvFlags::\w+)\)', r'\1', returned.group(1))
+    expression = expression.replace("ConvFlags::", "")
+    enum = cpp_enum_values(read(PRE_H), "ConvFlags")
+    plain = {name: value for name, value in enum.items()
+             if name not in CONV_DEBUG_NAMES and name != "None"}
+    resolved = {}
+    for name, value in plain.items():
+        numeric = evaluate(value, resolved, "additive flags " + name)
+        if numeric is None:
+            return
+        resolved[name] = numeric
+    debug = resolved["Debug"]
+    production = [value for name, value in resolved.items()
+                  if name not in ("Debug", "DebugModeMask")]
+    combined = 0
+    for value in production:
+        combined |= value
+    # Each individual flag and the complete production word must survive every
+    # possible menu debug mode. A debug-only word must become zero.
+    for original in [0, *production, combined]:
+        for mode in range(MAX_DEBUG_MODE + 1):
+            value = original | debug | (mode << 17)
+            actual = evaluate(expression, {**resolved, "flags": value},
+                              "RRTraceAdditive flag helper")
+            if actual != original:
+                fail("RRTraceAdditive changes production flags: input 0x%X, expected 0x%X, got %s"
+                     % (value, original, "None" if actual is None else "0x%X" % actual))
+                return
+    capture = brace_body(source, "void CaptureAdditive(")
+    if not re.search(r'constants\.Flags\s*=\s*AdditiveConversionFlags\(constants\.Flags\)\s*;', capture):
+        fail("RRTraceAdditive diagnostic dispatch must use the verified conversion flag helper")
+    metadata = brace_body(source, "void PollAdditiveCapture(")
+    if not re.search(r'"\\\"trace_conversion_flags\\\":"\s*<<\s*AdditiveConversionFlags\(c\.constants\.Flags\)', metadata):
+        fail("RRTraceAdditive metadata must report the diagnostic dispatch's conversion flags")
+
+
 # ---------------------------------------------------------------- debug mode names
 
 def check_debug_mode_names():
@@ -746,6 +791,7 @@ if __name__ == "__main__":
     check_flags()
     check_resources()
     check_additive_capture_heap()
+    check_additive_capture_flags()
     check_debug_mode_names()
     check_albedo_storage()
     check_composition_variants()

@@ -7,10 +7,10 @@
 // for it is that the albedo varies while the light does not: on a real texture the light
 // carries the albedo's structure (or structure of its own), on a hidden surface it is flat.
 //
-// The light is judged on RR's own output of the unmodulated specular path plus the
-// remodulated diffuse path and the diffuse part of Skip. That witness is denoised and,
-// unlike the final image, contains no albedo imprint of its own, so a strong existing stain
-// cannot vouch for the albedo that caused it. Output: x = unsupported structure, y = albedo
+// Full recovery judges light on the sum of RR's two unmodulated outputs. Both carry
+// complete radiance, so the witness does not mix their temporal history with the current
+// frame's Floor or the main residual. Specular-only recovery retains the remodulated
+// diffuse path and its share of Skip. Output: x = unsupported structure, y = albedo
 // structure mass; FSRDAlbedoTrustPropagate spreads both over the surface before
 // composition takes their ratio.
 #include "FSRDPreprocessCommon.hlsli"
@@ -47,6 +47,8 @@ cbuffer CB_AlbedoTrust : register(b0)
 #define THREAD_GROUP_SIZE_X 8
 #define THREAD_GROUP_SIZE_Y 8
 #define NUM_THREADS 64
+#define FLAGS_EXTRA_DIFFUSE (1u << 0)
+#define FLAGS_DIFFUSE_ALTERNATE (1u << 1)
 // Radius four: the 9x9 window the replayed captures were evaluated with.
 DEFINE_LDS_CONFIG(s_SM, 9);
 groupshared float g_LogAlbedo[16][16];
@@ -68,12 +70,8 @@ float3 SpecularShare(float3 spec, float3 diff)
 float3 DiffuseSkip(int2 q, float3 spec, float3 diff)
 {
     const float3 specLoss = float3(InIndirectSpecularSignal[q].rgb) * (max(max(spec, DemodDivisorFloor), 1e-4f) - spec);
-    const float3 diffLoss = float3(InDirectDiffuseSignal[q].rgb) * ((Flags & 1u) != 0 ? 2.0f : 1.0f) *
+    const float3 diffLoss = float3(InDirectDiffuseSignal[q].rgb) * ((Flags & FLAGS_EXTRA_DIFFUSE) != 0 ? 2.0f : 1.0f) *
         (max(max(diff, DemodDivisorFloor), 1e-4f) - diff);
-    // Experiment (Flags bit 1): the current frame's Floor share of Skip is no
-    // light witness, so only the divisor-floor loss is kept.
-    if ((Flags & 2u) != 0)
-        return diffLoss;
     return (float3(InSkipSignal[q].rgb) - specLoss - diffLoss) * (1.0f - SpecularShare(spec, diff)) + diffLoss;
 }
 
@@ -93,10 +91,21 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             const int2 source = origin + s;
             const int2 q = clamp(source, 0, bounds);
             const float3 spec = InSpecularAlbedo[q].rgb, diff = InDiffuseAlbedo[q].rgb;
-            const float3 witness = float3(InDirectSpecularDenoised[q].rgb) +
-                (float3(InDirectDiffuse[q].rgb) +
-                 ((Flags & 1u) != 0 ? float3(InIndirectDiffuseDenoised[q].rgb) : 0.0f)) * diff +
-                DiffuseSkip(q, spec, diff);
+            float3 witness = float3(InDirectSpecularDenoised[q].rgb);
+            [branch]
+            if ((Flags & FLAGS_DIFFUSE_ALTERNATE) != 0)
+            {
+                // The alternate diffuse signal is already unmodulated complete
+                // radiance. Multiplying it by diffuse albedo or adding Floor would
+                // let unrelated current-frame structure drive the trust vote.
+                witness += float3(InIndirectDiffuseDenoised[q].rgb);
+            }
+            else
+            {
+                witness += (float3(InDirectDiffuse[q].rgb) +
+                    ((Flags & FLAGS_EXTRA_DIFFUSE) != 0 ? float3(InIndirectDiffuseDenoised[q].rgb) : 0.0f)) * diff +
+                    DiffuseSkip(q, spec, diff);
+            }
             // Clamping makes loads safe, but repeated border texels cannot count
             // as independent support. Mark them invalid once while loading LDS.
             const bool eligible = all(source >= 0) && all(source <= bounds) &&

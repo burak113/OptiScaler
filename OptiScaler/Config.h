@@ -518,7 +518,8 @@ class Config
     // 0 restores the behaviour where the mask was bound but unused.
     CustomOptional<float> FfxDenoiserBiasMaskStrength { 1.0f };
 
-    // Spatial Floor and independently selected, master-scaled recovery paths.
+    // Floor assists RR and supplies the detail reference; RR remains the denoiser.
+    // Recovery paths are independently selected and master-scaled.
     CustomOptional<float> FfxDenoiserSpecularAlbedoDemodulation{1.0f};
     CustomOptional<float> FfxDenoiserDiffuseAlbedoModulation{1.0f};
     // Experimental local color/albedo fit; zero preserves the existing signal split.
@@ -542,11 +543,6 @@ class Config
     // against the input over 8x8 tiles, accumulated over time. Off by default: in
     // game it did not bring back volumetrics, which RR blurs rather than removes.
     CustomOptional<float> FfxDenoiserVolumeRestore { 0.0f };
-    // Experiments for the light flicker seen only with Floor and Albedo Bleed Fix together.
-    // A: keep Floor's material-model source with Bleed Fix (no clipped zero-mean residual).
-    // B: the bleed-fix albedo-trust witness ignores the current frame's Floor share of Skip.
-    CustomOptional<bool> FfxDenoiserExperimentBleedModelSource { false };
-    CustomOptional<bool> FfxDenoiserExperimentBleedWitnessWithoutFloor { false };
     // Reduced Floor pass policy is the Balanced default; Quality uses five passes.
     CustomOptional<bool> FfxDenoiserFloorFastMode { true };
     // Selects the clean-lighting Floor Seed PSO (coherent witness + local projection).

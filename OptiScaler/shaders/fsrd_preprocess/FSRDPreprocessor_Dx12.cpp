@@ -1947,7 +1947,7 @@ struct FSRDPreprocessor_Dx12::Impl
             .DstTexSize = desc.DstTexSize,
             .StepSize = 0,
             .Flags = ((desc.Flags & uint32_t(CompFlags::ExtraDiffuse)) != 0 ? 1u : 0u) |
-                     (desc.ExperimentWitnessWithoutFloor ? 2u : 0u),
+                     ((desc.Flags & uint32_t(CompFlags::DiffuseAlternate)) != 0 ? 2u : 0u),
             .DemodDivisorFloor = desc.DemodDivisorFloor
         };
         TrustEvidence::Input evidenceIn = { .Resources = {

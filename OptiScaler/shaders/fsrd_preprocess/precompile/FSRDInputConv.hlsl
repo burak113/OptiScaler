@@ -169,8 +169,6 @@ Texture2D<float> InRoughness : register(t4); // R - May be packed in normals. NV
 #define FLAGS_APPROXIMATE_SPEC_HIT_DISTANCE (1 << 26)
 #define FLAGS_APPROXIMATE_RAY_HIT_DISTANCE (1 << 27)
 #define FLAGS_UNSUPPORTED_ALBEDO (1 << 28)
-// Experiment: keep the ordinary material-model source with Albedo Bleed Fix.
-#define FLAGS_EXPERIMENT_BLEED_MODEL_SOURCE (1 << 29)
 
 Texture2D<float> InSpecHitDist : register(t5); // R - NVSDK_NGX_Parameter_DLSSD_SpecularHitDistance
 Texture2D<half3> InDiffAlbedo : register(t6); // RGB - NVSDK_NGX_Parameter_GBuffer_DiffuseAlbedo
@@ -895,7 +893,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         isZeroRoughness == 0.0f && biasWeight == 0.0f && isEmissive == 0.0f &&
         !modelRouted && all(isfinite(floorModel)) && all(isfinite(materialSlope)) &&
         all(isfinite(detailReference)) &&
-        (!IsSet(FLAGS_UNSUPPORTED_ALBEDO) || IsSet(FLAGS_EXPERIMENT_BLEED_MODEL_SOURCE)) &&
+        !IsSet(FLAGS_UNSUPPORTED_ALBEDO) &&
         !IsSet(FLAGS_HALF_DIFFUSE) && !IsSet(FLAGS_HALF_SPECULAR) &&
         specularStrength == 1.0f && diffuseStrength == 1.0f &&
         ValidSurfaceAlbedos(inputSpecReflectance, inputDiffAlbedo) &&

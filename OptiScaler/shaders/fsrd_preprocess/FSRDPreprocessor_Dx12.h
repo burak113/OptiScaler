@@ -112,8 +112,6 @@ class FSRDPreprocessor_Dx12
         ApproximateSpecHitDistance = 1 << 26,
         ApproximateRayHitDistance = 1 << 27,
         UnsupportedAlbedo = 1 << 28,
-        // Experiment: keep the ordinary material-model source with Albedo Bleed Fix.
-        ExperimentBleedModelSource = 1 << 29,
         DebugDemodRisk =         42 << 17 | Debug, // Diagnostic: does the demod divisor implant structure
     };
 
@@ -299,8 +297,6 @@ class FSRDPreprocessor_Dx12
         // Scale of the energy RR removed from the input (fog, beams) that is added
         // back after composition; 0 disables it. Needs ConversionDesc::VolumeRestore.
         float VolumeRestoreStrength = 0.0f;
-        // Experiment: the albedo-trust witness ignores the current frame's Floor share of Skip.
-        bool ExperimentWitnessWithoutFloor = false;
     };
 
   public:

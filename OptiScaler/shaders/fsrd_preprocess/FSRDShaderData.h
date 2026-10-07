@@ -419,7 +419,7 @@ namespace FSRD
         {
             XMFLOAT4 DstTexSize;
             int32_t StepSize;
-            uint32_t Flags;
+            uint32_t Flags; // Bit 0: split diffuse; bit 1: full unmodulated diffuse alternate.
             float DemodDivisorFloor;
             float _Reserved0;
         };

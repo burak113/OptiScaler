@@ -3399,19 +3399,20 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                     MARK_ALL_BACKENDS_CHANGED();
                 }
             }
-            if (ImGui::CollapsingHeader("Volumetric Restore"))
+            if (ImGui::CollapsingHeader("Volumetric Restore (experimental)"))
             {
                 ScopedIndent indent;
                 if (float v = config->FfxDenoiserVolumeRestore.value_or_default();
                     ImGui::SliderFloat("Restore Strength", &v, 0.0f, 1.0f))
                     config->FfxDenoiserVolumeRestore = v;
                 if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("Adds back the light RR removes from the input (fog, light beams, "
-                                      "transparent layers). RR's image is only added to, never filtered. "
-                                      "0 disables it.");
+                    ImGui::SetTooltip("Experimental tile-energy compensation after RR. Adds a smooth "
+                                      "layer for a measured input/output energy shortfall. It did not "
+                                      "recover volumetric structure blurred by RR in game. 0 disables it.");
                 ImGui::TextWrapped(
                     "Experimental, off by default. Compares RR's output with the game's input over 8x8 "
-                    "tiles, keeps the systematic shortfall over time and adds it back as a smooth layer.");
+                    "tiles, keeps the systematic shortfall over time and adds it back as a smooth layer. "
+                    "In-game tests did not recover fog or light-beam structure blurred by RR.");
                 if (ImGui::Button("Reset Volumetric Restore"))
                     config->FfxDenoiserVolumeRestore.reset();
             }
@@ -3426,7 +3427,9 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                     ImGui::Checkbox("Faster Floor filtering", &v))
                     config->FfxDenoiserFloorFastMode = v;
                 if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("Reduces Floor filtering cost. Can change lighting smoothness and leave more noise. Disable for full quality.");
+                    ImGui::SetTooltip("Uses three Floor filter passes instead of five. Enabled by default "
+                                      "in Balanced. The five-pass path costs more and changes lighting/detail "
+                                      "filtering; compare temporal stability and texture detail in game.");
                 if (bool v = config->FfxDenoiserFloorCleanLighting.value_or_default();
                     ImGui::Checkbox("Preserve clean lighting patterns", &v))
                     config->FfxDenoiserFloorCleanLighting = v;
@@ -3437,8 +3440,9 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                                       "Adds about 0.5 ms Floor Seed time at 1440p.");
                 ImGui::EndDisabled();
                 ImGui::TextWrapped(
-                    "Separates smooth lighting before RR. Enabled: one seed and five filter passes "
-                    "(three with faster filtering). Disabled: only the seed prepares depth.");
+                    "Assists RR and detail recovery with a spatial lighting reference. AMD RR denoises "
+                    "the remaining signals. Enabled: one seed and five filter passes (three with faster "
+                    "filtering). Disabled: only the seed prepares depth.");
                 if (ImGui::Button("Reset Floor"))
                 {
                     config->FfxDenoiserFloorEnabled.reset();
@@ -3456,7 +3460,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip(
                         "Master detail recovery strength. Zero skips its neighbourhood/history work; "
-                        "Floor and Unsupported Albedo have their own controls.");
+                        "Floor and Albedo Bleed Fix have their own controls.");
                 if (bool v = config->FfxDenoiserFloorFlatRecovery.value_or_default();
                     ImGui::Checkbox("Flat Albedo & Zero Rough Recovery", &v))
                     config->FfxDenoiserFloorFlatRecovery = v;
@@ -3504,9 +3508,15 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                 if (float v = config->FfxDenoiserFloorHandoverAnchorClamp.value_or_default();
                     ImGui::SliderFloat("Handover Anchor", &v, 0, 8))
                     config->FfxDenoiserFloorHandoverAnchorClamp = v;
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Limits transferred reference contrast using local RR variation. "
+                                      "0 disables this limit. Default: 4.");
                 if (float v = config->FfxDenoiserFloorHandoverCorrelationMix.value_or_default();
                     ImGui::SliderFloat("Handover Correlation Mix", &v, 0, 1))
                     config->FfxDenoiserFloorHandoverCorrelationMix = v;
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Rejects reference detail already explained by RR. "
+                                      "0 disables this rejection. Default: 1.");
                 if (float v = config->FfxDenoiserFloorLumaRecovery.value_or_default();
                     ImGui::SliderFloat("Luma Recovery", &v, 0, 1))
                     config->FfxDenoiserFloorLumaRecovery = v;

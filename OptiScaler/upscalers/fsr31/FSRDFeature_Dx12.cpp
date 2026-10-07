@@ -2435,8 +2435,6 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                 ? 1.0f : 0.0f,
             .DemodDivisorFloor = _convDesc.DemodDivisorFloor,
             .VolumeRestoreStrength = _convDesc.VolumeRestore ? _volumeRestoreStrength : 0.0f,
-            .ExperimentWitnessWithoutFloor = _convDesc.FloorEnabled &&
-                Config::Instance()->FfxDenoiserExperimentBleedWitnessWithoutFloor.value_or_default()
         };
 
         // ColorBeforeParticles is a whole scene guide, not a premultiplied overlay.
@@ -3866,8 +3864,6 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
         InvalidateDenoiserHistory();
     }
     if (_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::UnsupportedAlbedo);
-    if (_unsupportedAlbedoRecovery && cfg.FfxDenoiserExperimentBleedModelSource.value_or_default())
-        _convDesc.Flags |= uint32_t(FSRDConvFlags::ExperimentBleedModelSource);
     if (FSRDSignals::SplitsDiffuse(_signalMask, _fixDiffuse)) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfDiffuse);
     if (_extraSpecularSignal && !_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfSpecular);
     if (estimateHitDistances)

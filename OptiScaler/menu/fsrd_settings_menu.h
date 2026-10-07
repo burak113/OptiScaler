@@ -140,10 +140,10 @@ inline void DrawWorkflow(const FSRDRuntimeSnapshot& snapshot)
     using R = FSRDRuntimeSnapshot;
     const char* steps[] = {
         "1. Validate color, depth, motion, normals, roughness, albedo and camera transforms.",
-        "2. Floor filters stable scene lighting and prepares the detail reference.",
+        "2. Floor assists RR with a spatial lighting and detail reference.",
         "3. Convert guides and split scene color into the selected RR signals.",
         "4. AMD Ray Regeneration denoises the bound diffuse/specular signals.",
-        "5. Albedo Bleed Fix builds surface trust from the alternate specular copy.",
+        "5. Albedo Bleed Fix builds surface trust from the alternate RR copies.",
         "6. Compose denoised light, restore material color and apply enabled recovery.",
         "7. FSR Super Resolution upscales the composed image.",
         "8. Finish sharpening/output scaling and return the final output to the game."
@@ -311,19 +311,6 @@ inline bool DrawAlbedoFix(Config& cfg, const FSRDSignals::Status& status)
         ImGui::TextColored(Green, "Running.");
     else
         ImGui::TextDisabled("Starting...");
-    // Temporary A/B switches for the light flicker seen only with Floor and this fix together.
-    if (bool v = cfg.FfxDenoiserExperimentBleedModelSource.value_or_default();
-        ImGui::Checkbox("Experiment A: Floor model source", &v))
-        cfg.FfxDenoiserExperimentBleedModelSource = v;
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Experimental. With Floor on, keeps Floor's material-model route that is used when this "
-                          "fix is off, instead of sending RR a clipped residual around the model's mean.");
-    if (bool v = cfg.FfxDenoiserExperimentBleedWitnessWithoutFloor.value_or_default();
-        ImGui::Checkbox("Experiment B: trust without Floor", &v))
-        cfg.FfxDenoiserExperimentBleedWitnessWithoutFloor = v;
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Experimental. The surface-trust evidence of this fix ignores the current frame's "
-                          "Floor share of Skip, so it follows only RR's temporally stable output.");
     ImGui::Unindent();
     return rebuild;
 }
