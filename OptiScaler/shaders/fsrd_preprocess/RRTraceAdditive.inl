@@ -1,5 +1,11 @@
 // Included inside Impl. All resources are capture-owned until queue completion
 // AND command-list Reset. No frame-count heuristic is used for readback safety.
+    static constexpr uint32_t AdditiveConversionFlags(uint32_t flags) noexcept
+    {
+        // Preserve every production flag, including the signal split and Bleed Fix.
+        return flags & ~uint32_t(ConvFlags::DebugModeMask);
+    }
+
     struct AdditiveCapture
     {
         ComputeState shader;
@@ -48,7 +54,7 @@
                      << "\"render_size\":["<<c.constants.DstTexSize.x<<','<<c.constants.DstTexSize.y<<"],"
                      << "\"configured_strength\":"<<c.constants.AdditiveLightSplit<<','
                      << "\"conversion_flags\":"<<c.constants.Flags<<','
-                     << "\"trace_conversion_flags\":"<<(c.constants.Flags&0xffffu)<<','
+                     << "\"trace_conversion_flags\":"<<AdditiveConversionFlags(c.constants.Flags)<<','
                      << "\"specular_modulation\":"<<c.constants.SpecularAlbedoDemodulation<<','
                      << "\"diffuse_modulation\":"<<c.constants.DiffuseAlbedoModulation<<','
                      << "\"demod_divisor_floor\":"<<c.constants.DemodDivisorFloor<<','
@@ -173,7 +179,9 @@
             m_additiveCapture=std::move(c);
             auto& capture=*m_additiveCapture;
             auto constants=original;
-            constants.Flags &= 0xffffu; // Capture normal conversion, not menu debug-color replacement.
+            // Debug view bits alone are excluded: high bits encode the actual signal
+            // split, hit-distance policy and Bleed Fix source used by production.
+            constants.Flags = AdditiveConversionFlags(constants.Flags);
             constants.InspectorScale=float(capture.x); constants.DebugDepthMax=float(capture.y);
             std::array<ID3D12Resource*,8> outputs {};
             for (UINT i=0;i<8;++i) outputs[i]=capture.scratch[i].Get();
