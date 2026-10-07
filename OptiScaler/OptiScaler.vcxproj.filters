@@ -1013,6 +1013,18 @@
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFloorSeed_Shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFloorSeedCleanLighting_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDVolumeGather_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDVolumeAccumulate_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDVolumeApply_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFloor_Shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -1664,6 +1676,18 @@
       <Filter>Header Files</Filter>
     </None>
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFloorSeed.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDFloorSeedCleanLighting.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDVolumeGather.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDVolumeAccumulate.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDVolumeApply.hlsl">
       <Filter>Header Files</Filter>
     </None>
     <None Include="shaders\fsrd_preprocess\precompile\FSRDInputConv.hlsl">

@@ -48,6 +48,8 @@ TRUST_EVIDENCE_HLSL = os.path.join(PRE, "FSRDAlbedoTrustEvidence.hlsl")
 TRUST_PROPAGATE_HLSL = os.path.join(PRE, "FSRDAlbedoTrustPropagate.hlsl")
 PREPROCESSOR_CPP = os.path.join(ROOT, "OptiScaler", "shaders", "fsrd_preprocess",
                                 "FSRDPreprocessor_Dx12.cpp")
+ADDITIVE_CAPTURE_INL = os.path.join(ROOT, "OptiScaler", "shaders", "fsrd_preprocess",
+                                   "RRTraceAdditive.inl")
 
 errors = []
 
@@ -286,6 +288,7 @@ CONV_FLAG_NAMES = {
     "ApproximateSpecHitDistance": "FLAGS_APPROXIMATE_SPEC_HIT_DISTANCE",
     "ApproximateRayHitDistance": "FLAGS_APPROXIMATE_RAY_HIT_DISTANCE",
     "UnsupportedAlbedo": "FLAGS_UNSUPPORTED_ALBEDO",
+    "ExperimentBleedModelSource": "FLAGS_EXPERIMENT_BLEED_MODEL_SOURCE",
     "Debug": "FLAGS_DEBUG",
     "DebugModeMask": "FLAGS_DEBUG_MODE_MASK",
 }
@@ -608,6 +611,18 @@ def check_resources():
                 fail("%s count assertion differs from shader bindings" % assertion)
 
 
+def check_additive_capture_heap():
+    # Capture forwards the entire Conversion::Input span to a shader that includes
+    # FSRDInputConv.hlsl. Its heap must grow with that span, including the UAV offset.
+    capture = brace_body(read(ADDITIVE_CAPTURE_INL), "void CaptureAdditive(")
+    initialize = re.search(
+        r'c->shader\.Initialize\s*\(\s*m_pDev\s*,\s*GetAsByteSpan\s*\(\s*'
+        r'RRTraceAdditive_cso\s*\)\s*,\s*sizeof\s*\(\s*original\s*\)\s*,\s*([^,]+),',
+        capture)
+    if not initialize or initialize.group(1).strip() != "Conversion::Input::kCount":
+        fail("RRTraceAdditive capture heap SRV count must use Conversion::Input::kCount")
+
+
 # ---------------------------------------------------------------- debug mode names
 
 def check_debug_mode_names():
@@ -730,6 +745,7 @@ if __name__ == "__main__":
     check_constants()
     check_flags()
     check_resources()
+    check_additive_capture_heap()
     check_debug_mode_names()
     check_albedo_storage()
     check_composition_variants()

@@ -4,7 +4,7 @@ No new game setting. A CPU-estimated allocation field is injected ONLY in a
 separate test shader. Runtime promotion requires all independent quality gates.
 """
 from pathlib import Path
-import argparse, hashlib, json, shutil, subprocess, time
+import argparse, hashlib, json, re, shutil, subprocess, time
 import numpy as np
 import run_fsrd_gpu_tests as t
 from fsrd_toolchain import dxc, compile_cpp
@@ -54,12 +54,19 @@ def scene_data(name,frames,seed):
     return a
 
 
+def research_field_slot(directory):
+    source = (Path(directory)/'FSRDInputConv.hlsl').read_text()
+    return int(re.search(r'\bResearchField\s*:\s*register\s*\(\s*t(\d+)\s*\)', source)[1])
+
+
 def build_field_shader(output):
     directory=Path(output)/'field_shader'; directory.mkdir(parents=True,exist_ok=True)
     for src in t.PRE.glob('*.hlsl*'): shutil.copy2(src,directory/src.name)
     p=directory/'FSRDInputConv.hlsl'; s=p.read_text()
-    s=s.replace('SRV(t0, numDescriptors = 17)','SRV(t0, numDescriptors = 18)')
-    s=s.replace('// Dispatch config','Texture2D<float4> ResearchField : register(t17);\n// Dispatch config',1)
+    slot=max(int(value) for value in re.findall(r'\bregister\s*\(\s*t(\d+)\s*\)',s))+1
+    s=re.sub(r'(SRV\(t0,\s*numDescriptors\s*=\s*)\d+',
+             lambda match: match[1]+str(slot+1),s)
+    s=s.replace('// Dispatch config',f'Texture2D<float4> ResearchField : register(t{slot});\n// Dispatch config',1)
     start=s.index('            fittedSpecShare = GetAdditiveSplitShare')
     end=s.index(';',start)+1
     s=s[:start]+'''            const float4 field = ResearchField[px];
@@ -152,7 +159,12 @@ def main():
             for f,raw in enumerate(data['raw']):
                 # Both endpoints run the SAME injected-field DXIL. Strength zero
                 # ignores this texture; unrelated compiler reassociation is excluded.
-                resources={17:np.zeros_like(data['diff'])}
+                field_slot=research_field_slot(fielddir)
+                resources={}
+                if field_slot>17:
+                    model=getattr(floors[f],'_floor_model',None)
+                    resources[17]=np.zeros_like(data['diff']) if model is None else model
+                resources[field_slot]=np.zeros_like(data['diff'])
                 if mode!='baseline':
                     residual=np.maximum(raw-floors[f][...,:3],0) if floors[f] is not None else raw
                     same_input=(f>0 and np.array_equal(raw,data['raw'][f-1]) and
@@ -164,7 +176,7 @@ def main():
                         cached_fit=(p,mask,diagnostics)
                     field=rgba(p)
                     field[...,3]=mask@np.array([1,2,4])
-                    resources[17]=field
+                    resources[field_slot]=field
                     active.append(mask[data['region']].mean(0).tolist())
                     qd=np.rint(data['diff'][...,:3].astype(np.float16).astype(float)*255)/255
                     qs=np.rint(data['spec'][...,:3].astype(np.float16).astype(float)*255)/255

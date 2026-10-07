@@ -13,7 +13,7 @@ LUMA = np.array([.2126, .7152, .0722], np.float32)
 CONV_FORMATS = [10, 10, 10, 24, 28, 28, 10, 10]
 
 
-def frozen_identity(directory):
+def frozen_identity(directory, unchanged_shaders=('FSRDFloorSeed', 'FSRDFloor')):
     """Reject current-as-baseline and authenticate original sources to the base commit."""
     directory = Path(directory).resolve()
     if directory == t.PRE.resolve():
@@ -34,10 +34,11 @@ def frozen_identity(directory):
     # Composition later gained unsupported-albedo recovery. Its disabled path is held to
     # bit-identical outputs by the lossless gate (validate_fsrd.py --lossless-baseline)
     # rather than to identical DXIL bytes.
-    for name in ('FSRDFloorSeed', 'FSRDFloor'):
+    for name in unchanged_shaders:
         if (directory / (name + '_Shader.cso')).read_bytes() != (t.PRE / (name + '_Shader.cso')).read_bytes():
             raise ValueError(f'Unrelated production shader changed: {name}')
-    return dict(commit=BASE, directory=str(directory), shaders=records)
+    return dict(commit=BASE, directory=str(directory), shaders=records,
+                unchanged_candidate_shaders=list(unchanged_shaders))
 
 
 def extract_baseline(output):

@@ -170,6 +170,10 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserFloorChromaRecovery.reset();
     FfxDenoiserFloorEnabled.reset();
     FfxDenoiserFloorFastMode.reset();
+    FfxDenoiserFloorCleanLighting.reset();
+    FfxDenoiserVolumeRestore.reset();
+    FfxDenoiserExperimentBleedModelSource.reset();
+    FfxDenoiserExperimentBleedWitnessWithoutFloor.reset();
     FfxDenoiserFloorRecovery.reset();
     FfxDenoiserFloorHandoverCorrelationMix.reset();
     FfxDenoiserFloorHandoverAnchorClamp.reset();
@@ -460,6 +464,11 @@ bool Config::Reload(std::filesystem::path iniPath)
 
             FfxDenoiserFloorEnabled.set_from_config(readBool("FSR-RR", "FloorEnabled"));
             FfxDenoiserFloorFastMode.set_from_config(readBool("FSR-RR", "FloorFastMode"));
+            FfxDenoiserFloorCleanLighting.set_from_config(readBool("FSR-RR", "FloorCleanLighting"));
+            FfxDenoiserVolumeRestore.set_from_config(readFloat("FSR-RR", "VolumeRestore"));
+            FfxDenoiserExperimentBleedModelSource.set_from_config(readBool("FSR-RR", "ExperimentBleedModelSource"));
+            FfxDenoiserExperimentBleedWitnessWithoutFloor.set_from_config(
+                readBool("FSR-RR", "ExperimentBleedWitnessWithoutFloor"));
             FfxDenoiserFloorRecovery.set_from_config(readFloat("FSR-RR", "FloorRecovery"));
             if (!FfxDenoiserFloorRecovery.has_value())
             {
@@ -1417,6 +1426,12 @@ bool Config::SaveIni()
 
         ini.SetValue("FSR-RR", "FloorEnabled", GetBoolValue(Instance()->FfxDenoiserFloorEnabled.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "FloorFastMode", GetBoolValue(Instance()->FfxDenoiserFloorFastMode.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "FloorCleanLighting", GetBoolValue(Instance()->FfxDenoiserFloorCleanLighting.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "VolumeRestore", GetFloatValue(Instance()->FfxDenoiserVolumeRestore.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "ExperimentBleedModelSource",
+                     GetBoolValue(Instance()->FfxDenoiserExperimentBleedModelSource.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "ExperimentBleedWitnessWithoutFloor",
+                     GetBoolValue(Instance()->FfxDenoiserExperimentBleedWitnessWithoutFloor.value_for_config()).c_str());
         ini.Delete("FSR-RR", "FloorDetailPreservation", true);
         ini.SetValue("FSR-RR", "FloorRecovery", GetFloatValue(Instance()->FfxDenoiserFloorRecovery.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "SpecularAlbedoDemodulation", GetFloatValue(Instance()->FfxDenoiserSpecularAlbedoDemodulation.value_for_config()).c_str());

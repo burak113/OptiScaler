@@ -70,6 +70,10 @@ float3 DiffuseSkip(int2 q, float3 spec, float3 diff)
     const float3 specLoss = float3(InIndirectSpecularSignal[q].rgb) * (max(max(spec, DemodDivisorFloor), 1e-4f) - spec);
     const float3 diffLoss = float3(InDirectDiffuseSignal[q].rgb) * ((Flags & 1u) != 0 ? 2.0f : 1.0f) *
         (max(max(diff, DemodDivisorFloor), 1e-4f) - diff);
+    // Experiment (Flags bit 1): the current frame's Floor share of Skip is no
+    // light witness, so only the divisor-floor loss is kept.
+    if ((Flags & 2u) != 0)
+        return diffLoss;
     return (float3(InSkipSignal[q].rgb) - specLoss - diffLoss) * (1.0f - SpecularShare(spec, diff)) + diffLoss;
 }
 

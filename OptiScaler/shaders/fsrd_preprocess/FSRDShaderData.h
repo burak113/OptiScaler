@@ -82,6 +82,7 @@ namespace FSRD
                 ID3D12Resource* OutLinearDepth;
                 ID3D12Resource* OutDepthGradient;
                 ID3D12Resource* OutDetailReference;
+                ID3D12Resource* OutFloorModel; // RGB: material slope - u4
             };
 
             // The number of D3D12 resources in the struct
@@ -120,6 +121,8 @@ namespace FSRD
                 ID3D12Resource* InLinearDepth;
                 ID3D12Resource* InDepthGradient; // RG: depth gradient, BA: octahedral normal
                 ID3D12Resource* InDiffAlbedo;    // material guide - see FloorSurfaceWeight
+                ID3D12Resource* InDetailReference; // immutable seed reference - t4
+                ID3D12Resource* InFloorModel; // averaged material slope - t5
             };
 
             // The number of D3D12 resources in the struct
@@ -135,6 +138,7 @@ namespace FSRD
             struct Data
             {
                 ID3D12Resource* OutColor;
+                ID3D12Resource* OutFloorModel; // averaged material slope - u1
             };
 
             // The number of D3D12 resources in the struct
@@ -248,6 +252,7 @@ namespace FSRD
                 ID3D12Resource* InTitleLinearDepth;                 // t14
                 ID3D12Resource* InResponsivityMask;
                 ID3D12Resource* InDetailReference;                 // t16
+                ID3D12Resource* InFloorModel;                      // final averaged material slope - t17
             };
 
             // The number of D3D12 resources in the struct
@@ -498,6 +503,111 @@ namespace FSRD
         };
     }
 
+    // Volumetric restore: RR's systematic radiance shortfall per 8x8 tile, gathered
+    // at conversion, accumulated over time after composition and added back.
+    namespace VolumeGather
+    {
+        constexpr UINT kBackBufferCount = 3;
+
+        struct alignas(16) Constants
+        {
+            XMFLOAT4 RenderSize;
+            XMUINT2 InputBase;
+            XMUINT2 _Reserved0;
+        };
+        static_assert(offsetof(Constants, InputBase) == 16, "FSRDVolumeGather layout");
+        static_assert(sizeof(Constants) == 32, "FSRDVolumeGather constant-buffer layout");
+
+        union Input
+        {
+            struct Data { ID3D12Resource* InColor; };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+
+        union Output
+        {
+            struct Data { ID3D12Resource* OutRawTiles; };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+    }
+
+    namespace VolumeAccumulate
+    {
+        constexpr UINT kBackBufferCount = 3;
+
+        struct alignas(16) Constants
+        {
+            XMFLOAT4 DstTexSize;
+            XMFLOAT2 HistoryJitterDelta;
+            uint32_t HistoryValid;
+            float Response;
+        };
+        static_assert(offsetof(Constants, HistoryJitterDelta) == 16, "FSRDVolumeAccumulate layout");
+        static_assert(sizeof(Constants) == 32, "FSRDVolumeAccumulate constant-buffer layout");
+
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InComposed;
+                ID3D12Resource* InRawTiles;
+                ID3D12Resource* InHistory;
+                ID3D12Resource* InLinearDepth;
+                ID3D12Resource* InMotion;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+
+        union Output
+        {
+            struct Data { ID3D12Resource* OutHistory; };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+    }
+
+    namespace VolumeApply
+    {
+        constexpr UINT kBackBufferCount = 3;
+
+        struct alignas(16) Constants
+        {
+            XMFLOAT4 DstTexSize;
+            float Strength;
+            float _Reserved0[3];
+        };
+        static_assert(offsetof(Constants, Strength) == 16, "FSRDVolumeApply layout");
+        static_assert(sizeof(Constants) == 32, "FSRDVolumeApply constant-buffer layout");
+
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InComposed;
+                ID3D12Resource* InHistory;
+                ID3D12Resource* InLinearDepth;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+
+        union Output
+        {
+            struct Data { ID3D12Resource* OutColor; };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+    }
+
     // Each shader declares its descriptor-table sizes as a literal inside its
     // "MainRS" root-signature string, and nothing else compares those literals to
     // these structs. ComputeState sizes its heap from kCount, so if a resource is
@@ -506,10 +616,10 @@ namespace FSRD
     // These assertions are the missing third leg of that contract - update the
     // numDescriptors literal in the named shader whenever one of them fires.
     static_assert(FloorSeed::Input::kCount == 5, "FSRDFloorSeed MainRS SRV count");
-    static_assert(FloorSeed::Output::kCount == 4, "FSRDFloorSeed MainRS UAV count");
-    static_assert(FloorFilter::Input::kCount == 4, "FSRDFloor MainRS SRV count");
-    static_assert(FloorFilter::Output::kCount == 1, "FSRDFloor MainRS UAV count");
-    static_assert(Conversion::Input::kCount == 17, "FSRDInputConv MainRS SRV count");
+    static_assert(FloorSeed::Output::kCount == 5, "FSRDFloorSeed MainRS UAV count");
+    static_assert(FloorFilter::Input::kCount == 6, "FSRDFloor MainRS SRV count");
+    static_assert(FloorFilter::Output::kCount == 2, "FSRDFloor MainRS UAV count");
+    static_assert(Conversion::Input::kCount == 18, "FSRDInputConv MainRS SRV count");
     static_assert(Conversion::Output::kCount == 10, "FSRDInputConv MainRS UAV count");
     static_assert(Composition::Input::kCount == 17, "FSRDOutputComp MainRS SRV count");
     static_assert(Composition::kOutputCount == 3, "FSRDOutputComp MainRS UAV count");
@@ -517,4 +627,10 @@ namespace FSRD
     static_assert(TrustEvidence::Output::kCount == 1, "FSRDAlbedoTrustEvidence MainRS UAV count");
     static_assert(TrustPropagate::Input::kCount == 3, "FSRDAlbedoTrustPropagate MainRS SRV count");
     static_assert(TrustPropagate::Output::kCount == 1, "FSRDAlbedoTrustPropagate MainRS UAV count");
+    static_assert(VolumeGather::Input::kCount == 1, "FSRDVolumeGather MainRS SRV count");
+    static_assert(VolumeGather::Output::kCount == 1, "FSRDVolumeGather MainRS UAV count");
+    static_assert(VolumeAccumulate::Input::kCount == 5, "FSRDVolumeAccumulate MainRS SRV count");
+    static_assert(VolumeAccumulate::Output::kCount == 1, "FSRDVolumeAccumulate MainRS UAV count");
+    static_assert(VolumeApply::Input::kCount == 3, "FSRDVolumeApply MainRS SRV count");
+    static_assert(VolumeApply::Output::kCount == 1, "FSRDVolumeApply MainRS UAV count");
 }

@@ -538,8 +538,20 @@ class Config
     CustomOptional<float> FfxDenoiserFloorChromaRecovery{1.0f};
 
     CustomOptional<bool> FfxDenoiserFloorEnabled { true };
+    // Experimental: adds back, after composition, the radiance RR's output lacks
+    // against the input over 8x8 tiles, accumulated over time. Off by default: in
+    // game it did not bring back volumetrics, which RR blurs rather than removes.
+    CustomOptional<float> FfxDenoiserVolumeRestore { 0.0f };
+    // Experiments for the light flicker seen only with Floor and Albedo Bleed Fix together.
+    // A: keep Floor's material-model source with Bleed Fix (no clipped zero-mean residual).
+    // B: the bleed-fix albedo-trust witness ignores the current frame's Floor share of Skip.
+    CustomOptional<bool> FfxDenoiserExperimentBleedModelSource { false };
+    CustomOptional<bool> FfxDenoiserExperimentBleedWitnessWithoutFloor { false };
     // Reduced Floor pass policy is the Balanced default; Quality uses five passes.
     CustomOptional<bool> FfxDenoiserFloorFastMode { true };
+    // Selects the clean-lighting Floor Seed PSO (coherent witness + local projection).
+    // Outside the profiles: it only acts on noise-free content.
+    CustomOptional<bool> FfxDenoiserFloorCleanLighting { false };
     CustomOptional<float> FfxDenoiserFloorRecovery { 1.0f };
     CustomOptional<float> FfxDenoiserFloorHandoverCorrelationMix { 1.0f };
     CustomOptional<float> FfxDenoiserFloorHandoverAnchorClamp { 4.0f };

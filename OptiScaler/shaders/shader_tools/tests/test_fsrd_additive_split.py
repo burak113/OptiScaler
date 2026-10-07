@@ -53,7 +53,10 @@ def run():
     output = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', str(t.ROOT/'tools_tmp/fsrd_alpha_native')))
     output.mkdir(parents=True, exist_ok=True)
     baseline = Path(os.environ['FSRD_ALPHA_BASELINE']) if os.environ.get('FSRD_ALPHA_BASELINE') else extract_baseline(output)
-    base_identity = frozen_identity(baseline)
+    # This conversion/composition suite supplies Floor inputs explicitly. Floor's
+    # separate quality suites intentionally change its DXIL; authenticate all base
+    # artifacts here while retaining the exact disabled conversion/output checks.
+    base_identity = frozen_identity(baseline, unchanged_shaders=())
     report = dict(baseline=base_identity, candidate_shaders=shader_identity(t.PRE),
                   production_shader_tests=True, actual_amd=False, checks=[],
                   source_hashes={name:hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()

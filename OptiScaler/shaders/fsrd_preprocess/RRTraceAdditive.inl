@@ -140,7 +140,7 @@
             const UINT rw=UINT(original.DstTexSize.x), rh=UINT(original.DstTexSize.y);
             if (c->x>=rw || c->y>=rh) throw std::runtime_error("ROI outside render extent");
             c->width=std::min(request[2],rw-c->x); c->height=std::min(request[2],rh-c->y);
-            c->shader.Initialize(m_pDev,GetAsByteSpan(RRTraceAdditive_cso),sizeof(original),17,8,
+            c->shader.Initialize(m_pDev,GetAsByteSpan(RRTraceAdditive_cso),sizeof(original),Conversion::Input::kCount,8,
                                  L"RRTrace_Additive_CB",12);
             for (auto& image:c->scratch)
                 image=CreateTexture2D(m_pDev,c->width,c->height,DXGI_FORMAT_R32G32B32A32_FLOAT,

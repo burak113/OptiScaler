@@ -244,6 +244,12 @@ float3 UnsupportedAlbedoCorrection(int2 p, float3 specular)
 }
 float3 Reconstruct(int2 p)
 {
+    const float4 skip=InSkipSignal[p];
+    // The RR copy keeps history warm; the current-source certificate selects
+    // one complete colour and excludes stale RR radiance during transitions.
+    // Its neighbourhood still feeds the existing Anchor/Correlation statistics.
+    if(skip.a==-1.0f)
+        return FloorRadiance(skip.rgb);
     const float3 specular = SpecularRadiance(p) * SpecularMultiplier(p);
     float3 radiance = specular +
                       DiffuseRadiance(p) * DiffuseMultiplier(p) + float3(InSkipSignal[p].rgb);
@@ -773,6 +779,9 @@ float3 LightAnchorRecovery(int2 p, float4 reference, float3 rr, out float3 ancho
 #endif
 void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 colour, bool active)
 {
+    // These decisions used the protected current source rather than native RR.
+    // They cannot become evidence for an unprotected pixel on the next frame.
+    active = active && InSkipSignal[p].a != -1.0f;
     if (WriteHistory == 0) return;
     if (!active)
     {
@@ -898,7 +907,8 @@ void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 col
             float filterLuma = 0;
             const float3 correction =
                 active ? LightAnchorRecovery(p, reference, rr, anchoredReference, filterChroma, filterLuma) : 0;
-            OutColor[p] = half4(FloorRadiance(rr + (active ? saturate(DetailPreservation)*filterWeight*correction : 0)), 1);
+            const float3 recovered=FloorRadiance(rr + (active ? saturate(DetailPreservation)*filterWeight*correction : 0));
+            OutColor[p]=half4(InSkipSignal[p].a==-1.0f ? FloorRadiance(InSkipSignal[p].rgb) : recovered,1);
             StoreRecoveryHistory(p, reference, float4(-1.0f, -1.0f, -1.0f, -1.0f), anchoredReference, active);
         }
         return;
@@ -1552,6 +1562,8 @@ void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 col
             break;
         }
     }
+    if(!IsSet(FLAGS_DEBUG) && InSkipSignal[p].a==-1.0f)
+        output=InSkipSignal[p].rgb;
     OutColor[p] = half4(FloorRadiance(output), 1);
 #endif
 #endif

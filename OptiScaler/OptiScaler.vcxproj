@@ -357,6 +357,10 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="shaders\fsrd_preprocess\RRTraceFenceState.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\RRTraceAdditive_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFloorSeed_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFloorSeedCleanLighting_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDVolumeGather_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDVolumeAccumulate_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDVolumeApply_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFloor_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDInputConv_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDInputConvAdditive_Shader.h" />
@@ -892,6 +896,10 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFloorCommon.hlsli" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFloor.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFloorSeed.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDFloorSeedCleanLighting.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDVolumeGather.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDVolumeAccumulate.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDVolumeApply.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDInputConv.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDInputConvAdditive.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\RRTraceAdditive.hlsl" />

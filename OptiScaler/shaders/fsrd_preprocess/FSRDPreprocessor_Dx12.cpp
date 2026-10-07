@@ -15,7 +15,11 @@
 #include "FSRDCompositionVariant.h"
 #include "precompile/FSRDInputConv_Shader.h" 
 #include "precompile/FSRDInputConvAdditive_Shader.h"
-#include "precompile/FSRDFloorSeed_Shader.h" 
+#include "precompile/FSRDFloorSeed_Shader.h"
+#include "precompile/FSRDFloorSeedCleanLighting_Shader.h"
+#include "precompile/FSRDVolumeGather_Shader.h"
+#include "precompile/FSRDVolumeAccumulate_Shader.h"
+#include "precompile/FSRDVolumeApply_Shader.h"
 #include "precompile/FSRDFloor_Shader.h" 
 #include "precompile/FSRDOutputComp_Shader.h"
 #include "precompile/FSRDOutputCompLight_Shader.h"
@@ -325,6 +329,24 @@ struct FSRDPreprocessor_Dx12::Impl
     // The original PSO remains usable if optional pipeline creation fails.
     ComPtr<ID3D12PipelineState> m_additiveConvPso;
     bool m_additiveConvPsoFailed = false;
+    // Optional clean-lighting Seed; shares the Seed's root signature and constants.
+    // A failed creation falls back to the default Seed, which stays correct.
+    ComPtr<ID3D12PipelineState> m_cleanLightingSeedPso;
+    bool m_cleanLightingSeedPsoFailed = false;
+
+    // Volumetric restore: the input's clipped 8x8 tile means (gathered at
+    // conversion), the reprojected shortfall of RR's output against them, and the
+    // composition with that shortfall added back. Tile textures are 1/8 size.
+    ComputeState m_volumeGatherShader;
+    ComputeState m_volumeAccumulateShader;
+    ComputeState m_volumeApplyShader;
+    ComPtr<ID3D12Resource> m_volumeRawTiles;
+    ComPtr<ID3D12Resource> m_volumeHistory[2];
+    ComPtr<ID3D12Resource> m_volumeOutput;
+    UINT m_volumeHistoryRead = 0;
+    bool m_volumeHistoryValid = false;
+    bool m_volumeRawReady = false;
+    bool m_volumeOutputActive = false;
 
     UINT m_maxWidth = 0;
     UINT m_maxHeight = 0;
@@ -334,6 +356,9 @@ struct FSRDPreprocessor_Dx12::Impl
     Conversion::Output m_out;
     ComPtr<ID3D12Resource> m_LinearDepth;
     ComPtr<ID3D12Resource> m_floorReference;
+    // Per-frame material model ping-pong; independent of RR radiance scratch and history.
+    ComPtr<ID3D12Resource> m_floorModel0;
+    ComPtr<ID3D12Resource> m_floorModel1;
     ComPtr<ID3D12Resource> m_compositionOutput;
     std::array<ComPtr<ID3D12Resource>,2> m_decisionHistory;
     std::array<ComPtr<ID3D12Resource>,2> m_historyMetadata;
@@ -1239,6 +1264,18 @@ struct FSRDPreprocessor_Dx12::Impl
             { reinterpret_cast<const byte*>(FSRDAlbedoTrustPropagate_cso), sizeof(FSRDAlbedoTrustPropagate_cso) },
             sizeof(TrustPropagate::Constants), TrustPropagate::Input::kCount, TrustPropagate::Output::kCount,
             L"FSRD_TrustPropagate_Constants", TrustPropagate::kBackBufferCount);
+        m_volumeGatherShader.Initialize(m_pDev,
+            { reinterpret_cast<const byte*>(FSRDVolumeGather_cso), sizeof(FSRDVolumeGather_cso) },
+            sizeof(VolumeGather::Constants), VolumeGather::Input::kCount, VolumeGather::Output::kCount,
+            L"FSRD_VolumeGather_Constants", VolumeGather::kBackBufferCount);
+        m_volumeAccumulateShader.Initialize(m_pDev,
+            { reinterpret_cast<const byte*>(FSRDVolumeAccumulate_cso), sizeof(FSRDVolumeAccumulate_cso) },
+            sizeof(VolumeAccumulate::Constants), VolumeAccumulate::Input::kCount, VolumeAccumulate::Output::kCount,
+            L"FSRD_VolumeAccumulate_Constants", VolumeAccumulate::kBackBufferCount);
+        m_volumeApplyShader.Initialize(m_pDev,
+            { reinterpret_cast<const byte*>(FSRDVolumeApply_cso), sizeof(FSRDVolumeApply_cso) },
+            sizeof(VolumeApply::Constants), VolumeApply::Input::kCount, VolumeApply::Output::kCount,
+            L"FSRD_VolumeApply_Constants", VolumeApply::kBackBufferCount);
 
         LOG_DEBUG("FSRD interop shaders and resources initialized.");
     }
@@ -1293,7 +1330,19 @@ struct FSRDPreprocessor_Dx12::Impl
             CreateTex(FSRDFormats::SpecularOcclusion, L"FSR_RR_SpecularOcclusion_Output");
 
         m_floorReference = CreateTex(FSRDFormats::DetailReference, L"FSR_Floor_Reference");
+        m_floorModel0 = CreateTex(FSRDFormats::DetailReference, L"FSR_Floor_Model_0");
+        m_floorModel1 = CreateTex(FSRDFormats::DetailReference, L"FSR_Floor_Model_1");
         m_compositionOutput = CreateTex(DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSR_Composition_Output");
+        m_volumeOutput = CreateTex(DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSR_VolumeRestore_Output");
+        {
+            const UINT tilesX = (width + 7) / 8, tilesY = (height + 7) / 8;
+            m_volumeRawTiles = CreateTexture2D(m_pDev, tilesX, tilesY, DXGI_FORMAT_R16G16B16A16_FLOAT,
+                                               L"FSR_VolumeRestore_RawTiles", kSrvState);
+            for (UINT i = 0; i < 2; ++i)
+                m_volumeHistory[i] = CreateTexture2D(m_pDev, tilesX, tilesY, DXGI_FORMAT_R16G16B16A16_FLOAT,
+                                                     L"FSR_VolumeRestore_History", kSrvState);
+        }
+        m_volumeHistoryValid = m_volumeRawReady = m_volumeOutputActive = false;
         m_smoothFloor = nullptr;
         m_radianceOutputsInUavState = false;
         m_ambientOcclusionOutputInUavState = false;
@@ -1310,7 +1359,8 @@ struct FSRDPreprocessor_Dx12::Impl
         m_maxHeight = height;
     }
 
-    void DispatchFloorSeed(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
+    void DispatchFloorSeed(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc,
+                           ID3D12PipelineState* seedPipeline)
     {
         FloorSeed::Constants constants = {
             .InvProjMatrix = desc.InvProjMatrix,
@@ -1339,11 +1389,108 @@ struct FSRDPreprocessor_Dx12::Impl
             .OutColor = m_outputBuffer2.Get(),
             .OutLinearDepth = m_LinearDepth.Get(),
             .OutDepthGradient = m_out.Resources.Motion.Get(),
-            .OutDetailReference = m_floorReference.Get()
+            .OutDetailReference = m_floorReference.Get(),
+            .OutFloorModel = m_floorModel0.Get()
         }};
         m_floorSeedShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray,
-                                  {desc.RenderSize.x, desc.RenderSize.y});
+                                  {desc.RenderSize.x, desc.RenderSize.y}, true, seedPipeline);
         m_smoothFloor = m_outputBuffer2.Get();
+    }
+
+    // The game's colour is readable only during conversion; keep its clipped tile
+    // means for the volumetric restore that runs after composition.
+    void DispatchVolumeGather(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
+    {
+        m_volumeRawReady = false;
+        if (!desc.VolumeRestore || (desc.Flags & uint32_t(ConvFlags::Debug)) != 0 || !desc.Resources.InColor)
+            return;
+        VolumeGather::Constants constants = {
+            .RenderSize = desc.RenderSize,
+            .InputBase = {desc.InputBase0.x, desc.InputBase0.y}
+        };
+        VolumeGather::Input in = {.Resources = {.InColor = desc.Resources.InColor}};
+        VolumeGather::Output out = {.Resources = {.OutRawTiles = m_volumeRawTiles.Get()}};
+        m_volumeGatherShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray,
+                                      {desc.RenderSize.x, desc.RenderSize.y});
+        m_volumeRawReady = true;
+    }
+
+    // Adds back the energy RR removed from the input (fog, beams, transparent
+    // layers): RR's output is only added to, never filtered or replaced.
+    void DispatchVolumeRestore(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
+    {
+        const bool active = m_volumeRawReady && std::isfinite(desc.VolumeRestoreStrength) &&
+            desc.VolumeRestoreStrength > 0.0f &&
+            (desc.Flags & (uint32_t(CompFlags::Debug) | uint32_t(CompFlags::RawSourceBlit))) == 0;
+        m_volumeRawReady = false;
+        if (!active)
+        {
+            m_volumeOutputActive = false;
+            m_volumeHistoryValid = false;
+            return;
+        }
+        const XMFLOAT2 size = {desc.DstTexSize.x, desc.DstTexSize.y};
+        const UINT historyWrite = 1 - m_volumeHistoryRead;
+        {
+            VolumeAccumulate::Constants constants = {
+                .DstTexSize = desc.DstTexSize,
+                .HistoryJitterDelta = m_historyJitterDelta,
+                .HistoryValid = m_volumeHistoryValid && m_motionHistoryValid ? 1u : 0u,
+                // About ten frames of memory: as steady as RR's own accumulation,
+                // while a lighting change still settles within a fraction of a second.
+                .Response = 0.15f
+            };
+            VolumeAccumulate::Input in = {.Resources = {
+                .InComposed = m_compositionOutput.Get(),
+                .InRawTiles = m_volumeRawTiles.Get(),
+                .InHistory = m_volumeHistory[m_volumeHistoryRead].Get(),
+                .InLinearDepth = m_LinearDepth.Get(),
+                .InMotion = m_out.Resources.Motion.Get()
+            }};
+            VolumeAccumulate::Output out = {.Resources = {.OutHistory = m_volumeHistory[historyWrite].Get()}};
+            // One 8x8 group per tile: the dispatch covers the render size.
+            m_volumeAccumulateShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray, size);
+        }
+        {
+            VolumeApply::Constants constants = {
+                .DstTexSize = desc.DstTexSize,
+                .Strength = std::clamp(desc.VolumeRestoreStrength, 0.0f, 2.0f)
+            };
+            VolumeApply::Input in = {.Resources = {
+                .InComposed = m_compositionOutput.Get(),
+                .InHistory = m_volumeHistory[historyWrite].Get(),
+                .InLinearDepth = m_LinearDepth.Get()
+            }};
+            VolumeApply::Output out = {.Resources = {.OutColor = m_volumeOutput.Get()}};
+            m_volumeApplyShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray, size);
+        }
+        m_volumeHistoryRead = historyWrite;
+        m_volumeHistoryValid = true;
+        m_volumeOutputActive = true;
+    }
+
+    ID3D12PipelineState* ResolveFloorSeedPipeline(const ConversionDesc& desc)
+    {
+        if (!desc.FloorEnabled || !desc.FloorCleanLighting || m_cleanLightingSeedPsoFailed)
+            return nullptr;
+        if (m_cleanLightingSeedPso)
+            return m_cleanLightingSeedPso.Get();
+
+        ScopedSkipHeapCapture skipHeapCapture {};
+        D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
+        psoDesc.pRootSignature = m_floorSeedShader.m_rootSig.Get();
+        psoDesc.CS = { FSRDFloorSeedCleanLighting_cso, sizeof(FSRDFloorSeedCleanLighting_cso) };
+        ComPtr<ID3D12PipelineState> pso;
+        const HRESULT result = m_pDev->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&pso));
+        if (FAILED(result))
+        {
+            m_cleanLightingSeedPsoFailed = true;
+            LOG_ERROR("FSRD clean-lighting Floor Seed pipeline failed to initialize (HRESULT: {}); using the default Seed",
+                      static_cast<uint32_t>(result));
+            return nullptr;
+        }
+        m_cleanLightingSeedPso = std::move(pso);
+        return m_cleanLightingSeedPso.Get();
     }
 
     void DispatchFloorFilter(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
@@ -1364,12 +1511,18 @@ struct FSRDPreprocessor_Dx12::Impl
                 .InColor = m_smoothFloor,
                 .InLinearDepth = m_LinearDepth.Get(),
                 .InDepthGradient = m_out.Resources.Motion.Get(),
-                .InDiffAlbedo = desc.Resources.InDiffAlbedo
+                .InDiffAlbedo = desc.Resources.InDiffAlbedo,
+                .InDetailReference = m_floorReference.Get(),
+                .InFloorModel = m_floorModel0.Get()
             }};
-            FloorFilter::Output out = {.Resources = {.OutColor = m_outputBuffer1.Get()}};
+            FloorFilter::Output out = {.Resources = {
+                .OutColor = m_outputBuffer1.Get(),
+                .OutFloorModel = m_floorModel1.Get()
+            }};
             m_floorFilterShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray,
                                         {desc.RenderSize.x, desc.RenderSize.y});
             std::swap(m_outputBuffer1, m_outputBuffer2);
+            std::swap(m_floorModel0, m_floorModel1);
             m_smoothFloor = m_outputBuffer2.Get();
         }
     }
@@ -1423,7 +1576,8 @@ struct FSRDPreprocessor_Dx12::Impl
             .InDiffuseHitDistance = desc.Resources.InDiffuseHitDistance,
             .InTitleLinearDepth = desc.Resources.InTitleLinearDepth,
             .InResponsivityMask = desc.Resources.InResponsivityMask,
-            .InDetailReference = m_floorReference.Get()
+            .InDetailReference = m_floorReference.Get(),
+            .InFloorModel = m_floorModel0.Get()
         }};
 
         uint32_t packFlags = desc.Flags | uint32_t(ConvFlags::IsDepthLinear);
@@ -1498,6 +1652,8 @@ struct FSRDPreprocessor_Dx12::Impl
             return false;
         ID3D12PipelineState* conversionPipeline = useAdditivePipeline
             ? m_additiveConvPso.Get() : m_convShader.m_pso.Get();
+        // nullptr selects the default Seed PSO.
+        ID3D12PipelineState* seedPipeline = ResolveFloorSeedPipeline(desc);
 
         const std::array<XMUINT4,6> sourceBases { desc.FloorSourceBase,desc.InputBase0,
             desc.InputBase1,desc.InputBase2,desc.InputBase3,desc.InputBase4 };
@@ -1556,7 +1712,7 @@ struct FSRDPreprocessor_Dx12::Impl
         // Filtered raster lighting estimate
         {
             FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::Floor);
-            DispatchFloorSeed(cmdList, desc);
+            DispatchFloorSeed(cmdList, desc, seedPipeline);
             DispatchFloorFilter(cmdList, desc);
         }
         if (m_runtime)
@@ -1570,6 +1726,7 @@ struct FSRDPreprocessor_Dx12::Impl
         {
             FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::Conversion);
             DispatchPackingShader(cmdList, desc, conversionPipeline);
+            DispatchVolumeGather(cmdList, desc);
         }
         if (m_runtime) m_runtime->Complete(FSRDRuntimeSnapshot::Conversion);
 
@@ -1771,6 +1928,7 @@ struct FSRDPreprocessor_Dx12::Impl
             else
                 m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, outputs.AsArray, dstDim, true,
                                       CompositionPipeline(desc));
+            DispatchVolumeRestore(cmdList, desc);
         }
         m_historyPending=writeHistory;
         if (m_runtime) m_runtime->Complete(FSRDRuntimeSnapshot::Composition);
@@ -1788,7 +1946,8 @@ struct FSRDPreprocessor_Dx12::Impl
         TrustEvidence::Constants evidenceConstants = {
             .DstTexSize = desc.DstTexSize,
             .StepSize = 0,
-            .Flags = (desc.Flags & uint32_t(CompFlags::ExtraDiffuse)) != 0 ? 1u : 0u,
+            .Flags = ((desc.Flags & uint32_t(CompFlags::ExtraDiffuse)) != 0 ? 1u : 0u) |
+                     (desc.ExperimentWitnessWithoutFloor ? 2u : 0u),
             .DemodDivisorFloor = desc.DemodDivisorFloor
         };
         TrustEvidence::Input evidenceIn = { .Resources = {
@@ -2216,6 +2375,7 @@ bool FSRDPreprocessor_Dx12::DispatchComposition(ID3D12GraphicsCommandList* cmdLi
 void FSRDPreprocessor_Dx12::InvalidateCompositionHistory() noexcept
 {
     m_impl->m_historyValid = m_impl->m_historyPending = false;
+    m_impl->m_volumeHistoryValid = false;
 }
 
 void FSRDPreprocessor_Dx12::FinishCompositionHistory(bool successfulNormalFrame) noexcept
@@ -2227,6 +2387,8 @@ void FSRDPreprocessor_Dx12::FinishCompositionHistory(bool successfulNormalFrame)
     }
     else m_impl->m_historyValid=false;
     m_impl->m_historyPending=false;
+    // A failed or debug frame leaves the volumetric history unproven.
+    if (!successfulNormalFrame) m_impl->m_volumeHistoryValid=false;
 }
 
 void FSRDPreprocessor_Dx12::TransitionDenoiserOutputsToRead(ID3D12GraphicsCommandList* cmdList) noexcept
@@ -2305,7 +2467,8 @@ ID3D12Resource* FSRDPreprocessor_Dx12::GetDebugViewOutput() const
 
 ID3D12Resource* FSRDPreprocessor_Dx12::GetCompositionOutput() const
 {
-    return m_impl->m_compositionOutput.Get();
+    // With the volumetric restore active its output is the final composition.
+    return m_impl->m_volumeOutputActive ? m_impl->m_volumeOutput.Get() : m_impl->m_compositionOutput.Get();
 }
 
 ID3D12Resource* FSRDPreprocessor_Dx12::GetDenoiserDiffuseOutput() const

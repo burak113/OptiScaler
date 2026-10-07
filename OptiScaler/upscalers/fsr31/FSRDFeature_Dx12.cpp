@@ -2433,7 +2433,10 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                     _convDesc.SpecularAlbedoDemodulation >= 1.0f &&
                     _convDesc.DiffuseAlbedoModulation >= 1.0f && _convDesc.AdditiveLightSplit <= 0.0f
                 ? 1.0f : 0.0f,
-            .DemodDivisorFloor = _convDesc.DemodDivisorFloor
+            .DemodDivisorFloor = _convDesc.DemodDivisorFloor,
+            .VolumeRestoreStrength = _convDesc.VolumeRestore ? _volumeRestoreStrength : 0.0f,
+            .ExperimentWitnessWithoutFloor = _convDesc.FloorEnabled &&
+                Config::Instance()->FfxDenoiserExperimentBleedWitnessWithoutFloor.value_or_default()
         };
 
         // ColorBeforeParticles is a whole scene guide, not a premultiplied overlay.
@@ -3863,6 +3866,8 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
         InvalidateDenoiserHistory();
     }
     if (_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::UnsupportedAlbedo);
+    if (_unsupportedAlbedoRecovery && cfg.FfxDenoiserExperimentBleedModelSource.value_or_default())
+        _convDesc.Flags |= uint32_t(FSRDConvFlags::ExperimentBleedModelSource);
     if (FSRDSignals::SplitsDiffuse(_signalMask, _fixDiffuse)) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfDiffuse);
     if (_extraSpecularSignal && !_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfSpecular);
     if (estimateHitDistances)
@@ -3873,6 +3878,13 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     if (_convDesc.FloorFastMode != floorFastMode)
         InvalidateDenoiserHistory();
     _convDesc.FloorFastMode = floorFastMode;
+    const bool floorCleanLighting = cfg.FfxDenoiserFloorCleanLighting.value_or_default();
+    if (_convDesc.FloorCleanLighting != floorCleanLighting)
+        InvalidateDenoiserHistory();
+    _convDesc.FloorCleanLighting = floorCleanLighting;
+    const float volumeRestore = cfg.FfxDenoiserVolumeRestore.value_or_default();
+    _volumeRestoreStrength = std::isfinite(volumeRestore) ? std::clamp(volumeRestore, 0.0f, 2.0f) : 0.0f;
+    _convDesc.VolumeRestore = _volumeRestoreStrength > 0.0f;
     const auto unitValue = [](float value, float fallback) {
         return std::isfinite(value) ? std::clamp(value, 0.0f, 1.0f) : fallback;
     };

@@ -2,6 +2,8 @@
 
 python OptiScaler/shaders/shader_tools/validate_fsrd.py --quick          (about a minute)
 python OptiScaler/shaders/shader_tools/validate_fsrd.py --build          (every suite)
+python OptiScaler/shaders/shader_tools/validate_fsrd.py --build --floor-quality
+    also runs fresh paired native AMD Floor texture/disocclusion and holdout gates.
 Historical A/B is optional: --references <directory of pinned version packages>.
 
 --quick keeps the production contracts: shader mirrors and reproducible artifacts, the CPU
@@ -33,10 +35,11 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 PRE = ROOT/'OptiScaler/shaders/fsrd_preprocess/precompile'
 BASELINE_SHADERS = ('FSRDFloorSeed', 'FSRDFloor', 'FSRDInputConv', 'FSRDOutputComp')
-SHADERS = (*BASELINE_SHADERS, 'FSRDInputConvAdditive', 'RRTraceAdditive',
+SHADERS = (*BASELINE_SHADERS, 'FSRDFloorSeedCleanLighting', 'FSRDInputConvAdditive', 'RRTraceAdditive',
            'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
            'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor',
-           'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate')
+           'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate',
+           'FSRDVolumeGather', 'FSRDVolumeAccumulate', 'FSRDVolumeApply')
 HOST_CORRECTNESS = (
     'test_fsrd_roughness_acceptance', 'test_fsr_output_scaling',
     'test_fsrd_camera_matrices', 'test_fsrd_sr_alignment',
@@ -66,6 +69,9 @@ SUITES = (
     'test_fsrd_response_soft_pilot',
     'test_fsrd_rrtrace_response',
     'run_fsrd_gpu_tests', 'test_fsrd_cp2077_regressions', 'test_fsrd_panel_recovery',
+    'test_fsrd_floor_model_contract',
+    'test_fsrd_floor_split_contract',
+    'test_fsrd_floor_lighting_contract',
     'test_fsrd_textured_reference', 'test_fsrd_volume_handover',
     'test_fsrd_zero_rough_screen', 'test_fsrd_screen_review',
     'test_fsrd_speckle_anchor', 'test_fsrd_patch_handover',
@@ -99,6 +105,9 @@ QUICK = (
     'test_fsrd_signal_modes', 'test_fsrd_unsupported_albedo', 'test_fsrd_unsupported_albedo_skip',
     'test_fsrd_albedo_support', 'test_fsrd_additive_split', 'test_fsrd_cp2077_regressions',
     'test_fsrd_zero_rough_screen', 'test_fsrd_current_colour_contracts',
+    'test_fsrd_floor_model_contract',
+    'test_fsrd_floor_split_contract',
+    'test_fsrd_floor_lighting_contract',
 )
 OPTIONAL = {'test_fsrd_small_colour_screen', 'test_fsrd_colour_anchor'}
 # Previous suite durations, so the longest start first and the parallel run ends early.
@@ -144,12 +153,16 @@ def main():
     parser.add_argument('--lossless-baseline', type=Path,
                         help='Frozen precompile directory: require bit-identical GPU outputs for every fixture')
     parser.add_argument('--quick', action='store_true', help='Only the production contracts (see module help)')
+    parser.add_argument('--floor-quality', action='store_true',
+                        help='After every suite, run the complete fresh paired native AMD Floor quality protocol')
     parser.add_argument('--jobs', type=int, default=0,
                         help='Suites run at once (default: half the logical CPUs, at most 6; 1 = sequential)')
     args = parser.parse_args()
     jobs = args.jobs if args.jobs > 0 else max(1, min(6, (os.cpu_count() or 2) // 2))
     if args.require_references and args.references is None:
         parser.error('--require-references needs --references')
+    if args.floor_quality and args.quick:
+        parser.error('--floor-quality requires the full suite; omit --quick')
     out = (args.output or ROOT/'tools_tmp/fsrd_validation'/datetime.now().strftime('%Y%m%d_%H%M%S_%f')).resolve()
     if out.exists() and any(out.iterdir()):
         parser.error(f'Report directory must be new or empty: {out}')
@@ -311,6 +324,18 @@ def main():
             raise RuntimeError('Required historical comparisons were skipped: '+', '.join(skipped))
         if args.build:
             report.update(validate_release_package(ROOT/'x64/Release/a/OptiScaler.dll'))
+        if args.floor_quality:
+            required('floor_quality', [sys.executable, HERE/'validate_fsrd_floor_quality.py',
+                                      '--candidate-dir', PRE, '--output', out/'floor_quality',
+                                      '--python', sys.executable])
+            quality_path = out/'floor_quality/results.json'
+            quality = json.loads(quality_path.read_text(encoding='utf-8'))
+            if quality.get('accepted') is not True or quality.get('completed') is not True:
+                raise RuntimeError('Complete Floor quality protocol did not accept the candidate')
+            report['floor_quality'] = {'results': str(quality_path), 'sha256': digest(quality_path),
+                                      'accepted': True, 'checks': len(quality['checks']),
+                                      'native_contexts': len(quality['native_contexts'])}
+            report['limitations'] = 'Synthetic scenes with actual signed AMD RR; no in-game acceptance.'
         if any(digest(p)!=after[p.name] for p in generated):
             raise RuntimeError('Shader artifacts changed during the build')
         report['status']='passed'

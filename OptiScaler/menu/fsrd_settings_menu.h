@@ -311,6 +311,19 @@ inline bool DrawAlbedoFix(Config& cfg, const FSRDSignals::Status& status)
         ImGui::TextColored(Green, "Running.");
     else
         ImGui::TextDisabled("Starting...");
+    // Temporary A/B switches for the light flicker seen only with Floor and this fix together.
+    if (bool v = cfg.FfxDenoiserExperimentBleedModelSource.value_or_default();
+        ImGui::Checkbox("Experiment A: Floor model source", &v))
+        cfg.FfxDenoiserExperimentBleedModelSource = v;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Experimental. With Floor on, keeps Floor's material-model route that is used when this "
+                          "fix is off, instead of sending RR a clipped residual around the model's mean.");
+    if (bool v = cfg.FfxDenoiserExperimentBleedWitnessWithoutFloor.value_or_default();
+        ImGui::Checkbox("Experiment B: trust without Floor", &v))
+        cfg.FfxDenoiserExperimentBleedWitnessWithoutFloor = v;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Experimental. The surface-trust evidence of this fix ignores the current frame's "
+                          "Floor share of Skip, so it follows only RR's temporally stable output.");
     ImGui::Unindent();
     return rebuild;
 }

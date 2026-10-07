@@ -152,6 +152,54 @@ def constants(shader, values, directory=PRE):
 
 counter = 0
 timings = []
+
+
+class _FloorReadback(np.ndarray):
+    """Carry an immutable original seed with this array's Floor dispatch chain.
+
+    Legacy direct four-input callers use it as their fallback detail guide.
+    Unrelated chains never share a mutable global last-seed value.
+    """
+    def __new__(cls, value, original=None, model=None):
+        result = np.asarray(value).view(cls)
+        if original is None:
+            original = np.asarray(value).copy()
+            original.setflags(write=False)
+        result._original_floor_seed = original
+        if model is not None:
+            model = np.asarray(model)
+            model.setflags(write=False)
+        result._floor_model = model
+        return result
+
+    def __array_finalize__(self, source):
+        self._original_floor_seed = getattr(source, '_original_floor_seed', None)
+        self._floor_model = getattr(source, '_floor_model', None)
+
+
+def floor_has_detail_reference(directory=PRE):
+    source_text = (Path(directory)/'FSRDFloor.hlsl').read_text(encoding='utf-8')
+    return re.search(r'\bInDetailReference\s*:\s*register\s*\(\s*t4\s*\)', source_text) is not None
+
+
+def floor_has_model(directory=PRE):
+    source_text = (Path(directory)/'FSRDFloor.hlsl').read_text(encoding='utf-8')
+    return re.search(r'\bInFloorModel\s*:\s*register\s*\(\s*t5\s*\)', source_text) is not None
+
+
+def conversion_has_floor_model(directory=PRE):
+    source_text = (Path(directory)/'FSRDInputConv.hlsl').read_text(encoding='utf-8')
+    return re.search(r'\bInFloorModel\s*:\s*register\s*\(\s*t17\s*\)', source_text) is not None
+
+
+def _original_floor_seed(value):
+    original = getattr(value, '_original_floor_seed', None)
+    if original is None:
+        original = np.asarray(value).copy()
+        original.setflags(write=False)
+    return original
+
+
 def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repetitions=1):
     global counter
     schema = 'FSRDInputConv' if shader == 'FSRDInputConvAdditive' else shader
@@ -159,7 +207,55 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
     requested_outputs = len(output_formats)
     inputs = list(inputs)
     output_formats = list(output_formats)
-    adaptive_conv = schema == 'FSRDInputConv' and 'InDemodMask' in (directory/(schema+'.hlsl')).read_text()
+    floor_reference = shader == 'FSRDFloor' and floor_has_detail_reference(directory)
+    floor_model = shader == 'FSRDFloor' and floor_has_model(directory)
+    seed_model = shader == 'FSRDFloorSeed' and re.search(
+        r'\bOutFloorModel\s*:\s*register\s*\(\s*u4\s*\)',
+        (Path(directory)/'FSRDFloorSeed.hlsl').read_text(encoding='utf-8')) is not None
+    original_floor_seed = None
+    if shader == 'FSRDFloor':
+        if len(inputs) not in (4, 5, 6):
+            raise ValueError('FSRDFloor requires four legacy inputs and optional detail reference/model')
+        original_floor_seed = _original_floor_seed(inputs[0])
+        if floor_reference and len(inputs) == 4:
+            inputs.append(original_floor_seed)
+        if floor_model:
+            if len(inputs) == 5:
+                model = getattr(inputs[0], '_floor_model', None)
+                inputs.append(rgba(w,h,(0,0,0)) if model is None else model)
+            if len(output_formats) == 1:
+                output_formats.append(10)
+        elif floor_reference:
+            inputs = inputs[:5]
+        elif not floor_reference:
+            # Frozen baseline/candidate1 DXIL retains the original four-SRV table.
+            inputs = inputs[:4]
+    if seed_model and len(output_formats) == 4:
+        output_formats.append(10)
+    conversion_source = ((directory/(schema+'.hlsl')).read_text()
+                         if schema == 'FSRDInputConv' else '')
+    conversion_model = schema == 'FSRDInputConv' and conversion_has_floor_model(directory)
+    conversion_extra_slots = [int(slot) for slot in re.findall(
+        r'\b(?:ResearchField|InDemodMask)\s*:\s*register\s*\(\s*t(\d+)\s*\)', conversion_source)]
+    conversion_input_count = max([18 if conversion_model else 17] +
+                                 [slot+1 for slot in conversion_extra_slots])
+    if conversion_model:
+        if not 17 <= len(inputs) <= conversion_input_count:
+            raise ValueError('FSRDInputConv requires seventeen legacy inputs and optional Floor model')
+        model = getattr(inputs[9], '_floor_model', None)
+        model = rgba(w,h,(0,0,0)) if model is None else model
+        if conversion_extra_slots and min(conversion_extra_slots) == 18 and len(inputs) == 18:
+            # Older research callers supplied their one extra field at t17.
+            # Its declaration now follows the production model at t18. Preserve
+            # that field and insert the chain's final model ahead of it.
+            inputs.insert(17, model)
+        if len(inputs) == 17:
+            # The final coefficient buffer belongs to this Floor colour chain.
+            # Handcrafted fixtures have no model and bind a disabled zero buffer.
+            inputs.append(model)
+    while conversion_extra_slots and len(inputs) < conversion_input_count:
+        inputs.append(rgba(w,h,(0,0,0)))
+    adaptive_conv = schema == 'FSRDInputConv' and 'InDemodMask' in conversion_source
     adaptive_comp = shader == 'FSRDOutputComp' and 'InEffectiveSpecAlbedo' in (directory/(shader+'.hlsl')).read_text()
     if adaptive_conv:
         if len(inputs) == 17:
@@ -212,8 +308,9 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
     # documented RGBA16_FLOAT/R32_FLOAT fixture (actual title formats may differ).
     formats = {
         'FSRDFloorSeed': [10,10,41,41,10],
-        'FSRDFloor': [10,41,10,10],
-        'FSRDInputConv': [10,41,10,10,41,41,10,10,41,10,10,10,10,10,41,41,10,10],
+        'FSRDFloor': [10,41,10,10] + ([10] if floor_reference else []) + ([10] if floor_model else []),
+        'FSRDInputConv': [10,41,10,10,41,41,10,10,41,10,10,10,10,10,41,41,10]
+                         + [10] * max(1, len(inputs)-17),
         'FSRDOutputComp': ([10,28,10,28,10,24,10,41,10,10,3,10,10,16,10] + ([10,10] if loss_comp else []) if trust_comp else
                            [10,28,10,28,10,24,10,41,10,10,3,28,10] if temporal_comp else
                           [10,28,10,28,10,24,10,41] if len(inputs)==8 else
@@ -260,13 +357,17 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
             packed=np.fromfile(p,dtype='<u4').reshape(h,w)
             a=np.stack([(packed&1023)/1023,((packed>>10)&1023)/1023,((packed>>20)&1023)/1023,((packed>>30)&3)/3],axis=2).astype(np.float32)
         else:raise ValueError(fmt)
-        if i < requested_outputs:
+        if i < requested_outputs or (seed_model and i == 4) or (floor_model and i == 1):
             assert np.all(np.isfinite(a)), f'{shader} produced NaN/Inf'
         result.append(a)
     # Raw staging data is reproducible, and HDR inputs can be hundreds of MB per
     # job. Keep the result metrics rather than accumulating every upload/readback.
     for staging in d.glob('*.bin'):
         staging.unlink()
+    if shader == 'FSRDFloorSeed':
+        result[0] = _FloorReadback(result[0], model=result[4] if seed_model else None)
+    elif shader == 'FSRDFloor':
+        result[0] = _FloorReadback(result[0], original_floor_seed, result[1] if floor_model else None)
     return result[:requested_outputs]
 
 def dispatch(shader, values, inputs, output_formats, size, directory=PRE, repetitions=1):
@@ -316,10 +417,14 @@ def seed(color, depth=None, normal=None, albedo=None, enabled=True, base=(0,0), 
         'Flags':1,'InputBase':[*base,*base],'NormalBase':base,'AlbedoBase':base,'FloorEnabled':int(enabled)}
     return dispatch('FSRDFloorSeed',values,[color,normal,depth,depth,albedo],[10,41,10,10],(lw,lh))
 
-def filter_floor(floor,depth,guide,albedo):
+def filter_floor(floor,depth,guide,albedo,reference=None,directory=PRE):
     h,w=floor.shape[:2]
+    extended = floor_has_detail_reference(directory)
+    immutable_reference = _original_floor_seed(floor) if reference is None else np.asarray(reference).copy()
+    immutable_reference.setflags(write=False)
     for step in (1,2,4,8,16):
-        floor=dispatch('FSRDFloor',{'DstTexSize':[w,h,1/w,1/h],'StepSize':step},[floor,depth,guide,albedo],[10],(w,h))[0]
+        inputs = [floor,depth,guide,albedo] + ([immutable_reference] if extended else [])
+        floor=dispatch('FSRDFloor',{'DstTexSize':[w,h,1/w,1/h],'StepSize':step},inputs,[10],(w,h),directory=directory)[0]
     return floor
 
 def compose(rr,reference,depth,normal,albedo,detail=1.0,anchor=4,mix=1):

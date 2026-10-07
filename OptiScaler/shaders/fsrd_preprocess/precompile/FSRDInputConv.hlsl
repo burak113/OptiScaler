@@ -1,6 +1,7 @@
 // FSR-RR Conversion & Packing Shader
 #include "FSRDPreprocessCommon.hlsli"
 #include "FSRDFloorCommon.hlsli"
+#include "FSRDFloorModel.hlsli"
 
 // Compile the original conversion separately from the enabled experiment.
 // Runtime selects their PSOs; strength zero never executes experimental DXIL.
@@ -18,13 +19,13 @@
 #define MainRS \
     "RootFlags(0), " \
     "CBV(b0), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 17), visibility = SHADER_VISIBILITY_ALL), " \
+    "DescriptorTable(SRV(t0, numDescriptors = 18), visibility = SHADER_VISIBILITY_ALL), " \
     "DescriptorTable(UAV(u0, numDescriptors = 10), visibility = SHADER_VISIBILITY_ALL), "
 #else
 #define MainRS \
     "RootFlags(0), " \
     "CBV(b0), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 17), visibility = SHADER_VISIBILITY_ALL), " \
+    "DescriptorTable(SRV(t0, numDescriptors = 18), visibility = SHADER_VISIBILITY_ALL), " \
     "DescriptorTable(UAV(u0, numDescriptors = 8), visibility = SHADER_VISIBILITY_ALL), "
 #endif
 
@@ -168,6 +169,8 @@ Texture2D<float> InRoughness : register(t4); // R - May be packed in normals. NV
 #define FLAGS_APPROXIMATE_SPEC_HIT_DISTANCE (1 << 26)
 #define FLAGS_APPROXIMATE_RAY_HIT_DISTANCE (1 << 27)
 #define FLAGS_UNSUPPORTED_ALBEDO (1 << 28)
+// Experiment: keep the ordinary material-model source with Albedo Bleed Fix.
+#define FLAGS_EXPERIMENT_BLEED_MODEL_SOURCE (1 << 29)
 
 Texture2D<float> InSpecHitDist : register(t5); // R - NVSDK_NGX_Parameter_DLSSD_SpecularHitDistance
 Texture2D<half3> InDiffAlbedo : register(t6); // RGB - NVSDK_NGX_Parameter_GBuffer_DiffuseAlbedo
@@ -187,6 +190,7 @@ Texture2D<float> InTitleLinearDepth : register(t14);
 // runtime parameter rather than something this shader may assume.
 Texture2D<float4> InResponsivityMask : register(t15);
 Texture2D<half4> InDetailReference : register(t16);
+Texture2D<half4> InFloorModel : register(t17);
 
 // RR 1.2 typed signals. Resource order matches Conversion::SignalResources.
 RWTexture2D<FSRD_CONV_UAV_TYPE> OutIndirectSpecular : register(u0); // RGB: demodulated radiance, A: hit distance
@@ -881,11 +885,59 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     const bool screenRROnly = handoverSurface;
     if (screenRROnly)
         spatialFloor = 0.0f;
-    float3 floorExcess = max(spatialFloor - rawColor, 0.0f);
+    const float4 floorModel = InFloorModel[px];
+    const float3 materialSlope = DecodeFloorModel(floorModel);
+    const float modelResponsivity = IsSet(FLAGS_HAS_RESPONSIVITY_MASK) ? InResponsivityMask[px].r : 0.0f;
+    const bool modelRouted = IsSet(FLAGS_HAS_RESPONSIVITY_MASK) && ResponsivityTrustThreshold > 0.0f &&
+        (ResponsivityInvert != 0u ? modelResponsivity > ResponsivityTrustThreshold
+                                 : modelResponsivity < ResponsivityTrustThreshold);
+    const bool ordinaryNoiseModel = IsSet(FLAGS_FLOOR_ENABLED) && !handoverSurface &&
+        isZeroRoughness == 0.0f && biasWeight == 0.0f && isEmissive == 0.0f &&
+        !modelRouted && all(isfinite(floorModel)) && all(isfinite(materialSlope)) &&
+        all(isfinite(detailReference)) &&
+        (!IsSet(FLAGS_UNSUPPORTED_ALBEDO) || IsSet(FLAGS_EXPERIMENT_BLEED_MODEL_SOURCE)) &&
+        !IsSet(FLAGS_HALF_DIFFUSE) && !IsSet(FLAGS_HALF_SPECULAR) &&
+        specularStrength == 1.0f && diffuseStrength == 1.0f &&
+        ValidSurfaceAlbedos(inputSpecReflectance, inputDiffAlbedo) &&
+        all(albedoOvershoot == 0.0f) && floorModel.a >= 0.5f;
+    // The spatially filtered material model already carries its complete colour.
+    // Feeding the seed's independent residual noise back into that estimate would
+    // create a second, clipped noisy component. Use the same current-frame source
+    // for its pedestal and residual, with uncertainty measured against the robust
+    // reference rather than the noise-correlated raw luminance.
+    const float planeConfidence = FloorPlaneConfidence(floorModel);
+    const float modelSourceWeight = ordinaryNoiseModel && (any(materialSlope > 0.0f) || planeConfidence > 0.0f) && detailReference.a >= 0.0f
+        ? smoothstep(0.005f, 0.025f, detailReference.a /
+            max(GetLuminance(FloorRadiance(detailReference.rgb)), 1e-5f)) : 0.0f;
+    // One decision for all channels: a model explaining only some channels would
+    // send noise to RR in the others alone, which RR returns as coloured grain.
+    const float3 sourceWeight = modelSourceWeight *
+        max(all(materialSlope > 0.0f) ? 1.0f : 0.0f, planeConfidence);
+    // Two coherent colour directions and a quiet third direction certify only
+    // current raw lighting on a supported surface. The marker transports no
+    // colour and never changes the cleaned reference used by signal selection.
+    const bool coherentScreen=(screenRROnly || ordinaryNoiseModel) && FloorCoherentLighting(floorModel) &&
+        FloorDetailPreservation>0.0f && !IsSet(FLAGS_DEBUG) &&
+        biasWeight==0.0f && isEmissive==0.0f && !modelRouted &&
+        all(isfinite(floorModel)) && all(isfinite(detailReference)) && detailReference.a>=0.0f &&
+        !IsSet(FLAGS_UNSUPPORTED_ALBEDO) && !IsSet(FLAGS_HALF_DIFFUSE) && !IsSet(FLAGS_HALF_SPECULAR) &&
+        specularStrength==1.0f && diffuseStrength==1.0f &&
+        ValidSurfaceAlbedos(inputSpecReflectance,inputDiffAlbedo) && all(albedoOvershoot==0.0f);
+    // Keep the original RR signal and its history while final colour is protected.
+    const float3 residualSource = lerp(rawColor, spatialFloor, sourceWeight);
+    float3 floorExcess = max(spatialFloor - residualSource, 0.0f);
     // Route the mask independently: scaling both terms preserves the identity even
     // when the spatial estimate crosses above raw. No detail may touch routed content.
     floorColor.rgb = (1.0f - biasWeight) * spatialFloor + biasWeight * rawColor;
-    float3 denoiserColor = (1.0f - biasWeight) * max(rawColor - spatialFloor, 0.0f);
+    float3 denoiserColor = (1.0f - biasWeight) * max(residualSource - spatialFloor, 0.0f);
+    // Truncating noisy negative residuals has a positive expectation. The flat
+    // material's sigma has been spatially averaged with Floor; remove its small
+    // expected excess without resampling current negative grain into Skip.
+    if (ordinaryNoiseModel && detailReference.a >= 0.0f && planeConfidence == 0.0f && !any(materialSlope > 0.0f))
+    {
+        const float clippingBias = 0.15f * FloorClippingNoiseRatio(floorModel) * GetLuminance(floorColor.rgb);
+        floorColor.rgb = max(floorColor.rgb - min(clippingBias, 0.05f * floorColor.rgb), 0.0f);
+    }
     float3 floorResidual = denoiserColor;
 
 
@@ -1273,14 +1325,29 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         const float floorCrossing = any(floorExcess > 0.0f) ? 1.0f : 0.0f;
         OutDiffAlbedo[FSRD_OUTPUT_PIXEL(px)] = half4(GetSafeFP16(diffAlbedo), half(floorCrossing));
         // RGB carries the radiance closure; alpha is diagnostic luminance.
-        const float3 safeFloorColor = GetSafeFP16(floorColor.rgb);
-        OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(safeFloorColor,
-            GetLuminance(safeFloorColor));
-
         const bool allowDetail = IsSet(FLAGS_FLOOR_ENABLED) && FloorDetailPreservation > 0.0f &&
             detailReference.a >= 0.0f && biasWeight == 0.0f && specularRouteWeight == 0.0f;
-        OutDetailReference[FSRD_OUTPUT_PIXEL(px)] = half4(GetSafeFP16(detailReference.rgb),
-            allowDetail ? half(max(detailReference.a, 0.0f)) : half(-1.0f));
+        // The class attests current raw light, but the classifier and every RR
+        // lobe above still read the unchanged cleaned reference. Withdrawing
+        // protection therefore never feeds a new signal into native RR history.
+        [branch]
+        if(coherentScreen && allowDetail)
+        {
+            const float3 safeCurrentSource = GetSafeFP16(rawColor);
+            OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(safeCurrentSource, -1.0f);
+            OutDetailReference[FSRD_OUTPUT_PIXEL(px)] = half4(safeCurrentSource,
+                half(max(detailReference.a, 0.0f)));
+        }
+        else
+        {
+            // Preserve C19's float32 luma/store expression and avoid a mixed
+            // half3/float3 ternary changing native16 optimizer conversions.
+            const float3 safeFloorColor = GetSafeFP16(floorColor.rgb);
+            OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(safeFloorColor,
+                GetLuminance(safeFloorColor));
+            OutDetailReference[FSRD_OUTPUT_PIXEL(px)] = half4(GetSafeFP16(detailReference.rgb),
+                allowDetail ? half(max(detailReference.a, 0.0f)) : half(-1.0f));
+        }
         
         // Values the optional-input views below report, read once so every view shows
         // exactly what the logic above used. The title depth is no longer consumed by

@@ -3399,6 +3399,22 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                     MARK_ALL_BACKENDS_CHANGED();
                 }
             }
+            if (ImGui::CollapsingHeader("Volumetric Restore"))
+            {
+                ScopedIndent indent;
+                if (float v = config->FfxDenoiserVolumeRestore.value_or_default();
+                    ImGui::SliderFloat("Restore Strength", &v, 0.0f, 1.0f))
+                    config->FfxDenoiserVolumeRestore = v;
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Adds back the light RR removes from the input (fog, light beams, "
+                                      "transparent layers). RR's image is only added to, never filtered. "
+                                      "0 disables it.");
+                ImGui::TextWrapped(
+                    "Experimental, off by default. Compares RR's output with the game's input over 8x8 "
+                    "tiles, keeps the systematic shortfall over time and adds it back as a smooth layer.");
+                if (ImGui::Button("Reset Volumetric Restore"))
+                    config->FfxDenoiserVolumeRestore.reset();
+            }
             if (ImGui::CollapsingHeader("Floor"))
             {
                 ScopedIndent indent;
@@ -3411,6 +3427,14 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                     config->FfxDenoiserFloorFastMode = v;
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip("Reduces Floor filtering cost. Can change lighting smoothness and leave more noise. Disable for full quality.");
+                if (bool v = config->FfxDenoiserFloorCleanLighting.value_or_default();
+                    ImGui::Checkbox("Preserve clean lighting patterns", &v))
+                    config->FfxDenoiserFloorCleanLighting = v;
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Keeps noise-free lighting patterns on one material (clean light gradients, "
+                                      "caustics) out of RR, which would smooth them away. Uses the coherent-lighting "
+                                      "witness and the local lighting projection; only noise-free content triggers it. "
+                                      "Adds about 0.5 ms Floor Seed time at 1440p.");
                 ImGui::EndDisabled();
                 ImGui::TextWrapped(
                     "Separates smooth lighting before RR. Enabled: one seed and five filter passes "
@@ -3419,6 +3443,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                 {
                     config->FfxDenoiserFloorEnabled.reset();
                     config->FfxDenoiserFloorFastMode.reset();
+                    config->FfxDenoiserFloorCleanLighting.reset();
                 }
             }
             if (ImGui::CollapsingHeader("Detail Recovery"))

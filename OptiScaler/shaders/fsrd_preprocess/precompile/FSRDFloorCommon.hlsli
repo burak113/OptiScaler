@@ -45,13 +45,15 @@ float FloorMaterialWeight(float3 a, float3 b)
 float FloorSurfaceWeight(float z, float tapZ, float2 gradient, float2 offset,
                          float3 n, float3 tapN, float3 a, float3 tapA)
 {
-    if (!isfinite(z) || !isfinite(tapZ) || z * tapZ <= 0.0f)
-        return 0.0f;
+    // Select instead of returning early: the early return put every guide load
+    // behind its own branch, and each tap then waited for memory in turn.
+    const bool valid = isfinite(z) && isfinite(tapZ) && z * tapZ > 0.0f;
     const float prediction = clamp(dot(gradient, offset), -0.25f * abs(z), 0.25f * abs(z));
     const float error = abs(z + prediction - tapZ);
     const float depthWeight = Square(saturate(1.0f - error / max(0.01f * abs(z), 1e-3f)));
     const float normalWeight = Square(saturate((dot(n, tapN) - 0.9f) * 10.0f));
-    return depthWeight * normalWeight * FloorMaterialWeight(a, tapA);
+    const float weight = depthWeight * normalWeight * FloorMaterialWeight(a, tapA);
+    return valid ? weight : 0.0f;
 }
 
 // At silhouettes a central difference extrapolates across two different surfaces.

@@ -243,6 +243,8 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     float _appliedFloorHandoverAnchorClamp = -1.0f;
     uint32_t _appliedSpatialTemporalMask = 0;
     float _appliedLumaRecovery = 1.0f;
+    // Volumetric restore strength after composition; 0 disables it.
+    float _volumeRestoreStrength = 0.0f;
     float _appliedChromaRecovery = 1.0f;
     float _appliedFloorHandoverCorrelationMix = -1.0f;
     int _appliedNormalsInViewSpace = -1;

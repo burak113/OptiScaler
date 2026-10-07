@@ -3,7 +3,8 @@
 Mirrors the layout the existing precompiled headers use, so the checked-in artifacts stay
 in the same shape: an `#if 0` DXIL listing for reference, then the cso bytes.
 FSRDInputConv builds both the original and enabled additive variants so an edit to
-their shared source cannot leave either conversion PSO with a stale artifact.
+their shared source cannot leave either conversion PSO with a stale artifact; the
+Seed and its clean-lighting variant are rebuilt together for the same reason.
 """
 import subprocess
 import sys
@@ -84,11 +85,12 @@ def build(name, compiler):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('name', choices=['FSRDFloorSeed', 'FSRDFloor', 'FSRDInputConv',
+    parser.add_argument('name', choices=['FSRDFloorSeed', 'FSRDFloorSeedCleanLighting', 'FSRDFloor', 'FSRDInputConv',
                                        'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDOutputComp',
                                        'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
                                        'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor',
-                                       'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate', 'all'])
+                                       'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate',
+                                       'FSRDVolumeGather', 'FSRDVolumeAccumulate', 'FSRDVolumeApply', 'all'])
     parser.add_argument('--dxc', help='DXC executable; otherwise FSRD_DXC, PATH, or latest installed SDK')
     options = parser.parse_args()
     compiler = dxc(options.dxc)
@@ -100,11 +102,15 @@ if __name__ == "__main__":
     if check.returncode != 0:
         raise SystemExit("mirror check failed; not compiling")
     if options.name == 'all':
-        names = ['FSRDFloorSeed', 'FSRDFloor', 'FSRDInputConv',
+        names = ['FSRDFloorSeed', 'FSRDFloorSeedCleanLighting', 'FSRDFloor', 'FSRDInputConv',
                  'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDOutputComp',
                  'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
                  'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor',
-                 'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate']
+                 'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate',
+                 'FSRDVolumeGather', 'FSRDVolumeAccumulate', 'FSRDVolumeApply']
+    elif options.name in ('FSRDFloorSeed', 'FSRDFloorSeedCleanLighting'):
+        # The clean-lighting PSO wraps the Seed source; rebuild both together.
+        names = ['FSRDFloorSeed', 'FSRDFloorSeedCleanLighting']
     elif options.name == 'FSRDInputConv':
         names = ['FSRDInputConv', 'FSRDInputConvAdditive', 'RRTraceAdditive']
     elif options.name in ('FSRDOutputComp', 'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
