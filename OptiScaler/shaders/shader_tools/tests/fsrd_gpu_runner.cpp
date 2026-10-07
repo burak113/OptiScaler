@@ -55,8 +55,10 @@ int pixelBytes(DXGI_FORMAT fmt)
     case DXGI_FORMAT_R16G16B16A16_FLOAT: return 8;
     case DXGI_FORMAT_R32G32_FLOAT: return 8;
     case DXGI_FORMAT_R32_FLOAT:
+    case DXGI_FORMAT_R16G16_FLOAT:
     case DXGI_FORMAT_R10G10B10A2_UNORM:
     case DXGI_FORMAT_R8G8B8A8_UNORM: return 4;
+    case DXGI_FORMAT_R8_UNORM: return 1;
     default: throw std::runtime_error("unsupported format");
     }
 }
