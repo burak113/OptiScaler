@@ -124,6 +124,14 @@ groupshared uint g_HasHandover;
 // The light path needs only a radius-one RR neighbourhood. Keep it in FP32:
 // reusing the half-precision handover tile would quantize the recovery input.
 groupshared float3 g_LightRR[10][11];
+// Native support must remain FP32: a rejected HDR halo must not quantize the
+// accepted surface's texture. Full variants borrow g_RegionA before its
+// regional-moment phase; small variants own a persistent native tile instead.
+// NaN X is a private source-certificate tag, never radiance/debug/history.
+#if FSRD_COMPOSITION_VARIANT == 1 || FSRD_COMPOSITION_VARIANT == 3
+groupshared float3 g_LightIndependentRR[10][11];
+#endif
+groupshared float3 g_LightSkipOrigin;
 #endif
 #if FSRD_COMPOSITION_VARIANT == 0 || FSRD_COMPOSITION_VARIANT == 4
 groupshared float4 g_RegionA[16][9];
@@ -221,7 +229,7 @@ float3 DiffuseRadiance(int2 p)
 // diffuse albedo of water or glass is the surface seen through it, while on a diffuse-
 // dominant surface it is the surface itself (real-RR replays: the stain edge drops by a
 // further quarter to two fifths, with no change off the water).
-float3 UnsupportedAlbedoCorrection(int2 p, float3 specular)
+float3 UnsupportedAlbedoCorrection(int2 p, float3 specular, inout float3 carriedSkip)
 {
     const float weight = UnsupportedAlbedoWeight(p);
     if (weight <= 0.0f)
@@ -232,6 +240,7 @@ float3 UnsupportedAlbedoCorrection(int2 p, float3 specular)
     const float3 share = spec * rcp(max(total, DemodDivisorFloor)) * splitT * splitT * (3.0f - 2.0f * splitT);
     const float3 specularSkip = SpecularSkip(p, spec, diff, share);
     float3 correction = weight * (float3(InDirectSpecularDenoised[p].rgb) - (specular + specularSkip));
+    carriedSkip -= weight * specularSkip;
     [branch]
     if (IsSet(FLAGS_DIFFUSE_ALTERNATE))
     {
@@ -239,24 +248,47 @@ float3 UnsupportedAlbedoCorrection(int2 p, float3 specular)
         // Skip less its specular part is the diffuse part, divisor-floor loss included.
         const float3 diffusePath = DiffuseRadiance(p) * DiffuseMultiplier(p) + float3(InSkipSignal[p].rgb) - specularSkip;
         correction += weight * reflective * (float3(InIndirectDiffuseDenoised[p].rgb) - diffusePath);
+        carriedSkip -= weight * reflective * (float3(InSkipSignal[p].rgb) - specularSkip);
     }
     return correction;
 }
-float3 Reconstruct(int2 p)
+float3 Reconstruct(int2 p, out float3 independentRR, out float3 carriedSkip)
 {
     const float4 skip=InSkipSignal[p];
+    const float3 specular = SpecularRadiance(p) * SpecularMultiplier(p);
+    const float3 denoised = specular + DiffuseRadiance(p) * DiffuseMultiplier(p);
     // The RR copy keeps history warm; the current-source certificate selects
     // one complete colour and excludes stale RR radiance during transitions.
-    // Its neighbourhood still feeds the existing Anchor/Correlation statistics.
+    // Complete radiance still feeds colour reconstruction; support-only tags
+    // keep its different RR domain out of a noisy neighbour's corroboration.
     if(skip.a==-1.0f)
+    {
+        // Current-source authority controls the final colour, but is not a
+        // native RR observation. Its kept-warm RR signals retain their actual
+        // values, while the recovery witness marks the domain boundary.
+        // Counting full raw here would itself introduce a false edge against
+        // residual-only RR.
+        independentRR = FloorRadiance(denoised);
+        carriedSkip = FloorRadiance(skip.rgb) - independentRR;
         return FloorRadiance(skip.rgb);
-    const float3 specular = SpecularRadiance(p) * SpecularMultiplier(p);
-    float3 radiance = specular +
-                      DiffuseRadiance(p) * DiffuseMultiplier(p) + float3(InSkipSignal[p].rgb);
+    }
+    float3 radiance = denoised + float3(InSkipSignal[p].rgb);
+    carriedSkip = skip.rgb;
     [branch]
     if (UnsupportedAlbedoRecovery > 0.0f)
-        radiance += UnsupportedAlbedoCorrection(p, specular);
+        radiance += UnsupportedAlbedoCorrection(p, specular, carriedSkip);
+    independentRR = FloorRadiance(radiance - carriedSkip);
     return FloorRadiance(radiance);
+}
+float3 Reconstruct(int2 p, out float3 independentRR)
+{
+    float3 carriedSkip;
+    return Reconstruct(p, independentRR, carriedSkip);
+}
+float3 Reconstruct(int2 p)
+{
+    float3 independentRR;
+    return Reconstruct(p, independentRR);
 }
 
 // Albedo split is only an estimate when the title supplies combined colour.
@@ -470,6 +502,244 @@ float3 FilterRecoveryDelta(float3 filtered, float3 rr, float noise)
     return support * delta;
 }
 
+float IndependentRecoverySupport(float3 lowReference, float referenceVariance, float independentVariance,
+                                 float independentCovariance, float skipCovariance, bool cleanStructure,
+                                 bool certifiedNeighbour)
+{
+    // Shared Floor covariance cannot certify RR's retention of noisy detail.
+    // Constant/no Skip and either user control at zero are exact opt-outs.
+    const float unit2 = max(dot(lowReference, lowReference) / 3.0f, 1e-12f);
+    const float sharedEvidence = smoothstep(1e-7f * unit2, 1e-6f * unit2, max(skipCovariance, 0.0f));
+    const float independentCoherence =
+        saturate(independentCovariance / max(sqrt(independentVariance * referenceVariance), 1e-12f));
+    const float independentSupport = smoothstep(0.65f, 0.95f, independentCoherence) *
+                                     smoothstep(1e-8f * unit2, 1e-7f * unit2, independentVariance);
+    const float supportMix = cleanStructure || FloorHandoverAnchorClamp <= 0.0f
+                                 ? 0.0f
+                                 : saturate(FloorHandoverCorrelationMix);
+    // Native RR is in a different full/residual domain beside a current-source
+    // certificate. Only geometry/material-accepted taps trigger this veto.
+    const float supported = certifiedNeighbour ? 0.0f : lerp(1.0f, independentSupport, sharedEvidence);
+    return lerp(1.0f, supported, supportMix);
+}
+
+#if FSRD_COMPOSITION_VARIANT != 2
+void StoreLightIndependentRR(uint index, float3 native, bool certified)
+{
+    native = all(isfinite(native)) ? native : 0.0f;
+    if (certified) native.x = asfloat(0x7fc00001u);
+#if FSRD_COMPOSITION_VARIANT == 0 || FSRD_COMPOSITION_VARIANT == 4
+    g_RegionA[index / 9][index % 9] = float4(native, 0.0f);
+#else
+    g_LightIndependentRR[index / 10][index % 10] = native;
+#endif
+}
+float3 LoadLightIndependentRR(int2 s)
+{
+#if FSRD_COMPOSITION_VARIANT == 0 || FSRD_COMPOSITION_VARIANT == 4
+    const uint index = uint(s.y * 10 + s.x);
+    return g_RegionA[index / 9][index % 9].rgb;
+#else
+    return g_LightIndependentRR[s.y][s.x];
+#endif
+}
+float LightIndependentRecoverySupport(int2 p)
+{
+    // A single scalar survives into colour recovery. The same FP32 witness is
+    // evaluated before either Full's region storage is reused or Light's
+    // larger colour/contrast statistics become live.
+    if (FloorHandoverAnchorClamp <= 0.0f || FloorHandoverCorrelationMix <= 0.0f ||
+        (g_HasHandover & 12u) == 0)
+        return 1.0f;
+    const int2 local = (p & 7) + 1;
+    const float3 nativeCentre = LoadLightIndependentRR(local);
+    if (isnan(nativeCentre.x))
+        return 1.0f;
+    const int2 bounds = int2(DstTexSize.xy) - 1;
+    const float4 reference = InDetailReference[p];
+    const float3 rr = g_LightRR[local.y][local.x];
+    const float z = InLinearDepth[p];
+    const float3 n = OctahedralDecode(InNormals[p].xy), a = InDiffuseAlbedo[p].rgb;
+    const float2 gradient = float2(
+        FloorDepthDerivative(InLinearDepth[max(p - int2(1, 0), 0)], z, InLinearDepth[min(p + int2(1, 0), bounds)]),
+        FloorDepthDerivative(InLinearDepth[max(p - int2(0, 1), 0)], z, InLinearDepth[min(p + int2(0, 1), bounds)]));
+    float3 nativeMean = 0, skipMean = 0, refMean = 0, lowReference = 0;
+    float nativeSquare = 0, nativeCross = 0, skipCross = 0, refSquare = 0;
+    float noiseSquared = 0, total = 0, quietPair = 1e20f, quietRunnerUp = 1e20f;
+    uint pairCount = 0, quietNeighbours = 0;
+    bool certifiedNeighbour = false;
+    [loop] for (int y = -1; y <= 1; ++y) [loop] for (int x = -1; x <= 1; ++x)
+    {
+        const int2 q = clamp(p + int2(x, y), 0, bounds);
+        const float4 tap = InDetailReference[q];
+        float w = CompositionSurfaceWeight(z, InLinearDepth[q], gradient, float2(x, y), n,
+                                           OctahedralDecode(InNormals[q].xy), a, InDiffuseAlbedo[q].rgb, 3u);
+        w *= tap.a >= 0.0f ? 1.0f : 0.0f;
+        w *= (x == 0 ? 2.0f : 1.0f) * (y == 0 ? 2.0f : 1.0f);
+        const float3 nativeTap = LoadLightIndependentRR(local + int2(x, y));
+        const bool certifiedTap = isnan(nativeTap.x);
+        certifiedNeighbour = certifiedNeighbour || (certifiedTap && w > 0.0f);
+        const float3 native = certifiedTap ? 0.0f : nativeTap - nativeCentre;
+        const float3 skip = float3(g_LightRR[local.y + y][local.x + x]) - rr - native;
+        const float3 ref = float3(tap.rgb) - reference.rgb;
+        nativeMean += w * native;
+        skipMean += w * skip;
+        refMean += w * ref;
+        lowReference += w * float3(tap.rgb);
+        nativeSquare += w * dot(native, native) / 3.0f;
+        nativeCross += w * dot(native, ref) / 3.0f;
+        skipCross += w * dot(skip, ref) / 3.0f;
+        refSquare += w * dot(ref, ref) / 3.0f;
+        noiseSquared += w * max(tap.a, 0.0f) * max(tap.a, 0.0f);
+        total += w;
+        if (w > 0.1f && (x != 0 || y != 0))
+        {
+            const float pair = sqrt(dot(ref, ref) / 3.0f);
+            if (pair < quietPair)
+            {
+                quietRunnerUp = quietPair;
+                quietPair = pair;
+            }
+            else if (pair < quietRunnerUp)
+                quietRunnerUp = pair;
+            quietNeighbours += pair < 1e-3f ? 1u : 0u;
+            ++pairCount;
+        }
+    }
+    const float inverseTotal = rcp(max(total, 1e-5f));
+    nativeMean *= inverseTotal;
+    skipMean *= inverseTotal;
+    refMean *= inverseTotal;
+    const float nativeVariance = max(nativeSquare * inverseTotal - dot(nativeMean, nativeMean) / 3.0f, 0.0f);
+    const float referenceVariance = max(refSquare * inverseTotal - dot(refMean, refMean) / 3.0f, 0.0f);
+    const float nativeCovariance = nativeCross * inverseTotal - dot(nativeMean, refMean) / 3.0f;
+    const float skipCovariance = (g_HasHandover & 4u) != 0
+        ? skipCross * inverseTotal - dot(skipMean, refMean) / 3.0f : 0.0f;
+    const float quietTolerance = max(length(reference.rgb) * 0.001f, 1e-8f);
+    const bool cleanStructure = total > 12.0f && pairCount >= 6 && sqrt(noiseSquared * inverseTotal) < quietTolerance &&
+                                 quietRunnerUp < quietTolerance && quietNeighbours >= 5u;
+    return IndependentRecoverySupport(lowReference * inverseTotal, referenceVariance, nativeVariance,
+        nativeCovariance, skipCovariance, cleanStructure, certifiedNeighbour);
+}
+#endif
+
+#if FSRD_COMPOSITION_VARIANT == 0 || FSRD_COMPOSITION_VARIANT == 4
+float FullIndependentRecoverySupport(int2 p, int2 sm, uint guideFlags, bool hasCertificate)
+{
+    // g_Blurred temporarily carries Skip here. Complete this short-lived
+    // witness before the existing blur probe overwrites that shared storage.
+    const float3 centreSkip = g_Blurred[sm.y][sm.x];
+    if (isnan(centreSkip.x))
+        return 1.0f;
+    const int2 bounds = int2(DstTexSize.xy) - 1;
+    const float4 reference = g_Reference[sm.y][sm.x];
+    const float z = g_Depth[sm.y][sm.x];
+    const float2 gradient = float2(FloorDepthDerivative(g_Depth[sm.y][sm.x - 1], z, g_Depth[sm.y][sm.x + 1]),
+                                   FloorDepthDerivative(g_Depth[sm.y - 1][sm.x], z, g_Depth[sm.y + 1][sm.x]));
+    const float3 normal = g_Normal[sm.y][sm.x], albedo = g_Albedo[sm.y][sm.x];
+    // Preserve the same directly measured clean-structure authority as Light:
+    // quiet alpha plus many quiet colour pairs, rather than a model marker.
+    const float quietTolerance = max(length(reference.rgb) * 0.001f, 1e-8f);
+    const float centreWeight = 4.0f * CompositionSurfaceWeight(z, z, gradient, 0.0f, normal, normal,
+                                                              albedo, albedo, guideFlags);
+    const float centreAlpha = max(reference.a, 0.0f);
+    const float centreNoise = centreWeight * centreAlpha * centreAlpha;
+    // The clean kernel sums to 16 and every surface factor is in [0,1].
+    // Its centre alone can prove the RMS gate impossible. Round the upper
+    // bound upward by 2^-16; uncertain/nonfinite cases keep the original scan.
+    const float cleanNoiseLimit = 16.000244140625f * quietTolerance * quietTolerance;
+    const bool cannotBeClean = isfinite(centreWeight) && centreWeight > 0.0f &&
+        isfinite(centreNoise) && isfinite(cleanNoiseLimit) && cleanNoiseLimit > 0.0f &&
+        centreNoise > cleanNoiseLimit;
+    if (!cannotBeClean)
+    {
+        float cleanTotal = 0, cleanNoise = 0, quietPair = 1e20f, quietRunnerUp = 1e20f;
+        uint pairCount = 0, quietNeighbours = 0;
+        [loop] for (int cy = -1; cy <= 1; ++cy) [loop] for (int cx = -1; cx <= 1; ++cx)
+        {
+            const int2 q = sm + int2(cx, cy);
+            const float4 tap = g_Reference[q.y][q.x];
+            const float w = CompositionSurfaceWeight(z, g_Depth[q.y][q.x], gradient,
+                float2(clamp(p + int2(cx, cy), 0, bounds) - p), normal, g_Normal[q.y][q.x],
+                albedo, g_Albedo[q.y][q.x], guideFlags) * (tap.a >= 0.0f ? 1.0f : 0.0f) *
+                (cx == 0 ? 2.0f : 1.0f) * (cy == 0 ? 2.0f : 1.0f);
+            cleanTotal += w;
+            cleanNoise += w * max(tap.a, 0.0f) * max(tap.a, 0.0f);
+            if (w > 0.1f && (cx != 0 || cy != 0))
+            {
+                const float3 delta = float3(tap.rgb) - reference.rgb;
+                const float pair = sqrt(dot(delta, delta) / 3.0f);
+                if (pair < quietPair)
+                {
+                    quietRunnerUp = quietPair;
+                    quietPair = pair;
+                }
+                else if (pair < quietRunnerUp)
+                    quietRunnerUp = pair;
+                quietNeighbours += pair < 1e-3f ? 1u : 0u;
+                ++pairCount;
+            }
+        }
+        if (cleanTotal > 12.0f && pairCount >= 6 && sqrt(cleanNoise / cleanTotal) < quietTolerance &&
+            quietRunnerUp < quietTolerance && quietNeighbours >= 5u)
+            return 1.0f;
+    }
+    // The regional Full evidence reaches radius four. A certified current
+    // source within that accepted footprint is not comparable with residual
+    // RR, even if its apparent Skip covariance happens to be negative.
+    if (hasCertificate)
+    {
+        [loop] for (int by = -4; by <= 4; ++by) [loop] for (int bx = -4; bx <= 4; ++bx)
+        {
+            const int2 offset = int2(bx, by), q = sm + offset;
+            if (isnan(g_Blurred[q.y][q.x].x) && g_Reference[q.y][q.x].a >= 0.0f &&
+                all(p + offset >= 0) && all(p + offset <= bounds) &&
+                CompositionSurfaceWeight(z, g_Depth[q.y][q.x], gradient, float2(offset), normal,
+                    g_Normal[q.y][q.x], albedo, g_Albedo[q.y][q.x], guideFlags) > 0.0f)
+                return 1.0f - saturate(FloorHandoverCorrelationMix);
+        }
+    }
+    const float3 rr = g_RR[sm.y][sm.x];
+    float3 nativeMean = 0, skipMean = 0, refMean = 0, lowReference = 0;
+    float nativeSquare = 0, nativeCross = 0, skipCross = 0, refSquare = 0, total = 0;
+    const float kernel[5] = { 1, 4, 6, 4, 1 };
+    [loop] for (int y = -2; y <= 2; ++y) [loop] for (int x = -2; x <= 2; ++x)
+    {
+        const int2 q = sm + int2(x, y);
+        const float4 tap = g_Reference[q.y][q.x];
+        const float spatial = kernel[x + 2] * kernel[y + 2];
+        const float w = x == 0 && y == 0 ? spatial : spatial * (tap.a >= 0.0f ? 1.0f : 0.0f) *
+            CompositionSurfaceWeight(z, g_Depth[q.y][q.x], gradient,
+                float2(clamp(p + int2(x, y), 0, bounds) - p), normal, g_Normal[q.y][q.x],
+                albedo, g_Albedo[q.y][q.x], guideFlags);
+        const float3 carried = g_Blurred[q.y][q.x];
+        // Rejected certified taps must not put their private tag into moments.
+        const float3 skip = isnan(carried.x) ? 0.0f : carried - centreSkip;
+        const float3 native = float3(g_RR[q.y][q.x]) - rr - skip;
+        const float3 ref = float3(tap.rgb) - reference.rgb;
+        nativeMean += w * native;
+        skipMean += w * skip;
+        refMean += w * ref;
+        lowReference += w * float3(tap.rgb);
+        nativeSquare += w * dot(native, native) / 3.0f;
+        nativeCross += w * dot(native, ref) / 3.0f;
+        skipCross += w * dot(skip, ref) / 3.0f;
+        refSquare += w * dot(ref, ref) / 3.0f;
+        total += w;
+    }
+    const float inverseTotal = rcp(max(total, 1e-5f));
+    nativeMean *= inverseTotal;
+    skipMean *= inverseTotal;
+    refMean *= inverseTotal;
+    const float nativeVariance = max(nativeSquare * inverseTotal - dot(nativeMean, nativeMean) / 3.0f, 0.0f);
+    const float referenceVariance = max(refSquare * inverseTotal - dot(refMean, refMean) / 3.0f, 0.0f);
+    const float nativeCovariance = nativeCross * inverseTotal - dot(nativeMean, refMean) / 3.0f;
+    const float skipCovariance = skipCross * inverseTotal - dot(skipMean, refMean) / 3.0f;
+    return IndependentRecoverySupport(lowReference * inverseTotal, referenceVariance, nativeVariance,
+        nativeCovariance, skipCovariance, false, false);
+}
+#endif
+
 // Lightweight Anchor/Correlation/Chroma/Luma recovery for lobe selections: a
 // heavily optimized form of the handover Anchor method. The current-frame
 // reference is the only detail source; it is never averaged with neighbours or
@@ -488,7 +758,7 @@ float3 FilterRecoveryDelta(float3 filtered, float3 rr, float noise)
 // No history is read or written by this path.
 #if FSRD_COMPOSITION_VARIANT != 2
 float3 LightAnchorRecovery(int2 p, float4 reference, float3 rr, out float3 anchoredReference,
-                           out float3 chromaCorrection, out float lumaCorrection)
+                           out float3 chromaCorrection, out float lumaCorrection, float recoverySupport)
 {
     chromaCorrection = 0;
     lumaCorrection = 0;
@@ -502,6 +772,16 @@ float3 LightAnchorRecovery(int2 p, float4 reference, float3 rr, out float3 ancho
         FloorDepthDerivative(InLinearDepth[max(p - int2(0, 1), 0)], z, InLinearDepth[min(p + int2(0, 1), bounds)]));
     float3 lowRR = 0, lowReference = 0;
     float3 rrCenteredMean = 0, rrCenteredSquare = 0;
+    // Pure Light paths consume the still-live FP32 native tile here, sharing
+    // every reference/guide load and weight with colour recovery. Mixed Full
+    // paths supply an early scalar because their region alias was overwritten.
+    bool fusedSupport = recoverySupport < 0.0f && FloorHandoverAnchorClamp > 0.0f &&
+                        FloorHandoverCorrelationMix > 0.0f && (g_HasHandover & 12u) != 0;
+    const float3 nativeCentre = fusedSupport ? LoadLightIndependentRR(local) : 0.0f;
+    fusedSupport = fusedSupport && !isnan(nativeCentre.x);
+    float3 nativeMean = 0, skipMean = 0;
+    float nativeSquare = 0, nativeCross = 0, skipCross = 0, supportRefSquare = 0;
+    bool certifiedNeighbour = false;
     float3 refCenteredMean = 0, refCenteredSquare = 0;
     float3 residualX = 0, residualY = 0, residualXY = 0;
     float rrLumaMean = 0, refLumaMean = 0, rrLumaSquare = 0, refLumaSquare = 0, crossLuma = 0;
@@ -527,6 +807,20 @@ float3 LightAnchorRecovery(int2 p, float4 reference, float3 rr, out float3 ancho
         rrCenteredSquare += w * centeredRR * centeredRR;
         refCenteredMean += w * centeredReference;
         refCenteredSquare += w * centeredReference * centeredReference;
+        if (fusedSupport)
+        {
+            const float3 nativeTap = LoadLightIndependentRR(local + int2(x, y));
+            const bool certifiedTap = isnan(nativeTap.x);
+            certifiedNeighbour = certifiedNeighbour || (certifiedTap && w > 0.0f);
+            const float3 native = certifiedTap ? 0.0f : nativeTap - nativeCentre;
+            const float3 skip = centeredRR - native;
+            nativeMean += w * native;
+            skipMean += w * skip;
+            nativeSquare += w * dot(native, native) / 3.0f;
+            nativeCross += w * dot(native, centeredReference) / 3.0f;
+            skipCross += w * dot(skip, centeredReference) / 3.0f;
+            supportRefSquare += w * dot(centeredReference, centeredReference) / 3.0f;
+        }
         // Three residual modes of a local quadratic fit over the reference:
         // straight edges and linear gradients cancel; random grain does not.
         residualX += w * x * (2 * y * y - 1) * centeredReference;
@@ -569,6 +863,30 @@ float3 LightAnchorRecovery(int2 p, float4 reference, float3 rr, out float3 ancho
                 quietNeighbours += pair < 1e-3f ? 1u : 0u;
                 ++pairCount;
             }
+        }
+    }
+    if (recoverySupport < 0.0f)
+    {
+        recoverySupport = 1.0f;
+        if (fusedSupport)
+        {
+            // Finish these moments before the coarse and contrast tests so
+            // only one scalar, rather than nine moment values, remains live.
+            const float inverseTotal = rcp(max(total, 1e-5f));
+            nativeMean *= inverseTotal;
+            skipMean *= inverseTotal;
+            const float3 supportRefMean = refCenteredMean * inverseTotal;
+            const float nativeVariance = max(nativeSquare * inverseTotal - dot(nativeMean, nativeMean) / 3.0f, 0.0f);
+            const float referenceVariance = max(supportRefSquare * inverseTotal - dot(supportRefMean, supportRefMean) / 3.0f, 0.0f);
+            const float nativeCovariance = nativeCross * inverseTotal - dot(nativeMean, supportRefMean) / 3.0f;
+            const float skipCovariance = (g_HasHandover & 4u) != 0
+                ? skipCross * inverseTotal - dot(skipMean, supportRefMean) / 3.0f : 0.0f;
+            const float supportQuietTolerance = max(length(reference.rgb) * 0.001f, 1e-8f);
+            const bool supportClean = total > 12.0f && pairCount >= 6 &&
+                sqrt(noiseSquared * inverseTotal) < supportQuietTolerance &&
+                quietRunnerUp < supportQuietTolerance && quietNeighbours >= 5u;
+            recoverySupport = IndependentRecoverySupport(lowReference * inverseTotal, referenceVariance,
+                nativeVariance, nativeCovariance, skipCovariance, supportClean, certifiedNeighbour);
         }
     }
     lowRR /= max(total, 1e-5f);
@@ -773,7 +1091,15 @@ float3 LightAnchorRecovery(int2 p, float4 reference, float3 rr, out float3 ancho
     }
     // Missing negative contrast must not carve a dark ring below both RR and
     // the supported reference range (likewise for bright overshoot).
-    const float3 totalCorrection = correction + chromaCorrection + lumaCorrection;
+    // A noisy shared Floor can look exactly like detail RR attenuated: it
+    // supplies both the apparent RR variance and the correlation with the
+    // reference. Require a corroborating pattern in RR itself before using
+    // that shared covariance to amplify the current reference. Constant Skip
+    // and measured-clean structure preserve their existing behavior; either
+    // user control at zero remains an explicit opt-out.
+    chromaCorrection *= recoverySupport;
+    lumaCorrection *= recoverySupport;
+    const float3 totalCorrection = recoverySupport * correction + chromaCorrection + lumaCorrection;
     return clamp(rr + totalCorrection, min(rr, referenceMin), max(rr, referenceMax)) - rr;
 }
 #endif
@@ -862,10 +1188,14 @@ void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 col
     // Includes ordinary/no-selection tiles: the small shader owns them all.
     if ((g_HasHandover & 1u) == 0) return;
 #endif
+    // Negative is a private request to fuse support with Light's colour loop.
+    // Every evaluated support lies in [0,1]; this never enters colour/history.
+    float lightSupportWitness = -1.0f;
     if ((g_HasHandover & 2u) != 0)
     {
         // 100 reconstructions per 64 pixels instead of nine per light pixel.
         // All lanes load the halo, including lanes outside a partial group.
+        float3 carriedValues[2];
         [unroll] for (uint i = 0; i < 2; ++i)
         {
             const uint index = tid + i * 64;
@@ -873,10 +1203,37 @@ void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 col
             {
                 const int2 s = int2(index % 10, index / 10);
                 const int2 q = clamp(int2(groupID.xy * 8) + s - 1, 0, bounds);
-                g_LightRR[s.y][s.x] = Reconstruct(q);
+                float3 native;
+                g_LightRR[s.y][s.x] = Reconstruct(q, native, carriedValues[i]);
+                const bool certified = InSkipSignal[q].a == -1.0f;
+                StoreLightIndependentRR(index, native, certified);
+                if (certified) InterlockedOr(g_HasHandover, 8u);
+                if (index == 0)
+                {
+                    g_LightSkipOrigin = carriedValues[i];
+                }
             }
         }
         GroupMemoryBarrierWithGroupSync();
+        [unroll] for (uint j = 0; j < 2; ++j)
+        {
+            const uint index = tid + j * 64;
+            if (index < 100)
+            {
+                if (any(carriedValues[j] != g_LightSkipOrigin)) InterlockedOr(g_HasHandover, 4u);
+            }
+        }
+        GroupMemoryBarrierWithGroupSync();
+#if FSRD_COMPOSITION_VARIANT == 0 || FSRD_COMPOSITION_VARIANT == 4
+        if ((g_HasHandover & 1u) != 0 || IsSet(FLAGS_DEBUG))
+        {
+            if (inBounds && any(filterWeight > 0.0f) && InDetailReference[p].a >= 0.0f)
+                lightSupportWitness = LightIndependentRecoverySupport(p);
+            // Only mixed Full/Light or debug dispatches overwrite g_RegionA.
+            // Complete their early witness reads before the regional phase.
+            GroupMemoryBarrierWithGroupSync();
+        }
+#endif
     }
     // This return is uniform across the group, before all tile barriers.
     // Ordinary surfaces keep spatial Floor + RR without screen reconstruction.
@@ -906,7 +1263,8 @@ void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 col
             float3 filterChroma = 0;
             float filterLuma = 0;
             const float3 correction =
-                active ? LightAnchorRecovery(p, reference, rr, anchoredReference, filterChroma, filterLuma) : 0;
+                active ? LightAnchorRecovery(p, reference, rr, anchoredReference, filterChroma, filterLuma,
+                    lightSupportWitness) : 0;
             const float3 recovered=FloorRadiance(rr + (active ? saturate(DetailPreservation)*filterWeight*correction : 0));
             OutColor[p]=half4(InSkipSignal[p].a==-1.0f ? FloorRadiance(InSkipSignal[p].rgb) : recovered,1);
             StoreRecoveryHistory(p, reference, float4(-1.0f, -1.0f, -1.0f, -1.0f), anchoredReference, active);
@@ -924,7 +1282,12 @@ void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 col
         {
             const int2 s = int2(flat % tileSide, flat / tileSide) + tileOffset;
             const int2 q = clamp(origin + s, 0, bounds);
-            g_RR[s.y][s.x] = Reconstruct(q);
+            float3 independentRR, carriedSkip;
+            g_RR[s.y][s.x] = Reconstruct(q, independentRR, carriedSkip);
+            // This tile has not yet become the blur probe. Reuse its FP32
+            // storage for the support witness, then overwrite after a barrier.
+            g_Blurred[s.y][s.x] = all(isfinite(carriedSkip)) ? carriedSkip : 0.0f;
+            if (InSkipSignal[q].a == -1.0f) g_Blurred[s.y][s.x].x = asfloat(0x7fc00001u);
             g_Reference[s.y][s.x] = InDetailReference[q];
             g_Depth[s.y][s.x] = InLinearDepth[q];
             g_Normal[s.y][s.x] = OctahedralDecode(InNormals[q].xy);
@@ -960,9 +1323,24 @@ void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 col
             uint variation = plane ? 0u : 1u;
             variation |= any(g_Albedo[s.y][s.x] != g_Albedo[4][4]) ? 2u : 0u;
             variation |= (any(g_Normal[s.y][s.x] != g_Normal[4][4]) || g_Reference[s.y][s.x].a < 0) ? 4u : 0u;
+            variation |= any(g_Blurred[s.y][s.x] != g_Blurred[4][4]) ? 8u : 0u;
+            variation |= isnan(g_Blurred[s.y][s.x].x) ? 16u : 0u;
             if (variation != 0)
                 InterlockedOr(g_VaryingGuides, variation);
         }
+    }
+    GroupMemoryBarrierWithGroupSync();
+    const uint guideFlags = g_VaryingGuides & 7u;
+    float supportWitness = 1.0f;
+    if ((g_VaryingGuides & 8u) != 0 && FloorHandoverAnchorClamp > 0.0f && FloorHandoverCorrelationMix > 0.0f)
+    {
+        if (inBounds && handoverSurface &&
+            g_Reference[gtID.y + s_SM_HaloOffset.y][gtID.x + s_SM_HaloOffset.x].a >= 0.0f)
+            supportWitness = FullIndependentRecoverySupport(p, int2(gtID.xy + s_SM_HaloOffset), guideFlags,
+                (g_VaryingGuides & 16u) != 0);
+        // Every carried-Skip read must finish before the same tile is used by
+        // the original blur hypothesis. No colour source is changed.
+        GroupMemoryBarrierWithGroupSync();
     }
     // Compute each overlapping blur once per tile, in FP32 with the original
     // summation order. It is evidence only, never the transferred reference.
@@ -984,7 +1362,6 @@ void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 col
         g_QuietPair[s.y][s.x] = sqrt(quiet);
     }
     GroupMemoryBarrierWithGroupSync();
-    const uint guideFlags = g_VaryingGuides;
     const bool uniformRegion =
         guideFlags == 0 && all(origin >= 0) && all(origin + 15 <= bounds) && isfinite(g_Depth[4][4]) &&
         g_Depth[4][4] != 0 &&
@@ -1451,6 +1828,13 @@ void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 col
             handoverLimits.g = LimitFraction(boxReference, anchoredReference, rr);
         }
 
+        const float recoverySupport = supportWitness;
+        confidence *= recoverySupport;
+        handoverWeights.z *= recoverySupport;
+        correction *= recoverySupport;
+        chromaCorrection *= recoverySupport;
+        lumaCorrection *= recoverySupport;
+
         // Missing negative contrast must not carve a dark ring below both RR and
         // the supported reference range (likewise for bright overshoot).
         beforeRangeClamp = rr + correction;
@@ -1467,7 +1851,8 @@ void StoreRecoveryHistory(int2 p, float4 reference, float4 decisions, float3 col
     {
         float3 filterChroma = 0;
         float filterLuma = 0;
-        const float3 filterCorrection = LightAnchorRecovery(p, reference, rr, filterReference, filterChroma, filterLuma);
+        const float3 filterCorrection = LightAnchorRecovery(p, reference, rr, filterReference, filterChroma, filterLuma,
+            lightSupportWitness);
         filteredReference = filterReference;
         chromaCorrection += saturate(DetailPreservation) * filterWeight * filterChroma;
         lumaCorrection += GetLuminance(saturate(DetailPreservation) * filterWeight) * filterLuma;
