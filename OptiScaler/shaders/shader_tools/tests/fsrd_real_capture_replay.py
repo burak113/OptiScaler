@@ -63,6 +63,8 @@ def camera_crop(extent, roi):
 
 
 V5_SCHEMA = 'fsrd-game-trace-v5'
+V5_REGION_MODES = {'square', 'full_height_strip', 'full_render'}
+V5_TARGET_FRAMES = {128, 256, 512}
 V5_IMAGE_FORMATS = dict(U=10, V=10, Qs=28, Qd=28, Skip=10, packed=24,
                         depth=41, motion=10, native_full1=10, current_output=10)
 V5_FORMAT_WORDS = {2: (16, 4, '<f4', 4), 6: (12, 3, '<f4', 3),
@@ -137,7 +139,7 @@ def _v5_image(root, ordinal, role, info):
     return file
 
 
-def _v5_replay_crop_aligned(info, origin):
+def _v5_replay_crop_aligned(info, origin, size):
     # Plain diagnostic copies use render ROI + the title resource's subrect
     # base. Replay binds those cropped words at base zero, so another equally
     # sized rectangle cannot be treated as the same aligned input.
@@ -150,8 +152,14 @@ def _v5_replay_crop_aligned(info, origin):
     if info['name'] == 'raw_motion' and mapping is not None:
         # Display-resolution motion needs its original bounding-rectangle
         # addressing, which the replay's fixed raw-MV binding does not provide.
-        if not isinstance(mapping, dict) or mapping.get('display_resolution') is not False or \
-                mapping.get('render_roi_origin') != origin:
+        if not isinstance(mapping, dict) or mapping.get('display_resolution') is not False:
+            return False
+        try:
+            if _v5_pair(mapping.get('render_roi_origin'), 'motion render ROI origin', 0) != origin or \
+                    ('render_roi_extent' in mapping and
+                     _v5_pair(mapping['render_roi_extent'], 'motion render ROI extent') != size):
+                return False
+        except ValueError:
             return False
     return True
 
@@ -161,8 +169,29 @@ def _validate_v5_capture(path, manifest, frames):
     extent = _v5_pair(manifest.get('render_extent'), 'render extent')
     roi = manifest['roi']; size = _v5_pair(roi.get('extent'), 'ROI extent')
     origin = _v5_pair(roi.get('origin'), 'ROI origin', 0)
-    if size not in ([128, 128], [512, 512]):
+    # Older v5 recorders published square ROIs without an explicit mode. A
+    # rectangle is only accepted when the manifest declares how it was resolved
+    # against the first render extent; that rectangle stays fixed for the trace.
+    region = manifest.get('region_mode', 'square')
+    if not isinstance(region, str) or region not in V5_REGION_MODES:
+        raise ValueError('v5 invalid requested region mode')
+    if region == 'square':
+        supported = size in ([128, 128], [512, 512])
+    elif region == 'full_height_strip':
+        supported = size[0] in (128, 512) and size[1] == extent[1] and origin[1] == 0
+    else:
+        supported = size == extent and origin == [0, 0]
+    if not supported:
         raise ValueError('v5 unsupported requested ROI extent')
+    if 'geometry_resolved' in roi and roi['geometry_resolved'] is not True:
+        raise ValueError('v5 published ROI geometry is unresolved')
+    target = manifest.get('target_frames')
+    if 'target_frames' in manifest and _v5_int(target, 'target frames') not in V5_TARGET_FRAMES:
+        raise ValueError('v5 unsupported requested frame count')
+    if type(manifest.get('complete')) is not bool:
+        raise ValueError('v5 completeness must be a captured boolean')
+    if target is not None and (len(frames) > target or manifest['complete'] and len(frames) != target):
+        raise ValueError('v5 published prefix contradicts requested frame count')
     mode = manifest.get('post_sr_mode')
     if mode not in ('off', 'mapped_render_roi', 'full_logical_output'):
         raise ValueError('v5 invalid post-SR observation mode')
@@ -367,13 +396,17 @@ def inspect_capture(path, payload=False, limit=None):
     schema = manifest.get('schema')
     if schema not in ('fsrd-game-trace-v3', 'fsrd-game-trace-v4', V5_SCHEMA):
         raise ValueError('unsupported GAME_TRACE schema version')
+    v5 = schema == V5_SCHEMA
     frames = manifest['frames'][:limit]
-    if not frames or [f['ordinal'] for f in frames] != list(range(len(frames))):
+    # A selected prefix limits payload reads, not validation of the original
+    # published lineage. Private/pending rows are never part of this frame list.
+    published = manifest['frames'] if v5 else frames
+    if not frames or [f['ordinal'] for f in published] != list(range(len(published))):
         raise ValueError('capture must publish a nonempty contiguous ordinal prefix')
-    if any(not f.get('gpu_submission_verified') or not f.get('gpu_completed') for f in frames):
+    if any(not f.get('gpu_submission_verified') or not f.get('gpu_completed') for f in published):
         raise ValueError('capture frame lacks verified GPU submission/completion')
-    if any(f['context_id']!=frames[0]['context_id'] for f in frames) or any(
-            b['native_frame_index']!=a['native_frame_index']+1 for a,b in zip(frames,frames[1:])):
+    if any(f['context_id']!=published[0]['context_id'] for f in published) or any(
+            b['native_frame_index']!=a['native_frame_index']+1 for a,b in zip(published,published[1:])):
         raise ValueError('capture context/native frame history is not contiguous')
     extent, roi = manifest['render_extent'], manifest['roi']
     if roi.get('space') != 'render_pixels_fixed':
@@ -381,8 +414,11 @@ def inspect_capture(path, payload=False, limit=None):
     w, h = roi['extent']; x, y = roi['origin']
     if not (0 <= x and 0 <= y and 0 < w <= extent[0]-x and 0 < h <= extent[1]-y):
         raise ValueError('ROI lies outside render extent')
-    v5 = manifest.get('schema') == V5_SCHEMA
-    v5_descriptors, post_metadata = _validate_v5_capture(path, manifest, frames) if v5 else ([], [])
+    v5_descriptors, post_metadata = _validate_v5_capture(path, manifest, published) if v5 else ([], [])
+    if v5:
+        v5_descriptors = [item for item in v5_descriptors
+                          if int(item[1]['file'].split('/')[1]) < len(frames)]
+        post_metadata = post_metadata[:len(frames)]
     controls = [f['controls'] for f in frames]
     views = np.asarray([c['view'] for c in controls], np.float32).reshape(-1, 4, 4)
     row = dict(capture=str(path), capture_uuid=manifest['capture_uuid'], schema=manifest['schema'],
@@ -395,12 +431,20 @@ def inspect_capture(path, payload=False, limit=None):
                settings=frames[0]['settings'], capture_manifest_sha256=digest(path / 'capture.json'),
                limitation='Fixed ROI; missing off-ROI history and neighbours. A reset at replay frame 0 starts fresh history.')
     if v5:
-        row.update(post_sr_mode=manifest['post_sr_mode'],
+        row.update(region_mode=manifest.get('region_mode', 'square'),
+                   target_frames=manifest.get('target_frames'), published_frames=len(published),
+                   post_sr_mode=manifest['post_sr_mode'],
                    post_sr_is_pre_sr_reference=False,
                    immutable_cpu_snapshot_verified=True,
                    missing_floor_seed_constants=[f['ordinal'] for f in frames
                                                  if not f['floor_seed_constants']['available']],
                    post_sr_limitation='Optional after-SR observation before RCAS/output scaling/overlay; kept separate from the pre-SR captured comparator.')
+        if row['region_mode'] == 'full_render':
+            row['limitation'] = ('Full logical render extent is recorded; opaque initial RR state and pre-capture history '
+                                 'remain unavailable. Replay frame 0 starts fresh history.')
+        elif row['region_mode'] == 'full_height_strip':
+            row['limitation'] = ('Full-height strip; horizontal/off-ROI spatial context, opaque initial RR state and '
+                                 'pre-capture history remain unavailable. Replay frame 0 starts fresh history.')
     if not payload:
         return row
     arrays = {}
@@ -467,7 +511,7 @@ def inspect_capture(path, payload=False, limit=None):
         # those decoded arrays when every frame fits that existing interface.
         for name, (dtype, channels) in layouts.items():
             if all(info is not None and info['dxgi_format'] in supported_formats[name] and
-                   info['extent'] == [w, h] and _v5_replay_crop_aligned(info, [x, y])
+                   info['extent'] == [w, h] and _v5_replay_crop_aligned(info, [x, y], [w, h])
                    for info in image_descriptors[name]):
                 shape = (h, w, channels) if channels != 1 else (h, w)
                 arrays[name] = np.stack([words.view(dtype).reshape(shape) for words in image_words[name]])

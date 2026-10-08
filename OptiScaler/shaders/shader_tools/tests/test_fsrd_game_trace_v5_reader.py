@@ -23,16 +23,25 @@ reader = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(reader)
 
 
-def fixture(path, tile=128, mode='off', count=2, post_format=10):
+def fixture(path, tile=128, mode='off', count=2, post_format=10,
+            render=None, origin=None, region_mode=None, target_frames=None,
+            write_payloads=True, complete=False):
     path.mkdir(parents=True)
-    render = [tile+160, tile+192]; origin = [40, 56]; size = [tile, tile]
+    render = render or [tile+160, tile+192]
+    size = ([tile, render[1]] if region_mode=='full_height_strip' else
+            list(render) if region_mode=='full_render' else [tile, tile])
+    if origin is None:
+        origin = [0,0] if region_mode=='full_render' else [40,0] if region_mode=='full_height_strip' else [40,56]
     logical = [render[0]*2+1, render[1]*2+3]
     canonical = json.dumps({'floor_enabled': False, 'sdk_tuning': [.5, .5, 40000, 40, .5, .1]},
                            sort_keys=True, separators=(',', ':'))
     manifest = dict(schema='fsrd-game-trace-v5', source='live_game_gpu',
-                    capture_uuid='29b54d6b-e252-4a71-b917-0f771bc469d0', complete=False,
+                    capture_uuid='29b54d6b-e252-4a71-b917-0f771bc469d0', complete=complete,
                     render_extent=render, roi=dict(space='render_pixels_fixed', origin=origin, extent=size),
                     qpc_frequency=1000000, post_sr_mode=mode, frames=[])
+    if region_mode is not None:
+        manifest['region_mode']=region_mode;manifest['roi']['geometry_resolved']=True
+    if target_frames is not None:manifest['target_frames']=target_frames
     for ordinal in range(count):
         reset = ordinal == 1
         controls = dict(view=np.eye(4).ravel().tolist(), projection=np.eye(4).ravel().tolist(),
@@ -56,11 +65,19 @@ def fixture(path, tile=128, mode='off', count=2, post_format=10):
         def payload(role, extent=size, fmt=10, crop=origin, source=render, salt=0):
             bpp, channels, _, _ = reader.V5_FORMAT_WORDS[fmt]
             amount=extent[0]*extent[1]*bpp
-            pattern=np.arange(256, dtype=np.uint8)
-            blob=(pattern.astype(np.uint16)+ordinal+salt).astype(np.uint8).tobytes()
-            blob=(blob*((amount+255)//256))[:amount]
-            file=f'frames/{ordinal}/{role}.bin';p=path/file;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(blob)
-            return dict(name=role,file=file,bytes=amount,sha256=hashlib.sha256(blob).hexdigest(),
+            file=f'frames/{ordinal}/{role}.bin'
+            if write_payloads:
+                pattern=np.arange(256, dtype=np.uint8)
+                blob=(pattern.astype(np.uint16)+ordinal+salt).astype(np.uint8).tobytes()
+                blob=(blob*((amount+255)//256))[:amount]
+                p=path/file;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(blob)
+                sha=hashlib.sha256(blob).hexdigest()
+            else:
+                # Metadata-only fixtures deliberately have no payload files.
+                # Equal salts retain the declared pre-SR alias contract without
+                # allocating a full render image or a 512-frame pixel sequence.
+                sha=hashlib.sha256(f'{ordinal}:{salt}:{fmt}:{amount}'.encode()).hexdigest()
+            return dict(name=role,file=file,bytes=amount,sha256=sha,
                         extent=extent,crop_origin=crop,source_extent=source,dxgi_format=fmt,
                         channels=channels,bytes_per_pixel=bpp,storage='original_little_endian_gpu_words')
         for role,fmt in reader.V5_IMAGE_FORMATS.items():
@@ -73,7 +90,8 @@ def fixture(path, tile=128, mode='off', count=2, post_format=10):
         for role in sorted(reader.V5_DIAGNOSTICS-supplied):
             f['diagnostics'].append(dict(name=role,available=False,active=False,reason='Fixture unbound'))
         for role,amount in [('conversion_constants',416),('floor_seed_constants',176),('floor_filter_constants',96)]:
-            file=f'frames/{ordinal}/{role}.bin';blob=bytes([ordinal+1])*amount;(path/file).write_bytes(blob)
+            file=f'frames/{ordinal}/{role}.bin';blob=bytes([(ordinal+1)%256])*amount
+            if write_payloads:(path/file).write_bytes(blob)
             f[role]=dict(file=file,bytes=amount,sha256=hashlib.sha256(blob).hexdigest())
         f['floor_seed_constants'].update(available=True,abi_bytes=176,stage='pre_floor_seed_dispatch')
         f['floor_filter_constants'].update(available=True,pass_count=3,record_bytes=32,stage='pre_floor_filter_dispatches')
@@ -107,6 +125,19 @@ class ReaderV5Contract(unittest.TestCase):
         cls.mapped=cls.base/'mapped';cls.mapped_manifest=fixture(cls.mapped,mode='mapped_render_roi')
         cls.full=cls.base/'full';cls.full_manifest=fixture(cls.full,mode='full_logical_output',count=1,post_format=87)
         cls.wide=cls.base/'wide';cls.wide_manifest=fixture(cls.wide,tile=512,count=1)
+        cls.strip=cls.base/'strip';cls.strip_manifest=fixture(cls.strip,count=1,
+            render=[1505,847],origin=[688,0],region_mode='full_height_strip',target_frames=256)
+        cls.strip512=cls.base/'strip512';fixture(cls.strip512,tile=512,count=1,
+            render=[1505,847],origin=[688,0],region_mode='full_height_strip',target_frames=512,write_payloads=False)
+        cls.strip_sr=cls.base/'strip-sr';cls.strip_sr_manifest=fixture(cls.strip_sr,count=2,
+            render=[1505,847],origin=[688,0],region_mode='full_height_strip',target_frames=128,
+            mode='mapped_render_roi')
+        cls.render_full=cls.base/'render-full';cls.render_full_manifest=fixture(cls.render_full,count=2,
+            render=[1505,847],region_mode='full_render',target_frames=128,write_payloads=False,
+            mode='mapped_render_roi')
+        cls.long=cls.base/'long512';cls.long_manifest=fixture(cls.long,count=512,
+            render=[1505,847],origin=[688,0],region_mode='full_height_strip',target_frames=512,
+            write_payloads=False,complete=True)
 
     @classmethod
     def tearDownClass(cls):cls.temp.cleanup()
@@ -121,6 +152,7 @@ class ReaderV5Contract(unittest.TestCase):
     def test_immutable_complete_without_reset_detach(self):
         row,arrays=reader.inspect_capture(self.off,payload=True)
         self.assertTrue(row['immutable_cpu_snapshot_verified'])
+        self.assertEqual(row['limitation'],'Fixed ROI; missing off-ROI history and neighbours. A reset at replay frame 0 starts fresh history.')
         self.assertEqual(row['original_reset_frames'],[1])
         self.assertEqual(arrays['post_sr_original_words'],[])
         self.assertEqual(arrays['raw_color'][0].tobytes(),(self.off/'frames/0/raw_color.bin').read_bytes())
@@ -129,6 +161,118 @@ class ReaderV5Contract(unittest.TestCase):
         _,a=reader.inspect_capture(self.wide,payload=True)
         self.assertEqual(a['raw_color'].shape,(1,512,512,4))
         self.assertEqual(a['native_full1'][0].tobytes(),(self.wide/'frames/0/native_full1.bin').read_bytes())
+
+    def test_full_height_strip_preserves_rectangular_original_words(self):
+        row,a=reader.inspect_capture(self.strip,payload=True)
+        self.assertEqual(row['region_mode'],'full_height_strip')
+        self.assertEqual(row['target_frames'],256);self.assertFalse(row['full_frame'])
+        self.assertIn('horizontal/off-ROI spatial context',row['limitation'])
+        self.assertEqual(row['roi'],dict(space='render_pixels_fixed',origin=[688,0],extent=[128,847],geometry_resolved=True))
+        self.assertEqual(a['raw_color'].shape,(1,847,128,4))
+        self.assertEqual(a['raw_depth'].shape,(1,847,128))
+        self.assertEqual(a['raw_color'][0].tobytes(),(self.strip/'frames/0/raw_color.bin').read_bytes())
+        self.assertEqual(a['native_full1'][0].tobytes(),(self.strip/'frames/0/native_full1.bin').read_bytes())
+        crop=reader.camera_crop(row['render_extent'],row['roi'])
+        self.assertAlmostEqual(crop[0,0],128/1505);self.assertEqual(crop[1,1],1)
+        self.assertEqual(crop[1,3],0);reader.require_replay_inputs(a,False)
+        wide=reader.inspect_capture(self.strip512)
+        self.assertEqual(wide['roi']['extent'],[512,847]);self.assertEqual(wide['target_frames'],512)
+
+    def test_rectangular_sr_mapping_and_full_render_metadata(self):
+        row,a=reader.inspect_capture(self.strip_sr,payload=True)
+        observed=a['post_sr_metadata'][0]
+        self.assertEqual(observed['crop_origin'],[1376,0])
+        self.assertEqual(observed['extent'],[257,1697])
+        self.assertEqual(a['post_sr_original_words'][0].shape,(1697,257,4))
+        self.assertEqual(a['post_sr_original_words'][0].tobytes(),
+                         (self.strip_sr/'frames/0/post_sr.bin').read_bytes())
+        full=reader.inspect_capture(self.render_full)
+        self.assertTrue(full['full_frame']);self.assertEqual(full['region_mode'],'full_render')
+        self.assertIn('Full logical render extent is recorded',full['limitation'])
+        self.assertIn('opaque initial RR state and pre-capture history',full['limitation'])
+        self.assertNotIn('missing off-ROI',full['limitation'])
+        self.assertEqual(full['roi']['extent'],[1505,847]);self.assertEqual(full['roi']['origin'],[0,0])
+        p=self.render_full_manifest['frames'][0]['post_sr']
+        self.assertEqual(p['crop_origin'],[0,0]);self.assertEqual(p['extent'],p['logical_extent'])
+        self.assertTrue(np.array_equal(reader.camera_crop(full['render_extent'],full['roi']),np.eye(4)))
+        self.assertReject(lambda m:m['frames'][0]['post_sr'].update(extent=[256,1697]),
+                          self.strip_sr,self.strip_sr_manifest)
+
+    def test_region_mode_and_frame_target_hostilities(self):
+        changes=(lambda m:m.pop('region_mode'),lambda m:m.update(region_mode='square'),
+                 lambda m:m.update(region_mode='full_render'),lambda m:m.update(region_mode='strip'),
+                 lambda m:m.update(region_mode=1),lambda m:m['roi'].update(extent=[129,847]),
+                 lambda m:m['roi'].update(extent=[128,846]),lambda m:m['roi'].update(origin=[688,1]),
+                 lambda m:m['roi'].update(geometry_resolved=False),lambda m:m['roi'].update(geometry_resolved=1),
+                 lambda m:m.update(target_frames=64),lambda m:m.update(target_frames=1024),
+                 lambda m:m.update(target_frames=256.),lambda m:m.update(target_frames=True),
+                 lambda m:m.update(complete=True),lambda m:m.update(complete=0))
+        for change in changes:
+            with self.subTest(change=change):self.assertReject(change,self.strip,self.strip_manifest)
+        self.assertReject(lambda m:m['roi'].update(origin=[1,0]),self.render_full,self.render_full_manifest)
+        for target in sorted(reader.V5_TARGET_FRAMES):
+            m=copy.deepcopy(self.strip_manifest);m['target_frames']=target
+            (self.strip/'capture.json').write_text(json.dumps(m))
+            try:self.assertEqual(reader.inspect_capture(self.strip)['target_frames'],target)
+            finally:(self.strip/'capture.json').write_text(json.dumps(self.strip_manifest))
+
+    def test_long512_metadata_validates_whole_published_prefix(self):
+        with patch.object(Path,'read_bytes') as pixels,patch.object(reader.np,'stack') as stack:
+            full=reader.inspect_capture(self.long)
+            selected=reader.inspect_capture(self.long,limit=3)
+            pixels.assert_not_called();stack.assert_not_called()
+        self.assertEqual((full['frames'],full['published_frames'],full['target_frames']),(512,512,512))
+        self.assertEqual((selected['frames'],selected['published_frames']),(3,512))
+        self.assertTrue(full['complete'])
+        self.assertReject(lambda m:m.update(target_frames=256),self.long,self.long_manifest)
+        self.assertReject(lambda m:m['frames'][-1].update(native_frame_index=9999),self.long,self.long_manifest)
+
+    def test_selected_payload_prefix_never_reads_private_rows(self):
+        m=copy.deepcopy(self.strip_sr_manifest)
+        m['private_staged_frames']=[dict(ordinal=2,frame=dict(file='reserve_data/private.bin'))]
+        m['uncommitted_frames_at_close']=[dict(ordinal=3,file='frames/3.pending/raw_color.bin')]
+        (self.strip_sr/'capture.json').write_text(json.dumps(m))
+        opened=[];original=Path.read_bytes
+        def record(path):
+            opened.append(path.relative_to(self.strip_sr).as_posix());return original(path)
+        try:
+            with patch.object(Path,'read_bytes',record):row,a=reader.inspect_capture(self.strip_sr,payload=True,limit=1)
+            self.assertEqual((row['frames'],row['published_frames']),(1,2))
+            self.assertEqual(a['frame_metadata'][0]['ordinal'],0)
+            self.assertTrue(opened);self.assertTrue(all(name.startswith('frames/0/') for name in opened))
+            self.assertEqual(len(row['authenticated_payload_files']),24)
+        finally:(self.strip_sr/'capture.json').write_text(json.dumps(self.strip_sr_manifest))
+
+    def test_dynamic_resize_rejects_even_when_payload_prefix_is_selected(self):
+        for controls in ('controls','post_sr'):
+            m=copy.deepcopy(self.strip_sr_manifest)
+            c=m['frames'][1][controls]
+            if controls=='post_sr':c=c['dispatch_controls']
+            c['render_size']=[1505,846]
+            (self.strip_sr/'capture.json').write_text(json.dumps(m))
+            try:
+                with patch.object(Path,'read_bytes') as pixels:
+                    with self.assertRaisesRegex(ValueError,'render extent mismatch|dispatch/extent mismatch'):
+                        reader.inspect_capture(self.strip_sr,payload=True,limit=1)
+                    pixels.assert_not_called()
+            finally:(self.strip_sr/'capture.json').write_text(json.dumps(self.strip_sr_manifest))
+
+    def test_rectangular_motion_mapping_preserves_source_base_and_extent(self):
+        m=copy.deepcopy(self.strip_manifest);motion=m['frames'][0]['diagnostics'][2]
+        self.assertEqual(motion['name'],'raw_motion')
+        motion.update(source_base=[8,4],crop_origin=[696,4],source_extent=[1513,851],
+                      mapping=dict(display_resolution=False,render_roi_origin=[688,0],render_roi_extent=[128,847]))
+        (self.strip/'capture.json').write_text(json.dumps(m))
+        try:
+            _,a=reader.inspect_capture(self.strip,payload=True);self.assertIn('raw_motion',a)
+            motion['mapping']['render_roi_extent']=[128,128]
+            (self.strip/'capture.json').write_text(json.dumps(m))
+            _,a=reader.inspect_capture(self.strip,payload=True)
+            self.assertNotIn('raw_motion',a)
+            self.assertEqual(a['image_original_words']['raw_motion'][0].shape,(847,128,4))
+            with self.assertRaisesRegex(ValueError,'captured raw_motion.*ROI/format'):
+                reader.require_replay_inputs(a,False)
+        finally:(self.strip/'capture.json').write_text(json.dumps(self.strip_manifest))
 
     def test_mapped_and_full_are_separate_observations(self):
         for path,m in [(self.mapped,self.mapped_manifest),(self.full,self.full_manifest)]:
