@@ -111,6 +111,13 @@ struct NativeDenoiser
 
 struct FSRDFeatureDx12
 {
+    struct CapturePreprocessor
+    {
+        unsigned aborts = 0;
+        std::string reason;
+        void AbortGameTrace(const std::string& value) { ++aborts; reason = value; }
+    };
+    std::unique_ptr<CapturePreprocessor> FSRDConvShader = std::make_unique<CapturePreprocessor>();
     ID3D12Device device;
     ID3D12Device* Device = &device;
     FSRD::RRRetryPolicy _rrRetryPolicy;
@@ -208,6 +215,15 @@ struct FSRDFeatureDx12
 
 int main()
 {
+    // A failed RR evaluation must close a pending capture before native fallback
+    // can supply a different frame; missing preprocessors remain a valid path.
+    FSRDFeatureDx12 failedCapture;
+    failedCapture.FailRayRegeneration(RRResult::RetryableInputFailure, "capture frame failed");
+    assert(failedCapture.FSRDConvShader->aborts == 1);
+    assert(failedCapture.FSRDConvShader->reason == "capture frame failed");
+    failedCapture.FSRDConvShader.reset();
+    failedCapture.FailRayRegeneration(RRResult::RetryableInputFailure, "no preprocessor");
+
     // These methods are the real production methods, not a retry-state model.
     // Every evaluation completes through native while RR-only inputs keep
     // failing; probing RR must not interrupt the previous native history.

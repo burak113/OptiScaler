@@ -100,6 +100,10 @@ def inspect_capture(path, payload=False, limit=None):
                    raw_depth=('<f4', 1), raw_specular_hit_distance=('<f4', 1),
                    raw_diffuse_albedo=('u1', 4), raw_specular_albedo=('u1', 4), raw_bias_mask=('u1', 1),
                    native_full1=('<f2', 4))
+    supported_formats = dict(raw_color={10}, raw_normals={10}, raw_motion={10},
+                             raw_depth={39, 40, 41}, raw_specular_hit_distance={39, 41},
+                             raw_diffuse_albedo={28}, raw_specular_albedo={28}, raw_bias_mask={61},
+                             native_full1={10})
     for name, (dtype, channels) in layouts.items():
         shape = (h, w, channels) if channels != 1 else (h, w)
         data=[]
@@ -107,6 +111,10 @@ def inspect_capture(path, payload=False, limit=None):
             descriptions={e['name']:e for e in f['images']+f.get('diagnostics',[]) if e.get('file')}
             info=descriptions.get(name)
             if info is None:raise ValueError(f'capture frame {f["ordinal"]} lacks provenance for {name}')
+            if info.get('dxgi_format') not in supported_formats[name]:
+                raise ValueError(f'capture {name} DXGI format {info.get("dxgi_format")} needs reader support')
+            if info.get('extent') != [w, h]:
+                raise ValueError(f'capture {name} extent {info.get("extent")} needs reader support for this ROI')
             file=safe_path(path/info['file'])
             if not file.is_relative_to(path):raise ValueError('capture payload escapes capture directory')
             blob=file.read_bytes()
