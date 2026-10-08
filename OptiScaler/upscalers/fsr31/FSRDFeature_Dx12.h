@@ -290,6 +290,27 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     uint64_t _denoiserDispatchSuccesses = 0;
     uint64_t _denoiserDispatchFailures = 0;
 
+    // Capture may start long after creation. Latch accepted creation values;
+    // _denoiserCtxDesc.header.pNext points to a creation-local backend chain.
+    struct GameTraceCreateContract
+    {
+        bool valid = false;
+        uint64_t providerId = 0;
+        size_t providerIndex = 0;
+        std::string providerName;
+        uint32_t apiVersion = 0, createFlags = 0, signalFlags = 0, checkerboardSignalFlags = 0;
+        FfxApiDimensions2D maxRenderSize {};
+        uint64_t successesAtCreation = 0;
+    } _gameTraceCreateContract;
+    // Passive successful-call counters only. These do not expose NN history age.
+    bool _gameTraceLastSuccessfulResetKnown = false;
+    uint64_t _gameTraceLastSuccessfulResetAttempt = 0;
+    uint32_t _gameTraceLastSuccessfulResetFrameIndex = 0;
+    uint64_t _gameTraceLastSuccessfulResetSuccessCount = 0;
+    // Frozen immediately before the actual SDK call, not after history commit.
+    // Serialization and native resource descriptions are capture-active only.
+    std::string _gameTraceDispatchJson;
+
 
     // Matrices
     // Row-major storage with column-vector multiplication semantics.
@@ -394,6 +415,8 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
      * @brief Dispatches FSR-RR denoiser converted inputs. Runs before upscaler.
      */
     RRResult DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList, const ffxDispatchDescDenoiser& dispatchDesc);
+
+    void SnapshotGameTraceDispatch(const ffxDispatchDescDenoiser& dispatchDesc) noexcept;
 
     void CommitDenoiserHistory() noexcept;
 

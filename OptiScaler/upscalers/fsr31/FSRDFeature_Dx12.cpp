@@ -8,6 +8,7 @@
 #include <DirectXMath.h>
 #include <d3d12sdklayers.h>
 #include <cmath>
+#include <map>
 #include "NVNGX_Parameter.h"
 #include <misc/SkipSpoof.h>
 #include "hooks/Streamline_Hooks.h"
@@ -385,6 +386,115 @@ static void StoreHlslColumnVectorMatrix(XMFLOAT4X4& destination, const XMMATRIX&
 static ID3D12Resource* GetD3D12ResFromFFX(const FfxApiResource& resource)
 {
     return static_cast<ID3D12Resource*>(resource.resource);
+}
+
+// A metadata failure must never skip RR, composition, or SR. Even constructing
+// the abort reason can fail during an allocation failure, so contain that too.
+static void AbortGameTraceTelemetry(FSRDPreprocessor_Dx12* converter, const char* reason) noexcept
+{
+    try
+    {
+        if (converter) converter->AbortGameTrace(reason);
+        else FSRDGameTraceSession::RequestStop();
+    }
+    catch (...) { FSRDGameTraceSession::RequestStop(); }
+}
+
+static nlohmann::json GameTraceRRResource(const char* role, const FfxApiResource& binding)
+{
+    using Json = nlohmann::json;
+    auto* native = GetD3D12ResFromFFX(binding);
+    const uint64_t address = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(native));
+    const auto& d = binding.description;
+    Json result {
+        {"role",role}, {"present",native != nullptr},
+        {"resource_address_process_local",address},
+        {"resource_address_hex_process_local",std::format("0x{:016x}",address)},
+        {"identity_provenance","ID3D12Resource_pointer_in_actual_FfxApiResource_not_a_lifetime_unique_ID"},
+        {"ffx_declared_state",binding.state},
+        {"state_provenance","API_declared_state_not_GPU_observed"},
+        {"ffx_description",{{"type",d.type},{"format",d.format},
+            {"width_or_size",d.width},{"height_or_stride",d.height},{"depth_or_alignment",d.depth},
+            {"mip_count",d.mipCount},{"flags",d.flags},{"usage",d.usage}}},
+        {"native_description",nullptr},
+        {"subresource_selector",{{"available_in_FfxApiResource",false},{"value",nullptr},
+            {"provenance","API_has_no_subresource_selector_SDK_internal_views_not_observed"}}}
+    };
+    if (native)
+    {
+        const D3D12_RESOURCE_DESC n = native->GetDesc();
+        result["native_description"] = {
+            {"dimension",static_cast<uint32_t>(n.Dimension)},{"alignment",n.Alignment},
+            {"width",n.Width},{"height",n.Height},{"depth_or_array_size",n.DepthOrArraySize},
+            {"mip_levels",n.MipLevels},{"format",static_cast<uint32_t>(n.Format)},
+            {"sample_count",n.SampleDesc.Count},{"sample_quality",n.SampleDesc.Quality},
+            {"layout",static_cast<uint32_t>(n.Layout)},{"flags",static_cast<uint32_t>(n.Flags)}
+        };
+        result["native_description_provenance"] = "ID3D12Resource_GetDesc_at_pre_SDK_boundary";
+    }
+    return result;
+}
+
+static nlohmann::json GameTraceRRBindings(const ffxDispatchDescDenoiser& dispatch)
+{
+    using Json = nlohmann::json;
+    Json bindings = Json::array(), chain = Json::array(), samePointerGroups = Json::array();
+    std::map<uint64_t,std::vector<std::string>> rolesByAddress;
+    const auto add = [&](const std::string& role, const FfxApiResource& resource) {
+        bindings.push_back(GameTraceRRResource(role.c_str(),resource));
+        if (resource.resource)
+            rolesByAddress[static_cast<uint64_t>(reinterpret_cast<uintptr_t>(resource.resource))].push_back(role);
+    };
+    add("linear_depth",dispatch.linearDepth);
+    add("motion_vectors",dispatch.motionVectors);
+    add("normals",dispatch.normals);
+    add("specular_albedo",dispatch.specularAlbedo);
+    add("diffuse_albedo",dispatch.diffuseAlbedo);
+    unsigned ordinal = 0;
+    for (const auto* header = dispatch.header.pNext; header; header = header->pNext)
+    {
+        if (++ordinal > 6) throw std::runtime_error("Capture RR descriptor chain exceeds validated bound");
+        if (header->type == FFX_API_DISPATCH_DESC_TYPE_DENOISER_DEBUG_VIEW)
+        {
+            const auto& view = *reinterpret_cast<const ffxDispatchDescDenoiserDebugView*>(header);
+            const std::string outputRole = std::format("chain.{}.DebugView.output",ordinal-1);
+            add(outputRole,view.output);
+            chain.push_back({{"ordinal",ordinal-1},{"descriptor_type",header->type},{"name","DebugView"},
+                {"output_role",outputRole},{"output_size",{view.outputSize.width,view.outputSize.height}},
+                {"mode",view.mode},{"viewport_index",view.viewportIndex}});
+            continue;
+        }
+        FfxApiDenoiserSignal signal {};
+        switch (header->type)
+        {
+        case FFX_API_DISPATCH_DESC_TYPE_DENOISER_AMBIENT_OCCLUSION:
+            signal = reinterpret_cast<const ffxDispatchDescDenoiserAmbientOcclusion*>(header)->signal; break;
+        case FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE:
+            signal = reinterpret_cast<const ffxDispatchDescDenoiserDirectDiffuse*>(header)->signal; break;
+        case FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_SPECULAR:
+            signal = reinterpret_cast<const ffxDispatchDescDenoiserDirectSpecular*>(header)->signal; break;
+        case FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE:
+            signal = reinterpret_cast<const ffxDispatchDescDenoiserIndirectDiffuse*>(header)->signal; break;
+        case FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR:
+            signal = reinterpret_cast<const ffxDispatchDescDenoiserIndirectSpecular*>(header)->signal; break;
+        case FFX_API_DISPATCH_DESC_TYPE_DENOISER_SPECULAR_OCCLUSION:
+            signal = reinterpret_cast<const ffxDispatchDescDenoiserSpecularOcclusion*>(header)->signal; break;
+        default: throw std::runtime_error("Capture encountered an unsupported actual RR descriptor type");
+        }
+        const std::string prefix = std::format("chain.{}.{}",ordinal-1,GetSignalTypeName(header->type));
+        add(prefix+".input",signal.input);
+        add(prefix+".output",signal.output);
+        chain.push_back({{"ordinal",ordinal-1},{"descriptor_type",header->type},
+            {"name",GetSignalTypeName(header->type)},{"input_role",prefix+".input"},
+            {"output_role",prefix+".output"},{"checkerboard_origin",signal.checkerboardOrigin}});
+    }
+    for (const auto& [address,roles] : rolesByAddress)
+        if (roles.size() > 1)
+            samePointerGroups.push_back({{"resource_address_process_local",address},
+                {"roles",roles},{"relation","same_native_resource_pointer_only_not_heap_alias_evidence"}});
+    return {{"head_descriptor_type",dispatch.header.type},{"chain",std::move(chain)},
+        {"bindings",std::move(bindings)},{"same_resource_pointer_groups",std::move(samePointerGroups)},
+        {"heap_overlap_between_different_resources","not_observed"}};
 }
 
 struct RequiredRRResource
@@ -1921,6 +2031,30 @@ RRResult FSRDFeatureDx12::CreateDenoiserContext()
                  reinterpret_cast<uintptr_t>(_pDenoiserCtx));
         _denoiserCtxOwner = AdoptContextDx12(_pDenoiserCtx, "FSR-RR");
         _gameTraceContextGeneration = g_gameTraceContextGeneration.fetch_add(1, std::memory_order_relaxed)+1;
+        _gameTraceCreateContract.valid = false;
+        _gameTraceCreateContract.providerId = vidOverride.versionId;
+        _gameTraceCreateContract.providerIndex = denoiserIndex;
+        _gameTraceCreateContract.apiVersion = _denoiserCtxDesc.version;
+        _gameTraceCreateContract.maxRenderSize = _denoiserCtxDesc.maxRenderSize;
+        _gameTraceCreateContract.createFlags = _denoiserCtxDesc.flags;
+        _gameTraceCreateContract.signalFlags = _denoiserCtxDesc.signalFlags;
+        _gameTraceCreateContract.checkerboardSignalFlags = _denoiserCtxDesc.checkerboardSignalFlags;
+        _gameTraceCreateContract.successesAtCreation = _denoiserDispatchSuccesses;
+        _gameTraceLastSuccessfulResetKnown = false;
+        _gameTraceLastSuccessfulResetAttempt = 0;
+        _gameTraceLastSuccessfulResetFrameIndex = 0;
+        _gameTraceLastSuccessfulResetSuccessCount = 0;
+        try
+        {
+            _gameTraceCreateContract.providerName = providerName;
+            _gameTraceCreateContract.valid = true;
+        }
+        catch (...)
+        {
+            _gameTraceCreateContract.providerName.clear();
+            if (FSRDGameTraceSession::IsActive())
+                AbortGameTraceTelemetry(FSRDConvShader.get(),"Accepted RR context metadata could not be retained.");
+        }
     }
 
     // Query default settings
@@ -2270,6 +2404,46 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
     // the title finds each resource in the state it declared.
     FSR31FeatureDx12::ScopedConfigurableBarriers scopedBarriers(*this, InCommandList);
 
+    // The guard may resolve engine defaults. Record the resulting configuration,
+    // without claiming which transitions executed or observing GPU resource state.
+    std::string gameTraceTitleTransitionsJson;
+    if (FSRDGameTraceSession::IsActive())
+    {
+        try
+        {
+            using Json = nlohmann::json;
+            const auto configured = [](const char* role, ID3D12Resource* resource, const auto& before) {
+                const bool present = before.has_value();
+                const uint64_t address = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(resource));
+                const Json resolved = present ? Json(before.value()) : Json(nullptr);
+                return Json {
+                    {"role",role}, {"resource_present",resource != nullptr},
+                    {"resource_address_process_local",address},
+                    {"resource_address_hex_process_local",std::format("0x{:016x}",address)},
+                    {"identity_provenance","ID3D12Resource_pointer_in_acquired_title_input_not_a_lifetime_unique_ID"},
+                    {"configured_state_before_present",present},
+                    {"configured_state_before",resolved},
+                    {"intended_read_target",static_cast<uint32_t>(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)},
+                    {"configured_reverse_target_at_snapshot",resolved}
+                };
+            };
+            gameTraceTitleTransitionsJson = Json {
+                {"schema","title_configured_transitions_v1"},
+                {"provenance","resolved_configured_transition_contract_not_GPU_observed"},
+                {"snapshot_point","after_ScopedConfigurableBarriers_construction_before_RR_conversion"},
+                {"command_list_present",InCommandList != nullptr},
+                {"command_list_address_process_local",static_cast<uint64_t>(reinterpret_cast<uintptr_t>(InCommandList))},
+                {"reverse_target_provenance","snapshot_of_configuration_reverse_guard_rereads_configuration_at_exit"},
+                {"bindings",Json::array({
+                    configured("color",_inputBuffers.Color,cfg.ColorResourceBarrier),
+                    configured("motion_vectors",_inputBuffers.MotionVectors,cfg.MVResourceBarrier),
+                    configured("depth",_inputBuffers.Depth,cfg.DepthResourceBarrier)})}
+            }.dump();
+        }
+        catch (const std::exception& error) { AbortGameTraceTelemetry(FSRDConvShader.get(),error.what()); }
+        catch (...) { AbortGameTraceTelemetry(FSRDConvShader.get(),"Title transition configuration capture failed."); }
+    }
+
     // Denoiser start
     ffxDispatchDescDenoiserAmbientOcclusion ambientOcclusion = {};
     ffxDispatchDescDenoiserDirectDiffuse directDiffuse = {};
@@ -2472,7 +2646,7 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                     const auto array = [](const auto& object) {
                         return CaptureJson::parse(RRTraceAdditiveIO::FloatArray(object));
                     };
-                    const CaptureJson controls {
+                    CaptureJson controls {
                         {"view",array(denoiserDesc.view)}, {"projection",array(denoiserDesc.projection)},
                         {"jitter",array(denoiserDesc.jitterOffsets)},
                         {"camera_delta",array(denoiserDesc.cameraPositionDelta)},
@@ -2486,13 +2660,36 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                     };
                     // Fingerprint applied semantic controls only. Camera matrices,
                     // jitter, camera delta and native reset remain frame controls.
+                    if (!_gameTraceCreateContract.valid)
+                        throw std::runtime_error("Actual accepted RR context metadata is unavailable");
+                    const auto dispatchBoundary = CaptureJson::parse(_gameTraceDispatchJson);
+                    if (dispatchBoundary.at("evaluation_id").get<uint64_t>() != _denoiserDispatchAttempts ||
+                        dispatchBoundary.at("native_frame_index").get<uint32_t>() != denoiserDesc.frameIndex ||
+                        dispatchBoundary.at("context_generation").get<uint64_t>() != _gameTraceContextGeneration)
+                        throw std::runtime_error("RR capture boundary does not belong to this native evaluation");
+                    controls["rr_dispatch"] = dispatchBoundary;
+                    controls["title_configured_transitions"] = CaptureJson::parse(gameTraceTitleTransitionsJson);
+                    const CaptureJson createContract {
+                        {"provider_id",_gameTraceCreateContract.providerId},
+                        {"provider_index",_gameTraceCreateContract.providerIndex},
+                        {"provider_name",_gameTraceCreateContract.providerName},
+                        {"provider_selection_provenance","enumerated_override_accepted_by_successful_creation_not_context_provider_query"},
+                        {"api_version",_gameTraceCreateContract.apiVersion},
+                        {"max_render_size",{_gameTraceCreateContract.maxRenderSize.width,
+                            _gameTraceCreateContract.maxRenderSize.height}},
+                        {"create_flags",_gameTraceCreateContract.createFlags},
+                        {"signal_flags",_gameTraceCreateContract.signalFlags},
+                        {"checkerboard_signal_flags",_gameTraceCreateContract.checkerboardSignalFlags}
+                    };
                     const CaptureJson settings {
                         {"algorithm","native_RR_same_dispatch"},
                         {"build_identity",{{"commit",VER_BUILD_COMMIT},{"build_date",VER_BUILD_DATE},
                             {"product_version",VER_PRODUCT_VERSION_STR}}},
                         {"sdk_tuning",array(_denoiserSettings.ScalarValues)},
                         {"sdk_debug_depth_bounds",array(_denoiserSettings.m_DebugViewLinearDepthBounds)},
-                        {"create_flags",_denoiserCtxDesc.flags}, {"signal_flags",_denoiserCtxDesc.signalFlags},
+                        {"create_flags",_gameTraceCreateContract.createFlags},
+                        {"signal_flags",_gameTraceCreateContract.signalFlags},
+                        {"rr_create_contract",createContract},
                         {"diffuse_type",_diffuseSignalDescType}, {"specular_type",_specularSignalDescType},
                         {"denoise_diffuse",_denoiseDiffuse}, {"denoise_specular",_denoiseSpecular},
                         {"conversion_flags",_convDesc.Flags}, {"composition_flags",compDesc.Flags},
@@ -2519,8 +2716,8 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                     FSRDConvShader->CompleteGameTraceFrame(InCommandList,denoiserDesc,
                         _gameTraceContextGeneration,_denoiserDispatchAttempts,controls.dump(),settings.dump());
                 }
-                catch (const std::exception& error) { FSRDConvShader->AbortGameTrace(error.what()); }
-                catch (...) { FSRDConvShader->AbortGameTrace("Capture metadata serialization failed."); }
+                catch (const std::exception& error) { AbortGameTraceTelemetry(FSRDConvShader.get(),error.what()); }
+                catch (...) { AbortGameTraceTelemetry(FSRDConvShader.get(),"Capture metadata serialization failed."); }
             }
             _runtime.Complete(FSRDRuntimeSnapshot::Composition);
         }
@@ -4221,6 +4418,72 @@ static bool ValidateRRDispatchChain(ID3D12GraphicsCommandList* commandList,
     return true;
 }
 
+void FSRDFeatureDx12::SnapshotGameTraceDispatch(const ffxDispatchDescDenoiser& dispatch) noexcept
+{
+    if (!FSRDGameTraceSession::IsActive()) return;
+    try
+    {
+        if (!_gameTraceCreateContract.valid)
+            throw std::runtime_error("Accepted RR creation contract is unavailable");
+        using Json = nlohmann::json;
+        auto snapshot = GameTraceRRBindings(dispatch);
+        auto* list = static_cast<ID3D12GraphicsCommandList*>(dispatch.commandList);
+        const uint64_t listAddress = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(list));
+        snapshot["schema"] = "actual_RR_pre_SDK_dispatch_v1";
+        snapshot["context_generation"] = _gameTraceContextGeneration;
+        snapshot["context_address_process_local"] = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(_pDenoiserCtx));
+        snapshot["feature_address_process_local"] = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(this));
+        snapshot["identity_scope"] = "process_local_addresses_context_generation_disambiguates_context_recreation";
+        snapshot["evaluation_id"] = _denoiserDispatchAttempts;
+        snapshot["native_frame_index"] = dispatch.frameIndex;
+        snapshot["dispatch_flags"] = dispatch.flags;
+        snapshot["reset"] = (dispatch.flags & FFX_DENOISER_DISPATCH_RESET) != 0;
+        snapshot["render_size"] = {dispatch.renderSize.width,dispatch.renderSize.height};
+        snapshot["history_valid_before_dispatch"] = _hasDenoiserHistory;
+        snapshot["ngx_reset_applied"] = _isInReset;
+        snapshot["motion_history_valid_before_dispatch"] = _convDesc.MotionHistoryValid;
+        snapshot["command_list"] = {
+            {"address_process_local",listAddress},
+            {"address_hex_process_local",std::format("0x{:016x}",listAddress)},
+            {"type",list ? Json(static_cast<uint32_t>(list->GetType())) : Json(nullptr)},
+            {"queue_at_recording",nullptr},
+            {"queue_provenance","actual_submission_queue_is_recorded_by_GAME_TRACE_ticket_proof_not_known_at_this_boundary"}
+        };
+        snapshot["successful_invocations_in_context_before_dispatch"] =
+            _denoiserDispatchSuccesses-_gameTraceCreateContract.successesAtCreation;
+        snapshot["success_provenance"] =
+            "FFX_API_RETURN_OK_during_command_recording_prior_GPU_execution_not_attested";
+        snapshot["invocation_count_provenance"] =
+            "successful_SDK_API_command_recording_calls_not_verified_executed_GPU_invocations_or_history_age";
+        snapshot["invocation_count_is_not_opaque_NN_history_age"] = true;
+        snapshot["last_successful_reset"] = nullptr;
+        snapshot["successful_invocations_after_last_reset_excluding_reset_before_dispatch"] = nullptr;
+        if (_gameTraceLastSuccessfulResetKnown)
+        {
+            snapshot["last_successful_reset"] = {
+                {"context_generation",_gameTraceContextGeneration},
+                {"evaluation_id",_gameTraceLastSuccessfulResetAttempt},
+                {"native_frame_index",_gameTraceLastSuccessfulResetFrameIndex},
+                {"successful_invocation_ordinal_in_context",
+                    _gameTraceLastSuccessfulResetSuccessCount-_gameTraceCreateContract.successesAtCreation}
+            };
+            snapshot["successful_invocations_after_last_reset_excluding_reset_before_dispatch"] =
+                _denoiserDispatchSuccesses-_gameTraceLastSuccessfulResetSuccessCount;
+        }
+        _gameTraceDispatchJson = snapshot.dump();
+    }
+    catch (const std::exception& error)
+    {
+        _gameTraceDispatchJson.clear();
+        AbortGameTraceTelemetry(FSRDConvShader.get(),error.what());
+    }
+    catch (...)
+    {
+        _gameTraceDispatchJson.clear();
+        AbortGameTraceTelemetry(FSRDConvShader.get(),"Actual RR dispatch metadata could not be serialized.");
+    }
+}
+
 RRResult FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
                                        const ffxDispatchDescDenoiser& dispatchDesc)
 {
@@ -4447,6 +4710,7 @@ RRResult FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandL
     // Same policy as the converter's own leases: without one nothing is recorded.
     if (!RetainProviderContext(InCommandList, _denoiserCtxOwner))
         return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
+    SnapshotGameTraceDispatch(dispatchDesc);
     const ffxReturnCode_t result = FfxApiProxy::D3D12_Dispatch(&_pDenoiserCtx, &dispatchDesc.header);
     _lastDispatchRequestedReset = resetRequested;
 
@@ -4495,6 +4759,13 @@ RRResult FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandL
     }
 
     ++_denoiserDispatchSuccesses;
+    if (resetRequested)
+    {
+        _gameTraceLastSuccessfulResetKnown = true;
+        _gameTraceLastSuccessfulResetAttempt = _denoiserDispatchAttempts;
+        _gameTraceLastSuccessfulResetFrameIndex = dispatchDesc.frameIndex;
+        _gameTraceLastSuccessfulResetSuccessCount = _denoiserDispatchSuccesses;
+    }
 
     // Per-dispatch contract, sampled regularly enough to land next to the input
     // readback. It carries the two values the input probe cannot observe directly:
