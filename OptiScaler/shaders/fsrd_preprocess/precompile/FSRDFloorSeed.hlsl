@@ -2,10 +2,9 @@
 #include "FSRDFloorCommon.hlsli"
 #include "FSRDFloorModel.hlsli"
 
-// The coherent-lighting witness and local polynomial projection were retired:
-// on captured game frames neither fired, while together they cost about 3 ms
-// at 1440p. The macro remains only so the lighting contract can still build its
-// control; both builds are now identical.
+// Semantic control for the lighting contract. The optional clean-lighting PSO
+// below remains separate from the default Seed; this control disables only its
+// two producers without changing the reference or downstream consumers.
 #ifndef FSRD_FLOOR_REFERENCE_TEST_CONTROL
 #define FSRD_FLOOR_REFERENCE_TEST_CONTROL 0
 #endif
@@ -735,6 +734,19 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             noiseKeys[a] = lo;
         }
     }
+    // Preserve the original scalar statistic for existing decisions. Its RGB
+    // components let a partial material fit exclude modeled texture when judging
+    // the incoming noise of unrelated channels that retain their raw reference.
+    float3 selectedNoiseEnergyRGB = 0.0f;
+    [unroll]
+    for (int ny = -1; ny <= 1; ++ny)
+        [unroll]
+        for (int nx = -1; nx <= 1; ++nx)
+        {
+            const float3 derivative = rowDifference[ny+1][nx+1];
+            if (dot(derivative, derivative) == noiseKeys[4])
+                selectedNoiseEnergyRGB = derivative * derivative;
+        }
     const float measuredNoise = sqrt(noiseKeys[4]/108.0f)*1.4826f;
     const float sigmaReference = lerp(min(quietNoise, directionalNoise), measuredNoise, noiseSupport);
     // A rank-rejected centre is replaced only when it sits far outside the envelope its own
@@ -976,9 +988,9 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         float3(refitCovariance.x > 0.0f && predictionLeverage.x <= 2.0f,
                refitCovariance.y > 0.0f && predictionLeverage.y <= 2.0f,
                refitCovariance.z > 0.0f && predictionLeverage.z <= 2.0f);
-    // A positive stored coefficient authorizes the complete filtered source.
-    // Keep that permission consistent with the colour prediction: a partially
-    // anchored pedestal cannot be advertised as a complete material estimate.
+    // A positive stored coefficient authorizes material transport in that channel.
+    // Keep that permission consistent with its colour prediction; another channel
+    // or a neighbour cannot grant authority to explain unrelated lighting.
     // A guide value outside the retained population (a silhouette texel, a new
     // material at a reveal) makes affine extrapolation unstable, but C=L*A still
     // holds there. Fall back to the through-origin ratio of the same robust
@@ -1032,8 +1044,18 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         slope * slope * (albedoMoment - momentWeight * meanAlbedo * meanAlbedo), 0.0f);
     const float3 residualNoiseRGB = sqrt(max(residualVariance * invRefitWeight *
         refitSupport / max(refitSupport - 2.0f, 1.0f), 0.0f));
-    const float residualNoise = sqrt(dot(residualNoiseRGB * residualNoiseRGB, channelConfidence) /
+    const float acceptedResidualNoise = sqrt(dot(residualNoiseRGB * residualNoiseRGB, channelConfidence) /
         max(dot(channelConfidence, 1.0f), 1.0f));
+    // A partial fit retains raw reference RGB in rejected channels; their noise
+    // cannot inherit the accepted channels' clean fit residual. Bound that extra
+    // evidence by residual energy, and require every existing stencil sample to
+    // have at least 0.75 geometry support (25 weights bounded by one).
+    const float allRGBResidualNoise = sqrt(dot(residualNoiseRGB * residualNoiseRGB, 1.0f) / 3.0f);
+    const float rejectedDerivativeNoise = sqrt(max(dot(selectedNoiseEnergyRGB,
+        1.0f - channelConfidence), 0.0f) / 108.0f) * 1.4826f;
+    const float residualNoise = all(channelConfidence > 0.0f) || modelSupport < 24.75f
+        ? acceptedResidualNoise
+        : max(acceptedResidualNoise, min(allRGBResidualNoise, rejectedDerivativeNoise));
     const float grainEvidence = smoothstep(0.25f, 0.75f, sigmaReference / max(sigma, 1e-5f));
     // A sparse positive tail can inflate IQR without supplying stochastic
     // lighting on both sides of the median. It cannot authorize a lighting plane.
@@ -1102,8 +1124,13 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     }
 #endif
     // Each filter pass transports its current colour using the evolving slope.
-    // The immutable reference remains independent evidence for the source split.
+    // The immutable reference keeps the local structure estimate and raw-sample
+    // uncertainty. Fitted reference RGB and the pedestal share the same samples;
+    // they are not independent evidence that RR preserved the material.
     OutColor[px] = half4(FloorRadiance(base), min(sigma, 65500.0f));
+    // Alpha estimates the stochastic uncertainty of an incoming sample, not the
+    // standard error of the fitted RGB mean. Spatial averaging must not relabel
+    // a noisy sample population as clean content that can bypass RR.
     OutDetailReference[px] = half4(FloorRadiance(reference),
         surfaceSupport >= 2.5f || (modelConfidence > 0.5f && modelSupport >= 2.5f)
             ? min(lerp(sigmaReference, residualNoise, modelConfidence), 65500.0f) : -1.0f);

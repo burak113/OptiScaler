@@ -380,8 +380,8 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     }
     OutColor[p] = half4(FloorRadiance(filtered), center.a);
     float4 filteredModel = EncodeFloorModel(max(centerModel + modelSum/modelTotal, 0.0f), noiseRatio);
-    // Neighbours may refine an existing lighting model, but cannot grant its
-    // complete-source permission to a centre rejected by the raw noise test.
+    // Neighbours may refine an existing lighting model, but cannot grant
+    // lighting confidence to a centre rejected by its own raw noise test.
     const float planeConfidence = centerPlaneConfidence > 0.0f
         ? centerPlaneConfidence + planeConfidenceSum / total : 0.0f;
     if (!any(centerModel + modelSum/modelTotal > 0.0f) && planeConfidence > 0.0f)
