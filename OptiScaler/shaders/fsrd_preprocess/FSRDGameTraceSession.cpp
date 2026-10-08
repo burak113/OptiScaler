@@ -16,15 +16,16 @@
 #include <condition_variable>
 #include <thread>
 #include <chrono>
+#include <string_view>
 
 namespace
 {
 using Json = nlohmann::json;
 using Microsoft::WRL::ComPtr;
 constexpr uint64_t MaximumPayloadBytes = 320ull << 20;
-constexpr uint64_t MaximumExtendedPayloadBytes = 16ull << 30;
+constexpr uint64_t MaximumExtendedPayloadBytes = 128ull << 30;
 constexpr uint64_t MaximumReadbackBytes = 512ull << 20;
-constexpr uint64_t MaximumFrameReadbackBytes = 128ull << 20;
+constexpr uint64_t MaximumFrameReadbackBytes = 256ull << 20;
 constexpr uint64_t MaximumCpuBytes = 512ull << 20;
 #if defined(FSRD_GAME_TRACE_TEST)
 // Controlled host fixtures exercise backpressure without hundreds of MiB of
@@ -34,11 +35,15 @@ std::atomic<uint32_t> g_testDiskDelayMs {0};
 std::atomic<bool> g_testFailStartManifestAllocation {false};
 std::atomic<bool> g_testFailPendingDiagnosticsAllocation {false};
 std::atomic<bool> g_testHoldCpuFreeze {false};
+std::atomic<bool> g_testFailManifestPublication {false};
+std::atomic<bool> g_testHoldFrameCommit {false}, g_testFrameCommitHeld {false};
 uint64_t CpuBudget() { return g_testCpuBudget.load(std::memory_order_relaxed); }
 #else
 constexpr uint64_t CpuBudget() { return MaximumCpuBytes; }
 #endif
 constexpr size_t MaximumPendingFrames = 3;
+constexpr uint32_t ManifestBatchFrames = 8;
+constexpr uint64_t ManifestMaximumDelayMs = 250;
 constexpr std::array<const char*, 10> Names {"U", "V", "Qs", "Qd", "Skip", "packed", "depth", "motion", "native_full1", "current_output"};
 constexpr std::array<DXGI_FORMAT, 10> Formats {DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT,
     DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -56,13 +61,15 @@ struct Session
 {
     FSRDGameTraceSession::Status status;
     std::filesystem::path folder;
-    uint32_t x = 0, y = 0, size = FSRDGameTraceSession::TileSize, rw = 0, rh = 0;
+    uint32_t x = 0, y = 0, size = FSRDGameTraceSession::TileSize, width = 0, height = 0, rw = 0, rh = 0;
+    FSRDGameTraceSession::Request::RegionMode regionMode = FSRDGameTraceSession::Request::RegionMode::Square;
     FSRDGameTraceSession::SrMode srMode = FSRDGameTraceSession::SrMode::Off;
     std::string srContext; std::array<uint32_t,2> srExtent {}; uint32_t srFormat = 0;
     bool initialized = false, initializing = false, closing = false;
     uint64_t diskAvailable = 0, maximumPayload = MaximumPayloadBytes, cpuBytes = 0;
+    bool payloadEstimated = false, defaultPayloadQuota = true;
     uint32_t lineageLimit = FSRDGameTraceSession::FrameCount-1;
-    bool claimed = false, stop = false;
+    bool claimed = false, stop = false, failureObserved = false;
     std::string reason, context, settingsHash;
     std::string mappingHash;
     std::array<std::array<uint32_t,2>,10> resourceExtents {};
@@ -70,8 +77,90 @@ struct Session
     uint32_t lastFrameIndex = 0;
     bool bound = false;
     uint64_t payloadReserved = 0, payloadWritten = 0;
+    uint64_t publicationDeadline = 0, forcePublicationRevision = 0, publishedRevision = 0;
     Json manifest;
 };
+bool ManifestDue(const Session& s, uint64_t now)
+{
+    if (s.forcePublicationRevision != s.publishedRevision) return true;
+    const auto unpublished = s.status.captured-s.status.manifestPublished;
+    return unpublished && (!s.status.manifestPublished || unpublished >= ManifestBatchFrames ||
+        (s.publicationDeadline && now >= s.publicationDeadline));
+}
+void MarkDurableFrame(Session& s, uint64_t now)
+{
+    if (s.status.captured == s.status.manifestPublished) s.publicationDeadline = now+ManifestMaximumDelayMs;
+    ++s.status.captured;
+}
+const char* RegionModeName(FSRDGameTraceSession::Request::RegionMode mode)
+{
+    using RegionMode = FSRDGameTraceSession::Request::RegionMode;
+    switch (mode)
+    {
+    case RegionMode::Square: return "square";
+    case RegionMode::FullHeightStrip: return "full_height_strip";
+    case RegionMode::FullRender: return "full_render";
+    default: throw std::runtime_error("Invalid GAME_TRACE region mode");
+    }
+}
+void ResolveRegion(Session& s, uint32_t rw, uint32_t rh)
+{
+    if (s.rw)
+    {
+        if (s.rw != rw || s.rh != rh) throw std::runtime_error("Render extent changed during capture");
+        return;
+    }
+    using RegionMode = FSRDGameTraceSession::Request::RegionMode;
+    if (s.regionMode == RegionMode::FullRender) { s.x = s.y = 0; s.width = rw; s.height = rh; }
+    else
+    {
+        s.width = s.size;
+        s.height = s.regionMode == RegionMode::FullHeightStrip ? rh : s.size;
+        if (s.regionMode == RegionMode::FullHeightStrip) s.y = 0;
+    }
+    if (!rw || !rh || uint64_t(s.x)+s.width > rw || uint64_t(s.y)+s.height > rh)
+        throw std::runtime_error("GAME_TRACE requested rectangle does not fit the first admitted render extent");
+    s.rw = rw; s.rh = rh;
+    s.manifest["render_extent"] = {rw,rh};
+    s.manifest["roi"] = {{"origin",{s.x,s.y}},{"extent",{s.width,s.height}},
+        {"space","render_pixels_fixed"},{"geometry_resolved",true}};
+}
+uint64_t TightBytes(uint32_t width, uint32_t height, uint32_t bpp)
+{
+    const uint64_t pixels = uint64_t(width)*height;
+    if (!bpp || pixels > UINT64_MAX/bpp) throw std::runtime_error("GAME_TRACE rectangle byte estimate overflow");
+    return pixels*bpp;
+}
+void RequireBudget(const std::string& label, uint64_t required, uint64_t limit)
+{
+    if (required > limit)
+        throw std::runtime_error("GAME_TRACE "+label+" requires "+std::to_string(required)+
+            " bytes; available limit is "+std::to_string(limit)+" bytes");
+}
+void PreflightPayload(Session& s, uint64_t frameBytes, bool finalEstimate = false)
+{
+    RequireBudget("frame CPU snapshot",frameBytes,CpuBudget());
+    if (frameBytes > UINT64_MAX/s.status.target) throw std::runtime_error("GAME_TRACE target byte estimate overflow");
+    const uint64_t estimated = frameBytes*s.status.target;
+    const uint64_t hardLimit = s.defaultPayloadQuota ? MaximumPayloadBytes : MaximumExtendedPayloadBytes;
+    RequireBudget(std::to_string(s.status.target)+"-frame payload quota",estimated,hardLimit);
+    const uint64_t quota = estimated+estimated/20+(1ull<<20);
+    if (hardLimit != MaximumPayloadBytes) RequireBudget("payload quota including 5% allowance",quota,hardLimit);
+    const uint64_t required = quota+(hardLimit == MaximumPayloadBytes ? (64ull<<20) : (256ull<<20));
+    RequireBudget(std::to_string(s.status.target)+"-frame destination preflight including 5% allowance",required,s.diskAvailable);
+    if (!s.payloadEstimated)
+    {
+        s.status.estimatedPayloadBytes = estimated;
+        s.manifest["estimated_frame_payload_bytes"] = frameBytes;
+        s.manifest["destination_required_bytes"] = required;
+        s.manifest["estimate_scope"] = finalEstimate ? "first_sealed_frame_actual_payload" : "known_pre_sr_sources_and_fixed_outputs";
+        if (finalEstimate)
+        {
+            if (hardLimit != MaximumPayloadBytes) s.maximumPayload = quota;
+            s.payloadEstimated = true;
+        }
+    }
+}
 std::string PathString(const std::filesystem::path& p)
 { const auto text = p.u8string(); return {text.begin(), text.end()}; }
 Json ManifestSnapshot(Session& s)
@@ -80,6 +169,7 @@ Json ManifestSnapshot(Session& s)
     s.manifest["complete"] = s.status.phase == "complete";
     s.manifest["recorded_frames"] = s.status.recorded;
     s.manifest["committed_frames"] = s.status.captured;
+    s.manifest["durable_saved_frames"] = s.status.captured;
     s.manifest["pending_gpu_frames"] = s.status.pending;
     s.manifest["private_staged_frames_count"] = s.status.staged;
     s.manifest["awaiting_verified_detach_frames"] = s.status.awaitingDetach;
@@ -88,24 +178,32 @@ Json ManifestSnapshot(Session& s)
     s.manifest["cpu_queued_bytes"] = s.cpuBytes;
     s.manifest["retained_readback_bytes"] = s.status.retainedReadbackBytes;
     s.manifest["estimated_payload_bytes"] = s.status.estimatedPayloadBytes;
+    s.manifest["estimated_frame_readback_bytes"] = s.status.estimatedFrameReadbackBytes;
     s.manifest["maximum_payload_bytes"] = s.maximumPayload;
     s.manifest["incomplete_reason"] = s.reason.empty() ? Json(nullptr) : Json(s.reason);
     s.manifest["cancel_requested"] = s.stop;
     return s.manifest;
 }
-void WriteManifest(const std::filesystem::path& folder, const Json& manifest)
+uint64_t WriteManifest(const std::filesystem::path& folder, const Json& manifest)
 {
     const auto temporary = folder / "capture.json.tmp";
-    RRTraceAdditiveIO::WriteText(temporary, manifest.dump(2) + "\n");
+    const auto serialized = manifest.dump(2)+"\n";
+    RRTraceAdditiveIO::WriteText(temporary,serialized);
+#if defined(FSRD_GAME_TRACE_TEST)
+    if (g_testFailManifestPublication.load(std::memory_order_relaxed))
+        throw std::runtime_error("Injected GAME_TRACE manifest publication failure");
+#endif
     if (!MoveFileExW(temporary.c_str(), (folder / "capture.json").c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
         throw std::runtime_error("GAME_TRACE manifest publication failed");
+    return serialized.size();
 }
-void Stop(Session& s, const std::string& reason)
+void Stop(Session& s, std::string_view reason)
 {
+    if (!s.stop) ++s.forcePublicationRevision;
     s.stop = true;
-    if (s.reason.empty()) { s.reason = reason; s.manifest["errors"].push_back(reason); }
+    if (s.reason.empty()) { s.reason = reason; s.manifest["errors"].push_back(s.reason); }
     s.status.phase = "draining";
-    s.status.message = reason + "; draining completed recorded frames.";
+    s.status.message = std::string(reason) + "; draining completed recorded frames.";
 }
 struct Image
 {
@@ -115,6 +213,10 @@ struct Image
     uint32_t width = FSRDGameTraceSession::TileSize, height = FSRDGameTraceSession::TileSize;
     uint32_t readbackCropX = 0, readbackCropY = 0;
     uint32_t cropX = 0, cropY = 0, format = 0, channels = 4;
+    uint64_t sourceIdentity = 0;
+    uint32_t sourceState = 0;
+    uint64_t footprintBytes = 0, allocationBytes = 0;
+    D3D12_RESOURCE_DESC sourceDesc {};
 };
 struct Diagnostic
 {
@@ -175,19 +277,55 @@ void ReapReadbacks(Control& control)
         return true;
     });
 }
-void AllocateReadback(ID3D12Device* device, Frame& frame, Image& image, uint64_t bytes)
+D3D12_RESOURCE_DESC ReadbackDesc(uint64_t bytes)
 {
-    auto& control = Global(); // Caller owns control.mutex; never called by the snapshot callback.
-    if (!bytes || bytes > MaximumFrameReadbackBytes-frame.gpuBytes || bytes > MaximumReadbackBytes-control.gpuBytes)
-        throw std::runtime_error("GAME_TRACE retained readback memory budget exhausted");
-    D3D12_HEAP_PROPERTIES heap {}; heap.Type = D3D12_HEAP_TYPE_READBACK;
     D3D12_RESOURCE_DESC buffer {}; buffer.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
     buffer.Width = bytes; buffer.Height = 1; buffer.DepthOrArraySize = buffer.MipLevels = 1;
     buffer.SampleDesc.Count = 1; buffer.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    return buffer;
+}
+uint64_t ChargedReadbackBytes(ID3D12Device* device, uint64_t bytes)
+{
+    if (!bytes || bytes == UINT64_MAX) throw std::runtime_error("GAME_TRACE invalid readback footprint");
+    RequireBudget("individual readback footprint",bytes,MaximumFrameReadbackBytes);
+    const auto buffer = ReadbackDesc(bytes);
+    const auto allocation = device->GetResourceAllocationInfo(0,1,&buffer).SizeInBytes;
+    if (!allocation || allocation == UINT64_MAX || allocation < bytes)
+        throw std::runtime_error("GAME_TRACE invalid committed readback allocation size");
+    RequireBudget("individual committed readback allocation",allocation,MaximumFrameReadbackBytes);
+    return allocation;
+}
+void AllocateReadback(ID3D12Device* device, Frame& frame, Image& image, uint64_t bytes)
+{
+    auto& control = Global(); // Caller owns control.mutex; never called by the snapshot callback.
+    const auto allocation = ChargedReadbackBytes(device,bytes);
+    RequireBudget("frame committed readback",frame.gpuBytes+allocation,MaximumFrameReadbackBytes);
+    RequireBudget("retained committed readback",control.gpuBytes+allocation,MaximumReadbackBytes);
+    D3D12_HEAP_PROPERTIES heap {}; heap.Type = D3D12_HEAP_TYPE_READBACK;
+    const auto buffer = ReadbackDesc(bytes);
     if (FAILED(device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&buffer,
         D3D12_RESOURCE_STATE_COPY_DEST,nullptr,IID_PPV_ARGS(&image.readback))))
         throw std::runtime_error("GAME_TRACE readback allocation failed");
-    frame.gpuBytes += bytes; control.gpuBytes += bytes;
+    image.footprintBytes = bytes; image.allocationBytes = allocation;
+    frame.gpuBytes += allocation; control.gpuBytes += allocation;
+}
+Json CopyFootprintMetadata(const Image& image)
+{
+    const auto& footprint = image.footprint.Footprint;
+    return {{"offset",image.footprint.Offset},{"row_pitch",footprint.RowPitch},
+        {"extent",{footprint.Width,footprint.Height,footprint.Depth}},
+        {"dxgi_format",uint32_t(footprint.Format)},{"rows",footprint.Height},
+        {"row_bytes",uint64_t(footprint.Width)*image.bpp},{"requested_buffer_bytes",image.footprintBytes},
+        {"committed_buffer_bytes",image.allocationBytes},
+        {"cpu_crop_origin_in_readback",{image.readbackCropX,image.readbackCropY}}};
+}
+Json NativeResourceMetadata(const D3D12_RESOURCE_DESC& desc)
+{
+    return {{"dimension",uint32_t(desc.Dimension)},{"alignment",desc.Alignment},
+        {"width",desc.Width},{"height",desc.Height},{"depth_or_array_size",desc.DepthOrArraySize},
+        {"mip_levels",desc.MipLevels},{"dxgi_format",uint32_t(desc.Format)},
+        {"sample_count",desc.SampleDesc.Count},{"sample_quality",desc.SampleDesc.Quality},
+        {"layout",uint32_t(desc.Layout)},{"flags",uint32_t(desc.Flags)}};
 }
 std::pair<uint32_t,uint32_t> DiagnosticFormat(DXGI_FORMAT format)
 {
@@ -201,6 +339,116 @@ std::pair<uint32_t,uint32_t> DiagnosticFormat(DXGI_FORMAT format)
     case 54: case 56: return {2,1}; case 61: return {1,1};
     default: return {0,0};
     }
+}
+struct DiagnosticLayout
+{
+    Image image;
+    D3D12_RESOURCE_DESC copyDesc {};
+    bool wholeDepthPlane = false;
+};
+DiagnosticLayout PlanDiagnostic(const Session& session, const FSRDGameTraceSession::DiagnosticSource& source)
+{
+    if (!source.image.resource) throw std::runtime_error("Diagnostic resource unavailable");
+    DiagnosticLayout result;
+    auto desc = source.image.resource->GetDesc();
+    const auto [bpp,channels] = DiagnosticFormat(desc.Format);
+    uint64_t x = uint64_t(session.x)+source.baseX, y = uint64_t(session.y)+source.baseY;
+    uint32_t width = session.width, height = session.height;
+    if (source.motionAddressed)
+    {
+        if (!std::isfinite(source.motionWidth) || !std::isfinite(source.motionHeight) ||
+            !std::isfinite(source.jitterX) || !std::isfinite(source.jitterY) ||
+            source.motionWidth < 1 || source.motionHeight < 1 ||
+            source.motionWidth > INT_MAX || source.motionHeight > INT_MAX ||
+            std::floor(source.motionWidth) != source.motionWidth || std::floor(source.motionHeight) != source.motionHeight)
+            throw std::runtime_error("Invalid original motion addressing controls");
+        auto bounds = [&](uint32_t origin, uint32_t length, uint32_t render, float extent, float jitter)
+        {
+            const int64_t maximum = int64_t(extent)-1;
+            if (!source.displayResolutionMotion)
+                return std::pair<int64_t,int64_t>{std::clamp<int64_t>(origin,0,maximum),
+                    std::clamp<int64_t>(int64_t(origin)+length-1,0,maximum)};
+            // Conservative one-texel halo contains the shader's binary32
+            // floor addressing, without replacing/resampling its words.
+            const double low = std::floor(((double(origin)+0.5-double(jitter))/render)*extent)-1;
+            const double high = std::floor(((double(origin)+length-0.5-double(jitter))/render)*extent)+1;
+            return std::pair<int64_t,int64_t>{int64_t(std::clamp(low,0.0,double(maximum))),
+                int64_t(std::clamp(high,0.0,double(maximum)))};
+        };
+        const auto bx = bounds(session.x,session.width,session.rw,source.motionWidth,source.jitterX);
+        const auto by = bounds(session.y,session.height,session.rh,source.motionHeight,source.jitterY);
+        x = uint64_t(source.baseX)+bx.first; y = uint64_t(source.baseY)+by.first;
+        width = uint32_t(bx.second-bx.first+1); height = uint32_t(by.second-by.first+1);
+    }
+    if (!bpp) throw std::runtime_error("Unsupported original diagnostic DXGI format");
+    if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || desc.DepthOrArraySize != 1 ||
+        desc.SampleDesc.Count != 1 || desc.Width > UINT_MAX || x+width > desc.Width || y+height > desc.Height)
+        throw std::runtime_error("Diagnostic source extent/base does not contain the ROI");
+    auto& image = result.image;
+    image.sourceWidth = uint32_t(desc.Width); image.sourceHeight = desc.Height; image.bpp = bpp;
+    image.width = width; image.height = height; image.cropX = uint32_t(x); image.cropY = uint32_t(y);
+    image.format = uint32_t(desc.Format); image.channels = channels;
+    image.sourceIdentity = uint64_t(reinterpret_cast<uintptr_t>(source.image.resource));
+    image.sourceState = uint32_t(source.image.state);
+    image.sourceDesc = desc;
+    result.wholeDepthPlane = (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0 ||
+        desc.Format == DXGI_FORMAT_D32_FLOAT || desc.Format == DXGI_FORMAT_D24_UNORM_S8_UINT;
+    if (result.wholeDepthPlane) { image.readbackCropX = image.cropX; image.readbackCropY = image.cropY; }
+    else { desc.Width = width; desc.Height = height; desc.MipLevels = 1; }
+    result.copyDesc = desc;
+    return result;
+}
+uint64_t PlannedReadbackBytes(ID3D12Device* device, const D3D12_RESOURCE_DESC& desc)
+{
+    UINT64 bytes = 0;
+    device->GetCopyableFootprints(&desc,0,1,0,nullptr,nullptr,nullptr,&bytes);
+    return ChargedReadbackBytes(device,bytes);
+}
+std::pair<uint64_t,uint64_t> DiagnosticBytes(ID3D12Device* device, const Session& session,
+    std::span<const FSRDGameTraceSession::DiagnosticSource> sources, size_t first, size_t end)
+{
+    uint64_t payload = 0, readback = 0;
+    for (size_t slot=first; slot<end; ++slot)
+    {
+        if (first == 0 && (slot == 4 || slot == 5)) continue;
+        for (const auto& source : sources)
+        {
+            if (source.name != DiagnosticNames[slot] || !source.active) continue;
+            DiagnosticLayout layout;
+            try { layout = PlanDiagnostic(session,source); }
+            catch (const std::bad_alloc&) { throw; }
+            catch (const std::exception&)
+            {
+                if (source.required) throw;
+                continue; // CopyDiagnostics records the optional-source reason.
+            }
+            payload += TightBytes(layout.image.width,layout.image.height,layout.image.bpp);
+            readback += PlannedReadbackBytes(device,layout.copyDesc);
+            RequireBudget("diagnostic readback preflight",readback,MaximumFrameReadbackBytes);
+        }
+    }
+    return {payload,readback};
+}
+std::pair<uint64_t,uint64_t> CoreBytes(ID3D12Device* device, const Session& session, size_t first, size_t end)
+{
+    uint64_t payload = 0, readback = 0;
+    for (size_t slot=first; slot<end; ++slot)
+    {
+        D3D12_RESOURCE_DESC desc {};
+        desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; desc.Format = Formats[slot];
+        desc.Width = session.width; desc.Height = session.height; desc.DepthOrArraySize = desc.MipLevels = 1;
+        desc.SampleDesc.Count = 1;
+        payload += TightBytes(session.width,session.height,Formats[slot] == DXGI_FORMAT_R16G16B16A16_FLOAT ? 8 : 4);
+        readback += PlannedReadbackBytes(device,desc);
+        RequireBudget("fixed-output readback preflight",readback,MaximumFrameReadbackBytes);
+    }
+    return {payload,readback};
+}
+void PreflightReadback(Session& s, uint64_t frameBytes, uint64_t additionalBytes)
+{
+    RequireBudget("frame readback preflight",frameBytes,MaximumFrameReadbackBytes);
+    RequireBudget("retained readback preflight",Global().gpuBytes+additionalBytes,MaximumReadbackBytes);
+    if (!s.payloadEstimated) s.status.estimatedFrameReadbackBytes = frameBytes;
 }
 void CopyDiagnostics(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, Frame& frame, Session& session,
     std::span<const FSRDGameTraceSession::DiagnosticSource> sources, size_t first, size_t end)
@@ -222,6 +470,7 @@ void CopyDiagnostics(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, Frame
                 ? "Supplied diagnostic binding inactive." : source->inactiveReason;
             else diagnostic.metadata.erase("inactive_reason");
             diagnostic.metadata["source_state"] = uint32_t(source->image.state);
+            diagnostic.metadata["source_state_provenance"] = "caller_declared_copy_contract_not_runtime_observed";
             const auto metadata = Json::parse(source->metadataJson);
             if (!metadata.is_object()) throw std::runtime_error("Diagnostic binding metadata is not an object");
             diagnostic.metadata.update(metadata);
@@ -235,74 +484,47 @@ void CopyDiagnostics(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, Frame
                 diagnostic.metadata["reason"] = diagnostic.metadata["inactive_reason"];
                 continue;
             }
-            if (!source->image.resource) throw std::runtime_error("Diagnostic resource unavailable");
-            auto desc = source->image.resource->GetDesc();
-            const auto [bpp,channels] = DiagnosticFormat(desc.Format);
-            uint64_t x = uint64_t(session.x)+source->baseX, y = uint64_t(session.y)+source->baseY;
-            uint32_t width = session.size, height = session.size;
+            auto layout = PlanDiagnostic(session,*source);
+            const auto& planned = layout.image;
+            const auto x = planned.cropX, y = planned.cropY, width = planned.width, height = planned.height;
+            const auto bpp = planned.bpp, channels = planned.channels;
+            auto desc = layout.copyDesc;
             if (source->motionAddressed)
             {
-                if (!std::isfinite(source->motionWidth) || !std::isfinite(source->motionHeight) ||
-                    !std::isfinite(source->jitterX) || !std::isfinite(source->jitterY) ||
-                    source->motionWidth < 1 || source->motionHeight < 1 ||
-                    source->motionWidth > INT_MAX || source->motionHeight > INT_MAX ||
-                    std::floor(source->motionWidth) != source->motionWidth || std::floor(source->motionHeight) != source->motionHeight)
-                    throw std::runtime_error("Invalid original motion addressing controls");
-                auto bounds = [&](uint32_t origin, uint32_t render, float extent, float jitter)
-                {
-                    const int64_t maximum = int64_t(extent)-1;
-                    if (!source->displayResolutionMotion)
-                        return std::pair<int64_t,int64_t>{std::clamp<int64_t>(origin,0,maximum),
-                            std::clamp<int64_t>(int64_t(origin)+session.size-1,0,maximum)};
-                    // Conservative one-texel halo contains the shader's binary32
-                    // floor addressing, without replacing/resampling its words.
-                    const double low = std::floor(((double(origin)+0.5-double(jitter))/render)*extent)-1;
-                    const double high = std::floor(((double(origin)+session.size-0.5-double(jitter))/render)*extent)+1;
-                    return std::pair<int64_t,int64_t>{int64_t(std::clamp(low,0.0,double(maximum))),
-                        int64_t(std::clamp(high,0.0,double(maximum)))};
-                };
-                const auto bx = bounds(session.x,session.rw,source->motionWidth,source->jitterX);
-                const auto by = bounds(session.y,session.rh,source->motionHeight,source->jitterY);
-                x = uint64_t(source->baseX)+bx.first; y = uint64_t(source->baseY)+by.first;
-                width = uint32_t(bx.second-bx.first+1); height = uint32_t(by.second-by.first+1);
                 diagnostic.metadata["mapping"]["render_roi_origin"] = {session.x,session.y};
+                diagnostic.metadata["mapping"]["render_roi_extent"] = {session.width,session.height};
             }
-            if (!bpp) throw std::runtime_error("Unsupported original diagnostic DXGI format");
-            if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || desc.DepthOrArraySize != 1 ||
-                desc.SampleDesc.Count != 1 || desc.Width > UINT_MAX || x+width > desc.Width || y+height > desc.Height)
-                throw std::runtime_error("Diagnostic source extent/base does not contain the ROI");
             auto& image = diagnostic.image;
-            image.sourceWidth = uint32_t(desc.Width); image.sourceHeight = desc.Height; image.bpp = bpp;
-            image.width = width; image.height = height; image.cropX = uint32_t(x); image.cropY = uint32_t(y);
-            image.format = uint32_t(desc.Format); image.channels = channels;
+            image = std::move(layout.image);
             uint64_t frameBytes = frame.constants.size()+frame.floorSeedConstants.size()+frame.floorFilterConstants.size();
             for (const auto& captured : frame.images)
                 if (captured.readback) frameBytes += uint64_t(captured.width)*captured.height*captured.bpp;
             for (const auto& captured : frame.diagnostics)
                 if (captured.metadata["available"].get<bool>())
                     frameBytes += uint64_t(captured.image.width)*captured.image.height*captured.image.bpp;
-            const uint64_t requestedBytes = uint64_t(width)*height*bpp;
+            const uint64_t requestedBytes = TightBytes(width,height,bpp);
             if (frameBytes > session.maximumPayload-session.payloadReserved ||
                 requestedBytes > session.maximumPayload-session.payloadReserved-frameBytes)
                 throw std::runtime_error("GAME_TRACE diagnostic exceeds total payload quota");
-            diagnostic.metadata.update({{"dxgi_format", uint32_t(desc.Format)}, {"source_extent", {desc.Width,desc.Height}},
+            diagnostic.metadata.update({{"dxgi_format", uint32_t(desc.Format)}, {"source_extent", {image.sourceWidth,image.sourceHeight}},
                 {"extent", {width,height}}, {"source_subresource", 0}, {"source_plane", 0},
                 {"source_base", {source->baseX,source->baseY}}, {"crop_origin", {x,y}},
-                {"bytes_per_pixel", bpp}, {"channels", channels}, {"storage", "original_little_endian_gpu_words"}});
-            const bool wholeDepthPlane = (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0 ||
-                desc.Format == DXGI_FORMAT_D32_FLOAT || desc.Format == DXGI_FORMAT_D24_UNORM_S8_UINT;
+                {"bytes_per_pixel", bpp}, {"channels", channels}, {"storage", "original_little_endian_gpu_words"},
+                {"source_resource_address_process_local",image.sourceIdentity},
+                {"source_native_resource_desc",NativeResourceMetadata(image.sourceDesc)},
+                {"source_mip",0},{"source_array_slice",0}});
+            const bool wholeDepthPlane = layout.wholeDepthPlane;
             if (wholeDepthPlane)
             {
                 // D3D12 forbids a boxed partial depth-stencil copy. Read the
                 // whole plane, then crop original words only after fence/detach.
-                image.readbackCropX = uint32_t(x); image.readbackCropY = uint32_t(y);
                 diagnostic.metadata["copy_scope"] = "whole_depth_plane_then_cpu_word_crop";
             }
-            else { desc.Width = width; desc.Height = height; desc.MipLevels = 1; }
             UINT64 bytes = 0;
             device->GetCopyableFootprints(&desc,0,1,0,&image.footprint,nullptr,nullptr,&bytes);
             diagnostic.metadata["copy_format"] = uint32_t(image.footprint.Footprint.Format);
             AllocateReadback(device,frame,image,bytes);
+            diagnostic.metadata["copy_footprint"] = CopyFootprintMetadata(image);
             frame.ticket->Retain(source->image.resource); frame.ticket->Retain(image.readback.Get());
             D3D12_RESOURCE_BARRIER barrier {}; barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
             barrier.Transition = {source->image.resource,0,source->image.state,D3D12_RESOURCE_STATE_COPY_SOURCE};
@@ -348,8 +570,8 @@ void CopyImage(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, Frame& fram
     auto desc = source.resource->GetDesc();
     if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || desc.Format != Formats[slot] ||
         desc.DepthOrArraySize != 1 || desc.SampleDesc.Count != 1 || desc.Width > UINT_MAX ||
-        uint64_t(session.x) + session.size > desc.Width ||
-        uint64_t(session.y) + session.size > desc.Height ||
+        uint64_t(session.x) + session.width > desc.Width ||
+        uint64_t(session.y) + session.height > desc.Height ||
         desc.Width < session.rw || desc.Height < session.rh)
         throw std::runtime_error(std::string("GAME_TRACE incompatible resource: ") + Names[slot]);
     const std::array<uint32_t,2> actualExtent {uint32_t(desc.Width), desc.Height};
@@ -360,9 +582,11 @@ void CopyImage(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, Frame& fram
     if (image.readback) throw std::runtime_error("GAME_TRACE duplicate snapshot stage");
     image.sourceWidth = uint32_t(desc.Width); image.sourceHeight = desc.Height;
     image.bpp = desc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT ? 8 : 4;
-    image.width = image.height = session.size; image.cropX = session.x; image.cropY = session.y;
+    image.width = session.width; image.height = session.height; image.cropX = session.x; image.cropY = session.y;
     image.format = uint32_t(desc.Format); image.channels = slot == FSRDGameTraceSession::Depth ? 1 : 4;
-    desc.Width = desc.Height = session.size;
+    image.sourceIdentity = uint64_t(reinterpret_cast<uintptr_t>(source.resource)); image.sourceState = uint32_t(source.state);
+    image.sourceDesc = desc;
+    desc.Width = session.width; desc.Height = session.height;
     desc.DepthOrArraySize = desc.MipLevels = 1;
     UINT64 bytes = 0;
     device->GetCopyableFootprints(&desc, 0, 1, 0, &image.footprint, nullptr, nullptr, &bytes);
@@ -377,8 +601,8 @@ void CopyImage(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, Frame& fram
     D3D12_TEXTURE_COPY_LOCATION src {}, dst {};
     src.pResource = source.resource; src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX; src.SubresourceIndex = 0;
     dst.pResource = image.readback.Get(); dst.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT; dst.PlacedFootprint = image.footprint;
-    D3D12_BOX box {session.x, session.y, 0, session.x + session.size,
-                  session.y + session.size, 1};
+    D3D12_BOX box {session.x, session.y, 0, session.x + session.width,
+                  session.y + session.height, 1};
     cmd->CopyTextureRegion(&dst, 0, 0, 0, &src, &box);
     if (transition) { std::swap(barrier.Transition.StateBefore, barrier.Transition.StateAfter); cmd->ResourceBarrier(1, &barrier); }
 }
@@ -447,17 +671,22 @@ void CopySr(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, Frame& f, Sess
     if (image.readback) throw std::runtime_error("GAME_TRACE duplicate SR snapshot");
     image.sourceWidth = uint32_t(desc.Width); image.sourceHeight = desc.Height;
     image.format = uint32_t(desc.Format); image.bpp = bpp; image.channels = channels;
+    image.sourceIdentity = uint64_t(reinterpret_cast<uintptr_t>(source.resource)); image.sourceState = uint32_t(source.state);
+    image.sourceDesc = desc;
     image.width = info.width; image.height = info.height;
     if (s.srMode == FSRDGameTraceSession::SrMode::MappedRoi)
     {
         image.cropX = uint32_t(uint64_t(s.x)*info.width/s.rw);
         image.cropY = uint32_t(uint64_t(s.y)*info.height/s.rh);
-        const uint32_t right = uint32_t((uint64_t(s.x+s.size)*info.width+s.rw-1)/s.rw);
-        const uint32_t bottom = uint32_t((uint64_t(s.y+s.size)*info.height+s.rh-1)/s.rh);
+        const uint32_t right = uint32_t(((uint64_t(s.x)+s.width)*info.width+s.rw-1)/s.rw);
+        const uint32_t bottom = uint32_t(((uint64_t(s.y)+s.height)*info.height+s.rh-1)/s.rh);
         image.width = right-image.cropX; image.height = bottom-image.cropY;
     }
     desc.Width = image.width; desc.Height = image.height; desc.MipLevels = 1;
     UINT64 bytes = 0; device->GetCopyableFootprints(&desc,0,1,0,&image.footprint,nullptr,nullptr,&bytes);
+    const auto allocation = ChargedReadbackBytes(device,bytes);
+    PreflightPayload(s,FramePayload(f)+TightBytes(image.width,image.height,image.bpp));
+    PreflightReadback(s,f.gpuBytes+allocation,allocation);
     AllocateReadback(device,f,image,bytes);
     f.ticket->Retain(source.resource); f.ticket->Retain(image.readback.Get());
     D3D12_RESOURCE_BARRIER barrier {}; barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -496,7 +725,12 @@ Json ImageMetadata(const Image& image, const char* name)
 {
     return {{"name",name},{"dxgi_format",image.format},{"source_extent",{image.sourceWidth,image.sourceHeight}},
         {"extent",{image.width,image.height}},{"crop_origin",{image.cropX,image.cropY}},
-        {"channels",image.channels},{"bytes_per_pixel",image.bpp},{"storage","original_little_endian_gpu_words"}};
+        {"channels",image.channels},{"bytes_per_pixel",image.bpp},{"storage","original_little_endian_gpu_words"},
+        {"source_resource_address_process_local",image.sourceIdentity},{"source_state",image.sourceState},
+        {"source_state_provenance","caller_declared_copy_contract_not_runtime_observed"},
+        {"source_native_resource_desc",NativeResourceMetadata(image.sourceDesc)},
+        {"source_subresource",0},{"source_mip",0},{"source_array_slice",0},{"source_plane",0},
+        {"copy_footprint",CopyFootprintMetadata(image)}};
 }
 // This function is called ONLY under WithCompletedSnapshot. Storage was sized
 // beforehand. It neither allocates nor hashes/writes/inspects another ticket.
@@ -522,6 +756,7 @@ struct FSRDGameTraceSession::Impl
     std::deque<std::shared_ptr<Frame>> pending;
     std::deque<std::shared_ptr<CpuFrame>> cpuQueue;
     std::map<uint32_t,Json> staged;
+    Json durableRows = Json::array(); // Disk-worker owned; never copied under Global().mutex.
     std::shared_ptr<Frame> current;
     ComPtr<ID3D12Device> device;
     std::thread snapshotWorker, diskWorker;
@@ -544,19 +779,16 @@ struct FSRDGameTraceSession::Impl
     {
         if (!session) return;
         auto& s = *session;
-        s.status.pending = uint32_t(pending.size()); s.status.staged = uint32_t(staged.size());
+        s.status.pending = uint32_t(pending.size());
         s.status.cpuQueuedBytes = s.cpuBytes; s.status.retainedReadbackBytes = Global().gpuBytes;
         s.status.awaitingDetach = 0;
         for (const auto& f : Global().retained)
             if (f->owner.lock() == session && f->sealed && !RRTraceFence::Inspect(f->ticket).state.detached)
                 ++s.status.awaitingDetach;
-        s.manifest["private_staged_frames"] = Json::array();
-        for (const auto& [ordinal,row] : staged)
-            s.manifest["private_staged_frames"].push_back({{"ordinal",ordinal},
-                {"private_folder","frames/"+std::to_string(ordinal)+".pending"},{"frame",row}});
         if (s.status.active && !s.closing)
         {
-            s.status.message = "Published "+std::to_string(s.status.captured)+"/128; recorded "+
+            s.status.message = "Saved "+std::to_string(s.status.captured)+"/"+std::to_string(s.status.target)+
+                "; manifest published "+std::to_string(s.status.manifestPublished)+"; recorded "+
                 std::to_string(s.status.recorded)+"; GPU pending "+std::to_string(s.status.pending)+
                 "; CPU queue "+std::to_string(s.cpuBytes>>20)+" MiB; retained readbacks "+
                 std::to_string(Global().gpuBytes>>20)+" MiB.";
@@ -575,15 +807,19 @@ struct FSRDGameTraceSession::Impl
                 {"native_recorded",f->native},{"sealed",f->sealed},{"recording_qpc",f->qpc},{"ticket",TicketMetadata(f->ticket)}});
         session->manifest["uncommitted_frames_at_close"] = std::move(rows);
     }
-    void Failure(const std::string& reason) noexcept
+    void Failure(std::string_view reason) noexcept
     {
         if (!session || !session->status.active || session->closing) return;
+        if (session->failureObserved && pending.empty()) return;
+        if (!session->failureObserved && session->stop) ++session->forcePublicationRevision;
+        session->failureObserved = true;
         try
         {
             SavePendingDiagnostics(); Stop(*session,reason);
         }
         catch (...)
         {
+            if (!session->stop) ++session->forcePublicationRevision;
             session->stop = true;
             try { if (session->reason.empty()) session->reason = reason; session->status.phase = "draining"; }
             catch (...) {}
@@ -625,22 +861,14 @@ struct FSRDGameTraceSession::Impl
             if (d.metadata.value("active",false) && !d.metadata.value("available",false))
                 throw std::runtime_error("GAME_TRACE active diagnostic unavailable: "+d.metadata["name"].get<std::string>());
         const uint64_t payload = FramePayload(f);
-        if (!s.status.estimatedPayloadBytes)
-        {
-            s.status.estimatedPayloadBytes = payload*FrameCount;
-            const uint64_t required = s.status.estimatedPayloadBytes+
-                (s.maximumPayload == MaximumPayloadBytes ? (64ull<<20) : (256ull<<20));
-            if (required > s.diskAvailable) throw std::runtime_error("GAME_TRACE destination has insufficient space for estimated 128-frame payload");
-            if (s.maximumPayload != MaximumPayloadBytes)
-                s.maximumPayload = std::min(MaximumExtendedPayloadBytes,s.status.estimatedPayloadBytes+s.status.estimatedPayloadBytes/20+(1ull<<20));
-            if (s.status.estimatedPayloadBytes > s.maximumPayload) throw std::runtime_error("GAME_TRACE estimated sequence exceeds payload quota");
-        }
+        PreflightReadback(s,f.gpuBytes,0);
+        PreflightPayload(s,payload,true);
         if (payload > s.maximumPayload-s.payloadReserved) throw std::runtime_error("GAME_TRACE total payload quota exceeded");
         { std::scoped_lock lock(f.ticket->mutex);
           if (f.ticket->state.submitted || f.ticket->state.invalid) throw std::runtime_error("GAME_TRACE frame submitted before sealing");
           f.ticket->state.recorded = true; }
         s.payloadReserved += payload; f.sealed = true; ++s.status.recorded;
-        if (s.status.recorded == FrameCount) s.status.phase = "draining";
+        if (s.status.recorded == s.status.target) s.status.phase = "draining";
         UpdateProgress(); Global().wake.notify_all();
     }
     std::shared_ptr<CpuFrame> Freeze(const std::shared_ptr<Frame>& f, const std::shared_ptr<Session>& s)
@@ -704,9 +932,33 @@ struct FSRDGameTraceSession::Impl
     void DiskLoop() noexcept;
     void Save(const std::shared_ptr<Session>& s)
     {
-        Json manifest;
-        { std::scoped_lock lock(Global().mutex); if (session == s) UpdateProgress(); manifest = ManifestSnapshot(*s); }
-        WriteManifest(s->folder,manifest); // Never under global/ticket/registry locks.
+        Json manifest; uint32_t published = 0; uint64_t revision = 0;
+        {
+            std::scoped_lock lock(Global().mutex); if (session == s) UpdateProgress(); manifest = ManifestSnapshot(*s);
+            published = uint32_t(manifest["frames"].size()); revision = s->forcePublicationRevision;
+            manifest["committed_frames"] = published;
+            manifest["manifest_published_frames"] = published;
+            manifest["manifest_publication"] = {{"batch_frames",ManifestBatchFrames},{"maximum_delay_ms",ManifestMaximumDelayMs},
+                {"delay_scope","fixed scheduling target while the writer is available; blocking OS I/O can delay atomic publication; the game thread never waits for disk"},
+                {"successful_writes_before_this_publication",s->status.manifestWrites},
+                {"cumulative_bytes_before_this_publication",s->status.manifestBytesWritten}};
+        }
+        // Only the disk worker owns durable/staged rows. Copying the growing
+        // prefix and forensic suffix must never hold the game-thread mutex.
+        manifest["frames"] = durableRows;
+        published = uint32_t(durableRows.size());
+        manifest["committed_frames"] = manifest["manifest_published_frames"] = published;
+        manifest["private_staged_frames"] = Json::array();
+        for (const auto& [ordinal,row] : staged)
+            manifest["private_staged_frames"].push_back({{"ordinal",ordinal},
+                {"private_folder","frames/"+std::to_string(ordinal)+".pending"},{"frame",row}});
+        const auto written = WriteManifest(s->folder,manifest); // Never under global/ticket/registry locks.
+        {
+            std::scoped_lock lock(Global().mutex);
+            s->status.manifestPublished = published; s->publishedRevision = revision;
+            ++s->status.manifestWrites; s->status.manifestBytesWritten += written;
+            if (s->status.captured == published) s->publicationDeadline = 0;
+        }
     }
     void WritePacket(CpuFrame& packet)
     {
@@ -810,7 +1062,7 @@ void FSRDGameTraceSession::Impl::DiskLoop() noexcept
     for (;;)
     {
         std::shared_ptr<Session> s; std::shared_ptr<CpuFrame> packet;
-        bool initialize = false, finish = false;
+        bool initialize = false, finish = false, publish = false;
         try
         {
             {
@@ -820,6 +1072,7 @@ void FSRDGameTraceSession::Impl::DiskLoop() noexcept
                     s = session;
                     if (!s->initialized && !s->initializing)
                     { s->initializing = true; initialize = true; }
+                    else if (s->initialized && ManifestDue(*s,GetTickCount64())) publish = true;
                     else if (s->initialized && !cpuQueue.empty())
                     {
                         packet = cpuQueue.front(); cpuQueue.pop_front(); diskBusy = true;
@@ -829,13 +1082,14 @@ void FSRDGameTraceSession::Impl::DiskLoop() noexcept
                         s->payloadWritten += packet->bytes;
                     }
                     else if (s->initialized && !diskBusy && pending.empty() && s->cpuBytes == 0 && !s->closing &&
-                        (s->stop || s->status.recorded == FrameCount))
+                        (s->stop || s->status.recorded == s->status.target))
                     {
                         s->closing = true; finish = true; UpdateProgress();
-                        s->status.phase = s->status.captured == FrameCount && s->reason.empty() ? "complete" :
+                        s->status.phase = s->status.captured == s->status.target && s->reason.empty() ? "complete" :
                             (s->reason == "Stopped by user" ? "cancelled" : "incomplete");
-                        s->status.message = (s->status.phase == "complete" ? "Saved 128 immutable, submitted, GPU-completed consecutive frames. " :
-                            "Saved incomplete contiguous sequence: ")+std::to_string(s->status.captured)+"/128. "+s->reason;
+                        s->status.message = (s->status.phase == "complete" ? "Saved immutable, submitted, GPU-completed consecutive frames: " :
+                            "Saved incomplete contiguous sequence: ")+std::to_string(s->status.captured)+"/"+
+                            std::to_string(s->status.target)+". "+s->reason;
                         Json retained = Json::array();
                         for (const auto& f : control.retained) if (f->owner.lock() == s)
                             retained.push_back({{"ordinal",f->ordinal},{"readback_bytes",f->gpuBytes},{"cpu_snapshot_immutable",f->frozen},
@@ -843,27 +1097,47 @@ void FSRDGameTraceSession::Impl::DiskLoop() noexcept
                         s->manifest["retained_gpu_tickets_at_close"] = std::move(retained);
                     }
                 }
-                if (!initialize && !packet && !finish)
+                if (!initialize && !packet && !finish && !publish)
                 {
                     if (shutdown && (!session || !session->status.active)) return;
-                    control.wake.wait(lock,[&] { return shutdown || (session && session->status.active &&
+                    const auto ready = [&] { return shutdown || (session && session->status.active &&
                         ((!session->initialized && !session->initializing) ||
-                        (session->initialized && (!cpuQueue.empty() || (!diskBusy && pending.empty() && session->cpuBytes == 0 &&
-                            !session->closing && (session->stop || session->status.recorded == FrameCount)))))); });
+                        (session->initialized && (ManifestDue(*session,GetTickCount64()) || !cpuQueue.empty() ||
+                            (!diskBusy && pending.empty() && session->cpuBytes == 0 && !session->closing &&
+                            (session->stop || session->status.recorded == session->status.target)))))); };
+                    if (session && session->status.active && session->publicationDeadline)
+                    {
+                        const auto now = GetTickCount64();
+                        const auto remaining = session->publicationDeadline > now ? session->publicationDeadline-now : 0;
+                        control.wake.wait_for(lock,std::chrono::milliseconds(remaining),ready);
+                    }
+                    else control.wake.wait(lock,ready);
                     continue;
                 }
             }
             if (initialize)
             {
+                staged.clear(); durableRows = Json::array();
+                durableRows.get_ref<Json::array_t&>().reserve(s->status.target);
+#if defined(FSRD_GAME_TRACE_TEST)
+                // Counter-only CPU fixtures have no GPU payload/proof and are
+                // kept outside captures.json. Move their synthetic rows once.
+                {
+                    std::scoped_lock lock(control.mutex);
+                    if (s->manifest.value("synthetic_counter_only_fixture",false)) durableRows = std::move(s->manifest["frames"]);
+                }
+#endif
                 std::filesystem::create_directories(s->folder.parent_path());
                 const auto available = std::filesystem::space(s->folder.parent_path()).available;
-                const uint64_t minimum = s->maximumPayload == MaximumPayloadBytes ? (384ull<<20) :
-                    uint64_t(s->size)*s->size*64*FrameCount+(256ull<<20);
-                if (available < minimum) throw std::runtime_error("GAME_TRACE destination disk space is below the initial bounded capture estimate");
+                // Strip/full geometry is resolved by the first admitted render
+                // extent. Its actual source estimate is checked before copying.
+                const uint64_t minimum = s->defaultPayloadQuota ? (384ull<<20) : (256ull<<20);
+                RequireBudget("destination initialization",minimum,available);
                 if (!std::filesystem::create_directory(s->folder)) throw std::runtime_error("GAME_TRACE folder collision");
                 std::filesystem::create_directory(s->folder/"frames");
                 {
                     std::scoped_lock lock(control.mutex); s->diskAvailable = available;
+                    s->manifest["destination_available_bytes_at_initialize"] = available;
                     s->initialized = true; s->initializing = false;
                     if (!s->stop) s->status.phase = GetTickCount64() < s->startTick ? "armed" : "requested";
                 }
@@ -877,32 +1151,62 @@ void FSRDGameTraceSession::Impl::DiskLoop() noexcept
                 WritePacket(*packet);
                 {
                     std::scoped_lock lock(control.mutex); staged.emplace(packet->ordinal,std::move(packet->row));
+                    s->status.staged = uint32_t(staged.size());
                 }
                 // Only this worker mutates disk names. Never expose an ordinal
                 // suffix while an earlier submitted frame remains missing.
                 for (;;)
                 {
-                    uint32_t ordinal = 0; Json row;
+                    uint32_t ordinal = 0;
                     {
                         std::scoped_lock lock(control.mutex); InspectLineage();
                         const auto found = staged.find(s->status.captured);
                         if (found == staged.end() || found->first > s->lineageLimit) break;
-                        ordinal = found->first; row = found->second;
+                        ordinal = found->first;
                     }
+                    // Preserve the forensic row if copying/rename fails. This
+                    // one-row copy is disk-worker owned and outside Global.
+                    auto row = staged.at(ordinal);
                     const auto relative = "frames/"+std::to_string(ordinal);
                     std::filesystem::rename(s->folder/(relative+".pending"),s->folder/relative);
+#if defined(FSRD_GAME_TRACE_TEST)
+                    if (g_testHoldFrameCommit.load(std::memory_order_acquire))
+                    {
+                        g_testFrameCommitHeld.store(true,std::memory_order_release);
+                        while (g_testHoldFrameCommit.load(std::memory_order_acquire)) g_testHoldFrameCommit.wait(true);
+                        g_testFrameCommitHeld.store(false,std::memory_order_release);
+                    }
+#endif
+                    bool rejected = false; std::map<uint32_t,Json>::node_type committedNode;
                     {
                         std::scoped_lock lock(control.mutex);
-                        s->manifest["frames"].push_back(std::move(row)); ++s->status.captured; staged.erase(ordinal);
+                        if (ordinal > s->lineageLimit) rejected = true;
+                        else
+                        {
+                            // Target capacity was reserved at initialization;
+                            // append is an O(1) move, atomic with cutoff/count.
+                            durableRows.push_back(std::move(row)); MarkDurableFrame(*s,GetTickCount64());
+                            committedNode = staged.extract(ordinal); s->status.staged = uint32_t(staged.size());
+                        }
                     }
+                    if (rejected)
+                    {
+                        std::filesystem::rename(s->folder/relative,s->folder/(relative+".pending"));
+                        break;
+                    }
+                    // committedNode destroys the old metadata outside Global.
                 }
                 {
                     std::scoped_lock lock(control.mutex);
                     const auto bytes = packet->bytes; packet.reset();
                     s->cpuBytes -= bytes; control.cpuBytes -= bytes; diskBusy = false; UpdateProgress();
                 }
-                packet.reset(); Save(s); control.wake.notify_all();
+                packet.reset();
+                { std::scoped_lock lock(control.mutex); publish = ManifestDue(*s,GetTickCount64()); }
+                if (publish) Save(s);
+                control.wake.notify_all();
             }
+            else if (publish) { Save(s); control.wake.notify_all(); }
             else if (finish)
             {
                 Save(s);
@@ -971,10 +1275,20 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
         ReapReadbacks(control);
         auto s = std::make_shared<Session>(); attempted = s;
         if (request.size != TileSize && request.size != 512) throw std::runtime_error("GAME_TRACE region must be 128 or 512 pixels");
+        if (request.frameCount != FrameCount && request.frameCount != 256 && request.frameCount != 512)
+            throw std::runtime_error("GAME_TRACE target must be 128, 256 or 512 frames");
         if (request.delaySeconds > 10) throw std::runtime_error("GAME_TRACE delay must be 0-10 seconds");
         const auto mode = SrModeName(request.srMode);
-        s->x = request.x; s->y = request.y; s->size = request.size; s->srMode = request.srMode;
-        s->maximumPayload = request.size == TileSize && request.srMode == SrMode::Off ? MaximumPayloadBytes : MaximumExtendedPayloadBytes;
+        const auto region = RegionModeName(request.regionMode);
+        s->x = request.x; s->y = request.y; s->size = request.size; s->srMode = request.srMode; s->regionMode = request.regionMode;
+        s->status.target = request.frameCount; s->lineageLimit = request.frameCount-1;
+        if (request.regionMode == Request::RegionMode::FullRender) s->x = s->y = 0;
+        else if (request.regionMode == Request::RegionMode::FullHeightStrip) s->y = 0;
+        s->width = request.regionMode == Request::RegionMode::FullRender ? 0 : request.size;
+        s->height = request.regionMode == Request::RegionMode::Square ? request.size : 0;
+        s->defaultPayloadQuota = request.size == TileSize && request.srMode == SrMode::Off &&
+            request.regionMode == Request::RegionMode::Square && request.frameCount == FrameCount;
+        s->maximumPayload = s->defaultPayloadQuota ? MaximumPayloadBytes : MaximumExtendedPayloadBytes;
         s->startTick = GetTickCount64()+uint64_t(request.delaySeconds)*1000;
         std::array<uint8_t,16> uuid {};
         if (BCryptGenRandom(nullptr,uuid.data(),ULONG(uuid.size()),BCRYPT_USE_SYSTEM_PREFERRED_RNG) < 0)
@@ -997,16 +1311,21 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
         if (g_testFailStartManifestAllocation.exchange(false,std::memory_order_relaxed)) throw std::bad_alloc();
 #endif
         s->manifest = {{"schema","fsrd-game-trace-v5"},{"capture_uuid",s->status.captureId},{"source","live_game_gpu"},
-            {"process_id",GetCurrentProcessId()},{"target_frames",FrameCount},{"qpc_frequency",frequency.QuadPart},
+            {"process_id",GetCurrentProcessId()},{"target_frames",s->status.target},{"qpc_frequency",frequency.QuadPart},
             {"capture_backend_build",__DATE__ " " __TIME__},{"start_delay_seconds",request.delaySeconds},
             {"output_scope","actual_configured_composition_before_sr"},{"post_sr_mode",mode},
             {"native_full1_filename_role","legacy_replay_alias_of_actual_configured_pre_sr_output"},{"neutral_full1_comparator",false},
-            {"roi",{{"origin",{s->x,s->y}},{"extent",{s->size,s->size}},{"space","render_pixels_fixed"}}},
+            {"region_mode",region},
+            {"roi",{{"origin",{s->x,s->y}},{"extent",{s->width,s->height}},{"space","render_pixels_fixed"},{"geometry_resolved",false}}},
             {"reference",{{"available",false},{"kind","unavailable"},{"demodulation_zero_is_clean_truth",false}}},
             {"submission_policy","same actual command-list evaluation; submitted+successful signal+fence completed; immutable CPU words frozen under submission gate; resource release still requires successful Reset; publish contiguous ordinal prefix only"},
             {"history_replay_scope","cropped RR inputs cannot reconstruct off-ROI full-screen history; optional SR is observation only"},
             {"maximum_pending_frames",MaximumPendingFrames},{"maximum_retained_readback_bytes",MaximumReadbackBytes},
             {"maximum_frame_readback_bytes",MaximumFrameReadbackBytes},{"maximum_cpu_queue_bytes",CpuBudget()},
+            {"readback_accounting","committed_buffer_allocation_size"},
+            {"manifest_publication_batch_frames",ManifestBatchFrames},{"manifest_publication_maximum_delay_ms",ManifestMaximumDelayMs},
+            {"source_resource_identity_scope","process_local_addresses; creation generation/address reuse and placed-heap overlap are not resolved"},
+            {"saved_frame_scope","closed payload files and renamed frame folders; power-loss durability is not asserted"},
             {"capacity_wait_maximum_ms",0},{"io_mode","bounded_cpu_snapshot_and_disk_workers"},
             {"frames",Json::array()},{"errors",Json::array()}};
         control.current = s; g_srRequested.store(request.srMode != SrMode::Off,std::memory_order_release);
@@ -1061,7 +1380,7 @@ bool FSRDGameTraceSession::RecordSources(ID3D12Device* device, ID3D12GraphicsCom
     {
         auto& impl = *m_impl; ReapReadbacks(control); impl.InspectLineage();
         if (impl.session && !impl.session->status.active)
-        { impl.current.reset(); impl.pending.clear(); impl.cpuQueue.clear(); impl.staged.clear(); impl.session.reset(); }
+        { impl.current.reset(); impl.pending.clear(); impl.cpuQueue.clear(); impl.session.reset(); }
         if (!impl.session)
         {
             if (!control.current || !control.current->status.active || control.current->claimed || control.current->stop) return false;
@@ -1069,14 +1388,14 @@ bool FSRDGameTraceSession::RecordSources(ID3D12Device* device, ID3D12GraphicsCom
             control.wake.notify_all();
         }
         auto& s = *impl.session;
-        if (s.stop || s.closing || s.status.recorded >= FrameCount) return false;
-        if (!device || !cmd || impl.device.Get() != device || !rw || !rh ||
-            uint64_t(s.x)+s.size > rw || uint64_t(s.y)+s.size > rh || constants.size() != 416)
+        if (s.stop || s.closing || s.status.recorded >= s.status.target) return false;
+        if (!device || !cmd || impl.device.Get() != device || !rw || !rh || constants.size() != 416)
             throw std::runtime_error("Invalid fixed ROI/device/constants");
         if (!submissionHooksAvailable) throw std::runtime_error("Real queue submission/Reset hooks unavailable.");
         // Directory/space/manifest work runs only on the disk worker. This is
         // an unrecorded startup gap; the first admitted frame begins lineage.
         if (!s.initialized || GetTickCount64() < s.startTick) return false;
+        ResolveRegion(s,rw,rh);
         if (impl.current && !impl.current->sealed) throw std::runtime_error("An evaluation ended without matched native/current/SR snapshots");
         if (impl.pending.size() >= MaximumPendingFrames)
             throw std::runtime_error("GAME_TRACE GPU backlog reached the bounded pending-frame limit; no game-thread wait performed");
@@ -1086,8 +1405,12 @@ bool FSRDGameTraceSession::RecordSources(ID3D12Device* device, ID3D12GraphicsCom
         const auto mapping = RRTraceAdditiveIO::Sha256(constants.subspan(256,96));
         if (!s.mappingHash.empty() && s.mappingHash != mapping) throw std::runtime_error("Conversion source mapping changed");
         s.mappingHash = mapping; s.manifest["conversion_mapping_sha256"] = mapping;
-        if (s.rw && (s.rw != rw || s.rh != rh)) throw std::runtime_error("Render extent changed during capture");
-        s.rw = rw; s.rh = rh; s.manifest["render_extent"] = {rw,rh};
+        const auto core = CoreBytes(device,s,0,Names.size());
+        const auto diagnostic = DiagnosticBytes(device,s,diagnostics,0,DiagnosticNames.size());
+        const auto payload = constants.size()+floorSeedConstants.size()+floorFilterConstants.size()+core.first+diagnostic.first;
+        const auto readback = core.second+diagnostic.second;
+        PreflightReadback(s,readback,readback);
+        PreflightPayload(s,payload);
         auto f = std::make_shared<Frame>(); f->ordinal = s.status.recorded; f->list = cmd; f->owner = impl.session;
         f->constants.assign(constants.begin(),constants.end());
         f->floorSeedConstants.assign(floorSeedConstants.begin(),floorSeedConstants.end());
@@ -1130,6 +1453,10 @@ void FSRDGameTraceSession::RecordNative(ID3D12GraphicsCommandList* cmd, Source s
         if (s.bound && (s.context != info.contextId || s.lastEvaluation == UINT64_MAX || info.evaluationId != s.lastEvaluation+1 ||
             info.frameIndex != s.lastFrameIndex+1u || s.settingsHash != hash))
             throw std::runtime_error("Native context, consecutive evaluation order or settings changed");
+        const auto outputs = CoreBytes(impl.device.Get(),s,8,10);
+        const auto lobes = DiagnosticBytes(impl.device.Get(),s,diagnostics,4,6);
+        PreflightReadback(s,f.gpuBytes+outputs.second+lobes.second,outputs.second+lobes.second);
+        PreflightPayload(s,FramePayload(f)+outputs.first+lobes.first);
         CopyImage(impl.device.Get(),cmd,f,s,source,8);
         CopyDiagnostics(impl.device.Get(),cmd,f,s,diagnostics,4,6);
         f.info = info; f.native = true; f.settingsHash = hash;
@@ -1149,6 +1476,9 @@ void FSRDGameTraceSession::CompleteFrame(ID3D12GraphicsCommandList* cmd, Source 
         if (!impl.current || impl.current->sealed || !impl.session || impl.session->stop) return;
         auto& f = *impl.current;
         if (cmd != f.list || !f.native || f.currentCopied) throw std::runtime_error("Current output lacks unique matched native/source evaluation");
+        const auto output = CoreBytes(impl.device.Get(),*impl.session,9,10);
+        PreflightReadback(*impl.session,f.gpuBytes+output.second,output.second);
+        PreflightPayload(*impl.session,FramePayload(f)+output.first);
         RequireUnsubmitted(f); CopyImage(impl.device.Get(),cmd,f,*impl.session,source,9); f.currentCopied = true;
         if (impl.session->srMode == SrMode::Off) impl.Seal(f);
     }
@@ -1182,7 +1512,7 @@ void FSRDGameTraceSession::Poll() noexcept
     catch (const std::exception& error) { m_impl->Failure(error.what()); }
     catch (...) { m_impl->Failure("Unknown capture polling failure"); }
 }
-void FSRDGameTraceSession::Abort(const std::string& reason) noexcept
+void FSRDGameTraceSession::Abort(std::string_view reason) noexcept
 {
     auto& control = Global(); std::scoped_lock lock(control.mutex);
     if (!m_impl) return;

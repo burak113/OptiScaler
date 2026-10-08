@@ -5,6 +5,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <string_view>
 
 // Capture only. Never feeds recorded data back into the denoiser/model.
 class FSRDGameTraceSession
@@ -15,7 +16,10 @@ public:
     enum class SrMode { Off, MappedRoi, FullOutput };
     struct Request
     {
+        enum class RegionMode { Square, FullHeightStrip, FullRender };
         uint32_t x = 0, y = 0, size = TileSize, delaySeconds = 0;
+        RegionMode regionMode = RegionMode::Square;
+        uint32_t frameCount = FrameCount;
         SrMode srMode = SrMode::Off;
         std::string outputRoot; // Absolute UTF-8 path; blank keeps DLL/GAME_TRACE.
     };
@@ -23,9 +27,12 @@ public:
     {
         std::string phase = "idle", message = "No game trace requested.", captureId, folder;
         uint32_t captured = 0, recorded = 0, target = FrameCount;
+        uint32_t manifestPublished = 0;
         uint32_t pending = 0, staged = 0, awaitingDetach = 0, delayRemainingMs = 0;
         bool active = false;
         uint64_t cpuQueuedBytes = 0, retainedReadbackBytes = 0, estimatedPayloadBytes = 0;
+        uint64_t estimatedFrameReadbackBytes = 0;
+        uint64_t manifestWrites = 0, manifestBytesWritten = 0;
     };
     // Menu requests are transient, never saved as startup capture settings.
     static bool RequestStart(uint32_t x, uint32_t y, uint32_t delaySeconds = 0) noexcept;
@@ -94,7 +101,7 @@ public:
     void CompleteFrame(ID3D12GraphicsCommandList*, Source actualCurrentOutput) noexcept;
     void CompleteSrFrame(ID3D12GraphicsCommandList*, Source actualSrOutput, const SrInfo&) noexcept;
     void Poll() noexcept;
-    void Abort(const std::string& reason) noexcept;
+    void Abort(std::string_view reason) noexcept;
 private:
     struct Impl;
     std::unique_ptr<Impl> m_impl;

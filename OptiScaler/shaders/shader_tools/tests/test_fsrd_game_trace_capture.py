@@ -58,7 +58,8 @@ template<class Predicate> void Await(Predicate predicate,const char* message)
     need(predicate(),message);
 }
 void Closed() { Await([] { return !Trace::IsActive(); },"capture did not finish CPU draining"); }
-void Published(unsigned frames) { Await([&] { return Trace::GetStatus().captured==frames; },"immutable frame not published"); }
+void Saved(unsigned frames) { Await([&] { return Trace::GetStatus().captured==frames; },"immutable frame not saved"); }
+void Published(unsigned frames) { Await([&] { return Trace::GetStatus().manifestPublished==frames; },"immutable manifest prefix not published"); }
 struct Host
 {
     ComPtr<ID3D12Device> device;
@@ -76,7 +77,8 @@ struct Host
     uint64_t serial=0;
     uint32_t renderWidth=136,renderHeight=136;
     ComPtr<ID3D12Resource> srOutput;
-    Host(uint32_t render=136,uint32_t srWidth=0,uint32_t srHeight=0) : renderWidth(render),renderHeight(render)
+    Host(uint32_t render=136,uint32_t srWidth=0,uint32_t srHeight=0,uint32_t height=0)
+        : renderWidth(render),renderHeight(height ? height : render)
     {
         ComPtr<ID3D12Debug> debug; hr(D3D12GetDebugInterface(IID_PPV_ARGS(&debug)));
         debug->EnableDebugLayer();
@@ -117,6 +119,11 @@ struct Host
             d.inactiveReason="Fixture binding absent.";
             if (d.active) d.image={textures[indices[i]].Get(),srv};
         }
+        auto& rawMotion=diagnostics[8]; rawMotion.motionAddressed=true;
+        rawMotion.motionWidth=float(renderWidth); rawMotion.motionHeight=float(renderHeight);
+        rawMotion.metadataJson=Json{{"mapping",{{"kind","converter_motion_source_bounding_rectangle"},
+            {"display_resolution",false},{"render_extent",{renderWidth,renderHeight}},
+            {"motion_input_extent",{renderWidth,renderHeight}}}}}.dump();
         auto word=[&](size_t offset,float value) { memcpy(constants.data()+offset,&value,4); };
         for (size_t i=0;i<4;++i) { word(i*20,1); word(64+i*20,1); word(128+i*20,1); }
         word(192,float(renderWidth)); word(196,float(renderHeight)); word(200,1.f/renderWidth); word(204,1.f/renderHeight);
@@ -140,7 +147,7 @@ struct Host
                 nullptr,IID_PPV_ARGS(&upload)));
             void* data=nullptr; const D3D12_RANGE empty {0,0}; hr(upload->Map(0,&empty,&data));
             memset(data,0,size_t(bytes));
-            if (i==0)
+            if (i==0 || i==7)
             {
                 // HALF pattern varies by frame AND texel, proving exact nonzero
                 // ROI addressing, row-pitch removal and genuine frame uniqueness.
@@ -276,9 +283,103 @@ struct Host
         }
     }
 };
+void CpuChecks(const std::filesystem::path& output)
+{
+    using RegionMode = Trace::Request::RegionMode;
+    Session strip; strip.regionMode=RegionMode::FullHeightStrip; strip.x=688; strip.y=999;
+    ResolveRegion(strip,1505,847);
+    need(strip.x==688 && strip.y==0 && strip.width==128 && strip.height==847,"odd full-height strip geometry");
+    bool resizeRejected=false;
+    try { ResolveRegion(strip,1505,846); } catch (const std::exception&) { resizeRejected=true; }
+    need(resizeRejected && strip.height==847,"resolved rectangle resized instead of rejecting");
+    Session full; full.regionMode=RegionMode::FullRender; full.x=full.y=UINT32_MAX;
+    ResolveRegion(full,1505,847);
+    need(full.x==0 && full.y==0 && full.width==1505 && full.height==847,"odd full render geometry");
+    Session invalid; invalid.regionMode=RegionMode::FullHeightStrip; invalid.x=1400;
+    bool boundsRejected=false;
+    try { ResolveRegion(invalid,1505,847); } catch (const std::exception&) { boundsRejected=true; }
+    need(boundsRejected && invalid.x==1400,"out-of-bounds strip silently clamped");
+    full.status.target=512; full.defaultPayloadQuota=false; full.maximumPayload=MaximumExtendedPayloadBytes;
+    full.diskAvailable=UINT64_MAX;
+    const uint64_t frameBytes=TightBytes(1505,847,137)+592;
+    PreflightPayload(full,frameBytes,true);
+    need(full.status.estimatedPayloadBytes==frameBytes*512 && full.maximumPayload==frameBytes*512*21/20+(1ull<<20),
+         "full render estimate omitted actual target or rectangle");
+    Session insufficient=full; insufficient.payloadEstimated=false; insufficient.diskAvailable=frameBytes*512;
+    bool spaceRejected=false;
+    try { PreflightPayload(insufficient,frameBytes); }
+    catch (const std::exception& error)
+    { spaceRejected=std::string(error.what()).find("512-frame destination preflight including 5% allowance requires")!=std::string::npos; }
+    need(spaceRejected,"target preflight silently omitted allowance or required byte diagnostic");
+    Session publication; publication.status.manifestPublished=publication.status.captured=1;
+    MarkDurableFrame(publication,1000);
+    need(publication.publicationDeadline==1250 && !ManifestDue(publication,1249),"idle publication deadline missing");
+    MarkDurableFrame(publication,1100); MarkDurableFrame(publication,1200);
+    need(publication.publicationDeadline==1250 && ManifestDue(publication,1250),"new rows postponed the original publication deadline");
+    for (unsigned index=0;index<5;++index) MarkDurableFrame(publication,1201+index);
+    need(ManifestDue(publication,1205),"batch8 did not force publication before deadline");
+    Session forced; Stop(forced,"Stopped by user");
+    need(ManifestDue(forced,0),"stop did not force metadata publication with an empty prefix");
+    const auto firstRevision=forced.forcePublicationRevision;
+    Stop(forced,"Stopped by user"); Stop(forced,"Repeated identical observation");
+    need(forced.forcePublicationRevision==firstRevision,"repeated stop forced growing manifest rewrites");
+    {
+        Trace capture; Trace::Request request; request.outputRoot=(output/"cpu-allocation-only").string();
+        need(Trace::RequestStart(request),"persistent abort request");
+        g_testFailHeapAllocation.store(true);
+        capture.Abort("A long allocation-free abort reason must enter noexcept cleanup without constructing a string.");
+        g_testFailHeapAllocation.store(false);
+        Closed();
+        need(!Trace::IsActive() && !Trace::GetStatus().active && Trace::GetStatus().cpuQueuedBytes==0,
+             "persistent allocation failure escaped abort cleanup");
+    }
+    for (uint32_t target : {128u,256u,512u})
+    {
+        Trace::Request request; request.frameCount=target;
+        request.outputRoot=(output/"cpu-counter-only").string();
+        need(Trace::RequestStart(request),"allowed target request rejected");
+        need(Trace::GetStatus().target==target,"status target stayed128");
+        {
+            std::scoped_lock lock(Global().mutex);
+            need(Global().current->lineageLimit==target-1 && Global().current->manifest["target_frames"]==target,
+                 "long-target lineage or manifest stayed128");
+        }
+        Trace::RequestStop();
+        // Exercise actual source-admission and disk-finish boundaries using
+        // synthetic counters only. These folders contain no GPU payload/proof,
+        // are excluded from captures.json, and are never reader/IQ fixtures.
+        for (bool atTarget : {false,true})
+        {
+            Trace capture;
+            need(Trace::RequestStart(request),"counter boundary request rejected");
+            {
+                std::scoped_lock lock(Global().mutex);
+                auto& s=*Global().current;
+                s.status.recorded=atTarget ? target : target-1;
+                s.status.captured=s.status.recorded;
+                s.manifest["synthetic_counter_only_fixture"]=true;
+                for (uint32_t ordinal=0;ordinal<s.status.captured;++ordinal)
+                    s.manifest["frames"].push_back({{"ordinal",ordinal},{"synthetic_counter_only",true}});
+            }
+            std::array<Trace::Source,Trace::SourceCount> noSources {};
+            need(!capture.RecordSources(nullptr,nullptr,noSources,1505,847,{}),"counter-only request recorded GPU work");
+            Closed(); const auto status=Trace::GetStatus();
+            if (atTarget)
+                need(status.phase=="complete" && status.manifestPublished==target &&
+                     status.message.find("/"+std::to_string(target)+".")!=std::string::npos,
+                     "actual target did not terminate the disk worker");
+            else
+                need(status.phase=="incomplete" && status.message.find("Invalid fixed ROI/device/constants")!=std::string::npos,
+                     "pre-target source admission stopped at an earlier hardcoded limit");
+        }
+    }
+    Trace::Request invalidTarget; invalidTarget.frameCount=129;
+    need(!Trace::RequestStart(invalidTarget) && !Trace::IsActive(),"unsupported target accepted");
+}
 int main(int argc,char** argv) try
 {
-    need(argc==2,"test output directory is required"); g_dllPath=std::filesystem::path(argv[1])/"test_OptiScaler.dll";
+    need(argc==2 || (argc==3 && std::string(argv[2])=="--cpu-only"),"test output directory is required");
+    g_dllPath=std::filesystem::path(argv[1])/"test_OptiScaler.dll";
     // A recoverable allocation failure after the request became active must
     // clear both UI and fast-path state, so the next request can be retried.
     g_testFailStartManifestAllocation.store(true);
@@ -292,6 +393,8 @@ int main(int argc,char** argv) try
          "persistent session allocation failure admitted or retained an active request");
     need(Trace::RequestStart(3,5),"allocation failure prevented request retry");
     Trace::RequestStop();
+    CpuChecks(std::filesystem::path(argv[1]));
+    if (argc==3) { std::cout<<"GAME_TRACE CPU geometry, target, budget and startup checks PASS\n"; return 0; }
     Host host; Json results=Json::object();
     auto snapshot=[&](const char* name) { const auto status=Trace::GetStatus(); results[name]=status.folder; };
     {
@@ -307,6 +410,79 @@ int main(int argc,char** argv) try
             need(Trace::GetStatus().captured==frame+1,"observed Reset lost immutable frame");
         }
         Closed(); need(Trace::GetStatus().phase=="complete","128-frame completion");
+    }
+    {
+        Trace capture; need(Trace::RequestStart(3,5),"batched manifest request"); snapshot("manifest_batch_idle_stop");
+        host.Record(capture,0); host.Execute(); Published(1); host.Reset(); capture.Poll();
+        const auto initialWrites=Trace::GetStatus().manifestWrites;
+        const auto started=GetTickCount64();
+        for (unsigned index=1;index<=8;++index)
+        {
+            host.Record(capture,index); host.Execute(); Saved(index+1); host.Reset(); capture.Poll();
+        }
+        Published(9);
+        need(Trace::GetStatus().manifestWrites-initialWrites<8,"batch8 still wrote every completed frame");
+        need(GetTickCount64()-started<15000,"batch prefix publication did not finish");
+        host.Record(capture,9); host.Execute(); Saved(10); host.Reset(); capture.Poll();
+        Published(10); // No more GPU work: the original idle deadline must flush.
+        host.Record(capture,10); host.Execute(); Saved(11); host.Reset(); capture.Poll();
+        Trace::RequestStop(); Closed();
+        need(Trace::GetStatus().manifestPublished==11 && Trace::GetStatus().captured==11,
+             "stop/final did not publish the durable contiguous suffix");
+        need(Trace::GetStatus().manifestWrites<=7,"controlled batching/idle/stop case wrote excessive manifests");
+    }
+    {
+        Trace capture; need(Trace::RequestStart(3,5),"manifest replace failure request"); snapshot("manifest_replace_failure");
+        host.Record(capture,0); host.Execute(); Published(1); host.Reset(); capture.Poll();
+        g_testFailManifestPublication.store(true);
+        host.Record(capture,1); host.Execute(); Saved(2); host.Reset(); capture.Poll();
+        Trace::RequestStop(); Closed();
+        need(Trace::GetStatus().phase=="error" && Trace::GetStatus().captured==2 && Trace::GetStatus().manifestPublished==1,
+             "failed atomic manifest replace forged publication or lost saved prefix");
+        g_testFailManifestPublication.store(false);
+    }
+    {
+        Trace capture; need(Trace::RequestStart(3,5),"lineage cutoff during publication request"); snapshot("lineage_cutoff_during_publish");
+        host.Record(capture,0); host.Execute(); Published(1); host.Reset(); capture.Poll();
+        struct CommitHold
+        {
+            CommitHold() { g_testHoldFrameCommit.store(true); }
+            void Release() { g_testHoldFrameCommit.store(false); g_testHoldFrameCommit.notify_all(); }
+            ~CommitHold() { Release(); }
+        } hold;
+        host.Record(capture,1); host.Execute(); host.Reset();
+        Await([] { return g_testFrameCommitHeld.load(std::memory_order_acquire); },"writer did not pause between rename and prefix commit");
+        { std::scoped_lock lock(Global().mutex); Global().current->lineageLimit=0; }
+        capture.Abort("Injected lineage cutoff during folder publication.");
+        need(Trace::GetStatus().captured==1 && Trace::GetStatus().manifestPublished==1,"held rename exposed a private suffix");
+        hold.Release(); Closed();
+        need(Trace::GetStatus().captured==1 && Trace::GetStatus().manifestPublished==1 && Trace::GetStatus().staged==1,
+             "cutoff race committed an excluded ordinal or lost forensic metadata");
+        need(std::filesystem::is_directory(std::filesystem::path(Trace::GetStatus().folder)/"frames/1.pending") &&
+             !std::filesystem::exists(std::filesystem::path(Trace::GetStatus().folder)/"frames/1"),"cutoff suffix was not quarantined");
+        capture.Poll();
+    }
+    {
+        Trace capture; need(Trace::RequestStart(3,5),"frame rename failure request"); snapshot("frame_rename_failure");
+        host.Record(capture,0);
+        std::filesystem::create_directory(std::filesystem::path(Trace::GetStatus().folder)/"frames/0");
+        host.Execute(); host.Reset(); Closed();
+        need(Trace::GetStatus().captured==0 && Trace::GetStatus().manifestPublished==0 && Trace::GetStatus().staged==1,
+             "rename failure published or lost its private row");
+        capture.Poll();
+    }
+    {
+        Trace capture; Trace::Request request; request.frameCount=512;
+        request.regionMode=Trace::Request::RegionMode::FullHeightStrip;
+        need(Trace::RequestStart(request),"preflight disk rejection request"); snapshot("preflight_disk_budget");
+        need(!host.Sources(capture),"uninitialized disk request recorded early");
+        Await([] { std::scoped_lock lock(Global().mutex); return Global().current->initialized; },"disk preflight fixture did not initialize");
+        const auto before=Trace::GetStatus().retainedReadbackBytes;
+        { std::scoped_lock lock(Global().mutex); Global().current->diskAvailable=1; }
+        need(!host.Sources(capture),"insufficient-space request copied/truncated"); Closed();
+        need(Trace::GetStatus().recorded==0 && Trace::GetStatus().retainedReadbackBytes==before &&
+             Trace::GetStatus().message.find("512-frame destination preflight including 5% allowance requires")!=std::string::npos,
+             "disk preflight failed after GPU allocation or omitted explicit required bytes");
     }
     {
         const auto previousReadbackBytes=Trace::GetStatus().retainedReadbackBytes;
@@ -325,12 +501,40 @@ int main(int argc,char** argv) try
         capture.Abort("Injected pending diagnostics allocation failure.");
         need(Trace::IsActive() && Trace::GetStatus().pending==0 && Trace::GetStatus().cpuQueuedBytes>0,
              "close ignored the in-progress CPU snapshot reservation");
+        uint64_t forcedRevision=0;
+        { std::scoped_lock lock(Global().mutex); forcedRevision=Global().current->forcePublicationRevision; }
+        for (unsigned repeat=0;repeat<25;++repeat) { Trace::RequestStop(); capture.Poll(); }
+        {
+            std::scoped_lock lock(Global().mutex);
+            need(Global().current->forcePublicationRevision==forcedRevision,"repeated stop while reserved starved CPU draining");
+        }
         hold.Release(); Closed();
         need(Trace::GetStatus().captured==0 && Trace::GetStatus().cpuQueuedBytes==0,
              "failed in-progress snapshot published or retained its CPU reservation");
         host.Reset(); capture.Poll();
         need(Trace::GetStatus().retainedReadbackBytes==previousReadbackBytes,
              "diagnostics allocation failure stranded Reset-detached readbacks");
+    }
+    {
+        const auto previousReadbackBytes=Trace::GetStatus().retainedReadbackBytes;
+        Trace capture; need(Trace::RequestStart(3,5),"persistent allocation abort request"); snapshot("persistent_allocation_abort");
+        struct FreezeHold
+        {
+            FreezeHold() { g_testHoldCpuFreeze.store(true); }
+            void Release() { g_testHoldCpuFreeze.store(false); g_testHoldCpuFreeze.notify_all(); }
+            ~FreezeHold() { Release(); }
+        } hold;
+        host.Record(capture,0); host.Execute();
+        Await([] { return Trace::GetStatus().cpuQueuedBytes>0 && Trace::GetStatus().pending==1; },"persistent abort did not hold a CPU reservation");
+        g_testFailHeapAllocation.store(true);
+        capture.Abort("Persistent allocation failure during an in-progress reserved immutable snapshot.");
+        g_testFailHeapAllocation.store(false);
+        need(Trace::IsActive() && Trace::GetStatus().pending==0 && Trace::GetStatus().cpuQueuedBytes>0,
+             "persistent allocation abort stranded pending frames or ignored the reservation");
+        hold.Release(); Closed();
+        need(Trace::GetStatus().captured==0 && Trace::GetStatus().cpuQueuedBytes==0,"persistent abort published or leaked its reservation");
+        host.Reset(); capture.Poll();
+        need(Trace::GetStatus().retainedReadbackBytes==previousReadbackBytes,"persistent abort released early or stranded verified Reset readbacks");
     }
     {
         Trace capture; need(Trace::RequestStart(3,5),"invalid scale request"); snapshot("invalid_motion_scale");
@@ -441,6 +645,51 @@ int main(int argc,char** argv) try
         Trace::RequestStop(); Closed(); need(Trace::GetStatus().captured==2,"extended capture prefix lost");
         extended.NoGpuErrors();
     }
+    for (unsigned mode=0;mode<4;++mode)
+    {
+        Host rectangle(1505,mode==0 ? 2284 : 0,mode==0 ? 1298 : 0,847);
+        Trace capture; Trace::Request request;
+        request.x=688; request.y=UINT32_MAX;
+        request.regionMode=mode==2 ? Trace::Request::RegionMode::FullRender : Trace::Request::RegionMode::FullHeightStrip;
+        request.size=mode==1 ? 512 : 128;
+        request.frameCount=mode==0 ? 512 : (mode==1 ? 256 : 128);
+        request.srMode=mode==0 ? Trace::SrMode::MappedRoi : Trace::SrMode::Off;
+        if (mode==3)
+        {
+            auto& motion=rectangle.diagnostics[8]; motion.displayResolutionMotion=true;
+            motion.jitterX=.25f; motion.jitterY=-.125f;
+            auto metadata=Json::parse(motion.metadataJson); metadata["mapping"]["display_resolution"]=true;
+            metadata["mapping"]["current_jitter"]={motion.jitterX,motion.jitterY}; motion.metadataJson=metadata.dump();
+        }
+        const char* name=mode==0 ? "strip_128_mapped_sr_512_frames" :
+            (mode==1 ? "strip_512_256_frames" : (mode==2 ? "full_render_1505x847" : "strip_display_motion"));
+        need(Trace::RequestStart(request),"rectangular request"); snapshot(name);
+        const unsigned frames=mode==0 ? 2 : 1;
+        for (unsigned index=0;index<frames;++index)
+        {
+            rectangle.Record(capture,index);
+            if (mode==0) rectangle.Sr(capture,index,2258,1271);
+            need(Trace::GetStatus().recorded==index+1 && Trace::GetStatus().target==request.frameCount,
+                 "rectangular or long target frame did not seal");
+            rectangle.Execute(); Published(index+1); rectangle.Reset(); capture.Poll();
+            need(Trace::GetStatus().estimatedFrameReadbackBytes<=MaximumFrameReadbackBytes &&
+                 Trace::GetStatus().cpuQueuedBytes<=MaximumCpuBytes && Trace::GetStatus().retainedReadbackBytes<=MaximumReadbackBytes,
+                 "rectangular capture exceeded a bounded memory budget");
+        }
+        need(Trace::IsActive(),"long/partial rectangular request stopped at a smaller target");
+        Trace::RequestStop(); Closed(); need(Trace::GetStatus().captured==frames,"rectangular prefix lost");
+        rectangle.NoGpuErrors();
+    }
+    {
+        Host rectangle(1505,0,0,847); Trace capture; Trace::Request request;
+        request.x=688; request.regionMode=Trace::Request::RegionMode::FullHeightStrip;
+        need(Trace::RequestStart(request),"rectangular resize request"); snapshot("strip_resize");
+        rectangle.Record(capture,0); rectangle.Execute(); Published(1); rectangle.Reset(); capture.Poll();
+        need(!rectangle.Sources(capture,1504),"rectangle silently resized after admission");
+        Closed(); need(Trace::GetStatus().captured==1 && Trace::GetStatus().message.find("Render extent changed")!=std::string::npos,
+                       "rectangular resize lost the valid prefix or reason");
+        rectangle.NoGpuErrors();
+    }
     {
         Host extended(520,792,788); Trace capture; Trace::Request request;
         request.x=3; request.y=5; request.size=512; request.srMode=Trace::SrMode::MappedRoi;
@@ -497,6 +746,10 @@ int main(int argc,char** argv) try
         Trace capture; need(Trace::RequestStart(3,5),"repeat-after-freeze request"); snapshot("repeated_after_freeze");
         host.Record(capture,0); host.Execute(); Published(1);
         host.Execute(false,false); capture.Poll(); Closed();
+        uint64_t invalidRevision=0;
+        { std::scoped_lock lock(Global().mutex); invalidRevision=Global().current->forcePublicationRevision; }
+        for (unsigned repeat=0;repeat<25;++repeat) capture.Poll();
+        { std::scoped_lock lock(Global().mutex); need(Global().current->forcePublicationRevision==invalidRevision,"same frozen invalid ticket forced repeated manifest publications"); }
         need(Trace::GetStatus().captured==1,"late repeat destroyed valid immutable prefix");
         need(Trace::GetStatus().message.find("lineage")!=std::string::npos,"late repeat did not stop future lineage");
         host.Reset(); capture.Poll();
@@ -567,6 +820,7 @@ def run():
     expected = 0x3000 + 127 + 3 + 5
     assert int(data['raw_color'][-1, 0, 0, 0].view('uint16')) == expected
     assert int(data['native_full1'][-1, 0, 0, 0].view('uint16')) == expected
+    del data
     for name, folder in captures.items():
         if name == 'complete':
             continue
@@ -596,6 +850,89 @@ def run():
                 assert post['crop_origin'] == [4, 7] and post['extent'] == [757, 759]
             else:
                 assert post['crop_origin'] == [0, 0] and post['extent'] == [768, 770]
+        del arrays
+    rectangles = {
+        'strip_128_mapped_sr_512_frames': ('full_height_strip', [688, 0], [128, 847], 512, 2),
+        'strip_512_256_frames': ('full_height_strip', [688, 0], [512, 847], 256, 1),
+        'full_render_1505x847': ('full_render', [0, 0], [1505, 847], 128, 1),
+        'strip_display_motion': ('full_height_strip', [688, 0], [128, 847], 128, 1),
+    }
+    for name, (mode, origin, extent, target, count) in rectangles.items():
+        folder = Path(captures[name])
+        rectangular = json.loads((folder/'capture.json').read_text())
+        provenance = inspect_capture(folder, payload=False)
+        assert provenance['region_mode'] == mode
+        assert rectangular['region_mode'] == mode and rectangular['target_frames'] == target
+        assert rectangular['roi']['origin'] == origin and rectangular['roi']['extent'] == extent
+        assert rectangular['roi']['geometry_resolved'] is True and rectangular['render_extent'] == [1505, 847]
+        assert rectangular['committed_frames'] == rectangular['manifest_published_frames'] == count
+        assert rectangular['maximum_frame_readback_bytes'] == 256 << 20
+        assert rectangular['readback_accounting'] == 'committed_buffer_allocation_size'
+        for frame in rectangular['frames']:
+            charged = 0
+            payload_bytes = 0
+            for row in frame['images'] + frame['diagnostics'] + [frame['post_sr'], frame['conversion_constants'], frame['floor_seed_constants']]:
+                if 'file' not in row:
+                    continue
+                blob = (folder/row['file']).read_bytes()
+                assert len(blob) == row['bytes'] and hashlib.sha256(blob).hexdigest() == row['sha256']
+                payload_bytes += len(blob)
+                if 'copy_footprint' in row:
+                    footprint = row['copy_footprint']
+                    assert footprint['committed_buffer_bytes'] >= footprint['requested_buffer_bytes'] >= row['bytes']
+                    assert footprint['committed_buffer_bytes'] % (64 << 10) == 0
+                    charged += footprint['committed_buffer_bytes']
+                    assert row['source_resource_address_process_local'] > 0
+                    assert row['source_state_provenance'] == 'caller_declared_copy_contract_not_runtime_observed'
+                    assert row['source_native_resource_desc']['width'] == row['source_extent'][0]
+                    assert row['source_native_resource_desc']['height'] == row['source_extent'][1]
+                if row.get('name') in ('U', 'native_full1', 'current_output', 'raw_color', 'raw_motion'):
+                    crop_x, crop_y = row['crop_origin']
+                    width, height = row['extent']
+                    assert int.from_bytes(blob[:2], 'little') == 0x3000 + frame['ordinal'] + crop_x + crop_y
+                    assert int.from_bytes(blob[-2:], 'little') == 0x3000 + frame['ordinal'] + crop_x + crop_y + width - 1 + height - 1 + 3
+            assert charged == rectangular['estimated_frame_readback_bytes'] <= 256 << 20
+            assert payload_bytes == rectangular['estimated_frame_payload_bytes']
+            assert rectangular['estimated_payload_bytes'] == payload_bytes * target
+            assert rectangular['maximum_payload_bytes'] == payload_bytes * target + payload_bytes * target // 20 + (1 << 20)
+            for row in frame['images']:
+                assert row['extent'] == extent and row['crop_origin'] == origin and row['source_extent'] == [1505, 847]
+            motion = next(row for row in frame['diagnostics'] if row['name'] == 'raw_motion')
+            assert motion['mapping']['render_roi_extent'] == extent
+            if name == 'strip_display_motion':
+                assert motion['crop_origin'] == [687, 0] and motion['extent'] == [130, 847]
+            else:
+                assert motion['crop_origin'] == origin and motion['extent'] == extent
+            if name == 'strip_128_mapped_sr_512_frames':
+                post = frame['post_sr']
+                assert post['source_extent'] == [2284, 1298] and post['logical_extent'] == [2258, 1271]
+                left = origin[0] * 2258 // 1505
+                right = ((origin[0] + extent[0]) * 2258 + 1504) // 1505
+                assert post['crop_origin'] == [left, 0] and post['extent'] == [right - left, 1271]
+        del blob
+    resized = json.loads((Path(captures['strip_resize'])/'capture.json').read_text())
+    assert resized['committed_frames'] == 1 and resized['roi']['extent'] == [128, 847]
+    assert 'Render extent changed' in resized['incomplete_reason']
+    batched = json.loads((Path(captures['manifest_batch_idle_stop'])/'capture.json').read_text())
+    assert batched['committed_frames'] == batched['manifest_published_frames'] == 11
+    assert batched['manifest_publication']['batch_frames'] == 8 and batched['manifest_publication']['maximum_delay_ms'] == 250
+    assert batched['manifest_publication']['successful_writes_before_this_publication'] < 7
+    publication_failure = json.loads((Path(captures['manifest_replace_failure'])/'capture.json').read_text())
+    assert publication_failure['committed_frames'] == publication_failure['manifest_published_frames'] == 1
+    assert len(publication_failure['frames']) == 1
+    assert (Path(captures['manifest_replace_failure'])/'frames/1/frame.json').is_file()
+    cutoff = json.loads((Path(captures['lineage_cutoff_during_publish'])/'capture.json').read_text())
+    assert cutoff['committed_frames'] == cutoff['manifest_published_frames'] == 1
+    assert cutoff['private_staged_frames'][0]['ordinal'] == 1
+    assert cutoff['private_staged_frames'][0]['frame']['cpu_snapshot_immutable'] is True
+    assert (Path(captures['lineage_cutoff_during_publish'])/'frames/1.pending/frame.json').is_file()
+    rename_failure = json.loads((Path(captures['frame_rename_failure'])/'capture.json').read_text())
+    assert rename_failure['committed_frames'] == rename_failure['manifest_published_frames'] == 0
+    assert rename_failure['private_staged_frames'][0]['frame']['ordinal'] == 0
+    assert rename_failure['private_staged_frames'][0]['frame']['cpu_snapshot_immutable'] is True
+    preflight_failure = json.loads((Path(captures['preflight_disk_budget'])/'capture.json').read_text())
+    assert preflight_failure['committed_frames'] == 0 and preflight_failure['recorded_frames'] == 0
+    assert '512-frame destination preflight including 5% allowance requires' in preflight_failure['incomplete_reason']
     retired = json.loads((Path(captures['retired_list'])/'capture.json').read_text())
     assert retired['committed_frames'] == 2
     assert retired['frames'][0]['ticket_proof']['detached'] is False
@@ -604,6 +941,10 @@ def run():
               'frames': 128, 'mid_capture_reset': 63, 'reader_schema': manifest['schema'],
               'gpu_backend': 'WARP', 'debug_layer_errors': 0, 'debug_layer_warnings': 0,
               'cpu_snapshot_bytes_limit': 512 << 20, 'retained_readback_bytes_limit': 512 << 20,
+              'frame_committed_readback_bytes_limit': 256 << 20,
+              'rectangular_cases': sorted(rectangles), 'targets_cpu_checked': [128, 256, 512],
+              'manifest_batch_frames': 8, 'manifest_deadline_ms': 250,
+              'batch_case_manifest_writes': batched['manifest_publication']['successful_writes_before_this_publication'] + 1,
               'cases': sorted(captures), 'capture': str(capture),
               'limitation': 'Controlled GPU words; no game capture or image-quality claim.'}
     (output / 'game_trace_capture_report.json').write_text(json.dumps(report, indent=2) + '\n')
