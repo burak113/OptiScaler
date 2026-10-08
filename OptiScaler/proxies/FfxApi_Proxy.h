@@ -7,6 +7,7 @@
 
 #include <proxies/Ntdll_Proxy.h>
 #include <proxies/KernelBase_Proxy.h>
+#include <proxies/FfxDenoiserRouteAttestation.h>
 
 #include <inputs/FfxApi_Dx12.h>
 #include <inputs/FfxApi_Vk.h>
@@ -92,6 +93,8 @@ struct FfxModule
     PfnFfxConfigure Configure = nullptr;
     PfnFfxQuery Query = nullptr;
     PfnFfxDispatch Dispatch = nullptr;
+    std::array<FfxDenoiserRouteAttestation::TargetOrigin, FfxDenoiserRouteAttestation::OperationCount>
+        dx12TargetOrigins {};
 };
 
 class FfxApiProxy
@@ -116,6 +119,75 @@ class FfxApiProxy
     // never held across a provider call (a provider may re-enter the proxy).
     inline static ankerl::unordered_dense::map<ffxContext, FFXStructType> contextToType;
     inline static std::mutex contextToTypeMutex;
+    inline static FfxDenoiserRouteAttestation::Registry denoiserRouteWitnesses;
+
+    static FfxDenoiserRouteAttestation::Route DenoiserRoute(const FfxModule& module, const char* routeName)
+    {
+        return {routeName, module.dll,
+            {reinterpret_cast<uintptr_t>(module.CreateContext), reinterpret_cast<uintptr_t>(module.Configure),
+             reinterpret_cast<uintptr_t>(module.Dispatch), reinterpret_cast<uintptr_t>(module.Query),
+             reinterpret_cast<uintptr_t>(module.DestroyContext)}, module.dx12TargetOrigins};
+    }
+
+    static ffxReturnCode_t CreateDenoiserWitnessed(FfxModule& module, const char* routeName,
+        ffxContext* context, ffxCreateContextDescHeader* desc, const ffxAllocationCallbacks* memCb)
+    {
+        const auto target = module.CreateContext;
+        auto route = DenoiserRoute(module, routeName);
+        route.calledTargets[FfxDenoiserRouteAttestation::Create] = reinterpret_cast<uintptr_t>(target);
+        const auto result = target(context, desc, memCb);
+        if (result == FFX_API_RETURN_OK && context && *context)
+            denoiserRouteWitnesses.Created(reinterpret_cast<uintptr_t>(*context), route, result,
+                KernelBaseProxy::GetModuleHandleExW_());
+        return result;
+    }
+
+    static ffxReturnCode_t ConfigureDenoiserWitnessed(FfxModule& module, const char* routeName,
+        ffxContext* context, const ffxConfigureDescHeader* desc)
+    {
+        const auto target = module.Configure;
+        const auto route = DenoiserRoute(module, routeName);
+        const uintptr_t key = context ? reinterpret_cast<uintptr_t>(*context) : 0;
+        const auto result = target(context, desc);
+        denoiserRouteWitnesses.Observe(key, FfxDenoiserRouteAttestation::Configure, route,
+            reinterpret_cast<uintptr_t>(target), result);
+        return result;
+    }
+
+    static ffxReturnCode_t DispatchDenoiserWitnessed(FfxModule& module, const char* routeName,
+        ffxContext* context, const ffxDispatchDescHeader* desc)
+    {
+        const auto target = module.Dispatch;
+        const auto route = DenoiserRoute(module, routeName);
+        const uintptr_t key = context ? reinterpret_cast<uintptr_t>(*context) : 0;
+        const auto result = target(context, desc);
+        denoiserRouteWitnesses.Observe(key, FfxDenoiserRouteAttestation::Dispatch, route,
+            reinterpret_cast<uintptr_t>(target), result);
+        return result;
+    }
+
+    static ffxReturnCode_t QueryDenoiserWitnessed(FfxModule& module, const char* routeName,
+        ffxContext* context, ffxQueryDescHeader* desc)
+    {
+        const auto target = module.Query;
+        const auto route = DenoiserRoute(module, routeName);
+        const uintptr_t key = context ? reinterpret_cast<uintptr_t>(*context) : 0;
+        const auto result = target(context, desc);
+        denoiserRouteWitnesses.Observe(key, FfxDenoiserRouteAttestation::Query, route,
+            reinterpret_cast<uintptr_t>(target), result, false, key);
+        return result;
+    }
+
+    static ffxReturnCode_t DestroyDenoiserWitnessed(FfxModule& module, const char* routeName,
+        ffxContext* context, const ffxAllocationCallbacks* memCb,
+        const std::shared_ptr<FfxDenoiserRouteAttestation::ContextRecord>& witness)
+    {
+        const auto target = module.DestroyContext;
+        const auto route = DenoiserRoute(module, routeName);
+        const auto result = target(context, memCb);
+        denoiserRouteWitnesses.ObserveRetiring(witness, route, reinterpret_cast<uintptr_t>(target), result);
+        return result;
+    }
 
     static void RecordContextType(ffxContext context, FFXStructType type)
     {
@@ -231,31 +303,51 @@ class FfxApiProxy
                 (PfnFfxDestroyContext) KernelBaseProxy::GetProcAddress_()(proxyModule.dll, "ffxDestroyContext");
             proxyModule.Dispatch = (PfnFfxDispatch) KernelBaseProxy::GetProcAddress_()(proxyModule.dll, "ffxDispatch");
             proxyModule.Query = (PfnFfxQuery) KernelBaseProxy::GetProcAddress_()(proxyModule.dll, "ffxQuery");
+            const auto resolvedRoute = DenoiserRoute(proxyModule, "installation");
+            for (size_t i = 0; i < FfxDenoiserRouteAttestation::OperationCount; ++i)
+                proxyModule.dx12TargetOrigins[i].resolvedTarget = resolvedRoute.calledTargets[i];
 
             if (Config::Instance()->EnableFfxInputs.value_or_default() && proxyModule.CreateContext != nullptr)
             {
                 DetourTransactionBegin();
                 DetourUpdateThread(GetCurrentThread());
 
+                // Track the actual trampoline/real-target outputs of this
+                // transaction; a trampoline is not owned by the DLL image.
+                std::array<PDETOUR_TRAMPOLINE, FfxDenoiserRouteAttestation::OperationCount> trampolines {};
+                std::array<PVOID, FfxDenoiserRouteAttestation::OperationCount> realTargets {};
+                const auto attach = [&](PVOID* pointer, PVOID detour, FfxDenoiserRouteAttestation::Operation operation)
+                {
+                    DetourAttachEx(pointer, detour, &trampolines[operation], &realTargets[operation], nullptr);
+                };
                 // Detour module functions to FfxApi_Proxy switchboard
                 if (proxyModule.Configure != nullptr)
-                    DetourAttach(&(PVOID&) proxyModule.Configure, ffxConfigure_Dx12);
+                    attach(&(PVOID&) proxyModule.Configure, (PVOID) ffxConfigure_Dx12, FfxDenoiserRouteAttestation::Configure);
 
                 if (proxyModule.CreateContext != nullptr)
-                    DetourAttach(&(PVOID&) proxyModule.CreateContext, ffxCreateContext_Dx12);
+                    attach(&(PVOID&) proxyModule.CreateContext, (PVOID) ffxCreateContext_Dx12, FfxDenoiserRouteAttestation::Create);
 
                 if (proxyModule.DestroyContext != nullptr)
-                    DetourAttach(&(PVOID&) proxyModule.DestroyContext, ffxDestroyContext_Dx12);
+                    attach(&(PVOID&) proxyModule.DestroyContext, (PVOID) ffxDestroyContext_Dx12, FfxDenoiserRouteAttestation::Destroy);
 
                 if (proxyModule.Dispatch != nullptr)
-                    DetourAttach(&(PVOID&) proxyModule.Dispatch, ffxDispatch_Dx12);
+                    attach(&(PVOID&) proxyModule.Dispatch, (PVOID) ffxDispatch_Dx12, FfxDenoiserRouteAttestation::Dispatch);
 
                 if (proxyModule.Query != nullptr)
-                    DetourAttach(&(PVOID&) proxyModule.Query, ffxQuery_Dx12);
+                    attach(&(PVOID&) proxyModule.Query, (PVOID) ffxQuery_Dx12, FfxDenoiserRouteAttestation::Query);
 
                 State::Instance().fsrHooks = true;
 
-                DetourTransactionCommit();
+                const auto commitResult = DetourTransactionCommit();
+                if (commitResult == NO_ERROR)
+                {
+                    const auto committed = DenoiserRoute(proxyModule, "installation");
+                    for (size_t i = 0; i < FfxDenoiserRouteAttestation::OperationCount; ++i)
+                        if (trampolines[i] && realTargets[i] &&
+                            committed.calledTargets[i] == reinterpret_cast<uintptr_t>(trampolines[i]))
+                            proxyModule.dx12TargetOrigins[i] = {reinterpret_cast<uintptr_t>(realTargets[i]),
+                                reinterpret_cast<uintptr_t>(trampolines[i])};
+                }
             }
         }
     }
@@ -301,6 +393,35 @@ class FfxApiProxy
     }
 
   public:
+    // Lazily hashes the disk file of the targets observed at successful create.
+    // Query-provider identity and in-memory image bytes remain separate claims.
+    static std::string DenoiserRouteAttestationDx12(ffxContext context) noexcept
+    {
+        return denoiserRouteWitnesses.Get(reinterpret_cast<uintptr_t>(context));
+    }
+
+    static std::string DenoiserDestroyedRouteAttestationDx12(ffxContext context, uint64_t generation) noexcept
+    {
+        return denoiserRouteWitnesses.Destroyed(reinterpret_cast<uintptr_t>(context), generation);
+    }
+
+    // Diagnostic-only query against the frozen successful create route. The
+    // normal D3D12_Query routing and its indirect descriptor logic are untouched.
+    static ffxReturnCode_t QueryDenoiserAttestedRouteDx12(ffxContext routeContext, ffxContext* queryContext,
+        ffxQueryDescHeader* desc)
+    {
+        FfxDenoiserRouteAttestation::Route route;
+        const auto address = denoiserRouteWitnesses.QueryTarget(reinterpret_cast<uintptr_t>(routeContext), route);
+        if (!address || !desc) return FFX_API_RETURN_NO_PROVIDER;
+        if (queryContext && *queryContext != routeContext) return FFX_API_RETURN_ERROR_PARAMETER;
+        const auto target = reinterpret_cast<PfnFfxQuery>(address);
+        const auto queryKey = queryContext ? reinterpret_cast<uintptr_t>(*queryContext) : 0;
+        const auto result = target(queryContext, desc);
+        denoiserRouteWitnesses.Observe(reinterpret_cast<uintptr_t>(routeContext), FfxDenoiserRouteAttestation::Query,
+            route, address, result, queryContext == nullptr, queryKey);
+        return result;
+    }
+
     static HMODULE Dx12Module() { return main_dx12.dll; }
     static HMODULE Dx12Module_SR() { return upscaling_dx12.dll; }
     static HMODULE Dx12Module_FG() { return fg_dx12.dll; }
@@ -593,7 +714,7 @@ class FfxApiProxy
                 break;
 
             LOG_DEBUG("Creating with denoiser_dx12");
-            return recordContextType(denoiser_dx12.CreateContext(context, desc, memCb));
+            return recordContextType(CreateDenoiserWitnessed(denoiser_dx12, "denoiser_dx12", context, desc, memCb));
         case FFXStructType::RadianceCache:
             pModule = &radiance_dx12;
 
@@ -624,7 +745,9 @@ class FfxApiProxy
             LOG_DEBUG("Creating with main_dx12");
 
             pModule->skipCreateCalls = true;
-            ffxReturnCode_t result = main_dx12.CreateContext(context, desc, memCb);
+            ffxReturnCode_t result = type == FFXStructType::Denoiser
+                ? CreateDenoiserWitnessed(main_dx12, "main_dx12", context, desc, memCb)
+                : main_dx12.CreateContext(context, desc, memCb);
             pModule->skipCreateCalls = false;
 
             return recordContextType(result);
@@ -639,6 +762,7 @@ class FfxApiProxy
             return FFX_API_RETURN_ERROR_PARAMETER;
 
         const ffxContext key = *context;
+        const auto routeWitness = denoiserRouteWitnesses.Take(reinterpret_cast<uintptr_t>(key));
         const auto mapped = TakeContextType(key);
         if (mapped.has_value())
             LOG_DEBUG("Found context type mapping: {}", magic_enum::enum_name(*mapped));
@@ -646,16 +770,20 @@ class FfxApiProxy
             LOG_DEBUG("No context type mapping found, defaulting to Unknown");
 
         const ffxReturnCode_t result =
-            D3D12_DestroyRouted(context, memCb, mapped.value_or(FFXStructType::Unknown));
+            D3D12_DestroyRouted(context, memCb, mapped.value_or(FFXStructType::Unknown), routeWitness);
         // Keep a context that no module destroyed routable. A destroyed key is never
         // restored: its address may already belong to a new context.
         if (result != FFX_API_RETURN_OK && mapped.has_value())
             RestoreContextType(key, *mapped);
+        if (result != FFX_API_RETURN_OK)
+            denoiserRouteWitnesses.Restore(routeWitness);
+        else
+            denoiserRouteWitnesses.Completed(routeWitness);
         return result;
     }
 
     static ffxReturnCode_t D3D12_DestroyRouted(ffxContext* context, const ffxAllocationCallbacks* memCb,
-                                               FFXStructType type)
+        FFXStructType type, const std::shared_ptr<FfxDenoiserRouteAttestation::ContextRecord>& routeWitness = {})
     {
         ffxReturnCode_t result = FFX_API_RETURN_ERROR;
 
@@ -665,32 +793,32 @@ class FfxApiProxy
         case FFXStructType::General:
             LOG_DEBUG("Destroying with main_dx12");
             if (main_dx12.dll != nullptr)
-                result = main_dx12.DestroyContext(context, memCb);
+                result = DestroyDenoiserWitnessed(main_dx12, "main_dx12", context, memCb, routeWitness);
             break;
 
         case FFXStructType::Upscaling:
             LOG_DEBUG("Destroying with upscaling_dx12");
             if (upscaling_dx12.dll != nullptr)
-                result = upscaling_dx12.DestroyContext(context, memCb);
+                result = DestroyDenoiserWitnessed(upscaling_dx12, "upscaling_dx12", context, memCb, routeWitness);
             break;
 
         case FFXStructType::FG:
         case FFXStructType::SwapchainDX12:
             LOG_DEBUG("Destroying with fg_dx12");
             if (fg_dx12.dll != nullptr)
-                result = fg_dx12.DestroyContext(context, memCb);
+                result = DestroyDenoiserWitnessed(fg_dx12, "fg_dx12", context, memCb, routeWitness);
             break;
 
         case FFXStructType::Denoiser:
             LOG_DEBUG("Destroying with denoiser_dx12");
             if (denoiser_dx12.dll != nullptr)
-                result = denoiser_dx12.DestroyContext(context, memCb);
+                result = DestroyDenoiserWitnessed(denoiser_dx12, "denoiser_dx12", context, memCb, routeWitness);
             break;
 
         case FFXStructType::RadianceCache:
             LOG_DEBUG("Destroying with radiance_dx12");
             if (radiance_dx12.dll != nullptr)
-                result = radiance_dx12.DestroyContext(context, memCb);
+                result = DestroyDenoiserWitnessed(radiance_dx12, "radiance_dx12", context, memCb, routeWitness);
             break;
 
         default:
@@ -708,7 +836,7 @@ class FfxApiProxy
         if (upscaling_dx12.dll != nullptr)
         {
             LOG_DEBUG("Destroying with upscaling_dx12");
-            result = upscaling_dx12.DestroyContext(context, memCb);
+            result = DestroyDenoiserWitnessed(upscaling_dx12, "upscaling_dx12", context, memCb, routeWitness);
         }
 
         if (result == FFX_API_RETURN_OK)
@@ -726,7 +854,7 @@ class FfxApiProxy
         if (fg_dx12.dll != nullptr)
         {
             LOG_DEBUG("Destroying with fg_dx12");
-            result = fg_dx12.DestroyContext(context, memCb);
+            result = DestroyDenoiserWitnessed(fg_dx12, "fg_dx12", context, memCb, routeWitness);
         }
 
         if (result == FFX_API_RETURN_OK)
@@ -758,7 +886,7 @@ class FfxApiProxy
             pModule = &denoiser_dx12;
 
             if (denoiser_dx12.dll != nullptr)
-                return denoiser_dx12.Configure(context, desc);
+                return ConfigureDenoiserWitnessed(denoiser_dx12, "denoiser_dx12", context, desc);
             break;
 
         case FFXStructType::RadianceCache:
@@ -784,7 +912,9 @@ class FfxApiProxy
         if (main_dx12.dll != nullptr && !pModule->skipConfigureCalls)
         {
             pModule->skipConfigureCalls = true;
-            ffxReturnCode_t result = main_dx12.Configure(context, desc);
+            ffxReturnCode_t result = type == FFXStructType::Denoiser
+                ? ConfigureDenoiserWitnessed(main_dx12, "main_dx12", context, desc)
+                : main_dx12.Configure(context, desc);
             pModule->skipConfigureCalls = false;
 
             return result;
@@ -805,14 +935,14 @@ class FfxApiProxy
             pModule = &fg_dx12;
 
             if (fg_dx12.dll != nullptr)
-                return fg_dx12.Query(context, desc);
+                return QueryDenoiserWitnessed(fg_dx12, "fg_dx12", context, desc);
             break;
 
         case FFXStructType::Denoiser:
             pModule = &denoiser_dx12;
 
             if (denoiser_dx12.dll != nullptr)
-                return denoiser_dx12.Query(context, desc);
+                return QueryDenoiserWitnessed(denoiser_dx12, "denoiser_dx12", context, desc);
             break;
 
         case FFXStructType::Upscaling:
@@ -821,7 +951,7 @@ class FfxApiProxy
             pModule = &upscaling_dx12;
 
             if (upscaling_dx12.dll != nullptr)
-                return upscaling_dx12.Query(context, desc);
+                return QueryDenoiserWitnessed(upscaling_dx12, "upscaling_dx12", context, desc);
             break;
         }
 
@@ -831,7 +961,7 @@ class FfxApiProxy
         if (main_dx12.dll != nullptr && !pModule->skipQueryCalls)
         {
             pModule->skipQueryCalls = true;
-            ffxReturnCode_t result = main_dx12.Query(context, desc);
+            ffxReturnCode_t result = QueryDenoiserWitnessed(main_dx12, "main_dx12", context, desc);
             pModule->skipQueryCalls = false;
 
             return result;
@@ -859,7 +989,7 @@ class FfxApiProxy
             pModule = &denoiser_dx12;
 
             if (denoiser_dx12.dll != nullptr)
-                return denoiser_dx12.Dispatch(context, desc);
+                return DispatchDenoiserWitnessed(denoiser_dx12, "denoiser_dx12", context, desc);
             break;
 
         case FFXStructType::Upscaling:
@@ -878,7 +1008,9 @@ class FfxApiProxy
         if (main_dx12.dll != nullptr && !pModule->skipDispatchCalls)
         {
             pModule->skipDispatchCalls = true;
-            ffxReturnCode_t result = main_dx12.Dispatch(context, desc);
+            ffxReturnCode_t result = type == FFXStructType::Denoiser
+                ? DispatchDenoiserWitnessed(main_dx12, "main_dx12", context, desc)
+                : main_dx12.Dispatch(context, desc);
             pModule->skipDispatchCalls = false;
 
             return result;
