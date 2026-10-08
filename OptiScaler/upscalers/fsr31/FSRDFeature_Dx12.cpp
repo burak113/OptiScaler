@@ -1,5 +1,8 @@
 #include "pch.h"
 #include <atomic>
+#include <json.hpp>
+#include "shaders/fsrd_preprocess/FSRDGameTraceSession.h"
+#include "shaders/fsrd_preprocess/RRTraceAdditiveIO.h"
 #include <nvsdk_ngx_defs_dlssd.h>
 #include <DirectXMath.h>
 #include <d3d12sdklayers.h>
@@ -25,6 +28,7 @@ using FSRD::RRResult;
 
 using FSRDConvDesc = FSRDPreprocessor_Dx12::ConversionDesc;
 using FSRDCompDesc = FSRDPreprocessor_Dx12::CompositionDesc;
+namespace { std::atomic<uint64_t> g_gameTraceContextGeneration {0}; }
 
 // RR 1.2 uses the existing FFX effect-id field. These assertions prevent a
 // descriptor-id packing change from silently routing RR calls to another module.
@@ -1495,6 +1499,7 @@ RRResult FSRDFeatureDx12::ClassifyRayRegenerationFailure(
 
 void FSRDFeatureDx12::FailRayRegeneration(RRResult result, const char* reason)
 {
+    if (FSRDConvShader) FSRDConvShader->AbortGameTrace(reason);
     const RRResult previousResult = _rrRetryPolicy.Result();
     _rrRetryPolicy.Record(result);
     _rrFailureRecordedThisEvaluation = true;
@@ -1914,6 +1919,7 @@ RRResult FSRDFeatureDx12::CreateDenoiserContext()
         LOG_INFO("[RR_DIAG] context creation succeeded: context={:X}",
                  reinterpret_cast<uintptr_t>(_pDenoiserCtx));
         _denoiserCtxOwner = AdoptContextDx12(_pDenoiserCtx, "FSR-RR");
+        _gameTraceContextGeneration = g_gameTraceContextGeneration.fetch_add(1, std::memory_order_relaxed)+1;
     }
 
     // Query default settings
@@ -2093,6 +2099,7 @@ bool FSRDFeatureDx12::EncodeSRDepth(ID3D12GraphicsCommandList* InCommandList, ff
 
 void FSRDFeatureDx12::DestroyDenoiserContext() 
 {
+    if (FSRDConvShader) FSRDConvShader->AbortGameTrace("Native RR context destroyed during capture.");
     // A recorded list or an unfinished submission may still reference the context;
     // the owner destroys it once the last of them retires.
     if (_denoiserCtxOwner)
@@ -2456,6 +2463,64 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                 NVSDK_NGX_Parameter_DLSS_Pre_Exposure,&capturePreExposure)==NVSDK_NGX_Result_Success;
             FSRDConvShader->CompleteAdditiveCapture(InCommandList,denoiserDesc,compDesc,
                 capturePreExposure,capturePreExposureProvided);
+            if (FSRDGameTraceSession::IsActive())
+            {
+                try
+                {
+                    using CaptureJson = nlohmann::json;
+                    const auto array = [](const auto& object) {
+                        return CaptureJson::parse(RRTraceAdditiveIO::FloatArray(object));
+                    };
+                    const CaptureJson controls {
+                        {"view",array(denoiserDesc.view)}, {"projection",array(denoiserDesc.projection)},
+                        {"jitter",array(denoiserDesc.jitterOffsets)},
+                        {"camera_delta",array(denoiserDesc.cameraPositionDelta)},
+                        {"motion_vector_scale",array(denoiserDesc.motionVectorScale)},
+                        {"depth_bounds",array(denoiserDesc.linearDepthBounds)},
+                        {"render_size",{denoiserDesc.renderSize.width,denoiserDesc.renderSize.height}},
+                        {"pre_exposure",std::isfinite(capturePreExposure) ? CaptureJson(capturePreExposure) : CaptureJson(nullptr)},
+                        {"pre_exposure_provided",capturePreExposureProvided},
+                        {"motion_history_valid",_convDesc.MotionHistoryValid},
+                        {"output_scope","actual_configured_composition_before_sr"}
+                    };
+                    // Fingerprint applied semantic controls only. Camera matrices,
+                    // jitter, camera delta and native reset remain frame controls.
+                    const CaptureJson settings {
+                        {"algorithm","native_RR_same_dispatch"},
+                        {"build_identity",{{"commit",VER_BUILD_COMMIT},{"build_date",VER_BUILD_DATE},
+                            {"product_version",VER_PRODUCT_VERSION_STR}}},
+                        {"sdk_tuning",array(_denoiserSettings.ScalarValues)},
+                        {"sdk_debug_depth_bounds",array(_denoiserSettings.m_DebugViewLinearDepthBounds)},
+                        {"create_flags",_denoiserCtxDesc.flags}, {"signal_flags",_denoiserCtxDesc.signalFlags},
+                        {"diffuse_type",_diffuseSignalDescType}, {"specular_type",_specularSignalDescType},
+                        {"denoise_diffuse",_denoiseDiffuse}, {"denoise_specular",_denoiseSpecular},
+                        {"conversion_flags",_convDesc.Flags}, {"composition_flags",compDesc.Flags},
+                        {"floor_enabled",_convDesc.FloorEnabled}, {"floor_fast",_convDesc.FloorFastMode},
+                        {"floor_clean_lighting",_convDesc.FloorCleanLighting},
+                        {"conversion_detail",_convDesc.FloorDetailPreservation},
+                        {"conversion_recovery_mask",_convDesc.RecoveryMask},
+                        {"full1_specular",_convDesc.SpecularAlbedoDemodulation},
+                        {"full1_diffuse",_convDesc.DiffuseAlbedoModulation},
+                        {"additive_split",_convDesc.AdditiveLightSplit},
+                        {"demod_divisor_floor",_convDesc.DemodDivisorFloor},
+                        {"bias_strength",_convDesc.BiasMaskStrength},
+                        {"responsivity_threshold",_convDesc.ResponsivityTrustThreshold},
+                        {"responsivity_invert",_convDesc.ResponsivityInvert},
+                        {"detail",compDesc.FloorDetailPreservation}, {"recovery_mask",compDesc.RecoveryMask},
+                        {"anchor_clamp",compDesc.FloorHandoverAnchorClamp},
+                        {"correlation_mix",compDesc.FloorHandoverCorrelationMix},
+                        {"spatial_temporal_mask",compDesc.SpatialTemporalMask},
+                        {"luma_recovery",compDesc.LumaRecovery}, {"chroma_recovery",compDesc.ChromaRecovery},
+                        {"unsupported_albedo_recovery",compDesc.UnsupportedAlbedoRecovery},
+                        {"volume_restore_strength",compDesc.VolumeRestoreStrength},
+                        {"neutral_full1_comparator",false}
+                    };
+                    FSRDConvShader->CompleteGameTraceFrame(InCommandList,denoiserDesc,
+                        _gameTraceContextGeneration,_denoiserDispatchAttempts,controls.dump(),settings.dump());
+                }
+                catch (const std::exception& error) { FSRDConvShader->AbortGameTrace(error.what()); }
+                catch (...) { FSRDConvShader->AbortGameTrace("Capture metadata serialization failed."); }
+            }
             _runtime.Complete(FSRDRuntimeSnapshot::Composition);
         }
 

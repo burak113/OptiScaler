@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
+#include "shaders/fsrd_preprocess/FSRDGameTraceSession.h"
 #include "menu_common.h"
 #include "fsrd_settings_menu.h"
 
@@ -30,6 +31,7 @@
 
 #include <mutex>
 #include <cstdarg>
+#include <climits>
 #include <cmath>
 
 #include <array>
@@ -3187,6 +3189,79 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
         FSRDMenu::DrawSignalSummary(*config, signals);
         FSRDMenu::DrawWorkflow(snapshot);
         FSRDMenu::DrawInputs(snapshot);
+        if (ImGui::CollapsingHeader("GAME_TRACE recording"))
+        {
+            ScopedIndent indent;
+            const auto capture = FSRDGameTraceSession::GetStatus();
+            const uint32_t width = currentFeature ? currentFeature->RenderWidth() : 0;
+            const uint32_t height = currentFeature ? currentFeature->RenderHeight() : 0;
+            constexpr uint32_t tile = FSRDGameTraceSession::TileSize;
+            const bool fits = width >= tile && height >= tile;
+            const int maxX = fits ? int(std::min(width - tile, uint32_t(INT_MAX))) : 0;
+            const int maxY = fits ? int(std::min(height - tile, uint32_t(INT_MAX))) : 0;
+            static int traceX = 0, traceY = 0, delaySeconds = 3;
+            static bool initialCenter = true, folderOpenFailed = false;
+            if (initialCenter && fits)
+            {
+                traceX = maxX / 2;
+                traceY = maxY / 2;
+                initialCenter = false;
+            }
+            ImGui::Text("%u frames | %u x %u region | Render: %u x %u",
+                        FSRDGameTraceSession::FrameCount, tile, tile, width, height);
+            ImGui::TextWrapped(
+                "Records the selected region across consecutive frames for offline RR analysis. "
+                "Coordinates use render-resolution pixels, starting at the top left. "
+                "Files are saved beside this DLL in GAME_TRACE. Recording adds readback and disk work.");
+            ImGui::BeginDisabled(capture.active);
+            ImGui::InputInt("Region X##GameTrace", &traceX);
+            ImGui::InputInt("Region Y##GameTrace", &traceY);
+            traceX = std::clamp(traceX, 0, maxX);
+            traceY = std::clamp(traceY, 0, maxY);
+            if (ImGui::Button("Center region##GameTrace"))
+            {
+                traceX = maxX / 2;
+                traceY = maxY / 2;
+            }
+            ImGui::SliderInt("Start delay (seconds)##GameTrace", &delaySeconds, 0, 10);
+            const bool normalRendering = config->FfxDenoiserDebugMode.value_or_default() == 0;
+            ImGui::BeginDisabled(!fits || !active || !normalRendering);
+            if (ImGui::Button("Start GAME_TRACE recording"))
+            {
+                folderOpenFailed = false;
+                FSRDGameTraceSession::RequestStart(uint32_t(traceX), uint32_t(traceY),
+                                                   uint32_t(delaySeconds));
+            }
+            ImGui::EndDisabled();
+            ImGui::EndDisabled();
+            if (!normalRendering)
+                ImGui::TextWrapped("Set Debug View to normal rendering before recording.");
+            if (!fits)
+                ImGui::TextWrapped("Recording needs a render area of at least 128 x 128 pixels.");
+            ImGui::TextWrapped("Close the menu during the delay, then reproduce the camera turn or lighting change.");
+            if (capture.active)
+            {
+                if (ImGui::Button("Stop recording##GameTrace"))
+                    FSRDGameTraceSession::RequestStop();
+            }
+            ImGui::Text("%s | recorded %u / %u | saved %u",
+                        capture.phase.c_str(), capture.recorded, capture.target, capture.captured);
+            if (capture.delayRemainingMs > 0)
+                ImGui::Text("Starts in %.1f seconds", float(capture.delayRemainingMs) / 1000.0f);
+            ImGui::TextWrapped("%s", capture.message.c_str());
+            if (!capture.folder.empty())
+            {
+                ImGui::TextWrapped("%s", capture.folder.c_str());
+                if (ImGui::Button("Open GAME_TRACE folder"))
+                {
+                    auto& platform = ImGui::GetPlatformIO();
+                    folderOpenFailed = !platform.Platform_OpenInShellFn ||
+                        !platform.Platform_OpenInShellFn(ImGui::GetCurrentContext(), capture.folder.c_str());
+                }
+                if (folderOpenFailed)
+                    ImGui::TextWrapped("Could not open the folder. Use the path shown above.");
+            }
+        }
         if (auto ch = ScopedCollapsingHeader("FSR-RR Advanced Settings"); ch.IsHeaderOpen())
         {
             FSRDMenu::DrawTimings(*config, snapshot.timings);

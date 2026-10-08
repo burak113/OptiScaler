@@ -345,6 +345,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="low_latency\input\input_antilag2.h" />
     <ClInclude Include="shaders\hud_copy\precompile\HudCopy_Shader_Vk.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDPreprocessor_Dx12.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDGameTraceSession.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDShaderData.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDCompositionVariant.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDBlitMapping.h" />
@@ -657,6 +658,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClCompile Include="hooks\Xell_Hooks.cpp" />
     <ClCompile Include="shaders\hud_copy\HudCopy_Vk.cpp" />
     <ClCompile Include="shaders\fsrd_preprocess\FSRDPreprocessor_Dx12.cpp" />
+    <ClCompile Include="shaders\fsrd_preprocess\FSRDGameTraceSession.cpp" />
     <ClCompile Include="upscalers\fsr31\FSRDFeature_Dx12.cpp" />
     <ClCompile Include="upscalers\fsr31\FSR31Feature_Dx12.cpp" />
     <ClCompile Include="inputs\FG\Streamline_Inputs_Sl1_Dx12.cpp" />

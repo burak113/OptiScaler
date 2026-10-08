@@ -285,6 +285,7 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     bool _lastDispatchRequestedReset = false;
     uint32_t _lastDenoiserRenderWidth = 0;
     uint32_t _lastDenoiserRenderHeight = 0;
+    uint64_t _gameTraceContextGeneration = 0;
     uint64_t _denoiserDispatchAttempts = 0;
     uint64_t _denoiserDispatchSuccesses = 0;
     uint64_t _denoiserDispatchFailures = 0;

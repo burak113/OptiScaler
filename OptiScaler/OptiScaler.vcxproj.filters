@@ -977,6 +977,9 @@
     <ClInclude Include="shaders\fsrd_preprocess\FSRDPreprocessor_Dx12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDGameTraceSession.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="shaders\fsrd_preprocess\FSRDShaderData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -1650,6 +1653,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="shaders\fsrd_preprocess\FSRDPreprocessor_Dx12.cpp">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="shaders\fsrd_preprocess\FSRDGameTraceSession.cpp">
       <Filter>Header Files</Filter>
     </ClCompile>
     <ClCompile Include="upscalers\fsr31\FSRDFeature_Dx12.cpp">

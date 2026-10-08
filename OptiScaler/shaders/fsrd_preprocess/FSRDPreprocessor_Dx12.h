@@ -442,6 +442,13 @@ class FSRDPreprocessor_Dx12
         const ffxDispatchDescDenoiser& dispatch, const CompositionDesc& composition,
         float preExposure, bool preExposureProvided) noexcept;
 
+    // Same successful native RR evaluation, after its normal composition. No
+    // extra neutral Full1 shader dispatch or experiment is recorded.
+    void CompleteGameTraceFrame(ID3D12GraphicsCommandList* cmdList,
+        const ffxDispatchDescDenoiser& dispatch, uint64_t contextGeneration, uint64_t evaluationId,
+        const std::string& controlsJson, const std::string& settingsJson) noexcept;
+    void AbortGameTrace(const std::string& reason) noexcept;
+
   private:
     struct Impl;
 

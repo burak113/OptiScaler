@@ -1,5 +1,7 @@
 #include "pch.h"
 #include "RRTraceFence.h"
+#include "FSRDGameTraceSession.h"
+#include <json.hpp>
 #include "RRTraceAdditiveIO.h"
 #include "precompile/RRTraceAdditive_Shader.h"
 #include "resource_tracking/ResTrack_dx12.h"
@@ -302,6 +304,7 @@ struct FSRDPreprocessor_Dx12::Impl
 #include "RRTraceAdditive.inl"
     ~Impl()
     {
+        m_gameTrace.Abort("Preprocessor owner ended before capture completion.");
         ReleaseInputProbe();
         if (m_additiveCapture)
         {
@@ -310,6 +313,13 @@ struct FSRDPreprocessor_Dx12::Impl
             g_additiveTraceStatus="Additive capture owner ended; unfinished capture not exported.";
         }
     }
+
+    FSRDGameTraceSession m_gameTrace;
+    std::array<uint8_t,sizeof(FloorSeed::Constants)> m_gameTraceFloorSeedConstants {};
+    std::array<uint8_t,sizeof(FloorFilter::Constants)*FloorFilter::kPasses> m_gameTraceFloorFilterConstants {};
+    size_t m_gameTraceFloorFilterConstantBytes = 0;
+    bool m_gameTraceFrameRecorded = false;
+    bool m_gameTraceCaptureRequested = false;
 
     ComputeState m_floorSeedShader;
     ComputeState m_floorFilterShader;
@@ -1285,6 +1295,7 @@ struct FSRDPreprocessor_Dx12::Impl
     {
         if (m_maxWidth == width && m_maxHeight == height)
             return;
+        m_gameTrace.Abort("Render resources resized during capture.");
 
 
         // Clear the latch before allocating rather than after. CreateTexture2D
@@ -1392,6 +1403,11 @@ struct FSRDPreprocessor_Dx12::Impl
             .OutDetailReference = m_floorReference.Get(),
             .OutFloorModel = m_floorModel0.Get()
         }};
+        if (m_gameTraceCaptureRequested)
+        {
+            memcpy(m_gameTraceFloorSeedConstants.data(), &constants, sizeof(constants));
+            m_gameTraceFloorFilterConstantBytes = 0;
+        }
         m_floorSeedShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray,
                                   {desc.RenderSize.x, desc.RenderSize.y}, true, seedPipeline);
         m_smoothFloor = m_outputBuffer2.Get();
@@ -1519,6 +1535,12 @@ struct FSRDPreprocessor_Dx12::Impl
                 .OutColor = m_outputBuffer1.Get(),
                 .OutFloorModel = m_floorModel1.Get()
             }};
+            if (m_gameTraceCaptureRequested)
+            {
+                memcpy(m_gameTraceFloorFilterConstants.data()+m_gameTraceFloorFilterConstantBytes,
+                       &constants, sizeof(constants));
+                m_gameTraceFloorFilterConstantBytes += sizeof(constants);
+            }
             m_floorFilterShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray,
                                         {desc.RenderSize.x, desc.RenderSize.y});
             std::swap(m_outputBuffer1, m_outputBuffer2);
@@ -1638,10 +1660,114 @@ struct FSRDPreprocessor_Dx12::Impl
         const std::span<const byte> convCBData((const byte*) &packConstants, sizeof(packConstants));
         m_convShader.Dispatch(cmdList, convCBData, in.AsArray, m_out.AsRawArray, dispatchSize, true,
                               conversionPipeline);
+        if (m_gameTraceCaptureRequested) RecordGameTraceSources(cmdList, desc, packConstants);
+    }
+
+    void RecordGameTraceSources(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc,
+                                 const Conversion::Constants& constants)
+    {
+        auto& r = m_out.Resources;
+        const std::array<FSRDGameTraceSession::Source, FSRDGameTraceSession::SourceCount> sources {{
+            {r.Signals.IndirectSpecular.Get(), kSrvState}, {r.Signals.DirectDiffuse.Get(), kSrvState},
+            {r.SpecAlbedo.Get(), kSrvState}, {r.DiffAlbedo.Get(), kSrvState},
+            {r.SkipSignal.Get(), kSrvState}, {r.Normals.Get(), kSrvState},
+            {m_LinearDepth.Get(), kSrvState}, {r.Motion.Get(), kSrvState}
+        }};
+        const bool hooksAvailable = ResTrack_Dx12::EnsureRRTraceHooks(m_pDev);
+        try
+        {
+            // Title resources are still read-only here. Keep their original
+            // typed words and actual subrect bases; these are diagnostics only.
+            using CaptureJson = nlohmann::json;
+            uint32_t actualSeedFlags = 0;
+            memcpy(&actualSeedFlags,m_gameTraceFloorSeedConstants.data()+offsetof(FloorSeed::Constants,Flags),sizeof(actualSeedFlags));
+            const bool seedUsesTitleDepth = (actualSeedFlags & uint32_t(FloorSeed::Flags::TitleLinearDepth)) != 0;
+            const CaptureJson captureControl {
+                {"source_flags", desc.Flags}, {"floor_seed_flags",actualSeedFlags}, {"floor_enabled", desc.FloorEnabled},
+                {"floor_source_base", {desc.FloorSourceBase.x,desc.FloorSourceBase.y,desc.FloorSourceBase.z,desc.FloorSourceBase.w}},
+                {"bias_strength", constants.BiasMaskStrength},
+                {"specular_hit_distance_from_combined_alpha", desc.SpecularHitDistanceFromCombinedAlpha},
+                {"diffuse_hit_distance_mode", constants.DiffuseHitDistanceMode},
+                {"responsivity_threshold", constants.ResponsivityTrustThreshold},
+                {"responsivity_invert", constants.ResponsivityInvert},
+                {"inspector_channel", constants.InspectorChannel}, {"inspector_scale", constants.InspectorScale}
+            };
+            const auto flag = [&](ConvFlags value) { return (constants.Flags & uint32_t(value)) != 0; };
+            auto original = [&](const char* name, ID3D12Resource* resource, uint32_t x, uint32_t y,
+                                bool selected, const char* role = "original_caller_input")
+            {
+                FSRDGameTraceSession::DiagnosticSource source {name,{resource,kSrvState},x,y};
+                source.active = resource && selected;
+                source.inactiveReason = !resource ? "Resource not bound to this evaluation."
+                    : "Not selected by the actual converter/seed flags or mode.";
+                source.required = source.active;
+                source.metadataJson = CaptureJson{{"role",role},{"conversion_flags",constants.Flags},{"selected_by_flags",selected},
+                    {"control",captureControl}}.dump();
+                return source;
+            };
+            // Snapshot final Floor/Reference before the SDK reuses the ping-pong
+            // buffers. Motion here is already canonical motion, not seed gradient.
+            std::array<FSRDGameTraceSession::DiagnosticSource, 17> originalSources {{
+                original("raw_color",desc.Resources.InColor,constants.InputBase0.x,constants.InputBase0.y,true),
+                original("raw_normals",desc.Resources.InNormals,constants.InputBase1.x,constants.InputBase1.y,true),
+                original("raw_specular_albedo",desc.Resources.InSpecAlbedo,constants.InputBase3.x,constants.InputBase3.y,true),
+                original("raw_diffuse_albedo",desc.Resources.InDiffAlbedo,constants.InputBase2.z,constants.InputBase2.w,true),
+                original("floor",m_smoothFloor,0,0,desc.FloorEnabled,"final_floor_converter_input"),
+                original("floor_reference",m_floorReference.Get(),0,0,desc.FloorEnabled,"floor_reference_converter_input"),
+                original("raw_bias_mask",desc.Resources.InBiasMask,constants.InputBase3.z,constants.InputBase3.w,flag(ConvFlags::HasBiasMask)),
+                original("raw_specular_hit_distance",desc.Resources.InSpecHitDist,constants.InputBase5.z,constants.InputBase5.w,flag(ConvFlags::HasSpecHitDistance)),
+                original("raw_specular_direction_hit_distance",desc.Resources.InSpecularRayDirectionHitDistance,constants.InputBase5.z,constants.InputBase5.w,
+                    !flag(ConvFlags::HasSpecHitDistance) && flag(ConvFlags::HasCombinedSpecHitDistance)),
+                original("raw_diffuse_hit_distance",desc.Resources.InDiffuseHitDistance,constants.InputBase4.z,constants.InputBase4.w,constants.DiffuseHitDistanceMode != 0),
+                original("raw_responsivity",desc.Resources.InResponsivityMask,0,0,flag(ConvFlags::HasResponsivityMask)),
+                original("raw_emissive",desc.Resources.InEmissive,constants.InputBase4.x,constants.InputBase4.y,flag(ConvFlags::HasEmissiveInput),"original_caller_debug_input"),
+                original("raw_motion",desc.Resources.InMotionVectors,constants.InputBase0.z,constants.InputBase0.w,true),
+                original("raw_depth",desc.Resources.InDepth,desc.FloorSourceBase.z,desc.FloorSourceBase.w,!seedUsesTitleDepth),
+                original("raw_roughness",desc.Resources.InRoughness,constants.InputBase1.z,constants.InputBase1.w,!flag(ConvFlags::IsRoughnessPacked)),
+                original("raw_title_linear_depth",desc.Resources.InTitleLinearDepth,desc.TitleLinearDepthBase.x,desc.TitleLinearDepthBase.y,seedUsesTitleDepth),
+                original("raw_inspector",desc.Resources.InInspector,0,0,
+                    (constants.Flags & uint32_t(ConvFlags::DebugModeMask)) == uint32_t(ConvFlags::DebugResourceInspector),"original_caller_debug_input")
+            }};
+            auto& rawMotion = originalSources[12];
+            rawMotion.motionAddressed = true;
+            rawMotion.displayResolutionMotion = flag(ConvFlags::DisplayResolutionMotion);
+            rawMotion.motionWidth = constants.MotionInputSize.x; rawMotion.motionHeight = constants.MotionInputSize.y;
+            rawMotion.jitterX = constants.JitterOffsets.x; rawMotion.jitterY = constants.JitterOffsets.y;
+            auto motionMetadata = CaptureJson::parse(rawMotion.metadataJson);
+            motionMetadata["mapping"] = {{"kind","converter_motion_source_bounding_rectangle"},
+                {"display_resolution",rawMotion.displayResolutionMotion},
+                {"motion_vectors_jittered",flag(ConvFlags::MotionVectorsJittered)},
+                {"render_extent",{constants.DstTexSize.x,constants.DstTexSize.y}},
+                {"motion_input_extent",{constants.MotionInputSize.x,constants.MotionInputSize.y}},
+                {"current_jitter",{constants.JitterOffsets.x,constants.JitterOffsets.y}},
+                {"motion_transform",{constants.MotionTransform.x,constants.MotionTransform.y,constants.MotionTransform.z,constants.MotionTransform.w}},
+                {"formula","display: clamp(floor((p+0.5-Jcur)*renderReciprocal*motionExtent),0,motionExtent-1)+sourceBase; otherwise clamp(p,0,motionExtent-1)+sourceBase"},
+                {"bounding_halo_texels",rawMotion.displayResolutionMotion ? 1 : 0}};
+            rawMotion.metadataJson = motionMetadata.dump();
+            m_gameTraceFrameRecorded = m_gameTrace.RecordSources(m_pDev, cmdList, sources,
+                static_cast<uint32_t>(desc.RenderSize.x), static_cast<uint32_t>(desc.RenderSize.y),
+                {reinterpret_cast<const uint8_t*>(&constants), sizeof(constants)}, originalSources,
+                m_gameTraceFloorSeedConstants,
+                {m_gameTraceFloorFilterConstants.data(),m_gameTraceFloorFilterConstantBytes},hooksAvailable);
+        }
+
+        catch (const std::exception& error) { m_gameTrace.Abort(error.what()); }
+        catch (...) { m_gameTrace.Abort("Game trace source metadata unavailable."); }
     }
 
     bool DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
     {
+        m_gameTraceCaptureRequested = FSRDGameTraceSession::IsActive();
+        m_gameTraceFrameRecorded = false;
+        if (m_gameTraceCaptureRequested)
+        {
+            m_gameTrace.Poll();
+            if ((desc.Flags & uint32_t(ConvFlags::Debug)) != 0)
+            {
+                m_gameTrace.Abort("Debug rendering interrupted the normal RR capture.");
+                m_gameTraceCaptureRequested = false;
+            }
+        }
         if (m_runtime) m_runtime->Begin(FSRDRuntimeSnapshot::Floor);
         if (!cmdList || !m_maxWidth)
             return false;
@@ -2261,6 +2387,7 @@ bool FSRDPreprocessor_Dx12::DispatchConversion(ID3D12GraphicsCommandList* cmdLis
     }
     catch (const std::exception& err)
     {
+        m_impl->m_gameTrace.Abort(err.what());
         LOG_ERROR("FSRD input conversion failed. Details: {}", err.what());
     }
 
@@ -2366,6 +2493,7 @@ bool FSRDPreprocessor_Dx12::DispatchComposition(ID3D12GraphicsCommandList* cmdLi
     }
     catch (const std::exception& err)
     {
+        m_impl->m_gameTrace.Abort(err.what());
         LOG_ERROR("FSRD output composition failed. Details: {}", err.what());
     }
 
@@ -2388,7 +2516,12 @@ void FSRDPreprocessor_Dx12::FinishCompositionHistory(bool successfulNormalFrame)
     else m_impl->m_historyValid=false;
     m_impl->m_historyPending=false;
     // A failed or debug frame leaves the volumetric history unproven.
-    if (!successfulNormalFrame) m_impl->m_volumeHistoryValid=false;
+    if (!successfulNormalFrame)
+    {
+        m_impl->m_volumeHistoryValid=false;
+        if (m_impl->m_gameTraceFrameRecorded)
+            m_impl->m_gameTrace.Abort("Normal evaluation failed or bypassed after recording.");
+    }
 }
 
 void FSRDPreprocessor_Dx12::TransitionDenoiserOutputsToRead(ID3D12GraphicsCommandList* cmdList) noexcept
@@ -2524,4 +2657,47 @@ bool FSRDPreprocessor_Dx12::Blit(ID3D12GraphicsCommandList* cmdList, ID3D12Resou
     }
 
     return false;
+}
+
+void FSRDPreprocessor_Dx12::CompleteGameTraceFrame(ID3D12GraphicsCommandList* cmdList,
+    const ffxDispatchDescDenoiser& dispatch, uint64_t contextGeneration, uint64_t evaluationId,
+    const std::string& controlsJson, const std::string& settingsJson) noexcept
+{
+    auto& impl = *m_impl;
+    if (!impl.m_gameTraceFrameRecorded) return;
+    try
+    {
+    FSRDGameTraceSession::FrameInfo frame {};
+    frame.contextId = std::format("RR-generation-{}", contextGeneration);
+    frame.evaluationId = evaluationId;
+    frame.frameIndex = dispatch.frameIndex;
+    frame.dispatchFlags = dispatch.flags;
+    frame.reset = (dispatch.flags & FFX_DENOISER_DISPATCH_RESET) != 0;
+    frame.controlsJson = controlsJson;
+    frame.settingsJson = settingsJson;
+    std::array<FSRDGameTraceSession::DiagnosticSource,2> lobes {{
+        {"rr_specular", {impl.m_outputBuffer1.Get(), kSrvState}, 0, 0},
+        {"rr_diffuse", {impl.m_outputBuffer2.Get(), kSrvState}, 0, 0}
+    }};
+    const auto settings = nlohmann::json::parse(settingsJson);
+    for (size_t i=0; i<lobes.size(); ++i)
+    {
+        lobes[i].active = settings.at(i == 0 ? "denoise_specular" : "denoise_diffuse").get<bool>();
+        if (!lobes[i].active)
+        {
+            lobes[i].image.resource = nullptr;
+            lobes[i].inactiveReason = "This SDK lobe was disabled for the captured evaluation.";
+        }
+    }
+    auto* output = GetCompositionOutput();
+    impl.m_gameTrace.RecordNative(cmdList, {output,kSrvState}, frame, lobes);
+    impl.m_gameTrace.CompleteFrame(cmdList, {output,kSrvState});
+    }
+    catch (const std::exception& error) { impl.m_gameTrace.Abort(error.what()); }
+    catch (...) { impl.m_gameTrace.Abort("Game trace output metadata unavailable."); }
+}
+
+void FSRDPreprocessor_Dx12::AbortGameTrace(const std::string& reason) noexcept
+{
+    m_impl->m_gameTrace.Abort(reason);
 }
