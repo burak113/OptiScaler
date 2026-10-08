@@ -2435,9 +2435,9 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                 {"command_list_address_process_local",static_cast<uint64_t>(reinterpret_cast<uintptr_t>(InCommandList))},
                 {"reverse_target_provenance","snapshot_of_configuration_reverse_guard_rereads_configuration_at_exit"},
                 {"bindings",Json::array({
-                    configured("color",_inputBuffers.Color,cfg.ColorResourceBarrier),
-                    configured("motion_vectors",_inputBuffers.MotionVectors,cfg.MVResourceBarrier),
-                    configured("depth",_inputBuffers.Depth,cfg.DepthResourceBarrier)})}
+                    configured("color",AcquiredInputs().Color,cfg.ColorResourceBarrier),
+                    configured("motion_vectors",AcquiredInputs().MotionVectors,cfg.MVResourceBarrier),
+                    configured("depth",AcquiredInputs().Depth,cfg.DepthResourceBarrier)})}
             }.dump();
         }
         catch (const std::exception& error) { AbortGameTraceTelemetry(FSRDConvShader.get(),error.what()); }

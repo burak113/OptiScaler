@@ -134,6 +134,11 @@ class FSR31FeatureDx12 : public FSR31Feature, public IFeature_Dx12
     virtual void ResetConfigurableBarriers(ID3D12GraphicsCommandList* InCommandList);
 
     /**
+     * @brief The title inputs acquired for this dispatch, which the configurable barriers transition.
+     */
+    const InputResources& AcquiredInputs() const { return _inputBuffers; }
+
+    /**
      * @brief Takes ownership of a provider context created through FfxApiProxy's DX12 entry.
      */
     static std::shared_ptr<FfxContextOwner> AdoptContextDx12(ffxContext context, const char* name);
