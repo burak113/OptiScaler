@@ -738,9 +738,16 @@ void FSRDGameTraceSession::RecordNative(ID3D12GraphicsCommandList* cmd, Source s
         if (!f.controls.is_object() || !f.settings.is_object() || f.settings.empty()) throw std::runtime_error("Controls/settings must be actual nonempty JSON objects");
         for (const auto& key : {"view", "projection", "jitter", "camera_delta", "motion_vector_scale", "depth_bounds", "render_size"})
         {
-            const size_t count = (std::string_view(key) == "view" || std::string_view(key) == "projection") ? 16 : (std::string_view(key) == "camera_delta" ? 3 : 2);
-            if (!f.controls.contains(key) || !f.controls[key].is_array() || f.controls[key].size() != count)
+            // RR 1.2 scales XYZ motion (including surface depth delta). Its
+            // FfxApiFloatCoords3D must not be validated as SR's two-component scale.
+            const std::string_view name(key);
+            const size_t count = (name == "view" || name == "projection") ? 16 :
+                ((name == "camera_delta" || name == "motion_vector_scale") ? 3 : 2);
+            if (!f.controls.contains(key))
                 throw std::runtime_error(std::string("Missing actual control: ") + key);
+            if (!f.controls[key].is_array() || f.controls[key].size() != count)
+                throw std::runtime_error(std::string("Invalid actual control: ") + key +
+                    " (expected " + std::to_string(count) + " components)");
             for (const auto& v : f.controls[key]) if (!v.is_number() || !std::isfinite(v.get<double>()))
                 throw std::runtime_error(std::string("Nonfinite actual control: ") + key);
         }

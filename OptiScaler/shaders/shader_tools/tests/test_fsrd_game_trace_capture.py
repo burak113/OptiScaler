@@ -31,6 +31,7 @@ CPP = r'''
 #include <stdexcept>
 #include <vector>
 #include "__RECORDER__"
+#include "__RR_HEADER__"
 using Microsoft::WRL::ComPtr;
 using Trace = FSRDGameTraceSession;
 constexpr auto srv = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
@@ -135,12 +136,25 @@ struct Host
     {
         Trace::FrameInfo frame {}; frame.contextId=context; frame.evaluationId=index+1;
         frame.frameIndex=1000+index; frame.reset=reset; frame.dispatchFlags=reset ? 1 : 0;
-        Json view=Json::array({1,0,0,0,0,1,0,0,0,0,1,0,float(index)*.01f,0,0,1});
-        Json projection=Json::array({1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1});
-        frame.controlsJson=Json{{"view",view},{"projection",projection},
-            {"jitter",{float(index%4)*.125f,-.125f}}, {"camera_delta",{float(index)*.01f,0,0}},
-            {"motion_vector_scale",{1,1}}, {"depth_bounds",{.1f,1000.f}}, {"render_size",{136,136}},
-            {"pre_exposure",1.f},{"pre_exposure_provided",true}}.dump();
+        // Feed the real RR descriptor through the production feature's exact
+        // serializer. Handwritten JSON hid a 2D/3D motion-scale mismatch.
+        ffxDispatchDescDenoiser denoiserDesc {};
+        const std::array<float,16> view {1,0,0,0,0,1,0,0,0,0,1,0,float(index)*.01f,0,0,1};
+        const std::array<float,16> projection {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};
+        static_assert(sizeof(denoiserDesc.view) == sizeof(view));
+        memcpy(&denoiserDesc.view,view.data(),sizeof(view));
+        memcpy(&denoiserDesc.projection,projection.data(),sizeof(projection));
+        denoiserDesc.jitterOffsets={float(index%4)*.125f,-.125f};
+        denoiserDesc.cameraPositionDelta={float(index)*.01f,0,0};
+        denoiserDesc.motionVectorScale={2.f,3.f,4.f};
+        denoiserDesc.linearDepthBounds={.1f,1000.f};
+        denoiserDesc.renderSize={136,136};
+        const float capturePreExposure=1.f;
+        const bool capturePreExposureProvided=true;
+        const struct { bool MotionHistoryValid; } _convDesc {!reset};
+        using CaptureJson = nlohmann::json;
+#include "fsrd_game_trace_controls.inc"
+        frame.controlsJson=controls.dump();
         frame.settingsJson=Json{{"sdk_tuning",{1,1,1000,3,1,.1f}},{"fixture_setting",setting}}.dump();
         return frame;
     }
@@ -205,6 +219,19 @@ int main(int argc,char** argv) try
             need(Trace::GetStatus().captured==frame+1,"completed+Reset frame not published");
         }
         need(Trace::GetStatus().phase=="complete" && !Trace::IsActive(),"128-frame completion");
+    }
+    {
+        Trace capture; need(Trace::RequestStart(3,5),"invalid scale request"); snapshot("invalid_motion_scale");
+        host.Fill(0); need(host.Sources(capture),"invalid scale sources");
+        auto frame=host.Frame(0);
+        auto controls=Json::parse(frame.controlsJson);
+        controls["motion_vector_scale"]=Json::array({1.f,1.f});
+        frame.controlsJson=controls.dump();
+        capture.RecordNative(host.list.Get(),{host.textures[0].Get(),srv},frame);
+        need(!Trace::IsActive() && Trace::GetStatus().captured==0,"2D RR scale accepted");
+        need(Trace::GetStatus().message.find("Invalid actual control: motion_vector_scale (expected 3 components)")!=std::string::npos,
+             "invalid scale diagnostic lost expected dimensions");
+        host.Execute(); host.Reset(); capture.Poll();
     }
     {
         Trace capture; need(Trace::RequestStart(3,5,2),"armed request"); snapshot("armed_owner_end");
@@ -294,11 +321,16 @@ def run():
     (stubs / 'Util.h').write_text('#pragma once\n#include <filesystem>\ninline std::filesystem::path g_dllPath;\n'
                                 'namespace Util { inline std::filesystem::path DllPath() { return g_dllPath; } }\n')
     recorder = ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp'
+    feature = (ROOT / 'OptiScaler/upscalers/fsr31/FSRDFeature_Dx12.cpp').read_text(encoding='utf-8-sig')
+    controls_start = feature.index('const auto array =', feature.index('if (FSRDGameTraceSession::IsActive())'))
+    controls_end = feature.index('// Fingerprint applied semantic controls only.', controls_start)
+    (stubs / 'fsrd_game_trace_controls.inc').write_text(feature[controls_start:controls_end], encoding='utf-8')
     source = output / 'fsrd_game_trace_capture.cpp'
-    source.write_text(CPP.replace('__RECORDER__', recorder.as_posix()))
+    source.write_text(CPP.replace('__RECORDER__', recorder.as_posix()).replace(
+        '__RR_HEADER__', (ROOT / 'OptiScaler/include/fsr-rr/ffx_denoiser.h').as_posix()))
     exe = output / 'fsrd_game_trace_capture.exe'
     compile_cpp(source, exe, ('d3d12.lib', 'dxgi.lib', 'bcrypt.lib'),
-                (stubs, ROOT / 'external/nlohmann'))
+                (stubs, ROOT / 'external/nlohmann', ROOT / 'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
     subprocess.run([str(exe), str(output)], check=True)
     captures = json.loads((output / 'captures.json').read_text())
     capture = Path(captures['complete'])
@@ -311,6 +343,7 @@ def run():
     assert [f['ordinal'] for f in manifest['frames'] if f['reset']] == [63]
     assert all(f['native_full1'] is False and f['command_list_detached'] for f in manifest['frames'])
     assert all(f['gpu_submission_verified'] and f['gpu_completed'] for f in manifest['frames'])
+    assert all(f['controls']['motion_vector_scale'] == [2, 3, 4] for f in manifest['frames'])
     for frame in manifest['frames']:
         for row in frame['images'] + frame['diagnostics'] + [frame['conversion_constants'], frame['floor_seed_constants']]:
             if 'file' not in row:
