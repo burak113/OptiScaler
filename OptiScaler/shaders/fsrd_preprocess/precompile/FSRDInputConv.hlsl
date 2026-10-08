@@ -786,6 +786,10 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     const float biasMask = IsSet(FLAGS_HAS_BIAS_MASK)
         ? saturate((float)InBiasMask[px + int2(InputBase3.zw)]) : 0.0f;
     const float biasWeight = saturate(biasMask * BiasMaskStrength);
+    // Full bias routes the current colour around RR. Its history can still
+    // return nonzero lobes, so composition must select this complete source.
+    // Inspection keeps its existing outputs; partial bias retains its split.
+    const bool biasCurrentSource = biasWeight == 1.0f && !IsSet(FLAGS_DEBUG);
     bool handoverSurface = false;
     [branch]
     if (IsSet(FLAGS_FLOOR_ENABLED) && (RecoveryMask & 1u) != 0 && biasWeight == 0.0f)
@@ -1335,7 +1339,8 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         // corresponding channels' residuals collapse to zero.
         const float floorCrossing = any(floorExcess > 0.0f) ? 1.0f : 0.0f;
         OutDiffAlbedo[FSRD_OUTPUT_PIXEL(px)] = half4(GetSafeFP16(diffAlbedo), half(floorCrossing));
-        // RGB carries the radiance closure; alpha is diagnostic luminance.
+        // RGB carries the radiance closure; alpha is diagnostic luminance or
+        // the exact current-source guard for fully bias-routed colour.
         const bool allowDetail = IsSet(FLAGS_FLOOR_ENABLED) && FloorDetailPreservation > 0.0f &&
             detailReference.a >= 0.0f && biasWeight == 0.0f && specularRouteWeight == 0.0f;
         // The class attests current raw light, but the classifier and every RR
@@ -1354,8 +1359,12 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             // Preserve C19's float32 luma/store expression and avoid a mixed
             // half3/float3 ternary changing native16 optimizer conversions.
             const float3 safeFloorColor = GetSafeFP16(floorColor.rgb);
-            OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(safeFloorColor,
-                GetLuminance(safeFloorColor));
+            [branch]
+            if (biasCurrentSource)
+                OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(safeFloorColor, -1.0f);
+            else
+                OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(safeFloorColor,
+                    GetLuminance(safeFloorColor));
             OutDetailReference[FSRD_OUTPUT_PIXEL(px)] = half4(GetSafeFP16(detailReference.rgb),
                 allowDetail ? half(max(detailReference.a, 0.0f)) : half(-1.0f));
         }
@@ -1647,7 +1656,11 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             IsSet(FLAGS_SPECULAR_SIGNAL_INDIRECT) ? s_InvalidSpecularHitDistance : 0.0f);
         OutDirectDiffuse[FSRD_OUTPUT_PIXEL(px)] = half4(0.0f, 0.0f, 0.0f, s_MissingDiffuseHitDistance);
         // Nothing was demodulated on this path, so the composite colour passes through whole.
-        OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(rawColor, rawLuma);
+        [branch]
+        if (biasCurrentSource)
+            OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(rawColor, -1.0f);
+        else
+            OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(rawColor, rawLuma);
         // Far-plane skip has no trusted detail reference.
         OutDetailReference[FSRD_OUTPUT_PIXEL(px)] = half4(0, 0, 0, -1);
 #if !FSRD_ADDITIVE_DIAGNOSTICS
