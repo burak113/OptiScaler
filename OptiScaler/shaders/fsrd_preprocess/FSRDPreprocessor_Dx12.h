@@ -447,6 +447,9 @@ class FSRDPreprocessor_Dx12
     void CompleteGameTraceFrame(ID3D12GraphicsCommandList* cmdList,
         const ffxDispatchDescDenoiser& dispatch, uint64_t contextGeneration, uint64_t evaluationId,
         const std::string& controlsJson, const std::string& settingsJson) noexcept;
+    void CompleteGameTraceSr(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* output,
+        uint32_t width, uint32_t height, uint64_t evaluationId, const std::string& contextId,
+        bool reset, const std::string& controlsJson) noexcept;
     void AbortGameTrace(const std::string& reason) noexcept;
 
   private:

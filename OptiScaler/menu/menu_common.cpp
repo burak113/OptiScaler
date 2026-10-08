@@ -3195,12 +3195,22 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             const auto capture = FSRDGameTraceSession::GetStatus();
             const uint32_t width = currentFeature ? currentFeature->RenderWidth() : 0;
             const uint32_t height = currentFeature ? currentFeature->RenderHeight() : 0;
-            constexpr uint32_t tile = FSRDGameTraceSession::TileSize;
+            static int regionSize = 0, srMode = 0;
+            static char outputRoot[1024] {};
+            static bool initialCenter = true, folderOpenFailed = false;
+            ImGui::BeginDisabled(capture.active);
+            if (ImGui::Combo("Region size##GameTrace", &regionSize, "128 x 128\0" "512 x 512\0"))
+            {
+                srMode = regionSize == 0 ? 0 : 1;
+                initialCenter = true;
+            }
+            ImGui::Combo("SR output##GameTrace", &srMode, "Off\0" "Matching region\0" "Full output\0");
+            ImGui::InputTextWithHint("Output root##GameTrace", "Blank: DLL folder / GAME_TRACE", outputRoot, sizeof(outputRoot));
+            const uint32_t tile = regionSize == 0 ? FSRDGameTraceSession::TileSize : 512;
             const bool fits = width >= tile && height >= tile;
             const int maxX = fits ? int(std::min(width - tile, uint32_t(INT_MAX))) : 0;
             const int maxY = fits ? int(std::min(height - tile, uint32_t(INT_MAX))) : 0;
             static int traceX = 0, traceY = 0, delaySeconds = 3;
-            static bool initialCenter = true, folderOpenFailed = false;
             if (initialCenter && fits)
             {
                 traceX = maxX / 2;
@@ -3212,8 +3222,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             ImGui::TextWrapped(
                 "Records the selected region across consecutive frames for offline RR analysis. "
                 "Coordinates use render-resolution pixels, starting at the top left. "
-                "Files are saved beside this DLL in GAME_TRACE. Recording adds readback and disk work.");
-            ImGui::BeginDisabled(capture.active);
+                "SR output is captured before RCAS, output scaling and overlays.");
             ImGui::InputInt("Region X##GameTrace", &traceX);
             ImGui::InputInt("Region Y##GameTrace", &traceY);
             traceX = std::clamp(traceX, 0, maxX);
@@ -3229,15 +3238,32 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             if (ImGui::Button("Start GAME_TRACE recording"))
             {
                 folderOpenFailed = false;
-                FSRDGameTraceSession::RequestStart(uint32_t(traceX), uint32_t(traceY),
-                                                   uint32_t(delaySeconds));
+                FSRDGameTraceSession::Request request;
+                request.x = uint32_t(traceX); request.y = uint32_t(traceY); request.size = tile;
+                request.delaySeconds = uint32_t(delaySeconds); request.outputRoot = outputRoot;
+                request.srMode = srMode == 0 ? FSRDGameTraceSession::SrMode::Off :
+                    (srMode == 1 ? FSRDGameTraceSession::SrMode::MappedRoi : FSRDGameTraceSession::SrMode::FullOutput);
+                FSRDGameTraceSession::RequestStart(request);
             }
             ImGui::EndDisabled();
             ImGui::EndDisabled();
             if (!normalRendering)
                 ImGui::TextWrapped("Set Debug View to normal rendering before recording.");
             if (!fits)
-                ImGui::TextWrapped("Recording needs a render area of at least 128 x 128 pixels.");
+                ImGui::TextWrapped("The selected region must fit inside the render area.");
+            if (fits)
+            {
+                uint64_t estimate = uint64_t(tile)*tile*121*FSRDGameTraceSession::FrameCount;
+                if (srMode != 0 && currentFeature)
+                {
+                    const uint64_t sw = currentFeature->TargetWidth(), sh = currentFeature->TargetHeight();
+                    const uint64_t outW = srMode == 2 ? sw : ((uint64_t(traceX)+tile)*sw+width-1)/width-uint64_t(traceX)*sw/width;
+                    const uint64_t outH = srMode == 2 ? sh : ((uint64_t(traceY)+tile)*sh+height-1)/height-uint64_t(traceY)*sh/height;
+                    estimate += outW*outH*8*FSRDGameTraceSession::FrameCount;
+                }
+                ImGui::Text("Typical FP16 capture estimate: %.2f GiB", double(estimate)/double(1ull<<30));
+            }
+            ImGui::TextWrapped("Use an absolute output root to choose another drive. Large captures need fast storage; a full queue stops recording without waiting for disk or GPU. Full SR is an observation, while RR inputs remain cropped.");
             ImGui::TextWrapped("Close the menu during the delay, then reproduce the camera turn or lighting change.");
             if (capture.active)
             {
@@ -3249,6 +3275,11 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             if (capture.delayRemainingMs > 0)
                 ImGui::Text("Starts in %.1f seconds", float(capture.delayRemainingMs) / 1000.0f);
             ImGui::TextWrapped("%s", capture.message.c_str());
+            if (capture.estimatedPayloadBytes)
+                ImGui::Text("Actual payload estimate: %.2f GiB | CPU queue: %llu MiB | retained readbacks: %llu MiB",
+                    double(capture.estimatedPayloadBytes)/double(1ull<<30),
+                    static_cast<unsigned long long>(capture.cpuQueuedBytes>>20),
+                    static_cast<unsigned long long>(capture.retainedReadbackBytes>>20));
             if (!capture.folder.empty())
             {
                 ImGui::TextWrapped("%s", capture.folder.c_str());

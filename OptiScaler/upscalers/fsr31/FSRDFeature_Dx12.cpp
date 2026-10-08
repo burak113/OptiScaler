@@ -2590,10 +2590,48 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
         upscalerContinuityGuard.dispatchSucceeded = isUpscalerReady;
         if (isUpscalerReady) _runtime.Complete(FSRDRuntimeSnapshot::SuperResolution);
 
+        if (FSRDConvShader && FSRDGameTraceSession::WantsSrOutput())
+        {
+            if (!isUpscalerReady)
+                FSRDConvShader->AbortGameTrace("SR dispatch failed before the same evaluation's requested output snapshot.");
+            else
+            {
+                try
+                {
+                    using CaptureJson = nlohmann::json;
+                    const CaptureJson controls {
+                        {"jitter",CaptureJson::parse(RRTraceAdditiveIO::FloatArray(upscalerDesc.jitterOffset))},
+                        {"motion_vector_scale",CaptureJson::parse(RRTraceAdditiveIO::FloatArray(upscalerDesc.motionVectorScale))},
+                        {"render_size",{upscalerDesc.renderSize.width,upscalerDesc.renderSize.height}},
+                        {"upscale_size",{upscalerDesc.upscaleSize.width,upscalerDesc.upscaleSize.height}},
+                        {"frame_time_delta",upscalerDesc.frameTimeDelta},{"pre_exposure",upscalerDesc.preExposure},
+                        {"reset",upscalerDesc.reset},{"flags",upscalerDesc.flags},{"create_flags",_upscaleCtxDesc.flags},
+                        {"camera_near",upscalerDesc.cameraNear},{"camera_far",upscalerDesc.cameraFar},
+                        {"camera_fov_vertical",upscalerDesc.cameraFovAngleVertical},
+                        {"view_space_to_meters",upscalerDesc.viewSpaceToMetersFactor},
+                        {"enable_sharpening",upscalerDesc.enableSharpening},{"sharpness",upscalerDesc.sharpness}
+                    };
+                    // FSR's output is UAV here. RCAS, scaling and overlays are
+                    // recorded later by the outer feature; allocation size may
+                    // exceed this dispatch's valid logical upscale extent.
+                    const auto identity = std::format("SR-process-context-{}-owner-{}",
+                        reinterpret_cast<uintptr_t>(_upscaleCtx),reinterpret_cast<uintptr_t>(_upscaleCtxOwner.get()));
+                    FSRDConvShader->CompleteGameTraceSr(InCommandList,
+                        static_cast<ID3D12Resource*>(upscalerDesc.output.resource),
+                        upscalerDesc.upscaleSize.width,upscalerDesc.upscaleSize.height,_denoiserDispatchAttempts,
+                        identity,upscalerDesc.reset,controls.dump());
+                }
+                catch (const std::exception& error) { FSRDConvShader->AbortGameTrace(error.what()); }
+                catch (...) { FSRDConvShader->AbortGameTrace("Actual SR capture controls unavailable."); }
+            }
+        }
+
         // Post-processing (RCAS/output scaling/overlay) is run by IFeature_Dx12::Evaluate.
     }
     else // Debug visualization
     {
+        if (FSRDConvShader && FSRDGameTraceSession::WantsSrOutput())
+            FSRDConvShader->AbortGameTrace("SR bypass prevented the requested same-evaluation output snapshot.");
         _runtime.steps[FSRDRuntimeSnapshot::SuperResolution] = FSRDRuntimeSnapshot::Disabled;
         _runtime.Begin(FSRDRuntimeSnapshot::Output);
         ID3D12Resource* srcTex = nullptr;

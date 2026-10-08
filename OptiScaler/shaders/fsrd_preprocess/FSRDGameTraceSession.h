@@ -12,18 +12,28 @@ class FSRDGameTraceSession
 public:
     static constexpr uint32_t FrameCount = 128;
     static constexpr uint32_t TileSize = 128;
+    enum class SrMode { Off, MappedRoi, FullOutput };
+    struct Request
+    {
+        uint32_t x = 0, y = 0, size = TileSize, delaySeconds = 0;
+        SrMode srMode = SrMode::Off;
+        std::string outputRoot; // Absolute UTF-8 path; blank keeps DLL/GAME_TRACE.
+    };
     struct Status
     {
         std::string phase = "idle", message = "No game trace requested.", captureId, folder;
         uint32_t captured = 0, recorded = 0, target = FrameCount;
         uint32_t pending = 0, staged = 0, awaitingDetach = 0, delayRemainingMs = 0;
         bool active = false;
+        uint64_t cpuQueuedBytes = 0, retainedReadbackBytes = 0, estimatedPayloadBytes = 0;
     };
     // Menu requests are transient, never saved as startup capture settings.
     static bool RequestStart(uint32_t x, uint32_t y, uint32_t delaySeconds = 0) noexcept;
+    static bool RequestStart(const Request&) noexcept;
     static void RequestStop() noexcept;
     static Status GetStatus();
     static bool IsActive() noexcept;
+    static bool WantsSrOutput() noexcept;
 
     enum Slot : size_t { U, V, Qs, Qd, Skip, Packed, Depth, Motion, SourceCount };
     struct Source
@@ -54,14 +64,22 @@ public:
         // JSON objects, serialized from actual applied controls/settings. No truth/reference.
         std::string controlsJson = "{}", settingsJson = "{}";
     };
+    struct SrInfo
+    {
+        std::string contextId; // Actual process-local provider/owner identity.
+        uint64_t evaluationId = 0;
+        uint32_t width = 0, height = 0; // Valid dispatch extent, not allocation size.
+        bool reset = false;
+        std::string controlsJson = "{}";
+    };
     FSRDGameTraceSession();
     ~FSRDGameTraceSession();
     FSRDGameTraceSession(const FSRDGameTraceSession&) = delete;
     FSRDGameTraceSession& operator=(const FSRDGameTraceSession&) = delete;
 
     // Caller installs real queue/Reset hooks before recording. All three stages
-    // must occur on the SAME list/evaluation. A successful real Reset and queue
-    // fence completion prove readback readiness; no frame-count delay is used.
+    // must occur on the SAME list/evaluation. Completed bytes are frozen under
+    // the real submission gate; GPU resource release still requires real Reset.
     bool RecordSources(ID3D12Device*, ID3D12GraphicsCommandList*,
                        const std::array<Source, SourceCount>&, uint32_t renderWidth,
                        uint32_t renderHeight, std::span<const uint8_t> conversionConstants,
@@ -74,6 +92,7 @@ public:
     void RecordNative(ID3D12GraphicsCommandList*, Source actualNativeOutput, const FrameInfo&,
                       std::span<const DiagnosticSource> diagnostics = {}) noexcept;
     void CompleteFrame(ID3D12GraphicsCommandList*, Source actualCurrentOutput) noexcept;
+    void CompleteSrFrame(ID3D12GraphicsCommandList*, Source actualSrOutput, const SrInfo&) noexcept;
     void Poll() noexcept;
     void Abort(const std::string& reason) noexcept;
 private:

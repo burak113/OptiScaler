@@ -2701,3 +2701,19 @@ void FSRDPreprocessor_Dx12::AbortGameTrace(const std::string& reason) noexcept
 {
     m_impl->m_gameTrace.Abort(reason);
 }
+
+void FSRDPreprocessor_Dx12::CompleteGameTraceSr(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* output,
+    uint32_t width, uint32_t height, uint64_t evaluationId, const std::string& contextId,
+    bool reset, const std::string& controlsJson) noexcept
+{
+    if (!m_impl->m_gameTraceFrameRecorded) return;
+    try
+    {
+        FSRDGameTraceSession::SrInfo info {};
+        info.contextId = contextId; info.evaluationId = evaluationId; info.width = width; info.height = height;
+        info.reset = reset; info.controlsJson = controlsJson;
+        m_impl->m_gameTrace.CompleteSrFrame(cmdList,{output,D3D12_RESOURCE_STATE_UNORDERED_ACCESS},info);
+    }
+    catch (const std::exception& error) { m_impl->m_gameTrace.Abort(error.what()); }
+    catch (...) { m_impl->m_gameTrace.Abort("Game trace SR metadata unavailable."); }
+}
