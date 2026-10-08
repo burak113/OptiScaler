@@ -233,7 +233,36 @@ class Gpu:
         (self.work/'gpu_dispatches.json').write_text(json.dumps(self.records, indent=2)+'\n')
 
 
-def preprocess(cap, gpu, floor, bleed, recovery_mask=3):
+def floor_step_sequence(mode='full'):
+    if mode == 'full':return (1,2,4,8,16)
+    if mode == 'fast':return (1,2,16)
+    raise ValueError('Floor steps must be full or fast')
+
+
+def floor_producer_profile(floor=True, floor_steps='full'):
+    steps=list(floor_step_sequence(floor_steps))
+    return dict(floor_steps_mode=floor_steps,configured_floor_pass_steps=steps,
+        floor_pass_steps=steps if floor else [],floor_enabled=bool(floor),
+        floor_pass_policy='Explicit '+floor_steps+' Floor override, not inferred from capture settings')
+
+
+def preprocessing_cache_identity(provenance, hashes, floor, bleed, floor_steps='full'):
+    return dict(capture_manifest_sha256=provenance['capture_manifest_sha256'],frames=provenance['frames'],
+        floor=int(floor),bleed=int(bleed),shader_hashes=hashes,floor_steps_mode=floor_steps,
+        floor_pass_steps=floor_producer_profile(floor,floor_steps)['floor_pass_steps'])
+
+
+def preprocessing_cache_matches(recorded, expected):
+    # Original authenticated caches predate the choice and explicitly used full5.
+    # Preserve them only for full; absent or partial metadata never grants fast.
+    keys=('floor_steps_mode','floor_pass_steps')
+    if not any(k in recorded for k in keys):
+        return expected['floor_steps_mode']=='full' and recorded=={k:v for k,v in expected.items() if k not in keys}
+    return all(k in recorded for k in keys) and recorded==expected
+
+
+def preprocess(cap, gpu, floor, bleed, recovery_mask=3, floor_steps='full'):
+    steps=floor_step_sequence(floor_steps)
     w, h = cap['roi']['extent']; size = (w, h)
     crop = camera_crop(cap['extent'], cap['roi'])
     zero = np.zeros((h, w, 4), np.float16); scalar = np.zeros((h, w), np.float32)
@@ -252,7 +281,7 @@ def preprocess(cap, gpu, floor, bleed, recovery_mask=3):
              (scalar,41), (cap['raw_diffuse_albedo'][index],28)], [10,41,10,10,10], size)
         base = seed
         if floor:
-            for step in (1, 2, 4, 8, 16):
+            for step in steps:
                 base, model = gpu.dispatch('FSRDFloor', dict(DstTexSize=[w,h,1/w,1/h],StepSize=step,AlbedoBase=[0,0]),
                     [(base,10),(depth,41),(gradient,10),(cap['raw_diffuse_albedo'][index],28),
                      (reference,10),(model,10)], [10,10],size)
@@ -383,12 +412,14 @@ def box(a,r=2):
     return (c[k:,k:]-c[:-k,k:]-c[k:,:-k]+c[:-k,:-k])/(k*k)
 
 
-def composition_profile(floor=True,recovery=1,recovery_mask=3,spatial_temporal_mask=2):
+def composition_profile(floor=True,recovery=1,recovery_mask=3,spatial_temporal_mask=2,floor_steps='full'):
+    producer=floor_producer_profile(floor,floor_steps)
     return dict(provenance='Explicit current-production-default recovery override; capture settings describe comparator, not this profile.',
         DetailPreservation=float(recovery) if floor else 0.,RecoveryMask=recovery_mask,
         SpatialTemporalMask=spatial_temporal_mask,LumaRecovery=1.,ChromaRecovery=1.,
         shader='Generic mixed flat Full Anchor / specular Light; diffuse disabled',
-        floor_pass_steps=[1,2,4,8,16],floor_pass_policy='Explicit five-pass Floor paired diagnostic, not an inferred capture setting')
+        floor_pass_steps=producer['floor_pass_steps'],floor_steps_mode=floor_steps,
+        floor_pass_policy=producer['floor_pass_policy'])
 
 
 def recovery_eligibility(packed,mask=3,method=2):
@@ -487,6 +518,7 @@ def main():
     parser.add_argument('--frames',type=int,default=128)
     parser.add_argument('--cases',nargs='+',default=['0:0','0:1','1:0','1:1'])
     parser.add_argument('--reset-frame',type=int,action='append',default=[])
+    parser.add_argument('--floor-steps',choices=('full','fast'),default='full',help='Floor producer: full1/2/4/8/16 or runtime Fast1/2/16; default preserves full5 replays')
     parser.add_argument('--full-witness',action='store_true',help='Candidate bit1; baseline must omit it')
     parser.add_argument('--packed-dir',type=Path,help='Reuse authenticated preprocessing from a prior run, useful for reset-only probes')
     parser.add_argument('--build-only',action='store_true')
@@ -509,6 +541,7 @@ def main():
     if args.build_only:
         print('build_only=passed');return
     provenance,cap=inspect_capture(args.capture,True,args.frames)
+    provenance['replay_producer_configuration']=floor_producer_profile(True,args.floor_steps)
     (output/'capture_provenance.json').write_text(json.dumps(provenance,indent=2)+'\n')
     shader_hashes={p.name:digest(p) for p in shaders.iterdir() if p.suffix in ('.cso','.hlsl','.hlsli')}
     (output/'shader_provenance.json').write_text(json.dumps(shader_hashes,indent=2)+'\n')
@@ -519,18 +552,17 @@ def main():
         folder=output/f'floor{floor}_bleed{bleed}';folder.mkdir(exist_ok=True)
         cache_root=safe_path(args.packed_dir) if args.packed_dir else output
         cache=cache_root/f'packed_floor{floor}_bleed{bleed}.npz'
-        cache_identity=dict(capture_manifest_sha256=provenance['capture_manifest_sha256'],
-                            frames=provenance['frames'],floor=floor,bleed=bleed,shader_hashes=shader_hashes)
+        cache_identity=preprocessing_cache_identity(provenance,shader_hashes,floor,bleed,args.floor_steps)
         cache_manifest=cache.with_suffix('.json')
         if cache.is_file():
             identity=json.loads(cache_manifest.read_text()) if cache_manifest.is_file() else {}
             cache_sha256=identity.pop('npz_sha256',None)
-            if identity!=cache_identity or cache_sha256!=digest(cache):
+            if not preprocessing_cache_matches(identity,cache_identity) or cache_sha256!=digest(cache):
                 raise ValueError('preprocessing cache identity differs or lacks a manifest: '+str(cache))
             with np.load(cache,allow_pickle=False) as archive:packed={k:archive[k] for k in archive.files}
         else:
             gpu=Gpu(output/f'preprocess_floor{floor}_bleed{bleed}',shaders,gpu_exe)
-            try:packed=preprocess(cap,gpu,bool(floor),bool(bleed))
+            try:packed=preprocess(cap,gpu,bool(floor),bool(bleed),floor_steps=args.floor_steps)
             finally:gpu.close()
             np.savez_compressed(cache,**packed)
             cache_manifest.write_text(json.dumps(dict(cache_identity,npz_sha256=digest(cache)),indent=2)+'\n')
@@ -545,10 +577,11 @@ def main():
                 if not 0<=frame<provenance['frames']:raise ValueError('reset frame outside sequence')
                 single={k:(v[frame:frame+1] if isinstance(v,np.ndarray) else v) for k,v in cap.items()}
                 single['frame_metadata']=[cap['frame_metadata'][frame]]
-                corrected=preprocess(single,gpu,bool(floor),bool(bleed))
+                corrected=preprocess(single,gpu,bool(floor),bool(bleed),floor_steps=args.floor_steps)
                 for name,array in corrected.items():packed[name][frame]=array[0]
         finally:gpu.close()
         (folder/'reset_control_patch.json').write_text(json.dumps(dict(frames=patch_frames,
+            producer=floor_producer_profile(bool(floor),args.floor_steps),
             policy='current view/jitter as previous on reset; native cameraPositionDelta=0; composition history invalid'),indent=2)+'\n')
         rr=replay(cap,packed,folder/'rr',rr_exe,bool(bleed),args.reset_frame)
         gpu=Gpu(folder/'composition',shaders,gpu_exe)
@@ -558,7 +591,8 @@ def main():
         metrics=measure(cap,packed,image,trust,args.reset_frame)
         metrics['composition_history']=dict(enabled=bool(floor),write_history=bool(floor),
                                              invalidated_frames=patch_frames,successful_frame_commit=True)
-        metrics['composition_profile']=composition_profile(bool(floor))
+        metrics['composition_profile']=composition_profile(bool(floor),floor_steps=args.floor_steps)
+        metrics['floor_producer']=floor_producer_profile(bool(floor),args.floor_steps)
         metrics['native_metadata']=str(folder/'rr/metadata.json')
         (folder/'metrics.json').write_text(json.dumps(metrics,indent=2)+'\n')
         result[case]=metrics

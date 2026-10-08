@@ -33,25 +33,25 @@ def identities(directory):
             if p.suffix in ('.cso','.hlsl','.hlsli')}
 
 
-def normalized_preprocessing(cap, gpu, floor, bleed, reset_frames, packed=None):
+def normalized_preprocessing(cap, gpu, floor, bleed, reset_frames, packed=None, floor_steps='full'):
+    capture.floor_step_sequence(floor_steps)
     if packed is None:
-        packed=capture.preprocess(cap,gpu,floor,bleed)
+        packed=capture.preprocess(cap,gpu,floor,bleed,floor_steps=floor_steps)
     for frame in sorted({0,*reset_frames,*[i for i,f in enumerate(cap['frame_metadata']) if f['reset']]}):
         if not 0<=frame<len(cap['frame_metadata']):raise ValueError('reset outside sequence')
         single={k:(v[frame:frame+1] if isinstance(v,np.ndarray) else v) for k,v in cap.items()}
         single['frame_metadata']=[cap['frame_metadata'][frame]]
-        corrected=capture.preprocess(single,gpu,floor,bleed)
+        corrected=capture.preprocess(single,gpu,floor,bleed,floor_steps=floor_steps)
         for name,array in corrected.items():packed[name][frame]=array[0]
     return packed
 
 
-def cached_preprocessing(root, provenance, hashes, floor, bleed):
+def cached_preprocessing(root, provenance, hashes, floor, bleed, floor_steps='full'):
     path=capture.safe_path(root)/f'packed_floor{int(floor)}_bleed{int(bleed)}.npz'
     recorded=json.loads(path.with_suffix('.json').read_text())
     sha=recorded.pop('npz_sha256',None)
-    expected=dict(capture_manifest_sha256=provenance['capture_manifest_sha256'],frames=provenance['frames'],
-                  floor=int(floor),bleed=int(bleed),shader_hashes=hashes)
-    if recorded!=expected or sha!=capture.digest(path):raise ValueError('baseline preprocessing cache identity mismatch')
+    expected=capture.preprocessing_cache_identity(provenance,hashes,floor,bleed,floor_steps)
+    if not capture.preprocessing_cache_matches(recorded,expected) or sha!=capture.digest(path):raise ValueError('baseline preprocessing cache identity mismatch')
     with np.load(path,allow_pickle=False) as archive:return {k:archive[k] for k in archive.files}
 
 
@@ -140,6 +140,7 @@ def main():
     parser.add_argument('--frames',type=int,default=128)
     parser.add_argument('--cases',nargs='+',default=['0:0','0:1','1:0','1:1'])
     parser.add_argument('--reset-frame',type=int,action='append',default=[])
+    parser.add_argument('--floor-steps',choices=('full','fast'),default='full',help='Apply full1/2/4/8/16 or runtime Fast1/2/16 to both producer plans and reset patches')
     parser.add_argument('--candidate-old-witness',action='store_true',help='Repeat-baseline controls only; omit for corrected Evidence')
     args=parser.parse_args()
     cases=[]
@@ -152,6 +153,7 @@ def main():
     baseline=capture.safe_path(args.baseline_dir);candidate=capture.safe_path(args.candidate_dir)
     baseline_hashes,candidate_hashes=identities(baseline),identities(candidate)
     provenance,cap=capture.inspect_capture(args.capture,True,args.frames)
+    provenance['replay_producer_configuration']=capture.floor_producer_profile(True,args.floor_steps)
     frames=len(cap['frame_metadata'])
     if any(not 0<=frame<frames for frame in args.reset_frame):parser.error('--reset-frame lies outside the capture')
     os.environ.setdefault('FSRD_VS_ROOT','F:/VisualStudio')
@@ -159,15 +161,16 @@ def main():
     capture.compile_cpp(capture.HERE/'fsrd_gpu_runner.cpp',gpu_exe,('d3d12.lib','dxgi.lib'))
     rr_exe=capture.native.build_native(output/'build/fsrd_floor_rr_replay.exe')
     report=dict(capture=provenance,baseline_directory=str(baseline),candidate_directory=str(candidate),
-                baseline_shader_hashes=baseline_hashes,candidate_shader_hashes=candidate_hashes,cases={})
+                baseline_shader_hashes=baseline_hashes,candidate_shader_hashes=candidate_hashes,cases={},
+                producer_configuration=capture.floor_producer_profile(True,args.floor_steps))
     for pair,floor,bleed in cases:
         folder=output/f'floor{int(floor)}_bleed{int(bleed)}';folder.mkdir(exist_ok=True)
-        a=cached_preprocessing(args.baseline_packed_dir,provenance,baseline_hashes,floor,bleed)
+        a=cached_preprocessing(args.baseline_packed_dir,provenance,baseline_hashes,floor,bleed,args.floor_steps)
         gpu=capture.Gpu(folder/'baseline_reset_preprocess',baseline,gpu_exe)
-        try:a=normalized_preprocessing(cap,gpu,floor,bleed,args.reset_frame,a)
+        try:a=normalized_preprocessing(cap,gpu,floor,bleed,args.reset_frame,a,floor_steps=args.floor_steps)
         finally:gpu.close()
         gpu=capture.Gpu(folder/'candidate_preprocess',candidate,gpu_exe)
-        try:b=normalized_preprocessing(cap,gpu,floor,bleed,args.reset_frame)
+        try:b=normalized_preprocessing(cap,gpu,floor,bleed,args.reset_frame,floor_steps=args.floor_steps)
         finally:gpu.close()
         np.savez_compressed(folder/'baseline_packed.npz',**a)
         np.savez_compressed(folder/'candidate_packed.npz',**b)
@@ -198,10 +201,14 @@ def main():
             metrics[label]=capture.measure(cap,packed,image,trust,args.reset_frame)
             metrics[label]['composition_history']=dict(enabled=floor,write_history=floor,successful_frame_commit=True,
                 invalidated_frames=rr['metadata']['reset_frames'])
-            metrics[label]['composition_profile']=capture.composition_profile(floor)
+            metrics[label]['composition_profile']=capture.composition_profile(floor,floor_steps=args.floor_steps)
+            metrics[label]['floor_producer']=capture.floor_producer_profile(floor,args.floor_steps)
             (folder/(label+'_metrics.json')).write_text(json.dumps(metrics[label],indent=2)+'\n')
         result=dict(native_inputs_identical=same_inputs,protocol=protocol,frames_per_segment=frames,
-                    captured_sequence_repeated_for_comparison=(rr_a is not rr_b),metrics=metrics)
+                    captured_sequence_repeated_for_comparison=(rr_a is not rr_b),metrics=metrics,
+                    floor_producer=capture.floor_producer_profile(floor,args.floor_steps),
+                    reset_preprocessing=dict(frames=sorted({0,*args.reset_frame,*[i for i,f in enumerate(cap['frame_metadata']) if f['reset']]}),
+                        floor_producer=capture.floor_producer_profile(floor,args.floor_steps)))
         result['packed_artifacts']={label:dict(path=str(folder/(label+'_packed.npz')),
             sha256=capture.digest(folder/(label+'_packed.npz'))) for label in ('baseline','candidate')}
         result['native_metadata']=rr_a['metadata']
