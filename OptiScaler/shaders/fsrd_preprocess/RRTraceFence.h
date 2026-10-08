@@ -124,6 +124,32 @@ inline Registry& GetRegistry()
     static auto* registry = new Registry;
     return *registry;
 }
+// Freeze completed readback bytes before a still-executable list can submit
+// again. BeforeSubmission holds this same registry gate BEFORE the original
+// ExecuteCommandLists call; any earlier intent is visible in the ticket state.
+// The copier receives immutable proof from this exact critical section. It
+// must only Map/memcpy/Unmap into preallocated CPU storage: no allocation,
+// hashing, disk I/O, GPU waits, or calls back into this registry/ticket.
+// Reset/release ownership remains unchanged, even after a successful copy.
+template<class Copier>
+inline bool WithCompletedSnapshot(const std::shared_ptr<Ticket>& ticket, Copier&& copier)
+{
+    if (!ticket) return false;
+    auto& registry = GetRegistry();
+    std::scoped_lock registryLock(registry.mutex);
+    if (std::find(registry.tickets.begin(), registry.tickets.end(), ticket) == registry.tickets.end())
+        return false;
+    std::scoped_lock ticketLock(ticket->mutex);
+    ticket->completion = ticket->fence->GetCompletedValue();
+    if (FAILED(ticket->signalResult) || !ticket->state.CanSnapshot(ticket->completion))
+        return false;
+    const Snapshot proof {ticket->state,
+        std::uint64_t(reinterpret_cast<uintptr_t>(ticket->identity.Get())), ticket->generation,
+        std::uint64_t(reinterpret_cast<uintptr_t>(ticket->queue.Get())), ticket->completion,
+        ticket->signalResult};
+    copier(proof);
+    return true;
+}
 inline void ReapLocked(Registry& r)
 {
     std::erase_if(r.tickets, [](const auto& t) {
@@ -162,6 +188,53 @@ struct Submission
     std::shared_ptr<Ticket> ticket;
     std::uint64_t value;
 };
+// The appender is separate so the allocation-failure path can be exercised
+// deterministically. It must not call back into registry/ticket operations.
+template<class Appender>
+inline void RecordSubmissionIntents(ID3D12CommandQueue* queue, UINT count,
+                                   ID3D12CommandList* const* lists, Appender&& append) noexcept
+{
+    try
+    {
+        if (!queue || !lists) return;
+        auto& r = GetRegistry();
+        std::scoped_lock lock(r.mutex);
+        ReapLocked(r);
+        if (r.tickets.empty()) return;
+        for (UINT i = 0; i < count; ++i)
+        {
+            if (!lists[i]) continue;
+            ComPtr<IUnknown> identity;
+            if (FAILED(lists[i]->QueryInterface(IID_PPV_ARGS(&identity))) || !identity)
+                throw std::runtime_error("RRTrace submission identity unavailable");
+            for (auto& t : r.tickets)
+            {
+                std::scoped_lock ticketLock(t->mutex);
+                if (t->identity.Get() != identity.Get() || !t->state.Submit()) continue;
+                t->queue = queue;
+                append(Submission {t,t->state.expected});
+            }
+        }
+    }
+    catch (...)
+    {
+        // The original ExecuteCommandLists still runs. Failure may occur before
+        // a later batch member was visited, so quarantine every executable
+        // recording, not just the ticket whose vector append failed. Merely
+        // setting invalid would still let Reset + an OLD fence release storage.
+        try
+        {
+            auto& r = GetRegistry();
+            std::scoped_lock lock(r.mutex);
+            for (auto& ticket : r.tickets)
+            {
+                std::scoped_lock ticketLock(ticket->mutex);
+                if (!ticket->state.detached) ticket->state.UntrackedSubmission();
+            }
+        }
+        catch (...) { /* Synchronization failure cannot be recovered here. */ }
+    }
+}
 // Register submission intent BEFORE the original call. Otherwise a legal Reset
 // from another thread could be observed between ExecuteCommandLists returning
 // and the post-call fence, and falsely classify submitted work as discarded.
@@ -169,28 +242,9 @@ inline std::vector<Submission> BeforeSubmission(
     ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* lists) noexcept
 {
     std::vector<Submission> submissions;
-    try
-    {
-        if (!queue || !lists) return submissions;
-        auto& r = GetRegistry();
-        std::scoped_lock lock(r.mutex);
-        ReapLocked(r);
-        if (r.tickets.empty()) return submissions;
-        for (UINT i = 0; i < count; ++i)
-        {
-            if (!lists[i]) continue;
-            ComPtr<IUnknown> identity;
-            if (FAILED(lists[i]->QueryInterface(IID_PPV_ARGS(&identity)))) continue;
-            for (auto& t : r.tickets)
-            {
-                std::scoped_lock ticketLock(t->mutex);
-                if (t->identity.Get() != identity.Get() || !t->state.Submit()) continue;
-                t->queue = queue;
-                submissions.push_back({t,t->state.expected});
-            }
-        }
-    }
-    catch (...) { /* An unpaired intent cannot export or release its retained resources. */ }
+    RecordSubmissionIntents(queue,count,lists,[&](const Submission& submission) {
+        submissions.push_back(submission);
+    });
     return submissions;
 }
 // This call is AFTER the original ExecuteCommandLists on the same actual queue.

@@ -9,6 +9,8 @@
 #include <iostream>
 #include <cstring>
 #include <stdexcept>
+#include <future>
+#include <chrono>
 #include "../../fsrd_preprocess/RRTraceFence.h"
 #include "../../fsrd_preprocess/RRTraceAdditiveIO.h"
 using Microsoft::WRL::ComPtr;
@@ -122,10 +124,141 @@ int main() try
     RRTraceFence::ResetSucceeded(list.Get());
     need(discarded->Invalid() && !discarded->Ready() && discarded->Releasable(),"discard not published");
     RRTraceFence::Forget(discarded);
+
+    // A completed recording can remain closed forever. Freeze its CPU bytes
+    // under the submission gate without claiming Reset or releasing storage.
+    auto frozenReadback=buffer(D3D12_HEAP_TYPE_READBACK,D3D12_RESOURCE_STATE_COPY_DEST);
+    auto frozenTicket=RRTraceFence::Arm(device.Get(),list.Get());
+    frozenTicket->Retain(upload.Get());frozenTicket->Retain(frozenReadback.Get());
+    list->CopyBufferRegion(frozenReadback.Get(),0,upload.Get(),0,64);
+    hr(list->Close(),"close snapshot");frozenTicket->Recorded();
+    unsigned callbacks=0;
+    need(!RRTraceFence::WithCompletedSnapshot(frozenTicket,[&](const auto&) { ++callbacks; }),
+        "unsubmitted snapshot rejected");
+    auto frozenSignals=RRTraceFence::BeforeSubmission(queue.Get(),1,submitted);
+    queue->ExecuteCommandLists(1,submitted);
+    need(!RRTraceFence::WithCompletedSnapshot(frozenTicket,[&](const auto&) { ++callbacks; }),
+        "snapshot before successful post-submit signal rejected");
+    RRTraceFence::AfterSubmission(queue.Get(),frozenSignals);
+    const auto awaitFence=[&](UINT64 value) {
+        HANDLE done=CreateEvent(nullptr,FALSE,FALSE,nullptr);need(done!=nullptr,"snapshot event");
+        hr(frozenTicket->fence->SetEventOnCompletion(value,done),"snapshot fence event");
+        const auto result=WaitForSingleObject(done,10000);CloseHandle(done);
+        need(result==WAIT_OBJECT_0,"snapshot GPU timeout");
+    };
+    awaitFence(1);
+    need(!frozenTicket->Ready()&&!frozenTicket->Releasable(),
+        "completed executable recording is still retained");
+    std::array<unsigned,16> laterPattern=pattern,immutable {};
+    for(auto& word:laterPattern) word^=0x00ff00ffu;
+    hr(upload->Map(0,&empty,&data),"next submission upload");
+    memcpy(data,laterPattern.data(),64);upload->Unmap(0,nullptr);
+
+    // Deliberately force a concurrent submission attempt while the copier
+    // owns the gate. Only this test waits inside the callback to establish
+    // the race; production callbacks only copy into preallocated storage.
+    HANDLE attempt=CreateEvent(nullptr,TRUE,FALSE,nullptr);
+    HANDLE attempting=CreateEvent(nullptr,TRUE,FALSE,nullptr);
+    need(attempt&&attempting,"submission race events");
+    auto repeat=std::async(std::launch::async,[&] {
+        need(WaitForSingleObject(attempt,10000)==WAIT_OBJECT_0,"race attempt timeout");
+        SetEvent(attempting);
+        auto repeatedSignals=RRTraceFence::BeforeSubmission(queue.Get(),1,submitted);
+        queue->ExecuteCommandLists(1,submitted);
+        RRTraceFence::AfterSubmission(queue.Get(),repeatedSignals);
+    });
+    struct Unblock { HANDLE event;~Unblock(){if(event)SetEvent(event);} } unblock {attempt};
+    RRTraceFence::Snapshot frozenProof {};
+    const bool copied=RRTraceFence::WithCompletedSnapshot(frozenTicket,[&](const auto& proof) {
+        ++callbacks;frozenProof=proof;
+        SetEvent(attempt);
+        need(WaitForSingleObject(attempting,10000)==WAIT_OBJECT_0,"concurrent intent started");
+        need(repeat.wait_for(std::chrono::milliseconds(25))==std::future_status::timeout,
+            "submission must not pass the held snapshot gate");
+        void* bytes=nullptr;hr(frozenReadback->Map(0,&range,&bytes),"guarded CPU snapshot map");
+        memcpy(immutable.data(),bytes,64);frozenReadback->Unmap(0,&empty);
+    });
+    SetEvent(attempt);repeat.get();
+    // Disarm the exception cleanup before closing its event.
+    unblock.event=nullptr;CloseHandle(attempt);CloseHandle(attempting);
+    need(copied&&callbacks==1,"only one eligible snapshot callback ran");
+    need(immutable==pattern&&!frozenProof.state.detached&&frozenProof.state.expected==1&&
+        frozenProof.completed>=1&&!frozenProof.state.invalid,"immutable original submission and truthful proof");
+    awaitFence(2);
+    hr(frozenReadback->Map(0,&range,&data),"readback after actual repeated execution");
+    const bool overwritten=memcmp(data,laterPattern.data(),64)==0;
+    frozenReadback->Unmap(0,&empty);
+    need(overwritten&&immutable==pattern,"later GPU overwrite cannot change frozen CPU payload");
+    need(frozenTicket->Invalid()&&!frozenTicket->Releasable(),"repeated submission quarantines GPU resources");
+    need(!RRTraceFence::WithCompletedSnapshot(frozenTicket,[&](const auto&) { ++callbacks; })&&callbacks==1,
+        "ambiguous later submission cannot publish another snapshot");
+    hr(list->Reset(allocator.Get(),nullptr),"reset after repeated submission");
+    RRTraceFence::ResetSucceeded(list.Get());
+    need(!frozenTicket->Releasable(),"CPU snapshot never bypasses ambiguous-submission quarantine");
     hr(list->Close(),"final close");
+
+    // Allocation failure in A's intent append must quarantine the still
+    // unvisited B before the original multi-list batch executes. In particular,
+    // B's old completed fence plus an immediate Reset cannot free its storage.
+    std::array<ComPtr<ID3D12CommandAllocator>,2> batchAllocators;
+    std::array<ComPtr<ID3D12GraphicsCommandList>,2> batchLists;
+    std::array<ComPtr<ID3D12Resource>,2> batchReadbacks;
+    std::array<std::shared_ptr<RRTraceFence::Ticket>,2> batchTickets;
+    ID3D12CommandList* batch[2] {};
+    for(unsigned i=0;i<2;++i)
+    {
+        hr(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+            IID_PPV_ARGS(&batchAllocators[i])),"batch allocator");
+        hr(device->CreateCommandList(0,D3D12_COMMAND_LIST_TYPE_DIRECT,batchAllocators[i].Get(),
+            nullptr,IID_PPV_ARGS(&batchLists[i])),"batch list");
+        batchReadbacks[i]=buffer(D3D12_HEAP_TYPE_READBACK,D3D12_RESOURCE_STATE_COPY_DEST);
+        batchTickets[i]=RRTraceFence::Arm(device.Get(),batchLists[i].Get());
+        batchTickets[i]->Retain(upload.Get());batchTickets[i]->Retain(batchReadbacks[i].Get());
+        batchLists[i]->CopyBufferRegion(batchReadbacks[i].Get(),0,upload.Get(),0,64);
+        hr(batchLists[i]->Close(),"close batch");batchTickets[i]->Recorded();batch[i]=batchLists[i].Get();
+    }
+    auto batchSignals=RRTraceFence::BeforeSubmission(queue.Get(),2,batch);
+    queue->ExecuteCommandLists(2,batch);RRTraceFence::AfterSubmission(queue.Get(),batchSignals);
+    ComPtr<ID3D12Fence> progress,hold;
+    hr(device->CreateFence(0,D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&progress)),"batch progress fence");
+    hr(device->CreateFence(0,D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&hold)),"batch hold fence");
+    const auto awaitProgress=[&](UINT64 value) {
+        HANDLE done=CreateEvent(nullptr,FALSE,FALSE,nullptr);need(done!=nullptr,"batch event");
+        hr(progress->SetEventOnCompletion(value,done),"batch progress event");
+        const auto result=WaitForSingleObject(done,10000);CloseHandle(done);
+        need(result==WAIT_OBJECT_0,"batch GPU timeout");
+    };
+    hr(queue->Signal(progress.Get(),1),"batch completion");awaitProgress(1);
+    for(auto& t:batchTickets)
+        need(RRTraceFence::WithCompletedSnapshot(t,[](const auto&) {}),"initial batch snapshot is eligible");
+    unsigned failedAppends=0;
+    RRTraceFence::RecordSubmissionIntents(queue.Get(),2,batch,[&](const auto&) {
+        ++failedAppends;throw std::bad_alloc();
+    });
+    const auto unvisitedProof=RRTraceFence::Inspect(batchTickets[1]);
+    need(failedAppends==1&&unvisitedProof.state.expected==1&&unvisitedProof.state.pendingSignals==0&&
+        unvisitedProof.state.ambiguousSubmission,"unvisited batch member quarantined on append allocation failure");
+    hr(queue->Wait(hold.Get(),1),"hold untracked batch on GPU");
+    queue->ExecuteCommandLists(2,batch);
+    for(unsigned i=0;i<2;++i)
+    {
+        hr(batchLists[i]->Reset(batchAllocators[i].Get(),nullptr),"immediate untracked batch Reset");
+        RRTraceFence::ResetSucceeded(batchLists[i].Get());
+        need(!RRTraceFence::WithCompletedSnapshot(batchTickets[i],[&](const auto&) { ++callbacks; })&&
+            !batchTickets[i]->Releasable(),"old completed fence cannot publish or release untracked GPU work");
+        hr(batchLists[i]->Close(),"close reset batch");
+    }
+    hr(queue->Signal(progress.Get(),2),"untracked batch completion");
+    hr(hold->Signal(1),"release held GPU batch");awaitProgress(2);
+    for(unsigned i=0;i<2;++i)
+    {
+        hr(batchReadbacks[i]->Map(0,&range,&data),"untracked batch readback after independent fence");
+        const bool valid=memcmp(data,laterPattern.data(),64)==0;batchReadbacks[i]->Unmap(0,&empty);
+        need(valid&&!batchTickets[i]->Releasable(),"actual untracked execution completes with storage quarantined");
+    }
     need(info->GetNumStoredMessages()==0,"D3D12 debug layer must remain clean");
     need(RRTraceAdditiveIO::FloatArray(std::array<float,2>{.5f,-.25f})=="[0.5,-0.25]","finite metadata serialization");
-    std::cout<<"PASS native queue-fence/reset and paired FP16 ROI/state/nonmutation smoke; no injected hooks or AMD model tested\n";
+    std::cout<<"PASS native queue-fence/reset, paired FP16 ROI/state, immutable snapshot with concurrent resubmission, and allocation-failed multi-list intent quarantine; no injected hooks or AMD model tested\n";
     return 0;
 }
 catch (const std::exception& error) { std::cerr<<"FAIL "<<error.what()<<'\n';return 1; }

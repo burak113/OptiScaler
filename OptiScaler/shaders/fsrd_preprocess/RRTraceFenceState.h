@@ -35,6 +35,14 @@ struct State
         else invalid = true;
         if (!success) signalFailed = true;
     }
+    void UntrackedSubmission()
+    {
+        // The original queue call will still execute after an observer failure.
+        // An old completed fence cannot prove the lifetime of that unknown work.
+        invalid = true;
+        ambiguousSubmission = true;
+        submitted = true;
+    }
     void ResetSucceeded()
     {
         if (!submitted) invalid = true; // Recorded commands were discarded.
@@ -52,6 +60,15 @@ struct State
     bool Ready(std::uint64_t completed) const
     {
         return CanWait() &&
+               completed != UINT64_MAX && completed >= expected;
+    }
+    // Only for a CPU copy protected by the submission registry gate. That
+    // gate prevents a new ExecuteCommandLists intent while the bytes are
+    // copied. It does not detach the recording or permit resource release.
+    bool CanSnapshot(std::uint64_t completed) const
+    {
+        return recorded && submitted && expected == 1 && pendingSignals == 0 &&
+               !invalid && !ambiguousSubmission && !signalFailed &&
                completed != UINT64_MAX && completed >= expected;
     }
     bool CanRelease(std::uint64_t completed) const

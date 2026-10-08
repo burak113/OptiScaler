@@ -29,6 +29,28 @@ int main() try
     check(!failed.Ready(2)&&!failed.CanRelease(2),"Failed Signal cannot be replaced by a token");
     State incomplete; incomplete.Submit(); incomplete.SignalEnqueued(true); incomplete.ResetSucceeded();
     check(!incomplete.Ready(1)&&incomplete.CanRelease(1),"Incomplete recording may retire, never publish");
+    State snapshot; snapshot.recorded=true;
+    check(!snapshot.CanSnapshot(100),"Snapshot requires an actual submission");
+    snapshot.Submit();
+    check(!snapshot.CanSnapshot(1),"Snapshot cannot race a pending post-submit signal");
+    snapshot.SignalEnqueued(true);
+    check(!snapshot.CanSnapshot(0)&&snapshot.CanSnapshot(1),"Guarded snapshot requires completed fence");
+    check(!snapshot.Ready(1)&&!snapshot.CanWait()&&!snapshot.CanRelease(1),
+        "Guarded snapshot never invents detach or releases an executable recording");
+    check(!snapshot.CanSnapshot(UINT64_MAX),"Snapshot rejects device removal");
+    check(!discarded.CanSnapshot(100)&&!failed.CanSnapshot(100)&&!incomplete.CanSnapshot(100),
+        "Snapshot rejects discarded, failed and incomplete recordings");
+    snapshot.Submit(); snapshot.SignalEnqueued(true);
+    check(!snapshot.CanSnapshot(2),"Later resubmission forbids a second snapshot");
+    snapshot.ResetSucceeded();
+    check(!snapshot.CanRelease(2),"Snapshot never relaxes ambiguous-submission quarantine");
+    State unvisited; unvisited.recorded=true; unvisited.Submit(); unvisited.SignalEnqueued(true);
+    unvisited.UntrackedSubmission(); unvisited.ResetSucceeded();
+    check(!unvisited.CanSnapshot(1)&&!unvisited.CanRelease(1),
+        "Observer failure quarantines unvisited resubmission despite old completed fence and Reset");
+    State unseen; unseen.recorded=true; unseen.UntrackedSubmission(); unseen.ResetSucceeded();
+    check(!unseen.CanSnapshot(100)&&!unseen.CanRelease(100),
+        "Observer failure cannot classify an unseen execution as an unsubmitted discard");
     std::cout<<"PASS "<<checks<<" fence lifecycle checks\n";
     return 0;
 }
