@@ -893,24 +893,36 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         isZeroRoughness == 0.0f && biasWeight == 0.0f && isEmissive == 0.0f &&
         !modelRouted && all(isfinite(floorModel)) && all(isfinite(materialSlope)) &&
         all(isfinite(detailReference)) &&
-        !IsSet(FLAGS_UNSUPPORTED_ALBEDO) &&
         !IsSet(FLAGS_HALF_DIFFUSE) && !IsSet(FLAGS_HALF_SPECULAR) &&
         specularStrength == 1.0f && diffuseStrength == 1.0f &&
         ValidSurfaceAlbedos(inputSpecReflectance, inputDiffAlbedo) &&
         all(albedoOvershoot == 0.0f) && floorModel.a >= 0.5f;
-    // The spatially filtered material model already carries its complete colour.
-    // Feeding the seed's independent residual noise back into that estimate would
-    // create a second, clipped noisy component. Use the same current-frame source
-    // for its pedestal and residual, with uncertainty measured against the robust
-    // reference rather than the noise-correlated raw luminance.
     const float planeConfidence = FloorPlaneConfidence(floorModel);
-    const float modelSourceWeight = ordinaryNoiseModel && (any(materialSlope > 0.0f) || planeConfidence > 0.0f) && detailReference.a >= 0.0f
-        ? smoothstep(0.005f, 0.025f, detailReference.a /
-            max(GetLuminance(FloorRadiance(detailReference.rgb)), 1e-5f)) : 0.0f;
-    // One decision for all channels: a model explaining only some channels would
-    // send noise to RR in the others alone, which RR returns as coloured grain.
-    const float3 sourceWeight = modelSourceWeight *
-        max(all(materialSlope > 0.0f) ? 1.0f : 0.0f, planeConfidence);
+    const float relativeModelNoise = max(detailReference.a, 0.0f) /
+        max(GetLuminance(spatialFloor), 1e-5f);
+    // Reserve an albedo-proportional baseline from the already authorized Floor.
+    // Above the noise plateau there is no direct sigma dependence or second
+    // authority multiplier. Filtered Floor RGB and eligibility still depend on
+    // material/plane authority. The quiet transition depends on measured noise;
+    // this scalar reserve does not cover a fixed number of sigmas per RGB channel
+    // or guarantee removal of clipping. Floor alpha retains the original local
+    // IQR uncertainty; the carrier's noise gate reads reference alpha.
+    const float modelNoisePlateau = smoothstep(0.005f, 0.025f, relativeModelNoise);
+    const bool modelHeadroomEligible = ordinaryNoiseModel && detailReference.a >= 0.0f &&
+        !FloorCoherentLighting(floorModel) && !FloorLocalLightingProjection(floorModel);
+    // Use the stored guide domain consumed by RR and composition. Floor has
+    // already applied material and plane authority; there is no second authority
+    // multiplier and residual radiance still comes only from the current raw sample.
+    const float3 carrierAlbedo = splitSpecWeight + splitDiffWeight;
+    // The common RGB budget retains at least three quarters of every channel.
+    // A nearly dark Floor channel can constrain the entire reserve, including
+    // zero. Exact zero guides receive no reserve, but a matching zero Floor
+    // channel can still collapse this common budget.
+    const float3 carrierBudget = spatialFloor / max(carrierAlbedo, 1e-5f);
+    const float carrierIrradiance = 0.25f * modelNoisePlateau *
+        min(carrierBudget.r, min(carrierBudget.g, carrierBudget.b));
+    const float3 carrierReserve = carrierIrradiance * carrierAlbedo;
+    spatialFloor -= modelHeadroomEligible ? carrierReserve : 0.0f;
     // Two coherent colour directions and a quiet third direction certify only
     // current raw lighting on a supported surface. The marker transports no
     // colour and never changes the cleaned reference used by signal selection.
@@ -921,8 +933,8 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         !IsSet(FLAGS_UNSUPPORTED_ALBEDO) && !IsSet(FLAGS_HALF_DIFFUSE) && !IsSet(FLAGS_HALF_SPECULAR) &&
         specularStrength==1.0f && diffuseStrength==1.0f &&
         ValidSurfaceAlbedos(inputSpecReflectance,inputDiffAlbedo) && all(albedoOvershoot==0.0f);
-    // Keep the original RR signal and its history while final colour is protected.
-    const float3 residualSource = lerp(rawColor, spatialFloor, sourceWeight);
+    // Residuals always derive from the current noisy sample; no fitted-source substitution.
+    const float3 residualSource = rawColor;
     float3 floorExcess = max(spatialFloor - residualSource, 0.0f);
     // Route the mask independently: scaling both terms preserves the identity even
     // when the spatial estimate crosses above raw. No detail may touch routed content.
@@ -931,7 +943,8 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     // Truncating noisy negative residuals has a positive expectation. The flat
     // material's sigma has been spatially averaged with Floor; remove its small
     // expected excess without resampling current negative grain into Skip.
-    if (ordinaryNoiseModel && detailReference.a >= 0.0f && planeConfidence == 0.0f && !any(materialSlope > 0.0f))
+    if (ordinaryNoiseModel && !IsSet(FLAGS_UNSUPPORTED_ALBEDO) && detailReference.a >= 0.0f &&
+        planeConfidence == 0.0f && !any(materialSlope > 0.0f))
     {
         const float clippingBias = 0.15f * FloorClippingNoiseRatio(floorModel) * GetLuminance(floorColor.rgb);
         floorColor.rgb = max(floorColor.rgb - min(clippingBias, 0.05f * floorColor.rgb), 0.0f);
