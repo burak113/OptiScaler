@@ -36,6 +36,7 @@ NATIVE_NOISE_REPEATS = 3  # fixed protocol, all runs reported/scored; never retr
 WIDTH, HEIGHT = 97, 73  # odd extents exercise dispatch tails too
 NOISE_SEEDS = (902711, 163819, 770231, 461417, 293651, 611953,
                809321, 457207, 691133, 152989, 283903, 557017)
+COMPOSITION_PROFILES = {'legacy_floor_only': (1, 0), 'production_default': (3, 2)}
 
 # These numerical requirements are deliberately independent of baseline quality.
 # They must not be relaxed to make a candidate pass.
@@ -87,6 +88,11 @@ def fixture(name, exposure=1.0):
     elif name == 'checker':
         checker = ((x.astype(int)//3+y.astype(int)//3) % 2)*2-1
         rgb = .46 + checker[..., None]*np.array([.14, .11, .08], np.float32)
+    elif name == 'monochromatic_beam':
+        # One channel varies, so a two-colour coherent-lighting certificate is
+        # unavailable. This known clean beam tests the ordinary residual path.
+        rgb = np.broadcast_to([.08, .10, .12], (HEIGHT, WIDTH, 3)).copy()
+        rgb[..., 0] += .40 * np.exp(-(.8*(2*nx-1) + .6*(2*ny-1))**2 / .025)
     elif name in ('woven', 'illumination_texture', 'oblique', 'depth_discontinuity'):
         rgb = np.stack([.46+.09*np.sin(1.14*x+.17*y+phase)
                         +.06*np.cos(.93*y-.21*x-phase)
@@ -130,7 +136,7 @@ def fixture(name, exposure=1.0):
                 roughness=np.full((HEIGHT, WIDTH), .55, np.float32), regions=regions)
 
 
-def seed_and_pack(raw, scene, directory):
+def seed_and_pack(raw, scene, directory, composition_profile='production_default'):
     directory = Path(directory).resolve()
     h, w = raw.shape[:2]
     values = dict(InvProjMatrix=np.eye(4).ravel(), RenderSize=[w, h, 1/w, 1/h],
@@ -150,19 +156,23 @@ def seed_and_pack(raw, scene, directory):
     # Explicit controls are identical for current and frozen shader directories.
     cb = conversion_cb(w, h, floor=True, indirect=True, FarPlane=1000,
                        SpecularAlbedoDemodulation=1, DiffuseAlbedoModulation=1,
-                       RecoveryMask=1, BiasMaskStrength=1, AdditiveLightSplit=0)
+                       RecoveryMask=COMPOSITION_PROFILES[composition_profile][0],
+                       BiasMaskStrength=1, AdditiveLightSplit=0)
     packed = t.dispatch('FSRDInputConv', cb,
         [raw, linear, zero, scene['normals'], scene['roughness'], scene['depth'],
          scene['diffuse_albedo'], scene['specular_albedo'], zero, floor, zero, zero,
          zero, zero, scene['depth'], zero, reference],
         [10, 10, 10, 24, 28, 28, 10, 10], (w, h), directory=directory)
-    return dict(seed=seeded, floor=floor, linear=linear, reference=reference, packed=packed)
+    return dict(seed=seeded, floor=floor, linear=linear, reference=reference, packed=packed,
+                composition_profile=composition_profile)
 
 
 def compose(chain, directory, specular, diffuse):
     packed = chain['packed']; h, w = packed[0].shape[:2]
+    recovery_mask, spatial_mask = COMPOSITION_PROFILES[chain.get('composition_profile', 'production_default')]
     cb = dict(DstTexSize=[w, h, 1/w, 1/h], Flags=1 << 3, DetailPreservation=1,
-              SpecularAlbedoDemodulation=1, DiffuseAlbedoModulation=1, RecoveryMask=1,
+              SpecularAlbedoDemodulation=1, DiffuseAlbedoModulation=1,
+              RecoveryMask=recovery_mask, SpatialTemporalMask=spatial_mask,
               FloorHandoverAnchorClamp=4, FloorHandoverCorrelationMix=1,
               LumaRecovery=1, ChromaRecovery=1, WriteHistory=0)
     return t.dispatch('FSRDOutputComp', cb,
@@ -266,9 +276,18 @@ def snapshot_shaders(source, destination):
 
 def routing_metrics(chain, scene, mask):
     packed = chain['packed']; skip = packed[6][..., :3][mask]
+    recovery_mask, spatial_mask = COMPOSITION_PROFILES[chain.get('composition_profile', 'production_default')]
+    selected_flat = ((recovery_mask & 1) != 0) & (abs(packed[3][..., 3]-1/3) < .1)
+    valid = np.any(packed[4][..., :3]+packed[5][..., :3] > 1e-4, axis=-1)
+    specular = ((recovery_mask & 2) != 0) & ~selected_flat & valid & np.any(packed[4][..., :3] > 0, axis=-1)
+    diffuse = ((recovery_mask & 4) != 0) & ~selected_flat & valid & np.any(packed[5][..., :3] > 0, axis=-1)
     return dict(skip_signal_percent=100*float(np.sqrt(np.mean(skip*skip)))/
                 float(np.sqrt(np.mean(scene['truth'][..., :3][mask]**2))),
-                ordinary_surface_percent=100*float(np.mean(packed[3][..., 3][mask] == 0)))
+                ordinary_surface_percent=100*float(np.mean(packed[3][..., 3][mask] == 0)),
+                recovery_mask=recovery_mask, spatial_temporal_mask=spatial_mask,
+                eligible_flat_pixels=int(np.sum(selected_flat & mask)),
+                eligible_specular_pixels=int(np.sum(specular & mask)),
+                eligible_diffuse_pixels=int(np.sum(diffuse & mask)))
 
 
 def replay_actual(chains, evidence):
@@ -293,14 +312,17 @@ def replay_actual(chains, evidence):
     return rr
 
 
-def run_directory(directory, evidence, actual=True, exposures=(.1, 1.0, 8.0), cases=None):
+def run_directory(directory, evidence, actual=True, exposures=(.1, 1.0, 8.0), cases=None,
+                  composition_profile='production_default'):
     directory = Path(directory).resolve(); evidence.mkdir(parents=True, exist_ok=True)
+    if composition_profile not in COMPOSITION_PROFILES:
+        raise ValueError(f'Unknown composition profile: {composition_profile}')
     records = []
     for name in cases or ('stripes', 'checker', 'woven', 'albedo_texture', 'illumination_texture',
-                         'oblique', 'depth_discontinuity'):
+                         'monochromatic_beam', 'oblique', 'depth_discontinuity'):
         for exposure in exposures:
             scene = fixture(name, exposure)
-            chain = seed_and_pack(scene['truth'], scene, directory)
+            chain = seed_and_pack(scene['truth'], scene, directory, composition_profile)
             packed = chain['packed']
             outputs = {
                 'identity_rr_control': compose(chain, directory, packed[0], packed[1]),
@@ -317,7 +339,7 @@ def run_directory(directory, evidence, actual=True, exposures=(.1, 1.0, 8.0), ca
                     records.append(dict(case=name, exposure=exposure, region=region, stage='FLOOR_ONLY_DIAGNOSTIC',
                                         rr_model='none', output=label, **metrics(image, scene['truth'], mask)))
                 records.append(dict(case=name, exposure=exposure, region=region, stage='ROUTING_DIAGNOSTIC',
-                                    expected_ordinary=name != 'illumination_texture',
+                                    expected_ordinary=name not in ('illumination_texture', 'monochromatic_beam'),
                                     **routing_metrics(chain, scene, mask)))
             if exposure == 1:
                 np.savez_compressed(evidence/(name+'.npz'), truth=scene['truth'], floor=chain['floor'],
@@ -332,7 +354,7 @@ def run_directory(directory, evidence, actual=True, exposures=(.1, 1.0, 8.0), ca
             # catches luminance-only filters that leave chromatic flicker untouched.
             noise = rng.normal(0, .032, (HEIGHT, WIDTH, 1)) + rng.normal(0, .022, (HEIGHT, WIDTH, 3))
             raw[..., :3] = np.maximum(raw[..., :3]+noise.astype(np.float32), 0)
-            chain = seed_and_pack(raw, scene, directory)
+            chain = seed_and_pack(raw, scene, directory, composition_profile)
             chains.append(chain); raw_frames.append(raw)
             records.append(dict(case=name, frame=frame, seed=seed, exposure=1, region='interior',
                                 stage='ROUTING_DIAGNOSTIC', expected_ordinary=True,
@@ -390,11 +412,13 @@ def run_directory(directory, evidence, actual=True, exposures=(.1, 1.0, 8.0), ca
                             floor=np.stack([c['floor'] for c in chains]),
                             **{key[0]+('' if key[1] is None else f'_repeat{key[1]}'): np.stack(value)
                                for key,value in models.items()})
+    for row in records:
+        row['composition_profile'] = composition_profile
     return records
 
 
 def record_key(row):
-    return tuple(row.get(k) for k in ('case', 'exposure', 'region', 'stage', 'rr_model', 'frame', 'output', 'repeat'))
+    return tuple(row.get(k) for k in ('case', 'exposure', 'region', 'stage', 'rr_model', 'frame', 'output', 'repeat', 'composition_profile'))
 
 
 def evaluate(records, baseline):
@@ -490,6 +514,7 @@ def main():
     parser.add_argument('--measure', action='store_true', help='Report quality failures without accepting this build')
     parser.add_argument('--synthetic-only', action='store_true', help='Measurement-only synthetic diagnostics; actual RR unavailable is never acceptance')
     parser.add_argument('--quick', action='store_true', help='Measurement-only small primary subset at exposure 1')
+    parser.add_argument('--composition-profile', choices=tuple(COMPOSITION_PROFILES), default='production_default')
     args = parser.parse_args()
     args.output = args.output.resolve(); args.output.mkdir(parents=True, exist_ok=True)
     args.shader_dir = args.shader_dir.resolve()
@@ -512,10 +537,12 @@ def main():
         args.baseline_dir = Path(baseline_snapshot['snapshot_directory'])
         baseline = run_directory(args.baseline_dir, args.output/'baseline_evidence', actual=not args.synthetic_only,
                                  exposures=(1,) if args.quick else (.1,1,8),
-                                 cases=('albedo_texture', 'depth_discontinuity') if args.quick else None)
+                                 cases=('albedo_texture', 'depth_discontinuity') if args.quick else None,
+                                 composition_profile=args.composition_profile)
     records = run_directory(args.shader_dir, args.output/'candidate_evidence', actual=not args.synthetic_only,
                             exposures=(1,) if args.quick else (.1,1,8),
-                            cases=('albedo_texture', 'depth_discontinuity') if args.quick else None)
+                            cases=('albedo_texture', 'depth_discontinuity') if args.quick else None,
+                            composition_profile=args.composition_profile)
     checks = evaluate(records, baseline)
     for snapshot in (candidate_snapshot, baseline_snapshot):
         if snapshot is not None:
@@ -541,6 +568,9 @@ def main():
                                 floor_steps=list(FLOOR_STEPS), roughness=.55, noise_common_sigma=.032,
                                 noise_independent_rgb_sigma=.022, spatial_rr_blur_passes=2),
                   scoring_protocol=dict(clean_static_frame=11, noise_warmup_frames=list(range(6)),
+                                        composition_profile=args.composition_profile,
+                                        composition_masks=list(COMPOSITION_PROFILES[args.composition_profile]),
+                                        composition_history='stateless WriteHistory=0, no history SRVs; native RR history is actual',
                                         noise_scored_frames=list(range(6,12)), native_runs_per_input=dict(clean=1, noise=NATIVE_NOISE_REPEATS),
                                         automatic_retries=0, synthetic_temporal='offline leave-one-out frame average',
                                         camera_contract='identity view and matched perspective P00=P11=.5 reproduce source identity-InvProj linear-depth rescaled rays',
