@@ -14,6 +14,7 @@
 #include "hooks/Streamline_Hooks.h"
 #include "resource_tracking/ResTrack_Dx12.h"
 #include "FSRDFeature_Dx12.h"
+#include "FSRDFullContextReference_Dx12.h"
 #include "FSRDResultClassification.h"
 #include "FSRInputAlignment.h"
 #include "FSRDCameraMatrices.h"
@@ -2235,6 +2236,7 @@ bool FSRDFeatureDx12::EncodeSRDepth(ID3D12GraphicsCommandList* InCommandList, ff
 void FSRDFeatureDx12::DestroyDenoiserContext() 
 {
     if (FSRDConvShader) FSRDConvShader->AbortGameTrace("Native RR context destroyed during capture.");
+    _fullContextReference.reset();
     // A recorded list or an unfinished submission may still reference the context;
     // the owner destroys it once the last of them retires.
     if (_denoiserCtxOwner)
@@ -2288,6 +2290,7 @@ RRResult FSRDFeatureDx12::UpdateSize()
 RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX_Parameter* InParameters)
 {
     LOG_FUNC();
+    if (!FSRDGameTraceSession::WantsFullContextReference()) _fullContextReference.reset();
 
     struct UpscalerContinuityGuard
     {
@@ -2633,6 +2636,22 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                 InvalidateDenoiserHistory();
                 return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
             }
+            std::span<const FSRDGameTraceSession::DiagnosticSource> fullContextReferenceOutputs;
+            if (FSRDGameTraceSession::WantsFullContextReference() &&
+                FSRDConvShader->HasAdmittedGameTraceFrame())
+            {
+                if (!_fullContextReference ||
+                    !_fullContextReference->ExecuteResetReference(InCommandList, _pDenoiserCtx))
+                {
+                    const char* reason = _fullContextReference && !_fullContextReference->Failure().empty()
+                        ? _fullContextReference->Failure().c_str()
+                        : "Full-context RESET reference was not prepared for this admitted evaluation.";
+                    AbortGameTraceTelemetry(FSRDConvShader.get(), reason);
+                    _fullContextReference.reset();
+                }
+                else
+                    fullContextReferenceOutputs = _fullContextReference->Result().outputs;
+            }
             float capturePreExposure=1.0f;
             const bool capturePreExposureProvided=InParameters->Get(
                 NVSDK_NGX_Parameter_DLSS_Pre_Exposure,&capturePreExposure)==NVSDK_NGX_Result_Success;
@@ -2714,7 +2733,8 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                         {"neutral_full1_comparator",false}
                     };
                     FSRDConvShader->CompleteGameTraceFrame(InCommandList,denoiserDesc,
-                        _gameTraceContextGeneration,_denoiserDispatchAttempts,controls.dump(),settings.dump());
+                        _gameTraceContextGeneration,_denoiserDispatchAttempts,controls.dump(),settings.dump(),
+                        fullContextReferenceOutputs);
                 }
                 catch (const std::exception& error) { AbortGameTraceTelemetry(FSRDConvShader.get(),error.what()); }
                 catch (...) { AbortGameTraceTelemetry(FSRDConvShader.get(),"Capture metadata serialization failed."); }
@@ -4484,6 +4504,65 @@ void FSRDFeatureDx12::SnapshotGameTraceDispatch(const ffxDispatchDescDenoiser& d
     }
 }
 
+void FSRDFeatureDx12::PrepareFullContextReference(ID3D12GraphicsCommandList* list,
+                                                const ffxDispatchDescDenoiser& dispatch) noexcept
+{
+    if (!FSRDGameTraceSession::WantsFullContextReference())
+    {
+        _fullContextReference.reset();
+        return;
+    }
+    // Request activation may precede disk initialization/delay/source admission.
+    // Those evaluations must not perform additional full copies or SDK dispatches.
+    if (!FSRDConvShader || !FSRDConvShader->HasAdmittedGameTraceFrame()) return;
+    try
+    {
+        if (!_gameTraceCreateContract.valid || _gameTraceDispatchJson.empty())
+            throw std::runtime_error("Full-context reference accepted primary boundary is unavailable");
+        if (!_fullContextReference) _fullContextReference = std::make_unique<FSRDFullContextReferenceDx12>();
+        FSRDFullContextReferenceDx12::Configuration config;
+        config.primaryContext = _pDenoiserCtx;
+        config.primaryContextGeneration = _gameTraceContextGeneration;
+        config.acceptedCreate = _denoiserCtxDesc;
+        config.acceptedCreate.header.pNext = nullptr; // Creation-local backend chain is no longer alive.
+        config.providerId = _gameTraceCreateContract.providerId;
+        config.createContract = {
+            {"provider_id", _gameTraceCreateContract.providerId},
+            {"provider_index", _gameTraceCreateContract.providerIndex},
+            {"provider_name", _gameTraceCreateContract.providerName},
+            {"provider_selection_provenance", "enumerated_override_accepted_by_successful_creation_not_context_provider_query"},
+            {"api_version", _gameTraceCreateContract.apiVersion},
+            {"max_render_size", {_gameTraceCreateContract.maxRenderSize.width, _gameTraceCreateContract.maxRenderSize.height}},
+            {"create_flags", _gameTraceCreateContract.createFlags},
+            {"signal_flags", _gameTraceCreateContract.signalFlags},
+            {"checkerboard_signal_flags", _gameTraceCreateContract.checkerboardSignalFlags}
+        };
+        static_assert(DenoiserConfiguration::kScalarCount == 6);
+        std::copy_n(_denoiserSettings.ScalarValues, config.tuning.size(), config.tuning.begin());
+        config.debugDepthBounds = _denoiserSettings.m_DebugViewLinearDepthBounds;
+        config.captureId = FSRDGameTraceSession::GetStatus().captureId;
+        if (!_fullContextReference->PrepareSnapshot(Device, list, config, dispatch,
+                _denoiserDispatchAttempts, _gameTraceDispatchJson,
+                [this](ffxContext context) { return AdoptContextDx12(context, "FSR-RR full-native RESET_each diagnostic"); },
+                [this, list](const auto& owner) { return RetainProviderContext(list, owner); }))
+        {
+            AbortGameTraceTelemetry(FSRDConvShader.get(), _fullContextReference->Failure().empty()
+                ? "Full-context reference preparation failed." : _fullContextReference->Failure().c_str());
+            _fullContextReference.reset();
+        }
+    }
+    catch (const std::exception& error)
+    {
+        AbortGameTraceTelemetry(FSRDConvShader.get(), error.what());
+        _fullContextReference.reset();
+    }
+    catch (...)
+    {
+        AbortGameTraceTelemetry(FSRDConvShader.get(), "Full-context reference setup failed.");
+        _fullContextReference.reset();
+    }
+}
+
 RRResult FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList,
                                        const ffxDispatchDescDenoiser& dispatchDesc)
 {
@@ -4711,6 +4790,7 @@ RRResult FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandL
     if (!RetainProviderContext(InCommandList, _denoiserCtxOwner))
         return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
     SnapshotGameTraceDispatch(dispatchDesc);
+    PrepareFullContextReference(InCommandList, dispatchDesc);
     const ffxReturnCode_t result = FfxApiProxy::D3D12_Dispatch(&_pDenoiserCtx, &dispatchDesc.header);
     _lastDispatchRequestedReset = resetRequested;
 

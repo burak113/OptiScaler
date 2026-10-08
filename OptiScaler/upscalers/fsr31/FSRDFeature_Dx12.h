@@ -12,6 +12,7 @@
 #include <DirectXMath.h>
 
 class DLSSDFeatureDx12;
+class FSRDFullContextReferenceDx12;
 
 /**
  * @brief Unfied denoiser-upscaler utilising AMD FSR Ray Regeneration and Super Resolution with
@@ -100,6 +101,8 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     ffxContext _pDenoiserCtx;
     // Destroys the RR context once the feature and all recorded work referencing it let go.
     std::shared_ptr<FfxContextOwner> _denoiserCtxOwner;
+    // Transient capture-only full-native RESET reference. Never drives primary output/history.
+    std::unique_ptr<FSRDFullContextReferenceDx12> _fullContextReference;
     ffxCreateContextDescDenoiser _denoiserCtxDesc;
     // Version parsed from the selected RR provider name. Kept separate from
     // FSR31Feature::_version so the SR upscaler version that Version() reports -
@@ -417,6 +420,7 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     RRResult DispatchDenoiser(ID3D12GraphicsCommandList* InCommandList, const ffxDispatchDescDenoiser& dispatchDesc);
 
     void SnapshotGameTraceDispatch(const ffxDispatchDescDenoiser& dispatchDesc) noexcept;
+    void PrepareFullContextReference(ID3D12GraphicsCommandList*, const ffxDispatchDescDenoiser&) noexcept;
 
     void CommitDenoiserHistory() noexcept;
 
