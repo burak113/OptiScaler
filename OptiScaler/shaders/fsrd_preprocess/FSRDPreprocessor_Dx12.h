@@ -1,5 +1,6 @@
 #pragma once
 #include "SysUtils.h"
+#include "FSRDGameTraceSession.h"
 
 #include <DirectXMath.h>
 #include <d3d12.h>
@@ -446,11 +447,13 @@ class FSRDPreprocessor_Dx12
     // extra neutral Full1 shader dispatch or experiment is recorded.
     void CompleteGameTraceFrame(ID3D12GraphicsCommandList* cmdList,
         const ffxDispatchDescDenoiser& dispatch, uint64_t contextGeneration, uint64_t evaluationId,
-        const std::string& controlsJson, const std::string& settingsJson) noexcept;
+        const std::string& controlsJson, const std::string& settingsJson,
+        std::span<const FSRDGameTraceSession::DiagnosticSource> diagnostics = {}) noexcept;
     void CompleteGameTraceSr(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* output,
         uint32_t width, uint32_t height, uint64_t evaluationId, const std::string& contextId,
         bool reset, const std::string& controlsJson) noexcept;
     void AbortGameTrace(const std::string& reason) noexcept;
+    bool HasAdmittedGameTraceFrame() const noexcept;
 
   private:
     struct Impl;

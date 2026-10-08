@@ -3198,6 +3198,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             static int regionChoice = 2, frameCountChoice = 2, srMode = 0;
             static char outputRoot[1024] {};
             static bool initialCenter = true, folderOpenFailed = false;
+            static bool fullContextReference = false;
             ImGui::BeginDisabled(capture.active);
             if (ImGui::Combo("Capture region##GameTrace", &regionChoice,
                     "128 x 128\0" "512 x 512\0" "128 wide, full height\0"
@@ -3207,6 +3208,9 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             }
             ImGui::Combo("Frames to record##GameTrace", &frameCountChoice, "128\0" "256\0" "512\0");
             ImGui::Combo("SR output##GameTrace", &srMode, "Off\0" "Matching region\0" "Full output\0");
+            ImGui::Checkbox("Full-context RESET_each reference (diagnostic only)##GameTrace", &fullContextReference);
+            if (fullContextReference)
+                ImGui::TextWrapped("Diagnostic, not a solution. Records two extra RR heads from a separate full-render context with RESET each frame. Adds GPU work and memory; the game keeps its normal RR history and composition. Te\xc5\x9fhis kayd\xc4\xb1; \xc3\xa7\xc3\xb6z\xc3\xbcm de\xc4\x9fil.");
             ImGui::InputTextWithHint("Output root##GameTrace", "Blank: DLL folder / GAME_TRACE", outputRoot, sizeof(outputRoot));
             using RegionMode = FSRDGameTraceSession::Request::RegionMode;
             const RegionMode regionMode = regionChoice == 4 ? RegionMode::FullRender :
@@ -3254,6 +3258,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                 request.x = uint32_t(traceX); request.y = uint32_t(traceY); request.size = tile;
                 request.regionMode = regionMode; request.frameCount = targetFrames;
                 request.delaySeconds = uint32_t(delaySeconds); request.outputRoot = outputRoot;
+                request.fullContextReference = fullContextReference;
                 request.srMode = srMode == 0 ? FSRDGameTraceSession::SrMode::Off :
                     (srMode == 1 ? FSRDGameTraceSession::SrMode::MappedRoi : FSRDGameTraceSession::SrMode::FullOutput);
                 FSRDGameTraceSession::RequestStart(request);
@@ -3267,7 +3272,8 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             if (fits)
             {
                 const uint64_t typicalBytesPerPixel = 121u +
-                    (config->FfxDenoiserFloorEnabled.value_or_default() ? 16u : 0u);
+                    (config->FfxDenoiserFloorEnabled.value_or_default() ? 16u : 0u) +
+                    (fullContextReference ? 16u : 0u);
                 uint64_t estimate = uint64_t(regionWidth)*regionHeight*typicalBytesPerPixel*targetFrames;
                 if (srMode != 0 && currentFeature)
                 {

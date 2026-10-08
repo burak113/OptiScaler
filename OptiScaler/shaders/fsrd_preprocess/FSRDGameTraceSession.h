@@ -21,6 +21,9 @@ public:
         RegionMode regionMode = RegionMode::Square;
         uint32_t frameCount = FrameCount;
         SrMode srMode = SrMode::Off;
+        // Transient diagnostic only: separate full-native RR RESET_each heads.
+        // Never changes the primary RR context, history, or game composition.
+        bool fullContextReference = false;
         std::string outputRoot; // Absolute UTF-8 path; blank keeps DLL/GAME_TRACE.
     };
     struct Status
@@ -41,6 +44,7 @@ public:
     static Status GetStatus();
     static bool IsActive() noexcept;
     static bool WantsSrOutput() noexcept;
+    static bool WantsFullContextReference() noexcept;
 
     enum Slot : size_t { U, V, Qs, Qd, Skip, Packed, Depth, Motion, SourceCount };
     struct Source

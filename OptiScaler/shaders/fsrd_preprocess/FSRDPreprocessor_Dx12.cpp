@@ -2661,7 +2661,8 @@ bool FSRDPreprocessor_Dx12::Blit(ID3D12GraphicsCommandList* cmdList, ID3D12Resou
 
 void FSRDPreprocessor_Dx12::CompleteGameTraceFrame(ID3D12GraphicsCommandList* cmdList,
     const ffxDispatchDescDenoiser& dispatch, uint64_t contextGeneration, uint64_t evaluationId,
-    const std::string& controlsJson, const std::string& settingsJson) noexcept
+    const std::string& controlsJson, const std::string& settingsJson,
+    std::span<const FSRDGameTraceSession::DiagnosticSource> diagnostics) noexcept
 {
     auto& impl = *m_impl;
     if (!impl.m_gameTraceFrameRecorded) return;
@@ -2690,7 +2691,13 @@ void FSRDPreprocessor_Dx12::CompleteGameTraceFrame(ID3D12GraphicsCommandList* cm
         }
     }
     auto* output = GetCompositionOutput();
-    impl.m_gameTrace.RecordNative(cmdList, {output,kSrvState}, frame, lobes);
+    if (diagnostics.empty()) impl.m_gameTrace.RecordNative(cmdList, {output,kSrvState}, frame, lobes);
+    else
+    {
+        std::vector<FSRDGameTraceSession::DiagnosticSource> allDiagnostics(lobes.begin(),lobes.end());
+        allDiagnostics.insert(allDiagnostics.end(),diagnostics.begin(),diagnostics.end());
+        impl.m_gameTrace.RecordNative(cmdList, {output,kSrvState}, frame, allDiagnostics);
+    }
     impl.m_gameTrace.CompleteFrame(cmdList, {output,kSrvState});
     }
     catch (const std::exception& error) { impl.m_gameTrace.Abort(error.what()); }
@@ -2700,7 +2707,10 @@ void FSRDPreprocessor_Dx12::CompleteGameTraceFrame(ID3D12GraphicsCommandList* cm
 void FSRDPreprocessor_Dx12::AbortGameTrace(const std::string& reason) noexcept
 {
     m_impl->m_gameTrace.Abort(reason);
+    m_impl->m_gameTraceFrameRecorded = false;
 }
+bool FSRDPreprocessor_Dx12::HasAdmittedGameTraceFrame() const noexcept
+{ return m_impl->m_gameTraceFrameRecorded; }
 
 void FSRDPreprocessor_Dx12::CompleteGameTraceSr(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* output,
     uint32_t width, uint32_t height, uint64_t evaluationId, const std::string& contextId,

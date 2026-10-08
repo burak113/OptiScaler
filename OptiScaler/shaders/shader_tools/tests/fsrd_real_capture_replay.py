@@ -82,6 +82,8 @@ V5_DIAGNOSTICS = {'raw_color', 'raw_normals', 'raw_specular_albedo', 'raw_diffus
                   'raw_responsivity', 'raw_emissive',
                   'raw_motion', 'raw_depth', 'raw_roughness', 'raw_title_linear_depth',
                   'raw_inspector', 'floor', 'floor_reference'}
+V5_FULL_CONTEXT_REFERENCE_ROLES = {'rr_full_context_reset_specular', 'rr_full_context_reset_diffuse'}
+V5_FULL_CONTEXT_REFERENCE_MODE = 'full_native_reset_each_not_solution'
 
 
 def _v5_int(value, label, minimum=0, maximum=(1 << 64)-1):
@@ -102,6 +104,13 @@ def _v5_finite(value, label, count=None):
         raise ValueError('v5 invalid control shape: '+label)
     if any(type(v) not in (int, float) or not np.isfinite(v) for v in values):
         raise ValueError('v5 nonfinite/nonnumeric control: '+label)
+
+
+def _v5_same_json(left, right):
+    # Python equality conflates bool/int and int/float. Native descriptor and
+    # create-contract JSON retains those types, so compare the typed spelling.
+    return json.dumps(left, sort_keys=True, separators=(',', ':')) == \
+        json.dumps(right, sort_keys=True, separators=(',', ':'))
 
 
 def _v5_payload_path(root, ordinal, role, info):
@@ -164,6 +173,206 @@ def _v5_replay_crop_aligned(info, origin, size):
     return True
 
 
+def _v5_full_context_boundary(boundary, frame, extent):
+    """Authenticate the recorded native dispatch controls, with only RESET changed.
+
+    This is a separate diagnostic dispatch, not a substitute for primary pixels
+    or an independent clean reference. The native words retain signed zero even
+    when the older primary JSON formatter spells it as integer zero.
+    """
+    if not isinstance(boundary, dict):
+        raise ValueError('v5 full-context reference boundary must be an object')
+    if boundary.get('wireformat') != 'ffxDispatchDescDenoiser_native_ABI_suffix_264_184':
+        raise ValueError('v5 full-context native control wireformat mismatch')
+    for key, expected in [('native_dispatch_bytes', 448), ('controls_byte_count', 184), ('controls_offset_in_dispatch', 264),
+                          ('controls_flags_offset_in_segment', 180)]:
+        if type(boundary.get(key)) is not int or boundary[key] != expected:
+            raise ValueError('v5 full-context native control layout mismatch: '+key)
+    flags = _v5_int(frame.get('dispatch_flags'), 'primary dispatch flags', 0, (1 << 32)-1)
+    native_frame = _v5_int(frame['native_frame_index'], 'primary native frame', 0, (1 << 32)-1)
+    for key, expected in [('evaluation_id', frame['evaluation_id']), ('frame_index', native_frame),
+                          ('primary_dispatch_flags', flags), ('dispatch_flags', flags | 1)]:
+        if type(boundary.get(key)) is not int or boundary[key] != expected:
+            raise ValueError('v5 full-context reference dispatch identity mismatch: '+key)
+    if bool(flags & 1) != frame['reset']:
+        raise ValueError('v5 full-context primary reset flag mismatch')
+    _v5_int(boundary.get('context_generation'), 'diagnostic context generation', 1)
+    _v5_int(boundary.get('reference_evaluation_id'), 'diagnostic evaluation ID', 1)
+    if _v5_pair(boundary.get('render_size'), 'diagnostic native render size') != extent:
+        raise ValueError('v5 full-context reference render extent mismatch')
+    words = []
+    for key in ('primary_control_words_hex', 'diagnostic_control_words_hex'):
+        value = boundary.get(key)
+        if not isinstance(value, str) or not re.fullmatch('[0-9a-f]{368}', value):
+            raise ValueError('v5 full-context control witness must contain 184 lowercase-hex bytes')
+        words.append(bytes.fromhex(value))
+    primary, diagnostic = words
+    if primary[:180] != diagnostic[:180] or struct.unpack_from('<I', primary, 180)[0] != flags or \
+            struct.unpack_from('<I', diagnostic, 180)[0] != flags | 1 or \
+            struct.unpack_from('<I', primary, 176)[0] != native_frame or \
+            list(struct.unpack_from('<II', primary, 168)) != extent:
+        raise ValueError('v5 full-context native controls differ beyond RESET')
+    controls = boundary.get('controls')
+    if not isinstance(controls, dict):
+        raise ValueError('v5 full-context controls must be an object')
+    # Official ffxDispatchDescDenoiser native suffix order: motion scale,
+    # jitter, camera delta, view, projection, depth bounds, render size,
+    # native frame and flags. This differs from the replay wire format.
+    for key, count, offset in [('motion_vector_scale', 3, 0), ('jitter', 2, 12),
+                               ('camera_delta', 3, 20), ('view', 16, 32),
+                               ('projection', 16, 96), ('depth_bounds', 2, 160)]:
+        _v5_finite(controls.get(key), 'diagnostic '+key, count)
+        for index, (actual, reference) in enumerate(zip(frame['controls'][key], controls[key])):
+            try:
+                actual_bits = struct.unpack('<I', struct.pack('<f', actual))[0]
+                reference_bits = struct.unpack('<I', struct.pack('<f', reference))[0]
+            except (OverflowError, struct.error) as error:
+                raise ValueError('v5 full-context controls exceed float32 range') from error
+            native_bits = struct.unpack_from('<I', primary, offset+4*index)[0]
+            zero = actual == 0 and reference == 0 and native_bits & 0x7fffffff == 0
+            if not zero and (actual_bits != native_bits or actual_bits != reference_bits):
+                raise ValueError('v5 full-context native witness/control mismatch: '+key)
+    if _v5_pair(controls.get('render_size'), 'diagnostic control render size') != extent:
+        raise ValueError('v5 full-context diagnostic control render extent mismatch')
+    contract = boundary.get('create_contract')
+    expected_contract = frame['settings'].get('rr_create_contract')
+    if not isinstance(contract, dict) or not isinstance(expected_contract, dict) or not _v5_same_json(contract, expected_contract):
+        raise ValueError('v5 full-context create/provider contract mismatch')
+    for key in ('provider_id', 'api_version'):
+        _v5_int(contract.get(key), 'diagnostic create '+key, 1)
+    for key in ('provider_index', 'create_flags', 'signal_flags', 'checkerboard_signal_flags'):
+        _v5_int(contract.get(key), 'diagnostic create '+key, 0, (1 << 32)-1)
+    for key in ('provider_name', 'provider_selection_provenance'):
+        if not isinstance(contract.get(key), str) or not contract[key]:
+            raise ValueError('v5 full-context create/provider identity missing: '+key)
+    maximum = _v5_pair(contract.get('max_render_size'), 'diagnostic create max render size')
+    if any(a < b for a, b in zip(maximum, extent)):
+        raise ValueError('v5 full-context create maximum does not contain render extent')
+    for key, count in [('sdk_tuning', 6), ('sdk_debug_depth_bounds', 2)]:
+        values = boundary.get(key); expected = frame['settings'].get(key)
+        _v5_finite(values, 'diagnostic '+key, count)
+        _v5_finite(expected, 'primary '+key, count)
+        try:
+            equal = struct.pack('<'+str(count)+'f', *values) == struct.pack('<'+str(count)+'f', *expected)
+        except (OverflowError, struct.error) as error:
+            raise ValueError('v5 full-context tuning exceeds float32 range') from error
+        if not equal:
+            raise ValueError('v5 full-context tuning differs from primary dispatch')
+    dispatch = frame['controls'].get('rr_dispatch')
+    if not isinstance(dispatch, dict) or dispatch.get('schema') != 'actual_RR_pre_SDK_dispatch_v1' or \
+            type(dispatch.get('dispatch_flags')) is not int or dispatch['dispatch_flags'] != flags or \
+            type(dispatch.get('native_frame_index')) is not int or dispatch['native_frame_index'] != native_frame or \
+            type(dispatch.get('evaluation_id')) is not int or dispatch['evaluation_id'] != frame['evaluation_id'] or \
+            dispatch.get('render_size') != extent:
+        raise ValueError('v5 full-context primary RR boundary identity mismatch')
+    _v5_int(dispatch.get('context_generation'), 'primary RR context generation', 1)
+    if type(boundary.get('primary_context_generation')) is not int or \
+            boundary['primary_context_generation'] != dispatch['context_generation'] or \
+            not _v5_same_json(boundary.get('primary_pre_sdk_boundary'), dispatch):
+        raise ValueError('v5 full-context primary pre-SDK boundary mismatch')
+    command_list = dispatch.get('command_list')
+    if not isinstance(command_list, dict) or type(command_list.get('type')) is not int or command_list['type'] != 0 or \
+            type(boundary.get('command_list_type')) is not int or boundary['command_list_type'] != 0:
+        raise ValueError('v5 full-context reference requires recorded DIRECT command lists')
+    address = _v5_int(command_list.get('address_process_local'), 'primary DIRECT command-list identity', 1)
+    if type(boundary.get('command_list_address_process_local')) is not int or \
+            boundary['command_list_address_process_local'] != address:
+        raise ValueError('v5 full-context reference command-list identity differs from primary')
+    bindings = dispatch.get('bindings')
+    if not isinstance(bindings, list) or len(bindings) != 9 or \
+            any(not isinstance(binding, dict) or not isinstance(binding.get('role'), str) for binding in bindings):
+        raise ValueError('v5 full-context primary RR bindings missing')
+    by_role = {binding['role']: binding for binding in bindings}
+    mapping = [('linear_depth', 'linear_depth'), ('motion_vectors', 'motion_vectors'), ('normals', 'normals'),
+               ('specular_albedo', 'specular_albedo'), ('diffuse_albedo', 'diffuse_albedo'),
+               ('DirectDiffuse.input', 'chain.0.DirectDiffuse.input'),
+               ('IndirectSpecular.input', 'chain.1.IndirectSpecular.input')]
+    expected_roles = {name for _, name in mapping} | {'chain.0.DirectDiffuse.output', 'chain.1.IndirectSpecular.output'}
+    if len(by_role) != 9 or set(by_role) != expected_roles:
+        raise ValueError('v5 full-context primary RR binding roles ambiguous')
+    primary_addresses = set()
+    for binding in bindings:
+        if binding.get('present') is not True:
+            raise ValueError('v5 full-context primary RR binding absent')
+        primary_addresses.add(_v5_int(binding.get('resource_address_process_local'), 'primary RR resource identity', 1))
+    clones = boundary.get('clones')
+    if not isinstance(clones, list) or len(clones) != len(mapping):
+        raise ValueError('v5 full-context immutable input clones missing')
+    clone_addresses = set()
+    for clone, (name, primary_name) in zip(clones, mapping):
+        if not isinstance(clone, dict) or clone.get('role') != name:
+            raise ValueError('v5 full-context clone roles duplicate or out of order')
+        binding = by_role[primary_name]
+        original = _v5_int(clone.get('original_resource_address_process_local'), 'original clone resource identity', 1)
+        address = _v5_int(clone.get('clone_resource_address_process_local'), 'cloned resource identity', 1)
+        if original != binding['resource_address_process_local'] or address in primary_addresses or address in clone_addresses:
+            raise ValueError('v5 full-context clone aliases or mismatches primary resource')
+        clone_addresses.add(address)
+        source = clone.get('source_native_description'); copied = clone.get('clone_native_description')
+        ffx = clone.get('ffx_description')
+        if not isinstance(source, dict) or not isinstance(copied, dict) or not isinstance(ffx, dict) or \
+                not _v5_same_json(source, binding.get('native_description')) or not _v5_same_json(copied, source) or \
+                not _v5_same_json(ffx, binding.get('ffx_description')):
+            raise ValueError('v5 full-context clone resource/FFX descriptor mismatch')
+        if any(type(source.get(k)) is not int or source[k] != value
+               for k, value in [('dimension', 3), ('width', extent[0]), ('height', extent[1]),
+                                ('depth_or_array_size', 1), ('mip_levels', 1), ('sample_count', 1)]) or \
+                type(source.get('flags')) is not int or source['flags'] & 4 != 4:
+            raise ValueError('v5 full-context clone does not retain the full native extent')
+        if any(type(ffx.get(k)) is not int or ffx[k] != value
+               for k, value in [('type', 2), ('width_or_size', extent[0]), ('height_or_stride', extent[1]),
+                                ('depth_or_alignment', 1), ('mip_count', 1), ('usage', 2)]):
+            raise ValueError('v5 full-context clone FFX geometry/usage mismatch')
+        for key, expected in [('ffx_declared_state', 12), ('source_state', 192), ('clone_entry_exit_state', 192),
+                              ('copy_subresource', 0), ('copy_mip', 0), ('copy_array_slice', 0), ('copy_plane', 0)]:
+            if type(clone.get(key)) is not int or clone[key] != expected:
+                raise ValueError('v5 full-context clone copy/state contract mismatch: '+key)
+        if _v5_pair(clone.get('copy_extent'), 'diagnostic clone copy extent') != extent or \
+                type(binding.get('ffx_declared_state')) is not int or binding['ffx_declared_state'] != 12:
+            raise ValueError('v5 full-context clone extent/declared-state mismatch')
+        allocation = _v5_int(clone.get('allocation_size_bytes'), 'diagnostic clone allocation bytes', 1)
+        alignment = _v5_int(clone.get('allocation_alignment_bytes'), 'diagnostic clone allocation alignment', 1)
+        native_format = _v5_int(source.get('format'), 'diagnostic clone native format')
+        if native_format not in V5_FORMAT_WORDS or alignment & (alignment-1) or allocation % alignment or \
+                allocation < extent[0]*extent[1]*V5_FORMAT_WORDS[native_format][0]:
+            raise ValueError('v5 full-context clone allocation contract cannot contain native words')
+    return primary_addresses | clone_addresses
+
+
+def _v5_full_context_image(info, frame, extent, origin, size):
+    if info.get('active') is not True or info.get('available') is not True or not info.get('file'):
+        raise ValueError('v5 requested full-context reference lacks verified pixels')
+    if info.get('mode') != V5_FULL_CONTEXT_REFERENCE_MODE or \
+            info.get('role') != 'diagnostic_sdk_reset_each_lobe' or \
+            info.get('stage') != 'post_diagnostic_sdk_pre_sr_capture':
+        raise ValueError('v5 full-context reference mode/role/stage mismatch')
+    if info.get('dxgi_format') != 10 or info.get('extent') != size or \
+            info.get('source_extent') != extent or info.get('crop_origin') != origin or \
+            _v5_pair(info.get('source_base'), 'diagnostic source base', 0) != [0, 0] or \
+            type(info.get('source_state')) is not int or info['source_state'] != 8:
+        raise ValueError('v5 full-context reference is not a full-native RGBA16F UAV/ROI')
+    if type(info.get('evaluation_id')) is not int or info['evaluation_id'] != frame['evaluation_id']:
+        raise ValueError('v5 full-context reference evaluation mismatch')
+    native_desc = info.get('source_native_resource_desc')
+    if not isinstance(native_desc, dict) or any(type(native_desc.get(k)) is not int or native_desc[k] != value
+            for k, value in [('dimension', 3), ('width', extent[0]), ('height', extent[1]),
+                             ('dxgi_format', 10), ('depth_or_array_size', 1), ('mip_levels', 1), ('sample_count', 1)]) or \
+            type(native_desc.get('flags')) is not int or native_desc['flags'] & 4 != 4:
+        raise ValueError('v5 full-context native source descriptor mismatch')
+    for key in ('source_subresource', 'source_mip', 'source_array_slice', 'source_plane'):
+        if type(info.get(key)) is not int or info[key] != 0:
+            raise ValueError('v5 full-context reference source subresource mismatch')
+    address = _v5_int(info.get('source_resource_address_process_local'), 'diagnostic output resource identity', 1)
+    boundary = info.get('reference_boundary')
+    if address in _v5_full_context_boundary(boundary, frame, extent) or \
+            any(address == image.get('source_resource_address_process_local') for image in frame['images']):
+        raise ValueError('v5 full-context output aliases a primary or cloned input resource')
+    expected_lobe = 'specular' if info['name'].endswith('specular') else 'diffuse'
+    if info.get('lobe') != expected_lobe:
+        raise ValueError('v5 full-context reference output lobe mismatch')
+    return boundary
+
+
 def _validate_v5_capture(path, manifest, frames):
     """Validate v5 metadata before any optional payload read; v4 stays unchanged."""
     extent = _v5_pair(manifest.get('render_extent'), 'render extent')
@@ -195,7 +404,12 @@ def _validate_v5_capture(path, manifest, frames):
     mode = manifest.get('post_sr_mode')
     if mode not in ('off', 'mapped_render_roi', 'full_logical_output'):
         raise ValueError('v5 invalid post-SR observation mode')
+    requested = manifest.get('full_context_reference_requested', False)
+    if type(requested) is not bool:
+        raise ValueError('v5 full-context reference request must be a boolean')
+    diagnostic_roles = V5_DIAGNOSTICS | (V5_FULL_CONTEXT_REFERENCE_ROLES if requested else set())
     post_context = None; post_layout = None; descriptors = []; post = []
+    reference_context = None; reference_evaluation = None; primary_generation = None; reference_queue = None
     for f in frames:
         ordinal = _v5_int(f['ordinal'], 'ordinal')
         _v5_int(f.get('evaluation_id'), 'evaluation ID', 1)
@@ -280,11 +494,12 @@ def _validate_v5_capture(path, manifest, frames):
         diagnostics = f.get('diagnostics', [])
         if not isinstance(diagnostics, list):
             raise ValueError('v5 diagnostics must be a list')
+        reference_boundary = None; reference_addresses = set()
         for info in diagnostics:
             if not isinstance(info, dict):
                 raise ValueError('v5 diagnostic descriptor must be an object')
             name = info.get('name')
-            if name not in V5_DIAGNOSTICS or name in names:
+            if name not in diagnostic_roles or name in names:
                 raise ValueError('v5 duplicate/unsupported diagnostic role')
             names.add(name)
             if type(info.get('active')) is not bool or type(info.get('available')) is not bool:
@@ -297,8 +512,26 @@ def _validate_v5_capture(path, manifest, frames):
                 file = _v5_image(path, ordinal, name, info); descriptors.append((file, info, None))
             elif info.get('available') is True:
                 raise ValueError('v5 available diagnostic lacks payload')
-        if names - set(by_name) != V5_DIAGNOSTICS:
+            if name in V5_FULL_CONTEXT_REFERENCE_ROLES:
+                boundary = _v5_full_context_image(info, f, extent, origin, size)
+                address = info['source_resource_address_process_local']
+                if address in reference_addresses or reference_boundary is not None and not _v5_same_json(boundary, reference_boundary):
+                    raise ValueError('v5 full-context reference heads alias or have different boundaries')
+                reference_addresses.add(address); reference_boundary = boundary
+        if names - set(by_name) != diagnostic_roles:
             raise ValueError('v5 diagnostic roles are incomplete')
+        if requested:
+            generation = reference_boundary['context_generation']
+            evaluation = reference_boundary['reference_evaluation_id']
+            primary = f['controls']['rr_dispatch']['context_generation']
+            if reference_context is None and evaluation != 1 or reference_context is not None and \
+                    (generation != reference_context or primary != primary_generation or evaluation != reference_evaluation+1):
+                raise ValueError('v5 full-context diagnostic/primary context or evaluation lineage changed')
+            queue = proof['queue_address_process_local']
+            if reference_queue is not None and queue != reference_queue:
+                raise ValueError('v5 full-context shared diagnostic resources require one actual submission queue')
+            reference_queue = queue
+            reference_context, reference_evaluation, primary_generation = generation, evaluation, primary
         for key in ('conversion_constants', 'floor_seed_constants', 'floor_filter_constants'):
             info = f.get(key)
             if not isinstance(info, dict):
@@ -445,6 +678,18 @@ def inspect_capture(path, payload=False, limit=None):
         elif row['region_mode'] == 'full_height_strip':
             row['limitation'] = ('Full-height strip; horizontal/off-ROI spatial context, opaque initial RR state and '
                                  'pre-capture history remain unavailable. Replay frame 0 starts fresh history.')
+        if manifest.get('full_context_reference_requested') is True:
+            row.update(full_context_reference_requested=True,
+                       full_context_reference_mode=V5_FULL_CONTEXT_REFERENCE_MODE,
+                       full_context_reference_is_clean_truth=False,
+                       full_context_reference_submission_queue_address_process_local=frames[0]['ticket_proof']['queue_address_process_local'],
+                       full_context_reference_submission_queue_scope=('All published submission tickets use one actual queue; '
+                           'primary/reference recorded DIRECT command-list identities match. Queue type follows the '
+                           'command-list compatibility contract; runtime queue type is not separately recorded.'),
+                       full_context_reference_limitation=('Separate full-native RESET-each RR heads, cropped only for '
+                           'readback. Primary logical controls/history/composition selection are unchanged; extra '
+                           'copies/transitions/dispatch may change scheduling, residency and fps; pixel identity is '
+                           'not asserted. This diagnostic is not a solution or independent clean truth.'))
     if not payload:
         return row
     arrays = {}
@@ -486,7 +731,8 @@ def inspect_capture(path, payload=False, limit=None):
     if v5:
         already = {item['file'] for item in authenticated}
         post_words = []
-        image_words = {name: [None]*len(frames) for name in sorted(set(V5_IMAGE_FORMATS) | V5_DIAGNOSTICS)}
+        optional_roles = V5_FULL_CONTEXT_REFERENCE_ROLES if manifest.get('full_context_reference_requested') is True else set()
+        image_words = {name: [None]*len(frames) for name in sorted(set(V5_IMAGE_FORMATS) | V5_DIAGNOSTICS | optional_roles)}
         image_descriptors = {name: [None]*len(frames) for name in image_words}
         for file, info, post_ordinal in v5_descriptors:
             if info['file'] in already:
@@ -520,6 +766,9 @@ def inspect_capture(path, payload=False, limit=None):
         arrays['post_sr_metadata'] = post_metadata
         arrays['schema'] = V5_SCHEMA
         arrays['missing_floor_seed_constants'] = row['missing_floor_seed_constants']
+        if optional_roles:
+            arrays['full_context_reference_metadata'] = [
+                {info['name']: info for info in f['diagnostics'] if info['name'] in optional_roles} for f in frames]
     arrays['frame_metadata'] = frames
     arrays['extent'], arrays['roi'] = extent, roi
     arrays['capture'] = path

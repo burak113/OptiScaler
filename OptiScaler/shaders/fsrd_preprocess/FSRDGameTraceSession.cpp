@@ -2,6 +2,7 @@
 #include "FSRDGameTraceSession.h"
 #include "RRTraceFence.h"
 #include "RRTraceAdditiveIO.h"
+#include "../../include/fsr-rr/ffx_denoiser.h"
 #include "Util.h"
 #include <json.hpp>
 #include <deque>
@@ -12,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include <climits>
+#include <cstddef>
 #include <atomic>
 #include <condition_variable>
 #include <thread>
@@ -27,6 +29,20 @@ constexpr uint64_t MaximumExtendedPayloadBytes = 128ull << 30;
 constexpr uint64_t MaximumReadbackBytes = 512ull << 20;
 constexpr uint64_t MaximumFrameReadbackBytes = 256ull << 20;
 constexpr uint64_t MaximumCpuBytes = 512ull << 20;
+constexpr size_t NativeControlOffset = offsetof(ffxDispatchDescDenoiser,motionVectorScale);
+constexpr size_t NativeControlBytes = sizeof(ffxDispatchDescDenoiser)-NativeControlOffset;
+constexpr size_t NativeFlagsOffset = offsetof(ffxDispatchDescDenoiser,flags)-NativeControlOffset;
+constexpr size_t NativeFrameOffset = offsetof(ffxDispatchDescDenoiser,frameIndex)-NativeControlOffset;
+constexpr size_t NativeRenderOffset = offsetof(ffxDispatchDescDenoiser,renderSize)-NativeControlOffset;
+static_assert(sizeof(ffxDispatchDescDenoiser) == 448 && NativeControlOffset == 264 && NativeControlBytes == 184);
+static_assert(offsetof(ffxDispatchDescDenoiser,motionVectorScale)-NativeControlOffset == 0);
+static_assert(offsetof(ffxDispatchDescDenoiser,jitterOffsets)-NativeControlOffset == 12);
+static_assert(offsetof(ffxDispatchDescDenoiser,cameraPositionDelta)-NativeControlOffset == 20);
+static_assert(offsetof(ffxDispatchDescDenoiser,view)-NativeControlOffset == 32);
+static_assert(offsetof(ffxDispatchDescDenoiser,projection)-NativeControlOffset == 96);
+static_assert(offsetof(ffxDispatchDescDenoiser,linearDepthBounds)-NativeControlOffset == 160);
+static_assert(NativeRenderOffset == 168 && NativeFrameOffset == 176 && NativeFlagsOffset == 180);
+static_assert(FFX_DENOISER_DISPATCH_RESET == 1);
 #if defined(FSRD_GAME_TRACE_TEST)
 // Controlled host fixtures exercise backpressure without hundreds of MiB of
 // artificial disk traffic. These controls are absent from production builds.
@@ -49,14 +65,16 @@ constexpr std::array<DXGI_FORMAT, 10> Formats {DXGI_FORMAT_R16G16B16A16_FLOAT, D
     DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R16G16B16A16_FLOAT,
     DXGI_FORMAT_R10G10B10A2_UNORM, DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT,
     DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT};
-constexpr std::array<const char*,19> DiagnosticNames {"raw_color", "raw_normals", "raw_specular_albedo",
+constexpr size_t LegacyDiagnosticCount = 19;
+constexpr std::array<const char*,21> DiagnosticNames {"raw_color", "raw_normals", "raw_specular_albedo",
     "raw_diffuse_albedo", "rr_specular", "rr_diffuse", "floor", "floor_reference", "raw_bias_mask",
     "raw_specular_hit_distance", "raw_specular_direction_hit_distance", "raw_diffuse_hit_distance",
     "raw_responsivity", "raw_emissive", "raw_motion", "raw_depth", "raw_roughness",
-    "raw_title_linear_depth", "raw_inspector"};
+    "raw_title_linear_depth", "raw_inspector", "rr_full_context_reset_specular", "rr_full_context_reset_diffuse"};
 
 std::atomic<bool> g_captureActive {false};
 std::atomic<bool> g_srRequested {false};
+std::atomic<bool> g_fullContextReferenceRequested {false};
 struct Session
 {
     FSRDGameTraceSession::Status status;
@@ -64,6 +82,7 @@ struct Session
     uint32_t x = 0, y = 0, size = FSRDGameTraceSession::TileSize, width = 0, height = 0, rw = 0, rh = 0;
     FSRDGameTraceSession::Request::RegionMode regionMode = FSRDGameTraceSession::Request::RegionMode::Square;
     FSRDGameTraceSession::SrMode srMode = FSRDGameTraceSession::SrMode::Off;
+    bool fullContextReference = false;
     std::string srContext; std::array<uint32_t,2> srExtent {}; uint32_t srFormat = 0;
     bool initialized = false, initializing = false, closing = false;
     uint64_t diskAvailable = 0, maximumPayload = MaximumPayloadBytes, cpuBytes = 0;
@@ -74,6 +93,8 @@ struct Session
     std::string mappingHash;
     std::array<std::array<uint32_t,2>,10> resourceExtents {};
     uint64_t lastEvaluation = 0, startTick = 0;
+    uint64_t referenceContextGeneration = 0, lastReferenceEvaluation = 0;
+    uint64_t referenceSubmissionQueue = 0;
     uint32_t lastFrameIndex = 0;
     bool bound = false;
     uint64_t payloadReserved = 0, payloadWritten = 0;
@@ -229,6 +250,7 @@ struct Frame
     ID3D12GraphicsCommandList* list = nullptr;
     std::array<Image, 10> images;
     std::array<Diagnostic,DiagnosticNames.size()> diagnostics;
+    size_t diagnosticCount = LegacyDiagnosticCount;
     Image srImage; Json srMetadata; std::weak_ptr<Session> owner;
     uint64_t gpuBytes = 0; bool frozen = false, discarded = false, currentCopied = false;
     std::string settingsHash;
@@ -239,8 +261,9 @@ struct Frame
     uint32_t ordinal = 0;
     uint64_t qpc = 0;
     bool started = false, native = false, sealed = false;
-    Frame()
+    explicit Frame(bool fullContextReference = false)
     {
+        diagnosticCount = fullContextReference ? DiagnosticNames.size() : LegacyDiagnosticCount;
         for (size_t i=0; i<diagnostics.size(); ++i)
             diagnostics[i].metadata = {{"name", DiagnosticNames[i]}, {"available", false},
                 {"reason", "Diagnostic source not supplied"},
@@ -410,7 +433,7 @@ std::pair<uint64_t,uint64_t> DiagnosticBytes(ID3D12Device* device, const Session
     uint64_t payload = 0, readback = 0;
     for (size_t slot=first; slot<end; ++slot)
     {
-        if (first == 0 && (slot == 4 || slot == 5)) continue;
+        if (first == 0 && (slot == 4 || slot == 5 || slot >= LegacyDiagnosticCount)) continue;
         for (const auto& source : sources)
         {
             if (source.name != DiagnosticNames[slot] || !source.active) continue;
@@ -450,12 +473,180 @@ void PreflightReadback(Session& s, uint64_t frameBytes, uint64_t additionalBytes
     RequireBudget("retained readback preflight",Global().gpuBytes+additionalBytes,MaximumReadbackBytes);
     if (!s.payloadEstimated) s.status.estimatedFrameReadbackBytes = frameBytes;
 }
+void ObserveFullContextReferenceQueue(Session& s, uint64_t queue)
+{
+    if (!s.fullContextReference) return;
+    if (!queue || (s.referenceSubmissionQueue && s.referenceSubmissionQueue != queue))
+        throw std::runtime_error("GAME_TRACE full-context reference requires the same actual submission queue throughout the published sequence");
+    s.referenceSubmissionQueue = queue;
+}
+uint64_t FullContextReferencePayloadBytes(const Session& s)
+{ return s.fullContextReference ? TightBytes(s.width,s.height,16) : 0; }
+std::pair<uint64_t,uint64_t> FullContextReferenceBytes(ID3D12Device* device, const Session& s)
+{
+    if (!s.fullContextReference) return {};
+    D3D12_RESOURCE_DESC desc {};
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    desc.Width = s.width; desc.Height = s.height; desc.DepthOrArraySize = desc.MipLevels = 1;
+    desc.SampleDesc.Count = 1;
+    return {FullContextReferencePayloadBytes(s),2*PlannedReadbackBytes(device,desc)};
+}
+std::array<uint8_t,184> FullContextControlWords(const Json& value)
+{
+    if (!value.is_string()) throw std::runtime_error("GAME_TRACE full-context control witness must be hexadecimal");
+    const auto hex = value.get<std::string>();
+    if (hex.size() != 368) throw std::runtime_error("GAME_TRACE full-context control witness must contain 184 bytes");
+    auto nibble = [](char c) -> uint8_t {
+        if (c >= '0' && c <= '9') return uint8_t(c-'0');
+        if (c >= 'a' && c <= 'f') return uint8_t(c-'a'+10);
+        throw std::runtime_error("GAME_TRACE full-context control witness is not lowercase hexadecimal");
+    };
+    std::array<uint8_t,184> result {};
+    for (size_t i=0; i<result.size(); ++i) result[i] = uint8_t((nibble(hex[2*i])<<4)|nibble(hex[2*i+1]));
+    return result;
+}
+void ValidateFullContextReferenceBoundary(const Json& boundary, const Frame& f, const Session& s,
+    const FSRDGameTraceSession::FrameInfo& info)
+{
+    if (!boundary.is_object() || boundary.value("wireformat","") != "ffxDispatchDescDenoiser_native_ABI_suffix_264_184" ||
+        boundary.value("native_dispatch_bytes",0u) != 448 || boundary.value("controls_byte_count",0u) != 184 ||
+        boundary.value("controls_offset_in_dispatch",0u) != 264 ||
+        boundary.value("controls_flags_offset_in_segment",0u) != 180 ||
+        boundary.at("evaluation_id") != info.evaluationId || boundary.at("frame_index") != info.frameIndex ||
+        boundary.at("primary_dispatch_flags") != info.dispatchFlags || boundary.at("dispatch_flags") != (info.dispatchFlags|1u) ||
+        info.reset != ((info.dispatchFlags&1u) != 0) ||
+        boundary.at("render_size") != Json::array({s.rw,s.rh}) ||
+        !boundary.at("context_generation").is_number_unsigned() || boundary.at("context_generation").get<uint64_t>() == 0 ||
+        !boundary.at("reference_evaluation_id").is_number_unsigned() || boundary.at("reference_evaluation_id").get<uint64_t>() == 0)
+        throw std::runtime_error("GAME_TRACE full-context reference boundary does not match the primary dispatch");
+    const auto primary = FullContextControlWords(boundary.at("primary_control_words_hex"));
+    const auto reference = FullContextControlWords(boundary.at("diagnostic_control_words_hex"));
+    auto word = [](const auto& bytes, size_t offset) {
+        uint32_t result = 0; memcpy(&result,bytes.data()+offset,4); return result;
+    };
+    if (memcmp(primary.data(),reference.data(),NativeFlagsOffset) || word(primary,NativeFlagsOffset) != info.dispatchFlags ||
+        word(reference,NativeFlagsOffset) != (info.dispatchFlags|1u) || word(primary,NativeFrameOffset) != info.frameIndex ||
+        word(primary,NativeRenderOffset) != s.rw || word(primary,NativeRenderOffset+4) != s.rh)
+        throw std::runtime_error("GAME_TRACE full-context reference changed controls beyond RESET");
+    const auto& controls = boundary.at("controls");
+    if (!controls.is_object()) throw std::runtime_error("GAME_TRACE full-context reference controls must be an object");
+    constexpr std::array<const char*,7> keys {"motion_vector_scale","render_size","view","projection","jitter","camera_delta","depth_bounds"};
+    // Native SDK member order is motion, jitter, camera, view, projection,
+    // bounds, renderSize, frameIndex, flags. It is NOT the replay wire order.
+    constexpr std::array<size_t,7> offsets {
+        offsetof(ffxDispatchDescDenoiser,motionVectorScale)-NativeControlOffset,
+        offsetof(ffxDispatchDescDenoiser,renderSize)-NativeControlOffset,
+        offsetof(ffxDispatchDescDenoiser,view)-NativeControlOffset,
+        offsetof(ffxDispatchDescDenoiser,projection)-NativeControlOffset,
+        offsetof(ffxDispatchDescDenoiser,jitterOffsets)-NativeControlOffset,
+        offsetof(ffxDispatchDescDenoiser,cameraPositionDelta)-NativeControlOffset,
+        offsetof(ffxDispatchDescDenoiser,linearDepthBounds)-NativeControlOffset};
+    for (size_t k=0; k<keys.size(); ++k)
+    {
+        const auto* key = keys[k];
+        if (!controls.at(key).is_array() || controls.at(key).size() != f.controls.at(key).size())
+            throw std::runtime_error("GAME_TRACE full-context JSON controls differ from the primary dispatch");
+        if (k == 1)
+        {
+            if (controls.at(key) != f.controls.at(key))
+                throw std::runtime_error("GAME_TRACE full-context JSON render size differs from the primary dispatch");
+            continue; // Native uint32 renderSize was checked above.
+        }
+        for (size_t i=0; i<f.controls.at(key).size(); ++i)
+        {
+            const float actual = f.controls.at(key)[i].get<float>();
+            const float diagnostic = controls.at(key)[i].get<float>();
+            uint32_t bits = 0; memcpy(&bits,&actual,4);
+            uint32_t diagnosticBits = 0; memcpy(&diagnosticBits,&diagnostic,4);
+            const auto nativeBits = word(primary,offsets[k]+4*i);
+            // The legacy JSON formatter can spell -0 as integer 0. The exact
+            // native witness above still preserves and compares its sign bit.
+            const bool zero = actual == 0 && diagnostic == 0 && (nativeBits&0x7fffffffu) == 0;
+            if (!std::isfinite(diagnostic) || (!zero && (bits != nativeBits || bits != diagnosticBits)))
+                throw std::runtime_error("GAME_TRACE full-context native word witness differs from actual controls");
+        }
+    }
+    if (!f.settings.contains("rr_create_contract") || !f.settings.at("rr_create_contract").is_object() ||
+        boundary.at("create_contract") != f.settings.at("rr_create_contract") ||
+        boundary.at("primary_pre_sdk_boundary") != f.controls.at("rr_dispatch") ||
+        boundary.at("primary_context_generation") != f.controls.at("rr_dispatch").at("context_generation"))
+        throw std::runtime_error("GAME_TRACE full-context accepted create/provider or primary boundary differs");
+    for (const auto* key : {"sdk_tuning","sdk_debug_depth_bounds"})
+    {
+        const size_t count = std::string_view(key) == "sdk_tuning" ? 6 : 2;
+        const auto& actual = f.settings.at(key); const auto& referenceValues = boundary.at(key);
+        if (!actual.is_array() || !referenceValues.is_array() || actual.size() != count || referenceValues.size() != count)
+            throw std::runtime_error("GAME_TRACE full-context tuning extent differs");
+        for (size_t i=0; i<count; ++i)
+        {
+            const float applied = actual[i].get<float>(), referenceValue = referenceValues[i].get<float>();
+            if (!std::isfinite(applied) || !std::isfinite(referenceValue) || memcmp(&applied,&referenceValue,4))
+                throw std::runtime_error("GAME_TRACE full-context tuning differs from the primary RR");
+        }
+    }
+    const auto generation = boundary.at("context_generation").get<uint64_t>();
+    const auto referenceEvaluation = boundary.at("reference_evaluation_id").get<uint64_t>();
+    if ((!s.bound && referenceEvaluation != 1) || (s.bound &&
+        (generation != s.referenceContextGeneration || s.lastReferenceEvaluation == UINT64_MAX || referenceEvaluation != s.lastReferenceEvaluation+1)))
+        throw std::runtime_error("GAME_TRACE full-context reference context or evaluation lineage changed");
+}
+Json ValidateFullContextReferenceSources(const Session& s, const Frame& f,
+    const FSRDGameTraceSession::FrameInfo& info, std::span<const FSRDGameTraceSession::DiagnosticSource> sources)
+{
+    Json common; ID3D12Resource* previous = nullptr;
+    for (size_t slot=LegacyDiagnosticCount; slot<DiagnosticNames.size(); ++slot)
+    {
+        const FSRDGameTraceSession::DiagnosticSource* source = nullptr;
+        unsigned matches = 0;
+        for (const auto& candidate : sources) if (candidate.name == DiagnosticNames[slot]) { source = &candidate; ++matches; }
+        if (!s.fullContextReference)
+        {
+            if (matches) throw std::runtime_error("GAME_TRACE unrequested full-context reference source");
+            continue;
+        }
+        if (matches != 1 || !source || !source->active || !source->required || !source->image.resource ||
+            source->baseX || source->baseY || source->motionAddressed ||
+            source->image.state != D3D12_RESOURCE_STATE_UNORDERED_ACCESS || source->image.resource == previous)
+            throw std::runtime_error("GAME_TRACE required full-context reference source missing, ambiguous or incompatible");
+        const auto desc = source->image.resource->GetDesc();
+        if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || desc.Format != DXGI_FORMAT_R16G16B16A16_FLOAT ||
+            desc.Width != s.rw || desc.Height != s.rh || desc.DepthOrArraySize != 1 || desc.MipLevels != 1 ||
+            desc.SampleDesc.Count != 1 || !(desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS))
+            throw std::runtime_error("GAME_TRACE full-context reference source is not a full-native RGBA16F UAV");
+        const auto metadata = Json::parse(source->metadataJson);
+        if (!metadata.is_object() || metadata.value("mode","") != "full_native_reset_each_not_solution" ||
+            metadata.value("role","") != "diagnostic_sdk_reset_each_lobe" ||
+            metadata.value("stage","") != "post_diagnostic_sdk_pre_sr_capture" ||
+            (metadata.contains("name") && metadata.at("name") != source->name) ||
+            (metadata.contains("active") && metadata.at("active") != true))
+            throw std::runtime_error("GAME_TRACE full-context reference metadata scope is invalid");
+        const auto& boundary = metadata.at("reference_boundary");
+        ValidateFullContextReferenceBoundary(boundary,f,s,info);
+        const auto listAddress = uint64_t(reinterpret_cast<uintptr_t>(f.list));
+        if (boundary.at("command_list_address_process_local") != listAddress ||
+            boundary.at("command_list_type") != uint32_t(D3D12_COMMAND_LIST_TYPE_DIRECT) ||
+            f.controls.at("rr_dispatch").at("command_list").at("address_process_local") != listAddress ||
+            f.controls.at("rr_dispatch").at("command_list").at("type") != uint32_t(D3D12_COMMAND_LIST_TYPE_DIRECT))
+            throw std::runtime_error("GAME_TRACE full-context reference does not share the primary DIRECT command list");
+        if (slot != LegacyDiagnosticCount && common != boundary)
+            throw std::runtime_error("GAME_TRACE full-context reference heads have different dispatch boundaries");
+        common = boundary; previous = source->image.resource;
+        for (const auto& image : f.images)
+            if (image.sourceIdentity == uint64_t(reinterpret_cast<uintptr_t>(source->image.resource)))
+                throw std::runtime_error("GAME_TRACE full-context reference output aliases a primary snapshot source");
+        for (const auto& candidate : sources)
+            if ((candidate.name == "rr_specular" || candidate.name == "rr_diffuse") &&
+                candidate.image.resource == source->image.resource)
+                throw std::runtime_error("GAME_TRACE full-context reference output aliases a primary RR head");
+    }
+    return common;
+}
 void CopyDiagnostics(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, Frame& frame, Session& session,
     std::span<const FSRDGameTraceSession::DiagnosticSource> sources, size_t first, size_t end)
 {
     for (size_t slot=first; slot<end; ++slot)
     {
-        if (first == 0 && (slot == 4 || slot == 5)) continue; // SDK outputs belong to RecordNative.
+        if (first == 0 && (slot == 4 || slot == 5 || slot >= LegacyDiagnosticCount)) continue; // SDK outputs belong to RecordNative.
         auto& diagnostic = frame.diagnostics[slot];
         const FSRDGameTraceSession::DiagnosticSource* source = nullptr;
         unsigned matches = 0;
@@ -884,7 +1075,7 @@ struct FSRDGameTraceSession::Impl
         };
         packet->payloads.reserve(33); images.reserve(30);
         for (size_t slot=0; slot<f->images.size(); ++slot) addImage(f->images[slot],std::string(Names[slot])+".bin",0,slot);
-        for (size_t slot=0; slot<f->diagnostics.size(); ++slot)
+        for (size_t slot=0; slot<f->diagnosticCount; ++slot)
             if (f->diagnostics[slot].metadata.value("available",false)) addImage(f->diagnostics[slot].image,std::string(DiagnosticNames[slot])+".bin",1,slot);
         if (f->srImage.readback) addImage(f->srImage,"post_sr.bin",-1,0);
         // Constants are CPU data already copied from this evaluation.
@@ -915,8 +1106,9 @@ struct FSRDGameTraceSession::Impl
         for (size_t slot=0; slot<f->images.size(); ++slot) row["images"].push_back(ImageMetadata(f->images[slot],Names[slot]));
         row["diagnostics"] = Json::array(); uint32_t conversionFlags = 0;
         memcpy(&conversionFlags,f->constants.data()+364,sizeof(conversionFlags));
-        for (const auto& d : f->diagnostics)
+        for (size_t slot=0; slot<f->diagnosticCount; ++slot)
         {
+            const auto& d = f->diagnostics[slot];
             auto metadata = d.metadata; metadata["evaluation_id"] = f->info.evaluationId; metadata["conversion_flags"] = conversionFlags;
             if (metadata["control"].empty() && !f->diagnostics[0].metadata["control"].empty()) metadata["control"] = f->diagnostics[0].metadata["control"];
             row["diagnostics"].push_back(std::move(metadata));
@@ -1031,6 +1223,8 @@ void FSRDGameTraceSession::Impl::SnapshotLoop() noexcept
                 std::scoped_lock lock(control.mutex);
                 if (packet && session == s && s->status.active && !frame->discarded && frame->ordinal <= s->lineageLimit)
                 {
+                    if (s->fullContextReference)
+                        ObserveFullContextReferenceQueue(*s,packet->row.at("ticket_proof").at("queue_address_process_local").get<uint64_t>());
                     frame->frozen = true;
                     std::erase(pending,frame);
                     if (current == frame) current.reset();
@@ -1281,13 +1475,14 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
         const auto mode = SrModeName(request.srMode);
         const auto region = RegionModeName(request.regionMode);
         s->x = request.x; s->y = request.y; s->size = request.size; s->srMode = request.srMode; s->regionMode = request.regionMode;
+        s->fullContextReference = request.fullContextReference;
         s->status.target = request.frameCount; s->lineageLimit = request.frameCount-1;
         if (request.regionMode == Request::RegionMode::FullRender) s->x = s->y = 0;
         else if (request.regionMode == Request::RegionMode::FullHeightStrip) s->y = 0;
         s->width = request.regionMode == Request::RegionMode::FullRender ? 0 : request.size;
         s->height = request.regionMode == Request::RegionMode::Square ? request.size : 0;
         s->defaultPayloadQuota = request.size == TileSize && request.srMode == SrMode::Off &&
-            request.regionMode == Request::RegionMode::Square && request.frameCount == FrameCount;
+            request.regionMode == Request::RegionMode::Square && request.frameCount == FrameCount && !request.fullContextReference;
         s->maximumPayload = s->defaultPayloadQuota ? MaximumPayloadBytes : MaximumExtendedPayloadBytes;
         s->startTick = GetTickCount64()+uint64_t(request.delaySeconds)*1000;
         std::array<uint8_t,16> uuid {};
@@ -1328,7 +1523,14 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
             {"saved_frame_scope","closed payload files and renamed frame folders; power-loss durability is not asserted"},
             {"capacity_wait_maximum_ms",0},{"io_mode","bounded_cpu_snapshot_and_disk_workers"},
             {"frames",Json::array()},{"errors",Json::array()}};
+        if (request.fullContextReference)
+        {
+            s->manifest["full_context_reference_requested"] = true;
+            s->manifest["full_context_reference_scope"] = "diagnostic_separate_full_native_RESET_each_RR_heads; primary_logical_controls_history_and_composition_selection_unchanged; not_a_solution_or_clean_truth";
+            s->manifest["full_context_reference_observer_effect"] = "full_input_copies_transitions_and_extra_dispatch_can_change_GPU_scheduling_residency_and_fps; primary_pixel_identity_is_not_asserted";
+        }
         control.current = s; g_srRequested.store(request.srMode != SrMode::Off,std::memory_order_release);
+        g_fullContextReferenceRequested.store(request.fullContextReference,std::memory_order_release);
         g_captureActive.store(true,std::memory_order_release); control.wake.notify_all(); return true;
     }
     catch (const std::exception& error)
@@ -1369,6 +1571,8 @@ bool FSRDGameTraceSession::IsActive() noexcept
 { return g_captureActive.load(std::memory_order_acquire); }
 bool FSRDGameTraceSession::WantsSrOutput() noexcept
 { return IsActive() && g_srRequested.load(std::memory_order_acquire); }
+bool FSRDGameTraceSession::WantsFullContextReference() noexcept
+{ return IsActive() && g_fullContextReferenceRequested.load(std::memory_order_acquire); }
 
 bool FSRDGameTraceSession::RecordSources(ID3D12Device* device, ID3D12GraphicsCommandList* cmd,
     const std::array<Source,SourceCount>& sources, uint32_t rw, uint32_t rh, std::span<const uint8_t> constants,
@@ -1395,6 +1599,8 @@ bool FSRDGameTraceSession::RecordSources(ID3D12Device* device, ID3D12GraphicsCom
         // Directory/space/manifest work runs only on the disk worker. This is
         // an unrecorded startup gap; the first admitted frame begins lineage.
         if (!s.initialized || GetTickCount64() < s.startTick) return false;
+        if (s.fullContextReference && cmd->GetType() != D3D12_COMMAND_LIST_TYPE_DIRECT)
+            throw std::runtime_error("GAME_TRACE full-context reference requires a DIRECT command list");
         ResolveRegion(s,rw,rh);
         if (impl.current && !impl.current->sealed) throw std::runtime_error("An evaluation ended without matched native/current/SR snapshots");
         if (impl.pending.size() >= MaximumPendingFrames)
@@ -1407,11 +1613,12 @@ bool FSRDGameTraceSession::RecordSources(ID3D12Device* device, ID3D12GraphicsCom
         s.mappingHash = mapping; s.manifest["conversion_mapping_sha256"] = mapping;
         const auto core = CoreBytes(device,s,0,Names.size());
         const auto diagnostic = DiagnosticBytes(device,s,diagnostics,0,DiagnosticNames.size());
-        const auto payload = constants.size()+floorSeedConstants.size()+floorFilterConstants.size()+core.first+diagnostic.first;
-        const auto readback = core.second+diagnostic.second;
+        const auto reference = FullContextReferenceBytes(device,s);
+        const auto payload = constants.size()+floorSeedConstants.size()+floorFilterConstants.size()+core.first+diagnostic.first+reference.first;
+        const auto readback = core.second+diagnostic.second+reference.second;
         PreflightReadback(s,readback,readback);
         PreflightPayload(s,payload);
-        auto f = std::make_shared<Frame>(); f->ordinal = s.status.recorded; f->list = cmd; f->owner = impl.session;
+        auto f = std::make_shared<Frame>(s.fullContextReference); f->ordinal = s.status.recorded; f->list = cmd; f->owner = impl.session;
         f->constants.assign(constants.begin(),constants.end());
         f->floorSeedConstants.assign(floorSeedConstants.begin(),floorSeedConstants.end());
         f->floorFilterConstants.assign(floorFilterConstants.begin(),floorFilterConstants.end());
@@ -1448,6 +1655,7 @@ void FSRDGameTraceSession::RecordNative(ID3D12GraphicsCommandList* cmd, Source s
                 throw std::runtime_error("Nonfinite actual control: "+std::string(key));
         }
         if (f.controls["render_size"] != Json::array({s.rw,s.rh})) throw std::runtime_error("Actual dispatch/source render extents differ");
+        const auto referenceBoundary = ValidateFullContextReferenceSources(s,f,info,diagnostics);
         const auto serialized = f.settings.dump();
         const auto hash = RRTraceAdditiveIO::Sha256({reinterpret_cast<const uint8_t*>(serialized.data()),serialized.size()});
         if (s.bound && (s.context != info.contextId || s.lastEvaluation == UINT64_MAX || info.evaluationId != s.lastEvaluation+1 ||
@@ -1455,12 +1663,22 @@ void FSRDGameTraceSession::RecordNative(ID3D12GraphicsCommandList* cmd, Source s
             throw std::runtime_error("Native context, consecutive evaluation order or settings changed");
         const auto outputs = CoreBytes(impl.device.Get(),s,8,10);
         const auto lobes = DiagnosticBytes(impl.device.Get(),s,diagnostics,4,6);
-        PreflightReadback(s,f.gpuBytes+outputs.second+lobes.second,outputs.second+lobes.second);
-        PreflightPayload(s,FramePayload(f)+outputs.first+lobes.first);
+        const auto reference = s.fullContextReference
+            ? DiagnosticBytes(impl.device.Get(),s,diagnostics,LegacyDiagnosticCount,DiagnosticNames.size())
+            : std::pair<uint64_t,uint64_t>{};
+        PreflightReadback(s,f.gpuBytes+outputs.second+lobes.second+reference.second,outputs.second+lobes.second+reference.second);
+        PreflightPayload(s,FramePayload(f)+outputs.first+lobes.first+reference.first);
         CopyImage(impl.device.Get(),cmd,f,s,source,8);
         CopyDiagnostics(impl.device.Get(),cmd,f,s,diagnostics,4,6);
+        if (s.fullContextReference)
+            CopyDiagnostics(impl.device.Get(),cmd,f,s,diagnostics,LegacyDiagnosticCount,DiagnosticNames.size());
         f.info = info; f.native = true; f.settingsHash = hash;
         s.context = info.contextId; s.settingsHash = hash; s.lastEvaluation = info.evaluationId; s.lastFrameIndex = info.frameIndex; s.bound = true;
+        if (s.fullContextReference)
+        {
+            s.referenceContextGeneration = referenceBoundary.at("context_generation").get<uint64_t>();
+            s.lastReferenceEvaluation = referenceBoundary.at("reference_evaluation_id").get<uint64_t>();
+        }
         s.manifest["context_id"] = s.context; s.manifest["settings_sha256"] = hash;
         if (f.settings.contains("build_identity")) s.manifest["build_identity"] = f.settings["build_identity"];
     }
