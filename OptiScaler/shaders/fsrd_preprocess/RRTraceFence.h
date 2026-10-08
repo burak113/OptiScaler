@@ -23,6 +23,34 @@ struct Ticket
     std::vector<ComPtr<IUnknown>> resources;
     HRESULT signalResult = S_OK;
     std::uint64_t completion = 0;
+    std::uint64_t generation = 0; // Unique ticket arm, not a guessed list lifetime.
+    HANDLE waitEvent = nullptr;
+    ~Ticket() { if (waitEvent) CloseHandle(waitEvent); }
+
+    enum class WaitResult { Completed, Timeout, NotWaitable, Failed };
+    WaitResult WaitBounded(DWORD milliseconds)
+    {
+        ComPtr<ID3D12Fence> waitingFence;
+        std::uint64_t value = 0;
+        HANDLE event = nullptr;
+        {
+            std::scoped_lock lock(mutex);
+            if (!state.CanWait() || FAILED(signalResult)) return WaitResult::NotWaitable;
+            completion = fence->GetCompletedValue();
+            if (completion == UINT64_MAX) return WaitResult::Failed;
+            if (completion >= state.expected) return WaitResult::Completed;
+            waitingFence = fence; value = state.expected;
+            if (!waitEvent) waitEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+            event = waitEvent;
+        }
+        if (!event) return WaitResult::Failed;
+        const HRESULT result = waitingFence->SetEventOnCompletion(value, event);
+        const DWORD waited = SUCCEEDED(result) ? WaitForSingleObject(event, milliseconds) : WAIT_FAILED;
+        // A timed-out registration still belongs to this fence. The ticket and
+        // its event stay alive until proven completion permits resource release.
+        return waited == WAIT_OBJECT_0 ? WaitResult::Completed
+            : waited == WAIT_TIMEOUT ? WaitResult::Timeout : WaitResult::Failed;
+    }
 
     void Retain(IUnknown* object)
     {
@@ -72,7 +100,22 @@ struct Registry
 {
     std::mutex mutex;
     std::vector<std::shared_ptr<Ticket>> tickets;
+    std::uint64_t nextGeneration = 0;
 };
+struct Snapshot
+{
+    State state;
+    std::uint64_t identity = 0, generation = 0, queue = 0, completed = 0;
+    HRESULT signalResult = S_OK;
+};
+inline Snapshot Inspect(const std::shared_ptr<Ticket>& ticket)
+{
+    if (!ticket) return {};
+    std::scoped_lock lock(ticket->mutex);
+    return {ticket->state, std::uint64_t(reinterpret_cast<uintptr_t>(ticket->identity.Get())),
+        ticket->generation, std::uint64_t(reinterpret_cast<uintptr_t>(ticket->queue.Get())),
+        ticket->fence ? ticket->fence->GetCompletedValue() : 0, ticket->signalResult};
+}
 inline Registry& GetRegistry()
 {
     // Do not destroy uncertain in-flight captures during DLL/static teardown.
@@ -103,6 +146,7 @@ inline std::shared_ptr<Ticket> Arm(ID3D12Device* device, ID3D12CommandList* list
     ReapLocked(r);
     if (r.tickets.size() >= 4)
         throw std::runtime_error("RRTrace has unresolved captures; refusing unsafe resource reuse");
+    t->generation = ++r.nextGeneration;
     r.tickets.push_back(t);
     return t;
 }

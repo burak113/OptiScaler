@@ -40,11 +40,18 @@ struct State
         if (!submitted) invalid = true; // Recorded commands were discarded.
         detached = true;
     }
+    // Capacity waits may wait only for an already submitted, successfully
+    // signalled and detached recording. Never wait for a future Reset.
+    bool CanWait() const
+    {
+        return recorded && submitted && detached && pendingSignals == 0 &&
+               !invalid && !signalFailed;
+    }
     // Wait for Reset as well as the fence: a still-executable command list
     // could otherwise overwrite the capture during CPU export by being resubmitted.
     bool Ready(std::uint64_t completed) const
     {
-        return recorded && submitted && detached && pendingSignals == 0 && !invalid && !signalFailed &&
+        return CanWait() &&
                completed != UINT64_MAX && completed >= expected;
     }
     bool CanRelease(std::uint64_t completed) const
