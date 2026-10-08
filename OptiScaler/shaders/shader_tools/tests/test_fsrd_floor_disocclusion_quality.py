@@ -21,6 +21,7 @@ import sys
 import numpy as np
 import run_fsrd_gpu_tests as t
 import fsrd_alpha_common as c
+from test_fsrd_floor_split_contract import declared_floor_reserve, declared_floor_reserve_kind
 
 
 BASE = '49b743d4'
@@ -54,7 +55,7 @@ GAIN_REGRESSION_CONTRACT = dict(version='fsrd_texture_gain_regression_v3',
 
 def dependency_identity():
     here = Path(__file__).resolve().parent
-    names = ('run_fsrd_gpu_tests.py', 'fsrd_alpha_common.py', 'fsrd_gpu_runner.cpp',
+    names = ('run_fsrd_gpu_tests.py', 'fsrd_alpha_common.py', 'test_fsrd_floor_split_contract.py', 'fsrd_gpu_runner.cpp',
              'fsrd_floor_rr_replay.py', 'fsrd_rr_runner.cpp')
     return dict(python=sys.version, numpy=np.__version__,
                 sources={name: hashlib.sha256((here / name).read_bytes()).hexdigest() for name in names})
@@ -249,6 +250,9 @@ def residual_source(data, floor, reference, material, directory, enabled, model=
     if 'const float3 residualSource' not in text or not enabled:
         return c.rgba(source), weight, 'original_raw_source'
     compact = ''.join(text.split())
+    if 'constfloat3residualSource=rawColor;' in compact:
+        declared_floor_reserve_kind(text)
+        return c.rgba(raw), weight, 'original_raw_source_with_model_headroom'
     required = ('floorModel.a>=0.5f', 'any(materialSlope>0.0f)',
                 'specularStrength==1.0f&&diffuseStrength==1.0f')
     reference_source = ('constfloat3residualSource=lerp(rawColor,FloorRadiance(detailReference.rgb),sourceWeight);' in compact
@@ -415,7 +419,30 @@ def verify_source_accounting(saved, packed, frames, directory, enabled):
         mask = data['visible'] & ((saved['material'][f] < .1) | marked[f])
         # Positive residual storage retains a crossing Floor estimate. This
         # disclosed term is not a quality allowance: metrics still use clean truth.
-        expected = np.maximum(target[..., :3], saved['floor'][f, ..., :3])
+        pedestal = saved['floor'][f, ..., :3].copy()
+        if contract == 'original_raw_source_with_model_headroom':
+            model = saved['floor_model'][f]
+            plane, _ = model_tags(model, directory)
+            fitted = np.any(model[..., :3] > -99., axis=-1)
+            confidence = np.where(fitted, 1., plane)
+            ref = saved['reference'][f]
+            eligible = (np.isfinite(model).all(axis=-1) & (model[..., 3] >= .5)
+                        & np.isfinite(ref).all(axis=-1) & (ref[..., 3] >= 0)
+                        & (saved['material'][f] < .1) & (data['bias'][..., 0] == 0))
+            source = (directory / 'FSRDInputConv.hlsl').read_text(encoding='utf-8')
+            kind = declared_floor_reserve_kind(source)
+            # These full-safe fixtures have known original guides, no albedo
+            # overshoot or emission. Quantize the FP16 input into the declared
+            # stored UNORM8 domain, independently of measured RR/Skip outputs.
+            diffuse = data['albedo'].astype(np.float16).astype(np.float64)[..., :3]
+            specular = np.float64(np.float16(.08))
+            q = np.rint(np.clip(diffuse, 0., 1.) * 255.) / 255. + np.rint(specular * 255.) / 255.
+            if kind == 'quarter_albedo_carrier':
+                eligible &= ~np.all(model[..., :3] == -101., axis=-1)
+                eligible &= ~np.all(model[..., :3] == -102., axis=-1)
+            pedestal = declared_floor_reserve(pedestal, ref[..., 3], q, confidence, eligible, kind,
+                reference_luma=luminance(np.maximum(ref[..., :3], 0.)))
+        expected = np.maximum(target[..., :3], pedestal)
         # The already existing zero-slope branch compensates truncated noise by
         # lowering only Skip; its positive residual still uses the original F.
         # Include that declared term in accounting, never in clean truth.
@@ -431,9 +458,14 @@ def verify_source_accounting(saved, packed, frames, directory, enabled):
             plane_rgb = ('if(ordinaryNoiseModel&&detailReference.a>=0.0f&&planeConfidence==0.0f&&!any(materialSlope>0.0f))'
                          '{constfloatclippingBias=0.15f*FloorClippingNoiseRatio(floorModel)*GetLuminance(floorColor.rgb);'
                          'floorColor.rgb=max(floorColor.rgb-min(clippingBias,0.05f*floorColor.rgb),0.0f);}') in conversion
+            plane_rgb |= ('if(ordinaryNoiseModel&&!IsSet(FLAGS_UNSUPPORTED_ALBEDO)&&detailReference.a>=0.0f&&planeConfidence==0.0f&&!any(materialSlope>0.0f))'
+                          '{constfloatclippingBias=0.15f*FloorClippingNoiseRatio(floorModel)*GetLuminance(floorColor.rgb);'
+                          'floorColor.rgb=max(floorColor.rgb-min(clippingBias,0.05f*floorColor.rgb),0.0f);}') in conversion
             if sum((multiplicative, common_rgb, plane_rgb)) != 1:
                 raise ValueError('Unknown zero-slope source-accounting compensation')
-            original_floor = saved['floor'][f, ..., :3]
+            # Clipping compensation follows the declared reserve. Its luma and
+            # channel ceiling use retained spatialFloor, not the original F.
+            correction_floor = pedestal
             sigma_ratio = .15 * np.maximum(model[..., 3] - 1., 0)
             if plane_rgb:
                 plane, _ = model_tags(model, directory)
@@ -441,9 +473,9 @@ def verify_source_accounting(saved, packed, frames, directory, enabled):
                 sigma_ratio = .15 * np.where(model[..., 3] < 2., np.maximum(model[..., 3] - 1., 0), 0)
             if common_rgb or plane_rgb:
                 flat &= saved['reference'][f, ..., 3] >= 0
-                correction = np.minimum((sigma_ratio * luminance(original_floor))[..., None], .05 * original_floor)
+                correction = np.minimum((sigma_ratio * luminance(correction_floor))[..., None], .05 * correction_floor)
             else:
-                correction = original_floor * np.minimum(sigma_ratio, .05)[..., None]
+                correction = correction_floor * np.minimum(sigma_ratio, .05)[..., None]
             expected[flat] -= correction[flat]
         expected[marked[f]] = current_source[f][marked[f]]
         remodulated = (packed['diffuse'][f, ..., :3] * packed['diffuse_albedo'][f, ..., :3]

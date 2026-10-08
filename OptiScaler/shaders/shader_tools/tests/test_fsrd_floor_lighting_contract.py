@@ -45,6 +45,7 @@ from datetime import datetime, timezone
 import numpy as np
 import run_fsrd_gpu_tests as t
 import fsrd_alpha_common as c
+from test_fsrd_floor_split_contract import declared_floor_reserve, declared_floor_reserve_kind
 
 
 TAG = -101.0
@@ -106,6 +107,7 @@ class Frame:
     exposure: float
     requires_certificate: bool = False
     requires_projection: bool = False
+    strict_photometry: bool = False
 
 
 def _hash(path):
@@ -124,7 +126,7 @@ def _array_hash(value):
 def _dependency_identity():
     here = Path(__file__).resolve().parent
     result = {name: _hash(here / name) for name in (
-        Path(__file__).name, 'run_fsrd_gpu_tests.py', 'fsrd_alpha_common.py',
+        Path(__file__).name, 'run_fsrd_gpu_tests.py', 'fsrd_alpha_common.py', 'test_fsrd_floor_split_contract.py',
         'fsrd_gpu_runner.cpp')}
     for name in ('build_fsrd_shader.py', 'fsrd_toolchain.py'):
         result['../' + name] = _hash(here.parent / name)
@@ -345,6 +347,18 @@ def polynomial_frames():
             frame = _frame(f'analytic_{degree}_lighting_exposure{exposure}', rgb, exposure)
             frame.requires_projection = True
             yield frame
+
+
+def monochromatic_frames():
+    """Clean beam in one varying RGB channel, without two-colour authority."""
+    w, h = 81, 57
+    y, x = np.indices((h, w), dtype=np.float64)
+    u, v = 2*x/(w-1)-1, 2*y/(h-1)-1
+    rgb = np.broadcast_to([.08, .10, .12], (h, w, 3)).copy()
+    rgb[..., 0] += .40 * np.exp(-(.8*u + .6*v)**2 / .025)
+    frame = _frame('clean_single_channel_beam', rgb)
+    frame.strict_photometry = True
+    yield frame
 
 
 def _resolution_physics(frame):
@@ -697,6 +711,7 @@ def description():
                 projection_tag_rgb=[PROJECTION_TAG] * 3,
                 projection_query_limit_patch_ulp=PROJECTION_ULP_LIMIT,
                 projection_fixture_records=[_identity(frame) for frame in polynomial_frames()],
+                monochromatic_fixture_records=[_identity(frame) for frame in monochromatic_frames()],
                 model_transport_bound=MODEL_TRANSPORT_BOUND,
                 model_transport_fixture_records=[_model_transport_identity(fixture) for fixture in model_transport_frames()],
                 sparse_fixture_records=[_identity(frame) for frame, _, _ in sparse_frames()],
@@ -904,10 +919,13 @@ def _rgb_metrics(result, truth, exposure, mask):
     error = observed - target
     centered = target - target.mean(axis=0)
     variance = np.sum(centered**2, axis=0)
-    gain = np.sum(centered * (observed - observed.mean(axis=0)), axis=0) / variance
+    varying = variance > 1e-20
+    gain = np.divide(np.sum(centered * (observed - observed.mean(axis=0)), axis=0),
+                     variance, out=np.ones(3, np.float64), where=varying)
     return dict(channel_rmse=np.sqrt(np.mean(error**2, axis=0)).tolist(),
                 channel_bias=np.abs(error.mean(axis=0)).tolist(),
-                channel_peak=np.max(np.abs(error), axis=0).tolist(), channel_gain=gain.tolist())
+                channel_peak=np.max(np.abs(error), axis=0).tolist(), channel_gain=gain.tolist(),
+                varying_channels=varying.tolist())
 
 
 def _packing_contract(frame, floor, old_floor, reference, old_reference,
@@ -968,6 +986,9 @@ def _clean_contract(frame, active_seed, old_seed, directory, control, records):
     tags = _tags(_model(active_seed[0]))
     projected = _projections(_model(active_seed[0]))
     tag_count = int((tags & roi).sum())
+    if frame.strict_photometry:
+        t.check(frame.name + ': one varying RGB channel cannot grant a two-colour raw certificate',
+                not tags.any(), tagged_pixels=int(tags.sum()))
     if frame.requires_certificate:
         _producer_check(frame.name + ': resolved RGB lighting has meaningful positive certificate coverage',
                 tag_count >= BOUNDS['clean_tag_min_pixels'] and
@@ -990,8 +1011,9 @@ def _clean_contract(frame, active_seed, old_seed, directory, control, records):
                   max(metrics['channel_peak']) <= BOUNDS['clean_channel_peak'] and
                   min(metrics['channel_gain']) >= BOUNDS['clean_gain_min'] and
                   max(metrics['channel_gain']) <= BOUNDS['clean_gain_max'])
-        _producer_check(f'{frame.name}: {label} final composition retains analytic RGB lighting',
-                passed, **metrics)
+        check_photometry = t.check if frame.strict_photometry else _producer_check
+        check_photometry(f'{frame.name}: {label} final composition retains analytic RGB lighting',
+                         passed, **metrics)
         if projected.any():
             identity = c.compose(packed, directory=directory, depth=frame.depth, detail=0.)
             query_error = np.abs(identity[projected, :3] - _safe_fp16_rgb(frame.raw)[projected])
@@ -1093,7 +1115,9 @@ def _declared_postclip_energy(frame, floor, reference, packed, directory):
     material routing but derive the source from raw/Floor/model/reference and
     known production expressions. Never subtract the measured Skip or RR output.
     """
-    compact = re.sub(r'\s+', '', (Path(directory) / 'FSRDInputConv.hlsl').read_text(encoding='utf-8'))
+    consumer_source = (Path(directory) / 'FSRDInputConv.hlsl').read_text(encoding='utf-8')
+    compact = re.sub(r'\s+', '', consumer_source)
+    raw_source = 'constfloat3residualSource=rawColor;' in compact
     required = (
         'constfloat3residualSource=lerp(rawColor,spatialFloor,sourceWeight);',
         'float3denoiserColor=(1.0f-biasWeight)*max(residualSource-spatialFloor,0.0f);',
@@ -1101,6 +1125,11 @@ def _declared_postclip_energy(frame, floor, reference, packed, directory):
         'constfloat3sourceWeight=modelSourceWeight*max(all(materialSlope>0.0f)?1.0f:0.0f,planeConfidence);',
         'if(ordinaryNoiseModel&&detailReference.a>=0.0f&&planeConfidence==0.0f&&!any(materialSlope>0.0f)){constfloatclippingBias=0.15f*FloorClippingNoiseRatio(floorModel)*GetLuminance(floorColor.rgb);floorColor.rgb=max(floorColor.rgb-min(clippingBias,0.05f*floorColor.rgb),0.0f);}',
     )
+    if raw_source:
+        # This is submitted-energy accounting, not a new quality oracle. The
+        # split suite independently checks live stochastic RR participation.
+        required = ('constfloat3residualSource=rawColor;',
+                    'float3denoiserColor=(1.0f-biasWeight)*max(residualSource-spatialFloor,0.0f);')
     common = re.sub(r'\s+', '', (Path(directory) / 'FSRDPreprocessCommon.hlsli').read_text(encoding='utf-8'))
     model_source = re.sub(r'\s+', '', (Path(directory) / 'FSRDFloorModel.hlsli').read_text(encoding='utf-8'))
     model_expressions = (
@@ -1127,13 +1156,28 @@ def _declared_postclip_energy(frame, floor, reference, packed, directory):
     plane = np.where(model[..., 3] >= 2., np.clip(model[..., 3] - 2., 0., 1.), 0.)
     ref = np.clip(np.asarray(reference[..., :3], np.float64), 0., 65500.)
     ratio = reference[..., 3] / np.maximum(ref @ c.LUMA, 1e-5)
-    signal = np.clip((ratio - .005) / .020, 0., 1.)
-    signal = signal * signal * (3. - 2. * signal)
     eligible = ordinary & (model[..., 3] >= .5) & (reference[..., 3] >= 0)
-    signal *= eligible & (slope.any(axis=-1) | (plane > 0))
-    # One source decision for all channels (a partial-channel model keeps raw).
-    weights = signal[..., None] * np.maximum(slope.all(axis=-1), plane)[..., None]
-    submitted_source = raw * (1. - weights) + spatial * weights
+    if raw_source:
+        kind = declared_floor_reserve_kind(consumer_source)
+        confidence = np.where(slope.any(axis=-1), 1., plane)
+        # Known full-safe original guides, quantized as the production store.
+        # No measured native signal or Skip error is used to infer the reserve.
+        diffuse = _safe_fp16_rgb(frame.albedo).astype(np.float64)
+        specular = np.float64(np.float16(.04))
+        q = np.rint(np.clip(diffuse, 0., 1.) * 255.) / 255. + np.rint(specular * 255.) / 255.
+        if kind == 'quarter_albedo_carrier':
+            eligible &= ~np.all(model[..., :3] == TAG, axis=-1)
+            eligible &= ~np.all(model[..., :3] == PROJECTION_TAG, axis=-1)
+        spatial = declared_floor_reserve(spatial, reference[..., 3], q, confidence, eligible, kind,
+            reference_luma=ref @ c.LUMA)
+        submitted_source = raw
+    else:
+        signal = np.clip((ratio - .005) / .020, 0., 1.)
+        signal = signal * signal * (3. - 2. * signal)
+        signal *= eligible & (slope.any(axis=-1) | (plane > 0))
+        # Historical source replacement is disclosed for pinned comparisons.
+        weights = signal[..., None] * np.maximum(slope.all(axis=-1), plane)[..., None]
+        submitted_source = raw * (1. - weights) + spatial * weights
     legacy = eligible & (plane == 0) & ~slope.any(axis=-1)
     bias = .15 * np.maximum(model[..., 3] - 1., 0.) * (spatial @ c.LUMA)
     bias = np.where(legacy[..., None], np.minimum(bias[..., None], .05 * spatial), 0.)
@@ -1678,7 +1722,8 @@ def run(directory=None, output=None, control_directory=None, *, stale_rr_guard='
         t.check('CPU analytic lighting fixtures resolve their declared certificate classes',
                 all(item['classification_passed'] for item in plan['resolution_physics']))
         with c.GPUWorker(output):
-            for frame in list(clean_frames()) + list(resolved_frames()) + list(polynomial_frames()):
+            for frame in (list(clean_frames()) + list(resolved_frames()) +
+                          list(polynomial_frames()) + list(monochromatic_frames())):
                 active_seed, old_seed = _seed_pair(frame, directory, control_directory)
                 _clean_contract(frame, active_seed, old_seed, directory, control_directory, records)
             for frame in noise_frames():

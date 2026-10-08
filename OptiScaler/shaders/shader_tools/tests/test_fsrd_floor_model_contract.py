@@ -213,7 +213,7 @@ def run(directory=None, output=None):
 
     # A trusted constant-material lighting model does not imply a globally
     # smooth light field. Keep active uncertainty to exercise the wide filter;
-    # test the source split too, where a full model leaves no recoverable residual.
+    # test the source split too, where the current colour must retain its energy.
     for kind, left, right in (
         ('intensity', [.02, .02, .02], [1., 1., 1.]),
         ('equal luminance chroma', [.4, .2, .8], [.4, .25, .8 - .05*.7152/.0722]),
