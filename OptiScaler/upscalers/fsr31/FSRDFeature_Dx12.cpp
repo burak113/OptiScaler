@@ -3,6 +3,7 @@
 #include <json.hpp>
 #include "shaders/fsrd_preprocess/FSRDGameTraceSession.h"
 #include "shaders/fsrd_preprocess/RRTraceAdditiveIO.h"
+#include "resource.h"
 #include <nvsdk_ngx_defs_dlssd.h>
 #include <DirectXMath.h>
 #include <d3d12sdklayers.h>
