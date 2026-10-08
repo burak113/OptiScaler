@@ -14,7 +14,7 @@ Set TEMP/TMP and FSRD_CPP_CACHE to a drive with free space. Example:
 
 reserve_data is excluded before traversal and rejected even as an explicit path.
 """
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import argparse
 import hashlib
 import importlib.util
@@ -62,11 +62,311 @@ def camera_crop(extent, roi):
     return crop
 
 
+V5_SCHEMA = 'fsrd-game-trace-v5'
+V5_IMAGE_FORMATS = dict(U=10, V=10, Qs=28, Qd=28, Skip=10, packed=24,
+                        depth=41, motion=10, native_full1=10, current_output=10)
+V5_FORMAT_WORDS = {2: (16, 4, '<f4', 4), 6: (12, 3, '<f4', 3),
+                   10: (8, 4, '<f2', 4), 11: (8, 4, '<u2', 4), 16: (8, 2, '<f4', 2),
+                   24: (4, 4, '<u4', 1), 26: (4, 3, '<u4', 1),
+                   28: (4, 4, 'u1', 4), 87: (4, 4, 'u1', 4),
+                   34: (4, 2, '<f2', 2), 35: (4, 2, '<u2', 2),
+                   39: (4, 1, '<u4', 1), 40: (4, 1, '<u4', 1), 41: (4, 1, '<f4', 1),
+                   44: (4, 1, '<u4', 1), 45: (4, 1, '<u4', 1), 46: (4, 1, '<u4', 1),
+                   54: (2, 1, '<f2', 1), 56: (2, 1, '<u2', 1), 61: (1, 1, 'u1', 1)}
+V5_POST_FORMATS = {2, 6, 10, 11, 24, 26, 28, 87}
+V5_DIAGNOSTICS = {'raw_color', 'raw_normals', 'raw_specular_albedo', 'raw_diffuse_albedo',
+                  'rr_specular', 'rr_diffuse', 'raw_bias_mask', 'raw_specular_hit_distance',
+                  'raw_specular_direction_hit_distance', 'raw_diffuse_hit_distance',
+                  'raw_responsivity', 'raw_emissive',
+                  'raw_motion', 'raw_depth', 'raw_roughness', 'raw_title_linear_depth',
+                  'raw_inspector', 'floor', 'floor_reference'}
+
+
+def _v5_int(value, label, minimum=0, maximum=(1 << 64)-1):
+    if type(value) is not int or not minimum <= value <= maximum:
+        raise ValueError('v5 invalid integer: '+label)
+    return value
+
+
+def _v5_pair(value, label, minimum=1):
+    if not isinstance(value, list) or len(value) != 2:
+        raise ValueError('v5 invalid extent/origin: '+label)
+    return [_v5_int(v, label, minimum, 16384) for v in value]
+
+
+def _v5_finite(value, label, count=None):
+    values = value if count is not None else [value]
+    if count is not None and (not isinstance(values, list) or len(values) != count):
+        raise ValueError('v5 invalid control shape: '+label)
+    if any(type(v) not in (int, float) or not np.isfinite(v) for v in values):
+        raise ValueError('v5 nonfinite/nonnumeric control: '+label)
+
+
+def _v5_payload_path(root, ordinal, role, info):
+    expected = f'frames/{ordinal}/{role}.bin'
+    value = info.get('file')
+    if not isinstance(value, str) or value != expected or str(PurePosixPath(value)) != value:
+        raise ValueError('v5 payload role/path mismatch: '+role)
+    file = safe_path(root/value)
+    if not file.is_relative_to(root):
+        raise ValueError('v5 payload escapes capture directory')
+    _v5_int(info.get('bytes'), role+' bytes', 1)
+    if not isinstance(info.get('sha256'), str) or not re.fullmatch('[0-9a-f]{64}', info['sha256']):
+        raise ValueError('v5 invalid payload hash: '+role)
+    return file
+
+
+def _v5_image(root, ordinal, role, info):
+    file = _v5_payload_path(root, ordinal, role, info)
+    fmt = _v5_int(info.get('dxgi_format'), role+' DXGI format')
+    if fmt not in V5_FORMAT_WORDS:
+        raise ValueError('v5 image DXGI format needs reader support: '+role)
+    bpp, channels, _, _ = V5_FORMAT_WORDS[fmt]
+    if info.get('bytes_per_pixel') != bpp or type(info.get('bytes_per_pixel')) is not int or \
+            info.get('channels') != channels or type(info.get('channels')) is not int:
+        raise ValueError('v5 image format/channels/word-size mismatch: '+role)
+    size = _v5_pair(info.get('extent'), role+' extent')
+    source = _v5_pair(info.get('source_extent'), role+' source extent')
+    origin = _v5_pair(info.get('crop_origin'), role+' crop origin', 0)
+    if any(a+b > c for a, b, c in zip(origin, size, source)):
+        raise ValueError('v5 image crop lies outside source: '+role)
+    if info['bytes'] != size[0]*size[1]*bpp:
+        raise ValueError('v5 image byte extent mismatch: '+role)
+    if info.get('storage') != 'original_little_endian_gpu_words':
+        raise ValueError('v5 image storage must preserve original GPU words: '+role)
+    return file
+
+
+def _v5_replay_crop_aligned(info, origin):
+    # Plain diagnostic copies use render ROI + the title resource's subrect
+    # base. Replay binds those cropped words at base zero, so another equally
+    # sized rectangle cannot be treated as the same aligned input.
+    base = info.get('source_base', [0, 0])
+    if not isinstance(base, list) or len(base) != 2 or any(type(v) is not int or v < 0 for v in base):
+        return False
+    if info['crop_origin'] != [a+b for a, b in zip(origin, base)]:
+        return False
+    mapping = info.get('mapping')
+    if info['name'] == 'raw_motion' and mapping is not None:
+        # Display-resolution motion needs its original bounding-rectangle
+        # addressing, which the replay's fixed raw-MV binding does not provide.
+        if not isinstance(mapping, dict) or mapping.get('display_resolution') is not False or \
+                mapping.get('render_roi_origin') != origin:
+            return False
+    return True
+
+
+def _validate_v5_capture(path, manifest, frames):
+    """Validate v5 metadata before any optional payload read; v4 stays unchanged."""
+    extent = _v5_pair(manifest.get('render_extent'), 'render extent')
+    roi = manifest['roi']; size = _v5_pair(roi.get('extent'), 'ROI extent')
+    origin = _v5_pair(roi.get('origin'), 'ROI origin', 0)
+    if size not in ([128, 128], [512, 512]):
+        raise ValueError('v5 unsupported requested ROI extent')
+    mode = manifest.get('post_sr_mode')
+    if mode not in ('off', 'mapped_render_roi', 'full_logical_output'):
+        raise ValueError('v5 invalid post-SR observation mode')
+    post_context = None; post_layout = None; descriptors = []; post = []
+    for f in frames:
+        ordinal = _v5_int(f['ordinal'], 'ordinal')
+        _v5_int(f.get('evaluation_id'), 'evaluation ID', 1)
+        _v5_int(f.get('native_frame_index'), 'native frame index')
+        _v5_int(f.get('recording_qpc'), 'recording timestamp', 1)
+        if not isinstance(f.get('context_id'), str) or not f['context_id']:
+            raise ValueError('v5 missing RR context identity')
+        if type(f.get('reset')) is not bool:
+            raise ValueError('v5 reset must be captured boolean')
+        if f.get('gpu_submission_verified') is not True or f.get('gpu_completed') is not True:
+            raise ValueError('v5 GPU completion/submission must be verified booleans')
+        if f.get('cpu_snapshot_immutable') is not True or f.get('submission_gate_protected') is not True:
+            raise ValueError('v5 lacks verified immutable CPU snapshot gate')
+        proof = f.get('ticket_proof')
+        if not isinstance(proof, dict):
+            raise ValueError('v5 missing immutable CPU snapshot ticket proof')
+        for key in ('recorded', 'submitted', 'cpu_snapshot_immutable', 'submission_gate_protected'):
+            if proof.get(key) is not True:
+                raise ValueError('v5 unverified snapshot proof: '+key)
+        for key in ('invalid', 'abandoned', 'signal_failed', 'ambiguous_submission'):
+            if proof.get(key) is not False:
+                raise ValueError('v5 invalid/ambiguous snapshot proof: '+key)
+        if _v5_int(proof.get('pending_signals'), 'pending signals') != 0 or \
+                _v5_int(proof.get('fence_expected'), 'expected fence', 1) != 1:
+            raise ValueError('v5 snapshot proof has unresolved/repeated submission')
+        _v5_int(proof.get('fence_completed'), 'completed fence', 1, (1 << 64)-2)
+        _v5_int(proof.get('signal_hresult'), 'signal HRESULT', 0, (1 << 31)-1)
+        for key in ('identity_address_process_local', 'ticket_generation', 'queue_address_process_local'):
+            _v5_int(proof.get(key), key, 1)
+        detached = proof.get('detached')
+        if type(detached) is not bool or type(f.get('command_list_detached')) is not bool or \
+                f['command_list_detached'] != detached:
+            raise ValueError('v5 command-list detach proof mismatch')
+        expected_kind = 'successful_command_list_reset' if detached else 'not_observed'
+        if proof.get('detach_kind') != expected_kind:
+            raise ValueError('v5 detach kind contradicts immutable snapshot proof')
+        # CanWait/CanRelease still require a real Reset. An immutable CPU copy
+        # may be published before that Reset under the submission snapshot gate.
+        if type(proof.get('waitable')) is not bool or proof['waitable'] != detached:
+            raise ValueError('v5 waitable proof contradicts command-list detachment')
+        controls = f['controls']
+        if not isinstance(controls, dict):
+            raise ValueError('v5 RR controls must be an object')
+        if _v5_pair(controls.get('render_size'), 'RR render size') != extent:
+            raise ValueError('v5 RR control/render extent mismatch')
+        for key, count in [('view', 16), ('projection', 16), ('jitter', 2),
+                           ('camera_delta', 3), ('motion_vector_scale', 3), ('depth_bounds', 2)]:
+            _v5_finite(controls.get(key), 'RR '+key, count)
+        _v5_finite(controls.get('pre_exposure'), 'RR pre-exposure')
+        if controls['pre_exposure'] <= 0 or type(controls.get('pre_exposure_provided')) is not bool:
+            raise ValueError('v5 invalid captured pre-exposure')
+        if type(controls.get('motion_history_valid')) is not bool:
+            raise ValueError('v5 motion history validity must be captured boolean')
+        canonical = f.get('settings_canonical_json')
+        if not isinstance(f.get('settings'), dict) or not isinstance(canonical, str) or \
+                hashlib.sha256(canonical.encode('utf-8')).hexdigest() != f.get('settings_sha256') or \
+                json.loads(canonical) != f.get('settings'):
+            raise ValueError('v5 settings fingerprint mismatch')
+        if f.get('output_scope') != 'actual_configured_composition_before_sr' or \
+                controls.get('output_scope') != f['output_scope']:
+            raise ValueError('v5 pre-SR observation scope mismatch')
+        images = f.get('images')
+        if not isinstance(images, list) or len(images) != len(V5_IMAGE_FORMATS):
+            raise ValueError('v5 main image roles are incomplete/ambiguous')
+        by_name = {}
+        for info in images:
+            if not isinstance(info, dict):
+                raise ValueError('v5 main image descriptor must be an object')
+            name = info.get('name')
+            if name not in V5_IMAGE_FORMATS or name in by_name:
+                raise ValueError('v5 duplicate/unsupported main image role')
+            file = _v5_image(path, ordinal, name, info)
+            if info['dxgi_format'] != V5_IMAGE_FORMATS[name] or info['extent'] != size or info['crop_origin'] != origin:
+                raise ValueError('v5 main image format/ROI role mismatch: '+name)
+            if any(a < b for a, b in zip(info['source_extent'], extent)):
+                raise ValueError('v5 main source does not contain logical render extent')
+            by_name[name] = info; descriptors.append((file, info, None))
+        if any(by_name['native_full1'][k] != by_name['current_output'][k]
+               for k in ('sha256', 'bytes', 'dxgi_format', 'extent', 'crop_origin', 'source_extent')):
+            raise ValueError('v5 native_full1/current_output pre-SR alias mismatch')
+        names = set(by_name)
+        diagnostics = f.get('diagnostics', [])
+        if not isinstance(diagnostics, list):
+            raise ValueError('v5 diagnostics must be a list')
+        for info in diagnostics:
+            if not isinstance(info, dict):
+                raise ValueError('v5 diagnostic descriptor must be an object')
+            name = info.get('name')
+            if name not in V5_DIAGNOSTICS or name in names:
+                raise ValueError('v5 duplicate/unsupported diagnostic role')
+            names.add(name)
+            if type(info.get('active')) is not bool or type(info.get('available')) is not bool:
+                raise ValueError('v5 diagnostic availability/activity must be booleans')
+            if info['active'] != info['available']:
+                raise ValueError('v5 active diagnostic lacks verified pixels')
+            if info.get('file'):
+                if info.get('available') is not True or info.get('active') is False:
+                    raise ValueError('v5 unavailable/inactive diagnostic declares pixels')
+                file = _v5_image(path, ordinal, name, info); descriptors.append((file, info, None))
+            elif info.get('available') is True:
+                raise ValueError('v5 available diagnostic lacks payload')
+        if names - set(by_name) != V5_DIAGNOSTICS:
+            raise ValueError('v5 diagnostic roles are incomplete')
+        for key in ('conversion_constants', 'floor_seed_constants', 'floor_filter_constants'):
+            info = f.get(key)
+            if not isinstance(info, dict):
+                raise ValueError('v5 missing recorded constants descriptor: '+key)
+            if key == 'conversion_constants':
+                expected_bytes = 416
+            else:
+                if type(info.get('available')) is not bool:
+                    raise ValueError('v5 constants availability must be boolean: '+key)
+                if key == 'floor_seed_constants':
+                    if _v5_int(info.get('abi_bytes'), 'floor seed ABI bytes') != 176 or \
+                            info.get('stage') != 'pre_floor_seed_dispatch':
+                        raise ValueError('v5 floor seed constants ABI/stage mismatch')
+                    expected_bytes = 176
+                else:
+                    passes = _v5_int(info.get('pass_count'), 'floor filter pass count')
+                    if _v5_int(info.get('record_bytes'), 'floor filter record bytes') != 32 or \
+                            info.get('stage') != 'pre_floor_filter_dispatches' or \
+                            passes not in ((3, 5) if info['available'] else (0,)):
+                        raise ValueError('v5 floor filter constants ABI/stage/pass mismatch')
+                    expected_bytes = 32*passes
+                if not info['available']:
+                    if any(k in info for k in ('file', 'bytes', 'sha256')):
+                        raise ValueError('v5 unavailable constants declare payload: '+key)
+                    continue
+            file = _v5_payload_path(path, ordinal, key, info)
+            if info['bytes'] != expected_bytes:
+                raise ValueError('v5 recorded constants byte size mismatch: '+key)
+            descriptors.append((file, info, None))
+        observed = f.get('post_sr')
+        if not isinstance(observed, dict) or type(observed.get('available')) is not bool:
+            raise ValueError('v5 missing post-SR observation availability')
+        post.append(observed)
+        if mode == 'off':
+            if observed['available'] or observed.get('file'):
+                raise ValueError('v5 off post-SR mode declares pixels')
+            continue
+        if not observed['available']:
+            raise ValueError('v5 requested post-SR observation is unavailable')
+        file = _v5_image(path, ordinal, 'post_sr', observed)
+        if observed['dxgi_format'] not in V5_POST_FORMATS or observed.get('mode') != mode or \
+                observed.get('stage') != 'after_sr_before_rcas_output_scaling_overlay':
+            raise ValueError('v5 post-SR format/mode/stage mismatch')
+        if observed.get('evaluation_id') != f['evaluation_id'] or type(observed.get('evaluation_id')) is not int:
+            raise ValueError('v5 post-SR evaluation identity mismatch')
+        logical = _v5_pair(observed.get('logical_extent'), 'post-SR logical extent')
+        if any(a > b for a, b in zip(logical, observed['source_extent'])):
+            raise ValueError('v5 post-SR logical extent lies outside allocation')
+        if mode == 'full_logical_output':
+            wanted_origin, wanted_size = [0, 0], logical
+        else:
+            wanted_origin = [a*b//c for a, b, c in zip(origin, logical, extent)]
+            end = [(a+b)*d//c + int(((a+b)*d) % c != 0)
+                   for a, b, d, c in zip(origin, size, logical, extent)]
+            wanted_size = [a-b for a, b in zip(end, wanted_origin)]
+        if observed['crop_origin'] != wanted_origin or observed['extent'] != wanted_size:
+            raise ValueError('v5 post-SR mapped logical ROI mismatch')
+        sr_context = observed.get('context_id')
+        if not isinstance(sr_context, str) or not re.fullmatch(r'SR-process-context-\d+-owner-\d+', sr_context):
+            raise ValueError('v5 post-SR process context identity missing')
+        if any(int(v) == 0 for v in re.findall(r'\d+', sr_context)):
+            raise ValueError('v5 post-SR context/owner identity is zero')
+        layout = (tuple(logical), observed['dxgi_format'])
+        if post_context is not None and (sr_context != post_context or layout != post_layout):
+            raise ValueError('v5 post-SR context/layout history changed')
+        post_context, post_layout = sr_context, layout
+        sr = observed.get('dispatch_controls')
+        if not isinstance(sr, dict) or _v5_pair(sr.get('render_size'), 'SR render size') != extent or \
+                _v5_pair(sr.get('upscale_size'), 'SR upscale size') != logical:
+            raise ValueError('v5 post-SR dispatch/extent mismatch')
+        for key in ('jitter', 'motion_vector_scale'):
+            _v5_finite(sr.get(key), 'SR '+key, 2)
+        for key in ('frame_time_delta', 'pre_exposure', 'camera_near', 'camera_far',
+                    'camera_fov_vertical', 'view_space_to_meters', 'sharpness'):
+            _v5_finite(sr.get(key), 'SR '+key)
+        if sr['pre_exposure'] <= 0 or sr['frame_time_delta'] < 0 or sr['view_space_to_meters'] <= 0:
+            raise ValueError('v5 post-SR dispatch scalar is invalid')
+        if type(observed.get('reset')) is not bool or sr.get('reset') != observed['reset'] or \
+                type(sr.get('reset')) is not bool or type(sr.get('enable_sharpening')) is not bool:
+            raise ValueError('v5 post-SR reset/sharpening controls are ambiguous')
+        for key in ('flags', 'create_flags'):
+            _v5_int(sr.get(key), 'SR '+key)
+        descriptors.append((file, observed, ordinal))
+    if any(b['evaluation_id'] <= a['evaluation_id'] or b['recording_qpc'] <= a['recording_qpc']
+           for a, b in zip(frames, frames[1:])):
+        raise ValueError('v5 evaluation/timestamp lineage is not increasing')
+    return descriptors, post
+
+
 def inspect_capture(path, payload=False, limit=None):
     path = safe_path(path)
     manifest = json.loads((path / 'capture.json').read_text(encoding='utf-8'))
     if manifest.get('source') != 'live_game_gpu':
         raise ValueError('a live_game_gpu capture is required')
+    schema = manifest.get('schema')
+    if schema not in ('fsrd-game-trace-v3', 'fsrd-game-trace-v4', V5_SCHEMA):
+        raise ValueError('unsupported GAME_TRACE schema version')
     frames = manifest['frames'][:limit]
     if not frames or [f['ordinal'] for f in frames] != list(range(len(frames))):
         raise ValueError('capture must publish a nonempty contiguous ordinal prefix')
@@ -81,6 +381,8 @@ def inspect_capture(path, payload=False, limit=None):
     w, h = roi['extent']; x, y = roi['origin']
     if not (0 <= x and 0 <= y and 0 < w <= extent[0]-x and 0 < h <= extent[1]-y):
         raise ValueError('ROI lies outside render extent')
+    v5 = manifest.get('schema') == V5_SCHEMA
+    v5_descriptors, post_metadata = _validate_v5_capture(path, manifest, frames) if v5 else ([], [])
     controls = [f['controls'] for f in frames]
     views = np.asarray([c['view'] for c in controls], np.float32).reshape(-1, 4, 4)
     row = dict(capture=str(path), capture_uuid=manifest['capture_uuid'], schema=manifest['schema'],
@@ -92,6 +394,13 @@ def inspect_capture(path, payload=False, limit=None):
                maximum_rotation_change=float(np.max(np.abs(views[:, :3]-views[0, :3]))),
                settings=frames[0]['settings'], capture_manifest_sha256=digest(path / 'capture.json'),
                limitation='Fixed ROI; missing off-ROI history and neighbours. A reset at replay frame 0 starts fresh history.')
+    if v5:
+        row.update(post_sr_mode=manifest['post_sr_mode'],
+                   post_sr_is_pre_sr_reference=False,
+                   immutable_cpu_snapshot_verified=True,
+                   missing_floor_seed_constants=[f['ordinal'] for f in frames
+                                                 if not f['floor_seed_constants']['available']],
+                   post_sr_limitation='Optional after-SR observation before RCAS/output scaling/overlay; kept separate from the pre-SR captured comparator.')
     if not payload:
         return row
     arrays = {}
@@ -104,7 +413,7 @@ def inspect_capture(path, payload=False, limit=None):
                              raw_depth={39, 40, 41}, raw_specular_hit_distance={39, 41},
                              raw_diffuse_albedo={28}, raw_specular_albedo={28}, raw_bias_mask={61},
                              native_full1={10})
-    for name, (dtype, channels) in layouts.items():
+    for name, (dtype, channels) in (() if v5 else layouts.items()):
         shape = (h, w, channels) if channels != 1 else (h, w)
         data=[]
         for f in frames:
@@ -124,19 +433,76 @@ def inspect_capture(path, payload=False, limit=None):
             authenticated.append(dict(file=info['file'],sha256=info['sha256']))
         arrays[name]=np.stack(data)
     for f in frames:
-        for key in ('conversion_constants','floor_seed_constants'):
+        for key in (() if v5 else ('conversion_constants','floor_seed_constants')):
             info=f[key];file=safe_path(path/info['file'])
             if not file.is_relative_to(path):raise ValueError('capture constants escape capture directory')
             if file.stat().st_size!=info['bytes'] or digest(file)!=info['sha256']:
                 raise ValueError('capture constant hash/size mismatch: '+str(file))
             authenticated.append(dict(file=info['file'],sha256=info['sha256']))
+    if v5:
+        already = {item['file'] for item in authenticated}
+        post_words = []
+        image_words = {name: [None]*len(frames) for name in sorted(set(V5_IMAGE_FORMATS) | V5_DIAGNOSTICS)}
+        image_descriptors = {name: [None]*len(frames) for name in image_words}
+        for file, info, post_ordinal in v5_descriptors:
+            if info['file'] in already:
+                continue
+            blob = file.read_bytes()
+            if len(blob) != info['bytes'] or hashlib.sha256(blob).hexdigest() != info['sha256']:
+                raise ValueError('v5 capture payload hash/size mismatch: '+str(file))
+            authenticated.append(dict(file=info['file'], sha256=info['sha256']))
+            already.add(info['file'])
+            if 'dxgi_format' in info:
+                _, _, dtype, words = V5_FORMAT_WORDS[info['dxgi_format']]
+                pw, ph = info['extent']; shape = (ph, pw) if words == 1 else (ph, pw, words)
+                original_words = np.frombuffer(blob, dtype).reshape(shape)
+                if post_ordinal is not None:
+                    post_words.append(original_words)
+                else:
+                    ordinal = int(info['file'].split('/')[1])
+                    image_words[info['name']][ordinal] = original_words
+                    image_descriptors[info['name']][ordinal] = info
+        # Authentication accepts every recorded diagnostic format and crop.
+        # The replay still has a narrower set of raw-input bindings; only expose
+        # those decoded arrays when every frame fits that existing interface.
+        for name, (dtype, channels) in layouts.items():
+            if all(info is not None and info['dxgi_format'] in supported_formats[name] and
+                   info['extent'] == [w, h] and _v5_replay_crop_aligned(info, [x, y])
+                   for info in image_descriptors[name]):
+                shape = (h, w, channels) if channels != 1 else (h, w)
+                arrays[name] = np.stack([words.view(dtype).reshape(shape) for words in image_words[name]])
+        arrays['image_original_words'] = image_words
+        arrays['post_sr_original_words'] = post_words
+        arrays['post_sr_metadata'] = post_metadata
+        arrays['schema'] = V5_SCHEMA
+        arrays['missing_floor_seed_constants'] = row['missing_floor_seed_constants']
     arrays['frame_metadata'] = frames
     arrays['extent'], arrays['roi'] = extent, roi
     arrays['capture'] = path
-    row['payload_unique_raw_frames'] = len({hashlib.sha256(a.tobytes()).hexdigest() for a in arrays['raw_color']})
+    raw_words = image_words['raw_color'] if v5 else arrays['raw_color']
+    row['payload_unique_raw_frames'] = len({hashlib.sha256(a.tobytes()).hexdigest() for a in raw_words if a is not None})
     row['input_mode'] = 'genuine_captured_sequence'
     row['authenticated_payload_files']=authenticated
     return row, arrays
+
+
+def require_replay_seed_controls(capture, floor):
+    if capture.get('schema') == V5_SCHEMA and capture['missing_floor_seed_constants']:
+        ordinal = capture['missing_floor_seed_constants'][0]
+        variant = 'ON' if floor else 'OFF'
+        raise ValueError(f'v5 capture frame {ordinal} lacks actual floor_seed_constants; '
+                         f'Floor {variant} replay reruns Seed for canonical depth and requires its captured controls. '
+                         'Payload inspection/authentication is supported; replay from captured intermediate buffers is a separate path.')
+
+
+def require_replay_inputs(cap, floor):
+    require_replay_seed_controls(cap, floor)
+    if cap.get('schema') == V5_SCHEMA:
+        for name in ('raw_color', 'raw_normals', 'raw_motion', 'raw_depth', 'raw_specular_hit_distance',
+                     'raw_diffuse_albedo', 'raw_specular_albedo', 'raw_bias_mask', 'native_full1'):
+            if name not in cap:
+                raise ValueError(f'v5 captured {name} cannot feed this replay\'s aligned ROI/format inputs; '
+                                 'payload inspection/authentication is supported')
 
 
 class Constants:
@@ -270,6 +636,7 @@ def preprocessing_cache_matches(recorded, expected):
 
 
 def preprocess(cap, gpu, floor, bleed, recovery_mask=3, floor_steps='full'):
+    require_replay_inputs(cap, floor)
     steps=floor_step_sequence(floor_steps)
     w, h = cap['roi']['extent']; size = (w, h)
     crop = camera_crop(cap['extent'], cap['roi'])
@@ -542,21 +909,30 @@ def main():
         return
     if args.shader_dir is None:parser.error('--shader-dir required for replay')
     shaders=safe_path(args.shader_dir)
+    cases=[]
+    if not args.build_only:
+        for case in args.cases:
+            floor,bleed=[int(v) for v in case.split(':')]
+            if floor not in (0,1) or bleed not in (0,1):raise ValueError('cases must be Floor:Bleed binary pairs')
+            cases.append((case,floor,bleed))
+        # Missing actual Seed controls are a replay limitation, not an invalid
+        # capture. Reject that replay before decoding arrays, builds or GPU work.
+        provenance=inspect_capture(args.capture,False,args.frames)
+        require_replay_seed_controls(provenance,any(floor for _,floor,_ in cases))
+        provenance,cap=inspect_capture(args.capture,True,args.frames)
+        require_replay_inputs(cap,any(floor for _,floor,_ in cases))
     os.environ.setdefault('FSRD_VS_ROOT','F:/VisualStudio')
     gpu_exe=output/'build/fsrd_gpu_runner.exe';gpu_exe.parent.mkdir(parents=True,exist_ok=True)
     compile_cpp(HERE/'fsrd_gpu_runner.cpp',gpu_exe,('d3d12.lib','dxgi.lib'))
     rr_exe=native.build_native(output/'build/fsrd_floor_rr_replay.exe')
     if args.build_only:
         print('build_only=passed');return
-    provenance,cap=inspect_capture(args.capture,True,args.frames)
     provenance['replay_producer_configuration']=floor_producer_profile(True,args.floor_steps)
     (output/'capture_provenance.json').write_text(json.dumps(provenance,indent=2)+'\n')
     shader_hashes={p.name:digest(p) for p in shaders.iterdir() if p.suffix in ('.cso','.hlsl','.hlsli')}
     (output/'shader_provenance.json').write_text(json.dumps(shader_hashes,indent=2)+'\n')
     result={}
-    for case in args.cases:
-        floor,bleed=[int(v) for v in case.split(':')]
-        if floor not in (0,1) or bleed not in (0,1):raise ValueError('cases must be Floor:Bleed binary pairs')
+    for case,floor,bleed in cases:
         folder=output/f'floor{floor}_bleed{bleed}';folder.mkdir(exist_ok=True)
         cache_root=safe_path(args.packed_dir) if args.packed_dir else output
         cache=cache_root/f'packed_floor{floor}_bleed{bleed}.npz'
