@@ -53,6 +53,7 @@
 #include "precompile/FSRDFogRank_Shader.h"
 #include "precompile/FSRDFogSmooth_Shader.h"
 #include "precompile/FSRDFogRoute_Shader.h"
+#include "precompile/FSRDRRMotion_Shader.h"
 
 #include "dx12/ffx_api_dx12.h"
 #include "fsr-rr/ffx_denoiser.h"
@@ -353,6 +354,10 @@ struct FSRDPreprocessor_Dx12::Impl
     bool m_albedoStabValid = false;
     // True when this frame's packed pair was replaced; the packing shader's own pair is then in the spares.
     bool m_albedoStabActive = false;
+    // RR's motion vectors with the jitter difference (FSRDRRMotion.hlsl); m_out keeps the canonical field.
+    ComputeState m_rrMotionShader;
+    ComPtr<ID3D12Resource> m_rrMotion;
+    bool m_rrMotionActive = false;
     XMFLOAT4 m_albedoStabSize {};
 
     // Fog-consistent guides (FSRDFog*.hlsl): tile statistics history (A, B, C), per-frame tile guide means (G, H),
@@ -1413,6 +1418,8 @@ struct FSRDPreprocessor_Dx12::Impl
         m_fogSpareSpecAlbedo.Reset(); m_fogSpareDiffAlbedo.Reset();
         m_fogSpareSpecSignal.Reset(); m_fogSpareDiffSignal.Reset();
         m_fogValid = false;
+        m_rrMotion.Reset();
+        m_rrMotionActive = false;
         for (auto& resource : m_decisionHistory) resource.Reset();
         for (auto& resource : m_historyMetadata) resource.Reset();
 
@@ -2184,6 +2191,32 @@ struct FSRDPreprocessor_Dx12::Impl
         m_fogValid = true;
     }
 
+    // RR ignores jitterOffsets and reads its motion vectors as the texel-to-texel displacement between the
+    // jittered rasters (measured with real RR: with the canonical unjittered field its output trails the
+    // current frame by the current jitter). Every other consumer keeps the canonical field in m_out, so RR
+    // gets its own copy with (J_prev - J_cur) / size added. After a reset the previous jitter is the
+    // current one and the copy equals the canonical field.
+    void RRMotion(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
+    {
+        m_rrMotionActive = false;
+        if (!desc.RRMotionJitterDelta || (desc.Flags & uint32_t(ConvFlags::Debug)) != 0u)
+            return;
+        if (!m_rrMotionShader.m_pso)
+            m_rrMotionShader.Initialize(m_pDev, {reinterpret_cast<const byte*>(FSRDRRMotion_cso), sizeof(FSRDRRMotion_cso)},
+                                        UINT(sizeof(RRMotion::Constants)), RRMotion::Input::kCount, RRMotion::Output::kCount,
+                                        L"FSRD_RRMotion");
+        if (!m_rrMotion)
+            m_rrMotion = CreateTexture2D(m_pDev, m_maxWidth, m_maxHeight, FSRDFormats::Motion, L"FSRD_RRMotion", kSrvState);
+        const RRMotion::Constants c {desc.RenderSize,
+            {(desc.JitterOffsets.z - desc.JitterOffsets.x) * desc.RenderSize.z,
+             (desc.JitterOffsets.w - desc.JitterOffsets.y) * desc.RenderSize.w}, {}};
+        const RRMotion::Input inputs {{m_out.Resources.Motion.Get()}};
+        RRMotion::Output outputs {{m_rrMotion.Get()}};
+        m_rrMotionShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray,
+                                  {desc.RenderSize.x, desc.RenderSize.y});
+        m_rrMotionActive = true;
+    }
+
     void DispatchPackingShader(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc,
                                ID3D12PipelineState* conversionPipeline)
     {
@@ -2361,6 +2394,7 @@ struct FSRDPreprocessor_Dx12::Impl
         StabiliseAlbedo(cmdList, desc);
         FogGuides(cmdList, desc);
         FilterSkinDiffuse(cmdList, desc);
+        RRMotion(cmdList, desc);
         if(desc.LeakLobe)
         {
             FSRDStageTimings::Scope timing(m_stageTimings,FSRDStageTimings::TextureLeak);
@@ -2408,6 +2442,7 @@ struct FSRDPreprocessor_Dx12::Impl
                 {"object_depth_delta", desc.ObjectDepthDelta}, {"reflections_follow_surface", desc.ReflectionsFollowSurface},
                 {"albedo_stabilisation", desc.AlbedoStabilisation}, {"albedo_stabilisation_clamp", desc.AlbedoStabilisationClamp},
                 {"albedo_stabilisation_rate", desc.AlbedoStabilisationRate}, {"fog_guides", desc.FogGuides},
+                {"rr_motion_jitter_delta", desc.RRMotionJitterDelta},
                 {"bias_strength", constants.BiasMaskStrength},
                 {"specular_hit_distance_from_combined_alpha", desc.SpecularHitDistanceFromCombinedAlpha},
                 {"diffuse_hit_distance_mode", constants.DiffuseHitDistanceMode},
@@ -3098,7 +3133,8 @@ struct FSRDPreprocessor_Dx12::Impl
         // same geometry the packing and floor passes describe.
         dispatchDesc.linearDepth = ffxApiGetResourceDX12(
             m_LinearDepth.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
-        dispatchDesc.motionVectors = ffxApiGetResourceDX12(outResources.Motion.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+        dispatchDesc.motionVectors = ffxApiGetResourceDX12(
+            m_rrMotionActive ? m_rrMotion.Get() : outResources.Motion.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
         dispatchDesc.normals = ffxApiGetResourceDX12(
             outResources.Normals.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
         dispatchDesc.specularAlbedo = ffxApiGetResourceDX12(

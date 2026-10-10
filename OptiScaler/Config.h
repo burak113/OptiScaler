@@ -551,6 +551,7 @@ class Config
     CustomOptional<bool> FfxDenoiserAlbedoStabilisationClamp {false};
     CustomOptional<float> FfxDenoiserAlbedoStabilisationRate {0.125f};
     CustomOptional<bool> FfxDenoiserFogGuides {false};
+    CustomOptional<bool> FfxDenoiserMotionJitterDelta {true};
 
     // Experimental post-composition recovery; the legacy path remains the default.
     CustomOptional<bool> FfxDenoiserRecoveryV2 { false };

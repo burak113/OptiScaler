@@ -356,6 +356,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFogRank_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFogSmooth_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFogRoute_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDRRMotion_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDGameTraceSession.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDShaderData.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDCompositionVariant.h" />
@@ -931,6 +932,7 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFogRank.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFogSmooth.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFogRoute.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDRRMotion.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDSssPrepare.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDSssBlur.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDSkinPrefilter.hlsl" />

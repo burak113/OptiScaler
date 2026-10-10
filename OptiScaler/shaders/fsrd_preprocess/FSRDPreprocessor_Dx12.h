@@ -288,6 +288,8 @@ class FSRDPreprocessor_Dx12
         // Fog-consistent guides after stabilisation: the guide texture the image does not carry (fog, haze, water
         // over a sea floor) is flattened, and with distance the fog share moves to the specular lobe.
         bool FogGuides = false;
+        // RR ignores jitterOffsets, so its motion vectors carry the jitter difference (FSRDRRMotion.hlsl).
+        bool RRMotionJitterDelta = true;
 
         uint32_t Flags; // Dynamic configuration flags. See: ConfigFlags
         uint32_t InspectorChannel;

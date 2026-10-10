@@ -3698,6 +3698,20 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                     config->FfxDenoiserAlbedoStabilisationRate.reset();
                 }
             }
+            if (ImGui::CollapsingHeader("RR motion vectors"))
+            {
+                ScopedIndent indent;
+                bool delta = config->FfxDenoiserMotionJitterDelta.value_or_default();
+                if (ImGui::Checkbox("Add jitter difference for RR", &delta))
+                    config->FfxDenoiserMotionJitterDelta = delta;
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("RR ignores the jitter it is given and reads its motion vectors as the pixel offset "
+                                      "between the two jittered frames. Without the jitter difference its history lands "
+                                      "about a quarter pixel off and the result trails the current frame. Only RR's copy "
+                                      "of the motion vectors changes. On by default; turn off to compare.");
+                if (ImGui::Button("Reset RR motion vectors"))
+                    config->FfxDenoiserMotionJitterDelta.reset();
+            }
             if (ImGui::CollapsingHeader("Fog-consistent guides"))
             {
                 ScopedIndent indent;

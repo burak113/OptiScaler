@@ -185,6 +185,7 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserAlbedoStabilisationClamp.reset();
     FfxDenoiserAlbedoStabilisationRate.reset();
     FfxDenoiserFogGuides.reset();
+    FfxDenoiserMotionJitterDelta.reset();
     FfxDenoiserRecoveryV2.reset();
     FfxDenoiserRecoveryVolumetry.reset();
     FfxDenoiserRecoveryVolumetryStrength.reset();
@@ -508,6 +509,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserAlbedoStabilisationClamp.set_from_config(readBool("FSR-RR", "AlbedoStabilisationClamp"));
             FfxDenoiserAlbedoStabilisationRate.set_from_config(readFloat("FSR-RR", "AlbedoStabilisationRate"));
             FfxDenoiserFogGuides.set_from_config(readBool("FSR-RR", "FogGuides"));
+            FfxDenoiserMotionJitterDelta.set_from_config(readBool("FSR-RR", "MotionJitterDelta"));
             FfxDenoiserRecoveryV2.set_from_config(readBool("FSR-RR", "RecoveryV2"));
             FfxDenoiserRecoveryVolumetry.set_from_config(readBool("FSR-RR", "RecoveryVolumetry"));
             FfxDenoiserRecoveryVolumetryStrength.set_from_config(readFloat("FSR-RR", "RecoveryVolumetryStrength"));
@@ -1502,6 +1504,7 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "AlbedoStabilisationClamp", GetBoolValue(Instance()->FfxDenoiserAlbedoStabilisationClamp.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "AlbedoStabilisationRate", GetFloatValue(Instance()->FfxDenoiserAlbedoStabilisationRate.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "FogGuides", GetBoolValue(Instance()->FfxDenoiserFogGuides.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "MotionJitterDelta", GetBoolValue(Instance()->FfxDenoiserMotionJitterDelta.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryV2", GetBoolValue(Instance()->FfxDenoiserRecoveryV2.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryVolumetry", GetBoolValue(Instance()->FfxDenoiserRecoveryVolumetry.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryVolumetryStrength", GetFloatValue(Instance()->FfxDenoiserRecoveryVolumetryStrength.value_for_config()).c_str());

@@ -56,6 +56,7 @@ FOG_KAPPA_HLSL = os.path.join(PRE, "FSRDFogKappa.hlsl")
 FOG_RANK_HLSL = os.path.join(PRE, "FSRDFogRank.hlsl")
 FOG_SMOOTH_HLSL = os.path.join(PRE, "FSRDFogSmooth.hlsl")
 FOG_ROUTE_HLSL = os.path.join(PRE, "FSRDFogRoute.hlsl")
+RR_MOTION_HLSL = os.path.join(PRE, "FSRDRRMotion.hlsl")
 PREPROCESSOR_CPP = os.path.join(ROOT, "OptiScaler", "shaders", "fsrd_preprocess",
                                 "FSRDPreprocessor_Dx12.cpp")
 ADDITIVE_CAPTURE_INL = os.path.join(ROOT, "OptiScaler", "shaders", "fsrd_preprocess",
@@ -233,6 +234,7 @@ CONSTANT_PAIRS = [
     ("FogRank", "struct alignas(16) Constants", FOG_RANK_HLSL, "cbuffer CB_FogRank", {}),
     ("FogSmooth", "struct alignas(16) Constants", FOG_SMOOTH_HLSL, "cbuffer CB_FogSmooth", {}),
     ("FogRoute", "struct alignas(16) Constants", FOG_ROUTE_HLSL, "cbuffer CB_FogRoute", {}),
+    ("RRMotion", "struct alignas(16) Constants", RR_MOTION_HLSL, "cbuffer CB_RRMotion", {}),
     ('SkinPrefilter', "struct alignas(16) Constants", os.path.join(PRE, 'FSRDSkinPrefilter.hlsl'), "cbuffer CB_SkinPrefilter", {}),
     ('SssBlur', "struct alignas(16) Constants", os.path.join(PRE, 'FSRDSssBlur.hlsl'), "cbuffer CB_SssBlur", {}),
     ('SssPrepare', "struct alignas(16) Constants", os.path.join(PRE, 'FSRDSssPrepare.hlsl'), "cbuffer CB_SssPrepare", {}),
@@ -614,6 +616,7 @@ def check_resources():
                             ("FogRank", FOG_RANK_HLSL),
                             ("FogSmooth", FOG_SMOOTH_HLSL),
                             ("FogRoute", FOG_ROUTE_HLSL),
+                            ("RRMotion", RR_MOTION_HLSL),
                             ("Conversion", CONV_HLSL), ("Composition", COMP_HLSL),
                             ("TrustEvidence", TRUST_EVIDENCE_HLSL),
                             ("TrustPropagate", TRUST_PROPAGATE_HLSL),

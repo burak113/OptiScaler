@@ -988,6 +988,7 @@
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFogRank_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFogSmooth_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFogRoute_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDRRMotion_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDGameTraceSession.h">
       <Filter>Header Files</Filter>
     </ClInclude>

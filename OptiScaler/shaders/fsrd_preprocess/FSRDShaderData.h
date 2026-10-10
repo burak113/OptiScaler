@@ -240,6 +240,42 @@ namespace FSRD
     static_assert(FogRoute::Input::kCount == 8, "FogRoute input count");
     static_assert(FogRoute::Output::kCount == 4, "FogRoute output count");
 
+    // RR's motion vectors: canonical motion plus the jitter difference (FSRDRRMotion.hlsl).
+    namespace RRMotion
+    {
+        struct alignas(16) Constants
+        {
+            XMFLOAT4 DstTexSize;
+            XMFLOAT2 JitterDeltaUv;
+            XMFLOAT2 _Reserved0;
+        };
+        static_assert(sizeof(Constants) == 32, "RRMotion constants");
+        static_assert(offsetof(Constants, JitterDeltaUv) == 16, "RRMotion layout");
+        static_assert(offsetof(Constants, _Reserved0) == 24, "RRMotion layout");
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InMotion;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+        union Output
+        {
+            struct Data
+            {
+                ID3D12Resource* OutMotion;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+    }
+    static_assert(RRMotion::Input::kCount == 1, "RRMotion input count");
+    static_assert(RRMotion::Output::kCount == 1, "RRMotion output count");
+
     namespace FloorSeed
     {
         constexpr UINT kBackBufferCount = 3;

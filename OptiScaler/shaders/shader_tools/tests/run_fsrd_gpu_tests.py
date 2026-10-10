@@ -140,7 +140,7 @@ def constants(shader, values, directory=PRE):
               'FSRDSssPrepare':'CB_SssPrepare', 'FSRDSssBlur':'CB_SssBlur',
               'FSRDSkinPrefilter':'CB_SkinPrefilter', 'FSRDProbeInputs':'Probe',
               'FSRDReference':'Reference', 'FSRDLeak':'CB_Leak', 'FSRDAlbedoStabilise':'CB_AlbedoStabilise',
-              'FSRDFogStats':'CB_FogStats', 'FSRDFogKappa':'CB_FogKappa', 'FSRDFogRank':'CB_FogRank', 'FSRDFogSmooth':'CB_FogSmooth', 'FSRDFogRoute':'CB_FogRoute'}[shader]
+              'FSRDFogStats':'CB_FogStats', 'FSRDFogKappa':'CB_FogKappa', 'FSRDFogRank':'CB_FogRank', 'FSRDFogSmooth':'CB_FogSmooth', 'FSRDFogRoute':'CB_FogRoute', 'FSRDRRMotion':'CB_RRMotion'}[shader]
     body = mirror.brace_body(text,'cbuffer '+marker)
     fields, size = mirror.hlsl_cbuffer_fields(body, shader)
     assert not mirror.errors, mirror.errors
@@ -358,7 +358,7 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
         'FSRDSssBlur': [10,41,41,10],
         'FSRDSkinPrefilter': [10,41,41,24],
         'FSRDProbeInputs': [2], 'FSRDReference': [2,2], 'FSRDLeak': [10,10,28,28,41,24], 'FSRDAlbedoStabilise': [28,28,10,10,10,41,24,10,10,16],
-        'FSRDFogStats': [28,28,10,10,28,28,41,10,2,2,2], 'FSRDFogKappa': [2,2,2], 'FSRDFogRank': [41,2,2], 'FSRDFogSmooth': [41,2,2],
+        'FSRDFogStats': [28,28,10,10,28,28,41,10,2,2,2], 'FSRDFogKappa': [2,2,2], 'FSRDFogRank': [41,2,2], 'FSRDFogSmooth': [41,2,2], 'FSRDRRMotion': [10],
         'FSRDFogRoute': [28,28,10,10,41,41,2,2],
         'FSRDInputConvSkin': [10,41,10,10,41,41,10,10,41,10,10,10,10,10,41,41,10,10,41,41,10],
         'FSRDInputConvSkinAdditive': [10,41,10,10,41,41,10,10,41,10,10,10,10,10,41,41,10,10,41,41,10],
