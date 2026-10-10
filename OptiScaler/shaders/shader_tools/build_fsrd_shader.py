@@ -36,6 +36,36 @@ def publish_if_changed(path, data):
             os.remove(temporary)
 
 
+def compile_fused_sss(name, compiler, temporary):
+    private = os.path.join(ROOT, PRE, 'sss_fused')
+    pre = os.path.join(ROOT, PRE)
+    original = 'FSRDInputConvSkinAdditive' if name.endswith('Additive') else 'FSRDInputConvSkin'
+    common = [str(compiler), '-enable-16bit-types', '-O3', '-I', private, '-I', pre]
+    def checked(args):
+        result = subprocess.run(args, capture_output=True, text=True)
+        if result.returncode:
+            raise RuntimeError(result.stdout + result.stderr)
+    bindings = os.path.join(temporary, 'bindings.rootsig')
+    checked([str(compiler), '-T', 'rootsig_1_1', '-E', 'MainRS', '-I', private, '-I', pre,
+             os.path.join(private, 'FSRDInputConvSkin.hlsl'), '-Fo', bindings])
+    depth = os.path.join(temporary, 'depth.lib')
+    core = os.path.join(temporary, 'core.lib')
+    checked(common + ['-T', 'lib_6_3', '-exports', 'FusedSeedDepthBits', '-default-linkage', 'external',
+                       os.path.join(private, 'FSRDSssDepthLibrary.hlsl'), '-Fo', depth])
+    checked(common + ['-T', 'lib_6_3', '-exports', 'CSMain', '-default-linkage', 'internal',
+                       os.path.join(private, original + '.hlsl'), '-Fo', core])
+    unbound = os.path.join(temporary, 'unbound.cso')
+    compiled = os.path.join(temporary, name + '.cso')
+    asm = os.path.join(temporary, name + '.asm')
+    checked([str(compiler), '-link', core + ';' + depth, '-T', 'cs_6_2', '-E', 'CSMain', '-Fo', unbound])
+    checked([str(compiler), '-dumpbin', '-setrootsignature', bindings, unbound, '-Fo', compiled])
+    checked([str(compiler), '-dumpbin', '-verifyrootsignature', bindings, compiled])
+    result = subprocess.run([str(compiler), '-dumpbin', compiled], capture_output=True, text=True, check=True)
+    with open(asm, 'w', encoding='utf-8') as stream:
+        stream.write(result.stdout)
+    return compiled, asm
+
+
 def build(name, compiler):
     src = os.path.join(ROOT, PRE, name + ".hlsl")
     cso = os.path.join(ROOT, PRE, name + "_Shader.cso")
@@ -46,14 +76,16 @@ def build(name, compiler):
     with tempfile.TemporaryDirectory(prefix=name+'_', dir=os.path.dirname(cso)) as temporary:
         compiled = os.path.join(temporary, name+'.cso')
         asm = os.path.join(temporary, name+'.asm')
-        args = [str(compiler), "-T", "cs_6_2", "-E", "CSMain", "-enable-16bit-types", "-O3",
-                "-Qstrip_debug", "-Qstrip_reflect", src, "-Fo", compiled, "-Fc", asm]
-        res = subprocess.run(args, capture_output=True, text=True)
-        if res.returncode != 0:
-            print(res.stdout)
-            print(res.stderr)
-            raise SystemExit("dxc failed for " + name)
-
+        if name in ('FSRDInputConvSkinFused', 'FSRDInputConvSkinFusedAdditive'):
+            compiled, asm = compile_fused_sss(name, compiler, temporary)
+        else:
+            args = [str(compiler), "-T", "cs_6_2", "-E", "CSMain", "-enable-16bit-types", "-O3",
+                    "-Qstrip_debug", "-Qstrip_reflect", src, "-Fo", compiled, "-Fc", asm]
+            res = subprocess.run(args, capture_output=True, text=True)
+            if res.returncode != 0:
+                print(res.stdout)
+                print(res.stderr)
+                raise SystemExit("dxc failed for " + name)
         with open(asm, "r", encoding="utf-8", errors="replace") as f:
             listing = "\n".join(
                 line.rstrip() for line in f.read().replace("\r\n", "\n").splitlines()
@@ -90,7 +122,7 @@ if __name__ == "__main__":
                                        'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
                                        'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor',
                                        'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate',
-                                       'FSRDVolumeGather', 'FSRDVolumeAccumulate', 'FSRDVolumeApply', 'all'])
+                                       'FSRDVolumeGather', 'FSRDVolumeAccumulate', 'FSRDVolumeApply', 'FSRDRecoveryVolumeAccumulate', 'FSRDRecoveryVolumeApply', 'FSRDSssPrepare', 'FSRDSssBlur', 'FSRDSkinPrefilter', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDInputConvSkinBounds', 'FSRDInputConvSkinBoundsAdditive', 'FSRDSkinBounds', 'FSRDSkinPrefilterTiled', 'FSRDInputConvSkinFused', 'FSRDInputConvSkinFusedAdditive', 'FSRDSssKernel', 'FSRDSssBlurTiled', 'FSRDProbeInputs', 'FSRDReference', 'FSRDLeak', 'FSRDAlbedoStabilise', 'FSRDFogStats', 'FSRDFogKappa', 'FSRDFogRank', 'FSRDFogSmooth', 'FSRDFogRoute', 'all'])
     parser.add_argument('--dxc', help='DXC executable; otherwise FSRD_DXC, PATH, or latest installed SDK')
     options = parser.parse_args()
     compiler = dxc(options.dxc)
@@ -107,12 +139,12 @@ if __name__ == "__main__":
                  'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
                  'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor',
                  'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate',
-                 'FSRDVolumeGather', 'FSRDVolumeAccumulate', 'FSRDVolumeApply']
+                 'FSRDVolumeGather', 'FSRDVolumeAccumulate', 'FSRDVolumeApply', 'FSRDRecoveryVolumeAccumulate', 'FSRDRecoveryVolumeApply', 'FSRDSssPrepare', 'FSRDSssBlur', 'FSRDSkinPrefilter', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDInputConvSkinBounds', 'FSRDInputConvSkinBoundsAdditive', 'FSRDSkinBounds', 'FSRDSkinPrefilterTiled', 'FSRDInputConvSkinFused', 'FSRDInputConvSkinFusedAdditive', 'FSRDSssKernel', 'FSRDSssBlurTiled', 'FSRDProbeInputs', 'FSRDReference', 'FSRDLeak', 'FSRDAlbedoStabilise', 'FSRDFogStats', 'FSRDFogKappa', 'FSRDFogRank', 'FSRDFogSmooth', 'FSRDFogRoute']
     elif options.name in ('FSRDFloorSeed', 'FSRDFloorSeedCleanLighting'):
         # The clean-lighting PSO wraps the Seed source; rebuild both together.
         names = ['FSRDFloorSeed', 'FSRDFloorSeedCleanLighting']
     elif options.name == 'FSRDInputConv':
-        names = ['FSRDInputConv', 'FSRDInputConvAdditive', 'RRTraceAdditive']
+        names = ['FSRDInputConv', 'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDInputConvSkinBounds', 'FSRDInputConvSkinBoundsAdditive']
     elif options.name in ('FSRDOutputComp', 'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
                  'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor'):
         # Every wrapper shares the composition source. Rebuild all dependents.
@@ -122,5 +154,5 @@ if __name__ == "__main__":
         names = [options.name]
     # Each shader compiles in its own dxc process and temporary directory and publishes
     # atomically, so independent shaders can build at the same time.
-    with ThreadPoolExecutor(max_workers=min(len(names), os.cpu_count() or 4)) as pool:
+    with ThreadPoolExecutor(max_workers=min(len(names), 4, os.cpu_count() or 4)) as pool:
         list(pool.map(lambda name: build(name, compiler), names))

@@ -159,6 +159,57 @@ class CacheTests(unittest.TestCase):
         self.stack = self.fixture.install()
         self.addCleanup(self.stack.close)
 
+    def assert_build_temp_isolation(self, fail):
+        # Exercise the real builder separately from the cache's fake compiler.
+        # Both cached and bypassed builds must survive an invalid inherited TEMP.
+        module = load_toolchain(MODULE_PATH)
+        invalid = str(self.fixture.root / 'missing_user_temp')
+        for cached in (False, True):
+            with self.subTest(cached=cached, fail=fail):
+                build = self.fixture.root / ('cached_build' if cached else 'bypassed_build')
+                build.mkdir()
+                environment = {**self.fixture.environment, 'TEMP': invalid, 'TMP': invalid}
+                original = dict(environment)
+                seen = []
+
+                def compiler(command, **kwargs):
+                    scratch = Path(kwargs['env']['TEMP'])
+                    self.assertEqual(kwargs['env']['TMP'], str(scratch))
+                    self.assertEqual(scratch.parent, build.resolve())
+                    self.assertTrue(scratch.is_dir())
+                    (scratch / 'linker_response.rsp').write_text('response', encoding='utf-8')
+                    seen.append(scratch)
+                    if fail:
+                        raise subprocess.CalledProcessError(1, command)
+                    return subprocess.CompletedProcess(command, 0, stdout='')
+
+                with patch.dict(os.environ, {'TEMP': invalid, 'TMP': invalid}), \
+                     patch.object(module.subprocess, 'run', side_effect=compiler):
+                    caller = dict(os.environ)
+
+                    def invoke():
+                        module._build(self.fixture.source, build / 'helper.exe', (), self.fixture.vs,
+                                      build_environment=environment if cached else None,
+                                      link_dependencies=build / 'link.json' if cached else None,
+                                      build_dir=build if cached else None)
+
+                    if fail:
+                        with self.assertRaises(subprocess.CalledProcessError):
+                            invoke()
+                    else:
+                        invoke()
+                    self.assertEqual(dict(os.environ), caller)
+                self.assertEqual(environment, original)
+                self.assertEqual(len(seen), 1)
+                self.assertFalse(seen[0].exists(), 'compiler scratch must be removed after success or failure')
+                self.assertFalse(Path(invalid).exists(), 'the invalid caller TEMP must remain untouched')
+
+    def test_build_uses_writable_scratch_with_invalid_caller_temp(self):
+        self.assert_build_temp_isolation(fail=False)
+
+    def test_failed_build_cleans_scratch_without_changing_environment(self):
+        self.assert_build_temp_isolation(fail=True)
+
     def test_normal_hit_and_different_destination(self):
         first = self.fixture.compile()
         content = first.read_bytes()

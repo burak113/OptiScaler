@@ -59,6 +59,11 @@ def run():
         *(['static bool SupportsSeparateRoughness('] if 'static bool SupportsSeparateRoughness(' in source else []),
         'RRResult FSRDFeatureDx12::PrepareDenoiseConvInput('
     ])
+    # The complete acquisition body also validates optional signed SSS guides.
+    # Compile the real format mapping and compatibility helper, not a substitute.
+    utils = source_text('OptiScaler/shaders/fsrd_preprocess/FSRDShaderUtils.h', args.source_ref)
+    production = ('namespace FSRD {\n' + function(utils, 'static inline DXGI_FORMAT GetViewFormat(') +
+                  '\n}\n' + production)
     conversion = function(source, 'bool FSRDFeatureDx12::ConvertDenoiserBuffers(')
     flag = re.search(
         r'if \(_roughnessSource == RoughnessSource::Packed\)\s*'
@@ -73,8 +78,9 @@ def run():
     enum = function(header, 'enum class RoughnessSource : uint8_t') + ';\n'
     (out / 'roughness_enum.inc').write_text(enum, encoding='utf-8')
     keys = sorted(set(re.findall(r'\bNVSDK_NGX_Parameter_\w+', production)))
-    (out / 'roughness_keys.inc').write_text('\n'.join(
-        f'inline constexpr const char* {key} = "{key}";' for key in keys) + '\n', encoding='utf-8')
+    (out / 'roughness_keys.inc').write_text(
+        ('#define ROUGHNESS_TEST_HAS_SKIN_INPUTS 1\n' if 'CompatibleSkinInput' in production else '') +
+        '\n'.join(f'inline constexpr const char* {key} = "{key}";' for key in keys) + '\n', encoding='utf-8')
     # The isolated harness has no application PCH dependencies.
     (out / 'pch.h').write_text('#pragma once\n', encoding='utf-8')
     harness = Path(__file__).with_name('roughness_acceptance_test.h')

@@ -242,6 +242,7 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     DirectX::XMFLOAT3 _lastCamPos {}; // Last successfully dispatched world-space camera position
     DirectX::XMFLOAT2 _previousDenoiserJitter {};
     int _appliedFloorEnabled = -1;
+    int _appliedFloorThroughRR = -1;
     float _appliedFloorDetailPreservation = -1.0f;
     float _appliedFloorHandoverAnchorClamp = -1.0f;
     uint32_t _appliedSpatialTemporalMask = 0;

@@ -10,6 +10,7 @@
 #include <map>
 #include <string>
 #include "../../../upscalers/fsr31/FSRDRetryPolicy.h"
+#include "../../fsrd_preprocess/FSRDSkinInput.h"
 
 using FSRD::RRResult;
 
@@ -69,10 +70,20 @@ bool TryGetLoggedResource(const NVSDK_NGX_Parameter& params, const char* key, T*
     return TryGetNGXVoidPointer(params, key, result);
 }
 
+struct TestOption
+{
+    int value = 0;
+    int value_or_default() const { return value; }
+};
 struct Config
 {
-    static const Config* Instance() { static Config config; return &config; }
+    TestOption FfxDenoiserSkinMode, FfxDenoiserSkinDebug, FfxDenoiserDebugMode;
+    static Config* Instance() { static Config config; return &config; }
 };
+// Only the external UI/capture state is substituted. Acquisition and validation
+// below are the complete production functions, including optional SSS inputs.
+enum class DebugModes : uint64_t { SssGuide = 44, PreSss = 45, SkinPrefilter = 46 };
+struct FSRDGameTraceSession { static bool IsActive() { return false; } };
 struct TestSLConstants {};
 struct SLConstantsSnapshot
 {
@@ -119,11 +130,15 @@ struct ConversionResources
     ID3D12Resource* InDiffuseHitDistance = nullptr;
     ID3D12Resource* InTitleLinearDepth = nullptr;
     ID3D12Resource* InResponsivityMask = nullptr;
+    ID3D12Resource* InSssGuide = nullptr;
+    ID3D12Resource* InColorBeforeSss = nullptr;
+    ID3D12Resource* InColorAfterSss = nullptr;
 };
 struct ConversionDesc
 {
     ConversionResources Resources;
     XMUINT2 SpecularHitDistanceBase;
+    XMUINT2 SssGuideBase, ColorBeforeSssBase, ColorAfterSssBase;
     bool SpecularHitDistanceFromCombinedAlpha = false;
     uint32_t Flags = 0;
     XMUINT4 FloorSourceBase, InputBase0, InputBase1, InputBase2, InputBase3, InputBase4;
@@ -395,6 +410,56 @@ static void CheckAcceptedAndDeclaredStability()
     }
 }
 
+#if ROUGHNESS_TEST_HAS_SKIN_INPUTS
+static void CheckOptionalSkinAcquisition()
+{
+    Config::Instance()->FfxDenoiserSkinMode.value = 1;
+    FSRDFeatureDx12 feature;
+    Frame frame(Source::Packed);
+    ID3D12Resource guide(DXGI_FORMAT_R32_FLOAT);
+    ID3D12Resource before(DXGI_FORMAT_R16G16B16A16_FLOAT);
+    ID3D12Resource after(DXGI_FORMAT_R16G16B16A16_FLOAT);
+    frame.params.resources[NVSDK_NGX_Parameter_DLSSD_ScreenSpaceSubsurfaceScatteringGuide] = &guide;
+    frame.params.resources[NVSDK_NGX_Parameter_DLSSD_ColorBeforeScreenSpaceSubsurfaceScattering] = &before;
+    frame.params.resources[NVSDK_NGX_Parameter_DLSSD_ColorAfterScreenSpaceSubsurfaceScattering] = &after;
+    CHECK(feature.PrepareDenoiseConvInput(frame.params) == RRResult::Success);
+    CHECK(feature._convDesc.Resources.InSssGuide == &guide);
+    CHECK(feature._convDesc.Resources.InColorBeforeSss == &before);
+    CHECK(feature._convDesc.Resources.InColorAfterSss == &after);
+    CHECK(feature._roughnessSource == Source::Packed);
+
+    guide.desc.Format = DXGI_FORMAT_R8_UINT;
+    before.desc.Width = 63;
+    after.desc.Flags = D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+    CHECK(feature.PrepareDenoiseConvInput(frame.params) == RRResult::Success);
+    CHECK(feature._convDesc.Resources.InSssGuide == nullptr);
+    CHECK(feature._convDesc.Resources.InColorBeforeSss == nullptr);
+    CHECK(feature._convDesc.Resources.InColorAfterSss == nullptr);
+    CHECK(feature._roughnessSource == Source::Packed);
+
+    guide.desc.Format = DXGI_FORMAT_R32_FLOAT;
+    before.desc.Width = 64;
+    after.desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+    frame.params.scalars[NVSDK_NGX_Parameter_DLSSD_ScreenSpaceSubsurfaceScatteringGuide_Subrect_Base_X] = 1;
+    CHECK(feature.PrepareDenoiseConvInput(frame.params) == RRResult::Success);
+    CHECK(feature._convDesc.Resources.InSssGuide == nullptr);
+    CHECK(feature._convDesc.Resources.InColorBeforeSss == &before);
+    CHECK(feature._convDesc.Resources.InColorAfterSss == &after);
+
+    frame.params.scalars.clear();
+    frame.params.resources.erase(NVSDK_NGX_Parameter_DLSSD_ScreenSpaceSubsurfaceScatteringGuide);
+    CHECK(feature.PrepareDenoiseConvInput(frame.params) == RRResult::Success);
+    CHECK(feature._convDesc.Resources.InSssGuide == nullptr);
+
+    frame.params.resources[NVSDK_NGX_Parameter_DLSSD_ScreenSpaceSubsurfaceScatteringGuide] = &guide;
+    Config::Instance()->FfxDenoiserSkinMode.value = 0;
+    CHECK(feature.PrepareDenoiseConvInput(frame.params) == RRResult::Success);
+    CHECK(feature._convDesc.Resources.InSssGuide == nullptr);
+    CHECK(feature._convDesc.Resources.InColorBeforeSss == nullptr);
+    CHECK(feature._convDesc.Resources.InColorAfterSss == nullptr);
+}
+#endif
+
 int main(int argc, char** argv)
 {
     if (argc == 2)
@@ -407,5 +472,8 @@ int main(int argc, char** argv)
     CheckRejectedFirstFrames();
     CheckInvalidRoughness();
     CheckAcceptedAndDeclaredStability();
+#if ROUGHNESS_TEST_HAS_SKIN_INPUTS
+    CheckOptionalSkinAcquisition();
+#endif
     std::cout << checks << " roughness acceptance checks passed (production PrepareDenoiseConvInput)\n";
 }

@@ -977,6 +977,17 @@
     <ClInclude Include="shaders\fsrd_preprocess\FSRDPreprocessor_Dx12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDResearchTools.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDResearchTools.inl" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDProbeInputs_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDReference_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDLeak_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDAlbedoStabilise_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFogStats_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFogKappa_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFogRank_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFogSmooth_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFogRoute_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDGameTraceSession.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -1025,7 +1036,28 @@
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDVolumeAccumulate_Shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDRecoveryVolumeAccumulate_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDVolumeApply_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDRecoveryVolumeApply_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDSssPrepare_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDSssBlur_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDSkinPrefilter_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDInputConvSkin_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDInputConvSkinAdditive_Shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFloor_Shader.h">
@@ -1693,7 +1725,28 @@
     <None Include="shaders\fsrd_preprocess\precompile\FSRDVolumeAccumulate.hlsl">
       <Filter>Header Files</Filter>
     </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDRecoveryVolumeAccumulate.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
     <None Include="shaders\fsrd_preprocess\precompile\FSRDVolumeApply.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDRecoveryVolumeApply.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDSssPrepare.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDSssBlur.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDSkinPrefilter.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDInputConvSkin.hlsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDInputConvSkinAdditive.hlsl">
       <Filter>Header Files</Filter>
     </None>
     <None Include="shaders\fsrd_preprocess\precompile\FSRDInputConv.hlsl">
@@ -1740,5 +1793,42 @@
     <None Include="shaders\fsrd_preprocess\precompile\FSRDAlbedoTrustEvidence.hlsl" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDAlbedoTrustPropagate_Shader.h" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDAlbedoTrustPropagate.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDSkinCommon.hlsli" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDSkinConversion.hlsli" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDSkinInput.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDInputConvSkinBounds_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDInputConvSkinBounds.hlsl" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDInputConvSkinBoundsAdditive_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDInputConvSkinBoundsAdditive.hlsl" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDSkinBounds_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDSkinBounds.hlsl" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDSkinPrefilterTiled_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDSkinPrefilterTiled.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDSkinBounds.hlsli" />
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDSkinDispatch.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDInputConvSkinFused_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDInputConvSkinFused.hlsl" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDInputConvSkinFusedAdditive_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDInputConvSkinFusedAdditive.hlsl" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDSssKernel_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDSssKernel.hlsl" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDSssBlurTiled_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDSssBlurTiled.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\sss_fused\FSRDAdditiveSplit.hlsli" />
+    <None Include="shaders\fsrd_preprocess\precompile\sss_fused\FSRDInputConv.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\sss_fused\FSRDInputConvSkin.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\sss_fused\FSRDInputConvSkinAdditive.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\sss_fused\FSRDSkinCommon.hlsli" />
+    <None Include="shaders\fsrd_preprocess\precompile\sss_fused\FSRDSkinConversion.hlsli" />
+    <None Include="shaders\fsrd_preprocess\precompile\sss_fused\FSRDSssDepthLibrary.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\sss_fused\FSRDSssInputFused.hlsli" />
   </ItemGroup>
 </Project>

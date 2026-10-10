@@ -10,6 +10,8 @@
 #include <optional>
 #include <mutex>
 #include "FSRDPreprocessor_Dx12.h"
+#include "FSRDSkinInput.h"
+#include "FSRDSkinDispatch.h"
 #include "FSRDBlitMapping.h"
 #include "gpu_time/FSRDStageTimings_Dx12.h"
 #include "FSRDShaderUtils.h"
@@ -22,6 +24,21 @@
 #include "precompile/FSRDVolumeGather_Shader.h"
 #include "precompile/FSRDVolumeAccumulate_Shader.h"
 #include "precompile/FSRDVolumeApply_Shader.h"
+#include "precompile/FSRDRecoveryVolumeAccumulate_Shader.h"
+#include "precompile/FSRDRecoveryVolumeApply_Shader.h"
+#include "precompile/FSRDSssPrepare_Shader.h"
+#include "precompile/FSRDSssBlur_Shader.h"
+#include "precompile/FSRDSkinPrefilter_Shader.h"
+#include "precompile/FSRDInputConvSkin_Shader.h"
+#include "precompile/FSRDInputConvSkinAdditive_Shader.h"
+#include "precompile/FSRDInputConvSkinBounds_Shader.h"
+#include "precompile/FSRDInputConvSkinBoundsAdditive_Shader.h"
+#include "precompile/FSRDSkinBounds_Shader.h"
+#include "precompile/FSRDSkinPrefilterTiled_Shader.h"
+#include "precompile/FSRDInputConvSkinFused_Shader.h"
+#include "precompile/FSRDInputConvSkinFusedAdditive_Shader.h"
+#include "precompile/FSRDSssKernel_Shader.h"
+#include "precompile/FSRDSssBlurTiled_Shader.h"
 #include "precompile/FSRDFloor_Shader.h" 
 #include "precompile/FSRDOutputComp_Shader.h"
 #include "precompile/FSRDOutputCompLight_Shader.h"
@@ -30,6 +47,12 @@
 #include "precompile/FSRDOutputCompTileAnchor_Shader.h"
 #include "precompile/FSRDAlbedoTrustEvidence_Shader.h"
 #include "precompile/FSRDAlbedoTrustPropagate_Shader.h"
+#include "precompile/FSRDAlbedoStabilise_Shader.h"
+#include "precompile/FSRDFogStats_Shader.h"
+#include "precompile/FSRDFogKappa_Shader.h"
+#include "precompile/FSRDFogRank_Shader.h"
+#include "precompile/FSRDFogSmooth_Shader.h"
+#include "precompile/FSRDFogRoute_Shader.h"
 
 #include "dx12/ffx_api_dx12.h"
 #include "fsr-rr/ffx_denoiser.h"
@@ -276,6 +299,8 @@ struct ComputeState
 };
 
 
+#include "FSRDResearchTools.inl"
+
 namespace {
 std::mutex g_additiveTraceMutex;
 std::optional<std::array<UINT,3>> g_additiveTraceRequest;
@@ -315,6 +340,30 @@ struct FSRDPreprocessor_Dx12::Impl
     }
 
     FSRDGameTraceSession m_gameTrace;
+    FSRDResearch::Session m_research;
+    ComputeState m_leakShader;
+    ComPtr<ID3D12Resource> m_leakView;
+    // Albedo guide stabilisation: ping-pong history (stabilised guides, view Z, normal) and spare packing
+    // outputs that are swapped with the packed ones after the pass.
+    ComputeState m_albedoStabShader;
+    std::array<ComPtr<ID3D12Resource>, 2> m_albedoStabSpec, m_albedoStabDiff, m_albedoStabNormal;
+    ComPtr<ID3D12Resource> m_albedoStabSpareSpecAlbedo, m_albedoStabSpareDiffAlbedo;
+    ComPtr<ID3D12Resource> m_albedoStabSpareSpecSignal, m_albedoStabSpareDiffSignal;
+    uint32_t m_albedoStabIndex = 0, m_albedoStabMode = 0;
+    bool m_albedoStabValid = false;
+    // True when this frame's packed pair was replaced; the packing shader's own pair is then in the spares.
+    bool m_albedoStabActive = false;
+    XMFLOAT4 m_albedoStabSize {};
+
+    // Fog-consistent guides (FSRDFog*.hlsl): tile statistics history (A, B, C), per-frame tile guide means (G, H),
+    // kappa before and after smoothing, and spares for the rewritten pair.
+    ComputeState m_fogStatsShader, m_fogKappaShader, m_fogRankShader, m_fogSmoothShader, m_fogRouteShader;
+    std::array<ComPtr<ID3D12Resource>, 2> m_fogA, m_fogB, m_fogC;
+    ComPtr<ID3D12Resource> m_fogG, m_fogH, m_fogKappaRaw, m_fogKappaRank, m_fogKappa;
+    ComPtr<ID3D12Resource> m_fogSpareSpecAlbedo, m_fogSpareDiffAlbedo, m_fogSpareSpecSignal, m_fogSpareDiffSignal;
+    uint32_t m_fogIndex = 0;
+    bool m_fogValid = false;
+    XMFLOAT4 m_fogSize {};
     std::array<uint8_t,sizeof(FloorSeed::Constants)> m_gameTraceFloorSeedConstants {};
     std::array<uint8_t,sizeof(FloorFilter::Constants)*FloorFilter::kPasses> m_gameTraceFloorFilterConstants {};
     size_t m_gameTraceFloorFilterConstantBytes = 0;
@@ -324,6 +373,23 @@ struct FSRDPreprocessor_Dx12::Impl
     ComputeState m_floorSeedShader;
     ComputeState m_floorFilterShader;
     ComputeState m_convShader;
+    ComputeState m_skinConvShader;
+    ComputeState m_sssPrepareShader;
+    ComputeState m_sssBlurShader;
+    ComputeState m_skinPrefilterShader;
+    ComputeState m_skinBoundsConvShader, m_skinBoundsShader, m_skinTiledPrefilterShader;
+    ComPtr<ID3D12PipelineState> m_skinAdditivePso, m_skinBoundsAdditivePso;
+    ComPtr<ID3D12Resource> m_skinBounds8, m_skinBounds16;
+    ComputeState m_skinFusedConvShader, m_sssKernelShader, m_sssTiledBlurShader;
+    ComPtr<ID3D12PipelineState> m_skinFusedAdditivePso;
+    ComPtr<ID3D12Resource> m_sssKernel;
+    bool m_skinFused = false;
+    ComPtr<ID3D12Resource> m_skinPrepared, m_skinGuide, m_skinBlur, m_skinResult, m_skinDiffuse;
+    uint32_t m_skinMode = 0;
+    uint32_t m_skinDebug = 0;
+    float m_skinRadiusMm = 2.18f, m_skinStrength = 0.56f, m_skinFalloff = 1.0f, m_skinSigma = 4.0f;
+    float m_skinFocalPixels = 0.0f;
+    bool m_skinOutputActive = false;
     ComputeState m_compShader;
     // Reuse generic root signature, descriptors and leased constants/resources.
     ComPtr<ID3D12PipelineState> m_lightCompPso;
@@ -344,19 +410,26 @@ struct FSRDPreprocessor_Dx12::Impl
     ComPtr<ID3D12PipelineState> m_cleanLightingSeedPso;
     bool m_cleanLightingSeedPsoFailed = false;
 
-    // Volumetric restore: the input's clipped 8x8 tile means (gathered at
+    // Volumetric restore: the input's unbiased 8x8 tile means (gathered at
     // conversion), the reprojected shortfall of RR's output against them, and the
     // composition with that shortfall added back. Tile textures are 1/8 size.
     ComputeState m_volumeGatherShader;
     ComputeState m_volumeAccumulateShader;
     ComputeState m_volumeApplyShader;
+    ComputeState m_recoveryVolumeAccumulateShader;
+    ComputeState m_recoveryVolumeApplyShader;
+    ComPtr<ID3D12Resource> m_recoveryVolumeHistory[2];
+    ComPtr<ID3D12Resource> m_recoveryVolumeVariance[2];
+    UINT m_recoveryVolumeRead = 0;
+    bool m_recoveryVolumeValid = false;
     ComPtr<ID3D12Resource> m_volumeRawTiles;
     ComPtr<ID3D12Resource> m_volumeHistory[2];
-    ComPtr<ID3D12Resource> m_volumeOutput;
+    // Every post-composition pass reads the last result and writes a distinct SRV-resting target.
+    ComPtr<ID3D12Resource> m_recoveryOutput[2];
+    int m_recoveryOutputIndex = -1;
     UINT m_volumeHistoryRead = 0;
     bool m_volumeHistoryValid = false;
     bool m_volumeRawReady = false;
-    bool m_volumeOutputActive = false;
 
     UINT m_maxWidth = 0;
     UINT m_maxHeight = 0;
@@ -365,6 +438,12 @@ struct FSRDPreprocessor_Dx12::Impl
     // Internal storage
     Conversion::Output m_out;
     ComPtr<ID3D12Resource> m_LinearDepth;
+    // Last frame's m_LinearDepth for the geometric disocclusion check, copied before the floor
+    // seed overwrites it. m_linearDepthSize is the render size of the complete frame
+    // m_LinearDepth holds; zero until the floor seed has written one.
+    ComPtr<ID3D12Resource> m_PrevLinearDepth;
+    XMFLOAT4 m_linearDepthSize {};
+    bool m_previousDepthValid = false;
     ComPtr<ID3D12Resource> m_floorReference;
     // Per-frame material model ping-pong; independent of RR radiance scratch and history.
     ComPtr<ID3D12Resource> m_floorModel0;
@@ -1287,6 +1366,16 @@ struct FSRDPreprocessor_Dx12::Impl
             sizeof(VolumeApply::Constants), VolumeApply::Input::kCount, VolumeApply::Output::kCount,
             L"FSRD_VolumeApply_Constants", VolumeApply::kBackBufferCount);
 
+
+        m_recoveryVolumeAccumulateShader.Initialize(m_pDev,
+            { reinterpret_cast<const byte*>(FSRDRecoveryVolumeAccumulate_cso), sizeof(FSRDRecoveryVolumeAccumulate_cso) },
+            sizeof(RecoveryVolumeAccumulate::Constants), RecoveryVolumeAccumulate::Input::kCount, RecoveryVolumeAccumulate::Output::kCount,
+            L"FSRD_RecoveryVolumeAccumulate_Constants", RecoveryVolumeAccumulate::kBackBufferCount);
+        m_recoveryVolumeApplyShader.Initialize(m_pDev,
+            { reinterpret_cast<const byte*>(FSRDRecoveryVolumeApply_cso), sizeof(FSRDRecoveryVolumeApply_cso) },
+            sizeof(RecoveryVolumeApply::Constants), RecoveryVolumeApply::Input::kCount, RecoveryVolumeApply::Output::kCount,
+            L"FSRD_RecoveryVolumeApply_Constants", RecoveryVolumeApply::kBackBufferCount);
+
         LOG_DEBUG("FSRD interop shaders and resources initialized.");
     }
 
@@ -1296,6 +1385,8 @@ struct FSRDPreprocessor_Dx12::Impl
         if (m_maxWidth == width && m_maxHeight == height)
             return;
         m_gameTrace.Abort("Render resources resized during capture.");
+        m_research.Abort("Reference aborted: render resources resized.");
+        m_leakView.Reset();
 
 
         // Clear the latch before allocating rather than after. CreateTexture2D
@@ -1306,7 +1397,22 @@ struct FSRDPreprocessor_Dx12::Impl
         // allocation has actually completed.
         m_maxWidth = 0;
         m_maxHeight = 0;
+        m_skinPrepared.Reset(); m_skinGuide.Reset(); m_skinBlur.Reset(); m_skinResult.Reset(); m_skinDiffuse.Reset();
+        m_skinBounds8.Reset(); m_skinBounds16.Reset();
+        m_sssKernel.Reset(); m_skinFused = false;
+        m_skinOutputActive = false; m_skinMode = 0;
         m_historyValid = m_historyPending = false;
+        for (auto* set : {&m_albedoStabSpec, &m_albedoStabDiff, &m_albedoStabNormal})
+            for (auto& resource : *set) resource.Reset();
+        m_albedoStabSpareSpecAlbedo.Reset(); m_albedoStabSpareDiffAlbedo.Reset();
+        m_albedoStabSpareSpecSignal.Reset(); m_albedoStabSpareDiffSignal.Reset();
+        m_albedoStabValid = false;
+        for (auto* set : {&m_fogA, &m_fogB, &m_fogC})
+            for (auto& resource : *set) resource.Reset();
+        m_fogG.Reset(); m_fogH.Reset(); m_fogKappaRaw.Reset(); m_fogKappaRank.Reset(); m_fogKappa.Reset();
+        m_fogSpareSpecAlbedo.Reset(); m_fogSpareDiffAlbedo.Reset();
+        m_fogSpareSpecSignal.Reset(); m_fogSpareDiffSignal.Reset();
+        m_fogValid = false;
         for (auto& resource : m_decisionHistory) resource.Reset();
         for (auto& resource : m_historyMetadata) resource.Reset();
 
@@ -1333,6 +1439,9 @@ struct FSRDPreprocessor_Dx12::Impl
         m_albedoTrust[1] = optional(m_albedoRecovery, FSRDFormats::AlbedoTrust, L"FSR_AlbedoTrust_1");
         m_albedoTrustResult = 0;
         m_LinearDepth = CreateTex(FSRDFormats::LinearDepth, L"FSR_Conv_LinearDepth");
+        m_PrevLinearDepth = CreateTex(FSRDFormats::LinearDepth, L"FSR_Conv_PreviousLinearDepth");
+        m_linearDepthSize = {};
+        m_previousDepthValid = false;
         m_outputBuffer1 = CreateTex(FSRDFormats::OutputBuffer1, L"FSR_Conv_OutputBuffer1");
         m_outputBuffer2 = CreateTex(FSRDFormats::OutputBuffer2, L"FSR_Conv_OutputBuffer2");
         m_ambientOcclusionOutput =
@@ -1344,7 +1453,8 @@ struct FSRDPreprocessor_Dx12::Impl
         m_floorModel0 = CreateTex(FSRDFormats::DetailReference, L"FSR_Floor_Model_0");
         m_floorModel1 = CreateTex(FSRDFormats::DetailReference, L"FSR_Floor_Model_1");
         m_compositionOutput = CreateTex(DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSR_Composition_Output");
-        m_volumeOutput = CreateTex(DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSR_VolumeRestore_Output");
+        for (auto& target : m_recoveryOutput)
+            target = CreateTex(DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSR_Recovery_Output");
         {
             const UINT tilesX = (width + 7) / 8, tilesY = (height + 7) / 8;
             m_volumeRawTiles = CreateTexture2D(m_pDev, tilesX, tilesY, DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -1353,7 +1463,16 @@ struct FSRDPreprocessor_Dx12::Impl
                 m_volumeHistory[i] = CreateTexture2D(m_pDev, tilesX, tilesY, DXGI_FORMAT_R16G16B16A16_FLOAT,
                                                      L"FSR_VolumeRestore_History", kSrvState);
         }
-        m_volumeHistoryValid = m_volumeRawReady = m_volumeOutputActive = false;
+        for (UINT i = 0; i < 2; ++i)
+        {
+            m_recoveryVolumeHistory[i] = CreateTexture2D(m_pDev, (width + 7) / 8, (height + 7) / 8,
+                DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSR_RecoveryVolume_History", kSrvState);
+            m_recoveryVolumeVariance[i] = CreateTexture2D(m_pDev, (width + 7) / 8, (height + 7) / 8,
+                DXGI_FORMAT_R32G32B32A32_FLOAT, L"FSR_RecoveryVolume_Variance", kSrvState);
+        }
+        m_recoveryVolumeValid = false;
+        m_volumeHistoryValid = m_volumeRawReady = false;
+        m_recoveryOutputIndex = -1;
         m_smoothFloor = nullptr;
         m_radianceOutputsInUavState = false;
         m_ambientOcclusionOutputInUavState = false;
@@ -1413,12 +1532,12 @@ struct FSRDPreprocessor_Dx12::Impl
         m_smoothFloor = m_outputBuffer2.Get();
     }
 
-    // The game's colour is readable only during conversion; keep its clipped tile
+    // The game's colour is readable only during conversion; keep its unbiased tile
     // means for the volumetric restore that runs after composition.
     void DispatchVolumeGather(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
     {
         m_volumeRawReady = false;
-        if (!desc.VolumeRestore || (desc.Flags & uint32_t(ConvFlags::Debug)) != 0 || !desc.Resources.InColor)
+        if (!(desc.VolumeRestore || desc.RecoveryVolumetry) || (desc.Flags & uint32_t(ConvFlags::Debug)) != 0 || !desc.Resources.InColor)
             return;
         VolumeGather::Constants constants = {
             .RenderSize = desc.RenderSize,
@@ -1441,23 +1560,23 @@ struct FSRDPreprocessor_Dx12::Impl
         m_volumeRawReady = false;
         if (!active)
         {
-            m_volumeOutputActive = false;
             m_volumeHistoryValid = false;
             return;
         }
         const XMFLOAT2 size = {desc.DstTexSize.x, desc.DstTexSize.y};
         const UINT historyWrite = 1 - m_volumeHistoryRead;
+        const int outputIndex = m_recoveryOutputIndex == 0 ? 1 : 0;
         {
             VolumeAccumulate::Constants constants = {
                 .DstTexSize = desc.DstTexSize,
                 .HistoryJitterDelta = m_historyJitterDelta,
                 .HistoryValid = m_volumeHistoryValid && m_motionHistoryValid ? 1u : 0u,
-                // About ten frames of memory: as steady as RR's own accumulation,
-                // while a lighting change still settles within a fraction of a second.
-                .Response = 0.15f
+                // About thirty frames of memory: the unclipped tile mean of heavy-tailed
+                // fog is noisy, and replays at 0.1-0.15 tripled the low-frequency flicker.
+                .Response = 0.03f
             };
             VolumeAccumulate::Input in = {.Resources = {
-                .InComposed = m_compositionOutput.Get(),
+                .InComposed = CompositionColor(),
                 .InRawTiles = m_volumeRawTiles.Get(),
                 .InHistory = m_volumeHistory[m_volumeHistoryRead].Get(),
                 .InLinearDepth = m_LinearDepth.Get(),
@@ -1473,16 +1592,84 @@ struct FSRDPreprocessor_Dx12::Impl
                 .Strength = std::clamp(desc.VolumeRestoreStrength, 0.0f, 2.0f)
             };
             VolumeApply::Input in = {.Resources = {
-                .InComposed = m_compositionOutput.Get(),
+                .InComposed = CompositionColor(),
                 .InHistory = m_volumeHistory[historyWrite].Get(),
                 .InLinearDepth = m_LinearDepth.Get()
             }};
-            VolumeApply::Output out = {.Resources = {.OutColor = m_volumeOutput.Get()}};
+            VolumeApply::Output out = {.Resources = {.OutColor = m_recoveryOutput[outputIndex].Get()}};
             m_volumeApplyShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray, size);
         }
         m_volumeHistoryRead = historyWrite;
         m_volumeHistoryValid = true;
-        m_volumeOutputActive = true;
+        m_recoveryOutputIndex = outputIndex;
+    }
+
+    ID3D12Resource* CompositionColor() const
+    {
+        if (m_skinOutputActive) return m_skinResult.Get();
+        return m_recoveryOutputIndex < 0 ? m_compositionOutput.Get()
+                                        : m_recoveryOutput[m_recoveryOutputIndex].Get();
+    }
+
+    void DispatchRecoveryChain(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
+    {
+        // No copies and no rounding when the enabled pass list is empty.
+        if (!desc.RecoveryV2)
+        {
+            m_recoveryVolumeValid = false;
+            DispatchVolumeRestore(cmdList, desc);
+            return;
+        }
+        m_volumeHistoryValid = false;
+        const bool active = m_volumeRawReady && std::isfinite(desc.RecoveryVolumetryStrength) &&
+            desc.RecoveryVolumetryStrength > 0.0f &&
+            (desc.Flags & (uint32_t(CompFlags::Debug) | uint32_t(CompFlags::RawSourceBlit))) == 0;
+        m_volumeRawReady = false;
+        if (!active)
+        {
+            m_recoveryVolumeValid = false;
+            return;
+        }
+        const UINT write = 1 - m_recoveryVolumeRead;
+        const int target = m_recoveryOutputIndex == 0 ? 1 : 0;
+        const XMFLOAT2 size = {desc.DstTexSize.x, desc.DstTexSize.y};
+        RecoveryVolumeAccumulate::Constants accumulation = {
+            .DstTexSize = desc.DstTexSize,
+            .HistoryJitterDelta = m_historyJitterDelta,
+            .HistoryValid = m_recoveryVolumeValid && m_motionHistoryValid ? 1u : 0u,
+            .Response = 0.05f
+        };
+        RecoveryVolumeAccumulate::Input inputs = {.Resources = {
+            .InComposed = CompositionColor(),
+            .InRawTiles = m_volumeRawTiles.Get(),
+            .InHistory = m_recoveryVolumeHistory[m_recoveryVolumeRead].Get(),
+            .InLinearDepth = m_LinearDepth.Get(),
+            .InMotion = m_out.Resources.Motion.Get(),
+            .InVariance = m_recoveryVolumeVariance[m_recoveryVolumeRead].Get()
+        }};
+        RecoveryVolumeAccumulate::Output outputs = {.Resources = {
+            .OutHistory = m_recoveryVolumeHistory[write].Get(),
+            .OutVariance = m_recoveryVolumeVariance[write].Get()
+        }};
+        m_recoveryVolumeAccumulateShader.Dispatch(cmdList, GetAsByteSpan(accumulation),
+                                                  inputs.AsArray, outputs.AsArray, size);
+        RecoveryVolumeApply::Constants application = {
+            .DstTexSize = desc.DstTexSize,
+            .Strength = std::clamp(desc.RecoveryVolumetryStrength, 0.0f, 1.0f),
+            .Debug = std::min(desc.RecoveryDebug, 2u)
+        };
+        RecoveryVolumeApply::Input applyInputs = {.Resources = {
+            .InComposed = CompositionColor(),
+            .InHistory = m_recoveryVolumeHistory[write].Get(),
+            .InLinearDepth = m_LinearDepth.Get(),
+            .InVariance = m_recoveryVolumeVariance[write].Get()
+        }};
+        RecoveryVolumeApply::Output applyOutputs = {.Resources = {.OutColor = m_recoveryOutput[target].Get()}};
+        m_recoveryVolumeApplyShader.Dispatch(cmdList, GetAsByteSpan(application),
+                                             applyInputs.AsArray, applyOutputs.AsArray, size);
+        m_recoveryOutputIndex = target;
+        m_recoveryVolumeRead = write;
+        m_recoveryVolumeValid = true;
     }
 
     ID3D12PipelineState* ResolveFloorSeedPipeline(const ConversionDesc& desc)
@@ -1573,6 +1760,430 @@ struct FSRDPreprocessor_Dx12::Impl
         return true;
     }
 
+    void EnsureSkinShaders()
+    {
+        if (m_skinConvShader.m_pso) return;
+        m_skinConvShader.Initialize(m_pDev,
+            {reinterpret_cast<const byte*>(FSRDInputConvSkin_cso), sizeof(FSRDInputConvSkin_cso)},
+            sizeof(SkinConversion::Constants), SkinConversion::kInputCount, Conversion::Output::kCount,
+            L"FSRD_SkinConversion", 3);
+        m_sssPrepareShader.Initialize(m_pDev,
+            {reinterpret_cast<const byte*>(FSRDSssPrepare_cso), sizeof(FSRDSssPrepare_cso)},
+            sizeof(SssPrepare::Constants), SssPrepare::Input::kCount, SssPrepare::Output::kCount,
+            L"FSRD_SssPrepare", 3);
+        m_sssBlurShader.Initialize(m_pDev,
+            {reinterpret_cast<const byte*>(FSRDSssBlur_cso), sizeof(FSRDSssBlur_cso)},
+            sizeof(SssBlur::Constants), SssBlur::Input::kCount, SssBlur::Output::kCount,
+            L"FSRD_SssBlur", 3);
+        m_skinPrefilterShader.Initialize(m_pDev,
+            {reinterpret_cast<const byte*>(FSRDSkinPrefilter_cso), sizeof(FSRDSkinPrefilter_cso)},
+            sizeof(SkinPrefilter::Constants), SkinPrefilter::Input::kCount, SkinPrefilter::Output::kCount,
+            L"FSRD_SkinPrefilter", 3);
+    }
+
+    void EnsureSkinBoundsShaders()
+    {
+        if (!m_skinBoundsConvShader.m_pso)
+            m_skinBoundsConvShader.Initialize(m_pDev,
+                {reinterpret_cast<const byte*>(FSRDInputConvSkinBounds_cso), sizeof(FSRDInputConvSkinBounds_cso)},
+                sizeof(SkinConversion::Constants), SkinConversion::kInputCount, SkinConversionBounds::kOutputCount,
+                L"FSRD_SkinConversionBounds", 3);
+        if (!m_skinBoundsShader.m_pso)
+            m_skinBoundsShader.Initialize(m_pDev,
+                {reinterpret_cast<const byte*>(FSRDSkinBounds_cso), sizeof(FSRDSkinBounds_cso)},
+                sizeof(SkinPrefilter::Constants), SkinBounds::Input::kCount, SkinBounds::Output::kCount,
+                L"FSRD_SkinBounds", 3);
+        if (!m_skinTiledPrefilterShader.m_pso)
+            m_skinTiledPrefilterShader.Initialize(m_pDev,
+                {reinterpret_cast<const byte*>(FSRDSkinPrefilterTiled_cso), sizeof(FSRDSkinPrefilterTiled_cso)},
+                sizeof(SkinPrefilter::Constants), SkinTiledPrefilter::Input::kCount, SkinTiledPrefilter::Output::kCount,
+                L"FSRD_SkinTiledPrefilter", 3);
+    }
+
+    void EnsureFusedSssShaders()
+    {
+        if (!m_skinFusedConvShader.m_pso)
+            m_skinFusedConvShader.Initialize(m_pDev,
+                {reinterpret_cast<const byte*>(FSRDInputConvSkinFused_cso), sizeof(FSRDInputConvSkinFused_cso)},
+                sizeof(SkinConversion::Constants), SkinFusedConversion::kInputCount,
+                SkinFusedConversion::kOutputCount, L"FSRD_SkinFusedConversion", 3);
+        if (!m_sssKernelShader.m_pso)
+            m_sssKernelShader.Initialize(m_pDev,
+                {reinterpret_cast<const byte*>(FSRDSssKernel_cso), sizeof(FSRDSssKernel_cso)},
+                sizeof(SssBlur::Constants), SssKernel::Input::kCount, SssKernel::Output::kCount,
+                L"FSRD_SssKernel", 3);
+        if (!m_sssTiledBlurShader.m_pso)
+            m_sssTiledBlurShader.Initialize(m_pDev,
+                {reinterpret_cast<const byte*>(FSRDSssBlurTiled_cso), sizeof(FSRDSssBlurTiled_cso)},
+                sizeof(SssBlur::Constants), SssTiledBlur::Input::kCount, SssBlur::Output::kCount,
+                L"FSRD_SssBlurTiled", 3);
+    }
+
+    void PrepareSkin(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
+    {
+        m_skinOutputActive = false;
+        m_skinFused = false;
+        auto* guide = desc.Resources.InSssGuide;
+        const auto guideDesc = guide ? guide->GetDesc() : D3D12_RESOURCE_DESC{};
+        const bool guideValid = FSRD::CompatibleSkinInput(guide != nullptr, guideDesc,
+            FSRD::GetViewFormat(guideDesc.Format), desc.SssGuideBase.x, desc.SssGuideBase.y,
+            UINT(desc.RenderSize.x), UINT(desc.RenderSize.y), true);
+        m_skinMode = guideValid ? std::min(desc.SkinMode, 2u) : 0u;
+        m_skinDebug = desc.SkinDebug;
+        m_skinRadiusMm = desc.SssRadiusMm; m_skinStrength = desc.SssStrength;
+        m_skinFalloff = desc.SssFalloff; m_skinSigma = desc.SkinSigma;
+        if (m_skinMode == 0u) return;
+        EnsureSkinShaders();
+        if (!m_skinPrepared)
+        {
+            const auto color = [&](LPCWSTR name) {
+                return CreateTexture2D(m_pDev, m_maxWidth, m_maxHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, name, kSrvState);
+            };
+            m_skinPrepared = color(L"FSRD_SssPrepared");
+            m_skinGuide = CreateTexture2D(m_pDev, m_maxWidth, m_maxHeight, DXGI_FORMAT_R32_FLOAT,
+                                          L"FSRD_SssGuide", kSrvState);
+            m_skinBlur = color(L"FSRD_SssBlur"); m_skinResult = color(L"FSRD_SssResult");
+            m_skinDiffuse = color(L"FSRD_SkinDiffuse");
+        }
+        if (m_skinMode == 2u)
+        {
+            EnsureSkinBoundsShaders();
+            if (!m_skinBounds8)
+            {
+                const auto size = SkinBoundsExtent(m_maxWidth, m_maxHeight, 8u);
+                m_skinBounds8 = CreateTexture2D(m_pDev, size.x, size.y,
+                    DXGI_FORMAT_R32G32B32A32_FLOAT, L"FSRD_SkinBounds8", kSrvState);
+            }
+            if (!m_skinBounds16)
+            {
+                const auto size = SkinBoundsExtent(m_maxWidth, m_maxHeight, 16u);
+                m_skinBounds16 = CreateTexture2D(m_pDev, size.x * 2u, size.y,
+                    DXGI_FORMAT_R32G32B32A32_FLOAT, L"FSRD_SkinBounds16", kSrvState);
+            }
+            return; // The prefilter consumes the original guide directly.
+        }
+        const XMMATRIX projection = XMMatrixInverse(nullptr, XMLoadFloat4x4(&desc.InvProjMatrix));
+        XMFLOAT4X4 proj; XMStoreFloat4x4(&proj, projection);
+        m_skinFocalPixels = 0.5f * desc.RenderSize.y * std::abs(proj._22);
+        bool capture = m_gameTraceCaptureRequested || bool(m_additiveCapture);
+        {
+            std::lock_guard lock(g_additiveTraceMutex);
+            capture = capture || g_additiveTraceBusy || g_additiveTraceRequest.has_value();
+        }
+        // InputBase4.zw carries the raw-depth origin in the fused ABI. A bound
+        // diffuse-hit source can share it only when its own origin agrees.
+        const bool diffuseBaseMatches = desc.DiffuseHitDistanceMode == 0u ||
+            desc.Resources.InDiffuseHitDistance == nullptr ||
+            (desc.InputBase4.z == desc.FloorSourceBase.z && desc.InputBase4.w == desc.FloorSourceBase.w);
+        const bool basesMatch = desc.FloorSourceBase.x == desc.InputBase0.x &&
+            desc.FloorSourceBase.y == desc.InputBase0.y && diffuseBaseMatches;
+        const bool depthSourceValid = (desc.Flags & uint32_t(ConvFlags::TitleLinearDepth)) == 0u ||
+            desc.Resources.InTitleLinearDepth != nullptr;
+        m_skinFused = CanFuseSssInput(m_skinMode, desc.FloorEnabled ||
+            (desc.Flags & uint32_t(ConvFlags::FloorEnabled)) != 0u,
+            (desc.Flags & uint32_t(ConvFlags::InputChroma)) != 0u,
+            (desc.Flags & uint32_t(ConvFlags::Debug)) != 0u || desc.SkinDebug != 0u,
+            capture, basesMatch, depthSourceValid);
+        if (m_skinFused)
+        {
+            EnsureFusedSssShaders();
+            if (!m_skinBounds8)
+            {
+                const auto size = SkinBoundsExtent(m_maxWidth, m_maxHeight, 8u);
+                m_skinBounds8 = CreateTexture2D(m_pDev, size.x, size.y,
+                    DXGI_FORMAT_R32G32B32A32_FLOAT, L"FSRD_SkinBounds8", kSrvState);
+            }
+            if (!m_sssKernel)
+            {
+                const auto size = SssKernelExtent(m_maxWidth, m_maxHeight);
+                m_sssKernel = CreateTexture2D(m_pDev, size.x, size.y,
+                    DXGI_FORMAT_R32G32B32A32_FLOAT, L"FSRD_SssKernel", kSrvState);
+            }
+            return;
+        }
+        SssPrepare::Constants c {
+            .InvProjMatrix = desc.InvProjMatrix, .DstTexSize = desc.RenderSize,
+            .ColorDepthBase = desc.FloorSourceBase,
+            .AlbedoBase = {desc.InputBase2.z, desc.InputBase2.w, desc.InputBase3.x, desc.InputBase3.y},
+            .GuideBiasBase = {desc.SssGuideBase.x, desc.SssGuideBase.y, desc.InputBase3.z, desc.InputBase3.w},
+            .TitleDepthBase = desc.TitleLinearDepthBase,
+            .CurrentJitter = {desc.JitterOffsets.x, desc.JitterOffsets.y},
+            .NearPlane = desc.NearPlane, .FarPlane = desc.FarPlane,
+            .BiasStrength = desc.BiasMaskStrength,
+            .Flags = desc.Flags | (desc.Resources.InBiasMask ? uint32_t(ConvFlags::HasBiasMask) : 0u),
+            .Mode = m_skinMode
+        };
+        SssPrepare::Input in {.Resources = {desc.Resources.InColor, desc.Resources.InDepth,
+            desc.Resources.InDiffAlbedo, desc.Resources.InSpecAlbedo, desc.Resources.InSssGuide,
+            desc.Resources.InBiasMask, desc.Resources.InTitleLinearDepth}};
+        SssPrepare::Output out {.Resources = {m_skinPrepared.Get(), m_skinGuide.Get()}};
+        FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::SkinPrepare);
+        m_sssPrepareShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                   {desc.RenderSize.x, desc.RenderSize.y});
+    }
+
+    void FilterSkinDiffuse(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
+    {
+        if (m_skinMode != 2u) return;
+        const auto width = UINT(desc.RenderSize.x), height = UINT(desc.RenderSize.y);
+        SkinPrefilter::Constants c {.DstTexSize = desc.RenderSize, .Sigma = m_skinSigma,
+            .GuideBase = desc.SssGuideBase};
+        FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::SkinPrefilter);
+        SkinBounds::Input boundsIn {.Resources = {m_skinBounds8.Get()}};
+        SkinBounds::Output boundsOut {.Resources = {m_skinBounds16.Get()}};
+        const auto boundsSize = SkinBoundsExtent(width, height, 16u);
+        m_skinBoundsShader.Dispatch(cmdList, GetAsByteSpan(c), boundsIn.AsArray, boundsOut.AsArray,
+                                   {float(boundsSize.x), float(boundsSize.y)});
+        SkinTiledPrefilter::Input in {.Resources = {m_out.Resources.Signals.DirectDiffuse.Get(),
+            desc.Resources.InSssGuide, m_LinearDepth.Get(), m_out.Resources.Normals.Get(), m_skinBounds16.Get()}};
+        SkinTiledPrefilter::Output out {.Resources = {m_skinBlur.Get()}};
+        auto dispatch = SkinPrefilterDispatch(width, height, false);
+        m_skinTiledPrefilterShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                           {float(dispatch.x), float(dispatch.y)});
+        c.Vertical = 1u;
+        in.Resources.InDiffuse = m_skinBlur.Get();
+        out.Resources.OutDiffuse = m_skinDiffuse.Get();
+        dispatch = SkinPrefilterDispatch(width, height, true);
+        m_skinTiledPrefilterShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                           {float(dispatch.x), float(dispatch.y)});
+        std::swap(m_skinDiffuse, m_out.Resources.Signals.DirectDiffuse);
+        if (desc.SkinDebug == 3u)
+            Blit(cmdList, m_out.Resources.Signals.DirectDiffuse.Get(), m_out.Resources.Signals.IndirectSpecular.Get(),
+                 {desc.RenderSize.x, desc.RenderSize.y}, {desc.RenderSize.x, desc.RenderSize.y}, {});
+    }
+
+    void ReblurSkin(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
+    {
+        if (m_skinMode != 1u || m_skinStrength <= 0.0f ||
+            (desc.Flags & (uint32_t(CompFlags::Debug) | uint32_t(CompFlags::RawSourceBlit))) != 0u) return;
+        FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::SkinReblur);
+        ID3D12Resource* original = CompositionColor();
+        SssBlur::Constants c {.DstTexSize = desc.DstTexSize,
+            .SigmaScale = m_skinRadiusMm * 0.001f * m_skinFocalPixels,
+            .RadiusMeters = m_skinRadiusMm * 0.001f, .Strength = m_skinStrength, .Falloff = m_skinFalloff};
+        if (m_skinFused)
+        {
+            const auto width = UINT(desc.DstTexSize.x), height = UINT(desc.DstTexSize.y);
+            SssKernel::Input kernelIn {.Resources = {m_skinBounds8.Get(), m_LinearDepth.Get()}};
+            SssKernel::Output kernelOut {.Resources = {m_sssKernel.Get()}};
+            auto dispatch = SssKernelDispatch(width, height);
+            m_sssKernelShader.Dispatch(cmdList, GetAsByteSpan(c), kernelIn.AsArray, kernelOut.AsArray,
+                                      {float(dispatch.x), float(dispatch.y)});
+            SssTiledBlur::Input in {.Resources = {original, m_skinGuide.Get(), m_LinearDepth.Get(),
+                original, m_sssKernel.Get()}};
+            SssBlur::Output out {.Resources = {m_skinBlur.Get()}};
+            dispatch = SssBlurDispatch(width, height, false);
+            m_sssTiledBlurShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                         {float(dispatch.x), float(dispatch.y)});
+            c.Vertical = 1u;
+            in.Resources.InColor = m_skinBlur.Get(); out.Resources.OutColor = m_skinResult.Get();
+            dispatch = SssBlurDispatch(width, height, true);
+            m_sssTiledBlurShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                         {float(dispatch.x), float(dispatch.y)});
+            m_skinOutputActive = true;
+            return;
+        }
+        SssBlur::Input in {.Resources = {original, m_skinGuide.Get(), m_LinearDepth.Get(), original}};
+        SssBlur::Output out {.Resources = {m_skinBlur.Get()}};
+        m_sssBlurShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                {desc.DstTexSize.x, desc.DstTexSize.y});
+        c.Vertical = 1u; in.Resources.InColor = m_skinBlur.Get(); out.Resources.OutColor = m_skinResult.Get();
+        m_sssBlurShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                {desc.DstTexSize.x, desc.DstTexSize.y});
+        m_skinOutputActive = true;
+    }
+
+    // Albedo guide stabilisation (FSRDAlbedoStabilise.hlsl). Runs after packing on its outputs: the stabilised
+    // guides and the matching rescaled lighting go to spare textures that are then swapped in, so everything
+    // after this point (RR, skin, composition, captures) sees one consistent pair.
+    void StabiliseAlbedo(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
+    {
+        const uint32_t mode = (desc.Flags & uint32_t(ConvFlags::Debug)) != 0u ? 0u : std::min(desc.AlbedoStabilisation, 2u);
+        m_albedoStabActive = false;
+        if (mode == 0u)
+        {
+            m_albedoStabValid = false;
+            return;
+        }
+        if (!m_albedoStabShader.m_pso)
+            m_albedoStabShader.Initialize(m_pDev,
+                {reinterpret_cast<const byte*>(FSRDAlbedoStabilise_cso), sizeof(FSRDAlbedoStabilise_cso)},
+                32, 10, 7, L"FSRD_AlbedoStabilise");
+        if (!m_albedoStabSpareSpecAlbedo)
+        {
+            const auto create = [&](DXGI_FORMAT format, LPCWSTR name) {
+                return CreateTexture2D(m_pDev, m_maxWidth, m_maxHeight, format, name, kSrvState);
+            };
+            for (UINT i = 0; i < 2; ++i)
+            {
+                m_albedoStabSpec[i] = create(DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSRD_AlbedoStab_Specular");
+                m_albedoStabDiff[i] = create(DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSRD_AlbedoStab_Diffuse");
+                m_albedoStabNormal[i] = create(DXGI_FORMAT_R16G16_FLOAT, L"FSRD_AlbedoStab_Normal");
+            }
+            m_albedoStabSpareSpecAlbedo = create(FSRDFormats::SpecAlbedo, L"FSRD_AlbedoStab_SpecAlbedo");
+            m_albedoStabSpareDiffAlbedo = create(FSRDFormats::DiffAlbedo, L"FSRD_AlbedoStab_DiffAlbedo");
+            m_albedoStabSpareSpecSignal = create(FSRDFormats::IndirectSpecular, L"FSRD_AlbedoStab_SpecSignal");
+            m_albedoStabSpareDiffSignal = create(FSRDFormats::DirectDiffuse, L"FSRD_AlbedoStab_DiffSignal");
+            m_albedoStabValid = false;
+        }
+        const bool reset = !m_albedoStabValid || !desc.MotionHistoryValid || mode != m_albedoStabMode ||
+            memcmp(&m_albedoStabSize, &desc.RenderSize, sizeof(desc.RenderSize)) != 0;
+        struct Constants { XMFLOAT4 DstTexSize; float Rate, DivisorFloor, DepthTolerance; uint32_t Flags; };
+        static_assert(sizeof(Constants) == 32);
+        const Constants c {desc.RenderSize, std::clamp(desc.AlbedoStabilisationRate, 1.0f / 32.0f, 1.0f),
+            desc.DemodDivisorFloor, 0.03f,
+            (reset ? 1u : 0u) | (mode == 2u ? 2u : 0u) | (desc.AlbedoStabilisationClamp ? 4u : 0u)};
+        const uint32_t previous = m_albedoStabIndex, current = previous ^ 1u;
+        auto& r = m_out.Resources;
+        const auto inputs = std::to_array<ID3D12Resource*>({r.SpecAlbedo.Get(), r.DiffAlbedo.Get(),
+            r.Signals.IndirectSpecular.Get(), r.Signals.DirectDiffuse.Get(), r.Motion.Get(), m_LinearDepth.Get(),
+            r.Normals.Get(), m_albedoStabSpec[previous].Get(), m_albedoStabDiff[previous].Get(),
+            m_albedoStabNormal[previous].Get()});
+        auto outputs = std::to_array<ID3D12Resource*>({m_albedoStabSpec[current].Get(), m_albedoStabDiff[current].Get(),
+            m_albedoStabNormal[current].Get(), m_albedoStabSpareSpecAlbedo.Get(), m_albedoStabSpareDiffAlbedo.Get(),
+            m_albedoStabSpareSpecSignal.Get(), m_albedoStabSpareDiffSignal.Get()});
+        {
+            FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::AlbedoStabilisation);
+            m_albedoStabShader.Dispatch(cmdList, GetAsByteSpan(c), inputs, outputs, {desc.RenderSize.x, desc.RenderSize.y});
+        }
+        std::swap(m_albedoStabSpareSpecAlbedo, r.SpecAlbedo);
+        std::swap(m_albedoStabSpareDiffAlbedo, r.DiffAlbedo);
+        std::swap(m_albedoStabSpareSpecSignal, r.Signals.IndirectSpecular);
+        std::swap(m_albedoStabSpareDiffSignal, r.Signals.DirectDiffuse);
+        m_albedoStabIndex = current;
+        m_albedoStabMode = mode;
+        m_albedoStabSize = desc.RenderSize;
+        m_albedoStabValid = true;
+        m_albedoStabActive = true;
+    }
+
+    // Fog-consistent guides (FSRDFogStats/Kappa/Rank/Smooth/Route.hlsl), after stabilisation. Kappa, the share of the
+    // guides' texture the image carries, is measured on the packing shader's own pair (a stabilised guide has
+    // less texture to measure); the pair handed on (stabilised or not) is rewritten into spares that are swapped
+    // in, energy-exact per channel, so RR, skin, composition and captures all see the same pair.
+    void FogGuides(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
+    {
+        if (!desc.FogGuides || (desc.Flags & uint32_t(ConvFlags::Debug)) != 0u)
+        {
+            m_fogValid = false;
+            return;
+        }
+        if (!m_fogStatsShader.m_pso)
+        {
+            m_fogStatsShader.Initialize(m_pDev, {reinterpret_cast<const byte*>(FSRDFogStats_cso), sizeof(FSRDFogStats_cso)},
+                                        sizeof(FogStats::Constants), FogStats::Input::kCount, FogStats::Output::kCount,
+                                        L"FSRD_FogStats");
+            m_fogKappaShader.Initialize(m_pDev, {reinterpret_cast<const byte*>(FSRDFogKappa_cso), sizeof(FSRDFogKappa_cso)},
+                                        sizeof(FogKappa::Constants), FogKappa::Input::kCount, FogKappa::Output::kCount,
+                                        L"FSRD_FogKappa");
+            m_fogRankShader.Initialize(m_pDev, {reinterpret_cast<const byte*>(FSRDFogRank_cso), sizeof(FSRDFogRank_cso)},
+                                       sizeof(FogRank::Constants), FogRank::Input::kCount, FogRank::Output::kCount,
+                                       L"FSRD_FogRank");
+            m_fogSmoothShader.Initialize(m_pDev, {reinterpret_cast<const byte*>(FSRDFogSmooth_cso), sizeof(FSRDFogSmooth_cso)},
+                                         sizeof(FogSmooth::Constants), FogSmooth::Input::kCount, FogSmooth::Output::kCount,
+                                         L"FSRD_FogSmooth");
+            m_fogRouteShader.Initialize(m_pDev, {reinterpret_cast<const byte*>(FSRDFogRoute_cso), sizeof(FSRDFogRoute_cso)},
+                                        sizeof(FogRoute::Constants), FogRoute::Input::kCount, FogRoute::Output::kCount,
+                                        L"FSRD_FogRoute");
+        }
+        const UINT maxTilesX = (m_maxWidth + 7) / 8, maxTilesY = (m_maxHeight + 7) / 8;
+        if (!m_fogSpareSpecAlbedo)
+        {
+            const auto tile = [&](DXGI_FORMAT format, LPCWSTR name) {
+                return CreateTexture2D(m_pDev, maxTilesX, maxTilesY, format, name, kSrvState);
+            };
+            for (UINT i = 0; i < 2; ++i)
+            {
+                m_fogA[i] = tile(DXGI_FORMAT_R32G32B32A32_FLOAT, L"FSRD_Fog_A");
+                m_fogB[i] = tile(DXGI_FORMAT_R32G32B32A32_FLOAT, L"FSRD_Fog_B");
+                m_fogC[i] = tile(DXGI_FORMAT_R32G32B32A32_FLOAT, L"FSRD_Fog_C");
+            }
+            m_fogG = tile(DXGI_FORMAT_R32G32B32A32_FLOAT, L"FSRD_Fog_G");
+            m_fogH = tile(DXGI_FORMAT_R32G32B32A32_FLOAT, L"FSRD_Fog_H");
+            m_fogKappaRaw = tile(DXGI_FORMAT_R32_FLOAT, L"FSRD_Fog_KappaRaw");
+            m_fogKappaRank = tile(DXGI_FORMAT_R32_FLOAT, L"FSRD_Fog_KappaRank");
+            m_fogKappa = tile(DXGI_FORMAT_R32_FLOAT, L"FSRD_Fog_Kappa");
+            const auto full = [&](DXGI_FORMAT format, LPCWSTR name) {
+                return CreateTexture2D(m_pDev, m_maxWidth, m_maxHeight, format, name, kSrvState);
+            };
+            m_fogSpareSpecAlbedo = full(FSRDFormats::SpecAlbedo, L"FSRD_Fog_SpecAlbedo");
+            m_fogSpareDiffAlbedo = full(FSRDFormats::DiffAlbedo, L"FSRD_Fog_DiffAlbedo");
+            m_fogSpareSpecSignal = full(FSRDFormats::IndirectSpecular, L"FSRD_Fog_SpecSignal");
+            m_fogSpareDiffSignal = full(FSRDFormats::DirectDiffuse, L"FSRD_Fog_DiffSignal");
+            m_fogValid = false;
+        }
+        const bool reset = !m_fogValid || !desc.MotionHistoryValid ||
+            memcmp(&m_fogSize, &desc.RenderSize, sizeof(desc.RenderSize)) != 0;
+        const XMFLOAT2 tiles {std::ceil(desc.RenderSize.x / 8.0f), std::ceil(desc.RenderSize.y / 8.0f)};
+        const uint32_t previous = m_fogIndex, current = previous ^ 1u;
+        auto& r = m_out.Resources;
+        // The packing shader's pair: in the stabilisation spares when stabilisation replaced it this frame.
+        ID3D12Resource* origSpec = m_albedoStabActive ? m_albedoStabSpareSpecAlbedo.Get() : r.SpecAlbedo.Get();
+        ID3D12Resource* origDiff = m_albedoStabActive ? m_albedoStabSpareDiffAlbedo.Get() : r.DiffAlbedo.Get();
+        ID3D12Resource* origSpecSignal = m_albedoStabActive ? m_albedoStabSpareSpecSignal.Get() : r.Signals.IndirectSpecular.Get();
+        ID3D12Resource* origDiffSignal = m_albedoStabActive ? m_albedoStabSpareDiffSignal.Get() : r.Signals.DirectDiffuse.Get();
+
+        // Constants shared with fsrd_fog_reference.py (validated with real AMD RR on fog, night, water, stairs,
+        // reveal and turn captures).
+        constexpr float kRate = 1.0f / 16.0f, kFillRadius = 4.0f, kFillSigma = kFillRadius / 1.5f;
+        constexpr float kNear = 8.0f, kFar = 60.0f;
+        FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::FogGuides);
+        {
+            // Motion is canonical unjittered previous-UV minus current-UV. Fog runs before
+            // the composition's history delta is updated, so use this frame's descriptor.
+            const XMFLOAT2 historyJitterDelta {desc.JitterOffsets.z - desc.JitterOffsets.x,
+                                               desc.JitterOffsets.w - desc.JitterOffsets.y};
+            const FogStats::Constants c {desc.RenderSize, tiles, kRate, desc.DemodDivisorFloor, 0.1f,
+                                         reset ? 1u : 0u, historyJitterDelta};
+            const FogStats::Input inputs {{origSpec, origDiff, origSpecSignal, origDiffSignal,
+                r.SpecAlbedo.Get(), r.DiffAlbedo.Get(), m_LinearDepth.Get(), r.Motion.Get(),
+                m_fogA[previous].Get(), m_fogB[previous].Get(), m_fogC[previous].Get()}};
+            FogStats::Output outputs {{m_fogA[current].Get(), m_fogB[current].Get(), m_fogC[current].Get(),
+                m_fogG.Get(), m_fogH.Get()}};
+            m_fogStatsShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray,
+                                      {desc.RenderSize.x, desc.RenderSize.y});
+        }
+        {
+            const FogKappa::Constants c {tiles, 0.35f, 1.0f, 2.0f, 0.0f, 144.0f, 64.0f * 2.0f * 3.14159265f * kFillSigma * kFillSigma,
+                               0.005f, 0.015f, kFillSigma, 0.6f, int32_t(kFillRadius), {}};
+            const FogKappa::Input inputs {{m_fogA[current].Get(), m_fogB[current].Get(), m_fogC[current].Get()}};
+            FogKappa::Output outputs {{m_fogKappaRaw.Get()}};
+            m_fogKappaShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray, tiles);
+        }
+        {
+            // Median over 5x5 same-depth tiles: lone low-kappa tiles (cars, kerbs, foliage edges, where the tile
+            // model fails) are not fog; flattening them blurred and smeared those objects through RR.
+            const FogRank::Constants c {tiles, 0.3f, 50.0f, 2, {}};
+            const FogRank::Input inputs {{m_fogKappaRaw.Get(), m_fogA[current].Get(), m_fogC[current].Get()}};
+            FogRank::Output outputs {{m_fogKappaRank.Get()}};
+            m_fogRankShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray, tiles);
+        }
+        {
+            const FogSmooth::Constants c {tiles, 3.0f, 0.6f, 6, {}};
+            const FogSmooth::Input inputs {{m_fogKappaRank.Get(), m_fogA[current].Get(), m_fogC[current].Get()}};
+            FogSmooth::Output outputs {{m_fogKappa.Get()}};
+            m_fogSmoothShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray, tiles);
+        }
+        {
+            const FogRoute::Constants c {desc.RenderSize, tiles, desc.DemodDivisorFloor, std::log(kNear), 1.0f / std::log(kFar / kNear),
+                               0.1f, 0u, 0.0f};
+            const FogRoute::Input inputs {{r.SpecAlbedo.Get(), r.DiffAlbedo.Get(),
+                r.Signals.IndirectSpecular.Get(), r.Signals.DirectDiffuse.Get(), m_LinearDepth.Get(), m_fogKappa.Get(),
+                m_fogG.Get(), m_fogH.Get()}};
+            FogRoute::Output outputs {{m_fogSpareSpecAlbedo.Get(), m_fogSpareDiffAlbedo.Get(),
+                m_fogSpareSpecSignal.Get(), m_fogSpareDiffSignal.Get()}};
+            m_fogRouteShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray,
+                                      {desc.RenderSize.x, desc.RenderSize.y});
+        }
+        std::swap(m_fogSpareSpecAlbedo, r.SpecAlbedo);
+        std::swap(m_fogSpareDiffAlbedo, r.DiffAlbedo);
+        std::swap(m_fogSpareSpecSignal, r.Signals.IndirectSpecular);
+        std::swap(m_fogSpareDiffSignal, r.Signals.DirectDiffuse);
+        m_fogIndex = current;
+        m_fogSize = desc.RenderSize;
+        m_fogValid = true;
+    }
+
     void DispatchPackingShader(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc,
                                ID3D12PipelineState* conversionPipeline)
     {
@@ -1581,7 +2192,7 @@ struct FSRDPreprocessor_Dx12::Impl
         // Prepare inputs for packing and format conversion
         Conversion::Input in = { .Resources =
         {
-            .InColor = desc.Resources.InColor,
+            .InColor = m_skinMode == 1u ? m_skinPrepared.Get() : desc.Resources.InColor,
             .InDepth = m_LinearDepth.Get(),
             .InMotionVectors = desc.Resources.InMotionVectors,
             .InNormals = desc.Resources.InNormals,
@@ -1599,10 +2210,13 @@ struct FSRDPreprocessor_Dx12::Impl
             .InTitleLinearDepth = desc.Resources.InTitleLinearDepth,
             .InResponsivityMask = desc.Resources.InResponsivityMask,
             .InDetailReference = m_floorReference.Get(),
-            .InFloorModel = m_floorModel0.Get()
+            .InFloorModel = m_floorModel0.Get(),
+            .InPreviousDepth = m_PrevLinearDepth.Get()
         }};
 
         uint32_t packFlags = desc.Flags | uint32_t(ConvFlags::IsDepthLinear);
+        if (!m_previousDepthValid)
+            packFlags &= ~uint32_t(ConvFlags::DisocclusionCheck);
         // A null SRV reads as zero, so the shader is safe either way, but the flag keeps the
         // "no mask provided" case explicit and visible in the debug views.
         if (desc.Resources.InBiasMask != nullptr)
@@ -1624,7 +2238,7 @@ struct FSRDPreprocessor_Dx12::Impl
             .MotionInputSize = desc.MotionInputSize,
             .MotionTransform = desc.MotionTransform,
             .JitterOffsets = desc.JitterOffsets,
-            .InputBase0 = desc.InputBase0,
+            .InputBase0 = m_skinMode == 1u ? XMUINT4{0, 0, desc.InputBase0.z, desc.InputBase0.w} : desc.InputBase0,
             .InputBase1 = desc.InputBase1,
             .InputBase2 = desc.InputBase2,
             .InputBase3 = desc.InputBase3,
@@ -1656,10 +2270,113 @@ struct FSRDPreprocessor_Dx12::Impl
             .AdditiveLightSplit = desc.AdditiveLightSplit,
         };
 
-        CaptureAdditive(cmdList, packConstants, in.AsArray);
+        // A request arriving after PrepareSkin is retained for the next legacy frame.
+        if (!m_skinFused) CaptureAdditive(cmdList, packConstants, in.AsArray);
         const std::span<const byte> convCBData((const byte*) &packConstants, sizeof(packConstants));
-        m_convShader.Dispatch(cmdList, convCBData, in.AsArray, m_out.AsRawArray, dispatchSize, true,
-                              conversionPipeline);
+        if (m_skinFused)
+        {
+            uint32_t rawFlags = desc.Flags;
+            if (desc.Resources.InBiasMask) rawFlags |= uint32_t(ConvFlags::HasBiasMask);
+            const uint32_t motionFlags = (desc.ObjectDepthDelta ? 1u : 0u) |
+                (desc.ReflectionsFollowSurface ? 2u : 0u) | (m_previousDepthValid ? 4u : 0u);
+            SkinConversion::Constants c {.Base = packConstants,
+                .SkinOptions = {desc.InputBase0.x, desc.InputBase0.y, 1u, motionFlags},
+                .SkinDebug = {desc.SkinDebug, desc.SssGuideBase.x, desc.SssGuideBase.y, rawFlags}};
+            c.Base.InputBase4.z = desc.FloorSourceBase.z;
+            c.Base.InputBase4.w = desc.FloorSourceBase.w;
+            std::array<ID3D12Resource*, SkinFusedConversion::kInputCount> inputs {};
+            std::copy(std::begin(in.AsArray), std::end(in.AsArray), inputs.begin());
+            inputs[0] = desc.Resources.InColor;
+            inputs[1] = desc.Resources.InDepth;
+            inputs[9] = inputs[16] = inputs[17] = nullptr;
+            inputs[19] = desc.Resources.InSssGuide;
+            inputs[20] = desc.Resources.InColor;
+            inputs[21] = desc.Resources.InDiffAlbedo;
+            inputs[22] = desc.Resources.InSpecAlbedo;
+            inputs[23] = desc.Resources.InBiasMask;
+            std::array<ID3D12Resource*, SkinFusedConversion::kOutputCount> outputs {};
+            std::copy(std::begin(m_out.AsRawArray), std::end(m_out.AsRawArray), outputs.begin());
+            outputs[10] = m_LinearDepth.Get(); outputs[11] = m_skinPrepared.Get();
+            outputs[12] = m_skinGuide.Get(); outputs[13] = m_skinBounds8.Get();
+            ID3D12PipelineState* pso = nullptr;
+            if (desc.AdditiveLightSplit > 0.0f)
+            {
+                if (!m_skinFusedAdditivePso)
+                {
+                    D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc {};
+                    psoDesc.pRootSignature = m_skinFusedConvShader.m_rootSig.Get();
+                    psoDesc.CS = {FSRDInputConvSkinFusedAdditive_cso, sizeof(FSRDInputConvSkinFusedAdditive_cso)};
+                    ThrowIfFailed(m_pDev->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&m_skinFusedAdditivePso)),
+                                  "Fused skin additive pipeline creation failed");
+                }
+                pso = m_skinFusedAdditivePso.Get();
+            }
+            m_skinFusedConvShader.Dispatch(cmdList, GetAsByteSpan(c), inputs, outputs, dispatchSize, true, pso);
+        }
+        else if (m_skinMode != 0u || desc.ObjectDepthDelta || desc.ReflectionsFollowSurface)
+        {
+            EnsureSkinShaders();
+            uint32_t motionFlags = (desc.ObjectDepthDelta ? 1u : 0u) |
+                (desc.ReflectionsFollowSurface ? 2u : 0u) | (m_previousDepthValid ? 4u : 0u);
+            SkinConversion::Constants c {.Base = packConstants,
+                .SkinOptions = {desc.InputBase0.x, desc.InputBase0.y, m_skinMode, motionFlags},
+                .SkinDebug = {desc.SkinDebug, m_skinMode == 2u ? desc.SssGuideBase.x : 0u,
+                    m_skinMode == 2u ? desc.SssGuideBase.y : 0u, 0u}};
+            std::array<ID3D12Resource*, SkinConversion::kInputCount> skinInputs {};
+            std::copy(std::begin(in.AsArray), std::end(in.AsArray), skinInputs.begin());
+            skinInputs[19] = m_skinMode == 2u ? desc.Resources.InSssGuide :
+                (m_skinMode == 1u ? m_skinGuide.Get() : nullptr);
+            skinInputs[20] = desc.Resources.InColor;
+            const bool useBounds = m_skinMode == 2u;
+            ComputeState& skinShader = useBounds ? m_skinBoundsConvShader : m_skinConvShader;
+            auto& additive = useBounds ? m_skinBoundsAdditivePso : m_skinAdditivePso;
+            ID3D12PipelineState* skinPso = nullptr;
+            if (desc.AdditiveLightSplit > 0.0f)
+            {
+                if (!additive)
+                {
+                    D3D12_COMPUTE_PIPELINE_STATE_DESC pso {};
+                    pso.pRootSignature = skinShader.m_rootSig.Get();
+                    pso.CS = useBounds
+                        ? D3D12_SHADER_BYTECODE{FSRDInputConvSkinBoundsAdditive_cso, sizeof(FSRDInputConvSkinBoundsAdditive_cso)}
+                        : D3D12_SHADER_BYTECODE{FSRDInputConvSkinAdditive_cso, sizeof(FSRDInputConvSkinAdditive_cso)};
+                    ThrowIfFailed(m_pDev->CreateComputePipelineState(&pso, IID_PPV_ARGS(&additive)), "Skin additive pipeline creation failed");
+                }
+                skinPso = additive.Get();
+            }
+            if (useBounds)
+            {
+                std::array<ID3D12Resource*, SkinConversionBounds::kOutputCount> outputs {};
+                std::copy(std::begin(m_out.AsRawArray), std::end(m_out.AsRawArray), outputs.begin());
+                outputs.back() = m_skinBounds8.Get();
+                skinShader.Dispatch(cmdList, GetAsByteSpan(c), skinInputs, outputs, dispatchSize, true, skinPso);
+            }
+            else
+                skinShader.Dispatch(cmdList, GetAsByteSpan(c), skinInputs, m_out.AsRawArray,
+                                    dispatchSize, true, skinPso);
+        }
+        else
+            m_convShader.Dispatch(cmdList, convCBData, in.AsArray, m_out.AsRawArray, dispatchSize, true,
+                                  conversionPipeline);
+        StabiliseAlbedo(cmdList, desc);
+        FogGuides(cmdList, desc);
+        FilterSkinDiffuse(cmdList, desc);
+        if(desc.LeakLobe)
+        {
+            FSRDStageTimings::Scope timing(m_stageTimings,FSRDStageTimings::TextureLeak);
+            if(!m_leakShader.m_pso) m_leakShader.Initialize(m_pDev,
+                {reinterpret_cast<const byte*>(FSRDLeak_cso),sizeof(FSRDLeak_cso)},32,6,1,L"FSRD_TextureLeak");
+            if(!m_leakView || m_leakView->GetDesc().Width!=UINT(desc.RenderSize.x) || m_leakView->GetDesc().Height!=UINT(desc.RenderSize.y))
+                m_leakView=CreateTexture2D(m_pDev,UINT(desc.RenderSize.x),UINT(desc.RenderSize.y),DXGI_FORMAT_R16G16B16A16_FLOAT,L"FSRD_TextureLeak",kSrvState);
+            struct Constants { XMFLOAT4 size; uint32_t flags,padding[3]; };
+            Constants c {desc.RenderSize,desc.LeakLobe==2u?1u:0u,{}};
+            auto inputs=std::to_array({m_out.Resources.Signals.IndirectSpecular.Get(),m_out.Resources.Signals.DirectDiffuse.Get(),
+                m_out.Resources.SpecAlbedo.Get(),m_out.Resources.DiffAlbedo.Get(),m_LinearDepth.Get(),m_out.Resources.Normals.Get()});
+            auto outputs=std::to_array({m_leakView.Get()});
+            m_leakShader.Dispatch(cmdList,GetAsByteSpan(c),inputs,outputs,{desc.RenderSize.x,desc.RenderSize.y});
+            Blit(cmdList,m_leakView.Get(),m_out.Resources.Signals.IndirectSpecular.Get(),
+                 {desc.RenderSize.x,desc.RenderSize.y},{desc.RenderSize.x,desc.RenderSize.y},{});
+        }
         if (m_gameTraceCaptureRequested) RecordGameTraceSources(cmdList, desc, packConstants);
     }
 
@@ -1685,6 +2402,12 @@ struct FSRDPreprocessor_Dx12::Impl
             const CaptureJson captureControl {
                 {"source_flags", desc.Flags}, {"floor_seed_flags",actualSeedFlags}, {"floor_enabled", desc.FloorEnabled},
                 {"floor_source_base", {desc.FloorSourceBase.x,desc.FloorSourceBase.y,desc.FloorSourceBase.z,desc.FloorSourceBase.w}},
+                {"skin_mode", m_skinMode}, {"skin_debug", desc.SkinDebug},
+                {"sss_radius_mm", desc.SssRadiusMm}, {"sss_strength", desc.SssStrength},
+                {"sss_falloff", desc.SssFalloff}, {"skin_sigma", desc.SkinSigma},
+                {"object_depth_delta", desc.ObjectDepthDelta}, {"reflections_follow_surface", desc.ReflectionsFollowSurface},
+                {"albedo_stabilisation", desc.AlbedoStabilisation}, {"albedo_stabilisation_clamp", desc.AlbedoStabilisationClamp},
+                {"albedo_stabilisation_rate", desc.AlbedoStabilisationRate}, {"fog_guides", desc.FogGuides},
                 {"bias_strength", constants.BiasMaskStrength},
                 {"specular_hit_distance_from_combined_alpha", desc.SpecularHitDistanceFromCombinedAlpha},
                 {"diffuse_hit_distance_mode", constants.DiffuseHitDistanceMode},
@@ -1707,8 +2430,8 @@ struct FSRDPreprocessor_Dx12::Impl
             };
             // Snapshot final Floor/Reference before the SDK reuses the ping-pong
             // buffers. Motion here is already canonical motion, not seed gradient.
-            std::array<FSRDGameTraceSession::DiagnosticSource, 17> originalSources {{
-                original("raw_color",desc.Resources.InColor,constants.InputBase0.x,constants.InputBase0.y,true),
+            std::vector<FSRDGameTraceSession::DiagnosticSource> originalSources {
+                original("raw_color",desc.Resources.InColor,desc.InputBase0.x,desc.InputBase0.y,true),
                 original("raw_normals",desc.Resources.InNormals,constants.InputBase1.x,constants.InputBase1.y,true),
                 original("raw_specular_albedo",desc.Resources.InSpecAlbedo,constants.InputBase3.x,constants.InputBase3.y,true),
                 original("raw_diffuse_albedo",desc.Resources.InDiffAlbedo,constants.InputBase2.z,constants.InputBase2.w,true),
@@ -1726,8 +2449,11 @@ struct FSRDPreprocessor_Dx12::Impl
                 original("raw_roughness",desc.Resources.InRoughness,constants.InputBase1.z,constants.InputBase1.w,!flag(ConvFlags::IsRoughnessPacked)),
                 original("raw_title_linear_depth",desc.Resources.InTitleLinearDepth,desc.TitleLinearDepthBase.x,desc.TitleLinearDepthBase.y,seedUsesTitleDepth),
                 original("raw_inspector",desc.Resources.InInspector,0,0,
-                    (constants.Flags & uint32_t(ConvFlags::DebugModeMask)) == uint32_t(ConvFlags::DebugResourceInspector),"original_caller_debug_input")
-            }};
+                    (constants.Flags & uint32_t(ConvFlags::DebugModeMask)) == uint32_t(ConvFlags::DebugResourceInspector),"original_caller_debug_input"),
+                original("raw_sss_guide",desc.Resources.InSssGuide,desc.SssGuideBase.x,desc.SssGuideBase.y,true,"signed_lum4_after_minus_before"),
+                original("raw_color_before_sss",desc.Resources.InColorBeforeSss,desc.ColorBeforeSssBase.x,desc.ColorBeforeSssBase.y,true),
+                original("raw_color_after_sss",desc.Resources.InColorAfterSss,desc.ColorAfterSssBase.x,desc.ColorAfterSssBase.y,true)
+            };
             auto& rawMotion = originalSources[12];
             rawMotion.motionAddressed = true;
             rawMotion.displayResolutionMotion = flag(ConvFlags::DisplayResolutionMotion);
@@ -1744,6 +2470,15 @@ struct FSRDPreprocessor_Dx12::Impl
                 {"formula","display: clamp(floor((p+0.5-Jcur)*renderReciprocal*motionExtent),0,motionExtent-1)+sourceBase; otherwise clamp(p,0,motionExtent-1)+sourceBase"},
                 {"bounding_halo_texels",rawMotion.displayResolutionMotion ? 1 : 0}};
             rawMotion.metadataJson = motionMetadata.dump();
+            for(const auto& input:desc.ResearchInputs)
+            {
+                const auto row=FSRDResearch::Describe(m_pDev,input);
+                FSRDGameTraceSession::DiagnosticSource source {"input_"+input.name,{input.resource,kSrvState},input.x,input.y};
+                source.active=row.sampled; source.required=false;
+                source.inactiveReason=row.status;
+                source.metadataJson=CaptureJson{{"role","optional_ngx_input"},{"key",input.key}}.dump();
+                originalSources.push_back(std::move(source));
+            }
             m_gameTraceFrameRecorded = m_gameTrace.RecordSources(m_pDev, cmdList, sources,
                 static_cast<uint32_t>(desc.RenderSize.x), static_cast<uint32_t>(desc.RenderSize.y),
                 {reinterpret_cast<const uint8_t*>(&constants), sizeof(constants)}, originalSources,
@@ -1757,6 +2492,9 @@ struct FSRDPreprocessor_Dx12::Impl
 
     bool DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
     {
+        m_research.SetTimings(m_stageTimings);
+        m_research.Begin(m_pDev,cmdList,desc.ResearchInputs,uint32_t(desc.RenderSize.x),uint32_t(desc.RenderSize.y),
+                         desc.InvViewMatrix,(desc.Flags & uint32_t(ConvFlags::Debug))==0 && desc.LeakLobe==0);
         m_gameTraceCaptureRequested = FSRDGameTraceSession::IsActive();
         m_gameTraceFrameRecorded = false;
         if (m_gameTraceCaptureRequested)
@@ -1835,12 +2573,41 @@ struct FSRDPreprocessor_Dx12::Impl
 
         TransitionDenoiserOutputsToRead(cmdList);
 
+        // Geometric disocclusion check: keep last frame's canonical depth before the floor
+        // seed overwrites it. Only a complete frame of the same size that this frame's motion
+        // continues counts; otherwise the check stays off for this frame.
+        m_previousDepthValid = false;
+        if (((desc.Flags & uint32_t(ConvFlags::DisocclusionCheck)) != 0 || desc.ObjectDepthDelta) &&
+            m_PrevLinearDepth && desc.MotionHistoryValid &&
+            memcmp(&m_linearDepthSize, &desc.RenderSize, sizeof(desc.RenderSize)) == 0)
+        {
+            AddBarrier(cmdList, m_LinearDepth.Get(), kSrvState, D3D12_RESOURCE_STATE_COPY_SOURCE);
+            AddBarrier(cmdList, m_PrevLinearDepth.Get(), kSrvState, D3D12_RESOURCE_STATE_COPY_DEST);
+            cmdList->CopyResource(m_PrevLinearDepth.Get(), m_LinearDepth.Get());
+            AddBarrier(cmdList, m_PrevLinearDepth.Get(), D3D12_RESOURCE_STATE_COPY_DEST, kSrvState);
+            AddBarrier(cmdList, m_LinearDepth.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, kSrvState);
+            m_previousDepthValid = true;
+        }
+
         // Filtered raster lighting estimate
         {
             FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::Floor);
-            DispatchFloorSeed(cmdList, desc, seedPipeline);
-            DispatchFloorFilter(cmdList, desc);
+            PrepareSkin(cmdList, desc);
+            ConversionDesc floorDesc = desc;
+            if (m_skinMode == 1u)
+            {
+                floorDesc.Resources.InColor = m_skinPrepared.Get();
+                floorDesc.FloorSourceBase.x = floorDesc.FloorSourceBase.y = 0u;
+            }
+            if (!m_skinFused)
+            {
+                DispatchFloorSeed(cmdList, floorDesc, seedPipeline);
+                DispatchFloorFilter(cmdList, floorDesc);
+            }
+            else
+                m_smoothFloor = nullptr;
         }
+        m_linearDepthSize = desc.RenderSize;
         if (m_runtime)
         {
             m_runtime->steps[FSRDRuntimeSnapshot::Floor] = desc.FloorEnabled
@@ -1852,7 +2619,13 @@ struct FSRDPreprocessor_Dx12::Impl
         {
             FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::Conversion);
             DispatchPackingShader(cmdList, desc, conversionPipeline);
-            DispatchVolumeGather(cmdList, desc);
+            ConversionDesc referenceDesc = desc;
+            if (m_skinMode == 1u)
+            {
+                referenceDesc.Resources.InColor = m_skinPrepared.Get();
+                referenceDesc.InputBase0.x = referenceDesc.InputBase0.y = 0u;
+            }
+            DispatchVolumeGather(cmdList, referenceDesc);
         }
         if (m_runtime) m_runtime->Complete(FSRDRuntimeSnapshot::Conversion);
 
@@ -1939,6 +2712,7 @@ struct FSRDPreprocessor_Dx12::Impl
             throw std::runtime_error("Composition requires a command list and allocated resources");
 
         m_historyPending=false;
+        m_recoveryOutputIndex = -1;
         const bool writeHistory=desc.FloorDetailPreservation>0 && desc.RecoveryMask != 0 &&
             (desc.Flags & uint32_t(CompFlags::Debug))==0;
         // Dedicated ping-pong decisions/metadata; never alias RR scratch or motion.
@@ -2054,7 +2828,8 @@ struct FSRDPreprocessor_Dx12::Impl
             else
                 m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, outputs.AsArray, dstDim, true,
                                       CompositionPipeline(desc));
-            DispatchVolumeRestore(cmdList, desc);
+            DispatchRecoveryChain(cmdList, desc);
+            ReblurSkin(cmdList, desc);
         }
         m_historyPending=writeHistory;
         if (m_runtime) m_runtime->Complete(FSRDRuntimeSnapshot::Composition);
@@ -2518,6 +3293,7 @@ void FSRDPreprocessor_Dx12::FinishCompositionHistory(bool successfulNormalFrame)
     // A failed or debug frame leaves the volumetric history unproven.
     if (!successfulNormalFrame)
     {
+        m_impl->m_research.Abort("Reference aborted: normal evaluation failed or was bypassed.");
         m_impl->m_volumeHistoryValid=false;
         if (m_impl->m_gameTraceFrameRecorded)
             m_impl->m_gameTrace.Abort("Normal evaluation failed or bypassed after recording.");
@@ -2601,7 +3377,7 @@ ID3D12Resource* FSRDPreprocessor_Dx12::GetDebugViewOutput() const
 ID3D12Resource* FSRDPreprocessor_Dx12::GetCompositionOutput() const
 {
     // With the volumetric restore active its output is the final composition.
-    return m_impl->m_volumeOutputActive ? m_impl->m_volumeOutput.Get() : m_impl->m_compositionOutput.Get();
+    return m_impl->CompositionColor();
 }
 
 ID3D12Resource* FSRDPreprocessor_Dx12::GetDenoiserDiffuseOutput() const
@@ -2727,3 +3503,12 @@ void FSRDPreprocessor_Dx12::CompleteGameTraceSr(ID3D12GraphicsCommandList* cmdLi
     catch (const std::exception& error) { m_impl->m_gameTrace.Abort(error.what()); }
     catch (...) { m_impl->m_gameTrace.Abort("Game trace SR metadata unavailable."); }
 }
+
+void FSRDPreprocessor_Dx12::CompleteResearchFrame(ID3D12GraphicsCommandList* cmdList,
+    const std::string& settings,const std::string& controls)
+{
+    m_impl->m_research.Finish(cmdList,GetCompositionOutput(),m_impl->m_LinearDepth.Get(),
+        m_impl->m_out.Resources.Normals.Get(),settings,controls);
+}
+
+void FSRDPreprocessor_Dx12::AbortResearch(const char* reason) {m_impl->m_research.Abort(reason);}

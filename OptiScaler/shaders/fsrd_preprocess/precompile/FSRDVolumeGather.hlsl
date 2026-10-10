@@ -5,8 +5,11 @@
 // unbiased on noise, so a systematic shortfall of its output against the input's
 // tile mean is energy it removed. This pass records that input mean while the
 // game's colour is guaranteed readable (conversion time). One group is one tile.
-// A firefly is not volumetric light: luminance above mean + 3 sigma is clipped
-// before the mean, so isolated spikes RR rightly rejects are not restored.
+// The mean is not clipped: volumetric scattering is exactly the heavy-tailed light
+// whose energy sits in rare bright samples. An 8-pass 3-sigma clip here held fog tiles
+// 25-40% below the input mean (a7038a3d), at RR's own level, so the restore never
+// found a shortfall. The unclipped mean's noise is left to the slow accumulation and
+// the wide apply.
 #include "FSRDPreprocessCommon.hlsli"
 #include "FSRDFloorCommon.hlsli"
 
@@ -16,7 +19,7 @@
     "DescriptorTable(UAV(u0, numDescriptors = 1))"
 
 Texture2D<float4> InColor : register(t0);
-// RGB: clipped tile mean radiance. A: standard error of the tile's mean luminance.
+// RGB: tile mean radiance. A: standard error of the tile's mean luminance.
 RWTexture2D<half4> OutRawTiles : register(u0);
 
 cbuffer CB_VolumeGather : register(b0)
@@ -48,28 +51,15 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     const int2 px = int2(groupID.xy * 8 + gtID.xy);
     const bool inside = all(px < int2(RenderSize.xy));
     const float3 colour = inside ? FloorRadiance(InColor[px + int2(InputBase)].rgb) : 0.0f;
-    const float luma = GetLuminance(colour);
-
-    // A single spike inflates the deviation it is judged by, so the ceiling is
-    // re-derived from the already clipped population a few times.
-    float ceiling = 65504.0f, deviation = 0.0f, count = 1.0f;
-    [unroll]
-    for (uint iteration = 0; iteration < 8; ++iteration)
-    {
-        const float clippedLuma = min(luma, ceiling);
-        g_Sum[flatID] = float4(clippedLuma, clippedLuma * clippedLuma, inside ? 1.0f : 0.0f, 0.0f);
-        Reduce(flatID);
-        count = max(g_Sum[0].z, 1.0f);
-        const float mean = g_Sum[0].x / count;
-        deviation = sqrt(max(g_Sum[0].y / count - mean * mean, 0.0f));
-        ceiling = mean + 3.0f * deviation;
-        GroupMemoryBarrierWithGroupSync();
-    }
-
-    const float3 clipped = luma > ceiling ? colour * (ceiling / luma) : colour;
-    g_Sum[flatID] = float4(clipped, 0.0f);
+    g_Sum[flatID] = float4(colour, inside ? 1.0f : 0.0f);
+    Reduce(flatID);
+    const float count = max(g_Sum[0].w, 1.0f);
+    const float3 mean = g_Sum[0].rgb / count;
+    GroupMemoryBarrierWithGroupSync();
+    const float offset = inside ? GetLuminance(colour) - GetLuminance(mean) : 0.0f;
+    g_Sum[flatID] = float4(offset * offset, 0.0f, 0.0f, 0.0f);
     Reduce(flatID);
     if (flatID == 0)
-        OutRawTiles[groupID.xy] = half4(min(g_Sum[0].rgb / count, 65500.0f),
-                                        min(deviation * rsqrt(count), 65500.0f));
+        OutRawTiles[groupID.xy] = half4(min(mean, 65500.0f),
+                                        min(sqrt(g_Sum[0].x / count) * rsqrt(count), 65500.0f));
 }

@@ -204,8 +204,8 @@ int executeJob(const char* path) try
         }
         else
         {
-            auto data = bytes(t.path);
             const size_t row = size_t(t.width) * pixelBytes(t.format);
+            auto data = t.path == "__NULL__" ? std::vector<char>(row*t.height, 0) : bytes(t.path);
             if (data.size() != row*t.height) throw std::runtime_error("input length mismatch: " + t.path);
             char* mapped = nullptr; D3D12_RANGE empty {0,0};
             check(t.transfer->Map(0, &empty, reinterpret_cast<void**>(&mapped)), "upload map");
@@ -219,7 +219,7 @@ int executeJob(const char* path) try
             barrier(t.resource.Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
             D3D12_SHADER_RESOURCE_VIEW_DESC s {}; s.Format = t.format; s.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
             s.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; s.Texture2D.MipLevels = 1;
-            dev->CreateShaderResourceView(t.resource.Get(),&s,handle);
+            dev->CreateShaderResourceView(t.path == "__NULL__" ? nullptr : t.resource.Get(),&s,handle);
         }
     }
     auto shader = bytes(shaderPath), constants = bytes(cbPath);

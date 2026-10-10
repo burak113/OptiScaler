@@ -61,6 +61,8 @@ Texture2D<half4> InDirectDiffuseSignal : register(t16);
 #define FLAGS_EXTRA_SPECULAR (1 << 7)
 // InIndirectDiffuseDenoised holds RR's denoising of the unmodulated diffuse share.
 #define FLAGS_DIFFUSE_ALTERNATE (1 << 8)
+// Diagnostic: average RR lighting across magnified-history streaks. See StreakFilter.
+#define FLAGS_STREAK_FILTER (1 << 9)
 #define FLAGS_DIFFUSE_SIGNAL_DISABLED (1 << 4)
 #define FLAGS_SPECULAR_SIGNAL_DISABLED (1 << 5)
 RWTexture2D<half4> OutColor : register(u0);
@@ -223,6 +225,95 @@ float3 DiffuseRadiance(int2 p)
     return float3(InDirectDiffuse[p].rgb) +
         (IsSet(FLAGS_EXTRA_DIFFUSE) ? float3(InIndirectDiffuseDenoised[p].rgb) : 0.0f);
 }
+
+// Streak-orthogonal filter (diagnostic, off unless FLAGS_STREAK_FILTER).
+//
+// Where this frame magnifies the previous one along one axis - stair treads are stretched
+// vertically while climbing - each column's RR history is its own noisy chain drawn out
+// along that axis, and neighbouring columns do not share its error: coloured stripes along
+// the stretch. Averaging RR's demodulated lighting a few pixels across the stripes, on the
+// same surface only, cancels that error; detail along the stretch and all albedo texture
+// stay. Crop replays of captured stairs, together with the Light magnified-history reset in
+// conversion: streaks -64%, fine noise -8%, still and descending views untouched.
+//
+// Per-axis history stretch |1 + d(motion px)/d(px)|, as a least-squares slope over +-2
+// same-surface neighbours: InMotion is FP16, and the wider stencil keeps its rounding out of
+// the gate.
+float2 CompositionHistoryStretch(int2 p)
+{
+    const int2 bounds = int2(DstTexSize.xy) - 1;
+    const float z = InLinearDepth[p];
+    const float2 motionPx = float2(InMotion[p].xy) * DstTexSize.xy;
+    float2 stretch = 1.0f;
+    [unroll]
+    for (int axis = 0; axis < 2; ++axis)
+    {
+        float numerator = 0.0f;
+        float denominator = 0.0f;
+        [unroll]
+        for (int o = -2; o <= 2; ++o)
+        {
+            const int2 q = p + (axis == 0 ? int2(o, 0) : int2(0, o));
+            if (o == 0 || any(q < 0) || any(q > bounds))
+                continue;
+            const float4 tapMotion = InMotion[q];
+            if (!(abs(InLinearDepth[q] - z) <= 0.05f * abs(z)) || tapMotion.a < 0.5f)
+                continue;
+            numerator += o * (tapMotion[axis] * DstTexSize[axis] - motionPx[axis]);
+            denominator += o * o;
+        }
+        stretch[axis] = denominator > 0.0f ? abs(1.0f + numerator / denominator) : 1.0f;
+    }
+    return stretch;
+}
+
+void StreakFilter(int2 p, inout float3 specular, inout float3 diffuse)
+{
+    const float4 motion = InMotion[p];
+    if (motion.a < 0.5f)
+        return;
+    // Most pixels are nowhere near magnified. Plain +-1 differences of motion alone are four
+    // loads and can only overstate the magnification at a silhouette, where motion jumps; the
+    // same-surface estimate below decides everything they let through.
+    {
+        const int2 bounds = int2(DstTexSize.xy) - 1;
+        const float dx = float(InMotion[min(p + int2(1, 0), bounds)].x) - float(InMotion[max(p - int2(1, 0), 0)].x);
+        const float dy = float(InMotion[min(p + int2(0, 1), bounds)].y) - float(InMotion[max(p - int2(0, 1), 0)].y);
+        if (min(abs(1.0f + 0.5f * dx * DstTexSize.x), abs(1.0f + 0.5f * dy * DstTexSize.y)) >= 0.95f)
+            return;
+    }
+    const float2 stretch = CompositionHistoryStretch(p);
+    // Full below a stretch of 0.8, none from 0.9.
+    const float gate = saturate((0.9f - min(stretch.x, stretch.y)) * 10.0f);
+    [branch]
+    if (gate <= 0.0f)
+        return;
+    // Filter across the stripes: along X when the vertical axis is the magnified one.
+    const bool alongX = stretch.y <= stretch.x;
+    const int2 bounds = int2(DstTexSize.xy) - 1;
+    const float z = InLinearDepth[p];
+    const float3 n = OctahedralDecode(InNormals[p].xy);
+    float3 specularSum = 0.0f;
+    float3 diffuseSum = 0.0f;
+    float weightSum = 0.0f;
+    [unroll]
+    for (int o = -5; o <= 5; ++o)
+    {
+        const int2 q = p + (alongX ? int2(o, 0) : int2(0, o));
+        if (any(q < 0) || any(q > bounds))
+            continue;
+        if (!(abs(InLinearDepth[q] - z) <= 0.02f * abs(z)) || dot(n, OctahedralDecode(InNormals[q].xy)) <= 0.9f)
+            continue;
+        const float w = exp(-0.125f * float(o * o)); // Gaussian, sigma two pixels
+        specularSum += w * SpecularRadiance(q);
+        diffuseSum += w * DiffuseRadiance(q);
+        weightSum += w;
+    }
+    if (weightSum <= 0.0f)
+        return;
+    specular = lerp(specular, specularSum / weightSum, gate);
+    diffuse = lerp(diffuse, diffuseSum / weightSum, gate);
+}
 // Replaces the specular part of the reconstruction - RR's remodulated specular plus the
 // specular part of Skip - with RR's denoising of the same share never divided by albedo.
 // With the diffuse alternate the diffuse part follows on mostly reflective surfaces: the
@@ -255,8 +346,13 @@ float3 UnsupportedAlbedoCorrection(int2 p, float3 specular, inout float3 carried
 float3 Reconstruct(int2 p, out float3 independentRR, out float3 carriedSkip)
 {
     const float4 skip=InSkipSignal[p];
-    const float3 specular = SpecularRadiance(p) * SpecularMultiplier(p);
-    const float3 denoised = specular + DiffuseRadiance(p) * DiffuseMultiplier(p);
+    float3 specularLight = SpecularRadiance(p);
+    float3 diffuseLight = DiffuseRadiance(p);
+    [branch]
+    if (IsSet(FLAGS_STREAK_FILTER))
+        StreakFilter(p, specularLight, diffuseLight);
+    const float3 specular = specularLight * SpecularMultiplier(p);
+    const float3 denoised = specular + diffuseLight * DiffuseMultiplier(p);
     // The RR copy keeps history warm; the current-source certificate selects
     // one complete colour and excludes stale RR radiance during transitions.
     // Complete radiance still feeds colour reconstruction; support-only tags

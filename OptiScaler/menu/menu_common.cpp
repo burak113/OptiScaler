@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
 #include "shaders/fsrd_preprocess/FSRDGameTraceSession.h"
+#include "shaders/fsrd_preprocess/FSRDResearchTools.h"
 #include "menu_common.h"
 #include "fsrd_settings_menu.h"
 
@@ -3189,6 +3190,38 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
         FSRDMenu::DrawSignalSummary(*config, signals);
         FSRDMenu::DrawWorkflow(snapshot);
         FSRDMenu::DrawInputs(snapshot);
+        if(ImGui::CollapsingHeader("RR input inventory and Reference"))
+        {
+            ScopedIndent indent;
+            const auto tools=FSRDResearch::GetStatus();
+            ImGui::BeginDisabled(tools.busy);
+            if(ImGui::Button("Probe inputs")) FSRDResearch::RequestProbe();
+            static int referenceFrames=1;
+            ImGui::Combo("Reference frames",&referenceFrames,"64\0" "256\0" "1024\0");
+            if(ImGui::Button("Start Reference")) FSRDResearch::RequestReference(referenceFrames==0?64u:referenceFrames==1?256u:1024u);
+            ImGui::EndDisabled();
+            if(tools.busy && ImGui::Button("Cancel Reference / probe")) FSRDResearch::RequestStop();
+            ImGui::TextWrapped("%s",tools.message.c_str());
+            ImGui::TextWrapped("Freeze the camera and lock exposure in photo mode. Jitter continues. Reference files are saved under GAME_TRACE.");
+            if(ImGui::BeginTable("RR_INPUTS",4,ImGuiTableFlags_Borders|ImGuiTableFlags_ScrollY|ImGuiTableFlags_Resizable,ImVec2(0,240)))
+            {
+                ImGui::TableSetupColumn("Input"); ImGui::TableSetupColumn("Format / size / base");
+                ImGui::TableSetupColumn("Population"); ImGui::TableSetupColumn("Mean / max / nonzero RGBA"); ImGui::TableHeadersRow();
+                for(const auto& row:tools.rows)
+                {
+                    ImGui::TableNextRow(); ImGui::TableNextColumn(); ImGui::TextUnformatted(row.name.c_str());
+                    ImGui::TableNextColumn(); ImGui::Text("%u / %ux%u / %u,%u",row.format,row.width,row.height,row.x,row.y);
+                    ImGui::TableNextColumn(); ImGui::TextUnformatted(row.status.c_str()); ImGui::TableNextColumn();
+                    if(row.sampled)
+                    {
+                        ImGui::Text("mean %.3g %.3g %.3g %.3g",row.mean[0],row.mean[1],row.mean[2],row.mean[3]);
+                        ImGui::Text("max %.3g %.3g %.3g %.3g",row.maximum[0],row.maximum[1],row.maximum[2],row.maximum[3]);
+                        ImGui::Text("nz %.3g %.3g %.3g %.3g",row.nonzero[0],row.nonzero[1],row.nonzero[2],row.nonzero[3]);
+                    }
+                }
+                ImGui::EndTable();
+            }
+        }
         if (ImGui::CollapsingHeader("GAME_TRACE recording"))
         {
             ScopedIndent indent;
@@ -3401,6 +3434,53 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                 if (useAmdDefaults)
                     ImGui::TextDisabled("AMD baseline active - sliders above show the fork values, not "
                                         "what is applied");
+                {
+                    static const char* kStretchResetLevels[] = { "Off", "Light (0.6)", "Medium (0.75)",
+                                                                 "Strong (0.85)" };
+                    int level = std::clamp(config->FfxDenoiserStretchReset.value_or_default(), 0, 3);
+                    if (ImGui::Combo("Magnified History Reset", &level, kStretchResetLevels,
+                                     IM_ARRAYSIZE(kStretchResetLevels)))
+                        config->FfxDenoiserStretchReset = level;
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip(
+                            "Diagnostic. Restarts the denoiser's history on pixels where this frame\n"
+                            "magnifies the previous one, such as stair treads while climbing. Their\n"
+                            "history is a few old samples stretched over many pixels and shows as\n"
+                            "coloured vertical streaks. Higher levels catch milder magnification\n"
+                            "and leave a little more fresh noise on those pixels.\n"
+                            "Takes effect immediately. Debug view StretchReset shows the\n"
+                            "affected pixels in white.");
+                    bool streakFilter = config->FfxDenoiserStreakFilter.value_or_default();
+                    if (ImGui::Checkbox("Magnified History Streak Filter", &streakFilter))
+                        config->FfxDenoiserStreakFilter = streakFilter;
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip(
+                            "Diagnostic. On the same pixels, averages the denoised lighting a few\n"
+                            "pixels across the streaks (horizontally on stairs) and only on the same\n"
+                            "surface. Texture detail is kept. Pairs with the reset: Light reset plus\n"
+                            "this filter removed most streaks without extra noise in replays.\n"
+                            "Debug view StretchReset shows where it engages in magenta.");
+                    bool disocclusionCheck = config->FfxDenoiserDisocclusionCheck.value_or_default();
+                    if (ImGui::Checkbox("Geometric Disocclusion Check", &disocclusionCheck))
+                        config->FfxDenoiserDisocclusionCheck = disocclusionCheck;
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip(
+                            "Diagnostic. Restarts the denoiser's history on scenery that was hidden\n"
+                            "last frame, such as stairs appearing below a platform edge. The denoiser's\n"
+                            "own check misses those at grazing angles and smears the old surface over\n"
+                            "them. Compares last frame's depth; static scenery only, so hands and moving\n"
+                            "characters are left alone. Debug view StretchReset shows the pixels in cyan.");
+                    bool inputChroma = config->FfxDenoiserInputChroma.value_or_default();
+                    if (ImGui::Checkbox("Input Colour Noise Filter", &inputChroma))
+                        config->FfxDenoiserInputChroma = inputChroma;
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip(
+                            "Diagnostic. Removes red and blue dashes the denoiser leaves on surfaces lit by\n"
+                            "coloured lights, such as stair treads under neon signs. Each lighting sample keeps\n"
+                            "its brightness and takes the light colour of the same surface around it (9x9\n"
+                            "pixels, weighted by energy, so the average colour does not change). Texture colour,\n"
+                            "emission and mirror-like reflections are left alone.");
+                }
                 if (ImGui::Button("Reset AMD Tuning"))
                 {
                     config->FfxDenoiserUseAmdDefaults.reset();
@@ -3542,7 +3622,208 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                     "tiles, keeps the systematic shortfall over time and adds it back as a smooth layer. "
                     "In-game tests did not recover fog or light-beam structure blurred by RR.");
                 if (ImGui::Button("Reset Volumetric Restore"))
+                {
                     config->FfxDenoiserVolumeRestore.reset();
+                }
+            }
+            if (ImGui::CollapsingHeader("Skin (SSS)"))
+            {
+                ScopedIndent indent;
+                int mode = std::clamp(config->FfxDenoiserSkinMode.value_or_default(), 0, 2);
+                if (ImGui::Combo("Skin mode", &mode, "Off\0Pre-SSS + re-blur\0Skin diffuse prefilter\0"))
+                    config->FfxDenoiserSkinMode = mode;
+                if (mode == 1)
+                {
+                    float radius = config->FfxDenoiserSssRadiusMm.value_or_default();
+                    float strength = config->FfxDenoiserSssStrength.value_or_default();
+                    float falloff = config->FfxDenoiserSssFalloff.value_or_default();
+                    if (ImGui::SliderFloat("Radius (mm)", &radius, 0.1f, 10.0f, "%.2f")) config->FfxDenoiserSssRadiusMm = radius;
+                    if (ImGui::SliderFloat("SSS strength", &strength, 0.0f, 1.0f)) config->FfxDenoiserSssStrength = strength;
+                    if (ImGui::SliderFloat("SSS falloff", &falloff, 0.0f, 1.0f)) config->FfxDenoiserSssFalloff = falloff;
+                }
+                if (mode == 2)
+                {
+                    float sigma = config->FfxDenoiserSkinSigma.value_or_default();
+                    if (ImGui::SliderFloat("Sigma (px)", &sigma, 0.5f, 6.0f)) config->FfxDenoiserSkinSigma = sigma;
+                }
+                int debug = std::clamp(config->FfxDenoiserSkinDebug.value_or_default(), 0, 3);
+                if (ImGui::Combo("Skin debug", &debug, "Off\0SSS guide\0Pre-SSS colour\0Filtered diffuse lighting\0"))
+                    config->FfxDenoiserSkinDebug = debug;
+                ImGui::TextWrapped("Requires a compatible SSS guide from the game. Other surfaces keep their original path.");
+                if (ImGui::Button("Reset Skin (SSS)"))
+                {
+                    config->FfxDenoiserSkinMode.reset(); config->FfxDenoiserSkinDebug.reset();
+                    config->FfxDenoiserSssRadiusMm.reset(); config->FfxDenoiserSssStrength.reset();
+                    config->FfxDenoiserSssFalloff.reset(); config->FfxDenoiserSkinSigma.reset();
+                }
+            }
+            if (ImGui::CollapsingHeader("Moving objects"))
+            {
+                ScopedIndent indent;
+                bool depth = config->FfxDenoiserObjectDepthDelta.value_or_default();
+                bool follow = config->FfxDenoiserReflectionsFollowSurface.value_or_default();
+                if (ImGui::Checkbox("Object-motion depth delta", &depth)) config->FfxDenoiserObjectDepthDelta = depth;
+                if (ImGui::Checkbox("Reflections follow moving surfaces", &follow)) config->FfxDenoiserReflectionsFollowSurface = follow;
+                ImGui::TextWrapped("Independent controls for cars and other moving surfaces. With object depth enabled, compare disocclusion thresholds 0.1 and 0.05.");
+            }
+            if (ImGui::CollapsingHeader("Albedo guide stabilisation"))
+            {
+                ScopedIndent indent;
+                int mode = std::clamp(config->FfxDenoiserAlbedoStabilisation.value_or_default(), 0, 2);
+                if (ImGui::Combo("Stabilise", &mode, "Off\0Specular guide\0Specular and diffuse guides\0"))
+                    config->FfxDenoiserAlbedoStabilisation = mode;
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("The game's albedo guides flicker from frame to frame (strongly on water and wet "
+                                      "surfaces). RR denoises the lighting, but multiplying it back by a flickering guide "
+                                      "puts the flicker on screen. This keeps a motion-compensated average of the guide and "
+                                      "uses it on both sides of RR; the energy sent to RR is unchanged.");
+                ImGui::BeginDisabled(mode == 0);
+                bool clamp = config->FfxDenoiserAlbedoStabilisationClamp.value_or_default();
+                if (ImGui::Checkbox("Neighbourhood clamp", &clamp))
+                    config->FfxDenoiserAlbedoStabilisationClamp = clamp;
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Limits the averaged guide to the current 3x3 range, so textures that change in place "
+                                      "(animated signs, screens) cannot lag. Calms moving surfaces a little less.");
+                float rate = config->FfxDenoiserAlbedoStabilisationRate.value_or_default();
+                if (ImGui::SliderFloat("Rate", &rate, 1.0f / 32.0f, 0.5f, "%.3f"))
+                    config->FfxDenoiserAlbedoStabilisationRate = rate;
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Weight of the current frame in the average. Lower is calmer, higher follows "
+                                      "changes faster. Default 0.125.");
+                ImGui::EndDisabled();
+                if (ImGui::Button("Reset Albedo stabilisation"))
+                {
+                    config->FfxDenoiserAlbedoStabilisation.reset();
+                    config->FfxDenoiserAlbedoStabilisationClamp.reset();
+                    config->FfxDenoiserAlbedoStabilisationRate.reset();
+                }
+            }
+            if (ImGui::CollapsingHeader("Fog-consistent guides"))
+            {
+                ScopedIndent indent;
+                bool fog = config->FfxDenoiserFogGuides.value_or_default();
+                if (ImGui::Checkbox("Enable fog-consistent guides", &fog))
+                    config->FfxDenoiserFogGuides = fog;
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("RR multiplies its result by the surface albedo guides. Where the light does not come "
+                                      "from that surface (fog, haze, water over a sea floor) this prints the surface texture "
+                                      "at full strength: distant geometry comes out of the haze and silhouettes against the "
+                                      "sky get a dark line. This measures per tile how much of the guide texture the image "
+                                      "really carries and flattens the rest; with distance the fog light is denoised in one "
+                                      "lobe with a neutral guide, like the sky. The energy sent to RR is unchanged.");
+                ImGui::TextWrapped("Works with or without Albedo guide stabilisation. Look at distant haze, mountain and "
+                                   "building silhouettes against the sky, and water.");
+                if (ImGui::Button("Reset Fog-consistent guides"))
+                    config->FfxDenoiserFogGuides.reset();
+            }
+            if (ImGui::CollapsingHeader("Recovery v2"))
+            {
+                ScopedIndent indent;
+                bool enabled = config->FfxDenoiserRecoveryV2.value_or_default();
+                if (ImGui::Checkbox("Enable Recovery v2", &enabled))
+                    config->FfxDenoiserRecoveryV2 = enabled;
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Experimental. Sends all lighting through RR, skips Floor filtering "
+                                      "and enables only the selected recoveries.");
+                ImGui::BeginDisabled(!enabled);
+                ImGui::PushID("RecoveryVolumetry");
+                bool volumetry = config->FfxDenoiserRecoveryVolumetry.value_or_default();
+                if (ImGui::Checkbox("Volumetry", &volumetry))
+                    config->FfxDenoiserRecoveryVolumetry = volumetry;
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("Experimental. Restores low-frequency volumetric energy lost by RR using accumulated signed differences.");
+                float strengthVolumetry = config->FfxDenoiserRecoveryVolumetryStrength.value_or_default();
+                if (ImGui::SliderFloat("Volumetry strength", &strengthVolumetry, 0.0f, 1.0f))
+                    config->FfxDenoiserRecoveryVolumetryStrength = strengthVolumetry;
+                ImGui::PopID();
+                ImGui::PushID("RecoveryHistory");
+                bool history = config->FfxDenoiserRecoveryHistory.value_or_default();
+                if (ImGui::Checkbox("History", &history))
+                    config->FfxDenoiserRecoveryHistory = history;
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("Experimental. Groups magnified-history reset, streak filtering and geometric disocclusion checks. "
+                                      "Strength 0 is off, 0.5 is Light, and 1 is Medium.");
+                float strengthHistory = config->FfxDenoiserRecoveryHistoryStrength.value_or_default();
+                if (ImGui::SliderFloat("History strength", &strengthHistory, 0.0f, 1.0f))
+                    config->FfxDenoiserRecoveryHistoryStrength = strengthHistory;
+                ImGui::PopID();
+                ImGui::PushID("RecoverySpecular");
+                ImGui::BeginDisabled();
+                bool specular = config->FfxDenoiserRecoverySpecular.value_or_default();
+                if (ImGui::Checkbox("Specular", &specular))
+                    config->FfxDenoiserRecoverySpecular = specular;
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("Experimental prototype. Restores statistically supported specular detail; unavailable until the replay gate passes.");
+                float strengthSpecular = config->FfxDenoiserRecoverySpecularStrength.value_or_default();
+                if (ImGui::SliderFloat("Specular strength", &strengthSpecular, 0.0f, 1.0f))
+                    config->FfxDenoiserRecoverySpecularStrength = strengthSpecular;
+                ImGui::EndDisabled();
+                ImGui::PopID();
+                ImGui::PushID("RecoveryDiffuse");
+                ImGui::BeginDisabled();
+                bool diffuse = config->FfxDenoiserRecoveryDiffuse.value_or_default();
+                if (ImGui::Checkbox("Diffuse", &diffuse))
+                    config->FfxDenoiserRecoveryDiffuse = diffuse;
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("Experimental prototype. Restores statistically supported diffuse detail; unavailable until the replay gate passes.");
+                float strengthDiffuse = config->FfxDenoiserRecoveryDiffuseStrength.value_or_default();
+                if (ImGui::SliderFloat("Diffuse strength", &strengthDiffuse, 0.0f, 1.0f))
+                    config->FfxDenoiserRecoveryDiffuseStrength = strengthDiffuse;
+                ImGui::EndDisabled();
+                ImGui::PopID();
+                ImGui::PushID("RecoveryAlbedo");
+                ImGui::BeginDisabled();
+                bool albedo = config->FfxDenoiserRecoveryAlbedo.value_or_default();
+                if (ImGui::Checkbox("Albedo", &albedo))
+                    config->FfxDenoiserRecoveryAlbedo = albedo;
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("Experimental design only. Surface albedo recovery is not implemented in v2.");
+                float strengthAlbedo = config->FfxDenoiserRecoveryAlbedoStrength.value_or_default();
+                if (ImGui::SliderFloat("Albedo strength", &strengthAlbedo, 0.0f, 1.0f))
+                    config->FfxDenoiserRecoveryAlbedoStrength = strengthAlbedo;
+                ImGui::EndDisabled();
+                ImGui::PopID();
+                ImGui::PushID("RecoveryFlatAlbedo");
+                ImGui::BeginDisabled();
+                bool flatalbedo = config->FfxDenoiserRecoveryFlatAlbedo.value_or_default();
+                if (ImGui::Checkbox("Flat albedo", &flatalbedo))
+                    config->FfxDenoiserRecoveryFlatAlbedo = flatalbedo;
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("Experimental design only. Flat albedo recovery is not implemented in v2.");
+                float strengthFlatAlbedo = config->FfxDenoiserRecoveryFlatAlbedoStrength.value_or_default();
+                if (ImGui::SliderFloat("Flat albedo strength", &strengthFlatAlbedo, 0.0f, 1.0f))
+                    config->FfxDenoiserRecoveryFlatAlbedoStrength = strengthFlatAlbedo;
+                ImGui::EndDisabled();
+                ImGui::PopID();
+                bool inputColour = config->FfxDenoiserInputChroma.value_or_default();
+                if (ImGui::Checkbox("Diffuse / Specular: Input Colour Noise Filter", &inputColour))
+                    config->FfxDenoiserInputChroma = inputColour;
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Experimental existing conversion filter. Gives lighting samples "
+                                      "their same-surface neighbourhood colour before RR.");
+                static const char* debugViews[] = { "Off", "Volumetry signed correction", "Volumetry confidence",
+                                                    "History reset / filter mask" };
+                int debug = std::clamp(config->FfxDenoiserRecoveryDebug.value_or_default(), 0, 3);
+                if (ImGui::Combo("Recovery debug", &debug, debugViews, IM_ARRAYSIZE(debugViews)))
+                    config->FfxDenoiserRecoveryDebug = debug;
+                ImGui::EndDisabled();
+                if (ImGui::Button("Reset Recovery v2"))
+                {
+                    config->FfxDenoiserRecoveryV2.reset();
+                    config->FfxDenoiserRecoveryVolumetry.reset();
+                    config->FfxDenoiserRecoveryVolumetryStrength.reset();
+                    config->FfxDenoiserRecoveryHistory.reset();
+                    config->FfxDenoiserRecoveryHistoryStrength.reset();
+                    config->FfxDenoiserRecoverySpecular.reset();
+                    config->FfxDenoiserRecoverySpecularStrength.reset();
+                    config->FfxDenoiserRecoveryDiffuse.reset();
+                    config->FfxDenoiserRecoveryDiffuseStrength.reset();
+                    config->FfxDenoiserRecoveryAlbedo.reset();
+                    config->FfxDenoiserRecoveryAlbedoStrength.reset();
+                    config->FfxDenoiserRecoveryFlatAlbedo.reset();
+                    config->FfxDenoiserRecoveryFlatAlbedoStrength.reset();
+                    config->FfxDenoiserRecoveryDebug.reset();
+                }
             }
             if (ImGui::CollapsingHeader("Floor"))
             {
@@ -3551,6 +3832,12 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                 if (ImGui::Checkbox("Enable Floor", &floorEnabled))
                     config->FfxDenoiserFloorEnabled = floorEnabled;
                 ImGui::BeginDisabled(!floorEnabled);
+                if (bool v = config->FfxDenoiserFloorThroughRR.value_or_default();
+                    ImGui::Checkbox("Floor light through RR", &v))
+                    config->FfxDenoiserFloorThroughRR = v;
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("All lighting is denoised by RR. Floor is kept as a reference for "
+                                      "detail and structure. Turning this off restores the old pedestal behaviour.");
                 if (bool v = config->FfxDenoiserFloorFastMode.value_or_default();
                     ImGui::Checkbox("Faster Floor filtering", &v))
                     config->FfxDenoiserFloorFastMode = v;
@@ -3576,6 +3863,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                     config->FfxDenoiserFloorEnabled.reset();
                     config->FfxDenoiserFloorFastMode.reset();
                     config->FfxDenoiserFloorCleanLighting.reset();
+                    config->FfxDenoiserFloorThroughRR.reset();
                 }
             }
             if (ImGui::CollapsingHeader("Detail Recovery"))

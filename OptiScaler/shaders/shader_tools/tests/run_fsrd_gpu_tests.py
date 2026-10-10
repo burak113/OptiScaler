@@ -117,6 +117,8 @@ def run_runner(job):
 
 def constants(shader, values, directory=PRE):
     shader = 'FSRDInputConv' if shader == 'FSRDInputConvAdditive' else shader
+    skin_conversion = shader in ("FSRDInputConvSkin", "FSRDInputConvSkinAdditive")
+    shader = "FSRDSkinConversion" if skin_conversion else shader
     values = dict(values)
     if shader in ('FSRDInputConv', 'FSRDOutputComp') and directory == PRE:
         values.setdefault('SpecularAlbedoDemodulation', 1.0)
@@ -128,9 +130,17 @@ def constants(shader, values, directory=PRE):
         values.setdefault('FloorHandoverCorrelationMix', 1.0)
         values.setdefault('LumaRecovery', 1.0)
         values.setdefault('ChromaRecovery', 1.0)
-    text = (directory/(shader+'.hlsl')).read_text(encoding='utf-8')
+    text = (directory/(shader+('.hlsli' if skin_conversion else '.hlsl'))).read_text(encoding='utf-8')
     marker = {'FSRDFloorSeed':'CB_Median','FSRDFloor':'CB_Analysis','FSRDInputConv':'CB_Packing','FSRDOutputComp':'CB_Comp',
-              'FSRDAlbedoTrustEvidence':'CB_AlbedoTrust','FSRDAlbedoTrustPropagate':'CB_AlbedoTrust'}[shader]
+              'FSRDAlbedoTrustEvidence':'CB_AlbedoTrust','FSRDAlbedoTrustPropagate':'CB_AlbedoTrust',
+              'FSRDVolumeGather':'CB_VolumeGather','FSRDVolumeAccumulate':'CB_VolumeAccumulate',
+              'FSRDVolumeApply':'CB_VolumeApply',
+              'FSRDRecoveryVolumeAccumulate':'CB_VolumeAccumulate',
+              'FSRDRecoveryVolumeApply':'CB_VolumeApply', 'FSRDSkinConversion':'CB_Packing',
+              'FSRDSssPrepare':'CB_SssPrepare', 'FSRDSssBlur':'CB_SssBlur',
+              'FSRDSkinPrefilter':'CB_SkinPrefilter', 'FSRDProbeInputs':'Probe',
+              'FSRDReference':'Reference', 'FSRDLeak':'CB_Leak', 'FSRDAlbedoStabilise':'CB_AlbedoStabilise',
+              'FSRDFogStats':'CB_FogStats', 'FSRDFogKappa':'CB_FogKappa', 'FSRDFogRank':'CB_FogRank', 'FSRDFogSmooth':'CB_FogSmooth', 'FSRDFogRoute':'CB_FogRoute'}[shader]
     body = mirror.brace_body(text,'cbuffer '+marker)
     fields, size = mirror.hlsl_cbuffer_fields(body, shader)
     assert not mirror.errors, mirror.errors
@@ -200,7 +210,7 @@ def _original_floor_seed(value):
     return original
 
 
-def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repetitions=1):
+def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repetitions=1, output_sizes=None):
     global counter
     schema = 'FSRDInputConv' if shader == 'FSRDInputConvAdditive' else shader
     w,h = size
@@ -237,22 +247,40 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
     conversion_model = schema == 'FSRDInputConv' and conversion_has_floor_model(directory)
     conversion_extra_slots = [int(slot) for slot in re.findall(
         r'\b(?:ResearchField|InDemodMask)\s*:\s*register\s*\(\s*t(\d+)\s*\)', conversion_source)]
+    # Last frame's depth for the geometric disocclusion check follows the model. It is only
+    # read under its flag; callers that do not supply it bind an empty (zero) depth.
+    previous_depth = re.search(r'\bInPreviousDepth\s*:\s*register\s*\(\s*t(\d+)\s*\)', conversion_source)
+    previous_depth_slot = int(previous_depth.group(1)) if previous_depth else None
+    # Last frame's Floor pedestal for the recovery restart follows the previous depth, the same way.
+    previous_pedestal = re.search(r'\bInPreviousPedestal\s*:\s*register\s*\(\s*t(\d+)\s*\)', conversion_source)
+    previous_pedestal_slot = int(previous_pedestal.group(1)) if previous_pedestal else None
+    history_slots = [slot for slot in (previous_depth_slot, previous_pedestal_slot) if slot is not None]
     conversion_input_count = max([18 if conversion_model else 17] +
-                                 [slot+1 for slot in conversion_extra_slots])
+                                 [slot+1 for slot in conversion_extra_slots] +
+                                 [slot+1 for slot in history_slots])
     if conversion_model:
         if not 17 <= len(inputs) <= conversion_input_count:
             raise ValueError('FSRDInputConv requires seventeen legacy inputs and optional Floor model')
         model = getattr(inputs[9], '_floor_model', None)
         model = rgba(w,h,(0,0,0)) if model is None else model
-        if conversion_extra_slots and min(conversion_extra_slots) == 18 and len(inputs) == 18:
-            # Older research callers supplied their one extra field at t17.
-            # Its declaration now follows the production model at t18. Preserve
-            # that field and insert the chain's final model ahead of it.
-            inputs.insert(17, model)
+        if conversion_extra_slots and min(conversion_extra_slots) >= 18 and len(inputs) == 18:
+            # Older research callers supplied their one extra field at t17. Its
+            # declaration now follows the production model at t18 (and the previous
+            # depth, where declared). Preserve that field and bind the chain's final
+            # model and an empty previous depth ahead of it.
+            field = inputs.pop(17)
+            inputs.append(model)
+            while len(inputs) < min(conversion_extra_slots):
+                inputs.append(np.zeros((h,w),np.float32) if len(inputs) in history_slots
+                              else rgba(w,h,(0,0,0)))
+            inputs.append(field)
         if len(inputs) == 17:
             # The final coefficient buffer belongs to this Floor colour chain.
             # Handcrafted fixtures have no model and bind a disabled zero buffer.
             inputs.append(model)
+    for slot in sorted(history_slots):
+        if len(inputs) == slot:
+            inputs.append(np.zeros((h,w),np.float32))
     while conversion_extra_slots and len(inputs) < conversion_input_count:
         inputs.append(rgba(w,h,(0,0,0)))
     adaptive_conv = schema == 'FSRDInputConv' and 'InDemodMask' in conversion_source
@@ -273,6 +301,10 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
     diffuse_alt_conv = schema == 'FSRDInputConv' and 'OutIndirectDiffuse' in (directory/(schema+'.hlsl')).read_text()
     if diffuse_alt_conv and not adaptive_conv and len(output_formats) == 9:
         output_formats += [10]
+    # The Floor pedestal history adds u10, an R32_FLOAT irradiance.
+    pedestal_conv = schema == 'FSRDInputConv' and 'OutPedestal' in conversion_source
+    if pedestal_conv and not adaptive_conv and len(output_formats) == 10:
+        output_formats += [41]
     temporal_comp = shader == 'FSRDOutputComp' and 'InHistoryMetadata' in (directory/(shader+'.hlsl')).read_text()
     trust_comp = shader == 'FSRDOutputComp' and 'InAlbedoTrust' in (directory/(shader+'.hlsl')).read_text()
     if temporal_comp:
@@ -317,14 +349,35 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
                            [10,28,10,28,10,10,10,24,10]),
         'FSRDAlbedoTrustEvidence': [10,10,28,28,10,41,24,10,10] + ([10,10] if loss_evidence else []),
         'FSRDAlbedoTrustPropagate': [16,41,24],
+        'FSRDVolumeGather': [10],
+        'FSRDVolumeAccumulate': [10,10,10,41,10],
+        'FSRDVolumeApply': [10,10,41],
+        'FSRDRecoveryVolumeAccumulate': [10,10,10,41,10,2],
+        'FSRDRecoveryVolumeApply': [10,10,41,2],
+        'FSRDSssPrepare': [10,41,10,10,41,41,41],
+        'FSRDSssBlur': [10,41,41,10],
+        'FSRDSkinPrefilter': [10,41,41,24],
+        'FSRDProbeInputs': [2], 'FSRDReference': [2,2], 'FSRDLeak': [10,10,28,28,41,24], 'FSRDAlbedoStabilise': [28,28,10,10,10,41,24,10,10,16],
+        'FSRDFogStats': [28,28,10,10,28,28,41,10,2,2,2], 'FSRDFogKappa': [2,2,2], 'FSRDFogRank': [41,2,2], 'FSRDFogSmooth': [41,2,2],
+        'FSRDFogRoute': [28,28,10,10,41,41,2,2],
+        'FSRDInputConvSkin': [10,41,10,10,41,41,10,10,41,10,10,10,10,10,41,41,10,10,41,41,10],
+        'FSRDInputConvSkinAdditive': [10,41,10,10,41,41,10,10,41,10,10,10,10,10,41,41,10,10,41,41,10],
     }[schema]
+    # Scalar temporal depth/pedestal guides use the host R32_FLOAT format.
+    # Rounding these to FP16 can change a 3-percent disocclusion decision.
+    for slot in history_slots:
+        formats[slot] = 41
     for i,a in enumerate(inputs):
+        if a is None:
+            records.append(f'"__NULL__" {w} {h} {formats[i]}')
+            continue
         a=np.asarray(a,dtype=np.uint32 if formats[i]==3 else np.float32)
         if a.ndim == 2: a=np.repeat(a[...,None],4,axis=2)
         if a.shape[2] < 4: a=np.pad(a,((0,0),(0,0),(0,4-a.shape[2])))
         fmt=formats[i]
         if fmt==10: stored=a.astype('<f2')
         elif fmt==3: stored=a.astype('<u4')
+        elif fmt==2: stored=a.astype('<f4')
         elif fmt==41: stored=a[...,0].astype('<f4')
         elif fmt==16: stored=a[...,:2].astype('<f4')
         elif fmt==28: stored=np.rint(np.clip(a,0,1)*255).astype(np.uint8)
@@ -334,7 +387,11 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
         else: raise ValueError(fmt)
         p=d/f'in{i}.bin';stored.tofile(p)
         records.append(f'{json.dumps(str(p))} {a.shape[1]} {a.shape[0]} {fmt}')
-    for i,fmt in enumerate(output_formats):records.append(f'{json.dumps(str(d/f"out{i}.bin"))} {w} {h} {fmt}')
+    output_sizes = output_sizes or [(w,h)] * len(output_formats)
+    assert len(output_sizes) == len(output_formats)
+    for i,fmt in enumerate(output_formats):
+        ow,oh = output_sizes[i]
+        records.append(f'{json.dumps(str(d/f"out{i}.bin"))} {ow} {oh} {fmt}')
     job=d/'job.txt';job.write_text('\n'.join(records))
     result=run_runner(job)
     if result.returncode: raise RuntimeError(shader+'\n'+result.stdout+result.stderr)
@@ -346,6 +403,7 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
                     **times})
     result=[]
     for i,fmt in enumerate(output_formats):
+        w,h = output_sizes[i]
         p=d/f'out{i}.bin'
         if fmt==10:a=np.fromfile(p,dtype='<f2').reshape(h,w,4).astype(np.float32)
         elif fmt==3:a=np.fromfile(p,dtype='<u4').reshape(h,w,4)

@@ -2,6 +2,7 @@
 #include <atomic>
 #include <json.hpp>
 #include "shaders/fsrd_preprocess/FSRDGameTraceSession.h"
+#include "shaders/fsrd_preprocess/FSRDSkinInput.h"
 #include "shaders/fsrd_preprocess/RRTraceAdditiveIO.h"
 #include "resource.h"
 #include <nvsdk_ngx_defs_dlssd.h>
@@ -1047,6 +1048,12 @@ enum class DebugModes : uint64_t
     InBiasMask = FSRDConvFlags::DebugInBiasMask,
     FloorNoise = FSRDConvFlags::DebugFloorNoise,
     DemodRisk = FSRDConvFlags::DebugDemodRisk,
+    StretchReset = FSRDConvFlags::DebugStretchReset,
+    SssGuide = FSRDConvFlags::DebugSssGuide,
+    PreSss = FSRDConvFlags::DebugPreSss,
+    SkinPrefilter = FSRDConvFlags::DebugSkinPrefilter,
+    TextureLeakSpecular = uint32_t(FSRDConvFlags::Debug) | (47u << 17),
+    TextureLeakDiffuse = uint32_t(FSRDConvFlags::Debug) | (48u << 17),
     SkipUnmapped = FSRDConvFlags::DebugSkipUnmapped,
     SkipFloor = FSRDConvFlags::DebugSkipFloor,
     FloorExcess = FSRDConvFlags::DebugFloorExcess,
@@ -1083,6 +1090,7 @@ enum class DebugModes : uint64_t
 
 static FSRDConvFlags GetConvDebugFlags(DebugModes mode) 
 { 
+    if(mode==DebugModes::TextureLeakSpecular || mode==DebugModes::TextureLeakDiffuse) return FSRDConvFlags::None;
     uint32_t flags = uint32_t(mode);
     flags &= uint32_t(DebugModes::ConversionDebugMask);
     return FSRDConvFlags(flags);
@@ -1139,6 +1147,12 @@ constexpr auto kDebugModes = std::to_array<ModeNamePair>(
     { "InBiasMask", (uint64_t) DebugModes::InBiasMask },
     { "FloorNoise", (uint64_t) DebugModes::FloorNoise },
     { "DemodRisk", (uint64_t) DebugModes::DemodRisk },
+    { "StretchReset", (uint64_t) DebugModes::StretchReset },
+    { "Texture leak specular", (uint64_t) DebugModes::TextureLeakSpecular },
+    { "Texture leak diffuse", (uint64_t) DebugModes::TextureLeakDiffuse },
+    { "SSS guide", (uint64_t) DebugModes::SssGuide },
+    { "Pre-SSS colour", (uint64_t) DebugModes::PreSss },
+    { "Skin diffuse prefilter", (uint64_t) DebugModes::SkinPrefilter },
     { "SkipUnmapped", (uint64_t) DebugModes::SkipUnmapped },
     { "SkipFloor", (uint64_t) DebugModes::SkipFloor },
     { "FloorExcess", (uint64_t) DebugModes::FloorExcess },
@@ -2360,7 +2374,27 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
     // state lifetime, including bypass and error paths where composition is skipped.
     DenoiserOutputStateGuard denoiserOutputStateGuard(FSRDConvShader, InCommandList);
     TitleInputStateGuard titleInputStateGuard(FSRDConvShader, InCommandList);
-    const auto dbgMode = static_cast<DebugModes>(cfg.FfxDenoiserDebugMode.value_or_default());
+    auto dbgMode = cfg.FfxDenoiserRecoveryV2.value_or_default() &&
+        cfg.FfxDenoiserRecoveryDebug.value_or_default() == 3 ? DebugModes::StretchReset
+         : cfg.FfxDenoiserSkinDebug.value_or_default() == 1 ? DebugModes::SssGuide
+        : cfg.FfxDenoiserSkinDebug.value_or_default() == 2 ? DebugModes::PreSss
+        : cfg.FfxDenoiserSkinDebug.value_or_default() == 3 ? DebugModes::SkinPrefilter
+        : static_cast<DebugModes>(cfg.FfxDenoiserDebugMode.value_or_default());
+    // A skin debug selection is inert when this frame has no compatible guide.
+    // Resolve this before bypass decisions, not after the denoiser is skipped.
+    if (dbgMode == DebugModes::SssGuide || dbgMode == DebugModes::PreSss ||
+        dbgMode == DebugModes::SkinPrefilter)
+    {
+        ID3D12Resource* guide = nullptr;
+        TryGetNGXVoidPointer(inParams, NVSDK_NGX_Parameter_DLSSD_ScreenSpaceSubsurfaceScatteringGuide, guide);
+        const auto base = GetSubrectBase(inParams,
+            NVSDK_NGX_Parameter_DLSSD_ScreenSpaceSubsurfaceScatteringGuide_Subrect_Base_X,
+            NVSDK_NGX_Parameter_DLSSD_ScreenSpaceSubsurfaceScatteringGuide_Subrect_Base_Y);
+        const auto desc = guide ? guide->GetDesc() : D3D12_RESOURCE_DESC {};
+        if (!FSRD::CompatibleSkinInput(guide != nullptr, desc, FSRD::GetViewFormat(desc.Format),
+                                      base.x, base.y, currentRenderWidth, currentRenderHeight, true))
+            dbgMode = DebugModes::None;
+    }
     const bool isDebugVis = (uint32_t)dbgMode & (uint32_t) DebugModes::ConversionDebug;
     const bool isDebugComp = ((uint64_t)dbgMode & (uint64_t)DebugModes::CompositionDebug);
     const bool isFfxDebug = dbgMode == DebugModes::FfxDebug;
@@ -2590,6 +2624,8 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
             compositionFlags |= uint32_t(FSRDCompFlags::ExtraSpecular);
         if (_extraDiffuseSignal && _unsupportedAlbedoRecovery)
             compositionFlags |= uint32_t(FSRDCompFlags::DiffuseAlternate);
+        if (_convDesc.RecoveryV2 ? _convDesc.RecoveryHistoryLevel > 0 : cfg.FfxDenoiserStreakFilter.value_or_default())
+            compositionFlags |= uint32_t(FSRDCompFlags::StreakFilter);
         // The shader's Indirect Diffuse view knows only the split lobe and shows the live
         // alternate as missing (magenta). Present it as denoised, unmodulated: the split
         // read with a unit albedo multiplier. A paused split shows its modulated half, an
@@ -2614,12 +2650,18 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
             .ChromaRecovery = _appliedChromaRecovery,
             // The blend replaces the full-strength specular reconstruction, so it only
             // applies at the default 1/1 modulation and with the ordered signal split.
-            .UnsupportedAlbedoRecovery = _unsupportedAlbedoRecovery &&
+            .UnsupportedAlbedoRecovery = !_convDesc.RecoveryV2 && _unsupportedAlbedoRecovery &&
                     _convDesc.SpecularAlbedoDemodulation >= 1.0f &&
                     _convDesc.DiffuseAlbedoModulation >= 1.0f && _convDesc.AdditiveLightSplit <= 0.0f
                 ? 1.0f : 0.0f,
             .DemodDivisorFloor = _convDesc.DemodDivisorFloor,
             .VolumeRestoreStrength = _convDesc.VolumeRestore ? _volumeRestoreStrength : 0.0f,
+            .RecoveryV2 = _convDesc.RecoveryV2,
+            .RecoveryVolumetryStrength = _convDesc.RecoveryVolumetry
+                ? std::clamp(cfg.FfxDenoiserRecoveryVolumetryStrength.value_or_default(), 0.0f, 1.0f) : 0.0f,
+            .RecoveryDebug = _convDesc.RecoveryV2
+                ? uint32_t(std::clamp(cfg.FfxDenoiserRecoveryDebug.value_or_default(), 0, 2)) : 0u,
+            .FloorEnabled = _convDesc.FloorEnabled,
         };
 
         // ColorBeforeParticles is a whole scene guide, not a premultiplied overlay.
@@ -2657,6 +2699,101 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                 NVSDK_NGX_Parameter_DLSS_Pre_Exposure,&capturePreExposure)==NVSDK_NGX_Result_Success;
             FSRDConvShader->CompleteAdditiveCapture(InCommandList,denoiserDesc,compDesc,
                 capturePreExposure,capturePreExposureProvided);
+            if(FSRDResearch::ReferenceActive())
+            {
+                try {
+                using J=nlohmann::json;
+                J applied=J::object();
+                applied["FfxDenoiserProfile"]=cfg.FfxDenoiserProfile.value_or_default();
+                applied["FfxDenoiserIndex"]=cfg.FfxDenoiserIndex.value_or_default();
+                applied["FfxDenoiserDebugMode"]=cfg.FfxDenoiserDebugMode.value_or_default();
+                applied["FfxDenoiserDebugViewport"]=cfg.FfxDenoiserDebugViewport.value_or_default();
+                applied["FfxDenoiserInternalDebugViews"]=cfg.FfxDenoiserInternalDebugViews.value_or_default();
+                applied["FfxDenoiserDiffuseRoute"]=cfg.FfxDenoiserDiffuseRoute.value_or_default();
+                applied["FfxDenoiserSpecularRoute"]=cfg.FfxDenoiserSpecularRoute.value_or_default();
+                applied["FfxDenoiserEstimateHitDistances"]=cfg.FfxDenoiserEstimateHitDistances.value_or_default();
+                applied["FfxDenoiserDenoiseDiffuse"]=cfg.FfxDenoiserDenoiseDiffuse.value_or_default();
+                applied["FfxDenoiserDenoiseSpecular"]=cfg.FfxDenoiserDenoiseSpecular.value_or_default();
+                applied["FfxDenoiserGpuTimings"]=cfg.FfxDenoiserGpuTimings.value_or_default();
+                applied["FfxDenoiserTaggedAmbientOcclusion"]=cfg.FfxDenoiserTaggedAmbientOcclusion.value_or_default();
+                applied["FfxDenoiserNormalsInViewSpace"]=cfg.FfxDenoiserNormalsInViewSpace.value_or_default();
+                applied["FfxDenoiserUseTitleLinearDepth"]=cfg.FfxDenoiserUseTitleLinearDepth.value_or_default();
+                applied["FfxDenoiserResponsivityThreshold"]=cfg.FfxDenoiserResponsivityThreshold.value_or_default();
+                applied["FfxDenoiserResponsivityInvert"]=cfg.FfxDenoiserResponsivityInvert.value_or_default();
+                applied["FfxDenoiserBiasMaskStrength"]=cfg.FfxDenoiserBiasMaskStrength.value_or_default();
+                applied["FfxDenoiserSpecularAlbedoDemodulation"]=cfg.FfxDenoiserSpecularAlbedoDemodulation.value_or_default();
+                applied["FfxDenoiserDiffuseAlbedoModulation"]=cfg.FfxDenoiserDiffuseAlbedoModulation.value_or_default();
+                applied["FfxDenoiserAdditiveLightSplit"]=cfg.FfxDenoiserAdditiveLightSplit.value_or_default();
+                applied["FfxDenoiserUnsupportedAlbedoRecovery"]=cfg.FfxDenoiserUnsupportedAlbedoRecovery.value_or_default();
+                applied["FfxDenoiserFloorFlatRecovery"]=cfg.FfxDenoiserFloorFlatRecovery.value_or_default();
+                applied["FfxDenoiserFloorSpecularRecovery"]=cfg.FfxDenoiserFloorSpecularRecovery.value_or_default();
+                applied["FfxDenoiserFloorDiffuseRecovery"]=cfg.FfxDenoiserFloorDiffuseRecovery.value_or_default();
+                applied["FfxDenoiserFloorFlatNoiseMethod"]=cfg.FfxDenoiserFloorFlatNoiseMethod.value_or_default();
+                applied["FfxDenoiserFloorSpecularNoiseMethod"]=cfg.FfxDenoiserFloorSpecularNoiseMethod.value_or_default();
+                applied["FfxDenoiserFloorDiffuseNoiseMethod"]=cfg.FfxDenoiserFloorDiffuseNoiseMethod.value_or_default();
+                applied["FfxDenoiserFloorLumaRecovery"]=cfg.FfxDenoiserFloorLumaRecovery.value_or_default();
+                applied["FfxDenoiserFloorChromaRecovery"]=cfg.FfxDenoiserFloorChromaRecovery.value_or_default();
+                applied["FfxDenoiserSkinMode"]=cfg.FfxDenoiserSkinMode.value_or_default();
+                applied["FfxDenoiserSssRadiusMm"]=cfg.FfxDenoiserSssRadiusMm.value_or_default();
+                applied["FfxDenoiserSssStrength"]=cfg.FfxDenoiserSssStrength.value_or_default();
+                applied["FfxDenoiserSssFalloff"]=cfg.FfxDenoiserSssFalloff.value_or_default();
+                applied["FfxDenoiserSkinSigma"]=cfg.FfxDenoiserSkinSigma.value_or_default();
+                applied["FfxDenoiserSkinDebug"]=cfg.FfxDenoiserSkinDebug.value_or_default();
+                applied["FfxDenoiserObjectDepthDelta"]=cfg.FfxDenoiserObjectDepthDelta.value_or_default();
+                applied["FfxDenoiserReflectionsFollowSurface"]=cfg.FfxDenoiserReflectionsFollowSurface.value_or_default();
+                applied["FfxDenoiserAlbedoStabilisation"]=cfg.FfxDenoiserAlbedoStabilisation.value_or_default();
+                applied["FfxDenoiserAlbedoStabilisationClamp"]=cfg.FfxDenoiserAlbedoStabilisationClamp.value_or_default();
+                applied["FfxDenoiserAlbedoStabilisationRate"]=cfg.FfxDenoiserAlbedoStabilisationRate.value_or_default();
+                applied["FfxDenoiserFogGuides"]=cfg.FfxDenoiserFogGuides.value_or_default();
+                applied["FfxDenoiserRecoveryV2"]=cfg.FfxDenoiserRecoveryV2.value_or_default();
+                applied["FfxDenoiserRecoveryVolumetry"]=cfg.FfxDenoiserRecoveryVolumetry.value_or_default();
+                applied["FfxDenoiserRecoveryVolumetryStrength"]=cfg.FfxDenoiserRecoveryVolumetryStrength.value_or_default();
+                applied["FfxDenoiserRecoveryHistory"]=cfg.FfxDenoiserRecoveryHistory.value_or_default();
+                applied["FfxDenoiserRecoveryHistoryStrength"]=cfg.FfxDenoiserRecoveryHistoryStrength.value_or_default();
+                applied["FfxDenoiserRecoverySpecular"]=cfg.FfxDenoiserRecoverySpecular.value_or_default();
+                applied["FfxDenoiserRecoverySpecularStrength"]=cfg.FfxDenoiserRecoverySpecularStrength.value_or_default();
+                applied["FfxDenoiserRecoveryDiffuse"]=cfg.FfxDenoiserRecoveryDiffuse.value_or_default();
+                applied["FfxDenoiserRecoveryDiffuseStrength"]=cfg.FfxDenoiserRecoveryDiffuseStrength.value_or_default();
+                applied["FfxDenoiserRecoveryAlbedo"]=cfg.FfxDenoiserRecoveryAlbedo.value_or_default();
+                applied["FfxDenoiserRecoveryAlbedoStrength"]=cfg.FfxDenoiserRecoveryAlbedoStrength.value_or_default();
+                applied["FfxDenoiserRecoveryFlatAlbedo"]=cfg.FfxDenoiserRecoveryFlatAlbedo.value_or_default();
+                applied["FfxDenoiserRecoveryFlatAlbedoStrength"]=cfg.FfxDenoiserRecoveryFlatAlbedoStrength.value_or_default();
+                applied["FfxDenoiserRecoveryDebug"]=cfg.FfxDenoiserRecoveryDebug.value_or_default();
+                applied["FfxDenoiserFloorEnabled"]=cfg.FfxDenoiserFloorEnabled.value_or_default();
+                applied["FfxDenoiserFloorThroughRR"]=cfg.FfxDenoiserFloorThroughRR.value_or_default();
+                applied["FfxDenoiserVolumeRestore"]=cfg.FfxDenoiserVolumeRestore.value_or_default();
+                applied["FfxDenoiserFloorFastMode"]=cfg.FfxDenoiserFloorFastMode.value_or_default();
+                applied["FfxDenoiserFloorCleanLighting"]=cfg.FfxDenoiserFloorCleanLighting.value_or_default();
+                applied["FfxDenoiserFloorRecovery"]=cfg.FfxDenoiserFloorRecovery.value_or_default();
+                applied["FfxDenoiserFloorHandoverCorrelationMix"]=cfg.FfxDenoiserFloorHandoverCorrelationMix.value_or_default();
+                applied["FfxDenoiserFloorHandoverAnchorClamp"]=cfg.FfxDenoiserFloorHandoverAnchorClamp.value_or_default();
+                applied["FfxDenoiserUseAmdDefaults"]=cfg.FfxDenoiserUseAmdDefaults.value_or_default();
+                applied["FfxDenoiserDisocThreshold"]=cfg.FfxDenoiserDisocThreshold.value_or_default();
+                applied["FfxDenoiserCrossBlNormStr"]=cfg.FfxDenoiserCrossBlNormStr.value_or_default();
+                applied["FfxDenoiserStabilityBias"]=cfg.FfxDenoiserStabilityBias.value_or_default();
+                applied["FfxDenoiserMaxRadiance"]=cfg.FfxDenoiserMaxRadiance.value_or_default();
+                applied["FfxDenoiserRadianceClip"]=cfg.FfxDenoiserRadianceClip.value_or_default();
+                applied["FfxDenoiserGaussKernRelax"]=cfg.FfxDenoiserGaussKernRelax.value_or_default();
+                applied["FfxDenoiserStretchReset"]=cfg.FfxDenoiserStretchReset.value_or_default();
+                applied["FfxDenoiserStreakFilter"]=cfg.FfxDenoiserStreakFilter.value_or_default();
+                applied["FfxDenoiserDisocclusionCheck"]=cfg.FfxDenoiserDisocclusionCheck.value_or_default();
+                applied["FfxDenoiserInputChroma"]=cfg.FfxDenoiserInputChroma.value_or_default();
+                applied["FfxDenoiserDebugDepthMax"]=cfg.FfxDenoiserDebugDepthMax.value_or_default();
+                applied["FfxDenoiserDiagnostics"]=cfg.FfxDenoiserDiagnostics.value_or_default();
+                applied["FfxDenoiserDiffuseHitDistance"]=cfg.FfxDenoiserDiffuseHitDistance.value_or_default();
+                applied["FfxDenoiserDemodDivisorFloor"]=cfg.FfxDenoiserDemodDivisorFloor.value_or_default();
+                J settings={{"build_identity",{{"commit",VER_BUILD_COMMIT},{"build_date",VER_BUILD_DATE},{"version",VER_PRODUCT_VERSION_STR}}},
+                    {"options",applied},{"conversion_flags",_convDesc.Flags},{"composition_flags",compDesc.Flags},
+                    {"sdk_tuning",J::parse(RRTraceAdditiveIO::FloatArray(_denoiserSettings.ScalarValues))},
+                    {"denoise_diffuse",_denoiseDiffuse},{"denoise_specular",_denoiseSpecular}};
+                J controls={{"view",J::parse(RRTraceAdditiveIO::FloatArray(denoiserDesc.view))},
+                    {"projection",J::parse(RRTraceAdditiveIO::FloatArray(denoiserDesc.projection))},
+                    {"jitter",J::parse(RRTraceAdditiveIO::FloatArray(denoiserDesc.jitterOffsets))},
+                    {"pre_exposure",capturePreExposure},{"pre_exposure_provided",capturePreExposureProvided},
+                    {"frame_index",denoiserDesc.frameIndex}};
+                FSRDConvShader->CompleteResearchFrame(InCommandList,settings.dump(),controls.dump());
+                } catch(const std::exception& e) { FSRDConvShader->AbortResearch(e.what()); }
+            }
             if (FSRDGameTraceSession::IsActive())
             {
                 try
@@ -2730,6 +2867,10 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                         {"luma_recovery",compDesc.LumaRecovery}, {"chroma_recovery",compDesc.ChromaRecovery},
                         {"unsupported_albedo_recovery",compDesc.UnsupportedAlbedoRecovery},
                         {"volume_restore_strength",compDesc.VolumeRestoreStrength},
+                        {"recovery_v2",compDesc.RecoveryV2},
+                        {"recovery_history_level",_convDesc.RecoveryHistoryLevel},
+                        {"recovery_volumetry_strength",compDesc.RecoveryVolumetryStrength},
+                        {"recovery_debug",compDesc.RecoveryDebug},
                         {"neutral_full1_comparator",false}
                     };
                     FSRDConvShader->CompleteGameTraceFrame(InCommandList,denoiserDesc,
@@ -2963,6 +3104,84 @@ RRResult FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InComm
     // Future layout changes must not destroy those resources in place.
     _preprocessorHasRecordedWork = true;
     _runtime.Begin(FSRDRuntimeSnapshot::Conversion);
+    _convDesc.ResearchInputs.clear();
+    if(FSRDResearch::WantsInputs() || FSRDGameTraceSession::IsActive())
+    {
+        auto acquire=[&](const char* name,const char* key,const char* keyX,const char* keyY) {
+            FSRDResearch::Input input; input.name=name; input.key=key;
+            TryGetNGXVoidPointer(inParams,key,input.resource);
+            if(keyX && keyY) { const auto base=GetSubrectBase(inParams,keyX,keyY); input.x=base.x; input.y=base.y; }
+            input.width=RenderWidth(); input.height=RenderHeight();
+            if(input.name=="MotionVectors") { input.width=uint32_t(_convDesc.MotionInputSize.x); input.height=uint32_t(_convDesc.MotionInputSize.y); }
+            if(input.name=="ExposureTexture" && input.resource) { auto d=input.resource->GetDesc(); input.width=uint32_t(d.Width); input.height=d.Height; }
+            _convDesc.ResearchInputs.push_back(input);
+        };
+        acquire("Color", NVSDK_NGX_Parameter_Color, NVSDK_NGX_Parameter_DLSS_Input_Color_Subrect_Base_X, NVSDK_NGX_Parameter_DLSS_Input_Color_Subrect_Base_Y);
+        acquire("Depth", NVSDK_NGX_Parameter_Depth, NVSDK_NGX_Parameter_DLSS_Input_Depth_Subrect_Base_X, NVSDK_NGX_Parameter_DLSS_Input_Depth_Subrect_Base_Y);
+        acquire("MotionVectors", NVSDK_NGX_Parameter_MotionVectors, NVSDK_NGX_Parameter_DLSS_Input_MV_SubrectBase_X, NVSDK_NGX_Parameter_DLSS_Input_MV_SubrectBase_Y);
+        acquire("MotionVectorsReflection", NVSDK_NGX_Parameter_MotionVectorsReflection, nullptr, nullptr);
+        acquire("Normals", NVSDK_NGX_Parameter_GBuffer_Normals, NVSDK_NGX_Parameter_DLSS_Input_Normals_Subrect_Base_X, NVSDK_NGX_Parameter_DLSS_Input_Normals_Subrect_Base_Y);
+        acquire("Roughness", NVSDK_NGX_Parameter_GBuffer_Roughness, NVSDK_NGX_Parameter_DLSS_Input_Roughness_Subrect_Base_X, NVSDK_NGX_Parameter_DLSS_Input_Roughness_Subrect_Base_Y);
+        acquire("DiffuseAlbedo", NVSDK_NGX_Parameter_DiffuseAlbedo, NVSDK_NGX_Parameter_DLSS_Input_DiffuseAlbedo_Subrect_Base_X, NVSDK_NGX_Parameter_DLSS_Input_DiffuseAlbedo_Subrect_Base_Y);
+        acquire("SpecularAlbedo", NVSDK_NGX_Parameter_SpecularAlbedo, NVSDK_NGX_Parameter_DLSS_Input_SpecularAlbedo_Subrect_Base_X, NVSDK_NGX_Parameter_DLSS_Input_SpecularAlbedo_Subrect_Base_Y);
+        acquire("GBufferSubsurface", NVSDK_NGX_Parameter_GBuffer_Subsurface, nullptr, nullptr);
+        acquire("Emissive", NVSDK_NGX_Parameter_GBuffer_Emissive, nullptr, nullptr);
+        acquire("BiasCurrentColorMask", NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_SubrectBase_X, NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_SubrectBase_Y);
+        acquire("TransparencyMask", NVSDK_NGX_Parameter_TransparencyMask, nullptr, nullptr);
+        acquire("DiffuseHitDistance", NVSDK_NGX_Parameter_DLSSD_DiffuseHitDistance, NVSDK_NGX_Parameter_DLSSD_DiffuseHitDistance_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_DiffuseHitDistance_Subrect_Base_Y);
+        acquire("SpecularHitDistance", NVSDK_NGX_Parameter_DLSSD_SpecularHitDistance, NVSDK_NGX_Parameter_DLSSD_SpecularHitDistance_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_SpecularHitDistance_Subrect_Base_Y);
+        acquire("DiffuseRayDirection", NVSDK_NGX_Parameter_DLSSD_DiffuseRayDirection, NVSDK_NGX_Parameter_DLSSD_DiffuseRayDirection_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_DiffuseRayDirection_Subrect_Base_Y);
+        acquire("SpecularRayDirection", NVSDK_NGX_Parameter_DLSSD_SpecularRayDirection, NVSDK_NGX_Parameter_DLSSD_SpecularRayDirection_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_SpecularRayDirection_Subrect_Base_Y);
+        acquire("DiffuseRayDirectionHitDistance", NVSDK_NGX_Parameter_DLSSD_DiffuseRayDirectionHitDistance, NVSDK_NGX_Parameter_DLSSD_DiffuseRayDirectionHitDistance_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_DiffuseRayDirectionHitDistance_Subrect_Base_Y);
+        acquire("SpecularRayDirectionHitDistance", NVSDK_NGX_Parameter_DLSSD_SpecularRayDirectionHitDistance, NVSDK_NGX_Parameter_DLSSD_SpecularRayDirectionHitDistance_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_SpecularRayDirectionHitDistance_Subrect_Base_Y);
+        acquire("ReflectedAlbedo", NVSDK_NGX_Parameter_DLSSD_ReflectedAlbedo, NVSDK_NGX_Parameter_DLSSD_ReflectedAlbedo_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_ReflectedAlbedo_Subrect_Base_Y);
+        acquire("ColorBeforeParticles", NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles, NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_ColorBeforeParticles_Subrect_Base_Y);
+        acquire("ColorAfterParticles", NVSDK_NGX_Parameter_DLSSD_ColorAfterParticles, NVSDK_NGX_Parameter_DLSSD_ColorAfterParticles_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_ColorAfterParticles_Subrect_Base_Y);
+        acquire("ColorBeforeTransparency", NVSDK_NGX_Parameter_DLSSD_ColorBeforeTransparency, NVSDK_NGX_Parameter_DLSSD_ColorBeforeTransparency_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_ColorBeforeTransparency_Subrect_Base_Y);
+        acquire("ColorAfterTransparency", NVSDK_NGX_Parameter_DLSSD_ColorAfterTransparency, NVSDK_NGX_Parameter_DLSSD_ColorAfterTransparency_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_ColorAfterTransparency_Subrect_Base_Y);
+        acquire("ColorBeforeFog", NVSDK_NGX_Parameter_DLSSD_ColorBeforeFog, NVSDK_NGX_Parameter_DLSSD_ColorBeforeFog_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_ColorBeforeFog_Subrect_Base_Y);
+        acquire("ColorAfterFog", NVSDK_NGX_Parameter_DLSSD_ColorAfterFog, NVSDK_NGX_Parameter_DLSSD_ColorAfterFog_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_ColorAfterFog_Subrect_Base_Y);
+        acquire("ScreenSpaceSubsurfaceScatteringGuide", NVSDK_NGX_Parameter_DLSSD_ScreenSpaceSubsurfaceScatteringGuide, NVSDK_NGX_Parameter_DLSSD_ScreenSpaceSubsurfaceScatteringGuide_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_ScreenSpaceSubsurfaceScatteringGuide_Subrect_Base_Y);
+        acquire("ColorBeforeScreenSpaceSubsurfaceScattering", NVSDK_NGX_Parameter_DLSSD_ColorBeforeScreenSpaceSubsurfaceScattering, NVSDK_NGX_Parameter_DLSSD_ColorBeforeScreenSpaceSubsurfaceScattering_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_ColorBeforeScreenSpaceSubsurfaceScattering_Subrect_Base_Y);
+        acquire("ColorAfterScreenSpaceSubsurfaceScattering", NVSDK_NGX_Parameter_DLSSD_ColorAfterScreenSpaceSubsurfaceScattering, NVSDK_NGX_Parameter_DLSSD_ColorAfterScreenSpaceSubsurfaceScattering_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_ColorAfterScreenSpaceSubsurfaceScattering_Subrect_Base_Y);
+        acquire("ScreenSpaceRefractionGuide", NVSDK_NGX_Parameter_DLSSD_ScreenSpaceRefractionGuide, NVSDK_NGX_Parameter_DLSSD_ScreenSpaceRefractionGuide_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_ScreenSpaceRefractionGuide_Subrect_Base_Y);
+        acquire("ColorBeforeScreenSpaceRefraction", NVSDK_NGX_Parameter_DLSSD_ColorBeforeScreenSpaceRefraction, NVSDK_NGX_Parameter_DLSSD_ColorBeforeScreenSpaceRefraction_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_ColorBeforeScreenSpaceRefraction_Subrect_Base_Y);
+        acquire("ColorAfterScreenSpaceRefraction", NVSDK_NGX_Parameter_DLSSD_ColorAfterScreenSpaceRefraction, NVSDK_NGX_Parameter_DLSSD_ColorAfterScreenSpaceRefraction_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_ColorAfterScreenSpaceRefraction_Subrect_Base_Y);
+        acquire("DepthOfFieldGuide", NVSDK_NGX_Parameter_DLSSD_DepthOfFieldGuide, NVSDK_NGX_Parameter_DLSSD_DepthOfFieldGuide_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_DepthOfFieldGuide_Subrect_Base_Y);
+        acquire("ColorBeforeDepthOfField", NVSDK_NGX_Parameter_DLSSD_ColorBeforeDepthOfField, NVSDK_NGX_Parameter_DLSSD_ColorBeforeDepthOfField_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_ColorBeforeDepthOfField_Subrect_Base_Y);
+        acquire("ColorAfterDepthOfField", NVSDK_NGX_Parameter_DLSSD_ColorAfterDepthOfField, NVSDK_NGX_Parameter_DLSSD_ColorAfterDepthOfField_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_ColorAfterDepthOfField_Subrect_Base_Y);
+        acquire("Alpha", NVSDK_NGX_Parameter_DLSSD_Alpha, NVSDK_NGX_Parameter_DLSSD_Alpha_Subrect_Base_X, NVSDK_NGX_Parameter_DLSSD_Alpha_Subrect_Base_Y);
+        acquire("TransparencyLayer", NVSDK_NGX_Parameter_DLSS_TransparencyLayer, NVSDK_NGX_Parameter_DLSS_TransparencyLayer_Subrect_Base_X, NVSDK_NGX_Parameter_DLSS_TransparencyLayer_Subrect_Base_Y);
+        acquire("TransparencyLayerOpacity", NVSDK_NGX_Parameter_DLSS_TransparencyLayerOpacity, NVSDK_NGX_Parameter_DLSS_TransparencyLayerOpacity_Subrect_Base_X, NVSDK_NGX_Parameter_DLSS_TransparencyLayerOpacity_Subrect_Base_Y);
+        acquire("TransparencyLayerMvecs", NVSDK_NGX_Parameter_DLSS_TransparencyLayerMvecs, NVSDK_NGX_Parameter_DLSS_TransparencyLayerMvecs_Subrect_Base_X, NVSDK_NGX_Parameter_DLSS_TransparencyLayerMvecs_Subrect_Base_Y);
+        acquire("ExposureTexture", NVSDK_NGX_Parameter_ExposureTexture, nullptr, nullptr);
+        acquire("GBuffer_Albedo", NVSDK_NGX_Parameter_GBuffer_Albedo, nullptr, nullptr);
+        acquire("GBuffer_DiffuseAlbedo", NVSDK_NGX_Parameter_GBuffer_DiffuseAlbedo, nullptr, nullptr);
+        acquire("GBuffer_SpecularAlbedo", NVSDK_NGX_Parameter_GBuffer_SpecularAlbedo, nullptr, nullptr);
+        acquire("GBuffer_IndirectAlbedo", NVSDK_NGX_Parameter_GBuffer_IndirectAlbedo, nullptr, nullptr);
+        acquire("GBuffer_SpecularMvec", NVSDK_NGX_Parameter_GBuffer_SpecularMvec, nullptr, nullptr);
+        acquire("GBuffer_DisocclusionMask", NVSDK_NGX_Parameter_GBuffer_DisocclusionMask, nullptr, nullptr);
+        acquire("GBuffer_Metallic", NVSDK_NGX_Parameter_GBuffer_Metallic, nullptr, nullptr);
+        acquire("GBuffer_Specular", NVSDK_NGX_Parameter_GBuffer_Specular, nullptr, nullptr);
+        acquire("GBuffer_ShadingModelId", NVSDK_NGX_Parameter_GBuffer_ShadingModelId, nullptr, nullptr);
+        acquire("GBuffer_MaterialId", NVSDK_NGX_Parameter_GBuffer_MaterialId, nullptr, nullptr);
+        acquire("GBuffer_Atrrib_8", NVSDK_NGX_Parameter_GBuffer_Atrrib_8, nullptr, nullptr);
+        acquire("GBuffer_Atrrib_9", NVSDK_NGX_Parameter_GBuffer_Atrrib_9, nullptr, nullptr);
+        acquire("GBuffer_Atrrib_10", NVSDK_NGX_Parameter_GBuffer_Atrrib_10, nullptr, nullptr);
+        acquire("GBuffer_Atrrib_11", NVSDK_NGX_Parameter_GBuffer_Atrrib_11, nullptr, nullptr);
+        acquire("GBuffer_Atrrib_12", NVSDK_NGX_Parameter_GBuffer_Atrrib_12, nullptr, nullptr);
+        acquire("GBuffer_Atrrib_13", NVSDK_NGX_Parameter_GBuffer_Atrrib_13, nullptr, nullptr);
+        acquire("GBuffer_Atrrib_14", NVSDK_NGX_Parameter_GBuffer_Atrrib_14, nullptr, nullptr);
+        acquire("GBuffer_Atrrib_15", NVSDK_NGX_Parameter_GBuffer_Atrrib_15, nullptr, nullptr);
+        acquire("MotionVectors3D", NVSDK_NGX_Parameter_MotionVectors3D, nullptr, nullptr);
+        acquire("IsParticleMask", NVSDK_NGX_Parameter_IsParticleMask, nullptr, nullptr);
+        acquire("AnimatedTextureMask", NVSDK_NGX_Parameter_AnimatedTextureMask, nullptr, nullptr);
+        acquire("DepthHighRes", NVSDK_NGX_Parameter_DepthHighRes, nullptr, nullptr);
+        acquire("Position_ViewSpace", NVSDK_NGX_Parameter_Position_ViewSpace, nullptr, nullptr);
+        acquire("RayTracingHitDistance", NVSDK_NGX_Parameter_RayTracingHitDistance, nullptr, nullptr);
+        acquire("ResponsivityMask", "DLSSD.ResponsivityMask", nullptr, nullptr);
+    }
+
     if (!ConvertDenoiserBuffers(InCommandList))
         return ClassifyRayRegenerationFailure(FFX_API_RETURN_ERROR_RUNTIME_ERROR, false);
     _runtime.Complete(FSRDRuntimeSnapshot::Conversion);
@@ -3818,6 +4037,38 @@ RRResult FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inP
         _emissiveProbeCompatible = false;
     }
 
+    const auto acquireSss = [&](const char* name, const char* key, const char* keyX, const char* keyY,
+                                ID3D12Resource*& resource, XMUINT2& base, bool scalar) {
+        resource = nullptr; base = {};
+        if (cfg.FfxDenoiserSkinMode.value_or_default() == 0 &&
+            cfg.FfxDenoiserSkinDebug.value_or_default() == 0 &&
+            cfg.FfxDenoiserDebugMode.value_or_default() != int64_t(DebugModes::SssGuide) &&
+            cfg.FfxDenoiserDebugMode.value_or_default() != int64_t(DebugModes::PreSss) &&
+            cfg.FfxDenoiserDebugMode.value_or_default() != int64_t(DebugModes::SkinPrefilter) &&
+            !FSRDGameTraceSession::IsActive()) return;
+        TryGetNGXVoidPointer(inParams, key, resource);
+        base = GetSubrectBase(inParams, keyX, keyY);
+        if (!resource) return;
+        const auto desc = resource->GetDesc();
+        const auto fmt = FSRD::GetViewFormat(desc.Format);
+        if (!FSRD::CompatibleSkinInput(true, desc, fmt, base.x, base.y,
+                                       RenderWidth(), RenderHeight(), scalar) ||
+            !ValidateSourceExtent(name, resource, base, RenderWidth(), RenderHeight()))
+            resource = nullptr;
+    };
+    acquireSss("SssGuide", NVSDK_NGX_Parameter_DLSSD_ScreenSpaceSubsurfaceScatteringGuide,
+        NVSDK_NGX_Parameter_DLSSD_ScreenSpaceSubsurfaceScatteringGuide_Subrect_Base_X,
+        NVSDK_NGX_Parameter_DLSSD_ScreenSpaceSubsurfaceScatteringGuide_Subrect_Base_Y,
+        _convDesc.Resources.InSssGuide, _convDesc.SssGuideBase, true);
+    acquireSss("ColorBeforeSss", NVSDK_NGX_Parameter_DLSSD_ColorBeforeScreenSpaceSubsurfaceScattering,
+        NVSDK_NGX_Parameter_DLSSD_ColorBeforeScreenSpaceSubsurfaceScattering_Subrect_Base_X,
+        NVSDK_NGX_Parameter_DLSSD_ColorBeforeScreenSpaceSubsurfaceScattering_Subrect_Base_Y,
+        _convDesc.Resources.InColorBeforeSss, _convDesc.ColorBeforeSssBase, false);
+    acquireSss("ColorAfterSss", NVSDK_NGX_Parameter_DLSSD_ColorAfterScreenSpaceSubsurfaceScattering,
+        NVSDK_NGX_Parameter_DLSSD_ColorAfterScreenSpaceSubsurfaceScattering_Subrect_Base_X,
+        NVSDK_NGX_Parameter_DLSSD_ColorAfterScreenSpaceSubsurfaceScattering_Subrect_Base_Y,
+        _convDesc.Resources.InColorAfterSss, _convDesc.ColorAfterSssBase, false);
+
     _convDesc.FloorSourceBase = { colorBase.x, colorBase.y, depthBase.x, depthBase.y };
     _convDesc.InputBase1 = { normalBase.x, normalBase.y, roughnessBase.x, roughnessBase.y };
     _convDesc.InputBase2 = { ngxSpecularHitDistanceBase.x, ngxSpecularHitDistanceBase.y,
@@ -4127,7 +4378,16 @@ void FSRDFeatureDx12::ApplyRoutingSettings(float biasStrength, float responsivit
 bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InCommandList)
 {
     const auto& cfg = *Config::Instance(); 
-    const auto dbgMode = static_cast<DebugModes>(cfg.FfxDenoiserDebugMode.value_or_default());
+    auto dbgMode = cfg.FfxDenoiserRecoveryV2.value_or_default() &&
+        cfg.FfxDenoiserRecoveryDebug.value_or_default() == 3 ? DebugModes::StretchReset
+         : cfg.FfxDenoiserSkinDebug.value_or_default() == 1 ? DebugModes::SssGuide
+        : cfg.FfxDenoiserSkinDebug.value_or_default() == 2 ? DebugModes::PreSss
+        : cfg.FfxDenoiserSkinDebug.value_or_default() == 3 ? DebugModes::SkinPrefilter
+        : static_cast<DebugModes>(cfg.FfxDenoiserDebugMode.value_or_default());
+    if (!_convDesc.Resources.InSssGuide &&
+        (dbgMode == DebugModes::SssGuide || dbgMode == DebugModes::PreSss ||
+         dbgMode == DebugModes::SkinPrefilter))
+        dbgMode = DebugModes::None;
     // Prepare input converter
     _convDesc.RenderSize = 
     { 
@@ -4166,8 +4426,15 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     if (_specularSignalDescType == FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR)
         _convDesc.Flags |= (uint32_t)FSRDConvFlags::SpecularSignalIndirect;
     const bool estimateHitDistances = _frameRequest.estimate;
-    const bool unsupportedAlbedo = _plan.albedoFix && _frameAlbedoFixAllowed;
-    const auto fixDiffuse = FSRDSignals::FixDiffuseRole(_plan, _frameAlbedoFixAllowed,
+    const bool recoveryV2 = cfg.FfxDenoiserRecoveryV2.value_or_default();
+    if (_convDesc.RecoveryV2 != recoveryV2)
+        InvalidateDenoiserHistory();
+    _convDesc.RecoveryV2 = recoveryV2;
+    const float historyStrength = cfg.FfxDenoiserRecoveryHistoryStrength.value_or_default();
+    _convDesc.RecoveryHistoryLevel = recoveryV2 && cfg.FfxDenoiserRecoveryHistory.value_or_default() &&
+        std::isfinite(historyStrength) && historyStrength > 0.0f ? (historyStrength <= 0.5f ? 1u : 2u) : 0u;
+    const bool unsupportedAlbedo = !recoveryV2 && _plan.albedoFix && _frameAlbedoFixAllowed;
+    const auto fixDiffuse = FSRDSignals::FixDiffuseRole(_plan, !recoveryV2 && _frameAlbedoFixAllowed,
                                                         _seenDiffuseDistance || estimateHitDistances);
     if (_unsupportedAlbedoRecovery != unsupportedAlbedo || _fixDiffuse != fixDiffuse)
     {
@@ -4190,7 +4457,25 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     if (estimateHitDistances)
         _convDesc.Flags |= uint32_t(FSRDConvFlags::ApproximateSpecHitDistance) |
                            uint32_t(FSRDConvFlags::ApproximateRayHitDistance);
-    _convDesc.FloorEnabled = cfg.FfxDenoiserFloorEnabled.value_or_default();
+    // Restarting a pixel's history goes through motion Z, so switching the level needs no RR reset.
+    const int stretchResetLevel = recoveryV2 ? int(_convDesc.RecoveryHistoryLevel)
+        : std::clamp(cfg.FfxDenoiserStretchReset.value_or_default(), 0, 3);
+    _convDesc.Flags |= uint32_t(stretchResetLevel) * uint32_t(FSRDConvFlags::StretchResetLevel1);
+    // The preprocessor drops it for any frame without a valid copy of last frame's depth.
+    if (recoveryV2 ? _convDesc.RecoveryHistoryLevel > 0 : cfg.FfxDenoiserDisocclusionCheck.value_or_default())
+        _convDesc.Flags |= uint32_t(FSRDConvFlags::DisocclusionCheck);
+    const bool floorThroughRR = recoveryV2 || cfg.FfxDenoiserFloorThroughRR.value_or_default();
+    if (_appliedFloorThroughRR != int(floorThroughRR))
+    {
+        // A user routing change moves light between RR and Skip; old residual history cannot follow it.
+        if (_appliedFloorThroughRR >= 0) InvalidateDenoiserHistory();
+        _appliedFloorThroughRR = int(floorThroughRR);
+    }
+    if (floorThroughRR)
+        _convDesc.Flags |= uint32_t(FSRDConvFlags::FloorThroughRR);
+    if (cfg.FfxDenoiserInputChroma.value_or_default())
+        _convDesc.Flags |= uint32_t(FSRDConvFlags::InputChroma);
+    _convDesc.FloorEnabled = !recoveryV2 && cfg.FfxDenoiserFloorEnabled.value_or_default();
     const bool floorFastMode = cfg.FfxDenoiserFloorFastMode.value_or_default();
     if (_convDesc.FloorFastMode != floorFastMode)
         InvalidateDenoiserHistory();
@@ -4201,14 +4486,17 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     _convDesc.FloorCleanLighting = floorCleanLighting;
     const float volumeRestore = cfg.FfxDenoiserVolumeRestore.value_or_default();
     _volumeRestoreStrength = std::isfinite(volumeRestore) ? std::clamp(volumeRestore, 0.0f, 2.0f) : 0.0f;
-    _convDesc.VolumeRestore = _volumeRestoreStrength > 0.0f;
+    _convDesc.VolumeRestore = !recoveryV2 && _volumeRestoreStrength > 0.0f;
+    const float recoveryVolume = cfg.FfxDenoiserRecoveryVolumetryStrength.value_or_default();
+    _convDesc.RecoveryVolumetry = recoveryV2 && cfg.FfxDenoiserRecoveryVolumetry.value_or_default() &&
+        std::isfinite(recoveryVolume) && recoveryVolume > 0.0f;
     const auto unitValue = [](float value, float fallback) {
         return std::isfinite(value) ? std::clamp(value, 0.0f, 1.0f) : fallback;
     };
     const float specularModulation = unitValue(cfg.FfxDenoiserSpecularAlbedoDemodulation.value_or_default(), 1.0f);
     const float diffuseModulation = unitValue(cfg.FfxDenoiserDiffuseAlbedoModulation.value_or_default(), 1.0f);
-    const float additiveLightSplit = unitValue(cfg.FfxDenoiserAdditiveLightSplit.value_or_default(), 0.0f);
-    const uint32_t recoveryMask = (cfg.FfxDenoiserFloorFlatRecovery.value_or_default() ? 1u : 0u) |
+    const float additiveLightSplit = recoveryV2 ? 0.0f : unitValue(cfg.FfxDenoiserAdditiveLightSplit.value_or_default(), 0.0f);
+    const uint32_t recoveryMask = recoveryV2 ? 0u : (cfg.FfxDenoiserFloorFlatRecovery.value_or_default() ? 1u : 0u) |
         (cfg.FfxDenoiserFloorSpecularRecovery.value_or_default() ? 2u : 0u) |
         (cfg.FfxDenoiserFloorDiffuseRecovery.value_or_default() ? 4u : 0u);
     const uint32_t filterMask = recoveryMask &
@@ -4229,7 +4517,7 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     _appliedSpatialTemporalMask = filterMask;
     _appliedLumaRecovery = luma;
     _appliedChromaRecovery = chroma;
-    _convDesc.FloorDetailPreservation = unitValue(cfg.FfxDenoiserFloorRecovery.value_or_default(), 1.0f);
+    _convDesc.FloorDetailPreservation = recoveryV2 ? 0.0f : unitValue(cfg.FfxDenoiserFloorRecovery.value_or_default(), 1.0f);
     const float requestedDivisor = cfg.FfxDenoiserDemodDivisorFloor.value_or_default();
     const float divisor = std::isfinite(requestedDivisor) ? std::clamp(requestedDivisor, 1e-4f, 0.5f) : 8e-3f;
     if (_convDesc.DemodDivisorFloor != divisor) InvalidateDenoiserHistory();
@@ -4295,6 +4583,36 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
                          cfg.FfxDenoiserResponsivityThreshold.value_or_default(),
                          cfg.FfxDenoiserResponsivityInvert.value_or_default());
     _convDesc.DiagnosticsEnabled = cfg.FfxDenoiserDiagnostics.value_or_default();
+    const auto finiteRange = [](float v, float low, float high, float fallback) {
+        return std::isfinite(v) ? std::clamp(v, low, high) : fallback;
+    };
+    uint32_t requestedSkinMode = uint32_t(std::clamp(cfg.FfxDenoiserSkinMode.value_or_default(), 0, 2));
+    if (dbgMode == DebugModes::SkinPrefilter) requestedSkinMode = 2u;
+    else if (requestedSkinMode == 0u && (dbgMode == DebugModes::SssGuide || dbgMode == DebugModes::PreSss))
+        requestedSkinMode = 1u;
+    const uint32_t skinMode = _convDesc.Resources.InSssGuide ? requestedSkinMode : 0u;
+    const bool objectDepth = cfg.FfxDenoiserObjectDepthDelta.value_or_default();
+    const bool follow = cfg.FfxDenoiserReflectionsFollowSurface.value_or_default();
+    const float sigma = finiteRange(cfg.FfxDenoiserSkinSigma.value_or_default(), 0.5f, 6.0f, 4.0f);
+    if (_convDesc.SkinMode != skinMode || _convDesc.ObjectDepthDelta != objectDepth ||
+        _convDesc.ReflectionsFollowSurface != follow || _convDesc.SkinSigma != sigma)
+        InvalidateDenoiserHistory();
+    _convDesc.SkinMode = skinMode;
+    _convDesc.SkinDebug = uint32_t(std::clamp(cfg.FfxDenoiserSkinDebug.value_or_default(), 0, 3));
+    if (dbgMode == DebugModes::SssGuide) _convDesc.SkinDebug = 1u;
+    if (dbgMode == DebugModes::PreSss) _convDesc.SkinDebug = 2u;
+    if (dbgMode == DebugModes::SkinPrefilter) _convDesc.SkinDebug = 3u;
+    _convDesc.ObjectDepthDelta = objectDepth;
+    _convDesc.ReflectionsFollowSurface = follow;
+    _convDesc.SkinSigma = sigma;
+    _convDesc.SssRadiusMm = finiteRange(cfg.FfxDenoiserSssRadiusMm.value_or_default(), 0.1f, 10.0f, 2.18f);
+    _convDesc.SssStrength = finiteRange(cfg.FfxDenoiserSssStrength.value_or_default(), 0.0f, 1.0f, 0.56f);
+    _convDesc.SssFalloff = finiteRange(cfg.FfxDenoiserSssFalloff.value_or_default(), 0.0f, 1.0f, 1.0f);
+    _convDesc.AlbedoStabilisation = uint32_t(std::clamp(cfg.FfxDenoiserAlbedoStabilisation.value_or_default(), 0, 2));
+    _convDesc.AlbedoStabilisationClamp = cfg.FfxDenoiserAlbedoStabilisationClamp.value_or_default();
+    _convDesc.AlbedoStabilisationRate =
+        finiteRange(cfg.FfxDenoiserAlbedoStabilisationRate.value_or_default(), 1.0f / 32.0f, 1.0f, 0.125f);
+    _convDesc.FogGuides = cfg.FfxDenoiserFogGuides.value_or_default();
 
     StoreHlslColumnVectorMatrix(_convDesc.InvViewMatrix, _invViewMatrix);
 
@@ -4380,6 +4698,8 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     // session of them is a large part of a gigabyte of log.
     if (_convDesc.DiagnosticsEnabled)
         LOG_DEBUG("Dispatching FSRD Input Converter");
+
+    _convDesc.LeakLobe=dbgMode==DebugModes::TextureLeakSpecular?1u:dbgMode==DebugModes::TextureLeakDiffuse?2u:0u;
 
     // Dispatch resource converter. Outputs are automatically transitioned for reading.
     FSRDConvShader->SetStageTimings(&_stageTimings);

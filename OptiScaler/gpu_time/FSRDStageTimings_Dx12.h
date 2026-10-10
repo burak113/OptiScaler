@@ -25,10 +25,21 @@ class FSRDStageTimings
         AlbedoRecovery,
         Composition,
         SuperResolution,
+        SkinPrepare,
+        SkinPrefilter,
+        SkinReblur,
+        InputInventory,
+        ReferenceAccumulation,
+        TextureLeak,
+        AlbedoStabilisation,
+        FogGuides,
         Count
     };
     static constexpr const char* Names[] { "Floor",           "Conversion",  "AMD RR / ML",
-                                           "Albedo Bleed Fix", "Composition", "Super Resolution" };
+                                           "Albedo Bleed Fix", "Composition", "Super Resolution",
+                                           "SSS input", "Skin diffuse prefilter", "SSS re-blur",
+                                           "Input inventory", "Reference accumulation", "Texture leak",
+                                           "Albedo stabilisation", "Fog guides" };
     struct Snapshot
     {
         std::array<double, Count> milliseconds {};

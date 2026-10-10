@@ -5,6 +5,241 @@
 
 namespace FSRD
 {
+    namespace FogStats
+    {
+        struct alignas(16) Constants
+        {
+            XMFLOAT4 DstTexSize;
+            XMFLOAT2 TileSize;
+            float Rate;
+            float DivisorFloor;
+            float DepthTolerance;
+            uint32_t Flags;
+            XMFLOAT2 HistoryJitterDelta;
+        };
+        static_assert(sizeof(Constants) == 48, "FogStats constants");
+        static_assert(offsetof(Constants, DstTexSize) == 0, "FogStats layout");
+        static_assert(offsetof(Constants, TileSize) == 16, "FogStats layout");
+        static_assert(offsetof(Constants, Rate) == 24, "FogStats layout");
+        static_assert(offsetof(Constants, DivisorFloor) == 28, "FogStats layout");
+        static_assert(offsetof(Constants, DepthTolerance) == 32, "FogStats layout");
+        static_assert(offsetof(Constants, Flags) == 36, "FogStats layout");
+        static_assert(offsetof(Constants, HistoryJitterDelta) == 40, "FogStats layout");
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InOrigSpecAlbedo;
+                ID3D12Resource* InOrigDiffAlbedo;
+                ID3D12Resource* InOrigSpecSignal;
+                ID3D12Resource* InOrigDiffSignal;
+                ID3D12Resource* InCurSpecAlbedo;
+                ID3D12Resource* InCurDiffAlbedo;
+                ID3D12Resource* InLinearDepth;
+                ID3D12Resource* InMotion;
+                ID3D12Resource* InPrevA;
+                ID3D12Resource* InPrevB;
+                ID3D12Resource* InPrevC;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+        union Output
+        {
+            struct Data
+            {
+                ID3D12Resource* OutA;
+                ID3D12Resource* OutB;
+                ID3D12Resource* OutC;
+                ID3D12Resource* OutG;
+                ID3D12Resource* OutH;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+    }
+    static_assert(FogStats::Input::kCount == 11, "FogStats input count");
+    static_assert(FogStats::Output::kCount == 5, "FogStats output count");
+
+    namespace FogKappa
+    {
+        struct alignas(16) Constants
+        {
+            XMFLOAT2 TileSize;
+            float Tau;
+            float Z;
+            float TauFill;
+            float ZFill;
+            float MassLocal;
+            float MassFill;
+            float Sig0;
+            float Sig1;
+            float FillSigma;
+            float FillZSigma;
+            int32_t FillRadius;
+            XMFLOAT3 _Reserved0;
+        };
+        static_assert(sizeof(Constants) == 64, "FogKappa constants");
+        static_assert(offsetof(Constants, FillRadius) == 48, "FogKappa layout");
+        static_assert(offsetof(Constants, _Reserved0) == 52, "FogKappa layout");
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InA;
+                ID3D12Resource* InB;
+                ID3D12Resource* InC;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+        union Output
+        {
+            struct Data
+            {
+                ID3D12Resource* OutKappa;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+    }
+    static_assert(FogKappa::Input::kCount == 3, "FogKappa input count");
+    static_assert(FogKappa::Output::kCount == 1, "FogKappa output count");
+
+    namespace FogRank
+    {
+        struct alignas(16) Constants
+        {
+            XMFLOAT2 TileSize;
+            float ZTolerance;
+            float Percentile;
+            int32_t Radius;
+            XMFLOAT3 _Reserved0;
+        };
+        static_assert(sizeof(Constants) == 32, "FogRank constants");
+        static_assert(offsetof(Constants, Percentile) == 12, "FogRank layout");
+        static_assert(offsetof(Constants, Radius) == 16, "FogRank layout");
+        static_assert(offsetof(Constants, _Reserved0) == 20, "FogRank layout");
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InKappa;
+                ID3D12Resource* InA;
+                ID3D12Resource* InC;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+        union Output
+        {
+            struct Data
+            {
+                ID3D12Resource* OutKappa;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+    }
+    static_assert(FogRank::Input::kCount == 3, "FogRank input count");
+    static_assert(FogRank::Output::kCount == 1, "FogRank output count");
+
+    namespace FogSmooth
+    {
+        struct alignas(16) Constants
+        {
+            XMFLOAT2 TileSize;
+            float Sigma;
+            float ZSigma;
+            int32_t Radius;
+            XMFLOAT3 _Reserved0;
+        };
+        static_assert(sizeof(Constants) == 32, "FogSmooth constants");
+        static_assert(offsetof(Constants, Radius) == 16, "FogSmooth layout");
+        static_assert(offsetof(Constants, _Reserved0) == 20, "FogSmooth layout");
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InKappa;
+                ID3D12Resource* InA;
+                ID3D12Resource* InC;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+        union Output
+        {
+            struct Data
+            {
+                ID3D12Resource* OutKappa;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+    }
+    static_assert(FogSmooth::Input::kCount == 3, "FogSmooth input count");
+    static_assert(FogSmooth::Output::kCount == 1, "FogSmooth output count");
+
+    namespace FogRoute
+    {
+        struct alignas(16) Constants
+        {
+            XMFLOAT4 DstTexSize;
+            XMFLOAT2 TileSize;
+            float DivisorFloor;
+            float LogNear;
+            float InvLogRange;
+            float TargetZSigma;
+            uint32_t Flags;
+            float _Reserved0;
+        };
+        static_assert(sizeof(Constants) == 48, "FogRoute constants");
+        static_assert(offsetof(Constants, DivisorFloor) == 24, "FogRoute layout");
+        static_assert(offsetof(Constants, Flags) == 40, "FogRoute layout");
+        static_assert(offsetof(Constants, _Reserved0) == 44, "FogRoute layout");
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InSpecAlbedo;
+                ID3D12Resource* InDiffAlbedo;
+                ID3D12Resource* InSpecSignal;
+                ID3D12Resource* InDiffSignal;
+                ID3D12Resource* InLinearDepth;
+                ID3D12Resource* InKappa;
+                ID3D12Resource* InG;
+                ID3D12Resource* InH;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+        union Output
+        {
+            struct Data
+            {
+                ID3D12Resource* OutSpecAlbedo;
+                ID3D12Resource* OutDiffAlbedo;
+                ID3D12Resource* OutSpecSignal;
+                ID3D12Resource* OutDiffSignal;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+    }
+    static_assert(FogRoute::Input::kCount == 8, "FogRoute input count");
+    static_assert(FogRoute::Output::kCount == 4, "FogRoute output count");
+
     namespace FloorSeed
     {
         constexpr UINT kBackBufferCount = 3;
@@ -253,6 +488,7 @@ namespace FSRD
                 ID3D12Resource* InResponsivityMask;
                 ID3D12Resource* InDetailReference;                 // t16
                 ID3D12Resource* InFloorModel;                      // final averaged material slope - t17
+                ID3D12Resource* InPreviousDepth;                   // last frame's canonical depth - t18
             };
 
             // The number of D3D12 resources in the struct
@@ -608,6 +844,86 @@ namespace FSRD
         };
     }
 
+    namespace RecoveryVolumeAccumulate
+    {
+        constexpr UINT kBackBufferCount = 3;
+
+        struct alignas(16) Constants
+        {
+            XMFLOAT4 DstTexSize;
+            XMFLOAT2 HistoryJitterDelta;
+            uint32_t HistoryValid;
+            float Response;
+        };
+        static_assert(offsetof(Constants, HistoryJitterDelta) == 16, "FSRDRecoveryVolumeAccumulate layout");
+        static_assert(sizeof(Constants) == 32, "FSRDRecoveryVolumeAccumulate constant-buffer layout");
+
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InComposed;
+                ID3D12Resource* InRawTiles;
+                ID3D12Resource* InHistory;
+                ID3D12Resource* InLinearDepth;
+                ID3D12Resource* InMotion;
+                ID3D12Resource* InVariance;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+
+        union Output
+        {
+            struct Data
+            {
+                ID3D12Resource* OutHistory;
+                ID3D12Resource* OutVariance;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+    }
+
+    namespace RecoveryVolumeApply
+    {
+        constexpr UINT kBackBufferCount = 3;
+
+        struct alignas(16) Constants
+        {
+            XMFLOAT4 DstTexSize;
+            float Strength;
+            uint32_t Debug;
+            float _Reserved0[2];
+        };
+        static_assert(offsetof(Constants, Strength) == 16, "FSRDRecoveryVolumeApply layout");
+        static_assert(sizeof(Constants) == 32, "FSRDRecoveryVolumeApply constant-buffer layout");
+
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InComposed;
+                ID3D12Resource* InHistory;
+                ID3D12Resource* InLinearDepth;
+                ID3D12Resource* InVariance;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+
+        union Output
+        {
+            struct Data { ID3D12Resource* OutColor; };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+    }
+
     // Each shader declares its descriptor-table sizes as a literal inside its
     // "MainRS" root-signature string, and nothing else compares those literals to
     // these structs. ComputeState sizes its heap from kCount, so if a resource is
@@ -619,7 +935,7 @@ namespace FSRD
     static_assert(FloorSeed::Output::kCount == 5, "FSRDFloorSeed MainRS UAV count");
     static_assert(FloorFilter::Input::kCount == 6, "FSRDFloor MainRS SRV count");
     static_assert(FloorFilter::Output::kCount == 2, "FSRDFloor MainRS UAV count");
-    static_assert(Conversion::Input::kCount == 18, "FSRDInputConv MainRS SRV count");
+    static_assert(Conversion::Input::kCount == 19, "FSRDInputConv MainRS SRV count");
     static_assert(Conversion::Output::kCount == 10, "FSRDInputConv MainRS UAV count");
     static_assert(Composition::Input::kCount == 17, "FSRDOutputComp MainRS SRV count");
     static_assert(Composition::kOutputCount == 3, "FSRDOutputComp MainRS UAV count");
@@ -633,4 +949,251 @@ namespace FSRD
     static_assert(VolumeAccumulate::Output::kCount == 1, "FSRDVolumeAccumulate MainRS UAV count");
     static_assert(VolumeApply::Input::kCount == 3, "FSRDVolumeApply MainRS SRV count");
     static_assert(VolumeApply::Output::kCount == 1, "FSRDVolumeApply MainRS UAV count");
+    static_assert(RecoveryVolumeAccumulate::Input::kCount == 6, "FSRDRecoveryVolumeAccumulate MainRS SRV count");
+    static_assert(RecoveryVolumeAccumulate::Output::kCount == 2, "FSRDRecoveryVolumeAccumulate MainRS UAV count");
+    static_assert(RecoveryVolumeApply::Input::kCount == 4, "FSRDRecoveryVolumeApply MainRS SRV count");
+    static_assert(RecoveryVolumeApply::Output::kCount == 1, "FSRDRecoveryVolumeApply MainRS UAV count");
+    namespace SkinConversion
+    {
+        struct alignas(16) Constants
+        {
+            Conversion::Constants Base;
+            XMUINT4 SkinOptions;
+            XMUINT4 SkinDebug;
+        };
+        static_assert(sizeof(Constants) == 448, "Skin conversion constants");
+        static_assert(offsetof(Constants, SkinOptions) == 416, "Skin options offset");
+        static_assert(offsetof(Constants, SkinDebug) == 432, "Skin debug offset");
+        static constexpr UINT kInputCount = Conversion::Input::kCount + 2;
+        static_assert(kInputCount == 21, "Skin conversion inputs");
+    }
+
+    namespace SssPrepare
+    {
+        constexpr UINT kBackBufferCount = 3;
+        struct alignas(16) Constants
+        {
+            XMFLOAT4X4 InvProjMatrix;
+            XMFLOAT4 DstTexSize;
+            XMUINT4 ColorDepthBase;
+            XMUINT4 AlbedoBase;
+            XMUINT4 GuideBiasBase;
+            XMUINT2 TitleDepthBase;
+            XMFLOAT2 CurrentJitter;
+            float NearPlane;
+            float FarPlane;
+            float BiasStrength;
+            uint32_t Flags;
+            uint32_t Mode;
+            XMUINT3 Padding;
+        };
+        static_assert(sizeof(Constants) == 176, "SssPrepare constants");
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InColor;
+                ID3D12Resource* InDepth;
+                ID3D12Resource* InDiffAlbedo;
+                ID3D12Resource* InSpecAlbedo;
+                ID3D12Resource* InGuide;
+                ID3D12Resource* InBias;
+                ID3D12Resource* InTitleDepth;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+        static_assert(Input::kCount == 7, "SssPrepare Input count");
+        union Output
+        {
+            struct Data
+            {
+                ID3D12Resource* OutColor;
+                ID3D12Resource* OutGuide;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+        static_assert(Output::kCount == 2, "SssPrepare Output count");
+    }
+
+    namespace SssBlur
+    {
+        constexpr UINT kBackBufferCount = 3;
+        struct alignas(16) Constants
+        {
+            XMFLOAT4 DstTexSize;
+            float SigmaScale;
+            float RadiusMeters;
+            float Strength;
+            float Falloff;
+            uint32_t Vertical;
+            uint32_t Debug;
+            XMUINT2 Padding;
+        };
+        static_assert(sizeof(Constants) == 48, "SssBlur constants");
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InColor;
+                ID3D12Resource* InGuide;
+                ID3D12Resource* InDepth;
+                ID3D12Resource* InOriginal;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+        static_assert(Input::kCount == 4, "SssBlur Input count");
+        union Output
+        {
+            struct Data
+            {
+                ID3D12Resource* OutColor;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+        static_assert(Output::kCount == 1, "SssBlur Output count");
+    }
+
+    namespace SkinPrefilter
+    {
+        constexpr UINT kBackBufferCount = 3;
+        struct alignas(16) Constants
+        {
+            XMFLOAT4 DstTexSize;
+            float Sigma;
+            uint32_t Vertical;
+            XMUINT2 GuideBase;
+        };
+        static_assert(sizeof(Constants) == 32, "SkinPrefilter constants");
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InDiffuse;
+                ID3D12Resource* InGuide;
+                ID3D12Resource* InDepth;
+                ID3D12Resource* InNormals;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+        static_assert(Input::kCount == 4, "SkinPrefilter Input count");
+        union Output
+        {
+            struct Data
+            {
+                ID3D12Resource* OutDiffuse;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+        static_assert(Output::kCount == 1, "SkinPrefilter Output count");
+    }
+
+    namespace SkinFusedConversion
+    {
+        static constexpr UINT kInputCount = 24, kOutputCount = 14;
+        static_assert(kOutputCount == Conversion::Output::kCount + 4, "Fused skin conversion outputs");
+        static_assert(kInputCount == SkinConversion::kInputCount + 3, "Fused skin conversion inputs");
+    }
+    namespace SssKernel
+    {
+        union Input
+        {
+            struct Data { ID3D12Resource* InBounds; ID3D12Resource* InDepth; };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources; ID3D12Resource* AsArray[kCount];
+        };
+        union Output
+        {
+            struct Data { ID3D12Resource* OutKernel; };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources; ID3D12Resource* AsArray[kCount];
+        };
+    }
+    namespace SssTiledBlur
+    {
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InColor; ID3D12Resource* InGuide; ID3D12Resource* InDepth;
+                ID3D12Resource* InOriginal; ID3D12Resource* InKernel;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources; ID3D12Resource* AsArray[kCount];
+        };
+    }
+    static_assert(SssKernel::Input::kCount == 2 && SssKernel::Output::kCount == 1, "SSS kernel descriptors");
+    static_assert(SssTiledBlur::Input::kCount == 5, "SSS tiled blur inputs");
+
+    namespace SkinConversionBounds
+    {
+        static constexpr UINT kOutputCount = Conversion::Output::kCount + 1;
+        static_assert(kOutputCount == 11, "Skin bounds conversion outputs");
+    }
+    namespace SkinBounds
+    {
+        union Input
+        {
+            struct Data { ID3D12Resource* InBounds; };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+        union Output
+        {
+            struct Data { ID3D12Resource* OutBounds; };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+    }
+    namespace SkinTiledPrefilter
+    {
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InDiffuse;
+                ID3D12Resource* InGuide;
+                ID3D12Resource* InDepth;
+                ID3D12Resource* InNormals;
+                ID3D12Resource* InBounds;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+        union Output
+        {
+            struct Data { ID3D12Resource* OutDiffuse; };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+    }
+    static_assert(SkinBounds::Input::kCount == 1, "SkinBounds input count");
+    static_assert(SkinBounds::Output::kCount == 1, "SkinBounds output count");
+    static_assert(SkinTiledPrefilter::Input::kCount == 5, "SkinTiledPrefilter input count");
+    static_assert(SkinTiledPrefilter::Output::kCount == 1, "SkinTiledPrefilter output count");
+
+    static_assert(SssPrepare::Input::kCount == 7, "SssPrepare input count");
+    static_assert(SssPrepare::Output::kCount == 2, "SssPrepare output count");
+
+    static_assert(SssBlur::Input::kCount == 4, "SssBlur input count");
+    static_assert(SssBlur::Output::kCount == 1, "SssBlur output count");
+
+    static_assert(SkinPrefilter::Input::kCount == 4, "SkinPrefilter input count");
+    static_assert(SkinPrefilter::Output::kCount == 1, "SkinPrefilter output count");
+
 }

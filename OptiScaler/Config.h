@@ -538,7 +538,39 @@ class Config
     CustomOptional<float> FfxDenoiserFloorLumaRecovery{1.0f};
     CustomOptional<float> FfxDenoiserFloorChromaRecovery{1.0f};
 
+    CustomOptional<int> FfxDenoiserSkinMode {0};
+    CustomOptional<float> FfxDenoiserSssRadiusMm {2.18f};
+    CustomOptional<float> FfxDenoiserSssStrength {0.56f};
+    CustomOptional<float> FfxDenoiserSssFalloff {1.0f};
+    CustomOptional<float> FfxDenoiserSkinSigma {4.0f};
+    CustomOptional<int> FfxDenoiserSkinDebug {0};
+    CustomOptional<bool> FfxDenoiserObjectDepthDelta {false};
+    CustomOptional<bool> FfxDenoiserReflectionsFollowSurface {false};
+    // Albedo guide stabilisation (10 Oct): 0 off, 1 specular guide, 2 specular and diffuse guides.
+    CustomOptional<int> FfxDenoiserAlbedoStabilisation {0};
+    CustomOptional<bool> FfxDenoiserAlbedoStabilisationClamp {false};
+    CustomOptional<float> FfxDenoiserAlbedoStabilisationRate {0.125f};
+    CustomOptional<bool> FfxDenoiserFogGuides {false};
+
+    // Experimental post-composition recovery; the legacy path remains the default.
+    CustomOptional<bool> FfxDenoiserRecoveryV2 { false };
+    CustomOptional<bool> FfxDenoiserRecoveryVolumetry { false };
+    CustomOptional<float> FfxDenoiserRecoveryVolumetryStrength { 1.0f };
+    CustomOptional<bool> FfxDenoiserRecoveryHistory { false };
+    CustomOptional<float> FfxDenoiserRecoveryHistoryStrength { 0.5f };
+    CustomOptional<bool> FfxDenoiserRecoverySpecular { false };
+    CustomOptional<float> FfxDenoiserRecoverySpecularStrength { 1.0f };
+    CustomOptional<bool> FfxDenoiserRecoveryDiffuse { false };
+    CustomOptional<float> FfxDenoiserRecoveryDiffuseStrength { 1.0f };
+    CustomOptional<bool> FfxDenoiserRecoveryAlbedo { false };
+    CustomOptional<float> FfxDenoiserRecoveryAlbedoStrength { 1.0f };
+    CustomOptional<bool> FfxDenoiserRecoveryFlatAlbedo { false };
+    CustomOptional<float> FfxDenoiserRecoveryFlatAlbedoStrength { 1.0f };
+    CustomOptional<int> FfxDenoiserRecoveryDebug { 0 };
+
     CustomOptional<bool> FfxDenoiserFloorEnabled { true };
+    // All lighting goes through RR; Floor remains available for detail and structure.
+    CustomOptional<bool> FfxDenoiserFloorThroughRR { true };
     // Experimental: adds back, after composition, the radiance RR's output lacks
     // against the input over 8x8 tiles, accumulated over time. Off by default: in
     // game it did not bring back volumetrics, which RR blurs rather than removes.
@@ -568,6 +600,15 @@ class Config
     CustomOptional<float> FfxDenoiserMaxRadiance { 4e4f };
     CustomOptional<float> FfxDenoiserRadianceClip { 40.0f };
     CustomOptional<float> FfxDenoiserGaussKernRelax { 0.5f };
+    // Diagnostic: restart RR history where the frame magnifies the previous one (stair treads).
+    // 0 off, 1/2/3 = history stretch below 0.6/0.75/0.85.
+    CustomOptional<int> FfxDenoiserStretchReset { 0 };
+    // Diagnostic: average RR lighting across the streaks a magnified history leaves (composition).
+    CustomOptional<bool> FfxDenoiserStreakFilter { false };
+    // Diagnostic: restart RR history on static geometry revealed this frame (previous-depth test).
+    CustomOptional<bool> FfxDenoiserDisocclusionCheck { false };
+    // Diagnostic: give each RR input sample its same-surface neighbourhood's light colour.
+    CustomOptional<bool> FfxDenoiserInputChroma { false };
     CustomOptional<float> FfxDenoiserDebugDepthMax { 1024.0f };
 
     // Records the probe readbacks: seven render targets per input probe interval plus two per

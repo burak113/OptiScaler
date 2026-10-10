@@ -1,6 +1,7 @@
 #pragma once
 #include "SysUtils.h"
 #include "FSRDGameTraceSession.h"
+#include "FSRDResearchTools.h"
 
 #include <DirectXMath.h>
 #include <d3d12.h>
@@ -37,6 +38,7 @@ class FSRDPreprocessor_Dx12
     {
         None = 0,
 
+        FloorThroughRR =        1 << 0, // Denoise all lighting; retain Floor only as a reference
         IsDepthLinear =         1 << 1, // Interprets input depth as already linearized for view space calculations
         IsRoughnessPacked =     1 << 2, // Roughness = InNormals.A - NVSDK_NGX_DLSS_Roughness_Mode_Packed (Init param)
         RightHanded =           1 << 3, // View-space forward is negative Z
@@ -46,6 +48,8 @@ class FSRDPreprocessor_Dx12
         FloorEnabled =     1 << 7, // Enable spatial floor and its detail reference
         MotionVectorsJittered = 1 << 8, // Source XY contains previous-current raster jitter
         DisplayResolutionMotion = 1 << 9, // Source MV texture uses display-resolution coordinates
+        DisocclusionCheck =     1 << 10, // Diagnostic: restart RR history on revealed static geometry
+        InputChroma =           0x80000000, // Diagnostic: give each sample its neighbourhood's light colour
         NormalsViewSpace =     1 << 11, // Transform input view-space normals to world space
         HasCombinedSpecHitDistance = 1 << 14, // Hit distance is combined resource alpha
         TitleLinearDepth =      1 << 12, // The title publishes its own linearised view depth
@@ -114,6 +118,13 @@ class FSRDPreprocessor_Dx12
         ApproximateRayHitDistance = 1 << 27,
         UnsupportedAlbedo = 1 << 28,
         DebugDemodRisk =         42 << 17 | Debug, // Diagnostic: does the demod divisor implant structure
+        DebugStretchReset =      43 << 17 | Debug,
+        DebugSssGuide =          44 << 17 | Debug,
+        DebugPreSss =            45 << 17 | Debug,
+        DebugSkinPrefilter =     46 << 17 | Debug, // History stretch; white = restarts its history
+        // Diagnostic: two-bit magnified-history reset level, 0 = off, 1/2/3 = stretch 0.6/0.75/0.85
+        StretchResetLevel1 =     1 << 29,
+        StretchResetMask =       3 << 29,
     };
 
     enum class CompFlags : uint32_t
@@ -133,6 +144,7 @@ class FSRDPreprocessor_Dx12
         ExtraDiffuse = 1 << 6,
         ExtraSpecular = 1 << 7,
         DiffuseAlternate = 1 << 8, // The indirect-diffuse output is the unmodulated diffuse share
+        StreakFilter = 1 << 9, // Diagnostic: average RR lighting across magnified-history streaks
         SpecularSignalDisabled = 1 << 5, // Specular was not denoised this frame
 
         Debug =                 1 << 16,
@@ -189,6 +201,9 @@ class FSRDPreprocessor_Dx12
             ID3D12Resource* InDiffuseHitDistance;
             ID3D12Resource* InTitleLinearDepth; // Optional title-published linear view depth
             ID3D12Resource* InResponsivityMask; // Optional per-pixel responsivity hint
+            ID3D12Resource* InSssGuide;
+            ID3D12Resource* InColorBeforeSss;
+            ID3D12Resource* InColorAfterSss;
         };
 
     };
@@ -199,6 +214,8 @@ class FSRDPreprocessor_Dx12
      */
     struct ConversionDesc
     {
+        std::vector<FSRDResearch::Input> ResearchInputs;
+        uint32_t LeakLobe = 0;
         InputResources Resources;
 
         DirectX::XMFLOAT4X4 InvViewMatrix;     // DLSSD WorldToView^1 - Camera matrix
@@ -241,6 +258,9 @@ class FSRDPreprocessor_Dx12
         bool FloorCleanLighting = false;
         // Records the input's tile means for the volumetric restore after composition.
         bool VolumeRestore = false;
+        bool RecoveryV2 = false;
+        bool RecoveryVolumetry = false;
+        uint32_t RecoveryHistoryLevel = 0;
         float FloorDetailPreservation = 0.35f;
         // The zero-rough domain's RR roughness is this pipeline's own compatibility value
         // (s_ZeroRoughRRRoughness), not a caller preference: there is no field for it.
@@ -250,6 +270,24 @@ class FSRDPreprocessor_Dx12
         // seven render targets into readback buffers and the output probe adds two more, which is
         // worth paying for while a number is being chased and worth nothing in a shipped build.
         bool DiagnosticsEnabled = false;
+        uint32_t SkinMode = 0;
+        uint32_t SkinDebug = 0;
+        DirectX::XMUINT2 SssGuideBase {};
+        DirectX::XMUINT2 ColorBeforeSssBase {};
+        DirectX::XMUINT2 ColorAfterSssBase {};
+        float SssRadiusMm = 2.18f;
+        float SssStrength = 0.56f;
+        float SssFalloff = 1.0f;
+        float SkinSigma = 4.0f;
+        bool ObjectDepthDelta = false;
+        bool ReflectionsFollowSurface = false;
+        // Albedo guide stabilisation after packing: 0 off, 1 specular, 2 specular and diffuse.
+        uint32_t AlbedoStabilisation = 0;
+        bool AlbedoStabilisationClamp = false;
+        float AlbedoStabilisationRate = 0.125f;
+        // Fog-consistent guides after stabilisation: the guide texture the image does not carry (fog, haze, water
+        // over a sea floor) is flattened, and with distance the fog share moves to the specular lobe.
+        bool FogGuides = false;
 
         uint32_t Flags; // Dynamic configuration flags. See: ConfigFlags
         uint32_t InspectorChannel;
@@ -298,6 +336,10 @@ class FSRDPreprocessor_Dx12
         // Scale of the energy RR removed from the input (fog, beams) that is added
         // back after composition; 0 disables it. Needs ConversionDesc::VolumeRestore.
         float VolumeRestoreStrength = 0.0f;
+        bool RecoveryV2 = false;
+        float RecoveryVolumetryStrength = 0.0f;
+        uint32_t RecoveryDebug = 0;
+        bool FloorEnabled = true;
     };
 
   public:
@@ -409,6 +451,8 @@ class FSRDPreprocessor_Dx12
      * @brief Returns the output from the last composition dispatch. Valid until the next conversion dispatch.
      */
     ID3D12Resource* GetCompositionOutput() const;
+    void AbortResearch(const char* reason);
+    void CompleteResearchFrame(ID3D12GraphicsCommandList*, const std::string& settings, const std::string& controls);
 
     /**
      * @brief Diagnostics: the denoiser's diffuse output texture and the

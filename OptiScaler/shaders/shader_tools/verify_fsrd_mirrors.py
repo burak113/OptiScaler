@@ -35,7 +35,7 @@ FEATURE_CPP = os.path.join(ROOT, "OptiScaler", "upscalers", "fsr31", "FSRDFeatur
 # the composition, and so live in neither enum.
 # Modes the upscaler side owns rather than either flag word: the name table lists them, and
 # they are not conversion or composition debug modes.
-OTHER_MODES = {"None", "FfxDebug", "AmbientOcclusionInput", "AmbientOcclusionOutput",
+OTHER_MODES = {"TextureLeakSpecular", "TextureLeakDiffuse", "None", "FfxDebug", "AmbientOcclusionInput", "AmbientOcclusionOutput",
                "DenoiserOutput", "DenoiserBypass", "UpscalerBypass", "RawColor", "DlssBias",
                "DlssColorBeforeParticles", "DlssColorBeforeTransparency",
                "DlssTransparencyLayer"}
@@ -46,6 +46,16 @@ FLOOR_HLSL = os.path.join(PRE, "FSRDFloor.hlsl")
 SEED_HLSL = os.path.join(PRE, "FSRDFloorSeed.hlsl")
 TRUST_EVIDENCE_HLSL = os.path.join(PRE, "FSRDAlbedoTrustEvidence.hlsl")
 TRUST_PROPAGATE_HLSL = os.path.join(PRE, "FSRDAlbedoTrustPropagate.hlsl")
+VOLUME_GATHER_HLSL = os.path.join(PRE, "FSRDVolumeGather.hlsl")
+VOLUME_ACCUMULATE_HLSL = os.path.join(PRE, "FSRDVolumeAccumulate.hlsl")
+VOLUME_APPLY_HLSL = os.path.join(PRE, "FSRDVolumeApply.hlsl")
+RECOVERY_VOLUME_ACCUMULATE_HLSL = os.path.join(PRE, "FSRDRecoveryVolumeAccumulate.hlsl")
+RECOVERY_VOLUME_APPLY_HLSL = os.path.join(PRE, "FSRDRecoveryVolumeApply.hlsl")
+FOG_STATS_HLSL = os.path.join(PRE, "FSRDFogStats.hlsl")
+FOG_KAPPA_HLSL = os.path.join(PRE, "FSRDFogKappa.hlsl")
+FOG_RANK_HLSL = os.path.join(PRE, "FSRDFogRank.hlsl")
+FOG_SMOOTH_HLSL = os.path.join(PRE, "FSRDFogSmooth.hlsl")
+FOG_ROUTE_HLSL = os.path.join(PRE, "FSRDFogRoute.hlsl")
 PREPROCESSOR_CPP = os.path.join(ROOT, "OptiScaler", "shaders", "fsrd_preprocess",
                                 "FSRDPreprocessor_Dx12.cpp")
 ADDITIVE_CAPTURE_INL = os.path.join(ROOT, "OptiScaler", "shaders", "fsrd_preprocess",
@@ -59,7 +69,8 @@ def fail(msg):
 
 
 def read(path):
-    return io.open(path, encoding="utf-8", errors="replace").read().replace("\r\n", "\n")
+    with io.open(path, encoding="utf-8", errors="replace") as source:
+        return source.read().replace("\r\n", "\n")
 
 
 def strip_line_comment(line):
@@ -217,12 +228,25 @@ def hlsl_cbuffer_fields(body, where):
 
 
 CONSTANT_PAIRS = [
+    ("FogStats", "struct alignas(16) Constants", FOG_STATS_HLSL, "cbuffer CB_FogStats", {}),
+    ("FogKappa", "struct alignas(16) Constants", FOG_KAPPA_HLSL, "cbuffer CB_FogKappa", {}),
+    ("FogRank", "struct alignas(16) Constants", FOG_RANK_HLSL, "cbuffer CB_FogRank", {}),
+    ("FogSmooth", "struct alignas(16) Constants", FOG_SMOOTH_HLSL, "cbuffer CB_FogSmooth", {}),
+    ("FogRoute", "struct alignas(16) Constants", FOG_ROUTE_HLSL, "cbuffer CB_FogRoute", {}),
+    ('SkinPrefilter', "struct alignas(16) Constants", os.path.join(PRE, 'FSRDSkinPrefilter.hlsl'), "cbuffer CB_SkinPrefilter", {}),
+    ('SssBlur', "struct alignas(16) Constants", os.path.join(PRE, 'FSRDSssBlur.hlsl'), "cbuffer CB_SssBlur", {}),
+    ('SssPrepare', "struct alignas(16) Constants", os.path.join(PRE, 'FSRDSssPrepare.hlsl'), "cbuffer CB_SssPrepare", {}),
     ("FloorSeed", "struct alignas(16) Constants", SEED_HLSL, "cbuffer CB_Median", {}),
     ("FloorFilter", "struct alignas(16) Constants", FLOOR_HLSL, "cbuffer CB_Analysis", {}),
     ("Conversion", "struct alignas(16) Constants", CONV_HLSL, "cbuffer CB_Packing", {}),
     ("Composition", "struct alignas(16) Constants", COMP_HLSL, "cbuffer CB_Comp", {}),
     ("TrustEvidence", "struct alignas(16) Constants", TRUST_EVIDENCE_HLSL, "cbuffer CB_AlbedoTrust", {}),
     ("TrustPropagate", "struct alignas(16) Constants", TRUST_PROPAGATE_HLSL, "cbuffer CB_AlbedoTrust", {}),
+    ("VolumeGather", "struct alignas(16) Constants", VOLUME_GATHER_HLSL, "cbuffer CB_VolumeGather", {}),
+    ("VolumeAccumulate", "struct alignas(16) Constants", VOLUME_ACCUMULATE_HLSL, "cbuffer CB_VolumeAccumulate", {}),
+    ("VolumeApply", "struct alignas(16) Constants", VOLUME_APPLY_HLSL, "cbuffer CB_VolumeApply", {}),
+    ("RecoveryVolumeAccumulate", "struct alignas(16) Constants", RECOVERY_VOLUME_ACCUMULATE_HLSL, "cbuffer CB_VolumeAccumulate", {}),
+    ("RecoveryVolumeApply", "struct alignas(16) Constants", RECOVERY_VOLUME_APPLY_HLSL, "cbuffer CB_VolumeApply", {}),
 ]
 
 
@@ -256,6 +280,9 @@ def check_constants():
             if a[2] != b[2]:
                 fail("%s::Constants member %s is at offset %d in C++ but %d in HLSL"
                      % (ns, a[0], a[2], b[2]))
+            if a[3] != b[3]:
+                fail("%s::Constants member %s occupies %d bytes in C++ but %d in HLSL"
+                     % (ns, a[0], a[3], b[3]))
         if cpp_size != hlsl_size:
             fail("%s::Constants is %d bytes in C++ but %d in HLSL" % (ns, cpp_size, hlsl_size))
         if cpp_assert is not None and cpp_assert != cpp_size:
@@ -288,6 +315,11 @@ CONV_FLAG_NAMES = {
     "ApproximateSpecHitDistance": "FLAGS_APPROXIMATE_SPEC_HIT_DISTANCE",
     "ApproximateRayHitDistance": "FLAGS_APPROXIMATE_RAY_HIT_DISTANCE",
     "UnsupportedAlbedo": "FLAGS_UNSUPPORTED_ALBEDO",
+    "DisocclusionCheck": "FLAGS_DISOCCLUSION_CHECK",
+    "FloorThroughRR": "FLAGS_FLOOR_THROUGH_RR",
+    "InputChroma": "FLAGS_INPUT_CHROMA",
+    "StretchResetLevel1": "FLAGS_STRETCH_RESET_LEVEL1",
+    "StretchResetMask": "FLAGS_STRETCH_RESET_MASK",
     "Debug": "FLAGS_DEBUG",
     "DebugModeMask": "FLAGS_DEBUG_MODE_MASK",
 }
@@ -336,6 +368,10 @@ CONV_DEBUG_NAMES = {
     "DebugSkipFloor": "FLAGS_DEBUG_SKIP_FLOOR",
     "DebugFloorExcess": "FLAGS_DEBUG_FLOOR_EXCESS",
     "DebugDemodRisk": "FLAGS_DEBUG_DEMOD_RISK",
+    "DebugStretchReset": "FLAGS_DEBUG_STRETCH_RESET",
+    "DebugSssGuide": "FLAGS_DEBUG_SSS_GUIDE",
+    "DebugPreSss": "FLAGS_DEBUG_PRE_SSS",
+    "DebugSkinPrefilter": "FLAGS_DEBUG_SKIN_PREFILTER",
 }
 
 COMP_FLAG_NAMES = {
@@ -343,6 +379,7 @@ COMP_FLAG_NAMES = {
     "ExtraDiffuse": "FLAGS_EXTRA_DIFFUSE",
     "ExtraSpecular": "FLAGS_EXTRA_SPECULAR",
     "DiffuseAlternate": "FLAGS_DIFFUSE_ALTERNATE",
+    "StreakFilter": "FLAGS_STREAK_FILTER",
     "DiffuseSignalDisabled": "FLAGS_DIFFUSE_SIGNAL_DISABLED",
     "SpecularSignalDisabled": "FLAGS_SPECULAR_SIGNAL_DISABLED",
     "ScaleSrc": "FLAGS_SCALE_SRC",
@@ -572,9 +609,24 @@ def check_resources():
     # Each namespace carries its own union Input, and the first one in the file is FloorSeed's,
     # so the conversion's has to be located by its namespace rather than by its name.
     for namespace, path in (("FloorSeed", SEED_HLSL), ("FloorFilter", FLOOR_HLSL),
+                            ("FogStats", FOG_STATS_HLSL),
+                            ("FogKappa", FOG_KAPPA_HLSL),
+                            ("FogRank", FOG_RANK_HLSL),
+                            ("FogSmooth", FOG_SMOOTH_HLSL),
+                            ("FogRoute", FOG_ROUTE_HLSL),
                             ("Conversion", CONV_HLSL), ("Composition", COMP_HLSL),
                             ("TrustEvidence", TRUST_EVIDENCE_HLSL),
-                            ("TrustPropagate", TRUST_PROPAGATE_HLSL)):
+                            ("TrustPropagate", TRUST_PROPAGATE_HLSL),
+                            ("VolumeGather", VOLUME_GATHER_HLSL),
+                            ("VolumeAccumulate", VOLUME_ACCUMULATE_HLSL),
+                            ("VolumeApply", VOLUME_APPLY_HLSL),
+                            ("RecoveryVolumeAccumulate", RECOVERY_VOLUME_ACCUMULATE_HLSL),
+                            ("RecoveryVolumeApply", RECOVERY_VOLUME_APPLY_HLSL),
+                            ("SssPrepare", os.path.join(PRE,"FSRDSssPrepare.hlsl")),
+                            ("SssBlur", os.path.join(PRE,"FSRDSssBlur.hlsl")),
+                            ("SkinPrefilter", os.path.join(PRE,"FSRDSkinPrefilter.hlsl")),
+                            ("SkinBounds", os.path.join(PRE,"FSRDSkinBounds.hlsl")),
+                            ("SkinTiledPrefilter", os.path.join(PRE,"FSRDSkinPrefilterTiled.hlsl"))):
         body = brace_body(data, "namespace " + namespace)
         shader = read(path)
         for kind, union in (("t", "Input"), ("u", "Output")):
@@ -608,6 +660,46 @@ def check_resources():
             count_assert = re.search(r'static_assert\(' + re.escape(assertion) + r' == (\d+)', data)
             if not count_assert or int(count_assert.group(1)) != len(actual):
                 fail("%s count assertion differs from shader bindings" % assertion)
+
+
+def check_fog_history_host(source=None):
+    """Fog consumes the current descriptor before composition updates its history."""
+    source = read(PREPROCESSOR_CPP) if source is None else source
+    fog = brace_body(source, "void FogGuides(")
+    compact = re.sub(r"\s+", "", fog)
+    jitter = ("constXMFLOAT2historyJitterDelta{desc.JitterOffsets.z-desc.JitterOffsets.x,"
+              "desc.JitterOffsets.w-desc.JitterOffsets.y};")
+    if jitter not in compact:
+        fail("FogStats history must use current descriptor pixel jitter: previous minus current")
+    constants = re.search(r"constFogStats::Constantsc\{([^;]+)\};", compact)
+    if not constants or not constants.group(1).endswith(",historyJitterDelta"):
+        fail("FogStats must upload this frame's pixel jitter in its typed constants")
+    if ("sizeof(FogStats::Constants),FogStats::Input::kCount,FogStats::Output::kCount"
+            not in compact):
+        fail("FogStats pipeline must use the verified constant and resource sizes")
+    if ("constFogStats::Inputinputs{{" not in compact or
+            "FogStats::Outputoutputs{{" not in compact or
+            "m_fogStatsShader.Dispatch(cmdList,GetAsByteSpan(c),inputs.AsArray,outputs.AsArray,"
+            not in compact):
+        fail("FogStats dispatch must use its verified positional resource lists")
+    for name, shader in (("FogKappa", "m_fogKappaShader"), ("FogRank", "m_fogRankShader"),
+                         ("FogSmooth", "m_fogSmoothShader"), ("FogRoute", "m_fogRouteShader")):
+        if f"sizeof({name}::Constants),{name}::Input::kCount,{name}::Output::kCount" not in compact:
+            fail(f"{name} pipeline must use the verified constant and resource sizes")
+        typed = re.search(rf"const{name}::Constantsc\{{.*?\}};"
+                          rf"const{name}::Inputinputs\{{\{{.*?\}}\}};"
+                          rf"{name}::Outputoutputs\{{\{{.*?\}}\}};"
+                          rf"{shader}\.Dispatch\(cmdList,GetAsByteSpan\(c\),inputs.AsArray,outputs.AsArray,",
+                          compact)
+        if not typed:
+            fail(f"{name} dispatch must use its verified constants and positional resource lists")
+    rank_input = ("constFogRank::Inputinputs{{m_fogKappaRaw.Get(),"
+                  "m_fogA[current].Get(),m_fogC[current].Get()}};")
+    rank_output = "FogRank::Outputoutputs{{m_fogKappaRank.Get()}};"
+    smooth_input = ("constFogSmooth::Inputinputs{{m_fogKappaRank.Get(),"
+                    "m_fogA[current].Get(),m_fogC[current].Get()}};")
+    if rank_input not in compact or rank_output not in compact or smooth_input not in compact:
+        fail("Fog median must be wired between raw Kappa and Smooth")
 
 
 def check_additive_capture_heap():
@@ -786,10 +878,70 @@ def check_composition_variants():
         fail('FSRDOutputComp: default must retain the complete generic shader')
 
 
+
+def check_skin_conversion():
+    source=read(os.path.join(PRE, "FSRDSkinConversion.hlsli"))
+    base=brace_body(read(CONV_HLSL), "cbuffer CB_Packing")
+    extended=brace_body(source, "cbuffer CB_Packing")
+    original, original_size=hlsl_cbuffer_fields(base, "skin base")
+    actual, actual_size=hlsl_cbuffer_fields(extended, "skin extension")
+    if actual[:len(original)] != original or original_size != 416 or actual_size != 448:
+        fail("Skin conversion must extend, not reinterpret, the original 416-byte constants")
+    if [(x[0],x[2]) for x in actual[len(original):]] != [("SkinOptions",416),("SkinDebug",432)]:
+        fail("Skin conversion extension offsets differ")
+    for index,name in [(19,"InSssGuide"),(20,"InOriginalColor")]:
+        if not re.search(r"\b"+name+r"\s*:\s*register\(t"+str(index)+r"\)",source):
+            fail("Skin conversion extra SRV differs: "+name)
+    for name in ["FSRDInputConvSkin", "FSRDInputConvSkinAdditive"]:
+        wrapper=read(os.path.join(PRE,name+".hlsl"))
+        if 'numDescriptors=21' not in wrapper or 'numDescriptors=10' not in wrapper:
+            fail(name+": incorrect root table counts")
+    for name in ["FSRDInputConvSkinBounds", "FSRDInputConvSkinBoundsAdditive"]:
+        wrapper=read(os.path.join(PRE,name+".hlsl"))
+        if name.endswith("Additive"):
+            wrapper+=read(os.path.join(PRE,"FSRDInputConvSkinBounds.hlsl"))
+        if 'numDescriptors=21' not in wrapper or 'numDescriptors=11' not in wrapper:
+            fail(name+": incorrect bounds root table counts")
+    for name in ["FSRDSkinBounds", "FSRDSkinPrefilterTiled"]:
+        fields,size=hlsl_cbuffer_fields(brace_body(read(os.path.join(PRE,name+".hlsl")), "cbuffer CB_SkinPrefilter"),name)
+        expected,expected_size=hlsl_cbuffer_fields(brace_body(read(os.path.join(PRE,"FSRDSkinPrefilter.hlsl")),"cbuffer CB_SkinPrefilter"),"SkinPrefilter")
+        if fields!=expected or size!=expected_size:
+            fail(name+": prefilter constants differ")
+    data=brace_body(read(DATA_H),"namespace SkinConversion")
+    if 'Conversion::Constants Base;' not in data or 'sizeof(Constants) == 448' not in data:
+        fail("Skin conversion C++ extension differs")
+
+def check_sss_fused_conversion():
+    private = os.path.join(PRE, "sss_fused")
+    wrapper = read(os.path.join(private, "FSRDInputConvSkin.hlsl"))
+    if 'numDescriptors=24' not in wrapper or 'numDescriptors=14' not in wrapper:
+        fail("Fused skin conversion root descriptor counts differ")
+    base = brace_body(read(CONV_HLSL), "cbuffer CB_Packing")
+    extended = brace_body(read(os.path.join(private, "FSRDSkinConversion.hlsli")), "cbuffer CB_Packing")
+    expected, expected_size = hlsl_cbuffer_fields(base, "fused base")
+    actual, actual_size = hlsl_cbuffer_fields(extended, "fused extension")
+    if actual[:len(expected)] != expected or expected_size != 416 or actual_size != 448:
+        fail("Fused skin conversion must preserve the original constant prefix")
+    for name,inputs in (("FSRDSssKernel",2),("FSRDSssBlurTiled",5)):
+        source = read(os.path.join(PRE,name+".hlsl"))
+        if f'numDescriptors={inputs}' not in source or 'numDescriptors=1' not in source:
+            fail(name+": incorrect root table counts")
+        fields,size = hlsl_cbuffer_fields(brace_body(source,"cbuffer CB_SssBlur"),name)
+        reference,reference_size = hlsl_cbuffer_fields(brace_body(read(os.path.join(PRE,"FSRDSssBlur.hlsl")),"cbuffer CB_SssBlur"),"SssBlur")
+        if fields != reference or size != reference_size:
+            fail(name+": SSS blur constants differ")
+    fused = brace_body(read(DATA_H),"namespace SkinFusedConversion")
+    if 'kInputCount = 24, kOutputCount = 14' not in fused:
+        fail("Fused skin C++ descriptor counts differ")
+
+
 if __name__ == "__main__":
     check_constants()
+    check_skin_conversion()
+    check_sss_fused_conversion()
     check_flags()
     check_resources()
+    check_fog_history_host()
     check_additive_capture_heap()
     check_additive_capture_flags()
     check_debug_mode_names()

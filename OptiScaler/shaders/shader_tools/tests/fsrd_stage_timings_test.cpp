@@ -79,7 +79,7 @@ int main()
         const auto snapshot = timer.GetSnapshot();
         if (mode == 0)
         {
-            assert(snapshot.validMask == 63 && snapshot.sequence == 1);
+            assert(snapshot.validMask == (1u << FSRDStageTimings::Count) - 1u && snapshot.sequence == 1);
             for (double ms : snapshot.milliseconds)
                 assert(std::isfinite(ms) && ms >= 0 && ms < 1000);
         }

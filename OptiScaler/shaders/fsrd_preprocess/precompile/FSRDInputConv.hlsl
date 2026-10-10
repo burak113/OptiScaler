@@ -13,20 +13,25 @@
 #define FSRD_ADDITIVE_DIAGNOSTICS 0
 #endif
 
-// Production conversion also publishes the unmodulated specular and diffuse signals (u8,
-// u9). The additive capture journal keeps its original eight-output layout.
+// Production conversion also publishes the unmodulated specular and diffuse signals
+// (u8, u9). The additive capture journal keeps its original eight-output layout.
 #if !FSRD_ADDITIVE_DIAGNOSTICS
 #define MainRS \
     "RootFlags(0), " \
     "CBV(b0), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 18), visibility = SHADER_VISIBILITY_ALL), " \
+    "DescriptorTable(SRV(t0, numDescriptors = 19), visibility = SHADER_VISIBILITY_ALL), " \
     "DescriptorTable(UAV(u0, numDescriptors = 10), visibility = SHADER_VISIBILITY_ALL), "
 #else
 #define MainRS \
     "RootFlags(0), " \
     "CBV(b0), " \
-    "DescriptorTable(SRV(t0, numDescriptors = 18), visibility = SHADER_VISIBILITY_ALL), " \
+    "DescriptorTable(SRV(t0, numDescriptors = 19), visibility = SHADER_VISIBILITY_ALL), " \
     "DescriptorTable(UAV(u0, numDescriptors = 8), visibility = SHADER_VISIBILITY_ALL), "
+#endif
+
+#ifdef FSRD_SKIN_ROOT
+#undef MainRS
+#define MainRS FSRD_SKIN_ROOT
 #endif
 
 // Dispatch config
@@ -157,6 +162,20 @@ static const float s_ZeroRoughRRRoughness = 0.1f;
 #define FLAGS_DEBUG_SKIP_FLOOR          (40 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_FLOOR_EXCESS     (41 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_DEMOD_RISK       (42 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_SSS_GUIDE (44 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_PRE_SSS (45 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_SKIN_PREFILTER (46 << 17 | FLAGS_DEBUG)
+#define FLAGS_DEBUG_STRETCH_RESET    (43 << 17 | FLAGS_DEBUG)
+
+// Diagnostic: two-bit level of the magnified-history reset, 0 = off. See StretchResetThreshold.
+#define FLAGS_STRETCH_RESET_LEVEL1   (1 << 29)
+#define FLAGS_STRETCH_RESET_MASK     (3 << 29)
+// Diagnostic: restart RR history on static geometry revealed this frame. See GeometricDisocclusion.
+#define FLAGS_DISOCCLUSION_CHECK     (1 << 10)
+// Keep the Floor as a reference while RR denoises the full lighting signal.
+#define FLAGS_FLOOR_THROUGH_RR       (1 << 0)
+// Diagnostic: give each sample its neighbourhood's light colour before RR. See ChromaReference.
+#define FLAGS_INPUT_CHROMA           (0x80000000)
 
 // DLSS-RR Inputs
 Texture2D<half3> InColor : register(t0); // RGB - NVSDK_NGX_Parameter_Color
@@ -189,6 +208,10 @@ Texture2D<float> InTitleLinearDepth : register(t14);
 Texture2D<float4> InResponsivityMask : register(t15);
 Texture2D<half4> InDetailReference : register(t16);
 Texture2D<half4> InFloorModel : register(t17);
+// The previous frame's canonical signed-linear depth (last frame's InDepth, copied before the
+// floor seed overwrites it). Read only under FLAGS_DISOCCLUSION_CHECK, which the host sets
+// only while that copy is valid for this frame.
+Texture2D<float> InPreviousDepth : register(t18);
 
 // RR 1.2 typed signals. Resource order matches Conversion::SignalResources.
 RWTexture2D<FSRD_CONV_UAV_TYPE> OutIndirectSpecular : register(u0); // RGB: demodulated radiance, A: hit distance
@@ -217,6 +240,7 @@ RWTexture2D<FSRD_CONV_UAV_TYPE> OutDirectSpecular : register(u8);
 RWTexture2D<FSRD_CONV_UAV_TYPE> OutIndirectDiffuse : register(u9);
 #endif
 
+#if !FSRD_SKIN_ENABLED
 cbuffer CB_Packing : register(b0)
 {
     float4x4 InvViewMatrix; // DLSSD WorldToView^-1
@@ -260,6 +284,8 @@ cbuffer CB_Packing : register(b0)
 #endif
 };
 
+#endif
+
 bool IsSet(uint mask) { return (Flags & mask) == mask; }
 uint GetDebugMode() { return (Flags & FLAGS_DEBUG_MODE_MASK); }
 
@@ -294,6 +320,195 @@ float3 GetCanonicalMotionUv(uint2 px)
     const bool valid = all(isfinite(rawMotion)) && all(isfinite(motionUv)) &&
         all(abs(motionUv) <= 16.0f);
     return float3(valid ? motionUv : 0.0f, valid ? 1.0f : 0.0f);
+}
+
+// Magnified-history reset (diagnostic, off unless asked for).
+//
+// Where this frame magnifies the previous one - a grazing stair tread climbing towards the
+// camera - every current pixel on that surface reprojects into a fraction of one previous
+// texel, so RR's history there is a few old samples stretched over many pixels. On
+// high-specular treads it shows as coloured vertical streaks that travel with the surface.
+// Crop replays of captured stairs put the streaks at the no-history level once those pixels
+// restart their history, while still views and water never triggered. The level picks the
+// stretch below which a pixel restarts: 1/2/3 = 0.6/0.75/0.85.
+float StretchResetThreshold()
+{
+    const uint level = (Flags & FLAGS_STRETCH_RESET_MASK) / FLAGS_STRETCH_RESET_LEVEL1;
+    return level == 0u ? 0.0f : (level == 1u ? 0.6f : (level == 2u ? 0.75f : 0.85f));
+}
+
+// d(previous position)/d(current position) per axis, the smaller of the two. Below one the
+// previous frame's texels are magnified onto this frame. Neighbours on another surface are
+// skipped so that silhouettes, where motion jumps, do not read as stretch.
+float HistoryStretch(int2 px, float2 motionPx)
+{
+    const float centerDepth = InDepth[px];
+    const int2 size = int2(DstTexSize.xy);
+    float2 stretch = 1.0f;
+    [unroll]
+    for (int axis = 0; axis < 2; ++axis)
+    {
+        float derivative = 0.0f;
+        float samples = 0.0f;
+        [unroll]
+        for (int side = -1; side <= 1; side += 2)
+        {
+            const int2 q = px + (axis == 0 ? int2(side, 0) : int2(0, side));
+            if (any(q < 0) || any(q >= size))
+                continue;
+            if (abs(InDepth[q] - centerDepth) > 0.05f * abs(centerDepth))
+                continue;
+            const float3 motion = GetCanonicalMotionUv(uint2(q));
+            if (motion.z == 0.0f)
+                continue;
+            derivative += (motion[axis] * DstTexSize[axis] - motionPx[axis]) * side;
+            samples += 1.0f;
+        }
+        stretch[axis] = samples > 0.0f ? abs(1.0f + derivative / samples) : 1.0f;
+    }
+    return min(stretch.x, stretch.y);
+}
+
+// Geometric disocclusion check (diagnostic, off unless FLAGS_DISOCCLUSION_CHECK).
+//
+// RR's own disocclusion test misses surfaces revealed at grazing angles - stairs appearing
+// below a platform edge while walking towards it. The floor that covered them last frame is
+// within a few percent of their depth, and those pixels inherit the floor's history: a smeared
+// ghost that the dark, sparse stair lighting then takes many frames to clear. Captured stair
+// reveals had 15-20% of revealed pixels at a 1-10% depth mismatch; AMD's own 0.01 threshold
+// did not remove the ghost in replays, this test did (to the historyless level).
+//
+// The test compares last frame's depth at the pixel's previous position (2x2 texels, the
+// closest wins, so sub-pixel jitter and thin structures that a neighbour still covers do not
+// count) with the depth its surface had then. That expected depth is camera-only, so the test
+// runs only where the title's motion vector agrees with the camera-only reprojection to half a
+// pixel: moving objects and first-person view models keep RR's own handling. Replays: static
+// water and thin structures unaffected (error -1..+1%), revealed stairs ghost-free.
+bool GeometricDisocclusion(int2 px, float3 prevViewPos, float2 motionUv)
+{
+    if (!isfinite(prevViewPos.z) || abs(prevViewPos.z) < 1e-4f)
+        return false;
+    // View-ray slopes are affine in UV for a perspective projection; two rays give the inverse.
+    const float3 ray0 = InvProjectPosition(float3(0.0f, 0.0f, 0.5f), InvProjMatrix);
+    const float3 ray1 = InvProjectPosition(float3(1.0f, 1.0f, 0.5f), InvProjMatrix);
+    const float2 slope0 = ray0.xy / ray0.z;
+    const float2 slopeSpan = ray1.xy / ray1.z - slope0;
+    if (any(abs(slopeSpan) < 1e-6f))
+        return false;
+    const float2 uv = (float2(px) + 0.5f - JitterOffsets.xy) * DstTexSize.zw;
+    const float2 previousUv = uv + motionUv;
+    const float2 cameraPreviousUv = (prevViewPos.xy / prevViewPos.z - slope0) / slopeSpan;
+    if (any(abs(cameraPreviousUv - previousUv) * DstTexSize.xy > 0.5f))
+        return false;
+    // Last frame's texel q holds the surface at unjittered UV (q + 0.5 - previous jitter) / size.
+    const float2 texel = previousUv * DstTexSize.xy + JitterOffsets.zw - 0.5f;
+    const int2 q0 = int2(floor(texel));
+    const int2 bounds = int2(DstTexSize.xy) - 1;
+    if (any(q0 < 0) || any(q0 + 1 > bounds))
+        return false;   // came from off screen: RR knows that case
+    float closest = 3.0e38f;
+    [unroll]
+    for (int i = 0; i < 4; ++i)
+        closest = min(closest, abs(InPreviousDepth[q0 + int2(i & 1, i >> 1)] - prevViewPos.z));
+    return closest > 0.03f * abs(prevViewPos.z);
+}
+
+// Input colour noise regularisation (diagnostic, off unless FLAGS_INPUT_CHROMA).
+//
+// The title's one-sample lighting is coloured as well as noisy: each sample carries the colour of
+// whatever its path reached (red/blue neon, blue sky, a yellow wall), and the brightest 0.1% are
+// hundreds of times the median. RR averages the brightness of such samples well but not their
+// colour: on stair treads lit by neon signs it left short red and blue dashes along the tread
+// edges, worst where history is short (jumping). Replays with every history reset off kept them;
+// replacing each sample's colour with its neighbourhood's removed them.
+//
+// So the sample keeps its luminance and takes the light colour of its same-surface neighbourhood:
+// the summed lighting (raw over the albedo sum) of a 9x9 window, which weights each neighbour by
+// its energy, the unbiased estimate of the local light colour. A robust (equal-weight) colour
+// removed the dashes completely but tinted the image by 5% towards the colour of the dark samples.
+// Taps on another surface (depth beyond 5%) are skipped so colours do not bleed across silhouettes,
+// and near-mirror surfaces keep their own colour so sharp reflections stay sharp.
+// Replay of the stair jump (e17e8dcf): dashes -78% (rising) / -74% (afterwards), light colour cast
+// 0.4%, luminance unchanged.
+#define CHROMA_RADIUS 4
+#define CHROMA_TILE (THREAD_GROUP_SIZE_X + 2 * CHROMA_RADIUS)
+#define CHROMA_SEGMENTS (CHROMA_TILE * THREAD_GROUP_SIZE_X)
+groupshared float4 g_ChromaLight[CHROMA_TILE * CHROMA_TILE];
+// Per tile row and window column: the row's 2R+1 lighting texels summed, with the lowest depth in A
+// and the highest in g_ChromaRowMax. A window row whose depths all lie within the tolerance of the
+// centre is taken whole; the 80-tap loop on its own cost 0.85 ms at 1440p.
+groupshared float4 g_ChromaRowSum[CHROMA_SEGMENTS];
+groupshared float g_ChromaRowMax[CHROMA_SEGMENTS];
+
+// What RR's two lobes carry at q before the Floor pedestal: raw colour over the title's albedo sum.
+float3 InputLighting(int2 q)
+{
+    const float3 albedo = saturate(FloorRadiance(InSpecAlbedo[q + int2(InputBase3.xy)].rgb)) +
+        saturate(FloorRadiance(InDiffAlbedo[q + int2(InputBase2.zw)].rgb));
+    return FloorRadiance(InColor[q + int2(InputBase0.xy)].rgb) / max(albedo, 0.02f);
+}
+
+// The group's lighting and depth with a CHROMA_RADIUS halo. Every thread of the group must call it
+// before any thread returns.
+void PrepareChromaReference(uint2 groupID, uint2 gtID)
+{
+    const int2 origin = int2(groupID * s_ThreadGroupSize) - CHROMA_RADIUS;
+    const int2 last = int2(DstTexSize.xy) - 1;
+    const uint flatID = gtID.y * THREAD_GROUP_SIZE_X + gtID.x;
+    for (uint i = flatID; i < CHROMA_TILE * CHROMA_TILE; i += NUM_THREADS)
+    {
+        const int2 q = clamp(origin + int2(i % CHROMA_TILE, i / CHROMA_TILE), 0, last);
+        g_ChromaLight[i] = float4(InputLighting(q), InDepth[q]);
+    }
+    GroupMemoryBarrierWithGroupSync();
+    for (uint s = flatID; s < CHROMA_SEGMENTS; s += NUM_THREADS)
+    {
+        const uint first = (s / THREAD_GROUP_SIZE_X) * CHROMA_TILE + s % THREAD_GROUP_SIZE_X;
+        float3 sum = 0.0f;
+        float lowest = 3.0e38f;
+        float highest = -3.0e38f;
+        [unroll]
+        for (uint x = 0; x <= 2 * CHROMA_RADIUS; ++x)
+        {
+            const float4 tap = g_ChromaLight[first + x];
+            sum += tap.rgb;
+            lowest = min(lowest, tap.w);
+            highest = max(highest, tap.w);
+        }
+        g_ChromaRowSum[s] = float4(sum, lowest);
+        g_ChromaRowMax[s] = highest;
+    }
+    GroupMemoryBarrierWithGroupSync();
+}
+
+// Summed lighting of the same-surface neighbours in the window, the centre excluded.
+float3 ChromaReference(uint2 gtID, float centreDepth)
+{
+    const float tolerance = 0.05f * abs(centreDepth);
+    float3 sum = 0.0f;
+    [loop]
+    for (uint y = 0; y <= 2 * CHROMA_RADIUS; ++y)
+    {
+        const uint segment = (gtID.y + y) * THREAD_GROUP_SIZE_X + gtID.x;
+        const float4 row = g_ChromaRowSum[segment];
+        [branch]
+        if (row.w >= centreDepth - tolerance && g_ChromaRowMax[segment] <= centreDepth + tolerance)
+        {
+            sum += row.rgb;
+        }
+        else
+        {
+            [unroll]
+            for (uint x = 0; x <= 2 * CHROMA_RADIUS; ++x)
+            {
+                const float4 tap = g_ChromaLight[(gtID.y + y) * CHROMA_TILE + gtID.x + x];
+                if (abs(tap.w - centreDepth) <= tolerance)
+                    sum += tap.rgb;
+            }
+        }
+    }
+    // The centre passes its own depth test on either path. Rounding must not leave a negative channel.
+    return max(sum - g_ChromaLight[(gtID.y + CHROMA_RADIUS) * CHROMA_TILE + gtID.x + CHROMA_RADIUS].rgb, 0.0f);
 }
 
 // The reflected-image motion input, and the routing it drove, are gone: measured on the one
@@ -735,10 +950,16 @@ float GetDemodBoundaryRisk(uint2 px)
     return combined;
 }
 
+#if FSRD_SKIN_BOUNDS_ENABLED
+void ProcessPixel(uint3 groupID, uint3 gtID, out float2 storedUv)
+{
+    storedUv=0.0f;
+#else
 [RootSignature(MainRS)]
 [numthreads(THREAD_GROUP_SIZE_X, THREAD_GROUP_SIZE_Y, 1)]
 void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 {
+#endif
 #if FSRD_CAPTURE_ROI
     groupID.xy += uint2(InspectorScale, DebugDepthMax) / s_ThreadGroupSize;
 #endif
@@ -747,6 +968,10 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     // No divergent return may precede the shared halo's group barrier.
     PrepareAdditiveFitSharedMemory(groupID.xy, gtID.xy);
 #endif
+    // Group barrier inside; it must also precede the out-of-extent return below.
+    [branch]
+    if (IsSet(FLAGS_INPUT_CHROMA))
+        PrepareChromaReference(groupID.xy, gtID.xy);
     const uint2 px = groupID.xy * s_ThreadGroupSize + gtID.xy;
     const float2 uv = (float2(px) + 0.5f) * DstTexSize.zw;
     
@@ -839,7 +1064,14 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     // spatial filtering. Relax only the noisy part of that ceiling. Mixed-
     // derivative uncertainty must agree with the seed's contrast estimate;
     // clean strokes/ramps keep their original ceiling and volume stays spatial.
+#if FSRD_SKIN_ENABLED
+    const float3 gameColor = FloorRadiance(InOriginalColor[int2(px) + int2(SkinOptions.xy)].rgb);
+    const float sssGuide = InSssGuide[px + int2(SkinDebug.yz)];
+    // First colour operation, shared with the raw reference preparation pass.
+    const float3 rawColor = SkinOptions.z == 1u ? SkinSeparate(gameColor, sssGuide) : gameColor;
+#else
     const float3 rawColor = FloorRadiance(InColor[colorPx].rgb);
+#endif
 #if FSRD_ADDITIVE_DIAGNOSTICS
     AdditiveCheck(1u, false); // Remains a route rejection unless the fit is visited.
     ADD_RECORD(34, rawColor);
@@ -887,6 +1119,8 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     const bool screenRROnly = handoverSurface;
     if (screenRROnly)
         spatialFloor = 0.0f;
+    // Keep the computed Floor for detail/structure, but send all its light through RR.
+    if (IsSet(FLAGS_FLOOR_THROUGH_RR)) spatialFloor = 0.0f;
     const float4 floorModel = InFloorModel[px];
     const float3 materialSlope = DecodeFloorModel(floorModel);
     const float modelResponsivity = IsSet(FLAGS_HAS_RESPONSIVITY_MASK) ? InResponsivityMask[px].r : 0.0f;
@@ -944,6 +1178,21 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
     // when the spatial estimate crosses above raw. No detail may touch routed content.
     floorColor.rgb = (1.0f - biasWeight) * spatialFloor + biasWeight * rawColor;
     float3 denoiserColor = (1.0f - biasWeight) * max(residualSource - spatialFloor, 0.0f);
+    // See ChromaReference. Only RR's share changes: Skip, the Floor and the references keep the raw
+    // colour; with Floor on, the residual takes the colour of all the light around it. Emission,
+    // routed colour and selected screens carry colour that is not lighting.
+    [branch]
+    if (IsSet(FLAGS_INPUT_CHROMA) && isEmissive == 0.0f && biasWeight == 0.0f && !handoverSurface)
+    {
+        const float3 divisor = max(carrierAlbedo, 0.02f);
+        const float3 reference = ChromaReference(gtID.xy, InDepth[px]);
+        const float referenceLuma = GetLuminance(reference);
+        if (referenceLuma > 0.0f)
+        {
+            const float3 regularised = reference * (GetLuminance(denoiserColor / divisor) / referenceLuma) * divisor;
+            denoiserColor = lerp(denoiserColor, regularised, saturate((rawRoughness - 0.15f) * 5.0f));
+        }
+    }
     // Truncating noisy negative residuals has a positive expectation. The flat
     // material's sigma has been spatially averaged with Floor; remove its small
     // expected excess without resampling current negative grain into Skip.
@@ -954,9 +1203,6 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         floorColor.rgb = max(floorColor.rgb - min(clippingBias, 0.05f * floorColor.rgb), 0.0f);
     }
     float3 floorResidual = denoiserColor;
-
-
-
     // Depth - full position needed for reprojected depth delta
     // An infinite far plane reaches this shader as FLT_MAX. Normalising a log
     // against it puts log(3.4e38) = 88.7 in the denominator, which squeezes every
@@ -1005,7 +1251,13 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         const float roughness = inputRoughness + appliedRoughness;
 
         // Output: RG=OctNormal, B=Roughness, A=MaterialID
+#if FSRD_SKIN_BOUNDS_ENABLED
+        const half4 skinBoundsStoredNormal=GetSafeFP16(float4(octNormal, roughness, materialType));
+        OutNormals[FSRD_OUTPUT_PIXEL(px)]=skinBoundsStoredNormal;
+        storedUv=float2(skinBoundsStoredNormal.xy);
+#else
         OutNormals[FSRD_OUTPUT_PIXEL(px)] = GetSafeFP16(float4(octNormal, roughness, materialType));
+#endif
    
         // Motion Vectors & Depth Delta. XY is canonicalized once into unjittered
         // PreviousUV-CurrentUV. RR's B contract is the previous-camera depth of the
@@ -1016,6 +1268,27 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
         float3 prevViewSpacePos = mul(PrevViewMatrix, float4(worldSpacePos, 1.0f)).xyz;
 
         const float3 canonicalMotion = GetCanonicalMotionUv(px);
+#if FSRD_SKIN_ENABLED
+        // One camera-model disagreement drives both independent moving-object controls.
+        float objectMotionWeight = 0.0f;
+        float2 objectPreviousTexel = 0.0f;
+        if ((SkinOptions.w & 3u) != 0u && canonicalMotion.z > 0.0f &&
+            isfinite(prevViewSpacePos.z) && abs(prevViewSpacePos.z) > 1e-6f)
+        {
+            const float3 ray0 = InvProjectPosition(float3(0.0f, 0.0f, 0.5f), InvProjMatrix);
+            const float3 ray1 = InvProjectPosition(float3(1.0f, 1.0f, 0.5f), InvProjMatrix);
+            const float2 slope0 = ray0.xy / ray0.z;
+            const float2 span = ray1.xy / ray1.z - slope0;
+            if (all(abs(span) > 1e-6f))
+            {
+                const float2 previousUv = (float2(px) + 0.5f - JitterOffsets.xy) * DstTexSize.zw + canonicalMotion.xy;
+                const float2 cameraUv = (prevViewSpacePos.xy / prevViewSpacePos.z - slope0) / span;
+                const float errorPx = length((previousUv - cameraUv) * DstTexSize.xy);
+                objectMotionWeight = smoothstep(0.75f, 1.5f, errorPx);
+                objectPreviousTexel = previousUv * DstTexSize.xy + JitterOffsets.zw - 0.5f;
+            }
+        }
+#endif
 
         // Specular motion tracking handover.
         //
@@ -1069,9 +1342,33 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                 ? clamp(abs(viewSpacePos.z), 1e-3f, 65472.0f) : s_InvalidSpecularHitDistance);
 
         const float2 motionUv = canonicalMotion.xy;
-        const float depthDelta = isfinite(prevViewSpacePos.z)
+        float depthDelta = isfinite(prevViewSpacePos.z)
             ? prevViewSpacePos.z - viewSpacePos.z
             : 0.0f;
+
+#if FSRD_SKIN_ENABLED
+        if ((SkinOptions.w & 5u) == 5u && objectMotionWeight > 0.0f)
+        {
+            const int2 previousPixel = int2(round(objectPreviousTexel));
+            if (all(previousPixel >= 0) && all(previousPixel < int2(DstTexSize.xy)))
+            {
+                const float previousDepth = InPreviousDepth[previousPixel];
+                if (isfinite(previousDepth) && abs(previousDepth) > 1e-6f)
+                    depthDelta = lerp(depthDelta, previousDepth - viewSpacePos.z, objectMotionWeight);
+            }
+        }
+#endif
+        // See StretchResetThreshold. Half the view depth is far past any disocclusion
+        // threshold RR can be tuned to, so a selected pixel restarts whatever the tuning.
+        const float stretchResetThreshold = StretchResetThreshold();
+        float historyStretch = 1.0f;
+        if ((stretchResetThreshold > 0.0f || GetDebugMode() == FLAGS_DEBUG_STRETCH_RESET) &&
+            canonicalMotion.z > 0.0f)
+            historyStretch = HistoryStretch(int2(px), motionUv * DstTexSize.xy);
+        const bool disoccluded = IsSet(FLAGS_DISOCCLUSION_CHECK) && canonicalMotion.z > 0.0f &&
+            GeometricDisocclusion(int2(px), prevViewSpacePos, motionUv);
+        if (historyStretch < stretchResetThreshold || disoccluded)
+            depthDelta += 0.5f * abs(viewSpacePos.z);
 
         const float3 motionOut = float3(motionUv, depthDelta);
         OutMotion[FSRD_OUTPUT_PIXEL(px)] = half4(GetSafeSignedFP16(motionOut), canonicalMotion.z *
@@ -1250,6 +1547,12 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             ? half(reflectionHitDistance < 0.0f ? s_InvalidSpecularHitDistance : reflectionHitDistance * specularTracking)
             : half(0.0f);
 
+#if FSRD_SKIN_ENABLED
+        half skinHitDist = hitDist;
+        if ((SkinOptions.w & 2u) != 0u && objectMotionWeight > 0.0f &&
+            reflectionHitDistance >= 0.0f && IsSet(FLAGS_SPECULAR_SIGNAL_INDIRECT))
+            skinHitDist = half(float(hitDist) * (1.0f - objectMotionWeight));
+#endif
         [branch]
         if (!IsSet(FLAGS_DEBUG))
         {
@@ -1277,7 +1580,12 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             // the estimated lobe equally when both are selected, then sum both RR outputs.
             // Routing/Skip above uses the full lobe, so no energy is added or lost.
             OutIndirectSpecular[FSRD_OUTPUT_PIXEL(px)] = half4(
-                demodSpecular * (IsSet(FLAGS_HALF_SPECULAR) ? 0.5f : 1.0f), hitDist);
+                demodSpecular * (IsSet(FLAGS_HALF_SPECULAR) ? 0.5f : 1.0f),
+#if FSRD_SKIN_ENABLED
+                skinHitDist);
+#else
+                hitDist);
+#endif
             OutDirectDiffuse[FSRD_OUTPUT_PIXEL(px)] = half4(
                 demodDiffuse * (IsSet(FLAGS_HALF_DIFFUSE) ? 0.5f : 1.0f), diffuseHitDist);
 #if !FSRD_ADDITIVE_DIAGNOSTICS
@@ -1318,6 +1626,10 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
             // branch, so the skip path no longer clears it either: without this write
             // the diffuse signal keeps the last non-debug frame for the whole session.
             OutDirectDiffuse[FSRD_OUTPUT_PIXEL(px)] = half4(0.0f, 0.0f, 0.0f, s_MissingDiffuseHitDistance);
+#if FSRD_SKIN_ENABLED
+            if (SkinDebug.x == 3u)
+                OutDirectDiffuse[FSRD_OUTPUT_PIXEL(px)] = half4(demodDiffuse, s_MissingDiffuseHitDistance);
+#endif
 #if !FSRD_ADDITIVE_DIAGNOSTICS
             OutDirectSpecular[FSRD_OUTPUT_PIXEL(px)] = 0.0f;
             OutIndirectDiffuse[FSRD_OUTPUT_PIXEL(px)] = 0.0f;
@@ -1530,6 +1842,19 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                     debugColor = GetDemodBoundaryRisk(px).xxx;
                     break;
 
+                // History stretch on a Turbo scale over 0..1.5. White pixels restart their
+                // history at the selected level, or would at Light while the reset is off;
+                // magenta shows where composition's streak filter engages (stretch below 0.9,
+                // full at 0.8; composition estimates it from the same motion); cyan marks pixels
+                // the geometric disocclusion check restarts.
+                case FLAGS_DEBUG_STRETCH_RESET:
+                    debugColor = disoccluded ? float3(0.0f, 1.0f, 1.0f)
+                        : historyStretch < (stretchResetThreshold > 0.0f ? stretchResetThreshold : 0.6f)
+                        ? 1.0f
+                        : lerp(TurboColormap(saturate(historyStretch / 1.5f)), float3(1.0f, 0.0f, 1.0f),
+                               saturate((0.9f - historyStretch) * 10.0f));
+                    break;
+
                 case FLAGS_DEBUG_FLOOR_RESIDUAL:
                     debugColor = floorResidual;
                     break;
@@ -1640,6 +1965,14 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
                     break;
             }
         
+#if FSRD_SKIN_ENABLED
+            if (SkinDebug.x == 1u)
+            {
+                const float ratio = sssGuide / max(SkinLuma(gameColor), 1e-4f);
+                debugColor = float3(max(ratio, 0.0f), 0.0f, max(-ratio, 0.0f));
+            }
+            else if (SkinDebug.x == 2u) debugColor = SkinSeparate(gameColor, sssGuide);
+#endif
             OutIndirectSpecular[FSRD_OUTPUT_PIXEL(px)] = half4(debugColor, 1.0f);
         }
     }
@@ -1707,3 +2040,7 @@ void CSMain(uint3 groupID : SV_GroupID, uint3 gtID : SV_GroupThreadID)
 #endif
 
 }
+
+#if FSRD_SKIN_BOUNDS_ENABLED
+#include "FSRDSkinBounds.hlsli"
+#endif

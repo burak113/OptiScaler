@@ -215,7 +215,15 @@ int main(int argc,char** argv) try {
         record(dispatch.motionVectorScale); record(dispatch.cameraPositionDelta);
         record(dispatch.jitterOffsets); record(dispatch.linearDepthBounds);
         record(dispatch.view); record(dispatch.projection);
+        // Optional test adapters can timestamp only the actual SDK GPU work.
+        // Without hooks the runner records exactly the original command sequence.
+#ifdef FSRD_RR_BEFORE_DISPATCH_HOOK
+        FSRD_RR_BEFORE_DISPATCH_HOOK(dev.Get(),queue.Get(),cmd.Get(),frame,frames,argv[1]);
+#endif
         ff(api.Dispatch(&context,&dispatch.header),"dispatch RR");
+#ifdef FSRD_RR_AFTER_DISPATCH_HOOK
+        FSRD_RR_AFTER_DISPATCH_HOOK(dev.Get(),queue.Get(),cmd.Get(),frame,frames,argv[1]);
+#endif
         for(unsigned i=7;i<tex.size();++i) {
             if(isInput(i)) continue;
             if((i==7&&!diffFlag)||(i==8&&!specFlag)) continue;

@@ -228,11 +228,20 @@ def _build(source, output, libraries, vs_root, dependencies=None, include_dirs=(
         + ('/link ' + ' '.join(_library_argument(library) for library in libraries)
            + (' /VERBOSE:LIB' if link_dependencies else '') if libraries or link_dependencies else '')
         + '\n', encoding='utf-8')
-    if not link_dependencies:
-        subprocess.run(f'cmd /d /s /c ""{command}""', cwd=build_dir or output.parent, check=True, env=build_environment)
-        return
-    result = subprocess.run(f'cmd /d /s /c ""{command}""', cwd=build_dir or output.parent, env=build_environment,
-                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8', errors='replace')
+    # CL also creates a linker response file under TEMP/TMP. A caller may inherit
+    # a user-profile temp directory that the sandbox cannot write, even though
+    # every explicit build output is writable. Keep those scratch files beside
+    # the build and leave the caller's environment untouched.
+    build_root = Path(build_dir or output.parent).resolve()
+    with tempfile.TemporaryDirectory(prefix='msvc_tmp_', dir=build_root) as temporary:
+        Path(temporary).resolve().relative_to(build_root)
+        environment = dict(build_environment if build_environment is not None else os.environ)
+        environment.update(TEMP=temporary, TMP=temporary)
+        if not link_dependencies:
+            subprocess.run(f'cmd /d /s /c ""{command}""', cwd=build_root, check=True, env=environment)
+            return
+        result = subprocess.run(f'cmd /d /s /c ""{command}""', cwd=build_root, env=environment,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8', errors='replace')
     if result.returncode:
         print(result.stdout, end='')
         result.check_returncode()

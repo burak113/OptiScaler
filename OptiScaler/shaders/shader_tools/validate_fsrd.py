@@ -39,8 +39,9 @@ SHADERS = (*BASELINE_SHADERS, 'FSRDFloorSeedCleanLighting', 'FSRDInputConvAdditi
            'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
            'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor',
            'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate',
-           'FSRDVolumeGather', 'FSRDVolumeAccumulate', 'FSRDVolumeApply')
+           'FSRDVolumeGather', 'FSRDVolumeAccumulate', 'FSRDVolumeApply', 'FSRDRecoveryVolumeAccumulate', 'FSRDRecoveryVolumeApply', 'FSRDSssPrepare', 'FSRDSssBlur', 'FSRDSkinPrefilter', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDProbeInputs', 'FSRDReference', 'FSRDLeak', 'FSRDAlbedoStabilise', 'FSRDFogStats', 'FSRDFogKappa', 'FSRDFogRank', 'FSRDFogSmooth', 'FSRDFogRoute')
 HOST_CORRECTNESS = (
+    'test_fsrd_fog_host_contract',
     'test_fsrd_roughness_acceptance', 'test_fsr_output_scaling',
     'test_fsrd_camera_matrices', 'test_fsrd_sr_alignment',
     'test_fsr_upscale_settings', 'test_fsrd_title_linear_depth_extent', 'test_fsr_reactive_masks',
@@ -49,13 +50,14 @@ HOST_CORRECTNESS = (
 )
 SUITES = (
     *HOST_CORRECTNESS,
+    'test_fsrd_recovery_v2', 'test_fsrd_recovery_volume',
     'test_fsrd_dispatch_chain',
     'test_fsrd_composition_variants',
     'test_fsrd_composition_graph',
     'test_fsrd_signal_modes', 'test_fsrd_unsupported_albedo', 'test_fsrd_unsupported_albedo_skip',
     'test_fsrd_albedo_support', 'test_fsrd_signal_policy',
     'test_fsrd_host_lifetimes',
-    'test_fsrd_stage_timings', 'test_fsrd_rr_retry_policy',
+    'test_fsrd_stage_timings', 'test_fsrd_rr_retry_policy', 'test_fsrd_skin_sss', 'test_fsrd_research',
     'test_fsrd_additive_split',
     'test_fsrd_additive_diagnostics',
     'test_fsrd_additive_capture_reader',
@@ -103,7 +105,7 @@ QUICK = (
     *HOST_CORRECTNESS,
     'test_fsrd_dispatch_chain', 'test_fsrd_signal_policy', 'test_fsrd_host_lifetimes',
     'test_fsrd_magnifier_lifetime',
-    'test_fsrd_stage_timings', 'test_fsrd_rr_retry_policy', 'test_fsrd_ini_cleanup', 'test_fsrd_reference_integrity',
+    'test_fsrd_stage_timings', 'test_fsrd_rr_retry_policy', 'test_fsrd_skin_sss', 'test_fsrd_research', 'test_fsrd_ini_cleanup', 'test_fsrd_reference_integrity',
     'test_fsrd_additive_lifetime', 'test_fsrd_game_trace_capture', 'test_fsrd_game_trace_v5_reader',
     'test_fsrd_full_bias_guard',
     'run_fsrd_gpu_tests', 'test_fsrd_composition_variants', 'test_fsrd_composition_graph',
