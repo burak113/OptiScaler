@@ -39,6 +39,7 @@
 #include "precompile/FSRDFlatDetailBase_Shader.h"
 #include "precompile/FSRDFlatDetailApply_Shader.h"
 #include "precompile/FSRDFlatTemporal_Shader.h"
+#include "precompile/FSRDFlatTemporalLP_Shader.h"
 #include "precompile/FSRDFlatTemporalStore_Shader.h"
 
 #include "precompile/FSRDAlbedoTrustEvidence_Shader.h"
@@ -389,10 +390,11 @@ struct FSRDPreprocessor_Dx12::Impl
     ComPtr<ID3D12Resource> m_flatDetailBase, m_flatDetailMean, m_flatDetailVariance;
     FlatDetail::Constants m_flatDetailConstants {};
     bool m_flatDetailActive = false;
-    ComputeState m_flatTemporalShader, m_flatTemporalStoreShader;
-    // Three six-slice RGBA16F arrays hold ORIGINAL references and their per-sample validation metadata.
-    ComPtr<ID3D12Resource> m_flatHistoryReference, m_flatHistoryMotionDepth, m_flatHistoryNormalLP;
-    ComPtr<ID3D12Resource> m_flatTemporalReference, m_flatTemporalNormalLP, m_flatTemporalDiagnostics;
+    ComputeState m_flatTemporalShader, m_flatTemporalStoreShader, m_flatTemporalLPShader;
+    // Six-slice arrays hold ORIGINAL references (RGBA16F log + depth) and their validation metadata
+    // (R32G32_UINT aux); low-pass lumas use a 4x4 block grid ring. 16.25 bytes per pixel and slice.
+    ComPtr<ID3D12Resource> m_flatHistoryReference, m_flatHistoryAux, m_flatHistoryLP;
+    ComPtr<ID3D12Resource> m_flatTemporalLP, m_flatTemporalDiagnostics;
     FlatTemporal::Constants m_flatTemporalConstants {};
     UINT m_flatHistoryHead = 0, m_flatHistoryCount = 0, m_flatHistoryLength = 0;
     XMFLOAT4 m_flatHistorySize {};
@@ -1356,8 +1358,8 @@ struct FSRDPreprocessor_Dx12::Impl
         for (auto& resource : m_flatDetailStatistics) resource.Reset();
         m_flatDetailBase.Reset(); m_flatDetailMean.Reset(); m_flatDetailVariance.Reset();
         m_flatDetailActive = false;
-        m_flatHistoryReference.Reset(); m_flatHistoryMotionDepth.Reset(); m_flatHistoryNormalLP.Reset();
-        m_flatTemporalReference.Reset(); m_flatTemporalNormalLP.Reset(); m_flatTemporalDiagnostics.Reset();
+        m_flatHistoryReference.Reset(); m_flatHistoryAux.Reset(); m_flatHistoryLP.Reset();
+        m_flatTemporalLP.Reset(); m_flatTemporalDiagnostics.Reset();
         ResetFlatTemporalHistory();
 
         auto CreateTex = [&](DXGI_FORMAT fmt, LPCWSTR name, UINT mipLevels = 1)
@@ -1502,8 +1504,8 @@ struct FSRDPreprocessor_Dx12::Impl
 
     void EnsureFlatTemporal()
     {
-        if (m_flatTemporalReference && m_flatHistoryReference && m_flatHistoryMotionDepth &&
-            m_flatHistoryNormalLP && m_flatTemporalNormalLP && m_flatTemporalDiagnostics) return;
+        if (m_flatHistoryReference && m_flatHistoryAux && m_flatHistoryLP && m_flatTemporalLP &&
+            m_flatTemporalDiagnostics) return;
         ScopedSkipHeapCapture skipHeapCapture {};
         if (!m_flatTemporalShader.m_pso)
             m_flatTemporalShader.Initialize(m_pDev, GetAsByteSpan(FSRDFlatTemporal_cso),
@@ -1513,12 +1515,17 @@ struct FSRDPreprocessor_Dx12::Impl
             m_flatTemporalStoreShader.Initialize(m_pDev, GetAsByteSpan(FSRDFlatTemporalStore_cso),
                 sizeof(FlatTemporal::Constants), FlatTemporal::StoreInput::kCount,
                 FlatTemporal::StoreOutput::kCount, L"FSRD_FlatTemporal_Store");
-        const auto history = [&](LPCWSTR name) {
+        if (!m_flatTemporalLPShader.m_pso)
+            m_flatTemporalLPShader.Initialize(m_pDev, GetAsByteSpan(FSRDFlatTemporalLP_cso),
+                sizeof(FlatTemporal::Constants), FlatTemporal::LPInput::kCount, 1, L"FSRD_FlatTemporal_LP");
+        const UINT lpWidth = (m_maxWidth + FlatTemporal::kLPBlock - 1) / FlatTemporal::kLPBlock;
+        const UINT lpHeight = (m_maxHeight + FlatTemporal::kLPBlock - 1) / FlatTemporal::kLPBlock;
+        const auto history = [&](LPCWSTR name, DXGI_FORMAT format, UINT width, UINT height) {
             D3D12_RESOURCE_DESC texture {};
             texture.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-            texture.Width = m_maxWidth; texture.Height = m_maxHeight;
+            texture.Width = width; texture.Height = height;
             texture.DepthOrArraySize = FlatTemporal::kHistorySlots; texture.MipLevels = 1;
-            texture.Format = DXGI_FORMAT_R16G16B16A16_FLOAT; texture.SampleDesc.Count = 1;
+            texture.Format = format; texture.SampleDesc.Count = 1;
             texture.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
             texture.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
             D3D12_HEAP_PROPERTIES heap {D3D12_HEAP_TYPE_DEFAULT};
@@ -1528,20 +1535,20 @@ struct FSRDPreprocessor_Dx12::Impl
             resource->SetName(name);
             return resource;
         };
-        m_flatHistoryReference = history(L"FSRD_FlatTemporal_HistoryReference");
-        m_flatHistoryMotionDepth = history(L"FSRD_FlatTemporal_HistoryMotionDepth");
-        m_flatHistoryNormalLP = history(L"FSRD_FlatTemporal_HistoryNormalLP");
-        m_flatTemporalReference = CreateTexture2D(m_pDev, m_maxWidth, m_maxHeight,
-            DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSRD_FlatTemporal_Reference", kSrvState);
-        m_flatTemporalNormalLP = CreateTexture2D(m_pDev, m_maxWidth, m_maxHeight,
-            DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSRD_FlatTemporal_NormalLP", kSrvState);
+        m_flatHistoryReference = history(L"FSRD_FlatTemporal_HistoryReference", DXGI_FORMAT_R16G16B16A16_FLOAT,
+                                         m_maxWidth, m_maxHeight);
+        m_flatHistoryAux = history(L"FSRD_FlatTemporal_HistoryAux", DXGI_FORMAT_R32G32_UINT, m_maxWidth, m_maxHeight);
+        m_flatHistoryLP = history(L"FSRD_FlatTemporal_HistoryLP", DXGI_FORMAT_R16G16_FLOAT, lpWidth, lpHeight);
+        m_flatTemporalLP = CreateTexture2D(m_pDev, lpWidth, lpHeight, DXGI_FORMAT_R16G16_FLOAT,
+            L"FSRD_FlatTemporal_LP", kSrvState);
         m_flatTemporalDiagnostics = CreateTexture2D(m_pDev, m_maxWidth, m_maxHeight,
             DXGI_FORMAT_R16G16_FLOAT, L"FSRD_FlatTemporal_ValidCountWeight", kSrvState);
         ResetFlatTemporalHistory();
     }
 
+    // Writes the temporal reference into `output` (the free ping-pong reference) and returns it.
     ID3D12Resource* ResolveFlatTemporal(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc,
-                                      ID3D12Resource* originalReference, uint32_t flags)
+                                      ID3D12Resource* originalReference, ID3D12Resource* output, uint32_t flags)
     {
         if (!desc.RecoveryFlatTemporal)
         {
@@ -1570,20 +1577,26 @@ struct FSRDPreprocessor_Dx12::Impl
             .HistoryDecay = FlatTemporal::kHistoryDecay,
         };
         auto& r = m_out.Resources;
-        FlatTemporal::ResolveInput in {{originalReference, CompositionColor(), r.Normals.Get(),
-            m_LinearDepth.Get(), r.Motion.Get(), r.Signals.IndirectSpecular.Get(), r.Signals.DirectDiffuse.Get(),
-            r.SpecAlbedo.Get(), r.DiffAlbedo.Get(), r.SkipSignal.Get(), m_flatDetailTiles.Get(),
-            m_flatHistoryReference.Get(), m_flatHistoryMotionDepth.Get(), m_flatHistoryNormalLP.Get()}};
-        FlatTemporal::ResolveOutput out {{m_flatTemporalReference.Get(), m_flatTemporalNormalLP.Get(),
-            m_flatTemporalDiagnostics.Get()}};
+        // Every 4x4 block of the current frame's low-pass lumas, before the resolve reads them.
+        FlatTemporal::LPInput lpIn {{CompositionColor(), r.Normals.Get(), m_LinearDepth.Get(),
+            r.Signals.IndirectSpecular.Get(), r.Signals.DirectDiffuse.Get(), r.SpecAlbedo.Get(), r.DiffAlbedo.Get(),
+            r.SkipSignal.Get()}};
+        ID3D12Resource* lpOut[] {m_flatTemporalLP.Get()};
+        const float block = float(FlatTemporal::kLPBlock);
+        m_flatTemporalLPShader.Dispatch(cmdList, GetAsByteSpan(constants), lpIn.AsArray, lpOut,
+            {std::ceil(desc.DstTexSize.x / block), std::ceil(desc.DstTexSize.y / block)});
+        FlatTemporal::ResolveInput in {{originalReference, r.Normals.Get(), m_LinearDepth.Get(), r.Motion.Get(),
+            r.SkipSignal.Get(), m_flatDetailTiles.Get(), m_flatTemporalLP.Get(),
+            m_flatHistoryReference.Get(), m_flatHistoryAux.Get(), m_flatHistoryLP.Get()}};
+        FlatTemporal::ResolveOutput out {{output, m_flatTemporalDiagnostics.Get()}};
         m_flatTemporalShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray, {0,0},
             true, nullptr, m_flatDetailSignature.Get(), m_flatDetailArguments.Get());
         // Read only the original reference. Accumulated output must never re-enter the ring.
-        // Resolve's UAV->SRV barriers complete before Store consumes NormalLP or Base consumes the result.
+        // Store copies the current low-pass blocks into the ring after the resolve has read the old slot.
         FlatTemporal::StoreInput storeIn {{originalReference, r.Normals.Get(), m_LinearDepth.Get(),
-            r.Motion.Get(), r.SkipSignal.Get(), m_flatTemporalNormalLP.Get()}};
-        FlatTemporal::StoreOutput storeOut {{m_flatHistoryReference.Get(), m_flatHistoryMotionDepth.Get(),
-            m_flatHistoryNormalLP.Get()}};
+            r.Motion.Get(), r.SkipSignal.Get(), m_flatTemporalLP.Get()}};
+        FlatTemporal::StoreOutput storeOut {{m_flatHistoryReference.Get(), m_flatHistoryAux.Get(),
+            m_flatHistoryLP.Get()}};
         m_flatTemporalStoreShader.Dispatch(cmdList, GetAsByteSpan(constants), storeIn.AsArray, storeOut.AsArray,
             {desc.DstTexSize.x, desc.DstTexSize.y});
         m_flatTemporalConstants = constants;
@@ -1592,7 +1605,7 @@ struct FSRDPreprocessor_Dx12::Impl
         m_flatHistoryLength = length;
         m_flatHistorySize = desc.DstTexSize;
         m_flatTemporalWasEnabled = m_flatTemporalActive = true;
-        return m_flatTemporalReference.Get();
+        return output;
     }
 
     void DispatchFlatDetail(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
@@ -1664,7 +1677,9 @@ struct FSRDPreprocessor_Dx12::Impl
             dispatch(m_flatDetailRefineShader);
             source = target;
         }
-        in.Resources.InReference = ResolveFlatTemporal(cmdList, desc, m_flatDetailReference[source].Get(), constants.Flags);
+        // The resolve writes into the ping-pong reference Refine no longer needs.
+        in.Resources.InReference = ResolveFlatTemporal(cmdList, desc, m_flatDetailReference[source].Get(),
+            m_flatDetailReference[source ^ 1u].Get(), constants.Flags);
         in.Resources.InStatistics = m_flatDetailStatistics[source].Get();
         // Only the temporal resolve writes the residual into the reference alpha.
         constants.TemporalDenoise = m_flatTemporalActive ? std::clamp(desc.RecoveryFlatTemporalDenoise, 0.0f, 2.0f) : 0.0f;
@@ -3484,8 +3499,8 @@ void FSRDPreprocessor_Dx12::CompleteGameTraceFrame(ID3D12GraphicsCommandList* cm
                     {"valid_pixels","packed_normals alpha = 1/3; skip alpha != -1"}}.dump();
                 allDiagnostics.push_back(std::move(source));
             };
-            add("flat_detail_reference",impl.m_flatTemporalActive ? impl.m_flatTemporalReference.Get() :
-                impl.m_flatDetailReference[FlatDetail::kRefinementPasses & 1u].Get());
+            add("flat_detail_reference",impl.m_flatDetailReference[(FlatDetail::kRefinementPasses & 1u) ^
+                (impl.m_flatTemporalActive ? 1u : 0u)].Get());
             add("flat_detail_statistics",impl.m_flatDetailStatistics[FlatDetail::kRefinementPasses & 1u].Get());
             add("flat_detail_base",impl.m_flatDetailBase.Get());
             add("flat_detail_rr_mean",impl.m_flatDetailMean.Get());

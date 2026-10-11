@@ -8,7 +8,9 @@
 // Noise is the lower quartile of quiet reference pairs, scaled by that light.
 // With temporal history, reference alpha carries the residual deviation of the
 // temporal mean (log units): its 5x5 lower quartile floors the noise, and a
-// per-pixel Wiener factor drops detail the history samples disagree on.
+// per-pixel Wiener factor drops detail the history samples disagree on. A negative
+// alpha is -1 - confidence of a thin history (light moving over the surface, as a
+// reflection does, or disocclusion): the single-frame detail fades out with it.
 // Anchor bounds the target with RR's local spread; Mix monotonically opens gates.
 static const int kWindow = 10;
 static const int kSpan = 8 + 2 * kWindow;
@@ -20,7 +22,7 @@ static const float Gaussian[7] = {
     0.0044330482f, 0.0540055826f, 0.2420362294f, 0.3990502797f,
     0.2420362294f, 0.0540055826f, 0.0044330482f
 };
-// 19,456 LDS bytes per group. Reference alpha: >=0 valid (temporal residual or 0),
+// 19,456 LDS bytes per group. Reference alpha: >=0 valid (temporal residual or 0; thin history reads 0),
 // -1 non-flat, -2 outside the image but edge-clamped to a flat pixel (guide only).
 groupshared uint2 WindowRR[kSpan][kSpan];
 groupshared uint2 WindowReference[kSpan][kSpan];
@@ -130,7 +132,8 @@ void CSMain(uint3 group : SV_GroupID, uint3 local : SV_GroupThreadID)
     }
     const float3 light=clamp(sumRR/max(sumReference,1e-9f),0.0f,8.0f);
     const float lightScale=dot(light,1.0f/3.0f);
-    const float3 rr=Rr(w), reference=InReference[p].rgb, target=reference*light;
+    const float4 centre=InReference[p];
+    const float3 rr=Rr(w), reference=centre.rgb, target=reference*light;
     Quartile quiet; quiet.Reset();
     for (int qy=-2;qy<=2;++qy) for (int qx=-2;qx<=2;++qx)
     {
@@ -180,6 +183,7 @@ void CSMain(uint3 group : SV_GroupID, uint3 local : SV_GroupThreadID)
         const float detail=GetLuminance(target-rr);
         weight*=detail*detail/max(detail*detail+residual*residual,1e-20f);
     }
+    if (temporalNoise && centre.a<0.0f) weight*=lerp(1.0f,saturate(-centre.a-1.0f),saturate(TemporalDenoise));
     weight=saturate(Strength)*(weight+saturate(Mix)*(1.0f-weight));
     // RR's 5x5 binomial moments and the 5x5 target range.
     const float binomial[5]={1,4,6,4,1};

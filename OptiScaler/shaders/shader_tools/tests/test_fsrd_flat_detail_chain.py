@@ -1,4 +1,5 @@
-"""Flat Detail D3D12 fixture gate, with raw buffers and six-slice histories.
+"""Flat Detail D3D12 fixture gate, with raw buffers and six-slice histories
+(log reference + depth, packed aux, 4x4-block low-pass ring).
 
 Pass --fixture one or more immutable NPZ/JSON fixture manifests. Compilation is
 timed separately. Fixtures provide original Refine RGB/sigma and an independent
@@ -58,20 +59,25 @@ def check_fixture(manifest_path, shaders, directory):
         if np.any(invalid_confidence):
             checks.append(dict(frame=frame['frame'],test='NaN confidence takes exact current reference fallback',
                                pixels=int(np.sum(invalid_confidence)),
-                               # RGB is the exact current reference; alpha 0 marks "no temporal residual".
+                               # RGB is the exact current reference; alpha -1 marks "no history" (confidence 0).
                                passed=bool(np.array_equal(outputs[n['temporal']][invalid_confidence][...,:3],
                                                           frame['original_reference'][invalid_confidence][...,:3])) and
-                                      bool(np.all(outputs[n['temporal']][invalid_confidence][...,3]==0)) and
+                                      bool(np.all(outputs[n['temporal']][invalid_confidence][...,3]==-1)) and
                                       bool(np.all(outputs[n['diagnostics']][invalid_confidence]==0))))
     slots=sorted(set(item['history_head_before'] for item in manifest['frames']))
-    for key in ('reference','motion_depth','normal_lp'):
+    for key in ('reference','lp'):
         a=outputs['history_'+key][slots].astype(np.float32)
         b=golden[-1]['history_'+key][slots].astype(np.float32)
-        # LP sums may differ by a few half ULP at tie boundaries; index/validity,
-        # log-reference and motion/depth storage must agree much more tightly.
-        tolerance=.003 if key=='normal_lp' else .002
+        # LP block sums may differ by a few half ULP; the log reference/depth must agree tightly.
+        tolerance=.003 if key=='lp' else .002
         error=float(np.max(np.abs(a-b)))
         checks.append(dict(test='history '+key+' absolute error',value=error,limit=tolerance,passed=error<=tolerance))
+    # Aux: motion, depth delta and motion flag bits exact; the 8:7-bit normal codes within one step.
+    a=outputs['history_aux'][slots].astype(np.int64);b=golden[-1]['history_aux'][slots].astype(np.int64)
+    exact=bool(np.array_equal(a[...,0],b[...,0]) and np.array_equal(a[...,1]&0x1ffff,b[...,1]&0x1ffff))
+    normal=int(max(np.max(np.abs(((a[...,1]>>17)&255)-((b[...,1]>>17)&255))),np.max(np.abs((a[...,1]>>25)-(b[...,1]>>25)))))
+    checks.append(dict(test='history aux motion/depth/flag exact, normal code within 1',
+                       normal_code_error=normal,passed=exact and normal<=1))
     checks.append(dict(test='zero D3D12 validation errors and warnings',passed=
                       run['counters'].get('validation_errors')==0 and run['counters'].get('validation_warnings')==0))
     result=dict(fixture=str(manifest_path),checks=checks,run=run,

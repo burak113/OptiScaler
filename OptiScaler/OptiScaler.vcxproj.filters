@@ -1780,6 +1780,8 @@
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFlatTemporal.hlsl"><Filter>Header Files</Filter></None>
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFlatTemporalStore_Shader.h"><Filter>Header Files</Filter></ClInclude>
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFlatTemporalStore.hlsl"><Filter>Header Files</Filter></None>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFlatTemporalLP_Shader.h"><Filter>Header Files</Filter></ClInclude>
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDFlatTemporalLP.hlsl"><Filter>Header Files</Filter></None>
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFlatTemporalCommon.hlsli"><Filter>Header Files</Filter></None>
   </ItemGroup>
 </Project>

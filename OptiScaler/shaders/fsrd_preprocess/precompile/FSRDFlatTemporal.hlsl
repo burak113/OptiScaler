@@ -1,26 +1,20 @@
 #include "FSRDFlatTemporalCommon.hlsli"
-#define MainRS "RootFlags(0), CBV(b0), DescriptorTable(SRV(t0, numDescriptors = 14)), DescriptorTable(UAV(u0, numDescriptors = 3))"
+#define MainRS "RootFlags(0), CBV(b0), DescriptorTable(SRV(t0, numDescriptors = 10)), DescriptorTable(UAV(u0, numDescriptors = 2))"
 Texture2D<float4> InReference : register(t0);
-Texture2D<float4> InComposed : register(t1);
-Texture2D<float4> InNormals : register(t2);
-Texture2D<float> InDepth : register(t3);
-Texture2D<float4> InMotion : register(t4);
-Texture2D<float4> InSpecular : register(t5);
-Texture2D<float4> InDiffuse : register(t6);
-Texture2D<float4> InSpecularAlbedo : register(t7);
-Texture2D<float4> InDiffuseAlbedo : register(t8);
-Texture2D<float4> InSkip : register(t9);
-ByteAddressBuffer InTiles : register(t10);
-Texture2DArray<float4> HistoryReference : register(t11);
-Texture2DArray<float4> HistoryMotionDepth : register(t12);
-Texture2DArray<float4> HistoryNormalLP : register(t13);
+Texture2D<float4> InNormals : register(t1);
+Texture2D<float> InDepth : register(t2);
+Texture2D<float4> InMotion : register(t3);
+Texture2D<float4> InSkip : register(t4);
+ByteAddressBuffer InTiles : register(t5);
+Texture2D<float2> InLP : register(t6);
+Texture2DArray<float4> HistoryReference : register(t7);
+Texture2DArray<uint2> HistoryAux : register(t8);
+Texture2DArray<float2> HistoryLP : register(t9);
 RWTexture2D<float4> OutReference : register(u0);
-RWTexture2D<float4> OutNormalLP : register(u1);
-RWTexture2D<float2> OutDiagnostics : register(u2);
+RWTexture2D<float2> OutDiagnostics : register(u1);
 
-// Original reference log/sigma and current RR/raw luma/mask. 11,200 bytes.
-groupshared float4 WindowReference[20][20];
-groupshared float3 WindowLight[20][20];
+// Original reference log/sigma of the tile and a one-pixel ring. 1,600 bytes.
+groupshared float4 WindowReference[10][10];
 
 bool FlatPixel(int2 p)
 {
@@ -29,25 +23,30 @@ bool FlatPixel(int2 p)
     return abs(InNormals[p].a-1.0f/3.0f)<0.1f && InSkip[p].a!=-1.0f && isfinite(z) && abs(z)>1e-5f;
 }
 
-float3 RawColor(int2 p)
+float2 CurrentLP(float2 position)
 {
-    const float3 s=InSpecular[p].rgb*((Flags&1u)!=0u ? 2.0f : 1.0f);
-    const float3 d=InDiffuse[p].rgb*((Flags&2u)!=0u ? 2.0f : 1.0f);
-    return SanitizeRadiance(s*lerp(1.0f,InSpecularAlbedo[p].rgb,Modulation.x)+
-                            d*lerp(1.0f,InDiffuseAlbedo[p].rgb,Modulation.y)+InSkip[p].rgb);
+    int2 b0,b1;float2 f;LPFootprint(position,b0,b1,f);
+    return BlendLP(InLP[b0],InLP[int2(b1.x,b0.y)],InLP[int2(b0.x,b1.y)],InLP[b1],f);
 }
 
-bool HistoryTap(int2 p,uint slice,float expectedDepth,float3 currentNormal,
-                out float4 reference,out float4 motionDepth,out float4 normalLP)
+float2 HistoryLPAt(float2 position,uint slice)
 {
-    reference=0;motionDepth=0;normalLP=0;
+    int2 b0,b1;float2 f;LPFootprint(position,b0,b1,f);
+    return BlendLP(HistoryLP.Load(int4(b0,slice,0)),HistoryLP.Load(int4(b1.x,b0.y,slice,0)),
+                   HistoryLP.Load(int4(b0.x,b1.y,slice,0)),HistoryLP.Load(int4(b1,slice,0)),f);
+}
+
+// Bilinear footprint: depth from the reference alpha, motion/normal from the aux.
+bool HistoryTap(int2 p,uint slice,float expectedDepth,float3 currentNormal,out float3 motionDepth,out bool motionValid)
+{
+    motionDepth=0;motionValid=false;
     if (!TemporalInBounds(p)) return false;
-    reference=HistoryReference.Load(int4(p,slice,0));
-    motionDepth=HistoryMotionDepth.Load(int4(p,slice,0));
-    normalLP=HistoryNormalLP.Load(int4(p,slice,0));
-    const float3 normal=OctahedralDecode(DecodeTemporalNormalUV(normalLP.xy));
-    return reference.a!=0.0f && all(isfinite(motionDepth)) && all(isfinite(normalLP)) &&
-        abs(motionDepth.z-expectedDepth)<=0.03f*max(abs(expectedDepth),1e-3f) && dot(normal,currentNormal)>0.95f;
+    const float depth=HistoryReference.Load(int4(p,slice,0)).a;
+    const uint2 aux=HistoryAux.Load(int4(p,slice,0));
+    motionDepth=UnpackTemporalMotion(aux);motionValid=UnpackTemporalMotionValid(aux);
+    return depth!=0.0f && all(isfinite(motionDepth)) &&
+        abs(depth-expectedDepth)<=0.03f*max(abs(expectedDepth),1e-3f) &&
+        dot(OctahedralDecode(UnpackTemporalNormal(aux)),currentNormal)>0.95f;
 }
 
 // Cubic taps: depth-only validation from the reference alpha (the bilinear footprint already checked normals).
@@ -71,36 +70,25 @@ void CSMain(uint3 group:SV_GroupID,uint3 local:SV_GroupThreadID)
     const int2 origin=int2(InTiles.Load2(16+tile*8))*8;
 #endif
     const uint lane=local.y*8+local.x;
-    for (uint i=lane;i<400;i+=64)
+    for (uint i=lane;i<100;i+=64)
     {
-        const int2 q=origin+int2(i%20,i/20)-6;
+        const int2 q=origin+int2(i%10,i/10)-1;
         const bool valid=FlatPixel(q);
         const float4 r=valid ? InReference[q] : float4(0,0,0,-1);
-        WindowReference[i/20][i%20]=valid ? float4(log(max(r.rgb,Epsilon)),r.a) : float4(0,0,0,-1);
-        WindowLight[i/20][i%20]=valid ? float3(GetLuminance(SanitizeRadiance(InComposed[q].rgb)),GetLuminance(RawColor(q)),1) : 0;
+        WindowReference[i/10][i%10]=valid ? float4(log(max(r.rgb,Epsilon)),r.a) : float4(0,0,0,-1);
     }
     GroupMemoryBarrierWithGroupSync();
-    const int2 p=origin+int2(local.xy),w=int2(local.xy)+6;
+    const int2 p=origin+int2(local.xy),w=int2(local.xy)+1;
     if (!TemporalInBounds(p)) return;
     OutDiagnostics[p]=0;
     if (!FlatPixel(p)) return;
     const float4 original=InReference[p];
     const float4 motion=InMotion[p];
     const float z=InDepth[p];
-    const float2 uv=InNormals[p].xy;
-    float3 lpSum=0;float rrCount=0;float rrSum=0;
-    [loop] for(int y=-6;y<=6;++y) [loop] for(int x=-6;x<=6;++x)
-    {
-        const float3 tap=WindowLight[w.y+y][w.x+x];
-        lpSum.y+=tap.y;lpSum.z+=tap.z;
-        if(abs(x)<=4 && abs(y)<=4) { rrSum+=tap.x;rrCount+=tap.z; }
-    }
-    const float2 currentLP=float2(rrSum/max(rrCount,1.0f),lpSum.y/max(lpSum.z,1.0f));
-    // Round the current LP through FP16 exactly as the stored resource does.
-    const float2 currentHalfLP=f16tof32(f32tof16(clamp(currentLP,0.0f,65504.0f)));
-    OutNormalLP[p]=float4(motion.w>=0.5f ? uv.x : -2.0f-uv.x,uv.y,currentHalfLP);
-    // Alpha: residual deviation of the temporal mean (log units); 0 = unknown (no accepted history).
-    OutReference[p]=float4(original.rgb,0.0f);
+    const float2 currentLP=CurrentLP(float2(p));
+    // Alpha: residual deviation of the temporal mean (log units) once the history weight reaches
+    // kFullHistory, else -1 - confidence (no or thin history: moving reflections, disocclusion).
+    OutReference[p]=float4(original.rgb,-1.0f);
     const float2 initialMotion=motion.xy*FullRenderSize+JitterDelta;
     const bool safe=all(isfinite(float4(initialMotion,z,motion.z))) &&
         all(abs(float4(initialMotion,z,motion.z))<=65504.0f);
@@ -118,7 +106,7 @@ void CSMain(uint3 group:SV_GroupID,uint3 local:SV_GroupThreadID)
     const float sigma=clamp(original.a/max(GetLuminance(original.rgb),0.01f),0.012f,0.65f);
     const float3 spread=sqrt(max(square/max(totalSpatial,1.0f)-mean*mean,0.0f)+sigma*sigma);
     const float3 lo=min(mean-2.5f*spread,current),hi=max(mean+2.5f*spread,current);
-    const float3 normal=OctahedralDecode(uv);
+    const float3 normal=OctahedralDecode(InNormals[p].xy);
     float2 position=float2(p)+initialMotion;
     float expected=z+motion.z;
     float3 sum=current;float total=1,used=0,accepted=0;
@@ -131,21 +119,23 @@ void CSMain(uint3 group:SV_GroupID,uint3 local:SV_GroupThreadID)
         const uint slice=(HistoryHead+5u-age)%6u;
         const int2 base=int2(floor(position));
         const float2 fraction=position-float2(base);
-        float4 oldMotion=0;float2 oldLP=0;float geometry=0,motionValid=0;
+        float3 oldMotion=0;float geometry=0,motionValid=0;
         [unroll] for(int by=0;by<2;++by) [unroll] for(int bx=0;bx<2;++bx)
         {
             const float weight=(bx!=0 ? fraction.x : 1.0f-fraction.x)*(by!=0 ? fraction.y : 1.0f-fraction.y);
-            float4 r,md,nl;
-            if(HistoryTap(base+int2(bx,by),slice,expected,normal,r,md,nl))
+            float3 md;bool mv;
+            if(HistoryTap(base+int2(bx,by),slice,expected,normal,md,mv))
             {
-                geometry+=weight;oldMotion+=md*weight;oldLP+=nl.zw*weight;
-                if(nl.x>=-1.0f) motionValid+=weight;
+                geometry+=weight;oldMotion+=md*weight;
+                if(mv) motionValid+=weight;
             }
         }
         if(geometry<0.999f) break;
-        oldMotion/=max(geometry,1e-6f);oldLP/=max(geometry,1e-6f);
-        const float2 relative=abs(oldLP-currentHalfLP)/(0.5f*(abs(oldLP)+abs(currentHalfLP))+0.01f);
-        const float change=max(smoothstep(0.065f,0.23f,relative.x),smoothstep(0.09f,0.28f,relative.y));
+        oldMotion/=max(geometry,1e-6f);
+        const float2 oldLP=HistoryLPAt(position,slice);
+        const float2 relative=abs(oldLP-currentLP)/(0.5f*(abs(oldLP)+abs(currentLP))+0.01f);
+        const float change=oldLP.x<0.0f || currentLP.x<0.0f ? 1.0f :
+            max(smoothstep(0.065f,0.23f,relative.x),smoothstep(0.09f,0.28f,relative.y));
         float weight=pow(1.0f-change,3.0f)*exp(-float(age)/max(HistoryDecay,1e-3f))*motionGate;
         if(CenterSigma>0) { const float2 delta=position-round(position);weight*=exp(-dot(delta,delta)/(2.0f*CenterSigma*CenterSigma)); }
         if(change>=0.92f) weight=0;
@@ -168,7 +158,7 @@ void CSMain(uint3 group:SV_GroupID,uint3 local:SV_GroupThreadID)
             }
         }
         if(motionValid<0.999f) break;
-        expected+=oldMotion.w;position+=oldMotion.xy;
+        expected+=oldMotion.z;position+=oldMotion.xy;
     }
     if(used>0)
     {
@@ -177,7 +167,8 @@ void CSMain(uint3 group:SV_GroupID,uint3 local:SV_GroupThreadID)
         // Weighted spread of the accepted log samples around their mean, scaled to the mean's own deviation.
         const float meanL=dot(sum,1.0f/3.0f)/total;
         const float residual=sqrt(max(sumL2/total-meanL*meanL,0.0f)*sumW2)/total;
-        if(all(isfinite(result))) OutReference[p]=float4(SanitizeRadiance(result),isfinite(residual) ? residual : 0.0f);
+        const float alpha=used<kFullHistory ? -1.0f-used/kFullHistory : (isfinite(residual) ? residual : 0.0f);
+        if(all(isfinite(result))) OutReference[p]=float4(SanitizeRadiance(result),alpha);
     }
     OutDiagnostics[p]=float2(accepted,used);
 }

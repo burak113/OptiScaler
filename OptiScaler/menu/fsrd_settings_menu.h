@@ -29,8 +29,10 @@ inline void DrawFlatTemporalControls(Config& cfg)
         cfg.FfxDenoiserRecoveryFlatTemporalDenoise = denoise;
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("How strongly disagreement between the history samples counts as noise. Static texture "
-                          "agrees over time, flickering light does not. Higher is cleaner and calmer, with slightly "
-                          "softer fine edges; 0 turns it off. Default 1.");
+                          "agrees over time, flickering light does not. Where the history is thin (a reflection "
+                          "moving over the surface, disocclusion) the noisy single-frame detail also fades out "
+                          "to RR. Higher is cleaner and calmer, with slightly softer fine edges; 0 turns it off. "
+                          "Default 1.");
     ImGui::EndDisabled();
 }
 

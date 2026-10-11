@@ -4,7 +4,8 @@ import numpy as np
 import run_fsrd_gpu_tests as t
 
 SHADERS = ('FSRDFlatDetailClassify', 'FSRDFlatDetailSeed', 'FSRDFlatDetailRefine',
-           'FSRDFlatTemporal', 'FSRDFlatTemporalStore', 'FSRDFlatDetailBase', 'FSRDFlatDetailApply')
+           'FSRDFlatTemporalLP', 'FSRDFlatTemporal', 'FSRDFlatTemporalStore', 'FSRDFlatDetailBase',
+           'FSRDFlatDetailApply')
 
 
 def rgba(rgb, alpha=0):
@@ -17,22 +18,25 @@ def build_chain(frames, shaders, directory, *, temporal=True, initial_history=No
                 cached_reference=False, fixed_baseline=False):
     """Frames are dictionaries containing the original capture inputs.
 
-    All frames execute in one command list. The three arrays remain on GPU;
+    All frames execute in one command list. The three history arrays (reference, aux and
+    the 4x4-block low-pass ring) remain on GPU;
     Store always reads the original Refine output, and Base reads Resolve.
     The returned index map names every intermediate for independent references.
     """
     h, w = frames[0]['depth'].shape
     size = (w, h)
+    lp_size = ((w+3)//4, (h+3)//4)
     job = t.create_chain(directory)
     keep = lambda name: readback is True or (isinstance(readback, (tuple,list,set)) and name in readback)
     job.raw('tiles', size=16+((w+7)//8)*((h+7)//8)*8, writable=True, readback=keep('tiles'))
     job.raw('arguments', np.array([0, 1, 1], np.uint32), writable=True, readback=keep('arguments'))
     if temporal:
         if initial_history is None:
-            initial_history = [np.zeros((6,h,w,4),np.float16) for _ in range(3)]
-            initial_history[0][...,3] = -1
-        for name, data in zip(('history_reference','history_motion_depth','history_normal_lp'),initial_history):
-            job.texture(name,data,format=10,size=size,layers=6,writable=True,readback=keep(name))
+            initial_history = [np.zeros((6,h,w,4),np.float16),np.zeros((6,h,w,2),np.uint32),
+                               np.zeros((6,*lp_size[::-1],2),np.float16)]
+        for name, data, fmt, extent in zip(('history_reference','history_aux','history_lp'),initial_history,
+                                           (10,17,34),(size,size,lp_size)):
+            job.texture(name,data,format=fmt,size=extent,layers=6,writable=True,readback=keep(name))
     head, count = initial_head, initial_count
     names = []
     for index, frame in enumerate(frames):
@@ -42,7 +46,7 @@ def build_chain(frames, shaders, directory, *, temporal=True, initial_history=No
         n = lambda value: prefix + value
         this = {key:n(key) for key in ('spec','diff','qs','qd','skip','normal','depth','motion',
                                       'composition','seed','seed_statistics','reference','statistics',
-                                      'temporal','normal_lp','diagnostics','base','mean',
+                                      'temporal','lp','diagnostics','base','mean',
                                       'fixed_base','fixed_mean','fixed_composition')}
         names.append(this)
         for key, value, fmt in (
@@ -64,9 +68,9 @@ def build_chain(frames, shaders, directory, *, temporal=True, initial_history=No
                 data=(rgba(rr) if rr.shape[-1]==3 else rr) if key=='fixed_composition' else None
                 job.texture(n(key),data,format=10,size=size,writable=True,readback=keep(key))
         if temporal:
-            for key in ('temporal','normal_lp','diagnostics'):
-                job.texture(n(key),format=34 if key=='diagnostics' else 10,
-                            size=size,writable=True,readback=keep(key))
+            for key in ('temporal','lp','diagnostics'):
+                job.texture(n(key),format=10 if key=='temporal' else 34,
+                            size=lp_size if key=='lp' else size,writable=True,readback=keep(key))
         flat_values = dict(DstTexSize=[w,h,1/w,1/h], Modulation=[1,1], Strength=frame.get('strength',1),
                            Anchor=frame.get('anchor',4), Mix=frame.get('mix',0), NoiseScale=2,
                            Epsilon=1e-4,Radius=3,Flags=frame.get('flags',0))
@@ -104,14 +108,16 @@ def build_chain(frames, shaders, directory, *, temporal=True, initial_history=No
                           CenterSigma=p.get('center_sigma',0),MotionStart=p.get('motion_start',.5),
                           MotionEnd=p.get('motion_end',2),HistoryDecay=p.get('history_decay',6))
             cb = t.constants('FSRDFlatTemporal',values)
-            reads = [n('reference'),n('composition'),n('normal'),n('depth'),n('motion'),
-                     n('spec'),n('diff'),n('qs'),n('qd'),n('skip'),'tiles',
-                     'history_reference','history_motion_depth','history_normal_lp']
+            job.compute(prefix+'TemporalLP',shader('FSRDFlatTemporalLP'),cb,
+                        [n('composition'),n('normal'),n('depth'),n('spec'),n('diff'),n('qs'),n('qd'),n('skip')],
+                        [n('lp')],groups=((lp_size[0]+7)//8,(lp_size[1]+7)//8,1))
+            reads = [n('reference'),n('normal'),n('depth'),n('motion'),n('skip'),'tiles',n('lp'),
+                     'history_reference','history_aux','history_lp']
             job.compute(prefix+'Temporal',shader('FSRDFlatTemporal'),cb,reads,
-                        [n('temporal'),n('normal_lp'),n('diagnostics')],indirect='arguments')
+                        [n('temporal'),n('diagnostics')],indirect='arguments')
             job.compute(prefix+'TemporalStore',shader('FSRDFlatTemporalStore'),cb,
-                        [n('reference'),n('normal'),n('depth'),n('motion'),n('skip'),n('normal_lp')],
-                        ['history_reference','history_motion_depth','history_normal_lp'],
+                        [n('reference'),n('normal'),n('depth'),n('motion'),n('skip'),n('lp')],
+                        ['history_reference','history_aux','history_lp'],
                         groups=((w+7)//8,(h+7)//8,1))
             common[7]=n('temporal')
             head=(head+1)%6;count=min(count+1,6)
