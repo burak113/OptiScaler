@@ -37,6 +37,12 @@ def build_runner():
     compile_cpp(source, runner, ('d3d12.lib', 'dxgi.lib'))
 
 
+def create_chain(directory):
+    """Create a typed multi-pass job using this module's serialized GPU worker."""
+    from fsrd_gpu_chain import ChainJob
+    return ChainJob(directory, sys.modules[__name__])
+
+
 class _RunnerWorker:
     """One `fsrd_gpu_runner --server` per executable and test process.
 
@@ -131,16 +137,23 @@ def constants(shader, values, directory=PRE):
         values.setdefault('LumaRecovery', 1.0)
         values.setdefault('ChromaRecovery', 1.0)
     text = (directory/(shader+('.hlsli' if skin_conversion else '.hlsl'))).read_text(encoding='utf-8')
-    marker = {'FSRDFloorSeed':'CB_Median','FSRDFloor':'CB_Analysis','FSRDInputConv':'CB_Packing','FSRDOutputComp':'CB_Comp',
+    flat = shader.startswith(('FSRDFlatDetail', 'FSRDFlatTemporal'))
+    if flat:
+        marker = ('CB_Classify' if shader == 'FSRDFlatDetailClassify' else
+                  'CB_FlatTemporal' if shader.startswith('FSRDFlatTemporal') else 'CB_FlatDetail')
+        if 'cbuffer '+marker not in text:
+            includes = re.findall(r'#include\s+"([^\"]+)"', text)
+            text = '\n'.join((directory/name).read_text(encoding='utf-8') for name in includes)
+    else:
+        marker = {'FSRDFloorSeed':'CB_Median','FSRDFloor':'CB_Analysis','FSRDInputConv':'CB_Packing','FSRDOutputComp':'CB_Comp',
               'FSRDAlbedoTrustEvidence':'CB_AlbedoTrust','FSRDAlbedoTrustPropagate':'CB_AlbedoTrust',
-              'FSRDVolumeGather':'CB_VolumeGather','FSRDVolumeAccumulate':'CB_VolumeAccumulate',
-              'FSRDVolumeApply':'CB_VolumeApply',
-              'FSRDRecoveryVolumeAccumulate':'CB_VolumeAccumulate',
-              'FSRDRecoveryVolumeApply':'CB_VolumeApply', 'FSRDSkinConversion':'CB_Packing',
+              'FSRDSkinConversion':'CB_Packing',
               'FSRDSssPrepare':'CB_SssPrepare', 'FSRDSssBlur':'CB_SssBlur',
               'FSRDSkinPrefilter':'CB_SkinPrefilter', 'FSRDProbeInputs':'Probe',
               'FSRDReference':'Reference', 'FSRDLeak':'CB_Leak', 'FSRDAlbedoStabilise':'CB_AlbedoStabilise',
-              'FSRDFogStats':'CB_FogStats', 'FSRDFogKappa':'CB_FogKappa', 'FSRDFogRank':'CB_FogRank', 'FSRDFogSmooth':'CB_FogSmooth', 'FSRDFogRoute':'CB_FogRoute', 'FSRDRRMotion':'CB_RRMotion'}[shader]
+              'FSRDFogStats':'CB_FogStats', 'FSRDFogKappa':'CB_FogKappa', 'FSRDFogRank':'CB_FogRank', 'FSRDFogSmooth':'CB_FogSmooth', 'FSRDFogRoute':'CB_FogRoute', 'FSRDRRMotion':'CB_RRMotion', 'FSRDRecoveryLobeAccumulate':'CB_RecoveryLobe', 'FSRDRecoveryLobeDown':'CB_RecoveryLobe', 'FSRDRecoveryLobeBand':'CB_RecoveryLobe'}[shader]
+    if 'cbuffer '+marker not in text and shader.startswith('FSRDRecoveryLobe'):
+        text = (directory/'FSRDRecoveryLobeCommon.hlsli').read_text(encoding='utf-8')  # the passes share it
     body = mirror.brace_body(text,'cbuffer '+marker)
     fields, size = mirror.hlsl_cbuffer_fields(body, shader)
     assert not mirror.errors, mirror.errors
@@ -349,16 +362,13 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
                            [10,28,10,28,10,10,10,24,10]),
         'FSRDAlbedoTrustEvidence': [10,10,28,28,10,41,24,10,10] + ([10,10] if loss_evidence else []),
         'FSRDAlbedoTrustPropagate': [16,41,24],
-        'FSRDVolumeGather': [10],
-        'FSRDVolumeAccumulate': [10,10,10,41,10],
-        'FSRDVolumeApply': [10,10,41],
-        'FSRDRecoveryVolumeAccumulate': [10,10,10,41,10,2],
-        'FSRDRecoveryVolumeApply': [10,10,41,2],
         'FSRDSssPrepare': [10,41,10,10,41,41,41],
         'FSRDSssBlur': [10,41,41,10],
         'FSRDSkinPrefilter': [10,41,41,24],
         'FSRDProbeInputs': [2], 'FSRDReference': [2,2], 'FSRDLeak': [10,10,28,28,41,24], 'FSRDAlbedoStabilise': [28,28,10,10,10,41,24,10,10,16],
         'FSRDFogStats': [28,28,10,10,28,28,41,10,2,2,2], 'FSRDFogKappa': [2,2,2], 'FSRDFogRank': [41,2,2], 'FSRDFogSmooth': [41,2,2], 'FSRDRRMotion': [10],
+        'FSRDRecoveryLobeAccumulate': [10,10,10,10,10,28,28,41,24,10,10,10,10,10,10], 'FSRDRecoveryLobeDown': [10,10,10],
+        'FSRDRecoveryLobeBand': [10,10,10,10,10,10,10,10,10,10,28,28,10,10,10,10],
         'FSRDFogRoute': [28,28,10,10,41,41,2,2],
         'FSRDInputConvSkin': [10,41,10,10,41,41,10,10,41,10,10,10,10,10,41,41,10,10,41,41,10],
         'FSRDInputConvSkinAdditive': [10,41,10,10,41,41,10,10,41,10,10,10,10,10,41,41,10,10,41,41,10],

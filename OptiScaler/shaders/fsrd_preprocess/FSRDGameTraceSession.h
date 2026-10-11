@@ -95,8 +95,8 @@ public:
                        const std::array<Source, SourceCount>&, uint32_t renderWidth,
                        uint32_t renderHeight, std::span<const uint8_t> conversionConstants,
                        std::span<const DiagnosticSource> diagnostics = {},
-                       std::span<const uint8_t> floorSeedConstants = {},
-                       std::span<const uint8_t> floorFilterConstants = {},
+                       std::span<const uint8_t> geometryConstants = {},
+                       std::span<const uint8_t> flatDetailConstants = {},
                        bool submissionHooksAvailable = true) noexcept;
     // native_full1.bin is a legacy replay filename for the actual configured
     // pre-SR composition. Metadata explicitly makes no neutral Full1 claim.

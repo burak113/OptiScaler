@@ -7,6 +7,10 @@ import sys
 import argparse
 import subprocess
 
+# Snapshot entries whose shaders were since removed: the structure transfer, and the volumetric restores that
+# Recovery v2's lobe recovery and the fog-consistent guides replaced.
+RETIRED = ("FSRDStructureTransfer", "FSRDVolume")
+
 
 def audit_legacy_shaders(snapshot, initial_backup, output):
     """Report inherited snapshot drift separately, without changing its gate."""
@@ -16,7 +20,7 @@ def audit_legacy_shaders(snapshot, initial_backup, output):
     expected = json.loads((snapshot/"dxil_sha256.json").read_text())
     rows = []
     for name, snapshot_hash in expected.items():
-        if name.startswith("FSRDStructureTransfer"):
+        if name.startswith(RETIRED):
             continue  # Same retired artifact exclusion as the existing gate.
         current_hash = hashlib.sha256((precompile/name).read_bytes()).hexdigest()
         initial_file = initial_backup/"OptiScaler/shaders/fsrd_preprocess/precompile"/name
@@ -54,7 +58,7 @@ def main():
     old = snapshot / "precompile"
     hashes = json.loads((snapshot / "dxil_sha256.json").read_text())
     for name, digest in hashes.items():
-        if name.startswith("FSRDStructureTransfer"):
+        if name.startswith(RETIRED):
             continue
         t.check("v2 OFF unchanged legacy DXIL: " + name,
                 hashlib.sha256((t.PRE/name).read_bytes()).hexdigest() == digest)

@@ -47,52 +47,59 @@ Config::Config()
     Reload(absoluteFileName);
 }
 
-// Profiles own the Floor/recovery policy; manual edits are persisted as Custom.
+// Profiles own the recovery policy; manual edits are persisted as Custom.
 // Signal routing and the albedo fix are per-game choices outside the profile.
 void Config::ApplyFfxDenoiserProfile(int profile)
 {
+    // Recovery v2 profiles. Fast: no recovery. Balanced (default): Specular, Diffuse and Flat albedo recovery at
+    // full strength with the Light history reset. Quality: Medium history reset as well. Anchor, Mix and the flat
+    // surfaces' RR roughness return to their defaults with any profile.
     profile = std::clamp(profile, 0, 2);
     FfxDenoiserProfile = profile;
-    FfxDenoiserFloorEnabled = profile != 0;
-    FfxDenoiserFloorFastMode = profile == 1;
-    FfxDenoiserFloorRecovery = profile == 0 ? 0.0f : 1.0f;
-    FfxDenoiserFloorFlatRecovery = profile != 0;
-    FfxDenoiserFloorSpecularRecovery = profile != 0;
-    FfxDenoiserFloorDiffuseRecovery = profile == 2;
-    FfxDenoiserFloorFlatNoiseMethod = 0;
-    FfxDenoiserFloorSpecularNoiseMethod = 1;
-    FfxDenoiserFloorDiffuseNoiseMethod = 1;
-    FfxDenoiserFloorHandoverAnchorClamp.reset();
-    FfxDenoiserFloorHandoverCorrelationMix.reset();
-    FfxDenoiserFloorLumaRecovery.reset();
-    FfxDenoiserFloorChromaRecovery.reset();
+    const bool recover = profile != 0;
+    FfxDenoiserRecoveryHistory = recover;
+    FfxDenoiserRecoveryHistoryStrength = profile == 2 ? 1.0f : 0.5f;
+    FfxDenoiserRecoverySpecular = recover;
+    FfxDenoiserRecoveryDiffuse = recover;
+    FfxDenoiserRecoveryFlatAlbedo = recover;
+    FfxDenoiserRecoveryFlatTemporal = recover;
+    FfxDenoiserRecoveryFlatHistoryLength.reset();
+    FfxDenoiserRecoverySpecularStrength.reset();
+    FfxDenoiserRecoveryDiffuseStrength.reset();
+    FfxDenoiserRecoveryFlatAlbedoStrength.reset();
+    FfxDenoiserRecoveryAnchor.reset();
+    FfxDenoiserRecoveryMix.reset();
+    FfxDenoiserRecoveryFlatAnchor.reset();
+    FfxDenoiserRecoveryFlatMix.reset();
+    FfxDenoiserRecoveryFlatRoughness.reset();
     FfxDenoiserSpecularAlbedoDemodulation.reset();
     FfxDenoiserDiffuseAlbedoModulation.reset();
-    FfxDenoiserAdditiveLightSplit.reset();
 }
 
 int Config::GetFfxDenoiserProfile() const
 {
     for (int profile = 0; profile < 3; ++profile)
     {
-        if (FfxDenoiserFloorEnabled.value_or_default() != (profile != 0) ||
-            FfxDenoiserFloorFastMode.value_or_default() != (profile == 1) ||
-            FfxDenoiserFloorRecovery.value_or_default() != (profile == 0 ? 0.0f : 1.0f) ||
-            FfxDenoiserFloorFlatRecovery.value_or_default() != (profile != 0) ||
-            FfxDenoiserFloorSpecularRecovery.value_or_default() != (profile != 0) ||
-            FfxDenoiserFloorDiffuseRecovery.value_or_default() != (profile == 2) ||
-            FfxDenoiserFloorFlatNoiseMethod.value_or_default() != 0 ||
-            FfxDenoiserFloorSpecularNoiseMethod.value_or_default() != 1 ||
-            FfxDenoiserFloorDiffuseNoiseMethod.value_or_default() != 1 ||
+        const bool recover = profile != 0;
+        if (FfxDenoiserRecoveryHistory.value_or_default() != recover ||
+            (recover && FfxDenoiserRecoveryHistoryStrength.value_or_default() != (profile == 2 ? 1.0f : 0.5f)) ||
+            FfxDenoiserRecoverySpecular.value_or_default() != recover ||
+            FfxDenoiserRecoveryDiffuse.value_or_default() != recover ||
+            FfxDenoiserRecoveryFlatAlbedo.value_or_default() != recover ||
             FfxDenoiserSpecularAlbedoDemodulation.value_or_default() != 1.0f ||
-            FfxDenoiserDiffuseAlbedoModulation.value_or_default() != 1.0f ||
-            FfxDenoiserAdditiveLightSplit.value_or_default() != 0.0f)
+            FfxDenoiserDiffuseAlbedoModulation.value_or_default() != 1.0f)
             continue;
-        // Save manual anchor changes as Custom, so reloading keeps them.
-        if (FfxDenoiserFloorHandoverAnchorClamp.value_or_default() != 4.0f ||
-            FfxDenoiserFloorHandoverCorrelationMix.value_or_default() != 1.0f ||
-            FfxDenoiserFloorLumaRecovery.value_or_default() != 1.0f ||
-            FfxDenoiserFloorChromaRecovery.value_or_default() != 1.0f)
+        // Save manual strength changes as Custom, so reloading keeps them.
+        if (recover && (FfxDenoiserRecoverySpecularStrength.value_or_default() != 1.0f ||
+                        FfxDenoiserRecoveryDiffuseStrength.value_or_default() != 1.0f ||
+                        FfxDenoiserRecoveryFlatAlbedoStrength.value_or_default() != 1.0f ||
+                        FfxDenoiserRecoveryAnchor.value_or_default() != 4.0f ||
+                        FfxDenoiserRecoveryMix.value_or_default() != 0.0f ||
+                        FfxDenoiserRecoveryFlatAnchor.value_or_default() != 4.0f ||
+                        FfxDenoiserRecoveryFlatMix.value_or_default() != 0.0f ||
+                        !FfxDenoiserRecoveryFlatTemporal.value_or_default() ||
+                        FfxDenoiserRecoveryFlatHistoryLength.value_or_default() != 6 ||
+                        FfxDenoiserRecoveryFlatRoughness.value_or_default() != 2))
             continue;
         return profile;
     }
@@ -151,9 +158,6 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserMaxRadiance.reset();
     FfxDenoiserRadianceClip.reset();
     FfxDenoiserGaussKernRelax.reset();
-    FfxDenoiserStretchReset.reset();
-    FfxDenoiserStreakFilter.reset();
-    FfxDenoiserDisocclusionCheck.reset();
     FfxDenoiserInputChroma.reset();
     FfxDenoiserDebugDepthMax.reset();
     FfxDenoiserDiagnostics.reset();
@@ -164,15 +168,6 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserDiffuseAlbedoModulation.reset();
     FfxDenoiserAdditiveLightSplit.reset();
     FfxDenoiserUnsupportedAlbedoRecovery.reset();
-    FfxDenoiserFloorFlatRecovery.reset();
-    FfxDenoiserFloorSpecularRecovery.reset();
-    FfxDenoiserFloorDiffuseRecovery.reset();
-    FfxDenoiserFloorFlatNoiseMethod.reset();
-    FfxDenoiserFloorSpecularNoiseMethod.reset();
-    FfxDenoiserFloorDiffuseNoiseMethod.reset();
-    FfxDenoiserFloorLumaRecovery.reset();
-    FfxDenoiserFloorChromaRecovery.reset();
-    FfxDenoiserFloorEnabled.reset();
     FfxDenoiserSkinMode.reset();
     FfxDenoiserSssRadiusMm.reset();
     FfxDenoiserSssStrength.reset();
@@ -186,27 +181,22 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserAlbedoStabilisationRate.reset();
     FfxDenoiserFogGuides.reset();
     FfxDenoiserMotionJitterDelta.reset();
-    FfxDenoiserRecoveryV2.reset();
-    FfxDenoiserRecoveryVolumetry.reset();
-    FfxDenoiserRecoveryVolumetryStrength.reset();
     FfxDenoiserRecoveryHistory.reset();
     FfxDenoiserRecoveryHistoryStrength.reset();
     FfxDenoiserRecoverySpecular.reset();
     FfxDenoiserRecoverySpecularStrength.reset();
     FfxDenoiserRecoveryDiffuse.reset();
     FfxDenoiserRecoveryDiffuseStrength.reset();
-    FfxDenoiserRecoveryAlbedo.reset();
-    FfxDenoiserRecoveryAlbedoStrength.reset();
+    FfxDenoiserRecoveryAnchor.reset();
+    FfxDenoiserRecoveryMix.reset();
     FfxDenoiserRecoveryFlatAlbedo.reset();
     FfxDenoiserRecoveryFlatAlbedoStrength.reset();
+    FfxDenoiserRecoveryFlatTemporal.reset();
+    FfxDenoiserRecoveryFlatHistoryLength.reset();
+    FfxDenoiserRecoveryFlatAnchor.reset();
+    FfxDenoiserRecoveryFlatMix.reset();
+    FfxDenoiserRecoveryFlatRoughness.reset();
     FfxDenoiserRecoveryDebug.reset();
-    FfxDenoiserFloorThroughRR.reset();
-    FfxDenoiserFloorFastMode.reset();
-    FfxDenoiserFloorCleanLighting.reset();
-    FfxDenoiserVolumeRestore.reset();
-    FfxDenoiserFloorRecovery.reset();
-    FfxDenoiserFloorHandoverCorrelationMix.reset();
-    FfxDenoiserFloorHandoverAnchorClamp.reset();
 
     FfxDenoiserDemodDivisorFloor.reset();
 
@@ -481,9 +471,6 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserMaxRadiance.set_from_config(readFloat("FSR-RR", "MaxRadiance"));
             FfxDenoiserRadianceClip.set_from_config(readFloat("FSR-RR", "RadianceClipDeviation"));
             FfxDenoiserGaussKernRelax.set_from_config(readFloat("FSR-RR", "GaussianKernelRelaxation"));
-            FfxDenoiserStretchReset.set_from_config(readInt("FSR-RR", "MagnifiedHistoryReset"));
-            FfxDenoiserStreakFilter.set_from_config(readBool("FSR-RR", "MagnifiedHistoryStreakFilter"));
-            FfxDenoiserDisocclusionCheck.set_from_config(readBool("FSR-RR", "GeometricDisocclusionCheck"));
             FfxDenoiserInputChroma.set_from_config(readBool("FSR-RR", "InputColourNoiseFilter"));
             FfxDenoiserHardwareDepth.set_from_config(readBool("FSR-RR", "HardwareDepth"));
             FfxDenoiserIndex.set_from_config(readInt("FSR-RR", "ProviderIndex"));
@@ -496,7 +483,6 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserDiffuseHitDistance.set_from_config(
                 readBool("FSR-RR", "DiffuseHitDistance"));
 
-            FfxDenoiserFloorEnabled.set_from_config(readBool("FSR-RR", "FloorEnabled"));
             FfxDenoiserSkinMode.set_from_config(readInt("FSR-RR", "SkinMode"));
             FfxDenoiserSssRadiusMm.set_from_config(readFloat("FSR-RR", "SssRadiusMm"));
             FfxDenoiserSssStrength.set_from_config(readFloat("FSR-RR", "SssStrength"));
@@ -510,46 +496,38 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserAlbedoStabilisationRate.set_from_config(readFloat("FSR-RR", "AlbedoStabilisationRate"));
             FfxDenoiserFogGuides.set_from_config(readBool("FSR-RR", "FogGuides"));
             FfxDenoiserMotionJitterDelta.set_from_config(readBool("FSR-RR", "MotionJitterDelta"));
-            FfxDenoiserRecoveryV2.set_from_config(readBool("FSR-RR", "RecoveryV2"));
-            FfxDenoiserRecoveryVolumetry.set_from_config(readBool("FSR-RR", "RecoveryVolumetry"));
-            FfxDenoiserRecoveryVolumetryStrength.set_from_config(readFloat("FSR-RR", "RecoveryVolumetryStrength"));
             FfxDenoiserRecoveryHistory.set_from_config(readBool("FSR-RR", "RecoveryHistory"));
             FfxDenoiserRecoveryHistoryStrength.set_from_config(readFloat("FSR-RR", "RecoveryHistoryStrength"));
+            // The three separate history fixes became Recovery v2's History. An INI written before that
+            // keeps its choice: any of them on enables History, the reset level picks Light or Medium.
+            if (!FfxDenoiserRecoveryHistory.has_value())
+            {
+                const int reset = readInt("FSR-RR", "MagnifiedHistoryReset").value_or(0);
+                const bool streak = readBool("FSR-RR", "MagnifiedHistoryStreakFilter").value_or(false);
+                const bool disocclusion = readBool("FSR-RR", "GeometricDisocclusionCheck").value_or(false);
+                if (reset > 0 || streak || disocclusion)
+                {
+                    FfxDenoiserRecoveryHistory.set_from_config(true);
+                    if (!FfxDenoiserRecoveryHistoryStrength.has_value())
+                        FfxDenoiserRecoveryHistoryStrength.set_from_config(reset >= 2 ? 1.0f : 0.5f);
+                }
+            }
             FfxDenoiserRecoverySpecular.set_from_config(readBool("FSR-RR", "RecoverySpecular"));
             FfxDenoiserRecoverySpecularStrength.set_from_config(readFloat("FSR-RR", "RecoverySpecularStrength"));
             FfxDenoiserRecoveryDiffuse.set_from_config(readBool("FSR-RR", "RecoveryDiffuse"));
             FfxDenoiserRecoveryDiffuseStrength.set_from_config(readFloat("FSR-RR", "RecoveryDiffuseStrength"));
-            FfxDenoiserRecoveryAlbedo.set_from_config(readBool("FSR-RR", "RecoveryAlbedo"));
-            FfxDenoiserRecoveryAlbedoStrength.set_from_config(readFloat("FSR-RR", "RecoveryAlbedoStrength"));
+            FfxDenoiserRecoveryAnchor.set_from_config(readFloat("FSR-RR", "RecoveryAnchor"));
+            FfxDenoiserRecoveryMix.set_from_config(readFloat("FSR-RR", "RecoveryMix"));
             FfxDenoiserRecoveryFlatAlbedo.set_from_config(readBool("FSR-RR", "RecoveryFlatAlbedo"));
             FfxDenoiserRecoveryFlatAlbedoStrength.set_from_config(readFloat("FSR-RR", "RecoveryFlatAlbedoStrength"));
+            FfxDenoiserRecoveryFlatAnchor.set_from_config(readFloat("FSR-RR", "RecoveryFlatAnchor"));
+            FfxDenoiserRecoveryFlatMix.set_from_config(readFloat("FSR-RR", "RecoveryFlatMix"));
+            FfxDenoiserRecoveryFlatTemporal.set_from_config(readBool("FSR-RR", "RecoveryFlatTemporal"));
+            FfxDenoiserRecoveryFlatHistoryLength.set_from_config(readInt("FSR-RR", "RecoveryFlatHistoryLength"));
+            FfxDenoiserRecoveryFlatRoughness.set_from_config(readInt("FSR-RR", "RecoveryFlatRoughness"));
             FfxDenoiserRecoveryDebug.set_from_config(readInt("FSR-RR", "RecoveryDebug"));
-            FfxDenoiserFloorThroughRR.set_from_config(readBool("FSR-RR", "FloorLightThroughRR"));
-            FfxDenoiserFloorFastMode.set_from_config(readBool("FSR-RR", "FloorFastMode"));
-            FfxDenoiserFloorCleanLighting.set_from_config(readBool("FSR-RR", "FloorCleanLighting"));
-            FfxDenoiserVolumeRestore.set_from_config(readFloat("FSR-RR", "VolumeRestore"));
-            FfxDenoiserFloorRecovery.set_from_config(readFloat("FSR-RR", "FloorRecovery"));
-            if (!FfxDenoiserFloorRecovery.has_value())
-            {
-                auto legacyRecovery = readFloat("FSR-RR", "FloorDetailPreservation");
-                if (legacyRecovery.has_value())
-                    FfxDenoiserFloorRecovery.set_from_config(std::clamp(*legacyRecovery * 3.0f, 0.0f, 1.0f));
-            }
             FfxDenoiserSpecularAlbedoDemodulation.set_from_config(readFloat("FSR-RR", "SpecularAlbedoDemodulation"));
             FfxDenoiserDiffuseAlbedoModulation.set_from_config(readFloat("FSR-RR", "DiffuseAlbedoModulation"));
-            FfxDenoiserAdditiveLightSplit.set_from_config(readFloat("FSR-RR", "AdditiveLightSplit"));
-            FfxDenoiserUnsupportedAlbedoRecovery.set_from_config(readBool("FSR-RR", "AlbedoBleedFix"));
-            FfxDenoiserUnsupportedAlbedoRecovery.set_from_config(readBool("FSR-RR", "UnsupportedAlbedoRecovery"));
-            FfxDenoiserFloorFlatRecovery.set_from_config(readBool("FSR-RR", "FloorFlatRecovery"));
-            FfxDenoiserFloorSpecularRecovery.set_from_config(readBool("FSR-RR", "FloorSpecularRecovery"));
-            FfxDenoiserFloorDiffuseRecovery.set_from_config(readBool("FSR-RR", "FloorDiffuseRecovery"));
-            FfxDenoiserFloorFlatNoiseMethod.set_from_config(readInt("FSR-RR", "FloorFlatNoiseMethod"));
-            FfxDenoiserFloorSpecularNoiseMethod.set_from_config(readInt("FSR-RR", "FloorSpecularNoiseMethod"));
-            FfxDenoiserFloorDiffuseNoiseMethod.set_from_config(readInt("FSR-RR", "FloorDiffuseNoiseMethod"));
-            FfxDenoiserFloorLumaRecovery.set_from_config(readFloat("FSR-RR", "FloorLumaRecovery"));
-            FfxDenoiserFloorChromaRecovery.set_from_config(readFloat("FSR-RR", "FloorChromaRecovery"));
-            FfxDenoiserFloorHandoverCorrelationMix.set_from_config(readFloat("FSR-RR", "FloorHandoverCorrelationMix"));
-            FfxDenoiserFloorHandoverAnchorClamp.set_from_config(readFloat("FSR-RR", "FloorHandoverAnchorClamp"));
 
             FfxDenoiserDemodDivisorFloor.set_from_config(
                 readFloat("FSR-RR", "DemodDivisorFloor"));
@@ -1465,12 +1443,6 @@ bool Config::SaveIni()
                      GetFloatValue(Instance()->FfxDenoiserRadianceClip.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "GaussianKernelRelaxation",
                      GetFloatValue(Instance()->FfxDenoiserGaussKernRelax.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "MagnifiedHistoryReset",
-                     GetIntValue(Instance()->FfxDenoiserStretchReset.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "MagnifiedHistoryStreakFilter",
-                     GetBoolValue(Instance()->FfxDenoiserStreakFilter.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "GeometricDisocclusionCheck",
-                     GetBoolValue(Instance()->FfxDenoiserDisocclusionCheck.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "InputColourNoiseFilter",
                      GetBoolValue(Instance()->FfxDenoiserInputChroma.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "HardwareDepth",
@@ -1491,7 +1463,6 @@ bool Config::SaveIni()
             GetBoolValue(
                 Instance()->FfxDenoiserDiffuseHitDistance.value_for_config()).c_str());
 
-        ini.SetValue("FSR-RR", "FloorEnabled", GetBoolValue(Instance()->FfxDenoiserFloorEnabled.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "SkinMode", GetIntValue(Instance()->FfxDenoiserSkinMode.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "SssRadiusMm", GetFloatValue(Instance()->FfxDenoiserSssRadiusMm.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "SssStrength", GetFloatValue(Instance()->FfxDenoiserSssStrength.value_for_config()).c_str());
@@ -1505,38 +1476,24 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "AlbedoStabilisationRate", GetFloatValue(Instance()->FfxDenoiserAlbedoStabilisationRate.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "FogGuides", GetBoolValue(Instance()->FfxDenoiserFogGuides.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "MotionJitterDelta", GetBoolValue(Instance()->FfxDenoiserMotionJitterDelta.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "RecoveryV2", GetBoolValue(Instance()->FfxDenoiserRecoveryV2.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "RecoveryVolumetry", GetBoolValue(Instance()->FfxDenoiserRecoveryVolumetry.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "RecoveryVolumetryStrength", GetFloatValue(Instance()->FfxDenoiserRecoveryVolumetryStrength.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryHistory", GetBoolValue(Instance()->FfxDenoiserRecoveryHistory.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryHistoryStrength", GetFloatValue(Instance()->FfxDenoiserRecoveryHistoryStrength.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoverySpecular", GetBoolValue(Instance()->FfxDenoiserRecoverySpecular.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoverySpecularStrength", GetFloatValue(Instance()->FfxDenoiserRecoverySpecularStrength.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryDiffuse", GetBoolValue(Instance()->FfxDenoiserRecoveryDiffuse.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryDiffuseStrength", GetFloatValue(Instance()->FfxDenoiserRecoveryDiffuseStrength.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "RecoveryAlbedo", GetBoolValue(Instance()->FfxDenoiserRecoveryAlbedo.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "RecoveryAlbedoStrength", GetFloatValue(Instance()->FfxDenoiserRecoveryAlbedoStrength.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "RecoveryAnchor", GetFloatValue(Instance()->FfxDenoiserRecoveryAnchor.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "RecoveryMix", GetFloatValue(Instance()->FfxDenoiserRecoveryMix.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryFlatAlbedo", GetBoolValue(Instance()->FfxDenoiserRecoveryFlatAlbedo.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryFlatAlbedoStrength", GetFloatValue(Instance()->FfxDenoiserRecoveryFlatAlbedoStrength.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "RecoveryFlatAnchor", GetFloatValue(Instance()->FfxDenoiserRecoveryFlatAnchor.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "RecoveryFlatMix", GetFloatValue(Instance()->FfxDenoiserRecoveryFlatMix.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "RecoveryFlatTemporal", GetBoolValue(Instance()->FfxDenoiserRecoveryFlatTemporal.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "RecoveryFlatHistoryLength", GetIntValue(Instance()->FfxDenoiserRecoveryFlatHistoryLength.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "RecoveryFlatRoughness", GetIntValue(Instance()->FfxDenoiserRecoveryFlatRoughness.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryDebug", GetIntValue(Instance()->FfxDenoiserRecoveryDebug.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorLightThroughRR", GetBoolValue(Instance()->FfxDenoiserFloorThroughRR.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorFastMode", GetBoolValue(Instance()->FfxDenoiserFloorFastMode.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorCleanLighting", GetBoolValue(Instance()->FfxDenoiserFloorCleanLighting.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "VolumeRestore", GetFloatValue(Instance()->FfxDenoiserVolumeRestore.value_for_config()).c_str());
-        ini.Delete("FSR-RR", "FloorDetailPreservation", true);
-        ini.SetValue("FSR-RR", "FloorRecovery", GetFloatValue(Instance()->FfxDenoiserFloorRecovery.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "SpecularAlbedoDemodulation", GetFloatValue(Instance()->FfxDenoiserSpecularAlbedoDemodulation.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "DiffuseAlbedoModulation", GetFloatValue(Instance()->FfxDenoiserDiffuseAlbedoModulation.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "AdditiveLightSplit", GetFloatValue(Instance()->FfxDenoiserAdditiveLightSplit.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "AlbedoBleedFix", GetBoolValue(Instance()->FfxDenoiserUnsupportedAlbedoRecovery.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorFlatRecovery", GetBoolValue(Instance()->FfxDenoiserFloorFlatRecovery.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorSpecularRecovery", GetBoolValue(Instance()->FfxDenoiserFloorSpecularRecovery.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorDiffuseRecovery", GetBoolValue(Instance()->FfxDenoiserFloorDiffuseRecovery.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorFlatNoiseMethod", GetIntValue(Instance()->FfxDenoiserFloorFlatNoiseMethod.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorSpecularNoiseMethod", GetIntValue(Instance()->FfxDenoiserFloorSpecularNoiseMethod.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorDiffuseNoiseMethod", GetIntValue(Instance()->FfxDenoiserFloorDiffuseNoiseMethod.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorLumaRecovery", GetFloatValue(Instance()->FfxDenoiserFloorLumaRecovery.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorChromaRecovery", GetFloatValue(Instance()->FfxDenoiserFloorChromaRecovery.value_for_config()).c_str());
         // Retired keys have no behavioural mapping. Remove only these names when saving.
         ini.Delete("FSR-RR", "ExperimentBleedModelSource", true);
         ini.Delete("FSR-RR", "ExperimentBleedWitnessWithoutFloor", true);
@@ -1551,8 +1508,6 @@ bool Config::SaveIni()
         ini.Delete("FSR-RR", "FloorRawBlend", true);
         ini.Delete("FSR-RR", "FloorStructureGate", true);
         ini.Delete("FSR-RR", "FloorClampSmoothing", true);
-        ini.SetValue("FSR-RR", "FloorHandoverAnchorClamp", GetFloatValue(Instance()->FfxDenoiserFloorHandoverAnchorClamp.value_for_config()).c_str());
-        ini.SetValue("FSR-RR", "FloorHandoverCorrelationMix", GetFloatValue(Instance()->FfxDenoiserFloorHandoverCorrelationMix.value_for_config()).c_str());
         ini.Delete("FSR-RR", "FloorDetailBoost", true);
         ini.Delete("FSR-RR", "FloorNormalSharpness", true);
         ini.Delete("FSR-RR", "FloorAlbedoGuide", true);
@@ -1566,6 +1521,16 @@ bool Config::SaveIni()
         // value now. There is nothing left to tune, so the old manual key is retired with
         // the rest rather than written back as a setting that no longer does anything.
         ini.Delete("FSR-RR", "RoughnessFloor", true);
+        // Recovery v2 replaced Recovery v1: the Floor, its detail recovery, the albedo bleed fix, the additive
+        // light split, the volumetric restores and the separate history fixes (now Recovery v2 > History).
+        for (const char* key : { "FloorDetailPreservation", "FloorEnabled", "FloorLightThroughRR", "FloorFastMode", "FloorCleanLighting",
+                                 "FloorRecovery", "FloorFlatRecovery", "FloorSpecularRecovery", "FloorDiffuseRecovery",
+                                 "FloorFlatNoiseMethod", "FloorSpecularNoiseMethod", "FloorDiffuseNoiseMethod",
+                                 "FloorLumaRecovery", "FloorChromaRecovery", "FloorHandoverAnchorClamp",
+                                 "FloorHandoverCorrelationMix", "AlbedoBleedFix", "AdditiveLightSplit", "VolumeRestore",
+                                 "RecoveryV2", "RecoveryVolumetry", "RecoveryVolumetryStrength", "MagnifiedHistoryReset",
+                                 "MagnifiedHistoryStreakFilter", "GeometricDisocclusionCheck", "RecoveryAlbedo", "RecoveryAlbedoStrength" })
+            ini.Delete("FSR-RR", key, true);
 
         ini.SetValue("FSR-RR", "DemodDivisorFloor",
                      GetFloatValue(Instance()->FfxDenoiserDemodDivisorFloor.value_for_config()).c_str());

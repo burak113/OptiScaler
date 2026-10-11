@@ -117,26 +117,7 @@ bool LoadAdditiveFitTap(int2 p, bool loadSignal,
     spec = QuantizeStoredAlbedo(spec);
     diff = QuantizeStoredAlbedo(diff);
 
-    if (IsSet(FLAGS_FLOOR_ENABLED) && roughness <= s_Type1RoughnessThreshold)
-        return false;
-
-    if (loadSignal)
-    {
-        color = FloorRadiance(sourceColor);
-        if (IsSet(FLAGS_FLOOR_ENABLED))
-        {
-            // Outside the zero-roughness and structure handover paths, the
-            // actual conversion residual is exactly max(raw - spatialFloor, 0).
-            // Fit that residual, not raw radiance with a different signal's share.
-            if ((RecoveryMask & 1u) != 0 &&
-                HasUnrepresentedSurfaceStructure(p, depth, roughness, false))
-                return false;
-            const float4 floor = InFloorColor[p];
-            if (!all(isfinite(floor)))
-                return false;
-            color = max(color - FloorRadiance(floor.rgb), 0.0f);
-        }
-    }
+    if (loadSignal) color = SanitizeRadiance(sourceColor);
     return true;
 }
 
@@ -382,7 +363,7 @@ float3 GetAdditiveSplitShare(int2 centerPx, float3 centerSpec, float3 centerDiff
     const float3 a = (meanC - b) / safeMeanA;
     const float3 model = (centerSpec + centerDiff) * a + b;
     const float3 share = saturate((centerSpec * a + b) / max(model, 1e-6f));
-    const float3 rawCenter = FloorRadiance(GetRawColorAt(centerPx));
+    const float3 rawCenter = SanitizeRadiance(GetRawColorAt(centerPx));
     fittedChannels = and(stableSpec, varA >= 0.01f * meanA * meanA + 1e-6f);
     fittedChannels = and(fittedChannels,
         intercept > max(0.01f * meanC, 2.0f * interceptError));

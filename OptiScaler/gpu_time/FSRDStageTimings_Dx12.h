@@ -19,7 +19,7 @@ class FSRDStageTimings
   public:
     enum Stage : unsigned
     {
-        Floor,
+        Geometry,
         Conversion,
         RayRegeneration,
         AlbedoRecovery,
@@ -33,13 +33,15 @@ class FSRDStageTimings
         TextureLeak,
         AlbedoStabilisation,
         FogGuides,
+        Recovery,
+        FlatDetail,
         Count
     };
-    static constexpr const char* Names[] { "Floor",           "Conversion",  "AMD RR / ML",
+    static constexpr const char* Names[] { "Geometry",           "Conversion",  "AMD RR / ML",
                                            "Albedo Bleed Fix", "Composition", "Super Resolution",
                                            "SSS input", "Skin diffuse prefilter", "SSS re-blur",
                                            "Input inventory", "Reference accumulation", "Texture leak",
-                                           "Albedo stabilisation", "Fog guides" };
+                                           "Albedo stabilisation", "Fog guides", "Recovery v2", "Flat Detail" };
     struct Snapshot
     {
         std::array<double, Count> milliseconds {};
@@ -212,9 +214,9 @@ class FSRDStageTimings
 
 struct FSRDRuntimeSnapshot
 {
-    enum Step { Inputs, Floor, Conversion, RayRegeneration, AlbedoRecovery, Composition, SuperResolution, Output, StepCount };
+    enum Step { Inputs, Geometry, Conversion, RayRegeneration, AlbedoRecovery, Composition, SuperResolution, Output, StepCount };
     enum Status { NotRun, Running, Passed, Failed, Disabled };
-    static constexpr const char* StepNames[] = { "Input validation", "Floor", "Conversion", "Ray Regeneration",
+    static constexpr const char* StepNames[] = { "Input validation", "Geometry", "Conversion", "Ray Regeneration",
         "Albedo Bleed Fix", "Composition", "FSR Super Resolution", "Output" };
     enum Input { Color, Depth, Motion, Normals, Roughness, DiffuseAlbedo, SpecularAlbedo,
                  SpecularDistance, DiffuseDistance, Bias, Emissive, LinearDepth, Responsivity,

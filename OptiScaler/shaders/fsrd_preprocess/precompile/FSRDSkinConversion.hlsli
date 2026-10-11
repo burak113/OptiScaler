@@ -20,7 +20,7 @@ cbuffer CB_Packing : register(b0)
     float NearPlane;
     float FarPlane;   
     
-    float FloorDetailPreservation;
+    float _ConversionPadding;
 
     uint Flags;
     uint InspectorChannel;

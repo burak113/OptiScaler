@@ -46,17 +46,16 @@ FLOOR_HLSL = os.path.join(PRE, "FSRDFloor.hlsl")
 SEED_HLSL = os.path.join(PRE, "FSRDFloorSeed.hlsl")
 TRUST_EVIDENCE_HLSL = os.path.join(PRE, "FSRDAlbedoTrustEvidence.hlsl")
 TRUST_PROPAGATE_HLSL = os.path.join(PRE, "FSRDAlbedoTrustPropagate.hlsl")
-VOLUME_GATHER_HLSL = os.path.join(PRE, "FSRDVolumeGather.hlsl")
-VOLUME_ACCUMULATE_HLSL = os.path.join(PRE, "FSRDVolumeAccumulate.hlsl")
-VOLUME_APPLY_HLSL = os.path.join(PRE, "FSRDVolumeApply.hlsl")
-RECOVERY_VOLUME_ACCUMULATE_HLSL = os.path.join(PRE, "FSRDRecoveryVolumeAccumulate.hlsl")
-RECOVERY_VOLUME_APPLY_HLSL = os.path.join(PRE, "FSRDRecoveryVolumeApply.hlsl")
 FOG_STATS_HLSL = os.path.join(PRE, "FSRDFogStats.hlsl")
 FOG_KAPPA_HLSL = os.path.join(PRE, "FSRDFogKappa.hlsl")
 FOG_RANK_HLSL = os.path.join(PRE, "FSRDFogRank.hlsl")
 FOG_SMOOTH_HLSL = os.path.join(PRE, "FSRDFogSmooth.hlsl")
 FOG_ROUTE_HLSL = os.path.join(PRE, "FSRDFogRoute.hlsl")
 RR_MOTION_HLSL = os.path.join(PRE, "FSRDRRMotion.hlsl")
+RECOVERY_LOBE_ACCUMULATE_HLSL = os.path.join(PRE, "FSRDRecoveryLobeAccumulate.hlsl")
+RECOVERY_LOBE_DOWN_HLSL = os.path.join(PRE, "FSRDRecoveryLobeDown.hlsl")
+RECOVERY_LOBE_BAND_HLSL = os.path.join(PRE, "FSRDRecoveryLobeBand.hlsl")
+RECOVERY_LOBE_COMMON_HLSLI = os.path.join(PRE, "FSRDRecoveryLobeCommon.hlsli")
 PREPROCESSOR_CPP = os.path.join(ROOT, "OptiScaler", "shaders", "fsrd_preprocess",
                                 "FSRDPreprocessor_Dx12.cpp")
 ADDITIVE_CAPTURE_INL = os.path.join(ROOT, "OptiScaler", "shaders", "fsrd_preprocess",
@@ -235,6 +234,7 @@ CONSTANT_PAIRS = [
     ("FogSmooth", "struct alignas(16) Constants", FOG_SMOOTH_HLSL, "cbuffer CB_FogSmooth", {}),
     ("FogRoute", "struct alignas(16) Constants", FOG_ROUTE_HLSL, "cbuffer CB_FogRoute", {}),
     ("RRMotion", "struct alignas(16) Constants", RR_MOTION_HLSL, "cbuffer CB_RRMotion", {}),
+    ("RecoveryLobe", "struct alignas(16) Constants", RECOVERY_LOBE_COMMON_HLSLI, "cbuffer CB_RecoveryLobe", {}),
     ('SkinPrefilter', "struct alignas(16) Constants", os.path.join(PRE, 'FSRDSkinPrefilter.hlsl'), "cbuffer CB_SkinPrefilter", {}),
     ('SssBlur', "struct alignas(16) Constants", os.path.join(PRE, 'FSRDSssBlur.hlsl'), "cbuffer CB_SssBlur", {}),
     ('SssPrepare', "struct alignas(16) Constants", os.path.join(PRE, 'FSRDSssPrepare.hlsl'), "cbuffer CB_SssPrepare", {}),
@@ -244,11 +244,6 @@ CONSTANT_PAIRS = [
     ("Composition", "struct alignas(16) Constants", COMP_HLSL, "cbuffer CB_Comp", {}),
     ("TrustEvidence", "struct alignas(16) Constants", TRUST_EVIDENCE_HLSL, "cbuffer CB_AlbedoTrust", {}),
     ("TrustPropagate", "struct alignas(16) Constants", TRUST_PROPAGATE_HLSL, "cbuffer CB_AlbedoTrust", {}),
-    ("VolumeGather", "struct alignas(16) Constants", VOLUME_GATHER_HLSL, "cbuffer CB_VolumeGather", {}),
-    ("VolumeAccumulate", "struct alignas(16) Constants", VOLUME_ACCUMULATE_HLSL, "cbuffer CB_VolumeAccumulate", {}),
-    ("VolumeApply", "struct alignas(16) Constants", VOLUME_APPLY_HLSL, "cbuffer CB_VolumeApply", {}),
-    ("RecoveryVolumeAccumulate", "struct alignas(16) Constants", RECOVERY_VOLUME_ACCUMULATE_HLSL, "cbuffer CB_VolumeAccumulate", {}),
-    ("RecoveryVolumeApply", "struct alignas(16) Constants", RECOVERY_VOLUME_APPLY_HLSL, "cbuffer CB_VolumeApply", {}),
 ]
 
 
@@ -617,14 +612,12 @@ def check_resources():
                             ("FogSmooth", FOG_SMOOTH_HLSL),
                             ("FogRoute", FOG_ROUTE_HLSL),
                             ("RRMotion", RR_MOTION_HLSL),
+                            ("RecoveryLobeAccumulate", RECOVERY_LOBE_ACCUMULATE_HLSL),
+                            ("RecoveryLobeDown", RECOVERY_LOBE_DOWN_HLSL),
+                            ("RecoveryLobeBand", RECOVERY_LOBE_BAND_HLSL),
                             ("Conversion", CONV_HLSL), ("Composition", COMP_HLSL),
                             ("TrustEvidence", TRUST_EVIDENCE_HLSL),
                             ("TrustPropagate", TRUST_PROPAGATE_HLSL),
-                            ("VolumeGather", VOLUME_GATHER_HLSL),
-                            ("VolumeAccumulate", VOLUME_ACCUMULATE_HLSL),
-                            ("VolumeApply", VOLUME_APPLY_HLSL),
-                            ("RecoveryVolumeAccumulate", RECOVERY_VOLUME_ACCUMULATE_HLSL),
-                            ("RecoveryVolumeApply", RECOVERY_VOLUME_APPLY_HLSL),
                             ("SssPrepare", os.path.join(PRE,"FSRDSssPrepare.hlsl")),
                             ("SssBlur", os.path.join(PRE,"FSRDSssBlur.hlsl")),
                             ("SkinPrefilter", os.path.join(PRE,"FSRDSkinPrefilter.hlsl")),

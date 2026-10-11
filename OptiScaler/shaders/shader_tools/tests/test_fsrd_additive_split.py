@@ -240,14 +240,16 @@ def run():
         cfg = (t.ROOT/'OptiScaler/Config.cpp').read_text()
         hdr = (t.ROOT/'OptiScaler/Config.h').read_text()
         runtime = (t.ROOT/'OptiScaler/upscalers/fsr31/FSRDFeature_Dx12.cpp').read_text()
-        check('INI key loads saves resets and stays optional by default',
-              'FfxDenoiserAdditiveLightSplit.set_from_config(readFloat("FSR-RR", "AdditiveLightSplit"))' in cfg and
-              'ini.SetValue("FSR-RR", "AdditiveLightSplit"' in cfg and
-              'FfxDenoiserAdditiveLightSplit.reset()' in cfg and
+        # Recovery v2 retired the split as a setting; the kernel stays for the research tools.
+        retired = cfg[cfg.index('Recovery v2 replaced Recovery v1'):]
+        check('retired INI key is neither read nor written and is deleted on save',
+              'readFloat("FSR-RR", "AdditiveLightSplit")' not in cfg and
+              'ini.SetValue("FSR-RR", "AdditiveLightSplit"' not in cfg and
+              '"AdditiveLightSplit"' in retired[:retired.index('ini.Delete("FSR-RR", key, true);')] and
               'FfxDenoiserAdditiveLightSplit{0.0f}' in hdr)
-        check('applied sanitized strength participates in existing history reset',
-              'unitValue(cfg.FfxDenoiserAdditiveLightSplit.value_or_default(), 0.0f)' in runtime and
-              bool(re.search(r'_convDesc.AdditiveLightSplit\s*!=\s*additiveLightSplit', runtime)))
+        check('runtime keeps the additive split off',
+              '_convDesc.AdditiveLightSplit = 0.0f;' in runtime and
+              'cfg.FfxDenoiserAdditiveLightSplit' not in runtime)
         preprocess = (t.ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.cpp').read_text()
         selection = t.mirror.brace_body(preprocess,
             'bool DispatchConversion(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)')

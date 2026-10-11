@@ -65,12 +65,18 @@ constexpr std::array<DXGI_FORMAT, 10> Formats {DXGI_FORMAT_R16G16B16A16_FLOAT, D
     DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R16G16B16A16_FLOAT,
     DXGI_FORMAT_R10G10B10A2_UNORM, DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT,
     DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT};
-constexpr size_t LegacyDiagnosticCount = 19;
-constexpr std::array<const char*,21> DiagnosticNames {"raw_color", "raw_normals", "raw_specular_albedo",
-    "raw_diffuse_albedo", "rr_specular", "rr_diffuse", "floor", "floor_reference", "raw_bias_mask",
+constexpr size_t LegacyDiagnosticCount = 17;      // recorded with the converter sources
+constexpr size_t FullContextDiagnosticFirst = 24; // 17..23: Flat Detail/history, recorded with the SDK lobes; 24..: full context
+constexpr std::array<const char*,26> DiagnosticNames {"raw_color", "raw_normals", "raw_specular_albedo",
+    "raw_diffuse_albedo", "rr_specular", "rr_diffuse", "raw_bias_mask",
     "raw_specular_hit_distance", "raw_specular_direction_hit_distance", "raw_diffuse_hit_distance",
     "raw_responsivity", "raw_emissive", "raw_motion", "raw_depth", "raw_roughness",
-    "raw_title_linear_depth", "raw_inspector", "rr_full_context_reset_specular", "rr_full_context_reset_diffuse"};
+    "raw_title_linear_depth", "raw_inspector", "flat_detail_reference", "flat_detail_statistics", "flat_detail_base",
+    "flat_detail_rr_mean", "flat_detail_anchor_sigma", "flat_detail_history_valid_count", "flat_detail_history_weight",
+    "rr_full_context_reset_specular", "rr_full_context_reset_diffuse"};
+static_assert(FullContextDiagnosticFirst == LegacyDiagnosticCount + 7);
+static_assert(std::string_view(DiagnosticNames[FullContextDiagnosticFirst]) == "rr_full_context_reset_specular");
+static_assert(std::string_view(DiagnosticNames[FullContextDiagnosticFirst + 1]) == "rr_full_context_reset_diffuse");
 
 std::atomic<bool> g_captureActive {false};
 std::atomic<bool> g_srRequested {false};
@@ -255,7 +261,7 @@ struct Frame
     uint64_t gpuBytes = 0; bool frozen = false, discarded = false, currentCopied = false;
     std::string settingsHash;
     std::vector<uint8_t> constants;
-    std::vector<uint8_t> floorSeedConstants, floorFilterConstants;
+    std::vector<uint8_t> geometryConstants, flatDetailConstants;
     FSRDGameTraceSession::FrameInfo info;
     Json controls, settings;
     uint32_t ordinal = 0;
@@ -263,7 +269,7 @@ struct Frame
     bool started = false, native = false, sealed = false;
     explicit Frame(bool fullContextReference = false)
     {
-        diagnosticCount = fullContextReference ? DiagnosticNames.size() : LegacyDiagnosticCount;
+        diagnosticCount = fullContextReference ? DiagnosticNames.size() : FullContextDiagnosticFirst;
         for (size_t i=0; i<diagnostics.size(); ++i)
             diagnostics[i].metadata = {{"name", DiagnosticNames[i]}, {"available", false},
                 {"reason", "Diagnostic source not supplied"},
@@ -594,7 +600,7 @@ Json ValidateFullContextReferenceSources(const Session& s, const Frame& f,
     const FSRDGameTraceSession::FrameInfo& info, std::span<const FSRDGameTraceSession::DiagnosticSource> sources)
 {
     Json common; ID3D12Resource* previous = nullptr;
-    for (size_t slot=LegacyDiagnosticCount; slot<DiagnosticNames.size(); ++slot)
+    for (size_t slot=FullContextDiagnosticFirst; slot<DiagnosticNames.size(); ++slot)
     {
         const FSRDGameTraceSession::DiagnosticSource* source = nullptr;
         unsigned matches = 0;
@@ -628,7 +634,7 @@ Json ValidateFullContextReferenceSources(const Session& s, const Frame& f,
             f.controls.at("rr_dispatch").at("command_list").at("address_process_local") != listAddress ||
             f.controls.at("rr_dispatch").at("command_list").at("type") != uint32_t(D3D12_COMMAND_LIST_TYPE_DIRECT))
             throw std::runtime_error("GAME_TRACE full-context reference does not share the primary DIRECT command list");
-        if (slot != LegacyDiagnosticCount && common != boundary)
+        if (slot != FullContextDiagnosticFirst && common != boundary)
             throw std::runtime_error("GAME_TRACE full-context reference heads have different dispatch boundaries");
         common = boundary; previous = source->image.resource;
         for (const auto& image : f.images)
@@ -687,7 +693,7 @@ void CopyDiagnostics(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, Frame
             }
             auto& image = diagnostic.image;
             image = std::move(layout.image);
-            uint64_t frameBytes = frame.constants.size()+frame.floorSeedConstants.size()+frame.floorFilterConstants.size();
+            uint64_t frameBytes = frame.constants.size()+frame.geometryConstants.size()+frame.flatDetailConstants.size();
             for (const auto& captured : frame.images)
                 if (captured.readback) frameBytes += uint64_t(captured.width)*captured.height*captured.bpp;
             for (const auto& captured : frame.diagnostics)
@@ -819,7 +825,7 @@ const char* SrModeName(FSRDGameTraceSession::SrMode mode)
 }
 uint64_t FramePayload(const Frame& f)
 {
-    uint64_t bytes = f.constants.size()+f.floorSeedConstants.size()+f.floorFilterConstants.size();
+    uint64_t bytes = f.constants.size()+f.geometryConstants.size()+f.flatDetailConstants.size();
     for (const auto& image : f.images) if (image.readback) bytes += uint64_t(image.width)*image.height*image.bpp;
     for (const auto& diagnostic : f.diagnostics)
         if (diagnostic.image.readback && diagnostic.metadata.value("available",false))
@@ -1080,8 +1086,8 @@ struct FSRDGameTraceSession::Impl
         if (f->srImage.readback) addImage(f->srImage,"post_sr.bin",-1,0);
         // Constants are CPU data already copied from this evaluation.
         packet->payloads.push_back({"conversion_constants.bin",f->constants,-2,0});
-        if (!f->floorSeedConstants.empty()) packet->payloads.push_back({"floor_seed_constants.bin",f->floorSeedConstants,-3,0});
-        if (!f->floorFilterConstants.empty()) packet->payloads.push_back({"floor_filter_constants.bin",f->floorFilterConstants,-4,0});
+        if (!f->geometryConstants.empty()) packet->payloads.push_back({"geometry_constants.bin",f->geometryConstants,-3,0});
+        if (!f->flatDetailConstants.empty()) packet->payloads.push_back({"flat_detail_constants.bin",f->flatDetailConstants,-4,0});
         RRTraceFence::Snapshot proof {}; bool copied = true;
         const bool protectedCopy = RRTraceFence::WithCompletedSnapshot(f->ticket,[&](const RRTraceFence::Snapshot& exactProof) {
             proof = exactProof;
@@ -1115,9 +1121,9 @@ struct FSRDGameTraceSession::Impl
         }
         row["post_sr"] = f->srImage.readback ? f->srMetadata : Json{{"available",false},{"reason","Not requested"}};
         if (f->srImage.readback) row["post_sr"].update(ImageMetadata(f->srImage,"post_sr"));
-        row["floor_seed_constants"] = {{"available",!f->floorSeedConstants.empty()},{"stage","pre_floor_seed_dispatch"},{"abi_bytes",176}};
-        row["floor_filter_constants"] = {{"available",!f->floorFilterConstants.empty()},{"stage","pre_floor_filter_dispatches"},
-            {"record_bytes",32},{"pass_count",f->floorFilterConstants.size()/32}};
+        row["geometry_constants"] = {{"available",!f->geometryConstants.empty()},{"stage","pre_geometry_dispatch"},{"abi_bytes",128}};
+        row["flat_detail_constants"] = {{"available",!f->flatDetailConstants.empty()},{"stage","pre_flat_detail_dispatches"},
+            {"record_bytes",64},{"pass_count",f->flatDetailConstants.size()/64}};
         return packet;
     }
     void SnapshotLoop() noexcept;
@@ -1164,7 +1170,7 @@ struct FSRDGameTraceSession::Impl
             if (payload.kind == 0) metadata = &packet.row["images"][payload.slot];
             else if (payload.kind == 1) metadata = &packet.row["diagnostics"][payload.slot];
             else metadata = &packet.row[payload.kind == -1 ? "post_sr" : payload.kind == -2 ? "conversion_constants" :
-                payload.kind == -3 ? "floor_seed_constants" : "floor_filter_constants"];
+                payload.kind == -3 ? "geometry_constants" : "flat_detail_constants"];
             metadata->update({{"file",relative+"/"+payload.filename},{"bytes",payload.bytes.size()},{"sha256",RRTraceAdditiveIO::Sha256(payload.bytes)}});
         }
         RRTraceAdditiveIO::WriteText(partial/"frame.json",packet.row.dump(2)+"\n");
@@ -1576,8 +1582,8 @@ bool FSRDGameTraceSession::WantsFullContextReference() noexcept
 
 bool FSRDGameTraceSession::RecordSources(ID3D12Device* device, ID3D12GraphicsCommandList* cmd,
     const std::array<Source,SourceCount>& sources, uint32_t rw, uint32_t rh, std::span<const uint8_t> constants,
-    std::span<const DiagnosticSource> diagnostics, std::span<const uint8_t> floorSeedConstants,
-    std::span<const uint8_t> floorFilterConstants, bool submissionHooksAvailable) noexcept
+    std::span<const DiagnosticSource> diagnostics, std::span<const uint8_t> geometryConstants,
+    std::span<const uint8_t> flatDetailConstants, bool submissionHooksAvailable) noexcept
 {
     auto& control = Global(); std::scoped_lock lock(control.mutex);
     try
@@ -1605,23 +1611,23 @@ bool FSRDGameTraceSession::RecordSources(ID3D12Device* device, ID3D12GraphicsCom
         if (impl.current && !impl.current->sealed) throw std::runtime_error("An evaluation ended without matched native/current/SR snapshots");
         if (impl.pending.size() >= MaximumPendingFrames)
             throw std::runtime_error("GAME_TRACE GPU backlog reached the bounded pending-frame limit; no game-thread wait performed");
-        if ((!floorSeedConstants.empty() && floorSeedConstants.size() != 176) ||
-            (!floorFilterConstants.empty() && floorFilterConstants.size() != 3*32 && floorFilterConstants.size() != 5*32))
-            throw std::runtime_error("Invalid actual Floor seed/filter constant extent");
+        if ((!geometryConstants.empty() && geometryConstants.size() != 128) ||
+            (!flatDetailConstants.empty() && flatDetailConstants.size() != 64))
+            throw std::runtime_error("Invalid geometry/Flat Detail constant extent");
         const auto mapping = RRTraceAdditiveIO::Sha256(constants.subspan(256,96));
         if (!s.mappingHash.empty() && s.mappingHash != mapping) throw std::runtime_error("Conversion source mapping changed");
         s.mappingHash = mapping; s.manifest["conversion_mapping_sha256"] = mapping;
         const auto core = CoreBytes(device,s,0,Names.size());
         const auto diagnostic = DiagnosticBytes(device,s,diagnostics,0,DiagnosticNames.size());
         const auto reference = FullContextReferenceBytes(device,s);
-        const auto payload = constants.size()+floorSeedConstants.size()+floorFilterConstants.size()+core.first+diagnostic.first+reference.first;
+        const auto payload = constants.size()+geometryConstants.size()+flatDetailConstants.size()+core.first+diagnostic.first+reference.first;
         const auto readback = core.second+diagnostic.second+reference.second;
         PreflightReadback(s,readback,readback);
         PreflightPayload(s,payload);
         auto f = std::make_shared<Frame>(s.fullContextReference); f->ordinal = s.status.recorded; f->list = cmd; f->owner = impl.session;
         f->constants.assign(constants.begin(),constants.end());
-        f->floorSeedConstants.assign(floorSeedConstants.begin(),floorSeedConstants.end());
-        f->floorFilterConstants.assign(floorFilterConstants.begin(),floorFilterConstants.end());
+        f->geometryConstants.assign(geometryConstants.begin(),geometryConstants.end());
+        f->flatDetailConstants.assign(flatDetailConstants.begin(),flatDetailConstants.end());
         LARGE_INTEGER qpc {}; QueryPerformanceCounter(&qpc); f->qpc = uint64_t(qpc.QuadPart);
         f->ticket = RRTraceFence::Arm(device,cmd);
         impl.current = f; impl.pending.push_back(f); control.retained.push_back(f);
@@ -1662,16 +1668,19 @@ void FSRDGameTraceSession::RecordNative(ID3D12GraphicsCommandList* cmd, Source s
             info.frameIndex != s.lastFrameIndex+1u || s.settingsHash != hash))
             throw std::runtime_error("Native context, consecutive evaluation order or settings changed");
         const auto outputs = CoreBytes(impl.device.Get(),s,8,10);
-        const auto lobes = DiagnosticBytes(impl.device.Get(),s,diagnostics,4,6);
+        auto lobes = DiagnosticBytes(impl.device.Get(),s,diagnostics,4,6);
+        const auto flatDetail = DiagnosticBytes(impl.device.Get(),s,diagnostics,LegacyDiagnosticCount,FullContextDiagnosticFirst);
+        lobes.first += flatDetail.first; lobes.second += flatDetail.second;
         const auto reference = s.fullContextReference
-            ? DiagnosticBytes(impl.device.Get(),s,diagnostics,LegacyDiagnosticCount,DiagnosticNames.size())
+            ? DiagnosticBytes(impl.device.Get(),s,diagnostics,FullContextDiagnosticFirst,DiagnosticNames.size())
             : std::pair<uint64_t,uint64_t>{};
         PreflightReadback(s,f.gpuBytes+outputs.second+lobes.second+reference.second,outputs.second+lobes.second+reference.second);
         PreflightPayload(s,FramePayload(f)+outputs.first+lobes.first+reference.first);
         CopyImage(impl.device.Get(),cmd,f,s,source,8);
         CopyDiagnostics(impl.device.Get(),cmd,f,s,diagnostics,4,6);
+        CopyDiagnostics(impl.device.Get(),cmd,f,s,diagnostics,LegacyDiagnosticCount,FullContextDiagnosticFirst);
         if (s.fullContextReference)
-            CopyDiagnostics(impl.device.Get(),cmd,f,s,diagnostics,LegacyDiagnosticCount,DiagnosticNames.size());
+            CopyDiagnostics(impl.device.Get(),cmd,f,s,diagnostics,FullContextDiagnosticFirst,DiagnosticNames.size());
         f.info = info; f.native = true; f.settingsHash = hash;
         s.context = info.contextId; s.settingsHash = hash; s.lastEvaluation = info.evaluationId; s.lastFrameIndex = info.frameIndex; s.bound = true;
         if (s.fullContextReference)

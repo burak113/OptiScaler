@@ -3,8 +3,7 @@
 Mirrors the layout the existing precompiled headers use, so the checked-in artifacts stay
 in the same shape: an `#if 0` DXIL listing for reference, then the cso bytes.
 FSRDInputConv builds both the original and enabled additive variants so an edit to
-their shared source cannot leave either conversion PSO with a stale artifact; the
-Seed and its clean-lighting variant are rebuilt together for the same reason.
+their shared source cannot leave either conversion PSO with a stale artifact; all dependent variants share the same source.
 """
 import subprocess
 import sys
@@ -104,7 +103,7 @@ def build(name, compiler):
                 f.write(",")
                 f.write("\n    " if (i + 1) % 12 == 0 else " ")
         f.write("\n};\n")
-        header = f.getvalue().encode('utf-8')
+        header = f.getvalue().replace('\n', '\r\n').encode('utf-8')
 
     # Avoid truncating a header while the IDE/indexer reads it. Reproducibility
     # checks should not rewrite identical artifacts at all; changed headers are
@@ -117,12 +116,11 @@ def build(name, compiler):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('name', choices=['FSRDFloorSeed', 'FSRDFloorSeedCleanLighting', 'FSRDFloor', 'FSRDInputConv',
+    parser.add_argument('name', choices=['FSRDGeometry', 'FSRDFlatDetailClassify', 'FSRDFlatDetailSeed', 'FSRDFlatDetailRefine', 'FSRDFlatTemporal', 'FSRDFlatTemporalStore', 'FSRDFlatDetailBase', 'FSRDFlatDetailApply', 'FSRDInputConv',
                                        'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDOutputComp',
-                                       'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
-                                       'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor',
-                                       'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate',
-                                       'FSRDVolumeGather', 'FSRDVolumeAccumulate', 'FSRDVolumeApply', 'FSRDRecoveryVolumeAccumulate', 'FSRDRecoveryVolumeApply', 'FSRDSssPrepare', 'FSRDSssBlur', 'FSRDSkinPrefilter', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDInputConvSkinBounds', 'FSRDInputConvSkinBoundsAdditive', 'FSRDSkinBounds', 'FSRDSkinPrefilterTiled', 'FSRDInputConvSkinFused', 'FSRDInputConvSkinFusedAdditive', 'FSRDSssKernel', 'FSRDSssBlurTiled', 'FSRDProbeInputs', 'FSRDReference', 'FSRDLeak', 'FSRDAlbedoStabilise', 'FSRDFogStats', 'FSRDFogKappa', 'FSRDFogRank', 'FSRDFogSmooth', 'FSRDFogRoute', 'FSRDRRMotion', 'all'])
+                                                                                                                     'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate',
+                                       'FSRDSssPrepare', 'FSRDSssBlur', 'FSRDSkinPrefilter', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDInputConvSkinBounds', 'FSRDInputConvSkinBoundsAdditive', 'FSRDSkinBounds', 'FSRDSkinPrefilterTiled', 'FSRDInputConvSkinFused', 'FSRDInputConvSkinFusedAdditive', 'FSRDSssKernel', 'FSRDSssBlurTiled', 'FSRDProbeInputs', 'FSRDReference', 'FSRDLeak', 'FSRDAlbedoStabilise', 'FSRDFogStats', 'FSRDFogKappa', 'FSRDFogRank', 'FSRDFogSmooth', 'FSRDFogRoute', 'FSRDRecoveryLobeAccumulate', 'FSRDRecoveryLobeDown', 'FSRDRecoveryLobeBand', 'FSRDRRMotion', 'all'])
+    parser.add_argument('--compile-only', action='store_true', help='Compile code without running mirror verification')
     parser.add_argument('--dxc', help='DXC executable; otherwise FSRD_DXC, PATH, or latest installed SDK')
     options = parser.parse_args()
     compiler = dxc(options.dxc)
@@ -130,26 +128,17 @@ if __name__ == "__main__":
     subprocess.run([str(compiler), '--version'], check=True)
     # The verifier first: it fails in a second on a mirror that drifted, where the compiler
     # would say nothing and the shader would read the wrong parameter or resource.
-    check = subprocess.run([sys.executable, VERIFY])
-    if check.returncode != 0:
-        raise SystemExit("mirror check failed; not compiling")
+    if not options.compile_only:
+        check = subprocess.run([sys.executable, VERIFY])
+        if check.returncode != 0:
+            raise SystemExit("mirror check failed; not compiling")
     if options.name == 'all':
-        names = ['FSRDFloorSeed', 'FSRDFloorSeedCleanLighting', 'FSRDFloor', 'FSRDInputConv',
+        names = ['FSRDGeometry', 'FSRDFlatDetailClassify', 'FSRDFlatDetailSeed', 'FSRDFlatDetailRefine', 'FSRDFlatTemporal', 'FSRDFlatTemporalStore', 'FSRDFlatDetailBase', 'FSRDFlatDetailApply', 'FSRDInputConv',
                  'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDOutputComp',
-                 'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
-                 'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor',
-                 'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate',
-                 'FSRDVolumeGather', 'FSRDVolumeAccumulate', 'FSRDVolumeApply', 'FSRDRecoveryVolumeAccumulate', 'FSRDRecoveryVolumeApply', 'FSRDSssPrepare', 'FSRDSssBlur', 'FSRDSkinPrefilter', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDInputConvSkinBounds', 'FSRDInputConvSkinBoundsAdditive', 'FSRDSkinBounds', 'FSRDSkinPrefilterTiled', 'FSRDInputConvSkinFused', 'FSRDInputConvSkinFusedAdditive', 'FSRDSssKernel', 'FSRDSssBlurTiled', 'FSRDProbeInputs', 'FSRDReference', 'FSRDLeak', 'FSRDAlbedoStabilise', 'FSRDFogStats', 'FSRDFogKappa', 'FSRDFogRank', 'FSRDFogSmooth', 'FSRDFogRoute', 'FSRDRRMotion']
-    elif options.name in ('FSRDFloorSeed', 'FSRDFloorSeedCleanLighting'):
-        # The clean-lighting PSO wraps the Seed source; rebuild both together.
-        names = ['FSRDFloorSeed', 'FSRDFloorSeedCleanLighting']
+                                                   'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate',
+                 'FSRDSssPrepare', 'FSRDSssBlur', 'FSRDSkinPrefilter', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDInputConvSkinBounds', 'FSRDInputConvSkinBoundsAdditive', 'FSRDSkinBounds', 'FSRDSkinPrefilterTiled', 'FSRDInputConvSkinFused', 'FSRDInputConvSkinFusedAdditive', 'FSRDSssKernel', 'FSRDSssBlurTiled', 'FSRDProbeInputs', 'FSRDReference', 'FSRDLeak', 'FSRDAlbedoStabilise', 'FSRDFogStats', 'FSRDFogKappa', 'FSRDFogRank', 'FSRDFogSmooth', 'FSRDFogRoute', 'FSRDRecoveryLobeAccumulate', 'FSRDRecoveryLobeDown', 'FSRDRecoveryLobeBand', 'FSRDRRMotion']
     elif options.name == 'FSRDInputConv':
         names = ['FSRDInputConv', 'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDInputConvSkinBounds', 'FSRDInputConvSkinBoundsAdditive']
-    elif options.name in ('FSRDOutputComp', 'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
-                 'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor'):
-        # Every wrapper shares the composition source. Rebuild all dependents.
-        names = ['FSRDOutputComp', 'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
-                 'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor']
     else:
         names = [options.name]
     # Each shader compiles in its own dxc process and temporary directory and publishes

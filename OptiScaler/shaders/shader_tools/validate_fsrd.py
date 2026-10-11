@@ -39,7 +39,7 @@ SHADERS = (*BASELINE_SHADERS, 'FSRDFloorSeedCleanLighting', 'FSRDInputConvAdditi
            'FSRDOutputCompLight', 'FSRDOutputCompNoRecovery',
            'FSRDOutputCompTileLight', 'FSRDOutputCompTileAnchor',
            'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate',
-           'FSRDVolumeGather', 'FSRDVolumeAccumulate', 'FSRDVolumeApply', 'FSRDRecoveryVolumeAccumulate', 'FSRDRecoveryVolumeApply', 'FSRDSssPrepare', 'FSRDSssBlur', 'FSRDSkinPrefilter', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDProbeInputs', 'FSRDReference', 'FSRDLeak', 'FSRDAlbedoStabilise', 'FSRDFogStats', 'FSRDFogKappa', 'FSRDFogRank', 'FSRDFogSmooth', 'FSRDFogRoute', 'FSRDRRMotion')
+           'FSRDSssPrepare', 'FSRDSssBlur', 'FSRDSkinPrefilter', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDProbeInputs', 'FSRDReference', 'FSRDLeak', 'FSRDAlbedoStabilise', 'FSRDFogStats', 'FSRDFogKappa', 'FSRDFogRank', 'FSRDFogSmooth', 'FSRDFogRoute', 'FSRDRecoveryLobeAccumulate', 'FSRDRecoveryLobeDown', 'FSRDRecoveryLobeBand', 'FSRDRRMotion')
 HOST_CORRECTNESS = (
     'test_fsrd_fog_host_contract',
     'test_fsrd_roughness_acceptance', 'test_fsr_output_scaling',
@@ -50,7 +50,7 @@ HOST_CORRECTNESS = (
 )
 SUITES = (
     *HOST_CORRECTNESS,
-    'test_fsrd_recovery_v2', 'test_fsrd_recovery_volume',
+    'test_fsrd_recovery_v2', 'test_fsrd_recovery_lobe',
     'test_fsrd_dispatch_chain',
     'test_fsrd_composition_variants',
     'test_fsrd_composition_graph',

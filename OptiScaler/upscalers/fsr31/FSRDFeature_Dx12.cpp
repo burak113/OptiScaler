@@ -1027,7 +1027,6 @@ enum class DebugModes : uint64_t
     NormDepth = FSRDConvFlags::DebugNormDepth,
     AlbedoError = FSRDConvFlags::DebugAlbedoError,
 
-    FloorColor = FSRDConvFlags::DebugFloorColor,
     RawIndirectSpecular = FSRDConvFlags::DebugRawIndirectSpecular,
     EffectiveRoughness = FSRDConvFlags::DebugEffectiveRoughness,
     RawRoughness = FSRDConvFlags::DebugRawRoughness,
@@ -1038,7 +1037,6 @@ enum class DebugModes : uint64_t
     InEmissive = FSRDConvFlags::DebugInEmissive,
     RRMaterialType = FSRDConvFlags::DebugRRMaterialType,
     AlbedoStructure = FSRDConvFlags::DebugAlbedoStructure,
-    FloorResidual = FSRDConvFlags::DebugFloorResidual,
 
     SpecularSplit = FSRDConvFlags::DebugSpecularSplit,
     InTitleLinearDepth = FSRDConvFlags::DebugInTitleLinearDepth,
@@ -1046,7 +1044,6 @@ enum class DebugModes : uint64_t
     InResponsivityMask = FSRDConvFlags::DebugInResponsivityMask,
 
     InBiasMask = FSRDConvFlags::DebugInBiasMask,
-    FloorNoise = FSRDConvFlags::DebugFloorNoise,
     DemodRisk = FSRDConvFlags::DebugDemodRisk,
     StretchReset = FSRDConvFlags::DebugStretchReset,
     SssGuide = FSRDConvFlags::DebugSssGuide,
@@ -1055,8 +1052,6 @@ enum class DebugModes : uint64_t
     TextureLeakSpecular = uint32_t(FSRDConvFlags::Debug) | (47u << 17),
     TextureLeakDiffuse = uint32_t(FSRDConvFlags::Debug) | (48u << 17),
     SkipUnmapped = FSRDConvFlags::DebugSkipUnmapped,
-    SkipFloor = FSRDConvFlags::DebugSkipFloor,
-    FloorExcess = FSRDConvFlags::DebugFloorExcess,
     DemodGain = FSRDConvFlags::DebugDemodGain,
     HitDistGate = FSRDConvFlags::DebugHitDistGate,
     DenoiserFraction = FSRDConvFlags::DebugDenoiserFraction,
@@ -1065,26 +1060,17 @@ enum class DebugModes : uint64_t
     CompositionDebug = (uint64_t) FSRDCompFlags::Debug << CompositionDebugOffset,
     CompositionDebugMask = (uint64_t)FSRDCompFlags::DebugModeMask,
 
-    DetailConfidence = (uint64_t)FSRDCompFlags::DebugDetailConfidence << CompositionDebugOffset,
     SkipSignal = (uint64_t) FSRDCompFlags::DebugSkipSignal << CompositionDebugOffset,
     DenoiserOutput = (uint64_t) FSRDCompFlags::DebugDenoiserOutput << CompositionDebugOffset,
     DirectSpecular = (uint64_t) FSRDCompFlags::DebugDirectSpecular << CompositionDebugOffset,
     IndirectSpecular = (uint64_t) FSRDCompFlags::DebugIndirectSpecular << CompositionDebugOffset,
     DirectDiffuse = (uint64_t) FSRDCompFlags::DebugDirectDiffuse << CompositionDebugOffset,
     IndirectDiffuse = (uint64_t) FSRDCompFlags::DebugIndirectDiffuse << CompositionDebugOffset,
-    DetailCorrection = (uint64_t) FSRDCompFlags::DebugDetailCorrection << CompositionDebugOffset,
-    DetailReference = (uint64_t) FSRDCompFlags::DebugDetailReference << CompositionDebugOffset,
     ReconstructedColor = (uint64_t) FSRDCompFlags::DebugReconstructedColor << CompositionDebugOffset,
-    DetailSeed = (uint64_t) FSRDCompFlags::DebugDetailSeed << CompositionDebugOffset,
-    DetailAnchored = (uint64_t) FSRDCompFlags::DebugDetailAnchored << CompositionDebugOffset,
-    HandoverWeights = (uint64_t) FSRDCompFlags::DebugHandoverWeights << CompositionDebugOffset,
-    HandoverLimits = (uint64_t) FSRDCompFlags::DebugHandoverLimits << CompositionDebugOffset,
     CompositionBeforeClamp = (uint64_t) FSRDCompFlags::DebugCompositionBeforeClamp << CompositionDebugOffset,
     CompositionFinal = (uint64_t) FSRDCompFlags::DebugCompositionFinal << CompositionDebugOffset,
-    DetailBoxAnchored = (uint64_t) FSRDCompFlags::DebugDetailBoxAnchored << CompositionDebugOffset,
-    HandoverEligibility = (uint64_t) FSRDCompFlags::DebugHandoverEligibility << CompositionDebugOffset,
-    ChromaRecovery = (uint64_t) FSRDCompFlags::DebugChromaRecovery << CompositionDebugOffset,
-    LumaRecovery = (uint64_t) FSRDCompFlags::DebugLumaRecovery << CompositionDebugOffset,
+    FlatDetail = (uint64_t) FSRDCompFlags::DebugFlatDetail << CompositionDebugOffset,
+    FlatDetailReference = (uint64_t) FSRDCompFlags::DebugFlatDetailReference << CompositionDebugOffset,
     AlbedoTrust = (uint64_t) FSRDCompFlags::DebugAlbedoTrust << CompositionDebugOffset,
 };
 
@@ -1137,7 +1123,6 @@ constexpr auto kDebugModes = std::to_array<ModeNamePair>(
     { "InputEmissive", (uint64_t) DebugModes::InEmissive },
     { "RRMaterialType", (uint64_t) DebugModes::RRMaterialType },
     { "AlbedoStructureAvailability", (uint64_t) DebugModes::AlbedoStructure },
-    { "FloorResidual", (uint64_t) DebugModes::FloorResidual },
 
     { "SpecularSplit", (uint64_t) DebugModes::SpecularSplit },
     { "InTitleLinearDepth", (uint64_t) DebugModes::InTitleLinearDepth },
@@ -1145,7 +1130,6 @@ constexpr auto kDebugModes = std::to_array<ModeNamePair>(
     { "InResponsivityMask", (uint64_t) DebugModes::InResponsivityMask },
 
     { "InBiasMask", (uint64_t) DebugModes::InBiasMask },
-    { "FloorNoise", (uint64_t) DebugModes::FloorNoise },
     { "DemodRisk", (uint64_t) DebugModes::DemodRisk },
     { "StretchReset", (uint64_t) DebugModes::StretchReset },
     { "Texture leak specular", (uint64_t) DebugModes::TextureLeakSpecular },
@@ -1154,8 +1138,6 @@ constexpr auto kDebugModes = std::to_array<ModeNamePair>(
     { "Pre-SSS colour", (uint64_t) DebugModes::PreSss },
     { "Skin diffuse prefilter", (uint64_t) DebugModes::SkinPrefilter },
     { "SkipUnmapped", (uint64_t) DebugModes::SkipUnmapped },
-    { "SkipFloor", (uint64_t) DebugModes::SkipFloor },
-    { "FloorExcess", (uint64_t) DebugModes::FloorExcess },
     { "DemodGain", (uint64_t) DebugModes::DemodGain },
     { "HitDistGate", (uint64_t) DebugModes::HitDistGate },
     { "DenoiserFraction", (uint64_t) DebugModes::DenoiserFraction },
@@ -1171,24 +1153,14 @@ constexpr auto kDebugModes = std::to_array<ModeNamePair>(
     { "NormDepth", (uint64_t) DebugModes::NormDepth },
 
     { "AlbedoError", (uint64_t) DebugModes::AlbedoError },
-    { "DetailConfidence", (uint64_t) DebugModes::DetailConfidence },
 
-    { "DetailCorrection", (uint64_t) DebugModes::DetailCorrection },
-    { "DetailReference", (uint64_t) DebugModes::DetailReference },
     { "ReconstructedColor", (uint64_t) DebugModes::ReconstructedColor },
-    { "DetailSeed", (uint64_t) DebugModes::DetailSeed },
-    { "DetailBoxAnchored", (uint64_t) DebugModes::DetailBoxAnchored },
-    { "DetailAnchored", (uint64_t) DebugModes::DetailAnchored },
-    { "HandoverWeights", (uint64_t) DebugModes::HandoverWeights },
-    { "HandoverLimits", (uint64_t) DebugModes::HandoverLimits },
     { "CompositionBeforeClamp", (uint64_t) DebugModes::CompositionBeforeClamp },
     { "CompositionFinal", (uint64_t) DebugModes::CompositionFinal },
-    { "HandoverEligibility", (uint64_t) DebugModes::HandoverEligibility },
-    { "ChromaRecovery", (uint64_t) DebugModes::ChromaRecovery },
-    { "LumaRecovery", (uint64_t) DebugModes::LumaRecovery },
     { "UnsupportedAlbedoTrust", (uint64_t) DebugModes::AlbedoTrust },
+    { "FlatDetail", (uint64_t) DebugModes::FlatDetail },
+    { "FlatDetailReference", (uint64_t) DebugModes::FlatDetailReference },
 
-    { "FloorColor", (uint64_t) DebugModes::FloorColor },
     
     { "RawSpecularSignal", (uint64_t) DebugModes::RawIndirectSpecular },
     { "DenoisedDirectSpecSignal", (uint64_t) DebugModes::DirectSpecular },
@@ -2207,7 +2179,7 @@ RRResult FSRDFeatureDx12::QueryDenoiserVersions()
 bool FSRDFeatureDx12::EncodeSRDepth(ID3D12GraphicsCommandList* InCommandList, ffxDispatchDescUpscale& upscalerDesc,
                                     std::function<void()>& cleanup)
 {
-    // The floor seed's canonical signed-linear depth: render-local, in the units of
+    // The geometry pass's canonical signed-linear depth: render-local, in the units of
     // NearPlane/FarPlane, and left in the shader-resource state composition read it in.
     ID3D12Resource* linearDepth = FSRDConvShader ? FSRDConvShader->GetDenoiserLinearDepthInput() : nullptr;
     if (!linearDepth || !InCommandList)
@@ -2374,8 +2346,9 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
     // state lifetime, including bypass and error paths where composition is skipped.
     DenoiserOutputStateGuard denoiserOutputStateGuard(FSRDConvShader, InCommandList);
     TitleInputStateGuard titleInputStateGuard(FSRDConvShader, InCommandList);
-    auto dbgMode = cfg.FfxDenoiserRecoveryV2.value_or_default() &&
-        cfg.FfxDenoiserRecoveryDebug.value_or_default() == 3 ? DebugModes::StretchReset
+    auto dbgMode = cfg.FfxDenoiserRecoveryDebug.value_or_default() == 4 ? DebugModes::FlatDetail
+        : cfg.FfxDenoiserRecoveryDebug.value_or_default() == 5 ? DebugModes::FlatDetailReference
+        : cfg.FfxDenoiserRecoveryDebug.value_or_default() == 3 ? DebugModes::StretchReset
          : cfg.FfxDenoiserSkinDebug.value_or_default() == 1 ? DebugModes::SssGuide
         : cfg.FfxDenoiserSkinDebug.value_or_default() == 2 ? DebugModes::PreSss
         : cfg.FfxDenoiserSkinDebug.value_or_default() == 3 ? DebugModes::SkinPrefilter
@@ -2419,7 +2392,7 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
     // The conversion reads the title's color, depth and motion vectors in its very first
     // dispatch, so those inputs have to be acquired and taken out of their declared starting
     // states before the denoiser chain begins - acquiring them inside the upscaler branch
-    // below would leave the floor and packing passes reading render-target and unordered-access
+    // below would leave the geometry and packing passes reading render-target and unordered-access
     // resources as if they were shader resources.
     ffxDispatchDescUpscale upscalerDesc = {};
     // SR uses the composition only after every preceding RR stage succeeds.
@@ -2607,7 +2580,6 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
         if (_specularSignalDescType == FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR)
             compositionFlags |= (uint32_t) FSRDCompFlags::SpecularSignalIndirect;
         // A signal left out of the denoiser chain has no output this frame, and the
-        // buffer it would have been written to is one of the floor passes' ping-pong
         // targets. Flag it so composition reads the raw signal rather than the floor
         // image that buffer still holds.
         if (!_denoiseDiffuse)
@@ -2624,7 +2596,7 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
             compositionFlags |= uint32_t(FSRDCompFlags::ExtraSpecular);
         if (_extraDiffuseSignal && _unsupportedAlbedoRecovery)
             compositionFlags |= uint32_t(FSRDCompFlags::DiffuseAlternate);
-        if (_convDesc.RecoveryV2 ? _convDesc.RecoveryHistoryLevel > 0 : cfg.FfxDenoiserStreakFilter.value_or_default())
+        if (_convDesc.RecoveryHistoryLevel > 0)
             compositionFlags |= uint32_t(FSRDCompFlags::StreakFilter);
         // The shader's Indirect Diffuse view knows only the split lobe and shows the live
         // alternate as missing (magenta). Present it as denoised, unmodulated: the split
@@ -2638,16 +2610,10 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
         FSRDCompDesc compDesc =
         { 
             .DstTexSize = _convDesc.RenderSize,
-            .FloorDetailPreservation = _convDesc.FloorEnabled ? _convDesc.FloorDetailPreservation : 0.0f,
             .Flags = compositionFlags,
             .RecoveryMask = _convDesc.RecoveryMask,
-            .FloorHandoverAnchorClamp = _appliedFloorHandoverAnchorClamp,
-            .FloorHandoverCorrelationMix = _appliedFloorHandoverCorrelationMix,
             .SpecularAlbedoDemodulation = _convDesc.SpecularAlbedoDemodulation,
             .DiffuseAlbedoModulation = showDiffuseAlternate ? 0.0f : _convDesc.DiffuseAlbedoModulation,
-            .SpatialTemporalMask = _appliedSpatialTemporalMask,
-            .LumaRecovery = _appliedLumaRecovery,
-            .ChromaRecovery = _appliedChromaRecovery,
             // The blend replaces the full-strength specular reconstruction, so it only
             // applies at the default 1/1 modulation and with the ordered signal split.
             .UnsupportedAlbedoRecovery = !_convDesc.RecoveryV2 && _unsupportedAlbedoRecovery &&
@@ -2655,13 +2621,17 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                     _convDesc.DiffuseAlbedoModulation >= 1.0f && _convDesc.AdditiveLightSplit <= 0.0f
                 ? 1.0f : 0.0f,
             .DemodDivisorFloor = _convDesc.DemodDivisorFloor,
-            .VolumeRestoreStrength = _convDesc.VolumeRestore ? _volumeRestoreStrength : 0.0f,
             .RecoveryV2 = _convDesc.RecoveryV2,
-            .RecoveryVolumetryStrength = _convDesc.RecoveryVolumetry
-                ? std::clamp(cfg.FfxDenoiserRecoveryVolumetryStrength.value_or_default(), 0.0f, 1.0f) : 0.0f,
-            .RecoveryDebug = _convDesc.RecoveryV2
-                ? uint32_t(std::clamp(cfg.FfxDenoiserRecoveryDebug.value_or_default(), 0, 2)) : 0u,
-            .FloorEnabled = _convDesc.FloorEnabled,
+            .RecoverySpecularStrength = _recoverySpecularStrength,
+            .RecoveryDiffuseStrength = _recoveryDiffuseStrength,
+            .RecoveryFlatAlbedoStrength = _recoveryFlatAlbedoStrength,
+            .RecoveryAnchor = _recoveryAnchor,
+            .RecoveryMix = _recoveryMix,
+            .RecoveryFlatAnchor = _recoveryFlatAnchor,
+            .RecoveryFlatMix = _recoveryFlatMix,
+            .RecoveryFlatTemporal = cfg.FfxDenoiserRecoveryFlatTemporal.value_or_default(),
+            .RecoveryFlatHistoryLength = uint32_t(std::clamp(cfg.FfxDenoiserRecoveryFlatHistoryLength.value_or_default(), 1, 6)),
+            .RecoveryDebug = uint32_t(std::clamp(cfg.FfxDenoiserRecoveryDebug.value_or_default(), 0, 5)),
         };
 
         // ColorBeforeParticles is a whole scene guide, not a premultiplied overlay.
@@ -2723,16 +2693,6 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                 applied["FfxDenoiserBiasMaskStrength"]=cfg.FfxDenoiserBiasMaskStrength.value_or_default();
                 applied["FfxDenoiserSpecularAlbedoDemodulation"]=cfg.FfxDenoiserSpecularAlbedoDemodulation.value_or_default();
                 applied["FfxDenoiserDiffuseAlbedoModulation"]=cfg.FfxDenoiserDiffuseAlbedoModulation.value_or_default();
-                applied["FfxDenoiserAdditiveLightSplit"]=cfg.FfxDenoiserAdditiveLightSplit.value_or_default();
-                applied["FfxDenoiserUnsupportedAlbedoRecovery"]=cfg.FfxDenoiserUnsupportedAlbedoRecovery.value_or_default();
-                applied["FfxDenoiserFloorFlatRecovery"]=cfg.FfxDenoiserFloorFlatRecovery.value_or_default();
-                applied["FfxDenoiserFloorSpecularRecovery"]=cfg.FfxDenoiserFloorSpecularRecovery.value_or_default();
-                applied["FfxDenoiserFloorDiffuseRecovery"]=cfg.FfxDenoiserFloorDiffuseRecovery.value_or_default();
-                applied["FfxDenoiserFloorFlatNoiseMethod"]=cfg.FfxDenoiserFloorFlatNoiseMethod.value_or_default();
-                applied["FfxDenoiserFloorSpecularNoiseMethod"]=cfg.FfxDenoiserFloorSpecularNoiseMethod.value_or_default();
-                applied["FfxDenoiserFloorDiffuseNoiseMethod"]=cfg.FfxDenoiserFloorDiffuseNoiseMethod.value_or_default();
-                applied["FfxDenoiserFloorLumaRecovery"]=cfg.FfxDenoiserFloorLumaRecovery.value_or_default();
-                applied["FfxDenoiserFloorChromaRecovery"]=cfg.FfxDenoiserFloorChromaRecovery.value_or_default();
                 applied["FfxDenoiserSkinMode"]=cfg.FfxDenoiserSkinMode.value_or_default();
                 applied["FfxDenoiserSssRadiusMm"]=cfg.FfxDenoiserSssRadiusMm.value_or_default();
                 applied["FfxDenoiserSssStrength"]=cfg.FfxDenoiserSssStrength.value_or_default();
@@ -2746,28 +2706,22 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                 applied["FfxDenoiserAlbedoStabilisationRate"]=cfg.FfxDenoiserAlbedoStabilisationRate.value_or_default();
                 applied["FfxDenoiserFogGuides"]=cfg.FfxDenoiserFogGuides.value_or_default();
                 applied["FfxDenoiserMotionJitterDelta"]=cfg.FfxDenoiserMotionJitterDelta.value_or_default();
-                applied["FfxDenoiserRecoveryV2"]=cfg.FfxDenoiserRecoveryV2.value_or_default();
-                applied["FfxDenoiserRecoveryVolumetry"]=cfg.FfxDenoiserRecoveryVolumetry.value_or_default();
-                applied["FfxDenoiserRecoveryVolumetryStrength"]=cfg.FfxDenoiserRecoveryVolumetryStrength.value_or_default();
                 applied["FfxDenoiserRecoveryHistory"]=cfg.FfxDenoiserRecoveryHistory.value_or_default();
                 applied["FfxDenoiserRecoveryHistoryStrength"]=cfg.FfxDenoiserRecoveryHistoryStrength.value_or_default();
                 applied["FfxDenoiserRecoverySpecular"]=cfg.FfxDenoiserRecoverySpecular.value_or_default();
                 applied["FfxDenoiserRecoverySpecularStrength"]=cfg.FfxDenoiserRecoverySpecularStrength.value_or_default();
                 applied["FfxDenoiserRecoveryDiffuse"]=cfg.FfxDenoiserRecoveryDiffuse.value_or_default();
                 applied["FfxDenoiserRecoveryDiffuseStrength"]=cfg.FfxDenoiserRecoveryDiffuseStrength.value_or_default();
-                applied["FfxDenoiserRecoveryAlbedo"]=cfg.FfxDenoiserRecoveryAlbedo.value_or_default();
-                applied["FfxDenoiserRecoveryAlbedoStrength"]=cfg.FfxDenoiserRecoveryAlbedoStrength.value_or_default();
+                applied["FfxDenoiserRecoveryAnchor"]=cfg.FfxDenoiserRecoveryAnchor.value_or_default();
+                applied["FfxDenoiserRecoveryMix"]=cfg.FfxDenoiserRecoveryMix.value_or_default();
                 applied["FfxDenoiserRecoveryFlatAlbedo"]=cfg.FfxDenoiserRecoveryFlatAlbedo.value_or_default();
                 applied["FfxDenoiserRecoveryFlatAlbedoStrength"]=cfg.FfxDenoiserRecoveryFlatAlbedoStrength.value_or_default();
+                applied["FfxDenoiserRecoveryFlatAnchor"]=cfg.FfxDenoiserRecoveryFlatAnchor.value_or_default();
+                applied["FfxDenoiserRecoveryFlatMix"]=cfg.FfxDenoiserRecoveryFlatMix.value_or_default();
+                applied["FfxDenoiserRecoveryFlatTemporal"]=cfg.FfxDenoiserRecoveryFlatTemporal.value_or_default();
+                applied["FfxDenoiserRecoveryFlatHistoryLength"]=std::clamp(cfg.FfxDenoiserRecoveryFlatHistoryLength.value_or_default(), 1, 6);
+                applied["FfxDenoiserRecoveryFlatRoughness"]=cfg.FfxDenoiserRecoveryFlatRoughness.value_or_default();
                 applied["FfxDenoiserRecoveryDebug"]=cfg.FfxDenoiserRecoveryDebug.value_or_default();
-                applied["FfxDenoiserFloorEnabled"]=cfg.FfxDenoiserFloorEnabled.value_or_default();
-                applied["FfxDenoiserFloorThroughRR"]=cfg.FfxDenoiserFloorThroughRR.value_or_default();
-                applied["FfxDenoiserVolumeRestore"]=cfg.FfxDenoiserVolumeRestore.value_or_default();
-                applied["FfxDenoiserFloorFastMode"]=cfg.FfxDenoiserFloorFastMode.value_or_default();
-                applied["FfxDenoiserFloorCleanLighting"]=cfg.FfxDenoiserFloorCleanLighting.value_or_default();
-                applied["FfxDenoiserFloorRecovery"]=cfg.FfxDenoiserFloorRecovery.value_or_default();
-                applied["FfxDenoiserFloorHandoverCorrelationMix"]=cfg.FfxDenoiserFloorHandoverCorrelationMix.value_or_default();
-                applied["FfxDenoiserFloorHandoverAnchorClamp"]=cfg.FfxDenoiserFloorHandoverAnchorClamp.value_or_default();
                 applied["FfxDenoiserUseAmdDefaults"]=cfg.FfxDenoiserUseAmdDefaults.value_or_default();
                 applied["FfxDenoiserDisocThreshold"]=cfg.FfxDenoiserDisocThreshold.value_or_default();
                 applied["FfxDenoiserCrossBlNormStr"]=cfg.FfxDenoiserCrossBlNormStr.value_or_default();
@@ -2775,9 +2729,6 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                 applied["FfxDenoiserMaxRadiance"]=cfg.FfxDenoiserMaxRadiance.value_or_default();
                 applied["FfxDenoiserRadianceClip"]=cfg.FfxDenoiserRadianceClip.value_or_default();
                 applied["FfxDenoiserGaussKernRelax"]=cfg.FfxDenoiserGaussKernRelax.value_or_default();
-                applied["FfxDenoiserStretchReset"]=cfg.FfxDenoiserStretchReset.value_or_default();
-                applied["FfxDenoiserStreakFilter"]=cfg.FfxDenoiserStreakFilter.value_or_default();
-                applied["FfxDenoiserDisocclusionCheck"]=cfg.FfxDenoiserDisocclusionCheck.value_or_default();
                 applied["FfxDenoiserInputChroma"]=cfg.FfxDenoiserInputChroma.value_or_default();
                 applied["FfxDenoiserDebugDepthMax"]=cfg.FfxDenoiserDebugDepthMax.value_or_default();
                 applied["FfxDenoiserDiagnostics"]=cfg.FfxDenoiserDiagnostics.value_or_default();
@@ -2850,9 +2801,6 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                         {"diffuse_type",_diffuseSignalDescType}, {"specular_type",_specularSignalDescType},
                         {"denoise_diffuse",_denoiseDiffuse}, {"denoise_specular",_denoiseSpecular},
                         {"conversion_flags",_convDesc.Flags}, {"composition_flags",compDesc.Flags},
-                        {"floor_enabled",_convDesc.FloorEnabled}, {"floor_fast",_convDesc.FloorFastMode},
-                        {"floor_clean_lighting",_convDesc.FloorCleanLighting},
-                        {"conversion_detail",_convDesc.FloorDetailPreservation},
                         {"conversion_recovery_mask",_convDesc.RecoveryMask},
                         {"full1_specular",_convDesc.SpecularAlbedoDemodulation},
                         {"full1_diffuse",_convDesc.DiffuseAlbedoModulation},
@@ -2861,16 +2809,14 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                         {"bias_strength",_convDesc.BiasMaskStrength},
                         {"responsivity_threshold",_convDesc.ResponsivityTrustThreshold},
                         {"responsivity_invert",_convDesc.ResponsivityInvert},
-                        {"detail",compDesc.FloorDetailPreservation}, {"recovery_mask",compDesc.RecoveryMask},
-                        {"anchor_clamp",compDesc.FloorHandoverAnchorClamp},
-                        {"correlation_mix",compDesc.FloorHandoverCorrelationMix},
-                        {"spatial_temporal_mask",compDesc.SpatialTemporalMask},
-                        {"luma_recovery",compDesc.LumaRecovery}, {"chroma_recovery",compDesc.ChromaRecovery},
                         {"unsupported_albedo_recovery",compDesc.UnsupportedAlbedoRecovery},
-                        {"volume_restore_strength",compDesc.VolumeRestoreStrength},
                         {"recovery_v2",compDesc.RecoveryV2},
                         {"recovery_history_level",_convDesc.RecoveryHistoryLevel},
-                        {"recovery_volumetry_strength",compDesc.RecoveryVolumetryStrength},
+                        {"recovery_strength",{compDesc.RecoverySpecularStrength,compDesc.RecoveryDiffuseStrength,
+                            compDesc.RecoveryFlatAlbedoStrength}},
+                        {"recovery_anchor_mix",{compDesc.RecoveryAnchor,compDesc.RecoveryMix,
+                            compDesc.RecoveryFlatAnchor,compDesc.RecoveryFlatMix}},
+                        {"recovery_flat_roughness",_convDesc.FlatAlbedoRoughness},
                         {"recovery_debug",compDesc.RecoveryDebug},
                         {"neutral_full1_comparator",false}
                     };
@@ -4070,7 +4016,7 @@ RRResult FSRDFeatureDx12::PrepareDenoiseConvInput(const NVSDK_NGX_Parameter& inP
         NVSDK_NGX_Parameter_DLSSD_ColorAfterScreenSpaceSubsurfaceScattering_Subrect_Base_Y,
         _convDesc.Resources.InColorAfterSss, _convDesc.ColorAfterSssBase, false);
 
-    _convDesc.FloorSourceBase = { colorBase.x, colorBase.y, depthBase.x, depthBase.y };
+    _convDesc.ColorDepthBase = { colorBase.x, colorBase.y, depthBase.x, depthBase.y };
     _convDesc.InputBase1 = { normalBase.x, normalBase.y, roughnessBase.x, roughnessBase.y };
     _convDesc.InputBase2 = { ngxSpecularHitDistanceBase.x, ngxSpecularHitDistanceBase.y,
                              diffuseAlbedoBase.x, diffuseAlbedoBase.y };
@@ -4379,8 +4325,9 @@ void FSRDFeatureDx12::ApplyRoutingSettings(float biasStrength, float responsivit
 bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InCommandList)
 {
     const auto& cfg = *Config::Instance(); 
-    auto dbgMode = cfg.FfxDenoiserRecoveryV2.value_or_default() &&
-        cfg.FfxDenoiserRecoveryDebug.value_or_default() == 3 ? DebugModes::StretchReset
+    auto dbgMode = cfg.FfxDenoiserRecoveryDebug.value_or_default() == 4 ? DebugModes::FlatDetail
+        : cfg.FfxDenoiserRecoveryDebug.value_or_default() == 5 ? DebugModes::FlatDetailReference
+        : cfg.FfxDenoiserRecoveryDebug.value_or_default() == 3 ? DebugModes::StretchReset
          : cfg.FfxDenoiserSkinDebug.value_or_default() == 1 ? DebugModes::SssGuide
         : cfg.FfxDenoiserSkinDebug.value_or_default() == 2 ? DebugModes::PreSss
         : cfg.FfxDenoiserSkinDebug.value_or_default() == 3 ? DebugModes::SkinPrefilter
@@ -4427,20 +4374,16 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     if (_specularSignalDescType == FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR)
         _convDesc.Flags |= (uint32_t)FSRDConvFlags::SpecularSignalIndirect;
     const bool estimateHitDistances = _frameRequest.estimate;
-    const bool recoveryV2 = cfg.FfxDenoiserRecoveryV2.value_or_default();
-    if (_convDesc.RecoveryV2 != recoveryV2)
-        InvalidateDenoiserHistory();
-    _convDesc.RecoveryV2 = recoveryV2;
+    // Every light goes through RR. Lobe recovery handles ordinary surfaces; Flat Detail handles displays.
+    _convDesc.RecoveryV2 = true;
     const float historyStrength = cfg.FfxDenoiserRecoveryHistoryStrength.value_or_default();
-    _convDesc.RecoveryHistoryLevel = recoveryV2 && cfg.FfxDenoiserRecoveryHistory.value_or_default() &&
+    _convDesc.RecoveryHistoryLevel = cfg.FfxDenoiserRecoveryHistory.value_or_default() &&
         std::isfinite(historyStrength) && historyStrength > 0.0f ? (historyStrength <= 0.5f ? 1u : 2u) : 0u;
-    const bool unsupportedAlbedo = !recoveryV2 && _plan.albedoFix && _frameAlbedoFixAllowed;
-    const auto fixDiffuse = FSRDSignals::FixDiffuseRole(_plan, !recoveryV2 && _frameAlbedoFixAllowed,
-                                                        _seenDiffuseDistance || estimateHitDistances);
+    const bool unsupportedAlbedo = false;
+    const auto fixDiffuse = FSRDSignals::FixDiffuseRole(_plan, false, _seenDiffuseDistance || estimateHitDistances);
     if (_unsupportedAlbedoRecovery != unsupportedAlbedo || _fixDiffuse != fixDiffuse)
     {
-        // The second slots switch between half lobes, the unmodulated alternates and
-        // an empty signal. No RR history is compatible across it.
+        // The second slots switch between half lobes and an empty signal. No RR history is compatible across it.
         _unsupportedAlbedoRecovery = unsupportedAlbedo;
         _fixDiffuse = fixDiffuse;
         InvalidateDenoiserHistory();
@@ -4452,92 +4395,59 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
         _appliedApproximationMask = approximationMask;
         InvalidateDenoiserHistory();
     }
-    if (_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::UnsupportedAlbedo);
     if (FSRDSignals::SplitsDiffuse(_signalMask, _fixDiffuse)) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfDiffuse);
-    if (_extraSpecularSignal && !_unsupportedAlbedoRecovery) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfSpecular);
+    if (_extraSpecularSignal) _convDesc.Flags |= uint32_t(FSRDConvFlags::HalfSpecular);
     if (estimateHitDistances)
         _convDesc.Flags |= uint32_t(FSRDConvFlags::ApproximateSpecHitDistance) |
                            uint32_t(FSRDConvFlags::ApproximateRayHitDistance);
     // Restarting a pixel's history goes through motion Z, so switching the level needs no RR reset.
-    const int stretchResetLevel = recoveryV2 ? int(_convDesc.RecoveryHistoryLevel)
-        : std::clamp(cfg.FfxDenoiserStretchReset.value_or_default(), 0, 3);
-    _convDesc.Flags |= uint32_t(stretchResetLevel) * uint32_t(FSRDConvFlags::StretchResetLevel1);
+    _convDesc.Flags |= _convDesc.RecoveryHistoryLevel * uint32_t(FSRDConvFlags::StretchResetLevel1);
     // The preprocessor drops it for any frame without a valid copy of last frame's depth.
-    if (recoveryV2 ? _convDesc.RecoveryHistoryLevel > 0 : cfg.FfxDenoiserDisocclusionCheck.value_or_default())
+    if (_convDesc.RecoveryHistoryLevel > 0)
         _convDesc.Flags |= uint32_t(FSRDConvFlags::DisocclusionCheck);
-    const bool floorThroughRR = recoveryV2 || cfg.FfxDenoiserFloorThroughRR.value_or_default();
-    if (_appliedFloorThroughRR != int(floorThroughRR))
-    {
-        // A user routing change moves light between RR and Skip; old residual history cannot follow it.
-        if (_appliedFloorThroughRR >= 0) InvalidateDenoiserHistory();
-        _appliedFloorThroughRR = int(floorThroughRR);
-    }
-    if (floorThroughRR)
-        _convDesc.Flags |= uint32_t(FSRDConvFlags::FloorThroughRR);
     if (cfg.FfxDenoiserInputChroma.value_or_default())
         _convDesc.Flags |= uint32_t(FSRDConvFlags::InputChroma);
-    _convDesc.FloorEnabled = !recoveryV2 && cfg.FfxDenoiserFloorEnabled.value_or_default();
-    const bool floorFastMode = cfg.FfxDenoiserFloorFastMode.value_or_default();
-    if (_convDesc.FloorFastMode != floorFastMode)
-        InvalidateDenoiserHistory();
-    _convDesc.FloorFastMode = floorFastMode;
-    const bool floorCleanLighting = cfg.FfxDenoiserFloorCleanLighting.value_or_default();
-    if (_convDesc.FloorCleanLighting != floorCleanLighting)
-        InvalidateDenoiserHistory();
-    _convDesc.FloorCleanLighting = floorCleanLighting;
-    const float volumeRestore = cfg.FfxDenoiserVolumeRestore.value_or_default();
-    _volumeRestoreStrength = std::isfinite(volumeRestore) ? std::clamp(volumeRestore, 0.0f, 2.0f) : 0.0f;
-    _convDesc.VolumeRestore = !recoveryV2 && _volumeRestoreStrength > 0.0f;
-    const float recoveryVolume = cfg.FfxDenoiserRecoveryVolumetryStrength.value_or_default();
-    _convDesc.RecoveryVolumetry = recoveryV2 && cfg.FfxDenoiserRecoveryVolumetry.value_or_default() &&
-        std::isfinite(recoveryVolume) && recoveryVolume > 0.0f;
     const auto unitValue = [](float value, float fallback) {
         return std::isfinite(value) ? std::clamp(value, 0.0f, 1.0f) : fallback;
     };
     const float specularModulation = unitValue(cfg.FfxDenoiserSpecularAlbedoDemodulation.value_or_default(), 1.0f);
     const float diffuseModulation = unitValue(cfg.FfxDenoiserDiffuseAlbedoModulation.value_or_default(), 1.0f);
-    const float additiveLightSplit = recoveryV2 ? 0.0f : unitValue(cfg.FfxDenoiserAdditiveLightSplit.value_or_default(), 0.0f);
-    const uint32_t recoveryMask = recoveryV2 ? 0u : (cfg.FfxDenoiserFloorFlatRecovery.value_or_default() ? 1u : 0u) |
-        (cfg.FfxDenoiserFloorSpecularRecovery.value_or_default() ? 2u : 0u) |
-        (cfg.FfxDenoiserFloorDiffuseRecovery.value_or_default() ? 4u : 0u);
-    const uint32_t filterMask = recoveryMask &
-        ((cfg.FfxDenoiserFloorFlatNoiseMethod.value_or_default() == 1 ? 1u : 0u) |
-         (cfg.FfxDenoiserFloorSpecularNoiseMethod.value_or_default() == 1 ? 2u : 0u) |
-         (cfg.FfxDenoiserFloorDiffuseNoiseMethod.value_or_default() == 1 ? 4u : 0u));
-    const float luma = unitValue(cfg.FfxDenoiserFloorLumaRecovery.value_or_default(), 1.0f);
-    const float chroma = unitValue(cfg.FfxDenoiserFloorChromaRecovery.value_or_default(), 1.0f);
     if (_convDesc.SpecularAlbedoDemodulation != specularModulation ||
-        _convDesc.DiffuseAlbedoModulation != diffuseModulation || _convDesc.RecoveryMask != recoveryMask ||
-        _convDesc.AdditiveLightSplit != additiveLightSplit ||
-        _appliedSpatialTemporalMask != filterMask || _appliedLumaRecovery != luma || _appliedChromaRecovery != chroma)
+        _convDesc.DiffuseAlbedoModulation != diffuseModulation)
         InvalidateDenoiserHistory();
     _convDesc.SpecularAlbedoDemodulation = specularModulation;
     _convDesc.DiffuseAlbedoModulation = diffuseModulation;
-    _convDesc.AdditiveLightSplit = additiveLightSplit;
-    _convDesc.RecoveryMask = recoveryMask;
-    _appliedSpatialTemporalMask = filterMask;
-    _appliedLumaRecovery = luma;
-    _appliedChromaRecovery = chroma;
-    _convDesc.FloorDetailPreservation = recoveryV2 ? 0.0f : unitValue(cfg.FfxDenoiserFloorRecovery.value_or_default(), 1.0f);
+    _convDesc.AdditiveLightSplit = 0.0f;
+    const bool flatDetailDebug = dbgMode == DebugModes::FlatDetail || dbgMode == DebugModes::FlatDetailReference;
+    _convDesc.RecoveryMask = (cfg.FfxDenoiserRecoveryFlatAlbedo.value_or_default() || flatDetailDebug) ? 1u : 0u;
+    const auto recoveryStrength = [&](const CustomOptional<bool>& enabled, const CustomOptional<float>& strength) {
+        return enabled.value_or_default() ? unitValue(strength.value_or_default(), 0.0f) : 0.0f;
+    };
+    _recoverySpecularStrength = recoveryStrength(cfg.FfxDenoiserRecoverySpecular, cfg.FfxDenoiserRecoverySpecularStrength);
+    _recoveryDiffuseStrength = recoveryStrength(cfg.FfxDenoiserRecoveryDiffuse, cfg.FfxDenoiserRecoveryDiffuseStrength);
+    _recoveryFlatAlbedoStrength = recoveryStrength(cfg.FfxDenoiserRecoveryFlatAlbedo, cfg.FfxDenoiserRecoveryFlatAlbedoStrength);
+    const auto anchorValue = [](float value, float fallback) {
+        return std::isfinite(value) ? std::clamp(value, 0.0f, 8.0f) : fallback;
+    };
+    _recoveryAnchor = anchorValue(cfg.FfxDenoiserRecoveryAnchor.value_or_default(), 4.0f);
+    _recoveryMix = unitValue(cfg.FfxDenoiserRecoveryMix.value_or_default(), 0.0f);
+    _recoveryFlatAnchor = anchorValue(cfg.FfxDenoiserRecoveryFlatAnchor.value_or_default(), 4.0f);
+    _recoveryFlatMix = unitValue(cfg.FfxDenoiserRecoveryFlatMix.value_or_default(), 0.0f);
+    // Flat zero-roughness surfaces have a separate current-frame detail path. This adjustable roughness
+    // uses RR's clean base; code 2 enables the spatial denoiser on zero-roughness content.
+    const uint32_t flatRoughness = (_convDesc.RecoveryMask & 1u) != 0
+        ? uint32_t(std::clamp(cfg.FfxDenoiserRecoveryFlatRoughness.value_or_default(), 0, 1023)) : 0u;
+    if (_appliedFlatRoughness != flatRoughness)
+    {
+        if (_appliedFlatRoughness != ~0u)
+            InvalidateDenoiserHistory();
+        _appliedFlatRoughness = flatRoughness;
+    }
+    _convDesc.FlatAlbedoRoughness = flatRoughness;
     const float requestedDivisor = cfg.FfxDenoiserDemodDivisorFloor.value_or_default();
     const float divisor = std::isfinite(requestedDivisor) ? std::clamp(requestedDivisor, 1e-4f, 0.5f) : 8e-3f;
     if (_convDesc.DemodDivisorFloor != divisor) InvalidateDenoiserHistory();
     _convDesc.DemodDivisorFloor = divisor;
-    const float configuredAnchor = cfg.FfxDenoiserFloorHandoverAnchorClamp.value_or_default();
-    const float anchor = std::isfinite(configuredAnchor) ? std::clamp(configuredAnchor, 0.0f, 8.0f) : 4.0f;
-    const float correlationMix = unitValue(cfg.FfxDenoiserFloorHandoverCorrelationMix.value_or_default(), 1.0f);
-    if (_appliedFloorHandoverAnchorClamp != anchor ||
-        _appliedFloorHandoverCorrelationMix != correlationMix ||
-        _appliedFloorEnabled != int(_convDesc.FloorEnabled) ||
-        _appliedFloorDetailPreservation != _convDesc.FloorDetailPreservation)
-    {
-        InvalidateDenoiserHistory();
-        _appliedFloorHandoverAnchorClamp = anchor;
-        _appliedFloorHandoverCorrelationMix = correlationMix;
-        _appliedFloorEnabled = int(_convDesc.FloorEnabled);
-        _appliedFloorDetailPreservation = _convDesc.FloorDetailPreservation;
-    }
-
     _convDesc.Resources.InInspector = nullptr;
     _convDesc.InspectorChannel = ResTrack_Dx12::GetRRResourceChannel();
     _convDesc.InspectorScale = ResTrack_Dx12::GetRRResourceViewScale();
@@ -4561,8 +4471,6 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     }
 
     // The selected surface domain's RR roughness is the packing shader's compatibility value
-    // now, so the only policy change left to react to is Floor itself - handled by the
-    // Floor-enabled reset above.
 
     if (_roughnessSource == RoughnessSource::Packed)
         _convDesc.Flags |= (uint32_t) FSRDConvFlags::IsRoughnessPacked;
@@ -5000,7 +4908,7 @@ RRResult FSRDFeatureDx12::DispatchDenoiser(ID3D12GraphicsCommandList* InCommandL
             "[RR_DIAG] conversion snapshot: viewSource={}, projectionSource={}, handedness={}, depthInput={}, "
             "depthDirection={}, motionResolution={}, roughness={} "
             "(selected-domain minimum {:.4f}), "
-            "handoverMaterialType=original-albedo-evidence, "
+            "flatDetailMaterialType=zero-roughness-no-bias, "
             "specularHitDistance={} (invalid={}), diffuseHitDistance={}, diffuseDirectionHitDistance={}, "
             "emissiveInput={} (previewCompatible={})",
             _viewFromStreamline ? "Streamline" : "NGX",

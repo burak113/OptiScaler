@@ -15,8 +15,7 @@ from fsrd_toolchain import compile_cpp
 ROOT = Path(__file__).resolve().parents[4]
 RETIRED = ['SignalCount', 'Signal1', 'Signal2', 'Signal3', 'Signal4', 'DiffuseSignalType', 'SpecularSignalType',
            'ApproximateSpecHitDistance', 'ApproximateRayHitDistance', 'UnsupportedAlbedoRecovery']
-KEYS = ['DiffuseSignal', 'SpecularSignal', 'EstimateHitDistances', 'DenoiseDiffuse', 'DenoiseSpecular',
-        'AlbedoBleedFix']
+KEYS = ['DiffuseSignal', 'SpecularSignal', 'EstimateHitDistances', 'DenoiseDiffuse', 'DenoiseSpecular']
 
 
 def check_sources():
@@ -28,10 +27,12 @@ def check_sources():
         assert f'"{key}"' in config[config.index('// Migrated to the keys above'):], key
     assert 'readRoute("DiffuseSignal")' in config and 'readRoute("SpecularSignal")' in config
     assert 'FSRDSignals::FromLegacy(' in config
-    # The legacy fix key is only a fallback for the new one.
-    assert config.index('readBool("FSR-RR", "AlbedoBleedFix")') < config.index(
-        'readBool("FSR-RR", "UnsupportedAlbedoRecovery")')
-    # Profiles own Floor/recovery only.
+    # Recovery v2 retired the albedo bleed fix with Recovery v1: neither key is read or saved, saving removes both.
+    for key in ['AlbedoBleedFix', 'UnsupportedAlbedoRecovery']:
+        assert f'"FSR-RR", "{key}")' not in config, key
+        assert f'ini.SetValue("FSR-RR", "{key}"' not in config, key
+    assert '"AlbedoBleedFix"' in config[config.index('// Recovery v2 replaced Recovery v1'):]
+    # Profiles own recovery only.
     profile = config[config.index('void Config::ApplyFfxDenoiserProfile'):config.index('bool Config::ResetFfxDenoiserSettings')]
     assert not re.search(r'UnsupportedAlbedo|Route|DenoiseDiffuse|DenoiseSpecular|EstimateHitDistances', profile)
     reset = config[config.index('bool Config::ResetFfxDenoiserSettings'):]
@@ -55,11 +56,12 @@ def check_sources():
     denoiser = menu.index('void MenuCommon::RenderDenoiserSettings(')
     denoiser = menu[denoiser:menu.index('\nvoid MenuCommon::', denoiser + 1)]
     gate = denoiser.index('if (choice.fsrRR)')
-    for item in ['DrawProfile(', 'DrawAlbedoFix(', 'DrawSignalSummary(', 'FSR-RR Advanced Settings', 'DrawRouting(']:
+    for item in ['DrawProfile(', 'DrawSignalSummary(', 'FSR-RR Advanced Settings', 'DrawRouting(']:
         assert denoiser.index(item) > gate, item
-    # The fix sits with the modulation strengths it depends on.
-    assert (denoiser.index('CollapsingHeader("Conversion & Modulation")') < denoiser.index('DrawAlbedoFix(')
-            < denoiser.index('CollapsingHeader("Floor")'))
+    # Recovery v1's Floor and bleed fix are gone; the RR input fixes and Recovery v2 follow the modulation strengths.
+    assert 'DrawAlbedoFix(' not in menu and 'CollapsingHeader("Floor")' not in denoiser
+    assert (denoiser.index('CollapsingHeader("Conversion & Modulation")') < denoiser.index('CollapsingHeader("RR inputs")')
+            < denoiser.index('CollapsingHeader("Recovery v2")'))
     print('PASS: Config migrates/saves routing keys; FSR-RR settings sit inside the denoiser section')
 
 

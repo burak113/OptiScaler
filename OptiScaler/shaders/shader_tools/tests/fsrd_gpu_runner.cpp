@@ -62,9 +62,15 @@ int pixelBytes(DXGI_FORMAT fmt)
     default: throw std::runtime_error("unsupported format");
     }
 }
+#include "fsrd_gpu_chain.h"
+
 int executeJob(const char* path) try
 {
     std::ifstream job(path);
+    std::string protocol;
+    job >> protocol;
+    if (protocol == "FSRD_CHAIN_V1") return executeChain(job);
+    job.clear(); job.seekg(0);
     std::string shaderPath, cbPath;
     UINT width, height, srvCount, uavCount, repetitions;
     job >> std::quoted(shaderPath) >> std::quoted(cbPath) >> width >> height >> srvCount >> uavCount >> repetitions;
@@ -424,6 +430,7 @@ catch (const std::exception& e) {std::cerr << e.what() << '\n'; return 1;}
 
 int main(int argc, char** argv)
 {
+    SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
     if (argc != 2) {std::cerr << "usage: fsrd_gpu_runner job.txt | --server\n"; return 1;}
     if (std::string(argv[1]) != "--server") return executeJob(argv[1]);
     std::string path;

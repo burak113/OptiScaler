@@ -518,25 +518,13 @@ class Config
     // 0 restores the behaviour where the mask was bound but unused.
     CustomOptional<float> FfxDenoiserBiasMaskStrength { 1.0f };
 
-    // Floor assists RR and supplies the detail reference; RR remains the denoiser.
-    // Recovery paths are independently selected and master-scaled.
+    // Albedo modulation before and after RR: 1 uses the title's guides, 0 a unit multiplier.
     CustomOptional<float> FfxDenoiserSpecularAlbedoDemodulation{1.0f};
     CustomOptional<float> FfxDenoiserDiffuseAlbedoModulation{1.0f};
-    // Experimental local color/albedo fit; zero preserves the existing signal split.
+    // Retired with Recovery v1 (the Floor). No INI key: they stay at these values, so the signal policy
+    // never plans the old albedo bleed fix's extra RR signals and conversion never splits additive light.
     CustomOptional<float> FfxDenoiserAdditiveLightSplit{0.0f};
-    // Albedo bleed fix (INI AlbedoBleedFix): denoises unmodulated copies of the specular and
-    // diffuse shares as RR Direct Specular / Indirect Diffuse and blends toward them where the
-    // title's albedo shows a surface the light does not (water over a sea floor). Independent
-    // of the profile; needs a specular hit distance and runs only at 1/1 modulation.
     CustomOptional<bool> FfxDenoiserUnsupportedAlbedoRecovery{false};
-    CustomOptional<bool> FfxDenoiserFloorFlatRecovery{true};
-    CustomOptional<bool> FfxDenoiserFloorSpecularRecovery{true};
-    CustomOptional<bool> FfxDenoiserFloorDiffuseRecovery{false};
-    CustomOptional<int> FfxDenoiserFloorFlatNoiseMethod{0};
-    CustomOptional<int> FfxDenoiserFloorSpecularNoiseMethod{1};
-    CustomOptional<int> FfxDenoiserFloorDiffuseNoiseMethod{1};
-    CustomOptional<float> FfxDenoiserFloorLumaRecovery{1.0f};
-    CustomOptional<float> FfxDenoiserFloorChromaRecovery{1.0f};
 
     CustomOptional<int> FfxDenoiserSkinMode {0};
     CustomOptional<float> FfxDenoiserSssRadiusMm {2.18f};
@@ -553,37 +541,34 @@ class Config
     CustomOptional<bool> FfxDenoiserFogGuides {false};
     CustomOptional<bool> FfxDenoiserMotionJitterDelta {true};
 
-    // Experimental post-composition recovery; the legacy path remains the default.
-    CustomOptional<bool> FfxDenoiserRecoveryV2 { false };
-    CustomOptional<bool> FfxDenoiserRecoveryVolumetry { false };
-    CustomOptional<float> FfxDenoiserRecoveryVolumetryStrength { 1.0f };
-    CustomOptional<bool> FfxDenoiserRecoveryHistory { false };
+    // Recovery v2: every light goes through RR and only what RR measurably loses is corrected after
+    // composition. Strengths 0..1; the profiles (Fast / Balanced / Quality) set all of them.
+    // History: magnified-history reset, streak filter and geometric disocclusion (0.5 Light, 1 Medium).
+    CustomOptional<bool> FfxDenoiserRecoveryHistory { true };
     CustomOptional<float> FfxDenoiserRecoveryHistoryStrength { 0.5f };
-    CustomOptional<bool> FfxDenoiserRecoverySpecular { false };
+    // Lobe recovery (FSRDRecoveryLobe*.hlsl): Specular / Diffuse restore every band (1-64 px) of each lobe
+    // against a jitter-aware temporal reference. Flat albedo keeps six original references and accepts
+    // only motion/geometry/content-consistent samples; rejected history falls back to the current frame. Their
+    // adjustable RR roughness is RecoveryFlatRoughness / 1023; code 2 enables RR spatial filtering. Flat Detail transfers texture to RR lighting. Anchor limits the result to RR's local mean +- Anchor standard deviations (0 = no limit); Mix
+    // moves the noise-weighted transfer towards all of the reference's detail (0 = only what clears the noise).
+    CustomOptional<bool> FfxDenoiserRecoverySpecular { true };
     CustomOptional<float> FfxDenoiserRecoverySpecularStrength { 1.0f };
-    CustomOptional<bool> FfxDenoiserRecoveryDiffuse { false };
+    CustomOptional<bool> FfxDenoiserRecoveryDiffuse { true };
     CustomOptional<float> FfxDenoiserRecoveryDiffuseStrength { 1.0f };
-    CustomOptional<bool> FfxDenoiserRecoveryAlbedo { false };
-    CustomOptional<float> FfxDenoiserRecoveryAlbedoStrength { 1.0f };
-    CustomOptional<bool> FfxDenoiserRecoveryFlatAlbedo { false };
+    CustomOptional<float> FfxDenoiserRecoveryAnchor { 4.0f };
+    CustomOptional<float> FfxDenoiserRecoveryMix { 0.0f };
+    CustomOptional<bool> FfxDenoiserRecoveryFlatAlbedo { true };
     CustomOptional<float> FfxDenoiserRecoveryFlatAlbedoStrength { 1.0f };
+    CustomOptional<float> FfxDenoiserRecoveryFlatAnchor { 4.0f };
+    CustomOptional<float> FfxDenoiserRecoveryFlatMix { 0.0f };
+    // Flat temporal detail only: RR remains the lighting base. Off uses fixed-light current-frame A4.
+    // History length is clamped to 1..6 original frames; changing either control discards old history.
+    CustomOptional<bool> FfxDenoiserRecoveryFlatTemporal { true };
+    CustomOptional<int> FfxDenoiserRecoveryFlatHistoryLength { 6 };
+    // RR roughness of flat zero-roughness surfaces while Flat albedo recovery is on, in 1/1023 (0 = the game's).
+    CustomOptional<int> FfxDenoiserRecoveryFlatRoughness { 2 };
+    // 0 off, 1 signed correction, 2 correction size and reference maturity, 3 history reset / filter mask.
     CustomOptional<int> FfxDenoiserRecoveryDebug { 0 };
-
-    CustomOptional<bool> FfxDenoiserFloorEnabled { true };
-    // All lighting goes through RR; Floor remains available for detail and structure.
-    CustomOptional<bool> FfxDenoiserFloorThroughRR { true };
-    // Experimental: adds back, after composition, the radiance RR's output lacks
-    // against the input over 8x8 tiles, accumulated over time. Off by default: in
-    // game it did not bring back volumetrics, which RR blurs rather than removes.
-    CustomOptional<float> FfxDenoiserVolumeRestore { 0.0f };
-    // Reduced Floor pass policy is the Balanced default; Quality uses five passes.
-    CustomOptional<bool> FfxDenoiserFloorFastMode { true };
-    // Selects the clean-lighting Floor Seed PSO (coherent witness + local projection).
-    // Outside the profiles: it only acts on noise-free content.
-    CustomOptional<bool> FfxDenoiserFloorCleanLighting { false };
-    CustomOptional<float> FfxDenoiserFloorRecovery { 1.0f };
-    CustomOptional<float> FfxDenoiserFloorHandoverCorrelationMix { 1.0f };
-    CustomOptional<float> FfxDenoiserFloorHandoverAnchorClamp { 4.0f };
 
     // Overrides the DLSS.Use.HW.Depth interpretation. Unset follows NGX, which
     // defaults to linear when the title publishes nothing - and reading a hardware
@@ -601,14 +586,7 @@ class Config
     CustomOptional<float> FfxDenoiserMaxRadiance { 4e4f };
     CustomOptional<float> FfxDenoiserRadianceClip { 40.0f };
     CustomOptional<float> FfxDenoiserGaussKernRelax { 0.5f };
-    // Diagnostic: restart RR history where the frame magnifies the previous one (stair treads).
-    // 0 off, 1/2/3 = history stretch below 0.6/0.75/0.85.
-    CustomOptional<int> FfxDenoiserStretchReset { 0 };
-    // Diagnostic: average RR lighting across the streaks a magnified history leaves (composition).
-    CustomOptional<bool> FfxDenoiserStreakFilter { false };
-    // Diagnostic: restart RR history on static geometry revealed this frame (previous-depth test).
-    CustomOptional<bool> FfxDenoiserDisocclusionCheck { false };
-    // Diagnostic: give each RR input sample its same-surface neighbourhood's light colour.
+    // Gives each RR input sample its same-surface neighbourhood's light colour (Recovery v2 > Specular / Diffuse).
     CustomOptional<bool> FfxDenoiserInputChroma { false };
     CustomOptional<float> FfxDenoiserDebugDepthMax { 1024.0f };
 

@@ -241,16 +241,12 @@ class FSRDFeatureDx12 : public FSR31FeatureDx12
     uint32_t _diffuseRayDirectionHitDistanceBaseY = 0;
     DirectX::XMFLOAT3 _lastCamPos {}; // Last successfully dispatched world-space camera position
     DirectX::XMFLOAT2 _previousDenoiserJitter {};
-    int _appliedFloorEnabled = -1;
-    int _appliedFloorThroughRR = -1;
-    float _appliedFloorDetailPreservation = -1.0f;
-    float _appliedFloorHandoverAnchorClamp = -1.0f;
-    uint32_t _appliedSpatialTemporalMask = 0;
-    float _appliedLumaRecovery = 1.0f;
-    // Volumetric restore strength after composition; 0 disables it.
-    float _volumeRestoreStrength = 0.0f;
-    float _appliedChromaRecovery = 1.0f;
-    float _appliedFloorHandoverCorrelationMix = -1.0f;
+    // Recovery v2 lobe recovery strengths applied this frame (0 when a recovery is off).
+    float _recoverySpecularStrength = 0.0f, _recoveryDiffuseStrength = 0.0f, _recoveryFlatAlbedoStrength = 0.0f;
+    // Anchor / Mix of the specular and diffuse recoveries and of the flat albedo recovery.
+    float _recoveryAnchor = 4.0f, _recoveryMix = 0.0f, _recoveryFlatAnchor = 4.0f, _recoveryFlatMix = 0.0f;
+    // RR roughness (1/1023) given to flat zero-roughness surfaces; a change restarts RR's history.
+    uint32_t _appliedFlatRoughness = ~0u;
     int _appliedNormalsInViewSpace = -1;
 
     // The definition of the depth field every view-space position in the chain is built from,

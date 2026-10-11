@@ -357,9 +357,11 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFogSmooth_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFogRoute_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDRRMotion_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDRecoveryLobeAccumulate_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDRecoveryLobeDown_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDRecoveryLobeBand_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDGameTraceSession.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDShaderData.h" />
-    <ClInclude Include="shaders\fsrd_preprocess\FSRDCompositionVariant.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDBlitMapping.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDShaderUtils.h" />
     <ClInclude Include="shaders\fsrd_preprocess\RRTraceAdditiveIO.h" />
@@ -369,26 +371,14 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="misc\ShaderDispatchLease_Dx12.h" />
     <ClInclude Include="shaders\fsrd_preprocess\RRTraceFenceState.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\RRTraceAdditive_Shader.h" />
-    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFloorSeed_Shader.h" />
-    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFloorSeedCleanLighting_Shader.h" />
-    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDVolumeGather_Shader.h" />
-    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDVolumeAccumulate_Shader.h" />
-    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDRecoveryVolumeAccumulate_Shader.h" />
-    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDVolumeApply_Shader.h" />
-    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDRecoveryVolumeApply_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDSssPrepare_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDSssBlur_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDSkinPrefilter_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDInputConvSkin_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDInputConvSkinAdditive_Shader.h" />
-    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFloor_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDInputConv_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDInputConvAdditive_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDOutputComp_Shader.h" />
-    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompLight_Shader.h" />
-    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompNoRecovery_Shader.h" />
-    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompTileLight_Shader.h" />
-    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompTileAnchor_Shader.h" />
     <ClInclude Include="upscalers\fsr31\FSRDFeature_Dx12.h" />
     <ClInclude Include="shaders\magnifier\Magnifier_Dx11.h" />
     <ClInclude Include="menu\input\input_system.h" />
@@ -914,15 +904,6 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <None Include="shaders\magnifier\precompile\Magnifier_Shader_Vk.spv" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDPreprocessCommon.hlsli" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDAdditiveSplit.hlsli" />
-    <None Include="shaders\fsrd_preprocess\precompile\FSRDFloorCommon.hlsli" />
-    <None Include="shaders\fsrd_preprocess\precompile\FSRDFloor.hlsl" />
-    <None Include="shaders\fsrd_preprocess\precompile\FSRDFloorSeed.hlsl" />
-    <None Include="shaders\fsrd_preprocess\precompile\FSRDFloorSeedCleanLighting.hlsl" />
-    <None Include="shaders\fsrd_preprocess\precompile\FSRDVolumeGather.hlsl" />
-    <None Include="shaders\fsrd_preprocess\precompile\FSRDVolumeAccumulate.hlsl" />
-    <None Include="shaders\fsrd_preprocess\precompile\FSRDRecoveryVolumeAccumulate.hlsl" />
-    <None Include="shaders\fsrd_preprocess\precompile\FSRDVolumeApply.hlsl" />
-    <None Include="shaders\fsrd_preprocess\precompile\FSRDRecoveryVolumeApply.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDProbeInputs.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDReference.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDLeak.hlsl" />
@@ -933,6 +914,10 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFogSmooth.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFogRoute.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDRRMotion.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDRecoveryLobeAccumulate.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDRecoveryLobeDown.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDRecoveryLobeBand.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDRecoveryLobeCommon.hlsli" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDSssPrepare.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDSssBlur.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDSkinPrefilter.hlsl" />
@@ -943,10 +928,6 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <None Include="shaders\fsrd_preprocess\precompile\RRTraceAdditive.hlsl" />
     <None Include="shaders\fsrd_preprocess\RRTraceAdditive.inl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDOutputComp.hlsl" />
-    <None Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompLight.hlsl" />
-    <None Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompNoRecovery.hlsl" />
-    <None Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompTileLight.hlsl" />
-    <None Include="shaders\fsrd_preprocess\precompile\FSRDOutputCompTileAnchor.hlsl" />
     <None Include="Source.def" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
@@ -1004,5 +985,26 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <None Include="shaders\fsrd_preprocess\precompile\sss_fused\FSRDSkinConversion.hlsli" />
     <None Include="shaders\fsrd_preprocess\precompile\sss_fused\FSRDSssDepthLibrary.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\sss_fused\FSRDSssInputFused.hlsli" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDGeometry_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDGeometry.hlsl" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFlatDetailClassify_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDFlatDetailClassify.hlsl" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFlatDetailSeed_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDFlatDetailSeed.hlsl" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFlatDetailRefine_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDFlatDetailRefine.hlsl" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFlatDetailBase_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDFlatDetailBase.hlsl" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFlatDetailApply_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDFlatDetailApply.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDFlatDetailCommon.hlsli" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDFlatDetailBindings.hlsli" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFlatTemporal_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDFlatTemporal.hlsl" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFlatTemporalStore_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDFlatTemporalStore.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDFlatTemporalCommon.hlsli" />
   </ItemGroup>
 </Project>

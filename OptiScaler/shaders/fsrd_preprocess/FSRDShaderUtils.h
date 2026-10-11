@@ -178,7 +178,13 @@ namespace FSRD
             if (!mipLevels.empty())
                 EnqueueBarrier(resources[i], before, after, barriers, bCount, mipLevels[i]);
             else
-                EnqueueBarrier(resources[i], before, after, barriers, bCount);
+            {
+                // An array view covers every slice; preserve the existing mip-zero default for nonarrays.
+                const auto desc = resources[i] ? resources[i]->GetDesc() : D3D12_RESOURCE_DESC {};
+                const UINT subresource = desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D && desc.DepthOrArraySize > 1
+                    ? D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES : 0;
+                EnqueueBarrier(resources[i], before, after, barriers, bCount, subresource);
+            }
         }
 
         if (bCount > 0)
@@ -230,7 +236,25 @@ namespace FSRD
 
         if (pRes != nullptr)
         {
-            srvDesc.Format = GetViewFormat(pRes->GetDesc().Format);
+            const auto resourceDesc = pRes->GetDesc();
+            srvDesc.Format = GetViewFormat(resourceDesc.Format);
+            if (resourceDesc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+            {
+                // Texture2D and Buffer share a union: MipLevels = 1 above would become FirstElement = 1 << 32.
+                srvDesc.Buffer = {};
+                srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+                srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+                srvDesc.Buffer.NumElements = UINT(resourceDesc.Width / 4);
+                srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
+            }
+            if (resourceDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D && resourceDesc.DepthOrArraySize > 1)
+            {
+                srvDesc.Texture2DArray = {};
+                srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+                srvDesc.Texture2DArray.MostDetailedMip = mipSlice;
+                srvDesc.Texture2DArray.MipLevels = mipCount;
+                srvDesc.Texture2DArray.ArraySize = resourceDesc.DepthOrArraySize;
+            }
             pDev->CreateShaderResourceView(pRes, &srvDesc, destHandle);
         }
         else
@@ -275,6 +299,21 @@ namespace FSRD
         uavDesc.Format = fmt;
         uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
         uavDesc.Texture2D.MipSlice = mipSlice;
+        if (pRes && pRes->GetDesc().Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+        {
+            uavDesc.Buffer = {};
+            uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+            uavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
+            uavDesc.Buffer.NumElements = UINT(pRes->GetDesc().Width / 4);
+            uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
+        }
+        if (pRes && pRes->GetDesc().Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D && pRes->GetDesc().DepthOrArraySize > 1)
+        {
+            uavDesc.Texture2DArray = {};
+            uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+            uavDesc.Texture2DArray.MipSlice = mipSlice;
+            uavDesc.Texture2DArray.ArraySize = pRes->GetDesc().DepthOrArraySize;
+        }
         pDev->CreateUnorderedAccessView(pRes, nullptr, &uavDesc, destHandle);
     }
 

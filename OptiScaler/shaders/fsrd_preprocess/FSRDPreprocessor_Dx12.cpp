@@ -16,16 +16,8 @@
 #include "gpu_time/FSRDStageTimings_Dx12.h"
 #include "FSRDShaderUtils.h"
 #include "FSRDShaderData.h"
-#include "FSRDCompositionVariant.h"
 #include "precompile/FSRDInputConv_Shader.h" 
 #include "precompile/FSRDInputConvAdditive_Shader.h"
-#include "precompile/FSRDFloorSeed_Shader.h"
-#include "precompile/FSRDFloorSeedCleanLighting_Shader.h"
-#include "precompile/FSRDVolumeGather_Shader.h"
-#include "precompile/FSRDVolumeAccumulate_Shader.h"
-#include "precompile/FSRDVolumeApply_Shader.h"
-#include "precompile/FSRDRecoveryVolumeAccumulate_Shader.h"
-#include "precompile/FSRDRecoveryVolumeApply_Shader.h"
 #include "precompile/FSRDSssPrepare_Shader.h"
 #include "precompile/FSRDSssBlur_Shader.h"
 #include "precompile/FSRDSkinPrefilter_Shader.h"
@@ -39,12 +31,16 @@
 #include "precompile/FSRDInputConvSkinFusedAdditive_Shader.h"
 #include "precompile/FSRDSssKernel_Shader.h"
 #include "precompile/FSRDSssBlurTiled_Shader.h"
-#include "precompile/FSRDFloor_Shader.h" 
 #include "precompile/FSRDOutputComp_Shader.h"
-#include "precompile/FSRDOutputCompLight_Shader.h"
-#include "precompile/FSRDOutputCompNoRecovery_Shader.h"
-#include "precompile/FSRDOutputCompTileLight_Shader.h"
-#include "precompile/FSRDOutputCompTileAnchor_Shader.h"
+#include "precompile/FSRDGeometry_Shader.h"
+#include "precompile/FSRDFlatDetailClassify_Shader.h"
+#include "precompile/FSRDFlatDetailSeed_Shader.h"
+#include "precompile/FSRDFlatDetailRefine_Shader.h"
+#include "precompile/FSRDFlatDetailBase_Shader.h"
+#include "precompile/FSRDFlatDetailApply_Shader.h"
+#include "precompile/FSRDFlatTemporal_Shader.h"
+#include "precompile/FSRDFlatTemporalStore_Shader.h"
+
 #include "precompile/FSRDAlbedoTrustEvidence_Shader.h"
 #include "precompile/FSRDAlbedoTrustPropagate_Shader.h"
 #include "precompile/FSRDAlbedoStabilise_Shader.h"
@@ -54,6 +50,9 @@
 #include "precompile/FSRDFogSmooth_Shader.h"
 #include "precompile/FSRDFogRoute_Shader.h"
 #include "precompile/FSRDRRMotion_Shader.h"
+#include "precompile/FSRDRecoveryLobeAccumulate_Shader.h"
+#include "precompile/FSRDRecoveryLobeDown_Shader.h"
+#include "precompile/FSRDRecoveryLobeBand_Shader.h"
 
 #include "dx12/ffx_api_dx12.h"
 #include "fsr-rr/ffx_denoiser.h"
@@ -102,8 +101,6 @@ namespace FSRDFormats
 
     constexpr DXGI_FORMAT SkipSignal = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
-    // Cleaned HDR reference plus sigma; alpha -1 marks explicit detail bypass.
-    constexpr DXGI_FORMAT DetailReference = SkipSignal;
 
     constexpr DXGI_FORMAT OutputBuffer1 = DXGI_FORMAT_R16G16B16A16_FLOAT;
     constexpr DXGI_FORMAT OutputBuffer2 = DXGI_FORMAT_R16G16B16A16_FLOAT;
@@ -150,6 +147,7 @@ struct ComputeState
         ComPtr<ID3D12RootSignature> root;
         ComPtr<ID3D12PipelineState> pipeline;
         std::vector<ComPtr<ID3D12Resource>> resources;
+        ComPtr<ID3D12CommandSignature> indirectSignature;
     };
     ComPtr<ID3D12Device> m_device;
     std::mutex m_poolMutex;
@@ -228,7 +226,9 @@ struct ComputeState
         std::span<const UINT> outputMips,
         XMFLOAT2 outDim,
         bool autoBarrierOutput = true,
-        ID3D12PipelineState* pipelineState = nullptr
+        ID3D12PipelineState* pipelineState = nullptr,
+        ID3D12CommandSignature* indirectSignature = nullptr,
+        ID3D12Resource* indirectArguments = nullptr
     )
     {
         if (!cmdList) 
@@ -243,6 +243,8 @@ struct ComputeState
         lease->device = m_device;
         lease->root = m_rootSig;
         lease->pipeline = pipelineState ? pipelineState : m_pso.Get();
+        lease->indirectSignature = indirectSignature;
+        if (indirectArguments) lease->resources.emplace_back(indirectArguments);
         for (auto* resource : inputs) if (resource) lease->resources.emplace_back(resource);
         for (auto* resource : output) if (resource) lease->resources.emplace_back(resource);
         if (!ResTrack_Dx12::RetainComputeDispatch(m_pDev, cmdList, lease))
@@ -278,7 +280,10 @@ struct ComputeState
         // Dispatch
         const UINT dimX = ((UINT)outDim.x + (kThreadGroupSizeX - 1)) / kThreadGroupSizeX;
         const UINT dimY = ((UINT)outDim.y + (kThreadGroupSizeY - 1)) / kThreadGroupSizeY;
-        cmdList->Dispatch(dimX, dimY, 1);
+        if (indirectSignature && indirectArguments)
+            cmdList->ExecuteIndirect(indirectSignature, 1, indirectArguments, 0, nullptr, 0);
+        else
+            cmdList->Dispatch(dimX, dimY, 1);
 
         // Transition the UAVs back to SRV
         if (autoBarrierOutput)
@@ -292,10 +297,12 @@ struct ComputeState
         std::span<ID3D12Resource*> output,
         XMFLOAT2 outDim,
         bool autoBarrierOutput = true,
-        ID3D12PipelineState* pipelineState = nullptr
+        ID3D12PipelineState* pipelineState = nullptr,
+        ID3D12CommandSignature* indirectSignature = nullptr,
+        ID3D12Resource* indirectArguments = nullptr
     )
     {
-        Dispatch(cmdList, cbData, inputs, {}, output, {}, outDim, autoBarrierOutput, pipelineState);
+        Dispatch(cmdList, cbData, inputs, {}, output, {}, outDim, autoBarrierOutput, pipelineState, indirectSignature, indirectArguments);
     }
 };
 
@@ -307,7 +314,7 @@ std::mutex g_additiveTraceMutex;
 std::optional<std::array<UINT,3>> g_additiveTraceRequest;
 bool g_additiveTraceBusy=false;
 std::string g_additiveTraceStatus="No additive channel capture requested.";
-constexpr const char* kAdditiveFieldNames[] = {"rejected","evaluated","eligible","preflight_count","fit_count","mean_albedo","variance_albedo","min_specular","max_specular","mean_specular","mean_residual","variance_residual","covariance","ridge_lambda","data_weight","prior_slope","unregularized_slope","ridge_slope","intercept_unclamped","intercept","intercept_error","fit_rmse","applied_slope","applied_intercept","center_prediction","center_prediction_error","p0","p","delta_p","transferred_rgb","eligible_rgb","skip_rgb","skip_fraction","remodulated_fraction","raw_rgb","spatial_floor_rgb","eligible_fraction","specular_signal","diffuse_signal","settings","source_diffuse","source_specular","source_normal","source_roughness","linear_depth","source_motion","stored_specular","stored_diffuse"};
+constexpr const char* kAdditiveFieldNames[] = {"rejected","evaluated","eligible","preflight_count","fit_count","mean_albedo","variance_albedo","min_specular","max_specular","mean_specular","mean_residual","variance_residual","covariance","ridge_lambda","data_weight","prior_slope","unregularized_slope","ridge_slope","intercept_unclamped","intercept","intercept_error","fit_rmse","applied_slope","applied_intercept","center_prediction","center_prediction_error","p0","p","delta_p","transferred_rgb","eligible_rgb","skip_rgb","skip_fraction","remodulated_fraction","raw_rgb","reserved_rgb","eligible_fraction","specular_signal","diffuse_signal","settings","source_diffuse","source_specular","source_normal","source_roughness","linear_depth","source_motion","stored_specular","stored_diffuse"};
 }
 bool FSRDPreprocessor_Dx12::RequestAdditiveCapture(uint32_t x,uint32_t y,uint32_t size)
 {
@@ -369,14 +376,27 @@ struct FSRDPreprocessor_Dx12::Impl
     uint32_t m_fogIndex = 0;
     bool m_fogValid = false;
     XMFLOAT4 m_fogSize {};
-    std::array<uint8_t,sizeof(FloorSeed::Constants)> m_gameTraceFloorSeedConstants {};
-    std::array<uint8_t,sizeof(FloorFilter::Constants)*FloorFilter::kPasses> m_gameTraceFloorFilterConstants {};
-    size_t m_gameTraceFloorFilterConstantBytes = 0;
+    std::array<uint8_t,sizeof(Geometry::Constants)> m_gameTraceGeometryConstants {};
     bool m_gameTraceFrameRecorded = false;
     bool m_gameTraceCaptureRequested = false;
 
-    ComputeState m_floorSeedShader;
-    ComputeState m_floorFilterShader;
+    ComputeState m_geometryShader;
+    ComputeState m_flatDetailClassifyShader, m_flatDetailSeedShader, m_flatDetailRefineShader;
+    ComputeState m_flatDetailBaseShader, m_flatDetailApplyShader;
+    ComPtr<ID3D12CommandSignature> m_flatDetailSignature;
+    ComPtr<ID3D12Resource> m_flatDetailTiles, m_flatDetailArguments, m_flatDetailReset;
+    std::array<ComPtr<ID3D12Resource>, 2> m_flatDetailReference, m_flatDetailStatistics;
+    ComPtr<ID3D12Resource> m_flatDetailBase, m_flatDetailMean, m_flatDetailVariance;
+    FlatDetail::Constants m_flatDetailConstants {};
+    bool m_flatDetailActive = false;
+    ComputeState m_flatTemporalShader, m_flatTemporalStoreShader;
+    // Three six-slice RGBA16F arrays hold ORIGINAL references and their per-sample validation metadata.
+    ComPtr<ID3D12Resource> m_flatHistoryReference, m_flatHistoryMotionDepth, m_flatHistoryNormalLP;
+    ComPtr<ID3D12Resource> m_flatTemporalReference, m_flatTemporalNormalLP, m_flatTemporalDiagnostics;
+    FlatTemporal::Constants m_flatTemporalConstants {};
+    UINT m_flatHistoryHead = 0, m_flatHistoryCount = 0, m_flatHistoryLength = 0;
+    XMFLOAT4 m_flatHistorySize {};
+    bool m_flatTemporalActive = false, m_flatTemporalWasEnabled = false;
     ComputeState m_convShader;
     ComputeState m_skinConvShader;
     ComputeState m_sssPrepareShader;
@@ -396,45 +416,29 @@ struct FSRDPreprocessor_Dx12::Impl
     float m_skinFocalPixels = 0.0f;
     bool m_skinOutputActive = false;
     ComputeState m_compShader;
-    // Reuse generic root signature, descriptors and leased constants/resources.
-    ComPtr<ID3D12PipelineState> m_lightCompPso;
-    ComPtr<ID3D12PipelineState> m_noRecoveryCompPso;
-    bool m_lightCompPsoFailed = false;
-    bool m_noRecoveryCompPsoFailed = false;
-    ComPtr<ID3D12PipelineState> m_tileLightCompPso;
-    ComPtr<ID3D12PipelineState> m_tileAnchorCompPso;
-    bool m_splitCompPsoFailed = false;
     ComputeState m_trustEvidenceShader;
     ComputeState m_trustPropagateShader;
     // Shares conversion's root signature, per-dispatch descriptors and constants.
     // The original PSO remains usable if optional pipeline creation fails.
     ComPtr<ID3D12PipelineState> m_additiveConvPso;
     bool m_additiveConvPsoFailed = false;
-    // Optional clean-lighting Seed; shares the Seed's root signature and constants.
-    // A failed creation falls back to the default Seed, which stays correct.
-    ComPtr<ID3D12PipelineState> m_cleanLightingSeedPso;
-    bool m_cleanLightingSeedPsoFailed = false;
-
-    // Volumetric restore: the input's unbiased 8x8 tile means (gathered at
-    // conversion), the reprojected shortfall of RR's output against them, and the
-    // composition with that shortfall added back. Tile textures are 1/8 size.
-    ComputeState m_volumeGatherShader;
-    ComputeState m_volumeAccumulateShader;
-    ComputeState m_volumeApplyShader;
-    ComputeState m_recoveryVolumeAccumulateShader;
-    ComputeState m_recoveryVolumeApplyShader;
-    ComPtr<ID3D12Resource> m_recoveryVolumeHistory[2];
-    ComPtr<ID3D12Resource> m_recoveryVolumeVariance[2];
-    UINT m_recoveryVolumeRead = 0;
-    bool m_recoveryVolumeValid = false;
-    ComPtr<ID3D12Resource> m_volumeRawTiles;
-    ComPtr<ID3D12Resource> m_volumeHistory[2];
     // Every post-composition pass reads the last result and writes a distinct SRV-resting target.
     ComPtr<ID3D12Resource> m_recoveryOutput[2];
     int m_recoveryOutputIndex = -1;
-    UINT m_volumeHistoryRead = 0;
-    bool m_volumeHistoryValid = false;
-    bool m_volumeRawReady = false;
+    // Temporal recovery references survive only consecutive successful normal frames.
+    bool m_recoveryHistoryValid = false;
+    // Recovery v2 lobe recovery: per-lobe references and geometry (ping-pong), the band pyramid (levels 0-6),
+    // collapsed coarse corrections (levels 1-5), per-level band noise (ping-pong) and unused-slot dummies.
+    ComputeState m_lobeAccumulateShader, m_lobeDownShader, m_lobeBandShader;
+    std::array<ComPtr<ID3D12Resource>, 2> m_lobeSpecular, m_lobeDiffuse, m_lobeGeometry, m_lobeGradient;
+    std::array<ComPtr<ID3D12Resource>, RecoveryLobe::kLevels + 1> m_lobeLevelA, m_lobeLevelB, m_lobeLevelC;
+    std::array<ComPtr<ID3D12Resource>, RecoveryLobe::kLevels> m_lobeCorrectionS, m_lobeCorrectionD;
+    std::array<std::array<ComPtr<ID3D12Resource>, RecoveryLobe::kLevels>, 2> m_lobeNoise;
+    std::array<ComPtr<ID3D12Resource>, 4> m_lobeDummy;
+    UINT m_lobeIndex = 0;
+    uint32_t m_lobeFrame = 0;
+    bool m_lobeValid = false;
+    XMFLOAT4 m_lobeSize {};
 
     UINT m_maxWidth = 0;
     UINT m_maxHeight = 0;
@@ -443,28 +447,16 @@ struct FSRDPreprocessor_Dx12::Impl
     // Internal storage
     Conversion::Output m_out;
     ComPtr<ID3D12Resource> m_LinearDepth;
-    // Last frame's m_LinearDepth for the geometric disocclusion check, copied before the floor
+    // Last frame's m_LinearDepth for the geometric disocclusion check, copied before geometry
     // seed overwrites it. m_linearDepthSize is the render size of the complete frame
-    // m_LinearDepth holds; zero until the floor seed has written one.
+    // m_LinearDepth holds; zero until the geometry pass has written one.
     ComPtr<ID3D12Resource> m_PrevLinearDepth;
     XMFLOAT4 m_linearDepthSize {};
     bool m_previousDepthValid = false;
-    ComPtr<ID3D12Resource> m_floorReference;
-    // Per-frame material model ping-pong; independent of RR radiance scratch and history.
-    ComPtr<ID3D12Resource> m_floorModel0;
-    ComPtr<ID3D12Resource> m_floorModel1;
     ComPtr<ID3D12Resource> m_compositionOutput;
-    std::array<ComPtr<ID3D12Resource>,2> m_decisionHistory;
-    std::array<ComPtr<ID3D12Resource>,2> m_historyMetadata;
-    UINT m_historyRead = 0;
-    bool m_historyValid = false;
-    bool m_historyPending = false;
     bool m_motionHistoryValid = false;
-    XMFLOAT2 m_historyJitterDelta {};
-    std::array<XMUINT4,6> m_historySourceBases {};
-    XMFLOAT4 m_historyRenderSize {};
-    XMFLOAT4 m_historyInputSettings {};
-    uint32_t m_historyConversionFlags = 0;
+    XMFLOAT2 m_currentJitter {};
+    XMFLOAT2 m_flatHistoryJitterDelta {};
     ComPtr<ID3D12Resource> m_outputBuffer1;
     ComPtr<ID3D12Resource> m_outputBuffer2;
     // RR direct-specular output (denoised unmodulated specular) and the trust ping-pong.
@@ -482,8 +474,6 @@ struct FSRDPreprocessor_Dx12::Impl
     UINT m_debugViewWidth = 0;
     UINT m_debugViewHeight = 0;
 
-    // Floor filter
-    ID3D12Resource* m_smoothFloor;
 
     // The RR-facing linear depth for this frame, and the state it was validated in. When
     // a title-published linear depth is being consumed it is that resource - every
@@ -1242,37 +1232,6 @@ struct FSRDPreprocessor_Dx12::Impl
                  float(dead) * 100.0f / float(samples));
     }
 
-    // Share of the frame whose published floor exceeds its raw sample. The conversion marks
-    // those pixels in the alpha channel. On them the residual handed to the denoiser is zero,
-    // so the skip signal is the floor filter's own low pass and nothing else - which is both
-    // where the softness comes from and the set an energy clamp used to fill with the raw
-    // sample. It should fall toward zero as FloorEnvelopeBias rises.
-    void LogCrossingShareProbe(const uint8_t* data, UINT rowPitch, const ProbeSampling& sampling)
-    {
-        const UINT sampleWidth = std::min(m_inputProbeWidth, m_maxWidth);
-        const UINT sampleHeight = std::min(m_inputProbeHeight, m_maxHeight);
-
-        UINT samples = 0;
-        UINT crossing = 0;
-
-        for (UINT y = sampling.strideY / 2; y < sampleHeight; y += sampling.strideY)
-        {
-            const uint8_t* row = data + size_t(y) * rowPitch;
-            for (UINT x = sampling.strideX / 2; x < sampleWidth; x += sampling.strideX)
-            {
-                ++samples;
-                if (row[size_t(x) * 4 + 3] > 128)
-                    ++crossing;
-            }
-        }
-
-        if (samples == 0)
-            return;
-
-        LOG_INFO("[RR_INPUT_PROBE] floor/raw crossing: {:.2f}% of the frame publishes the floor "
-                 "over the raw sample (the denoiser is handed nothing there)",
-                 float(crossing) * 100.0f / float(samples));
-    }
 
     // Returns false when the capture's copy submission has not executed yet, or the
     // readback could not be mapped this attempt; the caller retries on a later
@@ -1322,8 +1281,6 @@ struct FSRDPreprocessor_Dx12::Impl
             static_cast<const uint8_t*>(mapped[4]), m_inputProbeRowPitch[4], sampling);
         LogMagnitudeProbe("skip signal (RR-facing)", static_cast<const uint8_t*>(mapped[5]),
                           m_inputProbeRowPitch[5], sampling, true);
-        LogCrossingShareProbe(
-            static_cast<const uint8_t*>(mapped[6]), m_inputProbeRowPitch[6], sampling);
 
         for (UINT i = 0; i < kInputProbeTargetCount; i++)
             m_inputProbeReadback[i]->Unmap(0, nullptr);
@@ -1332,8 +1289,7 @@ struct FSRDPreprocessor_Dx12::Impl
     }
 
     void Initialize(
-        std::span<const byte> blSeedByteCode, 
-        std::span<const byte> blPyramidByteCode, 
+        std::span<const byte> geometryByteCode, 
         std::span<const byte> convByteCode, 
         std::span<const byte> compByteCode
     )
@@ -1342,10 +1298,8 @@ struct FSRDPreprocessor_Dx12::Impl
 
         LOG_DEBUG("Creating FSRD interop shaders...");
 
-        m_floorSeedShader.Initialize(m_pDev, blSeedByteCode, sizeof(FloorSeed::Constants), 
-            FloorSeed::Input::kCount, FloorSeed::Output::kCount, L"FSRD_FloorSeed_Constants", FloorSeed::kBackBufferCount);
-        m_floorFilterShader.Initialize(m_pDev, blPyramidByteCode, sizeof(FloorFilter::Constants), 
-            FloorFilter::Input::kCount, FloorFilter::Output::kCount, L"FSRD_FloorFilter_Constants", FloorFilter::kBackBufferCount);
+        m_geometryShader.Initialize(m_pDev, geometryByteCode, sizeof(Geometry::Constants),
+            Geometry::Input::kCount, Geometry::Output::kCount, L"FSRD_Geometry_Constants");
         m_convShader.Initialize(m_pDev, convByteCode, sizeof(Conversion::Constants), 
             Conversion::Input::kCount, Conversion::Output::kCount, L"FSRD_Conv_Constants", Conversion::kBackBufferCount);
         m_compShader.Initialize(m_pDev, compByteCode, sizeof(Composition::Constants), 
@@ -1358,29 +1312,6 @@ struct FSRDPreprocessor_Dx12::Impl
             { reinterpret_cast<const byte*>(FSRDAlbedoTrustPropagate_cso), sizeof(FSRDAlbedoTrustPropagate_cso) },
             sizeof(TrustPropagate::Constants), TrustPropagate::Input::kCount, TrustPropagate::Output::kCount,
             L"FSRD_TrustPropagate_Constants", TrustPropagate::kBackBufferCount);
-        m_volumeGatherShader.Initialize(m_pDev,
-            { reinterpret_cast<const byte*>(FSRDVolumeGather_cso), sizeof(FSRDVolumeGather_cso) },
-            sizeof(VolumeGather::Constants), VolumeGather::Input::kCount, VolumeGather::Output::kCount,
-            L"FSRD_VolumeGather_Constants", VolumeGather::kBackBufferCount);
-        m_volumeAccumulateShader.Initialize(m_pDev,
-            { reinterpret_cast<const byte*>(FSRDVolumeAccumulate_cso), sizeof(FSRDVolumeAccumulate_cso) },
-            sizeof(VolumeAccumulate::Constants), VolumeAccumulate::Input::kCount, VolumeAccumulate::Output::kCount,
-            L"FSRD_VolumeAccumulate_Constants", VolumeAccumulate::kBackBufferCount);
-        m_volumeApplyShader.Initialize(m_pDev,
-            { reinterpret_cast<const byte*>(FSRDVolumeApply_cso), sizeof(FSRDVolumeApply_cso) },
-            sizeof(VolumeApply::Constants), VolumeApply::Input::kCount, VolumeApply::Output::kCount,
-            L"FSRD_VolumeApply_Constants", VolumeApply::kBackBufferCount);
-
-
-        m_recoveryVolumeAccumulateShader.Initialize(m_pDev,
-            { reinterpret_cast<const byte*>(FSRDRecoveryVolumeAccumulate_cso), sizeof(FSRDRecoveryVolumeAccumulate_cso) },
-            sizeof(RecoveryVolumeAccumulate::Constants), RecoveryVolumeAccumulate::Input::kCount, RecoveryVolumeAccumulate::Output::kCount,
-            L"FSRD_RecoveryVolumeAccumulate_Constants", RecoveryVolumeAccumulate::kBackBufferCount);
-        m_recoveryVolumeApplyShader.Initialize(m_pDev,
-            { reinterpret_cast<const byte*>(FSRDRecoveryVolumeApply_cso), sizeof(FSRDRecoveryVolumeApply_cso) },
-            sizeof(RecoveryVolumeApply::Constants), RecoveryVolumeApply::Input::kCount, RecoveryVolumeApply::Output::kCount,
-            L"FSRD_RecoveryVolumeApply_Constants", RecoveryVolumeApply::kBackBufferCount);
-
         LOG_DEBUG("FSRD interop shaders and resources initialized.");
     }
 
@@ -1406,7 +1337,6 @@ struct FSRDPreprocessor_Dx12::Impl
         m_skinBounds8.Reset(); m_skinBounds16.Reset();
         m_sssKernel.Reset(); m_skinFused = false;
         m_skinOutputActive = false; m_skinMode = 0;
-        m_historyValid = m_historyPending = false;
         for (auto* set : {&m_albedoStabSpec, &m_albedoStabDiff, &m_albedoStabNormal})
             for (auto& resource : *set) resource.Reset();
         m_albedoStabSpareSpecAlbedo.Reset(); m_albedoStabSpareDiffAlbedo.Reset();
@@ -1420,8 +1350,15 @@ struct FSRDPreprocessor_Dx12::Impl
         m_fogValid = false;
         m_rrMotion.Reset();
         m_rrMotionActive = false;
-        for (auto& resource : m_decisionHistory) resource.Reset();
-        for (auto& resource : m_historyMetadata) resource.Reset();
+        ResetLobeRecovery();
+        m_flatDetailTiles.Reset(); m_flatDetailArguments.Reset(); m_flatDetailReset.Reset();
+        for (auto& resource : m_flatDetailReference) resource.Reset();
+        for (auto& resource : m_flatDetailStatistics) resource.Reset();
+        m_flatDetailBase.Reset(); m_flatDetailMean.Reset(); m_flatDetailVariance.Reset();
+        m_flatDetailActive = false;
+        m_flatHistoryReference.Reset(); m_flatHistoryMotionDepth.Reset(); m_flatHistoryNormalLP.Reset();
+        m_flatTemporalReference.Reset(); m_flatTemporalNormalLP.Reset(); m_flatTemporalDiagnostics.Reset();
+        ResetFlatTemporalHistory();
 
         auto CreateTex = [&](DXGI_FORMAT fmt, LPCWSTR name, UINT mipLevels = 1)
         { 
@@ -1434,7 +1371,7 @@ struct FSRDPreprocessor_Dx12::Impl
         outResources.SpecAlbedo = CreateTex(FSRDFormats::SpecAlbedo, L"FSR_Conv_SpecAlbedo");
         outResources.DiffAlbedo = CreateTex(FSRDFormats::DiffAlbedo, L"FSR_Conv_DiffAlbedo");
         outResources.SkipSignal = CreateTex(FSRDFormats::SkipSignal, L"FSR_Conv_SkipSignal");
-        outResources.DetailReference = CreateTex(FSRDFormats::DetailReference, L"FSR_Conv_DetailReference");
+        outResources.Diagnostic = CreateTexture2D(m_pDev, 1, 1, FSRDFormats::SkipSignal, L"FSR_Conv_UnusedJournal", kSrvState);
         const auto optional = [&](bool enabled, DXGI_FORMAT format, LPCWSTR name) {
             return CreateTexture2D(m_pDev, enabled ? width : 1u, enabled ? height : 1u, format, name, kSrvState);
         };
@@ -1456,31 +1393,10 @@ struct FSRDPreprocessor_Dx12::Impl
         m_specularOcclusionOutput =
             CreateTex(FSRDFormats::SpecularOcclusion, L"FSR_RR_SpecularOcclusion_Output");
 
-        m_floorReference = CreateTex(FSRDFormats::DetailReference, L"FSR_Floor_Reference");
-        m_floorModel0 = CreateTex(FSRDFormats::DetailReference, L"FSR_Floor_Model_0");
-        m_floorModel1 = CreateTex(FSRDFormats::DetailReference, L"FSR_Floor_Model_1");
         m_compositionOutput = CreateTex(DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSR_Composition_Output");
         for (auto& target : m_recoveryOutput)
             target = CreateTex(DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSR_Recovery_Output");
-        {
-            const UINT tilesX = (width + 7) / 8, tilesY = (height + 7) / 8;
-            m_volumeRawTiles = CreateTexture2D(m_pDev, tilesX, tilesY, DXGI_FORMAT_R16G16B16A16_FLOAT,
-                                               L"FSR_VolumeRestore_RawTiles", kSrvState);
-            for (UINT i = 0; i < 2; ++i)
-                m_volumeHistory[i] = CreateTexture2D(m_pDev, tilesX, tilesY, DXGI_FORMAT_R16G16B16A16_FLOAT,
-                                                     L"FSR_VolumeRestore_History", kSrvState);
-        }
-        for (UINT i = 0; i < 2; ++i)
-        {
-            m_recoveryVolumeHistory[i] = CreateTexture2D(m_pDev, (width + 7) / 8, (height + 7) / 8,
-                DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSR_RecoveryVolume_History", kSrvState);
-            m_recoveryVolumeVariance[i] = CreateTexture2D(m_pDev, (width + 7) / 8, (height + 7) / 8,
-                DXGI_FORMAT_R32G32B32A32_FLOAT, L"FSR_RecoveryVolume_Variance", kSrvState);
-        }
-        m_recoveryVolumeValid = false;
-        m_volumeHistoryValid = m_volumeRawReady = false;
         m_recoveryOutputIndex = -1;
-        m_smoothFloor = nullptr;
         m_radianceOutputsInUavState = false;
         m_ambientOcclusionOutputInUavState = false;
         m_specularOcclusionOutputInUavState = false;
@@ -1496,119 +1412,272 @@ struct FSRDPreprocessor_Dx12::Impl
         m_maxHeight = height;
     }
 
-    void DispatchFloorSeed(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc,
-                           ID3D12PipelineState* seedPipeline)
+    void DispatchGeometry(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
     {
-        FloorSeed::Constants constants = {
+        Geometry::Constants constants {
             .InvProjMatrix = desc.InvProjMatrix,
             .RenderSize = desc.RenderSize,
             .NearPlane = desc.NearPlane,
             .FarPlane = desc.FarPlane,
-            .Flags = ((desc.Flags & uint32_t(ConvFlags::IsDepthLinear)) ? uint32_t(FloorSeed::Flags::LinearDepth) : 0u) |
-                     ((desc.Flags & uint32_t(ConvFlags::RightHanded)) ? uint32_t(FloorSeed::Flags::NegativeViewDepth) : 0u) |
+            .Flags = ((desc.Flags & uint32_t(ConvFlags::IsDepthLinear)) ? Geometry::LinearDepth : 0u) |
+                     ((desc.Flags & uint32_t(ConvFlags::RightHanded)) ? Geometry::NegativeViewDepth : 0u) |
                      ((desc.Flags & uint32_t(ConvFlags::TitleLinearDepth)) && desc.Resources.InTitleLinearDepth
-                          ? uint32_t(FloorSeed::Flags::TitleLinearDepth) : 0u),
+                        ? Geometry::TitleLinearDepth : 0u),
             .CurrentJitter = {desc.JitterOffsets.x, desc.JitterOffsets.y},
-            .InputBase = desc.FloorSourceBase,
-            .NormalBase = {desc.InputBase1.x, desc.InputBase1.y},
-            .TitleDepthBase = desc.TitleLinearDepthBase,
-            .AlbedoBase = {desc.InputBase2.z, desc.InputBase2.w},
-            .FloorEnabled = desc.FloorEnabled ? 1u : 0u
+            .DepthBase = {desc.ColorDepthBase.z, desc.ColorDepthBase.w},
+            .TitleDepthBase = desc.TitleLinearDepthBase
         };
-        FloorSeed::Input in = {.Resources = {
-            .InColor = desc.Resources.InColor,
-            .InNormals = desc.Resources.InNormals,
-            .InDepth = desc.Resources.InDepth,
-            .InTitleLinearDepth = desc.Resources.InTitleLinearDepth,
-            .InDiffAlbedo = desc.Resources.InDiffAlbedo
-        }};
-        FloorSeed::Output out = {.Resources = {
-            .OutColor = m_outputBuffer2.Get(),
-            .OutLinearDepth = m_LinearDepth.Get(),
-            .OutDepthGradient = m_out.Resources.Motion.Get(),
-            .OutDetailReference = m_floorReference.Get(),
-            .OutFloorModel = m_floorModel0.Get()
-        }};
+        Geometry::Input in {{desc.Resources.InDepth, desc.Resources.InTitleLinearDepth}};
+        Geometry::Output out {{m_LinearDepth.Get()}};
         if (m_gameTraceCaptureRequested)
-        {
-            memcpy(m_gameTraceFloorSeedConstants.data(), &constants, sizeof(constants));
-            m_gameTraceFloorFilterConstantBytes = 0;
-        }
-        m_floorSeedShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray,
-                                  {desc.RenderSize.x, desc.RenderSize.y}, true, seedPipeline);
-        m_smoothFloor = m_outputBuffer2.Get();
+            memcpy(m_gameTraceGeometryConstants.data(), &constants, sizeof(constants));
+        m_geometryShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray,
+                                  {desc.RenderSize.x, desc.RenderSize.y});
     }
 
-    // The game's colour is readable only during conversion; keep its unbiased tile
-    // means for the volumetric restore that runs after composition.
-    void DispatchVolumeGather(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
+    void EnsureFlatDetail()
     {
-        m_volumeRawReady = false;
-        if (!(desc.VolumeRestore || desc.RecoveryVolumetry) || (desc.Flags & uint32_t(ConvFlags::Debug)) != 0 || !desc.Resources.InColor)
-            return;
-        VolumeGather::Constants constants = {
-            .RenderSize = desc.RenderSize,
-            .InputBase = {desc.InputBase0.x, desc.InputBase0.y}
+        if (m_flatDetailTiles) return;
+        ScopedSkipHeapCapture skipHeapCapture {};
+        if (!m_flatDetailSeedShader.m_pso)
+        {
+            m_flatDetailClassifyShader.Initialize(m_pDev, GetAsByteSpan(FSRDFlatDetailClassify_cso),
+                sizeof(XMFLOAT4), 2, 2, L"FSRD_FlatDetail_Classify");
+            m_flatDetailSeedShader.Initialize(m_pDev, GetAsByteSpan(FSRDFlatDetailSeed_cso),
+                sizeof(FlatDetail::Constants), FlatDetail::Input::kCount, FlatDetail::Output::kCount, L"FSRD_FlatDetail_Seed");
+            m_flatDetailRefineShader.Initialize(m_pDev, GetAsByteSpan(FSRDFlatDetailRefine_cso),
+                sizeof(FlatDetail::Constants), FlatDetail::Input::kCount, FlatDetail::Output::kCount, L"FSRD_FlatDetail_Refine");
+            m_flatDetailBaseShader.Initialize(m_pDev, GetAsByteSpan(FSRDFlatDetailBase_cso),
+                sizeof(FlatDetail::Constants), FlatDetail::Input::kCount, FlatDetail::Output::kCount, L"FSRD_FlatDetail_Base");
+            m_flatDetailApplyShader.Initialize(m_pDev, GetAsByteSpan(FSRDFlatDetailApply_cso),
+                sizeof(FlatDetail::Constants), FlatDetail::Input::kCount, FlatDetail::Output::kCount, L"FSRD_FlatDetail_Apply");
+        }
+        if (!m_flatDetailSignature)
+        {
+            D3D12_INDIRECT_ARGUMENT_DESC argument {};
+            argument.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
+            D3D12_COMMAND_SIGNATURE_DESC signature {sizeof(D3D12_DISPATCH_ARGUMENTS), 1, &argument, 0};
+            ThrowIfFailed(m_pDev->CreateCommandSignature(&signature, nullptr, IID_PPV_ARGS(&m_flatDetailSignature)),
+                          "Flat Detail indirect signature");
+        }
+        const auto buffer = [&](UINT64 bytes, LPCWSTR name, D3D12_RESOURCE_STATES state, bool upload = false) {
+            D3D12_HEAP_PROPERTIES heap {upload ? D3D12_HEAP_TYPE_UPLOAD : D3D12_HEAP_TYPE_DEFAULT};
+            auto desc = CD3DX12_RESOURCE_DESC::Buffer(bytes, upload ? D3D12_RESOURCE_FLAG_NONE : D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+            ComPtr<ID3D12Resource> resource;
+            ThrowIfFailed(m_pDev->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, state, nullptr,
+                          IID_PPV_ARGS(&resource)), "Flat Detail buffer");
+            resource->SetName(name);
+            return resource;
         };
-        VolumeGather::Input in = {.Resources = {.InColor = desc.Resources.InColor}};
-        VolumeGather::Output out = {.Resources = {.OutRawTiles = m_volumeRawTiles.Get()}};
-        m_volumeGatherShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray,
-                                      {desc.RenderSize.x, desc.RenderSize.y});
-        m_volumeRawReady = true;
+        const auto texture = [&](LPCWSTR name) {
+            return CreateTexture2D(m_pDev, m_maxWidth, m_maxHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, name, kSrvState);
+        };
+        for (auto& resource : m_flatDetailReference) resource = texture(L"FSRD_FlatDetail_Reference");
+        for (auto& resource : m_flatDetailStatistics) resource = texture(L"FSRD_FlatDetail_Statistics");
+        m_flatDetailBase = texture(L"FSRD_FlatDetail_Base");
+        m_flatDetailMean = texture(L"FSRD_FlatDetail_RRMean");
+        m_flatDetailVariance = texture(L"FSRD_FlatDetail_AnchorSigma");
+        auto arguments = buffer(sizeof(D3D12_DISPATCH_ARGUMENTS), L"FSRD_FlatDetail_Arguments", D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+        auto reset = buffer(28, L"FSRD_FlatDetail_Reset", D3D12_RESOURCE_STATE_GENERIC_READ, true);
+        const uint32_t initial[] {0, 0, 0, 0, 0, 1, 1};
+        void* mapped = nullptr;
+        const D3D12_RANGE empty {0, 0};
+        ThrowIfFailed(reset->Map(0, &empty, &mapped), "Flat Detail reset map");
+        memcpy(mapped, initial, sizeof(initial));
+        reset->Unmap(0, nullptr);
+        const UINT64 tiles = UINT64((m_maxWidth + 7) / 8) * ((m_maxHeight + 7) / 8);
+        auto list = buffer(16 + tiles * 8, L"FSRD_FlatDetail_Tiles", kSrvState);
+        m_flatDetailArguments = std::move(arguments);
+        m_flatDetailReset = std::move(reset);
+        m_flatDetailTiles = std::move(list);
     }
 
-    // Adds back the energy RR removed from the input (fog, beams, transparent
-    // layers): RR's output is only added to, never filtered or replaced.
-    void DispatchVolumeRestore(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
+    void ResetFlatTemporalHistory() noexcept
     {
-        const bool active = m_volumeRawReady && std::isfinite(desc.VolumeRestoreStrength) &&
-            desc.VolumeRestoreStrength > 0.0f &&
-            (desc.Flags & (uint32_t(CompFlags::Debug) | uint32_t(CompFlags::RawSourceBlit))) == 0;
-        m_volumeRawReady = false;
-        if (!active)
+        // Count gates every history read; uninitialised/stale array slices need no physical clear.
+        m_flatHistoryHead = m_flatHistoryCount = m_flatHistoryLength = 0;
+        m_flatHistorySize = {};
+        m_flatTemporalWasEnabled = m_flatTemporalActive = false;
+    }
+
+    void EnsureFlatTemporal()
+    {
+        if (m_flatTemporalReference && m_flatHistoryReference && m_flatHistoryMotionDepth &&
+            m_flatHistoryNormalLP && m_flatTemporalNormalLP && m_flatTemporalDiagnostics) return;
+        ScopedSkipHeapCapture skipHeapCapture {};
+        if (!m_flatTemporalShader.m_pso)
+            m_flatTemporalShader.Initialize(m_pDev, GetAsByteSpan(FSRDFlatTemporal_cso),
+                sizeof(FlatTemporal::Constants), FlatTemporal::ResolveInput::kCount,
+                FlatTemporal::ResolveOutput::kCount, L"FSRD_FlatTemporal");
+        if (!m_flatTemporalStoreShader.m_pso)
+            m_flatTemporalStoreShader.Initialize(m_pDev, GetAsByteSpan(FSRDFlatTemporalStore_cso),
+                sizeof(FlatTemporal::Constants), FlatTemporal::StoreInput::kCount,
+                FlatTemporal::StoreOutput::kCount, L"FSRD_FlatTemporal_Store");
+        const auto history = [&](LPCWSTR name) {
+            D3D12_RESOURCE_DESC texture {};
+            texture.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+            texture.Width = m_maxWidth; texture.Height = m_maxHeight;
+            texture.DepthOrArraySize = FlatTemporal::kHistorySlots; texture.MipLevels = 1;
+            texture.Format = DXGI_FORMAT_R16G16B16A16_FLOAT; texture.SampleDesc.Count = 1;
+            texture.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+            texture.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+            D3D12_HEAP_PROPERTIES heap {D3D12_HEAP_TYPE_DEFAULT};
+            ComPtr<ID3D12Resource> resource;
+            ThrowIfFailed(m_pDev->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &texture,
+                kSrvState, nullptr, IID_PPV_ARGS(&resource)), "Flat temporal history array");
+            resource->SetName(name);
+            return resource;
+        };
+        m_flatHistoryReference = history(L"FSRD_FlatTemporal_HistoryReference");
+        m_flatHistoryMotionDepth = history(L"FSRD_FlatTemporal_HistoryMotionDepth");
+        m_flatHistoryNormalLP = history(L"FSRD_FlatTemporal_HistoryNormalLP");
+        m_flatTemporalReference = CreateTexture2D(m_pDev, m_maxWidth, m_maxHeight,
+            DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSRD_FlatTemporal_Reference", kSrvState);
+        m_flatTemporalNormalLP = CreateTexture2D(m_pDev, m_maxWidth, m_maxHeight,
+            DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSRD_FlatTemporal_NormalLP", kSrvState);
+        m_flatTemporalDiagnostics = CreateTexture2D(m_pDev, m_maxWidth, m_maxHeight,
+            DXGI_FORMAT_R16G16_FLOAT, L"FSRD_FlatTemporal_ValidCountWeight", kSrvState);
+        ResetFlatTemporalHistory();
+    }
+
+    ID3D12Resource* ResolveFlatTemporal(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc,
+                                      ID3D12Resource* originalReference, uint32_t flags)
+    {
+        if (!desc.RecoveryFlatTemporal)
         {
-            m_volumeHistoryValid = false;
+            ResetFlatTemporalHistory();
+            return originalReference;
+        }
+        EnsureFlatTemporal();
+        const UINT length = std::clamp(desc.RecoveryFlatHistoryLength, 1u, FlatTemporal::kHistorySlots);
+        const bool sameSize = memcmp(&m_flatHistorySize, &desc.DstTexSize, sizeof(desc.DstTexSize)) == 0;
+        if (!m_flatTemporalWasEnabled || !m_motionHistoryValid || !sameSize || length != m_flatHistoryLength)
+            ResetFlatTemporalHistory();
+        FlatTemporal::Constants constants {
+            .DstTexSize = desc.DstTexSize,
+            .FullRenderSize = {desc.DstTexSize.x, desc.DstTexSize.y},
+            .JitterDelta = m_flatHistoryJitterDelta,
+            .Modulation = {desc.SpecularAlbedoDemodulation, desc.DiffuseAlbedoModulation},
+            .TemporalStrength = 1.0f,
+            .Epsilon = FlatDetail::kEpsilon,
+            .HistoryCount = m_flatHistoryCount,
+            .HistoryHead = m_flatHistoryHead,
+            .HistoryLength = length,
+            .Flags = flags,
+            .CenterSigma = FlatTemporal::kCenterSigma,
+            .MotionStart = FlatTemporal::kMotionStart,
+            .MotionEnd = FlatTemporal::kMotionEnd,
+            .HistoryDecay = FlatTemporal::kHistoryDecay,
+        };
+        auto& r = m_out.Resources;
+        FlatTemporal::ResolveInput in {{originalReference, CompositionColor(), r.Normals.Get(),
+            m_LinearDepth.Get(), r.Motion.Get(), r.Signals.IndirectSpecular.Get(), r.Signals.DirectDiffuse.Get(),
+            r.SpecAlbedo.Get(), r.DiffAlbedo.Get(), r.SkipSignal.Get(), m_flatDetailTiles.Get(),
+            m_flatHistoryReference.Get(), m_flatHistoryMotionDepth.Get(), m_flatHistoryNormalLP.Get()}};
+        FlatTemporal::ResolveOutput out {{m_flatTemporalReference.Get(), m_flatTemporalNormalLP.Get(),
+            m_flatTemporalDiagnostics.Get()}};
+        m_flatTemporalShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray, {0,0},
+            true, nullptr, m_flatDetailSignature.Get(), m_flatDetailArguments.Get());
+        // Read only the original reference. Accumulated output must never re-enter the ring.
+        // Resolve's UAV->SRV barriers complete before Store consumes NormalLP or Base consumes the result.
+        FlatTemporal::StoreInput storeIn {{originalReference, r.Normals.Get(), m_LinearDepth.Get(),
+            r.Motion.Get(), r.SkipSignal.Get(), m_flatTemporalNormalLP.Get()}};
+        FlatTemporal::StoreOutput storeOut {{m_flatHistoryReference.Get(), m_flatHistoryMotionDepth.Get(),
+            m_flatHistoryNormalLP.Get()}};
+        m_flatTemporalStoreShader.Dispatch(cmdList, GetAsByteSpan(constants), storeIn.AsArray, storeOut.AsArray,
+            {desc.DstTexSize.x, desc.DstTexSize.y});
+        m_flatTemporalConstants = constants;
+        m_flatHistoryHead = (m_flatHistoryHead + 1u) % FlatTemporal::kHistorySlots;
+        m_flatHistoryCount = std::min(m_flatHistoryCount + 1u, FlatTemporal::kHistorySlots);
+        m_flatHistoryLength = length;
+        m_flatHistorySize = desc.DstTexSize;
+        m_flatTemporalWasEnabled = m_flatTemporalActive = true;
+        return m_flatTemporalReference.Get();
+    }
+
+    void DispatchFlatDetail(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
+    {
+        m_flatDetailActive = false;
+        m_flatTemporalActive = false;
+        const auto debugMode = desc.Flags & uint32_t(CompFlags::DebugModeMask);
+        const bool debugWeight = debugMode == uint32_t(CompFlags::DebugFlatDetail) || desc.RecoveryDebug == 4u;
+        const bool debugReference = debugMode == uint32_t(CompFlags::DebugFlatDetailReference) || desc.RecoveryDebug == 5u;
+        if (!desc.RecoveryV2 || (desc.Flags & uint32_t(CompFlags::RawSourceBlit)) != 0 ||
+            ((desc.Flags & uint32_t(CompFlags::Debug)) != 0 && !debugWeight && !debugReference) ||
+            (desc.RecoveryFlatAlbedoStrength <= 0.0f && !debugWeight && !debugReference))
+        {
+            ResetFlatTemporalHistory();
             return;
         }
-        const XMFLOAT2 size = {desc.DstTexSize.x, desc.DstTexSize.y};
-        const UINT historyWrite = 1 - m_volumeHistoryRead;
-        const int outputIndex = m_recoveryOutputIndex == 0 ? 1 : 0;
+        EnsureFlatDetail();
+        FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::FlatDetail);
+        // Copies and all descriptors keep their resources alive until this recording retires.
+        auto retained = std::make_shared<std::array<ComPtr<ID3D12Resource>,3>>(
+            std::array<ComPtr<ID3D12Resource>,3>{m_flatDetailTiles,m_flatDetailArguments,m_flatDetailReset});
+        if (!ResTrack_Dx12::RetainComputeDispatch(m_pDev, cmdList, retained))
+            throw std::runtime_error("Flat Detail copy lifetime tracking unavailable");
+        AddBarrier(cmdList,m_flatDetailTiles.Get(),kSrvState,D3D12_RESOURCE_STATE_COPY_DEST);
+        AddBarrier(cmdList,m_flatDetailArguments.Get(),D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT,D3D12_RESOURCE_STATE_COPY_DEST);
+        cmdList->CopyBufferRegion(m_flatDetailTiles.Get(),0,m_flatDetailReset.Get(),0,16);
+        cmdList->CopyBufferRegion(m_flatDetailArguments.Get(),0,m_flatDetailReset.Get(),16,12);
+        AddBarrier(cmdList,m_flatDetailTiles.Get(),D3D12_RESOURCE_STATE_COPY_DEST,kUavState);
+        AddBarrier(cmdList,m_flatDetailArguments.Get(),D3D12_RESOURCE_STATE_COPY_DEST,kUavState);
+        auto& r = m_out.Resources;
+        ID3D12Resource* classifyIn[] {r.Normals.Get(),r.SkipSignal.Get()};
+        ID3D12Resource* classifyOut[] {m_flatDetailTiles.Get(),m_flatDetailArguments.Get()};
+        m_flatDetailClassifyShader.Dispatch(cmdList,GetAsByteSpan(desc.DstTexSize),classifyIn,classifyOut,
+                                            {desc.DstTexSize.x,desc.DstTexSize.y},false);
+        AddBarrier(cmdList,m_flatDetailTiles.Get(),kUavState,kSrvState);
+        AddBarrier(cmdList,m_flatDetailArguments.Get(),kUavState,D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+        FlatDetail::Constants constants {
+            .DstTexSize = desc.DstTexSize,
+            .Modulation = {desc.SpecularAlbedoDemodulation,desc.DiffuseAlbedoModulation},
+            .Strength = desc.RecoveryFlatAlbedoStrength,
+            .Anchor = desc.RecoveryFlatAnchor,
+            .Mix = desc.RecoveryFlatMix,
+            .NoiseScale = FlatDetail::kNoiseScale,
+            .Epsilon = FlatDetail::kEpsilon,
+            .Radius = FlatDetail::kRadius,
+            .Pass = 0,
+            .Debug = debugReference ? 2u : (debugWeight ? 1u : 0u),
+            .Flags = ((desc.Flags & uint32_t(CompFlags::ExtraSpecular)) != 0 ? 1u : 0u) |
+                     ((desc.Flags & uint32_t(CompFlags::ExtraDiffuse)) != 0 ? 2u : 0u)
+        };
+        FlatDetail::Input in {{r.Signals.IndirectSpecular.Get(),r.Signals.DirectDiffuse.Get(),r.SpecAlbedo.Get(),
+            r.DiffAlbedo.Get(),r.SkipSignal.Get(),r.Normals.Get(),m_LinearDepth.Get(),nullptr,nullptr,
+            m_flatDetailTiles.Get(),nullptr,nullptr,nullptr,nullptr}};
+        FlatDetail::Output out {{m_flatDetailReference[0].Get(),m_flatDetailStatistics[0].Get(),nullptr}};
+        const auto dispatch = [&](ComputeState& shader) {
+            shader.Dispatch(cmdList,GetAsByteSpan(constants),in.AsArray,out.AsArray,{0,0},true,nullptr,
+                            m_flatDetailSignature.Get(),m_flatDetailArguments.Get());
+        };
+        dispatch(m_flatDetailSeedShader);
+        UINT source = 0;
+        for (UINT pass = 0; pass < FlatDetail::kRefinementPasses; ++pass)
         {
-            VolumeAccumulate::Constants constants = {
-                .DstTexSize = desc.DstTexSize,
-                .HistoryJitterDelta = m_historyJitterDelta,
-                .HistoryValid = m_volumeHistoryValid && m_motionHistoryValid ? 1u : 0u,
-                // About thirty frames of memory: the unclipped tile mean of heavy-tailed
-                // fog is noisy, and replays at 0.1-0.15 tripled the low-frequency flicker.
-                .Response = 0.03f
-            };
-            VolumeAccumulate::Input in = {.Resources = {
-                .InComposed = CompositionColor(),
-                .InRawTiles = m_volumeRawTiles.Get(),
-                .InHistory = m_volumeHistory[m_volumeHistoryRead].Get(),
-                .InLinearDepth = m_LinearDepth.Get(),
-                .InMotion = m_out.Resources.Motion.Get()
-            }};
-            VolumeAccumulate::Output out = {.Resources = {.OutHistory = m_volumeHistory[historyWrite].Get()}};
-            // One 8x8 group per tile: the dispatch covers the render size.
-            m_volumeAccumulateShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray, size);
+            const UINT target = source ^ 1u;
+            constants.Pass = pass;
+            in.Resources.InReference = m_flatDetailReference[source].Get();
+            in.Resources.InStatistics = m_flatDetailStatistics[source].Get();
+            out.Resources.OutColor = m_flatDetailReference[target].Get();
+            out.Resources.OutStatistics = m_flatDetailStatistics[target].Get();
+            dispatch(m_flatDetailRefineShader);
+            source = target;
         }
-        {
-            VolumeApply::Constants constants = {
-                .DstTexSize = desc.DstTexSize,
-                .Strength = std::clamp(desc.VolumeRestoreStrength, 0.0f, 2.0f)
-            };
-            VolumeApply::Input in = {.Resources = {
-                .InComposed = CompositionColor(),
-                .InHistory = m_volumeHistory[historyWrite].Get(),
-                .InLinearDepth = m_LinearDepth.Get()
-            }};
-            VolumeApply::Output out = {.Resources = {.OutColor = m_recoveryOutput[outputIndex].Get()}};
-            m_volumeApplyShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray, size);
-        }
-        m_volumeHistoryRead = historyWrite;
-        m_volumeHistoryValid = true;
-        m_recoveryOutputIndex = outputIndex;
+        in.Resources.InReference = ResolveFlatTemporal(cmdList, desc, m_flatDetailReference[source].Get(), constants.Flags);
+        in.Resources.InStatistics = m_flatDetailStatistics[source].Get();
+        // The base/Anchor moments are frozen before the in-place apply. No inter-tile read/write race.
+        in.Resources.InComposed = CompositionColor();
+        out = {{m_flatDetailBase.Get(),m_flatDetailMean.Get(),m_flatDetailVariance.Get()}};
+        dispatch(m_flatDetailBaseShader);
+        in.Resources.InComposed = nullptr;
+        in.Resources.InBase = m_flatDetailBase.Get();
+        in.Resources.InMean = m_flatDetailMean.Get();
+        in.Resources.InVariance = m_flatDetailVariance.Get();
+        out = {{CompositionColor(),nullptr,nullptr}};
+        dispatch(m_flatDetailApplyShader);
+        m_flatDetailConstants = constants;
+        m_flatDetailActive = true;
     }
 
     ID3D12Resource* CompositionColor() const
@@ -1618,129 +1687,173 @@ struct FSRDPreprocessor_Dx12::Impl
                                         : m_recoveryOutput[m_recoveryOutputIndex].Get();
     }
 
+    // Recovery v2 lobe recovery (FSRDRecoveryLobe*.hlsl): references and noise histories ping-pong; the band
+    // pyramid and the coarse corrections are rebuilt every frame. Allocated on first use at the maximum size.
+    bool EnsureLobeRecovery()
+    {
+        if (m_lobeLevelA[0])
+            return true;
+        ScopedSkipHeapCapture skipHeapCapture {};
+        if (!m_lobeAccumulateShader.m_pso)
+        {
+            m_lobeAccumulateShader.Initialize(m_pDev,
+                {reinterpret_cast<const byte*>(FSRDRecoveryLobeAccumulate_cso), sizeof(FSRDRecoveryLobeAccumulate_cso)},
+                sizeof(RecoveryLobe::Constants), RecoveryLobeAccumulate::Input::kCount, RecoveryLobeAccumulate::Output::kCount,
+                L"FSRD_RecoveryLobeAccumulate_Constants", RecoveryLobe::kBackBufferCount);
+            m_lobeDownShader.Initialize(m_pDev,
+                {reinterpret_cast<const byte*>(FSRDRecoveryLobeDown_cso), sizeof(FSRDRecoveryLobeDown_cso)},
+                sizeof(RecoveryLobe::Constants), RecoveryLobeDown::Input::kCount, RecoveryLobeDown::Output::kCount,
+                L"FSRD_RecoveryLobeDown_Constants", RecoveryLobe::kBackBufferCount);
+            m_lobeBandShader.Initialize(m_pDev,
+                {reinterpret_cast<const byte*>(FSRDRecoveryLobeBand_cso), sizeof(FSRDRecoveryLobeBand_cso)},
+                sizeof(RecoveryLobe::Constants), RecoveryLobeBand::Input::kCount, RecoveryLobeBand::Output::kCount,
+                L"FSRD_RecoveryLobeBand_Constants", RecoveryLobe::kBackBufferCount);
+        }
+        const auto create = [&](UINT width, UINT height, LPCWSTR name) {
+            return CreateTexture2D(m_pDev, std::max(width, 1u), std::max(height, 1u), DXGI_FORMAT_R16G16B16A16_FLOAT, name, kSrvState);
+        };
+        for (UINT i = 0; i < 2; ++i)
+        {
+            m_lobeSpecular[i] = create(m_maxWidth, m_maxHeight, L"FSRD_RecoveryLobe_Specular");
+            m_lobeDiffuse[i] = create(m_maxWidth, m_maxHeight, L"FSRD_RecoveryLobe_Diffuse");
+            m_lobeGeometry[i] = create(m_maxWidth, m_maxHeight, L"FSRD_RecoveryLobe_Geometry");
+            m_lobeGradient[i] = create(m_maxWidth, m_maxHeight, L"FSRD_RecoveryLobe_Gradient");
+        }
+        UINT width = m_maxWidth, height = m_maxHeight;
+        for (UINT level = 0; level <= RecoveryLobe::kLevels; ++level)
+        {
+            m_lobeLevelA[level] = create(width, height, L"FSRD_RecoveryLobe_LevelA");
+            m_lobeLevelB[level] = create(width, height, L"FSRD_RecoveryLobe_LevelB");
+            m_lobeLevelC[level] = create(width, height, L"FSRD_RecoveryLobe_LevelC");
+            if (level < RecoveryLobe::kLevels)
+            {
+                for (UINT i = 0; i < 2; ++i)
+                    m_lobeNoise[i][level] = create(width, height, L"FSRD_RecoveryLobe_Noise");
+                if (level > 0)
+                {
+                    m_lobeCorrectionS[level] = create(width, height, L"FSRD_RecoveryLobe_CorrectionS");
+                    m_lobeCorrectionD[level] = create(width, height, L"FSRD_RecoveryLobe_CorrectionD");
+                }
+            }
+            width = (width + 1) / 2;
+            height = (height + 1) / 2;
+        }
+        for (auto& dummy : m_lobeDummy)
+            dummy = create(1, 1, L"FSRD_RecoveryLobe_Unused");
+        m_lobeValid = false;
+        return true;
+    }
+
+    void ResetLobeRecovery()
+    {
+        for (auto* set : {&m_lobeSpecular, &m_lobeDiffuse, &m_lobeGeometry, &m_lobeGradient})
+            for (auto& resource : *set) resource.Reset();
+        for (auto& resource : m_lobeLevelA) resource.Reset();
+        for (auto& resource : m_lobeLevelB) resource.Reset();
+        for (auto& resource : m_lobeLevelC) resource.Reset();
+        for (auto& resource : m_lobeCorrectionS) resource.Reset();
+        for (auto& resource : m_lobeCorrectionD) resource.Reset();
+        for (auto& set : m_lobeNoise)
+            for (auto& resource : set) resource.Reset();
+        for (auto& resource : m_lobeDummy) resource.Reset();
+        m_lobeValid = false;
+    }
+
     void DispatchRecoveryChain(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
     {
         // No copies and no rounding when the enabled pass list is empty.
-        if (!desc.RecoveryV2)
-        {
-            m_recoveryVolumeValid = false;
-            DispatchVolumeRestore(cmdList, desc);
-            return;
-        }
-        m_volumeHistoryValid = false;
-        const bool active = m_volumeRawReady && std::isfinite(desc.RecoveryVolumetryStrength) &&
-            desc.RecoveryVolumetryStrength > 0.0f &&
-            (desc.Flags & (uint32_t(CompFlags::Debug) | uint32_t(CompFlags::RawSourceBlit))) == 0;
-        m_volumeRawReady = false;
+        const bool active = desc.RecoveryV2 && (desc.Flags & (uint32_t(CompFlags::Debug) | uint32_t(CompFlags::RawSourceBlit) |
+            uint32_t(CompFlags::DiffuseSignalDisabled) | uint32_t(CompFlags::SpecularSignalDisabled))) == 0 &&
+            (desc.RecoverySpecularStrength > 0.0f || desc.RecoveryDiffuseStrength > 0.0f);
         if (!active)
         {
-            m_recoveryVolumeValid = false;
+            m_lobeValid = m_recoveryHistoryValid = false;
             return;
         }
-        const UINT write = 1 - m_recoveryVolumeRead;
+        if (!EnsureLobeRecovery())
+            return;
+        FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::Recovery);
+        const UINT width = UINT(desc.DstTexSize.x), height = UINT(desc.DstTexSize.y);
+        std::array<XMUINT2, RecoveryLobe::kLevels + 1> levels {};
+        levels[0] = {width, height};
+        for (UINT level = 1; level <= RecoveryLobe::kLevels; ++level)
+            levels[level] = {(levels[level - 1].x + 1) / 2, (levels[level - 1].y + 1) / 2};
+        const bool sameSize = m_lobeSize.x == desc.DstTexSize.x && m_lobeSize.y == desc.DstTexSize.y;
+        const bool historyValid = m_lobeValid && m_recoveryHistoryValid && m_motionHistoryValid && sameSize;
+        const UINT previous = m_lobeIndex, current = previous ^ 1u;
+        auto& r = m_out.Resources;
+        const bool extraDiffuse = (desc.Flags & uint32_t(CompFlags::ExtraDiffuse)) != 0;
+        RecoveryLobe::Constants constants {};
+        constants.DstTexSize = desc.DstTexSize;
+        constants.LevelSize = {desc.DstTexSize.x, desc.DstTexSize.y, desc.DstTexSize.x, desc.DstTexSize.y};
+        constants.Strength = {std::clamp(desc.RecoverySpecularStrength, 0.0f, 1.0f), std::clamp(desc.RecoveryDiffuseStrength, 0.0f, 1.0f),
+                              0.0f, 0.0f};
+        const auto anchor = [](float value) { return std::isfinite(value) ? std::clamp(value, 0.0f, 8.0f) : 0.0f; };
+        const auto unit = [](float value) { return std::isfinite(value) ? std::clamp(value, 0.0f, 1.0f) : 0.0f; };
+        constants.Blend = {unit(desc.RecoveryMix), anchor(desc.RecoveryAnchor), 0.0f, 0.0f};
+        constants.Jitter = m_currentJitter;
+        constants.Modulation = {desc.SpecularAlbedoDemodulation, desc.DiffuseAlbedoModulation};
+        // A running mean, then about thirty frames of memory (a converged reference averages ~65 frames of RR's
+        // input). Bands transfer with a Wiener weight at three noise variances; the sub-pixel gradient is fitted
+        // from the eighth sample on (earlier it turned the first frames' noise into false detail).
+        constants.Response = 0.03f;
+        constants.Threshold = 3.0f;
+        constants.MatureAge = 8.0f;
+        constants.GradientAge = 8.0f;
+        constants.Flags = (historyValid ? uint32_t(RecoveryLobe::HistoryValid) : 0u) |
+                          (extraDiffuse ? uint32_t(RecoveryLobe::ExtraDiffuse) : 0u) |
+                          ((desc.Flags & uint32_t(CompFlags::ExtraSpecular)) != 0 ? uint32_t(RecoveryLobe::NoSpecular) : 0u);
+        constants.FrameIndex = m_lobeFrame++;
+        constants.Debug = std::min(desc.RecoveryDebug, 2u);
+        {
+            RecoveryLobeAccumulate::Input in {{
+                r.Signals.IndirectSpecular.Get(), r.Signals.DirectDiffuse.Get(), m_outputBuffer1.Get(), m_outputBuffer2.Get(),
+                m_indirectDiffuseOutput.Get(), r.SpecAlbedo.Get(), r.DiffAlbedo.Get(), m_LinearDepth.Get(), r.Normals.Get(),
+                r.Motion.Get(), r.SkipSignal.Get(), m_lobeSpecular[previous].Get(), m_lobeDiffuse[previous].Get(),
+                m_lobeGeometry[previous].Get(), m_lobeGradient[previous].Get()}};
+            RecoveryLobeAccumulate::Output out {{m_lobeSpecular[current].Get(), m_lobeDiffuse[current].Get(),
+                m_lobeGeometry[current].Get(), m_lobeLevelA[0].Get(), m_lobeLevelB[0].Get(), m_lobeLevelC[0].Get(),
+                m_lobeGradient[current].Get()}};
+            m_lobeAccumulateShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray, {float(width), float(height)});
+        }
+        for (UINT level = 1; level <= RecoveryLobe::kLevels; ++level)
+        {
+            RecoveryLobe::Constants c = constants;
+            c.Level = level;
+            c.LevelSize = {float(levels[level].x), float(levels[level].y), float(levels[level - 1].x), float(levels[level - 1].y)};
+            RecoveryLobeDown::Input in {{m_lobeLevelA[level - 1].Get(), m_lobeLevelB[level - 1].Get(), m_lobeLevelC[level - 1].Get()}};
+            RecoveryLobeDown::Output out {{m_lobeLevelA[level].Get(), m_lobeLevelB[level].Get(), m_lobeLevelC[level].Get()}};
+            m_lobeDownShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                      {float(levels[level].x), float(levels[level].y)});
+        }
         const int target = m_recoveryOutputIndex == 0 ? 1 : 0;
-        const XMFLOAT2 size = {desc.DstTexSize.x, desc.DstTexSize.y};
-        RecoveryVolumeAccumulate::Constants accumulation = {
-            .DstTexSize = desc.DstTexSize,
-            .HistoryJitterDelta = m_historyJitterDelta,
-            .HistoryValid = m_recoveryVolumeValid && m_motionHistoryValid ? 1u : 0u,
-            .Response = 0.05f
-        };
-        RecoveryVolumeAccumulate::Input inputs = {.Resources = {
-            .InComposed = CompositionColor(),
-            .InRawTiles = m_volumeRawTiles.Get(),
-            .InHistory = m_recoveryVolumeHistory[m_recoveryVolumeRead].Get(),
-            .InLinearDepth = m_LinearDepth.Get(),
-            .InMotion = m_out.Resources.Motion.Get(),
-            .InVariance = m_recoveryVolumeVariance[m_recoveryVolumeRead].Get()
-        }};
-        RecoveryVolumeAccumulate::Output outputs = {.Resources = {
-            .OutHistory = m_recoveryVolumeHistory[write].Get(),
-            .OutVariance = m_recoveryVolumeVariance[write].Get()
-        }};
-        m_recoveryVolumeAccumulateShader.Dispatch(cmdList, GetAsByteSpan(accumulation),
-                                                  inputs.AsArray, outputs.AsArray, size);
-        RecoveryVolumeApply::Constants application = {
-            .DstTexSize = desc.DstTexSize,
-            .Strength = std::clamp(desc.RecoveryVolumetryStrength, 0.0f, 1.0f),
-            .Debug = std::min(desc.RecoveryDebug, 2u)
-        };
-        RecoveryVolumeApply::Input applyInputs = {.Resources = {
-            .InComposed = CompositionColor(),
-            .InHistory = m_recoveryVolumeHistory[write].Get(),
-            .InLinearDepth = m_LinearDepth.Get(),
-            .InVariance = m_recoveryVolumeVariance[write].Get()
-        }};
-        RecoveryVolumeApply::Output applyOutputs = {.Resources = {.OutColor = m_recoveryOutput[target].Get()}};
-        m_recoveryVolumeApplyShader.Dispatch(cmdList, GetAsByteSpan(application),
-                                             applyInputs.AsArray, applyOutputs.AsArray, size);
+        for (int level = int(RecoveryLobe::kLevels) - 1; level >= 0; --level)
+        {
+            const bool coarsest = level == int(RecoveryLobe::kLevels) - 1, isFinal = level == 0;
+            RecoveryLobe::Constants c = constants;
+            c.Level = UINT(level);
+            c.LevelSize = {float(levels[level].x), float(levels[level].y), float(levels[level + 1].x), float(levels[level + 1].y)};
+            c.Flags |= (coarsest ? uint32_t(RecoveryLobe::Coarsest) : 0u) | (isFinal ? uint32_t(RecoveryLobe::Final) : 0u);
+            RecoveryLobeBand::Input in {{
+                m_lobeLevelA[level].Get(), m_lobeLevelB[level].Get(), m_lobeLevelC[level].Get(),
+                m_lobeLevelA[level + 1].Get(), m_lobeLevelB[level + 1].Get(),
+                coarsest ? m_lobeDummy[0].Get() : m_lobeCorrectionS[level + 1].Get(),
+                coarsest ? m_lobeDummy[0].Get() : m_lobeCorrectionD[level + 1].Get(),
+                m_lobeNoise[previous][level].Get(), r.Motion.Get(), CompositionColor(),
+                r.SpecAlbedo.Get(), r.DiffAlbedo.Get(), r.SkipSignal.Get(),
+                m_outputBuffer1.Get(), m_outputBuffer2.Get(), m_indirectDiffuseOutput.Get()}};
+            RecoveryLobeBand::Output out {{
+                isFinal ? m_lobeDummy[1].Get() : m_lobeCorrectionS[level].Get(),
+                isFinal ? m_lobeDummy[2].Get() : m_lobeCorrectionD[level].Get(),
+                m_lobeNoise[current][level].Get(),
+                isFinal ? m_recoveryOutput[target].Get() : m_lobeDummy[3].Get()}};
+            m_lobeBandShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                      {float(levels[level].x), float(levels[level].y)});
+        }
         m_recoveryOutputIndex = target;
-        m_recoveryVolumeRead = write;
-        m_recoveryVolumeValid = true;
-    }
-
-    ID3D12PipelineState* ResolveFloorSeedPipeline(const ConversionDesc& desc)
-    {
-        if (!desc.FloorEnabled || !desc.FloorCleanLighting || m_cleanLightingSeedPsoFailed)
-            return nullptr;
-        if (m_cleanLightingSeedPso)
-            return m_cleanLightingSeedPso.Get();
-
-        ScopedSkipHeapCapture skipHeapCapture {};
-        D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
-        psoDesc.pRootSignature = m_floorSeedShader.m_rootSig.Get();
-        psoDesc.CS = { FSRDFloorSeedCleanLighting_cso, sizeof(FSRDFloorSeedCleanLighting_cso) };
-        ComPtr<ID3D12PipelineState> pso;
-        const HRESULT result = m_pDev->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&pso));
-        if (FAILED(result))
-        {
-            m_cleanLightingSeedPsoFailed = true;
-            LOG_ERROR("FSRD clean-lighting Floor Seed pipeline failed to initialize (HRESULT: {}); using the default Seed",
-                      static_cast<uint32_t>(result));
-            return nullptr;
-        }
-        m_cleanLightingSeedPso = std::move(pso);
-        return m_cleanLightingSeedPso.Get();
-    }
-
-    void DispatchFloorFilter(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
-    {
-        if (!desc.FloorEnabled) return;
-        static constexpr std::array<int, FloorFilter::kPasses> fullSteps {1, 2, 4, 8, 16};
-        static constexpr std::array<int, 3> fastSteps {1, 2, 16};
-        const std::span<const int> steps = desc.FloorFastMode
-            ? std::span<const int>(fastSteps) : std::span<const int>(fullSteps);
-        for (int step : steps)
-        {
-            FloorFilter::Constants constants = {
-                .DstTexSize = desc.RenderSize,
-                .StepSize = step,
-                .AlbedoBase = {desc.InputBase2.z, desc.InputBase2.w}
-            };
-            FloorFilter::Input in = {.Resources = {
-                .InColor = m_smoothFloor,
-                .InLinearDepth = m_LinearDepth.Get(),
-                .InDepthGradient = m_out.Resources.Motion.Get(),
-                .InDiffAlbedo = desc.Resources.InDiffAlbedo,
-                .InDetailReference = m_floorReference.Get(),
-                .InFloorModel = m_floorModel0.Get()
-            }};
-            FloorFilter::Output out = {.Resources = {
-                .OutColor = m_outputBuffer1.Get(),
-                .OutFloorModel = m_floorModel1.Get()
-            }};
-            if (m_gameTraceCaptureRequested)
-            {
-                memcpy(m_gameTraceFloorFilterConstants.data()+m_gameTraceFloorFilterConstantBytes,
-                       &constants, sizeof(constants));
-                m_gameTraceFloorFilterConstantBytes += sizeof(constants);
-            }
-            m_floorFilterShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray,
-                                        {desc.RenderSize.x, desc.RenderSize.y});
-            std::swap(m_outputBuffer1, m_outputBuffer2);
-            std::swap(m_floorModel0, m_floorModel1);
-            m_smoothFloor = m_outputBuffer2.Get();
-        }
+        m_lobeIndex = current;
+        m_lobeSize = desc.DstTexSize;
+        m_lobeValid = m_recoveryHistoryValid = true;
     }
 
     bool EnsureAdditiveConversionPipeline()
@@ -1881,13 +1994,12 @@ struct FSRDPreprocessor_Dx12::Impl
         // diffuse-hit source can share it only when its own origin agrees.
         const bool diffuseBaseMatches = desc.DiffuseHitDistanceMode == 0u ||
             desc.Resources.InDiffuseHitDistance == nullptr ||
-            (desc.InputBase4.z == desc.FloorSourceBase.z && desc.InputBase4.w == desc.FloorSourceBase.w);
-        const bool basesMatch = desc.FloorSourceBase.x == desc.InputBase0.x &&
-            desc.FloorSourceBase.y == desc.InputBase0.y && diffuseBaseMatches;
+            (desc.InputBase4.z == desc.ColorDepthBase.z && desc.InputBase4.w == desc.ColorDepthBase.w);
+        const bool basesMatch = desc.ColorDepthBase.x == desc.InputBase0.x &&
+            desc.ColorDepthBase.y == desc.InputBase0.y && diffuseBaseMatches;
         const bool depthSourceValid = (desc.Flags & uint32_t(ConvFlags::TitleLinearDepth)) == 0u ||
             desc.Resources.InTitleLinearDepth != nullptr;
-        m_skinFused = CanFuseSssInput(m_skinMode, desc.FloorEnabled ||
-            (desc.Flags & uint32_t(ConvFlags::FloorEnabled)) != 0u,
+        m_skinFused = CanFuseSssInput(m_skinMode,
             (desc.Flags & uint32_t(ConvFlags::InputChroma)) != 0u,
             (desc.Flags & uint32_t(ConvFlags::Debug)) != 0u || desc.SkinDebug != 0u,
             capture, basesMatch, depthSourceValid);
@@ -1910,7 +2022,7 @@ struct FSRDPreprocessor_Dx12::Impl
         }
         SssPrepare::Constants c {
             .InvProjMatrix = desc.InvProjMatrix, .DstTexSize = desc.RenderSize,
-            .ColorDepthBase = desc.FloorSourceBase,
+            .ColorDepthBase = desc.ColorDepthBase,
             .AlbedoBase = {desc.InputBase2.z, desc.InputBase2.w, desc.InputBase3.x, desc.InputBase3.y},
             .GuideBiasBase = {desc.SssGuideBase.x, desc.SssGuideBase.y, desc.InputBase3.z, desc.InputBase3.w},
             .TitleDepthBase = desc.TitleLinearDepthBase,
@@ -2234,7 +2346,7 @@ struct FSRDPreprocessor_Dx12::Impl
             .InDiffAlbedo = desc.Resources.InDiffAlbedo,
             .InSpecAlbedo = desc.Resources.InSpecAlbedo,
             .InBiasMask = desc.Resources.InBiasMask,
-            .InFloorColor = m_smoothFloor,
+            .Reserved0 = nullptr,
             .InInspector = desc.Resources.InInspector,
             .InEmissive = desc.Resources.InEmissive,
             .InSpecularRayDirectionHitDistance =
@@ -2242,8 +2354,8 @@ struct FSRDPreprocessor_Dx12::Impl
             .InDiffuseHitDistance = desc.Resources.InDiffuseHitDistance,
             .InTitleLinearDepth = desc.Resources.InTitleLinearDepth,
             .InResponsivityMask = desc.Resources.InResponsivityMask,
-            .InDetailReference = m_floorReference.Get(),
-            .InFloorModel = m_floorModel0.Get(),
+            .Reserved1 = nullptr,
+            .Reserved2 = nullptr,
             .InPreviousDepth = m_PrevLinearDepth.Get()
         }};
 
@@ -2254,8 +2366,6 @@ struct FSRDPreprocessor_Dx12::Impl
         // "no mask provided" case explicit and visible in the debug views.
         if (desc.Resources.InBiasMask != nullptr)
             packFlags |= uint32_t(ConvFlags::HasBiasMask);
-        if (desc.FloorEnabled)
-            packFlags |= uint32_t(ConvFlags::FloorEnabled);
         if (desc.Resources.InSpecularRayDirectionHitDistance &&
             desc.SpecularHitDistanceFromCombinedAlpha)
         {
@@ -2282,8 +2392,8 @@ struct FSRDPreprocessor_Dx12::Impl
             },
             .NearPlane = desc.NearPlane,
             .FarPlane = desc.FarPlane,
-            .FloorDetailPreservation = desc.FloorDetailPreservation,
-            // The packing shader never sees the game's hardware depth. FloorSeed
+            ._ConversionPadding = 0.0f,
+            // The packing shader never sees the game's hardware depth. Geometry
             // has already converted it to signed linear view-space depth.
             .Flags = packFlags,
             .InspectorChannel = desc.InspectorChannel,
@@ -2299,7 +2409,8 @@ struct FSRDPreprocessor_Dx12::Impl
             .DemodDivisorFloor = desc.DemodDivisorFloor,
             .SpecularAlbedoDemodulation = desc.SpecularAlbedoDemodulation,
             .DiffuseAlbedoModulation = desc.DiffuseAlbedoModulation,
-            .RecoveryMask = desc.RecoveryMask,
+            // roughness, carried in bits 8-17 (1/1023).
+            .RecoveryMask = (desc.RecoveryMask & 1u) | (std::min(desc.FlatAlbedoRoughness, 1023u) << 8),
             .AdditiveLightSplit = desc.AdditiveLightSplit,
         };
 
@@ -2315,8 +2426,8 @@ struct FSRDPreprocessor_Dx12::Impl
             SkinConversion::Constants c {.Base = packConstants,
                 .SkinOptions = {desc.InputBase0.x, desc.InputBase0.y, 1u, motionFlags},
                 .SkinDebug = {desc.SkinDebug, desc.SssGuideBase.x, desc.SssGuideBase.y, rawFlags}};
-            c.Base.InputBase4.z = desc.FloorSourceBase.z;
-            c.Base.InputBase4.w = desc.FloorSourceBase.w;
+            c.Base.InputBase4.z = desc.ColorDepthBase.z;
+            c.Base.InputBase4.w = desc.ColorDepthBase.w;
             std::array<ID3D12Resource*, SkinFusedConversion::kInputCount> inputs {};
             std::copy(std::begin(in.AsArray), std::end(in.AsArray), inputs.begin());
             inputs[0] = desc.Resources.InColor;
@@ -2431,11 +2542,11 @@ struct FSRDPreprocessor_Dx12::Impl
             // typed words and actual subrect bases; these are diagnostics only.
             using CaptureJson = nlohmann::json;
             uint32_t actualSeedFlags = 0;
-            memcpy(&actualSeedFlags,m_gameTraceFloorSeedConstants.data()+offsetof(FloorSeed::Constants,Flags),sizeof(actualSeedFlags));
-            const bool seedUsesTitleDepth = (actualSeedFlags & uint32_t(FloorSeed::Flags::TitleLinearDepth)) != 0;
+            memcpy(&actualSeedFlags,m_gameTraceGeometryConstants.data()+offsetof(Geometry::Constants,Flags),sizeof(actualSeedFlags));
+            const bool seedUsesTitleDepth = (actualSeedFlags & uint32_t(Geometry::TitleLinearDepth)) != 0;
             const CaptureJson captureControl {
-                {"source_flags", desc.Flags}, {"floor_seed_flags",actualSeedFlags}, {"floor_enabled", desc.FloorEnabled},
-                {"floor_source_base", {desc.FloorSourceBase.x,desc.FloorSourceBase.y,desc.FloorSourceBase.z,desc.FloorSourceBase.w}},
+                {"source_flags", desc.Flags}, {"geometry_flags",actualSeedFlags},
+                {"color_depth_base", {desc.ColorDepthBase.x,desc.ColorDepthBase.y,desc.ColorDepthBase.z,desc.ColorDepthBase.w}},
                 {"skin_mode", m_skinMode}, {"skin_debug", desc.SkinDebug},
                 {"sss_radius_mm", desc.SssRadiusMm}, {"sss_strength", desc.SssStrength},
                 {"sss_falloff", desc.SssFalloff}, {"skin_sigma", desc.SkinSigma},
@@ -2463,15 +2574,13 @@ struct FSRDPreprocessor_Dx12::Impl
                     {"control",captureControl}}.dump();
                 return source;
             };
-            // Snapshot final Floor/Reference before the SDK reuses the ping-pong
+            // Snapshot final geometry before the SDK reuses the ping-pong
             // buffers. Motion here is already canonical motion, not seed gradient.
             std::vector<FSRDGameTraceSession::DiagnosticSource> originalSources {
                 original("raw_color",desc.Resources.InColor,desc.InputBase0.x,desc.InputBase0.y,true),
                 original("raw_normals",desc.Resources.InNormals,constants.InputBase1.x,constants.InputBase1.y,true),
                 original("raw_specular_albedo",desc.Resources.InSpecAlbedo,constants.InputBase3.x,constants.InputBase3.y,true),
                 original("raw_diffuse_albedo",desc.Resources.InDiffAlbedo,constants.InputBase2.z,constants.InputBase2.w,true),
-                original("floor",m_smoothFloor,0,0,desc.FloorEnabled,"final_floor_converter_input"),
-                original("floor_reference",m_floorReference.Get(),0,0,desc.FloorEnabled,"floor_reference_converter_input"),
                 original("raw_bias_mask",desc.Resources.InBiasMask,constants.InputBase3.z,constants.InputBase3.w,flag(ConvFlags::HasBiasMask)),
                 original("raw_specular_hit_distance",desc.Resources.InSpecHitDist,constants.InputBase5.z,constants.InputBase5.w,flag(ConvFlags::HasSpecHitDistance)),
                 original("raw_specular_direction_hit_distance",desc.Resources.InSpecularRayDirectionHitDistance,constants.InputBase5.z,constants.InputBase5.w,
@@ -2480,7 +2589,7 @@ struct FSRDPreprocessor_Dx12::Impl
                 original("raw_responsivity",desc.Resources.InResponsivityMask,0,0,flag(ConvFlags::HasResponsivityMask)),
                 original("raw_emissive",desc.Resources.InEmissive,constants.InputBase4.x,constants.InputBase4.y,flag(ConvFlags::HasEmissiveInput),"original_caller_debug_input"),
                 original("raw_motion",desc.Resources.InMotionVectors,constants.InputBase0.z,constants.InputBase0.w,true),
-                original("raw_depth",desc.Resources.InDepth,desc.FloorSourceBase.z,desc.FloorSourceBase.w,!seedUsesTitleDepth),
+                original("raw_depth",desc.Resources.InDepth,desc.ColorDepthBase.z,desc.ColorDepthBase.w,!seedUsesTitleDepth),
                 original("raw_roughness",desc.Resources.InRoughness,constants.InputBase1.z,constants.InputBase1.w,!flag(ConvFlags::IsRoughnessPacked)),
                 original("raw_title_linear_depth",desc.Resources.InTitleLinearDepth,desc.TitleLinearDepthBase.x,desc.TitleLinearDepthBase.y,seedUsesTitleDepth),
                 original("raw_inspector",desc.Resources.InInspector,0,0,
@@ -2517,8 +2626,8 @@ struct FSRDPreprocessor_Dx12::Impl
             m_gameTraceFrameRecorded = m_gameTrace.RecordSources(m_pDev, cmdList, sources,
                 static_cast<uint32_t>(desc.RenderSize.x), static_cast<uint32_t>(desc.RenderSize.y),
                 {reinterpret_cast<const uint8_t*>(&constants), sizeof(constants)}, originalSources,
-                m_gameTraceFloorSeedConstants,
-                {m_gameTraceFloorFilterConstants.data(),m_gameTraceFloorFilterConstantBytes},hooksAvailable);
+                m_gameTraceGeometryConstants,
+                {},hooksAvailable);
         }
 
         catch (const std::exception& error) { m_gameTrace.Abort(error.what()); }
@@ -2541,40 +2650,28 @@ struct FSRDPreprocessor_Dx12::Impl
                 m_gameTraceCaptureRequested = false;
             }
         }
-        if (m_runtime) m_runtime->Begin(FSRDRuntimeSnapshot::Floor);
+        if (m_runtime) m_runtime->Begin(FSRDRuntimeSnapshot::Geometry);
         if (!cmdList || !m_maxWidth)
             return false;
 
         const bool useAdditivePipeline = std::isfinite(desc.AdditiveLightSplit) && desc.AdditiveLightSplit > 0.0f;
-        // Resolve the optional PSO before recording any Floor work or barriers.
+        // Resolve the optional PSO before recording any geometry work or barriers.
         if (useAdditivePipeline && !EnsureAdditiveConversionPipeline())
             return false;
         ID3D12PipelineState* conversionPipeline = useAdditivePipeline
             ? m_additiveConvPso.Get() : m_convShader.m_pso.Get();
         // nullptr selects the default Seed PSO.
-        ID3D12PipelineState* seedPipeline = ResolveFloorSeedPipeline(desc);
 
-        const std::array<XMUINT4,6> sourceBases { desc.FloorSourceBase,desc.InputBase0,
-            desc.InputBase1,desc.InputBase2,desc.InputBase3,desc.InputBase4 };
-        const XMFLOAT4 inputSettings { desc.BiasMaskStrength,desc.ResponsivityTrustThreshold,
-            desc.ResponsivityInvert ? 1.0f : 0.0f,desc.DemodDivisorFloor };
-        if (!desc.MotionHistoryValid || !desc.FloorEnabled ||
-            desc.Flags != m_historyConversionFlags ||
-            memcmp(&inputSettings,&m_historyInputSettings,sizeof(inputSettings)) != 0 ||
-            memcmp(sourceBases.data(),m_historySourceBases.data(),sizeof(sourceBases)) != 0 ||
-            memcmp(&desc.RenderSize,&m_historyRenderSize,sizeof(desc.RenderSize)) != 0)
-            m_historyValid = false;
-        m_historySourceBases=sourceBases;
-        m_historyRenderSize=desc.RenderSize;
-        m_historyConversionFlags=desc.Flags;
-        m_historyInputSettings=inputSettings;
         m_motionHistoryValid=desc.MotionHistoryValid;
-        m_historyJitterDelta={desc.JitterOffsets.z-desc.JitterOffsets.x,
-                              desc.JitterOffsets.w-desc.JitterOffsets.y};
+        m_currentJitter={desc.JitterOffsets.x,desc.JitterOffsets.y};
+        m_flatHistoryJitterDelta = {desc.JitterOffsets.z - desc.JitterOffsets.x,
+                                    desc.JitterOffsets.w - desc.JitterOffsets.y};
+        // MotionHistoryValid includes explicit title reset/camera-cut and continuity validation.
+        if (!desc.MotionHistoryValid) ResetFlatTemporalHistory();
 
         // A title-published linear depth reaches every consumer of view-space position
-        // - the floor seed/filter, the packing shader and the denoiser's own depth
-        // input - through the canonical signed copy the floor-seed pass writes into
+        // - the geometry pass/filter, the packing shader and the denoiser's own depth
+        // input - through the canonical signed copy the geometry pass writes into
         // m_LinearDepth, never as a raw hand-off: the descriptor carries no sign
         // convention, and a positive distance where an RH view matrix implies negative
         // view Z leaves RR unable to reproject anything. The raw resource stays bound
@@ -2595,7 +2692,7 @@ struct FSRDPreprocessor_Dx12::Impl
         }
 
         // The title's resource is in whatever state it declared - COMMON for titles that tag
-        // without committing to one. Transition it in for the floor-seed and packing reads;
+        // without committing to one. Transition it in for the geometry and packing reads;
         // the caller hands it back once the denoiser has finished with it.
         m_rrLinearDepthForwarded = false;
         if (m_rrLinearDepth != nullptr &&
@@ -2608,7 +2705,7 @@ struct FSRDPreprocessor_Dx12::Impl
 
         TransitionDenoiserOutputsToRead(cmdList);
 
-        // Geometric disocclusion check: keep last frame's canonical depth before the floor
+        // Geometric disocclusion check: keep last frame's canonical depth before geometry
         // seed overwrites it. Only a complete frame of the same size that this frame's motion
         // continues counts; otherwise the check stays off for this frame.
         m_previousDepthValid = false;
@@ -2624,29 +2721,15 @@ struct FSRDPreprocessor_Dx12::Impl
             m_previousDepthValid = true;
         }
 
-        // Filtered raster lighting estimate
         {
-            FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::Floor);
+            FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::Geometry);
             PrepareSkin(cmdList, desc);
-            ConversionDesc floorDesc = desc;
-            if (m_skinMode == 1u)
-            {
-                floorDesc.Resources.InColor = m_skinPrepared.Get();
-                floorDesc.FloorSourceBase.x = floorDesc.FloorSourceBase.y = 0u;
-            }
-            if (!m_skinFused)
-            {
-                DispatchFloorSeed(cmdList, floorDesc, seedPipeline);
-                DispatchFloorFilter(cmdList, floorDesc);
-            }
-            else
-                m_smoothFloor = nullptr;
+            if (!m_skinFused) DispatchGeometry(cmdList, desc);
         }
         m_linearDepthSize = desc.RenderSize;
         if (m_runtime)
         {
-            m_runtime->steps[FSRDRuntimeSnapshot::Floor] = desc.FloorEnabled
-                ? FSRDRuntimeSnapshot::Passed : FSRDRuntimeSnapshot::Disabled;
+            m_runtime->Complete(FSRDRuntimeSnapshot::Geometry);
             m_runtime->Begin(FSRDRuntimeSnapshot::Conversion);
         }
 
@@ -2654,13 +2737,6 @@ struct FSRDPreprocessor_Dx12::Impl
         {
             FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::Conversion);
             DispatchPackingShader(cmdList, desc, conversionPipeline);
-            ConversionDesc referenceDesc = desc;
-            if (m_skinMode == 1u)
-            {
-                referenceDesc.Resources.InColor = m_skinPrepared.Get();
-                referenceDesc.InputBase0.x = referenceDesc.InputBase0.y = 0u;
-            }
-            DispatchVolumeGather(cmdList, referenceDesc);
         }
         if (m_runtime) m_runtime->Complete(FSRDRuntimeSnapshot::Conversion);
 
@@ -2685,105 +2761,23 @@ struct FSRDPreprocessor_Dx12::Impl
         return true;
     }
 
-    bool EnsureSplitCompositionPipelines()
-    {
-        if (m_tileLightCompPso && m_tileAnchorCompPso) return true;
-        if (m_splitCompPsoFailed) return false;
-        ScopedSkipHeapCapture skipHeapCapture {};
-        // Ensure BOTH before recording either dispatch. Failure keeps the original
-        // single generic dispatch, so no partial output/history can be published.
-        const auto create = [&](D3D12_SHADER_BYTECODE code, ComPtr<ID3D12PipelineState>& result) {
-            if (result) return true;
-            D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {};
-            desc.pRootSignature = m_compShader.m_rootSig.Get();
-            desc.CS = code;
-            const HRESULT status = m_pDev->CreateComputePipelineState(&desc, IID_PPV_ARGS(&result));
-            if (SUCCEEDED(status)) return true;
-            result.Reset();
-            LOG_WARN("FSRD optional split composition pipeline failed (HRESULT: {}); using generic composition",
-                     static_cast<uint32_t>(status));
-            return false;
-        };
-        if (!create({ FSRDOutputCompTileLight_cso, sizeof(FSRDOutputCompTileLight_cso) }, m_tileLightCompPso) ||
-            !create({ FSRDOutputCompTileAnchor_cso, sizeof(FSRDOutputCompTileAnchor_cso) }, m_tileAnchorCompPso))
-        {
-            m_splitCompPsoFailed = true;
-            return false;
-        }
-        return true;
-    }
-
-    ID3D12PipelineState* CompositionPipeline(const CompositionDesc& desc)
-    {
-        const auto variant = Composition::ChoosePipeline(desc.Flags, desc.FloorDetailPreservation,
-                                                         desc.RecoveryMask, desc.SpatialTemporalMask);
-        if (variant == Composition::PipelineVariant::Generic) return m_compShader.m_pso.Get();
-        const bool light = variant == Composition::PipelineVariant::Light;
-        auto& pipeline = light ? m_lightCompPso : m_noRecoveryCompPso;
-        auto& failed = light ? m_lightCompPsoFailed : m_noRecoveryCompPsoFailed;
-        if (!pipeline && !failed)
-        {
-            ScopedSkipHeapCapture skipHeapCapture {};
-            D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
-            psoDesc.pRootSignature = m_compShader.m_rootSig.Get();
-            psoDesc.CS = light
-                ? D3D12_SHADER_BYTECODE { FSRDOutputCompLight_cso, sizeof(FSRDOutputCompLight_cso) }
-                : D3D12_SHADER_BYTECODE { FSRDOutputCompNoRecovery_cso, sizeof(FSRDOutputCompNoRecovery_cso) };
-            const HRESULT result = m_pDev->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&pipeline));
-            if (FAILED(result))
-            {
-                failed = true;
-                LOG_WARN("FSRD optional composition pipeline failed (HRESULT: {}); using generic composition",
-                         static_cast<uint32_t>(result));
-            }
-        }
-        return pipeline ? pipeline.Get() : m_compShader.m_pso.Get();
-    }
-
     void DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
     {
         if (m_runtime) m_runtime->Begin(FSRDRuntimeSnapshot::Composition);
         if (!cmdList || !m_maxWidth)
             throw std::runtime_error("Composition requires a command list and allocated resources");
 
-        m_historyPending=false;
         m_recoveryOutputIndex = -1;
-        const bool writeHistory=desc.FloorDetailPreservation>0 && desc.RecoveryMask != 0 &&
-            (desc.Flags & uint32_t(CompFlags::Debug))==0;
-        // Dedicated ping-pong decisions/metadata; never alias RR scratch or motion.
-        if (writeHistory)
-        {
-            for (UINT i=0;i<2;++i)
-            {
-                if (!m_decisionHistory[i])
-                    m_decisionHistory[i]=CreateTexture2D(m_pDev,m_maxWidth,m_maxHeight,
-                        DXGI_FORMAT_R16G16B16A16_FLOAT,L"FSR_Handover_Decisions",kSrvState);
-                if (!m_historyMetadata[i])
-                    m_historyMetadata[i]=CreateTexture2D(m_pDev,m_maxWidth,m_maxHeight,
-                        DXGI_FORMAT_R32G32B32A32_UINT,L"FSR_Handover_Metadata",kSrvState);
-            }
-        }
-        const UINT historyWrite=1-m_historyRead;
         auto& outResources = m_out.Resources;
         Composition::Input inputs = {};
         Composition::Constants constants = 
         {
             .DstTexSize = desc.DstTexSize,
             .Flags = UINT(desc.Flags),
-            .DetailPreservation = desc.FloorDetailPreservation,
-            .RecoveryMask = desc.RecoveryMask,
-            .FloorHandoverAnchorClamp = desc.FloorHandoverAnchorClamp,
             .SourceUvScale = {1.0f, 1.0f},
             .SourceUvOffset = {},
-            .FloorHandoverCorrelationMix = desc.FloorHandoverCorrelationMix,
-            .HistoryValid = writeHistory && m_historyValid && m_motionHistoryValid ? 1u : 0u,
-            .HistoryJitterDelta = m_historyJitterDelta,
-            .WriteHistory = writeHistory ? 1u : 0u,
             .SpecularAlbedoDemodulation = desc.SpecularAlbedoDemodulation,
             .DiffuseAlbedoModulation = desc.DiffuseAlbedoModulation,
-            .SpatialTemporalMask = desc.SpatialTemporalMask,
-            .LumaRecovery = desc.LumaRecovery,
-            .ChromaRecovery = desc.ChromaRecovery,
             .UnsupportedAlbedoRecovery = desc.UnsupportedAlbedoRecovery,
             .DemodDivisorFloor = desc.DemodDivisorFloor
         };
@@ -2793,8 +2787,7 @@ struct FSRDPreprocessor_Dx12::Impl
 
         // A signal excluded from the denoiser chain (single-signal denoise mode) is
         // never written this frame, and its ping-pong buffer is shared with the floor
-        // passes - so it still holds that floor's intermediate image. Multiplied by
-        // the albedo it would add floor light to the disabled channel instead of the
+        // passes - so it still holds that an unwritten image. Multiplied by
         // signal. The packed raw signal is the demodulated radiance the denoiser
         // would otherwise have consumed, so it is the energy-preserving passthrough.
         ID3D12Resource* const specularRadiance =
@@ -2824,11 +2817,8 @@ struct FSRDPreprocessor_Dx12::Impl
             .InDiffuseAlbedo = outResources.DiffAlbedo.Get(),
             .InSkipSignal = outResources.SkipSignal.Get(),
             .InNormals = outResources.Normals.Get(),
-            .InDetailReference = outResources.DetailReference.Get(),
             .InLinearDepth = m_LinearDepth.Get(),
             .InMotion = outResources.Motion.Get(),
-            .InDecisionHistory = m_decisionHistory[m_historyRead].Get(),
-            .InHistoryMetadata = m_historyMetadata[m_historyRead].Get(),
             // Always bound; read only while UnsupportedAlbedoRecovery is nonzero.
             .InDirectSpecularDenoised = m_directSpecularOutput.Get(),
             .InDirectSpecularSignal = outResources.DirectSpecular.Get(),
@@ -2838,35 +2828,17 @@ struct FSRDPreprocessor_Dx12::Impl
             .InDirectDiffuseSignal = outResources.Signals.DirectDiffuse.Get(),
         };
 
-        Composition::Output outputs { .Resources = {
-            .OutColor=m_compositionOutput.Get(),
-            .OutDecisionHistory=writeHistory ? m_decisionHistory[historyWrite].Get() : nullptr,
-            .OutHistoryMetadata=writeHistory ? m_historyMetadata[historyWrite].Get() : nullptr } };
+        Composition::Output outputs { .Resources = { .OutColor=m_compositionOutput.Get() } };
         const std::span<const byte> cbData((const byte*) &constants, sizeof(constants));
         const XMFLOAT2 dstDim = { constants.DstTexSize.x, constants.DstTexSize.y };
 
         {
             FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::Composition);
-            if (Composition::CanSplitTiles(desc.Flags, desc.FloorDetailPreservation,
-                                           desc.RecoveryMask, desc.SpatialTemporalMask) &&
-                EnsureSplitCompositionPipelines())
-            {
-                // Each call creates its own retained dispatch lease/CBV/descriptors.
-                // Both use unchanged SRVs and the same non-aliased history WRITE UAVs.
-                // autoBarrierOutput restores SRV state after the first pass before the
-                // second transitions it back to UAV; it also orders the disjoint writes.
-                m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, outputs.AsArray, dstDim, true,
-                                      m_tileLightCompPso.Get());
-                m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, outputs.AsArray, dstDim, true,
-                                      m_tileAnchorCompPso.Get());
-            }
-            else
-                m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, outputs.AsArray, dstDim, true,
-                                      CompositionPipeline(desc));
+            m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, outputs.AsArray, dstDim);
             DispatchRecoveryChain(cmdList, desc);
+            DispatchFlatDetail(cmdList, desc);
             ReblurSkin(cmdList, desc);
         }
-        m_historyPending=writeHistory;
         if (m_runtime) m_runtime->Complete(FSRDRuntimeSnapshot::Composition);
     }
 
@@ -3111,7 +3083,7 @@ struct FSRDPreprocessor_Dx12::Impl
             .SourceUvOffset = { mapX.offset, mapY.offset }
         };
 
-        std::array<ID3D12Resource*, Composition::kOutputCount> uavs { dstTex, nullptr, nullptr };
+        std::array<ID3D12Resource*, Composition::kOutputCount> uavs { dstTex };
         const std::span<const byte> cbData((const byte*) &constants, sizeof(constants));
 
         m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, uavs, dstDim, false);
@@ -3128,9 +3100,8 @@ struct FSRDPreprocessor_Dx12::Impl
         };
 
         // Always the converter's own field: it is the one whose sign convention is known,
-        // and the one every other consumer reads - the floor seed writes it from the
+        // and the one every other consumer reads - the geometry pass writes it from the
         // title's published linear depth when one is provided, so the denoiser sees the
-        // same geometry the packing and floor passes describe.
         dispatchDesc.linearDepth = ffxApiGetResourceDX12(
             m_LinearDepth.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
         dispatchDesc.motionVectors = ffxApiGetResourceDX12(
@@ -3155,7 +3126,7 @@ FSRDPreprocessor_Dx12::FSRDPreprocessor_Dx12(std::string_view name, ID3D12Device
     try
     {
         m_impl->m_pDev = pDev;
-        m_impl->Initialize(GetAsByteSpan(FSRDFloorSeed_cso), GetAsByteSpan(FSRDFloor_cso),
+        m_impl->Initialize(GetAsByteSpan(FSRDGeometry_cso),
                            GetAsByteSpan(FSRDInputConv_cso),
                            GetAsByteSpan(FSRDOutputComp_cso));
         m_IsInitialized = true;
@@ -3313,24 +3284,18 @@ bool FSRDPreprocessor_Dx12::DispatchComposition(ID3D12GraphicsCommandList* cmdLi
 
 void FSRDPreprocessor_Dx12::InvalidateCompositionHistory() noexcept
 {
-    m_impl->m_historyValid = m_impl->m_historyPending = false;
-    m_impl->m_volumeHistoryValid = false;
+    m_impl->m_recoveryHistoryValid = false;
+    m_impl->ResetFlatTemporalHistory();
 }
 
 void FSRDPreprocessor_Dx12::FinishCompositionHistory(bool successfulNormalFrame) noexcept
 {
-    if (successfulNormalFrame && m_impl->m_historyPending)
-    {
-        m_impl->m_historyRead=1-m_impl->m_historyRead;
-        m_impl->m_historyValid=true;
-    }
-    else m_impl->m_historyValid=false;
-    m_impl->m_historyPending=false;
-    // A failed or debug frame leaves the volumetric history unproven.
+    // A failed or debug frame leaves the recovery history unproven.
     if (!successfulNormalFrame)
     {
         m_impl->m_research.Abort("Reference aborted: normal evaluation failed or was bypassed.");
-        m_impl->m_volumeHistoryValid=false;
+        m_impl->m_recoveryHistoryValid=false;
+        m_impl->ResetFlatTemporalHistory();
         if (m_impl->m_gameTraceFrameRecorded)
             m_impl->m_gameTrace.Abort("Normal evaluation failed or bypassed after recording.");
     }
@@ -3412,7 +3377,7 @@ ID3D12Resource* FSRDPreprocessor_Dx12::GetDebugViewOutput() const
 
 ID3D12Resource* FSRDPreprocessor_Dx12::GetCompositionOutput() const
 {
-    // With the volumetric restore active its output is the final composition.
+    // With a recovery pass active its output is the final composition.
     return m_impl->CompositionColor();
 }
 
@@ -3503,10 +3468,45 @@ void FSRDPreprocessor_Dx12::CompleteGameTraceFrame(ID3D12GraphicsCommandList* cm
         }
     }
     auto* output = GetCompositionOutput();
-    if (diagnostics.empty()) impl.m_gameTrace.RecordNative(cmdList, {output,kSrvState}, frame, lobes);
-    else
     {
         std::vector<FSRDGameTraceSession::DiagnosticSource> allDiagnostics(lobes.begin(),lobes.end());
+        if (impl.m_flatDetailActive)
+        {
+            const auto add = [&](const char* name, ID3D12Resource* resource) {
+                FSRDGameTraceSession::DiagnosticSource source {name,{resource,kSrvState},0,0};
+                source.metadataJson = nlohmann::json{{"stage","post_flat_detail"},{"current_frame_only",!impl.m_flatTemporalActive},
+                    {"radius",impl.m_flatDetailConstants.Radius},{"noise_scale",impl.m_flatDetailConstants.NoiseScale},
+                    {"epsilon",impl.m_flatDetailConstants.Epsilon},{"strength",impl.m_flatDetailConstants.Strength},
+                    {"anchor",impl.m_flatDetailConstants.Anchor},{"mix",impl.m_flatDetailConstants.Mix},
+                    {"valid_pixels","packed_normals alpha = 1/3; skip alpha != -1"}}.dump();
+                allDiagnostics.push_back(std::move(source));
+            };
+            add("flat_detail_reference",impl.m_flatTemporalActive ? impl.m_flatTemporalReference.Get() :
+                impl.m_flatDetailReference[FlatDetail::kRefinementPasses & 1u].Get());
+            add("flat_detail_statistics",impl.m_flatDetailStatistics[FlatDetail::kRefinementPasses & 1u].Get());
+            add("flat_detail_base",impl.m_flatDetailBase.Get());
+            add("flat_detail_rr_mean",impl.m_flatDetailMean.Get());
+            add("flat_detail_anchor_sigma",impl.m_flatDetailVariance.Get());
+            if (impl.m_flatTemporalActive)
+            {
+                const auto& t = impl.m_flatTemporalConstants;
+                const auto historyDiagnostic = [&](const char* name, unsigned channel) {
+                    FSRDGameTraceSession::DiagnosticSource source {name,{impl.m_flatTemporalDiagnostics.Get(),kSrvState},0,0};
+                    source.metadataJson = nlohmann::json{{"stage","post_flat_temporal"},{"channel",channel},
+                        {"channel_names",{"valid_sample_count","summed_history_weight"}},
+                        {"history_count",t.HistoryCount},{"history_head",t.HistoryHead},{"history_length",t.HistoryLength},
+                        {"temporal_strength",t.TemporalStrength},{"epsilon",t.Epsilon},
+                        {"center_sigma",t.CenterSigma},{"motion_start",t.MotionStart},{"motion_end",t.MotionEnd},
+                        {"history_decay",t.HistoryDecay},{"flags",t.Flags},
+                        {"jitter_delta",{t.JitterDelta.x,t.JitterDelta.y}},
+                        {"full_render_size",{t.FullRenderSize.x,t.FullRenderSize.y}},
+                        {"valid_pixels","flat mask only; zero count/weight on reset or rejected history"}}.dump();
+                    allDiagnostics.push_back(std::move(source));
+                };
+                historyDiagnostic("flat_detail_history_valid_count",0);
+                historyDiagnostic("flat_detail_history_weight",1);
+            }
+        }
         allDiagnostics.insert(allDiagnostics.end(),diagnostics.begin(),diagnostics.end());
         impl.m_gameTrace.RecordNative(cmdList, {output,kSrvState}, frame, allDiagnostics);
     }

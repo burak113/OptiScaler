@@ -245,7 +245,7 @@
              <<",\"reset\":"<<((dispatch.flags&FFX_DENOISER_DISPATCH_RESET)?"true":"false")
              <<",\"pre_exposure\":"<<preExposure<<",\"pre_exposure_provided\":"<<(provided?"true":"false")
              <<",\"exposure_scope\":\"NGX/SR metadata; RR has no pre-exposure dispatch field\""
-             <<",\"output_scope\":\"Actual configured composed color before SR, including Floor/detail recovery\""
+             <<",\"output_scope\":\"Actual configured composed color before SR, including Flat Detail\""
              <<",\"view\":"<<RRTraceAdditiveIO::FloatArray(dispatch.view)
              <<",\"projection\":"<<RRTraceAdditiveIO::FloatArray(dispatch.projection)
              <<",\"jitter\":"<<RRTraceAdditiveIO::FloatArray(dispatch.jitterOffsets)
@@ -254,11 +254,8 @@
              <<",\"linear_depth_bounds\":"<<RRTraceAdditiveIO::FloatArray(dispatch.linearDepthBounds)
              <<",\"composition_flags\":"<<composition.Flags
              <<",\"recovery_mask\":"<<composition.RecoveryMask
-             <<",\"spatial_temporal_mask\":"<<composition.SpatialTemporalMask
-             <<",\"composition_controls\":"<<RRTraceAdditiveIO::FloatArray(std::array<float,7>{
-                 composition.FloorDetailPreservation,composition.FloorHandoverAnchorClamp,
-                 composition.FloorHandoverCorrelationMix,composition.SpecularAlbedoDemodulation,
-                 composition.DiffuseAlbedoModulation,composition.LumaRecovery,composition.ChromaRecovery})<<'}';
+                          <<",\"composition_controls\":"<<RRTraceAdditiveIO::FloatArray(std::array<float,5>{composition.RecoveryFlatAlbedoStrength,composition.RecoveryFlatAnchor,
+                 composition.RecoveryFlatMix,composition.SpecularAlbedoDemodulation,composition.DiffuseAlbedoModulation})<<'}';
             c.pairedMetadata=m.str();
             c.ticket->Retain(output);
             RRTraceAdditiveIO::CopyPreSrRoi(cmd,output,c.outputReadback.Get(),c.outputFootprint,

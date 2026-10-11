@@ -71,15 +71,15 @@ void FusedPrepareAt(int2 p,out half4 color,out float guide)
         color=half4(source);guide=0.0f;return;
     }
     const float d=abs(FusedDepthAt(p));
-    const float albedo=dot(FloorRadiance(InFusedDiffAlbedo[p+int2(InputBase2.zw)].rgb)+
-        FloorRadiance(InFusedSpecAlbedo[p+int2(InputBase3.xy)].rgb),1.0f);
+    const float albedo=dot(SanitizeRadiance(InFusedDiffAlbedo[p+int2(InputBase2.zw)].rgb)+
+        SanitizeRadiance(InFusedSpecAlbedo[p+int2(InputBase3.xy)].rgb),1.0f);
     const float bias=FusedRawFlag(32768u)?saturate(InFusedBias[p+int2(InputBase3.zw)]*BiasMaskStrength):0.0f;
     const float skyLimit=min(FarPlane,65504.0f);
     bool sky=false;
     [branch] if(!(skyLimit>=1.0f && d<=0.5f*skyLimit))
         sky=log(d+1.0f)>=0.99f*log(skyLimit+1.0f);
     if(!isfinite(d) || d<=0.0f || bias!=0.0f || SoftAbove(albedo,5.9f,0.5f)!=0.0f || sky) guide=0.0f;
-    color=half4(SkinOptions.z==1u && guide!=0.0f?SkinSeparate(FloorRadiance(source.rgb),guide):source.rgb,source.a);
+    color=half4(SkinOptions.z==1u && guide!=0.0f?SkinSeparate(SanitizeRadiance(source.rgb),guide):source.rgb,source.a);
 }
 static int2 FusedPixel=0;
 static bool FusedReady=false;

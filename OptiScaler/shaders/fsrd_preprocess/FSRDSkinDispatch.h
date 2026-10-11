@@ -4,10 +4,10 @@
 namespace FSRD
 {
     struct SkinExtent { uint32_t x, y; };
-    constexpr bool CanFuseSssInput(uint32_t mode, bool floorEnabled, bool inputChroma,
+    constexpr bool CanFuseSssInput(uint32_t mode, bool inputChroma,
                                    bool debug, bool capture, bool basesMatch, bool depthSourceValid)
     {
-        return mode == 1u && !floorEnabled && !inputChroma && !debug && !capture &&
+        return mode == 1u && !inputChroma && !debug && !capture &&
             basesMatch && depthSourceValid;
     }
     constexpr uint32_t SkinDivideUp(uint32_t value, uint32_t divisor)

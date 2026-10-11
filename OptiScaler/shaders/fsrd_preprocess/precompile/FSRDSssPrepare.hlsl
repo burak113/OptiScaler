@@ -1,5 +1,4 @@
-#include "FSRDPreprocessCommon.hlsli"
-#include "FSRDFloorCommon.hlsli"
+#include "FSRDFlatDetailCommon.hlsli"
 #include "FSRDSkinCommon.hlsli"
 #define MainRS "RootFlags(0), CBV(b0), DescriptorTable(SRV(t0, numDescriptors=7)), DescriptorTable(UAV(u0, numDescriptors=2))"
 Texture2D<float4> InColor : register(t0);
@@ -50,8 +49,8 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
         d = InvProjectPosition(float3(uv, d), InvProjMatrix).z;
     }
     d = clamp(abs(d), NearPlane, FarPlane);
-    const float albedo = dot(FloorRadiance(InDiffAlbedo[p + int2(AlbedoBase.xy)].rgb) +
-                             FloorRadiance(InSpecAlbedo[p + int2(AlbedoBase.zw)].rgb), 1.0f);
+    const float albedo = dot(SanitizeRadiance(InDiffAlbedo[p + int2(AlbedoBase.xy)].rgb) +
+                             SanitizeRadiance(InSpecAlbedo[p + int2(AlbedoBase.zw)].rgb), 1.0f);
     const float bias = (Flags & 32768u) != 0u
         ? saturate(InBias[p + int2(GuideBiasBase.zw)] * BiasStrength) : 0.0f;
     // Routed, emissive and sky pixels retain the game's complete post-SSS colour.
@@ -59,5 +58,5 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
         SoftAbove(albedo, 5.9f, 0.5f) != 0.0f ||
         log(d + 1.0f) >= 0.99f * log(min(FarPlane, 65504.0f) + 1.0f)) guide = 0.0f;
     OutGuide[p] = guide;
-    OutColor[p] = half4(Mode == 1u && guide != 0.0f ? SkinSeparate(FloorRadiance(source.rgb), guide) : source.rgb, source.a);
+    OutColor[p] = half4(Mode == 1u && guide != 0.0f ? SkinSeparate(SanitizeRadiance(source.rgb), guide) : source.rgb, source.a);
 }

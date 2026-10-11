@@ -8,6 +8,25 @@
 namespace FSRDMenu
 {
 inline const ImVec4 Red(1.0f, 0.32f, 0.28f, 1.0f), Green(0.3f, 0.9f, 0.45f, 1.0f), Amber(1.0f, 0.72f, 0.25f, 1.0f);
+inline void DrawFlatTemporalControls(Config& cfg)
+{
+    bool enabled = cfg.FfxDenoiserRecoveryFlatTemporal.value_or_default();
+    if (ImGui::Checkbox("Temporal detail##RecoveryFlat", &enabled))
+        cfg.FfxDenoiserRecoveryFlatTemporal = enabled;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Combines validated original frames to clean screen texture while RR supplies lighting. "
+                          "Motion, depth, normals and video changes reject history. Off uses current-frame A4. "
+                          "Changing this control clears old history. Default on.");
+    ImGui::BeginDisabled(!enabled);
+    int length = std::clamp(cfg.FfxDenoiserRecoveryFlatHistoryLength.value_or_default(), 1, 6);
+    if (ImGui::SliderInt("History length##RecoveryFlat", &length, 1, 6, "%d frames"))
+        cfg.FfxDenoiserRecoveryFlatHistoryLength = length;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Maximum original past frames, 1 to 6. More valid samples reduce grain; rejected samples "
+                          "never extend the history. Changing the length clears old history. Default 6.");
+    ImGui::EndDisabled();
+}
+
 inline bool DrawProfile(Config& cfg)
 {
     const char* names[] = { "Fast", "Balanced", "Quality" };
@@ -24,10 +43,11 @@ inline bool DrawProfile(Config& cfg)
         ImGui::EndCombo();
     }
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Fast: Floor and recovery off.\n"
-                          "Balanced (default): Fast Floor, Full Anchor flat/zero-rough recovery, Light Anchor Mix specular.\n"
-                          "Quality: normal Floor, Full Anchor flat/zero-rough, Light Anchor Mix specular + diffuse.\n"
-                          "Manual edits are saved as Custom. Signal routing and the Albedo Bleed Fix are separate.");
+        ImGui::SetTooltip("Recovery v2 profiles. All lighting goes through RR in every profile.\n"
+                          "Fast: no recovery.\n"
+                          "Balanced (default): Specular, Diffuse and Flat albedo recovery, Light history reset.\n"
+                          "Quality: the same with the Medium history reset.\n"
+                          "Manual edits are saved as Custom. Signal routing and the RR input fixes are separate.");
     return changed;
 }
 
@@ -140,11 +160,11 @@ inline void DrawWorkflow(const FSRDRuntimeSnapshot& snapshot)
     using R = FSRDRuntimeSnapshot;
     const char* steps[] = {
         "1. Validate color, depth, motion, normals, roughness, albedo and camera transforms.",
-        "2. Floor assists RR with a spatial lighting and detail reference.",
+        "2. Prepare canonical signed linear depth.",
         "3. Convert guides and split scene color into the selected RR signals.",
         "4. AMD Ray Regeneration denoises the bound diffuse/specular signals.",
         "5. Albedo Bleed Fix builds surface trust from the alternate RR copies.",
-        "6. Compose denoised light, restore material color and apply enabled recovery.",
+        "6. Compose RR lighting, recover ordinary surfaces, then restore Flat Detail.",
         "7. FSR Super Resolution upscales the composed image.",
         "8. Finish sharpening/output scaling and return the final output to the game."
     };
@@ -245,74 +265,6 @@ inline void DrawSignalSummary(const Config& cfg, const FSRDSignals::Status& stat
     const auto wanted = WantedPlan(cfg, status);
     if (wanted.mask != status.plan.mask || wanted.albedoFix != status.plan.albedoFix)
         ImGui::TextDisabled("Applying: %s", DescribePlan(wanted).c_str());
-}
-
-// Returns true when the RR context must be rebuilt.
-inline bool DrawAlbedoFix(Config& cfg, const FSRDSignals::Status& status)
-{
-    bool rebuild = false;
-    bool enabled = cfg.FfxDenoiserUnsupportedAlbedoRecovery.value_or_default();
-    if (ImGui::Checkbox("Albedo Bleed Fix (water, glass)", &enabled))
-    {
-        cfg.FfxDenoiserUnsupportedAlbedoRecovery = enabled;
-        rebuild = true;
-    }
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Fixes surfaces whose albedo shows something the lighting does not, such as a sea floor "
-                          "printed onto water. Denoises unmodulated copies of the specular and diffuse light (two "
-                          "more RR signals and seven small passes) and uses them only where the surface evidence "
-                          "rejects the albedo; the diffuse copy only on mostly reflective surfaces.\n"
-                          "Needs both modulation strengths at 1. Off by default; enable it for games that show the "
-                          "problem.");
-    if (!enabled)
-        return rebuild;
-
-    const auto plan = WantedPlan(cfg, status);
-    ImGui::Indent();
-    if (!status.observed)
-        ImGui::TextDisabled("Waiting for the first validated frame.");
-    else if (plan.notes & FSRDSignals::FixNeedsBothLobes)
-    {
-        ImGui::TextColored(Amber, "Paused: diffuse or specular denoising is off.");
-        ImGui::SameLine();
-        if (ImGui::SmallButton("Denoise both"))
-        {
-            cfg.FfxDenoiserDenoiseDiffuse.reset();
-            cfg.FfxDenoiserDenoiseSpecular.reset();
-            rebuild = true;
-        }
-    }
-    else if (plan.notes & FSRDSignals::FixNeedsDistance)
-    {
-        ImGui::TextColored(Amber, "Paused: the game supplies no specular hit distance.");
-        ImGui::SameLine();
-        if (ImGui::SmallButton("Estimate it"))
-        {
-            cfg.FfxDenoiserEstimateHitDistances = true;
-            rebuild = true;
-        }
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Enables Advanced > Signal Routing > Estimate Missing Hit Distances (experimental).");
-    }
-    else if (!FSRDSignals::AlbedoFixAllowed(cfg))
-    {
-        ImGui::TextColored(Amber, "Paused: albedo modulation or Additive Light Split changed.");
-        ImGui::SameLine();
-        if (ImGui::SmallButton("Restore"))
-        {
-            cfg.FfxDenoiserSpecularAlbedoDemodulation.reset();
-            cfg.FfxDenoiserDiffuseAlbedoModulation.reset();
-            cfg.FfxDenoiserAdditiveLightSplit.reset();
-        }
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Resets both albedo modulation strengths to 1 and Additive Light Split to 0.");
-    }
-    else if (status.albedoFixActive)
-        ImGui::TextColored(Green, "Running.");
-    else
-        ImGui::TextDisabled("Starting...");
-    ImGui::Unindent();
-    return rebuild;
 }
 
 // Advanced per-lobe routing. Returns true when the RR context must be rebuilt.

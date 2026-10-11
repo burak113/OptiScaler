@@ -1,7 +1,5 @@
 // FSR-RR Conversion & Packing Shader
-#include "FSRDPreprocessCommon.hlsli"
-#include "FSRDFloorCommon.hlsli"
-#include "FSRDFloorModel.hlsli"
+#include "FSRDFlatDetailCommon.hlsli"
 
 // Compile the original conversion separately from the enabled experiment.
 // Runtime selects their PSOs; strength zero never executes experimental DXIL.
@@ -60,7 +58,6 @@ static const float s_InvalidSpecularHitDistance = -1.0f;
 static const float s_Type1RoughnessThreshold = 0.5f / 1023.0f;
 // Minimum RR roughness for an eligible radiance-only surface. This compatibility
 // value is local to the selected domain, not an SDK threshold or a global addition.
-static const float s_ZeroRoughRRRoughness = 0.1f;
 
 // The same floor as a runtime value, so the trade it makes can be tuned.
 //
@@ -83,7 +80,6 @@ static const float s_ZeroRoughRRRoughness = 0.1f;
 #define FLAGS_HAS_SPEC_HIT_DISTANCE     (1 << 4)
 #define FLAGS_SPECULAR_SIGNAL_INDIRECT  (1 << 5)
 #define FLAGS_HAS_EMISSIVE_INPUT        (1 << 6)
-#define FLAGS_FLOOR_ENABLED       (1 << 7)
 #define FLAGS_MOTION_VECTORS_JITTERED   (1 << 8)
 #define FLAGS_DISPLAY_RESOLUTION_MOTION (1 << 9)
 #define FLAGS_NORMALS_VIEW_SPACE        (1 << 11)
@@ -131,9 +127,7 @@ static const float s_ZeroRoughRRRoughness = 0.1f;
 #define FLAGS_DEBUG_ALBEDO_OVERSHOOT    (15 << 17 | FLAGS_DEBUG)
 
 // Value 16 was the floor variance view. It visualised the seed's instability channel, which
-// is no longer published now the floor confidence gate is gone (see FSRDFloorSeed.hlsl), so
 // the view read a constant and went with the channel.
-#define FLAGS_DEBUG_FLOOR_COLOR         (17 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_RAW_INDIRECT_SPEC   (18 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_EFFECTIVE_ROUGHNESS (19 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_RAW_ROUGHNESS       (20 << 17 | FLAGS_DEBUG)
@@ -144,7 +138,6 @@ static const float s_ZeroRoughRRRoughness = 0.1f;
 #define FLAGS_DEBUG_IN_EMISSIVE         (25 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_RR_MATERIAL_TYPE    (26 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_ALBEDO_STRUCTURE    (27 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_FLOOR_RESIDUAL    (28 << 17 | FLAGS_DEBUG)
 
 // Optional-input validation views
 // Value 30 was the removed reflected-image motion disagreement view; it now shows the specular
@@ -157,10 +150,7 @@ static const float s_ZeroRoughRRRoughness = 0.1f;
 #define FLAGS_DEBUG_DEMOD_GAIN          (35 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_HIT_DIST_GATE       (36 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_DENOISER_FRACTION   (37 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_FLOOR_NOISE     (38 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_SKIP_UNMAPPED       (39 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_SKIP_FLOOR          (40 << 17 | FLAGS_DEBUG)
-#define FLAGS_DEBUG_FLOOR_EXCESS     (41 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_DEMOD_RISK       (42 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_SSS_GUIDE (44 << 17 | FLAGS_DEBUG)
 #define FLAGS_DEBUG_PRE_SSS (45 << 17 | FLAGS_DEBUG)
@@ -172,8 +162,6 @@ static const float s_ZeroRoughRRRoughness = 0.1f;
 #define FLAGS_STRETCH_RESET_MASK     (3 << 29)
 // Diagnostic: restart RR history on static geometry revealed this frame. See GeometricDisocclusion.
 #define FLAGS_DISOCCLUSION_CHECK     (1 << 10)
-// Keep the Floor as a reference while RR denoises the full lighting signal.
-#define FLAGS_FLOOR_THROUGH_RR       (1 << 0)
 // Diagnostic: give each sample its neighbourhood's light colour before RR. See ChromaReference.
 #define FLAGS_INPUT_CHROMA           (0x80000000)
 
@@ -194,7 +182,6 @@ Texture2D<half3> InDiffAlbedo : register(t6); // RGB - NVSDK_NGX_Parameter_GBuff
 Texture2D<half3> InSpecAlbedo : register(t7); // RGB - NVSDK_NGX_Parameter_GBuffer_SpecularAlbedo
 Texture2D<half> InBiasMask : register(t8);
 
-Texture2D<half4> InFloorColor : register(t9);
 Texture2D<float4> InInspector : register(t10);
 Texture2D<float4> InEmissive : register(t11); // Optional NVSDK_NGX_Parameter_GBuffer_Emissive probe
 // Optional combined ray-direction resource carrying the specular hit distance in A.
@@ -206,10 +193,7 @@ Texture2D<float> InTitleLinearDepth : register(t14);
 // Optional per-pixel responsivity hint. Polarity is a title property, so it is a
 // runtime parameter rather than something this shader may assume.
 Texture2D<float4> InResponsivityMask : register(t15);
-Texture2D<half4> InDetailReference : register(t16);
-Texture2D<half4> InFloorModel : register(t17);
 // The previous frame's canonical signed-linear depth (last frame's InDepth, copied before the
-// floor seed overwrites it). Read only under FLAGS_DISOCCLUSION_CHECK, which the host sets
 // only while that copy is valid for this frame.
 Texture2D<float> InPreviousDepth : register(t18);
 
@@ -227,10 +211,9 @@ RWTexture2D<FSRD_CONV_UAV_TYPE> OutDiffAlbedo : register(u5); // RGB: Diffuse Al
 RWTexture2D<FSRD_CONV_UAV_TYPE> OutSkipSignal : register(u6);
 
 // RGB: cleaned reference; A: noise sigma, or -1 when detail must be bypassed.
-RWTexture2D<FSRD_CONV_UAV_TYPE> OutDetailReference : register(u7);
+RWTexture2D<FSRD_CONV_UAV_TYPE> OutDiagnostic : register(u7);
 #if !FSRD_ADDITIVE_DIAGNOSTICS
 // Unsupported-albedo recovery input for RR's direct-specular signal. RGB: the pixel's
-// specular share before Floor subtraction and without albedo division, i.e. what the
 // specular lobe carries at Specular Albedo Demodulation 0. A: 1 where composition may
 // blend toward it (no title routing, emission or selected screen), otherwise 0.
 RWTexture2D<FSRD_CONV_UAV_TYPE> OutDirectSpecular : register(u8);
@@ -262,7 +245,7 @@ cbuffer CB_Packing : register(b0)
     float NearPlane;
     float FarPlane;   
     
-    float FloorDetailPreservation;
+    float _ConversionPadding;
 
     uint Flags;
     uint InspectorChannel;
@@ -442,12 +425,11 @@ groupshared float4 g_ChromaLight[CHROMA_TILE * CHROMA_TILE];
 groupshared float4 g_ChromaRowSum[CHROMA_SEGMENTS];
 groupshared float g_ChromaRowMax[CHROMA_SEGMENTS];
 
-// What RR's two lobes carry at q before the Floor pedestal: raw colour over the title's albedo sum.
 float3 InputLighting(int2 q)
 {
-    const float3 albedo = saturate(FloorRadiance(half3(InFusedSpecAlbedo[q + int2(InputBase3.xy)].rgb))) +
-        saturate(FloorRadiance(half3(InFusedDiffAlbedo[q + int2(InputBase2.zw)].rgb)));
-    return FloorRadiance(FusedColorAt(q)) / max(albedo, 0.02f);
+    const float3 albedo = saturate(SanitizeRadiance(half3(InFusedSpecAlbedo[q + int2(InputBase3.xy)].rgb))) +
+        saturate(SanitizeRadiance(half3(InFusedDiffAlbedo[q + int2(InputBase2.zw)].rgb)));
+    return SanitizeRadiance(FusedColorAt(q)) / max(albedo, 0.02f);
 }
 
 // The group's lighting and depth with a CHROMA_RADIUS halo. Every thread of the group must call it
@@ -521,10 +503,8 @@ float3 ChromaReference(uint2 gtID, float centreDepth)
 
 float3 GetViewSpacePos(const int2 px)
 {
-    // InDepth is the floor seed's canonical signed-linear depth, produced from the
     // title's published linear depth whenever one was bound and otherwise from the
     // game's own depth. Every consumer of view-space position - this reconstruction,
-    // the floor passes' depth guide and the denoiser's own depth input - reads that
     // one field. Re-canonicalising the title's raw resource here instead handed this
     // pass different geometry from the rest of the chain wherever the derived depth
     // disagreed with it: motion-Z and view positions built on one depth while RR
@@ -687,107 +667,9 @@ float3 GetGuideAlbedoAt(int2 px)
     return spec + diff;
 }
 
-bool ValidSurfaceAlbedos(float3 specular, float3 diffuse)
-{
-    // Invalid/absent/dark guides are unknown, never evidence of missing texture.
-    // A black specular component is valid on a diffuse surface. Pure mirrors and
-    // predominantly specular materials are deliberately outside this heuristic.
-    return all(isfinite(specular)) && all(isfinite(diffuse)) &&
-        all(specular >= 0.0f) && all(diffuse >= 0.0f) &&
-        all(specular <= 1.001f) && all(diffuse <= 1.001f) &&
-        GetLuminance(diffuse) >= max(0.02f, 0.25f * GetLuminance(specular));
-}
 
-bool HasUnrepresentedSurfaceStructure(int2 p, float z, float roughness, bool zeroRoughness)
-{
-    const int2 bounds = int2(DstTexSize.xy) - 1;
-    const float3 spec = half3(InFusedSpecAlbedo[p + int2(InputBase3.xy)].rgb);
-    const float3 diff = half3(InFusedDiffAlbedo[p + int2(InputBase2.zw)].rgb);
-    const float3 rawNormal = InNormals[p + int2(InputBase1.xy)].xyz;
-    const float4 reference = InDetailReference[p];
-    if (!ValidSurfaceAlbedos(spec, diff) || !all(isfinite(rawNormal)) ||
-        dot(rawNormal, rawNormal) < 1e-8f || !isfinite(roughness) ||
-        !isfinite(z) || abs(z) < NearPlane || !all(isfinite(reference)) || reference.a < 0.0f)
-        return false;
 
-    const float3 normal = GetWorldSurfaceNormalAt(p);
-    const float2 gradient = float2(
-        FloorDepthDerivative(GetViewSpacePos(max(p-int2(1,0),0)).z, z,
-                             GetViewSpacePos(min(p+int2(1,0),bounds)).z),
-        FloorDepthDerivative(GetViewSpacePos(max(p-int2(0,1),0)).z, z,
-                             GetViewSpacePos(min(p+int2(0,1),bounds)).z));
-    const float3 specTolerance = max(2.0f/255.0f, 0.04f*spec);
-    const float3 diffTolerance = max(2.0f/255.0f, 0.04f*diff);
-    float count = 0;
-    float2 positionSum = 0;
-    float3 positionSquare = 0; // xx, xy, yy
-    float3 colourSum = 0, colourSquare = 0, colourX = 0, colourY = 0;
-    float noiseSquare = 0;
-    [loop]
-    for (int y = -2; y <= 2; ++y)
-    {
-        [loop]
-        for (int x = -2; x <= 2; ++x)
-        {
-            const int2 q = p + int2(x,y);
-            if (any(q < 0) || any(q > bounds)) continue;
-            const float tapZ = GetViewSpacePos(q).z;
-            const float3 tapRawNormal = InNormals[q + int2(InputBase1.xy)].xyz;
-            const float3 tapSpec = half3(InFusedSpecAlbedo[q + int2(InputBase3.xy)].rgb);
-            const float3 tapDiff = half3(InFusedDiffAlbedo[q + int2(InputBase2.zw)].rgb);
-            const float tapRoughness = GetRawRoughnessAt(q);
-            const float4 tapReference = InDetailReference[q];
-            if (!isfinite(tapZ) || tapZ*z <= 0.0f ||
-                abs(tapZ-z-dot(gradient,float2(x,y))) > max(0.01f,abs(z)*0.005f) ||
-                !all(isfinite(tapRawNormal)) || dot(tapRawNormal,tapRawNormal) < 1e-8f ||
-                dot(GetWorldSurfaceNormalAt(q),normal) < 0.98f ||
-                !isfinite(tapRoughness) || abs(tapRoughness-roughness) > max(0.002f,0.05f*roughness))
-                continue;
-            // A same-geometry material boundary is evidence against a flat guide,
-            // not a reason to discard the inconvenient albedo sample.
-            if (!ValidSurfaceAlbedos(tapSpec,tapDiff)) return false;
-            const float3 delta = max(abs(tapSpec-spec)/specTolerance, abs(tapDiff-diff)/diffTolerance);
-            // A veto is final: remaining samples cannot restore flat albedo.
-            if (max(delta.x,max(delta.y,delta.z)) > 1.0f) return false;
-            if (!all(isfinite(tapReference)) || tapReference.a < 0.0f) continue;
-            count += 1.0f;
-            if (!zeroRoughness)
-            {
-                const float3 colour = FloorRadiance(tapReference.rgb);
-                positionSum += float2(x,y);
-                positionSquare += float3(x*x,x*y,y*y);
-                colourSum += colour;
-                colourSquare += colour*colour;
-                colourX += colour*x; colourY += colour*y;
-                noiseSquare += tapReference.a*tapReference.a;
-            }
-        }
-    }
-    if (count < 9.0f) return false;
 
-    // Preserve the proven CP77 hint only after validating both original albedos
-    // and independent surface support. It no longer selects every perfect mirror.
-    if (zeroRoughness) return true;
-
-    // A flat albedo on a wall is not a screen. Remove the best fitting RGB plane:
-    // smooth illumination and gradients supply no unexplained texture evidence.
-    // RGB (not just luminance) preserves eligibility of equal-luma coloured text.
-    const float invCount = rcp(count);
-    const float2 meanPosition = positionSum*invCount;
-    const float3 mean = colourSum*invCount;
-    const float3 covariance = positionSquare*invCount -
-        float3(meanPosition.x*meanPosition.x,meanPosition.x*meanPosition.y,meanPosition.y*meanPosition.y);
-    const float determinant = covariance.x*covariance.z-covariance.y*covariance.y;
-    if (determinant < 0.05f || count < 12.0f) return false;
-    const float3 crossX = colourX*invCount-mean*meanPosition.x;
-    const float3 crossY = colourY*invCount-mean*meanPosition.y;
-    const float3 slopeX = (crossX*covariance.z-crossY*covariance.y)/determinant;
-    const float3 slopeY = (crossY*covariance.x-crossX*covariance.y)/determinant;
-    const float3 unexplained = max(colourSquare*invCount-mean*mean-slopeX*crossX-slopeY*crossY,0.0f);
-    const float textureEnergy = dot(unexplained,1.0f/3.0f);
-    const float noiseEnergy = noiseSquare*invCount;
-    return textureEnergy > max(9.0f*noiseEnergy, max(0.0009f*dot(mean,mean)/3.0f,1e-10f));
-}
 
 #if FSRD_ADDITIVE_SPLIT_ENABLED
 #include "FSRDAdditiveSplit.hlsli"
@@ -804,7 +686,6 @@ float GetDemodBoundaryRisk(uint2 px)
     // Baseline classifier: white is the intersection of added structure
     // and divisor risk (the old white stripes), not their union.
     // Evaluate the albedo-only chain on pre-split raw radiance;
-    // this does NOT simulate RR, Floor subtraction, or routing.
     // Match production albedo preparation, split, and divisor,
     // using full demodulation and both floors, independent of the sliders.
     // Per-channel normalization cancels constant RGB gains without
@@ -829,9 +710,9 @@ float GetDemodBoundaryRisk(uint2 px)
         if (!isfinite(qDepth) ||
             log(qDepth + 1.0f) / log(finiteFarPlane + 1.0f) >= 0.99f)
             q = int2(px);
-        const float3 c = FloorRadiance(GetRawColorAt(q));
-        float3 spec = FloorRadiance(half3(InFusedSpecAlbedo[q + int2(InputBase3.xy)].rgb));
-        float3 diff = FloorRadiance(half3(InFusedDiffAlbedo[q + int2(InputBase2.zw)].rgb));
+        const float3 c = SanitizeRadiance(GetRawColorAt(q));
+        float3 spec = SanitizeRadiance(half3(InFusedSpecAlbedo[q + int2(InputBase3.xy)].rgb));
+        float3 diff = SanitizeRadiance(half3(InFusedDiffAlbedo[q + int2(InputBase2.zw)].rgb));
         const float emissive = SoftAbove(dot(spec + diff, 1.0f), 5.9f, 0.5f);
         diff = lerp(diff, 1.0f - s_EmissiveSpecularWeight, emissive);
         spec = lerp(spec, s_EmissiveSpecularWeight, emissive);
@@ -986,11 +867,10 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
     const int2 specAlbedoPx = int2(px) + int2(InputBase3.xy);
 
     // Surface detection and diagnostics read the title's original guides, before
-    // the existing compatibility rewrite. Floor never synthesizes an albedo.
     const float3 inputSpecReflectance =
-        FloorRadiance(half3(InFusedSpecAlbedo[specAlbedoPx].rgb));
+        SanitizeRadiance(half3(InFusedSpecAlbedo[specAlbedoPx].rgb));
     const float3 inputDiffAlbedo =
-        FloorRadiance(half3(InFusedDiffAlbedo[diffAlbedoPx].rgb));
+        SanitizeRadiance(half3(InFusedDiffAlbedo[diffAlbedoPx].rgb));
     float3 specReflectance = inputSpecReflectance;
     float3 diffAlbedo = inputDiffAlbedo;
     const float rawRoughness = saturate(
@@ -999,7 +879,6 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
             : InRoughness[roughnessPx]);
 
     // R10G10B10A2_UNORM stores material type in two normalized alpha bits.
-    // Exact zero is a legacy hint; it no longer authorizes special handover alone.
     const float isZeroRoughness = step(rawRoughness, s_Type1RoughnessThreshold);
     const float3 viewSpacePos = GetViewSpacePos(px);
     const float biasMask = IsSet(FLAGS_HAS_BIAS_MASK)
@@ -1009,11 +888,7 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
     // return nonzero lobes, so composition must select this complete source.
     // Inspection keeps its existing outputs; partial bias retains its split.
     const bool biasCurrentSource = biasWeight == 1.0f && !IsSet(FLAGS_DEBUG);
-    bool handoverSurface = false;
-    [branch]
-    if (IsSet(FLAGS_FLOOR_ENABLED) && (RecoveryMask & 1u) != 0 && biasWeight == 0.0f)
-        handoverSurface = HasUnrepresentedSurfaceStructure(
-            int2(px),viewSpacePos.z,rawRoughness,isZeroRoughness > 0.0f);
+    const bool flatRoughSurface = (RecoveryMask & 1u) != 0 && biasWeight == 0.0f && isZeroRoughness > 0.0f;
     const float totalAlbedo = dot(specReflectance.rgb + diffAlbedo.rgb, 1.0f);
     // Emissive reinterpretation, softened.
     //
@@ -1053,150 +928,33 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
     const float3 remodSpecAlbedo = lerp(1.0f, specReflectance, specularStrength);
     const float3 remodDiffAlbedo = lerp(1.0f, diffAlbedo, diffuseStrength);
 
-    const float4 detailReference = InDetailReference[px];
-    // A hard min(F,C) reprints every negative noise excursion into Skip after
-    // spatial filtering. Relax only the noisy part of that ceiling. Mixed-
-    // derivative uncertainty must agree with the seed's contrast estimate;
-    // clean strokes/ramps keep their original ceiling and volume stays spatial.
 #if FSRD_SKIN_ENABLED
-    const float3 gameColor = FloorRadiance(half3(InFusedSource[int2(px) + int2(SkinOptions.xy)].rgb));
+    const float3 gameColor = SanitizeRadiance(half3(InFusedSource[int2(px) + int2(SkinOptions.xy)].rgb));
     const float sssGuide = FusedGuideAt(int2(px));
     // First colour operation, shared with the raw reference preparation pass.
     const float3 rawColor = SkinOptions.z == 1u ? SkinSeparate(gameColor, sssGuide) : gameColor;
 #else
-    const float3 rawColor = FloorRadiance(FusedColorAt(int2(px)));
+    const float3 rawColor = SanitizeRadiance(FusedColorAt(int2(px)));
 #endif
 #if FSRD_ADDITIVE_DIAGNOSTICS
     AdditiveCheck(1u, false); // Remains a route rejection unless the fit is visited.
     ADD_RECORD(34, rawColor);
 #endif
-    const float rawLuma = GetLuminance(rawColor);
-    float4 floorColor = IsSet(FLAGS_FLOOR_ENABLED) ? float4(InFloorColor[px]) : 0.0f;
-    floorColor.rgb = FloorRadiance(floorColor.rgb);
-    // A text corner can have a large mixed derivative while its majority colour
-    // has zero IQR. It must not authorize lifting a dark stroke into the base.
-    const float referenceNoise = min(max(detailReference.a, 0.0f), max(floorColor.a, 0.0f));
-    const float grainEvidence = smoothstep(0.25f, 0.75f,
-        referenceNoise / max(floorColor.a, 1e-5f));
-    float noiseAllowance = 3.0f * referenceNoise * grainEvidence;
+    float3 skipColor = biasWeight * rawColor;
+    float3 denoiserColor = (1.0f-biasWeight)*rawColor;
+    const float3 carrierAlbedo = splitSpecWeight+splitDiffWeight;
     [branch]
-    if (noiseAllowance > 0 && any(floorColor.rgb > rawColor) &&
-        isZeroRoughness > 0.0f && !handoverSurface)
+    if (IsSet(FLAGS_INPUT_CHROMA) && isEmissive == 0.0f && biasWeight == 0.0f && !flatRoughSurface)
     {
-        // A repeated exact colour is conservative evidence for a dark glyph,
-        // including a line endpoint. Mixed derivatives at corners are not a
-        // licence to fill that glyph. This test can only veto the relaxation;
-        // no neighbouring radiance is copied into Skip.
-        const float tolerance = max(rawLuma * 1e-4f, 1e-6f);
-        const int2 neighbours[8] = {int2(-1,0),int2(1,0),int2(0,-1),int2(0,1),
-            int2(-1,-1),int2(1,-1),int2(-1,1),int2(1,1)};
-        [unroll]
-        for (uint i=0;i<8;++i)
+        const float3 divisor=max(carrierAlbedo,0.02f);
+        const float3 reference=ChromaReference(gtID.xy,FusedDepthAt(int2(px)));
+        const float referenceLuma=GetLuminance(reference);
+        if (referenceLuma>0.0f)
         {
-            const int2 q=int2(px)+neighbours[i];
-            if (all(q>=0) && all(q<int2(DstTexSize.xy)) &&
-                all(abs(FloorRadiance(FusedColorAt(q))-rawColor)<=tolerance))
-                noiseAllowance=0;
+            const float3 regularised=reference*(GetLuminance(denoiserColor/divisor)/referenceLuma)*divisor;
+            denoiserColor=lerp(denoiserColor,regularised,saturate((rawRoughness-0.15f)*5.0f));
         }
     }
-    // Deep, channel-specific valleys are not small grain holes. In particular,
-    // a noisy dark glyph no longer has exact-colour neighbours, but must still
-    // keep its contrast. Fade the uncertainty allowance out for those valleys.
-    const float3 deficit = max(floorColor.rgb-rawColor,0.0f) / max(floorColor.rgb,1e-5f);
-    const float3 ceilingAllowance = noiseAllowance * (1.0f-smoothstep(0.2f,0.5f,deficit));
-    float3 spatialFloor = isZeroRoughness > 0.0f || handoverSurface
-        ? min(floorColor.rgb, rawColor + ceilingAllowance) : floorColor.rgb;
-    // A selected display has a usable diffuse albedo but no material pattern.
-    // Its noisy pedestal must not bypass RR, even with detail enabled. Send the full
-    // signal through the existing 0.1 roughness compatibility route. Positive
-    // detail is restored only after RR; ordinary surfaces retain their spatial base.
-    const bool screenRROnly = handoverSurface;
-    if (screenRROnly)
-        spatialFloor = 0.0f;
-    // Keep the computed Floor for detail/structure, but send all its light through RR.
-    if (IsSet(FLAGS_FLOOR_THROUGH_RR)) spatialFloor = 0.0f;
-    const float4 floorModel = InFloorModel[px];
-    const float3 materialSlope = DecodeFloorModel(floorModel);
-    const float modelResponsivity = IsSet(FLAGS_HAS_RESPONSIVITY_MASK) ? InResponsivityMask[px].r : 0.0f;
-    const bool modelRouted = IsSet(FLAGS_HAS_RESPONSIVITY_MASK) && ResponsivityTrustThreshold > 0.0f &&
-        (ResponsivityInvert != 0u ? modelResponsivity > ResponsivityTrustThreshold
-                                 : modelResponsivity < ResponsivityTrustThreshold);
-    const bool ordinaryNoiseModel = IsSet(FLAGS_FLOOR_ENABLED) && !handoverSurface &&
-        isZeroRoughness == 0.0f && biasWeight == 0.0f && isEmissive == 0.0f &&
-        !modelRouted && all(isfinite(floorModel)) && all(isfinite(materialSlope)) &&
-        all(isfinite(detailReference)) &&
-        !IsSet(FLAGS_HALF_DIFFUSE) && !IsSet(FLAGS_HALF_SPECULAR) &&
-        specularStrength == 1.0f && diffuseStrength == 1.0f &&
-        ValidSurfaceAlbedos(inputSpecReflectance, inputDiffAlbedo) &&
-        all(albedoOvershoot == 0.0f) && floorModel.a >= 0.5f;
-    const float planeConfidence = FloorPlaneConfidence(floorModel);
-    const float relativeModelNoise = max(detailReference.a, 0.0f) /
-        max(GetLuminance(spatialFloor), 1e-5f);
-    // Reserve an albedo-proportional baseline from the already authorized Floor.
-    // Above the noise plateau there is no direct sigma dependence or second
-    // authority multiplier. Filtered Floor RGB and eligibility still depend on
-    // material/plane authority. The quiet transition depends on measured noise;
-    // this scalar reserve does not cover a fixed number of sigmas per RGB channel
-    // or guarantee removal of clipping. Floor alpha retains the original local
-    // IQR uncertainty; the carrier's noise gate reads reference alpha.
-    const float modelNoisePlateau = smoothstep(0.005f, 0.025f, relativeModelNoise);
-    const bool modelHeadroomEligible = ordinaryNoiseModel && detailReference.a >= 0.0f &&
-        !FloorCoherentLighting(floorModel) && !FloorLocalLightingProjection(floorModel);
-    // Use the stored guide domain consumed by RR and composition. Floor has
-    // already applied material and plane authority; there is no second authority
-    // multiplier and residual radiance still comes only from the current raw sample.
-    const float3 carrierAlbedo = splitSpecWeight + splitDiffWeight;
-    // The common RGB budget retains at least three quarters of every channel.
-    // A nearly dark Floor channel can constrain the entire reserve, including
-    // zero. Exact zero guides receive no reserve, but a matching zero Floor
-    // channel can still collapse this common budget.
-    const float3 carrierBudget = spatialFloor / max(carrierAlbedo, 1e-5f);
-    const float carrierIrradiance = 0.25f * modelNoisePlateau *
-        min(carrierBudget.r, min(carrierBudget.g, carrierBudget.b));
-    const float3 carrierReserve = carrierIrradiance * carrierAlbedo;
-    spatialFloor -= modelHeadroomEligible ? carrierReserve : 0.0f;
-    // Two coherent colour directions and a quiet third direction certify only
-    // current raw lighting on a supported surface. The marker transports no
-    // colour and never changes the cleaned reference used by signal selection.
-    const bool coherentScreen=(screenRROnly || ordinaryNoiseModel) && FloorCoherentLighting(floorModel) &&
-        FloorDetailPreservation>0.0f && !IsSet(FLAGS_DEBUG) &&
-        biasWeight==0.0f && isEmissive==0.0f && !modelRouted &&
-        all(isfinite(floorModel)) && all(isfinite(detailReference)) && detailReference.a>=0.0f &&
-        !IsSet(FLAGS_UNSUPPORTED_ALBEDO) && !IsSet(FLAGS_HALF_DIFFUSE) && !IsSet(FLAGS_HALF_SPECULAR) &&
-        specularStrength==1.0f && diffuseStrength==1.0f &&
-        ValidSurfaceAlbedos(inputSpecReflectance,inputDiffAlbedo) && all(albedoOvershoot==0.0f);
-    // Residuals always derive from the current noisy sample; no fitted-source substitution.
-    const float3 residualSource = rawColor;
-    float3 floorExcess = max(spatialFloor - residualSource, 0.0f);
-    // Route the mask independently: scaling both terms preserves the identity even
-    // when the spatial estimate crosses above raw. No detail may touch routed content.
-    floorColor.rgb = (1.0f - biasWeight) * spatialFloor + biasWeight * rawColor;
-    float3 denoiserColor = (1.0f - biasWeight) * max(residualSource - spatialFloor, 0.0f);
-    // See ChromaReference. Only RR's share changes: Skip, the Floor and the references keep the raw
-    // colour; with Floor on, the residual takes the colour of all the light around it. Emission,
-    // routed colour and selected screens carry colour that is not lighting.
-    [branch]
-    if (IsSet(FLAGS_INPUT_CHROMA) && isEmissive == 0.0f && biasWeight == 0.0f && !handoverSurface)
-    {
-        const float3 divisor = max(carrierAlbedo, 0.02f);
-        const float3 reference = ChromaReference(gtID.xy, FusedDepthAt(int2(px)));
-        const float referenceLuma = GetLuminance(reference);
-        if (referenceLuma > 0.0f)
-        {
-            const float3 regularised = reference * (GetLuminance(denoiserColor / divisor) / referenceLuma) * divisor;
-            denoiserColor = lerp(denoiserColor, regularised, saturate((rawRoughness - 0.15f) * 5.0f));
-        }
-    }
-    // Truncating noisy negative residuals has a positive expectation. The flat
-    // material's sigma has been spatially averaged with Floor; remove its small
-    // expected excess without resampling current negative grain into Skip.
-    if (ordinaryNoiseModel && !IsSet(FLAGS_UNSUPPORTED_ALBEDO) && detailReference.a >= 0.0f &&
-        planeConfidence == 0.0f && !any(materialSlope > 0.0f))
-    {
-        const float clippingBias = 0.15f * FloorClippingNoiseRatio(floorModel) * GetLuminance(floorColor.rgb);
-        floorColor.rgb = max(floorColor.rgb - min(clippingBias, 0.05f * floorColor.rgb), 0.0f);
-    }
-    float3 floorResidual = denoiserColor;
     // Depth - full position needed for reprojected depth delta
     // An infinite far plane reaches this shader as FLT_MAX. Normalising a log
     // against it puts log(3.4e38) = 88.7 in the denominator, which squeezes every
@@ -1232,16 +990,9 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
         // perfect mirrors solely to route their radiance through the specular signal.
         const float inputRoughness = rawRoughness;
 
-        // Preserve the pre-existing RR-only path while Floor is disabled. While
-        // enabled, type 1 selects the existing Anchor/Correlation algorithm using
-        // original albedo evidence; no new radiance or material payload is added.
-        const float materialType = (IsSet(FLAGS_FLOOR_ENABLED)
-            ? (handoverSurface ? 1.0f : 0.0f) : isZeroRoughness) * (1.0f / 3.0f);
-
-        // Lift only selected surfaces that need the compatibility floor. Report
-        // the actual change, rather than implying all selected materials got +0.1.
-        const float appliedRoughness = handoverSurface
-            ? max(s_ZeroRoughRRRoughness-inputRoughness,0.0f) : 0.0f;
+        const float materialType = flatRoughSurface ? 1.0f / 3.0f : 0.0f;
+        const float appliedRoughness = flatRoughSurface
+            ? max(float((RecoveryMask >> 8) & 1023u) / 1023.0f - inputRoughness, 0.0f) : 0.0f;
         const float roughness = inputRoughness + appliedRoughness;
 
         // Output: RG=OctNormal, B=Roughness, A=MaterialID
@@ -1284,9 +1035,7 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
         }
 #endif
 
-        // Specular motion tracking handover.
         //
-        // Scaling the ray length by roughness is a continuous handover with a defensible
         // meaning: a shorter virtual hit distance places the reflection nearer the surface,
         // so the specular reprojects with the surface as the weight goes to zero. As a hard
         // cut it toggles per pixel and per frame wherever roughness varies around the
@@ -1393,7 +1142,7 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
         [branch]
         if ((FSRD_ADDITIVE_DIAGNOSTICS || (isfinite(AdditiveLightSplit) && AdditiveLightSplit > 0.0f)) &&
             isEmissive == 0.0f && biasWeight == 0.0f &&
-            specularRouteWeight == 0.0f && !handoverSurface)
+            specularRouteWeight == 0.0f && !flatRoughSurface)
         {
 #if FSRD_ADDITIVE_DIAGNOSTICS
             additiveRejected &= ~1u;
@@ -1415,19 +1164,17 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
         ADD_RECORD(28, additiveJournal[27] - additiveJournal[26]);
         ADD_RECORD(29, specularColor - orderedSpecular);
         ADD_RECORD(30, denoiserColor);
-        ADD_RECORD(35, spatialFloor);
+        ADD_RECORD(35, float3(0,0,0));
         ADD_RECORD(36, denoiserColor / max(rawColor, 1e-20f));
 #endif
         float3 diffuseColor = denoiserColor - specularColor;
-        const bool routeBypassedFloor = IsSet(FLAGS_FLOOR_ENABLED) &&
-            (specularStrength < 1.0f || diffuseStrength < 1.0f);
 
         // A pixel the title itself reports as unresponsive cannot be reprojected with the
         // primary motion. Publish it through the skip signal instead - composition adds that at
         // full sharpness from the current frame - and hand the denoiser zero radiance there, so
         // there is no misaligned history to smear. Routing adds no further radiance.
         float3 routedRadiance = specularColor * specularRouteWeight;
-        floorColor.rgb += routedRadiance;
+        skipColor += routedRadiance;
 
         // Demodulate against a floored divisor. The remodulation below runs on the same
         // stored albedo composition will remodulate with, so the only gap left is the one the
@@ -1447,48 +1194,6 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
 
         half3 demodDiffuse = GetSafeFP16(diffuseColor / diffDenom);
 
-        if (routeBypassedFloor)
-        {
-            // Keep baseline demodulation above this branch: merging the restored
-            // and baseline radiance before division changes DXC's reassociation
-            // and FP16 rounding even when the experiment is disabled.
-            // Split raw independently so an excessive spatial pedestal cannot
-            // inflate the restored lobe. The unselected RR input stays untouched.
-#if FSRD_ADDITIVE_SPLIT_ENABLED
-            const float3 specShare = select(additiveFitChannels,
-                fittedSpecShare, specFraction * isSplitValid);
-#else
-            const float3 specShare = specFraction * isSplitValid;
-#endif
-            const float3 fullSignal = (1.0f - biasWeight) * rawColor;
-            precise float3 fullSpecular = fullSignal * specWeight;
-            fullSpecular *= rcp(max(totalWeight, DemodDivisorFloor));
-            fullSpecular *= splitT * splitT;
-            fullSpecular *= 3.0f - 2.0f * splitT;
-#if FSRD_ADDITIVE_SPLIT_ENABLED
-            fullSpecular = select(additiveFitChannels,
-                fullSignal * fittedSpecShare, fullSpecular);
-#endif
-            if (specularStrength < 1.0f)
-            {
-                specularColor = lerp(fullSpecular, specularColor, specularStrength);
-                routedRadiance = specularColor * specularRouteWeight;
-                demodSpecular = GetSafeFP16((specularColor - routedRadiance) / specDenom);
-            }
-            if (diffuseStrength < 1.0f)
-            {
-                diffuseColor = lerp(fullSignal - fullSpecular, diffuseColor, diffuseStrength);
-                demodDiffuse = GetSafeFP16(diffuseColor / diffDenom);
-            }
-            const float3 retainedFloorShare =
-                specularStrength * specShare + diffuseStrength * (1.0f - specShare);
-            floorColor.rgb = (1.0f - biasWeight) * spatialFloor * retainedFloorShare +
-                biasWeight * rawColor + routedRadiance;
-            floorExcess *= retainedFloorShare;
-            denoiserColor = specularColor + diffuseColor;
-            floorResidual = denoiserColor;
-        }
-
         // Anything that cannot survive modulation and FP16 clamping remains in the skip signal.
         const float3 remodColor = (demodSpecular * remodSpecAlbedo) + (demodDiffuse * remodDiffAlbedo);
         // The share of the pixel that modulation could not represent. It travels around the
@@ -1497,9 +1202,9 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
         // signal reads noisier than the floor it also carries.
         float3 unmappedShare = max(0.0f, denoiserColor - remodColor - routedRadiance);
 #if FSRD_ADDITIVE_SPLIT_ENABLED
-        if (screenRROnly || routeBypassedFloor || any(additiveFitChannels))
+        if (flatRoughSurface || any(additiveFitChannels))
 #else
-        if (screenRROnly || routeBypassedFloor)
+        if (flatRoughSurface)
 #endif
         {
             // Do not route positive FP16 rounding error around RR as grain.
@@ -1512,18 +1217,15 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
                                        diffuseColor - 65504.0f * remodDiffAlbedo);
 #if FSRD_ADDITIVE_SPLIT_ENABLED
             const float3 actualLoss = max(specLost, 0.0f) + max(diffLost, 0.0f);
-            unmappedShare = screenRROnly || routeBypassedFloor
+            unmappedShare = flatRoughSurface
                 ? actualLoss : select(additiveFitChannels, actualLoss, unmappedShare);
 #else
             unmappedShare = max(specLost, 0.0f) + max(diffLost, 0.0f);
 #endif
         }
-        // The routed radiance is already part of the floor colour by this point, so this is the
         // floor's own share of the skip signal rather than a second contribution to it.
-        const float3 skipFloorShare = floorColor.rgb;
 
-        // Routed radiance is already in skip; count it once. Floor excess remains separate.
-        floorColor.rgb += unmappedShare;
+        skipColor += unmappedShare;
 
         // A finite value is a geometry hit and FP16-max is a real environment miss;
         // both are valid distances and are preserved verbatim.
@@ -1597,7 +1299,7 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
             unmodulatedSpecular *= splitT * splitT;
             unmodulatedSpecular *= 3.0f - 2.0f * splitT;
             const bool recoveryEligible = biasWeight == 0.0f && specularRouteWeight == 0.0f &&
-                !handoverSurface && isEmissive == 0.0f;
+                !flatRoughSurface && isEmissive == 0.0f;
             OutDirectSpecular[FSRD_OUTPUT_PIXEL(px)] = half4(
                 GetSafeFP16(unmodulatedSpecular * (1.0f - specularRouteWeight)),
                 recoveryEligible ? 1.0f : 0.0f);
@@ -1640,41 +1342,10 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
         // report how much of the frame reaches the denoiser through the specular signal at all -
         // a signal it may then refuse to denoise if the ray-length guide is unusable.
         OutSpecAlbedo[FSRD_OUTPUT_PIXEL(px)] = half4(GetSafeFP16(specReflectance), half(specularShare));
-        // The diffuse albedo's alpha has no consumer. Carry whether this pixel's published floor
-        // exceeds any raw channel, so the probe reports crossing pixels. Only the
-        // corresponding channels' residuals collapse to zero.
-        const float floorCrossing = any(floorExcess > 0.0f) ? 1.0f : 0.0f;
-        OutDiffAlbedo[FSRD_OUTPUT_PIXEL(px)] = half4(GetSafeFP16(diffAlbedo), half(floorCrossing));
-        // RGB carries the radiance closure; alpha is diagnostic luminance or
-        // the exact current-source guard for fully bias-routed colour.
-        const bool allowDetail = IsSet(FLAGS_FLOOR_ENABLED) && FloorDetailPreservation > 0.0f &&
-            detailReference.a >= 0.0f && biasWeight == 0.0f && specularRouteWeight == 0.0f;
-        // The class attests current raw light, but the classifier and every RR
-        // lobe above still read the unchanged cleaned reference. Withdrawing
-        // protection therefore never feeds a new signal into native RR history.
-        [branch]
-        if(coherentScreen && allowDetail)
-        {
-            const float3 safeCurrentSource = GetSafeFP16(rawColor);
-            OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(safeCurrentSource, -1.0f);
-            OutDetailReference[FSRD_OUTPUT_PIXEL(px)] = half4(safeCurrentSource,
-                half(max(detailReference.a, 0.0f)));
-        }
-        else
-        {
-            // Preserve C19's float32 luma/store expression and avoid a mixed
-            // half3/float3 ternary changing native16 optimizer conversions.
-            const float3 safeFloorColor = GetSafeFP16(floorColor.rgb);
-            [branch]
-            if (biasCurrentSource)
-                OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(safeFloorColor, -1.0f);
-            else
-                OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(safeFloorColor,
-                    GetLuminance(safeFloorColor));
-            OutDetailReference[FSRD_OUTPUT_PIXEL(px)] = half4(GetSafeFP16(detailReference.rgb),
-                allowDetail ? half(max(detailReference.a, 0.0f)) : half(-1.0f));
-        }
-        
+        OutDiffAlbedo[FSRD_OUTPUT_PIXEL(px)] = half4(GetSafeFP16(diffAlbedo),0.0f);
+        const float3 safeSkip=GetSafeFP16(skipColor);
+        OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(safeSkip,biasCurrentSource ? -1.0f : GetLuminance(safeSkip));
+
         // Values the optional-input views below report, read once so every view shows
         // exactly what the logic above used. The title depth is no longer consumed by
         // any production path - the canonical copy in InDepth replaced it - so this is
@@ -1773,9 +1444,6 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
                     debugColor = diffAlbedo.rgb;
                     break;
 
-                case FLAGS_DEBUG_FLOOR_COLOR:
-                    debugColor = InFloorColor[px].rgb;
-                    break;
 
                 case FLAGS_DEBUG_RAW_INDIRECT_SPEC:
                     // Match DenoisedSpecularSignal after remodulation.
@@ -1796,14 +1464,13 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
                 case FLAGS_DEBUG_APPLIED_ROUGHNESS:
                     // Turbo highlights the zero-rough domain; zero elsewhere.
                     debugColor = TurboColormap(saturate(
-                        appliedRoughness / max(s_ZeroRoughRRRoughness, 2.0f / 1023.0f)));
+                        appliedRoughness / (2.0f / 1023.0f)));
                     break;
                 case FLAGS_DEBUG_RESOURCE_INSPECTOR:
                     debugColor = saturate(InInspector[px][min(InspectorChannel, 3u)] * InspectorScale);
                     break;
 
                 case FLAGS_DEBUG_MATERIAL_TYPE:
-                    // Actual RR type 1 / handover selection, not raw roughness.
                     debugColor = materialType > 0.0f ? 1.0f : 0.0f;
                     break;
 
@@ -1849,9 +1516,6 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
                                saturate((0.9f - historyStretch) * 10.0f));
                     break;
 
-                case FLAGS_DEBUG_FLOOR_RESIDUAL:
-                    debugColor = floorResidual;
-                    break;
 
                 case FLAGS_DEBUG_ALBEDO_OVERSHOOT:
                     debugColor = albedoOvershoot;
@@ -1878,7 +1542,6 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
                 {
                     // The title's published depth against the canonical field this chain
                     // actually consumes. Both come from the title's resource now - the
-                    // canonical copy is what the floor seed built from it - so a black
                     // field means the canonicalisation changed nothing, and colour shows
                     // the sign and range adjustments it applied.
                     if (!IsSet(FLAGS_TITLE_LINEAR_DEPTH))
@@ -1896,7 +1559,6 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
                 }
 
                 // The two halves of the skip signal, separated. The floor share is what the
-                // floor path contributes; the unmapped share is what modulation could not
                 // represent and therefore reaches the screen without passing the denoiser.
                 // Grain that lives in the second and not the first is not the floor's.
                 case FLAGS_DEBUG_SKIP_UNMAPPED:
@@ -1904,19 +1566,9 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
                         GetLuminance(unmappedShare) * rcp(max(GetLuminance(rawColor), 1e-3f))));
                     break;
 
-                case FLAGS_DEBUG_SKIP_FLOOR:
-                    debugColor = TurboColormap(saturate(
-                        GetLuminance(skipFloorShare) * rcp(max(GetLuminance(rawColor), 1e-3f))));
-                    break;
 
                 // Positive per-channel excess introduced where the spatial base crosses raw.
-                case FLAGS_DEBUG_FLOOR_EXCESS:
-                    debugColor = floorExcess;
-                    break;
 
-                case FLAGS_DEBUG_FLOOR_NOISE:
-                    debugColor = TurboColormap(saturate(detailReference.a / max(rawLuma, 1e-3f)));
-                    break;
 
                 case FLAGS_DEBUG_IN_BIAS_MASK:
                     debugColor = TurboColormap(biasWeight);
@@ -1987,9 +1639,9 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
         if (biasCurrentSource)
             OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(rawColor, -1.0f);
         else
-            OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(rawColor, rawLuma);
+            OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = half4(rawColor, GetLuminance(rawColor));
         // Far-plane skip has no trusted detail reference.
-        OutDetailReference[FSRD_OUTPUT_PIXEL(px)] = half4(0, 0, 0, -1);
+
 #if !FSRD_ADDITIVE_DIAGNOSTICS
         // Nothing reaches RR here; the recovery signals are empty and ineligible.
         OutDirectSpecular[FSRD_OUTPUT_PIXEL(px)] = 0.0f;
@@ -2030,7 +1682,7 @@ void ProcessFusedPixel(uint3 groupID,uint3 gtID)
     OutSpecAlbedo[FSRD_OUTPUT_PIXEL(px)] = float4(additiveJournal[page+4], 0);
     OutDiffAlbedo[FSRD_OUTPUT_PIXEL(px)] = float4(additiveJournal[page+5], 0);
     OutSkipSignal[FSRD_OUTPUT_PIXEL(px)] = float4(additiveJournal[page+6], 0);
-    OutDetailReference[FSRD_OUTPUT_PIXEL(px)] = float4(additiveJournal[page+7], 0);
+    OutDiagnostic[FSRD_OUTPUT_PIXEL(px)] = float4(additiveJournal[page+7], 0);
 #endif
 
 }
