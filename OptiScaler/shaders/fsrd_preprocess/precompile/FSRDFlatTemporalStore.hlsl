@@ -24,13 +24,14 @@ void CSMain(uint3 dispatch:SV_DispatchThreadID)
         all(isfinite(md)) && all(abs(md)<=65504.0f) && abs(z)>1e-5f;
     if(!valid)
     {
-        OutHistoryReference[address]=float4(0,0,0,-1);
+        OutHistoryReference[address]=0;
         OutHistoryMotionDepth[address]=0;
         OutHistoryNormalLP[address]=0;
         return;
     }
     const float4 reference=InReference[p];
-    OutHistoryReference[address]=float4(log(max(reference.rgb,Epsilon)),reference.a);
+    // Alpha carries the depth (0 = invalid) so the cubic taps validate from one load.
+    OutHistoryReference[address]=float4(log(max(reference.rgb,Epsilon)),z);
     OutHistoryMotionDepth[address]=md;
     OutHistoryNormalLP[address]=InNormalLP[p];
 }

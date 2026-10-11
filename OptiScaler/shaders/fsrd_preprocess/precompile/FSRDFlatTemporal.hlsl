@@ -46,10 +46,19 @@ bool HistoryTap(int2 p,uint slice,float expectedDepth,float3 currentNormal,
     motionDepth=HistoryMotionDepth.Load(int4(p,slice,0));
     normalLP=HistoryNormalLP.Load(int4(p,slice,0));
     const float3 normal=OctahedralDecode(DecodeTemporalNormalUV(normalLP.xy));
-    return reference.a>=0.0f && all(isfinite(motionDepth)) && all(isfinite(normalLP)) &&
+    return reference.a!=0.0f && all(isfinite(motionDepth)) && all(isfinite(normalLP)) &&
         abs(motionDepth.z-expectedDepth)<=0.03f*max(abs(expectedDepth),1e-3f) && dot(normal,currentNormal)>0.95f;
 }
 
+// Cubic taps: depth-only validation from the reference alpha (the bilinear footprint already checked normals).
+bool CubicTap(int2 p,uint slice,float expectedDepth,out float3 logReference)
+{
+    logReference=0;
+    if (!TemporalInBounds(p)) return false;
+    const float4 r=HistoryReference.Load(int4(p,slice,0));
+    logReference=r.rgb;
+    return r.a!=0.0f && abs(r.a-expectedDepth)<=0.03f*max(abs(expectedDepth),1e-3f);
+}
 [RootSignature(MainRS)]
 [numthreads(8,8,1)]
 void CSMain(uint3 group:SV_GroupID,uint3 local:SV_GroupThreadID)
@@ -146,10 +155,10 @@ void CSMain(uint3 group:SV_GroupID,uint3 local:SV_GroupThreadID)
             [unroll] for(int cy=-1;cy<=2;++cy) [unroll] for(int cx=-1;cx<=2;++cx)
             {
                 const float cw=CubicWeight(fraction.x-float(cx))*CubicWeight(fraction.y-float(cy));
-                float4 r,md,nl;
-                const bool valid=HistoryTap(base+int2(cx,cy),slice,expected,normal,r,md,nl);
+                float3 r;
+                const bool valid=CubicTap(base+int2(cx,cy),slice,expected,r);
                 absoluteAll+=abs(cw);
-                if(valid) { value+=r.rgb*cw;signedWeight+=cw;absoluteValid+=abs(cw); }
+                if(valid) { value+=r*cw;signedWeight+=cw;absoluteValid+=abs(cw); }
             }
             if(absoluteValid>=0.99f*max(absoluteAll,1e-6f) && signedWeight>0.25f)
             {
