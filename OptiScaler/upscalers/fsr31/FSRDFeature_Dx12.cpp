@@ -2631,6 +2631,7 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
             .RecoveryFlatMix = _recoveryFlatMix,
             .RecoveryFlatTemporal = cfg.FfxDenoiserRecoveryFlatTemporal.value_or_default(),
             .RecoveryFlatHistoryLength = uint32_t(std::clamp(cfg.FfxDenoiserRecoveryFlatHistoryLength.value_or_default(), 1, 6)),
+            .RecoveryFlatTemporalDenoise = std::clamp(cfg.FfxDenoiserRecoveryFlatTemporalDenoise.value_or_default(), 0.0f, 2.0f),
             .RecoveryDebug = uint32_t(std::clamp(cfg.FfxDenoiserRecoveryDebug.value_or_default(), 0, 5)),
         };
 
@@ -2720,6 +2721,7 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                 applied["FfxDenoiserRecoveryFlatMix"]=cfg.FfxDenoiserRecoveryFlatMix.value_or_default();
                 applied["FfxDenoiserRecoveryFlatTemporal"]=cfg.FfxDenoiserRecoveryFlatTemporal.value_or_default();
                 applied["FfxDenoiserRecoveryFlatHistoryLength"]=std::clamp(cfg.FfxDenoiserRecoveryFlatHistoryLength.value_or_default(), 1, 6);
+                applied["FfxDenoiserRecoveryFlatTemporalDenoise"]=std::clamp(cfg.FfxDenoiserRecoveryFlatTemporalDenoise.value_or_default(), 0.0f, 2.0f);
                 applied["FfxDenoiserRecoveryFlatRoughness"]=cfg.FfxDenoiserRecoveryFlatRoughness.value_or_default();
                 applied["FfxDenoiserRecoveryDebug"]=cfg.FfxDenoiserRecoveryDebug.value_or_default();
                 applied["FfxDenoiserUseAmdDefaults"]=cfg.FfxDenoiserUseAmdDefaults.value_or_default();

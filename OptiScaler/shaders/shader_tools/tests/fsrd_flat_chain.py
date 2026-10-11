@@ -116,7 +116,10 @@ def build_chain(frames, shaders, directory, *, temporal=True, initial_history=No
             common[7]=n('temporal')
             head=(head+1)%6;count=min(count+1,6)
         common[13]=n('composition')
-        job.compute(prefix+'Base',shader('FSRDFlatDetailBase'),flat_cb,common,
+        # Base reads the temporal residual from the reference alpha only when Resolve ran (host contract).
+        base_cb = t.constants('FSRDFlatDetailSeed',dict(flat_values,TemporalDenoise=
+            (parameters or {}).get('temporal_denoise',1.0) if temporal else 0.0))
+        job.compute(prefix+'Base',shader('FSRDFlatDetailBase'),base_cb,common,
                     [n('base'),n('mean'),-1],indirect='arguments')
         common[10:12]=[n('base'),n('mean')]
         common[13]=-1 # Apply owns composition as UAV and never aliases it as SRV.

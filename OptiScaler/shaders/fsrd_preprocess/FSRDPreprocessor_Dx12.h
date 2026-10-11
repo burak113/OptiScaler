@@ -316,6 +316,8 @@ class FSRDPreprocessor_Dx12
         float RecoveryFlatMix = 0.0f;
         bool RecoveryFlatTemporal = true;
         uint32_t RecoveryFlatHistoryLength = 6;
+        // 0 = off; 1 default; 2 strong. Temporal noise floor and Wiener factor from history disagreement.
+        float RecoveryFlatTemporalDenoise = 1.0f;
         uint32_t RecoveryDebug = 0;
     };
 

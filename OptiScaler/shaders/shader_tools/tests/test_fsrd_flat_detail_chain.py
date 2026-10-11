@@ -58,8 +58,10 @@ def check_fixture(manifest_path, shaders, directory):
         if np.any(invalid_confidence):
             checks.append(dict(frame=frame['frame'],test='NaN confidence takes exact current reference fallback',
                                pixels=int(np.sum(invalid_confidence)),
-                               passed=bool(np.array_equal(outputs[n['temporal']][invalid_confidence],
-                                                          frame['original_reference'][invalid_confidence])) and
+                               # RGB is the exact current reference; alpha 0 marks "no temporal residual".
+                               passed=bool(np.array_equal(outputs[n['temporal']][invalid_confidence][...,:3],
+                                                          frame['original_reference'][invalid_confidence][...,:3])) and
+                                      bool(np.all(outputs[n['temporal']][invalid_confidence][...,3]==0)) and
                                       bool(np.all(outputs[n['diagnostics']][invalid_confidence]==0))))
     slots=sorted(set(item['history_head_before'] for item in manifest['frames']))
     for key in ('reference','motion_depth','normal_lp'):

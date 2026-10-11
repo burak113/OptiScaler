@@ -90,7 +90,8 @@ void CSMain(uint3 group:SV_GroupID,uint3 local:SV_GroupThreadID)
     // Round the current LP through FP16 exactly as the stored resource does.
     const float2 currentHalfLP=f16tof32(f32tof16(clamp(currentLP,0.0f,65504.0f)));
     OutNormalLP[p]=float4(motion.w>=0.5f ? uv.x : -2.0f-uv.x,uv.y,currentHalfLP);
-    OutReference[p]=original;
+    // Alpha: residual deviation of the temporal mean (log units); 0 = unknown (no accepted history).
+    OutReference[p]=float4(original.rgb,0.0f);
     const float2 initialMotion=motion.xy*FullRenderSize+JitterDelta;
     const bool safe=all(isfinite(float4(initialMotion,z,motion.z))) &&
         all(abs(float4(initialMotion,z,motion.z))<=65504.0f);
@@ -112,6 +113,8 @@ void CSMain(uint3 group:SV_GroupID,uint3 local:SV_GroupThreadID)
     float2 position=float2(p)+initialMotion;
     float expected=z+motion.z;
     float3 sum=current;float total=1,used=0,accepted=0;
+    const float currentL=dot(current,1.0f/3.0f);
+    float sumL2=currentL*currentL,sumW2=1.0f;
     const uint n=min(min(HistoryCount,HistoryLength),6u);
     [loop] for(uint age=0;age<n;++age)
     {
@@ -152,6 +155,7 @@ void CSMain(uint3 group:SV_GroupID,uint3 local:SV_GroupThreadID)
             {
                 value=clamp(value/max(signedWeight,1e-6f),lo,hi);
                 sum+=weight*value;total+=weight;used+=weight;accepted+=1;
+                const float l=dot(value,1.0f/3.0f);sumL2+=weight*l*l;sumW2+=weight*weight;
             }
         }
         if(motionValid<0.999f) break;
@@ -161,7 +165,10 @@ void CSMain(uint3 group:SV_GroupID,uint3 local:SV_GroupThreadID)
     {
         const float3 recovered=exp(clamp(sum/total,-12.0f,12.0f));
         const float3 result=lerp(original.rgb,recovered,saturate(TemporalStrength));
-        if(all(isfinite(result))) OutReference[p]=float4(SanitizeRadiance(result),original.a);
+        // Weighted spread of the accepted log samples around their mean, scaled to the mean's own deviation.
+        const float meanL=dot(sum,1.0f/3.0f)/total;
+        const float residual=sqrt(max(sumL2/total-meanL*meanL,0.0f)*sumW2)/total;
+        if(all(isfinite(result))) OutReference[p]=float4(SanitizeRadiance(result),isfinite(residual) ? residual : 0.0f);
     }
     OutDiagnostics[p]=float2(accepted,used);
 }

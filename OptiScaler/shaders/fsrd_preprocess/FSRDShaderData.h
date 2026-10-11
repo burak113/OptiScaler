@@ -480,9 +480,11 @@ namespace FSRD
             float Strength, Anchor;
             float Mix, NoiseScale, Epsilon;
             uint32_t Radius;
-            uint32_t Pass, Debug, Flags, _Padding;
+            uint32_t Pass, Debug, Flags;
+            float TemporalDenoise; // Base only: 0 off; >0 the reference alpha is the temporal residual
         };
         static_assert(sizeof(Constants) == 64, "Flat Detail constants");
+        static_assert(offsetof(Constants, TemporalDenoise) == 60, "Flat Detail temporal denoise");
         static_assert(offsetof(Constants, Modulation) == 16, "Flat Detail modulation");
         static_assert(offsetof(Constants, Mix) == 32, "Flat Detail mix");
         static_assert(offsetof(Constants, Pass) == 48, "Flat Detail pass");

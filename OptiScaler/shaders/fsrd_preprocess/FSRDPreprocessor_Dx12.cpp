@@ -1666,6 +1666,8 @@ struct FSRDPreprocessor_Dx12::Impl
         }
         in.Resources.InReference = ResolveFlatTemporal(cmdList, desc, m_flatDetailReference[source].Get(), constants.Flags);
         in.Resources.InStatistics = m_flatDetailStatistics[source].Get();
+        // Only the temporal resolve writes the residual into the reference alpha.
+        constants.TemporalDenoise = m_flatTemporalActive ? std::clamp(desc.RecoveryFlatTemporalDenoise, 0.0f, 2.0f) : 0.0f;
         // The base/Anchor moments are frozen before the in-place apply. No inter-tile read/write race.
         in.Resources.InComposed = CompositionColor();
         out = {{m_flatDetailBase.Get(),m_flatDetailMean.Get(),m_flatDetailVariance.Get()}};
@@ -3478,6 +3480,7 @@ void FSRDPreprocessor_Dx12::CompleteGameTraceFrame(ID3D12GraphicsCommandList* cm
                     {"radius",impl.m_flatDetailConstants.Radius},{"noise_scale",impl.m_flatDetailConstants.NoiseScale},
                     {"epsilon",impl.m_flatDetailConstants.Epsilon},{"strength",impl.m_flatDetailConstants.Strength},
                     {"anchor",impl.m_flatDetailConstants.Anchor},{"mix",impl.m_flatDetailConstants.Mix},
+                    {"temporal_denoise",impl.m_flatDetailConstants.TemporalDenoise},
                     {"valid_pixels","packed_normals alpha = 1/3; skip alpha != -1"}}.dump();
                 allDiagnostics.push_back(std::move(source));
             };

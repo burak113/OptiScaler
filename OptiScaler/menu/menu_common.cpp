@@ -3781,6 +3781,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                     config->FfxDenoiserRecoveryFlatAlbedoStrength.reset();
                     config->FfxDenoiserRecoveryFlatTemporal.reset();
                     config->FfxDenoiserRecoveryFlatHistoryLength.reset();
+                    config->FfxDenoiserRecoveryFlatTemporalDenoise.reset();
                     config->FfxDenoiserRecoveryFlatAnchor.reset();
                     config->FfxDenoiserRecoveryFlatMix.reset();
                     config->FfxDenoiserRecoveryFlatRoughness.reset();
