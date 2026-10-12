@@ -460,7 +460,8 @@ struct FSRDPreprocessor_Dx12::Impl
     ComputeState m_compareShader;
     ComPtr<ID3D12Resource> m_compareSnapshotA, m_compareSnapshotB;
     ComPtr<ID3D12Resource> m_comparePresent, m_compareFrozen;
-    bool m_compareFrozenValid = false;
+    bool m_compareFrozenValid = false, m_compareSnapshotsReady = false;
+    uint32_t m_compareView = 0;
     UINT m_comparePresentWidth = 0, m_comparePresentHeight = 0;
     bool m_motionHistoryValid = false;
     XMFLOAT2 m_currentJitter {};
@@ -2793,6 +2794,7 @@ struct FSRDPreprocessor_Dx12::Impl
         if (!m_compareSnapshotA || m_compareSnapshotA->GetDesc().Width != width ||
             m_compareSnapshotA->GetDesc().Height != height)
         {
+            m_compareFrozenValid = false;
             m_compareSnapshotA = CreateCompareTarget(L"FSRD_Compare_VariantA", width, height);
             m_compareSnapshotB = CreateCompareTarget(L"FSRD_Compare_VariantB", width, height);
         }
@@ -2810,42 +2812,32 @@ struct FSRDPreprocessor_Dx12::Impl
         m_compareFrozenValid = false;
     }
 
-    // Copies the current working image into a compare snapshot. src must be in kSrvState.
-    void CaptureCompare(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* src,
-                        ComPtr<ID3D12Resource>& dst)
-    {
-        if (!cmdList || !src || !dst)
-            return;
-        AddBarrier(cmdList, src, kSrvState, D3D12_RESOURCE_STATE_COPY_SOURCE);
-        AddBarrier(cmdList, dst.Get(), kSrvState, D3D12_RESOURCE_STATE_COPY_DEST);
-        D3D12_TEXTURE_COPY_LOCATION source {};
-        source.pResource = src;
-        source.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-        D3D12_TEXTURE_COPY_LOCATION target {};
-        target.pResource = dst.Get();
-        target.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-        cmdList->CopyTextureRegion(&target, 0, 0, 0, &source, nullptr);
-        AddBarrier(cmdList, src, D3D12_RESOURCE_STATE_COPY_SOURCE, kSrvState);
-        AddBarrier(cmdList, dst.Get(), D3D12_RESOURCE_STATE_COPY_DEST, kSrvState);
-    }
-
-    void CopyCompareTexture(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* src,
+    // Copy-only presentation resources must survive even an abandoned evaluation's executable prefix.
+    bool CopyCompareTexture(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* src,
                             ID3D12Resource* dst)
     {
-        if (!cmdList || !src || !dst)
-            return;
+        if (!cmdList || !src || !dst) return false;
+        const auto sourceDesc = src->GetDesc(), targetDesc = dst->GetDesc();
+        if (sourceDesc.Width < targetDesc.Width || sourceDesc.Height < targetDesc.Height ||
+            targetDesc.Width > UINT_MAX || sourceDesc.Format != targetDesc.Format) return false;
+        auto lease = std::make_shared<std::array<ComPtr<ID3D12Resource>,2>>();
+        (*lease)[0] = src; (*lease)[1] = dst;
+        if (!ResTrack_Dx12::RetainComputeDispatch(m_pDev,cmdList,lease)) return false;
         AddBarrier(cmdList, src, kSrvState, D3D12_RESOURCE_STATE_COPY_SOURCE);
         AddBarrier(cmdList, dst, kSrvState, D3D12_RESOURCE_STATE_COPY_DEST);
-        D3D12_TEXTURE_COPY_LOCATION source {};
-        source.pResource = src;
-        source.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-        D3D12_TEXTURE_COPY_LOCATION target {};
-        target.pResource = dst;
-        target.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-        cmdList->CopyTextureRegion(&target, 0, 0, 0, &source, nullptr);
+        D3D12_TEXTURE_COPY_LOCATION source {}, target {};
+        source.pResource = src; source.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        target.pResource = dst; target.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        // Only the valid render region, not the source's possibly larger max-render allocation.
+        const D3D12_BOX box {0,0,0,UINT(targetDesc.Width),targetDesc.Height,1};
+        cmdList->CopyTextureRegion(&target,0,0,0,&source,&box);
         AddBarrier(cmdList, src, D3D12_RESOURCE_STATE_COPY_SOURCE, kSrvState);
         AddBarrier(cmdList, dst, D3D12_RESOURCE_STATE_COPY_DEST, kSrvState);
+        return true;
     }
+    bool CaptureCompare(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* src,
+                        ComPtr<ID3D12Resource>& dst)
+    { return CopyCompareTexture(cmdList,src,dst.Get()); }
 
     // Builds the output-sized split from the render-sized A/B snapshots into m_comparePresent.
     // Both halves get the same bilinear filter only when the source and output sizes differ.
@@ -2878,13 +2870,16 @@ struct FSRDPreprocessor_Dx12::Impl
     {
         if (!cmdList || !m_compareSnapshotA || !m_compareSnapshotB || !dstWidth || !dstHeight)
             return nullptr;
+        // Validate the output size before reusing a held image after a resolution change.
+        EnsureComparePresentation(dstWidth,dstHeight);
         // Hold: compose once, then keep returning the frozen output-sized copy.
         if (hold && m_compareFrozenValid)
             return m_compareFrozen.Get();
+        if (!m_compareSnapshotsReady) return nullptr;
         DispatchCompare(cmdList, dstWidth, dstHeight, swap, split);
         if (hold)
         {
-            CopyCompareTexture(cmdList, m_comparePresent.Get(), m_compareFrozen.Get());
+            if (!CopyCompareTexture(cmdList,m_comparePresent.Get(),m_compareFrozen.Get())) return nullptr;
             m_compareFrozenValid = true;
             return m_compareFrozen.Get();
         }
@@ -2969,21 +2964,37 @@ struct FSRDPreprocessor_Dx12::Impl
             // Compare view snapshots. Pairs are isolated at their own pipeline point so the
             // two halves differ only by the feature under test. Skipped entirely when off.
             const uint32_t compare = desc.CompareView;
+            m_compareSnapshotsReady = false;
+            if (compare != m_compareView)
+            {
+                m_compareFrozenValid = false;
+                m_compareView = compare;
+                if (compare == 0u)
+                {
+                    m_compareSnapshotA.Reset(); m_compareSnapshotB.Reset();
+                    m_comparePresent.Reset(); m_compareFrozen.Reset();
+                    m_comparePresentWidth = m_comparePresentHeight = 0;
+                }
+            }
+            bool capturedA = false, capturedB = false;
             if (compare != 0u)
                 EnsureCompareSnapshots(UINT(desc.DstTexSize.x), UINT(desc.DstTexSize.y));
             if (compare == 1u || compare == 2u)
-                CaptureCompare(cmdList, m_compositionOutput.Get(), m_compareSnapshotA);
+                capturedA = CaptureCompare(cmdList,m_compositionOutput.Get(),m_compareSnapshotA);
             DispatchRecoveryChain(cmdList, desc);
             if (compare == 2u)
-                CaptureCompare(cmdList, CompositionColor(), m_compareSnapshotB);
+                capturedB = CaptureCompare(cmdList,CompositionColor(),m_compareSnapshotB);
             else if (compare == 3u)
-                CaptureCompare(cmdList, CompositionColor(), m_compareSnapshotA);
+                capturedA = CaptureCompare(cmdList,CompositionColor(),m_compareSnapshotA);
             DispatchFlatDetail(cmdList, desc);
             if (compare == 3u)
-                CaptureCompare(cmdList, CompositionColor(), m_compareSnapshotB);
+                capturedB = CaptureCompare(cmdList,CompositionColor(),m_compareSnapshotB);
             else if (compare == 4u)
-                CaptureCompare(cmdList, CompositionColor(), m_compareSnapshotA);
+                capturedA = CaptureCompare(cmdList,CompositionColor(),m_compareSnapshotA);
             ReblurSkin(cmdList, desc);
+            if (compare == 1u || compare == 4u)
+                capturedB = CaptureCompare(cmdList,CompositionColor(),m_compareSnapshotB);
+            m_compareSnapshotsReady = capturedA && capturedB;
         }
         if (m_runtime) m_runtime->Complete(FSRDRuntimeSnapshot::Composition);
     }
