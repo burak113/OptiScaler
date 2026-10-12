@@ -24,6 +24,7 @@ public:
         // Transient diagnostic only: separate full-native RR RESET_each heads.
         // Never changes the primary RR context, history, or game composition.
         bool fullContextReference = false;
+        bool particleLayerDiagnostics = false; // Optional original title guides; capture only.
         std::string outputRoot; // Absolute UTF-8 path; blank keeps DLL/GAME_TRACE.
     };
     struct Status
@@ -45,6 +46,7 @@ public:
     static bool IsActive() noexcept;
     static bool WantsSrOutput() noexcept;
     static bool WantsFullContextReference() noexcept;
+    static bool WantsParticleLayerDiagnostics() noexcept;
 
     enum Slot : size_t { U, V, Qs, Qd, Skip, Packed, Depth, Motion, SourceCount };
     struct Source

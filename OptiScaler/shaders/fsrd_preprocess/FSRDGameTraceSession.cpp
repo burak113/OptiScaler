@@ -66,21 +66,27 @@ constexpr std::array<DXGI_FORMAT, 10> Formats {DXGI_FORMAT_R16G16B16A16_FLOAT, D
     DXGI_FORMAT_R10G10B10A2_UNORM, DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT,
     DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT};
 constexpr size_t LegacyDiagnosticCount = 17;      // recorded with the converter sources
-constexpr size_t FullContextDiagnosticFirst = 24; // 17..23: Flat Detail/history, recorded with the SDK lobes; 24..: full context
-constexpr std::array<const char*,26> DiagnosticNames {"raw_color", "raw_normals", "raw_specular_albedo",
+constexpr size_t ParticleDiagnosticFirst = 24; // 17..23: Flat Detail/history; 24..25: pre-SDK title guides.
+constexpr size_t FullContextDiagnosticFirst = 26; // Separate RESET_each RR context outputs.
+constexpr std::array<const char*,28> DiagnosticNames {"raw_color", "raw_normals", "raw_specular_albedo",
     "raw_diffuse_albedo", "rr_specular", "rr_diffuse", "raw_bias_mask",
     "raw_specular_hit_distance", "raw_specular_direction_hit_distance", "raw_diffuse_hit_distance",
     "raw_responsivity", "raw_emissive", "raw_motion", "raw_depth", "raw_roughness",
     "raw_title_linear_depth", "raw_inspector", "flat_detail_reference", "flat_detail_statistics", "flat_detail_base",
     "flat_detail_rr_mean", "flat_detail_anchor_sigma", "flat_detail_history_valid_count", "flat_detail_history_weight",
+    "raw_color_before_particles", "raw_color_before_transparency",
     "rr_full_context_reset_specular", "rr_full_context_reset_diffuse"};
-static_assert(FullContextDiagnosticFirst == LegacyDiagnosticCount + 7);
+static_assert(ParticleDiagnosticFirst == LegacyDiagnosticCount + 7);
+static_assert(FullContextDiagnosticFirst == ParticleDiagnosticFirst + 2);
+static_assert(std::string_view(DiagnosticNames[ParticleDiagnosticFirst]) == "raw_color_before_particles");
+static_assert(std::string_view(DiagnosticNames[ParticleDiagnosticFirst + 1]) == "raw_color_before_transparency");
 static_assert(std::string_view(DiagnosticNames[FullContextDiagnosticFirst]) == "rr_full_context_reset_specular");
 static_assert(std::string_view(DiagnosticNames[FullContextDiagnosticFirst + 1]) == "rr_full_context_reset_diffuse");
 
 std::atomic<bool> g_captureActive {false};
 std::atomic<bool> g_srRequested {false};
 std::atomic<bool> g_fullContextReferenceRequested {false};
+std::atomic<bool> g_particleLayerDiagnosticsRequested {false};
 struct Session
 {
     FSRDGameTraceSession::Status status;
@@ -88,7 +94,7 @@ struct Session
     uint32_t x = 0, y = 0, size = FSRDGameTraceSession::TileSize, width = 0, height = 0, rw = 0, rh = 0;
     FSRDGameTraceSession::Request::RegionMode regionMode = FSRDGameTraceSession::Request::RegionMode::Square;
     FSRDGameTraceSession::SrMode srMode = FSRDGameTraceSession::SrMode::Off;
-    bool fullContextReference = false;
+    bool fullContextReference = false, particleLayerDiagnostics = false;
     std::string srContext; std::array<uint32_t,2> srExtent {}; uint32_t srFormat = 0;
     bool initialized = false, initializing = false, closing = false;
     uint64_t diskAvailable = 0, maximumPayload = MaximumPayloadBytes, cpuBytes = 0;
@@ -267,10 +273,11 @@ struct Frame
     uint32_t ordinal = 0;
     uint64_t qpc = 0;
     bool started = false, native = false, sealed = false;
-    explicit Frame(bool fullContextReference = false)
+    explicit Frame(bool fullContextReference = false, bool particleLayerDiagnostics = false)
     {
-        diagnosticCount = fullContextReference ? DiagnosticNames.size() : FullContextDiagnosticFirst;
-        for (size_t i=0; i<diagnostics.size(); ++i)
+        diagnosticCount = fullContextReference ? DiagnosticNames.size() :
+            (particleLayerDiagnostics ? FullContextDiagnosticFirst : ParticleDiagnosticFirst);
+        for (size_t i=0; i<diagnosticCount; ++i)
             diagnostics[i].metadata = {{"name", DiagnosticNames[i]}, {"available", false},
                 {"reason", "Diagnostic source not supplied"},
                 {"bound", false}, {"active", false}, {"selected_by_flags",false}, {"inactive_reason","Diagnostic source not supplied"},
@@ -439,7 +446,9 @@ std::pair<uint64_t,uint64_t> DiagnosticBytes(ID3D12Device* device, const Session
     uint64_t payload = 0, readback = 0;
     for (size_t slot=first; slot<end; ++slot)
     {
-        if (first == 0 && (slot == 4 || slot == 5 || slot >= LegacyDiagnosticCount)) continue;
+        if (slot >= ParticleDiagnosticFirst && slot < FullContextDiagnosticFirst && !session.particleLayerDiagnostics) continue;
+        if (first == 0 && (slot == 4 || slot == 5 ||
+            (slot >= LegacyDiagnosticCount && slot < ParticleDiagnosticFirst) || slot >= FullContextDiagnosticFirst)) continue;
         for (const auto& source : sources)
         {
             if (source.name != DiagnosticNames[slot] || !source.active) continue;
@@ -652,7 +661,9 @@ void CopyDiagnostics(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, Frame
 {
     for (size_t slot=first; slot<end; ++slot)
     {
-        if (first == 0 && (slot == 4 || slot == 5 || slot >= LegacyDiagnosticCount)) continue; // SDK outputs belong to RecordNative.
+        if (slot >= ParticleDiagnosticFirst && slot < FullContextDiagnosticFirst && !session.particleLayerDiagnostics) continue;
+        if (first == 0 && (slot == 4 || slot == 5 ||
+            (slot >= LegacyDiagnosticCount && slot < ParticleDiagnosticFirst) || slot >= FullContextDiagnosticFirst)) continue; // SDK outputs belong to RecordNative.
         auto& diagnostic = frame.diagnostics[slot];
         const FSRDGameTraceSession::DiagnosticSource* source = nullptr;
         unsigned matches = 0;
@@ -696,8 +707,8 @@ void CopyDiagnostics(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, Frame
             uint64_t frameBytes = frame.constants.size()+frame.geometryConstants.size()+frame.flatDetailConstants.size();
             for (const auto& captured : frame.images)
                 if (captured.readback) frameBytes += uint64_t(captured.width)*captured.height*captured.bpp;
-            for (const auto& captured : frame.diagnostics)
-                if (captured.metadata["available"].get<bool>())
+            for (const auto& captured : std::span(frame.diagnostics.data(),frame.diagnosticCount))
+                if (captured.metadata.value("available",false))
                     frameBytes += uint64_t(captured.image.width)*captured.image.height*captured.image.bpp;
             const uint64_t requestedBytes = TightBytes(width,height,bpp);
             if (frameBytes > session.maximumPayload-session.payloadReserved ||
@@ -1054,7 +1065,7 @@ struct FSRDGameTraceSession::Impl
     {
         auto& s = *session;
         for (const auto& image : f.images) if (!image.readback) throw std::runtime_error("GAME_TRACE missing pre-SR snapshot");
-        for (const auto& d : f.diagnostics)
+        for (const auto& d : std::span(f.diagnostics.data(),f.diagnosticCount))
             if (d.metadata.value("active",false) && !d.metadata.value("available",false))
                 throw std::runtime_error("GAME_TRACE active diagnostic unavailable: "+d.metadata["name"].get<std::string>());
         const uint64_t payload = FramePayload(f);
@@ -1482,6 +1493,7 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
         const auto region = RegionModeName(request.regionMode);
         s->x = request.x; s->y = request.y; s->size = request.size; s->srMode = request.srMode; s->regionMode = request.regionMode;
         s->fullContextReference = request.fullContextReference;
+        s->particleLayerDiagnostics = request.particleLayerDiagnostics;
         s->status.target = request.frameCount; s->lineageLimit = request.frameCount-1;
         if (request.regionMode == Request::RegionMode::FullRender) s->x = s->y = 0;
         else if (request.regionMode == Request::RegionMode::FullHeightStrip) s->y = 0;
@@ -1536,6 +1548,9 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
             s->manifest["full_context_reference_observer_effect"] = "full_input_copies_transitions_and_extra_dispatch_can_change_GPU_scheduling_residency_and_fps; primary_pixel_identity_is_not_asserted";
         }
         control.current = s; g_srRequested.store(request.srMode != SrMode::Off,std::memory_order_release);
+        if (request.particleLayerDiagnostics)
+            s->manifest["particle_layer_diagnostics"] = {{"requested",true},{"scope","original_title_guides_pre_sdk_conversion"},{"particle_bypass",false}};
+        g_particleLayerDiagnosticsRequested.store(request.particleLayerDiagnostics,std::memory_order_release);
         g_fullContextReferenceRequested.store(request.fullContextReference,std::memory_order_release);
         g_captureActive.store(true,std::memory_order_release); control.wake.notify_all(); return true;
     }
@@ -1579,6 +1594,8 @@ bool FSRDGameTraceSession::WantsSrOutput() noexcept
 { return IsActive() && g_srRequested.load(std::memory_order_acquire); }
 bool FSRDGameTraceSession::WantsFullContextReference() noexcept
 { return IsActive() && g_fullContextReferenceRequested.load(std::memory_order_acquire); }
+bool FSRDGameTraceSession::WantsParticleLayerDiagnostics() noexcept
+{ return IsActive() && g_particleLayerDiagnosticsRequested.load(std::memory_order_acquire); }
 
 bool FSRDGameTraceSession::RecordSources(ID3D12Device* device, ID3D12GraphicsCommandList* cmd,
     const std::array<Source,SourceCount>& sources, uint32_t rw, uint32_t rh, std::span<const uint8_t> constants,
@@ -1624,7 +1641,7 @@ bool FSRDGameTraceSession::RecordSources(ID3D12Device* device, ID3D12GraphicsCom
         const auto readback = core.second+diagnostic.second+reference.second;
         PreflightReadback(s,readback,readback);
         PreflightPayload(s,payload);
-        auto f = std::make_shared<Frame>(s.fullContextReference); f->ordinal = s.status.recorded; f->list = cmd; f->owner = impl.session;
+        auto f = std::make_shared<Frame>(s.fullContextReference,s.particleLayerDiagnostics); f->ordinal = s.status.recorded; f->list = cmd; f->owner = impl.session;
         f->constants.assign(constants.begin(),constants.end());
         f->geometryConstants.assign(geometryConstants.begin(),geometryConstants.end());
         f->flatDetailConstants.assign(flatDetailConstants.begin(),flatDetailConstants.end());
@@ -1669,7 +1686,7 @@ void FSRDGameTraceSession::RecordNative(ID3D12GraphicsCommandList* cmd, Source s
             throw std::runtime_error("Native context, consecutive evaluation order or settings changed");
         const auto outputs = CoreBytes(impl.device.Get(),s,8,10);
         auto lobes = DiagnosticBytes(impl.device.Get(),s,diagnostics,4,6);
-        const auto flatDetail = DiagnosticBytes(impl.device.Get(),s,diagnostics,LegacyDiagnosticCount,FullContextDiagnosticFirst);
+        const auto flatDetail = DiagnosticBytes(impl.device.Get(),s,diagnostics,LegacyDiagnosticCount,ParticleDiagnosticFirst);
         lobes.first += flatDetail.first; lobes.second += flatDetail.second;
         const auto reference = s.fullContextReference
             ? DiagnosticBytes(impl.device.Get(),s,diagnostics,FullContextDiagnosticFirst,DiagnosticNames.size())
@@ -1678,7 +1695,7 @@ void FSRDGameTraceSession::RecordNative(ID3D12GraphicsCommandList* cmd, Source s
         PreflightPayload(s,FramePayload(f)+outputs.first+lobes.first+reference.first);
         CopyImage(impl.device.Get(),cmd,f,s,source,8);
         CopyDiagnostics(impl.device.Get(),cmd,f,s,diagnostics,4,6);
-        CopyDiagnostics(impl.device.Get(),cmd,f,s,diagnostics,LegacyDiagnosticCount,FullContextDiagnosticFirst);
+        CopyDiagnostics(impl.device.Get(),cmd,f,s,diagnostics,LegacyDiagnosticCount,ParticleDiagnosticFirst);
         if (s.fullContextReference)
             CopyDiagnostics(impl.device.Get(),cmd,f,s,diagnostics,FullContextDiagnosticFirst,DiagnosticNames.size());
         f.info = info; f.native = true; f.settingsHash = hash;

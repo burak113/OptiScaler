@@ -3246,6 +3246,11 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             }
             ImGui::Combo("Frames to record##GameTrace", &frameCountChoice, "128\0" "256\0" "512\0");
             ImGui::Combo("SR output##GameTrace", &srMode, "Off\0" "Matching region\0" "Full output\0");
+            bool particleDiagnostics = config->FfxDenoiserParticleLayerDiagnostics.value_or_default();
+            if (ImGui::Checkbox("Particle layer diagnostic guides##GameTrace", &particleDiagnostics))
+                config->FfxDenoiserParticleLayerDiagnostics = particleDiagnostics;
+            if (particleDiagnostics)
+                ImGui::TextWrapped("Records original ColorBeforeParticles / ColorBeforeTransparency if bound. Capture only; no particle bypass. Adds up to two guide snapshots per recorded frame.");
             ImGui::Checkbox("Full-context RESET_each reference (diagnostic only)##GameTrace", &fullContextReference);
             if (fullContextReference)
                 ImGui::TextWrapped("Diagnostic, not a solution. Records two extra RR heads from a separate full-render context with RESET each frame. Adds GPU work and memory; the game keeps its normal RR history and composition. Te\xc5\x9fhis kayd\xc4\xb1; \xc3\xa7\xc3\xb6z\xc3\xbcm de\xc4\x9fil.");
@@ -3297,6 +3302,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                 request.regionMode = regionMode; request.frameCount = targetFrames;
                 request.delaySeconds = uint32_t(delaySeconds); request.outputRoot = outputRoot;
                 request.fullContextReference = fullContextReference;
+                request.particleLayerDiagnostics = particleDiagnostics;
                 request.srMode = srMode == 0 ? FSRDGameTraceSession::SrMode::Off :
                     (srMode == 1 ? FSRDGameTraceSession::SrMode::MappedRoi : FSRDGameTraceSession::SrMode::FullOutput);
                 FSRDGameTraceSession::RequestStart(request);
@@ -3309,7 +3315,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                 ImGui::TextWrapped("The selected region must fit inside the render area.");
             if (fits)
             {
-                const uint64_t typicalBytesPerPixel = 121u + (fullContextReference ? 16u : 0u);
+                const uint64_t typicalBytesPerPixel = 121u + (fullContextReference ? 16u : 0u) + (particleDiagnostics ? 16u : 0u);
                 uint64_t estimate = uint64_t(regionWidth)*regionHeight*typicalBytesPerPixel*targetFrames;
                 if (srMode != 0 && currentFeature)
                 {
