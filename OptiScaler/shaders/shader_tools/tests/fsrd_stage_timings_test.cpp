@@ -50,11 +50,16 @@ int main()
                              lease = value;
                              submit = std::move(callback);
                              return true;
-                         });
+                         },
+                         true);
         assert(lease);
         for (unsigned i = 0; i < FSRDStageTimings::Count; ++i)
         {
             FSRDStageTimings::Scope scope(&timer, static_cast<FSRDStageTimings::Stage>(i));
+        }
+        for (unsigned p = 0; p < FSRDStageTimings::PassCount; ++p)
+        {
+            FSRDStageTimings::PassScope scope(&timer, static_cast<FSRDStageTimings::Pass>(p));
         }
         timer.FinishFrame(mode != 2);
         Check(list->Close());
@@ -82,9 +87,20 @@ int main()
             assert(snapshot.validMask == (1u << FSRDStageTimings::Count) - 1u && snapshot.sequence == 1);
             for (double ms : snapshot.milliseconds)
                 assert(std::isfinite(ms) && ms >= 0 && ms < 1000);
+            const unsigned allPasses = unsigned((uint64_t(1) << FSRDStageTimings::PassCount) - 1u);
+            assert(snapshot.passValidMask == allPasses);
+            for (double ms : snapshot.passMilliseconds)
+                assert(std::isfinite(ms) && ms >= 0 && ms < 1000);
+            assert(snapshot.rolling.samples == 1);
+            assert(snapshot.rolling.stages[FSRDStageTimings::Geometry].valid);
+            assert(snapshot.rolling.passes[FSRDStageTimings::PassGeometryDepth].valid);
+            assert(snapshot.rolling.passTotal.valid && snapshot.rolling.passTotal.median >= 0.0);
+            const std::string report = FSRDStageTimings::FormatReport(snapshot);
+            assert(report.find("total(passes)") != std::string::npos);
+            assert(report.find(FSRDStageTimings::PassNames[FSRDStageTimings::PassGeometryDepth]) != std::string::npos);
         }
         else
-            assert(snapshot.validMask == 0);
+            assert(snapshot.validMask == 0 && snapshot.passValidMask == 0);
     }
     Check(list->Close());
     FSRDStageTimings denied;
@@ -103,5 +119,6 @@ int main()
                    message->Severity != D3D12_MESSAGE_SEVERITY_CORRUPTION);
         }
     CloseHandle(event);
-    std::cout << "GPU timestamps: completed sample, discard, failure, resubmission, unavailable tracking passed\n";
+    std::cout << "GPU timestamps: completed sample, discard, failure, resubmission, unavailable tracking, "
+                 "per-pass breakdown and rolling stats passed\n";
 }

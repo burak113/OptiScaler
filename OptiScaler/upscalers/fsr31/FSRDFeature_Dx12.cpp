@@ -2311,10 +2311,12 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
     auto& state = State::Instance();
     auto& cfg = *Config::Instance();
     const auto& inParams = *InParameters;
-    _stageTimings.BeginFrame(Device, InCommandList, cfg.FfxDenoiserGpuTimings.value_or_default(),
+    const bool passTimings = cfg.FfxDenoiserPassTimings.value_or_default();
+    _stageTimings.BeginFrame(Device, InCommandList,
+        cfg.FfxDenoiserGpuTimings.value_or_default() || passTimings,
         [&](const std::shared_ptr<void>& lease, std::function<void(ID3D12CommandQueue*)> beforeSubmit) {
             return ResTrack_Dx12::RetainComputeDispatch(Device, InCommandList, lease, std::move(beforeSubmit));
-        });
+        }, passTimings);
     struct TimingFrameGuard
     {
         FSRDStageTimings& timer;
@@ -2550,6 +2552,7 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
         RRResult dispatchResult;
         {
             FSRDStageTimings::Scope timing(&_stageTimings, FSRDStageTimings::RayRegeneration);
+            FSRDStageTimings::PassScope passTiming(&_stageTimings, FSRDStageTimings::PassRrDenoise);
             dispatchResult = DispatchDenoiser(InCommandList, denoiserDesc);
         }
         isDenoiserReady = dispatchResult == RRResult::Success;
@@ -2685,6 +2688,7 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                 applied["FfxDenoiserDenoiseDiffuse"]=cfg.FfxDenoiserDenoiseDiffuse.value_or_default();
                 applied["FfxDenoiserDenoiseSpecular"]=cfg.FfxDenoiserDenoiseSpecular.value_or_default();
                 applied["FfxDenoiserGpuTimings"]=cfg.FfxDenoiserGpuTimings.value_or_default();
+                applied["FfxDenoiserPassTimings"]=cfg.FfxDenoiserPassTimings.value_or_default();
                 applied["FfxDenoiserTaggedAmbientOcclusion"]=cfg.FfxDenoiserTaggedAmbientOcclusion.value_or_default();
                 applied["FfxDenoiserNormalsInViewSpace"]=cfg.FfxDenoiserNormalsInViewSpace.value_or_default();
                 applied["FfxDenoiserUseTitleLinearDepth"]=cfg.FfxDenoiserUseTitleLinearDepth.value_or_default();
@@ -2889,6 +2893,7 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
         _srDepthEncoded = srDepthEncoded;
         {
             FSRDStageTimings::Scope timing(&_stageTimings, FSRDStageTimings::SuperResolution);
+            FSRDStageTimings::PassScope passTiming(&_stageTimings, FSRDStageTimings::PassSuperResolution);
             isUpscalerReady = DispatchUpscaler(InCommandList, upscalerDesc);
         }
         _upscalerResetPending = !isUpscalerReady;

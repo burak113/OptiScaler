@@ -1431,8 +1431,11 @@ struct FSRDPreprocessor_Dx12::Impl
         Geometry::Output out {{m_LinearDepth.Get()}};
         if (m_gameTraceCaptureRequested)
             memcpy(m_gameTraceGeometryConstants.data(), &constants, sizeof(constants));
-        m_geometryShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray,
-                                  {desc.RenderSize.x, desc.RenderSize.y});
+        {
+            FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassGeometryDepth);
+            m_geometryShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray,
+                                      {desc.RenderSize.x, desc.RenderSize.y});
+        }
     }
 
     void EnsureFlatDetail()
@@ -1576,16 +1579,22 @@ struct FSRDPreprocessor_Dx12::Impl
             m_flatHistoryReference.Get(), m_flatHistoryMotionDepth.Get(), m_flatHistoryNormalLP.Get()}};
         FlatTemporal::ResolveOutput out {{m_flatTemporalReference.Get(), m_flatTemporalNormalLP.Get(),
             m_flatTemporalDiagnostics.Get()}};
-        m_flatTemporalShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray, {0,0},
-            true, nullptr, m_flatDetailSignature.Get(), m_flatDetailArguments.Get());
+        {
+            FSRDStageTimings::PassScope timing(m_stageTimings, FSRDStageTimings::PassFlatTemporalResolve);
+            m_flatTemporalShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray, {0,0},
+                true, nullptr, m_flatDetailSignature.Get(), m_flatDetailArguments.Get());
+        }
         // Read only the original reference. Accumulated output must never re-enter the ring.
         // Resolve's UAV->SRV barriers complete before Store consumes NormalLP or Base consumes the result.
         FlatTemporal::StoreInput storeIn {{originalReference, r.Normals.Get(), m_LinearDepth.Get(),
             r.Motion.Get(), r.SkipSignal.Get(), m_flatTemporalNormalLP.Get()}};
         FlatTemporal::StoreOutput storeOut {{m_flatHistoryReference.Get(), m_flatHistoryMotionDepth.Get(),
             m_flatHistoryNormalLP.Get()}};
-        m_flatTemporalStoreShader.Dispatch(cmdList, GetAsByteSpan(constants), storeIn.AsArray, storeOut.AsArray,
-            {desc.DstTexSize.x, desc.DstTexSize.y});
+        {
+            FSRDStageTimings::PassScope timing(m_stageTimings, FSRDStageTimings::PassFlatTemporalStore);
+            m_flatTemporalStoreShader.Dispatch(cmdList, GetAsByteSpan(constants), storeIn.AsArray, storeOut.AsArray,
+                {desc.DstTexSize.x, desc.DstTexSize.y});
+        }
         m_flatTemporalConstants = constants;
         m_flatHistoryHead = (m_flatHistoryHead + 1u) % FlatTemporal::kHistorySlots;
         m_flatHistoryCount = std::min(m_flatHistoryCount + 1u, FlatTemporal::kHistorySlots);
@@ -1625,8 +1634,11 @@ struct FSRDPreprocessor_Dx12::Impl
         auto& r = m_out.Resources;
         ID3D12Resource* classifyIn[] {r.Normals.Get(),r.SkipSignal.Get()};
         ID3D12Resource* classifyOut[] {m_flatDetailTiles.Get(),m_flatDetailArguments.Get()};
-        m_flatDetailClassifyShader.Dispatch(cmdList,GetAsByteSpan(desc.DstTexSize),classifyIn,classifyOut,
-                                            {desc.DstTexSize.x,desc.DstTexSize.y},false);
+        {
+            FSRDStageTimings::PassScope timing(m_stageTimings, FSRDStageTimings::PassFlatClassify);
+            m_flatDetailClassifyShader.Dispatch(cmdList,GetAsByteSpan(desc.DstTexSize),classifyIn,classifyOut,
+                                                {desc.DstTexSize.x,desc.DstTexSize.y},false);
+        }
         AddBarrier(cmdList,m_flatDetailTiles.Get(),kUavState,kSrvState);
         AddBarrier(cmdList,m_flatDetailArguments.Get(),kUavState,D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
         FlatDetail::Constants constants {
@@ -1651,31 +1663,43 @@ struct FSRDPreprocessor_Dx12::Impl
             shader.Dispatch(cmdList,GetAsByteSpan(constants),in.AsArray,out.AsArray,{0,0},true,nullptr,
                             m_flatDetailSignature.Get(),m_flatDetailArguments.Get());
         };
-        dispatch(m_flatDetailSeedShader);
-        UINT source = 0;
-        for (UINT pass = 0; pass < FlatDetail::kRefinementPasses; ++pass)
         {
-            const UINT target = source ^ 1u;
-            constants.Pass = pass;
-            in.Resources.InReference = m_flatDetailReference[source].Get();
-            in.Resources.InStatistics = m_flatDetailStatistics[source].Get();
-            out.Resources.OutColor = m_flatDetailReference[target].Get();
-            out.Resources.OutStatistics = m_flatDetailStatistics[target].Get();
-            dispatch(m_flatDetailRefineShader);
-            source = target;
+            FSRDStageTimings::PassScope timing(m_stageTimings, FSRDStageTimings::PassFlatSeed);
+            dispatch(m_flatDetailSeedShader);
+        }
+        UINT source = 0;
+        {
+            FSRDStageTimings::PassScope timing(m_stageTimings, FSRDStageTimings::PassFlatRefine);
+            for (UINT pass = 0; pass < FlatDetail::kRefinementPasses; ++pass)
+            {
+                const UINT target = source ^ 1u;
+                constants.Pass = pass;
+                in.Resources.InReference = m_flatDetailReference[source].Get();
+                in.Resources.InStatistics = m_flatDetailStatistics[source].Get();
+                out.Resources.OutColor = m_flatDetailReference[target].Get();
+                out.Resources.OutStatistics = m_flatDetailStatistics[target].Get();
+                dispatch(m_flatDetailRefineShader);
+                source = target;
+            }
         }
         in.Resources.InReference = ResolveFlatTemporal(cmdList, desc, m_flatDetailReference[source].Get(), constants.Flags);
         in.Resources.InStatistics = m_flatDetailStatistics[source].Get();
         // The base/Anchor moments are frozen before the in-place apply. No inter-tile read/write race.
         in.Resources.InComposed = CompositionColor();
         out = {{m_flatDetailBase.Get(),m_flatDetailMean.Get(),m_flatDetailVariance.Get()}};
-        dispatch(m_flatDetailBaseShader);
+        {
+            FSRDStageTimings::PassScope timing(m_stageTimings, FSRDStageTimings::PassFlatBase);
+            dispatch(m_flatDetailBaseShader);
+        }
         in.Resources.InComposed = nullptr;
         in.Resources.InBase = m_flatDetailBase.Get();
         in.Resources.InMean = m_flatDetailMean.Get();
         in.Resources.InVariance = m_flatDetailVariance.Get();
         out = {{CompositionColor(),nullptr,nullptr}};
-        dispatch(m_flatDetailApplyShader);
+        {
+            FSRDStageTimings::PassScope timing(m_stageTimings, FSRDStageTimings::PassFlatApply);
+            dispatch(m_flatDetailApplyShader);
+        }
         m_flatDetailConstants = constants;
         m_flatDetailActive = true;
     }
@@ -1814,41 +1838,50 @@ struct FSRDPreprocessor_Dx12::Impl
             RecoveryLobeAccumulate::Output out {{m_lobeSpecular[current].Get(), m_lobeDiffuse[current].Get(),
                 m_lobeGeometry[current].Get(), m_lobeLevelA[0].Get(), m_lobeLevelB[0].Get(), m_lobeLevelC[0].Get(),
                 m_lobeGradient[current].Get()}};
-            m_lobeAccumulateShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray, {float(width), float(height)});
+            {
+                FSRDStageTimings::PassScope timing(m_stageTimings, FSRDStageTimings::PassRecoveryAccumulate);
+                m_lobeAccumulateShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray, {float(width), float(height)});
+            }
         }
-        for (UINT level = 1; level <= RecoveryLobe::kLevels; ++level)
         {
-            RecoveryLobe::Constants c = constants;
-            c.Level = level;
-            c.LevelSize = {float(levels[level].x), float(levels[level].y), float(levels[level - 1].x), float(levels[level - 1].y)};
-            RecoveryLobeDown::Input in {{m_lobeLevelA[level - 1].Get(), m_lobeLevelB[level - 1].Get(), m_lobeLevelC[level - 1].Get()}};
-            RecoveryLobeDown::Output out {{m_lobeLevelA[level].Get(), m_lobeLevelB[level].Get(), m_lobeLevelC[level].Get()}};
-            m_lobeDownShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
-                                      {float(levels[level].x), float(levels[level].y)});
+            FSRDStageTimings::PassScope timing(m_stageTimings, FSRDStageTimings::PassRecoveryDown);
+            for (UINT level = 1; level <= RecoveryLobe::kLevels; ++level)
+            {
+                RecoveryLobe::Constants c = constants;
+                c.Level = level;
+                c.LevelSize = {float(levels[level].x), float(levels[level].y), float(levels[level - 1].x), float(levels[level - 1].y)};
+                RecoveryLobeDown::Input in {{m_lobeLevelA[level - 1].Get(), m_lobeLevelB[level - 1].Get(), m_lobeLevelC[level - 1].Get()}};
+                RecoveryLobeDown::Output out {{m_lobeLevelA[level].Get(), m_lobeLevelB[level].Get(), m_lobeLevelC[level].Get()}};
+                m_lobeDownShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                          {float(levels[level].x), float(levels[level].y)});
+            }
         }
         const int target = m_recoveryOutputIndex == 0 ? 1 : 0;
-        for (int level = int(RecoveryLobe::kLevels) - 1; level >= 0; --level)
         {
-            const bool coarsest = level == int(RecoveryLobe::kLevels) - 1, isFinal = level == 0;
-            RecoveryLobe::Constants c = constants;
-            c.Level = UINT(level);
-            c.LevelSize = {float(levels[level].x), float(levels[level].y), float(levels[level + 1].x), float(levels[level + 1].y)};
-            c.Flags |= (coarsest ? uint32_t(RecoveryLobe::Coarsest) : 0u) | (isFinal ? uint32_t(RecoveryLobe::Final) : 0u);
-            RecoveryLobeBand::Input in {{
-                m_lobeLevelA[level].Get(), m_lobeLevelB[level].Get(), m_lobeLevelC[level].Get(),
-                m_lobeLevelA[level + 1].Get(), m_lobeLevelB[level + 1].Get(),
-                coarsest ? m_lobeDummy[0].Get() : m_lobeCorrectionS[level + 1].Get(),
-                coarsest ? m_lobeDummy[0].Get() : m_lobeCorrectionD[level + 1].Get(),
-                m_lobeNoise[previous][level].Get(), r.Motion.Get(), CompositionColor(),
-                r.SpecAlbedo.Get(), r.DiffAlbedo.Get(), r.SkipSignal.Get(),
-                m_outputBuffer1.Get(), m_outputBuffer2.Get(), m_indirectDiffuseOutput.Get()}};
-            RecoveryLobeBand::Output out {{
-                isFinal ? m_lobeDummy[1].Get() : m_lobeCorrectionS[level].Get(),
-                isFinal ? m_lobeDummy[2].Get() : m_lobeCorrectionD[level].Get(),
-                m_lobeNoise[current][level].Get(),
-                isFinal ? m_recoveryOutput[target].Get() : m_lobeDummy[3].Get()}};
-            m_lobeBandShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
-                                      {float(levels[level].x), float(levels[level].y)});
+            FSRDStageTimings::PassScope timing(m_stageTimings, FSRDStageTimings::PassRecoveryBand);
+            for (int level = int(RecoveryLobe::kLevels) - 1; level >= 0; --level)
+            {
+                const bool coarsest = level == int(RecoveryLobe::kLevels) - 1, isFinal = level == 0;
+                RecoveryLobe::Constants c = constants;
+                c.Level = UINT(level);
+                c.LevelSize = {float(levels[level].x), float(levels[level].y), float(levels[level + 1].x), float(levels[level + 1].y)};
+                c.Flags |= (coarsest ? uint32_t(RecoveryLobe::Coarsest) : 0u) | (isFinal ? uint32_t(RecoveryLobe::Final) : 0u);
+                RecoveryLobeBand::Input in {{
+                    m_lobeLevelA[level].Get(), m_lobeLevelB[level].Get(), m_lobeLevelC[level].Get(),
+                    m_lobeLevelA[level + 1].Get(), m_lobeLevelB[level + 1].Get(),
+                    coarsest ? m_lobeDummy[0].Get() : m_lobeCorrectionS[level + 1].Get(),
+                    coarsest ? m_lobeDummy[0].Get() : m_lobeCorrectionD[level + 1].Get(),
+                    m_lobeNoise[previous][level].Get(), r.Motion.Get(), CompositionColor(),
+                    r.SpecAlbedo.Get(), r.DiffAlbedo.Get(), r.SkipSignal.Get(),
+                    m_outputBuffer1.Get(), m_outputBuffer2.Get(), m_indirectDiffuseOutput.Get()}};
+                RecoveryLobeBand::Output out {{
+                    isFinal ? m_lobeDummy[1].Get() : m_lobeCorrectionS[level].Get(),
+                    isFinal ? m_lobeDummy[2].Get() : m_lobeCorrectionD[level].Get(),
+                    m_lobeNoise[current][level].Get(),
+                    isFinal ? m_recoveryOutput[target].Get() : m_lobeDummy[3].Get()}};
+                m_lobeBandShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                          {float(levels[level].x), float(levels[level].y)});
+            }
         }
         m_recoveryOutputIndex = target;
         m_lobeIndex = current;
@@ -2037,8 +2070,11 @@ struct FSRDPreprocessor_Dx12::Impl
             desc.Resources.InBiasMask, desc.Resources.InTitleLinearDepth}};
         SssPrepare::Output out {.Resources = {m_skinPrepared.Get(), m_skinGuide.Get()}};
         FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::SkinPrepare);
-        m_sssPrepareShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
-                                   {desc.RenderSize.x, desc.RenderSize.y});
+        {
+            FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassSkinPrepare);
+            m_sssPrepareShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                       {desc.RenderSize.x, desc.RenderSize.y});
+        }
     }
 
     void FilterSkinDiffuse(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
@@ -2051,20 +2087,29 @@ struct FSRDPreprocessor_Dx12::Impl
         SkinBounds::Input boundsIn {.Resources = {m_skinBounds8.Get()}};
         SkinBounds::Output boundsOut {.Resources = {m_skinBounds16.Get()}};
         const auto boundsSize = SkinBoundsExtent(width, height, 16u);
-        m_skinBoundsShader.Dispatch(cmdList, GetAsByteSpan(c), boundsIn.AsArray, boundsOut.AsArray,
-                                   {float(boundsSize.x), float(boundsSize.y)});
+        {
+            FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassSkinPrefilterBounds);
+            m_skinBoundsShader.Dispatch(cmdList, GetAsByteSpan(c), boundsIn.AsArray, boundsOut.AsArray,
+                                       {float(boundsSize.x), float(boundsSize.y)});
+        }
         SkinTiledPrefilter::Input in {.Resources = {m_out.Resources.Signals.DirectDiffuse.Get(),
             desc.Resources.InSssGuide, m_LinearDepth.Get(), m_out.Resources.Normals.Get(), m_skinBounds16.Get()}};
         SkinTiledPrefilter::Output out {.Resources = {m_skinBlur.Get()}};
         auto dispatch = SkinPrefilterDispatch(width, height, false);
-        m_skinTiledPrefilterShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
-                                           {float(dispatch.x), float(dispatch.y)});
+        {
+            FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassSkinPrefilterH);
+            m_skinTiledPrefilterShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                               {float(dispatch.x), float(dispatch.y)});
+        }
         c.Vertical = 1u;
         in.Resources.InDiffuse = m_skinBlur.Get();
         out.Resources.OutDiffuse = m_skinDiffuse.Get();
         dispatch = SkinPrefilterDispatch(width, height, true);
-        m_skinTiledPrefilterShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
-                                           {float(dispatch.x), float(dispatch.y)});
+        {
+            FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassSkinPrefilterV);
+            m_skinTiledPrefilterShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                               {float(dispatch.x), float(dispatch.y)});
+        }
         std::swap(m_skinDiffuse, m_out.Resources.Signals.DirectDiffuse);
         if (desc.SkinDebug == 3u)
             Blit(cmdList, m_out.Resources.Signals.DirectDiffuse.Get(), m_out.Resources.Signals.IndirectSpecular.Get(),
@@ -2086,29 +2131,44 @@ struct FSRDPreprocessor_Dx12::Impl
             SssKernel::Input kernelIn {.Resources = {m_skinBounds8.Get(), m_LinearDepth.Get()}};
             SssKernel::Output kernelOut {.Resources = {m_sssKernel.Get()}};
             auto dispatch = SssKernelDispatch(width, height);
-            m_sssKernelShader.Dispatch(cmdList, GetAsByteSpan(c), kernelIn.AsArray, kernelOut.AsArray,
-                                      {float(dispatch.x), float(dispatch.y)});
+            {
+                FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassSkinReblurKernel);
+                m_sssKernelShader.Dispatch(cmdList, GetAsByteSpan(c), kernelIn.AsArray, kernelOut.AsArray,
+                                          {float(dispatch.x), float(dispatch.y)});
+            }
             SssTiledBlur::Input in {.Resources = {original, m_skinGuide.Get(), m_LinearDepth.Get(),
                 original, m_sssKernel.Get()}};
             SssBlur::Output out {.Resources = {m_skinBlur.Get()}};
             dispatch = SssBlurDispatch(width, height, false);
-            m_sssTiledBlurShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
-                                         {float(dispatch.x), float(dispatch.y)});
+            {
+                FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassSkinReblurH);
+                m_sssTiledBlurShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                             {float(dispatch.x), float(dispatch.y)});
+            }
             c.Vertical = 1u;
             in.Resources.InColor = m_skinBlur.Get(); out.Resources.OutColor = m_skinResult.Get();
             dispatch = SssBlurDispatch(width, height, true);
-            m_sssTiledBlurShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
-                                         {float(dispatch.x), float(dispatch.y)});
+            {
+                FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassSkinReblurV);
+                m_sssTiledBlurShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                             {float(dispatch.x), float(dispatch.y)});
+            }
             m_skinOutputActive = true;
             return;
         }
         SssBlur::Input in {.Resources = {original, m_skinGuide.Get(), m_LinearDepth.Get(), original}};
         SssBlur::Output out {.Resources = {m_skinBlur.Get()}};
-        m_sssBlurShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
-                                {desc.DstTexSize.x, desc.DstTexSize.y});
+        {
+            FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassSkinReblurH);
+            m_sssBlurShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                    {desc.DstTexSize.x, desc.DstTexSize.y});
+        }
         c.Vertical = 1u; in.Resources.InColor = m_skinBlur.Get(); out.Resources.OutColor = m_skinResult.Get();
-        m_sssBlurShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
-                                {desc.DstTexSize.x, desc.DstTexSize.y});
+        {
+            FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassSkinReblurV);
+            m_sssBlurShader.Dispatch(cmdList, GetAsByteSpan(c), in.AsArray, out.AsArray,
+                                    {desc.DstTexSize.x, desc.DstTexSize.y});
+        }
         m_skinOutputActive = true;
     }
 
@@ -2163,7 +2223,10 @@ struct FSRDPreprocessor_Dx12::Impl
             m_albedoStabSpareSpecSignal.Get(), m_albedoStabSpareDiffSignal.Get()});
         {
             FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::AlbedoStabilisation);
-            m_albedoStabShader.Dispatch(cmdList, GetAsByteSpan(c), inputs, outputs, {desc.RenderSize.x, desc.RenderSize.y});
+            {
+                FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassAlbedoStabilise);
+                m_albedoStabShader.Dispatch(cmdList, GetAsByteSpan(c), inputs, outputs, {desc.RenderSize.x, desc.RenderSize.y});
+            }
         }
         std::swap(m_albedoStabSpareSpecAlbedo, r.SpecAlbedo);
         std::swap(m_albedoStabSpareDiffAlbedo, r.DiffAlbedo);
@@ -2259,15 +2322,21 @@ struct FSRDPreprocessor_Dx12::Impl
                 m_fogA[previous].Get(), m_fogB[previous].Get(), m_fogC[previous].Get()}};
             FogStats::Output outputs {{m_fogA[current].Get(), m_fogB[current].Get(), m_fogC[current].Get(),
                 m_fogG.Get(), m_fogH.Get()}};
-            m_fogStatsShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray,
-                                      {desc.RenderSize.x, desc.RenderSize.y});
+            {
+                FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassFogStats);
+                m_fogStatsShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray,
+                                          {desc.RenderSize.x, desc.RenderSize.y});
+            }
         }
         {
             const FogKappa::Constants c {tiles, 0.35f, 1.0f, 2.0f, 0.0f, 144.0f, 64.0f * 2.0f * 3.14159265f * kFillSigma * kFillSigma,
                                0.005f, 0.015f, kFillSigma, 0.6f, int32_t(kFillRadius), {}};
             const FogKappa::Input inputs {{m_fogA[current].Get(), m_fogB[current].Get(), m_fogC[current].Get()}};
             FogKappa::Output outputs {{m_fogKappaRaw.Get()}};
-            m_fogKappaShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray, tiles);
+            {
+                FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassFogKappa);
+                m_fogKappaShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray, tiles);
+            }
         }
         {
             // Median over 5x5 same-depth tiles: lone low-kappa tiles (cars, kerbs, foliage edges, where the tile
@@ -2275,13 +2344,19 @@ struct FSRDPreprocessor_Dx12::Impl
             const FogRank::Constants c {tiles, 0.3f, 50.0f, 2, {}};
             const FogRank::Input inputs {{m_fogKappaRaw.Get(), m_fogA[current].Get(), m_fogC[current].Get()}};
             FogRank::Output outputs {{m_fogKappaRank.Get()}};
-            m_fogRankShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray, tiles);
+            {
+                FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassFogRank);
+                m_fogRankShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray, tiles);
+            }
         }
         {
             const FogSmooth::Constants c {tiles, 3.0f, 0.6f, 6, {}};
             const FogSmooth::Input inputs {{m_fogKappaRank.Get(), m_fogA[current].Get(), m_fogC[current].Get()}};
             FogSmooth::Output outputs {{m_fogKappa.Get()}};
-            m_fogSmoothShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray, tiles);
+            {
+                FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassFogSmooth);
+                m_fogSmoothShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray, tiles);
+            }
         }
         {
             const FogRoute::Constants c {desc.RenderSize, tiles, desc.DemodDivisorFloor, std::log(kNear), 1.0f / std::log(kFar / kNear),
@@ -2291,8 +2366,11 @@ struct FSRDPreprocessor_Dx12::Impl
                 m_fogG.Get(), m_fogH.Get()}};
             FogRoute::Output outputs {{m_fogSpareSpecAlbedo.Get(), m_fogSpareDiffAlbedo.Get(),
                 m_fogSpareSpecSignal.Get(), m_fogSpareDiffSignal.Get()}};
-            m_fogRouteShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray,
-                                      {desc.RenderSize.x, desc.RenderSize.y});
+            {
+                FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassFogRoute);
+                m_fogRouteShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray,
+                                          {desc.RenderSize.x, desc.RenderSize.y});
+            }
         }
         std::swap(m_fogSpareSpecAlbedo, r.SpecAlbedo);
         std::swap(m_fogSpareDiffAlbedo, r.DiffAlbedo);
@@ -2324,8 +2402,11 @@ struct FSRDPreprocessor_Dx12::Impl
              (desc.JitterOffsets.w - desc.JitterOffsets.y) * desc.RenderSize.w}, {}};
         const RRMotion::Input inputs {{m_out.Resources.Motion.Get()}};
         RRMotion::Output outputs {{m_rrMotion.Get()}};
-        m_rrMotionShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray,
-                                  {desc.RenderSize.x, desc.RenderSize.y});
+        {
+            FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassRrMotionCopy);
+            m_rrMotionShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray,
+                                      {desc.RenderSize.x, desc.RenderSize.y});
+        }
         m_rrMotionActive = true;
     }
 
@@ -2455,7 +2536,10 @@ struct FSRDPreprocessor_Dx12::Impl
                 }
                 pso = m_skinFusedAdditivePso.Get();
             }
-            m_skinFusedConvShader.Dispatch(cmdList, GetAsByteSpan(c), inputs, outputs, dispatchSize, true, pso);
+            {
+                FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassConversionPack);
+                m_skinFusedConvShader.Dispatch(cmdList, GetAsByteSpan(c), inputs, outputs, dispatchSize, true, pso);
+            }
         }
         else if (m_skinMode != 0u || desc.ObjectDepthDelta || desc.ReflectionsFollowSurface)
         {
@@ -2488,6 +2572,7 @@ struct FSRDPreprocessor_Dx12::Impl
                 }
                 skinPso = additive.Get();
             }
+            FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassConversionPack);
             if (useBounds)
             {
                 std::array<ID3D12Resource*, SkinConversionBounds::kOutputCount> outputs {};
@@ -2500,8 +2585,11 @@ struct FSRDPreprocessor_Dx12::Impl
                                     dispatchSize, true, skinPso);
         }
         else
+        {
+            FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassConversionPack);
             m_convShader.Dispatch(cmdList, convCBData, in.AsArray, m_out.AsRawArray, dispatchSize, true,
                                   conversionPipeline);
+        }
         StabiliseAlbedo(cmdList, desc);
         FogGuides(cmdList, desc);
         FilterSkinDiffuse(cmdList, desc);
@@ -2518,9 +2606,12 @@ struct FSRDPreprocessor_Dx12::Impl
             auto inputs=std::to_array({m_out.Resources.Signals.IndirectSpecular.Get(),m_out.Resources.Signals.DirectDiffuse.Get(),
                 m_out.Resources.SpecAlbedo.Get(),m_out.Resources.DiffAlbedo.Get(),m_LinearDepth.Get(),m_out.Resources.Normals.Get()});
             auto outputs=std::to_array({m_leakView.Get()});
-            m_leakShader.Dispatch(cmdList,GetAsByteSpan(c),inputs,outputs,{desc.RenderSize.x,desc.RenderSize.y});
-            Blit(cmdList,m_leakView.Get(),m_out.Resources.Signals.IndirectSpecular.Get(),
-                 {desc.RenderSize.x,desc.RenderSize.y},{desc.RenderSize.x,desc.RenderSize.y},{});
+            {
+                FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassTextureLeak);
+                m_leakShader.Dispatch(cmdList,GetAsByteSpan(c),inputs,outputs,{desc.RenderSize.x,desc.RenderSize.y});
+                Blit(cmdList,m_leakView.Get(),m_out.Resources.Signals.IndirectSpecular.Get(),
+                     {desc.RenderSize.x,desc.RenderSize.y},{desc.RenderSize.x,desc.RenderSize.y},{});
+            }
         }
         if (m_gameTraceCaptureRequested) RecordGameTraceSources(cmdList, desc, packConstants);
     }
@@ -2834,7 +2925,10 @@ struct FSRDPreprocessor_Dx12::Impl
 
         {
             FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::Composition);
-            m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, outputs.AsArray, dstDim);
+            {
+                FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassCompositionMain);
+                m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, outputs.AsArray, dstDim);
+            }
             DispatchRecoveryChain(cmdList, desc);
             DispatchFlatDetail(cmdList, desc);
             ReblurSkin(cmdList, desc);
@@ -2872,26 +2966,32 @@ struct FSRDPreprocessor_Dx12::Impl
             .InDirectDiffuseSignal = outResources.Signals.DirectDiffuse.Get()
         }};
         TrustEvidence::Output evidenceOut = { .Resources = { .OutAlbedoTrust = m_albedoTrust[0].Get() } };
-        m_trustEvidenceShader.Dispatch(cmdList, GetAsByteSpan(evidenceConstants), evidenceIn.AsArray,
-                                       evidenceOut.AsArray, dim);
+        {
+            FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassAlbedoTrustEvidence);
+            m_trustEvidenceShader.Dispatch(cmdList, GetAsByteSpan(evidenceConstants), evidenceIn.AsArray,
+                                           evidenceOut.AsArray, dim);
+        }
 
         UINT read = 0;
-        for (UINT pass = 0; pass < TrustPropagate::kPasses; ++pass)
         {
-            TrustPropagate::Constants constants = {
-                .DstTexSize = desc.DstTexSize,
-                .StepSize = 1 << pass,
-                .Flags = 0,
-                .DemodDivisorFloor = desc.DemodDivisorFloor
-            };
-            TrustPropagate::Input in = { .Resources = {
-                .InAlbedoTrust = m_albedoTrust[read].Get(),
-                .InLinearDepth = m_LinearDepth.Get(),
-                .InNormals = outResources.Normals.Get()
-            }};
-            TrustPropagate::Output out = { .Resources = { .OutAlbedoTrust = m_albedoTrust[1 - read].Get() } };
-            m_trustPropagateShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray, dim);
-            read = 1 - read;
+            FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassAlbedoTrustPropagate);
+            for (UINT pass = 0; pass < TrustPropagate::kPasses; ++pass)
+            {
+                TrustPropagate::Constants constants = {
+                    .DstTexSize = desc.DstTexSize,
+                    .StepSize = 1 << pass,
+                    .Flags = 0,
+                    .DemodDivisorFloor = desc.DemodDivisorFloor
+                };
+                TrustPropagate::Input in = { .Resources = {
+                    .InAlbedoTrust = m_albedoTrust[read].Get(),
+                    .InLinearDepth = m_LinearDepth.Get(),
+                    .InNormals = outResources.Normals.Get()
+                }};
+                TrustPropagate::Output out = { .Resources = { .OutAlbedoTrust = m_albedoTrust[1 - read].Get() } };
+                m_trustPropagateShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray, dim);
+                read = 1 - read;
+            }
         }
         m_albedoTrustResult = read;
     }
