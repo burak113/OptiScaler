@@ -142,6 +142,7 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserDenoiseSpecular.reset();
     FfxDenoiserEstimateHitDistances.reset();
     FfxDenoiserGpuTimings.reset();
+    FfxDenoiserPassTimings.reset();
     FfxDenoiserTaggedAmbientOcclusion.reset();
     FfxDenoiserNormalsInViewSpace.reset();
     FfxDenoiserUseTitleLinearDepth.reset();
@@ -569,6 +570,7 @@ bool Config::Reload(std::filesystem::path iniPath)
                  readBool("FSR-RR", "ApproximateRayHitDistance").value_or(false)))
                 FfxDenoiserEstimateHitDistances = true;
             FfxDenoiserGpuTimings.set_from_config(readBool("FSR-RR", "GpuTimings"));
+            FfxDenoiserPassTimings.set_from_config(readBool("FSR-RR", "PassTimings"));
             FfxDenoiserTaggedAmbientOcclusion.set_from_config(
                 readBool("FSR-RR", "TaggedAmbientOcclusion"));
             FfxDenoiserNormalsInViewSpace.set_from_config(
@@ -1556,6 +1558,7 @@ bool Config::SaveIni()
                                  "UnsupportedAlbedoRecovery" })
             ini.Delete("FSR-RR", key, true);
         ini.SetValue("FSR-RR", "GpuTimings", GetBoolValue(Instance()->FfxDenoiserGpuTimings.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "PassTimings", GetBoolValue(Instance()->FfxDenoiserPassTimings.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "TaggedAmbientOcclusion",
                      GetBoolValue(Instance()->FfxDenoiserTaggedAmbientOcclusion.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NormalsInViewSpace",

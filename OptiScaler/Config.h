@@ -497,6 +497,9 @@ class Config
     CustomOptional<bool> FfxDenoiserDenoiseDiffuse { true };
     CustomOptional<bool> FfxDenoiserDenoiseSpecular { true };
     CustomOptional<bool> FfxDenoiserGpuTimings{true};
+    // Per-pass GPU timings inside each stage (menu: "Show pass timings"). OFF: every pass
+    // scope returns before it issues a query, so nothing extra is recorded or allocated.
+    CustomOptional<bool> FfxDenoiserPassTimings{false};
     // Uses only semantic Streamline AO noisy/denoised tags. Resource-inspector
     // candidates are deliberately never promoted to signal inputs.
     CustomOptional<bool> FfxDenoiserTaggedAmbientOcclusion { false };
