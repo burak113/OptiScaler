@@ -383,12 +383,39 @@ inline void DrawTimings(Config& cfg, const FSRDStageTimings::Snapshot& timing)
         ImGui::SetTooltip("GPU timestamps sampled every 16 evaluations. Results appear only after the recording and "
                           "all GPU submissions retire; no CPU wait. AMD RR / ML measures the complete AMD denoiser "
                           "dispatch, including its internal preparation.");
-    if (!enabled)
+    bool passes = cfg.FfxDenoiserPassTimings.value_or_default();
+    if (ImGui::Checkbox("Show pass timings", &passes))
+        cfg.FfxDenoiserPassTimings = passes;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Per-pass breakdown inside each stage, with a rolling median and p95 over the last "
+                          "samples. Off by default: nothing extra is queried or allocated. 'Log pass timings' "
+                          "writes the table to the OptiScaler log on demand.");
+    if (!enabled && !passes)
         return;
-    const bool stale =
-        timing.validMask && std::chrono::steady_clock::now() - timing.completed > std::chrono::seconds(2);
-    if (ImGui::BeginTable("RRStageTimes", 2, ImGuiTableFlags_SizingStretchProp))
+    const bool stale = timing.validMask &&
+        std::chrono::steady_clock::now() - timing.completed > std::chrono::seconds(2);
+    const auto milliseconds = [](double value) { return ImGui::Text("%.3f", value); };
+    const auto statistic = [&](const FSRDStageTimings::PassStat& value)
     {
+        if (value.valid)
+            ImGui::Text("%.3f", value.median);
+        else
+            ImGui::TextDisabled("-");
+    };
+    const auto statistic95 = [&](const FSRDStageTimings::PassStat& value)
+    {
+        if (value.valid)
+            ImGui::Text("%.3f", value.p95);
+        else
+            ImGui::TextDisabled("-");
+    };
+    if (enabled && ImGui::BeginTable("RRStageTimes", 4, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_RowBg))
+    {
+        ImGui::TableSetupColumn("Stage");
+        ImGui::TableSetupColumn("Latest");
+        ImGui::TableSetupColumn("Median");
+        ImGui::TableSetupColumn("p95");
+        ImGui::TableHeadersRow();
         for (unsigned stage = 0; stage < FSRDStageTimings::Count; ++stage)
         {
             ImGui::TableNextRow();
@@ -400,13 +427,88 @@ inline void DrawTimings(Config& cfg, const FSRDStageTimings::Snapshot& timing)
             else if (timing.validMask & (1u << stage))
             {
                 if (stale)
-                    ImGui::TextDisabled("%.3f ms (last sample)", timing.milliseconds[stage]);
+                    ImGui::TextDisabled("%.3f", timing.milliseconds[stage]);
                 else
-                    ImGui::Text("%.3f ms", timing.milliseconds[stage]);
+                    milliseconds(timing.milliseconds[stage]);
             }
             else
                 ImGui::TextDisabled(timing.sequence ? "Not run" : "Waiting...");
+            ImGui::TableNextColumn();
+            statistic(timing.rolling.stages[stage]);
+            ImGui::TableNextColumn();
+            statistic95(timing.rolling.stages[stage]);
         }
+        ImGui::EndTable();
+    }
+    if (!passes)
+        return;
+    if (ImGui::Button("Log pass timings"))
+        LOG_INFO("{}", FSRDStageTimings::FormatReport(timing));
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Writes the current rolling per-pass table to the OptiScaler log.");
+    ImGui::SameLine();
+    ImGui::TextDisabled("window: last %u samples", timing.rolling.samples);
+    if (ImGui::BeginTable("RRPassTimes", 4, ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_RowBg))
+    {
+        ImGui::TableSetupColumn("Pass");
+        ImGui::TableSetupColumn("Latest");
+        ImGui::TableSetupColumn("Median");
+        ImGui::TableSetupColumn("p95");
+        ImGui::TableHeadersRow();
+        for (unsigned stage = 0; stage < FSRDStageTimings::Count; ++stage)
+        {
+            bool wroteStage = false;
+            for (unsigned pass = 0; pass < FSRDStageTimings::PassCount; ++pass)
+            {
+                if (unsigned(FSRDStageTimings::PassStage(FSRDStageTimings::Pass(pass))) != stage)
+                    continue;
+                if (!wroteStage)
+                {
+                    // Stage header row: the stage's own measured rolled-up time.
+                    wroteStage = true;
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted(FSRDStageTimings::Names[stage]);
+                    ImGui::TableNextColumn();
+                    ImGui::TextDisabled("-");
+                    ImGui::TableNextColumn();
+                    statistic(timing.rolling.stages[stage]);
+                    ImGui::TableNextColumn();
+                    statistic95(timing.rolling.stages[stage]);
+                }
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::Indent();
+                ImGui::TextUnformatted(FSRDStageTimings::PassNames[pass]);
+                ImGui::Unindent();
+                ImGui::TableNextColumn();
+                if (!timing.available)
+                    ImGui::TextDisabled("Unavailable");
+                else if (timing.passValidMask & (1u << pass))
+                {
+                    if (stale)
+                        ImGui::TextDisabled("%.3f", timing.passMilliseconds[pass]);
+                    else
+                        milliseconds(timing.passMilliseconds[pass]);
+                }
+                else
+                    ImGui::TextDisabled(timing.sequence ? "Not run" : "Waiting...");
+                ImGui::TableNextColumn();
+                statistic(timing.rolling.passes[pass]);
+                ImGui::TableNextColumn();
+                statistic95(timing.rolling.passes[pass]);
+            }
+        }
+        // Total of the measured passes in one sample, rolled the same way.
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::TextUnformatted("Total (passes)");
+        ImGui::TableNextColumn();
+        ImGui::TextDisabled("-");
+        ImGui::TableNextColumn();
+        statistic(timing.rolling.passTotal);
+        ImGui::TableNextColumn();
+        statistic95(timing.rolling.passTotal);
         ImGui::EndTable();
     }
 }
