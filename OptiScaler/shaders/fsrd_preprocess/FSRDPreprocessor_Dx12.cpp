@@ -46,6 +46,8 @@
 #include "precompile/FSRDAlbedoTrustEvidence_Shader.h"
 #include "precompile/FSRDAlbedoTrustPropagate_Shader.h"
 #include "precompile/FSRDAlbedoStabilise_Shader.h"
+#include "precompile/FSRDWaterVote_Shader.h"
+#include "precompile/FSRDWaterApply_Shader.h"
 #include "precompile/FSRDFogStats_Shader.h"
 #include "precompile/FSRDFogKappa_Shader.h"
 #include "precompile/FSRDFogRank_Shader.h"
@@ -356,6 +358,9 @@ struct FSRDPreprocessor_Dx12::Impl
     // Albedo guide stabilisation: ping-pong history (stabilised guides, view Z, normal) and spare packing
     // outputs that are swapped with the packed ones after the pass.
     ComputeState m_albedoStabShader;
+    ComputeState m_waterVoteShader, m_waterApplyShader;
+    ComPtr<ID3D12Resource> m_waterVote; // R8 share of water-like pixels per 16x16 block
+    ComPtr<ID3D12Resource> m_waterLike; // R8 per-pixel water-like test
     std::array<ComPtr<ID3D12Resource>, 2> m_albedoStabSpec, m_albedoStabDiff, m_albedoStabNormal;
     ComPtr<ID3D12Resource> m_albedoStabSpareSpecAlbedo, m_albedoStabSpareDiffAlbedo;
     ComPtr<ID3D12Resource> m_albedoStabSpareSpecSignal, m_albedoStabSpareDiffSignal;
@@ -1353,6 +1358,7 @@ struct FSRDPreprocessor_Dx12::Impl
         m_albedoStabSpareSpecAlbedo.Reset(); m_albedoStabSpareDiffAlbedo.Reset();
         m_albedoStabSpareSpecSignal.Reset(); m_albedoStabSpareDiffSignal.Reset();
         m_albedoStabValid = false;
+        m_waterVote.Reset(); m_waterLike.Reset();
         for (auto* set : {&m_fogA, &m_fogB, &m_fogC})
             for (auto& resource : *set) resource.Reset();
         m_fogG.Reset(); m_fogH.Reset(); m_fogKappaRaw.Reset(); m_fogKappaRank.Reset(); m_fogKappa.Reset();
@@ -2202,6 +2208,46 @@ struct FSRDPreprocessor_Dx12::Impl
     // Albedo guide stabilisation (FSRDAlbedoStabilise.hlsl). Runs after packing on its outputs: the stabilised
     // guides and the matching rescaled lighting go to spare textures that are then swapped in, so everything
     // after this point (RR, skin, composition, captures) sees one consistent pair.
+    // Water stain fix. Water hands RR the guides of the surface below it (the sea floor: a 3x albedo step where the
+    // image is flat). Demodulating by them and remodulating after RR draws the floor's outline on the water, sharpened
+    // at the jittered edge where the guide alternates every frame. Large up-facing specular-dominated regions (the
+    // vote rejects anything narrower than about a 16-pixel block) leave demodulation and become RR material type 2,
+    // so RR never mixes them with modulated pixels in space or time. No extra RR signal.
+    void WaterStainFix(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
+    {
+        if (!desc.WaterStainFix || (desc.Flags & uint32_t(ConvFlags::Debug)) != 0u) return;
+        constexpr UINT kBlock = 16;
+        if (!m_waterVoteShader.m_pso)
+        {
+            m_waterVoteShader.Initialize(m_pDev,
+                {reinterpret_cast<const byte*>(FSRDWaterVote_cso), sizeof(FSRDWaterVote_cso)}, 32, 4, 2, L"FSRD_WaterVote");
+            m_waterApplyShader.Initialize(m_pDev,
+                {reinterpret_cast<const byte*>(FSRDWaterApply_cso), sizeof(FSRDWaterApply_cso)}, 32, 2, 5, L"FSRD_WaterApply");
+        }
+        if (!m_waterVote)
+            m_waterVote = CreateTexture2D(m_pDev, (m_maxWidth + kBlock - 1) / kBlock, (m_maxHeight + kBlock - 1) / kBlock,
+                                          DXGI_FORMAT_R8_UNORM, L"FSRD_WaterVote", kSrvState);
+        if (!m_waterLike)
+            m_waterLike = CreateTexture2D(m_pDev, m_maxWidth, m_maxHeight, DXGI_FORMAT_R8_UNORM, L"FSRD_WaterLike", kSrvState);
+        struct Constants { XMFLOAT4 DstTexSize; float ShareThreshold, UpThreshold, VoteThreshold, LowVoteThreshold; };
+        static_assert(sizeof(Constants) == 32);
+        // Measured on the water captures with real AMD RR: share 0.6, normal z 0.9, vote 0.75 (16-pixel blocks),
+        // 0.6 where the pixel is water-like itself (water beside a pier or shore).
+        const Constants c {desc.RenderSize, 0.6f, 0.9f, 0.75f, 0.6f};
+        auto& r = m_out.Resources;
+        const auto voteInputs = std::to_array<ID3D12Resource*>({r.SpecAlbedo.Get(), r.DiffAlbedo.Get(), r.Normals.Get(),
+            r.SkipSignal.Get()});
+        auto voteOutputs = std::to_array<ID3D12Resource*>({m_waterVote.Get(), m_waterLike.Get()});
+        const float blocksX = std::ceil(desc.RenderSize.x / float(kBlock)), blocksY = std::ceil(desc.RenderSize.y / float(kBlock));
+        // One 8x8 group per block.
+        m_waterVoteShader.Dispatch(cmdList, GetAsByteSpan(c), voteInputs, voteOutputs, {blocksX * 8.0f, blocksY * 8.0f});
+        const auto applyInputs = std::to_array<ID3D12Resource*>({m_waterVote.Get(), m_waterLike.Get()});
+        auto applyOutputs = std::to_array<ID3D12Resource*>({r.SpecAlbedo.Get(), r.DiffAlbedo.Get(),
+            r.Signals.IndirectSpecular.Get(), r.Signals.DirectDiffuse.Get(), r.Normals.Get()});
+        m_waterApplyShader.Dispatch(cmdList, GetAsByteSpan(c), applyInputs, applyOutputs,
+                                    {desc.RenderSize.x, desc.RenderSize.y});
+    }
+
     void StabiliseAlbedo(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
     {
         const uint32_t mode = (desc.Flags & uint32_t(ConvFlags::Debug)) != 0u ? 0u : std::min(desc.AlbedoStabilisation, 2u);
@@ -2619,6 +2665,10 @@ struct FSRDPreprocessor_Dx12::Impl
         }
         StabiliseAlbedo(cmdList, desc);
         FogGuides(cmdList, desc);
+        {
+            FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::Conversion);
+            WaterStainFix(cmdList, desc);
+        }
         FilterSkinDiffuse(cmdList, desc);
         RRMotion(cmdList, desc);
         if(desc.LeakLobe)
@@ -2671,6 +2721,7 @@ struct FSRDPreprocessor_Dx12::Impl
                 {"object_depth_delta", desc.ObjectDepthDelta}, {"reflections_follow_surface", desc.ReflectionsFollowSurface},
                 {"albedo_stabilisation", desc.AlbedoStabilisation}, {"albedo_stabilisation_clamp", desc.AlbedoStabilisationClamp},
                 {"albedo_stabilisation_rate", desc.AlbedoStabilisationRate}, {"fog_guides", desc.FogGuides},
+                {"water_stain_fix", desc.WaterStainFix},
                 {"rr_motion_jitter_delta", desc.RRMotionJitterDelta},
                 {"bias_strength", constants.BiasMaskStrength},
                 {"specular_hit_distance_from_combined_alpha", desc.SpecularHitDistanceFromCombinedAlpha},
