@@ -811,6 +811,49 @@ namespace FSRD
     }
 
 
+    // Compare (split) view: selects variant A on the left and variant B on the right of a
+    // vertical divider from two already-computed images. Never denoises and never touches a
+    // history; dispatched only while the compare view is active.
+    namespace CompareView
+    {
+        constexpr UINT kBackBufferCount = 3;
+        enum Flags : uint32_t
+        {
+            SwapSides = 1u << 0, // left/right variants exchange places
+            DrawDivider = 1u << 1,
+            DrawLabels = 1u << 2,
+            Resample = 1u << 3,  // bilinear-resample A and B (unequal source/output size)
+        };
+        struct alignas(16) Constants
+        {
+            XMFLOAT4 DstTexSize;
+            uint32_t Flags;
+            uint32_t DividerPx;
+            uint32_t _Padding0;
+            uint32_t _Padding1;
+        };
+        static_assert(sizeof(Constants) == 32, "FSRDCompareView constants");
+        static_assert(offsetof(Constants, Flags) == 16, "FSRDCompareView flags");
+        static_assert(offsetof(Constants, DividerPx) == 20, "FSRDCompareView divider");
+        union Input
+        {
+            struct Data { ID3D12Resource* InA; ID3D12Resource* InB; };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+        union Output
+        {
+            struct Data { ID3D12Resource* OutColor; };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+    }
+    static_assert(CompareView::Input::kCount == 2, "CompareView input count");
+    static_assert(CompareView::Output::kCount == 1, "CompareView output count");
+
+
     // Unsupported-albedo recovery evidence: per pixel, whether the albedo's local structure
     // appears in RR's unmodulated light. Runs after RR and before composition.
     namespace TrustEvidence

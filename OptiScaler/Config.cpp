@@ -199,6 +199,11 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserRecoveryFlatRoughness.reset();
     FfxDenoiserRecoveryDebug.reset();
 
+    FfxDenoiserCompareView.reset();
+    FfxDenoiserCompareSplit.reset();
+    FfxDenoiserCompareSwap.reset();
+    FfxDenoiserCompareHoldKey.reset();
+
     FfxDenoiserDemodDivisorFloor.reset();
 
 
@@ -527,6 +532,10 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserRecoveryFlatHistoryLength.set_from_config(readInt("FSR-RR", "RecoveryFlatHistoryLength"));
             FfxDenoiserRecoveryFlatRoughness.set_from_config(readInt("FSR-RR", "RecoveryFlatRoughness"));
             FfxDenoiserRecoveryDebug.set_from_config(readInt("FSR-RR", "RecoveryDebug"));
+            FfxDenoiserCompareView.set_from_config(readInt("FSR-RR", "CompareView"));
+            FfxDenoiserCompareSplit.set_from_config(readFloat("FSR-RR", "CompareSplit"));
+            FfxDenoiserCompareSwap.set_from_config(readBool("FSR-RR", "CompareSwap"));
+            FfxDenoiserCompareHoldKey.set_from_config(readInt("FSR-RR", "CompareHoldKey"));
             FfxDenoiserSpecularAlbedoDemodulation.set_from_config(readFloat("FSR-RR", "SpecularAlbedoDemodulation"));
             FfxDenoiserDiffuseAlbedoModulation.set_from_config(readFloat("FSR-RR", "DiffuseAlbedoModulation"));
 
@@ -1494,6 +1503,10 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "RecoveryFlatHistoryLength", GetIntValue(Instance()->FfxDenoiserRecoveryFlatHistoryLength.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryFlatRoughness", GetIntValue(Instance()->FfxDenoiserRecoveryFlatRoughness.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryDebug", GetIntValue(Instance()->FfxDenoiserRecoveryDebug.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "CompareView", GetIntValue(Instance()->FfxDenoiserCompareView.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "CompareSplit", GetFloatValue(Instance()->FfxDenoiserCompareSplit.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "CompareSwap", GetBoolValue(Instance()->FfxDenoiserCompareSwap.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "CompareHoldKey", GetIntValue(Instance()->FfxDenoiserCompareHoldKey.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "SpecularAlbedoDemodulation", GetFloatValue(Instance()->FfxDenoiserSpecularAlbedoDemodulation.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "DiffuseAlbedoModulation", GetFloatValue(Instance()->FfxDenoiserDiffuseAlbedoModulation.value_for_config()).c_str());
         // Retired keys have no behavioural mapping. Remove only these names when saving.

@@ -2635,6 +2635,7 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
             .RecoveryFlatTemporal = cfg.FfxDenoiserRecoveryFlatTemporal.value_or_default(),
             .RecoveryFlatHistoryLength = uint32_t(std::clamp(cfg.FfxDenoiserRecoveryFlatHistoryLength.value_or_default(), 1, 6)),
             .RecoveryDebug = uint32_t(std::clamp(cfg.FfxDenoiserRecoveryDebug.value_or_default(), 0, 5)),
+            .CompareView = uint32_t(std::clamp(cfg.FfxDenoiserCompareView.value_or_default(), 0, 4)),
         };
 
         // ColorBeforeParticles is a whole scene guide, not a premultiplied overlay.
@@ -2934,6 +2935,26 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                 catch (const std::exception& error) { FSRDConvShader->AbortGameTrace(error.what()); }
                 catch (...) { FSRDConvShader->AbortGameTrace("Actual SR capture controls unavailable."); }
             }
+        }
+
+        // Compare (split) view: display-only. The canonical composition already fed SR and
+        // the canonical SR output was captured above; only now is the split drawn over the
+        // upscaler's output resource, from same-frame pre-SR A/B snapshots. It never becomes
+        // the composition the upscaler or GAME_TRACE reads, and no extra RR/SR runs.
+        if (isUpscalerReady && upscalerInputMode == UpscalerInputMode::RRComposition &&
+            std::clamp(cfg.FfxDenoiserCompareView.value_or_default(), 0, 4) != 0)
+        {
+            const XMFLOAT2 compareDim { static_cast<float>(upscalerDesc.upscaleSize.width),
+                                        static_cast<float>(upscalerDesc.upscaleSize.height) };
+            ID3D12Resource* presentation = FSRDConvShader->PrepareComparePresentation(
+                InCommandList, upscalerDesc.upscaleSize.width, upscalerDesc.upscaleSize.height,
+                cfg.FfxDenoiserCompareSwap.value_or_default(),
+                std::clamp(cfg.FfxDenoiserCompareSplit.value_or_default(), 0.05f, 0.95f),
+                cfg.FfxDenoiserCompareHold.value_or_default());
+            if (presentation)
+                FSRDConvShader->Blit(InCommandList, presentation,
+                    static_cast<ID3D12Resource*>(upscalerDesc.output.resource),
+                    compareDim, compareDim, {});
         }
 
         // Post-processing (RCAS/output scaling/overlay) is run by IFeature_Dx12::Evaluate.

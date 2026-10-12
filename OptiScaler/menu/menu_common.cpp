@@ -294,6 +294,11 @@ void MenuCommon::UpdateManualInput(HWND targetHwnd)
         lastInputTick = currentTick;
     }
 
+    // Compare (split) view hold: the key toggles the freeze switch. Runtime only, never saved.
+    const int compareHoldKey = config->FfxDenoiserCompareHoldKey.value_or_default();
+    if (compareHoldKey > 0 && compareHoldKey < 256 && OptiInput::IsKeyPressed(compareHoldKey))
+        config->FfxDenoiserCompareHold = !config->FfxDenoiserCompareHold.value_or_default();
+
     lastKey = OptiInput::GetLastPressedKey();
 }
 
@@ -3792,6 +3797,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             {
                 ScopedIndent indent;
                 rebuild |= FSRDMenu::DrawDenoiseLobes(*config);
+                FSRDMenu::DrawCompareView(*config);
                 if (bool diagnostics = config->FfxDenoiserDiagnostics.value_or_default();
                     ImGui::Checkbox("Diagnostics (probe readbacks)", &diagnostics))
                     config->FfxDenoiserDiagnostics = diagnostics;

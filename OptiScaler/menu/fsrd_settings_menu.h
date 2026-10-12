@@ -374,6 +374,48 @@ inline bool DrawDenoiseLobes(Config& cfg)
     return rebuild;
 }
 
+// Compare (split) view: shows two pipeline variants side by side in one frame so a feature
+// can be judged by eye without a menu toggle and a moving camera between the two images.
+inline void DrawCompareView(Config& cfg)
+{
+    const char* modes[] = { "Off", "RR only vs final", "Recovery v2 off vs on", "Flat Detail off vs on",
+                            "Skin re-blur off vs on" };
+    int mode = std::clamp(cfg.FfxDenoiserCompareView.value_or_default(), 0, 4);
+    if (ImGui::Combo("Compare (split) view", &mode, modes, IM_ARRAYSIZE(modes)))
+        cfg.FfxDenoiserCompareView = mode;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Draws two variants of the same frame: left is the feature off / earlier pipeline stage,\n"
+                          "right is the feature on / later stage. The split is drawn AFTER the normal upscale, from\n"
+                          "same-frame PRE-SR images. Both halves get the same spatial upscale for this debug display,\n"
+                          "so it is a pre-SR A/B presentation, not two temporal-SR outputs. The canonical composition\n"
+                          "keeps feeding the upscaler and GAME_TRACE; the view never changes a history and costs\n"
+                          "nothing while off. Input-side pairs (albedo stabilisation, the colour noise filter, RR\n"
+                          "resolution scale) are not offered: they would need RR to run twice.");
+    ImGui::BeginDisabled(mode == 0);
+    if (float v = std::clamp(cfg.FfxDenoiserCompareSplit.value_or_default(), 0.05f, 0.95f);
+        ImGui::SliderFloat("Divider##CompareView", &v, 0.05f, 0.95f, "%.2f of width"))
+        cfg.FfxDenoiserCompareSplit = v;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Position of the vertical divider as a fraction of the render width.");
+    bool swap = cfg.FfxDenoiserCompareSwap.value_or_default();
+    if (ImGui::Checkbox("Swap sides##CompareView", &swap))
+        cfg.FfxDenoiserCompareSwap = swap;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Exchanges the two halves without moving the divider.");
+    bool hold = cfg.FfxDenoiserCompareHold.value_or_default();
+    if (ImGui::Checkbox("Hold frame (freeze)##CompareView", &hold))
+        cfg.FfxDenoiserCompareHold = hold;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Freezes the displayed split for close inspection. The hold key toggles this same switch.");
+    int holdKey = std::clamp(cfg.FfxDenoiserCompareHoldKey.value_or_default(), 0, 255);
+    if (ImGui::SliderInt("Hold key (VK code)##CompareView", &holdKey, 0, 255, holdKey == 0 ? "off" : "%d"))
+        cfg.FfxDenoiserCompareHoldKey = holdKey;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Momentary-capable toggle key for Hold frame. 0 disables. Default 120 (F9).");
+    ImGui::EndDisabled();
+    ImGui::TextDisabled("Cost while active: two render-size snapshot copies plus one output-size combine + present pass; zero when off.");
+}
+
 inline void DrawTimings(Config& cfg, const FSRDStageTimings::Snapshot& timing)
 {
     bool enabled = cfg.FfxDenoiserGpuTimings.value_or_default();

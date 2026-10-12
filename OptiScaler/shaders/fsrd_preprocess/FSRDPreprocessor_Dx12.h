@@ -317,6 +317,12 @@ class FSRDPreprocessor_Dx12
         bool RecoveryFlatTemporal = true;
         uint32_t RecoveryFlatHistoryLength = 6;
         uint32_t RecoveryDebug = 0;
+
+        // Compare (split) view. 0 off, 1 RR only vs final, 2 Recovery v2 off/on,
+        // 3 Flat Detail off/on, 4 Skin re-blur off/on. While nonzero the composition
+        // records same-frame pre-SR A/B snapshots; the split itself is presented later,
+        // after the canonical SR dispatch, and never feeds the upscaler.
+        uint32_t CompareView = 0;
     };
 
   public:
@@ -428,6 +434,18 @@ class FSRDPreprocessor_Dx12
      * @brief Returns the output from the last composition dispatch. Valid until the next conversion dispatch.
      */
     ID3D12Resource* GetCompositionOutput() const;
+
+    /**
+     * @brief Builds the compare (split) view composite at the output size from the pre-SR A/B
+     * snapshots recorded during composition. Returns an output-sized RGBA16F texture to
+     * present AFTER the canonical SR dispatch, or nullptr when the compare view is off or no
+     * snapshots exist. With hold set, the composite is built once and the frozen copy is
+     * returned on every later call, so camera/MV/SR changes cannot alter displayed pixels.
+     * Never writes the canonical composition and never feeds the upscaler.
+     */
+    ID3D12Resource* PrepareComparePresentation(ID3D12GraphicsCommandList* cmdList,
+                                               uint32_t dstWidth, uint32_t dstHeight,
+                                               bool swap, float split, bool hold);
     void AbortResearch(const char* reason);
     void CompleteResearchFrame(ID3D12GraphicsCommandList*, const std::string& settings, const std::string& controls);
 
