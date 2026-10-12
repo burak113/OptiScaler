@@ -123,7 +123,20 @@ def run():
           np.array_equal(out2[:, 100:], b2[:, 100:].astype('<f2').astype(np.float32)),
           validation_errors=int(float(m.get('validation_errors', -1))))
 
-    report = {'checks': checks}
+    # GPU cost of the combine pass at the two required resolutions, median of 200 samples.
+    timings = []
+    for (tw, th) in ((1505, 847), (2560, 1440)):
+        az = np.zeros((th, tw, 4), np.float32)
+        bz = np.zeros((th, tw, 4), np.float32)
+        _, tm = run_compare(az, bz, tw // 2, COMPARE_DIVIDER | COMPARE_LABELS, tw, th, repetitions=200)
+        median = float(tm.get('gpu_ms_median', -1.0))
+        p95 = float(tm.get('gpu_ms_p95', -1.0))
+        vram = 3 * tw * th * 8  # composite + two half-variants, RGBA16F
+        timings.append({'size': f'{tw}x{th}', 'gpu_ms_median': median, 'gpu_ms_p95': p95, 'vram_bytes': vram})
+        check(f'compare {tw}x{th} timed', median >= 0.0, gpu_ms_median=median, gpu_ms_p95=p95, vram_bytes=vram)
+        print(f'{tw}x{th}: combine gpu_ms_median={median} p95={p95} VRAM={vram} bytes')
+
+    report = {'checks': checks, 'timings': timings}
     (OUT / 'results.json').write_text(json.dumps(report, indent=2))
     assert all(c['passed'] for c in checks), 'compare-view GPU failures; see results.json'
     print(f'{len(checks)} compare-view checks passed')

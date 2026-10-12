@@ -459,6 +459,7 @@ struct FSRDPreprocessor_Dx12::Impl
     ComputeState m_compareShader;
     ComPtr<ID3D12Resource> m_compareOutput, m_compareSnapshotA, m_compareSnapshotB;
     bool m_compareOutputActive = false;
+    bool m_compareHasContent = false;
     UINT m_compareWidth = 0, m_compareHeight = 0;
     bool m_motionHistoryValid = false;
     XMFLOAT2 m_currentJitter {};
@@ -2788,6 +2789,7 @@ struct FSRDPreprocessor_Dx12::Impl
         m_compareSnapshotB = color(L"FSRD_Compare_VariantB");
         m_compareWidth = width;
         m_compareHeight = height;
+        m_compareHasContent = false;
     }
 
     // Copies the current working image into a compare snapshot. src must be in kSrvState.
@@ -2829,6 +2831,7 @@ struct FSRDPreprocessor_Dx12::Impl
         m_compareShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray,
                                  {desc.DstTexSize.x, desc.DstTexSize.y});
         m_compareOutputActive = true;
+        m_compareHasContent = true;
     }
 
     void DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
@@ -2931,7 +2934,7 @@ struct FSRDPreprocessor_Dx12::Impl
             // Pairs 2 and 3 compare two captured intermediates; 1 and 4 use the final image.
             ID3D12Resource* variantB = (desc.CompareView == 2u || desc.CompareView == 3u)
                 ? m_compareSnapshotB.Get() : CompositionColor();
-            if (desc.CompareHold && m_compareOutput)
+            if (desc.CompareHold && m_compareHasContent)
                 m_compareOutputActive = true; // freeze the previous composite for inspection
             else
                 DispatchCompare(cmdList, desc, variantA, variantB);
