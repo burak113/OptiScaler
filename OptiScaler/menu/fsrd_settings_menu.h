@@ -24,6 +24,15 @@ inline void DrawFlatTemporalControls(Config& cfg)
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Maximum original past frames, 1 to 6. More valid samples reduce grain; rejected samples "
                           "never extend the history. Changing the length clears old history. Default 6.");
+    float denoise = std::clamp(cfg.FfxDenoiserRecoveryFlatTemporalDenoise.value_or_default(), 0.0f, 2.0f);
+    if (ImGui::SliderFloat("Temporal denoise##RecoveryFlat", &denoise, 0.0f, 2.0f, "%.2f"))
+        cfg.FfxDenoiserRecoveryFlatTemporalDenoise = denoise;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("How strongly disagreement between the history samples counts as noise. Static texture "
+                          "agrees over time, flickering light does not. Where the history is thin (a reflection "
+                          "moving over the surface, disocclusion) the noisy single-frame detail also fades out "
+                          "to RR. Higher is cleaner and calmer, with slightly softer fine edges; 0 turns it off. "
+                          "Default 1.");
     ImGui::EndDisabled();
 }
 

@@ -95,7 +95,7 @@ class FSRDStageTimings
         "Recovery accumulate", "Recovery down", "Recovery band",
         "SSS kernel", "SSS re-blur H", "SSS re-blur V",
         "Flat classify", "Flat seed", "Flat refine", "Flat base", "Flat apply",
-        "Flat temporal resolve", "Flat temporal store", "AMD RR / ML", "Super resolution" };
+        "Flat temporal LP + resolve", "Flat temporal store", "AMD RR / ML", "Super resolution" };
     static constexpr Stage PassStage(Pass pass)
     {
         // Indexed by Pass; must stay in lockstep with the Pass enum above.

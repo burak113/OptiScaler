@@ -568,6 +568,9 @@ class Config
     // History length is clamped to 1..6 original frames; changing either control discards old history.
     CustomOptional<bool> FfxDenoiserRecoveryFlatTemporal { true };
     CustomOptional<int> FfxDenoiserRecoveryFlatHistoryLength { 6 };
+    // 0 to 2: how strongly disagreement between the accepted history samples counts as noise (a noise floor
+    // and a per-pixel Wiener factor on the restored detail). 0 off, 1 default, 2 strong (cleaner, softer).
+    CustomOptional<float> FfxDenoiserRecoveryFlatTemporalDenoise { 1.0f };
     // RR roughness of flat zero-roughness surfaces while Flat albedo recovery is on, in 1/1023 (0 = the game's).
     CustomOptional<int> FfxDenoiserRecoveryFlatRoughness { 2 };
     // 0 off, 1 signed correction, 2 correction size and reference maturity, 3 history reset / filter mask.

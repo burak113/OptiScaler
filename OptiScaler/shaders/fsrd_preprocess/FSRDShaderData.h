@@ -480,9 +480,11 @@ namespace FSRD
             float Strength, Anchor;
             float Mix, NoiseScale, Epsilon;
             uint32_t Radius;
-            uint32_t Pass, Debug, Flags, _Padding;
+            uint32_t Pass, Debug, Flags;
+            float TemporalDenoise; // Base only: 0 off; >0 the reference alpha is the temporal residual
         };
         static_assert(sizeof(Constants) == 64, "Flat Detail constants");
+        static_assert(offsetof(Constants, TemporalDenoise) == 60, "Flat Detail temporal denoise");
         static_assert(offsetof(Constants, Modulation) == 16, "Flat Detail modulation");
         static_assert(offsetof(Constants, Mix) == 32, "Flat Detail mix");
         static_assert(offsetof(Constants, Pass) == 48, "Flat Detail pass");
@@ -542,25 +544,36 @@ namespace FSRD
         static_assert(offsetof(Constants, Modulation) == 32, "Flat temporal modulation");
         static_assert(offsetof(Constants, HistoryCount) == 48, "Flat temporal history");
         static_assert(offsetof(Constants, CenterSigma) == 64, "Flat temporal tuning");
+        // History per slot: log reference + depth (RGBA16F) and aux (R32G32_UINT: half motion, half depth
+        // delta, motion flag, 15-bit normal). Low-pass lumas live on a 4x4 block grid (RG16F): the LP pass
+        // writes the current blocks, Store copies them into the ring.
+        constexpr UINT kLPBlock = 4;
+        union LPInput
+        {
+            struct Data
+            {
+                ID3D12Resource* InComposed; ID3D12Resource* InNormals; ID3D12Resource* InDepth;
+                ID3D12Resource* InSpecular; ID3D12Resource* InDiffuse;
+                ID3D12Resource* InSpecularAlbedo; ID3D12Resource* InDiffuseAlbedo; ID3D12Resource* InSkip;
+            };
+            static constexpr uint32_t kCount = 8;
+            Data Resources; ID3D12Resource* AsArray[kCount];
+        };
         union ResolveInput
         {
             struct Data
             {
-                ID3D12Resource* InReference; ID3D12Resource* InComposed;
-                ID3D12Resource* InNormals; ID3D12Resource* InDepth; ID3D12Resource* InMotion;
-                ID3D12Resource* InSpecular; ID3D12Resource* InDiffuse;
-                ID3D12Resource* InSpecularAlbedo; ID3D12Resource* InDiffuseAlbedo; ID3D12Resource* InSkip;
-                ID3D12Resource* InTiles;
-                ID3D12Resource* InHistoryReference; ID3D12Resource* InHistoryMotionDepth;
-                ID3D12Resource* InHistoryNormalLP;
+                ID3D12Resource* InReference; ID3D12Resource* InNormals; ID3D12Resource* InDepth;
+                ID3D12Resource* InMotion; ID3D12Resource* InSkip; ID3D12Resource* InTiles; ID3D12Resource* InLP;
+                ID3D12Resource* InHistoryReference; ID3D12Resource* InHistoryAux; ID3D12Resource* InHistoryLP;
             };
-            static constexpr uint32_t kCount = 14;
+            static constexpr uint32_t kCount = 10;
             Data Resources; ID3D12Resource* AsArray[kCount];
         };
         union ResolveOutput
         {
-            struct Data { ID3D12Resource* OutReference; ID3D12Resource* OutNormalLP; ID3D12Resource* OutDiagnostics; };
-            static constexpr uint32_t kCount = 3;
+            struct Data { ID3D12Resource* OutReference; ID3D12Resource* OutDiagnostics; };
+            static constexpr uint32_t kCount = 2;
             Data Resources; ID3D12Resource* AsArray[kCount];
         };
         union StoreInput
@@ -568,17 +581,18 @@ namespace FSRD
             struct Data
             {
                 ID3D12Resource* InReference; ID3D12Resource* InNormals; ID3D12Resource* InDepth;
-                ID3D12Resource* InMotion; ID3D12Resource* InSkip; ID3D12Resource* InNormalLP;
+                ID3D12Resource* InMotion; ID3D12Resource* InSkip; ID3D12Resource* InLP;
             };
             static constexpr uint32_t kCount = 6;
             Data Resources; ID3D12Resource* AsArray[kCount];
         };
         union StoreOutput
         {
-            struct Data { ID3D12Resource* OutReference; ID3D12Resource* OutMotionDepth; ID3D12Resource* OutNormalLP; };
+            struct Data { ID3D12Resource* OutReference; ID3D12Resource* OutAux; ID3D12Resource* OutLP; };
             static constexpr uint32_t kCount = 3;
             Data Resources; ID3D12Resource* AsArray[kCount];
         };
+        static_assert(sizeof(LPInput::Data) == sizeof(ID3D12Resource*) * LPInput::kCount);
         static_assert(sizeof(ResolveInput::Data) == sizeof(ID3D12Resource*) * ResolveInput::kCount);
         static_assert(sizeof(StoreInput::Data) == sizeof(ID3D12Resource*) * StoreInput::kCount);
     }
