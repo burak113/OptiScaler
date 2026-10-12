@@ -385,9 +385,12 @@ inline void DrawCompareView(Config& cfg)
         cfg.FfxDenoiserCompareView = mode;
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Draws two variants of the same frame: left is the feature off / earlier pipeline stage,\n"
-                          "right is the feature on / later stage. The view only selects what is displayed; it never\n"
-                          "changes a history and costs nothing while off. Input-side pairs (albedo stabilisation, the\n"
-                          "colour noise filter, RR resolution scale) are not offered: they would need RR to run twice.");
+                          "right is the feature on / later stage. The split is drawn AFTER the normal upscale, from\n"
+                          "same-frame PRE-SR images. Both halves get the same spatial upscale for this debug display,\n"
+                          "so it is a pre-SR A/B presentation, not two temporal-SR outputs. The canonical composition\n"
+                          "keeps feeding the upscaler and GAME_TRACE; the view never changes a history and costs\n"
+                          "nothing while off. Input-side pairs (albedo stabilisation, the colour noise filter, RR\n"
+                          "resolution scale) are not offered: they would need RR to run twice.");
     ImGui::BeginDisabled(mode == 0);
     if (float v = std::clamp(cfg.FfxDenoiserCompareSplit.value_or_default(), 0.05f, 0.95f);
         ImGui::SliderFloat("Divider##CompareView", &v, 0.05f, 0.95f, "%.2f of width"))
@@ -410,7 +413,7 @@ inline void DrawCompareView(Config& cfg)
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Momentary-capable toggle key for Hold frame. 0 disables. Default 120 (F9).");
     ImGui::EndDisabled();
-    ImGui::TextDisabled("Cost while active: one snapshot copy per half plus one combine pass; zero when off.");
+    ImGui::TextDisabled("Cost while active: two render-size snapshot copies plus one output-size combine + present pass; zero when off.");
 }
 
 inline void DrawTimings(Config& cfg, const FSRDStageTimings::Snapshot& timing)

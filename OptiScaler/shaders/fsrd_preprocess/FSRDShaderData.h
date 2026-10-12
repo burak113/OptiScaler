@@ -822,6 +822,7 @@ namespace FSRD
             SwapSides = 1u << 0, // left/right variants exchange places
             DrawDivider = 1u << 1,
             DrawLabels = 1u << 2,
+            Resample = 1u << 3,  // bilinear-resample A and B (unequal source/output size)
         };
         struct alignas(16) Constants
         {

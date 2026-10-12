@@ -2,13 +2,20 @@
 // vertical divider, in one frame, so two pipeline variants can be judged side by side.
 //
 // This shader only selects between two already-computed images; it never runs the
-// denoiser and never touches a history. It is dispatched only while the compare view is
-// active, so an inactive view costs nothing.
-#define MainRS "RootFlags(0), CBV(b0), DescriptorTable(SRV(t0, numDescriptors = 2)), DescriptorTable(UAV(u0, numDescriptors = 1))"
+// denoiser and never touches a history. In the production path it is dispatched only
+// after the canonical SR pass, into a display-only composite (never into the canonical
+// composition the upscaler consumes), so an inactive view costs nothing and the SR
+// history never sees the split.
+//
+// When the destination (output) size differs from the source (render) size, both A and B
+// are resampled with the same bilinear filter (COMPARE_RESAMPLE); otherwise the texel is
+// read directly, which is exact.
+#define MainRS "RootFlags(0), CBV(b0), DescriptorTable(SRV(t0, numDescriptors = 2)), DescriptorTable(UAV(u0, numDescriptors = 1)), StaticSampler(s0, filter = FILTER_MIN_MAG_MIP_LINEAR, addressU = TEXTURE_ADDRESS_CLAMP, addressV = TEXTURE_ADDRESS_CLAMP, addressW = TEXTURE_ADDRESS_CLAMP)"
 
 Texture2D<half4> InA : register(t0);
 Texture2D<half4> InB : register(t1);
 RWTexture2D<half4> OutColor : register(u0);
+SamplerState LinearSampler : register(s0);
 
 cbuffer CB_Compare : register(b0)
 {
@@ -19,9 +26,10 @@ cbuffer CB_Compare : register(b0)
     uint _Pad1;
 }
 
-#define COMPARE_SWAP    (1u << 0) // left/right variants exchange places
-#define COMPARE_DIVIDER (1u << 1) // draw the divider line
-#define COMPARE_LABELS  (1u << 2) // draw the small "A" / "B" labels
+#define COMPARE_SWAP     (1u << 0) // left/right variants exchange places
+#define COMPARE_DIVIDER  (1u << 1) // draw the divider line
+#define COMPARE_LABELS   (1u << 2) // draw the small "A" / "B" labels
+#define COMPARE_RESAMPLE (1u << 3) // bilinear-resample A and B (unequal source/output size)
 
 // 5x7 bitmap glyphs, one 7-bit column mask per column, bit 0 = top row.
 static const uint kGlyphA[5] = { 0x7Eu, 0x09u, 0x09u, 0x09u, 0x7Eu };
@@ -51,7 +59,16 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     const bool left = uint(p.x) < divider;
     // Swap exchanges which texture is the left half without moving the divider.
     const bool useA = swap ? !left : left;
-    half4 colour = useA ? InA[p] : InB[p];
+    half4 colour;
+    if ((Flags & COMPARE_RESAMPLE) != 0u)
+    {
+        // Normalized coordinates are resolution independent, so the same uv maps the whole
+        // source; both halves therefore receive an identical bilinear filter.
+        const float2 uv = (float2(p) + 0.5f) * DstTexSize.zw;
+        colour = useA ? InA.SampleLevel(LinearSampler, uv, 0) : InB.SampleLevel(LinearSampler, uv, 0);
+    }
+    else
+        colour = useA ? InA[p] : InB[p];
 
     // Two-pixel bright seam on columns [divider-1, divider].
     if ((Flags & COMPARE_DIVIDER) != 0u && p.x >= int(divider) - 1 && p.x <= int(divider))
