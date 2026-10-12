@@ -2632,6 +2632,10 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
             .RecoveryFlatTemporal = cfg.FfxDenoiserRecoveryFlatTemporal.value_or_default(),
             .RecoveryFlatHistoryLength = uint32_t(std::clamp(cfg.FfxDenoiserRecoveryFlatHistoryLength.value_or_default(), 1, 6)),
             .RecoveryDebug = uint32_t(std::clamp(cfg.FfxDenoiserRecoveryDebug.value_or_default(), 0, 5)),
+            .CompareView = uint32_t(std::clamp(cfg.FfxDenoiserCompareView.value_or_default(), 0, 4)),
+            .CompareSplit = std::clamp(cfg.FfxDenoiserCompareSplit.value_or_default(), 0.0f, 1.0f),
+            .CompareSwap = cfg.FfxDenoiserCompareSwap.value_or_default(),
+            .CompareHold = cfg.FfxDenoiserCompareHold.value_or_default(),
         };
 
         // ColorBeforeParticles is a whole scene guide, not a premultiplied overlay.

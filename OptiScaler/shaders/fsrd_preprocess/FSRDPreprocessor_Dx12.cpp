@@ -32,6 +32,7 @@
 #include "precompile/FSRDSssKernel_Shader.h"
 #include "precompile/FSRDSssBlurTiled_Shader.h"
 #include "precompile/FSRDOutputComp_Shader.h"
+#include "precompile/FSRDCompareView_Shader.h"
 #include "precompile/FSRDGeometry_Shader.h"
 #include "precompile/FSRDFlatDetailClassify_Shader.h"
 #include "precompile/FSRDFlatDetailSeed_Shader.h"
@@ -454,6 +455,11 @@ struct FSRDPreprocessor_Dx12::Impl
     XMFLOAT4 m_linearDepthSize {};
     bool m_previousDepthValid = false;
     ComPtr<ID3D12Resource> m_compositionOutput;
+    // Compare (split) view: two half-variants and the composite, allocated only while active.
+    ComputeState m_compareShader;
+    ComPtr<ID3D12Resource> m_compareOutput, m_compareSnapshotA, m_compareSnapshotB;
+    bool m_compareOutputActive = false;
+    UINT m_compareWidth = 0, m_compareHeight = 0;
     bool m_motionHistoryValid = false;
     XMFLOAT2 m_currentJitter {};
     XMFLOAT2 m_flatHistoryJitterDelta {};
@@ -1682,6 +1688,7 @@ struct FSRDPreprocessor_Dx12::Impl
 
     ID3D12Resource* CompositionColor() const
     {
+        if (m_compareOutputActive) return m_compareOutput.Get();
         if (m_skinOutputActive) return m_skinResult.Get();
         return m_recoveryOutputIndex < 0 ? m_compositionOutput.Get()
                                         : m_recoveryOutput[m_recoveryOutputIndex].Get();
@@ -2761,6 +2768,69 @@ struct FSRDPreprocessor_Dx12::Impl
         return true;
     }
 
+    // --- Compare (split) view -------------------------------------------------------------
+    // Allocates the two half-variants and the composite lazily; nothing exists while the
+    // view is off, so the feature is inert and costs nothing when disabled.
+    void EnsureCompareTargets(UINT width, UINT height)
+    {
+        if (m_compareOutput && m_compareWidth == width && m_compareHeight == height)
+            return;
+        if (!m_compareShader.m_pso)
+            m_compareShader.Initialize(m_pDev, GetAsByteSpan(FSRDCompareView_cso),
+                sizeof(CompareView::Constants), CompareView::Input::kCount, CompareView::Output::kCount,
+                L"FSRD_CompareView_Constants", kBackBufferCount);
+        const auto color = [&](LPCWSTR name) {
+            return CreateTexture2D(m_pDev, std::max(width, 1u), std::max(height, 1u),
+                                   DXGI_FORMAT_R16G16B16A16_FLOAT, name, kSrvState);
+        };
+        m_compareOutput = color(L"FSRD_Compare_Output");
+        m_compareSnapshotA = color(L"FSRD_Compare_VariantA");
+        m_compareSnapshotB = color(L"FSRD_Compare_VariantB");
+        m_compareWidth = width;
+        m_compareHeight = height;
+    }
+
+    // Copies the current working image into a compare snapshot. src must be in kSrvState.
+    void CaptureCompare(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* src,
+                        ComPtr<ID3D12Resource>& dst)
+    {
+        if (!cmdList || !src || !dst)
+            return;
+        AddBarrier(cmdList, src, kSrvState, D3D12_RESOURCE_STATE_COPY_SOURCE);
+        AddBarrier(cmdList, dst.Get(), kSrvState, D3D12_RESOURCE_STATE_COPY_DEST);
+        D3D12_TEXTURE_COPY_LOCATION source {};
+        source.pResource = src;
+        source.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        D3D12_TEXTURE_COPY_LOCATION target {};
+        target.pResource = dst.Get();
+        target.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        cmdList->CopyTextureRegion(&target, 0, 0, 0, &source, nullptr);
+        AddBarrier(cmdList, src, D3D12_RESOURCE_STATE_COPY_SOURCE, kSrvState);
+        AddBarrier(cmdList, dst.Get(), D3D12_RESOURCE_STATE_COPY_DEST, kSrvState);
+    }
+
+    void DispatchCompare(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc,
+                         ID3D12Resource* variantA, ID3D12Resource* variantB)
+    {
+        if (!variantA || !variantB)
+            return;
+        const UINT width = UINT(desc.DstTexSize.x), height = UINT(desc.DstTexSize.y);
+        EnsureCompareTargets(width, height);
+        uint32_t flags = uint32_t(CompareView::DrawDivider) | uint32_t(CompareView::DrawLabels);
+        if (desc.CompareSwap)
+            flags |= uint32_t(CompareView::SwapSides);
+        uint32_t divider = uint32_t(std::clamp(desc.CompareSplit, 0.0f, 1.0f) * float(width) + 0.5f);
+        divider = std::min(divider, width);
+        CompareView::Constants constants {
+            .DstTexSize = desc.DstTexSize, .Flags = flags, .DividerPx = divider, ._Padding0 = 0, ._Padding1 = 0
+        };
+        CompareView::Input in {{variantA, variantB}};
+        CompareView::Output out {{m_compareOutput.Get()}};
+        m_compareShader.Dispatch(cmdList, GetAsByteSpan(constants), in.AsArray, out.AsArray,
+                                 {desc.DstTexSize.x, desc.DstTexSize.y});
+        m_compareOutputActive = true;
+    }
+
     void DispatchComposition(ID3D12GraphicsCommandList* cmdList, const CompositionDesc& desc)
     {
         if (m_runtime) m_runtime->Begin(FSRDRuntimeSnapshot::Composition);
@@ -2768,6 +2838,7 @@ struct FSRDPreprocessor_Dx12::Impl
             throw std::runtime_error("Composition requires a command list and allocated resources");
 
         m_recoveryOutputIndex = -1;
+        m_compareOutputActive = false;
         auto& outResources = m_out.Resources;
         Composition::Input inputs = {};
         Composition::Constants constants = 
@@ -2835,9 +2906,35 @@ struct FSRDPreprocessor_Dx12::Impl
         {
             FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::Composition);
             m_compShader.Dispatch(cmdList, cbData, inputs.AsArray, outputs.AsArray, dstDim);
+            // Compare view snapshots. Pairs are isolated at their own pipeline point so the
+            // two halves differ only by the feature under test. Skipped entirely when off.
+            const uint32_t compare = desc.CompareView;
+            if (compare != 0u)
+                EnsureCompareTargets(UINT(desc.DstTexSize.x), UINT(desc.DstTexSize.y));
+            if (compare == 1u || compare == 2u)
+                CaptureCompare(cmdList, m_compositionOutput.Get(), m_compareSnapshotA);
             DispatchRecoveryChain(cmdList, desc);
+            if (compare == 2u)
+                CaptureCompare(cmdList, CompositionColor(), m_compareSnapshotB);
+            else if (compare == 3u)
+                CaptureCompare(cmdList, CompositionColor(), m_compareSnapshotA);
             DispatchFlatDetail(cmdList, desc);
+            if (compare == 3u)
+                CaptureCompare(cmdList, CompositionColor(), m_compareSnapshotB);
+            else if (compare == 4u)
+                CaptureCompare(cmdList, CompositionColor(), m_compareSnapshotA);
             ReblurSkin(cmdList, desc);
+        }
+        if (desc.CompareView != 0u)
+        {
+            ID3D12Resource* variantA = m_compareSnapshotA.Get();
+            // Pairs 2 and 3 compare two captured intermediates; 1 and 4 use the final image.
+            ID3D12Resource* variantB = (desc.CompareView == 2u || desc.CompareView == 3u)
+                ? m_compareSnapshotB.Get() : CompositionColor();
+            if (desc.CompareHold && m_compareOutput)
+                m_compareOutputActive = true; // freeze the previous composite for inspection
+            else
+                DispatchCompare(cmdList, desc, variantA, variantB);
         }
         if (m_runtime) m_runtime->Complete(FSRDRuntimeSnapshot::Composition);
     }

@@ -317,6 +317,13 @@ class FSRDPreprocessor_Dx12
         bool RecoveryFlatTemporal = true;
         uint32_t RecoveryFlatHistoryLength = 6;
         uint32_t RecoveryDebug = 0;
+
+        // Compare (split) view. 0 off, 1 RR only vs final, 2 Recovery v2 off/on,
+        // 3 Flat Detail off/on, 4 Skin re-blur off/on. Cost runs only while nonzero.
+        uint32_t CompareView = 0;
+        float CompareSplit = 0.5f;   // divider position in [0,1]
+        bool CompareSwap = false;    // exchange the two halves
+        bool CompareHold = false;    // freeze the displayed split (skip recompute)
     };
 
   public:

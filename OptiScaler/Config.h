@@ -570,6 +570,15 @@ class Config
     // 0 off, 1 signed correction, 2 correction size and reference maturity, 3 history reset / filter mask.
     CustomOptional<int> FfxDenoiserRecoveryDebug { 0 };
 
+    // Compare (split) view. 0 off, 1 RR only vs final, 2 Recovery v2 off/on, 3 Flat Detail off/on,
+    // 4 Skin re-blur off/on. Costs nothing while off.
+    CustomOptional<int> FfxDenoiserCompareView { 0 };
+    CustomOptional<float> FfxDenoiserCompareSplit { 0.5f };
+    CustomOptional<bool> FfxDenoiserCompareSwap { false };
+    // Momentary key that freezes the displayed split for inspection (0 disables). Runtime only.
+    CustomOptional<int> FfxDenoiserCompareHoldKey { VK_F9 };
+    CustomOptional<bool> FfxDenoiserCompareHold { false };
+
     // Overrides the DLSS.Use.HW.Depth interpretation. Unset follows NGX, which
     // defaults to linear when the title publishes nothing - and reading a hardware
     // depth buffer as linear collapses the whole scene to sub-unit distances.
