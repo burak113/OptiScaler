@@ -3055,6 +3055,9 @@ RRResult FSRDFeatureDx12::PrepareDenoiserInput(ID3D12GraphicsCommandList* InComm
     if(FSRDResearch::WantsInputs() || FSRDGameTraceSession::IsActive())
     {
         auto acquire=[&](const char* name,const char* key,const char* keyX,const char* keyY) {
+            // The two diagnostic guides are not queried for an ordinary GAME_TRACE.
+            if ((std::string_view(name) == "ColorBeforeParticles" || std::string_view(name) == "ColorBeforeTransparency") &&
+                !FSRDResearch::WantsInputs() && !FSRDGameTraceSession::WantsParticleLayerDiagnostics()) return;
             FSRDResearch::Input input; input.name=name; input.key=key;
             TryGetNGXVoidPointer(inParams,key,input.resource);
             if(keyX && keyY) { const auto base=GetSubrectBase(inParams,keyX,keyY); input.x=base.x; input.y=base.y; }

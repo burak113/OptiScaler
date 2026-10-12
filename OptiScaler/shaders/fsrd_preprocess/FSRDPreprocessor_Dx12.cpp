@@ -2616,8 +2616,12 @@ struct FSRDPreprocessor_Dx12::Impl
             rawMotion.metadataJson = motionMetadata.dump();
             for(const auto& input:desc.ResearchInputs)
             {
+                const bool particleGuide = input.name == "ColorBeforeParticles" || input.name == "ColorBeforeTransparency";
+                if (particleGuide && !FSRDGameTraceSession::WantsParticleLayerDiagnostics()) continue;
                 const auto row=FSRDResearch::Describe(m_pDev,input);
-                FSRDGameTraceSession::DiagnosticSource source {"input_"+input.name,{input.resource,kSrvState},input.x,input.y};
+                const std::string name = particleGuide ? (input.name == "ColorBeforeParticles" ?
+                    "raw_color_before_particles" : "raw_color_before_transparency") : "input_"+input.name;
+                FSRDGameTraceSession::DiagnosticSource source {name,{input.resource,kSrvState},input.x,input.y};
                 source.active=row.sampled; source.required=false;
                 source.inactiveReason=row.status;
                 source.metadataJson=CaptureJson{{"role","optional_ngx_input"},{"key",input.key}}.dump();
