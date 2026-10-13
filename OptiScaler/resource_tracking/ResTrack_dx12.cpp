@@ -2056,6 +2056,9 @@ ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
         if (refCount <= 1)
         {
             if (gSurveyWrappers) FrameSurvey::Released(This);
+            // Release may be shared with command lists; erase by address before final destruction.
+            if (gNrdBridgeWrappers)
+                D3D12Hooks::OnBridgeCommandListReset(reinterpret_cast<ID3D12GraphicsCommandList*>(This), nullptr);
             std::scoped_lock stateLock(gRRResourceStateMutex);
             gRRResourceStates.erase(This);
             gRRResourceActivity.erase(This);

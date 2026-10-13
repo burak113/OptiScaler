@@ -3196,7 +3196,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
         bool enabled = NrdBridge::RuntimeEnabled();
         if (ImGui::Checkbox("FSR RR on the game's NRD signals", &enabled))
         {
-            config->FfxDenoiserNrdBridgeEnabled.set_volatile_value(enabled);
+            config->FfxDenoiserNrdBridgeEnabled = enabled;
             NrdBridge::SetRuntimeEnabled(enabled);
         }
         ImGui::TextWrapped("%s: %s", bridge.phase.c_str(), bridge.reason.c_str());
