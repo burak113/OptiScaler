@@ -40,12 +40,15 @@ struct Service
     ID3D12GraphicsCommandList* pendingList = nullptr;
     uint64_t frame = 0, resetSerial = 1, appliedReset = 0, lastLog = 0;
     uint32_t windowPresents = 0, retryPresents = 0, attempts = 0, failures = 0, lastSLFrame = UINT32_MAX;
-    bool window = false, observedRecon = false, conventionsLogged = false;
+    bool window = false, windowSawRecon = false, everRecon = false, observedRecon = false, conventionsLogged = false;
 };
 std::mutex gMutex, gInjectionMutex;
 std::shared_ptr<Service> gService;
 std::atomic<bool> gInstalled {false}, gRuntime {false};
 std::atomic<DebugMode> gDebug {DebugMode::Off};
+#ifdef FSRD_NRD_BRIDGE_TEST
+void (*gBeforeConversionLockForTesting)() = nullptr;
+#endif
 
 // The isolated discovery fixture links the original inert RR interface. The production wrapper
 // adds this cached description; after integration the same coordinator logs its measured conventions.
@@ -73,7 +76,7 @@ void DropPending(Service& owner)
 }
 void StartWindow(Service& owner)
 {
-    owner.window = true; owner.windowPresents = 0; owner.retryPresents = 0;
+    owner.window = true; owner.windowSawRecon = false; owner.windowPresents = 0; owner.retryPresents = 0;
     owner.status.active = false; owner.status.phase = "Discovering";
 }
 void Invalidate(Service& owner, const std::string& reason)
@@ -109,13 +112,39 @@ void CoordinatorException(const char* reason) noexcept
         if (owner) Failure(owner,reason);
     } catch (...) {}
 }
+void WaitingForBindings(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* cmd, const char* reason)
+{
+    bool log = false;
+    {
+        std::scoped_lock lock(gMutex);
+        if (gService != owner || !owner->window) return;
+        if (owner->cache.Valid()) owner->cache.Invalidate();
+        DropPending(*owner);
+        if (const auto found = owner->lists.find(cmd); found != owner->lists.end()) found->second.followingRecon = false;
+        log = owner->status.reason != reason;
+        owner->status.active = false; owner->status.phase = "Discovering"; owner->status.reason = reason;
+        owner->status.resources.clear(); owner->status.width = owner->status.height = 0;
+    }
+    if (log) LOG_INFO("[NRD_BRIDGE] {}; waiting for a complete command-list Reset inside the bounded window",reason);
+}
+bool CompleteOffsets(std::span<const FrameSurvey::BoundResource> table, D3D12_DESCRIPTOR_RANGE_TYPE kind,
+                     std::initializer_list<uint32_t> offsets)
+{
+    for (const auto offset : offsets)
+        if (std::none_of(table.begin(),table.end(),[&](const auto& view) {
+            return view.kind == kind && view.descriptorOffset == offset && view.resource;
+        })) return false;
+    return true;
+}
 bool Tables(ID3D12GraphicsCommandList* cmd, Role role, std::vector<FrameSurvey::BoundResource>& srv,
             std::vector<FrameSurvey::BoundResource>& uav)
 {
     if (role == Role::Recon)
-        return FrameSurvey::ResolveComputeTable(cmd,1,srv) && FrameSurvey::ResolveComputeTable(cmd,5,uav);
-    if (role == Role::Temporal) return FrameSurvey::ResolveComputeTable(cmd,1,srv);
-    if (role == Role::ATrous || role == Role::Consumer) return FrameSurvey::ResolveComputeTable(cmd,5,uav);
+        return FrameSurvey::ResolveComputeTable(cmd,1,srv) && FrameSurvey::ResolveComputeTable(cmd,5,uav) &&
+            CompleteOffsets(srv,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,{0,1,2,3}) && CompleteOffsets(uav,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,{0,1});
+    if (role == Role::Temporal) return FrameSurvey::ResolveComputeTable(cmd,1,srv) && CompleteOffsets(srv,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,{2});
+    if (role == Role::ATrous || role == Role::Consumer)
+        return FrameSurvey::ResolveComputeTable(cmd,5,uav) && CompleteOffsets(uav,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,{0,1});
     return true;
 }
 void LogDiscovery(const ChainDiscovery& chain, ID3D12Resource* motionTag)
@@ -149,6 +178,9 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         resources = owner->cache.Get(); generation = owner->cache.Generation(); serial = owner->resetSerial;
         reset = serial != owner->appliedReset;
     }
+    #ifdef FSRD_NRD_BRIDGE_TEST
+    if (gBeforeConversionLockForTesting) gBeforeConversionLockForTesting();
+#endif
     std::scoped_lock injection(gInjectionMutex); // Provider calls never hold the coordinator/registry mutex.
     {
         std::scoped_lock lock(gMutex);
@@ -230,7 +262,7 @@ bool Initialize(ID3D12Device* device) noexcept
         previous.reset();
         FrameSurvey::SetPipelineObserver(OnPipelineCreated); FrameSurvey::SetReleaseObserver(OnReleased);
         FrameSurvey::SetBindingWindow(gRuntime.load(std::memory_order_relaxed));
-        LOG_INFO("[NRD_BRIDGE] startup enabled for Cyberpunk; runtime={}; discovery windows bounded to 8 Presents / 3 attempts",
+        LOG_INFO("[NRD_BRIDGE] startup enabled for Cyberpunk; runtime={}; discovery windows bounded to 8 Presents / 3 attempts; empty loading windows do not consume attempts",
             gRuntime.load(std::memory_order_relaxed));
         return true;
     } catch (...) { CoordinatorException("NRD bridge initialization failed"); return false; }
@@ -262,10 +294,20 @@ void OnSetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pipeline
     if (!gInstalled.load(std::memory_order_relaxed) || FrameSurvey::Internal() || !cmd) return;
     try
     {
-        std::scoped_lock lock(gMutex); if (!gService) return;
-        const auto role = PipelineRole(*gService,pipeline);
-        if (role != Role::None) gService->lists[cmd].role = role;
-        else if (const auto found = gService->lists.find(cmd); found != gService->lists.end()) found->second.role = Role::None;
+        bool open = false;
+        {
+            std::scoped_lock lock(gMutex); if (!gService) return; auto& owner = *gService;
+            const auto role = PipelineRole(owner,pipeline);
+            if (role != Role::None) owner.lists[cmd].role = role;
+            else if (const auto found = owner.lists.find(cmd); found != owner.lists.end()) found->second.role = Role::None;
+            if (gRuntime.load(std::memory_order_relaxed) && !owner.cache.Valid() && !owner.window &&
+                owner.attempts < 3 && owner.failures < 3 && (role == Role::PrepLast || role == Role::Recon) &&
+                (owner.retryPresents >= 60 || (role == Role::Recon && !owner.everRecon)))
+            {
+                StartWindow(owner); owner.status.reason = "NRD pipeline observed; waiting for complete bindings"; open = true;
+            }
+        }
+        if (open) FrameSurvey::SetBindingWindow(true);
     } catch (...) {}
 }
 void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexcept
@@ -297,12 +339,13 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
             {
                 if (owner->pendingList) DropPending(*owner); // Conversion without a Consumer is a history gap.
                 auto& list = found->second; list = {}; list.role = role; list.followingRecon = true;
-                list.frame = frame = ++owner->frame; owner->observedRecon = true;
+                list.frame = frame = ++owner->frame; owner->observedRecon = owner->everRecon = true;
+                if (window) owner->windowSawRecon = true;
             }
             else if (!found->second.followingRecon || role == Role::None || role == Role::Consumer) return;
         }
         std::vector<FrameSurvey::BoundResource> srv, uav; std::string error;
-        if (window && !Tables(cmd,role,srv,uav)) { Failure(owner,"NRD compute table bindings are unavailable in discovery window"); return; }
+        if (window && !Tables(cmd,role,srv,uav)) { WaitingForBindings(owner,cmd,"NRD compute table bindings are unavailable in discovery window"); return; }
         bool invalid = false;
         {
             std::scoped_lock lock(gMutex); if (gService != owner) return;
@@ -335,7 +378,7 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
             window = owner->window;
         }
         std::vector<FrameSurvey::BoundResource> srv, uav; std::string error;
-        if (window && !Tables(cmd,Role::Consumer,srv,uav)) { Failure(owner,"Consumer compute table is unavailable in discovery window"); return; }
+        if (window && !Tables(cmd,Role::Consumer,srv,uav)) { WaitingForBindings(owner,cmd,"Consumer compute table bindings are unavailable in discovery window"); return; }
         ChainDiscovery discovered; bool published = false, invalid = false; ID3D12Resource* motionTag = nullptr;
         Resources resources; ListState staged; bool inject = false;
         {
@@ -450,13 +493,27 @@ void OnPresent() noexcept
             }
             if (owner.window && ++owner.windowPresents >= 8)
             {
-                owner.window = false; owner.retryPresents = 0; ++owner.attempts; change = true; desired = false;
-                owner.status.active = false; owner.status.phase = "Inactive";
-                owner.status.reason = owner.attempts >= 3 ? "NRD discovery exhausted 3 bounded windows" : "Waiting for a complete NRD chain; retrying after 60 Presents";
-                reason = owner.status.reason; log = true;
+                owner.window = false; owner.retryPresents = 0; change = true; desired = false; owner.status.active = false;
+                if (owner.windowSawRecon)
+                {
+                    ++owner.attempts; owner.status.phase = "Inactive";
+                    owner.status.reason = owner.attempts >= 3 ? "NRD discovery exhausted 3 bounded windows: " + owner.status.reason :
+                        "Waiting for a complete NRD chain; retrying after 60 Presents";
+                    log = true;
+                }
+                else
+                {
+                    owner.status.phase = "Waiting for NRD";
+                    owner.status.reason = "No Recon in the loading/menu window; waiting for NRD pipeline activity";
+                }
+                reason = owner.status.reason;
             }
-            else if (!owner.window && !owner.cache.Valid() && owner.attempts < 3 && owner.failures < 3 && ++owner.retryPresents >= 60)
-            { StartWindow(owner); change = desired = true; }
+            else if (!owner.window && !owner.cache.Valid() && owner.attempts < 3 && owner.failures < 3)
+            {
+                owner.retryPresents = std::min(60u,owner.retryPresents+1);
+                if (owner.retryPresents >= 60 && owner.everRecon && (owner.attempts || owner.failures))
+                { StartWindow(owner); change = desired = true; }
+            }
             if (reason.empty()) reason = owner.status.reason;
         }
         if (change) FrameSurvey::SetBindingWindow(desired);
