@@ -5,6 +5,7 @@
 #include <string>
 #include <span>
 #include <vector>
+#include <utility>
 
 struct NVSDK_NGX_Parameter;
 
@@ -27,6 +28,13 @@ struct BoundResource
     D3D12_DESCRIPTOR_RANGE_TYPE kind = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     uint32_t descriptorOffset = UINT32_MAX, descriptorIndex = UINT32_MAX, subresource = 0;
 };
+struct ComputeBindings
+{
+    ID3D12RootSignature* root = nullptr;
+    std::vector<ID3D12DescriptorHeap*> heaps;
+    std::vector<std::pair<UINT,D3D12_GPU_DESCRIPTOR_HANDLE>> tables;
+};
+bool SeedComputeBindings(ID3D12GraphicsCommandList*, const ComputeBindings&) noexcept;
 using PipelineObserver = void (*)(ID3D12PipelineState*, const char* csSha256);
 using ReleaseObserver = void (*)(void*);
 void SetPipelineObserver(PipelineObserver) noexcept;

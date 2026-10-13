@@ -487,6 +487,19 @@ void SetBindingWindow(bool enabled) noexcept
     } catch (...) {}
 }
 bool BindingWindow() noexcept { return gBindingWindow.load(std::memory_order_relaxed); }
+bool SeedComputeBindings(ID3D12GraphicsCommandList* cmd, const ComputeBindings& bindings) noexcept
+{
+    if (!BindingTracking() || gInternal || !cmd || !bindings.root || bindings.heaps.empty()) return false;
+    try
+    {
+        std::scoped_lock lock(gMirrorMutex); auto& mirror = gMirror[cmd];
+        if (mirror.compute.object != bindings.root) mirror.compute = {};
+        if (mirror.heaps != bindings.heaps) mirror.graphics.tables.clear();
+        mirror.compute.object = bindings.root; mirror.compute.tables.clear();
+        for (const auto& [parameter,handle] : bindings.tables) mirror.compute.tables[parameter] = handle.ptr;
+        mirror.heaps = bindings.heaps; return true;
+    } catch (...) { return false; }
+}
 bool ResolveComputeTable(ID3D12GraphicsCommandList* cmd, UINT parameter, std::vector<BoundResource>& out) noexcept
 {
     out.clear();
