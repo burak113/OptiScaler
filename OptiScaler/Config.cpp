@@ -184,6 +184,7 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserAlbedoStabilisationRate.reset();
     FfxDenoiserParticleLayerDiagnostics.reset();
     FfxDenoiserFrameSurvey.reset();
+    FfxDenoiserFrameSurveyPassHashes.reset();
     FfxDenoiserFogGuides.reset();
     FfxDenoiserMotionJitterDelta.reset();
     FfxDenoiserRecoveryHistory.reset();
@@ -507,6 +508,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserAlbedoStabilisationRate.set_from_config(readFloat("FSR-RR", "AlbedoStabilisationRate"));
             FfxDenoiserParticleLayerDiagnostics.set_from_config(readBool("FSR-RR", "ParticleLayerDiagnostics"));
             FfxDenoiserFrameSurvey.set_from_config(readBool("FSR-RR", "FrameSurvey"));
+            FfxDenoiserFrameSurveyPassHashes.set_from_config(readWString("FSR-RR", "FrameSurveyPassHashes"));
             FfxDenoiserFogGuides.set_from_config(readBool("FSR-RR", "FogGuides"));
             FfxDenoiserMotionJitterDelta.set_from_config(readBool("FSR-RR", "MotionJitterDelta"));
             FfxDenoiserRecoveryHistory.set_from_config(readBool("FSR-RR", "RecoveryHistory"));
@@ -1495,6 +1497,8 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "AlbedoStabilisationRate", GetFloatValue(Instance()->FfxDenoiserAlbedoStabilisationRate.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "ParticleLayerDiagnostics", GetBoolValue(Instance()->FfxDenoiserParticleLayerDiagnostics.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "FrameSurvey", GetBoolValue(Instance()->FfxDenoiserFrameSurvey.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "FrameSurveyPassHashes",
+                     wstring_to_string(Instance()->FfxDenoiserFrameSurveyPassHashes.value_for_config_or(L"auto")).c_str());
         ini.SetValue("FSR-RR", "FogGuides", GetBoolValue(Instance()->FfxDenoiserFogGuides.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "MotionJitterDelta", GetBoolValue(Instance()->FfxDenoiserMotionJitterDelta.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "RecoveryHistory", GetBoolValue(Instance()->FfxDenoiserRecoveryHistory.value_for_config()).c_str());

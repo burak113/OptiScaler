@@ -100,6 +100,8 @@ void Detach() {
                       ' need(FrameSurvey::Install(host.dev.Get(),host.list.Get()),"optional hooks install");\n LifecycleWiring::Attach(host.list.Get(),host.queue.Get());')
     cpp = cpp.replace(' result["frame"]=frameTest(host); result["aliasing"]=aliasTest(host);',
                       ' result["frame"]=frameTest(host); LifecycleWiring::Detach();')
+    # The pipeline-library/early-binding case needs a hardware driver (WARP has no pipeline libraries).
+    cpp = cpp.replace(' result["early_binding"]=earlyBindingTest(host);\n', '')
     cpp = cpp.replace(' result["timings"]={timing(host,1505,847),timing(host,2560,1440)};', ' result["timings"]=J::array();')
     cpp = cpp.replace('"synthetic_D3D12_hardware_fixture_not_Cyberpunk"', '"production_lifecycle_detour_calls_WARP_not_Cyberpunk"')
     cpp = cpp.replace('__TRACE__', (ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp').as_posix()).replace(

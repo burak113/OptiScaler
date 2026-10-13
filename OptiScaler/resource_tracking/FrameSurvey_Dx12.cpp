@@ -13,6 +13,7 @@
 #include <set>
 #include <unordered_map>
 #include <atomic>
+#include <cctype>
 
 namespace FrameSurvey
 {
@@ -23,6 +24,32 @@ using Microsoft::WRL::ComPtr;
 const GUID RootBlobId = {0xe971fb39,0x45a2,0x41ea,{0xa1,0x55,0x64,0xa8,0xc7,0xa4,0xfd,0x11}};
 const GUID PipelineId = {0xeb65bd20,0x3531,0x41b0,{0xbc,0x65,0x40,0xd9,0xc2,0xbe,0x31,0x11}};
 std::atomic<bool> gEnabled {false}, gRecording {false};
+// Creation metadata (root layouts, shader hashes, heaps, views) is tracked from device creation when
+// FrameSurvey=true. Install() runs later, after the title has created most of its pipelines.
+std::atomic<bool> gTracking {false};
+bool Tracking() noexcept { return gTracking.load(std::memory_order_relaxed) || gEnabled.load(std::memory_order_relaxed); }
+// FrameSurveyPassHashes: lowercase shader SHA-256 prefixes whose outputs are saved right after the dispatch.
+std::mutex gPassHashMutex;
+std::vector<std::string> gPassHashes;
+bool TargetsConfigured()
+{
+    std::scoped_lock lock(gPassHashMutex);
+    return !gPassHashes.empty();
+}
+bool Targeted(const Json& pso)
+{
+    std::scoped_lock lock(gPassHashMutex);
+    if (gPassHashes.empty() || !pso.is_object()) return false;
+    const auto shaders = pso.find("shader_hashes");
+    if (shaders == pso.end() || !shaders->is_object()) return false;
+    for (const auto& [stage,hash] : shaders->items())
+    {
+        if (!hash.is_string()) continue;
+        const auto& text = hash.get_ref<const std::string&>();
+        for (const auto& prefix : gPassHashes) if (text.rfind(prefix,0) == 0) return true;
+    }
+    return false;
+}
 thread_local bool gInternal = false;
 struct InternalScope { bool previous = gInternal; InternalScope() { gInternal = true; } ~InternalScope() { gInternal = previous; } };
 // Resource lifetime lock NEVER acquires the recorder or GAME_TRACE locks.
@@ -73,6 +100,8 @@ struct List
 {
     uint64_t id = 0;
     bool resetObserved = false, closed = false, inRenderPass = false;
+    // The last pass matched FrameSurveyPassHashes: its outputs are saved right after it (per-pass keys).
+    bool targeted = false;
     uint64_t lastPass = 0;
     Json pso = Json::object(), passes = Json::array();
     RootState compute, graphics;
@@ -93,6 +122,9 @@ struct Service
     bool requested = false, recording = false;
     uint64_t startTick = 0, candidateBytes = 0;
     uint32_t constantReads = 0;
+    // Targeted mode keeps the window open (up to 8 Presents) until a listed pass is saved: with frame
+    // generation a Present-to-Present interval can hold only the interpolated frame's work.
+    uint32_t targetedCopies = 0, presents = 0;
     Json manifest;
     std::map<uint64_t,Json> resources;
     std::unordered_map<ID3D12GraphicsCommandList*,List> lists;
@@ -211,16 +243,59 @@ Json ReadPipeline(ID3D12PipelineState* pso)
     }
     return result;
 }
+// Binding state of every command list, kept while tracking. Lists reset before the recorded Present
+// (Cyberpunk records its async compute list early) otherwise have no root layout, tables or pipeline.
+struct Mirror
+{
+    struct Root
+    {
+        ID3D12RootSignature* object = nullptr;
+        std::map<uint32_t,uint64_t> tables;
+        std::map<uint32_t,std::pair<uint32_t,uint64_t>> views;
+    };
+    ID3D12PipelineState* pso = nullptr;
+    Root compute, graphics;
+    std::vector<ID3D12DescriptorHeap*> heaps;
+};
+std::mutex gMirrorMutex;
+std::unordered_map<ID3D12GraphicsCommandList*,Mirror> gMirror;
+template<class Update> void Mirrored(ID3D12GraphicsCommandList* cmd, Update&& update) noexcept
+{
+    if (!Tracking() || gInternal || !cmd) return;
+    try { std::scoped_lock lock(gMirrorMutex); update(gMirror[cmd]); } catch (...) {}
+}
+bool Seed(ID3D12GraphicsCommandList* cmd, List& list)
+{
+    Mirror mirror;
+    {
+        std::scoped_lock lock(gMirrorMutex);
+        const auto found = gMirror.find(cmd);
+        if (found == gMirror.end()) return false;
+        mirror = found->second;
+    }
+    list.pso = ReadPipeline(mirror.pso);
+    auto seed = [](RootState& state, const Mirror::Root& root) {
+        if (!root.object) return;
+        state.identity = uint64_t(reinterpret_cast<uintptr_t>(root.object)); state.layout = ReadRoot(root.object);
+        state.tables = root.tables; state.views = root.views; };
+    seed(list.compute,mirror.compute); seed(list.graphics,mirror.graphics);
+    list.heaps = mirror.heaps;
+    return true;
+}
 List& GetList(ID3D12GraphicsCommandList* cmd)
 {
     auto& state = gService->lists[cmd];
-    if (!state.id) { state.id = ++gNextList; Count("list_without_observed_reset"); }
+    if (!state.id)
+    {
+        state.id = ++gNextList; Count("list_without_observed_reset");
+        if (Seed(cmd,state)) Count("list_bindings_seeded_from_tracking");
+    }
     return state;
 }
 void StoreView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI_FORMAT format,
     uint32_t mip, uint32_t slice, bool supported)
 {
-    if (!Enabled() || gInternal) return;
+    if (!Tracking() || gInternal) return;
     std::scoped_lock lock(gLifetimeMutex);
     if (const auto found = gViews.find(handle); found != gViews.end() && found->second.object)
         if (const auto old = gResources.find(found->second.object); old != gResources.end()) old->second.handles.erase(handle);
@@ -303,10 +378,15 @@ bool CopyImage(ID3D12GraphicsCommandList* cmd, List& list, const ViewInfo& view,
     }
     const auto mip = view.subresource % desc.MipLevels;
     const uint32_t width = uint32_t(std::max<uint64_t>(1,desc.Width >> mip)), height = std::max(1u,desc.Height >> mip);
-    if (!list.resetObserved || list.inRenderPass)
+    // A targeted pass may sit in a list reset before the frame (async/early recording); its payload
+    // still retires on that list's next Reset, like any other.
+    if ((!list.resetObserved && !list.targeted) || list.inRenderPass)
     { Count("snapshot_recording_state_unavailable"); return false; }
     if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || desc.SampleDesc.Count != 1 || !view.snapshotSupported) return false;
     if (!tagged && !FrameSurveyMetadata::CandidateExtent(width,height,gRenderWidth,gRenderHeight)) return false;
+    // Targeted mode: the candidate budget belongs to the listed passes' outputs (one RGBA16F output is ~10 MiB
+    // at 1505x847, the regular last-writer set alone fills most of the 192 MiB).
+    if (!tagged && !list.targeted && TargetsConfigured()) { Count("regular_snapshot_skipped_targeted_mode"); return false; }
     const std::pair<uint64_t,uint32_t> identity {view.resource,view.subresource};
     if (list.splitTransitions.contains(identity)) { Count("pending_split_barrier_snapshot_skipped"); return false; }
     const bool fresh = !list.copied.contains(key);
@@ -336,6 +416,7 @@ bool CopyImage(ID3D12GraphicsCommandList* cmd, List& list, const ViewInfo& view,
     if (!gService->trace.SurveyTexture(list.payload,key,{source.Get(),state},view.subresource,x,y,w,h))
     { Count("unsupported_format_or_readback_budget"); return false; }
     if (!tagged) gService->candidates.insert(identity);
+    if (list.targeted) ++gService->targetedCopies;
     list.copied[key] = list.lastPass;
     gService->manifest["snapshots"].push_back({{"key",key},{"list_id",list.id},{"resource",view.resource},
         {"subresource",view.subresource},{"writer_local_pass",list.lastPass},{"tagged",tagged},{"view_format",view.format},
@@ -345,7 +426,7 @@ bool CopyImage(ID3D12GraphicsCommandList* cmd, List& list, const ViewInfo& view,
 bool CopyBuffer(ID3D12GraphicsCommandList* cmd, List& list, ID3D12Resource* object,
     const std::string& key, uint64_t offset, uint32_t bytes)
 {
-    if (!object || !bytes || !list.resetObserved || list.inRenderPass) return false;
+    if (!object || !bytes || (!list.resetObserved && !list.targeted) || list.inRenderPass) return false;
     ComPtr<ID3D12Resource> source;
     uint64_t id = 0;
     {
@@ -372,11 +453,29 @@ bool CopyBuffer(ID3D12GraphicsCommandList* cmd, List& list, ID3D12Resource* obje
 }
 
 bool Enabled() noexcept { return gEnabled.load(std::memory_order_relaxed); }
+void BeginCreationTracking() noexcept { gTracking.store(true,std::memory_order_release); }
+void SetPassHashes(const std::string& list) noexcept
+{
+    try
+    {
+        std::vector<std::string> parsed; std::string token;
+        auto flush = [&] {
+            if (token.size() >= 8 && token.size() <= 64 && token.find_first_not_of("0123456789abcdef") == token.npos) parsed.push_back(token);
+            token.clear(); };
+        for (const char c : list)
+        {
+            if (c == ',' || c == ';' || c == ' ' || c == '\t') flush();
+            else token.push_back(char(std::tolower(static_cast<unsigned char>(c))));
+        }
+        flush();
+        std::scoped_lock lock(gPassHashMutex); gPassHashes = std::move(parsed);
+    } catch (...) {}
+}
 bool Internal() noexcept { return gInternal; }
 std::mutex& SubmissionMutex() { return gSubmissionMutex; }
 void ResourceCreated(ID3D12Resource* object, D3D12_RESOURCE_STATES initial, ID3D12Heap* heap, uint64_t offset) noexcept
 {
-    if (!Enabled() || gInternal || !object) return;
+    if (!Tracking() || gInternal || !object) return;
     try
     {
         std::scoped_lock lock(gLifetimeMutex); auto& resource = Register(object);
@@ -386,12 +485,12 @@ void ResourceCreated(ID3D12Resource* object, D3D12_RESOURCE_STATES initial, ID3D
 }
 void RootCreated(ID3D12RootSignature* root, const void* bytes, size_t length) noexcept
 {
-    if (!Enabled() || gInternal || !root || !bytes || length > (1u<<20)) return;
+    if (!Tracking() || gInternal || !root || !bytes || length > (1u<<20)) return;
     if (FAILED(root->SetPrivateData(RootBlobId,UINT(length),bytes))) Fail("Root signature metadata storage failed");
 }
 void PipelineCreated(ID3D12PipelineState* pso, const D3D12_COMPUTE_PIPELINE_STATE_DESC& desc) noexcept
 {
-    if (!Enabled() || gInternal || !pso) return;
+    if (!Tracking() || gInternal || !pso) return;
     try
     {
         Json data = {{"shader_hashes",{{"CS",RRTraceAdditiveIO::Sha256({static_cast<const uint8_t*>(desc.CS.pShaderBytecode),desc.CS.BytecodeLength})}}},
@@ -401,7 +500,7 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_COMPUTE_PIPELINE_STAT
 }
 void PipelineCreated(ID3D12PipelineState* pso, const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc) noexcept
 {
-    if (!Enabled() || gInternal || !pso) return;
+    if (!Tracking() || gInternal || !pso) return;
     try
     {
         Json hashes = Json::object();
@@ -414,7 +513,7 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_GRAPHICS_PIPELINE_STA
 }
 void PipelineCreated(ID3D12PipelineState* pso, const D3D12_PIPELINE_STATE_STREAM_DESC& desc) noexcept
 {
-    if (!Enabled() || gInternal || !pso) return;
+    if (!Tracking() || gInternal || !pso) return;
     try
     {
         struct Parser : ID3DX12PipelineParserCallbacks
@@ -439,7 +538,7 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_PIPELINE_STATE_STREAM
 }
 void Released(void* object) noexcept
 {
-    if (!Enabled() || !object) return;
+    if (!Tracking() || !object) return;
     try
     {
         std::scoped_lock lock(gLifetimeMutex);
@@ -469,7 +568,7 @@ void Released(void* object) noexcept
 }
 void HeapCreated(ID3D12Device* device, ID3D12DescriptorHeap* object) noexcept
 {
-    if (!Enabled() || gInternal || !object) return;
+    if (!Tracking() || gInternal || !object) return;
     try
     {
         const auto desc = object->GetDesc();
@@ -516,7 +615,7 @@ void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3
 void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_HANDLE* dst, const UINT* dn,
     UINT ns, const D3D12_CPU_DESCRIPTOR_HANDLE* src, const UINT* sn, D3D12_DESCRIPTOR_HEAP_TYPE type) noexcept
 {
-    if (!Enabled() || gInternal || !dst || !src ||
+    if (!Tracking() || gInternal || !dst || !src ||
         (type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && type != D3D12_DESCRIPTOR_HEAP_TYPE_RTV)) return;
     try
     {
@@ -538,6 +637,7 @@ void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_H
 
 void Reset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexcept
 {
+    Mirrored(cmd,[&](Mirror& mirror) { mirror = {}; mirror.pso = initial; });
     if (!Recording()) return;
     try
     {
@@ -559,12 +659,16 @@ void Close(ID3D12GraphicsCommandList* cmd, HRESULT result) noexcept
 }
 void SetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pso) noexcept
 {
+    Mirrored(cmd,[&](Mirror& mirror) { mirror.pso = pso; });
     if (!Recording()) return;
     try { std::scoped_lock lock(gRecordMutex); if (!Recording()) return; GetList(cmd).pso = ReadPipeline(pso); }
     catch (...) { Fail("Pipeline binding metadata failed"); }
 }
 void RootBinding(ID3D12GraphicsCommandList* cmd, bool graphics, ID3D12RootSignature* root) noexcept
 {
+    Mirrored(cmd,[&](Mirror& mirror) {
+        auto& state = graphics ? mirror.graphics : mirror.compute;
+        if (state.object != root) { state = {}; state.object = root; } });
     if (!Recording()) return;
     try
     {
@@ -578,6 +682,11 @@ void RootBinding(ID3D12GraphicsCommandList* cmd, bool graphics, ID3D12RootSignat
 }
 void DescriptorHeaps(ID3D12GraphicsCommandList* cmd, UINT count, ID3D12DescriptorHeap* const* heaps) noexcept
 {
+    Mirrored(cmd,[&](Mirror& mirror) {
+        std::vector<ID3D12DescriptorHeap*> next;
+        if (heaps) next.assign(heaps,heaps+count);
+        if (next != mirror.heaps) { mirror.compute.tables.clear(); mirror.graphics.tables.clear(); }
+        mirror.heaps = std::move(next); });
     if (!Recording()) return;
     try
     {
@@ -590,6 +699,7 @@ void DescriptorHeaps(ID3D12GraphicsCommandList* cmd, UINT count, ID3D12Descripto
 }
 void RootView(ID3D12GraphicsCommandList* cmd, bool graphics, UINT index, UINT kind, D3D12_GPU_VIRTUAL_ADDRESS va) noexcept
 {
+    Mirrored(cmd,[&](Mirror& mirror) { (graphics ? mirror.graphics : mirror.compute).views[index] = {kind,va}; });
     if (!Recording()) return;
     try
     {
@@ -599,6 +709,7 @@ void RootView(ID3D12GraphicsCommandList* cmd, bool graphics, UINT index, UINT ki
 }
 void Table(ID3D12GraphicsCommandList* cmd, bool graphics, UINT index, D3D12_GPU_DESCRIPTOR_HANDLE handle) noexcept
 {
+    Mirrored(cmd,[&](Mirror& mirror) { (graphics ? mirror.graphics : mirror.compute).tables[index] = handle.ptr; });
     if (!Recording()) return;
     try
     {
@@ -737,12 +848,15 @@ void Pass(ID3D12GraphicsCommandList* cmd, const char* kind, std::span<const uint
             {"unresolved",unresolved}};
         if (std::string_view(kind) == "ExecuteBundle") Count("bundle_inherited_binding_usage_unknown");
         if (!list.pso.value("hash_known",false)) Count("pass_shader_hash_unavailable");
+        list.targeted = Targeted(list.pso);
+        if (list.targeted) { row["targeted_snapshot"] = true; Count("targeted_passes"); }
         list.passes.push_back(std::move(row));
         // Root CBV bytes aid NRD-version/encoding investigation. Size is unknown
         // for a root descriptor, so save a bounded 1 KiB prefix, explicitly labelled.
         for (const auto& [index,view] : root.views)
         {
-            if (view.first != D3D12_DESCRIPTOR_RANGE_TYPE_CBV || gService->constantReads >= 64) continue;
+            // Targeted passes get their own allowance: their constants decode the denoiser's settings.
+            if (view.first != D3D12_DESCRIPTOR_RANGE_TYPE_CBV || gService->constantReads >= (list.targeted ? 192u : 64u)) continue;
             ComPtr<ID3D12Resource> object; uint64_t offset = 0; uint32_t bytes = 0;
             {
                 std::scoped_lock lifetime(gLifetimeMutex); auto upper = gAddresses.upper_bound(view.second);
@@ -766,19 +880,25 @@ void SnapshotWrites(ID3D12GraphicsCommandList* cmd) noexcept
     try
     {
         std::scoped_lock lock(gRecordMutex); if (!Recording()) return; auto& list = GetList(cmd);
-        if (list.inRenderPass) return; // CopyTextureRegion is illegal inside a render pass.
+        if (list.inRenderPass) { list.targeted = false; return; } // CopyTextureRegion is illegal inside a render pass.
+        const std::string prefix = list.targeted ? "p"+std::to_string(list.lastPass)+"_" : std::string();
         for (const auto& view : list.writes)
         {
             const auto expected = view.kind == 4 ? D3D12_RESOURCE_STATE_RENDER_TARGET : D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+            auto state = expected;
             const auto found = list.states.find({view.resource,view.subresource});
-            if (found == list.states.end())
+            if (found != list.states.end()) state = found->second;
+            // A texture written through a UAV by a dispatch must be in UNORDERED_ACCESS (no implicit promotion);
+            // only targeted passes rely on that rule, their barrier may precede the recorded frame.
+            else if (!list.targeted || view.kind != D3D12_DESCRIPTOR_RANGE_TYPE_UAV)
             { Count("bound_write_state_unproven_snapshot_skipped"); continue; }
-            if ((found->second&expected) == 0)
+            else Count("targeted_snapshot_state_from_uav_binding");
+            if ((state&expected) == 0)
             { Count("bound_write_state_mismatch_snapshot_skipped"); continue; }
-            CopyImage(cmd,list,view,found->second,
-                "r"+std::to_string(view.resource)+"s"+std::to_string(view.subresource),false);
+            CopyImage(cmd,list,view,state,
+                prefix+"r"+std::to_string(view.resource)+"s"+std::to_string(view.subresource),false);
         }
-        list.writes.clear();
+        list.writes.clear(); list.targeted = false;
     } catch (...) { Fail("Last-writer texture snapshot failed"); }
 }
 void Submit(ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* commands) noexcept
@@ -840,6 +960,10 @@ void Present(IDXGISwapChain* swapchain, UINT flags) noexcept
         if (gService->recording)
         {
             if (gService->swapchain != swapchain) return;
+            ++gService->presents;
+            if (TargetsConfigured() && !gService->targetedCopies && gService->presents < 8)
+            { Count("targeted_mode_window_extended_presents"); return; }
+            gService->manifest["presents_in_window"] = gService->presents;
             gService->recording = false; gRecording.store(false,std::memory_order_release);
             gService->manifest["resources"] = Json::array();
             for (const auto& [id,resource] : gService->resources) gService->manifest["resources"].push_back(resource);
@@ -858,7 +982,7 @@ void Present(IDXGISwapChain* swapchain, UINT flags) noexcept
             gService->requested = false; gService->recording = true;
             gService->lists.clear(); gService->resources.clear(); gService->candidates.clear();
             gService->candidateBytes = 0; gNextPass = 0;
-            gService->constantReads = 0;
+            gService->constantReads = 0; gService->targetedCopies = 0; gService->presents = 0;
             gService->manifest = {{"capture_start","previous_real_Present"},{"capture_end","next_real_Present"},
                 {"start_tick_ms",GetTickCount64()},{"batches",Json::array()},{"command_lists",Json::array()},
                 {"snapshots",Json::array()},{"tags",Json::array()},{"markers",Json::array()},
@@ -997,7 +1121,76 @@ BeginRenderFn oBeginRender = nullptr;
 EndRenderFn oEndRender = nullptr;
 RaysFn oRays = nullptr;
 RayPipelineFn oRayPipeline = nullptr;
-const GUID SignatureId = {0xe971fb40,0x45a2,0x41ea,{0xa1,0x55,0x64,0xa8,0xc7,0xa4,0xfd,0x11}};
+// Cyberpunk loads most pipelines from an ID3D12PipelineLibrary (GamePipelineLibrary.cache), which bypasses
+// the Create*PipelineState hooks; the Load* calls carry the same descriptions, so they are hashed here.
+using CreateLibraryFn = HRESULT(STDMETHODCALLTYPE*)(ID3D12Device1*,const void*,SIZE_T,REFIID,void**);
+using LoadGraphicsFn = HRESULT(STDMETHODCALLTYPE*)(ID3D12PipelineLibrary*,LPCWSTR,const D3D12_GRAPHICS_PIPELINE_STATE_DESC*,REFIID,void**);
+using LoadComputeFn = HRESULT(STDMETHODCALLTYPE*)(ID3D12PipelineLibrary*,LPCWSTR,const D3D12_COMPUTE_PIPELINE_STATE_DESC*,REFIID,void**);
+using LoadStreamFn = HRESULT(STDMETHODCALLTYPE*)(ID3D12PipelineLibrary1*,LPCWSTR,const D3D12_PIPELINE_STATE_STREAM_DESC*,REFIID,void**);
+CreateLibraryFn oCreateLibrary = nullptr;
+LoadGraphicsFn oLoadGraphics = nullptr;
+LoadComputeFn oLoadCompute = nullptr;
+LoadStreamFn oLoadStream = nullptr;
+std::mutex gLibraryHookMutex;
+HRESULT STDMETHODCALLTYPE LoadGraphics(ID3D12PipelineLibrary* library, LPCWSTR name, const D3D12_GRAPHICS_PIPELINE_STATE_DESC* desc,
+    REFIID riid, void** pso)
+{
+    const auto result = oLoadGraphics(library,name,desc,riid,pso);
+    if (SUCCEEDED(result) && desc && pso && *pso && riid == __uuidof(ID3D12PipelineState))
+        PipelineCreated(static_cast<ID3D12PipelineState*>(*pso),*desc);
+    return result;
+}
+HRESULT STDMETHODCALLTYPE LoadCompute(ID3D12PipelineLibrary* library, LPCWSTR name, const D3D12_COMPUTE_PIPELINE_STATE_DESC* desc,
+    REFIID riid, void** pso)
+{
+    const auto result = oLoadCompute(library,name,desc,riid,pso);
+    if (SUCCEEDED(result) && desc && pso && *pso && riid == __uuidof(ID3D12PipelineState))
+        PipelineCreated(static_cast<ID3D12PipelineState*>(*pso),*desc);
+    return result;
+}
+HRESULT STDMETHODCALLTYPE LoadStream(ID3D12PipelineLibrary1* library, LPCWSTR name, const D3D12_PIPELINE_STATE_STREAM_DESC* desc,
+    REFIID riid, void** pso)
+{
+    const auto result = oLoadStream(library,name,desc,riid,pso);
+    if (SUCCEEDED(result) && desc && pso && *pso && riid == __uuidof(ID3D12PipelineState))
+        PipelineCreated(static_cast<ID3D12PipelineState*>(*pso),*desc);
+    return result;
+}
+void HookLibrary(IUnknown* object) noexcept
+{
+    try
+    {
+        std::scoped_lock lock(gLibraryHookMutex);
+        if (oLoadGraphics) return;
+        ComPtr<ID3D12PipelineLibrary> library;
+        if (FAILED(object->QueryInterface(IID_PPV_ARGS(&library)))) return;
+        auto** table = *reinterpret_cast<void***>(library.Get());
+        oLoadGraphics = reinterpret_cast<LoadGraphicsFn>(table[9]);
+        oLoadCompute = reinterpret_cast<LoadComputeFn>(table[10]);
+        ComPtr<ID3D12PipelineLibrary1> library1;
+        if (SUCCEEDED(object->QueryInterface(IID_PPV_ARGS(&library1))))
+            oLoadStream = reinterpret_cast<LoadStreamFn>((*reinterpret_cast<void***>(library1.Get()))[13]);
+        LONG result = DetourTransactionBegin();
+        if (result == NO_ERROR) result = DetourUpdateThread(GetCurrentThread());
+        if (result == NO_ERROR) result = DetourAttach(reinterpret_cast<PVOID*>(&oLoadGraphics),reinterpret_cast<PVOID>(LoadGraphics));
+        if (result == NO_ERROR) result = DetourAttach(reinterpret_cast<PVOID*>(&oLoadCompute),reinterpret_cast<PVOID>(LoadCompute));
+        if (result == NO_ERROR && oLoadStream) result = DetourAttach(reinterpret_cast<PVOID*>(&oLoadStream),reinterpret_cast<PVOID>(LoadStream));
+        if (result == NO_ERROR) result = DetourTransactionCommit(); else DetourTransactionAbort();
+        if (result != NO_ERROR)
+        {
+            oLoadGraphics = nullptr; oLoadCompute = nullptr; oLoadStream = nullptr;
+            LOG_ERROR("[FRAME_SURVEY] pipeline library load hooks failed: {:X}",result); return;
+        }
+        LOG_INFO("[FRAME_SURVEY] pipeline library loads hooked (stream {})",oLoadStream != nullptr);
+    } catch (...) { LOG_ERROR("[FRAME_SURVEY] pipeline library hook exception"); }
+}
+HRESULT STDMETHODCALLTYPE CreateLibrary(ID3D12Device1* device, const void* blob, SIZE_T length, REFIID riid, void** library)
+{
+    const auto result = oCreateLibrary(device,blob,length,riid,library);
+    if (SUCCEEDED(result) && library && *library && Tracking() && !gInternal) HookLibrary(static_cast<IUnknown*>(*library));
+    return result;
+}
+const GUID SignatureId ={0xe971fb40,0x45a2,0x41ea,{0xa1,0x55,0x64,0xa8,0xc7,0xa4,0xfd,0x11}};
 const GUID SignatureLayoutId = {0xe971fb41,0x45a2,0x41ea,{0xa1,0x55,0x64,0xa8,0xc7,0xa4,0xfd,0x11}};
 void STDMETHODCALLTYPE Indirect(ID3D12GraphicsCommandList* cmd, ID3D12CommandSignature* signature, UINT count,
     ID3D12Resource* arguments, UINT64 argumentOffset, ID3D12Resource* counts, UINT64 countOffset)
@@ -1205,6 +1398,9 @@ bool Install(ID3D12Device* device, ID3D12GraphicsCommandList* list) noexcept
         oGraphicsSrv = reinterpret_cast<RootViewFn>(table[40]);
         oGraphicsUav = reinterpret_cast<RootViewFn>(table[42]);
         oSignature = reinterpret_cast<SignatureFn>(dt[41]);
+        ComPtr<ID3D12Device1> device1;
+        if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&device1))))
+            oCreateLibrary = reinterpret_cast<CreateLibraryFn>((*reinterpret_cast<void***>(device1.Get()))[44]);
         ComPtr<ID3D12GraphicsCommandList4> list4;
         if (SUCCEEDED(list->QueryInterface(IID_PPV_ARGS(&list4))))
         {
@@ -1220,12 +1416,13 @@ bool Install(ID3D12Device* device, ID3D12GraphicsCommandList* list) noexcept
             if (result == NO_ERROR) result = DetourAttach(reinterpret_cast<PVOID*>(&original),reinterpret_cast<PVOID>(replacement)); };
         attach(oIndirect,Indirect); attach(oCopyResource,CopyResource); attach(oCopyTexture,CopyTexture);
         attach(oGraphicsCbv,GraphicsCbv); attach(oGraphicsSrv,GraphicsSrv); attach(oGraphicsUav,GraphicsUav); attach(oSignature,Signature);
+        if (oCreateLibrary) attach(oCreateLibrary,CreateLibrary);
         if (list4) { attach(oBeginRender,BeginRender); attach(oEndRender,EndRender); attach(oRayPipeline,RayPipeline); attach(oRays,Rays); }
         if (result == NO_ERROR) result = DetourTransactionCommit(); else DetourTransactionAbort();
         if (result != NO_ERROR)
         {
             oIndirect = nullptr; oCopyResource = nullptr; oCopyTexture = nullptr;
-            oGraphicsCbv = oGraphicsSrv = oGraphicsUav = nullptr; oSignature = nullptr;
+            oGraphicsCbv = oGraphicsSrv = oGraphicsUav = nullptr; oSignature = nullptr; oCreateLibrary = nullptr;
             oBeginRender = nullptr; oEndRender = nullptr; oRayPipeline = nullptr; oRays = nullptr;
             Fail("Survey-only hook installation failed; no capture will be started"); return false;
         }
@@ -1237,6 +1434,7 @@ bool Install(ID3D12Device* device, ID3D12GraphicsCommandList* list) noexcept
 }
 void Shutdown() noexcept
 {
+    gTracking.store(false,std::memory_order_release);
     if (!Enabled()) return;
     gEnabled.store(false,std::memory_order_release); gRecording.store(false,std::memory_order_release);
     try
@@ -1250,10 +1448,17 @@ void Shutdown() noexcept
         detach(oIndirect,Indirect); detach(oCopyResource,CopyResource); detach(oCopyTexture,CopyTexture);
         detach(oGraphicsCbv,GraphicsCbv); detach(oGraphicsSrv,GraphicsSrv); detach(oGraphicsUav,GraphicsUav); detach(oSignature,Signature);
         detach(oBeginRender,BeginRender); detach(oEndRender,EndRender); detach(oRayPipeline,RayPipeline); detach(oRays,Rays);
+        detach(oCreateLibrary,CreateLibrary);
+        {
+            std::scoped_lock library(gLibraryHookMutex);
+            detach(oLoadGraphics,LoadGraphics); detach(oLoadCompute,LoadCompute); detach(oLoadStream,LoadStream);
+        }
         DetourTransactionCommit();
         oIndirect = nullptr; oCopyResource = nullptr; oCopyTexture = nullptr;
-        oGraphicsCbv = oGraphicsSrv = oGraphicsUav = nullptr; oSignature = nullptr;
+        oGraphicsCbv = oGraphicsSrv = oGraphicsUav = nullptr; oSignature = nullptr; oCreateLibrary = nullptr;
         oBeginRender = nullptr; oEndRender = nullptr; oRayPipeline = nullptr; oRays = nullptr;
+        { std::scoped_lock library(gLibraryHookMutex); oLoadGraphics = nullptr; oLoadCompute = nullptr; oLoadStream = nullptr; }
+        { std::scoped_lock mirror(gMirrorMutex); gMirror.clear(); }
         std::scoped_lock lock(gLifetimeMutex); gViews.clear(); gResources.clear(); gAddresses.clear(); gHeaps.clear();
         gCreationDevice.Reset(); gStatus.installed = false;
     } catch (...) {}

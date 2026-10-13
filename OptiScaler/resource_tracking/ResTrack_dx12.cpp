@@ -3528,7 +3528,12 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
                 PublishComputeHookAvailability();
             }
 
-            if (gSurveyWrappers) FrameSurvey::Install(InDevice,realCL);
+            if (gSurveyWrappers)
+            {
+                const auto& passHashes = Config::Instance()->FfxDenoiserFrameSurveyPassHashes;
+                FrameSurvey::SetPassHashes(passHashes.has_value() ? wstring_to_string(passHashes.value()) : std::string());
+                FrameSurvey::Install(InDevice,realCL);
+            }
             commandList->Close();
             commandList->Release();
         }

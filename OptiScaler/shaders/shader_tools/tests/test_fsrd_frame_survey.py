@@ -119,7 +119,13 @@ struct Host {
   need(true,"no D3D12 debug-layer errors");
  }
 };
-J readJson(const std::filesystem::path& p) { std::ifstream f(p); return J::parse(f); }
+// GetStatus() turns "complete" before the writer thread publishes the final manifest; wait for that file.
+J readJson(const std::filesystem::path& p) {
+ J value; const auto end=GetTickCount64()+15000;
+ do { try { std::ifstream f(p); value=J::parse(f); if (value.value("complete",false)) break; } catch (...) {} Sleep(5); }
+ while (GetTickCount64()<end);
+ return value;
+}
 void reaped() { await([] { std::scoped_lock lock(Global().mutex); return Global().gpuBytes==0; },"readbacks released after actual Reset"); }
 void metadataTests(Host& h) {
  need(FrameSurveyMetadata::DecodeMarker(0,"NRD",4).first=="NRD","ANSI marker");
@@ -207,6 +213,91 @@ J frameTest(Host& h) {
  h.reset(); reaped(); h.errors();
  return {{"capture",folder.string()},{"retained_before_reset_bytes",retained}};
 }
+// Cyberpunk shape: pipelines come from an ID3D12PipelineLibrary and the async compute list binds its root
+// signature, heaps, table and pipeline before the recorded Present; only the dispatch falls inside the frame.
+J earlyBindingTest(Host& h) {
+ auto input=h.texture(64,32,srv), output=h.texture(64,32,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+ h.fill(input.Get(),srv,0x3c00); hr(h.list->Close()); h.execute(); h.reset();
+ D3D12_DESCRIPTOR_RANGE ranges[2]={{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,1,0,0,0},{D3D12_DESCRIPTOR_RANGE_TYPE_UAV,1,0,0,1}};
+ D3D12_ROOT_PARAMETER param {}; param.ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+ param.DescriptorTable={2,ranges}; D3D12_ROOT_SIGNATURE_DESC rd {1,&param,0,nullptr,D3D12_ROOT_SIGNATURE_FLAG_NONE};
+ ComPtr<ID3DBlob> blob,error; hr(D3D12SerializeRootSignature(&rd,D3D_ROOT_SIGNATURE_VERSION_1,IID_PPV_ARGS_Helper(&blob),&error));
+ ComPtr<ID3D12RootSignature> root; hr(h.dev->CreateRootSignature(0,blob->GetBufferPointer(),blob->GetBufferSize(),IID_PPV_ARGS(&root)));
+ FrameSurvey::RootCreated(root.Get(),blob->GetBufferPointer(),blob->GetBufferSize());
+ const char shader[]="Texture2D<float4> X:register(t0); RWTexture2D<float4> Y:register(u0); [numthreads(8,8,1)] void main(uint3 p:SV_DispatchThreadID){Y[p.xy]=X.Load(int3(p.xy,0))*2;}";
+ ComPtr<ID3DBlob> cs; hr(D3DCompile(shader,sizeof(shader),nullptr,nullptr,nullptr,"main","cs_5_0",0,0,&cs,&error));
+ const auto csHash=RRTraceAdditiveIO::Sha256({static_cast<const uint8_t*>(cs->GetBufferPointer()),cs->GetBufferSize()});
+ D3D12_COMPUTE_PIPELINE_STATE_DESC pd {}; pd.pRootSignature=root.Get(); pd.CS={cs->GetBufferPointer(),cs->GetBufferSize()};
+ ComPtr<ID3D12Device1> dev1; hr(h.dev.As(&dev1));
+ ComPtr<ID3D12PipelineLibrary> library; hr(dev1->CreatePipelineLibrary(nullptr,0,IID_PPV_ARGS(&library)));
+ // The create callback is deliberately NOT reported: only the hooked library load can hash the pipeline.
+ ComPtr<ID3D12PipelineState> created; hr(h.dev->CreateComputePipelineState(&pd,IID_PPV_ARGS(&created)));
+ need(FrameSurvey::ReadPipeline(created.Get())["hash_known"]==false,"unreported creation has no hash");
+ hr(library->StorePipeline(L"early",created.Get()));
+ ComPtr<ID3D12PipelineState> pso; hr(library->LoadComputePipeline(L"early",&pd,IID_PPV_ARGS(&pso)));
+ const auto md=FrameSurvey::ReadPipeline(pso.Get());
+ need(md["hash_known"]==true && md["shader_hashes"]["CS"]==csHash,"pipeline library load hashed by the survey detour");
+ need(!md["root_hash"].get<std::string>().empty(),"library load records the root signature hash");
+ D3D12_DESCRIPTOR_HEAP_DESC hd {}; hd.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; hd.NumDescriptors=4; hd.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+ ComPtr<ID3D12DescriptorHeap> heap; hr(h.dev->CreateDescriptorHeap(&hd,IID_PPV_ARGS(&heap))); FrameSurvey::HeapCreated(h.dev.Get(),heap.Get());
+ const auto inc=h.dev->GetDescriptorHandleIncrementSize(hd.Type); auto cpu=heap->GetCPUDescriptorHandleForHeapStart(); auto gpu=heap->GetGPUDescriptorHandleForHeapStart();
+ D3D12_SHADER_RESOURCE_VIEW_DESC sv {}; sv.Format=DXGI_FORMAT_R16G16B16A16_FLOAT; sv.ViewDimension=D3D12_SRV_DIMENSION_TEXTURE2D;
+ sv.Shader4ComponentMapping=D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING; sv.Texture2D.MipLevels=1;
+ D3D12_UNORDERED_ACCESS_VIEW_DESC uv {}; uv.Format=sv.Format; uv.ViewDimension=D3D12_UAV_DIMENSION_TEXTURE2D;
+ D3D12_CPU_DESCRIPTOR_HANDLE sc {cpu.ptr+2*inc},uc {cpu.ptr+3*inc};
+ h.dev->CreateShaderResourceView(input.Get(),&sv,sc); FrameSurvey::View(input.Get(),sc,&sv);
+ h.dev->CreateUnorderedAccessView(output.Get(),nullptr,&uv,uc); FrameSurvey::View(output.Get(),uc,&uv);
+ // Bindings recorded on the already reset list, before the survey is armed.
+ ID3D12DescriptorHeap* heaps[]={heap.Get()}; h.list->SetDescriptorHeaps(1,heaps); FrameSurvey::DescriptorHeaps(h.list.Get(),1,heaps);
+ h.list->SetComputeRootSignature(root.Get()); FrameSurvey::RootBinding(h.list.Get(),false,root.Get());
+ D3D12_GPU_DESCRIPTOR_HANDLE base {gpu.ptr+2*inc}; h.list->SetComputeRootDescriptorTable(0,base); FrameSurvey::Table(h.list.Get(),false,0,base);
+ h.list->SetPipelineState(pso.Get()); FrameSurvey::SetPipeline(h.list.Get(),pso.Get());
+ // Targeted pass (FrameSurveyPassHashes): its output must be saved right after it although the list
+ // Reset and the output's UAV barrier happened before the recorded frame.
+ FrameSurvey::SetPassHashes(csHash.substr(0,12)+", not-hex, 00");
+ need(FrameSurvey::Request(64,32),"early-binding one-frame request");
+ bool activated=false;
+ await([&] { if(!activated) { FrameSurvey::Present(h.swap.Get(),0); activated=FrameSurvey::GetStatus().phase=="recording"; }
+  return activated; },"early-binding frame activates");
+ // Frame generation: a Present-to-Present interval may hold no title work; the targeted window stays open.
+ FrameSurvey::Present(h.swap.Get(),0);
+ need(FrameSurvey::GetStatus().phase=="recording","targeted window stays open until a listed pass is saved");
+ const std::array<uint64_t,3> groups {8,4,1};
+ FrameSurvey::Pass(h.list.Get(),"Dispatch",groups); h.list->Dispatch(8,4,1); FrameSurvey::SnapshotWrites(h.list.Get());
+ hr(h.list->Close()); FrameSurvey::Close(h.list.Get(),S_OK); h.execute();
+ // A list without an observed Reset cannot carry payloads; a second, fully observed list publishes the frame.
+ h.reset(); h.barrier(output.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,srv); h.barrier(output.Get(),srv,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+ hr(h.list->Close()); FrameSurvey::Close(h.list.Get(),S_OK); h.execute(); FrameSurvey::Present(h.swap.Get(),0);
+ for (auto end=GetTickCount64()+15000; GetTickCount64()<end && FrameSurvey::GetStatus().phase!="complete" && FrameSurvey::GetStatus().phase!="error";) Sleep(2);
+ need(FrameSurvey::GetStatus().phase=="complete",("early-binding frame published: "+FrameSurvey::GetStatus().phase+" / "+FrameSurvey::GetStatus().message).c_str());
+ const auto folder=std::filesystem::u8path(FrameSurvey::GetStatus().folder); const auto manifest=readJson(folder/"capture.json");
+ need(manifest["coverage_gaps"].value("list_bindings_seeded_from_tracking",0)==1,"list without observed Reset seeded from tracked bindings");
+ need(manifest["command_lists"].size()==2 && manifest["command_lists"][0]["reset_observed"]==false,"seeded list recorded before the observed list");
+ const auto& pass=manifest["command_lists"][0]["passes"][0];
+ need(pass["pso"]["hash_known"]==true && pass["pso"]["shader_hashes"]["CS"]==csHash,"pre-frame pipeline binding resolves the shader hash");
+ need(!pass["root_signature_sha256"].get<std::string>().empty(),"pre-frame root signature layout resolved");
+ need(pass["unresolved"].empty(),"no unresolved binding reasons");
+ need(pass["reads"].size()==1 && pass["reads"][0]["descriptor_index"]==2,"pre-frame table resolves the SRV input");
+ need(pass["writes"].size()==1 && pass["writes"][0]["descriptor_index"]==3,"pre-frame table resolves the UAV output");
+ need(pass.value("targeted_snapshot",false),"pass marked as targeted");
+ need(manifest["coverage_gaps"].value("targeted_snapshot_state_from_uav_binding",0)==1,"targeted snapshot used the UAV-binding state rule");
+ bool targetedFound=false;
+ for(const auto& row:manifest["frames"]) for(const auto& image:row["images"]) {
+  if(image["source_resource_address_process_local"].get<uint64_t>()!=uint64_t(reinterpret_cast<uintptr_t>(output.Get()))) continue;
+  if(image["name"].get<std::string>().rfind("p",0)!=0) continue; // the observed list's barrier snapshot
+  need(image["name"].get<std::string>().rfind("p"+std::to_string(pass["local_pass"].get<uint64_t>())+"_r",0)==0,"targeted snapshot key names its pass");
+  const auto path=folder/image["file"].get<std::string>(); std::ifstream f(path,std::ios::binary); std::vector<uint16_t> words(64*32*4);
+  f.read(reinterpret_cast<char*>(words.data()),words.size()*2);
+  need(std::all_of(words.begin(),words.end(),[](auto v){return v==0x4000;}),"targeted snapshot holds the dispatch result (2 x input)"); targetedFound=true;
+ }
+ need(targetedFound,"targeted output saved from a list reset before the frame");
+ need(manifest["coverage_gaps"].value("regular_snapshot_skipped_targeted_mode",0)>=1,"targeted mode leaves the budget to listed passes");
+ need(manifest["coverage_gaps"].value("targeted_mode_window_extended_presents",0)==1 && manifest.value("presents_in_window",0)==2,
+  "window extended by exactly the Present without a targeted pass");
+ FrameSurvey::SetPassHashes("");
+ h.reset(); reaped(); h.errors();
+ return {{"capture",folder.string()},{"library_load_hashed",true}};
+}
 J aliasTest(Host& h) {
  FSRDGameTraceSession capture; need(capture.StartSurvey(64,32),"alias survey starts");
  await([&]{return capture.SurveyStatus().phase=="requested";},"alias writer ready");
@@ -262,6 +353,7 @@ int main(int argc,char** argv) try {
  need(FrameSurvey::Install(host.dev.Get(),host.list.Get()),"optional hooks install");
  J result={{"source","synthetic_D3D12_hardware_fixture_not_Cyberpunk"},{"adapter",host.adapter}};
  result["frame"]=frameTest(host); result["aliasing"]=aliasTest(host);
+ result["early_binding"]=earlyBindingTest(host);
  result["timings"]={timing(host,1505,847),timing(host,2560,1440)};
  PROCESS_MEMORY_COUNTERS memory {}; need(GetProcessMemoryInfo(GetCurrentProcess(),&memory,sizeof(memory))!=0,"native peak working set measured");
  result["native_peak_working_set_bytes"]=memory.PeakWorkingSetSize;

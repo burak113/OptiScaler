@@ -545,6 +545,8 @@ class Config
     CustomOptional<bool> FfxDenoiserParticleLayerDiagnostics {false};
     // Debug instrumentation needs startup PSO/root-signature creation metadata.
     CustomOptional<bool> FfxDenoiserFrameSurvey {false};
+    // Survey only: shader SHA-256 prefixes whose dispatch outputs are saved right after the dispatch.
+    CustomOptional<std::wstring, NoDefault> FfxDenoiserFrameSurveyPassHashes;
     CustomOptional<bool> FfxDenoiserFogGuides {false};
     CustomOptional<bool> FfxDenoiserMotionJitterDelta {true};
 

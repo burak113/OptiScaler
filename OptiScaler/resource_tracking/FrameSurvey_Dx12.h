@@ -18,6 +18,10 @@ struct Status
     std::string phase = "off", message = "Set [FSR-RR] FrameSurvey=true and restart to enable.", folder;
 };
 bool Enabled() noexcept;
+// Called at device hook time when FrameSurvey=true: keeps creation metadata from the title's load phase.
+void BeginCreationTracking() noexcept;
+// Comma-separated shader SHA-256 prefixes (FrameSurveyPassHashes); matching dispatches save their outputs.
+void SetPassHashes(const std::string& list) noexcept;
 bool Internal() noexcept;
 bool Install(ID3D12Device*, ID3D12GraphicsCommandList*) noexcept;
 void Shutdown() noexcept;

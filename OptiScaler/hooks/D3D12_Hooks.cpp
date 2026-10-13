@@ -2215,6 +2215,8 @@ static void HookToDevice(ID3D12Device* InDevice)
         pVTable = *(PVOID**) realDevice;
 
     gSurveyDeviceWrappers = Config::Instance()->FfxDenoiserFrameSurvey.value_or_default();
+    if (gSurveyDeviceWrappers)
+        FrameSurvey::BeginCreationTracking();
 
     // hudless
     o_D3D12DeviceRelease = (PFN_Release) pVTable[2];
