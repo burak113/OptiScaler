@@ -2524,6 +2524,39 @@ void D3D12Hooks::OnBridgeCommandListReset(ID3D12GraphicsCommandList* list, ID3D1
     { std::unique_lock lock(pipelineStatesMutex); if (initial) pipelineStates[list] = initial; else pipelineStates.erase(list); }
 }
 
+bool D3D12Hooks::GetComputeBindingsForBridge(ID3D12GraphicsCommandList* list, FrameSurvey::ComputeBindings& out) noexcept
+{
+    out = {};
+    if (!gNrdBridgeDeviceWrappers || !list) return false;
+    try
+    {
+        // Reuse the restore tracker when a short NRD window starts after title bindings were set.
+        // Only borrowed handles are copied; this adds no tracking or COM work outside that window.
+        FrameSurvey::ComputeBindings current;
+        std::shared_lock roots(rootStatesMutex, std::defer_lock);
+        std::shared_lock heaps(descriptorHeapsMutex, std::defer_lock);
+        std::lock(roots, heaps);
+        const auto root = bridgeComputeRoots.find(list);
+        const auto arguments = rootStates.find(list);
+        const auto boundHeaps = descriptorHeaps.find(list);
+        if (root == bridgeComputeRoots.end() || !root->second || arguments == rootStates.end() ||
+            boundHeaps == descriptorHeaps.end() || !boundHeaps->second.NumDescriptorHeaps ||
+            boundHeaps->second.NumDescriptorHeaps > 2) return false;
+        current.root = root->second;
+        for (UINT i = 0; i < boundHeaps->second.NumDescriptorHeaps; ++i)
+        {
+            if (!boundHeaps->second.Heaps[i]) return false;
+            current.heaps.push_back(boundHeaps->second.Heaps[i]);
+        }
+        for (UINT i = 0; i < arguments->second.size(); ++i)
+            if (arguments->second[i].type == RootEntryType::Table && arguments->second[i].rootDescriptorTable.ptr)
+                current.tables.emplace_back(i, arguments->second[i].rootDescriptorTable);
+        out = std::move(current);
+        return true;
+    }
+    catch (...) { out = {}; return false; }
+}
+
 bool D3D12Hooks::CanRestoreRootSignature(ID3D12GraphicsCommandList* cmdList)
 {
     {
