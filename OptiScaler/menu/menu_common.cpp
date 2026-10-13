@@ -3194,10 +3194,20 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
         ScopedIndent indent;
         const auto survey = FrameSurvey::GetStatus();
         ImGui::TextUnformatted("Frame survey");
-        ImGui::BeginDisabled(!survey.installed || survey.active);
+        static int surveyFallbackExtent[2] {1505,847};
+        const bool surveyHasExtent = currentFeature && currentFeature->RenderWidth() && currentFeature->RenderHeight();
+        if (!surveyHasExtent)
+        {
+            ImGui::InputInt2("Survey render size (fallback)",surveyFallbackExtent);
+            ImGui::TextWrapped("Use the actual render resolution when no upscaler owner is available.");
+        }
+        const bool surveyExtentValid = surveyHasExtent ||
+            (surveyFallbackExtent[0] > 0 && surveyFallbackExtent[1] > 0 &&
+             surveyFallbackExtent[0] <= 8192 && surveyFallbackExtent[1] <= 8192);
+        ImGui::BeginDisabled(!survey.installed || survey.active || !surveyExtentValid);
         if (ImGui::Button("Survey next frame"))
-            FrameSurvey::Request(currentFeature ? currentFeature->RenderWidth() : 0,
-                                 currentFeature ? currentFeature->RenderHeight() : 0);
+            FrameSurvey::Request(surveyHasExtent ? currentFeature->RenderWidth() : uint32_t(surveyFallbackExtent[0]),
+                                 surveyHasExtent ? currentFeature->RenderHeight() : uint32_t(surveyFallbackExtent[1]));
         ImGui::EndDisabled();
         ImGui::TextWrapped("%s: %s",survey.phase.c_str(),survey.message.c_str());
         if (!survey.folder.empty()) ImGui::TextWrapped("Last output folder: %s",survey.folder.c_str());
