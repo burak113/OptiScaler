@@ -47,6 +47,7 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList*,const ConvertedResources&,ID
 }
 void RRWrapper::ResetHistory() noexcept { ++rrResets; }
 uint64_t RRWrapper::ContextGeneration() const noexcept { return 0; }
+__CAMERA_STUB__
 }
 void observerLockProbe() {
  bool registry=false, mirror=false;
@@ -345,12 +346,15 @@ def run():
     (stubs / 'pch.h').write_text('#pragma once\n#define NOMINMAX\n#include <windows.h>\n#include <filesystem>\n#include <memory>\n#define LOG_INFO(...) ((void)0)\n#define LOG_ERROR(...) ((void)0)\n')
     (stubs / 'Util.h').write_text('#pragma once\n#include <filesystem>\ninline std::filesystem::path g_dllPath;\nnamespace Util { inline std::filesystem::path DllPath() { return g_dllPath; } inline std::filesystem::path ExePath() { return L"cyberpunk2077.exe"; } }\n')
     (stubs / 'Config.h').write_text('#pragma once\ntemplate<class T> struct FixtureOptional { T value; T value_or_default() const { return value; } };\nstruct Config { FixtureOptional<bool> FfxDenoiserNrdBridge {false}, FfxDenoiserNrdBridgeEnabled {true}; static Config* Instance() { static Config config; return &config; } };\n')
-    (stubs / 'hooks/D3D12_Hooks.h').write_text('#pragma once\nstruct D3D12Hooks { inline static bool tracking=true, canRestore=true; inline static unsigned restores=0; static void SetRootSignatureTracking(bool enabled) { tracking=enabled; } static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*) { return canRestore; } static void RestoreRoot(ID3D12GraphicsCommandList*) { ++restores; } };\n')
+    (stubs / 'hooks/D3D12_Hooks.h').write_text('#pragma once\nstruct D3D12Hooks { inline static bool tracking=true, canRestore=true; inline static unsigned restores=0; static void SetRootSignatureTracking(bool enabled) { tracking=enabled; } static bool RootSignatureTrackingEnabled() { return tracking; } static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*) { return canRestore; } static void RestoreRoot(ID3D12GraphicsCommandList*) { ++restores; } };\n')
     (stubs / 'hooks/Streamline_Hooks.h').write_text('#pragma once\n#include <sl_consts.h>\nstruct SLConstantsSnapshot { sl::Constants constants {}; uint32_t frameIndex=UINT32_MAX, viewport=UINT32_MAX; };\nstruct StreamlineHooks { inline static uint32_t frame=0; static SLConstantsSnapshot getSLConstantsSnapshot() { SLConstantsSnapshot result; result.frameIndex=frame; return result; } };\n')
     (stubs / 'inputs/NVNGX_DLSS.h').write_text('#pragma once\n#include <nvsdk_ngx.h>\n')
     (stubs / 'proxies/D3D12_Proxy.h').write_text('#pragma once\n#include <d3d12.h>\nnamespace D3d12Proxy { inline auto D3D12CreateVersionedRootSignatureDeserializer_() { return &D3D12CreateVersionedRootSignatureDeserializer; } inline auto D3D12SerializeVersionedRootSignature_() { return &D3D12SerializeVersionedRootSignature; } }\n')
     host = survey_fixture.CPP.split('// GetStatus()')[0]
-    source_text = (host + CPP).replace('__TRACE__', (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp').as_posix()).replace('__SURVEY__', (ROOT / 'OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp').as_posix()).replace('__COORDINATOR__', (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp').as_posix())
+    rr_header = (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h').read_text()
+    camera_stub = 'const std::string& RRWrapper::CameraConventionDescription() const noexcept { static const std::string text; return text; }' if 'CameraConventionDescription' in rr_header else ''
+    fixture_cpp = CPP.replace('__CAMERA_STUB__', camera_stub)
+    source_text = (host + fixture_cpp).replace('__TRACE__', (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp').as_posix()).replace('__SURVEY__', (ROOT / 'OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp').as_posix()).replace('__COORDINATOR__', (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp').as_posix())
     source = output / 'fixture.cpp'
     source.write_text(source_text, encoding='utf-8')
     executable = output / 'fixture.exe'
