@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
+#include "shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
 #include "shaders/fsrd_preprocess/FSRDGameTraceSession.h"
 #include "resource_tracking/FrameSurvey_Dx12.h"
 #include "shaders/fsrd_preprocess/FSRDResearchTools.h"
@@ -3188,6 +3189,23 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
         }
     }
 
+    if (NrdBridge::StartupEnabled() && ImGui::CollapsingHeader("CP77 NRD bridge"))
+    {
+        ScopedIndent indent;
+        const auto bridge = NrdBridge::GetStatus();
+        bool enabled = NrdBridge::RuntimeEnabled();
+        if (ImGui::Checkbox("FSR RR on the game's NRD signals", &enabled))
+        {
+            config->FfxDenoiserNrdBridgeEnabled.set_volatile_value(enabled);
+            NrdBridge::SetRuntimeEnabled(enabled);
+        }
+        ImGui::TextWrapped("%s: %s", bridge.phase.c_str(), bridge.reason.c_str());
+        if (!bridge.resources.empty()) ImGui::TextWrapped("%s", bridge.resources.c_str());
+        if (ImGui::Button("Reset RR history")) NrdBridge::RequestHistoryReset();
+        int debug = int(NrdBridge::GetDebugMode());
+        if (ImGui::Combo("Bridge debug", &debug, "Off\0Raw signals\0RR inputs view\0"))
+            NrdBridge::SetDebugMode(NrdBridge::DebugMode(debug));
+    }
     // Independent of the selected denoiser: NRD mode still exposes this capture.
     if (ImGui::CollapsingHeader("GAME_TRACE / Frame survey"))
     {

@@ -4,6 +4,7 @@
 #include <mutex>
 #include <string>
 #include <span>
+#include <vector>
 
 struct NVSDK_NGX_Parameter;
 
@@ -16,6 +17,31 @@ struct Status
 {
     bool installed = false, active = false;
     std::string phase = "off", message = "Set [FSR-RR] FrameSurvey=true and restart to enable.", folder;
+};
+// Shared creation registry; binding resolution is enabled only during a bounded bridge window.
+struct BoundResource
+{
+    ID3D12Resource* resource = nullptr; // Borrowed: never retains a title resource.
+    D3D12_RESOURCE_DESC description {};
+    DXGI_FORMAT viewFormat = DXGI_FORMAT_UNKNOWN;
+    D3D12_DESCRIPTOR_RANGE_TYPE kind = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    uint32_t descriptorOffset = UINT32_MAX, descriptorIndex = UINT32_MAX, subresource = 0;
+};
+using PipelineObserver = void (*)(ID3D12PipelineState*, const char* csSha256);
+using ReleaseObserver = void (*)(void*);
+void SetPipelineObserver(PipelineObserver) noexcept;
+void SetReleaseObserver(ReleaseObserver) noexcept;
+void SetBindingWindow(bool) noexcept;
+bool BindingWindow() noexcept;
+bool ResolveComputeTable(ID3D12GraphicsCommandList*, UINT rootParameter, std::vector<BoundResource>& out) noexcept;
+class ScopedInternal
+{
+    bool previous_;
+  public:
+    ScopedInternal() noexcept;
+    ~ScopedInternal();
+    ScopedInternal(const ScopedInternal&) = delete;
+    ScopedInternal& operator=(const ScopedInternal&) = delete;
 };
 bool Enabled() noexcept;
 // Called at device hook time when FrameSurvey=true: keeps creation metadata from the title's load phase.

@@ -1,0 +1,22 @@
+#pragma once
+#include "FSRDNrdBridge_Types.h"
+#include <memory>
+
+namespace NrdBridge
+{
+class ConversionPass
+{
+    struct Impl;
+    std::shared_ptr<Impl> impl_;
+  public:
+    ConversionPass();
+    ~ConversionPass();
+    bool Initialize(ID3D12Device*, uint32_t width, uint32_t height, std::string& error);
+    bool Dispatch(ID3D12GraphicsCommandList*, const ConversionInputs&, const FrameParameters&,
+                  ConvertedResources& out, std::string& error);
+    bool WriteDebug(ID3D12GraphicsCommandList*, const ConvertedResources&, ID3D12Resource* outputSpec,
+                    ID3D12Resource* outputDiff, DebugMode, std::string& error);
+    void ResetHistory() noexcept;
+    uint64_t OwnedTextureBytes() const noexcept;
+};
+}

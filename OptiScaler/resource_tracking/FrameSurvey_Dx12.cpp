@@ -452,6 +452,14 @@ bool CopyBuffer(ID3D12GraphicsCommandList* cmd, List& list, ID3D12Resource* obje
 }
 }
 
+ScopedInternal::ScopedInternal() noexcept : previous_(gInternal) { gInternal = true; }
+ScopedInternal::~ScopedInternal() { gInternal = previous_; }
+void SetPipelineObserver(PipelineObserver) noexcept {}
+void SetReleaseObserver(ReleaseObserver) noexcept {}
+void SetBindingWindow(bool) noexcept {}
+bool BindingWindow() noexcept { return false; }
+bool ResolveComputeTable(ID3D12GraphicsCommandList*, UINT, std::vector<BoundResource>& out) noexcept
+{ out.clear(); return false; }
 bool Enabled() noexcept { return gEnabled.load(std::memory_order_relaxed); }
 void BeginCreationTracking() noexcept { gTracking.store(true,std::memory_order_release); }
 void SetPassHashes(const std::string& list) noexcept

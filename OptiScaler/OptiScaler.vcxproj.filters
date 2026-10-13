@@ -977,6 +977,18 @@
     <ClInclude Include="shaders\fsrd_preprocess\FSRDPreprocessor_Dx12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdBridge_Types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdBridge_Dx12.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdBridgePass_Dx12.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdBridgeRR_Dx12.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="shaders\fsrd_preprocess\FSRDResearchTools.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDResearchTools.inl" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDProbeInputs_Shader.h" />
@@ -1653,6 +1665,15 @@
     <ClCompile Include="shaders\fsrd_preprocess\FSRDPreprocessor_Dx12.cpp">
       <Filter>Header Files</Filter>
     </ClCompile>
+    <ClCompile Include="shaders\fsrd_preprocess\FSRDNrdBridge_Dx12.cpp">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="shaders\fsrd_preprocess\FSRDNrdBridgePass_Dx12.cpp">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="shaders\fsrd_preprocess\FSRDNrdBridgeRR_Dx12.cpp">
+      <Filter>Header Files</Filter>
+    </ClCompile>
     <ClCompile Include="shaders\fsrd_preprocess\FSRDGameTraceSession.cpp">
       <Filter>Header Files</Filter>
     </ClCompile>
@@ -1711,6 +1732,7 @@
     <ClInclude Include="upscalers\fsr31\FSRDRetryPolicy.h" />
     <ClInclude Include="upscalers\fsr31\FSRDResultClassification.h" />
     <ClInclude Include="upscalers\fsr31\FSRDCameraMatrices.h" />
+    <ClInclude Include="upscalers\fsr31\FSRDRRInterop.h" />
     <ClInclude Include="upscalers\fsr31\FSRDTaggedResourceExtent.h" />
     <ClInclude Include="upscalers\fsr31\FSRInputAlignment.h" />
     <ClInclude Include="upscalers\fsr31\FSROutputScaling.h" />

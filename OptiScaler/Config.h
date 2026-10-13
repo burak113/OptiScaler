@@ -545,6 +545,9 @@ class Config
     CustomOptional<bool> FfxDenoiserParticleLayerDiagnostics {false};
     // Debug instrumentation needs startup PSO/root-signature creation metadata.
     CustomOptional<bool> FfxDenoiserFrameSurvey {false};
+    // Cyberpunk NRD bridge installs hooks only at startup; the runtime A/B is independent.
+    CustomOptional<bool> FfxDenoiserNrdBridge {false};
+    CustomOptional<bool> FfxDenoiserNrdBridgeEnabled {true};
     // Survey only: shader SHA-256 prefixes whose dispatch outputs are saved right after the dispatch.
     CustomOptional<std::wstring, NoDefault> FfxDenoiserFrameSurveyPassHashes;
     CustomOptional<bool> FfxDenoiserFogGuides {false};
