@@ -605,6 +605,7 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_GRAPHICS_PIPELINE_STA
         add("VS",desc.VS); add("PS",desc.PS); add("GS",desc.GS); add("HS",desc.HS); add("DS",desc.DS);
         const auto text = Json{{"shader_hashes",hashes},{"hash_known",!hashes.empty()},{"root_hash",ReadRoot(desc.pRootSignature).hash}}.dump();
         pso->SetPrivateData(PipelineId,UINT(text.size()),text.data());
+        if (const auto observer = gPipelineObserver.load(std::memory_order_acquire)) observer(pso,nullptr);
     } catch (...) { Fail("Graphics shader hash failed"); }
 }
 void PipelineCreated(ID3D12PipelineState* pso, const D3D12_PIPELINE_STATE_STREAM_DESC& desc) noexcept
@@ -630,9 +631,9 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_PIPELINE_STATE_STREAM
         const auto text = Json{{"shader_hashes",parser.shaders},{"hash_known",SUCCEEDED(result)&&!parser.shaders.empty()},
             {"stream_parse_hresult",int64_t(result)},{"root_hash",ReadRoot(parser.root).hash}}.dump();
         pso->SetPrivateData(PipelineId,UINT(text.size()),text.data());
-        if (SUCCEEDED(result) && parser.shaders.contains("CS"))
-            if (const auto observer = gPipelineObserver.load(std::memory_order_acquire))
-                observer(pso,parser.shaders["CS"].get_ref<const std::string&>().c_str());
+        if (const auto observer = gPipelineObserver.load(std::memory_order_acquire))
+            observer(pso,SUCCEEDED(result) && parser.shaders.contains("CS") ?
+                parser.shaders["CS"].get_ref<const std::string&>().c_str() : nullptr);
     } catch (...) { Fail("Pipeline stream shader hash failed"); }
 }
 void Released(void* object) noexcept
@@ -1545,7 +1546,8 @@ bool Install(ID3D12Device* device, ID3D12GraphicsCommandList* list, bool recorde
         gCreationDevice = device;
         gHooksInstalled.store(true,std::memory_order_release);
         gEnabled.store(recorder,std::memory_order_release); gStatus.installed = recorder;
-        gStatus.phase = "idle"; gStatus.message = "Frame survey enabled at startup; request one frame.";
+        gStatus.phase = recorder ? "idle" : "off";
+        gStatus.message = recorder ? "Frame survey enabled at startup; request one frame." : "Survey recorder is off; creation registry is shared with the NRD bridge.";
         if (recorder) LOG_INFO("[FRAME_SURVEY] debug hooks installed; no denoiser dispatch is replaced");
         return true;
     } catch (...) { Fail("Survey hook installation exception"); return false; }
