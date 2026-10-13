@@ -17,5 +17,6 @@ class RRWrapper
                   ID3D12Resource* outputDiff, const FrameParameters&, std::string& error);
     void ResetHistory() noexcept;
     uint64_t ContextGeneration() const noexcept;
+    const std::string& CameraConventionDescription() const noexcept;
 };
 }

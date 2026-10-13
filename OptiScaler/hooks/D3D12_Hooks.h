@@ -2,6 +2,8 @@
 #include "SysUtils.h"
 #include <d3d12.h>
 
+namespace FrameSurvey { struct ComputeBindings; }
+
 class D3D12Hooks
 {
   private:
@@ -19,7 +21,10 @@ class D3D12Hooks
     static void HookDevice(ID3D12Device* device);
     static void Unhook();
     static void SetRootSignatureTracking(bool enable);
+    static bool RootSignatureTrackingEnabled();
+    static void OnBridgeCommandListReset(ID3D12GraphicsCommandList*, ID3D12PipelineState* initial);
     static bool CanRestoreRootSignature(ID3D12GraphicsCommandList* cmdList);
+    static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*, FrameSurvey::ComputeBindings&) noexcept;
     static void HookToCommandListLate(ID3D12GraphicsCommandList* commandList);
     static void RestoreRoot(ID3D12GraphicsCommandList* cmdList);
 };

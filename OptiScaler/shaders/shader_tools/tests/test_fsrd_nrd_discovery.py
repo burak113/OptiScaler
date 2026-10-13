@@ -399,7 +399,7 @@ def run():
         result['offline_replay'][capture] = rows
     result['python_checks_passed'] = 4
     (output / 'host-result.json').write_text(json.dumps(result, indent=2) + '\n')
-    report = Path('E:/FSRD/sol_batch/12a-discovery')
+    report = Path(os.environ.get('FSRD_NRD_DISCOVERY_REPORT', f'E:/FSRD/sol_batch/{output.parents[1].name}'))
     report.mkdir(parents=True, exist_ok=True)
     (report / 'host-result.json').write_text(json.dumps(result, indent=2) + '\n')
     print(json.dumps({'checks_passed': result['checks_passed'], 'python_checks_passed': 4, 'result': str(output / 'host-result.json')}))

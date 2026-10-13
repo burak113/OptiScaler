@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
 #include "menu_overlay_base.h"
 #include "menu_overlay_dx.h"
 
@@ -527,6 +528,7 @@ void MenuOverlayDx::Present(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT 
 {
     if (Config::Instance()->FfxDenoiserFrameSurvey.value_or_default())
         FrameSurvey::Present(pSwapChain,Flags);
+    if (NrdBridge::StartupEnabled() && !(Flags & DXGI_PRESENT_TEST)) NrdBridge::OnPresent();
     if (!Config::Instance()->OverlayMenu.value_or_default())
     {
         MenuOverlayBase::Present();
