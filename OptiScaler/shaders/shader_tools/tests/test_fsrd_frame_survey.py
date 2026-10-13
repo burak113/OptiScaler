@@ -366,7 +366,7 @@ int main(int argc,char** argv) try {
 
 def run():
     memory_guard()
-    output = Path('F:/FSRD/frame_survey/host')
+    output = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/frame_survey/host'))
     output.mkdir(parents=True, exist_ok=True)
     stubs = output/'stubs'
     (stubs/'proxies').mkdir(parents=True, exist_ok=True)
@@ -399,7 +399,7 @@ def run():
     row['indirect_readback_decoded'] = decoded
     row['python_checks_passed'] = 3
     row['python_peak_working_set_bytes'] = peak_bytes()
-    (Path('E:/FSRD/sol_batch/11-frame-survey')/'host-result.json').write_text(json.dumps(row, indent=2)+'\n')
+    (output/'host-result.json').write_text(json.dumps(row, indent=2)+'\n')
     print(json.dumps({'checks_passed': row['checks_passed'], 'peak_working_set_bytes': peak_bytes()}))
 
 

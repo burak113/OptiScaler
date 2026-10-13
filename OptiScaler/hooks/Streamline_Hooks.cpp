@@ -2,6 +2,7 @@
 #include "resource_tracking/FrameSurvey_Dx12.h"
 
 #include "Streamline_Hooks.h"
+#include "shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
 
 #include <Util.h>
 #include <Config.h>
@@ -1309,6 +1310,9 @@ sl::Result StreamlineHooks::hkslSetTag(const sl::ViewportHandle& viewport, const
             probeSLResourceTag(
                 tags[i], UINT32_MAX, static_cast<uint32_t>(viewport),
                 RRTagSource::SetTag);
+            if (NrdBridge::StartupEnabled() && tags[i].type == sl::kBufferTypeMotionVectors)
+                NrdBridge::OnTitleTag(reinterpret_cast<ID3D12GraphicsCommandList*>(cmdBuffer), "MotionVectors",
+                    tags[i].resource ? static_cast<ID3D12Resource*>(tags[i].resource->native) : nullptr);
             if (Config::Instance()->FfxDenoiserFrameSurvey.value_or_default())
             {
                 const auto& surveyTag = tags[i];
@@ -1432,6 +1436,9 @@ sl::Result StreamlineHooks::hkslSetTagForFrame(const sl::FrameToken& frame, cons
             probeSLResourceTag(
                 resources[i], static_cast<uint32_t>(frame),
                 static_cast<uint32_t>(viewport), RRTagSource::SetTagForFrame);
+            if (NrdBridge::StartupEnabled() && resources[i].type == sl::kBufferTypeMotionVectors)
+                NrdBridge::OnTitleTag(reinterpret_cast<ID3D12GraphicsCommandList*>(cmdBuffer), "MotionVectors",
+                    resources[i].resource ? static_cast<ID3D12Resource*>(resources[i].resource->native) : nullptr);
             if (Config::Instance()->FfxDenoiserFrameSurvey.value_or_default())
             {
                 const auto& surveyTag = resources[i];

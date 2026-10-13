@@ -1,8 +1,10 @@
 #include "pch.h"
+#include "shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
 #include "shaders/fsrd_preprocess/RRTraceFence.h"
 #include "misc/RecordedComputeLease_Dx12.h"
 #include "ResTrack_dx12.h"
 #include "FrameSurvey_Dx12.h"
+#include "hooks/D3D12_Hooks.h"
 
 #include <Config.h>
 #include <State.h>
@@ -133,6 +135,7 @@ static PFN_CopyDescriptorsSimple o_CopyDescriptorsSimple = nullptr;
 
 // Original method calls for command list
 static bool gSurveyWrappers = false;
+static bool gNrdBridgeWrappers = false;
 static PFN_Dispatch o_Dispatch = nullptr;
 static PFN_DrawInstanced o_DrawInstanced = nullptr;
 static PFN_DrawIndexedInstanced o_DrawIndexedInstanced = nullptr;
@@ -2124,7 +2127,12 @@ static ULONG STDMETHODCALLTYPE hkCommandListRelease(IUnknown* This)
     // May also be a PSO using the same original IUnknown entry.
     This->AddRef();
     const ULONG remaining = o_CommandListRelease(This);
-    if (remaining <= 1) CleanupRRPsoReferences(This);
+    if (remaining <= 1)
+    {
+        CleanupRRPsoReferences(This);
+        if (gSurveyWrappers) FrameSurvey::Released(This);
+        if (gNrdBridgeWrappers) D3D12Hooks::OnBridgeCommandListReset(reinterpret_cast<ID3D12GraphicsCommandList*>(This),nullptr);
+    }
     const ULONG result = o_CommandListRelease(This);
     RecordedComputeLease::EndRelease(computeRecording, result == 0);
     return result;
@@ -3532,7 +3540,7 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
             {
                 const auto& passHashes = Config::Instance()->FfxDenoiserFrameSurveyPassHashes;
                 FrameSurvey::SetPassHashes(passHashes.has_value() ? wstring_to_string(passHashes.value()) : std::string());
-                FrameSurvey::Install(InDevice,realCL);
+                FrameSurvey::Install(InDevice,realCL,Config::Instance()->FfxDenoiserFrameSurvey.value_or_default());
             }
             commandList->Close();
             commandList->Release();
@@ -3652,13 +3660,17 @@ bool ResTrack_Dx12::RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCo
 
 void ResTrack_Dx12::HookDevice(ID3D12Device* device)
 {
-    if (o_CreateDescriptorHeap != nullptr || State::Instance().activeFgInput == FGInput::NvngxFG)
+    if (o_CreateDescriptorHeap != nullptr ||
+        (State::Instance().activeFgInput == FGInput::NvngxFG && !NrdBridge::StartupEnabled()))
         return;
 
     if (device == nullptr)
         return;
 
-    gSurveyWrappers = Config::Instance()->FfxDenoiserFrameSurvey.value_or_default();
+    gNrdBridgeWrappers = NrdBridge::StartupEnabled();
+    gSurveyWrappers = Config::Instance()->FfxDenoiserFrameSurvey.value_or_default() || gNrdBridgeWrappers;
+    if (gNrdBridgeWrappers) NrdBridge::Initialize(device);
+    if (gSurveyWrappers) FrameSurvey::BeginCreationTracking(Config::Instance()->FfxDenoiserFrameSurvey.value_or_default());
     bool initializeTracking = false;
     {
         std::unique_lock lock(_heapRegistryMutex);
@@ -3766,6 +3778,7 @@ void ResTrack_Dx12::HookDevice(ID3D12Device* device)
 
 void ResTrack_Dx12::ReleaseDeviceHooks()
 {
+    if (gNrdBridgeWrappers) NrdBridge::Shutdown();
     if (gSurveyWrappers) FrameSurvey::Shutdown();
     gComputeListHooksAvailable.store(false);
     gComputeQueueHookAvailable.store(false);
@@ -4181,6 +4194,7 @@ void ResTrack_Dx12::hkSurveySetGraphicsRootDescriptorTable(ID3D12GraphicsCommand
 void ResTrack_Dx12::hkSurveySetComputeRootDescriptorTable(ID3D12GraphicsCommandList* This, UINT RootParameterIndex,
                                                     D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
 {
+    if (FrameSurvey::Internal()) { o_SetComputeRootDescriptorTable(This,RootParameterIndex,BaseDescriptor); return; }
     FrameSurvey::Table(This,false,RootParameterIndex,BaseDescriptor);
     hkSetComputeRootDescriptorTable(This,RootParameterIndex,BaseDescriptor);
 }
@@ -4197,6 +4211,7 @@ void ResTrack_Dx12::hkSurveyOMSetRenderTargets(ID3D12GraphicsCommandList* This, 
 void ResTrack_Dx12::hkSurveyResourceBarrier(ID3D12GraphicsCommandList* This, UINT NumBarriers,
                                       const D3D12_RESOURCE_BARRIER* pBarriers)
 {
+    if (FrameSurvey::Internal()) { o_ResourceBarrier(This,NumBarriers,pBarriers); return; }
     FrameSurvey::Barrier(This,NumBarriers,pBarriers);
     hkResourceBarrier(This,NumBarriers,pBarriers);
 }
@@ -4204,8 +4219,10 @@ void ResTrack_Dx12::hkSurveyResourceBarrier(ID3D12GraphicsCommandList* This, UIN
 void ResTrack_Dx12::hkSurveySetPipelineState(ID3D12GraphicsCommandList* This,
                                        ID3D12PipelineState* pPipelineState)
 {
+    if (FrameSurvey::Internal()) { o_SetPipelineState(This,pPipelineState); return; }
     FrameSurvey::SetPipeline(This,pPipelineState);
     hkSetPipelineState(This,pPipelineState);
+    if (gNrdBridgeWrappers) NrdBridge::OnSetPipeline(This,pPipelineState);
 }
 
 HRESULT ResTrack_Dx12::hkSurveyReset(ID3D12GraphicsCommandList* This,
@@ -4213,7 +4230,15 @@ HRESULT ResTrack_Dx12::hkSurveyReset(ID3D12GraphicsCommandList* This,
                                ID3D12PipelineState* pInitialState)
 {
     const auto result = hkReset(This,pAllocator,pInitialState);
-    if (SUCCEEDED(result)) FrameSurvey::Reset(This,pInitialState);
+    if (SUCCEEDED(result))
+    {
+        FrameSurvey::Reset(This,pInitialState);
+        if (gNrdBridgeWrappers)
+        {
+            D3D12Hooks::OnBridgeCommandListReset(This,pInitialState);
+            NrdBridge::OnReset(This,pInitialState);
+        }
+    }
     return result;
 }
 
@@ -4245,10 +4270,13 @@ void ResTrack_Dx12::hkSurveyEndEvent(ID3D12GraphicsCommandList* This)
 void ResTrack_Dx12::hkSurveyDispatch(ID3D12GraphicsCommandList* This, UINT ThreadGroupCountX, UINT ThreadGroupCountY,
                                UINT ThreadGroupCountZ)
 {
+    if (FrameSurvey::Internal()) { o_Dispatch(This,ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ); return; }
+    if (gNrdBridgeWrappers) NrdBridge::BeforeDispatch(This);
     const std::array<uint64_t,3> args {ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ};
     FrameSurvey::Pass(This,"Dispatch",args);
     hkDispatch(This,ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ);
     FrameSurvey::SnapshotWrites(This);
+    if (gNrdBridgeWrappers) NrdBridge::AfterDispatch(This);
 }
 
 void ResTrack_Dx12::hkSurveyDrawInstanced(ID3D12GraphicsCommandList* This, UINT VertexCountPerInstance, UINT InstanceCount,
