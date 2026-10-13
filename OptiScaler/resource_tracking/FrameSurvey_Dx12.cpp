@@ -1054,7 +1054,10 @@ void STDMETHODCALLTYPE Indirect(ID3D12GraphicsCommandList* cmd, ID3D12CommandSig
             }
         } catch (...) { Fail("Indirect argument capture failed"); }
     }
-    oIndirect(cmd,signature,count,arguments,argumentOffset,counts,countOffset);
+    // The runtime can expand ExecuteIndirect into internal command lists.
+    // Observe this public invocation once; helper recordings are not separate
+    // title submissions and must not allocate unfenced survey payloads.
+    { InternalScope forwarding; oIndirect(cmd,signature,count,arguments,argumentOffset,counts,countOffset); }
     SnapshotWrites(cmd);
 }
 void RecordCopy(ID3D12GraphicsCommandList* cmd, ID3D12Resource* dst, UINT subresource, ID3D12Resource* src)

@@ -3483,7 +3483,7 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
                     DetourAttach(&(PVOID&) o_Close, gSurveyWrappers ? hkSurveyClose : hkClose);
 
                 const auto resetAttachResult = resetAlreadyHooked ? NO_ERROR :
-                    (o_Reset ? DetourAttach(&(PVOID&) o_Reset, hkReset) : ERROR_INVALID_FUNCTION);
+                    (o_Reset ? DetourAttach(&(PVOID&) o_Reset, gSurveyWrappers ? hkSurveyReset : hkReset) : ERROR_INVALID_FUNCTION);
                 const auto releaseAttachResult = releaseAlreadyHooked ? NO_ERROR : (o_CommandListRelease ?
                     DetourAttach(&(PVOID&) o_CommandListRelease, hkCommandListRelease) :
                     (sharedRelease ? NO_ERROR : ERROR_INVALID_FUNCTION));
@@ -3586,7 +3586,7 @@ void ResTrack_Dx12::HookToQueue(ID3D12Device* InDevice)
         DetourUpdateThread(GetCurrentThread());
 
         const auto attachResult = o_ExecuteCommandLists ?
-            DetourAttach(&(PVOID&) o_ExecuteCommandLists, hkExecuteCommandLists) : ERROR_INVALID_FUNCTION;
+            DetourAttach(&(PVOID&) o_ExecuteCommandLists, gSurveyWrappers ? hkSurveyExecuteCommandLists : hkExecuteCommandLists) : ERROR_INVALID_FUNCTION;
         const auto commitResult = attachResult == NO_ERROR ? DetourTransactionCommit() : DetourTransactionAbort();
         const auto detourResult = attachResult == NO_ERROR ? commitResult : attachResult;
         if (detourResult != NO_ERROR)

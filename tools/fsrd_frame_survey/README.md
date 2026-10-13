@@ -74,3 +74,11 @@ case. It checks packed-word decoding, hash integrity and publication boundaries.
 `test_fsrd_frame_survey.py` uses the actual production recorder on D3D12 hardware,
 a hidden test swapchain, descriptor offsets, indirect argument readback, same-heap
 alias reuse and successful Reset retirement. It is not a Cyberpunk capture.
+
+`test_fsrd_frame_survey_wiring.py` compiles the production ResTrack lifecycle
+attach/detach call sites and survey wrappers. Real WARP COM Reset, Close and queue
+submission calls drive those detours, with no manually invoked lifecycle callbacks.
+It reproduced the initial empty-capture bug before the Reset/submit attach fix.
+The indirect forward guard suppresses nested runtime helper-list recordings, which
+otherwise cannot acquire a title submission fence. The other controlled pass/view
+callbacks remain explicit; this is not an exhaustive game-hook integration test.
