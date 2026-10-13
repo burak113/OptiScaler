@@ -50,6 +50,7 @@
 #include "precompile/FSRDFogKappa_Shader.h"
 #include "precompile/FSRDFogRank_Shader.h"
 #include "precompile/FSRDFogSmooth_Shader.h"
+#include "precompile/FSRDFogTarget_Shader.h"
 #include "precompile/FSRDFogRoute_Shader.h"
 #include "precompile/FSRDRRMotion_Shader.h"
 #include "precompile/FSRDRecoveryLobeAccumulate_Shader.h"
@@ -371,9 +372,10 @@ struct FSRDPreprocessor_Dx12::Impl
 
     // Fog-consistent guides (FSRDFog*.hlsl): tile statistics history (A, B, C), per-frame tile guide means (G, H),
     // kappa before and after smoothing, and spares for the rewritten pair.
-    ComputeState m_fogStatsShader, m_fogKappaShader, m_fogRankShader, m_fogSmoothShader, m_fogRouteShader;
-    std::array<ComPtr<ID3D12Resource>, 2> m_fogA, m_fogB, m_fogC;
-    ComPtr<ID3D12Resource> m_fogG, m_fogH, m_fogKappaRaw, m_fogKappaRank, m_fogKappa;
+    ComputeState m_fogStatsShader, m_fogKappaShader, m_fogRankShader, m_fogSmoothShader, m_fogTargetShader,
+        m_fogRouteShader;
+    std::array<ComPtr<ID3D12Resource>, 2> m_fogA, m_fogB, m_fogC, m_fogGuides;
+    ComPtr<ID3D12Resource> m_fogG, m_fogH, m_fogKappaRaw, m_fogKappaRank, m_fogKappa, m_fogTargetSpec, m_fogTargetDiff;
     ComPtr<ID3D12Resource> m_fogSpareSpecAlbedo, m_fogSpareDiffAlbedo, m_fogSpareSpecSignal, m_fogSpareDiffSignal;
     uint32_t m_fogIndex = 0;
     bool m_fogValid = false;
@@ -1353,9 +1355,10 @@ struct FSRDPreprocessor_Dx12::Impl
         m_albedoStabSpareSpecAlbedo.Reset(); m_albedoStabSpareDiffAlbedo.Reset();
         m_albedoStabSpareSpecSignal.Reset(); m_albedoStabSpareDiffSignal.Reset();
         m_albedoStabValid = false;
-        for (auto* set : {&m_fogA, &m_fogB, &m_fogC})
+        for (auto* set : {&m_fogA, &m_fogB, &m_fogC, &m_fogGuides})
             for (auto& resource : *set) resource.Reset();
         m_fogG.Reset(); m_fogH.Reset(); m_fogKappaRaw.Reset(); m_fogKappaRank.Reset(); m_fogKappa.Reset();
+        m_fogTargetSpec.Reset(); m_fogTargetDiff.Reset();
         m_fogSpareSpecAlbedo.Reset(); m_fogSpareDiffAlbedo.Reset();
         m_fogSpareSpecSignal.Reset(); m_fogSpareDiffSignal.Reset();
         m_fogValid = false;
@@ -2266,10 +2269,11 @@ struct FSRDPreprocessor_Dx12::Impl
         m_albedoStabActive = true;
     }
 
-    // Fog-consistent guides (FSRDFogStats/Kappa/Rank/Smooth/Route.hlsl), after stabilisation. Kappa, the share of the
-    // guides' texture the image carries, is measured on the packing shader's own pair (a stabilised guide has
-    // less texture to measure); the pair handed on (stabilised or not) is rewritten into spares that are swapped
-    // in, energy-exact per channel, so RR, skin, composition and captures all see the same pair.
+    // Lighting-consistent guides (FSRDFogStats/Kappa/Rank/Smooth/Target/Route.hlsl), after stabilisation. Kappa, the
+    // share of the guides' texture the image carries, is measured on the packing shader's own pair against the
+    // guides' history from earlier frames (CP77's guides flicker with the image inside a frame); the pair handed on
+    // (stabilised or not) is rewritten into spares that are swapped in, energy-exact per channel, so RR, skin,
+    // composition and captures all see the same pair.
     void FogGuides(ID3D12GraphicsCommandList* cmdList, const ConversionDesc& desc)
     {
         if (!desc.FogGuides || (desc.Flags & uint32_t(ConvFlags::Debug)) != 0u)
@@ -2291,6 +2295,9 @@ struct FSRDPreprocessor_Dx12::Impl
             m_fogSmoothShader.Initialize(m_pDev, {reinterpret_cast<const byte*>(FSRDFogSmooth_cso), sizeof(FSRDFogSmooth_cso)},
                                          sizeof(FogSmooth::Constants), FogSmooth::Input::kCount, FogSmooth::Output::kCount,
                                          L"FSRD_FogSmooth");
+            m_fogTargetShader.Initialize(m_pDev, {reinterpret_cast<const byte*>(FSRDFogTarget_cso), sizeof(FSRDFogTarget_cso)},
+                                         sizeof(FogTarget::Constants), FogTarget::Input::kCount, FogTarget::Output::kCount,
+                                         L"FSRD_FogTarget");
             m_fogRouteShader.Initialize(m_pDev, {reinterpret_cast<const byte*>(FSRDFogRoute_cso), sizeof(FSRDFogRoute_cso)},
                                         sizeof(FogRoute::Constants), FogRoute::Input::kCount, FogRoute::Output::kCount,
                                         L"FSRD_FogRoute");
@@ -2312,6 +2319,8 @@ struct FSRDPreprocessor_Dx12::Impl
             m_fogKappaRaw = tile(DXGI_FORMAT_R32_FLOAT, L"FSRD_Fog_KappaRaw");
             m_fogKappaRank = tile(DXGI_FORMAT_R32_FLOAT, L"FSRD_Fog_KappaRank");
             m_fogKappa = tile(DXGI_FORMAT_R32_FLOAT, L"FSRD_Fog_Kappa");
+            m_fogTargetSpec = tile(DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSRD_Fog_TargetSpec");
+            m_fogTargetDiff = tile(DXGI_FORMAT_R16G16B16A16_FLOAT, L"FSRD_Fog_TargetDiff");
             const auto full = [&](DXGI_FORMAT format, LPCWSTR name) {
                 return CreateTexture2D(m_pDev, m_maxWidth, m_maxHeight, format, name, kSrvState);
             };
@@ -2319,6 +2328,9 @@ struct FSRDPreprocessor_Dx12::Impl
             m_fogSpareDiffAlbedo = full(FSRDFormats::DiffAlbedo, L"FSRD_Fog_DiffAlbedo");
             m_fogSpareSpecSignal = full(FSRDFormats::IndirectSpecular, L"FSRD_Fog_SpecSignal");
             m_fogSpareDiffSignal = full(FSRDFormats::DirectDiffuse, L"FSRD_Fog_DiffSignal");
+            // Per-pixel guide history for the kappa regressor: luminance EMA of both guides, log depth, valid.
+            for (UINT i = 0; i < 2; ++i)
+                m_fogGuides[i] = full(DXGI_FORMAT_R10G10B10A2_UNORM, L"FSRD_Fog_GuideHistory");
             m_fogValid = false;
         }
         const bool reset = !m_fogValid || !desc.MotionHistoryValid ||
@@ -2336,19 +2348,26 @@ struct FSRDPreprocessor_Dx12::Impl
         // reveal and turn captures).
         constexpr float kRate = 1.0f / 16.0f, kFillRadius = 4.0f, kFillSigma = kFillRadius / 1.5f;
         constexpr float kNear = 8.0f, kFar = 60.0f;
+        // Guide history: rate, relative depth tolerance, and the log-depth range its 10-bit depth spans.
+        constexpr float kGuideRate = 1.0f / 8.0f, kGuideDepthTolerance = 0.03f;
+        constexpr float kGuideDepthMin = 1e-3f, kGuideDepthMax = 1e5f;
         FSRDStageTimings::Scope timing(m_stageTimings, FSRDStageTimings::FogGuides);
         {
             // Motion is canonical unjittered previous-UV minus current-UV. Fog runs before
             // the composition's history delta is updated, so use this frame's descriptor.
             const XMFLOAT2 historyJitterDelta {desc.JitterOffsets.z - desc.JitterOffsets.x,
                                                desc.JitterOffsets.w - desc.JitterOffsets.y};
+            // The history stores depth as normalised log depth; the tolerance is compared in that domain.
+            const float invLogZRange = 1.0f / std::log(kGuideDepthMax / kGuideDepthMin);
             const FogStats::Constants c {desc.RenderSize, tiles, kRate, desc.DemodDivisorFloor, 0.1f,
-                                         reset ? 1u : 0u, historyJitterDelta};
+                                         reset ? 1u : 0u, historyJitterDelta, kGuideRate,
+                                         std::log1p(kGuideDepthTolerance) * invLogZRange, std::log(kGuideDepthMin),
+                                         invLogZRange};
             const FogStats::Input inputs {{origSpec, origDiff, origSpecSignal, origDiffSignal,
                 r.SpecAlbedo.Get(), r.DiffAlbedo.Get(), m_LinearDepth.Get(), r.Motion.Get(),
-                m_fogA[previous].Get(), m_fogB[previous].Get(), m_fogC[previous].Get()}};
+                m_fogA[previous].Get(), m_fogB[previous].Get(), m_fogC[previous].Get(), m_fogGuides[previous].Get()}};
             FogStats::Output outputs {{m_fogA[current].Get(), m_fogB[current].Get(), m_fogC[current].Get(),
-                m_fogG.Get(), m_fogH.Get()}};
+                m_fogG.Get(), m_fogH.Get(), m_fogGuides[current].Get()}};
             {
                 FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassFogStats);
                 m_fogStatsShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray,
@@ -2380,17 +2399,22 @@ struct FSRDPreprocessor_Dx12::Impl
             const FogSmooth::Constants c {tiles, 3.0f, 0.6f, 6, {}};
             const FogSmooth::Input inputs {{m_fogKappaRank.Get(), m_fogA[current].Get(), m_fogC[current].Get()}};
             FogSmooth::Output outputs {{m_fogKappa.Get()}};
+            // The flatten target follows in the same timing slot (the pass mask is full).
+            const FogTarget::Constants t {tiles, 4.0f, 1.0f, 8, {}};
+            const FogTarget::Input targetInputs {{m_fogKappa.Get(), m_fogG.Get(), m_fogH.Get()}};
+            FogTarget::Output targetOutputs {{m_fogTargetSpec.Get(), m_fogTargetDiff.Get()}};
             {
                 FSRDStageTimings::PassScope passTiming(m_stageTimings, FSRDStageTimings::PassFogSmooth);
                 m_fogSmoothShader.Dispatch(cmdList, GetAsByteSpan(c), inputs.AsArray, outputs.AsArray, tiles);
+                m_fogTargetShader.Dispatch(cmdList, GetAsByteSpan(t), targetInputs.AsArray, targetOutputs.AsArray, tiles);
             }
         }
         {
             const FogRoute::Constants c {desc.RenderSize, tiles, desc.DemodDivisorFloor, std::log(kNear), 1.0f / std::log(kFar / kNear),
-                               0.1f, 0u, 0.0f};
+                               0.0f, 0u, 0.0f};
             const FogRoute::Input inputs {{r.SpecAlbedo.Get(), r.DiffAlbedo.Get(),
                 r.Signals.IndirectSpecular.Get(), r.Signals.DirectDiffuse.Get(), m_LinearDepth.Get(), m_fogKappa.Get(),
-                m_fogG.Get(), m_fogH.Get()}};
+                m_fogTargetSpec.Get(), m_fogTargetDiff.Get(), m_fogGuides[current].Get()}};
             FogRoute::Output outputs {{m_fogSpareSpecAlbedo.Get(), m_fogSpareDiffAlbedo.Get(),
                 m_fogSpareSpecSignal.Get(), m_fogSpareDiffSignal.Get()}};
             {

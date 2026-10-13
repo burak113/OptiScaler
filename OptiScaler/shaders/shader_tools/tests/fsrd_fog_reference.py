@@ -1,15 +1,26 @@
-"""Reference (numpy, float64) of the FSRD fog-consistent guides; all five production passes mirror it.
+"""Reference (numpy, float64) of the FSRD lighting-consistent guides; all six production passes mirror it.
 
 Pass 1  FSRDFogStats   (8x8 group per tile) original pair -> tile stats; reprojected EMA (rate 1/16)
         history A: Ls.rgb, age      B: Ld.rgb, Cbar (EMA of the tile mean radiance, luminance)
                 C: N, D, S, logz    (sums over the tile: hp(C) P, P^2, hp(C)^2;  hp = minus the tile mean)
         per frame G: Qs mean (current pair).rgb, logz   H: Qd mean (current pair).rgb, valid fraction
+        per pixel guide history (R10G10B10A2): EMA (rate 1/8) of the guides' luminance, log depth, valid.
+        The regressor P is built from that history BEFORE this frame enters it: CP77's guides flicker together
+        with the image inside a frame (same-frame stochastic sampling), and a same-frame product counts that
+        co-flicker as texture the image carries (water over a sea floor measured kappa ~0.5 although the image
+        shows none of the floor's print).
 Pass 2  FSRDFogKappa   (thread per tile) local 3x3-tent MAP estimate (prior 1, conservative bound) where the guides
         have texture, depth-aware wide estimate (no bound) where they do not
 Pass 3  FSRDFogRank    (thread per tile) same-depth 5x5 median rejects isolated model failures
 Pass 4  FSRDFogSmooth  (thread per tile) depth-aware Gaussian, sigma 3 tiles
-Pass 5  FSRDFogRoute   (pixel) bilinear kappa; level-preserving per-lobe flattening toward a depth-aware 5x5-tile
-        guide mean; with distance the fog share moves to the specular lobe with a neutral guide.
+Pass 5  FSRDFogTarget  (thread per tile) flatten target: Gaussian (sigma 4 tiles) of the tile guide means weighted
+        by (1 - kappa), so a surface whose texture the image does not show averages only with such surfaces
+        (never with the textured structures beside it), with a loose log-depth term (sky stays apart, a sea
+        floor's own relief does not split the water)
+Pass 6  FSRDFogRoute   (pixel) bilinear kappa and target; per-lobe flattening Q1 = kappa Q' + (1 - kappa) T, Q' the
+        frame's guide at the history's stable luminance (ratio in [1/4, 4]); with
+        distance the fog share joins the specular lobe, whose guide takes the surface's own flattened total level
+        (q1s + q1d) for that share.
 """
 import numpy as np
 
@@ -17,10 +28,19 @@ LUMA = np.array([.2126, .7152, .0722], np.float32)
 FLOOR = 0.008
 P = dict(rate=1 / 16, tau=.35, z=1.0, tau_fill=2.0, z_fill=0.0, fill_r=4, fill_zsig=.6, mass_local=144.0,
          sig0=.005, sig1=.015, rank_r=2, rank_percentile=50.0, rank_dz=.3, smooth_sigma=3.0, smooth_zsig=.6,
-         near=8.0, far=60.0, target_zsig=.1, reproj_dz=.1)
+         near=8.0, far=60.0, reproj_dz=.1, guide_rate=1 / 8, guide_dz=.03, target_sigma=4.0, target_zsig=1.0)
+LOGZ_MIN = float(np.log(1e-3))
+INV_LOGZ_RANGE = float(1.0 / (np.log(1e5) - np.log(1e-3)))
+# the history's depth test compares the stored normalised log depth: a 3% change of depth
+GUIDE_DZ_STORED = float(np.log1p(P["guide_dz"]) * INV_LOGZ_RANGE)
 
 
 def lum(x): return x @ LUMA
+
+
+def unorm(x, bits):
+    m = (1 << bits) - 1
+    return np.round(np.clip(x, 0, 1) * m) / m
 
 
 class FogGuides:
@@ -28,6 +48,7 @@ class FogGuides:
         self.W, self.H = W, H; self.TW, self.TH = (W + 7) // 8, (H + 7) // 8
         self.p = dict(P); self.p.update(params or {})
         self.hist = None
+        self.ghist = None   # (H, W, 4): luminance EMA of Qs, Qd; normalised log depth; valid (as stored, UNORM)
 
     # ---------- helpers
     def tiles_sum(self, x):
@@ -39,12 +60,40 @@ class FogGuides:
 
     def near(self, t): return np.repeat(np.repeat(t, 8, 0), 8, 1)[:self.H, :self.W]
 
+    # ---------- pass 1, per pixel: guide history
+    def guide_history(self, qs, qd, depth, motion, reset, jd):
+        """Returns (previous EMA reprojected (H,W,2), valid (H,W)) and stores the updated history."""
+        H, W, p = self.H, self.W, self.p
+        cur = np.stack([lum(qs), lum(qd)], -1)
+        z = np.abs(depth); zv = np.isfinite(z) & (z > 0)
+        prev = np.zeros((H, W, 2)); valid = np.zeros((H, W), bool)
+        nz = np.where(zv, np.clip((np.log(np.maximum(z, 1e-30)) - LOGZ_MIN) * INV_LOGZ_RANGE, 0, 1), 0.0)
+        if self.ghist is not None and not reset:
+            y, x = np.mgrid[0:H, 0:W].astype(np.float64)
+            px = x + motion[..., 0] * W + jd[0]; py = y + motion[..., 1] * H + jd[1]
+            x0 = np.floor(px).astype(int); y0 = np.floor(py).astype(int); fx = px - x0; fy = py - y0
+            acc = np.zeros((H, W, 2)); ws = np.zeros((H, W))
+            for dy in (0, 1):
+                for dx in (0, 1):
+                    xi, yi = x0 + dx, y0 + dy
+                    inb = (xi >= 0) & (xi < W) & (yi >= 0) & (yi < H)
+                    st = self.ghist[np.clip(yi, 0, H - 1), np.clip(xi, 0, W - 1)]
+                    ok = inb & (st[..., 3] > .5) & zv & (np.abs(st[..., 2] - nz) <= np.log1p(p["guide_dz"]) * INV_LOGZ_RANGE) & (motion[..., 3] > 0)
+                    w = (fx if dx else 1 - fx) * (fy if dy else 1 - fy) * ok
+                    acc += w[..., None] * st[..., :2]; ws += w
+            valid = ws >= .5
+            prev = np.where(valid[..., None], acc / np.maximum(ws, 1e-12)[..., None], 0.0)
+        new = np.where(valid[..., None], prev + p["guide_rate"] * (cur - prev), cur)
+        self.ghist = np.concatenate([unorm(new, 10), unorm(nz, 10)[..., None], zv[..., None].astype(np.float64)], -1)
+        return prev, valid
+
     # ---------- pass 1
     def stats(self, orig, cur, depth, motion, reset, history_jitter_delta=(0.0, 0.0)):
         """Motion is unjittered previous-current UV; history_jitter_delta is Jprev-Jcur in pixels."""
         p = self.p; r = p["rate"]; F = FLOOR
         cnt = self.tiles_count()
         qs, qd, U, V = orig["qs"], orig["qd"], orig["U"], orig["V"]
+        prevg, validg = self.guide_history(qs, qd, depth, motion, reset, history_jitter_delta)
         Rs = np.where(qs > F, U * qs, 0.0); Rd = np.where(qd > F, V * qd, 0.0)
         C = lum(Rs + Rd)
         ls = self.tiles_sum(U) / cnt[..., None]; ld = self.tiles_sum(V) / cnt[..., None]
@@ -70,8 +119,10 @@ class FogGuides:
         Ls = np.where(okb, A0[..., :3] + r * (ls - A0[..., :3]), ls) if A0 is not None else ls
         Ld = np.where(okb, B0[..., :3] + r * (ld - B0[..., :3]), ld) if B0 is not None else ld
         Cb = np.where(ok, B0[..., 3] + r * (cbar - B0[..., 3]), cbar) if B0 is not None else cbar
-        qsm = self.tiles_sum(qs) / cnt[..., None]; qdm = self.tiles_sum(qd) / cnt[..., None]
-        Pp = lum(self.near(Ls) * (qs - self.near(qsm)) + self.near(Ld) * (qd - self.near(qdm)))
+        # regressor: the guide history before this frame, its tile mean over the pixels that have one
+        v = validg.astype(np.float64); nv = self.tiles_sum(v)
+        gm = self.tiles_sum(prevg * v[..., None]) / np.maximum(nv, 1)[..., None]
+        Pp = v * (self.near(lum(Ls)) * (prevg[..., 0] - self.near(gm[..., 0])) + self.near(lum(Ld)) * (prevg[..., 1] - self.near(gm[..., 1])))
         Ch = C - self.near(cbar)
         n, d, s = self.tiles_sum(Ch * Pp), self.tiles_sum(Pp * Pp), self.tiles_sum(Ch * Ch)
         if C0 is not None:
@@ -161,49 +212,53 @@ class FogGuides:
         return acc / ws
 
     # ---------- pass 5
+    def target(self, k, G, Hm):
+        """kappa-weighted wide Gaussian of the tile guide means. Returns (TH, TW, 3) spec and diffuse targets."""
+        p = self.p; TH, TW = self.TH, self.TW; sg = p["target_sigma"]; r = int(np.ceil(2 * sg))
+        valid = (Hm[..., 3] > 0).astype(np.float64); lz = G[..., 3]
+        wt = (np.clip(1 - k, 0, 1) + 1e-3) * valid
+        pg = np.pad(G[..., :3], ((r, r), (r, r), (0, 0))); ph = np.pad(Hm[..., :3], ((r, r), (r, r), (0, 0)))
+        pw = np.pad(wt, r); pz = np.pad(lz, r)
+        accs = np.zeros((TH, TW, 3)); accd = np.zeros((TH, TW, 3)); ws = np.zeros((TH, TW))
+        for dy in range(-r, r + 1, 2):        # every second tile: the Gaussian is wide, the target smooth
+            for dx in range(-r, r + 1, 2):
+                sl = (slice(r + dy, r + dy + TH), slice(r + dx, r + dx + TW))
+                w = np.exp(-(dy * dy + dx * dx) / (2 * sg * sg)) * pw[sl] * np.exp(-((pz[sl] - lz) ** 2) / (2 * p["target_zsig"] ** 2))
+                accs += w[..., None] * pg[sl]; accd += w[..., None] * ph[sl]; ws += w
+        has = (ws > 1e-9)[..., None]
+        Ts = np.where(has, accs / np.maximum(ws, 1e-30)[..., None], G[..., :3])
+        Td = np.where(has, accd / np.maximum(ws, 1e-30)[..., None], Hm[..., :3])
+        return Ts, Td
+
+    # ---------- pass 6
     def upsample(self, t):
         H, W, TH, TW = self.H, self.W, self.TH, self.TW
         ys = (np.arange(H) + .5) / 8 - .5; xs = (np.arange(W) + .5) / 8 - .5
         y0 = np.floor(ys).astype(int); x0 = np.floor(xs).astype(int)
         fy = (ys - y0)[:, None]; fx = (xs - x0)[None, :]
+        if t.ndim == 3: fy, fx = fy[..., None], fx[..., None]
         Y0, Y1 = np.clip(y0, 0, TH - 1), np.clip(y0 + 1, 0, TH - 1); X0, X1 = np.clip(x0, 0, TW - 1), np.clip(x0 + 1, 0, TW - 1)
         return t[Y0][:, X0] * (1 - fy) * (1 - fx) + t[Y0][:, X1] * (1 - fy) * fx + t[Y1][:, X0] * fy * (1 - fx) + t[Y1][:, X1] * fy * fx
 
-    def targets(self, G, Hm, depth):
-        """depth-aware 5x5-tile tent mean of the current pair's tile guide means."""
-        H, W, TH, TW = self.H, self.W, self.TH, self.TW; p = self.p
-        z = np.abs(depth); lz = np.where(np.isfinite(z) & (z > 0), np.log(np.maximum(z, 1e-6)), 0.0)
-        yy, xx = np.mgrid[0:H, 0:W]
-        py = (yy + .5) / 8 - .5; px = (xx + .5) / 8 - .5
-        oy, ox = np.floor(py).astype(int), np.floor(px).astype(int)
-        accs = np.zeros((H, W, 3)); accd = np.zeros((H, W, 3)); ws = np.zeros((H, W))
-        for j in range(-2, 4):
-            for i in range(-2, 4):
-                ty, tx = oy + j, ox + i
-                inb = (ty >= 0) & (ty < TH) & (tx >= 0) & (tx < TW)
-                tyc, txc = np.clip(ty, 0, TH - 1), np.clip(tx, 0, TW - 1)
-                g = np.clip(1 - np.abs(py - ty) / 3, 0, 1) * np.clip(1 - np.abs(px - tx) / 3, 0, 1)
-                gz = np.exp(-((G[tyc, txc, 3] - lz) ** 2) / (2 * p["target_zsig"] ** 2))
-                w = np.where(inb & (Hm[tyc, txc, 3] > 0), g * gz * Hm[tyc, txc, 3], 0.0)
-                accs += w[..., None] * G[tyc, txc, :3]; accd += w[..., None] * Hm[tyc, txc, :3]; ws += w
-        return accs, accd, ws
-
-    def route(self, cur8, k, depth, G, Hm):
-        """cur8: dict(qs8, qd8 uint8 rgb, U, V rgb). Returns new (qs8, qd8, U, V) rgb."""
+    def route(self, cur8, k, depth, Ts, Td, ghist=None):
+        """cur8: dict(qs8, qd8 uint8 rgb, U, V rgb); k, Ts, Td at pixel resolution; ghist: this frame's stored guide
+        history (None: no history). Returns new (qs8, qd8, U, V) rgb."""
         p = self.p; F = FLOOR
         qs8, qd8, U, V = cur8["qs8"], cur8["qd8"], cur8["U"], cur8["V"]
         qs, qd = qs8.astype(np.float32) / 255, qd8.astype(np.float32) / 255
         vs, vd = qs > F, qd > F
         Rs, Rd = np.where(vs, U * qs, 0.0), np.where(vd, V * qd, 0.0)
         K = k[..., None]
+        rs = rd = 1.0
+        if ghist is not None:
+            hv = ghist[..., 3] > .5; ls, ld = lum(qs), lum(qd)
+            rs = np.where(hv & (ls > F), np.clip(ghist[..., 0] / np.maximum(ls, 1e-30), .25, 4), 1.0)[..., None]
+            rd = np.where(hv & (ld > F), np.clip(ghist[..., 1] / np.maximum(ld, 1e-30), .25, 4), 1.0)[..., None]
         z = np.abs(depth); zc = np.where(np.isfinite(z) & (z > 0), z, 1e9)
         w = np.clip(np.log(zc / p["near"]) / np.log(p["far"] / p["near"]), 0, 1)[..., None]
-        accs, accd, ws = self.targets(G, Hm, depth)
-        has = (ws > 1e-6)[..., None]
-        Ts = np.where(has, accs / np.maximum(ws[..., None], 1e-12), qs); Td = np.where(has, accd / np.maximum(ws[..., None], 1e-12), qd)
-        q1s = K * qs + (1 - K) * Ts; q1d = K * qd + (1 - K) * Td
+        q1s = K * qs * rs + (1 - K) * Ts; q1d = K * qd * rd + (1 - K) * Td
         m = w * (1 - K)
-        alld = np.all(vd, -1, keepdims=True)
+        alld = np.all(q1d > F, -1, keepdims=True)   # the flattened guide decides (stable across a jittered edge)
         q1d_min = np.min(np.where(vd, q1d, 1.0), -1, keepdims=True)
         kd = (1 - m) * np.clip(((1 - m) * q1d_min - F) / F, 0, 1)
         kd = np.where(alld, kd, 1.0)
@@ -211,7 +266,7 @@ class FogGuides:
         keep = np.all(qd_n > F * 255, -1, keepdims=True) & (kd > 0)
         alone = ~alld
         Rd2 = np.where(alone, Rd, np.where(keep, kd * Rd, 0.0)); Mv = Rd - Rd2
-        qs_n = np.rint(np.clip((1 - m) * q1s + m, 0, 1) * 255)
+        qs_n = np.rint(np.clip(q1s + m * q1d, 0, 1) * 255)
         can = np.all(qs_n > F * 255, -1, keepdims=True)
         unchanged = (K >= 1) | ~can
         U2 = np.where(unchanged, U, (Rs + Mv) / np.maximum(qs_n / 255, 1e-6))
@@ -230,5 +285,6 @@ class FogGuides:
         kr = self.kappa(A, B, Cst)
         km = self.rank(kr, Cst[..., 3], A[..., 3] > 0)
         ks = self.smooth(km, Cst[..., 3], A[..., 3] > 0)
+        Ts, Td = self.target(ks, G, Hm)
         k = np.clip(self.upsample(ks), 0, 1)
-        return self.route(cur8, k, depth, G, Hm), k
+        return self.route(cur8, k, depth, self.upsample(Ts), self.upsample(Td), self.ghist), k

@@ -151,7 +151,7 @@ def constants(shader, values, directory=PRE):
               'FSRDSssPrepare':'CB_SssPrepare', 'FSRDSssBlur':'CB_SssBlur',
               'FSRDSkinPrefilter':'CB_SkinPrefilter', 'FSRDProbeInputs':'Probe',
               'FSRDReference':'Reference', 'FSRDLeak':'CB_Leak', 'FSRDAlbedoStabilise':'CB_AlbedoStabilise',
-              'FSRDFogStats':'CB_FogStats', 'FSRDFogKappa':'CB_FogKappa', 'FSRDFogRank':'CB_FogRank', 'FSRDFogSmooth':'CB_FogSmooth', 'FSRDFogRoute':'CB_FogRoute', 'FSRDRRMotion':'CB_RRMotion', 'FSRDRecoveryLobeAccumulate':'CB_RecoveryLobe', 'FSRDRecoveryLobeDown':'CB_RecoveryLobe', 'FSRDRecoveryLobeBand':'CB_RecoveryLobe'}[shader]
+              'FSRDFogStats':'CB_FogStats', 'FSRDFogKappa':'CB_FogKappa', 'FSRDFogRank':'CB_FogRank', 'FSRDFogSmooth':'CB_FogSmooth', 'FSRDFogTarget':'CB_FogTarget', 'FSRDFogRoute':'CB_FogRoute', 'FSRDRRMotion':'CB_RRMotion', 'FSRDRecoveryLobeAccumulate':'CB_RecoveryLobe', 'FSRDRecoveryLobeDown':'CB_RecoveryLobe', 'FSRDRecoveryLobeBand':'CB_RecoveryLobe'}[shader]
     if 'cbuffer '+marker not in text and shader.startswith('FSRDRecoveryLobe'):
         text = (directory/'FSRDRecoveryLobeCommon.hlsli').read_text(encoding='utf-8')  # the passes share it
     body = mirror.brace_body(text,'cbuffer '+marker)
@@ -366,10 +366,10 @@ def _dispatch(shader, values, inputs, output_formats, size, directory=PRE, repet
         'FSRDSssBlur': [10,41,41,10],
         'FSRDSkinPrefilter': [10,41,41,24],
         'FSRDProbeInputs': [2], 'FSRDReference': [2,2], 'FSRDLeak': [10,10,28,28,41,24], 'FSRDAlbedoStabilise': [28,28,10,10,10,41,24,10,10,16],
-        'FSRDFogStats': [28,28,10,10,28,28,41,10,2,2,2], 'FSRDFogKappa': [2,2,2], 'FSRDFogRank': [41,2,2], 'FSRDFogSmooth': [41,2,2], 'FSRDRRMotion': [10],
+        'FSRDFogStats': [28,28,10,10,28,28,41,10,2,2,2,24], 'FSRDFogKappa': [2,2,2], 'FSRDFogRank': [41,2,2], 'FSRDFogSmooth': [41,2,2], 'FSRDFogTarget': [41,2,2], 'FSRDRRMotion': [10],
         'FSRDRecoveryLobeAccumulate': [10,10,10,10,10,28,28,41,24,10,10,10,10,10,10], 'FSRDRecoveryLobeDown': [10,10,10],
         'FSRDRecoveryLobeBand': [10,10,10,10,10,10,10,10,10,10,28,28,10,10,10,10],
-        'FSRDFogRoute': [28,28,10,10,41,41,2,2],
+        'FSRDFogRoute': [28,28,10,10,41,41,10,10,24],
         'FSRDInputConvSkin': [10,41,10,10,41,41,10,10,41,10,10,10,10,10,41,41,10,10,41,41,10],
         'FSRDInputConvSkinAdditive': [10,41,10,10,41,41,10,10,41,10,10,10,10,10,41,41,10,10,41,41,10],
     }[schema]

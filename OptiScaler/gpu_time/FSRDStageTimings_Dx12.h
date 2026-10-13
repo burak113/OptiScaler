@@ -89,7 +89,7 @@ class FSRDStageTimings
     };
     static constexpr const char* PassNames[] {
         "Geometry depth", "Packing / conversion", "RR motion jitter copy", "Albedo stabilisation",
-        "Fog stats", "Fog kappa", "Fog kappa rank", "Fog kappa smooth", "Fog route",
+        "Fog stats", "Fog kappa", "Fog kappa rank", "Fog kappa smooth + target", "Fog route",
         "Texture leak", "SSS input", "Skin bounds", "Skin prefilter H", "Skin prefilter V",
         "Albedo trust evidence", "Albedo trust propagate", "Composition",
         "Recovery accumulate", "Recovery down", "Recovery band",

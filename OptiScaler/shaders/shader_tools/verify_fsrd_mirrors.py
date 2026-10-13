@@ -50,6 +50,7 @@ FOG_STATS_HLSL = os.path.join(PRE, "FSRDFogStats.hlsl")
 FOG_KAPPA_HLSL = os.path.join(PRE, "FSRDFogKappa.hlsl")
 FOG_RANK_HLSL = os.path.join(PRE, "FSRDFogRank.hlsl")
 FOG_SMOOTH_HLSL = os.path.join(PRE, "FSRDFogSmooth.hlsl")
+FOG_TARGET_HLSL = os.path.join(PRE, "FSRDFogTarget.hlsl")
 FOG_ROUTE_HLSL = os.path.join(PRE, "FSRDFogRoute.hlsl")
 RR_MOTION_HLSL = os.path.join(PRE, "FSRDRRMotion.hlsl")
 RECOVERY_LOBE_ACCUMULATE_HLSL = os.path.join(PRE, "FSRDRecoveryLobeAccumulate.hlsl")
@@ -232,6 +233,7 @@ CONSTANT_PAIRS = [
     ("FogKappa", "struct alignas(16) Constants", FOG_KAPPA_HLSL, "cbuffer CB_FogKappa", {}),
     ("FogRank", "struct alignas(16) Constants", FOG_RANK_HLSL, "cbuffer CB_FogRank", {}),
     ("FogSmooth", "struct alignas(16) Constants", FOG_SMOOTH_HLSL, "cbuffer CB_FogSmooth", {}),
+    ("FogTarget", "struct alignas(16) Constants", FOG_TARGET_HLSL, "cbuffer CB_FogTarget", {}),
     ("FogRoute", "struct alignas(16) Constants", FOG_ROUTE_HLSL, "cbuffer CB_FogRoute", {}),
     ("RRMotion", "struct alignas(16) Constants", RR_MOTION_HLSL, "cbuffer CB_RRMotion", {}),
     ("RecoveryLobe", "struct alignas(16) Constants", RECOVERY_LOBE_COMMON_HLSLI, "cbuffer CB_RecoveryLobe", {}),
@@ -610,6 +612,7 @@ def check_resources():
                             ("FogKappa", FOG_KAPPA_HLSL),
                             ("FogRank", FOG_RANK_HLSL),
                             ("FogSmooth", FOG_SMOOTH_HLSL),
+                            ("FogTarget", FOG_TARGET_HLSL),
                             ("FogRoute", FOG_ROUTE_HLSL),
                             ("RRMotion", RR_MOTION_HLSL),
                             ("RecoveryLobeAccumulate", RECOVERY_LOBE_ACCUMULATE_HLSL),
@@ -668,7 +671,8 @@ def check_fog_history_host(source=None):
     if jitter not in compact:
         fail("FogStats history must use current descriptor pixel jitter: previous minus current")
     constants = re.search(r"constFogStats::Constantsc\{([^;]+)\};", compact)
-    if not constants or not constants.group(1).endswith(",historyJitterDelta"):
+    # The jitter follows the reset flag; the guide-history constants come after it.
+    if not constants or ",reset?1u:0u,historyJitterDelta" not in constants.group(1):
         fail("FogStats must upload this frame's pixel jitter in its typed constants")
     if ("sizeof(FogStats::Constants),FogStats::Input::kCount,FogStats::Output::kCount"
             not in compact):

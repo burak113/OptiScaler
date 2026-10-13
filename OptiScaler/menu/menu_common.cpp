@@ -3621,13 +3621,16 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                         config->FfxDenoiserFogGuides = fog;
                     if (ImGui::IsItemHovered())
                         ImGui::SetTooltip("RR multiplies its result by the surface albedo guides. Where the light does not come "
-                                          "from that surface (fog, haze, water over a sea floor) this prints the surface texture "
-                                          "at full strength: distant geometry comes out of the haze and silhouettes against the "
-                                          "sky get a dark line. This measures per tile how much of the guide texture the image "
-                                          "really carries and flattens the rest; with distance the fog light is denoised in one "
-                                          "lobe with a neutral guide, like the sky. The energy sent to RR is unchanged.");
-                    ImGui::TextWrapped("Works with or without Albedo guide stabilisation. Look at distant haze, mountain and "
-                                       "building silhouettes against the sky, and water.");
+                                          "from that surface (fog, haze, water over a sea floor) this prints the surface texture: "
+                                          "distant geometry comes out of the haze and the sea floor shows through water as stains. "
+                                          "This measures per tile how much of the guide texture the image really carries (against "
+                                          "the guides of earlier frames, because the game's guides flicker together with the image "
+                                          "inside a frame) and flattens the rest toward the level of the surrounding surfaces the "
+                                          "image does not show either; the kept share uses the guides' stable level. The energy "
+                                          "sent to RR is unchanged.");
+                    ImGui::TextWrapped("Works with or without Albedo guide stabilisation. Look at shallow water over a "
+                                       "patterned sea floor (still and while turning), distant haze and silhouettes against "
+                                       "the sky.");
                     if (ImGui::Button("Reset Fog-consistent guides"))
                         config->FfxDenoiserFogGuides.reset();
                 }

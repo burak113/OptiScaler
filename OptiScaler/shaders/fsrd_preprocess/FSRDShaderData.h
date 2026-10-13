@@ -16,8 +16,12 @@ namespace FSRD
             float DepthTolerance;
             uint32_t Flags;
             XMFLOAT2 HistoryJitterDelta;
+            float GuideRate;
+            float GuideDepthTolerance;
+            float LogZMin;
+            float InvLogZRange;
         };
-        static_assert(sizeof(Constants) == 48, "FogStats constants");
+        static_assert(sizeof(Constants) == 64, "FogStats constants");
         static_assert(offsetof(Constants, DstTexSize) == 0, "FogStats layout");
         static_assert(offsetof(Constants, TileSize) == 16, "FogStats layout");
         static_assert(offsetof(Constants, Rate) == 24, "FogStats layout");
@@ -25,6 +29,8 @@ namespace FSRD
         static_assert(offsetof(Constants, DepthTolerance) == 32, "FogStats layout");
         static_assert(offsetof(Constants, Flags) == 36, "FogStats layout");
         static_assert(offsetof(Constants, HistoryJitterDelta) == 40, "FogStats layout");
+        static_assert(offsetof(Constants, GuideRate) == 48, "FogStats layout");
+        static_assert(offsetof(Constants, InvLogZRange) == 60, "FogStats layout");
         union Input
         {
             struct Data
@@ -40,6 +46,7 @@ namespace FSRD
                 ID3D12Resource* InPrevA;
                 ID3D12Resource* InPrevB;
                 ID3D12Resource* InPrevC;
+                ID3D12Resource* InPrevGuides;
             };
             static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
             Data Resources;
@@ -54,14 +61,15 @@ namespace FSRD
                 ID3D12Resource* OutC;
                 ID3D12Resource* OutG;
                 ID3D12Resource* OutH;
+                ID3D12Resource* OutGuides;
             };
             static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
             Data Resources;
             ID3D12Resource* AsArray[kCount];
         };
     }
-    static_assert(FogStats::Input::kCount == 11, "FogStats input count");
-    static_assert(FogStats::Output::kCount == 5, "FogStats output count");
+    static_assert(FogStats::Input::kCount == 12, "FogStats input count");
+    static_assert(FogStats::Output::kCount == 6, "FogStats output count");
 
     namespace FogKappa
     {
@@ -189,6 +197,46 @@ namespace FSRD
     static_assert(FogSmooth::Input::kCount == 3, "FogSmooth input count");
     static_assert(FogSmooth::Output::kCount == 1, "FogSmooth output count");
 
+    namespace FogTarget
+    {
+        struct alignas(16) Constants
+        {
+            XMFLOAT2 TileSize;
+            float Sigma;
+            float ZSigma;
+            int32_t Radius;
+            XMFLOAT3 _Reserved0;
+        };
+        static_assert(sizeof(Constants) == 32, "FogTarget constants");
+        static_assert(offsetof(Constants, Radius) == 16, "FogTarget layout");
+        static_assert(offsetof(Constants, _Reserved0) == 20, "FogTarget layout");
+        union Input
+        {
+            struct Data
+            {
+                ID3D12Resource* InKappa;
+                ID3D12Resource* InG;
+                ID3D12Resource* InH;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+        union Output
+        {
+            struct Data
+            {
+                ID3D12Resource* OutTargetSpec;
+                ID3D12Resource* OutTargetDiff;
+            };
+            static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
+            Data Resources;
+            ID3D12Resource* AsArray[kCount];
+        };
+    }
+    static_assert(FogTarget::Input::kCount == 3, "FogTarget input count");
+    static_assert(FogTarget::Output::kCount == 2, "FogTarget output count");
+
     namespace FogRoute
     {
         struct alignas(16) Constants
@@ -198,7 +246,7 @@ namespace FSRD
             float DivisorFloor;
             float LogNear;
             float InvLogRange;
-            float TargetZSigma;
+            float _Reserved1;
             uint32_t Flags;
             float _Reserved0;
         };
@@ -216,8 +264,9 @@ namespace FSRD
                 ID3D12Resource* InDiffSignal;
                 ID3D12Resource* InLinearDepth;
                 ID3D12Resource* InKappa;
-                ID3D12Resource* InG;
-                ID3D12Resource* InH;
+                ID3D12Resource* InTargetSpec;
+                ID3D12Resource* InTargetDiff;
+                ID3D12Resource* InGuides;
             };
             static constexpr uint32_t kCount = sizeof(Data) / sizeof(ID3D12Resource*);
             Data Resources;
@@ -237,7 +286,7 @@ namespace FSRD
             ID3D12Resource* AsArray[kCount];
         };
     }
-    static_assert(FogRoute::Input::kCount == 8, "FogRoute input count");
+    static_assert(FogRoute::Input::kCount == 9, "FogRoute input count");
     static_assert(FogRoute::Output::kCount == 4, "FogRoute output count");
 
     // RR's motion vectors: canonical motion plus the jitter difference (FSRDRRMotion.hlsl).
