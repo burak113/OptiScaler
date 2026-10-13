@@ -150,6 +150,13 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         reset = serial != owner->appliedReset;
     }
     std::scoped_lock injection(gInjectionMutex); // Provider calls never hold the coordinator/registry mutex.
+    {
+        std::scoped_lock lock(gMutex);
+        const auto found = owner->lists.find(cmd);
+        if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || !owner->cache.Valid() ||
+            owner->cache.Generation() != generation || owner->resetSerial != serial || found == owner->lists.end() ||
+            found->second.frame != frame) return;
+    }
     if (!D3D12Hooks::CanRestoreRootSignature(cmd)) { Failure(owner,"Title compute state cannot be restored after Recon"); return; }
     std::string error, conventions; FrameParameters parameters; ConvertedResources converted;
     bool succeeded = false;
