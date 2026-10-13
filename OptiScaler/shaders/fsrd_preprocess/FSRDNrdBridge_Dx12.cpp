@@ -57,9 +57,12 @@ template<class Wrapper> std::string Conventions(const Wrapper& wrapper)
 struct InjectionScope
 {
     ID3D12GraphicsCommandList* list;
+    bool previousTracking;
     FrameSurvey::ScopedInternal survey;
-    explicit InjectionScope(ID3D12GraphicsCommandList* cmd) : list(cmd) { D3D12Hooks::SetRootSignatureTracking(false); }
-    ~InjectionScope() { D3D12Hooks::RestoreRoot(list); D3D12Hooks::SetRootSignatureTracking(true); }
+    explicit InjectionScope(ID3D12GraphicsCommandList* cmd)
+        : list(cmd), previousTracking(D3D12Hooks::RootSignatureTrackingEnabled())
+    { D3D12Hooks::SetRootSignatureTracking(false); }
+    ~InjectionScope() { D3D12Hooks::RestoreRoot(list); D3D12Hooks::SetRootSignatureTracking(previousTracking); }
 };
 Role PipelineRole(const Service& owner, ID3D12PipelineState* pipeline)
 {

@@ -45,7 +45,7 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
                                      saturate(0.5f + motion.z / 32.0f))
              : InDiffAlbedo[p].rgb;
     }
-    // The title's Consumer expects denoised RGB and zero alpha, unlike RR inputs.
+    // Match the observed NRD output alpha (zero) in these diagnostic copies.
     OutSpec[p] = float4(spec, 0.0f);
     OutDiff[p] = float4(diff, 0.0f);
 }

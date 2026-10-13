@@ -105,7 +105,7 @@ int main() {
     compile_cpp(file, exe)
     result = subprocess.run([str(exe)], check=True, capture_output=True, text=True)
     print(result.stdout, end='')
-    (out/'result.json').write_text(json.dumps({'native_checks':13,'production_trackers_executed':list(names),
+    (out/'result.json').write_text(json.dumps({'native_checks':int(result.stdout.split()[1]),'production_trackers_executed':list(names),
         'scope':'CPU root snapshot behavior; GPU restore checks are in the end-to-end fixture'})+'\n')
 
 
