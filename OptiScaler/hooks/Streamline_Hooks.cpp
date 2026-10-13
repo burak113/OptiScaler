@@ -1,4 +1,5 @@
 ﻿#include <pch.h>
+#include "resource_tracking/FrameSurvey_Dx12.h"
 
 #include "Streamline_Hooks.h"
 
@@ -1308,6 +1309,24 @@ sl::Result StreamlineHooks::hkslSetTag(const sl::ViewportHandle& viewport, const
             probeSLResourceTag(
                 tags[i], UINT32_MAX, static_cast<uint32_t>(viewport),
                 RRTagSource::SetTag);
+            if (Config::Instance()->FfxDenoiserFrameSurvey.value_or_default())
+            {
+                const auto& surveyTag = tags[i];
+                const auto* r = surveyTag.resource;
+                switch (surveyTag.type)
+                {
+                case sl::kBufferTypeScalingInputColor: case sl::kBufferTypeDepth:
+                case sl::kBufferTypeMotionVectors: case sl::kBufferTypeNormalRoughness:
+                case sl::kBufferTypeAlbedo: case sl::kBufferTypeSpecularAlbedo:
+                case sl::kBufferTypeColorBeforeParticles: case sl::kBufferTypeColorBeforeTransparency:
+                case sl::kBufferTypeSpecularHitDistance:
+                    FrameSurvey::TitleTag(reinterpret_cast<ID3D12GraphicsCommandList*>(cmdBuffer),
+                        getSLBufferTypeName(surveyTag.type),r ? static_cast<ID3D12Resource*>(r->native) : nullptr,
+                        r ? uint32_t(r->state) : 0,surveyTag.extent.left,surveyTag.extent.top,
+                        surveyTag.extent.width,surveyTag.extent.height);
+                    break;
+                }
+            }
             probeRRResourceTag(
                 tags[i], UINT32_MAX, static_cast<uint32_t>(viewport),
                 RRTagSource::SetTag);
@@ -1413,6 +1432,24 @@ sl::Result StreamlineHooks::hkslSetTagForFrame(const sl::FrameToken& frame, cons
             probeSLResourceTag(
                 resources[i], static_cast<uint32_t>(frame),
                 static_cast<uint32_t>(viewport), RRTagSource::SetTagForFrame);
+            if (Config::Instance()->FfxDenoiserFrameSurvey.value_or_default())
+            {
+                const auto& surveyTag = resources[i];
+                const auto* r = surveyTag.resource;
+                switch (surveyTag.type)
+                {
+                case sl::kBufferTypeScalingInputColor: case sl::kBufferTypeDepth:
+                case sl::kBufferTypeMotionVectors: case sl::kBufferTypeNormalRoughness:
+                case sl::kBufferTypeAlbedo: case sl::kBufferTypeSpecularAlbedo:
+                case sl::kBufferTypeColorBeforeParticles: case sl::kBufferTypeColorBeforeTransparency:
+                case sl::kBufferTypeSpecularHitDistance:
+                    FrameSurvey::TitleTag(reinterpret_cast<ID3D12GraphicsCommandList*>(cmdBuffer),
+                        getSLBufferTypeName(surveyTag.type),r ? static_cast<ID3D12Resource*>(r->native) : nullptr,
+                        r ? uint32_t(r->state) : 0,surveyTag.extent.left,surveyTag.extent.top,
+                        surveyTag.extent.width,surveyTag.extent.height);
+                    break;
+                }
+            }
             probeRRResourceTag(
                 resources[i], static_cast<uint32_t>(frame),
                 static_cast<uint32_t>(viewport), RRTagSource::SetTagForFrame);

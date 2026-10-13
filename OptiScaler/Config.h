@@ -543,6 +543,8 @@ class Config
     CustomOptional<float> FfxDenoiserAlbedoStabilisationRate {0.125f};
     // Capture-only title guides; never bypasses RR or changes composition.
     CustomOptional<bool> FfxDenoiserParticleLayerDiagnostics {false};
+    // Debug instrumentation needs startup PSO/root-signature creation metadata.
+    CustomOptional<bool> FfxDenoiserFrameSurvey {false};
     CustomOptional<bool> FfxDenoiserFogGuides {false};
     CustomOptional<bool> FfxDenoiserMotionJitterDelta {true};
 

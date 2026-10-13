@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "shaders/fsrd_preprocess/FSRDPreprocessor_Dx12.h"
 #include "shaders/fsrd_preprocess/FSRDGameTraceSession.h"
+#include "resource_tracking/FrameSurvey_Dx12.h"
 #include "shaders/fsrd_preprocess/FSRDResearchTools.h"
 #include "menu_common.h"
 #include "fsrd_settings_menu.h"
@@ -3187,6 +3188,21 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
         }
     }
 
+    // Independent of the selected denoiser: NRD mode still exposes this capture.
+    if (ImGui::CollapsingHeader("GAME_TRACE / Frame survey"))
+    {
+        ScopedIndent indent;
+        const auto survey = FrameSurvey::GetStatus();
+        ImGui::TextUnformatted("Frame survey");
+        ImGui::BeginDisabled(!survey.installed || survey.active);
+        if (ImGui::Button("Survey next frame"))
+            FrameSurvey::Request(currentFeature ? currentFeature->RenderWidth() : 0,
+                                 currentFeature ? currentFeature->RenderHeight() : 0);
+        ImGui::EndDisabled();
+        ImGui::TextWrapped("%s: %s",survey.phase.c_str(),survey.message.c_str());
+        if (!survey.folder.empty()) ImGui::TextWrapped("Last output folder: %s",survey.folder.c_str());
+        ImGui::TextWrapped("Startup key: [FSR-RR] FrameSurvey=true. Captures one frame in title NRD or RR mode. Restart after changing the key. Close the overlay after requesting.");
+    }
     if (choice.fsrRR)
     {
         const auto signals = FSRDSignals::Status::Unpack(snapshot.signalStatus);

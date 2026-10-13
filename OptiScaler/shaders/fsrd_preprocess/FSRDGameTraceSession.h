@@ -106,6 +106,19 @@ public:
                       std::span<const DiagnosticSource> diagnostics = {}) noexcept;
     void CompleteFrame(ID3D12GraphicsCommandList*, Source actualCurrentOutput) noexcept;
     void CompleteSrFrame(ID3D12GraphicsCommandList*, Source actualSrOutput, const SrInfo&) noexcept;
+    // Frame survey uses the SAME allocation ledger, fence registry, protected
+    // CPU snapshots and disk writer as GAME_TRACE, with dynamic image slots.
+    // Tokens own one real command-list recording, not a guessed frame lifetime.
+    bool StartSurvey(uint32_t width, uint32_t height) noexcept;
+    Status SurveyStatus() const;
+    std::shared_ptr<void> BeginSurveyBatch(ID3D12Device*, ID3D12GraphicsCommandList*, uint64_t listId = 0) noexcept;
+    bool SurveyTexture(const std::shared_ptr<void>& batch, std::string_view key,
+                       Source, uint32_t subresource = 0, uint32_t x = 0, uint32_t y = 0,
+                       uint32_t width = 0, uint32_t height = 0) noexcept;
+    bool SurveyBuffer(const std::shared_ptr<void>& batch, std::string_view key,
+                      Source, uint64_t byteOffset, uint32_t bytes) noexcept;
+    void SealSurveyBatch(const std::shared_ptr<void>&) noexcept;
+    void FinishSurvey(std::string_view metadataJson) noexcept;
     void Poll() noexcept;
     void Abort(std::string_view reason) noexcept;
 private:

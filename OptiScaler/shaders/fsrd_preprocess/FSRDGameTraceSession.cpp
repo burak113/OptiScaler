@@ -84,6 +84,7 @@ static_assert(std::string_view(DiagnosticNames[FullContextDiagnosticFirst]) == "
 static_assert(std::string_view(DiagnosticNames[FullContextDiagnosticFirst + 1]) == "rr_full_context_reset_diffuse");
 
 std::atomic<bool> g_captureActive {false};
+std::atomic<bool> g_surveyActive {false};
 std::atomic<bool> g_srRequested {false};
 std::atomic<bool> g_fullContextReferenceRequested {false};
 std::atomic<bool> g_particleLayerDiagnosticsRequested {false};
@@ -96,6 +97,7 @@ struct Session
     FSRDGameTraceSession::SrMode srMode = FSRDGameTraceSession::SrMode::Off;
     bool fullContextReference = false, particleLayerDiagnostics = false;
     std::string srContext; std::array<uint32_t,2> srExtent {}; uint32_t srFormat = 0;
+    bool survey = false;
     bool initialized = false, initializing = false, closing = false;
     uint64_t diskAvailable = 0, maximumPayload = MaximumPayloadBytes, cpuBytes = 0;
     bool payloadEstimated = false, defaultPayloadQuota = true;
@@ -246,7 +248,7 @@ struct Image
     uint32_t width = FSRDGameTraceSession::TileSize, height = FSRDGameTraceSession::TileSize;
     uint32_t readbackCropX = 0, readbackCropY = 0;
     uint32_t cropX = 0, cropY = 0, format = 0, channels = 4;
-    uint64_t sourceIdentity = 0;
+    uint64_t sourceIdentity = 0, sourceByteOffset = 0;
     uint32_t sourceState = 0;
     uint64_t footprintBytes = 0, allocationBytes = 0;
     D3D12_RESOURCE_DESC sourceDesc {};
@@ -261,6 +263,10 @@ struct Frame
     std::shared_ptr<RRTraceFence::Ticket> ticket;
     ID3D12GraphicsCommandList* list = nullptr;
     std::array<Image, 10> images;
+    uint64_t surveyListId = 0;
+    std::vector<Image> surveyImages;
+    std::vector<std::string> surveyKeys;
+    std::vector<uint32_t> surveySubresources;
     std::array<Diagnostic,DiagnosticNames.size()> diagnostics;
     size_t diagnosticCount = LegacyDiagnosticCount;
     Image srImage; Json srMetadata; std::weak_ptr<Session> owner;
@@ -837,6 +843,7 @@ const char* SrModeName(FSRDGameTraceSession::SrMode mode)
 uint64_t FramePayload(const Frame& f)
 {
     uint64_t bytes = f.constants.size()+f.geometryConstants.size()+f.flatDetailConstants.size();
+    for (const auto& image : f.surveyImages) bytes += uint64_t(image.width)*image.height*image.bpp;
     for (const auto& image : f.images) if (image.readback) bytes += uint64_t(image.width)*image.height*image.bpp;
     for (const auto& diagnostic : f.diagnostics)
         if (diagnostic.image.readback && diagnostic.metadata.value("available",false))
@@ -1090,6 +1097,33 @@ struct FSRDGameTraceSession::Impl
             packet->payloads.push_back({std::move(filename),std::vector<uint8_t>(size_t(image.width)*image.height*image.bpp),kind,slot});
             images.push_back(&image);
         };
+        if (s->survey)
+        {
+            packet->row = {{"ordinal",f->ordinal},{"command_list",uint64_t(reinterpret_cast<uintptr_t>(f->list))},
+                {"list_id",f->surveyListId},{"images",Json::array()},{"gpu_submission_verified",true}};
+            for (size_t i=0;i<f->surveyImages.size();++i)
+            {
+                addImage(f->surveyImages[i],f->surveyKeys[i]+".bin",0,i);
+                auto row = ImageMetadata(f->surveyImages[i],f->surveyKeys[i].c_str());
+                row["source_subresource"] = f->surveySubresources[i];
+                row["source_buffer_offset"] = f->surveyImages[i].sourceByteOffset;
+                row["source_state_provenance"] = "survey_supplied_copy_contract; detailed_provenance_in_snapshots_or_tags";
+                packet->row["images"].push_back(std::move(row));
+            }
+            bool copied = true; RRTraceFence::Snapshot exactProof {};
+            const bool protectedCopy = RRTraceFence::WithCompletedSnapshot(f->ticket,[&](const RRTraceFence::Snapshot& proof) {
+                exactProof = proof;
+                // No allocation or I/O under the submission gate.
+                for (size_t i=0;i<images.size();++i)
+                    if (!CopyCpuWords(*images[i],packet->payloads[i].bytes)) { copied = false; break; }
+            });
+            if (!protectedCopy) return {};
+            if (!copied) throw std::runtime_error("FRAME_SURVEY protected readback Map failed");
+            packet->row["cpu_snapshot_immutable"] = true;
+            packet->row["submission_gate_protected"] = true;
+            packet->row["ticket_proof"] = ProofMetadata(exactProof,true);
+            return packet;
+        }
         packet->payloads.reserve(33); images.reserve(30);
         for (size_t slot=0; slot<f->images.size(); ++slot) addImage(f->images[slot],std::string(Names[slot])+".bin",0,slot);
         for (size_t slot=0; slot<f->diagnosticCount; ++slot)
@@ -1235,6 +1269,7 @@ void FSRDGameTraceSession::Impl::SnapshotLoop() noexcept
                 }
             }
             // Allocate immutable CPU storage before taking the submission gate.
+            if (s->survey) SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_BELOW_NORMAL);
             auto packet = Freeze(frame,s);
             {
                 std::scoped_lock lock(control.mutex);
@@ -1329,7 +1364,7 @@ void FSRDGameTraceSession::Impl::DiskLoop() noexcept
             if (initialize)
             {
                 staged.clear(); durableRows = Json::array();
-                durableRows.get_ref<Json::array_t&>().reserve(s->status.target);
+                durableRows.get_ref<Json::array_t&>().reserve(s->survey ? 128u : s->status.target);
 #if defined(FSRD_GAME_TRACE_TEST)
                 // Counter-only CPU fixtures have no GPU payload/proof and are
                 // kept outside captures.json. Move their synthetic rows once.
@@ -1359,6 +1394,7 @@ void FSRDGameTraceSession::Impl::DiskLoop() noexcept
 #if defined(FSRD_GAME_TRACE_TEST)
                 std::this_thread::sleep_for(std::chrono::milliseconds(g_testDiskDelayMs.load(std::memory_order_relaxed)));
 #endif
+                if (s->survey) SetThreadPriority(GetCurrentThread(),THREAD_PRIORITY_BELOW_NORMAL);
                 WritePacket(*packet);
                 {
                     std::scoped_lock lock(control.mutex); staged.emplace(packet->ordinal,std::move(packet->row));
@@ -1423,6 +1459,7 @@ void FSRDGameTraceSession::Impl::DiskLoop() noexcept
                 Save(s);
                 {
                     std::scoped_lock lock(control.mutex); s->status.active = false;
+                    if (s->survey) g_surveyActive.store(false,std::memory_order_release);
                     if (control.current == s) g_captureActive.store(false,std::memory_order_release);
                 }
                 control.wake.notify_all();
@@ -1444,6 +1481,7 @@ void FSRDGameTraceSession::Impl::DiskLoop() noexcept
             {
                 try { if (std::filesystem::exists(s->folder)) Save(s); } catch (...) {}
                 std::scoped_lock lock(control.mutex); s->status.active = false;
+                if (s->survey) g_surveyActive.store(false,std::memory_order_release);
                 if (control.current == s) g_captureActive.store(false,std::memory_order_release);
             }
             control.wake.notify_all();
@@ -1451,7 +1489,7 @@ void FSRDGameTraceSession::Impl::DiskLoop() noexcept
         catch (...)
         {
             std::scoped_lock lock(control.mutex); Failure("Unknown GAME_TRACE worker I/O failure");
-            if (s) { s->status.active = false; s->status.phase = "error"; if (control.current == s) g_captureActive.store(false,std::memory_order_release); }
+            if (s) { s->status.active = false; s->status.phase = "error"; if (s->survey) g_surveyActive.store(false); if (control.current == s) g_captureActive.store(false,std::memory_order_release); }
         }
     }
 }
@@ -1482,7 +1520,7 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
     };
     try
     {
-        if (control.current && control.current->status.active) return false;
+        if (g_surveyActive.load() || (control.current && control.current->status.active)) return false;
         ReapReadbacks(control);
         auto s = std::make_shared<Session>(); attempted = s;
         if (request.size != TileSize && request.size != 512) throw std::runtime_error("GAME_TRACE region must be 128 or 512 pixels");
@@ -1743,6 +1781,206 @@ void FSRDGameTraceSession::CompleteSrFrame(ID3D12GraphicsCommandList* cmd, Sourc
     }
     catch (const std::exception& error) { m_impl->Failure(error.what()); }
     catch (...) { m_impl->Failure("Unknown SR snapshot failure"); }
+}
+bool FSRDGameTraceSession::StartSurvey(uint32_t width, uint32_t height) noexcept
+{
+    auto& control = Global(); std::scoped_lock lock(control.mutex);
+    try
+    {
+        ReapReadbacks(control);
+        if (!width || !height || g_surveyActive.load() || g_captureActive.load() ||
+            (m_impl->session && m_impl->session->status.active) || control.gpuBytes)
+            return false;
+        auto s = std::make_shared<Session>(); s->survey = true; s->claimed = true;
+        s->rw = s->width = width; s->rh = s->height = height;
+        s->status.active = true; s->status.target = UINT_MAX; s->lineageLimit = UINT_MAX;
+        s->status.phase = "initializing"; s->status.message = "Preparing one-frame survey destination.";
+        s->maximumPayload = MaximumFrameReadbackBytes;
+        std::array<uint8_t,16> uuid {};
+        if (BCryptGenRandom(nullptr,uuid.data(),ULONG(uuid.size()),BCRYPT_USE_SYSTEM_PREFERRED_RNG) < 0)
+            throw std::runtime_error("FRAME_SURVEY UUID failed");
+        std::ostringstream id;
+        for (uint8_t c : uuid) id << std::hex << std::setw(2) << std::setfill('0') << unsigned(c);
+        s->status.captureId = id.str();
+        s->folder = Util::DllPath().parent_path()/"GAME_TRACE"/"FRAME_SURVEY"/s->status.captureId;
+        s->status.folder = PathString(s->folder);
+        s->manifest = {{"schema","fsrd-frame-survey-v1"},{"source","live_game_gpu"},
+            {"capture_uuid",s->status.captureId},{"process_id",GetCurrentProcessId()},
+            {"render_extent",{width,height}},{"frames",Json::array()},{"errors",Json::array()},
+            {"maximum_payload_bytes",s->maximumPayload},{"maximum_retained_readback_bytes",MaximumReadbackBytes},
+            {"maximum_cpu_queue_bytes",CpuBudget()},
+            {"io_mode","GAME_TRACE_shared_allocation_ledger_fence_snapshot_and_disk_writer"},
+            {"frame_count",1},{"payload_ordinal_unit","command_list_recording"},
+            {"release_policy","GPU completion AND successful real Reset; never free executable GPU storage"}};
+        m_impl->session = s; m_impl->device.Reset(); g_surveyActive.store(true);
+        control.wake.notify_all(); return true;
+    }
+    catch (const std::exception&) { return false; }
+    catch (...) { return false; }
+}
+FSRDGameTraceSession::Status FSRDGameTraceSession::SurveyStatus() const
+{
+    std::scoped_lock lock(Global().mutex);
+    return m_impl->session ? m_impl->session->status : Status {};
+}
+std::shared_ptr<void> FSRDGameTraceSession::BeginSurveyBatch(ID3D12Device* device, ID3D12GraphicsCommandList* list, uint64_t listId) noexcept
+{
+    auto& control = Global(); std::scoped_lock lock(control.mutex);
+    try
+    {
+        auto s = m_impl->session;
+        if (!s || !s->survey || !s->initialized || !s->status.active || s->stop) return {};
+        auto f = std::make_shared<Frame>(); f->list = list; f->owner = s; f->surveyListId = listId;
+        // Ordinals are allocated before Close; overlapping list recordings are normal.
+        f->ordinal = uint32_t(s->manifest.value("allocated_batches",0u));
+        if (f->ordinal >= 128) throw std::runtime_error("FRAME_SURVEY command-list payload cap reached");
+        f->ticket = RRTraceFence::Arm(device,list,128);
+        m_impl->pending.push_back(f); control.retained.push_back(f);
+        s->manifest["allocated_batches"] = f->ordinal+1;
+        m_impl->device = device;
+        return f;
+    }
+    catch (const std::exception& error) { m_impl->Failure(error.what()); return {}; }
+    catch (...) { m_impl->Failure("FRAME_SURVEY batch allocation failed"); return {}; }
+}
+bool FSRDGameTraceSession::SurveyTexture(const std::shared_ptr<void>& token, std::string_view key,
+    Source source, uint32_t subresource, uint32_t x, uint32_t y, uint32_t width, uint32_t height) noexcept
+{
+    auto& control = Global(); std::scoped_lock lock(control.mutex);
+    try
+    {
+        auto f = std::static_pointer_cast<Frame>(token); auto s = m_impl->session;
+        if (!f || !s || !s->survey || s->stop || !source.resource || f->sealed) return false;
+        if (key.empty() || key.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-") != key.npos)
+            throw std::runtime_error("FRAME_SURVEY unsafe image key");
+        auto desc = source.resource->GetDesc();
+        auto [bpp,channels] = DiagnosticFormat(desc.Format);
+        // Extra formats belong only to the survey API; ordinary GAME_TRACE's
+        // diagnostic format contract is unchanged when the survey is off.
+        switch (uint32_t(desc.Format))
+        {
+        case 1: bpp = 16; channels = 4; break; case 5: bpp = 12; channels = 3; break;
+        case 9: bpp = 8; channels = 4; break; case 15: bpp = 8; channels = 2; break;
+        case 23: case 27: bpp = 4; channels = 4; break;
+        case 33: bpp = 4; channels = 2; break; case 53: bpp = 2; channels = 1; break;
+        case 60: bpp = 1; channels = 1; break;
+        }
+        if (!bpp || desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || desc.SampleDesc.Count != 1) return false;
+        const uint32_t mip = subresource % desc.MipLevels;
+        if (subresource >= uint32_t(desc.MipLevels)*desc.DepthOrArraySize) return false;
+        const uint32_t mw = uint32_t(std::max<uint64_t>(1,desc.Width >> mip));
+        const uint32_t mh = std::max(1u,desc.Height >> mip);
+        if (!width) width = mw; if (!height) height = mh;
+        if (uint64_t(x)+width > mw || uint64_t(y)+height > mh) return false;
+        const auto found = std::find(f->surveyKeys.begin(),f->surveyKeys.end(),key);
+        size_t slot = size_t(found-f->surveyKeys.begin());
+        if (found == f->surveyKeys.end())
+        {
+            if (s->payloadReserved + uint64_t(width)*height*bpp > s->maximumPayload) return false;
+            Image image; image.sourceDesc = desc; image.sourceIdentity = uint64_t(reinterpret_cast<uintptr_t>(source.resource));
+            image.sourceWidth = mw; image.sourceHeight = mh; image.width = width; image.height = height;
+            image.cropX = x; image.cropY = y; image.format = uint32_t(desc.Format); image.bpp = bpp; image.channels = channels;
+            const bool depthPlane = (desc.Flags&D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0;
+            if (depthPlane && (x || y || width != mw || height != mh)) return false;
+            if (!depthPlane) { desc.Width = width; desc.Height = height; desc.MipLevels = desc.DepthOrArraySize = 1; }
+            UINT64 bytes = 0; m_impl->device->GetCopyableFootprints(&desc,depthPlane ? subresource : 0,1,0,&image.footprint,nullptr,nullptr,&bytes);
+            AllocateReadback(m_impl->device.Get(),*f,image,bytes);
+            f->ticket->Retain(source.resource); f->ticket->Retain(image.readback.Get());
+            f->surveyImages.push_back(std::move(image)); f->surveyKeys.emplace_back(key);
+            f->surveySubresources.push_back(subresource);
+            s->payloadReserved += uint64_t(width)*height*bpp;
+        }
+        auto& image = f->surveyImages[slot]; image.sourceState = uint32_t(source.state);
+        if (image.width != width || image.height != height || image.cropX != x || image.cropY != y ||
+            image.sourceIdentity != uint64_t(reinterpret_cast<uintptr_t>(source.resource)) ||
+            f->surveySubresources[slot] != subresource) throw std::runtime_error("FRAME_SURVEY changed snapshot identity");
+        // Same private readback is overwritten immediately after each potential write;
+        // its final words belong to the last writer in THIS list, safe from alias reuse.
+        D3D12_RESOURCE_BARRIER barrier {}; barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        barrier.Transition = {source.resource,subresource,source.state,D3D12_RESOURCE_STATE_COPY_SOURCE};
+        f->started = true;
+        if (source.state != D3D12_RESOURCE_STATE_COPY_SOURCE) f->list->ResourceBarrier(1,&barrier);
+        D3D12_TEXTURE_COPY_LOCATION src {}, dst {};
+        src.pResource = source.resource; src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX; src.SubresourceIndex = subresource;
+        dst.pResource = image.readback.Get(); dst.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT; dst.PlacedFootprint = image.footprint;
+        D3D12_BOX box {x,y,0,x+width,y+height,1}; f->list->CopyTextureRegion(&dst,0,0,0,&src,(source.resource->GetDesc().Flags&D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) ? nullptr : &box);
+        if (source.state != D3D12_RESOURCE_STATE_COPY_SOURCE)
+        { std::swap(barrier.Transition.StateBefore,barrier.Transition.StateAfter); f->list->ResourceBarrier(1,&barrier); }
+        return true;
+    }
+    catch (const std::exception& error) { m_impl->Failure(error.what()); return false; }
+    catch (...) { m_impl->Failure("FRAME_SURVEY image snapshot failed"); return false; }
+}
+bool FSRDGameTraceSession::SurveyBuffer(const std::shared_ptr<void>& token, std::string_view key,
+    Source source, uint64_t offset, uint32_t bytes) noexcept
+{
+    auto& control = Global(); std::scoped_lock lock(control.mutex);
+    try
+    {
+        auto f = std::static_pointer_cast<Frame>(token); auto s = m_impl->session;
+        if (!f || !s || !s->survey || s->stop || !source.resource || f->sealed || !bytes || bytes > 65536) return false;
+        if (key.empty() || key.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-") != key.npos)
+            throw std::runtime_error("FRAME_SURVEY unsafe buffer key");
+        const auto desc = source.resource->GetDesc();
+        if (desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER || offset > desc.Width || bytes > desc.Width-offset) return false;
+        const auto found = std::find(f->surveyKeys.begin(),f->surveyKeys.end(),key);
+        const auto slot = size_t(found-f->surveyKeys.begin());
+        if (found == f->surveyKeys.end())
+        {
+            if (bytes > s->maximumPayload-s->payloadReserved) return false;
+            Image image; image.sourceDesc = desc; image.sourceIdentity = uint64_t(reinterpret_cast<uintptr_t>(source.resource));
+            image.sourceByteOffset = offset; image.sourceWidth = uint32_t(std::min<uint64_t>(desc.Width,UINT_MAX)); image.sourceHeight = 1;
+            image.width = bytes; image.height = image.channels = image.bpp = 1; image.format = 0;
+            image.footprint.Footprint = {DXGI_FORMAT_UNKNOWN,bytes,1,1,(bytes+255)&~255u};
+            AllocateReadback(m_impl->device.Get(),*f,image,bytes);
+            f->ticket->Retain(source.resource); f->ticket->Retain(image.readback.Get());
+            f->surveyImages.push_back(std::move(image)); f->surveyKeys.emplace_back(key); f->surveySubresources.push_back(0);
+            s->payloadReserved += bytes;
+        }
+        auto& image = f->surveyImages[slot];
+        if (image.sourceByteOffset != offset || image.width != bytes || image.sourceIdentity != uint64_t(reinterpret_cast<uintptr_t>(source.resource)))
+            throw std::runtime_error("FRAME_SURVEY changed buffer identity");
+        image.sourceState = uint32_t(source.state);
+        const bool transition = (source.state&D3D12_RESOURCE_STATE_COPY_SOURCE) == 0;
+        D3D12_RESOURCE_BARRIER barrier {}; barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        barrier.Transition = {source.resource,0,source.state,D3D12_RESOURCE_STATE_COPY_SOURCE};
+        f->started = true;
+        if (transition) f->list->ResourceBarrier(1,&barrier);
+        f->list->CopyBufferRegion(image.readback.Get(),0,source.resource,offset,bytes);
+        if (transition) { std::swap(barrier.Transition.StateBefore,barrier.Transition.StateAfter); f->list->ResourceBarrier(1,&barrier); }
+        return true;
+    }
+    catch (const std::exception& error) { m_impl->Failure(error.what()); return false; }
+    catch (...) { m_impl->Failure("FRAME_SURVEY buffer snapshot failed"); return false; }
+}
+void FSRDGameTraceSession::SealSurveyBatch(const std::shared_ptr<void>& token) noexcept
+{
+    std::scoped_lock lock(Global().mutex);
+    try
+    {
+        auto f = std::static_pointer_cast<Frame>(token); auto s = m_impl->session;
+        if (!f || !s || s->stop || f->sealed) return;
+        RequireUnsubmitted(*f); f->ticket->Recorded(); f->sealed = true; ++s->status.recorded;
+        m_impl->UpdateProgress(); Global().wake.notify_all();
+    }
+    catch (const std::exception& error) { m_impl->Failure(error.what()); }
+    catch (...) { m_impl->Failure("FRAME_SURVEY seal failed"); }
+}
+void FSRDGameTraceSession::FinishSurvey(std::string_view metadataJson) noexcept
+{
+    std::scoped_lock lock(Global().mutex);
+    try
+    {
+        auto s = m_impl->session; if (!s || !s->survey || !s->status.active) return;
+        s->manifest.update(Json::parse(metadataJson));
+        for (const auto& f : m_impl->pending)
+            if (!f->sealed) throw std::runtime_error("FRAME_SURVEY frame ended with an unclosed snapshot list");
+        s->status.target = s->status.recorded; s->status.phase = "draining";
+        if (!s->status.recorded) throw std::runtime_error("FRAME_SURVEY no readable submitted texture payloads");
+        Global().wake.notify_all();
+    }
+    catch (const std::exception& error) { m_impl->Failure(error.what()); }
+    catch (...) { m_impl->Failure("FRAME_SURVEY manifest finish failed"); }
 }
 void FSRDGameTraceSession::Poll() noexcept
 {

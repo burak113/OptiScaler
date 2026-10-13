@@ -7,6 +7,7 @@
 #include <magic_enum.hpp>
 
 #include <resource_tracking/ResTrack_Dx12.h>
+#include <resource_tracking/FrameSurvey_Dx12.h>
 
 #include <proxies/D3D12_Proxy.h>
 #include <proxies/XeFG_Proxy.h>
@@ -50,6 +51,7 @@ static PFN_CreateCommittedResource o_CreateCommittedResource = nullptr;
 static PFN_CreatePlacedResource o_CreatePlacedResource = nullptr;
 static PFN_SetResidencyPriority o_SetResidencyPriority = nullptr;
 static PFN_GetResourceAllocationInfo o_GetResourceAllocationInfo = nullptr;
+static bool gSurveyDeviceWrappers = false;
 static PFN_CreateRootSignature o_CreateRootSignature = nullptr;
 static PFN_D3D12GetInterface o_D3D12GetInterface = nullptr;
 static PFN_CreateDevice o_CreateDevice = nullptr;
@@ -408,6 +410,14 @@ static void hkSetDescriptorHeaps(ID3D12GraphicsCommandList* commandList, UINT Nu
     s_SetDescriptorHeaps.o_earlyHook(commandList, NumDescriptorHeaps, ppDescriptorHeaps);
 }
 
+static void hkSurveySetDescriptorHeaps(ID3D12GraphicsCommandList* commandList, UINT NumDescriptorHeaps,
+                                 ID3D12DescriptorHeap* const* ppDescriptorHeaps)
+{
+    FrameSurvey::DescriptorHeaps(commandList,NumDescriptorHeaps,ppDescriptorHeaps);
+    hkSetDescriptorHeaps(commandList,NumDescriptorHeaps,ppDescriptorHeaps);
+}
+
+
 UINT GetRootParameterCount(ID3D12RootSignature* pRootSignature)
 {
     std::unique_lock<std::shared_mutex> lock(rootSigParameterCountMutex);
@@ -434,6 +444,13 @@ static void hkSetComputeRootSignature(ID3D12GraphicsCommandList* commandList, ID
 
     s_SetComputeRootSignature.o_earlyHook(commandList, pRootSignature);
 }
+
+static void hkSurveySetComputeRootSignature(ID3D12GraphicsCommandList* commandList, ID3D12RootSignature* pRootSignature)
+{
+    FrameSurvey::RootBinding(commandList,false,pRootSignature);
+    hkSetComputeRootSignature(commandList,pRootSignature);
+}
+
 
 VALIDATE_HOOK(hkSetComputeRootDescriptorTable, PFN_SetComputeRootDescriptorTable)
 static void hkSetComputeRootDescriptorTable(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex,
@@ -513,6 +530,14 @@ static void hkSetComputeRootConstantBufferView(ID3D12GraphicsCommandList* comman
     s_SetComputeRootConstantBufferView.o_earlyHook(commandList, RootParameterIndex, BufferLocation);
 }
 
+static void hkSurveySetComputeRootConstantBufferView(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex,
+                                               D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
+{
+    FrameSurvey::RootView(commandList,false,RootParameterIndex,D3D12_DESCRIPTOR_RANGE_TYPE_CBV,BufferLocation);
+    hkSetComputeRootConstantBufferView(commandList,RootParameterIndex,BufferLocation);
+}
+
+
 VALIDATE_HOOK(hkSetComputeRootShaderResourceView, PFN_SetComputeRootShaderResourceView)
 static void hkSetComputeRootShaderResourceView(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex,
                                                D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
@@ -533,6 +558,14 @@ static void hkSetComputeRootShaderResourceView(ID3D12GraphicsCommandList* comman
     lateInProgressSetComputeRootShaderResourceView = false;
 }
 
+static void hkSurveySetComputeRootShaderResourceView(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex,
+                                               D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
+{
+    FrameSurvey::RootView(commandList,false,RootParameterIndex,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,BufferLocation);
+    hkSetComputeRootShaderResourceView(commandList,RootParameterIndex,BufferLocation);
+}
+
+
 VALIDATE_HOOK(hkSetComputeRootUnorderedAccessView, PFN_SetComputeRootUnorderedAccessView)
 static void hkSetComputeRootUnorderedAccessView(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex,
                                                 D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
@@ -551,6 +584,14 @@ static void hkSetComputeRootUnorderedAccessView(ID3D12GraphicsCommandList* comma
     s_SetComputeRootUnorderedAccessView.o_earlyHook(commandList, RootParameterIndex, BufferLocation);
 }
 
+static void hkSurveySetComputeRootUnorderedAccessView(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex,
+                                                D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
+{
+    FrameSurvey::RootView(commandList,false,RootParameterIndex,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,BufferLocation);
+    hkSetComputeRootUnorderedAccessView(commandList,RootParameterIndex,BufferLocation);
+}
+
+
 VALIDATE_HOOK(hkSetGraphicsRootSignature, PFN_SetGraphicsRootSignature)
 static void hkSetGraphicsRootSignature(ID3D12GraphicsCommandList* commandList, ID3D12RootSignature* pRootSignature)
 {
@@ -563,6 +604,13 @@ static void hkSetGraphicsRootSignature(ID3D12GraphicsCommandList* commandList, I
 
     s_SetGraphicsRootSignature.o_earlyHook(commandList, pRootSignature);
 }
+
+static void hkSurveySetGraphicsRootSignature(ID3D12GraphicsCommandList* commandList, ID3D12RootSignature* pRootSignature)
+{
+    FrameSurvey::RootBinding(commandList,true,pRootSignature);
+    hkSetGraphicsRootSignature(commandList,pRootSignature);
+}
+
 
 VALIDATE_HOOK(hkSetGraphicsRootDescriptorTable, PFN_SetGraphicsRootDescriptorTable)
 static void hkSetGraphicsRootDescriptorTable(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex,
@@ -1238,14 +1286,14 @@ static void HookToCommandList(ID3D12Device* InDevice)
                 if (s_SetPipelineState.o_earlyHook != nullptr && extendedRestoreSignature)
                     DetourAttach(&(PVOID&) s_SetPipelineState.o_earlyHook, hkSetPipelineState);
 
-                if (s_SetDescriptorHeaps.o_earlyHook != nullptr && extendedRestoreSignature)
-                    DetourAttach(&(PVOID&) s_SetDescriptorHeaps.o_earlyHook, hkSetDescriptorHeaps);
+                if (s_SetDescriptorHeaps.o_earlyHook != nullptr && (extendedRestoreSignature || gSurveyDeviceWrappers))
+                    DetourAttach(&(PVOID&) s_SetDescriptorHeaps.o_earlyHook, gSurveyDeviceWrappers ? hkSurveySetDescriptorHeaps : hkSetDescriptorHeaps);
 
                 if (s_SetComputeRootSignature.o_earlyHook != nullptr)
-                    DetourAttach(&(PVOID&) s_SetComputeRootSignature.o_earlyHook, hkSetComputeRootSignature);
+                    DetourAttach(&(PVOID&) s_SetComputeRootSignature.o_earlyHook, gSurveyDeviceWrappers ? hkSurveySetComputeRootSignature : hkSetComputeRootSignature);
 
                 if (s_SetGraphicsRootSignature.o_earlyHook != nullptr)
-                    DetourAttach(&(PVOID&) s_SetGraphicsRootSignature.o_earlyHook, hkSetGraphicsRootSignature);
+                    DetourAttach(&(PVOID&) s_SetGraphicsRootSignature.o_earlyHook, gSurveyDeviceWrappers ? hkSurveySetGraphicsRootSignature : hkSetGraphicsRootSignature);
 
                 if (s_SetComputeRootDescriptorTable.o_earlyHook != nullptr && extendedRestoreSignature)
                     DetourAttach(&(PVOID&) s_SetComputeRootDescriptorTable.o_earlyHook,
@@ -1257,22 +1305,22 @@ static void HookToCommandList(ID3D12Device* InDevice)
                 if (s_SetComputeRoot32BitConstants.o_earlyHook != nullptr && extendedRestoreSignature)
                     DetourAttach(&(PVOID&) s_SetComputeRoot32BitConstants.o_earlyHook, hkSetComputeRoot32BitConstants);
 
-                if (s_SetComputeRootConstantBufferView.o_earlyHook != nullptr && extendedRestoreSignature)
+                if (s_SetComputeRootConstantBufferView.o_earlyHook != nullptr && (extendedRestoreSignature || gSurveyDeviceWrappers))
                 {
                     DetourAttach(&(PVOID&) s_SetComputeRootConstantBufferView.o_earlyHook,
-                                 hkSetComputeRootConstantBufferView);
+                                 gSurveyDeviceWrappers ? hkSurveySetComputeRootConstantBufferView : hkSetComputeRootConstantBufferView);
                 }
 
-                if (s_SetComputeRootShaderResourceView.o_earlyHook != nullptr && extendedRestoreSignature)
+                if (s_SetComputeRootShaderResourceView.o_earlyHook != nullptr && (extendedRestoreSignature || gSurveyDeviceWrappers))
                 {
                     DetourAttach(&(PVOID&) s_SetComputeRootShaderResourceView.o_earlyHook,
-                                 hkSetComputeRootShaderResourceView);
+                                 gSurveyDeviceWrappers ? hkSurveySetComputeRootShaderResourceView : hkSetComputeRootShaderResourceView);
                 }
 
-                if (s_SetComputeRootUnorderedAccessView.o_earlyHook != nullptr && extendedRestoreSignature)
+                if (s_SetComputeRootUnorderedAccessView.o_earlyHook != nullptr && (extendedRestoreSignature || gSurveyDeviceWrappers))
                 {
                     DetourAttach(&(PVOID&) s_SetComputeRootUnorderedAccessView.o_earlyHook,
-                                 hkSetComputeRootUnorderedAccessView);
+                                 gSurveyDeviceWrappers ? hkSurveySetComputeRootUnorderedAccessView : hkSetComputeRootUnorderedAccessView);
                 }
 
                 if (DetourTransactionCommit() == NO_ERROR)
@@ -1316,13 +1364,13 @@ static void UnhookAll()
 
     if (s_SetComputeRootSignature.o_earlyHook != nullptr)
     {
-        DetourDetach(&(PVOID&) s_SetComputeRootSignature.o_earlyHook, hkSetComputeRootSignature);
+        DetourDetach(&(PVOID&) s_SetComputeRootSignature.o_earlyHook, gSurveyDeviceWrappers ? hkSurveySetComputeRootSignature : hkSetComputeRootSignature);
         s_SetComputeRootSignature.o_earlyHook = nullptr;
     }
 
     if (s_SetGraphicsRootSignature.o_earlyHook != nullptr)
     {
-        DetourDetach(&(PVOID&) s_SetGraphicsRootSignature.o_earlyHook, hkSetGraphicsRootSignature);
+        DetourDetach(&(PVOID&) s_SetGraphicsRootSignature.o_earlyHook, gSurveyDeviceWrappers ? hkSurveySetGraphicsRootSignature : hkSetGraphicsRootSignature);
         s_SetGraphicsRootSignature.o_earlyHook = nullptr;
     }
 }
@@ -1784,6 +1832,18 @@ static HRESULT hkCreateCommittedResource(ID3D12Device* device, const D3D12_HEAP_
                                      pOptimizedClearValue, riidResource, ppvResource);
 }
 
+static HRESULT hkSurveyCreateCommittedResource(ID3D12Device* device, const D3D12_HEAP_PROPERTIES* pHeapProperties,
+                                         D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC* pDesc,
+                                         D3D12_RESOURCE_STATES InitialResourceState,
+                                         const D3D12_CLEAR_VALUE* pOptimizedClearValue, REFIID riidResource,
+                                         void** ppvResource)
+{
+    const auto result = hkCreateCommittedResource(device,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource);
+    if (SUCCEEDED(result) && ppvResource && *ppvResource) FrameSurvey::ResourceCreated(static_cast<ID3D12Resource*>(*ppvResource),InitialResourceState);
+    return result;
+}
+
+
 static bool skipPlacedResource = false;
 
 VALIDATE_HOOK(hkCreatePlacedResource, PFN_CreatePlacedResource)
@@ -1813,6 +1873,16 @@ static HRESULT hkCreatePlacedResource(ID3D12Device* device, ID3D12Heap* pHeap, U
     return o_CreatePlacedResource(device, pHeap, HeapOffset, pDesc, InitialState, pOptimizedClearValue, riid,
                                   ppvResource);
 }
+
+static HRESULT hkSurveyCreatePlacedResource(ID3D12Device* device, ID3D12Heap* pHeap, UINT64 HeapOffset,
+                                      const D3D12_RESOURCE_DESC* pDesc, D3D12_RESOURCE_STATES InitialState,
+                                      const D3D12_CLEAR_VALUE* pOptimizedClearValue, REFIID riid, void** ppvResource)
+{
+    const auto result = hkCreatePlacedResource(device,pHeap,HeapOffset,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource);
+    if (SUCCEEDED(result) && ppvResource && *ppvResource) FrameSurvey::ResourceCreated(static_cast<ID3D12Resource*>(*ppvResource),InitialState,pHeap,HeapOffset);
+    return result;
+}
+
 
 VALIDATE_HOOK(hkSetResidencyPriority, PFN_SetResidencyPriority)
 static HRESULT hkSetResidencyPriority(ID3D12Device1* This, UINT NumObjects, ID3D12Pageable* const* ppObjects,
@@ -2086,6 +2156,15 @@ static HRESULT hkCreateRootSignature(ID3D12Device* device, UINT nodeMask, const 
     return result;
 }
 
+static HRESULT hkSurveyCreateRootSignature(ID3D12Device* device, UINT nodeMask, const void* pBlobWithRootSignature,
+                                     SIZE_T blobLengthInBytes, REFIID riid, void** ppvRootSignature)
+{
+    const auto result = hkCreateRootSignature(device,nodeMask,pBlobWithRootSignature,blobLengthInBytes,riid,ppvRootSignature);
+    if (SUCCEEDED(result) && ppvRootSignature && *ppvRootSignature) FrameSurvey::RootCreated(static_cast<ID3D12RootSignature*>(*ppvRootSignature),pBlobWithRootSignature,blobLengthInBytes);
+    return result;
+}
+
+
 VALIDATE_HOOK(hkD3D12GetInterface, PFN_D3D12GetInterface)
 static HRESULT hkD3D12GetInterface(REFCLSID rclsid, REFIID riid, void** ppvDebug)
 {
@@ -2135,6 +2214,8 @@ static void HookToDevice(ID3D12Device* InDevice)
     if (Util::CheckForRealObject(__FUNCTION__, InDevice, (IUnknown**) &realDevice))
         pVTable = *(PVOID**) realDevice;
 
+    gSurveyDeviceWrappers = Config::Instance()->FfxDenoiserFrameSurvey.value_or_default();
+
     // hudless
     o_D3D12DeviceRelease = (PFN_Release) pVTable[2];
     o_CreateSampler = (PFN_CreateSampler) pVTable[22];
@@ -2167,7 +2248,7 @@ static void HookToDevice(ID3D12Device* InDevice)
             DetourAttach(&(PVOID&) o_CreateSampler, hkCreateSampler);
 
         if (o_CreateRootSignature != nullptr)
-            DetourAttach(&(PVOID&) o_CreateRootSignature, hkCreateRootSignature);
+            DetourAttach(&(PVOID&) o_CreateRootSignature, gSurveyDeviceWrappers ? hkSurveyCreateRootSignature : hkCreateRootSignature);
 
         // Will be used for tracking current d3d12 device too
         if (o_D3D12DeviceRelease != nullptr)
@@ -2177,7 +2258,7 @@ static void HookToDevice(ID3D12Device* InDevice)
         if (o_SetResidencyPriority != nullptr)
             DetourAttach(&(PVOID&) o_SetResidencyPriority, hkSetResidencyPriority);
 
-        if (Config::Instance()->UESpoofIntelAtomics64.value_or_default())
+        if (Config::Instance()->UESpoofIntelAtomics64.value_or_default() || gSurveyDeviceWrappers)
         {
             LOG_DEBUG("UE spoofing for Intel Atomics64 enabled, applying detours");
 
@@ -2185,10 +2266,10 @@ static void HookToDevice(ID3D12Device* InDevice)
                 DetourAttach(&(PVOID&) o_CheckFeatureSupport, hkCheckFeatureSupport);
 
             if (o_CreateCommittedResource != nullptr)
-                DetourAttach(&(PVOID&) o_CreateCommittedResource, hkCreateCommittedResource);
+                DetourAttach(&(PVOID&) o_CreateCommittedResource, gSurveyDeviceWrappers ? hkSurveyCreateCommittedResource : hkCreateCommittedResource);
 
             if (o_CreatePlacedResource != nullptr)
-                DetourAttach(&(PVOID&) o_CreatePlacedResource, hkCreatePlacedResource);
+                DetourAttach(&(PVOID&) o_CreatePlacedResource, gSurveyDeviceWrappers ? hkSurveyCreatePlacedResource : hkCreatePlacedResource);
 
             if (o_GetResourceAllocationInfo != nullptr)
                 DetourAttach(&(PVOID&) o_GetResourceAllocationInfo, hkGetResourceAllocationInfo);
@@ -2210,9 +2291,9 @@ static void HookToDevice(ID3D12Device* InDevice)
 
     HookToCommandList(InDevice);
 
-    if (State::Instance().activeFgInput == FGInput::Upscaler &&
+    if (gSurveyDeviceWrappers || (State::Instance().activeFgInput == FGInput::Upscaler &&
         !Config::Instance()->FGDisableHUDFix.value_or_default() &&
-        State::Instance().swapchainInteropApi == SwapchainInteropApi::None)
+        State::Instance().swapchainInteropApi == SwapchainInteropApi::None))
     {
         ResTrack_Dx12::HookDevice(InDevice);
     }
@@ -2234,16 +2315,16 @@ static void UnhookDevice()
         DetourDetach(&(PVOID&) o_CreateSampler, hkCreateSampler);
 
     if (o_CreateRootSignature != nullptr)
-        DetourDetach(&(PVOID&) o_CreateRootSignature, hkCreateRootSignature);
+        DetourDetach(&(PVOID&) o_CreateRootSignature, gSurveyDeviceWrappers ? hkSurveyCreateRootSignature : hkCreateRootSignature);
 
     if (o_CheckFeatureSupport != nullptr)
         DetourDetach(&(PVOID&) o_CheckFeatureSupport, hkCheckFeatureSupport);
 
     if (o_CreateCommittedResource != nullptr)
-        DetourDetach(&(PVOID&) o_CreateCommittedResource, hkCreateCommittedResource);
+        DetourDetach(&(PVOID&) o_CreateCommittedResource, gSurveyDeviceWrappers ? hkSurveyCreateCommittedResource : hkCreateCommittedResource);
 
     if (o_CreatePlacedResource != nullptr)
-        DetourDetach(&(PVOID&) o_CreatePlacedResource, hkCreatePlacedResource);
+        DetourDetach(&(PVOID&) o_CreatePlacedResource, gSurveyDeviceWrappers ? hkSurveyCreatePlacedResource : hkCreatePlacedResource);
 
     if (o_D3D12DeviceRelease != nullptr)
         DetourDetach(&(PVOID&) o_D3D12DeviceRelease, hkD3D12DeviceRelease);
@@ -2326,10 +2407,10 @@ void D3D12Hooks::Unhook()
         DetourDetach(&(PVOID&) o_CheckFeatureSupport, hkCheckFeatureSupport);
 
     if (o_CreateCommittedResource != nullptr)
-        DetourDetach(&(PVOID&) o_CreateCommittedResource, hkCreateCommittedResource);
+        DetourDetach(&(PVOID&) o_CreateCommittedResource, gSurveyDeviceWrappers ? hkSurveyCreateCommittedResource : hkCreateCommittedResource);
 
     if (o_CreatePlacedResource != nullptr)
-        DetourDetach(&(PVOID&) o_CreatePlacedResource, hkCreatePlacedResource);
+        DetourDetach(&(PVOID&) o_CreatePlacedResource, gSurveyDeviceWrappers ? hkSurveyCreatePlacedResource : hkCreatePlacedResource);
 
     if (o_GetResourceAllocationInfo != nullptr)
         DetourDetach(&(PVOID&) o_GetResourceAllocationInfo, hkGetResourceAllocationInfo);

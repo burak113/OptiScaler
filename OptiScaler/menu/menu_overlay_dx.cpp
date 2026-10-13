@@ -5,6 +5,7 @@
 #include <Util.h>
 #include <Logger.h>
 #include <Config.h>
+#include <resource_tracking/FrameSurvey_Dx12.h>
 
 #include <imgui/imgui_impl_dx11.h>
 #include <imgui/imgui_impl_dx12.h>
@@ -524,6 +525,8 @@ void MenuOverlayDx::CleanupRenderTarget(bool clearQueue, HWND hWnd)
 void MenuOverlayDx::Present(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags,
                             const DXGI_PRESENT_PARAMETERS* pPresentParameters, IUnknown* pDevice, HWND hWnd, bool isUWP)
 {
+    if (Config::Instance()->FfxDenoiserFrameSurvey.value_or_default())
+        FrameSurvey::Present(pSwapChain,Flags);
     if (!Config::Instance()->OverlayMenu.value_or_default())
     {
         MenuOverlayBase::Present();

@@ -157,7 +157,7 @@ inline void ReapLocked(Registry& r)
         return t->state.abandoned && t->state.CanRelease(t->fence->GetCompletedValue());
     });
 }
-inline std::shared_ptr<Ticket> Arm(ID3D12Device* device, ID3D12CommandList* list)
+inline std::shared_ptr<Ticket> Arm(ID3D12Device* device, ID3D12CommandList* list, size_t maximumTickets = 4)
 {
     if (!device || !list ||
         (list->GetType() != D3D12_COMMAND_LIST_TYPE_DIRECT &&
@@ -170,7 +170,7 @@ inline std::shared_ptr<Ticket> Arm(ID3D12Device* device, ID3D12CommandList* list
     auto& r = GetRegistry();
     std::scoped_lock lock(r.mutex);
     ReapLocked(r);
-    if (r.tickets.size() >= 4)
+    if (r.tickets.size() >= maximumTickets)
         throw std::runtime_error("RRTrace has unresolved captures; refusing unsafe resource reuse");
     t->generation = ++r.nextGeneration;
     r.tickets.push_back(t);

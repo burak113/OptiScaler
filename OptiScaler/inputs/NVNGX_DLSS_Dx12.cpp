@@ -10,6 +10,7 @@
 #include <upscalers/FeatureProvider_Dx12.h>
 #include "upscalers/dlss/DLSSFeature_Dx12.h"
 #include <gpu_time/FSRDStageTimings_Dx12.h>
+#include <resource_tracking/FrameSurvey_Dx12.h>
 
 #include <framegen/nvngx/Nvngx_FG.h>
 #include "FG/FSR3_Dx12_FG.h"
@@ -1226,6 +1227,8 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_EvaluateFeature(ID3D12GraphicsCom
     const Config& cfg = *Config::Instance();
 
     auto feature = HandleToFeature[handleId];
+    if (cfg.FfxDenoiserFrameSurvey.value_or_default())
+        FrameSurvey::Evaluate(InCmdList,unsigned(feature),InParameters);
     static size_t evalWithoutFG = 0;
     bool fgCreated = std::any_of(HandleToFeature.begin(), HandleToFeature.end(),
                                  [](const auto& pair) { return pair.second == NVSDK_NGX_Feature_FrameGeneration; });

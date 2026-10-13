@@ -2,6 +2,7 @@
 #include "shaders/fsrd_preprocess/RRTraceFence.h"
 #include "misc/RecordedComputeLease_Dx12.h"
 #include "ResTrack_dx12.h"
+#include "FrameSurvey_Dx12.h"
 
 #include <Config.h>
 #include <State.h>
@@ -131,6 +132,7 @@ static PFN_CopyDescriptors o_CopyDescriptors = nullptr;
 static PFN_CopyDescriptorsSimple o_CopyDescriptorsSimple = nullptr;
 
 // Original method calls for command list
+static bool gSurveyWrappers = false;
 static PFN_Dispatch o_Dispatch = nullptr;
 static PFN_DrawInstanced o_DrawInstanced = nullptr;
 static PFN_DrawIndexedInstanced o_DrawIndexedInstanced = nullptr;
@@ -1941,6 +1943,7 @@ static ULONG STDMETHODCALLTYPE hkHeapRelease(ID3D12DescriptorHeap* This)
 
         if (deactivated)
         {
+            if (gSurveyWrappers) FrameSurvey::Released(This);
             LOG_INFO("Heap released: {:X}", (size_t) This);
             gHeapGeneration.fetch_add(1, std::memory_order_release);
         }
@@ -2049,6 +2052,7 @@ ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
 
         if (refCount <= 1)
         {
+            if (gSurveyWrappers) FrameSurvey::Released(This);
             std::scoped_lock stateLock(gRRResourceStateMutex);
             gRRResourceStates.erase(This);
             gRRResourceActivity.erase(This);
@@ -3454,29 +3458,29 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
                 DetourUpdateThread(GetCurrentThread());
 
                 if (o_OMSetRenderTargets != nullptr)
-                    DetourAttach(&(PVOID&) o_OMSetRenderTargets, hkOMSetRenderTargets);
+                    DetourAttach(&(PVOID&) o_OMSetRenderTargets, gSurveyWrappers ? hkSurveyOMSetRenderTargets : hkOMSetRenderTargets);
 
                 if (o_DrawIndexedInstanced != nullptr)
-                    DetourAttach(&(PVOID&) o_DrawIndexedInstanced, hkDrawIndexedInstanced);
+                    DetourAttach(&(PVOID&) o_DrawIndexedInstanced, gSurveyWrappers ? hkSurveyDrawIndexedInstanced : hkDrawIndexedInstanced);
 
                 if (o_DrawInstanced != nullptr)
-                    DetourAttach(&(PVOID&) o_DrawInstanced, hkDrawInstanced);
+                    DetourAttach(&(PVOID&) o_DrawInstanced, gSurveyWrappers ? hkSurveyDrawInstanced : hkDrawInstanced);
 
                 if (o_Dispatch != nullptr)
-                    DetourAttach(&(PVOID&) o_Dispatch, hkDispatch);
+                    DetourAttach(&(PVOID&) o_Dispatch, gSurveyWrappers ? hkSurveyDispatch : hkDispatch);
 
                 // Root descriptor tracking is only needed by the HUD fix.
-                if (State::Instance().activeFgInput == FGInput::Upscaler)
+                if (State::Instance().activeFgInput == FGInput::Upscaler || gSurveyWrappers)
                 {
                     if (o_SetGraphicsRootDescriptorTable != nullptr)
-                        DetourAttach(&(PVOID&) o_SetGraphicsRootDescriptorTable, hkSetGraphicsRootDescriptorTable);
+                        DetourAttach(&(PVOID&) o_SetGraphicsRootDescriptorTable, gSurveyWrappers ? hkSurveySetGraphicsRootDescriptorTable : hkSetGraphicsRootDescriptorTable);
 
                     if (o_SetComputeRootDescriptorTable != nullptr)
-                        DetourAttach(&(PVOID&) o_SetComputeRootDescriptorTable, hkSetComputeRootDescriptorTable);
+                        DetourAttach(&(PVOID&) o_SetComputeRootDescriptorTable, gSurveyWrappers ? hkSurveySetComputeRootDescriptorTable : hkSetComputeRootDescriptorTable);
                 }
 
                 if (o_Close != nullptr)
-                    DetourAttach(&(PVOID&) o_Close, hkClose);
+                    DetourAttach(&(PVOID&) o_Close, gSurveyWrappers ? hkSurveyClose : hkClose);
 
                 const auto resetAttachResult = resetAlreadyHooked ? NO_ERROR :
                     (o_Reset ? DetourAttach(&(PVOID&) o_Reset, hkReset) : ERROR_INVALID_FUNCTION);
@@ -3485,22 +3489,22 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
                     (sharedRelease ? NO_ERROR : ERROR_INVALID_FUNCTION));
 
                 if (o_SetPipelineState != nullptr)
-                    DetourAttach(&(PVOID&) o_SetPipelineState, hkSetPipelineState);
+                    DetourAttach(&(PVOID&) o_SetPipelineState, gSurveyWrappers ? hkSurveySetPipelineState : hkSetPipelineState);
 
                 if (o_ResourceBarrier != nullptr)
-                    DetourAttach(&(PVOID&) o_ResourceBarrier, hkResourceBarrier);
+                    DetourAttach(&(PVOID&) o_ResourceBarrier, gSurveyWrappers ? hkSurveyResourceBarrier : hkResourceBarrier);
 
                 if (o_SetMarker != nullptr)
-                    DetourAttach(&(PVOID&) o_SetMarker, hkSetMarker);
+                    DetourAttach(&(PVOID&) o_SetMarker, gSurveyWrappers ? hkSurveySetMarker : hkSetMarker);
 
                 if (o_BeginEvent != nullptr)
-                    DetourAttach(&(PVOID&) o_BeginEvent, hkBeginEvent);
+                    DetourAttach(&(PVOID&) o_BeginEvent, gSurveyWrappers ? hkSurveyBeginEvent : hkBeginEvent);
 
                 if (o_EndEvent != nullptr)
-                    DetourAttach(&(PVOID&) o_EndEvent, hkEndEvent);
+                    DetourAttach(&(PVOID&) o_EndEvent, gSurveyWrappers ? hkSurveyEndEvent : hkEndEvent);
 
                 if (o_ExecuteBundle != nullptr)
-                    DetourAttach(&(PVOID&) o_ExecuteBundle, hkExecuteBundle);
+                    DetourAttach(&(PVOID&) o_ExecuteBundle, gSurveyWrappers ? hkSurveyExecuteBundle : hkExecuteBundle);
 
                 const auto criticalAttachResult = resetAttachResult != NO_ERROR ? resetAttachResult : releaseAttachResult;
                 const auto commitResult = criticalAttachResult == NO_ERROR ? DetourTransactionCommit() : DetourTransactionAbort();
@@ -3524,6 +3528,7 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
                 PublishComputeHookAvailability();
             }
 
+            if (gSurveyWrappers) FrameSurvey::Install(InDevice,realCL);
             commandList->Close();
             commandList->Release();
         }
@@ -3648,6 +3653,7 @@ void ResTrack_Dx12::HookDevice(ID3D12Device* device)
     if (device == nullptr)
         return;
 
+    gSurveyWrappers = Config::Instance()->FfxDenoiserFrameSurvey.value_or_default();
     bool initializeTracking = false;
     {
         std::unique_lock lock(_heapRegistryMutex);
@@ -3703,31 +3709,31 @@ void ResTrack_Dx12::HookDevice(ID3D12Device* device)
         DetourUpdateThread(GetCurrentThread());
 
         if (o_CreateDescriptorHeap != nullptr)
-            DetourAttach(&(PVOID&) o_CreateDescriptorHeap, hkCreateDescriptorHeap);
+            DetourAttach(&(PVOID&) o_CreateDescriptorHeap, gSurveyWrappers ? hkSurveyCreateDescriptorHeap : hkCreateDescriptorHeap);
 
         if (o_CreateGraphicsPipelineState != nullptr)
-            DetourAttach(&(PVOID&) o_CreateGraphicsPipelineState, hkCreateGraphicsPipelineState);
+            DetourAttach(&(PVOID&) o_CreateGraphicsPipelineState, gSurveyWrappers ? hkSurveyCreateGraphicsPipelineState : hkCreateGraphicsPipelineState);
 
         if (o_CreateComputePipelineState != nullptr)
-            DetourAttach(&(PVOID&) o_CreateComputePipelineState, hkCreateComputePipelineState);
+            DetourAttach(&(PVOID&) o_CreateComputePipelineState, gSurveyWrappers ? hkSurveyCreateComputePipelineState : hkCreateComputePipelineState);
 
         if (o_CreatePipelineState != nullptr)
-            DetourAttach(&(PVOID&) o_CreatePipelineState, hkCreatePipelineState);
+            DetourAttach(&(PVOID&) o_CreatePipelineState, gSurveyWrappers ? hkSurveyCreatePipelineState : hkCreatePipelineState);
 
         if (o_CreateRenderTargetView != nullptr)
-            DetourAttach(&(PVOID&) o_CreateRenderTargetView, hkCreateRenderTargetView);
+            DetourAttach(&(PVOID&) o_CreateRenderTargetView, gSurveyWrappers ? hkSurveyCreateRenderTargetView : hkCreateRenderTargetView);
 
         if (o_CreateShaderResourceView != nullptr)
-            DetourAttach(&(PVOID&) o_CreateShaderResourceView, hkCreateShaderResourceView);
+            DetourAttach(&(PVOID&) o_CreateShaderResourceView, gSurveyWrappers ? hkSurveyCreateShaderResourceView : hkCreateShaderResourceView);
 
         if (o_CreateUnorderedAccessView != nullptr)
-            DetourAttach(&(PVOID&) o_CreateUnorderedAccessView, hkCreateUnorderedAccessView);
+            DetourAttach(&(PVOID&) o_CreateUnorderedAccessView, gSurveyWrappers ? hkSurveyCreateUnorderedAccessView : hkCreateUnorderedAccessView);
 
         if (o_CopyDescriptors != nullptr)
-            DetourAttach(&(PVOID&) o_CopyDescriptors, hkCopyDescriptors);
+            DetourAttach(&(PVOID&) o_CopyDescriptors, gSurveyWrappers ? hkSurveyCopyDescriptors : hkCopyDescriptors);
 
         if (o_CopyDescriptorsSimple != nullptr)
-            DetourAttach(&(PVOID&) o_CopyDescriptorsSimple, hkCopyDescriptorsSimple);
+            DetourAttach(&(PVOID&) o_CopyDescriptorsSimple, gSurveyWrappers ? hkSurveyCopyDescriptorsSimple : hkCopyDescriptorsSimple);
 
         auto detourResult = DetourTransactionCommit();
         if (detourResult != NO_ERROR)
@@ -3755,6 +3761,7 @@ void ResTrack_Dx12::HookDevice(ID3D12Device* device)
 
 void ResTrack_Dx12::ReleaseDeviceHooks()
 {
+    if (gSurveyWrappers) FrameSurvey::Shutdown();
     gComputeListHooksAvailable.store(false);
     gComputeQueueHookAvailable.store(false);
     PublishComputeHookAvailability();
@@ -3764,80 +3771,80 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
     DetourUpdateThread(GetCurrentThread());
 
     if (o_CreateDescriptorHeap != nullptr)
-        DetourDetach(&(PVOID&) o_CreateDescriptorHeap, hkCreateDescriptorHeap);
+        DetourDetach(&(PVOID&) o_CreateDescriptorHeap, gSurveyWrappers ? hkSurveyCreateDescriptorHeap : hkCreateDescriptorHeap);
 
     if (o_CreateGraphicsPipelineState != nullptr)
-        DetourDetach(&(PVOID&) o_CreateGraphicsPipelineState, hkCreateGraphicsPipelineState);
+        DetourDetach(&(PVOID&) o_CreateGraphicsPipelineState, gSurveyWrappers ? hkSurveyCreateGraphicsPipelineState : hkCreateGraphicsPipelineState);
 
     if (o_CreateComputePipelineState != nullptr)
-        DetourDetach(&(PVOID&) o_CreateComputePipelineState, hkCreateComputePipelineState);
+        DetourDetach(&(PVOID&) o_CreateComputePipelineState, gSurveyWrappers ? hkSurveyCreateComputePipelineState : hkCreateComputePipelineState);
 
     if (o_CreatePipelineState != nullptr)
-        DetourDetach(&(PVOID&) o_CreatePipelineState, hkCreatePipelineState);
+        DetourDetach(&(PVOID&) o_CreatePipelineState, gSurveyWrappers ? hkSurveyCreatePipelineState : hkCreatePipelineState);
 
     if (o_CreateRenderTargetView != nullptr)
-        DetourDetach(&(PVOID&) o_CreateRenderTargetView, hkCreateRenderTargetView);
+        DetourDetach(&(PVOID&) o_CreateRenderTargetView, gSurveyWrappers ? hkSurveyCreateRenderTargetView : hkCreateRenderTargetView);
 
     if (o_CreateShaderResourceView != nullptr)
-        DetourDetach(&(PVOID&) o_CreateShaderResourceView, hkCreateShaderResourceView);
+        DetourDetach(&(PVOID&) o_CreateShaderResourceView, gSurveyWrappers ? hkSurveyCreateShaderResourceView : hkCreateShaderResourceView);
 
     if (o_CreateUnorderedAccessView != nullptr)
-        DetourDetach(&(PVOID&) o_CreateUnorderedAccessView, hkCreateUnorderedAccessView);
+        DetourDetach(&(PVOID&) o_CreateUnorderedAccessView, gSurveyWrappers ? hkSurveyCreateUnorderedAccessView : hkCreateUnorderedAccessView);
 
     if (o_CopyDescriptors != nullptr)
-        DetourDetach(&(PVOID&) o_CopyDescriptors, hkCopyDescriptors);
+        DetourDetach(&(PVOID&) o_CopyDescriptors, gSurveyWrappers ? hkSurveyCopyDescriptors : hkCopyDescriptors);
 
     if (o_CopyDescriptorsSimple != nullptr)
-        DetourDetach(&(PVOID&) o_CopyDescriptorsSimple, hkCopyDescriptorsSimple);
+        DetourDetach(&(PVOID&) o_CopyDescriptorsSimple, gSurveyWrappers ? hkSurveyCopyDescriptorsSimple : hkCopyDescriptorsSimple);
 
     // Queue
     if (o_ExecuteCommandLists != nullptr)
-        DetourDetach(&(PVOID&) o_ExecuteCommandLists, hkExecuteCommandLists);
+        DetourDetach(&(PVOID&) o_ExecuteCommandLists, gSurveyWrappers ? hkSurveyExecuteCommandLists : hkExecuteCommandLists);
 
     // CommandList
     if (o_OMSetRenderTargets != nullptr)
-        DetourDetach(&(PVOID&) o_OMSetRenderTargets, hkOMSetRenderTargets);
+        DetourDetach(&(PVOID&) o_OMSetRenderTargets, gSurveyWrappers ? hkSurveyOMSetRenderTargets : hkOMSetRenderTargets);
 
     if (o_SetGraphicsRootDescriptorTable != nullptr)
-        DetourDetach(&(PVOID&) o_SetGraphicsRootDescriptorTable, hkSetGraphicsRootDescriptorTable);
+        DetourDetach(&(PVOID&) o_SetGraphicsRootDescriptorTable, gSurveyWrappers ? hkSurveySetGraphicsRootDescriptorTable : hkSetGraphicsRootDescriptorTable);
 
     if (o_SetComputeRootDescriptorTable != nullptr)
-        DetourDetach(&(PVOID&) o_SetComputeRootDescriptorTable, hkSetComputeRootDescriptorTable);
+        DetourDetach(&(PVOID&) o_SetComputeRootDescriptorTable, gSurveyWrappers ? hkSurveySetComputeRootDescriptorTable : hkSetComputeRootDescriptorTable);
 
     if (o_DrawIndexedInstanced != nullptr)
-        DetourDetach(&(PVOID&) o_DrawIndexedInstanced, hkDrawIndexedInstanced);
+        DetourDetach(&(PVOID&) o_DrawIndexedInstanced, gSurveyWrappers ? hkSurveyDrawIndexedInstanced : hkDrawIndexedInstanced);
 
     if (o_DrawInstanced != nullptr)
-        DetourDetach(&(PVOID&) o_DrawInstanced, hkDrawInstanced);
+        DetourDetach(&(PVOID&) o_DrawInstanced, gSurveyWrappers ? hkSurveyDrawInstanced : hkDrawInstanced);
 
     if (o_Dispatch != nullptr)
-        DetourDetach(&(PVOID&) o_Dispatch, hkDispatch);
+        DetourDetach(&(PVOID&) o_Dispatch, gSurveyWrappers ? hkSurveyDispatch : hkDispatch);
 
     if (o_Close != nullptr)
-        DetourDetach(&(PVOID&) o_Close, hkClose);
+        DetourDetach(&(PVOID&) o_Close, gSurveyWrappers ? hkSurveyClose : hkClose);
 
     if (o_Reset != nullptr)
-        DetourDetach(&(PVOID&) o_Reset, hkReset);
+        DetourDetach(&(PVOID&) o_Reset, gSurveyWrappers ? hkSurveyReset : hkReset);
     if (o_CommandListRelease != nullptr)
         DetourDetach(&(PVOID&) o_CommandListRelease, hkCommandListRelease);
 
     if (o_SetPipelineState != nullptr)
-        DetourDetach(&(PVOID&) o_SetPipelineState, hkSetPipelineState);
+        DetourDetach(&(PVOID&) o_SetPipelineState, gSurveyWrappers ? hkSurveySetPipelineState : hkSetPipelineState);
 
     if (o_ResourceBarrier != nullptr)
-        DetourDetach(&(PVOID&) o_ResourceBarrier, hkResourceBarrier);
+        DetourDetach(&(PVOID&) o_ResourceBarrier, gSurveyWrappers ? hkSurveyResourceBarrier : hkResourceBarrier);
 
     if (o_SetMarker != nullptr)
-        DetourDetach(&(PVOID&) o_SetMarker, hkSetMarker);
+        DetourDetach(&(PVOID&) o_SetMarker, gSurveyWrappers ? hkSurveySetMarker : hkSetMarker);
 
     if (o_BeginEvent != nullptr)
-        DetourDetach(&(PVOID&) o_BeginEvent, hkBeginEvent);
+        DetourDetach(&(PVOID&) o_BeginEvent, gSurveyWrappers ? hkSurveyBeginEvent : hkBeginEvent);
 
     if (o_EndEvent != nullptr)
-        DetourDetach(&(PVOID&) o_EndEvent, hkEndEvent);
+        DetourDetach(&(PVOID&) o_EndEvent, gSurveyWrappers ? hkSurveyEndEvent : hkEndEvent);
 
     if (o_ExecuteBundle != nullptr)
-        DetourDetach(&(PVOID&) o_ExecuteBundle, hkExecuteBundle);
+        DetourDetach(&(PVOID&) o_ExecuteBundle, gSurveyWrappers ? hkSurveyExecuteBundle : hkExecuteBundle);
 
     // Resource
     if (o_Release != nullptr && !gResourceReleaseSharesCommandList && !gResourceReleaseSharesPso)
@@ -3928,22 +3935,22 @@ void ResTrack_Dx12::ReleaseHooks()
     DetourUpdateThread(GetCurrentThread());
 
     // if (o_CreateDescriptorHeap != nullptr)
-    //     DetourDetach(&(PVOID&) o_CreateDescriptorHeap, hkCreateDescriptorHeap);
+    //     DetourDetach(&(PVOID&) o_CreateDescriptorHeap, gSurveyWrappers ? hkSurveyCreateDescriptorHeap : hkCreateDescriptorHeap);
 
     // if (o_CreateRenderTargetView != nullptr)
-    //     DetourDetach(&(PVOID&) o_CreateRenderTargetView, hkCreateRenderTargetView);
+    //     DetourDetach(&(PVOID&) o_CreateRenderTargetView, gSurveyWrappers ? hkSurveyCreateRenderTargetView : hkCreateRenderTargetView);
 
     // if (o_CreateShaderResourceView != nullptr)
-    //     DetourDetach(&(PVOID&) o_CreateShaderResourceView, hkCreateShaderResourceView);
+    //     DetourDetach(&(PVOID&) o_CreateShaderResourceView, gSurveyWrappers ? hkSurveyCreateShaderResourceView : hkCreateShaderResourceView);
 
     // if (o_CreateUnorderedAccessView != nullptr)
-    //     DetourDetach(&(PVOID&) o_CreateUnorderedAccessView, hkCreateUnorderedAccessView);
+    //     DetourDetach(&(PVOID&) o_CreateUnorderedAccessView, gSurveyWrappers ? hkSurveyCreateUnorderedAccessView : hkCreateUnorderedAccessView);
 
     // if (o_CopyDescriptors != nullptr)
-    //     DetourDetach(&(PVOID&) o_CopyDescriptors, hkCopyDescriptors);
+    //     DetourDetach(&(PVOID&) o_CopyDescriptors, gSurveyWrappers ? hkSurveyCopyDescriptors : hkCopyDescriptors);
 
     // if (o_CopyDescriptorsSimple != nullptr)
-    //     DetourDetach(&(PVOID&) o_CopyDescriptorsSimple, hkCopyDescriptorsSimple);
+    //     DetourDetach(&(PVOID&) o_CopyDescriptorsSimple, gSurveyWrappers ? hkSurveyCopyDescriptorsSimple : hkCopyDescriptorsSimple);
 
     // o_CreateDescriptorHeap = nullptr;
     // o_CreateRenderTargetView = nullptr;
@@ -3953,7 +3960,7 @@ void ResTrack_Dx12::ReleaseHooks()
     // o_CopyDescriptorsSimple = nullptr;
 
     // if (o_ExecuteCommandLists != nullptr)
-    //     DetourAttach(&(PVOID&) o_ExecuteCommandLists, hkExecuteCommandLists);
+    //     DetourAttach(&(PVOID&) o_ExecuteCommandLists, gSurveyWrappers ? hkSurveyExecuteCommandLists : hkExecuteCommandLists);
 
     // o_ExecuteCommandLists = nullptr;
 
@@ -3963,46 +3970,46 @@ void ResTrack_Dx12::ReleaseHooks()
     // o_Release = nullptr;
 
     if (o_OMSetRenderTargets != nullptr)
-        DetourDetach(&(PVOID&) o_OMSetRenderTargets, hkOMSetRenderTargets);
+        DetourDetach(&(PVOID&) o_OMSetRenderTargets, gSurveyWrappers ? hkSurveyOMSetRenderTargets : hkOMSetRenderTargets);
 
     if (o_SetGraphicsRootDescriptorTable != nullptr)
-        DetourDetach(&(PVOID&) o_SetGraphicsRootDescriptorTable, hkSetGraphicsRootDescriptorTable);
+        DetourDetach(&(PVOID&) o_SetGraphicsRootDescriptorTable, gSurveyWrappers ? hkSurveySetGraphicsRootDescriptorTable : hkSetGraphicsRootDescriptorTable);
 
     if (o_SetComputeRootDescriptorTable != nullptr)
-        DetourDetach(&(PVOID&) o_SetComputeRootDescriptorTable, hkSetComputeRootDescriptorTable);
+        DetourDetach(&(PVOID&) o_SetComputeRootDescriptorTable, gSurveyWrappers ? hkSurveySetComputeRootDescriptorTable : hkSetComputeRootDescriptorTable);
 
     if (o_DrawIndexedInstanced != nullptr)
-        DetourDetach(&(PVOID&) o_DrawIndexedInstanced, hkDrawIndexedInstanced);
+        DetourDetach(&(PVOID&) o_DrawIndexedInstanced, gSurveyWrappers ? hkSurveyDrawIndexedInstanced : hkDrawIndexedInstanced);
 
     if (o_DrawInstanced != nullptr)
-        DetourDetach(&(PVOID&) o_DrawInstanced, hkDrawInstanced);
+        DetourDetach(&(PVOID&) o_DrawInstanced, gSurveyWrappers ? hkSurveyDrawInstanced : hkDrawInstanced);
 
     if (o_Dispatch != nullptr)
-        DetourDetach(&(PVOID&) o_Dispatch, hkDispatch);
+        DetourDetach(&(PVOID&) o_Dispatch, gSurveyWrappers ? hkSurveyDispatch : hkDispatch);
 
     if (o_Close != nullptr)
-        DetourDetach(&(PVOID&) o_Close, hkClose);
+        DetourDetach(&(PVOID&) o_Close, gSurveyWrappers ? hkSurveyClose : hkClose);
 
     // HUD-only teardown must preserve RR recording retirement observers. Full
     // ReleaseDeviceHooks disables admission before detaching these device hooks.
 
     if (o_SetPipelineState != nullptr)
-        DetourDetach(&(PVOID&) o_SetPipelineState, hkSetPipelineState);
+        DetourDetach(&(PVOID&) o_SetPipelineState, gSurveyWrappers ? hkSurveySetPipelineState : hkSetPipelineState);
 
     if (o_ResourceBarrier != nullptr)
-        DetourDetach(&(PVOID&) o_ResourceBarrier, hkResourceBarrier);
+        DetourDetach(&(PVOID&) o_ResourceBarrier, gSurveyWrappers ? hkSurveyResourceBarrier : hkResourceBarrier);
 
     if (o_SetMarker != nullptr)
-        DetourDetach(&(PVOID&) o_SetMarker, hkSetMarker);
+        DetourDetach(&(PVOID&) o_SetMarker, gSurveyWrappers ? hkSurveySetMarker : hkSetMarker);
 
     if (o_BeginEvent != nullptr)
-        DetourDetach(&(PVOID&) o_BeginEvent, hkBeginEvent);
+        DetourDetach(&(PVOID&) o_BeginEvent, gSurveyWrappers ? hkSurveyBeginEvent : hkBeginEvent);
 
     if (o_EndEvent != nullptr)
-        DetourDetach(&(PVOID&) o_EndEvent, hkEndEvent);
+        DetourDetach(&(PVOID&) o_EndEvent, gSurveyWrappers ? hkSurveyEndEvent : hkEndEvent);
 
     if (o_ExecuteBundle != nullptr)
-        DetourDetach(&(PVOID&) o_ExecuteBundle, hkExecuteBundle);
+        DetourDetach(&(PVOID&) o_ExecuteBundle, gSurveyWrappers ? hkSurveyExecuteBundle : hkExecuteBundle);
 
     o_OMSetRenderTargets = nullptr;
     o_SetGraphicsRootDescriptorTable = nullptr;
@@ -4096,4 +4103,199 @@ bool ResTrack_Dx12::EnsureRRTraceHooks(ID3D12Device* device)
     HookToQueue(device);
     HookCommandList(device);
     return o_ExecuteCommandLists != nullptr && o_Reset != nullptr;
+}
+
+// Selected only for startup FrameSurvey instrumentation.
+void ResTrack_Dx12::hkSurveyCreateRenderTargetView(ID3D12Device* This, ID3D12Resource* pResource,
+                                             D3D12_RENDER_TARGET_VIEW_DESC* pDesc,
+                                             D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
+{
+    hkCreateRenderTargetView(This,pResource,pDesc,DestDescriptor);
+    FrameSurvey::View(pResource,DestDescriptor,pDesc);
+}
+
+void ResTrack_Dx12::hkSurveyCreateShaderResourceView(ID3D12Device* This, ID3D12Resource* pResource,
+                                               D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc,
+                                               D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
+{
+    hkCreateShaderResourceView(This,pResource,pDesc,DestDescriptor);
+    FrameSurvey::View(pResource,DestDescriptor,pDesc);
+}
+
+void ResTrack_Dx12::hkSurveyCreateUnorderedAccessView(ID3D12Device* This, ID3D12Resource* pResource,
+                                                ID3D12Resource* pCounterResource,
+                                                D3D12_UNORDERED_ACCESS_VIEW_DESC* pDesc,
+                                                D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
+{
+    hkCreateUnorderedAccessView(This,pResource,pCounterResource,pDesc,DestDescriptor);
+    FrameSurvey::View(pResource,DestDescriptor,pDesc);
+}
+
+HRESULT ResTrack_Dx12::hkSurveyCreateDescriptorHeap(ID3D12Device* This, D3D12_DESCRIPTOR_HEAP_DESC* pDescriptorHeapDesc,
+                                              REFIID riid, void** ppvHeap)
+{
+    const auto result = hkCreateDescriptorHeap(This,pDescriptorHeapDesc,riid,ppvHeap);
+    if (SUCCEEDED(result) && ppvHeap && *ppvHeap) FrameSurvey::HeapCreated(This,static_cast<ID3D12DescriptorHeap*>(*ppvHeap));
+    return result;
+}
+
+HRESULT ResTrack_Dx12::hkSurveyCreateGraphicsPipelineState(
+    ID3D12Device* This, const D3D12_GRAPHICS_PIPELINE_STATE_DESC* pDesc,
+    REFIID riid, void** ppPipelineState)
+{
+    const auto result = hkCreateGraphicsPipelineState(This,pDesc,riid,ppPipelineState);
+    if (SUCCEEDED(result) && pDesc && ppPipelineState && *ppPipelineState) FrameSurvey::PipelineCreated(static_cast<ID3D12PipelineState*>(*ppPipelineState),*pDesc);
+    return result;
+}
+
+HRESULT ResTrack_Dx12::hkSurveyCreateComputePipelineState(
+    ID3D12Device* This, const D3D12_COMPUTE_PIPELINE_STATE_DESC* pDesc,
+    REFIID riid, void** ppPipelineState)
+{
+    const auto result = hkCreateComputePipelineState(This,pDesc,riid,ppPipelineState);
+    if (SUCCEEDED(result) && pDesc && ppPipelineState && *ppPipelineState) FrameSurvey::PipelineCreated(static_cast<ID3D12PipelineState*>(*ppPipelineState),*pDesc);
+    return result;
+}
+
+HRESULT ResTrack_Dx12::hkSurveyCreatePipelineState(
+    ID3D12Device2* This, const D3D12_PIPELINE_STATE_STREAM_DESC* pDesc,
+    REFIID riid, void** ppPipelineState)
+{
+    const auto result = hkCreatePipelineState(This,pDesc,riid,ppPipelineState);
+    if (SUCCEEDED(result) && pDesc && ppPipelineState && *ppPipelineState) FrameSurvey::PipelineCreated(static_cast<ID3D12PipelineState*>(*ppPipelineState),*pDesc);
+    return result;
+}
+
+void ResTrack_Dx12::hkSurveySetGraphicsRootDescriptorTable(ID3D12GraphicsCommandList* This, UINT RootParameterIndex,
+                                                     D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
+{
+    FrameSurvey::Table(This,true,RootParameterIndex,BaseDescriptor);
+    hkSetGraphicsRootDescriptorTable(This,RootParameterIndex,BaseDescriptor);
+}
+
+void ResTrack_Dx12::hkSurveySetComputeRootDescriptorTable(ID3D12GraphicsCommandList* This, UINT RootParameterIndex,
+                                                    D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
+{
+    FrameSurvey::Table(This,false,RootParameterIndex,BaseDescriptor);
+    hkSetComputeRootDescriptorTable(This,RootParameterIndex,BaseDescriptor);
+}
+
+void ResTrack_Dx12::hkSurveyOMSetRenderTargets(ID3D12GraphicsCommandList* This, UINT NumRenderTargetDescriptors,
+                                         D3D12_CPU_DESCRIPTOR_HANDLE* pRenderTargetDescriptors,
+                                         BOOL RTsSingleHandleToDescriptorRange,
+                                         D3D12_CPU_DESCRIPTOR_HANDLE* pDepthStencilDescriptor)
+{
+    FrameSurvey::RenderTargets(This,NumRenderTargetDescriptors,pRenderTargetDescriptors,RTsSingleHandleToDescriptorRange);
+    hkOMSetRenderTargets(This,NumRenderTargetDescriptors,pRenderTargetDescriptors,RTsSingleHandleToDescriptorRange,pDepthStencilDescriptor);
+}
+
+void ResTrack_Dx12::hkSurveyResourceBarrier(ID3D12GraphicsCommandList* This, UINT NumBarriers,
+                                      const D3D12_RESOURCE_BARRIER* pBarriers)
+{
+    FrameSurvey::Barrier(This,NumBarriers,pBarriers);
+    hkResourceBarrier(This,NumBarriers,pBarriers);
+}
+
+void ResTrack_Dx12::hkSurveySetPipelineState(ID3D12GraphicsCommandList* This,
+                                       ID3D12PipelineState* pPipelineState)
+{
+    FrameSurvey::SetPipeline(This,pPipelineState);
+    hkSetPipelineState(This,pPipelineState);
+}
+
+HRESULT ResTrack_Dx12::hkSurveyReset(ID3D12GraphicsCommandList* This,
+                               ID3D12CommandAllocator* pAllocator,
+                               ID3D12PipelineState* pInitialState)
+{
+    const auto result = hkReset(This,pAllocator,pInitialState);
+    if (SUCCEEDED(result)) FrameSurvey::Reset(This,pInitialState);
+    return result;
+}
+
+HRESULT ResTrack_Dx12::hkSurveyClose(ID3D12GraphicsCommandList* This)
+{
+    const auto result = hkClose(This);
+    FrameSurvey::Close(This,result);
+    return result;
+}
+
+void ResTrack_Dx12::hkSurveySetMarker(ID3D12GraphicsCommandList* This, UINT Metadata, const void* pData, UINT Size)
+{
+    FrameSurvey::Event(This,Metadata,pData,Size,0);
+    hkSetMarker(This,Metadata,pData,Size);
+}
+
+void ResTrack_Dx12::hkSurveyBeginEvent(ID3D12GraphicsCommandList* This, UINT Metadata, const void* pData, UINT Size)
+{
+    FrameSurvey::Event(This,Metadata,pData,Size,1);
+    hkBeginEvent(This,Metadata,pData,Size);
+}
+
+void ResTrack_Dx12::hkSurveyEndEvent(ID3D12GraphicsCommandList* This)
+{
+    FrameSurvey::Event(This,0,nullptr,0,-1);
+    hkEndEvent(This);
+}
+
+void ResTrack_Dx12::hkSurveyDispatch(ID3D12GraphicsCommandList* This, UINT ThreadGroupCountX, UINT ThreadGroupCountY,
+                               UINT ThreadGroupCountZ)
+{
+    const std::array<uint64_t,3> args {ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ};
+    FrameSurvey::Pass(This,"Dispatch",args);
+    hkDispatch(This,ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ);
+    FrameSurvey::SnapshotWrites(This);
+}
+
+void ResTrack_Dx12::hkSurveyDrawInstanced(ID3D12GraphicsCommandList* This, UINT VertexCountPerInstance, UINT InstanceCount,
+                                    UINT StartVertexLocation, UINT StartInstanceLocation)
+{
+    const std::array<uint64_t,4> args {VertexCountPerInstance,InstanceCount,StartVertexLocation,StartInstanceLocation};
+    FrameSurvey::Pass(This,"DrawInstanced",args);
+    hkDrawInstanced(This,VertexCountPerInstance,InstanceCount,StartVertexLocation,StartInstanceLocation);
+    FrameSurvey::SnapshotWrites(This);
+}
+
+void ResTrack_Dx12::hkSurveyDrawIndexedInstanced(ID3D12GraphicsCommandList* This, UINT IndexCountPerInstance,
+                                           UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation,
+                                           UINT StartInstanceLocation)
+{
+    const std::array<uint64_t,5> args {IndexCountPerInstance,InstanceCount,StartIndexLocation,uint64_t(int64_t(BaseVertexLocation)),StartInstanceLocation};
+    FrameSurvey::Pass(This,"DrawIndexedInstanced",args);
+    hkDrawIndexedInstanced(This,IndexCountPerInstance,InstanceCount,StartIndexLocation,BaseVertexLocation,StartInstanceLocation);
+    FrameSurvey::SnapshotWrites(This);
+}
+
+void ResTrack_Dx12::hkSurveyExecuteBundle(ID3D12GraphicsCommandList* This, ID3D12GraphicsCommandList* pCommandList)
+{
+    const std::array<uint64_t,1> args {uint64_t(reinterpret_cast<uintptr_t>(pCommandList))};
+    FrameSurvey::Pass(This,"ExecuteBundle",args);
+    hkExecuteBundle(This,pCommandList);
+    FrameSurvey::SnapshotWrites(This);
+}
+
+void ResTrack_Dx12::hkSurveyExecuteCommandLists(ID3D12CommandQueue* This, UINT NumCommandLists,
+                                          ID3D12CommandList* const* ppCommandLists)
+{
+    std::scoped_lock lock(FrameSurvey::SubmissionMutex());
+    FrameSurvey::Submit(This,NumCommandLists,ppCommandLists);
+    hkExecuteCommandLists(This,NumCommandLists,ppCommandLists);
+}
+
+void ResTrack_Dx12::hkSurveyCopyDescriptors(ID3D12Device* This, UINT NumDestDescriptorRanges,
+                                      D3D12_CPU_DESCRIPTOR_HANDLE* pDestDescriptorRangeStarts,
+                                      UINT* pDestDescriptorRangeSizes, UINT NumSrcDescriptorRanges,
+                                      D3D12_CPU_DESCRIPTOR_HANDLE* pSrcDescriptorRangeStarts,
+                                      UINT* pSrcDescriptorRangeSizes, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
+{
+    FrameSurvey::CopyDescriptors(This,NumDestDescriptorRanges,pDestDescriptorRangeStarts,pDestDescriptorRangeSizes,NumSrcDescriptorRanges,pSrcDescriptorRangeStarts,pSrcDescriptorRangeSizes,DescriptorHeapsType);
+    hkCopyDescriptors(This,NumDestDescriptorRanges,pDestDescriptorRangeStarts,pDestDescriptorRangeSizes,NumSrcDescriptorRanges,pSrcDescriptorRangeStarts,pSrcDescriptorRangeSizes,DescriptorHeapsType);
+}
+
+void ResTrack_Dx12::hkSurveyCopyDescriptorsSimple(ID3D12Device* This, UINT NumDescriptors,
+                                            D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptorRangeStart,
+                                            D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart,
+                                            D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
+{
+    FrameSurvey::CopyDescriptors(This,1,&DestDescriptorRangeStart,&NumDescriptors,1,&SrcDescriptorRangeStart,&NumDescriptors,DescriptorHeapsType);
+    hkCopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType);
 }

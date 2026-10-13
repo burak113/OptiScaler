@@ -537,6 +537,66 @@ class ResTrack_Dx12
 
     static bool IsHudFixActive();
 
+    static void hkSurveyCreateRenderTargetView(ID3D12Device* This, ID3D12Resource* pResource,
+                                             D3D12_RENDER_TARGET_VIEW_DESC* pDesc,
+                                             D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+    static void hkSurveyCreateShaderResourceView(ID3D12Device* This, ID3D12Resource* pResource,
+                                               D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc,
+                                               D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+    static void hkSurveyCreateUnorderedAccessView(ID3D12Device* This, ID3D12Resource* pResource,
+                                                ID3D12Resource* pCounterResource,
+                                                D3D12_UNORDERED_ACCESS_VIEW_DESC* pDesc,
+                                                D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);
+    static HRESULT hkSurveyCreateDescriptorHeap(ID3D12Device* This, D3D12_DESCRIPTOR_HEAP_DESC* pDescriptorHeapDesc,
+                                              REFIID riid, void** ppvHeap);
+    static HRESULT hkSurveyCreateGraphicsPipelineState(
+    ID3D12Device* This, const D3D12_GRAPHICS_PIPELINE_STATE_DESC* pDesc,
+    REFIID riid, void** ppPipelineState);
+    static HRESULT hkSurveyCreateComputePipelineState(
+    ID3D12Device* This, const D3D12_COMPUTE_PIPELINE_STATE_DESC* pDesc,
+    REFIID riid, void** ppPipelineState);
+    static HRESULT hkSurveyCreatePipelineState(
+    ID3D12Device2* This, const D3D12_PIPELINE_STATE_STREAM_DESC* pDesc,
+    REFIID riid, void** ppPipelineState);
+    static void hkSurveySetGraphicsRootDescriptorTable(ID3D12GraphicsCommandList* This, UINT RootParameterIndex,
+                                                     D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor);
+    static void hkSurveySetComputeRootDescriptorTable(ID3D12GraphicsCommandList* This, UINT RootParameterIndex,
+                                                    D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor);
+    static void hkSurveyOMSetRenderTargets(ID3D12GraphicsCommandList* This, UINT NumRenderTargetDescriptors,
+                                         D3D12_CPU_DESCRIPTOR_HANDLE* pRenderTargetDescriptors,
+                                         BOOL RTsSingleHandleToDescriptorRange,
+                                         D3D12_CPU_DESCRIPTOR_HANDLE* pDepthStencilDescriptor);
+    static void hkSurveyResourceBarrier(ID3D12GraphicsCommandList* This, UINT NumBarriers,
+                                      const D3D12_RESOURCE_BARRIER* pBarriers);
+    static void hkSurveySetPipelineState(ID3D12GraphicsCommandList* This,
+                                       ID3D12PipelineState* pPipelineState);
+    static HRESULT hkSurveyReset(ID3D12GraphicsCommandList* This,
+                               ID3D12CommandAllocator* pAllocator,
+                               ID3D12PipelineState* pInitialState);
+    static HRESULT hkSurveyClose(ID3D12GraphicsCommandList* This);
+    static void hkSurveySetMarker(ID3D12GraphicsCommandList* This, UINT Metadata, const void* pData, UINT Size);
+    static void hkSurveyBeginEvent(ID3D12GraphicsCommandList* This, UINT Metadata, const void* pData, UINT Size);
+    static void hkSurveyEndEvent(ID3D12GraphicsCommandList* This);
+    static void hkSurveyDispatch(ID3D12GraphicsCommandList* This, UINT ThreadGroupCountX, UINT ThreadGroupCountY,
+                               UINT ThreadGroupCountZ);
+    static void hkSurveyDrawInstanced(ID3D12GraphicsCommandList* This, UINT VertexCountPerInstance, UINT InstanceCount,
+                                    UINT StartVertexLocation, UINT StartInstanceLocation);
+    static void hkSurveyDrawIndexedInstanced(ID3D12GraphicsCommandList* This, UINT IndexCountPerInstance,
+                                           UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation,
+                                           UINT StartInstanceLocation);
+    static void hkSurveyExecuteBundle(ID3D12GraphicsCommandList* This, ID3D12GraphicsCommandList* pCommandList);
+    static void hkSurveyExecuteCommandLists(ID3D12CommandQueue* This, UINT NumCommandLists,
+                                          ID3D12CommandList* const* ppCommandLists);
+    static void hkSurveyCopyDescriptors(ID3D12Device* This, UINT NumDestDescriptorRanges,
+                                      D3D12_CPU_DESCRIPTOR_HANDLE* pDestDescriptorRangeStarts,
+                                      UINT* pDestDescriptorRangeSizes, UINT NumSrcDescriptorRanges,
+                                      D3D12_CPU_DESCRIPTOR_HANDLE* pSrcDescriptorRangeStarts,
+                                      UINT* pSrcDescriptorRangeSizes, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
+    static void hkSurveyCopyDescriptorsSimple(ID3D12Device* This, UINT NumDescriptors,
+                                            D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptorRangeStart,
+                                            D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart,
+                                            D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType);
+
     // static bool IsFGCommandList(IUnknown* cmdList);
 
     static void hkCopyDescriptors(ID3D12Device* This, UINT NumDestDescriptorRanges,
