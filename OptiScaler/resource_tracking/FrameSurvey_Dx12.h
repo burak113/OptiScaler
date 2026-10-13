@@ -45,11 +45,11 @@ class ScopedInternal
 };
 bool Enabled() noexcept;
 // Called at device hook time when FrameSurvey=true: keeps creation metadata from the title's load phase.
-void BeginCreationTracking() noexcept;
+void BeginCreationTracking(bool recorder = true) noexcept;
 // Comma-separated shader SHA-256 prefixes (FrameSurveyPassHashes); matching dispatches save their outputs.
 void SetPassHashes(const std::string& list) noexcept;
 bool Internal() noexcept;
-bool Install(ID3D12Device*, ID3D12GraphicsCommandList*) noexcept;
+bool Install(ID3D12Device*, ID3D12GraphicsCommandList*, bool recorder = true) noexcept;
 void Shutdown() noexcept;
 Status GetStatus();
 bool Request(uint32_t renderWidth, uint32_t renderHeight) noexcept;

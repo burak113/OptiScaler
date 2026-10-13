@@ -26,7 +26,13 @@ const GUID PipelineId = {0xeb65bd20,0x3531,0x41b0,{0xbc,0x65,0x40,0xd9,0xc2,0xbe
 std::atomic<bool> gEnabled {false}, gRecording {false};
 // Creation metadata (root layouts, shader hashes, heaps, views) is tracked from device creation when
 // FrameSurvey=true. Install() runs later, after the title has created most of its pipelines.
-std::atomic<bool> gTracking {false};
+std::atomic<bool> gTracking {false}, gSurveyBindings {false}, gBindingWindow {false}, gHooksInstalled {false};
+std::atomic<PipelineObserver> gPipelineObserver {nullptr};
+std::atomic<ReleaseObserver> gReleaseObserver {nullptr};
+bool BindingTracking() noexcept
+{
+    return gSurveyBindings.load(std::memory_order_relaxed) || gBindingWindow.load(std::memory_order_relaxed);
+}
 bool Tracking() noexcept { return gTracking.load(std::memory_order_relaxed) || gEnabled.load(std::memory_order_relaxed); }
 // FrameSurveyPassHashes: lowercase shader SHA-256 prefixes whose outputs are saved right after the dispatch.
 std::mutex gPassHashMutex;
@@ -87,8 +93,12 @@ std::unordered_map<ID3D12Resource*,Resource> gResources;
 std::map<uint64_t,ID3D12Resource*> gAddresses;
 std::unordered_map<uint64_t,ViewInfo> gViews;
 std::unordered_map<ID3D12DescriptorHeap*,Heap> gHeaps;
+// Only descriptor copies made inside a bridge window are trusted by its resolver. A closed window
+// cannot leave stale shader-visible copies behind for a later discovery.
+std::set<uint64_t> gWindowCopies;
 struct Range { uint32_t kind = 0, offset = 0, count = 0; };
 struct RootLayout { std::string hash; std::map<uint32_t,std::vector<Range>> tables; bool complete = false, directIndexed = false; };
+std::unordered_map<ID3D12RootSignature*,RootLayout> gRootLayouts;
 struct RootState
 {
     uint64_t identity = 0;
@@ -261,7 +271,7 @@ std::mutex gMirrorMutex;
 std::unordered_map<ID3D12GraphicsCommandList*,Mirror> gMirror;
 template<class Update> void Mirrored(ID3D12GraphicsCommandList* cmd, Update&& update) noexcept
 {
-    if (!Tracking() || gInternal || !cmd) return;
+    if (!BindingTracking() || gInternal || !cmd) return;
     try { std::scoped_lock lock(gMirrorMutex); update(gMirror[cmd]); } catch (...) {}
 }
 bool Seed(ID3D12GraphicsCommandList* cmd, List& list)
@@ -304,6 +314,7 @@ void StoreView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI_FORM
     const auto sub = mip + slice*resource.desc.MipLevels;
     gViews[handle] = {object,resource.id,kind,uint32_t(format == DXGI_FORMAT_UNKNOWN ? resource.desc.Format : format),sub,supported};
     gViews[handle].descriptorCpu = handle;
+    gWindowCopies.erase(handle);
 }
 std::vector<ViewInfo> Bindings(List& state, bool graphics, Json& unresolved)
 {
@@ -454,14 +465,87 @@ bool CopyBuffer(ID3D12GraphicsCommandList* cmd, List& list, ID3D12Resource* obje
 
 ScopedInternal::ScopedInternal() noexcept : previous_(gInternal) { gInternal = true; }
 ScopedInternal::~ScopedInternal() { gInternal = previous_; }
-void SetPipelineObserver(PipelineObserver) noexcept {}
-void SetReleaseObserver(ReleaseObserver) noexcept {}
-void SetBindingWindow(bool) noexcept {}
-bool BindingWindow() noexcept { return false; }
-bool ResolveComputeTable(ID3D12GraphicsCommandList*, UINT, std::vector<BoundResource>& out) noexcept
-{ out.clear(); return false; }
+void SetPipelineObserver(PipelineObserver observer) noexcept { gPipelineObserver.store(observer,std::memory_order_release); }
+void SetReleaseObserver(ReleaseObserver observer) noexcept { gReleaseObserver.store(observer,std::memory_order_release); }
+void SetBindingWindow(bool enabled) noexcept
+{
+    if (gBindingWindow.exchange(enabled,std::memory_order_acq_rel) == enabled) return;
+    if (gSurveyBindings.load(std::memory_order_relaxed)) return; // Preserve the survey's early-binding mirror.
+    try
+    {
+        { std::scoped_lock lock(gMirrorMutex); gMirror.clear(); }
+        std::scoped_lock lock(gLifetimeMutex);
+        for (const auto handle : gWindowCopies)
+        {
+            const auto view = gViews.find(handle);
+            if (view == gViews.end()) continue;
+            if (const auto resource = gResources.find(view->second.object); resource != gResources.end())
+                resource->second.handles.erase(handle);
+            gViews.erase(view);
+        }
+        gWindowCopies.clear();
+    } catch (...) {}
+}
+bool BindingWindow() noexcept { return gBindingWindow.load(std::memory_order_relaxed); }
+bool ResolveComputeTable(ID3D12GraphicsCommandList* cmd, UINT parameter, std::vector<BoundResource>& out) noexcept
+{
+    out.clear();
+    if (!BindingTracking() || gInternal || !cmd) return false;
+    try
+    {
+        Mirror::Root root; std::vector<ID3D12DescriptorHeap*> heaps;
+        {
+            std::scoped_lock lock(gMirrorMutex);
+            const auto list = gMirror.find(cmd);
+            if (list == gMirror.end()) return false;
+            root = list->second.compute; heaps = list->second.heaps;
+        }
+        const auto binding = root.tables.find(parameter);
+        if (!root.object || binding == root.tables.end()) return false;
+        std::scoped_lock lock(gLifetimeMutex);
+        const auto layout = gRootLayouts.find(root.object);
+        if (layout == gRootLayouts.end() || !layout->second.complete) return false;
+        const auto table = layout->second.tables.find(parameter);
+        if (table == layout->second.tables.end()) return false;
+        const Heap* heap = nullptr;
+        const auto base = binding->second;
+        for (const auto object : heaps)
+        {
+            const auto found = gHeaps.find(object);
+            if (found == gHeaps.end()) continue;
+            const auto& candidate = found->second;
+            if (candidate.gpu && candidate.increment && base >= candidate.gpu &&
+                base-candidate.gpu < uint64_t(candidate.count)*candidate.increment &&
+                (base-candidate.gpu)%candidate.increment == 0) { heap = &candidate; break; }
+        }
+        if (!heap) return false;
+        const uint64_t first = (base-heap->gpu)/heap->increment;
+        for (const auto& range : table->second)
+        {
+            if (range.kind != D3D12_DESCRIPTOR_RANGE_TYPE_SRV && range.kind != D3D12_DESCRIPTOR_RANGE_TYPE_UAV) continue;
+            if (range.count > 512 || first+range.offset+range.count > heap->count) return false;
+            for (uint32_t i=0;i<range.count;++i)
+            {
+                const uint64_t index = first+range.offset+i;
+                const auto view = gViews.find(heap->cpu+index*heap->increment);
+                if (view == gViews.end() || view->second.kind != range.kind || !view->second.snapshotSupported) continue;
+                const auto resource = gResources.find(view->second.object);
+                if (resource == gResources.end() || resource->second.id != view->second.resource) continue;
+                out.push_back({resource->first,resource->second.desc,DXGI_FORMAT(view->second.format),
+                    D3D12_DESCRIPTOR_RANGE_TYPE(range.kind),range.offset+i,uint32_t(index),view->second.subresource});
+            }
+        }
+        std::sort(out.begin(),out.end(),[](const auto& a,const auto& b) {
+            return std::tie(a.descriptorOffset,a.descriptorIndex,a.kind) < std::tie(b.descriptorOffset,b.descriptorIndex,b.kind); });
+        return true;
+    } catch (...) { out.clear(); return false; }
+}
 bool Enabled() noexcept { return gEnabled.load(std::memory_order_relaxed); }
-void BeginCreationTracking() noexcept { gTracking.store(true,std::memory_order_release); }
+void BeginCreationTracking(bool recorder) noexcept
+{
+    gSurveyBindings.store(recorder,std::memory_order_release);
+    gTracking.store(true,std::memory_order_release);
+}
 void SetPassHashes(const std::string& list) noexcept
 {
     try
@@ -494,7 +578,9 @@ void ResourceCreated(ID3D12Resource* object, D3D12_RESOURCE_STATES initial, ID3D
 void RootCreated(ID3D12RootSignature* root, const void* bytes, size_t length) noexcept
 {
     if (!Tracking() || gInternal || !root || !bytes || length > (1u<<20)) return;
-    if (FAILED(root->SetPrivateData(RootBlobId,UINT(length),bytes))) Fail("Root signature metadata storage failed");
+    if (FAILED(root->SetPrivateData(RootBlobId,UINT(length),bytes))) { Fail("Root signature metadata storage failed"); return; }
+    try { auto layout = ReadRoot(root); std::scoped_lock lock(gLifetimeMutex); gRootLayouts[root] = std::move(layout); }
+    catch (...) { Fail("Root signature layout allocation failed"); }
 }
 void PipelineCreated(ID3D12PipelineState* pso, const D3D12_COMPUTE_PIPELINE_STATE_DESC& desc) noexcept
 {
@@ -504,6 +590,8 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_COMPUTE_PIPELINE_STAT
         Json data = {{"shader_hashes",{{"CS",RRTraceAdditiveIO::Sha256({static_cast<const uint8_t*>(desc.CS.pShaderBytecode),desc.CS.BytecodeLength})}}},
             {"hash_known",desc.CS.BytecodeLength != 0},{"root_hash",ReadRoot(desc.pRootSignature).hash}};
         auto text = data.dump(); pso->SetPrivateData(PipelineId,UINT(text.size()),text.data());
+        if (const auto observer = gPipelineObserver.load(std::memory_order_acquire))
+            observer(pso,data["shader_hashes"]["CS"].get_ref<const std::string&>().c_str());
     } catch (...) { Fail("Compute shader hash failed"); }
 }
 void PipelineCreated(ID3D12PipelineState* pso, const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc) noexcept
@@ -542,6 +630,9 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_PIPELINE_STATE_STREAM
         const auto text = Json{{"shader_hashes",parser.shaders},{"hash_known",SUCCEEDED(result)&&!parser.shaders.empty()},
             {"stream_parse_hresult",int64_t(result)},{"root_hash",ReadRoot(parser.root).hash}}.dump();
         pso->SetPrivateData(PipelineId,UINT(text.size()),text.data());
+        if (SUCCEEDED(result) && parser.shaders.contains("CS"))
+            if (const auto observer = gPipelineObserver.load(std::memory_order_acquire))
+                observer(pso,parser.shaders["CS"].get_ref<const std::string&>().c_str());
     } catch (...) { Fail("Pipeline stream shader hash failed"); }
 }
 void Released(void* object) noexcept
@@ -557,6 +648,7 @@ void Released(void* object) noexcept
             if (found->second.va) gAddresses.erase(found->second.va);
             gResources.erase(found);
         }
+        gRootLayouts.erase(reinterpret_cast<ID3D12RootSignature*>(object));
         auto* heap = reinterpret_cast<ID3D12DescriptorHeap*>(object);
         if (const auto found = gHeaps.find(heap); found != gHeaps.end())
         {
@@ -573,6 +665,20 @@ void Released(void* object) noexcept
             gHeaps.erase(found);
         }
     } catch (...) {}
+    try
+    {
+        std::scoped_lock lock(gMirrorMutex);
+        gMirror.erase(reinterpret_cast<ID3D12GraphicsCommandList*>(object));
+        for (auto& [cmd,mirror] : gMirror)
+        {
+            if (mirror.pso == object) mirror.pso = nullptr;
+            if (mirror.compute.object == object) mirror.compute = {};
+            if (mirror.graphics.object == object) mirror.graphics = {};
+            if (std::erase(mirror.heaps,reinterpret_cast<ID3D12DescriptorHeap*>(object)))
+            { mirror.compute.tables.clear(); mirror.graphics.tables.clear(); }
+        }
+    } catch (...) {}
+    if (const auto observer = gReleaseObserver.load(std::memory_order_acquire)) observer(object);
 }
 void HeapCreated(ID3D12Device* device, ID3D12DescriptorHeap* object) noexcept
 {
@@ -623,7 +729,7 @@ void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3
 void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_HANDLE* dst, const UINT* dn,
     UINT ns, const D3D12_CPU_DESCRIPTOR_HANDLE* src, const UINT* sn, D3D12_DESCRIPTOR_HEAP_TYPE type) noexcept
 {
-    if (!Tracking() || gInternal || !dst || !src ||
+    if (!BindingTracking() || gInternal || !dst || !src ||
         (type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && type != D3D12_DESCRIPTOR_HEAP_TYPE_RTV)) return;
     try
     {
@@ -639,6 +745,7 @@ void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_H
             if (const auto v = gViews.find(sh); v != gViews.end())
             { auto copy = v->second; copy.descriptorCpu = dh; gViews[dh] = copy; gResources.at(copy.object).handles.insert(dh); }
             else gViews.erase(dh);
+            if (!gSurveyBindings.load(std::memory_order_relaxed)) gWindowCopies.insert(dh);
         }
     } catch (...) { Fail("Descriptor copy metadata allocation failed"); }
 }
@@ -1391,9 +1498,10 @@ void STDMETHODCALLTYPE Rays(ID3D12GraphicsCommandList4* cmd, const D3D12_DISPATC
     oRays(cmd,desc); SnapshotWrites(cmd);
 }
 }
-bool Install(ID3D12Device* device, ID3D12GraphicsCommandList* list) noexcept
+bool Install(ID3D12Device* device, ID3D12GraphicsCommandList* list, bool recorder) noexcept
 {
-    if (Enabled()) return gStatus.installed;
+    if (gHooksInstalled.load(std::memory_order_acquire)) return true;
+    gSurveyBindings.store(recorder,std::memory_order_release);
     if (!device || !list) return false;
     try
     {
@@ -1435,22 +1543,26 @@ bool Install(ID3D12Device* device, ID3D12GraphicsCommandList* list) noexcept
             Fail("Survey-only hook installation failed; no capture will be started"); return false;
         }
         gCreationDevice = device;
-        gEnabled.store(true,std::memory_order_release); gStatus.installed = true;
+        gHooksInstalled.store(true,std::memory_order_release);
+        gEnabled.store(recorder,std::memory_order_release); gStatus.installed = recorder;
         gStatus.phase = "idle"; gStatus.message = "Frame survey enabled at startup; request one frame.";
-        LOG_INFO("[FRAME_SURVEY] debug hooks installed; no denoiser dispatch is replaced"); return true;
+        if (recorder) LOG_INFO("[FRAME_SURVEY] debug hooks installed; no denoiser dispatch is replaced");
+        return true;
     } catch (...) { Fail("Survey hook installation exception"); return false; }
 }
 void Shutdown() noexcept
 {
     gTracking.store(false,std::memory_order_release);
-    if (!Enabled()) return;
+    gSurveyBindings.store(false,std::memory_order_release); gBindingWindow.store(false,std::memory_order_release);
+    gPipelineObserver.store(nullptr,std::memory_order_release); gReleaseObserver.store(nullptr,std::memory_order_release);
+    const bool installed = gHooksInstalled.exchange(false,std::memory_order_acq_rel);
     gEnabled.store(false,std::memory_order_release); gRecording.store(false,std::memory_order_release);
     try
     {
         std::unique_ptr<Service> owner;
         { std::scoped_lock lock(gRecordMutex); owner = std::move(gService); }
         if (owner) { owner->trace.Abort("FRAME_SURVEY device/owner shutdown"); owner.reset(); }
-        DetourTransactionBegin(); DetourUpdateThread(GetCurrentThread());
+        if (installed) { DetourTransactionBegin(); DetourUpdateThread(GetCurrentThread()); }
         auto detach = [](auto& original,auto replacement) {
             if (original) DetourDetach(reinterpret_cast<PVOID*>(&original),reinterpret_cast<PVOID>(replacement)); };
         detach(oIndirect,Indirect); detach(oCopyResource,CopyResource); detach(oCopyTexture,CopyTexture);
@@ -1461,13 +1573,13 @@ void Shutdown() noexcept
             std::scoped_lock library(gLibraryHookMutex);
             detach(oLoadGraphics,LoadGraphics); detach(oLoadCompute,LoadCompute); detach(oLoadStream,LoadStream);
         }
-        DetourTransactionCommit();
+        if (installed) DetourTransactionCommit();
         oIndirect = nullptr; oCopyResource = nullptr; oCopyTexture = nullptr;
         oGraphicsCbv = oGraphicsSrv = oGraphicsUav = nullptr; oSignature = nullptr; oCreateLibrary = nullptr;
         oBeginRender = nullptr; oEndRender = nullptr; oRayPipeline = nullptr; oRays = nullptr;
         { std::scoped_lock library(gLibraryHookMutex); oLoadGraphics = nullptr; oLoadCompute = nullptr; oLoadStream = nullptr; }
         { std::scoped_lock mirror(gMirrorMutex); gMirror.clear(); }
-        std::scoped_lock lock(gLifetimeMutex); gViews.clear(); gResources.clear(); gAddresses.clear(); gHeaps.clear();
+        std::scoped_lock lock(gLifetimeMutex); gViews.clear(); gResources.clear(); gAddresses.clear(); gHeaps.clear(); gRootLayouts.clear(); gWindowCopies.clear();
         gCreationDevice.Reset(); gStatus.installed = false;
     } catch (...) {}
 }
