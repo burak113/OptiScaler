@@ -58,6 +58,8 @@ void observerLockProbe() {
 }
 void pipelineObserved(ID3D12PipelineState* pso,const char* hash) { observerLockProbe(); NrdBridge::OnPipelineCreated(pso,hash); }
 void releaseObserved(void* object) { observerLockProbe(); NrdBridge::OnReleased(object); }
+std::atomic<bool> conversionStaged {false};
+void conversionLockProbe() { conversionStaged.store(true,std::memory_order_release); }
 using Bound=FrameSurvey::BoundResource;
 using Role=NrdBridge::Role;
 struct ChainHost {
@@ -191,6 +193,15 @@ J cpuTimings(ChainHost& c) {
 }
 J discoveryTests(Host& h) {
  ChainHost c(h); need(FrameSurvey::BindingWindow(),"initial binding window opens before title recording");
+ // Loading can take thousands of Presents before the title dispatches any NRD shader.
+ for(UINT i=0;i<400;++i) NrdBridge::OnPresent();
+ need(!FrameSurvey::BindingWindow() && NrdBridge::GetStatus().phase=="Waiting for NRD" && NrdBridge::gService->attempts==0 && NrdBridge::gService->failures==0,
+  "empty startup/loading windows do not consume discovery or provider failure budgets");
+ // Record root/heaps while the window is closed; waking in the middle of a list must wait for its next full Reset.
+ c.begin(); c.pass(Role::PrepLast); need(FrameSurvey::BindingWindow(),"PrepLast activity wakes a bounded window after loading");
+ c.pass(Role::Recon);
+ need(FrameSurvey::BindingWindow() && !NrdBridge::gService->cache.Valid() && NrdBridge::gService->failures==0,
+  "missing initial root/heap mirror keeps fail-closed discovery open for the next Reset");
  const ULONG refs=c.textures[7]->AddRef(); c.textures[7]->Release();
  c.frame(3,5); auto status=NrdBridge::GetStatus();
  need(status.width==64 && status.height==32 && !status.resources.empty(),"first full chain caches render extent/resources");
@@ -231,6 +242,17 @@ J discoveryTests(Host& h) {
  // Re-register still-owned fixture resource solely to test rediscovery (the title would create a replacement).
  FrameSurvey::ResourceCreated(c.textures[8].Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS); c.views(48,{8,7,9,10,9},true); c.views(32,{7,8,9,10,9},true);
  StreamlineHooks::frame=39; c.frame(3); need(NrdBridge::gService->cache.Valid(),"release invalidation permits a clean bounded rediscovery");
+ // Releasing a cached game output while conversion waits for lifecycle serialization must cancel all work.
+ c.begin(); h.list->SetPipelineState(c.pipelines[UINT(Role::Recon)].Get());
+ NrdBridge::OnSetPipeline(h.list.Get(),c.pipelines[UINT(Role::Recon)].Get()); c.bind(1,0); c.bind(5,8); h.list->Dispatch(1,1,1);
+ const auto beforeReleaseRace=convertCalls; NrdBridge::gBeforeConversionLockForTesting=conversionLockProbe;
+ std::unique_lock serial(NrdBridge::gInjectionMutex);
+ std::thread pendingConversion([&]{NrdBridge::AfterDispatch(h.list.Get());});
+ await([]{return conversionStaged.load(std::memory_order_acquire);},"conversion reaches lifecycle mutex with staged cache");
+ FrameSurvey::Released(c.textures[8].Get()); serial.unlock(); pendingConversion.join(); NrdBridge::gBeforeConversionLockForTesting=nullptr;
+ need(convertCalls==beforeReleaseRace && !NrdBridge::gService->cache.Valid(),"release during conversion mutex wait cancels stale conversion without GPU work");
+ FrameSurvey::ResourceCreated(c.textures[8].Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS); c.views(48,{8,7,9,10,9},true); c.views(32,{7,8,9,10,9},true);
+ c.frame(3); need(NrdBridge::gService->cache.Valid(),"race cancellation permits clean rediscovery");
  // Missing restoration and provider exceptions fail closed; successful rediscovery cannot hide repeated failures.
  const auto beforeFailedConversion=convertCalls; D3D12Hooks::canRestore=false;
  StreamlineHooks::frame=40; c.frame(3);
