@@ -2711,7 +2711,6 @@ RRResult FSRDFeatureDx12::EvaluateRayRegeneration(ID3D12GraphicsCommandList* InC
                 applied["FfxDenoiserAlbedoStabilisationClamp"]=cfg.FfxDenoiserAlbedoStabilisationClamp.value_or_default();
                 applied["FfxDenoiserAlbedoStabilisationRate"]=cfg.FfxDenoiserAlbedoStabilisationRate.value_or_default();
                 applied["FfxDenoiserFogGuides"]=cfg.FfxDenoiserFogGuides.value_or_default();
-                applied["FfxDenoiserWaterStainFix"]=cfg.FfxDenoiserWaterStainFix.value_or_default();
                 applied["FfxDenoiserMotionJitterDelta"]=cfg.FfxDenoiserMotionJitterDelta.value_or_default();
                 applied["FfxDenoiserRecoveryHistory"]=cfg.FfxDenoiserRecoveryHistory.value_or_default();
                 applied["FfxDenoiserRecoveryHistoryStrength"]=cfg.FfxDenoiserRecoveryHistoryStrength.value_or_default();
@@ -4554,7 +4553,6 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
     _convDesc.AlbedoStabilisationRate =
         finiteRange(cfg.FfxDenoiserAlbedoStabilisationRate.value_or_default(), 1.0f / 32.0f, 1.0f, 0.125f);
     _convDesc.FogGuides = cfg.FfxDenoiserFogGuides.value_or_default();
-    _convDesc.WaterStainFix = cfg.FfxDenoiserWaterStainFix.value_or_default();
     _convDesc.RRMotionJitterDelta = cfg.FfxDenoiserMotionJitterDelta.value_or_default();
 
     StoreHlslColumnVectorMatrix(_convDesc.InvViewMatrix, _invViewMatrix);

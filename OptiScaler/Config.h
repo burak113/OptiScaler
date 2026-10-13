@@ -544,7 +544,6 @@ class Config
     // Capture-only title guides; never bypasses RR or changes composition.
     CustomOptional<bool> FfxDenoiserParticleLayerDiagnostics {false};
     CustomOptional<bool> FfxDenoiserFogGuides {false};
-    CustomOptional<bool> FfxDenoiserWaterStainFix {false};
     CustomOptional<bool> FfxDenoiserMotionJitterDelta {true};
 
     // Recovery v2: every light goes through RR and only what RR measurably loses is corrected after

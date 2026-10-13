@@ -263,9 +263,6 @@ class FSRDPreprocessor_Dx12
         // Fog-consistent guides after stabilisation: the guide texture the image does not carry (fog, haze, water
         // over a sea floor) is flattened, and with distance the fog share moves to the specular lobe.
         bool FogGuides = false;
-        // Water stain fix after the fog guides: large up-facing, specular-dominated regions (water) leave
-        // demodulation and get RR material type 2 (FSRDWaterVote / FSRDWaterApply).
-        bool WaterStainFix = false;
         // RR ignores jitterOffsets, so its motion vectors carry the jitter difference (FSRDRRMotion.hlsl).
         bool RRMotionJitterDelta = true;
 

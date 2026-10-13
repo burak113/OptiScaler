@@ -3631,22 +3631,6 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                     if (ImGui::Button("Reset Fog-consistent guides"))
                         config->FfxDenoiserFogGuides.reset();
                 }
-                ImGui::SeparatorText("Water stain fix");
-                {
-                    bool water = config->FfxDenoiserWaterStainFix.value_or_default();
-                    if (ImGui::Checkbox("Enable water stain fix", &water))
-                        config->FfxDenoiserWaterStainFix = water;
-                    if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("Water hands RR the albedo of the sea floor under it. Dividing by it before RR and "
-                                          "multiplying it back afterwards draws the floor's outline on the water, flickering "
-                                          "at its edges. Large, up-facing, mostly specular regions skip that division and get "
-                                          "their own RR material, so RR never blends them with their surroundings. A cheap "
-                                          "alternative to the albedo bleed fix: no extra RR signal.");
-                    ImGui::TextWrapped("Look at water over a visible floor (stains following the floor's shapes) and at "
-                                       "wet streets. Small shiny ledges are left out on purpose.");
-                    if (ImGui::Button("Reset Water stain fix"))
-                        config->FfxDenoiserWaterStainFix.reset();
-                }
                 ImGui::SeparatorText("Moving objects");
                 {
                     bool depth = config->FfxDenoiserObjectDepthDelta.value_or_default();
