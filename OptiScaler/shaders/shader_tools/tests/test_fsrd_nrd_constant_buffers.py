@@ -51,7 +51,8 @@ struct ConstantHost: RegisterHost {
  }
  ID3D12RootSignature* root(bool table=false,UINT reg=6,UINT space=0,
    D3D12_SHADER_VISIBILITY visibility=D3D12_SHADER_VISIBILITY_ALL,
-   std::vector<D3D12_DESCRIPTOR_RANGE> ranges={},bool track=true,bool constants=false) {
+   std::vector<D3D12_DESCRIPTOR_RANGE> ranges={},bool track=true,bool constants=false,
+   D3D12_ROOT_SIGNATURE_FLAGS flags=D3D12_ROOT_SIGNATURE_FLAG_NONE) {
   D3D12_ROOT_PARAMETER p[6] {};
   for(UINT i=0;i<6;++i) { p[i].ParameterType=D3D12_ROOT_PARAMETER_TYPE_SRV; p[i].Descriptor={100+i,0}; }
   D3D12_DESCRIPTOR_RANGE srvs {D3D12_DESCRIPTOR_RANGE_TYPE_SRV,8,0,0,0};
@@ -67,7 +68,7 @@ struct ConstantHost: RegisterHost {
   } else {
    p[0].ParameterType=D3D12_ROOT_PARAMETER_TYPE_CBV; p[0].Descriptor={reg,space}; p[0].ShaderVisibility=visibility;
   }
-  D3D12_ROOT_SIGNATURE_DESC d {6,p,0,nullptr,D3D12_ROOT_SIGNATURE_FLAG_NONE};
+  D3D12_ROOT_SIGNATURE_DESC d {6,p,0,nullptr,flags};
   ComPtr<ID3DBlob> bytes,error; hr(D3D12SerializeRootSignature(&d,D3D_ROOT_SIGNATURE_VERSION_1,&bytes,&error));
   ComPtr<ID3D12RootSignature> result; hr(host.dev->CreateRootSignature(0,bytes->GetBufferPointer(),bytes->GetBufferSize(),IID_PPV_ARGS(&result)));
   if(track) FrameSurvey::RootCreated(result.Get(),bytes->GetBufferPointer(),bytes->GetBufferSize());
@@ -298,7 +299,8 @@ J nativeBindingTests(Host& h) {
  need(!FrameSurvey::ValidateComputeConstantBinding(changed,6,0,rootBinding),"rebound root GPUVA invalidates the previous native token");
  changed=snapshot;changed.views.push_back(changed.views[0]);
  need(!FrameSurvey::ResolveComputeConstantBinding(changed,6,0,out)&&!out.root,"duplicated native root-CBV arguments fail closed");
- auto* replacementRoot=f.root();changed=snapshot;changed.root=replacementRoot;
+ auto* replacementRoot=f.root(false,6,0,D3D12_SHADER_VISIBILITY_ALL,{},true,false,D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+ need(replacementRoot!=direct,"different native root flags prove a distinct root object before stale-token rejection");changed=snapshot;changed.root=replacementRoot;
  need(!FrameSurvey::ValidateComputeConstantBinding(changed,6,0,rootBinding),"same-shaped replacement root does not validate a token from the old root");
  FrameSurvey::SetBindingWindow(false);
  need(!resolve(),"initial native cmd-list lookup closes with the binding window");
