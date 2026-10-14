@@ -28,11 +28,24 @@ struct BoundResource
     D3D12_DESCRIPTOR_RANGE_TYPE kind = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     uint32_t descriptorOffset = UINT32_MAX, descriptorIndex = UINT32_MAX, subresource = 0;
 };
+struct BoundConstantBuffer
+{
+    ID3D12Resource* resource = nullptr; // Borrowed, valid while the caller holds the title lifetime borrow gate.
+    D3D12_GPU_VIRTUAL_ADDRESS address = 0;
+    uint64_t offset = 0, size = 0;
+};
+struct ComputeRootView
+{
+    UINT parameter = UINT_MAX;
+    D3D12_DESCRIPTOR_RANGE_TYPE kind = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+    D3D12_GPU_VIRTUAL_ADDRESS address = 0;
+};
 struct ComputeBindings
 {
     ID3D12RootSignature* root = nullptr;
     std::vector<ID3D12DescriptorHeap*> heaps;
     std::vector<std::pair<UINT,D3D12_GPU_DESCRIPTOR_HANDLE>> tables;
+    std::vector<ComputeRootView> views;
 };
 bool SeedComputeBindings(ID3D12GraphicsCommandList*, const ComputeBindings&) noexcept;
 using PipelineObserver = void (*)(ID3D12PipelineState*, const char* csSha256);
@@ -46,6 +59,9 @@ bool MetadataHealthy() noexcept;
 bool ComputeTableBindingMatches(ID3D12GraphicsCommandList*, UINT rootParameter, D3D12_DESCRIPTOR_RANGE_TYPE kind,
                                 UINT descriptorOffset, UINT shaderRegister, UINT registerSpace) noexcept;
 bool ResolveComputeTable(ID3D12GraphicsCommandList*, UINT rootParameter, std::vector<BoundResource>& out) noexcept;
+// Resolves one current root/table CBV by its exact b-register and space, without retaining or mapping it.
+bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList*, UINT shaderRegister, UINT registerSpace,
+                                  uint64_t minimumBytes, BoundConstantBuffer& out) noexcept;
 class ScopedInternal
 {
     bool previous_;
@@ -77,6 +93,7 @@ void PipelineCreated(ID3D12PipelineState*, const D3D12_GRAPHICS_PIPELINE_STATE_D
 void PipelineCreated(ID3D12PipelineState*, const D3D12_PIPELINE_STATE_STREAM_DESC&) noexcept;
 void Released(void*) noexcept;
 void HeapCreated(ID3D12Device*, ID3D12DescriptorHeap*) noexcept;
+void View(D3D12_CPU_DESCRIPTOR_HANDLE, const D3D12_CONSTANT_BUFFER_VIEW_DESC*) noexcept;
 void View(ID3D12Resource*, D3D12_CPU_DESCRIPTOR_HANDLE, const D3D12_SHADER_RESOURCE_VIEW_DESC*) noexcept;
 void View(ID3D12Resource*, D3D12_CPU_DESCRIPTOR_HANDLE, const D3D12_UNORDERED_ACCESS_VIEW_DESC*) noexcept;
 void View(ID3D12Resource*, D3D12_CPU_DESCRIPTOR_HANDLE, const D3D12_RENDER_TARGET_VIEW_DESC*) noexcept;
