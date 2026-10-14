@@ -59,7 +59,7 @@ struct SignalFlagSnapshot
         desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
         D3D12_HEAP_PROPERTIES heap {}; heap.Type = D3D12_HEAP_TYPE_DEFAULT;
         const auto code = device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
-            D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&resource));
+            D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&resource));
         if (FAILED(code)) { error = "NRD Consumer flag snapshot allocation failed (HRESULT " + std::to_string(code) + ")"; return false; }
         bytes = device->GetResourceAllocationInfo(0, 1, &desc).SizeInBytes;
         return true;
@@ -69,7 +69,7 @@ struct SignalFlagSnapshot
         D3D12_RESOURCE_BARRIER barrier {}; barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
         barrier.Transition = {resource.Get(), D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
             toConstant ? D3D12_RESOURCE_STATE_UNORDERED_ACCESS : D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-            toConstant ? D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER : D3D12_RESOURCE_STATE_UNORDERED_ACCESS};
+            toConstant ? D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER : D3D12_RESOURCE_STATE_COMMON};
         list->ResourceBarrier(1, &barrier);
     }
 };
@@ -94,6 +94,12 @@ struct SignalFlagCapture
     void Record(ID3D12GraphicsCommandList* list, const TitleSignalConstants& constants,
                 const SignalFlagSnapshot& snapshot) const noexcept
     {
+        // Balanced COMMON -> UAV -> CBV -> COMMON, including duplicate closed
+        // recordings executed together without an intervening decay boundary.
+        D3D12_RESOURCE_BARRIER start {}; start.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        start.Transition = {snapshot.resource.Get(), D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+            D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS};
+        list->ResourceBarrier(1, &start);
         list->SetPipelineState(pso.Get()); list->SetComputeRootSignature(root.Get());
         ID3D12DescriptorHeap* heaps[] = {constants.nativeHeap}; list->SetDescriptorHeaps(1, heaps);
         list->SetComputeRootDescriptorTable(0, constants.cbvHandle);
