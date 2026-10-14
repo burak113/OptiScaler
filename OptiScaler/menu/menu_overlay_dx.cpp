@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "misc/NrdBridgePerf_Dx12.h"
 #include "shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
 #include "menu_overlay_base.h"
 #include "menu_overlay_dx.h"
@@ -526,6 +527,7 @@ void MenuOverlayDx::CleanupRenderTarget(bool clearQueue, HWND hWnd)
 void MenuOverlayDx::Present(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags,
                             const DXGI_PRESENT_PARAMETERS* pPresentParameters, IUnknown* pDevice, HWND hWnd, bool isUWP)
 {
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Present,NrdBridge::StartupEnabled() && !(Flags & DXGI_PRESENT_TEST));
     if (Config::Instance()->FfxDenoiserFrameSurvey.value_or_default())
         FrameSurvey::Present(pSwapChain,Flags);
     if (NrdBridge::StartupEnabled() && !(Flags & DXGI_PRESENT_TEST)) NrdBridge::OnPresent();

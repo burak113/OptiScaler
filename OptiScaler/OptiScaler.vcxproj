@@ -1049,5 +1049,8 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdMotionCommon.hlsli" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeCopy.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeCopy_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeNativeDebug_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeNativeDebug.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeNativeDebug_Shader.cso" />
   </ItemGroup>
 </Project>
