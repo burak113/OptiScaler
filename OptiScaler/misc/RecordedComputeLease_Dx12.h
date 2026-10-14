@@ -4,6 +4,7 @@
 #include <dxgi.h>
 #include <wrl/client.h>
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -98,6 +99,12 @@ struct Submission
     SubmissionDecision decision;
     bool preparationFailed = false, failureNotified = false;
     bool signalPublished = false;
+    // Registry-mutex-only membership. Nodes stay stable while vector owners move.
+    static constexpr size_t Unregistered = size_t(-1);
+    size_t registrySlot = Unregistered;
+    Submission* pollPrevious = nullptr;
+    Submission* pollNext = nullptr;
+    bool pollQueued = false;
 };
 struct Registry
 {
@@ -106,6 +113,11 @@ struct Registry
     std::unordered_map<IUnknown*, std::shared_ptr<Recording>> recordings;
     std::unordered_map<void*, std::weak_ptr<Recording>> aliases;
     std::vector<std::shared_ptr<Submission>> submissions;
+    // Only successfully signalled submissions enter this non-owning round-robin.
+    // Unpublished/uncertain intents remain owned by submissions indefinitely.
+    Submission* pollHead = nullptr;
+    Submission* pollTail = nullptr;
+    size_t publishedCount = 0;
     uint64_t nextRecording = 1, nextSubmission = 1;
 };
 inline Registry& GetRegistry()
@@ -144,33 +156,147 @@ inline bool Available() noexcept
     std::lock_guard lock(r.mutex);
     return r.listHooks && r.queueHook && !r.completionFailed;
 }
+// The selector must first resolve/pin native and canonical identities outside
+// every registry lock. Unknown/failing identity cannot prove a safe bypass.
+inline bool HasSubmissionParticipant(IUnknown* canonical, void* alias) noexcept
+{
+    if (!canonical) return true;
+    try
+    {
+        auto& r = GetRegistry();
+        std::lock_guard lock(r.mutex);
+        if (r.completionFailed || r.recordings.contains(canonical)) return true;
+        const auto found = r.aliases.find(alias);
+        // A live weak alias is conservatively retained, including Release gaps
+        // and a partially prepared recording. No strong owner dies under lock.
+        return found != r.aliases.end() && !found->second.expired();
+    }
+    catch (...) { return true; }
+}
+inline constexpr size_t PollBudget = 64;
+namespace Detail
+{
+// Caller holds Registry::mutex; these operations touch POD and move existing
+// shared owners only. No allocation, native call or last-owner destruction.
+inline bool RegisteredLocked(const Registry& r, const Submission& s) noexcept
+{
+    return s.registrySlot < r.submissions.size() && r.submissions[s.registrySlot].get() == &s;
+}
+inline bool PublishLocked(Registry& r, Submission& s) noexcept
+{
+    if (!RegisteredLocked(r,s) || s.pollQueued || s.signalPublished) return false;
+    s.pollPrevious = r.pollTail;
+    s.pollNext = nullptr;
+    if (r.pollTail) r.pollTail->pollNext = &s;
+    else r.pollHead = &s;
+    r.pollTail = &s;
+    s.pollQueued = s.signalPublished = true;
+    ++r.publishedCount;
+    return true;
+}
+inline void RotateHeadLocked(Registry& r) noexcept
+{
+    auto* first = r.pollHead;
+    if (first == r.pollTail) return;
+    r.pollHead = first->pollNext;
+    r.pollHead->pollPrevious = nullptr;
+    first->pollPrevious = r.pollTail;
+    first->pollNext = nullptr;
+    r.pollTail->pollNext = first;
+    r.pollTail = first;
+}
+inline bool RetireLocked(Registry& r, const std::shared_ptr<Submission>& s,
+                         std::shared_ptr<Submission>& detached) noexcept
+{
+    // A concurrent Poll may already have retired this same strong snapshot.
+    if (!RegisteredLocked(r,*s)) return false;
+    if (!s->pollQueued || !s->signalPublished || detached)
+    { r.completionFailed = true; return false; }
+    if (s->pollPrevious) s->pollPrevious->pollNext = s->pollNext;
+    else r.pollHead = s->pollNext;
+    if (s->pollNext) s->pollNext->pollPrevious = s->pollPrevious;
+    else r.pollTail = s->pollPrevious;
+    s->pollPrevious = s->pollNext = nullptr;
+    s->pollQueued = false;
+    --r.publishedCount;
+    const auto slot = s->registrySlot;
+    s->registrySlot = Submission::Unregistered;
+    // Empty the removed slot before overwriting it; pop only a null owner.
+    detached = std::move(r.submissions[slot]);
+    if (slot != r.submissions.size()-1)
+    {
+        r.submissions[slot] = std::move(r.submissions.back());
+        r.submissions[slot]->registrySlot = slot;
+    }
+    r.submissions.pop_back();
+    return true;
+}
+}
 inline void Poll() noexcept
 {
     try
     {
         auto& r = GetRegistry();
-        std::vector<std::shared_ptr<Submission>> candidates, garbage;
+        std::array<std::shared_ptr<Submission>,PollBudget> candidates {}, detached {};
+        std::array<bool,PollBudget> completed {};
+        size_t count = 0;
         {
             std::lock_guard lock(r.mutex);
-            for (const auto& s : r.submissions)
-                if (s->signalPublished) candidates.push_back(s);
-        }
-        for (const auto& s : candidates)
-        {
-            // UINT64_MAX means removed device: it can no longer consume this submission.
-            if (s->fence->GetCompletedValue() < 1) continue;
-            std::lock_guard lock(r.mutex);
-            auto it = std::find(r.submissions.begin(), r.submissions.end(), s);
-            if (it != r.submissions.end())
+            const auto budget = std::min(PollBudget,r.publishedCount);
+            while (count < budget)
             {
-                garbage.push_back(std::move(*it));
-                r.submissions.erase(it);
+                auto* first = r.pollHead;
+                if (!first || !Detail::RegisteredLocked(r,*first) || !first->pollQueued || !first->signalPublished)
+                { r.completionFailed = true; break; }
+                candidates[count++] = r.submissions[first->registrySlot];
+                Detail::RotateHeadLocked(r);
             }
         }
-        // garbage/candidates (and their COM objects) die after every lock is released.
+        bool anyCompleted = false;
+        for (size_t i=0;i<count;++i)
+        {
+            // Signal publication pins a complete fence before entering the queue.
+            if (!candidates[i]->fence) { FailCompletion(); continue; }
+            // UINT64_MAX means removed device: it can no longer consume this submission.
+            completed[i] = candidates[i]->fence->GetCompletedValue() >= 1;
+            anyCompleted |= completed[i];
+        }
+        if (anyCompleted)
+        {
+            std::lock_guard lock(r.mutex);
+            for (size_t i=0;i<count;++i)
+                if (completed[i]) Detail::RetireLocked(r,candidates[i],detached[i]);
+        }
+        // Every candidate/detached owner dies after the mutex is released. FIFO
+        // rotation and tail insertion give finite-backlog progress despite swaps.
     }
     catch (...) { FailCompletion(); }
 }
+#if defined(FSRD_RECORDED_COMPUTE_LEASE_TEST)
+// Fixture-only teardown. Call after all native work/publishers have drained.
+// Swapping the public ownership vector alone would strand non-owning queue links.
+inline void ResetRegistryForTesting(bool listHooks = true, bool queueHook = true)
+{
+    auto& r = GetRegistry();
+    decltype(r.recordings) recordings;
+    decltype(r.aliases) aliases;
+    decltype(r.submissions) submissions;
+    {
+        std::lock_guard lock(r.mutex);
+        for (const auto& s : r.submissions)
+        {
+            s->registrySlot = Submission::Unregistered;
+            s->pollPrevious = s->pollNext = nullptr;
+            s->pollQueued = false;
+        }
+        r.pollHead = r.pollTail = nullptr;
+        r.publishedCount = 0;
+        recordings.swap(r.recordings); aliases.swap(r.aliases); submissions.swap(r.submissions);
+        r.completionFailed = false; r.listHooks = listHooks; r.queueHook = queueHook;
+    }
+    // Old recordings, callbacks, leases, native fences and queues die outside.
+}
+#endif
 inline bool Track(IUnknown* identity, const std::vector<void*>& aliases,
                   const std::shared_ptr<void>& lease,
                   std::function<void(ID3D12CommandQueue*)> prepareSubmission = {},
@@ -378,6 +504,7 @@ inline std::shared_ptr<Submission> BeforeSubmission(ID3D12CommandQueue* queue, c
         {
             std::lock_guard lock(r.mutex);
             try { r.submissions.push_back(s); } catch (...) { r.completionFailed = true; throw; }
+            s->registrySlot = r.submissions.size()-1;
             // Commit counters only after every snapshot allocation succeeded.
             for (const auto& occurrence : s->occurrences)
             {
@@ -436,7 +563,13 @@ inline void AfterSubmission(const std::shared_ptr<Submission>& s) noexcept
             return;
         }
         auto& r = GetRegistry();
-        { std::lock_guard lock(r.mutex); s->signalPublished = true; }
+        bool published = false;
+        {
+            std::lock_guard lock(r.mutex);
+            published = Detail::PublishLocked(r,*s);
+            if (!published) r.completionFailed = true;
+        }
+        if (!published) { NotifyFailure(s,SubmissionFailure::Publish); return; }
         if (s->point) s->point->published_ = true;
         failure = SubmissionFailure::Publish;
         if (!s->preparationFailed)

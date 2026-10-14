@@ -155,6 +155,7 @@ struct ObservedQueue : ID3D12CommandQueue {
 
 PREAMBLE = r'''
 #define NOMINMAX
+#define FSRD_RECORDED_COMPUTE_LEASE_TEST
 #include <d3d12.h>
 #include <d3d12sdklayers.h>
 #include <dxgi1_6.h>
@@ -186,9 +187,7 @@ void need(bool ok,const char* text) { ++checks; if(!ok) { std::fprintf(stderr,"F
 void hr(HRESULT result) { need(SUCCEEDED(result),"HRESULT succeeded"); }
 bool registryFree() { auto& r=RecordedComputeLease::GetRegistry(); if(!r.mutex.try_lock()) return false; r.mutex.unlock(); return true; }
 void resetRegistry() {
- auto& r=RecordedComputeLease::GetRegistry();
- decltype(r.recordings) recordings; decltype(r.aliases) aliases; decltype(r.submissions) submissions;
- { std::lock_guard lock(r.mutex); recordings.swap(r.recordings); aliases.swap(r.aliases); submissions.swap(r.submissions); r.completionFailed=false; r.listHooks=r.queueHook=true; }
+ RecordedComputeLease::ResetRegistryForTesting();
  eventCount=0; // Fixture only: every real GPU operation has been explicitly drained before this is called.
 }
 struct State { bool isShuttingDown=false; static State& Instance() { static State state; return state; } };
@@ -350,7 +349,7 @@ J cpuTests() {
  startRetryProducer();retryPoint->fence->Signal(1);retryConsumer.beforeSubmit=[&](const auto& event){return SUCCEEDED(RecordedComputeLease::WaitForFence(event.queue,retryPoint));};need(RecordedComputeLease::Track(b.Get(),{b.Get()},lease,{},retryConsumer),"already completed predecessor consumer recorded");qb->failWait=true;const auto completedWaits=qb->waitAttempts,completedExecute=qb->executions;auto completeDecision=execute(qb.Get(),b.Get());need(completeDecision.allowed && qb->waitAttempts==completedWaits+1 && qb->executions==completedExecute+1 && RecordedComputeLease::Available(),"actual predecessor completion permits safe execution despite failed redundant Wait");
  // Under OOM a null intent still reports an allocation-free denial to the real resolver caller.
  startRetryProducer();need(RecordedComputeLease::Track(b.Get(),{b.Get()},lease,{},retryConsumer),"OOM ordering consumer recorded");qb->failWait=true;const auto oomDeniedExecute=qb->executions,oomDeniedAttempts=deniedAllocations.load();denyAllocations=true;auto oomDecision=execute(qb.Get(),b.Get());denyAllocations=false;
- need(!oomDecision.allowed && oomDecision.orderingFailure==E_OUTOFMEMORY && qb->executions==oomDeniedExecute && orderingFailures==1 && deniedAllocations.load()==oomDeniedAttempts+2,"null OOM intent retains denial/HRESULT and never calls original Execute after required Wait fails");retryPoint->fence->Signal(1);
+ need(!oomDecision.allowed && oomDecision.orderingFailure==E_OUTOFMEMORY && qb->executions==oomDeniedExecute && orderingFailures==1 && deniedAllocations.load()==oomDeniedAttempts+1,"null OOM intent retains denial/HRESULT and never calls original Execute after required Wait fails");retryPoint->fence->Signal(1);
  // The domain may deny an unrepairable predecessor without pretending a queue Wait occurred.
  startRetryProducer();retryConsumer.beforeSubmit=[&](const auto&){RecordedComputeLease::DenySubmission(E_ABORT);RecordedComputeLease::SubmissionDecision nested;RecordedComputeLease::BeforeSubmission(qb.Get(),std::vector<IUnknown*>{},&nested);need(nested.allowed,"nested independent submission has a separate decision");RecordedComputeLease::DenySubmission(E_INVALIDARG);return true;};need(RecordedComputeLease::Track(b.Get(),{b.Get()},lease,{},retryConsumer),"explicit domain denial consumer recorded");const auto explicitExecute=qb->executions;auto explicitDecision=execute(qb.Get(),b.Get());need(!explicitDecision.allowed && explicitDecision.orderingFailure==E_ABORT && qb->executions==explicitExecute,"explicit denial preserves first failure and survives nested decision scopes");retryPoint->fence->Signal(1);qa->completeSignal=true;qb->failWait=false;
  // Exercise actual selected-device eligibility rebind and actual Retain implementation.
@@ -406,9 +405,9 @@ J gpuTests() {
  lease=std::make_shared<std::array<ComPtr<ID3D12Resource>,3>>();(*lease)[0]=owned;(*lease)[1]=upload;(*lease)[2]=read;
  need(RecordedComputeLease::Track(lists[0].Get(),{lists[0].Get()},lease,{},first) && RecordedComputeLease::Track(lists[1].Get(),{lists[1].Get()},lease,{},second),"real OOM recordings retained before snapshot failure");execute(qa.Get(),lists[0].Get());
  const auto realOomEvents=eventCount;const auto executeBeforeOom=qb->executions;const auto deniesBeforeGpu=deniedAllocations.load();denyAllocations=true;execute(qb.Get(),lists[1].Get());denyAllocations=false;hr(qb->Signal(oomDone.Get(),1));Sleep(25);
- // One allocation is Poll's candidate snapshot and one is the new Submission;
- // both precede OrderingFallback, which must not attempt another allocation.
- need(oomFallback && oomFailures==1 && allocationsAtFallback==deniesBeforeGpu+2 && deniedAllocations.load()==allocationsAtFallback,"real OOM denies the poll and submission snapshots, then fallback performs no allocation");
+ // Poll is allocation-free; only the new Submission allocation is rejected.
+ // OrderingFallback must not attempt another allocation.
+ need(oomFallback && oomFailures==1 && allocationsAtFallback==deniesBeforeGpu+1 && deniedAllocations.load()==allocationsAtFallback,"real OOM denies only submission allocation, then fallback performs no allocation");
  need(std::string(events[realOomEvents])=="RealWait" && std::string(events[realOomEvents+1])=="RealExecute" && qb->executions==executeBeforeOom+1,"actual native Wait still precedes exactly one native Execute under OOM");
  need(oomDone->GetCompletedValue()==0 && predecessor->fence->GetCompletedValue()==0 && !RecordedComputeLease::Available(),"real consumer remains blocked under OOM and future bridge work is denied");
  detach(lists[0].Get());detach(lists[1].Get());need(RecordedComputeLease::Capture(lists[0].Get()) && RecordedComputeLease::Capture(lists[1].Get()),"OOM completion uncertainty pins both recordings through Reset");
@@ -428,7 +427,7 @@ J gpuTests() {
   qb->failWait=mode!=0;qb->failNextWaits=mode==0?2:0;const auto attempts=qb->waitAttempts;const auto nativeWaits=qb->waits;const auto originalExecutes=qb->executions;const auto rejectedAllocations=deniedAllocations.load();denyAllocations=mode==2;auto decision=execute(qb.Get(),lists[1].Get());denyAllocations=false;qb->failWait=false;
   need(qb->waitAttempts==attempts+3,"real forwarding observer records exactly three bounded Wait attempts");
   if(mode==0){need(decision.allowed && qb->waits==nativeWaits+1 && qb->executions==originalExecutes+1 && result && RecordedComputeLease::Available(),"two injected transient failures recover through one real native Wait and one original Execute");++transientNativeRecoveries;lastReadValue=value;}
-  else{need(!decision.allowed && decision.orderingFailure==E_OUTOFMEMORY && qb->waits==nativeWaits && qb->executions==originalExecutes && !result && !RecordedComputeLease::Available(),"persistent failed ordering denies original native Execute and completion publication");++deniedSubmissions;if(mode==2)need(deniedAllocations.load()==rejectedAllocations+2,"real denied OOM path keeps permission without allocating after two rejected snapshots");}
+  else{need(!decision.allowed && decision.orderingFailure==E_OUTOFMEMORY && qb->waits==nativeWaits && qb->executions==originalExecutes && !result && !RecordedComputeLease::Available(),"persistent failed ordering denies original native Execute and completion publication");++deniedSubmissions;if(mode==2)need(deniedAllocations.load()==rejectedAllocations+1,"real denied OOM path keeps permission without allocating after one rejected submission");}
   hr(qb->Signal(retryDone.Get(),1));
   if(mode){const auto beforeGateDeadline=GetTickCount64()+30000;while(retryDone->GetCompletedValue()<1 && GetTickCount64()<beforeGateDeadline)Sleep(1);need(retryDone->GetCompletedValue()==1,"denied submission returns so independent later title queue work progresses");}
   need(predecessor->fence->GetCompletedValue()==0,"same submitting CPU thread returns while producer gate remains closed");
