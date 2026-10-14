@@ -64,7 +64,7 @@ struct TestSharedMutex{
  void lock_shared(){mutex.lock_shared();++commonLocks;}void unlock_shared(){--commonLocks;mutex.unlock_shared();}
  bool try_lock_shared(){if(!mutex.try_lock_shared())return false;++commonLocks;return true;}
 };
-std::atomic<unsigned> nativeUnderMetadata=0,nativeDesc=0,nativePrivate=0,nativeQI=0,nativeRefs=0;
+std::atomic<unsigned> nativeUnderMetadata=0,nativeDesc=0,nativePrivate=0,nativeQI=0,nativeCanonicalQI=0,nativeRefs=0;
 void native(){if(commonLocks||NrdBridgeBirth::InMetadataScope())++nativeUnderMetadata;}
 namespace FrameSurvey {
  thread_local bool internal=false;thread_local unsigned recordingDepth=0;
@@ -173,19 +173,22 @@ void RecordRRComputeOutput(ID3D12GraphicsCommandList*,ID3D12Resource*){if(failPr
 void(STDMETHODCALLTYPE* o_SetPipelineState)(ID3D12GraphicsCommandList*,ID3D12PipelineState*)=nullptr;
 __BODIES__
 struct Backing{
- std::atomic<ULONG> refs{1};std::mutex mutex;bool stamped=false;NrdBridgeNativeBirth::NativeStamp stamp{};
+ std::atomic<ULONG> refs{1};std::mutex mutex;void* canonical=nullptr;bool stamped=false;NrdBridgeNativeBirth::NativeStamp stamp{};
 };
 struct CpuObject{
  PVOID* table;std::array<PVOID,64> slots{};std::shared_ptr<Backing> physical=std::make_shared<Backing>();
  D3D12_RESOURCE_DESC desc{};CpuObject* queried=nullptr;std::function<void()> afterIncrement,beforeAddRef;
- unsigned queries=0,descReads=0,privateReads=0,added=0,released=0,heapReads=0;
+ unsigned queries=0,canonicalQueries=0,canonicalReleased=0,descReads=0,privateReads=0,added=0,released=0,heapReads=0;
  bool nullQI=false;HRESULT qiResult=S_OK;UINT increment=32;
  template<class T>T* as(){return reinterpret_cast<T*>(this);}
  static CpuObject& self(void* p){return *static_cast<CpuObject*>(p);}
- static HRESULT STDMETHODCALLTYPE QI(IUnknown* p,REFIID,void** out){native();++nativeQI;auto& o=self(p);++o.queries;if(out)*out=nullptr;if(FAILED(o.qiResult)||!out)return o.qiResult;
-  if(!o.nullQI){auto* t=o.queried?o.queried:&o;*out=t;Add(t->as<IUnknown>());}return o.qiResult;}
+ // Preserve typed-interface queries separately from mandatory canonical IUnknown queries.
+ static HRESULT STDMETHODCALLTYPE QI(IUnknown* p,REFIID iid,void** out){native();auto& o=self(p);const bool canonical=iid==IID_IUnknown;
+  if(canonical){++nativeCanonicalQI;++o.canonicalQueries;}else{++nativeQI;++o.queries;}if(out)*out=nullptr;if(FAILED(o.qiResult)||!out)return o.qiResult;
+  if(!o.nullQI){auto* t=canonical?static_cast<CpuObject*>(o.physical->canonical?o.physical->canonical:&o):o.queried?o.queried:&o;*out=t;Add(t->as<IUnknown>());}return o.qiResult;}
  static ULONG STDMETHODCALLTYPE Add(IUnknown* p){native();++nativeRefs;auto& o=self(p);++o.added;if(o.beforeAddRef)o.beforeAddRef();return ++o.physical->refs;}
- static ULONG STDMETHODCALLTYPE Release(IUnknown* p){native();++nativeRefs;auto& o=self(p);++o.released;return --o.physical->refs;}
+ static ULONG STDMETHODCALLTYPE Release(IUnknown* p){native();++nativeRefs;auto& o=self(p);
+  if(NrdBridgeNativeBirth::Detail::temporaryRelease==p)++o.canonicalReleased;else ++o.released;return --o.physical->refs;}
  static ULONG STDMETHODCALLTYPE DistinctRelease(IUnknown* p){return Release(p)+volatileTag;}
  static inline volatile unsigned volatileTag=0;
  static HRESULT STDMETHODCALLTYPE Get(IUnknown* p,REFGUID guid,UINT* bytes,void* output){native();++nativePrivate;auto& o=self(p);++o.privateReads;
@@ -199,6 +202,7 @@ struct CpuObject{
  static D3D12_GPU_DESCRIPTOR_HANDLE* STDMETHODCALLTYPE Gpu(ID3D12DescriptorHeap* p,D3D12_GPU_DESCRIPTOR_HANDLE* output){native();++self(p).heapReads;*output={100000};return output;}
  static UINT STDMETHODCALLTYPE Increment(ID3D12Device* p,D3D12_DESCRIPTOR_HEAP_TYPE){native();auto& o=self(p);if(o.afterIncrement)o.afterIncrement();return o.increment;}
  CpuObject():table(slots.data()){
+  physical->canonical=this;
   slots[0]=reinterpret_cast<PVOID>(QI);slots[1]=reinterpret_cast<PVOID>(Add);slots[2]=reinterpret_cast<PVOID>(Release);slots[3]=reinterpret_cast<PVOID>(Get);slots[4]=reinterpret_cast<PVOID>(Set);
   slots[9]=reinterpret_cast<PVOID>(closeNative);slots[10]=reinterpret_cast<PVOID>(resetNative);slots[26]=reinterpret_cast<PVOID>(barrierNative);
   desc.Dimension=D3D12_RESOURCE_DIMENSION_TEXTURE2D;desc.Width=640;desc.Height=360;desc.DepthOrArraySize=1;desc.MipLevels=1;desc.SampleDesc.Count=1;desc.Format=DXGI_FORMAT_R16_FLOAT;
@@ -214,7 +218,7 @@ void* payload() noexcept{native();return new(std::nothrow) unsigned(0);}bool det
  try{ForgetRRRecording(token->Address(),token);{std::scoped_lock lock(gRRTrackedResourceMutex);EraseRRTrackedResourceLocked(static_cast<ID3D12Resource*>(token->Address()));}CleanupRRPsoReferences(token->Address());return true;}catch(...){return false;}
 }void notify(void* p) noexcept{native();delete static_cast<unsigned*>(p);}
 void setup(bool born,CpuObject& device){
- gNrdBridgeWrappers=born;if(born)need(NrdBridgeNativeBirth::ConfigureRetirement(payload,detach,notify),"native identity dispatcher setup");
+ gNrdBridgeWrappers=born;if(born){need(NrdBridgeNativeBirth::ConfigureRetirement(payload,detach,notify),"native identity dispatcher setup");need(NrdBridgeLifetime::EnableConcurrentReleases(),"born inspector uses production concurrent physical release mode");}
  o_Release=reinterpret_cast<PFN_Release>(CpuObject::Release);gResourceReleaseEntry=reinterpret_cast<PVOID>(CpuObject::Release);
  o_Reset=CpuObject::resetNative;o_Close=CpuObject::closeNative;o_ResourceBarrier=CpuObject::barrierNative;o_SetPipelineState=CpuObject::setterNative;
  gComputeResetEntry=reinterpret_cast<PVOID>(o_Reset);gRRRecordingCloseEntry=reinterpret_cast<PVOID>(o_Close);gRRRecordingBarrierEntry=reinterpret_cast<PVOID>(o_ResourceBarrier);gComputeListHooksAvailable=true;
@@ -232,6 +236,7 @@ void creators(CpuObject& device,bool born){
  for(unsigned kind=0;kind<3;++kind){originalOutput=&alias;const auto before=pso.physical->refs.load();HRESULT result=kind==0?ResTrack_Dx12::hkCreateGraphicsPipelineState(device.as<ID3D12Device>(),&g,IID_IUnknown,&out):kind==1?ResTrack_Dx12::hkCreateComputePipelineState(device.as<ID3D12Device>(),&c,IID_IUnknown,&out):ResTrack_Dx12::hkCreatePipelineState(device.as<ID3D12Device2>(),&s,IID_IUnknown,&out);
   need(result==S_OK&&out==&alias&&pso.physical->refs==before&&gRRPsoMetadata.contains(pso.as<ID3D12PipelineState>()),"all PSO creator kinds normalize valid IUnknown tearoff and balance typed temporary");}
  need(alias.queries==3&&pso.released==3,"exact typed-QI temporaries each released once outside guards");
+ need(born ? pso.canonicalQueries>0&&pso.canonicalReleased==pso.canonicalQueries : pso.canonicalQueries==0&&pso.canonicalReleased==0,"canonical QI temporaries are separate, balanced, and absent from the legacy exact-IID path");
  if(born){const auto a=NrdBridgeBirth::Capture(&alias),b=NrdBridgeBirth::Capture(&pso);need(a&&b&&a->InstanceStamp()==b->InstanceStamp(),"successful typed QI proves alias physical native stamp");}
  originalOutput=nullptr;need(ResTrack_Dx12::hkCreateGraphicsPipelineState(device.as<ID3D12Device>(),&g,IID_IUnknown,&out)==S_OK&&!out,"null success preserves HRESULT without querying output");
  originalOutput=&alias;originalResult=E_FAIL;const auto queries=alias.queries;need(ResTrack_Dx12::hkCreateComputePipelineState(device.as<ID3D12Device>(),&c,IID_IUnknown,&out)==E_FAIL&&alias.queries==queries,"failed native creator does no typed normalization");originalResult=S_OK;
@@ -275,7 +280,7 @@ void metadataScale(CpuObject& device,bool born){
  barrier(a,r);const auto version=gRRTrackedResources.at(r.as<ID3D12Resource>()).version;{std::scoped_lock lock(gRRTrackedResourceMutex);EraseRRTrackedResourceLocked(r.as<ID3D12Resource>());}TrackRRResourceView(r.as<ID3D12Resource>(),DXGI_FORMAT_R16_FLOAT,SRV);need(gRRTrackedResources.at(r.as<ID3D12Resource>()).version!=version&&!acquire(a),"stale UI registry version cannot lend a weak AddRef");ResTrack_Dx12::RefreshRRResourceCandidates(640,360);candidates=ResTrack_Dx12::GetRRResourceCandidates();for(unsigned i=0;i<candidates.size();++i)if(candidates[i].resourceAddress==&r)index=i;ResTrack_Dx12::SetRRResourceCandidateIndex(index);barrier(a,r);
  CpuObject unknown;unknown.slots[10]=nullptr;need(!acquire(unknown)&&std::string(ResTrack_Dx12::GetRRResourceInspectorReason()).find("GPU state unavailable")!=std::string::npos,"unknown Reset/Release implementation is a GPU-proof denial");
  if(born){CpuObject same;same.physical=a.physical;need(acquire(same),"explicit identical native private GUID proves physical list alias");need(SUCCEEDED(ResTrack_Dx12::hkReset(same.as<ID3D12GraphicsCommandList>(),nullptr,nullptr))&&!acquire(a),"Reset on proved alias invalidates same physical recording");barrier(a,r);
-  const auto old=NrdBridgeBirth::Capture(&a);{NrdBridgeBirth::ScopedRelease inFlight(old);a.physical=std::make_shared<Backing>();need(!acquire(a),"recycled address with different native GUID cannot inherit old recording");}barrier(a,r);need(acquire(a),"new physical recording can obtain independent proof");ForgetRRRecording(&a,NrdBridgeBirth::Capture(&a));need(!acquire(a),"native final retirement removes exact physical recording directly");
+  const auto old=NrdBridgeBirth::Capture(&a);{NrdBridgeBirth::ScopedRelease inFlight(old);a.physical=std::make_shared<Backing>();a.physical->canonical=&a;need(!acquire(a),"recycled address with different native GUID cannot inherit old recording");}barrier(a,r);need(acquire(a),"new physical recording can obtain independent proof");ForgetRRRecording(&a,NrdBridgeBirth::Capture(&a));need(!acquire(a),"native final retirement removes exact physical recording directly");
  }else{ForgetRRRecording(&a);need(!acquire(a),"legacy final list retirement removes exact recording address directly");}
  barrier(a,r);Gate add;std::atomic<bool> releaseEntered=false;ID3D12Resource* borrowed=nullptr;r.beforeAddRef=[&]{add.wait();};
  std::thread reader([&]{borrowed=ResTrack_Dx12::AcquireRRResourceCandidate(a.as<ID3D12GraphicsCommandList>());});need(add.reached(),"weak native AddRef reached after admission guards");
@@ -299,7 +304,7 @@ void slowLegacyInstall(){
 int main(int argc,char**argv)try{
  SetPriorityClass(GetCurrentProcess(),BELOW_NORMAL_PRIORITY_CLASS);const bool born=argc>1&&std::string(argv[1])=="born";
  CpuObject device;setup(born,device);creators(device,born);metadataScale(device,born);if(!born)slowLegacyInstall();need(nativeUnderMetadata==0,"all native methods/AddRef/Release/installer/owner notification execute outside Birth and common metadata locks");
- std::cout<<"{\"case\":\""<<(born?"born":"legacy")<<"\",\"checks\":"<<checks<<",\"liveResources\":100000,\"nativeUnderMetadata\":"<<nativeUnderMetadata<<",\"originalCreates\":"<<originalCreates<<",\"originalBarriers\":"<<originalBarriers<<",\"originalResets\":"<<originalResets<<",\"originalCloses\":"<<originalCloses<<"}\n";return 0;
+ std::cout<<"{\"case\":\""<<(born?"born":"legacy")<<"\",\"checks\":"<<checks<<",\"liveResources\":100000,\"nativeUnderMetadata\":"<<nativeUnderMetadata<<",\"originalCreates\":"<<originalCreates<<",\"originalBarriers\":"<<originalBarriers<<",\"originalResets\":"<<originalResets<<",\"originalCloses\":"<<originalCloses<<",\"typedQI\":"<<nativeQI<<",\"canonicalQI\":"<<nativeCanonicalQI<<"}\n";return 0;
 }catch(const std::exception&e){std::cerr<<e.what()<<"\n";return 1;}
 '''
 
