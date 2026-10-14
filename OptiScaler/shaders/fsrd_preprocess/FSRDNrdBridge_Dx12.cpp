@@ -75,7 +75,8 @@ struct Service
     uint32_t windowPresents = 0, retryPresents = 0, attempts = 0, failures = 0, lastSLFrame = UINT32_MAX;
     bool window = false, windowSawRecon = false, everRecon = false, observedRecon = false, conventionsLogged = false, discardRequested = false;
 };
-std::mutex gMutex, gInjectionMutex, gWindowMutex;
+NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Coordinator> gMutex;
+std::mutex gInjectionMutex, gWindowMutex;
 std::shared_ptr<Service> gService;
 std::atomic<bool> gInstalled {false}, gRuntime {false};
 std::atomic<int> gStartupSelection {-1};
@@ -469,11 +470,16 @@ bool Initialize(ID3D12Device* device) noexcept
             try
             {
                 using H = NrdBridgePerf::Hook;
-                LOG_INFO("[NRD_BRIDGE] perf frames={} SL_frame={}..{} window=100_render_intervals scope=external_views_and_protected_releases_including_native CBV_avg_us={:.3f} CBV_calls={} SRV_avg_us={:.3f} SRV_calls={} UAV_avg_us={:.3f} UAV_calls={} Release_avg_us={:.3f} Release_calls={}",
-                    perf.frames,perf.firstFrame,perf.lastFrame,perf.AverageUs(H::ConstantBufferView),perf.hooks[size_t(H::ConstantBufferView)].calls,
-                    perf.AverageUs(H::ShaderResourceView),perf.hooks[size_t(H::ShaderResourceView)].calls,
-                    perf.AverageUs(H::UnorderedAccessView),perf.hooks[size_t(H::UnorderedAccessView)].calls,
-                    perf.AverageUs(H::Release),perf.hooks[size_t(H::Release)].calls);
+                LOG_INFO("[NRD_BRIDGE] perf frames={} SL_frame={}..{} window=100_gameplay_Consumer_intervals scope=external_views_and_protected_releases_including_native wait_scope=metadata+physical_borrow+tracking+coordinator CBV_avg_us={:.3f} CBV_wait_us={:.3f} CBV_metadata_wait_us={:.3f} CBV_calls={} SRV_avg_us={:.3f} SRV_wait_us={:.3f} SRV_metadata_wait_us={:.3f} SRV_calls={} UAV_avg_us={:.3f} UAV_wait_us={:.3f} UAV_metadata_wait_us={:.3f} UAV_calls={} Release_avg_us={:.3f} Release_wait_us={:.3f} Release_metadata_wait_us={:.3f} Release_borrow_wait_us={:.3f} Release_tracking_wait_us={:.3f} Release_coordinator_wait_us={:.3f} Release_calls={}",
+                    perf.frames,perf.firstFrame,perf.lastFrame,perf.AverageUs(H::ConstantBufferView),perf.AverageWaitUs(H::ConstantBufferView),
+                    perf.AverageWaitUs(H::ConstantBufferView,NrdBridgePerf::WaitKind::Metadata),perf.hooks[size_t(H::ConstantBufferView)].calls,
+                    perf.AverageUs(H::ShaderResourceView),perf.AverageWaitUs(H::ShaderResourceView),
+                    perf.AverageWaitUs(H::ShaderResourceView,NrdBridgePerf::WaitKind::Metadata),perf.hooks[size_t(H::ShaderResourceView)].calls,
+                    perf.AverageUs(H::UnorderedAccessView),perf.AverageWaitUs(H::UnorderedAccessView),
+                    perf.AverageWaitUs(H::UnorderedAccessView,NrdBridgePerf::WaitKind::Metadata),perf.hooks[size_t(H::UnorderedAccessView)].calls,
+                    perf.AverageUs(H::Release),perf.AverageWaitUs(H::Release),perf.AverageWaitUs(H::Release,NrdBridgePerf::WaitKind::Metadata),
+                    perf.AverageWaitUs(H::Release,NrdBridgePerf::WaitKind::LifetimeGate),perf.AverageWaitUs(H::Release,NrdBridgePerf::WaitKind::Tracking),
+                    perf.AverageWaitUs(H::Release,NrdBridgePerf::WaitKind::Coordinator),perf.hooks[size_t(H::Release)].calls);
             } catch (...) {}
         });
         LOG_INFO("[NRD_BRIDGE] startup enabled for Cyberpunk; runtime={}; discovery windows bounded to 8 Presents / 3 attempts; empty loading windows do not consume attempts",
@@ -603,7 +609,6 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                     frame = found->second.frame;
                 }
             }
-            if (role == Role::Recon) NrdBridgePerf::RenderedFrame(StreamlineHooks::getSLConstantsSnapshot().frameIndex);
             if (cooldown) return;
             if (!window) { Failure(owner,"Current NRD bindings have no frame-local validation window"); return; }
             std::vector<FrameSurvey::BoundResource> srv, uav;
@@ -642,20 +647,28 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
 }
 void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
 {
-    if (!gInstalled.load(std::memory_order_relaxed) || !gRuntime.load(std::memory_order_relaxed) || FrameSurvey::Internal()) return;
+    if (!gInstalled.load(std::memory_order_relaxed) || FrameSurvey::Internal() ||
+        (!gRuntime.load(std::memory_order_relaxed) && !NrdBridgePerf::NeedsConsumerFrames())) return;
     try
     {
-        std::shared_ptr<Service> owner; bool window = false;
+        std::shared_ptr<Service> owner; bool window = false, following = false;
         {
             std::scoped_lock lock(gMutex); owner = gService; if (!owner) return;
             const auto found = owner->lists.find(cmd);
-            if (found == owner->lists.end() || found->second.role != Role::Consumer || !found->second.followingRecon) return;
-            window = owner->window;
-            if (!window)
+            if (found == owner->lists.end() || found->second.role != Role::Consumer) return;
+            window = owner->window; following = found->second.followingRecon;
+        }
+        NrdBridgePerf::ConsumerFrame(StreamlineHooks::getSLConstantsSnapshot().frameIndex);
+        if (!gRuntime.load(std::memory_order_relaxed) || !following) return;
+        if (!window)
+        {
+            std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
+            if (gService == owner && found != owner->lists.end())
             {
                 if (found->second.converted) DropPending(*owner);
-                found->second.followingRecon = false; return;
+                found->second.followingRecon = false;
             }
+            return;
         }
         std::string error; ChainDiscovery discovered; bool published = false, invalid = false;
         ID3D12Resource* motionTag = nullptr; Resources resources; ListState staged; bool inject = false, keepWindow = false;

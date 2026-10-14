@@ -84,19 +84,30 @@ void sink(const NrdBridgePerf::Report& value) noexcept { reported=value; reports
 J sampler() {
  using H=NrdBridgePerf::Hook; using S=NrdBridgePerf::Scope;
  need(!NrdBridgePerf::Detail::configured.load(),"startup OFF sampler is unconfigured");
- { S ignored(H::Release,false); } NrdBridgePerf::RenderedFrame(8);
+ { S ignored(H::Release,false); } NrdBridgePerf::ConsumerFrame(8);
  need(!NrdBridgePerf::Detail::configured.load(),"startup OFF scope/frame marker never allocates sampler state");
- NrdBridgePerf::Configure(sink); NrdBridgePerf::RenderedFrame(UINT32_MAX);
+ NrdBridgePerf::Configure(sink); NrdBridgePerf::ConsumerFrame(UINT32_MAX);
  need(!NrdBridgePerf::Detail::collecting.load(),"unknown SL frame does not start recording");
- NrdBridgePerf::RenderedFrame(10);
- { S outer(H::ConstantBufferView,true); { S nested(H::ConstantBufferView,true); } { S other(H::Release,true); } }
+ for(uint32_t menu=0;menu<500;++menu) { NrdBridgePerf::RenderedFrame(menu); S ignored(H::Release,true); }
+ need(!NrdBridgePerf::Detail::collecting.load() && !reports.load(),"menu/upscaler evaluations cannot arm or report gameplay profiling");
+ need(NrdBridgePerf::NeedsConsumerFrames(),"configured sampler still waits for the title Consumer");
+ NrdBridgePerf::ConsumerFrame(10);
+ NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Metadata> metadata;
+ std::atomic<bool> held{false},attempt{false};
+ std::thread holder([&]{metadata.lock();held.store(true,std::memory_order_release);
+   while(!attempt.load(std::memory_order_acquire)) std::this_thread::yield();
+   std::this_thread::sleep_for(std::chrono::milliseconds(12));metadata.unlock();});
+ while(!held.load(std::memory_order_acquire)) std::this_thread::yield();
+ { S outer(H::ConstantBufferView,true); { S nested(H::ConstantBufferView,true); } { S other(H::Release,true); }
+   attempt.store(true,std::memory_order_release);metadata.lock();metadata.unlock(); }
+ holder.join();
  try { S scope(H::ShaderResourceView,true); throw std::runtime_error("expected"); } catch(const std::runtime_error&) {}
  { S internal(H::UnorderedAccessView,false); }
  std::array<std::thread,4> workers;
  for(auto& worker:workers) worker=std::thread([]{for(unsigned i=0;i<1000;++i) { S scope(H::Release,true); }});
  for(auto& worker:workers) worker.join();
  for(uint32_t frame=10;frame<110;++frame) {
-  NrdBridgePerf::RenderedFrame(frame); NrdBridgePerf::RenderedFrame(frame); NrdBridgePerf::RenderedFrame(10); // repeated/older eval/FG id
+  NrdBridgePerf::ConsumerFrame(frame); NrdBridgePerf::ConsumerFrame(frame); NrdBridgePerf::ConsumerFrame(10); // repeated/older eval/FG id
   { S scope(H::UnorderedAccessView,true); }
  }
  need(!reports.load(),"100 rendered entries and duplicate/older frame ids do not close the100th interval early");
@@ -104,9 +115,9 @@ J sampler() {
  std::thread outstanding([&]{ S scope(H::Release,true); entered.store(true,std::memory_order_release);
    while(!finish.load(std::memory_order_acquire)) std::this_thread::yield(); });
  while(!entered.load(std::memory_order_acquire)) std::this_thread::yield();
- NrdBridgePerf::RenderedFrame(109); NrdBridgePerf::RenderedFrame(108);
+ NrdBridgePerf::ConsumerFrame(109); NrdBridgePerf::ConsumerFrame(108);
  need(!reports.load() && NrdBridgePerf::Detail::collecting.load(),"FG/repeated latest snapshot cannot truncate hooks of the100th rendered frame");
- NrdBridgePerf::RenderedFrame(110);
+ NrdBridgePerf::ConsumerFrame(110);
  need(!reports.load() && !NrdBridgePerf::Detail::collecting.load(),"101st rendered entry closes100 complete intervals and waits for in-flight hooks");
  finish.store(true,std::memory_order_release); outstanding.join();
  need(reports.load(std::memory_order_acquire)==1,"last outstanding hook emits exactly one completed100-frame report");
@@ -116,10 +127,15 @@ J sampler() {
  need(reported.hooks[size_t(H::UnorderedAccessView)].calls==100,"internal calls are excluded from exact title hook totals");
  need(reported.hooks[size_t(H::Release)].calls==4002,"concurrent title hooks, distinct nested hook and final draining hook are counted exactly");
  need(reported.frequency>0 && reported.AverageUs(H::Release)>0,"hook averages use measured QPC duration/frequency");
- for(uint32_t i=110;i<500;++i) { NrdBridgePerf::RenderedFrame(i); S ignored(H::Release,true); }
+ need(reported.AverageWaitUs(H::ConstantBufferView,NrdBridgePerf::WaitKind::Metadata)>=1000.0,"contended metadata wait is measured separately inside its physical CBV hook");
+ need(reported.AverageWaitUs(H::ConstantBufferView)<=reported.AverageUs(H::ConstantBufferView),"categorized waits fit within measured hook elapsed time");
+ need(reported.AverageWaitUs(H::Release,NrdBridgePerf::WaitKind::Metadata)==0.0,"nested distinct Release does not inherit the outer CBV metadata wait");
+ need(NrdBridgePerf::Detail::currentWaits==nullptr,"thread-local wait recording ends with its physical hook");
+ need(!NrdBridgePerf::NeedsConsumerFrames(),"finished gameplay sampler no longer needs Consumer frame lookups");
+ for(uint32_t i=110;i<500;++i) { NrdBridgePerf::ConsumerFrame(i); S ignored(H::Release,true); }
  NrdBridgePerf::Configure(sink);
  need(reports.load()==1 && !NrdBridgePerf::Detail::collecting.load(),"profiling stops after one report and cannot restart on repeated configuration");
- J averages=J::array(); for(size_t i=0;i<size_t(H::Count);++i) averages.push_back({{"calls",reported.hooks[i].calls},{"avg_us",reported.AverageUs(H(i))}});
+ J averages=J::array(); for(size_t i=0;i<size_t(H::Count);++i) averages.push_back({{"calls",reported.hooks[i].calls},{"avg_us",reported.AverageUs(H(i))},{"lock_wait_avg_us",reported.AverageWaitUs(H(i))},{"metadata_wait_avg_us",reported.AverageWaitUs(H(i),NrdBridgePerf::WaitKind::Metadata)}});
  return {{"reports",reports.load()},{"frames",reported.frames},{"first_sl_frame",reported.firstFrame},{"last_sl_frame",reported.lastFrame},
   {"frequency",reported.frequency},{"hook_samples",averages},{"scope","real production sampler; synthetic rendered frame ids and host work"}};
 }

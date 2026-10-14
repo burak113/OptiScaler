@@ -2,6 +2,7 @@
 #include <cassert>
 #include <mutex>
 #include <shared_mutex>
+#include "NrdBridgePerf_Dx12.h"
 
 // Borrowed title objects are never retained by the bridge. Serialize physical
 // final Release with their CPU use instead: borrow -> coordinator mutex, and
@@ -29,7 +30,10 @@ class ScopedBorrow
     {
         if (!enabled) return;
         if (!Detail::borrowDepth && !Detail::releaseDepth)
+        {
+            NrdBridgePerf::WaitScope wait(NrdBridgePerf::WaitKind::LifetimeGate);
             lock_ = std::shared_lock<std::shared_mutex>(Detail::Mutex());
+        }
         ++Detail::borrowDepth;
         active_ = true;
     }
@@ -49,6 +53,7 @@ class ScopedRelease
         if (!Detail::releaseDepth)
         {
             assert(!Detail::borrowDepth && "Owned releases inside a borrow must be internal");
+            NrdBridgePerf::WaitScope wait(NrdBridgePerf::WaitKind::LifetimeGate);
             lock_ = std::unique_lock<std::shared_mutex>(Detail::Mutex());
         }
         ++Detail::releaseDepth;

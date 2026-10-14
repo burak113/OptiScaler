@@ -1247,9 +1247,6 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_EvaluateFeature(ID3D12GraphicsCom
     auto feature = HandleToFeature[handleId];
     if (cfg.FfxDenoiserFrameSurvey.value_or_default())
         FrameSurvey::Evaluate(InCmdList,unsigned(feature),InParameters);
-    if (NrdBridge::StartupEnabled() && !FrameSurvey::Internal() &&
-        (feature == NVSDK_NGX_Feature_SuperSampling || feature == NVSDK_NGX_Feature_RayReconstruction))
-        NrdBridgePerf::RenderedFrame(StreamlineHooks::getSLConstantsSnapshot().frameIndex);
     static size_t evalWithoutFG = 0;
     bool fgCreated = std::any_of(HandleToFeature.begin(), HandleToFeature.end(),
                                  [](const auto& pair) { return pair.second == NVSDK_NGX_Feature_FrameGeneration; });

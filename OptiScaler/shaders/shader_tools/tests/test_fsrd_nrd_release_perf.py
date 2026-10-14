@@ -243,7 +243,7 @@ void sparseTests(){
 int main()try{SetPriorityClass(GetCurrentProcess(),BELOW_NORMAL_PRIORITY_CLASS);sparseTests();std::cout<<"PASS: "<<checks<<" sparse heap occupancy/actual mutation checks\n";return 0;}catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}
 '''
     if not baseline:
-        cpp=cpp.replace("int main()try{", "int main()try{NrdBridgePerf::Configure([](const NrdBridgePerf::Report&) noexcept {});NrdBridgePerf::RenderedFrame(1);")
+        cpp=cpp.replace("int main()try{", "int main()try{NrdBridgePerf::Configure([](const NrdBridgePerf::Report&) noexcept {});NrdBridgePerf::ConsumerFrame(1);")
     target,exe=out/'nrd_release_perf.cpp',out/'nrd_release_perf.exe'
     target.write_text(cpp)
     if os.environ.get('FSRD_RELEASE_PERF_GENERATE_ONLY') == '1':

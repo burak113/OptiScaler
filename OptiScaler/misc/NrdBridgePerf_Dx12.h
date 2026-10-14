@@ -9,7 +9,12 @@
 namespace NrdBridgePerf
 {
 enum class Hook : size_t { ConstantBufferView, ShaderResourceView, UnorderedAccessView, Release, Count };
-struct Sample { uint64_t calls = 0, ticks = 0; };
+enum class WaitKind : size_t { Metadata, LifetimeGate, Tracking, Coordinator, Count };
+struct Sample
+{
+    uint64_t calls = 0, ticks = 0;
+    std::array<uint64_t,size_t(WaitKind::Count)> waitTicks {};
+};
 struct Report
 {
     uint32_t frames = 0, firstFrame = UINT32_MAX, lastFrame = UINT32_MAX;
@@ -20,11 +25,26 @@ struct Report
         const auto& sample = hooks[size_t(hook)];
         return sample.calls && frequency ? double(sample.ticks)*1000000.0/double(frequency)/double(sample.calls) : 0.0;
     }
+    double AverageWaitUs(Hook hook, WaitKind kind) const noexcept
+    {
+        const auto& sample = hooks[size_t(hook)];
+        return sample.calls && frequency ? double(sample.waitTicks[size_t(kind)])*1000000.0/double(frequency)/double(sample.calls) : 0.0;
+    }
+    double AverageWaitUs(Hook hook) const noexcept
+    {
+        double total = 0.0;
+        for (size_t i=0;i<size_t(WaitKind::Count);++i) total += AverageWaitUs(hook,WaitKind(i));
+        return total;
+    }
 };
 using Reporter = void (*)(const Report&) noexcept;
 namespace Detail
 {
-struct alignas(64) Counter { std::atomic<uint64_t> calls {0}, ticks {0}; };
+struct alignas(64) Counter
+{
+    std::atomic<uint64_t> calls {0}, ticks {0};
+    std::array<std::atomic<uint64_t>,size_t(WaitKind::Count)> waitTicks {};
+};
 struct State
 {
     std::mutex frameMutex;
@@ -38,6 +58,7 @@ struct State
 };
 inline std::atomic<bool> configured {false}, collecting {false};
 inline thread_local std::array<unsigned,size_t(Hook::Count)> depth {};
+inline thread_local std::array<uint64_t,size_t(WaitKind::Count)>* currentWaits = nullptr;
 inline State& Get()
 {
     // Physical hooks can still return during DLL teardown; storage has process lifetime.
@@ -54,7 +75,12 @@ inline void TryReport() noexcept
     result.frames = state.frames; result.firstFrame = state.firstFrame; result.lastFrame = state.lastFrame;
     result.frequency = state.frequency;
     for (size_t i=0;i<result.hooks.size();++i)
-    { result.hooks[i].calls = state.hooks[i].calls.load(std::memory_order_acquire); result.hooks[i].ticks = state.hooks[i].ticks.load(std::memory_order_acquire); }
+    {
+        result.hooks[i].calls = state.hooks[i].calls.load(std::memory_order_acquire);
+        result.hooks[i].ticks = state.hooks[i].ticks.load(std::memory_order_acquire);
+        for (size_t j=0;j<size_t(WaitKind::Count);++j)
+            result.hooks[i].waitTicks[j] = state.hooks[i].waitTicks[j].load(std::memory_order_acquire);
+    }
     if (const auto report = state.reporter.load(std::memory_order_acquire)) report(result);
 }
 }
@@ -71,9 +97,16 @@ inline void Configure(Reporter reporter) noexcept
         Detail::configured.store(true,std::memory_order_release);
     } catch (...) {} // Optional profiling allocation must never prevent title startup.
 }
-// Called only by a real title render evaluation or the verified NRD Recon role.
+// Generic evaluations also occur in menus and never arm this gameplay sampler.
+inline void RenderedFrame(uint32_t) noexcept {}
+inline bool NeedsConsumerFrames() noexcept
+{
+    return Detail::configured.load(std::memory_order_acquire) &&
+        !Detail::Get().requested.load(std::memory_order_acquire);
+}
+// Only the full-hash-identified title Consumer dispatch advances gameplay intervals.
 // Duplicate SL frame ids (including FG Presents) never advance the sample window.
-inline void RenderedFrame(uint32_t frame) noexcept
+inline void ConsumerFrame(uint32_t frame) noexcept
 {
     if (frame == UINT32_MAX || !Detail::configured.load(std::memory_order_acquire)) return;
     auto& state = Detail::Get(); bool finished = false;
@@ -96,11 +129,43 @@ inline void RenderedFrame(uint32_t frame) noexcept
     }
     if (finished) Detail::TryReport();
 }
+// Duration is recorded in the currently measured physical hook, without global
+// atomics or QPC calls when the one-shot gameplay profiling window is inactive.
+class WaitScope
+{
+    WaitKind kind_;
+    LARGE_INTEGER start_ {};
+    std::array<uint64_t,size_t(WaitKind::Count)>* accumulator_ = nullptr;
+  public:
+    explicit WaitScope(WaitKind kind) noexcept : kind_(kind), accumulator_(Detail::currentWaits)
+    {
+        if (accumulator_ && !QueryPerformanceCounter(&start_)) accumulator_ = nullptr;
+    }
+    ~WaitScope()
+    {
+        if (!accumulator_) return;
+        LARGE_INTEGER end {};
+        if (QueryPerformanceCounter(&end) && end.QuadPart >= start_.QuadPart)
+            (*accumulator_)[size_t(kind_)] += uint64_t(end.QuadPart-start_.QuadPart);
+    }
+    WaitScope(const WaitScope&) = delete;
+    WaitScope& operator=(const WaitScope&) = delete;
+};
+template<class Mutex, WaitKind Kind> class TimedMutex
+{
+    Mutex mutex_;
+  public:
+    void lock() { WaitScope wait(Kind); mutex_.lock(); }
+    bool try_lock() { WaitScope wait(Kind); return mutex_.try_lock(); }
+    void unlock() noexcept { mutex_.unlock(); }
+};
 class Scope
 {
     Hook hook_;
     LARGE_INTEGER start_ {};
     bool active_ = false, entered_ = false;
+    std::array<uint64_t,size_t(WaitKind::Count)> waits_ {};
+    std::array<uint64_t,size_t(WaitKind::Count)>* previousWaits_ = nullptr;
   public:
     explicit Scope(Hook hook, bool external) noexcept : hook_(hook)
     {
@@ -114,6 +179,7 @@ class Scope
             return;
         }
         active_ = true;
+        previousWaits_ = Detail::currentWaits; Detail::currentWaits = &waits_;
     }
     ~Scope()
     {
@@ -123,6 +189,9 @@ class Scope
             auto& state = Detail::Get(); auto& sample = state.hooks[size_t(hook_)];
             sample.ticks.fetch_add(uint64_t(end.QuadPart >= start_.QuadPart ? end.QuadPart-start_.QuadPart : 0),std::memory_order_relaxed);
             sample.calls.fetch_add(1,std::memory_order_relaxed);
+            for (size_t i=0;i<waits_.size();++i)
+                sample.waitTicks[i].fetch_add(waits_[i],std::memory_order_relaxed);
+            Detail::currentWaits = previousWaits_;
             if (state.inFlight.fetch_sub(1,std::memory_order_acq_rel) == 1) Detail::TryReport();
         }
         if (entered_) --Detail::depth[size_t(hook_)];
