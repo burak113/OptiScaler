@@ -240,9 +240,42 @@ J constantTests(Host& h) {
   {"cbv_native_calls",cbvNativeCalls},{"scope","actual production root/table CBV resolver, seed, getter and creation callback; synthetic ambiguity/invalid-input metadata cases"},
   {"contains_title_binary",false}};
 }
+J diagnosticTests(Host& h) {
+ FrameSurvey::Shutdown();gNrdBridgeDeviceWrappers=true;ConstantHost f(h);
+ FrameSurvey::BoundConstantBuffer out;FrameSurvey::ConstantBufferDiagnostic diagnostic;
+ ComPtr<ID3D12Resource> untracked;D3D12_HEAP_PROPERTIES hp{};hp.Type=D3D12_HEAP_TYPE_UPLOAD;
+ auto desc=CD3DX12_RESOURCE_DESC::Buffer(1536);
+ hr(h.dev->CreateCommittedResource(&hp,D3D12_HEAP_FLAG_NONE,&desc,D3D12_RESOURCE_STATE_GENERIC_READ,nullptr,IID_PPV_ARGS(&untracked)));
+ auto* table=f.root(true);f.table(table);f.write(0,untracked.Get(),256,1280);f.copy(7,true,0);
+ const auto raw=f.cpu(7,true).ptr,va=untracked->GetGPUVirtualAddress()+256;
+ need(FrameSurvey::gViews.contains(raw)&&!FrameSurvey::gViews.at(raw).object&&FrameSurvey::gViews.at(raw).rootVa==va&&FrameSurvey::gViews.at(raw).constantBytes==1280,"untracked native CBV declaration preserves exact VA/size through descriptor copy without inventing an owner");
+ need(!FrameSurvey::ResolveComputeConstantBuffer(h.list.Get(),6,0,1216,out,&diagnostic)&&!out.resource&&std::string(diagnostic.reason)=="CBV GPU address has no tracked buffer","missing creation produces specific untracked-VA failure and no borrowed resource");
+ need(diagnostic.table&&diagnostic.rootParameter==3&&diagnostic.descriptorCpu==raw&&diagnostic.address==va&&diagnostic.declaredBytes==1280&&diagnostic.intervalMatches==0,"failure diagnostic contains exact mixed-table parameter, copied slot, VA and minimum-safe CBV size");
+ FrameSurvey::ResourceCreatedWithLayout(untracked.Get(),D3D12_BARRIER_LAYOUT_UNDEFINED);
+ need(!FrameSurvey::gResources.at(untracked.Get()).initialKnown,"enhanced layout observer never fabricates legacy COMMON state");
+ need(!FrameSurvey::ResolveComputeConstantBuffer(h.list.Get(),6,0,1216,out,&diagnostic)&&!out.resource&&std::string(diagnostic.reason)=="Consumer CBV buffer was not tracked at descriptor creation","late resource metadata does not retroactively accept an unproven old CBV descriptor");
+ f.write(0,untracked.Get(),256,1280);f.copy(7,true,0);
+ need(FrameSurvey::ResolveComputeConstantBuffer(h.list.Get(),6,0,1216,out,&diagnostic)&&out.resource==untracked.Get()&&out.address==va&&out.size==1280&&out.resourceGeneration,"re-observed native descriptor resolves exact enhanced-created buffer generation without lowering1216 minimum");
+ need(FrameSurvey::ValidateBorrowedConstantBuffer(out),"live copied native CBV token retains normal heap/owner/generation validation");
+ f.write(7,untracked.Get(),256,1024,true);
+ need(!FrameSurvey::ResolveComputeConstantBuffer(h.list.Get(),6,0,1216,out,&diagnostic)&&!out.resource&&diagnostic.declaredBytes==1024&&diagnostic.remainingBytes==1280&&std::string(diagnostic.reason)=="CBV byte range does not cover the requested field","too-short1024 descriptor remains rejected with exact declared/remaining bytes");
+ f.write(7,untracked.Get(),256,1280,true);auto* alias=f.buffer(4096);auto& record=FrameSurvey::gResources.at(alias);const auto oldVA=record.va;
+ FrameSurvey::gBufferAddresses.Erase(oldVA,record.id);record.va=untracked->GetGPUVirtualAddress();FrameSurvey::gBufferAddresses.Insert(record.va,record.desc.Width,record.id,alias);
+ need(!FrameSurvey::ResolveComputeConstantBuffer(h.list.Get(),6,0,1216,out,&diagnostic)&&!out.resource&&diagnostic.intervalMatches==2&&std::string(diagnostic.reason)=="CBV GPU address overlaps live buffers","live overlapping buffers remain ambiguous and are distinguished from missing creation");
+ FrameSurvey::gBufferAddresses.Erase(record.va,record.id);record.va=oldVA;FrameSurvey::gBufferAddresses.Insert(oldVA,record.desc.Width,record.id,alias);
+ auto* unbounded=f.root(true,6,0,D3D12_SHADER_VISIBILITY_ALL,{{D3D12_DESCRIPTOR_RANGE_TYPE_CBV,UINT_MAX,0,0,0}});f.table(unbounded);f.write(6,untracked.Get(),256,1280,true);
+ need(FrameSurvey::ResolveComputeConstantBuffer(h.list.Get(),6,0,1216,out,&diagnostic)&&out.resource==untracked.Get()&&out.descriptor.ptr==f.gpu.ptr+6*f.stride,"actual unbounded CBV table resolves its genuinely populated unique b6 slot with1280 declared bytes");
+ auto captured=out;FrameSurvey::Released(untracked.Get());
+ need(!FrameSurvey::ValidateBorrowedConstantBuffer(captured),"unbounded native CBV token cannot survive resource generation removal");
+ need(!FrameSurvey::ResolveComputeConstantBuffer(h.list.Get(),6,0,1216,out,&diagnostic)&&!out.resource&&std::string(diagnostic.reason)=="Consumer CBV descriptor slot is missing or stale","released CBV slot reports descriptor invalidation instead of guessing another buffer");
+ FrameSurvey::Released(alias);hr(h.list->Close());h.execute();h.reset();h.errors();FrameSurvey::Shutdown();
+ return {{"untracked_declaration_preserved",true},{"untracked_owner_not_accepted",true},{"enhanced_state_not_guessed",true},{"populated_unbounded_b6",true},{"minimum_bytes",1216},{"native_cbv_declared_bytes",1280}};
+}
 int main(int argc,char** argv) try {
  need(argc==2,"output path"); g_dllPath=std::filesystem::path(argv[1])/"fixture.dll";
- Host host; auto result=constantTests(host);
+ Host host; auto result=constantTests(host);const auto originalChecks=checks;
+ result["original_checks_passed"]=originalChecks;result["activation_diagnostics"]=diagnosticTests(host);
+ result["activation_diagnostic_checks"]=checks-originalChecks;result["checks_passed"]=checks;
  std::ofstream(std::filesystem::path(argv[1])/"host-result.json")<<result.dump(2)<<'\n'; std::cout<<result.dump()<<'\n'; return 0;
 } catch(const std::exception& e) { std::cerr<<e.what()<<'\n'; return 1; }
 '''

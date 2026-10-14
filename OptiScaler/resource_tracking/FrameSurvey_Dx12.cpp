@@ -1240,7 +1240,11 @@ void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_H
                 if (known)
                 {
                     const auto resource = gResources.find(contents.object);
-                    if (resource != gResources.end() && resource->second.id == contents.resource && destinationHeap)
+                    const bool live = resource != gResources.end() && resource->second.id == contents.resource;
+                    // Unproven CBV declarations survive native copies for diagnostics, never as borrowed resources.
+                    const bool declaration = contents.kind == D3D12_DESCRIPTOR_RANGE_TYPE_CBV && !contents.object &&
+                        !contents.resource && contents.rootVa && contents.constantBytes;
+                    if ((live || declaration) && destinationHeap)
                     {
                         auto copy = contents; copy.descriptorCpu = dh;
                         copy.descriptorHeap = uint64_t(reinterpret_cast<uintptr_t>(destinationHeap->object));
