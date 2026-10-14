@@ -1083,7 +1083,7 @@ void nativeBlendChecks(Host& host)
         else old.flag(test.flag); // AFTER capture/commit and original Consumer recording.
         if(i==0)
         {
-            hr(host.list->Close());settings.nativeSpecularBlend=1.f;const auto generation=wrapper.ContextGeneration(),configureCalls=FfxApiProxy::configures;
+            hr(host.list->Close());settings.nativeSpecularBlend=1.f;const auto generation=wrapper.ContextGeneration();const auto configureCalls=FfxApiProxy::configures;
             need(wrapper.Configure(settings,error) && wrapper.ContextGeneration()==generation && FfxApiProxy::configures==configureCalls,"desired hybrid change after Close cannot alter an old recording or RR context");
             ComPtr<IUnknown> identity;hr(host.list.As(&identity));auto submission=RecordedComputeLease::BeforeSubmission(host.queue.Get(),{identity.Get()});
             ID3D12CommandList* lists[]{host.list.Get()};host.queue->ExecuteCommandLists(1,lists);RecordedComputeLease::AfterSubmission(submission);host.finish();host.reset();
@@ -1580,6 +1580,39 @@ void realLoop(Host& host,uint32_t width,uint32_t height,unsigned frames,const st
             (nativeTable?"RR_stage_plus_native_table_capture_YCoCg_commit":"RR_stage_plus_RGB_commit_preserving_title_alpha"))<<" samples_ms=";
     for(auto value:milliseconds)std::cout<<value<<',';std::cout<<'\n';
 }
+void nativeBlendCommitTiming(Host& host,uint32_t width,uint32_t height)
+{
+    Scene scene(host,width,height);host.submit();host.reset();std::string error;
+    auto owner=MakeOwnedShared<Context>();owner->device=host.device;owner->width=width;owner->height=height;
+    need(owner->InitializeCommit(error)&&owner->PrepareTableFlags(error),"commit-only benchmark initializes actual production PSO/root/staging/flag capture without ML provider");
+    auto slot=owner->AcquireSlot(scene.spec(),scene.diff(),error);need(bool(slot),"commit timing uses one valid preallocated production descriptor/staging slot");
+    ClearPair(host.list.Get(),slot->spec.Get(),slot->diff.Get(),{1.5f,7.f,9.25f,99.f},{9.f,2.75f,.5f,98.f});host.submit();host.reset();
+    ConsumerBuffer native(host);const TitleSignalConstants constants{nullptr,native.constants().address};
+    ComPtr<ID3D12QueryHeap> query;D3D12_QUERY_HEAP_DESC desc{D3D12_QUERY_HEAP_TYPE_TIMESTAMP,2,0};hr(host.device->CreateQueryHeap(&desc,IID_PPV_ARGS(&query)));
+    auto timing=buffer(host.device.Get(),16,D3D12_HEAP_TYPE_READBACK);UINT64 frequency=0;hr(host.queue->GetTimestampFrequency(&frequency));need(frequency>0,"commit timing native GPU frequency");
+    constexpr unsigned warmBatches=4,batches=9,repeats=16;const auto staging=owner->stagingBytes,auxiliary=owner->AuxiliaryBytes();
+    const auto providerCalls=FfxApiProxy::dispatches;
+    for(uint32_t mode=0;mode<2;++mode)for(float strength:{0.f,.5f,1.f})
+    {
+        native.flag(mode);std::vector<double> samples;
+        for(unsigned batch=0;batch<warmBatches+batches;++batch)
+        {
+            auto lease=MakeOwnedShared<DispatchLease>();lease->context=owner;lease->slot=slot;
+            need(ResTrack_Dx12::RetainComputeDispatch(host.device.Get(),host.list.Get(),lease),"commit benchmark retains actual context/pipeline/staging/flag GPU lifetime");
+            host.list->EndQuery(query.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0);
+            for(unsigned repeat=0;repeat<repeats;++repeat)owner->Commit(host.list.Get(),*slot,scene.spec(),scene.diff(),SignalEncoding::Rgb,constants,strength);
+            host.list->EndQuery(query.Get(),D3D12_QUERY_TYPE_TIMESTAMP,1);host.list->ResolveQueryData(query.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0,2,timing.Get(),0);
+            host.submit();UINT64* ticks=nullptr;hr(timing->Map(0,nullptr,reinterpret_cast<void**>(&ticks)));need(ticks[1]>=ticks[0],"commit timestamp pair ordered");
+            const double ms=double(ticks[1]-ticks[0])*1000./double(frequency)/repeats;timing->Unmap(0,nullptr);if(batch>=warmBatches)samples.push_back(ms);host.reset();
+            need(owner->stagingBytes==staging&&owner->AuxiliaryBytes()==auxiliary&&owner->slots.size()==4,"commit benchmark GPU allocation remains fixed after warmup");
+        }
+        auto sorted=samples;std::sort(sorted.begin(),sorted.end());const double mean=std::accumulate(samples.begin(),samples.end(),0.0)/samples.size();
+        std::cout<<"commit_timing size="<<width<<'x'<<height<<" encoding="<<(mode?"YCoCg":"RGB")<<" strength="<<strength<<" median_ms="<<sorted[sorted.size()/2]
+            <<" mean_ms="<<mean<<" batches="<<batches<<" repeats="<<repeats<<" warm_batches="<<warmBatches<<" allocation_growth=0 scope=native_root_flag_capture_plus_two_lobe_Commit_only samples_ms=";
+        for(double value:samples)std::cout<<value<<',';std::cout<<'\n';
+    }
+    need(FfxApiProxy::dispatches==providerCalls&&owner->handle==nullptr,"commit-only cost contains zero provider dispatch/model work");
+}
 int main(int argc,char** argv) try
 {
     std::cout.setf(std::ios::unitbuf);
@@ -1601,6 +1634,9 @@ int main(int argc,char** argv) try
     }
     if(mode=="--real"){std::cout<<"stage load real AMD DLL\n";loadReal();}
     std::cout<<"stage create D3D12 host\n";Host host;
+    if(mode=="--commit-timing") {nativeBlendCommitTiming(host,1505,847);nativeBlendCommitTiming(host,2560,1440);hr(host.list->Close());RecordedComputeLease::Poll();host.checkDebug();
+        need(FfxApiProxy::creates==0 && FfxApiProxy::dispatches==0,"commit-only benchmark uses no provider context");
+        std::cout<<"PASS checks="<<checks<<" mode=--commit-timing provider_dispatches=0 debug_errors=0 debug_warnings=0\n";return 0;}
     std::cout<<"stage history checks\n";historyChecks(host);
     std::cout<<"stage deferred lifetime checks\n";lifecycleChecks(host);
     std::cout<<"stage minimum-size fail-closed check\n";minimumChecks(host);

@@ -200,7 +200,7 @@ def native_debug_statistics(output):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', choices=['camera', 'mock', 'real', 'probe'], default='camera')
+    parser.add_argument('--mode', choices=['camera', 'mock', 'real', 'probe', 'commit-timing'], default='camera')
     parser.add_argument('--width', type=int, default=128)
     parser.add_argument('--height', type=int, default=128)
     parser.add_argument('--converted-inputs', type=Path)
@@ -254,6 +254,11 @@ def main():
         result['native_blend'] = [line for line in text.splitlines() if line.startswith('native_blend ')]
         result['runtime_settings'] = [line for line in text.splitlines() if line.startswith('runtime_settings ')]
         result['native_debug'] = [line for line in text.splitlines() if line.startswith('native_debug')]
+    if args.mode == 'commit-timing':
+        rows = [line for line in text.splitlines() if line.startswith('commit_timing ')]
+        assert len(rows) == 12 and all('allocation_growth=0' in row and 'batches=9 repeats=16 warm_batches=4' in row for row in rows)
+        result['commit_timings'] = rows
+        result['cost_scope'] = 'actual production native flag capture + two-lobe Commit only; fixed staging, synthetic title outputs evolve between repeats; no ML provider/game FPS'
     if args.mode == 'mock':
         assert 'native_blend_failures partial_provider=2 denied_admission=2 native_rgba_exact=1 fresh_recovery_context=1' in text
     if args.mode == 'real':
