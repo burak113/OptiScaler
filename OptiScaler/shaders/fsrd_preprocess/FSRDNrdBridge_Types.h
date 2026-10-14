@@ -14,6 +14,8 @@ struct TitleSignalConstants
 {
     ID3D12Resource* resource = nullptr;
     D3D12_GPU_VIRTUAL_ADDRESS address = 0;
+    ID3D12DescriptorHeap* nativeHeap = nullptr;
+    D3D12_GPU_DESCRIPTOR_HANDLE cbvHandle {};
 };
 // Run a prepared, infallible output recording while the coordinator ticket is
 // still admitted. A plain callback needs no allocation after provider dispatch.

@@ -75,7 +75,7 @@ bool TextureMatches(ID3D12Resource* resource, uint32_t width, uint32_t height, D
            (!uav || (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0);
 }
 
-struct DescriptorSlot { ComPtr<ID3D12DescriptorHeap> heap; };
+struct DescriptorSlot { ComPtr<ID3D12DescriptorHeap> heap; SignalFlagSnapshot flag; };
 struct Pipeline
 {
     ComPtr<ID3D12RootSignature> root;
@@ -157,6 +157,8 @@ struct ConversionPass::Impl
     std::mutex mutex;
     Pipeline conversion, copy, motionPass;
     ComPtr<ID3D12Resource> zeroConstants;
+    SignalFlagCapture flagCapture;
+    uint64_t zeroBytes = 0;
     bool motionInitialized = false, pendingMotion = false;
     uint32_t motionPreviousIndex = 0, motionSLFrame = UINT32_MAX, motionBridgeFrame = 0;
     bool motionPreviousValid = false;
@@ -200,6 +202,8 @@ bool ConversionPass::Initialize(ID3D12Device* device, uint32_t width, uint32_t h
         ScopedSkipHeapCapture skipHeapCapture;
         auto next = MakeOwnedShared<Impl>(); next->device = device; next->width = width; next->height = height;
         if (!CreateZeroSignalConstants(device, next->zeroConstants, error)) return false;
+        const auto zeroDesc = next->zeroConstants->GetDesc();
+        next->zeroBytes = device->GetResourceAllocationInfo(0, 1, &zeroDesc).SizeInBytes;
         next->conversion.Initialize(device, FSRDNrdBridge_cso, sizeof(FSRDNrdBridge_cso), 4, 9);
         next->copy.Initialize(device, FSRDNrdBridgeCopy_cso, sizeof(FSRDNrdBridgeCopy_cso), 7, 2);
         next->Create(next->spec, DXGI_FORMAT_R16G16B16A16_FLOAT, L"NRD_Bridge_Spec");
@@ -360,8 +364,15 @@ bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList* list, const Converted
     try
     {
         ScopedSkipHeapCapture skipHeapCapture;
+        if (titleConstants.nativeHeap)
+        {
+            if (!owner->flagCapture.Initialize(owner->device.Get(), error)) return false;
+            for (const auto& slot : owner->copy.slots)
+                if (!slot->flag.Initialize(owner->device.Get(), error)) return false;
+        }
         auto lease = std::make_shared<Impl::Lease>(); lease->owner = owner;
         lease->slot = owner->copy.Acquire(owner->device.Get());
+        if (titleConstants.nativeHeap && !lease->slot->flag.Initialize(owner->device.Get(), error)) return false;
         if (!ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(), list, lease))
         { error = "NRD debug-copy GPU lifetime tracking unavailable"; return false; }
         owner->copy.Describe(owner->device.Get(), *lease->slot,
@@ -376,15 +387,20 @@ bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList* list, const Converted
             ID3D12Resource *spec, *diff;
             const uint32_t* constants;
             D3D12_GPU_VIRTUAL_ADDRESS address;
+            TitleSignalConstants titleConstants;
         } copy {owner.get(), list, lease->slot.get(), outputSpec, outputDiff, constants,
-            titleConstants.address ? titleConstants.address : owner->zeroConstants->GetGPUVirtualAddress()};
+            titleConstants.nativeHeap ? lease->slot->flag.resource->GetGPUVirtualAddress() :
+                (titleConstants.address ? titleConstants.address : owner->zeroConstants->GetGPUVirtualAddress()), titleConstants};
         const auto record = +[](void* state) noexcept {
             const auto& prepared = *static_cast<PreparedCopy*>(state);
+            if (prepared.titleConstants.nativeHeap)
+                prepared.owner->flagCapture.Record(prepared.list, prepared.titleConstants, prepared.slot->flag);
             UavBarrier(prepared.list, prepared.spec, prepared.diff);
             // Bind the native CBV at execution; CPU-visible flag contents may still change before submission.
             prepared.owner->copy.Record(prepared.list, *prepared.slot, prepared.constants, 5,
                 prepared.owner->width, prepared.owner->height, prepared.address);
             UavBarrier(prepared.list, prepared.spec, prepared.diff);
+            if (prepared.titleConstants.nativeHeap) prepared.slot->flag.Transition(prepared.list, false);
         };
         if (guard.admit && !guard.admit(guard.state, record, &copy))
         { error = "NRD output ticket expired before debug commit"; return false; }
@@ -399,4 +415,11 @@ void ConversionPass::ResetHistory() noexcept
     if (impl_) { std::lock_guard lock(impl_->mutex); impl_->historyValid = false; impl_->pendingMotion = false; }
 }
 uint64_t ConversionPass::OwnedTextureBytes() const noexcept { return impl_ ? impl_->textureBytes : 0; }
+uint64_t ConversionPass::OwnedAuxiliaryBytes() const noexcept
+{
+    if (!impl_) return 0;
+    uint64_t bytes = impl_->zeroBytes;
+    for (const auto& slot : impl_->copy.slots) bytes += slot->flag.bytes;
+    return bytes;
+}
 }

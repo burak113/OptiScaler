@@ -23,5 +23,6 @@ class ConversionPass
                     SignalEncoding = SignalEncoding::Rgb, const TitleSignalConstants& = {});
     void ResetHistory() noexcept;
     uint64_t OwnedTextureBytes() const noexcept;
+    uint64_t OwnedAuxiliaryBytes() const noexcept;
 };
 }

@@ -63,11 +63,14 @@ struct Context
     {
         ComPtr<ID3D12Resource> spec, diff;
         ComPtr<ID3D12DescriptorHeap> descriptors;
+        SignalFlagSnapshot flag;
         uint64_t bytes = 0;
     };
     ComPtr<ID3D12RootSignature> commitRoot;
     ComPtr<ID3D12PipelineState> commitPso;
     ComPtr<ID3D12Resource> zeroConstants;
+    SignalFlagCapture flagCapture;
+    uint64_t zeroBytes = 0;
     std::vector<std::shared_ptr<Slot>> slots;
     uint32_t descriptorStride = 0;
     uint64_t stagingBytes = 0;
@@ -99,12 +102,15 @@ struct Context
         descriptors.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         if (!Check(device->CreateDescriptorHeap(&descriptors, IID_PPV_ARGS(&slot->descriptors)), "RR commit heap creation failed", error))
             return nullptr;
+        if (flagCapture.pso && !slot->flag.Initialize(device.Get(), error)) return nullptr;
         stagingBytes += slot->bytes; slots.push_back(slot);
         return slot;
     }
     bool InitializeCommit(std::string& error)
     {
         if (!CreateZeroSignalConstants(device.Get(), zeroConstants, error)) return false;
+        const auto zeroDesc = zeroConstants->GetDesc();
+        zeroBytes = device->GetResourceAllocationInfo(0, 1, &zeroDesc).SizeInBytes;
         if (!Check(device->CreateRootSignature(0, FSRDNrdBridgeCommit_cso, sizeof(FSRDNrdBridgeCommit_cso),
             IID_PPV_ARGS(&commitRoot)), "RR commit root creation failed", error)) return false;
         D3D12_COMPUTE_PIPELINE_STATE_DESC desc {};
@@ -114,6 +120,18 @@ struct Context
         slots.reserve(32);
         for (uint32_t i = 0; i < 4; ++i) if (!NewSlot(error)) return false;
         return true;
+    }
+    bool PrepareTableFlags(std::string& error)
+    {
+        if (!flagCapture.Initialize(device.Get(), error)) return false;
+        for (const auto& slot : slots) if (!slot->flag.Initialize(device.Get(), error)) return false;
+        return true;
+    }
+    uint64_t AuxiliaryBytes() const noexcept
+    {
+        uint64_t bytes = zeroBytes;
+        for (const auto& slot : slots) bytes += slot->flag.bytes;
+        return bytes;
     }
     std::shared_ptr<Slot> AcquireSlot(ID3D12Resource* outputSpec, ID3D12Resource* outputDiff, std::string& error)
     {
@@ -141,6 +159,12 @@ struct Context
                 ID3D12Resource* outputSpec, ID3D12Resource* outputDiff, SignalEncoding encoding,
                 const TitleSignalConstants& titleConstants) noexcept
     {
+        auto address = titleConstants.address;
+        if (titleConstants.nativeHeap)
+        {
+            flagCapture.Record(list, titleConstants, slot.flag);
+            address = slot.flag.resource->GetGPUVirtualAddress();
+        }
         // Every fallible allocation and lease admission precedes the provider.
         // Title resources only receive UAV barriers; transitions belong to staging.
         std::array<D3D12_RESOURCE_BARRIER, 4> barriers {};
@@ -155,14 +179,15 @@ struct Context
         list->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());
         list->SetPipelineState(commitPso.Get()); list->SetComputeRootSignature(commitRoot.Get());
         ID3D12DescriptorHeap* heaps[] = {slot.descriptors.Get()}; list->SetDescriptorHeaps(1, heaps);
-        const uint32_t constants[] = {width, height, uint32_t(encoding), titleConstants.address ? 1u : 0u};
+        const uint32_t constants[] = {width, height, uint32_t(encoding), address ? 1u : 0u};
         list->SetComputeRoot32BitConstants(0, 4, constants, 0);
-        list->SetComputeRootConstantBufferView(3, titleConstants.address ? titleConstants.address : zeroConstants->GetGPUVirtualAddress());
+        list->SetComputeRootConstantBufferView(3, address ? address : zeroConstants->GetGPUVirtualAddress());
         auto gpu = slot.descriptors->GetGPUDescriptorHandleForHeapStart(); list->SetComputeRootDescriptorTable(1, gpu);
         gpu.ptr += uint64_t(2) * descriptorStride; list->SetComputeRootDescriptorTable(2, gpu);
         list->Dispatch((width+7)/8, (height+7)/8, 1);
         for (uint32_t i = 0; i < 2; ++i) std::swap(barriers[i].Transition.StateBefore, barriers[i].Transition.StateAfter);
         list->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());
+        if (titleConstants.nativeHeap) slot.flag.Transition(list, false);
     }
     ~Context()
     {
@@ -455,6 +480,8 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
         impl_->context = std::move(fresh);
         impl_->resetPending = true;
     }
+    if (frame.outputConstants.nativeHeap && !impl_->context->PrepareTableFlags(error))
+    { impl_->resetPending = true; return false; }
     auto lease = MakeOwnedShared<DispatchLease>();
     lease->context = impl_->context;
     lease->slot = impl_->context->AcquireSlot(outputSpec, outputDiff, error);
@@ -546,6 +573,10 @@ uint64_t RRWrapper::ContextGeneration() const noexcept { return impl_ ? impl_->g
 uint64_t RRWrapper::OwnedStagingBytes() const noexcept
 {
     return impl_ && impl_->context ? impl_->context->stagingBytes : 0;
+}
+uint64_t RRWrapper::OwnedAuxiliaryBytes() const noexcept
+{
+    return impl_ && impl_->context ? impl_->context->AuxiliaryBytes() : 0;
 }
 const std::string& RRWrapper::CameraConventionDescription() const noexcept
 {
