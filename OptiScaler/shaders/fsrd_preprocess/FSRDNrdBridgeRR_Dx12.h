@@ -20,6 +20,7 @@ class RRWrapper
     void DiscardRecordingHistory() noexcept;
     uint64_t ContextGeneration() const noexcept;
     uint64_t OwnedStagingBytes() const noexcept;
+    uint64_t OwnedAuxiliaryBytes() const noexcept;
     const std::string& CameraConventionDescription() const noexcept;
 };
 }

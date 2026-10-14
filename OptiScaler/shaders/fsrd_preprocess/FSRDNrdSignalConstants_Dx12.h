@@ -2,12 +2,15 @@
 #include "FSRDNrdBridge_Types.h"
 #include <wrl/client.h>
 #include <cstring>
+#include "precompile/FSRDNrdBridgeFlag_Shader.h"
 
 namespace NrdBridge
 {
 inline bool ValidateTitleSignalConstants(const TitleSignalConstants& constants, ID3D12Device* device, std::string& error)
 {
-    if (!constants.resource && !constants.address) return true;
+    if (!constants.resource && !constants.address && !constants.nativeHeap && !constants.cbvHandle.ptr) return true;
+    if (bool(constants.nativeHeap) != bool(constants.cbvHandle.ptr))
+    { error = "NRD Consumer CB6 native heap/table pair is incomplete"; return false; }
     if (!constants.resource || !constants.address || (constants.address & 255u))
     { error = "NRD Consumer CB6 resource/VA is missing or unaligned"; return false; }
     const auto desc = constants.resource->GetDesc();
@@ -23,8 +26,82 @@ inline bool ValidateTitleSignalConstants(const TitleSignalConstants& constants, 
         FAILED(device->QueryInterface(IID_PPV_ARGS(&expectedIdentity))) ||
         FAILED(actual.As(&actualIdentity)) || expectedIdentity.Get() != actualIdentity.Get())
     { error = "NRD Consumer CB6 device mismatch"; return false; }
+    if (constants.nativeHeap)
+    {
+        const auto heap = constants.nativeHeap->GetDesc();
+        if (heap.Type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ||
+            !(heap.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) || !heap.NumDescriptors)
+        { error = "NRD Consumer CB6 table requires a shader-visible resource heap"; return false; }
+        actual.Reset(); actualIdentity.Reset();
+        if (FAILED(constants.nativeHeap->GetDevice(IID_PPV_ARGS(&actual))) ||
+            FAILED(actual.As(&actualIdentity)) || expectedIdentity.Get() != actualIdentity.Get())
+        { error = "NRD Consumer CB6 heap device mismatch"; return false; }
+        const auto start = constants.nativeHeap->GetGPUDescriptorHandleForHeapStart().ptr;
+        const auto stride = device->GetDescriptorHandleIncrementSize(heap.Type);
+        if (!start || constants.cbvHandle.ptr < start ||
+            (constants.cbvHandle.ptr - start) % stride ||
+            (constants.cbvHandle.ptr - start) / stride >= heap.NumDescriptors)
+        { error = "NRD Consumer CB6 GPU descriptor handle is outside its heap"; return false; }
+    }
     return true;
 }
+
+struct SignalFlagSnapshot
+{
+    Microsoft::WRL::ComPtr<ID3D12Resource> resource;
+    uint64_t bytes = 0;
+    bool Initialize(ID3D12Device* device, std::string& error)
+    {
+        if (resource) return true;
+        D3D12_RESOURCE_DESC desc {}; desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        desc.Width = 1536; desc.Height = desc.DepthOrArraySize = desc.MipLevels = 1;
+        desc.SampleDesc.Count = 1; desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        D3D12_HEAP_PROPERTIES heap {}; heap.Type = D3D12_HEAP_TYPE_DEFAULT;
+        const auto code = device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
+            D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&resource));
+        if (FAILED(code)) { error = "NRD Consumer flag snapshot allocation failed (HRESULT " + std::to_string(code) + ")"; return false; }
+        bytes = device->GetResourceAllocationInfo(0, 1, &desc).SizeInBytes;
+        return true;
+    }
+    void Transition(ID3D12GraphicsCommandList* list, bool toConstant) const noexcept
+    {
+        D3D12_RESOURCE_BARRIER barrier {}; barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        barrier.Transition = {resource.Get(), D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+            toConstant ? D3D12_RESOURCE_STATE_UNORDERED_ACCESS : D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+            toConstant ? D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER : D3D12_RESOURCE_STATE_UNORDERED_ACCESS};
+        list->ResourceBarrier(1, &barrier);
+    }
+};
+
+struct SignalFlagCapture
+{
+    Microsoft::WRL::ComPtr<ID3D12RootSignature> root;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> pso;
+    bool Initialize(ID3D12Device* device, std::string& error)
+    {
+        if (pso) return true;
+        auto code = device->CreateRootSignature(0, FSRDNrdBridgeFlag_cso, sizeof(FSRDNrdBridgeFlag_cso), IID_PPV_ARGS(&root));
+        if (SUCCEEDED(code))
+        {
+            D3D12_COMPUTE_PIPELINE_STATE_DESC desc {};
+            desc.pRootSignature = root.Get(); desc.CS = {FSRDNrdBridgeFlag_cso, sizeof(FSRDNrdBridgeFlag_cso)};
+            code = device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&pso));
+        }
+        if (FAILED(code)) { error = "NRD Consumer flag capture pipeline failed (HRESULT " + std::to_string(code) + ")"; return false; }
+        return true;
+    }
+    void Record(ID3D12GraphicsCommandList* list, const TitleSignalConstants& constants,
+                const SignalFlagSnapshot& snapshot) const noexcept
+    {
+        list->SetPipelineState(pso.Get()); list->SetComputeRootSignature(root.Get());
+        ID3D12DescriptorHeap* heaps[] = {constants.nativeHeap}; list->SetDescriptorHeaps(1, heaps);
+        list->SetComputeRootDescriptorTable(0, constants.cbvHandle);
+        list->SetComputeRootUnorderedAccessView(1, snapshot.resource->GetGPUVirtualAddress());
+        list->Dispatch(1, 1, 1);
+        snapshot.Transition(list, true);
+    }
+};
 
 inline bool CreateZeroSignalConstants(ID3D12Device* device, Microsoft::WRL::ComPtr<ID3D12Resource>& result, std::string& error)
 {
