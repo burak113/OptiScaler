@@ -1,5 +1,6 @@
 #pragma once
 #include "misc/NrdBridgePerf_Dx12.h"
+#include "FrameSurveyBufferRanges.h"
 #include <array>
 #include <atomic>
 #include <cassert>
@@ -7,6 +8,7 @@
 #include <memory>
 #include <iterator>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <shared_mutex>
 #include <stdexcept>
@@ -16,6 +18,38 @@
 
 namespace FrameSurveyMetadata
 {
+enum class MetadataLock : size_t { CatalogShared, CatalogExclusive, Descriptor, Identity, Range, Snapshot, Mirror, Count };
+using MetadataLockTicks = std::array<uint64_t,size_t(MetadataLock::Count)>;
+inline thread_local MetadataLockTicks gMetadataLockTicks {};
+inline MetadataLockTicks ThreadMetadataLockTicks() noexcept { return gMetadataLockTicks; }
+// Attribute the SAME WaitScope measurement, not a second QPC interval. Disabled
+// outer profiling reads no accumulator and updates no counters.
+class MetadataWait
+{
+    MetadataLock kind_;
+    std::array<uint64_t,size_t(NrdBridgePerf::WaitKind::Count)>* accumulator_;
+    uint64_t before_ = 0;
+    std::optional<NrdBridgePerf::WaitScope> measured_;
+  public:
+    explicit MetadataWait(MetadataLock kind) noexcept : kind_(kind),accumulator_(NrdBridgePerf::Detail::currentWaits)
+    {
+        if (accumulator_) before_ = (*accumulator_)[size_t(NrdBridgePerf::WaitKind::Metadata)];
+        measured_.emplace(NrdBridgePerf::WaitKind::Metadata);
+    }
+    ~MetadataWait()
+    {
+        measured_.reset();
+        if (accumulator_) gMetadataLockTicks[size_t(kind_)] += (*accumulator_)[size_t(NrdBridgePerf::WaitKind::Metadata)]-before_;
+    }
+};
+template<class Mutex,MetadataLock Kind> class MetadataMutex
+{
+    Mutex mutex_;
+  public:
+    void lock() { MetadataWait wait(Kind); mutex_.lock(); }
+    bool try_lock() { MetadataWait wait(Kind); return mutex_.try_lock(); }
+    void unlock() noexcept { mutex_.unlock(); }
+};
 inline constexpr size_t DescriptorShards = 32;
 inline size_t DescriptorShard(uint64_t cpuHandle) noexcept
 {
@@ -29,6 +63,7 @@ inline size_t DescriptorShard(uint64_t cpuHandle) noexcept
 class RecursiveSharedMutex
 {
     std::shared_mutex mutex_;
+    bool snapshot_ = false;
     struct Entry { const void* owner = nullptr; unsigned exclusive = 0, shared = 0; };
     inline static thread_local std::array<Entry,8> entries_ {};
     Entry& EntryFor(bool create)
@@ -39,12 +74,13 @@ class RecursiveSharedMutex
     }
     static void Retire(Entry& entry) noexcept { if (!entry.exclusive && !entry.shared) entry.owner = nullptr; }
   public:
+    explicit RecursiveSharedMutex(bool snapshot = false) noexcept : snapshot_(snapshot) {}
     void lock()
     {
         auto& entry = EntryFor(true);
         if (entry.exclusive) { ++entry.exclusive; return; }
         if (entry.shared) throw std::logic_error("Metadata shared-to-exclusive upgrade is forbidden");
-        NrdBridgePerf::WaitScope wait(NrdBridgePerf::WaitKind::Metadata);
+        MetadataWait wait(snapshot_ ? MetadataLock::Snapshot : MetadataLock::CatalogExclusive);
         try { mutex_.lock(); entry.exclusive = 1; } catch (...) { Retire(entry); throw; }
     }
     bool try_lock()
@@ -52,7 +88,7 @@ class RecursiveSharedMutex
         auto& entry = EntryFor(true);
         if (entry.exclusive) { ++entry.exclusive; return true; }
         if (entry.shared) throw std::logic_error("Metadata shared-to-exclusive upgrade is forbidden");
-        NrdBridgePerf::WaitScope wait(NrdBridgePerf::WaitKind::Metadata);
+        MetadataWait wait(snapshot_ ? MetadataLock::Snapshot : MetadataLock::CatalogExclusive);
         if (mutex_.try_lock()) { entry.exclusive = 1; return true; }
         Retire(entry); return false;
     }
@@ -66,14 +102,14 @@ class RecursiveSharedMutex
     {
         auto& entry = EntryFor(true);
         if (entry.exclusive || entry.shared) { ++entry.shared; return; }
-        NrdBridgePerf::WaitScope wait(NrdBridgePerf::WaitKind::Metadata);
+        MetadataWait wait(snapshot_ ? MetadataLock::Snapshot : MetadataLock::CatalogShared);
         try { mutex_.lock_shared(); entry.shared = 1; } catch (...) { Retire(entry); throw; }
     }
     bool try_lock_shared()
     {
         auto& entry = EntryFor(true);
         if (entry.exclusive || entry.shared) { ++entry.shared; return true; }
-        NrdBridgePerf::WaitScope wait(NrdBridgePerf::WaitKind::Metadata);
+        MetadataWait wait(snapshot_ ? MetadataLock::Snapshot : MetadataLock::CatalogShared);
         if (mutex_.try_lock_shared()) { entry.shared = 1; return true; }
         Retire(entry); return false;
     }
@@ -222,6 +258,15 @@ class DescriptorHandles
         }
         assert(false && "Reverse count disagrees with descriptor buckets"); return false;
     }
+    // Native retirement holds only this exact slot shard. Other buckets may
+    // still change concurrently and are never traversed from here.
+    bool PopShard(size_t shard,uint64_t& key)
+    {
+        assert(shard < DescriptorShards); auto& set = sets_[shard];
+        if (!set || set->empty()) return false;
+        const auto it = set->begin(); key = *it; set->erase(it);
+        size_.fetch_sub(1,std::memory_order_relaxed); return true;
+    }
     bool contains(uint64_t key) const { const auto& set = sets_[DescriptorShard(key)]; return set && set->contains(key); }
     size_t size() const noexcept { return size_.load(std::memory_order_relaxed); }
     bool empty() const noexcept { return !size(); }
@@ -232,5 +277,109 @@ class DescriptorHandles
         for (const auto& set : sets_) if (set && !set->empty() && (!found || *set->begin() < first)) { first = *set->begin(); found = true; }
         return found ? const_iterator(this,first) : const_iterator{};
     }
+};
+// Native-ready pins own metadata only. No node may own a title COM reference or
+// invoke external work from its destructor. Component locks end before slot locks.
+template<class Key,class Node> class PinnedIdentityMap
+{
+    struct Shard { std::shared_mutex mutex; std::unordered_map<Key,std::shared_ptr<Node>> nodes; };
+    std::array<Shard,32> shards_;
+    static size_t Index(Key key) noexcept
+    {
+        uint64_t value = uint64_t(reinterpret_cast<uintptr_t>(key))>>4;
+        value ^= value>>30; value *= 0xbf58476d1ce4e5b9ull; value ^= value>>27;
+        return size_t(value)&31;
+    }
+  public:
+    std::shared_ptr<Node> Find(Key key)
+    {
+        auto& shard = shards_[Index(key)];
+        std::shared_lock lock(shard.mutex,std::defer_lock);
+        { MetadataWait wait(MetadataLock::Identity); lock.lock(); }
+        const auto found = shard.nodes.find(key);
+        return found == shard.nodes.end() ? std::shared_ptr<Node>{} : found->second;
+    }
+    std::shared_ptr<Node> Insert(Key key,const std::shared_ptr<Node>& node)
+    {
+        auto& shard = shards_[Index(key)];
+        std::unique_lock lock(shard.mutex,std::defer_lock);
+        { MetadataWait wait(MetadataLock::Identity); lock.lock(); }
+        return shard.nodes.try_emplace(key,node).first->second;
+    }
+    template<class Predicate> std::shared_ptr<Node> EraseIf(Key key,Predicate matches)
+    {
+        auto& shard = shards_[Index(key)];
+        std::unique_lock lock(shard.mutex,std::defer_lock);
+        { MetadataWait wait(MetadataLock::Identity); lock.lock(); }
+        const auto found = shard.nodes.find(key);
+        if (found == shard.nodes.end() || !matches(*found->second)) return {};
+        auto result = std::move(found->second); shard.nodes.erase(found); return result;
+    }
+    void Clear()
+    {
+        // Caller drains the snapshot gate; no writer or release can still use it.
+        for (auto& shard : shards_) { std::unique_lock lock(shard.mutex); shard.nodes.clear(); }
+    }
+};
+
+// Only interval structure changes take exclusive. A copy never holds this lock
+// while walking descriptors, and removal is by exact start+generation.
+class NativeRangeIndex
+{
+    std::shared_mutex mutex_;
+    BufferAddressIndex ranges_;
+    std::atomic<uint64_t> version_ {1};
+  public:
+    uint64_t Version() const noexcept { return version_.load(std::memory_order_acquire); }
+    void Insert(uint64_t start,uint64_t width,uint64_t generation,void* object)
+    {
+        std::unique_lock lock(mutex_,std::defer_lock);
+        { MetadataWait wait(MetadataLock::Range); lock.lock(); }
+        ranges_.Insert(start,width,generation,object); version_.fetch_add(1,std::memory_order_release);
+    }
+    void Erase(uint64_t start,uint64_t generation)
+    {
+        std::unique_lock lock(mutex_,std::defer_lock);
+        { MetadataWait wait(MetadataLock::Range); lock.lock(); }
+        ranges_.Erase(start,generation); version_.fetch_add(1,std::memory_order_release);
+    }
+    BufferAddressIndex::Match Find(uint64_t address)
+    {
+        std::shared_lock lock(mutex_,std::defer_lock);
+        { MetadataWait wait(MetadataLock::Range); lock.lock(); }
+        return ranges_.Find(address);
+    }
+    void Clear()
+    { std::unique_lock lock(mutex_); ranges_.Clear(); version_.fetch_add(1,std::memory_order_release); }
+};
+
+// Ordinary copies retain deep-copy semantics. Explicit Share() is cold-only and
+// lets a native immutable node pin the legacy diagnostic reverse storage without
+// depending on unordered-map node lifetime. Buckets contain integers, never nodes.
+class DescriptorHandleOwner
+{
+    std::shared_ptr<DescriptorHandles> handles_;
+    DescriptorHandles& Mutable()
+    { if (!handles_) handles_ = std::make_shared<DescriptorHandles>(); return *handles_; }
+  public:
+    using const_iterator = DescriptorHandles::const_iterator;
+    // Allocate the container at cold record construction. Independent first
+    // slot writers must never race to publish the shared backing pointer.
+    DescriptorHandleOwner() : handles_(std::make_shared<DescriptorHandles>()) {}
+    DescriptorHandleOwner(const DescriptorHandleOwner& other)
+    { if (other.handles_) handles_ = std::make_shared<DescriptorHandles>(*other.handles_); }
+    DescriptorHandleOwner(DescriptorHandleOwner&&) noexcept = default;
+    DescriptorHandleOwner& operator=(DescriptorHandleOwner other) noexcept { handles_.swap(other.handles_); return *this; }
+    std::shared_ptr<DescriptorHandles> Share()
+    { Mutable(); return handles_; }
+    bool insert(uint64_t key) { return Mutable().insert(key); }
+    size_t erase(uint64_t key) { return handles_ ? handles_->erase(key) : 0; }
+    void erase(const_iterator it) { assert(handles_); handles_->erase(it); }
+    bool PopAny(uint64_t& key) { return handles_ && handles_->PopAny(key); }
+    bool contains(uint64_t key) const { return handles_ && handles_->contains(key); }
+    size_t size() const noexcept { return handles_ ? handles_->size() : 0; }
+    bool empty() const noexcept { return !size(); }
+    const_iterator begin() const { return handles_ ? handles_->begin() : const_iterator{}; }
+    const_iterator end() const noexcept { return {}; }
 };
 }
