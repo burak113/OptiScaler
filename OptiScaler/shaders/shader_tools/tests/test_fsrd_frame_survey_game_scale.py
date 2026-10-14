@@ -106,6 +106,99 @@ struct Host {
 #endif
  }
 };
+#if __INDEXED__
+// Opaque records below emulate creation metadata only. No fake pointer is ever passed to COM.
+void cacheBuffer(ID3D12Resource* object,uint64_t address,uint64_t bytes){
+ FrameSurvey::Resource r;r.id=++FrameSurvey::gNextResource;r.object=object;r.va=address;
+ r.desc.Dimension=D3D12_RESOURCE_DIMENSION_BUFFER;r.desc.Width=bytes;r.desc.Height=1;
+ r.desc.DepthOrArraySize=r.desc.MipLevels=1;r.desc.SampleDesc.Count=1;
+ need(FrameSurvey::gResources.emplace(object,r).second,"adversarial buffer record is unique metadata");
+ FrameSurvey::gAddresses.emplace(address,object);FrameSurvey::gBufferAddresses.Insert(address,bytes,r.id,object);
+}
+J adversarialIntervals(){
+ const auto records=FrameSurvey::gResources.size(),intervals=FrameSurvey::gBufferAddresses.Size();
+ constexpr uint64_t base=0x750000000000ull;FrameSurvey::BoundConstantBuffer out;
+ auto* a=reinterpret_cast<ID3D12Resource*>(uintptr_t(0x510000000000ull));
+ auto* b=reinterpret_cast<ID3D12Resource*>(uintptr_t(0x510000010000ull));
+ cacheBuffer(a,base,65536);cacheBuffer(b,base+4096,256);
+ need(!FrameSurvey::ResolveBufferAddress(base+4096,256,256,out),"different-start live overlap is ambiguous even when the shorter buffer would not cover a larger query");
+ need(FrameSurvey::ResolveBufferAddress(base+8192,256,256,out)&&out.resource==a,"long buffer remains discoverable beyond a nearer short buffer");
+ need(!FrameSurvey::ResolveBufferAddress(base+4096,512,512,out),"any live overlap rejects even if only one interval covers the requested length");
+ FrameSurvey::Released(b);
+ need(FrameSurvey::ResolveBufferAddress(base+4096,256,256,out)&&out.resource==a,"release removes only the overlapping short interval");
+ FrameSurvey::Released(a);
+ auto* c=reinterpret_cast<ID3D12Resource*>(uintptr_t(0x510000020000ull));
+ auto* d=reinterpret_cast<ID3D12Resource*>(uintptr_t(0x510000030000ull));
+ cacheBuffer(c,base,4096);cacheBuffer(d,base,4096);
+ need(!FrameSurvey::ResolveBufferAddress(base,256,256,out),"same-start generations remain ambiguous");
+ FrameSurvey::Released(c);
+ need(FrameSurvey::ResolveBufferAddress(base,256,256,out)&&out.resource==d,"release of one same-start generation restores the surviving interval");
+ const auto oldGeneration=out.resourceGeneration;FrameSurvey::Released(d);cacheBuffer(d,base,4096);
+ need(FrameSurvey::ResolveBufferAddress(base,256,256,out)&&out.resource==d&&out.resourceGeneration!=oldGeneration,"reused opaque address resolves only the newly registered generation");
+ FrameSurvey::Released(d);
+ auto* spanning=reinterpret_cast<ID3D12Resource*>(uintptr_t(0x510000040000ull));
+ cacheBuffer(spanning,base,1048576);std::vector<ID3D12Resource*> shortBuffers;
+ for(UINT i=0;i<1024;++i){auto* object=reinterpret_cast<ID3D12Resource*>(uintptr_t(0x520000000000ull+uint64_t(i)*65536));
+  cacheBuffer(object,base+4096+uint64_t(i)*512,256);shortBuffers.push_back(object);}
+ need(FrameSurvey::ResolveBufferAddress(base+917504,256,256,out)&&out.resource==spanning,"augmented range search finds a long spanning interval hidden behind 1024 nearer starts");
+ need(!FrameSurvey::ResolveBufferAddress(base+4096+uint64_t(1023)*512,256,256,out),"near interval inside the spanning interval remains ambiguous");
+ FrameSurvey::Released(spanning);need(!FrameSurvey::ResolveBufferAddress(base+917504,256,256,out),"released spanning interval never survives through nearer-start lookup");
+ for(auto* object:shortBuffers)FrameSurvey::Released(object);
+ FrameSurveyMetadata::BufferAddressIndex isolated;
+ isolated.Insert(256,0,1,a);isolated.Insert(0,512,2,a);isolated.Insert(256,512,0,a);isolated.Insert(256,512,3,nullptr);
+ need(isolated.Size()==0,"zero ranges, addresses, generations and objects are ignored");
+ isolated.Insert(UINT64_MAX-255,512,4,a);auto match=isolated.Find(UINT64_MAX);
+ need(match.matches==1&&match.object==a&&match.generation==4,"saturated end-address index does not wrap to the beginning of the VA space");
+ need(isolated.Find(256).matches==0,"overflow interval cannot falsely match a low address");
+ isolated.Erase(UINT64_MAX-255,5);need(isolated.Size()==1,"erasing a stale generation preserves a live interval");
+ isolated.Erase(UINT64_MAX-255,4);need(isolated.Size()==0,"exact generation erase removes the live interval");
+ isolated.Insert(4096,256,6,a);isolated.Insert(4096,512,6,b);match=isolated.Find(4352);
+ need(isolated.Size()==1&&match.matches==1&&match.object==b,"same-key update changes interval width and object without duplicate size");
+ isolated.Clear();need(isolated.Size()==0&&isolated.Find(4096).matches==0,"index clear releases all metadata");
+ need(FrameSurvey::gResources.size()==records&&FrameSurvey::gBufferAddresses.Size()==intervals,"adversarial release teardown preserves the native buffer registry");
+ return {{"short_ranges_hiding_long_buffer",1024},{"different_start_overlap_rejected",true},{"same_start_overlap_rejected",true},
+  {"generation_reuse_checked",true},{"overflow_saturation_checked",true}};
+}
+J mirrorOwnersScale(Host& h){
+ constexpr size_t count=100000;const auto mirrorCount=FrameSurvey::gMirror.size(),ownerCount=FrameSurvey::gMirrorOwners.size();
+ std::vector<ID3D12GraphicsCommandList*> lists;std::vector<ID3D12RootSignature*> roots;lists.reserve(count);roots.reserve(count);
+ const auto insertion=Clock::now();
+ for(size_t i=0;i<count;++i){
+  auto* cmd=reinterpret_cast<ID3D12GraphicsCommandList*>(uintptr_t(0x530000000000ull+(i+1)*65536));
+  auto* root=reinterpret_cast<ID3D12RootSignature*>(uintptr_t(0x540000000000ull+(i+1)*65536));
+  FrameSurvey::Reset(cmd,nullptr);FrameSurvey::RootBinding(cmd,false,root);
+  FrameSurvey::RootView(cmd,false,0,D3D12_DESCRIPTOR_RANGE_TYPE_CBV,h.cbv.BufferLocation);lists.push_back(cmd);roots.push_back(root);
+ }
+ const double insertionMs=ms(insertion);const size_t selected=50000;auto* cmd=lists[selected];auto* root=roots[selected];
+ need(FrameSurvey::MetadataHealthy()&&FrameSurvey::gMirror.size()==mirrorCount+count,"100k local mirror records created through actual Reset/RootBinding/RootView callbacks");
+ need(FrameSurvey::gMirrorOwners.at(root).size()==1&&FrameSurvey::gMirrorOwners.at(root).contains(cmd),"reverse ownership lists exactly the selected mirror");
+ FrameSurvey::gMirrorReleaseVisitsForTesting=0;const auto release=Clock::now();FrameSurvey::Released(root);const double releaseMs=ms(release);
+ const auto releaseVisits=FrameSurvey::gMirrorReleaseVisitsForTesting;
+ need(releaseVisits==1,"actual production release invalidates one participant without walking 100k mirrors");
+ need(!FrameSurvey::gMirror.at(cmd).compute.object&&FrameSurvey::gMirror.at(cmd).compute.views.empty(),"released root clears its current view bindings");
+ need(FrameSurvey::gMirror.at(lists[selected-1]).compute.object==roots[selected-1]&&
+  FrameSurvey::gMirror.at(lists[selected+1]).compute.views.at(0).second==h.cbv.BufferLocation,"unrelated adjacent mirror bindings survive selected release");
+ FrameSurvey::RootBinding(cmd,false,root);FrameSurvey::Reset(cmd,nullptr);FrameSurvey::gMirrorReleaseVisitsForTesting=0;FrameSurvey::Released(root);
+ need(FrameSurvey::gMirrorReleaseVisitsForTesting==0&&!FrameSurvey::gMirrorOwners.contains(root),"Reset removes stale reverse participants before a later root release");
+ auto* pso=reinterpret_cast<ID3D12PipelineState*>(uintptr_t(0x550000000000ull));
+ FrameSurvey::SetPipeline(cmd,pso);FrameSurvey::gMirrorReleaseVisitsForTesting=0;FrameSurvey::Released(pso);
+ need(FrameSurvey::gMirrorReleaseVisitsForTesting==1&&!FrameSurvey::gMirror.at(cmd).pso,"pipeline release invalidates only the actual owner");
+ auto* heap=reinterpret_cast<ID3D12DescriptorHeap*>(uintptr_t(0x560000000000ull));
+ FrameSurvey::DescriptorHeaps(cmd,1,&heap);FrameSurvey::Table(cmd,false,5,{0x123400});
+ FrameSurvey::gMirrorReleaseVisitsForTesting=0;FrameSurvey::Released(heap);
+ need(FrameSurvey::gMirrorReleaseVisitsForTesting==1&&FrameSurvey::gMirror.at(cmd).heaps.empty()&&FrameSurvey::gMirror.at(cmd).compute.tables.empty(),"heap release touches its sole mirror and clears affected tables");
+ FrameSurvey::gMirrorReleaseVisitsForTesting=0;FrameSurvey::Released(reinterpret_cast<void*>(uintptr_t(0x570000000000ull)));
+ need(FrameSurvey::gMirrorReleaseVisitsForTesting==0,"unreferenced object release performs no mirror iteration");
+ FrameSurvey::RootBinding(lists.back(),false,roots.back());FrameSurvey::Released(lists.back());
+ need(!FrameSurvey::gMirror.contains(lists.back())&&!FrameSurvey::gMirrorOwners.contains(roots.back()),"released command list removes its reverse root participant");
+ const auto teardown=Clock::now();for(auto* list:lists)FrameSurvey::Released(list);const double teardownMs=ms(teardown);
+ need(FrameSurvey::gMirror.size()==mirrorCount&&FrameSurvey::gMirrorOwners.size()==ownerCount,"100k mirror teardown restores exact native mirror and owner counts");
+ FrameSurvey::BoundConstantBuffer out;need(FrameSurvey::ResolveComputeConstantBuffer(h.list.Get(),6,0,1216,out)&&out.resource==h.buffer.Get(),"native command-list bindings survive all synthetic mirror releases");
+ PROCESS_MEMORY_COUNTERS_EX pm {};GetProcessMemoryInfo(GetCurrentProcess(),reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pm),sizeof(pm));
+ return {{"synthetic_mirrors",count},{"production_callback_insertion_ms",insertionMs},{"selected_root_release_ms",releaseMs},
+  {"selected_release_mirrors_visited",releaseVisits},{"teardown_via_production_release_ms",teardownMs},{"peak_working_set_bytes",uint64_t(pm.PeakWorkingSetSize)}};
+}
+#endif
 J measure(Host& h,size_t count){
  constexpr uint64_t fakeBase=0x700000000000ull;constexpr uintptr_t objectBase=uintptr_t(0x400000000000ull);
  need(h.cbv.BufferLocation<fakeBase || h.cbv.BufferLocation>=fakeBase+(count+1)*65536,"synthetic VA range never aliases real native buffer");
@@ -170,17 +263,24 @@ J measure(Host& h,size_t count){
   {"live_synthetic_views",count},{"insertion_ms",insertionMs},{"native_cbv_forward_ms",forwardCbvMs},{"native_srv_forward_ms",forwardSrvMs},{"native_uav_forward_ms",forwardUavMs},
   {"production_cbv_wrapper_ms",callbackMs},{"production_srv_wrapper_ms",srvMs},{"production_uav_wrapper_ms",uavMs},
   {"root_lookup_ms",rootMs},{"teardown_via_production_release_ms",teardownMs},
-  {"four_threads_1000_views_each_ms",threadedMs},{"working_set_bytes",uint64_t(pm.WorkingSetSize)}};
+  {"four_threads_1000_views_each_ms",threadedMs},{"working_set_bytes",uint64_t(pm.WorkingSetSize)},{"peak_working_set_bytes",uint64_t(pm.PeakWorkingSetSize)}};
 }
 int main(int argc,char** argv)try{
  need(argc==2,"output path");g_dllPath=std::filesystem::path(argv[1])/"fixture.dll";Host h;J rows=J::array();
+ J intervals,mirrors;
+#if __INDEXED__
+ intervals=adversarialIntervals();
+#endif
  for(size_t size:{size_t(10000),size_t(50000),size_t(100000)})rows.push_back(measure(h,size));
+#if __INDEXED__
+ mirrors=mirrorOwnersScale(h);
+#endif
  hr(h.list->Close());ComPtr<ID3D12InfoQueue> info;if(SUCCEEDED(h.device.As(&info))){
   for(UINT64 i=0;i<info->GetNumStoredMessagesAllowedByRetrievalFilter();++i){SIZE_T size=0;info->GetMessage(i,nullptr,&size);std::vector<uint8_t> data(size);
    auto* m=reinterpret_cast<D3D12_MESSAGE*>(data.data());info->GetMessage(i,m,&size);need(m->Severity>D3D12_MESSAGE_SEVERITY_ERROR,"native WARP debug-layer clean");}
  }
  J result={{"mode",__INDEXED__?"indexed":"3251_full_resource_scan"},{"scope","local metadata emulation plus actual WARP buffer/heap/root; zero GPU dispatch; no game cost claim"},
-  {"checks_passed",checks},{"synthetic_objects_queried_through_com",false},{"gpu_dispatches",0},{"recording",false},{"binding_window",false},{"scales",rows}};
+  {"checks_passed",checks},{"synthetic_objects_queried_through_com",false},{"gpu_dispatches",0},{"recording",false},{"binding_window",false},{"scales",rows},{"interval_regression",intervals},{"mirror_regression",mirrors}};
  std::ofstream(std::filesystem::path(argv[1])/"host-result.json")<<result.dump(2)<<'\n';std::cout<<result.dump()<<'\n';return0;
 }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return1;}
 '''
@@ -195,6 +295,14 @@ def run():
         counted=original.replace(needle,needle+'        ++gBufferLookupVisitsForTesting;\n')
         assert counted.replace('        ++gBufferLookupVisitsForTesting;\n','')==original
         source=source.replace(original,'size_t gBufferLookupVisitsForTesting=0;\n'+counted)
+    original_release=function(source,'void Released(')
+    if indexed:
+        release_needle='            for (auto* cmd : affected)'+chr(10)+'            {'+chr(10)
+        assert original_release.count(release_needle)==1
+        release_counter='                ++gMirrorReleaseVisitsForTesting;'+chr(10)
+        counted_release=original_release.replace(release_needle,release_needle+release_counter)
+        assert counted_release.replace(release_counter,'')==original_release
+        source=source.replace(original_release,'size_t gMirrorReleaseVisitsForTesting=0;'+chr(10)+counted_release)
     instrumented=output/'FrameSurvey_instrumented.cpp';instrumented.write_text(source,encoding='utf-8')
     stubs=output/'stubs'
     for folder in ('proxies','inputs'):(stubs/folder).mkdir(parents=True,exist_ok=True)
@@ -215,7 +323,10 @@ def run():
     result=json.loads((output/'host-result.json').read_text());result['production_helper_sha256']=hashlib.sha256(original.encode()).hexdigest()
     result['production_source_sha256']=hashlib.sha256(source_path.read_bytes()).hexdigest()
     result['source_commit']=subprocess.check_output(['git','log','-1','--format=%H'],cwd=ROOT,text=True).strip()
-    result['counter_instrumented_only_in_scratch']=not indexed
+    result['counter_instrumented_only_in_scratch']=True
+    result['buffer_visit_counter_in_scratch']=not indexed
+    result['mirror_release_visit_counter_in_scratch']=indexed
+    result['production_release_sha256']=hashlib.sha256(original_release.encode()).hexdigest()
     result['production_hook_body_sha256']={name:hashlib.sha256(body.encode()).hexdigest() for name,body in zip(hook_names,hook_bodies)}
     result['legacy_base_helpers']='inert adapters; ForceHDR/inspector disabled, FGHudfixDisableSRV/UAV=true; exact production hook bodies executed'
     report=Path('E:/FSRD/sol_batch/12a-discovery');report.mkdir(parents=True,exist_ok=True)
