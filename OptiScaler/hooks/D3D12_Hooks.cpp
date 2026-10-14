@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
+#include "misc/NrdBridgeDevice_Dx12.h"
 #include "D3D12_Hooks.h"
 
 #include <Util.h>
@@ -1450,6 +1451,9 @@ VALIDATE_HOOK(hkD3D12CreateDevice, D3d12Proxy::PFN_D3D12CreateDevice)
 static HRESULT hkD3D12CreateDevice(IUnknown* pAdapter, D3D_FEATURE_LEVEL MinimumFeatureLevel, REFIID riid,
                                    void** ppDevice)
 {
+    if (FrameSurvey::Internal() || State::Instance().creatingD3DDevice)
+        return o_D3D12CreateDevice(pAdapter, MinimumFeatureLevel, riid, ppDevice);
+
     LOG_DEBUG("Adapter: {:X}, Level: {:X}, Caller: {}", (size_t) pAdapter, (UINT) MinimumFeatureLevel,
               Util::WhoIsTheCaller(_ReturnAddress()));
 
@@ -1608,7 +1612,7 @@ static HRESULT hkCreateDevice(ID3D12DeviceFactory* pFactory, IUnknown* pAdapter,
     LOG_DEBUG("Adapter: {:X}, Level: {:X}, Caller: {}", (size_t) pAdapter, (UINT) MinimumFeatureLevel,
               Util::WhoIsTheCaller(_ReturnAddress()));
 
-    if (_creatingD3D12Device)
+    if (_creatingD3D12Device || FrameSurvey::Internal() || State::Instance().creatingD3DDevice)
     {
         LOG_DEBUG("Calling from hkD3D12CreateDevice, calling original CreateDevice");
         return o_CreateDevice(pFactory, pAdapter, MinimumFeatureLevel, riid, ppDevice);
@@ -2273,21 +2277,30 @@ static HRESULT hkD3D12GetInterface(REFCLSID rclsid, REFIID riid, void** ppvDebug
 
 static void HookToDevice(ID3D12Device* InDevice)
 {
-    if (o_CreateSampler != nullptr || InDevice == nullptr)
-        return;
+    if (InDevice == nullptr || FrameSurvey::Internal()) return;
+    const auto native = NrdBridgeDevice::Native(InDevice);
+    if (!native) return;
+    auto* realDevice = native.Get();
+    if (NrdBridge::StartupEnabled())
+    {
+        if (!NrdBridgeDevice::Selected(realDevice, State::Instance().currentD3D12Device)) return;
+        // Existing native detours still need to rebind the selected title device.
+        if (o_CreateSampler != nullptr)
+        {
+            ResTrack_Dx12::HookDevice(realDevice);
+            return;
+        }
+    }
+    if (o_CreateSampler != nullptr) return;
 
     LOG_DEBUG("Dx12");
 
-    // Get the vtable pointer
-    PVOID* pVTable = *(PVOID**) InDevice;
-
-    ID3D12Device* realDevice = nullptr;
-    if (Util::CheckForRealObject(__FUNCTION__, InDevice, (IUnknown**) &realDevice))
-        pVTable = *(PVOID**) realDevice;
+    // Root-state tracking and metadata must use the same native COM surface.
+    PVOID* pVTable = *(PVOID**) realDevice;
 
     gNrdBridgeDeviceWrappers = NrdBridge::StartupEnabled();
     gSurveyDeviceWrappers = Config::Instance()->FfxDenoiserFrameSurvey.value_or_default() || gNrdBridgeDeviceWrappers;
-    if (gNrdBridgeDeviceWrappers) NrdBridge::Initialize(realDevice ? realDevice : InDevice);
+    if (gNrdBridgeDeviceWrappers && !NrdBridge::Initialize(realDevice)) return;
     if (gSurveyDeviceWrappers)
         FrameSurvey::BeginCreationTracking(Config::Instance()->FfxDenoiserFrameSurvey.value_or_default());
 
@@ -2364,13 +2377,13 @@ static void HookToDevice(ID3D12Device* InDevice)
         }
     }
 
-    HookToCommandList(InDevice);
+    HookToCommandList(realDevice);
 
     if (gSurveyDeviceWrappers || (State::Instance().activeFgInput == FGInput::Upscaler &&
         !Config::Instance()->FGDisableHUDFix.value_or_default() &&
         State::Instance().swapchainInteropApi == SwapchainInteropApi::None))
     {
-        ResTrack_Dx12::HookDevice(InDevice);
+        ResTrack_Dx12::HookDevice(realDevice);
     }
 
     if (State::Instance().activeFgOutput == FGOutput::DLSSG && StreamlineProxy::LoadStreamline())

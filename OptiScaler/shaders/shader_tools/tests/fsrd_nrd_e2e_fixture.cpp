@@ -455,7 +455,9 @@ void loadProvider(const char* path) {
  need(FfxApiProxy::createFunction && FfxApiProxy::destroyFunction && FfxApiProxy::queryFunction && FfxApiProxy::configureFunction && FfxApiProxy::dispatchFunction,"all actual AMD exports resolved");
 }
 int main(int argc,char** argv) try {
- need(argc==3,"scratch folder and signed AMD DLL arguments"); g_dllPath=std::filesystem::path(argv[1])/"fixture.dll"; Host h;
+ need(argc==3 || (argc==4 && std::string(argv[3])=="--startup-off"),"scratch folder, signed AMD DLL and optional OFF scenario arguments");
+ const bool startupOff=argc==4; if(startupOff) NrdBridge::ConfigureStartup(false);
+ g_dllPath=std::filesystem::path(argv[1])/"fixture.dll"; Host h;
  requestedList=h.list.Get(); J result; result["adapter"]=h.adapter;
  need(!NrdBridge::Initialize(h.device.Get()),"startup OFF allocates no coordinator");
  AttachRoots(h.list.Get()); Wiring::Attach(h.list.Get());
@@ -466,6 +468,14 @@ int main(int argc,char** argv) try {
   result["startup_off"]={{"provider_creates",0},{"provider_dispatches",0},{"restore_calls",0},{"nrdsentinel_untouched",true}};
  }
  Wiring::Detach(); DetachRoots(); Config::Instance()->FfxDenoiserNrdBridge.value=true;
+ NrdBridge::ConfigureStartup(true);
+ if(startupOff) {
+  need(!NrdBridge::StartupEnabled() && !NrdBridge::Initialize(h.device.Get()),"configured OFF remains latched after live config and repeated bootstrap");
+  need(FfxApiProxy::creates==0 && FfxApiProxy::dispatches==0 && restores==0,"fresh configured OFF performs no provider work or root restoration");
+  const auto debug=h.debugCounts(); result["debug_errors"]=debug[0]; result["debug_warnings"]=debug[1]; result["native_checks"]=checks;
+  std::ofstream(std::filesystem::path(argv[1])/"startup-off-result.json")<<result.dump(2)<<'\n';
+  std::cout<<"PASS startup_off checks="<<checks<<'\n';return 0;
+ }
  loadProvider(argv[2]);
  FrameSurvey::BeginCreationTracking(false); need(FrameSurvey::Install(h.device.Get(),h.list.Get(),false),"real metadata-only survey installed");
  need(NrdBridge::Initialize(h.device.Get()),"production coordinator initialized"); AttachRoots(h.list.Get()); Wiring::Attach(h.list.Get());

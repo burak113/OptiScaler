@@ -9,6 +9,7 @@
 #include "hooks/Streamline_Hooks.h"
 #include "resource_tracking/ResTrack_dx12.h"
 #include "misc/NrdBridgeLifetime_Dx12.h"
+#include "misc/NrdBridgeDevice_Dx12.h"
 #include <atomic>
 #include <mutex>
 #include <sstream>
@@ -50,6 +51,8 @@ struct Service
 std::mutex gMutex, gInjectionMutex;
 std::shared_ptr<Service> gService;
 std::atomic<bool> gInstalled {false}, gRuntime {false};
+std::atomic<int> gStartupSelection {-1};
+std::string gUnavailableReason;
 std::atomic<DebugMode> gDebug {DebugMode::Off};
 #ifdef FSRD_NRD_BRIDGE_TEST
 void (*gBeforeConversionLockForTesting)() = nullptr;
@@ -312,32 +315,44 @@ bool SupportedExecutable() noexcept
         return supported;
     } catch (...) { return false; }
 }
+void ConfigureStartup(bool enabled) noexcept
+{
+    int unconfigured = -1;
+    gStartupSelection.compare_exchange_strong(unconfigured, enabled && SupportedExecutable() ? 1 : 0,
+        std::memory_order_release, std::memory_order_relaxed);
+}
 bool StartupEnabled() noexcept
 {
-    return Config::Instance()->FfxDenoiserNrdBridge.value_or_default() && SupportedExecutable();
+    return gStartupSelection.load(std::memory_order_acquire) == 1;
 }
 bool Initialize(ID3D12Device* device) noexcept
 {
-    if (!device || !StartupEnabled()) return false;
+    if (!device || !StartupEnabled() || FrameSurvey::Internal()) return false;
+    const auto native = NrdBridgeDevice::Native(device);
+    if (!native) return false;
     try
     {
         std::shared_ptr<Service> previous;
         {
             std::scoped_lock injection(gInjectionMutex);
-            std::scoped_lock lock(gMutex);
-            if (gService && gService->device.Get() == device) return true;
-            auto owner = std::shared_ptr<Service>(new Service,[](Service* service) { FrameSurvey::ScopedInternal internal; delete service; }); owner->device = device;
-            owner->status.installed = true; owner->status.runtimeEnabled = Config::Instance()->FfxDenoiserNrdBridgeEnabled.value_or_default();
-            owner->status.phase = owner->status.runtimeEnabled ? "Discovering" : "Waiting for NRD";
-            owner->status.reason = owner->status.runtimeEnabled ? "Waiting for the Recon to Consumer chain" : "Runtime toggle is off";
-            owner->window = owner->status.runtimeEnabled;
-            previous = std::move(gService); gService = std::move(owner);
-            gRuntime.store(gService->status.runtimeEnabled,std::memory_order_release); gInstalled.store(true,std::memory_order_release);
+            {
+                std::scoped_lock lock(gMutex);
+                if (gService && NrdBridgeDevice::Same(gService->device.Get(), native.Get())) return true;
+                auto owner = std::shared_ptr<Service>(new Service,[](Service* service) { FrameSurvey::ScopedInternal internal; delete service; }); owner->device = native;
+                owner->status.installed = true; owner->status.runtimeEnabled = Config::Instance()->FfxDenoiserNrdBridgeEnabled.value_or_default();
+                owner->status.phase = owner->status.runtimeEnabled ? "Discovering" : "Waiting for NRD";
+                owner->status.reason = owner->status.runtimeEnabled ? "Waiting for the Recon to Consumer chain" : "Runtime toggle is off";
+                owner->window = owner->status.runtimeEnabled;
+                previous = std::move(gService); gService = std::move(owner);
+                gUnavailableReason.clear();
+                gRuntime.store(gService->status.runtimeEnabled,std::memory_order_release); gInstalled.store(true,std::memory_order_release);
+            }
+            // Publish observers under lifecycle serialization, outside the state lock.
+            FrameSurvey::SetPipelineObserver(OnPipelineCreated); FrameSurvey::SetReleaseObserver(OnReleased);
+            FrameSurvey::SetBindingWindow(gRuntime.load(std::memory_order_relaxed));
         }
-        // Destruction may release owned D3D12 objects and re-enter release observers. Never hold gMutex here.
+        // Owned D3D12 releases may re-enter hooks. Destroy outside both coordinator locks.
         { FrameSurvey::ScopedInternal internal; previous.reset(); }
-        FrameSurvey::SetPipelineObserver(OnPipelineCreated); FrameSurvey::SetReleaseObserver(OnReleased);
-        FrameSurvey::SetBindingWindow(gRuntime.load(std::memory_order_relaxed));
         LOG_INFO("[NRD_BRIDGE] startup enabled for Cyberpunk; runtime={}; discovery windows bounded to 8 Presents / 3 attempts; empty loading windows do not consume attempts",
             gRuntime.load(std::memory_order_relaxed));
         return true;
@@ -345,13 +360,15 @@ bool Initialize(ID3D12Device* device) noexcept
 }
 void Shutdown() noexcept
 {
-    gInstalled.store(false,std::memory_order_release); gRuntime.store(false,std::memory_order_release);
-    FrameSurvey::SetPipelineObserver(nullptr); FrameSurvey::SetReleaseObserver(nullptr); FrameSurvey::SetBindingWindow(false);
     try
     {
-        std::scoped_lock injection(gInjectionMutex);
         std::shared_ptr<Service> previous;
-        { std::scoped_lock lock(gMutex); previous = std::move(gService); }
+        {
+            std::scoped_lock injection(gInjectionMutex);
+            gInstalled.store(false,std::memory_order_release); gRuntime.store(false,std::memory_order_release);
+            FrameSurvey::SetPipelineObserver(nullptr); FrameSurvey::SetReleaseObserver(nullptr); FrameSurvey::SetBindingWindow(false);
+            { std::scoped_lock lock(gMutex); previous = std::move(gService); }
+        }
         { FrameSurvey::ScopedInternal internal; previous.reset(); }
     } catch (...) {}
 }
@@ -686,9 +703,25 @@ void OnPresent() noexcept
         if (log) LOG_INFO("[NRD_BRIDGE] {}",reason);
     } catch (...) {}
 }
+void ReportUnavailable(const char* reason) noexcept
+{
+    Shutdown();
+    try
+    {
+        std::scoped_lock lock(gMutex);
+        gUnavailableReason = reason ? reason : "Selected title device is unavailable";
+    } catch (...) {}
+}
 Status GetStatus()
 {
-    std::scoped_lock lock(gMutex); return gService ? gService->status : Status {};
+    std::scoped_lock lock(gMutex);
+    if (gService) return gService->status;
+    Status status;
+    if (StartupEnabled() && !gUnavailableReason.empty())
+    {
+        status.installed = true; status.phase = "Inactive"; status.reason = gUnavailableReason;
+    }
+    return status;
 }
 void SetRuntimeEnabled(bool enabled) noexcept
 {

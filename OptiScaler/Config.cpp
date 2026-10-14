@@ -8,6 +8,7 @@
 #include <hooks/Streamline_Hooks.h>
 #include <misc/IdentifyGpu.h>
 #include <upscalers/fsr31/FSRDSignalPolicy.h>
+#include "shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
 
 #include <SimpleIni.h>
 
@@ -186,6 +187,8 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserFrameSurvey.reset();
     FfxDenoiserNrdBridge.reset();
     FfxDenoiserNrdBridgeEnabled.reset();
+    FfxDenoiserNrdBridgeEnabled = false;
+    NrdBridge::SetRuntimeEnabled(false);
     FfxDenoiserFrameSurveyPassHashes.reset();
     FfxDenoiserFogGuides.reset();
     FfxDenoiserMotionJitterDelta.reset();
