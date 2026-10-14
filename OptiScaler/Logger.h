@@ -2,7 +2,12 @@
 #include "SysUtils.h"
 #include <ankerl/unordered_dense.h>
 
+// Call after Config has loaded and before PrepareLogger or a pre-build level clamp.
+bool PrepareNrdBridgeAutomaticLogPolicy() noexcept;
+
 void PrepareLogger();
+// Flush a one-shot diagnostic without propagating sink errors into gameplay.
+void FlushLogger() noexcept;
 void CloseLogger();
 void WaitForEnter();
 
