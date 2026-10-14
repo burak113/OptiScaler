@@ -37,7 +37,10 @@ ULONG Title(NativeObject* object, Original original) noexcept
     NrdBridgeLifetime::ScopedRelease physical(true);
     const auto ticket = NrdBridgeBirth::Capture(object);
     NrdBridgeBirth::ScopedRelease pending(ticket);
-    auto recording = RecordedComputeLease::BeginRelease(object);
+    // Resources/heaps/PSOs with no recording capability avoid the global lease
+    // registry. Unknown objects preserve its lookup; the marker never clears.
+    auto recording = !ticket || ticket->RecordingMayExist() ? RecordedComputeLease::BeginRelease(object) :
+        decltype(RecordedComputeLease::BeginRelease(object)){};
     object->AddRef();
     const ULONG probe = original(object);
     if (probe <= 1) RetireExact(ticket);

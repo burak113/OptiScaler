@@ -9,6 +9,7 @@
 #include <mutex>
 #include <unordered_map>
 #include <vector>
+#include "NrdBridgePerf_Dx12.h"
 
 // Leases are opaque owners: helper-shader state and, for recorded-lifetime features, the
 // FFX provider contexts (FfxContextOwner) whose dispatches the list recorded.
@@ -100,7 +101,7 @@ struct Submission
 };
 struct Registry
 {
-    std::mutex mutex;
+    NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Tracking> mutex;
     bool listHooks = false, queueHook = false, completionFailed = false;
     std::unordered_map<IUnknown*, std::shared_ptr<Recording>> recordings;
     std::unordered_map<void*, std::weak_ptr<Recording>> aliases;

@@ -210,7 +210,14 @@ template <size_t Index> static ULONG STDMETHODCALLTYPE hkBirthRelease(IUnknown* 
 {
     const auto original = gBirthReleaseEntries[Index].original;
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Release,UseNrdNativeRetirement());
-    if (!UseNrdNativeRetirement() || State::Instance().isShuttingDown) return original(object);
+    if (State::Instance().isShuttingDown) return original(object);
+    if (!UseNrdNativeRetirement())
+    {
+        auto recording = RecordedComputeLease::BeginRelease(object);
+        const ULONG result = original(object);
+        RecordedComputeLease::EndRelease(recording,result == 0);
+        return result;
+    }
     return NrdBridgeRelease::Title(object,original);
 }
 template <size_t... Index> static constexpr auto BirthReleaseHooks(std::index_sequence<Index...>)
@@ -922,6 +929,8 @@ static void TrackRRResourceView(ID3D12Resource* resource, DXGI_FORMAT viewFormat
     // who never open the inspector.
     if (!gRRResourceInspectorEnabled.load(std::memory_order_relaxed))
         return;
+
+    if (NrdBridgeNativeBirth::Ready() && FrameSurvey::Internal()) return;
 
     if (!IsRRScalarCandidateResource(resource, viewFormat))
         return;
@@ -2366,6 +2375,8 @@ HRESULT ResTrack_Dx12::hkCreateDescriptorHeap(ID3D12Device* This, D3D12_DESCRIPT
 
     if (State::Instance().skipHeapCapture)
         return result;
+
+    if (NrdBridgeNativeBirth::Ready() && FrameSurvey::Internal()) return result;
 
     // try to calculate handle ranges for heap
     if (result == S_OK && (pDescriptorHeapDesc->Type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ||
@@ -4149,7 +4160,7 @@ bool ResTrack_Dx12::RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCo
          vtable[2] != gPsoReleaseEntry && !FindBirthReleaseOriginal(vtable[2]))) return false;
     Microsoft::WRL::ComPtr<IUnknown> identity;
     if (FAILED(actual->QueryInterface(IID_PPV_ARGS(&identity)))) return false;
-    if (NrdBridgeNativeBirth::Ready() && gNrdBridgeWrappers)
+    if (NrdBridgeNativeBirth::Ready() && gNrdBridgeWrappers && NrdBridgeBirth::Capture(actual))
     {
         if (!ObserveBridgeObjectRelease(actual) || !ObserveBridgeObjectRelease(identity.Get())) return false;
         const auto nativeBirth = NrdBridgeNativeBirth::Receiver(actual);
@@ -4162,6 +4173,9 @@ bool ResTrack_Dx12::RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCo
             return retirement.Valid() && bool(NrdBridgeBirth::LinkAlias(nativeBirth->InstanceStamp(),alias));
         };
         if (!link(identity.Get()) || !link(static_cast<ID3D12CommandList*>(actual))) return false;
+        // A failed Track may leave a harmless true marker. Marking before Track
+        // prevents any Release between publication and the capability flag.
+        NrdBridgeBirth::MarkRecordingMayExist(nativeBirth);
     }
     return RecordedComputeLease::Track(identity.Get(),
         { list, actual, static_cast<ID3D12CommandList*>(actual), identity.Get() }, lease, std::move(beforeSubmit), std::move(callbacks));
