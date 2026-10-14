@@ -30,8 +30,16 @@ struct Sample
 struct Report
 {
     uint32_t frames = 0, firstFrame = UINT32_MAX, lastFrame = UINT32_MAX;
-    uint64_t frequency = 0;
+    uint64_t frequency = 0, consumerIntervalTicks = 0;
     std::array<Sample,size_t(Hook::Count)> hooks {};
+    // CPU Consumer recording cadence across the same 100 intervals; not GPU time or FG/display FPS.
+    bool ConsumerTimeValid() const noexcept { return frames && frequency && consumerIntervalTicks; }
+    double ConsumerElapsedMs() const noexcept
+    { return ConsumerTimeValid() ? double(consumerIntervalTicks)*1000.0/double(frequency) : 0.0; }
+    double AverageConsumerIntervalMs() const noexcept
+    { return ConsumerTimeValid() ? ConsumerElapsedMs()/double(frames) : 0.0; }
+    double ConsumerIntervalsPerSecond() const noexcept
+    { return ConsumerTimeValid() ? double(frames)*double(frequency)/double(consumerIntervalTicks) : 0.0; }
     double AverageUs(Hook hook) const noexcept
     {
         const auto& sample = hooks[size_t(hook)];
@@ -77,7 +85,7 @@ struct State
     std::atomic<bool> requested {false}, reported {false};
     uint32_t frames = 0, firstFrame = UINT32_MAX, lastFrame = UINT32_MAX;
     std::array<uint32_t,100> seenFrames {};
-    uint64_t frequency = 0;
+    uint64_t frequency = 0, firstConsumerTick = 0, consumerIntervalTicks = 0;
     std::array<Counter,size_t(Hook::Count)> hooks;
 };
 inline std::atomic<bool> configured {false}, collecting {false};
@@ -97,7 +105,7 @@ inline void TryReport() noexcept
     Report result;
     // requested is published only after the frame fields are frozen under frameMutex.
     result.frames = state.frames; result.firstFrame = state.firstFrame; result.lastFrame = state.lastFrame;
-    result.frequency = state.frequency;
+    result.frequency = state.frequency; result.consumerIntervalTicks = state.consumerIntervalTicks;
     for (size_t i=0;i<result.hooks.size();++i)
     {
         result.hooks[i].calls = state.hooks[i].calls.load(std::memory_order_acquire);
@@ -141,12 +149,19 @@ inline void ConsumerFrame(uint32_t frame) noexcept
             std::find(state.seenFrames.begin(),state.seenFrames.begin()+state.frames,frame) != state.seenFrames.begin()+state.frames) return;
         if (state.frames == 100)
         {
+            LARGE_INTEGER end {};
+            if (state.firstConsumerTick && QueryPerformanceCounter(&end) && end.QuadPart > 0 && uint64_t(end.QuadPart) >= state.firstConsumerTick)
+                state.consumerIntervalTicks = uint64_t(end.QuadPart)-state.firstConsumerTick;
             Detail::collecting.store(false,std::memory_order_release);
             state.requested.store(true,std::memory_order_release); finished = true;
         }
         else
         {
-            if (!state.frames) state.firstFrame = frame;
+            if (!state.frames)
+            {
+                state.firstFrame = frame; LARGE_INTEGER start {};
+                if (QueryPerformanceCounter(&start) && start.QuadPart > 0) state.firstConsumerTick = uint64_t(start.QuadPart);
+            }
             state.seenFrames[state.frames] = frame; state.lastFrame = frame; ++state.frames;
             Detail::collecting.store(true,std::memory_order_release);
         }

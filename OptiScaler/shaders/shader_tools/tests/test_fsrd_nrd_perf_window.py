@@ -122,6 +122,15 @@ J sampler() {
  finish.store(true,std::memory_order_release); outstanding.join();
  need(reports.load(std::memory_order_acquire)==1,"last outstanding hook emits exactly one completed100-frame report");
  need(reported.frames==100 && reported.firstFrame==10 && reported.lastFrame==109,"report owns exactly100 distinct rendered SL frames");
+ need(reported.ConsumerTimeValid() && reported.consumerIntervalTicks>0,"the same100 complete Consumer intervals freeze a valid native QPC span");
+ need(reported.consumerIntervalTicks>=reported.hooks[size_t(H::ConstantBufferView)].waitTicks[size_t(NrdBridgePerf::WaitKind::Metadata)],"Consumer span includes the earlier real contended metadata interval");
+ NrdBridgePerf::Report formula;need(!formula.ConsumerTimeValid() && formula.ConsumerElapsedMs()==0 && formula.AverageConsumerIntervalMs()==0 && formula.ConsumerIntervalsPerSecond()==0,"missing Consumer clock data remains explicitly unavailable");
+ formula.frames=100;formula.frequency=10000000;formula.consumerIntervalTicks=80000000;
+ need(formula.ConsumerTimeValid() && formula.ConsumerElapsedMs()==8000 && formula.AverageConsumerIntervalMs()==80 && formula.ConsumerIntervalsPerSecond()==12.5,"100 Consumer intervals over8seconds yield80ms and12.5intervals/s, not doubled FG FPS");
+ formula.frequency=0;need(!formula.ConsumerTimeValid() && formula.ConsumerElapsedMs()==0 && formula.AverageConsumerIntervalMs()==0 && formula.ConsumerIntervalsPerSecond()==0,"missing clock frequency never creates a duration or rate");
+ formula.frequency=10000000;formula.consumerIntervalTicks=0;need(!formula.ConsumerTimeValid() && formula.ConsumerElapsedMs()==0 && formula.AverageConsumerIntervalMs()==0 && formula.ConsumerIntervalsPerSecond()==0,"failed or empty clock span remains unavailable with a valid frequency");
+ formula.consumerIntervalTicks=80000000;formula.frames=0;need(!formula.ConsumerTimeValid() && formula.ConsumerIntervalsPerSecond()==0,"empty interval denominator never creates a rate");
+ const auto frozenConsumerTicks=reported.consumerIntervalTicks;
  need(reported.hooks[size_t(H::ConstantBufferView)].calls==1,"nested physical forwarding counts once");
  need(reported.hooks[size_t(H::ShaderResourceView)].calls==1,"exception path records its completed hook");
  need(reported.hooks[size_t(H::UnorderedAccessView)].calls==100,"internal calls are excluded from exact title hook totals");
@@ -135,9 +144,12 @@ J sampler() {
  for(uint32_t i=110;i<500;++i) { NrdBridgePerf::ConsumerFrame(i); S ignored(H::Release,true); }
  NrdBridgePerf::Configure(sink);
  need(reports.load()==1 && !NrdBridgePerf::Detail::collecting.load(),"profiling stops after one report and cannot restart on repeated configuration");
+ need(reported.consumerIntervalTicks==frozenConsumerTicks && NrdBridgePerf::Detail::Get().consumerIntervalTicks==frozenConsumerTicks,"later/repeated entries and report draining cannot extend the frozen Consumer clock");
  J averages=J::array(); for(size_t i=0;i<size_t(H::Count);++i) averages.push_back({{"calls",reported.hooks[i].calls},{"avg_us",reported.AverageUs(H(i))},{"lock_wait_avg_us",reported.AverageWaitUs(H(i))},{"metadata_wait_avg_us",reported.AverageWaitUs(H(i),NrdBridgePerf::WaitKind::Metadata)}});
  return {{"reports",reports.load()},{"frames",reported.frames},{"first_sl_frame",reported.firstFrame},{"last_sl_frame",reported.lastFrame},
-  {"frequency",reported.frequency},{"hook_samples",averages},{"scope","real production sampler; synthetic rendered frame ids and host work"}};
+  {"frequency",reported.frequency},{"consumer_time_valid",reported.ConsumerTimeValid()},{"consumer_elapsed_ms",reported.ConsumerElapsedMs()},
+  {"consumer_avg_interval_ms",reported.AverageConsumerIntervalMs()},{"consumer_intervals_per_second",reported.ConsumerIntervalsPerSecond()},
+  {"cadence_scope","CPU Consumer recording cadence; no GPU or FG/display FPS"},{"hook_samples",averages},{"scope","real production sampler; synthetic rendered frame ids and host work"}};
 }
 int main(int argc,char** argv) try {
  need(argc==2,"output path"); J result={{"intervals",intervals()},{"sampler",sampler()}};
