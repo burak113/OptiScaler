@@ -261,7 +261,7 @@ def run():
         'MIRROR': survey[survey.index('struct Mirror'):survey.index('bool Seed(ID3D12GraphicsCommandList*')],
         'MIRROR_CALLBACKS': '\n'.join(function(survey, signature) for signature in ('void SetPipeline(', 'void RootBinding(', 'void DescriptorHeaps(', 'void RootView(', 'void Table(')),
         'CBV_VIEW': function(survey, 'void View(D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3D12_CONSTANT_BUFFER_VIEW_DESC* desc)'),
-        'BUFFER_RESOLVE': function(survey, 'bool ResolveBufferAddress('),
+        'BUFFER_RESOLVE': function(header, 'struct ConstantBufferDiagnostic')+';\n'+function(survey, 'bool ResolveBufferAddress('),
         'SURVEY_WRAPPERS': '\n'.join(member(track, name) for name in ('hkSurveySetPipelineState', 'hkSurveyDispatch', 'hkSurveyCreateConstantBufferView')),
         'ROOT_CONTROLS': '\n'.join(function(d3d, signature) for signature in ('void D3D12Hooks::SetRootSignatureTracking(', 'bool D3D12Hooks::RootSignatureTrackingEnabled(')),
         'ROOT_WRAPPERS': '\n'.join(function(d3d, signature) for signature in ('static void hkSurveySetComputeRootConstantBufferView(', 'static void hkSurveySetDescriptorHeaps(')),
