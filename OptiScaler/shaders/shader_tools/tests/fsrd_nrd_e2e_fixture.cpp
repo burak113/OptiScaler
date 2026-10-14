@@ -548,18 +548,34 @@ int main(int argc,char** argv) try {
  result["rr_inputs_debug"]={{"finite_bounded",inputFinite},{"alpha_zero",inputAlpha},{"white_albedo_band",true},{"provider_dispatches",0}};
  NrdBridge::SetDebugMode(NrdBridge::DebugMode::Off); resized.frame(21); resized.rrChecks(resized.finish());
  need((FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET)!=0,"returning from guide debug mode resets actual RR history");
+ // Simulate a provider reporting an error after its actual GPU commands have been recorded.
+ const auto beforePartial=FfxApiProxy::dispatches;
+ FfxApiProxy::partialFailure=true; resized.frame(22); FfxApiProxy::partialFailure=false;
+ const auto partial=resized.finish();
+ need(resized.sentinel(partial),"partial SDK work cannot alter either borrowed title output before successful commit");
+ need(FfxApiProxy::dispatches==beforePartial+1 && !NrdBridge::GetStatus().active && !NrdBridge::gService->cache.Valid(),
+  "provider error after real SDK recording fails closed and invalidates discovery");
+ need(FfxApiProxy::lastSpecular.signal.output.resource!=resized.tex[7].Get() && FfxApiProxy::lastDiffuse.signal.output.resource!=resized.tex[8].Get(),
+  "real provider writes only bridge-owned transaction outputs");
+ NrdBridge::SetRuntimeEnabled(false); NrdBridge::SetRuntimeEnabled(true);
+ resized.frame(23); need(resized.sentinel(resized.finish()),"partial-provider failure recovery first validates current title resources");
+ resized.frame(24); resized.rrChecks(resized.finish());
+ need(FfxApiProxy::dispatches==beforePartial+2 && (FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET)!=0,
+  "partial-provider failure recovery uses reset and one successful transactional RR dispatch");
+ result["partial_sdk_failure"]={{"real_sdk_commands_recorded",true},{"title_pair_bit_exact_nrd",true},{"provider_targets_owned",true},{"recovery_reset",true}};
  need(FfxApiProxy::badDefaults==0 && FfxApiProxy::defaults==7*FfxApiProxy::creates && FfxApiProxy::configures==FfxApiProxy::defaults,"actual provider defaults queried and applied exactly");
  need(FfxApiProxy::wrongRoute==0 && FfxApiProxy::routed[0]==FfxApiProxy::creates && FfxApiProxy::routed[3]==FfxApiProxy::dispatches,
   "actual proxy effect selectors route every RR create/dispatch to denoiser module");
- need(NrdBridge::gService->frame==20,"nested debug-layer COM forwarding counts each runtime-enabled Recon exactly once");
- need(FfxApiProxy::dispatches==12 && NrdBridge::GetStatus().framesBridged==14,"exact bridge/provider work count includes one deliberately unsubmitted recording");
+ need(NrdBridge::gService->frame==23,"nested debug-layer COM forwarding counts each runtime-enabled Recon exactly once");
+ need(FfxApiProxy::dispatches==14 && NrdBridge::GetStatus().framesBridged==15,"exact bridge/provider work count includes one deliberately unsubmitted recording and one real SDK error");
  need(internalBarriers>0 && titleTransitions==0,"conversion/motion/debug/real RR never transition a borrowed title texture");
  result["barrier_audit"]={{"internal_barriers_observed",internalBarriers},{"borrowed_title_transitions",titleTransitions}};
  result["owned_conversion_bytes"]=NrdBridge::gService->conversion.OwnedTextureBytes();
  result["provider"]={{"creates",FfxApiProxy::creates},{"dispatches",FfxApiProxy::dispatches},{"defaults",FfxApiProxy::defaults},{"configures",FfxApiProxy::configures}};
  result["proxy_routed_calls"]=FfxApiProxy::routed;
  result["title_restore_calls"]=restores; result["frames_bridged"]=NrdBridge::GetStatus().framesBridged;
- result["recon_callbacks"]=NrdBridge::gService->frame; result["submitted_rr_frames"]=FfxApiProxy::dispatches-1;
+ result["recon_callbacks"]=NrdBridge::gService->frame; result["submitted_rr_frames"]=FfxApiProxy::dispatches-2;
+ result["submitted_partial_sdk_records"]=1;
  J identities=J::array(); for(const auto& [id,count]:detourDispatches) identities.push_back({{"this",id},{"external_dispatch_callbacks",count[0]},{"internal_dispatch_callbacks",count[1]}});
  result["detour_identities"]=identities;
  NrdBridge::Shutdown(); RecordedComputeLease::Poll(); need(FfxApiProxy::destroys==FfxApiProxy::creates,"all RR contexts retire after real GPU fences");

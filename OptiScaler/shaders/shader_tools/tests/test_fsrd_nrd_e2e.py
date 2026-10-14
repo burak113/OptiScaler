@@ -50,6 +50,13 @@ def build(out):
     support = support.replace('"../../../misc/RecordedComputeLease_Dx12.h"',
                               '"' + (ROOT / 'OptiScaler/misc/RecordedComputeLease_Dx12.h').as_posix() + '"')
     support = support.replace('struct FfxApiProxy', 'struct ProviderExports')
+    support = support.replace('static inline bool real = false, initAvailable = true, rejectDispatch = false;',
+                              'static inline bool real = false, initAvailable = true, rejectDispatch = false;\n'
+                              '    static inline bool partialFailure = false;')
+    dispatch_end = '        if (real && dispatches < 4) std::fprintf(stderr,"real dispatch end code=%u\\n",unsigned(result));'
+    assert support.count(dispatch_end) == 1
+    support = support.replace(dispatch_end, dispatch_end + '\n'
+        '        if (real && partialFailure && result == FFX_API_RETURN_OK) return FFX_API_RETURN_ERROR_RUNTIME_ERROR;')
     proxy = (ROOT / 'OptiScaler/proxies/FfxApi_Proxy.h').read_text()
     enum = proxy[proxy.index('enum class FFXStructType'):proxy.index('// The denoiser DLL')]
     routes = '\n'.join(method(proxy, signature) for signature in (
@@ -112,7 +119,7 @@ struct FfxApiProxy : ProviderExports {
     support += '''
 #define LOG_WARN(...) ((void)0)
 #define LOG_TRACE(...) ((void)0)
-struct Setting { bool value=false; bool value_or_default() const { return value; } };
+struct Setting { bool value=false; bool value_or_default() const { return value; } void SetVolatileValue(bool next) { value=next; } };
 struct Config {
  Setting FfxDenoiserNrdBridge{false}, FfxDenoiserNrdBridgeEnabled{true}, FfxDenoiserFrameSurvey{false};
  Setting RestoreComputeSignature{true}, RestoreGraphicSignature{false}, ExtendedStateRestore{true};
