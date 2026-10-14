@@ -310,6 +310,13 @@ J exercise(Host& h,bool enabled) {
  J result; result["dispatch_order"]=calls;
  if(enabled) {
   need(D3D12Hooks::CanRestoreRootSignature(h.list.Get()),"complete title root snapshot permits injection");
+  Config::Instance()->RestoreComputeSignature.current=false;
+  need(!D3D12Hooks::CanRestoreRootSignature(h.list.Get()),"configuration reload disabling compute restore rejects bridge injection");
+  Config::Instance()->RestoreComputeSignature.current=true;
+  Config::Instance()->ExtendedStateRestore.current=false;
+  need(!D3D12Hooks::CanRestoreRootSignature(h.list.Get()),"configuration reload disabling extended restore rejects bridge injection");
+  Config::Instance()->ExtendedStateRestore.current=true;
+  need(D3D12Hooks::CanRestoreRootSignature(h.list.Get()),"both restore flags recover bridge preflight without clobbering title state");
   D3D12_RESOURCE_BARRIER barriers[2]{};
   barriers[0].Type=barriers[1].Type=D3D12_RESOURCE_BARRIER_TYPE_UAV;
   barriers[0].UAV.pResource=title.output.Get(); barriers[1].UAV.pResource=title.uav.Get(); h.list->ResourceBarrier(2,barriers);

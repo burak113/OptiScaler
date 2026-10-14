@@ -2564,6 +2564,8 @@ bool D3D12Hooks::CanRestoreRootSignature(ID3D12GraphicsCommandList* cmdList)
         auto found = signatures.find(cmdList);
         if (found == signatures.end()) return false;
         if (!gNrdBridgeDeviceWrappers) return true;
+        if (!Config::Instance()->RestoreComputeSignature.value_or_default() ||
+            !Config::Instance()->ExtendedStateRestore.value_or_default()) return false;
         if (found->second.type != SignatureEntryType::Compute || !found->second.ptr) return false;
     }
     if (!s_SetComputeRootSignature.GetHook() || !s_SetDescriptorHeaps.GetHook() || !s_SetPipelineState.GetHook() ||
