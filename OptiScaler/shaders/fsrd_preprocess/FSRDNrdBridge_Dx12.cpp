@@ -113,6 +113,7 @@ void Failure(const std::shared_ptr<Service>& owner, const std::string& reason)
         if (gService != owner) return;
         log = owner->status.reason != reason;
         owner->cache.Invalidate(); DropPending(*owner); owner->window = false; owner->retryPresents = 0;
+        for (auto& [cmd,list] : owner->lists) list.followingRecon = false;
         owner->status.active = false; owner->status.phase = "Inactive"; owner->status.reason = reason;
         owner->status.resources.clear(); owner->status.width = owner->status.height = 0;
         ++owner->failures;
@@ -386,7 +387,8 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
                 if (found->second.converted || owner.pendingList == cmd ||
                     (found->second.recording && !found->second.recording->submitted.load(std::memory_order_acquire))) DropPending(owner);
                 found->second = {}; found->second.nrdList = nrdList; found->second.role = PipelineRole(owner,initial);
-                if (nrdList && gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3)
+                if (nrdList && gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
+                    (owner.cache.Valid() || owner.retryPresents >= 60 || !owner.everRecon))
                 { StartWindow(owner); open = true; }
             }
             else if (const auto role = PipelineRole(owner,initial); role != Role::None) owner.lists[cmd].role = role;
@@ -408,6 +410,7 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 std::scoped_lock lock(gMutex); owner = gService; if (!owner) return;
                 const auto found = owner->lists.find(cmd); if (found == owner->lists.end()) return;
                 role = found->second.role; window = owner->window;
+                if (!window) { found->second.followingRecon = false; return; } // Intentional retry cooldown records no owned work.
                 if (role == Role::Recon)
                 {
                     if (owner->pendingList) DropPending(*owner);
@@ -468,6 +471,11 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
             const auto found = owner->lists.find(cmd);
             if (found == owner->lists.end() || found->second.role != Role::Consumer || !found->second.followingRecon) return;
             window = owner->window;
+            if (!window)
+            {
+                if (found->second.converted) DropPending(*owner);
+                found->second.followingRecon = false; return;
+            }
         }
         std::string error; ChainDiscovery discovered; bool published = false, invalid = false;
         ID3D12Resource* motionTag = nullptr; Resources resources; ListState staged; bool inject = false;
