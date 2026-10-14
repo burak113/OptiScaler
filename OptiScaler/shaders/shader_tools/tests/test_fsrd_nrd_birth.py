@@ -131,7 +131,7 @@ void missedPreFinal(){
  B::Registry registry;Effects effects;effects.registry=&registry;Native object;object.refs=2;
  auto token=registry.PublishFresh(address(0x4000),40,detach,publish,&effects);
  std::shared_mutex gate;std::barrier afterAdds(2),afterProbes(2);
- std::promise<void> atZero,finishZero;auto zero=atZero.get_future(),finish=finishZero.get_future().share();
+ std::promise<void> atZero,finishZero;auto zero=atZero.get_future();auto finish=finishZero.get_future().share();
  std::atomic<int> probes[2]{},results[2]{};
  auto release=[&](int index){
   std::shared_lock physical(gate);auto captured=registry.Capture(token->Address());B::ScopedRelease pending(captured);
@@ -335,7 +335,7 @@ void nestedBorrowDenied(){
  need(!weakGetters&&!L::Detail::borrowDepth&&!L::Detail::releaseDepth,"denied bridge path skips every title weak getter and balances scopes");
 }
 void independentNativeReleases(){
- std::promise<void> entered,finish;auto begun=entered.get_future(),done=finish.get_future().share();
+ std::promise<void> entered,finish;auto begun=entered.get_future();auto done=finish.get_future().share();
  auto destructor=std::async(std::launch::async,[&]{L::ScopedRelease release(true);entered.set_value();done.wait();});
  need(begun.wait_for(std::chrono::seconds(2))==std::future_status::ready,"native final destructor holds an external release scope");
  auto other=std::async(std::launch::async,[]{L::ScopedRelease release(true);return L::Detail::releaseDepth==1;});
