@@ -68,6 +68,7 @@ struct FrameParameters
     bool motionVectorsJittered = false, motionVectors3D = false;
     bool reset = true, previousValid = false;
     bool cameraProjectedDepthDelta = false; // Experimental camera-only B; capture with the Recon ticket.
+    bool preserveNativeMaterialIDs = false; // Experimental native categorical A; capture with the Recon ticket.
     SignalEncoding outputEncoding = SignalEncoding::Rgb;
     TitleSignalConstants outputConstants {};
 };
