@@ -13,6 +13,10 @@ from fsrd_toolchain import compile_cpp
 def function(source, signature):
     start = source.index(signature)
     brace = source.index('{', start)
+    # A forward declaration is not the next function's body.
+    while source.find(';', start, brace) != -1:
+        start = source.index(signature, source.index(';', start) + 1)
+        brace = source.index('{', start)
     depth, end = 1, brace + 1
     while depth:
         depth += (source[end] == '{') - (source[end] == '}')
