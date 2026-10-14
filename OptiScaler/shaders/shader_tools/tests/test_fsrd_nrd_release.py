@@ -33,6 +33,28 @@ def function_with_defaults(source, signature, body_prefix=''):
     return source[start:brace+1] + body_prefix + source[brace+1:end]
 
 
+def birth_gate_and_generic(source):
+    start = source.index('static bool UseNrdNativeRetirement()')
+    sticky = source.find('static std::atomic<bool> gRRInspectorLifetimeProtection')
+    if sticky >= 0:
+        start = min(start, sticky)
+    end = source.index('static void PublishComputeHookAvailability()', start)
+    body = source[start:end]
+    if 'using PFN_BirthRelease' not in body:
+        typedef = re.search(r'using PFN_BirthRelease\s*=\s*[^;]+;', source)
+        assert typedef, 'actual native Release function-pointer alias missing'
+        body = typedef.group(0) + '\n' + body
+    return body
+
+
+def tracked_resource_cache(source):
+    if 'static void EraseRRTrackedResourceLocked(' not in source:
+        return ''
+    start = source.index('struct RRTrackedResourceViews')
+    end = source.index('struct RRCommandListMarkerState', start)
+    return source[start:end]
+
+
 ENTRY_PROBE = r'''
 #define NOMINMAX
 #include <d3d12.h>
@@ -180,10 +202,13 @@ namespace FrameSurvey {
 }
 struct HeapSlot { void ClearSlotIfMatches(size_t,ID3D12Resource*) { ++slotsCleaned; } };
 struct TrackedResourceSlot { std::weak_ptr<HeapSlot> heap; size_t index=0; uint64_t heapVersion=0; };
-std::mutex _trackedResourcesMutex,gRRResourceStateMutex,gRRTrackedResourceMutex,gRRPsoMutex;
+std::mutex _trackedResourcesMutex,gRRResourceStateMutex,gRRPsoMutex;
 std::unordered_map<ID3D12Resource*,std::vector<TrackedResourceSlot>> _trackedResources;
-std::unordered_set<ID3D12Resource*> gRRResourceStates,gRRResourceActivity,gRRTrackedResources,gRRResourcePsoProducers;
+std::unordered_set<ID3D12Resource*> gRRResourceStates,gRRResourceActivity,gRRResourcePsoProducers;
+__TRACKED_RESOURCE_CACHE__
 void CleanupRRPsoReferences(void*) { ++psoCleaned; }
+// Optional inspector recording-proof catalog is outside the legacy lifetime fixture.
+void ForgetRRRecording(void*,const NrdBridgeBirth::Token& = NrdBridgeBirth::Token()) noexcept {}
 void CleanupRRResourcePsoProducersLocked(ID3D12Resource* resource) {gRRResourcePsoProducers.erase(resource);}
 // Registry scaffolding is an adapter; the full production DeactivateAndClear body follows.
 struct HeapInfo {
@@ -473,7 +498,7 @@ int main(int argc,char** argv) try {
  Probe resource; seed(resource);
  auto* address=reinterpret_cast<ID3D12Resource*>(&resource);
  auto heap=std::make_shared<HeapSlot>(); _trackedResources[address]={{heap,5}};
- gRRResourceStates.insert(address); gRRResourceActivity.insert(address); gRRTrackedResources.insert(address);
+ gRRResourceStates.insert(address); gRRResourceActivity.insert(address); SeedFixtureRRCache(address);
  gRRResourcePsoProducers.insert(address); State::Instance().capturedHudlesses.insert(address);
  const auto slots=slotsCleaned;
  need(hkRelease(address)==0 && resource.destroyed,"same resource entry accepts an IUnknown-only address");
@@ -559,13 +584,30 @@ int main(int argc,char** argv) try {
         'RESOURCE_DETACH':teardown[detach_begin:detach_end],
         'RESOURCE_RESET':teardown[reset_begin:reset_end],
     }
+    cache = tracked_resource_cache(res)
+    if cache:
+        replacements['TRACKED_RESOURCE_CACHE'] = cache + r'''
+// CPU creator seam supplies the metadata normally prepared from a strong resource.
+void SeedFixtureRRCache(ID3D12Resource* resource)
+{
+ std::scoped_lock lock(gRRTrackedResourceMutex);
+ EraseRRTrackedResourceLocked(resource);
+ auto& row=gRRTrackedResources[resource];row.desc.Width=1505;row.desc.Height=847;
+ row.version=gRRNextResourceVersion.fetch_add(1,std::memory_order_relaxed);
+ gRRResourceSizeIndex[{row.desc.Width,row.desc.Height}].insert(resource);
+}
+'''
+    else:
+        replacements['TRACKED_RESOURCE_CACHE'] = r'''
+std::mutex gRRTrackedResourceMutex;
+std::unordered_set<ID3D12Resource*> gRRTrackedResources;
+void SeedFixtureRRCache(ID3D12Resource* resource){gRRTrackedResources.insert(resource);}
+'''
     if 'static bool UseNrdNativeRetirement()' in res:
         release_header = (ROOT/'OptiScaler/misc/NrdBridgeRelease_Dx12.h').read_text()
-        gate_begin = res.index('static bool UseNrdNativeRetirement()')
-        gate_end = res.index('static void PublishComputeHookAvailability()', gate_begin)
         replacements.update({
             'BIRTH_RELEASE_HELPERS':release_header[release_header.index('namespace NrdBridgeRelease'):],
-            'BIRTH_GATE_AND_GENERIC':res[gate_begin:gate_end],
+            'BIRTH_GATE_AND_GENERIC':birth_gate_and_generic(res),
             'BIRTH_COVERAGE':instrument_installer('bool ResTrack_Dx12::ObserveBridgeObjectRelease(')
                 + '\n' + function(res,'bool NrdBridgeNativeBirth::ObserveReleaseCoverage('),
         })
@@ -585,6 +627,29 @@ bool NrdBridgeNativeBirth::ObserveReleaseCoverage(IUnknown* object) noexcept
 '''
     for name, value in replacements.items():
         cpp = cpp.replace('__'+name+'__', value)
+    if 'static bool NeedsNativeReleaseGate()' in res:
+        control = r'''
+void stickyOwnedTests()
+{
+ const bool bridge=gNrdBridgeWrappers,device=gNrdBridgeDeviceWrappers;
+ const bool previousSticky=gRRInspectorLifetimeProtection.exchange(true);
+ gNrdBridgeWrappers=gNrdBridgeDeviceWrappers=false;
+ need(!NrdBridgeNativeBirth::Ready()&&!NrdBridgeLifetime::ConcurrentReleasesEnabled(),"sticky owned control executes actual legacy unconfigured birth/lifetime mode");
+ Probe owned;
+ {FrameSurvey::ScopedInternal internal;
+  need(!NeedsNativeReleaseGate(),"sticky inspector still excludes bridge-owned releases from the legacy physical gate");
+  NrdBridgeLifetime::ScopedBorrow borrowed;
+  auto holder=NrdBridge::MakeOwnedShared<OwnedHolder>(&owned);holder.reset();}
+ need(owned.destroyed&&!FrameSurvey::Internal(),"sticky inspector owned deleter safely completes inside same-thread legacy borrow");
+ {FrameSurvey::ScopedRecording recording;
+  need(!FrameSurvey::OwnedRelease()&&NeedsNativeReleaseGate(),"sticky inspector preserves physical title protection during metadata-only owned recording");}
+ releaseRace([](Probe& object){return hkRelease(reinterpret_cast<ID3D12Resource*>(&object));},false);
+ gRRInspectorLifetimeProtection.store(previousSticky);
+ gNrdBridgeWrappers=bridge;gNrdBridgeDeviceWrappers=device;
+}
+'''
+        cpp = cpp.replace('int main(int argc,char** argv)',control+'\nint main(int argc,char** argv)',1)
+        cpp = cpp.replace(' heapTests();installerTests();',' heapTests();installerTests();stickyOwnedTests();',1)
     out = Path(os.environ['FSRD_GPU_TEST_OUTPUT'])
     out.mkdir(parents=True, exist_ok=True)
     source, exe = out/'nrd_release.cpp', out/'nrd_release.exe'
