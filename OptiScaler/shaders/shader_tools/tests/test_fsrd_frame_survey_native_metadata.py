@@ -36,6 +36,7 @@ replace_once('{NrdBridgeBirth::CurrentGuard guard(old);need(guard.Retire(),"actu
              '{NrdBridgeNativeBirth::RetirementScope retirement;need(retirement.Valid(),"actual native retirement TLS payload is installed before guard");NrdBridgeBirth::CurrentGuard guard(old);need(guard.Retire(),"actual current guard invokes pure FrameSurvey detach");}')
 
 MASK_EXTRA = r"""
+ {
  // Immutable heap bounds: every legal position is included; remaining/invalid
  // ranges conservatively require all shards. Opaque callbacks below are POD-only.
  using Mask=FrameSurveyMetadata::DescriptorShardMask;
@@ -101,6 +102,7 @@ MASK_EXTRA = r"""
  MaskLockState resourceState;FrameSurvey::RetirementEffects resourceEffects;installMaskHook(resourceState);retire(maskResourceBirth,resourceEffects);FrameSurveyMetadata::gDescriptorLockTestHook={};
  for(size_t shard=0;shard<shards;++shard)need(resourceState.calls[shard]==1,"resource retirement retains ALL descriptor-shard coverage regardless of occupied buckets");
  need(!FrameSurvey::gViews.contains(ph.cpu+40*ph.increment)&&!FrameSurvey::gViews.contains(ph.cpu+42*ph.increment),"resource all-shard cleanup removes both exact owned views");
+ }
 """
 
 EXTRA = r"""
