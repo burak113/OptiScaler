@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "misc/NrdBridgePerf_Dx12.h"
 #include "shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
 #include "misc/NrdBridgeDevice_Dx12.h"
 #include "shaders/fsrd_preprocess/RRTraceFence.h"
@@ -2101,7 +2102,8 @@ static ULONG STDMETHODCALLTYPE hkHeapRelease(ID3D12DescriptorHeap* This)
 {
     if (gHeapReleaseSharesResource.load(std::memory_order_acquire) && gSharedResourceReleaseObserver)
         return gSharedResourceReleaseObserver(reinterpret_cast<ID3D12Resource*>(This));
-    NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::Internal());
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Release,gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
+    NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
     if (State::Instance().isShuttingDown)
         return o_HeapRelease(This);
 
@@ -2111,7 +2113,7 @@ static ULONG STDMETHODCALLTYPE hkHeapRelease(ID3D12DescriptorHeap* This)
     {
         const auto remaining = o_HeapRelease(This);
         // Metadata removal uses only the address, before the physical borrow gate reopens.
-        if (!remaining && gNrdBridgeWrappers && !FrameSurvey::Internal()) FrameSurvey::Released(This);
+        if (!remaining && gNrdBridgeWrappers && !FrameSurvey::OwnedRelease()) FrameSurvey::Released(This);
         return remaining;
     }
 
@@ -2244,7 +2246,8 @@ HRESULT ResTrack_Dx12::hkCreateDescriptorHeap(ID3D12Device* This, D3D12_DESCRIPT
 
 ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
 {
-    NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::Internal());
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Release,gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
+    NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
     if (State::Instance().isShuttingDown)
         return o_Release(This);
     auto computeRecording = RecordedComputeLease::BeginRelease(This);
@@ -2309,7 +2312,8 @@ ULONG hkPsoRelease(ID3D12PipelineState* This)
 {
     if (gResourceReleaseSharesPso)
         return gSharedResourceReleaseObserver(reinterpret_cast<ID3D12Resource*>(This));
-    NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::Internal());
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Release,gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
+    NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
     if (State::Instance().isShuttingDown)
         return o_PsoRelease(This);
     auto computeRecording = RecordedComputeLease::BeginRelease(This);
@@ -2320,7 +2324,12 @@ ULONG hkPsoRelease(ID3D12PipelineState* This)
     auto refCount = o_PsoRelease(This);
 
     if (refCount <= 1)
+    {
+        if (gSurveyWrappers) FrameSurvey::Released(This);
+        if (gNrdBridgeWrappers)
+            D3D12Hooks::OnBridgeCommandListReset(reinterpret_cast<ID3D12GraphicsCommandList*>(This),nullptr);
         CleanupRRPsoReferences(This);
+    }
 
     const ULONG result = o_PsoRelease(This);
     RecordedComputeLease::EndRelease(computeRecording, result == 0);
@@ -2331,7 +2340,8 @@ static ULONG STDMETHODCALLTYPE hkCommandListRelease(IUnknown* This)
 {
     if (gResourceReleaseSharesCommandList)
         return gSharedResourceReleaseObserver(reinterpret_cast<ID3D12Resource*>(This));
-    NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::Internal());
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Release,gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
+    NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
     if (State::Instance().isShuttingDown)
         return o_CommandListRelease(This);
     auto computeRecording = RecordedComputeLease::BeginRelease(This);
@@ -4462,6 +4472,7 @@ bool ResTrack_Dx12::EnsureRRTraceHooks(ID3D12Device* device)
 void ResTrack_Dx12::hkSurveyCreateConstantBufferView(ID3D12Device* This, const D3D12_CONSTANT_BUFFER_VIEW_DESC* desc,
                                                    D3D12_CPU_DESCRIPTOR_HANDLE handle)
 {
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::ConstantBufferView,gNrdBridgeWrappers && !FrameSurvey::Internal());
     o_CreateConstantBufferView(This,desc,handle);
     FrameSurvey::View(handle,desc);
 }
@@ -4479,6 +4490,7 @@ void ResTrack_Dx12::hkSurveyCreateShaderResourceView(ID3D12Device* This, ID3D12R
                                                D3D12_SHADER_RESOURCE_VIEW_DESC* pDesc,
                                                D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::ShaderResourceView,gNrdBridgeWrappers && !FrameSurvey::Internal());
     hkCreateShaderResourceView(This,pResource,pDesc,DestDescriptor);
     FrameSurvey::View(pResource,DestDescriptor,pDesc);
 }
@@ -4488,6 +4500,7 @@ void ResTrack_Dx12::hkSurveyCreateUnorderedAccessView(ID3D12Device* This, ID3D12
                                                 D3D12_UNORDERED_ACCESS_VIEW_DESC* pDesc,
                                                 D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::UnorderedAccessView,gNrdBridgeWrappers && !FrameSurvey::Internal());
     hkCreateUnorderedAccessView(This,pResource,pCounterResource,pDesc,DestDescriptor);
     FrameSurvey::View(pResource,DestDescriptor,pDesc);
 }

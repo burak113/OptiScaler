@@ -2,6 +2,7 @@
 #include "FrameSurvey_Dx12.h"
 #include "FrameSurveyMetadata.h"
 #include "FrameSurveyBufferRanges.h"
+#include "misc/NrdBridgePerf_Dx12.h"
 #include "shaders/fsrd_preprocess/FSRDGameTraceSession.h"
 #include "shaders/fsrd_preprocess/RRTraceAdditiveIO.h"
 #include "proxies/D3D12_Proxy.h"
@@ -70,6 +71,7 @@ bool Targeted(const Json& pso)
     return false;
 }
 thread_local bool gInternal = false;
+thread_local unsigned gRecordingDepth = 0;
 struct InternalScope { bool previous = gInternal; InternalScope() { gInternal = true; } ~InternalScope() { gInternal = previous; } };
 // Resource lifetime lock NEVER acquires the recorder or GAME_TRACE locks.
 // Resolve+AddRef under this lock pairs with final Release cleanup in ResTrack.
@@ -660,6 +662,9 @@ bool CopyBuffer(ID3D12GraphicsCommandList* cmd, List& list, ID3D12Resource* obje
 
 ScopedInternal::ScopedInternal() noexcept : previous_(gInternal) { gInternal = true; }
 ScopedInternal::~ScopedInternal() { gInternal = previous_; }
+ScopedRecording::ScopedRecording() noexcept { ++gRecordingDepth; }
+ScopedRecording::~ScopedRecording() { --gRecordingDepth; }
+bool OwnedRelease() noexcept { return gInternal && !gRecordingDepth; }
 void SetPipelineObserver(PipelineObserver observer) noexcept { gPipelineObserver.store(observer,std::memory_order_release); }
 void SetReleaseObserver(ReleaseObserver observer) noexcept { gReleaseObserver.store(observer,std::memory_order_release); }
 void SetBindingWindow(bool enabled) noexcept
@@ -1113,7 +1118,15 @@ void HeapCreated(ID3D12Device* device, ID3D12DescriptorHeap* object) noexcept
         std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation;
         const auto cpu = object->GetCPUDescriptorHandleForHeapStart().ptr;
         const auto gpu = (desc.Flags&D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ? object->GetGPUDescriptorHandleForHeapStart().ptr : 0;
-        gHeaps[object] = {object,cpu,gpu,desc.NumDescriptors,device->GetDescriptorHandleIncrementSize(desc.Type),uint32_t(desc.Type)};
+        const auto increment = device->GetDescriptorHandleIncrementSize(desc.Type);
+        if (const auto existing = gHeaps.find(object); existing != gHeaps.end())
+        {
+            const auto& heap = existing->second;
+            if (heap.cpu != cpu || heap.gpu != gpu || heap.count != desc.NumDescriptors || heap.increment != increment || heap.type != uint32_t(desc.Type))
+                throw std::runtime_error("A live descriptor heap was re-registered with inconsistent native ranges");
+            return; // Multiple creation observers must retain the occupied-slot reverse index.
+        }
+        gHeaps.emplace(object,Heap{object,cpu,gpu,desc.NumDescriptors,increment,uint32_t(desc.Type)});
         gCpuHeaps[cpu] = object;
     } catch (...) { MetadataFailed("Descriptor heap metadata allocation failed"); }
 }

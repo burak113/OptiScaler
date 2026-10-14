@@ -34,6 +34,7 @@ CPP=r'''
 #include "__SURVEY__"
 using Microsoft::WRL::ComPtr; using J=nlohmann::json;
 unsigned checks=0;
+bool gNrdBridgeWrappers=true;
 void need(bool ok,const char* reason){if(!ok)throw std::runtime_error(reason);++checks;}
 void hr(HRESULT value){if(FAILED(value))throw std::runtime_error("D3D12 HRESULT "+std::to_string(value));}
 using Clock=std::chrono::steady_clock;
@@ -266,6 +267,7 @@ J measure(Host& h,size_t count){
   {"four_threads_1000_views_each_ms",threadedMs},{"working_set_bytes",uint64_t(pm.WorkingSetSize)},{"peak_working_set_bytes",uint64_t(pm.PeakWorkingSetSize)}};
 }
 int main(int argc,char** argv)try{
+ NrdBridgePerf::Configure([](const NrdBridgePerf::Report&) noexcept {});NrdBridgePerf::RenderedFrame(1);
  need(argc==2,"output path");g_dllPath=std::filesystem::path(argv[1])/"fixture.dll";Host h;J rows=J::array();
  J intervals,mirrors;
 #if __INDEXED__
@@ -329,7 +331,7 @@ def run():
     result['production_release_sha256']=hashlib.sha256(original_release.encode()).hexdigest()
     result['production_hook_body_sha256']={name:hashlib.sha256(body.encode()).hexdigest() for name,body in zip(hook_names,hook_bodies)}
     result['legacy_base_helpers']='inert adapters; ForceHDR/inspector disabled, FGHudfixDisableSRV/UAV=true; exact production hook bodies executed'
-    report=Path('E:/FSRD/sol_batch/12a-discovery');report.mkdir(parents=True,exist_ok=True)
+    report=Path(os.environ.get('FSRD_TASK_REPORT_DIR','E:/FSRD/sol_batch/12a-discovery'));report.mkdir(parents=True,exist_ok=True)
     (report/('game-scale-cbv-'+('indexed' if indexed else 'baseline')+'.json')).write_text(json.dumps(result,indent=2)+'\n')
     print(json.dumps(result))
 

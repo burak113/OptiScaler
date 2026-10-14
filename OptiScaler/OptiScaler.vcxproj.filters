@@ -1819,6 +1819,8 @@
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeCommit.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeCommit_Shader.cso" />
     <ClInclude Include="misc\NrdBridgeLifetime_Dx12.h" />
+    <ClInclude Include="misc\NrdBridgePerf_Dx12.h" />
+    <ClInclude Include="resource_tracking\FrameSurveyBufferRanges.h" />
     <ClInclude Include="misc\NrdBridgeTitleCallbacks_Dx12.h" />
     <ClInclude Include="misc\NrdBridgeDevice_Dx12.h" />
     <ClInclude Include="misc\NrdBridgeOwned_Dx12.h" />

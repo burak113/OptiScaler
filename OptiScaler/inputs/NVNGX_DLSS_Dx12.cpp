@@ -11,6 +11,8 @@
 #include "upscalers/dlss/DLSSFeature_Dx12.h"
 #include <gpu_time/FSRDStageTimings_Dx12.h>
 #include <resource_tracking/FrameSurvey_Dx12.h>
+#include <misc/NrdBridgePerf_Dx12.h>
+#include <shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h>
 
 #include <framegen/nvngx/Nvngx_FG.h>
 #include "FG/FSR3_Dx12_FG.h"
@@ -638,7 +640,7 @@ static bool EnsureD3D12Device(ID3D12GraphicsCommandList* cmdList)
 class ScopedOptiFeatureRecording
 {
     const bool previousTracking_ = D3D12Hooks::RootSignatureTrackingEnabled();
-    FrameSurvey::ScopedInternal internal_;
+    FrameSurvey::ScopedRecording internal_;
   public:
     ScopedOptiFeatureRecording() = default;
     ~ScopedOptiFeatureRecording() { D3D12Hooks::SetRootSignatureTracking(previousTracking_); }
@@ -1244,6 +1246,9 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_EvaluateFeature(ID3D12GraphicsCom
     auto feature = HandleToFeature[handleId];
     if (cfg.FfxDenoiserFrameSurvey.value_or_default())
         FrameSurvey::Evaluate(InCmdList,unsigned(feature),InParameters);
+    if (NrdBridge::StartupEnabled() && !FrameSurvey::Internal() &&
+        (feature == NVSDK_NGX_Feature_SuperSampling || feature == NVSDK_NGX_Feature_RayReconstruction))
+        NrdBridgePerf::RenderedFrame(StreamlineHooks::getSLConstantsSnapshot().frameIndex);
     static size_t evalWithoutFG = 0;
     bool fgCreated = std::any_of(HandleToFeature.begin(), HandleToFeature.end(),
                                  [](const auto& pair) { return pair.second == NVSDK_NGX_Feature_FrameGeneration; });

@@ -186,6 +186,8 @@ void mutationTests(){
     extra=extra.replace('__INDEX_TESTS__',index_tests if indexed else '').replace('__CLEAR_REVERSE__','gRRPsoProducerResources.clear();gRRPsoCommandLists.clear();' if indexed else '')
     extra=extra.replace('__MUTATION_TESTS__','mutationTests();' if indexed else '')
     cpp+=extra
+    if not baseline:
+        cpp=cpp.replace("int main()try{", "int main()try{NrdBridgePerf::Configure([](const NrdBridgePerf::Report&) noexcept {});NrdBridgePerf::RenderedFrame(1);")
     target,exe=out/'nrd_release_perf.cpp',out/'nrd_release_perf.exe'
     target.write_text(cpp)
     if os.environ.get('FSRD_RELEASE_PERF_GENERATE_ONLY') == '1':

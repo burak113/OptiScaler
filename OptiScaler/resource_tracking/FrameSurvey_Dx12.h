@@ -86,6 +86,17 @@ class ScopedInternal
     ScopedInternal(const ScopedInternal&) = delete;
     ScopedInternal& operator=(const ScopedInternal&) = delete;
 };
+// Ordinary upscaler/RR recording suppresses metadata while preserving title-reference Release protection.
+class ScopedRecording
+{
+    ScopedInternal internal_;
+  public:
+    ScopedRecording() noexcept;
+    ~ScopedRecording();
+    ScopedRecording(const ScopedRecording&) = delete;
+    ScopedRecording& operator=(const ScopedRecording&) = delete;
+};
+bool OwnedRelease() noexcept;
 bool Enabled() noexcept;
 // Called at device hook time for FrameSurvey or the NRD bridge, before title pipeline creation.
 void BeginCreationTracking(bool recorder = true) noexcept;

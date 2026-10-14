@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "misc/NrdBridgePerf_Dx12.h"
 #include "FSRDNrdBridge_Dx12.h"
 #include "FSRDNrdDiscovery.h"
 #include "FSRDNrdBridgePass_Dx12.h"
@@ -457,6 +458,17 @@ bool Initialize(ID3D12Device* device) noexcept
         }
         // Owned D3D12 releases may re-enter hooks. Destroy outside both coordinator locks.
         { FrameSurvey::ScopedInternal internal; previous.reset(); }
+        NrdBridgePerf::Configure([](const NrdBridgePerf::Report& perf) noexcept {
+            try
+            {
+                using H = NrdBridgePerf::Hook;
+                LOG_INFO("[NRD_BRIDGE] perf frames={} SL_frame={}..{} window=100_render_intervals scope=external_views_and_protected_releases_including_native CBV_avg_us={:.3f} CBV_calls={} SRV_avg_us={:.3f} SRV_calls={} UAV_avg_us={:.3f} UAV_calls={} Release_avg_us={:.3f} Release_calls={}",
+                    perf.frames,perf.firstFrame,perf.lastFrame,perf.AverageUs(H::ConstantBufferView),perf.hooks[size_t(H::ConstantBufferView)].calls,
+                    perf.AverageUs(H::ShaderResourceView),perf.hooks[size_t(H::ShaderResourceView)].calls,
+                    perf.AverageUs(H::UnorderedAccessView),perf.hooks[size_t(H::UnorderedAccessView)].calls,
+                    perf.AverageUs(H::Release),perf.hooks[size_t(H::Release)].calls);
+            } catch (...) {}
+        });
         LOG_INFO("[NRD_BRIDGE] startup enabled for Cyberpunk; runtime={}; discovery windows bounded to 8 Presents / 3 attempts; empty loading windows do not consume attempts",
             gRuntime.load(std::memory_order_relaxed));
         return true;
@@ -561,13 +573,13 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         bool firstTemporal = false, invalid = false; ID3D12Resource* currentMotion = nullptr; std::string error;
         {
             NrdBridgeLifetime::ScopedBorrow borrow; // Ends before taking the native injection mutex.
-            bool window = false;
+            bool window = false, cooldown = false;
             {
                 std::scoped_lock lock(gMutex); owner = gService; if (!owner) return;
                 const auto found = owner->lists.find(cmd); if (found == owner->lists.end()) return;
                 role = found->second.role; window = owner->window;
-                if (!window) { found->second.followingRecon = false; return; } // Intentional retry cooldown records no owned work.
-                if (role == Role::Recon)
+                if (!window) { found->second.followingRecon = false; cooldown = true; } // Retry cooldown records no owned work.
+                else if (role == Role::Recon)
                 {
                     auto& list = found->second; auto recording = std::move(list.recording);
                     auto previousHistory = std::move(list.history);
@@ -584,6 +596,8 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                     frame = found->second.frame;
                 }
             }
+            if (role == Role::Recon) NrdBridgePerf::RenderedFrame(StreamlineHooks::getSLConstantsSnapshot().frameIndex);
+            if (cooldown) return;
             if (!window) { Failure(owner,"Current NRD bindings have no frame-local validation window"); return; }
             std::vector<FrameSurvey::BoundResource> srv, uav;
             if (!Tables(cmd,role,srv,uav)) { WaitingForBindings(owner,cmd,"Current NRD table metadata is incomplete"); return; }

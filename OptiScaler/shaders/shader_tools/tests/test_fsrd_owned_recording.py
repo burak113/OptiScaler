@@ -40,6 +40,8 @@ CPP = r'''
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
+#include "__ROOT__/OptiScaler/misc/NrdBridgePerf_Dx12.h"
+#include "__ROOT__/OptiScaler/misc/NrdBridgeLifetime_Dx12.h"
 __INDEX_HEADER__
 #include <vector>
 #define LOG_DEBUG(...) ((void)0)
@@ -52,8 +54,11 @@ void need(bool ok,const char* message){if(!ok)throw std::runtime_error(message);
 unsigned nativePso=0,nativeDispatch=0,nativeCbv=0,nativeRoot=0,nativeHeaps=0,rootWrites=0;
 unsigned titleInputs=0,passes=0,bridgeCallbacks=0,scopeWork=0;
 std::vector<std::string> order;
+namespace NrdBridge { inline bool StartupEnabled(){return true;} }
+namespace StreamlineHooks { struct PerfConstants { uint32_t frameIndex=1; }; inline auto getSLConstantsSnapshot(){return PerfConstants{};} }
 namespace FrameSurvey {
 thread_local bool gInternal=false;
+thread_local unsigned gRecordingDepth=0;
 __INTERNAL_DECL__
 __INTERNAL_IMPL__
 bool gTracking=true,gSurveyBindings=true,gBindingWindow=false;
@@ -140,6 +145,7 @@ ID3D12Device* D3D12Device=reinterpret_cast<ID3D12Device*>(2);
 bool initSuccess=true,evalSuccess=true,throwInit=false,throwEvaluate=false,throwFallback=false,missingFeature=false,ensureDevice=true,changeSuccess=true,changeThrows=false;
 unsigned nested=0;std::function<void()> nestedCall;
 void nativeWork(const char* label){
+ if(std::string(label)!="external") need(!FrameSurvey::OwnedRelease(),"ordinary owned recording preserves native Release lifetime protection");
  ++scopeWork;order.push_back(label);
  D3D12_CONSTANT_BUFFER_VIEW_DESC desc{0x10000,256};
  Wiring::hkSurveyCreateConstantBufferView(D3D12Device,&desc,{0x20000});
@@ -251,7 +257,7 @@ def run():
         'EVALUATE_HELPER': function(source, 'static NVSDK_NGX_Result TryEvaluateOptiFeature('),
         'EVALUATE_EXPORT': function(source, 'NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_D3D12_EvaluateFeature('),
         'INTERNAL_DECL': header[header.index('class ScopedInternal'):header.index('bool Enabled() noexcept;')],
-        'INTERNAL_IMPL': '\n'.join(function(survey, signature) for signature in ('ScopedInternal::ScopedInternal()', 'ScopedInternal::~ScopedInternal()', 'bool Internal() noexcept')),
+        'INTERNAL_IMPL': '\n'.join(function(survey, signature) for signature in ('ScopedInternal::ScopedInternal()', 'ScopedInternal::~ScopedInternal()', 'ScopedRecording::ScopedRecording()', 'ScopedRecording::~ScopedRecording()', 'bool OwnedRelease() noexcept', 'bool Internal() noexcept')),
         'MIRROR': survey[survey.index('struct Mirror'):survey.index('bool Seed(ID3D12GraphicsCommandList*')],
         'MIRROR_CALLBACKS': '\n'.join(function(survey, signature) for signature in ('void SetPipeline(', 'void RootBinding(', 'void DescriptorHeaps(', 'void RootView(', 'void Table(')),
         'CBV_VIEW': function(survey, 'void View(D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3D12_CONSTANT_BUFFER_VIEW_DESC* desc)'),
@@ -260,7 +266,7 @@ def run():
         'ROOT_CONTROLS': '\n'.join(function(d3d, signature) for signature in ('void D3D12Hooks::SetRootSignatureTracking(', 'bool D3D12Hooks::RootSignatureTrackingEnabled(')),
         'ROOT_WRAPPERS': '\n'.join(function(d3d, signature) for signature in ('static void hkSurveySetComputeRootConstantBufferView(', 'static void hkSurveySetDescriptorHeaps(')),
     }
-    cpp = CPP
+    cpp = CPP.replace("__ROOT__", ROOT.as_posix())
     for key, value in replacements.items():
         cpp = cpp.replace('__'+key+'__', value)
     out = Path(os.environ['FSRD_GPU_TEST_OUTPUT'])

@@ -25,6 +25,7 @@ std::unordered_map<ID3D12GraphicsCommandList*,ID3D12RootSignature*> bridgeComput
 bool gNrdBridgeDeviceWrappers=true;
 __GETTER__
 unsigned cbvNativeCalls=0;
+bool gNrdBridgeWrappers=true;
 void nativeCBV(ID3D12Device* device,const D3D12_CONSTANT_BUFFER_VIEW_DESC* desc,D3D12_CPU_DESCRIPTOR_HANDLE handle) {
  ++cbvNativeCalls; device->CreateConstantBufferView(desc,handle);
 }
@@ -197,7 +198,11 @@ J constantTests(Host& h) {
  need(!f.resolve(out),"actual unbounded CBV table is never treated as a finite known b6 span");
  auto* tablePixel=f.root(true,6,0,D3D12_SHADER_VISIBILITY_PIXEL); f.bind(tablePixel); FrameSurvey::Table(h.list.Get(),false,3,f.gpu);
  need(!f.resolve(out),"metadata-only PIXEL CBV table cannot prove compute b6");
- f.table(table); FrameSurvey::Released(b); need(!f.resolve(out),"buffer release invalidates all current copied CBV handles");
+ f.table(table);
+ const auto occupiedBefore=FrameSurvey::gHeaps.at(f.heap.Get()).views.size();
+ FrameSurvey::HeapCreated(h.dev.Get(),f.heap.Get());
+ need(FrameSurvey::gHeaps.at(f.heap.Get()).views.size()==occupiedBefore && f.resolve(out),"repeated native heap registration retains occupied current CBV proof");
+ FrameSurvey::Released(b); need(!f.resolve(out),"buffer release invalidates all current copied CBV handles");
  auto* c=f.buffer(4096); f.write(7,c,0,1536,true);
  need(f.resolve(out) && out.resource==c,"new current CBV owner resolves after prior buffer release");
  const auto before=std::chrono::steady_clock::now();
@@ -221,7 +226,12 @@ J constantTests(Host& h) {
  for(auto* object:syntheticBuffers) FrameSurvey::gResources.erase(object);
  FrameSurvey::Released(table); need(!f.resolve(out),"root release invalidates current table CBV proof");
  f.direct(direct,c->GetGPUVirtualAddress()); FrameSurvey::Released(h.list.Get()); need(!f.resolve(out),"list release invalidates direct CBV proof");
- f.table(tableSpace); FrameSurvey::Released(f.heap.Get()); need(!f.resolve(out,6,3),"descriptor heap release invalidates table CBV proof");
+ f.table(tableSpace);
+ FrameSurvey::HeapCreated(h.dev.Get(),f.heap.Get()); const auto heapViews=FrameSurvey::gHeaps.at(f.heap.Get()).views;
+ FrameSurvey::Released(f.heap.Get()); need(!f.resolve(out,6,3),"descriptor heap release invalidates table CBV proof");
+ need(std::all_of(heapViews.begin(),heapViews.end(),[](auto handle){return !FrameSurvey::gViews.contains(handle);}),"release after repeated heap registration removes all occupied descriptors");
+ need(std::all_of(FrameSurvey::gResources.begin(),FrameSurvey::gResources.end(),[&](const auto& row){
+  return std::none_of(heapViews.begin(),heapViews.end(),[&](auto handle){return row.second.handles.contains(handle);});}),"release after repeated heap registration removes every resource reverse reference");
  gNrdBridgeDeviceWrappers=false; snapshot.views.push_back({0,D3D12_DESCRIPTOR_RANGE_TYPE_CBV,av});
  need(!GetComputeBindingsForBridge(h.list.Get(),snapshot) && snapshot.views.empty(),"OFF getter publishes no root-view snapshot");
  hr(h.list->Close()); h.execute(); h.reset(); h.errors();
@@ -259,7 +269,7 @@ def run():
     compile_cpp(source,exe,('d3d12.lib','dxgi.lib','dxguid.lib','d3dcompiler.lib','bcrypt.lib','user32.lib','psapi.lib',str(ROOT/'OptiScaler/library/detours/detours.lib')),
         (stubs,ROOT/'OptiScaler',ROOT/'OptiScaler/include',ROOT/'external/nlohmann',ROOT/'external/nvngx_dlss_sdk',ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
     subprocess.run([str(exe),str(output)],check=True,creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
-    result=json.loads((output/'host-result.json').read_text()); report=Path('E:/FSRD/sol_batch/12a-discovery'); report.mkdir(parents=True,exist_ok=True)
+    result=json.loads((output/'host-result.json').read_text()); report=Path(os.environ.get('FSRD_TASK_REPORT_DIR','E:/FSRD/sol_batch/12a-discovery')); report.mkdir(parents=True,exist_ok=True)
     (report/'constant-buffers-result.json').write_text(json.dumps(result,indent=2)+'\n')
     print(json.dumps(result))
 

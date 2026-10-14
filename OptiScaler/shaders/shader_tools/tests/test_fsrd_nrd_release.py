@@ -100,6 +100,7 @@ def run():
 #include <thread>
 #include <functional>
 #include "__ROOT__/OptiScaler/misc/NrdBridgeLifetime_Dx12.h"
+#include "__ROOT__/OptiScaler/misc/NrdBridgePerf_Dx12.h"
 #include "__ROOT__/OptiScaler/misc/NrdBridgeOwned_Dx12.h"
 #include "__ROOT__/OptiScaler/hooks/Hook_Utils.h"
 #define LOG_INFO(...) ((void)0)
@@ -147,8 +148,9 @@ void* nativeWatchedHeap=nullptr;unsigned nativeWatchedNotifications=0;
 unsigned heapPublications=0;
 namespace FrameSurvey {
  thread_local bool gInternal=false;
+ thread_local unsigned gRecordingDepth=0;
  __INTERNAL_IMPL__
- void Released(void* address) noexcept { if(Internal())return;++releasesObserved;if(address==nativeWatchedHeap)++nativeWatchedNotifications;std::scoped_lock lock(heapMetadataMutex);heapMetadata.erase(address); }
+ void Released(void* address) noexcept { if(OwnedRelease())return;++releasesObserved;if(address==nativeWatchedHeap)++nativeWatchedNotifications;std::scoped_lock lock(heapMetadataMutex);heapMetadata.erase(address); }
  void HeapCreated(ID3D12Device*,ID3D12DescriptorHeap* heap) noexcept {if(Internal())return;++heapPublications;std::scoped_lock lock(heapMetadataMutex);heapMetadata.insert(heap);}
 }
 struct HeapSlot { void ClearSlotIfMatches(size_t,ID3D12Resource*) { ++slotsCleaned; } };
@@ -455,7 +457,26 @@ int main(int argc,char** argv) try {
  need(signatures.contains(list) && rootStates.contains(list) && descriptorHeaps.contains(list),"NrdBridge=false retains original root-cache behavior");
  clear();
  lifetimeTests();
- const auto baselineChecks=checks;need(baselineChecks==88,"all 88 original resource/list/PSO lifetime checks remain intact");heapTests();installerTests();
+ const auto baselineChecks=checks;need(baselineChecks==88,"all 88 original resource/list/PSO lifetime checks remain intact");
+ {
+  gNrdBridgeWrappers=gNrdBridgeDeviceWrappers=gSurveyWrappers=true;
+  Probe retainedTitle; retainedTitle.expectClean=true; seed(retainedTitle);
+  const auto observedBefore=releasesObserved;
+  std::promise<void> entered,done; auto enteredFuture=entered.get_future(),doneFuture=done.get_future();
+  std::atomic<ULONG> remaining{99}; std::jthread worker;
+  {
+   NrdBridgeLifetime::ScopedBorrow borrowedTitle;
+   worker=std::jthread([&]{ FrameSurvey::ScopedRecording recording;
+    need(FrameSurvey::Internal() && !FrameSurvey::OwnedRelease(),"metadata-only owned recording preserves title final Release gate");
+    entered.set_value(); remaining.store(hkRelease(reinterpret_cast<ID3D12Resource*>(&retainedTitle))); done.set_value(); });
+   enteredFuture.wait();
+   need(doneFuture.wait_for(std::chrono::milliseconds(30))==std::future_status::timeout,"retained title final reference waits for another thread's bridge borrow");
+   need(!retainedTitle.destroyed && remaining.load()==99,"retained title remains physically alive until borrow ends");
+  }
+  doneFuture.wait(); worker.join();
+  need(remaining.load()==0 && retainedTitle.destroyed && releasesObserved==observedBefore+1,"protected title tag reset invalidates metadata before its physical final release");
+ }
+ heapTests();installerTests();
  std::cout << "PASS: " << checks << " production shared/dedicated Release checks\n";
  return 0;
 } catch(const std::exception& e) { std::cerr<<e.what()<<'\n'; return 1; }
@@ -474,7 +495,7 @@ int main(int argc,char** argv) try {
 
     replacements = {
         'ROOT':ROOT.as_posix(), 'STATE':state,
-        'INTERNAL_IMPL':'\n'.join(function(survey,s) for s in ('ScopedInternal::ScopedInternal()', 'ScopedInternal::~ScopedInternal()', 'bool Internal() noexcept')),
+        'INTERNAL_IMPL':'\n'.join(function(survey,s) for s in ('ScopedInternal::ScopedInternal()', 'ScopedInternal::~ScopedInternal()', 'ScopedRecording::ScopedRecording()', 'ScopedRecording::~ScopedRecording()', 'bool OwnedRelease() noexcept', 'bool Internal() noexcept')),
         'RESET':function(d3d,'void D3D12Hooks::OnBridgeCommandListReset('),
         'RELEASE':res_function(res,'hkRelease'),
         'COMMAND_RELEASE':function(res,'static ULONG STDMETHODCALLTYPE hkCommandListRelease(IUnknown* This)\n{'),
@@ -504,8 +525,9 @@ int main(int argc,char** argv) try {
         return source
     compile_cpp(source,exe,('d3d12.lib','dxgi.lib','dxguid.lib',str(ROOT/'OptiScaler/library/detours/detours.lib')),(ROOT/'OptiScaler',))
     command = [str(exe)] + (['native-shared'] if '--native-shared' in sys.argv else [])
-    result = subprocess.run(command,check=True,capture_output=True,text=True,timeout=30)
+    result = subprocess.run(command,check=False,capture_output=True,text=True,timeout=30)
     (out/'native.log').write_text(result.stdout + result.stderr)
+    result.check_returncode()
     print(result.stdout,end='')
     checks = int(re.search(r'PASS: (\d+)',result.stdout).group(1))
     (out/'result.json').write_text(json.dumps({'native_checks':checks,
