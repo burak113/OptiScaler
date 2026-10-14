@@ -199,7 +199,7 @@ def build(output):
                 ('d3d12.lib', 'dxgi.lib', 'dxguid.lib', 'd3dcompiler.lib', 'bcrypt.lib', 'user32.lib', 'psapi.lib',
                  str(ROOT / 'OptiScaler/library/detours/detours.lib')),
                 (stubs, ROOT / 'OptiScaler', ROOT / 'OptiScaler/include', ROOT / 'external/nlohmann',
-                 ROOT / 'external/nvngx_dlss_sdk', ROOT / 'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
+                 ROOT / 'external/nvngx_dlss_sdk', ROOT / 'external/streamline', ROOT / 'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
     return executable
 
 
