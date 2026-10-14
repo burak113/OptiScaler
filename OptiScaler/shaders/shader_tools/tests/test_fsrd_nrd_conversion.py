@@ -282,7 +282,7 @@ def synthetic(exe):
                 gpu_based_validation=True, source_access='Recon UAV flag4 in UA state, guides SRV without UAV flag; descriptor and borrowed-resource barrier audit',
                 audited_views=int(re.search(r'audited_views=(\d+)', stdout)[1]),
                 audited_barriers=int(re.search(r'audited_barriers=(\d+)', stdout)[1]),
-                lifetime='8 unsubmitted dispatches; resize and owner destruction before Execute; fence and Reset retirement',
+                lifetime='8 unsubmitted frames with conversion and debug dispatches; resize and owner destruction before Execute; fence and Reset retirement',
                 title_refcounts='unchanged across conversion and debug dispatch')
 
 

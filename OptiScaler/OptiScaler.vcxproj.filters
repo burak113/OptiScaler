@@ -1812,6 +1812,9 @@
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridge_Shader.cso" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeCopy_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMotion_Shader.h" />
+    <ClInclude Include="misc\NrdBridgeLifetime_Dx12.h" />
+    <ClInclude Include="misc\NrdBridgeTitleCallbacks_Dx12.h" />
+    <ClInclude Include="misc\NrdBridgeOwned_Dx12.h" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMotion.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMotion_Shader.cso" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdMotionCommon.hlsli" />

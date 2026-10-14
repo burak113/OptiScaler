@@ -20,6 +20,7 @@ from test_fsrd_frame_survey_wiring import function as res_function
 def run():
     d3d = (ROOT/'OptiScaler/hooks/D3D12_Hooks.cpp').read_text()
     res = (ROOT/'OptiScaler/resource_tracking/ResTrack_dx12.cpp').read_text()
+    survey = (ROOT/'OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp').read_text()
     state = d3d[d3d.index('// Common'):d3d.index('// Intel Atomic Extension')]
     state = state.replace('ankerl::unordered_dense::map','std::unordered_map')
     cpp = r'''
@@ -41,6 +42,7 @@ def run():
 #include <thread>
 #include <functional>
 #include "__ROOT__/OptiScaler/misc/NrdBridgeLifetime_Dx12.h"
+#include "__ROOT__/OptiScaler/misc/NrdBridgeOwned_Dx12.h"
 #include "__ROOT__/OptiScaler/hooks/Hook_Utils.h"
 #define LOG_INFO(...) ((void)0)
 __STATE__
@@ -60,9 +62,9 @@ namespace RecordedComputeLease {
  void EndRelease(int,bool) { ++leaseEnds; }
 }
 namespace FrameSurvey {
- thread_local bool internal=false;
- bool Internal() { return internal; }
- void Released(void*) { ++releasesObserved; }
+ thread_local bool gInternal=false;
+ __INTERNAL_IMPL__
+ void Released(void*) noexcept { ++releasesObserved; }
 }
 struct HeapSlot { void ClearSlotIfMatches(size_t,ID3D12Resource*) { ++slotsCleaned; } };
 struct TrackedResourceSlot { std::weak_ptr<HeapSlot> heap; size_t index=0; };
@@ -140,6 +142,14 @@ template<class Release> void releaseRace(Release release,bool snapshot=true) {
  need(result==0 && object.destroyed && object.refs==0 && object.probeAdds==1,"actual production Release destroys once with its existing temporary probe only");
  clear();
 }
+struct OwnedMember {
+ Probe* object;
+ ~OwnedMember() {
+  need(FrameSurvey::Internal(), "custom deleter guards automatic owned COM-member destruction");
+  need(hkRelease(reinterpret_cast<ID3D12Resource*>(object))==0, "owned member Release succeeds inside a shared borrow");
+ }
+};
+struct OwnedHolder { OwnedMember member; explicit OwnedHolder(Probe* object):member{object} {} };
 void lifetimeTests() {
  gNrdBridgeWrappers=gNrdBridgeDeviceWrappers=gSurveyWrappers=true;
  gResourceReleaseSharesCommandList=gResourceReleaseSharesPso=false;
@@ -155,10 +165,20 @@ void lifetimeTests() {
  outer.beforeRelease=[&] { need(hkPsoRelease(reinterpret_cast<ID3D12PipelineState*>(&inner))==0,"nested runtime Release uses the same-thread exclusive gate"); };
  need(hkPsoRelease(reinterpret_cast<ID3D12PipelineState*>(&outer))==0 && outer.destroyed && inner.destroyed,"recursive physical releases complete without a gate deadlock");
  Probe owned;
- { NrdBridgeLifetime::ScopedBorrow borrowed; FrameSurvey::internal=true;
+ { NrdBridgeLifetime::ScopedBorrow borrowed; FrameSurvey::gInternal=true;
   need(hkRelease(reinterpret_cast<ID3D12Resource*>(&owned))==0 && owned.destroyed,"internal bridge-owned releases bypass the title gate during borrow");
-  FrameSurvey::internal=false;
+  FrameSurvey::gInternal=false;
  }
+ Probe deferredOwned;
+ auto holder=NrdBridge::MakeOwnedShared<OwnedHolder>(&deferredOwned);
+ { NrdBridgeLifetime::ScopedBorrow borrowed; holder.reset(); }
+ need(deferredOwned.destroyed && !FrameSurvey::Internal(), "asynchronous last owned reference restores the original internal guard");
+ Probe nestedOwned;
+ { FrameSurvey::ScopedInternal previous;
+  auto nested=NrdBridge::MakeOwnedShared<OwnedHolder>(&nestedOwned); nested.reset();
+  need(FrameSurvey::Internal(), "owned deleter preserves an already active internal scope");
+ }
+ need(nestedOwned.destroyed && !FrameSurvey::Internal(), "nested owned destruction restores outer scope correctly");
  Probe shuttingDown; shuttingDown.expectClean=false; State::Instance().isShuttingDown=true;
  std::promise<void> shutdownStarted,shutdownCompleted;
  auto shutdownStart=shutdownStarted.get_future(),shutdownDone=shutdownCompleted.get_future(); std::jthread shutdownWorker;
@@ -219,6 +239,7 @@ int main() try {
 '''
     replacements = {
         'ROOT':ROOT.as_posix(), 'STATE':state,
+        'INTERNAL_IMPL':'\n'.join(function(survey,s) for s in ('ScopedInternal::ScopedInternal()', 'ScopedInternal::~ScopedInternal()', 'bool Internal() noexcept')),
         'RESET':function(d3d,'void D3D12Hooks::OnBridgeCommandListReset('),
         'RELEASE':res_function(res,'hkRelease'),
         'COMMAND_RELEASE':function(res,'static ULONG STDMETHODCALLTYPE hkCommandListRelease(IUnknown* This)\n{'),
@@ -230,7 +251,7 @@ int main() try {
     out.mkdir(parents=True, exist_ok=True)
     source, exe = out/'nrd_release.cpp', out/'nrd_release.exe'
     source.write_text(cpp)
-    compile_cpp(source,exe)
+    compile_cpp(source,exe,(),(ROOT/'OptiScaler',))
     result = subprocess.run([str(exe)],check=True,capture_output=True,text=True,timeout=30)
     print(result.stdout,end='')
     checks = int(re.search(r'PASS: (\d+)',result.stdout).group(1))

@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "misc/NrdBridgeOwned_Dx12.h"
 #include "FSRDNrdBridgePass_Dx12.h"
 #include "resource_tracking/ResTrack_Dx12.h"
 #include "State.h"
@@ -84,7 +85,7 @@ struct Pipeline
     std::shared_ptr<DescriptorSlot> NewSlot(ID3D12Device* device)
     {
         if (slots.size() >= kMaximumSlots) throw std::runtime_error("NRD descriptor pool has 32 unretired recordings");
-        auto slot = std::make_shared<DescriptorSlot>();
+        auto slot = MakeOwnedShared<DescriptorSlot>();
         D3D12_DESCRIPTOR_HEAP_DESC desc {};
         desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         desc.NumDescriptors = srvCount + uavCount;
@@ -193,7 +194,7 @@ bool ConversionPass::Initialize(ID3D12Device* device, uint32_t width, uint32_t h
     try
     {
         ScopedSkipHeapCapture skipHeapCapture;
-        auto next = std::make_shared<Impl>(); next->device = device; next->width = width; next->height = height;
+        auto next = MakeOwnedShared<Impl>(); next->device = device; next->width = width; next->height = height;
         next->conversion.Initialize(device, FSRDNrdBridge_cso, sizeof(FSRDNrdBridge_cso), 4, 9);
         next->copy.Initialize(device, FSRDNrdBridgeCopy_cso, sizeof(FSRDNrdBridgeCopy_cso), 7, 2);
         next->Create(next->spec, DXGI_FORMAT_R16G16B16A16_FLOAT, L"NRD_Bridge_Spec");

@@ -10,6 +10,12 @@
 #include <sstream>
 #include <source_location>
 
+namespace FrameSurvey
+{
+ScopedInternal::ScopedInternal() noexcept : previous_(false) {}
+ScopedInternal::~ScopedInternal() {}
+}
+
 namespace fs = std::filesystem;
 using Microsoft::WRL::ComPtr;
 static uint64_t checks = 0;
