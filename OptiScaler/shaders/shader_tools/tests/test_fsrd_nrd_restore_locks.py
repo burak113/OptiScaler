@@ -304,7 +304,11 @@ def run():
         state += '\nstruct BridgeGraphicsState { ID3D12RootSignature* root=nullptr; std::vector<RootState> rows; };\nstd::unordered_map<ID3D12GraphicsCommandList*,BridgeGraphicsState> bridgeGraphicsStates;\n'
     names = re.findall(r'static void (hk(?:Survey)?Set(?:Compute|Graphics)Root(?:Signature|DescriptorTable|32BitConstants?|ConstantBufferView|ShaderResourceView|UnorderedAccessView)(?:Late)?)\(', source)
     assert len(names) == 33
-    signatures = ('UINT GetRootParameterCount(', 'static void hkSetDescriptorHeaps(',
+    # Match the body, not the new forward declaration's default Token {}.
+    count_definition = re.search(r'UINT GetRootParameterCount\([^;]*?\)\s*\{', source)
+    assert count_definition is not None
+    count_signature = count_definition.group(0)[:-1].rstrip()
+    signatures = (count_signature, 'static void hkSetDescriptorHeaps(',
                   'static void hkSetPipelineState(') + tuple('static void ' + name + '(' for name in names)
     trackers = '\n'.join(function(source, signature) for signature in signatures)
     restore = '\n'.join(function(source, signature) for signature in (
