@@ -1927,6 +1927,7 @@ void ResTrack_Dx12::hkExecuteCommandLists(ID3D12CommandQueue* This, UINT NumComm
 
 static ULONG STDMETHODCALLTYPE hkHeapRelease(ID3D12DescriptorHeap* This)
 {
+    NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::Internal());
     if (State::Instance().isShuttingDown)
         return o_HeapRelease(This);
 
@@ -1944,7 +1945,12 @@ static ULONG STDMETHODCALLTYPE hkHeapRelease(ID3D12DescriptorHeap* This)
     }
 
     if (heapInfo == nullptr)
-        return o_HeapRelease(This);
+    {
+        const auto remaining = o_HeapRelease(This);
+        // Metadata removal uses only the address, before the physical borrow gate reopens.
+        if (!remaining && gNrdBridgeWrappers && !FrameSurvey::Internal()) FrameSurvey::Released(This);
+        return remaining;
+    }
 
     This->AddRef();
     if (o_HeapRelease(This) <= 1)

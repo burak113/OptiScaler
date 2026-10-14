@@ -474,6 +474,22 @@ J discoveryTests(Host& h) {
   "tag cancellation preserves its diagnostic and does not consume provider retry budget");
  NrdBridge::OnTitleTag(h.list.Get(),"MotionVectors",c.textures[6].Get()); c.frame(3); c.frame(3);
  need(NrdBridge::GetStatus().active,"clean tagged chain rediscovers and recovers after cancellation");
+ // A new list may use Reset/CreateCommandList initial PSO without SetPipelineState.
+ ComPtr<ID3D12CommandAllocator> initialAllocator; ComPtr<ID3D12GraphicsCommandList> initialList;
+ hr(h.dev->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,IID_PPV_ARGS(&initialAllocator)));
+ hr(h.dev->CreateCommandList(0,D3D12_COMMAND_LIST_TYPE_DIRECT,initialAllocator.Get(),c.pipelines[UINT(Role::Recon)].Get(),IID_PPV_ARGS(&initialList)));
+ FrameSurvey::Reset(initialList.Get(),c.pipelines[UINT(Role::Recon)].Get());
+ NrdBridge::OnReset(initialList.Get(),c.pipelines[UINT(Role::Recon)].Get());
+ need(NrdBridge::gService->window && FrameSurvey::BindingWindow(),"new list initial Recon PSO opens binding window without SetPipelineState");
+ initialList->SetComputeRootSignature(c.root.Get());FrameSurvey::RootBinding(initialList.Get(),false,c.root.Get());
+ ID3D12DescriptorHeap* initialHeap=c.visible.Get();initialList->SetDescriptorHeaps(1,&initialHeap);FrameSurvey::DescriptorHeaps(initialList.Get(),1,&initialHeap);
+ for(UINT i : {0u,3u,4u})initialList->SetComputeRoot32BitConstant(i,0,0);
+ initialList->SetComputeRootConstantBufferView(2,c.consumerConstants->GetGPUVirtualAddress());FrameSurvey::RootView(initialList.Get(),false,2,D3D12_DESCRIPTOR_RANGE_TYPE_CBV,c.consumerConstants->GetGPUVirtualAddress());
+ for(auto [parameter,index] : {std::pair<UINT,UINT>{1,0},{5,8}}){D3D12_GPU_DESCRIPTOR_HANDLE handle {c.gpu.ptr+uint64_t(index)*c.increment};initialList->SetComputeRootDescriptorTable(parameter,handle);FrameSurvey::Table(initialList.Get(),false,parameter,handle);}
+ const auto initialConversions=convertCalls;initialList->Dispatch(1,1,1);NrdBridge::AfterDispatch(initialList.Get());
+ need(convertCalls==initialConversions+1 && NrdBridge::gService->lists.at(initialList.Get()).converted,"initial Recon records conversion without any explicit SetPipelineState callback");
+ NrdBridge::OnReset(initialList.Get(),nullptr);ResTrack_Dx12::ResetForTesting(initialList.Get());FrameSurvey::Released(initialList.Get());hr(initialList->Close());
+ c.frame(3);
  // Pause an old close before publication, then publish and seed a newer open.
  NrdBridge::gBeforeBindingWindowPublishForTesting=windowPublicationProbe;
  windowPublisherPaused.store(false);resumeWindowPublisher.store(false);

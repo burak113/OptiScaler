@@ -553,7 +553,14 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
                     (owner.cache.Valid() || owner.retryPresents >= 60 || !owner.everRecon))
                 { StartWindow(owner); open = true; }
             }
-            else if (const auto role = PipelineRole(owner,initial); role != Role::None) owner.lists[cmd].role = role;
+            else if (const auto role = PipelineRole(owner,initial); role != Role::None)
+            {
+                owner.lists[cmd].role = role;
+                if (gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
+                    (role == Role::PrepLast || role == Role::Recon) && (owner.cache.Valid() || owner.retryPresents >= 60 ||
+                        (role == Role::Recon && !owner.everRecon)))
+                { StartWindow(owner); open = true; }
+            }
         }
         if (open) PublishBindingWindow();
     } catch (...) { CoordinatorException("Exception while resetting NRD command-list recording"); }
