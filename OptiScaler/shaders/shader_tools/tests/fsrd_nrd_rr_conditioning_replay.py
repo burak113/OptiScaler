@@ -233,8 +233,10 @@ def run_native(exe, inputs, output, route, gain_value, settings=None, probe=Fals
     require(result['creates'] == result['destroys'] == 1, 'candidate physically fresh context fully retires after GPU fence')
     require(result['dispatches'] == (1 if probe else 44), 'actual signed-provider complete history sample count')
     require(result['signal_flags'] == (0x30 if route == 'id' else 0x22), 'exact DD-ID plus IS context flags')
-    require(result['diffuse_dispatch_type'] == ((0x50000 << 32) | (0x47 if route == 'id' else 0x44)), 'exact actual diffuse dispatch effect-sub-ID')
-    require(result['specular_dispatch_type'] == ((0x50000 << 32) | 0x48), 'unchanged actual indirect specular dispatch type')
+    # Current vendored1.2 macro combines the masked effect0x00050000 with the
+    # low sub-ID using OR; it is not a64-bit high-word version-ID packing.
+    require(result['diffuse_dispatch_type'] == (0x50000 | (0x47 if route == 'id' else 0x44)), 'exact actual diffuse dispatch effect-sub-ID')
+    require(result['specular_dispatch_type'] == (0x50000 | 0x48), 'unchanged actual indirect specular dispatch type')
     require(result['native_debug_dispatches'] == 0 and result['debug_errors'] == result['debug_warnings'] == 0,
             'research contains no diagnostic provider pass or debug warnings')
     result.update(peak_working_set_bytes=peak, elapsed_seconds=elapsed, native_log=str(log))
