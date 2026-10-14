@@ -195,8 +195,8 @@ static ULONG STDMETHODCALLTYPE hkCommandListRelease(IUnknown* This);
 static std::atomic<bool> gRRInspectorLifetimeProtection {false};
 static bool NeedsNativeReleaseGate() noexcept
 {
-    return (gNrdBridgeWrappers && !FrameSurvey::OwnedRelease()) ||
-        gRRInspectorLifetimeProtection.load(std::memory_order_acquire);
+    return !FrameSurvey::OwnedRelease() && (gNrdBridgeWrappers ||
+        gRRInspectorLifetimeProtection.load(std::memory_order_acquire));
 }
 static PFN_BirthRelease FindBirthReleaseOriginal(PVOID entry) noexcept;
 static bool RRPhysicalReleaseCovered(IUnknown* object) noexcept
@@ -696,6 +696,13 @@ static void CleanupRRPsoReferences(void* object)
     gRRPsoCommandLists.erase(lists);
 }
 
+static void ForgetOwnedRRList(ID3D12GraphicsCommandList* list)
+{
+    ForgetRRRecording(list);
+    { std::scoped_lock lock(gRRPsoMutex); EraseRRCommandListPsoStateLocked(list); }
+    { std::scoped_lock lock(gRRMarkerMutex); gRRCommandListMarkers.erase(list); }
+}
+
 // Cold native installation uses a caller-owned PSO before any metadata guard.
 static bool EnsurePsoReleaseHook(ID3D12PipelineState* pipelineState)
 {
@@ -725,7 +732,7 @@ static bool RRInspectorBirthsEnabled() noexcept
 { return gNrdBridgeWrappers && NrdBridgeNativeBirth::Ready(); }
 template <class T> static NrdBridgeBirth::Token RRStrongReceiver(T* object)
 {
-    if (!RRInspectorBirthsEnabled() || !object || FrameSurvey::Internal()) return {};
+    if (!RRInspectorBirthsEnabled() || !object || FrameSurvey::OwnedRelease()) return {};
     return NrdBridgeNativeBirth::ReceiverWithReleaseCoverage(object,
         [](auto* strong) noexcept { return NrdBridgeNativeBirth::ObserveReleaseCoverage(strong); });
 }
@@ -872,7 +879,8 @@ static RRPsoMetadata* FindRRPsoMetadataLocked(ID3D12PipelineState* pipeline)
 static bool PublishRRPsoMetadata(ID3D12PipelineState* pipeline, RRPsoKind kind = RRPsoKind::Unknown,
                                 uint64_t hash = 0) noexcept
 {
-    if (!pipeline || (RRInspectorBirthsEnabled() && FrameSurvey::Internal())) return false;
+    if (!pipeline) return false;
+    if (FrameSurvey::OwnedRelease()) { CleanupRRPsoReferences(pipeline); return false; }
     try
     {
         const bool born = RRInspectorBirthsEnabled();
@@ -892,7 +900,7 @@ static void PublishCreatedRRPso(void* output, REFIID iid, RRPsoKind kind, uint64
     {
         ReturnedPipelineInterface returned(output,iid);
         if (!returned.pipeline) return;
-        if (RRInspectorBirthsEnabled() && output != returned.pipeline && !FrameSurvey::Internal())
+        if (RRInspectorBirthsEnabled() && output != returned.pipeline && !FrameSurvey::OwnedRelease())
         {
             if (!NrdBridgeNativeBirth::ObserveReleaseCoverage(static_cast<IUnknown*>(output))) return;
             const auto birth = RRStrongReceiver(returned.pipeline);
@@ -922,7 +930,7 @@ static bool RRPsoListAvailable(const RRCommandListPsoState& state, ID3D12Graphic
 static void RecordRRPsoProducer(ID3D12Resource* resource, ID3D12PipelineState* pipelineState,
                                 bool ambiguous)
 {
-    if (resource == nullptr || pipelineState == nullptr)
+    if (resource == nullptr || pipelineState == nullptr || FrameSurvey::OwnedRelease())
         return;
 
     const auto prepared = FindRRPsoMetadataLocked(pipelineState);
@@ -944,6 +952,7 @@ static void RecordRRPsoProducer(ID3D12Resource* resource, ID3D12PipelineState* p
 // Called only while gRRPsoMutex is held.
 static void RecordRRGraphicsOutputs(ID3D12GraphicsCommandList* commandList)
 {
+    if (FrameSurvey::OwnedRelease()) return;
     const auto found = gRRCommandListPsoStates.find(commandList);
     if (found == gRRCommandListPsoStates.end())
         return;
@@ -978,7 +987,7 @@ static void RecordRRGraphicsOutputs(ID3D12GraphicsCommandList* commandList)
 
 static void RecordRRComputeOutput(ID3D12GraphicsCommandList* commandList, ID3D12Resource* resource)
 {
-    if (resource == nullptr)
+    if (resource == nullptr || FrameSurvey::OwnedRelease())
         return;
 
     std::scoped_lock psoLock(gRRPsoMutex);
@@ -1185,8 +1194,9 @@ static bool IsRRScalarCandidateResource(ID3D12Resource* resource, DXGI_FORMAT vi
 
 static void TrackRRResourceView(ID3D12Resource* resource, DXGI_FORMAT viewFormat, ResourceType type)
 {
-    if (!gRRResourceInspectorEnabled.load(std::memory_order_relaxed) || !resource ||
-        (NrdBridgeNativeBirth::Ready() && FrameSurvey::Internal())) return;
+    if (!gRRResourceInspectorEnabled.load(std::memory_order_relaxed) || !resource) return;
+    if (FrameSurvey::OwnedRelease())
+    { std::scoped_lock lock(gRRTrackedResourceMutex); EraseRRTrackedResourceLocked(resource); return; }
     // This native API caller owns the input; prepare identity/description before locks.
     try
     {
@@ -1925,29 +1935,33 @@ void ResTrack_Dx12::ResourceBarrier(ID3D12GraphicsCommandList* InCommandList, ID
 
 SIZE_T ResTrack_Dx12::GetGPUHandle(ID3D12Device* This, SIZE_T cpuHandle, D3D12_DESCRIPTOR_HEAP_TYPE type)
 {
-    SIZE_T sourceStart = 0, destinationStart = 0;
+    SIZE_T sourceStart = 0, destinationStart = 0; uint64_t version = 0;
+    std::shared_ptr<HeapInfo> heap;
     {
         std::shared_lock lock(_heapRegistryMutex);
-        const auto heap = FindIndexedHeapRangeLocked(gHeapCpuRanges,cpuHandle,false);
-        if (heap) { sourceStart = heap->cpuStart; destinationStart = heap->gpuStart; }
+        heap = FindIndexedHeapRangeLocked(gHeapCpuRanges,cpuHandle,false);
+        if (heap) { sourceStart = heap->cpuStart; version = heap->version.load(std::memory_order_relaxed); destinationStart = heap->gpuStart; }
     }
     if (!destinationStart) return 0;
     const auto increment = This->GetDescriptorHandleIncrementSize(type); // Strong device, outside the heap registry lock.
-    if (!increment) return 0;
+    if (!increment || !heap->active.load(std::memory_order_acquire) ||
+        heap->version.load(std::memory_order_acquire) != version) return 0;
     return destinationStart + ((cpuHandle-sourceStart)/increment)*increment;
 }
 
 SIZE_T ResTrack_Dx12::GetCPUHandle(ID3D12Device* This, SIZE_T gpuHandle, D3D12_DESCRIPTOR_HEAP_TYPE type)
 {
-    SIZE_T sourceStart = 0, destinationStart = 0;
+    SIZE_T sourceStart = 0, destinationStart = 0; uint64_t version = 0;
+    std::shared_ptr<HeapInfo> heap;
     {
         std::shared_lock lock(_heapRegistryMutex);
-        const auto heap = FindIndexedHeapRangeLocked(gHeapGpuRanges,gpuHandle,true);
-        if (heap) { sourceStart = heap->gpuStart; destinationStart = heap->cpuStart; }
+        heap = FindIndexedHeapRangeLocked(gHeapGpuRanges,gpuHandle,true);
+        if (heap) { sourceStart = heap->gpuStart; version = heap->version.load(std::memory_order_relaxed); destinationStart = heap->cpuStart; }
     }
     if (!destinationStart) return 0;
     const auto increment = This->GetDescriptorHandleIncrementSize(type); // Strong device, outside the heap registry lock.
-    if (!increment) return 0;
+    if (!increment || !heap->active.load(std::memory_order_acquire) ||
+        heap->version.load(std::memory_order_acquire) != version) return 0;
     return destinationStart + ((gpuHandle-sourceStart)/increment)*increment;
 }
 
@@ -3011,8 +3025,9 @@ void ResTrack_Dx12::hkResourceBarrier(ID3D12GraphicsCommandList* This, UINT NumB
 void ResTrack_Dx12::hkSetPipelineState(ID3D12GraphicsCommandList* This,
                                        ID3D12PipelineState* pPipelineState)
 {
+    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) && FrameSurvey::OwnedRelease()) ForgetOwnedRRList(This);
     if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) &&
-        !(RRInspectorBirthsEnabled() && FrameSurvey::Internal()) &&
+        !FrameSurvey::OwnedRelease() &&
         This != MenuOverlayDx::MenuCommandList())
     {
         try
@@ -3049,10 +3064,11 @@ HRESULT ResTrack_Dx12::hkReset(ID3D12GraphicsCommandList* This,
     const HRESULT result = o_Reset(This, pAllocator, pInitialState);
     if (SUCCEEDED(result)) RecordedComputeLease::Detach(computeRecording);
     if (SUCCEEDED(result)) RRTraceFence::ResetSucceeded(This);
-    if (SUCCEEDED(result) && gRRResourceInspectorEnabled.load(std::memory_order_acquire)) RRRecordingSucceeded(inspectorRecording,This);
+    if (SUCCEEDED(result) && gRRResourceInspectorEnabled.load(std::memory_order_acquire))
+    { RRRecordingSucceeded(inspectorRecording,This); if (FrameSurvey::OwnedRelease()) ForgetOwnedRRList(This); }
     if (SUCCEEDED(result) &&
         gRRResourceInspectorEnabled.load(std::memory_order_relaxed) &&
-        !(RRInspectorBirthsEnabled() && FrameSurvey::Internal()))
+        !FrameSurvey::OwnedRelease())
     {
         try
         {
@@ -3080,7 +3096,7 @@ HRESULT ResTrack_Dx12::hkReset(ID3D12GraphicsCommandList* This,
 
 void ResTrack_Dx12::hkSetMarker(ID3D12GraphicsCommandList* This, UINT Metadata, const void* pData, UINT Size)
 {
-    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed))
+    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) && !FrameSurvey::OwnedRelease())
     {
         std::string name = DecodeRRMarkerName(pData, Size);
         if (!name.empty())
@@ -3096,7 +3112,7 @@ void ResTrack_Dx12::hkSetMarker(ID3D12GraphicsCommandList* This, UINT Metadata, 
 
 void ResTrack_Dx12::hkBeginEvent(ID3D12GraphicsCommandList* This, UINT Metadata, const void* pData, UINT Size)
 {
-    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed))
+    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) && !FrameSurvey::OwnedRelease())
     {
         std::string name = DecodeRRMarkerName(pData, Size);
         std::scoped_lock markerLock(gRRMarkerMutex);
@@ -3113,7 +3129,7 @@ void ResTrack_Dx12::hkBeginEvent(ID3D12GraphicsCommandList* This, UINT Metadata,
 
 void ResTrack_Dx12::hkEndEvent(ID3D12GraphicsCommandList* This)
 {
-    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed))
+    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) && !FrameSurvey::OwnedRelease())
     {
         std::scoped_lock markerLock(gRRMarkerMutex);
         const auto found = gRRCommandListMarkers.find(This);
@@ -3432,7 +3448,8 @@ void ResTrack_Dx12::hkOMSetRenderTargets(ID3D12GraphicsCommandList* This, UINT N
                                          BOOL RTsSingleHandleToDescriptorRange,
                                          D3D12_CPU_DESCRIPTOR_HANDLE* pDepthStencilDescriptor)
 {
-    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) &&
+    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) && FrameSurvey::OwnedRelease()) ForgetOwnedRRList(This);
+    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) && !FrameSurvey::OwnedRelease() &&
         This != MenuOverlayDx::MenuCommandList())
     {
         std::vector<ID3D12Resource*> renderTargets;
@@ -3464,10 +3481,16 @@ void ResTrack_Dx12::hkOMSetRenderTargets(ID3D12GraphicsCommandList* This, UINT N
             }
         }
 
-        std::scoped_lock psoLock(gRRPsoMutex);
-        RRCommandListPsoState& state = gRRCommandListPsoStates[This];
-        state.renderTargets = std::move(renderTargets);
-        ++state.renderTargetGeneration;
+        const bool born = RRInspectorBirthsEnabled();
+        const auto receiver = born ? RRStrongReceiver(This) : NrdBridgeBirth::Token{};
+        NrdBridgeBirth::CurrentGuard current(receiver,born);
+        if (!born || (current.MatchesCurrent() && NrdBridgeBirth::Healthy()))
+        {
+            std::scoped_lock psoLock(gRRPsoMutex);
+            auto& state = RRPsoListStateLocked(This,receiver);
+            state.renderTargets = std::move(renderTargets);
+            ++state.renderTargetGeneration;
+        }
     }
 
     // Consistent early exit validation
@@ -3681,9 +3704,10 @@ void ResTrack_Dx12::hkSetComputeRootDescriptorTable(ID3D12GraphicsCommandList* T
 void ResTrack_Dx12::hkDrawInstanced(ID3D12GraphicsCommandList* This, UINT VertexCountPerInstance, UINT InstanceCount,
                                     UINT StartVertexLocation, UINT StartInstanceLocation)
 {
+    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) && FrameSurvey::OwnedRelease()) ForgetOwnedRRList(This);
     o_DrawInstanced(This, VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 
-    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) &&
+    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) && !FrameSurvey::OwnedRelease() &&
         This != MenuOverlayDx::MenuCommandList())
     {
         std::scoped_lock psoLock(gRRPsoMutex);
@@ -3799,10 +3823,11 @@ void ResTrack_Dx12::hkDrawIndexedInstanced(ID3D12GraphicsCommandList* This, UINT
                                            UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation,
                                            UINT StartInstanceLocation)
 {
+    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) && FrameSurvey::OwnedRelease()) ForgetOwnedRRList(This);
     o_DrawIndexedInstanced(This, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation,
                            StartInstanceLocation);
 
-    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) &&
+    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) && !FrameSurvey::OwnedRelease() &&
         This != MenuOverlayDx::MenuCommandList())
     {
         std::scoped_lock psoLock(gRRPsoMutex);
@@ -4005,9 +4030,10 @@ HRESULT ResTrack_Dx12::hkClose(ID3D12GraphicsCommandList* This)
 void ResTrack_Dx12::hkDispatch(ID3D12GraphicsCommandList* This, UINT ThreadGroupCountX, UINT ThreadGroupCountY,
                                UINT ThreadGroupCountZ)
 {
+    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) && FrameSurvey::OwnedRelease()) ForgetOwnedRRList(This);
     o_Dispatch(This, ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 
-    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) &&
+    if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) && !FrameSurvey::OwnedRelease() &&
         This != MenuOverlayDx::MenuCommandList())
     {
         std::scoped_lock psoLock(gRRPsoMutex);
