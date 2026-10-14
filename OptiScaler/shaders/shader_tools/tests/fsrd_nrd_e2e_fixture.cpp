@@ -750,7 +750,7 @@ void guidePingPongCase(Host& h,Title& title,J& result) {
    const UINT texture=std::array<UINT,9>{0,1,2,3,4,5,6,7,8}[slot];
    need(title.tex[texture].Get()==stable[texture].Get(),"only VIEWZ identity rotates; all signal, normal, motion and output anchors remain exact");
   }
-  const auto dispatchBefore=FfxApiProxy::dispatches,restoreBefore=restores,bridgedBefore=NrdBridge::GetStatus().framesBridged;
+  const auto dispatchBefore=FfxApiProxy::dispatches,restoreBefore=restores;const auto bridgedBefore=NrdBridge::GetStatus().framesBridged;
   title.frame(frame);
   need(FfxApiProxy::dispatches==dispatchBefore+1&&restores==restoreBefore+3,"every rotated-guide frame records one actual signed RR and all three production title restores");
   need(NrdBridge::GetStatus().active&&NrdBridge::GetStatus().framesBridged==bridgedBefore+1,"every frame after discovery becomes Active immediately despite a changed current VIEWZ pointer");
