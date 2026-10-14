@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
 #include <psapi.h>
 #include "dllmain.h"
 
@@ -1404,6 +1405,13 @@ static void CheckQuirks(bool isNvidia)
     }
     else
         quirks.reset(GameQuirk::ExtendedSigRestore);
+
+    // The NRD bridge injects into a title list and needs the complete compute state from device creation.
+    if (NrdBridge::StartupEnabled())
+    {
+        Config::Instance()->RestoreComputeSignature.set_volatile_value(true);
+        Config::Instance()->ExtendedStateRestore.set_volatile_value(true);
+    }
 
     if (quirks & GameQuirk::DisableReactiveMasks)
         Config::Instance()->DisableReactiveMask.set_volatile_value(true);

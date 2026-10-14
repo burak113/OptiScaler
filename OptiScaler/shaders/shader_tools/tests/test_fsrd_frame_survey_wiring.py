@@ -7,6 +7,7 @@ Other pass/view callbacks still use the existing controlled-content fixture.
 """
 from pathlib import Path
 import json
+import os
 import subprocess
 import sys
 import test_fsrd_frame_survey as fixture
@@ -35,7 +36,7 @@ def selected_line(source, marker):
 
 def run():
     memory_guard()
-    output = Path('F:/FSRD/frame_survey/wiring')
+    output = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/frame_survey/wiring'))
     output.mkdir(parents=True, exist_ok=True)
     source = (ROOT/'OptiScaler/resource_tracking/ResTrack_dx12.cpp').read_text()
     list_hooks = function(source, 'HookCommandList')
@@ -52,6 +53,9 @@ def run():
     wiring = r'''
 namespace LifecycleWiring {
 bool gSurveyWrappers=true;
+bool gNrdBridgeWrappers=false;
+namespace NrdBridge { inline void OnReset(ID3D12GraphicsCommandList*, ID3D12PipelineState*) {} }
+struct D3D12Hooks { static void OnBridgeCommandListReset(ID3D12GraphicsCommandList*, ID3D12PipelineState*) {} };
 using ResetFn=HRESULT(*)(ID3D12GraphicsCommandList*,ID3D12CommandAllocator*,ID3D12PipelineState*);
 using CloseFn=HRESULT(*)(ID3D12GraphicsCommandList*);
 using SubmitFn=void(*)(ID3D12CommandQueue*,UINT,ID3D12CommandList* const*);
@@ -85,7 +89,7 @@ void Detach() {
     detach_lines = '\n'.join(selected_line(detach, f'DetourDetach(&(PVOID&) o_{name},') for name in ('Reset', 'Close', 'ExecuteCommandLists'))
     for key, value in [('WRAPPERS', wrappers), ('RESET', reset), ('SUBMIT', submit), ('CLOSE', close), ('DETACH', detach_lines)]:
         wiring = wiring.replace('__'+key+'__', value)
-    cpp = fixture.CPP.replace('struct Host {', wiring+'\nstruct Host {')
+    cpp = '#include "misc/NrdBridgeTitleCallbacks_Dx12.h"\n'+fixture.CPP.replace('struct Host {', wiring+'\nstruct Host {')
     start = cpp.index('  ComPtr<IDXGIAdapter1> chosen;'); end = cpp.index('  need(bool(chosen)', start)
     cpp = cpp[:start]+'  ComPtr<IDXGIAdapter1> chosen; hr(factory->EnumWarpAdapter(IID_PPV_ARGS(&chosen))); adapter="WARP";\n'+cpp[end:]
     cpp = cpp.replace(' FrameSurvey::Submit(queue.Get(),1,&cmd);', '')
@@ -126,7 +130,7 @@ void Detach() {
     assert not manifest['coverage_gaps'].get('list_without_observed_reset', 0)
     row['python_checks_passed'] = 2
     row['python_peak_working_set_bytes'] = peak_bytes()
-    Path('E:/FSRD/sol_batch/11-frame-survey/wiring-result.json').write_text(json.dumps(row,indent=2)+'\n')
+    (output/'host-result.json').write_text(json.dumps(row,indent=2)+'\n')
     print(json.dumps(row))
 
 

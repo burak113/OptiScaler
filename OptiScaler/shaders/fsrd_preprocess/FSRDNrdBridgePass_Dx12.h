@@ -14,6 +14,10 @@ class ConversionPass
     bool Initialize(ID3D12Device*, uint32_t width, uint32_t height, std::string& error);
     bool Dispatch(ID3D12GraphicsCommandList*, const ConversionInputs&, const FrameParameters&,
                   ConvertedResources& out, std::string& error);
+    // When ConversionInputs::motion is null, Recon never reads a cached title MV.
+    // Complete the motion guide using the current first chain-A Temporal SRV.
+    bool DispatchMotion(ID3D12GraphicsCommandList*, const ConvertedResources&, ID3D12Resource* titleMotion,
+                        const FrameParameters&, std::string& error);
     bool WriteDebug(ID3D12GraphicsCommandList*, const ConvertedResources&, ID3D12Resource* outputSpec,
                     ID3D12Resource* outputDiff, DebugMode, std::string& error);
     void ResetHistory() noexcept;

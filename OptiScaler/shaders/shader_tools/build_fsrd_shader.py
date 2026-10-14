@@ -103,7 +103,12 @@ def build(name, compiler):
                 f.write(",")
                 f.write("\n    " if (i + 1) % 12 == 0 else " ")
         f.write("\n};\n")
-        header = f.getvalue().replace('\n', '\r\n').encode('utf-8')
+        newline = '\n'
+        if os.path.isfile(hdr):
+            with open(hdr, 'rb') as previous:
+                if b'\r\n' in previous.read():
+                    newline = '\r\n'
+        header = f.getvalue().replace('\n', newline).encode('utf-8')
 
     # Avoid truncating a header while the IDE/indexer reads it. Reproducibility
     # checks should not rewrite identical artifacts at all; changed headers are
@@ -116,7 +121,7 @@ def build(name, compiler):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('name', choices=['FSRDGeometry', 'FSRDFlatDetailClassify', 'FSRDFlatDetailSeed', 'FSRDFlatDetailRefine', 'FSRDFlatTemporal', 'FSRDFlatTemporalLP', 'FSRDFlatTemporalStore', 'FSRDFlatDetailBase', 'FSRDFlatDetailApply', 'FSRDInputConv',
+    parser.add_argument('name', choices=['FSRDNrdBridge', 'FSRDNrdBridgeCopy', 'FSRDNrdBridgeMotion', 'FSRDGeometry', 'FSRDFlatDetailClassify', 'FSRDFlatDetailSeed', 'FSRDFlatDetailRefine', 'FSRDFlatTemporal', 'FSRDFlatTemporalLP', 'FSRDFlatTemporalStore', 'FSRDFlatDetailBase', 'FSRDFlatDetailApply', 'FSRDInputConv',
                                        'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDOutputComp', 'FSRDCompareView',
                                                                                                                      'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate',
                                        'FSRDSssPrepare', 'FSRDSssBlur', 'FSRDSkinPrefilter', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDInputConvSkinBounds', 'FSRDInputConvSkinBoundsAdditive', 'FSRDSkinBounds', 'FSRDSkinPrefilterTiled', 'FSRDInputConvSkinFused', 'FSRDInputConvSkinFusedAdditive', 'FSRDSssKernel', 'FSRDSssBlurTiled', 'FSRDProbeInputs', 'FSRDReference', 'FSRDLeak', 'FSRDAlbedoStabilise', 'FSRDFogStats', 'FSRDFogKappa', 'FSRDFogRank', 'FSRDFogSmooth', 'FSRDFogTarget', 'FSRDFogRoute', 'FSRDRecoveryLobeAccumulate', 'FSRDRecoveryLobeDown', 'FSRDRecoveryLobeBand', 'FSRDRRMotion', 'all'])
@@ -133,7 +138,7 @@ if __name__ == "__main__":
         if check.returncode != 0:
             raise SystemExit("mirror check failed; not compiling")
     if options.name == 'all':
-        names = ['FSRDGeometry', 'FSRDFlatDetailClassify', 'FSRDFlatDetailSeed', 'FSRDFlatDetailRefine', 'FSRDFlatTemporal', 'FSRDFlatTemporalLP', 'FSRDFlatTemporalStore', 'FSRDFlatDetailBase', 'FSRDFlatDetailApply', 'FSRDInputConv',
+        names = ['FSRDNrdBridge', 'FSRDNrdBridgeCopy', 'FSRDNrdBridgeMotion', 'FSRDGeometry', 'FSRDFlatDetailClassify', 'FSRDFlatDetailSeed', 'FSRDFlatDetailRefine', 'FSRDFlatTemporal', 'FSRDFlatTemporalLP', 'FSRDFlatTemporalStore', 'FSRDFlatDetailBase', 'FSRDFlatDetailApply', 'FSRDInputConv',
                  'FSRDInputConvAdditive', 'RRTraceAdditive', 'FSRDOutputComp', 'FSRDCompareView',
                                                    'FSRDAlbedoTrustEvidence', 'FSRDAlbedoTrustPropagate',
                  'FSRDSssPrepare', 'FSRDSssBlur', 'FSRDSkinPrefilter', 'FSRDInputConvSkin', 'FSRDInputConvSkinAdditive', 'FSRDInputConvSkinBounds', 'FSRDInputConvSkinBoundsAdditive', 'FSRDSkinBounds', 'FSRDSkinPrefilterTiled', 'FSRDInputConvSkinFused', 'FSRDInputConvSkinFusedAdditive', 'FSRDSssKernel', 'FSRDSssBlurTiled', 'FSRDProbeInputs', 'FSRDReference', 'FSRDLeak', 'FSRDAlbedoStabilise', 'FSRDFogStats', 'FSRDFogKappa', 'FSRDFogRank', 'FSRDFogSmooth', 'FSRDFogTarget', 'FSRDFogRoute', 'FSRDRecoveryLobeAccumulate', 'FSRDRecoveryLobeDown', 'FSRDRecoveryLobeBand', 'FSRDRRMotion']

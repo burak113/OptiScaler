@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
 #include "D3D12_Hooks.h"
 
 #include <Util.h>
@@ -52,6 +53,7 @@ static PFN_CreatePlacedResource o_CreatePlacedResource = nullptr;
 static PFN_SetResidencyPriority o_SetResidencyPriority = nullptr;
 static PFN_GetResourceAllocationInfo o_GetResourceAllocationInfo = nullptr;
 static bool gSurveyDeviceWrappers = false;
+static bool gNrdBridgeDeviceWrappers = false;
 static PFN_CreateRootSignature o_CreateRootSignature = nullptr;
 static PFN_D3D12GetInterface o_D3D12GetInterface = nullptr;
 static PFN_CreateDevice o_CreateDevice = nullptr;
@@ -140,7 +142,22 @@ struct RootState
     UINT Num32BitValues = 0;
     UINT DestOffset = 0;
     std::vector<uint32_t> Data;
+    // Bridge-only: root constants may be written in several disjoint updates.
+    std::vector<uint8_t> ValidConstants;
 };
+
+static void MergeBridgeConstants(RootState& state, UINT offset, UINT count, const uint32_t* source)
+{
+    if (!source || count == 0 || offset > 64 || count > 64 - offset) return;
+    if (state.type != RootEntryType::Constants || state.ValidConstants.empty())
+    { state.Data.clear(); state.ValidConstants.clear(); }
+    state.type = RootEntryType::Constants;
+    const size_t size = std::max(state.Data.size(), size_t(offset) + count);
+    state.Data.resize(size); state.ValidConstants.resize(size);
+    std::copy_n(source, count, state.Data.begin() + offset);
+    std::fill_n(state.ValidConstants.begin() + offset, count, uint8_t(1));
+    state.Num32BitValues = UINT(size); state.DestOffset = 0;
+}
 
 enum class SignatureEntryType
 {
@@ -209,6 +226,10 @@ static std::shared_mutex rootSigParameterCountMutex;
 static ankerl::unordered_dense::map<ID3D12RootSignature*, UINT> rootSigParameterCount;
 
 static bool isUpscalerActive = false;
+// The bridge can inject while other CPU threads record independent title lists.
+// Preserve the existing off path; bridge suppression applies only to the recording thread.
+static thread_local bool isNrdBridgeInjection = false;
+static ankerl::unordered_dense::map<ID3D12GraphicsCommandList*, ID3D12RootSignature*> bridgeComputeRoots;
 
 // Intel Atomic Extension
 struct UE_D3D12_RESOURCE_DESC
@@ -381,7 +402,7 @@ static void ApplySamplerOverrides(D3D12_STATIC_SAMPLER_DESC1& samplerDesc)
 VALIDATE_HOOK(hkSetPipelineState, PFN_SetPipelineState)
 static void hkSetPipelineState(ID3D12GraphicsCommandList* commandList, ID3D12PipelineState* pPipelineState)
 {
-    if (!lateInProgressSetPipelineState && !isUpscalerActive && commandList != nullptr && pPipelineState != nullptr)
+    if (!lateInProgressSetPipelineState && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && pPipelineState != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(pipelineStatesMutex);
         pipelineStates.insert_or_assign(commandList, pPipelineState);
@@ -394,7 +415,7 @@ VALIDATE_HOOK(hkSetDescriptorHeaps, PFN_SetDescriptorHeaps)
 static void hkSetDescriptorHeaps(ID3D12GraphicsCommandList* commandList, UINT NumDescriptorHeaps,
                                  ID3D12DescriptorHeap* const* ppDescriptorHeaps)
 {
-    if (!lateInProgressSetDescriptorHeaps && !isUpscalerActive && commandList != nullptr &&
+    if (!lateInProgressSetDescriptorHeaps && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr &&
         ppDescriptorHeaps != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(descriptorHeapsMutex);
@@ -429,12 +450,14 @@ VALIDATE_HOOK(hkSetComputeRootSignature, PFN_SetComputeRootSignature)
 static void hkSetComputeRootSignature(ID3D12GraphicsCommandList* commandList, ID3D12RootSignature* pRootSignature)
 {
     if (!lateInProgressSetComputeRootSignature && Config::Instance()->RestoreComputeSignature.value_or_default() &&
-        !isUpscalerActive && commandList != nullptr && pRootSignature != nullptr)
+        !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && pRootSignature != nullptr)
     {
         {
             auto paramCount = GetRootParameterCount(pRootSignature);
             std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
             auto& table = rootStates[commandList];
+            if (gNrdBridgeDeviceWrappers && bridgeComputeRoots[commandList] != pRootSignature)
+            { table.clear(); bridgeComputeRoots[commandList] = pRootSignature; }
             table.resize(paramCount);
         }
 
@@ -456,7 +479,7 @@ VALIDATE_HOOK(hkSetComputeRootDescriptorTable, PFN_SetComputeRootDescriptorTable
 static void hkSetComputeRootDescriptorTable(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex,
                                             D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
 {
-    if (!lateInProgressSetComputeRootDescriptorTable && !isUpscalerActive && commandList != nullptr &&
+    if (!lateInProgressSetComputeRootDescriptorTable && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr &&
         BaseDescriptor.ptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
@@ -475,17 +498,23 @@ VALIDATE_HOOK(hkSetComputeRoot32BitConstants, PFN_SetComputeRoot32BitConstants)
 static void hkSetComputeRoot32BitConstants(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex,
                                            UINT Num32BitValuesToSet, const void* pSrcData, UINT DestOffsetIn32BitValues)
 {
-    if (!lateInProgressSetComputeRoot32BitConstants && !isUpscalerActive && commandList != nullptr && pSrcData)
+    if (!lateInProgressSetComputeRoot32BitConstants && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && pSrcData)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
-            table[RootParameterIndex].type = RootEntryType::Constants;
-            table[RootParameterIndex].Num32BitValues = Num32BitValuesToSet;
-            table[RootParameterIndex].DestOffset = DestOffsetIn32BitValues;
-            auto* src = static_cast<const uint32_t*>(pSrcData);
-            table[RootParameterIndex].Data.assign(src, src + Num32BitValuesToSet);
+            if (gNrdBridgeDeviceWrappers)
+                MergeBridgeConstants(table[RootParameterIndex], DestOffsetIn32BitValues, Num32BitValuesToSet,
+                                     static_cast<const uint32_t*>(pSrcData));
+            else
+            {
+                table[RootParameterIndex].type = RootEntryType::Constants;
+                table[RootParameterIndex].Num32BitValues = Num32BitValuesToSet;
+                table[RootParameterIndex].DestOffset = DestOffsetIn32BitValues;
+                auto* src = static_cast<const uint32_t*>(pSrcData);
+                table[RootParameterIndex].Data.assign(src, src + Num32BitValuesToSet);
+            }
         }
     }
 
@@ -497,15 +526,20 @@ VALIDATE_HOOK(hkSetComputeRoot32BitConstant, PFN_SetComputeRoot32BitConstant)
 static void hkSetComputeRoot32BitConstant(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex, UINT SrcData,
                                           UINT DestOffsetIn32BitValues)
 {
-    if (!lateInProgressSetComputeRoot32BitConstant && !isUpscalerActive && commandList != nullptr)
+    if (!lateInProgressSetComputeRoot32BitConstant && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
-            table[RootParameterIndex].type = RootEntryType::Constant;
-            table[RootParameterIndex].DestOffset = DestOffsetIn32BitValues;
-            table[RootParameterIndex].Data.assign(1, SrcData);
+            if (gNrdBridgeDeviceWrappers)
+                MergeBridgeConstants(table[RootParameterIndex], DestOffsetIn32BitValues, 1, &SrcData);
+            else
+            {
+                table[RootParameterIndex].type = RootEntryType::Constant;
+                table[RootParameterIndex].DestOffset = DestOffsetIn32BitValues;
+                table[RootParameterIndex].Data.assign(1, SrcData);
+            }
         }
     }
 
@@ -516,7 +550,7 @@ VALIDATE_HOOK(hkSetComputeRootConstantBufferView, PFN_SetComputeRootConstantBuff
 static void hkSetComputeRootConstantBufferView(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex,
                                                D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
 {
-    if (!lateInProgressSetComputeRootConstantBufferView && !isUpscalerActive && commandList != nullptr)
+    if (!lateInProgressSetComputeRootConstantBufferView && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
@@ -542,7 +576,7 @@ VALIDATE_HOOK(hkSetComputeRootShaderResourceView, PFN_SetComputeRootShaderResour
 static void hkSetComputeRootShaderResourceView(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex,
                                                D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
 {
-    if (!lateInProgressSetComputeRootShaderResourceView && !isUpscalerActive && commandList != nullptr)
+    if (!lateInProgressSetComputeRootShaderResourceView && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
@@ -570,7 +604,8 @@ VALIDATE_HOOK(hkSetComputeRootUnorderedAccessView, PFN_SetComputeRootUnorderedAc
 static void hkSetComputeRootUnorderedAccessView(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex,
                                                 D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
 {
-    if (lateInProgressSetComputeRootUnorderedAccessView && !isUpscalerActive && commandList != nullptr)
+    if ((gNrdBridgeDeviceWrappers ? !lateInProgressSetComputeRootUnorderedAccessView : lateInProgressSetComputeRootUnorderedAccessView) &&
+        !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
@@ -596,7 +631,7 @@ VALIDATE_HOOK(hkSetGraphicsRootSignature, PFN_SetGraphicsRootSignature)
 static void hkSetGraphicsRootSignature(ID3D12GraphicsCommandList* commandList, ID3D12RootSignature* pRootSignature)
 {
     if (!lateInProgressSetGraphicsRootSignature && Config::Instance()->RestoreGraphicSignature.value_or_default() &&
-        !isUpscalerActive && commandList != nullptr && pRootSignature != nullptr)
+        !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && pRootSignature != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootSignatureMutex);
         signatures.insert_or_assign(commandList, SignatureEntry { SignatureEntryType::Graphics, pRootSignature });
@@ -616,7 +651,7 @@ VALIDATE_HOOK(hkSetGraphicsRootDescriptorTable, PFN_SetGraphicsRootDescriptorTab
 static void hkSetGraphicsRootDescriptorTable(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex,
                                              D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
 {
-    if (!lateInProgressSetGraphicsRootDescriptorTable && !isUpscalerActive && commandList != nullptr &&
+    if (!lateInProgressSetGraphicsRootDescriptorTable && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr &&
         BaseDescriptor.ptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
@@ -636,17 +671,23 @@ static void hkSetGraphicsRoot32BitConstants(ID3D12GraphicsCommandList* commandLi
                                             UINT Num32BitValuesToSet, const void* pSrcData,
                                             UINT DestOffsetIn32BitValues)
 {
-    if (!lateInProgressSetGraphicsRoot32BitConstants && !isUpscalerActive && commandList != nullptr && pSrcData)
+    if (!lateInProgressSetGraphicsRoot32BitConstants && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && pSrcData)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
-            table[RootParameterIndex].type = RootEntryType::Constants;
-            table[RootParameterIndex].Num32BitValues = Num32BitValuesToSet;
-            table[RootParameterIndex].DestOffset = DestOffsetIn32BitValues;
-            auto* src = static_cast<const uint32_t*>(pSrcData);
-            table[RootParameterIndex].Data.assign(src, src + Num32BitValuesToSet);
+            if (gNrdBridgeDeviceWrappers)
+                MergeBridgeConstants(table[RootParameterIndex], DestOffsetIn32BitValues, Num32BitValuesToSet,
+                                     static_cast<const uint32_t*>(pSrcData));
+            else
+            {
+                table[RootParameterIndex].type = RootEntryType::Constants;
+                table[RootParameterIndex].Num32BitValues = Num32BitValuesToSet;
+                table[RootParameterIndex].DestOffset = DestOffsetIn32BitValues;
+                auto* src = static_cast<const uint32_t*>(pSrcData);
+                table[RootParameterIndex].Data.assign(src, src + Num32BitValuesToSet);
+            }
         }
     }
 
@@ -658,15 +699,20 @@ VALIDATE_HOOK(hkSetGraphicsRoot32BitConstant, PFN_SetGraphicsRoot32BitConstant)
 static void hkSetGraphicsRoot32BitConstant(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex,
                                            UINT SrcData, UINT DestOffsetIn32BitValues)
 {
-    if (!lateInProgressSetGraphicsRoot32BitConstant && !isUpscalerActive && commandList != nullptr)
+    if (!lateInProgressSetGraphicsRoot32BitConstant && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
-            table[RootParameterIndex].type = RootEntryType::Constant;
-            table[RootParameterIndex].DestOffset = DestOffsetIn32BitValues;
-            table[RootParameterIndex].Data.assign(1, SrcData);
+            if (gNrdBridgeDeviceWrappers)
+                MergeBridgeConstants(table[RootParameterIndex], DestOffsetIn32BitValues, 1, &SrcData);
+            else
+            {
+                table[RootParameterIndex].type = RootEntryType::Constant;
+                table[RootParameterIndex].DestOffset = DestOffsetIn32BitValues;
+                table[RootParameterIndex].Data.assign(1, SrcData);
+            }
         }
     }
 
@@ -677,7 +723,7 @@ VALIDATE_HOOK(hkSetGraphicsRootConstantBufferView, PFN_SetGraphicsRootConstantBu
 static void hkSetGraphicsRootConstantBufferView(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex,
                                                 D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
 {
-    if (!lateInProgressSetGraphicsRootConstantBufferView && !isUpscalerActive && commandList != nullptr)
+    if (!lateInProgressSetGraphicsRootConstantBufferView && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
@@ -695,7 +741,7 @@ VALIDATE_HOOK(hkSetGraphicsRootShaderResourceView, PFN_SetGraphicsRootShaderReso
 static void hkSetGraphicsRootShaderResourceView(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex,
                                                 D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
 {
-    if (!lateInProgressSetGraphicsRootShaderResourceView && !isUpscalerActive && commandList != nullptr)
+    if (!lateInProgressSetGraphicsRootShaderResourceView && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
@@ -715,7 +761,7 @@ VALIDATE_HOOK(hkSetGraphicsRootUnorderedAccessView, PFN_SetGraphicsRootUnordered
 static void hkSetGraphicsRootUnorderedAccessView(ID3D12GraphicsCommandList* commandList, UINT RootParameterIndex,
                                                  D3D12_GPU_VIRTUAL_ADDRESS BufferLocation)
 {
-    if (lateInProgressSetGraphicsRootUnorderedAccessView && !isUpscalerActive && commandList != nullptr)
+    if (lateInProgressSetGraphicsRootUnorderedAccessView && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
@@ -735,7 +781,7 @@ static void hkSetPipelineStateLate(ID3D12GraphicsCommandList* commandList, ID3D1
 {
     lateInProgressSetPipelineState = true;
 
-    if (!isUpscalerActive && commandList != nullptr && pPipelineState != nullptr)
+    if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && pPipelineState != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(pipelineStatesMutex);
         pipelineStates.insert_or_assign(commandList, pPipelineState);
@@ -752,7 +798,7 @@ static void hkSetDescriptorHeapsLate(ID3D12GraphicsCommandList* commandList, UIN
 {
     lateInProgressSetDescriptorHeaps = true;
 
-    if (!isUpscalerActive && commandList != nullptr && ppDescriptorHeaps != nullptr)
+    if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && ppDescriptorHeaps != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(descriptorHeapsMutex);
         DescriptorHeap temp {};
@@ -774,13 +820,15 @@ static void hkSetComputeRootSignatureLate(ID3D12GraphicsCommandList* commandList
 {
     lateInProgressSetComputeRootSignature = true;
 
-    if (Config::Instance()->RestoreComputeSignature.value_or_default() && !isUpscalerActive && commandList != nullptr &&
+    if (Config::Instance()->RestoreComputeSignature.value_or_default() && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr &&
         pRootSignature != nullptr)
     {
         {
             auto paramCount = GetRootParameterCount(pRootSignature);
             std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
             auto& table = rootStates[commandList];
+            if (gNrdBridgeDeviceWrappers && bridgeComputeRoots[commandList] != pRootSignature)
+            { table.clear(); bridgeComputeRoots[commandList] = pRootSignature; }
             table.resize(paramCount);
         }
 
@@ -799,7 +847,7 @@ static void hkSetComputeRootDescriptorTableLate(ID3D12GraphicsCommandList* comma
 {
     lateInProgressSetComputeRootDescriptorTable = true;
 
-    if (!isUpscalerActive && commandList != nullptr && BaseDescriptor.ptr)
+    if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && BaseDescriptor.ptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
@@ -822,17 +870,23 @@ static void hkSetComputeRoot32BitConstantsLate(ID3D12GraphicsCommandList* comman
 {
     lateInProgressSetComputeRoot32BitConstants = true;
 
-    if (!isUpscalerActive && commandList != nullptr && pSrcData)
+    if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && pSrcData)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
-            table[RootParameterIndex].type = RootEntryType::Constants;
-            table[RootParameterIndex].Num32BitValues = Num32BitValuesToSet;
-            table[RootParameterIndex].DestOffset = DestOffsetIn32BitValues;
-            auto* src = static_cast<const uint32_t*>(pSrcData);
-            table[RootParameterIndex].Data.assign(src, src + Num32BitValuesToSet);
+            if (gNrdBridgeDeviceWrappers)
+                MergeBridgeConstants(table[RootParameterIndex], DestOffsetIn32BitValues, Num32BitValuesToSet,
+                                     static_cast<const uint32_t*>(pSrcData));
+            else
+            {
+                table[RootParameterIndex].type = RootEntryType::Constants;
+                table[RootParameterIndex].Num32BitValues = Num32BitValuesToSet;
+                table[RootParameterIndex].DestOffset = DestOffsetIn32BitValues;
+                auto* src = static_cast<const uint32_t*>(pSrcData);
+                table[RootParameterIndex].Data.assign(src, src + Num32BitValuesToSet);
+            }
         }
     }
 
@@ -848,15 +902,20 @@ static void hkSetComputeRoot32BitConstantLate(ID3D12GraphicsCommandList* command
 {
     lateInProgressSetComputeRoot32BitConstant = true;
 
-    if (!isUpscalerActive && commandList != nullptr)
+    if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
-            table[RootParameterIndex].type = RootEntryType::Constant;
-            table[RootParameterIndex].DestOffset = DestOffsetIn32BitValues;
-            table[RootParameterIndex].Data.assign(1, SrcData);
+            if (gNrdBridgeDeviceWrappers)
+                MergeBridgeConstants(table[RootParameterIndex], DestOffsetIn32BitValues, 1, &SrcData);
+            else
+            {
+                table[RootParameterIndex].type = RootEntryType::Constant;
+                table[RootParameterIndex].DestOffset = DestOffsetIn32BitValues;
+                table[RootParameterIndex].Data.assign(1, SrcData);
+            }
         }
     }
 
@@ -871,7 +930,7 @@ static void hkSetComputeRootConstantBufferViewLate(ID3D12GraphicsCommandList* co
 {
     lateInProgressSetComputeRootConstantBufferView = true;
 
-    if (!isUpscalerActive && commandList != nullptr)
+    if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
@@ -893,7 +952,7 @@ static void hkSetComputeRootShaderResourceViewLate(ID3D12GraphicsCommandList* co
 {
     lateInProgressSetComputeRootShaderResourceView = true;
 
-    if (!isUpscalerActive && commandList != nullptr)
+    if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
@@ -915,7 +974,7 @@ static void hkSetComputeRootUnorderedAccessViewLate(ID3D12GraphicsCommandList* c
 {
     lateInProgressSetComputeRootUnorderedAccessView = true;
 
-    if (!isUpscalerActive && commandList != nullptr)
+    if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
@@ -936,7 +995,7 @@ static void hkSetGraphicsRootSignatureLate(ID3D12GraphicsCommandList* commandLis
 {
     lateInProgressSetGraphicsRootSignature = true;
 
-    if (Config::Instance()->RestoreGraphicSignature.value_or_default() && !isUpscalerActive && commandList != nullptr &&
+    if (Config::Instance()->RestoreGraphicSignature.value_or_default() && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr &&
         pRootSignature != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootSignatureMutex);
@@ -954,7 +1013,7 @@ static void hkSetGraphicsRootDescriptorTableLate(ID3D12GraphicsCommandList* comm
 {
     lateInProgressSetGraphicsRootDescriptorTable = true;
 
-    if (!isUpscalerActive && commandList != nullptr && BaseDescriptor.ptr)
+    if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && BaseDescriptor.ptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
@@ -977,17 +1036,23 @@ static void hkSetGraphicsRoot32BitConstantsLate(ID3D12GraphicsCommandList* comma
 {
     lateInProgressSetGraphicsRoot32BitConstants = true;
 
-    if (!isUpscalerActive && commandList != nullptr && pSrcData)
+    if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && pSrcData)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
-            table[RootParameterIndex].type = RootEntryType::Constants;
-            table[RootParameterIndex].Num32BitValues = Num32BitValuesToSet;
-            table[RootParameterIndex].DestOffset = DestOffsetIn32BitValues;
-            auto* src = static_cast<const uint32_t*>(pSrcData);
-            table[RootParameterIndex].Data.assign(src, src + Num32BitValuesToSet);
+            if (gNrdBridgeDeviceWrappers)
+                MergeBridgeConstants(table[RootParameterIndex], DestOffsetIn32BitValues, Num32BitValuesToSet,
+                                     static_cast<const uint32_t*>(pSrcData));
+            else
+            {
+                table[RootParameterIndex].type = RootEntryType::Constants;
+                table[RootParameterIndex].Num32BitValues = Num32BitValuesToSet;
+                table[RootParameterIndex].DestOffset = DestOffsetIn32BitValues;
+                auto* src = static_cast<const uint32_t*>(pSrcData);
+                table[RootParameterIndex].Data.assign(src, src + Num32BitValuesToSet);
+            }
         }
     }
 
@@ -1003,15 +1068,20 @@ static void hkSetGraphicsRoot32BitConstantLate(ID3D12GraphicsCommandList* comman
 {
     lateInProgressSetGraphicsRoot32BitConstant = true;
 
-    if (!isUpscalerActive && commandList != nullptr)
+    if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
-            table[RootParameterIndex].type = RootEntryType::Constant;
-            table[RootParameterIndex].DestOffset = DestOffsetIn32BitValues;
-            table[RootParameterIndex].Data.assign(1, SrcData);
+            if (gNrdBridgeDeviceWrappers)
+                MergeBridgeConstants(table[RootParameterIndex], DestOffsetIn32BitValues, 1, &SrcData);
+            else
+            {
+                table[RootParameterIndex].type = RootEntryType::Constant;
+                table[RootParameterIndex].DestOffset = DestOffsetIn32BitValues;
+                table[RootParameterIndex].Data.assign(1, SrcData);
+            }
         }
     }
 
@@ -1026,7 +1096,7 @@ static void hkSetGraphicsRootConstantBufferViewLate(ID3D12GraphicsCommandList* c
 {
     lateInProgressSetGraphicsRootConstantBufferView = true;
 
-    if (!isUpscalerActive && commandList != nullptr)
+    if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
@@ -1048,7 +1118,7 @@ static void hkSetGraphicsRootShaderResourceViewLate(ID3D12GraphicsCommandList* c
 {
     lateInProgressSetGraphicsRootShaderResourceView = true;
 
-    if (!isUpscalerActive && commandList != nullptr)
+    if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
@@ -1070,7 +1140,7 @@ static void hkSetGraphicsRootUnorderedAccessViewLate(ID3D12GraphicsCommandList* 
 {
     lateInProgressSetGraphicsRootUnorderedAccessView = true;
 
-    if (!isUpscalerActive && commandList != nullptr)
+    if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex);
         auto& table = rootStates[commandList];
@@ -2214,9 +2284,11 @@ static void HookToDevice(ID3D12Device* InDevice)
     if (Util::CheckForRealObject(__FUNCTION__, InDevice, (IUnknown**) &realDevice))
         pVTable = *(PVOID**) realDevice;
 
-    gSurveyDeviceWrappers = Config::Instance()->FfxDenoiserFrameSurvey.value_or_default();
+    gNrdBridgeDeviceWrappers = NrdBridge::StartupEnabled();
+    gSurveyDeviceWrappers = Config::Instance()->FfxDenoiserFrameSurvey.value_or_default() || gNrdBridgeDeviceWrappers;
+    if (gNrdBridgeDeviceWrappers) NrdBridge::Initialize(realDevice ? realDevice : InDevice);
     if (gSurveyDeviceWrappers)
-        FrameSurvey::BeginCreationTracking();
+        FrameSurvey::BeginCreationTracking(Config::Instance()->FfxDenoiserFrameSurvey.value_or_default());
 
     // hudless
     o_D3D12DeviceRelease = (PFN_Release) pVTable[2];
@@ -2436,12 +2508,76 @@ void D3D12Hooks::Unhook()
     }
 }
 
-void D3D12Hooks::SetRootSignatureTracking(bool enable) { isUpscalerActive = !enable; }
+void D3D12Hooks::SetRootSignatureTracking(bool enable)
+{
+    if (gNrdBridgeDeviceWrappers) isNrdBridgeInjection = !enable;
+    else isUpscalerActive = !enable;
+}
+bool D3D12Hooks::RootSignatureTrackingEnabled() { return !(isUpscalerActive || isNrdBridgeInjection); }
+
+void D3D12Hooks::OnBridgeCommandListReset(ID3D12GraphicsCommandList* list, ID3D12PipelineState* initial)
+{
+    if (!gNrdBridgeDeviceWrappers || !list) return;
+    { std::unique_lock lock(rootSignatureMutex); signatures.erase(list); }
+    { std::unique_lock lock(rootStatesMutex); rootStates.erase(list); bridgeComputeRoots.erase(list); }
+    { std::unique_lock lock(descriptorHeapsMutex); descriptorHeaps.erase(list); }
+    { std::unique_lock lock(pipelineStatesMutex); if (initial) pipelineStates[list] = initial; else pipelineStates.erase(list); }
+}
+
+bool D3D12Hooks::GetComputeBindingsForBridge(ID3D12GraphicsCommandList* list, FrameSurvey::ComputeBindings& out) noexcept
+{
+    out = {};
+    if (!gNrdBridgeDeviceWrappers || !list) return false;
+    try
+    {
+        // Reuse the restore tracker when a short NRD window starts after title bindings were set.
+        // Only borrowed handles are copied; this adds no tracking or COM work outside that window.
+        FrameSurvey::ComputeBindings current;
+        std::shared_lock roots(rootStatesMutex, std::defer_lock);
+        std::shared_lock heaps(descriptorHeapsMutex, std::defer_lock);
+        std::lock(roots, heaps);
+        const auto root = bridgeComputeRoots.find(list);
+        const auto arguments = rootStates.find(list);
+        const auto boundHeaps = descriptorHeaps.find(list);
+        if (root == bridgeComputeRoots.end() || !root->second || arguments == rootStates.end() ||
+            boundHeaps == descriptorHeaps.end() || !boundHeaps->second.NumDescriptorHeaps ||
+            boundHeaps->second.NumDescriptorHeaps > 2) return false;
+        current.root = root->second;
+        for (UINT i = 0; i < boundHeaps->second.NumDescriptorHeaps; ++i)
+        {
+            if (!boundHeaps->second.Heaps[i]) return false;
+            current.heaps.push_back(boundHeaps->second.Heaps[i]);
+        }
+        for (UINT i = 0; i < arguments->second.size(); ++i)
+            if (arguments->second[i].type == RootEntryType::Table && arguments->second[i].rootDescriptorTable.ptr)
+                current.tables.emplace_back(i, arguments->second[i].rootDescriptorTable);
+        out = std::move(current);
+        return true;
+    }
+    catch (...) { out = {}; return false; }
+}
 
 bool D3D12Hooks::CanRestoreRootSignature(ID3D12GraphicsCommandList* cmdList)
 {
-    std::unique_lock<std::shared_mutex> lock(rootSignatureMutex);
-    return signatures.contains(cmdList);
+    {
+        std::shared_lock lock(rootSignatureMutex);
+        auto found = signatures.find(cmdList);
+        if (found == signatures.end()) return false;
+        if (!gNrdBridgeDeviceWrappers) return true;
+        if (found->second.type != SignatureEntryType::Compute || !found->second.ptr) return false;
+    }
+    if (!s_SetComputeRootSignature.GetHook() || !s_SetDescriptorHeaps.GetHook() || !s_SetPipelineState.GetHook() ||
+        !s_SetComputeRootDescriptorTable.GetHook() || !s_SetComputeRoot32BitConstants.GetHook() ||
+        !s_SetComputeRootConstantBufferView.GetHook() || !s_SetComputeRootShaderResourceView.GetHook() ||
+        !s_SetComputeRootUnorderedAccessView.GetHook()) return false;
+    { std::shared_lock lock(descriptorHeapsMutex); auto found = descriptorHeaps.find(cmdList);
+      if (found == descriptorHeaps.end() || !found->second.NumDescriptorHeaps) return false; }
+    { std::shared_lock lock(pipelineStatesMutex); auto found = pipelineStates.find(cmdList);
+      if (found == pipelineStates.end() || !found->second) return false; }
+    { std::shared_lock lock(rootStatesMutex); auto found = rootStates.find(cmdList);
+      if (found == rootStates.end() || found->second.size() <= 5 ||
+          found->second[1].type != RootEntryType::Table || found->second[5].type != RootEntryType::Table) return false; }
+    return true;
 }
 
 bool D3D12Hooks::RestoreDescriptorHeaps(ID3D12GraphicsCommandList* cmdList)
@@ -2516,6 +2652,21 @@ bool D3D12Hooks::RestoreComputeRootState(ID3D12GraphicsCommandList* cmdList)
                 else
                     LOG_ERROR("Couldn't restore ComputeRoot32BitConstant, no original SetComputeRoot32BitConstant");
             }
+            else if (gNrdBridgeDeviceWrappers && table[i].type == RootEntryType::Constants && !table[i].ValidConstants.empty())
+            {
+                if (auto hook = s_SetComputeRoot32BitConstants.GetHook())
+                {
+                    UINT begin = 0;
+                    while (begin < table[i].ValidConstants.size())
+                    {
+                        while (begin < table[i].ValidConstants.size() && !table[i].ValidConstants[begin]) ++begin;
+                        UINT end = begin;
+                        while (end < table[i].ValidConstants.size() && table[i].ValidConstants[end]) ++end;
+                        if (end > begin) hook(cmdList, i, end - begin, table[i].Data.data() + begin, begin);
+                        begin = end;
+                    }
+                }
+            }
             else if (table[i].type == RootEntryType::Constants)
             {
                 if (auto hook = s_SetComputeRoot32BitConstants.GetHook())
@@ -2587,6 +2738,21 @@ bool D3D12Hooks::RestoreGraphicsRootState(ID3D12GraphicsCommandList* cmdList)
                     hook(cmdList, i, table[i].Data[0], table[i].DestOffset);
                 else
                     LOG_ERROR("Couldn't restore GraphicsRoot32BitConstant, no original SetGraphicsRoot32BitConstant");
+            }
+            else if (gNrdBridgeDeviceWrappers && table[i].type == RootEntryType::Constants && !table[i].ValidConstants.empty())
+            {
+                if (auto hook = s_SetGraphicsRoot32BitConstants.GetHook())
+                {
+                    UINT begin = 0;
+                    while (begin < table[i].ValidConstants.size())
+                    {
+                        while (begin < table[i].ValidConstants.size() && !table[i].ValidConstants[begin]) ++begin;
+                        UINT end = begin;
+                        while (end < table[i].ValidConstants.size() && table[i].ValidConstants[end]) ++end;
+                        if (end > begin) hook(cmdList, i, end - begin, table[i].Data.data() + begin, begin);
+                        begin = end;
+                    }
+                }
             }
             else if (table[i].type == RootEntryType::Constants)
             {

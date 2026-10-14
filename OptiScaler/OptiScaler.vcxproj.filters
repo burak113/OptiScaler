@@ -1806,5 +1806,19 @@
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDFlatTemporalLP_Shader.h"><Filter>Header Files</Filter></ClInclude>
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFlatTemporalLP.hlsl"><Filter>Header Files</Filter></None>
     <None Include="shaders\fsrd_preprocess\precompile\FSRDFlatTemporalCommon.hlsli"><Filter>Header Files</Filter></None>
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdDiscovery.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridge_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridge.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridge_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeCopy_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMotion_Shader.h" />
+    <ClInclude Include="misc\NrdBridgeLifetime_Dx12.h" />
+    <ClInclude Include="misc\NrdBridgeTitleCallbacks_Dx12.h" />
+    <ClInclude Include="misc\NrdBridgeOwned_Dx12.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMotion.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMotion_Shader.cso" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdMotionCommon.hlsli" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeCopy.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeCopy_Shader.cso" />
   </ItemGroup>
 </Project>
