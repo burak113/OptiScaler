@@ -273,12 +273,47 @@ def validate_guide_pingpong(value):
     return 7
 
 
+def quality_replay(exe, out):
+    from fsrd_nrd_quality_replay import write_sequence, compare, export_crops
+    inputs = out / 'quality_input'
+    manifest = write_sequence(inputs)
+    runs = {}
+    for mode in ('off', 'on'):
+        directory = out / ('quality_' + mode)
+        directory.mkdir(parents=True, exist_ok=True)
+        text, peak, elapsed, log = bounded_run([str(exe), str(directory), str(DLL), '--quality-' + mode], directory / 'native_run')
+        value = json.loads((directory / 'quality-result.json').read_text())
+        replay = value['quality_replay']
+        assert replay['submitted_frames'] == manifest['submitted_frames']
+        assert replay['physical_provider_creates'] == replay['provider_resets'] == 1
+        assert replay['same_history_domain'] and replay['native_current_guides_every_pixel']
+        assert replay['camera_projected_depth_delta'] == (mode == 'on')
+        assert [frame['provider_reset'] for frame in replay['frames']] == [True] + [False] * (len(replay['frames']) - 1)
+        assert value['debug_errors'] == value['debug_warnings'] == 0
+        value.update(elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log),
+                     dll=str(DLL), dll_sha256=hashlib.sha256(DLL.read_bytes()).hexdigest(), python_checks=6)
+        (directory / 'quality-result.json').write_text(json.dumps(value, indent=2) + '\n')
+        runs[mode] = value
+    metrics = compare(inputs, out / 'quality_off', out / 'quality_on')
+    crops = export_crops(inputs, out / 'quality_off', out / 'quality_on', metrics, out / 'quality_crops')
+    result = dict(runs=runs, metrics=metrics, same_frame_crops=crops, python_checks=12,
+                  scope='production bridge and actual signed AMD on the same synthetic camera/signal sequence; no game NRD paired or game FPS claim')
+    (out / 'quality-comparison.json').write_text(json.dumps(result, indent=2) + '\n')
+    report = Path(os.environ.get('FSRD_NRD_E2E_REPORT', f'E:/FSRD/sol_batch/{out.parents[1].name}'))
+    report.mkdir(parents=True, exist_ok=True)
+    (report / 'quality-comparison.json').write_text(json.dumps(result, indent=2) + '\n')
+    print(json.dumps(result, indent=2))
+
+
 def run():
     out = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/sol_batch/12e-e2e/tests/e2e'))
     out.mkdir(parents=True, exist_ok=True)
     exe = build(out)
     if '--compile-only' in sys.argv:
         print(json.dumps({'compile_only': True, 'executable': str(exe)}))
+        return
+    if '--quality-only' in sys.argv:
+        quality_replay(exe, out)
         return
     if '--guide-pingpong-only' in sys.argv:
         text, peak, elapsed, log = bounded_run([str(exe), str(out), str(DLL), '--guide-pingpong'], out / 'guide_pingpong')

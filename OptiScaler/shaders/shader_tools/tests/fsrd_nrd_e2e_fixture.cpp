@@ -779,6 +779,116 @@ void guidePingPongCase(Host& h,Title& title,J& result) {
   {"title_root_heaps_pso_rgb_alpha_checks_unchanged",true},{"frames",frames}};
  titleTextures.erase(depths[1].Get());
 }
+std::vector<uint8_t> qualityBytes(const std::filesystem::path& file) {
+ std::ifstream stream(file,std::ios::binary);need(bool(stream),"quality replay input exists");
+ stream.seekg(0,std::ios::end);const auto size=stream.tellg();need(size>0&&size<1024*1024,"quality input payload has a bounded declared size");
+ stream.seekg(0);std::vector<uint8_t> bytes(static_cast<size_t>(size));stream.read(reinterpret_cast<char*>(bytes.data()),size);
+ need(bool(stream),"quality replay input reads every declared byte");return bytes;
+}
+std::vector<uint8_t> qualityPayload(const std::filesystem::path& directory,const J& payload,size_t expected) {
+ const auto name=payload["file"].get<std::string>();need(std::filesystem::path(name).filename()==name&&name.find('\\')==std::string::npos&&name.find('/')==std::string::npos,"quality payload path is an exact local basename");
+ auto bytes=qualityBytes(directory/name);need(bytes.size()==expected&&payload["bytes"].get<size_t>()==expected,"quality native payload size matches its exact texture shape");
+ need(RRTraceAdditiveIO::Sha256({bytes.data(),bytes.size()})==payload["sha256"].get<std::string>(),"quality replay consumes the sealed input payload hash");return bytes;
+}
+void qualityUpload(Title& title,UINT slot,const std::vector<uint8_t>& bytes,UINT bpp) {
+ auto& h=title.h;const auto desc=title.tex[slot]->GetDesc();D3D12_PLACED_SUBRESOURCE_FOOTPRINT fp{};UINT64 size=0;
+ h.device->GetCopyableFootprints(&desc,0,1,0,&fp,nullptr,nullptr,&size);auto up=h.buffer(size,D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ);
+ void* mapped=nullptr;hr(up->Map(0,nullptr,&mapped));std::memset(mapped,0,size_t(size));
+ for(UINT y=0;y<title.height;++y)std::memcpy(static_cast<uint8_t*>(mapped)+size_t(y)*fp.Footprint.RowPitch,bytes.data()+size_t(y)*title.width*bpp,size_t(title.width)*bpp);
+ up->Unmap(0,nullptr);D3D12_TEXTURE_COPY_LOCATION source{},target{};source.pResource=up.Get();source.Type=D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;source.PlacedFootprint=fp;
+ target.pResource=title.tex[slot].Get();target.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+ h.barrier(title.tex[slot].Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_COPY_DEST);h.list->CopyTextureRegion(&target,0,0,0,&source,nullptr);
+ h.barrier(title.tex[slot].Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);h.uploads.push_back(up);
+ if(slot<2) {title.raw[slot].resize(bytes.size()/2);std::memcpy(title.raw[slot].data(),bytes.data(),bytes.size());}
+}
+SLConstantsSnapshot qualityCamera(const J& frame,UINT width,UINT height,UINT id) {
+ auto sample=camera(id,width,height);auto& c=sample.constants;const auto& projection=frame["projection"];const auto& view=frame["view"];
+ for(UINT row=0;row<4;++row)c.cameraViewToClip[row]=sl::float4(projection[0][row].get<float>(),projection[1][row].get<float>(),projection[2][row].get<float>(),projection[3][row].get<float>());
+ c.cameraRight=sl::float3(view[0][0].get<float>(),view[0][1].get<float>(),view[0][2].get<float>());
+ c.cameraUp=sl::float3(view[1][0].get<float>(),view[1][1].get<float>(),view[1][2].get<float>());
+ c.cameraFwd=sl::float3(-view[2][0].get<float>(),-view[2][1].get<float>(),-view[2][2].get<float>());
+ const auto& position=frame["camera"];c.cameraPos=sl::float3(position[0].get<float>(),position[1].get<float>(),position[2].get<float>());
+ c.cameraNear=projection[2][3].get<float>();c.cameraFar=0;c.cameraFOV=2.f*std::atan(1.f/projection[1][1].get<float>());
+ c.jitterOffset=sl::float2(frame["jitter"][0].get<float>(),frame["jitter"][1].get<float>());c.reset=frame["reset"].get<bool>()?sl::Boolean::eTrue:sl::Boolean::eFalse;
+ c.motionVectorsJittered=sl::Boolean::eFalse;return sample;
+}
+std::string qualitySave(const std::filesystem::path& path,const std::vector<uint16_t>& values) {
+ std::ofstream file(path,std::ios::binary);file.write(reinterpret_cast<const char*>(values.data()),std::streamsize(values.size()*2));file.flush();need(bool(file),"quality replay exports exact native half output bytes");
+ return RRTraceAdditiveIO::Sha256({reinterpret_cast<const uint8_t*>(values.data()),values.size()*2});
+}
+void qualityReplayCase(Host& h,Title& title,J& result,const std::filesystem::path& output,bool projected,std::vector<ComPtr<ID3D12Resource>>& keepGuides) {
+ const auto input=output.parent_path()/"quality_input";const auto manifestBytes=qualityBytes(input/"sequence.json");const auto manifest=J::parse(manifestBytes);
+ need(manifest["schema"]=="fsrd-native-rr-synthetic-quality-v1"&&manifest["width"]==title.width&&manifest["height"]==title.height,"quality replay uses the exact supported synthetic input schema/extent");
+ need(manifest["submitted_frames"]==manifest["frames"].size()&&manifest["frames"].size()>=16&&manifest["frames"].size()<=96,"quality sequence is bounded and includes temporal warmup");
+ need(title.codecBits==0&&manifest["source_motion_jittered"]==false,"quality replay reads native RGB output and one explicit canonical motion convention");
+ NrdBridge::RRSettings settings;std::string error;need(NrdBridge::ApplyRRSettings(settings,projected,error),"quality candidate convention applies before the discovery prefix");
+ std::array<ComPtr<ID3D12Resource>,2> depths{title.tex[3],{}},normals{title.tex[2],{}};
+ for(auto* pair:{&depths,&normals}) {
+  const auto desc=(*pair)[0]->GetDesc();D3D12_HEAP_PROPERTIES hp{};hp.Type=D3D12_HEAP_TYPE_DEFAULT;
+  hr(h.device->CreateCommittedResource(&hp,D3D12_HEAP_FLAG_NONE,&desc,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,nullptr,IID_PPV_ARGS(&(*pair)[1])));
+  FrameSurvey::ResourceCreated((*pair)[1].Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);titleTextures.insert((*pair)[1].Get());
+  keepGuides.push_back((*pair)[0]);keepGuides.push_back((*pair)[1]);need((*pair)[0].Get()!=(*pair)[1].Get(),"quality sequence rotates genuinely distinct live native guide resources");
+ }
+ ComPtr<ID3D12QueryHeap> queries;D3D12_QUERY_HEAP_DESC queryDesc{D3D12_QUERY_HEAP_TYPE_TIMESTAMP,2,0};hr(h.device->CreateQueryHeap(&queryDesc,IID_PPV_ARGS(&queries)));
+ UINT64 frequency=0;hr(h.queue->GetTimestampFrequency(&frequency));need(frequency>0,"quality diagnostic timestamp clock is available");
+ const auto creates=FfxApiProxy::creates,dispatches=FfxApiProxy::dispatches;const auto initialBridged=NrdBridge::GetStatus().framesBridged;
+ std::shared_ptr<NrdBridge::HistoryDomain> history;ffxContext context=nullptr;J frames=J::array();UINT resets=0;
+ const std::array<std::pair<const char*,UINT>,5> slots{{{"spec",0},{"diff",1},{"nr",2},{"depth",3},{"motion",6}}};
+ for(UINT index=0;index<manifest["frames"].size();++index) {
+  const auto& frame=manifest["frames"][index];const UINT id=frame["frame"].get<UINT>();need(id==index+2,"quality frames are consecutive rendered evaluations");
+  title.tex[2]=normals[index%2];title.tex[3]=depths[index%2];title.views();std::array<std::vector<uint8_t>,5> data;
+  for(UINT n=0;n<slots.size();++n) {
+   const auto [name,slot]=slots[n];const UINT bpp=slot==2||slot==3?4:8;data[n]=qualityPayload(input,frame["payloads"][name],size_t(title.width)*title.height*bpp);qualityUpload(title,slot,data[n],bpp);
+  }
+  const auto delta=qualityPayload(input,frame["payloads"]["expected_delta"],size_t(title.width)*title.height*4);
+  if(index==0) {
+   title.begin(1);StreamlineHooks::snapshot=qualityCamera(frame,title.width,title.height,1);StreamlineHooks::snapshot.constants.reset=sl::Boolean::eFalse;
+   title.pass(Role::PrepLast);title.pass(Role::Recon,8,true);h.uav(title.tex[4].Get());h.uav(title.tex[5].Get());title.tail();need(title.sentinel(title.finish()),"quality cold prefix runs untouched original title shader and no signed RR");
+   need(FfxApiProxy::dispatches==dispatches&&NrdBridge::gService->cache.Valid(),"quality discovery prefix completes before any provider dispatch");
+  }
+  const auto beforeDispatch=FfxApiProxy::dispatches,beforeRestore=restores;
+  const auto beforeBridged=NrdBridge::GetStatus().framesBridged;
+  h.list->EndQuery(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0);
+  title.begin(id);StreamlineHooks::snapshot=qualityCamera(frame,title.width,title.height,id);title.pass(Role::PrepLast);title.pass(Role::Recon,8,true);
+  h.uav(title.tex[4].Get());h.uav(title.tex[5].Get());title.tail();h.list->EndQuery(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,1);
+  need(NrdBridge::GetStatus().active&&FfxApiProxy::dispatches==beforeDispatch+1&&restores==beforeRestore+3&&NrdBridge::GetStatus().framesBridged==beforeBridged+1,"every synthetic quality frame reaches one signed RR commit and all exact production restores");
+  const auto record=FfxApiProxy::records.back();const auto& list=NrdBridge::gService->lists.at(h.list.Get());
+  need(list.parameters.cameraProjectedDepthDelta==projected,"quality frame captures the selected motion convention at its Recon ticket");
+  if(!index){history=NrdBridge::gService->history;context=record.context;}else need(history==NrdBridge::gService->history&&context==record.context,"moving camera/projection/jitter and fresh guides preserve one submitted history/context");
+  const bool reset=(record.flags&FFX_DENOISER_DISPATCH_RESET)!=0;resets+=reset;need(reset==(index==0),"quality replay RESETs exactly its first submitted frame");
+  need(FfxApiProxy::creates==creates+1,"quality moving camera does not recreate its physical signed provider");
+  const auto gpuMotion=motionCapture(title,record),gpuNR=title.readback(list.inputs.normals,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+  const auto gpuDepth=title.readback(static_cast<ID3D12Resource*>(record.depth),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+  const std::array<Readback,2> converted{title.readback(static_cast<ID3D12Resource*>(record.spec),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),title.readback(static_cast<ID3D12Resource*>(record.diff),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)};
+  const auto outputData=title.capture();auto stamps=h.buffer(16,D3D12_HEAP_TYPE_READBACK,D3D12_RESOURCE_STATE_COPY_DEST);h.list->ResolveQueryData(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0,2,stamps.Get(),0);h.submit();
+  const auto rgb=title.validate(outputData);const auto stats=title.rrChecks(rgb);const auto motion=gpuMotion.signal(),nr=gpuNR.signal();
+  for(UINT signal=0;signal<2;++signal)need(converted[signal].signal()==title.raw[signal],"actual signed provider's converted signal preserves every sealed finite native RGB/alpha input bit");
+  bool currentDepth=true,currentNormal=true,currentXY=true,projectedDelta=true;void* depthMap=nullptr;hr(gpuDepth.resource->Map(0,nullptr,&depthMap));
+  const auto* nativeZ=reinterpret_cast<const float*>(data[3].data());const auto* nativeNR=reinterpret_cast<const UINT*>(data[2].data());const auto* nativeMV=reinterpret_cast<const uint16_t*>(data[4].data());const auto* expectedDelta=reinterpret_cast<const float*>(delta.data());
+  const auto parameters=list.parameters;
+  for(UINT y=0;y<title.height;++y)for(UINT x=0;x<title.width;++x) {
+   const size_t pixel=size_t(y)*title.width+x,at=pixel*4;const auto* depthRow=reinterpret_cast<const float*>(static_cast<const uint8_t*>(depthMap)+size_t(y)*gpuDepth.footprint.Footprint.RowPitch);
+   currentDepth &= std::bit_cast<UINT>(depthRow[x])==std::bit_cast<UINT>(-nativeZ[pixel]);
+   for(UINT c=0;c<3;++c)currentNormal &= nr[at+c]==PackedVector::XMConvertFloatToHalf(float((nativeNR[pixel]>>(10*c))&1023u)/1023.f);
+   currentNormal &= nr[at+3]==0;
+   for(UINT c=0;c<2;++c) {
+    const float raw=PackedVector::XMConvertHalfToFloat(nativeMV[at+c]);const float jitter=c?(parameters.previousJitter.y-parameters.jitter.y)/title.height:(parameters.previousJitter.x-parameters.jitter.x)/title.width;
+    currentXY &= std::abs(PackedVector::XMConvertHalfToFloat(motion[at+c])-(raw+jitter))<.0002f;
+   }
+   if(!index)projectedDelta &= motion[at+2]==0;
+   if(projected&&x>=16&&x+16<title.width&&y>=16&&y+16<title.height)projectedDelta &= std::abs(PackedVector::XMConvertHalfToFloat(motion[at+2])-expectedDelta[pixel])<.005f;
+  }
+  gpuDepth.resource->Unmap(0,nullptr);need(currentDepth&&currentNormal,"actual GPU guides use every current native normal/depth byte after each identity rotation");need(currentXY,"actual GPU motion XY uses the current native vector and jitter once");need(projectedDelta,"candidate GPU B matches the independent same-surface camera oracle in the interior");
+  void* timestampData=nullptr;hr(stamps->Map(0,nullptr,&timestampData));const auto* ticks=static_cast<const UINT64*>(timestampData);need(ticks[1]>=ticks[0],"quality diagnostic timestamp pair is ordered");const double gpuMs=double(ticks[1]-ticks[0])*1000./frequency;stamps->Unmap(0,nullptr);
+  const auto number=std::to_string(id);const auto prefix="frame"+std::string(3-number.size(),'0')+number;J hashes;
+  hashes["spec"]=qualitySave(output/(prefix+"-spec.bin"),rgb[0]);hashes["diff"]=qualitySave(output/(prefix+"-diff.bin"),rgb[1]);hashes["motion"]=qualitySave(output/(prefix+"-motion.bin"),motion);
+  frames.push_back({{"frame",id},{"provider_reset",reset},{"active",true},{"current_native_guides",true},{"camera_projected_depth_delta",projected},{"gpu_synthetic_title_chain_with_bridge_ms",gpuMs},{"output_sha256",hashes},{"statistics",stats}});h.reset();
+ }
+ need(FfxApiProxy::dispatches==dispatches+manifest["submitted_frames"].get<UINT>()&&FfxApiProxy::creates==creates+1&&NrdBridge::GetStatus().framesBridged==initialBridged+manifest["submitted_frames"].get<UINT>(),"whole immutable quality sequence commits every requested frame with one physical context");
+ result["quality_replay"]={{"camera_projected_depth_delta",projected},{"input_manifest_sha256",RRTraceAdditiveIO::Sha256({manifestBytes.data(),manifestBytes.size()})},{"submitted_frames",frames.size()},
+  {"physical_provider_creates",1},{"provider_resets",resets},{"same_history_domain",true},{"native_current_guides_every_pixel",true},{"title_root_heaps_pso_rgb_alpha_checks_unchanged",true},{"frames",frames},
+  {"scope",manifest["scope"]},{"timestamp_scope","synthetic original-title shader chain + probes + production bridge; excludes uploads/readback; not game FPS or real NRD cost"}};
+}
 void failureCase(Host& h,Title& title,J& result) {
  title.frame(1);need(title.sentinel(title.finish()),"fault scenario starts with a fully validated native discovery frame");
  title.frame(2);title.rrChecks(title.finish());title.frame(3);title.rrChecks(title.finish()); // Warm both native depth/SDK ping-pong histories.
@@ -900,8 +1010,8 @@ void loadProvider(const char* path) {
  need(FfxApiProxy::createFunction && FfxApiProxy::destroyFunction && FfxApiProxy::queryFunction && FfxApiProxy::configureFunction && FfxApiProxy::dispatchFunction,"all actual AMD exports resolved");
 }
 int main(int argc,char** argv) try {
- need(argc==3 || (argc==4 && (std::string(argv[3])=="--startup-off" || std::string(argv[3])=="--submission-failure" || std::string(argv[3])=="--cbv-lifetime" || std::string(argv[3])=="--guide-pingpong")),"scratch folder, signed AMD DLL and optional fresh-process scenario arguments");
- const bool startupOff=argc==4 && std::string(argv[3])=="--startup-off",submissionFailure=argc==4 && std::string(argv[3])=="--submission-failure",cbvLifetime=argc==4 && std::string(argv[3])=="--cbv-lifetime",guidePingPong=argc==4 && std::string(argv[3])=="--guide-pingpong"; if(startupOff) NrdBridge::ConfigureStartup(false);
+ need(argc==3 || (argc==4 && (std::string(argv[3])=="--startup-off" || std::string(argv[3])=="--submission-failure" || std::string(argv[3])=="--cbv-lifetime" || std::string(argv[3])=="--guide-pingpong" || std::string(argv[3])=="--quality-off" || std::string(argv[3])=="--quality-on")),"scratch folder, signed AMD DLL and optional fresh-process scenario arguments");
+ const bool startupOff=argc==4 && std::string(argv[3])=="--startup-off",submissionFailure=argc==4 && std::string(argv[3])=="--submission-failure",cbvLifetime=argc==4 && std::string(argv[3])=="--cbv-lifetime",guidePingPong=argc==4 && std::string(argv[3])=="--guide-pingpong",qualityReplay=argc==4 && (std::string(argv[3])=="--quality-off" || std::string(argv[3])=="--quality-on"); if(startupOff) NrdBridge::ConfigureStartup(false);
  g_dllPath=std::filesystem::path(argv[1])/"fixture.dll"; Host h;
  requestedList=h.list.Get(); J result; result["adapter"]=h.adapter;
  need(!NrdBridge::Initialize(h.device.Get()),"startup OFF allocates no coordinator");
@@ -925,6 +1035,12 @@ int main(int argc,char** argv) try {
  FrameSurvey::BeginCreationTracking(false); need(FrameSurvey::Install(h.device.Get(),h.list.Get(),false),"real metadata-only survey installed");
  need(NrdBridge::Initialize(h.device.Get()),"production coordinator initialized"); AttachRoots(h.list.Get()); Wiring::Attach(h.list.Get());
  Title title(h,128,128,true,cbvLifetime);
+ if(qualityReplay) {
+  std::vector<ComPtr<ID3D12Resource>> keepGuides;qualityReplayCase(h,title,result,std::filesystem::path(argv[1]),std::string(argv[3])=="--quality-on",keepGuides);
+  NrdBridge::Shutdown();RecordedComputeLease::Poll();need(FfxApiProxy::destroys==FfxApiProxy::creates&&FfxApiProxy::contextToType.empty(),"quality shutdown retires its exact signed context after every real fence");
+  for(const auto& guide:keepGuides)titleTextures.erase(guide.Get());Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();const auto debug=h.debugCounts();result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["native_checks"]=checks;
+  std::ofstream(std::filesystem::path(argv[1])/"quality-result.json")<<result.dump(2)<<'\n';std::cout<<"PASS synthetic_quality checks="<<checks<<'\n';return 0;
+ }
  if(guidePingPong) {
   guidePingPongCase(h,title,result);NrdBridge::Shutdown();RecordedComputeLease::Poll();
   need(FfxApiProxy::destroys==FfxApiProxy::creates&&FfxApiProxy::contextToType.empty(),"guide ping-pong shutdown retires its single signed context after every real fence");
