@@ -65,9 +65,11 @@ def capture_inputs(folder):
     albedo.tofile(folder / 'spec_albedo.bin')
     albedo[..., 3] = 0
     albedo.tofile(folder / 'diff_albedo.bin')
+    native_sources = {}
     for name, prefix in [('nrd_spec', 'p8892_r44285'), ('nrd_diff', 'p8892_r44283')]:
         array, source = read(prefix, '<f2', 4)
         array.tofile(folder / f'{name}.bin')
+        native_sources[name] = source
     assumptions = dict(capture=str(CAPTURE), manifest_published_frames=manifest.get('manifest_published_frames', 0),
                        spec=spec_source, diff=diff_source, substituted_depth=depth_source,
                        missing_exact_guides=['NR 3749', 'VIEWZ 44287'], motion='zero static replay; captured MV unused',
@@ -75,7 +77,10 @@ def capture_inputs(folder):
                        projection='near 0.02 derived from exact D=a+b/Z capture fit; 60 degree vertical FOV/RH reverse infinite/aspect 1505/847 remain assumptions',
                        albedos='white demodulated; spec alpha is dot(N,V), diffuse alpha zero',
                        jitter='zero static camera loop; captured jitter/camera unavailable',
-                       input_generation='scalar fixture conversion, not evidence of exact in-game camera or guide parity')
+                        input_generation='scalar fixture conversion, not evidence of exact in-game camera or guide parity',
+                        native_nrd_sources=native_sources,
+                        native_nrd_output_encoding='unknown; Consumer b6 space0 word303 was not published',
+                        native_nrd_reference_scope='conditional arithmetic interpretations only; not paired RGB quality ground truth')
     (REPORT / 'capture-assumptions.json').write_text(json.dumps(assumptions, indent=2), encoding='utf-8')
     return folder
 
@@ -119,12 +124,21 @@ def bounded_run(command, output):
     return text, peak, time.perf_counter() - started, log
 
 
+def native_consumer_rgb_if_ycocg(signal):
+    """Exact c3f6fb... Consumer nonzero-flag branch; captured flag remains unknown."""
+    import numpy as np
+    rgb = np.stack((signal[..., 0] - signal[..., 2] + signal[..., 1],
+                    signal[..., 0] + signal[..., 2],
+                    signal[..., 0] - signal[..., 2] - signal[..., 1]), axis=-1)
+    return np.maximum(rgb, np.float32(0))
+
+
 def images_and_stats(inputs, output):
     import numpy as np
     from PIL import Image, ImageDraw
     width, height = 1505, 847
     statistics = {}
-    canvas = Image.new('RGB', (3 * 752, 2 * 455), (20, 20, 24))
+    canvas = Image.new('RGB', (4 * 752, 2 * 455), (20, 20, 24))
     draw = ImageDraw.Draw(canvas)
     for row, signal in enumerate(['spec', 'diff']):
         arrays = [np.fromfile(inputs / f'{signal}.bin', dtype='<f2').reshape(height, width, 4).astype(np.float32),
@@ -132,8 +146,12 @@ def images_and_stats(inputs, output):
                   np.fromfile(inputs / f'nrd_{signal}.bin', dtype='<f2').reshape(height, width, 4).astype(np.float32)]
         luminance = arrays[2][..., :3] @ np.array([.2126, .7152, .0722], dtype=np.float32)
         scale = .5 / max(float(np.percentile(luminance[luminance > 0], 60)), 1e-6)
-        for column, (array, label) in enumerate(zip(arrays, ['Raw Recon', 'RR static replay (assumed guides)', 'Captured NRD'])):
-            rgb = np.maximum(array[..., :3], 0) * scale
+        native_if_ycocg = native_consumer_rgb_if_ycocg(arrays[2][..., :3])
+        panels = [arrays[0][..., :3], arrays[1][..., :3], arrays[2][..., :3], native_if_ycocg]
+        labels = ['Raw Recon', 'RR static replay (assumed guides)',
+                  'Captured NRD if RGB (mode UNKNOWN)', 'Captured NRD if YCoCg (mode UNKNOWN)']
+        for column, (array, label) in enumerate(zip(panels, labels)):
+            rgb = np.maximum(array, 0) * scale
             rgb /= 1 + rgb
             rgb = np.where(rgb <= .0031308, 12.92 * rgb, 1.055 * rgb**(1/2.4) - .055)
             image = Image.fromarray(np.rint(np.clip(rgb, 0, 1) * 255).astype(np.uint8))
@@ -143,7 +161,13 @@ def images_and_stats(inputs, output):
         statistics[signal] = dict(rr_finite_values=int(np.isfinite(arrays[1]).sum()), total_values=int(arrays[1].size),
                                  rr_mean_rgb=float(arrays[1][..., :3].mean()), nrd_mean_rgb=float(arrays[2][..., :3].mean()),
                                  raw_mean_rgb=float(arrays[0][..., :3].mean()), shared_tonemap_scale=scale,
-                                 evidence_only=True)
+                                 evidence_only=True, native_nrd_output_encoding='unknown',
+                                 native_nrd_mode_proven=False,
+                                 native_nrd_reference_scope='unpaired assumed-guide static replay; no native RGB quality ground truth',
+                                 legacy_numeric_scope='nrd_mean_rgb and shared_tonemap_scale assume native RGB; values preserved conditionally',
+                                 nrd_if_ycocg_mean_rgb=float(native_if_ycocg.mean()),
+                                 native_consumer_nonzero_formula='max((Y-Cg+Co, Y+Cg, Y-Cg-Co), 0)',
+                                 output_scale_scope='before Consumer factor64 and specular exposure; shared tone scale retains legacy ifRGB basis')
     canvas.save(REPORT / 'da9f_raw_rr_nrd.png')
     return statistics
 
