@@ -47,6 +47,7 @@ struct MetadataMutation
 #ifdef FSRD_NRD_BRIDGE_TEST
 std::atomic<int> gCopyFailureAfterForTesting {-1};
 std::atomic<bool> gViewFailureAfterReverseForTesting {false};
+std::atomic<uint64_t> gCopyViewSnapshotsForTesting {0};
 #endif
 std::atomic<PipelineObserver> gPipelineObserver {nullptr};
 std::atomic<ReleaseObserver> gReleaseObserver {nullptr};
@@ -225,14 +226,24 @@ void IndexView(const ViewInfo& view)
         if (const auto heap = gHeaps.find(reinterpret_cast<ID3D12DescriptorHeap*>(uintptr_t(view.descriptorHeap))); heap != gHeaps.end())
             heap->second.views.insert(view.descriptorCpu);
 }
-bool SameView(const ViewInfo& a, const ViewInfo& b) noexcept
+bool SameViewContent(const ViewInfo& a, const ViewInfo& b) noexcept
 {
     return a.object == b.object && a.resource == b.resource && a.kind == b.kind && a.format == b.format &&
-        a.subresource == b.subresource && a.snapshotSupported == b.snapshotSupported &&
-        a.descriptorCpu == b.descriptorCpu && a.descriptorGpu == b.descriptorGpu && a.descriptorHeap == b.descriptorHeap &&
+        a.subresource == b.subresource && a.snapshotSupported == b.snapshotSupported && a.descriptorGpu == b.descriptorGpu &&
         a.rootVa == b.rootVa && a.descriptorIndex == b.descriptorIndex && a.rootIndex == b.rootIndex &&
-        a.heapKnown == b.heapKnown && a.constantBytes == b.constantBytes &&
-        a.resourceOwner == b.resourceOwner && a.heapOwner == b.heapOwner;
+        a.constantBytes == b.constantBytes && a.resourceOwner == b.resourceOwner;
+}
+bool SameView(const ViewInfo& a, const ViewInfo& b) noexcept
+{
+    return SameViewContent(a,b) && a.descriptorCpu == b.descriptorCpu && a.descriptorHeap == b.descriptorHeap &&
+        a.heapKnown == b.heapKnown && a.heapOwner == b.heapOwner;
+}
+bool SameCopiedView(const ViewInfo& destination, const ViewInfo& source, uint64_t handle,
+    const std::shared_ptr<NativeHeapNode>& heap) noexcept
+{
+    return heap && SameViewContent(destination,source) && destination.descriptorCpu == handle &&
+        destination.descriptorHeap == uint64_t(reinterpret_cast<uintptr_t>(heap->object)) &&
+        destination.heapKnown && destination.heapOwner == heap;
 }
 void ReplaceView(const ViewInfo& view)
 {
@@ -993,9 +1004,20 @@ void NativeCopyDescriptors(UINT stride, UINT nd, const D3D12_CPU_DESCRIPTOR_HAND
                 // Snapshot before mutation, including same-slot and shared-owner copies.
                 if (known)
                 {
-                    auto copy=source->second; copy.descriptorCpu=dh;
-                    copy.descriptorHeap=uint64_t(reinterpret_cast<uintptr_t>(destinationHeap->object));
-                    copy.heapKnown=true; copy.heapOwner=destinationHeap; NativeReplaceView(copy);
+                    // Compare references before pinning a temporary. Exact no-op copies
+                    // preserve the existing ordered-slot/source-snapshot semantics.
+                    const auto destination=gViews.find(dh);
+                    if (destination == gViews.end() || !SameCopiedView(destination->second,source->second,dh,destinationHeap))
+                    {
+#ifdef FSRD_NRD_BRIDGE_TEST
+                        ++gCopyViewSnapshotsForTesting;
+#endif
+                        auto copy=source->second; copy.descriptorCpu=dh;
+                        copy.descriptorHeap=uint64_t(reinterpret_cast<uintptr_t>(destinationHeap->object));
+                        copy.heapKnown=true;
+                        if (copy.heapOwner != destinationHeap) copy.heapOwner=destinationHeap;
+                        NativeReplaceView(copy);
+                    }
                 }
                 else NativeEraseView(dh);
                 copied=true; break;
@@ -1258,7 +1280,7 @@ bool ComputeTableBindingMatches(ID3D12GraphicsCommandList* cmd, UINT parameter, 
     if (!BindingTracking() || gInternal || !cmd || !gMetadataHealthy.load(std::memory_order_acquire)) return false;
     try
     {
-        NativeSnapshotExclusive metadataSnapshot;
+        // Identity-only POD rows use catalog/mirror guards; slot readers still drain the snapshot gate.
         // Inspect the same live root/table and registry under one lock scope; no COM call, retain or allocation.
         std::scoped_lock lock(gMirrorMutex,gLifetimeMutex);
         if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
@@ -1473,7 +1495,7 @@ bool ResolveComputeConstantBinding(const ComputeBindings& bindings, UINT shaderR
         !gMetadataHealthy.load(std::memory_order_acquire)) return fail("Consumer native binding is unavailable");
     try
     {
-        NativeSnapshotExclusive metadataSnapshot;
+        // Identity-only POD rows use catalog/mirror guards; slot readers still drain the snapshot gate.
         std::scoped_lock lock(gLifetimeMutex);
         if (!gMetadataHealthy.load(std::memory_order_acquire)) return fail("Consumer root/heap metadata is unhealthy");
         if (!BirthAvailable(bindings.rootBirth,bindings.root)) return fail("Consumer native root birth is stale");
@@ -1562,7 +1584,7 @@ bool ResolveComputeConstantBinding(ID3D12GraphicsCommandList* cmd, UINT shaderRe
     if (!BindingTracking() || gInternal || !cmd || !gMetadataHealthy.load(std::memory_order_acquire)) return false;
     try
     {
-        NativeSnapshotExclusive metadataSnapshot;
+        // Identity-only POD rows use catalog/mirror guards; slot readers still drain the snapshot gate.
         ComputeBindings bindings;
         {
             std::scoped_lock lock(gMirrorMutex);

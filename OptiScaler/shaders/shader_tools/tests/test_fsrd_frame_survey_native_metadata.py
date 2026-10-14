@@ -59,6 +59,46 @@ EXTRA = r"""
  FrameSurvey::NativeCopyDescriptors(ph.increment,1,&aliasDestination,nullptr,1,&aliasSource,nullptr,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
  FrameSurvey::NativeCopyDescriptors(ph.increment,1,&aliasDestination,nullptr,1,&aliasDestination,nullptr,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
  need(FrameSurvey::gViews.at(aliasDestination.ptr).object==a&&FrameSurvey::gViews.at(aliasDestination.ptr).resourceOwner==FrameSurvey::gNativeResources.Find(a),"same-slot copy snapshots exact owners before mutation");
+
+ // Differential contract against the established full field equality before
+ // this optimization; opaque metadata owners are never COM references.
+ const auto sourceView=FrameSurvey::gViews.at(aliasSource.ptr);const auto owner=FrameSurvey::gNativeHeaps.Find(h);
+ auto expectedCopy=sourceView;expectedCopy.descriptorCpu=aliasDestination.ptr;expectedCopy.descriptorHeap=uint64_t(reinterpret_cast<uintptr_t>(h));expectedCopy.heapKnown=true;expectedCopy.heapOwner=owner;
+ const auto established=[](const FrameSurvey::ViewInfo& a,const FrameSurvey::ViewInfo& b){
+  return a.object==b.object&&a.resource==b.resource&&a.kind==b.kind&&a.format==b.format&&a.subresource==b.subresource&&a.snapshotSupported==b.snapshotSupported&&a.descriptorCpu==b.descriptorCpu&&a.descriptorGpu==b.descriptorGpu&&a.descriptorHeap==b.descriptorHeap&&a.rootVa==b.rootVa&&a.descriptorIndex==b.descriptorIndex&&a.rootIndex==b.rootIndex&&a.heapKnown==b.heapKnown&&a.constantBytes==b.constantBytes&&a.resourceOwner==b.resourceOwner&&a.heapOwner==b.heapOwner;
+ };
+ need(FrameSurvey::SameCopiedView(expectedCopy,sourceView,aliasDestination.ptr,owner)&&established(expectedCopy,expectedCopy),"exact no-op predicate matches established whole-view field contract");
+ for(unsigned field=0;field<16;++field){auto different=expectedCopy;
+  switch(field){case 0:different.object=t;break;case 1:++different.resource;break;case 2:++different.kind;break;case 3:++different.format;break;case 4:++different.subresource;break;case 5:different.snapshotSupported=!different.snapshotSupported;break;case 6:++different.descriptorCpu;break;case 7:++different.descriptorGpu;break;case 8:++different.descriptorHeap;break;case 9:++different.rootVa;break;case 10:++different.descriptorIndex;break;case 11:++different.rootIndex;break;case 12:different.heapKnown=false;break;case 13:++different.constantBytes;break;case 14:different.resourceOwner.reset();break;case 15:different.heapOwner.reset();break;}
+  need(!established(different,expectedCopy)&&!FrameSurvey::SameCopiedView(different,sourceView,aliasDestination.ptr,owner),"every changed established metadata field prevents no-op copy elision");
+ }
+ FrameSurvey::View(aliasDestination,static_cast<const D3D12_CONSTANT_BUFFER_VIEW_DESC*>(nullptr));FrameSurvey::gCopyViewSnapshotsForTesting=0;
+ FrameSurvey::NativeCopyDescriptors(ph.increment,1,&aliasDestination,nullptr,1,&aliasSource,nullptr,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+ for(unsigned repeat=0;repeat<8;++repeat)FrameSurvey::NativeCopyDescriptors(ph.increment,1,&aliasDestination,nullptr,1,&aliasSource,nullptr,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+ need(FrameSurvey::gCopyViewSnapshotsForTesting.load()==1,"identical repeated native copies avoid temporary shared metadata pin traffic");
+ auto changedCbv=cv;changedCbv.BufferLocation+=256;changedCbv.SizeInBytes+=256;FrameSurvey::View(aliasSource,&changedCbv);
+ FrameSurvey::NativeCopyDescriptors(ph.increment,1,&aliasDestination,nullptr,1,&aliasSource,nullptr,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+ need(FrameSurvey::gViews.at(aliasDestination.ptr).rootVa==changedCbv.BufferLocation&&FrameSurvey::gViews.at(aliasDestination.ptr).constantBytes==changedCbv.SizeInBytes&&FrameSurvey::gCopyViewSnapshotsForTesting.load()==2,"changed actual CBV declaration replaces destination rather than incorrectly eliding copy");
+ FrameSurvey::View(aliasSource,&cv);FrameSurvey::NativeCopyDescriptors(ph.increment,1,&aliasDestination,nullptr,1,&aliasSource,nullptr,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+ // Finite prepared root allows the original finite proof API too; the actual
+ // slot/buffer resolver must still wait for snapshot EX during this control.
+ auto* finiteRoot=reinterpret_cast<ID3D12RootSignature*>(uintptr_t(0xb0000));auto finiteBirth=born(finiteRoot,209);
+ auto finiteLayout=std::make_shared<FrameSurvey::RootLayout>();finiteLayout->complete=true;finiteLayout->hash="synthetic_finite_contract";finiteLayout->computeVisibleTables={1,2};finiteLayout->computeTables={1,2};
+ finiteLayout->tables[1]={{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,0,1,0,0}};finiteLayout->tables[2]={{D3D12_DESCRIPTOR_RANGE_TYPE_CBV,0,1,6,0}};
+ need(FrameSurvey::PublishRootMetadata({finiteRoot,finiteLayout},finiteBirth),"finite POD proof root published without native getter");
+ auto finiteBindings=bindings;finiteBindings.root=finiteRoot;finiteBindings.rootBirth=finiteBirth;
+ need(FrameSurvey::SeedComputeBindings(c,finiteBindings),"finite current proof bindings seeded");
+ std::promise<void> podDone,slotEntered,slotDone;auto podFuture=podDone.get_future(),slotStarted=slotEntered.get_future(),slotFuture=slotDone.get_future();std::atomic<bool> podPassed{false},slotPassed{false};std::jthread podReader,slotReader;
+ {
+  FrameSurvey::NativeSnapshotShared longCopy;
+  podReader=std::jthread([&]{NrdBridgeLifetime::ScopedBorrow borrow;FrameSurvey::BoundConstantBinding explicitProof,mirrorProof;podPassed=borrow.Acquired()&&FrameSurvey::ComputeTableBindingMatches(c,1,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,0,0,0)&&FrameSurvey::ResolveComputeConstantBinding(finiteBindings,6,0,explicitProof)&&FrameSurvey::ResolveComputeConstantBinding(c,6,0,mirrorProof)&&explicitProof.descriptor.ptr==mirrorProof.descriptor.ptr;podDone.set_value();});
+  slotReader=std::jthread([&]{NrdBridgeLifetime::ScopedBorrow borrow;const bool acquired=borrow.Acquired();slotEntered.set_value();FrameSurvey::BoundConstantBuffer value;slotPassed=acquired&&FrameSurvey::ResolveComputeConstantBuffer(c,6,0,1216,value);slotDone.set_value();});
+  slotStarted.wait();need(podFuture.wait_for(std::chrono::seconds(2))==std::future_status::ready,"three actual POD-only proof APIs finish while long-copy snapshot SH is held");
+  need(slotFuture.wait_for(std::chrono::milliseconds(20))==std::future_status::timeout,"actual resource/slot CBV resolver still drains snapshot EX");
+ }
+ podReader.join();slotReader.join();need(podPassed&&slotPassed,"POD proofs and deferred complete slot proof return exact current native binding");
+ need(FrameSurvey::SeedComputeBindings(c,bindings),"original unbounded bindings restored after finite proof control");FrameSurvey::RetirementEffects finiteEffects;retire(finiteBirth,finiteEffects);FrameSurvey::NotifyRelease(finiteEffects);
+
  auto* overlapBuffer=reinterpret_cast<ID3D12Resource*>(uintptr_t(0x80000));auto overlapBufferBirth=born(overlapBuffer,206);
  auto bufferOverlap=buffer(overlapBuffer,pa.address+256);need(FrameSurvey::PublishResourceMetadata(bufferOverlap,overlapBufferBirth),"overlapping live placed-buffer interval publication");
  D3D12_CONSTANT_BUFFER_VIEW_DESC ambiguous{pa.address+256,1536};FrameSurvey::View(unknownSource,&ambiguous);
@@ -155,4 +195,4 @@ replace_once('"source","actual_FrameSurvey_methods_with_actual_Birth_registry_me
              '"source","actual_native_active_FrameSurvey_methods_with_actual_Birth_dispatcher_metadata_emulation"')
 
 if __name__ == '__main__':
-    legacy.run(DRIVER, 'native-metadata-active-cpu.json', '#include <future>\n#define FSRD_NRD_BRIDGE_TEST\n')
+    legacy.run(DRIVER, 'native-metadata-copy-noop-cpu.json', '#include <future>\n#define FSRD_NRD_BRIDGE_TEST\n')
