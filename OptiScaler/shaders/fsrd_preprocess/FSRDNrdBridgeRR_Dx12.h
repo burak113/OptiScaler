@@ -16,7 +16,9 @@ class RRWrapper
     bool Dispatch(ID3D12GraphicsCommandList*, const ConvertedResources&, ID3D12Resource* outputSpec,
                   ID3D12Resource* outputDiff, const FrameParameters&, std::string& error);
     void ResetHistory() noexcept;
+    void DiscardRecordingHistory() noexcept;
     uint64_t ContextGeneration() const noexcept;
+    uint64_t OwnedStagingBytes() const noexcept;
     const std::string& CameraConventionDescription() const noexcept;
 };
 }

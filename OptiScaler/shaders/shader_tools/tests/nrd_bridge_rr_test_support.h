@@ -28,9 +28,11 @@ struct SLConstantsSnapshot
     sl::Constants constants {};
     uint32_t frameIndex = UINT32_MAX, viewport = UINT32_MAX;
 };
+void RecordTestProviderWrites(ID3D12GraphicsCommandList*, ID3D12Resource* spec, ID3D12Resource* diff);
 struct FfxApiProxy
 {
     static inline bool real = false, initAvailable = true, rejectDispatch = false;
+    static inline bool recordPartialWrites = false;
     static inline uint64_t providerCount = 1;
     static inline const char* providerName = "AMD FSR Denoiser v1.2.0";
     static inline unsigned creates = 0, destroys = 0, dispatches = 0, defaults = 0, configures = 0;
@@ -138,6 +140,8 @@ struct FfxApiProxy
         lastDiffuse = *reinterpret_cast<const ffxDispatchDescDenoiserDirectDiffuse*>(header->pNext);
         lastSpecular = *reinterpret_cast<const ffxDispatchDescDenoiserIndirectSpecular*>(lastDiffuse.header.pNext);
         ++dispatches;
+        if (recordPartialWrites) RecordTestProviderWrites(static_cast<ID3D12GraphicsCommandList*>(lastDispatch.commandList),
+            static_cast<ID3D12Resource*>(lastSpecular.signal.output.resource), static_cast<ID3D12Resource*>(lastDiffuse.signal.output.resource));
         if (rejectDispatch) return FFX_API_RETURN_ERROR_RUNTIME_ERROR;
         if (real && dispatches < 4) std::fprintf(stderr,"real dispatch begin attempt=%u\n",dispatches);
         const auto result = real ? dispatchFunction(context, header) : FFX_API_RETURN_OK;
