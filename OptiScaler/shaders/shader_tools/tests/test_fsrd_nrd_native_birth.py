@@ -38,6 +38,7 @@ std::atomic<unsigned> factories=0,notifications=0,detachCalls=0,healthFailures=0
 bool failFactory=false;
 namespace FrameSurvey {
  void MetadataHookFailed(const char*) noexcept { if(NrdBridgeBirth::InMetadataScope())++observerUnderGuard;++healthFailures; }
+ void FlushMetadataFailure() noexcept { if(NrdBridgeBirth::InMetadataScope())++observerUnderGuard; }
 }
 struct Payload { std::array<NrdBridgeBirth::Token,32> retired;size_t count=0; };
 std::atomic<Payload*> lastFactory=nullptr;
