@@ -23,6 +23,7 @@ using J=nlohmann::json;
 unsigned checks=0,restores=0;
 std::function<void()> emitDebug;
 void need(bool value,const char* message) { if(!value) throw std::runtime_error(message); ++checks; }
+void RecordTestProviderWrites(ID3D12GraphicsCommandList*,ID3D12Resource*,ID3D12Resource*) { throw std::runtime_error("End-to-end fixture requires real signed provider work"); }
 void hr(HRESULT code,const std::source_location& location=std::source_location::current()) {
  if(FAILED(code)) {
   if(emitDebug) emitDebug();
@@ -440,6 +441,9 @@ struct Title {
  }
 };
 unsigned internalCalls() { unsigned count=0; for(const auto& [_,value]:detourDispatches) count+=value[1]; return count; }
+void disableRestoreFlagsAfterSDK() {
+ Config::Instance()->RestoreComputeSignature.value=false; Config::Instance()->ExtendedStateRestore.value=false;
+}
 void loadProvider(const char* path) {
  FfxApiProxy::real=true; auto module=LoadLibraryA(path); need(module!=nullptr,"signed AMD DLL loaded read-only");
  FfxApiProxy::denoiser_dx12.dll=module;
@@ -485,7 +489,11 @@ int main(int argc,char** argv) try {
  need(restores==rawBefore+3,"three actual RestoreRoot calls in Raw bridge frame (Recon, Temporal motion, Consumer)");
  need(NrdBridge::GetStatus().framesBridged==bridgedBefore+1 && FfxApiProxy::dispatches==0,"exactly one frame bridged without RR in Raw mode");
  NrdBridge::SetDebugMode(NrdBridge::DebugMode::Off); const auto rrBefore=FfxApiProxy::dispatches,rrRestores=restores;
- title.frame(3,6,1); auto rr=title.finish(6,1); result["rr"]=title.rrChecks(rr);
+ FfxApiProxy::afterRealDispatch=disableRestoreFlagsAfterSDK; title.frame(3,6,1); FfxApiProxy::afterRealDispatch=nullptr;
+ need(!Config::Instance()->RestoreComputeSignature.value && !Config::Instance()->ExtendedStateRestore.value,"fixture flips both restore flags after real SDK recording while injection is admitted");
+ auto rr=title.finish(6,1); result["rr"]=title.rrChecks(rr);
+ need(Config::Instance()->RestoreComputeSignature.value && Config::Instance()->ExtendedStateRestore.value,"active list Reset restores required volatile flags for the next title recording");
+ result["config_reload"]={{"mid_sdk_flags_disabled",true},{"consumer_gpu_state_restored",true},{"next_reset_reasserts_flags",true}};
  need(FfxApiProxy::dispatches==rrBefore+1 && restores==rrRestores+3,"one real AMD RR call and three title restores per requested frame");
  need(NrdBridge::GetStatus().active,"real RR makes coordinator Active");
  const auto rrFirstFlags=FfxApiProxy::lastDispatch.flags; need((rrFirstFlags&FFX_DENOISER_DISPATCH_RESET)!=0,"first RR frame resets history");
@@ -571,6 +579,14 @@ int main(int argc,char** argv) try {
  need(internalBarriers>0 && titleTransitions==0,"conversion/motion/debug/real RR never transition a borrowed title texture");
  result["barrier_audit"]={{"internal_barriers_observed",internalBarriers},{"borrowed_title_transitions",titleTransitions}};
  result["owned_conversion_bytes"]=NrdBridge::gService->conversion.OwnedTextureBytes();
+ result["owned_rr_staging_bytes"]=NrdBridge::gService->rr.OwnedStagingBytes();
+ UINT64 directStagingBytes=0;
+ for(void* pointer:{FfxApiProxy::lastSpecular.signal.output.resource,FfxApiProxy::lastDiffuse.signal.output.resource}) {
+  auto* texture=static_cast<ID3D12Resource*>(pointer); const auto description=texture->GetDesc();
+  need(description.Width==96 && description.Height==64 && description.Format==DXGI_FORMAT_R16G16B16A16_FLOAT,"transaction outputs match the current extent and exact signal format");
+  directStagingBytes+=h.device->GetResourceAllocationInfo(0,1,&description).SizeInBytes;
+ }
+ need(NrdBridge::gService->rr.OwnedStagingBytes()==directStagingBytes,"reported RR staging bytes equal independent device allocation queries");
  result["provider"]={{"creates",FfxApiProxy::creates},{"dispatches",FfxApiProxy::dispatches},{"defaults",FfxApiProxy::defaults},{"configures",FfxApiProxy::configures}};
  result["proxy_routed_calls"]=FfxApiProxy::routed;
  result["title_restore_calls"]=restores; result["frames_bridged"]=NrdBridge::GetStatus().framesBridged;
