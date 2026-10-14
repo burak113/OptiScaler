@@ -8,7 +8,7 @@
 #include <cstdint>
 #pragma comment(lib, "bcrypt.lib")
 
-namespace FrameSurvey { void MetadataHookFailed(const char*) noexcept; }
+namespace FrameSurvey { void MetadataHookFailed(const char*) noexcept; void FlushMetadataFailure() noexcept; }
 
 // Identity is native byte data, never a COM reference. The title caller must
 // own a valid object while Prepare/Receiver invokes its private-data methods.
@@ -32,9 +32,13 @@ inline thread_local unsigned nextReceiver = 0;
 inline thread_local const char* pendingFailure = nullptr;
 inline void FlushFailure() noexcept
 {
-    if (NrdBridgeBirth::InMetadataScope() || !pendingFailure) return;
-    const char* reason = pendingFailure; pendingFailure = nullptr;
-    FrameSurvey::MetadataHookFailed(reason);
+    if (NrdBridgeBirth::InMetadataScope()) return;
+    if (pendingFailure)
+    {
+        const char* reason = pendingFailure; pendingFailure = nullptr;
+        FrameSurvey::MetadataHookFailed(reason);
+    }
+    FrameSurvey::FlushMetadataFailure();
 }
 inline void Fail(const char* reason) noexcept
 {
@@ -64,6 +68,7 @@ inline uint64_t ProcessNonce() noexcept
 }
 }
 
+inline bool Ready() noexcept { return Detail::configured.load(std::memory_order_acquire) == 2; }
 inline void FlushFailure() noexcept { Detail::FlushFailure(); }
 
 inline bool ConfigureRetirement(Factory factory, NrdBridgeBirth::MetadataAction detach, Notify notify) noexcept
@@ -184,6 +189,7 @@ template <class NativeObject> NrdBridgeBirth::Token Prepare(NativeObject* object
 template <class NativeObject> NrdBridgeBirth::Token Receiver(NativeObject* object, bool enabled = true) noexcept
 {
     if (!enabled || !object) return {};
+    FlushFailure();
     for (auto& entry : Detail::receiverCache)
         if (entry.address == object && NrdBridgeBirth::CacheAdmissible(entry.birth)) return entry.birth;
     auto birth = Prepare(object);
