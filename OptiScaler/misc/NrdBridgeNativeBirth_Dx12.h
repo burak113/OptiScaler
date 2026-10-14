@@ -1,14 +1,16 @@
 #pragma once
 #include "NrdBridgeBirth_Dx12.h"
+#include "NrdBridgeLifetime_Dx12.h"
 #include <d3d12.h>
 #include <dxgi.h>
 #include <bcrypt.h>
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <type_traits>
 #pragma comment(lib, "bcrypt.lib")
 
-namespace FrameSurvey { void MetadataHookFailed(const char*) noexcept; void FlushMetadataFailure() noexcept; }
+namespace FrameSurvey { void MetadataHookFailed(const char*) noexcept; void FlushMetadataFailure() noexcept; bool OwnedRelease() noexcept; }
 
 // Identity is native byte data, never a COM reference. The title caller must
 // own a valid object while Prepare/Receiver invokes its private-data methods.
@@ -32,6 +34,9 @@ struct CacheEntry { void* address = nullptr; NrdBridgeBirth::Token birth; bool r
 inline thread_local std::array<CacheEntry,4> receiverCache;
 inline thread_local unsigned nextReceiver = 0;
 inline thread_local const char* pendingFailure = nullptr;
+inline thread_local IUnknown* temporaryRelease = nullptr;
+inline thread_local std::array<IUnknown*,8> recoveringAddresses {};
+inline thread_local unsigned recoveryDepth = 0;
 inline void FlushFailure() noexcept
 {
     if (NrdBridgeBirth::InMetadataScope()) return;
@@ -48,6 +53,58 @@ inline void Fail(const char* reason) noexcept
     if (!pendingFailure) pendingFailure = reason;
     FlushFailure();
 }
+// A queried interface owns one transient reference. Mark its exact Release
+// solely to prevent a missing-ticket recovery loop; no lifetime gate is bypassed.
+class InterfaceReference
+{
+    IUnknown* object_ = nullptr;
+  public:
+    InterfaceReference() noexcept = default;
+    ~InterfaceReference()
+    {
+        if (!object_) return;
+        if (NrdBridgeBirth::InMetadataScope())
+        { Fail("strong native interface released under metadata lock"); return; } // Pin on invalid lexical lifetime.
+        auto* previous = temporaryRelease; temporaryRelease = object_;
+        object_->Release(); temporaryRelease = previous;
+    }
+    InterfaceReference(const InterfaceReference&) = delete;
+    InterfaceReference& operator=(const InterfaceReference&) = delete;
+    IUnknown* Get() const noexcept { return object_; }
+    IUnknown** Put() noexcept { return &object_; }
+};
+inline bool StrongCanonical(IUnknown* object,InterfaceReference& canonical) noexcept
+{
+    if (!object || NrdBridgeBirth::InMetadataScope())
+    { Fail("canonical native identity requested under metadata lock"); return false; }
+    if (!ObserveReleaseCoverage(object))
+    { Fail("typed native Release implementation is unsupported"); return false; }
+    const auto result = object->QueryInterface(__uuidof(IUnknown),reinterpret_cast<void**>(canonical.Put()));
+    if (FAILED(result) || !canonical.Get())
+    { Fail("native object has no supported canonical IUnknown identity"); return false; }
+    if (!ObserveReleaseCoverage(canonical.Get()))
+    { Fail("canonical IUnknown Release implementation is unsupported"); return false; }
+    return true;
+}
+// Forwarded native releases may have another This address. A repeated cold
+// recovery of the same active address stops, while its full native Release still
+// runs. Unrelated nested aliases may recover; this POD stack never allocates.
+class RecoveryScope
+{
+    bool active_ = false;
+  public:
+    explicit RecoveryScope(IUnknown* object) noexcept
+    {
+        for (unsigned i=0;i<recoveryDepth;++i) if (recoveringAddresses[i] == object) return;
+        if (recoveryDepth == recoveringAddresses.size())
+        { Fail("native alias recovery exceeded bounded nesting"); return; }
+        recoveringAddresses[recoveryDepth++] = object; active_ = true;
+    }
+    ~RecoveryScope() { if (active_) recoveringAddresses[--recoveryDepth] = nullptr; }
+    bool Entered() const noexcept { return active_; }
+    RecoveryScope(const RecoveryScope&) = delete;
+    RecoveryScope& operator=(const RecoveryScope&) = delete;
+};
 inline bool Detach(void*, const NrdBridgeBirth::Token& old) noexcept
 {
     if (!retirementPayload || configured.load(std::memory_order_acquire) != 2 || !callbacks.detach)
@@ -122,25 +179,64 @@ class RetirementScope
     bool Valid() const noexcept { return payload_ != nullptr; }
 };
 
+// Link the exact typed address while keeping canonical initialization state.
+// Existing strong creators may publish a pending token, but weak/native readers
+// cannot borrow it until the canonical writer succeeds.
+inline NrdBridgeBirth::Token TypedAlias(const NrdBridgeBirth::Token& canonical,void* address) noexcept
+{
+    if (!canonical || !address) return {};
+    if (canonical->Address() == address) return canonical;
+    auto& registry = NrdBridgeBirth::ProcessRegistry(); const auto actions = registry.Actions();
+    auto typed = registry.ObserveInstance(address,canonical->InstanceStamp(),actions.detachOld,
+        actions.publish,actions.state,true,canonical->Initializing());
+    // If the writer's snapshot preceded this alias insertion, finish it here.
+    if (!typed) { Detail::Fail("exact typed native alias publication failed"); return {}; }
+    if (typed->Initializing() && canonical->Ready() && !canonical->Failed()) registry.Finalize(typed,true);
+    return typed;
+}
+inline bool FinishPendingAliases(const NrdBridgeBirth::Token& canonical) noexcept
+{
+    if (!canonical || canonical->Initializing() || canonical->Failed()) return bool(canonical);
+    NrdBridgeBirth::AliasSnapshot snapshot;
+    if (!NrdBridgeBirth::CaptureProvenAliasesForFinalZero(canonical,snapshot) || !snapshot.complete)
+    { Detail::Fail("native initializing alias snapshot failed"); return false; }
+    // Snapshot releases its bounded physical index before any addressed guard.
+    for (size_t i=0;i<snapshot.count;++i)
+        if (snapshot.tokens[i]->Initializing()) NrdBridgeBirth::Finalize(snapshot.tokens[i],true);
+    return NrdBridgeBirth::Healthy();
+}
 // Cold receiver/bootstrap. Capture the initializing state BEFORE the native
 // getter. A stale zero read cannot elect a second writer after another writer
 // finishes. Native getter/setter, factory and effect drain hold no Birth lock.
 template <class NativeObject> NrdBridgeBirth::Token Prepare(NativeObject* object, bool enabled = true) noexcept
 {
     if (!enabled || !object) return {};
+    if constexpr (std::is_convertible_v<NativeObject*,IUnknown*>)
+    {
+        if (FrameSurvey::OwnedRelease()) return {};
+        if (NrdBridgeLifetime::Detail::borrowDepth && !NrdBridgeLifetime::ConcurrentReleasesEnabled())
+        { Detail::Fail("cold canonical native bootstrap must precede legacy Borrow"); return {}; }
+    }
     if (NrdBridgeBirth::InMetadataScope())
     { Detail::Fail("native instance getter entered under metadata lock"); return {}; }
     FlushFailure();
     if (!NrdBridgeBirth::Healthy()) return {};
     RetirementScope retirement;
     if (!retirement.Valid()) return {};
+    Detail::InterfaceReference canonical;
+    void* electionAddress = object;
+    if constexpr (std::is_convertible_v<NativeObject*,IUnknown*>)
+    {
+        if (!Detail::StrongCanonical(static_cast<IUnknown*>(object),canonical)) return {};
+        electionAddress = canonical.Get();
+    }
     const uint64_t nonce = Detail::ProcessNonce();
     if (!nonce) { Detail::Fail("native instance process nonce creation failed"); return {}; }
     try
     {
         for (unsigned attempt = 0; attempt != 8; ++attempt)
         {
-            const auto old = NrdBridgeBirth::Capture(object);
+            const auto old = NrdBridgeBirth::Capture(electionAddress);
             const bool wasInitializing = old && old->Initializing();
             NativeStamp native;
             UINT bytes = sizeof(native);
@@ -151,22 +247,23 @@ template <class NativeObject> NrdBridgeBirth::Token Prepare(NativeObject* object
                 { Detail::Fail("native instance GUID payload has an invalid size"); return {}; }
                 if (native.processNonce == nonce && native.instanceStamp)
                 {
-                    const auto current = NrdBridgeBirth::ObserveInstance(object,native.instanceStamp);
-                    if (!current) Detail::Fail("native instance observation failed");
-                    return current;
+                    const auto current = NrdBridgeBirth::ObserveInstance(electionAddress,native.instanceStamp);
+                    if (!current || !FinishPendingAliases(current))
+                    { Detail::Fail("native instance observation failed"); return {}; }
+                    return TypedAlias(current,object);
                 }
             }
             else if (result != DXGI_ERROR_NOT_FOUND)
             { Detail::Fail("native instance GUID read failed"); return {}; }
             if (wasInitializing)
             {
-                if (NrdBridgeBirth::ObserveInitializing(old,wasInitializing)) return old;
+                if (NrdBridgeBirth::ObserveInitializing(old,wasInitializing)) return TypedAlias(old,object);
                 if (!NrdBridgeBirth::Healthy()) return {};
                 continue;
             }
             const auto stamp = NrdBridgeBirth::AllocateInstanceStamp();
             if (!stamp) { Detail::Fail("native instance stamp allocator exhausted"); return {}; }
-            const auto elected = NrdBridgeBirth::ComparePublish(object,old,stamp);
+            const auto elected = NrdBridgeBirth::ComparePublish(electionAddress,old,stamp);
             if (!elected)
             {
                 if (!NrdBridgeBirth::Healthy()) return {};
@@ -175,7 +272,8 @@ template <class NativeObject> NrdBridgeBirth::Token Prepare(NativeObject* object
             native = {nonce,stamp};
             const auto written = object->SetPrivateData(InstanceGuid,sizeof(native),&native);
             const bool success = SUCCEEDED(written);
-            if (NrdBridgeBirth::Finalize(elected,success)) return elected;
+            if (NrdBridgeBirth::Finalize(elected,success))
+            { if (!FinishPendingAliases(elected)) return {}; return TypedAlias(elected,object); }
             if (!success) { Detail::Fail("native instance GUID write failed"); return {}; }
             if (!NrdBridgeBirth::Healthy()) return {};
             // An exact metadata pre-retirement can race with an interned live
@@ -192,6 +290,7 @@ template <class NativeObject, class Coverage>
 NrdBridgeBirth::Token ReceiverWithReleaseCoverage(NativeObject* object, Coverage coverage, bool enabled = true) noexcept
 {
     if (!enabled || !object) return {};
+    if constexpr (std::is_convertible_v<NativeObject*,IUnknown*>) if (FrameSurvey::OwnedRelease()) return {};
     FlushFailure();
     try
     {
@@ -221,11 +320,56 @@ NrdBridgeBirth::Token ReceiverWithReleaseCoverage(NativeObject* object, Coverage
 template <class NativeObject> NrdBridgeBirth::Token Receiver(NativeObject* object, bool enabled = true) noexcept
 {
     if (!enabled || !object) return {};
+    if constexpr (std::is_convertible_v<NativeObject*,IUnknown*>) if (FrameSurvey::OwnedRelease()) return {};
     FlushFailure();
     for (auto& entry : Detail::receiverCache)
         if (entry.address == object && NrdBridgeBirth::CacheAdmissible(entry.birth)) return entry.birth;
     auto birth = Prepare(object);
-    if (birth) Detail::receiverCache[Detail::nextReceiver++ % Detail::receiverCache.size()] = {object,birth};
+    if (birth) Detail::receiverCache[Detail::nextReceiver++ % Detail::receiverCache.size()] = {object,birth,std::is_convertible_v<NativeObject*,IUnknown*>};
     return birth;
 }
+struct ReleaseIdentity
+{
+    NrdBridgeBirth::Token ticket;
+    void* recordingIdentity = nullptr; // Canonical ledger address, never a retained COM pointer.
+};
+inline ReleaseIdentity RecoverReleaseIdentity(IUnknown* object) noexcept
+{
+    ReleaseIdentity recovered;
+    if (!object || Detail::temporaryRelease == object || !Ready() || FrameSurvey::OwnedRelease() ||
+        NrdBridgeBirth::InMetadataScope() || !NrdBridgeBirth::Healthy()) return recovered;
+    Detail::RecoveryScope recovery(object);
+    if (!recovery.Entered()) return recovered;
+    try
+    {
+        Detail::InterfaceReference typed,canonical;
+        const auto queried = object->QueryInterface(__uuidof(ID3D12Object),reinterpret_cast<void**>(typed.Put()));
+        if (FAILED(queried) || !typed.Get()) return recovered; // An unobserved non-D3D object has no birth to recover.
+        auto* native = static_cast<ID3D12Object*>(typed.Get());
+        NativeStamp stamp; UINT bytes = sizeof(stamp);
+        const auto read = native->GetPrivateData(InstanceGuid,&bytes,&stamp);
+        if (read == DXGI_ERROR_NOT_FOUND) return recovered;
+        if (FAILED(read) || bytes != sizeof(stamp))
+        { Detail::Fail("existing native instance GUID recovery failed"); return recovered; }
+        if (!stamp.instanceStamp || stamp.processNonce != Detail::ProcessNonce()) return recovered;
+        if (!Detail::StrongCanonical(native,canonical)) return recovered;
+        auto known = NrdBridgeBirth::Capture(native);
+        if (!known || known->InstanceStamp() != stamp.instanceStamp || !known->Live())
+            known = NrdBridgeBirth::Capture(canonical.Get());
+        if (!known || known->InstanceStamp() != stamp.instanceStamp || !known->Live() ||
+            !NrdBridgeBirth::ObserveExisting(known)) return recovered;
+        if (!ObserveReleaseCoverage(object))
+        { Detail::Fail("recovered native alias Release implementation is unsupported"); return recovered; }
+        RetirementScope effects;
+        if (!effects.Valid()) return recovered;
+        const auto canon = TypedAlias(known,canonical.Get());
+        recovered.ticket = TypedAlias(known,object);
+        if (!canon || !recovered.ticket)
+        { Detail::Fail("existing native physical alias recovery failed"); recovered.ticket.reset(); return recovered; }
+        recovered.recordingIdentity = canonical.Get();
+        return recovered;
+    }
+    catch (...) { Detail::Fail("strong native alias recovery raised an exception"); return recovered; }
+}
+
 }

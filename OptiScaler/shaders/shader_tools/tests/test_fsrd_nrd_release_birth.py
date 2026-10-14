@@ -91,6 +91,14 @@ std::atomic<unsigned> ownerDestructions = 0, heapDestructions = 0;
 std::atomic<unsigned> metadataFailures = 0, failuresUnderInstaller = 0;
 std::atomic<unsigned> pureFailureUnderBirth = 0, legacyReleased = 0;
 std::atomic<unsigned> leaseBegins = 0, leaseEnds = 0, leaseFinals = 0;
+std::atomic<unsigned> canonicalQueries = 0, canonicalAdds = 0, canonicalReleases = 0, typedQueries = 0;
+thread_local bool canonicalQueryAdd = false;
+struct CanonicalQueryAddScope
+{
+    bool previous = canonicalQueryAdd;
+    CanonicalQueryAddScope() { canonicalQueryAdd = true; }
+    ~CanonicalQueryAddScope() { canonicalQueryAdd = previous; }
+};
 std::atomic<bool> failPrepareEffects = false, failDetachEffects = false;
 std::atomic<bool> surveyHealthy = true;
 bool outsideMetadata() noexcept
@@ -128,19 +136,30 @@ struct CpuObject : IUnknown
     std::shared_ptr<PhysicalObject> physical = std::make_shared<PhysicalObject>();
     std::atomic<unsigned> addRefs = 0, releases = 0, zeros = 0, reads = 0, writes = 0;
     std::function<void(unsigned, ULONG)> afterRelease;
-    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID, void** output) override
-    { noteNative(); if (output) *output = nullptr; return E_NOINTERFACE; }
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void** output) override
+    {
+        noteNative(); if (!output) return E_POINTER; *output = nullptr;
+        if (iid != IID_IUnknown) { ++typedQueries; return E_NOINTERFACE; }
+        ++canonicalQueries; *output = static_cast<IUnknown*>(this);
+        CanonicalQueryAddScope canonical; AddRef(); return S_OK;
+    }
     ULONG STDMETHODCALLTYPE AddRef() override
-    { noteNative(); ++addRefs; return ++physical->refs; }
+    { noteNative(); if (canonicalQueryAdd) ++canonicalAdds; else ++addRefs; return ++physical->refs; }
     ULONG STDMETHODCALLTYPE Release() override { return releaseNative(0); }
     ULONG releaseNative(unsigned tag)
     {
-        noteNative(); ++entryTouches[tag]; ++releases;
+        noteNative();
         const auto allocation = physical;
+        const bool canonical = NrdBridgeNativeBirth::Detail::temporaryRelease == static_cast<IUnknown*>(this);
+        if (canonical) ++canonicalReleases;
+        else { ++entryTouches[tag]; ++releases; }
         const ULONG result = --allocation->refs;
-        const unsigned ordinal = callingObject == this ? ++originalOrdinal : 0;
-        const unsigned index = nativeTraceSize.fetch_add(1);
-        if (index < nativeTrace.size()) nativeTrace[index] = {this, ordinal, result};
+        const unsigned ordinal = !canonical && callingObject == this ? ++originalOrdinal : 0;
+        if (!canonical) // Canonical QI owners do not consume a caller probe ordinal.
+        {
+            const unsigned index = nativeTraceSize.fetch_add(1);
+            if (index < nativeTrace.size()) nativeTrace[index] = {this, ordinal, result};
+        }
         if (!result) ++zeros;
         if (afterRelease) afterRelease(ordinal, result);
         return result;
@@ -441,6 +460,8 @@ void outsideAssertions()
     need(failuresUnderInstaller == 0, "failure status is published after installer unlock");
     need(factoryCalls == notifyCalls, "every prepared actual TLS payload drains exactly once");
     need(gNativeRetirementDepth == 0, "TLS payload depth is restored after nested work");
+    need(canonicalQueries == canonicalAdds && canonicalAdds == canonicalReleases,
+         "canonical IUnknown queries own exactly one balanced native temporary outside the title probe counters");
 }
 
 void finalKinds()
@@ -511,12 +532,14 @@ void nonfinal()
     callResource(object); // Warm TLS/native/perf paths before allocation measurement.
     const unsigned factories = factoryCalls.load(), notifications = notifyCalls.load();
     const unsigned reads = object.reads.load(), writes = object.writes.load();
+    const unsigned canonical = canonicalQueries.load(), typed = typedQueries.load();
     allocations = 0; meterAllocations = true;
     for (unsigned i = 0; i < 1000; ++i) callResource(object);
     meterAllocations = false;
     need(allocations == 0, "1000 warmed nonfinal actual wrappers make zero C++ allocations");
     need(factoryCalls == factories && notifyCalls == notifications && detachCalls == 0, "nonfinal path creates no retirement payload or catalog cleanup");
     need(object.reads == reads && object.writes == writes, "nonfinal Release performs no native private-data queries/writes");
+    need(canonicalQueries == canonical && typedQueries == typed, "1000 warmed nonfinal releases make zero canonical or typed QI calls");
     need(!birth->RecordingMayExist() && leaseBegins == 0 && leaseEnds == 0,
          "known unmarked hot releases skip all lease-registry lookups including empty EndRelease");
     need(object.addRefs == 1001 && object.releases == 2002 && object.physical->refs == 9003, "nonfinal forwarding consumes only caller references");
@@ -794,6 +817,7 @@ int main(int argc,char** argv) try
     std::cout << "{\"case\":\"" << kind << "\",\"checks\":" << checks
               << ",\"factory_calls\":" << factoryCalls << ",\"detach_calls\":" << detachCalls
               << ",\"notify_calls\":" << notifyCalls << ",\"native_releases\":" << nativeTraceSize
+              << ",\"canonical_queries\":" << canonicalQueries << ",\"canonical_releases\":" << canonicalReleases << ",\"typed_queries\":" << typedQueries
               << ",\"lease_begins\":" << leaseBegins << ",\"lease_ends\":" << leaseEnds << ",\"lease_finals\":" << leaseFinals
               << ",\"allocations_in_nonfinal\":" << allocations << ",\"owner_destructions\":" << ownerDestructions
               << ",\"metadata_failures\":" << metadataFailures << "}\n";
@@ -845,7 +869,8 @@ def generate(out):
         'tracked_resource_cache': cache,
         'retirement_payload': payload,
         'configure': function(resource, 'bool ResTrack_Dx12::ConfigureNrdNativeBirthRetirement()'),
-        'installer': function(resource, 'bool ResTrack_Dx12::ObserveBridgeObjectRelease('),
+        'installer': function(resource, 'bool ResTrack_Dx12::ObserveBridgeObjectRelease(')
+            + '\n' + function(resource, 'bool NrdBridgeNativeBirth::ObserveReleaseCoverage('),
         'dedicated_wrappers': wrappers,
     }
     cpp = CPP.replace('__ROOT__', ROOT.as_posix())
