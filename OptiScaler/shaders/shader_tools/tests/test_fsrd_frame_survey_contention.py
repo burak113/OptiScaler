@@ -38,8 +38,14 @@ std::unordered_map<ID3D12Resource*,std::vector<TrackedResourceSlot>> _trackedRes
 NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Tracking> gRRResourceStateMutex,gRRTrackedResourceMutex,gRRPsoMutex;
 std::unordered_set<ID3D12Resource*> gRRResourceStates,gRRResourceActivity,gRRTrackedResources;
 void CleanupRRResourcePsoProducersLocked(ID3D12Resource*){}void CleanupRRPsoReferences(void*){}void DeactivateSharedHeap(void*){}
-ULONG forwardRelease(ID3D12Resource* object){OriginalForwardTimer time;return object->Release();}auto o_Release=&forwardRelease;
-ULONG forwardHeapRelease(ID3D12DescriptorHeap* object){OriginalForwardTimer time;return object->Release();}auto o_HeapRelease=&forwardHeapRelease;
+struct PausedNativeRelease {
+ void* object=nullptr;std::atomic<unsigned> calls{0};std::promise<void> entered,resume;
+ std::shared_future<void> resumeFuture=resume.get_future().share();
+};
+std::atomic<PausedNativeRelease*> gPausedNativeRelease{nullptr};
+void PauseAfterNativeRelease(void* object){auto* pause=gPausedNativeRelease.load();if(pause&&pause->object==object&&pause->calls.fetch_add(1)==0){pause->entered.set_value();pause->resumeFuture.wait();}}
+ULONG forwardRelease(ID3D12Resource* object){ULONG result;{OriginalForwardTimer time;result=object->Release();}PauseAfterNativeRelease(object);return result;}auto o_Release=&forwardRelease;
+ULONG forwardHeapRelease(ID3D12DescriptorHeap* object){ULONG result;{OriginalForwardTimer time;result=object->Release();}PauseAfterNativeRelease(object);return result;}auto o_HeapRelease=&forwardHeapRelease;
 std::atomic<bool> gHeapReleaseSharesResource=false;
 ULONG(*gSharedResourceReleaseObserver)(ID3D12Resource*)=nullptr;
 NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Tracking> heapPoolMutex;
@@ -76,7 +82,7 @@ constexpr size_t samples=4096,logicalRecords=100000;
 constexpr bool candidate=__CANDIDATE__,bornMode=__BORN__;
 enum Event {CBV,SRVEvent,UAVEvent,ResourceRelease,HeapRelease,CopyBurst,Events};
 const std::array<const char*,Events> eventNames{"CBV","SRV","UAV","resource_release","pooled_heap_release","copy_burst"};
-struct Observation {std::array<std::vector<uint64_t>,Events> ticks;std::array<std::array<std::vector<uint64_t>,size_t(NrdBridgePerf::WaitKind::Count)>,Events> waits;std::vector<uint64_t> finalTicks,nonfinalTicks;};
+struct Observation {std::array<std::vector<uint64_t>,Events> ticks;std::array<std::array<std::vector<uint64_t>,size_t(NrdBridgePerf::WaitKind::Count)>,Events> waits;std::array<std::array<std::vector<uint64_t>,size_t(FrameSurveyMetadata::MetadataLock::Count)>,Events> metadataLocks;std::vector<uint64_t> finalTicks,nonfinalTicks;};
 std::array<NrdBridgePerf::Sample,size_t(NrdBridgePerf::Hook::Count)> counters(){
  std::array<NrdBridgePerf::Sample,size_t(NrdBridgePerf::Hook::Count)> out{};
  const auto& state=NrdBridgePerf::Detail::Get();for(size_t i=0;i<out.size();++i){out[i].calls=state.hooks[i].calls.load();out[i].ticks=state.hooks[i].ticks.load();for(size_t j=0;j<out[i].waitTicks.size();++j)out[i].waitTicks[j]=state.hooks[i].waitTicks[j].load();}return out;
@@ -225,7 +231,7 @@ J phase(Host& h,size_t threadCount,UINT burst,bool wrappers,bool profile,bool fi
  for(size_t t=0;t<threadCount;++t)threads.emplace_back([&,t]{
   for(auto& values:records[t].ticks)values.reserve(samples);
   for(auto& values:originals[t].ticks)values.reserve(samples);
-  if(profile&&wrappers)for(auto& event:records[t].waits)for(auto& values:event)values.reserve(samples);
+  if(profile&&wrappers){for(auto& event:records[t].waits)for(auto& values:event)values.reserve(samples);for(auto& event:records[t].metadataLocks)for(auto& values:event)values.reserve(samples);}
   gMeasureOriginal=profile;
   size_t final=0,heap=0;start.arrive_and_wait();
   for(size_t i=0;i<samples;++i){const auto slot=h.handle(UINT(32+t*96+(i%32)));const auto operation=i%8;Event event=CBV;
@@ -239,7 +245,7 @@ J phase(Host& h,size_t threadCount,UINT burst,bool wrappers,bool profile,bool fi
    const auto elapsed=qpc()-begin;records[t].ticks[event].push_back(elapsed);
    if(event==ResourceRelease)(operation==7&&finals?records[t].finalTicks:records[t].nonfinalTicks).push_back(elapsed);
    if(profile)originals[t].ticks[event].push_back(gOriginalTicks);
-   if(profile&&wrappers)for(size_t k=0;k<gLastWaits.size();++k)records[t].waits[event][k].push_back(gLastWaits[k]);
+   if(profile&&wrappers){for(size_t k=0;k<gLastWaits.size();++k)records[t].waits[event][k].push_back(gLastWaits[k]);for(size_t k=0;k<gLastMetadataLocks.size();++k)records[t].metadataLocks[event][k].push_back(gLastMetadataLocks[k]);}
    if(i%64==63){UINT count=burst;auto from=h.handle(UINT(2048+t*2048)),to=h.handle(UINT(3072+t*2048));const auto copyBegin=qpc();
     gOriginalTicks=0;gLastWaits={};{
      NrdBridgePerf::Scope copyProfile(NrdBridgePerf::Hook::CopyDescriptors,wrappers&&gNrdBridgeWrappers&&!FrameSurvey::Internal());PerCallWaitSnapshot snapshot;
@@ -248,9 +254,9 @@ J phase(Host& h,size_t threadCount,UINT burst,bool wrappers,bool profile,bool fi
     }
     records[t].ticks[CopyBurst].push_back(qpc()-copyBegin);
     if(profile)originals[t].ticks[CopyBurst].push_back(gOriginalTicks);
-    if(profile&&wrappers)for(size_t k=0;k<gLastWaits.size();++k)records[t].waits[CopyBurst][k].push_back(gLastWaits[k]);
+    if(profile&&wrappers){for(size_t k=0;k<gLastWaits.size();++k)records[t].waits[CopyBurst][k].push_back(gLastWaits[k]);for(size_t k=0;k<gLastMetadataLocks.size();++k)records[t].metadataLocks[CopyBurst][k].push_back(gLastMetadataLocks[k]);}
    }
-   if(i%128==127){auto*& object=pool[t]->heaps[heap++];gOriginalTicks=0;gLastWaits={};const auto heapBegin=qpc();const auto result=wrappers?hkHeapRelease(object):forwardHeapRelease(object);if(result)bad=true;object=nullptr;records[t].ticks[HeapRelease].push_back(qpc()-heapBegin);if(profile)originals[t].ticks[HeapRelease].push_back(gOriginalTicks);if(profile&&wrappers)for(size_t k=0;k<gLastWaits.size();++k)records[t].waits[HeapRelease][k].push_back(gLastWaits[k]);}
+   if(i%128==127){auto*& object=pool[t]->heaps[heap++];gOriginalTicks=0;gLastWaits={};const auto heapBegin=qpc();const auto result=wrappers?hkHeapRelease(object):forwardHeapRelease(object);if(result)bad=true;object=nullptr;records[t].ticks[HeapRelease].push_back(qpc()-heapBegin);if(profile)originals[t].ticks[HeapRelease].push_back(gOriginalTicks);if(profile&&wrappers){for(size_t k=0;k<gLastWaits.size();++k)records[t].waits[HeapRelease][k].push_back(gLastWaits[k]);for(size_t k=0;k<gLastMetadataLocks.size();++k)records[t].metadataLocks[HeapRelease][k].push_back(gLastMetadataLocks[k]);}}
   }
  });
  const auto began=qpc();start.arrive_and_wait();threads.clear();const auto wall=qpc()-began;const auto after=counters();
@@ -265,12 +271,16 @@ J phase(Host& h,size_t threadCount,UINT burst,bool wrappers,bool profile,bool fi
  J rows=J::array();size_t total=0;for(size_t e=0;e<Events;++e){std::vector<uint64_t> values;for(const auto& record:records)values.insert(values.end(),record.ticks[e].begin(),record.ticks[e].end());total+=values.size();auto row=percentile(std::move(values));row["event"]=eventNames[e];rows.push_back(row);}
  J nativeRows=J::array();for(size_t e=0;e<Events;++e){std::vector<uint64_t> values;for(const auto& record:originals)values.insert(values.end(),record.ticks[e].begin(),record.ticks[e].end());auto row=percentile(std::move(values));row["event"]=eventNames[e];nativeRows.push_back(row);}
  std::vector<uint64_t> finalValues,nonfinalValues;for(const auto& record:records){finalValues.insert(finalValues.end(),record.finalTicks.begin(),record.finalTicks.end());nonfinalValues.insert(nonfinalValues.end(),record.nonfinalTicks.begin(),record.nonfinalTicks.end());}
- J perCallWaits=J::array(),nonNative=J::array();
+ J perCallWaits=J::array(),nonNative=J::array(),metadataLocks=J::array();
+ const std::array<const char*,7> metadataNames{"catalog_shared","catalog_exclusive","descriptor_shard","identity_shard","interval_index","snapshot_gate","mirror"};
  const std::array<const char*,4> waitNames{"metadata","physical_lifetime_gate","tracking","coordinator"};
  if(profile)for(size_t e=0;e<Events;++e){
   std::vector<uint64_t> own;for(size_t t=0;t<threadCount;++t){need(records[t].ticks[e].size()==originals[t].ticks[e].size(),"paired original timings match every event");for(size_t i=0;i<records[t].ticks[e].size();++i)own.push_back(records[t].ticks[e][i]>=originals[t].ticks[e][i]?records[t].ticks[e][i]-originals[t].ticks[e][i]:0);}
   auto row=percentile(std::move(own));row["event"]=eventNames[e];nonNative.push_back(row);
-  if(wrappers)for(size_t k=0;k<waitNames.size();++k){std::vector<uint64_t> values;for(const auto& record:records)values.insert(values.end(),record.waits[e][k].begin(),record.waits[e][k].end());auto wait=percentile(std::move(values));wait["event"]=eventNames[e];wait["kind"]=waitNames[k];perCallWaits.push_back(wait);}
+   if(wrappers){
+    for(size_t k=0;k<waitNames.size();++k){std::vector<uint64_t> values;for(const auto& record:records)values.insert(values.end(),record.waits[e][k].begin(),record.waits[e][k].end());auto wait=percentile(std::move(values));wait["event"]=eventNames[e];wait["kind"]=waitNames[k];perCallWaits.push_back(wait);}
+    for(size_t k=0;k<metadataNames.size();++k){std::vector<uint64_t> values;for(const auto& record:records)values.insert(values.end(),record.metadataLocks[e][k].begin(),record.metadataLocks[e][k].end());auto wait=percentile(std::move(values));wait["event"]=eventNames[e];wait["kind"]=metadataNames[k];metadataLocks.push_back(wait);}
+   }
  }
  J waits=J::array();const std::array<const char*,4> hooks{"CBV","SRV","UAV","Release"};
  for(size_t i=0;i<hooks.size();++i){const auto calls=after[i].calls-before[i].calls;J row{{"hook",hooks[i]},{"actual_profiled_calls",calls}};
@@ -284,8 +294,48 @@ J phase(Host& h,size_t threadCount,UINT burst,bool wrappers,bool profile,bool fi
   {"iterations_per_thread",samples},{"events",total},{"wall_ms",double(wall)*1000.0/double(frequency())},{"events_per_second",double(total)*double(frequency())/wall},
   {"pool_setup_ms_excluded_from_timings",setupMs},{"samples",rows},{"paired_original_forwarding",nativeRows},
   {"original_forwarding_scope","same-call native View/Copy and both native Release calls plus their AddRef; caller-owned AddRef before timed nonfinal release excluded; QPC/TLS snapshots only profileON; OFF retains disabled measurement branches"},
-  {"paired_non_native",nonNative},{"per_call_waits",perCallWaits},{"release_lookup_path",bornMode?"known_unmarked":"legacy_registry_lookup"},
+  {"paired_non_native",nonNative},{"per_call_waits",perCallWaits},{"metadata_lock_waits",metadataLocks},{"metadata_lock_wait_scope","same actual WaitScope ticks split by FrameSurvey lock; Birth waits remain in aggregate metadata; native mirror waits are named"},{"release_lookup_path",bornMode?"known_unmarked":"legacy_registry_lookup"},
   {"profile_waits",waits},{"working_set_bytes",rss()},{"peak_working_set_bytes",peakRss()}};
+}
+void nativeMetadataPendingReleaseRegressions(Host& h){
+ D3D12_DESCRIPTOR_HEAP_DESC hd{};hd.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;hd.NumDescriptors=4;hd.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+ ComPtr<ID3D12DescriptorHeap> heap;hr(h.device->CreateDescriptorHeap(&hd,IID_PPV_ARGS(&heap)));FrameSurvey::HeapCreated(h.device.Get(),heap.Get());
+ D3D12_DESCRIPTOR_RANGE range{D3D12_DESCRIPTOR_RANGE_TYPE_CBV,1,6,0,0};D3D12_ROOT_PARAMETER parameter{};
+ parameter.ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;parameter.DescriptorTable={1,&range};
+ D3D12_ROOT_SIGNATURE_DESC layout{1,&parameter,0,nullptr,D3D12_ROOT_SIGNATURE_FLAG_NONE};ComPtr<ID3DBlob> bytes,error;ComPtr<ID3D12RootSignature> root;
+ hr(D3D12SerializeRootSignature(&layout,D3D_ROOT_SIGNATURE_VERSION_1,&bytes,&error));
+ hr(h.device->CreateRootSignature(0,bytes->GetBufferPointer(),bytes->GetBufferSize(),IID_PPV_ARGS(&root)));FrameSurvey::RootCreated(root.Get(),bytes->GetBufferPointer(),bytes->GetBufferSize());
+ const auto source=heap->GetCPUDescriptorHandleForHeapStart();auto destination=source;destination.ptr+=h.stride;const auto gpu=heap->GetGPUDescriptorHandleForHeapStart();
+ ID3D12DescriptorHeap* heaps[]{heap.Get()};h.list->SetDescriptorHeaps(1,heaps);h.list->SetComputeRootSignature(root.Get());h.list->SetComputeRootDescriptorTable(0,gpu);
+ const auto run=[&](IUnknown* object,bool isHeap){
+  hkSurveyCreateConstantBufferView(h.device.Get(),&h.cbv,source);FrameSurvey::SetBindingWindow(true);
+  FrameSurvey::ComputeBindings bindings;bindings.root=root.Get();bindings.heaps={heap.Get()};bindings.tables={{0,gpu}};
+  bindings.receiverBirth=NrdBridgeBirth::Capture(h.list.Get());bindings.rootBirth=NrdBridgeBirth::Capture(root.Get());bindings.heapBirths={NrdBridgeBirth::Capture(heap.Get())};
+  FrameSurvey::BoundConstantBuffer before;need(FrameSurvey::SeedComputeBindings(h.list.Get(),bindings)&&FrameSurvey::ResolveComputeConstantBuffer(h.list.Get(),6,0,1216,before),"paused nonfinal fixture captures valid actual shader-visible CBV before release");
+  const auto token=NrdBridgeBirth::Capture(object);need(token&&token->CacheAdmissible(),"actual native resource/heap birth ready before nonfinal probe");
+  const auto observed=observedReleases.load();object->AddRef(); // Fixture owner remains; caller ref is released by the real hook.
+  PausedNativeRelease pause;pause.object=object;auto entered=pause.entered.get_future();gPausedNativeRelease=&pause;
+  std::atomic<ULONG> result{0};std::jthread worker([&]{result=isHeap?hkHeapRelease(heap.Get()):hkRelease(h.buffer.Get());});
+  entered.wait();const bool pending=token->Live()&&token->ReleasesInFlight()>0&&!token->CacheAdmissible();
+  hkSurveyCreateConstantBufferView(h.device.Get(),&h.cbv,source);UINT one=1;
+  h.device->CopyDescriptorsSimple(1,destination,source,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+  FrameSurvey::CopyDescriptors(h.device.Get(),1,&destination,&one,1,&source,&one,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+  const auto found=FrameSurvey::gViews.find(destination.ptr);
+  const bool kept=found!=FrameSurvey::gViews.end()&&found->second.object==h.buffer.Get()&&FrameSurvey::NativeViewMetadataFresh(found->second)&&!FrameSurvey::NativeViewFresh(found->second);
+  const bool denied=!FrameSurvey::ValidateBorrowedConstantBuffer(before);
+  // Always release the deterministic pause before asserting to avoid a hanging
+  // native worker if the production regression fails.
+  pause.resume.set_value();worker.join();gPausedNativeRelease=nullptr;
+  need(pending,"paused actual first native Release is nonfinal and physical counter blocks weak admission");
+  need(result.load()>0&&observedReleases.load()==observed,"actual caller release preserves retained resource/heap and performs no final retirement");
+  need(kept&&denied,"pending nonfinal CBV/Copy preserve pure metadata without admitting native borrow");
+  need(FrameSurvey::NativeViewFresh(FrameSurvey::gViews.at(destination.ptr))&&FrameSurvey::ValidateBorrowedConstantBuffer(before),"completed nonfinal native Release restores borrow eligibility without recopy");
+ };
+ run(h.buffer.Get(),false);run(heap.Get(),true);
+ h.list->SetDescriptorHeaps(0,nullptr);h.list->SetComputeRootSignature(h.root.Get());h.list->SetComputeRootConstantBufferView(0,h.cbv.BufferLocation);
+ need(hkHeapRelease(heap.Detach())==0,"actual paused-test table heap is finally retired through production helper");
+ need(NrdBridgeRelease::Title(root.Detach(),[](auto* p){return p->Release();})==0,"actual paused-test root is finally retired through production helper");
+ FrameSurvey::SetBindingWindow(false);
 }
 void samplerNativeRegressions(Host& h){
  if(!bornMode)return;
@@ -363,7 +413,7 @@ int main(int argc,char** argv)try{
  if(bornMode){need(NrdBridgeNativeBirth::ConfigureRetirement(PrepareNativeRetirement,DetachNativeRetirement,NotifyNativeRetirement),"actual native retirement dispatcher configured");need(NrdBridgeLifetime::EnableConcurrentReleases(),"actual concurrent physical release gate enabled");}
  (void)RecordedComputeLease::GetRegistry();
  g_dllPath=std::filesystem::path(argv[1])/"fixture.dll";Host h;FrameSurvey::SetReleaseObserver(&onRelease);if(bornMode)FrameSurvey::SetBirthReleaseObserver(&onBirthRelease);
- startupAndIndirectRegressions(h,profile);metadataRegressions(h);samplerNativeRegressions(h);J rows=J::array();const auto cacheBegin=qpc();
+ startupAndIndirectRegressions(h,profile);metadataRegressions(h);nativeMetadataPendingReleaseRegressions(h);samplerNativeRegressions(h);J rows=J::array();const auto cacheBegin=qpc();
  {
   Cache cache(h);const double insertionMs=(qpc()-cacheBegin)*1000.0/double(frequency());
   for(size_t threads:{size_t(1),size_t(8),size_t(16)})for(UINT burst:{64u,1024u}){
@@ -394,6 +444,43 @@ def snapshot(path, baseline):
     return (ROOT/path).read_text(encoding='utf-8-sig')
 
 
+NATIVE_CACHE = r'''
+struct Cache {
+ std::vector<ID3D12Resource*> objects;size_t prior,nativePrior,bufferPrior,heapPrior;
+ ID3D12DescriptorHeap* logicalHeap=nullptr;
+ explicit Cache(Host& h):prior(FrameSurvey::gResources.size()),nativePrior(FrameSurvey::gNativeResources.Size()),bufferPrior(FrameSurvey::gNativeBuffers.Size()),heapPrior(FrameSurvey::gNativeHeaps.Size()){
+  objects.reserve(logicalRecords);
+  logicalHeap=reinterpret_cast<ID3D12DescriptorHeap*>(uintptr_t(0x400000000010ull));
+  auto heapBirth=NrdBridgeBirth::ObserveInstance(logicalHeap,0x100000000000ull+logicalRecords+1);
+  FrameSurvey::PreparedHeap hp;hp.object=logicalHeap;hp.cpu=0x600000000000ull;hp.increment=64;
+  hp.description.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;hp.description.NumDescriptors=UINT(logicalRecords+1);
+  need(heapBirth&&FrameSurvey::PublishHeapMetadata(hp,heapBirth),"synthetic heap POD stages actual native identity/range tables without COM");
+  auto heapOwner=FrameSurvey::gNativeHeaps.Find(logicalHeap);need(bool(heapOwner),"100k logical views have a native metadata heap owner");
+  for(size_t i=0;i<logicalRecords;++i){auto* object=reinterpret_cast<ID3D12Resource*>(uintptr_t(0x400000000000ull+(i+1)*65536));
+   FrameSurvey::PreparedResource p;p.object=object;p.description.Width=8192;p.description.Height=1;
+   p.description.DepthOrArraySize=p.description.MipLevels=1;p.description.SampleDesc.Count=1;
+   if(i%10==0){p.description.Dimension=D3D12_RESOURCE_DIMENSION_BUFFER;p.address=0x700000000000ull+(i+1)*65536;}
+   else{p.description.Dimension=D3D12_RESOURCE_DIMENSION_TEXTURE2D;p.description.Height=32;p.description.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;}
+   const auto birth=NrdBridgeBirth::ObserveInstance(object,0x100000000000ull+i+1);
+   need(birth&&FrameSurvey::PublishResourceMetadata(p,birth),"unique synthetic metadata record; never passed to COM");
+   auto resourceOwner=FrameSurvey::gNativeResources.Find(object);need(resourceOwner&&resourceOwner->birth==birth,"each logical resource occupies actual native identity table");
+   const uint64_t slot=0x600000000000ull+(i+1)*64;
+   FrameSurvey::ViewInfo view{object,resourceOwner->id,p.address?uint32_t(D3D12_DESCRIPTOR_RANGE_TYPE_CBV):uint32_t(D3D12_DESCRIPTOR_RANGE_TYPE_SRV),uint32_t(p.description.Format),0,!p.address};
+   view.descriptorCpu=slot;view.rootVa=p.address;view.constantBytes=p.address?1536:0;view.heapKnown=true;
+   view.descriptorHeap=uint64_t(reinterpret_cast<uintptr_t>(logicalHeap));view.resourceOwner=resourceOwner;view.heapOwner=heapOwner;
+   {FrameSurvey::NativeSnapshotShared snapshot;std::scoped_lock slotLock(FrameSurvey::gViewMutexes[FrameSurveyMetadata::DescriptorShard(slot)]);FrameSurvey::NativeReplaceView(view);}
+   _trackedResources.emplace(object,std::vector<TrackedResourceSlot>{});objects.push_back(object);
+  }
+  need(FrameSurvey::gResources.size()==prior+logicalRecords,"100k logical resources plus actual native objects live together");
+  need(!FrameSurvey::gRecording.load()&&!FrameSurvey::BindingWindow(),"normal hot path has no recorder and closed binding window");
+  need(rss()<2ull*1024*1024*1024,"registry fixture stays below2GB resident memory budget");
+  const auto hit=FrameSurvey::gBufferAddresses.Find(h.cbv.BufferLocation);need(hit.matches==1&&hit.object==h.buffer.Get(),"native CBV VA resolves amid100k logical records");
+  need(FrameSurvey::gNativeResources.Size()==nativePrior+logicalRecords&&FrameSurvey::gNativeBuffers.Size()==bufferPrior+logicalRecords/10&&FrameSurvey::gNativeHeaps.Size()==heapPrior+1,"actual native identity/VA/heap tables contain the full100k logical dataset");
+ }
+ ~Cache(){for(auto* object:objects){FrameSurvey::Released(object);_trackedResources.erase(object);}FrameSurvey::Released(logicalHeap);}
+};
+'''
+
 def run():
     parser = argparse.ArgumentParser()
     parser.add_argument('--baseline', action='store_true')
@@ -412,7 +499,7 @@ def run():
     if args.baseline:
         needle = 'std::recursive_mutex gLifetimeMutex, gRecordMutex;'
         assert source.count(needle) == 1
-        replacement = 'NrdBridgePerf::TimedMutex<std::recursive_mutex,NrdBridgePerf::WaitKind::Metadata> gLifetimeMutex;\nstd::recursive_mutex gRecordMutex;'
+        replacement = 'FrameSurveyMetadata::MetadataMutex<std::recursive_mutex,FrameSurveyMetadata::MetadataLock::CatalogExclusive> gLifetimeMutex;\nstd::recursive_mutex gRecordMutex;'
         source = source.replace(needle, replacement)
         assert source.replace(replacement, needle) == original
     surveyed = out/'FrameSurvey_measured.cpp'
@@ -421,6 +508,7 @@ def run():
     # descriptor heap, disable debug overhead and allow a real hardware adapter.
     cpp = native.CPP[:native.CPP.index('#if __INDEXED__\n// Opaque')]
     cpp = cpp.replace('#include <thread>', '#include <thread>\n#include <future>\n#define FSRD_NRD_BRIDGE_TEST\nbool gUseHardware=false;')
+    cpp = cpp.replace('#include "__SURVEY__"', '#include "resource_tracking/FrameSurveyConcurrentMetadata.h"\n#include "__SURVEY__"')
     cpp = cpp.replace('debug->EnableDebugLayer();', '(void)debug;')
     cpp = cpp.replace('hr(factory->EnumWarpAdapter(IID_PPV_ARGS(&warp)));', 'if(gUseHardware)hr(factory->EnumAdapters(0,&warp));else hr(factory->EnumWarpAdapter(IID_PPV_ARGS(&warp)));')
     cpp = cpp.replace('BeginCreationTracking(true)', 'BeginCreationTracking(false)').replace('hd.NumDescriptors=16', 'hd.NumDescriptors=65536')
@@ -428,8 +516,11 @@ def run():
 thread_local bool gMeasureOriginal=false;
 thread_local uint64_t gOriginalTicks=0;
 thread_local std::array<uint64_t,size_t(NrdBridgePerf::WaitKind::Count)> gLastWaits{};
+thread_local FrameSurveyMetadata::MetadataLockTicks gLastMetadataLocks{};
 struct PerCallWaitSnapshot {
- ~PerCallWaitSnapshot(){if(gMeasureOriginal&&NrdBridgePerf::Detail::currentWaits)gLastWaits=*NrdBridgePerf::Detail::currentWaits;}
+ FrameSurveyMetadata::MetadataLockTicks before{};
+ PerCallWaitSnapshot(){if(gMeasureOriginal&&NrdBridgePerf::Detail::currentWaits)before=FrameSurveyMetadata::ThreadMetadataLockTicks();}
+ ~PerCallWaitSnapshot(){if(gMeasureOriginal&&NrdBridgePerf::Detail::currentWaits){gLastWaits=*NrdBridgePerf::Detail::currentWaits;const auto after=FrameSurveyMetadata::ThreadMetadataLockTicks();for(size_t i=0;i<after.size();++i)gLastMetadataLocks[i]=after[i]-before[i];}}
 };
 struct OriginalForwardTimer {
  LARGE_INTEGER start{};bool active=false;
@@ -464,13 +555,26 @@ struct OriginalForwardTimer {
     if args.baseline:
         retirement = 'void* PrepareNativeRetirement() noexcept {std::terminate();} bool DetachNativeRetirement(void*,const NrdBridgeBirth::Token&) noexcept {std::terminate();} void NotifyNativeRetirement(void*) noexcept {std::terminate();}'
     adapter = adapter.replace('__NATIVE_RETIREMENT__', retirement).replace('__RELEASE__', measured_body(release)).replace('__HEAP_RELEASE__', measured_body(heap_release))
-    guard = 'std::scoped_lock copyWriter(FrameSurvey::gLifetimeMutex);' if args.baseline else 'std::shared_lock copyWriter(FrameSurvey::gLifetimeMutex);'
-    variant = 'baseline6edf-real-lease-paired' if args.baseline else 'born-real-lease-paired'
+    guard = 'std::scoped_lock copyWriter(FrameSurvey::gLifetimeMutex);' if args.baseline else 'FrameSurvey::NativeSnapshotShared copyWriter;'
+    if not args.baseline and 'NativeSnapshotShared' not in source:
+        guard = 'std::shared_lock copyWriter(FrameSurvey::gLifetimeMutex);'
+    variant = 'baseline6edf-real-lease-paired-locksplit' if args.baseline else 'native-pinned-metadata-paired-locksplit'
     driver = DRIVER
+    if not args.baseline:
+        cache_start = driver.index('struct Cache {')
+        cache_end = driver.index('struct WorkerPool {', cache_start)
+        driver = driver[:cache_start] + NATIVE_CACHE + driver[cache_end:]
+        driver = driver.replace('rows.push_back({{"logical_cache_insertion_ms",insertionMs},{"records",logicalRecords},{"views",logicalRecords}});',
+            'rows.push_back({{"logical_cache_insertion_ms",insertionMs},{"records",logicalRecords},{"views",logicalRecords},{"actual_native_resource_nodes",FrameSurvey::gNativeResources.Size()},{"actual_native_buffer_intervals",FrameSurvey::gNativeBuffers.Size()},{"actual_native_heap_nodes",FrameSurvey::gNativeHeaps.Size()},{"logical_native_views",logicalRecords}});')
+        driver = driver.replace('const auto object=cache.objects[i];const auto handle=0x600000000000ull+(i+1)*64;',
+            'const auto object=cache.objects[i];const auto handle=0x600000000000ull+(i+1)*64;need(FrameSurvey::NativeViewFresh(FrameSurvey::gViews.at(handle))&&FrameSurvey::gViews.at(handle).resourceOwner==FrameSurvey::gNativeResources.Find(object),"all100k logical native slot owners remain exact after concurrent native hooks");')
+        driver = driver.replace('need(FrameSurvey::gResources.size()==2,"synthetic teardown leaves only actual shared native buffer and texture");',
+            'need(FrameSurvey::gResources.size()==2,"synthetic teardown leaves only actual shared native buffer and texture");need(FrameSurvey::gNativeResources.Size()==2&&FrameSurvey::gNativeBuffers.Size()==1&&FrameSurvey::gNativeHeaps.Size()==1,"native synthetic teardown leaves only actual host metadata nodes");')
     if args.baseline:
         # The frozen catalog predates birth fields. Its original assertions stay;
         # the genuinely new SAMPLER identity fixture belongs only to the candidate.
         driver = driver.replace(function(driver, "void samplerNativeRegressions("), "void samplerNativeRegressions(Host&) {}")
+        driver = driver.replace(function(driver, "void nativeMetadataPendingReleaseRegressions("), "void nativeMetadataPendingReleaseRegressions(Host&) {}")
     cpp += adapter+driver.replace('__SHARED_COPY_GUARD__', guard).replace('__VARIANT__', variant).replace('__CANDIDATE__', 'false' if args.baseline else 'true').replace('__BORN__', 'false' if args.baseline else 'true')
     cpp = cpp.replace('__TRACE__', (ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp').as_posix()).replace('__SURVEY__', surveyed.as_posix()).replace('__INDEXED__', '1').replace('__HOOKS__', hooks)
     stubs = out/'stubs'
