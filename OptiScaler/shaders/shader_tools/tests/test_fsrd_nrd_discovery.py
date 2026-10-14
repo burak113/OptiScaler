@@ -191,6 +191,44 @@ J cpuTimings(ChainHost& c) {
  timings.push_back(measure("creation registry: PipelineCreated compute shader and root hashes",1000,[&]{FrameSurvey::PipelineCreated(c.pipelines[0].Get(),pd);}));
  return timings;
 }
+J descriptorMetadataTests(ChainHost& c) {
+ FrameSurvey::SetBindingWindow(false);
+ auto oldResource=c.h.texture(64,32,srv), newResource=c.h.texture(64,32,srv);
+ D3D12_SHADER_RESOURCE_VIEW_DESC view {}; view.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;
+ view.ViewDimension=D3D12_SRV_DIMENSION_TEXTURE2D; view.Texture2D.MipLevels=1; view.Shader4ComponentMapping=D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+ const auto source=D3D12_CPU_DESCRIPTOR_HANDLE {c.cpu.ptr+64ull*c.increment};
+ c.h.dev->CreateShaderResourceView(oldResource.Get(),&view,source); FrameSurvey::View(oldResource.Get(),source,&view);
+ const auto destinationCpu=D3D12_CPU_DESCRIPTOR_HANDLE {c.cpu.ptr+65ull*c.increment};
+ const auto chainedCpu=D3D12_CPU_DESCRIPTOR_HANDLE {c.cpu.ptr+66ull*c.increment};
+ const auto originalNew=D3D12_CPU_DESCRIPTOR_HANDLE {c.cpu.ptr+67ull*c.increment};
+ c.h.dev->CreateShaderResourceView(newResource.Get(),&view,originalNew); FrameSurvey::View(newResource.Get(),originalNew,&view);
+ const auto destinationGpu=D3D12_CPU_DESCRIPTOR_HANDLE {c.visible->GetCPUDescriptorHandleForHeapStart().ptr+64ull*c.increment};
+ auto copy=[&](D3D12_CPU_DESCRIPTOR_HANDLE destination,D3D12_CPU_DESCRIPTOR_HANDLE source) {
+  UINT n=1; c.h.dev->CopyDescriptors(1,&destination,&n,1,&source,&n,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+  FrameSurvey::CopyDescriptors(c.h.dev.Get(),1,&destination,&n,1,&source,&n,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+ };
+ copy(destinationCpu,source); copy(source,originalNew); copy(chainedCpu,source); copy(destinationGpu,chainedCpu);
+ FrameSurvey::SetBindingWindow(true);
+ FrameSurvey::ComputeBindings seed {c.root.Get(),{c.visible.Get()},{{1,{c.gpu.ptr+64ull*c.increment}}}};
+ need(FrameSurvey::SeedComputeBindings(c.h.list.Get(),seed),"borrowed compute state seeds reopened mirror");
+ auto table=c.table(1); need(table.size()==1 && table[0].resource==newResource.Get(),"closed-window CPU chain and direct CPU overwrite resolve current copied resource");
+ FrameSurvey::Released(oldResource.Get()); table=c.table(1);
+ need(table.size()==1 && table[0].resource==newResource.Get(),"release of overwritten old resource does not erase new descriptor ownership");
+ FrameSurvey::SetBindingWindow(false); FrameSurvey::SetBindingWindow(true); need(FrameSurvey::SeedComputeBindings(c.h.list.Get(),seed),"persistent table seeds a second window");
+ table=c.table(1); need(table.size()==1 && table[0].resource==newResource.Get(),"persistent shader-visible table survives window edges without recopy");
+ FrameSurvey::SetBindingWindow(false);
+ c.h.dev->CreateShaderResourceView(oldResource.Get(),&view,destinationGpu); FrameSurvey::View(oldResource.Get(),destinationGpu,&view);
+ copy(destinationGpu,originalNew); // Direct shader-visible view is overwritten while bindings are closed.
+ FrameSurvey::SetBindingWindow(true); need(FrameSurvey::SeedComputeBindings(c.h.list.Get(),seed),"direct-visible overwrite window seeded");
+ table=c.table(1); need(table.size()==1 && table[0].resource==newResource.Get(),"closed visible copy replaces old direct-visible metadata exactly");
+ FrameSurvey::SetBindingWindow(false); D3D12_CPU_DESCRIPTOR_HANDLE unknown {c.cpu.ptr+68ull*c.increment};
+ c.h.dev->CreateShaderResourceView(nullptr,&view,unknown); FrameSurvey::View(nullptr,unknown,&view); copy(destinationGpu,unknown);
+ FrameSurvey::SetBindingWindow(true); need(FrameSurvey::SeedComputeBindings(c.h.list.Get(),seed),"unknown-source tombstone window seeded");
+ table=c.table(1); need(table.empty(),"unknown/null source tombstones overwritten visible destination");
+ copy(destinationGpu,originalNew); FrameSurvey::Released(newResource.Get()); table=c.table(1);
+ need(table.empty(),"release of current copied resource invalidates every owned descriptor handle");
+ FrameSurvey::SetBindingWindow(false); return {{"cpu_chains",true},{"persistent_visible_tables",true},{"unknown_source_tombstones",true}};
+}
 J discoveryTests(Host& h) {
  ChainHost c(h); need(FrameSurvey::BindingWindow(),"initial binding window opens before title recording");
  // Loading can take thousands of Presents before the title dispatches any NRD shader.
@@ -290,7 +328,7 @@ J discoveryTests(Host& h) {
  NrdBridge::RegisterPipelineRoleForTesting(c.pipelines[UINT(Role::Recon)].Get(),Role::Recon);
  FrameSurvey::PipelineCreated(c.pipelines[UINT(Role::Recon)].Get(),D3D12_PIPELINE_STATE_STREAM_DESC {});
  need(!NrdBridge::gService->roles.contains(c.pipelines[UINT(Role::Recon)].Get()),"failed/no-CS stream creation erases an old PSO role");
- auto timings=cpuTimings(c); FrameSurvey::SetBindingWindow(true); c.begin();
+ auto metadata=descriptorMetadataTests(c); auto timings=cpuTimings(c); FrameSurvey::SetBindingWindow(true); c.begin();
  FrameSurvey::Released(c.visible.Get());
  need(!FrameSurvey::ResolveComputeTable(h.list.Get(),1,empty),"descriptor heap release invalidates bindings");
  FrameSurvey::SetBindingWindow(false); need(!FrameSurvey::ResolveComputeTable(h.list.Get(),1,empty),"closed binding window resolves no cached stale copies");
@@ -301,7 +339,7 @@ J discoveryTests(Host& h) {
   std::string altered(role.sha256); altered.back()=altered.back()=='0' ? '1' : '0';
   need(NrdBridge::IdentifyRole(altered)==Role::None,"same prefix with different full hash never identifies a role");
  }
- return {{"cpu_callback_timings",timings},{"conversion_stub_calls",convertCalls},{"rr_stub_calls",rrCalls},{"debug_stub_calls",debugCalls},
+ return {{"descriptor_metadata",metadata},{"cpu_callback_timings",timings},{"conversion_stub_calls",convertCalls},{"rr_stub_calls",rrCalls},{"debug_stub_calls",debugCalls},
   {"history_resets",{{"conversion",depthResets},{"rr",rrResets}}},{"restore_callback_calls",D3D12Hooks::restores}};
 }
 Bound manifestBinding(const J& row,const J& resource,UINT first) {
