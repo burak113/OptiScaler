@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <memory>
 #include <iterator>
+#include <limits>
 #include <mutex>
 #include <optional>
 #include <set>
@@ -42,11 +43,28 @@ class MetadataWait
         if (accumulator_) gMetadataLockTicks[size_t(kind_)] += (*accumulator_)[size_t(NrdBridgePerf::WaitKind::Metadata)]-before_;
     }
 };
+#ifdef FSRD_NRD_BRIDGE_TEST_HEAP_MASK
+// CPU-only deterministic pause/count seam. Native benchmark and production do
+// not compile this hook, so it adds no artificial timed convoy or hot branch.
+struct DescriptorLockTestHook
+{
+    void* state = nullptr;
+    void (*attempt)(void*,const void*) = nullptr;
+};
+inline thread_local DescriptorLockTestHook gDescriptorLockTestHook {};
+#endif
 template<class Mutex,MetadataLock Kind> class MetadataMutex
 {
     Mutex mutex_;
   public:
-    void lock() { MetadataWait wait(Kind); mutex_.lock(); }
+    void lock()
+    {
+#ifdef FSRD_NRD_BRIDGE_TEST_HEAP_MASK
+        if constexpr (Kind == MetadataLock::Descriptor)
+            if (gDescriptorLockTestHook.attempt) gDescriptorLockTestHook.attempt(gDescriptorLockTestHook.state,this);
+#endif
+        MetadataWait wait(Kind); mutex_.lock();
+    }
     bool try_lock() { MetadataWait wait(Kind); return mutex_.try_lock(); }
     void unlock() noexcept { mutex_.unlock(); }
 };
@@ -56,6 +74,42 @@ inline size_t DescriptorShard(uint64_t cpuHandle) noexcept
     const auto slot = (cpuHandle >> 4)*0x9e3779b97f4a7c15ull;
     return size_t(slot >> 59);
 }
+
+// Cold immutable bound for a native heap's legal descriptor positions. Never
+// derive this from populated reverse buckets: a prechecked writer may be pending.
+struct DescriptorShardMask
+{
+    std::array<uint64_t,(DescriptorShards+63)/64> words {};
+    bool Contains(size_t shard) const noexcept
+    { assert(shard < DescriptorShards); return (words[shard/64] & (uint64_t(1) << (shard%64))) != 0; }
+    static constexpr DescriptorShardMask All() noexcept
+    {
+        DescriptorShardMask result;
+        for (auto& word : result.words) word = std::numeric_limits<uint64_t>::max();
+        if constexpr (DescriptorShards%64) result.words.back() = (uint64_t(1) << (DescriptorShards%64))-1;
+        return result;
+    }
+    size_t Count() const noexcept
+    { size_t count = 0; for (size_t shard=0;shard<DescriptorShards;++shard) count += Contains(shard); return count; }
+    static DescriptorShardMask ForRange(uint64_t cpu,uint64_t count,uint64_t increment) noexcept
+    {
+        const auto all = All();
+        const auto maximum = std::numeric_limits<uint64_t>::max();
+        if (!cpu || !count || !increment || count > maximum/increment) return all;
+        const auto extent = count*increment;
+        if (cpu > maximum-(extent-1)) return all;
+        DescriptorShardMask result;
+        constexpr uint64_t slotCap = 1024;
+        const auto visited = count < slotCap ? count : slotCap;
+        for (uint64_t slot=0;slot<visited;++slot)
+        {
+            const auto shard = DescriptorShard(cpu+slot*increment);
+            result.words[shard/64] |= uint64_t(1) << (shard%64);
+            if (result.words == all.words) return result;
+        }
+        return visited < count ? all : result;
+    }
+};
 
 // Catalog readers can update independent descriptor shards concurrently. Catalog
 // writers drain all readers before resource/heap lifetime or recorder traversal.

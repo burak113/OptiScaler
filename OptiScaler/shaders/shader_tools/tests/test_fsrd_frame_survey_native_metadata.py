@@ -5,6 +5,7 @@ facade aborts if a cold native getter is accidentally required. Genuine native
 object forwarding, driver cost and GUID publication use the separate WARP fixture.
 """
 from pathlib import Path
+import argparse
 import test_fsrd_frame_survey_birth_metadata as legacy
 
 DRIVER = legacy.DRIVER
@@ -33,6 +34,74 @@ replace_once('need(NrdBridgeBirth::ConfigureActions({detach,identity,nullptr}),"
              'need(NrdBridgeNativeBirth::ConfigureRetirement(activeFactory,activeDetach,activeNotify)&&NrdBridgeNativeBirth::Ready(),"actual native dispatcher activates hot metadata with pure caller-owned effects");')
 replace_once('{NrdBridgeBirth::CurrentGuard guard(old);need(guard.Retire(),"actual current guard invokes pure FrameSurvey detach");}',
              '{NrdBridgeNativeBirth::RetirementScope retirement;need(retirement.Valid(),"actual native retirement TLS payload is installed before guard");NrdBridgeBirth::CurrentGuard guard(old);need(guard.Retire(),"actual current guard invokes pure FrameSurvey detach");}')
+
+MASK_EXTRA = r"""
+ // Immutable heap bounds: every legal position is included; remaining/invalid
+ // ranges conservatively require all shards. Opaque callbacks below are POD-only.
+ using Mask=FrameSurveyMetadata::DescriptorShardMask;
+ const auto shards=FrameSurveyMetadata::DescriptorShards;
+ need(Mask{}.Count()==0&&Mask::All().Count()==shards,"empty and full mask cover exactly the compiled shard domain");
+ const auto singleMask=Mask::ForRange(0x18000000,1,32);
+ need(singleMask.Count()==1&&singleMask.Contains(FrameSurveyMetadata::DescriptorShard(0x18000000)),"single legal position omits every unreachable shard");
+ for(const uint64_t count:std::array<uint64_t,5>{1,8,32,128,1024}){
+  const auto mask=Mask::ForRange(0x18100000,count,32);need(mask.Count()<=std::min<uint64_t>(count,shards),"finite legal range uses only its possible descriptor shards");
+  for(uint64_t slot=0;slot<count;++slot)need(mask.Contains(FrameSurveyMetadata::DescriptorShard(0x18100000+slot*32)),"every legal descriptor index is included");
+ }
+ need(Mask::ForRange(0x18200000,4096,1).Count()==shards,"remaining positions beyond cold1024 cap conservatively require all shards");
+ const auto maximum=std::numeric_limits<uint64_t>::max();
+ need(Mask::ForRange(maximum-31,2,32).Count()==shards&&Mask::ForRange(0x1000,maximum,32).Count()==shards,"address and extent overflow both require all shards");
+ need(Mask::ForRange(0,1,32).Count()==shards&&Mask::ForRange(0x1000,0,32).Count()==shards&&Mask::ForRange(0x1000,1,0).Count()==shards,"invalid zero CPU/count/increment conservatively require all shards");
+ need(FrameSurvey::HeapDescriptorShards(ph.cpu,32,ph.increment,D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER).Count()==0,"identity-only SAMPLER has no resource descriptor domain even at identical numeric CPU addresses");
+ need(FrameSurvey::HeapDescriptorShards(ph.cpu,1,ph.increment,D3D12_DESCRIPTOR_HEAP_TYPE_RTV).Count()==1&&FrameSurvey::HeapDescriptorShards(ph.cpu,1,ph.increment,D3D12_DESCRIPTOR_HEAP_TYPE_DSV).Count()==shards,"RTV legal positions are bounded; unsupported domains stay conservative");
+ FrameSurvey::NativeHeapNode fallbackNode;need(fallbackNode.legalDescriptorShards.Count()==shards,"unprepared native node fallback retains full coverage");
+ struct MaskLockState{std::array<unsigned,FrameSurveyMetadata::DescriptorShards> calls{};const void* watched=nullptr;std::promise<void>* reached=nullptr;bool signaled=false;};
+ const auto installMaskHook=[](MaskLockState& state){
+  FrameSurveyMetadata::gDescriptorLockTestHook={&state,+[](void* raw,const void* mutex){auto& value=*static_cast<MaskLockState*>(raw);for(size_t shard=0;shard<FrameSurveyMetadata::DescriptorShards;++shard)if(mutex==&FrameSurvey::gViewMutexes[shard])++value.calls[shard];if(mutex==value.watched&&value.reached&&!value.signaled){value.signaled=true;value.reached->set_value();}}};
+ };
+ auto* maskHeap=reinterpret_cast<ID3D12DescriptorHeap*>(uintptr_t(0x130000));auto maskBirth=born(maskHeap,301);
+ auto maskPrepared=heap(maskHeap);maskPrepared.cpu=0x18300000;maskPrepared.gpu=0x19300000;maskPrepared.description.NumDescriptors=1;
+ need(FrameSurvey::PublishHeapMetadata(maskPrepared,maskBirth),"prepared small heap publishes cold legal mask");
+ auto maskOwner=FrameSurvey::gNativeHeaps.Find(maskHeap);need(maskOwner&&maskOwner->legalDescriptorShards.Count()==1,"prepared native heap bound is immutable and exact");
+ FrameSurvey::View(t,{maskPrepared.cpu+1},&srv);need(!FrameSurvey::gViews.contains(maskPrepared.cpu+1)&&maskOwner->views->empty(),"misaligned metadata-only view never attaches an unreachable heap slot");
+ size_t unreachable=0;while(maskOwner->legalDescriptorShards.Contains(unreachable))++unreachable;
+ MaskLockState skippedState;FrameSurvey::RetirementEffects maskEffects;std::promise<void> skippedDone;auto skippedFuture=skippedDone.get_future();std::exception_ptr skippedError;std::jthread skippedWorker;bool skippedCompleted=false;
+ {
+  std::unique_lock unreachableLock(FrameSurvey::gViewMutexes[unreachable]);
+  skippedWorker=std::jthread([&]{try{installMaskHook(skippedState);retire(maskBirth,maskEffects);FrameSurveyMetadata::gDescriptorLockTestHook={};}catch(...){skippedError=std::current_exception();}skippedDone.set_value();});
+  skippedCompleted=skippedFuture.wait_for(std::chrono::seconds(1))==std::future_status::ready;
+ }
+ skippedWorker.join();if(skippedError)std::rethrow_exception(skippedError);
+ need(skippedCompleted,"empty heap retirement completes while an unreachable descriptor shard is held");
+ for(size_t shard=0;shard<shards;++shard)need(skippedState.calls[shard]==unsigned(maskOwner->legalDescriptorShards.Contains(shard)),"heap retirement visits exactly its legal immutable shard set");
+ // Actual View pauses AFTER liveness/range validation while its legal slot is
+ // held, BEFORE reverse insertion. Empty buckets must not bypass this lock.
+ auto* pendingHeap=reinterpret_cast<ID3D12DescriptorHeap*>(uintptr_t(0x140000));auto pendingBirth=born(pendingHeap,302);
+ auto pendingPrepared=heap(pendingHeap);pendingPrepared.cpu=0x18400000;pendingPrepared.gpu=0x19400000;pendingPrepared.description.NumDescriptors=1;
+ need(FrameSurvey::PublishHeapMetadata(pendingPrepared,pendingBirth),"pending-writer heap publication");auto pendingOwner=FrameSurvey::gNativeHeaps.Find(pendingHeap);
+ const auto reachable=FrameSurveyMetadata::DescriptorShard(pendingPrepared.cpu);
+ std::promise<void> publisherEntered,publisherResume,retireEntered,retireDone;auto publisherEnteredFuture=publisherEntered.get_future();auto resumeFuture=publisherResume.get_future().share();auto retireEnteredFuture=retireEntered.get_future(),retireDoneFuture=retireDone.get_future();
+ struct PublishPause{std::promise<void>* entered;std::shared_future<void>* resume;};PublishPause pause{&publisherEntered,&resumeFuture};
+ std::exception_ptr publisherError,retireError;FrameSurvey::RetirementEffects pendingEffects;MaskLockState pendingState;pendingState.watched=&FrameSurvey::gViewMutexes[reachable];pendingState.reached=&retireEntered;
+ std::jthread publisher([&]{try{FrameSurvey::gNativeViewPublishTestHook={&pause,+[](void* raw,const void*){auto& value=*static_cast<PublishPause*>(raw);value.entered->set_value();value.resume->wait();}};FrameSurvey::View(t,{pendingPrepared.cpu},&srv);FrameSurvey::gNativeViewPublishTestHook={};}catch(...){publisherError=std::current_exception();}});
+ const bool prechecked=publisherEnteredFuture.wait_for(std::chrono::seconds(1))==std::future_status::ready;
+ std::jthread retiring;bool attempted=false,blocked=false,emptyWhilePaused=false;
+ if(prechecked){
+  emptyWhilePaused=pendingOwner->views->empty();
+  retiring=std::jthread([&]{try{installMaskHook(pendingState);retire(pendingBirth,pendingEffects);FrameSurveyMetadata::gDescriptorLockTestHook={};}catch(...){retireError=std::current_exception();}retireDone.set_value();});
+  attempted=retireEnteredFuture.wait_for(std::chrono::seconds(1))==std::future_status::ready;
+  blocked=retireDoneFuture.wait_for(std::chrono::milliseconds(20))!=std::future_status::ready;
+ }
+ publisherResume.set_value();publisher.join();if(retiring.joinable())retiring.join();if(publisherError)std::rethrow_exception(publisherError);if(retireError)std::rethrow_exception(retireError);
+ need(prechecked&&emptyWhilePaused&&attempted&&blocked,"final retirement waits the reachable EMPTY shard while an actual validated View owns it before insertion");
+ need(!pendingBirth->Live()&&!FrameSurvey::gViews.contains(pendingPrepared.cpu)&&pendingOwner->views->empty()&&FrameSurvey::MetadataHealthy(),"paused late insertion is drained exactly and never resurrects a dead heap view");
+ for(size_t shard=0;shard<shards;++shard)need(pendingState.calls[shard]==unsigned(pendingOwner->legalDescriptorShards.Contains(shard)),"pending writer preserves exact legal-only retirement coverage");
+ // Resource descriptor addresses remain arbitrary: every shard must be drained.
+ auto* maskResource=reinterpret_cast<ID3D12Resource*>(uintptr_t(0x150000));auto maskResourceBirth=born(maskResource,303);auto maskResourcePrepared=pt;maskResourcePrepared.object=maskResource;
+ need(FrameSurvey::PublishResourceMetadata(maskResourcePrepared,maskResourceBirth),"arbitrary resource owner metadata publication");FrameSurvey::View(maskResource,{ph.cpu+40*ph.increment},&srv);FrameSurvey::View(maskResource,{ph.cpu+42*ph.increment},&srv);
+ MaskLockState resourceState;FrameSurvey::RetirementEffects resourceEffects;installMaskHook(resourceState);retire(maskResourceBirth,resourceEffects);FrameSurveyMetadata::gDescriptorLockTestHook={};
+ for(size_t shard=0;shard<shards;++shard)need(resourceState.calls[shard]==1,"resource retirement retains ALL descriptor-shard coverage regardless of occupied buckets");
+ need(!FrameSurvey::gViews.contains(ph.cpu+40*ph.increment)&&!FrameSurvey::gViews.contains(ph.cpu+42*ph.increment),"resource all-shard cleanup removes both exact owned views");
+"""
 
 EXTRA = r"""
  // All these callbacks execute the activated production fast path, never an
@@ -190,9 +259,12 @@ EXTRA = r"""
  FrameSurvey::BeginCreationTracking(false);FrameSurvey::SetBindingWindow(true);
  need(FrameSurvey::PublishResourceMetadata(pa,fresh)&&FrameSurvey::gNativeResources.Find(a)!=epochPinned,"restart publishes new metadata node for unchanged native instance birth");
 """
-replace_once(' // Failed metadata mutation under a guard is latched there and handled outside it.', EXTRA+'\n // Failed metadata mutation under a guard is latched there and handled outside it.')
+replace_once(' // Failed metadata mutation under a guard is latched there and handled outside it.', MASK_EXTRA+EXTRA+'\n // Failed metadata mutation under a guard is latched there and handled outside it.')
 replace_once('"source","actual_FrameSurvey_methods_with_actual_Birth_registry_metadata_emulation"',
              '"source","actual_native_active_FrameSurvey_methods_with_actual_Birth_dispatcher_metadata_emulation"')
 
 if __name__ == '__main__':
-    legacy.run(DRIVER, 'native-metadata-copy-noop-cpu.json', '#include <future>\n#define FSRD_NRD_BRIDGE_TEST\n')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--descriptor-shards', type=int, choices=(32,128), default=32)
+    args = parser.parse_args()
+    legacy.run(DRIVER, f'native-metadata-heap-mask{args.descriptor_shards}-cpu.json', '#include <future>\n#define FSRD_NRD_BRIDGE_TEST\n#define FSRD_NRD_BRIDGE_TEST_HEAP_MASK\n', descriptor_shards=args.descriptor_shards)

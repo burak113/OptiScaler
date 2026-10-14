@@ -141,12 +141,27 @@ int main(int argc,char** argv)try{
 '''
 
 
-def run(driver=DRIVER, report_name="birth-metadata-cpu.json", prelude=""):
+def run(driver=DRIVER, report_name="birth-metadata-cpu.json", prelude="", *, descriptor_shards=32):
     out = Path(os.environ['FSRD_GPU_TEST_OUTPUT'])
     out.mkdir(parents=True, exist_ok=True)
     cpp = prelude + native.CPP[:native.CPP.index('// The exact production hook bodies')]
     cpp = cpp.replace('__TRACE__', (ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp').as_posix())
-    cpp = cpp.replace('__SURVEY__', (ROOT/'OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp').as_posix()) + driver
+    assert descriptor_shards in (32,128)
+    survey_path = ROOT/'OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp'
+    metadata_original = (ROOT/'OptiScaler/resource_tracking/FrameSurveyConcurrentMetadata.h').read_text()
+    metadata_compiled = metadata_original
+    if descriptor_shards != 32:
+        assert metadata_compiled.count('inline constexpr size_t DescriptorShards = 32;') == 1
+        assert metadata_compiled.count('return size_t(slot >> 59);') == 1
+        metadata_compiled = metadata_compiled.replace('inline constexpr size_t DescriptorShards = 32;', 'inline constexpr size_t DescriptorShards = 128;').replace('return size_t(slot >> 59);', 'return size_t(slot >> 57);')
+        metadata_path = out/'FrameSurveyConcurrentMetadata.h'
+        metadata_path.write_text(metadata_compiled, encoding='utf-8')
+        survey_text = survey_path.read_text()
+        assert survey_text.count('#include "FrameSurveyConcurrentMetadata.h"') == 1
+        survey_text = survey_text.replace('#include "FrameSurveyConcurrentMetadata.h"', '#include "'+metadata_path.as_posix()+'"')
+        survey_path = out/'FrameSurvey_heap_mask_fixture.cpp'
+        survey_path.write_text(survey_text, encoding='utf-8')
+    cpp = cpp.replace('__SURVEY__', survey_path.as_posix()) + driver
     stubs = out/'stubs'
     for name in ('proxies', 'inputs'):
         (stubs/name).mkdir(parents=True, exist_ok=True)
@@ -164,6 +179,9 @@ def run(driver=DRIVER, report_name="birth-metadata-cpu.json", prelude=""):
     report = json.loads((out/'result.json').read_text())
     report['production_source_sha256'] = hashlib.sha256((ROOT/'OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp').read_bytes()).hexdigest()
     report['source_commit'] = subprocess.check_output(['git', 'log', '-1', '--format=%H'], cwd=ROOT, text=True).strip()
+    report['descriptor_shards'] = descriptor_shards
+    report['metadata_header_source_sha256'] = hashlib.sha256(metadata_original.encode()).hexdigest()
+    report['metadata_header_compiled_sha256'] = hashlib.sha256(metadata_compiled.encode()).hexdigest()
     directory = Path(os.environ.get('FSRD_TASK_REPORT_DIR', 'E:/FSRD/sol_batch/13a-lifetime'))
     directory.mkdir(parents=True, exist_ok=True)
     (directory/report_name).write_text(json.dumps(report, indent=2)+'\n')

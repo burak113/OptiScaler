@@ -574,7 +574,7 @@ int main(int argc,char** argv)try{
  hr(h.list->Close());releaseNativeHost(h);need(peakRss()<2ull*1024*1024*1024,"measured peak process working set below2GB");
  J result{{"variant","__VARIANT__"},{"profile",profile},{"adapter",gUseHardware?"hardware":"WARP"},{"checks",checks},{"rows",rows},
   {"gpu_dispatches",0},{"ExecuteCommandLists_calls",0},{"synthetic_objects_passed_to_com",false},{"logical_registry_records",logicalRecords},
-  {"descriptor_shards",FrameSurveyMetadata::DescriptorShards},{"descriptor_layout_bytes",{{"handles_per_owner",sizeof(FrameSurveyMetadata::DescriptorHandles)},{"owner_wrapper",sizeof(FrameSurveyMetadata::DescriptorHandleOwner)},{"global_slot_mutexes",sizeof(FrameSurvey::gViewMutexes)}}},{"peak_working_set_bytes",peakRss()},{"native_birth_mode",bornMode},{"Detours_installation_measured",false},{"lease_registry","actual production RecordedComputeLease, actual retirement counters and dispatcher"},{"scope","actual extracted native View/resource+heap Release hooks with explicit COM forwarding; live WARP/hardware pools;100k metadata-emulated resources/views; HUD/RR caches inactive; copy wrapper is native CopyDescriptorsSimple+actual FrameSurvey callback; profileON adds paired native QPC and profiler TLS snapshots; profileOFF has no inner QPC but disabled fixture measurement branches remain"}};
+  {"descriptor_shards",FrameSurveyMetadata::DescriptorShards},{"descriptor_layout_bytes",{{"handles_per_owner",sizeof(FrameSurveyMetadata::DescriptorHandles)},{"owner_wrapper",sizeof(FrameSurveyMetadata::DescriptorHandleOwner)},{"global_slot_mutexes",sizeof(FrameSurvey::gViewMutexes)},{"heap_legal_mask",sizeof(FrameSurveyMetadata::DescriptorShardMask)}}},{"peak_working_set_bytes",peakRss()},{"native_birth_mode",bornMode},{"Detours_installation_measured",false},{"lease_registry","actual production RecordedComputeLease, actual retirement counters and dispatcher"},{"scope","actual extracted native View/resource+heap Release hooks with explicit COM forwarding; live WARP/hardware pools;100k metadata-emulated resources/views; HUD/RR caches inactive; copy wrapper is native CopyDescriptorsSimple+actual FrameSurvey callback; profileON adds paired native QPC and profiler TLS snapshots; profileOFF has no inner QPC but disabled fixture measurement branches remain"}};
  std::ofstream(std::filesystem::path(argv[1])/(std::string("result-")+argv[2]+".json"))<<result.dump(2)<<'\n';std::cout<<result.dump()<<'\n';return 0;
 }catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}
 '''
@@ -720,6 +720,8 @@ struct OriginalForwardTimer {
     variant = 'baseline6edf-real-lease-paired-locksplit' if args.baseline else 'native-pinned-metadata-paired-locksplit'
     if not args.baseline and 'bool SameCopiedView(' in source:
         variant += '-copy-noop'
+    if 'HeapDescriptorShards(' in source:
+        variant += '-heap-mask'
     if args.descriptor_shards != 32:
         variant += f'-scratch{args.descriptor_shards}'
     driver = DRIVER
@@ -737,7 +739,7 @@ struct OriginalForwardTimer {
         driver = driver.replace('need(FrameSurvey::gResources.size()==2,"synthetic teardown leaves only actual shared native buffer and texture");',
             'need(FrameSurvey::gResources.size()==2,"synthetic teardown leaves only actual shared native buffer and texture");need(FrameSurvey::gNativeResources.Size()==2&&FrameSurvey::gNativeBuffers.Size()==1&&FrameSurvey::gNativeHeaps.Size()==1,"native synthetic teardown leaves only actual host metadata nodes");')
     if args.baseline:
-        driver = driver.replace('sizeof(FrameSurvey::gViewMutexes)', '0') # Frozen catalog has no slot mutex array.
+        driver = driver.replace('sizeof(FrameSurvey::gViewMutexes)', '0').replace('sizeof(FrameSurveyMetadata::DescriptorShardMask)', '0') # Frozen catalog has no slot mutex array.
         # The frozen catalog predates birth fields. Its original assertions stay;
         # the genuinely new SAMPLER identity fixture belongs only to the candidate.
         driver = driver.replace(function(driver, "void samplerNativeRegressions("), "void samplerNativeRegressions(Host&) {}")

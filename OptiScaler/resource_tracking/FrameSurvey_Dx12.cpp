@@ -144,6 +144,13 @@ struct NativeResourceNode
     NrdBridgeBirth::Token birth;
     std::shared_ptr<FrameSurveyMetadata::DescriptorHandles> handles;
 };
+FrameSurveyMetadata::DescriptorShardMask HeapDescriptorShards(uint64_t cpu,uint32_t count,uint32_t increment,uint32_t type) noexcept
+{
+    if (type == D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER) return {};
+    if (type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && type != D3D12_DESCRIPTOR_HEAP_TYPE_RTV)
+        return FrameSurveyMetadata::DescriptorShardMask::All();
+    return FrameSurveyMetadata::DescriptorShardMask::ForRange(cpu,count,increment);
+}
 struct NativeHeapNode
 {
     ID3D12DescriptorHeap* object = nullptr;
@@ -151,6 +158,9 @@ struct NativeHeapNode
     uint32_t count = 0, increment = 0, type = 0;
     NrdBridgeBirth::Token birth;
     std::shared_ptr<FrameSurveyMetadata::DescriptorHandles> views;
+    const FrameSurveyMetadata::DescriptorShardMask legalDescriptorShards;
+    explicit NativeHeapNode(FrameSurveyMetadata::DescriptorShardMask legal = FrameSurveyMetadata::DescriptorShardMask::All()) noexcept
+        : legalDescriptorShards(legal) {}
 };
 std::atomic<uint64_t> gNativeMetadataEpoch {1};
 uint64_t gNextNativeHeap = 0; // Cold publication, catalog exclusive.
@@ -374,8 +384,14 @@ void NativeEraseView(uint64_t handle)
     if (old.heapOwner && old.heapOwner->views) old.heapOwner->views->erase(handle);
     gViews.erase(found);
 }
+#ifdef FSRD_NRD_BRIDGE_TEST_HEAP_MASK
+thread_local FrameSurveyMetadata::DescriptorLockTestHook gNativeViewPublishTestHook {};
+#endif
 void NativeReplaceView(const ViewInfo& view)
 {
+#ifdef FSRD_NRD_BRIDGE_TEST_HEAP_MASK
+    if (gNativeViewPublishTestHook.attempt) gNativeViewPublishTestHook.attempt(gNativeViewPublishTestHook.state,&view);
+#endif
     const auto found = gViews.find(view.descriptorCpu);
     if (found != gViews.end() && SameView(found->second,view)) return;
     NativeEraseView(view.descriptorCpu);
@@ -543,7 +559,7 @@ void PublishNativeHeap(Heap& heap)
             throw std::logic_error("Native heap publication would replace another identity");
         return;
     }
-    auto node = std::make_shared<NativeHeapNode>();
+    auto node = std::make_shared<NativeHeapNode>(HeapDescriptorShards(heap.cpu,heap.count,heap.increment,heap.type));
     node->object = heap.object; node->id = ++gNextNativeHeap; node->epoch = epoch;
     node->cpu = heap.cpu; node->gpu = heap.gpu; node->count = heap.count; node->increment = heap.increment;
     node->type = heap.type; node->birth = heap.birth; node->views = heap.views.Share();
@@ -1308,62 +1324,64 @@ bool ResolveComputeBindings(ID3D12GraphicsCommandList* cmd, UINT parameter,
         !gMetadataHealthy.load(std::memory_order_acquire)) return false;
     try
     {
-        NativeSnapshotExclusive metadataSnapshot;
-        std::scoped_lock lock(gMirrorMutex,gLifetimeMutex); MetadataMutation mutation;
-        if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
-        const auto list = gMirror.find(cmd);
-        if (list == gMirror.end() || !list->second.compute.object || !MirrorAvailable(list->second,cmd)) return false;
-        const auto& root = list->second.compute;
-        const auto binding = root.tables.find(parameter);
-        if (binding == root.tables.end() || !binding->second) return false;
-        const auto layout = gRootLayouts.find(root.object);
-        if (layout == gRootLayouts.end() || !layout->second.complete || layout->second.birth != root.birth || !BirthAvailable(layout->second.birth,root.object) || !layout->second.computeVisibleTables.contains(parameter)) return false;
-        const auto table = layout->second.tables.find(parameter);
-        if (table == layout->second.tables.end()) return false;
-        for (size_t i=0;i<requests.size();++i)
-        {
-            const auto& request = requests[i];
-            if (request.kind > D3D12_DESCRIPTOR_RANGE_TYPE_CBV || !UniqueComputeMapping(table->second,request)) return false;
-            for (size_t j=0;j<i;++j)
-                if (requests[j].descriptorOffset == request.descriptorOffset ||
-                    (requests[j].kind == request.kind && requests[j].shaderRegister == request.shaderRegister &&
-                     requests[j].registerSpace == request.registerSpace)) return false;
-        }
-        const Heap* heap = nullptr;
-        for (const auto object : list->second.heaps)
-        {
-            const auto found = gHeaps.find(object);
-            if (found == gHeaps.end()) continue;
-            const auto& candidate = found->second;
-            const uint64_t base = binding->second;
-            if (candidate.type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || !candidate.gpu || !candidate.increment ||
-                base < candidate.gpu || base-candidate.gpu >= uint64_t(candidate.count)*candidate.increment ||
-                (base-candidate.gpu)%candidate.increment) continue;
-            if (heap) return false;
-            heap = &candidate;
-        }
-        if (!heap) return false;
-        const uint64_t first = (binding->second-heap->gpu)/heap->increment;
-        // Resolve only requested descriptors. Unused table length and missing tail views are irrelevant.
         std::array<BoundResource,8> resolved {};
-        for (size_t i=0;i<requests.size();++i)
         {
-            const auto& request = requests[i];
-            const uint64_t index = first+request.descriptorOffset;
-            if (index >= heap->count) return false;
-            const auto view = gViews.find(heap->cpu+index*heap->increment);
-            if (view == gViews.end() || view->second.kind != uint32_t(request.kind) || !FreshView(view->second,heap)) return false;
-            const auto resource = gResources.find(view->second.object);
-            if (resource == gResources.end() || resource->second.id != view->second.resource) return false;
-            if (request.kind == D3D12_DESCRIPTOR_RANGE_TYPE_CBV)
+            NativeSnapshotExclusive metadataSnapshot;
+            std::scoped_lock lock(gMirrorMutex,gLifetimeMutex); MetadataMutation mutation;
+            if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
+            const auto list = gMirror.find(cmd);
+            if (list == gMirror.end() || !list->second.compute.object || !MirrorAvailable(list->second,cmd)) return false;
+            const auto& root = list->second.compute;
+            const auto binding = root.tables.find(parameter);
+            if (binding == root.tables.end() || !binding->second) return false;
+            const auto layout = gRootLayouts.find(root.object);
+            if (layout == gRootLayouts.end() || !layout->second.complete || layout->second.birth != root.birth || !BirthAvailable(layout->second.birth,root.object) || !layout->second.computeVisibleTables.contains(parameter)) return false;
+            const auto table = layout->second.tables.find(parameter);
+            if (table == layout->second.tables.end()) return false;
+            for (size_t i=0;i<requests.size();++i)
             {
-                BoundConstantBuffer buffer;
-                if (!view->second.constantBytes || !ResolveBufferAddress(view->second.rootVa,view->second.constantBytes,view->second.constantBytes,buffer) ||
-                    buffer.resource != resource->first) return false;
+                const auto& request = requests[i];
+                if (request.kind > D3D12_DESCRIPTOR_RANGE_TYPE_CBV || !UniqueComputeMapping(table->second,request)) return false;
+                for (size_t j=0;j<i;++j)
+                    if (requests[j].descriptorOffset == request.descriptorOffset ||
+                        (requests[j].kind == request.kind && requests[j].shaderRegister == request.shaderRegister &&
+                         requests[j].registerSpace == request.registerSpace)) return false;
             }
-            else if (!view->second.snapshotSupported) return false;
-            resolved[i] = {resource->first,resource->second.desc,DXGI_FORMAT(view->second.format),request.kind,
-                request.descriptorOffset,UINT(index),view->second.subresource,resource->second.birth};
+            const Heap* heap = nullptr;
+            for (const auto object : list->second.heaps)
+            {
+                const auto found = gHeaps.find(object);
+                if (found == gHeaps.end()) continue;
+                const auto& candidate = found->second;
+                const uint64_t base = binding->second;
+                if (candidate.type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || !candidate.gpu || !candidate.increment ||
+                    base < candidate.gpu || base-candidate.gpu >= uint64_t(candidate.count)*candidate.increment ||
+                    (base-candidate.gpu)%candidate.increment) continue;
+                if (heap) return false;
+                heap = &candidate;
+            }
+            if (!heap) return false;
+            const uint64_t first = (binding->second-heap->gpu)/heap->increment;
+            // Resolve only requested descriptors. Unused table length and missing tail views are irrelevant.
+            for (size_t i=0;i<requests.size();++i)
+            {
+                const auto& request = requests[i];
+                const uint64_t index = first+request.descriptorOffset;
+                if (index >= heap->count) return false;
+                const auto view = gViews.find(heap->cpu+index*heap->increment);
+                if (view == gViews.end() || view->second.kind != uint32_t(request.kind) || !FreshView(view->second,heap)) return false;
+                const auto resource = gResources.find(view->second.object);
+                if (resource == gResources.end() || resource->second.id != view->second.resource) return false;
+                if (request.kind == D3D12_DESCRIPTOR_RANGE_TYPE_CBV)
+                {
+                    BoundConstantBuffer buffer;
+                    if (!view->second.constantBytes || !ResolveBufferAddress(view->second.rootVa,view->second.constantBytes,view->second.constantBytes,buffer) ||
+                        buffer.resource != resource->first) return false;
+                }
+                else if (!view->second.snapshotSupported) return false;
+                resolved[i] = {resource->first,resource->second.desc,DXGI_FORMAT(view->second.format),request.kind,
+                    request.descriptorOffset,UINT(index),view->second.subresource,resource->second.birth};
+            }
         }
         out.assign(resolved.begin(),resolved.begin()+requests.size()); return true;
     } catch (...) { MetadataFailed("Compute requested-binding allocation failed"); out.clear(); return false; }
@@ -1859,11 +1877,13 @@ bool DetachReleaseMetadata(const NrdBridgeBirth::Token& birth, RetirementEffects
         }
         if (native)
         {
-            const auto drain = [&](const std::shared_ptr<FrameSurveyMetadata::DescriptorHandles>& handles, const auto& matches)
+            const auto drain = [&](const std::shared_ptr<FrameSurveyMetadata::DescriptorHandles>& handles, const auto& matches,
+                const FrameSurveyMetadata::DescriptorShardMask* legalShards = nullptr)
             {
                 if (!handles) return;
                 for (size_t shard=0;shard<FrameSurveyMetadata::DescriptorShards;++shard)
                 {
+                    if (legalShards && !legalShards->Contains(shard)) continue;
                     std::scoped_lock slot(gViewMutexes[shard]); uint64_t handle=0;
                     while (handles->PopShard(shard,handle))
                     {
@@ -1880,10 +1900,12 @@ bool DetachReleaseMetadata(const NrdBridgeBirth::Token& birth, RetirementEffects
             });
             const auto heapHandles = detached.nativeHeap ? detached.nativeHeap->views :
                 detached.heap ? detached.heap.mapped().views.Share() : std::shared_ptr<FrameSurveyMetadata::DescriptorHandles>{};
+            // Resource owners above retain arbitrary-shard coverage. Only a
+            // prepared native heap supplies an immutable legal-address bound.
             drain(heapHandles,[&](const ViewInfo& view) {
                 return detached.nativeHeap ? view.heapOwner == detached.nativeHeap :
                     detached.heap && view.heapKnown && view.descriptorHeap == uint64_t(reinterpret_cast<uintptr_t>(detached.heap.key()));
-            });
+            },detached.nativeHeap ? &detached.nativeHeap->legalDescriptorShards : nullptr);
         }
         {
             std::scoped_lock mirrorLock(gMirrorMutex);
