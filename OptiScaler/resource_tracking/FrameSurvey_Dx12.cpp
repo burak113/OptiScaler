@@ -47,7 +47,7 @@ struct MetadataMutation
 #ifdef FSRD_NRD_BRIDGE_TEST
 std::atomic<int> gCopyFailureAfterForTesting {-1};
 std::atomic<bool> gViewFailureAfterReverseForTesting {false};
-std::atomic<uint64_t> gCopyViewSnapshotsForTesting {0};
+thread_local uint64_t gCopyViewSnapshotsForTesting = 0;
 #endif
 std::atomic<PipelineObserver> gPipelineObserver {nullptr};
 std::atomic<ReleaseObserver> gReleaseObserver {nullptr};

@@ -75,10 +75,10 @@ EXTRA = r"""
  FrameSurvey::View(aliasDestination,static_cast<const D3D12_CONSTANT_BUFFER_VIEW_DESC*>(nullptr));FrameSurvey::gCopyViewSnapshotsForTesting=0;
  FrameSurvey::NativeCopyDescriptors(ph.increment,1,&aliasDestination,nullptr,1,&aliasSource,nullptr,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
  for(unsigned repeat=0;repeat<8;++repeat)FrameSurvey::NativeCopyDescriptors(ph.increment,1,&aliasDestination,nullptr,1,&aliasSource,nullptr,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
- need(FrameSurvey::gCopyViewSnapshotsForTesting.load()==1,"identical repeated native copies avoid temporary shared metadata pin traffic");
+ need(FrameSurvey::gCopyViewSnapshotsForTesting==1,"identical repeated native copies avoid temporary shared metadata pin traffic");
  auto changedCbv=cv;changedCbv.BufferLocation+=256;changedCbv.SizeInBytes+=256;FrameSurvey::View(aliasSource,&changedCbv);
  FrameSurvey::NativeCopyDescriptors(ph.increment,1,&aliasDestination,nullptr,1,&aliasSource,nullptr,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
- need(FrameSurvey::gViews.at(aliasDestination.ptr).rootVa==changedCbv.BufferLocation&&FrameSurvey::gViews.at(aliasDestination.ptr).constantBytes==changedCbv.SizeInBytes&&FrameSurvey::gCopyViewSnapshotsForTesting.load()==2,"changed actual CBV declaration replaces destination rather than incorrectly eliding copy");
+ need(FrameSurvey::gViews.at(aliasDestination.ptr).rootVa==changedCbv.BufferLocation&&FrameSurvey::gViews.at(aliasDestination.ptr).constantBytes==changedCbv.SizeInBytes&&FrameSurvey::gCopyViewSnapshotsForTesting==2,"changed actual CBV declaration replaces destination rather than incorrectly eliding copy");
  FrameSurvey::View(aliasSource,&cv);FrameSurvey::NativeCopyDescriptors(ph.increment,1,&aliasDestination,nullptr,1,&aliasSource,nullptr,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
  // Finite prepared root allows the original finite proof API too; the actual
  // slot/buffer resolver must still wait for snapshot EX during this control.
