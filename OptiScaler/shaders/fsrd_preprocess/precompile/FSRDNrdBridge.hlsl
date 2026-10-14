@@ -1,5 +1,5 @@
-// Cyberpunk NRD inputs are already demodulated. Preserve their RGB and world-unit
-// hit distances; white albedos tell RR that no further demodulation is required.
+// Cyberpunk NRD inputs are already demodulated. Preserve RGB and their native
+// hit-distance metric; white albedos require no further demodulation.
 #include "FSRDPreprocessCommon.hlsli"
 #include "FSRDNrdMotionCommon.hlsli"
 
@@ -47,6 +47,13 @@ float3 SafeRadiance(float3 value)
                   isfinite(value.z) ? max(value.z, 0.0f) : 0.0f);
 }
 
+float SafeSignalAlpha(float value)
+{
+    // Zero is active/finite. Preserve every finite native value, including
+    // negative inactive sentinels; malformed NaN/Inf must never reach RR1.2.
+    return isfinite(value) ? value : 0.0f;
+}
+
 [RootSignature(MainRS)]
 [numthreads(8, 8, 1)]
 void CSMain(uint3 tid : SV_DispatchThreadID)
@@ -55,8 +62,8 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
     if (any(p >= RenderSize)) return;
     const float4 spec = InReconSpec[p];
     const float4 diff = InReconDiff[p];
-    OutSpec[p] = float4(SafeRadiance(spec.rgb), spec.a);
-    OutDiff[p] = float4(SafeRadiance(diff.rgb), diff.a);
+    OutSpec[p] = float4(SafeRadiance(spec.rgb), SafeSignalAlpha(spec.a));
+    OutDiff[p] = float4(SafeRadiance(diff.rgb), SafeSignalAlpha(diff.a));
 
     const float rawDepth = InViewDepth[p];
     const float depth = DepthSign * (isfinite(rawDepth)

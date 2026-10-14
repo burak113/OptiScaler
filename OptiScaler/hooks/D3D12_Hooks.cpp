@@ -2563,8 +2563,18 @@ bool D3D12Hooks::GetComputeBindingsForBridge(ID3D12GraphicsCommandList* list, Fr
             current.heaps.push_back(boundHeaps->second.Heaps[i]);
         }
         for (UINT i = 0; i < arguments->second.size(); ++i)
-            if (arguments->second[i].type == RootEntryType::Table && arguments->second[i].rootDescriptorTable.ptr)
-                current.tables.emplace_back(i, arguments->second[i].rootDescriptorTable);
+        {
+            const auto& argument = arguments->second[i];
+            if (argument.type == RootEntryType::Table && argument.rootDescriptorTable.ptr)
+                current.tables.emplace_back(i, argument.rootDescriptorTable);
+            else if (argument.bufferLocation && (argument.type == RootEntryType::CBV ||
+                argument.type == RootEntryType::SRV || argument.type == RootEntryType::UAV))
+            {
+                const auto kind = argument.type == RootEntryType::CBV ? D3D12_DESCRIPTOR_RANGE_TYPE_CBV :
+                    argument.type == RootEntryType::SRV ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+                current.views.push_back({i,kind,argument.bufferLocation});
+            }
+        }
         out = std::move(current);
         return true;
     }

@@ -38,7 +38,7 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* cmd,const ConversionInp
 }
 __MOTION_STUB__
 bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList*,const ConvertedResources&,ID3D12Resource*,
-                               ID3D12Resource*,DebugMode,std::string&,const OutputCommitGuard& guard) {
+                               ID3D12Resource*,DebugMode,std::string&,const OutputCommitGuard& guard,SignalEncoding,const TitleSignalConstants&) {
  ++debugCalls; return !guard.admit || guard.admit(guard.state,+[](void*) noexcept {},nullptr); }
 void ConversionPass::ResetHistory() noexcept { ++depthResets; }
 uint64_t ConversionPass::OwnedTextureBytes() const noexcept { return 0; }
@@ -77,6 +77,7 @@ struct ChainHost {
  Host& h; ComPtr<ID3D12RootSignature> root;
  std::array<ComPtr<ID3D12PipelineState>,11> pipelines;
  ComPtr<ID3D12DescriptorHeap> staging, visible;
+ ComPtr<ID3D12Resource> consumerConstants;
  std::array<ComPtr<ID3D12Resource>,13> textures;
  UINT increment=0;
  D3D12_CPU_DESCRIPTOR_HANDLE cpu {}; D3D12_GPU_DESCRIPTOR_HANDLE gpu {};
@@ -98,6 +99,7 @@ struct ChainHost {
   for(UINT i=0;i<6;++i) { params[i].ParameterType=D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS; params[i].Constants={i,0,1}; }
   params[1].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE; params[1].DescriptorTable={1,&ranges[0]};
   params[5].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE; params[5].DescriptorTable={1,&ranges[1]};
+  params[2].ParameterType=D3D12_ROOT_PARAMETER_TYPE_CBV; params[2].Descriptor={6,0};
   D3D12_ROOT_SIGNATURE_DESC desc {6,params,0,nullptr,D3D12_ROOT_SIGNATURE_FLAG_NONE};
   ComPtr<ID3DBlob> blob,error; hr(D3D12SerializeRootSignature(&desc,D3D_ROOT_SIGNATURE_VERSION_1,&blob,&error));
   hr(h.dev->CreateRootSignature(0,blob->GetBufferPointer(),blob->GetBufferSize(),IID_PPV_ARGS(&root)));
@@ -117,6 +119,9 @@ struct ChainHost {
    hr(h.dev->CreateCommittedResource(&hp,D3D12_HEAP_FLAG_NONE,&desc,state,nullptr,IID_PPV_ARGS(&textures[i])));
    FrameSurvey::ResourceCreated(textures[i].Get(),state);
   }
+  auto cbDesc=CD3DX12_RESOURCE_DESC::Buffer(1536); D3D12_HEAP_PROPERTIES cbHeap {}; cbHeap.Type=D3D12_HEAP_TYPE_UPLOAD;
+  hr(h.dev->CreateCommittedResource(&cbHeap,D3D12_HEAP_FLAG_NONE,&cbDesc,D3D12_RESOURCE_STATE_GENERIC_READ,nullptr,IID_PPV_ARGS(&consumerConstants)));
+  FrameSurvey::ResourceCreated(consumerConstants.Get(),D3D12_RESOURCE_STATE_GENERIC_READ);
   D3D12_DESCRIPTOR_HEAP_DESC hd {}; hd.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; hd.NumDescriptors=128;
   hr(h.dev->CreateDescriptorHeap(&hd,IID_PPV_ARGS(&staging))); FrameSurvey::HeapCreated(h.dev.Get(),staging.Get());
   hd.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -147,11 +152,14 @@ struct ChainHost {
   FrameSurvey::CopyDescriptors(h.dev.Get(),1,&dst,&n,1,&cpu,&n,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
  }
  void begin(bool copyDescriptors=true) {
-  FrameSurvey::Reset(h.list.Get(),nullptr); NrdBridge::OnReset(h.list.Get(),nullptr);
+  FrameSurvey::Reset(h.list.Get(),nullptr); NrdBridge::OnReset(h.list.Get(),nullptr); ResTrack_Dx12::ResetForTesting(h.list.Get());
   D3D12Hooks::current = {}; D3D12Hooks::current.root=root.Get(); D3D12Hooks::current.heaps={visible.Get()};
   h.list->SetComputeRootSignature(root.Get()); FrameSurvey::RootBinding(h.list.Get(),false,root.Get());
   ID3D12DescriptorHeap* heap=visible.Get(); h.list->SetDescriptorHeaps(1,&heap); FrameSurvey::DescriptorHeaps(h.list.Get(),1,&heap);
-  for(UINT i : {0u,2u,3u,4u}) h.list->SetComputeRoot32BitConstant(i,0,0);
+  for(UINT i : {0u,3u,4u}) h.list->SetComputeRoot32BitConstant(i,0,0);
+  const auto cb=consumerConstants->GetGPUVirtualAddress(); h.list->SetComputeRootConstantBufferView(2,cb);
+  FrameSurvey::RootView(h.list.Get(),false,2,D3D12_DESCRIPTOR_RANGE_TYPE_CBV,cb);
+  D3D12Hooks::current.views={{2,D3D12_DESCRIPTOR_RANGE_TYPE_CBV,cb}};
   if(copyDescriptors) copy();
  }
  void bind(UINT parameter,UINT index) {
@@ -553,7 +561,7 @@ int main(int argc,char** argv) try {
  if(argc==3 && std::string(argv[1])=="--replay") { std::cout<<replayManifest(argv[2]).dump()<<'\n'; return 0; }
  need(argc==2,"scratch directory argument"); g_dllPath=std::filesystem::path(argv[1])/"fixture.dll";
  Host host; auto result=discoveryTests(host); result["checks_passed"]=checks; result["adapter"]=host.adapter;
- result["scope"]="real D3D12 registry, binding-window resolution and coordinator; conversion/RR/state-restore callback stubs";
+ result["scope"]="real D3D12 registry, binding-window resolution and coordinator; conversion/RR/state-restore callback stubs; typed submission publication is a CPU counter adapter without a GPU fence";
  std::ofstream(std::filesystem::path(argv[1])/"host-result.json")<<result.dump(2)<<'\n'; std::cout<<result.dump()<<'\n'; return 0;
 } catch(const std::exception& error) { std::cerr<<error.what()<<'\n'; return 1; }
 '''
@@ -572,7 +580,7 @@ def run():
     (stubs / 'hooks/Streamline_Hooks.h').write_text('#pragma once\n#include <sl_consts.h>\nstruct SLConstantsSnapshot { sl::Constants constants {}; uint32_t frameIndex=UINT32_MAX, viewport=UINT32_MAX; };\nstruct StreamlineHooks { inline static uint32_t frame=0; static SLConstantsSnapshot getSLConstantsSnapshot() { SLConstantsSnapshot result; result.frameIndex=frame; return result; } };\n')
     (stubs / 'inputs/NVNGX_DLSS.h').write_text('#pragma once\n#include <nvsdk_ngx.h>\n')
     (stubs / 'proxies/D3D12_Proxy.h').write_text('#pragma once\n#include <d3d12.h>\nnamespace D3d12Proxy { inline auto D3D12CreateVersionedRootSignatureDeserializer_() { return &D3D12CreateVersionedRootSignatureDeserializer; } inline auto D3D12SerializeVersionedRootSignature_() { return &D3D12SerializeVersionedRootSignature; } }\n')
-    (stubs / 'resource_tracking/ResTrack_dx12.h').write_text('#pragma once\n#include <functional>\n#include <unordered_map>\nstruct ResTrack_Dx12 { struct Lease { std::shared_ptr<void> payload; std::function<void(ID3D12CommandQueue*)> callback; }; inline static std::unordered_map<ID3D12GraphicsCommandList*,std::vector<Lease>> leases; inline static bool retentionAvailable=true; static bool RetainComputeDispatch(ID3D12Device*,ID3D12GraphicsCommandList* list,const std::shared_ptr<void>& payload,std::function<void(ID3D12CommandQueue*)> callback={}) { if(!retentionAvailable) return false; leases[list].push_back({payload,std::move(callback)}); return true; } static void SubmitForTesting(ID3D12GraphicsCommandList* list) { for(auto& lease:leases[list]) if(lease.callback) lease.callback(nullptr); } };\n')
+    (stubs / 'resource_tracking/ResTrack_dx12.h').write_text('#pragma once\n#include <functional>\n#include <unordered_map>\n#include "misc/RecordedComputeLease_Dx12.h"\nstruct ResTrack_Dx12 { struct Lease { std::shared_ptr<void> payload; std::function<void(ID3D12CommandQueue*)> callback; RecordedComputeLease::SubmissionCallbacks typed; uint64_t ordinal=0; }; inline static std::unordered_map<ID3D12GraphicsCommandList*,std::vector<Lease>> leases; inline static bool retentionAvailable=true; static bool RetainComputeDispatch(ID3D12Device*,ID3D12GraphicsCommandList* list,const std::shared_ptr<void>& payload,std::function<void(ID3D12CommandQueue*)> callback={},RecordedComputeLease::SubmissionCallbacks typed={}) { if(!retentionAvailable) return false; leases[list].push_back({payload,std::move(callback),std::move(typed),0}); return true; } static void ResetForTesting(ID3D12GraphicsCommandList* list) { leases.erase(list); } static void SubmitForTesting(ID3D12GraphicsCommandList* list) { for(auto& lease:leases[list]) { RecordedComputeLease::SubmissionInfo info {nullptr,1,1,++lease.ordinal,false}; if(lease.callback) lease.callback(nullptr); if(lease.typed.beforeSubmit) lease.typed.beforeSubmit(info); if(lease.typed.fencePublished) lease.typed.fencePublished(info,{}); } } };\n')
     host = '#define FSRD_NRD_BRIDGE_TEST\n' + survey_fixture.CPP.split('// GetStatus()')[0]
     rr_header = (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h').read_text()
     camera_stub = 'const std::string& RRWrapper::CameraConventionDescription() const noexcept { static const std::string text; return text; }' if 'CameraConventionDescription' in rr_header else ''

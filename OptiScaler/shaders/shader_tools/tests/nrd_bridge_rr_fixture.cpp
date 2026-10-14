@@ -24,7 +24,7 @@ static unsigned checks = 0;
 void need(bool value, const char* text) { ++checks; if (!value) throw std::runtime_error(text); }
 void hr(HRESULT code) { if (FAILED(code)) throw std::runtime_error("D3D12 call failed: " + std::to_string(uint32_t(code))); }
 bool near(float a, float b) { return std::abs(a-b) < 1.e-5f; }
-SLConstantsSnapshot camera(uint32_t frame = 100, float aspect = 4.f/3.f)
+SLConstantsSnapshot camera(uint32_t frame = 100, float aspect = 4.f/3.f, float nearPlane = .01f)
 {
     SLConstantsSnapshot snapshot;
     snapshot.frameIndex = frame;
@@ -33,12 +33,12 @@ SLConstantsSnapshot camera(uint32_t frame = 100, float aspect = 4.f/3.f)
     c.cameraViewToClip[0] = sl::float4(y/aspect,0,0,0);
     c.cameraViewToClip[1] = sl::float4(0,y,0,0);
     c.cameraViewToClip[2] = sl::float4(0,0,0,-1);
-    c.cameraViewToClip[3] = sl::float4(0,0,.01f,0);
+    c.cameraViewToClip[3] = sl::float4(0,0,nearPlane,0);
     c.cameraPos = sl::float3(0,0,0);
     c.cameraRight = sl::float3(1,0,0);
     c.cameraUp = sl::float3(0,1,0);
     c.cameraFwd = sl::float3(0,0,-1);
-    c.cameraNear = .01f; c.cameraFar = 0; c.cameraFOV = XM_PI/3.f; c.cameraAspectRatio = aspect;
+    c.cameraNear = nearPlane; c.cameraFar = 0; c.cameraFOV = XM_PI/3.f; c.cameraAspectRatio = aspect;
     c.mvecScale = sl::float2(.5f,.25f); c.jitterOffset = sl::float2(.25f,-.125f);
     c.depthInverted = sl::Boolean::eTrue; c.reset = sl::Boolean::eFalse;
     c.cameraMotionIncluded = sl::Boolean::eTrue; c.motionVectors3D = sl::Boolean::eFalse;
@@ -202,7 +202,7 @@ void ClearPair(ID3D12GraphicsCommandList* list, ID3D12Resource* spec, ID3D12Reso
 }
 void RecordTestProviderWrites(ID3D12GraphicsCommandList* list, ID3D12Resource* spec, ID3D12Resource* diff)
 {
-    ClearPair(list,spec,diff,{2.5f,3.75f,4.25f,5.5f},{6.5f,7.75f,8.25f,9.5f});
+    ClearPair(list,spec,diff,FfxApiProxy::mockSpec,FfxApiProxy::mockDiff);
 }
 struct Scene
 {
@@ -210,7 +210,7 @@ struct Scene
     std::array<ComPtr<ID3D12Resource>,9> textures;
     std::vector<ComPtr<ID3D12Resource>> uploads;
     uint32_t width,height;
-    Scene(Host& host,uint32_t w,uint32_t h,const std::filesystem::path& files={}) : width(w),height(h)
+    Scene(Host& host,uint32_t w,uint32_t h,const std::filesystem::path& files={},bool asymmetric=false) : width(w),height(h)
     {
         resources.width=w;resources.height=h;
         const std::array<DXGI_FORMAT,9> formats{DXGI_FORMAT_R16G16B16A16_FLOAT,DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -239,7 +239,7 @@ struct Scene
                 {
                     auto* value=reinterpret_cast<uint16_t*>(data.data()+p*bpp);
                     const float noise=((p*17+13)%11)/1000.f;
-                    for(unsigned c=0;c<3;++c)value[c]=PackedVector::XMConvertFloatToHalf((i==0?.02f:.1f)+noise);
+                    for(unsigned c=0;c<3;++c)value[c]=PackedVector::XMConvertFloatToHalf((i==0?.02f:.1f)*(asymmetric?std::array<float,3>{1.f,2.7f,.35f}[c]:1.f)+noise);
                     value[3]=PackedVector::XMConvertFloatToHalf(5.f);
                 }
                 else if(i==2)*reinterpret_cast<float*>(data.data()+p*bpp)=-10.f;
@@ -455,6 +455,38 @@ struct Readback
         bufferResource->Unmap(0,nullptr);
         need(matched==uint64_t(width)*height*4,"transactional output must preserve exact RGBA bytes");
     }
+    std::vector<uint16_t> values(uint32_t width,uint32_t height)
+    {
+        uint8_t* data;hr(bufferResource->Map(0,nullptr,reinterpret_cast<void**>(&data)));
+        std::vector<uint16_t> result(size_t(width)*height*4);
+        for(uint32_t y=0;y<height;++y)std::memcpy(result.data()+size_t(y)*width*4,
+            data+footprint.Offset+y*footprint.Footprint.RowPitch,size_t(width)*8);
+        bufferResource->Unmap(0,nullptr);return result;
+    }
+    void consumerRoundtrip(Readback& staged,uint32_t width,uint32_t height,bool encoded,float nativeAlpha)
+    {
+        const auto output=values(width,height),source=staged.values(width,height);
+        uint64_t finite=0,sourceFinite=0,alphas=0,within=0,exactRgb=0,chroma=0;
+        for(size_t p=0;p<size_t(width)*height;++p)
+        {
+            std::array<float,3> color,original;
+            for(unsigned c=0;c<3;++c){color[c]=PackedVector::XMConvertHalfToFloat(output[p*4+c]);
+                original[c]=PackedVector::XMConvertHalfToFloat(source[p*4+c]);finite+=std::isfinite(color[c]);
+                sourceFinite+=std::isfinite(original[c]);exactRgb+=output[p*4+c]==source[p*4+c];}
+            const float bound=(std::abs(color[0])+std::abs(color[1])+std::abs(color[2]))*std::ldexp(1.f,-11)+3*std::ldexp(1.f,-25);
+            const auto decoded=encoded?std::array<float,3>{std::max(color[0]-color[2]+color[1],0.f),
+                std::max(color[0]+color[2],0.f),std::max(color[0]-color[2]-color[1],0.f)}:color;
+            for(unsigned c=0;c<3;++c)within+=std::abs(decoded[c]-(encoded?std::max(original[c],0.f):original[c]))<=bound*1.01f;
+            chroma+=encoded && color[1]!=0.f && color[2]!=0.f;
+            alphas+=output[p*4+3]==PackedVector::XMConvertFloatToHalf(nativeAlpha);
+        }
+        need(finite==uint64_t(width)*height*3,"encoded title RGB finite");
+        need(sourceFinite==uint64_t(width)*height*3,"actual RR staged RGB finite before encoding");
+        need(alphas==uint64_t(width)*height,"encoding preserves every native title alpha byte");
+        need(within==uint64_t(width)*height*3,"exact Consumer inverse roundtrip within FP16 rounding bound");
+        if(!encoded)need(exactRgb==uint64_t(width)*height*3,"native flag zero bypasses fallback encoding with exact RR RGB");
+        else need(chroma>0,"asymmetric codec test must exercise both nonzero chroma channels");
+    }
 };
 void partialFailureChecks(Host& host)
 {
@@ -493,6 +525,134 @@ struct CommitProbe
         action(prepared);++probe.actions;return true;
     }
 };
+struct ConsumerBuffer
+{
+    ComPtr<ID3D12Resource> upload, binding;
+    UINT64 offset=0;
+    ConsumerBuffer(Host& host,bool defaultHeap=false,UINT64 byteOffset=0) : offset(byteOffset)
+    {
+        upload=buffer(host.device.Get(),1536,D3D12_HEAP_TYPE_UPLOAD);
+        void* mapped=nullptr;hr(upload->Map(0,nullptr,&mapped));std::memset(mapped,0,1536);upload->Unmap(0,nullptr);
+        if(defaultHeap)
+        {
+            binding=buffer(host.device.Get(),1536,D3D12_HEAP_TYPE_DEFAULT);
+            host.list->CopyBufferRegion(binding.Get(),0,upload.Get(),0,1536);
+            barrier(host.list.Get(),binding.Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+            D3D12_HEAP_PROPERTIES heap{};hr(binding->GetHeapProperties(&heap,nullptr));
+            need(heap.Type==D3D12_HEAP_TYPE_DEFAULT,"native default-heap CBV test is not an upload buffer");
+        }
+        else binding=upload;
+    }
+    TitleSignalConstants constants(){return {binding.Get(),binding->GetGPUVirtualAddress()+offset};}
+    void flag(uint32_t bits)
+    {
+        uint32_t* mapped=nullptr;hr(upload->Map(0,nullptr,reinterpret_cast<void**>(&mapped)));
+        mapped[offset/4+303]=bits;upload->Unmap(0,nullptr);
+    }
+    ULONG references(){const auto value=binding->AddRef();binding->Release();return value-1;}
+};
+void encodingValidationChecks(Host& host)
+{
+    Scene scene(host,FfxApiProxy::real?1505u:64u,FfxApiProxy::real?847u:64u);host.submit();host.reset();
+    ConsumerBuffer native(host);RRWrapper wrapper;FrameParameters frame;std::string error;
+    need(wrapper.PrepareFrame(camera(420),false,frame,error),"prepare native encoding validation");
+    const auto creates=FfxApiProxy::creates,dispatches=FfxApiProxy::dispatches;
+    frame.outputEncoding=static_cast<SignalEncoding>(2);
+    need(!wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),"invalid encoding enum fails closed");
+    frame.outputEncoding=SignalEncoding::Rgb;
+    const auto address=native.constants().address;
+    for(const auto& constants:{TitleSignalConstants{native.binding.Get(),0},TitleSignalConstants{nullptr,address},
+        TitleSignalConstants{native.binding.Get(),address+1},TitleSignalConstants{native.binding.Get(),address+512},
+        TitleSignalConstants{scene.spec(),address}})
+    {
+        frame.outputConstants=constants;
+        need(!wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),"invalid native CBV fails closed");
+        need(!error.empty(),"invalid CBV reports concrete reason");
+    }
+    ComPtr<IDXGIFactory4> foreignFactory;hr(CreateDXGIFactory1(IID_PPV_ARGS(&foreignFactory)));
+    ComPtr<IDXGIAdapter> foreignAdapter;hr(foreignFactory->EnumWarpAdapter(IID_PPV_ARGS(&foreignAdapter)));
+    ComPtr<ID3D12Device> foreignDevice;hr(D3D12CreateDevice(foreignAdapter.Get(),D3D_FEATURE_LEVEL_12_0,IID_PPV_ARGS(&foreignDevice)));
+    auto foreign=buffer(foreignDevice.Get(),1536,D3D12_HEAP_TYPE_UPLOAD);
+    frame.outputConstants={foreign.Get(),foreign->GetGPUVirtualAddress()};
+    need(!wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),"foreign device native CBV fails closed");
+    need(error.find("device mismatch")!=std::string::npos,"native CBV device rejection diagnosed");
+    need(FfxApiProxy::creates==creates && FfxApiProxy::dispatches==dispatches && wrapper.ContextGeneration()==0,
+        "invalid encoding/CBV invokes no provider and creates no context");
+    need(!RecordedComputeLease::Capture(host.list.Get()),"invalid encoding/CBV records no GPU work");
+}
+void encodingChecks(Host& host)
+{
+    const auto width=FfxApiProxy::real?1505u:64u,height=FfxApiProxy::real?847u:64u;
+    Scene scene(host,width,height,{},true);host.submit();host.reset();RRWrapper wrapper;FrameParameters frame;std::string error;
+    const auto previousSpec=FfxApiProxy::mockSpec,previousDiff=FfxApiProxy::mockDiff;
+    if(!FfxApiProxy::real)
+    {
+        // Both signs of chroma are exercised with unequal channels and staged
+        // alpha distinct from native alpha. Original fixture values are restored.
+        FfxApiProxy::mockSpec={1.5f,7.f,9.25f,99.f};FfxApiProxy::mockDiff={9.f,2.75f,.5f,98.f};
+        FfxApiProxy::recordPartialWrites=true;
+    }
+    struct Case { bool native,defaultHeap; UINT64 offset; uint32_t flag; SignalEncoding fallback; bool encoded; };
+    const Case cases[] {
+        {false,false,0,0,SignalEncoding::Rgb,false},
+        {false,false,0,0,SignalEncoding::YCoCg,true},
+        {true,false,0,0,SignalEncoding::YCoCg,false},
+        {true,false,0,1,SignalEncoding::Rgb,true},
+        {true,false,0,0x80000000u,SignalEncoding::Rgb,true},
+        {true,false,0,0x7fc00000u,SignalEncoding::Rgb,true},
+        {true,true,0,1,SignalEncoding::Rgb,true},
+        {true,false,256,1,SignalEncoding::Rgb,true},
+    };
+    for(unsigned i=0;i<std::size(cases);++i)
+    {
+        const auto& test=cases[i];ConsumerBuffer native(host,test.defaultHeap,test.offset);
+        const auto nativeRefs=native.references();
+        need(wrapper.PrepareFrame(camera(430+i,width/float(height)),false,frame,error),"prepare asymmetric codec frame");
+        frame.outputEncoding=test.fallback;if(test.native)frame.outputConstants=native.constants();
+        need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
+        need(wrapper.ContextGeneration()==1,"encoding changes do not recreate provider or history");
+        need(native.references()==nativeRefs,"RR commit never AddRef's borrowed native Consumer CBV");
+        Readback spec(host,scene.spec()),diff(host,scene.diff());
+        Readback stagedSpec(host,static_cast<ID3D12Resource*>(FfxApiProxy::lastSpecular.signal.output.resource));
+        Readback stagedDiff(host,static_cast<ID3D12Resource*>(FfxApiProxy::lastDiffuse.signal.output.resource));
+        native.flag(test.flag); // AFTER Dispatch/readback recording, BEFORE Execute.
+        host.submit();host.reset();
+        spec.consumerRoundtrip(stagedSpec,width,height,test.encoded,.75f);
+        diff.consumerRoundtrip(stagedDiff,width,height,test.encoded,2.f);
+        if(i==0)need(FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET,"first encoding frame resets history");
+        else need(!(FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET),"mode changes preserve valid provider history");
+    }
+    if(!FfxApiProxy::real){FfxApiProxy::recordPartialWrites=false;FfxApiProxy::mockSpec=previousSpec;FfxApiProxy::mockDiff=previousDiff;}
+    std::cout<<"codec cases=8 native_upload_update_after_record=4 native_default_heap=1 native_offset=256 integer_nonzero_bits=1,80000000,7fc00000 alpha_exact=1\n";
+}
+void encodedFailureChecks(Host& host)
+{
+    Scene scene(host,64,64);host.submit();host.reset();FfxApiProxy::recordPartialWrites=true;
+    for(bool cancelled:{false,true})
+    {
+        ClearPair(host.list.Get(),scene.spec(),scene.diff(),{.125f,.25f,.5f,.75f},{1.25f,1.5f,1.75f,2.f});host.submit();host.reset();
+        ConsumerBuffer native(host);RRWrapper wrapper;FrameParameters frame;std::string error;CommitProbe probe;
+        const auto creates=FfxApiProxy::creates,destroys=FfxApiProxy::destroys;
+        need(wrapper.PrepareFrame(camera(470),false,frame,error),"prepare encoded failure/cancel");
+        frame.outputConstants=native.constants();OutputCommitGuard guard=cancelled?OutputCommitGuard{&probe,CommitProbe::Admit}:OutputCommitGuard{};
+        FfxApiProxy::rejectDispatch=!cancelled;
+        need(!wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error,guard),"encoded failure/cancel propagated");
+        need(wrapper.OwnedStagingBytes()==0 && FfxApiProxy::destroys==destroys,"encoded failed context held by recorded GPU work");
+        Readback oldSpec(host,scene.spec()),oldDiff(host,scene.diff());native.flag(1);host.submit();host.reset();
+        oldSpec.exact({.125f,.25f,.5f,.75f},64,64);oldDiff.exact({1.25f,1.5f,1.75f,2.f},64,64);
+        need(FfxApiProxy::destroys==destroys+1,"encoded failure/cancel destroys only after GPU completion");
+        FfxApiProxy::rejectDispatch=false;probe.accepted=true;
+        need(wrapper.PrepareFrame(camera(471),false,frame,error) && frame.reset && !frame.previousValid,"encoded recovery has no failed private history");
+        frame.outputConstants=native.constants();
+        need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error,guard),error.c_str());
+        need(wrapper.ContextGeneration()==2 && FfxApiProxy::creates==creates+2,"encoded recovery uses physically fresh context");
+        Readback spec(host,scene.spec()),diff(host,scene.diff());
+        Readback stagedSpec(host,static_cast<ID3D12Resource*>(FfxApiProxy::lastSpecular.signal.output.resource));
+        Readback stagedDiff(host,static_cast<ID3D12Resource*>(FfxApiProxy::lastDiffuse.signal.output.resource));
+        host.submit();host.reset();spec.consumerRoundtrip(stagedSpec,64,64,true,.75f);diff.consumerRoundtrip(stagedDiff,64,64,true,2.f);
+    }
+    FfxApiProxy::recordPartialWrites=false;
+}
 void cancelledCommitChecks(Host& host)
 {
     Scene scene(host,64,64);host.submit();host.reset();
@@ -567,7 +727,7 @@ void realLoop(Host& host,uint32_t width,uint32_t height,unsigned frames,const st
     uint64_t warmedStagingBytes=0;
     for(unsigned index=0;index<frames;++index)
     {
-        auto snapshot=camera(index,width/float(height));snapshot.constants.jitterOffset=sl::float2(0,0);
+        auto snapshot=camera(index,width/float(height),input.empty()?.01f:.02f);snapshot.constants.jitterOffset=sl::float2(0,0);
         snapshot.constants.mvecScale=sl::float2(1,1);FrameParameters frame;std::string error;
         need(wrapper.PrepareFrame(snapshot,false,frame,error),"real loop camera preparation");
         host.list->EndQuery(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0);
@@ -611,8 +771,10 @@ int main(int argc,char** argv) try
     std::cout<<"stage history checks\n";historyChecks(host);
     std::cout<<"stage deferred lifetime checks\n";lifecycleChecks(host);
     std::cout<<"stage minimum-size fail-closed check\n";minimumChecks(host);
+    std::cout<<"stage encoding/CBV fail-closed checks\n";encodingValidationChecks(host);
+    std::cout<<"stage native Consumer codec checks\n";encodingChecks(host);
     if(mode=="--mock")providerChecks(host);
-    if(mode=="--mock"){partialFailureChecks(host);cancelledCommitChecks(host);}
+    if(mode=="--mock"){partialFailureChecks(host);cancelledCommitChecks(host);encodedFailureChecks(host);}
     if(mode=="--mock")stagingPoolChecks(host);
     if(mode=="--real")
     {

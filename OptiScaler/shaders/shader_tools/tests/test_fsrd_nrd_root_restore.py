@@ -44,10 +44,12 @@ def run():
 #include <stdexcept>
 __STATE__
 namespace FrameSurvey {
+struct ComputeRootView { UINT parameter=UINT_MAX; D3D12_DESCRIPTOR_RANGE_TYPE kind=D3D12_DESCRIPTOR_RANGE_TYPE_CBV; D3D12_GPU_VIRTUAL_ADDRESS address=0; };
 struct ComputeBindings {
  ID3D12RootSignature* root = nullptr;
  std::vector<ID3D12DescriptorHeap*> heaps;
  std::vector<std::pair<UINT,D3D12_GPU_DESCRIPTOR_HANDLE>> tables;
+ std::vector<ComputeRootView> views;
 };
 }
 struct DescriptorHeap { UINT NumDescriptorHeaps=0; ID3D12DescriptorHeap* Heaps[2]={nullptr,nullptr}; };

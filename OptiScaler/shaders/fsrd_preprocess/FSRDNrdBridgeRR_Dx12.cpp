@@ -8,6 +8,7 @@
 #endif
 #include "misc/NrdBridgeOwned_Dx12.h"
 #include "FSRDNrdBridgeRR_Dx12.h"
+#include "FSRDNrdSignalConstants_Dx12.h"
 #include "precompile/FSRDNrdBridgeCommit_Shader.h"
 #include <upscalers/fsr31/FSRDRRInterop.h>
 #include <wrl/client.h>
@@ -66,6 +67,7 @@ struct Context
     };
     ComPtr<ID3D12RootSignature> commitRoot;
     ComPtr<ID3D12PipelineState> commitPso;
+    ComPtr<ID3D12Resource> zeroConstants;
     std::vector<std::shared_ptr<Slot>> slots;
     uint32_t descriptorStride = 0;
     uint64_t stagingBytes = 0;
@@ -102,6 +104,7 @@ struct Context
     }
     bool InitializeCommit(std::string& error)
     {
+        if (!CreateZeroSignalConstants(device.Get(), zeroConstants, error)) return false;
         if (!Check(device->CreateRootSignature(0, FSRDNrdBridgeCommit_cso, sizeof(FSRDNrdBridgeCommit_cso),
             IID_PPV_ARGS(&commitRoot)), "RR commit root creation failed", error)) return false;
         D3D12_COMPUTE_PIPELINE_STATE_DESC desc {};
@@ -135,7 +138,8 @@ struct Context
         return slot;
     }
     void Commit(ID3D12GraphicsCommandList* list, const Slot& slot,
-                ID3D12Resource* outputSpec, ID3D12Resource* outputDiff) noexcept
+                ID3D12Resource* outputSpec, ID3D12Resource* outputDiff, SignalEncoding encoding,
+                const TitleSignalConstants& titleConstants) noexcept
     {
         // Every fallible allocation and lease admission precedes the provider.
         // Title resources only receive UAV barriers; transitions belong to staging.
@@ -151,7 +155,9 @@ struct Context
         list->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());
         list->SetPipelineState(commitPso.Get()); list->SetComputeRootSignature(commitRoot.Get());
         ID3D12DescriptorHeap* heaps[] = {slot.descriptors.Get()}; list->SetDescriptorHeaps(1, heaps);
-        const uint32_t dimensions[] = {width, height}; list->SetComputeRoot32BitConstants(0, 2, dimensions, 0);
+        const uint32_t constants[] = {width, height, uint32_t(encoding), titleConstants.address ? 1u : 0u};
+        list->SetComputeRoot32BitConstants(0, 4, constants, 0);
+        list->SetComputeRootConstantBufferView(3, titleConstants.address ? titleConstants.address : zeroConstants->GetGPUVirtualAddress());
         auto gpu = slot.descriptors->GetGPUDescriptorHandleForHeapStart(); list->SetComputeRootDescriptorTable(1, gpu);
         gpu.ptr += uint64_t(2) * descriptorStride; list->SetComputeRootDescriptorTable(2, gpu);
         list->Dispatch((width+7)/8, (height+7)/8, 1);
@@ -387,6 +393,12 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
                          const FrameParameters& frame, std::string& error, const OutputCommitGuard& guard)
 {
     error.clear();
+    if (frame.outputEncoding != SignalEncoding::Rgb && frame.outputEncoding != SignalEncoding::YCoCg)
+    {
+        if (impl_) impl_->resetPending = true;
+        error = "NRD output encoding is unsupported";
+        return false;
+    }
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
     const auto reject = [&](const char* reason) {
         impl_->resetPending = true;
@@ -426,6 +438,8 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
     other.Reset();
     if (FAILED(outputDiff->GetDevice(IID_PPV_ARGS(&other))) || !SameDevice(device.Get(), other.Get()))
         return reject("RR title output devices do not match");
+    if (!ValidateTitleSignalConstants(frame.outputConstants, device.Get(), error))
+    { impl_->resetPending = true; return false; }
     const bool recreate = !impl_->context || impl_->context->width != input.width ||
         impl_->context->height != input.height || !SameDevice(device.Get(), impl_->context->device.Get());
     if (recreate)
@@ -494,10 +508,12 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
         ID3D12GraphicsCommandList* list;
         Context::Slot* slot;
         ID3D12Resource *spec, *diff;
-    } commit {lease->context.get(), list, lease->slot.get(), outputSpec, outputDiff};
+        SignalEncoding encoding;
+        TitleSignalConstants constants;
+    } commit {lease->context.get(), list, lease->slot.get(), outputSpec, outputDiff, frame.outputEncoding, frame.outputConstants};
     const auto record = +[](void* state) noexcept {
         const auto& prepared = *static_cast<PreparedCommit*>(state);
-        prepared.context->Commit(prepared.list, *prepared.slot, prepared.spec, prepared.diff);
+        prepared.context->Commit(prepared.list, *prepared.slot, prepared.spec, prepared.diff, prepared.encoding, prepared.constants);
     };
     if (guard.admit && !guard.admit(guard.state, record, &commit))
     {

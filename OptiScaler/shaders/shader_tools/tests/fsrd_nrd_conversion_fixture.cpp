@@ -245,6 +245,8 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
     need(pass->OwnedTextureBytes() >= uint64_t(width) * height * 44, "owned texture bytes are incomplete");
     std::vector<InputSet> inputs; std::vector<std::array<ComPtr<ID3D12Resource>, 2>> outputs;
     std::vector<std::array<Readback, 9>> snapshots;
+    std::vector<std::array<Readback, 4>> encodedSnapshots;
+    std::vector<std::array<ComPtr<ID3D12Resource>, 2>> consumerConstants;
     for (uint32_t frameIndex = 0; frameIndex < frames; ++frameIndex)
     {
         auto path = root / ("frame" + std::to_string(frameIndex));
@@ -307,6 +309,16 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
             gNrdTitleOutputs.insert(texture.Get());
         }
         const ULONG specRefs = References(output[0].Get()), diffRefs = References(output[1].Get());
+        std::array<ComPtr<ID3D12Resource>, 2> constants;
+        for (auto& constant : constants)
+        {
+            constant = fixture.Buffer(1536, D3D12_HEAP_TYPE_UPLOAD);
+            void* mapped = nullptr; hr(constant->Map(0, nullptr, &mapped));
+            std::memset(mapped, 0, 1536); constant->Unmap(0, nullptr);
+        }
+        const NrdBridge::TitleSignalConstants rgbConstants {constants[0].Get(), constants[0]->GetGPUVirtualAddress()};
+        const NrdBridge::TitleSignalConstants dynamicConstants {constants[1].Get(), constants[1]->GetGPUVirtualAddress()};
+        const auto constantRefs = References(constants[1].Get());
         if (frameIndex == 0)
         {
             const auto auditedBefore = gNrdAuditedBarriers;
@@ -316,10 +328,28 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
                                   NrdBridge::DebugMode::RawSignals, error), "debug read/write alias accepted");
             need(!pass->WriteDebug(fixture.list.Get(), resources, output[0].Get(), output[1].Get(),
                                   NrdBridge::DebugMode::Off, error), "Off debug request dispatched");
+            const auto allocationsBefore = gNrdDescriptorAllocations;
+            need(!pass->WriteDebug(fixture.list.Get(), resources, output[0].Get(), output[1].Get(),
+                                  NrdBridge::DebugMode::RawSignals, error, {}, static_cast<NrdBridge::SignalEncoding>(2)),
+                 "invalid output encoding accepted");
+            need(gNrdDescriptorAllocations == allocationsBefore, "invalid output encoding allocated descriptors");
+            for (const auto& invalidConstants : {
+                NrdBridge::TitleSignalConstants {constants[1].Get(), 0},
+                NrdBridge::TitleSignalConstants {nullptr, dynamicConstants.address},
+                NrdBridge::TitleSignalConstants {constants[1].Get(), dynamicConstants.address + 1},
+                NrdBridge::TitleSignalConstants {constants[1].Get(), dynamicConstants.address + 512},
+                NrdBridge::TitleSignalConstants {output[0].Get(), dynamicConstants.address}})
+            {
+                need(!pass->WriteDebug(fixture.list.Get(), resources, output[0].Get(), output[1].Get(),
+                                      NrdBridge::DebugMode::RawSignals, error, {}, NrdBridge::SignalEncoding::Rgb,
+                                      invalidConstants), "invalid native Consumer CBV accepted");
+                need(gNrdDescriptorAllocations == allocationsBefore, "invalid native CBV allocated descriptors");
+            }
             need(gNrdAuditedBarriers == auditedBefore, "invalid debug request recorded GPU work");
         }
         need(pass->WriteDebug(fixture.list.Get(), resources, output[0].Get(), output[1].Get(),
-                             NrdBridge::DebugMode(mode), error), error.c_str());
+                             NrdBridge::DebugMode(mode), error, {}, NrdBridge::SignalEncoding::YCoCg,
+                             rgbConstants), error.c_str());
         need(References(output[0].Get()) == specRefs && References(output[1].Get()) == diffRefs,
              "debug copy AddRef'd a title output");
         std::array<Readback, 9> snapshot;
@@ -329,12 +359,36 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
             snapshot[i] = fixture.Snapshot(own[i], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         for (uint32_t i = 0; i < 2; ++i)
             snapshot[7+i] = fixture.Snapshot(output[i].Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        const auto deniedBefore = gNrdAuditedBarriers;
+        NrdBridge::OutputCommitGuard denied {nullptr, +[](void*, NrdBridge::OutputCommitGuard::Action, void*) noexcept { return false; }};
+        need(!pass->WriteDebug(fixture.list.Get(), resources, output[0].Get(), output[1].Get(),
+                              NrdBridge::DebugMode(mode), error, denied, NrdBridge::SignalEncoding::Rgb,
+                              dynamicConstants),
+             "cancelled encoded debug commit accepted");
+        need(gNrdAuditedBarriers == deniedBefore, "cancelled encoded debug recorded GPU barriers");
+        std::array<Readback, 4> encoded;
+        for (uint32_t i = 0; i < 2; ++i) encoded[i+2] = fixture.Snapshot(output[i].Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        need(pass->WriteDebug(fixture.list.Get(), resources, output[0].Get(), output[1].Get(),
+                             NrdBridge::DebugMode(mode), error, {}, NrdBridge::SignalEncoding::Rgb,
+                             dynamicConstants), error.c_str());
+        need(References(constants[1].Get()) == constantRefs, "debug copy AddRef'd native Consumer CBV");
+        for (uint32_t i = 0; i < 2; ++i) encoded[i] = fixture.Snapshot(output[i].Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        encodedSnapshots.push_back(std::move(encoded));
+        consumerConstants.push_back(std::move(constants));
         inputs.push_back(std::move(input)); outputs.push_back(std::move(output)); snapshots.push_back(std::move(snapshot));
     }
     // Resize and destroy the entire public pass BEFORE Execute. The exact production
     // leases must still keep old textures, both PSOs, roots and every descriptor slot.
     need(pass->Initialize(fixture.device.Get(), 7, 5, error), error.c_str()); pass.reset();
     need(RecordedComputeLease::Capture(fixture.list.Get()) != nullptr, "production GPU lease not registered");
+    // The title can update upload CB6 after recording. Integer nonzero semantics
+    // also cover float negative-zero/NaN bit patterns; the shader reads it at Execute.
+    const uint32_t nativeFlags[] {1u, 0x80000000u, 0x7fc00000u};
+    for (uint32_t f = 0; f < frames; ++f)
+    {
+        uint32_t* mapped = nullptr; hr(consumerConstants[f][1]->Map(0, nullptr, reinterpret_cast<void**>(&mapped)));
+        mapped[303] = nativeFlags[f % 3]; consumerConstants[f][1]->Unmap(0, nullptr);
+    }
     fixture.Submit(); fixture.Reset();
     need(RecordedComputeLease::GetRegistry().recordings.empty() && RecordedComputeLease::GetRegistry().submissions.empty(),
          "GPU leases did not retire after fence and Reset");
@@ -342,6 +396,9 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
                           "out_spec_albedo.bin", "out_diff_albedo.bin", "debug_spec.bin", "debug_diff.bin"};
     for (uint32_t f = 0; f < frames; ++f)
         for (uint32_t i = 0; i < 9; ++i) save(root / ("frame" + std::to_string(f)) / names[i], snapshots[f][i].Data());
+    const char* encodedNames[] = {"debug_ycocg_spec.bin", "debug_ycocg_diff.bin", "debug_cancel_spec.bin", "debug_cancel_diff.bin"};
+    for (uint32_t f = 0; f < frames; ++f)
+        for (uint32_t i = 0; i < 4; ++i) save(root / ("frame" + std::to_string(f)) / encodedNames[i], encodedSnapshots[f][i].Data());
     // Fail before recording any work when the actual queue/list lease contract is unavailable.
     RecordedComputeLease::SetHooksAvailable(false, false);
     NrdBridge::ConversionPass denied; need(denied.Initialize(fixture.device.Get(), width, height, error), error.c_str());

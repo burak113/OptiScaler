@@ -1,10 +1,12 @@
 #include "FSRDPreprocessCommon.hlsli"
+#include "FSRDNrdSignalEncoding.hlsli"
 
 #define MainRS \
     "RootFlags(0), " \
-    "RootConstants(num32BitConstants = 4, b0), " \
+    "RootConstants(num32BitConstants = 5, b0), " \
     "DescriptorTable(SRV(t0, numDescriptors = 7)), " \
-    "DescriptorTable(UAV(u0, numDescriptors = 2))"
+    "DescriptorTable(UAV(u0, numDescriptors = 2)), " \
+    "CBV(b6, space = 0)"
 
 Texture2D<float4> InSpec : register(t0);
 Texture2D<float4> InDiff : register(t1);
@@ -20,8 +22,10 @@ cbuffer CopyConstants : register(b0)
 {
     uint2 RenderSize;
     uint Mode;
-    uint Reserved;
+    uint OutputEncoding;
+    uint NativeConstantsPresent;
 }
+cbuffer TitleConsumer : register(b6) { uint4 TitleConsumerConstants[76]; }
 
 [RootSignature(MainRS)]
 [numthreads(8, 8, 1)]
@@ -29,6 +33,7 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
 {
     const uint2 p = tid.xy;
     if (any(p >= RenderSize)) return;
+    const uint encoding = NativeConstantsPresent ? (TitleConsumerConstants[75].w != 0u ? 1u : 0u) : OutputEncoding;
     float3 spec = InSpec[p].rgb;
     float3 diff = InDiff[p].rgb;
     if (Mode == 2u)
@@ -46,6 +51,6 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
              : InDiffAlbedo[p].rgb;
     }
     // Match the observed NRD output alpha (zero) in these diagnostic copies.
-    OutSpec[p] = float4(spec, 0.0f);
-    OutDiff[p] = float4(diff, 0.0f);
+    OutSpec[p] = float4(EncodeNrdSignal(spec, encoding), 0.0f);
+    OutDiff[p] = float4(EncodeNrdSignal(diff, encoding), 0.0f);
 }

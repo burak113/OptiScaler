@@ -538,6 +538,8 @@ class ResTrack_Dx12
 
     static bool IsHudFixActive();
 
+    static void hkSurveyCreateConstantBufferView(ID3D12Device* This, const D3D12_CONSTANT_BUFFER_VIEW_DESC* desc,
+                                                D3D12_CPU_DESCRIPTOR_HANDLE handle);
     static void hkSurveyCreateRenderTargetView(ID3D12Device* This, ID3D12Resource* pResource,
                                              D3D12_RENDER_TARGET_VIEW_DESC* pDesc,
                                              D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor);

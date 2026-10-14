@@ -46,9 +46,12 @@ def capture_inputs(folder):
     assert (width, height) == (1505, 847) and diff.shape == spec.shape
     folder.mkdir(parents=True, exist_ok=True)
     for name, signal in [('spec', spec), ('diff', diff)]:
-        np.clip(np.nan_to_num(signal.astype(np.float32), nan=0, posinf=65504, neginf=0),
-                0, 65504).astype('<f2').tofile(folder / f'{name}.bin')
-    (-np.clip(np.abs(view_depth), .01, 65504)).astype('<f4').tofile(folder / 'depth.bin')
+        converted = signal.copy()
+        converted[..., :3] = np.clip(np.nan_to_num(signal[..., :3].astype(np.float32), nan=0,
+                                                  posinf=65504, neginf=0), 0, 65504).astype('<f2')
+        converted[..., 3] = np.where(np.isfinite(signal[..., 3]), signal[..., 3], np.float16(0))
+        converted.tofile(folder / f'{name}.bin')
+    (-np.clip(np.abs(view_depth), .02, 65504)).astype('<f4').tofile(folder / 'depth.bin')
     motion = np.zeros_like(spec)
     motion[..., 3] = 1
     motion.tofile(folder / 'motion.bin')
@@ -69,7 +72,7 @@ def capture_inputs(folder):
                        spec=spec_source, diff=diff_source, substituted_depth=depth_source,
                        missing_exact_guides=['NR 3749', 'VIEWZ 44287'], motion='zero static replay; captured MV unused',
                        normals='synthetic uniform world +Z, roughness 0.5, material 0; camera-facing',
-                       projection='assumed 60 degree vertical FOV, RH reverse infinite, near 0.01, aspect 1505/847',
+                       projection='near 0.02 derived from exact D=a+b/Z capture fit; 60 degree vertical FOV/RH reverse infinite/aspect 1505/847 remain assumptions',
                        albedos='white demodulated; spec alpha is dot(N,V), diffuse alpha zero',
                        jitter='zero static camera loop; captured jitter/camera unavailable',
                        input_generation='scalar fixture conversion, not evidence of exact in-game camera or guide parity')
