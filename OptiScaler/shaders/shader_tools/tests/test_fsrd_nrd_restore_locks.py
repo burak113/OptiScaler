@@ -37,7 +37,8 @@ CPP = r'''
 #include <type_traits>
 #include "__ROOT__/OptiScaler/hooks/Hook_Utils.h"
 #define LOG_ERROR(...) ((void)0)
-#define LOG_WARN(...) ((void)0)
+unsigned warningCalls=0;
+#define LOG_WARN(...) (++warningCalls)
 #define LOG_TRACE(...) ((void)0)
 namespace FrameSurvey {
  thread_local bool internalScope=false; bool Internal() { return internalScope; }
@@ -147,6 +148,22 @@ void blockedCase(Block kind){
  need(progressed,"independent title tracker writes finish while original native setter remains blocked");
  need(rootStates[independent][2].Data==std::vector<uint32_t>{123},"independent actual tracker data survives blocked restore");
  verifyBytes();
+}
+void sparseDiagnosticCases(){
+ D3D12RootRestoreSnapshot snapshot; snapshot.hasRootState=true; snapshot.rootStates.count=D3D12_MAX_ROOT_COST;
+ calls.clear(); warningCalls=0; blocked=Block::None;
+ bool complete=true;
+ for(unsigned i=0;i<10000;++i){
+  complete=D3D12Hooks::RestoreComputeRootState(watched,snapshot)&&complete;
+  complete=D3D12Hooks::RestoreGraphicsRootState(watched,snapshot)&&complete;
+ }
+ need(complete,"ten thousand sparse restores keep both root families successful");
+ need(calls.empty(),"unbound sparse slots never call an original native setter");
+ need(warningCalls==0,"ten thousand legal sparse restores emit zero warnings");
+ snapshot.rootStates.values[3].type=static_cast<RootEntryType>(99);
+ D3D12Hooks::RestoreComputeRootState(watched,snapshot);D3D12Hooks::RestoreGraphicsRootState(watched,snapshot);
+ need(warningCalls==2,"unsupported active root entries retain one diagnostic per family");
+ need(calls.empty(),"unsupported active root entries cannot emit a guessed native setter");
 }
 void independentFamilyCases(){
  gNrdBridgeDeviceWrappers=true;isNrdBridgeInjection=false;initialize();blocked=Block::None;
@@ -258,6 +275,7 @@ int main()try{
  signatures[watched].type=SignatureEntryType::Graphics;calls.clear();D3D12Hooks::RestoreRoot(watched);need(calls[1].name=="graphics.signature"&&calls[3].name=="one"&&calls[3].offset==4,"graphics snapshot replay keeps original signature and argument family");
  Config::Instance()->ExtendedStateRestore.current=false;calls.clear();D3D12Hooks::RestoreRoot(watched);need(calls.size()==1&&calls[0].name=="graphics.signature","nonextended restoration sets only original root signature");
  independentFamilyCases();
+ sparseDiagnosticCases();
  rootProfilerCases();
  std::cout<<"PASS: "<<checks<<" actual restore snapshot/concurrent tracker/profiling checks; snapshot_bytes="<<sizeof(D3D12RootRestoreSnapshot)<<'\n';return 0;
 }catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}

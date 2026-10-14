@@ -2873,9 +2873,9 @@ bool D3D12Hooks::RestoreComputeRootState(ID3D12GraphicsCommandList* cmdList, con
                 else
                     LOG_ERROR("Couldn't restore ComputeRoot UAV, no original SetComputeRootUnorderedAccessView");
             }
-            else if (table[i].type == RootEntryType::Invalid)
+            else if (table[i].type != RootEntryType::Invalid)
             {
-                LOG_WARN("Can't restore index: {} for CmdList: {:X}", i, (UINT64) cmdList);
+                LOG_WARN("Unsupported root argument at index: {} for CmdList: {:X}", i, (UINT64) cmdList);
             }
         }
 
@@ -2955,9 +2955,9 @@ bool D3D12Hooks::RestoreGraphicsRootState(ID3D12GraphicsCommandList* cmdList, co
                 else
                     LOG_ERROR("Couldn't restore GraphicsRoot UAV, no original SetGraphicsRootUnorderedAccessView");
             }
-            else if (table[i].type == RootEntryType::Invalid)
+            else if (table[i].type != RootEntryType::Invalid)
             {
-                LOG_WARN("Can't restore index: {} for CmdList: {:X}", i, (UINT64) cmdList);
+                LOG_WARN("Unsupported root argument at index: {} for CmdList: {:X}", i, (UINT64) cmdList);
             }
         }
 
