@@ -136,12 +136,14 @@ using FenceFn=HRESULT(WINAPI*)(ID3D12CommandQueue*,ID3D12Fence*,UINT64);
 using ExecuteFn=void(WINAPI*)(ID3D12CommandQueue*,UINT,ID3D12CommandList* const*);
 FenceFn originalWait=nullptr,originalSignal=nullptr; ExecuteFn originalExecute=nullptr;
 std::unordered_set<ID3D12CommandQueue*> observed; std::vector<Event> events;
+ID3D12CommandQueue* failSignalQueue=nullptr;ID3D12Fence* signalExemptFence=nullptr;bool failNextSignal=false;unsigned injectedSignalFailures=0;
 HRESULT WINAPI Wait(ID3D12CommandQueue* queue,ID3D12Fence* fence,UINT64 value) {
  if(observed.contains(queue)) events.push_back({Kind::Wait,queue,fence,value});
  return originalWait(queue,fence,value);
 }
 HRESULT WINAPI Signal(ID3D12CommandQueue* queue,ID3D12Fence* fence,UINT64 value) {
  if(observed.contains(queue)) events.push_back({Kind::Signal,queue,fence,value});
+ if(failNextSignal && queue==failSignalQueue && fence!=signalExemptFence) {failNextSignal=false;++injectedSignalFailures;return E_FAIL;}
  return originalSignal(queue,fence,value);
 }
 void WINAPI Execute(ID3D12CommandQueue* queue,UINT count,ID3D12CommandList* const* lists) {
@@ -181,7 +183,7 @@ struct Host {
  ComPtr<ID3D12CommandAllocator> allocator; ComPtr<ID3D12CommandQueue> queue;
  ComPtr<ID3D12Fence> fence; ComPtr<ID3D12InfoQueue> info;
  std::vector<ComPtr<ID3D12Resource>> uploads;
- UINT64 tick=0; std::string adapter;
+ UINT64 tick=0; unsigned denied=0;HRESULT lastOrderingFailure=S_OK; std::string adapter;
  Host() {
   ComPtr<ID3D12Debug> debug; hr(D3D12GetDebugInterface(IID_PPV_ARGS(&debug))); debug->EnableDebugLayer();
   ComPtr<IDXGIFactory6> factory; hr(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
@@ -223,12 +225,13 @@ struct Host {
   std::swap(list,stream.list); std::swap(allocator,stream.allocator); std::swap(queue,stream.queue);
   std::swap(fence,stream.fence); std::swap(uploads,stream.uploads); std::swap(tick,stream.tick); requestedList=list.Get();
  }
- void submit(bool wait=true) { hr(list->Close()); executeClosed(wait); }
- void executeClosed(bool wait=true) {
-  ComPtr<IUnknown> identity; hr(list.As(&identity));
-  auto pending=RecordedComputeLease::BeforeSubmission(queue.Get(),{identity.Get()});
-  ID3D12CommandList* cmd=list.Get(); queue->ExecuteCommandLists(1,&cmd); RecordedComputeLease::AfterSubmission(pending);
-  hr(queue->Signal(fence.Get(),++tick)); if(wait) waitComplete();
+ void submit(bool wait=true) { hr(list->Close());need(executeClosed(wait),"production submission decision allows normal original title Execute"); }
+ bool executeClosed(bool wait=true) {
+  RecordedComputeLease::SubmissionDecision decision;ID3D12CommandList* cmd=list.Get();
+  auto pending=ResTrack_Dx12::BeforeComputeSubmission(queue.Get(),1,&cmd,&decision);
+  if(!decision.allowed) {++denied;lastOrderingFailure=decision.orderingFailure;return false;}
+  queue->ExecuteCommandLists(1,&cmd); RecordedComputeLease::AfterSubmission(pending);
+  hr(queue->Signal(fence.Get(),++tick)); if(wait) waitComplete();return true;
  }
  void waitComplete() {
   const auto end=GetTickCount64()+60000;
@@ -630,6 +633,7 @@ void deepCases(Host& h,Title& title,J& result,std::vector<std::unique_ptr<Title>
  auto alternate=h.newStream(true);const auto checksumA=title.checksum;ComPtr<ID3D12Resource> checksumB;
  const auto interFrames=NrdBridge::GetStatus().framesBridged;const auto interCalls=FfxApiProxy::dispatches;failures=NrdBridge::gService->failures;
  // Record A's Recon, all of B, then A's remaining stages. Execute B before A.
+ NrdBridge::RequestHistoryReset(); // Start this two-recording reset-depth scenario independently of preceding submitted history.
  title.writeDepth(5.f);title.recon(frame++);const auto listA=h.list.Get();
  h.exchange(alternate);checksumB=h.buffer(1024,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,true);title.checksum=checksumB;
  title.writeDepth(7.f);title.frame(frame++);const auto recordB=FfxApiProxy::records.back();const auto motionB=motionCapture(title,recordB);const auto readB=title.capture();SubmissionProbe probeB;probeB.attach(h.device.Get(),h.list.Get());hr(h.list->Close());
@@ -646,7 +650,9 @@ void deepCases(Host& h,Title& title,J& result,std::vector<std::unique_ptr<Title>
  hr(h.queue->Wait(gate.Get(),1));title.writeDepth(5.f);title.frame(frame++);const auto queueRecordA=FfxApiProxy::records.back();const auto queueReadA=title.capture();SubmissionProbe queuedA;queuedA.attach(h.device.Get(),h.list.Get());h.submit(false);
  need(queuedA.point && queuedA.point->IsPublished() && queuedA.point->fence->GetCompletedValue()<queuedA.point->value,"actual predecessor point is published after native Signal while QA is physically stalled");
  h.exchange(alternate);title.checksum=checksumB;title.writeDepth(7.f);title.frame(frame++);const auto queueRecordB=FfxApiProxy::records.back();const auto queueMotionB=motionCapture(title,queueRecordB);const auto queueReadB=title.capture();SubmissionProbe queuedB;queuedB.attach(h.device.Get(),h.list.Get());h.submit(false);
- need(queueRecordA.context==queueRecordB.context && queueRecordA.spec==queueRecordB.spec && queueRecordA.depth==queueRecordB.depth,"published predecessor allows same temporal context and owned guides on the next queue");
+ std::cerr<<"cross-queue history A context="<<queueRecordA.context<<" spec="<<queueRecordA.spec<<" motion="<<queueRecordA.motion<<" depth="<<queueRecordA.depth
+  <<" B context="<<queueRecordB.context<<" spec="<<queueRecordB.spec<<" motion="<<queueRecordB.motion<<" depth="<<queueRecordB.depth<<" flags="<<queueRecordB.flags<<'\n';
+ need(queueRecordA.context==queueRecordB.context && queueRecordA.spec==queueRecordB.spec && queueRecordA.motion==queueRecordB.motion && queueRecordA.depth!=queueRecordB.depth,"published predecessor shares temporal context/spec/motion while alternating independent current depth endpoints on the next queue");
  need(!(queueRecordB.flags&FFX_DENOISER_DISPATCH_RESET),"published consecutive cross-queue frame inherits actual RR history");
  size_t waitAt=SIZE_MAX,executeAt=SIZE_MAX;unsigned waits=0,executes=0;
  for(size_t i=0;i<QueueAudit::events.size();++i) {const auto& e=QueueAudit::events[i];
@@ -695,6 +701,43 @@ void deepCases(Host& h,Title& title,J& result,std::vector<std::unique_ptr<Title>
  keepTitles.push_back(std::move(titleA));keepTitles.push_back(std::move(titleB));QueueAudit::Detach();
  deep["synthetic_last_frame"]=frame-1;deep["provider_recordings_added"]=FfxApiProxy::dispatches-14;result["deep_native"]=deep;
 }
+void failureCase(Host& h,Title& title,J& result) {
+ title.frame(1);need(title.sentinel(title.finish()),"fault scenario starts with a fully validated native discovery frame");
+ title.frame(2);title.rrChecks(title.finish());title.frame(3);title.rrChecks(title.finish()); // Warm both native depth/SDK ping-pong histories.
+ auto alternate=h.newStream(true);const auto checksumA=title.checksum;auto checksumB=h.buffer(1024,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,true);
+ auto zero=h.upload(0,1024);h.barrier(checksumB.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COPY_DEST);
+ h.list->CopyBufferRegion(checksumB.Get(),0,zero.Get(),0,1024);h.barrier(checksumB.Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);h.uploads.push_back(zero);
+ QueueAudit::Attach(h.queue.Get(),alternate.queue.Get());title.frame(4);const auto recordA=FfxApiProxy::records.back();const auto readA=title.capture();SubmissionProbe probeA;probeA.attach(h.device.Get(),h.list.Get());h.submit();title.rrChecks(title.validate(readA));
+ need(probeA.point && probeA.point->IsPublished() && probeA.point->fence->GetCompletedValue()>=1,"fault predecessor A has a real successfully completed publication");
+ h.exchange(alternate);title.checksum=checksumB;title.frame(5);const auto recordB=FfxApiProxy::records.back();SubmissionProbe probeB;probeB.attach(h.device.Get(),h.list.Get());hr(h.list->Close());const auto dependentList=h.list.Get();const auto dependentQueue=h.queue.Get();
+ need(recordA.context==recordB.context && recordA.spec==recordB.spec && recordA.motion==recordB.motion && recordA.depth!=recordB.depth && !(recordB.flags&FFX_DENOISER_DISPATCH_RESET),"already recorded B shares actual A context/spec/motion and alternates current-depth endpoints before failure");
+ h.exchange(alternate);title.checksum=checksumA;ComPtr<ID3D12Fence> gate;hr(h.device->CreateFence(0,D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&gate)));GateRelease release{gate};hr(h.queue->Wait(gate.Get(),1));
+ QueueAudit::failSignalQueue=h.queue.Get();QueueAudit::signalExemptFence=h.fence.Get();QueueAudit::failNextSignal=true;const auto recordsBefore=FfxApiProxy::dispatches;
+ need(h.executeClosed(false),"gated A replay executes once before its post-Execute publication fails");
+ need(QueueAudit::injectedSignalFailures==1 && !QueueAudit::failNextSignal && probeA.before==2 && probeA.published==1 && probeA.failed==1,"native failed new Signal cannot publish or replace A's old fence point");
+ need(FfxApiProxy::dispatches==recordsBefore && h.fence->GetCompletedValue()<h.tick,"failed publication returns while actual replay remains gated and records no new SDK call");
+ h.exchange(alternate);title.checksum=checksumB;const auto before=GetTickCount64();const bool allowed=h.executeClosed(false);const auto returnedMs=GetTickCount64()-before;
+ unsigned dependentExecutes=0,dependentSignals=0,oldPointWaits=0;
+ for(const auto& e:QueueAudit::events) {
+  if(e.queue!=dependentQueue)continue;
+  if(e.kind==QueueAudit::Kind::Execute && e.list==dependentList)++dependentExecutes;
+  if(e.kind==QueueAudit::Kind::Signal)++dependentSignals;
+  if(e.kind==QueueAudit::Kind::Wait && e.fence==probeA.point->fence.Get())++oldPointWaits;
+ }
+ need(!allowed && h.denied==1 && FAILED(h.lastOrderingFailure),"actual typed SubmissionDecision denies the already recorded dependent B");
+ need(dependentExecutes==0 && dependentSignals==0 && oldPointWaits==0 && probeB.published==0,"B neither executes nor signals nor waits the stale old publication");
+ need(returnedMs<10000,"denied dependent submission returns to this CPU thread without polling a gated queue");
+ need(!RecordedComputeLease::Available() && !NrdBridge::GetStatus().active && NrdBridge::GetStatus().reason.find("restart")!=std::string::npos,"actual submission failure pins history and surfaces an Inactive restart diagnostic");
+ hr(gate->Signal(1));h.exchange(alternate);title.checksum=checksumA;h.waitComplete();title.rrChecks(title.validate(readA));
+ // A probe owns its own list/fence and inspects B's independently initialized root-UAV output.
+ auto probe=h.newStream(false);h.exchange(probe);auto read=h.buffer(1024,D3D12_HEAP_TYPE_READBACK,D3D12_RESOURCE_STATE_COPY_DEST);
+ h.barrier(checksumB.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COPY_SOURCE);h.list->CopyBufferRegion(read.Get(),0,checksumB.Get(),0,1024);h.barrier(checksumB.Get(),D3D12_RESOURCE_STATE_COPY_SOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+ hr(h.list->Close());ID3D12CommandList* inspect=h.list.Get();QueueAudit::originalExecute(h.queue.Get(),1,&inspect);hr(h.queue->Signal(h.fence.Get(),++h.tick));h.waitComplete();
+ void* values=nullptr;hr(read->Map(0,nullptr,&values));bool untouched=true;for(UINT i=0;i<256;++i)untouched &= static_cast<UINT*>(values)[i]==0;read->Unmap(0,nullptr);need(untouched,"denied B leaves every initialized title root-UAV checksum byte untouched");
+ h.reset();h.exchange(probe);h.reset();h.exchange(alternate);title.checksum=checksumB;h.reset();h.exchange(alternate);title.checksum=checksumA;QueueAudit::Detach();
+ need(FfxApiProxy::creates==1 && FfxApiProxy::dispatches==4 && FfxApiProxy::destroys==0,"real SDK context and all recorded leases remain pinned across uncertain Signal completion");
+ result["submission_failure"]={{"injected_native_signal_failures",1},{"dependent_denied",true},{"dependent_original_executes",dependentExecutes},{"dependent_signals",dependentSignals},{"old_point_waits",oldPointWaits},{"same_thread_return_ms",returnedMs},{"gpu_dependent_checksum_untouched",untouched},{"old_sdk_context_pinned",true},{"sdk_recordings",FfxApiProxy::dispatches}};
+}
 void loadProvider(const char* path) {
  FfxApiProxy::real=true; auto module=LoadLibraryA(path); need(module!=nullptr,"signed AMD DLL loaded read-only");
  FfxApiProxy::denoiser_dx12.dll=module;
@@ -706,8 +749,8 @@ void loadProvider(const char* path) {
  need(FfxApiProxy::createFunction && FfxApiProxy::destroyFunction && FfxApiProxy::queryFunction && FfxApiProxy::configureFunction && FfxApiProxy::dispatchFunction,"all actual AMD exports resolved");
 }
 int main(int argc,char** argv) try {
- need(argc==3 || (argc==4 && std::string(argv[3])=="--startup-off"),"scratch folder, signed AMD DLL and optional OFF scenario arguments");
- const bool startupOff=argc==4; if(startupOff) NrdBridge::ConfigureStartup(false);
+ need(argc==3 || (argc==4 && (std::string(argv[3])=="--startup-off" || std::string(argv[3])=="--submission-failure")),"scratch folder, signed AMD DLL and optional fresh-process scenario arguments");
+ const bool startupOff=argc==4 && std::string(argv[3])=="--startup-off",submissionFailure=argc==4 && std::string(argv[3])=="--submission-failure"; if(startupOff) NrdBridge::ConfigureStartup(false);
  g_dllPath=std::filesystem::path(argv[1])/"fixture.dll"; Host h;
  requestedList=h.list.Get(); J result; result["adapter"]=h.adapter;
  need(!NrdBridge::Initialize(h.device.Get()),"startup OFF allocates no coordinator");
@@ -731,6 +774,12 @@ int main(int argc,char** argv) try {
  FrameSurvey::BeginCreationTracking(false); need(FrameSurvey::Install(h.device.Get(),h.list.Get(),false),"real metadata-only survey installed");
  need(NrdBridge::Initialize(h.device.Get()),"production coordinator initialized"); AttachRoots(h.list.Get()); Wiring::Attach(h.list.Get());
  Title title(h,128,128,true);
+ if(submissionFailure) {
+  failureCase(h,title,result);NrdBridge::Shutdown();RecordedComputeLease::Poll();
+  need(FfxApiProxy::destroys==0 && FfxApiProxy::contextToType.size()==1,"uncertain native SDK context stays pinned after coordinator shutdown");
+  Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();const auto debug=h.debugCounts();result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["native_checks"]=checks;
+  std::ofstream(std::filesystem::path(argv[1])/"submission-failure-result.json")<<result.dump(2)<<'\n';std::cout<<"PASS submission_failure checks="<<checks<<'\n';return 0;
+ }
  title.frame(1); auto first=title.finish(); need(title.sentinel(first),"discovery frame leaves title NRD output untouched");
  need(NrdBridge::gService->cache.Valid() && FfxApiProxy::dispatches==0,"first full chain discovers without pre-discovery RR");
  NrdBridge::SetDebugMode(NrdBridge::DebugMode::RawSignals); const auto rawBefore=restores; const auto bridgedBefore=NrdBridge::GetStatus().framesBridged;
