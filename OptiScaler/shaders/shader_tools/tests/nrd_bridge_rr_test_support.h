@@ -29,24 +29,30 @@ struct SLConstantsSnapshot
     uint32_t frameIndex = UINT32_MAX, viewport = UINT32_MAX;
 };
 void RecordTestProviderWrites(ID3D12GraphicsCommandList*, ID3D12Resource* spec, ID3D12Resource* diff);
+void RecordTestProviderDebugWrites(ID3D12GraphicsCommandList*, ID3D12Resource*, uint32_t width, uint32_t height);
 struct FfxApiProxy
 {
     static inline bool real = false, initAvailable = true, rejectDispatch = false;
     static inline bool recordPartialWrites = false;
+    static inline uint64_t rejectConfigureKey = 0;
     static inline std::array<float,4> mockSpec {2.5f,3.75f,4.25f,5.5f}, mockDiff {6.5f,7.75f,8.25f,9.5f};
+    static inline std::array<float,4> mockDebug {.1875f,.625f,.8125f,1.f};
     static inline uint64_t providerCount = 1;
     static inline const char* providerName = "AMD FSR Denoiser v1.2.0";
     static inline unsigned creates = 0, destroys = 0, dispatches = 0, defaults = 0, configures = 0;
     static inline unsigned badDefaults = 0;
+    static inline unsigned badConfigureLayouts = 0, nativeDebugDispatches = 0;
     static inline unsigned badCreateChains = 0;
     static inline ffxCreateContextDescDenoiser lastCreate {};
     static inline ffxDispatchDescDenoiser lastDispatch {};
     static inline ffxDispatchDescDenoiserDirectDiffuse lastDiffuse {};
     static inline ffxDispatchDescDenoiserIndirectSpecular lastSpecular {};
+    static inline ffxDispatchDescDenoiserDebugView lastDebug {};
     static inline uint64_t lastOverride = 0;
     static inline std::unordered_map<ffxContext, uint32_t> live;
     static inline std::unordered_map<ffxContext, const ffxCreateContextDescDenoiser*> createChains;
     static inline std::unordered_map<ffxContext, std::array<float, 8>> queried;
+    static inline std::unordered_map<ffxContext, uint32_t> initializedKeys;
     static inline PfnFfxCreateContext createFunction = nullptr;
     static inline PfnFfxDestroyContext destroyFunction = nullptr;
     static inline PfnFfxConfigure configureFunction = nullptr;
@@ -90,6 +96,7 @@ struct FfxApiProxy
             live.erase(key);
             createChains.erase(key);
             queried.erase(key);
+            initializedKeys.erase(key);
             *context = nullptr;
         }
         return result;
@@ -129,10 +136,17 @@ struct FfxApiProxy
     {
         const auto& apply = *reinterpret_cast<const ffxConfigureDescDenoiserKeyValue*>(header);
         const auto* values = static_cast<const float*>(apply.data);
-        if (values[0] != queried[*context][apply.key - 1] ||
-            (apply.key == 7 && values[1] != queried[*context][7])) ++badDefaults;
+        if (header->type != FFX_API_CONFIGURE_DESC_TYPE_DENOISER_KEYVALUE ||
+            apply.key < 1 || apply.key > 7 || apply.count != 1 || !values)
+        { ++badConfigureLayouts; return FFX_API_RETURN_ERROR_PARAMETER; }
+        const uint32_t bit = 1u << uint32_t(apply.key - 1u);
+        // Keep the original unchanged-default assertion strict for all seven
+        // first applications. Later calls intentionally exercise runtime tuning.
+        if (!(initializedKeys[*context] & bit) && (values[0] != queried[*context][apply.key - 1] ||
+            (apply.key == 7 && values[1] != queried[*context][7]))) ++badDefaults;
+        if (rejectConfigureKey == apply.key) return FFX_API_RETURN_ERROR_RUNTIME_ERROR;
         const auto result = real ? configureFunction(context, header) : FFX_API_RETURN_OK;
-        if (result == FFX_API_RETURN_OK) ++configures;
+        if (result == FFX_API_RETURN_OK) { ++configures; initializedKeys[*context] |= bit; }
         return result;
     }
     static ffxReturnCode_t D3D12_Dispatch(ffxContext* context, const ffxDispatchDescHeader* header)
@@ -140,6 +154,14 @@ struct FfxApiProxy
         lastDispatch = *reinterpret_cast<const ffxDispatchDescDenoiser*>(header);
         lastDiffuse = *reinterpret_cast<const ffxDispatchDescDenoiserDirectDiffuse*>(header->pNext);
         lastSpecular = *reinterpret_cast<const ffxDispatchDescDenoiserIndirectSpecular*>(lastDiffuse.header.pNext);
+        lastDebug = {};
+        if (lastSpecular.header.pNext)
+        {
+            lastDebug = *reinterpret_cast<const ffxDispatchDescDenoiserDebugView*>(lastSpecular.header.pNext);
+            ++nativeDebugDispatches;
+            if (!real) RecordTestProviderDebugWrites(static_cast<ID3D12GraphicsCommandList*>(lastDispatch.commandList),
+                static_cast<ID3D12Resource*>(lastDebug.output.resource), lastDebug.outputSize.width, lastDebug.outputSize.height);
+        }
         ++dispatches;
         if (recordPartialWrites) RecordTestProviderWrites(static_cast<ID3D12GraphicsCommandList*>(lastDispatch.commandList),
             static_cast<ID3D12Resource*>(lastSpecular.signal.output.resource), static_cast<ID3D12Resource*>(lastDiffuse.signal.output.resource));

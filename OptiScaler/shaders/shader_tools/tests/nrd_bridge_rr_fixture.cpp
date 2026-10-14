@@ -44,6 +44,51 @@ SLConstantsSnapshot camera(uint32_t frame = 100, float aspect = 4.f/3.f, float n
     c.cameraMotionIncluded = sl::Boolean::eTrue; c.motionVectors3D = sl::Boolean::eFalse;
     return snapshot;
 }
+void settingsValidationChecks()
+{
+    RRWrapper wrapper; RRSettings requested; std::string error;
+    const auto creates=FfxApiProxy::creates,configures=FfxApiProxy::configures,dispatches=FfxApiProxy::dispatches;
+    need(ValidateRRSettings(requested,error) && wrapper.Configure(requested,error),"default AMD settings validate lazily");
+    need(!wrapper.GetSettingsState().ready && wrapper.ContextGeneration()==0 &&
+        wrapper.OwnedStagingBytes()==0 && wrapper.OwnedAuxiliaryBytes()==0,"default settings allocate no GPU context or surfaces");
+    need(!wrapper.GetNativeDebugOutputSnapshot().resource && !wrapper.GetNativeDebugOutputSnapshot().owner,
+        "default native debug image is absent");
+    requested.values.fill(std::numeric_limits<float>::quiet_NaN());
+    need(ValidateRRSettings(requested,error) && wrapper.Configure(requested,error),"unselected override storage is ignored");
+    need(wrapper.GetSettingsState().requested.values==std::array<float,8>{},"unselected overrides are canonicalized");
+    const RRSettings valid{0x7fu,{.8f,.6f,3000.f,12.f,.9f,.025f,.01f,80.f},-1,0};
+    need(ValidateRRSettings(valid,error) && wrapper.Configure(valid,error),"all seven supported keys validate before context creation");
+    const auto retained=wrapper.GetSettingsState().requested;
+    auto rejected=[&](RRSettings value,const char* reason){
+        need(!ValidateRRSettings(value,error) && !error.empty(),reason);
+        need(!wrapper.Configure(value,error),"invalid settings cannot be applied");
+        const auto state=wrapper.GetSettingsState();
+        need(state.requested.overrideMask==retained.overrideMask && state.requested.values==retained.values &&
+            state.requested.nativeDebugView==retained.nativeDebugView &&
+            state.requested.nativeDebugViewport==retained.nativeDebugViewport &&
+            state.requested.preserveNativeMaterialIDs==retained.preserveNativeMaterialIDs,"invalid settings preserve prior requested snapshot");
+    };
+    auto bad=valid;bad.overrideMask|=0x80u;rejected(bad,"unknown AMD key bit rejected");
+    for(unsigned i=0;i<8;++i)
+    {
+        bad=valid;bad.values[i]=std::numeric_limits<float>::quiet_NaN();rejected(bad,"selected NaN override rejected");
+        bad=valid;bad.values[i]=std::numeric_limits<float>::infinity();rejected(bad,"selected infinite override rejected");
+    }
+    for(unsigned i:{0u,1u,4u}){bad=valid;bad.values[i]=-0.01f;rejected(bad,"negative bounded override rejected");
+        bad=valid;bad.values[i]=1.01f;rejected(bad,"bounded override above one rejected");}
+    for(unsigned i:{2u,3u,5u}){bad=valid;bad.values[i]=0;rejected(bad,"zero positive override rejected");}
+    bad=valid;bad.values[2]=65505.f;rejected(bad,"radiance outside finite FP16 bridge domain rejected");
+    bad=valid;bad.values[5]=1.01f;rejected(bad,"disocclusion outside conservative bridge domain rejected");
+    bad=valid;bad.values[6]=-1;rejected(bad,"negative debug depth minimum rejected");
+    bad=valid;bad.values[7]=bad.values[6];rejected(bad,"empty debug depth interval rejected");
+    for(int32_t view:{-2,2,INT32_MAX}){bad=valid;bad.nativeDebugView=view;rejected(bad,"unsupported native view rejected");}
+    bad=valid;bad.nativeDebugViewport=12;rejected(bad,"native viewport upper bound rejected");
+    for(int32_t view:{-1,0,1})for(uint32_t viewport:{0u,11u})
+    { auto value=valid;value.nativeDebugView=view;value.nativeDebugViewport=viewport;
+        need(ValidateRRSettings(value,error),"all supported native mode/viewport boundaries validate"); }
+    need(FfxApiProxy::creates==creates && FfxApiProxy::configures==configures && FfxApiProxy::dispatches==dispatches,
+        "settings-only validation calls no provider and allocates no GPU context");
+}
 void cameraChecks()
 {
     RRWrapper wrapper;
@@ -208,6 +253,29 @@ void ClearPair(ID3D12GraphicsCommandList* list, ID3D12Resource* spec, ID3D12Reso
 void RecordTestProviderWrites(ID3D12GraphicsCommandList* list, ID3D12Resource* spec, ID3D12Resource* diff)
 {
     ClearPair(list,spec,diff,FfxApiProxy::mockSpec,FfxApiProxy::mockDiff);
+}
+void ClearTexture(ID3D12GraphicsCommandList* list,ID3D12Resource* resource,const std::array<float,4>& value,
+                  const D3D12_RECT* rect=nullptr)
+{
+    struct Owner { ComPtr<ID3D12Device> device;ComPtr<ID3D12DescriptorHeap> gpu,cpu; };
+    auto owner=MakeOwnedShared<Owner>();hr(list->GetDevice(IID_PPV_ARGS(&owner->device)));
+    D3D12_DESCRIPTOR_HEAP_DESC desc{};desc.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;desc.NumDescriptors=1;
+    desc.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;hr(owner->device->CreateDescriptorHeap(&desc,IID_PPV_ARGS(&owner->gpu)));
+    desc.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_NONE;hr(owner->device->CreateDescriptorHeap(&desc,IID_PPV_ARGS(&owner->cpu)));
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uav{};uav.Format=resource->GetDesc().Format;uav.ViewDimension=D3D12_UAV_DIMENSION_TEXTURE2D;
+    owner->device->CreateUnorderedAccessView(resource,nullptr,&uav,owner->gpu->GetCPUDescriptorHandleForHeapStart());
+    owner->device->CreateUnorderedAccessView(resource,nullptr,&uav,owner->cpu->GetCPUDescriptorHandleForHeapStart());
+    need(ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(),list,owner),"retain independent debug/test clear descriptors");
+    ID3D12DescriptorHeap* heaps[]={owner->gpu.Get()};list->SetDescriptorHeaps(1,heaps);
+    list->ClearUnorderedAccessViewFloat(owner->gpu->GetGPUDescriptorHandleForHeapStart(),
+        owner->cpu->GetCPUDescriptorHandleForHeapStart(),resource,value.data(),rect?1u:0u,rect);
+    D3D12_RESOURCE_BARRIER b{};b.Type=D3D12_RESOURCE_BARRIER_TYPE_UAV;b.UAV.pResource=resource;list->ResourceBarrier(1,&b);
+}
+void RecordTestProviderDebugWrites(ID3D12GraphicsCommandList* list,ID3D12Resource* output,uint32_t width,uint32_t height)
+{
+    ClearTexture(list,output,FfxApiProxy::mockDebug);
+    const D3D12_RECT uncovered{LONG(width/2u),0,LONG(width),LONG(height)};
+    ClearTexture(list,output,{0,0,0,0},&uncovered);
 }
 struct Scene
 {
@@ -468,6 +536,13 @@ struct Readback
             data+footprint.Offset+y*footprint.Footprint.RowPitch,size_t(width)*8);
         bufferResource->Unmap(0,nullptr);return result;
     }
+    void save(const std::filesystem::path& file,uint32_t width,uint32_t height)
+    {
+        const auto words=values(width,height);std::ofstream output(file,std::ios::binary);
+        need(bool(output),"native debug evidence output opens");
+        output.write(reinterpret_cast<const char*>(words.data()),words.size()*sizeof(uint16_t));
+        need(bool(output),"native debug evidence output is complete");
+    }
     void consumerRoundtrip(Readback& staged,uint32_t width,uint32_t height,bool encoded,float nativeAlpha)
     {
         const auto output=values(width,height),source=staged.values(width,height);
@@ -550,7 +625,235 @@ struct Readback
         need(within==uint64_t(width)*height*3,"actual Consumer GPU read matches RR RGB within derived half rounding");
         need(alpha==uint64_t(width)*height,"original Consumer stores alpha1 independently of title signal alpha");
     }
+    void nativeDebugPresentation(Readback& source,uint32_t sourceWidth,uint32_t sourceHeight,
+                                 uint32_t width,uint32_t height,const std::array<float,4>& sentinel,bool requireUncovered)
+    {
+        const auto src=source.values(sourceWidth,sourceHeight),dst=values(width,height);
+        uint64_t finite=0,matched=0,alpha=0,covered=0,uncovered=0;
+        for(auto word:src)finite+=std::isfinite(PackedVector::XMConvertHalfToFloat(word));
+        need(finite==uint64_t(sourceWidth)*sourceHeight*4,"actual SDK debug target is finite in every component");
+        for(uint32_t y=0;y<height;++y)for(uint32_t x=0;x<width;++x)
+        {
+            const auto from=(size_t((uint64_t(y)*sourceHeight)/height)*sourceWidth+(uint64_t(x)*sourceWidth)/width)*4;
+            const auto to=(size_t(y)*width+x)*4;
+            const bool written=PackedVector::XMConvertHalfToFloat(src[from+3])>0.f;
+            covered+=written;uncovered+=!written;
+            for(unsigned c=0;c<3;++c)matched+=dst[to+c]==(written?src[from+c]:PackedVector::XMConvertFloatToHalf(sentinel[c]));
+            alpha+=dst[to+3]==PackedVector::XMConvertFloatToHalf(sentinel[3]);
+        }
+        need(covered>0,"native SDK debug display exercises written coverage");
+        if(requireUncovered)need(uncovered>0,"independent mock SDK debug coverage preserves unwritten title pixels");
+        need(matched==uint64_t(width)*height*3,"native debug presentation preserves exact SDK colors under nearest scaling and coverage");
+        need(alpha==uint64_t(width)*height,"native debug presentation preserves every original title alpha word");
+        std::cout<<"native_debug_color covered="<<covered<<" uncovered="<<uncovered<<" exact_rgb="<<matched<<" preserved_alpha="<<alpha<<'\n';
+    }
 };
+void runtimeSettingsChecks(Host& host)
+{
+    Scene scene(host,FfxApiProxy::real?1505u:64u,FfxApiProxy::real?847u:64u);host.submit();host.reset();
+    RRWrapper wrapper;FrameParameters frame;std::string error;uint32_t token=2000;
+    auto step=[&](bool expectedReset){
+        need(wrapper.PrepareFrame(camera(token++),false,frame,error),"prepare configured frame");
+        need(frame.reset==expectedReset,"RR settings reset only the intended history frame");
+        need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
+        need(bool(FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET)==expectedReset,"SDK receives configured history reset");
+        host.submit();host.reset();
+    };
+    need(wrapper.Configure({},error),"lazy provider-default settings configure");step(true);
+    const auto defaults=wrapper.GetSettingsState().defaults;
+    need(wrapper.GetSettingsState().ready && wrapper.GetSettingsState().effective==defaults,"queried provider defaults are effective baseline");
+    RRSettings explicitDefaults;explicitDefaults.overrideMask=0x3fu;explicitDefaults.values=defaults;
+    auto calls=FfxApiProxy::configures;
+    need(wrapper.Configure(explicitDefaults,error) && FfxApiProxy::configures==calls,"explicit default values cause no SDK reconfiguration");step(false);
+    RRSettings custom{0x3fu,{.8f,.6f,3000.f,12.f,.9f,.025f,0,0},-1,0};
+    custom.values[0]=defaults[0]==.25f?.75f:.25f;
+    uint32_t changes=0;for(unsigned i=0;i<6;++i)changes+=custom.values[i]!=defaults[i];
+    need(changes>0,"runtime settings exercise actual effective changes");
+    calls=FfxApiProxy::configures;
+    need(wrapper.Configure(custom,error) && FfxApiProxy::configures==calls+changes,"only changed effective AMD scalar keys configure");
+    auto state=wrapper.GetSettingsState();
+    need(state.defaults==defaults && state.requested.overrideMask==custom.overrideMask,"runtime settings retain queried defaults and requested mask");
+    for(unsigned i=0;i<6;++i)need(state.effective[i]==custom.values[i],"cached effective scalar equals applied override");
+    calls=FfxApiProxy::configures;
+    need(wrapper.Configure(custom,error) && FfxApiProxy::configures==calls,"same requested settings issue no provider calls");step(true);step(false);
+    const auto generation=wrapper.ContextGeneration();custom.preserveNativeMaterialIDs=true;
+    need(wrapper.Configure(custom,error) && FfxApiProxy::configures==calls && wrapper.ContextGeneration()==generation,
+        "material ID experiment is stored without inventing an AMD configure key or recreating context");
+    need(wrapper.GetSettingsState().requested.preserveNativeMaterialIDs,"material ID snapshot is coherent");step(true);
+    need(wrapper.Configure(custom,error) && FfxApiProxy::configures==calls,"unchanged material ID setting is inert");step(false);
+    custom.preserveNativeMaterialIDs=false;
+    need(wrapper.Configure(custom,error) && FfxApiProxy::configures==calls,"returning material ID experiment to baseline uses no provider key");step(true);
+    custom.overrideMask|=0x40u;custom.values[6]=.02f;custom.values[7]=defaults[7]==80.f?40.f:80.f;
+    calls=FfxApiProxy::configures;
+    need(wrapper.Configure(custom,error) && FfxApiProxy::configures==calls+1,"debug depth bound pair is one AMD key/value");
+    state=wrapper.GetSettingsState();need(state.effective[6]==custom.values[6] && state.effective[7]==custom.values[7],"both cached debug bounds match the pair");step(false);
+    calls=FfxApiProxy::configures;
+    need(wrapper.Configure({},error) && FfxApiProxy::configures==calls+changes+1,"provider defaults restore all changed selected keys");
+    need(wrapper.GetSettingsState().effective==defaults,"restoring AMD defaults preserves exact queried values");step(true);step(false);
+    calls=FfxApiProxy::configures;auto invalid=custom;invalid.values[0]=std::numeric_limits<float>::quiet_NaN();
+    need(!wrapper.Configure(invalid,error) && FfxApiProxy::configures==calls,"invalid live overrides fail before provider configuration");
+    need(wrapper.GetSettingsState().requested.overrideMask==0 && wrapper.GetSettingsState().effective==defaults,"rejected live override preserves baseline snapshot");step(false);
+    if(!FfxApiProxy::real)
+    {
+        need(wrapper.PrepareFrame(camera(token++),false,frame,error),"prepare recorded work before configure failure");
+        need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),"record before configure failure");
+        const auto destroys=FfxApiProxy::destroys,creates=FfxApiProxy::creates;
+        RRSettings failure;failure.overrideMask=1;failure.values[0]=defaults[0]==.25f?.75f:.25f;
+        FfxApiProxy::rejectConfigureKey=1;
+        need(!wrapper.Configure(failure,error) && !error.empty(),"SDK runtime configuration error is propagated");
+        need(!wrapper.GetSettingsState().ready && wrapper.OwnedStagingBytes()==0,"SDK configure failure retires active generation");
+        need(FfxApiProxy::destroys==destroys,"failed configuration cannot destroy a recorded GPU generation");
+        host.submit();host.reset();need(FfxApiProxy::destroys==destroys+1,"configuration failure destroys old context only after GPU completion");
+        FfxApiProxy::rejectConfigureKey=0;step(true);
+        need(FfxApiProxy::creates==creates+1 && wrapper.GetSettingsState().effective[0]==failure.values[0],
+            "fresh recovery context inherits the retained valid desired override");
+    }
+    need(FfxApiProxy::badDefaults==0,"all context initializations still apply seven exact queried AMD defaults");
+    need(FfxApiProxy::badConfigureLayouts==0,"all runtime configuration descriptors preserve exact key/count/data ABI");
+    std::cout<<"runtime_settings effective_changes="<<changes<<" unchanged_calls=0 debug_bounds_count=1 material_key_calls=0\n";
+}
+void nativeDebugChecks(Host& host,const std::filesystem::path& evidence={})
+{
+    const uint32_t width=FfxApiProxy::real?1505u:64u,height=FfxApiProxy::real?847u:64u,outWidth=137,outHeight=73;
+    if(!evidence.empty())std::filesystem::create_directories(evidence);
+    Scene scene(host,width,height,{},true);host.submit();host.reset();RRWrapper wrapper;FrameParameters frame;std::string error;
+    uint32_t token=2200;RRSettings settings;
+    auto dispatch=[&]{need(wrapper.PrepareFrame(camera(token++,float(width)/height),false,frame,error),"prepare native SDK debug frame");
+        need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());};
+    const auto debugBefore=FfxApiProxy::nativeDebugDispatches;
+    dispatch();need(FfxApiProxy::lastCreate.flags==0 && FfxApiProxy::nativeDebugDispatches==debugBefore,
+        "native debug OFF creates no debugging context and chains no extra SDK dispatch");
+    need(!wrapper.GetNativeDebugOutputSnapshot().resource && !wrapper.GetNativeDebugOutputSnapshot().owner,"native debug OFF publishes no image");
+    const auto baselineAux=wrapper.OwnedAuxiliaryBytes(),baselineStage=wrapper.OwnedStagingBytes();host.submit();host.reset();
+    D3D12_HEAP_PROPERTIES heap{};heap.Type=D3D12_HEAP_TYPE_DEFAULT;
+    D3D12_RESOURCE_DESC desc{};desc.Dimension=D3D12_RESOURCE_DIMENSION_TEXTURE2D;desc.Width=outWidth;desc.Height=outHeight;
+    desc.DepthOrArraySize=desc.MipLevels=1;desc.SampleDesc.Count=1;desc.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;desc.Flags=D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    ComPtr<ID3D12Resource> target;hr(host.device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&desc,
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS,nullptr,IID_PPV_ARGS(&target)));
+    const std::array<float,4> sentinel{.125f,.25f,.5f,7.f};
+    const auto initialGeneration=wrapper.ContextGeneration();const auto initialDestroys=FfxApiProxy::destroys;
+    settings.nativeDebugView=0;need(wrapper.Configure(settings,error),"enable AMD native overview");
+    need(!wrapper.GetSettingsState().ready && FfxApiProxy::destroys==initialDestroys+1,
+        "enabling SDK debugging physically retires completed ordinary context");
+    RRWrapperNativeDebugOutputSnapshot image;uint64_t warmAux=0;
+    for(uint32_t view=0;view<13;++view)
+    {
+        settings.nativeDebugView=view?1:0;settings.nativeDebugViewport=view?view-1u:0u;
+        const auto generation=wrapper.ContextGeneration();const auto calls=FfxApiProxy::configures;
+        need(wrapper.Configure(settings,error),"select documented native SDK viewport");
+        if(view)need(wrapper.ContextGeneration()==generation && FfxApiProxy::configures==calls,
+            "native active viewport selection neither recreates context nor configures lighting keys");
+        dispatch();need(frame.reset==(view==0),"only enabling native SDK context resets lighting history");
+        image=wrapper.GetNativeDebugOutputSnapshot();
+        need(image.resource && image.owner && image.recording==host.list.Get() && image.frameSL==frame.streamlineFrame &&
+            image.width==width && image.height==height && image.state==D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+            "successful SDK debug dispatch publishes owned source provenance");
+        need(image.resource!=scene.spec() && image.resource!=scene.diff(),"SDK native visualization never aliases lighting outputs");
+        need(FfxApiProxy::lastCreate.flags==FFX_DENOISER_ENABLE_DEBUGGING &&
+            FfxApiProxy::lastCreate.signalFlags==(FFX_DENOISER_SIGNAL_DIRECT_DIFFUSE|FFX_DENOISER_SIGNAL_INDIRECT_SPECULAR),
+            "native debugging creation flag preserves original two lighting signals");
+        need(FfxApiProxy::lastDebug.header.type==FFX_API_DISPATCH_DESC_TYPE_DENOISER_DEBUG_VIEW &&
+            FfxApiProxy::lastDebug.header.pNext==nullptr && FfxApiProxy::lastDebug.output.resource==image.resource &&
+            FfxApiProxy::lastDebug.output.state==FFX_API_RESOURCE_STATE_UNORDERED_ACCESS &&
+            FfxApiProxy::lastDebug.outputSize.width==width && FfxApiProxy::lastDebug.outputSize.height==height &&
+            FfxApiProxy::lastDebug.mode==uint32_t(settings.nativeDebugView) &&
+            FfxApiProxy::lastDebug.viewportIndex==settings.nativeDebugViewport,"actual provider receives exact supported debug descriptor");
+        ClearTexture(host.list.Get(),target.Get(),sentinel);
+        if(view==0)
+        {
+            need(wrapper.ContextGeneration()==initialGeneration+1,"debug flag creates a fresh generation");
+            const auto resourceDesc=image.resource->GetDesc();const auto bytes=host.device->GetResourceAllocationInfo(0,1,&resourceDesc).SizeInBytes;
+            warmAux=wrapper.OwnedAuxiliaryBytes();need(warmAux==baselineAux+4u*bytes && wrapper.OwnedStagingBytes()==baselineStage,
+                "only debug ON allocates four separate native image slots; lighting staging size is unchanged");
+            need(!wrapper.PresentNativeDebug(host.list.Get(),target.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,image.frameSL-1,error),
+                "native debug rejects mismatched requested source SL frame");
+            auto bad=image;bad.width++;
+            need(!wrapper.PresentNativeDebug(host.list.Get(),target.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,bad,error),"native snapshot dimensions are validated");
+            bad=image;bad.owner.reset();
+            need(!wrapper.PresentNativeDebug(host.list.Get(),target.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,bad,error),"native image without lifetime owner fails closed");
+            bad=image;bad.state=D3D12_RESOURCE_STATE_COMMON;
+            need(!wrapper.PresentNativeDebug(host.list.Get(),target.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,bad,error),"native source state is validated before recording");
+            need(!wrapper.PresentNativeDebug(host.list.Get(),image.resource,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,image.frameSL,error),
+                "native presentation rejects source-output alias");
+        }
+        barrier(host.list.Get(),target.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        need(wrapper.PresentNativeDebug(host.list.Get(),target.Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,image.frameSL,error),error.c_str());
+        // This next explicit barrier proves the caller's read state was restored;
+        // strict debug warnings/errors fail if presentation left the target UAV.
+        barrier(host.list.Get(),target.Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        Readback source(host,image.resource),display(host,target.Get());host.submit();host.reset();
+        display.nativeDebugPresentation(source,width,height,outWidth,outHeight,sentinel,!FfxApiProxy::real);
+        if(!evidence.empty())
+        {
+            const auto name=view?"viewport_"+std::to_string(view-1u):"overview";
+            source.save(evidence/(name+".rgba16f"),width,height);display.save(evidence/(name+"_present.rgba16f"),outWidth,outHeight);
+        }
+        need(wrapper.OwnedAuxiliaryBytes()==warmAux,"native viewport changes allocate no additional warmed image slots");
+    }
+    {
+        const auto submitted=image;
+        // The source fence was completed by the last host.submit()/reset(); a
+        // distinct display list now exercises an explicit immutable old source.
+        const auto originalAllocator=host.allocator;const auto originalList=host.list;hr(originalList->Close());
+        hr(host.device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,IID_PPV_ARGS(&host.allocator)));
+        hr(host.device->CreateCommandList(0,D3D12_COMMAND_LIST_TYPE_DIRECT,host.allocator.Get(),nullptr,IID_PPV_ARGS(&host.list)));
+        ClearTexture(host.list.Get(),target.Get(),sentinel);
+        need(!wrapper.PresentNativeDebug(host.list.Get(),target.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,submitted,error),
+            "different recording requires an explicit proven GPU dependency");
+        for(auto* input:{scene.resources.spec,scene.resources.diff})
+        {
+            barrier(host.list.Get(),input,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            ClearTexture(host.list.Get(),input,input==scene.resources.spec?std::array<float,4>{.7f,.2f,.4f,5.f}:std::array<float,4>{1.8f,.1f,.6f,5.f});
+            barrier(host.list.Get(),input,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        }
+        const auto savedMock=FfxApiProxy::mockDebug;FfxApiProxy::mockDebug={.875f,.25f,.0625f,1.f};
+        dispatch();const auto latest=wrapper.GetNativeDebugOutputSnapshot();
+        need(latest.frameSL!=submitted.frameSL && latest.resource!=submitted.resource,"new unsubmitted source has distinct frame and owned image");
+        need(wrapper.PresentNativeDebug(host.list.Get(),target.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,submitted,error,true),error.c_str());
+        Readback source(host,submitted.resource),newSource(host,latest.resource),display(host,target.Get());host.submit();host.reset();
+        FfxApiProxy::mockDebug=savedMock;
+        display.nativeDebugPresentation(source,width,height,outWidth,outHeight,sentinel,!FfxApiProxy::real);
+        const auto oldWords=source.values(width,height),newWords=newSource.values(width,height);
+        uint64_t changed=0;for(size_t i=0;i<oldWords.size();++i)if(i%4<3)changed+=oldWords[i]!=newWords[i];
+        if(!FfxApiProxy::real)need(changed>0,"independent native mock colors prove explicit presentation selects submitted old image");
+        std::cout<<"native_debug_cached_source source_SL="<<submitted.frameSL<<" current_SL="<<frame.streamlineFrame
+            <<" source_fence_complete=1 distinct_recording=1 explicit_source_owner=1 changed_rgb="<<changed<<'\n';
+        hr(host.list->Close());host.allocator=originalAllocator;host.list=originalList;host.reset();
+    }
+    dispatch();image=wrapper.GetNativeDebugOutputSnapshot();const auto destroys=FfxApiProxy::destroys;
+    need(wrapper.Configure({},error),"disable native SDK debug with pending recording");image={};
+    need(!wrapper.GetNativeDebugOutputSnapshot().resource && !wrapper.GetSettingsState().ready,
+        "disabling native debug clears observation and retires active generation");
+    need(FfxApiProxy::destroys==destroys,"native debug context cannot be destroyed while its recording is outstanding");
+    host.submit();host.reset();need(FfxApiProxy::destroys==destroys+1,"native debug context retires only after its last owned GPU lease completes");
+    const auto nativeCalls=FfxApiProxy::nativeDebugDispatches;dispatch();
+    need(frame.reset && FfxApiProxy::lastCreate.flags==0 && FfxApiProxy::nativeDebugDispatches==nativeCalls &&
+        wrapper.OwnedAuxiliaryBytes()==baselineAux,"returning native debug OFF restores zero-extra-surface baseline and reset");
+    host.submit();host.reset();
+    if(!FfxApiProxy::real)
+    {
+        settings.nativeDebugView=0;settings.nativeDebugViewport=0;need(wrapper.Configure(settings,error),"prepare debug failure cases");
+        for(bool cancelled:{false,true})
+        {
+            ClearPair(host.list.Get(),scene.spec(),scene.diff(),{.125f,.25f,.5f,.75f},{1.25f,1.5f,1.75f,2.f});
+            ClearTexture(host.list.Get(),target.Get(),sentinel);host.submit();host.reset();
+            need(wrapper.PrepareFrame(camera(token++,float(width)/height),false,frame,error),"prepare partial/cancelled native debug SDK recording");
+            FfxApiProxy::recordPartialWrites=true;FfxApiProxy::rejectDispatch=!cancelled;
+            OutputCommitGuard guard;guard.admit=+[](void*,OutputCommitGuard::Action,void*) noexcept {return false;};
+            need(!wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error,cancelled?guard:OutputCommitGuard{}),
+                "SDK error or cancelled final admission rejects native debug and lighting together");
+            need(!wrapper.GetNativeDebugOutputSnapshot().resource && !wrapper.GetNativeDebugOutputSnapshot().owner,
+                "partial SDK debug writes are never published on failed admission");
+            need(!wrapper.PresentNativeDebug(host.list.Get(),target.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,frame.streamlineFrame,error),
+                "failed native debug cannot write the final title target");
+            Readback spec(host,scene.spec()),diff(host,scene.diff()),display(host,target.Get());host.submit();host.reset();
+            spec.exact({.125f,.25f,.5f,.75f},width,height);diff.exact({1.25f,1.5f,1.75f,2.f},width,height);display.exact(sentinel,outWidth,outHeight);
+            FfxApiProxy::rejectDispatch=false;FfxApiProxy::recordPartialWrites=false;
+        }
+    }
+    std::cout<<"native_debug views=13 warmed_auxiliary_bytes="<<warmAux<<" baseline_auxiliary_bytes="<<baselineAux
+        <<" lighting_staging_bytes="<<baselineStage<<" default_extra_dispatch=0 default_extra_image_bytes=0\n";
+}
 void partialFailureChecks(Host& host)
 {
     Scene scene(host,64,64);host.submit();host.reset();
@@ -1004,9 +1307,21 @@ void discardedRecordingChecks(Host& host,const std::filesystem::path& output)
     spec.verify(output/"discard_recovery_spec.rgba16f",1505,847);diff.verify(output/"discard_recovery_diff.rgba16f",1505,847);
 }
 void realLoop(Host& host,uint32_t width,uint32_t height,unsigned frames,const std::filesystem::path& input,
-              const std::filesystem::path& output,const char* label,bool nativeTable=false)
+              const std::filesystem::path& output,const char* label,bool nativeTable=false,bool nativeDebug=false)
 {
     Scene scene(host,width,height,input);host.submit();host.reset();RRWrapper wrapper;
+    ComPtr<ID3D12Resource> debugTarget;
+    const uint32_t targetWidth=2560,targetHeight=1440;const std::array<float,4> debugSentinel{.125f,.25f,.5f,7.f};
+    if(nativeDebug)
+    {
+        RRSettings settings;settings.nativeDebugView=1;settings.nativeDebugViewport=4;std::string error;
+        need(wrapper.Configure(settings,error),"real timing enables actual SDK confidence debug view");
+        D3D12_HEAP_PROPERTIES heap{};heap.Type=D3D12_HEAP_TYPE_DEFAULT;
+        D3D12_RESOURCE_DESC target{};target.Dimension=D3D12_RESOURCE_DIMENSION_TEXTURE2D;target.Width=targetWidth;target.Height=targetHeight;
+        target.DepthOrArraySize=target.MipLevels=1;target.SampleDesc.Count=1;target.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;target.Flags=D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        hr(host.device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&target,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,nullptr,IID_PPV_ARGS(&debugTarget)));
+        ClearTexture(host.list.Get(),debugTarget.Get(),debugSentinel);host.submit();host.reset();
+    }
     std::unique_ptr<ConsumerBuffer> native;
     std::unique_ptr<NativeTableConsumer> consumer;
     if(nativeTable)
@@ -1027,6 +1342,8 @@ void realLoop(Host& host,uint32_t width,uint32_t height,unsigned frames,const st
         if(nativeTable)frame.outputConstants={native->binding.Get(),native->constants().address,consumer->heap.Get(),consumer->Handle()};
         host.list->EndQuery(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0);
         need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
+        if(nativeDebug)need(wrapper.PresentNativeDebug(host.list.Get(),debugTarget.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+            frame.streamlineFrame,error),"real timing presents actual SDK output after complete RR lighting commit");
         if(index==0){warmedStagingBytes=wrapper.OwnedStagingBytes();warmedAuxiliaryBytes=wrapper.OwnedAuxiliaryBytes();}
         need(wrapper.OwnedStagingBytes()==warmedStagingBytes,"sequential recordings reuse warmed staging without allocation");
         need(wrapper.OwnedAuxiliaryBytes()==warmedAuxiliaryBytes,"sequential recording reuses owned fallback/snapshot buffers without allocation");
@@ -1038,17 +1355,27 @@ void realLoop(Host& host,uint32_t width,uint32_t height,unsigned frames,const st
     Readback spec(host,scene.spec()),diff(host,scene.diff());host.submit();host.reset();
     spec.verify(output/(std::string(label)+"_spec.rgba16f"),width,height);
     diff.verify(output/(std::string(label)+"_diff.rgba16f"),width,height);
+    if(nativeDebug)
+    {
+        const auto image=wrapper.GetNativeDebugOutputSnapshot();need(image.resource && image.owner,"real debug timing keeps actual source lease");
+        Readback source(host,image.resource),display(host,debugTarget.Get());host.submit();host.reset();
+        display.nativeDebugPresentation(source,width,height,targetWidth,targetHeight,debugSentinel,false);
+        source.save(output/(std::string(label)+"_native_source.rgba16f"),width,height);
+        display.save(output/(std::string(label)+"_native_present.rgba16f"),targetWidth,targetHeight);
+    }
     const unsigned warm=std::min(4u,frames-1);std::vector<double> steady(milliseconds.begin()+warm,milliseconds.end());
     std::sort(steady.begin(),steady.end());const double mean=std::accumulate(steady.begin(),steady.end(),0.0)/steady.size();
     std::cout<<"timing "<<label<<" size="<<width<<'x'<<height<<" frames="<<frames<<" warmup="<<warm
         <<" mean_ms="<<mean<<" median_ms="<<steady[steady.size()/2]<<" first_ms="<<milliseconds[0]
         <<" staging_bytes="<<warmedStagingBytes<<" staging_slots=4 auxiliary_bytes="<<warmedAuxiliaryBytes
-        <<" scope="<<(nativeTable?"RR_stage_plus_native_table_capture_YCoCg_commit":"RR_stage_plus_RGB_commit_preserving_title_alpha")<<" samples_ms=";
+        <<" scope="<<(nativeDebug?"RR_stage_RGB_commit_SDK_native_debug_clear_and_2560x1440_present":
+            (nativeTable?"RR_stage_plus_native_table_capture_YCoCg_commit":"RR_stage_plus_RGB_commit_preserving_title_alpha"))<<" samples_ms=";
     for(auto value:milliseconds)std::cout<<value<<',';std::cout<<'\n';
 }
 int main(int argc,char** argv) try
 {
     std::cout.setf(std::ios::unitbuf);
+    settingsValidationChecks();
     cameraChecks();
     const std::string mode=argc>1?argv[1]:"--camera";
     if(mode=="--camera") {std::cout<<"PASS checks="<<checks<<" camera\n";return 0;}
@@ -1075,6 +1402,9 @@ int main(int argc,char** argv) try
     if(mode=="--mock")providerChecks(host);
     if(mode=="--mock"){partialFailureChecks(host);cancelledCommitChecks(host);encodedFailureChecks(host);tableFailureChecks(host);sameBatchSnapshotChecks(host);nearestHalfEdgeChecks(host);}
     if(mode=="--mock")stagingPoolChecks(host);
+    std::cout<<"stage coherent runtime AMD settings checks\n";runtimeSettingsChecks(host);
+    std::cout<<"stage native AMD debug view and presentation checks\n";
+    nativeDebugChecks(host,mode=="--real" && argc==4?std::filesystem::path(argv[3])/"native_debug":std::filesystem::path{});
     if(mode=="--real")
     {
         need(argc==4,"real test needs capture input/output directories");std::filesystem::path output=argv[3];std::filesystem::create_directories(output);
@@ -1084,12 +1414,16 @@ int main(int argc,char** argv) try
         realLoop(host,2560,1440,16,{},output,"synthetic_2560x1440");
         realLoop(host,1505,847,24,{},output,"native_table_1505x847",true);
         realLoop(host,2560,1440,16,{},output,"native_table_2560x1440",true);
+        realLoop(host,1505,847,24,{},output,"native_debug_1505x847_to_2560x1440",false,true);
+        realLoop(host,2560,1440,16,{},output,"native_debug_2560x1440",false,true);
     }
     RecordedComputeLease::Poll();need(FfxApiProxy::live.empty(),"all completed contexts retired");
     need(FfxApiProxy::creates==FfxApiProxy::destroys,"exact context create/destroy balance");host.checkDebug();
     need(FfxApiProxy::badCreateChains==0,"all deferred create descriptor chains survive through destroy");
+    need(FfxApiProxy::badDefaults==0 && FfxApiProxy::badConfigureLayouts==0,"every original AMD default and runtime configure descriptor remains valid");
     std::cout<<"PASS checks="<<checks<<" mode="<<mode<<" creates="<<FfxApiProxy::creates<<" destroys="<<FfxApiProxy::destroys
         <<" dispatches="<<FfxApiProxy::dispatches<<" defaults="<<FfxApiProxy::defaults<<" configures="<<FfxApiProxy::configures
+        <<" native_debug_dispatches="<<FfxApiProxy::nativeDebugDispatches
         <<" debug_errors=0\n";return 0;
 }
 catch(const std::exception& error){std::cerr<<"FAIL after checks="<<checks<<": "<<error.what()<<'\n';return 1;}
