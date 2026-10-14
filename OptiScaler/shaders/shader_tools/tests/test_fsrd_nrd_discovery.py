@@ -363,6 +363,40 @@ J discoveryTests(Host& h) {
  need(rrCalls==persistentRR+1 && NrdBridge::GetStatus().active,"visible metadata copied before Reset reaches valid Active Consumer");
  c.frame(3,2,false);
  need(rrCalls==persistentRR+2 && NrdBridge::GetStatus().active,"persistent visible tables remain valid without any descriptor recopy");
+ // Alive, typed Recon guides are per-recording inputs; their rotation must not starve a stable signal profile.
+ const auto savedNormals=c.textures[2],savedDepth=c.textures[3];
+ auto guide=[&](ID3D12Resource* original) {
+  const auto desc=original->GetDesc();D3D12_HEAP_PROPERTIES heap{};heap.Type=D3D12_HEAP_TYPE_DEFAULT;
+  ComPtr<ID3D12Resource> value;hr(h.dev->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&desc,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,nullptr,IID_PPV_ARGS(&value)));
+  FrameSurvey::ResourceCreated(value.Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);return value;
+ };
+ const auto alternateNormals=guide(savedNormals.Get()),alternateDepth=guide(savedDepth.Get());
+ ResTrack_Dx12::SubmitForTesting(h.list.Get());
+ const auto guideGeneration=NrdBridge::gService->cache.Generation(),guideCancellation=NrdBridge::gService->cancellationSerial;
+ const auto guideConversions=convertCalls,guideRR=rrCalls;
+ for(UINT i=0;i<6;++i) {
+  c.textures[2]=i%2?savedNormals:alternateNormals;c.textures[3]=i%2?savedDepth:alternateDepth;
+  c.views(0,{0,1,2,3,0,1,2,3},false);c.frame(3);
+  need(convertCalls==guideConversions+i+1&&rrCalls==guideRR+i+1&&NrdBridge::GetStatus().active,"every alternating Recon guide frame converts and reaches Active exactly once");
+  need(lastReconInputs.normalRoughness==c.textures[2].Get()&&lastReconInputs.viewDepth==c.textures[3].Get(),"conversion receives the current recording's exact normal/depth pointers, not previous cached guides");
+  need(NrdBridge::gService->cache.Generation()==guideGeneration&&NrdBridge::gService->cancellationSerial==guideCancellation&&!lastRRFrame.reset,"alive typed guide rotation preserves stable profile generation and submitted temporal history");
+  need(NrdBridge::gService->cache.Get().normals==c.textures[2].Get()&&NrdBridge::gService->cache.Get().viewDepth==c.textures[3].Get(),"latest diagnostics refresh current guides without republishing the stable lighting profile");
+  ResTrack_Dx12::SubmitForTesting(h.list.Get());
+ }
+ // The newly bound depth differs from the last Consumer cache. Retire it while Convert waits for injection.
+ c.textures[3]=alternateDepth;c.views(0,{0,1,2,3,0,1,2,3},false);c.begin();
+ h.list->SetPipelineState(c.pipelines[UINT(Role::Recon)].Get());NrdBridge::OnSetPipeline(h.list.Get(),c.pipelines[UINT(Role::Recon)].Get());c.bind(1,0);c.bind(5,8);h.list->Dispatch(1,1,1);
+ conversionStaged.store(false);NrdBridge::gBeforeConversionLockForTesting=conversionLockProbe;
+ const auto beforeCurrentRelease=convertCalls,currentReleaseEpoch=NrdBridge::gService->cancellationSerial;
+ std::unique_lock guideSerial(NrdBridge::gInjectionMutex);std::thread pendingGuide([&]{NrdBridge::AfterDispatch(h.list.Get());});
+ await([]{return conversionStaged.load(std::memory_order_acquire);},"current-guide conversion reaches its lifecycle wait");
+ need(NrdBridge::gService->cache.Get().viewDepth==savedDepth.Get()&&NrdBridge::gService->lists.at(h.list.Get()).chain.Get().viewDepth==alternateDepth.Get(),"released pending guide is demonstrably absent from the last published cache");
+ FrameSurvey::Released(alternateDepth.Get());guideSerial.unlock();pendingGuide.join();NrdBridge::gBeforeConversionLockForTesting=nullptr;
+ need(convertCalls==beforeCurrentRelease&&!NrdBridge::gService->cache.Valid()&&NrdBridge::gService->cancellationSerial>currentReleaseEpoch,"release of a current uncached guide cancels conversion before native/source access and invalidates the epoch");
+ FrameSurvey::ResourceCreated(alternateDepth.Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+ c.textures[2]=savedNormals;c.textures[3]=savedDepth;c.views(0,{0,1,2,3,0,1,2,3},false);c.frame(3);c.frame(3);
+ need(NrdBridge::GetStatus().active,"current-guide release permits complete profile rediscovery and safe recovery");
+ ResTrack_Dx12::SubmitForTesting(h.list.Get());
  // Keep all old resources alive while changing bindings: old pointers must never authorize output writes.
  c.views(8,{5,4,9,0,2},true); const auto reconConversion=convertCalls,reconRR=rrCalls; c.frame(3);
  need(convertCalls==reconConversion && rrCalls==reconRR && !NrdBridge::GetStatus().active,"alive Recon resource swap cancels conversion and RR before current cache publication");

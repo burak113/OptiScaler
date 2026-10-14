@@ -38,6 +38,15 @@ inline bool SameResources(const Resources& a, const Resources& b) noexcept
         a.motion == b.motion && a.outputSpec == b.outputSpec && a.outputDiff == b.outputDiff &&
         a.width == b.width && a.height == b.height;
 }
+// Temporal identity belongs to the lighting signals/output profile. Recon guides
+// may use different live textures each frame; their exact type/extent is checked
+// by that recording's ChainDiscovery, and conversion uses those current guides.
+inline bool SameSignalProfile(const Resources& a, const Resources& b) noexcept
+{
+    return a.inputSpec == b.inputSpec && a.inputDiff == b.inputDiff &&
+        a.reconSpec == b.reconSpec && a.reconDiff == b.reconDiff && a.motion == b.motion &&
+        a.outputSpec == b.outputSpec && a.outputDiff == b.outputDiff && a.width == b.width && a.height == b.height;
+}
 inline bool UsesResource(const Resources& resources, const void* object) noexcept
 {
     return object && (resources.inputSpec == object || resources.inputDiff == object ||
@@ -152,6 +161,7 @@ class ChainDiscovery
         { stage_ = Stage::Invalid; return true; }
         return false;
     }
+    bool Valid() const noexcept { return stage_ != Stage::Empty && stage_ != Stage::Invalid; }
     bool Complete() const noexcept { return stage_ == Stage::Complete; }
     const Resources& Get() const noexcept { return resources_; }
     const std::array<Bound,9>& Bindings() const noexcept { return bindings_; }
@@ -168,7 +178,7 @@ class DiscoveryCache
     bool Publish(const ChainDiscovery& chain) noexcept
     {
         if (!chain.Complete()) return false;
-        const bool changed = !valid_ || !SameResources(resources_,chain.Get());
+        const bool changed = !valid_ || !SameSignalProfile(resources_,chain.Get());
         resources_ = chain.Get(); valid_ = true; missingRecon_ = 0;
         if (changed) ++generation_;
         return changed;

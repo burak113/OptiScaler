@@ -239,8 +239,13 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         std::scoped_lock lock(gMutex);
         const auto found = owner->lists.find(cmd);
         if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || !owner->cache.Valid() ||
-            found == owner->lists.end() || found->second.frame != frame) return;
-        resources = owner->cache.Get(); generation = owner->cache.Generation(); serial = owner->cancellationSerial;
+            found == owner->lists.end() || found->second.frame != frame ||
+            !found->second.followingRecon || !found->second.chain.Valid()) return;
+        resources = owner->cache.Get();
+        // Capture this Recon's validated guides, rather than the prior Consumer's cached pointers.
+        resources.normals = found->second.chain.Get().normals;
+        resources.viewDepth = found->second.chain.Get().viewDepth;
+        generation = owner->cache.Generation(); serial = owner->cancellationSerial;
         reset = serial != owner->appliedReset;
     }
     #ifdef FSRD_NRD_BRIDGE_TEST
@@ -253,7 +258,9 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         const auto found = owner->lists.find(cmd);
         if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || !owner->cache.Valid() ||
             owner->cache.Generation() != generation || owner->cancellationSerial != serial || found == owner->lists.end() ||
-            found->second.frame != frame) return;
+            found->second.frame != frame || !found->second.followingRecon || !found->second.chain.Valid() ||
+            found->second.chain.Get().normals != resources.normals ||
+            found->second.chain.Get().viewDepth != resources.viewDepth) return;
         discard = owner->discardRequested;
     }
     if (!FrameSurvey::MetadataHealthy()) { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
@@ -613,7 +620,7 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 {
                     const auto& a = list.chain.Get(); const auto& b = owner->cache.Get();
                     if (a.width != b.width || a.height != b.height || a.inputSpec != b.inputSpec || a.inputDiff != b.inputDiff ||
-                        a.reconSpec != b.reconSpec || a.reconDiff != b.reconDiff || a.normals != b.normals || a.viewDepth != b.viewDepth)
+                        a.reconSpec != b.reconSpec || a.reconDiff != b.reconDiff)
                     {
                         IdentityChanged(*owner,"Current Recon resource identity changed");
                     }
@@ -810,9 +817,16 @@ void OnReleased(void* object) noexcept
                 }
                 owner.lists.erase(found);
             }
-            for (auto& [cmd,list] : owner.lists) if (list.chain.Released(object)) list.followingRecon = false;
+            bool currentReleased = false;
+            for (auto& [cmd,list] : owner.lists) if (list.chain.Released(object))
+            {
+                // A newly bound guide may not be in the last published cache yet.
+                currentReleased |= list.followingRecon || list.converted;
+                list.followingRecon = false;
+            }
             if (owner.taggedMotion == object) owner.taggedMotion = nullptr;
-            if (owner.cache.Released(object)) { Invalidate(owner,"A discovered title resource was released"); reopen = true; }
+            if (owner.cache.Released(object) || currentReleased)
+            { Invalidate(owner,"A discovered or current-recording title resource was released"); reopen = true; }
         }
         if (reopen && gRuntime.load(std::memory_order_relaxed))
         { PublishBindingWindow(); LOG_INFO("[NRD_BRIDGE] resource release invalidated discovery; restarting bounded window"); }
