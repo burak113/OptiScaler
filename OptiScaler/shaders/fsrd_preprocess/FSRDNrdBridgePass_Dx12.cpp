@@ -364,21 +364,20 @@ bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList* list, const Converted
     try
     {
         ScopedSkipHeapCapture skipHeapCapture;
-        if (titleConstants.nativeHeap)
-        {
-            if (!owner->flagCapture.Initialize(owner->device.Get(), error)) return false;
-            for (const auto& slot : owner->copy.slots)
-                if (!slot->flag.Initialize(owner->device.Get(), error)) return false;
-        }
+        const bool nativeConstants = HasNativeTitleSignalConstants(titleConstants);
+        if (nativeConstants && !owner->flagCapture.Initialize(owner->device.Get(), error)) return false;
         auto lease = std::make_shared<Impl::Lease>(); lease->owner = owner;
         lease->slot = owner->copy.Acquire(owner->device.Get());
-        if (titleConstants.nativeHeap && !lease->slot->flag.Initialize(owner->device.Get(), error)) return false;
+        if (nativeConstants)
+        {
+            if (!lease->slot->flag.Initialize(owner->device.Get(), error)) return false;
+        }
         if (!ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(), list, lease))
         { error = "NRD debug-copy GPU lifetime tracking unavailable"; return false; }
         owner->copy.Describe(owner->device.Get(), *lease->slot,
             {resources.spec, resources.diff, resources.normals, resources.linearDepth, resources.motion,
              resources.specAlbedo, resources.diffAlbedo}, {outputSpec, outputDiff});
-        const uint32_t constants[] = {owner->width, owner->height, uint32_t(mode), uint32_t(encoding), titleConstants.address ? 1u : 0u};
+        const uint32_t constants[] = {owner->width, owner->height, uint32_t(mode), uint32_t(encoding), nativeConstants ? 1u : 0u};
         struct PreparedCopy
         {
             Impl* owner;
@@ -389,18 +388,18 @@ bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList* list, const Converted
             D3D12_GPU_VIRTUAL_ADDRESS address;
             TitleSignalConstants titleConstants;
         } copy {owner.get(), list, lease->slot.get(), outputSpec, outputDiff, constants,
-            titleConstants.nativeHeap ? lease->slot->flag.resource->GetGPUVirtualAddress() :
-                (titleConstants.address ? titleConstants.address : owner->zeroConstants->GetGPUVirtualAddress()), titleConstants};
+            nativeConstants ? lease->slot->flag.resource->GetGPUVirtualAddress() :
+                owner->zeroConstants->GetGPUVirtualAddress(), titleConstants};
         const auto record = +[](void* state) noexcept {
             const auto& prepared = *static_cast<PreparedCopy*>(state);
-            if (prepared.titleConstants.nativeHeap)
+            if (HasNativeTitleSignalConstants(prepared.titleConstants))
                 prepared.owner->flagCapture.Record(prepared.list, prepared.titleConstants, prepared.slot->flag);
             UavBarrier(prepared.list, prepared.spec, prepared.diff);
-            // Bind the native CBV at execution; CPU-visible flag contents may still change before submission.
+            // Sample the native flag at execution; the conversion reads only the private snapshot.
             prepared.owner->copy.Record(prepared.list, *prepared.slot, prepared.constants, 5,
                 prepared.owner->width, prepared.owner->height, prepared.address);
             UavBarrier(prepared.list, prepared.spec, prepared.diff);
-            if (prepared.titleConstants.nativeHeap) prepared.slot->flag.Transition(prepared.list, false);
+            if (HasNativeTitleSignalConstants(prepared.titleConstants)) prepared.slot->flag.Transition(prepared.list, false);
         };
         if (guard.admit && !guard.admit(guard.state, record, &copy))
         { error = "NRD output ticket expired before debug commit"; return false; }

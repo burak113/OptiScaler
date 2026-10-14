@@ -3,42 +3,44 @@
 #include <wrl/client.h>
 #include <cstring>
 #include "precompile/FSRDNrdBridgeFlag_Shader.h"
+#include "precompile/FSRDNrdBridgeFlagRoot_Shader.h"
 
 namespace NrdBridge
 {
+inline bool HasNativeTitleSignalConstants(const TitleSignalConstants& constants) noexcept
+{
+    return constants.address != 0 || (constants.nativeHeap && constants.cbvHandle.ptr);
+}
+
 inline bool ValidateTitleSignalConstants(const TitleSignalConstants& constants, ID3D12Device* device, std::string& error)
 {
-    if (!constants.resource && !constants.address && !constants.nativeHeap && !constants.cbvHandle.ptr) return true;
+    if (!constants.address && !constants.nativeHeap && !constants.cbvHandle.ptr) return true;
     if (bool(constants.nativeHeap) != bool(constants.cbvHandle.ptr))
     { error = "NRD Consumer CB6 native heap/table pair is incomplete"; return false; }
-    if (!constants.resource || !constants.address || (constants.address & 255u))
-    { error = "NRD Consumer CB6 resource/VA is missing or unaligned"; return false; }
-    const auto desc = constants.resource->GetDesc();
-    if (desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER)
-    { error = "NRD Consumer CB6 must be a buffer"; return false; }
-    const auto base = constants.resource->GetGPUVirtualAddress();
-    if (!base || constants.address < base || constants.address - base > desc.Width ||
-        desc.Width - (constants.address - base) < 76u * 16u)
-    { error = "NRD Consumer CB6 VA range does not cover register75.w"; return false; }
+    // A table is the title's native descriptor, even when its buffer/VA is unknown.
+    // A direct root CBV supplies only an aligned VA; never inspect a source buffer.
+    if (!constants.nativeHeap)
+    {
+        if (constants.address & 255u)
+        { error = "NRD Consumer CB6 direct root VA is unaligned"; return false; }
+        return true;
+    }
     Microsoft::WRL::ComPtr<ID3D12Device> actual;
     Microsoft::WRL::ComPtr<IUnknown> expectedIdentity, actualIdentity;
-    if (!device || FAILED(constants.resource->GetDevice(IID_PPV_ARGS(&actual))) ||
-        FAILED(device->QueryInterface(IID_PPV_ARGS(&expectedIdentity))) ||
-        FAILED(actual.As(&actualIdentity)) || expectedIdentity.Get() != actualIdentity.Get())
-    { error = "NRD Consumer CB6 device mismatch"; return false; }
+    if (!device || FAILED(device->QueryInterface(IID_PPV_ARGS(&expectedIdentity))))
+    { error = "NRD Consumer CB6 heap device is unavailable"; return false; }
     if (constants.nativeHeap)
     {
         const auto heap = constants.nativeHeap->GetDesc();
         if (heap.Type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ||
             !(heap.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) || !heap.NumDescriptors)
         { error = "NRD Consumer CB6 table requires a shader-visible resource heap"; return false; }
-        actual.Reset(); actualIdentity.Reset();
         if (FAILED(constants.nativeHeap->GetDevice(IID_PPV_ARGS(&actual))) ||
             FAILED(actual.As(&actualIdentity)) || expectedIdentity.Get() != actualIdentity.Get())
         { error = "NRD Consumer CB6 heap device mismatch"; return false; }
         const auto start = constants.nativeHeap->GetGPUDescriptorHandleForHeapStart().ptr;
         const auto stride = device->GetDescriptorHandleIncrementSize(heap.Type);
-        if (!start || constants.cbvHandle.ptr < start ||
+        if (!start || !stride || constants.cbvHandle.ptr < start ||
             (constants.cbvHandle.ptr - start) % stride ||
             (constants.cbvHandle.ptr - start) / stride >= heap.NumDescriptors)
         { error = "NRD Consumer CB6 GPU descriptor handle is outside its heap"; return false; }
@@ -76,19 +78,31 @@ struct SignalFlagSnapshot
 
 struct SignalFlagCapture
 {
-    Microsoft::WRL::ComPtr<ID3D12RootSignature> root;
-    Microsoft::WRL::ComPtr<ID3D12PipelineState> pso;
+    Microsoft::WRL::ComPtr<ID3D12RootSignature> root, directRoot;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> pso, rootPso;
     bool Initialize(ID3D12Device* device, std::string& error)
     {
-        if (pso) return true;
-        auto code = device->CreateRootSignature(0, FSRDNrdBridgeFlag_cso, sizeof(FSRDNrdBridgeFlag_cso), IID_PPV_ARGS(&root));
+        if (pso && rootPso) return true;
+        Microsoft::WRL::ComPtr<ID3D12RootSignature> nextRoot, nextDirectRoot;
+        Microsoft::WRL::ComPtr<ID3D12PipelineState> nextPso, nextRootPso;
+        auto code = device->CreateRootSignature(0, FSRDNrdBridgeFlag_cso, sizeof(FSRDNrdBridgeFlag_cso), IID_PPV_ARGS(&nextRoot));
         if (SUCCEEDED(code))
         {
             D3D12_COMPUTE_PIPELINE_STATE_DESC desc {};
-            desc.pRootSignature = root.Get(); desc.CS = {FSRDNrdBridgeFlag_cso, sizeof(FSRDNrdBridgeFlag_cso)};
-            code = device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&pso));
+            desc.pRootSignature = nextRoot.Get(); desc.CS = {FSRDNrdBridgeFlag_cso, sizeof(FSRDNrdBridgeFlag_cso)};
+            code = device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&nextPso));
+        }
+        if (SUCCEEDED(code))
+            code = device->CreateRootSignature(0, FSRDNrdBridgeFlagRoot_cso, sizeof(FSRDNrdBridgeFlagRoot_cso), IID_PPV_ARGS(&nextDirectRoot));
+        if (SUCCEEDED(code))
+        {
+            D3D12_COMPUTE_PIPELINE_STATE_DESC desc {};
+            desc.pRootSignature = nextDirectRoot.Get(); desc.CS = {FSRDNrdBridgeFlagRoot_cso, sizeof(FSRDNrdBridgeFlagRoot_cso)};
+            code = device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&nextRootPso));
         }
         if (FAILED(code)) { error = "NRD Consumer flag capture pipeline failed (HRESULT " + std::to_string(code) + ")"; return false; }
+        // Publish together: existing pooled-slot checks use pso as the ready indicator.
+        root = nextRoot; directRoot = nextDirectRoot; pso = nextPso; rootPso = nextRootPso;
         return true;
     }
     void Record(ID3D12GraphicsCommandList* list, const TitleSignalConstants& constants,
@@ -100,9 +114,17 @@ struct SignalFlagCapture
         start.Transition = {snapshot.resource.Get(), D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
             D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS};
         list->ResourceBarrier(1, &start);
-        list->SetPipelineState(pso.Get()); list->SetComputeRootSignature(root.Get());
-        ID3D12DescriptorHeap* heaps[] = {constants.nativeHeap}; list->SetDescriptorHeaps(1, heaps);
-        list->SetComputeRootDescriptorTable(0, constants.cbvHandle);
+        if (constants.nativeHeap)
+        {
+            list->SetPipelineState(pso.Get()); list->SetComputeRootSignature(root.Get());
+            ID3D12DescriptorHeap* heaps[] = {constants.nativeHeap}; list->SetDescriptorHeaps(1, heaps);
+            list->SetComputeRootDescriptorTable(0, constants.cbvHandle);
+        }
+        else
+        {
+            list->SetPipelineState(rootPso.Get()); list->SetComputeRootSignature(directRoot.Get());
+            list->SetComputeRootConstantBufferView(0, constants.address);
+        }
         list->SetComputeRootUnorderedAccessView(1, snapshot.resource->GetGPUVirtualAddress());
         list->Dispatch(1, 1, 1);
         snapshot.Transition(list, true);
