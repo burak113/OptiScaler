@@ -143,6 +143,10 @@ int main(){try{
  for(const char* term:{"Specular lighting","Diffuse lighting","Hit distance","Normal + roughness","Linear VIEWZ","Motion + jitter","Albedo guides","Consumer output encoding","Unused title inputs"})
  need(ImGui::hasText(term),"Every supported/unused input has a human-readable row");
  need(ImGui::hasText("303")&&ImGui::hasText("1212")&&ImGui::hasText("factor 64")&&ImGui::hasText("previous-frame depth"),"Map explains exact Consumer encoding and baseline motion depth");
+ need(ImGui::hasText("implementation assumption")&&ImGui::hasText("material/albedo writer has not been verified")&&ImGui::hasText("material/albedo contract is unverified"),
+ "Map explains demodulated-lighting assumption and unverified native material contract");
+ need(!ImGui::hasText("already-demodulated")&&!ImGui::hasText("albedo division is needed"),
+ "Map preserves uncertainty instead of asserting proven demodulation or albedo matching");
  ImGui::frame();ImGui::floats["Max Radiance"]=100;drawBridge(&cfg);need(!NrdBridge::applyCalls&&cfg.FfxDenoiserMaxRadiance.value_or_default()==40000,"OFF custom tuning ignores disabled slider edits");
  ImGui::frame();ImGui::bools["Use custom RR tuning##NrdBridge"]=true;
  ImGui::floats={{"Cross Bilateral Normal Strength",.25f},{"Temporal Stability Bias",.6f},{"Max Radiance",30000},

@@ -3377,8 +3377,8 @@ static void DrawNrdBridgeInputMap()
             ImGui::TableNextRow(); ImGui::TableNextColumn(); ImGui::TextUnformatted(name);
             ImGui::TableNextColumn(); ImGui::TextWrapped("%s", meaning);
         };
-        row("Specular lighting", "Recon's separate, already-demodulated RGB lighting. Nonfinite and negative RGB are sanitized before RR.");
-        row("Diffuse lighting", "Recon's separate, already-demodulated RGB lighting. No combined-color split or albedo division is needed.");
+        row("Specular lighting", "Separate native NRD-domain RGB. The bridge treats it as demodulated specular lighting (an implementation assumption) and sanitizes nonfinite/negative RGB before RR.");
+        row("Diffuse lighting", "Separate native NRD-domain RGB, treated as demodulated diffuse lighting. The original Recon material/albedo writer has not been verified.");
         row("Hit distance", "Each lobe keeps its native alpha/hit-distance metric, including finite inactive sentinels. The bridge does not normalize it.");
         row("Normal + roughness", NrdBridge::GetRRSettingsState().requested.preserveNativeMaterialIDs
             ? "Native packed octahedral normal in RG and roughness in B. Requested experimental A preserves the four normalized native material categories."
@@ -3387,7 +3387,7 @@ static void DrawNrdBridgeInputMap()
         row("Motion + jitter", NrdBridge::CameraProjectedDepthEnabled()
             ? "Current Temporal motion uses Streamline scale and jitter correction. Experimental Z predicts previous-camera depth from camera geometry."
             : "Current Temporal motion uses Streamline scale and jitter correction. Z is previous-frame depth minus current depth at the reprojected pixel.");
-        row("Albedo guides", "White RGB guides for both demodulated lobes. Specular alpha stores normal/view alignment and diffuse alpha is 0; AMD's documented albedo guide uses RGB.");
+        row("Albedo guides", "White RGB guides are supplied for both lobes under that assumption. The native material/albedo contract is unverified. Specular alpha stores normal/view alignment; diffuse alpha is 0. AMD documents guide RGB.");
         row("Consumer output encoding", "A tiny GPU shader reads the title's exact b6/space0 binding, word 303 at byte 1212. That flag selects RGB or YCoCg output. The game keeps exposure, its specular factor 64 and output alpha.");
         row("Unused title inputs", "Separate diffuse/specular albedo textures, AO, bias mask, particle color and SSS guides are not supplied by this bridge. Ordinary DLSS-input conversion and Recovery controls do not affect this path.");
         ImGui::EndTable();
