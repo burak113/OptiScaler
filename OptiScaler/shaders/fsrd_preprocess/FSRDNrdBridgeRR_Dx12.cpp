@@ -6,6 +6,7 @@
 #include <resource_tracking/ResTrack_Dx12.h>
 #include <hooks/Streamline_Hooks.h>
 #endif
+#include "misc/NrdBridgeOwned_Dx12.h"
 #include "FSRDNrdBridgeRR_Dx12.h"
 #include <upscalers/fsr31/FSRDRRInterop.h>
 #include <wrl/client.h>
@@ -138,7 +139,7 @@ bool CreateContext(ID3D12Device* device, uint32_t width, uint32_t height,
         error = "AMD RR 1.2.0 provider is unavailable or incompatible";
         return false;
     }
-    auto fresh = std::make_shared<Context>();
+    auto fresh = MakeOwnedShared<Context>();
     fresh->device = device;
     fresh->width = width;
     fresh->height = height;
@@ -337,7 +338,7 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
         impl_->context = std::move(fresh);
         impl_->resetPending = true;
     }
-    auto lease = std::make_shared<DispatchLease>();
+    auto lease = MakeOwnedShared<DispatchLease>();
     lease->context = impl_->context;
     for (size_t i = 0; i < inputs.size(); ++i) lease->inputs[i] = inputs[i];
     if (!ResTrack_Dx12::RetainComputeDispatch(device.Get(), list, lease))

@@ -27,7 +27,8 @@ def run():
              'hkSetComputeRoot32BitConstantsLate', 'hkSetComputeRoot32BitConstantLate')
     bodies = '\n'.join(function(source, 'static void '+name+'(') for name in names)
     control = '\n'.join(function(source, signature).replace('D3D12Hooks::', '') for signature in (
-        'void D3D12Hooks::SetRootSignatureTracking(', 'bool D3D12Hooks::RootSignatureTrackingEnabled('))
+        'void D3D12Hooks::SetRootSignatureTracking(', 'bool D3D12Hooks::RootSignatureTrackingEnabled(',
+        'bool D3D12Hooks::GetComputeBindingsForBridge('))
     cpp = r'''
 #define NOMINMAX
 #include <d3d12.h>
@@ -41,6 +42,17 @@ def run():
 #include <iostream>
 #include <stdexcept>
 __STATE__
+namespace FrameSurvey {
+struct ComputeBindings {
+ ID3D12RootSignature* root = nullptr;
+ std::vector<ID3D12DescriptorHeap*> heaps;
+ std::vector<std::pair<UINT,D3D12_GPU_DESCRIPTOR_HANDLE>> tables;
+};
+}
+struct DescriptorHeap { UINT NumDescriptorHeaps=0; ID3D12DescriptorHeap* Heaps[2]={nullptr,nullptr}; };
+std::shared_mutex descriptorHeapsMutex;
+std::unordered_map<ID3D12GraphicsCommandList*,DescriptorHeap> descriptorHeaps;
+std::unordered_map<ID3D12GraphicsCommandList*,ID3D12RootSignature*> bridgeComputeRoots;
 bool gNrdBridgeDeviceWrappers = true, isUpscalerActive = false;
 thread_local bool isNrdBridgeInjection = false;
 thread_local bool lateInProgressSetComputeRoot32BitConstants = false, lateInProgressSetComputeRoot32BitConstant = false;
@@ -85,7 +97,27 @@ int main() {
  need(rootStates[other][0].Data == std::vector<uint32_t>({0,0,123}), "other thread records title state");
  SetRootSignatureTracking(true);
  need(RootSignatureTrackingEnabled(), "tracking restored after bridge");
+ FrameSurvey::ComputeBindings bindings;
+ need(!GetComputeBindingsForBridge(list,bindings) && !bindings.root && bindings.heaps.empty(), "missing tracker state fails without partial snapshot");
+ auto* root = reinterpret_cast<ID3D12RootSignature*>(3);
+ auto* heap = reinterpret_cast<ID3D12DescriptorHeap*>(4);
+ auto* bindingList = reinterpret_cast<ID3D12GraphicsCommandList*>(5);
+ bridgeComputeRoots[bindingList]=root; descriptorHeaps[bindingList]={1,{heap,nullptr}};
+ rootStates[bindingList].resize(6);
+ rootStates[bindingList][1].type=RootEntryType::Table; rootStates[bindingList][1].rootDescriptorTable.ptr=101;
+ rootStates[bindingList][5].type=RootEntryType::Table; rootStates[bindingList][5].rootDescriptorTable.ptr=505;
+ need(GetComputeBindingsForBridge(bindingList,bindings), "existing restore cache seeds a newly opened NRD window");
+ need(bindings.root==root && bindings.heaps==std::vector<ID3D12DescriptorHeap*>({heap}), "root and heap identity copied exactly");
+ need(bindings.tables.size()==2 && bindings.tables[0].first==1 && bindings.tables[0].second.ptr==101 &&
+      bindings.tables[1].first==5 && bindings.tables[1].second.ptr==505, "p1 and p5 current GPU handles preserved in index order");
+ descriptorHeaps[bindingList].NumDescriptorHeaps=3;
+ need(!GetComputeBindingsForBridge(bindingList,bindings) && !bindings.root && bindings.tables.empty(), "invalid heap count fails closed");
+ descriptorHeaps[bindingList]={1,{nullptr,nullptr}};
+ need(!GetComputeBindingsForBridge(bindingList,bindings) && bindings.heaps.empty(), "null heap cannot publish a partial snapshot");
+ descriptorHeaps[bindingList]={1,{heap,nullptr}};
  gNrdBridgeDeviceWrappers = false;
+ need(!GetComputeBindingsForBridge(list,bindings) && !bindings.root, "disabled getter does no snapshot work");
+ need(!GetComputeBindingsForBridge(nullptr,bindings), "null list fails closed");
  hkSetComputeRoot32BitConstants(list,0,4,a,2);
  need(current.Data == std::vector<uint32_t>({11,22,33,44}) && current.DestOffset == 2, "disabled path retains existing plural tracker behavior");
  hkSetComputeRoot32BitConstant(list,0,321,4);

@@ -82,6 +82,7 @@ struct ViewInfo
     bool snapshotSupported = false;
     uint64_t descriptorCpu = 0, descriptorGpu = 0, descriptorHeap = 0, rootVa = 0;
     uint32_t descriptorIndex = UINT_MAX, rootIndex = UINT_MAX;
+    bool heapKnown = false;
 };
 struct Heap
 {
@@ -93,9 +94,25 @@ std::unordered_map<ID3D12Resource*,Resource> gResources;
 std::map<uint64_t,ID3D12Resource*> gAddresses;
 std::unordered_map<uint64_t,ViewInfo> gViews;
 std::unordered_map<ID3D12DescriptorHeap*,Heap> gHeaps;
-// Only descriptor copies made inside a bridge window are trusted by its resolver. A closed window
-// cannot leave stale shader-visible copies behind for a later discovery.
-std::set<uint64_t> gWindowCopies;
+std::map<uint64_t,ID3D12DescriptorHeap*> gCpuHeaps;
+// Caller holds gLifetimeMutex. Both CPU and shader-visible descriptor copies are creation metadata.
+// The binding mirror and table resolution remain confined to the short NRD window.
+Heap* HeapAtCpu(uint64_t handle)
+{
+    const auto upper = gCpuHeaps.upper_bound(handle);
+    if (upper == gCpuHeaps.begin()) return nullptr;
+    const auto found = gHeaps.find(std::prev(upper)->second);
+    if (found == gHeaps.end()) return nullptr;
+    auto& heap = found->second;
+    return heap.increment && handle >= heap.cpu && handle-heap.cpu < uint64_t(heap.count)*heap.increment &&
+        (handle-heap.cpu)%heap.increment == 0 ? &heap : nullptr;
+}
+bool FreshView(const ViewInfo& view, const Heap* heap)
+{
+    return heap && view.heapKnown && view.descriptorHeap == uint64_t(reinterpret_cast<uintptr_t>(heap->object));
+}
+// Descriptor contents remain current even while root/table binding tracking is closed.
+// This intentionally spends CPU work on enabled-bridge copy metadata for correctness.
 struct Range { uint32_t kind = 0, offset = 0, count = 0; };
 struct RootLayout { std::string hash; std::map<uint32_t,std::vector<Range>> tables; bool complete = false, directIndexed = false; };
 std::unordered_map<ID3D12RootSignature*,RootLayout> gRootLayouts;
@@ -313,8 +330,12 @@ void StoreView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI_FORM
     auto& resource = Register(object); resource.handles.insert(handle);
     const auto sub = mip + slice*resource.desc.MipLevels;
     gViews[handle] = {object,resource.id,kind,uint32_t(format == DXGI_FORMAT_UNKNOWN ? resource.desc.Format : format),sub,supported};
-    gViews[handle].descriptorCpu = handle;
-    gWindowCopies.erase(handle);
+    auto& view = gViews[handle]; view.descriptorCpu = handle;
+    if (const auto heap = HeapAtCpu(handle))
+    {
+        view.descriptorHeap = uint64_t(reinterpret_cast<uintptr_t>(heap->object));
+        view.heapKnown = true;
+    }
 }
 std::vector<ViewInfo> Bindings(List& state, bool graphics, Json& unresolved)
 {
@@ -473,20 +494,23 @@ void SetBindingWindow(bool enabled) noexcept
     if (gSurveyBindings.load(std::memory_order_relaxed)) return; // Preserve the survey's early-binding mirror.
     try
     {
-        { std::scoped_lock lock(gMirrorMutex); gMirror.clear(); }
-        std::scoped_lock lock(gLifetimeMutex);
-        for (const auto handle : gWindowCopies)
-        {
-            const auto view = gViews.find(handle);
-            if (view == gViews.end()) continue;
-            if (const auto resource = gResources.find(view->second.object); resource != gResources.end())
-                resource->second.handles.erase(handle);
-            gViews.erase(view);
-        }
-        gWindowCopies.clear();
+        std::scoped_lock lock(gMirrorMutex); gMirror.clear();
     } catch (...) {}
 }
 bool BindingWindow() noexcept { return gBindingWindow.load(std::memory_order_relaxed); }
+bool SeedComputeBindings(ID3D12GraphicsCommandList* cmd, const ComputeBindings& bindings) noexcept
+{
+    if (!BindingTracking() || gInternal || !cmd || !bindings.root || bindings.heaps.empty()) return false;
+    try
+    {
+        std::scoped_lock lock(gMirrorMutex); auto& mirror = gMirror[cmd];
+        if (mirror.compute.object != bindings.root) mirror.compute = {};
+        if (mirror.heaps != bindings.heaps) mirror.graphics.tables.clear();
+        mirror.compute.object = bindings.root; mirror.compute.tables.clear();
+        for (const auto& [parameter,handle] : bindings.tables) mirror.compute.tables[parameter] = handle.ptr;
+        mirror.heaps = bindings.heaps; return true;
+    } catch (...) { return false; }
+}
 bool ResolveComputeTable(ID3D12GraphicsCommandList* cmd, UINT parameter, std::vector<BoundResource>& out) noexcept
 {
     out.clear();
@@ -528,7 +552,7 @@ bool ResolveComputeTable(ID3D12GraphicsCommandList* cmd, UINT parameter, std::ve
             {
                 const uint64_t index = first+range.offset+i;
                 const auto view = gViews.find(heap->cpu+index*heap->increment);
-                if (view == gViews.end() || view->second.kind != range.kind || !view->second.snapshotSupported) continue;
+                if (view == gViews.end() || view->second.kind != range.kind || !view->second.snapshotSupported || !FreshView(view->second,heap)) continue;
                 const auto resource = gResources.find(view->second.object);
                 if (resource == gResources.end() || resource->second.id != view->second.resource) continue;
                 out.push_back({resource->first,resource->second.desc,DXGI_FORMAT(view->second.format),
@@ -663,7 +687,7 @@ void Released(void* object) noexcept
                     gViews.erase(view);
                 }
             }
-            gHeaps.erase(found);
+            gCpuHeaps.erase(found->second.cpu); gHeaps.erase(found);
         }
     } catch (...) {}
     try
@@ -692,6 +716,7 @@ void HeapCreated(ID3D12Device* device, ID3D12DescriptorHeap* object) noexcept
         const auto cpu = object->GetCPUDescriptorHandleForHeapStart().ptr;
         const auto gpu = (desc.Flags&D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ? object->GetGPUDescriptorHandleForHeapStart().ptr : 0;
         gHeaps[object] = {object,cpu,gpu,desc.NumDescriptors,device->GetDescriptorHandleIncrementSize(desc.Type),uint32_t(desc.Type)};
+        gCpuHeaps[cpu] = object;
     } catch (...) { Fail("Descriptor heap metadata allocation failed"); }
 }
 void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3D12_SHADER_RESOURCE_VIEW_DESC* desc) noexcept
@@ -730,7 +755,7 @@ void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3
 void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_HANDLE* dst, const UINT* dn,
     UINT ns, const D3D12_CPU_DESCRIPTOR_HANDLE* src, const UINT* sn, D3D12_DESCRIPTOR_HEAP_TYPE type) noexcept
 {
-    if (!BindingTracking() || gInternal || !dst || !src ||
+    if (!Tracking() || gInternal || !device || !dst || !src ||
         (type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && type != D3D12_DESCRIPTOR_HEAP_TYPE_RTV)) return;
     try
     {
@@ -738,15 +763,33 @@ void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_H
         UINT di = 0, si = 0, d = 0, s = 0;
         while (di<nd && si<ns)
         {
-            if (d >= (dn ? dn[di] : 1)) { ++di; d = 0; continue; }
-            if (s >= (sn ? sn[si] : 1)) { ++si; s = 0; continue; }
-            const auto dh = dst[di].ptr+uint64_t(d++)*stride, sh = src[si].ptr+uint64_t(s++)*stride;
-            if (const auto old = gViews.find(dh); old != gViews.end())
-                if (const auto r = gResources.find(old->second.object); r != gResources.end()) r->second.handles.erase(dh);
-            if (const auto v = gViews.find(sh); v != gViews.end())
-            { auto copy = v->second; copy.descriptorCpu = dh; gViews[dh] = copy; gResources.at(copy.object).handles.insert(dh); }
-            else gViews.erase(dh);
-            if (!gSurveyBindings.load(std::memory_order_relaxed)) gWindowCopies.insert(dh);
+            const UINT dc = dn ? dn[di] : 1, sc = sn ? sn[si] : 1;
+            if (d >= dc) { ++di; d = 0; continue; }
+            if (s >= sc) { ++si; s = 0; continue; }
+            const auto firstDestination = dst[di].ptr+uint64_t(d)*stride;
+            auto* destinationHeap = HeapAtCpu(firstDestination);
+            UINT count = std::min(dc-d,sc-s);
+            if (destinationHeap) count = std::min(count,destinationHeap->count-UINT((firstDestination-destinationHeap->cpu)/stride));
+            for (UINT i=0;i<count;++i)
+            {
+                const auto dh = dst[di].ptr+uint64_t(d++)*stride, sh = src[si].ptr+uint64_t(s++)*stride;
+                if (const auto old = gViews.find(dh); old != gViews.end())
+                    if (const auto resource = gResources.find(old->second.object); resource != gResources.end()) resource->second.handles.erase(dh);
+                const auto view = gViews.find(sh);
+                if (view != gViews.end() && FreshView(view->second,HeapAtCpu(sh)))
+                {
+                    const auto resource = gResources.find(view->second.object);
+                    if (resource != gResources.end() && resource->second.id == view->second.resource && destinationHeap)
+                    {
+                        auto copy = view->second; copy.descriptorCpu = dh;
+                        copy.descriptorHeap = uint64_t(reinterpret_cast<uintptr_t>(destinationHeap->object));
+                        copy.heapKnown = true;
+                        gViews[dh] = copy; resource->second.handles.insert(dh);
+                    }
+                    else gViews.erase(dh);
+                }
+                else gViews.erase(dh);
+            }
         }
     } catch (...) { Fail("Descriptor copy metadata allocation failed"); }
 }
@@ -1581,7 +1624,7 @@ void Shutdown() noexcept
         oBeginRender = nullptr; oEndRender = nullptr; oRayPipeline = nullptr; oRays = nullptr;
         { std::scoped_lock library(gLibraryHookMutex); oLoadGraphics = nullptr; oLoadCompute = nullptr; oLoadStream = nullptr; }
         { std::scoped_lock mirror(gMirrorMutex); gMirror.clear(); }
-        std::scoped_lock lock(gLifetimeMutex); gViews.clear(); gResources.clear(); gAddresses.clear(); gHeaps.clear(); gRootLayouts.clear(); gWindowCopies.clear();
+        std::scoped_lock lock(gLifetimeMutex); gViews.clear(); gResources.clear(); gAddresses.clear(); gHeaps.clear(); gCpuHeaps.clear(); gRootLayouts.clear();
         gCreationDevice.Reset(); gStatus.installed = false;
     } catch (...) {}
 }

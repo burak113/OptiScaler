@@ -2,6 +2,8 @@
 #include "shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
 #include "shaders/fsrd_preprocess/RRTraceFence.h"
 #include "misc/RecordedComputeLease_Dx12.h"
+#include "misc/NrdBridgeLifetime_Dx12.h"
+#include "misc/NrdBridgeTitleCallbacks_Dx12.h"
 #include "ResTrack_dx12.h"
 #include "FrameSurvey_Dx12.h"
 #include "hooks/D3D12_Hooks.h"
@@ -2042,6 +2044,7 @@ HRESULT ResTrack_Dx12::hkCreateDescriptorHeap(ID3D12Device* This, D3D12_DESCRIPT
 
 ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
 {
+    NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::Internal());
     if (State::Instance().isShuttingDown)
         return o_Release(This);
     auto computeRecording = RecordedComputeLease::BeginRelease(This);
@@ -2103,6 +2106,7 @@ ULONG hkPsoRelease(ID3D12PipelineState* This)
 {
     if (gResourceReleaseSharesPso)
         return gSharedResourceReleaseObserver(reinterpret_cast<ID3D12Resource*>(This));
+    NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::Internal());
     if (State::Instance().isShuttingDown)
         return o_PsoRelease(This);
     auto computeRecording = RecordedComputeLease::BeginRelease(This);
@@ -2124,6 +2128,7 @@ static ULONG STDMETHODCALLTYPE hkCommandListRelease(IUnknown* This)
 {
     if (gResourceReleaseSharesCommandList)
         return gSharedResourceReleaseObserver(reinterpret_cast<ID3D12Resource*>(This));
+    NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::Internal());
     if (State::Instance().isShuttingDown)
         return o_CommandListRelease(This);
     auto computeRecording = RecordedComputeLease::BeginRelease(This);
@@ -4223,6 +4228,8 @@ void ResTrack_Dx12::hkSurveySetPipelineState(ID3D12GraphicsCommandList* This,
                                        ID3D12PipelineState* pPipelineState)
 {
     if (FrameSurvey::Internal()) { o_SetPipelineState(This,pPipelineState); return; }
+    NrdBridgeTitleCallbacks::Scope forwarding(NrdBridgeTitleCallbacks::Method::Pipeline, gNrdBridgeWrappers);
+    if (forwarding.Nested()) { hkSetPipelineState(This,pPipelineState); return; }
     FrameSurvey::SetPipeline(This,pPipelineState);
     hkSetPipelineState(This,pPipelineState);
     if (gNrdBridgeWrappers) NrdBridge::OnSetPipeline(This,pPipelineState);
@@ -4232,6 +4239,9 @@ HRESULT ResTrack_Dx12::hkSurveyReset(ID3D12GraphicsCommandList* This,
                                ID3D12CommandAllocator* pAllocator,
                                ID3D12PipelineState* pInitialState)
 {
+    NrdBridgeTitleCallbacks::Scope forwarding(NrdBridgeTitleCallbacks::Method::Reset,
+                                               gNrdBridgeWrappers && !FrameSurvey::Internal());
+    if (forwarding.Nested()) return hkReset(This,pAllocator,pInitialState);
     const auto result = hkReset(This,pAllocator,pInitialState);
     if (SUCCEEDED(result))
     {
@@ -4274,6 +4284,8 @@ void ResTrack_Dx12::hkSurveyDispatch(ID3D12GraphicsCommandList* This, UINT Threa
                                UINT ThreadGroupCountZ)
 {
     if (FrameSurvey::Internal()) { o_Dispatch(This,ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ); return; }
+    NrdBridgeTitleCallbacks::Scope forwarding(NrdBridgeTitleCallbacks::Method::Dispatch, gNrdBridgeWrappers);
+    if (forwarding.Nested()) { hkDispatch(This,ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ); return; }
     if (gNrdBridgeWrappers) NrdBridge::BeforeDispatch(This);
     const std::array<uint64_t,3> args {ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ};
     FrameSurvey::Pass(This,"Dispatch",args);
