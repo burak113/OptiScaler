@@ -737,6 +737,7 @@ struct OriginalForwardTimer {
         driver = driver.replace('need(FrameSurvey::gResources.size()==2,"synthetic teardown leaves only actual shared native buffer and texture");',
             'need(FrameSurvey::gResources.size()==2,"synthetic teardown leaves only actual shared native buffer and texture");need(FrameSurvey::gNativeResources.Size()==2&&FrameSurvey::gNativeBuffers.Size()==1&&FrameSurvey::gNativeHeaps.Size()==1,"native synthetic teardown leaves only actual host metadata nodes");')
     if args.baseline:
+        driver = driver.replace('sizeof(FrameSurvey::gViewMutexes)', '0') # Frozen catalog has no slot mutex array.
         # The frozen catalog predates birth fields. Its original assertions stay;
         # the genuinely new SAMPLER identity fixture belongs only to the candidate.
         driver = driver.replace(function(driver, "void samplerNativeRegressions("), "void samplerNativeRegressions(Host&) {}")
@@ -763,6 +764,7 @@ struct OriginalForwardTimer {
         report['production_source_sha256'] = hashlib.sha256(original.encode()).hexdigest()
         report['hook_body_sha256'] = {name: hashlib.sha256(body.encode()).hexdigest() for name, body in dict(bodies, hkRelease=release, hkHeapRelease=heap_release).items()}
         report['baseline_instrumentation'] = 'scratch catalog mutex WaitScope, same-call native AddRef/QPC and before-Scope-destructor TLS snapshot; production control flow and assertions unchanged' if args.baseline else None
+        report['descriptor_layout_scope'] = 'fixture adapter header only; frozen production catalog has no slot mutex array and uses its original reverse sets' if args.baseline else 'actual candidate compiled metadata owner/slot-mutex layout'
         report['descriptor_shard_scope'] = 'repository production default32, unchanged scratch header' if args.descriptor_shards == 32 else f'scratch-only{args.descriptor_shards}: map, reverse buckets, slot mutexes use the same derived shard index; identity map stays32; no production default edit'
         report['metadata_header_source_sha256'] = hashlib.sha256(metadata_original.encode()).hexdigest()
         report['metadata_header_compiled_sha256'] = hashlib.sha256(metadata_compiled.encode()).hexdigest()
