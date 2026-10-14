@@ -59,6 +59,7 @@ struct Context
     ffxCreateContextDescDenoiser create {};
     uint32_t width = 0, height = 0;
     uint64_t generation = 0;
+    bool debugEnabled = false;
     struct Slot
     {
         ComPtr<ID3D12Resource> spec, diff;
@@ -74,6 +75,40 @@ struct Context
     std::vector<std::shared_ptr<Slot>> slots;
     uint32_t descriptorStride = 0;
     uint64_t stagingBytes = 0;
+    std::array<float, 8> defaultValues {}, configuredValues {};
+    bool ApplySettings(const RRSettings& requested, bool& lightingChanged, std::string& error)
+    {
+        lightingChanged = false;
+        auto target = defaultValues;
+        for (uint32_t index = 0; index < 7; ++index)
+            if (requested.overrideMask & (1u << index))
+            {
+                target[index] = requested.values[index];
+                if (index == 6) target[7] = requested.values[7];
+            }
+        for (uint32_t index = 0; index < 7; ++index)
+        {
+            const bool bounds = index == 6;
+            if (target[index] == configuredValues[index] && (!bounds || target[7] == configuredValues[7])) continue;
+            const std::array<float, 2> previous {configuredValues[index], bounds ? configuredValues[7] : 0.0f};
+            configuredValues[index] = target[index];
+            if (bounds) configuredValues[7] = target[7];
+            ffxConfigureDescDenoiserKeyValue apply {};
+            apply.header.type = FFX_API_CONFIGURE_DESC_TYPE_DENOISER_KEYVALUE;
+            apply.key = uint64_t(index) + 1u; apply.count = 1;
+            apply.data = configuredValues.data() + index;
+            const auto result = FfxApiProxy::D3D12_Configure(&handle, &apply.header);
+            if (result != FFX_API_RETURN_OK)
+            {
+                configuredValues[index] = previous[0];
+                if (bounds) configuredValues[7] = previous[1];
+                const auto operation = "RR runtime configuration key " + std::to_string(index + 1u);
+                return Fail(error, operation.c_str(), result);
+            }
+            lightingChanged |= !bounds;
+        }
+        return true;
+    }
     bool Check(HRESULT result, const char* operation, std::string& error)
     {
         if (SUCCEEDED(result)) return true;
@@ -207,7 +242,7 @@ struct DispatchLease
 };
 
 bool CreateContext(ID3D12Device* device, uint32_t width, uint32_t height,
-                   std::shared_ptr<Context>& output, std::string& error)
+                   std::shared_ptr<Context>& output, std::string& error, bool debugEnabled = false)
 {
     // The signed 1.2 provider terminates inside create at 64x48. Separate native
     // probes verified 64x64 and larger, including odd heights. Use the conservative
@@ -277,6 +312,7 @@ bool CreateContext(ID3D12Device* device, uint32_t width, uint32_t height,
     fresh->device = device;
     fresh->width = width;
     fresh->height = height;
+    fresh->debugEnabled = debugEnabled;
     if (!fresh->InitializeCommit(error)) return false;
     fresh->overrideVersion.header.type = FFX_API_DESC_TYPE_OVERRIDE_VERSION;
     fresh->overrideVersion.versionId = versionId;
@@ -288,6 +324,7 @@ bool CreateContext(ID3D12Device* device, uint32_t width, uint32_t height,
     fresh->create.version = FFX_DENOISER_VERSION;
     fresh->create.maxRenderSize = { width, height };
     fresh->create.signalFlags = FFX_DENOISER_SIGNAL_DIRECT_DIFFUSE | FFX_DENOISER_SIGNAL_INDIRECT_SPECULAR;
+    fresh->create.flags = debugEnabled ? FFX_DENOISER_ENABLE_DEBUGGING : 0u;
     result = FfxApiProxy::D3D12_CreateContext(&fresh->handle, &fresh->create.header, nullptr);
     if (result != FFX_API_RETURN_OK) return Fail(error, "RR context creation", result);
     if (!fresh->handle)
@@ -299,15 +336,17 @@ bool CreateContext(ID3D12Device* device, uint32_t width, uint32_t height,
          key <= FFX_API_CONFIGURE_DENOISER_KEY_DEBUG_VIEW_LINEAR_DEPTH_BOUNDS; ++key)
     {
         // Scalar keys occupy one float; the final debug-depth key occupies two.
-        std::array<float, 2> value {};
+        const auto index = static_cast<size_t>(key - 1u);
         ffxQueryDescDenoiserGetDefaultKeyValue query {};
         query.header.type = FFX_API_QUERY_DESC_TYPE_DENOISER_GET_DEFAULT_KEYVALUE;
         query.key = key;
         query.count = 1;
-        query.data = value.data();
+        query.data = fresh->defaultValues.data() + index;
         result = FfxApiProxy::D3D12_Query(&fresh->handle, &query.header);
         if (result != FFX_API_RETURN_OK) return Fail(error, "RR AMD-default query", result);
-        if (!std::isfinite(value[0]) || !std::isfinite(value[1]))
+        if (!std::isfinite(fresh->defaultValues[index]) ||
+            (index == 6 && (!std::isfinite(fresh->defaultValues[7]) ||
+                fresh->defaultValues[6] < 0.0f || fresh->defaultValues[7] <= fresh->defaultValues[6])))
         {
             error = "RR AMD default contains a nonfinite value";
             return false;
@@ -316,7 +355,9 @@ bool CreateContext(ID3D12Device* device, uint32_t width, uint32_t height,
         apply.header.type = FFX_API_CONFIGURE_DESC_TYPE_DENOISER_KEYVALUE;
         apply.key = key;
         apply.count = 1;
-        apply.data = value.data();
+        fresh->configuredValues[index] = fresh->defaultValues[index];
+        if (index == 6) fresh->configuredValues[7] = fresh->defaultValues[7];
+        apply.data = fresh->configuredValues.data() + index;
         result = FfxApiProxy::D3D12_Configure(&fresh->handle, &apply.header);
         if (result != FFX_API_RETURN_OK) return Fail(error, "RR AMD-default apply", result);
     }
@@ -334,10 +375,84 @@ struct RRWrapper::Impl
     uint32_t nextFrame = 0;
     bool resetPending = true, historyValid = false;
     FrameParameters previous {};
+    RRSettings settings {};
     std::string conventions;
 };
+bool ValidateRRSettings(const RRSettings& settings, std::string& error)
+{
+    error.clear();
+    if (settings.overrideMask & ~0x7fu)
+    { error = "RR settings contain an unsupported AMD key"; return false; }
+    if (settings.nativeDebugView < -1 || settings.nativeDebugView >
+        FFX_API_DENOISER_DEBUG_VIEW_MODE_FULLSCREEN_VIEWPORT ||
+        settings.nativeDebugViewport >= FFX_API_DENOISER_DEBUG_VIEW_MAX_VIEWPORTS)
+    { error = "RR native debug view or viewport is unsupported"; return false; }
+    for (uint32_t index = 0; index < 7; ++index)
+    {
+        if (!(settings.overrideMask & (1u << index))) continue;
+        const auto value = settings.values[index];
+        if (!std::isfinite(value) || (index == 6 && !std::isfinite(settings.values[7])))
+        { error = "RR override contains a nonfinite value"; return false; }
+        // Conservative bridge domains fit the existing UI; AMD's public API
+        // does not specify these as exhaustive provider limits.
+        if (((index == 0 || index == 1 || index == 4) && (value < 0.0f || value > 1.0f)) ||
+            (index == 2 && (value <= 0.0f || value > 65504.0f)) ||
+            (index == 3 && value <= 0.0f) ||
+            (index == 5 && (value <= 0.0f || value > 1.0f)) ||
+            (index == 6 && (value < 0.0f || settings.values[7] <= value)))
+        { error = "RR override is outside the validated bridge domain for key " + std::to_string(index + 1u); return false; }
+    }
+    return true;
+}
 RRWrapper::RRWrapper() = default;
 RRWrapper::~RRWrapper() = default;
+bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
+{
+    if (!ValidateRRSettings(requested, error)) return false;
+    if (!impl_ && !requested.overrideMask && requested.nativeDebugView == -1 &&
+        requested.nativeDebugViewport == 0) return true;
+    if (!impl_) impl_ = MakeOwnedShared<Impl>();
+    impl_->settings = {};
+    impl_->settings.overrideMask = requested.overrideMask;
+    impl_->settings.nativeDebugView = requested.nativeDebugView;
+    impl_->settings.nativeDebugViewport = requested.nativeDebugViewport;
+    for (uint32_t index = 0; index < 7; ++index)
+        if (requested.overrideMask & (1u << index))
+        {
+            impl_->settings.values[index] = requested.values[index];
+            if (index == 6) impl_->settings.values[7] = requested.values[7];
+        }
+    if (!impl_->context) return true;
+    if (impl_->context->debugEnabled != (requested.nativeDebugView != -1))
+    {
+        // FFX debugging is a creation flag. Existing GPU leases retain the old
+        // generation; the next recording creates a physically fresh context.
+        DiscardRecordingHistory();
+        return true;
+    }
+    bool lightingChanged = false;
+    try
+    {
+        if (!impl_->context->ApplySettings(impl_->settings, lightingChanged, error))
+        { DiscardRecordingHistory(); return false; }
+    }
+    catch (...) { DiscardRecordingHistory(); throw; }
+    if (lightingChanged) impl_->resetPending = true;
+    return true;
+}
+RRSettingsState RRWrapper::GetSettingsState() const noexcept
+{
+    RRSettingsState state;
+    if (!impl_) return state;
+    state.requested = impl_->settings;
+    if (impl_->context)
+    {
+        state.ready = true;
+        state.defaults = impl_->context->defaultValues;
+        state.effective = impl_->context->configuredValues;
+    }
+    return state;
+}
 bool RRWrapper::PrepareFrame(const SLConstantsSnapshot& snapshot, bool requestedReset,
                             FrameParameters& out, std::string& error)
 {
@@ -472,11 +587,18 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
     if (recreate)
     {
         std::shared_ptr<Context> fresh;
-        if (!CreateContext(device.Get(), input.width, input.height, fresh, error))
+        if (!CreateContext(device.Get(), input.width, input.height, fresh, error, impl_->settings.nativeDebugView != -1))
         {
             impl_->resetPending = true;
             return false;
         }
+        bool lightingChanged = false;
+        try
+        {
+            if (!fresh->ApplySettings(impl_->settings, lightingChanged, error))
+            { DiscardRecordingHistory(); return false; }
+        }
+        catch (...) { DiscardRecordingHistory(); throw; }
         fresh->generation = ++impl_->generation;
         // Recorded/submitted leases own the previous generation through GPU completion.
         impl_->context = std::move(fresh);
