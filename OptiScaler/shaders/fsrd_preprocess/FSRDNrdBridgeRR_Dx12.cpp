@@ -10,6 +10,7 @@
 #include "FSRDNrdBridgeRR_Dx12.h"
 #include "FSRDNrdSignalConstants_Dx12.h"
 #include "precompile/FSRDNrdBridgeCommit_Shader.h"
+#include "precompile/FSRDNrdBridgeNativeDebug_Shader.h"
 #include <upscalers/fsr31/FSRDRRInterop.h>
 #include <wrl/client.h>
 #include <array>
@@ -64,15 +65,24 @@ struct Context
     {
         ComPtr<ID3D12Resource> spec, diff;
         ComPtr<ID3D12DescriptorHeap> descriptors;
+        ComPtr<ID3D12Resource> nativeDebug;
+        ComPtr<ID3D12DescriptorHeap> nativeDebugGpuUav, nativeDebugCpuUav;
         SignalFlagSnapshot flag;
-        uint64_t bytes = 0;
+        uint64_t bytes = 0, nativeDebugBytes = 0;
+    };
+    struct PresentSlot
+    {
+        ComPtr<ID3D12DescriptorHeap> descriptors;
     };
     ComPtr<ID3D12RootSignature> commitRoot;
     ComPtr<ID3D12PipelineState> commitPso;
     ComPtr<ID3D12Resource> zeroConstants;
     SignalFlagCapture flagCapture;
+    ComPtr<ID3D12RootSignature> nativeDebugRoot;
+    ComPtr<ID3D12PipelineState> nativeDebugPso;
     uint64_t zeroBytes = 0;
     std::vector<std::shared_ptr<Slot>> slots;
+    std::vector<std::shared_ptr<PresentSlot>> presentSlots;
     uint32_t descriptorStride = 0;
     uint64_t stagingBytes = 0;
     std::array<float, 8> defaultValues {}, configuredValues {};
@@ -132,6 +142,28 @@ struct Context
             slot->bytes += device->GetResourceAllocationInfo(0, 1, &desc).SizeInBytes;
         }
         slot->spec->SetName(L"NRD RR staged specular"); slot->diff->SetName(L"NRD RR staged diffuse");
+        if (debugEnabled)
+        {
+            if (!Check(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
+                D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&slot->nativeDebug)),
+                "RR native debug target creation failed", error)) return nullptr;
+            slot->nativeDebug->SetName(L"NRD RR native AMD debug view");
+            slot->nativeDebugBytes = device->GetResourceAllocationInfo(0, 1, &desc).SizeInBytes;
+            D3D12_DESCRIPTOR_HEAP_DESC viewHeap {};
+            viewHeap.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; viewHeap.NumDescriptors = 1;
+            viewHeap.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+            if (!Check(device->CreateDescriptorHeap(&viewHeap, IID_PPV_ARGS(&slot->nativeDebugGpuUav)),
+                "RR native debug GPU clear heap creation failed", error)) return nullptr;
+            viewHeap.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+            if (!Check(device->CreateDescriptorHeap(&viewHeap, IID_PPV_ARGS(&slot->nativeDebugCpuUav)),
+                "RR native debug CPU clear heap creation failed", error)) return nullptr;
+            D3D12_UNORDERED_ACCESS_VIEW_DESC view {};
+            view.Format = desc.Format; view.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+            device->CreateUnorderedAccessView(slot->nativeDebug.Get(), nullptr, &view,
+                slot->nativeDebugGpuUav->GetCPUDescriptorHandleForHeapStart());
+            device->CreateUnorderedAccessView(slot->nativeDebug.Get(), nullptr, &view,
+                slot->nativeDebugCpuUav->GetCPUDescriptorHandleForHeapStart());
+        }
         D3D12_DESCRIPTOR_HEAP_DESC descriptors {};
         descriptors.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; descriptors.NumDescriptors = 4;
         descriptors.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
@@ -140,6 +172,31 @@ struct Context
         if (flagCapture.pso && !slot->flag.Initialize(device.Get(), error)) return nullptr;
         stagingBytes += slot->bytes; slots.push_back(slot);
         return slot;
+    }
+    std::shared_ptr<PresentSlot> NewPresentSlot(std::string& error)
+    {
+        if (presentSlots.size() >= 32) { error = "RR native debug presentation pool has 32 unretired recordings"; return nullptr; }
+        auto slot = MakeOwnedShared<PresentSlot>();
+        D3D12_DESCRIPTOR_HEAP_DESC desc {};
+        desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; desc.NumDescriptors = 2;
+        desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        if (!Check(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&slot->descriptors)),
+            "RR native debug presentation heap creation failed", error)) return nullptr;
+        presentSlots.push_back(slot);
+        return slot;
+    }
+    bool InitializeNativeDebug(std::string& error)
+    {
+        if (!debugEnabled) return true;
+        if (!Check(device->CreateRootSignature(0, FSRDNrdBridgeNativeDebug_cso, sizeof(FSRDNrdBridgeNativeDebug_cso),
+            IID_PPV_ARGS(&nativeDebugRoot)), "RR native debug presentation root creation failed", error)) return false;
+        D3D12_COMPUTE_PIPELINE_STATE_DESC desc {};
+        desc.pRootSignature = nativeDebugRoot.Get(); desc.CS = {FSRDNrdBridgeNativeDebug_cso, sizeof(FSRDNrdBridgeNativeDebug_cso)};
+        if (!Check(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&nativeDebugPso)),
+            "RR native debug presentation PSO creation failed", error)) return false;
+        presentSlots.reserve(32);
+        for (uint32_t i = 0; i < 4; ++i) if (!NewPresentSlot(error)) return false;
+        return true;
     }
     bool InitializeCommit(std::string& error)
     {
@@ -154,7 +211,7 @@ struct Context
         descriptorStride = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         slots.reserve(32);
         for (uint32_t i = 0; i < 4; ++i) if (!NewSlot(error)) return false;
-        return true;
+        return InitializeNativeDebug(error);
     }
     bool PrepareTableFlags(std::string& error)
     {
@@ -166,8 +223,62 @@ struct Context
     uint64_t AuxiliaryBytes() const noexcept
     {
         uint64_t bytes = zeroBytes;
-        for (const auto& slot : slots) bytes += slot->flag.bytes;
+        for (const auto& slot : slots) bytes += slot->flag.bytes + slot->nativeDebugBytes;
         return bytes;
+    }
+    void ClearNativeDebug(ID3D12GraphicsCommandList* list, const Slot& slot) const noexcept
+    {
+        const float zero[4] {};
+        ID3D12DescriptorHeap* heaps[] = {slot.nativeDebugGpuUav.Get()}; list->SetDescriptorHeaps(1, heaps);
+        list->ClearUnorderedAccessViewFloat(slot.nativeDebugGpuUav->GetGPUDescriptorHandleForHeapStart(),
+            slot.nativeDebugCpuUav->GetCPUDescriptorHandleForHeapStart(), slot.nativeDebug.Get(), zero, 0, nullptr);
+        D3D12_RESOURCE_BARRIER barrier {}; barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+        barrier.UAV.pResource = slot.nativeDebug.Get(); list->ResourceBarrier(1, &barrier);
+    }
+    std::shared_ptr<PresentSlot> AcquirePresentSlot(ID3D12Resource* source, ID3D12Resource* output,
+                                                   DXGI_FORMAT format, std::string& error)
+    {
+        std::shared_ptr<PresentSlot> slot;
+        for (const auto& candidate : presentSlots) if (candidate.use_count() == 1) { slot = candidate; break; }
+        if (!slot) slot = NewPresentSlot(error);
+        if (!slot) return nullptr;
+        auto cpu = slot->descriptors->GetCPUDescriptorHandleForHeapStart();
+        D3D12_SHADER_RESOURCE_VIEW_DESC srv {}; srv.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+        srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; srv.Texture2D.MipLevels = 1;
+        srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        device->CreateShaderResourceView(source, &srv, cpu); cpu.ptr += descriptorStride;
+        D3D12_UNORDERED_ACCESS_VIEW_DESC uav {}; uav.Format = format;
+        uav.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+        device->CreateUnorderedAccessView(output, nullptr, &uav, cpu);
+        return slot;
+    }
+    void Present(ID3D12GraphicsCommandList* list, const PresentSlot& slot, ID3D12Resource* source,
+                 ID3D12Resource* output, D3D12_RESOURCE_STATES outputState, uint32_t sourceWidth,
+                 uint32_t sourceHeight, uint32_t outputWidth, uint32_t outputHeight) const noexcept
+    {
+        D3D12_RESOURCE_BARRIER barriers[2] {};
+        barriers[0].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        barriers[0].Transition = {source, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+            D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE};
+        barriers[1].Type = D3D12_RESOURCE_BARRIER_TYPE_UAV; barriers[1].UAV.pResource = output;
+        if (outputState != D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+        {
+            barriers[1].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            barriers[1].Transition = {output, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+                outputState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS};
+        }
+        list->ResourceBarrier(2, barriers);
+        list->SetPipelineState(nativeDebugPso.Get()); list->SetComputeRootSignature(nativeDebugRoot.Get());
+        ID3D12DescriptorHeap* heaps[] = {slot.descriptors.Get()}; list->SetDescriptorHeaps(1, heaps);
+        const uint32_t constants[] = {sourceWidth, sourceHeight, outputWidth, outputHeight};
+        list->SetComputeRoot32BitConstants(0, 4, constants, 0);
+        auto gpu = slot.descriptors->GetGPUDescriptorHandleForHeapStart(); list->SetComputeRootDescriptorTable(1, gpu);
+        gpu.ptr += descriptorStride; list->SetComputeRootDescriptorTable(2, gpu);
+        list->Dispatch((outputWidth+7)/8, (outputHeight+7)/8, 1);
+        std::swap(barriers[0].Transition.StateBefore, barriers[0].Transition.StateAfter);
+        if (barriers[1].Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION)
+            std::swap(barriers[1].Transition.StateBefore, barriers[1].Transition.StateAfter);
+        list->ResourceBarrier(2, barriers);
     }
     std::shared_ptr<Slot> AcquireSlot(ID3D12Resource* outputSpec, ID3D12Resource* outputDiff, std::string& error)
     {
@@ -239,6 +350,12 @@ struct DispatchLease
     std::shared_ptr<Context::Slot> slot;
     // These are exclusively bridge-owned. Title outputs are borrowed and never retained.
     std::array<ComPtr<ID3D12Resource>, 7> inputs;
+};
+struct PresentLease
+{
+    std::shared_ptr<Context> context;
+    std::shared_ptr<Context::PresentSlot> slot;
+    std::shared_ptr<void> sourceOwner;
 };
 
 bool CreateContext(ID3D12Device* device, uint32_t width, uint32_t height,
@@ -348,7 +465,7 @@ bool CreateContext(ID3D12Device* device, uint32_t width, uint32_t height,
             (index == 6 && (!std::isfinite(fresh->defaultValues[7]) ||
                 fresh->defaultValues[6] < 0.0f || fresh->defaultValues[7] <= fresh->defaultValues[6])))
         {
-            error = "RR AMD default contains a nonfinite value";
+            error = "RR AMD default is nonfinite or has invalid debug-depth bounds";
             return false;
         }
         ffxConfigureDescDenoiserKeyValue apply {};
@@ -362,7 +479,8 @@ bool CreateContext(ID3D12Device* device, uint32_t width, uint32_t height,
         if (result != FFX_API_RETURN_OK) return Fail(error, "RR AMD-default apply", result);
     }
     LOG_INFO("[NRD_BRIDGE] RR context initialized: provider='{}', id={:#x}, api=1.2.0, size={}x{}, "
-             "signals=DirectDiffuse|IndirectSpecular, AMD defaults=7 keys", providerName, versionId, width, height);
+             "signals=DirectDiffuse|IndirectSpecular, AMD defaults=7 keys, nativeDebugEnabled={}",
+             providerName, versionId, width, height, debugEnabled);
     output = std::move(fresh);
     return true;
 }
@@ -376,6 +494,7 @@ struct RRWrapper::Impl
     bool resetPending = true, historyValid = false;
     FrameParameters previous {};
     RRSettings settings {};
+    RRWrapperNativeDebugOutputSnapshot nativeDebug {};
     std::string conventions;
 };
 bool ValidateRRSettings(const RRSettings& settings, std::string& error)
@@ -410,12 +529,17 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
 {
     if (!ValidateRRSettings(requested, error)) return false;
     if (!impl_ && !requested.overrideMask && requested.nativeDebugView == -1 &&
-        requested.nativeDebugViewport == 0) return true;
+        requested.nativeDebugViewport == 0 && !requested.preserveNativeMaterialIDs) return true;
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
+    if (impl_->settings.preserveNativeMaterialIDs != requested.preserveNativeMaterialIDs)
+    { impl_->resetPending = true; impl_->nativeDebug = {}; }
+    if (impl_->settings.nativeDebugView != requested.nativeDebugView ||
+        impl_->settings.nativeDebugViewport != requested.nativeDebugViewport) impl_->nativeDebug = {};
     impl_->settings = {};
     impl_->settings.overrideMask = requested.overrideMask;
     impl_->settings.nativeDebugView = requested.nativeDebugView;
     impl_->settings.nativeDebugViewport = requested.nativeDebugViewport;
+    impl_->settings.preserveNativeMaterialIDs = requested.preserveNativeMaterialIDs;
     for (uint32_t index = 0; index < 7; ++index)
         if (requested.overrideMask & (1u << index))
         {
@@ -431,12 +555,14 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
         return true;
     }
     bool lightingChanged = false;
+    const auto previousValues = impl_->context->configuredValues;
     try
     {
         if (!impl_->context->ApplySettings(impl_->settings, lightingChanged, error))
         { DiscardRecordingHistory(); return false; }
     }
     catch (...) { DiscardRecordingHistory(); throw; }
+    if (previousValues != impl_->context->configuredValues) impl_->nativeDebug = {};
     if (lightingChanged) impl_->resetPending = true;
     return true;
 }
@@ -453,6 +579,75 @@ RRSettingsState RRWrapper::GetSettingsState() const noexcept
     }
     return state;
 }
+RRWrapperNativeDebugOutputSnapshot RRWrapper::GetNativeDebugOutputSnapshot() const noexcept
+{
+    return impl_ ? impl_->nativeDebug : RRWrapperNativeDebugOutputSnapshot {};
+}
+bool RRWrapper::PresentNativeDebug(ID3D12GraphicsCommandList* list, ID3D12Resource* output,
+                                   D3D12_RESOURCE_STATES outputState, uint32_t frameSL, std::string& error,
+                                   bool orderedAcrossLists)
+{
+    error.clear();
+    const auto reject = [&](const char* reason) { error = reason; return false; };
+    if (!impl_ || !impl_->context || impl_->settings.nativeDebugView == -1 ||
+        !impl_->nativeDebug.resource || !impl_->nativeDebug.owner || frameSL == UINT32_MAX ||
+        impl_->nativeDebug.frameSL != frameSL)
+        return reject("RR native debug output for this SL frame is unavailable");
+    return PresentNativeDebug(list, output, outputState, impl_->nativeDebug, error, orderedAcrossLists);
+}
+bool RRWrapper::PresentNativeDebug(ID3D12GraphicsCommandList* list, ID3D12Resource* output,
+                                   D3D12_RESOURCE_STATES outputState, const RRWrapperNativeDebugOutputSnapshot& image,
+                                   std::string& error, bool orderedAcrossLists)
+{
+    error.clear();
+    const auto reject = [&](const char* reason) { error = reason; return false; };
+    if (!impl_ || !impl_->context || impl_->settings.nativeDebugView == -1 ||
+        !image.resource || !image.owner || image.frameSL == UINT32_MAX ||
+        !TextureMatches(image.resource, image.width, image.height, DXGI_FORMAT_R16G16B16A16_FLOAT))
+        return reject("RR native debug source snapshot is missing or incompatible");
+    if (image.state != D3D12_RESOURCE_STATE_UNORDERED_ACCESS || !image.recording ||
+        (image.recording != list && !orderedAcrossLists))
+        return reject("RR native debug source recording has no proven GPU ordering");
+    if (!list || !output || output == image.resource ||
+        (list->GetType() != D3D12_COMMAND_LIST_TYPE_DIRECT && list->GetType() != D3D12_COMMAND_LIST_TYPE_COMPUTE))
+        return reject("RR native debug presentation command list or output is invalid");
+    const auto desc = output->GetDesc();
+    if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || !desc.Width || !desc.Height ||
+        desc.Width > D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION || desc.Height > D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION ||
+        desc.DepthOrArraySize != 1 || desc.MipLevels != 1 || desc.SampleDesc.Count != 1 ||
+        !(desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS))
+        return reject("RR native debug presentation output shape or UAV flags are invalid");
+    // These floating/normalized color targets have the intended RGB channels;
+    // typed-load support is also required to preserve a target's existing alpha.
+    switch (desc.Format)
+    {
+    case DXGI_FORMAT_R16G16B16A16_FLOAT: case DXGI_FORMAT_R32G32B32A32_FLOAT:
+    case DXGI_FORMAT_R11G11B10_FLOAT: case DXGI_FORMAT_R8G8B8A8_UNORM:
+    case DXGI_FORMAT_R10G10B10A2_UNORM: break;
+    default: return reject("RR native debug presentation output format is unsupported");
+    }
+    ComPtr<ID3D12Device> device, other;
+    if (FAILED(output->GetDevice(IID_PPV_ARGS(&device))) ||
+        !SameDevice(device.Get(), impl_->context->device.Get()) ||
+        FAILED(list->GetDevice(IID_PPV_ARGS(&other))) || !SameDevice(device.Get(), other.Get()))
+        return reject("RR native debug presentation devices do not match");
+    other.Reset();
+    if (FAILED(image.resource->GetDevice(IID_PPV_ARGS(&other))) || !SameDevice(device.Get(), other.Get()))
+        return reject("RR native debug source device does not match presentation");
+    D3D12_FEATURE_DATA_FORMAT_SUPPORT support {}; support.Format = desc.Format;
+    if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &support, sizeof(support))) ||
+        !(support.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD) ||
+        !(support.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_STORE))
+        return reject("RR native debug presentation target lacks typed UAV load/store");
+    auto lease = MakeOwnedShared<PresentLease>(); lease->context = impl_->context; lease->sourceOwner = image.owner;
+    lease->slot = lease->context->AcquirePresentSlot(image.resource, output, desc.Format, error);
+    if (!lease->slot) return false;
+    if (!ResTrack_Dx12::RetainComputeDispatch(device.Get(), list, lease))
+        return reject("RR native debug presentation lifetime tracking is unavailable");
+    lease->context->Present(list, *lease->slot, image.resource, output, outputState,
+        image.width, image.height, static_cast<uint32_t>(desc.Width), desc.Height);
+    return true;
+}
 bool RRWrapper::PrepareFrame(const SLConstantsSnapshot& snapshot, bool requestedReset,
                             FrameParameters& out, std::string& error)
 {
@@ -461,6 +656,7 @@ bool RRWrapper::PrepareFrame(const SLConstantsSnapshot& snapshot, bool requested
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
     const auto reject = [&](const char* reason) {
         impl_->resetPending = true;
+        impl_->nativeDebug = {};
         error = reason;
         return false;
     };
@@ -496,6 +692,7 @@ bool RRWrapper::PrepareFrame(const SLConstantsSnapshot& snapshot, bool requested
     out.motionVectorsJittered = sl.motionVectorsJittered == sl::Boolean::eTrue;
     out.motionVectors3D = false;
     out.streamlineFrame = snapshot.frameIndex;
+    if (requestedReset || snapshot.frameIndex != impl_->nativeDebug.frameSL) impl_->nativeDebug = {};
     out.frameIndex = impl_->nextFrame;
     const auto& previous = impl_->previous;
     // Unsigned subtraction handles wrap; UINT32_MAX is the missing-token sentinel.
@@ -534,6 +731,9 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
                          const FrameParameters& frame, std::string& error, const OutputCommitGuard& guard)
 {
     error.clear();
+    // Every failed/current dispatch replaces the published observation. Recorded
+    // presentation leases retain their image independently through completion.
+    if (impl_) impl_->nativeDebug = {};
     if (frame.outputEncoding != SignalEncoding::Rgb && frame.outputEncoding != SignalEncoding::YCoCg)
     {
         if (impl_) impl_->resetPending = true;
@@ -622,6 +822,17 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
     specular.signal.input = ffxApiGetResourceDX12(input.spec, FFX_API_RESOURCE_STATE_COMPUTE_READ);
     specular.signal.output = ffxApiGetResourceDX12(lease->slot->spec.Get(), FFX_API_RESOURCE_STATE_UNORDERED_ACCESS);
     diffuse.header.pNext = &specular.header; // AMD1.2 ABI ascending order: 0x44 then 0x48.
+    ffxDispatchDescDenoiserDebugView nativeDebug {};
+    if (lease->context->debugEnabled)
+    {
+        lease->context->ClearNativeDebug(list, *lease->slot);
+        nativeDebug.header.type = FFX_API_DISPATCH_DESC_TYPE_DENOISER_DEBUG_VIEW;
+        nativeDebug.output = ffxApiGetResourceDX12(lease->slot->nativeDebug.Get(), FFX_API_RESOURCE_STATE_UNORDERED_ACCESS);
+        nativeDebug.outputSize = {input.width, input.height};
+        nativeDebug.mode = static_cast<uint32_t>(impl_->settings.nativeDebugView);
+        nativeDebug.viewportIndex = impl_->settings.nativeDebugViewport;
+        specular.header.pNext = &nativeDebug.header;
+    }
     ffxDispatchDescDenoiser dispatch {};
     dispatch.header.type = FFX_API_DISPATCH_DESC_TYPE_DENOISER;
     dispatch.header.pNext = &diffuse.header;
@@ -674,6 +885,15 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
         return false;
     }
     if (!guard.admit) record(&commit);
+    if (lease->context->debugEnabled)
+    {
+        impl_->nativeDebug.resource = lease->slot->nativeDebug.Get();
+        impl_->nativeDebug.owner = lease;
+        impl_->nativeDebug.recording = list;
+        impl_->nativeDebug.frameSL = frame.streamlineFrame;
+        impl_->nativeDebug.width = input.width; impl_->nativeDebug.height = input.height;
+        impl_->nativeDebug.state = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    }
     impl_->previous = frame;
     impl_->previous.reset = reset;
     impl_->historyValid = true;
@@ -683,11 +903,12 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
 }
 void RRWrapper::ResetHistory() noexcept
 {
-    if (impl_) impl_->resetPending = true;
+    if (impl_) { impl_->resetPending = true; impl_->nativeDebug = {}; }
 }
 void RRWrapper::DiscardRecordingHistory() noexcept
 {
     if (!impl_) return;
+    impl_->nativeDebug = {};
     impl_->context.reset();
     impl_->historyValid = false;
     impl_->resetPending = true;
