@@ -53,10 +53,10 @@ class RRWrapper
     // before presentation. Output is borrowed for recording, then restored.
     bool PresentNativeDebug(ID3D12GraphicsCommandList*, ID3D12Resource* output,
                             D3D12_RESOURCE_STATES outputState, uint32_t frameSL, std::string& error,
-                            bool orderedAcrossLists = false);
+                            bool orderedAcrossLists = false, const OutputCommitGuard& = {});
     bool PresentNativeDebug(ID3D12GraphicsCommandList*, ID3D12Resource* output,
                             D3D12_RESOURCE_STATES outputState, const RRWrapperNativeDebugOutputSnapshot& source,
-                            std::string& error, bool orderedAcrossLists = false);
+                            std::string& error, bool orderedAcrossLists = false, const OutputCommitGuard& = {});
     void ResetHistory() noexcept;
     void DiscardRecordingHistory() noexcept;
     uint64_t ContextGeneration() const noexcept;
