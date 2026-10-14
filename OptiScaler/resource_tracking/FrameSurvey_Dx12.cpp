@@ -1321,9 +1321,7 @@ void RenderTargets(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_CPU_D
         std::scoped_lock lifetime(gLifetimeMutex);
         UINT stride = 0;
         if (contiguous && count && handles)
-            for (const auto& [key,heap] : gHeaps)
-                if (handles[0].ptr >= heap.cpu && handles[0].ptr-heap.cpu < uint64_t(heap.count)*heap.increment)
-                { stride = heap.increment; break; }
+            if (const auto* heap = HeapAtCpu(handles[0].ptr)) stride = heap->increment;
         for (UINT i=0;handles && i<count;++i)
         {
             const auto handle = contiguous ? handles[0].ptr+uint64_t(i)*stride : handles[i].ptr;
