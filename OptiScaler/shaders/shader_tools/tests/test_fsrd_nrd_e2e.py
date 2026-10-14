@@ -1,0 +1,261 @@
+"""Actual NRD coordinator + conversion + signed AMD RR + native detour restoration.
+
+Run through lead_ops/run_task_test.py to hold the shared GPU lock. Creation
+callbacks and SL snapshots are fixture adapters; actual compute detours, table
+resolution, coordinator, conversion, RR wrapper and state restoration are used.
+"""
+from pathlib import Path
+import hashlib
+import json
+import os
+import re
+import sys
+
+ROOT = Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from fsrd_toolchain import compile_cpp
+from test_fsrd_nrd_root_restore import function
+from test_fsrd_frame_survey_wiring import function as res_function, selected_line
+from test_fsrd_nrd_bridge_rr import bounded_run, DLL
+
+
+def method(source, signature):
+    """Keep default aggregate arguments while finding the function body."""
+    start = source.index(signature)
+    opening = source.index('(', start)
+    level = 1
+    end_parameters = opening + 1
+    while level:
+        character = source[end_parameters]
+        level += (character == '(') - (character == ')')
+        end_parameters += 1
+    brace = source.index('{', end_parameters)
+    level = 1
+    end = brace + 1
+    while level:
+        character = source[end]
+        level += (character == '{') - (character == '}')
+        end += 1
+    return source[start:end]
+
+
+def build(out):
+    d3d = (ROOT / 'OptiScaler/hooks/D3D12_Hooks.cpp').read_text()
+    res = (ROOT / 'OptiScaler/resource_tracking/ResTrack_dx12.cpp').read_text()
+    stubs = out / 'stubs'
+    for name in ('hooks', 'inputs', 'proxies', 'resource_tracking'):
+        (stubs / name).mkdir(parents=True, exist_ok=True)
+    support = Path(__file__).with_name('nrd_bridge_rr_test_support.h').read_text()
+    support = support[:support.index('struct ResTrack_Dx12')]
+    support = support.replace('"../../../misc/RecordedComputeLease_Dx12.h"',
+                              '"' + (ROOT / 'OptiScaler/misc/RecordedComputeLease_Dx12.h').as_posix() + '"')
+    support = support.replace('struct FfxApiProxy', 'struct ProviderExports')
+    proxy = (ROOT / 'OptiScaler/proxies/FfxApi_Proxy.h').read_text()
+    enum = proxy[proxy.index('enum class FFXStructType'):proxy.index('// The denoiser DLL')]
+    routes = '\n'.join(method(proxy, signature) for signature in (
+        'static void RecordContextType(', 'static std::optional<FFXStructType> TakeContextType(',
+        'static void RestoreContextType(', 'static FFXStructType GetType(', 'static FFXStructType GetIndirectType(',
+        'static ffxReturnCode_t D3D12_CreateContext(', 'static ffxReturnCode_t D3D12_DestroyContext(',
+        'static ffxReturnCode_t D3D12_DestroyRouted(', 'static ffxReturnCode_t D3D12_Configure(',
+        'static ffxReturnCode_t D3D12_Query(', 'static ffxReturnCode_t D3D12_Dispatch('))
+    support += '''
+#include <optional>
+#include <mutex>
+#include <ffx_framegeneration.h>
+#include <ffx_upscale.h>
+#define FFX_API_EFFECT_ID_FGSC_VK 0x00040000u
+#define LOG_DEBUG(...) ((void)0)
+namespace FfxDenoiserRouteAttestation { struct ContextRecord {}; }
+struct WitnessAdapter {
+ std::shared_ptr<FfxDenoiserRouteAttestation::ContextRecord> Take(uintptr_t) { return {}; }
+ void Restore(const std::shared_ptr<FfxDenoiserRouteAttestation::ContextRecord>&) {}
+ void Completed(const std::shared_ptr<FfxDenoiserRouteAttestation::ContextRecord>&) {}
+};
+struct FfxModule {
+ HMODULE dll=nullptr;
+ bool skipCreateCalls=false,skipQueryCalls=false,skipConfigureCalls=false,skipDispatchCalls=false;
+ decltype(&ProviderExports::D3D12_CreateContext) CreateContext=&ProviderExports::D3D12_CreateContext;
+ decltype(&ProviderExports::D3D12_DestroyContext) DestroyContext=&ProviderExports::D3D12_DestroyContext;
+ decltype(&ProviderExports::D3D12_Query) Query=&ProviderExports::D3D12_Query;
+ decltype(&ProviderExports::D3D12_Configure) Configure=&ProviderExports::D3D12_Configure;
+ decltype(&ProviderExports::D3D12_Dispatch) Dispatch=&ProviderExports::D3D12_Dispatch;
+};
+''' + enum + '''
+struct FfxApiProxy : ProviderExports {
+ inline static FfxModule denoiser_dx12,main_dx12,upscaling_dx12,fg_dx12,radiance_dx12;
+ inline static std::unordered_map<ffxContext,FFXStructType> contextToType;
+ inline static std::mutex contextToTypeMutex;
+ inline static WitnessAdapter denoiserRouteWitnesses;
+ inline static bool _skipDestroyCalls=false;
+ inline static std::array<unsigned,5> routed{};
+ inline static unsigned wrongRoute=0;
+ static void CheckRoute(const char* route) { if(std::string(route)!="denoiser_dx12") ++wrongRoute; }
+ static ffxReturnCode_t CreateDenoiserWitnessed(FfxModule& module,const char* route,ffxContext* context,ffxCreateContextDescHeader* desc,const ffxAllocationCallbacks* cb) {
+  CheckRoute(route); ++routed[0]; return module.CreateContext(context,desc,cb);
+ }
+ static ffxReturnCode_t ConfigureDenoiserWitnessed(FfxModule& module,const char* route,ffxContext* context,const ffxConfigureDescHeader* desc) {
+  CheckRoute(route); ++routed[1]; return module.Configure(context,desc);
+ }
+ static ffxReturnCode_t QueryDenoiserWitnessed(FfxModule& module,const char* route,ffxContext* context,ffxQueryDescHeader* desc) {
+  CheckRoute(route); ++routed[2]; return module.Query(context,desc);
+ }
+ static ffxReturnCode_t DispatchDenoiserWitnessed(FfxModule& module,const char* route,ffxContext* context,const ffxDispatchDescHeader* desc) {
+  CheckRoute(route); ++routed[3]; return module.Dispatch(context,desc);
+ }
+ static ffxReturnCode_t DestroyDenoiserWitnessed(FfxModule& module,const char* route,ffxContext* context,const ffxAllocationCallbacks* cb,
+  const std::shared_ptr<FfxDenoiserRouteAttestation::ContextRecord>&) {
+  CheckRoute(route); ++routed[4]; return module.DestroyContext(context,cb);
+ }
+''' + routes + '\n};\n'
+    lease = Path(__file__).with_name('dx12_shader_test_support.h').read_text()
+    support += lease[lease.index('struct ResTrack_Dx12'):]
+    support += '''
+#define LOG_WARN(...) ((void)0)
+#define LOG_TRACE(...) ((void)0)
+struct Setting { bool value=false; bool value_or_default() const { return value; } };
+struct Config {
+ Setting FfxDenoiserNrdBridge{false}, FfxDenoiserNrdBridgeEnabled{true}, FfxDenoiserFrameSurvey{false};
+ Setting RestoreComputeSignature{true}, RestoreGraphicSignature{false}, ExtendedStateRestore{true};
+ static Config* Instance() { static Config value; return &value; }
+};
+struct State { bool isShuttingDown=false; static State& Instance() { static State value; return value; } };
+inline std::filesystem::path g_dllPath;
+namespace Util {
+ inline std::filesystem::path DllPath() { return g_dllPath; }
+ inline std::filesystem::path ExePath() { return L"cyberpunk2077.exe"; }
+}
+struct StreamlineHooks {
+ static inline SLConstantsSnapshot snapshot;
+ static SLConstantsSnapshot getSLConstantsSnapshot() { return snapshot; }
+};
+'''
+    support = '#include <filesystem>\n' + support
+    (stubs / 'fixture_support.h').write_text(support)
+    for name in ('pch.h', 'Config.h', 'State.h', 'Util.h', 'hooks/Streamline_Hooks.h',
+                 'proxies/FfxApi_Proxy.h', 'resource_tracking/ResTrack_Dx12.h'):
+        (stubs / name).write_text('#pragma once\n#include "fixture_support.h"\n')
+    (stubs / 'inputs/NVNGX_DLSS.h').write_text('#pragma once\n#include <nvsdk_ngx.h>\n')
+    (stubs / 'proxies/D3D12_Proxy.h').write_text('''#pragma once
+#include <d3d12.h>
+namespace D3d12Proxy {
+ inline auto D3D12CreateVersionedRootSignatureDeserializer_() { return &D3D12CreateVersionedRootSignatureDeserializer; }
+ inline auto D3D12SerializeVersionedRootSignature_() { return &D3D12SerializeVersionedRootSignature; }
+}
+''')
+    extra = ''
+    controls_names = (
+        'void D3D12Hooks::SetRootSignatureTracking(', 'bool D3D12Hooks::RootSignatureTrackingEnabled(',
+        'void D3D12Hooks::OnBridgeCommandListReset(', 'bool D3D12Hooks::CanRestoreRootSignature(',
+        'bool D3D12Hooks::RestoreDescriptorHeaps(', 'bool D3D12Hooks::RestorePipelineState(',
+        'bool D3D12Hooks::RestoreComputeRootState(', 'bool D3D12Hooks::RestoreGraphicsRootState(',
+        'void D3D12Hooks::RestoreRoot(')
+    if 'bool D3D12Hooks::GetComputeBindingsForBridge(' in d3d:
+        controls_names += ('bool D3D12Hooks::GetComputeBindingsForBridge(',)
+        extra = 'static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*,FrameSurvey::ComputeBindings&) noexcept;'
+    declaration = '''#pragma once
+#include <resource_tracking/FrameSurvey_Dx12.h>
+struct D3D12Hooks {
+ static void SetRootSignatureTracking(bool);
+ static bool RootSignatureTrackingEnabled();
+ static void OnBridgeCommandListReset(ID3D12GraphicsCommandList*,ID3D12PipelineState*);
+ static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*);
+ static bool RestoreDescriptorHeaps(ID3D12GraphicsCommandList*);
+ static bool RestorePipelineState(ID3D12GraphicsCommandList*);
+ static bool RestoreComputeRootState(ID3D12GraphicsCommandList*);
+ static bool RestoreGraphicsRootState(ID3D12GraphicsCommandList*);
+ static void RestoreRoot(ID3D12GraphicsCommandList*);
+''' + extra + '\n};\n'
+    (stubs / 'hooks/D3D12_Hooks.h').write_text(declaration)
+    early = ('SetPipelineState', 'SetDescriptorHeaps', 'SetComputeRootSignature',
+             'SetComputeRootDescriptorTable', 'SetComputeRoot32BitConstants',
+             'SetComputeRoot32BitConstant', 'SetComputeRootConstantBufferView',
+             'SetComputeRootShaderResourceView', 'SetComputeRootUnorderedAccessView')
+    wrappers = ('SetDescriptorHeaps', 'SetComputeRootSignature', 'SetComputeRootConstantBufferView',
+                'SetComputeRootShaderResourceView', 'SetComputeRootUnorderedAccessView')
+    bodies = function(d3d, 'UINT GetRootParameterCount(') + '\n'
+    bodies += '\n'.join(function(d3d, 'static void hk' + name + '(') for name in early)
+    bodies += '\n' + '\n'.join(function(d3d, 'static void hkSurvey' + name + '(') for name in wrappers)
+    bodies = re.sub(r'\bhk(?=\w)', 'root_hk', bodies)
+    controls = '\n'.join(function(d3d, signature) for signature in controls_names)
+    restore_at = controls.index('void D3D12Hooks::RestoreRoot(')
+    brace = controls.index('{', restore_at)
+    controls = controls[:brace + 1] + '\n ++restores;\n' + controls[brace + 1:]
+    wiring = '\n'.join(res_function(res, name) for name in (
+        'hkSurveySetPipelineState', 'hkSurveyDispatch', 'hkSurveyReset',
+        'hkSurveySetComputeRootDescriptorTable', 'hkSurveyResourceBarrier'))
+    dispatch_at = wiring.index('void hkSurveyDispatch(')
+    brace = wiring.index('{', dispatch_at)
+    wiring = wiring[:brace + 1] + '\n recordDispatch(This,FrameSurvey::Internal());\n' + wiring[brace + 1:]
+    barrier_at = wiring.index('void hkSurveyResourceBarrier(')
+    brace = wiring.index('{', barrier_at)
+    wiring = wiring[:brace + 1] + '\n auditBarriers(This,NumBarriers,pBarriers,FrameSurvey::Internal());\n' + wiring[brace + 1:]
+    hooks = res_function(res, 'HookCommandList')
+    attach = '\n'.join(selected_line(hooks, 'DetourAttach(&(PVOID&) o_' + name + ',')
+                       for name in ('SetPipelineState', 'Dispatch', 'SetComputeRootDescriptorTable', 'ResourceBarrier'))
+    detach = attach.replace('DetourAttach', 'DetourDetach')
+    reset = selected_line(hooks, 'o_Reset ? DetourAttach')
+    attach += '\nconst auto resetResult = ' + reset[reset.index('('):]
+    attach += '\nneed(resetResult==NO_ERROR,"production reset detour attach");'
+    detach += '\nDetourDetach(&(PVOID&) o_Reset, gSurveyWrappers ? hkSurveyReset : hkReset);'
+    roots_attach = '\n'.join(re.search(
+        r'DetourAttach\(&\(PVOID&\) s_' + name + r'\.o_earlyHook,\s*[^;]+;', d3d).group(0)
+        for name in early)
+    roots_attach = re.sub(r'\bhk(?=\w)', 'root_hk', roots_attach)
+    roots_attach = '\n'.join('need(' + call + '==NO_ERROR,"root attach ' + name + '");'
+                             for name, call in zip(early, (part.strip() for part in roots_attach.split(';') if part.strip())))
+    cpp = Path(__file__).with_name('fsrd_nrd_e2e_fixture.cpp').read_text()
+    replacements = dict(
+        ROOT=ROOT.as_posix(), STATE=d3d[d3d.index('// Common'):d3d.index('// Intel Atomic Extension')]
+            .replace('ankerl::unordered_dense::map', 'std::unordered_map'),
+        TRACKERS=bodies, CONTROL=controls, WIRING=wiring,
+        RES_ATTACH=attach, RES_DETACH=detach, D3D_ATTACH=roots_attach,
+        D3D_DETACH=roots_attach.replace('DetourAttach', 'DetourDetach'),
+        SELECTORS='\n'.join(selected_line(res, marker) for marker in (
+            'gNrdBridgeWrappers = NrdBridge::StartupEnabled();',
+            'gSurveyWrappers = Config::Instance()->FfxDenoiserFrameSurvey.value_or_default() ||')),
+        DEVICE_SELECTORS='\n'.join(selected_line(d3d, marker) for marker in (
+            'gNrdBridgeDeviceWrappers = NrdBridge::StartupEnabled();',
+            'gSurveyDeviceWrappers = Config::Instance()->FfxDenoiserFrameSurvey.value_or_default() ||')))
+    for key, value in replacements.items():
+        cpp = cpp.replace('__' + key + '__', value)
+    assert '__ROOT__' not in cpp
+    source = out / 'nrd_e2e.cpp'
+    source.write_text(cpp)
+    exe = out / 'nrd_e2e.exe'
+    os.environ['FSRD_CPP_CACHE'] = str(out / 'cache')
+    compile_cpp(source, exe, ('d3d12.lib', 'dxgi.lib', 'dxguid.lib', 'd3dcompiler.lib',
+        'bcrypt.lib', 'user32.lib', 'psapi.lib', str(ROOT / 'OptiScaler/library/detours/detours.lib')),
+        (stubs, ROOT / 'OptiScaler', ROOT / 'OptiScaler/include', ROOT / 'external/nlohmann',
+         ROOT / 'external/nvngx_dlss_sdk', ROOT / 'external/streamline',
+         ROOT / 'external/FidelityFX-SDK/ffx-api/include/ffx_api', ROOT / 'OptiScaler/shaders/fsrd_preprocess'))
+    return exe
+
+
+def run():
+    out = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/sol_batch/12e-e2e/tests/e2e'))
+    out.mkdir(parents=True, exist_ok=True)
+    exe = build(out)
+    if '--compile-only' in sys.argv:
+        print(json.dumps({'compile_only': True, 'executable': str(exe)}))
+        return
+    text, peak, elapsed, log = bounded_run([str(exe), str(out), str(DLL)], out / 'e2e')
+    result = json.loads((out / 'result.json').read_text())
+    assert result['raw']['exact_rgb'] and result['raw']['alpha_zero']
+    assert result['rr']['finite_values'] == result['rr']['total_values']
+    assert result['runtime_off']['provider_dispatches'] == 0 and result['runtime_off']['internal_detour_calls'] == 0
+    assert result['debug_errors'] == 0 and result['debug_warnings'] == 0
+    result.update(python_checks=4, elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log),
+                  dll=str(DLL), dll_sha256=hashlib.sha256(DLL.read_bytes()).hexdigest(),
+                  scope=('production FrameSurvey/coordinator/conversion/RRWrapper, actual D3D12 compute detours and '
+                         'RestoreRoot, production FfxApiProxy routing/context-map functions, signed AMD exports; '
+                         'creation/SL/lease/module-loader/witness adapters; no full application loader '
+                         'or Cyberpunk runtime/image-quality claim'))
+    (out / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
+    report = Path(os.environ.get('FSRD_NRD_E2E_REPORT', f'E:/FSRD/sol_batch/{out.parents[1].name}'))
+    report.mkdir(parents=True, exist_ok=True)
+    (report / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
+    print(json.dumps(result, indent=2))
+
+
+if __name__ == '__main__':
+    run()
