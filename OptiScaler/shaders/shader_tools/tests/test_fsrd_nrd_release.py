@@ -17,6 +17,22 @@ from test_fsrd_nrd_root_restore import function
 from test_fsrd_frame_survey_wiring import function as res_function
 
 
+def function_with_defaults(source, signature, body_prefix=''):
+    """Extract a whole method after its parameter list, including `{}` defaults."""
+    start = source.index(signature)
+    opening = source.index('(', start)
+    depth, end = 1, opening + 1
+    while depth:
+        depth += (source[end] == '(') - (source[end] == ')')
+        end += 1
+    brace = source.index('{', end)
+    depth, end = 1, brace + 1
+    while depth:
+        depth += (source[end] == '{') - (source[end] == '}')
+        end += 1
+    return source[start:brace+1] + body_prefix + source[brace+1:end]
+
+
 ENTRY_PROBE = r'''
 #define NOMINMAX
 #include <d3d12.h>
@@ -99,18 +115,22 @@ def run():
 #include <future>
 #include <thread>
 #include <functional>
+#include <utility>
+#include "__ROOT__/OptiScaler/misc/NrdBridgeBirth_Dx12.h"
+#include "__ROOT__/OptiScaler/misc/NrdBridgeNativeBirth_Dx12.h"
 #include "__ROOT__/OptiScaler/misc/NrdBridgeLifetime_Dx12.h"
 #include "__ROOT__/OptiScaler/misc/NrdBridgePerf_Dx12.h"
 #include "__ROOT__/OptiScaler/misc/NrdBridgeOwned_Dx12.h"
 #include "__ROOT__/OptiScaler/hooks/Hook_Utils.h"
 #define LOG_INFO(...) ((void)0)
 #define LOG_ERROR(...) ((void)0)
-__STATE__
+namespace NrdBridgeNativeBirth { bool ObserveReleaseCoverage(IUnknown*) noexcept; }
 bool gNrdBridgeDeviceWrappers=true,gNrdBridgeWrappers=true,gSurveyWrappers=true;
+__STATE__
 unsigned checks=0,releasesObserved=0,psoCleaned=0,slotsCleaned=0,leaseEnds=0;
 std::atomic<unsigned> leaseBegins=0;
 PVOID gResourceReleaseEntry=nullptr,gHeapReleaseEntry=nullptr,gCommandListReleaseEntry=nullptr,gPsoReleaseEntry=nullptr;
-bool gHeapOwnsReleaseHook=false,gResourceReleaseSharesHeap=false;
+bool gHeapOwnsReleaseHook=false,gResourceReleaseSharesHeap=false,gResourceReleaseSharesBirth=false;
 std::atomic<bool> gHeapReleaseSharesResource=false;
 std::recursive_mutex gReleaseHookInstallMutex;
 unsigned nativeAttaches=0;
@@ -129,6 +149,7 @@ namespace FrameSurvey {
  bool MetadataHealthy() noexcept {return metadataHealthy.load(std::memory_order_acquire);}
  // Health/status seam: production's atomic latch is implemented in FrameSurvey; no coordinator shutdown occurs.
  void MetadataHookFailed(const char* reason) noexcept {metadataHealthy.store(false,std::memory_order_release);++unavailableReports;unavailableReason=reason;bool unlocked=false;std::thread probe([&]{unlocked=gReleaseHookInstallMutex.try_lock();if(unlocked)gReleaseHookInstallMutex.unlock();});probe.join();reportOutsideInstaller=reportOutsideInstaller&&unlocked;}
+ void FlushMetadataFailure() noexcept {}
 }
 void need(bool ok,const char* message) { if(!ok) throw std::runtime_error(message); ++checks; }
 struct D3D12Hooks { static void OnBridgeCommandListReset(ID3D12GraphicsCommandList*,ID3D12PipelineState*); };
@@ -142,6 +163,9 @@ namespace RecordedComputeLease {
  int BeginRelease(void*) { ++leaseBegins; return 1; }
  void EndRelease(int,bool) { ++leaseEnds; }
 }
+// Actual Birth/NativeBirth are intentionally unconfigured here. These existing
+// legacy exclusive-gate/borrow assertions are supplemented by release_birth.
+__BIRTH_RELEASE_HELPERS__
 std::mutex heapMetadataMutex;
 std::unordered_set<void*> heapMetadata;
 void* nativeWatchedHeap=nullptr;unsigned nativeWatchedNotifications=0;
@@ -165,7 +189,7 @@ void CleanupRRResourcePsoProducersLocked(ID3D12Resource* resource) {gRRResourceP
 struct HeapInfo {
  static constexpr size_t DESCRIPTOR_LOCK_STRIPE_COUNT=2;
  std::array<std::shared_mutex,DESCRIPTOR_LOCK_STRIPE_COUNT> descriptorLocks;
- ID3D12DescriptorHeap* heap=nullptr;SIZE_T cpuStart=0,cpuEnd=0,gpuStart=0,gpuEnd=0;std::atomic<bool> active=true;std::atomic<uint64_t> version=19;
+ ID3D12DescriptorHeap* heap=nullptr;NrdBridgeBirth::Token birth;SIZE_T cpuStart=0,cpuEnd=0,gpuStart=0,gpuEnd=0;std::atomic<bool> active=true;std::atomic<uint64_t> version=19;
  struct Info {ID3D12Resource* buffer=nullptr;uint64_t lastUsedFrame=0;};std::shared_ptr<Info[]> info;
  std::mutex occupiedSlotsMutex;std::unordered_set<UINT> occupiedSlots;
  UINT numDescriptors=1;
@@ -215,6 +239,7 @@ using PFN_Release=decltype(o_Release);using PFN_HeapRelease=decltype(o_HeapRelea
 bool gResourceReleaseSharesPso=false;
 bool gResourceReleaseSharesCommandList=false;
 ULONG (*gSharedResourceReleaseObserver)(ID3D12Resource*)=nullptr;
+__BIRTH_GATE_AND_GENERIC__
 __HEAP_SHARED_CLEANUP__
 __RELEASE__
 __COMMAND_RELEASE__
@@ -226,7 +251,9 @@ struct ResTrack_Dx12 {
  static void HookResource(ID3D12Device*);
  static HRESULT hkCreateDescriptorHeap(ID3D12Device*,D3D12_DESCRIPTOR_HEAP_DESC*,REFIID,void**);
  static HRESULT hkSurveyCreateDescriptorHeap(ID3D12Device*,D3D12_DESCRIPTOR_HEAP_DESC*,REFIID,void**);
+ static bool ObserveBridgeObjectRelease(IUnknown*) noexcept;
 };
+__BIRTH_COVERAGE__
 __RESOURCE_INSTALL__
 // The legacy creation seam returns its real or synthetic test heap unchanged.
 HRESULT heapCreationResult=S_OK;void* heapCreationObject=nullptr;unsigned legacyHeapCreations=0;
@@ -532,6 +559,30 @@ int main(int argc,char** argv) try {
         'RESOURCE_DETACH':teardown[detach_begin:detach_end],
         'RESOURCE_RESET':teardown[reset_begin:reset_end],
     }
+    if 'static bool UseNrdNativeRetirement()' in res:
+        release_header = (ROOT/'OptiScaler/misc/NrdBridgeRelease_Dx12.h').read_text()
+        gate_begin = res.index('static bool UseNrdNativeRetirement()')
+        gate_end = res.index('static void PublishComputeHookAvailability()', gate_begin)
+        replacements.update({
+            'BIRTH_RELEASE_HELPERS':release_header[release_header.index('namespace NrdBridgeRelease'):],
+            'BIRTH_GATE_AND_GENERIC':res[gate_begin:gate_end],
+            'BIRTH_COVERAGE':instrument_installer('bool ResTrack_Dx12::ObserveBridgeObjectRelease(')
+                + '\n' + function(res,'bool NrdBridgeNativeBirth::ObserveReleaseCoverage('),
+        })
+    else:
+        # Immutable pre-birth baseline sources have no such hooks/helper calls.
+        replacements.update({name:'' for name in ('BIRTH_RELEASE_HELPERS','BIRTH_GATE_AND_GENERIC')})
+        replacements['BIRTH_COVERAGE'] = r'''
+// CPU coverage seam for the immutable pre-birth baseline. Actual Ready remains
+// unconfigured; if queried, coverage uses installed native entries only.
+bool NrdBridgeNativeBirth::ObserveReleaseCoverage(IUnknown* object) noexcept
+{
+ if(!object || !NrdBridgeNativeBirth::Ready() || FrameSurvey::OwnedRelease()) return false;
+ const PVOID entry=(*reinterpret_cast<PVOID**>(object))[2];
+ return (entry==gResourceReleaseEntry && o_Release) || (entry==gHeapReleaseEntry && o_HeapRelease) ||
+        (entry==gPsoReleaseEntry && o_PsoRelease) || (entry==gCommandListReleaseEntry && o_CommandListRelease);
+}
+'''
     for name, value in replacements.items():
         cpp = cpp.replace('__'+name+'__', value)
     out = Path(os.environ['FSRD_GPU_TEST_OUTPUT'])
