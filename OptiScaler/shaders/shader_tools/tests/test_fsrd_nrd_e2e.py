@@ -131,7 +131,11 @@ struct FfxApiProxy : ProviderExports {
     retention = retention.replace('lease, std::move(beforeSubmit));',
         'lease, std::move(beforeSubmit), std::move(callbacks));')
     assert 'SubmissionCallbacks callbacks' in retention
-    support += retention
+    before_submission = method(res, 'std::shared_ptr<RecordedComputeLease::Submission> ResTrack_Dx12::BeforeComputeSubmission(')
+    declaration = before_submission[:before_submission.index('{')].replace('ResTrack_Dx12::', '').strip()
+    last = retention.rindex('};')
+    retention = retention[:last] + '    static ' + declaration + ';\n' + retention[last:]
+    support += retention + '\n' + before_submission
     support += '''
 #define LOG_WARN(...) ((void)0)
 #define LOG_TRACE(...) ((void)0)
@@ -262,6 +266,15 @@ def run():
     if '--compile-only' in sys.argv:
         print(json.dumps({'compile_only': True, 'executable': str(exe)}))
         return
+    if '--submission-failure-only' in sys.argv:
+        text, peak, elapsed, log = bounded_run([str(exe), str(out), str(DLL), '--submission-failure'], out / 'submission_failure')
+        fault = json.loads((out / 'submission-failure-result.json').read_text())
+        assert fault['submission_failure']['dependent_original_executes'] == 0 and fault['submission_failure']['dependent_denied']
+        assert fault['debug_errors'] == 0 and fault['debug_warnings'] == 0
+        fault.update(python_checks=2, elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log))
+        (out / 'submission-failure-result.json').write_text(json.dumps(fault, indent=2) + '\n')
+        print(json.dumps(fault, indent=2))
+        return
     off_text, off_peak, off_elapsed, off_log = bounded_run([str(exe), str(out), str(DLL), '--startup-off'], out / 'startup_off')
     configured_off = json.loads((out / 'startup-off-result.json').read_text())
     assert configured_off['startup_off'] == {'provider_creates': 0, 'provider_dispatches': 0, 'restore_calls': 0, 'nrdsentinel_untouched': True}
@@ -272,7 +285,12 @@ def run():
     assert result['rr']['finite_values'] == result['rr']['total_values']
     assert result['runtime_off']['provider_dispatches'] == 0 and result['runtime_off']['internal_detour_calls'] == 0
     assert result['debug_errors'] == 0 and result['debug_warnings'] == 0
-    result.update(python_checks=6, elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log),
+    fault_text, fault_peak, fault_elapsed, fault_log = bounded_run([str(exe), str(out), str(DLL), '--submission-failure'], out / 'submission_failure')
+    fault = json.loads((out / 'submission-failure-result.json').read_text())
+    assert fault['submission_failure']['dependent_original_executes'] == 0 and fault['submission_failure']['dependent_denied']
+    assert fault['debug_errors'] == 0 and fault['debug_warnings'] == 0
+    result.update(python_checks=8,
+                  submission_failure=dict(**fault, elapsed_seconds=fault_elapsed, peak_resident_bytes=fault_peak, native_log=str(fault_log)), elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log),
                   configured_startup_off=dict(**configured_off, elapsed_seconds=off_elapsed, peak_resident_bytes=off_peak, native_log=str(off_log)),
                   dll=str(DLL), dll_sha256=hashlib.sha256(DLL.read_bytes()).hexdigest(),
                   scope=('production FrameSurvey/coordinator/conversion/RRWrapper, actual D3D12 compute detours and '
