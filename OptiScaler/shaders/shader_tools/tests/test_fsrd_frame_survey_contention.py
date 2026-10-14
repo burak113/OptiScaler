@@ -70,6 +70,80 @@ __RELEASE__
 __HEAP_RELEASE__
 '''
 
+
+SNAPSHOT_READER = r'''
+#include <condition_variable>
+// This is a separate metadata-reader workload, not a renderer/FPS simulation.
+// Native root/list/buffer owner refs remain held by Host; the real physical
+// Borrow and production CBV resolver run on the independent reader thread.
+struct ConsumerSnapshots {
+ Host& host;bool profile;std::atomic<size_t> progress{0},active;
+ std::vector<uint64_t> elapsed;std::array<std::vector<uint64_t>,size_t(NrdBridgePerf::WaitKind::Count)> waits;
+ std::array<std::vector<uint64_t>,size_t(FrameSurveyMetadata::MetadataLock::Count)> locks;
+ size_t startedWithWriters=0;bool rejected=false;
+ ConsumerSnapshots(Host& h,size_t workers,bool measured):host(h),profile(measured),active(workers){
+  elapsed.reserve(workers*samples/1024+2);if(profile){for(auto& v:waits)v.reserve(elapsed.capacity());for(auto& v:locks)v.reserve(elapsed.capacity());}
+  FrameSurvey::SetBindingWindow(true);FrameSurvey::ComputeBindings bindings;
+  bindings.root=host.root.Get();bindings.views={{0,D3D12_DESCRIPTOR_RANGE_TYPE_CBV,host.cbv.BufferLocation}};
+  if(bornMode){bindings.receiverBirth=NrdBridgeBirth::Capture(host.list.Get());bindings.rootBirth=NrdBridgeBirth::Capture(host.root.Get());}
+  need(FrameSurvey::SeedComputeBindings(host.list.Get(),bindings),"periodic reader seeds the actual retained native b6 root/list snapshot");
+ }
+ ~ConsumerSnapshots(){FrameSurvey::SetBindingWindow(false);}
+ void query(){
+  const bool concurrent=active.load(std::memory_order_acquire)>0;const auto begin=qpc();
+  std::array<uint64_t,size_t(NrdBridgePerf::WaitKind::Count)> wait{};FrameSurveyMetadata::MetadataLockTicks named{};
+  {
+   NrdBridgePerf::Scope scope(NrdBridgePerf::Hook::Dispatch,gNrdBridgeWrappers&&!FrameSurvey::Internal());
+   const auto before=profile?FrameSurveyMetadata::ThreadMetadataLockTicks():FrameSurveyMetadata::MetadataLockTicks{};
+   {
+    NrdBridgeLifetime::ScopedBorrow borrow;
+    FrameSurvey::BoundConstantBuffer out;
+    if(!borrow.Acquired()||!FrameSurvey::ResolveComputeConstantBuffer(host.list.Get(),6,0,1216,out)||out.resource!=host.buffer.Get()||out.address!=host.cbv.BufferLocation)rejected=true;
+   }
+   if(profile){if(NrdBridgePerf::Detail::currentWaits)wait=*NrdBridgePerf::Detail::currentWaits;else rejected=true;
+    const auto after=FrameSurveyMetadata::ThreadMetadataLockTicks();for(size_t i=0;i<named.size();++i)named[i]=after[i]-before[i];}
+  }
+  elapsed.push_back(qpc()-begin);startedWithWriters+=concurrent;
+  if(profile){for(size_t i=0;i<wait.size();++i)waits[i].push_back(wait[i]);for(size_t i=0;i<named.size();++i)locks[i].push_back(named[i]);}
+ }
+ void run(std::barrier<>& start){
+  start.arrive_and_wait();query();size_t observed=progress.load(std::memory_order_acquire);
+  while(active.load(std::memory_order_acquire)>0){const auto now=progress.load(std::memory_order_acquire);
+   if(now-observed<1024){if(!active.load(std::memory_order_acquire))break;progress.wait(now,std::memory_order_acquire);continue;}
+   // Skip missed intervals instead of issuing a burst after workers finish.
+   observed=now;if(active.load(std::memory_order_acquire)>0)query();}
+ }
+ void advanced(){progress.fetch_add(32,std::memory_order_release);progress.notify_one();}
+ void finished(){active.fetch_sub(1,std::memory_order_release);progress.fetch_add(1,std::memory_order_release);progress.notify_one();}
+ J result(){
+  need(!rejected&&!elapsed.empty()&&startedWithWriters>0,"periodic actual CBV snapshots stay coherent and start while title workers are active");
+  J perCall=J::array(),named=J::array();const std::array<const char*,4> categories{"metadata","physical_lifetime_gate","tracking","coordinator"};
+  const std::array<const char*,7> names{"catalog_shared","catalog_exclusive","descriptor_shard","identity_shard","interval_index","snapshot_gate","mirror"};
+  for(size_t i=0;i<categories.size();++i){auto row=percentile(std::move(waits[i]));row["kind"]=categories[i];perCall.push_back(row);}
+  for(size_t i=0;i<names.size();++i){auto row=percentile(std::move(locks[i]));row["kind"]=names[i];named.push_back(row);}
+  return{{"queries",elapsed.size()},{"started_with_active_workers",startedWithWriters},{"inclusive",percentile(std::move(elapsed))},{"per_call_waits",perCall},{"metadata_lock_waits",named},{"coherent",true},
+   {"scope","actual SeedComputeBindings and ResolveComputeConstantBuffer b6/space0/1216 under actual physical Borrow; retained real root/list/buffer; independent reader every1024 worker operations, missed intervals skipped; worker progress atomic once32 calls; no GPU dispatch, Refresh or FPS simulation"}};
+ }
+};
+'''
+
+
+def periodic_snapshot_driver(driver):
+    edits = [
+        ('J phase(Host& h,size_t threadCount,UINT burst,bool wrappers,bool profile,bool finals=true){', SNAPSHOT_READER+'\nJ phase(Host& h,size_t threadCount,UINT burst,bool wrappers,bool profile,bool finals=true){'),
+        (' std::barrier start(threadCount+1);std::vector<std::jthread> threads;', ' ConsumerSnapshots reader(h,threadCount,profile);\n std::barrier start(threadCount+2);std::jthread readerThread([&]{reader.run(start);});std::vector<std::jthread> threads;'),
+        ('   if(i%128==127){', '   if(i%32==31)reader.advanced();\n   if(i%128==127){'),
+        ('  }\n });\n const auto began=qpc();start.arrive_and_wait();threads.clear();const auto wall=qpc()-began;', '  }\n  reader.finished();\n });\n const auto began=qpc();start.arrive_and_wait();threads.clear();readerThread.join();const auto wall=qpc()-began;'),
+        (' {"pool_setup_ms_excluded_from_timings",setupMs},{"samples",rows}', ' {"pool_setup_ms_excluded_from_timings",setupMs},{"periodic_metadata_reader",reader.result()},{"samples",rows}'),
+        ('  for(size_t threads:{size_t(1),size_t(8),size_t(16)})for(UINT burst:{64u,1024u}){', '  for(size_t threads:{size_t(8),size_t(16)})for(UINT burst:{1024u}){'),
+        ('   rows.push_back(phase(h,threads,burst,false,profile));', ''),
+        ('   rows.push_back(phase(h,threads,burst,false,profile,false));', ''),
+    ]
+    for old,new in edits:
+        assert driver.count(old)==(2 if old.startswith('  for(size_t threads:') else 1), (old,driver.count(old))
+    for old,new in edits:driver=driver.replace(old,new)
+    return driver
+
 DRIVER = r'''
 #include <barrier>
 #include <numeric>
@@ -486,6 +560,7 @@ struct Cache {
 def run():
     parser = argparse.ArgumentParser()
     parser.add_argument('--baseline', action='store_true')
+    parser.add_argument('--snapshot-readers', action='store_true', help='separate8/16thread1024copy workload with actual periodic CBV metadata reader')
     parser.add_argument('--adapter', choices=('warp', 'hardware'), default='warp')
     parser.add_argument('--profile', choices=('on', 'off', 'both'), default='both')
     args = parser.parse_args()
@@ -564,6 +639,9 @@ struct OriginalForwardTimer {
         guard = 'std::shared_lock copyWriter(FrameSurvey::gLifetimeMutex);'
     variant = 'baseline6edf-real-lease-paired-locksplit' if args.baseline else 'native-pinned-metadata-paired-locksplit'
     driver = DRIVER
+    if args.snapshot_readers:
+        driver = periodic_snapshot_driver(driver)
+        variant += '-consumer-reader'
     if not args.baseline:
         cache_start = driver.index('struct Cache {')
         cache_end = driver.index('struct WorkerPool {', cache_start)
@@ -601,6 +679,7 @@ struct OriginalForwardTimer {
         report['production_source_sha256'] = hashlib.sha256(original.encode()).hexdigest()
         report['hook_body_sha256'] = {name: hashlib.sha256(body.encode()).hexdigest() for name, body in dict(bodies, hkRelease=release, hkHeapRelease=heap_release).items()}
         report['baseline_instrumentation'] = 'scratch catalog mutex WaitScope, same-call native AddRef/QPC and before-Scope-destructor TLS snapshot; production control flow and assertions unchanged' if args.baseline else None
+        report['periodic_snapshot_reader_variant'] = args.snapshot_readers
         report['measurement_instrumentation'] = 'same-call native AddRef/Release/View/Copy QPC; profiler TLS snapshot before outer Scope destructor; copy native+callback boundary uses Hook::CopyDescriptors Scope'
         report['native_release_helper_sha256'] = hashlib.sha256(helper.encode()).hexdigest()
         report['release_adapter_helpers_sha256'] = hashlib.sha256((gates+rr_helpers).encode()).hexdigest()
