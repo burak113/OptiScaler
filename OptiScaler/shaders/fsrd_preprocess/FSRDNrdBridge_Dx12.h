@@ -1,5 +1,6 @@
 #pragma once
 #include "FSRDNrdBridge_Types.h"
+#include "misc/NrdBridgeBirth_Dx12.h"
 #include "FSRDNrdBridgeRR_Dx12.h"
 
 namespace NrdBridge
@@ -24,6 +25,7 @@ void OnReset(ID3D12GraphicsCommandList*, ID3D12PipelineState*) noexcept;
 void BeforeDispatch(ID3D12GraphicsCommandList*) noexcept;
 void AfterDispatch(ID3D12GraphicsCommandList*) noexcept;
 void OnReleased(void*) noexcept;
+void OnBirthReleased(const NrdBridgeBirth::Token&) noexcept;
 void OnPresent() noexcept;
 void OnTitleTag(ID3D12GraphicsCommandList*, const char*, ID3D12Resource*) noexcept;
 Status GetStatus();
