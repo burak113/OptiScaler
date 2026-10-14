@@ -124,8 +124,14 @@ bool FreshView(const ViewInfo& view, const Heap* heap)
 }
 // Descriptor contents remain current even while root/table binding tracking is closed.
 // This intentionally spends CPU work on enabled-bridge copy metadata for correctness.
-struct Range { uint32_t kind = 0, offset = 0, count = 0; };
-struct RootLayout { std::string hash; std::map<uint32_t,std::vector<Range>> tables; bool complete = false, directIndexed = false; };
+struct Range { uint32_t kind = 0, offset = 0, count = 0, shaderRegister = UINT_MAX, registerSpace = UINT_MAX; };
+struct RootLayout
+{
+    std::string hash;
+    std::map<uint32_t,std::vector<Range>> tables;
+    std::set<uint32_t> computeTables;
+    bool complete = false, directIndexed = false;
+};
 std::unordered_map<ID3D12RootSignature*,RootLayout> gRootLayouts;
 struct RootState
 {
@@ -238,6 +244,27 @@ void Describe(const Resource& resource)
         {"heap_pointer",resource.heap},{"heap_offset",resource.offset},{"gpu_va",resource.va},
         {"initial_state_known",resource.initialKnown},{"initial_state",uint32_t(resource.initial)}};
 }
+// Creation-only validation. Keep the recorder's original range walk, while marking only finite,
+// compute-visible tables with unique descriptor and register intervals eligible for bridge proof.
+bool UnambiguousComputeRanges(const std::vector<Range>& ranges)
+{
+    if (ranges.empty()) return false;
+    constexpr uint64_t endLimit = uint64_t(UINT_MAX)+1;
+    for (const auto& range : ranges)
+        if (range.kind > D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER || !range.count || range.count == UINT_MAX ||
+            uint64_t(range.offset)+range.count > endLimit || uint64_t(range.shaderRegister)+range.count > endLimit) return false;
+    if (ranges.size() == 1) return true;
+    auto ordered = ranges;
+    std::sort(ordered.begin(),ordered.end(),[](const auto& a,const auto& b) { return a.offset < b.offset; });
+    for (size_t i=1;i<ordered.size();++i)
+        if (uint64_t(ordered[i-1].offset)+ordered[i-1].count > ordered[i].offset) return false;
+    std::sort(ordered.begin(),ordered.end(),[](const auto& a,const auto& b) {
+        return std::tie(a.kind,a.registerSpace,a.shaderRegister) < std::tie(b.kind,b.registerSpace,b.shaderRegister); });
+    for (size_t i=1;i<ordered.size();++i)
+        if (ordered[i-1].kind == ordered[i].kind && ordered[i-1].registerSpace == ordered[i].registerSpace &&
+            uint64_t(ordered[i-1].shaderRegister)+ordered[i-1].count > ordered[i].shaderRegister) return false;
+    return true;
+}
 RootLayout ReadRoot(ID3D12RootSignature* root)
 {
     RootLayout result; if (!root) return result;
@@ -268,9 +295,11 @@ RootLayout ReadRoot(ID3D12RootSignature* root)
             const uint64_t start = range.OffsetInDescriptorsFromTableStart == D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND ? offset :
                 range.OffsetInDescriptorsFromTableStart;
             if (start > UINT_MAX) { result.complete = false; break; }
-            result.tables[i].push_back({uint32_t(range.RangeType),uint32_t(start),range.NumDescriptors});
+            result.tables[i].push_back({uint32_t(range.RangeType),uint32_t(start),range.NumDescriptors,range.BaseShaderRegister,range.RegisterSpace});
             offset = start+range.NumDescriptors;
         }
+        if (param.ShaderVisibility == D3D12_SHADER_VISIBILITY_ALL && UnambiguousComputeRanges(result.tables[i]))
+            result.computeTables.insert(i);
     }
     return result;
 }
@@ -531,6 +560,31 @@ bool SeedComputeBindings(ID3D12GraphicsCommandList* cmd, const ComputeBindings& 
         for (const auto& [parameter,handle] : bindings.tables) mirror.compute.tables[parameter] = handle.ptr;
         mirror.heaps = bindings.heaps; return true;
     } catch (...) { MetadataFailed("Compute binding seed failed"); return false; }
+}
+bool ComputeTableBindingMatches(ID3D12GraphicsCommandList* cmd, UINT parameter, D3D12_DESCRIPTOR_RANGE_TYPE kind,
+    UINT descriptorOffset, UINT shaderRegister, UINT registerSpace) noexcept
+{
+    if (!BindingTracking() || gInternal || !cmd || !gMetadataHealthy.load(std::memory_order_acquire)) return false;
+    try
+    {
+        // Inspect the same live root/table and registry under one lock scope; no COM call, retain or allocation.
+        std::scoped_lock lock(gMirrorMutex,gLifetimeMutex);
+        if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
+        const auto list = gMirror.find(cmd);
+        if (list == gMirror.end() || !list->second.compute.object) return false;
+        const auto& root = list->second.compute;
+        const auto binding = root.tables.find(parameter);
+        if (binding == root.tables.end() || !binding->second) return false;
+        const auto layout = gRootLayouts.find(root.object);
+        if (layout == gRootLayouts.end() || !layout->second.complete || !layout->second.computeTables.contains(parameter)) return false;
+        const auto table = layout->second.tables.find(parameter);
+        if (table == layout->second.tables.end()) return false;
+        for (const auto& range : table->second)
+            if (uint64_t(descriptorOffset) >= range.offset && uint64_t(descriptorOffset) < uint64_t(range.offset)+range.count)
+                return range.kind == uint32_t(kind) && range.registerSpace == registerSpace &&
+                    uint64_t(range.shaderRegister)+descriptorOffset-range.offset == shaderRegister;
+        return false;
+    } catch (...) { return false; }
 }
 bool ResolveComputeTable(ID3D12GraphicsCommandList* cmd, UINT parameter, std::vector<BoundResource>& out) noexcept
 {
