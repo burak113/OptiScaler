@@ -466,7 +466,12 @@ struct OriginalForwardTimer {
     adapter = adapter.replace('__NATIVE_RETIREMENT__', retirement).replace('__RELEASE__', measured_body(release)).replace('__HEAP_RELEASE__', measured_body(heap_release))
     guard = 'std::scoped_lock copyWriter(FrameSurvey::gLifetimeMutex);' if args.baseline else 'std::shared_lock copyWriter(FrameSurvey::gLifetimeMutex);'
     variant = 'baseline6edf-real-lease-paired' if args.baseline else 'born-real-lease-paired'
-    cpp += adapter+DRIVER.replace('__SHARED_COPY_GUARD__', guard).replace('__VARIANT__', variant).replace('__CANDIDATE__', 'false' if args.baseline else 'true').replace('__BORN__', 'false' if args.baseline else 'true')
+    driver = DRIVER
+    if args.baseline:
+        # The frozen catalog predates birth fields. Its original assertions stay;
+        # the genuinely new SAMPLER identity fixture belongs only to the candidate.
+        driver = driver.replace(function(driver, "void samplerNativeRegressions("), "void samplerNativeRegressions(Host&) {}")
+    cpp += adapter+driver.replace('__SHARED_COPY_GUARD__', guard).replace('__VARIANT__', variant).replace('__CANDIDATE__', 'false' if args.baseline else 'true').replace('__BORN__', 'false' if args.baseline else 'true')
     cpp = cpp.replace('__TRACE__', (ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp').as_posix()).replace('__SURVEY__', surveyed.as_posix()).replace('__INDEXED__', '1').replace('__HOOKS__', hooks)
     stubs = out/'stubs'
     for folder in ('proxies', 'inputs'):
