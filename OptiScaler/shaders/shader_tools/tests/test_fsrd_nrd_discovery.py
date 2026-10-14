@@ -2,6 +2,8 @@
 
 Conversion/RR are explicit counter stubs here: GPU/provider output and real state
 restoration are verified by the separate end-to-end fixture, not claimed by this test.
+The isolated native-debug process uses production leases/fences and real GPU queue
+Wait edges; pixel presentation remains an explicit admission counter stub.
 """
 from pathlib import Path
 import json
@@ -22,6 +24,12 @@ CPP = r'''
 unsigned convertCalls=0, motionCalls=0, rrCalls=0, debugCalls=0, depthResets=0, rrResets=0, rrDiscards=0;
 bool internalObserved=true, trackingSuppressed=true, observerUnlocked=true, throwPrepare=false, deferredMotion=true;
 void (*afterRRForTesting)() = nullptr;
+void (*beforeDebugAdmissionForTesting)() = nullptr;
+unsigned nativeSnapshotCalls=0,nativePresentPreparations=0,nativePresentActions=0,nativeImageRetirements=0,retirementReleaseCallbacks=0;
+bool retirementProbeEnabled=false;
+uint32_t lastNativeSourceSL=UINT32_MAX;
+bool lastNativeOrdered=false;
+D3D12_RESOURCE_STATES lastNativeTargetState=D3D12_RESOURCE_STATE_COMMON;
 NrdBridge::ConversionInputs lastReconInputs {};
 NrdBridge::FrameParameters lastRGBFrame {},lastMotionFrame {},lastRRFrame {};
 ID3D12Resource* lastMotion=nullptr; ID3D12Resource* lastOutSpec=nullptr; ID3D12Resource* lastOutDiff=nullptr;
@@ -47,7 +55,21 @@ std::unordered_map<const RRWrapper*,RRSettingsState> fixtureRRStates;
 struct ConfigureObservation { const RRWrapper* wrapper; RRSettings desired; std::array<float,8> effective; };
 std::vector<ConfigureObservation> fixtureConfigureCalls;
 RRWrapper::RRWrapper() {fixtureRRStates[this]={};fixtureRRStates[this].defaults.fill(.5f);fixtureRRStates[this].effective.fill(.5f);}
-RRWrapper::~RRWrapper() {fixtureRRStates.erase(this);}
+struct FixtureNativeOwner {
+ ComPtr<ID3D12Resource> image;
+ FixtureNativeOwner(ID3D12Resource* source,UINT width,UINT height) {
+  ComPtr<ID3D12Device> device;hr(source->GetDevice(IID_PPV_ARGS(&device)));
+  const auto desc=CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R16G16B16A16_FLOAT,width,height,1,1,1,0,D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+  D3D12_HEAP_PROPERTIES heap {};heap.Type=D3D12_HEAP_TYPE_DEFAULT;
+  hr(device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&desc,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,nullptr,IID_PPV_ARGS(&image)));
+ }
+ ~FixtureNativeOwner() { ++nativeImageRetirements; OnReleased(image.Get()); }
+};
+std::unordered_map<const RRWrapper*,RRWrapperNativeDebugOutputSnapshot> fixtureNativeImages;
+RRWrapper::~RRWrapper() {
+ fixtureNativeImages.erase(this);fixtureRRStates.erase(this);
+ if(retirementProbeEnabled) { ++retirementReleaseCallbacks; OnReleased(reinterpret_cast<void*>(uintptr_t(0x13e02000))); }
+}
 bool ValidateRRSettings(const RRSettings& settings,std::string& error) {
  // Structural stub only; the production RR suite proves actual AMD key/range validation.
  if(settings.overrideMask&~0x7fu){error="fixture invalid mask";return false;}
@@ -58,8 +80,8 @@ bool ValidateRRSettings(const RRSettings& settings,std::string& error) {
 bool RRWrapper::Configure(const RRSettings& settings,std::string& error) {
  if(!ValidateRRSettings(settings,error))return false;
  auto& state=fixtureRRStates.at(this);state.requested=settings;state.effective=state.defaults;
- for(UINT i=0;i<8;++i)if(!(settings.overrideMask&(1u<<i)))state.requested.values[i]=0;
- for(UINT i=0;i<7;++i)if(settings.overrideMask&(1u<<i))state.effective[i]=settings.values[i];
+ for(UINT i=0;i<8;++i)if(!(settings.overrideMask&(1u<<(i==7?6:i))))state.requested.values[i]=0;
+ for(UINT i=0;i<8;++i)if(settings.overrideMask&(1u<<(i==7?6:i)))state.effective[i]=settings.values[i];
  fixtureConfigureCalls.push_back({this,state.requested,state.effective});return true;
 }
 RRSettingsState RRWrapper::GetSettingsState() const noexcept {return fixtureRRStates.at(this);}
@@ -69,18 +91,40 @@ bool RRWrapper::PrepareFrame(const SLConstantsSnapshot& sl,bool reset,FrameParam
  fixtureRRStates.at(this).ready=true;
  out.streamlineFrame=sl.frameIndex; out.frameIndex=rrCalls; out.reset=reset; return true;
 }
-bool RRWrapper::Dispatch(ID3D12GraphicsCommandList*,const ConvertedResources&,ID3D12Resource* outputSpec,ID3D12Resource* outputDiff,
+bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* cmd,const ConvertedResources& inputs,ID3D12Resource* outputSpec,ID3D12Resource* outputDiff,
                         const FrameParameters& frame,std::string&,const OutputCommitGuard& guard) {
  ++rrCalls; lastOutSpec=outputSpec; lastOutDiff=outputDiff; lastRRFrame=frame;
  internalObserved &= FrameSurvey::Internal(); trackingSuppressed &= !D3D12Hooks::tracking;
  if(afterRRForTesting) afterRRForTesting();
- return !guard.admit || guard.admit(guard.state,+[](void*) noexcept {},nullptr);
+ const bool committed=!guard.admit || guard.admit(guard.state,+[](void*) noexcept {},nullptr);
+ if(committed&&fixtureRRStates.at(this).requested.nativeDebugView>=0) {
+  auto owner=MakeOwnedShared<FixtureNativeOwner>(outputSpec,inputs.width,inputs.height);
+  fixtureNativeImages[this]={owner->image.Get(),owner,cmd,frame.streamlineFrame,inputs.width,inputs.height,D3D12_RESOURCE_STATE_UNORDERED_ACCESS};
+ }
+ return committed;
+}
+RRWrapperNativeDebugOutputSnapshot RRWrapper::GetNativeDebugOutputSnapshot() const noexcept {
+ ++nativeSnapshotCalls;const auto found=fixtureNativeImages.find(this);return found==fixtureNativeImages.end()?RRWrapperNativeDebugOutputSnapshot{}:found->second;
+}
+bool RRWrapper::PresentNativeDebug(ID3D12GraphicsCommandList* cmd,ID3D12Resource* out,D3D12_RESOURCE_STATES state,
+                                  uint32_t frame,std::string& error,bool ordered,const OutputCommitGuard& guard) {
+ const auto image=GetNativeDebugOutputSnapshot();if(image.frameSL!=frame)return false;
+ return PresentNativeDebug(cmd,out,state,image,error,ordered,guard);
+}
+bool RRWrapper::PresentNativeDebug(ID3D12GraphicsCommandList*,ID3D12Resource*,D3D12_RESOURCE_STATES state,
+                                  const RRWrapperNativeDebugOutputSnapshot& image,std::string&,bool ordered,const OutputCommitGuard& guard) {
+ ++nativePresentPreparations;lastNativeSourceSL=image.frameSL;lastNativeOrdered=ordered;lastNativeTargetState=state;
+ internalObserved &= FrameSurvey::Internal(); trackingSuppressed &= !D3D12Hooks::tracking;
+ if(beforeDebugAdmissionForTesting)beforeDebugAdmissionForTesting();
+ return !guard.admit || guard.admit(guard.state,+[](void*) noexcept {++nativePresentActions;},nullptr);
 }
 void RRWrapper::ResetHistory() noexcept { ++rrResets; }
 void RRWrapper::DiscardRecordingHistory() noexcept { ++rrDiscards; }
 uint64_t RRWrapper::ContextGeneration() const noexcept { return 0; }
 __CAMERA_STUB__
 }
+using NrdBridge::fixtureConfigureCalls;
+using NrdBridge::fixtureNativeImages;
 void observerLockProbe() {
  bool registry=false, mirror=false;
  std::thread probe([&] {
@@ -625,9 +669,10 @@ J settingsTests(Host& h) {
  auto nextFrame=[&]{++StreamlineHooks::frame;c.frame(3);};
  auto submit=[&]{ResTrack_Dx12::SubmitForTesting(h.list.Get());};
  auto sameDesired=[](const NrdBridge::RRSettings& a,const NrdBridge::RRSettings& b) {
-  return a.overrideMask==b.overrideMask && a.values==b.values && a.nativeDebugView==b.nativeDebugView && a.nativeDebugViewport==b.nativeDebugViewport;
+  return a.overrideMask==b.overrideMask && a.values==b.values && a.nativeDebugView==b.nativeDebugView && a.nativeDebugViewport==b.nativeDebugViewport && a.preserveNativeMaterialIDs==b.preserveNativeMaterialIDs;
  };
  nextFrame();need(convertCalls==0&&rrCalls==0,"settings process discovers a complete chain before bridge work");
+ need(!lastRGBFrame.preserveNativeMaterialIDs&&!lastMotionFrame.preserveNativeMaterialIDs&&!lastRRFrame.preserveNativeMaterialIDs,"material ID experiment is OFF in every default stage");
  nextFrame();need(NrdBridge::GetStatus().active&&rrCalls==1,"settings process establishes a valid default frame");submit();
  auto defaults=NrdBridge::GetRRSettingsState();
  need(defaults.ready&&defaults.requested.overrideMask==0&&defaults.defaults==defaults.effective,"mask zero observes queried-default semantics through the wrapper adapter");
@@ -692,11 +737,176 @@ J settingsTests(Host& h) {
  need(NrdBridge::gService->cancellationSerial>modeSerial&&rrCalls==canceledModeRR&&!NrdBridge::GetStatus().active,"motion-only change cancels the old recorded guide interpretation");
  nextFrame();
  need(NrdBridge::GetStatus().active&&lastRRFrame.reset&&!lastRGBFrame.cameraProjectedDepthDelta&&!lastMotionFrame.cameraProjectedDepthDelta&&!lastRRFrame.cameraProjectedDepthDelta,"next frame returns every stage coherently to baseline OFF with RESET");submit();
+ ++StreamlineHooks::frame;c.begin();c.pass(Role::PrepLast);c.pass(Role::Recon);
+ const auto materialRR=rrCalls;const auto materialFrames=NrdBridge::GetStatus().framesBridged;
+ const auto materialEpoch=NrdBridge::gService->cancellationSerial;
+ configured.preserveNativeMaterialIDs=true;
+ need(NrdBridge::ApplyRRSettings(configured,false,error),"material-only setting change is accepted after Recon");
+ need(NrdBridge::gService->cancellationSerial>materialEpoch&&!lastRGBFrame.preserveNativeMaterialIDs,"material change cancels the recording without rewriting old Recon parameters");
+ c.pass(Role::PrePass);c.pass(Role::Temporal);c.postTemporal(3);
+ need(rrCalls==materialRR&&NrdBridge::GetStatus().framesBridged==materialFrames&&!NrdBridge::GetStatus().active,"canceled material recording has no RR commit or Active publication");
+ nextFrame();
+ need(lastRGBFrame.preserveNativeMaterialIDs&&lastMotionFrame.preserveNativeMaterialIDs&&lastRRFrame.preserveNativeMaterialIDs&&lastRRFrame.reset,"next Recon captures material preservation coherently with first RESET");submit();
+ nextFrame();need(NrdBridge::GetStatus().active&&!lastRRFrame.reset&&NrdBridge::GetRRSettingsState().requested.preserveNativeMaterialIDs,"material history remains stable after published submission");
+ nextFrame();need(lastRRFrame.reset&&sameDesired(NrdBridge::GetRRSettingsState().requested,configured),"fresh replacement history inherits the exact material setting");submit();
+ ++StreamlineHooks::frame;c.begin();c.pass(Role::PrepLast);c.pass(Role::Recon);c.pass(Role::PrePass);c.pass(Role::Temporal);
+ const auto materialOffRR=rrCalls;configured.preserveNativeMaterialIDs=false;
+ need(NrdBridge::ApplyRRSettings(configured,false,error),"material OFF change is accepted after motion conversion");c.postTemporal(3);
+ need(rrCalls==materialOffRR&&!NrdBridge::GetStatus().active,"material OFF cannot commit the already-recorded ON guides");
+ nextFrame();need(!lastRGBFrame.preserveNativeMaterialIDs&&!lastMotionFrame.preserveNativeMaterialIDs&&!lastRRFrame.preserveNativeMaterialIDs&&lastRRFrame.reset,"material OFF recovers the default interpretation coherently with RESET");submit();
  NrdBridge::Shutdown();hr(h.list->Close());h.execute();h.reset();h.errors();FrameSurvey::Shutdown();
- return {{"default_mask_zero",true},{"canceled_recon",true},{"canceled_temporal",true},{"invalid_preserves_state",true},
+ return {{"material_snapshot_coherent",true},{"default_mask_zero",true},{"canceled_recon",true},{"canceled_temporal",true},{"invalid_preserves_state",true},
   {"fresh_history_inherits_settings",true},{"motion_snapshot_coherent",true},{"rr_calls",rrCalls},{"configure_observations",fixtureConfigureCalls.size()},
   {"sdk_called",false},{"debug_layer_errors",0}};
 }
+
+struct NativeWaitEvent { ID3D12CommandQueue* queue; ID3D12Fence* fence; UINT64 value; };
+using NativeWaitFn=HRESULT(STDMETHODCALLTYPE*)(ID3D12CommandQueue*,ID3D12Fence*,UINT64);
+NativeWaitFn originalNativeWait=nullptr;
+ID3D12CommandQueue* watchedQueueA=nullptr;ID3D12CommandQueue* watchedQueueB=nullptr;DWORD watchedSubmitThread=0;
+std::vector<NativeWaitEvent> nativeWaitEvents;
+HRESULT STDMETHODCALLTYPE observeNativeWait(ID3D12CommandQueue* queue,ID3D12Fence* fence,UINT64 value) {
+ if(GetCurrentThreadId()==watchedSubmitThread&&(queue==watchedQueueA||queue==watchedQueueB))nativeWaitEvents.push_back({queue,fence,value});
+ return originalNativeWait(queue,fence,value);
+}
+struct NativeWaitProbe {
+ bool armed=false;
+ NativeWaitProbe(ID3D12CommandQueue* a,ID3D12CommandQueue* b) {
+  watchedQueueA=a;watchedQueueB=b;watchedSubmitThread=GetCurrentThreadId();const auto table=*reinterpret_cast<void***>(b);
+  originalNativeWait=reinterpret_cast<NativeWaitFn>(table[15]);
+  need(DetourTransactionBegin()==NO_ERROR,"native Wait probe transaction");
+  need(DetourUpdateThread(GetCurrentThread())==NO_ERROR,"native Wait probe thread");
+  need(DetourAttach(reinterpret_cast<PVOID*>(&originalNativeWait),reinterpret_cast<PVOID>(observeNativeWait))==NO_ERROR,"native Wait probe attachment");
+  need(DetourTransactionCommit()==NO_ERROR,"native Wait probe commit");armed=true;
+ }
+ void stop() {
+  need(DetourTransactionBegin()==NO_ERROR,"native Wait probe detach transaction");
+  need(DetourUpdateThread(GetCurrentThread())==NO_ERROR,"native Wait probe detach thread");
+  need(DetourDetach(reinterpret_cast<PVOID*>(&originalNativeWait),reinterpret_cast<PVOID>(observeNativeWait))==NO_ERROR,"native Wait probe detach");
+  need(DetourTransactionCommit()==NO_ERROR,"native Wait probe detach commit");armed=false;watchedQueueA=watchedQueueB=nullptr;
+ }
+ ~NativeWaitProbe() {
+  if(armed) {DetourTransactionBegin();DetourUpdateThread(GetCurrentThread());DetourDetach(reinterpret_cast<PVOID*>(&originalNativeWait),reinterpret_cast<PVOID>(observeNativeWait));DetourTransactionCommit();}
+ }
+};
+J nativeDebugTests(Host& h) {
+ ResTrack_Dx12::nativeSubmission=true;RecordedComputeLease::SetHooksAvailable(true,true);
+ ChainHost c(h);std::string error;const auto a=h.list;
+ ComPtr<ID3D12CommandQueue> queueB;D3D12_COMMAND_QUEUE_DESC q {};hr(h.dev->CreateCommandQueue(&q,IID_PPV_ARGS(&queueB)));
+ struct Destination {ComPtr<ID3D12CommandAllocator> allocator;ComPtr<ID3D12GraphicsCommandList> list;};
+ auto makeDestination=[&] {Destination d;hr(h.dev->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,IID_PPV_ARGS(&d.allocator)));hr(h.dev->CreateCommandList(0,D3D12_COMMAND_LIST_TYPE_DIRECT,d.allocator.Get(),nullptr,IID_PPV_ARGS(&d.list)));return d;};
+ auto b=makeDestination(),d=makeDestination(),third=makeDestination();
+ auto sourceCount=[&] {std::scoped_lock lock(NrdBridge::gMutex);return std::count_if(NrdBridge::gService->nativeDebugSources.begin(),NrdBridge::gService->nativeDebugSources.end(),[](const auto& source){return bool(source);});};
+ auto resetDestination=[&](Destination& dest) {hr(dest.allocator->Reset());hr(dest.list->Reset(dest.allocator.Get(),nullptr));};
+ auto submit=[&](ID3D12CommandQueue* queue,ID3D12GraphicsCommandList* list) {
+  RecordedComputeLease::SubmissionDecision decision;
+  const auto before=ResTrack_Dx12::nativeExecutes;
+  auto s=ResTrack_Dx12::SubmitNativeForTesting(queue,list,decision);
+  need(decision.allowed&&s&&s->signalPublished&&s->point&&s->point->IsPublished(),"actual ledger publishes a successful exact native fence point");
+  need(ResTrack_Dx12::nativeExecutes==before+1,"allowed native submission executes the original title list exactly once");return s;
+ };
+ auto finish=[&](const auto& s) {await([&]{return s->point->fence->GetCompletedValue()>=s->point->value;},"native debug submission GPU completion");RecordedComputeLease::Poll();};
+ auto next=[&] {h.list=a;++StreamlineHooks::frame;c.frame(3);};
+ auto finishA=[&] {hr(a->Close());auto s=submit(h.queue.Get(),a.Get());finish(s);h.list=a;h.reset();};
+ auto present=[&](ID3D12GraphicsCommandList* list,D3D12_RESOURCE_STATES state=D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {error.clear();return NrdBridge::PresentNativeDebug(list,c.textures[7].Get(),state,error);};
+ {std::scoped_lock state(NrdBridge::gMutex);std::scoped_lock injection(NrdBridge::gInjectionMutex);
+  need(!present(a.Get())&&error.empty(),"default native-debug OFF returns without either coordinator mutex");}
+ need(nativeSnapshotCalls==0&&nativePresentPreparations==0&&fixtureNativeImages.empty(),"default OFF allocates no native image and prepares no debug work");
+ next();finishA();next();need(NrdBridge::GetStatus().active,"native-debug process establishes a baseline admitted frame");finishA();
+ need(nativeSnapshotCalls==0&&fixtureNativeImages.empty()&&sourceCount()==0,"ordinary RR with debug OFF does not query or retain a diagnostic image");
+ NrdBridge::RRSettings settings;settings.nativeDebugView=0;
+ need(NrdBridge::ApplyRRSettings(settings,false,error)&&NrdBridge::NativeDebugEnabled(),"native overview mode enables only the explicit diagnostic path");
+ need(!present(a.Get())&&error.empty(),"startup without a native debug source is a quiet skip");
+ next();need(NrdBridge::GetStatus().active&&sourceCount()==1,"successful native-mode RR admission captures one owned diagnostic image");
+ const auto sameFrame=StreamlineHooks::frame;const auto frames=NrdBridge::GetStatus().framesBridged;const auto rrBefore=rrCalls;
+ const auto restore=D3D12Hooks::restores;
+ need(present(a.Get())&&!lastNativeOrdered&&lastNativeSourceSL==sameFrame,"same actual recording presents without a cross-list fence claim");
+ need(present(a.Get())&&!lastNativeOrdered&&lastNativeSourceSL==sameFrame,"second same-recording presentation follows the same image's presentation tail");
+ need(nativePresentActions==2&&D3D12Hooks::restores==restore+2&&rrCalls==rrBefore&&NrdBridge::GetStatus().framesBridged==frames,"diagnostic presentation restores compute state and never advances RR/Active accounting");
+ need(internalObserved&&trackingSuppressed,"diagnostic recording is scoped internal with title tracking suppressed");finishA();
+ // Mode change clears the old submitted snapshot before the controlled queue experiment.
+ settings.nativeDebugView=1;settings.nativeDebugViewport=2;
+ need(NrdBridge::ApplyRRSettings(settings,false,error)&&sourceCount()==0,"mode/index change invalidates old diagnostic selectors");
+ next();const auto producerSL=StreamlineHooks::frame;
+ std::shared_ptr<NrdBridge::NativeDebugSource> producer;
+ {std::scoped_lock lock(NrdBridge::gMutex);for(const auto& entry:NrdBridge::gService->nativeDebugSources)if(entry)producer=entry;}
+ NativeWaitProbe waitProbe(h.queue.Get(),queueB.Get());
+ ComPtr<ID3D12Fence> gate;hr(h.dev->CreateFence(0,D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&gate)));
+ struct OpenGate {ID3D12Fence* fence;~OpenGate(){fence->Signal(1);}} openGate {gate.Get()};
+ hr(h.queue->Wait(gate.Get(),1));hr(a->Close());auto producerSubmission=submit(h.queue.Get(),a.Get());
+ need(producer->recording->completion==producerSubmission->point&&producer->recording->phase.load()==NrdBridge::SubmissionPhase::FencePublished,"per-token publication stores the exact point before advertising FencePublished");
+ need(gate->GetCompletedValue()==0&&producerSubmission->point->fence->GetCompletedValue()==0,"producer fence remains unfinished behind the same-thread gate");
+ // Record a newer image on a different list, but leave it unsubmitted.
+ h.list=d.list;++StreamlineHooks::frame;c.frame(3);
+ need(NrdBridge::GetStatus().active&&sourceCount()==2,"newer unsubmitted producer remains a distinct cached source");
+ const auto newerSL=StreamlineHooks::frame;h.list=b.list;c.begin();
+ need(present(b.list.Get())&&lastNativeSourceSL==producerSL&&lastNativeSourceSL!=newerSL&&lastNativeOrdered,"latest submitted source wins over a newer unsubmitted snapshot");
+ // Age out any older source while keeping the selected producer within the four-SL window.
+ StreamlineHooks::frame=producerSL+4;h.list=third.list;c.begin();const auto pending=nativePresentPreparations;
+ need(!present(third.list.Get())&&error.empty()&&nativePresentPreparations==pending,"unsubmitted presentation on another recording blocks unordered source-image transitions");
+ hr(b.list->Close());const auto waitsBeforeB=nativeWaitEvents.size();auto bSubmission=submit(queueB.Get(),b.list.Get());
+ need(nativeWaitEvents.size()==waitsBeforeB+1&&nativeWaitEvents.back().queue==queueB.Get()&&nativeWaitEvents.back().fence==producerSubmission->point->fence.Get()&&nativeWaitEvents.back().value==producerSubmission->point->value,"native queue B waits for the exact producer token fence before original Execute");
+ need(gate->GetCompletedValue()==0&&bSubmission->point->fence->GetCompletedValue()==0,"cross-queue submission returns while the same submitting thread still owns the unopened producer gate");
+ need(present(third.list.Get())&&lastNativeSourceSL==producerSL&&lastNativeOrdered,"published prior presentation admits the next read of the same private image");
+ hr(third.list->Close());const auto waitsBeforeThird=nativeWaitEvents.size();auto thirdSubmission=submit(h.queue.Get(),third.list.Get());
+ need(nativeWaitEvents.size()==waitsBeforeThird+1&&nativeWaitEvents.back().queue==h.queue.Get()&&nativeWaitEvents.back().fence==bSubmission->point->fence.Get(),"native queue A orders the source-image transition after queue B's exact presentation fence");
+ need(gate->GetCompletedValue()==0,"both required GPU edges return before the producer gate is opened");
+ hr(gate->Signal(1));finish(producerSubmission);finish(bSubmission);finish(thirdSubmission);waitProbe.stop();
+ producerSubmission.reset();bSubmission.reset();thirdSubmission.reset();producer.reset();
+ // Reset raw command-list pointers only after their submitted GPU work completes.
+ ResTrack_Dx12::ResetForTesting(b.list.Get());NrdBridge::OnReset(b.list.Get(),nullptr);resetDestination(b);
+ ResTrack_Dx12::ResetForTesting(third.list.Get());NrdBridge::OnReset(third.list.Get(),nullptr);resetDestination(third);
+ hr(d.list->Close());NrdBridge::OnReset(d.list.Get(),nullptr);ResTrack_Dx12::ResetForTesting(d.list.Get());resetDestination(d);
+ h.list=a;h.reset();
+ next();need(lastRRFrame.reset&&NrdBridge::GetStatus().active,"discarded newer producer recovers through a fresh RESET domain");finishA();
+ const auto retiredBefore=nativeImageRetirements;
+ for(UINT i=0;i<6;++i){next();need(NrdBridge::GetStatus().active,"submitted diagnostic continuation remains Active");finishA();need(sourceCount()<=4,"native debug source cache is bounded to four successful snapshots");}
+ need(sourceCount()==4&&nativeImageRetirements>retiredBefore,"cache eviction releases real private image owners outside the coordinator lock");
+ // Reusing a raw list pointer after Reset requires a published producer point.
+ h.list=a;StreamlineHooks::frame+=1;c.begin();
+ need(present(a.Get())&&lastNativeOrdered,"Reset of the same raw command-list pointer uses exact fence ordering rather than same-recording identity");finishA();
+ next();const auto canceledFrames=NrdBridge::GetStatus().framesBridged;const auto failures=NrdBridge::gService->failures;
+ const auto actions=nativePresentActions;beforeDebugAdmissionForTesting=+[]{NrdBridge::RequestHistoryReset();};
+ need(!present(a.Get())&&error.empty(),"normal reset at the final presentation gate quietly rejects prepared output commands");beforeDebugAdmissionForTesting=nullptr;
+ need(nativePresentActions==actions&&NrdBridge::GetStatus().framesBridged==canceledFrames&&!NrdBridge::GetStatus().active&&NrdBridge::gService->failures==failures,"canceled presentation touches no target/action and spends no RR success or failure accounting");
+ hr(a->Close());h.list=a;h.reset();next();need(NrdBridge::GetStatus().active&&lastRRFrame.reset,"presentation cancellation recovers on the next coherent Recon with RESET");finishA();
+ const auto disabledActions=nativePresentActions;NrdBridge::SetRuntimeEnabled(false);
+ {std::scoped_lock state(NrdBridge::gMutex);std::scoped_lock injection(NrdBridge::gInjectionMutex);need(!present(a.Get())&&error.empty(),"runtime OFF diagnostic fast path acquires no coordinator locks");}
+ need(sourceCount()==0&&nativePresentActions==disabledActions&&!NrdBridge::NativeDebugEnabled(),"runtime OFF clears cached images and records no presentation");
+ NrdBridge::SetRuntimeEnabled(true);next();need(lastRRFrame.reset&&NrdBridge::GetStatus().active,"runtime ON restores one fresh coherent producer");finishA();
+ const auto expiredPreparations=nativePresentPreparations;StreamlineHooks::frame+=5;h.list=b.list;c.begin();
+ need(!present(b.list.Get())&&error.empty()&&nativePresentPreparations==expiredPreparations,"source beyond the bounded SL age quietly skips without provider preparation");
+ StreamlineHooks::frame=UINT32_MAX;need(!present(b.list.Get())&&error.empty(),"unknown SL frame never guesses native debug provenance");
+ h.list=a;StreamlineHooks::frame=UINT32_MAX-3;next();finishA();
+ StreamlineHooks::frame=0;h.list=b.list;c.begin();
+ need(present(b.list.Get())&&lastNativeSourceSL==UINT32_MAX-2&&lastNativeOrdered,"bounded source age crosses uint32 SL wrap using the exact published image");
+ hr(b.list->Close());auto wrapped=submit(queueB.Get(),b.list.Get());finish(wrapped);wrapped.reset();
+ NrdBridge::OnReset(b.list.Get(),nullptr);ResTrack_Dx12::ResetForTesting(b.list.Get());resetDestination(b);
+ // Last-owner destruction re-enters the real coordinator callback. No fake TLS is used.
+ retirementProbeEnabled=true;const auto resetReleases=retirementReleaseCallbacks;
+ {auto orphan=NrdBridge::MakeOwnedShared<NrdBridge::HistoryDomain>();std::scoped_lock lock(NrdBridge::gMutex);NrdBridge::gService->lists[b.list.Get()].history=std::move(orphan);}
+ NrdBridge::OnReset(b.list.Get(),nullptr);
+ need(retirementReleaseCallbacks==resetReleases+1,"OnReset retires the last private history owner outside gMutex so a release callback can re-enter");
+ {auto orphan=NrdBridge::MakeOwnedShared<NrdBridge::HistoryDomain>();std::scoped_lock lock(NrdBridge::gMutex);NrdBridge::gService->lists[third.list.Get()].history=std::move(orphan);}
+ const auto erasedReleases=retirementReleaseCallbacks;NrdBridge::OnReleased(third.list.Get());
+ need(retirementReleaseCallbacks==erasedReleases+1,"OnReleased erases a participant without destroying its last history owner under gMutex");retirementProbeEnabled=false;
+ // A recorded dependent keeps the producer's original point. Resubmission cannot replace that proof.
+ StreamlineHooks::frame=100;h.list=a;next();hr(a->Close());auto first=submit(h.queue.Get(),a.Get());finish(first);
+ h.list=b.list;c.begin();need(present(b.list.Get())&&lastNativeOrdered,"final dependent records against one exact submitted producer");hr(b.list->Close());
+ const auto dependentActions=nativePresentActions;const auto failureBudget=NrdBridge::gService->failures;
+ auto replay=submit(h.queue.Get(),a.Get());finish(replay);
+ RecordedComputeLease::SubmissionDecision denied;const auto nativeExecutes=ResTrack_Dx12::nativeExecutes;
+ auto rejected=ResTrack_Dx12::SubmitNativeForTesting(queueB.Get(),b.list.Get(),denied);
+ need(!denied.allowed&&FAILED(denied.orderingFailure)&&ResTrack_Dx12::nativeExecutes==nativeExecutes,"producer resubmission invalidates an already-recorded exact-point dependency and denies its original Execute");
+ need(nativePresentActions==dependentActions&&NrdBridge::gService->failures==failureBudget&&NrdBridge::GetStatus().phase=="Inactive","GPU ordering denial records no new output and surfaces Inactive without spending the provider retry budget");
+ first.reset();replay.reset();rejected.reset();h.list=a;NrdBridge::Shutdown();hr(third.list->Close());hr(d.list->Close());h.errors();FrameSurvey::Shutdown();
+ return {{"native_debug_default_off",true},{"latest_submitted_source",true},{"same_recording_order",true},{"per_image_fence_tail",true},
+  {"typed_native_fence_publication",true},{"native_queue_wait_edges",2},{"cache_bound",4},{"native_image_retirements",nativeImageRetirements},
+  {"prepared_cancel_no_commit",true},{"raw_pointer_reset_requires_point",true},{"source_resubmit_denies_dependent",true},{"retirement_reentrant_release",true},
+  {"rr_stub_calls",rrCalls},{"native_present_preparations",nativePresentPreparations},{"native_present_actions",nativePresentActions},
+  {"native_original_executes",ResTrack_Dx12::nativeExecutes},{"sdk_called",false},{"pixel_shader_called",false},{"debug_layer_errors",0}};
+}
+
 J replayManifest(const char* path) {
  std::ifstream stream(path); auto manifest=J::parse(stream); std::unordered_map<uint64_t,J> resources;
  for(const auto& resource:manifest["resources"]) resources[resource["id"].get<uint64_t>()]=resource;
@@ -735,15 +945,59 @@ J replayManifest(const char* path) {
 int main(int argc,char** argv) try {
  if(argc==3 && std::string(argv[1])=="--replay") { std::cout<<replayManifest(argv[2]).dump()<<'\n'; return 0; }
  const bool settings=argc==3&&std::string(argv[1])=="--settings";
- need(argc==2||settings,"scratch directory argument or --settings scratch");
- const std::filesystem::path output=settings?argv[2]:argv[1];g_dllPath=output/"fixture.dll";
- Host host;auto result=settings?settingsTests(host):discoveryTests(host);result["checks_passed"]=checks;result["adapter"]=host.adapter;
- result["scope"]="real D3D12 registry, binding-window resolution and coordinator; conversion/RR/state-restore callback stubs; typed submission publication is a CPU counter adapter without a GPU fence";
+ const bool nativeDebug=argc==3&&std::string(argv[1])=="--native-debug";
+ need(argc==2||settings||nativeDebug,"scratch directory argument, --settings scratch or --native-debug scratch");
+ const std::filesystem::path output=(settings||nativeDebug)?argv[2]:argv[1];g_dllPath=output/"fixture.dll";
+ Host host;auto result=nativeDebug?nativeDebugTests(host):settings?settingsTests(host):discoveryTests(host);result["checks_passed"]=checks;result["adapter"]=host.adapter;
+ result["scope"]=nativeDebug ?
+  "real D3D12 registry/coordinator, unique private images and actual production lease fence publication/native queue Wait; conversion/RR/presentation pixels/restore are explicit stubs" :
+  "real D3D12 registry, binding-window resolution and coordinator; conversion/RR/state-restore callback stubs; typed submission publication is a CPU counter adapter without a GPU fence";
  ResTrack_Dx12::leases.clear(); // Complete fixture-owned stub wrappers before their observation registry is destroyed.
- std::ofstream(output/(settings?"settings-result.json":"host-result.json"))<<result.dump(2)<<'\n';std::cout<<result.dump()<<'\n';return 0;
+ std::ofstream(output/(nativeDebug?"native-debug-result.json":settings?"settings-result.json":"host-result.json"))<<result.dump(2)<<'\n';std::cout<<result.dump()<<'\n';return 0;
 } catch(const std::exception& error) { std::cerr<<error.what()<<'\n'; return 1; }
 '''
 
+
+RES_TRACK_STUB = r"""#pragma once
+#include <functional>
+#include <unordered_map>
+#include "misc/RecordedComputeLease_Dx12.h"
+struct ResTrack_Dx12 {
+ struct Lease { std::shared_ptr<void> payload; std::function<void(ID3D12CommandQueue*)> callback; RecordedComputeLease::SubmissionCallbacks typed; uint64_t ordinal=0; };
+ inline static std::unordered_map<ID3D12GraphicsCommandList*,std::vector<Lease>> leases;
+ inline static bool retentionAvailable=true,nativeSubmission=false;
+ inline static uint64_t nativeExecutes=0;
+ static bool RetainComputeDispatch(ID3D12Device*,ID3D12GraphicsCommandList* list,const std::shared_ptr<void>& payload,
+   std::function<void(ID3D12CommandQueue*)> callback={},RecordedComputeLease::SubmissionCallbacks typed={}) {
+  if(!retentionAvailable)return false;
+  if(nativeSubmission) {
+   Microsoft::WRL::ComPtr<IUnknown> identity;if(FAILED(list->QueryInterface(IID_PPV_ARGS(&identity))))return false;
+   if(!RecordedComputeLease::Track(identity.Get(),{list},payload,callback,typed))return false;
+  }
+  leases[list].push_back({payload,std::move(callback),std::move(typed),0});return true;
+ }
+ static void ResetForTesting(ID3D12GraphicsCommandList* list) {
+  if(nativeSubmission)if(auto recording=RecordedComputeLease::Capture(list))RecordedComputeLease::Detach(recording);
+  leases.erase(list);
+ }
+ static void SubmitForTesting(ID3D12GraphicsCommandList* list) {
+  for(auto& lease:leases[list]) {
+   RecordedComputeLease::SubmissionInfo info {nullptr,1,1,++lease.ordinal,false};
+   if(lease.callback)lease.callback(nullptr);if(lease.typed.beforeSubmit)lease.typed.beforeSubmit(info);
+   if(lease.typed.fencePublished)lease.typed.fencePublished(info,{});
+  }
+ }
+ static std::shared_ptr<RecordedComputeLease::Submission> SubmitNativeForTesting(ID3D12CommandQueue* queue,
+   ID3D12GraphicsCommandList* list,RecordedComputeLease::SubmissionDecision& decision) {
+  Microsoft::WRL::ComPtr<IUnknown> identity;
+  if(FAILED(list->QueryInterface(IID_PPV_ARGS(&identity))))return {};
+  const auto submission=RecordedComputeLease::BeforeSubmission(queue,std::vector<IUnknown*>{identity.Get()},&decision);
+  if(!decision.allowed)return submission;
+  ID3D12CommandList* base=list;queue->ExecuteCommandLists(1,&base);++nativeExecutes;
+  RecordedComputeLease::AfterSubmission(submission);return submission;
+ }
+};
+"""
 
 def run():
     output = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/sol_batch/12a-discovery/tests/discovery'))
@@ -751,14 +1005,14 @@ def run():
     stubs = output / 'stubs'
     for folder in ('proxies', 'inputs', 'hooks', 'resource_tracking'):
         (stubs / folder).mkdir(parents=True, exist_ok=True)
-    (stubs / 'pch.h').write_text('#pragma once\n#define NOMINMAX\n#include <windows.h>\n#include <filesystem>\n#include <memory>\n#define LOG_INFO(...) ((void)0)\n#define LOG_ERROR(...) ((void)0)\n')
+    (stubs / 'pch.h').write_text('#pragma once\n#define NOMINMAX\n#include <windows.h>\n#include <filesystem>\n#include <memory>\ninline void FlushLogger() noexcept {}\n#define LOG_INFO(...) ((void)0)\n#define LOG_ERROR(...) ((void)0)\n')
     (stubs / 'Util.h').write_text('#pragma once\n#include <filesystem>\ninline std::filesystem::path g_dllPath;\nnamespace Util { inline bool CheckForRealObject(std::string,IUnknown*,IUnknown**) { return false; } inline std::filesystem::path DllPath() { return g_dllPath; } inline std::filesystem::path ExePath() { return L"cyberpunk2077.exe"; } }\n')
     (stubs / 'Config.h').write_text('#pragma once\ntemplate<class T> struct FixtureOptional { T value; unsigned volatileWrites=0; bool volatileValue=false; T value_or_default() const { return value; } void set_volatile_value(const T& next) { value=next; volatileValue=true; ++volatileWrites; } };\nstruct Config { FixtureOptional<bool> FfxDenoiserNrdBridge {false}, FfxDenoiserNrdBridgeEnabled {true}, RestoreComputeSignature {false}, ExtendedStateRestore {false}; static Config* Instance() { static Config config; return &config; } };\n')
     (stubs / 'hooks/D3D12_Hooks.h').write_text('#pragma once\nstruct D3D12Hooks { inline static bool tracking=true, canRestore=true; inline static unsigned restores=0; inline static FrameSurvey::ComputeBindings current {}; static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*,FrameSurvey::ComputeBindings& out) noexcept { out=current; return out.root && !out.heaps.empty(); } static void SetRootSignatureTracking(bool enabled) { tracking=enabled; } static bool RootSignatureTrackingEnabled() { return tracking; } static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*) { return canRestore && Config::Instance()->RestoreComputeSignature.value_or_default() && Config::Instance()->ExtendedStateRestore.value_or_default(); } static void RestoreRoot(ID3D12GraphicsCommandList*) { ++restores; } };\n')
     (stubs / 'hooks/Streamline_Hooks.h').write_text('#pragma once\n#include <sl_consts.h>\nstruct SLConstantsSnapshot { sl::Constants constants {}; uint32_t frameIndex=UINT32_MAX, viewport=UINT32_MAX; };\nstruct StreamlineHooks { inline static uint32_t frame=0; static SLConstantsSnapshot getSLConstantsSnapshot() { SLConstantsSnapshot result; result.frameIndex=frame; return result; } };\n')
     (stubs / 'inputs/NVNGX_DLSS.h').write_text('#pragma once\n#include <nvsdk_ngx.h>\n')
     (stubs / 'proxies/D3D12_Proxy.h').write_text('#pragma once\n#include <d3d12.h>\nnamespace D3d12Proxy { inline auto D3D12CreateVersionedRootSignatureDeserializer_() { return &D3D12CreateVersionedRootSignatureDeserializer; } inline auto D3D12SerializeVersionedRootSignature_() { return &D3D12SerializeVersionedRootSignature; } }\n')
-    (stubs / 'resource_tracking/ResTrack_dx12.h').write_text('#pragma once\n#include <functional>\n#include <unordered_map>\n#include "misc/RecordedComputeLease_Dx12.h"\nstruct ResTrack_Dx12 { struct Lease { std::shared_ptr<void> payload; std::function<void(ID3D12CommandQueue*)> callback; RecordedComputeLease::SubmissionCallbacks typed; uint64_t ordinal=0; }; inline static std::unordered_map<ID3D12GraphicsCommandList*,std::vector<Lease>> leases; inline static bool retentionAvailable=true; static bool RetainComputeDispatch(ID3D12Device*,ID3D12GraphicsCommandList* list,const std::shared_ptr<void>& payload,std::function<void(ID3D12CommandQueue*)> callback={},RecordedComputeLease::SubmissionCallbacks typed={}) { if(!retentionAvailable) return false; leases[list].push_back({payload,std::move(callback),std::move(typed),0}); return true; } static void ResetForTesting(ID3D12GraphicsCommandList* list) { leases.erase(list); } static void SubmitForTesting(ID3D12GraphicsCommandList* list) { for(auto& lease:leases[list]) { RecordedComputeLease::SubmissionInfo info {nullptr,1,1,++lease.ordinal,false}; if(lease.callback) lease.callback(nullptr); if(lease.typed.beforeSubmit) lease.typed.beforeSubmit(info); if(lease.typed.fencePublished) lease.typed.fencePublished(info,{}); } } };\n')
+    (stubs / 'resource_tracking/ResTrack_dx12.h').write_text(RES_TRACK_STUB)
     host = '#define FSRD_NRD_BRIDGE_TEST\n' + survey_fixture.CPP.split('// GetStatus()')[0]
     rr_header = (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h').read_text()
     camera_stub = 'const std::string& RRWrapper::CameraConventionDescription() const noexcept { static const std::string text; return text; }' if 'CameraConventionDescription' in rr_header else ''
@@ -778,6 +1032,10 @@ def run():
     settings = json.loads((output / 'settings-result.json').read_text())
     result['settings'] = settings
     result['settings_checks_passed'] = settings['checks_passed']
+    subprocess.run([str(executable), '--native-debug', str(output)], check=True, timeout=60, creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
+    native_debug = json.loads((output / 'native-debug-result.json').read_text())
+    result['native_debug'] = native_debug
+    result['native_debug_checks_passed'] = native_debug['checks_passed']
     captures = Path('F:/Ultra Yedek 2/overwrite/bin/x64/GAME_TRACE/FRAME_SURVEY')
     expected = {
         'bb22daa989a8e892ee4470e3cd9a8a14': [62025, 62023, 62162, 62029, 62049, 62051, 61997, 62026, 62024, 6],
@@ -795,7 +1053,7 @@ def run():
     report = Path(os.environ.get('FSRD_NRD_DISCOVERY_REPORT', f'E:/FSRD/sol_batch/{output.parents[1].name}'))
     report.mkdir(parents=True, exist_ok=True)
     (report / 'host-result.json').write_text(json.dumps(result, indent=2) + '\n')
-    print(json.dumps({'checks_passed': result['checks_passed'], 'settings_checks_passed': result['settings_checks_passed'], 'python_checks_passed': 4, 'result': str(output / 'host-result.json')}))
+    print(json.dumps({'checks_passed': result['checks_passed'], 'settings_checks_passed': result['settings_checks_passed'], 'native_debug_checks_passed': result['native_debug_checks_passed'], 'python_checks_passed': 4, 'result': str(output / 'host-result.json')}))
 
 
 if __name__ == '__main__':
