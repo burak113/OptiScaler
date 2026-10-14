@@ -148,6 +148,32 @@ def images_and_stats(inputs, output):
     return statistics
 
 
+def native_debug_statistics(output):
+    import numpy as np
+    from PIL import Image
+    folder = output / 'native_debug'
+    sources = sorted(path for path in folder.glob('*.rgba16f') if not path.stem.endswith('_present'))
+    assert len(sources) == 13, 'Actual AMD SDK must render overview and all 12 documented viewports'
+    statistics = {}
+    for path in sources:
+        source = np.fromfile(path, dtype='<f2').reshape(847, 1505, 4)
+        shown = np.fromfile(path.with_name(path.stem + '_present.rgba16f'), dtype='<f2').reshape(73, 137, 4)
+        assert np.isfinite(source).all() and np.isfinite(shown).all()
+        assert np.all(shown[..., 3] == np.float16(7)), 'Native debug must preserve every destination alpha'
+        covered = source[..., 3] > 0
+        assert covered.any(), 'Native SDK debug target must contain written pixels'
+        # This evidence PNG clamps the provider's diagnostic RGB directly; it
+        # does not emulate the title's later display transfer function.
+        png = REPORT / f'amd_native_{path.stem}.png'
+        Image.fromarray(np.rint(np.clip(source[..., :3].astype(np.float32), 0, 1) * 255).astype(np.uint8)).save(png)
+        statistics[path.stem] = dict(source=str(path), shown=str(path.with_name(path.stem + '_present.rgba16f')),
+                                     finite_values=int(np.isfinite(source).sum()), total_values=int(source.size),
+                                     written_pixels=int(covered.sum()), exact_destination_alpha=7,
+                                     rgb_min=float(source[..., :3].min()), rgb_max=float(source[..., :3].max()),
+                                     evidence_png=str(png), display_transfer='direct clamp for evidence only')
+    return statistics
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', choices=['camera', 'mock', 'real', 'probe'], default='camera')
@@ -192,12 +218,24 @@ def main():
     assert match, 'Native fixture did not report PASS'
     result = dict(mode=args.mode, native_checks=int(match.group(1)), native_summary=match.group(0),
                   executable=str(exe), native_log=str(log), peak_resident_bytes=peak, seconds=elapsed)
+    if args.mode in ('mock', 'real'):
+        assert 'runtime_settings effective_changes=' in text
+        assert 'unchanged_calls=0 debug_bounds_count=1 material_key_calls=0' in text
+        assert 'native_debug views=13 ' in text
+        assert 'default_extra_dispatch=0 default_extra_image_bytes=0' in text
+        assert 'source_fence_complete=1 distinct_recording=1 explicit_source_owner=1' in text
+        assert 'native_debug_dispatches=' in match.group(0)
+        result['runtime_settings'] = [line for line in text.splitlines() if line.startswith('runtime_settings ')]
+        result['native_debug'] = [line for line in text.splitlines() if line.startswith('native_debug')]
     if args.mode == 'real':
         result['dll_path'] = str(DLL)
         result['dll_sha256'] = hashlib.sha256(DLL.read_bytes()).hexdigest()
         result['capture_statistics'] = images_and_stats(inputs, REPORT / 'outputs')
         result['timings'] = [line for line in text.splitlines() if line.startswith('timing ')]
         result['capture_input_path'] = str(inputs)
+        result['native_debug_statistics'] = native_debug_statistics(REPORT / 'outputs')
+        assert any('native_debug_1505x847_to_2560x1440' in line for line in result['timings'])
+        assert any('native_debug_2560x1440' in line for line in result['timings'])
     (REPORT / f'{result_name}-result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
     print(json.dumps(result, indent=2))
 
