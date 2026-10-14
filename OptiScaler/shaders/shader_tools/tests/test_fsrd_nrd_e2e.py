@@ -162,6 +162,7 @@ struct StreamlineHooks {
     for name in ('pch.h', 'Config.h', 'State.h', 'Util.h', 'hooks/Streamline_Hooks.h',
                  'proxies/FfxApi_Proxy.h', 'resource_tracking/ResTrack_Dx12.h'):
         (stubs / name).write_text('#pragma once\n#include "fixture_support.h"\n')
+    (stubs / 'Logger.h').write_text('#pragma once\ninline void FlushLogger() noexcept {}\n')
     (stubs / 'inputs/NVNGX_DLSS.h').write_text('#pragma once\n#include <nvsdk_ngx.h>\n')
     (stubs / 'proxies/D3D12_Proxy.h').write_text('''#pragma once
 #include <d3d12.h>

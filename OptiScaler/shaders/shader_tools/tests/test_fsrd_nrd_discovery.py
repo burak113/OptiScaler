@@ -21,6 +21,16 @@ CPP = r'''
 #include "__COORDINATOR__"
 #include <thread>
 #include <chrono>
+namespace NrdBridgeNativeBirth {
+std::atomic<unsigned> fixtureNativeCoverageRequests {0};
+// This standalone adapter links strong metadata preparation, but does not install native Release detours.
+bool ObserveReleaseCoverage(IUnknown*) noexcept {
+ fixtureNativeCoverageRequests.fetch_add(1,std::memory_order_relaxed);
+ FrameSurvey::MetadataHookFailed(Ready() ? "Standalone fixture has no native Release coverage dispatcher" :
+  "Unconfigured native Release coverage unexpectedly entered the legacy standalone fixture");
+ return false; // In particular, Ready=true can never obtain synthetic coverage success.
+}
+}
 unsigned convertCalls=0, motionCalls=0, rrCalls=0, debugCalls=0, depthResets=0, rrResets=0, rrDiscards=0;
 bool internalObserved=true, trackingSuppressed=true, observerUnlocked=true, throwPrepare=false, deferredMotion=true;
 void (*afterRRForTesting)() = nullptr;
@@ -159,6 +169,7 @@ struct ChainHost {
   need(!Config::Instance()->RestoreComputeSignature.value && !Config::Instance()->ExtendedStateRestore.value,"startup OFF leaves existing restore preferences unchanged");
   Config::Instance()->FfxDenoiserNrdBridge.value=true;
   NrdBridge::ConfigureStartup(true);
+  need(!NrdBridgeNativeBirth::Ready()&&!NrdBridgeLifetime::ConcurrentReleasesEnabled(),"metadata-only ResTrack adapter leaves native retirement unconfigured and retains the legacy gate");
   need(NrdBridge::Initialize(h.dev.Get()),"bridge coordinator initializes");
   need(NrdBridge::Initialize(h.dev.Get()),"same-device initialization is idempotent");
   FrameSurvey::SetPipelineObserver(pipelineObserved); FrameSurvey::SetReleaseObserver(releaseObserved);
@@ -789,6 +800,52 @@ struct NativeWaitProbe {
   if(armed) {DetourTransactionBegin();DetourUpdateThread(GetCurrentThread());DetourDetach(reinterpret_cast<PVOID*>(&originalNativeWait),reinterpret_cast<PVOID>(observeNativeWait));DetourTransactionCommit();}
  }
 };
+#ifdef FSRD_FIXTURE_NATIVE_RETIREMENT_METHOD
+struct StartupConfigurationProbe {
+ inline static std::atomic<bool> entered {false},release {false},unlocked {false};
+ static void Pause() {
+  unlocked.store(!NrdBridgeBirth::InMetadataScope(),std::memory_order_release);entered.store(true,std::memory_order_release);
+  while(!release.load(std::memory_order_acquire))std::this_thread::yield();
+ }
+};
+#endif
+J startupConfigurationTests(Host& h,bool offFirst) {
+#ifdef FSRD_FIXTURE_NATIVE_RETIREMENT_METHOD
+ need(!NrdBridge::StartupEnabled()&&!NrdBridgeNativeBirth::Ready()&&!NrdBridgeLifetime::ConcurrentReleasesEnabled(),"fresh startup fixture begins without dispatcher, selection or concurrent releases");
+ need(ResTrack_Dx12::fixtureNativeConfigurations.load()==0&&FrameSurvey::MetadataHealthy()&&NrdBridgeBirth::Healthy(),"fresh native failure adapter starts healthy with zero configuration calls");
+ if(offFirst) {
+  NrdBridge::ConfigureStartup(false);
+  for(UINT i=0;i<5;++i) {NrdBridge::ConfigureStartup(true);NrdBridge::ConfigureStartup(false);}
+  need(!NrdBridge::StartupEnabled()&&ResTrack_Dx12::fixtureNativeConfigurations.load()==0,"initial OFF wins permanently and repeated ON cannot invoke native configuration");
+  need(FrameSurvey::MetadataHealthy()&&NrdBridgeBirth::Healthy()&&!NrdBridge::gStartupFailure.load(),"latched OFF preserves healthy metadata and has no native initialization failure side effects");
+ } else {
+  using Probe=StartupConfigurationProbe;
+  ResTrack_Dx12::fixtureBeforeNativeConfiguration=Probe::Pause;
+  std::thread first([] {NrdBridge::ConfigureStartup(true);});
+  struct Join {std::thread& thread;~Join(){Probe::release.store(true,std::memory_order_release);if(thread.joinable())thread.join();}} join {first};
+  await([] {return Probe::entered.load(std::memory_order_acquire);},"initial startup winner reaches the deliberately paused native initializer");
+  const bool stateUnlocked=NrdBridge::gMutex.try_lock();if(stateUnlocked)NrdBridge::gMutex.unlock();
+  const bool injectionUnlocked=NrdBridge::gInjectionMutex.try_lock();if(injectionUnlocked)NrdBridge::gInjectionMutex.unlock();
+  need(Probe::unlocked.load(std::memory_order_acquire)&&stateUnlocked&&injectionUnlocked,"native configuration runs outside coordinator, injection and Birth metadata locks");
+  need(!NrdBridge::StartupEnabled()&&!NrdBridge::Initialize(h.dev.Get()),"initializing selection denies publication and coordinator creation before the native result");
+  NrdBridge::ConfigureStartup(false);NrdBridge::ConfigureStartup(true);
+  need(ResTrack_Dx12::fixtureNativeConfigurations.load()==1,"concurrent/repeated startup callers cannot invoke a second native initializer");
+  Probe::release.store(true,std::memory_order_release);first.join();ResTrack_Dx12::fixtureBeforeNativeConfiguration=nullptr;
+  need(!NrdBridge::StartupEnabled()&&ResTrack_Dx12::fixtureNativeConfigurations.load()==1,"present native method failure permanently denies startup after exactly one initialization");
+  need(!FrameSurvey::MetadataHealthy()&&!NrdBridgeBirth::Healthy(),"native initialization failure marks both metadata and Birth health inadmissible");
+  const auto status=NrdBridge::GetStatus();need(status.phase=="Inactive"&&status.reason.find("Native title lifetime initialization failed")!=std::string::npos,"failed native startup has a concrete latched diagnostic");
+  NrdBridge::ConfigureStartup(true);need(ResTrack_Dx12::fixtureNativeConfigurations.load()==1&&!NrdBridge::StartupEnabled(),"later ON cannot retry a failed initial native setup");
+ }
+ need(!NrdBridge::Initialize(h.dev.Get())&&!NrdBridge::gService,"both failed-native and explicit OFF selection prevent creation of the coordinator");
+ NrdBridge::SetRuntimeEnabled(true);NrdBridge::BeforeDispatch(h.list.Get());NrdBridge::AfterDispatch(h.list.Get());
+ need(convertCalls==0&&motionCalls==0&&rrCalls==0&&fixtureConfigureCalls.empty(),"denied startup records zero conversion, motion, RR or provider configuration work");
+ need(!NrdBridgeNativeBirth::Ready()&&!NrdBridgeLifetime::ConcurrentReleasesEnabled()&&NrdBridgeNativeBirth::fixtureNativeCoverageRequests.load()==0,"startup control-flow fixture never supplies native Release coverage success");
+ hr(h.list->Close());h.errors();FrameSurvey::Shutdown();
+ return {{"initial_off",offFirst},{"method_present",true},{"native_configuration_calls",ResTrack_Dx12::fixtureNativeConfigurations.load()},{"one_winner",true},{"zero_rr_work",true},{"native_release_coverage_proved",false},{"debug_layer_errors",0}};
+#else
+ throw std::runtime_error("startup native-result fixture requires its explicit present-method variant");
+#endif
+}
 J birthNotificationTests(Host& h) {
  ChainHost c(h);FrameSurvey::SetBindingWindow(true);c.begin();c.bind(1,0);c.bind(5,8);
  auto recon=c.table(1),reconOut=c.table(5);c.bind(1,16);auto temporal=c.table(1);
@@ -998,14 +1055,20 @@ int main(int argc,char** argv) try {
  const bool settings=argc==3&&std::string(argv[1])=="--settings";
  const bool nativeDebug=argc==3&&std::string(argv[1])=="--native-debug";
  const bool birth=argc==3&&std::string(argv[1])=="--birth-notifications";
- need(argc==2||settings||nativeDebug||birth,"scratch directory argument, --settings scratch, --native-debug scratch or --birth-notifications scratch");
- const std::filesystem::path output=(settings||nativeDebug||birth)?argv[2]:argv[1];g_dllPath=output/"fixture.dll";
- Host host;auto result=birth?birthNotificationTests(host):nativeDebug?nativeDebugTests(host):settings?settingsTests(host):discoveryTests(host);result["checks_passed"]=checks;result["adapter"]=host.adapter;
- result["scope"]=birth ? "production registry typed observer and coordinator exact-token retirement under controlled logical epoch replay; no native GUID/final Release coverage or provider/pixel proof" : nativeDebug ?
+ const bool startupFailure=argc==3&&std::string(argv[1])=="--startup-native-failure",startupOff=argc==3&&std::string(argv[1])=="--startup-off-latched";
+ const bool startup=startupFailure||startupOff;
+ need(argc==2||settings||nativeDebug||birth||startup,"scratch directory argument or explicit fresh-process fixture selector");
+ const std::filesystem::path output=(settings||nativeDebug||birth||startup)?argv[2]:argv[1];g_dllPath=output/"fixture.dll";
+ Host host;auto result=startup?startupConfigurationTests(host,startupOff):birth?birthNotificationTests(host):nativeDebug?nativeDebugTests(host):settings?settingsTests(host):discoveryTests(host);
+ need(!NrdBridgeNativeBirth::Ready()&&!NrdBridgeLifetime::ConcurrentReleasesEnabled(),"standalone fixture never enables unsupported native retirement or concurrent Release mode");
+ need(NrdBridgeNativeBirth::fixtureNativeCoverageRequests.load(std::memory_order_relaxed)==0,"legacy and logical-notification scenarios never request synthetic native Release coverage");
+ result["checks_passed"]=checks;result["adapter"]=host.adapter;
+ result["native_birth_coverage"]={{"dispatcher_ready",false},{"concurrent_release_gate",false},{"coverage_requests",0},{"physical_release_coverage_proved",false}};
+ result["scope"]=startup ? "production startup admission with explicitly failing native initializer; lifecycle/locking control flow only, no physical native Release coverage" : birth ? "production registry typed observer and coordinator exact-token retirement under controlled logical epoch replay; no native GUID/final Release coverage or provider/pixel proof" : nativeDebug ?
   "real D3D12 registry/coordinator, unique private images and actual production lease fence publication/native queue Wait; conversion/RR/presentation pixels/restore are explicit stubs" :
   "real D3D12 registry, binding-window resolution and coordinator; conversion/RR/state-restore callback stubs; typed submission publication is a CPU counter adapter without a GPU fence";
  ResTrack_Dx12::leases.clear(); // Complete fixture-owned stub wrappers before their observation registry is destroyed.
- std::ofstream(output/(birth?"birth-notification-result.json":nativeDebug?"native-debug-result.json":settings?"settings-result.json":"host-result.json"))<<result.dump(2)<<'\n';std::cout<<result.dump()<<'\n';return 0;
+ std::ofstream(output/(startup?(startupOff?"startup-off-latched-result.json":"startup-native-failure-result.json"):birth?"birth-notification-result.json":nativeDebug?"native-debug-result.json":settings?"settings-result.json":"host-result.json"))<<result.dump(2)<<'\n';std::cout<<result.dump()<<'\n';return 0;
 } catch(const std::exception& error) { std::cerr<<error.what()<<'\n'; return 1; }
 '''
 
@@ -1019,6 +1082,15 @@ struct ResTrack_Dx12 {
  inline static std::unordered_map<ID3D12GraphicsCommandList*,std::vector<Lease>> leases;
  inline static bool retentionAvailable=true,nativeSubmission=false;
  inline static uint64_t nativeExecutes=0;
+#ifdef FSRD_FIXTURE_NATIVE_RETIREMENT_METHOD
+ inline static std::atomic<unsigned> fixtureNativeConfigurations {0};
+ inline static void (*fixtureBeforeNativeConfiguration)() = nullptr;
+ static bool ConfigureNrdNativeBirthRetirement() noexcept {
+  fixtureNativeConfigurations.fetch_add(1,std::memory_order_relaxed);
+  if(fixtureBeforeNativeConfiguration)fixtureBeforeNativeConfiguration();
+  return false; // Deliberate present-method failure; no synthetic Ready/Release registration.
+ }
+#endif
  static bool RetainComputeDispatch(ID3D12Device*,ID3D12GraphicsCommandList* list,const std::shared_ptr<void>& payload,
    std::function<void(ID3D12CommandQueue*)> callback={},RecordedComputeLease::SubmissionCallbacks typed={}) {
   if(!retentionAvailable)return false;
@@ -1058,6 +1130,7 @@ def run():
     for folder in ('proxies', 'inputs', 'hooks', 'resource_tracking'):
         (stubs / folder).mkdir(parents=True, exist_ok=True)
     (stubs / 'pch.h').write_text('#pragma once\n#define NOMINMAX\n#include <windows.h>\n#include <filesystem>\n#include <memory>\ninline void FlushLogger() noexcept {}\n#define LOG_INFO(...) ((void)0)\n#define LOG_ERROR(...) ((void)0)\n')
+    (stubs / 'Logger.h').write_text('#pragma once\nvoid FlushLogger() noexcept;\n')
     (stubs / 'Util.h').write_text('#pragma once\n#include <filesystem>\ninline std::filesystem::path g_dllPath;\nnamespace Util { inline bool CheckForRealObject(std::string,IUnknown*,IUnknown**) { return false; } inline std::filesystem::path DllPath() { return g_dllPath; } inline std::filesystem::path ExePath() { return L"cyberpunk2077.exe"; } }\n')
     (stubs / 'Config.h').write_text('#pragma once\ntemplate<class T> struct FixtureOptional { T value; unsigned volatileWrites=0; bool volatileValue=false; T value_or_default() const { return value; } void set_volatile_value(const T& next) { value=next; volatileValue=true; ++volatileWrites; } };\nstruct Config { FixtureOptional<bool> FfxDenoiserNrdBridge {false}, FfxDenoiserNrdBridgeEnabled {true}, RestoreComputeSignature {false}, ExtendedStateRestore {false}; static Config* Instance() { static Config config; return &config; } };\n')
     (stubs / 'hooks/D3D12_Hooks.h').write_text('#pragma once\nstruct D3D12Hooks { inline static bool tracking=true, canRestore=true; inline static unsigned restores=0; inline static FrameSurvey::ComputeBindings current {}; static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*,FrameSurvey::ComputeBindings& out) noexcept { out=current; return out.root && !out.heaps.empty(); } static void SetRootSignatureTracking(bool enabled) { tracking=enabled; } static bool RootSignatureTrackingEnabled() { return tracking; } static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*) { return canRestore && Config::Instance()->RestoreComputeSignature.value_or_default() && Config::Instance()->ExtendedStateRestore.value_or_default(); } static void RestoreRoot(ID3D12GraphicsCommandList*) { ++restores; } };\n')
@@ -1076,8 +1149,9 @@ def run():
     source.write_text(source_text, encoding='utf-8')
     executable = output / 'fixture.exe'
     detours = ROOT / 'OptiScaler/library/detours/detours.lib'
-    compile_cpp(source, executable, ('d3d12.lib', 'dxgi.lib', 'dxguid.lib', 'd3dcompiler.lib', 'bcrypt.lib', 'user32.lib', 'psapi.lib', str(detours)),
-                (stubs, ROOT / 'OptiScaler', ROOT / 'OptiScaler/include', ROOT / 'external/nlohmann', ROOT / 'external/nvngx_dlss_sdk', ROOT / 'external/streamline', ROOT / 'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
+    libraries = ('d3d12.lib', 'dxgi.lib', 'dxguid.lib', 'd3dcompiler.lib', 'bcrypt.lib', 'user32.lib', 'psapi.lib', str(detours))
+    includes = (stubs, ROOT / 'OptiScaler', ROOT / 'OptiScaler/include', ROOT / 'external/nlohmann', ROOT / 'external/nvngx_dlss_sdk', ROOT / 'external/streamline', ROOT / 'external/FidelityFX-SDK/ffx-api/include/ffx_api')
+    compile_cpp(source, executable, libraries, includes)
     subprocess.run([str(executable), str(output)], check=True, creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
     result = json.loads((output / 'host-result.json').read_text())
     subprocess.run([str(executable), '--settings', str(output)], check=True, creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
@@ -1092,6 +1166,14 @@ def run():
     birth = json.loads((output / 'birth-notification-result.json').read_text())
     result['birth_notifications'] = birth
     result['birth_notification_checks_passed'] = birth['checks_passed']
+    startup_source = output / 'startup-fixture.cpp'
+    startup_source.write_text('#define FSRD_FIXTURE_NATIVE_RETIREMENT_METHOD\n' + source_text, encoding='utf-8')
+    startup_executable = output / 'startup-fixture.exe'
+    compile_cpp(startup_source, startup_executable, libraries, includes)
+    result['startup_configuration'] = {}
+    for scenario in ('startup-native-failure', 'startup-off-latched'):
+        subprocess.run([str(startup_executable), '--' + scenario, str(output)], check=True, timeout=60, creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
+        result['startup_configuration'][scenario] = json.loads((output / (scenario + '-result.json')).read_text())
     captures = Path('F:/Ultra Yedek 2/overwrite/bin/x64/GAME_TRACE/FRAME_SURVEY')
     expected = {
         'bb22daa989a8e892ee4470e3cd9a8a14': [62025, 62023, 62162, 62029, 62049, 62051, 61997, 62026, 62024, 6],

@@ -5,6 +5,7 @@
 #include "FSRDNrdBridgePass_Dx12.h"
 #include "FSRDNrdBridgeRR_Dx12.h"
 #include "Config.h"
+#include "Logger.h"
 #include "Util.h"
 #include "hooks/D3D12_Hooks.h"
 #include "hooks/Streamline_Hooks.h"
@@ -126,7 +127,8 @@ NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Coordinator> gMute
 std::mutex gInjectionMutex, gWindowMutex;
 std::shared_ptr<Service> gService;
 std::atomic<bool> gInstalled {false}, gRuntime {false};
-std::atomic<int> gStartupSelection {-1};
+std::atomic<int> gStartupSelection {-1}; // -1 unconfigured, -2 configuring, 0 OFF/failed, 1 enabled.
+std::atomic<const char*> gStartupFailure {nullptr};
 std::string gUnavailableReason;
 std::atomic<DebugMode> gDebug {DebugMode::Off};
 std::atomic<bool> gNativeDebug {false};
@@ -735,18 +737,28 @@ bool SupportedExecutable() noexcept
         return supported;
     } catch (...) { return false; }
 }
-template<class Tracker> bool ConfigureNativeRetirement() noexcept
+enum class NativeRetirementStartup { LegacyAdapter, Ready, Failed };
+template<class Tracker> NativeRetirementStartup ConfigureNativeRetirement() noexcept
 {
     if constexpr (requires { Tracker::ConfigureNrdNativeBirthRetirement(); })
-        return Tracker::ConfigureNrdNativeBirthRetirement();
-    return false; // Minimal test adapters retain the legacy gate.
+        return Tracker::ConfigureNrdNativeBirthRetirement() ? NativeRetirementStartup::Ready : NativeRetirementStartup::Failed;
+    return NativeRetirementStartup::LegacyAdapter; // Minimal test adapters deliberately retain the legacy gate.
 }
 void ConfigureStartup(bool enabled) noexcept
 {
-    if (enabled && SupportedExecutable()) ConfigureNativeRetirement<ResTrack_Dx12>();
     int unconfigured = -1;
-    gStartupSelection.compare_exchange_strong(unconfigured, enabled && SupportedExecutable() ? 1 : 0,
-        std::memory_order_release, std::memory_order_relaxed);
+    if (!gStartupSelection.compare_exchange_strong(unconfigured,-2,std::memory_order_acq_rel,std::memory_order_relaxed)) return;
+    // Only the initial winner may configure native retirement. In particular,
+    // startup OFF remains side-effect free when later callers request ON.
+    bool accepted = enabled && SupportedExecutable();
+    if (accepted && ConfigureNativeRetirement<ResTrack_Dx12>() == NativeRetirementStartup::Failed)
+    {
+        constexpr const char* reason = "Native title lifetime initialization failed; restart the title/device";
+        gStartupFailure.store(reason,std::memory_order_release);
+        FrameSurvey::MetadataHookFailed(reason); NrdBridgeBirth::Fail();
+        accepted = false;
+    }
+    gStartupSelection.store(accepted ? 1 : 0,std::memory_order_release);
 }
 bool StartupEnabled() noexcept
 {
@@ -1309,7 +1321,9 @@ Status GetStatus()
     std::scoped_lock lock(gMutex);
     if (gService) return gService->status;
     Status status;
-    if (StartupEnabled() && !gUnavailableReason.empty())
+    if (const auto reason = gStartupFailure.load(std::memory_order_acquire))
+    { status.phase = "Inactive"; status.reason = reason; }
+    else if (StartupEnabled() && !gUnavailableReason.empty())
     {
         status.installed = true; status.phase = "Inactive"; status.reason = gUnavailableReason;
     }
