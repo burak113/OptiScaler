@@ -5355,11 +5355,61 @@ void ResTrack_Dx12::hkSurveyExecuteBundle(ID3D12GraphicsCommandList* This, ID3D1
     FrameSurvey::SnapshotWrites(This);
 }
 
+static bool HasRetainedSubmissionParticipant(UINT count, ID3D12CommandList* const* lists) noexcept
+{
+    if (!count) return false;
+    if (!lists) return true;
+    try
+    {
+        for (UINT index = 0; index != count; ++index)
+        {
+            auto* list = lists[index];
+            if (!list) return true;
+            const bool nativeBirth = NrdBridgeNativeBirth::Ready();
+            const auto birth = nativeBirth ? NrdBridgeBirth::Capture(list) : NrdBridgeBirth::Token{};
+            // Only an exact CacheAdmissible physical CommandList birth can prove
+            // this negative. Its recording marker is monotonic across Reset and
+            // every proven alias; no canonical identity is guessed from a pointer.
+            if (birth && birth->Address() == list && birth->CacheAdmissible() && !birth->RecordingMayExist())
+                continue;
+            const bool uncertainBirth = nativeBirth && (!NrdBridgeBirth::Healthy() ||
+                (birth && !birth->CacheAdmissible()));
+            // The caller owns each closed list throughout Execute. Pin optional
+            // native unwrapping and canonical IUnknown before any registry lookup;
+            // their COM calls/destruction never occur under the lease registry.
+            constexpr IID nativeObject {0xadec44e2, 0x61f0, 0x45c3, {0xad, 0x9f, 0x1b, 0x37, 0x37, 0x92, 0x84, 0xff}};
+            Microsoft::WRL::ComPtr<IUnknown> unwrapped, identity;
+            IUnknown* actual = list;
+            const auto nativeResult = list->QueryInterface(nativeObject, reinterpret_cast<void**>(unwrapped.GetAddressOf()));
+            if (SUCCEEDED(nativeResult))
+            {
+                if (!unwrapped) return true;
+                actual = unwrapped.Get();
+            }
+            else if (nativeResult != E_NOINTERFACE) return true;
+            if (FAILED(actual->QueryInterface(IID_PPV_ARGS(&identity))) || !identity) return true;
+            if (uncertainBirth || RecordedComputeLease::HasSubmissionParticipant(identity.Get(),list) ||
+                (actual != list && RecordedComputeLease::HasSubmissionParticipant(identity.Get(),actual))) return true;
+        }
+    }
+    catch (...) { return true; }
+    return false;
+}
+
 void ResTrack_Dx12::hkSurveyExecuteCommandLists(ID3D12CommandQueue* This, UINT NumCommandLists,
                                           ID3D12CommandList* const* ppCommandLists)
 {
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::ExecuteCommandLists,gNrdBridgeWrappers && !FrameSurvey::Internal());
-    std::scoped_lock lock(FrameSurvey::SubmissionMutex());
+    std::unique_lock transaction(FrameSurvey::SubmissionMutex(),std::defer_lock);
+    // Legal Execute submits caller-owned CLOSED lists; concurrent Reset/recording
+    // mutation is not a legal native use. Thus first Track cannot race selection.
+    // Preserve the whole Before/Execute/Signal publication transaction for any
+    // retained work, including old closed bridge recordings after runtime OFF.
+    if (FrameSurvey::Enabled() || HasRetainedSubmissionParticipant(NumCommandLists,ppCommandLists))
+    {
+        NrdBridgePerf::WaitScope wait(NrdBridgePerf::WaitKind::Tracking);
+        transaction.lock();
+    }
     FrameSurvey::Submit(This,NumCommandLists,ppCommandLists);
     hkExecuteCommandLists(This,NumCommandLists,ppCommandLists);
 }
