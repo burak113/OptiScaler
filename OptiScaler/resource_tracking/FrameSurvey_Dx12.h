@@ -37,6 +37,16 @@ struct BoundConstantBuffer
     ID3D12DescriptorHeap* descriptorHeap = nullptr; // Borrowed; table CBVs preserve their native volatile slot.
     D3D12_GPU_DESCRIPTOR_HANDLE descriptor {};
 };
+// Native Consumer binding only. Buffer identity/size metadata is diagnostic, never an admission requirement.
+struct BoundConstantBinding
+{
+    ID3D12RootSignature* root = nullptr;
+    UINT rootParameter = UINT_MAX;
+    D3D12_GPU_VIRTUAL_ADDRESS address = 0; // Direct root CBV; table bindings deliberately have no inferred address.
+    ID3D12DescriptorHeap* descriptorHeap = nullptr;
+    D3D12_GPU_DESCRIPTOR_HANDLE descriptor {};
+    uint64_t tableBase = 0;
+};
 struct ConstantBufferDiagnostic
 {
     const char* reason = "unavailable";
@@ -84,6 +94,14 @@ bool ResolveComputeBindings(ID3D12GraphicsCommandList*, UINT rootParameter,
 // Resolves one current root/table CBV by its exact b-register and space, without retaining or mapping it.
 bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList*, UINT shaderRegister, UINT registerSpace,
                                   uint64_t minimumBytes, BoundConstantBuffer& out, ConstantBufferDiagnostic* diagnostic = nullptr) noexcept;
+// Resolve b-register from native root/table arguments without consulting resource or CBV creation records.
+// The caller holds the title lifetime borrow gate. The explicit snapshot overload is window-independent.
+bool ResolveComputeConstantBinding(ID3D12GraphicsCommandList*, UINT shaderRegister, UINT registerSpace,
+                                   BoundConstantBinding&, ConstantBufferDiagnostic* diagnostic = nullptr) noexcept;
+bool ResolveComputeConstantBinding(const ComputeBindings&, UINT shaderRegister, UINT registerSpace,
+                                   BoundConstantBinding&, ConstantBufferDiagnostic* diagnostic = nullptr) noexcept;
+bool ValidateComputeConstantBinding(const ComputeBindings&, UINT shaderRegister, UINT registerSpace,
+                                    const BoundConstantBinding&) noexcept;
 // Window-independent generation validation; the caller holds the physical title lifetime borrow gate.
 bool ValidateBorrowedConstantBuffer(const BoundConstantBuffer&) noexcept;
 class ScopedInternal

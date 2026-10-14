@@ -652,20 +652,18 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         }
         std::string error; ChainDiscovery discovered; bool published = false, invalid = false;
         ID3D12Resource* motionTag = nullptr; Resources resources; ListState staged; bool inject = false, keepWindow = false;
-        FrameSurvey::BoundConstantBuffer consumerConstants;
+        FrameSurvey::BoundConstantBinding consumerConstants;
         {
         NrdBridgeLifetime::ScopedBorrow borrow;
         std::vector<FrameSurvey::BoundResource> srv, uav;
         if (!window) { Failure(owner,"Consumer has no current binding-validation window"); return; }
         if (!Tables(cmd,Role::Consumer,srv,uav)) { WaitingForBindings(owner,cmd,"Consumer compute table bindings/registers are unavailable in discovery window"); return; }
         FrameSurvey::ConstantBufferDiagnostic constantDiagnostic;
-        if (!FrameSurvey::ResolveComputeConstantBuffer(cmd,6,0,76u*16u,consumerConstants,&constantDiagnostic))
+        if (!FrameSurvey::ResolveComputeConstantBinding(cmd,6,0,consumerConstants,&constantDiagnostic))
         {
-            LOG_ERROR("[NRD_BRIDGE] cbv_resolve_failed b6 space0 reason={} parameter={} table={} table_base={:#x} slot_cpu={:#x} "
-                "va={:#x} declared_bytes={} remaining_bytes={} buffer_base={:#x} interval_matches={} tracked_buffers={} required_bytes={}",
+            LOG_ERROR("[NRD_BRIDGE] cbv_binding_failed b6 space0 reason={} parameter={} table={} table_base={:#x} slot_cpu={:#x} va={:#x}",
                 constantDiagnostic.reason,constantDiagnostic.rootParameter,constantDiagnostic.table,constantDiagnostic.tableBase,
-                constantDiagnostic.descriptorCpu,constantDiagnostic.address,constantDiagnostic.declaredBytes,constantDiagnostic.remainingBytes,
-                constantDiagnostic.resourceBase,constantDiagnostic.intervalMatches,constantDiagnostic.trackedBuffers,76u*16u);
+                constantDiagnostic.descriptorCpu,constantDiagnostic.address);
             Failure(owner,std::string("Consumer b6 space0 constants unavailable: ")+constantDiagnostic.reason); return;
         }
         {
@@ -690,7 +688,7 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
             if (inject)
             {
                 resources = owner->cache.Get(); staged = list;
-                staged.parameters.outputConstants = {consumerConstants.resource,consumerConstants.address,
+                staged.parameters.outputConstants = {nullptr,consumerConstants.address,
                     consumerConstants.descriptorHeap,consumerConstants.descriptor};
             }
             list.followingRecon = false;
@@ -716,15 +714,18 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 found->second.recording != staged.recording || !found->second.converted || !found->second.motionReady) return;
         }
         if (!FrameSurvey::MetadataHealthy()) { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
-        if (!FrameSurvey::ValidateBorrowedConstantBuffer(consumerConstants))
-        { Failure(owner,"Consumer constants were released or rebound while awaiting injection; waiting for rediscovery"); return; }
+        FrameSurvey::ComputeBindings currentBindings;
+        if (!D3D12Hooks::GetComputeBindingsForBridge(cmd,currentBindings) ||
+            !FrameSurvey::ValidateComputeConstantBinding(currentBindings,6,0,consumerConstants))
+        { Failure(owner,"Consumer native b6 binding changed while awaiting injection; waiting for rediscovery"); return; }
         if (!D3D12Hooks::CanRestoreRootSignature(cmd)) { Failure(owner,"Title compute state cannot be restored before Consumer"); return; }
         struct CommitTicket
         {
             Service* owner;
             ID3D12GraphicsCommandList* list;
             const ListState* staged;
-            bool cancelled = false, metadataFailed = false, log = false;
+            const FrameSurvey::BoundConstantBinding* constants;
+            bool cancelled = false, metadataFailed = false, bindingFailed = false, log = false;
             uint64_t frames = 0, resets = 0;
             static bool Admit(void* state, OutputCommitGuard::Action action, void* prepared) noexcept
             {
@@ -740,6 +741,10 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                     found->second.frame != staged.frame || !found->second.converted || !found->second.motionReady ||
                     found->second.recording != staged.recording)
                 { ticket.cancelled = true; return false; }
+                FrameSurvey::ComputeBindings current;
+                if (!D3D12Hooks::GetComputeBindingsForBridge(ticket.list,current) ||
+                    !FrameSurvey::ValidateComputeConstantBinding(current,6,0,*ticket.constants))
+                { ticket.bindingFailed = true; return false; }
                 // This is the output admission point: reset/tag/release invalidation
                 // cannot pass between the final ticket check and the prepared write.
                 action(prepared);
@@ -758,7 +763,7 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 if (ticket.log) ticket.owner->lastLog = ticket.frames;
                 return true;
             }
-        } ticket {owner.get(), cmd, &staged};
+        } ticket {owner.get(), cmd, &staged, &consumerConstants};
         const OutputCommitGuard admission {&ticket, CommitTicket::Admit};
         bool succeeded = false;
         {
@@ -770,6 +775,8 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         }
         if (ticket.metadataFailed)
         { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
+        if (ticket.bindingFailed)
+        { Failure(owner,"Consumer native b6 binding changed before output admission; waiting for rediscovery"); return; }
         if (ticket.cancelled) return; // Preserve the newer reset/discovery status and epoch.
         if (!succeeded) { Failure(owner,error.empty() ? "NRD output dispatch failed" : error); return; }
         if (ticket.log) LOG_INFO("[NRD_BRIDGE] active frames={} resets={} SL_frame={} bridge_frame={} render={}x{} debug={}",

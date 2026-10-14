@@ -12,7 +12,7 @@ enum class DebugMode : uint8_t { Off, RawSignals, RRInputs };
 enum class SignalEncoding : uint8_t { Rgb, YCoCg };
 struct TitleSignalConstants
 {
-    ID3D12Resource* resource = nullptr;
+    ID3D12Resource* resource = nullptr; // Optional diagnostic identity; native flag capture never dereferences or retains it.
     D3D12_GPU_VIRTUAL_ADDRESS address = 0;
     ID3D12DescriptorHeap* nativeHeap = nullptr;
     D3D12_GPU_DESCRIPTOR_HANDLE cbvHandle {};

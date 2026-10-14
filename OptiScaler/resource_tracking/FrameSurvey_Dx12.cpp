@@ -911,6 +911,121 @@ bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList* cmd, UINT shaderReg
         return true;
     } catch (...) { return fail("Consumer CBV metadata resolution threw"); }
 }
+bool ResolveComputeConstantBinding(const ComputeBindings& bindings, UINT shaderRegister, UINT registerSpace,
+    BoundConstantBinding& out, ConstantBufferDiagnostic* diagnostic) noexcept
+{
+    out = {};
+    if (diagnostic) *diagnostic = {};
+    const auto fail = [&](const char* reason) { out = {}; if (diagnostic) diagnostic->reason = reason; return false; };
+    if (!Tracking() || !bindings.root || bindings.heaps.size() > 2 ||
+        !gMetadataHealthy.load(std::memory_order_acquire)) return fail("Consumer native binding is unavailable");
+    try
+    {
+        std::scoped_lock lock(gLifetimeMutex);
+        if (!gMetadataHealthy.load(std::memory_order_acquire)) return fail("Consumer root/heap metadata is unhealthy");
+        const auto layout = gRootLayouts.find(bindings.root);
+        if (layout == gRootLayouts.end() || !layout->second.complete) return fail("Consumer root layout is unavailable");
+        UINT parameter = UINT_MAX;
+        uint64_t descriptorOffset = 0;
+        bool tableBinding = false;
+        for (const auto& [index,descriptor] : layout->second.computeDescriptors)
+        {
+            if (descriptor.kind != D3D12_DESCRIPTOR_RANGE_TYPE_CBV || descriptor.shaderRegister != shaderRegister ||
+                descriptor.registerSpace != registerSpace) continue;
+            if (parameter != UINT_MAX) return fail("Consumer b-register maps to multiple root parameters");
+            parameter = index;
+        }
+        for (const auto& [index,ranges] : layout->second.tables)
+        {
+            if (!layout->second.computeVisibleTables.contains(index)) continue;
+            for (const auto& range : ranges)
+            {
+                if (range.kind != D3D12_DESCRIPTOR_RANGE_TYPE_CBV || range.registerSpace != registerSpace) continue;
+                if (!ValidComputeRange(range)) return fail("Consumer CBV table range is invalid");
+                if (shaderRegister < range.shaderRegister ||
+                    (range.count != UINT_MAX && uint64_t(shaderRegister)-range.shaderRegister >= range.count)) continue;
+                const uint64_t offset = uint64_t(range.offset)+shaderRegister-range.shaderRegister;
+                if (offset > UINT_MAX || parameter != UINT_MAX ||
+                    !UniqueComputeMapping(ranges,{D3D12_DESCRIPTOR_RANGE_TYPE_CBV,UINT(offset),shaderRegister,registerSpace}))
+                    return fail("Consumer CBV register mapping is ambiguous");
+                parameter = index; tableBinding = true; descriptorOffset = offset;
+            }
+        }
+        if (parameter == UINT_MAX) return fail("Consumer b-register is absent from compute root layout");
+        if (diagnostic) { diagnostic->rootParameter = parameter; diagnostic->table = tableBinding; }
+        out.root = bindings.root; out.rootParameter = parameter;
+        if (!tableBinding)
+        {
+            bool found = false;
+            for (const auto& view : bindings.views) if (view.parameter == parameter)
+            {
+                if (found || view.kind != D3D12_DESCRIPTOR_RANGE_TYPE_CBV || !view.address || view.address%256)
+                    return fail("Consumer root CBV argument is missing or invalid");
+                found = true; out.address = view.address;
+            }
+            if (!found) return fail("Consumer root CBV argument is missing");
+            if (diagnostic) { diagnostic->address = out.address; diagnostic->reason = "native root CBV"; }
+            return true;
+        }
+        uint64_t tableBase = 0;
+        for (const auto& [index,handle] : bindings.tables) if (index == parameter)
+        {
+            if (tableBase || !handle.ptr) return fail("Consumer CBV table base is missing or duplicated");
+            tableBase = handle.ptr;
+        }
+        if (!tableBase) return fail("Consumer CBV table base is missing");
+        if (diagnostic) diagnostic->tableBase = tableBase;
+        const Heap* heap = nullptr;
+        // A native command list binds at most two heaps. Never scan the heap/resource registry.
+        for (const auto object : bindings.heaps)
+        {
+            const auto found = gHeaps.find(object);
+            if (found == gHeaps.end()) continue;
+            const auto& candidate = found->second;
+            if (candidate.type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || !candidate.gpu || !candidate.increment ||
+                tableBase < candidate.gpu || tableBase-candidate.gpu >= uint64_t(candidate.count)*candidate.increment ||
+                (tableBase-candidate.gpu)%candidate.increment) continue;
+            if (heap) return fail("Consumer CBV table matches multiple bound heaps");
+            heap = &candidate;
+        }
+        if (!heap) return fail("Consumer CBV shader-visible heap is unavailable");
+        const uint64_t index = (tableBase-heap->gpu)/heap->increment+descriptorOffset;
+        if (index >= heap->count || index*heap->increment > UINT64_MAX-heap->gpu)
+            return fail("Consumer CBV slot is outside its heap");
+        out.descriptorHeap = heap->object; out.descriptor = {heap->gpu+index*heap->increment}; out.tableBase = tableBase;
+        if (diagnostic) { diagnostic->descriptorCpu = heap->cpu+index*heap->increment; diagnostic->reason = "native table CBV"; }
+        // The title reads this same volatile slot. Do not infer its GPUVA or inspect its buffer owner.
+        return true;
+    } catch (...) { return fail("Consumer native binding resolution threw"); }
+}
+bool ResolveComputeConstantBinding(ID3D12GraphicsCommandList* cmd, UINT shaderRegister, UINT registerSpace,
+    BoundConstantBinding& out, ConstantBufferDiagnostic* diagnostic) noexcept
+{
+    out = {};
+    if (diagnostic) *diagnostic = {};
+    if (!BindingTracking() || gInternal || !cmd || !gMetadataHealthy.load(std::memory_order_acquire)) return false;
+    try
+    {
+        ComputeBindings bindings;
+        {
+            std::scoped_lock lock(gMirrorMutex);
+            const auto list = gMirror.find(cmd);
+            if (list == gMirror.end()) return false;
+            bindings.root = list->second.compute.object; bindings.heaps = list->second.heaps;
+            for (const auto& [parameter,handle] : list->second.compute.tables) bindings.tables.emplace_back(parameter,D3D12_GPU_DESCRIPTOR_HANDLE{handle});
+            for (const auto& [parameter,view] : list->second.compute.views) bindings.views.push_back({parameter,D3D12_DESCRIPTOR_RANGE_TYPE(view.first),view.second});
+        }
+        return ResolveComputeConstantBinding(bindings,shaderRegister,registerSpace,out,diagnostic);
+    } catch (...) { if (diagnostic) diagnostic->reason = "Consumer native binding snapshot threw"; return false; }
+}
+bool ValidateComputeConstantBinding(const ComputeBindings& current, UINT shaderRegister, UINT registerSpace,
+    const BoundConstantBinding& expected) noexcept
+{
+    BoundConstantBinding actual;
+    return expected.root && ResolveComputeConstantBinding(current,shaderRegister,registerSpace,actual) &&
+        actual.root == expected.root && actual.rootParameter == expected.rootParameter && actual.address == expected.address &&
+        actual.descriptorHeap == expected.descriptorHeap && actual.descriptor.ptr == expected.descriptor.ptr && actual.tableBase == expected.tableBase;
+}
 bool ResolveComputeTable(ID3D12GraphicsCommandList* cmd, UINT parameter, std::vector<BoundResource>& out) noexcept
 {
     out.clear();
