@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SysUtils.h"
+#include "misc/RecordedComputeLease_Dx12.h"
 
 #include <hudfix/Hudfix_Dx12.h>
 #include <framegen/IFGFeature_Dx12.h>
@@ -708,7 +709,9 @@ class ResTrack_Dx12
   public:
     static bool RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCommandList* list,
                                       const std::shared_ptr<void>& lease,
-                                      std::function<void(ID3D12CommandQueue*)> beforeSubmit = {});
+                                      std::function<void(ID3D12CommandQueue*)> beforeSubmit = {},
+                                      RecordedComputeLease::SubmissionCallbacks callbacks = {});
+    static bool RefreshComputeHookDevice(ID3D12Device* selectedNativeDevice, const char** reason = nullptr) noexcept;
     static bool EnsureRRTraceHooks(ID3D12Device* device);
     static void HookDevice(ID3D12Device* device);
     static void ReleaseHooks();

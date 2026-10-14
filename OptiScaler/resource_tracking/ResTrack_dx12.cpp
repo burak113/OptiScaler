@@ -184,28 +184,23 @@ static void PublishComputeHookAvailability()
 std::shared_ptr<RecordedComputeLease::Submission> ResTrack_Dx12::BeforeComputeSubmission(
     ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* lists) noexcept
 {
-    try
-    {
-        std::vector<Microsoft::WRL::ComPtr<IUnknown>> owners;
-        std::vector<IUnknown*> keys;
-        for (UINT i = 0; lists && i < count; ++i)
-        {
-            if (!lists[i]) continue;
-            IUnknown* real = lists[i];
-            IUnknown* unwrapped = nullptr;
-            if (ResTrack_Dx12::CheckForRealObject(__FUNCTION__, real, &unwrapped)) real = unwrapped;
-            Microsoft::WRL::ComPtr<IUnknown> identity;
-            if (FAILED(real->QueryInterface(IID_PPV_ARGS(&identity))))
-            {
-                RecordedComputeLease::FailCompletion();
-                return nullptr;
-            }
-            keys.push_back(identity.Get());
-            owners.push_back(std::move(identity));
-        }
-        return RecordedComputeLease::BeforeSubmission(queue, keys);
-    }
-    catch (...) { RecordedComputeLease::FailCompletion(); return nullptr; }
+    // No identity vector or logging/string allocation may hide necessary queue
+    // waits after an intent-snapshot OOM. Use the same native-object IID without
+    // a string/log allocation or a dependency on lazy IID initialization.
+    const RecordedComputeLease::IdentityRange range {lists, lists ? count : 0,
+        [](const void* context, size_t index, IUnknown** out) -> HRESULT {
+            *out = nullptr;
+            auto* object = static_cast<ID3D12CommandList* const*>(context)[index];
+            if (!object) return S_OK;
+            constexpr IID nativeObject {0xadec44e2, 0x61f0, 0x45c3, {0xad, 0x9f, 0x1b, 0x37, 0x37, 0x92, 0x84, 0xff}};
+            Microsoft::WRL::ComPtr<IUnknown> unwrapped;
+            IUnknown* actual = object;
+            if (SUCCEEDED(object->QueryInterface(nativeObject, reinterpret_cast<void**>(unwrapped.GetAddressOf()))) && unwrapped)
+                actual = unwrapped.Get();
+            return actual->QueryInterface(IID_PPV_ARGS(out));
+        },
+        [](const void* context, size_t index) -> void* { return static_cast<ID3D12CommandList* const*>(context)[index]; }};
+    return RecordedComputeLease::BeforeSubmission(queue, range);
 }
 
 static PFN_OMSetRenderTargets o_OMSetRenderTargets = nullptr;
@@ -3624,9 +3619,78 @@ void ResTrack_Dx12::HookToQueue(ID3D12Device* InDevice)
     }
 }
 
+bool ResTrack_Dx12::RefreshComputeHookDevice(ID3D12Device* selectedNativeDevice, const char** reason) noexcept
+{
+    if (reason) *reason = nullptr;
+    const auto reject = [&](const char* message) { if (reason) *reason = message; return false; };
+    if (!selectedNativeDevice || State::Instance().isShuttingDown)
+        return reject("Selected native device is unavailable");
+    try
+    {
+        FrameSurvey::ScopedInternal internal;
+        std::lock_guard initialization(gComputeHookInitMutex);
+        HookResource(selectedNativeDevice);
+        HookCommandList(selectedNativeDevice);
+        HookToQueue(selectedNativeDevice);
+        {
+            auto& registry = RecordedComputeLease::GetRegistry();
+            std::lock_guard lock(registry.mutex);
+            if (registry.completionFailed)
+                return reject("Recorded-compute completion is uncertain; restart the title before reusing bridge work");
+        }
+        if (!gComputeListHooksAvailable.load() || !gComputeQueueHookAvailable.load() ||
+            !gResourceReleaseEntry || !gComputeResetEntry || !gComputeExecuteEntry)
+            return reject("Native recording or submission hooks are unavailable");
+        Microsoft::WRL::ComPtr<IUnknown> identity;
+        if (FAILED(selectedNativeDevice->QueryInterface(IID_PPV_ARGS(&identity))))
+            return reject("Selected native device canonical identity is unavailable");
+        if (identity.Get() == gComputeQueueDeviceIdentity.Get()) return true;
+
+        // Rebind only the selected title device, after verifying its implementations
+        // are already observed. Never detach old hooks while their leases can run.
+        Microsoft::WRL::ComPtr<ID3D12CommandQueue> directQueue, computeQueue;
+        D3D12_COMMAND_QUEUE_DESC queueDesc {};
+        queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+        if (FAILED(selectedNativeDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&directQueue))))
+            return reject("Cannot create a native direct-queue eligibility probe");
+        queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+        if (FAILED(selectedNativeDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&computeQueue))))
+            return reject("Cannot create a native compute-queue eligibility probe");
+        if ((*reinterpret_cast<PVOID**>(directQueue.Get()))[10] != gComputeExecuteEntry ||
+            (*reinterpret_cast<PVOID**>(computeQueue.Get()))[10] != gComputeExecuteEntry)
+            return reject("Selected device queue implementation is not observed by the existing native hook");
+        for (const auto type : {D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_TYPE_COMPUTE})
+        {
+            Microsoft::WRL::ComPtr<ID3D12CommandAllocator> allocator;
+            Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> list;
+            if (FAILED(selectedNativeDevice->CreateCommandAllocator(type, IID_PPV_ARGS(&allocator))) ||
+                FAILED(selectedNativeDevice->CreateCommandList(0, type, allocator.Get(), nullptr, IID_PPV_ARGS(&list))))
+                return reject("Cannot create a native command-list eligibility probe");
+            const auto table = *reinterpret_cast<PVOID**>(list.Get());
+            if (table[10] != gComputeResetEntry ||
+                (table[2] != gCommandListReleaseEntry && table[2] != gResourceReleaseEntry && table[2] != gPsoReleaseEntry))
+                return reject("Selected device Reset or Release implementation is not observed by existing native hooks");
+        }
+        Microsoft::WRL::ComPtr<ID3D12Resource> resource;
+        D3D12_HEAP_PROPERTIES heap {}; heap.Type = D3D12_HEAP_TYPE_DEFAULT;
+        D3D12_RESOURCE_DESC desc {}; desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        desc.Width = 16; desc.Height = desc.DepthOrArraySize = desc.MipLevels = desc.SampleDesc.Count = 1;
+        desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        if (FAILED(selectedNativeDevice->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
+            D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&resource))))
+            return reject("Cannot create a native resource Release eligibility probe");
+        if ((*reinterpret_cast<PVOID**>(resource.Get()))[2] != gResourceReleaseEntry)
+            return reject("Selected device resource Release implementation is not observed by the existing native hook");
+        gComputeQueueDeviceIdentity = std::move(identity);
+        return true;
+    }
+    catch (...) { return reject("Native compute eligibility probe raised an exception"); }
+}
+
 bool ResTrack_Dx12::RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCommandList* list,
                                          const std::shared_ptr<void>& lease,
-                                         std::function<void(ID3D12CommandQueue*)> beforeSubmit)
+                                         std::function<void(ID3D12CommandQueue*)> beforeSubmit,
+                                         RecordedComputeLease::SubmissionCallbacks callbacks)
 {
     if (!device || !list || !lease || State::Instance().isShuttingDown) return false;
     IUnknown* actualDevice = device;
@@ -3663,7 +3727,7 @@ bool ResTrack_Dx12::RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCo
     Microsoft::WRL::ComPtr<IUnknown> identity;
     if (FAILED(actual->QueryInterface(IID_PPV_ARGS(&identity)))) return false;
     return RecordedComputeLease::Track(identity.Get(),
-        { list, actual, static_cast<ID3D12CommandList*>(actual), identity.Get() }, lease, std::move(beforeSubmit));
+        { list, actual, static_cast<ID3D12CommandList*>(actual), identity.Get() }, lease, std::move(beforeSubmit), std::move(callbacks));
 }
 
 void ResTrack_Dx12::HookDevice(ID3D12Device* device)
