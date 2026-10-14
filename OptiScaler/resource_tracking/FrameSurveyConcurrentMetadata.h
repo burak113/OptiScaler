@@ -315,6 +315,14 @@ template<class Key,class Node> class PinnedIdentityMap
         if (found == shard.nodes.end() || !matches(*found->second)) return {};
         auto result = std::move(found->second); shard.nodes.erase(found); return result;
     }
+    size_t Size()
+    {
+        // Cold diagnostic only. Exact when the caller drained the public snapshot
+        // or joined all writers; no global size counter is added to hot retirement.
+        size_t result=0;
+        for (auto& shard : shards_) { std::shared_lock lock(shard.mutex); result+=shard.nodes.size(); }
+        return result;
+    }
     void Clear()
     {
         // Caller drains the snapshot gate; no writer or release can still use it.
@@ -349,6 +357,8 @@ class NativeRangeIndex
         { MetadataWait wait(MetadataLock::Range); lock.lock(); }
         return ranges_.Find(address);
     }
+    size_t Size()
+    { std::shared_lock lock(mutex_); return ranges_.Size(); }
     void Clear()
     { std::unique_lock lock(mutex_); ranges_.Clear(); version_.fetch_add(1,std::memory_order_release); }
 };

@@ -141,12 +141,12 @@ int main(int argc,char** argv)try{
 '''
 
 
-def run():
+def run(driver=DRIVER, report_name="birth-metadata-cpu.json", prelude=""):
     out = Path(os.environ['FSRD_GPU_TEST_OUTPUT'])
     out.mkdir(parents=True, exist_ok=True)
-    cpp = native.CPP[:native.CPP.index('// The exact production hook bodies')]
+    cpp = prelude + native.CPP[:native.CPP.index('// The exact production hook bodies')]
     cpp = cpp.replace('__TRACE__', (ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp').as_posix())
-    cpp = cpp.replace('__SURVEY__', (ROOT/'OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp').as_posix()) + DRIVER
+    cpp = cpp.replace('__SURVEY__', (ROOT/'OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp').as_posix()) + driver
     stubs = out/'stubs'
     for name in ('proxies', 'inputs'):
         (stubs/name).mkdir(parents=True, exist_ok=True)
@@ -166,7 +166,7 @@ def run():
     report['source_commit'] = subprocess.check_output(['git', 'log', '-1', '--format=%H'], cwd=ROOT, text=True).strip()
     directory = Path(os.environ.get('FSRD_TASK_REPORT_DIR', 'E:/FSRD/sol_batch/13a-lifetime'))
     directory.mkdir(parents=True, exist_ok=True)
-    (directory/'birth-metadata-cpu.json').write_text(json.dumps(report, indent=2)+'\n')
+    (directory/report_name).write_text(json.dumps(report, indent=2)+'\n')
     print(json.dumps(report))
 
 
