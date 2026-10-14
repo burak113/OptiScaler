@@ -378,7 +378,7 @@ J discoveryTests(Host& h) {
   c.textures[2]=i%2?savedNormals:alternateNormals;c.textures[3]=i%2?savedDepth:alternateDepth;
   c.views(0,{0,1,2,3,0,1,2,3},false);c.frame(3);
   need(convertCalls==guideConversions+i+1&&rrCalls==guideRR+i+1&&NrdBridge::GetStatus().active,"every alternating Recon guide frame converts and reaches Active exactly once");
-  need(lastReconInputs.normalRoughness==c.textures[2].Get()&&lastReconInputs.viewDepth==c.textures[3].Get(),"conversion receives the current recording's exact normal/depth pointers, not previous cached guides");
+  need(lastReconInputs.normals==c.textures[2].Get()&&lastReconInputs.viewDepth==c.textures[3].Get(),"conversion receives the current recording's exact normal/depth pointers, not previous cached guides");
   need(NrdBridge::gService->cache.Generation()==guideGeneration&&NrdBridge::gService->cancellationSerial==guideCancellation&&!lastRRFrame.reset,"alive typed guide rotation preserves stable profile generation and submitted temporal history");
   need(NrdBridge::gService->cache.Get().normals==c.textures[2].Get()&&NrdBridge::gService->cache.Get().viewDepth==c.textures[3].Get(),"latest diagnostics refresh current guides without republishing the stable lighting profile");
   ResTrack_Dx12::SubmitForTesting(h.list.Get());
@@ -387,7 +387,7 @@ J discoveryTests(Host& h) {
  c.textures[3]=alternateDepth;c.views(0,{0,1,2,3,0,1,2,3},false);c.begin();
  h.list->SetPipelineState(c.pipelines[UINT(Role::Recon)].Get());NrdBridge::OnSetPipeline(h.list.Get(),c.pipelines[UINT(Role::Recon)].Get());c.bind(1,0);c.bind(5,8);h.list->Dispatch(1,1,1);
  conversionStaged.store(false);NrdBridge::gBeforeConversionLockForTesting=conversionLockProbe;
- const auto beforeCurrentRelease=convertCalls,currentReleaseEpoch=NrdBridge::gService->cancellationSerial;
+ const auto beforeCurrentRelease=convertCalls;const auto currentReleaseEpoch=NrdBridge::gService->cancellationSerial;
  std::unique_lock guideSerial(NrdBridge::gInjectionMutex);std::thread pendingGuide([&]{NrdBridge::AfterDispatch(h.list.Get());});
  await([]{return conversionStaged.load(std::memory_order_acquire);},"current-guide conversion reaches its lifecycle wait");
  need(NrdBridge::gService->cache.Get().viewDepth==savedDepth.Get()&&NrdBridge::gService->lists.at(h.list.Get()).chain.Get().viewDepth==alternateDepth.Get(),"released pending guide is demonstrably absent from the last published cache");
