@@ -4,6 +4,7 @@
 #include "FrameSurveyBufferRanges.h"
 #include "FrameSurveyConcurrentMetadata.h"
 #include "misc/NrdBridgeLifetime_Dx12.h"
+#include "misc/NrdBridgeNativeBirth_Dx12.h"
 #include "misc/NrdBridgePerf_Dx12.h"
 #include "shaders/fsrd_preprocess/FSRDGameTraceSession.h"
 #include "shaders/fsrd_preprocess/RRTraceAdditiveIO.h"
@@ -20,6 +21,8 @@
 #include <atomic>
 #include <cctype>
 #include <exception>
+
+namespace NrdBridgeNativeBirth { bool ObserveReleaseCoverage(IUnknown*) noexcept; }
 
 namespace FrameSurvey
 {
@@ -45,6 +48,13 @@ std::atomic<int> gCopyFailureAfterForTesting {-1};
 #endif
 std::atomic<PipelineObserver> gPipelineObserver {nullptr};
 std::atomic<ReleaseObserver> gReleaseObserver {nullptr};
+std::atomic<BirthReleaseObserver> gBirthReleaseObserver {nullptr};
+std::atomic<const char*> gDeferredMetadataFailure {nullptr};
+bool NativeTracking() noexcept { return NrdBridgeNativeBirth::Detail::configured.load(std::memory_order_acquire) == 2; }
+bool BirthAvailable(const NrdBridgeBirth::Token& birth, const void* object) noexcept
+{
+    return birth ? birth->Address() == object && NrdBridgeBirth::CacheAdmissible(birth) : !NativeTracking();
+}
 bool BindingTracking() noexcept
 {
     return gSurveyBindings.load(std::memory_order_relaxed) || gBindingWindow.load(std::memory_order_relaxed);
@@ -95,6 +105,7 @@ struct Resource
     D3D12_RESOURCE_STATES initial = D3D12_RESOURCE_STATE_COMMON;
     bool initialKnown = false;
     FrameSurveyMetadata::DescriptorHandles handles;
+    NrdBridgeBirth::Token birth;
 };
 struct ViewInfo
 {
@@ -113,6 +124,7 @@ struct Heap
     uint64_t cpu = 0, gpu = 0;
     uint32_t count = 0, increment = 0, type = 0;
     FrameSurveyMetadata::DescriptorHandles views; // Occupied slots, split by the same descriptor shard.
+    NrdBridgeBirth::Token birth;
 };
 std::unordered_map<ID3D12Resource*,Resource> gResources;
 std::map<uint64_t,ID3D12Resource*> gAddresses;
@@ -185,7 +197,10 @@ void ReplaceView(const ViewInfo& view)
 }
 bool FreshView(const ViewInfo& view, const Heap* heap)
 {
-    return heap && view.heapKnown && view.descriptorHeap == uint64_t(reinterpret_cast<uintptr_t>(heap->object));
+    const auto resource = gResources.find(view.object);
+    return heap && BirthAvailable(heap->birth,heap->object) && view.heapKnown &&
+        view.descriptorHeap == uint64_t(reinterpret_cast<uintptr_t>(heap->object)) && resource != gResources.end() &&
+        resource->second.id == view.resource && BirthAvailable(resource->second.birth,view.object);
 }
 // Descriptor contents remain current even while root/table binding tracking is closed.
 // This intentionally spends CPU work on enabled-bridge copy metadata for correctness.
@@ -201,8 +216,11 @@ struct RootLayout
     std::set<uint32_t> computeTables, computeVisibleTables;
     std::map<uint32_t,RootDescriptor> computeDescriptors;
     bool complete = false, directIndexed = false;
+    NrdBridgeBirth::Token birth;
 };
 std::unordered_map<ID3D12RootSignature*,RootLayout> gRootLayouts;
+struct PipelineMetadata { Json description; NrdBridgeBirth::Token birth; };
+std::unordered_map<ID3D12PipelineState*,PipelineMetadata> gPipelineMetadata;
 struct RootState
 {
     uint64_t identity = 0;
@@ -266,6 +284,11 @@ void Fail(const char* reason) noexcept
 void MetadataFailed(const char* reason) noexcept
 {
     gMetadataHealthy.store(false,std::memory_order_release);
+    if (NrdBridgeBirth::InMetadataScope())
+    {
+        const char* empty = nullptr; gDeferredMetadataFailure.compare_exchange_strong(empty,reason,std::memory_order_release);
+        return; // Fail may destroy recorder-owned COM; defer until every Birth guard is gone.
+    }
     Fail(reason);
 }
 void Count(const char* reason)
@@ -300,19 +323,28 @@ Resource& Register(ID3D12Resource* resource, const ResourceDescription* prepared
 }
 // Only the rare first observation performs COM work. No registry or descriptor
 // shard is held during native description lookup; physical Release is excluded.
-void EnsureResourceRegistered(ID3D12Resource* object)
+NrdBridgeBirth::Token EnsureResourceRegistered(ID3D12Resource* object)
 {
-    if (!object) return;
+    if (!object) return {};
     {
         std::shared_lock catalog(gLifetimeMutex);
         const auto found = gResources.find(object);
-        if (found != gResources.end() && found->second.id) return;
+        if (found != gResources.end() && found->second.id && BirthAvailable(found->second.birth,object)) return found->second.birth;
+    }
+    if (NativeTracking())
+    {
+        PreparedResource prepared;
+        if (!PrepareResourceMetadata(object,prepared)) throw std::runtime_error("Native resource metadata preparation failed");
+        const auto birth = NrdBridgeNativeBirth::Prepare(object);
+        if (!PublishResourceMetadata(prepared,birth)) throw std::runtime_error("Current resource metadata publication failed");
+        return birth;
     }
     NrdBridgeLifetime::ScopedBorrow borrow;
+    if (!borrow.Acquired()) throw std::runtime_error("Resource metadata lifetime borrow was denied");
     ResourceDescription description; description.desc = object->GetDesc();
     if (description.desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER) description.va = object->GetGPUVirtualAddress();
     std::scoped_lock catalog(gLifetimeMutex); MetadataMutation mutation;
-    Register(object,&description); // Rechecks a competing first observation under the exclusive catalog.
+    return Register(object,&description).birth; // Rechecks a competing first observation under the exclusive catalog.
 }
 std::string DebugName(ID3D12Resource* object)
 {
@@ -465,14 +497,42 @@ struct Mirror
         ID3D12RootSignature* object = nullptr;
         std::map<uint32_t,uint64_t> tables;
         std::map<uint32_t,std::pair<uint32_t,uint64_t>> views;
+        NrdBridgeBirth::Token birth;
     };
     ID3D12PipelineState* pso = nullptr;
     Root compute, graphics;
     std::vector<ID3D12DescriptorHeap*> heaps;
+    NrdBridgeBirth::Token receiverBirth, pipelineBirth;
+    std::vector<NrdBridgeBirth::Token> heapBirths;
 };
 std::mutex gMirrorMutex;
 std::unordered_map<ID3D12GraphicsCommandList*,Mirror> gMirror;
 std::unordered_map<void*,std::unordered_set<ID3D12GraphicsCommandList*>> gMirrorOwners;
+std::unordered_map<ID3D12PipelineState*,NrdBridgeBirth::Token> gPipelineBirths;
+struct RetiredMetadata
+{
+    decltype(gResources)::node_type resource;
+    decltype(gHeaps)::node_type heap;
+    decltype(gRootLayouts)::node_type root;
+    decltype(gPipelineMetadata)::node_type pipeline;
+    decltype(gMirror)::node_type list;
+    decltype(gMirrorOwners)::node_type references;
+};
+NrdBridgeBirth::Token ReceiverBirth(ID3D12GraphicsCommandList* cmd)
+{
+    if (!NativeTracking()) return {};
+    if (NrdBridgeBirth::InMetadataScope()) return NrdBridgeBirth::Capture(cmd);
+    return NrdBridgeNativeBirth::ObserveReleaseCoverage(cmd) ? NrdBridgeNativeBirth::Receiver(cmd) : NrdBridgeBirth::Token{};
+}
+bool MirrorAvailable(const Mirror& mirror, ID3D12GraphicsCommandList* cmd)
+{
+    if (!BirthAvailable(mirror.receiverBirth,cmd) || !BirthAvailable(mirror.compute.birth,mirror.compute.object)) return false;
+    if (mirror.pso && !BirthAvailable(mirror.pipelineBirth,mirror.pso)) return false;
+    if (mirror.heapBirths.empty() && !NativeTracking()) return true;
+    if (mirror.heapBirths.size() != mirror.heaps.size()) return false;
+    for (size_t i=0;i<mirror.heaps.size();++i) if (!BirthAvailable(mirror.heapBirths[i],mirror.heaps[i])) return false;
+    return true;
+}
 struct MirrorReferences
 {
     std::array<void*,5> objects {}; size_t count = 0;
@@ -502,11 +562,34 @@ template<class Update> void Mirrored(ID3D12GraphicsCommandList* cmd, Update&& up
     if (!BindingTracking() || gInternal || !cmd) return;
     try
     {
+        const auto receiver = ReceiverBirth(cmd);
+        NrdBridgeBirth::CurrentGuard current(receiver);
+        if (receiver ? (!current.MatchesCurrent() || !NrdBridgeBirth::Healthy()) : NativeTracking()) return;
         std::scoped_lock lock(gMirrorMutex); MetadataMutation mutation; auto& mirror = gMirror[cmd];
-        if (!references) { update(mirror); return; }
-        const MirrorReferences before(mirror); update(mirror); UpdateMirrorOwners(cmd,before,MirrorReferences(mirror));
+        const MirrorReferences before(mirror);
+        const bool changedReceiver = mirror.receiverBirth != receiver;
+        if (changedReceiver) mirror = {};
+        mirror.receiverBirth = receiver; update(mirror);
+        if (references || changedReceiver) UpdateMirrorOwners(cmd,before,MirrorReferences(mirror));
     }
     catch (...) { MetadataFailed("Binding mirror allocation failed"); }
+}
+bool PublishPipelineBirth(ID3D12PipelineState* pso)
+{
+    if (!NativeTracking()) return true;
+    if (!NrdBridgeNativeBirth::ObserveReleaseCoverage(pso)) return false;
+    const auto birth = NrdBridgeNativeBirth::Prepare(pso);
+    NrdBridgeBirth::CurrentGuard current(birth);
+    if (!current.MatchesCurrent() || !NrdBridgeBirth::Healthy()) return false;
+    std::scoped_lock catalog(gLifetimeMutex); MetadataMutation mutation; gPipelineBirths[pso] = birth; return true;
+}
+void StorePipelineMetadata(ID3D12PipelineState* pso, const std::string& text)
+{
+    auto description = Json::parse(text); NrdBridgeBirth::Token birth;
+    { std::shared_lock catalog(gLifetimeMutex); if (const auto found = gPipelineBirths.find(pso); found != gPipelineBirths.end()) birth = found->second; }
+    NrdBridgeBirth::CurrentGuard current(birth);
+    if (birth && (!current.MatchesCurrent() || !NrdBridgeBirth::Healthy())) return;
+    std::scoped_lock catalog(gLifetimeMutex); MetadataMutation mutation; gPipelineMetadata[pso] = {std::move(description),birth};
 }
 bool Seed(ID3D12GraphicsCommandList* cmd, List& list)
 {
@@ -517,10 +600,16 @@ bool Seed(ID3D12GraphicsCommandList* cmd, List& list)
         if (found == gMirror.end()) return false;
         mirror = found->second;
     }
-    list.pso = ReadPipeline(mirror.pso);
+    if (!MirrorAvailable(mirror,cmd)) return false;
+    std::shared_lock catalog(gLifetimeMutex);
+    list.pso = {{"pointer",uint64_t(reinterpret_cast<uintptr_t>(mirror.pso))},{"shader_hashes",Json::object()},{"hash_known",false}};
+    if (const auto pso = gPipelineMetadata.find(mirror.pso); pso != gPipelineMetadata.end() && pso->second.birth == mirror.pipelineBirth)
+        list.pso.update(pso->second.description);
     auto seed = [](RootState& state, const Mirror::Root& root) {
         if (!root.object) return;
-        state.identity = uint64_t(reinterpret_cast<uintptr_t>(root.object)); state.layout = ReadRoot(root.object);
+        const auto layout = gRootLayouts.find(root.object);
+        if (layout == gRootLayouts.end() || layout->second.birth != root.birth || !BirthAvailable(root.birth,root.object)) return;
+        state.identity = uint64_t(reinterpret_cast<uintptr_t>(root.object)); state.layout = layout->second;
         state.tables = root.tables; state.views = root.views; };
     seed(list.compute,mirror.compute); seed(list.graphics,mirror.graphics);
     list.heaps = mirror.heaps;
@@ -551,7 +640,7 @@ bool ResolveBufferAddress(uint64_t address, uint64_t declaredBytes, uint64_t min
     if (diagnostic) diagnostic->intervalMatches = interval.matches;
     if (interval.matches != 1) return fail(interval.matches ? "CBV GPU address overlaps live buffers" : "CBV GPU address has no tracked buffer");
     const auto found = gResources.find(static_cast<ID3D12Resource*>(interval.object));
-    if (found == gResources.end() || found->second.id != interval.generation) return fail("CBV buffer generation is stale");
+    if (found == gResources.end() || found->second.id != interval.generation || !BirthAvailable(found->second.birth,found->first)) return fail("CBV buffer generation is stale");
     const auto* match = &found->second;
     if (match->desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER || !match->va || address < match->va ||
         address-match->va >= match->desc.Width) return fail("CBV GPU address is outside its tracked buffer");
@@ -559,14 +648,17 @@ bool ResolveBufferAddress(uint64_t address, uint64_t declaredBytes, uint64_t min
     if (diagnostic) { diagnostic->resourceBase = match->va; diagnostic->remainingBytes = remaining; }
     const uint64_t bytes = declaredBytes ? declaredBytes : std::min<uint64_t>(65536,remaining);
     if (bytes > remaining || bytes < minimumBytes) return fail("CBV byte range does not cover the requested field");
-    out = {match->object,address,offset,bytes,match->id}; return true;
+    out = {match->object,address,offset,bytes,match->id}; out.resourceBirth = match->birth; return true;
 }
 bool StoreKnownView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI_FORMAT format,
-    uint32_t mip, uint32_t slice, bool supported)
+    uint32_t mip, uint32_t slice, bool supported, const NrdBridgeBirth::Token* proven = nullptr)
 {
+    NrdBridgeBirth::CurrentGuard current(proven ? *proven : NrdBridgeBirth::Token{});
+    if (proven && *proven && (!current.MatchesCurrent() || !NrdBridgeBirth::Healthy())) return false;
     std::shared_lock catalog(gLifetimeMutex);
     const auto resource = gResources.find(object);
-    if (object && (resource == gResources.end() || !resource->second.id)) return false;
+    if (object && (resource == gResources.end() || !resource->second.id ||
+        (proven && *proven ? resource->second.birth != *proven : !BirthAvailable(resource->second.birth,object)))) return false;
     std::scoped_lock slot(gViewMutexes[FrameSurveyMetadata::DescriptorShard(handle)]); MetadataMutation mutation;
     if (!object) { EraseView(handle); return true; }
     const auto& metadata = resource->second;
@@ -584,8 +676,8 @@ void StoreView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI_FORM
 {
     if (!Tracking() || gInternal) return;
     if (StoreKnownView(object,handle,kind,format,mip,slice,supported)) return;
-    EnsureResourceRegistered(object);
-    if (!StoreKnownView(object,handle,kind,format,mip,slice,supported))
+    const auto proven = EnsureResourceRegistered(object);
+    if (!StoreKnownView(object,handle,kind,format,mip,slice,supported,&proven))
     {
         // A competing final Release may retire a first observation before publication.
         // Tombstone the destination instead of leaving an older live resource accepted.
@@ -656,7 +748,7 @@ std::vector<ViewInfo> Bindings(List& state, bool graphics, Json& unresolved)
 bool CopyImage(ID3D12GraphicsCommandList* cmd, List& list, const ViewInfo& view,
     D3D12_RESOURCE_STATES state, const std::string& key, bool tagged, UINT x = 0, UINT y = 0, UINT w = 0, UINT h = 0)
 {
-    NrdBridgeLifetime::ScopedBorrow borrow;
+    NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return false;
     InternalScope internal;
     ComPtr<ID3D12Resource> source;
     D3D12_RESOURCE_DESC desc {};
@@ -715,7 +807,7 @@ bool CopyImage(ID3D12GraphicsCommandList* cmd, List& list, const ViewInfo& view,
 bool CopyBuffer(ID3D12GraphicsCommandList* cmd, List& list, ID3D12Resource* object,
     const std::string& key, uint64_t offset, uint32_t bytes)
 {
-    NrdBridgeLifetime::ScopedBorrow borrow;
+    NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return false;
     InternalScope internal;
     if (!object || !bytes || (!list.resetObserved && !list.targeted) || list.inRenderPass) return false;
     ComPtr<ID3D12Resource> source;
@@ -750,6 +842,12 @@ ScopedRecording::~ScopedRecording() { --gRecordingDepth; }
 bool OwnedRelease() noexcept { return gInternal && !gRecordingDepth; }
 void SetPipelineObserver(PipelineObserver observer) noexcept { gPipelineObserver.store(observer,std::memory_order_release); }
 void SetReleaseObserver(ReleaseObserver observer) noexcept { gReleaseObserver.store(observer,std::memory_order_release); }
+void SetBirthReleaseObserver(BirthReleaseObserver observer) noexcept { gBirthReleaseObserver.store(observer,std::memory_order_release); }
+void FlushMetadataFailure() noexcept
+{
+    if (NrdBridgeBirth::InMetadataScope()) return;
+    if (const auto reason = gDeferredMetadataFailure.exchange(nullptr,std::memory_order_acq_rel)) Fail(reason);
+}
 void SetBindingWindow(bool enabled) noexcept
 {
     if (gBindingWindow.exchange(enabled,std::memory_order_acq_rel) == enabled) return;
@@ -773,15 +871,23 @@ bool SeedComputeBindings(ID3D12GraphicsCommandList* cmd, const ComputeBindings& 
     if (!BindingTracking() || gInternal || !cmd || !bindings.root || bindings.heaps.empty() || !gMetadataHealthy.load(std::memory_order_acquire)) return false;
     try
     {
+        if (!BirthAvailable(bindings.receiverBirth,cmd) || !BirthAvailable(bindings.rootBirth,bindings.root)) return false;
+        if ((!bindings.heapBirths.empty() || NativeTracking()) && bindings.heapBirths.size() != bindings.heaps.size()) return false;
+        for (size_t i=0;i<bindings.heapBirths.size();++i) if (!BirthAvailable(bindings.heapBirths[i],bindings.heaps[i])) return false;
+        NrdBridgeBirth::CurrentGuard current(bindings.receiverBirth);
+        if (bindings.receiverBirth && !current.AdmitsBorrow()) return false;
         std::scoped_lock lock(gMirrorMutex); MetadataMutation mutation;
         if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
         auto& mirror = gMirror[cmd]; const MirrorReferences before(mirror);
-        if (mirror.compute.object != bindings.root) mirror.compute = {};
+        if (mirror.receiverBirth != bindings.receiverBirth) mirror = {};
+        if (mirror.compute.object != bindings.root || mirror.compute.birth != bindings.rootBirth) mirror.compute = {};
         if (mirror.heaps != bindings.heaps) mirror.graphics.tables.clear();
-        mirror.compute.object = bindings.root; mirror.compute.tables.clear(); mirror.compute.views.clear();
+        mirror.receiverBirth = bindings.receiverBirth; mirror.compute.object = bindings.root; mirror.compute.birth = bindings.rootBirth;
+        if (bindings.pipelineBirth) { mirror.pipelineBirth = bindings.pipelineBirth; mirror.pso = static_cast<ID3D12PipelineState*>(bindings.pipelineBirth->Address()); }
+        mirror.compute.tables.clear(); mirror.compute.views.clear();
         for (const auto& [parameter,handle] : bindings.tables) mirror.compute.tables[parameter] = handle.ptr;
         for (const auto& view : bindings.views) mirror.compute.views[view.parameter] = {uint32_t(view.kind),view.address};
-        mirror.heaps = bindings.heaps; UpdateMirrorOwners(cmd,before,MirrorReferences(mirror)); return true;
+        mirror.heaps = bindings.heaps; mirror.heapBirths = bindings.heapBirths; UpdateMirrorOwners(cmd,before,MirrorReferences(mirror)); return true;
     } catch (...) { MetadataFailed("Compute binding seed failed"); return false; }
 }
 bool ComputeTableBindingMatches(ID3D12GraphicsCommandList* cmd, UINT parameter, D3D12_DESCRIPTOR_RANGE_TYPE kind,
@@ -794,12 +900,12 @@ bool ComputeTableBindingMatches(ID3D12GraphicsCommandList* cmd, UINT parameter, 
         std::scoped_lock lock(gMirrorMutex,gLifetimeMutex);
         if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
         const auto list = gMirror.find(cmd);
-        if (list == gMirror.end() || !list->second.compute.object) return false;
+        if (list == gMirror.end() || !list->second.compute.object || !MirrorAvailable(list->second,cmd)) return false;
         const auto& root = list->second.compute;
         const auto binding = root.tables.find(parameter);
         if (binding == root.tables.end() || !binding->second) return false;
         const auto layout = gRootLayouts.find(root.object);
-        if (layout == gRootLayouts.end() || !layout->second.complete || !layout->second.computeTables.contains(parameter)) return false;
+        if (layout == gRootLayouts.end() || !layout->second.complete || layout->second.birth != root.birth || !BirthAvailable(layout->second.birth,root.object) || !layout->second.computeTables.contains(parameter)) return false;
         const auto table = layout->second.tables.find(parameter);
         if (table == layout->second.tables.end()) return false;
         for (const auto& range : table->second)
@@ -820,12 +926,12 @@ bool ResolveComputeBindings(ID3D12GraphicsCommandList* cmd, UINT parameter,
         std::scoped_lock lock(gMirrorMutex,gLifetimeMutex); MetadataMutation mutation;
         if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
         const auto list = gMirror.find(cmd);
-        if (list == gMirror.end() || !list->second.compute.object) return false;
+        if (list == gMirror.end() || !list->second.compute.object || !MirrorAvailable(list->second,cmd)) return false;
         const auto& root = list->second.compute;
         const auto binding = root.tables.find(parameter);
         if (binding == root.tables.end() || !binding->second) return false;
         const auto layout = gRootLayouts.find(root.object);
-        if (layout == gRootLayouts.end() || !layout->second.complete || !layout->second.computeVisibleTables.contains(parameter)) return false;
+        if (layout == gRootLayouts.end() || !layout->second.complete || layout->second.birth != root.birth || !BirthAvailable(layout->second.birth,root.object) || !layout->second.computeVisibleTables.contains(parameter)) return false;
         const auto table = layout->second.tables.find(parameter);
         if (table == layout->second.tables.end()) return false;
         for (size_t i=0;i<requests.size();++i)
@@ -871,7 +977,7 @@ bool ResolveComputeBindings(ID3D12GraphicsCommandList* cmd, UINT parameter,
             }
             else if (!view->second.snapshotSupported) return false;
             resolved[i] = {resource->first,resource->second.desc,DXGI_FORMAT(view->second.format),request.kind,
-                request.descriptorOffset,UINT(index),view->second.subresource};
+                request.descriptorOffset,UINT(index),view->second.subresource,resource->second.birth};
         }
         out.assign(resolved.begin(),resolved.begin()+requests.size()); return true;
     } catch (...) { MetadataFailed("Compute requested-binding allocation failed"); out.clear(); return false; }
@@ -887,7 +993,8 @@ bool ValidateBorrowedConstantBuffer(const BoundConstantBuffer& buffer) noexcept
         const auto found = gResources.find(buffer.resource);
         if (found == gResources.end()) return false;
         const auto& resource = found->second;
-        if (resource.id != buffer.resourceGeneration || resource.object != buffer.resource ||
+        if (resource.birth != buffer.resourceBirth || !BirthAvailable(resource.birth,buffer.resource) ||
+            resource.id != buffer.resourceGeneration || resource.object != buffer.resource ||
             resource.desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER || !resource.va ||
             buffer.address < resource.va || buffer.address-resource.va != buffer.offset ||
             buffer.offset > resource.desc.Width || buffer.size > resource.desc.Width-buffer.offset) return false;
@@ -895,7 +1002,8 @@ bool ValidateBorrowedConstantBuffer(const BoundConstantBuffer& buffer) noexcept
         const auto foundHeap = gHeaps.find(buffer.descriptorHeap);
         if (foundHeap == gHeaps.end()) return false;
         const auto& heap = foundHeap->second;
-        if (heap.type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || !heap.gpu || !heap.increment ||
+        if (heap.birth != buffer.descriptorHeapBirth || !BirthAvailable(heap.birth,heap.object) ||
+            heap.type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || !heap.gpu || !heap.increment ||
             buffer.descriptor.ptr < heap.gpu || buffer.descriptor.ptr-heap.gpu >= uint64_t(heap.count)*heap.increment ||
             (buffer.descriptor.ptr-heap.gpu)%heap.increment) return false;
         const auto view = gViews.find(heap.cpu+(buffer.descriptor.ptr-heap.gpu));
@@ -918,10 +1026,10 @@ bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList* cmd, UINT shaderReg
         std::scoped_lock lock(gMirrorMutex,gLifetimeMutex);
         if (!gMetadataHealthy.load(std::memory_order_acquire)) return fail("CBV metadata is unhealthy");
         const auto list = gMirror.find(cmd);
-        if (list == gMirror.end() || !list->second.compute.object) return fail("Consumer compute root binding is missing");
+        if (list == gMirror.end() || !list->second.compute.object || !MirrorAvailable(list->second,cmd)) return fail("Consumer compute root binding is missing or stale");
         const auto& root = list->second.compute;
         const auto layout = gRootLayouts.find(root.object);
-        if (layout == gRootLayouts.end() || !layout->second.complete) return fail("Consumer root layout is unavailable");
+        if (layout == gRootLayouts.end() || !layout->second.complete || layout->second.birth != root.birth || !BirthAvailable(layout->second.birth,root.object)) return fail("Consumer root layout is unavailable");
         UINT parameter = UINT_MAX;
         uint64_t descriptorOffset = 0;
         bool tableBinding = false;
@@ -985,7 +1093,7 @@ bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList* cmd, UINT shaderReg
         if (resource == gResources.end() || resource->second.id != view->second.resource)
             return fail("Consumer CBV buffer was not tracked at descriptor creation");
         if (out.resource != resource->first) return fail("Consumer CBV descriptor owner differs from the current buffer");
-        out.descriptorHeap = heap->object; out.descriptor = {heap->gpu+index*heap->increment};
+        out.descriptorHeap = heap->object; out.descriptor = {heap->gpu+index*heap->increment}; out.descriptorHeapBirth = heap->birth;
         return true;
     } catch (...) { return fail("Consumer CBV metadata resolution threw"); }
 }
@@ -1001,8 +1109,11 @@ bool ResolveComputeConstantBinding(const ComputeBindings& bindings, UINT shaderR
     {
         std::scoped_lock lock(gLifetimeMutex);
         if (!gMetadataHealthy.load(std::memory_order_acquire)) return fail("Consumer root/heap metadata is unhealthy");
+        if (!BirthAvailable(bindings.rootBirth,bindings.root)) return fail("Consumer native root birth is stale");
+        if ((!bindings.heapBirths.empty() || NativeTracking()) && bindings.heapBirths.size() != bindings.heaps.size()) return fail("Consumer heap births are unavailable");
+        for (size_t i=0;i<bindings.heapBirths.size();++i) if (!BirthAvailable(bindings.heapBirths[i],bindings.heaps[i])) return fail("Consumer heap birth is stale");
         const auto layout = gRootLayouts.find(bindings.root);
-        if (layout == gRootLayouts.end() || !layout->second.complete) return fail("Consumer root layout is unavailable");
+        if (layout == gRootLayouts.end() || !layout->second.complete || layout->second.birth != bindings.rootBirth) return fail("Consumer root layout is unavailable");
         UINT parameter = UINT_MAX;
         uint64_t descriptorOffset = 0;
         bool tableBinding = false;
@@ -1031,7 +1142,7 @@ bool ResolveComputeConstantBinding(const ComputeBindings& bindings, UINT shaderR
         }
         if (parameter == UINT_MAX) return fail("Consumer b-register is absent from compute root layout");
         if (diagnostic) { diagnostic->rootParameter = parameter; diagnostic->table = tableBinding; }
-        out.root = bindings.root; out.rootParameter = parameter;
+        out.root = bindings.root; out.rootParameter = parameter; out.rootBirth = bindings.rootBirth;
         if (!tableBinding)
         {
             bool found = false;
@@ -1070,7 +1181,7 @@ bool ResolveComputeConstantBinding(const ComputeBindings& bindings, UINT shaderR
         const uint64_t index = (tableBase-heap->gpu)/heap->increment+descriptorOffset;
         if (index >= heap->count || index*heap->increment > UINT64_MAX-heap->gpu)
             return fail("Consumer CBV slot is outside its heap");
-        out.descriptorHeap = heap->object; out.descriptor = {heap->gpu+index*heap->increment}; out.tableBase = tableBase;
+        out.descriptorHeap = heap->object; out.descriptor = {heap->gpu+index*heap->increment}; out.tableBase = tableBase; out.descriptorHeapBirth = heap->birth;
         if (diagnostic) { diagnostic->descriptorCpu = heap->cpu+index*heap->increment; diagnostic->reason = "native table CBV"; }
         // The title reads this same volatile slot. Do not infer its GPUVA or inspect its buffer owner.
         return true;
@@ -1088,8 +1199,10 @@ bool ResolveComputeConstantBinding(ID3D12GraphicsCommandList* cmd, UINT shaderRe
         {
             std::scoped_lock lock(gMirrorMutex);
             const auto list = gMirror.find(cmd);
-            if (list == gMirror.end()) return false;
+            if (list == gMirror.end() || !MirrorAvailable(list->second,cmd)) return false;
             bindings.root = list->second.compute.object; bindings.heaps = list->second.heaps;
+            bindings.receiverBirth = list->second.receiverBirth; bindings.rootBirth = list->second.compute.birth;
+            bindings.pipelineBirth = list->second.pipelineBirth; bindings.heapBirths = list->second.heapBirths;
             for (const auto& [parameter,handle] : list->second.compute.tables) bindings.tables.emplace_back(parameter,D3D12_GPU_DESCRIPTOR_HANDLE{handle});
             for (const auto& [parameter,view] : list->second.compute.views) bindings.views.push_back({parameter,D3D12_DESCRIPTOR_RANGE_TYPE(view.first),view.second});
         }
@@ -1102,7 +1215,8 @@ bool ValidateComputeConstantBinding(const ComputeBindings& current, UINT shaderR
     BoundConstantBinding actual;
     return expected.root && ResolveComputeConstantBinding(current,shaderRegister,registerSpace,actual) &&
         actual.root == expected.root && actual.rootParameter == expected.rootParameter && actual.address == expected.address &&
-        actual.descriptorHeap == expected.descriptorHeap && actual.descriptor.ptr == expected.descriptor.ptr && actual.tableBase == expected.tableBase;
+        actual.descriptorHeap == expected.descriptorHeap && actual.descriptor.ptr == expected.descriptor.ptr && actual.tableBase == expected.tableBase &&
+        actual.rootBirth == expected.rootBirth && actual.descriptorHeapBirth == expected.descriptorHeapBirth;
 }
 bool ResolveComputeTable(ID3D12GraphicsCommandList* cmd, UINT parameter, std::vector<BoundResource>& out) noexcept
 {
@@ -1110,20 +1224,20 @@ bool ResolveComputeTable(ID3D12GraphicsCommandList* cmd, UINT parameter, std::ve
     if (!BindingTracking() || gInternal || !cmd || !gMetadataHealthy.load(std::memory_order_acquire)) return false;
     try
     {
-        Mirror::Root root; std::vector<ID3D12DescriptorHeap*> heaps;
+        Mirror::Root root; std::vector<ID3D12DescriptorHeap*> heaps; Mirror snapshot;
         {
             std::scoped_lock lock(gMirrorMutex); MetadataMutation mutation;
             if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
             const auto list = gMirror.find(cmd);
-            if (list == gMirror.end()) return false;
-            root = list->second.compute; heaps = list->second.heaps;
+            if (list == gMirror.end() || !MirrorAvailable(list->second,cmd)) return false;
+            snapshot = list->second; root = snapshot.compute; heaps = snapshot.heaps;
         }
         const auto binding = root.tables.find(parameter);
         if (!root.object || binding == root.tables.end()) return false;
         std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation;
         if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
         const auto layout = gRootLayouts.find(root.object);
-        if (layout == gRootLayouts.end() || !layout->second.complete) return false;
+        if (!MirrorAvailable(snapshot,cmd) || layout == gRootLayouts.end() || !layout->second.complete || layout->second.birth != root.birth) return false;
         const auto table = layout->second.tables.find(parameter);
         if (table == layout->second.tables.end()) return false;
         const Heap* heap = nullptr;
@@ -1151,7 +1265,7 @@ bool ResolveComputeTable(ID3D12GraphicsCommandList* cmd, UINT parameter, std::ve
                 const auto resource = gResources.find(view->second.object);
                 if (resource == gResources.end() || resource->second.id != view->second.resource) continue;
                 out.push_back({resource->first,resource->second.desc,DXGI_FORMAT(view->second.format),
-                    D3D12_DESCRIPTOR_RANGE_TYPE(range.kind),range.offset+i,uint32_t(index),view->second.subresource});
+                    D3D12_DESCRIPTOR_RANGE_TYPE(range.kind),range.offset+i,uint32_t(index),view->second.subresource,resource->second.birth});
             }
         }
         std::sort(out.begin(),out.end(),[](const auto& a,const auto& b) {
@@ -1184,12 +1298,224 @@ void SetPassHashes(const std::string& list) noexcept
 }
 bool Internal() noexcept { return gInternal; }
 std::mutex& SubmissionMutex() { return gSubmissionMutex; }
+bool PrepareResourceMetadata(ID3D12Resource* object, PreparedResource& out) noexcept
+{
+    out = {};
+    if (!Tracking() || gInternal || !object || NrdBridgeBirth::InMetadataScope()) return false;
+    if (NativeTracking() && !NrdBridgeNativeBirth::ObserveReleaseCoverage(object)) return false;
+    try
+    {
+        out.object = object; out.description = object->GetDesc();
+        if (out.description.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER) out.address = object->GetGPUVirtualAddress();
+        return true;
+    } catch (...) { out = {}; MetadataFailed("Resource metadata preparation failed"); return false; }
+}
+bool PrepareHeapMetadata(ID3D12Device* device, ID3D12DescriptorHeap* object, PreparedHeap& out) noexcept
+{
+    out = {};
+    if (!Tracking() || gInternal || !device || !object || NrdBridgeBirth::InMetadataScope()) return false;
+    if (NativeTracking() && !NrdBridgeNativeBirth::ObserveReleaseCoverage(object)) return false;
+    try
+    {
+        out.object = object; out.description = object->GetDesc();
+        if (out.description.Type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && out.description.Type != D3D12_DESCRIPTOR_HEAP_TYPE_RTV &&
+            out.description.Type != D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+        { out = {}; return false; }
+        out.cpu = object->GetCPUDescriptorHandleForHeapStart().ptr;
+        out.gpu = (out.description.Flags&D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ? object->GetGPUDescriptorHandleForHeapStart().ptr : 0;
+        out.increment = device->GetDescriptorHandleIncrementSize(out.description.Type);
+        return out.cpu && out.increment && out.description.NumDescriptors;
+    } catch (...) { out = {}; MetadataFailed("Heap metadata preparation failed"); return false; }
+}
+bool PrepareRootMetadata(ID3D12RootSignature* root, const void* bytes, size_t length, PreparedRoot& out) noexcept
+{
+    out = {};
+    if (!Tracking() || gInternal || !root || !bytes || length > (1u<<20) || NrdBridgeBirth::InMetadataScope()) return false;
+    if (NativeTracking() && !NrdBridgeNativeBirth::ObserveReleaseCoverage(root)) return false;
+    try
+    {
+        InternalScope internal;
+        if (FAILED(root->SetPrivateData(RootBlobId,UINT(length),bytes))) throw std::runtime_error("Root blob storage failed");
+        out.object = root; out.layout = std::make_shared<RootLayout>(ReadRoot(root)); return true;
+    } catch (...) { out = {}; MetadataFailed("Root metadata preparation failed"); return false; }
+}
+bool PublishResourceMetadata(const PreparedResource& prepared, const NrdBridgeBirth::Token& birth) noexcept
+{
+    if (!Tracking() || !prepared.object || !birth || birth->Address() != prepared.object) return false;
+    try
+    {
+        NrdBridgeBirth::CurrentGuard current(birth);
+        if (!current.MatchesCurrent() || !NrdBridgeBirth::Healthy()) return false;
+        std::scoped_lock catalog(gLifetimeMutex); MetadataMutation mutation;
+        const auto old = gResources.find(prepared.object);
+        if (old != gResources.end() && old->second.birth && old->second.birth != birth) return false;
+        ResourceDescription description {prepared.description,prepared.address};
+        auto& resource = Register(prepared.object,&description);
+        resource.birth = birth; resource.initial = prepared.initial; resource.initialKnown = prepared.initialKnown;
+        resource.heap = uint64_t(reinterpret_cast<uintptr_t>(prepared.heap)); resource.offset = prepared.offset;
+        return true;
+    } catch (...) { MetadataFailed("Prepared resource publication failed"); return false; }
+}
+bool PublishHeapMetadata(const PreparedHeap& prepared, const NrdBridgeBirth::Token& birth) noexcept
+{
+    if (!Tracking() || !prepared.object || !birth || birth->Address() != prepared.object || !prepared.cpu || !prepared.increment) return false;
+    try
+    {
+        NrdBridgeBirth::CurrentGuard current(birth);
+        if (!current.MatchesCurrent() || !NrdBridgeBirth::Healthy()) return false;
+        std::scoped_lock catalog(gLifetimeMutex); MetadataMutation mutation;
+        if (const auto found = gHeaps.find(prepared.object); found != gHeaps.end())
+        {
+            auto& heap = found->second;
+            if ((heap.birth && heap.birth != birth) || heap.cpu != prepared.cpu || heap.gpu != prepared.gpu ||
+                heap.count != prepared.description.NumDescriptors || heap.increment != prepared.increment || heap.type != uint32_t(prepared.description.Type)) return false;
+            heap.birth = birth; return true;
+        }
+        Heap heap {prepared.object,prepared.cpu,prepared.gpu,prepared.description.NumDescriptors,prepared.increment,uint32_t(prepared.description.Type)};
+        heap.birth = birth; gHeaps.emplace(prepared.object,std::move(heap)); gCpuHeaps[prepared.cpu] = prepared.object; return true;
+    } catch (...) { MetadataFailed("Prepared heap publication failed"); return false; }
+}
+bool PublishRootMetadata(const PreparedRoot& prepared, const NrdBridgeBirth::Token& birth) noexcept
+{
+    if (!Tracking() || !prepared.object || !prepared.layout || !birth || birth->Address() != prepared.object) return false;
+    try
+    {
+        NrdBridgeBirth::CurrentGuard current(birth);
+        if (!current.MatchesCurrent() || !NrdBridgeBirth::Healthy()) return false;
+        std::scoped_lock catalog(gLifetimeMutex); MetadataMutation mutation;
+        if (const auto found = gRootLayouts.find(prepared.object); found != gRootLayouts.end() && found->second.birth && found->second.birth != birth) return false;
+        auto layout = *std::static_pointer_cast<RootLayout>(prepared.layout); layout.birth = birth;
+        gRootLayouts[prepared.object] = std::move(layout); return true;
+    } catch (...) { MetadataFailed("Prepared root publication failed"); return false; }
+}
+NrdBridgeBirth::Token CaptureRelease(void* object) noexcept
+{
+    return Tracking() && !OwnedRelease() && object ? NrdBridgeBirth::Capture(object) : NrdBridgeBirth::Token{};
+}
+bool PrepareRetirementEffects(RetirementEffects& effects) noexcept
+{
+    if (NrdBridgeBirth::InMetadataScope()) return false;
+    try { if (!effects.opaqueOwner) effects.opaqueOwner = std::make_shared<RetiredMetadata>(); return true; }
+    catch (...) { effects.failure = "Retirement owner preparation failed"; MetadataFailed(effects.failure); return false; }
+}
+bool DetachReleaseMetadata(const NrdBridgeBirth::Token& birth, RetirementEffects& effects) noexcept
+{
+    if (!birth || birth->Live() || !effects.opaqueOwner || !NrdBridgeBirth::InMetadataAction()) return false;
+    effects.birth = birth; effects.object = birth->Address(); effects.notify = Tracking();
+    auto& detached = *std::static_pointer_cast<RetiredMetadata>(effects.opaqueOwner);
+    try
+    {
+        {
+            std::scoped_lock catalog(gLifetimeMutex);
+            auto* object = reinterpret_cast<ID3D12Resource*>(effects.object);
+            if (const auto found = gResources.find(object); found != gResources.end() && found->second.birth == birth)
+            {
+                uint64_t handle = 0;
+                while (found->second.handles.PopAny(handle))
+                {
+                    const auto view = gViews.find(handle);
+                    if (view != gViews.end() && view->second.object == object && view->second.resource == found->second.id) EraseView(handle);
+                }
+                if (found->second.va)
+                {
+                    gBufferAddresses.Erase(found->second.va,found->second.id);
+                    const auto address = gAddresses.find(found->second.va);
+                    if (address != gAddresses.end() && address->second == object) gAddresses.erase(address);
+                }
+                detached.resource = gResources.extract(found);
+            }
+            auto* root = reinterpret_cast<ID3D12RootSignature*>(effects.object);
+            if (const auto found = gRootLayouts.find(root); found != gRootLayouts.end() && found->second.birth == birth) detached.root = gRootLayouts.extract(found);
+            auto* heap = reinterpret_cast<ID3D12DescriptorHeap*>(effects.object);
+            if (const auto found = gHeaps.find(heap); found != gHeaps.end() && found->second.birth == birth)
+            {
+                uint64_t handle = 0;
+                while (found->second.views.PopAny(handle))
+                {
+                    const auto view = gViews.find(handle);
+                    if (view != gViews.end() && view->second.heapKnown && view->second.descriptorHeap == uint64_t(reinterpret_cast<uintptr_t>(heap))) EraseView(handle);
+                }
+                if (const auto cpu = gCpuHeaps.find(found->second.cpu); cpu != gCpuHeaps.end() && cpu->second == heap) gCpuHeaps.erase(cpu);
+                detached.heap = gHeaps.extract(found);
+            }
+            auto* pso = reinterpret_cast<ID3D12PipelineState*>(effects.object);
+            if (const auto found = gPipelineBirths.find(pso); found != gPipelineBirths.end() && found->second == birth) gPipelineBirths.erase(found);
+            if (const auto found = gPipelineMetadata.find(pso); found != gPipelineMetadata.end() && found->second.birth == birth) detached.pipeline = gPipelineMetadata.extract(found);
+        }
+        {
+            std::scoped_lock mirrorLock(gMirrorMutex);
+            auto* receiver = reinterpret_cast<ID3D12GraphicsCommandList*>(effects.object);
+            if (const auto found = gMirror.find(receiver); found != gMirror.end() && found->second.receiverBirth == birth)
+            {
+                UpdateMirrorOwners(receiver,MirrorReferences(found->second),MirrorReferences(Mirror{}));
+                detached.list = gMirror.extract(found);
+            }
+            if (const auto owners = gMirrorOwners.find(effects.object); owners != gMirrorOwners.end())
+            {
+                for (auto it = owners->second.begin(); it != owners->second.end();)
+                {
+                    const auto found = gMirror.find(*it);
+                    if (found == gMirror.end()) { it = owners->second.erase(it); continue; }
+                    auto& mirror = found->second;
+                    if (mirror.pso == effects.object && mirror.pipelineBirth == birth) { mirror.pso = nullptr; mirror.pipelineBirth.reset(); }
+                    if (mirror.compute.object == effects.object && mirror.compute.birth == birth) mirror.compute = {};
+                    if (mirror.graphics.object == effects.object && mirror.graphics.birth == birth) mirror.graphics = {};
+                    for (size_t i=mirror.heaps.size(); i; --i) if (mirror.heaps[i-1] == effects.object &&
+                        mirror.heapBirths.size() == mirror.heaps.size() && mirror.heapBirths[i-1] == birth)
+                    {
+                        mirror.heaps.erase(mirror.heaps.begin()+i-1); mirror.heapBirths.erase(mirror.heapBirths.begin()+i-1);
+                        mirror.compute.tables.clear(); mirror.graphics.tables.clear();
+                    }
+                    if (MirrorReferences(mirror).Contains(effects.object)) ++it; else it = owners->second.erase(it);
+                }
+                if (owners->second.empty()) detached.references = gMirrorOwners.extract(owners);
+            }
+        }
+        return true;
+    }
+    catch (...)
+    {
+        gMetadataHealthy.store(false,std::memory_order_release);
+        effects.failure = "Birth release metadata invalidation failed"; return false;
+    }
+}
+void NotifyRelease(RetirementEffects& effects) noexcept
+{
+    if (NrdBridgeBirth::InMetadataScope())
+    {
+        gMetadataHealthy.store(false,std::memory_order_release);
+        const char* empty = nullptr; gDeferredMetadataFailure.compare_exchange_strong(empty,"Release notification entered under Birth guard",std::memory_order_release);
+        return;
+    }
+    if (effects.failure) Fail(effects.failure);
+    if (effects.notify)
+    {
+        effects.notify = false;
+        if (effects.birth)
+        { if (const auto observer = gBirthReleaseObserver.load(std::memory_order_acquire)) observer(effects.birth); }
+        else if (const auto observer = gReleaseObserver.load(std::memory_order_acquire)) observer(effects.object);
+    }
+    effects.opaqueOwner.reset(); FlushMetadataFailure();
+}
+
+
 void ResourceCreated(ID3D12Resource* object, D3D12_RESOURCE_STATES initial, ID3D12Heap* heap, uint64_t offset) noexcept
 {
     if (!Tracking() || gInternal || !object) return;
+    if (NativeTracking())
+    {
+        PreparedResource prepared;
+        if (PrepareResourceMetadata(object,prepared))
+        {
+            prepared.initial = initial; prepared.initialKnown = true; prepared.heap = heap; prepared.offset = offset;
+            const auto birth = NrdBridgeNativeBirth::Prepare(object);
+            if (!PublishResourceMetadata(prepared,birth)) MetadataFailed("Current resource publication was denied");
+        }
+        FlushMetadataFailure(); return;
+    }
     try
     {
-        NrdBridgeLifetime::ScopedBorrow borrow; EnsureResourceRegistered(object);
+        NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return; EnsureResourceRegistered(object);
         std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation; auto& resource = Register(object);
         resource.initial = initial; resource.initialKnown = true;
         resource.heap = uint64_t(reinterpret_cast<uintptr_t>(heap)); resource.offset = offset;
@@ -1198,9 +1524,20 @@ void ResourceCreated(ID3D12Resource* object, D3D12_RESOURCE_STATES initial, ID3D
 void ResourceCreatedWithLayout(ID3D12Resource* object, D3D12_BARRIER_LAYOUT, ID3D12Heap* heap, uint64_t offset) noexcept
 {
     if (!Tracking() || gInternal || !object) return;
+    if (NativeTracking())
+    {
+        PreparedResource prepared;
+        if (PrepareResourceMetadata(object,prepared))
+        {
+            prepared.heap = heap; prepared.offset = offset;
+            const auto birth = NrdBridgeNativeBirth::Prepare(object);
+            if (!PublishResourceMetadata(prepared,birth)) MetadataFailed("Current enhanced resource publication was denied");
+        }
+        FlushMetadataFailure(); return;
+    }
     try
     {
-        NrdBridgeLifetime::ScopedBorrow borrow; EnsureResourceRegistered(object);
+        NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return; EnsureResourceRegistered(object);
         std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation; auto& resource = Register(object);
         resource.initialKnown = false; // Enhanced layouts cannot be cast to legacy resource-state bits.
         resource.heap = uint64_t(reinterpret_cast<uintptr_t>(heap)); resource.offset = offset;
@@ -1209,6 +1546,16 @@ void ResourceCreatedWithLayout(ID3D12Resource* object, D3D12_BARRIER_LAYOUT, ID3
 void RootCreated(ID3D12RootSignature* root, const void* bytes, size_t length) noexcept
 {
     if (!Tracking() || gInternal || !root || !bytes || length > (1u<<20)) return;
+    if (NativeTracking())
+    {
+        PreparedRoot prepared;
+        if (PrepareRootMetadata(root,bytes,length,prepared))
+        {
+            const auto birth = NrdBridgeNativeBirth::Prepare(root);
+            if (!PublishRootMetadata(prepared,birth)) MetadataFailed("Current root publication was denied");
+        }
+        FlushMetadataFailure(); return;
+    }
     if (FAILED(root->SetPrivateData(RootBlobId,UINT(length),bytes))) { MetadataFailed("Root signature metadata storage failed"); return; }
     try { auto layout = ReadRoot(root); std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation; gRootLayouts[root] = std::move(layout); }
     catch (...) { MetadataFailed("Root signature layout allocation failed"); }
@@ -1218,9 +1565,10 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_COMPUTE_PIPELINE_STAT
     if (!Tracking() || gInternal || !pso) return;
     try
     {
+        if (!PublishPipelineBirth(pso)) { MetadataFailed("Current pipeline metadata publication was denied"); return; }
         Json data = {{"shader_hashes",{{"CS",RRTraceAdditiveIO::Sha256({static_cast<const uint8_t*>(desc.CS.pShaderBytecode),desc.CS.BytecodeLength})}}},
             {"hash_known",desc.CS.BytecodeLength != 0},{"root_hash",ReadRoot(desc.pRootSignature).hash}};
-        auto text = data.dump(); pso->SetPrivateData(PipelineId,UINT(text.size()),text.data());
+        auto text = data.dump(); StorePipelineMetadata(pso,text); pso->SetPrivateData(PipelineId,UINT(text.size()),text.data());
         if (const auto observer = gPipelineObserver.load(std::memory_order_acquire))
             observer(pso,data["shader_hashes"]["CS"].get_ref<const std::string&>().c_str());
     } catch (...) { MetadataFailed("Compute shader hash failed"); }
@@ -1230,11 +1578,13 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_GRAPHICS_PIPELINE_STA
     if (!Tracking() || gInternal || !pso) return;
     try
     {
+        if (!PublishPipelineBirth(pso)) { MetadataFailed("Current pipeline metadata publication was denied"); return; }
         Json hashes = Json::object();
         auto add = [&](const char* name,const D3D12_SHADER_BYTECODE& shader) {
             if (shader.BytecodeLength) hashes[name] = RRTraceAdditiveIO::Sha256({static_cast<const uint8_t*>(shader.pShaderBytecode),shader.BytecodeLength}); };
         add("VS",desc.VS); add("PS",desc.PS); add("GS",desc.GS); add("HS",desc.HS); add("DS",desc.DS);
         const auto text = Json{{"shader_hashes",hashes},{"hash_known",!hashes.empty()},{"root_hash",ReadRoot(desc.pRootSignature).hash}}.dump();
+        StorePipelineMetadata(pso,text);
         pso->SetPrivateData(PipelineId,UINT(text.size()),text.data());
         if (const auto observer = gPipelineObserver.load(std::memory_order_acquire)) observer(pso,nullptr);
     } catch (...) { MetadataFailed("Graphics shader hash failed"); }
@@ -1244,6 +1594,7 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_PIPELINE_STATE_STREAM
     if (!Tracking() || gInternal || !pso) return;
     try
     {
+        if (!PublishPipelineBirth(pso)) { MetadataFailed("Current pipeline metadata publication was denied"); return; }
         struct Parser : ID3DX12PipelineParserCallbacks
         {
             Json shaders = Json::object(); ID3D12RootSignature* root = nullptr;
@@ -1261,6 +1612,7 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_PIPELINE_STATE_STREAM
         // Hash pointed-to bytecode, NEVER process-local stream pointer bytes.
         const auto text = Json{{"shader_hashes",parser.shaders},{"hash_known",SUCCEEDED(result)&&!parser.shaders.empty()},
             {"stream_parse_hresult",int64_t(result)},{"root_hash",ReadRoot(parser.root).hash}}.dump();
+        StorePipelineMetadata(pso,text);
         pso->SetPrivateData(PipelineId,UINT(text.size()),text.data());
         if (const auto observer = gPipelineObserver.load(std::memory_order_acquire))
             observer(pso,SUCCEEDED(result) && parser.shaders.contains("CS") ?
@@ -1270,6 +1622,16 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_PIPELINE_STATE_STREAM
 void Released(void* object) noexcept
 {
     if (!Tracking() || OwnedRelease() || !object) return;
+    if (NativeTracking())
+    {
+        const auto birth = CaptureRelease(object);
+        if (birth)
+        {
+            NrdBridgeNativeBirth::RetirementScope retirement;
+            if (!retirement.Valid()) return;
+            NrdBridgeBirth::CurrentGuard current(birth); current.Retire(); return;
+        }
+    }
     bool lifetimeEntry = false;
     try
     {
@@ -1301,6 +1663,8 @@ void Released(void* object) noexcept
             gResources.erase(found);
         }
         gRootLayouts.erase(reinterpret_cast<ID3D12RootSignature*>(object));
+        gPipelineBirths.erase(reinterpret_cast<ID3D12PipelineState*>(object));
+        gPipelineMetadata.erase(reinterpret_cast<ID3D12PipelineState*>(object));
         auto* heap = reinterpret_cast<ID3D12DescriptorHeap*>(object);
         if (const auto found = gHeaps.find(heap); found != gHeaps.end())
         {
@@ -1340,9 +1704,19 @@ void Released(void* object) noexcept
 void HeapCreated(ID3D12Device* device, ID3D12DescriptorHeap* object) noexcept
 {
     if (!Tracking() || gInternal || !object) return;
+    if (NativeTracking())
+    {
+        PreparedHeap prepared;
+        if (PrepareHeapMetadata(device,object,prepared))
+        {
+            const auto birth = NrdBridgeNativeBirth::Prepare(object);
+            if (!PublishHeapMetadata(prepared,birth)) MetadataFailed("Current heap publication was denied");
+        }
+        FlushMetadataFailure(); return;
+    }
     try
     {
-        NrdBridgeLifetime::ScopedBorrow borrow;
+        NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
         const auto desc = object->GetDesc();
         if (desc.Type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && desc.Type != D3D12_DESCRIPTOR_HEAP_TYPE_RTV) return;
         const auto cpu = object->GetCPUDescriptorHandleForHeapStart().ptr;
@@ -1473,7 +1847,10 @@ void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_H
 
 void Reset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexcept
 {
-    Mirrored(cmd,[&](Mirror& mirror) { mirror = {}; mirror.pso = initial; },true);
+    if ((!BindingTracking() && !Recording()) || gInternal || !cmd) return;
+    NrdBridgeBirth::Token initialBirth;
+    { std::shared_lock catalog(gLifetimeMutex); if (const auto found = gPipelineBirths.find(initial); found != gPipelineBirths.end()) initialBirth = found->second; }
+    Mirrored(cmd,[&](Mirror& mirror) { const auto receiver = mirror.receiverBirth; mirror = {}; mirror.receiverBirth = receiver; mirror.pso = initial; mirror.pipelineBirth = initialBirth; },true);
     if (!Recording()) return;
     try
     {
@@ -1495,16 +1872,22 @@ void Close(ID3D12GraphicsCommandList* cmd, HRESULT result) noexcept
 }
 void SetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pso) noexcept
 {
-    Mirrored(cmd,[&](Mirror& mirror) { mirror.pso = pso; },true);
+    if ((!BindingTracking() && !Recording()) || gInternal || !cmd) return;
+    NrdBridgeBirth::Token pipelineBirth;
+    { std::shared_lock catalog(gLifetimeMutex); if (const auto found = gPipelineBirths.find(pso); found != gPipelineBirths.end()) pipelineBirth = found->second; }
+    Mirrored(cmd,[&](Mirror& mirror) { mirror.pso = pso; mirror.pipelineBirth = pipelineBirth; },true);
     if (!Recording()) return;
     try { std::scoped_lock lock(gRecordMutex); if (!Recording()) return; GetList(cmd).pso = ReadPipeline(pso); }
     catch (...) { Fail("Pipeline binding metadata failed"); }
 }
 void RootBinding(ID3D12GraphicsCommandList* cmd, bool graphics, ID3D12RootSignature* root) noexcept
 {
+    if ((!BindingTracking() && !Recording()) || gInternal || !cmd) return;
+    NrdBridgeBirth::Token rootBirth;
+    { std::shared_lock catalog(gLifetimeMutex); if (const auto found = gRootLayouts.find(root); found != gRootLayouts.end()) rootBirth = found->second.birth; }
     Mirrored(cmd,[&](Mirror& mirror) {
         auto& state = graphics ? mirror.graphics : mirror.compute;
-        if (state.object != root) { state = {}; state.object = root; } },true);
+        if (state.object != root || state.birth != rootBirth) { state = {}; state.object = root; state.birth = rootBirth; } },true);
     if (!Recording()) return;
     try
     {
@@ -1518,11 +1901,20 @@ void RootBinding(ID3D12GraphicsCommandList* cmd, bool graphics, ID3D12RootSignat
 }
 void DescriptorHeaps(ID3D12GraphicsCommandList* cmd, UINT count, ID3D12DescriptorHeap* const* heaps) noexcept
 {
+    std::vector<NrdBridgeBirth::Token> births;
+    try
+    {
+        if (BindingTracking() && !gInternal && heaps)
+        {
+            births.resize(count); std::shared_lock catalog(gLifetimeMutex);
+            for (UINT i=0;i<count;++i) if (const auto found = gHeaps.find(heaps[i]); found != gHeaps.end()) births[i] = found->second.birth;
+        }
+    } catch (...) { MetadataFailed("Descriptor heap birth snapshot failed"); return; }
     Mirrored(cmd,[&](Mirror& mirror) {
         std::vector<ID3D12DescriptorHeap*> next;
         if (heaps) next.assign(heaps,heaps+count);
         if (next != mirror.heaps) { mirror.compute.tables.clear(); mirror.graphics.tables.clear(); }
-        mirror.heaps = std::move(next); },true);
+        mirror.heaps = std::move(next); mirror.heapBirths = std::move(births); },true);
     if (!Recording()) return;
     try
     {
@@ -1558,7 +1950,7 @@ void RenderTargets(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_CPU_D
     if (!Recording()) return;
     try
     {
-        NrdBridgeLifetime::ScopedBorrow borrow;
+        NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
         std::scoped_lock record(gRecordMutex); if (!Recording()) return; auto& list = GetList(cmd); list.targets.clear();
         std::scoped_lock lifetime(gLifetimeMutex);
         UINT stride = 0;
@@ -1577,7 +1969,7 @@ void Barrier(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_RESOURCE_BA
     if (!Recording() || !barriers) return;
     try
     {
-        NrdBridgeLifetime::ScopedBorrow borrow;
+        NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
         for (UINT i=0;i<count;++i) if (barriers[i].Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION && barriers[i].Transition.pResource)
             EnsureResourceRegistered(barriers[i].Transition.pResource);
         std::scoped_lock record(gRecordMutex); if (!Recording()) return; auto& list = GetList(cmd);
@@ -1654,7 +2046,7 @@ void Pass(ID3D12GraphicsCommandList* cmd, const char* kind, std::span<const uint
     if (!Recording()) return;
     try
     {
-        NrdBridgeLifetime::ScopedBorrow borrow;
+        NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
         std::scoped_lock record(gRecordMutex); if (!Recording()) return; auto& list = GetList(cmd);
         if (gNextPass >= 16384) { Fail("One-frame pass cap reached (16384)"); return; }
         const bool graphics = std::string_view(kind).find("Draw") == 0 || std::string_view(kind) == "ExecuteBundle" || (std::string_view(kind) == "ExecuteIndirect" && args.size()>5 && args[5]);
@@ -1718,7 +2110,7 @@ void SnapshotWrites(ID3D12GraphicsCommandList* cmd) noexcept
     if (!Recording()) return;
     try
     {
-        NrdBridgeLifetime::ScopedBorrow borrow;
+        NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
         std::scoped_lock lock(gRecordMutex); if (!Recording()) return; auto& list = GetList(cmd);
         if (list.inRenderPass) { list.targeted = false; return; } // CopyTextureRegion is illegal inside a render pass.
         const std::string prefix = list.targeted ? "p"+std::to_string(list.lastPass)+"_" : std::string();
@@ -1849,7 +2241,7 @@ void Evaluate(ID3D12GraphicsCommandList* cmd, unsigned feature, const NVSDK_NGX_
         (feature != unsigned(NVSDK_NGX_Feature_SuperSampling) && feature != unsigned(NVSDK_NGX_Feature_RayReconstruction))) return;
     try
     {
-        NrdBridgeLifetime::ScopedBorrow borrow;
+        NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
         UINT width = 0, height = 0;
         params->Get(NVSDK_NGX_Parameter_DLSS_Render_Subrect_Dimensions_Width,&width);
         params->Get(NVSDK_NGX_Parameter_DLSS_Render_Subrect_Dimensions_Height,&height);
@@ -1913,7 +2305,7 @@ void TitleTag(ID3D12GraphicsCommandList* cmd, const char* name, ID3D12Resource* 
     if (!Recording() || !cmd) return;
     try
     {
-        NrdBridgeLifetime::ScopedBorrow borrow;
+        NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
         std::scoped_lock lock(gRecordMutex); if (!Recording()) return;
         auto& list = GetList(cmd);
         Json row = {{"name",name},{"source","current_Streamline_tag_call"},{"bound",object != nullptr},
@@ -2042,6 +2434,7 @@ void STDMETHODCALLTYPE Indirect(ID3D12GraphicsCommandList* cmd, ID3D12CommandSig
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::ExecuteIndirect,
         NrdBridgePerf::Detail::configured.load(std::memory_order_relaxed) && Tracking() && !gInternal);
     NrdBridgeLifetime::ScopedBorrow borrow(Recording());
+    if (!borrow.Acquired()) { InternalScope forwarding; oIndirect(cmd,signature,count,arguments,argumentOffset,counts,countOffset); return; }
     uint32_t graphics = 0; UINT bytes = sizeof(graphics);
     if (signature) signature->GetPrivateData(SignatureId,&bytes,&graphics);
     const std::array<uint64_t,6> args {count,uint64_t(reinterpret_cast<uintptr_t>(arguments)),argumentOffset,
@@ -2103,7 +2496,7 @@ void STDMETHODCALLTYPE Indirect(ID3D12GraphicsCommandList* cmd, ID3D12CommandSig
 void RecordCopy(ID3D12GraphicsCommandList* cmd, ID3D12Resource* dst, UINT subresource, ID3D12Resource* src)
 {
     if (!Recording() || !dst) return;
-    NrdBridgeLifetime::ScopedBorrow borrow; EnsureResourceRegistered(dst); EnsureResourceRegistered(src);
+    NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return; EnsureResourceRegistered(dst); EnsureResourceRegistered(src);
     std::scoped_lock record(gRecordMutex); if (!Recording()) return; auto& list = GetList(cmd);
     ViewInfo write;
     {
@@ -2314,7 +2707,7 @@ void Shutdown() noexcept
         oBeginRender = nullptr; oEndRender = nullptr; oRayPipeline = nullptr; oRays = nullptr;
         { std::scoped_lock library(gLibraryHookMutex); oLoadGraphics = nullptr; oLoadCompute = nullptr; oLoadStream = nullptr; }
         { std::scoped_lock mirror(gMirrorMutex); gMirror.clear(); gMirrorOwners.clear(); }
-        std::scoped_lock lock(gLifetimeMutex); gViews.clear(); gResources.clear(); gAddresses.clear(); gBufferAddresses.Clear(); gHeaps.clear(); gCpuHeaps.clear(); gRootLayouts.clear();
+        std::scoped_lock lock(gLifetimeMutex); gViews.clear(); gResources.clear(); gAddresses.clear(); gBufferAddresses.Clear(); gHeaps.clear(); gCpuHeaps.clear(); gRootLayouts.clear(); gPipelineBirths.clear(); gPipelineMetadata.clear();
         gCreationDevice.Reset(); gStatus.installed = false;
         gMetadataHealthy.store(true,std::memory_order_release);
     } catch (...) {}

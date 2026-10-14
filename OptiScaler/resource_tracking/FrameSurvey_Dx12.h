@@ -50,6 +50,7 @@ struct BoundConstantBinding
     ID3D12DescriptorHeap* descriptorHeap = nullptr;
     D3D12_GPU_DESCRIPTOR_HANDLE descriptor {};
     uint64_t tableBase = 0;
+    NrdBridgeBirth::Token rootBirth, descriptorHeapBirth;
 };
 struct ConstantBufferDiagnostic
 {
@@ -92,6 +93,7 @@ bool BindingWindow() noexcept;
 bool MetadataHealthy() noexcept;
 // Native observer failure latch; safe inside injection/recorder scopes, no lifecycle locks.
 void MetadataHookFailed(const char* reason) noexcept;
+void FlushMetadataFailure() noexcept;
 // Proves the current compute table offset maps uniquely to the exact shader register/space.
 bool ComputeTableBindingMatches(ID3D12GraphicsCommandList*, UINT rootParameter, D3D12_DESCRIPTOR_RANGE_TYPE kind,
                                 UINT descriptorOffset, UINT shaderRegister, UINT registerSpace) noexcept;
