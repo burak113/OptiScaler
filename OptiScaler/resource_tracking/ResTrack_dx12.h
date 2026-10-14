@@ -3,6 +3,7 @@
 #include "SysUtils.h"
 #include "misc/RecordedComputeLease_Dx12.h"
 #include "misc/NrdBridgePerf_Dx12.h"
+#include "misc/NrdBridgeNativeBirth_Dx12.h"
 
 #include <hudfix/Hudfix_Dx12.h>
 #include <framegen/IFGFeature_Dx12.h>
@@ -157,6 +158,7 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
     mutable std::array<std::shared_mutex, DESCRIPTOR_LOCK_STRIPE_COUNT> descriptorLocks;
 
     ID3D12DescriptorHeap* heap = nullptr;
+    NrdBridgeBirth::Token birth;
     SIZE_T cpuStart = 0;
     SIZE_T cpuEnd = 0;
     SIZE_T gpuStart = 0;
@@ -284,7 +286,8 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
             return false;
 
         std::shared_lock lock(GetDescriptorLock(index));
-        if (!active.load(std::memory_order_acquire) || info[index].buffer == nullptr)
+        if (!active.load(std::memory_order_acquire) || info[index].buffer == nullptr ||
+            (NrdBridgeNativeBirth::Ready() && !NrdBridgeBirth::CacheAdmissible(info[index].birth)))
             return false;
 
         outInfo = info[index];
@@ -306,7 +309,8 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
             return false;
 
         std::shared_lock lock(GetDescriptorLock(index));
-        if (!active.load(std::memory_order_acquire) || info[index].buffer == nullptr)
+        if (!active.load(std::memory_order_acquire) || info[index].buffer == nullptr ||
+            (NrdBridgeNativeBirth::Ready() && !NrdBridgeBirth::CacheAdmissible(info[index].birth)))
             return false;
 
         outInfo = info[index];
@@ -320,6 +324,9 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
 
     void SetByCpuHandle(SIZE_T cpuHandle, const ResourceInfo& setInfo)
     {
+        const bool born = NrdBridgeNativeBirth::Ready();
+        NrdBridgeBirth::CurrentGuard current(setInfo.birth,born && setInfo.buffer);
+        if (born && setInfo.buffer && !current.MatchesCurrent()) return;
         if (!active.load(std::memory_order_acquire))
             return;
 
@@ -335,7 +342,7 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
         TestResource(&setInfo);
 #endif
 
-        if (info[index].buffer != setInfo.buffer)
+        if (info[index].buffer != setInfo.buffer || info[index].birth != setInfo.birth)
         {
             DetachFromOldResourceLocked(index);
             info[index] = setInfo;
@@ -349,6 +356,9 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
 
     void SetByGpuHandle(SIZE_T gpuHandle, const ResourceInfo& setInfo)
     {
+        const bool born = NrdBridgeNativeBirth::Ready();
+        NrdBridgeBirth::CurrentGuard current(setInfo.birth,born && setInfo.buffer);
+        if (born && setInfo.buffer && !current.MatchesCurrent()) return;
         if (!active.load(std::memory_order_acquire))
             return;
 
@@ -364,7 +374,7 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
         TestResource(&setInfo);
 #endif
 
-        if (info[index].buffer != setInfo.buffer)
+        if (info[index].buffer != setInfo.buffer || info[index].birth != setInfo.birth)
         {
             DetachFromOldResourceLocked(index);
             info[index] = setInfo;
@@ -408,16 +418,18 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
         ClearSlotLocked(index, true);
     }
 
-    void ClearSlotIfMatches(UINT index, ID3D12Resource* resource)
+    void ClearSlotIfMatches(UINT index, ID3D12Resource* resource, const NrdBridgeBirth::Token& retired = {})
     {
         if (!active.load(std::memory_order_acquire) || index >= numDescriptors)
             return;
 
         std::unique_lock lock(GetDescriptorLock(index));
-        if (!active.load(std::memory_order_acquire) || info[index].buffer != resource)
+        if (!active.load(std::memory_order_acquire) || info[index].buffer != resource ||
+            (retired && info[index].birth != retired))
             return;
 
         info[index].buffer = nullptr;
+        info[index].birth.reset();
         info[index].lastUsedFrame = 0;
         {
             std::scoped_lock occupiedLock(occupiedSlotsMutex);
@@ -746,6 +758,9 @@ class ResTrack_Dx12
     }
 
   public:
+    static bool ConfigureNrdNativeBirthRetirement() noexcept;
+    // Called while the native caller holds its reference, outside all metadata locks.
+    static bool ObserveBridgeObjectRelease(IUnknown*) noexcept;
     static bool RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCommandList* list,
                                       const std::shared_ptr<void>& lease,
                                       std::function<void(ID3D12CommandQueue*)> beforeSubmit = {},

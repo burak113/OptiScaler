@@ -1,5 +1,6 @@
 #pragma once
 #include "SysUtils.h"
+#include "misc/NrdBridgeBirth_Dx12.h"
 #include <shaders/format_transfer/FT_Dx12.h>
 
 #include <ankerl/unordered_dense.h>
@@ -43,6 +44,7 @@ typedef struct ResourceInfo
     double lastUsedFrame = 0;
     bool extended = false;
     UINT captureInfo = 0;
+    NrdBridgeBirth::Token birth; // Metadata only; copied descriptors keep the exact native instance.
 } resource_info;
 
 typedef struct HudlessInfo

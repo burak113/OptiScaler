@@ -5,6 +5,7 @@
 #include "shaders/fsrd_preprocess/RRTraceFence.h"
 #include "misc/RecordedComputeLease_Dx12.h"
 #include "misc/NrdBridgeLifetime_Dx12.h"
+#include "misc/NrdBridgeRelease_Dx12.h"
 #include "misc/NrdBridgeTitleCallbacks_Dx12.h"
 #include "ResTrack_dx12.h"
 #include "FrameSurvey_Dx12.h"
@@ -24,6 +25,8 @@
 #include <magic_enum_utility.hpp>
 #include <include/d3dx/d3dx12.h>
 #include <detours/detours.h>
+
+namespace NrdBridgeNativeBirth { bool ObserveReleaseCoverage(IUnknown*) noexcept; }
 
 #ifndef STDMETHODCALLTYPE
 #include <Unknwn.h> // or <objbase.h> to get STDMETHODCALLTYPE
@@ -177,12 +180,42 @@ static Microsoft::WRL::ComPtr<IUnknown> gComputeQueueDeviceIdentity;
 static PFN_CommandListRelease o_CommandListRelease = nullptr;
 static bool gResourceReleaseSharesCommandList = false;
 static bool gResourceReleaseSharesPso = false;
+static bool gResourceReleaseSharesBirth = false;
 static std::atomic<bool> gComputeListHooksAvailable { false };
 static std::atomic<bool> gComputeQueueHookAvailable { false };
 static std::mutex gComputeHookInitMutex;
 
 static ULONG hkPsoRelease(ID3D12PipelineState* This);
 static ULONG STDMETHODCALLTYPE hkCommandListRelease(IUnknown* This);
+static bool UseNrdNativeRetirement() noexcept
+{
+    return gNrdBridgeWrappers && !FrameSurvey::OwnedRelease() &&
+        NrdBridgeNativeBirth::Ready();
+}
+// A distinct root/list/PSO/heap implementation is observed without assuming
+// another object's IUnknown vtable. The small installation table is bounded;
+// ordinary resource/heap/PSO/list Release hooks have no table lookup.
+using PFN_BirthRelease = ULONG(STDMETHODCALLTYPE*)(IUnknown*);
+struct BirthReleaseEntry { std::atomic<PVOID> entry {nullptr}; PFN_BirthRelease original = nullptr; };
+static constexpr size_t MaxBirthReleaseEntries = 16;
+static std::array<BirthReleaseEntry,MaxBirthReleaseEntries> gBirthReleaseEntries;
+static size_t gBirthReleaseEntriesUsed = 0; // Installation mutex only.
+static PFN_BirthRelease FindBirthReleaseOriginal(PVOID entry) noexcept
+{
+    for (size_t i = 0; i != MaxBirthReleaseEntries; ++i)
+        if (gBirthReleaseEntries[i].entry.load(std::memory_order_acquire) == entry) return gBirthReleaseEntries[i].original;
+    return nullptr;
+}
+template <size_t Index> static ULONG STDMETHODCALLTYPE hkBirthRelease(IUnknown* object)
+{
+    const auto original = gBirthReleaseEntries[Index].original;
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Release,UseNrdNativeRetirement());
+    if (!UseNrdNativeRetirement() || State::Instance().isShuttingDown) return original(object);
+    return NrdBridgeRelease::Title(object,original);
+}
+template <size_t... Index> static constexpr auto BirthReleaseHooks(std::index_sequence<Index...>)
+{ return std::array<PFN_BirthRelease,sizeof...(Index)>{&hkBirthRelease<Index>...}; }
+static constexpr auto gBirthReleaseHooks = BirthReleaseHooks(std::make_index_sequence<MaxBirthReleaseEntries>{});
 
 static void PublishComputeHookAvailability()
 {
@@ -579,6 +612,8 @@ static void EnsurePsoReleaseHook(ID3D12PipelineState* pipelineState)
 
     PVOID* pVTable = *(PVOID**) pipelineState;
     PVOID releaseEntry = pVTable[2];
+
+    if (FindBirthReleaseOriginal(releaseEntry)) return;
 
     // Some D3D12 runtimes share their IUnknown implementation between resources and PSOs.
     // HookResource has already detoured that entry; hkRelease calls the same PSO cleanup helper
@@ -1725,6 +1760,8 @@ std::shared_ptr<HeapInfo> ResTrack_Dx12::GetHeapByGpuHandleCR(SIZE_T gpuHandle)
 void ResTrack_Dx12::FillResourceInfo(ID3D12Resource* resource, ResourceInfo* info)
 {
     auto desc = resource->GetDesc();
+    if (gNrdBridgeWrappers && NrdBridgeNativeBirth::Ready() && !FrameSurvey::Internal() &&
+        ObserveBridgeObjectRelease(resource)) info->birth = NrdBridgeNativeBirth::Receiver(resource);
     info->buffer = resource;
     info->width = desc.Width;
     info->height = desc.Height;
@@ -2103,6 +2140,8 @@ static ULONG STDMETHODCALLTYPE hkHeapRelease(ID3D12DescriptorHeap* This)
     if (gHeapReleaseSharesResource.load(std::memory_order_acquire) && gSharedResourceReleaseObserver)
         return gSharedResourceReleaseObserver(reinterpret_cast<ID3D12Resource*>(This));
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Release,gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
+    if (UseNrdNativeRetirement() && !State::Instance().isShuttingDown)
+        return NrdBridgeRelease::Title(This,o_HeapRelease);
     NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
     if (State::Instance().isShuttingDown)
         return o_HeapRelease(This);
@@ -2134,6 +2173,12 @@ static void EnsureHeapReleaseHook(ID3D12DescriptorHeap* heap)
 {
     std::unique_lock installation(gReleaseHookInstallMutex);
     const auto entry = (*reinterpret_cast<PVOID**>(heap))[2];
+    if (const auto original = FindBirthReleaseOriginal(entry))
+    {
+        if (!o_HeapRelease) { o_HeapRelease = reinterpret_cast<PFN_HeapRelease>(original);
+            gHeapReleaseEntry = entry; gHeapOwnsReleaseHook = false; }
+        return;
+    }
     if (o_HeapRelease)
     {
         if (entry != gHeapReleaseEntry && gNrdBridgeWrappers)
@@ -2191,7 +2236,7 @@ static bool HeapReleaseObserverCovers(ID3D12DescriptorHeap* heap)
     // The generic resource observer also removes heap metadata by raw address.
     // Uncovered heaps must never enter the borrowed native-descriptor registry.
     return (entry == gResourceReleaseEntry && o_Release) ||
-        (entry == gHeapReleaseEntry && o_HeapRelease && gHeapOwnsReleaseHook);
+        (entry == gHeapReleaseEntry && o_HeapRelease && gHeapOwnsReleaseHook) || FindBirthReleaseOriginal(entry);
 }
 
 // The common resource/heap Release observer cannot use a heap as a resource.
@@ -2201,6 +2246,118 @@ static void DeactivateSharedHeap(void* address)
     if (!gHeapReleaseSharesResource.load(std::memory_order_acquire)) return;
     if (const auto found = FindTrackedHeapByAddress(address)) DeactivateTrackedHeap(found);
 }
+
+namespace
+{
+struct NativeRetirementPayload
+{
+    FrameSurvey::RetirementEffects survey;
+    std::vector<TrackedResourceSlot> descriptors;
+    std::shared_ptr<HeapInfo> heap;
+    bool used = false;
+};
+// Empty payload construction and the common nonfinal Release allocate nothing.
+// Only a possible detach enters RetirementScope and prepares raw metadata owners.
+thread_local std::array<NativeRetirementPayload,16> gNativeRetirements;
+thread_local size_t gNativeRetirementDepth = 0;
+void* PrepareNativeRetirement() noexcept
+{
+    if (gNativeRetirementDepth == gNativeRetirements.size()) return nullptr;
+    auto& payload = gNativeRetirements[gNativeRetirementDepth];
+    if (payload.used || !FrameSurvey::PrepareRetirementEffects(payload.survey)) return nullptr;
+    ++gNativeRetirementDepth;
+    return &payload;
+}
+bool DetachNativeRetirement(void* state,const NrdBridgeBirth::Token& birth) noexcept
+{
+    auto& payload = *static_cast<NativeRetirementPayload*>(state);
+    if (payload.used || !birth || !NrdBridgeBirth::InMetadataAction()) return false;
+    payload.used = true;
+    if (!FrameSurvey::DetachReleaseMetadata(birth,payload.survey)) return false;
+    // The dispatcher receives the actual retired CURRENT token while its address
+    // shard is held. Creation/publication must match a current token too.
+    D3D12Hooks::OnBridgeObjectReleased(birth);
+    auto* resource = static_cast<ID3D12Resource*>(birth->Address());
+    try
+    {
+        { std::scoped_lock lock(gRRResourceStateMutex);
+          gRRResourceStates.erase(resource); gRRResourceActivity.erase(resource); }
+        { std::scoped_lock lock(gRRTrackedResourceMutex); gRRTrackedResources.erase(resource); }
+        { std::scoped_lock lock(gRRPsoMutex); CleanupRRResourcePsoProducersLocked(resource); }
+        CleanupRRPsoReferences(resource);
+        { std::scoped_lock lock(_trackedResourcesMutex);
+          if (const auto found = _trackedResources.find(resource); found != _trackedResources.end())
+          { payload.descriptors = std::move(found->second); _trackedResources.erase(found); }
+          State::Instance().capturedHudlesses.erase(resource); }
+        // Slots are participant-indexed. No traversal of all resources or heaps.
+        for (const auto& slot : payload.descriptors)
+            if (auto heap = slot.heap.lock()) heap->ClearSlotIfMatches(slot.index,resource,birth);
+        payload.heap = FindTrackedHeapByAddress(birth->Address());
+        if (payload.heap && payload.heap->birth == birth) DeactivateTrackedHeap(payload.heap);
+        return true;
+    }
+    catch (...) { return false; }
+}
+void NotifyNativeRetirement(void* state) noexcept
+{
+    auto& payload = *static_cast<NativeRetirementPayload*>(state);
+    FrameSurvey::NotifyRelease(payload.survey);
+    // Every owner/callback is drained after CurrentGuard and catalog/tracker locks.
+    payload.survey = {};
+    payload.descriptors.clear();
+    payload.heap.reset();
+    payload.used = false;
+    --gNativeRetirementDepth;
+}
+}
+
+bool ResTrack_Dx12::ConfigureNrdNativeBirthRetirement() noexcept
+{
+    if (!NrdBridgeNativeBirth::ConfigureRetirement(PrepareNativeRetirement,DetachNativeRetirement,
+                                                  NotifyNativeRetirement)) return false;
+    return NrdBridgeLifetime::EnableConcurrentReleases();
+}
+
+bool ResTrack_Dx12::ObserveBridgeObjectRelease(IUnknown* object) noexcept
+{
+    if (!object || !NrdBridgeNativeBirth::Ready() || FrameSurvey::OwnedRelease()) return false;
+    if (NrdBridgeBirth::InMetadataScope())
+    { FrameSurvey::MetadataHookFailed("Native Release coverage entered under a metadata guard"); return false; }
+    const PVOID entry = (*reinterpret_cast<PVOID**>(object))[2];
+    const auto covered = [entry] {
+        return (entry == gResourceReleaseEntry && o_Release) ||
+            (entry == gHeapReleaseEntry && o_HeapRelease) ||
+            (entry == gPsoReleaseEntry && o_PsoRelease) ||
+            (entry == gCommandListReleaseEntry && o_CommandListRelease) || FindBirthReleaseOriginal(entry);
+    };
+    if (covered()) return true; // Frequent receivers take no installation lock.
+    try
+    {
+        std::unique_lock installation(gReleaseHookInstallMutex);
+        if (covered()) return true;
+        if (gBirthReleaseEntriesUsed == MaxBirthReleaseEntries)
+        { installation.unlock(); FrameSurvey::MetadataHookFailed("Native Release implementation table is full"); return false; }
+        const size_t index = gBirthReleaseEntriesUsed;
+        auto& record = gBirthReleaseEntries[index];
+        record.original = reinterpret_cast<PFN_BirthRelease>(entry);
+        const auto begin = DetourTransactionBegin();
+        const auto update = begin == NO_ERROR ? DetourUpdateThread(GetCurrentThread()) : begin;
+        const auto attach = update == NO_ERROR ? DetourAttach(reinterpret_cast<PVOID*>(&record.original),
+            reinterpret_cast<PVOID>(gBirthReleaseHooks[index])) : update;
+        const auto commit = attach == NO_ERROR ? DetourTransactionCommit() :
+            (begin == NO_ERROR ? DetourTransactionAbort() : begin);
+        if (attach != NO_ERROR || commit != NO_ERROR)
+        { record.original = nullptr; installation.unlock();
+          FrameSurvey::MetadataHookFailed("Native Release observer installation failed"); return false; }
+        record.entry.store(entry,std::memory_order_release);
+        ++gBirthReleaseEntriesUsed;
+        return true;
+    }
+    catch (...) { FrameSurvey::MetadataHookFailed("Native Release coverage raised an exception"); return false; }
+}
+
+bool NrdBridgeNativeBirth::ObserveReleaseCoverage(IUnknown* object) noexcept
+{ return ResTrack_Dx12::ObserveBridgeObjectRelease(object); }
 
 HRESULT ResTrack_Dx12::hkCreateDescriptorHeap(ID3D12Device* This, D3D12_DESCRIPTOR_HEAP_DESC* pDescriptorHeapDesc,
                                               REFIID riid, void** ppvHeap)
@@ -2229,7 +2386,15 @@ HRESULT ResTrack_Dx12::hkCreateDescriptorHeap(ID3D12Device* This, D3D12_DESCRIPT
         LOG_TRACE("Heap: {:X}, Heap type: {}, Cpu: {}-{}, Gpu: {}-{}, Desc count: {}", (size_t) *ppvHeap, type,
                   cpuStart, cpuEnd, gpuStart, gpuEnd, numDescriptors);
         const auto trackedHeap = std::make_shared<HeapInfo>(heap,cpuStart,cpuEnd,gpuStart,gpuEnd,numDescriptors,increment,type);
-        { std::unique_lock lock(_heapRegistryMutex); RegisterTrackedHeapLocked(trackedHeap); }
+        const bool born = gNrdBridgeWrappers && NrdBridgeNativeBirth::Ready() && !FrameSurvey::Internal();
+        if (born)
+        {
+            if (!ObserveBridgeObjectRelease(heap)) return result;
+            trackedHeap->birth = NrdBridgeNativeBirth::Receiver(heap);
+        }
+        { NrdBridgeBirth::CurrentGuard current(trackedHeap->birth,born);
+          if (born && !current.MatchesCurrent()) return result;
+          std::unique_lock lock(_heapRegistryMutex); RegisterTrackedHeapLocked(trackedHeap); }
     }
     else
     {
@@ -2247,6 +2412,8 @@ HRESULT ResTrack_Dx12::hkCreateDescriptorHeap(ID3D12Device* This, D3D12_DESCRIPT
 ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
 {
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Release,gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
+    if (UseNrdNativeRetirement() && !State::Instance().isShuttingDown)
+        return NrdBridgeRelease::Title(This,o_Release);
     NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
     if (State::Instance().isShuttingDown)
         return o_Release(This);
@@ -2317,6 +2484,8 @@ ULONG hkPsoRelease(ID3D12PipelineState* This)
     if (gResourceReleaseSharesPso)
         return gSharedResourceReleaseObserver(reinterpret_cast<ID3D12Resource*>(This));
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Release,gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
+    if (UseNrdNativeRetirement() && !State::Instance().isShuttingDown)
+        return NrdBridgeRelease::Title(This,o_PsoRelease);
     NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
     if (State::Instance().isShuttingDown)
         return o_PsoRelease(This);
@@ -2345,6 +2514,8 @@ static ULONG STDMETHODCALLTYPE hkCommandListRelease(IUnknown* This)
     if (gResourceReleaseSharesCommandList)
         return gSharedResourceReleaseObserver(reinterpret_cast<ID3D12Resource*>(This));
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Release,gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
+    if (UseNrdNativeRetirement() && !State::Instance().isShuttingDown)
+        return NrdBridgeRelease::Title(This,o_CommandListRelease);
     NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
     if (State::Instance().isShuttingDown)
         return o_CommandListRelease(This);
@@ -3594,6 +3765,13 @@ void ResTrack_Dx12::HookResource(ID3D12Device* InDevice)
         PVOID* pVTable = *(PVOID**) tmp;
         gResourceReleaseEntry = pVTable[2];
         gSharedResourceReleaseObserver = hkRelease;
+        if (const auto original = FindBirthReleaseOriginal(gResourceReleaseEntry))
+        {
+            o_Release = reinterpret_cast<PFN_Release>(original);
+            gResourceReleaseSharesBirth = true;
+            tmp->Release();
+            return;
+        }
         if (gResourceReleaseEntry == gHeapReleaseEntry && o_HeapRelease && gHeapOwnsReleaseHook)
         {
             // A heap detour installed first. Its universal wrapper delegates to
@@ -3691,7 +3869,7 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
             if (!resetAlreadyHooked) gComputeResetEntry = pVTable[10];
             const PVOID releaseEntry = pVTable[2];
             const bool sharedRelease = releaseEntry == gResourceReleaseEntry ||
-                releaseEntry == gPsoReleaseEntry;
+                releaseEntry == gPsoReleaseEntry || FindBirthReleaseOriginal(releaseEntry);
             if (!sharedRelease && !releaseAlreadyHooked)
             {
                 gCommandListReleaseEntry = releaseEntry;
@@ -3968,9 +4146,23 @@ bool ResTrack_Dx12::RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCo
     PVOID* vtable = *reinterpret_cast<PVOID**>(actual);
     if (vtable[10] != gComputeResetEntry ||
         (vtable[2] != gCommandListReleaseEntry && vtable[2] != gResourceReleaseEntry &&
-         vtable[2] != gPsoReleaseEntry)) return false;
+         vtable[2] != gPsoReleaseEntry && !FindBirthReleaseOriginal(vtable[2]))) return false;
     Microsoft::WRL::ComPtr<IUnknown> identity;
     if (FAILED(actual->QueryInterface(IID_PPV_ARGS(&identity)))) return false;
+    if (NrdBridgeNativeBirth::Ready() && gNrdBridgeWrappers)
+    {
+        if (!ObserveBridgeObjectRelease(actual) || !ObserveBridgeObjectRelease(identity.Get())) return false;
+        const auto nativeBirth = NrdBridgeNativeBirth::Receiver(actual);
+        // Query the canonical ID3D12Object while QI owns its temporary reference.
+        // IUnknown itself has no private-data API. The native object's GUID is
+        // explicit alias evidence; forwarding proxies keep their own identity.
+        if (!nativeBirth) return false;
+        const auto link = [&nativeBirth](void* alias) {
+            NrdBridgeNativeBirth::RetirementScope retirement;
+            return retirement.Valid() && bool(NrdBridgeBirth::LinkAlias(nativeBirth->InstanceStamp(),alias));
+        };
+        if (!link(identity.Get()) || !link(static_cast<ID3D12CommandList*>(actual))) return false;
+    }
     return RecordedComputeLease::Track(identity.Get(),
         { list, actual, static_cast<ID3D12CommandList*>(actual), identity.Get() }, lease, std::move(beforeSubmit), std::move(callbacks));
 }
@@ -4206,11 +4398,16 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
         DetourDetach(&(PVOID&) o_ExecuteBundle, gSurveyWrappers ? hkSurveyExecuteBundle : hkExecuteBundle);
 
     // Resource
-    if (o_Release != nullptr && !gResourceReleaseSharesCommandList && !gResourceReleaseSharesPso && !gResourceReleaseSharesHeap)
+    if (o_Release != nullptr && !gResourceReleaseSharesCommandList && !gResourceReleaseSharesPso &&
+        !gResourceReleaseSharesHeap && !gResourceReleaseSharesBirth)
         DetourDetach(&(PVOID&) o_Release, hkRelease);
 
     if (o_PsoRelease != nullptr)
         DetourDetach(&(PVOID&) o_PsoRelease, hkPsoRelease);
+
+    for (size_t i = 0; i != gBirthReleaseEntriesUsed; ++i)
+        DetourDetach(reinterpret_cast<PVOID*>(&gBirthReleaseEntries[i].original),
+                     reinterpret_cast<PVOID>(gBirthReleaseHooks[i]));
 
     DetourTransactionCommit();
 
@@ -4257,6 +4454,11 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
     gResourceReleaseSharesCommandList = false;
     gResourceReleaseSharesPso = false;
     gResourceReleaseSharesHeap = false;
+    gResourceReleaseSharesBirth = false;
+    for (size_t i = 0; i != gBirthReleaseEntriesUsed; ++i)
+    { gBirthReleaseEntries[i].entry.store(nullptr,std::memory_order_release);
+      gBirthReleaseEntries[i].original = nullptr; }
+    gBirthReleaseEntriesUsed = 0;
     gHeapReleaseSharesResource.store(false,std::memory_order_release);
     // A resource-owned trampoline is retired by Detours; never leave a dangling
     // heap alias. A legacy heap-owned detour keeps its own original trampoline.
