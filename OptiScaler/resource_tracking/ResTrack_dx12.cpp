@@ -345,7 +345,7 @@ static std::atomic<float> gRRResourceViewScale { 1.0f };
 static std::atomic<uint64_t> gRRResourceInspectorFrame { 0 };
 static std::mutex gRRResourceCandidateMutex;
 static std::vector<RRResourceCandidate> gRRResourceCandidates;
-static std::mutex gRRResourceStateMutex;
+static NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Tracking> gRRResourceStateMutex;
 static std::unordered_map<ID3D12Resource*, D3D12_RESOURCE_STATES> gRRResourceStates;
 struct RRResourceActivity
 {
@@ -365,7 +365,7 @@ struct RRTrackedResourceViews
     uint32_t uavViews = 0;
     uint32_t rtvViews = 0;
 };
-static std::mutex gRRTrackedResourceMutex;
+static NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Tracking> gRRTrackedResourceMutex;
 static std::unordered_map<ID3D12Resource*, RRTrackedResourceViews> gRRTrackedResources;
 struct RRCommandListMarkerState
 {
@@ -417,7 +417,7 @@ struct RRCommandListPsoState
 };
 
 static std::atomic<uint64_t> gRRNextPsoId { 1 };
-static std::mutex gRRPsoMutex;
+static NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Tracking> gRRPsoMutex;
 static std::unordered_map<ID3D12PipelineState*, RRPsoMetadata> gRRPsoMetadata;
 static std::unordered_map<ID3D12GraphicsCommandList*, RRCommandListPsoState> gRRCommandListPsoStates;
 static std::unordered_map<ID3D12Resource*,
@@ -2253,47 +2253,51 @@ ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
     auto computeRecording = RecordedComputeLease::BeginRelease(This);
 
     std::vector<TrackedResourceSlot> toClean;
-    bool finalProbe = false;
+    // Startup-selected title releases have the physical lifetime guard. Keep the
+    // legacy probe serialization for other callers; only the bridge fast path
+    // moves native calls/callbacks outside the descriptor reverse-index lock.
+    std::unique_lock legacyProbe(_trackedResourcesMutex,std::defer_lock);
+    if (!gNrdBridgeWrappers || FrameSurvey::OwnedRelease()) legacyProbe.lock();
+    This->AddRef();
+    const auto refCount = o_Release(This);
+    const bool finalProbe = refCount <= 1;
+    if (finalProbe)
     {
-        std::lock_guard lock(_trackedResourcesMutex);
-
-        This->AddRef();
-        auto refCount = o_Release(This);
-
-        if (refCount <= 1)
+        if (gSurveyWrappers) FrameSurvey::Released(This);
+        // Release may be shared with command lists; erase by address before final destruction.
+        if (gNrdBridgeWrappers)
+            D3D12Hooks::OnBridgeCommandListReset(reinterpret_cast<ID3D12GraphicsCommandList*>(This), nullptr);
         {
-            finalProbe = true;
-            if (gSurveyWrappers) FrameSurvey::Released(This);
-            // Release may be shared with command lists; erase by address before final destruction.
-            if (gNrdBridgeWrappers)
-                D3D12Hooks::OnBridgeCommandListReset(reinterpret_cast<ID3D12GraphicsCommandList*>(This), nullptr);
             std::scoped_lock stateLock(gRRResourceStateMutex);
             gRRResourceStates.erase(This);
             gRRResourceActivity.erase(This);
+        }
 
-            {
-                std::scoped_lock rrResourceLock(gRRTrackedResourceMutex);
-                gRRTrackedResources.erase(This);
-            }
-            {
-                std::scoped_lock psoLock(gRRPsoMutex);
-                CleanupRRResourcePsoProducersLocked(This);
-            }
+        {
+            std::scoped_lock rrResourceLock(gRRTrackedResourceMutex);
+            gRRTrackedResources.erase(This);
+        }
+        {
+            std::scoped_lock psoLock(gRRPsoMutex);
+            CleanupRRResourcePsoProducersLocked(This);
+        }
 
-            // A runtime may use the same IUnknown::Release implementation for resources and
-            // PSOs. In that case this hook also owns PSO cleanup; the helper is a no-op for an
-            // ordinary resource address.
-            CleanupRRPsoReferences(This);
+        // A runtime may use the same IUnknown::Release implementation for resources and
+        // PSOs. In that case this hook also owns PSO cleanup; the helper is a no-op for an
+        // ordinary resource address.
+        CleanupRRPsoReferences(This);
 
+        {
+            if (!legacyProbe.owns_lock()) legacyProbe.lock();
             if (auto it = _trackedResources.find(This); it != _trackedResources.end())
             {
                 toClean = std::move(it->second);
                 _trackedResources.erase(it);
             }
-
             State::Instance().capturedHudlesses.erase(This);
         }
     }
+    if (legacyProbe.owns_lock()) legacyProbe.unlock();
 
     if (finalProbe) DeactivateSharedHeap(This);
     // Clean descriptor slots outside the reverse-index lock.

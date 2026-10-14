@@ -2,6 +2,7 @@
 
 #include "SysUtils.h"
 #include "misc/RecordedComputeLease_Dx12.h"
+#include "misc/NrdBridgePerf_Dx12.h"
 
 #include <hudfix/Hudfix_Dx12.h>
 #include <framegen/IFGFeature_Dx12.h>
@@ -142,9 +143,9 @@ struct TrackedResourceSlot
 
 inline ankerl::unordered_dense::map<ID3D12Resource*, std::vector<TrackedResourceSlot>> _trackedResources;
 #ifdef USE_SPINLOCK_MUTEX
-inline SpinLock _trackedResourcesMutex;
+inline NrdBridgePerf::TimedMutex<SpinLock,NrdBridgePerf::WaitKind::Tracking> _trackedResourcesMutex;
 #else
-inline std::mutex _trackedResourcesMutex;
+inline NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Tracking> _trackedResourcesMutex;
 #endif
 
 struct HeapInfo : public std::enable_shared_from_this<HeapInfo>

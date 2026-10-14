@@ -150,7 +150,8 @@ namespace FrameSurvey {
  thread_local bool gInternal=false;
  thread_local unsigned gRecordingDepth=0;
  __INTERNAL_IMPL__
- void Released(void* address) noexcept { if(OwnedRelease())return;++releasesObserved;if(address==nativeWatchedHeap)++nativeWatchedNotifications;std::scoped_lock lock(heapMetadataMutex);heapMetadata.erase(address); }
+ std::function<void()> releasePause;
+ void Released(void* address) noexcept { if(OwnedRelease())return;++releasesObserved;if(releasePause)releasePause();if(address==nativeWatchedHeap)++nativeWatchedNotifications;std::scoped_lock lock(heapMetadataMutex);heapMetadata.erase(address); }
  void HeapCreated(ID3D12Device*,ID3D12DescriptorHeap* heap) noexcept {if(Internal())return;++heapPublications;std::scoped_lock lock(heapMetadataMutex);heapMetadata.insert(heap);}
 }
 struct HeapSlot { void ClearSlotIfMatches(size_t,ID3D12Resource*) { ++slotsCleaned; } };
@@ -478,6 +479,21 @@ int main(int argc,char** argv) try {
   need(remaining.load()==0 && retainedTitle.destroyed && releasesObserved==observedBefore+1,"protected title tag reset invalidates metadata before its physical final release");
  }
  heapTests();installerTests();
+ {
+  gNrdBridgeWrappers=gNrdBridgeDeviceWrappers=gSurveyWrappers=true;
+  Probe pausedTitle;seed(pausedTitle);const auto observedBefore=releasesObserved;
+  std::promise<void> entered,resume;auto arrived=entered.get_future(),resumed=resume.get_future();
+  FrameSurvey::releasePause=[&]{entered.set_value();resumed.wait();};
+  std::jthread releasing([&]{hkRelease(reinterpret_cast<ID3D12Resource*>(&pausedTitle));});
+  arrived.wait();
+  const bool reverseFree=_trackedResourcesMutex.try_lock();
+  if(reverseFree)_trackedResourcesMutex.unlock();
+  const bool physicallyAlive=!pausedTitle.destroyed && pausedTitle.refs==1;
+  resume.set_value();releasing.join();FrameSurvey::releasePause={};
+  need(reverseFree,"long survey/coordinator release callback does not hold the descriptor reverse-index mutex");
+  need(physicallyAlive,"shortened reverse-index section keeps the caller reference alive throughout final invalidation");
+  need(pausedTitle.destroyed && pausedTitle.refs==0 && releasesObserved==observedBefore+1,"paused final cleanup still destroys and invalidates exactly once");
+ }
  std::cout << "PASS: " << checks << " production shared/dedicated Release checks\n";
  return 0;
 } catch(const std::exception& e) { std::cerr<<e.what()<<'\n'; return 1; }
