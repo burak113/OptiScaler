@@ -786,9 +786,10 @@ class ResTrack_Dx12
     static uint32_t GetRRResourceChannel();
     static void SetRRResourceViewScale(float scale);
     static float GetRRResourceViewScale();
-    // Returns an AddRef'd resource only when the selected texture can be safely
-    // sampled without modifying the game's resource state.
-    static ID3D12Resource* AcquireRRResourceCandidate();
+    // Returns an AddRef'd resource only with CPU lifetime admission and a whole-
+    // resource readable transition in this consumer's current recording.
+    static ID3D12Resource* AcquireRRResourceCandidate(ID3D12GraphicsCommandList* consumer = nullptr);
+    static const char* GetRRResourceInspectorReason() noexcept;
     static void LogRRScalarResourceCandidates(uint32_t renderWidth, uint32_t renderHeight);
     static void LogRREmissivePassSnapshot(uint32_t renderWidth, uint32_t renderHeight);
     static void LogRRPsoProducerSnapshot(uint32_t renderWidth, uint32_t renderHeight);

@@ -4500,10 +4500,11 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                                 }
                                 else
                                 {
-                                    ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f),
-                                                       "Preview ready (state 0x%X)",
-                                                       static_cast<uint32_t>(selected.state));
+                                    ImGui::TextDisabled("CPU-observed state 0x%X; preview requires same-recording GPU proof.",
+                                                        static_cast<uint32_t>(selected.state));
                                 }
+                                if (const char* reason = ResTrack_Dx12::GetRRResourceInspectorReason(); reason && *reason)
+                                    ImGui::TextDisabled("%s",reason);
                                 if (selected.lastWritePass.empty())
                                 {
                                     ImGui::TextDisabled(

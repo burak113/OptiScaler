@@ -4399,7 +4399,7 @@ bool FSRDFeatureDx12::ConvertDenoiserBuffers(ID3D12GraphicsCommandList* InComman
         ResTrack_Dx12::RefreshRRResourceCandidates(RenderWidth(), RenderHeight());
         if (dbgMode == DebugModes::ResourceInspector)
         {
-            inspectorResource.Attach(ResTrack_Dx12::AcquireRRResourceCandidate());
+            inspectorResource.Attach(ResTrack_Dx12::AcquireRRResourceCandidate(InCommandList));
             _convDesc.Resources.InInspector = inspectorResource.Get();
         }
     }
