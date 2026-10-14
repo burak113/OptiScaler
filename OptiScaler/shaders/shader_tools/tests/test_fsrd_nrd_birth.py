@@ -335,7 +335,9 @@ void recordingPhysicalMarker(){
  B::AliasSnapshot aliases;need(first&&!first->RecordingMayExist()&&registry.CaptureProvenAliasesForFinalZero(first,aliases)&&aliases.count==1,"normal one-alias resource/heap/PSO starts with no possible title-list recording");
  const auto warm=allocations.load();first->MarkRecordingMayExist(false);
  need(!first->RecordingMayExist()&&allocations==warm,"disabled marker leaves known physical metadata unchanged without allocation");
- need(B::MarkRecordingMayExist(first)&&first->RecordingMayExist()&&allocations==warm,"successful title-list Track marker is metadata-only atomic with no lock/allocation");
+ need(B::MarkRecordingMayExist(first)&&first->RecordingMayExist()&&allocations==warm,"pre-Track title-list marker is metadata-only atomic with no lock/allocation");
+ const auto failedTrack=[]()noexcept{return false;};
+ need(!failedTrack()&&first->RecordingMayExist(),"failed Track leaves an allowed monotonic false positive instead of clearing recording capability");
  std::array<B::Token,B::AliasSnapshot::Capacity> physical;physical[0]=first;
  for(size_t index=1;index!=physical.size();++index){physical[index]=registry.ObserveInstance(address(0x130000+index*256),18000,detach,publish,&effects);need(physical[index]&&physical[index]->RecordingMayExist(),"all 64 same-native-GUID aliases inherit existing recording capability");}
  {B::CurrentGuard old(first);need(old.Retire(detach,&effects),"logical title-list retirement does not erase physical capability");}

@@ -76,6 +76,7 @@ inline uint64_t AllocateInstanceStamp() noexcept
 class PhysicalInstance
 {
     friend class Registry;
+    friend class Birth;
     friend class CurrentGuard;
     friend class ScopedRelease;
     const uint64_t stamp_;
@@ -123,9 +124,9 @@ class Birth
     bool CacheAdmissible() const noexcept;
     bool RecordingMayExist() const noexcept
     { return physical_->recordingMayExist_.load(std::memory_order_acquire); }
-    // Mark only AFTER a successful title-list lease Track, within the SAME strong
-    // Borrow scope. This monotonic physical marker may have false positives after
-    // Reset, but must never miss a recording or be cleared by logical retirement.
+    // Mark a known native title-list physical instance BEFORE attempting Track.
+    // Failed Track/Reset may leave a harmless false positive. Never clear this
+    // marker or allow a recording to precede it; false negatives are forbidden.
     void MarkRecordingMayExist(bool enabled = true) const noexcept
     { if (enabled) physical_->recordingMayExist_.store(true, std::memory_order_release); }
 };
