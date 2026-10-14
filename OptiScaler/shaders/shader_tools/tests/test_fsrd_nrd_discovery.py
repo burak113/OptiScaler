@@ -534,6 +534,17 @@ J discoveryTests(Host& h) {
  need(FrameSurvey::gMetadataHealthy.load() && !FrameSurvey::gTracking.load(),"clean device shutdown clears failed metadata before another device starts");
  FrameSurvey::BeginCreationTracking(false);
  need(FrameSurvey::gMetadataHealthy.load() && FrameSurvey::gTracking.load(),"a fresh device creation registry resumes with healthy metadata");
+ const auto priorEnabled=FrameSurvey::gEnabled.load(), priorRecording=FrameSurvey::gRecording.load();
+ FrameSurvey::gEnabled=true; FrameSurvey::gRecording=true;
+ {
+  std::scoped_lock injection(NrdBridge::gInjectionMutex);
+  std::scoped_lock held(FrameSurvey::gRecordMutex,FrameSurvey::gLifetimeMutex,FrameSurvey::gMirrorMutex);
+  FrameSurvey::MetadataHookFailed("fixture inside injection and recorder/registry locks");
+  need(!FrameSurvey::MetadataHealthy() && !FrameSurvey::Recording(),"native hook failure latch takes no lifecycle/recorder locks and stops unsafe recorder work");
+ }
+ FrameSurvey::BeginCreationTracking(false);
+ need(!FrameSurvey::MetadataHealthy(),"hook failure cannot be cleared by retrying creation tracking");
+ FrameSurvey::gEnabled=priorEnabled; FrameSurvey::gRecording=priorRecording;
  FrameSurvey::Shutdown();
  for(const auto& role:NrdBridge::ShaderRoles) {
   need(role.sha256.size()==64,"all roles use full SHA256"); need(NrdBridge::IdentifyRole(role.sha256)==role.role,"full shader digest identifies exact role");

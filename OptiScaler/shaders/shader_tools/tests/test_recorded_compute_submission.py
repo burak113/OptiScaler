@@ -197,6 +197,7 @@ PVOID gResourceReleaseEntry=nullptr,gPsoReleaseEntry=nullptr,gCommandListRelease
 ComPtr<IUnknown> gComputeQueueDeviceIdentity;
 std::atomic<bool> gComputeListHooksAvailable=false,gComputeQueueHookAvailable=false;
 std::mutex gComputeHookInitMutex;
+bool gNrdBridgeWrappers=true, fixtureResourceHookFails=false;
 struct ResTrack_Dx12 {
  static std::shared_ptr<RecordedComputeLease::Submission> BeforeComputeSubmission(ID3D12CommandQueue*,UINT,ID3D12CommandList* const*,RecordedComputeLease::SubmissionDecision* = nullptr) noexcept;
  static bool RefreshComputeHookDevice(ID3D12Device*,const char** =nullptr) noexcept;
@@ -207,7 +208,7 @@ struct ResTrack_Dx12 {
  static void HookToQueue(ID3D12Device*);
 };
 void ResTrack_Dx12::HookResource(ID3D12Device* device) {
- if(gResourceReleaseEntry) return;
+ if(gResourceReleaseEntry || fixtureResourceHookFails) return;
  D3D12_HEAP_PROPERTIES heap{};heap.Type=D3D12_HEAP_TYPE_DEFAULT;
  D3D12_RESOURCE_DESC desc{};desc.Dimension=D3D12_RESOURCE_DIMENSION_BUFFER;desc.Width=16;desc.Height=desc.DepthOrArraySize=desc.MipLevels=desc.SampleDesc.Count=1;desc.Layout=D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
  ComPtr<ID3D12Resource> resource;hr(device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&desc,D3D12_RESOURCE_STATE_COMMON,nullptr,IID_PPV_ARGS(&resource)));
@@ -357,6 +358,11 @@ J cpuTests() {
  const char* reason=nullptr;need(ResTrack_Dx12::RefreshComputeHookDevice(device.Get(),&reason) && !reason,"initial native eligibility");
  ComPtr<FakeDevice> replacement;replacement.Attach(new FakeDevice);ComPtr<FakeList> replacementList;replacementList.Attach(new FakeList(replacement.Get()));
  need(ResTrack_Dx12::RefreshComputeHookDevice(replacement.Get(),&reason) && gComputeQueueDeviceIdentity.Get()==static_cast<IUnknown*>(replacement.Get()),"same native entries rebind the replacement canonical device");
+ const auto coveredResourceEntry=gResourceReleaseEntry; const auto priorLeaseOwners=lease.use_count();
+ gResourceReleaseEntry=nullptr; fixtureResourceHookFails=true;
+ need(!ResTrack_Dx12::RetainComputeDispatch(replacement.Get(),replacementList.Get(),lease),"missing native resource Release observer rejects bridge retention after hook setup");
+ need(!RecordedComputeLease::Capture(replacementList.Get()) && lease.use_count()==priorLeaseOwners,"uncovered resource observer publishes no recording and retains no payload");
+ fixtureResourceHookFails=false; gResourceReleaseEntry=coveredResourceEntry;
  need(ResTrack_Dx12::RetainComputeDispatch(replacement.Get(),replacementList.Get(),lease),"actual Retain admits replacement list");
  auto supported=gComputeExecuteEntry;gComputeExecuteEntry=reinterpret_cast<PVOID>(1);
  need(!ResTrack_Dx12::RefreshComputeHookDevice(device.Get(),&reason) && reason && std::string(reason).find("queue implementation")!=std::string::npos,"unobserved implementation denies without detaching old hooks");gComputeExecuteEntry=supported;

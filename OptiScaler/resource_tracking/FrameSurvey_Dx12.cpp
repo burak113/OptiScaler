@@ -182,7 +182,7 @@ struct Service
 };
 std::unique_ptr<Service> gService;
 ComPtr<ID3D12Device> gCreationDevice;
-bool Recording() { return Enabled() && gRecording.load(std::memory_order_acquire) && !gInternal; }
+bool Recording() { return Enabled() && gRecording.load(std::memory_order_acquire) && !gInternal && gMetadataHealthy.load(std::memory_order_acquire); }
 void Fail(const char* reason) noexcept
 {
     InternalScope internal; // Recorder-owned cleanup must never upgrade a title-resource borrow.
