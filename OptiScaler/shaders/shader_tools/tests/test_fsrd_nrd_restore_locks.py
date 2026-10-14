@@ -22,6 +22,8 @@ CPP = r'''
 #include <windows.h>
 #include <d3d12.h>
 #include "__ROOT__/OptiScaler/misc/NrdBridgePerf_Dx12.h"
+#include "__ROOT__/OptiScaler/misc/NrdBridgeNativeBirth_Dx12.h"
+#include "__ROOT__/OptiScaler/misc/NrdBridgeLifetime_Dx12.h"
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -42,11 +44,13 @@ unsigned warningCalls=0;
 #define LOG_TRACE(...) ((void)0)
 namespace FrameSurvey {
  thread_local bool internalScope=false; bool Internal() { return internalScope; }
+ void MetadataHookFailed(const char*) noexcept {} void FlushMetadataFailure() noexcept {}
  struct ComputeRootView { UINT parameter=UINT_MAX; D3D12_DESCRIPTOR_RANGE_TYPE kind=D3D12_DESCRIPTOR_RANGE_TYPE_CBV; D3D12_GPU_VIRTUAL_ADDRESS address=0; };
- struct ComputeBindings { ID3D12RootSignature* root=nullptr; std::vector<ID3D12DescriptorHeap*> heaps; std::vector<std::pair<UINT,D3D12_GPU_DESCRIPTOR_HANDLE>> tables; std::vector<ComputeRootView> views; };
+ struct ComputeBindings { ID3D12RootSignature* root=nullptr; std::vector<ID3D12DescriptorHeap*> heaps; std::vector<std::pair<UINT,D3D12_GPU_DESCRIPTOR_HANDLE>> tables; std::vector<ComputeRootView> views; NrdBridgeBirth::Token receiverBirth,rootBirth,pipelineBirth;std::vector<NrdBridgeBirth::Token> heapBirths; };
  void RootBinding(ID3D12GraphicsCommandList*,bool,ID3D12RootSignature*) {}
  void RootView(ID3D12GraphicsCommandList*,bool,UINT,D3D12_DESCRIPTOR_RANGE_TYPE,D3D12_GPU_VIRTUAL_ADDRESS) {}
 }
+namespace NrdBridgeNativeBirth { bool ObserveReleaseCoverage(IUnknown*) noexcept { return true; } }
 bool gNrdBridgeDeviceWrappers=true,gSurveyDeviceWrappers=false;
 __STATE__
 struct Option{bool current=true;bool value_or_default()const{return current;}};
@@ -56,6 +60,7 @@ struct D3D12Hooks{
  static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*);
  static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*,FrameSurvey::ComputeBindings&) noexcept;
  static void OnBridgeCommandListReset(ID3D12GraphicsCommandList*,ID3D12PipelineState*);
+ static void OnBridgeObjectReleased(const NrdBridgeBirth::Token&) noexcept;
  static bool RestoreDescriptorHeaps(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
  static bool RestorePipelineState(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
  static bool RestoreComputeRootState(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
@@ -308,6 +313,8 @@ def run():
         'bool D3D12Hooks::RestoreDescriptorHeaps(', 'bool D3D12Hooks::RestorePipelineState(',
         'bool D3D12Hooks::RestoreComputeRootState(', 'bool D3D12Hooks::RestoreGraphicsRootState(',
         'void D3D12Hooks::RestoreRoot('))
+    if 'void D3D12Hooks::OnBridgeObjectReleased(' in source:
+        restore += '\n' + function(source, 'void D3D12Hooks::OnBridgeObjectReleased(')
     cpp = CPP.replace('__ROOT__', ROOT.as_posix()).replace('__STATE__', state).replace('__TRACKERS__', trackers).replace('__RESTORE__', restore)
     out = Path(os.environ['FSRD_GPU_TEST_OUTPUT'])
     out.mkdir(parents=True, exist_ok=True)
