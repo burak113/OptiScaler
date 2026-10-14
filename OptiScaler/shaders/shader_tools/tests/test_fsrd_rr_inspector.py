@@ -194,22 +194,23 @@ struct CpuObject{
   *bytes=sizeof(o.physical->stamp);std::memcpy(output,&o.physical->stamp,sizeof(o.physical->stamp));return S_OK;}
  static HRESULT STDMETHODCALLTYPE Set(IUnknown* p,REFGUID guid,UINT bytes,const void* input){native();auto& o=self(p);if(guid!=NrdBridgeNativeBirth::InstanceGuid||bytes!=sizeof(o.physical->stamp))return E_INVALIDARG;
   std::lock_guard lock(o.physical->mutex);o.physical->stamped=true;std::memcpy(&o.physical->stamp,input,bytes);return S_OK;}
- static D3D12_RESOURCE_DESC STDMETHODCALLTYPE Desc(ID3D12Resource* p){native();++nativeDesc;auto& o=self(p);++o.descReads;return o.desc;}
- static D3D12_CPU_DESCRIPTOR_HANDLE STDMETHODCALLTYPE Cpu(ID3D12DescriptorHeap* p){native();++self(p).heapReads;return {1000};}
- static D3D12_GPU_DESCRIPTOR_HANDLE STDMETHODCALLTYPE Gpu(ID3D12DescriptorHeap* p){native();++self(p).heapReads;return {100000};}
+ static D3D12_RESOURCE_DESC* STDMETHODCALLTYPE Desc(ID3D12Resource* p,D3D12_RESOURCE_DESC* output){native();++nativeDesc;auto& o=self(p);++o.descReads;*output=o.desc;return output;}
+ static D3D12_CPU_DESCRIPTOR_HANDLE* STDMETHODCALLTYPE Cpu(ID3D12DescriptorHeap* p,D3D12_CPU_DESCRIPTOR_HANDLE* output){native();++self(p).heapReads;*output={1000};return output;}
+ static D3D12_GPU_DESCRIPTOR_HANDLE* STDMETHODCALLTYPE Gpu(ID3D12DescriptorHeap* p,D3D12_GPU_DESCRIPTOR_HANDLE* output){native();++self(p).heapReads;*output={100000};return output;}
  static UINT STDMETHODCALLTYPE Increment(ID3D12Device* p,D3D12_DESCRIPTOR_HEAP_TYPE){native();auto& o=self(p);if(o.afterIncrement)o.afterIncrement();return o.increment;}
  CpuObject():table(slots.data()){
-  slots[0]=reinterpret_cast<PVOID>(QI);slots[1]=reinterpret_cast<PVOID>(Add);slots[2]=reinterpret_cast<PVOID>(Release);slots[3]=reinterpret_cast<PVOID>(Get);slots[4]=reinterpret_cast<PVOID>(Set);slots[8]=reinterpret_cast<PVOID>(Desc);
+  slots[0]=reinterpret_cast<PVOID>(QI);slots[1]=reinterpret_cast<PVOID>(Add);slots[2]=reinterpret_cast<PVOID>(Release);slots[3]=reinterpret_cast<PVOID>(Get);slots[4]=reinterpret_cast<PVOID>(Set);
   slots[9]=reinterpret_cast<PVOID>(closeNative);slots[10]=reinterpret_cast<PVOID>(resetNative);slots[26]=reinterpret_cast<PVOID>(barrierNative);
   desc.Dimension=D3D12_RESOURCE_DIMENSION_TEXTURE2D;desc.Width=640;desc.Height=360;desc.DepthOrArraySize=1;desc.MipLevels=1;desc.SampleDesc.Count=1;desc.Format=DXGI_FORMAT_R16_FLOAT;
  }
+ void resourceLayout(){slots[10]=reinterpret_cast<PVOID>(Desc);}
  static HRESULT STDMETHODCALLTYPE resetNative(ID3D12GraphicsCommandList*,ID3D12CommandAllocator*,ID3D12PipelineState*){native();++originalResets;return resetResult;}
  static HRESULT STDMETHODCALLTYPE closeNative(ID3D12GraphicsCommandList*){native();++originalCloses;return closeResult;}
  static void STDMETHODCALLTYPE barrierNative(ID3D12GraphicsCommandList*,UINT,const D3D12_RESOURCE_BARRIER*){native();++originalBarriers;}
  static void STDMETHODCALLTYPE setterNative(ID3D12GraphicsCommandList*,ID3D12PipelineState*){native();++originalSetters;}
 };
 template<class Desc,class Device>HRESULT createNative(Device*,Desc*,REFIID,void** out){native();++originalCreates;if(out)*out=originalOutput;return originalResult;}
-void* payload(){native();return new unsigned(0);}bool detach(void*,const Token& token) noexcept{
+void* payload() noexcept{native();return new(std::nothrow) unsigned(0);}bool detach(void*,const Token& token) noexcept{
  try{ForgetRRRecording(token->Address(),token);{std::scoped_lock lock(gRRTrackedResourceMutex);EraseRRTrackedResourceLocked(static_cast<ID3D12Resource*>(token->Address()));}CleanupRRPsoReferences(token->Address());return true;}catch(...){return false;}
 }void notify(void* p) noexcept{native();delete static_cast<unsigned*>(p);}
 void setup(bool born,CpuObject& device){
@@ -250,7 +251,7 @@ void creators(CpuObject& device,bool born){
 }
 void metadataScale(CpuObject& device,bool born){
  std::vector<std::unique_ptr<CpuObject>> live;live.reserve(100000);
- for(unsigned i=0;i<100000;++i){auto object=std::make_unique<CpuObject>();if(i>=2){object->desc.Width=512;object->desc.Height=512;}TrackRRResourceView(object->as<ID3D12Resource>(),DXGI_FORMAT_R16_FLOAT,SRV);live.push_back(std::move(object));}
+ for(unsigned i=0;i<100000;++i){auto object=std::make_unique<CpuObject>();object->resourceLayout();if(i>=2){object->desc.Width=512;object->desc.Height=512;}TrackRRResourceView(object->as<ID3D12Resource>(),DXGI_FORMAT_R16_FLOAT,SRV);live.push_back(std::move(object));}
  need(gRRTrackedResources.size()==100000&&gRRResourceSizeIndex.size()==2,"100k actual metadata participants published into two size buckets");
  const auto descriptions=nativeDesc.load(),privateReads=nativePrivate.load();gRRTrackedResources.begins=0;ResTrack_Dx12::RefreshRRResourceCandidates(640,360);
  need(ResTrack_Dx12::GetRRResourceCandidates().size()==2&&gRRTrackedResources.begins==0,"refresh visits matching-size bucket without beginning full resource walk");
@@ -281,7 +282,7 @@ void metadataScale(CpuObject& device,bool born){
  auto releaser=std::async(std::launch::async,[&]{NrdBridgeLifetime::ScopedRelease guard(NeedsNativeReleaseGate());releaseEntered=true;return CpuObject::Release(r.as<IUnknown>());});
  const bool blocked=releaser.wait_for(std::chrono::milliseconds(30))==std::future_status::timeout&&!releaseEntered;add.release();reader.join();const auto refs=releaser.get();r.beforeAddRef={};need(blocked&&borrowed&&refs==1,"physical lifetime gate blocks caller final Release through weak AddRef without persistent refs");if(borrowed)borrowed->Release();
  need(gRRTrackedResources.begins==0,"all selected recording/candidate operations avoid whole resource traversal");
- CpuObject owned,ownedPso,ownedList;TrackRRResourceView(owned.as<ID3D12Resource>(),DXGI_FORMAT_R16_FLOAT,SRV);PublishRRPsoMetadata(ownedPso.as<ID3D12PipelineState>());ResTrack_Dx12::hkSetPipelineState(ownedList.as<ID3D12GraphicsCommandList>(),ownedPso.as<ID3D12PipelineState>());
+ CpuObject owned,ownedPso,ownedList;owned.resourceLayout();TrackRRResourceView(owned.as<ID3D12Resource>(),DXGI_FORMAT_R16_FLOAT,SRV);PublishRRPsoMetadata(ownedPso.as<ID3D12PipelineState>());ResTrack_Dx12::hkSetPipelineState(ownedList.as<ID3D12GraphicsCommandList>(),ownedPso.as<ID3D12PipelineState>());
  {FrameSurvey::ScopedInternal internal;TrackRRResourceView(owned.as<ID3D12Resource>(),DXGI_FORMAT_R16_FLOAT,SRV);PublishRRPsoMetadata(ownedPso.as<ID3D12PipelineState>());ResTrack_Dx12::hkSetPipelineState(ownedList.as<ID3D12GraphicsCommandList>(),ownedPso.as<ID3D12PipelineState>());
   need(!gRRTrackedResources.contains(owned.as<ID3D12Resource>())&&!gRRPsoMetadata.contains(ownedPso.as<ID3D12PipelineState>())&&!gRRCommandListPsoStates.contains(ownedList.as<ID3D12GraphicsCommandList>()),"identified owned resource/PSO/list calls remove old weak rows and publish none");
   NrdBridgeLifetime::ScopedBorrow borrow(true);need(borrow.Acquired()&&!NeedsNativeReleaseGate(),"sticky inspector preserves genuine owned Release bypass under legacy Borrow");}
