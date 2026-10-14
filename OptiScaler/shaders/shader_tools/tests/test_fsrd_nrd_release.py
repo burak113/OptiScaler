@@ -166,6 +166,7 @@ struct HeapInfo {
  std::array<std::shared_mutex,DESCRIPTOR_LOCK_STRIPE_COUNT> descriptorLocks;
  ID3D12DescriptorHeap* heap=nullptr;SIZE_T cpuStart=0,cpuEnd=0,gpuStart=0,gpuEnd=0;std::atomic<bool> active=true;std::atomic<uint64_t> version=19;
  struct Info {ID3D12Resource* buffer=nullptr;uint64_t lastUsedFrame=0;};std::shared_ptr<Info[]> info;
+ std::mutex occupiedSlotsMutex;std::unordered_set<UINT> occupiedSlots;
  UINT numDescriptors=1;
  __HEAP_DEACTIVATE__
 };
@@ -328,7 +329,7 @@ std::shared_ptr<HeapInfo> seedHeap(Probe& object,bool tracked=true){
  auto* heap=reinterpret_cast<ID3D12DescriptorHeap*>(&object);object.expectClean=false;
  {std::scoped_lock lock(heapMetadataMutex);heapMetadata.insert(heap);}
  if(!tracked)return{};
- auto info=std::make_shared<HeapInfo>();info->heap=heap;info->info=std::make_shared<HeapInfo::Info[]>(1);info->info[0].buffer=reinterpret_cast<ID3D12Resource*>(&object);
+ auto info=std::make_shared<HeapInfo>();info->heap=heap;info->info=std::make_shared<HeapInfo::Info[]>(1);info->info[0].buffer=reinterpret_cast<ID3D12Resource*>(&object);info->occupiedSlots.insert(0);
  _trackedResources[info->info[0].buffer]={{std::weak_ptr<HeapSlot>{},0,info->version.load()}};
  seedHeapRegistry(info);return info;
 }
@@ -410,7 +411,7 @@ void nativeSharedTests(){
   if(heapFirst){EnsureHeapReleaseHook(heap.Get());ResTrack_Dx12::HookResource(device.Get());}else{ResTrack_Dx12::HookResource(device.Get());EnsureHeapReleaseHook(heap.Get());}
   need(nativeAttaches==1 && gHeapReleaseSharesResource && bool(o_HeapRelease) && bool(o_Release),"actual production installers attach one native detour for both creation orders");need(gHeapOwnsReleaseHook==heapFirst && gResourceReleaseSharesHeap==heapFirst,"native detour ownership/trampoline follows actual first installer");
   need(HeapReleaseObserverCovers(heap.Get()),"both native installer orders prove final Release coverage before borrowed heap admission");publishHeap(heap.Get(),true);
-  auto info=std::make_shared<HeapInfo>();info->heap=heap.Get();info->info=std::make_shared<HeapInfo::Info[]>(1);info->info[0].buffer=resource.Get();seedHeapRegistry(info);_trackedResources[resource.Get()]={{std::weak_ptr<HeapSlot>{},0,info->version.load()}};nativeWatchedHeap=heap.Get();nativeWatchedNotifications=0;heapMetadata.insert(heap.Get());const auto generation=gHeapGeneration.load();
+  auto info=std::make_shared<HeapInfo>();info->heap=heap.Get();info->info=std::make_shared<HeapInfo::Info[]>(1);info->info[0].buffer=resource.Get();info->occupiedSlots.insert(0);seedHeapRegistry(info);_trackedResources[resource.Get()]={{std::weak_ptr<HeapSlot>{},0,info->version.load()}};nativeWatchedHeap=heap.Get();nativeWatchedNotifications=0;heapMetadata.insert(heap.Get());const auto generation=gHeapGeneration.load();
   heap.Reset();need(!info->active && !info->info && !heapMetadataLive(nativeWatchedHeap) && !_trackedResources.contains(resource.Get()),"real detoured native heap final Release deactivates FG/bridge registries before destruction");need(nativeWatchedNotifications==1 && gHeapGeneration==generation+1,"real shared entry observes heap once without a double-detour chain or recursion");resource.Reset();nativeWatchedHeap=nullptr;
   need(DetourTransactionBegin()==NO_ERROR && DetourUpdateThread(GetCurrentThread())==NO_ERROR,"native teardown transaction starts");
   __RESOURCE_DETACH__
