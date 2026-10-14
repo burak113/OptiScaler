@@ -109,6 +109,16 @@ void positive(){
   NrdBridgeBirth::ScopedRelease release(tokens[0]);const auto reads=objects[0].reads.load();
   need(NrdBridgeNativeBirth::Receiver(&objects[0])==tokens[0]&&objects[0].reads==reads+1,"in-flight Release prevents a cached receiver from skipping native identity verification");
  }
+ FakeNative covered;unsigned coverageCalls=0;
+ auto coverage=[&](FakeNative*) noexcept {if(NrdBridgeBirth::InMetadataScope())++nativeUnderGuard;++coverageCalls;return true;};
+ const auto uncovered=NrdBridgeNativeBirth::Receiver(&covered);const auto readBeforeCoverage=covered.reads.load();const auto factoryBeforeCoverage=factories.load();
+ need(NrdBridgeNativeBirth::ReceiverWithReleaseCoverage(&covered,coverage)==uncovered&&coverageCalls==1&&covered.reads==readBeforeCoverage,"plain cached metadata receiver cannot skip first physical Release coverage");
+ for(unsigned i=0;i<10000;++i)if(NrdBridgeNativeBirth::ReceiverWithReleaseCoverage(&covered,coverage)!=uncovered)throw std::runtime_error("covered hot receiver changed");
+ need(coverageCalls==1&&covered.reads==readBeforeCoverage&&factories==factoryBeforeCoverage,"ten thousand covered hot setters perform no observer/native getter/factory work");
+ {NrdBridgeBirth::ScopedRelease release(uncovered);const auto reads=covered.reads.load();NrdBridgeNativeBirth::ReceiverWithReleaseCoverage(&covered,coverage);
+  need(coverageCalls==2&&covered.reads==reads+1,"pending Release forces fresh native coverage and GUID verification despite covered cache");}
+ FakeNative rejected;unsigned deniedCoverage=0;
+ need(!NrdBridgeNativeBirth::ReceiverWithReleaseCoverage(&rejected,[&](FakeNative*) noexcept {++deniedCoverage;return false;})&&deniedCoverage==1&&rejected.reads==0&&rejected.writes==0,"uncovered native implementation is rejected before any stamp publication");
  FakeNative stale;Gate getter;std::atomic<bool> firstRead=true;
  stale.afterRead=[&]{if(firstRead.exchange(false))getter.wait();};
  NrdBridgeBirth::Token delayed;

@@ -14,6 +14,8 @@ namespace FrameSurvey { void MetadataHookFailed(const char*) noexcept; void Flus
 // own a valid object while Prepare/Receiver invokes its private-data methods.
 namespace NrdBridgeNativeBirth
 {
+// Production implementation delegates to the bounded native Release installer.
+bool ObserveReleaseCoverage(IUnknown*) noexcept;
 using Factory = void* (*)() noexcept;
 using Notify = void (*)(void*) noexcept; // Drains effects and destroys the payload.
 inline constexpr GUID InstanceGuid = {0x72304b13,0x1a2e,0x46be,{0xae,0xdc,0x22,0x50,0x50,0x4d,0xc9,0x64}};
@@ -26,7 +28,7 @@ struct Callbacks { Factory factory = nullptr; NrdBridgeBirth::MetadataAction det
 inline Callbacks callbacks;
 inline std::atomic<unsigned> configured {0}; // 0 unset, 1 configuring, 2 ready, 3 failed.
 inline thread_local void* retirementPayload = nullptr;
-struct CacheEntry { void* address = nullptr; NrdBridgeBirth::Token birth; };
+struct CacheEntry { void* address = nullptr; NrdBridgeBirth::Token birth; bool releaseCovered = false; };
 inline thread_local std::array<CacheEntry,4> receiverCache;
 inline thread_local unsigned nextReceiver = 0;
 inline thread_local const char* pendingFailure = nullptr;
@@ -182,6 +184,36 @@ template <class NativeObject> NrdBridgeBirth::Token Prepare(NativeObject* object
     }
     catch (...) { Detail::Fail("native instance protocol raised an exception"); return {}; }
     Detail::Fail("native instance election exceeded bounded retries"); return {};
+}
+
+// Cover each physical receiver once before caching it. Plain metadata users
+// can populate an uncovered cache entry without bypassing this native hook seam.
+template <class NativeObject, class Coverage>
+NrdBridgeBirth::Token ReceiverWithReleaseCoverage(NativeObject* object, Coverage coverage, bool enabled = true) noexcept
+{
+    if (!enabled || !object) return {};
+    FlushFailure();
+    try
+    {
+        for (auto& entry : Detail::receiverCache)
+        {
+            if (entry.address != object || !NrdBridgeBirth::CacheAdmissible(entry.birth)) continue;
+            if (entry.releaseCovered) return entry.birth;
+            if (NrdBridgeBirth::InMetadataScope())
+            { Detail::Fail("native release coverage entered under metadata lock"); return {}; }
+            if (!coverage(object)) return {};
+            if (!NrdBridgeBirth::CacheAdmissible(entry.birth)) break;
+            entry.releaseCovered = true;
+            return entry.birth;
+        }
+        if (NrdBridgeBirth::InMetadataScope())
+        { Detail::Fail("native release coverage entered under metadata lock"); return {}; }
+        if (!coverage(object)) return {};
+        auto birth = Prepare(object);
+        if (birth) Detail::receiverCache[Detail::nextReceiver++ % Detail::receiverCache.size()] = {object,birth,true};
+        return birth;
+    }
+    catch (...) { Detail::Fail("native release coverage raised an exception"); return {}; }
 }
 
 // Only metadata nodes are cached. Every in-flight Release forces a native read
