@@ -175,7 +175,7 @@ static void RunAgilityUpgrade(HMODULE dx12Module)
                 widePath = std::filesystem::relative(widePath, Util::ExePath().parent_path());
                 widePath = widePath + L"\\D3D12_OptiScaler\\";
 
-                // Properly convert wstring → string
+                // Properly convert wstring â†’ string
                 int size = WideCharToMultiByte(CP_UTF8, 0, widePath.c_str(), -1, nullptr, 0, nullptr, nullptr);
                 path.resize(size - 1);
                 WideCharToMultiByte(CP_UTF8, 0, widePath.c_str(), -1, path.data(), size, nullptr, nullptr);
@@ -1880,12 +1880,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
             return true;
         }
 
+        const bool automaticNrdLogging = PrepareNrdBridgeAutomaticLogPolicy();
+
 #ifdef _DEBUG // VER_PRE_RELEASE
         // Enable file logging for pre builds
         Config::Instance()->LogToFile.set_volatile_value(true);
 
         // Set log level to debug
-        if (Config::Instance()->LogLevel.value_or_default() > 1)
+        if (!automaticNrdLogging && Config::Instance()->LogLevel.value_or_default() > 1)
             Config::Instance()->LogLevel.set_volatile_value(1);
 #endif
 
