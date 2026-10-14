@@ -658,8 +658,16 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         std::vector<FrameSurvey::BoundResource> srv, uav;
         if (!window) { Failure(owner,"Consumer has no current binding-validation window"); return; }
         if (!Tables(cmd,Role::Consumer,srv,uav)) { WaitingForBindings(owner,cmd,"Consumer compute table bindings/registers are unavailable in discovery window"); return; }
-        if (!FrameSurvey::ResolveComputeConstantBuffer(cmd,6,0,76u*16u,consumerConstants))
-        { Failure(owner,"Consumer b6 space0 constants are missing, ambiguous or do not cover register75.w"); return; }
+        FrameSurvey::ConstantBufferDiagnostic constantDiagnostic;
+        if (!FrameSurvey::ResolveComputeConstantBuffer(cmd,6,0,76u*16u,consumerConstants,&constantDiagnostic))
+        {
+            LOG_ERROR("[NRD_BRIDGE] cbv_resolve_failed b6 space0 reason={} parameter={} table={} table_base={:#x} slot_cpu={:#x} "
+                "va={:#x} declared_bytes={} remaining_bytes={} buffer_base={:#x} interval_matches={} tracked_buffers={} required_bytes={}",
+                constantDiagnostic.reason,constantDiagnostic.rootParameter,constantDiagnostic.table,constantDiagnostic.tableBase,
+                constantDiagnostic.descriptorCpu,constantDiagnostic.address,constantDiagnostic.declaredBytes,constantDiagnostic.remainingBytes,
+                constantDiagnostic.resourceBase,constantDiagnostic.intervalMatches,constantDiagnostic.trackedBuffers,76u*16u);
+            Failure(owner,std::string("Consumer b6 space0 constants unavailable: ")+constantDiagnostic.reason); return;
+        }
         {
             std::scoped_lock lock(gMutex); if (gService != owner) return;
             const auto found = owner->lists.find(cmd); if (found == owner->lists.end()) return;

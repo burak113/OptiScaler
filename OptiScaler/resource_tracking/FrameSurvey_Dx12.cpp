@@ -478,21 +478,26 @@ List& GetList(ID3D12GraphicsCommandList* cmd)
 // Caller holds gLifetimeMutex. Cached creation descriptions avoid any COM call or title retain.
 // Query live buffer intervals without scanning the title's texture/descriptor registry.
 // The interval index retains overlapping placed buffers and rejects ambiguous addresses.
-bool ResolveBufferAddress(uint64_t address, uint64_t declaredBytes, uint64_t minimumBytes, BoundConstantBuffer& out)
+bool ResolveBufferAddress(uint64_t address, uint64_t declaredBytes, uint64_t minimumBytes, BoundConstantBuffer& out,
+    ConstantBufferDiagnostic* diagnostic = nullptr)
 {
     out = {};
+    const auto fail = [&](const char* reason) { if (diagnostic) diagnostic->reason = reason; return false; };
+    if (diagnostic) { diagnostic->address = address; diagnostic->declaredBytes = declaredBytes; diagnostic->trackedBuffers = gBufferAddresses.Size(); }
     if (!address || address%256 || !minimumBytes || minimumBytes > 65536 ||
-        (declaredBytes && (declaredBytes%256 || declaredBytes > 65536))) return false;
+        (declaredBytes && (declaredBytes%256 || declaredBytes > 65536))) return fail("CBV address/size alignment is invalid");
     const auto interval = gBufferAddresses.Find(address);
-    if (interval.matches != 1) return false; // Any live overlap is ambiguous, even if only one covers the requested length.
+    if (diagnostic) diagnostic->intervalMatches = interval.matches;
+    if (interval.matches != 1) return fail(interval.matches ? "CBV GPU address overlaps live buffers" : "CBV GPU address has no tracked buffer");
     const auto found = gResources.find(static_cast<ID3D12Resource*>(interval.object));
-    if (found == gResources.end() || found->second.id != interval.generation) return false;
+    if (found == gResources.end() || found->second.id != interval.generation) return fail("CBV buffer generation is stale");
     const auto* match = &found->second;
     if (match->desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER || !match->va || address < match->va ||
-        address-match->va >= match->desc.Width) return false;
+        address-match->va >= match->desc.Width) return fail("CBV GPU address is outside its tracked buffer");
     const uint64_t offset = address-match->va, remaining = match->desc.Width-offset;
+    if (diagnostic) { diagnostic->resourceBase = match->va; diagnostic->remainingBytes = remaining; }
     const uint64_t bytes = declaredBytes ? declaredBytes : std::min<uint64_t>(65536,remaining);
-    if (bytes > remaining || bytes < minimumBytes) return false;
+    if (bytes > remaining || bytes < minimumBytes) return fail("CBV byte range does not cover the requested field");
     out = {match->object,address,offset,bytes,match->id}; return true;
 }
 void StoreView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI_FORMAT format,
@@ -823,20 +828,22 @@ bool ValidateBorrowedConstantBuffer(const BoundConstantBuffer& buffer) noexcept
     } catch (...) { return false; }
 }
 bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList* cmd, UINT shaderRegister, UINT registerSpace,
-    uint64_t minimumBytes, BoundConstantBuffer& out) noexcept
+    uint64_t minimumBytes, BoundConstantBuffer& out, ConstantBufferDiagnostic* diagnostic) noexcept
 {
     out = {};
+    if (diagnostic) *diagnostic = {};
+    const auto fail = [&](const char* reason) { out = {}; if (diagnostic) diagnostic->reason = reason; return false; };
     if (!BindingTracking() || gInternal || !cmd || !minimumBytes || minimumBytes > 65536 ||
-        !gMetadataHealthy.load(std::memory_order_acquire)) return false;
+        !gMetadataHealthy.load(std::memory_order_acquire)) return fail("CBV binding tracking is unavailable");
     try
     {
         std::scoped_lock lock(gMirrorMutex,gLifetimeMutex);
-        if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
+        if (!gMetadataHealthy.load(std::memory_order_acquire)) return fail("CBV metadata is unhealthy");
         const auto list = gMirror.find(cmd);
-        if (list == gMirror.end() || !list->second.compute.object) return false;
+        if (list == gMirror.end() || !list->second.compute.object) return fail("Consumer compute root binding is missing");
         const auto& root = list->second.compute;
         const auto layout = gRootLayouts.find(root.object);
-        if (layout == gRootLayouts.end() || !layout->second.complete) return false;
+        if (layout == gRootLayouts.end() || !layout->second.complete) return fail("Consumer root layout is unavailable");
         UINT parameter = UINT_MAX;
         uint64_t descriptorOffset = 0;
         bool tableBinding = false;
@@ -844,7 +851,7 @@ bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList* cmd, UINT shaderReg
         {
             if (descriptor.kind != D3D12_DESCRIPTOR_RANGE_TYPE_CBV || descriptor.shaderRegister != shaderRegister ||
                 descriptor.registerSpace != registerSpace) continue;
-            if (parameter != UINT_MAX) return false;
+            if (parameter != UINT_MAX) return fail("Consumer b-register maps to multiple root parameters");
             parameter = index;
         }
         for (const auto& [index,ranges] : layout->second.tables)
@@ -853,24 +860,27 @@ bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList* cmd, UINT shaderReg
             for (const auto& range : ranges)
             {
                 if (range.kind != D3D12_DESCRIPTOR_RANGE_TYPE_CBV || range.registerSpace != registerSpace) continue;
-                if (!ValidComputeRange(range)) return false;
+                if (!ValidComputeRange(range)) return fail("Consumer CBV table range is invalid");
                 if (shaderRegister < range.shaderRegister ||
                     (range.count != UINT_MAX && uint64_t(shaderRegister)-range.shaderRegister >= range.count)) continue;
                 const uint64_t offset = uint64_t(range.offset)+shaderRegister-range.shaderRegister;
                 if (offset > UINT_MAX || parameter != UINT_MAX ||
-                    !UniqueComputeMapping(ranges,{D3D12_DESCRIPTOR_RANGE_TYPE_CBV,UINT(offset),shaderRegister,registerSpace})) return false;
+                    !UniqueComputeMapping(ranges,{D3D12_DESCRIPTOR_RANGE_TYPE_CBV,UINT(offset),shaderRegister,registerSpace})) return fail("Consumer CBV register mapping is ambiguous");
                 parameter = index; tableBinding = true; descriptorOffset = offset;
             }
         }
-        if (parameter == UINT_MAX) return false;
+        if (parameter == UINT_MAX) return fail("Consumer b-register is absent from compute root layout");
+        if (diagnostic) { diagnostic->rootParameter = parameter; diagnostic->table = tableBinding; diagnostic->trackedBuffers = gBufferAddresses.Size(); }
         if (!tableBinding)
         {
             const auto view = root.views.find(parameter);
-            return view != root.views.end() && view->second.first == D3D12_DESCRIPTOR_RANGE_TYPE_CBV &&
-                ResolveBufferAddress(view->second.second,0,minimumBytes,out);
+            if (view == root.views.end() || view->second.first != D3D12_DESCRIPTOR_RANGE_TYPE_CBV)
+                return fail("Consumer root CBV argument is missing");
+            return ResolveBufferAddress(view->second.second,0,minimumBytes,out,diagnostic);
         }
         const auto binding = root.tables.find(parameter);
-        if (binding == root.tables.end() || !binding->second) return false;
+        if (binding == root.tables.end() || !binding->second) return fail("Consumer CBV table base is missing");
+        if (diagnostic) diagnostic->tableBase = binding->second;
         const Heap* heap = nullptr;
         for (const auto object : list->second.heaps)
         {
@@ -881,22 +891,25 @@ bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList* cmd, UINT shaderReg
             if (candidate.type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || !candidate.gpu || !candidate.increment ||
                 base < candidate.gpu || base-candidate.gpu >= uint64_t(candidate.count)*candidate.increment ||
                 (base-candidate.gpu)%candidate.increment) continue;
-            if (heap) return false;
+            if (heap) return fail("Consumer CBV table matches multiple bound heaps");
             heap = &candidate;
         }
-        if (!heap) return false;
+        if (!heap) return fail("Consumer CBV shader-visible heap is untracked");
         const uint64_t index = (binding->second-heap->gpu)/heap->increment+descriptorOffset;
-        if (index >= heap->count) return false;
-        const auto view = gViews.find(heap->cpu+index*heap->increment);
+        if (index >= heap->count) return fail("Consumer CBV slot is outside its heap");
+        const auto handle = heap->cpu+index*heap->increment;
+        if (diagnostic) diagnostic->descriptorCpu = handle;
+        const auto view = gViews.find(handle);
         if (view == gViews.end() || view->second.kind != D3D12_DESCRIPTOR_RANGE_TYPE_CBV ||
-            !view->second.constantBytes || !FreshView(view->second,heap)) return false;
+            !view->second.constantBytes || !FreshView(view->second,heap)) return fail("Consumer CBV descriptor slot is missing or stale");
+        if (!ResolveBufferAddress(view->second.rootVa,view->second.constantBytes,minimumBytes,out,diagnostic)) return false;
         const auto resource = gResources.find(view->second.object);
-        if (resource == gResources.end() || resource->second.id != view->second.resource ||
-            !ResolveBufferAddress(view->second.rootVa,view->second.constantBytes,minimumBytes,out)) return false;
-        if (out.resource != resource->first) { out = {}; return false; }
+        if (resource == gResources.end() || resource->second.id != view->second.resource)
+            return fail("Consumer CBV buffer was not tracked at descriptor creation");
+        if (out.resource != resource->first) return fail("Consumer CBV descriptor owner differs from the current buffer");
         out.descriptorHeap = heap->object; out.descriptor = {heap->gpu+index*heap->increment};
         return true;
-    } catch (...) { out = {}; return false; }
+    } catch (...) { return fail("Consumer CBV metadata resolution threw"); }
 }
 bool ResolveComputeTable(ID3D12GraphicsCommandList* cmd, UINT parameter, std::vector<BoundResource>& out) noexcept
 {
@@ -987,6 +1000,16 @@ void ResourceCreated(ID3D12Resource* object, D3D12_RESOURCE_STATES initial, ID3D
         resource.initial = initial; resource.initialKnown = true;
         resource.heap = uint64_t(reinterpret_cast<uintptr_t>(heap)); resource.offset = offset;
     } catch (...) { MetadataFailed("Resource metadata allocation failed"); }
+}
+void ResourceCreatedWithLayout(ID3D12Resource* object, D3D12_BARRIER_LAYOUT, ID3D12Heap* heap, uint64_t offset) noexcept
+{
+    if (!Tracking() || gInternal || !object) return;
+    try
+    {
+        std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation; auto& resource = Register(object);
+        resource.initialKnown = false; // Enhanced layouts cannot be cast to legacy resource-state bits.
+        resource.heap = uint64_t(reinterpret_cast<uintptr_t>(heap)); resource.offset = offset;
+    } catch (...) { MetadataFailed("Enhanced resource metadata allocation failed"); }
 }
 void RootCreated(ID3D12RootSignature* root, const void* bytes, size_t length) noexcept
 {
@@ -1137,11 +1160,13 @@ void View(D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3D12_CONSTANT_BUFFER_VIEW_D
     {
         std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation;
         EraseView(handle.ptr);
+        if (!desc || !desc->BufferLocation || desc->BufferLocation%256 || !desc->SizeInBytes ||
+            desc->SizeInBytes%256 || desc->SizeInBytes > 65536) return;
         BoundConstantBuffer buffer;
-        if (!desc || !desc->SizeInBytes || !ResolveBufferAddress(desc->BufferLocation,desc->SizeInBytes,desc->SizeInBytes,buffer)) return;
-        auto& resource = gResources.at(buffer.resource);
-        ViewInfo view {buffer.resource,resource.id,D3D12_DESCRIPTOR_RANGE_TYPE_CBV,uint32_t(DXGI_FORMAT_UNKNOWN),0,false};
-        view.descriptorCpu = handle.ptr; view.rootVa = buffer.address; view.constantBytes = buffer.size;
+        const bool known = ResolveBufferAddress(desc->BufferLocation,desc->SizeInBytes,desc->SizeInBytes,buffer);
+        ViewInfo view {known ? buffer.resource : nullptr,known ? buffer.resourceGeneration : 0,
+            D3D12_DESCRIPTOR_RANGE_TYPE_CBV,uint32_t(DXGI_FORMAT_UNKNOWN),0,false};
+        view.descriptorCpu = handle.ptr; view.rootVa = desc->BufferLocation; view.constantBytes = desc->SizeInBytes;
         if (const auto heap = HeapAtCpu(handle.ptr))
         {
             view.descriptorHeap = uint64_t(reinterpret_cast<uintptr_t>(heap->object)); view.heapKnown = true;

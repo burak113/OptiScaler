@@ -37,6 +37,15 @@ struct BoundConstantBuffer
     ID3D12DescriptorHeap* descriptorHeap = nullptr; // Borrowed; table CBVs preserve their native volatile slot.
     D3D12_GPU_DESCRIPTOR_HANDLE descriptor {};
 };
+struct ConstantBufferDiagnostic
+{
+    const char* reason = "unavailable";
+    UINT rootParameter = UINT_MAX;
+    bool table = false;
+    uint64_t address = 0, declaredBytes = 0, remainingBytes = 0, resourceBase = 0;
+    uint64_t tableBase = 0, descriptorCpu = 0, trackedBuffers = 0;
+    unsigned intervalMatches = 0;
+};
 struct ComputeTableRequest
 {
     D3D12_DESCRIPTOR_RANGE_TYPE kind = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -74,7 +83,7 @@ bool ResolveComputeBindings(ID3D12GraphicsCommandList*, UINT rootParameter,
                             std::span<const ComputeTableRequest>, std::vector<BoundResource>& out) noexcept;
 // Resolves one current root/table CBV by its exact b-register and space, without retaining or mapping it.
 bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList*, UINT shaderRegister, UINT registerSpace,
-                                  uint64_t minimumBytes, BoundConstantBuffer& out) noexcept;
+                                  uint64_t minimumBytes, BoundConstantBuffer& out, ConstantBufferDiagnostic* diagnostic = nullptr) noexcept;
 // Window-independent generation validation; the caller holds the physical title lifetime borrow gate.
 bool ValidateBorrowedConstantBuffer(const BoundConstantBuffer&) noexcept;
 class ScopedInternal
@@ -113,6 +122,8 @@ void TitleTag(ID3D12GraphicsCommandList*, const char* name, ID3D12Resource*, uin
               uint32_t x, uint32_t y, uint32_t width, uint32_t height) noexcept;
 
 void ResourceCreated(ID3D12Resource*, D3D12_RESOURCE_STATES, ID3D12Heap* heap = nullptr, uint64_t offset = 0) noexcept;
+// Enhanced layouts are not legacy D3D12_RESOURCE_STATES; keep initial state unproven.
+void ResourceCreatedWithLayout(ID3D12Resource*, D3D12_BARRIER_LAYOUT, ID3D12Heap* heap = nullptr, uint64_t offset = 0) noexcept;
 void RootCreated(ID3D12RootSignature*, const void* bytes, size_t length) noexcept;
 void PipelineCreated(ID3D12PipelineState*, const D3D12_COMPUTE_PIPELINE_STATE_DESC&) noexcept;
 void PipelineCreated(ID3D12PipelineState*, const D3D12_GRAPHICS_PIPELINE_STATE_DESC&) noexcept;
