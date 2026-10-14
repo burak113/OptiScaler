@@ -80,6 +80,7 @@ class PhysicalInstance
     friend class ScopedRelease;
     const uint64_t stamp_;
     mutable std::atomic<uint32_t> releasesInFlight_ {0};
+    mutable std::atomic<bool> recordingMayExist_ {false};
     mutable std::mutex aliasesMutex_;
     mutable std::unordered_map<void*, std::weak_ptr<const Birth>> aliases_;
     bool Remember(const Token& token) noexcept;
@@ -120,6 +121,13 @@ class Birth
     bool Admissible() const noexcept { return Live() && Ready(); }
     uint32_t ReleasesInFlight() const noexcept { return physical_->ReleasesInFlight(); }
     bool CacheAdmissible() const noexcept;
+    bool RecordingMayExist() const noexcept
+    { return physical_->recordingMayExist_.load(std::memory_order_acquire); }
+    // Mark only AFTER a successful title-list lease Track, within the SAME strong
+    // Borrow scope. This monotonic physical marker may have false positives after
+    // Reset, but must never miss a recording or be cleared by logical retirement.
+    void MarkRecordingMayExist(bool enabled = true) const noexcept
+    { if (enabled) physical_->recordingMayExist_.store(true, std::memory_order_release); }
 };
 
 inline bool PhysicalInstance::Remember(const Token& token) noexcept
@@ -422,6 +430,11 @@ inline bool Birth::CacheAdmissible() const noexcept
 { return registry_->Healthy() && Admissible() && ReleasesInFlight() == 0; }
 inline bool CacheAdmissible(const Token& token) noexcept
 { return token && token->CacheAdmissible(); }
+inline bool MarkRecordingMayExist(const Token& token, bool enabled = true) noexcept
+{
+    if (!enabled || !token) return false;
+    token->MarkRecordingMayExist(); return true;
+}
 
 class ScopedRelease
 {

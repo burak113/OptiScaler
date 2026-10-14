@@ -327,6 +327,28 @@ void aliasIndexNotHeldByCallback(){
  need(registry.CaptureProvenAliasesForFinalZero(token,aliases)&&aliases.count==1&&aliases.tokens[0]==fresh,"staged snapshot finds current alias after independent publication");
  need(registry.RetireProvenAliases(aliases,detach,&effects)==1,"staged callback executes after all alias index locks ended");
 }
+void recordingPhysicalMarker(){
+ const auto offAlloc=allocations.load(),offRegistries=B::Detail::constructedRegistries.load();
+ need(!B::MarkRecordingMayExist({},false)&&!B::MarkRecordingMayExist({}),"startup OFF/unknown marker never synthesizes a recording-capable birth");
+ need(allocations==offAlloc&&B::Detail::constructedRegistries==offRegistries,"startup OFF/unknown marker has no global registry allocation");
+ B::Registry registry;Effects effects;auto first=registry.ObserveInstance(address(0x130000),18000,detach,publish,&effects);
+ B::AliasSnapshot aliases;need(first&&!first->RecordingMayExist()&&registry.CaptureProvenAliasesForFinalZero(first,aliases)&&aliases.count==1,"normal one-alias resource/heap/PSO starts with no possible title-list recording");
+ const auto warm=allocations.load();first->MarkRecordingMayExist(false);
+ need(!first->RecordingMayExist()&&allocations==warm,"disabled marker leaves known physical metadata unchanged without allocation");
+ need(B::MarkRecordingMayExist(first)&&first->RecordingMayExist()&&allocations==warm,"successful title-list Track marker is metadata-only atomic with no lock/allocation");
+ std::array<B::Token,B::AliasSnapshot::Capacity> physical;physical[0]=first;
+ for(size_t index=1;index!=physical.size();++index){physical[index]=registry.ObserveInstance(address(0x130000+index*256),18000,detach,publish,&effects);need(physical[index]&&physical[index]->RecordingMayExist(),"all 64 same-native-GUID aliases inherit existing recording capability");}
+ {B::CurrentGuard old(first);need(old.Retire(detach,&effects),"logical title-list retirement does not erase physical capability");}
+ auto reborn=registry.ObserveInstance(first->Address(),18000,detach,publish,&effects);
+ need(reborn&&reborn!=first&&reborn->RecordingMayExist()&&first->RecordingMayExist(),"same native GUID logical re-observation inherits monotonic recording flag");
+ auto recycled=registry.ObserveInstance(physical[1]->Address(),18001,detach,publish,&effects);
+ need(recycled&&!recycled->RecordingMayExist()&&physical[1]->RecordingMayExist(),"genuinely recycled different native stamp starts false without clearing old physical state");
+ need(registry.CaptureProvenAliasesForFinalZero(first,aliases)&&aliases.count==63,"recording marker alias snapshot omits recycled different-GUID address");
+ registry.RetireProvenAliases(aliases,detach,&effects);
+ need(first->RecordingMayExist()&&reborn->RecordingMayExist(),"final logical metadata retirement never clears the monotonic shared marker");
+ {B::CurrentGuard fresh(recycled);need(fresh.Retire(detach,&effects),"recycled non-recording physical owner retires normally");}
+ need(registry.LiveCountForTesting()==0&&registry.Healthy(),"recording marker does not retain catalog entries or title COM references");
+}
 void bounded(){
  B::Registry registry;Effects effects;
  for(uint64_t index=1;index<=4096;++index){
@@ -434,7 +456,7 @@ void hazards(){
  B::Registry missing;need(!missing.PublishFresh(address(0x9000),0,detach,publish,&nested)&&!missing.Healthy(),"missing native instance stamp fails closed");
 }
 int main(int argc,char** argv)try{
- need(argc==2,"output JSON path");basics();reuseAndNotifications();probeAndAliases();missedPreFinal();internedDuringFinal();firstStampElection();crossNestedNonfinal();independentShards();stagedProvenAliases();aliasCapAndPruning();concurrentAliasFinalReseed();aliasIndexNotHeldByCallback();bounded();processFacade();hazards();birthWaitProfiling();
+ need(argc==2,"output JSON path");basics();reuseAndNotifications();probeAndAliases();missedPreFinal();internedDuringFinal();firstStampElection();crossNestedNonfinal();independentShards();stagedProvenAliases();aliasCapAndPruning();concurrentAliasFinalReseed();aliasIndexNotHeldByCallback();recordingPhysicalMarker();bounded();processFacade();hazards();birthWaitProfiling();
  need(nativeInside==0&&ownedInside==0,"all executed native calls and owned destruction remain outside metadata scope");
  const auto result=std::string("{\"native_checks\":")+std::to_string(checks.load())+",\"shards\":64,\"bounded_births\":4096,\"burst_births\":4096,\"cold_prune_budget\":8,\"proven_alias_cap\":64,\"profile_reports\":"+std::to_string(profileReports.load())+",\"metadata_wait_ticks\":"+std::to_string(measuredProfile.hooks[size_t(NrdBridgePerf::Hook::Release)].waitTicks[size_t(NrdBridgePerf::WaitKind::Metadata)])+",\"native_calls_inside_scope\":0,\"owned_destruction_inside_scope\":0,\"gpu_work\":false}";
  std::ofstream(argv[1])<<result<<'\n';std::cout<<result<<'\n';return 0;
