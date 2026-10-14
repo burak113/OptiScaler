@@ -94,7 +94,7 @@ struct SignalFlagCapture
     void Record(ID3D12GraphicsCommandList* list, const TitleSignalConstants& constants,
                 const SignalFlagSnapshot& snapshot) const noexcept
     {
-        // Balanced COMMON -> UAV -> CBV -> COMMON, including duplicate closed
+        // Balanced COMMON -> UAV -> CBV -> COMMON also supports distinct closed
         // recordings executed together without an intervening decay boundary.
         D3D12_RESOURCE_BARRIER start {}; start.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
         start.Transition = {snapshot.resource.Get(), D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
