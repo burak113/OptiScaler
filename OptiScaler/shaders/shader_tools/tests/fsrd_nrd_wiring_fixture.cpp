@@ -312,7 +312,15 @@ J exercise(Host& h,bool enabled) {
   need(D3D12Hooks::CanRestoreRootSignature(h.list.Get()),"complete title root snapshot permits injection");
   Config::Instance()->RestoreComputeSignature.current=false;
   need(!D3D12Hooks::CanRestoreRootSignature(h.list.Get()),"configuration reload disabling compute restore rejects bridge injection");
+  h.list->SetComputeRootSignature(injection.root.Get());
+  need(signatures[h.list.Get()].ptr==injection.root.Get() && bridgeComputeRoots[h.list.Get()]==injection.root.Get(),
+       "title root changes during disabled restoration still update the bridge snapshot");
+  need(rootStates[h.list.Get()][0].type==RootEntryType::Invalid,"disabled-period root switch invalidates all stale root arguments");
+  h.list->SetComputeRootSignature(title.root.Get());
+  need(signatures[h.list.Get()].ptr==title.root.Get() && bridgeComputeRoots[h.list.Get()]==title.root.Get(),
+       "latest title root is remembered before restoration becomes enabled again");
   Config::Instance()->RestoreComputeSignature.current=true;
+  title.bind(true);
   Config::Instance()->ExtendedStateRestore.current=false;
   need(!D3D12Hooks::CanRestoreRootSignature(h.list.Get()),"configuration reload disabling extended restore rejects bridge injection");
   Config::Instance()->ExtendedStateRestore.current=true;

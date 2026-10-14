@@ -449,7 +449,8 @@ UINT GetRootParameterCount(ID3D12RootSignature* pRootSignature)
 VALIDATE_HOOK(hkSetComputeRootSignature, PFN_SetComputeRootSignature)
 static void hkSetComputeRootSignature(ID3D12GraphicsCommandList* commandList, ID3D12RootSignature* pRootSignature)
 {
-    if (!lateInProgressSetComputeRootSignature && Config::Instance()->RestoreComputeSignature.value_or_default() &&
+    if (!lateInProgressSetComputeRootSignature &&
+        (gNrdBridgeDeviceWrappers || Config::Instance()->RestoreComputeSignature.value_or_default()) &&
         !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && pRootSignature != nullptr)
     {
         {
@@ -820,8 +821,8 @@ static void hkSetComputeRootSignatureLate(ID3D12GraphicsCommandList* commandList
 {
     lateInProgressSetComputeRootSignature = true;
 
-    if (Config::Instance()->RestoreComputeSignature.value_or_default() && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr &&
-        pRootSignature != nullptr)
+    if ((gNrdBridgeDeviceWrappers || Config::Instance()->RestoreComputeSignature.value_or_default()) &&
+        !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && pRootSignature != nullptr)
     {
         {
             auto paramCount = GetRootParameterCount(pRootSignature);

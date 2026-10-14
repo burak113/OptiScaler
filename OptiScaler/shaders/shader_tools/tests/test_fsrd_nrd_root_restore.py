@@ -24,7 +24,8 @@ def run():
     source = (ROOT/'OptiScaler/hooks/D3D12_Hooks.cpp').read_text()
     state = source[source.index('enum class RootEntryType'):source.index('enum class SignatureEntryType')]
     names = ('hkSetComputeRoot32BitConstants', 'hkSetComputeRoot32BitConstant',
-             'hkSetComputeRoot32BitConstantsLate', 'hkSetComputeRoot32BitConstantLate')
+             'hkSetComputeRoot32BitConstantsLate', 'hkSetComputeRoot32BitConstantLate',
+             'hkSetComputeRootSignature', 'hkSetComputeRootSignatureLate')
     bodies = '\n'.join(function(source, 'static void '+name+'(') for name in names)
     control = '\n'.join(function(source, signature).replace('D3D12Hooks::', '') for signature in (
         'void D3D12Hooks::SetRootSignatureTracking(', 'bool D3D12Hooks::RootSignatureTrackingEnabled(',
@@ -53,15 +54,25 @@ struct DescriptorHeap { UINT NumDescriptorHeaps=0; ID3D12DescriptorHeap* Heaps[2
 std::shared_mutex descriptorHeapsMutex;
 std::unordered_map<ID3D12GraphicsCommandList*,DescriptorHeap> descriptorHeaps;
 std::unordered_map<ID3D12GraphicsCommandList*,ID3D12RootSignature*> bridgeComputeRoots;
+enum class SignatureEntryType { Compute, Graphics };
+struct SignatureEntry { SignatureEntryType type; ID3D12RootSignature* ptr; };
+std::shared_mutex rootSignatureMutex;
+std::unordered_map<ID3D12GraphicsCommandList*,SignatureEntry> signatures;
+struct Option { bool current=true; bool value_or_default() const { return current; } };
+struct Config { Option RestoreComputeSignature; static Config* Instance() { static Config value; return &value; } };
+UINT GetRootParameterCount(ID3D12RootSignature*) { return 6; }
 bool gNrdBridgeDeviceWrappers = true, isUpscalerActive = false;
 thread_local bool isNrdBridgeInjection = false;
 thread_local bool lateInProgressSetComputeRoot32BitConstants = false, lateInProgressSetComputeRoot32BitConstant = false;
+thread_local bool lateInProgressSetComputeRootSignature = false;
 std::shared_mutex rootStatesMutex;
 std::unordered_map<ID3D12GraphicsCommandList*, std::vector<RootState>> rootStates;
 void many(ID3D12GraphicsCommandList*,UINT,UINT,const void*,UINT) {}
 void one(ID3D12GraphicsCommandList*,UINT,UINT,UINT) {}
 struct { decltype(&many) o_earlyHook = many, o_lateHook = many; } s_SetComputeRoot32BitConstants;
 struct { decltype(&one) o_earlyHook = one, o_lateHook = one; } s_SetComputeRoot32BitConstant;
+void bindRoot(ID3D12GraphicsCommandList*,ID3D12RootSignature*) {}
+struct { decltype(&bindRoot) o_earlyHook = bindRoot, o_lateHook = bindRoot; } s_SetComputeRootSignature;
 __BODIES__
 __CONTROL__
 unsigned checks = 0;
@@ -115,7 +126,31 @@ int main() {
  descriptorHeaps[bindingList]={1,{nullptr,nullptr}};
  need(!GetComputeBindingsForBridge(bindingList,bindings) && bindings.heaps.empty(), "null heap cannot publish a partial snapshot");
  descriptorHeaps[bindingList]={1,{heap,nullptr}};
+ auto* earlyRoot = reinterpret_cast<ID3D12RootSignature*>(6);
+ auto* lateRoot = reinterpret_cast<ID3D12RootSignature*>(7);
+ Config::Instance()->RestoreComputeSignature.current=false;
+ hkSetComputeRootSignature(bindingList,earlyRoot);
+ need(bridgeComputeRoots[bindingList]==earlyRoot && signatures[bindingList].ptr==earlyRoot,
+      "early bridge root tracking remains current through a false restore flag");
+ need(rootStates[bindingList][1].type==RootEntryType::Invalid && rootStates[bindingList][5].type==RootEntryType::Invalid,
+      "early root change during disabled restoration clears stale tables");
+ need(GetComputeBindingsForBridge(bindingList,bindings) && bindings.root==earlyRoot && bindings.tables.empty(),
+      "binding seed cannot retain the previous root or arguments after an early root change");
+ hkSetComputeRootSignatureLate(bindingList,lateRoot);
+ need(bridgeComputeRoots[bindingList]==lateRoot && signatures[bindingList].ptr==lateRoot,
+      "late bridge root tracking remains current through a false restore flag");
+ need(GetComputeBindingsForBridge(bindingList,bindings) && bindings.root==lateRoot && bindings.tables.empty(),
+      "late binding seed contains exactly the newly bound root");
+ Config::Instance()->RestoreComputeSignature.current=true;
+ need(GetComputeBindingsForBridge(bindingList,bindings) && bindings.root==lateRoot,
+      "re-enabling restoration cannot make the prior root current again");
  gNrdBridgeDeviceWrappers = false;
+ Config::Instance()->RestoreComputeSignature.current=false;
+ hkSetComputeRootSignature(bindingList,earlyRoot);
+ hkSetComputeRootSignatureLate(bindingList,earlyRoot);
+ need(signatures[bindingList].ptr==lateRoot && bridgeComputeRoots[bindingList]==lateRoot,
+      "startup OFF preserves disabled early and late legacy root tracking");
+ Config::Instance()->RestoreComputeSignature.current=true;
  need(!GetComputeBindingsForBridge(list,bindings) && !bindings.root, "disabled getter does no snapshot work");
  need(!GetComputeBindingsForBridge(nullptr,bindings), "null list fails closed");
  hkSetComputeRoot32BitConstants(list,0,4,a,2);
