@@ -817,8 +817,9 @@ void cbvReleaseCase(Host& h,Title& title,J& result) {
  CbLifetime::Detach();need(NrdBridge::GetStatus().reason.empty(),"source registry generation is diagnostic and cannot reject the same live native b6 slot");need(FfxApiProxy::dispatches==calls+1 && NrdBridge::GetStatus().framesBridged==before.framesBridged+1 && NrdBridge::GetStatus().active,"same volatile b6 slot with a live unregistered replacement reaches real signed RR and publishes Active");
  need(restores==beforeRestores+3,"live Recon/motion and native b6 flag/RR injections each restore exact Consumer state");
  title.rrChecks(title.finish());need(title.codecBits==0x80000000u,"original Consumer and private flag snapshot observe the same replacement word303 bits");
- NrdBridge::SetRuntimeEnabled(false);NrdBridge::SetRuntimeEnabled(true);title.frame(4);need(title.sentinel(title.finish()),"b6 lifetime recovery validates the replacement resource profile first");title.frame(5);title.rrChecks(title.finish());
- need(FfxApiProxy::dispatches==calls+2 && (FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET),"unregistered live replacement b6 preserves runtime reset recovery through actual signed RR");
+ NrdBridge::SetRuntimeEnabled(false);NrdBridge::SetRuntimeEnabled(true);title.frame(4);title.rrChecks(title.finish());
+ need(FfxApiProxy::dispatches==calls+2 && (FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET),"runtime reset uses the still-valid native resource profile and unregistered b6 immediately");title.frame(5);title.rrChecks(title.finish());
+ need(FfxApiProxy::dispatches==calls+3 && !(FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET),"same unregistered native b6 retains consecutive real RR history after runtime reset");
  const auto beforeRebind=FfxApiProxy::dispatches,beforeRebindRestores=restores;const auto beforeRebindFrames=NrdBridge::GetStatus().framesBridged;
  title.beforeConsumer=+[] {CbLifetime::title->bindConstants(CbLifetime::replacement.Get(),57,false);};
  NrdBridge::gBeforeOutputLockForTesting=+[] {CbLifetime::title->bindConstants(CbLifetime::replacement.Get(),58,false);};
