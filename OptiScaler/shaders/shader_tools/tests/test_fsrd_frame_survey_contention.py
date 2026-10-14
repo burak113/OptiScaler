@@ -574,7 +574,7 @@ int main(int argc,char** argv)try{
  hr(h.list->Close());releaseNativeHost(h);need(peakRss()<2ull*1024*1024*1024,"measured peak process working set below2GB");
  J result{{"variant","__VARIANT__"},{"profile",profile},{"adapter",gUseHardware?"hardware":"WARP"},{"checks",checks},{"rows",rows},
   {"gpu_dispatches",0},{"ExecuteCommandLists_calls",0},{"synthetic_objects_passed_to_com",false},{"logical_registry_records",logicalRecords},
-  {"peak_working_set_bytes",peakRss()},{"native_birth_mode",bornMode},{"Detours_installation_measured",false},{"lease_registry","actual production RecordedComputeLease, actual retirement counters and dispatcher"},{"scope","actual extracted native View/resource+heap Release hooks with explicit COM forwarding; live WARP/hardware pools;100k metadata-emulated resources/views; HUD/RR caches inactive; copy wrapper is native CopyDescriptorsSimple+actual FrameSurvey callback; profileON adds paired native QPC and profiler TLS snapshots; profileOFF has no inner QPC but disabled fixture measurement branches remain"}};
+  {"descriptor_shards",FrameSurveyMetadata::DescriptorShards},{"descriptor_layout_bytes",{{"handles_per_owner",sizeof(FrameSurveyMetadata::DescriptorHandles)},{"owner_wrapper",sizeof(FrameSurveyMetadata::DescriptorHandleOwner)},{"global_slot_mutexes",sizeof(FrameSurvey::gViewMutexes)}}},{"peak_working_set_bytes",peakRss()},{"native_birth_mode",bornMode},{"Detours_installation_measured",false},{"lease_registry","actual production RecordedComputeLease, actual retirement counters and dispatcher"},{"scope","actual extracted native View/resource+heap Release hooks with explicit COM forwarding; live WARP/hardware pools;100k metadata-emulated resources/views; HUD/RR caches inactive; copy wrapper is native CopyDescriptorsSimple+actual FrameSurvey callback; profileON adds paired native QPC and profiler TLS snapshots; profileOFF has no inner QPC but disabled fixture measurement branches remain"}};
  std::ofstream(std::filesystem::path(argv[1])/(std::string("result-")+argv[2]+".json"))<<result.dump(2)<<'\n';std::cout<<result.dump()<<'\n';return 0;
 }catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}
 '''
@@ -629,13 +629,26 @@ def run():
     parser.add_argument('--snapshot-readers', action='store_true', help='separate8/16thread1024copy workload with actual periodic CBV metadata reader')
     parser.add_argument('--alias-diagnostic', action='store_true', help='pure pre-timing native alias inventory and unchanged physical-object callback assertion')
     parser.add_argument('--adapter', choices=('warp', 'hardware'), default='warp')
+    parser.add_argument('--descriptor-shards', type=int, choices=(32, 128, 256), default=32, help='scratch-only candidate layout; repository production default is never changed')
     parser.add_argument('--profile', choices=('on', 'off', 'both'), default='both')
     args = parser.parse_args()
+    if args.baseline and args.descriptor_shards != 32:
+        parser.error('frozen baseline keeps its original32-shard fixture adapter layout')
     out = Path(os.environ['FSRD_GPU_TEST_OUTPUT'])
     out.mkdir(parents=True, exist_ok=True)
     source = snapshot('OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp', args.baseline)
     hook_source = snapshot('OptiScaler/resource_tracking/ResTrack_dx12.cpp', args.baseline)
     original = source
+    metadata_original = (ROOT/'OptiScaler/resource_tracking/FrameSurveyConcurrentMetadata.h').read_text()
+    metadata_compiled = metadata_original
+    assert metadata_original.count('inline constexpr size_t DescriptorShards = 32;') == 1
+    assert metadata_original.count('return size_t(slot >> 59);') == 1
+    if args.descriptor_shards != 32:
+        assert args.descriptor_shards & (args.descriptor_shards-1) == 0
+        metadata_compiled = metadata_compiled.replace('inline constexpr size_t DescriptorShards = 32;', f'inline constexpr size_t DescriptorShards = {args.descriptor_shards};')
+        metadata_compiled = metadata_compiled.replace('return size_t(slot >> 59);', f'return size_t(slot >> {64-(args.descriptor_shards.bit_length()-1)});')
+    metadata_path = out/'FrameSurveyConcurrentMetadata.h'
+    metadata_path.write_text(metadata_compiled, encoding='utf-8')
     helper = (ROOT/"OptiScaler/misc/NrdBridgeRelease_Dx12.h").read_text()
     assert helper.count("object->AddRef();") == 1
     measured_helper = out/"NrdBridgeRelease_measured.h"
@@ -652,7 +665,7 @@ def run():
     # descriptor heap, disable debug overhead and allow a real hardware adapter.
     cpp = native.CPP[:native.CPP.index('#if __INDEXED__\n// Opaque')]
     cpp = cpp.replace('#include <thread>', '#include <thread>\n#include <future>\n#define FSRD_NRD_BRIDGE_TEST\nbool gUseHardware=false;')
-    cpp = cpp.replace('#include "__SURVEY__"', '#include "resource_tracking/FrameSurveyConcurrentMetadata.h"\n#include "__SURVEY__"')
+    cpp = cpp.replace('#include "__SURVEY__"', '#include "'+metadata_path.as_posix()+'"\n#include "__SURVEY__"')
     cpp = cpp.replace('debug->EnableDebugLayer();', '(void)debug;')
     cpp = cpp.replace('hr(factory->EnumWarpAdapter(IID_PPV_ARGS(&warp)));', 'if(gUseHardware)hr(factory->EnumAdapters(0,&warp));else hr(factory->EnumWarpAdapter(IID_PPV_ARGS(&warp)));')
     cpp = cpp.replace('BeginCreationTracking(true)', 'BeginCreationTracking(false)').replace('hd.NumDescriptors=16', 'hd.NumDescriptors=65536')
@@ -707,6 +720,8 @@ struct OriginalForwardTimer {
     variant = 'baseline6edf-real-lease-paired-locksplit' if args.baseline else 'native-pinned-metadata-paired-locksplit'
     if not args.baseline and 'bool SameCopiedView(' in source:
         variant += '-copy-noop'
+    if args.descriptor_shards != 32:
+        variant += f'-scratch{args.descriptor_shards}'
     driver = DRIVER
     if args.snapshot_readers:
         driver = periodic_snapshot_driver(driver, args.alias_diagnostic)
@@ -722,6 +737,7 @@ struct OriginalForwardTimer {
         driver = driver.replace('need(FrameSurvey::gResources.size()==2,"synthetic teardown leaves only actual shared native buffer and texture");',
             'need(FrameSurvey::gResources.size()==2,"synthetic teardown leaves only actual shared native buffer and texture");need(FrameSurvey::gNativeResources.Size()==2&&FrameSurvey::gNativeBuffers.Size()==1&&FrameSurvey::gNativeHeaps.Size()==1,"native synthetic teardown leaves only actual host metadata nodes");')
     if args.baseline:
+        driver = driver.replace('sizeof(FrameSurvey::gViewMutexes)', '0') # Frozen catalog has no slot mutex array.
         # The frozen catalog predates birth fields. Its original assertions stay;
         # the genuinely new SAMPLER identity fixture belongs only to the candidate.
         driver = driver.replace(function(driver, "void samplerNativeRegressions("), "void samplerNativeRegressions(Host&) {}")
@@ -748,6 +764,10 @@ struct OriginalForwardTimer {
         report['production_source_sha256'] = hashlib.sha256(original.encode()).hexdigest()
         report['hook_body_sha256'] = {name: hashlib.sha256(body.encode()).hexdigest() for name, body in dict(bodies, hkRelease=release, hkHeapRelease=heap_release).items()}
         report['baseline_instrumentation'] = 'scratch catalog mutex WaitScope, same-call native AddRef/QPC and before-Scope-destructor TLS snapshot; production control flow and assertions unchanged' if args.baseline else None
+        report['descriptor_layout_scope'] = 'fixture adapter header only; frozen production catalog has no slot mutex array and uses its original reverse sets' if args.baseline else 'actual candidate compiled metadata owner/slot-mutex layout'
+        report['descriptor_shard_scope'] = 'repository production default32, unchanged scratch header' if args.descriptor_shards == 32 else f'scratch-only{args.descriptor_shards}: map, reverse buckets, slot mutexes use the same derived shard index; identity map stays32; no production default edit'
+        report['metadata_header_source_sha256'] = hashlib.sha256(metadata_original.encode()).hexdigest()
+        report['metadata_header_compiled_sha256'] = hashlib.sha256(metadata_compiled.encode()).hexdigest()
         report['periodic_snapshot_reader_variant'] = args.snapshot_readers
         report['measurement_instrumentation'] = 'same-call native AddRef/Release/View/Copy QPC; profiler TLS snapshot before outer Scope destructor; copy native+callback boundary uses Hook::CopyDescriptors Scope'
         report['native_release_helper_sha256'] = hashlib.sha256(helper.encode()).hexdigest()
