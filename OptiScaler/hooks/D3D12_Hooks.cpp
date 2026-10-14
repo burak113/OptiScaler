@@ -343,23 +343,31 @@ static bool RootParameterCountKnown(ID3D12RootSignature* root, const NrdBridgeBi
     return birth && birth->Live() && !birth->Failed() && node != rootSigBirths.end() && node->second == birth &&
         rootSigParameterCount.find(root) != rootSigParameterCount.end();
 }
-static NrdBridgeBirth::Token TrackerRootReceiver(ID3D12RootSignature* root)
+static NrdBridgeBirth::Token TrackerRootReceiver(ID3D12RootSignature* root) noexcept
 {
-    auto birth = TrackerNativeReceiver(root);
-    if (!birth || RootParameterCountKnown(root,birth)) return birth;
-    NativeRootParameterCount native;
-    UINT bytes = sizeof(native);
-    // This cold native getter runs before the receiver/list CurrentGuard.
-    const auto result = root->GetPrivateData(RootParameterCountGuid,&bytes,&native);
-    if (result == DXGI_ERROR_NOT_FOUND) return birth; // Unobserved ordinary root: count remains unknown.
-    if (FAILED(result) || bytes != sizeof(native) || native.version != 1 ||
-        native.instanceStamp != birth->InstanceStamp() || native.count > D3D12_MAX_ROOT_COST)
-    { NrdBridgeNativeBirth::Detail::Fail("native root parameter count read failed"); return {}; }
-    NrdBridgeBirth::CurrentGuard guard(birth);
-    if (!guard.MatchesCurrent() || !NrdBridgeBirth::Healthy()) return {};
-    std::unique_lock lock(rootSigParameterCountMutex, std::defer_lock); LockRootTracker(lock);
-    rootSigParameterCount.insert_or_assign(root,native.count); rootSigBirths.insert_or_assign(root,birth);
-    return birth;
+    try
+    {
+        auto birth = TrackerNativeReceiver(root);
+        if (!birth || RootParameterCountKnown(root,birth)) return birth;
+        NativeRootParameterCount native;
+        UINT bytes = sizeof(native);
+        // This cold native getter runs before the receiver/list CurrentGuard.
+        const auto result = root->GetPrivateData(RootParameterCountGuid,&bytes,&native);
+        if (result == DXGI_ERROR_NOT_FOUND) return birth; // Unobserved ordinary root: count remains unknown.
+        if (FAILED(result) || bytes != sizeof(native) || native.version != 1 ||
+            native.instanceStamp != birth->InstanceStamp() || native.count > D3D12_MAX_ROOT_COST)
+        { NrdBridgeNativeBirth::Detail::Fail("native root parameter count read failed"); return {}; }
+        NrdBridgeBirth::CurrentGuard guard(birth);
+        if (!guard.MatchesCurrent() || !NrdBridgeBirth::Healthy()) return {};
+        std::unique_lock lock(rootSigParameterCountMutex, std::defer_lock); LockRootTracker(lock);
+        rootSigParameterCount.insert_or_assign(root,native.count); rootSigBirths.insert_or_assign(root,birth);
+        return birth;
+    }
+    catch (...)
+    {
+        if (RootTrackerBirthsEnabled()) NrdBridgeNativeBirth::Detail::Fail("native root count bootstrap publication failed");
+        return {};
+    }
 }
 UINT GetRootParameterCount(ID3D12RootSignature* root, const NrdBridgeBirth::Token& birth = {});
 // Caller owns the receiver CurrentGuard and rootStatesMutex. No native call or
@@ -2463,36 +2471,43 @@ struct ReturnedRootInterface
     ReturnedRootInterface(const ReturnedRootInterface&) = delete;
     ReturnedRootInterface& operator=(const ReturnedRootInterface&) = delete;
 };
-static void PublishCreatedRootParameters(void* output, REFIID iid, UINT count)
+static void PublishCreatedRootParameters(void* output, REFIID iid, UINT count) noexcept
 {
-    if (!output || (RootTrackerBirthsEnabled() && FrameSurvey::Internal())) return;
-    ReturnedRootInterface returned(output,iid);
-    if (!returned.root)
+    try
     {
-        if (RootTrackerBirthsEnabled()) NrdBridgeNativeBirth::Detail::Fail("created root interface normalization failed");
-        return;
-    }
-    NrdBridgeBirth::Token birth;
-    if (RootTrackerBirthsEnabled())
-    {
-        if (!NrdBridgeNativeBirth::ObserveReleaseCoverage(returned.root) ||
-            !NrdBridgeNativeBirth::ObserveReleaseCoverage(static_cast<IUnknown*>(output))) return;
-        birth = NrdBridgeNativeBirth::Prepare(returned.root);
-        if (!birth) return;
-        const NativeRootParameterCount native{birth->InstanceStamp(),count,1};
-        if (count > D3D12_MAX_ROOT_COST || FAILED(returned.root->SetPrivateData(RootParameterCountGuid,sizeof(native),&native)))
-        { NrdBridgeNativeBirth::Detail::Fail("native root parameter count write failed"); return; }
-        if (output != returned.root)
+        if (!output || (RootTrackerBirthsEnabled() && FrameSurvey::Internal())) return;
+        ReturnedRootInterface returned(output,iid);
+        if (!returned.root)
         {
-            NrdBridgeNativeBirth::RetirementScope effects;
-            if (!effects.Valid() || !NrdBridgeBirth::LinkAlias(birth->InstanceStamp(),output)) return;
+            if (RootTrackerBirthsEnabled()) NrdBridgeNativeBirth::Detail::Fail("created root interface normalization failed");
+            return;
         }
+        NrdBridgeBirth::Token birth;
+        if (RootTrackerBirthsEnabled())
+        {
+            if (!NrdBridgeNativeBirth::ObserveReleaseCoverage(returned.root) ||
+                !NrdBridgeNativeBirth::ObserveReleaseCoverage(static_cast<IUnknown*>(output))) return;
+            birth = NrdBridgeNativeBirth::Prepare(returned.root);
+            if (!birth) return;
+            const NativeRootParameterCount native{birth->InstanceStamp(),count,1};
+            if (count > D3D12_MAX_ROOT_COST || FAILED(returned.root->SetPrivateData(RootParameterCountGuid,sizeof(native),&native)))
+            { NrdBridgeNativeBirth::Detail::Fail("native root parameter count write failed"); return; }
+            if (output != returned.root)
+            {
+                NrdBridgeNativeBirth::RetirementScope effects;
+                if (!effects.Valid() || !NrdBridgeBirth::LinkAlias(birth->InstanceStamp(),output)) return;
+            }
+        }
+        NrdBridgeBirth::CurrentGuard guard(birth,RootTrackerBirthsEnabled());
+        if (RootTrackerBirthsEnabled() && (!guard.MatchesCurrent() || !NrdBridgeBirth::Healthy())) return;
+        std::unique_lock lock(rootSigParameterCountMutex, std::defer_lock); LockRootTracker(lock);
+        rootSigParameterCount.insert_or_assign(returned.root,count);
+        if (RootTrackerBirthsEnabled()) rootSigBirths.insert_or_assign(returned.root,birth);
     }
-    NrdBridgeBirth::CurrentGuard guard(birth,RootTrackerBirthsEnabled());
-    if (RootTrackerBirthsEnabled() && (!guard.MatchesCurrent() || !NrdBridgeBirth::Healthy())) return;
-    std::unique_lock lock(rootSigParameterCountMutex, std::defer_lock); LockRootTracker(lock);
-    rootSigParameterCount.insert_or_assign(returned.root,count);
-    if (RootTrackerBirthsEnabled()) rootSigBirths.insert_or_assign(returned.root,birth);
+    catch (...)
+    {
+        if (RootTrackerBirthsEnabled()) NrdBridgeNativeBirth::Detail::Fail("created root count metadata publication failed");
+    }
 }
 
 VALIDATE_HOOK(hkCreateRootSignature, PFN_CreateRootSignature)
