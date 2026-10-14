@@ -19,7 +19,7 @@ CPP = r'''
 #include "__COORDINATOR__"
 #include <thread>
 #include <chrono>
-unsigned convertCalls=0, motionCalls=0, rrCalls=0, debugCalls=0, depthResets=0, rrResets=0;
+unsigned convertCalls=0, motionCalls=0, rrCalls=0, debugCalls=0, depthResets=0, rrResets=0, rrDiscards=0;
 bool internalObserved=true, trackingSuppressed=true, observerUnlocked=true, throwPrepare=false, deferredMotion=true;
 NrdBridge::ConversionInputs lastReconInputs {};
 NrdBridge::FrameParameters lastRGBFrame {},lastMotionFrame {},lastRRFrame {};
@@ -52,6 +52,7 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList*,const ConvertedResources&,ID
  internalObserved &= FrameSurvey::Internal(); trackingSuppressed &= !D3D12Hooks::tracking; return true;
 }
 void RRWrapper::ResetHistory() noexcept { ++rrResets; }
+void RRWrapper::DiscardRecordingHistory() noexcept { ++rrDiscards; }
 uint64_t RRWrapper::ContextGeneration() const noexcept { return 0; }
 __CAMERA_STUB__
 }
@@ -190,7 +191,9 @@ J cpuTimings(ChainHost& c) {
  timings.push_back(measure("creation registry: cached ResourceCreated",100000,[&]{FrameSurvey::ResourceCreated(resource,srv);}));
  timings.push_back(measure("creation registry: SRV overwrite",100000,[&]{FrameSurvey::View(resource,c.cpu,&view);}));
  timings.push_back(measure("closed binding window: Table callback",200000,[&]{FrameSurvey::Table(c.h.list.Get(),false,1,c.gpu);}));
- timings.push_back(measure("closed binding window: CopyDescriptors callback",200000,[&]{FrameSurvey::CopyDescriptors(c.h.dev.Get(),1,&dest,&n,1,&c.cpu,&n,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);}));
+ timings.push_back(measure("closed binding window: CopyDescriptors callback one descriptor",200000,[&]{FrameSurvey::CopyDescriptors(c.h.dev.Get(),1,&dest,&n,1,&c.cpu,&n,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);}));
+ UINT batchDescriptors=64;
+ timings.push_back(measure("closed binding window: CopyDescriptors callback 64 descriptors",10000,[&]{FrameSurvey::CopyDescriptors(c.h.dev.Get(),1,&dest,&batchDescriptors,1,&c.cpu,&batchDescriptors,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);}));
  FrameSurvey::SetBindingWindow(true); c.begin(); c.bind(1,0); c.bind(5,8);
  timings.push_back(measure("open binding window: Table callback",100000,[&]{FrameSurvey::Table(c.h.list.Get(),false,1,c.gpu);}));
  timings.push_back(measure("open binding window: CopyDescriptors callback one descriptor",50000,[&]{FrameSurvey::CopyDescriptors(c.h.dev.Get(),1,&dest,&n,1,&c.cpu,&n,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);}));
@@ -362,15 +365,21 @@ J discoveryTests(Host& h) {
  auto recorded=NrdBridge::gService->lists.at(h.list.Get()).recording; const auto discardSerial=NrdBridge::gService->resetSerial;
  need(recorded && !recorded->submitted.load() && !NrdBridge::gService->lists.at(h.list.Get()).converted,"successful Consumer retains an unsubmitted recording token");
  NrdBridge::OnReset(h.list.Get(),nullptr);
- need(NrdBridge::gService->resetSerial>discardSerial,"Reset of a successful recorded-but-unsubmitted Consumer drops temporal history");
- c.frame(3); recorded=NrdBridge::gService->lists.at(h.list.Get()).recording; ResTrack_Dx12::SubmitForTesting(h.list.Get());
- const auto submittedSerial=NrdBridge::gService->resetSerial; const auto submittedDepth=depthResets,submittedRR=rrResets;
+ need(NrdBridge::gService->resetSerial>discardSerial && NrdBridge::gService->discardRequested,"Reset of a successful recorded-but-unsubmitted Consumer drops temporal history and requests fresh private RR context");
+ const auto resetDiscards=rrDiscards; c.frame(3);
+ need(rrDiscards==resetDiscards+1 && !NrdBridge::gService->discardRequested,"next Convert consumes discarded recording by retiring private RR history inside injection scope");
+ recorded=NrdBridge::gService->lists.at(h.list.Get()).recording; ResTrack_Dx12::SubmitForTesting(h.list.Get());
+ const auto submittedSerial=NrdBridge::gService->resetSerial; const auto submittedDepth=depthResets,submittedRR=rrResets,submittedDiscards=rrDiscards;
  need(recorded && recorded->submitted.load(),"retained beforeSubmit callback marks the recording token submitted");
  NrdBridge::OnReset(h.list.Get(),nullptr); c.frame(3);
- need(NrdBridge::gService->resetSerial==submittedSerial && depthResets==submittedDepth && rrResets==submittedRR,"Reset after normal submission preserves temporal history");
- const auto releaseSerial=NrdBridge::gService->resetSerial; FrameSurvey::Released(h.list.Get());
+ need(NrdBridge::gService->resetSerial==submittedSerial && depthResets==submittedDepth && rrResets==submittedRR && rrDiscards==submittedDiscards,"Reset after normal submission preserves temporal history and the private RR context");
+ ResTrack_Dx12::SubmitForTesting(h.list.Get()); const auto toggleDiscards=rrDiscards,toggleResets=rrResets;
+ NrdBridge::SetRuntimeEnabled(false); NrdBridge::SetRuntimeEnabled(true); c.frame(3);
+ need(rrDiscards==toggleDiscards && rrResets>toggleResets,"ordinary runtime A/B resets valid submitted history without discarding private RR context");
+ const auto releaseSerial=NrdBridge::gService->resetSerial; const auto releaseDiscards=rrDiscards; FrameSurvey::Released(h.list.Get());
  need(NrdBridge::gService->resetSerial>releaseSerial && !NrdBridge::gService->lists.contains(h.list.Get()),"list Release discards an unsubmitted successful Consumer even after converted is cleared");
- c.frame(3); const auto retainConversion=convertCalls,retainMotion=motionCalls,retainRR=rrCalls;
+ c.frame(3); need(rrDiscards==releaseDiscards+1 && !NrdBridge::gService->discardRequested,"list Release consumes unsubmitted RR context discard on the next Convert");
+ const auto retainConversion=convertCalls,retainMotion=motionCalls,retainRR=rrCalls;
  ResTrack_Dx12::retentionAvailable=false; c.frame(3); ResTrack_Dx12::retentionAvailable=true;
  need(convertCalls==retainConversion && motionCalls==retainMotion && rrCalls==retainRR && !NrdBridge::GetStatus().active && NrdBridge::GetStatus().reason.find("submission token")!=std::string::npos,"submission-token retention failure stops all conversion/motion/output writes");
  NrdBridge::SetRuntimeEnabled(false); NrdBridge::SetRuntimeEnabled(true); c.frame(3); c.frame(3);
@@ -446,7 +455,7 @@ J discoveryTests(Host& h) {
   need(NrdBridge::IdentifyRole(altered)==Role::None,"same prefix with different full hash never identifies a role");
  }
  return {{"descriptor_metadata",metadata},{"metadata_allocation_fault_fail_closed",true},{"cpu_callback_timings",timings},{"conversion_stub_calls",convertCalls},{"motion_stub_calls",motionCalls},{"rr_stub_calls",rrCalls},{"debug_stub_calls",debugCalls},
-  {"history_resets",{{"conversion",depthResets},{"rr",rrResets}}},{"restore_callback_calls",D3D12Hooks::restores}};
+  {"history_resets",{{"conversion",depthResets},{"rr",rrResets},{"discarded_rr_contexts",rrDiscards}}},{"restore_callback_calls",D3D12Hooks::restores}};
 }
 Bound manifestBinding(const J& row,const J& resource,UINT first) {
  Bound result; result.resource=reinterpret_cast<ID3D12Resource*>(uintptr_t(row["resource"].get<uint64_t>()));

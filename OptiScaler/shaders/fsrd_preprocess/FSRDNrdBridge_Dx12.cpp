@@ -44,7 +44,7 @@ struct Service
     ID3D12GraphicsCommandList* pendingList = nullptr;
     uint64_t frame = 0, resetSerial = 1, appliedReset = 0, lastLog = 0;
     uint32_t windowPresents = 0, retryPresents = 0, attempts = 0, failures = 0, lastSLFrame = UINT32_MAX;
-    bool window = false, windowSawRecon = false, everRecon = false, observedRecon = false, conventionsLogged = false;
+    bool window = false, windowSawRecon = false, everRecon = false, observedRecon = false, conventionsLogged = false, discardRequested = false;
 };
 std::mutex gMutex, gInjectionMutex;
 std::shared_ptr<Service> gService;
@@ -194,7 +194,7 @@ std::string ResourceSummary(const Resources& resources)
 }
 void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* cmd, uint64_t frame)
 {
-    Resources resources; uint64_t generation = 0, serial = 0; bool reset = false;
+    Resources resources; uint64_t generation = 0, serial = 0; bool reset = false, discard = false;
     {
         std::scoped_lock lock(gMutex);
         const auto found = owner->lists.find(cmd);
@@ -214,6 +214,7 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || !owner->cache.Valid() ||
             owner->cache.Generation() != generation || owner->resetSerial != serial || found == owner->lists.end() ||
             found->second.frame != frame) return;
+        discard = owner->discardRequested;
     }
     if (!FrameSurvey::MetadataHealthy()) { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
     if (!D3D12Hooks::CanRestoreRootSignature(cmd)) { Failure(owner,"Title compute state cannot be restored after Recon"); return; }
@@ -221,6 +222,12 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
     bool succeeded = false; auto recording = std::make_shared<RecordingToken>();
     {
         InjectionScope guard(cmd);
+        if (discard)
+        {
+            owner->rr.DiscardRecordingHistory();
+            std::scoped_lock lock(gMutex);
+            if (gService == owner && owner->resetSerial == serial) owner->discardRequested = false;
+        }
         if (reset) { owner->conversion.ResetHistory(); owner->rr.ResetHistory(); }
         const auto snapshot = StreamlineHooks::getSLConstantsSnapshot();
         succeeded = owner->rr.PrepareFrame(snapshot,reset,parameters,error);
@@ -393,8 +400,9 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
             if (found != owner.lists.end())
             {
                 const bool nrdList = found->second.nrdList;
-                if (found->second.converted || owner.pendingList == cmd ||
-                    (found->second.recording && !found->second.recording->submitted.load(std::memory_order_acquire))) DropPending(owner);
+                const bool unsubmitted = found->second.recording && !found->second.recording->submitted.load(std::memory_order_acquire);
+                if (unsubmitted) owner.discardRequested = true;
+                if (found->second.converted || owner.pendingList == cmd || unsubmitted) DropPending(owner);
                 found->second = {}; found->second.nrdList = nrdList; found->second.role = PipelineRole(owner,initial);
                 if (nrdList && gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
                     (owner.cache.Valid() || owner.retryPresents >= 60 || !owner.everRecon))
@@ -563,7 +571,12 @@ void OnReleased(void* object) noexcept
             std::scoped_lock lock(gMutex); if (!gService) return; auto& owner = *gService;
             owner.roles.erase(reinterpret_cast<ID3D12PipelineState*>(object));
             if (const auto found = owner.lists.find(reinterpret_cast<ID3D12GraphicsCommandList*>(object)); found != owner.lists.end())
-            { if (found->second.converted || (found->second.recording && !found->second.recording->submitted.load(std::memory_order_acquire))) DropPending(owner); owner.lists.erase(found); }
+            {
+                const bool unsubmitted = found->second.recording && !found->second.recording->submitted.load(std::memory_order_acquire);
+                if (unsubmitted) owner.discardRequested = true;
+                if (found->second.converted || unsubmitted) DropPending(owner);
+                owner.lists.erase(found);
+            }
             for (auto& [cmd,list] : owner.lists) if (list.chain.Released(object)) list.followingRecon = false;
             if (owner.taggedMotion == object) owner.taggedMotion = nullptr;
             if (owner.cache.Released(object)) { Invalidate(owner,"A discovered title resource was released"); reopen = true; }
