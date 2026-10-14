@@ -271,6 +271,35 @@ bool UnambiguousComputeRanges(const std::vector<Range>& ranges)
             uint64_t(ordered[i-1].shaderRegister)+ordered[i-1].count > ordered[i].shaderRegister) return false;
     return true;
 }
+bool ValidComputeRange(const Range& range)
+{
+    if (range.kind > D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER || !range.count) return false;
+    // UINT_MAX is the D3D12 unbounded sentinel, not an interval to add to a base register.
+    return range.count == UINT_MAX || (uint64_t(range.offset)+range.count <= uint64_t(UINT_MAX)+1 &&
+        uint64_t(range.shaderRegister)+range.count <= uint64_t(UINT_MAX)+1);
+}
+bool UniqueComputeMapping(const std::vector<Range>& ranges, const ComputeTableRequest& request)
+{
+    const Range* match = nullptr;
+    UINT registerMappings = 0;
+    for (const auto& range : ranges)
+    {
+        if (!ValidComputeRange(range)) return false;
+        const bool atOffset = request.descriptorOffset >= range.offset &&
+            (range.count == UINT_MAX || uint64_t(request.descriptorOffset)-range.offset < range.count);
+        if (atOffset)
+        {
+            if (match) return false;
+            match = &range;
+        }
+        if (range.kind == uint32_t(request.kind) && range.registerSpace == request.registerSpace &&
+            request.shaderRegister >= range.shaderRegister &&
+            (range.count == UINT_MAX || uint64_t(request.shaderRegister)-range.shaderRegister < range.count)) ++registerMappings;
+    }
+    return match && registerMappings == 1 && match->kind == uint32_t(request.kind) &&
+        match->registerSpace == request.registerSpace &&
+        uint64_t(match->shaderRegister)+request.descriptorOffset-match->offset == request.shaderRegister;
+}
 RootLayout ReadRoot(ID3D12RootSignature* root)
 {
     RootLayout result; if (!root) return result;
@@ -403,7 +432,7 @@ bool ResolveBufferAddress(uint64_t address, uint64_t declaredBytes, uint64_t min
     const uint64_t offset = address-match->va, remaining = match->desc.Width-offset;
     const uint64_t bytes = declaredBytes ? declaredBytes : std::min<uint64_t>(65536,remaining);
     if (bytes > remaining || bytes < minimumBytes) return false;
-    out = {match->object,address,offset,bytes}; return true;
+    out = {match->object,address,offset,bytes,match->id}; return true;
 }
 void StoreView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI_FORMAT format,
     uint32_t mip, uint32_t slice, bool supported)
@@ -626,6 +655,102 @@ bool ComputeTableBindingMatches(ID3D12GraphicsCommandList* cmd, UINT parameter, 
         return false;
     } catch (...) { return false; }
 }
+bool ResolveComputeBindings(ID3D12GraphicsCommandList* cmd, UINT parameter,
+    std::span<const ComputeTableRequest> requests, std::vector<BoundResource>& out) noexcept
+{
+    out.clear();
+    if (!BindingTracking() || gInternal || !cmd || requests.empty() || requests.size() > 8 ||
+        !gMetadataHealthy.load(std::memory_order_acquire)) return false;
+    try
+    {
+        std::scoped_lock lock(gMirrorMutex,gLifetimeMutex); MetadataMutation mutation;
+        if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
+        const auto list = gMirror.find(cmd);
+        if (list == gMirror.end() || !list->second.compute.object) return false;
+        const auto& root = list->second.compute;
+        const auto binding = root.tables.find(parameter);
+        if (binding == root.tables.end() || !binding->second) return false;
+        const auto layout = gRootLayouts.find(root.object);
+        if (layout == gRootLayouts.end() || !layout->second.complete || !layout->second.computeVisibleTables.contains(parameter)) return false;
+        const auto table = layout->second.tables.find(parameter);
+        if (table == layout->second.tables.end()) return false;
+        for (size_t i=0;i<requests.size();++i)
+        {
+            const auto& request = requests[i];
+            if (request.kind > D3D12_DESCRIPTOR_RANGE_TYPE_CBV || !UniqueComputeMapping(table->second,request)) return false;
+            for (size_t j=0;j<i;++j)
+                if (requests[j].descriptorOffset == request.descriptorOffset ||
+                    (requests[j].kind == request.kind && requests[j].shaderRegister == request.shaderRegister &&
+                     requests[j].registerSpace == request.registerSpace)) return false;
+        }
+        const Heap* heap = nullptr;
+        for (const auto object : list->second.heaps)
+        {
+            const auto found = gHeaps.find(object);
+            if (found == gHeaps.end()) continue;
+            const auto& candidate = found->second;
+            const uint64_t base = binding->second;
+            if (candidate.type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || !candidate.gpu || !candidate.increment ||
+                base < candidate.gpu || base-candidate.gpu >= uint64_t(candidate.count)*candidate.increment ||
+                (base-candidate.gpu)%candidate.increment) continue;
+            if (heap) return false;
+            heap = &candidate;
+        }
+        if (!heap) return false;
+        const uint64_t first = (binding->second-heap->gpu)/heap->increment;
+        // Resolve only requested descriptors. Unused table length and missing tail views are irrelevant.
+        std::array<BoundResource,8> resolved {};
+        for (size_t i=0;i<requests.size();++i)
+        {
+            const auto& request = requests[i];
+            const uint64_t index = first+request.descriptorOffset;
+            if (index >= heap->count) return false;
+            const auto view = gViews.find(heap->cpu+index*heap->increment);
+            if (view == gViews.end() || view->second.kind != uint32_t(request.kind) || !FreshView(view->second,heap)) return false;
+            const auto resource = gResources.find(view->second.object);
+            if (resource == gResources.end() || resource->second.id != view->second.resource) return false;
+            if (request.kind == D3D12_DESCRIPTOR_RANGE_TYPE_CBV)
+            {
+                BoundConstantBuffer buffer;
+                if (!view->second.constantBytes || !ResolveBufferAddress(view->second.rootVa,view->second.constantBytes,view->second.constantBytes,buffer) ||
+                    buffer.resource != resource->first) return false;
+            }
+            else if (!view->second.snapshotSupported) return false;
+            resolved[i] = {resource->first,resource->second.desc,DXGI_FORMAT(view->second.format),request.kind,
+                request.descriptorOffset,UINT(index),view->second.subresource};
+        }
+        out.assign(resolved.begin(),resolved.begin()+requests.size()); return true;
+    } catch (...) { MetadataFailed("Compute requested-binding allocation failed"); out.clear(); return false; }
+}
+bool ValidateBorrowedConstantBuffer(const BoundConstantBuffer& buffer) noexcept
+{
+    if (!Tracking() || !buffer.resource || !buffer.resourceGeneration || !buffer.address || buffer.address%256 ||
+        !buffer.size || buffer.size > 65536 || !gMetadataHealthy.load(std::memory_order_acquire)) return false;
+    try
+    {
+        std::scoped_lock lock(gLifetimeMutex);
+        if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
+        const auto found = gResources.find(buffer.resource);
+        if (found == gResources.end()) return false;
+        const auto& resource = found->second;
+        if (resource.id != buffer.resourceGeneration || resource.object != buffer.resource ||
+            resource.desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER || !resource.va ||
+            buffer.address < resource.va || buffer.address-resource.va != buffer.offset ||
+            buffer.offset > resource.desc.Width || buffer.size > resource.desc.Width-buffer.offset) return false;
+        if (!buffer.descriptorHeap) return !buffer.descriptor.ptr;
+        const auto foundHeap = gHeaps.find(buffer.descriptorHeap);
+        if (foundHeap == gHeaps.end()) return false;
+        const auto& heap = foundHeap->second;
+        if (heap.type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || !heap.gpu || !heap.increment ||
+            buffer.descriptor.ptr < heap.gpu || buffer.descriptor.ptr-heap.gpu >= uint64_t(heap.count)*heap.increment ||
+            (buffer.descriptor.ptr-heap.gpu)%heap.increment) return false;
+        const auto view = gViews.find(heap.cpu+(buffer.descriptor.ptr-heap.gpu));
+        return view != gViews.end() && FreshView(view->second,&heap) &&
+            view->second.kind == D3D12_DESCRIPTOR_RANGE_TYPE_CBV && view->second.object == buffer.resource &&
+            view->second.resource == buffer.resourceGeneration && view->second.rootVa == buffer.address &&
+            view->second.constantBytes == buffer.size;
+    } catch (...) { return false; }
+}
 bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList* cmd, UINT shaderRegister, UINT registerSpace,
     uint64_t minimumBytes, BoundConstantBuffer& out) noexcept
 {
@@ -657,12 +782,13 @@ bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList* cmd, UINT shaderReg
             for (const auto& range : ranges)
             {
                 if (range.kind != D3D12_DESCRIPTOR_RANGE_TYPE_CBV || range.registerSpace != registerSpace) continue;
-                if (!range.count || range.count == UINT_MAX || uint64_t(range.shaderRegister)+range.count > uint64_t(UINT_MAX)+1)
-                    return false;
-                if (shaderRegister < range.shaderRegister || uint64_t(shaderRegister) >= uint64_t(range.shaderRegister)+range.count) continue;
-                if (!layout->second.computeTables.contains(index) || parameter != UINT_MAX) return false;
-                parameter = index; tableBinding = true;
-                descriptorOffset = uint64_t(range.offset)+shaderRegister-range.shaderRegister;
+                if (!ValidComputeRange(range)) return false;
+                if (shaderRegister < range.shaderRegister ||
+                    (range.count != UINT_MAX && uint64_t(shaderRegister)-range.shaderRegister >= range.count)) continue;
+                const uint64_t offset = uint64_t(range.offset)+shaderRegister-range.shaderRegister;
+                if (offset > UINT_MAX || parameter != UINT_MAX ||
+                    !UniqueComputeMapping(ranges,{D3D12_DESCRIPTOR_RANGE_TYPE_CBV,UINT(offset),shaderRegister,registerSpace})) return false;
+                parameter = index; tableBinding = true; descriptorOffset = offset;
             }
         }
         if (parameter == UINT_MAX) return false;
@@ -697,6 +823,7 @@ bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList* cmd, UINT shaderReg
         if (resource == gResources.end() || resource->second.id != view->second.resource ||
             !ResolveBufferAddress(view->second.rootVa,view->second.constantBytes,minimumBytes,out)) return false;
         if (out.resource != resource->first) { out = {}; return false; }
+        out.descriptorHeap = heap->object; out.descriptor = {heap->gpu+index*heap->increment};
         return true;
     } catch (...) { out = {}; return false; }
 }
