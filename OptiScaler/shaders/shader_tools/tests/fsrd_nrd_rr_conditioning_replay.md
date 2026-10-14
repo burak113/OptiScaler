@@ -47,6 +47,23 @@ that quantization visible and never treats gain as an undocumented SDK exposure
 field. All six candidates use one identical effective settings snapshot queried
 from a disposable signed-provider defaults probe, and no per-frame adaptation.
 
+Stage-alpha calibration is explicitly test-only. The documented output alpha
+is "preserved (or input if passthrough)". That does not unambiguously say that
+an out-of-place destination is filled with input alpha. Production's NewSlot
+has uninitialized stage storage and its RGB-only commit ignores stage alpha.
+The first uncontrolled setup therefore made an unsupported input-alpha-word
+identity assumption. No provider defect follows from that failed assertion.
+The separate --stage-alpha-diagnostic mode retains the strict interpretation,
+saves raw bytes and full per-lobe/interior/padding statistics before assertion,
+and never proceeds to quality candidates. The calibrated --run path initializes
+both OWNED SDK stage textures with an exact CopyResource from actual conditioned
+input RGBA before calling the signed provider. Input NPS and stage UAV states
+are transitioned for copy and restored before dispatch; no title output is
+written. This supports strict identity whether preservation means destination
+alpha or input passthrough. Copy timing is reported separately from RR/commit.
+The initialization option is immutable for a whole history. It adds no
+production default or production shader/resource behavior.
+
 Compilation and every native execution must be scheduled by the lead through
 lead_ops/run_task_test.py and its machine-wide GPU lock. Source preparation is
 allowed while the compiler/GPU queue is held; preparing these files does not

@@ -212,6 +212,63 @@ void stagedAlphaDiagnostic(const Capture& source,const Capture& target,std::ostr
     std::cout<<"stage_alpha_diag exact="<<all.exact<<" mismatched="<<all.samples-all.exact<<" finite="<<all.finite
         <<" first_xy="<<all.mismatchX<<','<<all.mismatchY<<" first_input_word="<<all.firstInput<<" first_output_word="<<all.firstOutput<<'\n';
 }
+// Optional calibration, entirely in this research executable. The production
+// wrapper has already retained Context/slot owners before calling this adapter;
+// input gain recordings and the local Scene retain owned input textures. Copy
+// commands add no title ownership or writes and restore exact public SDK states.
+static PfnFfxDispatch actualSignedDispatch=nullptr;
+static ID3D12QueryHeap* initializationQueries=nullptr;
+static std::array<ID3D12Resource*,2> borrowedTitleOutputs{};
+static uint64_t initializationBatches=0,initializationCopies=0,initializationBytes=0;
+ffxReturnCode_t initializeStageAndDispatch(ffxContext* context,const ffxDispatchDescHeader* header)
+{
+    if(!actualSignedDispatch || !initializationQueries || !header || header->type!=FFX_API_DISPATCH_DESC_TYPE_DENOISER || !header->pNext)
+        return FFX_API_RETURN_ERROR_PARAMETER;
+    const auto& dispatch=*reinterpret_cast<const ffxDispatchDescDenoiser*>(header);
+    const auto& diffuse=*reinterpret_cast<const ffxDispatchDescDenoiserDirectDiffuse*>(header->pNext);
+    if((diffuse.header.type!=FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE &&
+        diffuse.header.type!=FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE) || !diffuse.header.pNext)
+        return FFX_API_RETURN_ERROR_PARAMETER;
+    const auto& specular=*reinterpret_cast<const ffxDispatchDescDenoiserIndirectSpecular*>(diffuse.header.pNext);
+    if(specular.header.type!=FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR || specular.header.pNext)
+        return FFX_API_RETURN_ERROR_PARAMETER;
+    auto* list=static_cast<ID3D12GraphicsCommandList*>(dispatch.commandList);
+    const std::array<const FfxApiDenoiserSignal*,2> signals{&diffuse.signal,&specular.signal};
+    // Validate both descriptors before recording even the first calibration copy.
+    for(const auto* signal:signals)
+    {
+        auto* source=static_cast<ID3D12Resource*>(signal->input.resource);
+        auto* target=static_cast<ID3D12Resource*>(signal->output.resource);
+        if(!list || !source || !target || source==target || target==borrowedTitleOutputs[0] || target==borrowedTitleOutputs[1] ||
+            signal->input.state!=FFX_API_RESOURCE_STATE_COMPUTE_READ || signal->output.state!=FFX_API_RESOURCE_STATE_UNORDERED_ACCESS)
+            return FFX_API_RETURN_ERROR_PARAMETER;
+        const auto in=source->GetDesc(),out=target->GetDesc();
+        if(in.Dimension!=D3D12_RESOURCE_DIMENSION_TEXTURE2D || out.Dimension!=in.Dimension ||
+            in.Format!=DXGI_FORMAT_R16G16B16A16_FLOAT || out.Format!=in.Format || in.Width!=out.Width || in.Height!=out.Height ||
+            in.MipLevels!=1 || out.MipLevels!=1 || in.DepthOrArraySize!=1 || out.DepthOrArraySize!=1 ||
+            in.SampleDesc.Count!=1 || out.SampleDesc.Count!=1 || in.SampleDesc.Quality!=out.SampleDesc.Quality ||
+            in.Alignment!=out.Alignment || in.Layout!=out.Layout || in.Flags!=out.Flags ||
+            signal->input.description.format!=signal->output.description.format ||
+            signal->input.description.type!=signal->output.description.type ||
+            signal->input.description.width!=in.Width || signal->input.description.height!=in.Height ||
+            signal->output.description.width!=out.Width || signal->output.description.height!=out.Height)
+            return FFX_API_RETURN_ERROR_PARAMETER;
+    }
+    list->EndQuery(initializationQueries,D3D12_QUERY_TYPE_TIMESTAMP,5);
+    for(const auto* signal:signals)
+    {
+        auto* source=static_cast<ID3D12Resource*>(signal->input.resource);
+        auto* target=static_cast<ID3D12Resource*>(signal->output.resource);
+        barrier(list,source,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_COPY_SOURCE);
+        barrier(list,target,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COPY_DEST);
+        list->CopyResource(target,source);
+        barrier(list,target,D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        barrier(list,source,D3D12_RESOURCE_STATE_COPY_SOURCE,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        ++initializationCopies;const auto desc=source->GetDesc();initializationBytes+=desc.Width*desc.Height*8;
+    }
+    ++initializationBatches;list->EndQuery(initializationQueries,D3D12_QUERY_TYPE_TIMESTAMP,6);
+    return actualSignedDispatch(context,header);
+}
 std::array<uint32_t,8> floatWords(const std::array<float,8>& source)
 {std::array<uint32_t,8> words{};std::memcpy(words.data(),source.data(),sizeof(words));return words;}
 void writeWords(std::ostream& out,const std::array<float,8>& values)
@@ -221,16 +278,18 @@ void writeWords(std::ostream& out,const std::array<float,8>& values)
 }
 struct ResultFrame
 {
-    Pose pose;double inputMs=0,rrMs=0,inverseMs=0,consumerMs=0;
+    Pose pose;double inputMs=0,initializationMs=0,rrMs=0,inverseMs=0,consumerMs=0;
     uint32_t flags=0;bool reset=false,previousValid=false;
 };
 int run(int argc,char** argv)
 {
-    std::filesystem::path input,output,settingsPath;bool indirect=false,probe=false;float fixedGain=1;
+    std::filesystem::path input,output,settingsPath;bool indirect=false,probe=false,initializeStage=true;float fixedGain=1;
     for(int i=1;i<argc;++i)
     {
         const std::string arg=argv[i];
         if(arg=="--probe-defaults")probe=true;
+        else if(arg=="--initialize-staged-rgba")initializeStage=true;
+        else if(arg=="--uninitialized-staged-rgba")initializeStage=false;
         else if(arg=="--sequence" && i+1<argc)input=argv[++i];
         else if(arg=="--output" && i+1<argc)output=argv[++i];
         else if(arg=="--settings" && i+1<argc)settingsPath=argv[++i];
@@ -265,8 +324,13 @@ int run(int argc,char** argv)
     FfxApiProxy::useIndirectDiffuseResearch=indirect;
     Host host;auto kernel=MakeOwnedShared<GainKernel>(host.device.Get());
     auto wrapper=std::make_unique<RRWrapper>();std::string error;need(wrapper->Configure(settings,error),error.c_str());
-    ComPtr<ID3D12QueryHeap> queries;D3D12_QUERY_HEAP_DESC queryDesc{};queryDesc.Type=D3D12_QUERY_HEAP_TYPE_TIMESTAMP;queryDesc.Count=5;
-    hr(host.device->CreateQueryHeap(&queryDesc,IID_PPV_ARGS(&queries)));auto timing=buffer(host.device.Get(),40,D3D12_HEAP_TYPE_READBACK);
+    ComPtr<ID3D12QueryHeap> queries;D3D12_QUERY_HEAP_DESC queryDesc{};queryDesc.Type=D3D12_QUERY_HEAP_TYPE_TIMESTAMP;queryDesc.Count=initializeStage?7:5;
+    hr(host.device->CreateQueryHeap(&queryDesc,IID_PPV_ARGS(&queries)));auto timing=buffer(host.device.Get(),queryDesc.Count*8,D3D12_HEAP_TYPE_READBACK);
+    if(initializeStage)
+    {
+        actualSignedDispatch=FfxApiProxy::dispatchFunction;initializationQueries=queries.Get();
+        FfxApiProxy::dispatchFunction=&initializeStageAndDispatch;
+    }
     UINT64 frequency;hr(host.queue->GetTimestampFrequency(&frequency));need(frequency>0,"native timestamp frequency valid");
     RRSettingsState initialSettings{};uint64_t warmedStaging=0,warmedAuxiliary=0;std::vector<ResultFrame> results;
     const unsigned frames=probe?1u:count;
@@ -293,7 +357,11 @@ int run(int argc,char** argv)
             need(std::abs(reinterpret_cast<float*>(&view)[n]-pose.view[n])<=2.e-6f,"actual wrapper view matches immutable camera oracle");
             need(std::abs(reinterpret_cast<float*>(&projection)[n]-pose.projection[n])<=2.e-6f,"actual wrapper projection matches immutable oracle");
         }
+        borrowedTitleOutputs={scene.spec(),scene.diff()};
         need(wrapper->Dispatch(host.list.Get(),converted,scene.spec(),scene.diff(),frame,error),error.c_str());
+        borrowedTitleOutputs={};
+        need(initializationBatches==(initializeStage?index+1:0) && initializationCopies==(initializeStage?(index+1)*2:0),
+            "optional test-only initialization copies both owned SDK outputs exactly once before every real dispatch");
         const auto expectedFlags=(indirect?FFX_DENOISER_SIGNAL_INDIRECT_DIFFUSE:FFX_DENOISER_SIGNAL_DIRECT_DIFFUSE)|FFX_DENOISER_SIGNAL_INDIRECT_SPECULAR;
         need(FfxApiProxy::lastCreate.signalFlags==expectedFlags,"actual fresh provider context has exactly requested DD-ID plus IS flags");
         need(FfxApiProxy::lastDiffuse.header.type==(indirect?FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE:
@@ -344,7 +412,7 @@ int run(int argc,char** argv)
         ConsumerBuffer constants(host);constants.flag(0);NativeTableConsumer consumer(host,inverseSpec.Get(),inverseDiff.Get(),width,height);
         consumer.Overwrite(host.device.Get(),constants.constants().address);consumer.Record(host);
         host.list->EndQuery(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,4);
-        host.list->ResolveQueryData(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0,5,timing.Get(),0);
+        host.list->ResolveQueryData(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0,queryDesc.Count,timing.Get(),0);
         const auto shaderRead=D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,ua=D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
         Capture originalSpec(host,scene.resources.spec,shaderRead,8),originalDiff(host,scene.resources.diff,shaderRead,8);
         Capture conditionedSpec(host,scaledSpec.Get(),shaderRead,8),conditionedDiff(host,scaledDiff.Get(),shaderRead,8);
@@ -406,6 +474,15 @@ int run(int argc,char** argv)
             <<",\"linear_depth_bounds\":["<<FfxApiProxy::lastDispatch.linearDepthBounds.min<<','<<FfxApiProxy::lastDispatch.linearDepthBounds.max
             <<"],\"core_input_gain_guide_opaque_alpha_consumer_checks_passed\":true,\"debug_errors\":0,\"debug_warnings\":0"
             <<",\"creates\":"<<FfxApiProxy::creates<<",\"destroys\":"<<FfxApiProxy::destroys
+            <<",\"test_only_stage_initialization\":"<<(initializeStage?"true":"false")
+            <<",\"stage_initialization_copies\":"<<initializationCopies<<",\"stage_initialization_bytes\":"<<initializationBytes
+            <<",\"spec_input_api_state\":"<<FfxApiProxy::lastSpecular.signal.input.state
+            <<",\"diff_input_api_state\":"<<FfxApiProxy::lastDiffuse.signal.input.state
+            <<",\"spec_output_api_state\":"<<FfxApiProxy::lastSpecular.signal.output.state
+            <<",\"diff_output_api_state\":"<<FfxApiProxy::lastDiffuse.signal.output.state
+            <<",\"native_source_state\":"<<D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE
+            <<",\"native_output_state\":"<<D3D12_RESOURCE_STATE_UNORDERED_ACCESS
+            <<",\"native_state_evidence\":\"owned gain producer explicitly records UA-to-NPS; SDK call requires COMPUTE_READ; copy restores NPS/UA; strict D3D12 layer validates actual barriers\""
             <<",\"public_sdk_contract\":\"ID/IS A output Preserved (or input if passthrough); diagnostic tests input-word identity interpretation\""
             <<",\"private_sdk_dispatch_rects\":\"not observable through public dispatch adapter\",\"spec\":";
         stagedAlphaDiagnostic(conditionedSpec,stagedSpec,diagnostic);diagnostic<<",\"diff\":";
@@ -418,13 +495,19 @@ int run(int argc,char** argv)
         UINT64* ticks=nullptr;hr(timing->Map(0,nullptr,reinterpret_cast<void**>(&ticks)));
         for(unsigned n=1;n<5;++n)need(ticks[n]>=ticks[n-1],"ordered GPU timestamp sequence");
         ResultFrame result;result.pose=pose;result.flags=FfxApiProxy::lastDispatch.flags;result.reset=frame.reset;result.previousValid=frame.previousValid;
-        result.inputMs=double(ticks[1]-ticks[0])*1000/frequency;result.rrMs=double(ticks[2]-ticks[1])*1000/frequency;
+        if(initializeStage)
+        {
+            need(ticks[5]>=ticks[1] && ticks[6]>=ticks[5] && ticks[2]>=ticks[6],"stage initialization timestamp interval is inside actual SDK dispatch window");
+            result.initializationMs=double(ticks[6]-ticks[5])*1000/frequency;
+        }
+        result.inputMs=double(ticks[1]-ticks[0])*1000/frequency;result.rrMs=double(ticks[2]-ticks[1])*1000/frequency-result.initializationMs;
         result.inverseMs=double(ticks[3]-ticks[2])*1000/frequency;result.consumerMs=double(ticks[4]-ticks[3])*1000/frequency;
         timing->Unmap(0,nullptr);results.push_back(result);
     }
     host.checkDebug();need(FfxApiProxy::badCreateChains==0 && FfxApiProxy::badConfigureLayouts==0 && FfxApiProxy::badDefaults==0,
         "real context descriptor lifetime/default application/layout invariants retained");
     need(FfxApiProxy::creates==1 && FfxApiProxy::destroys==1 && FfxApiProxy::dispatches==frames,"exact signed-provider fresh context and sample counts");
+    if(initializeStage)FfxApiProxy::dispatchFunction=actualSignedDispatch;
     std::ofstream json(output/"native-result.json");json<<std::setprecision(17);
     json<<"{\"schema\":\"fsrd-rr-conditioning-native-v1\",\"route\":\""<<(indirect?"id":"dd")<<"\",\"gain\":"<<fixedGain
         <<",\"defaults_probe\":"<<(probe?"true":"false")<<",\"checks\":"<<checks<<",\"creates\":"<<FfxApiProxy::creates
@@ -436,15 +519,18 @@ int run(int argc,char** argv)
         <<",\"requested_mask\":"<<settings.overrideMask<<",\"default_words\":";writeWords(json,initialSettings.defaults);
     json<<",\"effective_words\":";writeWords(json,initialSettings.effective);
     json<<",\"owned_staging_bytes\":"<<warmedStaging<<",\"owned_auxiliary_bytes\":"<<warmedAuxiliary
-        <<",\"timing_scope\":\"owned_RGB_gain_then_RR_staging_RGB_commit_then_inverse_then_original_Consumer_GPU; uploads_readbacks_CPU_setup_excluded\",\"frames\":[";
+        <<",\"test_only_stage_initialization\":"<<(initializeStage?"true":"false")
+        <<",\"stage_initialization_copies\":"<<initializationCopies<<",\"stage_initialization_bytes\":"<<initializationBytes
+        <<",\"timing_scope\":\"owned_RGB_gain_then_optional_test_only_stage_CopyResource_then_RR_RGB_commit_then_inverse_then_original_Consumer_GPU; initialization_separate; uploads_readbacks_CPU_setup_excluded\",\"frames\":[";
     for(unsigned i=0;i<results.size();++i)
     {
         if(i)json<<',';const auto& value=results[i];
         json<<"{\"frame\":"<<value.pose.frame<<",\"key_pose\":"<<value.pose.key<<",\"repeat\":"<<value.pose.repeat
             <<",\"reset\":"<<(value.reset?"true":"false")<<",\"previous_valid\":"<<(value.previousValid?"true":"false")
             <<",\"dispatch_flags\":"<<value.flags<<",\"input_gain_ms\":"<<value.inputMs<<",\"rr_stage_commit_ms\":"<<value.rrMs
+            <<",\"staging_initialization_ms\":"<<value.initializationMs
             <<",\"inverse_gain_ms\":"<<value.inverseMs<<",\"consumer_ms\":"<<value.consumerMs
-            <<",\"total_ms\":"<<value.inputMs+value.rrMs+value.inverseMs+value.consumerMs<<'}';
+            <<",\"total_ms\":"<<value.inputMs+value.initializationMs+value.rrMs+value.inverseMs+value.consumerMs<<'}';
     }
     json<<"]}\n";need(bool(json),"research native result write");
     std::cout<<"research_checks="<<checks<<" frames="<<frames<<" route="<<(indirect?"id":"dd")<<" gain="<<fixedGain
