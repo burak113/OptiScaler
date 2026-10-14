@@ -77,18 +77,22 @@ SNAPSHOT_READER = r'''
 // Native root/list/buffer owner refs remain held by Host; the real physical
 // Borrow and production CBV resolver run on the independent reader thread.
 struct ConsumerSnapshots {
- Host& host;bool profile;std::atomic<size_t> progress{0},active;
+ Host& host;bool profile;ComPtr<ID3D12DescriptorHeap> heap;std::atomic<size_t> progress{0},active;
  std::vector<uint64_t> elapsed;std::array<std::vector<uint64_t>,size_t(NrdBridgePerf::WaitKind::Count)> waits;
  std::array<std::vector<uint64_t>,size_t(FrameSurveyMetadata::MetadataLock::Count)> locks;
  size_t startedWithWriters=0;bool rejected=false;
  ConsumerSnapshots(Host& h,size_t workers,bool measured):host(h),profile(measured),active(workers){
   elapsed.reserve(workers*samples/1024+2);if(profile){for(auto& v:waits)v.reserve(elapsed.capacity());for(auto& v:locks)v.reserve(elapsed.capacity());}
+  D3D12_DESCRIPTOR_HEAP_DESC description{};description.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;description.NumDescriptors=1;description.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+  hr(host.device->CreateDescriptorHeap(&description,IID_PPV_ARGS(&heap)));FrameSurvey::HeapCreated(host.device.Get(),heap.Get());
+  ID3D12DescriptorHeap* nativeHeaps[]{heap.Get()};host.list->SetDescriptorHeaps(1,nativeHeaps);
+  host.list->SetComputeRootSignature(host.root.Get());host.list->SetComputeRootConstantBufferView(0,host.cbv.BufferLocation);
   FrameSurvey::SetBindingWindow(true);FrameSurvey::ComputeBindings bindings;
-  bindings.root=host.root.Get();bindings.views={{0,D3D12_DESCRIPTOR_RANGE_TYPE_CBV,host.cbv.BufferLocation}};
-  if(bornMode){bindings.receiverBirth=NrdBridgeBirth::Capture(host.list.Get());bindings.rootBirth=NrdBridgeBirth::Capture(host.root.Get());}
+  bindings.root=host.root.Get();bindings.heaps={heap.Get()};bindings.views={{0,D3D12_DESCRIPTOR_RANGE_TYPE_CBV,host.cbv.BufferLocation}};
+  if(bornMode){bindings.receiverBirth=NrdBridgeBirth::Capture(host.list.Get());bindings.rootBirth=NrdBridgeBirth::Capture(host.root.Get());bindings.heapBirths={NrdBridgeBirth::Capture(heap.Get())};}
   need(FrameSurvey::SeedComputeBindings(host.list.Get(),bindings),"periodic reader seeds the actual retained native b6 root/list snapshot");
  }
- ~ConsumerSnapshots(){FrameSurvey::SetBindingWindow(false);}
+ ~ConsumerSnapshots(){FrameSurvey::SetBindingWindow(false);host.list->SetDescriptorHeaps(0,nullptr);if(bornMode){ProvenAliasAudit cleanup;cleanup.add(heap.Get(),1);const auto before=observedReleases.load();ULONG result=1;{ScopedAliasAudit guard(cleanup);result=hkHeapRelease(heap.Detach());}cleanup.verify();if(result!=0||observedReleases.load()-before!=cleanup.total)std::terminate();}else if(hkHeapRelease(heap.Detach())!=0)std::terminate();}
  void query(){
   const bool concurrent=active.load(std::memory_order_acquire)>0;const auto begin=qpc();
   std::array<uint64_t,size_t(NrdBridgePerf::WaitKind::Count)> wait{};FrameSurveyMetadata::MetadataLockTicks named{};
@@ -122,13 +126,13 @@ struct ConsumerSnapshots {
   for(size_t i=0;i<categories.size();++i){auto row=percentile(std::move(waits[i]));row["kind"]=categories[i];perCall.push_back(row);}
   for(size_t i=0;i<names.size();++i){auto row=percentile(std::move(locks[i]));row["kind"]=names[i];named.push_back(row);}
   return{{"queries",elapsed.size()},{"started_with_active_workers",startedWithWriters},{"inclusive",percentile(std::move(elapsed))},{"per_call_waits",perCall},{"metadata_lock_waits",named},{"coherent",true},
-   {"scope","actual SeedComputeBindings and ResolveComputeConstantBuffer b6/space0/1216 under actual physical Borrow; retained real root/list/buffer; independent reader every1024 worker operations, missed intervals skipped; worker progress atomic once32 calls; no GPU dispatch, Refresh or FPS simulation"}};
+   {"scope","actual SeedComputeBindings and ResolveComputeConstantBuffer b6/space0/1216 under actual physical Borrow; retained real root/list/buffer and genuinely bound shader-visible heap; independent reader every1024 worker operations, missed intervals skipped; worker progress atomic once32 calls; no GPU dispatch, Refresh or FPS simulation"}};
  }
 };
 '''
 
 
-def periodic_snapshot_driver(driver):
+def periodic_snapshot_driver(driver, alias_diagnostic=False):
     edits = [
         ('J phase(Host& h,size_t threadCount,UINT burst,bool wrappers,bool profile,bool finals=true){', SNAPSHOT_READER+'\nJ phase(Host& h,size_t threadCount,UINT burst,bool wrappers,bool profile,bool finals=true){'),
         (' std::barrier start(threadCount+1);std::vector<std::jthread> threads;', ' ConsumerSnapshots reader(h,threadCount,profile);\n std::barrier start(threadCount+2);std::jthread readerThread([&]{reader.run(start);});std::vector<std::jthread> threads;'),
@@ -142,14 +146,72 @@ def periodic_snapshot_driver(driver):
     for old,new in edits:
         assert driver.count(old)==(2 if old.startswith('  for(size_t threads:') else 1), (old,driver.count(old))
     for old,new in edits:driver=driver.replace(old,new)
+    return alias_diagnostic_driver(driver) if alias_diagnostic else driver
+
+
+ALIAS_DIAGNOSTIC = r'''
+J aliasInventory(void* object){
+ const auto ticket=NrdBridgeBirth::Capture(object);NrdBridgeBirth::AliasSnapshot aliases;
+ need(ticket&&NrdBridgeBirth::CaptureProvenAliasesForFinalZero(ticket,aliases)&&aliases.complete,"diagnostic pure alias inventory is complete for actually owned native object");
+ J addresses=J::array();for(size_t i=0;i<aliases.count;++i)addresses.push_back({{"address",uintptr_t(aliases.tokens[i]->Address())},{"stamp",aliases.tokens[i]->InstanceStamp()},{"live",aliases.tokens[i]->Live()},{"release_in_flight",aliases.tokens[i]->ReleasesInFlight()}});
+ return{{"native_typed_address",uintptr_t(object)},{"stamp",ticket->InstanceStamp()},{"live_aliases",aliases.count},{"aliases",addresses},{"native_calls",0}};
+}
+J poolAliasInventory(const std::vector<std::unique_ptr<WorkerPool>>& pools,bool finals){
+ uint64_t resourceAliases=0,heapAliases=0,resourceObjects=0,heapObjects=0;J examples=J::array();
+ for(const auto& pool:pools){
+  for(auto* object:pool->finals){const auto record=aliasInventory(object);resourceAliases+=record["live_aliases"].get<uint64_t>();++resourceObjects;if(examples.size()<2)examples.push_back({{"category","resource"},{"inventory",record}});}
+  for(auto* object:pool->heaps){const auto record=aliasInventory(object);heapAliases+=record["live_aliases"].get<uint64_t>();++heapObjects;if(examples.size()<4)examples.push_back({{"category","heap"},{"inventory",record}});}
+ }
+ return{{"resource_objects",resourceObjects},{"resource_live_aliases",resourceAliases},{"heap_objects",heapObjects},{"heap_live_aliases",heapAliases},{"phase_final_alias_callback_expectation",(finals?resourceAliases:0)+heapAliases},{"examples",examples}};
+}
+'''
+
+
+def alias_diagnostic_driver(driver):
+    edits=[
+        ('struct ConsumerSnapshots {', ALIAS_DIAGNOSTIC+'\nstruct ConsumerSnapshots {'),
+        ('  need(FrameSurvey::SeedComputeBindings(host.list.Get(),bindings),"periodic reader seeds the actual retained native b6 root/list snapshot");', '  need(FrameSurvey::SeedComputeBindings(host.list.Get(),bindings),"periodic reader seeds the actual retained native b6 root/list snapshot");\n  std::cerr<<"READER_HEAP_PRE "<<aliasInventory(heap.Get()).dump()<<"\\n";'),
+        (' ~ConsumerSnapshots(){FrameSurvey::SetBindingWindow(false);host.list->SetDescriptorHeaps(0,nullptr);if(bornMode){ProvenAliasAudit cleanup;cleanup.add(heap.Get(),1);const auto before=observedReleases.load();ULONG result=1;{ScopedAliasAudit guard(cleanup);result=hkHeapRelease(heap.Detach());}cleanup.verify();if(result!=0||observedReleases.load()-before!=cleanup.total)std::terminate();}else if(hkHeapRelease(heap.Detach())!=0)std::terminate();}', ' ~ConsumerSnapshots(){FrameSurvey::SetBindingWindow(false);host.list->SetDescriptorHeaps(0,nullptr);const auto before=observedReleases.load();const auto result=hkHeapRelease(heap.Detach());std::cerr<<"READER_HEAP_CLEANUP callbacks="<<observedReleases.load()-before<<" result="<<result<<"\\n";if(result!=0)std::terminate();}'),
+        (' std::atomic<bool> bad{false};const auto before=counters();const auto beforeReleases=observedReleases.load();', ' const auto provenInventory=poolAliasInventory(pool,finals);std::cerr<<"PRE_TIMING_PROVEN_ALIASES "<<provenInventory.dump()<<"\\n";\n std::atomic<bool> bad{false};const auto before=counters();const auto beforeReleases=observedReleases.load();'),
+        (' if(wrappers){need(observedReleases.load()-beforeReleases==expectedCallbacks,"exact final resource/heap callback count across concurrent threads");', ' std::cerr<<"POST_TIMING_CALLBACKS physical_expected="<<threadCount*((finals?samples/8:0)+samples/128)<<" alias_expected="<<provenInventory["phase_final_alias_callback_expectation"]<<" actual="<<observedReleases.load()-beforeReleases<<"\\n";\n if(wrappers){need(observedReleases.load()-beforeReleases==threadCount*((finals?samples/8:0)+samples/128),"exact final resource/heap callback count across concurrent threads");'),
+    ]
+    for old,new in edits:assert driver.count(old)==1,(old,driver.count(old))
+    for old,new in edits:driver=driver.replace(old,new)
     return driver
 
 DRIVER = r'''
 #include <barrier>
 #include <numeric>
+struct ProvenAliasAudit {
+ std::vector<NrdBridgeBirth::Token> tokens;std::vector<unsigned> expected;
+ std::unordered_map<const void*,size_t> indices;std::unique_ptr<std::atomic<unsigned>[]> hits;
+ std::atomic<unsigned> unexpected{0};uint64_t total=0;bool started=false;
+ void add(void* object,unsigned wanted){
+  const auto ticket=NrdBridgeBirth::Capture(object);NrdBridgeBirth::AliasSnapshot aliases;
+  need(ticket&&NrdBridgeBirth::CaptureProvenAliasesForFinalZero(ticket,aliases)&&aliases.complete,"actual owned object's pre-timing alias inventory is complete");
+  std::unordered_set<void*> addresses;
+  for(size_t i=0;i<aliases.count;++i){const auto& alias=aliases.tokens[i];
+   need(alias&&alias->Live()&&alias->CacheAdmissible()&&alias->InstanceStamp()==ticket->InstanceStamp()&&NrdBridgeBirth::Capture(alias->Address())==alias&&addresses.insert(alias->Address()).second,"proved current alias is ready with exact same stamp and distinct address");
+   need(indices.emplace(alias.get(),tokens.size()).second,"every expected callback alias appears once in physical-object inventory");
+   tokens.push_back(alias);expected.push_back(wanted);total+=wanted;
+  }
+ }
+ void prepare(){hits=std::make_unique<std::atomic<unsigned>[]>(tokens.size());}
+ void observe(const NrdBridgeBirth::Token& token)noexcept{const auto found=indices.find(token.get());if(found==indices.end())++unexpected;else ++hits[found->second];}
+ void verify(){
+  need(unexpected.load()==0,"no foreign alias callback occurs inside the physical pool release phase");
+  for(size_t i=0;i<tokens.size();++i){need(hits[i].load()==expected[i],"exactly one callback per proved final alias and zero per retained alias");
+   need(expected[i]?(!tokens[i]->Live()&&NrdBridgeBirth::Capture(tokens[i]->Address())!=tokens[i]):tokens[i]->CacheAdmissible(),"every final alias is retired and every nonfinal owner remains ready");}
+ }
+};
+std::atomic<ProvenAliasAudit*> gActiveAliasAudit{nullptr};
+struct ScopedAliasAudit {
+ ProvenAliasAudit& audit;ScopedAliasAudit(ProvenAliasAudit& a):audit(a){audit.prepare();if(gActiveAliasAudit.exchange(&audit))std::terminate();}
+ ~ScopedAliasAudit(){if(gActiveAliasAudit.exchange(nullptr)!=&audit)std::terminate();}
+};
 std::atomic<uint64_t> observedReleases{0};
 void onRelease(void*)noexcept{observedReleases.fetch_add(1,std::memory_order_relaxed);}
-void onBirthRelease(const NrdBridgeBirth::Token&)noexcept{if(NrdBridgeBirth::InMetadataScope())std::terminate();onRelease(nullptr);}
+void onBirthRelease(const NrdBridgeBirth::Token& token)noexcept{if(NrdBridgeBirth::InMetadataScope())std::terminate();if(auto* audit=gActiveAliasAudit.load(std::memory_order_acquire))audit->observe(token);onRelease(nullptr);}
 uint64_t qpc(){LARGE_INTEGER value{};QueryPerformanceCounter(&value);return uint64_t(value.QuadPart);}
 uint64_t frequency(){LARGE_INTEGER value{};QueryPerformanceFrequency(&value);return uint64_t(value.QuadPart);}
 uint64_t rss(){PROCESS_MEMORY_COUNTERS_EX pm{};GetProcessMemoryInfo(GetCurrentProcess(),reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pm),sizeof(pm));return uint64_t(pm.WorkingSetSize);}
@@ -303,6 +365,9 @@ J phase(Host& h,size_t threadCount,UINT burst,bool wrappers,bool profile,bool fi
   for(UINT i=0;i<1024;++i)hkSurveyCreateShaderResourceView(h.device.Get(),h.texture.Get(),&h.srvDesc,h.handle(UINT(2048+t*2048+i)));}
  const double setupMs=(qpc()-setup)*1000.0/double(frequency());need(rss()<2ull*1024*1024*1024,"native pool plus100k metadata remains within2GB resident budget");
  std::barrier start(threadCount+1);std::vector<std::jthread> threads;std::vector<Observation> records(threadCount),originals(threadCount);
+ ProvenAliasAudit aliasAudit;std::optional<ScopedAliasAudit> aliasGuard;
+ if(bornMode&&wrappers){for(const auto& p:pool){for(auto* object:p->finals)aliasAudit.add(object,finals?1:0);for(auto* object:p->heaps)aliasAudit.add(object,1);}aliasGuard.emplace(aliasAudit);}
+ const auto physicalFinals=threadCount*((finals?samples/8:0)+samples/128);const auto expectedCallbacks=bornMode&&wrappers?aliasAudit.total:physicalFinals;
  std::atomic<bool> bad{false};const auto before=counters();const auto beforeReleases=observedReleases.load();
  for(size_t t=0;t<threadCount;++t)threads.emplace_back([&,t]{
   for(auto& values:records[t].ticks)values.reserve(samples);
@@ -337,7 +402,8 @@ J phase(Host& h,size_t threadCount,UINT burst,bool wrappers,bool profile,bool fi
  });
  const auto began=qpc();start.arrive_and_wait();threads.clear();const auto wall=qpc()-began;const auto after=counters();
  need(!bad&&FrameSurvey::MetadataHealthy(),"all native final/nonfinal resource and pooled heap releases preserve healthy metadata");
- if(wrappers){need(observedReleases.load()-beforeReleases==threadCount*((finals?samples/8:0)+samples/128),"exact final resource/heap callback count across concurrent threads");
+ if(bornMode&&wrappers){aliasGuard.reset();aliasAudit.verify();}
+ if(wrappers){need(observedReleases.load()-beforeReleases==expectedCallbacks,"exact final resource/heap callback count across concurrent threads");
   for(size_t t=0;t<threadCount;++t){for(size_t i=0;i<samples/8;++i){const auto slot=h.handle(UINT(40000+t*(samples/8)+i)).ptr;
     if(finals)need(!FrameSurvey::gViews.contains(slot),"actual final Release tombstones its indexed live CBV");
     else need(FrameSurvey::gViews.at(slot).object==pool[t]->finals[i],"nonfinal scenario retains each fixture-owned native resource and CBV");}
@@ -367,7 +433,7 @@ J phase(Host& h,size_t threadCount,UINT burst,bool wrappers,bool profile,bool fi
  need(heapPool.empty(),"all pooled native heaps leave their participant registry");
  return{{"threads",threadCount},{"copy_descriptors",burst},{"resource_final_fraction",finals?.5:0.0},{"resource_final",percentile(std::move(finalValues))},
   {"resource_nonfinal",percentile(std::move(nonfinalValues))},{"heap_final_fraction",1.0},{"mode",wrappers?"actual_production_hook_bodies":"native_forwarding_and_native_release_probe"},
-  {"iterations_per_thread",samples},{"events",total},{"wall_ms",double(wall)*1000.0/double(frequency())},{"events_per_second",double(total)*double(frequency())/wall},
+  {"iterations_per_thread",samples},{"physical_final_zeros_expected",physicalFinals},{"metadata_alias_callbacks_expected",expectedCallbacks},{"alias_audit",bornMode&&wrappers?"pure pre-timing complete/same-stamp/distinct/current token inventory; immutable observer lookup+atomic per-alias callback count included in hook time; exact retirement checked after timing":"frozen legacy one callback per physical object unchanged"},{"events",total},{"wall_ms",double(wall)*1000.0/double(frequency())},{"events_per_second",double(total)*double(frequency())/wall},
   {"pool_setup_ms_excluded_from_timings",setupMs},{"samples",rows},{"paired_original_forwarding",nativeRows},
   {"original_forwarding_scope","same-call native View/Copy and both native Release calls plus their AddRef; caller-owned AddRef before timed nonfinal release excluded; QPC/TLS snapshots only profileON; OFF retains disabled measurement branches"},
   {"paired_non_native",nonNative},{"per_call_waits",perCallWaits},{"metadata_lock_waits",metadataLocks},{"metadata_lock_wait_scope","same actual WaitScope ticks split by FrameSurvey lock; Birth waits remain in aggregate metadata; native mirror waits are named"},{"release_lookup_path",bornMode?"known_unmarked":"legacy_registry_lookup"},
@@ -561,6 +627,7 @@ def run():
     parser = argparse.ArgumentParser()
     parser.add_argument('--baseline', action='store_true')
     parser.add_argument('--snapshot-readers', action='store_true', help='separate8/16thread1024copy workload with actual periodic CBV metadata reader')
+    parser.add_argument('--alias-diagnostic', action='store_true', help='pure pre-timing native alias inventory and unchanged physical-object callback assertion')
     parser.add_argument('--adapter', choices=('warp', 'hardware'), default='warp')
     parser.add_argument('--profile', choices=('on', 'off', 'both'), default='both')
     args = parser.parse_args()
@@ -640,7 +707,7 @@ struct OriginalForwardTimer {
     variant = 'baseline6edf-real-lease-paired-locksplit' if args.baseline else 'native-pinned-metadata-paired-locksplit'
     driver = DRIVER
     if args.snapshot_readers:
-        driver = periodic_snapshot_driver(driver)
+        driver = periodic_snapshot_driver(driver, args.alias_diagnostic)
         variant += '-consumer-reader'
     if not args.baseline:
         cache_start = driver.index('struct Cache {')
