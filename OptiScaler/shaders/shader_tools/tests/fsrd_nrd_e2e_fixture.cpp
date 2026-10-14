@@ -26,6 +26,7 @@ unsigned checks=0,restores=0;
 std::function<void()> emitDebug;
 void need(bool value,const char* message) { if(!value) throw std::runtime_error(message); ++checks; }
 void RecordTestProviderWrites(ID3D12GraphicsCommandList*,ID3D12Resource*,ID3D12Resource*) { throw std::runtime_error("End-to-end fixture requires real signed provider work"); }
+void RecordTestProviderDebugWrites(ID3D12GraphicsCommandList*,ID3D12Resource*,uint32_t,uint32_t) { throw std::runtime_error("End-to-end fixture requires real signed provider debug work"); }
 void hr(HRESULT code,const std::source_location& location=std::source_location::current()) {
  if(FAILED(code)) {
   if(emitDebug) emitDebug();
@@ -113,6 +114,16 @@ void DetachRoots() {
 #include "__ROOT__/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp"
 #define FSRD_NRD_BRIDGE_TEST
 #include "__ROOT__/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp"
+namespace NrdBridgeNativeBirth {
+std::atomic<unsigned> fixtureNativeCoverageRequests {0};
+// This standalone adapter links strong metadata preparation, but does not install native Release detours.
+bool ObserveReleaseCoverage(IUnknown*) noexcept {
+ fixtureNativeCoverageRequests.fetch_add(1,std::memory_order_relaxed);
+ FrameSurvey::MetadataHookFailed(Ready() ? "Standalone fixture has no native Release coverage dispatcher" :
+  "Unconfigured native Release coverage unexpectedly entered the legacy standalone fixture");
+ return false; // In particular, Ready=true can never obtain synthetic coverage success.
+}
+}
 using Role=NrdBridge::Role;
 using namespace DirectX;
 
@@ -1013,7 +1024,9 @@ int main(int argc,char** argv) try {
  need(argc==3 || (argc==4 && (std::string(argv[3])=="--startup-off" || std::string(argv[3])=="--submission-failure" || std::string(argv[3])=="--cbv-lifetime" || std::string(argv[3])=="--guide-pingpong" || std::string(argv[3])=="--quality-off" || std::string(argv[3])=="--quality-on")),"scratch folder, signed AMD DLL and optional fresh-process scenario arguments");
  const bool startupOff=argc==4 && std::string(argv[3])=="--startup-off",submissionFailure=argc==4 && std::string(argv[3])=="--submission-failure",cbvLifetime=argc==4 && std::string(argv[3])=="--cbv-lifetime",guidePingPong=argc==4 && std::string(argv[3])=="--guide-pingpong",qualityReplay=argc==4 && (std::string(argv[3])=="--quality-off" || std::string(argv[3])=="--quality-on"); if(startupOff) NrdBridge::ConfigureStartup(false);
  g_dllPath=std::filesystem::path(argv[1])/"fixture.dll"; Host h;
+ need(!NrdBridgeNativeBirth::Ready()&&!NrdBridgeLifetime::ConcurrentReleasesEnabled(),"standalone signed-provider fixture uses legacy metadata tracking without native retirement coverage");
  requestedList=h.list.Get(); J result; result["adapter"]=h.adapter;
+ result["native_birth_coverage"]={{"dispatcher_ready",false},{"concurrent_release_gate",false},{"physical_release_coverage_proved",false}};
  need(!NrdBridge::Initialize(h.device.Get()),"startup OFF allocates no coordinator");
  AttachRoots(h.list.Get()); Wiring::Attach(h.list.Get());
  {
@@ -1024,6 +1037,7 @@ int main(int argc,char** argv) try {
  }
  Wiring::Detach(); DetachRoots(); Config::Instance()->FfxDenoiserNrdBridge.value=true;
  NrdBridge::ConfigureStartup(true);
+ need(!NrdBridgeNativeBirth::Ready()&&!NrdBridgeLifetime::ConcurrentReleasesEnabled()&&NrdBridgeNativeBirth::fixtureNativeCoverageRequests.load(std::memory_order_relaxed)==0,"minimal ResTrack adapter neither configures native retirement nor supplies coverage success");
  if(startupOff) {
   need(!NrdBridge::StartupEnabled() && !NrdBridge::Initialize(h.device.Get()),"configured OFF remains latched after live config and repeated bootstrap");
   need(FfxApiProxy::creates==0 && FfxApiProxy::dispatches==0 && restores==0,"fresh configured OFF performs no provider work or root restoration");
