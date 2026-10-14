@@ -443,11 +443,11 @@ struct Title {
   if(codecBits) c={std::max(c[0]-c[2]+c[1],0.f),std::max(c[0]+c[2],0.f),std::max(c[0]-c[2]-c[1],0.f)};
   return c;
  }
- void bindConstants(ID3D12Resource* resource,UINT slot=56) {
+ void bindConstants(ID3D12Resource* resource,UINT slot=56,bool observe=true) {
   if(!tableConstants) {h.list->SetComputeRootConstantBufferView(2,resource->GetGPUVirtualAddress());return;}
   const D3D12_CONSTANT_BUFFER_VIEW_DESC view{resource->GetGPUVirtualAddress(),1536};
   const D3D12_CPU_DESCRIPTOR_HANDLE cpu{visible->GetCPUDescriptorHandleForHeapStart().ptr+uint64_t(slot)*increment};
-  h.device->CreateConstantBufferView(&view,cpu);if(registered)FrameSurvey::View(cpu,&view);
+  h.device->CreateConstantBufferView(&view,cpu);if(registered && observe)FrameSurvey::View(cpu,&view);
   h.list->SetComputeRootDescriptorTable(2,{visible->GetGPUDescriptorHandleForHeapStart().ptr+uint64_t(slot)*increment});
  }
  void begin(UINT frame,bool tagMotion=true) {
@@ -799,7 +799,9 @@ void ReleaseAndReplace() {
  {NrdBridgeLifetime::ScopedRelease release(true);auto* old=temporary.Detach();FrameSurvey::Released(old);finalReferences=old->Release();}
  dead=true;need(finalReferences==0,"temporary native b6 is genuinely physically final-released in the staged gap");
  need(!FrameSurvey::ValidateBorrowedConstantBuffer(captured),"pure production generation validation rejects the genuinely released native b6 token");
- FrameSurvey::ResourceCreated(replacement.Get(),D3D12_RESOURCE_STATE_GENERIC_READ);title->cb=replacement;title->bindConstants(replacement.Get(),57);
+ title->cb=replacement;title->setCodec(0x80000000u);title->bindConstants(replacement.Get(),57,false);
+ const auto cpu=title->visible->GetCPUDescriptorHandleForHeapStart().ptr+uint64_t(57)*title->increment;
+ need(!FrameSurvey::gResources.contains(replacement.Get()) && !FrameSurvey::gViews.contains(cpu),"replacement b6 has neither resource identity nor CBV creation metadata; native table remains exact and live");
 }
 }
 void cbvReleaseCase(Host& h,Title& title,J& result) {
@@ -811,13 +813,22 @@ void cbvReleaseCase(Host& h,Title& title,J& result) {
  const auto calls=FfxApiProxy::dispatches;const auto before=NrdBridge::GetStatus();const auto beforeRestores=restores;
  title.beforeConsumer=CbLifetime::BindTemporary;NrdBridge::gBeforeOutputLockForTesting=CbLifetime::ReleaseAndReplace;
  title.frame(3);title.beforeConsumer=nullptr;NrdBridge::gBeforeOutputLockForTesting=nullptr;
- need(CbLifetime::finalReferences==0 && CbLifetime::deadComCalls==0,"stale b6 token is rejected with zero GetDesc/GetDevice/GetGPUVA calls on the genuinely dead object");
- CbLifetime::Detach();need(NrdBridge::GetStatus().reason=="Consumer constants were released or rebound while awaiting injection; waiting for rediscovery","actual staged Consumer reaches the native b6 generation guard before provider work");need(FfxApiProxy::dispatches==calls && NrdBridge::GetStatus().framesBridged==before.framesBridged && !NrdBridge::GetStatus().active,"staged b6 final Release cancels bridge SDK/write/Active publication before provider work");
- need(restores==beforeRestores+2,"live Recon/motion injections restore normally while stale Consumer b6 records no injected work");
- need(title.sentinel(title.finish()),"original Consumer executes with its rebound live b6 and leaves full native NRD RGBA sentinels unchanged");
+ need(CbLifetime::finalReferences==0 && CbLifetime::deadComCalls==0,"native capture ignores diagnostic source identity with zero GetDesc/GetDevice/GetGPUVA calls on the genuinely dead object");
+ CbLifetime::Detach();need(NrdBridge::GetStatus().reason.empty(),"source registry generation is diagnostic and cannot reject the same live native b6 slot");need(FfxApiProxy::dispatches==calls+1 && NrdBridge::GetStatus().framesBridged==before.framesBridged+1 && NrdBridge::GetStatus().active,"same volatile b6 slot with a live unregistered replacement reaches real signed RR and publishes Active");
+ need(restores==beforeRestores+3,"live Recon/motion and native b6 flag/RR injections each restore exact Consumer state");
+ title.rrChecks(title.finish());need(title.codecBits==0x80000000u,"original Consumer and private flag snapshot observe the same replacement word303 bits");
  NrdBridge::SetRuntimeEnabled(false);NrdBridge::SetRuntimeEnabled(true);title.frame(4);need(title.sentinel(title.finish()),"b6 lifetime recovery validates the replacement resource profile first");title.frame(5);title.rrChecks(title.finish());
- need(FfxApiProxy::dispatches==calls+1 && (FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET),"live replacement b6 recovers through actual signed RR with RESET");
- result["cbv_lifetime"]={{"physical_final_reference_count",CbLifetime::finalReferences},{"dead_com_calls",CbLifetime::deadComCalls},{"sdk_calls_in_stale_gap",0},{"title_rgba_untouched",true},{"original_gpu_bindings_counts_exact",true},{"live_recovery_reset",true},{"volatile_native_table",true}};
+ need(FfxApiProxy::dispatches==calls+2 && (FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET),"unregistered live replacement b6 preserves runtime reset recovery through actual signed RR");
+ const auto beforeRebind=FfxApiProxy::dispatches,beforeRebindRestores=restores;const auto beforeRebindFrames=NrdBridge::GetStatus().framesBridged;
+ title.beforeConsumer=+[] {CbLifetime::title->bindConstants(CbLifetime::replacement.Get(),57,false);};
+ NrdBridge::gBeforeOutputLockForTesting=+[] {CbLifetime::title->bindConstants(CbLifetime::replacement.Get(),58,false);};
+ title.frame(6);title.beforeConsumer=nullptr;NrdBridge::gBeforeOutputLockForTesting=nullptr;
+ need(NrdBridge::GetStatus().reason=="Consumer native b6 binding changed while awaiting injection; waiting for rediscovery","changing the actual native table argument cancels the stale bridge binding before provider work");
+ need(FfxApiProxy::dispatches==beforeRebind && NrdBridge::GetStatus().framesBridged==beforeRebindFrames && !NrdBridge::GetStatus().active,"native table rebind never publishes stale RR work or Active");
+ need(restores==beforeRebindRestores+2 && title.sentinel(title.finish()),"rebound original Consumer executes with exact live GPU bindings and native NRD RGBA untouched");
+ NrdBridge::SetRuntimeEnabled(false);NrdBridge::SetRuntimeEnabled(true);title.frame(7);need(title.sentinel(title.finish()),"native rebind recovery validates the live replacement profile first");title.frame(8);title.rrChecks(title.finish());
+ need(FfxApiProxy::dispatches==beforeRebind+1 && (FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET),"native binding revalidation failure recovers with real RR RESET");
+ result["cbv_lifetime"]={{"physical_final_reference_count",CbLifetime::finalReferences},{"dead_com_calls",CbLifetime::deadComCalls},{"sdk_calls_with_unregistered_replacement",1},{"replacement_resource_and_cbv_metadata_absent",true},{"same_live_slot_follows_gpu_descriptor",true},{"replacement_word303",0x80000000u},{"changed_table_argument_cancels_before_provider",true},{"cancelled_title_rgba_untouched",true},{"original_gpu_bindings_counts_exact",true},{"live_recovery_reset",true},{"volatile_native_table",true}};
  CbLifetime::temporary.Reset();CbLifetime::replacement.Reset();CbLifetime::title=nullptr;
 }
 void loadProvider(const char* path) {
