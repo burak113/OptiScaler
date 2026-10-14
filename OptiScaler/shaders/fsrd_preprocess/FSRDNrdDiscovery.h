@@ -170,6 +170,12 @@ class ChainDiscovery
             resources_.reconSpec,resources_.reconDiff,resources_.motion,resources_.outputSpec,resources_.outputDiff,
             lastSpec_.resource,lastDiff_.resource};
     }
+    std::array<NrdBridgeBirth::Token,11> ReferencedResourceBirths() const noexcept
+    {
+        return {bindings_[0].resourceBirth,bindings_[1].resourceBirth,bindings_[2].resourceBirth,bindings_[3].resourceBirth,
+            bindings_[4].resourceBirth,bindings_[5].resourceBirth,bindings_[6].resourceBirth,bindings_[7].resourceBirth,bindings_[8].resourceBirth,
+            lastSpec_.resourceBirth,lastDiff_.resourceBirth};
+    }
     const std::array<Bound,9>& Bindings() const noexcept { return bindings_; }
     uint32_t ChainAIterations() const noexcept { return atrousCount_; } // Diagnostics only.
 };

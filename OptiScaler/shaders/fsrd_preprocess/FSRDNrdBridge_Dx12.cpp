@@ -10,11 +10,13 @@
 #include "hooks/Streamline_Hooks.h"
 #include "resource_tracking/ResTrack_dx12.h"
 #include "misc/NrdBridgeLifetime_Dx12.h"
+#include "misc/NrdBridgeBirth_Dx12.h"
 #include "misc/NrdBridgeOwned_Dx12.h"
 #include "misc/RecordedComputeLease_Dx12.h"
 #include "misc/NrdBridgeDevice_Dx12.h"
 #include <atomic>
 #include <mutex>
+#include <optional>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -26,6 +28,7 @@ namespace NrdBridge
 namespace
 {
 enum class SubmissionPhase : uint8_t { Recorded, Submitting, FencePublished, Poisoned };
+struct NativeDebugImageOrder;
 struct RecordingToken
 {
     std::atomic<bool> submitted {false}, outputCommitted {false}, abandoned {false};
@@ -33,6 +36,12 @@ struct RecordingToken
     std::mutex publicationMutex;
     RecordedComputeLease::FencePointPtr completion;
     uint64_t submissionId = 0;
+    std::shared_ptr<NativeDebugImageOrder> imageOrder; // Allocated only by native-debug capture.
+};
+struct NativeDebugImageOrder
+{
+    std::mutex mutex;
+    std::shared_ptr<RecordingToken> presentation;
 };
 struct HistoryDomain
 {
@@ -50,7 +59,8 @@ struct NativeDebugSource
 {
     RRWrapperNativeDebugOutputSnapshot image;
     std::shared_ptr<HistoryDomain> history;
-    std::shared_ptr<RecordingToken> recording, presentation; // presentation tail, under gInjectionMutex
+    std::shared_ptr<RecordingToken> recording;
+    std::shared_ptr<NativeDebugImageOrder> imageOrder;
     RRSettings settings {};
     uint64_t serial = 0, generation = 0, consumer = 0;
 };
@@ -59,11 +69,25 @@ struct RecordingOwnership
     std::shared_ptr<HistoryDomain> history;
     std::shared_ptr<RecordingToken> token;
 };
+struct ResourceIdentity
+{
+    void* address = nullptr;
+    NrdBridgeBirth::Token birth;
+    bool operator==(const ResourceIdentity&) const noexcept = default;
+};
+struct ResourceIdentityHash
+{
+    size_t operator()(const ResourceIdentity& identity) const noexcept
+    { return std::hash<void*>{}(identity.address) ^ (std::hash<const void*>{}(identity.birth.get()) << 1); }
+};
+struct PipelineIdentity { Role role = Role::None; NrdBridgeBirth::Token birth; };
 struct ListState
 {
     Role role = Role::None;
+    NrdBridgeBirth::Token birth, pipelineBirth;
     ChainDiscovery chain;
     std::array<ID3D12Resource*,11> indexedReferences {};
+    std::array<NrdBridgeBirth::Token,11> indexedBirths {};
     bool followingRecon = false, converted = false, motionReady = false, temporal = false, atrous = false, nrdList = false;
     std::shared_ptr<RecordingToken> recording;
     std::shared_ptr<HistoryDomain> history;
@@ -76,11 +100,12 @@ struct ListState
 struct Service
 {
     Microsoft::WRL::ComPtr<ID3D12Device> device;
-    std::unordered_map<ID3D12PipelineState*,Role> roles;
+    std::unordered_map<ID3D12PipelineState*,PipelineIdentity> roles;
     std::unordered_map<ID3D12GraphicsCommandList*,ListState> lists;
-    std::unordered_map<void*,std::unordered_set<ID3D12GraphicsCommandList*>> chainUsers;
+    std::unordered_map<ResourceIdentity,std::unordered_set<ID3D12GraphicsCommandList*>,ResourceIdentityHash> chainUsers;
     std::unordered_set<ID3D12GraphicsCommandList*> followingChains;
     DiscoveryCache cache;
+    std::array<NrdBridgeBirth::Token,9> cacheBirths {};
     std::shared_ptr<HistoryDomain> history;
     std::vector<std::weak_ptr<HistoryDomain>> historyDomains;
     uint64_t nextDomain = 0;
@@ -91,7 +116,7 @@ struct Service
     uint32_t nextNativeDebugSource = 0, nativeDebugLastLag = UINT32_MAX;
     std::string nativeDebugError;
     bool cameraProjectedDepthDelta = false;
-    ID3D12Resource* taggedMotion = nullptr;
+    ID3D12Resource* taggedMotion = nullptr; NrdBridgeBirth::Token taggedMotionBirth;
     ID3D12GraphicsCommandList* pendingList = nullptr;
     uint64_t frame = 0, resetSerial = 1, cancellationSerial = 1, appliedReset = 0, lastLog = 0, activeFrame = 0;
     uint32_t windowPresents = 0, retryPresents = 0, attempts = 0, failures = 0, lastSLFrame = UINT32_MAX;
@@ -140,7 +165,7 @@ void PublishBindingWindow()
 }
 void SeedForWindow(ID3D12GraphicsCommandList* cmd)
 {
-    NrdBridgeLifetime::ScopedBorrow borrow;
+    NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
     FrameSurvey::ComputeBindings bindings;
     if (D3D12Hooks::GetComputeBindingsForBridge(cmd,bindings)) FrameSurvey::SeedComputeBindings(cmd,bindings);
 }
@@ -178,28 +203,68 @@ template<class Configuration> bool ReadStartupCameraDepth(const Configuration& c
         return config.FfxDenoiserNrdBridgeMotionDepthMode.value_or_default();
     return false;
 }
-Role PipelineRole(const Service& owner, ID3D12PipelineState* pipeline)
+bool BirthMode() noexcept { return NrdBridgeLifetime::ConcurrentReleasesEnabled(); }
+bool BirthLive(const NrdBridgeBirth::Token& birth) noexcept
+{ return !BirthMode() || (birth && birth->Admissible()); }
+bool ListLive(const ListState& list) noexcept
+{ return BirthLive(list.birth) && (list.role == Role::None || BirthLive(list.pipelineBirth)); }
+bool ChainLive(const ChainDiscovery& chain) noexcept
 {
-    const auto found = owner.roles.find(pipeline); return found == owner.roles.end() ? Role::None : found->second;
+    if (!BirthMode()) return true;
+    const auto resources = chain.ReferencedResources(); const auto births = chain.ReferencedResourceBirths();
+    for (size_t i=0;i<resources.size();++i) if (resources[i] && !BirthLive(births[i])) return false;
+    return true;
 }
-// Caller holds gMutex. Release looks up only chains which actually use the address;
-// descriptor creation or an unrelated final Release never walks all participant lists.
+bool SameProfileBirths(const std::array<NrdBridgeBirth::Token,9>& a, const std::array<NrdBridgeBirth::Token,9>& b) noexcept
+{
+    if (!BirthMode()) return true;
+    for (const size_t i : {0u,1u,4u,5u,6u,7u,8u}) if (a[i] != b[i]) return false;
+    return true;
+}
+std::array<NrdBridgeBirth::Token,9> CacheBirths(const ChainDiscovery& chain)
+{
+    std::array<NrdBridgeBirth::Token,9> result;
+    for (size_t i=0;i<result.size();++i) result[i] = chain.Bindings()[i].resourceBirth;
+    return result;
+}
+bool CacheUsesBirth(const Service& owner, void* object, const NrdBridgeBirth::Token& birth) noexcept
+{
+    if (!owner.cache.Valid()) return false;
+    const auto& r = owner.cache.Get();
+    const std::array<ID3D12Resource*,9> resources {r.inputSpec,r.inputDiff,r.normals,r.viewDepth,r.reconSpec,r.reconDiff,r.motion,r.outputSpec,r.outputDiff};
+    for (size_t i=0;i<resources.size();++i) if (resources[i] == object && owner.cacheBirths[i] == birth) return true;
+    return false;
+}
+Role PipelineRole(const Service& owner, ID3D12PipelineState* pipeline, const NrdBridgeBirth::Token& birth = {})
+{
+    const auto found = owner.roles.find(pipeline);
+    return found == owner.roles.end() || found->second.birth != birth || !BirthLive(birth) ? Role::None : found->second.role;
+}
+// Caller holds gMutex. The exact address/birth pair prevents delayed old Release
+// notifications from removing an already published newborn's reverse references.
 void UpdateChainUsers(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list,
-                      const std::array<ID3D12Resource*,11>& next)
+                      const std::array<ID3D12Resource*,11>& next, const std::array<NrdBridgeBirth::Token,11>& births)
 {
     const auto& prior = list.indexedReferences;
-    for (auto* object : prior)
-        if (object && std::find(next.begin(),next.end(),object) == next.end())
-            if (const auto found = owner.chainUsers.find(object); found != owner.chainUsers.end())
+    auto contains = [](const auto& resources,const auto& tokens,void* address,const NrdBridgeBirth::Token& birth) {
+        for (size_t i=0;i<resources.size();++i) if (resources[i] == address && tokens[i] == birth) return true;
+        return false;
+    };
+    for (size_t i=0;i<prior.size();++i)
+        if (prior[i] && !contains(next,births,prior[i],list.indexedBirths[i]))
+            if (const auto found = owner.chainUsers.find({prior[i],list.indexedBirths[i]}); found != owner.chainUsers.end())
             { found->second.erase(cmd); if (found->second.empty()) owner.chainUsers.erase(found); }
-    for (auto* object : next)
-        if (object && std::find(prior.begin(),prior.end(),object) == prior.end()) owner.chainUsers[object].insert(cmd);
-    list.indexedReferences = next;
+    for (size_t i=0;i<next.size();++i)
+        if (next[i] && !contains(prior,list.indexedBirths,next[i],births[i])) owner.chainUsers[{next[i],births[i]}].insert(cmd);
+    list.indexedReferences = next; list.indexedBirths = births;
 }
 void RemoveChainUsers(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list)
-{ UpdateChainUsers(owner,cmd,list,{}); }
+{ UpdateChainUsers(owner,cmd,list,{},{}); }
 void RefreshChainUsers(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list)
-{ UpdateChainUsers(owner,cmd,list,list.chain.Valid() ? list.chain.ReferencedResources() : std::array<ID3D12Resource*,11>{}); }
+{
+    UpdateChainUsers(owner,cmd,list,list.chain.Valid() ? list.chain.ReferencedResources() : std::array<ID3D12Resource*,11>{},
+        list.chain.Valid() ? list.chain.ReferencedResourceBirths() : std::array<NrdBridgeBirth::Token,11>{});
+}
 void StopFollowing(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list)
 { list.followingRecon = false; owner.followingChains.erase(cmd); }
 bool SameDebugSettings(const RRSettings& a, const RRSettings& b) noexcept
@@ -226,6 +291,22 @@ void AbandonDebugPresentations(ListState& list, std::array<std::shared_ptr<Recor
             retired[i]->abandoned.store(true,std::memory_order_release);
     list.debugPresentations = {};
 }
+void ReplaceList(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list,
+                 const NrdBridgeBirth::Token& birth, std::optional<ListState>& retiredList,
+                 std::array<std::shared_ptr<RecordingToken>,4>& retiredPresentations, RetiredDebugSources& retired)
+{
+    AbandonDebugPresentations(list,retiredPresentations);
+    const bool unsubmitted = list.recording && !list.recording->submitted.load(std::memory_order_acquire);
+    if (unsubmitted && list.history)
+    {
+        list.recording->abandoned.store(true,std::memory_order_release); list.history->uncertain.store(true,std::memory_order_release);
+        list.history->discardPending.store(true,std::memory_order_release); owner.discardRequested = true; ClearNativeDebugSources(owner,retired);
+    }
+    if (owner.pendingList == cmd) owner.pendingList = nullptr;
+    if (owner.activeFrame == list.frame) owner.status.active = false;
+    RemoveChainUsers(owner,cmd,list); StopFollowing(owner,cmd,list);
+    retiredList.emplace(std::move(list)); list = {}; list.birth = birth; ++owner.resetSerial;
+}
 void DropPending(Service& owner, RetiredDebugSources& retired)
 {
     owner.pendingList = nullptr; owner.status.active = false; ClearNativeDebugSources(owner,retired);
@@ -239,6 +320,17 @@ void NativeDebugDiagnostic(const std::shared_ptr<Service>& owner, const std::str
       { owner->nativeDebugError = reason; log = true; } }
     if (log) LOG_ERROR("[NRD_BRIDGE] native debug presentation: {}",reason);
 }
+void NativeDebugOrderingFailure(const std::shared_ptr<Service>& owner)
+{
+    RetiredDebugSources retired;
+    { std::scoped_lock lock(gMutex); if (gService == owner) { DropPending(*owner,retired); owner->window = false;
+      owner->status.phase = "Inactive"; owner->status.reason = "Native debug GPU ordering failed; restart the title/device"; } }
+    PublishBindingWindow(); NativeDebugDiagnostic(owner,"Native debug GPU ordering failed; restart the title/device");
+}
+std::shared_ptr<RecordingToken> PresentationTail(const NativeDebugSource& source)
+{
+    std::scoped_lock lock(source.imageOrder->mutex); return source.imageOrder->presentation;
+}
 void CaptureNativeDebugSource(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* cmd, const ListState& staged) noexcept
 {
     if (!gNativeDebug.load(std::memory_order_relaxed) || staged.debug != DebugMode::Off) return;
@@ -248,7 +340,8 @@ void CaptureNativeDebugSource(const std::shared_ptr<Service>& owner, ID3D12Graph
         if (!image.resource || !image.owner || image.recording != cmd || image.frameSL != staged.parameters.streamlineFrame ||
             image.width != staged.inputs.width || image.height != staged.inputs.height || image.state != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) return;
         std::shared_ptr<NativeDebugSource> retired;
-        auto source = MakeOwnedShared<NativeDebugSource>(); source->image = image; source->history = staged.history;
+        auto imageOrder = MakeOwnedShared<NativeDebugImageOrder>();
+        auto source = MakeOwnedShared<NativeDebugSource>(); source->image = image; source->history = staged.history; source->imageOrder = imageOrder;
         source->recording = staged.recording; source->serial = staged.resetSerial; source->generation = staged.generation;
         std::scoped_lock lock(gMutex);
         if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || owner->rrSettings.nativeDebugView < 0 ||
@@ -257,6 +350,11 @@ void CaptureNativeDebugSource(const std::shared_ptr<Service>& owner, ID3D12Graph
         for (const auto& cached : owner->nativeDebugSources)
             if (cached && cached->image.resource == image.resource && cached->image.owner == image.owner)
                 return; // A duplicate getter preserves the image's existing presentation fence tail.
+        {
+            std::scoped_lock publication(staged.recording->publicationMutex);
+            if (staged.recording->imageOrder) source->imageOrder = staged.recording->imageOrder;
+            else staged.recording->imageOrder = imageOrder;
+        }
         source->settings = owner->rrSettings; source->consumer = owner->status.framesBridged;
         auto& slot = owner->nativeDebugSources[owner->nextNativeDebugSource++ % owner->nativeDebugSources.size()];
         retired = std::move(slot); slot = std::move(source);
@@ -408,7 +506,7 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         const auto found = owner->lists.find(cmd);
         if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || !owner->cache.Valid() ||
             found == owner->lists.end() || found->second.frame != frame ||
-            !found->second.followingRecon || !found->second.chain.Valid()) return;
+            !found->second.followingRecon || !found->second.chain.Valid() || !ListLive(found->second) || !ChainLive(found->second.chain)) return;
         resources = owner->cache.Get();
         // Capture this Recon's validated guides, rather than the prior Consumer's cached pointers.
         resources.normals = found->second.chain.Get().normals;
@@ -420,13 +518,13 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
     if (gBeforeConversionLockForTesting) gBeforeConversionLockForTesting();
 #endif
     std::scoped_lock injection(gInjectionMutex); // Provider calls never hold the coordinator/registry mutex.
-    NrdBridgeLifetime::ScopedBorrow borrow;
+    NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
     {
         std::scoped_lock lock(gMutex);
         const auto found = owner->lists.find(cmd);
         if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || !owner->cache.Valid() ||
             owner->cache.Generation() != generation || owner->cancellationSerial != serial || found == owner->lists.end() ||
-            found->second.frame != frame || !found->second.followingRecon || !found->second.chain.Valid() ||
+            found->second.frame != frame || !found->second.followingRecon || !found->second.chain.Valid() || !ListLive(found->second) || !ChainLive(found->second.chain) ||
             found->second.chain.Get().normals != resources.normals ||
             found->second.chain.Get().viewDepth != resources.viewDepth) return;
         discard = owner->discardRequested;
@@ -471,16 +569,30 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
     RecordedComputeLease::SubmissionCallbacks submission;
     submission.beforeSubmit = [ownership](const RecordedComputeLease::SubmissionInfo& info) {
         auto& domain = *ownership->history;
+        RecordedComputeLease::FencePointPtr retiredPoint;
+        std::shared_ptr<NativeDebugImageOrder> imageOrder;
         {
             std::scoped_lock lock(ownership->token->publicationMutex);
             ownership->token->submitted.store(true,std::memory_order_release);
-            ownership->token->submissionId = info.submissionId; ownership->token->completion.reset();
+            ownership->token->submissionId = info.submissionId; retiredPoint = std::move(ownership->token->completion);
+            imageOrder = ownership->token->imageOrder;
             ownership->token->phase.store(SubmissionPhase::Submitting,std::memory_order_release);
         }
         // Replaying a closed recording changes temporal causality. Existing work is
         // still ordered and retained; the next recording gets a fresh RESET domain.
         if (info.recordingSubmission > 1 || info.snapshotFallback)
             domain.uncertain.store(true,std::memory_order_release);
+        if (info.recordingSubmission > 1 && imageOrder)
+        {
+            std::shared_ptr<RecordingToken> tail;
+            { std::scoped_lock lock(imageOrder->mutex); tail = imageOrder->presentation; }
+            if (tail)
+            {
+                RecordedComputeLease::FencePointPtr point; uint64_t submissionId = 0;
+                if (!PublishedToken(tail,point,submissionId)) { RecordedComputeLease::DenySubmission(E_FAIL); return false; }
+                if (FAILED(RecordedComputeLease::WaitForFence(info.queue,point))) return false;
+            }
+        }
         RecordedComputeLease::FencePointPtr predecessor;
         {
             std::scoped_lock lock(domain.submissionMutex);
@@ -495,32 +607,37 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
     };
     submission.fencePublished = [ownership](const RecordedComputeLease::SubmissionInfo& info,
                                             const RecordedComputeLease::FencePointPtr& point) {
-        auto& domain = *ownership->history;
+        auto& domain = *ownership->history; RecordedComputeLease::FencePointPtr retiredDomainPoint, retiredPoint;
         {
             std::scoped_lock lock(domain.submissionMutex);
             if (domain.latestSubmissionId == info.submissionId)
-            { domain.completion = point; domain.pendingSubmission = false; }
+            { retiredDomainPoint = std::move(domain.completion); domain.completion = point; domain.pendingSubmission = false; }
         }
         {
             std::scoped_lock lock(ownership->token->publicationMutex);
             if (ownership->token->submissionId == info.submissionId &&
                 ownership->token->phase.load(std::memory_order_acquire) == SubmissionPhase::Submitting)
             {
-                ownership->token->completion = point;
+                retiredPoint = std::move(ownership->token->completion); ownership->token->completion = point;
                 ownership->token->phase.store(SubmissionPhase::FencePublished,std::memory_order_release);
             }
         }
     };
     const std::weak_ptr<Service> weakOwner = owner;
-    submission.failed = [ownership,weakOwner](const auto& info, auto) {
+    submission.failed = [ownership,weakOwner](const auto& info, auto failure) {
         ownership->history->uncertain.store(true,std::memory_order_release);
+        RecordedComputeLease::FencePointPtr retiredPoint; bool nativeReplay = false;
         {
             std::scoped_lock lock(ownership->token->publicationMutex);
             if (ownership->token->submissionId == info.submissionId)
-            { ownership->token->completion.reset(); ownership->token->phase.store(SubmissionPhase::Poisoned,std::memory_order_release); }
+            { retiredPoint = std::move(ownership->token->completion); ownership->token->phase.store(SubmissionPhase::Poisoned,std::memory_order_release); }
+            nativeReplay = bool(ownership->token->imageOrder) && info.recordingSubmission > 1;
         }
         if (const auto service = weakOwner.lock())
-            Failure(service,"NRD submission ordering or fence tracking failed; restart the title/device");
+        {
+            if (nativeReplay && failure == RecordedComputeLease::SubmissionFailure::Ordering) NativeDebugOrderingFailure(service);
+            else Failure(service,"NRD submission ordering or fence tracking failed; restart the title/device");
+        }
     };
     {
         InjectionScope guard(cmd);
@@ -578,13 +695,13 @@ void FinalizeMotion(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommand
                     ID3D12Resource* currentMotion)
 {
     std::scoped_lock injection(gInjectionMutex);
-    NrdBridgeLifetime::ScopedBorrow borrow;
+    NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
     ListState staged;
     {
         std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
         if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || !owner->cache.Valid() || found == owner->lists.end()) return;
         const auto& list = found->second;
-        if (!list.converted || list.motionReady || list.frame != frame || list.generation != owner->cache.Generation() ||
+        if (!ListLive(list) || !ChainLive(list.chain) || !list.converted || list.motionReady || list.frame != frame || list.generation != owner->cache.Generation() ||
             list.resetSerial != owner->cancellationSerial || owner->cache.Get().motion != currentMotion) return;
         staged = list;
     }
@@ -618,8 +735,15 @@ bool SupportedExecutable() noexcept
         return supported;
     } catch (...) { return false; }
 }
+template<class Tracker> bool ConfigureNativeRetirement() noexcept
+{
+    if constexpr (requires { Tracker::ConfigureNrdNativeBirthRetirement(); })
+        return Tracker::ConfigureNrdNativeBirthRetirement();
+    return false; // Minimal test adapters retain the legacy gate.
+}
 void ConfigureStartup(bool enabled) noexcept
 {
+    if (enabled && SupportedExecutable()) ConfigureNativeRetirement<ResTrack_Dx12>();
     int unconfigured = -1;
     gStartupSelection.compare_exchange_strong(unconfigured, enabled && SupportedExecutable() ? 1 : 0,
         std::memory_order_release, std::memory_order_relaxed);
@@ -655,7 +779,7 @@ bool Initialize(ID3D12Device* device) noexcept
                 gRuntime.store(gService->status.runtimeEnabled,std::memory_order_release); gInstalled.store(true,std::memory_order_release);
             }
             // Publish observers under lifecycle serialization, outside the state lock.
-            FrameSurvey::SetPipelineObserver(OnPipelineCreated); FrameSurvey::SetReleaseObserver(OnReleased);
+            FrameSurvey::SetPipelineObserver(OnPipelineCreated); FrameSurvey::SetReleaseObserver(OnReleased); FrameSurvey::SetBirthReleaseObserver(OnBirthReleased);
             PublishBindingWindow();
         }
         // Owned D3D12 releases may re-enter hooks. Destroy outside both coordinator locks.
@@ -698,7 +822,7 @@ void Shutdown() noexcept
             std::scoped_lock injection(gInjectionMutex);
             gInstalled.store(false,std::memory_order_release); gRuntime.store(false,std::memory_order_release);
             gNativeDebug.store(false,std::memory_order_release);
-            FrameSurvey::SetPipelineObserver(nullptr); FrameSurvey::SetReleaseObserver(nullptr); PublishBindingWindow();
+            FrameSurvey::SetPipelineObserver(nullptr); FrameSurvey::SetReleaseObserver(nullptr); FrameSurvey::SetBirthReleaseObserver(nullptr); PublishBindingWindow();
             { std::scoped_lock lock(gMutex); previous = std::move(gService); }
         }
         { FrameSurvey::ScopedInternal internal; previous.reset(); }
@@ -709,9 +833,10 @@ void OnPipelineCreated(ID3D12PipelineState* pipeline, const char* hash) noexcept
     if (!gInstalled.load(std::memory_order_relaxed) || FrameSurvey::Internal() || !pipeline) return;
     try
     {
+        const auto birth = NrdBridgeBirth::Capture(pipeline,BirthMode());
         const auto role = hash ? IdentifyRole(hash) : Role::None; std::scoped_lock lock(gMutex);
-        if (!gService) return;
-        if (role == Role::None) gService->roles.erase(pipeline); else gService->roles[pipeline] = role;
+        if (!gService || !BirthLive(birth)) return;
+        if (role == Role::None) gService->roles.erase(pipeline); else gService->roles[pipeline] = {role,birth};
     } catch (...) {}
 }
 void OnSetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pipeline) noexcept
@@ -719,12 +844,16 @@ void OnSetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pipeline
     if (!gInstalled.load(std::memory_order_relaxed) || FrameSurvey::Internal() || !cmd) return;
     try
     {
-        bool open = false, seed = false;
+        bool open = false, seed = false; RetiredDebugSources retired; std::optional<ListState> retiredList;
+        std::array<std::shared_ptr<RecordingToken>,4> retiredPresentations;
+        const auto receiverBirth = NrdBridgeBirth::Capture(cmd,BirthMode()), pipelineBirth = NrdBridgeBirth::Capture(pipeline,BirthMode());
         {
-            std::scoped_lock lock(gMutex); if (!gService) return; auto& owner = *gService;
-            const auto role = PipelineRole(owner,pipeline);
-            if (role != Role::None) owner.lists[cmd].role = role;
-            else if (const auto found = owner.lists.find(cmd); found != owner.lists.end()) found->second.role = Role::None;
+            std::scoped_lock lock(gMutex); if (!gService || !BirthLive(receiverBirth) || (pipeline && !BirthLive(pipelineBirth))) return; auto& owner = *gService;
+            const auto role = PipelineRole(owner,pipeline,pipelineBirth);
+            if (const auto found = owner.lists.find(cmd); found != owner.lists.end() && found->second.birth != receiverBirth)
+                ReplaceList(owner,cmd,found->second,receiverBirth,retiredList,retiredPresentations,retired);
+            if (role != Role::None) { auto& list = owner.lists[cmd]; list.role = role; list.birth = receiverBirth; list.pipelineBirth = pipelineBirth; }
+            else if (const auto found = owner.lists.find(cmd); found != owner.lists.end()) { found->second.role = Role::None; found->second.pipelineBirth = pipelineBirth; }
             if (gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
                 (role == Role::PrepLast || role == Role::Recon) && (owner.cache.Valid() || owner.retryPresents >= 60 ||
                     (role == Role::Recon && !owner.everRecon)))
@@ -742,15 +871,17 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
     if (!gInstalled.load(std::memory_order_relaxed) || FrameSurvey::Internal() || !cmd) return;
     try
     {
-        bool open = false; RetiredDebugSources retired; ListState retiredList;
+        bool open = false; RetiredDebugSources retired; std::optional<ListState> retiredList;
         std::array<std::shared_ptr<RecordingToken>,4> retiredPresentations;
+        const auto receiverBirth = NrdBridgeBirth::Capture(cmd,BirthMode()), pipelineBirth = NrdBridgeBirth::Capture(initial,BirthMode());
         {
             std::scoped_lock lock(gMutex); if (!gService) return; auto& owner = *gService;
+            if (!BirthLive(receiverBirth) || (initial && !BirthLive(pipelineBirth))) return;
             if (gRuntime.load(std::memory_order_relaxed)) RequireRestoreFlags();
             const auto found = owner.lists.find(cmd);
             if (found != owner.lists.end())
             {
-                const bool nrdList = found->second.nrdList; AbandonDebugPresentations(found->second,retiredPresentations);
+                const bool nrdList = found->second.birth == receiverBirth && found->second.nrdList; AbandonDebugPresentations(found->second,retiredPresentations);
                 const bool unsubmitted = found->second.recording && !found->second.recording->submitted.load(std::memory_order_acquire);
                 if (unsubmitted && found->second.history)
                 {
@@ -766,14 +897,15 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
                     ++owner.resetSerial;
                 }
                 RemoveChainUsers(owner,cmd,found->second); StopFollowing(owner,cmd,found->second);
-                retiredList = std::move(found->second); found->second = {}; found->second.nrdList = nrdList; found->second.role = PipelineRole(owner,initial);
+                retiredList.emplace(std::move(found->second)); found->second = {}; found->second.nrdList = nrdList; found->second.role = PipelineRole(owner,initial,pipelineBirth);
+                found->second.birth = receiverBirth; found->second.pipelineBirth = pipelineBirth;
                 if (nrdList && gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
                     (owner.cache.Valid() || owner.retryPresents >= 60 || !owner.everRecon))
                 { StartWindow(owner); open = true; }
             }
-            else if (const auto role = PipelineRole(owner,initial); role != Role::None)
+            else if (const auto role = PipelineRole(owner,initial,pipelineBirth); role != Role::None)
             {
-                owner.lists[cmd].role = role;
+                owner.lists[cmd].role = role; owner.lists[cmd].birth = receiverBirth; owner.lists[cmd].pipelineBirth = pipelineBirth;
                 if (gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
                     (role == Role::PrepLast || role == Role::Recon) && (owner.cache.Valid() || owner.retryPresents >= 60 ||
                         (role == Role::Recon && !owner.everRecon)))
@@ -788,23 +920,23 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
     if (!gInstalled.load(std::memory_order_relaxed) || !gRuntime.load(std::memory_order_relaxed) || FrameSurvey::Internal()) return;
     try
     {
-        RetiredDebugSources retired;
+        RetiredDebugSources retired; const auto receiverBirth = NrdBridgeBirth::Capture(cmd,BirthMode());
         std::shared_ptr<Service> owner; Role role = Role::None; uint64_t frame = 0;
         bool firstTemporal = false, invalid = false; ID3D12Resource* currentMotion = nullptr; std::string error;
         {
-            NrdBridgeLifetime::ScopedBorrow borrow; // Ends before taking the native injection mutex.
+            NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return; // Ends before taking the native injection mutex.
             bool window = false, cooldown = false;
             {
                 std::scoped_lock lock(gMutex); owner = gService; if (!owner) return;
-                const auto found = owner->lists.find(cmd); if (found == owner->lists.end()) return;
+                const auto found = owner->lists.find(cmd); if (found == owner->lists.end() || found->second.birth != receiverBirth || !ListLive(found->second)) return;
                 role = found->second.role; window = owner->window;
                 if (!window) { StopFollowing(*owner,cmd,found->second); cooldown = true; } // Retry cooldown records no owned work.
                 else if (role == Role::Recon)
                 {
                     auto& list = found->second; RemoveChainUsers(*owner,cmd,list); StopFollowing(*owner,cmd,list);
                     auto recording = std::move(list.recording);
-                    auto previousHistory = std::move(list.history);
-                    list = {}; list.recording = std::move(recording); list.history = std::move(previousHistory);
+                    auto previousHistory = std::move(list.history); const auto birth = list.birth, pipelineBirth = list.pipelineBirth;
+                    list = {}; list.recording = std::move(recording); list.history = std::move(previousHistory); list.birth = birth; list.pipelineBirth = pipelineBirth;
                     // Prior unsubmitted RR work survives a second incomplete Recon.
                     list.role = role; list.followingRecon = list.nrdList = true; owner->followingChains.insert(cmd);
                     list.frame = frame = ++owner->frame; owner->observedRecon = owner->everRecon = true;
@@ -823,7 +955,7 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
             if (!Tables(cmd,role,srv,uav)) { WaitingForBindings(owner,cmd,"Current NRD table metadata is incomplete"); return; }
             {
                 std::scoped_lock lock(gMutex); if (gService != owner) return;
-                const auto found = owner->lists.find(cmd); if (found == owner->lists.end() || found->second.frame != frame) return;
+                const auto found = owner->lists.find(cmd); if (found == owner->lists.end() || found->second.frame != frame || found->second.birth != receiverBirth || !ListLive(found->second)) return;
                 auto& list = found->second;
                 if (role == Role::Recon) invalid = !list.chain.Begin(srv,uav,error);
                 else invalid = !list.chain.Observe(role,srv,uav,owner->taggedMotion,error);
@@ -834,7 +966,9 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 {
                     const auto& a = list.chain.Get(); const auto& b = owner->cache.Get();
                     if (a.width != b.width || a.height != b.height || a.inputSpec != b.inputSpec || a.inputDiff != b.inputDiff ||
-                        a.reconSpec != b.reconSpec || a.reconDiff != b.reconDiff)
+                        a.reconSpec != b.reconSpec || a.reconDiff != b.reconDiff || (BirthMode() &&
+                        (list.chain.Bindings()[0].resourceBirth != owner->cacheBirths[0] || list.chain.Bindings()[1].resourceBirth != owner->cacheBirths[1] ||
+                         list.chain.Bindings()[4].resourceBirth != owner->cacheBirths[4] || list.chain.Bindings()[5].resourceBirth != owner->cacheBirths[5])))
                     {
                         IdentityChanged(*owner,"Current Recon resource identity changed",retired);
                     }
@@ -842,7 +976,7 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 if (!invalid && firstTemporal)
                 {
                     currentMotion = list.chain.Get().motion;
-                    if (owner->cache.Valid() && owner->cache.Get().motion != currentMotion)
+                    if (owner->cache.Valid() && (owner->cache.Get().motion != currentMotion || (BirthMode() && list.chain.Bindings()[6].resourceBirth != owner->cacheBirths[6])))
                     {
                         IdentityChanged(*owner,"Current Temporal motion resource changed",retired);
                     }
@@ -860,12 +994,12 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         (!gRuntime.load(std::memory_order_relaxed) && !NrdBridgePerf::NeedsConsumerFrames())) return;
     try
     {
-        RetiredDebugSources retired;
+        RetiredDebugSources retired; const auto receiverBirth = NrdBridgeBirth::Capture(cmd,BirthMode());
         std::shared_ptr<Service> owner; bool window = false, following = false;
         {
             std::scoped_lock lock(gMutex); owner = gService; if (!owner) return;
             const auto found = owner->lists.find(cmd);
-            if (found == owner->lists.end() || found->second.role != Role::Consumer) return;
+            if (found == owner->lists.end() || found->second.role != Role::Consumer || found->second.birth != receiverBirth || !ListLive(found->second)) return;
             window = owner->window; following = found->second.followingRecon;
         }
         NrdBridgePerf::ConsumerFrame(StreamlineHooks::getSLConstantsSnapshot().frameIndex);
@@ -884,7 +1018,7 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         ID3D12Resource* motionTag = nullptr; Resources resources; ListState staged; bool inject = false, keepWindow = false;
         FrameSurvey::BoundConstantBinding consumerConstants;
         {
-        NrdBridgeLifetime::ScopedBorrow borrow;
+        NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
         std::vector<FrameSurvey::BoundResource> srv, uav;
         if (!window) { Failure(owner,"Consumer has no current binding-validation window"); return; }
         if (!Tables(cmd,Role::Consumer,srv,uav)) { WaitingForBindings(owner,cmd,"Consumer compute table bindings/registers are unavailable in discovery window"); return; }
@@ -898,7 +1032,7 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         }
         {
             std::scoped_lock lock(gMutex); if (gService != owner) return;
-            const auto found = owner->lists.find(cmd); if (found == owner->lists.end()) return;
+            const auto found = owner->lists.find(cmd); if (found == owner->lists.end() || found->second.birth != receiverBirth || !ListLive(found->second)) return;
             auto& list = found->second;
             if (window)
             {
@@ -906,7 +1040,9 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 RefreshChainUsers(*owner,cmd,list);
                 if (!invalid)
                 {
-                    published = owner->cache.Publish(list.chain); discovered = list.chain; motionTag = owner->taggedMotion;
+                    const auto births = CacheBirths(list.chain);
+                    if (owner->cache.Valid() && !SameProfileBirths(owner->cacheBirths,births)) owner->cache.Invalidate();
+                    published = owner->cache.Publish(list.chain); owner->cacheBirths = births; discovered = list.chain; motionTag = owner->taggedMotion;
                     if (published) { DropPending(*owner,retired); owner->status.active = false; }
                     owner->window = false; owner->attempts = 0; owner->status.phase = "Waiting for NRD";
                     owner->status.reason = "Resources validated; waiting for the next Recon";
@@ -935,14 +1071,14 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         if (gBeforeOutputLockForTesting) gBeforeOutputLockForTesting();
 #endif
         std::scoped_lock injection(gInjectionMutex);
-        NrdBridgeLifetime::ScopedBorrow borrow;
+        NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
         {
             std::scoped_lock lock(gMutex);
             if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || !owner->cache.Valid() ||
                 staged.generation != owner->cache.Generation() || staged.resetSerial != owner->cancellationSerial) return;
             const auto found = owner->lists.find(cmd);
             if (found == owner->lists.end() || found->second.frame != staged.frame ||
-                found->second.recording != staged.recording || !found->second.converted || !found->second.motionReady) return;
+                found->second.recording != staged.recording || !found->second.converted || !found->second.motionReady || !ListLive(found->second) || !ChainLive(found->second.chain)) return;
         }
         if (!FrameSurvey::MetadataHealthy()) { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
         FrameSurvey::ComputeBindings currentBindings;
@@ -970,10 +1106,12 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                     staged.generation != ticket.owner->cache.Generation() || staged.resetSerial != ticket.owner->cancellationSerial ||
                     found == ticket.owner->lists.end() ||
                     found->second.frame != staged.frame || !found->second.converted || !found->second.motionReady ||
-                    found->second.recording != staged.recording)
+                    found->second.recording != staged.recording || found->second.birth != staged.birth ||
+                    !ListLive(found->second) || !ChainLive(found->second.chain))
                 { ticket.cancelled = true; return false; }
                 FrameSurvey::ComputeBindings current;
                 if (!D3D12Hooks::GetComputeBindingsForBridge(ticket.list,current) ||
+                    (BirthMode() && current.receiverBirth != staged.birth) ||
                     !FrameSurvey::ValidateComputeConstantBinding(current,6,0,*ticket.constants))
                 { ticket.bindingFailed = true; return false; }
                 // This is the output admission point: reset/tag/release invalidation
@@ -1020,17 +1158,18 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
             resources.width,resources.height,uint32_t(staged.debug));
     } catch (...) { CoordinatorException("Exception while preparing NRD output dispatch"); }
 }
-void OnReleased(void* object) noexcept
+void ReleaseObserved(void* object, const NrdBridgeBirth::Token& birth) noexcept
 {
     if (!gInstalled.load(std::memory_order_relaxed) || !object) return;
     try
     {
-        bool reopen = false; RetiredDebugSources retired; ListState retiredList;
+        bool reopen = false; RetiredDebugSources retired; std::optional<ListState> retiredList;
         std::array<std::shared_ptr<RecordingToken>,4> retiredPresentations;
         {
             std::scoped_lock lock(gMutex); if (!gService) return; auto& owner = *gService;
-            owner.roles.erase(reinterpret_cast<ID3D12PipelineState*>(object));
-            if (const auto found = owner.lists.find(reinterpret_cast<ID3D12GraphicsCommandList*>(object)); found != owner.lists.end())
+            if (const auto role = owner.roles.find(reinterpret_cast<ID3D12PipelineState*>(object)); role != owner.roles.end() && role->second.birth == birth)
+                owner.roles.erase(role);
+            if (const auto found = owner.lists.find(reinterpret_cast<ID3D12GraphicsCommandList*>(object)); found != owner.lists.end() && found->second.birth == birth)
             {
                 AbandonDebugPresentations(found->second,retiredPresentations);
                 const bool unsubmitted = found->second.recording && !found->second.recording->submitted.load(std::memory_order_acquire);
@@ -1048,14 +1187,14 @@ void OnReleased(void* object) noexcept
                     ++owner.resetSerial;
                 }
                 RemoveChainUsers(owner,found->first,found->second); StopFollowing(owner,found->first,found->second);
-                retiredList = std::move(found->second); owner.lists.erase(found);
+                retiredList.emplace(std::move(found->second)); owner.lists.erase(found);
             }
             bool currentReleased = false;
             // An address can be shared by a few NRD recordings. Visit those users only.
             // RemoveChainUsers may erase this map entry, so reacquire it per iteration.
             for (;;)
             {
-                const auto users = owner.chainUsers.find(object);
+                const auto users = owner.chainUsers.find({object,birth});
                 if (users == owner.chainUsers.end() || users->second.empty()) break;
                 const auto cmd = *users->second.begin();
                 // Pop before any secondary cleanup: a failed index allocation may
@@ -1064,16 +1203,28 @@ void OnReleased(void* object) noexcept
                 const auto found = owner.lists.find(cmd);
                 if (found == owner.lists.end()) continue;
                 auto& list = found->second;
+                const auto resources = list.chain.ReferencedResources(); const auto births = list.chain.ReferencedResourceBirths(); bool matches = false;
+                for (size_t i=0;i<resources.size();++i) matches |= resources[i] == object && births[i] == birth;
+                if (!matches) continue; // A partially inserted or delayed old pair cannot invalidate a newborn chain.
                 if (list.chain.Released(object)) currentReleased |= list.followingRecon || list.converted;
                 RemoveChainUsers(owner,cmd,list); StopFollowing(owner,cmd,list);
             }
-            if (owner.taggedMotion == object) owner.taggedMotion = nullptr;
-            if (owner.cache.Released(object) || currentReleased)
+            if (owner.taggedMotion == object && owner.taggedMotionBirth == birth) { owner.taggedMotion = nullptr; owner.taggedMotionBirth.reset(); }
+            if ((CacheUsesBirth(owner,object,birth) && owner.cache.Released(object)) || currentReleased)
             { Invalidate(owner,"A discovered or current-recording title resource was released",retired); reopen = true; }
         }
         if (reopen && gRuntime.load(std::memory_order_relaxed))
         { PublishBindingWindow(); LOG_INFO("[NRD_BRIDGE] resource release invalidated discovery; restarting bounded window"); }
     } catch (...) {}
+}
+void OnReleased(void* object) noexcept
+{
+    if (BirthMode()) return; // Native retirement uses its captured exact token; raw late notifications are legacy only.
+    ReleaseObserved(object,{});
+}
+void OnBirthReleased(const NrdBridgeBirth::Token& birth) noexcept
+{
+    if (birth && !birth->Live()) ReleaseObserved(birth->Address(),birth);
 }
 void OnTitleTag(ID3D12GraphicsCommandList*, const char* name, ID3D12Resource* resource) noexcept
 {
@@ -1083,16 +1234,16 @@ void OnTitleTag(ID3D12GraphicsCommandList*, const char* name, ID3D12Resource* re
         if (std::string_view(name) != "MotionVectors") return;
         if (!resource)
         {
-            std::scoped_lock lock(gMutex); if (gService) gService->taggedMotion = nullptr;
+            std::scoped_lock lock(gMutex); if (gService) { gService->taggedMotion = nullptr; gService->taggedMotionBirth.reset(); }
             return;
         }
-        NrdBridgeLifetime::ScopedBorrow borrow;
-        const auto description = resource->GetDesc(); bool reopen = false; RetiredDebugSources retired;
+        // D3D12 resource extents are immutable; a different pointer invalidates independently of its size.
+        // Tagging is metadata-only so a normal joined callback never waits for the injector's borrow.
+        bool reopen = false; RetiredDebugSources retired; const auto birth = NrdBridgeBirth::Capture(resource,BirthMode());
         {
             std::scoped_lock lock(gMutex); if (!gService) return; auto& owner = *gService;
-            owner.taggedMotion = resource;
-            if (owner.cache.Valid() && (owner.cache.Get().motion != resource ||
-                owner.cache.Get().width != description.Width || owner.cache.Get().height != description.Height))
+            owner.taggedMotion = resource; owner.taggedMotionBirth = birth;
+            if (owner.cache.Valid() && (owner.cache.Get().motion != resource || (BirthMode() && owner.cacheBirths[6] != birth)))
             { Invalidate(owner,"Streamline motion tag or render size changed",retired); reopen = true; }
         }
         if (reopen && gRuntime.load(std::memory_order_relaxed)) PublishBindingWindow();
@@ -1273,7 +1424,10 @@ bool PresentNativeDebug(ID3D12GraphicsCommandList* cmd, ID3D12Resource* output,
     std::shared_ptr<Service> owner;
     try
     {
-        std::scoped_lock injection(gInjectionMutex); NrdBridgeLifetime::ScopedBorrow borrow;
+        std::scoped_lock injection(gInjectionMutex); NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return false;
+        const auto receiverBirth = NrdBridgeBirth::Capture(cmd,BirthMode()); if (!BirthLive(receiverBirth)) return false;
+        RetiredDebugSources retired; std::optional<ListState> retiredList;
+        std::array<std::shared_ptr<RecordingToken>,4> replacedPresentations;
         std::array<std::shared_ptr<NativeDebugSource>,4> candidates; uint64_t serial = 0, generation = 0, consumer = 0;
         std::shared_ptr<RecordingToken> sameProducer; std::array<std::weak_ptr<RecordingToken>,4> samePresentations;
         const auto targetSL = StreamlineHooks::getSLConstantsSnapshot().frameIndex;
@@ -1282,7 +1436,7 @@ bool PresentNativeDebug(ID3D12GraphicsCommandList* cmd, ID3D12Resource* output,
             std::scoped_lock lock(gMutex); owner = gService;
             if (!owner || !NativeDebugEnabled() || owner->rrSettings.nativeDebugView < 0 || !owner->cache.Valid()) return false;
             candidates = owner->nativeDebugSources; serial = owner->cancellationSerial; generation = owner->cache.Generation(); consumer = owner->status.framesBridged;
-            if (const auto found = owner->lists.find(cmd); found != owner->lists.end())
+            if (const auto found = owner->lists.find(cmd); found != owner->lists.end() && found->second.birth == receiverBirth && ListLive(found->second))
             { sameProducer = found->second.recording; samePresentations = found->second.debugPresentations; }
         }
         std::sort(candidates.begin(),candidates.end(),[](const auto& a,const auto& b) { return a && (!b || a->consumer > b->consumer); });
@@ -1302,7 +1456,7 @@ bool PresentNativeDebug(ID3D12GraphicsCommandList* cmd, ID3D12Resource* output,
             nextProducer.sameRecording = candidate->image.recording == cmd && sameProducer == candidate->recording &&
                 candidate->recording->phase.load(std::memory_order_acquire) == SubmissionPhase::Recorded;
             if (!nextProducer.sameRecording && !PublishedToken(nextProducer.token,nextProducer.point,nextProducer.submission)) continue;
-            if (const auto tail = candidate->presentation; tail && !tail->abandoned.load(std::memory_order_acquire))
+            if (const auto tail = PresentationTail(*candidate); tail && !tail->abandoned.load(std::memory_order_acquire))
             {
                 nextPrevious.token = tail;
                 nextPrevious.sameRecording = tail->phase.load(std::memory_order_acquire) == SubmissionPhase::Recorded &&
@@ -1315,13 +1469,16 @@ bool PresentNativeDebug(ID3D12GraphicsCommandList* cmd, ID3D12Resource* output,
         if (!FrameSurvey::MetadataHealthy() || !D3D12Hooks::CanRestoreRootSignature(cmd))
         { error = "Native debug target compute state cannot be restored or binding metadata is unhealthy"; NativeDebugDiagnostic(owner,error); return false; }
         auto ownership = MakeOwnedShared<DebugPresentationOwnership>(); ownership->source = source;
-        ownership->token = MakeOwnedShared<RecordingToken>(); ownership->retiredPresentation = source->presentation;
+        ownership->token = MakeOwnedShared<RecordingToken>(); ownership->retiredPresentation = PresentationTail(*source);
         ownership->producer = std::move(producer); ownership->previous = std::move(previous);
         std::array<std::shared_ptr<RecordingToken>,4> retiredPresentations;
         {
             std::scoped_lock lock(gMutex);
-            if (gService != owner || owner->cancellationSerial != serial || !NativeDebugEnabled()) return false;
-            auto& slots = owner->lists[cmd].debugPresentations; size_t i = 0;
+            if (gService != owner || owner->cancellationSerial != serial || !NativeDebugEnabled() || !BirthLive(receiverBirth)) return false;
+            auto& destination = owner->lists[cmd];
+            if (destination.birth != receiverBirth) ReplaceList(*owner,cmd,destination,receiverBirth,retiredList,replacedPresentations,retired);
+            destination.birth = receiverBirth;
+            auto& slots = destination.debugPresentations; size_t i = 0;
             auto free = std::find_if(slots.begin(),slots.end(),[&](const auto& weak) {
                 const auto& token = retiredPresentations[i++] = weak.lock();
                 return !token || token->abandoned.load(std::memory_order_acquire) || token->submitted.load(std::memory_order_acquire); });
@@ -1331,10 +1488,11 @@ bool PresentNativeDebug(ID3D12GraphicsCommandList* cmd, ID3D12Resource* output,
         RecordedComputeLease::SubmissionCallbacks submission; const std::weak_ptr<Service> weakOwner = owner;
         submission.beforeSubmit = [ownership](const RecordedComputeLease::SubmissionInfo& info) {
             if (!ownership->recorded.load(std::memory_order_acquire)) return true;
+            RecordedComputeLease::FencePointPtr retiredPoint;
             {
                 std::scoped_lock lock(ownership->token->publicationMutex);
                 ownership->token->submitted.store(true,std::memory_order_release); ownership->token->submissionId = info.submissionId;
-                ownership->token->completion.reset(); ownership->token->phase.store(SubmissionPhase::Submitting,std::memory_order_release);
+                retiredPoint = std::move(ownership->token->completion); ownership->token->phase.store(SubmissionPhase::Submitting,std::memory_order_release);
             }
             if (ownership->token->abandoned.load(std::memory_order_acquire) || info.recordingSubmission > 1 || info.snapshotFallback)
             { RecordedComputeLease::DenySubmission(E_FAIL); return false; }
@@ -1342,22 +1500,20 @@ bool PresentNativeDebug(ID3D12GraphicsCommandList* cmd, ID3D12Resource* output,
         };
         submission.fencePublished = [ownership](const RecordedComputeLease::SubmissionInfo& info,const RecordedComputeLease::FencePointPtr& point) {
             if (!ownership->recorded.load(std::memory_order_acquire)) return;
-            std::scoped_lock lock(ownership->token->publicationMutex);
+            RecordedComputeLease::FencePointPtr retiredPoint; std::scoped_lock lock(ownership->token->publicationMutex);
             if (ownership->token->submissionId == info.submissionId && ownership->token->phase.load(std::memory_order_acquire) == SubmissionPhase::Submitting)
-            { ownership->token->completion = point; ownership->token->phase.store(SubmissionPhase::FencePublished,std::memory_order_release); }
+            { retiredPoint = std::move(ownership->token->completion); ownership->token->completion = point; ownership->token->phase.store(SubmissionPhase::FencePublished,std::memory_order_release); }
         };
         submission.failed = [ownership,weakOwner](const auto&,auto) {
             if (!ownership->recorded.load(std::memory_order_acquire)) return;
+            RecordedComputeLease::FencePointPtr retiredPoint;
             {
-                std::scoped_lock lock(ownership->token->publicationMutex); ownership->token->completion.reset();
+                std::scoped_lock lock(ownership->token->publicationMutex); retiredPoint = std::move(ownership->token->completion);
                 ownership->token->phase.store(SubmissionPhase::Poisoned,std::memory_order_release);
             }
             if (const auto service = weakOwner.lock())
             {
-                RetiredDebugSources retired;
-                { std::scoped_lock lock(gMutex); if (gService == service) { DropPending(*service,retired); service->status.phase = "Inactive";
-                  service->status.reason = "Native debug GPU ordering failed; restart the title/device"; } }
-                NativeDebugDiagnostic(service,"Native debug GPU ordering failed; restart the title/device");
+                NativeDebugOrderingFailure(service);
             }
         };
         if (!ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(),cmd,ownership,{},std::move(submission)))
@@ -1368,6 +1524,7 @@ bool PresentNativeDebug(ID3D12GraphicsCommandList* cmd, ID3D12Resource* output,
             std::shared_ptr<DebugPresentationOwnership> ownership;
             ID3D12GraphicsCommandList* cmd;
             uint32_t lag;
+            NrdBridgeBirth::Token receiverBirth;
             bool cancelled = false, log = false;
             static bool Admit(void* state, OutputCommitGuard::Action action, void* prepared) noexcept
             {
@@ -1377,13 +1534,15 @@ bool PresentNativeDebug(ID3D12GraphicsCommandList* cmd, ID3D12Resource* output,
                     ticket.owner->cancellationSerial != source.serial || ticket.owner->cache.Generation() != source.generation ||
                     !SameDebugSettings(source.settings,ticket.owner->rrSettings) || source.history->uncertain.load(std::memory_order_acquire) ||
                     source.recording->abandoned.load(std::memory_order_acquire) || found == ticket.owner->lists.end() ||
+                    found->second.birth != ticket.receiverBirth || !ListLive(found->second) ||
                     !std::any_of(found->second.debugPresentations.begin(),found->second.debugPresentations.end(),[&](const auto& weak) { return OwnsToken(weak,ticket.ownership->token); }))
                 { ticket.cancelled = true; return false; }
-                action(prepared); ticket.ownership->source->presentation = ticket.ownership->token;
+                action(prepared);
+                { std::scoped_lock imageLock(source.imageOrder->mutex); source.imageOrder->presentation = ticket.ownership->token; }
                 ticket.ownership->token->outputCommitted.store(true,std::memory_order_release); ticket.ownership->recorded.store(true,std::memory_order_release);
                 ticket.log = ticket.owner->nativeDebugLastLag != ticket.lag; ticket.owner->nativeDebugLastLag = ticket.lag; ticket.owner->nativeDebugError.clear(); return true;
             }
-        } ticket {owner,ownership,cmd,lag};
+        } ticket {owner,ownership,cmd,lag,receiverBirth};
         bool presented = false;
         {
             InjectionScope guard(cmd); const OutputCommitGuard admission {&ticket,PresentationTicket::Admit};
@@ -1406,7 +1565,8 @@ bool NativeDebugEnabled() noexcept
 #ifdef FSRD_NRD_BRIDGE_TEST
 void RegisterPipelineRoleForTesting(ID3D12PipelineState* pipeline, Role role) noexcept
 {
-    try { std::scoped_lock lock(gMutex); if (gService && pipeline) gService->roles[pipeline] = role; } catch (...) {}
+    try { const auto birth = NrdBridgeBirth::Capture(pipeline,BirthMode()); std::scoped_lock lock(gMutex);
+        if (gService && pipeline && BirthLive(birth)) gService->roles[pipeline] = {role,birth}; } catch (...) {}
 }
 #endif
 }

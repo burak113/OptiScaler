@@ -789,6 +789,50 @@ struct NativeWaitProbe {
   if(armed) {DetourTransactionBegin();DetourUpdateThread(GetCurrentThread());DetourDetach(reinterpret_cast<PVOID*>(&originalNativeWait),reinterpret_cast<PVOID>(observeNativeWait));DetourTransactionCommit();}
  }
 };
+J birthNotificationTests(Host& h) {
+ ChainHost c(h);FrameSurvey::SetBindingWindow(true);c.begin();c.bind(1,0);c.bind(5,8);
+ auto recon=c.table(1),reconOut=c.table(5);c.bind(1,16);auto temporal=c.table(1);
+ c.bind(5,32);auto atrous=c.table(5);c.bind(5,48);auto consumer=c.table(5);
+ // Controlled logical epochs test delayed notifications; this does not assert native GUID/physical Release coverage.
+ NrdBridgeBirth::Registry registry;uint64_t stamp=1000;
+ auto pod=+[](void*,const NrdBridgeBirth::Token&) noexcept {return true;};
+ auto publish=[&](void* address) {auto token=registry.PublishFresh(address,++stamp,pod,pod,nullptr);need(token&&token->Admissible(),"local registry publishes an admissible logical birth");return token;};
+ const auto pso=c.pipelines[UINT(Role::Recon)].Get();const auto list=h.list.Get();
+ const auto depth=c.textures[3].Get(),motion=c.textures[6].Get();
+ const auto oldPso=publish(pso),newPso=publish(pso),oldList=publish(list),newList=publish(list);
+ const auto oldDepth=publish(depth),newDepth=publish(depth),oldMotion=publish(motion),newMotion=publish(motion);
+ need(!oldPso->Live()&&!oldList->Live()&&!oldDepth->Live()&&!oldMotion->Live(),"each delayed event carries the retired epoch at the same actual object address");
+ auto births=[&](auto& table) {for(auto& bound:table) {bound.resourceBirth=registry.Capture(bound.resource);if(!bound.resourceBirth)bound.resourceBirth=publish(bound.resource);}};
+ births(recon);births(reconOut);births(temporal);births(atrous);births(consumer);
+ NrdBridge::ChainDiscovery chain;std::string error;
+ need(chain.Begin(recon,reconOut,error)&&chain.Observe(Role::Temporal,temporal,{},motion,error)&&chain.Observe(Role::ATrous,{},atrous,nullptr,error)&&chain.Observe(Role::Consumer,{},consumer,motion,error),"exact-birth notification replay starts with the full validated production chain");
+ const auto resources=chain.ReferencedResources();const auto tokens=chain.ReferencedResourceBirths();
+ for(size_t i=0;i<resources.size();++i)need(!resources[i]||(tokens[i]&&tokens[i]->Address()==resources[i]),"eleven-resource birth seam preserves the exact resource order including last ATrous endpoints");
+ const auto owner=NrdBridge::gService;
+ {std::scoped_lock lock(NrdBridge::gMutex);
+  owner->roles[pso]={Role::Recon,newPso};auto& state=owner->lists[list];state.birth=newList;state.pipelineBirth=newPso;state.role=Role::Recon;
+  state.chain=chain;state.followingRecon=true;state.frame=700;owner->followingChains.insert(list);NrdBridge::RefreshChainUsers(*owner,list,state);
+  owner->chainUsers[{depth,oldDepth}].insert(list); // Stale partially published reverse pair, delivered after its replacement.
+  owner->cache.Publish(chain);owner->cacheBirths=NrdBridge::CacheBirths(chain);owner->taggedMotion=motion;owner->taggedMotionBirth=newMotion;
+  owner->pendingList=list;owner->status.active=true;owner->activeFrame=state.frame;
+ }
+ const auto generation=owner->cache.Generation(),serial=owner->cancellationSerial;
+ auto notify=[&](const auto& token) {need(!NrdBridgeBirth::InMetadataScope(),"typed observer runs after metadata guards have ended");FrameSurvey::RetirementEffects effects;effects.birth=token;effects.object=token->Address();effects.notify=true;FrameSurvey::NotifyRelease(effects);};
+ notify(oldPso);need(owner->roles.at(pso).birth==newPso,"delayed old PSO retirement keeps the newborn role");
+ notify(oldList);need(owner->lists.at(list).birth==newList&&owner->pendingList==list,"delayed old list retirement keeps the newborn recording and pending owner");
+ notify(oldDepth);need(!owner->chainUsers.contains({depth,oldDepth})&&owner->chainUsers.at({depth,newDepth}).contains(list),"delayed old guide retirement removes only its stale reverse pair and preserves the newborn index");
+ notify(oldMotion);need(owner->taggedMotion==motion&&owner->taggedMotionBirth==newMotion,"delayed old motion retirement keeps the newborn title tag");
+ need(owner->cache.Valid()&&owner->cache.Generation()==generation&&owner->cancellationSerial==serial&&owner->lists.at(list).chain.Complete()&&owner->status.active,"all delayed old notifications leave the current complete profile, epoch and Active state intact");
+ notify(newDepth);need(owner->cache.Valid()&&owner->cancellationSerial==serial,"an erroneous live-token notification cannot retire current guides");
+ need(registry.RetireCurrentInstance(newDepth,pod,nullptr),"current logical depth epoch retires outside the observer");notify(newDepth);
+ need(!owner->cache.Valid()&&owner->cancellationSerial>serial&&!owner->lists.at(list).chain.Valid()&&!owner->status.active&&!owner->pendingList,"matching current guide retirement still invalidates discovery and cancels its current recording");
+ need(owner->roles.at(pso).birth==newPso&&owner->lists.at(list).birth==newList,"guide retirement preserves unrelated live role and list identities");
+ need(registry.RetireCurrentInstance(newList,pod,nullptr),"current logical list epoch retires");notify(newList);need(!owner->lists.contains(list),"matching current list retirement removes its exact recording");
+ need(registry.RetireCurrentInstance(newPso,pod,nullptr),"current logical PSO epoch retires");notify(newPso);need(!owner->roles.contains(pso),"matching current PSO retirement removes its exact role");
+ need(registry.RetireCurrentInstance(newMotion,pod,nullptr),"current logical motion epoch retires");notify(newMotion);need(!owner->taggedMotion&&!owner->taggedMotionBirth,"matching current motion retirement clears its exact title tag");
+ NrdBridge::Shutdown();hr(h.list->Close());h.errors();FrameSurvey::Shutdown();
+ return {{"delayed_old_role",true},{"delayed_old_list",true},{"delayed_old_guide_reverse_pair",true},{"delayed_old_motion_tag",true},{"exact_current_retirement",true},{"logical_metadata_replay",true},{"native_guid_or_final_release_proved",false},{"sdk_called",false},{"debug_layer_errors",0}};
+}
 J nativeDebugTests(Host& h) {
  ResTrack_Dx12::nativeSubmission=true;RecordedComputeLease::SetHooksAvailable(true,true);
  ChainHost c(h);std::string error;const auto a=h.list;
@@ -851,8 +895,13 @@ J nativeDebugTests(Host& h) {
  hr(third.list->Close());const auto waitsBeforeThird=nativeWaitEvents.size();auto thirdSubmission=submit(h.queue.Get(),third.list.Get());
  need(nativeWaitEvents.size()==waitsBeforeThird+1&&nativeWaitEvents.back().queue==h.queue.Get()&&nativeWaitEvents.back().fence==bSubmission->point->fence.Get(),"native queue A orders the source-image transition after queue B's exact presentation fence");
  need(gate->GetCompletedValue()==0,"both required GPU edges return before the producer gate is opened");
- hr(gate->Signal(1));finish(producerSubmission);finish(bSubmission);finish(thirdSubmission);waitProbe.stop();
- producerSubmission.reset();bSubmission.reset();thirdSubmission.reset();producer.reset();
+ const auto waitsBeforeReplay=nativeWaitEvents.size();const auto replayExecutes=ResTrack_Dx12::nativeExecutes;
+ auto orderedReplay=submit(queueB.Get(),a.Get());
+ need(nativeWaitEvents.size()==waitsBeforeReplay+2&&nativeWaitEvents[waitsBeforeReplay].queue==queueB.Get()&&nativeWaitEvents[waitsBeforeReplay].fence==thirdSubmission->point->fence.Get(),"producer replay GPU-waits for the last submitted presentation tail before rewriting that private image");
+ need(nativeWaitEvents[waitsBeforeReplay+1].fence==producerSubmission->point->fence.Get(),"producer replay also preserves the temporal history predecessor edge");
+ need(ResTrack_Dx12::nativeExecutes==replayExecutes+1&&gate->GetCompletedValue()==0,"ordered producer replay executes exactly once and returns before the same-thread gate is opened");
+ hr(gate->Signal(1));finish(producerSubmission);finish(bSubmission);finish(thirdSubmission);finish(orderedReplay);waitProbe.stop();
+ producerSubmission.reset();bSubmission.reset();thirdSubmission.reset();orderedReplay.reset();producer.reset();
  // Reset raw command-list pointers only after their submitted GPU work completes.
  ResTrack_Dx12::ResetForTesting(b.list.Get());NrdBridge::OnReset(b.list.Get(),nullptr);resetDestination(b);
  ResTrack_Dx12::ResetForTesting(third.list.Get());NrdBridge::OnReset(third.list.Get(),nullptr);resetDestination(third);
@@ -894,14 +943,16 @@ J nativeDebugTests(Host& h) {
  StreamlineHooks::frame=100;h.list=a;next();hr(a->Close());auto first=submit(h.queue.Get(),a.Get());finish(first);
  h.list=b.list;c.begin();need(present(b.list.Get())&&lastNativeOrdered,"final dependent records against one exact submitted producer");hr(b.list->Close());
  const auto dependentActions=nativePresentActions;const auto failureBudget=NrdBridge::gService->failures;
- auto replay=submit(h.queue.Get(),a.Get());finish(replay);
+ RecordedComputeLease::SubmissionDecision replayDenied;const auto replayExecutesBefore=ResTrack_Dx12::nativeExecutes;
+ auto replay=ResTrack_Dx12::SubmitNativeForTesting(h.queue.Get(),a.Get(),replayDenied);
+ need(!replayDenied.allowed&&FAILED(replayDenied.orderingFailure)&&ResTrack_Dx12::nativeExecutes==replayExecutesBefore,"unsubmitted presentation tail denies producer replay before any private image rewrite or original Execute");
  RecordedComputeLease::SubmissionDecision denied;const auto nativeExecutes=ResTrack_Dx12::nativeExecutes;
  auto rejected=ResTrack_Dx12::SubmitNativeForTesting(queueB.Get(),b.list.Get(),denied);
  need(!denied.allowed&&FAILED(denied.orderingFailure)&&ResTrack_Dx12::nativeExecutes==nativeExecutes,"producer resubmission invalidates an already-recorded exact-point dependency and denies its original Execute");
  need(nativePresentActions==dependentActions&&NrdBridge::gService->failures==failureBudget&&NrdBridge::GetStatus().phase=="Inactive","GPU ordering denial records no new output and surfaces Inactive without spending the provider retry budget");
  first.reset();replay.reset();rejected.reset();h.list=a;NrdBridge::Shutdown();hr(third.list->Close());hr(d.list->Close());h.errors();FrameSurvey::Shutdown();
  return {{"native_debug_default_off",true},{"latest_submitted_source",true},{"same_recording_order",true},{"per_image_fence_tail",true},
-  {"typed_native_fence_publication",true},{"native_queue_wait_edges",2},{"cache_bound",4},{"native_image_retirements",nativeImageRetirements},
+  {"typed_native_fence_publication",true},{"native_queue_wait_edges",4},{"producer_replay_waits_presentation_tail",true},{"unsubmitted_tail_denies_producer_replay",true},{"cache_bound",4},{"native_image_retirements",nativeImageRetirements},
   {"prepared_cancel_no_commit",true},{"raw_pointer_reset_requires_point",true},{"source_resubmit_denies_dependent",true},{"retirement_reentrant_release",true},
   {"rr_stub_calls",rrCalls},{"native_present_preparations",nativePresentPreparations},{"native_present_actions",nativePresentActions},
   {"native_original_executes",ResTrack_Dx12::nativeExecutes},{"sdk_called",false},{"pixel_shader_called",false},{"debug_layer_errors",0}};
@@ -946,14 +997,15 @@ int main(int argc,char** argv) try {
  if(argc==3 && std::string(argv[1])=="--replay") { std::cout<<replayManifest(argv[2]).dump()<<'\n'; return 0; }
  const bool settings=argc==3&&std::string(argv[1])=="--settings";
  const bool nativeDebug=argc==3&&std::string(argv[1])=="--native-debug";
- need(argc==2||settings||nativeDebug,"scratch directory argument, --settings scratch or --native-debug scratch");
- const std::filesystem::path output=(settings||nativeDebug)?argv[2]:argv[1];g_dllPath=output/"fixture.dll";
- Host host;auto result=nativeDebug?nativeDebugTests(host):settings?settingsTests(host):discoveryTests(host);result["checks_passed"]=checks;result["adapter"]=host.adapter;
- result["scope"]=nativeDebug ?
+ const bool birth=argc==3&&std::string(argv[1])=="--birth-notifications";
+ need(argc==2||settings||nativeDebug||birth,"scratch directory argument, --settings scratch, --native-debug scratch or --birth-notifications scratch");
+ const std::filesystem::path output=(settings||nativeDebug||birth)?argv[2]:argv[1];g_dllPath=output/"fixture.dll";
+ Host host;auto result=birth?birthNotificationTests(host):nativeDebug?nativeDebugTests(host):settings?settingsTests(host):discoveryTests(host);result["checks_passed"]=checks;result["adapter"]=host.adapter;
+ result["scope"]=birth ? "production registry typed observer and coordinator exact-token retirement under controlled logical epoch replay; no native GUID/final Release coverage or provider/pixel proof" : nativeDebug ?
   "real D3D12 registry/coordinator, unique private images and actual production lease fence publication/native queue Wait; conversion/RR/presentation pixels/restore are explicit stubs" :
   "real D3D12 registry, binding-window resolution and coordinator; conversion/RR/state-restore callback stubs; typed submission publication is a CPU counter adapter without a GPU fence";
  ResTrack_Dx12::leases.clear(); // Complete fixture-owned stub wrappers before their observation registry is destroyed.
- std::ofstream(output/(nativeDebug?"native-debug-result.json":settings?"settings-result.json":"host-result.json"))<<result.dump(2)<<'\n';std::cout<<result.dump()<<'\n';return 0;
+ std::ofstream(output/(birth?"birth-notification-result.json":nativeDebug?"native-debug-result.json":settings?"settings-result.json":"host-result.json"))<<result.dump(2)<<'\n';std::cout<<result.dump()<<'\n';return 0;
 } catch(const std::exception& error) { std::cerr<<error.what()<<'\n'; return 1; }
 '''
 
@@ -1036,6 +1088,10 @@ def run():
     native_debug = json.loads((output / 'native-debug-result.json').read_text())
     result['native_debug'] = native_debug
     result['native_debug_checks_passed'] = native_debug['checks_passed']
+    subprocess.run([str(executable), '--birth-notifications', str(output)], check=True, timeout=60, creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
+    birth = json.loads((output / 'birth-notification-result.json').read_text())
+    result['birth_notifications'] = birth
+    result['birth_notification_checks_passed'] = birth['checks_passed']
     captures = Path('F:/Ultra Yedek 2/overwrite/bin/x64/GAME_TRACE/FRAME_SURVEY')
     expected = {
         'bb22daa989a8e892ee4470e3cd9a8a14': [62025, 62023, 62162, 62029, 62049, 62051, 61997, 62026, 62024, 6],
