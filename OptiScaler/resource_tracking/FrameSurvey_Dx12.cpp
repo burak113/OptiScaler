@@ -1195,15 +1195,16 @@ void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_H
                 if (gCopyFailureAfterForTesting > 0) --gCopyFailureAfterForTesting;
 #endif
                 const auto dh = dst[di].ptr+uint64_t(d++)*stride, sh = src[si].ptr+uint64_t(s++)*stride;
-                // D3D12 forbids overlapping source/destination ranges; copy only current source contents.
-                EraseView(dh);
-                const auto view = gViews.find(sh);
-                if (view != gViews.end() && FreshView(view->second,HeapAtCpu(sh)))
+                const auto source = gViews.find(sh);
+                const bool known = source != gViews.end() && FreshView(source->second,HeapAtCpu(sh));
+                const auto contents = known ? source->second : ViewInfo{};
+                EraseView(dh); // Preserve the source value even when the exact same slot is copied.
+                if (known)
                 {
-                    const auto resource = gResources.find(view->second.object);
-                    if (resource != gResources.end() && resource->second.id == view->second.resource && destinationHeap)
+                    const auto resource = gResources.find(contents.object);
+                    if (resource != gResources.end() && resource->second.id == contents.resource && destinationHeap)
                     {
-                        auto copy = view->second; copy.descriptorCpu = dh;
+                        auto copy = contents; copy.descriptorCpu = dh;
                         copy.descriptorHeap = uint64_t(reinterpret_cast<uintptr_t>(destinationHeap->object));
                         copy.heapKnown = true;
                         gViews[dh] = copy; IndexView(copy);
