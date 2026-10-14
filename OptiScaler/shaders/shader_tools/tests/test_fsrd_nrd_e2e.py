@@ -259,12 +259,31 @@ struct D3D12Hooks {
     return exe
 
 
+def validate_guide_pingpong(value):
+    guide = value['guide_pingpong']
+    assert guide['submitted_frames'] == guide['provider_dispatches'] == 8
+    assert guide['physical_provider_creates'] == guide['reset_frames'] == 1
+    assert guide['active_every_frame'] and guide['same_history_domain'] and guide['same_signal_profile_generation']
+    assert [frame['provider_reset'] for frame in guide['frames']] == [True] + [False] * 7
+    assert [frame['gpu_current_linear_depth'] for frame in guide['frames']] == [-7, -5] * 4
+    assert [frame['gpu_motion_depth_delta'] for frame in guide['frames']] == [0, -2, 2, -2, 2, -2, 2, -2]
+    assert value['debug_errors'] == value['debug_warnings'] == 0
+    return 7
+
+
 def run():
     out = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/sol_batch/12e-e2e/tests/e2e'))
     out.mkdir(parents=True, exist_ok=True)
     exe = build(out)
     if '--compile-only' in sys.argv:
         print(json.dumps({'compile_only': True, 'executable': str(exe)}))
+        return
+    if '--guide-pingpong-only' in sys.argv:
+        text, peak, elapsed, log = bounded_run([str(exe), str(out), str(DLL), '--guide-pingpong'], out / 'guide_pingpong')
+        value = json.loads((out / 'guide-pingpong-result.json').read_text())
+        value.update(python_checks=validate_guide_pingpong(value), elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log))
+        (out / 'guide-pingpong-result.json').write_text(json.dumps(value, indent=2) + '\n')
+        print(json.dumps(value, indent=2))
         return
     if '--submission-failure-only' in sys.argv:
         text, peak, elapsed, log = bounded_run([str(exe), str(out), str(DLL), '--submission-failure'], out / 'submission_failure')
@@ -302,7 +321,11 @@ def run():
     cbv = json.loads((out / 'cbv-lifetime-result.json').read_text())
     assert cbv['cbv_lifetime']['dead_com_calls'] == 0 and cbv['cbv_lifetime']['physical_final_reference_count'] == 0
     assert cbv['debug_errors'] == 0 and cbv['debug_warnings'] == 0
-    result.update(python_checks=10,
+    guide_text, guide_peak, guide_elapsed, guide_log = bounded_run([str(exe), str(out), str(DLL), '--guide-pingpong'], out / 'guide_pingpong')
+    guide = json.loads((out / 'guide-pingpong-result.json').read_text())
+    guide_checks = validate_guide_pingpong(guide)
+    result.update(python_checks=10+guide_checks,
+                  guide_pingpong=dict(**guide, elapsed_seconds=guide_elapsed, peak_resident_bytes=guide_peak, native_log=str(guide_log)),
                   cbv_lifetime=dict(**cbv, elapsed_seconds=cbv_elapsed, peak_resident_bytes=cbv_peak, native_log=str(cbv_log)),
                   submission_failure=dict(**fault, elapsed_seconds=fault_elapsed, peak_resident_bytes=fault_peak, native_log=str(fault_log)), elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log),
                   configured_startup_off=dict(**configured_off, elapsed_seconds=off_elapsed, peak_resident_bytes=off_peak, native_log=str(off_log)),
