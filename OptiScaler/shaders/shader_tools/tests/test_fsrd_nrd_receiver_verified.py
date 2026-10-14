@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_fsrd_nrd_canonical_alias import CPP as CANONICAL_CPP
 
 CASES = ["fanout", "legacy-global-miss", "synthetic", "noncom", "third-alias",
-         "pending", "inflight", "new-sequence", "recycled", "recycled-failed",
+         "pending", "inflight", "mark-inflight-unverified", "new-sequence", "recycled", "recycled-failed",
          "metadata-miss", "metadata-hit", "off", "owned"]
 
 EXTRA = r'''
@@ -98,6 +98,25 @@ void inFlightProof(){
   need(actual==t&&qiCalls>q&&privateReads>g&&!actual->CacheAdmissible(),"physical pending Release denies verified global cache and forces native protocol");}
  need(t->CacheAdmissible()&&NrdBridgeBirth::Healthy(),"in-flight false negative does not poison healthy metadata");
 }
+void unverifiedInFlightProof(){
+ Pair pair;pair.typed.physical->stamped=true;pair.typed.physical->stamp={NrdBridgeNativeBirth::Detail::ProcessNonce(),NrdBridgeBirth::AllocateInstanceStamp()};Token t,c;
+ {NrdBridgeNativeBirth::RetirementScope e;t=NrdBridgeBirth::ObserveInstance(&pair.typed,pair.typed.physical->stamp.instanceStamp);c=NrdBridgeBirth::LinkAlias(t->InstanceStamp(),&pair.canonical);}
+ need(t&&c&&t->CacheAdmissible()&&c->CacheAdmissible()&&!t->NativeReceiverVerified()&&!c->NativeReceiverVerified(),"inflight marker control begins with two ready unverified generic nodes");
+ clearReceiverTls();const auto q=qiCalls.load(),g=privateReads.load(),v=coverageCalls.load(),w=privateWrites.load();
+ {NrdBridgeBirth::ScopedRelease pending(t);
+  need(!t->CacheAdmissible()&&!c->CacheAdmissible(),"pending physical Release blocks borrow admission on both exact aliases");
+  const auto actual=NrdBridgeNativeBirth::Prepare(static_cast<ID3D12Object*>(&pair.typed));
+  need(actual==t&&qiCalls>q&&privateReads>g&&coverageCalls>v&&privateWrites==w,"inflight unverified control executes actual cold COM existing-GUID proof");
+  need(!t->NativeReceiverVerified()&&!c->NativeReceiverVerified()&&!t->CacheAdmissible()&&!c->CacheAdmissible()&&NrdBridgeBirth::Healthy(),"denied exact-current Mark keeps both witnesses false without health failure");}
+ need(t->CacheAdmissible()&&c->CacheAdmissible()&&!t->NativeReceiverVerified()&&!c->NativeReceiverVerified()&&NrdBridgeBirth::Healthy(),"ending pending Release restores admission without manufacturing verification");
+ clearReceiverTls();const auto freshQ=qiCalls.load(),freshG=privateReads.load(),freshV=coverageCalls.load();unsigned caller=0;
+ const auto current=NrdBridgeNativeBirth::ReceiverWithReleaseCoverage(static_cast<ID3D12Object*>(&pair.typed),[&](auto* p)noexcept{++caller;return NrdBridgeNativeBirth::ObserveReleaseCoverage(p);});
+ need(current==t&&caller==1&&qiCalls>freshQ&&privateReads>freshG&&coverageCalls>freshV&&privateWrites==w,"after pending count reaches zero the global miss must re-attest instead of reusing false witnesses");
+ need(t->NativeReceiverVerified()&&c->NativeReceiverVerified()&&NrdBridgeBirth::Healthy(),"successful retry certifies both exact nodes after pending Release ends");
+ clearReceiverTls();const auto warmN=nativeCalls.load(),warmQ=qiCalls.load(),warmG=privateReads.load(),warmV=coverageCalls.load();caller=0;allocations=0;meter=true;
+ const auto warmed=NrdBridgeNativeBirth::ReceiverWithReleaseCoverage(static_cast<ID3D12Object*>(&pair.typed),[&](auto* p)noexcept{++caller;return NrdBridgeNativeBirth::ObserveReleaseCoverage(p);});meter=false;
+ need(warmed==t&&nativeCalls==warmN&&qiCalls==warmQ&&privateReads==warmG&&privateWrites==w&&coverageCalls==warmV&&caller==0&&allocations==0,"fresh successful proof permits the next actual TLS miss with zero native/query/coverage/allocation work");
+}
 void newSequence(){
  Pair pair;const auto old=NrdBridgeNativeBirth::Prepare(static_cast<ID3D12Object*>(&pair.typed));Token fresh;
  {NrdBridgeNativeBirth::RetirementScope e;{NrdBridgeBirth::CurrentGuard g(old);need(g.Retire(),"old exact sequence pre-retired");}fresh=NrdBridgeBirth::ObserveInstance(&pair.typed,old->InstanceStamp());}
@@ -133,7 +152,7 @@ int main(int argc,char** argv)try{
  if(mode=="fanout")fanout(false);else if(mode=="legacy-global-miss")fanout(true);
 #ifdef FSRD_NATIVE_RECEIVER_VERIFIED
  else if(mode=="synthetic")synthetic();else if(mode=="noncom")noncom();else if(mode=="third-alias")thirdAlias();
- else if(mode=="pending")pendingProof();else if(mode=="inflight")inFlightProof();else if(mode=="new-sequence")newSequence();
+ else if(mode=="pending")pendingProof();else if(mode=="inflight")inFlightProof();else if(mode=="mark-inflight-unverified")unverifiedInFlightProof();else if(mode=="new-sequence")newSequence();
  else if(mode=="recycled")recycledProof(false);else if(mode=="recycled-failed")recycledProof(true);
  else if(mode=="metadata-miss")metadataProof(false);else if(mode=="metadata-hit")metadataProof(true);
 #endif
