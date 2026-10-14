@@ -2,6 +2,8 @@
 #include "FrameSurvey_Dx12.h"
 #include "FrameSurveyMetadata.h"
 #include "FrameSurveyBufferRanges.h"
+#include "FrameSurveyConcurrentMetadata.h"
+#include "misc/NrdBridgeLifetime_Dx12.h"
 #include "misc/NrdBridgePerf_Dx12.h"
 #include "shaders/fsrd_preprocess/FSRDGameTraceSession.h"
 #include "shaders/fsrd_preprocess/RRTraceAdditiveIO.h"
@@ -39,7 +41,7 @@ struct MetadataMutation
     ~MetadataMutation() { if (std::uncaught_exceptions() > exceptions) gMetadataHealthy.store(false,std::memory_order_release); }
 };
 #ifdef FSRD_NRD_BRIDGE_TEST
-int gCopyFailureAfterForTesting = -1;
+std::atomic<int> gCopyFailureAfterForTesting {-1};
 #endif
 std::atomic<PipelineObserver> gPipelineObserver {nullptr};
 std::atomic<ReleaseObserver> gReleaseObserver {nullptr};
@@ -73,9 +75,14 @@ bool Targeted(const Json& pso)
 thread_local bool gInternal = false;
 thread_local unsigned gRecordingDepth = 0;
 struct InternalScope { bool previous = gInternal; InternalScope() { gInternal = true; } ~InternalScope() { gInternal = previous; } };
-// Resource lifetime lock NEVER acquires the recorder or GAME_TRACE locks.
-// Resolve+AddRef under this lock pairs with final Release cleanup in ResTrack.
-std::recursive_mutex gLifetimeMutex, gRecordMutex;
+// Catalog scopes never acquire recorder/GAME_TRACE locks. Native COM borrows
+// are acquired before the catalog; final Release is excluded by the hook gate.
+// Known View/Copy writers share the catalog and lock ordered descriptor shards.
+// Lifetime changes and borrowed snapshots drain all writers with catalog exclusive.
+FrameSurveyMetadata::RecursiveSharedMutex gLifetimeMutex;
+std::recursive_mutex gRecordMutex;
+using DescriptorMutex = NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Metadata>;
+std::array<DescriptorMutex,FrameSurveyMetadata::DescriptorShards> gViewMutexes;
 std::mutex gSubmissionMutex;
 uint64_t gNextResource = 0, gNextList = 0, gNextPass = 0;
 uint32_t gRenderWidth = 0, gRenderHeight = 0;
@@ -87,7 +94,7 @@ struct Resource
     D3D12_RESOURCE_DESC desc {};
     D3D12_RESOURCE_STATES initial = D3D12_RESOURCE_STATE_COMMON;
     bool initialKnown = false;
-    std::set<uint64_t> handles;
+    FrameSurveyMetadata::DescriptorHandles handles;
 };
 struct ViewInfo
 {
@@ -105,12 +112,12 @@ struct Heap
     ID3D12DescriptorHeap* object = nullptr;
     uint64_t cpu = 0, gpu = 0;
     uint32_t count = 0, increment = 0, type = 0;
-    std::set<uint64_t> views; // Occupied native slots only; no full heap walk at final Release.
+    FrameSurveyMetadata::DescriptorHandles views; // Occupied slots, split by the same descriptor shard.
 };
 std::unordered_map<ID3D12Resource*,Resource> gResources;
 std::map<uint64_t,ID3D12Resource*> gAddresses;
 FrameSurveyMetadata::BufferAddressIndex gBufferAddresses;
-std::unordered_map<uint64_t,ViewInfo> gViews;
+FrameSurveyMetadata::DescriptorMap<ViewInfo> gViews;
 std::unordered_map<ID3D12DescriptorHeap*,Heap> gHeaps;
 std::map<uint64_t,ID3D12DescriptorHeap*> gCpuHeaps;
 // Caller holds gLifetimeMutex. Both CPU and shader-visible descriptor copies are creation metadata.
@@ -125,7 +132,8 @@ Heap* HeapAtCpu(uint64_t handle)
     return heap.increment && handle >= heap.cpu && handle-heap.cpu < uint64_t(heap.count)*heap.increment &&
         (handle-heap.cpu)%heap.increment == 0 ? &heap : nullptr;
 }
-// Caller holds gLifetimeMutex; remove both reverse indices before overwriting a slot.
+// Caller holds the catalog exclusively, or shared plus the descriptor slot shard.
+// Reverse-handle buckets use that same shard, including shared-resource/shared-heap views.
 void EraseView(uint64_t handle)
 {
     const auto view = gViews.find(handle);
@@ -143,6 +151,37 @@ void IndexView(const ViewInfo& view)
     if (view.heapKnown)
         if (const auto heap = gHeaps.find(reinterpret_cast<ID3D12DescriptorHeap*>(uintptr_t(view.descriptorHeap))); heap != gHeaps.end())
             heap->second.views.insert(view.descriptorCpu);
+}
+bool SameView(const ViewInfo& a, const ViewInfo& b) noexcept
+{
+    return a.object == b.object && a.resource == b.resource && a.kind == b.kind && a.format == b.format &&
+        a.subresource == b.subresource && a.snapshotSupported == b.snapshotSupported &&
+        a.descriptorCpu == b.descriptorCpu && a.descriptorGpu == b.descriptorGpu && a.descriptorHeap == b.descriptorHeap &&
+        a.rootVa == b.rootVa && a.descriptorIndex == b.descriptorIndex && a.rootIndex == b.rootIndex &&
+        a.heapKnown == b.heapKnown && a.constantBytes == b.constantBytes;
+}
+void ReplaceView(const ViewInfo& view)
+{
+    const auto previous = gViews.find(view.descriptorCpu);
+    if (previous != gViews.end())
+    {
+        auto& old = previous->second;
+        if (SameView(old,view)) return;
+        if (old.object != view.object || old.resource != view.resource)
+        {
+            if (const auto resource = gResources.find(old.object); resource != gResources.end()) resource->second.handles.erase(view.descriptorCpu);
+            if (const auto resource = gResources.find(view.object); resource != gResources.end()) resource->second.handles.insert(view.descriptorCpu);
+        }
+        if (old.heapKnown != view.heapKnown || old.descriptorHeap != view.descriptorHeap)
+        {
+            if (old.heapKnown)
+                if (const auto heap = gHeaps.find(reinterpret_cast<ID3D12DescriptorHeap*>(uintptr_t(old.descriptorHeap))); heap != gHeaps.end()) heap->second.views.erase(view.descriptorCpu);
+            if (view.heapKnown)
+                if (const auto heap = gHeaps.find(reinterpret_cast<ID3D12DescriptorHeap*>(uintptr_t(view.descriptorHeap))); heap != gHeaps.end()) heap->second.views.insert(view.descriptorCpu);
+        }
+        old = view; return;
+    }
+    gViews.emplace(view.descriptorCpu,view); IndexView(view);
 }
 bool FreshView(const ViewInfo& view, const Heap* heap)
 {
@@ -235,15 +274,21 @@ void Count(const char* reason)
     if (value.is_null()) value = uint64_t(0);
     value = value.get<uint64_t>()+1;
 }
-Resource& Register(ID3D12Resource* resource)
+struct ResourceDescription
+{
+    D3D12_RESOURCE_DESC desc {};
+    uint64_t va = 0;
+};
+Resource& Register(ID3D12Resource* resource, const ResourceDescription* prepared = nullptr)
 {
     auto& result = gResources[resource];
     if (!result.id)
     {
-        result.id = ++gNextResource; result.object = resource; result.desc = resource->GetDesc();
+        if (!prepared) throw std::logic_error("Resource description was not prepared outside the metadata catalog");
+        result.id = ++gNextResource; result.object = resource; result.desc = prepared->desc;
         if (result.desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
         {
-            result.va = resource->GetGPUVirtualAddress();
+            result.va = prepared->va;
             if (result.va)
             {
                 gAddresses[result.va] = resource;
@@ -252,6 +297,22 @@ Resource& Register(ID3D12Resource* resource)
         }
     }
     return result;
+}
+// Only the rare first observation performs COM work. No registry or descriptor
+// shard is held during native description lookup; physical Release is excluded.
+void EnsureResourceRegistered(ID3D12Resource* object)
+{
+    if (!object) return;
+    {
+        std::shared_lock catalog(gLifetimeMutex);
+        const auto found = gResources.find(object);
+        if (found != gResources.end() && found->second.id) return;
+    }
+    NrdBridgeLifetime::ScopedBorrow borrow;
+    ResourceDescription description; description.desc = object->GetDesc();
+    if (description.desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER) description.va = object->GetGPUVirtualAddress();
+    std::scoped_lock catalog(gLifetimeMutex); MetadataMutation mutation;
+    Register(object,&description); // Rechecks a competing first observation under the exclusive catalog.
 }
 std::string DebugName(ID3D12Resource* object)
 {
@@ -500,23 +561,37 @@ bool ResolveBufferAddress(uint64_t address, uint64_t declaredBytes, uint64_t min
     if (bytes > remaining || bytes < minimumBytes) return fail("CBV byte range does not cover the requested field");
     out = {match->object,address,offset,bytes,match->id}; return true;
 }
+bool StoreKnownView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI_FORMAT format,
+    uint32_t mip, uint32_t slice, bool supported)
+{
+    std::shared_lock catalog(gLifetimeMutex);
+    const auto resource = gResources.find(object);
+    if (object && (resource == gResources.end() || !resource->second.id)) return false;
+    std::scoped_lock slot(gViewMutexes[FrameSurveyMetadata::DescriptorShard(handle)]); MetadataMutation mutation;
+    if (!object) { EraseView(handle); return true; }
+    const auto& metadata = resource->second;
+    ViewInfo view {object,metadata.id,kind,uint32_t(format == DXGI_FORMAT_UNKNOWN ? metadata.desc.Format : format),
+        mip+slice*metadata.desc.MipLevels,supported};
+    view.descriptorCpu = handle;
+    if (const auto heap = HeapAtCpu(handle))
+    {
+        view.descriptorHeap = uint64_t(reinterpret_cast<uintptr_t>(heap->object)); view.heapKnown = true;
+    }
+    ReplaceView(view); return true;
+}
 void StoreView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI_FORMAT format,
     uint32_t mip, uint32_t slice, bool supported)
 {
     if (!Tracking() || gInternal) return;
-    std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation;
-    EraseView(handle);
-    if (!object) return;
-    auto& resource = Register(object);
-    const auto sub = mip + slice*resource.desc.MipLevels;
-    gViews[handle] = {object,resource.id,kind,uint32_t(format == DXGI_FORMAT_UNKNOWN ? resource.desc.Format : format),sub,supported};
-    auto& view = gViews[handle]; view.descriptorCpu = handle;
-    if (const auto heap = HeapAtCpu(handle))
+    if (StoreKnownView(object,handle,kind,format,mip,slice,supported)) return;
+    EnsureResourceRegistered(object);
+    if (!StoreKnownView(object,handle,kind,format,mip,slice,supported))
     {
-        view.descriptorHeap = uint64_t(reinterpret_cast<uintptr_t>(heap->object));
-        view.heapKnown = true;
+        // A competing final Release may retire a first observation before publication.
+        // Tombstone the destination instead of leaving an older live resource accepted.
+        std::shared_lock catalog(gLifetimeMutex);
+        std::scoped_lock slot(gViewMutexes[FrameSurveyMetadata::DescriptorShard(handle)]); EraseView(handle);
     }
-    IndexView(view);
 }
 std::vector<ViewInfo> Bindings(List& state, bool graphics, Json& unresolved)
 {
@@ -581,6 +656,8 @@ std::vector<ViewInfo> Bindings(List& state, bool graphics, Json& unresolved)
 bool CopyImage(ID3D12GraphicsCommandList* cmd, List& list, const ViewInfo& view,
     D3D12_RESOURCE_STATES state, const std::string& key, bool tagged, UINT x = 0, UINT y = 0, UINT w = 0, UINT h = 0)
 {
+    NrdBridgeLifetime::ScopedBorrow borrow;
+    InternalScope internal;
     ComPtr<ID3D12Resource> source;
     D3D12_RESOURCE_DESC desc {};
     {
@@ -623,7 +700,6 @@ bool CopyImage(ID3D12GraphicsCommandList* cmd, List& list, const ViewInfo& view,
         { Count("candidate_byte_cap"); return false; }
         gService->candidateBytes += charge;
     }
-    InternalScope internal;
     if (!list.payload) list.payload = gService->trace.BeginSurveyBatch(gService->device.Get(),cmd,list.id);
     if (!list.payload) { Count("payload_batch_unavailable"); return false; }
     if (!gService->trace.SurveyTexture(list.payload,key,{source.Get(),state},view.subresource,x,y,w,h))
@@ -639,10 +715,13 @@ bool CopyImage(ID3D12GraphicsCommandList* cmd, List& list, const ViewInfo& view,
 bool CopyBuffer(ID3D12GraphicsCommandList* cmd, List& list, ID3D12Resource* object,
     const std::string& key, uint64_t offset, uint32_t bytes)
 {
+    NrdBridgeLifetime::ScopedBorrow borrow;
+    InternalScope internal;
     if (!object || !bytes || (!list.resetObserved && !list.targeted) || list.inRenderPass) return false;
     ComPtr<ID3D12Resource> source;
     uint64_t id = 0;
     {
+        EnsureResourceRegistered(object);
         std::scoped_lock lock(gLifetimeMutex); auto& resource = Register(object);
         if (resource.desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER ||
             offset > resource.desc.Width || bytes > resource.desc.Width-offset) return false;
@@ -659,7 +738,6 @@ bool CopyBuffer(ID3D12GraphicsCommandList* cmd, List& list, ID3D12Resource* obje
         state = observed->second;
     }
     if (list.splitTransitions.contains({id,0})) return false;
-    InternalScope internal;
     if (!list.payload) list.payload = gService->trace.BeginSurveyBatch(gService->device.Get(),cmd,list.id);
     return list.payload && gService->trace.SurveyBuffer(list.payload,key,{source.Get(),state},offset,bytes);
 }
@@ -1111,6 +1189,7 @@ void ResourceCreated(ID3D12Resource* object, D3D12_RESOURCE_STATES initial, ID3D
     if (!Tracking() || gInternal || !object) return;
     try
     {
+        NrdBridgeLifetime::ScopedBorrow borrow; EnsureResourceRegistered(object);
         std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation; auto& resource = Register(object);
         resource.initial = initial; resource.initialKnown = true;
         resource.heap = uint64_t(reinterpret_cast<uintptr_t>(heap)); resource.offset = offset;
@@ -1121,6 +1200,7 @@ void ResourceCreatedWithLayout(ID3D12Resource* object, D3D12_BARRIER_LAYOUT, ID3
     if (!Tracking() || gInternal || !object) return;
     try
     {
+        NrdBridgeLifetime::ScopedBorrow borrow; EnsureResourceRegistered(object);
         std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation; auto& resource = Register(object);
         resource.initialKnown = false; // Enhanced layouts cannot be cast to legacy resource-state bits.
         resource.heap = uint64_t(reinterpret_cast<uintptr_t>(heap)); resource.offset = offset;
@@ -1190,15 +1270,25 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_PIPELINE_STATE_STREAM
 void Released(void* object) noexcept
 {
     if (!Tracking() || !object) return;
+    bool lifetimeEntry = false;
     try
     {
+        std::shared_lock catalog(gLifetimeMutex);
+        lifetimeEntry = gResources.contains(reinterpret_cast<ID3D12Resource*>(object)) ||
+            gHeaps.contains(reinterpret_cast<ID3D12DescriptorHeap*>(object)) ||
+            gRootLayouts.contains(reinterpret_cast<ID3D12RootSignature*>(object));
+    } catch (...) { MetadataFailed("Release catalog lookup failed"); }
+    try
+    {
+        if (lifetimeEntry)
+        {
         std::scoped_lock lock(gLifetimeMutex);
         auto* resource = reinterpret_cast<ID3D12Resource*>(object);
         if (const auto found = gResources.find(resource); found != gResources.end())
         {
-            while (!found->second.handles.empty())
+            uint64_t handle = 0;
+            while (found->second.handles.PopAny(handle))
             {
-                const auto handle = *found->second.handles.begin(); found->second.handles.erase(found->second.handles.begin());
                 const auto view = gViews.find(handle);
                 if (view != gViews.end() && view->second.object == resource && view->second.resource == found->second.id) EraseView(handle);
             }
@@ -1214,13 +1304,14 @@ void Released(void* object) noexcept
         auto* heap = reinterpret_cast<ID3D12DescriptorHeap*>(object);
         if (const auto found = gHeaps.find(heap); found != gHeaps.end())
         {
-            while (!found->second.views.empty())
+            uint64_t handle = 0;
+            while (found->second.views.PopAny(handle))
             {
-                const auto handle = *found->second.views.begin(); found->second.views.erase(found->second.views.begin());
                 const auto view = gViews.find(handle);
                 if (view != gViews.end() && view->second.heapKnown && view->second.descriptorHeap == uint64_t(reinterpret_cast<uintptr_t>(heap))) EraseView(handle);
             }
             gCpuHeaps.erase(found->second.cpu); gHeaps.erase(found);
+        }
         }
     } catch (...) { MetadataFailed("Resource release registry invalidation failed"); }
     try
@@ -1251,12 +1342,13 @@ void HeapCreated(ID3D12Device* device, ID3D12DescriptorHeap* object) noexcept
     if (!Tracking() || gInternal || !object) return;
     try
     {
+        NrdBridgeLifetime::ScopedBorrow borrow;
         const auto desc = object->GetDesc();
         if (desc.Type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && desc.Type != D3D12_DESCRIPTOR_HEAP_TYPE_RTV) return;
-        std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation;
         const auto cpu = object->GetCPUDescriptorHandleForHeapStart().ptr;
         const auto gpu = (desc.Flags&D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ? object->GetGPUDescriptorHandleForHeapStart().ptr : 0;
         const auto increment = device->GetDescriptorHandleIncrementSize(desc.Type);
+        std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation;
         if (const auto existing = gHeaps.find(object); existing != gHeaps.end())
         {
             const auto& heap = existing->second;
@@ -1273,10 +1365,10 @@ void View(D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3D12_CONSTANT_BUFFER_VIEW_D
     if (!Tracking() || gInternal) return;
     try
     {
-        std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation;
-        EraseView(handle.ptr);
+        std::shared_lock catalog(gLifetimeMutex);
+        std::scoped_lock slot(gViewMutexes[FrameSurveyMetadata::DescriptorShard(handle.ptr)]); MetadataMutation mutation;
         if (!desc || !desc->BufferLocation || desc->BufferLocation%256 || !desc->SizeInBytes ||
-            desc->SizeInBytes%256 || desc->SizeInBytes > 65536) return;
+            desc->SizeInBytes%256 || desc->SizeInBytes > 65536) { EraseView(handle.ptr); return; }
         BoundConstantBuffer buffer;
         const bool known = ResolveBufferAddress(desc->BufferLocation,desc->SizeInBytes,desc->SizeInBytes,buffer);
         ViewInfo view {known ? buffer.resource : nullptr,known ? buffer.resourceGeneration : 0,
@@ -1286,7 +1378,7 @@ void View(D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3D12_CONSTANT_BUFFER_VIEW_D
         {
             view.descriptorHeap = uint64_t(reinterpret_cast<uintptr_t>(heap->object)); view.heapKnown = true;
         }
-        gViews[handle.ptr] = view; IndexView(view);
+        ReplaceView(view);
     } catch (...) { MetadataFailed("Constant buffer view metadata allocation failed"); }
 }
 void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3D12_SHADER_RESOURCE_VIEW_DESC* desc) noexcept
@@ -1329,8 +1421,8 @@ void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_H
         (type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && type != D3D12_DESCRIPTOR_HEAP_TYPE_RTV)) return;
     try
     {
-        std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation;
         const auto stride = device->GetDescriptorHandleIncrementSize(type);
+        std::shared_lock catalog(gLifetimeMutex); MetadataMutation mutation;
         UINT di = 0, si = 0, d = 0, s = 0;
         while (di<nd && si<ns)
         {
@@ -1348,10 +1440,15 @@ void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_H
                 if (gCopyFailureAfterForTesting > 0) --gCopyFailureAfterForTesting;
 #endif
                 const auto dh = dst[di].ptr+uint64_t(d++)*stride, sh = src[si].ptr+uint64_t(s++)*stride;
+                const auto sourceShard = FrameSurveyMetadata::DescriptorShard(sh), destinationShard = FrameSurveyMetadata::DescriptorShard(dh);
+                std::unique_lock<DescriptorMutex> first(gViewMutexes[std::min(sourceShard,destinationShard)],std::defer_lock);
+                std::unique_lock<DescriptorMutex> second;
+                first.lock();
+                if (sourceShard != destinationShard) second = std::unique_lock<DescriptorMutex>(gViewMutexes[std::max(sourceShard,destinationShard)]);
                 const auto source = gViews.find(sh);
                 const bool known = source != gViews.end() && FreshView(source->second,HeapAtCpu(sh));
                 const auto contents = known ? source->second : ViewInfo{};
-                EraseView(dh); // Preserve the source value even when the exact same slot is copied.
+                // Snapshot before mutation, including an exact same-slot copy.
                 if (known)
                 {
                     const auto resource = gResources.find(contents.object);
@@ -1364,11 +1461,11 @@ void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_H
                         auto copy = contents; copy.descriptorCpu = dh;
                         copy.descriptorHeap = uint64_t(reinterpret_cast<uintptr_t>(destinationHeap->object));
                         copy.heapKnown = true;
-                        gViews[dh] = copy; IndexView(copy);
+                        ReplaceView(copy);
                     }
-                    else gViews.erase(dh);
+                    else EraseView(dh);
                 }
-                else gViews.erase(dh);
+                else EraseView(dh);
             }
         }
     } catch (...) { MetadataFailed("Descriptor copy metadata allocation failed"); }
@@ -1461,6 +1558,7 @@ void RenderTargets(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_CPU_D
     if (!Recording()) return;
     try
     {
+        NrdBridgeLifetime::ScopedBorrow borrow;
         std::scoped_lock record(gRecordMutex); if (!Recording()) return; auto& list = GetList(cmd); list.targets.clear();
         std::scoped_lock lifetime(gLifetimeMutex);
         UINT stride = 0;
@@ -1479,6 +1577,9 @@ void Barrier(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_RESOURCE_BA
     if (!Recording() || !barriers) return;
     try
     {
+        NrdBridgeLifetime::ScopedBorrow borrow;
+        for (UINT i=0;i<count;++i) if (barriers[i].Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION && barriers[i].Transition.pResource)
+            EnsureResourceRegistered(barriers[i].Transition.pResource);
         std::scoped_lock record(gRecordMutex); if (!Recording()) return; auto& list = GetList(cmd);
         std::vector<std::pair<ViewInfo,D3D12_RESOURCE_STATES>> exits;
         {
@@ -1553,6 +1654,7 @@ void Pass(ID3D12GraphicsCommandList* cmd, const char* kind, std::span<const uint
     if (!Recording()) return;
     try
     {
+        NrdBridgeLifetime::ScopedBorrow borrow;
         std::scoped_lock record(gRecordMutex); if (!Recording()) return; auto& list = GetList(cmd);
         if (gNextPass >= 16384) { Fail("One-frame pass cap reached (16384)"); return; }
         const bool graphics = std::string_view(kind).find("Draw") == 0 || std::string_view(kind) == "ExecuteBundle" || (std::string_view(kind) == "ExecuteIndirect" && args.size()>5 && args[5]);
@@ -1616,6 +1718,7 @@ void SnapshotWrites(ID3D12GraphicsCommandList* cmd) noexcept
     if (!Recording()) return;
     try
     {
+        NrdBridgeLifetime::ScopedBorrow borrow;
         std::scoped_lock lock(gRecordMutex); if (!Recording()) return; auto& list = GetList(cmd);
         if (list.inRenderPass) { list.targeted = false; return; } // CopyTextureRegion is illegal inside a render pass.
         const std::string prefix = list.targeted ? "p"+std::to_string(list.lastPass)+"_" : std::string();
@@ -1746,6 +1849,7 @@ void Evaluate(ID3D12GraphicsCommandList* cmd, unsigned feature, const NVSDK_NGX_
         (feature != unsigned(NVSDK_NGX_Feature_SuperSampling) && feature != unsigned(NVSDK_NGX_Feature_RayReconstruction))) return;
     try
     {
+        NrdBridgeLifetime::ScopedBorrow borrow;
         UINT width = 0, height = 0;
         params->Get(NVSDK_NGX_Parameter_DLSS_Render_Subrect_Dimensions_Width,&width);
         params->Get(NVSDK_NGX_Parameter_DLSS_Render_Subrect_Dimensions_Height,&height);
@@ -1780,6 +1884,7 @@ void Evaluate(ID3D12GraphicsCommandList* cmd, unsigned feature, const NVSDK_NGX_
             Json row = {{"name",tag.name},{"parameter",tag.key},{"bound",object != nullptr},{"list_id",list.id},{"base",{x,y}}};
             if (object)
             {
+                EnsureResourceRegistered(object);
                 ViewInfo view; D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON; bool known = false;
                 {
                     std::scoped_lock lifetime(gLifetimeMutex); auto& resource = Register(object); Describe(resource);
@@ -1808,6 +1913,7 @@ void TitleTag(ID3D12GraphicsCommandList* cmd, const char* name, ID3D12Resource* 
     if (!Recording() || !cmd) return;
     try
     {
+        NrdBridgeLifetime::ScopedBorrow borrow;
         std::scoped_lock lock(gRecordMutex); if (!Recording()) return;
         auto& list = GetList(cmd);
         Json row = {{"name",name},{"source","current_Streamline_tag_call"},{"bound",object != nullptr},
@@ -1816,6 +1922,7 @@ void TitleTag(ID3D12GraphicsCommandList* cmd, const char* name, ID3D12Resource* 
             {"content_stage","tag_call_before_Streamline_evaluation; may_precede_later_title_writes"}};
         if (object)
         {
+            EnsureResourceRegistered(object);
             ViewInfo view;
             {
                 std::scoped_lock lifetime(gLifetimeMutex); auto& resource = Register(object); Describe(resource);
@@ -1932,6 +2039,7 @@ const GUID SignatureLayoutId = {0xe971fb41,0x45a2,0x41ea,{0xa1,0x55,0x64,0xa8,0x
 void STDMETHODCALLTYPE Indirect(ID3D12GraphicsCommandList* cmd, ID3D12CommandSignature* signature, UINT count,
     ID3D12Resource* arguments, UINT64 argumentOffset, ID3D12Resource* counts, UINT64 countOffset)
 {
+    NrdBridgeLifetime::ScopedBorrow borrow(Recording());
     uint32_t graphics = 0; UINT bytes = sizeof(graphics);
     if (signature) signature->GetPrivateData(SignatureId,&bytes,&graphics);
     const std::array<uint64_t,6> args {count,uint64_t(reinterpret_cast<uintptr_t>(arguments)),argumentOffset,
@@ -1993,6 +2101,7 @@ void STDMETHODCALLTYPE Indirect(ID3D12GraphicsCommandList* cmd, ID3D12CommandSig
 void RecordCopy(ID3D12GraphicsCommandList* cmd, ID3D12Resource* dst, UINT subresource, ID3D12Resource* src)
 {
     if (!Recording() || !dst) return;
+    NrdBridgeLifetime::ScopedBorrow borrow; EnsureResourceRegistered(dst); EnsureResourceRegistered(src);
     std::scoped_lock record(gRecordMutex); if (!Recording()) return; auto& list = GetList(cmd);
     ViewInfo write;
     {
