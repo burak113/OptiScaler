@@ -222,8 +222,10 @@ void bindingBirthCases(){
  retire(NrdBridgeBirth::Capture(root));retire(NrdBridgeBirth::Capture(heap));retire(NrdBridgeBirth::Capture(pipeline));
 }
 void unknownAndOffCases(){
- FakeObject listObject,unknownRoot;
+ FakeObject listObject,unknownRoot,heapObject,psoObject;
  watched=listObject.as<ID3D12GraphicsCommandList>();root=unknownRoot.as<ID3D12RootSignature>();
+ heap=heapObject.as<ID3D12DescriptorHeap>();pipeline=psoObject.as<ID3D12PipelineState>();
+ hkSetDescriptorHeaps(watched,1,&heap);hkSetPipelineState(watched,pipeline);
  calls.clear();hkSetComputeRootSignature(watched,root);hkSetComputeRoot32BitConstant(watched,2,99,0);
  const auto node=NrdBridgeBirth::Capture(root);FrameSurvey::ComputeBindings current;
  need(node&&node->CacheAdmissible()&&NrdBridgeBirth::Healthy()&&!rootStates.at(watched).rootCountKnown&&rootStates.at(watched).size()==64,"prehook root missing count tag remains locally unknown with bounded legacy arguments and healthy identity");
@@ -233,8 +235,9 @@ void unknownAndOffCases(){
  need(calls.size()==10000&&calls.front().name=="compute.signature"&&calls.back().words[0]==uintptr_t(root)&&rootStates.at(watched)[2].Data==std::vector<uint32_t>{99},"unknown observation cache preserves every original signature call and active legacy argument");
  need(!D3D12Hooks::GetComputeBindingsForBridge(watched,current)&&!D3D12Hooks::CanRestoreRootSignature(watched),"unknown root count never admits a bridge snapshot or injection");
  const auto warnings=warningCalls;calls.clear();D3D12Hooks::RestoreRoot(watched);
- need(calls.size()==2&&calls[0].name=="compute.signature"&&calls[1].name=="many"&&calls[1].parameter==2&&calls[1].offset==0&&calls[1].words==std::vector<uint64_t>{99}&&warningCalls==warnings,"ordinary unknown-root restore preserves observed argument and skips all silent unbound gaps");
+ need(calls.size()==4&&calls[0].name=="heaps"&&calls[0].words==std::vector<uint64_t>{uintptr_t(heap)}&&calls[1].name=="compute.signature"&&calls[2].name=="many"&&calls[2].parameter==2&&calls[2].offset==0&&calls[2].words==std::vector<uint64_t>{99}&&calls[3].name=="pso"&&calls[3].words[0]==uintptr_t(pipeline)&&warningCalls==warnings,"ordinary unknown-root restore preserves all bound state and observed argument while skipping silent unbound gaps");
  retire(NrdBridgeBirth::Capture(watched));retire(node);
+ retire(NrdBridgeBirth::Capture(heap));retire(NrdBridgeBirth::Capture(pipeline));
  need(!rootSigBirths.contains(root)&&!rootSigParameterCount.contains(root),"exact retirement removes the cold unknown observation row");
  const auto previousReads=unknownRoot.reads;const auto fresh=TrackerRootReceiver(root);
  need(fresh&&fresh!=node&&fresh->InstanceStamp()==node->InstanceStamp()&&unknownRoot.reads==previousReads+2&&rootSigBirths.at(root)==fresh&&!RootParameterCountKnown(root,fresh),"new logical root birth rechecks unknown count once without inheriting old observation");
@@ -249,7 +252,7 @@ void unknownAndOffCases(){
 }
 void rootBirthCases(){activateBirth();createdRootCases();bindingBirthCases();unknownAndOffCases();}
 void rootOomCase(const std::string& kind){
- activateBirth();FakeObject listObject,rootObject;
+ initialize();activateBirth();FakeObject listObject,rootObject;
  watched=listObject.as<ID3D12GraphicsCommandList>();root=rootObject.as<ID3D12RootSignature>();
  if(kind=="oom-created"){
   rootObject.armCountWrite=true;returnedRoot=root;deserializer.desc.Version=D3D_ROOT_SIGNATURE_VERSION_1_0;deserializer.desc.Desc_1_0.NumParameters=7;
