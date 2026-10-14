@@ -76,10 +76,12 @@ inline uint64_t AllocateInstanceStamp() noexcept
 class PhysicalInstance
 {
     friend class Registry;
+    friend class Birth;
     friend class CurrentGuard;
     friend class ScopedRelease;
     const uint64_t stamp_;
     mutable std::atomic<uint32_t> releasesInFlight_ {0};
+    mutable std::atomic<bool> recordingMayExist_ {false};
     mutable std::mutex aliasesMutex_;
     mutable std::unordered_map<void*, std::weak_ptr<const Birth>> aliases_;
     bool Remember(const Token& token) noexcept;
@@ -120,6 +122,13 @@ class Birth
     bool Admissible() const noexcept { return Live() && Ready(); }
     uint32_t ReleasesInFlight() const noexcept { return physical_->ReleasesInFlight(); }
     bool CacheAdmissible() const noexcept;
+    bool RecordingMayExist() const noexcept
+    { return physical_->recordingMayExist_.load(std::memory_order_acquire); }
+    // Mark a known native title-list physical instance BEFORE attempting Track.
+    // Failed Track/Reset may leave a harmless false positive. Never clear this
+    // marker or allow a recording to precede it; false negatives are forbidden.
+    void MarkRecordingMayExist(bool enabled = true) const noexcept
+    { if (enabled) physical_->recordingMayExist_.store(true, std::memory_order_release); }
 };
 
 inline bool PhysicalInstance::Remember(const Token& token) noexcept
@@ -422,6 +431,11 @@ inline bool Birth::CacheAdmissible() const noexcept
 { return registry_->Healthy() && Admissible() && ReleasesInFlight() == 0; }
 inline bool CacheAdmissible(const Token& token) noexcept
 { return token && token->CacheAdmissible(); }
+inline bool MarkRecordingMayExist(const Token& token, bool enabled = true) noexcept
+{
+    if (!enabled || !token) return false;
+    token->MarkRecordingMayExist(); return true;
+}
 
 class ScopedRelease
 {
