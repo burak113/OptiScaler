@@ -16,6 +16,7 @@ class ConversionPass
                   ConvertedResources& out, std::string& error);
     // When ConversionInputs::motion is null, Recon never reads a cached title MV.
     // Complete the motion guide using the current first chain-A Temporal SRV.
+    // The depth mode and camera reprojection were captured at Recon; changing the mode invalidates this ticket.
     bool DispatchMotion(ID3D12GraphicsCommandList*, const ConvertedResources&, ID3D12Resource* titleMotion,
                         const FrameParameters&, std::string& error);
     bool WriteDebug(ID3D12GraphicsCommandList*, const ConvertedResources&, ID3D12Resource* outputSpec,

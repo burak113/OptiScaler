@@ -38,8 +38,11 @@ struct BridgeConstants
     DirectX::XMFLOAT2 motionScale, jitterDelta;
     uint32_t reserved[2] {};
     DirectX::XMFLOAT4X4 inverseProjection, worldToView;
+    DirectX::XMFLOAT4 previousViewDepthRow;
+    DirectX::XMFLOAT2 currentJitterUv;
+    uint32_t cameraReserved[2] {};
 };
-static_assert(sizeof(BridgeConstants) == 44 * sizeof(uint32_t));
+static_assert(sizeof(BridgeConstants) == 52 * sizeof(uint32_t));
 static_assert(offsetof(BridgeConstants, inverseProjection) == 12 * sizeof(uint32_t));
 
 struct OwnedTexture
@@ -161,7 +164,11 @@ struct ConversionPass::Impl
     uint64_t zeroBytes = 0;
     bool motionInitialized = false, pendingMotion = false;
     uint32_t motionPreviousIndex = 0, motionSLFrame = UINT32_MAX, motionBridgeFrame = 0;
-    bool motionPreviousValid = false;
+    bool motionPreviousValid = false, motionCameraProjectedDepthDelta = false;
+    bool previousCameraValid = false;
+    DirectX::XMFLOAT4X4 previousCameraView {}, motionInverseProjection {};
+    DirectX::XMFLOAT4 motionPreviousViewDepthRow {};
+    DirectX::XMFLOAT2 motionCurrentJitterUv {};
     ID3D12GraphicsCommandList* motionList = nullptr;
     OwnedTexture spec, diff, motion, normals, specAlbedo, diffAlbedo;
     std::array<OwnedTexture, 2> depth;
@@ -257,6 +264,19 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
         constants.previousValid = owner->historyValid && frame.previousValid && !frame.reset;
         constants.motionScale = frame.motionScale;
         constants.reserved[0] = inputs.motion ? 0u : 1u;
+        constants.reserved[1] = frame.cameraProjectedDepthDelta ? 1u : 0u;
+        if (frame.cameraProjectedDepthDelta)
+        {
+            constants.previousValid = constants.previousValid && owner->previousCameraValid;
+            if (constants.previousValid)
+            {
+                // Signed Z of the same current world surface in the previous camera.
+                const auto currentToPreviousView = DirectX::XMMatrixMultiply(
+                    DirectX::XMLoadFloat4x4(&owner->previousCameraView), inverseView);
+                DirectX::XMStoreFloat4(&constants.previousViewDepthRow, currentToPreviousView.r[2]);
+                constants.currentJitterUv = {frame.jitter.x / owner->width, frame.jitter.y / owner->height};
+            }
+        }
         if (!frame.motionVectorsJittered)
             constants.jitterDelta = {(frame.previousJitter.x - frame.jitter.x) / owner->width,
                                     (frame.previousJitter.y - frame.jitter.y) / owner->height};
@@ -273,11 +293,20 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
         const std::array<OwnedTexture*, 7> outputs {&owner->spec, &owner->diff, &writeDepth, &owner->motion,
                                                    &owner->normals, &owner->specAlbedo, &owner->diffAlbedo};
         for (auto* texture : outputs) texture->Transition(list, kWrite);
-        owner->conversion.Record(list, *lease->slot, &constants, 44, owner->width, owner->height);
+        owner->conversion.Record(list, *lease->slot, &constants, 52, owner->width, owner->height);
         for (auto* texture : outputs) texture->Transition(list, kRead);
         owner->pendingMotion = inputs.motion == nullptr;
         owner->motionPreviousIndex = owner->previousIndex;
         owner->motionPreviousValid = constants.previousValid != 0;
+        owner->motionCameraProjectedDepthDelta = frame.cameraProjectedDepthDelta;
+        if (frame.cameraProjectedDepthDelta)
+        {
+            owner->motionInverseProjection = constants.inverseProjection;
+            owner->motionPreviousViewDepthRow = constants.previousViewDepthRow;
+            owner->motionCurrentJitterUv = constants.currentJitterUv;
+            DirectX::XMStoreFloat4x4(&owner->previousCameraView, frame.camera.view);
+        }
+        owner->previousCameraValid = frame.cameraProjectedDepthDelta;
         owner->motionList = list;
         owner->motionSLFrame = frame.streamlineFrame;
         owner->motionBridgeFrame = frame.frameIndex;
@@ -296,6 +325,7 @@ bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList* list, const Conve
     const auto current = owner->Resources();
     if (!owner->pendingMotion || !owner->historyValid || owner->motionList != list ||
         owner->motionSLFrame != frame.streamlineFrame || owner->motionBridgeFrame != frame.frameIndex ||
+        owner->motionCameraProjectedDepthDelta != frame.cameraProjectedDepthDelta ||
         resources.width != current.width || resources.height != current.height || resources.spec != current.spec ||
         resources.diff != current.diff || resources.linearDepth != current.linearDepth || resources.motion != current.motion ||
         resources.normals != current.normals || resources.specAlbedo != current.specAlbedo || resources.diffAlbedo != current.diffAlbedo ||
@@ -306,9 +336,23 @@ bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList* list, const Conve
     {
         uint32_t width, height, previousValid, reserved;
         DirectX::XMFLOAT2 scale, jitterDelta;
+        DirectX::XMFLOAT4X4 inverseProjection;
+        DirectX::XMFLOAT4 previousViewDepthRow;
+        DirectX::XMFLOAT2 currentJitterUv;
+        uint32_t cameraReserved[2];
     };
-    static_assert(sizeof(MotionConstants) == 8 * sizeof(uint32_t));
-    MotionConstants constants {owner->width, owner->height, owner->motionPreviousValid ? 1u : 0u, 0u, frame.motionScale, {}};
+    static_assert(sizeof(MotionConstants) == 32 * sizeof(uint32_t));
+    MotionConstants constants {};
+    constants.width = owner->width; constants.height = owner->height;
+    constants.previousValid = owner->motionPreviousValid ? 1u : 0u;
+    constants.reserved = owner->motionCameraProjectedDepthDelta ? 1u : 0u;
+    constants.scale = frame.motionScale;
+    if (owner->motionCameraProjectedDepthDelta)
+    {
+        constants.inverseProjection = owner->motionInverseProjection;
+        constants.previousViewDepthRow = owner->motionPreviousViewDepthRow;
+        constants.currentJitterUv = owner->motionCurrentJitterUv;
+    }
     if (!frame.motionVectorsJittered)
         constants.jitterDelta = {(frame.previousJitter.x - frame.jitter.x) / owner->width,
                                 (frame.previousJitter.y - frame.jitter.y) / owner->height};
@@ -330,7 +374,7 @@ bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList* list, const Conve
         owner->motionPass.Describe(owner->device.Get(), *lease->slot,
             {titleMotion, current.linearDepth, owner->depth[owner->motionPreviousIndex].resource.Get()}, {current.motion});
         owner->motion.Transition(list, kWrite);
-        owner->motionPass.Record(list, *lease->slot, &constants, 8, owner->width, owner->height);
+        owner->motionPass.Record(list, *lease->slot, &constants, 32, owner->width, owner->height);
         owner->motion.Transition(list, kRead);
         owner->pendingMotion = false;
         error.clear(); return true;
@@ -411,7 +455,7 @@ bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList* list, const Converted
 
 void ConversionPass::ResetHistory() noexcept
 {
-    if (impl_) { std::lock_guard lock(impl_->mutex); impl_->historyValid = false; impl_->pendingMotion = false; }
+    if (impl_) { std::lock_guard lock(impl_->mutex); impl_->historyValid = false; impl_->previousCameraValid = false; impl_->pendingMotion = false; }
 }
 uint64_t ConversionPass::OwnedTextureBytes() const noexcept { return impl_ ? impl_->textureBytes : 0; }
 uint64_t ConversionPass::OwnedAuxiliaryBytes() const noexcept
