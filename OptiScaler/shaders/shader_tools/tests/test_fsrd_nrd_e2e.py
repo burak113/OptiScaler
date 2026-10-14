@@ -53,7 +53,14 @@ def build(out):
     support = support.replace('static inline bool real = false, initAvailable = true, rejectDispatch = false;',
                               'static inline bool real = false, initAvailable = true, rejectDispatch = false;\n'
                               '    static inline bool partialFailure = false;\n'
-                              '    static inline void (*afterRealDispatch)() = nullptr;')
+                              '    static inline void (*afterRealDispatch)() = nullptr;\n'
+                              '    struct Record { ffxContext context; void* list; void* spec; void* diff; void* depth; void* motion; uint32_t flags; };\n'
+                              '    static inline std::vector<Record> records;')
+    record_marker = '        ++dispatches;'
+    assert support.count(record_marker) == 1
+    support = support.replace(record_marker, record_marker + '\n'
+        '        records.push_back({*context,lastDispatch.commandList,lastSpecular.signal.input.resource,'
+        'lastDiffuse.signal.input.resource,lastDispatch.linearDepth.resource,lastDispatch.motionVectors.resource,lastDispatch.flags});')
     dispatch_end = '        if (real && dispatches < 4) std::fprintf(stderr,"real dispatch end code=%u\\n",unsigned(result));'
     assert support.count(dispatch_end) == 1
     support = support.replace(dispatch_end, dispatch_end + '\n'
@@ -146,7 +153,7 @@ struct StreamlineHooks {
  static SLConstantsSnapshot getSLConstantsSnapshot() { return snapshot; }
 };
 '''
-    support = '#include <filesystem>\n' + support
+    support = '#include <filesystem>\n#include <vector>\n' + support
     (stubs / 'fixture_support.h').write_text(support)
     for name in ('pch.h', 'Config.h', 'State.h', 'Util.h', 'hooks/Streamline_Hooks.h',
                  'proxies/FfxApi_Proxy.h', 'resource_tracking/ResTrack_Dx12.h'):
