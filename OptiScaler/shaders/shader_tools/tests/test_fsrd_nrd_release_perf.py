@@ -159,15 +159,16 @@ template<class T>struct CountedInfoArray{
     cpp=cpp.replace('void CleanupRRPsoReferences(void*) { ++psoCleaned; }','\nextern size_t rrRangeBegins;\n'+map_counter+'\n'+rr)
     cleanup=function(source,'static void CleanupRRPsoReferences(void* object)').replace('CleanupRRPsoReferences','ActualCleanupRRPsoReferences',1)
     strong_pso='static bool PublishRRPsoMetadata(' in source
-    rr_extra='\nstd::atomic<uint64_t> gRRResourceInspectorFrame=0;\n'
+    rr_extra='\nstd::atomic<uint64_t> gRRResourceInspectorFrame=0;\nvoid CleanupRRPsoReferences(void*);\n'
     if strong_pso:
+        rr_extra+='static bool RRInspectorBirthsEnabled() noexcept;\n'
         rr_extra+=r'''
 // Native coverage is a CPU seam; real prepared publication and weak paths follow unchanged.
 unsigned psoCreatorCoverageCalls=0,psoCreatorUnderBirth=0;
 bool EnsurePsoReleaseHook(ID3D12PipelineState*){++psoCreatorCoverageCalls;if(NrdBridgeBirth::InMetadataScope())++psoCreatorUnderBirth;return true;}
 '''
         rr_extra+='\n'.join(function(source,s) for s in (
-            'static bool RRInspectorBirthsEnabled()', 'template <class T> static NrdBridgeBirth::Token RRStrongReceiver(',
+            'template <class T> static NrdBridgeBirth::Token RRStrongReceiver(',
             'static RRPsoMetadata& EnsureRRPsoMetadata(', 'static RRPsoMetadata* FindRRPsoMetadataLocked(',
             'static bool PublishRRPsoMetadata(', 'static RRCommandListPsoState& RRPsoListStateLocked(',
             'static bool RRPsoListAvailable(', 'static void RecordRRPsoProducer('))
@@ -196,8 +197,18 @@ std::mutex gRRMarkerMutex;std::unordered_set<ID3D12GraphicsCommandList*> gRRComm
 namespace RecordedComputeLease{int Capture(ID3D12GraphicsCommandList*){return 1;}void Detach(int){++resetLeaseDetachCalls;}}
 namespace RRTraceFence{void ResetSucceeded(ID3D12GraphicsCommandList*){++resetFenceCalls;}}
 '''
+        if 'static RRPreparedRecording PrepareRRRecording(' in source:
+            # This fixture verifies PSO participants and Release, not optional inspector state proof.
+            adapters+=r'''
+struct RRPreparedRecording {};
+RRPreparedRecording PrepareRRRecording(ID3D12GraphicsCommandList*){return {};}
+void RRRecordingSucceeded(const RRPreparedRecording&,ID3D12GraphicsCommandList*){}
+'''
+        if 'static void ForgetOwnedRRList(' in source:
+            adapters+='\n'+function(source,'static void ForgetOwnedRRList(')
         adapters+='\n'+function(source,'void ResTrack_Dx12::hkSetPipelineState(')+'\n'+function(source,'HRESULT ResTrack_Dx12::hkReset(')
-        adapters+='\n// Exact RR-inspector tail of legacy Close; preceding FG work is outside this CPU seam.\nHRESULT rrCloseTail(ID3D12GraphicsCommandList* This){\n'+close_tail
+        close_prefix='const auto inspectorRecording=PrepareRRRecording(This);\n' if 'RRRecordingSucceeded(inspectorRecording,This)' in close_tail else ''
+        adapters+='\n// Exact RR-inspector tail of legacy Close; preceding FG work is outside this CPU seam.\nHRESULT rrCloseTail(ID3D12GraphicsCommandList* This){\n'+close_prefix+close_tail
         cpp+=adapters+r'''
 void mutationTests(){
  auto* list=reinterpret_cast<ID3D12GraphicsCommandList*>(uintptr_t(0x4000));

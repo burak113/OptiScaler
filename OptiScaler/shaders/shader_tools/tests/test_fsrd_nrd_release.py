@@ -279,6 +279,7 @@ struct ResTrack_Dx12 {
  static bool ObserveBridgeObjectRelease(IUnknown*) noexcept;
 };
 __BIRTH_COVERAGE__
+__STRONG_HEAP_INTERFACE__
 __RESOURCE_INSTALL__
 // The legacy creation seam returns its real or synthetic test heap unchanged.
 HRESULT heapCreationResult=S_OK;void* heapCreationObject=nullptr;unsigned legacyHeapCreations=0;
@@ -583,6 +584,8 @@ int main(int argc,char** argv) try {
         'HEAP_PUBLICATION':function(res,'HRESULT ResTrack_Dx12::hkSurveyCreateDescriptorHeap('),
         'RESOURCE_DETACH':teardown[detach_begin:detach_end],
         'RESOURCE_RESET':teardown[reset_begin:reset_end],
+        'STRONG_HEAP_INTERFACE':function(res,'static bool RRInspectorBirthsEnabled()')+'\n'+function(res,'struct ReturnedHeapInterface')+';'
+            if 'struct ReturnedHeapInterface' in res else '',
     }
     cache = tracked_resource_cache(res)
     if cache:
@@ -643,7 +646,7 @@ void stickyOwnedTests()
  need(owned.destroyed&&!FrameSurvey::Internal(),"sticky inspector owned deleter safely completes inside same-thread legacy borrow");
  {FrameSurvey::ScopedRecording recording;
   need(!FrameSurvey::OwnedRelease()&&NeedsNativeReleaseGate(),"sticky inspector preserves physical title protection during metadata-only owned recording");}
- releaseRace([](Probe& object){return hkRelease(reinterpret_cast<ID3D12Resource*>(&object));},false);
+ releaseRace([](Probe& object){FrameSurvey::ScopedRecording recording;return hkRelease(reinterpret_cast<ID3D12Resource*>(&object));},false);
  gRRInspectorLifetimeProtection.store(previousSticky);
  gNrdBridgeWrappers=bridge;gNrdBridgeDeviceWrappers=device;
 }
