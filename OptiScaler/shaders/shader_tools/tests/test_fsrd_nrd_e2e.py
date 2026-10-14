@@ -228,8 +228,20 @@ struct D3D12Hooks {
     brace = wiring.index('{', barrier_at)
     wiring = wiring[:brace + 1] + '\n auditBarriers(This,NumBarriers,pBarriers,FrameSurvey::Internal());\n' + wiring[brace + 1:]
     hooks = res_function(res, 'HookCommandList')
-    attach = '\n'.join(selected_line(hooks, 'DetourAttach(&(PVOID&) o_' + name + ',')
-                       for name in ('SetPipelineState', 'Dispatch', 'SetComputeRootDescriptorTable', 'ResourceBarrier'))
+    attachments = []
+    for name in ('SetPipelineState', 'Dispatch', 'SetComputeRootDescriptorTable', 'ResourceBarrier'):
+        # Production may guard a native slot with a conditional expression. Take
+        # its actual balanced API call, rather than a dangling fallback suffix.
+        selected = selected_line(hooks, 'DetourAttach(&(PVOID&) o_' + name + ',')
+        start = selected.index('DetourAttach(')
+        opening = selected.index('(', start)
+        depth, end = 1, opening + 1
+        while depth:
+            depth += (selected[end] == '(') - (selected[end] == ')')
+            end += 1
+        call = selected[start:end]
+        attachments.append(f'need(o_{name} && {call}==NO_ERROR,"actual native {name} slot and detour attachment");')
+    attach = '\n'.join(attachments)
     detach = attach.replace('DetourAttach', 'DetourDetach')
     reset = selected_line(hooks, 'o_Reset ? DetourAttach')
     attach += '\nconst auto resetResult = ' + reset[reset.index('('):]
