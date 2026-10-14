@@ -2798,7 +2798,9 @@ bool D3D12Hooks::RestoreGraphicsRootState(ID3D12GraphicsCommandList* cmdList)
 
 void D3D12Hooks::RestoreRoot(ID3D12GraphicsCommandList* cmdList)
 {
-    const bool restoreComputeSignature = Config::Instance()->RestoreComputeSignature.value_or_default();
+    // An admitted bridge injection must restore its snapshot even if an INI reload changes the flags.
+    const bool bridgeRestore = gNrdBridgeDeviceWrappers && isNrdBridgeInjection;
+    const bool restoreComputeSignature = bridgeRestore || Config::Instance()->RestoreComputeSignature.value_or_default();
     const bool restoreGraphicSignature = Config::Instance()->RestoreGraphicSignature.value_or_default();
 
     if (restoreComputeSignature || restoreGraphicSignature)
@@ -2808,7 +2810,7 @@ void D3D12Hooks::RestoreRoot(ID3D12GraphicsCommandList* cmdList)
         if (signatures.contains(cmdList))
         {
             auto& signature = signatures[cmdList];
-            const bool extendedRestoreSignature = Config::Instance()->ExtendedStateRestore.value_or_default();
+            const bool extendedRestoreSignature = bridgeRestore || Config::Instance()->ExtendedStateRestore.value_or_default();
 
             if (extendedRestoreSignature)
             {
