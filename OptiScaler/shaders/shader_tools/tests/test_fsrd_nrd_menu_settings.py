@@ -27,6 +27,8 @@ KEYS = {
     'FfxDenoiserRadianceClip': ('RadianceClipDeviation', 'Float'),
     'FfxDenoiserGaussKernRelax': ('GaussianKernelRelaxation', 'Float'),
     'FfxDenoiserDisocThreshold': ('DisocclusionThreshold', 'Float'),
+    'FfxDenoiserNrdBridgeNativeDebugView': ('NrdBridgeNativeDebugView', 'Int'),
+    'FfxDenoiserNrdBridgeNativeDebugViewport': ('NrdBridgeNativeDebugViewport', 'Int'),
 }
 
 CPP = r'''
@@ -36,6 +38,7 @@ CPP = r'''
 #include <array>
 #include <cctype>
 #include <concepts>
+#include <cstdint>
 #include <cstdarg>
 #include <cstdio>
 #include <format>
@@ -52,18 +55,19 @@ constexpr int VK_F9=120;
 unsigned checks=0;
 void need(bool ok,const char* message){if(!ok)throw std::runtime_error(message);++checks;}
 __CUSTOM__
+__FFX_DEBUG_CONTRACT__
 namespace FSRDSignals {constexpr int Auto=0;}
 namespace NrdBridge {
 __RR_CONTRACT__
 bool startup=false,runtime=true,camera=false,accept=true;unsigned applyCalls=0,resetCalls=0,statusCalls=0;
 RRSettings last{};bool lastCamera=false;RRSettingsState state;
-enum class DebugMode {Off,RawSignals,RRInputs};
+enum class DebugMode {Off,RawSignals,RRInputs};DebugMode conversionDebug=DebugMode::Off;
 struct Status {std::string phase="Active",reason="test",resources;};
 bool StartupEnabled(){return startup;}bool RuntimeEnabled(){return runtime;}
 void SetRuntimeEnabled(bool value){runtime=value;}
 Status GetStatus(){++statusCalls;return {};}
 void RequestHistoryReset(){++resetCalls;}
-DebugMode GetDebugMode(){return DebugMode::Off;}void SetDebugMode(DebugMode){}
+DebugMode GetDebugMode(){return conversionDebug;}void SetDebugMode(DebugMode value){conversionDebug=value;}
 bool ApplyRRSettings(const RRSettings& settings,bool motion,std::string& error) noexcept {
  ++applyCalls;last=settings;lastCamera=motion;
  if(!accept){error="rejected test snapshot";return false;}
@@ -81,6 +85,7 @@ std::vector<std::string> _log;
 std::optional<std::string> readString(std::string,std::string,bool lowercase=false);
 std::optional<bool> readBool(std::string,std::string);
 std::optional<float> readFloat(std::string,std::string);
+std::optional<int> readInt(std::string,std::string);
 bool ResetFfxDenoiserSettings();
 void load(const std::string& data){ini.Reset();need(ini.LoadData(data)>=0,"SimpleIni loads fixture");__RESET_KEYS__ __LOAD_KEYS__}
 std::string save(){__SAVE_KEYS__ std::string data;need(ini.Save(data)>=0,"SimpleIni serializes production keys");return data;}
@@ -90,7 +95,7 @@ __RESET_ALL__
 constexpr int ImGuiTableFlags_Borders=1,ImGuiTableFlags_Resizable=2;
 struct ScopedIndent {};
 namespace ImGui {
-std::map<std::string,bool> bools;std::map<std::string,float> floats;std::map<std::string,bool> buttons,headers;
+std::map<std::string,bool> bools;std::map<std::string,float> floats;std::map<std::string,int> combos;std::map<std::string,bool> buttons,headers;
 std::vector<bool> disabled;std::vector<std::string> labels,text;unsigned rrTables=0;
 bool isDisabled(){return !disabled.empty()&&disabled.back();}
 bool CollapsingHeader(const char* name){labels.push_back(name);auto it=headers.find(name);return it==headers.end()||it->second;}
@@ -103,7 +108,11 @@ bool Button(const char* name){labels.push_back(name);return !isDisabled()&&butto
 bool IsItemHovered(){return false;}void SetTooltip(const char*,...){}
 void BeginDisabled(bool value){disabled.push_back(isDisabled()||value);}void EndDisabled(){disabled.pop_back();}
 void PushID(const char*){}void PopID(){}
-bool Combo(const char*,int*,const char*){return false;}
+bool combo(const char* name,int* value,int count){labels.push_back(name);auto found=combos.find(name);
+ if(isDisabled()||found==combos.end())return false;need(found->second>=0&&found->second<count,"Combo selection uses supported entry range");
+ const bool changed=*value!=found->second;*value=found->second;combos.erase(found);return changed;}
+bool Combo(const char* name,int* value,const char* items){int count=0;for(auto p=items;*p;p+=std::char_traits<char>::length(p)+1)++count;return combo(name,value,count);}
+bool Combo(const char* name,int* value,const char* const[],int count){return combo(name,value,count);}
 void capture(const char* format,va_list args){char buffer[2048];vsnprintf(buffer,sizeof(buffer),format,args);text.push_back(buffer);}
 void TextWrapped(const char* format,...){va_list args;va_start(args,format);capture(format,args);va_end(args);}
 void TextDisabled(const char* format,...){va_list args;va_start(args,format);capture(format,args);va_end(args);}
@@ -111,7 +120,7 @@ void Text(const char* format,...){va_list args;va_start(args,format);capture(for
 void TextUnformatted(const char* value){text.push_back(value);}
 bool BeginTable(const char* name,int,int){if(std::string(name)=="NrdBridgeRRValues")++rrTables;return true;}
 void TableSetupColumn(const char*){}void TableHeadersRow(){}void TableNextRow(){}void TableNextColumn(){}void EndTable(){}
-void frame(){bools.clear();floats.clear();buttons.clear();headers.clear();labels.clear();text.clear();rrTables=0;need(disabled.empty(),"UI disabled scopes are balanced");}
+void frame(){bools.clear();floats.clear();combos.clear();buttons.clear();headers.clear();labels.clear();text.clear();rrTables=0;need(disabled.empty(),"UI disabled scopes are balanced");}
 bool hasText(const std::string& term){return std::any_of(text.begin(),text.end(),[&](const auto& s){return s.find(term)!=s.npos;});}
 bool hasLabel(const std::string& term){return std::find(labels.begin(),labels.end(),term)!=labels.end();}
 }
@@ -165,6 +174,35 @@ int main(){try{
  need(!cfg.FfxDenoiserNrdBridgeMotionDepthMode.value_or_default()&&!cfg.FfxDenoiserNrdBridgeUseCustomRR.value_or_default(),"Invalid/missing new booleans remain OFF");
  ImGui::frame();cfg.FfxDenoiserNrdBridgeUseCustomRR=true;ImGui::buttons["Reset AMD Tuning"]=true;
  need(DrawAmdRRTuning(&cfg)&&cfg.FfxDenoiserNrdBridgeUseCustomRR.value_or_default(),"Ordinary RR reset does not change bridge-only custom-enable preference");
+ NrdBridge::startup=true;cfg.load("[FSR-RR]\n");
+ need(cfg.FfxDenoiserNrdBridgeNativeDebugView.value_or_default()==-1&&ReadNrdBridgeRRSettings(cfg).nativeDebugView==-1,
+ "Native DebugView defaults OFF with integration sentinel, not AMD overview0");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::combos["AMD native fullscreen viewport"]=7;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before,"OFF native debug keeps viewport edit disabled and publishes no new snapshot");
+ ImGui::frame();NrdBridge::conversionDebug=NrdBridge::DebugMode::RawSignals;ImGui::combos["AMD RR native DebugView"]=1;drawBridge(&cfg);
+ need(NrdBridge::last.nativeDebugView==FFX_API_DENOISER_DEBUG_VIEW_MODE_OVERVIEW&&NrdBridge::last.overrideMask==0,
+ "AMD overview selection publishes actual SDK enum independently of custom tuning");
+ need(NrdBridge::conversionDebug==NrdBridge::DebugMode::Off&&ImGui::hasText("after the upscaler evaluates"),
+ "Native debug clears raw conversion view and explains direct provider-color display");
+ ImGui::frame();before=NrdBridge::applyCalls;ImGui::combos["Bridge conversion debug"]=2;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before&&NrdBridge::conversionDebug==NrdBridge::DebugMode::Off,
+ "Raw/RRInputs controls cannot override an active native provider view");
+ ImGui::frame();ImGui::combos["AMD RR native DebugView"]=2;ImGui::combos["AMD native fullscreen viewport"]=11;drawBridge(&cfg);
+ need(NrdBridge::last.nativeDebugView==FFX_API_DENOISER_DEBUG_VIEW_MODE_FULLSCREEN_VIEWPORT&&NrdBridge::last.nativeDebugViewport==11,
+ "Fullscreen selection and viewport11 publish coherently using actual supported constants");
+ saved=cfg.save();reload.load(saved);auto debugReload=ReadNrdBridgeRRSettings(reload);
+ need(debugReload.nativeDebugView==FFX_API_DENOISER_DEBUG_VIEW_MODE_FULLSCREEN_VIEWPORT&&debugReload.nativeDebugViewport==11,
+ "Native provider view and viewport survive actual INI save/reload");
+ for(int value:{-7,27}){cfg.FfxDenoiserNrdBridgeNativeDebugViewport=value;
+ need(ReadNrdBridgeRRSettings(cfg).nativeDebugViewport==uint32_t(value<0?0:11),"INI viewport is bounded to actual MAX_VIEWPORTS");}
+ ImGui::frame();ImGui::combos["AMD RR native DebugView"]=0;drawBridge(&cfg);
+ need(NrdBridge::last.nativeDebugView==-1,"Off selection publishes integration disable sentinel");
+ cfg.FfxDenoiserNrdBridgeNativeDebugView=1;cfg.FfxDenoiserNrdBridgeNativeDebugViewport=8;cfg.ResetFfxDenoiserSettings();
+ need(cfg.FfxDenoiserNrdBridgeNativeDebugView.value_or_default()==-1&&cfg.FfxDenoiserNrdBridgeNativeDebugViewport.value_or_default()==0&&
+ NrdBridge::last.nativeDebugView==-1,"Full reset disables native debug in both Config and coherent runtime payload");
+ saved=cfg.save();reload.load(saved);need(ReadNrdBridgeRRSettings(reload).nativeDebugView==-1,"Native debug remains OFF after reset/save/reload");
+ cfg.load("[FSR-RR]\nNrdBridgeNativeDebugView=invalid\nNrdBridgeNativeDebugViewport=auto\n");
+ need(ReadNrdBridgeRRSettings(cfg).nativeDebugView==-1&&ReadNrdBridgeRRSettings(cfg).nativeDebugViewport==0,"Malformed native debug keys use safe defaults");
  std::cout<<"PASS: "<<checks<<" actual NRD menu/INI/reset checks\n";return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
 '''
@@ -181,7 +219,7 @@ def run():
     else:
         # Approved public POD is an explicit runtime-spy boundary until lead merges
         # its new header. No provider configuration/history algorithm is reproduced.
-        contract='struct RRSettings {uint32_t overrideMask=0;std::array<float,8> values{};};\nstruct RRSettingsState {bool ready=false;RRSettings requested{};std::array<float,8> defaults{},effective{};};'
+        contract='struct RRSettings {uint32_t overrideMask=0;std::array<float,8> values{};int32_t nativeDebugView=-1;uint32_t nativeDebugViewport=0;};\nstruct RRSettingsState {bool ready=false;RRSettings requested{};std::array<float,8> defaults{},effective{};};'
         contract_origin='explicit approved API spy POD; integrated replay reads actual header'
     loads=[];saves=[];resets=[]
     for field,(key,kind) in KEYS.items():
@@ -197,14 +235,22 @@ def run():
     template=(ROOT/'OptiScaler.ini').read_text()
     for key in ('NrdBridgeUseCustomRR','NrdBridgeMotionDepthMode'):
         assert len(re.findall(r'^'+key+r'=false\s*$',template,re.M))==1,key
+    assert len(re.findall(r'^NrdBridgeNativeDebugView=-1\s*$',template,re.M))==1
+    assert len(re.findall(r'^NrdBridgeNativeDebugViewport=0\s*$',template,re.M))==1
+    ffx=(ROOT/'OptiScaler/include/fsr-rr/ffx_denoiser.h').read_text()
+    enum=function(ffx,'typedef enum FfxApiDenoiserDebugViewMode')+' FfxApiDenoiserDebugViewMode;'
+    maximum=re.search(r'^#define FFX_API_DENOISER_DEBUG_VIEW_MAX_VIEWPORTS \d+',ffx,re.M).group()
+    assert 'FFX_API_DENOISER_DEBUG_VIEW_MODE_OVERVIEW = 0' in enum
+    assert 'FFX_API_DENOISER_DEBUG_VIEW_MODE_FULLSCREEN_VIEWPORT = 1' in enum
     replacements=dict(SIMPLEINI=(ROOT/'external/simpleini/SimpleIni.h').as_posix(),
         CUSTOM=header[header.index('enum HasDefaultValue'):header.index('constexpr inline int UnboundKey')],
         RR_CONTRACT=contract,CONFIG_FIELDS='\n'.join(re.findall(r'^\s*CustomOptional<[^\n]+>\s+FfxDenoiser\w+[^;\n]*;',header,re.M)),
-        SERIALIZERS='\n'.join(function(config,signature) for signature in ('static inline bool isFloat(', 'std::string GetBoolValue(', 'std::string GetFloatValue(')),
-        READERS='\n'.join(function(config,'std::optional<'+kind+'> Config::read'+name+'(') for kind,name in (('std::string','String'),('bool','Bool'),('float','Float'))),
+        FFX_DEBUG_CONTRACT=maximum+'\n'+enum,
+        SERIALIZERS='\n'.join(function(config,signature) for signature in ('static inline bool isFloat(', 'static inline bool isInteger(', 'std::string GetBoolValue(', 'std::string GetFloatValue(', 'std::string GetIntValue(std::optional<int> value)')),
+        READERS='\n'.join(function(config,'std::optional<'+kind+'> Config::read'+name+'(') for kind,name in (('std::string','String'),('bool','Bool'),('float','Float'),('int','Int'))),
         RESET_KEYS='\n'.join(resets),LOAD_KEYS='\n'.join(loads),SAVE_KEYS='\n'.join(saves),
         RESET_ALL=function(config,'bool Config::ResetFfxDenoiserSettings('),
-        MENU_HELPERS='\n'.join(function(menu,signature) for signature in ('static bool DrawAmdRRTuning(', 'static NrdBridge::RRSettings ReadNrdBridgeRRSettings(', 'static void DrawNrdBridgeRRTuning(', 'static void DrawNrdBridgeInputMap(')),BRIDGE_PANEL=panel)
+        MENU_HELPERS='\n'.join(function(menu,signature) for signature in ('static bool DrawAmdRRTuning(', 'static bool DrawNrdBridgeNativeDebug(', 'static NrdBridge::RRSettings ReadNrdBridgeRRSettings(', 'static void DrawNrdBridgeRRTuning(', 'static void DrawNrdBridgeInputMap(')),BRIDGE_PANEL=panel)
     cpp=CPP
     for key,value in replacements.items():cpp=cpp.replace('__'+key+'__',value)
     assert not re.search(r'__[A-Z_]+__',cpp)
@@ -216,7 +262,7 @@ def run():
     if result.returncode:raise RuntimeError(result.stderr)
     print(result.stdout,end='')
     checks=int(re.search(r'PASS: (\d+)',result.stdout).group(1))
-    (out/'result.json').write_text(json.dumps(dict(native_checks=checks,python_checks=5,api_contract=contract_origin,
+    (out/'result.json').write_text(json.dumps(dict(native_checks=checks,python_checks=9,api_contract=contract_origin,
         scope='actual menu helpers/panel, complete Config reset and actual INI parsing/serialization; ImGui/runtime are API spies, no provider/GPU/history implementation claim'),indent=2)+'\n')
 
 

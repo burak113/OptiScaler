@@ -3238,9 +3238,47 @@ static bool DrawAmdRRTuning(Config* config, bool bridge = false)
     return changed;
 }
 
+static bool DrawNrdBridgeNativeDebug(Config* config)
+{
+    bool changed = false;
+    const int modes[] = {-1, FFX_API_DENOISER_DEBUG_VIEW_MODE_OVERVIEW,
+                         FFX_API_DENOISER_DEBUG_VIEW_MODE_FULLSCREEN_VIEWPORT};
+    const int current = config->FfxDenoiserNrdBridgeNativeDebugView.value_or_default();
+    const auto selected = std::find(std::begin(modes), std::end(modes), current);
+    int selection = selected == std::end(modes) ? -1 : int(selected-std::begin(modes));
+    if (ImGui::Combo("AMD RR native DebugView", &selection, "Off\0AMD Overview\0AMD Fullscreen viewport\0"))
+    {
+        config->FfxDenoiserNrdBridgeNativeDebugView = modes[selection];
+        if (modes[selection] >= 0) NrdBridge::SetDebugMode(NrdBridge::DebugMode::Off);
+        changed = true;
+    }
+    constexpr const char* viewports[] = {
+        "0 - Motion Vectors", "1 - Motion Vectors Z", "2 - Linear Depth", "3 - Normals",
+        "4 - Reprojected Confidence", "5 - Reprojected UV", "6 - View Centered Position",
+        "7 - Virtual Hit Position", "8 - NN Input 0", "9 - NN Input 1", "10 - NN Input 2", "11 - Composed Luma"};
+    static_assert(std::size(viewports) == FFX_API_DENOISER_DEBUG_VIEW_MAX_VIEWPORTS);
+    int viewport = std::clamp(config->FfxDenoiserNrdBridgeNativeDebugViewport.value_or_default(), 0,
+                              FFX_API_DENOISER_DEBUG_VIEW_MAX_VIEWPORTS-1);
+    ImGui::BeginDisabled(config->FfxDenoiserNrdBridgeNativeDebugView.value_or_default() !=
+                         FFX_API_DENOISER_DEBUG_VIEW_MODE_FULLSCREEN_VIEWPORT);
+    if (ImGui::Combo("AMD native fullscreen viewport", &viewport, viewports, int(std::size(viewports))))
+    {
+        config->FfxDenoiserNrdBridgeNativeDebugViewport = viewport;
+        changed = true;
+    }
+    ImGui::EndDisabled();
+    ImGui::TextWrapped("AMD's provider-native debug pass is separate from RawSignals/RRInputs conversion views. "
+                      "Its colors are displayed after the upscaler evaluates, without the title's lighting modulation. "
+                      "Enabling or disabling it recreates the RR context and resets history. Default off; depth display bounds use AMD defaults.");
+    return changed;
+}
+
 static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
 {
     NrdBridge::RRSettings settings;
+    settings.nativeDebugView = config.FfxDenoiserNrdBridgeNativeDebugView.value_or_default();
+    settings.nativeDebugViewport = uint32_t(std::clamp(config.FfxDenoiserNrdBridgeNativeDebugViewport.value_or_default(),
+        0, FFX_API_DENOISER_DEBUG_VIEW_MAX_VIEWPORTS-1));
     if (config.FfxDenoiserNrdBridgeUseCustomRR.value_or_default() &&
         !config.FfxDenoiserUseAmdDefaults.value_or_default())
     {
@@ -3287,6 +3325,7 @@ static void DrawNrdBridgeRRTuning(Config* config)
         ImGui::SetTooltip("Predicts previous-camera depth from camera geometry instead of the depth of "
                           "the previously visible surface. The title's current motion input stays unchanged. "
                           "Switching resets RR and conversion histories. Default off.");
+    changed |= DrawNrdBridgeNativeDebug(config);
     static std::string settingsError;
     if (changed)
         NrdBridge::ApplyRRSettings(ReadNrdBridgeRRSettings(*config), cameraDepth, settingsError);
@@ -3333,7 +3372,7 @@ static void DrawNrdBridgeInputMap()
         row("Motion + jitter", NrdBridge::CameraProjectedDepthEnabled()
             ? "Current Temporal motion uses Streamline scale and jitter correction. Experimental Z predicts previous-camera depth from camera geometry."
             : "Current Temporal motion uses Streamline scale and jitter correction. Z is previous-frame depth minus current depth at the reprojected pixel.");
-        row("Albedo guides", "White RGB for both already-demodulated lobes. Specular alpha contains normal/view angle; diffuse alpha is 0.");
+        row("Albedo guides", "White RGB guides for both demodulated lobes. Specular alpha stores normal/view alignment and diffuse alpha is 0; AMD's documented albedo guide uses RGB.");
         row("Consumer output encoding", "A tiny GPU shader reads the title's exact b6/space0 binding, word 303 at byte 1212. That flag selects RGB or YCoCg output. The game keeps exposure, its specular factor 64 and output alpha.");
         row("Unused title inputs", "Separate diffuse/specular albedo textures, AO, bias mask, particle color and SSS guides are not supplied by this bridge. Ordinary DLSS-input conversion and Recovery controls do not affect this path.");
         ImGui::EndTable();
@@ -3399,8 +3438,10 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
         if (!bridge.resources.empty()) ImGui::TextWrapped("%s", bridge.resources.c_str());
         if (ImGui::Button("Reset RR history")) NrdBridge::RequestHistoryReset();
         int debug = int(NrdBridge::GetDebugMode());
-        if (ImGui::Combo("Bridge debug", &debug, "Off\0Raw signals\0RR inputs view\0"))
+        ImGui::BeginDisabled(NrdBridge::GetRRSettingsState().requested.nativeDebugView >= 0);
+        if (ImGui::Combo("Bridge conversion debug", &debug, "Off\0Raw signals\0RR inputs view\0"))
             NrdBridge::SetDebugMode(NrdBridge::DebugMode(debug));
+        ImGui::EndDisabled();
         DrawNrdBridgeRRTuning(config);
         DrawNrdBridgeInputMap();
     }

@@ -189,6 +189,8 @@ bool Config::ResetFfxDenoiserSettings()
     FfxDenoiserNrdBridgeEnabled.reset();
     FfxDenoiserNrdBridgeMotionDepthMode.reset();
     FfxDenoiserNrdBridgeUseCustomRR.reset();
+    FfxDenoiserNrdBridgeNativeDebugView.reset();
+    FfxDenoiserNrdBridgeNativeDebugViewport.reset();
     FfxDenoiserNrdBridgeEnabled = false;
     NrdBridge::SetRuntimeEnabled(false);
     if (NrdBridge::StartupEnabled())
@@ -525,6 +527,8 @@ bool Config::Reload(std::filesystem::path iniPath)
             FfxDenoiserNrdBridgeEnabled.set_from_config(readBool("FSR-RR", "NrdBridgeEnabled"));
             FfxDenoiserNrdBridgeMotionDepthMode.set_from_config(readBool("FSR-RR", "NrdBridgeMotionDepthMode"));
             FfxDenoiserNrdBridgeUseCustomRR.set_from_config(readBool("FSR-RR", "NrdBridgeUseCustomRR"));
+            FfxDenoiserNrdBridgeNativeDebugView.set_from_config(readInt("FSR-RR", "NrdBridgeNativeDebugView"));
+            FfxDenoiserNrdBridgeNativeDebugViewport.set_from_config(readInt("FSR-RR", "NrdBridgeNativeDebugViewport"));
             FfxDenoiserFrameSurveyPassHashes.set_from_config(readWString("FSR-RR", "FrameSurveyPassHashes"));
             FfxDenoiserFogGuides.set_from_config(readBool("FSR-RR", "FogGuides"));
             FfxDenoiserMotionJitterDelta.set_from_config(readBool("FSR-RR", "MotionJitterDelta"));
@@ -1518,6 +1522,8 @@ bool Config::SaveIni()
         ini.SetValue("FSR-RR", "NrdBridgeEnabled", GetBoolValue(Instance()->FfxDenoiserNrdBridgeEnabled.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeMotionDepthMode", GetBoolValue(Instance()->FfxDenoiserNrdBridgeMotionDepthMode.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "NrdBridgeUseCustomRR", GetBoolValue(Instance()->FfxDenoiserNrdBridgeUseCustomRR.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeNativeDebugView", GetIntValue(Instance()->FfxDenoiserNrdBridgeNativeDebugView.value_for_config()).c_str());
+        ini.SetValue("FSR-RR", "NrdBridgeNativeDebugViewport", GetIntValue(Instance()->FfxDenoiserNrdBridgeNativeDebugViewport.value_for_config()).c_str());
         ini.SetValue("FSR-RR", "FrameSurveyPassHashes",
                      wstring_to_string(Instance()->FfxDenoiserFrameSurveyPassHashes.value_for_config_or(L"auto")).c_str());
         ini.SetValue("FSR-RR", "FogGuides", GetBoolValue(Instance()->FfxDenoiserFogGuides.value_for_config()).c_str());
