@@ -9,9 +9,9 @@
 
 struct NVSDK_NGX_Parameter;
 
-// Debug-only recorder. Install from device creation ONLY when FrameSurvey=true.
-// Existing hot-path detours select survey wrappers at startup; the off path
-// contains no survey Dispatch/Draw/descriptor callbacks or allocations.
+// Recorder and borrowed NRD creation registry, selected by startup-only detours.
+// With both FrameSurvey and the NRD bridge off, there are no new callbacks or allocations.
+// Bridge root/table mirrors are confined to bounded validation windows.
 namespace FrameSurvey
 {
 struct Status
@@ -52,7 +52,7 @@ class ScopedInternal
     ScopedInternal& operator=(const ScopedInternal&) = delete;
 };
 bool Enabled() noexcept;
-// Called at device hook time when FrameSurvey=true: keeps creation metadata from the title's load phase.
+// Called at device hook time for FrameSurvey or the NRD bridge, before title pipeline creation.
 void BeginCreationTracking(bool recorder = true) noexcept;
 // Comma-separated shader SHA-256 prefixes (FrameSurveyPassHashes); matching dispatches save their outputs.
 void SetPassHashes(const std::string& list) noexcept;

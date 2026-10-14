@@ -394,18 +394,36 @@ J discoveryTests(Host& h) {
  NrdBridge::RegisterPipelineRoleForTesting(c.pipelines[UINT(Role::Recon)].Get(),Role::Recon);
  FrameSurvey::PipelineCreated(c.pipelines[UINT(Role::Recon)].Get(),D3D12_PIPELINE_STATE_STREAM_DESC {});
  need(!NrdBridge::gService->roles.contains(c.pipelines[UINT(Role::Recon)].Get()),"failed/no-CS stream creation erases an old PSO role");
- auto metadata=descriptorMetadataTests(c); auto timings=cpuTimings(c); FrameSurvey::SetBindingWindow(true); c.begin();
+ NrdBridge::RegisterPipelineRoleForTesting(c.pipelines[UINT(Role::Recon)].Get(),Role::Recon);
+ auto metadata=descriptorMetadataTests(c); auto timings=cpuTimings(c); FrameSurvey::SetBindingWindow(true); c.begin(); c.bind(1,0);
+ FrameSurvey::Fail("fixture recorder-only capture failure");
+ need(FrameSurvey::gMetadataHealthy.load(),"recorder-only capture failures do not latch creation or binding metadata unhealthy");
+ auto faultDestination=c.visible->GetCPUDescriptorHandleForHeapStart(); D3D12_CPU_DESCRIPTOR_HANDLE faultSource {c.cpu.ptr+c.increment}; UINT one=1;
+ h.dev->CopyDescriptorsSimple(1,faultDestination,faultSource,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+ FrameSurvey::gCopyFailureAfterForTesting=0;
+ FrameSurvey::CopyDescriptors(h.dev.Get(),1,&faultDestination,&one,1,&faultSource,&one,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+ need(!FrameSurvey::gMetadataHealthy.load() && !FrameSurvey::ResolveComputeTable(h.list.Get(),1,empty) && empty.empty(),"copy allocation fault rejects stale old descriptor metadata while both resources remain alive");
+ need(!FrameSurvey::SeedComputeBindings(h.list.Get(),D3D12Hooks::current),"unhealthy metadata cannot be made eligible by root-state seeding");
+ FrameSurvey::BeginCreationTracking(false);
+ need(!FrameSurvey::gMetadataHealthy.load(),"repeated creation tracking and binding windows cannot clear the device health latch");
+ const auto unhealthyConversion=convertCalls,unhealthyRR=rrCalls; c.frame(3);
+ need(convertCalls==unhealthyConversion && rrCalls==unhealthyRR && !NrdBridge::GetStatus().active && !NrdBridge::gService->cache.Valid(),"unhealthy current-table metadata stops all bridge writes until clean device restart");
  FrameSurvey::Released(c.visible.Get());
  need(!FrameSurvey::ResolveComputeTable(h.list.Get(),1,empty),"descriptor heap release invalidates bindings");
  FrameSurvey::SetBindingWindow(false); need(!FrameSurvey::ResolveComputeTable(h.list.Get(),1,empty),"closed binding window resolves no cached stale copies");
  NrdBridge::Shutdown(); hr(h.list->Close()); h.execute(); h.reset(); h.errors();
+ FrameSurvey::Shutdown();
+ need(FrameSurvey::gMetadataHealthy.load() && !FrameSurvey::gTracking.load(),"clean device shutdown clears failed metadata before another device starts");
+ FrameSurvey::BeginCreationTracking(false);
+ need(FrameSurvey::gMetadataHealthy.load() && FrameSurvey::gTracking.load(),"a fresh device creation registry resumes with healthy metadata");
+ FrameSurvey::Shutdown();
  for(const auto& role:NrdBridge::ShaderRoles) {
   need(role.sha256.size()==64,"all roles use full SHA256"); need(NrdBridge::IdentifyRole(role.sha256)==role.role,"full shader digest identifies exact role");
   need(NrdBridge::IdentifyRole(role.sha256.substr(0,8))==Role::None,"hash prefixes never identify roles");
   std::string altered(role.sha256); altered.back()=altered.back()=='0' ? '1' : '0';
   need(NrdBridge::IdentifyRole(altered)==Role::None,"same prefix with different full hash never identifies a role");
  }
- return {{"descriptor_metadata",metadata},{"cpu_callback_timings",timings},{"conversion_stub_calls",convertCalls},{"motion_stub_calls",motionCalls},{"rr_stub_calls",rrCalls},{"debug_stub_calls",debugCalls},
+ return {{"descriptor_metadata",metadata},{"metadata_allocation_fault_fail_closed",true},{"cpu_callback_timings",timings},{"conversion_stub_calls",convertCalls},{"motion_stub_calls",motionCalls},{"rr_stub_calls",rrCalls},{"debug_stub_calls",debugCalls},
   {"history_resets",{{"conversion",depthResets},{"rr",rrResets}}},{"restore_callback_calls",D3D12Hooks::restores}};
 }
 Bound manifestBinding(const J& row,const J& resource,UINT first) {
@@ -477,7 +495,7 @@ def run():
     (stubs / 'inputs/NVNGX_DLSS.h').write_text('#pragma once\n#include <nvsdk_ngx.h>\n')
     (stubs / 'proxies/D3D12_Proxy.h').write_text('#pragma once\n#include <d3d12.h>\nnamespace D3d12Proxy { inline auto D3D12CreateVersionedRootSignatureDeserializer_() { return &D3D12CreateVersionedRootSignatureDeserializer; } inline auto D3D12SerializeVersionedRootSignature_() { return &D3D12SerializeVersionedRootSignature; } }\n')
     (stubs / 'resource_tracking/ResTrack_dx12.h').write_text('#pragma once\n#include <functional>\n#include <unordered_map>\nstruct ResTrack_Dx12 { struct Lease { std::shared_ptr<void> payload; std::function<void(ID3D12CommandQueue*)> callback; }; inline static std::unordered_map<ID3D12GraphicsCommandList*,std::vector<Lease>> leases; inline static bool retentionAvailable=true; static bool RetainComputeDispatch(ID3D12Device*,ID3D12GraphicsCommandList* list,const std::shared_ptr<void>& payload,std::function<void(ID3D12CommandQueue*)> callback={}) { if(!retentionAvailable) return false; leases[list].push_back({payload,std::move(callback)}); return true; } static void SubmitForTesting(ID3D12GraphicsCommandList* list) { for(auto& lease:leases[list]) if(lease.callback) lease.callback(nullptr); } };\n')
-    host = survey_fixture.CPP.split('// GetStatus()')[0]
+    host = '#define FSRD_NRD_BRIDGE_TEST\n' + survey_fixture.CPP.split('// GetStatus()')[0]
     rr_header = (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h').read_text()
     camera_stub = 'const std::string& RRWrapper::CameraConventionDescription() const noexcept { static const std::string text; return text; }' if 'CameraConventionDescription' in rr_header else ''
     pass_header = (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgePass_Dx12.h').read_text()
