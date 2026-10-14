@@ -195,33 +195,20 @@ void WaitingForBindings(const std::shared_ptr<Service>& owner, ID3D12GraphicsCom
     }
     if (log) LOG_INFO("[NRD_BRIDGE] {}; waiting for a complete command-list Reset inside the bounded window",reason);
 }
-bool CompleteOffsets(std::span<const FrameSurvey::BoundResource> table, D3D12_DESCRIPTOR_RANGE_TYPE kind,
-                     std::initializer_list<uint32_t> offsets)
-{
-    for (const auto offset : offsets)
-        if (std::none_of(table.begin(),table.end(),[&](const auto& view) {
-            return view.kind == kind && view.descriptorOffset == offset && view.resource;
-        })) return false;
-    return true;
-}
 bool Tables(ID3D12GraphicsCommandList* cmd, Role role, std::vector<FrameSurvey::BoundResource>& srv,
             std::vector<FrameSurvey::BoundResource>& uav)
 {
+    constexpr std::array<FrameSurvey::ComputeTableRequest,4> recon {{
+        {D3D12_DESCRIPTOR_RANGE_TYPE_SRV,0,0,0},{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,1,1,0},
+        {D3D12_DESCRIPTOR_RANGE_TYPE_SRV,2,2,0},{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,3,3,0}}};
+    constexpr std::array<FrameSurvey::ComputeTableRequest,2> outputs {{
+        {D3D12_DESCRIPTOR_RANGE_TYPE_UAV,0,0,0},{D3D12_DESCRIPTOR_RANGE_TYPE_UAV,1,1,0}}};
+    constexpr std::array<FrameSurvey::ComputeTableRequest,1> motion {{
+        {D3D12_DESCRIPTOR_RANGE_TYPE_SRV,2,2,0}}};
     if (role == Role::Recon)
-        return FrameSurvey::ResolveComputeTable(cmd,1,srv) && FrameSurvey::ResolveComputeTable(cmd,5,uav) &&
-            CompleteOffsets(srv,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,{0,1,2,3}) && CompleteOffsets(uav,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,{0,1}) &&
-            FrameSurvey::ComputeTableBindingMatches(cmd,1,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,0,0,0) &&
-            FrameSurvey::ComputeTableBindingMatches(cmd,1,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,1,1,0) &&
-            FrameSurvey::ComputeTableBindingMatches(cmd,1,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,2,2,0) &&
-            FrameSurvey::ComputeTableBindingMatches(cmd,1,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,3,3,0) &&
-            FrameSurvey::ComputeTableBindingMatches(cmd,5,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,0,0,0) &&
-            FrameSurvey::ComputeTableBindingMatches(cmd,5,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,1,1,0);
-    if (role == Role::Temporal) return FrameSurvey::ResolveComputeTable(cmd,1,srv) && CompleteOffsets(srv,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,{2}) &&
-        FrameSurvey::ComputeTableBindingMatches(cmd,1,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,2,2,0);
-    if (role == Role::ATrous || role == Role::Consumer)
-        return FrameSurvey::ResolveComputeTable(cmd,5,uav) && CompleteOffsets(uav,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,{0,1}) &&
-            FrameSurvey::ComputeTableBindingMatches(cmd,5,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,0,0,0) &&
-            FrameSurvey::ComputeTableBindingMatches(cmd,5,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,1,1,0);
+        return FrameSurvey::ResolveComputeBindings(cmd,1,recon,srv) && FrameSurvey::ResolveComputeBindings(cmd,5,outputs,uav);
+    if (role == Role::Temporal) return FrameSurvey::ResolveComputeBindings(cmd,1,motion,srv);
+    if (role == Role::ATrous || role == Role::Consumer) return FrameSurvey::ResolveComputeBindings(cmd,5,outputs,uav);
     return true;
 }
 void LogDiscovery(const ChainDiscovery& chain, ID3D12Resource* motionTag)
@@ -651,12 +638,12 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         }
         std::string error; ChainDiscovery discovered; bool published = false, invalid = false;
         ID3D12Resource* motionTag = nullptr; Resources resources; ListState staged; bool inject = false, keepWindow = false;
+        FrameSurvey::BoundConstantBuffer consumerConstants;
         {
         NrdBridgeLifetime::ScopedBorrow borrow;
         std::vector<FrameSurvey::BoundResource> srv, uav;
         if (!window) { Failure(owner,"Consumer has no current binding-validation window"); return; }
         if (!Tables(cmd,Role::Consumer,srv,uav)) { WaitingForBindings(owner,cmd,"Consumer compute table bindings/registers are unavailable in discovery window"); return; }
-        FrameSurvey::BoundConstantBuffer consumerConstants;
         if (!FrameSurvey::ResolveComputeConstantBuffer(cmd,6,0,76u*16u,consumerConstants))
         { Failure(owner,"Consumer b6 space0 constants are missing, ambiguous or do not cover register75.w"); return; }
         {
@@ -681,7 +668,8 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
             if (inject)
             {
                 resources = owner->cache.Get(); staged = list;
-                staged.parameters.outputConstants = {consumerConstants.resource,consumerConstants.address};
+                staged.parameters.outputConstants = {consumerConstants.resource,consumerConstants.address,
+                    consumerConstants.descriptorHeap,consumerConstants.descriptor};
             }
             list.followingRecon = false;
             keepWindow = std::any_of(owner->lists.begin(),owner->lists.end(),[](const auto& entry) { return entry.second.followingRecon; });
@@ -706,6 +694,8 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 found->second.recording != staged.recording || !found->second.converted || !found->second.motionReady) return;
         }
         if (!FrameSurvey::MetadataHealthy()) { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
+        if (!FrameSurvey::ValidateBorrowedConstantBuffer(consumerConstants))
+        { Failure(owner,"Consumer constants were released or rebound while awaiting injection; waiting for rediscovery"); return; }
         if (!D3D12Hooks::CanRestoreRootSignature(cmd)) { Failure(owner,"Title compute state cannot be restored before Consumer"); return; }
         struct CommitTicket
         {
