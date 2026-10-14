@@ -549,6 +549,9 @@ class Config
     CustomOptional<bool> FfxDenoiserNrdBridge {false};
     CustomOptional<bool> FfxDenoiserNrdBridgeEnabled {true};
     CustomOptional<bool> FfxDenoiserNrdBridgeUseCustomRR {false};
+    // -1 is integration OFF; AMD modes are 0 Overview and 1 Fullscreen viewport.
+    CustomOptional<int> FfxDenoiserNrdBridgeNativeDebugView {-1};
+    CustomOptional<int> FfxDenoiserNrdBridgeNativeDebugViewport {0};
     // Experimental camera-predicted depth delta; false keeps baseline previous-depth sampling.
     CustomOptional<bool> FfxDenoiserNrdBridgeMotionDepthMode {false};
     // Survey only: shader SHA-256 prefixes whose dispatch outputs are saved right after the dispatch.
