@@ -253,9 +253,26 @@ struct D3D12Hooks
 };
 namespace RecordedComputeLease
 {
-    struct ReleaseIntent { void* object; };
-    template<class T> ReleaseIntent BeginRelease(T* object) noexcept { ++leaseBegins; return {object}; }
-    void EndRelease(const ReleaseIntent&, bool final) noexcept { ++leaseEnds; if (final) ++leaseFinals; }
+    struct ReleaseIntent { void* object = nullptr; };
+    CatalogMutex mutex;
+    std::unordered_map<void*, unsigned> recordings;
+    template<class T> ReleaseIntent BeginRelease(T* object) noexcept
+    {
+        ++leaseBegins; std::scoped_lock lock(mutex);
+        const auto found = recordings.find(object);
+        if (found == recordings.end()) return {};
+        ++found->second; return {object};
+    }
+    void EndRelease(const ReleaseIntent& intent, bool final) noexcept
+    {
+        if (!intent.object) return; // Actual empty EndRelease performs no lookup or work.
+        ++leaseEnds; std::scoped_lock lock(mutex);
+        const auto found = recordings.find(intent.object);
+        if (found == recordings.end()) return;
+        if (found->second) --found->second;
+        if (final) { ++leaseFinals; recordings.erase(found); }
+    }
+    void Track(void* object) { std::scoped_lock lock(mutex); recordings[object] = 0; }
 }
 struct State
 {
@@ -390,6 +407,12 @@ Token prepare(CpuObject& object, bool heap = false, const std::shared_ptr<HeapIn
     need(birth && birth->Admissible(), "native byte-data helper returns a ready current birth");
     publish(birth, heap, descriptorHeap); return birth;
 }
+void record(CpuObject& object, const Token& birth)
+{
+    need(NrdBridgeBirth::MarkRecordingMayExist(birth) && birth->RecordingMayExist(),
+         "actual monotonic physical marker is published before recording adapter Track");
+    RecordedComputeLease::Track(&object);
+}
 void cleared(const Token& birth)
 {
     void* address = birth->Address(); auto* resource = static_cast<ID3D12Resource*>(address);
@@ -426,10 +449,20 @@ void finalKinds()
         const unsigned destroyed = ownerDestructions.load(), detached = detachCalls.load();
         const unsigned heapDestroyed = heapDestructions.load();
         const auto birth = prepare(object, i == 1, i == 0 ? slots : nullptr);
+        record(object,birth); // Deliberately marked so existing five-kind lease assertions remain exact.
+        bool retiredBeforeFinalReturn = false;
+        object.afterRelease = [&](unsigned ordinal,ULONG result)
+        {
+            if (ordinal == 2 && result == 0)
+                retiredBeforeFinalReturn = !birth->Live() && !surveyRecords.count(&object) &&
+                    !d3dRecords.count(&object) && !observerRecords.count(&object);
+        };
         need(ResTrack_Dx12::ObserveBridgeObjectRelease(&object), "actual installer recognizes dedicated or installs distinct root Release");
         if (i != 4) need(installAttaches == 0, "covered resource/heap/PSO/list fast paths attach no generic observer");
         const unsigned calls = nativeTraceSize.load();
         need(callbacks[i](object) == 0, "actual title wrapper returns native final zero");
+        object.afterRelease = {};
+        need(retiredBeforeFinalReturn, "exact <=1 probe drains catalog/root/observer before final original returns");
         need(object.addRefs == 1 && object.releases == 2 && object.zeros == 1, "one temporary probe and one caller Release, with one destruction");
         need(nativeTrace[calls].ordinal == 1 && nativeTrace[calls].result == 1 &&
              nativeTrace[calls+1].ordinal == 2 && nativeTrace[calls+1].result == 0, "probe<=1 is retired before actual final zero");
@@ -474,6 +507,8 @@ void nonfinal()
     need(allocations == 0, "1000 warmed nonfinal actual wrappers make zero C++ allocations");
     need(factoryCalls == factories && notifyCalls == notifications && detachCalls == 0, "nonfinal path creates no retirement payload or catalog cleanup");
     need(object.reads == reads && object.writes == writes, "nonfinal Release performs no native private-data queries/writes");
+    need(!birth->RecordingMayExist() && leaseBegins == 0 && leaseEnds == 0,
+         "known unmarked hot releases skip all lease-registry lookups including empty EndRelease");
     need(object.addRefs == 1001 && object.releases == 2002 && object.physical->refs == 9003, "nonfinal forwarding consumes only caller references");
     need(birth->Live() && birth->ReleasesInFlight() == 0 && birth->CacheAdmissible(), "nonfinal completion restores release counter and cache eligibility");
     NrdBridgeRelease::RetireExact(birth); cleared(birth); outsideAssertions();
@@ -616,9 +651,10 @@ void off()
          "OFF constructs no birth registry/payload and performs no private-data identity work");
     need(installAttaches == 0 && metadataFailures == 0, "OFF attaches no generic hooks and reports no birth failure");
 }
-void ownedOrShutdown(bool shutdown)
+void ownedOrShutdown(bool shutdown, bool recorded = false)
 {
     DistinctObject<20> object; const auto birth = prepare(object);
+    if (recorded) record(object,birth);
     need(ResTrack_Dx12::ObserveBridgeObjectRelease(&object), "generic callback installed before bypass scenario");
     const auto factories = factoryCalls.load(), detached = detachCalls.load();
     const auto reads = object.reads.load(), writes = object.writes.load();
@@ -629,7 +665,32 @@ void ownedOrShutdown(bool shutdown)
     need(factoryCalls == factories && detachCalls == detached && object.reads == reads && object.writes == writes,
          "owned/shutdown bypass has no identity/retirement callback work");
     need(birth->Live() && birth->ReleasesInFlight() == 0, "bypass does not claim native-birth retirement");
+    if (recorded)
+        need(leaseBegins == 1 && leaseEnds == 1 && leaseFinals == 1 && RecordedComputeLease::recordings.empty(),
+             "owned generic native-once bypass still releases an existing recorded lease");
+    else
+        need(leaseBegins == (shutdown ? 0 : 1) && leaseEnds == 0,
+             "owned generic fallback preserves lookup; shutdown directly forwards and empty EndRelease is a no-op");
     NrdBridgeRelease::RetireExact(birth); cleared(birth); outsideAssertions();
+}
+void unknown()
+{
+    DistinctObject<21> unrecorded; DistinctObject<22> recorded;
+    need(!NrdBridgeBirth::Capture(&unrecorded) && !NrdBridgeBirth::Capture(&recorded),
+         "unknown fallback begins without admitted birth metadata");
+    need(callResource(unrecorded) == 0, "unknown unrecorded title Release forwards final probe/caller pair");
+    need(leaseBegins == 1 && leaseEnds == 0 && leaseFinals == 0,
+         "unknown unrecorded object preserves lookup and empty EndRelease does no work");
+    RecordedComputeLease::Track(&recorded); // Explicit legacy unknown-recording seam; no false marker inference.
+    need(callResource(recorded) == 0, "unknown recorded title Release preserves legacy recording lookup");
+    need(leaseBegins == 2 && leaseEnds == 1 && leaseFinals == 1 && RecordedComputeLease::recordings.empty(),
+         "unknown recorded fallback drains recorded final intent exactly once");
+    need(unrecorded.addRefs == 1 && recorded.addRefs == 1 && unrecorded.releases == 2 && recorded.releases == 2,
+         "unknown fallback forwards only original native pairs");
+    need(factoryCalls == 0 && detachCalls == 0 && notifyCalls == 0 &&
+         unrecorded.reads == 0 && unrecorded.writes == 0 && recorded.reads == 0 && recorded.writes == 0,
+         "unknown fallback performs no invented birth/private-data/catalog work");
+    outsideAssertions();
 }
 template<size_t... Id> auto installObjects(std::index_sequence<Id...>)
 { return std::array<std::unique_ptr<CpuObject>,sizeof...(Id)>{std::make_unique<DistinctObject<unsigned(Id)+25>>()...}; }
@@ -667,9 +728,9 @@ void installerFailure(const std::string& kind)
          "actual failure path reports after installer unlock");
     need(object.releases == 0 && object.addRefs == 0 && object.reads == 0 && object.writes == 0,
          "failed installer makes no COM/private-data calls");
-    need(installBegins == 1 && installUpdates == (kind != "install-begin"), "transaction stops after failed begin/update stage");
-    need(installAttaches == (kind == "install-attach" || kind == "install-commit") &&
-         installCommits == (kind == "install-commit") && installAborts == (kind == "install-update" || kind == "install-attach"),
+    need(installBegins == 1 && installUpdates == unsigned(kind != "install-begin"), "transaction stops after failed begin/update stage");
+    need(installAttaches == unsigned(kind == "install-attach" || kind == "install-commit") &&
+         installCommits == unsigned(kind == "install-commit") && installAborts == unsigned(kind == "install-update" || kind == "install-attach"),
          "attach/commit/abort sequence follows actual error path exactly");
     outsideAssertions();
 }
@@ -713,7 +774,9 @@ int main(int argc,char** argv) try
         else if (kind == "aliases") aliases();
         else if (kind == "nested") nested();
         else if (kind == "owned") ownedOrShutdown(false);
+        else if (kind == "owned-recorded") ownedOrShutdown(false,true);
         else if (kind == "shutdown") ownedOrShutdown(true);
+        else if (kind == "unknown") unknown();
         else if (kind == "installer-full") installerFull();
         else if (kind.rfind("install-",0) == 0) installerFailure(kind);
         else dispatcherFailure(kind);
@@ -721,6 +784,7 @@ int main(int argc,char** argv) try
     std::cout << "{\"case\":\"" << kind << "\",\"checks\":" << checks
               << ",\"factory_calls\":" << factoryCalls << ",\"detach_calls\":" << detachCalls
               << ",\"notify_calls\":" << notifyCalls << ",\"native_releases\":" << nativeTraceSize
+              << ",\"lease_begins\":" << leaseBegins << ",\"lease_ends\":" << leaseEnds << ",\"lease_finals\":" << leaseFinals
               << ",\"allocations_in_nonfinal\":" << allocations << ",\"owner_destructions\":" << ownerDestructions
               << ",\"metadata_failures\":" << metadataFailures << "}\n";
     return 0;
@@ -805,7 +869,7 @@ def generate(out):
 
 CASES = ['off', 'final-kinds', 'shared-kinds', 'nonfinal', 'simultaneous',
          'simultaneous-aliases', 'interned', 'recycled', 'aliases', 'nested',
-         'owned', 'shutdown', 'installer-full', 'install-begin', 'install-update',
+         'owned', 'owned-recorded', 'shutdown', 'unknown', 'installer-full', 'install-begin', 'install-update',
          'install-attach', 'install-commit', 'factory', 'detach', 'payload-depth']
 
 
