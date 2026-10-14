@@ -231,6 +231,8 @@ static NrdBridge::FrameParameters ReadFrame(const fs::path& path, uint32_t& mode
     need(bool(stream), "frame parameters missing");
     uint32_t projectedDepth = 0;
     if (stream >> projectedDepth) result.cameraProjectedDepthDelta = projectedDepth != 0;
+    uint32_t nativeMaterialIDs = 0;
+    if (stream >> nativeMaterialIDs) result.preserveNativeMaterialIDs = nativeMaterialIDs != 0;
     result.camera.view = DirectX::XMLoadFloat4x4(&view);
     result.camera.inverseView = DirectX::XMMatrixInverse(nullptr, result.camera.view);
     result.camera.projection = DirectX::XMLoadFloat4x4(&projection);
@@ -298,6 +300,8 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
             need(!pass->DispatchMotion(fixture.list.Get(), resources, input.textures[4].Get(), stale, error), "3D motion accepted");
             stale = frame; stale.cameraProjectedDepthDelta = !frame.cameraProjectedDepthDelta;
             need(!pass->DispatchMotion(fixture.list.Get(), resources, input.textures[4].Get(), stale, error), "depth mode changed within the Recon ticket");
+            stale = frame; stale.preserveNativeMaterialIDs = !frame.preserveNativeMaterialIDs;
+            need(!pass->DispatchMotion(fixture.list.Get(), resources, input.textures[4].Get(), stale, error), "material mode changed within the Recon ticket");
             need(before == gNrdAuditedBarriers, "invalid deferred motion recorded GPU work");
             Fixture::Transition(fixture.list.Get(), input.textures[4].Get(),
                 D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
