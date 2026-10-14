@@ -116,6 +116,21 @@ int main(int argc,char** argv)try{
  need(!FrameSurvey::PublishResourceMetadata(pa,ab),"old creator token cannot publish over fresh resource");
  need(!FrameSurvey::SeedComputeBindings(c,FrameSurvey::ComputeBindings{r,{h,s},bindings.tables,{},cb,newRoot,{},bindings.heapBirths}),"old receiver token cannot republish a new mirror");
  need(FrameSurvey::MetadataHealthy()&&NrdBridgeBirth::Healthy(),"expected old-token denial does not poison global health");
+ // Typed opaque CPU/GPU handle spaces may legitimately share numerical values.
+ auto* overlapSampler=reinterpret_cast<ID3D12DescriptorHeap*>(uintptr_t(0x70000));auto overlapBirth=born(overlapSampler,205);
+ auto overlap=heap(overlapSampler,true);overlap.cpu=ph.cpu;overlap.gpu=ph.gpu;
+ need(FrameSurvey::PublishHeapMetadata(overlap,overlapBirth),"same-numerical SAMPLER and resource heap metadata coexist");
+ need(FrameSurvey::gCpuHeaps.size()==1&&FrameSurvey::gCpuHeaps.at(ph.cpu)==h,"SAMPLER identity never shadows resource-view CPU range");
+ FrameSurvey::View(t,{ph.cpu},&srv);FrameSurvey::View({ph.cpu+ph.increment},&cv);
+ need(FrameSurvey::gViews.at(ph.cpu).descriptorHeap==uint64_t(reinterpret_cast<uintptr_t>(h))&&FrameSurvey::gViews.at(ph.cpu+ph.increment).descriptorHeap==uint64_t(reinterpret_cast<uintptr_t>(h)),"SRV and CBV ownership still refers to the resource heap");
+ auto overlapBindings=bindings;overlapBindings.heaps[1]=overlapSampler;overlapBindings.heapBirths[1]=overlapBirth;
+ FrameSurvey::BoundConstantBuffer overlapCbv;
+ need(FrameSurvey::SeedComputeBindings(c,overlapBindings)&&FrameSurvey::ResolveComputeConstantBuffer(c,6,0,1216,overlapCbv)&&overlapCbv.descriptorHeapBirth==newHeap,"b6 resolves with overlapping typed SAMPLER handles");
+ need(FrameSurvey::ResolveComputeBindings(c,1,query,textures)&&textures.size()==1&&textures[0].resource==t,"bounded SRV proof ignores same-numerical SAMPLER GPU range");
+ FrameSurvey::RetirementEffects samplerEffects;retire(overlapBirth,samplerEffects);
+ need(!FrameSurvey::gHeaps.contains(overlapSampler)&&FrameSurvey::gHeaps.contains(h)&&FrameSurvey::gCpuHeaps.at(ph.cpu)==h&&FrameSurvey::gViews.contains(ph.cpu+ph.increment),"SAMPLER retirement removes only its exact object birth");
+ need(FrameSurvey::ValidateBorrowedConstantBuffer(overlapCbv)&&FrameSurvey::SeedComputeBindings(c,bindings)&&FrameSurvey::ResolveComputeConstantBuffer(c,6,0,1216,current),"resource CBV survives SAMPLER-only retirement and fresh seeding");
+ FrameSurvey::NotifyRelease(samplerEffects);
  // Failed metadata mutation under a guard is latched there and handled outside it.
  {NrdBridgeBirth::CurrentGuard guard(newReceiver);FrameSurvey::MetadataFailed("synthetic_deferred_fault");need(FrameSurvey::gDeferredMetadataFailure.load()!=nullptr,"fault notification deferred while metadata guard held");}
  FrameSurvey::FlushMetadataFailure();need(!FrameSurvey::MetadataHealthy()&&!FrameSurvey::gDeferredMetadataFailure.load(),"deferred fault drained outside metadata scope");
