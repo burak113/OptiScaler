@@ -2,12 +2,14 @@
 #include <d3d12.h>
 #include <dxgi.h>
 #include <mutex>
+#include <memory>
 #include <string>
 #include <span>
 #include <vector>
 #include <utility>
 
 struct NVSDK_NGX_Parameter;
+namespace NrdBridgeBirth { class Birth; using Token = std::shared_ptr<const Birth>; }
 
 // Recorder and borrowed NRD creation registry, selected by startup-only detours.
 // With both FrameSurvey and the NRD bridge off, there are no new callbacks or allocations.
@@ -27,6 +29,7 @@ struct BoundResource
     DXGI_FORMAT viewFormat = DXGI_FORMAT_UNKNOWN;
     D3D12_DESCRIPTOR_RANGE_TYPE kind = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     uint32_t descriptorOffset = UINT32_MAX, descriptorIndex = UINT32_MAX, subresource = 0;
+    NrdBridgeBirth::Token resourceBirth; // Metadata only; exact native instance, no COM ownership.
 };
 struct BoundConstantBuffer
 {
@@ -36,6 +39,7 @@ struct BoundConstantBuffer
     uint64_t resourceGeneration = 0;
     ID3D12DescriptorHeap* descriptorHeap = nullptr; // Borrowed; table CBVs preserve their native volatile slot.
     D3D12_GPU_DESCRIPTOR_HANDLE descriptor {};
+    NrdBridgeBirth::Token resourceBirth, descriptorHeapBirth;
 };
 // Native Consumer binding only. Buffer identity/size metadata is diagnostic, never an admission requirement.
 struct BoundConstantBinding
@@ -73,12 +77,16 @@ struct ComputeBindings
     std::vector<ID3D12DescriptorHeap*> heaps;
     std::vector<std::pair<UINT,D3D12_GPU_DESCRIPTOR_HANDLE>> tables;
     std::vector<ComputeRootView> views;
+    NrdBridgeBirth::Token receiverBirth, rootBirth, pipelineBirth;
+    std::vector<NrdBridgeBirth::Token> heapBirths; // Same order/size as heaps in native Birth mode.
 };
 bool SeedComputeBindings(ID3D12GraphicsCommandList*, const ComputeBindings&) noexcept;
 using PipelineObserver = void (*)(ID3D12PipelineState*, const char* csSha256);
 using ReleaseObserver = void (*)(void*);
 void SetPipelineObserver(PipelineObserver) noexcept;
 void SetReleaseObserver(ReleaseObserver) noexcept;
+using BirthReleaseObserver = void (*)(const NrdBridgeBirth::Token&) noexcept;
+void SetBirthReleaseObserver(BirthReleaseObserver) noexcept;
 void SetBindingWindow(bool) noexcept;
 bool BindingWindow() noexcept;
 bool MetadataHealthy() noexcept;
@@ -138,6 +146,51 @@ void Present(IDXGISwapChain*, UINT flags) noexcept;
 void Evaluate(ID3D12GraphicsCommandList*, unsigned feature, const NVSDK_NGX_Parameter*) noexcept;
 void TitleTag(ID3D12GraphicsCommandList*, const char* name, ID3D12Resource*, uint32_t state,
               uint32_t x, uint32_t y, uint32_t width, uint32_t height) noexcept;
+
+// Native queries run while the creating/title caller owns a strong reference, before Birth/catalog locks.
+struct PreparedResource
+{
+    ID3D12Resource* object = nullptr;
+    D3D12_RESOURCE_DESC description {};
+    uint64_t address = 0;
+    D3D12_RESOURCE_STATES initial = D3D12_RESOURCE_STATE_COMMON;
+    ID3D12Heap* heap = nullptr;
+    uint64_t offset = 0;
+    bool initialKnown = false;
+};
+struct PreparedHeap
+{
+    ID3D12DescriptorHeap* object = nullptr;
+    D3D12_DESCRIPTOR_HEAP_DESC description {};
+    uint64_t cpu = 0, gpu = 0;
+    UINT increment = 0;
+};
+struct PreparedRoot
+{
+    ID3D12RootSignature* object = nullptr;
+    std::shared_ptr<void> layout; // Raw layout metadata only; never owns the native root.
+};
+bool PrepareResourceMetadata(ID3D12Resource*, PreparedResource&) noexcept;
+bool PrepareHeapMetadata(ID3D12Device*, ID3D12DescriptorHeap*, PreparedHeap&) noexcept;
+bool PrepareRootMetadata(ID3D12RootSignature*, const void* bytes, size_t length, PreparedRoot&) noexcept;
+// POD publication requires a matching current Birth guard; an initializing creator token is permitted.
+bool PublishResourceMetadata(const PreparedResource&, const NrdBridgeBirth::Token&) noexcept;
+bool PublishHeapMetadata(const PreparedHeap&, const NrdBridgeBirth::Token&) noexcept;
+bool PublishRootMetadata(const PreparedRoot&, const NrdBridgeBirth::Token&) noexcept;
+struct RetirementEffects
+{
+    NrdBridgeBirth::Token birth;
+    void* object = nullptr;
+    const char* failure = nullptr;
+    bool notify = false;
+    std::shared_ptr<void> opaqueOwner; // Allocated outside locks; detached raw metadata is destroyed after notification.
+};
+NrdBridgeBirth::Token CaptureRelease(void*) noexcept;
+bool PrepareRetirementEffects(RetirementEffects&) noexcept;
+// Called only for the actual retired CURRENT token under the Birth metadata action.
+// Indexed removal and ownership moves only: no observer, Fail, COM, or native queries.
+bool DetachReleaseMetadata(const NrdBridgeBirth::Token&, RetirementEffects&) noexcept;
+void NotifyRelease(RetirementEffects&) noexcept; // Outside every Birth/catalog/mirror guard.
 
 void ResourceCreated(ID3D12Resource*, D3D12_RESOURCE_STATES, ID3D12Heap* heap = nullptr, uint64_t offset = 0) noexcept;
 // Enhanced layouts are not legacy D3D12_RESOURCE_STATES; keep initial state unproven.
