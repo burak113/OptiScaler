@@ -10,6 +10,24 @@
 #include <include/spdlog_sink/debug_sink.h>
 
 #include "Util.h"
+#include "shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
+
+static bool gNrdBridgeAutomaticLogPolicy = false;
+
+bool PrepareNrdBridgeAutomaticLogPolicy() noexcept
+{
+    auto* config = Config::Instance();
+    // An idempotent bootstrap retry may keep our own volatile INFO choice.
+    // Explicit values, including TRACE equal to the class default, stay explicit.
+    const bool automaticRepeat = gNrdBridgeAutomaticLogPolicy &&
+        config->LogLevel.value_or_default() == spdlog::level::info &&
+        !config->LogLevel.value_for_config_ignore_default().has_value();
+    gNrdBridgeAutomaticLogPolicy = (!config->LogLevel.has_value() || automaticRepeat) &&
+        config->FfxDenoiserNrdBridge.value_or_default() && NrdBridge::SupportedExecutable();
+    if (gNrdBridgeAutomaticLogPolicy)
+        config->LogLevel.set_volatile_value(spdlog::level::info);
+    return gNrdBridgeAutomaticLogPolicy;
+}
 
 static bool InitializeConsole()
 {
@@ -181,7 +199,7 @@ void PrepareLogger()
             }
 
             shared_logger->set_level((spdlog::level::level_enum) Config::Instance()->LogLevel.value_or_default());
-            shared_logger->flush_on(spdlog::level::trace);
+            shared_logger->flush_on(gNrdBridgeAutomaticLogPolicy ? spdlog::level::warn : spdlog::level::trace);
 
             spdlog::set_default_logger(shared_logger);
         }
@@ -195,6 +213,16 @@ void PrepareLogger()
         logger->set_level((spdlog::level::level_enum) 2);
         spdlog::set_default_logger(logger);
     }
+}
+
+void FlushLogger() noexcept
+{
+    try
+    {
+        if (auto logger = spdlog::default_logger())
+            logger->flush();
+    }
+    catch (...) {}
 }
 
 void CloseLogger()
