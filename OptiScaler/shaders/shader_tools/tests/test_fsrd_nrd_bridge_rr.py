@@ -16,7 +16,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from fsrd_toolchain import compile_cpp
+from fsrd_toolchain import compile_cpp, dxc
 
 DLL = Path('F:/OptiRevelations/OptiScaler-ffxD-alpha/external/FidelityFX-SDK-v2/Kits/FidelityFX/signedbin/amd_fidelityfx_denoiser_dx12.dll')
 CAPTURE = Path('F:/Ultra Yedek 2/overwrite/bin/x64/GAME_TRACE/FRAME_SURVEY/da9f46edb00fd2144b531c8c0b6fc6a2')
@@ -162,6 +162,11 @@ def main():
     os.environ['FSRD_CPP_CACHE'] = str(work / 'cache')
     exe = work / 'nrd_bridge_rr_fixture.exe'
     (work / 'pch.h').write_text('#pragma once\n', encoding='utf-8')
+    shader = work / 'consumer.cso'
+    subprocess.run([str(dxc()), '-T', 'cs_6_2', '-E', 'CSMain', '-O3', '-force-rootsig-ver', 'rootsig_1_0',
+                    str(Path(__file__).with_name('nrd_bridge_consumer_fixture.hlsl')), '-Fo', str(shader)], check=True)
+    (work / 'consumer_shader.h').write_text('const unsigned char ConsumerShaderBytes[] = {' +
+                                          ','.join(str(x) for x in shader.read_bytes()) + '};\n', encoding='utf-8')
     compile_cpp(Path(__file__).with_name('nrd_bridge_rr_fixture.cpp'), exe, ['d3d12.lib', 'dxgi.lib'],
                 [work, ROOT / 'OptiScaler', ROOT / 'OptiScaler/include', ROOT / 'external/streamline',
                  ROOT / 'external/FidelityFX-SDK/ffx-api/include/ffx_api'])
