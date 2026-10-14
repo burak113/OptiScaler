@@ -183,7 +183,8 @@ static void PublishComputeHookAvailability()
 }
 
 std::shared_ptr<RecordedComputeLease::Submission> ResTrack_Dx12::BeforeComputeSubmission(
-    ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* lists) noexcept
+    ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* lists,
+    RecordedComputeLease::SubmissionDecision* decision) noexcept
 {
     // No identity vector or logging/string allocation may hide necessary queue
     // waits after an intent-snapshot OOM. Use the same native-object IID without
@@ -201,7 +202,7 @@ std::shared_ptr<RecordedComputeLease::Submission> ResTrack_Dx12::BeforeComputeSu
             return actual->QueryInterface(IID_PPV_ARGS(out));
         },
         [](const void* context, size_t index) -> void* { return static_cast<ID3D12CommandList* const*>(context)[index]; }};
-    return RecordedComputeLease::BeforeSubmission(queue, range);
+    return RecordedComputeLease::BeforeSubmission(queue, range, decision);
 }
 
 static PFN_OMSetRenderTargets o_OMSetRenderTargets = nullptr;
@@ -1886,8 +1887,14 @@ void ResTrack_Dx12::hkExecuteCommandLists(ID3D12CommandQueue* This, UINT NumComm
 
         if (!found.empty())
         {
+            RecordedComputeLease::SubmissionDecision decision;
+            auto computeIntent = BeforeComputeSubmission(This, NumCommandLists, ppCommandLists,&decision);
+            if (!decision.allowed)
+            {
+                LOG_ERROR("[NRD_BRIDGE] required GPU ordering failed (HRESULT {:X}); submission denied; restart the title/device",uint32_t(decision.orderingFailure));
+                return;
+            }
             auto additiveTickets = RRTraceFence::BeforeSubmission(This, NumCommandLists, ppCommandLists);
-            auto computeIntent = BeforeComputeSubmission(This, NumCommandLists, ppCommandLists);
             o_ExecuteCommandLists(This, NumCommandLists, ppCommandLists);
             RecordedComputeLease::AfterSubmission(computeIntent);
             RRTraceFence::AfterSubmission(This, additiveTickets);
@@ -1903,8 +1910,14 @@ void ResTrack_Dx12::hkExecuteCommandLists(ID3D12CommandQueue* This, UINT NumComm
 
     LOG_TRACK("Done NumCommandLists: {}", NumCommandLists);
 
+    RecordedComputeLease::SubmissionDecision decision;
+    auto computeIntent = BeforeComputeSubmission(This, NumCommandLists, ppCommandLists,&decision);
+    if (!decision.allowed)
+    {
+        LOG_ERROR("[NRD_BRIDGE] required GPU ordering failed (HRESULT {:X}); submission denied; restart the title/device",uint32_t(decision.orderingFailure));
+        return;
+    }
     auto additiveTickets = RRTraceFence::BeforeSubmission(This, NumCommandLists, ppCommandLists);
-    auto computeIntent = BeforeComputeSubmission(This, NumCommandLists, ppCommandLists);
     o_ExecuteCommandLists(This, NumCommandLists, ppCommandLists);
     RecordedComputeLease::AfterSubmission(computeIntent);
     RRTraceFence::AfterSubmission(This, additiveTickets);

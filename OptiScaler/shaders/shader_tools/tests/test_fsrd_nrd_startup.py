@@ -76,7 +76,7 @@ struct Cache { bool valid=false; bool Valid()const{return valid;} };
 struct Service {
  Microsoft::WRL::ComPtr<ID3D12Device> device; Status status; Cache cache;
  std::unordered_map<void*,unsigned> roles; std::unordered_map<void*,List> lists;
- void* pendingList=nullptr; uint64_t resetSerial=1;
+ void* pendingList=nullptr; uint64_t resetSerial=1,cancellationSerial=1;
  bool window=false,windowSawRecon=false; unsigned windowPresents=0,retryPresents=0,attempts=0,failures=0;
  ~Service(){checkDestruction();}
 };

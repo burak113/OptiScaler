@@ -664,7 +664,8 @@ class ResTrack_Dx12
     static void hkExecuteCommandLists(ID3D12CommandQueue* This, UINT NumCommandLists,
                                       ID3D12CommandList* const* ppCommandLists);
     static std::shared_ptr<RecordedComputeLease::Submission> BeforeComputeSubmission(
-        ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* lists) noexcept;
+        ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* lists,
+        RecordedComputeLease::SubmissionDecision* decision = nullptr) noexcept;
 
     static HRESULT hkCreateDescriptorHeap(ID3D12Device* This, D3D12_DESCRIPTOR_HEAP_DESC* pDescriptorHeapDesc,
                                           REFIID riid, void** ppvHeap);

@@ -307,9 +307,12 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         { std::scoped_lock lock(domain.submissionMutex); domain.completion = point; }
         ownership->token->phase.store(SubmissionPhase::FencePublished,std::memory_order_release);
     };
-    submission.failed = [ownership](const auto&, auto) {
+    const std::weak_ptr<Service> weakOwner = owner;
+    submission.failed = [ownership,weakOwner](const auto&, auto) {
         ownership->history->uncertain.store(true,std::memory_order_release);
         ownership->token->phase.store(SubmissionPhase::Poisoned,std::memory_order_release);
+        if (const auto service = weakOwner.lock())
+            Failure(service,"NRD submission ordering or fence tracking failed; restart the title/device");
     };
     {
         InjectionScope guard(cmd);
