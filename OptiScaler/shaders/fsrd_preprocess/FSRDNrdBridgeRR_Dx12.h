@@ -15,6 +15,7 @@ struct RRSettings
     // -1 is the integration's OFF value; AMD defines overview0/fullscreen1.
     int32_t nativeDebugView = -1;
     uint32_t nativeDebugViewport = 0;
+    bool preserveNativeMaterialIDs = false;
 };
 struct RRSettingsState
 {
@@ -53,6 +54,9 @@ class RRWrapper
     bool PresentNativeDebug(ID3D12GraphicsCommandList*, ID3D12Resource* output,
                             D3D12_RESOURCE_STATES outputState, uint32_t frameSL, std::string& error,
                             bool orderedAcrossLists = false);
+    bool PresentNativeDebug(ID3D12GraphicsCommandList*, ID3D12Resource* output,
+                            D3D12_RESOURCE_STATES outputState, const RRWrapperNativeDebugOutputSnapshot& source,
+                            std::string& error, bool orderedAcrossLists = false);
     void ResetHistory() noexcept;
     void DiscardRecordingHistory() noexcept;
     uint64_t ContextGeneration() const noexcept;

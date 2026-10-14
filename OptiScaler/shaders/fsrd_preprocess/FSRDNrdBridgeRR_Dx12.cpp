@@ -253,8 +253,8 @@ struct Context
         return slot;
     }
     void Present(ID3D12GraphicsCommandList* list, const PresentSlot& slot, ID3D12Resource* source,
-                 ID3D12Resource* output, D3D12_RESOURCE_STATES outputState, uint32_t outputWidth,
-                 uint32_t outputHeight) const noexcept
+                 ID3D12Resource* output, D3D12_RESOURCE_STATES outputState, uint32_t sourceWidth,
+                 uint32_t sourceHeight, uint32_t outputWidth, uint32_t outputHeight) const noexcept
     {
         D3D12_RESOURCE_BARRIER barriers[2] {};
         barriers[0].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -270,7 +270,7 @@ struct Context
         list->ResourceBarrier(2, barriers);
         list->SetPipelineState(nativeDebugPso.Get()); list->SetComputeRootSignature(nativeDebugRoot.Get());
         ID3D12DescriptorHeap* heaps[] = {slot.descriptors.Get()}; list->SetDescriptorHeaps(1, heaps);
-        const uint32_t constants[] = {width, height, outputWidth, outputHeight};
+        const uint32_t constants[] = {sourceWidth, sourceHeight, outputWidth, outputHeight};
         list->SetComputeRoot32BitConstants(0, 4, constants, 0);
         auto gpu = slot.descriptors->GetGPUDescriptorHandleForHeapStart(); list->SetComputeRootDescriptorTable(1, gpu);
         gpu.ptr += descriptorStride; list->SetComputeRootDescriptorTable(2, gpu);
@@ -529,14 +529,17 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
 {
     if (!ValidateRRSettings(requested, error)) return false;
     if (!impl_ && !requested.overrideMask && requested.nativeDebugView == -1 &&
-        requested.nativeDebugViewport == 0) return true;
+        requested.nativeDebugViewport == 0 && !requested.preserveNativeMaterialIDs) return true;
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
+    if (impl_->settings.preserveNativeMaterialIDs != requested.preserveNativeMaterialIDs)
+    { impl_->resetPending = true; impl_->nativeDebug = {}; }
     if (impl_->settings.nativeDebugView != requested.nativeDebugView ||
         impl_->settings.nativeDebugViewport != requested.nativeDebugViewport) impl_->nativeDebug = {};
     impl_->settings = {};
     impl_->settings.overrideMask = requested.overrideMask;
     impl_->settings.nativeDebugView = requested.nativeDebugView;
     impl_->settings.nativeDebugViewport = requested.nativeDebugViewport;
+    impl_->settings.preserveNativeMaterialIDs = requested.preserveNativeMaterialIDs;
     for (uint32_t index = 0; index < 7; ++index)
         if (requested.overrideMask & (1u << index))
         {
@@ -590,7 +593,18 @@ bool RRWrapper::PresentNativeDebug(ID3D12GraphicsCommandList* list, ID3D12Resour
         !impl_->nativeDebug.resource || !impl_->nativeDebug.owner || frameSL == UINT32_MAX ||
         impl_->nativeDebug.frameSL != frameSL)
         return reject("RR native debug output for this SL frame is unavailable");
-    const auto image = impl_->nativeDebug;
+    return PresentNativeDebug(list, output, outputState, impl_->nativeDebug, error, orderedAcrossLists);
+}
+bool RRWrapper::PresentNativeDebug(ID3D12GraphicsCommandList* list, ID3D12Resource* output,
+                                   D3D12_RESOURCE_STATES outputState, const RRWrapperNativeDebugOutputSnapshot& image,
+                                   std::string& error, bool orderedAcrossLists)
+{
+    error.clear();
+    const auto reject = [&](const char* reason) { error = reason; return false; };
+    if (!impl_ || !impl_->context || impl_->settings.nativeDebugView == -1 ||
+        !image.resource || !image.owner || image.frameSL == UINT32_MAX ||
+        !TextureMatches(image.resource, image.width, image.height, DXGI_FORMAT_R16G16B16A16_FLOAT))
+        return reject("RR native debug source snapshot is missing or incompatible");
     if (image.state != D3D12_RESOURCE_STATE_UNORDERED_ACCESS || !image.recording ||
         (image.recording != list && !orderedAcrossLists))
         return reject("RR native debug source recording has no proven GPU ordering");
@@ -617,6 +631,9 @@ bool RRWrapper::PresentNativeDebug(ID3D12GraphicsCommandList* list, ID3D12Resour
         !SameDevice(device.Get(), impl_->context->device.Get()) ||
         FAILED(list->GetDevice(IID_PPV_ARGS(&other))) || !SameDevice(device.Get(), other.Get()))
         return reject("RR native debug presentation devices do not match");
+    other.Reset();
+    if (FAILED(image.resource->GetDevice(IID_PPV_ARGS(&other))) || !SameDevice(device.Get(), other.Get()))
+        return reject("RR native debug source device does not match presentation");
     D3D12_FEATURE_DATA_FORMAT_SUPPORT support {}; support.Format = desc.Format;
     if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &support, sizeof(support))) ||
         !(support.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD) ||
@@ -628,7 +645,7 @@ bool RRWrapper::PresentNativeDebug(ID3D12GraphicsCommandList* list, ID3D12Resour
     if (!ResTrack_Dx12::RetainComputeDispatch(device.Get(), list, lease))
         return reject("RR native debug presentation lifetime tracking is unavailable");
     lease->context->Present(list, *lease->slot, image.resource, output, outputState,
-        static_cast<uint32_t>(desc.Width), desc.Height);
+        image.width, image.height, static_cast<uint32_t>(desc.Width), desc.Height);
     return true;
 }
 bool RRWrapper::PrepareFrame(const SLConstantsSnapshot& snapshot, bool requestedReset,
