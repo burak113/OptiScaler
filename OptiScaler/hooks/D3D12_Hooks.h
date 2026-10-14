@@ -1,6 +1,7 @@
 #pragma once
 #include "SysUtils.h"
 #include <d3d12.h>
+#include <misc/NrdBridgeBirth_Dx12.h>
 
 namespace FrameSurvey { struct ComputeBindings; }
 struct D3D12RootRestoreSnapshot;
@@ -24,6 +25,7 @@ class D3D12Hooks
     static void SetRootSignatureTracking(bool enable);
     static bool RootSignatureTrackingEnabled();
     static void OnBridgeCommandListReset(ID3D12GraphicsCommandList*, ID3D12PipelineState* initial);
+    static void OnBridgeObjectReleased(const NrdBridgeBirth::Token&) noexcept;
     static bool CanRestoreRootSignature(ID3D12GraphicsCommandList* cmdList);
     static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*, FrameSurvey::ComputeBindings&) noexcept;
     static void HookToCommandListLate(ID3D12GraphicsCommandList* commandList);
