@@ -8,6 +8,7 @@
 #endif
 #include "misc/NrdBridgeOwned_Dx12.h"
 #include "FSRDNrdBridgeRR_Dx12.h"
+#include "precompile/FSRDNrdBridgeCommit_Shader.h"
 #include <upscalers/fsr31/FSRDRRInterop.h>
 #include <wrl/client.h>
 #include <array>
@@ -57,6 +58,106 @@ struct Context
     ffxCreateContextDescDenoiser create {};
     uint32_t width = 0, height = 0;
     uint64_t generation = 0;
+    struct Slot
+    {
+        ComPtr<ID3D12Resource> spec, diff;
+        ComPtr<ID3D12DescriptorHeap> descriptors;
+        uint64_t bytes = 0;
+    };
+    ComPtr<ID3D12RootSignature> commitRoot;
+    ComPtr<ID3D12PipelineState> commitPso;
+    std::vector<std::shared_ptr<Slot>> slots;
+    uint32_t descriptorStride = 0;
+    uint64_t stagingBytes = 0;
+    bool Check(HRESULT result, const char* operation, std::string& error)
+    {
+        if (SUCCEEDED(result)) return true;
+        error = std::string(operation) + " (HRESULT " + std::to_string(result) + ")";
+        return false;
+    }
+    std::shared_ptr<Slot> NewSlot(std::string& error)
+    {
+        if (slots.size() >= 32) { error = "RR staging pool has 32 unretired recordings"; return nullptr; }
+        auto slot = MakeOwnedShared<Slot>();
+        D3D12_RESOURCE_DESC desc {};
+        desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; desc.Width = width; desc.Height = height;
+        desc.DepthOrArraySize = desc.MipLevels = 1; desc.SampleDesc.Count = 1;
+        desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT; desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+        D3D12_HEAP_PROPERTIES heap {}; heap.Type = D3D12_HEAP_TYPE_DEFAULT;
+        for (auto* resource : {std::addressof(slot->spec), std::addressof(slot->diff)})
+        {
+            if (!Check(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
+                D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(resource->GetAddressOf())), "RR staged output creation failed", error))
+                return nullptr;
+            slot->bytes += device->GetResourceAllocationInfo(0, 1, &desc).SizeInBytes;
+        }
+        slot->spec->SetName(L"NRD RR staged specular"); slot->diff->SetName(L"NRD RR staged diffuse");
+        D3D12_DESCRIPTOR_HEAP_DESC descriptors {};
+        descriptors.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; descriptors.NumDescriptors = 4;
+        descriptors.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        if (!Check(device->CreateDescriptorHeap(&descriptors, IID_PPV_ARGS(&slot->descriptors)), "RR commit heap creation failed", error))
+            return nullptr;
+        stagingBytes += slot->bytes; slots.push_back(slot);
+        return slot;
+    }
+    bool InitializeCommit(std::string& error)
+    {
+        if (!Check(device->CreateRootSignature(0, FSRDNrdBridgeCommit_cso, sizeof(FSRDNrdBridgeCommit_cso),
+            IID_PPV_ARGS(&commitRoot)), "RR commit root creation failed", error)) return false;
+        D3D12_COMPUTE_PIPELINE_STATE_DESC desc {};
+        desc.pRootSignature = commitRoot.Get(); desc.CS = {FSRDNrdBridgeCommit_cso, sizeof(FSRDNrdBridgeCommit_cso)};
+        if (!Check(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&commitPso)), "RR commit PSO creation failed", error)) return false;
+        descriptorStride = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        slots.reserve(32);
+        for (uint32_t i = 0; i < 4; ++i) if (!NewSlot(error)) return false;
+        return true;
+    }
+    std::shared_ptr<Slot> AcquireSlot(ID3D12Resource* outputSpec, ID3D12Resource* outputDiff, std::string& error)
+    {
+        std::shared_ptr<Slot> slot;
+        for (const auto& candidate : slots) if (candidate.use_count() == 1) { slot = candidate; break; }
+        if (!slot) slot = NewSlot(error);
+        if (!slot) return nullptr;
+        auto cpu = slot->descriptors->GetCPUDescriptorHandleForHeapStart();
+        for (auto* input : {slot->spec.Get(), slot->diff.Get()})
+        {
+            D3D12_SHADER_RESOURCE_VIEW_DESC desc {}; desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+            desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; desc.Texture2D.MipLevels = 1;
+            desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            device->CreateShaderResourceView(input, &desc, cpu); cpu.ptr += descriptorStride;
+        }
+        for (auto* output : {outputSpec, outputDiff})
+        {
+            D3D12_UNORDERED_ACCESS_VIEW_DESC desc {}; desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+            desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+            device->CreateUnorderedAccessView(output, nullptr, &desc, cpu); cpu.ptr += descriptorStride;
+        }
+        return slot;
+    }
+    void Commit(ID3D12GraphicsCommandList* list, const Slot& slot,
+                ID3D12Resource* outputSpec, ID3D12Resource* outputDiff) noexcept
+    {
+        // Every fallible allocation and lease admission precedes the provider.
+        // Title resources only receive UAV barriers; transitions belong to staging.
+        std::array<D3D12_RESOURCE_BARRIER, 4> barriers {};
+        for (uint32_t i = 0; i < 2; ++i)
+        {
+            barriers[i].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            barriers[i].Transition = {i ? slot.diff.Get() : slot.spec.Get(), D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+                D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE};
+            barriers[i+2].Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+            barriers[i+2].UAV.pResource = i ? outputDiff : outputSpec;
+        }
+        list->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());
+        list->SetPipelineState(commitPso.Get()); list->SetComputeRootSignature(commitRoot.Get());
+        ID3D12DescriptorHeap* heaps[] = {slot.descriptors.Get()}; list->SetDescriptorHeaps(1, heaps);
+        const uint32_t dimensions[] = {width, height}; list->SetComputeRoot32BitConstants(0, 2, dimensions, 0);
+        auto gpu = slot.descriptors->GetGPUDescriptorHandleForHeapStart(); list->SetComputeRootDescriptorTable(1, gpu);
+        gpu.ptr += uint64_t(2) * descriptorStride; list->SetComputeRootDescriptorTable(2, gpu);
+        list->Dispatch((width+7)/8, (height+7)/8, 1);
+        for (uint32_t i = 0; i < 2; ++i) std::swap(barriers[i].Transition.StateBefore, barriers[i].Transition.StateAfter);
+        list->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());
+    }
     ~Context()
     {
         if (!handle) return;
@@ -68,6 +169,7 @@ struct Context
 struct DispatchLease
 {
     std::shared_ptr<Context> context;
+    std::shared_ptr<Context::Slot> slot;
     // These are exclusively bridge-owned. Title outputs are borrowed and never retained.
     std::array<ComPtr<ID3D12Resource>, 7> inputs;
 };
@@ -143,6 +245,7 @@ bool CreateContext(ID3D12Device* device, uint32_t width, uint32_t height,
     fresh->device = device;
     fresh->width = width;
     fresh->height = height;
+    if (!fresh->InitializeCommit(error)) return false;
     fresh->overrideVersion.header.type = FFX_API_DESC_TYPE_OVERRIDE_VERSION;
     fresh->overrideVersion.versionId = versionId;
     fresh->backend.header.type = FFX_API_CREATE_CONTEXT_DESC_TYPE_BACKEND_DX12;
@@ -208,7 +311,7 @@ bool RRWrapper::PrepareFrame(const SLConstantsSnapshot& snapshot, bool requested
 {
     error.clear();
     out = {};
-    if (!impl_) impl_ = std::make_shared<Impl>();
+    if (!impl_) impl_ = MakeOwnedShared<Impl>();
     const auto reject = [&](const char* reason) {
         impl_->resetPending = true;
         error = reason;
@@ -284,7 +387,7 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
                          const FrameParameters& frame, std::string& error)
 {
     error.clear();
-    if (!impl_) impl_ = std::make_shared<Impl>();
+    if (!impl_) impl_ = MakeOwnedShared<Impl>();
     const auto reject = [&](const char* reason) {
         impl_->resetPending = true;
         error = reason;
@@ -340,17 +443,19 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
     }
     auto lease = MakeOwnedShared<DispatchLease>();
     lease->context = impl_->context;
+    lease->slot = impl_->context->AcquireSlot(outputSpec, outputDiff, error);
+    if (!lease->slot) { impl_->resetPending = true; return false; }
     for (size_t i = 0; i < inputs.size(); ++i) lease->inputs[i] = inputs[i];
     if (!ResTrack_Dx12::RetainComputeDispatch(device.Get(), list, lease))
         return reject("RR recorded-dispatch lifetime tracking is unavailable");
     ffxDispatchDescDenoiserDirectDiffuse diffuse {};
     diffuse.header.type = FFX_API_DISPATCH_DESC_TYPE_DENOISER_DIRECT_DIFFUSE;
     diffuse.signal.input = ffxApiGetResourceDX12(input.diff, FFX_API_RESOURCE_STATE_COMPUTE_READ);
-    diffuse.signal.output = ffxApiGetResourceDX12(outputDiff, FFX_API_RESOURCE_STATE_UNORDERED_ACCESS);
+    diffuse.signal.output = ffxApiGetResourceDX12(lease->slot->diff.Get(), FFX_API_RESOURCE_STATE_UNORDERED_ACCESS);
     ffxDispatchDescDenoiserIndirectSpecular specular {};
     specular.header.type = FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_SPECULAR;
     specular.signal.input = ffxApiGetResourceDX12(input.spec, FFX_API_RESOURCE_STATE_COMPUTE_READ);
-    specular.signal.output = ffxApiGetResourceDX12(outputSpec, FFX_API_RESOURCE_STATE_UNORDERED_ACCESS);
+    specular.signal.output = ffxApiGetResourceDX12(lease->slot->spec.Get(), FFX_API_RESOURCE_STATE_UNORDERED_ACCESS);
     diffuse.header.pNext = &specular.header; // AMD1.2 ABI ascending order: 0x44 then 0x48.
     ffxDispatchDescDenoiser dispatch {};
     dispatch.header.type = FFX_API_DISPATCH_DESC_TYPE_DENOISER;
@@ -375,12 +480,15 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
     dispatch.frameIndex = frame.frameIndex;
     dispatch.flags = FFX_DENOISER_DISPATCH_NON_GAMMA_ALBEDO | (reset ? FFX_DENOISER_DISPATCH_RESET : 0);
     ScopedSkipHeapCapture skipHeapCapture;
-    const auto result = FfxApiProxy::D3D12_Dispatch(&lease->context->handle, &dispatch.header);
+    ffxReturnCode_t result;
+    try { result = FfxApiProxy::D3D12_Dispatch(&lease->context->handle, &dispatch.header); }
+    catch (...) { DiscardRecordingHistory(); throw; }
     if (result != FFX_API_RETURN_OK)
     {
-        impl_->resetPending = true;
+        DiscardRecordingHistory();
         return Fail(error, "RR dispatch", result);
     }
+    lease->context->Commit(list, *lease->slot, outputSpec, outputDiff);
     impl_->previous = frame;
     impl_->previous.reset = reset;
     impl_->historyValid = true;
@@ -392,7 +500,19 @@ void RRWrapper::ResetHistory() noexcept
 {
     if (impl_) impl_->resetPending = true;
 }
+void RRWrapper::DiscardRecordingHistory() noexcept
+{
+    if (!impl_) return;
+    impl_->context.reset();
+    impl_->historyValid = false;
+    impl_->resetPending = true;
+    impl_->previous = {};
+}
 uint64_t RRWrapper::ContextGeneration() const noexcept { return impl_ ? impl_->generation : 0; }
+uint64_t RRWrapper::OwnedStagingBytes() const noexcept
+{
+    return impl_ && impl_->context ? impl_->context->stagingBytes : 0;
+}
 const std::string& RRWrapper::CameraConventionDescription() const noexcept
 {
     static const std::string empty;

@@ -176,6 +176,34 @@ ComPtr<ID3D12Resource> buffer(ID3D12Device* device,UINT64 size,D3D12_HEAP_TYPE t
         type==D3D12_HEAP_TYPE_UPLOAD?D3D12_RESOURCE_STATE_GENERIC_READ:D3D12_RESOURCE_STATE_COPY_DEST,nullptr,IID_PPV_ARGS(&resource)));
     return resource;
 }
+void ClearPair(ID3D12GraphicsCommandList* list, ID3D12Resource* spec, ID3D12Resource* diff,
+               const std::array<float,4>& specValue, const std::array<float,4>& diffValue)
+{
+    struct Owner { ComPtr<ID3D12Device> device; ComPtr<ID3D12DescriptorHeap> heap, cpuHeap; };
+    auto owner=MakeOwnedShared<Owner>();hr(list->GetDevice(IID_PPV_ARGS(&owner->device)));
+    D3D12_DESCRIPTOR_HEAP_DESC desc{};desc.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    desc.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;desc.NumDescriptors=2;
+    hr(owner->device->CreateDescriptorHeap(&desc,IID_PPV_ARGS(&owner->heap)));
+    desc.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_NONE;hr(owner->device->CreateDescriptorHeap(&desc,IID_PPV_ARGS(&owner->cpuHeap)));
+    need(ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(),list,owner),"retain mock provider writes");
+    ID3D12DescriptorHeap* heaps[]={owner->heap.Get()};list->SetDescriptorHeaps(1,heaps);
+    auto cpu=owner->heap->GetCPUDescriptorHandleForHeapStart();auto gpu=owner->heap->GetGPUDescriptorHandleForHeapStart();
+    auto nonVisible=owner->cpuHeap->GetCPUDescriptorHandleForHeapStart();
+    const auto stride=owner->device->GetDescriptorHandleIncrementSize(desc.Type);
+    for(auto* resource:{spec,diff})
+    {
+        D3D12_UNORDERED_ACCESS_VIEW_DESC view{};view.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;view.ViewDimension=D3D12_UAV_DIMENSION_TEXTURE2D;
+        owner->device->CreateUnorderedAccessView(resource,nullptr,&view,cpu);
+        owner->device->CreateUnorderedAccessView(resource,nullptr,&view,nonVisible);
+        list->ClearUnorderedAccessViewFloat(gpu,nonVisible,resource,resource==spec?specValue.data():diffValue.data(),0,nullptr);
+        D3D12_RESOURCE_BARRIER barrier{};barrier.Type=D3D12_RESOURCE_BARRIER_TYPE_UAV;barrier.UAV.pResource=resource;
+        list->ResourceBarrier(1,&barrier);cpu.ptr+=stride;gpu.ptr+=stride;nonVisible.ptr+=stride;
+    }
+}
+void RecordTestProviderWrites(ID3D12GraphicsCommandList* list, ID3D12Resource* spec, ID3D12Resource* diff)
+{
+    ClearPair(list,spec,diff,{2.5f,3.75f,4.25f,5.5f},{6.5f,7.75f,8.25f,9.5f});
+}
 struct Scene
 {
     ConvertedResources resources;
@@ -408,7 +436,84 @@ struct Readback
         std::cout<<"output "<<file.filename().string()<<" finite="<<finite<<" meanRGB="<<sum/(double(width)*height*3)
             <<" maxRGB="<<maximum<<'\n';
     }
+    void exact(const std::array<float,4>& expected,uint32_t width,uint32_t height)
+    {
+        uint8_t* data;hr(bufferResource->Map(0,nullptr,reinterpret_cast<void**>(&data)));
+        uint64_t matched=0;
+        for(uint32_t y=0;y<height;++y)
+        {
+            const auto* row=reinterpret_cast<const uint16_t*>(data+footprint.Offset+y*footprint.Footprint.RowPitch);
+            for(uint32_t x=0;x<width;++x)for(uint32_t c=0;c<4;++c)
+                matched+=row[x*4+c]==PackedVector::XMConvertFloatToHalf(expected[c]);
+        }
+        bufferResource->Unmap(0,nullptr);
+        need(matched==uint64_t(width)*height*4,"transactional output must preserve exact RGBA bytes");
+    }
 };
+void partialFailureChecks(Host& host)
+{
+    Scene scene(host,64,64);host.submit();host.reset();
+    const std::array<float,4> specSentinel{.125f,.25f,.5f,.75f},diffSentinel{1.25f,1.5f,1.75f,2.f};
+    ClearPair(host.list.Get(),scene.spec(),scene.diff(),specSentinel,diffSentinel);host.submit();host.reset();
+    RRWrapper wrapper;FrameParameters frame;std::string error;
+    need(wrapper.PrepareFrame(camera(400),false,frame,error),"prepare partial provider failure");
+    const auto destroys=FfxApiProxy::destroys,creates=FfxApiProxy::creates;
+    FfxApiProxy::recordPartialWrites=true;FfxApiProxy::rejectDispatch=true;
+    need(!wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),"partially recorded provider error propagated");
+    need(FfxApiProxy::lastSpecular.signal.output.resource!=scene.spec() &&
+        FfxApiProxy::lastDiffuse.signal.output.resource!=scene.diff(),"provider receives staging, never title outputs");
+    need(wrapper.OwnedStagingBytes()==0 && FfxApiProxy::destroys==destroys,"failed generation retired but retained while recorded");
+    host.submit();host.reset();need(FfxApiProxy::destroys==destroys+1,"failed generation retires after its partial GPU work completes");
+    Readback oldSpec(host,scene.spec()),oldDiff(host,scene.diff());host.submit();host.reset();
+    oldSpec.exact(specSentinel,64,64);oldDiff.exact(diffSentinel,64,64);
+    FfxApiProxy::rejectDispatch=false;
+    need(wrapper.PrepareFrame(camera(401),false,frame,error) && frame.reset && !frame.previousValid,"provider error clears all history");
+    need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
+    need(FfxApiProxy::creates==creates+2 && wrapper.ContextGeneration()==2,"recovery uses a physically fresh provider context");
+    Readback newSpec(host,scene.spec()),newDiff(host,scene.diff());host.submit();host.reset();
+    newSpec.exact({2.5f,3.75f,4.25f,5.5f},64,64);newDiff.exact({6.5f,7.75f,8.25f,9.5f},64,64);
+    need(scene.spec()->AddRef()==2 && scene.spec()->Release()==1,"commit heap never retains title spec output");
+    need(scene.diff()->AddRef()==2 && scene.diff()->Release()==1,"commit heap never retains title diffuse output");
+    FfxApiProxy::recordPartialWrites=false;
+}
+void stagingPoolChecks(Host& host)
+{
+    Scene scene(host,64,64);host.submit();host.reset();RRWrapper wrapper;FrameParameters frame;std::string error;
+    uint64_t warmed=0;
+    for(uint32_t i=0;i<32;++i)
+    {
+        need(wrapper.PrepareFrame(camera(1000+i),false,frame,error),"prepare pooled recording");
+        need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
+        if(i==0)warmed=wrapper.OwnedStagingBytes();
+        if(i<4)need(wrapper.OwnedStagingBytes()==warmed,"first four unretired recordings use warmed staging");
+    }
+    need(wrapper.OwnedStagingBytes()==warmed*8,"32 pending recordings own 32 independent staging slots");
+    const auto calls=FfxApiProxy::dispatches;
+    need(wrapper.PrepareFrame(camera(1032),false,frame,error),"prepare staging-pool rejection");
+    need(!wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),"33rd unretired recording fails closed");
+    need(FfxApiProxy::dispatches==calls && error.find("32 unretired")!=std::string::npos,"pool exhaustion fails before provider work");
+    const auto peak=wrapper.OwnedStagingBytes();host.submit();host.reset();
+    need(wrapper.PrepareFrame(camera(1032),false,frame,error) && frame.reset,"pool rejection resets next recorded history");
+    need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
+    need(wrapper.OwnedStagingBytes()==peak,"completed staging slots reused without further allocation");
+    host.submit();host.reset();
+}
+void discardedRecordingChecks(Host& host,const std::filesystem::path& output)
+{
+    Scene scene(host,1505,847);host.submit();host.reset();RRWrapper wrapper;FrameParameters frame;std::string error;
+    const auto creates=FfxApiProxy::creates,destroys=FfxApiProxy::destroys;
+    need(wrapper.PrepareFrame(camera(500),false,frame,error),"prepare unsubmitted real provider work");
+    need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
+    // Reset the actual command list without submission, then explicitly discard the
+    // provider's private CPU/model state as the integrated coordinator will do.
+    hr(host.list->Close());host.reset();wrapper.DiscardRecordingHistory();
+    need(FfxApiProxy::destroys==destroys+1 && wrapper.OwnedStagingBytes()==0,"discard retires unsubmitted real context and staged resources");
+    need(wrapper.PrepareFrame(camera(501),false,frame,error) && frame.reset && !frame.previousValid,"discarded recording cannot supply history");
+    need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
+    need(FfxApiProxy::creates==creates+2 && wrapper.ContextGeneration()==2,"post-discard recording creates fresh physical context");
+    Readback spec(host,scene.spec()),diff(host,scene.diff());host.submit();host.reset();
+    spec.verify(output/"discard_recovery_spec.rgba16f",1505,847);diff.verify(output/"discard_recovery_diff.rgba16f",1505,847);
+}
 void realLoop(Host& host,uint32_t width,uint32_t height,unsigned frames,const std::filesystem::path& input,
               const std::filesystem::path& output,const char* label)
 {
@@ -416,6 +521,7 @@ void realLoop(Host& host,uint32_t width,uint32_t height,unsigned frames,const st
     ComPtr<ID3D12QueryHeap> queries;D3D12_QUERY_HEAP_DESC desc{};desc.Type=D3D12_QUERY_HEAP_TYPE_TIMESTAMP;desc.Count=2;
     hr(host.device->CreateQueryHeap(&desc,IID_PPV_ARGS(&queries)));auto timing=buffer(host.device.Get(),16,D3D12_HEAP_TYPE_READBACK);
     UINT64 frequency;hr(host.queue->GetTimestampFrequency(&frequency));std::vector<double> milliseconds;
+    uint64_t warmedStagingBytes=0;
     for(unsigned index=0;index<frames;++index)
     {
         auto snapshot=camera(index,width/float(height));snapshot.constants.jitterOffset=sl::float2(0,0);
@@ -423,6 +529,8 @@ void realLoop(Host& host,uint32_t width,uint32_t height,unsigned frames,const st
         need(wrapper.PrepareFrame(snapshot,false,frame,error),"real loop camera preparation");
         host.list->EndQuery(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0);
         need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
+        if(index==0)warmedStagingBytes=wrapper.OwnedStagingBytes();
+        need(wrapper.OwnedStagingBytes()==warmedStagingBytes,"sequential recordings reuse warmed staging without allocation");
         host.list->EndQuery(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,1);
         host.list->ResolveQueryData(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0,2,timing.Get(),0);
         host.submit();UINT64* ticks;hr(timing->Map(0,nullptr,reinterpret_cast<void**>(&ticks)));
@@ -434,7 +542,8 @@ void realLoop(Host& host,uint32_t width,uint32_t height,unsigned frames,const st
     const unsigned warm=std::min(4u,frames-1);std::vector<double> steady(milliseconds.begin()+warm,milliseconds.end());
     std::sort(steady.begin(),steady.end());const double mean=std::accumulate(steady.begin(),steady.end(),0.0)/steady.size();
     std::cout<<"timing "<<label<<" size="<<width<<'x'<<height<<" frames="<<frames<<" warmup="<<warm
-        <<" mean_ms="<<mean<<" median_ms="<<steady[steady.size()/2]<<" first_ms="<<milliseconds[0]<<" samples_ms=";
+        <<" mean_ms="<<mean<<" median_ms="<<steady[steady.size()/2]<<" first_ms="<<milliseconds[0]
+        <<" staging_bytes="<<warmedStagingBytes<<" staging_slots=4 scope=RR_stage_plus_exact_RGBA_commit samples_ms=";
     for(auto value:milliseconds)std::cout<<value<<',';std::cout<<'\n';
 }
 int main(int argc,char** argv) try
@@ -460,9 +569,12 @@ int main(int argc,char** argv) try
     std::cout<<"stage deferred lifetime checks\n";lifecycleChecks(host);
     std::cout<<"stage minimum-size fail-closed check\n";minimumChecks(host);
     if(mode=="--mock")providerChecks(host);
+    if(mode=="--mock")partialFailureChecks(host);
+    if(mode=="--mock")stagingPoolChecks(host);
     if(mode=="--real")
     {
         need(argc==4,"real test needs capture input/output directories");std::filesystem::path output=argv[3];std::filesystem::create_directories(output);
+        discardedRecordingChecks(host,output);
         realLoop(host,1505,847,24,{},output,"synthetic_1505x847");
         realLoop(host,1505,847,24,argv[2],output,"da9f_1505x847");
         realLoop(host,2560,1440,16,{},output,"synthetic_2560x1440");
