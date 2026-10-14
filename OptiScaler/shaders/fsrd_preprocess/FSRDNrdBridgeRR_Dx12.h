@@ -24,6 +24,15 @@ struct RRSettingsState
 };
 bool ValidateRRSettings(const RRSettings&, std::string& error);
 
+struct RRWrapperNativeDebugOutputSnapshot
+{
+    ID3D12Resource* resource = nullptr;
+    std::shared_ptr<void> owner;
+    ID3D12GraphicsCommandList* recording = nullptr;
+    uint32_t frameSL = UINT32_MAX, width = 0, height = 0;
+    D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+};
+
 class RRWrapper
 {
     struct Impl;
@@ -38,6 +47,12 @@ class RRWrapper
     // Coordinator serializes this snapshot with dispatch; Config is never read here.
     bool Configure(const RRSettings&, std::string& error);
     RRSettingsState GetSettingsState() const noexcept;
+    RRWrapperNativeDebugOutputSnapshot GetNativeDebugOutputSnapshot() const noexcept;
+    // The coordinator proves same-recording or fence-published source ordering
+    // before presentation. Output is borrowed for recording, then restored.
+    bool PresentNativeDebug(ID3D12GraphicsCommandList*, ID3D12Resource* output,
+                            D3D12_RESOURCE_STATES outputState, uint32_t frameSL, std::string& error,
+                            bool orderedAcrossLists = false);
     void ResetHistory() noexcept;
     void DiscardRecordingHistory() noexcept;
     uint64_t ContextGeneration() const noexcept;
