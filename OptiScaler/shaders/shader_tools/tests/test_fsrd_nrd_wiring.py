@@ -38,6 +38,7 @@ def run():
     bodies += '\n'.join(function(d3d, 'static void hk'+name+'(') for name in early)
     bodies += '\n'+'\n'.join(function(d3d, 'static void hkSurvey'+name+'(') for name in wrappers)
     controls = '\n'.join(function(d3d, signature) for signature in (
+        'static bool CaptureRootRestoreSnapshot(',
         'void D3D12Hooks::SetRootSignatureTracking(', 'bool D3D12Hooks::RootSignatureTrackingEnabled(',
         'void D3D12Hooks::OnBridgeCommandListReset(', 'bool D3D12Hooks::CanRestoreRootSignature(',
         'bool D3D12Hooks::RestoreDescriptorHeaps(', 'bool D3D12Hooks::RestorePipelineState(',

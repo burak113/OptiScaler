@@ -173,6 +173,7 @@ namespace D3d12Proxy {
     extra = ''
     controls_names = (
         'void D3D12Hooks::SetRootSignatureTracking(', 'bool D3D12Hooks::RootSignatureTrackingEnabled(',
+        'static bool CaptureRootRestoreSnapshot(',
         'void D3D12Hooks::OnBridgeCommandListReset(', 'bool D3D12Hooks::CanRestoreRootSignature(',
         'bool D3D12Hooks::RestoreDescriptorHeaps(', 'bool D3D12Hooks::RestorePipelineState(',
         'bool D3D12Hooks::RestoreComputeRootState(', 'bool D3D12Hooks::RestoreGraphicsRootState(',
@@ -182,15 +183,16 @@ namespace D3d12Proxy {
         extra = 'static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*,FrameSurvey::ComputeBindings&) noexcept;'
     declaration = '''#pragma once
 #include <resource_tracking/FrameSurvey_Dx12.h>
+struct D3D12RootRestoreSnapshot;
 struct D3D12Hooks {
  static void SetRootSignatureTracking(bool);
  static bool RootSignatureTrackingEnabled();
  static void OnBridgeCommandListReset(ID3D12GraphicsCommandList*,ID3D12PipelineState*);
  static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*);
- static bool RestoreDescriptorHeaps(ID3D12GraphicsCommandList*);
- static bool RestorePipelineState(ID3D12GraphicsCommandList*);
- static bool RestoreComputeRootState(ID3D12GraphicsCommandList*);
- static bool RestoreGraphicsRootState(ID3D12GraphicsCommandList*);
+ static bool RestoreDescriptorHeaps(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
+ static bool RestorePipelineState(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
+ static bool RestoreComputeRootState(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
+ static bool RestoreGraphicsRootState(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
  static void RestoreRoot(ID3D12GraphicsCommandList*);
 ''' + extra + '\n};\n'
     (stubs / 'hooks/D3D12_Hooks.h').write_text(declaration)
