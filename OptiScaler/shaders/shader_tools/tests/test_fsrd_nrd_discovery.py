@@ -161,6 +161,12 @@ struct ChainHost {
   bind(1,role==Role::Temporal ? 16 : 0); bind(5,uav);
   NrdBridge::BeforeDispatch(h.list.Get()); h.list->Dispatch(1,1,1); NrdBridge::AfterDispatch(h.list.Get());
  }
+ void incompleteRecon() {
+  h.list->SetPipelineState(pipelines[UINT(Role::Recon)].Get()); FrameSurvey::SetPipeline(h.list.Get(),pipelines[UINT(Role::Recon)].Get());
+  NrdBridge::OnSetPipeline(h.list.Get(),pipelines[UINT(Role::Recon)].Get());
+  bind(1,120); bind(5,8); // Eight legal heap slots with intentionally unknown descriptor metadata.
+  NrdBridge::BeforeDispatch(h.list.Get()); h.list->Dispatch(1,1,1); NrdBridge::AfterDispatch(h.list.Get());
+ }
  void postTemporal(UINT count,UINT bcount=2) {
   pass(Role::Chain3); pass(Role::HistSave); pass(Role::HistFix); pass(Role::Clamp);
   for(UINT i=0;i<count;++i) pass(Role::ATrous,i+1==count ? 32 : 24);
@@ -376,6 +382,17 @@ J discoveryTests(Host& h) {
  ResTrack_Dx12::SubmitForTesting(h.list.Get()); const auto toggleDiscards=rrDiscards,toggleResets=rrResets;
  NrdBridge::SetRuntimeEnabled(false); NrdBridge::SetRuntimeEnabled(true); c.frame(3);
  need(rrDiscards==toggleDiscards && rrResets>toggleResets,"ordinary runtime A/B resets valid submitted history without discarding private RR context");
+ // A new chain on the same open list must not hide successful but unsubmitted provider work.
+ auto overlapRecording=NrdBridge::gService->lists.at(h.list.Get()).recording; const auto overlapResetDiscards=rrDiscards;
+ c.incompleteRecon();
+ need(NrdBridge::gService->lists.at(h.list.Get()).recording==overlapRecording && !overlapRecording->submitted.load() && !NrdBridge::gService->cache.Valid(),"second incomplete Recon preserves the first successful Consumer submission token");
+ NrdBridge::OnReset(h.list.Get(),nullptr); c.frame(3); c.frame(3);
+ need(rrDiscards==overlapResetDiscards+1 && !NrdBridge::gService->discardRequested,"Reset after an incomplete second Recon discards prior unsubmitted private RR context exactly once");
+ overlapRecording=NrdBridge::gService->lists.at(h.list.Get()).recording; const auto overlapReleaseDiscards=rrDiscards;
+ c.incompleteRecon();
+ need(NrdBridge::gService->lists.at(h.list.Get()).recording==overlapRecording && !overlapRecording->submitted.load(),"second incomplete Recon retains prior recording through its binding failure for Release");
+ FrameSurvey::Released(h.list.Get()); c.frame(3); c.frame(3);
+ need(rrDiscards==overlapReleaseDiscards+1 && !NrdBridge::gService->discardRequested,"Release after an incomplete second Recon discards prior unsubmitted private RR context exactly once");
  const auto releaseSerial=NrdBridge::gService->resetSerial; const auto releaseDiscards=rrDiscards; FrameSurvey::Released(h.list.Get());
  need(NrdBridge::gService->resetSerial>releaseSerial && !NrdBridge::gService->lists.contains(h.list.Get()),"list Release discards an unsubmitted successful Consumer even after converted is cleared");
  c.frame(3); need(rrDiscards==releaseDiscards+1 && !NrdBridge::gService->discardRequested,"list Release consumes unsubmitted RR context discard on the next Convert");

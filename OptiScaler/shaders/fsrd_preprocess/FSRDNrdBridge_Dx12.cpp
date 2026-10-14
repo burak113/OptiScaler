@@ -431,7 +431,9 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 if (role == Role::Recon)
                 {
                     if (owner->pendingList) DropPending(*owner);
-                    auto& list = found->second; list = {}; list.role = role; list.followingRecon = list.nrdList = true;
+                    auto& list = found->second; auto recording = std::move(list.recording);
+                    list = {}; list.recording = std::move(recording); // Prior unsubmitted RR work survives a second incomplete Recon.
+                    list.role = role; list.followingRecon = list.nrdList = true;
                     list.frame = frame = ++owner->frame; owner->observedRecon = owner->everRecon = true;
                     if (window) owner->windowSawRecon = true;
                 }
