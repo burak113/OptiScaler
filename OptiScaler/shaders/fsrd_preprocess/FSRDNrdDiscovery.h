@@ -164,6 +164,12 @@ class ChainDiscovery
     bool Valid() const noexcept { return stage_ != Stage::Empty && stage_ != Stage::Invalid; }
     bool Complete() const noexcept { return stage_ == Stage::Complete; }
     const Resources& Get() const noexcept { return resources_; }
+    std::array<ID3D12Resource*,11> ReferencedResources() const noexcept
+    {
+        return {resources_.inputSpec,resources_.inputDiff,resources_.normals,resources_.viewDepth,
+            resources_.reconSpec,resources_.reconDiff,resources_.motion,resources_.outputSpec,resources_.outputDiff,
+            lastSpec_.resource,lastDiff_.resource};
+    }
     const std::array<Bound,9>& Bindings() const noexcept { return bindings_; }
     uint32_t ChainAIterations() const noexcept { return atrousCount_; } // Diagnostics only.
 };

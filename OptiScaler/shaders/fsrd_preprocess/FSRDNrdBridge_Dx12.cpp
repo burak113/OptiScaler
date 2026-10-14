@@ -17,6 +17,7 @@
 #include <mutex>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <cctype>
 
@@ -51,6 +52,7 @@ struct ListState
 {
     Role role = Role::None;
     ChainDiscovery chain;
+    std::array<ID3D12Resource*,11> indexedReferences {};
     bool followingRecon = false, converted = false, motionReady = false, temporal = false, atrous = false, nrdList = false;
     std::shared_ptr<RecordingToken> recording;
     std::shared_ptr<HistoryDomain> history;
@@ -64,6 +66,8 @@ struct Service
     Microsoft::WRL::ComPtr<ID3D12Device> device;
     std::unordered_map<ID3D12PipelineState*,Role> roles;
     std::unordered_map<ID3D12GraphicsCommandList*,ListState> lists;
+    std::unordered_map<void*,std::unordered_set<ID3D12GraphicsCommandList*>> chainUsers;
+    std::unordered_set<ID3D12GraphicsCommandList*> followingChains;
     DiscoveryCache cache;
     std::shared_ptr<HistoryDomain> history;
     std::vector<std::weak_ptr<HistoryDomain>> historyDomains;
@@ -161,6 +165,26 @@ Role PipelineRole(const Service& owner, ID3D12PipelineState* pipeline)
 {
     const auto found = owner.roles.find(pipeline); return found == owner.roles.end() ? Role::None : found->second;
 }
+// Caller holds gMutex. Release looks up only chains which actually use the address;
+// descriptor creation or an unrelated final Release never walks all participant lists.
+void UpdateChainUsers(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list,
+                      const std::array<ID3D12Resource*,11>& next)
+{
+    const auto& prior = list.indexedReferences;
+    for (auto* object : prior)
+        if (object && std::find(next.begin(),next.end(),object) == next.end())
+            if (const auto found = owner.chainUsers.find(object); found != owner.chainUsers.end())
+            { found->second.erase(cmd); if (found->second.empty()) owner.chainUsers.erase(found); }
+    for (auto* object : next)
+        if (object && std::find(prior.begin(),prior.end(),object) == prior.end()) owner.chainUsers[object].insert(cmd);
+    list.indexedReferences = next;
+}
+void RemoveChainUsers(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list)
+{ UpdateChainUsers(owner,cmd,list,{}); }
+void RefreshChainUsers(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list)
+{ UpdateChainUsers(owner,cmd,list,list.chain.Valid() ? list.chain.ReferencedResources() : std::array<ID3D12Resource*,11>{}); }
+void StopFollowing(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list)
+{ list.followingRecon = false; owner.followingChains.erase(cmd); }
 void DropPending(Service& owner)
 {
     owner.pendingList = nullptr; owner.status.active = false;
@@ -195,6 +219,7 @@ void Failure(const std::shared_ptr<Service>& owner, const std::string& reason)
         log = owner->status.reason != reason;
         owner->cache.Invalidate(); DropPending(*owner); owner->window = false; owner->retryPresents = 0;
         for (auto& [cmd,list] : owner->lists) list.followingRecon = false;
+        owner->followingChains.clear();
         owner->status.active = false; owner->status.phase = "Inactive"; owner->status.reason = reason;
         owner->status.resources.clear(); owner->status.width = owner->status.height = 0;
         ++owner->failures;
@@ -220,7 +245,7 @@ void WaitingForBindings(const std::shared_ptr<Service>& owner, ID3D12GraphicsCom
         if (gService != owner || !owner->window) return;
         if (owner->cache.Valid()) owner->cache.Invalidate();
         DropPending(*owner);
-        if (const auto found = owner->lists.find(cmd); found != owner->lists.end()) found->second.followingRecon = false;
+        if (const auto found = owner->lists.find(cmd); found != owner->lists.end()) StopFollowing(*owner,cmd,found->second);
         log = owner->status.reason != reason;
         owner->status.active = false; owner->status.phase = "Discovering"; owner->status.reason = reason;
         owner->status.resources.clear(); owner->status.width = owner->status.height = 0;
@@ -607,6 +632,7 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
                     if (owner.activeFrame == found->second.frame) owner.status.active = false;
                     ++owner.resetSerial;
                 }
+                RemoveChainUsers(owner,cmd,found->second); StopFollowing(owner,cmd,found->second);
                 found->second = {}; found->second.nrdList = nrdList; found->second.role = PipelineRole(owner,initial);
                 if (nrdList && gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
                     (owner.cache.Valid() || owner.retryPresents >= 60 || !owner.everRecon))
@@ -638,14 +664,15 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 std::scoped_lock lock(gMutex); owner = gService; if (!owner) return;
                 const auto found = owner->lists.find(cmd); if (found == owner->lists.end()) return;
                 role = found->second.role; window = owner->window;
-                if (!window) { found->second.followingRecon = false; cooldown = true; } // Retry cooldown records no owned work.
+                if (!window) { StopFollowing(*owner,cmd,found->second); cooldown = true; } // Retry cooldown records no owned work.
                 else if (role == Role::Recon)
                 {
-                    auto& list = found->second; auto recording = std::move(list.recording);
+                    auto& list = found->second; RemoveChainUsers(*owner,cmd,list); StopFollowing(*owner,cmd,list);
+                    auto recording = std::move(list.recording);
                     auto previousHistory = std::move(list.history);
                     list = {}; list.recording = std::move(recording); list.history = std::move(previousHistory);
                     // Prior unsubmitted RR work survives a second incomplete Recon.
-                    list.role = role; list.followingRecon = list.nrdList = true;
+                    list.role = role; list.followingRecon = list.nrdList = true; owner->followingChains.insert(cmd);
                     list.frame = frame = ++owner->frame; owner->observedRecon = owner->everRecon = true;
                     if (window) owner->windowSawRecon = true;
                 }
@@ -666,6 +693,7 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 auto& list = found->second;
                 if (role == Role::Recon) invalid = !list.chain.Begin(srv,uav,error);
                 else invalid = !list.chain.Observe(role,srv,uav,owner->taggedMotion,error);
+                RefreshChainUsers(*owner,cmd,list);
                 if (role == Role::Temporal) list.temporal = true;
                 if (role == Role::ATrous && list.temporal) list.atrous = true;
                 if (!invalid && role == Role::Recon && owner->cache.Valid())
@@ -713,7 +741,7 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
             if (gService == owner && found != owner->lists.end())
             {
                 if (found->second.converted) DropPending(*owner);
-                found->second.followingRecon = false;
+                StopFollowing(*owner,cmd,found->second);
             }
             return;
         }
@@ -740,6 +768,7 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
             if (window)
             {
                 invalid = !list.chain.Observe(Role::Consumer,srv,uav,owner->taggedMotion,error);
+                RefreshChainUsers(*owner,cmd,list);
                 if (!invalid)
                 {
                     published = owner->cache.Publish(list.chain); discovered = list.chain; motionTag = owner->taggedMotion;
@@ -758,8 +787,8 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 staged.parameters.outputConstants = {nullptr,consumerConstants.address,
                     consumerConstants.descriptorHeap,consumerConstants.descriptor};
             }
-            list.followingRecon = false;
-            keepWindow = std::any_of(owner->lists.begin(),owner->lists.end(),[](const auto& entry) { return entry.second.followingRecon; });
+            StopFollowing(*owner,cmd,list);
+            keepWindow = !owner->followingChains.empty();
             owner->window = keepWindow;
         }
         } // Release physical-resource borrow before waiting for native injection serialization.
@@ -879,14 +908,25 @@ void OnReleased(void* object) noexcept
                     if (owner.activeFrame == found->second.frame) owner.status.active = false;
                     ++owner.resetSerial;
                 }
+                RemoveChainUsers(owner,found->first,found->second); StopFollowing(owner,found->first,found->second);
                 owner.lists.erase(found);
             }
             bool currentReleased = false;
-            for (auto& [cmd,list] : owner.lists) if (list.chain.Released(object))
+            // An address can be shared by a few NRD recordings. Visit those users only.
+            // RemoveChainUsers may erase this map entry, so reacquire it per iteration.
+            for (;;)
             {
-                // A newly bound guide may not be in the last published cache yet.
-                currentReleased |= list.followingRecon || list.converted;
-                list.followingRecon = false;
+                const auto users = owner.chainUsers.find(object);
+                if (users == owner.chainUsers.end() || users->second.empty()) break;
+                const auto cmd = *users->second.begin();
+                // Pop before any secondary cleanup: a failed index allocation may
+                // have published this pair before indexedReferences was committed.
+                users->second.erase(cmd); if (users->second.empty()) owner.chainUsers.erase(users);
+                const auto found = owner.lists.find(cmd);
+                if (found == owner.lists.end()) continue;
+                auto& list = found->second;
+                if (list.chain.Released(object)) currentReleased |= list.followingRecon || list.converted;
+                RemoveChainUsers(owner,cmd,list); StopFollowing(owner,cmd,list);
             }
             if (owner.taggedMotion == object) owner.taggedMotion = nullptr;
             if (owner.cache.Released(object) || currentReleased)
