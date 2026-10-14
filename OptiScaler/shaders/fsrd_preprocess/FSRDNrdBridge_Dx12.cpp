@@ -153,6 +153,8 @@ template<class Configuration> RRSettings ReadStartupSettings(const Configuration
         settings.nativeDebugView = config.FfxDenoiserNrdBridgeNativeDebugView.value_or_default();
         settings.nativeDebugViewport = uint32_t(config.FfxDenoiserNrdBridgeNativeDebugViewport.value_or_default());
     }
+    if constexpr (requires { config.FfxDenoiserNrdBridgeMaterialIDs; })
+        settings.preserveNativeMaterialIDs = config.FfxDenoiserNrdBridgeMaterialIDs.value_or_default();
     return settings;
 }
 template<class Configuration> bool ReadStartupCameraDepth(const Configuration& config)
@@ -407,6 +409,7 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         succeeded = history->rr.Configure(rrSettings,error);
         if (succeeded) succeeded = history->rr.PrepareFrame(snapshot,reset,parameters,error);
         parameters.cameraProjectedDepthDelta = cameraProjectedDepthDelta;
+        parameters.preserveNativeMaterialIDs = rrSettings.preserveNativeMaterialIDs;
         if (succeeded && parameters.reset) history->conversion.ResetHistory();
         if (succeeded) succeeded = history->conversion.Initialize(owner->device.Get(),resources.width,resources.height,error);
         if (succeeded) succeeded = ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(),cmd,ownership,{},std::move(submission));
@@ -1098,11 +1101,12 @@ bool ApplyRRSettings(const RRSettings& settings, bool cameraProjectedDepthDelta,
             const bool motionChanged = owner->cameraProjectedDepthDelta != cameraProjectedDepthDelta;
             const bool debugChanged = owner->rrSettings.nativeDebugView != settings.nativeDebugView ||
                 (settings.nativeDebugView >= 0 && owner->rrSettings.nativeDebugViewport != settings.nativeDebugViewport);
+            const bool materialChanged = owner->rrSettings.preserveNativeMaterialIDs != settings.preserveNativeMaterialIDs;
             const bool rawDebugCleared = settings.nativeDebugView >= 0 && gDebug.exchange(DebugMode::Off,std::memory_order_acq_rel) != DebugMode::Off;
             owner->rrSettings = settings; owner->cameraProjectedDepthDelta = cameraProjectedDepthDelta;
             owner->rrSettingsState = after; owner->rrSettingsState.requested = settings;
             gNativeDebug.store(settings.nativeDebugView >= 0,std::memory_order_release);
-            if (scalarChanged || motionChanged || debugChanged || rawDebugCleared || !configured)
+            if (scalarChanged || motionChanged || materialChanged || debugChanged || rawDebugCleared || !configured)
             {
                 DropPending(*owner);
                 if (owner->status.runtimeEnabled)
