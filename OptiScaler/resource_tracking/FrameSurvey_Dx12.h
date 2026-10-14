@@ -42,6 +42,9 @@ void SetReleaseObserver(ReleaseObserver) noexcept;
 void SetBindingWindow(bool) noexcept;
 bool BindingWindow() noexcept;
 bool MetadataHealthy() noexcept;
+// Proves the current compute table offset maps uniquely to the exact shader register/space.
+bool ComputeTableBindingMatches(ID3D12GraphicsCommandList*, UINT rootParameter, D3D12_DESCRIPTOR_RANGE_TYPE kind,
+                                UINT descriptorOffset, UINT shaderRegister, UINT registerSpace) noexcept;
 bool ResolveComputeTable(ID3D12GraphicsCommandList*, UINT rootParameter, std::vector<BoundResource>& out) noexcept;
 class ScopedInternal
 {
