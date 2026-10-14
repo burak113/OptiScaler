@@ -76,6 +76,12 @@ void SeedForWindow(ID3D12GraphicsCommandList* cmd)
     FrameSurvey::ComputeBindings bindings;
     if (D3D12Hooks::GetComputeBindingsForBridge(cmd,bindings)) FrameSurvey::SeedComputeBindings(cmd,bindings);
 }
+void RequireRestoreFlags()
+{
+    auto* config = Config::Instance();
+    if (!config->RestoreComputeSignature.value_or_default()) config->RestoreComputeSignature.set_volatile_value(true);
+    if (!config->ExtendedStateRestore.value_or_default()) config->ExtendedStateRestore.set_volatile_value(true);
+}
 Role PipelineRole(const Service& owner, ID3D12PipelineState* pipeline)
 {
     const auto found = owner.roles.find(pipeline); return found == owner.roles.end() ? Role::None : found->second;
@@ -209,6 +215,7 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
             owner->cache.Generation() != generation || owner->resetSerial != serial || found == owner->lists.end() ||
             found->second.frame != frame) return;
     }
+    if (!FrameSurvey::MetadataHealthy()) { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
     if (!D3D12Hooks::CanRestoreRootSignature(cmd)) { Failure(owner,"Title compute state cannot be restored after Recon"); return; }
     std::string error, conventions; FrameParameters parameters; ConvertedResources converted;
     bool succeeded = false; auto recording = std::make_shared<RecordingToken>();
@@ -267,6 +274,7 @@ void FinalizeMotion(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommand
             list.resetSerial != owner->resetSerial || owner->cache.Get().motion != currentMotion) return;
         staged = list;
     }
+    if (!FrameSurvey::MetadataHealthy()) { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
     if (!D3D12Hooks::CanRestoreRootSignature(cmd)) { Failure(owner,"Title compute state cannot be restored after first Temporal"); return; }
     std::string error; bool succeeded = false;
     {
@@ -380,6 +388,7 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
         bool open = false;
         {
             std::scoped_lock lock(gMutex); if (!gService) return; auto& owner = *gService;
+            if (gRuntime.load(std::memory_order_relaxed)) RequireRestoreFlags();
             const auto found = owner.lists.find(cmd);
             if (found != owner.lists.end())
             {
@@ -518,6 +527,7 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
             if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || !owner->cache.Valid() ||
                 staged.generation != owner->cache.Generation() || staged.resetSerial != owner->resetSerial || owner->pendingList != cmd) return;
         }
+        if (!FrameSurvey::MetadataHealthy()) { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
         if (!D3D12Hooks::CanRestoreRootSignature(cmd)) { Failure(owner,"Title compute state cannot be restored before Consumer"); return; }
         bool succeeded = false;
         {
@@ -641,6 +651,7 @@ void SetRuntimeEnabled(bool enabled) noexcept
     try
     {
         std::scoped_lock injection(gInjectionMutex);
+        if (enabled) { std::scoped_lock lock(gMutex); if (gService) RequireRestoreFlags(); }
         const bool previous = gRuntime.exchange(enabled,std::memory_order_acq_rel); if (previous == enabled) return;
         bool window = false;
         {

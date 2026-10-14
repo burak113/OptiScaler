@@ -516,6 +516,7 @@ void SetBindingWindow(bool enabled) noexcept
     } catch (...) { MetadataFailed("Binding window invalidation failed"); }
 }
 bool BindingWindow() noexcept { return gBindingWindow.load(std::memory_order_relaxed); }
+bool MetadataHealthy() noexcept { return gMetadataHealthy.load(std::memory_order_acquire); }
 bool SeedComputeBindings(ID3D12GraphicsCommandList* cmd, const ComputeBindings& bindings) noexcept
 {
     if (!BindingTracking() || gInternal || !cmd || !bindings.root || bindings.heaps.empty() || !gMetadataHealthy.load(std::memory_order_acquire)) return false;
