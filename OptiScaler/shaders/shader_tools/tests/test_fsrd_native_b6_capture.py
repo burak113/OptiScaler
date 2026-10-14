@@ -42,7 +42,9 @@ struct NativeCaptureHost {
   D3D12_HEAP_PROPERTIES hp{};hp.Type=type;
   const auto desc=CD3DX12_RESOURCE_DESC::Buffer(bytes,uav?D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS:D3D12_RESOURCE_FLAG_NONE);
   ComPtr<ID3D12Resource> result;
-  hr(h.dev->CreateCommittedResource(&hp,D3D12_HEAP_FLAG_NONE,&desc,state,nullptr,IID_PPV_ARGS(&result)));
+  const auto initial=type==D3D12_HEAP_TYPE_DEFAULT?D3D12_RESOURCE_STATE_COMMON:state;
+  hr(h.dev->CreateCommittedResource(&hp,D3D12_HEAP_FLAG_NONE,&desc,initial,nullptr,IID_PPV_ARGS(&result)));
+  if(initial!=state)transition(result.Get(),initial,state);
   return result;
  }
  ComPtr<ID3D12Resource> source(uint32_t flag) {
