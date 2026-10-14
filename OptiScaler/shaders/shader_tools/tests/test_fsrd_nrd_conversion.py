@@ -292,7 +292,7 @@ def verify_case(directory, input_values, params, previous_depth=None, history_va
 
 
 def verify_table_consumer(directory, width, height):
-    flags = [0, 1, 0x80000000, 0x7fc00000, 0, 1]
+    flags = [0, 1, 0x80000000, 0x7fc00000, 0, 1, 0, 1]
     for name in ('spec', 'diff'):
         source = np.fromfile(directory / f'table_source_{name}.bin', '<f2').reshape(height, width, 4)
         for index, flag in enumerate(flags):
@@ -334,7 +334,7 @@ def synthetic(exe):
     verify_table_consumer(directory, width, height)
     return dict(frames=count, width=width, height=height, fixture_checks=int(re.search(r'fixture_checks=(\d+)', stdout)[1]),
                 table_fixture_checks=int(re.search(r'table_fixture_checks=(\d+)', stdout)[1]),
-                native_table_cases=6, table_auxiliary_bytes=327680,
+                native_table_cases=8, table_auxiliary_bytes=196608,
                 gpu_based_validation=True, source_access='Recon UAV flag4 in UA state, guides SRV without UAV flag; descriptor and borrowed-resource barrier audit',
                 audited_views=int(re.search(r'audited_views=(\d+)', stdout)[1]),
                 audited_barriers=int(re.search(r'audited_barriers=(\d+)', stdout)[1]),
@@ -397,7 +397,7 @@ def captured(exe):
                              'This verifies real lighting payload conversion; missing captured normals/camera remain synthetic. Installed-title oct/B packing is independently attested.'],
                 fixture_checks=int(re.search(r'fixture_checks=(\d+)', stdout)[1]),
                 table_fixture_checks=int(re.search(r'table_fixture_checks=(\d+)', stdout)[1]),
-                native_table_cases=6, table_auxiliary_bytes=327680,
+                native_table_cases=8, table_auxiliary_bytes=196608,
                 outputs=(directory / 'frame0').as_posix(), image=(REPORT / 'da9f_conversion_before_after.png').as_posix())
 
 

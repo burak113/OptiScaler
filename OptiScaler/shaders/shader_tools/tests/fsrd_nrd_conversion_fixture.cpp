@@ -318,8 +318,9 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
             void* mapped = nullptr; hr(constant->Map(0, nullptr, &mapped));
             std::memset(mapped, 0, 1536); constant->Unmap(0, nullptr);
         }
-        const NrdBridge::TitleSignalConstants rgbConstants {constants[0].Get(), constants[0]->GetGPUVirtualAddress()};
-        const NrdBridge::TitleSignalConstants dynamicConstants {constants[1].Get(), constants[1]->GetGPUVirtualAddress()};
+        // Last two synthetic recordings supply the actual root VA without a source-resource owner.
+        const NrdBridge::TitleSignalConstants rgbConstants {frameIndex >= 6 ? nullptr : constants[0].Get(), constants[0]->GetGPUVirtualAddress()};
+        const NrdBridge::TitleSignalConstants dynamicConstants {frameIndex >= 6 ? nullptr : constants[1].Get(), constants[1]->GetGPUVirtualAddress()};
         const auto constantRefs = References(constants[1].Get());
         if (frameIndex == 0)
         {
@@ -335,12 +336,21 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
                                   NrdBridge::DebugMode::RawSignals, error, {}, static_cast<NrdBridge::SignalEncoding>(2)),
                  "invalid output encoding accepted");
             need(gNrdDescriptorAllocations == allocationsBefore, "invalid output encoding allocated descriptors");
+            D3D12_DESCRIPTOR_HEAP_DESC bindingDesc {};
+            bindingDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; bindingDesc.NumDescriptors = 1;
+            bindingDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+            ComPtr<ID3D12DescriptorHeap> bindingHeap, wrongTypeHeap;
+            hr(fixture.device->CreateDescriptorHeap(&bindingDesc, IID_PPV_ARGS(&bindingHeap)));
+            bindingDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+            hr(fixture.device->CreateDescriptorHeap(&bindingDesc, IID_PPV_ARGS(&wrongTypeHeap)));
+            const auto bindingHandle = bindingHeap->GetGPUDescriptorHandleForHeapStart();
+            const auto bindingStride = fixture.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
             for (const auto& invalidConstants : {
-                NrdBridge::TitleSignalConstants {constants[1].Get(), 0},
-                NrdBridge::TitleSignalConstants {nullptr, dynamicConstants.address},
+                NrdBridge::TitleSignalConstants {nullptr, 0, bindingHeap.Get(), {}},
+                NrdBridge::TitleSignalConstants {nullptr, 0, nullptr, bindingHandle},
                 NrdBridge::TitleSignalConstants {constants[1].Get(), dynamicConstants.address + 1},
-                NrdBridge::TitleSignalConstants {constants[1].Get(), dynamicConstants.address + 512},
-                NrdBridge::TitleSignalConstants {output[0].Get(), dynamicConstants.address}})
+                NrdBridge::TitleSignalConstants {nullptr, 0, bindingHeap.Get(), {bindingHandle.ptr + bindingStride}},
+                NrdBridge::TitleSignalConstants {nullptr, 0, wrongTypeHeap.Get(), wrongTypeHeap->GetGPUDescriptorHandleForHeapStart()}})
             {
                 need(!pass->WriteDebug(fixture.list.Get(), resources, output[0].Get(), output[1].Get(),
                                       NrdBridge::DebugMode::RawSignals, error, {}, NrdBridge::SignalEncoding::Rgb,
@@ -436,7 +446,7 @@ static void TableSequence(const fs::path& root, bool deferred)
     auto sourceSpec = fixture.Snapshot(resources.spec, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     auto sourceDiff = fixture.Snapshot(resources.diff, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     fixture.Submit(); fixture.Reset(); save(root / "table_source_spec.bin", sourceSpec.Data()); save(root / "table_source_diff.bin", sourceDiff.Data());
-    const uint32_t flags[] {0u, 1u, 0x80000000u, 0x7fc00000u, 0u, 1u}; uint64_t warmAuxiliary = 0;
+    const uint32_t flags[] {0u, 1u, 0x80000000u, 0x7fc00000u, 0u, 1u, 0u, 1u}; uint64_t warmAuxiliary = 0;
     for (unsigned i = 0; i < std::size(flags); ++i)
     {
         std::cout << "table stage case " << i << '\n';
@@ -457,7 +467,13 @@ static void TableSequence(const fs::path& root, bool deferred)
         }
         NativeTableConsumer consumer(fixture, title[0].Get(), title[1].Get(), width, height);
         consumer.Overwrite(fixture.device.Get(), old->GetGPUVirtualAddress());
-        const NrdBridge::TitleSignalConstants constants {old.Get(), old->GetGPUVirtualAddress(), consumer.heap.Get(), consumer.Handle()};
+        const bool nativeBindingOnly = i >= 6;
+        const NrdBridge::TitleSignalConstants constants {nativeBindingOnly ? nullptr : old.Get(),
+            nativeBindingOnly ? 0 : old->GetGPUVirtualAddress(), consumer.heap.Get(), consumer.Handle()};
+        const auto fallbackEncoding = nativeBindingOnly && flags[i] == 0 ? NrdBridge::SignalEncoding::YCoCg : NrdBridge::SignalEncoding::Rgb;
+        if (nativeBindingOnly)
+            need(!constants.resource && !constants.address && NrdBridge::HasNativeTitleSignalConstants(constants),
+                 "native table heap/handle alone must report a present Consumer binding");
         const auto heapRefs = consumer.References(), oldRefs = References(old.Get()), newRefs = References(next.Get());
         if (i == 0)
         {
@@ -480,12 +496,12 @@ static void TableSequence(const fs::path& root, bool deferred)
         const auto before = gNrdAuditedBarriers;
         NrdBridge::OutputCommitGuard denied {nullptr, +[](void*, NrdBridge::OutputCommitGuard::Action, void*) noexcept { return false; }};
         need(!pass->WriteDebug(fixture.list.Get(), resources, title[0].Get(), title[1].Get(), NrdBridge::DebugMode::RawSignals,
-                              error, denied, NrdBridge::SignalEncoding::Rgb, constants), "denied volatile-table debug request accepted");
+                              error, denied, fallbackEncoding, constants), "denied volatile-table debug request accepted");
         need(before == gNrdAuditedBarriers, "denied table debug records no native capture/commit barriers");
         auto cancelledSpec = fixture.Snapshot(title[0].Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         auto cancelledDiff = fixture.Snapshot(title[1].Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         require(pass->WriteDebug(fixture.list.Get(), resources, title[0].Get(), title[1].Get(), NrdBridge::DebugMode::RawSignals,
-                                error, {}, NrdBridge::SignalEncoding::Rgb, constants));
+                                error, {}, fallbackEncoding, constants));
         if (i == 0) warmAuxiliary = pass->OwnedAuxiliaryBytes();
         need(pass->OwnedAuxiliaryBytes() == warmAuxiliary, "sequential table debug reuses warm owned flag slots");
         consumer.Record(fixture);
@@ -505,9 +521,10 @@ static void TableSequence(const fs::path& root, bool deferred)
         save(directory / "spec.bin", spec.Data()); save(directory / "diff.bin", diff.Data());
         save(directory / "consumer_spec.bin", decodedSpec.Data()); save(directory / "consumer_diff.bin", decodedDiff.Data());
     }
-    need(warmAuxiliary == 5u * 65536u, "debug table four committed64K snapshots plus committed64K fallback CB");
+    // Lazy acquired slots: fallback output uses no snapshot; denied/accepted native captures own one each.
+    need(warmAuxiliary == 3u * 65536u, "debug table two leased committed64K snapshots plus committed64K fallback CB");
     hr(fixture.list->Close()); fixture.Validate();
-    std::cout << "table_fixture_checks=" << checks << " table_cases=6 auxiliary_bytes=" << warmAuxiliary << " native_consumer_RSG1.0=1\n";
+    std::cout << "table_fixture_checks=" << checks << " table_cases=8 auxiliary_bytes=" << warmAuxiliary << " native_consumer_RSG1.0=1\n";
 }
 
 static void Benchmark(const fs::path& root, bool deferred = false)
