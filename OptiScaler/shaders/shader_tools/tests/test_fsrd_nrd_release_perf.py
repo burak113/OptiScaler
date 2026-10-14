@@ -37,9 +37,10 @@ struct Data {
    info->info=std::make_shared<HeapInfo::Info[]>(1);info->info[0].buffer=resource;info->occupiedSlots.insert(0);
    __REGISTER__
    infos.push_back(info);_trackedResources[resource]={{info,info->version.load(),0}};
-   gRRResourceStates.insert(resource);gRRResourceActivity.insert(resource);gRRTrackedResources.insert(resource);
+   gRRResourceStates.insert(resource);gRRResourceActivity.insert(resource);SeedFixtureRRCache(resource);
    heapMetadata.insert(heap);heapMetadata.insert(resource);heapMetadata.insert(pso);heapMetadata.insert(list);
-   RecordRRPsoProducer(resource,pso,false);
+   __PREPARE_PSO__
+   {std::scoped_lock lock(gRRPsoMutex);RecordRRPsoProducer(resource,pso,false);}
    auto& state=gRRCommandListPsoStates[list];auto old=RRPsoPointers(state);
    state.currentPso=state.lastGraphicsPso=state.lastComputePso=pso;UpdateRRPsoListReferencesLocked(list,old,state);
   }
@@ -55,7 +56,7 @@ J measure(const char* name,size_t samples,const std::function<void(size_t)>& run
  {"full_heap_range_begins",globalScans},{"heap_slot_reads",heapReads},{"full_producer_or_list_range_begins",psoScans}};
 }
 void noGlobalScan(const J& row,size_t maximumHeapReads){if(!indexed)return;need(row["full_heap_range_begins"]==0&&row["full_producer_or_list_range_begins"]==0,"release/PSO cleanup never begins a global heap/resource/list traversal");need(row["heap_slot_reads"].get<size_t>()<=maximumHeapReads,"heap address cleanup touches only its directly indexed participant");}
-void resetData(){clearHeaps();FrameSurvey::metadataHealthy=true;gRRResourceStates.clear();gRRResourceActivity.clear();gRRTrackedResources.clear();gRRResourcePsoProducers.clear();gRRPsoMetadata.clear();gRRCommandListPsoStates.clear();__CLEAR_REVERSE__}
+void resetData(){clearHeaps();FrameSurvey::metadataHealthy=true;gRRResourceStates.clear();gRRResourceActivity.clear();gRRTrackedResources.clear();__CLEAR_RESOURCE_SIZES__gRRResourcePsoProducers.clear();gRRPsoMetadata.clear();gRRCommandListPsoStates.clear();__CLEAR_REVERSE__}
 J gameScale(size_t count){
  resetData();Data data(count);const size_t samples=1000;J rows=J::array();
  gNrdBridgeWrappers=gNrdBridgeDeviceWrappers=gSurveyWrappers=true;gHeapReleaseSharesResource=true;gSharedResourceReleaseObserver=&hkRelease;
@@ -157,8 +158,22 @@ template<class T>struct CountedInfoArray{
     cpp=cpp[:start]+cpp[end:]
     cpp=cpp.replace('void CleanupRRPsoReferences(void*) { ++psoCleaned; }','\nextern size_t rrRangeBegins;\n'+map_counter+'\n'+rr)
     cleanup=function(source,'static void CleanupRRPsoReferences(void* object)').replace('CleanupRRPsoReferences','ActualCleanupRRPsoReferences',1)
-    rr_extra='\nstd::atomic<uint64_t> gRRResourceInspectorFrame=0;\nvoid EnsurePsoReleaseHook(ID3D12PipelineState*){}\n'
-    rr_extra+='\n'.join(function(source,s) for s in ('static RRPsoMetadata& EnsureRRPsoMetadata(','static void RecordRRPsoProducer('))
+    strong_pso='static bool PublishRRPsoMetadata(' in source
+    rr_extra='\nstd::atomic<uint64_t> gRRResourceInspectorFrame=0;\n'
+    if strong_pso:
+        rr_extra+=r'''
+// Native coverage is a CPU seam; real prepared publication and weak paths follow unchanged.
+unsigned psoCreatorCoverageCalls=0,psoCreatorUnderBirth=0;
+bool EnsurePsoReleaseHook(ID3D12PipelineState*){++psoCreatorCoverageCalls;if(NrdBridgeBirth::InMetadataScope())++psoCreatorUnderBirth;return true;}
+'''
+        rr_extra+='\n'.join(function(source,s) for s in (
+            'static bool RRInspectorBirthsEnabled()', 'template <class T> static NrdBridgeBirth::Token RRStrongReceiver(',
+            'static RRPsoMetadata& EnsureRRPsoMetadata(', 'static RRPsoMetadata* FindRRPsoMetadataLocked(',
+            'static bool PublishRRPsoMetadata(', 'static RRCommandListPsoState& RRPsoListStateLocked(',
+            'static bool RRPsoListAvailable(', 'static void RecordRRPsoProducer('))
+    else:
+        rr_extra+='void EnsurePsoReleaseHook(ID3D12PipelineState*){}\n'
+        rr_extra+='\n'.join(function(source,s) for s in ('static RRPsoMetadata& EnsureRRPsoMetadata(','static void RecordRRPsoProducer('))
     if not indexed:
         rr_extra+='\nstatic std::array<ID3D12PipelineState*,3> RRPsoPointers(const RRCommandListPsoState& state){return {state.currentPso,state.lastGraphicsPso,state.lastComputePso};}\nvoid UpdateRRPsoListReferencesLocked(ID3D12GraphicsCommandList*,const std::array<ID3D12PipelineState*,3>&,RRCommandListPsoState&){}\n'
     rr_extra+=cleanup+'\nvoid CleanupRRPsoReferences(void* object){++psoCleaned;ActualCleanupRRPsoReferences(object);}\n'
@@ -201,6 +216,16 @@ void mutationTests(){
  gRRResourcePsoProducers.clear();gRRPsoMetadata.clear();gRRCommandListPsoStates.clear();gRRPsoProducerResources.clear();gRRPsoCommandLists.clear();
 }
 '''
+        if strong_pso:
+            cpp=cpp.replace('EnsureRRPsoMetadata(b);','need(PublishRRPsoMetadata(b),"explicit strong creator publishes last-compute PSO before weak output use");')
+            cpp=cpp.replace(' ResTrack_Dx12::hkSetPipelineState(list,a);',r'''
+ auto* unpublished=reinterpret_cast<ID3D12PipelineState*>(uintptr_t(0x9000));
+ const auto beforeUnknown=psoCreatorCoverageCalls;RecordRRPsoProducer(resource,unpublished,false);
+ need(!gRRResourcePsoProducers.contains(resource)&&psoCreatorCoverageCalls==beforeUnknown,"unknown weak producer fails closed without cold native coverage/publication");
+ ResTrack_Dx12::hkSetPipelineState(list,a);''',1)
+            cpp=cpp.replace(' RecordRRPsoProducer(resource,a,false);CleanupRRPsoReferences(a);',r'''
+ const auto beforeWeak=psoCreatorCoverageCalls;{std::scoped_lock lock(gRRPsoMutex);RecordRRPsoProducer(resource,a,false);}
+ need(psoCreatorCoverageCalls==beforeWeak&&psoCreatorUnderBirth==0,"prepared weak producer never calls native coverage while metadata is locked");CleanupRRPsoReferences(a);''',1)
     index_tests=r'''
  need(gHeapSlotsByAddress.size()==count-samples&&gHeapCpuRanges.size()==count-samples&&gHeapGpuRanges.size()==count-samples,"only released heaps leave address/CPU/GPU indexes");
  auto info=std::make_shared<HeapInfo>();info->heap=reinterpret_cast<ID3D12DescriptorHeap*>(uintptr_t(0x1234));info->cpuStart=0x100000;info->cpuEnd=info->cpuStart+16;info->info=std::make_shared<HeapInfo::Info[]>(1);
@@ -212,6 +237,8 @@ void mutationTests(){
 '''
     register='{std::unique_lock lock(_heapRegistryMutex);need(RegisterTrackedHeapLocked(info),"100k setup registers indexed live heap");}' if indexed else 'fgHeaps.push_back(info);'
     extra=CPP.replace('__INDEXED__','true' if indexed else 'false').replace('__REGISTER__',register)
+    extra=extra.replace('__PREPARE_PSO__','need(PublishRRPsoMetadata(pso,RRPsoKind::Compute),"strong creator publishes PSO metadata before weak producer registration");' if strong_pso else '')
+    extra=extra.replace('__CLEAR_RESOURCE_SIZES__','gRRResourceSizeIndex.clear();' if 'static void EraseRRTrackedResourceLocked(' in source else '')
     extra=extra.replace('__INDEX_TESTS__',index_tests if indexed else '').replace('__CLEAR_REVERSE__','gRRPsoProducerResources.clear();gRRPsoCommandLists.clear();' if indexed else '')
     extra=extra.replace('__MUTATION_TESTS__','mutationTests();' if indexed else '')
     if not occupied:

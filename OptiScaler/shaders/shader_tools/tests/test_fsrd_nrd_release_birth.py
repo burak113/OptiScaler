@@ -12,6 +12,7 @@ from pathlib import Path
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -46,6 +47,7 @@ CPP = r'''
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 #define LOG_INFO(...) ((void)0)
@@ -280,8 +282,9 @@ struct State
     std::unordered_map<ID3D12Resource*, bool> capturedHudlesses;
     static State& Instance() { static State state; return state; }
 };
-CatalogMutex gRRResourceStateMutex, gRRTrackedResourceMutex, gRRPsoMutex, _trackedResourcesMutex, heapMutex;
-std::unordered_map<ID3D12Resource*, unsigned> gRRResourceStates, gRRResourceActivity, gRRTrackedResources;
+CatalogMutex gRRResourceStateMutex, gRRPsoMutex, _trackedResourcesMutex, heapMutex;
+std::unordered_map<ID3D12Resource*, unsigned> gRRResourceStates, gRRResourceActivity;
+__TRACKED_RESOURCE_CACHE__
 std::unordered_map<void*, unsigned> rrProducers, rrPsoReferences;
 struct HeapInfo
 {
@@ -301,6 +304,8 @@ struct TrackedResourceSlot { std::weak_ptr<HeapInfo> heap; unsigned index; };
 std::unordered_map<ID3D12Resource*, std::vector<TrackedResourceSlot>> _trackedResources;
 std::unordered_map<void*, std::shared_ptr<HeapInfo>> heaps;
 void CleanupRRResourcePsoProducersLocked(ID3D12Resource* object) { rrProducers.erase(object); }
+// Optional inspector recording-proof catalog is outside this CPU lease/root fixture.
+void ForgetRRRecording(void*, const Token& = Token()) noexcept {}
 void CleanupRRPsoReferences(void* object) { std::scoped_lock lock(gRRPsoMutex); rrPsoReferences.erase(object); }
 std::shared_ptr<HeapInfo> FindTrackedHeapByAddress(void* address)
 {
@@ -394,7 +399,10 @@ void publish(const Token& birth, bool heap = false, const std::shared_ptr<HeapIn
     { std::scoped_lock lock(d3dMutex); d3dRecords[birth->Address()] = birth; }
     auto* resource = static_cast<ID3D12Resource*>(birth->Address());
     { std::scoped_lock lock(gRRResourceStateMutex); gRRResourceStates[resource] = 1; gRRResourceActivity[resource] = 1; }
-    { std::scoped_lock lock(gRRTrackedResourceMutex); gRRTrackedResources[resource] = 1; }
+    { std::scoped_lock lock(gRRTrackedResourceMutex);
+      auto& row=gRRTrackedResources[resource];row.desc.Width=1505;row.desc.Height=847;row.birth=birth;
+      row.version=gRRNextResourceVersion.fetch_add(1,std::memory_order_relaxed);
+      gRRResourceSizeIndex[{row.desc.Width,row.desc.Height}].insert(resource); }
     { std::scoped_lock lock(gRRPsoMutex); rrProducers[resource] = 1; rrPsoReferences[resource] = 1; }
     { std::scoped_lock lock(_trackedResourcesMutex); _trackedResources[resource] = std::move(slots); State::Instance().capturedHudlesses[resource] = true; }
     if (descriptorHeap)
@@ -419,6 +427,8 @@ void cleared(const Token& birth)
     need(!birth->Live() && !NrdBridgeBirth::Capture(address), "retired address has no live logical generation");
     need(!surveyRecords.count(address) && !observerRecords.count(address) && !d3dRecords.count(address), "survey/observer/root-list metadata retired by actual dispatcher");
     need(!gRRResourceStates.count(resource) && !gRRResourceActivity.count(resource) && !gRRTrackedResources.count(resource), "RR state/activity/participants erased");
+    const auto bucket=gRRResourceSizeIndex.find({1505,847});
+    need(bucket==gRRResourceSizeIndex.end() || !bucket->second.contains(resource), "actual direct erase removes exact cached size-bucket participant");
     need(!rrProducers.count(address) && !rrPsoReferences.count(address), "producer/PSO reverse references erased");
     need(!_trackedResources.count(resource) && !State::Instance().capturedHudlesses.count(resource), "descriptor/HUD reverse references erased");
     need(!heaps.count(address), "matching heap generation deactivated");
@@ -805,14 +815,18 @@ catch (const std::exception& error)
 
 
 def generate(out):
-    resource_path = ROOT/'OptiScaler/resource_tracking/ResTrack_dx12.cpp'
+    resource_path = Path(os.environ.get('FSRD_RELEASE_RESOURCE_SOURCE',ROOT/'OptiScaler/resource_tracking/ResTrack_dx12.cpp'))
     release_path = ROOT/'OptiScaler/misc/NrdBridgeRelease_Dx12.h'
     resource = resource_path.read_text()
     release = release_path.read_text()
     helpers = release[release.index('namespace NrdBridgeRelease'):]
-    gate_begin = resource.index('static bool UseNrdNativeRetirement()')
-    gate_end = resource.index('static void PublishComputeHookAvailability()', gate_begin)
-    gate = resource[gate_begin:gate_end]
+    from test_fsrd_nrd_release import birth_gate_and_generic, tracked_resource_cache
+    gate = birth_gate_and_generic(resource)
+    cache = tracked_resource_cache(resource)
+    assert cache, 'actual indexed resource-cache declarations missing'
+    cache = re.sub(r'static\s+NrdBridgePerf::TimedMutex<[^;]+>\s+gRRTrackedResourceMutex;',
+                   'CatalogMutex gRRTrackedResourceMutex;',cache)
+    assert 'CatalogMutex gRRTrackedResourceMutex;' in cache, 'catalog lock adapter did not match actual cache declaration'
     payload_begin = resource.index('struct NativeRetirementPayload')
     factory_begin = resource.index('void* PrepareNativeRetirement()', payload_begin)
     payload = resource[payload_begin:factory_begin] + '\n' + '\n'.join(
@@ -828,6 +842,7 @@ def generate(out):
     blocks = {
         'release_helpers': helpers,
         'gate_and_generic': gate,
+        'tracked_resource_cache': cache,
         'retirement_payload': payload,
         'configure': function(resource, 'bool ResTrack_Dx12::ConfigureNrdNativeBirthRetirement()'),
         'installer': function(resource, 'bool ResTrack_Dx12::ObserveBridgeObjectRelease('),
@@ -860,6 +875,7 @@ def generate(out):
         'adapters': ['FrameSurvey retirement effects/catalog/owned flag/health latch',
                      'D3D root/list catalog', 'RR producers/states', 'HUD/heap/descriptor catalogs',
                      'RecordedComputeLease begin/end', 'IUnknown refcount/native private-data bytes',
+                     'optional inspector recording-proof catalog omitted (ForgetRRRecording seam)',
                      'Detours transaction stages; actual installed callback targets invoked explicitly'],
         'cases': CASES,
     }
