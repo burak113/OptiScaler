@@ -1,0 +1,262 @@
+"""Borrowed live b-register resolution on actual D3D12 roots/buffers and production seed/getter.
+
+All roots and constant data are synthetic; no title bytecode is embedded.
+"""
+from pathlib import Path
+import json
+import os
+import subprocess
+import sys
+
+ROOT = Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import test_fsrd_frame_survey as survey_fixture
+import test_fsrd_nrd_register_bindings as register_fixture
+from test_fsrd_nrd_root_restore import function
+from fsrd_toolchain import compile_cpp
+
+CPP = r'''
+__STATE__
+struct DescriptorHeap { UINT NumDescriptorHeaps=0; ID3D12DescriptorHeap* Heaps[2]={nullptr,nullptr}; };
+std::shared_mutex rootStatesMutex,descriptorHeapsMutex;
+std::unordered_map<ID3D12GraphicsCommandList*,std::vector<RootState>> rootStates;
+std::unordered_map<ID3D12GraphicsCommandList*,DescriptorHeap> descriptorHeaps;
+std::unordered_map<ID3D12GraphicsCommandList*,ID3D12RootSignature*> bridgeComputeRoots;
+bool gNrdBridgeDeviceWrappers=true;
+__GETTER__
+unsigned cbvNativeCalls=0;
+void nativeCBV(ID3D12Device* device,const D3D12_CONSTANT_BUFFER_VIEW_DESC* desc,D3D12_CPU_DESCRIPTOR_HANDLE handle) {
+ ++cbvNativeCalls; device->CreateConstantBufferView(desc,handle);
+}
+auto o_CreateConstantBufferView=&nativeCBV;
+__CBVHOOK__
+struct ConstantHost: RegisterHost {
+ ComPtr<ID3D12DescriptorHeap> cpuHeap;
+ std::vector<ComPtr<ID3D12Resource>> buffers;
+ UINT stride=0;
+ explicit ConstantHost(Host& h):RegisterHost(h) {
+  D3D12_DESCRIPTOR_HEAP_DESC hd {}; hd.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; hd.NumDescriptors=32;
+  hr(h.dev->CreateDescriptorHeap(&hd,IID_PPV_ARGS(&cpuHeap))); FrameSurvey::HeapCreated(h.dev.Get(),cpuHeap.Get());
+  stride=h.dev->GetDescriptorHandleIncrementSize(hd.Type);
+ }
+ ID3D12Resource* buffer(UINT64 size,D3D12_HEAP_TYPE type=D3D12_HEAP_TYPE_UPLOAD) {
+  D3D12_HEAP_PROPERTIES hp {}; hp.Type=type;
+  D3D12_RESOURCE_DESC d {}; d.Dimension=D3D12_RESOURCE_DIMENSION_BUFFER; d.Width=size; d.Height=1;
+  d.DepthOrArraySize=1; d.MipLevels=1; d.SampleDesc.Count=1; d.Layout=D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+  ComPtr<ID3D12Resource> resource;
+  auto state=type==D3D12_HEAP_TYPE_UPLOAD?D3D12_RESOURCE_STATE_GENERIC_READ:D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+  hr(host.dev->CreateCommittedResource(&hp,D3D12_HEAP_FLAG_NONE,&d,state,nullptr,IID_PPV_ARGS(&resource)));
+  FrameSurvey::ResourceCreated(resource.Get(),state); buffers.push_back(resource); return resource.Get();
+ }
+ ID3D12RootSignature* root(bool table=false,UINT reg=6,UINT space=0,
+   D3D12_SHADER_VISIBILITY visibility=D3D12_SHADER_VISIBILITY_ALL,
+   std::vector<D3D12_DESCRIPTOR_RANGE> ranges={},bool track=true,bool constants=false) {
+  D3D12_ROOT_PARAMETER p[6] {};
+  for(UINT i=0;i<6;++i) { p[i].ParameterType=D3D12_ROOT_PARAMETER_TYPE_SRV; p[i].Descriptor={100+i,0}; }
+  D3D12_DESCRIPTOR_RANGE srvs {D3D12_DESCRIPTOR_RANGE_TYPE_SRV,8,0,0,0};
+  D3D12_DESCRIPTOR_RANGE uavs {D3D12_DESCRIPTOR_RANGE_TYPE_UAV,2,0,0,0};
+  p[1].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE; p[1].DescriptorTable={1,&srvs};
+  p[5].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE; p[5].DescriptorTable={1,&uavs};
+  if(table) {
+   if(ranges.empty()) ranges={{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,1,20,0,0},
+     {D3D12_DESCRIPTOR_RANGE_TYPE_CBV,8,0,space,D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND}};
+   p[3].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE; p[3].DescriptorTable={UINT(ranges.size()),ranges.data()}; p[3].ShaderVisibility=visibility;
+  } else if(constants) {
+   p[0].ParameterType=D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS; p[0].Constants={reg,space,1};
+  } else {
+   p[0].ParameterType=D3D12_ROOT_PARAMETER_TYPE_CBV; p[0].Descriptor={reg,space}; p[0].ShaderVisibility=visibility;
+  }
+  D3D12_ROOT_SIGNATURE_DESC d {6,p,0,nullptr,D3D12_ROOT_SIGNATURE_FLAG_NONE};
+  ComPtr<ID3DBlob> bytes,error; hr(D3D12SerializeRootSignature(&d,D3D_ROOT_SIGNATURE_VERSION_1,&bytes,&error));
+  ComPtr<ID3D12RootSignature> result; hr(host.dev->CreateRootSignature(0,bytes->GetBufferPointer(),bytes->GetBufferSize(),IID_PPV_ARGS(&result)));
+  if(track) FrameSurvey::RootCreated(result.Get(),bytes->GetBufferPointer(),bytes->GetBufferSize());
+  roots.push_back(result); return result.Get();
+ }
+ D3D12_CPU_DESCRIPTOR_HANDLE cpu(UINT slot,bool visible=false) {
+  auto h=(visible?heap:cpuHeap)->GetCPUDescriptorHandleForHeapStart(); h.ptr+=UINT64(slot)*stride; return h;
+ }
+ void write(UINT slot,ID3D12Resource* resource,UINT64 offset=0,UINT size=1536,bool visible=false) {
+  D3D12_CONSTANT_BUFFER_VIEW_DESC desc {resource->GetGPUVirtualAddress()+offset,size};
+  hkSurveyCreateConstantBufferView(host.dev.Get(),&desc,cpu(slot,visible));
+ }
+ void copy(UINT destination,bool visible,UINT source,bool sourceVisible=false) {
+  auto d=cpu(destination,visible),s=cpu(source,sourceVisible);
+  host.dev->CopyDescriptorsSimple(1,d,s,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+  FrameSurvey::CopyDescriptors(host.dev.Get(),1,&d,nullptr,1,&s,nullptr,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+ }
+ void direct(ID3D12RootSignature* root,UINT64 address,bool native=true) {
+  bind(root);
+  if(native) host.list->SetComputeRootConstantBufferView(0,address);
+  FrameSurvey::RootView(host.list.Get(),false,0,D3D12_DESCRIPTOR_RANGE_TYPE_CBV,address);
+ }
+ void table(ID3D12RootSignature* root,UINT first=0) {
+  bind(root); auto h=gpu; h.ptr+=UINT64(first)*stride;
+  host.list->SetComputeRootDescriptorTable(3,h); FrameSurvey::Table(host.list.Get(),false,3,h);
+ }
+ bool resolve(FrameSurvey::BoundConstantBuffer& out,UINT reg=6,UINT space=0,UINT64 bytes=1216) {
+  return FrameSurvey::ResolveComputeConstantBuffer(host.list.Get(),reg,space,bytes,out);
+ }
+ void trackSnapshot(ID3D12RootSignature* root,UINT64 va,bool table=false) {
+  auto* list=host.list.Get(); bridgeComputeRoots[list]=root; descriptorHeaps[list]={1,{heap.Get(),nullptr}};
+  auto& entries=rootStates[list]; entries.clear(); entries.resize(6);
+  entries[1].type=RootEntryType::Table; entries[1].rootDescriptorTable=gpu;
+  entries[5].type=RootEntryType::Table; entries[5].rootDescriptorTable=gpu;
+  if(table) { entries[3].type=RootEntryType::Table; entries[3].rootDescriptorTable=gpu; }
+  else { entries[0].type=RootEntryType::CBV; entries[0].bufferLocation=va; }
+ }
+};
+J constantTests(Host& h) {
+ ConstantHost f(h); FrameSurvey::BoundConstantBuffer out;
+ auto* a=f.buffer(4096); auto* b=f.buffer(8192,D3D12_HEAP_TYPE_DEFAULT);
+ const auto av=a->GetGPUVirtualAddress(),bv=b->GetGPUVirtualAddress();
+ auto* direct=f.root(); f.direct(direct,av+256);
+ need(f.resolve(out) && out.resource==a && out.address==av+256 && out.offset==256 && out.size==3840,"actual root b6 resolves exact borrowed buffer subrange");
+ need(!f.resolve(out,7) && !out.resource && !f.resolve(out,6,1),"root b-register/space mismatch clears result");
+ need(!f.resolve(out,6,0,0) && !f.resolve(out,6,0,65537),"zero and over-64KiB requested lengths fail");
+ const ULONG refs=a->AddRef(); a->Release();
+ for(UINT i=0;i<100;++i) need(f.resolve(out),"repeated exact b6 lookup remains current");
+ const ULONG after=a->AddRef(); a->Release(); need(refs==after,"CBV resolver never AddRefs borrowed title buffers");
+ FrameSurvey::RootView(h.list.Get(),false,0,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,av+256);
+ need(!f.resolve(out),"metadata-only wrong current root descriptor kind is rejected");
+ f.direct(direct,av+3840); need(!f.resolve(out),"current root address near buffer end cannot expose requested field");
+ f.direct(direct,bv+512); need(f.resolve(out) && out.resource==b && out.offset==512,"default-heap root CBV is resolved without mapping or excluding it");
+ auto* shifted=f.root(false,7); f.direct(shifted,av);
+ need(!f.resolve(out) && f.resolve(out,7),"root descriptor shader register is captured exactly");
+ auto* space=f.root(false,6,2); f.direct(space,av);
+ need(!f.resolve(out) && f.resolve(out,6,2),"root CBV nonzero register space is exact");
+ auto* pixel=f.root(false,6,0,D3D12_SHADER_VISIBILITY_PIXEL); f.direct(pixel,av,false);
+ need(!f.resolve(out),"metadata-only PIXEL root-CBV callback cannot prove a compute binding");
+ auto* constants=f.root(false,6,0,D3D12_SHADER_VISIBILITY_ALL,{},true,true); f.bind(constants);
+ need(!f.resolve(out),"root constants do not masquerade as a b6 buffer");
+ auto* unknown=f.root(false,21,0,D3D12_SHADER_VISIBILITY_ALL,{},false); f.direct(unknown,av);
+ need(!f.resolve(out,21),"unique actual root with missing creation metadata fails closed");
+ f.direct(direct,av); FrameSurvey::RootBinding(h.list.Get(),false,shifted);
+ need(!f.resolve(out,7),"root change clears stale direct-CBV argument");
+ f.direct(direct,av); FrameSurvey::Reset(h.list.Get(),nullptr);
+ need(!f.resolve(out),"Reset clears direct-CBV identity");
+ f.trackSnapshot(direct,av+256); FrameSurvey::ComputeBindings snapshot;
+ need(GetComputeBindingsForBridge(h.list.Get(),snapshot) && snapshot.views.size()==1 && snapshot.views[0].parameter==0 &&
+   snapshot.views[0].kind==D3D12_DESCRIPTOR_RANGE_TYPE_CBV && snapshot.views[0].address==av+256,"production getter snapshots root CBV parameter/kind/VA exactly");
+ need(FrameSurvey::SeedComputeBindings(h.list.Get(),snapshot) && f.resolve(out) && out.address==av+256,"window seed resolves current pre-window root CBV");
+ auto& entries=rootStates[h.list.Get()]; entries[2].type=RootEntryType::SRV; entries[2].bufferLocation=av+512;
+ entries[4].type=RootEntryType::UAV; entries[4].bufferLocation=bv+768;
+ need(GetComputeBindingsForBridge(h.list.Get(),snapshot) && snapshot.views.size()==3 && snapshot.views[1].parameter==2 &&
+   snapshot.views[1].kind==D3D12_DESCRIPTOR_RANGE_TYPE_SRV && snapshot.views[2].kind==D3D12_DESCRIPTOR_RANGE_TYPE_UAV,"production getter preserves all root-view kinds in parameter order");
+ entries[0]={}; need(GetComputeBindingsForBridge(h.list.Get(),snapshot) && FrameSurvey::SeedComputeBindings(h.list.Get(),snapshot) && !f.resolve(out),"sparse same-root seed clears omitted old CBV instead of preserving stale VA");
+ entries[0].type=RootEntryType::CBV; entries[0].bufferLocation=0;
+ need(GetComputeBindingsForBridge(h.list.Get(),snapshot) && FrameSurvey::SeedComputeBindings(h.list.Get(),snapshot) && !f.resolve(out),"zero root CBV address is omitted and tombstones previous seeded state");
+ f.direct(direct,av);
+ { FrameSurvey::ScopedInternal internal; need(!f.resolve(out),"internal injection cannot resolve title CBV metadata"); }
+ need(f.resolve(out),"internal scope leaves root CBV state intact");
+ FrameSurvey::gMetadataHealthy.store(false); need(!f.resolve(out) && !out.resource,"unhealthy metadata rejects root CBV"); FrameSurvey::gMetadataHealthy.store(true);
+ auto* large=f.buffer(131072); f.direct(direct,large->GetGPUVirtualAddress());
+ need(f.resolve(out) && out.size==65536,"root-CBV accessible size is capped at D3D12's 64KiB span");
+ auto& layout=FrameSurvey::gRootLayouts.at(direct); const auto savedDescriptors=layout.computeDescriptors;
+ layout.computeDescriptors[2]={D3D12_DESCRIPTOR_RANGE_TYPE_CBV,6,0};
+ need(!f.resolve(out),"metadata-only duplicate b6 root parameters fail uniqueness proof"); layout.computeDescriptors=savedDescriptors;
+ f.direct(direct,av);
+ auto& alias=FrameSurvey::gResources.at(b); const auto savedVA=alias.va; alias.va=av;
+ need(!f.resolve(out),"metadata-only overlapping live buffer VAs are ambiguous, not nearest-address guesses"); alias.va=savedVA;
+ auto* table=f.root(true); f.table(table); f.write(0,a,512); f.copy(1,false,0); f.copy(7,true,1);
+ need(f.resolve(out) && out.resource==a && out.address==av+512 && out.offset==512 && out.size==1536,"mixed APPEND table maps b6 through exact CBV descriptor/address/size");
+ need(cbvNativeCalls==1,"actual new CBV callback forwards native creation exactly once");
+ need(!f.resolve(out,5),"adjacent missing table CBV is not guessed from b6");
+ FrameSurvey::SetBindingWindow(false); f.write(0,b,768); f.copy(1,false,0); f.copy(7,true,1);
+ f.trackSnapshot(table,0,true); FrameSurvey::SetBindingWindow(true);
+ need(GetComputeBindingsForBridge(h.list.Get(),snapshot) && FrameSurvey::SeedComputeBindings(h.list.Get(),snapshot) &&
+   f.resolve(out) && out.resource==b && out.offset==768,"closed-window CPU chain and visible overwrite survive sparse production seed correctly");
+ FrameSurvey::Released(a);
+ need(f.resolve(out) && out.resource==b,"release of old CPU-handle owner cannot delete replacement CBV metadata");
+ FrameSurvey::SetBindingWindow(false); FrameSurvey::SetBindingWindow(true);
+ need(FrameSurvey::SeedComputeBindings(h.list.Get(),snapshot) && f.resolve(out) && out.resource==b,"persistent CBV table remains valid across windows without recopy");
+ hkSurveyCreateConstantBufferView(h.dev.Get(),nullptr,f.cpu(7,true));
+ need(!f.resolve(out) && !out.resource,"native null CBV overwrites/tombstones previously valid visible descriptor");
+ f.write(7,b,768,1024,true); need(!f.resolve(out),"table CBV declared size smaller than field rejects even when buffer is large");
+ D3D12_CONSTANT_BUFFER_VIEW_DESC bad {bv+768,0}; FrameSurvey::View(f.cpu(7,true),&bad);
+ need(!f.resolve(out),"metadata-only zero-size CBV tombstones the old descriptor");
+ f.write(7,b,768,1536,true); bad={bv+769,1536}; FrameSurvey::View(f.cpu(7,true),&bad);
+ need(!f.resolve(out),"metadata-only misaligned CBV GPUVA tombstones the old descriptor");
+ f.write(7,b,768,1536,true); bad={bv+768,1537}; FrameSurvey::View(f.cpu(7,true),&bad);
+ need(!f.resolve(out),"metadata-only non-256-byte CBV size tombstones the old descriptor");
+ f.write(7,b,768,1536,true); bad={bv+768,65536}; FrameSurvey::View(f.cpu(7,true),&bad);
+ need(!f.resolve(out),"metadata-only CBV range beyond live buffer is rejected");
+ f.write(7,b,768,1536,true); hkSurveyCreateConstantBufferView(h.dev.Get(),nullptr,f.cpu(2)); f.copy(7,true,2);
+ need(!f.resolve(out),"unknown/null CPU source copy tombstones the old visible CBV");
+ f.write(7,b,768,1536,true);
+ FrameSurvey::Table(h.list.Get(),false,3,{f.gpu.ptr+1}); need(!f.resolve(out),"metadata-only unaligned current GPU descriptor-table base fails");
+ FrameSurvey::Table(h.list.Get(),false,3,{f.gpu.ptr+127*f.stride}); need(!f.resolve(out),"table b6 descriptor outside live heap fails bounds");
+ f.table(table); auto* tableSpace=f.root(true,6,3); f.table(tableSpace);
+ need(!f.resolve(out) && f.resolve(out,6,3),"table CBV nonzero register space is preserved");
+ auto* overlap=f.root(true,6,0,D3D12_SHADER_VISIBILITY_ALL,{{D3D12_DESCRIPTOR_RANGE_TYPE_CBV,4,4,0,0},{D3D12_DESCRIPTOR_RANGE_TYPE_CBV,4,10,0,2}}); f.table(overlap);
+ need(!f.resolve(out),"actual overlapping descriptor-table ranges cannot prove unique b6");
+ auto* unbounded=f.root(true,6,0,D3D12_SHADER_VISIBILITY_ALL,{{D3D12_DESCRIPTOR_RANGE_TYPE_CBV,UINT_MAX,0,0,0}}); f.table(unbounded);
+ need(!f.resolve(out),"actual unbounded CBV table is never treated as a finite known b6 span");
+ auto* tablePixel=f.root(true,6,0,D3D12_SHADER_VISIBILITY_PIXEL); f.bind(tablePixel); FrameSurvey::Table(h.list.Get(),false,3,f.gpu);
+ need(!f.resolve(out),"metadata-only PIXEL CBV table cannot prove compute b6");
+ f.table(table); FrameSurvey::Released(b); need(!f.resolve(out),"buffer release invalidates all current copied CBV handles");
+ auto* c=f.buffer(4096); f.write(7,c,0,1536,true);
+ need(f.resolve(out) && out.resource==c,"new current CBV owner resolves after prior buffer release");
+ const auto before=std::chrono::steady_clock::now();
+ for(UINT i=0;i<200000;++i) if(!f.resolve(out)) throw std::runtime_error("measured CBV lookup unexpectedly failed");
+ const double ns=double(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-before).count())/200000;
+ const auto resourceRecords=FrameSurvey::gResources.size();
+ std::vector<ID3D12Resource*> syntheticBuffers;
+ for(UINT i=0;i<1000;++i) {
+  auto* object=reinterpret_cast<ID3D12Resource*>(UINT64(0x100000000)+UINT64(i)*65536);
+  FrameSurvey::Resource resource; resource.object=object; resource.id=100000+i;
+  resource.desc.Dimension=D3D12_RESOURCE_DIMENSION_BUFFER; resource.desc.Width=4096;
+  resource.va=c->GetGPUVirtualAddress()+0x10000000+UINT64(i)*65536;
+  FrameSurvey::gResources.emplace(object,resource); syntheticBuffers.push_back(object);
+ }
+ need(f.resolve(out) && out.resource==c,"1,000 synthetic cached-buffer records need no COM access during exact resolution");
+ const auto stressBefore=std::chrono::steady_clock::now();
+ for(UINT i=0;i<20000;++i) if(!f.resolve(out)) throw std::runtime_error("stress CBV lookup unexpectedly failed");
+ const double stressNs=double(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-stressBefore).count())/20000;
+ const auto stressRecords=FrameSurvey::gResources.size();
+ for(auto* object:syntheticBuffers) FrameSurvey::gResources.erase(object);
+ FrameSurvey::Released(table); need(!f.resolve(out),"root release invalidates current table CBV proof");
+ f.direct(direct,c->GetGPUVirtualAddress()); FrameSurvey::Released(h.list.Get()); need(!f.resolve(out),"list release invalidates direct CBV proof");
+ f.table(tableSpace); FrameSurvey::Released(f.heap.Get()); need(!f.resolve(out,6,3),"descriptor heap release invalidates table CBV proof");
+ gNrdBridgeDeviceWrappers=false; snapshot.views.push_back({0,D3D12_DESCRIPTOR_RANGE_TYPE_CBV,av});
+ need(!GetComputeBindingsForBridge(h.list.Get(),snapshot) && snapshot.views.empty(),"OFF getter publishes no root-view snapshot");
+ hr(h.list->Close()); h.execute(); h.reset(); h.errors();
+ return {{"checks_passed",checks},{"adapter",h.adapter},{"constant_buffer_callback_mean_ns",ns},{"measured_resource_records",resourceRecords},
+  {"synthetic_buffer_stress_callback_mean_ns",stressNs},{"synthetic_buffer_stress_records",stressRecords},
+  {"cbv_native_calls",cbvNativeCalls},{"scope","actual production root/table CBV resolver, seed, getter and creation callback; synthetic ambiguity/invalid-input metadata cases"},
+  {"contains_title_binary",false}};
+}
+int main(int argc,char** argv) try {
+ need(argc==2,"output path"); g_dllPath=std::filesystem::path(argv[1])/"fixture.dll";
+ Host host; auto result=constantTests(host);
+ std::ofstream(std::filesystem::path(argv[1])/"host-result.json")<<result.dump(2)<<'\n'; std::cout<<result.dump()<<'\n'; return 0;
+} catch(const std::exception& e) { std::cerr<<e.what()<<'\n'; return 1; }
+'''
+
+def run():
+    output=Path(os.environ.get('FSRD_GPU_TEST_OUTPUT','F:/FSRD/sol_batch/12a-discovery/tests/constant-buffers'))
+    output.mkdir(parents=True,exist_ok=True)
+    stubs=output/'stubs'
+    for folder in ('proxies','inputs'):
+        (stubs/folder).mkdir(parents=True,exist_ok=True)
+    (stubs/'pch.h').write_text('#pragma once\n#define NOMINMAX\n#include <windows.h>\n#include <filesystem>\n#include <shared_mutex>\n#define LOG_INFO(...) ((void)0)\n#define LOG_ERROR(...) ((void)0)\n')
+    (stubs/'Util.h').write_text('#pragma once\n#include <filesystem>\ninline std::filesystem::path g_dllPath;\nnamespace Util { inline std::filesystem::path DllPath() { return g_dllPath; } }\n')
+    (stubs/'inputs/NVNGX_DLSS.h').write_text('#pragma once\n#include <nvsdk_ngx.h>\n')
+    (stubs/'proxies/D3D12_Proxy.h').write_text('#pragma once\n#include <d3d12.h>\nnamespace D3d12Proxy { inline auto D3D12CreateVersionedRootSignatureDeserializer_() { return &D3D12CreateVersionedRootSignatureDeserializer; } inline auto D3D12SerializeVersionedRootSignature_() { return &D3D12SerializeVersionedRootSignature; } }\n')
+    hooks=(ROOT/'OptiScaler/hooks/D3D12_Hooks.cpp').read_text()
+    state=hooks[hooks.index('enum class RootEntryType'):hooks.index('enum class SignatureEntryType')]
+    getter=function(hooks,'bool D3D12Hooks::GetComputeBindingsForBridge(').replace('D3D12Hooks::','')
+    restrack=(ROOT/'OptiScaler/resource_tracking/ResTrack_Dx12.cpp').read_text()
+    cbvhook=function(restrack,'void ResTrack_Dx12::hkSurveyCreateConstantBufferView(').replace('ResTrack_Dx12::','')
+    text=(survey_fixture.CPP.split('// GetStatus()')[0]+register_fixture.CPP.split('J registerTests')[0]+CPP)
+    text=text.replace('__TRACE__',(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp').as_posix()).replace('__SURVEY__',(ROOT/'OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp').as_posix())
+    text=text.replace('__STATE__',state).replace('__GETTER__',getter).replace('__CBVHOOK__',cbvhook)
+    source=output/'fixture.cpp'; source.write_text(text,encoding='utf-8'); exe=output/'fixture.exe'
+    compile_cpp(source,exe,('d3d12.lib','dxgi.lib','dxguid.lib','d3dcompiler.lib','bcrypt.lib','user32.lib','psapi.lib',str(ROOT/'OptiScaler/library/detours/detours.lib')),
+        (stubs,ROOT/'OptiScaler',ROOT/'OptiScaler/include',ROOT/'external/nlohmann',ROOT/'external/nvngx_dlss_sdk',ROOT/'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
+    subprocess.run([str(exe),str(output)],check=True,creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
+    result=json.loads((output/'host-result.json').read_text()); report=Path('E:/FSRD/sol_batch/12a-discovery'); report.mkdir(parents=True,exist_ok=True)
+    (report/'constant-buffers-result.json').write_text(json.dumps(result,indent=2)+'\n')
+    print(json.dumps(result))
+
+if __name__=='__main__':
+    run()

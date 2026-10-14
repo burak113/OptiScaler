@@ -94,6 +94,7 @@ struct ViewInfo
     uint64_t descriptorCpu = 0, descriptorGpu = 0, descriptorHeap = 0, rootVa = 0;
     uint32_t descriptorIndex = UINT_MAX, rootIndex = UINT_MAX;
     bool heapKnown = false;
+    uint64_t constantBytes = 0;
 };
 struct Heap
 {
@@ -125,11 +126,16 @@ bool FreshView(const ViewInfo& view, const Heap* heap)
 // Descriptor contents remain current even while root/table binding tracking is closed.
 // This intentionally spends CPU work on enabled-bridge copy metadata for correctness.
 struct Range { uint32_t kind = 0, offset = 0, count = 0, shaderRegister = UINT_MAX, registerSpace = UINT_MAX; };
+struct RootDescriptor
+{
+    uint32_t kind = 0, shaderRegister = UINT_MAX, registerSpace = UINT_MAX;
+};
 struct RootLayout
 {
     std::string hash;
     std::map<uint32_t,std::vector<Range>> tables;
-    std::set<uint32_t> computeTables;
+    std::set<uint32_t> computeTables, computeVisibleTables;
+    std::map<uint32_t,RootDescriptor> computeDescriptors;
     bool complete = false, directIndexed = false;
 };
 std::unordered_map<ID3D12RootSignature*,RootLayout> gRootLayouts;
@@ -287,7 +293,19 @@ RootLayout ReadRoot(ID3D12RootSignature* root)
     for (UINT i=0;i<desc->Desc_1_1.NumParameters;++i)
     {
         const auto& param = desc->Desc_1_1.pParameters[i];
-        if (param.ParameterType != D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE) continue;
+        if (param.ParameterType != D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
+        {
+            if (param.ShaderVisibility == D3D12_SHADER_VISIBILITY_ALL &&
+                (param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_CBV || param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_SRV ||
+                 param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_UAV))
+            {
+                const auto kind = param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_CBV ? D3D12_DESCRIPTOR_RANGE_TYPE_CBV :
+                    param.ParameterType == D3D12_ROOT_PARAMETER_TYPE_SRV ? D3D12_DESCRIPTOR_RANGE_TYPE_SRV : D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+                result.computeDescriptors[i] = {uint32_t(kind),param.Descriptor.ShaderRegister,param.Descriptor.RegisterSpace};
+            }
+            continue;
+        }
+        if (param.ShaderVisibility == D3D12_SHADER_VISIBILITY_ALL) result.computeVisibleTables.insert(i);
         uint64_t offset = 0;
         for (UINT j=0;j<param.DescriptorTable.NumDescriptorRanges;++j)
         {
@@ -365,6 +383,27 @@ List& GetList(ID3D12GraphicsCommandList* cmd)
         if (Seed(cmd,state)) Count("list_bindings_seeded_from_tracking");
     }
     return state;
+}
+// Caller holds gLifetimeMutex. Cached creation descriptions avoid any COM call or title retain.
+// Scan the live buffer records rather than guessing the nearest VA: placed resources may alias.
+bool ResolveBufferAddress(uint64_t address, uint64_t declaredBytes, uint64_t minimumBytes, BoundConstantBuffer& out)
+{
+    out = {};
+    if (!address || address%256 || !minimumBytes || minimumBytes > 65536 ||
+        (declaredBytes && (declaredBytes%256 || declaredBytes > 65536))) return false;
+    const Resource* match = nullptr;
+    for (const auto& [object,resource] : gResources)
+    {
+        if (resource.desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER || !resource.va || address < resource.va ||
+            address-resource.va >= resource.desc.Width) continue;
+        if (match) return false; // Any live overlapping VA is ambiguous, even if only one covers the requested length.
+        match = &resource;
+    }
+    if (!match) return false;
+    const uint64_t offset = address-match->va, remaining = match->desc.Width-offset;
+    const uint64_t bytes = declaredBytes ? declaredBytes : std::min<uint64_t>(65536,remaining);
+    if (bytes > remaining || bytes < minimumBytes) return false;
+    out = {match->object,address,offset,bytes}; return true;
 }
 void StoreView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI_FORMAT format,
     uint32_t mip, uint32_t slice, bool supported)
@@ -556,8 +595,9 @@ bool SeedComputeBindings(ID3D12GraphicsCommandList* cmd, const ComputeBindings& 
         auto& mirror = gMirror[cmd];
         if (mirror.compute.object != bindings.root) mirror.compute = {};
         if (mirror.heaps != bindings.heaps) mirror.graphics.tables.clear();
-        mirror.compute.object = bindings.root; mirror.compute.tables.clear();
+        mirror.compute.object = bindings.root; mirror.compute.tables.clear(); mirror.compute.views.clear();
         for (const auto& [parameter,handle] : bindings.tables) mirror.compute.tables[parameter] = handle.ptr;
+        for (const auto& view : bindings.views) mirror.compute.views[view.parameter] = {uint32_t(view.kind),view.address};
         mirror.heaps = bindings.heaps; return true;
     } catch (...) { MetadataFailed("Compute binding seed failed"); return false; }
 }
@@ -585,6 +625,80 @@ bool ComputeTableBindingMatches(ID3D12GraphicsCommandList* cmd, UINT parameter, 
                     uint64_t(range.shaderRegister)+descriptorOffset-range.offset == shaderRegister;
         return false;
     } catch (...) { return false; }
+}
+bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList* cmd, UINT shaderRegister, UINT registerSpace,
+    uint64_t minimumBytes, BoundConstantBuffer& out) noexcept
+{
+    out = {};
+    if (!BindingTracking() || gInternal || !cmd || !minimumBytes || minimumBytes > 65536 ||
+        !gMetadataHealthy.load(std::memory_order_acquire)) return false;
+    try
+    {
+        std::scoped_lock lock(gMirrorMutex,gLifetimeMutex);
+        if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
+        const auto list = gMirror.find(cmd);
+        if (list == gMirror.end() || !list->second.compute.object) return false;
+        const auto& root = list->second.compute;
+        const auto layout = gRootLayouts.find(root.object);
+        if (layout == gRootLayouts.end() || !layout->second.complete) return false;
+        UINT parameter = UINT_MAX;
+        uint64_t descriptorOffset = 0;
+        bool tableBinding = false;
+        for (const auto& [index,descriptor] : layout->second.computeDescriptors)
+        {
+            if (descriptor.kind != D3D12_DESCRIPTOR_RANGE_TYPE_CBV || descriptor.shaderRegister != shaderRegister ||
+                descriptor.registerSpace != registerSpace) continue;
+            if (parameter != UINT_MAX) return false;
+            parameter = index;
+        }
+        for (const auto& [index,ranges] : layout->second.tables)
+        {
+            if (!layout->second.computeVisibleTables.contains(index)) continue;
+            for (const auto& range : ranges)
+            {
+                if (range.kind != D3D12_DESCRIPTOR_RANGE_TYPE_CBV || range.registerSpace != registerSpace) continue;
+                if (!range.count || range.count == UINT_MAX || uint64_t(range.shaderRegister)+range.count > uint64_t(UINT_MAX)+1)
+                    return false;
+                if (shaderRegister < range.shaderRegister || uint64_t(shaderRegister) >= uint64_t(range.shaderRegister)+range.count) continue;
+                if (!layout->second.computeTables.contains(index) || parameter != UINT_MAX) return false;
+                parameter = index; tableBinding = true;
+                descriptorOffset = uint64_t(range.offset)+shaderRegister-range.shaderRegister;
+            }
+        }
+        if (parameter == UINT_MAX) return false;
+        if (!tableBinding)
+        {
+            const auto view = root.views.find(parameter);
+            return view != root.views.end() && view->second.first == D3D12_DESCRIPTOR_RANGE_TYPE_CBV &&
+                ResolveBufferAddress(view->second.second,0,minimumBytes,out);
+        }
+        const auto binding = root.tables.find(parameter);
+        if (binding == root.tables.end() || !binding->second) return false;
+        const Heap* heap = nullptr;
+        for (const auto object : list->second.heaps)
+        {
+            const auto found = gHeaps.find(object);
+            if (found == gHeaps.end()) continue;
+            const auto& candidate = found->second;
+            const uint64_t base = binding->second;
+            if (candidate.type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || !candidate.gpu || !candidate.increment ||
+                base < candidate.gpu || base-candidate.gpu >= uint64_t(candidate.count)*candidate.increment ||
+                (base-candidate.gpu)%candidate.increment) continue;
+            if (heap) return false;
+            heap = &candidate;
+        }
+        if (!heap) return false;
+        const uint64_t index = (binding->second-heap->gpu)/heap->increment+descriptorOffset;
+        if (index >= heap->count) return false;
+        const auto view = gViews.find(heap->cpu+index*heap->increment);
+        if (view == gViews.end() || view->second.kind != D3D12_DESCRIPTOR_RANGE_TYPE_CBV ||
+            !view->second.constantBytes || !FreshView(view->second,heap)) return false;
+        const auto resource = gResources.find(view->second.object);
+        if (resource == gResources.end() || resource->second.id != view->second.resource ||
+            !ResolveBufferAddress(view->second.rootVa,view->second.constantBytes,minimumBytes,out)) return false;
+        if (out.resource != resource->first) { out = {}; return false; }
+        return true;
+    } catch (...) { out = {}; return false; }
 }
 bool ResolveComputeTable(ID3D12GraphicsCommandList* cmd, UINT parameter, std::vector<BoundResource>& out) noexcept
 {
@@ -795,6 +909,27 @@ void HeapCreated(ID3D12Device* device, ID3D12DescriptorHeap* object) noexcept
         gHeaps[object] = {object,cpu,gpu,desc.NumDescriptors,device->GetDescriptorHandleIncrementSize(desc.Type),uint32_t(desc.Type)};
         gCpuHeaps[cpu] = object;
     } catch (...) { MetadataFailed("Descriptor heap metadata allocation failed"); }
+}
+void View(D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3D12_CONSTANT_BUFFER_VIEW_DESC* desc) noexcept
+{
+    if (!Tracking() || gInternal) return;
+    try
+    {
+        std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation;
+        if (const auto old = gViews.find(handle.ptr); old != gViews.end())
+            if (const auto resource = gResources.find(old->second.object); resource != gResources.end()) resource->second.handles.erase(handle.ptr);
+        gViews.erase(handle.ptr);
+        BoundConstantBuffer buffer;
+        if (!desc || !desc->SizeInBytes || !ResolveBufferAddress(desc->BufferLocation,desc->SizeInBytes,desc->SizeInBytes,buffer)) return;
+        auto& resource = gResources.at(buffer.resource); resource.handles.insert(handle.ptr);
+        ViewInfo view {buffer.resource,resource.id,D3D12_DESCRIPTOR_RANGE_TYPE_CBV,uint32_t(DXGI_FORMAT_UNKNOWN),0,false};
+        view.descriptorCpu = handle.ptr; view.rootVa = buffer.address; view.constantBytes = buffer.size;
+        if (const auto heap = HeapAtCpu(handle.ptr))
+        {
+            view.descriptorHeap = uint64_t(reinterpret_cast<uintptr_t>(heap->object)); view.heapKnown = true;
+        }
+        gViews[handle.ptr] = view;
+    } catch (...) { MetadataFailed("Constant buffer view metadata allocation failed"); }
 }
 void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3D12_SHADER_RESOURCE_VIEW_DESC* desc) noexcept
 {
