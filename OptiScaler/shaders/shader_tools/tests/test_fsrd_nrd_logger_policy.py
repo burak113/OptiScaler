@@ -18,6 +18,7 @@ from fsrd_toolchain import compile_cpp
 from test_fsrd_nrd_root_restore import function
 
 CPP = r'''
+#define SPDLOG_USE_STD_FORMAT
 #define SPDLOG_WCHAR_FILENAMES
 #define SPDLOG_WCHAR_TO_UTF8_SUPPORT
 #define SPDLOG_ACTIVE_LEVEL 0
@@ -207,12 +208,20 @@ def run():
     assert 'shared_logger->flush_on(gNrdBridgeAutomaticLogPolicy ? spdlog::level::warn : spdlog::level::trace);' in logger
     assert 'shared_logger->set_level((spdlog::level::level_enum) Config::Instance()->LogLevel.value_or_default());' in logger
     assert '#define SPDLOG_VER_PATCH 1' in (ROOT/'external/spdlog/include/spdlog/version.h').read_text()
+    assert '#define SPDLOG_USE_STD_FORMAT' in (ROOT/'OptiScaler/SysUtils.h').read_text()
     assert (ROOT/'external/spdlog/include/spdlog/sinks/basic_file_sink.h').is_file()
-    out=Path(os.environ.get('FSRD_TEST_OUTPUT_DIR','F:/FSRD/sol_batch/13d-menu/tests/logger-policy'))
+    out=Path(os.environ.get('FSRD_GPU_TEST_OUTPUT',os.environ.get('FSRD_TEST_OUTPUT_DIR','F:/FSRD/sol_batch/13d-menu/tests/logger-policy')))
     out.mkdir(parents=True,exist_ok=True)
     source=out/'nrd_logger_policy.cpp';source.write_text(body)
     executable=out/'nrd_logger_policy.exe'
-    compile_cpp(source,executable,include_dirs=[ROOT/'external/spdlog/include'])
+    # Keep source execution encoding explicit; std::format matches production.
+    # compile_cpp bypasses its cache for an explicit CL override; restore caller state.
+    previous_cl=os.environ.get('CL')
+    os.environ['CL']=(previous_cl+' ' if previous_cl else '')+'/utf-8'
+    try:compile_cpp(source,executable,include_dirs=[ROOT/'external/spdlog/include'])
+    finally:
+        if previous_cl is None:os.environ.pop('CL',None)
+        else:os.environ['CL']=previous_cl
     cases=['auto','auto_case','runtime_off','bridge_off','other_exe','suffix_exe',
            *['explicit_'+str(value) for value in (0,1,2,3,4,5,6)]]
     total=0;logs=[]
@@ -233,7 +242,7 @@ def run():
             (out/'throughput.json').write_text(json.dumps(rows,indent=2)+'\n')
             print(profile,count,'mean_us='+str(row['mean_us']),'p95_us='+str(row['p95_us']),'lines='+str(row['native_file_lines']))
     output=dict(native_checks=total,policy_fresh_processes=len(cases),benchmark_rows=len(rows),threads=16,
-                python_contract_categories=5,spdlog='1.15.1',scope='actual production bootstrap/gate/CustomOptional/PrepareLogger/CloseLogger; real spdlog basic_file_sink_mt/full pattern; disabled NGX/debug/console adapters; no game FPS or disk durability claim')
+                python_contract_categories=5,spdlog='1.15.1',format_backend='production SPDLOG_USE_STD_FORMAT',scope='actual production bootstrap/gate/CustomOptional/PrepareLogger/CloseLogger; real spdlog basic_file_sink_mt/full pattern; disabled NGX/debug/console adapters; no game FPS or disk durability claim')
     (out/'result.json').write_text(json.dumps(output,indent=2)+'\n')
     print('PASS:',total,'native logger checks;',len(rows),'real spdlog throughput rows')
 
