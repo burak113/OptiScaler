@@ -129,6 +129,53 @@ SLConstantsSnapshot camera(UINT frame,UINT width,UINT height) {
  c.motionVectorsJittered=sl::Boolean::eFalse; c.depthInverted=sl::Boolean::eTrue; c.reset=sl::Boolean::eFalse;
  return s;
 }
+namespace QueueAudit {
+enum class Kind { Wait, Execute, Signal };
+struct Event { Kind kind; ID3D12CommandQueue* queue; ID3D12Fence* fence=nullptr; UINT64 value=0; ID3D12CommandList* list=nullptr; };
+using FenceFn=HRESULT(WINAPI*)(ID3D12CommandQueue*,ID3D12Fence*,UINT64);
+using ExecuteFn=void(WINAPI*)(ID3D12CommandQueue*,UINT,ID3D12CommandList* const*);
+FenceFn originalWait=nullptr,originalSignal=nullptr; ExecuteFn originalExecute=nullptr;
+std::unordered_set<ID3D12CommandQueue*> observed; std::vector<Event> events;
+HRESULT WINAPI Wait(ID3D12CommandQueue* queue,ID3D12Fence* fence,UINT64 value) {
+ if(observed.contains(queue)) events.push_back({Kind::Wait,queue,fence,value});
+ return originalWait(queue,fence,value);
+}
+HRESULT WINAPI Signal(ID3D12CommandQueue* queue,ID3D12Fence* fence,UINT64 value) {
+ if(observed.contains(queue)) events.push_back({Kind::Signal,queue,fence,value});
+ return originalSignal(queue,fence,value);
+}
+void WINAPI Execute(ID3D12CommandQueue* queue,UINT count,ID3D12CommandList* const* lists) {
+ if(observed.contains(queue)) for(UINT i=0;i<count;++i) events.push_back({Kind::Execute,queue,nullptr,0,lists[i]});
+ originalExecute(queue,count,lists);
+}
+void Attach(ID3D12CommandQueue* a,ID3D12CommandQueue* b) {
+ observed={a,b}; events.clear(); auto** va=*reinterpret_cast<void***>(a); auto** vb=*reinterpret_cast<void***>(b);
+ need(va[10]==vb[10] && va[14]==vb[14] && va[15]==vb[15],"two native queues share observed Execute/Signal/Wait entries");
+ originalExecute=reinterpret_cast<ExecuteFn>(va[10]); originalSignal=reinterpret_cast<FenceFn>(va[14]); originalWait=reinterpret_cast<FenceFn>(va[15]);
+ hr(DetourTransactionBegin()); hr(DetourUpdateThread(GetCurrentThread()));
+ need(DetourAttach(&(PVOID&)originalExecute,Execute)==NO_ERROR,"native queue Execute observer attached");
+ need(DetourAttach(&(PVOID&)originalSignal,Signal)==NO_ERROR,"native queue Signal observer attached");
+ need(DetourAttach(&(PVOID&)originalWait,Wait)==NO_ERROR,"native queue Wait observer attached");
+ need(DetourTransactionCommit()==NO_ERROR,"native queue observers committed");
+}
+void Detach() {
+ hr(DetourTransactionBegin()); hr(DetourUpdateThread(GetCurrentThread()));
+ need(DetourDetach(&(PVOID&)originalExecute,Execute)==NO_ERROR,"native queue Execute observer detached");
+ need(DetourDetach(&(PVOID&)originalSignal,Signal)==NO_ERROR,"native queue Signal observer detached");
+ need(DetourDetach(&(PVOID&)originalWait,Wait)==NO_ERROR,"native queue Wait observer detached");
+ need(DetourTransactionCommit()==NO_ERROR,"native queue observers detached"); observed.clear();
+}
+}
+struct SubmissionProbe {
+ RecordedComputeLease::FencePointPtr point; unsigned before=0,published=0,failed=0; uint64_t ordinal=0;
+ void attach(ID3D12Device* device,ID3D12GraphicsCommandList* list) {
+  RecordedComputeLease::SubmissionCallbacks callbacks;
+  callbacks.beforeSubmit=[this](const RecordedComputeLease::SubmissionInfo& info) { ++before;ordinal=info.recordingSubmission;return true; };
+  callbacks.fencePublished=[this](const RecordedComputeLease::SubmissionInfo& info,const RecordedComputeLease::FencePointPtr& next) { ordinal=info.recordingSubmission;++published;point=next; };
+  callbacks.failed=[this](const RecordedComputeLease::SubmissionInfo&,RecordedComputeLease::SubmissionFailure) { ++failed; };
+  need(ResTrack_Dx12::RetainComputeDispatch(device,list,std::make_shared<unsigned>(1),{},std::move(callbacks)),"submission probe uses typed callbacks in actual production ledger");
+ }
+};
 struct Host {
  ComPtr<ID3D12Device> device; ComPtr<ID3D12GraphicsCommandList> list;
  ComPtr<ID3D12CommandAllocator> allocator; ComPtr<ID3D12CommandQueue> queue;
@@ -161,11 +208,30 @@ struct Host {
   hr(device->CreateFence(0,D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&fence)));
   RecordedComputeLease::SetHooksAvailable(true,true);
  }
- void submit() {
-  hr(list->Close()); ComPtr<IUnknown> identity; hr(list.As(&identity));
+ struct Stream {
+  ComPtr<ID3D12GraphicsCommandList> list; ComPtr<ID3D12CommandAllocator> allocator;
+  ComPtr<ID3D12CommandQueue> queue; ComPtr<ID3D12Fence> fence;
+  std::vector<ComPtr<ID3D12Resource>> uploads; UINT64 tick=0;
+ };
+ Stream newStream(bool newQueue) {
+  Stream stream; if(newQueue) { D3D12_COMMAND_QUEUE_DESC q{}; hr(device->CreateCommandQueue(&q,IID_PPV_ARGS(&stream.queue))); } else stream.queue=queue;
+  hr(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,IID_PPV_ARGS(&stream.allocator)));
+  hr(device->CreateCommandList(0,D3D12_COMMAND_LIST_TYPE_DIRECT,stream.allocator.Get(),nullptr,IID_PPV_ARGS(&stream.list)));
+  hr(device->CreateFence(0,D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&stream.fence))); return stream;
+ }
+ void exchange(Stream& stream) {
+  std::swap(list,stream.list); std::swap(allocator,stream.allocator); std::swap(queue,stream.queue);
+  std::swap(fence,stream.fence); std::swap(uploads,stream.uploads); std::swap(tick,stream.tick); requestedList=list.Get();
+ }
+ void submit(bool wait=true) { hr(list->Close()); executeClosed(wait); }
+ void executeClosed(bool wait=true) {
+  ComPtr<IUnknown> identity; hr(list.As(&identity));
   auto pending=RecordedComputeLease::BeforeSubmission(queue.Get(),{identity.Get()});
   ID3D12CommandList* cmd=list.Get(); queue->ExecuteCommandLists(1,&cmd); RecordedComputeLease::AfterSubmission(pending);
-  hr(queue->Signal(fence.Get(),++tick)); const auto end=GetTickCount64()+60000;
+  hr(queue->Signal(fence.Get(),++tick)); if(wait) waitComplete();
+ }
+ void waitComplete() {
+  const auto end=GetTickCount64()+60000;
   while(fence->GetCompletedValue()<tick && GetTickCount64()<end) Sleep(1);
   need(fence->GetCompletedValue()>=tick,"GPU completed every recorded title/injection command"); RecordedComputeLease::Poll();
  }
@@ -373,14 +439,17 @@ struct Title {
    FrameSurvey::ScopedInternal internal; Wiring::o_Dispatch(h.list.Get(),(width+7)/8,(height+7)/8,1); h.uav(checksum.Get());
   }
  }
- void frame(UINT id,UINT a=3,UINT b=2,bool probe=true,bool tagMotion=true) {
+ void recon(UINT id,bool probe=true,bool tagMotion=true) {
   begin(id,tagMotion); pass(Role::PrepLast); pass(Role::Recon,8,probe); h.uav(tex[4].Get()); h.uav(tex[5].Get());
+ }
+ void tail(UINT a=3,UINT b=2,bool probe=true) {
   pass(Role::PrePass); pass(Role::Temporal,24,probe); pass(Role::Chain3); pass(Role::HistSave); pass(Role::HistFix); pass(Role::Clamp);
   for(UINT i=0;i<a;++i) { pass(Role::ATrous,i+1==a?32:24); h.uav(tex[i+1==a?7:9].Get()); h.uav(tex[i+1==a?8:10].Get()); }
   pass(Role::PrePass); pass(Role::Temporal); pass(Role::Clamp);
   for(UINT i=0;i<b;++i) { pass(Role::ATrous,40); h.uav(tex[11].Get()); h.uav(tex[12].Get()); }
   h.uav(tex[7].Get()); h.uav(tex[8].Get()); pass(Role::Consumer,48);
  }
+ void frame(UINT id,UINT a=3,UINT b=2,bool probe=true,bool tagMotion=true) { recon(id,probe,tagMotion); tail(a,b,probe); }
  Readback readback(UINT texture) {
   return readback(tex[texture].Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
  }
@@ -416,11 +485,17 @@ struct Title {
   h.barrier(next.Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE); h.uploads.push_back(up);
   tex[6]=next; titleTextures.insert(next.Get()); FrameSurvey::ResourceCreated(next.Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE); views(); return old;
  }
- std::array<std::vector<uint16_t>,2> finish(UINT a=3,UINT b=2,bool probe=true) {
-  auto spec=readback(7),diff=readback(8); auto read=h.buffer(1024,D3D12_HEAP_TYPE_READBACK,D3D12_RESOURCE_STATE_COPY_DEST);
+ struct Captured { Readback spec,diff; ComPtr<ID3D12Resource> read; UINT a=3,b=2; bool probe=true; };
+ Captured capture(UINT a=3,UINT b=2,bool probe=true) {
+  Captured captured{readback(7),readback(8),h.buffer(1024,D3D12_HEAP_TYPE_READBACK,D3D12_RESOURCE_STATE_COPY_DEST),a,b,probe};
+  auto& read=captured.read;
   h.barrier(checksum.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COPY_SOURCE);
   h.list->CopyBufferRegion(read.Get(),0,checksum.Get(),0,1024); h.barrier(checksum.Get(),D3D12_RESOURCE_STATE_COPY_SOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-  h.submit(); auto result=std::array<std::vector<uint16_t>,2>{spec.signal(),diff.signal()};
+  return captured;
+ }
+ std::array<std::vector<uint16_t>,2> validate(const Captured& captured) {
+  auto result=std::array<std::vector<uint16_t>,2>{captured.spec.signal(),captured.diff.signal()};
+  auto& read=captured.read; const auto a=captured.a,b=captured.b; const auto probe=captured.probe;
   void* data=nullptr; hr(read->Map(0,nullptr,&data)); const auto* words=static_cast<const UINT*>(data);
   for(UINT role=1;role<11;++role) {
    const std::array<UINT,11> wanted={11,22,33,40,55,66,width,height,2048,role,2048};
@@ -431,7 +506,10 @@ struct Title {
   }
   need(words[10*16+12]==std::bit_cast<UINT>(decode(result[1].data())[0]) && words[10*16+13]==std::bit_cast<UINT>(decode(result[0].data())[0]),"native Consumer reads and decodes the actual post-injection title outputs");
   need(words[10*16+15]==codecBits,"Consumer observes the GPU execution-time native b6 encoding flag");
-  read->Unmap(0,nullptr); h.reset(); return result;
+  read->Unmap(0,nullptr); return result;
+ }
+ std::array<std::vector<uint16_t>,2> finish(UINT a=3,UINT b=2,bool probe=true) {
+  const auto captured=capture(a,b,probe); h.submit(); auto result=validate(captured); h.reset(); return result;
  }
  bool sentinel(const std::array<std::vector<uint16_t>,2>& data) const {
   for(UINT signal=0;signal<2;++signal) {
