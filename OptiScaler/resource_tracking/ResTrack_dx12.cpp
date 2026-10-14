@@ -4212,6 +4212,14 @@ bool ResTrack_Dx12::EnsureRRTraceHooks(ID3D12Device* device)
     return o_ExecuteCommandLists != nullptr && o_Reset != nullptr;
 }
 
+// Selected only when the NRD bridge is installed at startup.
+void ResTrack_Dx12::hkSurveyCreateConstantBufferView(ID3D12Device* This, const D3D12_CONSTANT_BUFFER_VIEW_DESC* desc,
+                                                   D3D12_CPU_DESCRIPTOR_HANDLE handle)
+{
+    o_CreateConstantBufferView(This,desc,handle);
+    FrameSurvey::View(handle,desc);
+}
+
 // Selected only for startup FrameSurvey instrumentation.
 void ResTrack_Dx12::hkSurveyCreateRenderTargetView(ID3D12Device* This, ID3D12Resource* pResource,
                                              D3D12_RENDER_TARGET_VIEW_DESC* pDesc,
