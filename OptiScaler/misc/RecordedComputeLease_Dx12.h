@@ -35,11 +35,25 @@ struct SubmissionInfo
     uint64_t submissionId = 0, recordingId = 0, recordingSubmission = 0;
     bool snapshotFallback = false;
 };
-enum class SubmissionFailure { Snapshot, Prepare, FenceCreate, Signal, Publish };
+struct SubmissionDecision
+{
+    bool allowed = true;
+    HRESULT orderingFailure = S_OK;
+};
+inline thread_local SubmissionDecision* gSubmissionDecision = nullptr;
+struct DecisionScope
+{
+    SubmissionDecision* previous;
+    explicit DecisionScope(SubmissionDecision& current) noexcept : previous(gSubmissionDecision)
+    { gSubmissionDecision = &current; }
+    ~DecisionScope() { gSubmissionDecision = previous; }
+};
+enum class SubmissionFailure { Snapshot, Prepare, FenceCreate, Signal, Publish, Ordering };
 struct SubmissionCallbacks
 {
     // Necessary ordering must run even during a failed snapshot. Keep that work
-    // allocation-free; false cannot remove commands already recorded in a list.
+    // allocation-free. False rejects private preparation; unrepaired required
+    // ordering must also call DenySubmission, which denies the original Execute.
     std::function<bool(const SubmissionInfo&)> beforeSubmit;
     std::function<void(const SubmissionInfo&, const FencePointPtr&)> fencePublished;
     std::function<void(const SubmissionInfo&, SubmissionFailure)> failed;
@@ -80,6 +94,7 @@ struct Submission
     std::vector<Callback> callbacks;
     std::vector<Occurrence> occurrences;
     std::shared_ptr<FencePoint> point; // contains no leases/callbacks/domain references: no ownership cycle
+    SubmissionDecision decision;
     bool preparationFailed = false, failureNotified = false;
     bool signalPublished = false;
 };
@@ -103,6 +118,15 @@ inline void FailCompletion() noexcept
     auto& r = GetRegistry();
     std::lock_guard lock(r.mutex);
     r.completionFailed = true;
+}
+inline void DenySubmission(HRESULT reason = E_FAIL) noexcept
+{
+    if (gSubmissionDecision)
+    {
+        if (gSubmissionDecision->allowed) gSubmissionDecision->orderingFailure = FAILED(reason) ? reason : E_FAIL;
+        gSubmissionDecision->allowed = false;
+    }
+    FailCompletion();
 }
 inline void SetHooksAvailable(bool listHooks, bool queueHook) noexcept
 {
@@ -242,21 +266,24 @@ inline HRESULT WaitForFence(ID3D12CommandQueue* queue, const FencePointPtr& pred
 {
     if (!predecessor) return S_OK;
     if (!queue || !predecessor->IsPublished() || !predecessor->queue || !predecessor->fence || !predecessor->value)
-    { FailCompletion(); return E_INVALIDARG; }
+    { DenySubmission(E_INVALIDARG); return E_INVALIDARG; }
     if (queue == predecessor->queue.Get()) return S_OK;
-    const HRESULT result = queue->Wait(predecessor->fence.Get(), predecessor->value);
-    if (SUCCEEDED(result)) return result;
-    // A failed GPU Wait must not let already-recorded shared work race. Poll a
-    // previously successful Signal without allocating an event. The caller must
-    // provide an acyclic predecessor; publication alone cannot prove that graph.
-    FailCompletion();
-    for (;;)
+    HRESULT result = E_FAIL;
+    constexpr uint32_t maxAttempts = 3;
+    for (uint32_t attempt = 0; attempt < maxAttempts; ++attempt)
     {
+        result = queue->Wait(predecessor->fence.Get(), predecessor->value);
+        if (SUCCEEDED(result)) return result;
         const auto completed = predecessor->fence->GetCompletedValue();
-        if (completed == UINT64_MAX) return DXGI_ERROR_DEVICE_REMOVED;
-        if (completed >= predecessor->value) return result;
-        Sleep(1);
+        if (completed == UINT64_MAX) { result = DXGI_ERROR_DEVICE_REMOVED; break; }
+        if (completed >= predecessor->value) return S_OK; // actual completion proves the edge unnecessary
+        if (result == E_INVALIDARG || result == DXGI_ERROR_DEVICE_REMOVED || result == DXGI_ERROR_DEVICE_RESET) break;
     }
+    // Do not CPU-wait: the producer may need a gate signalled by this same
+    // submitting thread after Execute returns. Persistent failure cannot order
+    // already recorded shared commands, so the caller must deny their Execute.
+    DenySubmission(result);
+    return result;
 }
 inline std::shared_ptr<Recording> FindRecording(IUnknown* identity, void* alias)
 {
@@ -301,14 +328,20 @@ inline void OrderingFallback(ID3D12CommandQueue* queue, const IdentityRange& ide
             for (const auto& callback : recording->callbacks)
                 if (callback.beforeSubmit) try { callback.beforeSubmit(info); } catch (...) {}
             for (const auto& callback : recording->callbacks)
-                if (callback.failed) try { callback.failed(info, SubmissionFailure::Snapshot); } catch (...) {}
+                if (callback.failed) try { callback.failed(info,
+                    gSubmissionDecision && !gSubmissionDecision->allowed ? SubmissionFailure::Ordering : SubmissionFailure::Snapshot); } catch (...) {}
         }
         catch (...) { /* Unknown identity stays pinned; do not invent an unrelated queue dependency. */ }
     }
 }
-inline std::shared_ptr<Submission> BeforeSubmission(ID3D12CommandQueue* queue, const IdentityRange& identities) noexcept
+inline std::shared_ptr<Submission> BeforeSubmission(ID3D12CommandQueue* queue, const IdentityRange& identities,
+                                                   SubmissionDecision* decision = nullptr) noexcept
 {
-    if (!queue) return nullptr;
+    SubmissionDecision local;
+    auto& admission = decision ? *decision : local;
+    admission = {};
+    DecisionScope decisionScope(admission);
+    if (!queue) { DenySubmission(E_INVALIDARG); return nullptr; }
     auto& r = GetRegistry();
     uint64_t submissionId = 0;
     { std::lock_guard lock(r.mutex); submissionId = r.nextSubmission++; }
@@ -359,12 +392,15 @@ inline std::shared_ptr<Submission> BeforeSubmission(ID3D12CommandQueue* queue, c
             if (callback.callbacks.beforeSubmit)
                 try { if (!callback.callbacks.beforeSubmit(callback.info)) { s->preparationFailed = true; FailCompletion(); } }
                 catch (...) { s->preparationFailed = true; FailCompletion(); }
-        if (s->preparationFailed) NotifyFailure(s, SubmissionFailure::Prepare);
+        if (!admission.allowed) s->preparationFailed = true;
+        if (s->preparationFailed) NotifyFailure(s, !admission.allowed ? SubmissionFailure::Ordering : SubmissionFailure::Prepare);
+        s->decision = admission;
         return s;
     }
     catch (...) { OrderingFallback(queue, identities, submissionId); return nullptr; }
 }
-inline std::shared_ptr<Submission> BeforeSubmission(ID3D12CommandQueue* queue, const std::vector<IUnknown*>& identities) noexcept
+inline std::shared_ptr<Submission> BeforeSubmission(ID3D12CommandQueue* queue, const std::vector<IUnknown*>& identities,
+                                                   SubmissionDecision* decision = nullptr) noexcept
 {
     const IdentityRange range {&identities, identities.size(),
         [](const void* context, size_t index, IUnknown** out) -> HRESULT {
@@ -372,11 +408,11 @@ inline std::shared_ptr<Submission> BeforeSubmission(ID3D12CommandQueue* queue, c
             *out = identity; if (identity) identity->AddRef(); return S_OK;
         },
         [](const void* context, size_t index) -> void* { return (*static_cast<const std::vector<IUnknown*>*>(context))[index]; }};
-    return BeforeSubmission(queue, range);
+    return BeforeSubmission(queue, range, decision);
 }
 inline void AfterSubmission(const std::shared_ptr<Submission>& s) noexcept
 {
-    if (!s) return;
+    if (!s || !s->decision.allowed) return;
     auto failure = SubmissionFailure::FenceCreate;
     try
     {
