@@ -33,6 +33,7 @@ def run():
     cpp = r'''
 #define NOMINMAX
 #include <d3d12.h>
+#include "__ROOT__/OptiScaler/misc/NrdBridgePerf_Dx12.h"
 #include <algorithm>
 #include <cstdint>
 #include <vector>
@@ -44,6 +45,7 @@ def run():
 #include <stdexcept>
 __STATE__
 namespace FrameSurvey {
+thread_local bool internalScope=false; bool Internal() { return internalScope; }
 struct ComputeRootView { UINT parameter=UINT_MAX; D3D12_DESCRIPTOR_RANGE_TYPE kind=D3D12_DESCRIPTOR_RANGE_TYPE_CBV; D3D12_GPU_VIRTUAL_ADDRESS address=0; };
 struct ComputeBindings {
  ID3D12RootSignature* root = nullptr;
@@ -166,7 +168,7 @@ int main() {
  std::cout << "PASS: " << checks << " production root restore checks\n";
 }
 '''
-    cpp = cpp.replace('__STATE__', state).replace('__BODIES__', bodies).replace('__CONTROL__', control)
+    cpp = cpp.replace('__ROOT__', ROOT.as_posix()).replace('__STATE__', state).replace('__BODIES__', bodies).replace('__CONTROL__', control)
     out = Path(os.environ['FSRD_GPU_TEST_OUTPUT'])
     out.mkdir(parents=True, exist_ok=True)
     file, exe = out/'root_restore.cpp', out/'root_restore.exe'

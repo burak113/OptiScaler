@@ -3,6 +3,7 @@
 #include <d3d12.h>
 
 namespace FrameSurvey { struct ComputeBindings; }
+struct D3D12RootRestoreSnapshot;
 
 class D3D12Hooks
 {
@@ -10,10 +11,10 @@ class D3D12Hooks
     inline static std::mutex hookMutex;
     inline static std::mutex agilityMutex;
 
-    static bool RestoreDescriptorHeaps(ID3D12GraphicsCommandList* cmdList);
-    static bool RestorePipelineState(ID3D12GraphicsCommandList* cmdList);
-    static bool RestoreComputeRootState(ID3D12GraphicsCommandList* cmdList);
-    static bool RestoreGraphicsRootState(ID3D12GraphicsCommandList* cmdList);
+    static bool RestoreDescriptorHeaps(ID3D12GraphicsCommandList* cmdList, const D3D12RootRestoreSnapshot& snapshot);
+    static bool RestorePipelineState(ID3D12GraphicsCommandList* cmdList, const D3D12RootRestoreSnapshot& snapshot);
+    static bool RestoreComputeRootState(ID3D12GraphicsCommandList* cmdList, const D3D12RootRestoreSnapshot& snapshot);
+    static bool RestoreGraphicsRootState(ID3D12GraphicsCommandList* cmdList, const D3D12RootRestoreSnapshot& snapshot);
 
   public:
     static void Hook();

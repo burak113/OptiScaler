@@ -20,6 +20,7 @@
 #include <stdexcept>
 #include "__ROOT__/OptiScaler/hooks/Hook_Utils.h"
 #include "__ROOT__/OptiScaler/misc/NrdBridgeTitleCallbacks_Dx12.h"
+#include "__ROOT__/OptiScaler/misc/NrdBridgePerf_Dx12.h"
 #include "__ROOT__/OptiScaler/include/detours/detours.h"
 #define LOG_WARN(...) ((void)0)
 #define LOG_ERROR(...) ((void)0)
@@ -73,10 +74,10 @@ struct D3D12Hooks {
  static bool RootSignatureTrackingEnabled();
  static void OnBridgeCommandListReset(ID3D12GraphicsCommandList*,ID3D12PipelineState*);
  static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*);
- static bool RestoreDescriptorHeaps(ID3D12GraphicsCommandList*);
- static bool RestorePipelineState(ID3D12GraphicsCommandList*);
- static bool RestoreComputeRootState(ID3D12GraphicsCommandList*);
- static bool RestoreGraphicsRootState(ID3D12GraphicsCommandList*);
+ static bool RestoreDescriptorHeaps(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
+ static bool RestorePipelineState(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
+ static bool RestoreComputeRootState(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
+ static bool RestoreGraphicsRootState(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
  static void RestoreRoot(ID3D12GraphicsCommandList*);
 };
 __TRACKERS__
