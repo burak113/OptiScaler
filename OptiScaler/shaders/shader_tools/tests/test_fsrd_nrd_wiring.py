@@ -96,7 +96,9 @@ def run():
     assert result['enabled']['injection_did_not_change_tracking']
     assert result['enabled']['after_reset']['sparse_mask'] == [0,0,1]
     assert result['debug_layer_available'] and result['debug_error_count'] == 0
-    result['python_checks'] = 5
+    assert result['enabled']['all_com_identities_bridge_callbacks'] == result['enabled']['bridge_callbacks']
+    assert len({entry['this'] for entry in result['enabled']['hook_layers'] if entry['layer'] == 'ResTrack'}) >= 2
+    result['python_checks'] = 7
     result['scope'] = ('actual production detours and state trackers/RestoreRoot with synthetic GPU work; '
                        'survey/coordinator callbacks are spies, no real RR or Cyberpunk runtime proof')
     (out/'result.json').write_text(json.dumps(result,indent=2)+'\n')

@@ -35,11 +35,18 @@ def run():
 #include <unordered_set>
 #include <stdexcept>
 #include <iostream>
+#include <atomic>
+#include <chrono>
+#include <future>
+#include <thread>
+#include <functional>
+#include "__ROOT__/OptiScaler/misc/NrdBridgeLifetime_Dx12.h"
 #include "__ROOT__/OptiScaler/hooks/Hook_Utils.h"
 #define LOG_INFO(...) ((void)0)
 __STATE__
 bool gNrdBridgeDeviceWrappers=true,gNrdBridgeWrappers=true,gSurveyWrappers=true;
 unsigned checks=0,releasesObserved=0,psoCleaned=0,slotsCleaned=0,leaseEnds=0;
+std::atomic<unsigned> leaseBegins=0;
 void need(bool ok,const char* message) { if(!ok) throw std::runtime_error(message); ++checks; }
 struct D3D12Hooks { static void OnBridgeCommandListReset(ID3D12GraphicsCommandList*,ID3D12PipelineState*); };
 __RESET__
@@ -49,10 +56,14 @@ struct State {
  static State& Instance() { static State state; return state; }
 };
 namespace RecordedComputeLease {
- int BeginRelease(void*) { return 1; }
+ int BeginRelease(void*) { ++leaseBegins; return 1; }
  void EndRelease(int,bool) { ++leaseEnds; }
 }
-namespace FrameSurvey { void Released(void*) { ++releasesObserved; } }
+namespace FrameSurvey {
+ thread_local bool internal=false;
+ bool Internal() { return internal; }
+ void Released(void*) { ++releasesObserved; }
+}
 struct HeapSlot { void ClearSlotIfMatches(size_t,ID3D12Resource*) { ++slotsCleaned; } };
 struct TrackedResourceSlot { std::weak_ptr<HeapSlot> heap; size_t index=0; };
 std::mutex _trackedResourcesMutex,gRRResourceStateMutex,gRRTrackedResourceMutex,gRRPsoMutex;
@@ -60,11 +71,15 @@ std::unordered_map<ID3D12Resource*,std::vector<TrackedResourceSlot>> _trackedRes
 std::unordered_set<ID3D12Resource*> gRRResourceStates,gRRResourceActivity,gRRTrackedResources,gRRResourcePsoProducers;
 void CleanupRRPsoReferences(void*) { ++psoCleaned; }
 struct Probe : IUnknown {
- ULONG refs=1;
- bool destroyed=false,expectClean=true;
+ std::atomic<ULONG> refs=1;
+ std::atomic<bool> destroyed=false;
+ std::atomic<unsigned> probeAdds=0;
+ bool expectClean=true;
+ std::function<void()> beforeRelease;
  HRESULT STDMETHODCALLTYPE QueryInterface(REFIID,void**) override { return E_NOINTERFACE; }
- ULONG STDMETHODCALLTYPE AddRef() override { return ++refs; }
+ ULONG STDMETHODCALLTYPE AddRef() override { ++probeAdds; return ++refs; }
  ULONG STDMETHODCALLTYPE Release() override {
+  if(beforeRelease) { auto once=std::move(beforeRelease); once(); }
   const auto left=--refs;
   if(!left) {
    auto* list=reinterpret_cast<ID3D12GraphicsCommandList*>(this);
@@ -79,12 +94,16 @@ struct Probe : IUnknown {
 };
 ULONG releaseResource(ID3D12Resource* resource) { return reinterpret_cast<IUnknown*>(resource)->Release(); }
 ULONG releaseUnknown(IUnknown* object) { return object->Release(); }
+ULONG releasePso(ID3D12PipelineState* object) { return reinterpret_cast<IUnknown*>(object)->Release(); }
 auto o_Release=&releaseResource;
 auto o_CommandListRelease=&releaseUnknown;
+auto o_PsoRelease=&releasePso;
+bool gResourceReleaseSharesPso=false;
 bool gResourceReleaseSharesCommandList=false;
 ULONG (*gSharedResourceReleaseObserver)(ID3D12Resource*)=nullptr;
 __RELEASE__
 __COMMAND_RELEASE__
+__PSO_RELEASE__
 void seed(Probe& object) {
  auto* list=reinterpret_cast<ID3D12GraphicsCommandList*>(&object);
  signatures[list]={SignatureEntryType::Compute,reinterpret_cast<ID3D12RootSignature*>(2)};
@@ -94,6 +113,73 @@ void seed(Probe& object) {
  pipelineStates[list]=reinterpret_cast<ID3D12PipelineState*>(4);
 }
 void clear() { signatures.clear(); rootStates.clear(); bridgeComputeRoots.clear(); descriptorHeaps.clear(); pipelineStates.clear(); }
+template<class Release> void releaseRace(Release release,bool snapshot=true) {
+ Probe object; if(snapshot) seed(object);
+ std::promise<void> started,completed;
+ auto start=started.get_future(),done=completed.get_future();
+ std::atomic<ULONG> result=ULONG(-1); std::exception_ptr failure;
+ const auto before=leaseBegins.load(); std::jthread worker;
+ {
+  NrdBridgeLifetime::ScopedBorrow borrowed;
+  worker=std::jthread([&] {
+   started.set_value();
+   try { result=release(object); } catch(...) { failure=std::current_exception(); }
+   completed.set_value();
+  });
+  start.wait();
+  need(done.wait_for(std::chrono::milliseconds(50))==std::future_status::timeout,"final Release waits for active borrowed CPU use");
+  need(object.refs==1 && !object.destroyed && object.probeAdds==0,"shared borrow adds no title AddRef and blocks the original probe");
+  bool reverseIndexFree=false;
+  std::thread lockProbe([&] { reverseIndexFree=_trackedResourcesMutex.try_lock(); if(reverseIndexFree) _trackedResourcesMutex.unlock(); });
+  lockProbe.join();
+  need(reverseIndexFree && leaseBegins==before,"exclusive gate precedes lease and tracked-resource locks");
+  { NrdBridgeLifetime::ScopedBorrow nested; need(object.refs==1,"same-thread nested borrow is safe"); }
+ }
+ need(done.wait_for(std::chrono::seconds(2))==std::future_status::ready,"final Release proceeds promptly after borrow ends");
+ worker.join(); if(failure) std::rethrow_exception(failure);
+ need(result==0 && object.destroyed && object.refs==0 && object.probeAdds==1,"actual production Release destroys once with its existing temporary probe only");
+ clear();
+}
+void lifetimeTests() {
+ gNrdBridgeWrappers=gNrdBridgeDeviceWrappers=gSurveyWrappers=true;
+ gResourceReleaseSharesCommandList=gResourceReleaseSharesPso=false;
+ releaseRace([](Probe& object) { return hkRelease(reinterpret_cast<ID3D12Resource*>(&object)); });
+ releaseRace([](Probe& object) { return hkCommandListRelease(&object); });
+ releaseRace([](Probe& object) { return hkPsoRelease(reinterpret_cast<ID3D12PipelineState*>(&object)); },false);
+ gResourceReleaseSharesCommandList=true;
+ releaseRace([](Probe& object) { return hkCommandListRelease(&object); });
+ gResourceReleaseSharesPso=true;
+ releaseRace([](Probe& object) { return hkPsoRelease(reinterpret_cast<ID3D12PipelineState*>(&object)); });
+ gResourceReleaseSharesCommandList=gResourceReleaseSharesPso=false;
+ Probe outer,inner;
+ outer.beforeRelease=[&] { need(hkPsoRelease(reinterpret_cast<ID3D12PipelineState*>(&inner))==0,"nested runtime Release uses the same-thread exclusive gate"); };
+ need(hkPsoRelease(reinterpret_cast<ID3D12PipelineState*>(&outer))==0 && outer.destroyed && inner.destroyed,"recursive physical releases complete without a gate deadlock");
+ Probe owned;
+ { NrdBridgeLifetime::ScopedBorrow borrowed; FrameSurvey::internal=true;
+  need(hkRelease(reinterpret_cast<ID3D12Resource*>(&owned))==0 && owned.destroyed,"internal bridge-owned releases bypass the title gate during borrow");
+  FrameSurvey::internal=false;
+ }
+ Probe shuttingDown; shuttingDown.expectClean=false; State::Instance().isShuttingDown=true;
+ std::promise<void> shutdownStarted,shutdownCompleted;
+ auto shutdownStart=shutdownStarted.get_future(),shutdownDone=shutdownCompleted.get_future(); std::jthread shutdownWorker;
+ { NrdBridgeLifetime::ScopedBorrow borrowed;
+  shutdownWorker=std::jthread([&] { shutdownStarted.set_value(); hkRelease(reinterpret_cast<ID3D12Resource*>(&shuttingDown)); shutdownCompleted.set_value(); });
+  shutdownStart.wait();
+  need(shutdownDone.wait_for(std::chrono::milliseconds(50))==std::future_status::timeout && !shuttingDown.destroyed,
+       "shutdown's physical Release still waits for an in-flight borrowed CPU operation");
+ }
+ need(shutdownDone.wait_for(std::chrono::seconds(2))==std::future_status::ready,"shutdown Release proceeds after in-flight borrow finishes");
+ shutdownWorker.join(); State::Instance().isShuttingDown=false;
+ need(shuttingDown.destroyed && shuttingDown.probeAdds==0,"shutdown preserves its original direct physical Release path");
+ Probe off; off.expectClean=false; gNrdBridgeWrappers=gNrdBridgeDeviceWrappers=false;
+ std::promise<void> completed; auto done=completed.get_future(); std::jthread worker;
+ { NrdBridgeLifetime::ScopedBorrow borrowed;
+  worker=std::jthread([&] { hkRelease(reinterpret_cast<ID3D12Resource*>(&off)); completed.set_value(); });
+  need(done.wait_for(std::chrono::seconds(2))==std::future_status::ready,"startup OFF performs no bridge gate lock");
+ }
+ worker.join(); need(off.destroyed,"startup OFF preserves physical final Release"); clear();
+}
+
 int main() try {
  gSharedResourceReleaseObserver=&hkRelease;
  for(bool shared:{false,true}) {
@@ -126,6 +212,7 @@ int main() try {
  need(hkRelease(reinterpret_cast<ID3D12Resource*>(&off))==0 && off.destroyed,"disabled release path still destroys normally");
  need(signatures.contains(list) && rootStates.contains(list) && descriptorHeaps.contains(list),"NrdBridge=false retains original root-cache behavior");
  clear();
+ lifetimeTests();
  std::cout << "PASS: " << checks << " production shared/dedicated Release checks\n";
  return 0;
 } catch(const std::exception& e) { std::cerr<<e.what()<<'\n'; return 1; }
@@ -135,6 +222,7 @@ int main() try {
         'RESET':function(d3d,'void D3D12Hooks::OnBridgeCommandListReset('),
         'RELEASE':res_function(res,'hkRelease'),
         'COMMAND_RELEASE':function(res,'static ULONG STDMETHODCALLTYPE hkCommandListRelease(IUnknown* This)\n{'),
+        'PSO_RELEASE':function(res,'ULONG hkPsoRelease(ID3D12PipelineState* This)\n{'),
     }
     for name, value in replacements.items():
         cpp = cpp.replace('__'+name+'__', value)
@@ -143,11 +231,11 @@ int main() try {
     source, exe = out/'nrd_release.cpp', out/'nrd_release.exe'
     source.write_text(cpp)
     compile_cpp(source,exe)
-    result = subprocess.run([str(exe)],check=True,capture_output=True,text=True)
+    result = subprocess.run([str(exe)],check=True,capture_output=True,text=True,timeout=30)
     print(result.stdout,end='')
     checks = int(re.search(r'PASS: (\d+)',result.stdout).group(1))
     (out/'result.json').write_text(json.dumps({'native_checks':checks,
-        'scope':'production dedicated/shared Release and actual root-cache cleanup; fake IUnknown proves callback ordering/address-only cleanup'})+'\n')
+        'scope':'production dedicated/shared resource/PSO/list Release bodies and actual root-cache cleanup; threaded fake IUnknown proves exclusive-before-registry ordering, borrowed CPU lifetime, recursion, internal bypass and OFF parity'})+'\n')
 
 
 if __name__ == '__main__':
