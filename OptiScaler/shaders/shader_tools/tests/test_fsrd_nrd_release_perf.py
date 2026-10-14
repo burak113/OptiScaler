@@ -117,7 +117,7 @@ struct CountedHeapPool:std::vector<std::shared_ptr<HeapInfo>>{using Base=std::ve
     cpp=cpp.replace('std::weak_ptr<HeapSlot>{},0,info->version.load()','std::weak_ptr<HeapSlot>{},info->version.load(),0')
     if occupied and 'std::mutex occupiedSlotsMutex;' not in cpp:
         cpp=cpp.replace('UINT numDescriptors=1;','UINT numDescriptors=1;std::mutex occupiedSlotsMutex;std::unordered_set<UINT> occupiedSlots;')
-    # Use the actual ResourceInfo shape, including its trivial descriptor storage.
+    # Use the actual ResourceInfo shape, including the trailing exact birth token.
     hud=(ROOT/'OptiScaler/hudfix/Hudfix_Dx12.h').read_text()
     resource_type=function(hud,'enum ResourceType')+';'
     resource_info=function(hud,'typedef struct ResourceInfo')+' resource_info;'
@@ -131,8 +131,8 @@ template<class T>struct CountedInfoArray{
 '''
     cpp=cpp.replace('struct HeapInfo : std::enable_shared_from_this<HeapInfo> {',shape+'\nstruct HeapInfo : std::enable_shared_from_this<HeapInfo> {')
     cpp=cpp.replace('struct Info {ID3D12Resource* buffer=nullptr;uint64_t lastUsedFrame=0;};std::shared_ptr<Info[]> info;','using Info=ResourceInfo;CountedInfoArray<Info> info;')
-    clear_slot=function(header,'void ClearSlotIfMatches(UINT index, ID3D12Resource* resource)')
-    clear_slot=clear_slot.replace('{','{\n ++slotsCleaned;',1)
+    clear_slot=lifetime.function_with_defaults(header,'void ClearSlotIfMatches(UINT index, ID3D12Resource* resource',
+                                               body_prefix='\n ++slotsCleaned;')
     position=cpp.index('bool DeactivateAndClear()')
     if occupied:
         methods='\n'.join(function(header,s) for s in (
