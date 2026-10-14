@@ -17,9 +17,11 @@
 #include <mutex>
 #include <new>
 #include <shared_mutex>
+#include <unordered_set>
 #include <vector>
 
 namespace RecordedComputeLease { struct Submission; }
+namespace FrameSurvey { void MetadataHookFailed(const char*) noexcept; }
 
 // #define DEBUG_TRACKING
 
@@ -162,6 +164,9 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
     UINT increment = 0;
     UINT type = 0;
     std::shared_ptr<ResourceInfo[]> info;
+    // Mutations take descriptor stripe -> tracked resources -> occupied slots.
+    std::mutex occupiedSlotsMutex;
+    std::unordered_set<UINT> occupiedSlots;
     UINT lastOffset = 0;
     std::atomic<bool> active { true };
     std::atomic<uint64_t> version { 0 };
@@ -173,9 +178,7 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
     {
         static std::atomic<uint64_t> globalHeapVersion { 1 };
         version.store(globalHeapVersion.fetch_add(1, std::memory_order_relaxed), std::memory_order_relaxed);
-
-        for (size_t i = 0; i < numDescriptors; i++)
-            info[i].buffer = nullptr;
+        // ResourceInfo initializes every buffer to nullptr.
     }
 
     bool GetCpuIndex(SIZE_T cpuHandle, UINT& index) const
@@ -212,6 +215,10 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
             return;
 
         std::scoped_lock lock(_trackedResourcesMutex);
+        {
+            std::scoped_lock occupiedLock(occupiedSlotsMutex);
+            occupiedSlots.erase(index);
+        }
         LOG_TRACK("Heap: {:X}, Index: {}, Resource: {:X}, Res: {}x{}, Format: {}", (size_t) this, index,
                   (size_t) oldResource, info[index].width, info[index].height, (UINT) info[index].format);
 
@@ -238,13 +245,32 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
         LOG_TRACK("Heap: {:X}, Index: {}, Resource: {:X}, Res: {}x{}, Format: {}", (size_t) this, index,
                   (size_t) newResource, info[index].width, info[index].height, (UINT) info[index].format);
 
-        const auto currentVersion = version.load(std::memory_order_relaxed);
-        auto& vec = _trackedResources[newResource];
-        auto found = std::find_if(vec.begin(), vec.end(), [currentVersion, index](const TrackedResourceSlot& slot)
-                                  { return slot.heapVersion == currentVersion && slot.index == index; });
-
-        if (found == vec.end())
-            vec.push_back({ shared_from_this(), currentVersion, index });
+        try
+        {
+            const auto currentVersion = version.load(std::memory_order_relaxed);
+            auto& vec = _trackedResources[newResource];
+            {
+                std::scoped_lock occupiedLock(occupiedSlotsMutex);
+                occupiedSlots.insert(index);
+            }
+            auto found = std::find_if(vec.begin(), vec.end(), [currentVersion, index](const TrackedResourceSlot& slot)
+                                     { return slot.heapVersion == currentVersion && slot.index == index; });
+            if (found == vec.end())
+                vec.push_back({ shared_from_this(), currentVersion, index });
+        }
+        catch (...)
+        {
+            // Never publish a raw resource without both reverse indexes.
+            {
+                std::scoped_lock occupiedLock(occupiedSlotsMutex);
+                occupiedSlots.erase(index);
+            }
+            if (auto found = _trackedResources.find(newResource); found != _trackedResources.end() && found->second.empty())
+                _trackedResources.erase(found);
+            info[index].buffer = nullptr;
+            info[index].lastUsedFrame = 0;
+            FrameSurvey::MetadataHookFailed("Descriptor participant index allocation failed");
+        }
     }
 
     bool GetByCpuHandle(SIZE_T cpuHandle, ResourceInfo& outInfo) const
@@ -392,6 +418,10 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
 
         info[index].buffer = nullptr;
         info[index].lastUsedFrame = 0;
+        {
+            std::scoped_lock occupiedLock(occupiedSlotsMutex);
+            occupiedSlots.erase(index);
+        }
     }
 
     bool DeactivateAndClear()
@@ -400,35 +430,35 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
             return false;
 
         std::array<std::unique_lock<std::shared_mutex>, DESCRIPTOR_LOCK_STRIPE_COUNT> locks;
-        const auto stripeCount = std::min<size_t>(numDescriptors,DESCRIPTOR_LOCK_STRIPE_COUNT);
+        const auto stripeCount = std::min<size_t>(numDescriptors, DESCRIPTOR_LOCK_STRIPE_COUNT);
         for (size_t i = 0; i < stripeCount; ++i)
             locks[i] = std::unique_lock<std::shared_mutex>(descriptorLocks[i]);
 
-        std::scoped_lock trackedLock(_trackedResourcesMutex);
-        for (UINT index = 0; index < numDescriptors; ++index)
+        decltype(info) retired;
         {
-            auto* resource = info[index].buffer;
-            if (resource == nullptr)
-                continue;
-
-            if (auto it = _trackedResources.find(resource); it != _trackedResources.end())
+            std::scoped_lock trackedLock(_trackedResourcesMutex);
+            std::scoped_lock occupiedLock(occupiedSlotsMutex);
+            for (const UINT index : occupiedSlots)
             {
-                const auto currentVersion = version.load(std::memory_order_relaxed);
-                auto& vec = it->second;
-                vec.erase(std::remove_if(vec.begin(), vec.end(),
-                                         [currentVersion, index](const TrackedResourceSlot& slot)
-                                         { return slot.heapVersion == currentVersion && slot.index == index; }),
-                          vec.end());
-                if (vec.empty())
-                    _trackedResources.erase(it);
+                auto* resource = info[index].buffer;
+                if (auto it = _trackedResources.find(resource); it != _trackedResources.end())
+                {
+                    const auto currentVersion = version.load(std::memory_order_relaxed);
+                    auto& vec = it->second;
+                    vec.erase(std::remove_if(vec.begin(), vec.end(),
+                                             [currentVersion, index](const TrackedResourceSlot& slot)
+                                             { return slot.heapVersion == currentVersion && slot.index == index; }),
+                              vec.end());
+                    if (vec.empty())
+                        _trackedResources.erase(it);
+                }
+                info[index].buffer = nullptr;
+                info[index].lastUsedFrame = 0;
             }
-
-            info[index].buffer = nullptr;
-            info[index].lastUsedFrame = 0;
+            occupiedSlots.clear();
+            retired = std::move(info);
         }
-
-        info.reset();
-
+        // Bulk descriptor storage destruction is outside the resource/index lock.
         return true;
     }
 
@@ -451,6 +481,10 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
 
         info[index].buffer = nullptr;
         info[index].lastUsedFrame = 0;
+        {
+            std::scoped_lock occupiedLock(occupiedSlotsMutex);
+            occupiedSlots.erase(index);
+        }
     }
 };
 
