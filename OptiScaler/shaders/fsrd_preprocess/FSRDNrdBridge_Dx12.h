@@ -11,9 +11,12 @@ struct Status
     uint32_t width = 0, height = 0;
 };
 bool SupportedExecutable() noexcept;
+// Called once after loading configuration, before any device hooks are attached.
+void ConfigureStartup(bool enabled) noexcept;
 bool StartupEnabled() noexcept;
 bool Initialize(ID3D12Device*) noexcept;
 void Shutdown() noexcept;
+void ReportUnavailable(const char* reason) noexcept;
 void OnPipelineCreated(ID3D12PipelineState*, const char* csSha256) noexcept;
 void OnSetPipeline(ID3D12GraphicsCommandList*, ID3D12PipelineState*) noexcept;
 void OnReset(ID3D12GraphicsCommandList*, ID3D12PipelineState*) noexcept;

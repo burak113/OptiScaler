@@ -130,6 +130,7 @@ struct Config {
 struct State { bool isShuttingDown=false; static State& Instance() { static State value; return value; } };
 inline std::filesystem::path g_dllPath;
 namespace Util {
+ inline bool CheckForRealObject(std::string,IUnknown*,IUnknown**) { return false; }
  inline std::filesystem::path DllPath() { return g_dllPath; }
  inline std::filesystem::path ExePath() { return L"cyberpunk2077.exe"; }
 }
@@ -247,13 +248,18 @@ def run():
     if '--compile-only' in sys.argv:
         print(json.dumps({'compile_only': True, 'executable': str(exe)}))
         return
+    off_text, off_peak, off_elapsed, off_log = bounded_run([str(exe), str(out), str(DLL), '--startup-off'], out / 'startup_off')
+    configured_off = json.loads((out / 'startup-off-result.json').read_text())
+    assert configured_off['startup_off'] == {'provider_creates': 0, 'provider_dispatches': 0, 'restore_calls': 0, 'nrdsentinel_untouched': True}
+    assert configured_off['debug_errors'] == 0 and configured_off['debug_warnings'] == 0
     text, peak, elapsed, log = bounded_run([str(exe), str(out), str(DLL)], out / 'e2e')
     result = json.loads((out / 'result.json').read_text())
     assert result['raw']['exact_rgb'] and result['raw']['alpha_zero']
     assert result['rr']['finite_values'] == result['rr']['total_values']
     assert result['runtime_off']['provider_dispatches'] == 0 and result['runtime_off']['internal_detour_calls'] == 0
     assert result['debug_errors'] == 0 and result['debug_warnings'] == 0
-    result.update(python_checks=4, elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log),
+    result.update(python_checks=6, elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log),
+                  configured_startup_off=dict(**configured_off, elapsed_seconds=off_elapsed, peak_resident_bytes=off_peak, native_log=str(off_log)),
                   dll=str(DLL), dll_sha256=hashlib.sha256(DLL.read_bytes()).hexdigest(),
                   scope=('production FrameSurvey/coordinator/conversion/RRWrapper, actual D3D12 compute detours and '
                          'RestoreRoot, production FfxApiProxy routing/context-map functions, signed AMD exports; '

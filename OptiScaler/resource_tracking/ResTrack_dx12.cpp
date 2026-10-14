@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
+#include "misc/NrdBridgeDevice_Dx12.h"
 #include "shaders/fsrd_preprocess/RRTraceFence.h"
 #include "misc/RecordedComputeLease_Dx12.h"
 #include "misc/NrdBridgeLifetime_Dx12.h"
@@ -3668,16 +3669,32 @@ bool ResTrack_Dx12::RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCo
 
 void ResTrack_Dx12::HookDevice(ID3D12Device* device)
 {
+    if (device == nullptr || FrameSurvey::Internal()) return;
+    if (o_CreateDescriptorHeap == nullptr || NrdBridge::StartupEnabled())
+    {
+        gNrdBridgeWrappers = NrdBridge::StartupEnabled();
+        gSurveyWrappers = Config::Instance()->FfxDenoiserFrameSurvey.value_or_default() || gNrdBridgeWrappers;
+    }
+    Microsoft::WRL::ComPtr<ID3D12Device> native;
+    if (NrdBridge::StartupEnabled())
+    {
+        native = NrdBridgeDevice::Native(device);
+        if (!native || !NrdBridgeDevice::Selected(native.Get(), State::Instance().currentD3D12Device)) return;
+        device = native.Get();
+        const char* reason = nullptr;
+        if (o_CreateDescriptorHeap != nullptr && !RefreshComputeHookDevice(device, &reason))
+        {
+            if (!reason) reason = "Selected title device could not be bound to installed compute hooks; restart required";
+            NrdBridge::ReportUnavailable(reason);
+            LOG_ERROR("[NRD_BRIDGE] {}", reason);
+            return;
+        }
+        if (!NrdBridge::Initialize(device)) return;
+    }
     if (o_CreateDescriptorHeap != nullptr ||
         (State::Instance().activeFgInput == FGInput::NvngxFG && !NrdBridge::StartupEnabled()))
         return;
 
-    if (device == nullptr)
-        return;
-
-    gNrdBridgeWrappers = NrdBridge::StartupEnabled();
-    gSurveyWrappers = Config::Instance()->FfxDenoiserFrameSurvey.value_or_default() || gNrdBridgeWrappers;
-    if (gNrdBridgeWrappers) NrdBridge::Initialize(device);
     if (gSurveyWrappers) FrameSurvey::BeginCreationTracking(Config::Instance()->FfxDenoiserFrameSurvey.value_or_default());
     bool initializeTracking = false;
     {
@@ -3778,9 +3795,9 @@ void ResTrack_Dx12::HookDevice(ID3D12Device* device)
 
     {
         std::lock_guard lock(gComputeHookInitMutex);
-        HookResource(device);
-        HookToQueue(device);
-        HookCommandList(device);
+        HookResource(realDevice);
+        HookToQueue(realDevice);
+        HookCommandList(realDevice);
     }
 }
 

@@ -2071,6 +2071,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         }
 
         spdlog::info("");
+        NrdBridge::ConfigureStartup(Config::Instance()->FfxDenoiserNrdBridge.value_or_default());
         CheckQuirks(possibleNvidia);
 
         // Check for working mode and attach hooks
