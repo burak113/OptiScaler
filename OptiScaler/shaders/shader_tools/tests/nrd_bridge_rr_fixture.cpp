@@ -1103,7 +1103,7 @@ void sameBatchSnapshotChecks(Host& host)
         // Deliberately reuse the SAME private slot to exercise its real production
         // Commit/FlagCapture state balance. Normal pool admission never reuses an
         // outstanding lease; two distinct lists are required by the native API.
-        owner->Commit(lists[i],*slot,scene.spec(),scene.diff(),SignalEncoding::Rgb,constants);
+        owner->Commit(lists[i],*slot,scene.spec(),scene.diff(),SignalEncoding::Rgb,constants,0.0f);
     }
     hr(host.list->Close());auto firstList=host.list;host.list=secondList;
     consumer.Record(host);Readback decodedSpec(host,consumer.spec.Get()),decodedDiff(host,consumer.diff.Get());

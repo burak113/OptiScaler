@@ -14,6 +14,7 @@
 #include <upscalers/fsr31/FSRDRRInterop.h>
 #include <wrl/client.h>
 #include <array>
+#include <bit>
 #include <cstdio>
 #include <sstream>
 #include <vector>
@@ -304,7 +305,7 @@ struct Context
     }
     void Commit(ID3D12GraphicsCommandList* list, const Slot& slot,
                 ID3D12Resource* outputSpec, ID3D12Resource* outputDiff, SignalEncoding encoding,
-                const TitleSignalConstants& titleConstants) noexcept
+                const TitleSignalConstants& titleConstants, float nativeSpecularBlend) noexcept
     {
         const bool nativeConstants = HasNativeTitleSignalConstants(titleConstants);
         if (nativeConstants)
@@ -326,8 +327,9 @@ struct Context
         list->ResourceBarrier(static_cast<UINT>(barriers.size()), barriers.data());
         list->SetPipelineState(commitPso.Get()); list->SetComputeRootSignature(commitRoot.Get());
         ID3D12DescriptorHeap* heaps[] = {slot.descriptors.Get()}; list->SetDescriptorHeaps(1, heaps);
-        const uint32_t constants[] = {width, height, uint32_t(encoding), nativeConstants ? 1u : 0u};
-        list->SetComputeRoot32BitConstants(0, 4, constants, 0);
+        const uint32_t constants[] = {width, height, uint32_t(encoding), nativeConstants ? 1u : 0u,
+            std::bit_cast<uint32_t>(nativeSpecularBlend)};
+        list->SetComputeRoot32BitConstants(0, 5, constants, 0);
         list->SetComputeRootConstantBufferView(3, address);
         auto gpu = slot.descriptors->GetGPUDescriptorHandleForHeapStart(); list->SetComputeRootDescriptorTable(1, gpu);
         gpu.ptr += uint64_t(2) * descriptorStride; list->SetComputeRootDescriptorTable(2, gpu);
@@ -528,8 +530,9 @@ RRWrapper::~RRWrapper() = default;
 bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
 {
     if (!ValidateRRSettings(requested, error)) return false;
+    const float nativeSpecularBlend = NormalizeNativeSpecularBlend(requested.nativeSpecularBlend);
     if (!impl_ && !requested.overrideMask && requested.nativeDebugView == -1 &&
-        requested.nativeDebugViewport == 0 && !requested.preserveNativeMaterialIDs) return true;
+        requested.nativeDebugViewport == 0 && !requested.preserveNativeMaterialIDs && nativeSpecularBlend == 0.0f) return true;
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
     if (impl_->settings.preserveNativeMaterialIDs != requested.preserveNativeMaterialIDs)
     { impl_->resetPending = true; impl_->nativeDebug = {}; }
@@ -540,6 +543,7 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     impl_->settings.nativeDebugView = requested.nativeDebugView;
     impl_->settings.nativeDebugViewport = requested.nativeDebugViewport;
     impl_->settings.preserveNativeMaterialIDs = requested.preserveNativeMaterialIDs;
+    impl_->settings.nativeSpecularBlend = nativeSpecularBlend;
     for (uint32_t index = 0; index < 7; ++index)
         if (requested.overrideMask & (1u << index))
         {
@@ -888,10 +892,13 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
         ID3D12Resource *spec, *diff;
         SignalEncoding encoding;
         TitleSignalConstants constants;
-    } commit {lease->context.get(), list, lease->slot.get(), outputSpec, outputDiff, frame.outputEncoding, frame.outputConstants};
+        float nativeSpecularBlend;
+    } commit {lease->context.get(), list, lease->slot.get(), outputSpec, outputDiff, frame.outputEncoding, frame.outputConstants,
+        NormalizeNativeSpecularBlend(frame.nativeSpecularBlend)};
     const auto record = +[](void* state) noexcept {
         const auto& prepared = *static_cast<PreparedCommit*>(state);
-        prepared.context->Commit(prepared.list, *prepared.slot, prepared.spec, prepared.diff, prepared.encoding, prepared.constants);
+        prepared.context->Commit(prepared.list, *prepared.slot, prepared.spec, prepared.diff, prepared.encoding, prepared.constants,
+            prepared.nativeSpecularBlend);
     };
     if (guard.admit && !guard.admit(guard.state, record, &commit))
     {

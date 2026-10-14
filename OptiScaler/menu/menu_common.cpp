@@ -3278,6 +3278,7 @@ static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
 {
     NrdBridge::RRSettings settings;
     settings.preserveNativeMaterialIDs = config.FfxDenoiserNrdBridgeMaterialIDs.value_or_default();
+    settings.nativeSpecularBlend = NrdBridge::NormalizeNativeSpecularBlend(config.FfxDenoiserNrdBridgeNativeSpecularBlend.value_or_default());
     settings.nativeDebugView = config.FfxDenoiserNrdBridgeNativeDebugView.value_or_default();
     settings.nativeDebugViewport = uint32_t(std::clamp(config.FfxDenoiserNrdBridgeNativeDebugViewport.value_or_default(),
         0, FFX_API_DENOISER_DEBUG_VIEW_MAX_VIEWPORTS-1));
@@ -3338,12 +3339,24 @@ static void DrawNrdBridgeRRTuning(Config* config)
         ImGui::SetTooltip("A/B hypothesis: the four normalized native categories can prevent filtering across material boundaries. "
                           "The current title alpha population and enable flags have not been measured. "
                           "Off supplies material ID 0. No extra resources or dispatches; changing it resets history. Default off.");
+    float nativeSpecularBlend = NrdBridge::NormalizeNativeSpecularBlend(config->FfxDenoiserNrdBridgeNativeSpecularBlend.value_or_default());
+    if (ImGui::SliderFloat("NRD reference specular blend (experimental)", &nativeSpecularBlend, 0.0f, 1.0f))
+    {
+        config->FfxDenoiserNrdBridgeNativeSpecularBlend = nativeSpecularBlend;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("NRD-assisted hybrid: 0 keeps RR specular; 1 keeps the native NRD specular output exactly. "
+                          "Intermediate values mix same-pixel linear RGB. Diffuse stays RR and both RR lobes still run. "
+                          "This changes the NRD/RR quality tradeoff, without a confidence or noise gate. "
+                          "RR history is unchanged; in-game quality is unmeasured. Default 0.");
     changed |= DrawNrdBridgeNativeDebug(config);
     static std::string settingsError;
     if (changed)
         NrdBridge::ApplyRRSettings(ReadNrdBridgeRRSettings(*config), cameraDepth, settingsError);
     if (!settingsError.empty()) ImGui::TextWrapped("Settings not applied: %s", settingsError.c_str());
     const auto state = NrdBridge::GetRRSettingsState();
+    ImGui::Text("Applied NRD reference specular blend: %.3f", state.requested.nativeSpecularBlend);
     if (!state.ready)
         ImGui::TextDisabled("Provider values are not available yet.");
     else if (ImGui::BeginTable("NrdBridgeRRValues", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable))
