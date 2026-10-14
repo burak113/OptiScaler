@@ -1,9 +1,11 @@
 #include "pch.h"
+#include "misc/NrdBridgeOwned_Dx12.h"
 #include "FSRDNrdBridgePass_Dx12.h"
 #include "resource_tracking/ResTrack_Dx12.h"
 #include "State.h"
 #include "precompile/FSRDNrdBridge_Shader.h"
 #include "precompile/FSRDNrdBridgeCopy_Shader.h"
+#include "precompile/FSRDNrdBridgeMotion_Shader.h"
 #include <wrl/client.h>
 #include <array>
 #include <cmath>
@@ -83,7 +85,7 @@ struct Pipeline
     std::shared_ptr<DescriptorSlot> NewSlot(ID3D12Device* device)
     {
         if (slots.size() >= kMaximumSlots) throw std::runtime_error("NRD descriptor pool has 32 unretired recordings");
-        auto slot = std::make_shared<DescriptorSlot>();
+        auto slot = MakeOwnedShared<DescriptorSlot>();
         D3D12_DESCRIPTOR_HEAP_DESC desc {};
         desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         desc.NumDescriptors = srvCount + uavCount;
@@ -116,7 +118,7 @@ struct Pipeline
         for (auto* resource : srvs)
         {
             D3D12_SHADER_RESOURCE_VIEW_DESC desc {};
-            desc.Format = resource->GetDesc().Format;
+            desc.Format = resource ? resource->GetDesc().Format : DXGI_FORMAT_R16G16B16A16_FLOAT;
             desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
             desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
             desc.Texture2D.MipLevels = 1;
@@ -150,7 +152,11 @@ struct ConversionPass::Impl
     uint64_t textureBytes = 0;
     bool historyValid = false;
     std::mutex mutex;
-    Pipeline conversion, copy;
+    Pipeline conversion, copy, motionPass;
+    bool motionInitialized = false, pendingMotion = false;
+    uint32_t motionPreviousIndex = 0, motionSLFrame = UINT32_MAX, motionBridgeFrame = 0;
+    bool motionPreviousValid = false;
+    ID3D12GraphicsCommandList* motionList = nullptr;
     OwnedTexture spec, diff, motion, normals, specAlbedo, diffAlbedo;
     std::array<OwnedTexture, 2> depth;
     // The only strong COM references are bridge-owned objects. All title textures
@@ -188,7 +194,7 @@ bool ConversionPass::Initialize(ID3D12Device* device, uint32_t width, uint32_t h
     try
     {
         ScopedSkipHeapCapture skipHeapCapture;
-        auto next = std::make_shared<Impl>(); next->device = device; next->width = width; next->height = height;
+        auto next = MakeOwnedShared<Impl>(); next->device = device; next->width = width; next->height = height;
         next->conversion.Initialize(device, FSRDNrdBridge_cso, sizeof(FSRDNrdBridge_cso), 4, 9);
         next->copy.Initialize(device, FSRDNrdBridgeCopy_cso, sizeof(FSRDNrdBridgeCopy_cso), 7, 2);
         next->Create(next->spec, DXGI_FORMAT_R16G16B16A16_FLOAT, L"NRD_Bridge_Spec");
@@ -216,7 +222,7 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
         !TextureMatches(inputs.reconDiff, owner->width, owner->height, DXGI_FORMAT_R16G16B16A16_FLOAT, true) ||
         !TextureMatches(inputs.normals, owner->width, owner->height, DXGI_FORMAT_R10G10B10A2_UNORM, false) ||
         !TextureMatches(inputs.viewDepth, owner->width, owner->height, DXGI_FORMAT_R32_FLOAT, false) ||
-        !TextureMatches(inputs.motion, owner->width, owner->height, DXGI_FORMAT_R16G16B16A16_FLOAT, false))
+        (inputs.motion && !TextureMatches(inputs.motion, owner->width, owner->height, DXGI_FORMAT_R16G16B16A16_FLOAT, false)))
     { error = "NRD conversion input format, size or UAV flag mismatch"; return false; }
     DirectX::XMMATRIX inverseProjection, inverseView;
     if (!frame.camera.Complete() || !FSRDCamera::TryInvert(frame.camera.projection, inverseProjection) ||
@@ -241,9 +247,12 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
         constants.nearPlane = frame.nearPlane; constants.farPlane = frame.farPlane; constants.depthSign = frame.depthSign;
         constants.previousValid = owner->historyValid && frame.previousValid && !frame.reset;
         constants.motionScale = frame.motionScale;
+        constants.reserved[0] = inputs.motion ? 0u : 1u;
         if (!frame.motionVectorsJittered)
             constants.jitterDelta = {(frame.previousJitter.x - frame.jitter.x) / owner->width,
                                     (frame.previousJitter.y - frame.jitter.y) / owner->height};
+        if (!std::isfinite(constants.jitterDelta.x) || !std::isfinite(constants.jitterDelta.y))
+        { error = "NRD jitter delta overflow"; return false; }
         DirectX::XMStoreFloat4x4(&constants.inverseProjection, inverseProjection);
         DirectX::XMStoreFloat4x4(&constants.worldToView, frame.camera.view);
         owner->conversion.Describe(owner->device.Get(), *lease->slot,
@@ -257,10 +266,67 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
         for (auto* texture : outputs) texture->Transition(list, kWrite);
         owner->conversion.Record(list, *lease->slot, &constants, 44, owner->width, owner->height);
         for (auto* texture : outputs) texture->Transition(list, kRead);
+        owner->pendingMotion = inputs.motion == nullptr;
+        owner->motionPreviousIndex = owner->previousIndex;
+        owner->motionPreviousValid = constants.previousValid != 0;
+        owner->motionList = list;
+        owner->motionSLFrame = frame.streamlineFrame;
+        owner->motionBridgeFrame = frame.frameIndex;
         owner->previousIndex = writeIndex; owner->historyValid = true;
         out = owner->Resources(); error.clear(); return true;
     }
     catch (const std::exception& e) { owner->historyValid = false; error = e.what(); return false; }
+}
+
+bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList* list, const ConvertedResources& resources,
+                                    ID3D12Resource* titleMotion, const FrameParameters& frame, std::string& error)
+{
+    if (!list || !impl_) { error = "NRD motion conversion is not initialized"; return false; }
+    auto owner = impl_;
+    std::lock_guard lock(owner->mutex);
+    const auto current = owner->Resources();
+    if (!owner->pendingMotion || !owner->historyValid || owner->motionList != list ||
+        owner->motionSLFrame != frame.streamlineFrame || owner->motionBridgeFrame != frame.frameIndex ||
+        resources.width != current.width || resources.height != current.height || resources.spec != current.spec ||
+        resources.diff != current.diff || resources.linearDepth != current.linearDepth || resources.motion != current.motion ||
+        resources.normals != current.normals || resources.specAlbedo != current.specAlbedo || resources.diffAlbedo != current.diffAlbedo ||
+        frame.motionVectors3D || titleMotion == current.motion || titleMotion == current.spec || titleMotion == current.diff ||
+        !TextureMatches(titleMotion, owner->width, owner->height, DXGI_FORMAT_R16G16B16A16_FLOAT, false))
+    { error = "NRD motion conversion requires the current same-list Recon ticket and Temporal motion"; return false; }
+    struct MotionConstants
+    {
+        uint32_t width, height, previousValid, reserved;
+        DirectX::XMFLOAT2 scale, jitterDelta;
+    };
+    static_assert(sizeof(MotionConstants) == 8 * sizeof(uint32_t));
+    MotionConstants constants {owner->width, owner->height, owner->motionPreviousValid ? 1u : 0u, 0u, frame.motionScale, {}};
+    if (!frame.motionVectorsJittered)
+        constants.jitterDelta = {(frame.previousJitter.x - frame.jitter.x) / owner->width,
+                                (frame.previousJitter.y - frame.jitter.y) / owner->height};
+    if (!std::isfinite(constants.scale.x) || !std::isfinite(constants.scale.y) ||
+        !std::isfinite(constants.jitterDelta.x) || !std::isfinite(constants.jitterDelta.y))
+    { error = "NRD motion scale or jitter delta is nonfinite"; return false; }
+    try
+    {
+        ScopedSkipHeapCapture skipHeapCapture;
+        if (!owner->motionInitialized)
+        {
+            owner->motionPass.Initialize(owner->device.Get(), FSRDNrdBridgeMotion_cso, sizeof(FSRDNrdBridgeMotion_cso), 3, 1);
+            owner->motionInitialized = true;
+        }
+        auto lease = std::make_shared<Impl::Lease>(); lease->owner = owner;
+        lease->slot = owner->motionPass.Acquire(owner->device.Get());
+        if (!ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(), list, lease))
+        { error = "NRD motion conversion GPU lifetime tracking unavailable"; return false; }
+        owner->motionPass.Describe(owner->device.Get(), *lease->slot,
+            {titleMotion, current.linearDepth, owner->depth[owner->motionPreviousIndex].resource.Get()}, {current.motion});
+        owner->motion.Transition(list, kWrite);
+        owner->motionPass.Record(list, *lease->slot, &constants, 8, owner->width, owner->height);
+        owner->motion.Transition(list, kRead);
+        owner->pendingMotion = false;
+        error.clear(); return true;
+    }
+    catch (const std::exception& e) { owner->historyValid = false; owner->pendingMotion = false; error = e.what(); return false; }
 }
 
 bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList* list, const ConvertedResources& resources,
@@ -272,7 +338,7 @@ bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList* list, const Converted
     auto owner = impl_;
     std::lock_guard lock(owner->mutex);
     const auto current = owner->Resources();
-    if (!owner->historyValid || resources.width != current.width || resources.height != current.height ||
+    if (!owner->historyValid || owner->pendingMotion || resources.width != current.width || resources.height != current.height ||
         resources.spec != current.spec || resources.diff != current.diff || resources.linearDepth != current.linearDepth ||
         resources.motion != current.motion || resources.normals != current.normals ||
         resources.specAlbedo != current.specAlbedo || resources.diffAlbedo != current.diffAlbedo ||
@@ -304,7 +370,7 @@ bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList* list, const Converted
 
 void ConversionPass::ResetHistory() noexcept
 {
-    if (impl_) { std::lock_guard lock(impl_->mutex); impl_->historyValid = false; }
+    if (impl_) { std::lock_guard lock(impl_->mutex); impl_->historyValid = false; impl_->pendingMotion = false; }
 }
 uint64_t ConversionPass::OwnedTextureBytes() const noexcept { return impl_ ? impl_->textureBytes : 0; }
 }

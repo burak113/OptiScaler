@@ -1,6 +1,7 @@
 // Cyberpunk NRD inputs are already demodulated. Preserve their RGB and world-unit
 // hit distances; white albedos tell RR that no further demodulation is required.
 #include "FSRDPreprocessCommon.hlsli"
+#include "FSRDNrdMotionCommon.hlsli"
 
 #define MainRS \
     "RootFlags(0), " \
@@ -62,21 +63,11 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
         ? clamp(abs(rawDepth), NearPlane, FarPlane) : FarPlane);
     OutDepth[p] = depth;
 
-    const float2 rawMotion = InMotion[p].xy;
-    const float2 safeMotion = float2(isfinite(rawMotion.x) ? rawMotion.x : 0.0f,
-                                    isfinite(rawMotion.y) ? rawMotion.y : 0.0f);
-    const float2 motion = safeMotion * MotionScale + JitterDeltaUv;
-    const float2 previousPixel = float2(p) + 0.5f + motion * float2(RenderSize);
-    float deltaDepth = 0.0f;
-    // Test bounds before conversion to int: very large finite title vectors must
-    // not overflow integer conversion or produce a clamped false correspondence.
-    if (PreviousValid != 0u && all(isfinite(previousPixel)) &&
-        all(previousPixel >= 0.0f) && all(previousPixel < float2(RenderSize)))
-    {
-        const float previousDepth = InPreviousDepth[int2(floor(previousPixel))];
-        if (isfinite(previousDepth)) deltaDepth = clamp(previousDepth - depth, -65504.0f, 65504.0f);
-    }
-    OutMotion[p] = float4(clamp(motion, -65504.0f, 65504.0f), deltaDepth, 1.0f);
+    // A null-MV Recon conversion defers this read until the current Temporal table is known.
+    [branch] if (Reserved.x == 0u)
+        OutMotion[p] = ConvertNrdMotion(p, RenderSize, InMotion[p].xy, depth, PreviousValid,
+                                        InPreviousDepth, MotionScale, JitterDeltaUv);
+    else OutMotion[p] = float4(0.0f, 0.0f, 0.0f, 1.0f);
 
     const float3 normalRoughness = InNormalRoughness[p].rgb;
     OutNormalRoughness[p] = float4(normalRoughness, 0.0f);

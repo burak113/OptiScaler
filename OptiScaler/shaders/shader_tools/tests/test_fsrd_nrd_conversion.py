@@ -24,6 +24,7 @@ OUT = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/sol_batch/12b-convers
 REPORT = Path(os.environ.get('FSRD_NRD_REPORT_OUTPUT', f'E:/FSRD/sol_batch/{OUT.parents[1].name}/conversion-evidence'))
 CAPTURES = Path('F:/Ultra Yedek 2/overwrite/bin/x64/GAME_TRACE/FRAME_SURVEY')
 CHECKS = 0
+DEFERRED = False
 
 AUDIT = r'''
 #include <unordered_set>
@@ -90,6 +91,8 @@ def build():
 
 
 def run_fixture(exe, mode, directory):
+    if DEFERRED:
+        mode = "deferred-" + mode
     result = subprocess.run([str(exe), mode, str(directory)], capture_output=True, text=True, errors='replace')
     (directory / 'fixture.stdout.log').write_text(result.stdout, encoding='utf-8')
     (directory / 'fixture.stderr.log').write_text(result.stderr, encoding='utf-8')
@@ -279,7 +282,7 @@ def synthetic(exe):
                 gpu_based_validation=True, source_access='Recon UAV flag4 in UA state, guides SRV without UAV flag; descriptor and borrowed-resource barrier audit',
                 audited_views=int(re.search(r'audited_views=(\d+)', stdout)[1]),
                 audited_barriers=int(re.search(r'audited_barriers=(\d+)', stdout)[1]),
-                lifetime='8 unsubmitted dispatches; resize and owner destruction before Execute; fence and Reset retirement',
+                lifetime='8 unsubmitted frames with conversion and debug dispatches; resize and owner destruction before Execute; fence and Reset retirement',
                 title_refcounts='unchanged across conversion and debug dispatch')
 
 
@@ -372,7 +375,15 @@ def benchmark(exe, width, height):
     samples = [float(value) for value in re.search(r'^gpu_ms=([\d.,eE+-]+)', stdout, re.M)[1].split(',')]
     check('nine timestamp samples after two warm batches', len(samples) == 9 and all(value > 0 for value in samples))
     check('no per-frame descriptor heaps after warmup', 'descriptor_allocations_after_warmup=0' in stdout)
+    components = {}
+    if DEFERRED:
+        for label in ('recon', 'motion'):
+            values = [float(x) for x in re.search(r'^' + label + r'_gpu_ms=([\d.,eE+-]+)', stdout, re.M)[1].split(',')]
+            check(label + ' nine timestamp samples', len(values) == 9 and all(x > 0 for x in values))
+            components[label + '_median_ms'] = float(np.median(values))
+            components[label + '_samples_ms'] = values
     return dict(width=width, height=height, median_ms=float(np.median(samples)), min_ms=min(samples), max_ms=max(samples),
+                **components,
                 samples_ms=samples, repetitions_per_batch=16, warm_batches=2, measured_batches=9,
                 owned_texture_bytes=int(re.search(r'texture_bytes=(\d+)', stdout)[1]),
                 descriptor_heaps=int(re.search(r'descriptor_heaps=(\d+)', stdout)[1]),
@@ -380,11 +391,14 @@ def benchmark(exe, width, height):
 
 
 def main():
+    global DEFERRED
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--phase', choices=('all', 'synthetic', 'capture', 'benchmark'), default='all')
+    parser.add_argument('--deferred', action='store_true', help='Production Recon plus current-Temporal motion path')
     args = parser.parse_args()
+    DEFERRED = args.deferred
     exe = build()
-    result = dict(production_source=(PASS / 'FSRDNrdBridgePass_Dx12.cpp').as_posix(), phase=args.phase)
+    result = dict(production_source=(PASS / 'FSRDNrdBridgePass_Dx12.cpp').as_posix(), phase=args.phase, deferred_motion=DEFERRED)
     if args.phase in ('all', 'synthetic'):
         result['synthetic'] = synthetic(exe)
     if args.phase in ('all', 'capture'):

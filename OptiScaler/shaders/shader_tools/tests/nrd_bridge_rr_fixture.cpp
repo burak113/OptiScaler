@@ -11,6 +11,12 @@
 #undef near
 #endif
 
+namespace FrameSurvey
+{
+ScopedInternal::ScopedInternal() noexcept : previous_(false) {}
+ScopedInternal::~ScopedInternal() {}
+}
+
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace NrdBridge;
