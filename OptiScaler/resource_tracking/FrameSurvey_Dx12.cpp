@@ -1269,7 +1269,7 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_PIPELINE_STATE_STREAM
 }
 void Released(void* object) noexcept
 {
-    if (!Tracking() || !object) return;
+    if (!Tracking() || OwnedRelease() || !object) return;
     bool lifetimeEntry = false;
     try
     {
@@ -2039,6 +2039,8 @@ const GUID SignatureLayoutId = {0xe971fb41,0x45a2,0x41ea,{0xa1,0x55,0x64,0xa8,0x
 void STDMETHODCALLTYPE Indirect(ID3D12GraphicsCommandList* cmd, ID3D12CommandSignature* signature, UINT count,
     ID3D12Resource* arguments, UINT64 argumentOffset, ID3D12Resource* counts, UINT64 countOffset)
 {
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::ExecuteIndirect,
+        NrdBridgePerf::Detail::configured.load(std::memory_order_relaxed) && Tracking() && !gInternal);
     NrdBridgeLifetime::ScopedBorrow borrow(Recording());
     uint32_t graphics = 0; UINT bytes = sizeof(graphics);
     if (signature) signature->GetPrivateData(SignatureId,&bytes,&graphics);

@@ -35,8 +35,8 @@ std::unordered_map<ID3D12Resource*,std::vector<TrackedResourceSlot>> _trackedRes
 NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Tracking> gRRResourceStateMutex,gRRTrackedResourceMutex,gRRPsoMutex;
 std::unordered_set<ID3D12Resource*> gRRResourceStates,gRRResourceActivity,gRRTrackedResources;
 void CleanupRRResourcePsoProducersLocked(ID3D12Resource*){}void CleanupRRPsoReferences(void*){}void DeactivateSharedHeap(void*){}
-ULONG forwardRelease(ID3D12Resource* object){return object->Release();}auto o_Release=&forwardRelease;
-ULONG forwardHeapRelease(ID3D12DescriptorHeap* object){return object->Release();}auto o_HeapRelease=&forwardHeapRelease;
+ULONG forwardRelease(ID3D12Resource* object){OriginalForwardTimer time;return object->Release();}auto o_Release=&forwardRelease;
+ULONG forwardHeapRelease(ID3D12DescriptorHeap* object){OriginalForwardTimer time;return object->Release();}auto o_HeapRelease=&forwardHeapRelease;
 std::atomic<bool> gHeapReleaseSharesResource=false;
 ULONG(*gSharedResourceReleaseObserver)(ID3D12Resource*)=nullptr;
 NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Tracking> heapPoolMutex;
@@ -57,9 +57,10 @@ uint64_t frequency(){LARGE_INTEGER value{};QueryPerformanceFrequency(&value);ret
 uint64_t rss(){PROCESS_MEMORY_COUNTERS_EX pm{};GetProcessMemoryInfo(GetCurrentProcess(),reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pm),sizeof(pm));return uint64_t(pm.WorkingSetSize);}
 uint64_t peakRss(){PROCESS_MEMORY_COUNTERS_EX pm{};GetProcessMemoryInfo(GetCurrentProcess(),reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pm),sizeof(pm));return uint64_t(pm.PeakWorkingSetSize);}
 constexpr size_t samples=4096,logicalRecords=100000;
+constexpr bool candidate=__CANDIDATE__;
 enum Event {CBV,SRVEvent,UAVEvent,ResourceRelease,HeapRelease,CopyBurst,Events};
 const std::array<const char*,Events> eventNames{"CBV","SRV","UAV","resource_release","pooled_heap_release","copy_burst"};
-struct Observation {std::array<std::vector<uint64_t>,Events> ticks;};
+struct Observation {std::array<std::vector<uint64_t>,Events> ticks;std::vector<uint64_t> finalTicks,nonfinalTicks;};
 std::array<NrdBridgePerf::Sample,size_t(NrdBridgePerf::Hook::Count)> counters(){
  std::array<NrdBridgePerf::Sample,size_t(NrdBridgePerf::Hook::Count)> out{};
  const auto& state=NrdBridgePerf::Detail::Get();for(size_t i=0;i<out.size();++i){out[i].calls=state.hooks[i].calls.load();out[i].ticks=state.hooks[i].ticks.load();for(size_t j=0;j<out[i].waitTicks.size();++j)out[i].waitTicks[j]=state.hooks[i].waitTicks[j].load();}return out;
@@ -85,7 +86,32 @@ void restart(Host& h){
  FrameSurvey::gRootLayouts.emplace(h.root.Get(),FrameSurvey::ReadRoot(h.root.Get()));
  FrameSurvey::SetReleaseObserver(&onRelease);
 }
+std::atomic<uint64_t> indirectForwards{0};
+void STDMETHODCALLTYPE indirectForward(ID3D12GraphicsCommandList*,ID3D12CommandSignature*,UINT,ID3D12Resource*,UINT64,ID3D12Resource*,UINT64){need(FrameSurvey::Internal(),"Indirect native forwarding preserves internal suppression");++indirectForwards;}
+void startupAndIndirectRegressions(Host& h,bool profile){
+ FrameSurvey::Shutdown();gNrdBridgeWrappers=gSurveyWrappers=false;
+ const auto before=counters();
+ for(UINT i=0;i<1000;++i){hkSurveyCreateConstantBufferView(h.device.Get(),&h.cbv,h.handle(0));hkSurveyCreateShaderResourceView(h.device.Get(),h.texture.Get(),&h.srvDesc,h.handle(1));hkSurveyCreateUnorderedAccessView(h.device.Get(),h.texture.Get(),nullptr,&h.uavDesc,h.handle(2));}
+ need(FrameSurvey::gResources.empty()&&FrameSurvey::gViews.empty()&&FrameSurvey::gHeaps.empty(),"startupOFF1000 nativeView calls each never allocate new registry metadata");
+ FrameSurvey::oIndirect=&indirectForward;FrameSurvey::Indirect(h.list.Get(),nullptr,0,nullptr,0,nullptr,0);
+ const auto after=counters();for(size_t i=0;i<4;++i)need(after[i].calls==before[i].calls,"startupOFF physical wrappers create no measured bridge hook scope");
+ gNrdBridgeWrappers=gSurveyWrappers=true;restart(h);FrameSurvey::oIndirect=&indirectForward;
+ const auto index=size_t(NrdBridgePerf::Hook::ExecuteIndirect);const auto count=NrdBridgePerf::Detail::Get().hooks[index].calls.load();
+ FrameSurvey::Indirect(h.list.Get(),nullptr,0,nullptr,0,nullptr,0);
+ need(NrdBridgePerf::Detail::Get().hooks[index].calls.load()==count+uint64_t(candidate&&profile),"actualIndirect profiler captures startupON only while sampling, frozenbaseline records none");
+ {FrameSurvey::ScopedInternal owned;FrameSurvey::Indirect(h.list.Get(),nullptr,0,nullptr,0,nullptr,0);}
+ need(NrdBridgePerf::Detail::Get().hooks[index].calls.load()==count+uint64_t(candidate&&profile),"ownedIndirect forwarding never contributes another title hook sample");
+ need(indirectForwards.load()==3,"startupOFF/ON/internalIndirect all forward exactly once");
+}
 void metadataRegressions(Host& h){
+ const auto releasedBefore=observedReleases.load();
+ {FrameSurvey::ScopedInternal owned;FrameSurvey::Released(h.texture.Get());}
+ if(candidate)need(observedReleases.load()==releasedBefore&&FrameSurvey::gResources.contains(h.texture.Get()),"owned final Release bypasses actual metadata and observer reentry");
+ else{need(observedReleases.load()==releasedBefore+1&&!FrameSurvey::gResources.contains(h.texture.Get()),"frozenbaseline explicitly reproduces owned observer reentry bug");FrameSurvey::ResourceCreated(h.texture.Get(),D3D12_RESOURCE_STATE_COMMON);}
+ const auto titleBefore=observedReleases.load();
+ {FrameSurvey::ScopedRecording titleAlias;FrameSurvey::Released(h.texture.Get());}
+ need(observedReleases.load()==titleBefore+1&&!FrameSurvey::gResources.contains(h.texture.Get()),"ordinary title recording aliases still retire metadata and notify observer");
+ FrameSurvey::ResourceCreated(h.texture.Get(),D3D12_RESOURCE_STATE_COMMON);
  FrameSurvey::SetBindingWindow(true);FrameSurvey::Reset(h.list.Get(),nullptr);FrameSurvey::RootBinding(h.list.Get(),false,h.root.Get());
  FrameSurvey::RootView(h.list.Get(),false,0,D3D12_DESCRIPTOR_RANGE_TYPE_CBV,h.cbv.BufferLocation);
  FrameSurvey::BoundConstantBuffer base;
@@ -167,41 +193,51 @@ struct WorkerPool {
  }
  ~WorkerPool(){for(auto* resource:finals)if(resource){FrameSurvey::Released(resource);resource->Release();}for(auto* heap:heaps)if(heap){FrameSurvey::Released(heap);heap->Release();}}
 };
-ULONG nativeProbeRelease(ID3D12Resource* resource){resource->AddRef();resource->Release();return resource->Release();}
-J phase(Host& h,size_t threadCount,UINT burst,bool wrappers){
+ULONG nativeProbeRelease(ID3D12Resource* resource){resource->AddRef();forwardRelease(resource);return forwardRelease(resource);}
+J phase(Host& h,size_t threadCount,UINT burst,bool wrappers,bool profile,bool finals=true){
  std::vector<std::unique_ptr<WorkerPool>> pool;const auto setup=qpc();
  for(size_t t=0;t<threadCount;++t){pool.push_back(std::make_unique<WorkerPool>(h,t,wrappers));
   for(UINT i=0;i<1024;++i)hkSurveyCreateShaderResourceView(h.device.Get(),h.texture.Get(),&h.srvDesc,h.handle(UINT(2048+t*2048+i)));}
  const double setupMs=(qpc()-setup)*1000.0/double(frequency());need(rss()<2ull*1024*1024*1024,"native pool plus100k metadata remains within2GB resident budget");
- std::barrier start(threadCount+1);std::vector<std::jthread> threads;std::vector<Observation> records(threadCount);
+ std::barrier start(threadCount+1);std::vector<std::jthread> threads;std::vector<Observation> records(threadCount),originals(threadCount);
  std::atomic<bool> bad{false};const auto before=counters();const auto beforeReleases=observedReleases.load();
  for(size_t t=0;t<threadCount;++t)threads.emplace_back([&,t]{
   for(auto& values:records[t].ticks)values.reserve(samples);
+  for(auto& values:originals[t].ticks)values.reserve(samples);
+  gMeasureOriginal=profile;
   size_t final=0,heap=0;start.arrive_and_wait();
   for(size_t i=0;i<samples;++i){const auto slot=h.handle(UINT(32+t*96+(i%32)));const auto operation=i%8;Event event=CBV;
-   if(operation==3)h.buffer->AddRef();const auto begin=qpc();
+   if(operation==3||(operation==7&&!finals))h.buffer->AddRef();gOriginalTicks=0;const auto begin=qpc();
    if(operation==0||operation==4){if(wrappers)hkSurveyCreateConstantBufferView(h.device.Get(),&h.cbv,slot);else forwardCBV(h.device.Get(),&h.cbv,slot);event=CBV;}
    else if(operation==1||operation==5){if(wrappers)hkSurveyCreateShaderResourceView(h.device.Get(),h.texture.Get(),&h.srvDesc,slot);else forwardSRV(h.device.Get(),h.texture.Get(),&h.srvDesc,slot);event=SRVEvent;}
    else if(operation==2||operation==6){if(wrappers)hkSurveyCreateUnorderedAccessView(h.device.Get(),h.texture.Get(),nullptr,&h.uavDesc,slot);else forwardUAV(h.device.Get(),h.texture.Get(),nullptr,&h.uavDesc,slot);event=UAVEvent;}
    else if(operation==3){const auto result=wrappers?hkRelease(h.buffer.Get()):nativeProbeRelease(h.buffer.Get());if(!result)bad=true;event=ResourceRelease;}
-   else{auto*& resource=pool[t]->finals[final++];const auto result=wrappers?hkRelease(resource):nativeProbeRelease(resource);if(result)bad=true;resource=nullptr;event=ResourceRelease;}
-   records[t].ticks[event].push_back(qpc()-begin);
+   else if(finals){auto*& resource=pool[t]->finals[final++];const auto result=wrappers?hkRelease(resource):nativeProbeRelease(resource);if(result)bad=true;resource=nullptr;event=ResourceRelease;}
+   else{const auto result=wrappers?hkRelease(h.buffer.Get()):nativeProbeRelease(h.buffer.Get());if(!result)bad=true;event=ResourceRelease;}
+   const auto elapsed=qpc()-begin;records[t].ticks[event].push_back(elapsed);
+   if(event==ResourceRelease)(operation==7&&finals?records[t].finalTicks:records[t].nonfinalTicks).push_back(elapsed);
+   if(profile)originals[t].ticks[event].push_back(gOriginalTicks);
    if(i%64==63){UINT count=burst;auto from=h.handle(UINT(2048+t*2048)),to=h.handle(UINT(3072+t*2048));const auto copyBegin=qpc();
-    h.device->CopyDescriptorsSimple(count,to,from,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    gOriginalTicks=0;{OriginalForwardTimer original;h.device->CopyDescriptorsSimple(count,to,from,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);}
     if(wrappers)FrameSurvey::CopyDescriptors(h.device.Get(),1,&to,&count,1,&from,&count,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     records[t].ticks[CopyBurst].push_back(qpc()-copyBegin);
+    if(profile)originals[t].ticks[CopyBurst].push_back(gOriginalTicks);
    }
-   if(i%128==127){auto*& object=pool[t]->heaps[heap++];const auto heapBegin=qpc();const auto result=wrappers?hkHeapRelease(object):object->Release();if(result)bad=true;object=nullptr;records[t].ticks[HeapRelease].push_back(qpc()-heapBegin);}
+   if(i%128==127){auto*& object=pool[t]->heaps[heap++];gOriginalTicks=0;const auto heapBegin=qpc();const auto result=wrappers?hkHeapRelease(object):forwardHeapRelease(object);if(result)bad=true;object=nullptr;records[t].ticks[HeapRelease].push_back(qpc()-heapBegin);if(profile)originals[t].ticks[HeapRelease].push_back(gOriginalTicks);}
   }
  });
  const auto began=qpc();start.arrive_and_wait();threads.clear();const auto wall=qpc()-began;const auto after=counters();
  need(!bad&&FrameSurvey::MetadataHealthy(),"all native final/nonfinal resource and pooled heap releases preserve healthy metadata");
- if(wrappers){need(observedReleases.load()-beforeReleases==threadCount*(samples/8+samples/128),"exact final resource/heap callback count across concurrent threads");
-  for(size_t t=0;t<threadCount;++t){for(size_t i=0;i<samples/8;++i)need(!FrameSurvey::gViews.contains(h.handle(UINT(40000+t*(samples/8)+i)).ptr),"actual final Release tombstones its indexed live CBV");
+ if(wrappers){need(observedReleases.load()-beforeReleases==threadCount*((finals?samples/8:0)+samples/128),"exact final resource/heap callback count across concurrent threads");
+  for(size_t t=0;t<threadCount;++t){for(size_t i=0;i<samples/8;++i){const auto slot=h.handle(UINT(40000+t*(samples/8)+i)).ptr;
+    if(finals)need(!FrameSurvey::gViews.contains(slot),"actual final Release tombstones its indexed live CBV");
+    else need(FrameSurvey::gViews.at(slot).object==pool[t]->finals[i],"nonfinal scenario retains each fixture-owned native resource and CBV");}
    auto destination=h.handle(UINT(3072+t*2048));for(UINT i=0;i<burst;++i){const auto found=FrameSurvey::gViews.find(destination.ptr+uint64_t(i)*h.stride);need(found!=FrameSurvey::gViews.end()&&found->second.object==h.texture.Get(),"every copied destination has current shared native texture identity");}
   }
  }
  J rows=J::array();size_t total=0;for(size_t e=0;e<Events;++e){std::vector<uint64_t> values;for(const auto& record:records)values.insert(values.end(),record.ticks[e].begin(),record.ticks[e].end());total+=values.size();auto row=percentile(std::move(values));row["event"]=eventNames[e];rows.push_back(row);}
+ J nativeRows=J::array();for(size_t e=0;e<Events;++e){std::vector<uint64_t> values;for(const auto& record:originals)values.insert(values.end(),record.ticks[e].begin(),record.ticks[e].end());auto row=percentile(std::move(values));row["event"]=eventNames[e];nativeRows.push_back(row);}
+ std::vector<uint64_t> finalValues,nonfinalValues;for(const auto& record:records){finalValues.insert(finalValues.end(),record.finalTicks.begin(),record.finalTicks.end());nonfinalValues.insert(nonfinalValues.end(),record.nonfinalTicks.begin(),record.nonfinalTicks.end());}
  J waits=J::array();const std::array<const char*,4> hooks{"CBV","SRV","UAV","Release"};
  for(size_t i=0;i<hooks.size();++i){const auto calls=after[i].calls-before[i].calls;J row{{"hook",hooks[i]},{"actual_profiled_calls",calls}};
   const std::array<const char*,4> categories{"metadata","physical_lifetime_gate","tracking","coordinator"};
@@ -209,20 +245,26 @@ J phase(Host& h,size_t threadCount,UINT burst,bool wrappers){
   row["profiled_total_us"]=double(after[i].ticks-before[i].ticks)*1000000.0/double(frequency());waits.push_back(row);
  }
  need(heapPool.empty(),"all pooled native heaps leave their participant registry");
- return{{"threads",threadCount},{"copy_descriptors",burst},{"mode",wrappers?"actual_production_hook_bodies":"native_forwarding_and_native_release_probe"},
+ return{{"threads",threadCount},{"copy_descriptors",burst},{"resource_final_fraction",finals?.5:0.0},{"resource_final",percentile(std::move(finalValues))},
+  {"resource_nonfinal",percentile(std::move(nonfinalValues))},{"heap_final_fraction",1.0},{"mode",wrappers?"actual_production_hook_bodies":"native_forwarding_and_native_release_probe"},
   {"iterations_per_thread",samples},{"events",total},{"wall_ms",double(wall)*1000.0/double(frequency())},{"events_per_second",double(total)*double(frequency())/wall},
-  {"pool_setup_ms_excluded_from_timings",setupMs},{"samples",rows},{"profile_waits",waits},{"working_set_bytes",rss()},{"peak_working_set_bytes",peakRss()}};
+  {"pool_setup_ms_excluded_from_timings",setupMs},{"samples",rows},{"paired_original_forwarding",nativeRows},
+  {"original_forwarding_scope","actual same-call native View/Copy/Release forwarding; Release AddRef/probe setup excluded; extra QPC onlyprofileON; OFF uninstrumented"},
+  {"profile_waits",waits},{"working_set_bytes",rss()},{"peak_working_set_bytes",peakRss()}};
 }
 int main(int argc,char** argv)try{
  need(argc==4,"output/profile/adapter arguments");SetPriorityClass(GetCurrentProcess(),BELOW_NORMAL_PRIORITY_CLASS);
  const bool profile=std::string(argv[2])=="on";gUseHardware=std::string(argv[3])=="hardware";
  if(profile){NrdBridgePerf::Configure([](const NrdBridgePerf::Report&)noexcept{});NrdBridgePerf::ConsumerFrame(1);}
  g_dllPath=std::filesystem::path(argv[1])/"fixture.dll";Host h;FrameSurvey::SetReleaseObserver(&onRelease);
- metadataRegressions(h);J rows=J::array();const auto cacheBegin=qpc();
+ startupAndIndirectRegressions(h,profile);metadataRegressions(h);J rows=J::array();const auto cacheBegin=qpc();
  {
   Cache cache(h);const double insertionMs=(qpc()-cacheBegin)*1000.0/double(frequency());
   for(size_t threads:{size_t(1),size_t(8),size_t(16)})for(UINT burst:{64u,1024u}){
-   rows.push_back(phase(h,threads,burst,false));rows.push_back(phase(h,threads,burst,true));
+   rows.push_back(phase(h,threads,burst,false,profile));rows.push_back(phase(h,threads,burst,true,profile));
+  }
+  for(size_t threads:{size_t(8),size_t(16)})for(UINT burst:{64u,1024u}){
+   rows.push_back(phase(h,threads,burst,false,profile,false));rows.push_back(phase(h,threads,burst,true,profile,false));
   }
   need(FrameSurvey::gResources.size()==cache.prior+logicalRecords,"all concurrent native final pools retired,100k logical records preserved");
   for(size_t i=0;i<logicalRecords;++i){const auto object=cache.objects[i];const auto handle=0x600000000000ull+(i+1)*64;
@@ -271,6 +313,20 @@ def run():
     cpp = cpp.replace('debug->EnableDebugLayer();', '(void)debug;')
     cpp = cpp.replace('hr(factory->EnumWarpAdapter(IID_PPV_ARGS(&warp)));', 'if(gUseHardware)hr(factory->EnumAdapters(0,&warp));else hr(factory->EnumWarpAdapter(IID_PPV_ARGS(&warp)));')
     cpp = cpp.replace('BeginCreationTracking(true)', 'BeginCreationTracking(false)').replace('hd.NumDescriptors=16', 'hd.NumDescriptors=65536')
+    timing = r'''
+thread_local bool gMeasureOriginal=false;
+thread_local uint64_t gOriginalTicks=0;
+struct OriginalForwardTimer {
+ LARGE_INTEGER start{};bool active=false;
+ OriginalForwardTimer(){active=gMeasureOriginal&&QueryPerformanceCounter(&start);}
+ ~OriginalForwardTimer(){if(active){LARGE_INTEGER end{};if(QueryPerformanceCounter(&end)&&end.QuadPart>=start.QuadPart)gOriginalTicks+=uint64_t(end.QuadPart-start.QuadPart);}}
+};
+'''
+    cpp = cpp.replace('// The exact production hook bodies use native WARP forwarding.', timing+'\n// The exact production hook bodies use native WARP forwarding.')
+    for operation in ('CBV', 'SRV', 'UAV'):
+        needle = '{d->Create'+{'CBV': 'ConstantBufferView', 'SRV': 'ShaderResourceView', 'UAV': 'UnorderedAccessView'}[operation]+'('
+        assert cpp.count(needle) == 1
+        cpp = cpp.replace(needle, '{OriginalForwardTimer original;d->Create'+{'CBV': 'ConstantBufferView', 'SRV': 'ShaderResourceView', 'UAV': 'UnorderedAccessView'}[operation]+'(')
     cpp = cpp.replace('struct State {', 'struct State {bool isShuttingDown=false;std::unordered_set<ID3D12Resource*> capturedHudlesses;')
     cpp = cpp.replace('struct HeapInfo {', 'struct HeapInfo {ID3D12DescriptorHeap* heap=nullptr;void ClearSlotIfMatches(UINT,ID3D12Resource*){}')
     names = ('hkCreateShaderResourceView', 'hkCreateUnorderedAccessView', 'hkSurveyCreateConstantBufferView', 'hkSurveyCreateShaderResourceView', 'hkSurveyCreateUnorderedAccessView')
@@ -280,8 +336,8 @@ def run():
     heap_release = function(hook_source, 'static ULONG STDMETHODCALLTYPE hkHeapRelease(')
     adapter = ADAPTER.replace('__RELEASE__', release.replace('ResTrack_Dx12::', '')).replace('__HEAP_RELEASE__', heap_release)
     guard = 'std::scoped_lock copyWriter(FrameSurvey::gLifetimeMutex);' if args.baseline else 'std::shared_lock copyWriter(FrameSurvey::gLifetimeMutex);'
-    variant = 'baseline6edf' if args.baseline else ('sharded-cursor' if '.PopAny(' in source else 'sharded')
-    cpp += adapter+DRIVER.replace('__SHARED_COPY_GUARD__', guard).replace('__VARIANT__', variant)
+    variant = 'baseline6edf-paired' if args.baseline else ('sharded-cursor-paired' if '.PopAny(' in source else 'sharded-paired')
+    cpp += adapter+DRIVER.replace('__SHARED_COPY_GUARD__', guard).replace('__VARIANT__', variant).replace('__CANDIDATE__', 'false' if args.baseline else 'true')
     cpp = cpp.replace('__TRACE__', (ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp').as_posix()).replace('__SURVEY__', surveyed.as_posix()).replace('__INDEXED__', '1').replace('__HOOKS__', hooks)
     stubs = out/'stubs'
     for folder in ('proxies', 'inputs'):
@@ -307,9 +363,10 @@ def run():
         report_dir = Path(os.environ.get('FSRD_TASK_REPORT_DIR', 'E:/FSRD/sol_batch/13a-lifetime'))
         report_dir.mkdir(parents=True, exist_ok=True)
         (report_dir/f'contention-{report["variant"]}-{profile}.json').write_text(json.dumps(report, indent=2)+'\n')
-        summary = [{'threads': row['threads'], 'copy_descriptors': row['copy_descriptors'],
+        summary = [{'threads': row['threads'], 'copy_descriptors': row['copy_descriptors'], 'resource_final_fraction': row['resource_final_fraction'],
                     'wall_ms': row['wall_ms'], 'mean_us': {sample['event']: sample['mean_us'] for sample in row['samples']},
-                    'metadata_wait_us': {wait['hook']: wait['metadata_mean_us'] for wait in row['profile_waits']}}
+                    'metadata_wait_us': {wait['hook']: wait['metadata_mean_us'] for wait in row['profile_waits']},
+                    'paired_native_mean_us': {sample['event']: sample.get('mean_us') for sample in row['paired_original_forwarding']}}
                    for row in report['rows'] if row.get('mode') == 'actual_production_hook_bodies']
         print(json.dumps({'variant': report['variant'], 'profile': profile, 'checks': report['checks'], 'peak_working_set_bytes': report['peak_working_set_bytes'], 'summary': summary}))
 
