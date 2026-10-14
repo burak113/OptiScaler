@@ -614,6 +614,13 @@ void SetBindingWindow(bool enabled) noexcept
 }
 bool BindingWindow() noexcept { return gBindingWindow.load(std::memory_order_relaxed); }
 bool MetadataHealthy() noexcept { return gMetadataHealthy.load(std::memory_order_acquire); }
+void MetadataHookFailed(const char* reason) noexcept
+{
+    if (!gMetadataHealthy.exchange(false,std::memory_order_acq_rel)) return;
+    // Hook installation may run inside bridge injection or survey recording.
+    // The existing admission gates consume this latch; never enter Fail/Shutdown here.
+    try { LOG_ERROR("[FRAME_SURVEY] native metadata observer failed: {}",reason ? reason : "unspecified observer"); } catch (...) {}
+}
 bool SeedComputeBindings(ID3D12GraphicsCommandList* cmd, const ComputeBindings& bindings) noexcept
 {
     if (!BindingTracking() || gInternal || !cmd || !bindings.root || bindings.heaps.empty() || !gMetadataHealthy.load(std::memory_order_acquire)) return false;
