@@ -50,7 +50,7 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
                                      saturate(0.5f + motion.z / 32.0f))
              : InDiffAlbedo[p].rgb;
     }
-    // Match the observed NRD output alpha (zero) in these diagnostic copies.
+    // Diagnostic views write zero alpha; production RR preserves the native title payload.
     OutSpec[p] = float4(EncodeNrdSignal(spec, encoding), 0.0f);
     OutDiff[p] = float4(EncodeNrdSignal(diff, encoding), 0.0f);
 }

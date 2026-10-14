@@ -71,6 +71,9 @@ void pipelineObserved(ID3D12PipelineState* pso,const char* hash) { observerLockP
 void releaseObserved(void* object) { observerLockProbe(); NrdBridge::OnReleased(object); }
 std::atomic<bool> conversionStaged {false};
 void conversionLockProbe() { conversionStaged.store(true,std::memory_order_release); }
+thread_local bool delayWindowPublisher=false;
+std::atomic<bool> windowPublisherPaused {false},resumeWindowPublisher {false};
+void windowPublicationProbe() { if(delayWindowPublisher) { windowPublisherPaused.store(true,std::memory_order_release); while(!resumeWindowPublisher.load(std::memory_order_acquire)) std::this_thread::yield(); } }
 using Bound=FrameSurvey::BoundResource;
 using Role=NrdBridge::Role;
 struct ChainHost {
@@ -471,6 +474,19 @@ J discoveryTests(Host& h) {
   "tag cancellation preserves its diagnostic and does not consume provider retry budget");
  NrdBridge::OnTitleTag(h.list.Get(),"MotionVectors",c.textures[6].Get()); c.frame(3); c.frame(3);
  need(NrdBridge::GetStatus().active,"clean tagged chain rediscovers and recovers after cancellation");
+ // Pause an old close before publication, then publish and seed a newer open.
+ NrdBridge::gBeforeBindingWindowPublishForTesting=windowPublicationProbe;
+ windowPublisherPaused.store(false);resumeWindowPublisher.store(false);
+ std::thread lateClose([&]{delayWindowPublisher=true;NrdBridge::PublishBindingWindow();});
+ try { await([]{return windowPublisherPaused.load(std::memory_order_acquire);},"old window publisher is delayed before reading current state"); }
+ catch (...) { resumeWindowPublisher.store(true);lateClose.join();NrdBridge::gBeforeBindingWindowPublishForTesting=nullptr;throw; }
+ NrdBridge::OnSetPipeline(h.list.Get(),c.pipelines[UINT(Role::Recon)].Get());
+ need(NrdBridge::gService->window && FrameSurvey::BindingWindow(),"new Recon opens and seeds its binding window while an old close waits");
+ resumeWindowPublisher.store(true,std::memory_order_release);lateClose.join();NrdBridge::gBeforeBindingWindowPublishForTesting=nullptr;
+ need(NrdBridge::gService->window && FrameSurvey::BindingWindow(),"delayed close publishes current desired state and cannot override a newer open");
+ std::vector<Bound> liveAfterClose;
+ need(FrameSurvey::ResolveComputeTable(h.list.Get(),5,liveAfterClose) && !liveAfterClose.empty(),"newly seeded live descriptor mirror survives delayed old publication");
+ c.frame(3);
  auto metadata=descriptorMetadataTests(c); auto timings=cpuTimings(c); FrameSurvey::SetBindingWindow(true); c.begin(); c.bind(1,0);
  FrameSurvey::Fail("fixture recorder-only capture failure");
  need(FrameSurvey::gMetadataHealthy.load(),"recorder-only capture failures do not latch creation or binding metadata unhealthy");

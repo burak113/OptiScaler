@@ -26,7 +26,7 @@ namespace
 enum class SubmissionPhase : uint8_t { Recorded, Submitting, FencePublished, Poisoned };
 struct RecordingToken
 {
-    std::atomic<bool> submitted {false};
+    std::atomic<bool> submitted {false}, outputCommitted {false};
     std::atomic<SubmissionPhase> phase {SubmissionPhase::Recorded};
 };
 struct HistoryDomain
@@ -38,6 +38,8 @@ struct HistoryDomain
     std::atomic<bool> uncertain {false}, discardPending {false};
     std::mutex submissionMutex;
     RecordedComputeLease::FencePointPtr completion;
+    uint64_t latestSubmissionId = 0;
+    bool pendingSubmission = false;
 };
 struct RecordingOwnership
 {
@@ -72,7 +74,7 @@ struct Service
     uint32_t windowPresents = 0, retryPresents = 0, attempts = 0, failures = 0, lastSLFrame = UINT32_MAX;
     bool window = false, windowSawRecon = false, everRecon = false, observedRecon = false, conventionsLogged = false, discardRequested = false;
 };
-std::mutex gMutex, gInjectionMutex;
+std::mutex gMutex, gInjectionMutex, gWindowMutex;
 std::shared_ptr<Service> gService;
 std::atomic<bool> gInstalled {false}, gRuntime {false};
 std::atomic<int> gStartupSelection {-1};
@@ -80,6 +82,7 @@ std::string gUnavailableReason;
 std::atomic<DebugMode> gDebug {DebugMode::Off};
 #ifdef FSRD_NRD_BRIDGE_TEST
 void (*gBeforeConversionLockForTesting)() = nullptr;
+void (*gBeforeBindingWindowPublishForTesting)() = nullptr;
 #endif
 
 // The wrapper caches its measured conventions after the first valid camera snapshot.
@@ -98,6 +101,17 @@ struct InjectionScope
     { D3D12Hooks::SetRootSignatureTracking(false); }
     ~InjectionScope() { D3D12Hooks::RestoreRoot(list); D3D12Hooks::SetRootSignatureTracking(previousTracking); }
 };
+void PublishBindingWindow()
+{
+#ifdef FSRD_NRD_BRIDGE_TEST
+    if (gBeforeBindingWindowPublishForTesting) gBeforeBindingWindowPublishForTesting();
+#endif
+    std::scoped_lock publication(gWindowMutex);
+    bool desired = false;
+    { std::scoped_lock lock(gMutex); desired = gService && gInstalled.load(std::memory_order_relaxed) &&
+        gRuntime.load(std::memory_order_relaxed) && gService->window; }
+    FrameSurvey::SetBindingWindow(desired);
+}
 void SeedForWindow(ID3D12GraphicsCommandList* cmd)
 {
     NrdBridgeLifetime::ScopedBorrow borrow;
@@ -153,7 +167,7 @@ void Failure(const std::shared_ptr<Service>& owner, const std::string& reason)
         ++owner->failures;
         if (owner->failures >= 3) owner->status.reason = "Failed after 3 bridge attempts: " + reason;
     }
-    FrameSurvey::SetBindingWindow(false);
+    PublishBindingWindow();
     if (log) LOG_ERROR("[NRD_BRIDGE] inactive: {}",reason);
 }
 void CoordinatorException(const char* reason) noexcept
@@ -270,7 +284,8 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
     }
     const bool reusable = history && history->resourceGeneration == generation &&
         !history->uncertain.load(std::memory_order_acquire) && (!history->latestRecording ||
-            history->latestRecording->phase.load(std::memory_order_acquire) == SubmissionPhase::FencePublished);
+            (history->latestRecording->outputCommitted.load(std::memory_order_acquire) &&
+             history->latestRecording->phase.load(std::memory_order_acquire) == SubmissionPhase::FencePublished));
     if (!reusable)
     {
         // Drop an otherwise unowned retired generation before applying the live bound.
@@ -298,13 +313,25 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         if (info.recordingSubmission > 1 || info.snapshotFallback)
             domain.uncertain.store(true,std::memory_order_release);
         RecordedComputeLease::FencePointPtr predecessor;
-        { std::scoped_lock lock(domain.submissionMutex); predecessor = domain.completion; }
+        {
+            std::scoped_lock lock(domain.submissionMutex);
+            // A prior Execute without a newly published fence cannot be ordered by
+            // an older completion point. Already-recorded successors must stop too.
+            if (domain.pendingSubmission && domain.latestSubmissionId != info.submissionId)
+            { RecordedComputeLease::DenySubmission(E_FAIL); return false; }
+            predecessor = domain.completion;
+            domain.latestSubmissionId = info.submissionId; domain.pendingSubmission = true;
+        }
         return SUCCEEDED(RecordedComputeLease::WaitForFence(info.queue,predecessor));
     };
-    submission.fencePublished = [ownership](const RecordedComputeLease::SubmissionInfo&,
+    submission.fencePublished = [ownership](const RecordedComputeLease::SubmissionInfo& info,
                                             const RecordedComputeLease::FencePointPtr& point) {
         auto& domain = *ownership->history;
-        { std::scoped_lock lock(domain.submissionMutex); domain.completion = point; }
+        {
+            std::scoped_lock lock(domain.submissionMutex);
+            if (domain.latestSubmissionId == info.submissionId)
+            { domain.completion = point; domain.pendingSubmission = false; }
+        }
         ownership->token->phase.store(SubmissionPhase::FencePublished,std::memory_order_release);
     };
     const std::weak_ptr<Service> weakOwner = owner;
@@ -438,7 +465,7 @@ bool Initialize(ID3D12Device* device) noexcept
             }
             // Publish observers under lifecycle serialization, outside the state lock.
             FrameSurvey::SetPipelineObserver(OnPipelineCreated); FrameSurvey::SetReleaseObserver(OnReleased);
-            FrameSurvey::SetBindingWindow(gRuntime.load(std::memory_order_relaxed));
+            PublishBindingWindow();
         }
         // Owned D3D12 releases may re-enter hooks. Destroy outside both coordinator locks.
         { FrameSurvey::ScopedInternal internal; previous.reset(); }
@@ -455,7 +482,7 @@ void Shutdown() noexcept
         {
             std::scoped_lock injection(gInjectionMutex);
             gInstalled.store(false,std::memory_order_release); gRuntime.store(false,std::memory_order_release);
-            FrameSurvey::SetPipelineObserver(nullptr); FrameSurvey::SetReleaseObserver(nullptr); FrameSurvey::SetBindingWindow(false);
+            FrameSurvey::SetPipelineObserver(nullptr); FrameSurvey::SetReleaseObserver(nullptr); PublishBindingWindow();
             { std::scoped_lock lock(gMutex); previous = std::move(gService); }
         }
         { FrameSurvey::ScopedInternal internal; previous.reset(); }
@@ -490,7 +517,7 @@ void OnSetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pipeline
             }
             seed = owner.window && (role == Role::PrepLast || role == Role::Recon);
         }
-        if (open) FrameSurvey::SetBindingWindow(true);
+        if (open) PublishBindingWindow();
         if (seed) SeedForWindow(cmd);
     } catch (...) {}
 }
@@ -527,7 +554,7 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
             }
             else if (const auto role = PipelineRole(owner,initial); role != Role::None) owner.lists[cmd].role = role;
         }
-        if (open) FrameSurvey::SetBindingWindow(true);
+        if (open) PublishBindingWindow();
     } catch (...) { CoordinatorException("Exception while resetting NRD command-list recording"); }
 }
 void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
@@ -654,7 +681,7 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         }
         } // Release physical-resource borrow before waiting for native injection serialization.
         if (invalid) { Failure(owner,error); return; }
-        if (window && !keepWindow) FrameSurvey::SetBindingWindow(false);
+        if (window && !keepWindow) PublishBindingWindow();
         if (published) LogDiscovery(discovered,motionTag);
         if (!inject) return;
         std::scoped_lock injection(gInjectionMutex);
@@ -693,6 +720,7 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 // This is the output admission point: reset/tag/release invalidation
                 // cannot pass between the final ticket check and the prepared write.
                 action(prepared);
+                staged.recording->outputCommitted.store(true,std::memory_order_release);
                 found->second.converted = false;
                 if (ticket.owner->pendingList == ticket.list) ticket.owner->pendingList = nullptr;
                 ticket.owner->failures = 0;
@@ -757,7 +785,7 @@ void OnReleased(void* object) noexcept
             if (owner.cache.Released(object)) { Invalidate(owner,"A discovered title resource was released"); reopen = true; }
         }
         if (reopen && gRuntime.load(std::memory_order_relaxed))
-        { FrameSurvey::SetBindingWindow(true); LOG_INFO("[NRD_BRIDGE] resource release invalidated discovery; restarting bounded window"); }
+        { PublishBindingWindow(); LOG_INFO("[NRD_BRIDGE] resource release invalidated discovery; restarting bounded window"); }
     } catch (...) {}
 }
 void OnTitleTag(ID3D12GraphicsCommandList*, const char* name, ID3D12Resource* resource) noexcept
@@ -780,7 +808,7 @@ void OnTitleTag(ID3D12GraphicsCommandList*, const char* name, ID3D12Resource* re
                 owner.cache.Get().width != description.Width || owner.cache.Get().height != description.Height))
             { Invalidate(owner,"Streamline motion tag or render size changed"); reopen = true; }
         }
-        if (reopen && gRuntime.load(std::memory_order_relaxed)) FrameSurvey::SetBindingWindow(true);
+        if (reopen && gRuntime.load(std::memory_order_relaxed)) PublishBindingWindow();
     } catch (...) {}
 }
 void OnPresent() noexcept
@@ -788,7 +816,7 @@ void OnPresent() noexcept
     if (!gInstalled.load(std::memory_order_relaxed) || !gRuntime.load(std::memory_order_relaxed)) return;
     try
     {
-        const auto snapshot = StreamlineHooks::getSLConstantsSnapshot(); bool change = false, desired = false, log = false;
+        const auto snapshot = StreamlineHooks::getSLConstantsSnapshot(); bool change = false, log = false;
         std::string reason;
         {
             std::scoped_lock lock(gMutex); if (!gService) return; auto& owner = *gService;
@@ -797,12 +825,12 @@ void OnPresent() noexcept
             {
                 owner.lastSLFrame = snapshot.frameIndex;
                 if (owner.cache.Frame(owner.observedRecon))
-                { Invalidate(owner,"Recon missing for 30 consecutive Streamline frames"); change = desired = log = true; }
+                { Invalidate(owner,"Recon missing for 30 consecutive Streamline frames"); change = log = true; }
                 owner.observedRecon = false;
             }
             if (owner.window && ++owner.windowPresents >= 8)
             {
-                owner.window = false; owner.retryPresents = 0; change = true; desired = false; owner.status.active = false;
+                owner.window = false; owner.retryPresents = 0; change = true; owner.status.active = false;
                 if (owner.windowSawRecon)
                 {
                     ++owner.attempts; owner.status.phase = "Inactive";
@@ -821,11 +849,11 @@ void OnPresent() noexcept
             {
                 owner.retryPresents = std::min(60u,owner.retryPresents+1);
                 if (owner.retryPresents >= 60 && owner.everRecon && (owner.attempts || owner.failures))
-                { StartWindow(owner); change = desired = true; }
+                { StartWindow(owner); change = true; }
             }
             if (reason.empty()) reason = owner.status.reason;
         }
-        if (change) FrameSurvey::SetBindingWindow(desired);
+        if (change) PublishBindingWindow();
         if (log) LOG_INFO("[NRD_BRIDGE] {}",reason);
     } catch (...) {}
 }
@@ -868,7 +896,7 @@ void SetRuntimeEnabled(bool enabled) noexcept
             else owner.window = false;
             window = owner.window;
         }
-        FrameSurvey::SetBindingWindow(window);
+        PublishBindingWindow();
         LOG_INFO("[NRD_BRIDGE] runtime={} (RR and depth history will reset at next Recon)",enabled);
     } catch (...) {}
 }

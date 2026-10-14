@@ -80,7 +80,7 @@ struct Service {
  bool window=false,windowSawRecon=false; unsigned windowPresents=0,retryPresents=0,attempts=0,failures=0;
  ~Service(){checkDestruction();}
 };
-std::mutex gMutex,gInjectionMutex;
+std::mutex gMutex,gInjectionMutex,gWindowMutex;
 std::shared_ptr<Service> gService;
 std::atomic<bool> gInstalled{false},gRuntime{false};
 std::atomic<int> gStartupSelection{-1};
@@ -306,7 +306,7 @@ def run():
         'DECLARATIONS': '\n'.join(declarations), 'RESET': reset,
         'COORDINATOR': '\n'.join(function(bridge, sig) for sig in (
             'bool SupportedExecutable() noexcept', 'void ConfigureStartup(bool enabled) noexcept',
-            'bool StartupEnabled() noexcept', 'bool Initialize(ID3D12Device* device) noexcept',
+            'bool StartupEnabled() noexcept', 'void PublishBindingWindow()', 'bool Initialize(ID3D12Device* device) noexcept',
             'void Shutdown() noexcept', 'void ReportUnavailable(const char* reason) noexcept',
             'Status GetStatus()', 'void RequireRestoreFlags()', 'void DropPending(Service& owner)',
             'void StartWindow(Service& owner)', 'void SetRuntimeEnabled(bool enabled) noexcept', 'bool RuntimeEnabled() noexcept')),
