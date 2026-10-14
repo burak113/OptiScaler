@@ -229,6 +229,8 @@ static NrdBridge::FrameParameters ReadFrame(const fs::path& path, uint32_t& mode
     for (auto& row : view.m) for (auto& value : row) stream >> value;
     for (auto& row : projection.m) for (auto& value : row) stream >> value;
     need(bool(stream), "frame parameters missing");
+    uint32_t projectedDepth = 0;
+    if (stream >> projectedDepth) result.cameraProjectedDepthDelta = projectedDepth != 0;
     result.camera.view = DirectX::XMLoadFloat4x4(&view);
     result.camera.inverseView = DirectX::XMMatrixInverse(nullptr, result.camera.view);
     result.camera.projection = DirectX::XMLoadFloat4x4(&projection);
@@ -237,7 +239,7 @@ static NrdBridge::FrameParameters ReadFrame(const fs::path& path, uint32_t& mode
     return result;
 }
 
-static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = false)
+static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = false, bool cameraCases = false)
 {
     std::ifstream meta(root / "meta.txt"); uint32_t frames, width, height; meta >> frames >> width >> height;
     need(bool(meta) && frames <= 24, "invalid fixture sequence");
@@ -274,7 +276,7 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
             need(!RecordedComputeLease::Capture(fixture.list.Get()) && gNrdAuditedBarriers == auditedBefore,
                  "invalid conversion recorded GPU work");
         }
-        if (frameIndex == 4) pass->ResetHistory();
+        if (frameIndex == 4 && !cameraCases) pass->ResetHistory();
         NrdBridge::ConvertedResources resources;
         auto currentInputs = input.Inputs();
         if (deferred)
@@ -294,6 +296,8 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
             need(!pass->DispatchMotion(fixture.list.Get(), resources, resources.motion, frame, error), "motion read/write alias accepted");
             stale = frame; stale.motionVectors3D = true;
             need(!pass->DispatchMotion(fixture.list.Get(), resources, input.textures[4].Get(), stale, error), "3D motion accepted");
+            stale = frame; stale.cameraProjectedDepthDelta = !frame.cameraProjectedDepthDelta;
+            need(!pass->DispatchMotion(fixture.list.Get(), resources, input.textures[4].Get(), stale, error), "depth mode changed within the Recon ticket");
             need(before == gNrdAuditedBarriers, "invalid deferred motion recorded GPU work");
             Fixture::Transition(fixture.list.Get(), input.textures[4].Get(),
                 D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -596,7 +600,7 @@ int main(int argc, char** argv) try
     std::string mode = argv[1]; const bool deferred = mode.starts_with("deferred-");
     if (deferred) mode.erase(0,9);
     if (mode == "benchmark") Benchmark(argv[2],deferred);
-    else { Sequence(argv[2], mode == "sequence",deferred); TableSequence(argv[2],deferred); }
+    else { Sequence(argv[2], mode == "sequence" || mode == "geometry",deferred,mode == "geometry"); TableSequence(argv[2],deferred); }
     std::cout << "PASS: production NRD conversion, borrowed title resources, GPU retirement\n"; return 0;
 }
 catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
