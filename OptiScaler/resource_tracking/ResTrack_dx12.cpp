@@ -125,6 +125,7 @@ typedef void(STDMETHODCALLTYPE* PFN_ExecuteCommandLists)(ID3D12CommandQueue* Thi
 typedef ULONG(STDMETHODCALLTYPE* PFN_Release)(ID3D12Resource* This);
 typedef ULONG(STDMETHODCALLTYPE* PFN_PsoRelease)(ID3D12PipelineState* This);
 typedef ULONG(STDMETHODCALLTYPE* PFN_CommandListRelease)(IUnknown* This);
+using PFN_BirthRelease = ULONG(STDMETHODCALLTYPE*)(IUnknown*);
 
 // Original method calls for device
 static PFN_CreateRenderTargetView o_CreateRenderTargetView = nullptr;
@@ -187,6 +188,22 @@ static std::mutex gComputeHookInitMutex;
 
 static ULONG hkPsoRelease(ID3D12PipelineState* This);
 static ULONG STDMETHODCALLTYPE hkCommandListRelease(IUnknown* This);
+// Once an inspector weak pointer is published its Release protection stays on.
+// The never-enabled OFF path still enters no physical gate.
+static std::atomic<bool> gRRInspectorLifetimeProtection {false};
+static bool NeedsNativeReleaseGate() noexcept
+{
+    return (gNrdBridgeWrappers && !FrameSurvey::OwnedRelease()) ||
+        gRRInspectorLifetimeProtection.load(std::memory_order_acquire);
+}
+static PFN_BirthRelease FindBirthReleaseOriginal(PVOID entry) noexcept;
+static bool RRPhysicalReleaseCovered(IUnknown* object) noexcept
+{
+    const PVOID entry = (*reinterpret_cast<PVOID**>(object))[2];
+    // The legacy resource observer removes the weak resource row before native
+    // destruction. Other physical entries need the native birth dispatcher.
+    return entry == gResourceReleaseEntry && o_Release;
+}
 static bool UseNrdNativeRetirement() noexcept
 {
     return gNrdBridgeWrappers && !FrameSurvey::OwnedRelease() &&
@@ -195,7 +212,6 @@ static bool UseNrdNativeRetirement() noexcept
 // A distinct root/list/PSO/heap implementation is observed without assuming
 // another object's IUnknown vtable. The small installation table is bounded;
 // ordinary resource/heap/PSO/list Release hooks have no table lookup.
-using PFN_BirthRelease = ULONG(STDMETHODCALLTYPE*)(IUnknown*);
 struct BirthReleaseEntry { std::atomic<PVOID> entry {nullptr}; PFN_BirthRelease original = nullptr; };
 static constexpr size_t MaxBirthReleaseEntries = 16;
 static std::array<BirthReleaseEntry,MaxBirthReleaseEntries> gBirthReleaseEntries;
@@ -213,6 +229,7 @@ template <size_t Index> static ULONG STDMETHODCALLTYPE hkBirthRelease(IUnknown* 
     if (State::Instance().isShuttingDown) return original(object);
     if (!UseNrdNativeRetirement())
     {
+        NrdBridgeLifetime::ScopedRelease titleRelease(NeedsNativeReleaseGate());
         auto recording = RecordedComputeLease::BeginRelease(object);
         const ULONG result = original(object);
         RecordedComputeLease::EndRelease(recording,result == 0);
@@ -404,9 +421,35 @@ struct RRTrackedResourceViews
     uint32_t srvViews = 0;
     uint32_t uavViews = 0;
     uint32_t rtvViews = 0;
+    D3D12_RESOURCE_DESC desc {};
+    std::array<char,256> debugName {};
+    uint64_t version = 0;
+    NrdBridgeBirth::Token birth;
+};
+struct RRResourceSize
+{
+    uint64_t width; uint32_t height;
+    bool operator==(const RRResourceSize& other) const noexcept { return width == other.width && height == other.height; }
+};
+struct RRResourceSizeHash
+{
+    size_t operator()(const RRResourceSize& size) const noexcept
+    { return std::hash<uint64_t>{}(size.width) ^ (std::hash<uint32_t>{}(size.height) << 1); }
 };
 static NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Tracking> gRRTrackedResourceMutex;
 static std::unordered_map<ID3D12Resource*, RRTrackedResourceViews> gRRTrackedResources;
+static std::atomic<uint64_t> gRRNextResourceVersion {1};
+static std::unordered_map<RRResourceSize,std::unordered_set<ID3D12Resource*>,RRResourceSizeHash> gRRResourceSizeIndex;
+// Caller holds the inspector registry lock. Touch one size bucket and address.
+static void EraseRRTrackedResourceLocked(ID3D12Resource* resource)
+{
+    const auto found = gRRTrackedResources.find(resource);
+    if (found == gRRTrackedResources.end()) return;
+    const RRResourceSize size{found->second.desc.Width,found->second.desc.Height};
+    if (const auto bucket = gRRResourceSizeIndex.find(size); bucket != gRRResourceSizeIndex.end())
+    { bucket->second.erase(resource); if (bucket->second.empty()) gRRResourceSizeIndex.erase(bucket); }
+    gRRTrackedResources.erase(found);
+}
 struct RRCommandListMarkerState
 {
     std::vector<std::string> stack;
@@ -434,6 +477,7 @@ struct RRPsoMetadata
     uint64_t id = 0;
     uint64_t hash = 0;
     RRPsoKind kind = RRPsoKind::Unknown;
+    NrdBridgeBirth::Token birth;
 };
 
 struct RRPsoProducerStats
@@ -454,6 +498,7 @@ struct RRCommandListPsoState
     uint64_t lastGraphicsFrame = std::numeric_limits<uint64_t>::max();
     ID3D12PipelineState* lastComputePso = nullptr;
     uint32_t dispatchesSinceBarrier = 0;
+    NrdBridgeBirth::Token receiverBirth;
 };
 
 static std::atomic<uint64_t> gRRNextPsoId { 1 };
@@ -606,55 +651,75 @@ static void CleanupRRPsoReferences(void* object)
     gRRPsoCommandLists.erase(lists);
 }
 
-// Metadata is keyed by raw pointer, so an entry must die with its object:
-// otherwise a new PSO on a recycled address inherits the dead PSO's id and
-// hash and dead entries pile up over a long session. The Release vtable slot
-// is detoured once, lazily, using the first PSO that reaches this point --
-// building a throwaway PSO for its vtable (like HookResource does) would need
-// valid shader blobs. Caller must hold gRRPsoMutex.
-static void EnsurePsoReleaseHook(ID3D12PipelineState* pipelineState)
+// Cold native installation uses a caller-owned PSO before any metadata guard.
+static bool EnsurePsoReleaseHook(ID3D12PipelineState* pipelineState)
 {
-    if (o_PsoRelease != nullptr)
-        return;
-
-    PVOID* pVTable = *(PVOID**) pipelineState;
-    PVOID releaseEntry = pVTable[2];
-
-    if (FindBirthReleaseOriginal(releaseEntry)) return;
-
-    // Some D3D12 runtimes share their IUnknown implementation between resources and PSOs.
-    // HookResource has already detoured that entry; hkRelease calls the same PSO cleanup helper
-    // after its reference probe, so attaching a second detour would only create an ambiguous
-    // hook chain.
-    if (releaseEntry == gResourceReleaseEntry || releaseEntry == gCommandListReleaseEntry)
-        return;
-
-    gPsoReleaseEntry = releaseEntry;
-    o_PsoRelease = (PFN_PsoRelease) releaseEntry;
-
-    if (o_PsoRelease == nullptr)
-        return;
-
-    DetourTransactionBegin();
-    DetourUpdateThread(GetCurrentThread());
-    const auto attachResult = DetourAttach(&(PVOID&) o_PsoRelease, hkPsoRelease);
-    const auto commitResult = attachResult == NO_ERROR ? DetourTransactionCommit() : DetourTransactionAbort();
-    const auto detourResult = attachResult == NO_ERROR ? commitResult : attachResult;
-    if (detourResult != NO_ERROR)
-    {
-        LOG_ERROR("Failed to hook PSO Release: {:X}", detourResult);
-        o_PsoRelease = nullptr;
-        gPsoReleaseEntry = nullptr;
-    }
+    if (!pipelineState || NrdBridgeBirth::InMetadataScope()) return false;
+    std::unique_lock installation(gReleaseHookInstallMutex);
+    const PVOID releaseEntry = (*reinterpret_cast<PVOID**>(pipelineState))[2];
+    if ((releaseEntry == gResourceReleaseEntry && o_Release) ||
+        (releaseEntry == gCommandListReleaseEntry && o_CommandListRelease) ||
+        (releaseEntry == gPsoReleaseEntry && o_PsoRelease)) return true;
+    if ((releaseEntry == gHeapReleaseEntry && o_HeapRelease) || FindBirthReleaseOriginal(releaseEntry)) return false;
+    if (o_PsoRelease) return false; // A distinct implementation needs native birth coverage.
+    gPsoReleaseEntry = releaseEntry; o_PsoRelease = reinterpret_cast<PFN_PsoRelease>(releaseEntry);
+    const auto begin = DetourTransactionBegin();
+    const auto update = begin == NO_ERROR ? DetourUpdateThread(GetCurrentThread()) : begin;
+    const auto attach = update == NO_ERROR ? DetourAttach(reinterpret_cast<PVOID*>(&o_PsoRelease),
+        reinterpret_cast<PVOID>(hkPsoRelease)) : update;
+    const auto commit = attach == NO_ERROR ? DetourTransactionCommit() :
+        (begin == NO_ERROR ? DetourTransactionAbort() : begin);
+    if (attach == NO_ERROR && commit == NO_ERROR) return true;
+    o_PsoRelease = nullptr; gPsoReleaseEntry = nullptr;
+    installation.unlock();
+    LOG_ERROR("Failed to hook PSO Release: {:X}", attach == NO_ERROR ? commit : attach);
+    if (gNrdBridgeWrappers) FrameSurvey::MetadataHookFailed("RR PSO Release observer installation failed");
+    return false;
 }
-
+static bool RRInspectorBirthsEnabled() noexcept
+{ return gNrdBridgeWrappers && NrdBridgeNativeBirth::Ready(); }
+template <class T> static NrdBridgeBirth::Token RRStrongReceiver(T* object)
+{
+    if (!RRInspectorBirthsEnabled() || !object || FrameSurvey::Internal()) return {};
+    return NrdBridgeNativeBirth::ReceiverWithReleaseCoverage(object,
+        [](auto* strong) noexcept { return NrdBridgeNativeBirth::ObserveReleaseCoverage(strong); });
+}
+// Unknown IID outputs own one temporary typed reference, released after guards.
+struct ReturnedPipelineInterface
+{
+    ID3D12PipelineState* pipeline = nullptr;
+    bool temporary = false;
+    ReturnedPipelineInterface(void* output, REFIID iid)
+    {
+        if (!output) return;
+        if (iid == __uuidof(ID3D12PipelineState)) pipeline = static_cast<ID3D12PipelineState*>(output);
+        else temporary = SUCCEEDED(static_cast<IUnknown*>(output)->QueryInterface(IID_PPV_ARGS(&pipeline)));
+    }
+    ~ReturnedPipelineInterface() { if (temporary && pipeline) pipeline->Release(); }
+    ReturnedPipelineInterface(const ReturnedPipelineInterface&) = delete;
+    ReturnedPipelineInterface& operator=(const ReturnedPipelineInterface&) = delete;
+};
+struct ReturnedHeapInterface
+{
+    ID3D12DescriptorHeap* heap = nullptr; bool temporary = false;
+    ReturnedHeapInterface(void* output, REFIID iid)
+    {
+        if (!output) return;
+        if (iid == __uuidof(ID3D12DescriptorHeap)) heap = static_cast<ID3D12DescriptorHeap*>(output);
+        else temporary = SUCCEEDED(static_cast<IUnknown*>(output)->QueryInterface(IID_PPV_ARGS(&heap)));
+    }
+    ~ReturnedHeapInterface() { if (temporary && heap) heap->Release(); }
+    ReturnedHeapInterface(const ReturnedHeapInterface&) = delete;
+    ReturnedHeapInterface& operator=(const ReturnedHeapInterface&) = delete;
+};
 static RRPsoMetadata& EnsureRRPsoMetadata(ID3D12PipelineState* pipelineState,
                                          RRPsoKind kind = RRPsoKind::Unknown,
-                                         uint64_t hash = 0)
+                                         uint64_t hash = 0,
+                                         const NrdBridgeBirth::Token& birth = NrdBridgeBirth::Token())
 {
-    EnsurePsoReleaseHook(pipelineState);
-
     RRPsoMetadata& metadata = gRRPsoMetadata[pipelineState];
+    if (RRInspectorBirthsEnabled() && metadata.birth != birth) metadata = {};
+    metadata.birth = birth;
     if (metadata.id == 0)
         metadata.id = gRRNextPsoId.fetch_add(1, std::memory_order_relaxed);
     if (metadata.kind == RRPsoKind::Unknown && kind != RRPsoKind::Unknown)
@@ -664,13 +729,73 @@ static RRPsoMetadata& EnsureRRPsoMetadata(ID3D12PipelineState* pipelineState,
     return metadata;
 }
 
+// Caller holds gRRPsoMutex; weak producer paths only inspect prepared metadata.
+static RRPsoMetadata* FindRRPsoMetadataLocked(ID3D12PipelineState* pipeline)
+{
+    const auto found = gRRPsoMetadata.find(pipeline);
+    if (found == gRRPsoMetadata.end()) return nullptr;
+    if (RRInspectorBirthsEnabled() && (!found->second.birth || !found->second.birth->CacheAdmissible())) return nullptr;
+    return &found->second;
+}
+static bool PublishRRPsoMetadata(ID3D12PipelineState* pipeline, RRPsoKind kind = RRPsoKind::Unknown,
+                                uint64_t hash = 0) noexcept
+{
+    if (!pipeline || (RRInspectorBirthsEnabled() && FrameSurvey::Internal())) return false;
+    try
+    {
+        const bool born = RRInspectorBirthsEnabled();
+        if (!born && !EnsurePsoReleaseHook(pipeline)) return false;
+        const auto birth = born ? RRStrongReceiver(pipeline) : NrdBridgeBirth::Token{};
+        NrdBridgeBirth::CurrentGuard current(birth,born);
+        if (born && (!current.MatchesCurrent() || !NrdBridgeBirth::Healthy())) return false;
+        std::scoped_lock lock(gRRPsoMutex);
+        EnsureRRPsoMetadata(pipeline,kind,hash,birth);
+        return true;
+    }
+    catch (...) { NrdBridgeNativeBirth::Detail::Fail("RR PSO metadata publication failed"); return false; }
+}
+static void PublishCreatedRRPso(void* output, REFIID iid, RRPsoKind kind, uint64_t hash) noexcept
+{
+    try
+    {
+        ReturnedPipelineInterface returned(output,iid);
+        if (!returned.pipeline) return;
+        if (RRInspectorBirthsEnabled() && output != returned.pipeline && !FrameSurvey::Internal())
+        {
+            if (!NrdBridgeNativeBirth::ObserveReleaseCoverage(static_cast<IUnknown*>(output))) return;
+            const auto birth = RRStrongReceiver(returned.pipeline);
+            NrdBridgeNativeBirth::RetirementScope effects;
+            if (!birth || !effects.Valid() || !NrdBridgeBirth::LinkAlias(birth->InstanceStamp(),output)) return;
+        }
+        PublishRRPsoMetadata(returned.pipeline,kind,hash);
+    }
+    catch (...) { NrdBridgeNativeBirth::Detail::Fail("created RR PSO metadata failed"); }
+}
+static RRCommandListPsoState& RRPsoListStateLocked(ID3D12GraphicsCommandList* list,
+                                                 const NrdBridgeBirth::Token& receiver)
+{
+    auto& state = gRRCommandListPsoStates[list];
+    if (RRInspectorBirthsEnabled() && state.receiverBirth != receiver)
+    {
+        for (auto* pso : RRPsoPointers(state)) RemoveRRPsoListMembershipLocked(pso,list);
+        state = {}; state.receiverBirth = receiver;
+    }
+    return state;
+}
+static bool RRPsoListAvailable(const RRCommandListPsoState& state, ID3D12GraphicsCommandList* list) noexcept
+{
+    return !RRInspectorBirthsEnabled() || (state.receiverBirth && state.receiverBirth->Address() == list &&
+        state.receiverBirth->CacheAdmissible());
+}
 static void RecordRRPsoProducer(ID3D12Resource* resource, ID3D12PipelineState* pipelineState,
                                 bool ambiguous)
 {
     if (resource == nullptr || pipelineState == nullptr)
         return;
 
-    const RRPsoMetadata metadata = EnsureRRPsoMetadata(pipelineState);
+    const auto prepared = FindRRPsoMetadataLocked(pipelineState);
+    if (!prepared) return;
+    const RRPsoMetadata metadata = *prepared;
     RRPsoProducerStats& stats = gRRResourcePsoProducers[resource][pipelineState];
     stats.metadata = metadata;
     ++stats.hits;
@@ -692,10 +817,12 @@ static void RecordRRGraphicsOutputs(ID3D12GraphicsCommandList* commandList)
         return;
 
     RRCommandListPsoState& state = found->second;
-    if (state.currentPso == nullptr || state.renderTargets.empty())
+    if (!RRPsoListAvailable(state,commandList) || state.currentPso == nullptr || state.renderTargets.empty())
         return;
 
-    RRPsoMetadata& metadata = EnsureRRPsoMetadata(state.currentPso);
+    const auto prepared = FindRRPsoMetadataLocked(state.currentPso);
+    if (!prepared) return;
+    RRPsoMetadata& metadata = *prepared;
     if (metadata.kind == RRPsoKind::Unknown || metadata.kind == RRPsoKind::Stream)
         metadata.kind = RRPsoKind::Graphics;
 
@@ -728,10 +855,12 @@ static void RecordRRComputeOutput(ID3D12GraphicsCommandList* commandList, ID3D12
         return;
 
     RRCommandListPsoState& state = found->second;
-    if (state.lastComputePso == nullptr)
+    if (!RRPsoListAvailable(state,commandList) || state.lastComputePso == nullptr)
         return;
 
-    RRPsoMetadata& metadata = EnsureRRPsoMetadata(state.lastComputePso);
+    const auto prepared = FindRRPsoMetadataLocked(state.lastComputePso);
+    if (!prepared) return;
+    RRPsoMetadata& metadata = *prepared;
     if (metadata.kind == RRPsoKind::Unknown || metadata.kind == RRPsoKind::Stream)
         metadata.kind = RRPsoKind::Compute;
     RecordRRPsoProducer(resource, state.lastComputePso,
@@ -924,25 +1053,58 @@ static bool IsRRScalarCandidateResource(ID3D12Resource* resource, DXGI_FORMAT vi
 
 static void TrackRRResourceView(ID3D12Resource* resource, DXGI_FORMAT viewFormat, ResourceType type)
 {
-    // Every other RR-inspector hook site checks this first. Without it this runs on
-    // every SRV/UAV/RTV creation in the process and grows an unbounded map for users
-    // who never open the inspector.
-    if (!gRRResourceInspectorEnabled.load(std::memory_order_relaxed))
-        return;
-
-    if (NrdBridgeNativeBirth::Ready() && FrameSurvey::Internal()) return;
-
-    if (!IsRRScalarCandidateResource(resource, viewFormat))
-        return;
-
-    std::scoped_lock lock(gRRTrackedResourceMutex);
-    RRTrackedResourceViews& views = gRRTrackedResources[resource];
-    if (type == SRV)
-        ++views.srvViews;
-    else if (type == UAV)
-        ++views.uavViews;
-    else if (type == RTV)
-        ++views.rtvViews;
+    if (!gRRResourceInspectorEnabled.load(std::memory_order_relaxed) || !resource ||
+        (NrdBridgeNativeBirth::Ready() && FrameSurvey::Internal())) return;
+    // This native API caller owns the input; prepare identity/description before locks.
+    try
+    {
+        const bool born = RRInspectorBirthsEnabled();
+        RRTrackedResourceViews prepared;
+        {
+            std::scoped_lock lock(gRRTrackedResourceMutex);
+            const auto found = gRRTrackedResources.find(resource);
+            if (found != gRRTrackedResources.end() && (!born ||
+                (found->second.birth && found->second.birth->CacheAdmissible()))) prepared = found->second;
+        }
+        auto birth = born ? prepared.birth : NrdBridgeBirth::Token{};
+        if (!prepared.version)
+        {
+            if (born) { birth = RRStrongReceiver(resource); if (!birth) return; }
+            else if (!RRPhysicalReleaseCovered(resource)) return;
+            prepared.desc = resource->GetDesc();
+        }
+        const auto& desc = prepared.desc;
+        const auto effectiveFormat = viewFormat == DXGI_FORMAT_UNKNOWN ? desc.Format : viewFormat;
+        if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || desc.SampleDesc.Count != 1 ||
+            desc.Width < 256 || desc.Height < 256 || (desc.Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE) ||
+            !IsRRScalarCandidateFormat(effectiveFormat)) return;
+        if (!prepared.version)
+        {
+            UINT bytes = UINT(prepared.debugName.size());
+            if (FAILED(resource->GetPrivateData(WKPDID_D3DDebugObjectName,&bytes,prepared.debugName.data()))) prepared.debugName = {};
+            prepared.debugName.back() = '\0';
+        }
+        NrdBridgeBirth::CurrentGuard current(birth,born);
+        if (born && (!current.MatchesCurrent() || !NrdBridgeBirth::Healthy())) return;
+        std::scoped_lock lock(gRRTrackedResourceMutex);
+        auto found = gRRTrackedResources.find(resource);
+        if (found != gRRTrackedResources.end() && born && found->second.birth != birth)
+        { EraseRRTrackedResourceLocked(resource); found = gRRTrackedResources.end(); }
+        if (found == gRRTrackedResources.end())
+        {
+            prepared.birth = birth; prepared.version = gRRNextResourceVersion.fetch_add(1,std::memory_order_relaxed);
+            if (!prepared.version) throw std::overflow_error("RR inspector resource generation exhausted");
+            found = gRRTrackedResources.emplace(resource,prepared).first;
+            try { gRRResourceSizeIndex[{desc.Width,desc.Height}].insert(resource); }
+            catch (...) { EraseRRTrackedResourceLocked(resource); throw; }
+        }
+        auto& views = found->second;
+        if (type == SRV) ++views.srvViews; else if (type == UAV) ++views.uavViews; else if (type == RTV) ++views.rtvViews;
+    }
+    catch (...)
+    {
+        if (RRInspectorBirthsEnabled()) NrdBridgeNativeBirth::Detail::Fail("RR inspector view metadata allocation failed");
+    }
 }
 
 // Whether the preview can read this resource without first transitioning it.
@@ -1003,6 +1165,7 @@ static void RecordRRResourceWrite(ID3D12Resource* resource, const std::string& p
 
 void ResTrack_Dx12::SetRRResourceInspectorEnabled(bool enabled)
 {
+    if (enabled) gRRInspectorLifetimeProtection.store(true,std::memory_order_release);
     gRRResourceInspectorEnabled.store(enabled, std::memory_order_release);
 
     if (enabled)
@@ -1045,7 +1208,7 @@ void ResTrack_Dx12::SetRRResourceInspectorEnabled(bool enabled)
             // solely through hkRelease, so without this it survives every level load
             // for the rest of the process.
             std::scoped_lock resourceLock(gRRTrackedResourceMutex);
-            gRRTrackedResources.clear();
+            gRRTrackedResources.clear(); gRRResourceSizeIndex.clear();
         }
     }
 }
@@ -1112,31 +1275,18 @@ void ResTrack_Dx12::RefreshRRResourceCandidates(uint32_t renderWidth, uint32_t r
         // It intentionally does not depend on the HUD descriptor cache, whose
         // auto settings may discard non-HUD views.
         std::scoped_lock resourceLock(gRRTrackedResourceMutex);
-        for (const auto& [resource, views] : gRRTrackedResources)
+        const auto bucket = gRRResourceSizeIndex.find({renderWidth,renderHeight});
+        if (bucket != gRRResourceSizeIndex.end()) for (auto* resource : bucket->second)
         {
-            if (!resource)
-                continue;
-
-            const D3D12_RESOURCE_DESC desc = resource->GetDesc();
-            if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D ||
-                desc.SampleDesc.Count != 1 || desc.Width != renderWidth ||
-                desc.Height != renderHeight ||
-                (desc.Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE))
-            {
-                continue;
-            }
-
+            const auto found = gRRTrackedResources.find(resource);
+            if (found == gRRTrackedResources.end()) continue;
+            const auto& views = found->second;
+            if (RRInspectorBirthsEnabled() && (!views.birth || !views.birth->CacheAdmissible())) continue;
+            const auto& desc = views.desc;
             RRResourceCandidate candidate {};
             candidate.resourceAddress = resource;
-            char debugName[256] {};
-            UINT debugNameSize = sizeof(debugName);
-            if (SUCCEEDED(resource->GetPrivateData(
-                    WKPDID_D3DDebugObjectName, &debugNameSize, debugName)) &&
-                debugNameSize > 0)
-            {
-                debugName[std::size(debugName) - 1] = '\0';
-                candidate.debugName = debugName;
-            }
+            candidate.resourceBirth = views.birth; candidate.registryVersion = views.version;
+            candidate.debugName = views.debugName.data();
             candidate.width = desc.Width;
             candidate.height = desc.Height;
             candidate.format = desc.Format;
@@ -1283,40 +1433,33 @@ std::vector<RRResourceCandidate> ResTrack_Dx12::GetRRResourceCandidates()
 
 ID3D12Resource* ResTrack_Dx12::AcquireRRResourceCandidate()
 {
-    if (!IsRRResourceInspectorEnabled())
-        return nullptr;
-
-    void* selectedAddress = nullptr;
+    if (!IsRRResourceInspectorEnabled()) return nullptr;
+    // Releases cover this weak lookup through the final native AddRef. A nested
+    // concurrent Release cannot upgrade its gate and simply skips the preview.
+    NrdBridgeLifetime::ScopedBorrow lifetime(gRRInspectorLifetimeProtection.load(std::memory_order_acquire));
+    if (!lifetime.Acquired()) return nullptr;
+    ID3D12Resource* resource = nullptr;
+    NrdBridgeBirth::Token birth; uint64_t version = 0;
     {
         std::scoped_lock candidateLock(gRRResourceCandidateMutex);
-        const uintptr_t selected =
-            gRRResourceCandidateAddress.load(std::memory_order_acquire);
-        const auto candidate = std::find_if(
-            gRRResourceCandidates.begin(), gRRResourceCandidates.end(),
-            [selected](const RRResourceCandidate& value) {
-                return reinterpret_cast<uintptr_t>(value.resourceAddress) == selected;
-            });
-        if (candidate == gRRResourceCandidates.end())
-            return nullptr;
-
-        if (!candidate->previewSupported)
-            return nullptr;
-        selectedAddress = candidate->resourceAddress;
+        const auto selected = gRRResourceCandidateAddress.load(std::memory_order_acquire);
+        const auto index = gRRResourceCandidateIndex.load(std::memory_order_acquire);
+        if (index < 0 || size_t(index) >= gRRResourceCandidates.size()) return nullptr;
+        const auto& candidate = gRRResourceCandidates[size_t(index)];
+        if (reinterpret_cast<uintptr_t>(candidate.resourceAddress) != selected || !candidate.previewSupported) return nullptr;
+        resource = static_cast<ID3D12Resource*>(candidate.resourceAddress);
+        birth = candidate.resourceBirth; version = candidate.registryVersion;
     }
-
-    ID3D12Resource* resource = static_cast<ID3D12Resource*>(selectedAddress);
     {
-        std::scoped_lock stateLock(gRRResourceStateMutex);
+        NrdBridgeBirth::CurrentGuard current(birth,RRInspectorBirthsEnabled());
+        if (RRInspectorBirthsEnabled() && !current.AdmitsBorrow()) return nullptr;
+        std::scoped_lock locks(gRRTrackedResourceMutex,gRRResourceStateMutex);
+        const auto found = gRRTrackedResources.find(resource);
         const auto state = gRRResourceStates.find(resource);
-        if (state == gRRResourceStates.end() || !IsRRResourceComputeReadable(state->second))
-            return nullptr;
+        if (found == gRRTrackedResources.end() || found->second.version != version || found->second.birth != birth ||
+            state == gRRResourceStates.end() || !IsRRResourceComputeReadable(state->second)) return nullptr;
     }
-
-    std::scoped_lock resourceLock(gRRTrackedResourceMutex);
-    if (!gRRTrackedResources.contains(resource))
-        return nullptr;
-
-    resource->AddRef();
+    resource->AddRef(); // All metadata/Birth locks are released; physical lifetime is still held.
     return resource;
 }
 
@@ -1374,7 +1517,7 @@ void ResTrack_Dx12::LogRRScalarResourceCandidates(uint32_t renderWidth, uint32_t
                 if (resource == nullptr || views.srvViews == 0)
                     continue;
 
-                const D3D12_RESOURCE_DESC desc = resource->GetDesc();
+                const D3D12_RESOURCE_DESC desc = views.desc;
                 if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D)
                     continue;
 
@@ -2151,7 +2294,7 @@ static ULONG STDMETHODCALLTYPE hkHeapRelease(ID3D12DescriptorHeap* This)
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Release,gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
     if (UseNrdNativeRetirement() && !State::Instance().isShuttingDown)
         return NrdBridgeRelease::Title(This,o_HeapRelease);
-    NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
+    NrdBridgeLifetime::ScopedRelease titleRelease(NeedsNativeReleaseGate());
     if (State::Instance().isShuttingDown)
         return o_HeapRelease(This);
 
@@ -2291,7 +2434,7 @@ bool DetachNativeRetirement(void* state,const NrdBridgeBirth::Token& birth) noex
     {
         { std::scoped_lock lock(gRRResourceStateMutex);
           gRRResourceStates.erase(resource); gRRResourceActivity.erase(resource); }
-        { std::scoped_lock lock(gRRTrackedResourceMutex); gRRTrackedResources.erase(resource); }
+        { std::scoped_lock lock(gRRTrackedResourceMutex); EraseRRTrackedResourceLocked(resource); }
         { std::scoped_lock lock(gRRPsoMutex); CleanupRRResourcePsoProducersLocked(resource); }
         CleanupRRPsoReferences(resource);
         { std::scoped_lock lock(_trackedResourcesMutex);
@@ -2378,43 +2521,59 @@ HRESULT ResTrack_Dx12::hkCreateDescriptorHeap(ID3D12Device* This, D3D12_DESCRIPT
 
     if (NrdBridgeNativeBirth::Ready() && FrameSurvey::Internal()) return result;
 
-    // try to calculate handle ranges for heap
-    if (result == S_OK && (pDescriptorHeapDesc->Type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ||
-                           pDescriptorHeapDesc->Type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV))
+    try
     {
-        auto heap = (ID3D12DescriptorHeap*) (*ppvHeap);
+        if (FAILED(result) || !pDescriptorHeapDesc || !ppvHeap || !*ppvHeap) return result;
+        // Normalize a successful uncommon IID with a caller-owned temporary reference.
+        ReturnedHeapInterface returned(*ppvHeap,riid);
+        if (!returned.heap) return result;
+        auto* heap = returned.heap;
 
-        EnsureHeapReleaseHook(heap);
-
-        auto increment = This->GetDescriptorHandleIncrementSize(pDescriptorHeapDesc->Type);
-        auto numDescriptors = pDescriptorHeapDesc->NumDescriptors;
-        auto cpuStart = (SIZE_T) (heap->GetCPUDescriptorHandleForHeapStart().ptr);
-        auto cpuEnd = cpuStart + (increment * numDescriptors);
-        auto gpuStart = (SIZE_T) (heap->GetGPUDescriptorHandleForHeapStart().ptr);
-        auto gpuEnd = gpuStart + (increment * numDescriptors);
-        auto type = (UINT) pDescriptorHeapDesc->Type;
-
-        LOG_TRACE("Heap: {:X}, Heap type: {}, Cpu: {}-{}, Gpu: {}-{}, Desc count: {}", (size_t) *ppvHeap, type,
-                  cpuStart, cpuEnd, gpuStart, gpuEnd, numDescriptors);
-        const auto trackedHeap = std::make_shared<HeapInfo>(heap,cpuStart,cpuEnd,gpuStart,gpuEnd,numDescriptors,increment,type);
-        const bool born = gNrdBridgeWrappers && NrdBridgeNativeBirth::Ready() && !FrameSurvey::Internal();
-        if (born)
+        // try to calculate handle ranges for heap
+        if (result == S_OK && (pDescriptorHeapDesc->Type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ||
+                               pDescriptorHeapDesc->Type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV))
         {
-            if (!ObserveBridgeObjectRelease(heap)) return result;
-            trackedHeap->birth = NrdBridgeNativeBirth::Receiver(heap);
+            EnsureHeapReleaseHook(heap);
+
+            auto increment = This->GetDescriptorHandleIncrementSize(pDescriptorHeapDesc->Type);
+            auto numDescriptors = pDescriptorHeapDesc->NumDescriptors;
+            auto cpuStart = (SIZE_T) (heap->GetCPUDescriptorHandleForHeapStart().ptr);
+            auto cpuEnd = cpuStart + (increment * numDescriptors);
+            auto gpuStart = (SIZE_T) (heap->GetGPUDescriptorHandleForHeapStart().ptr);
+            auto gpuEnd = gpuStart + (increment * numDescriptors);
+            auto type = (UINT) pDescriptorHeapDesc->Type;
+
+            LOG_TRACE("Heap: {:X}, Heap type: {}, Cpu: {}-{}, Gpu: {}-{}, Desc count: {}", (size_t) *ppvHeap, type,
+                      cpuStart, cpuEnd, gpuStart, gpuEnd, numDescriptors);
+            const auto trackedHeap = std::make_shared<HeapInfo>(heap,cpuStart,cpuEnd,gpuStart,gpuEnd,numDescriptors,increment,type);
+            const bool born = gNrdBridgeWrappers && NrdBridgeNativeBirth::Ready() && !FrameSurvey::Internal();
+            if (born)
+            {
+                if (!ObserveBridgeObjectRelease(heap) || !ObserveBridgeObjectRelease(static_cast<IUnknown*>(*ppvHeap))) return result;
+                trackedHeap->birth = NrdBridgeNativeBirth::Prepare(heap);
+                if (*ppvHeap != heap)
+                {
+                    NrdBridgeNativeBirth::RetirementScope effects;
+                    if (!trackedHeap->birth || !effects.Valid() || !NrdBridgeBirth::LinkAlias(trackedHeap->birth->InstanceStamp(),*ppvHeap)) return result;
+                }
+            }
+            { NrdBridgeBirth::CurrentGuard current(trackedHeap->birth,born);
+              if (born && (!current.MatchesCurrent() || !NrdBridgeBirth::Healthy())) return result;
+              std::unique_lock lock(_heapRegistryMutex); RegisterTrackedHeapLocked(trackedHeap); }
         }
-        { NrdBridgeBirth::CurrentGuard current(trackedHeap->birth,born);
-          if (born && !current.MatchesCurrent()) return result;
-          std::unique_lock lock(_heapRegistryMutex); RegisterTrackedHeapLocked(trackedHeap); }
+        else
+        {
+            if (ppvHeap != nullptr && *ppvHeap != nullptr)
+            {
+                LOG_TRACE("Skipping, Heap type: {}, Cpu: {}, Gpu: {}", (UINT) pDescriptorHeapDesc->Type,
+                          heap->GetCPUDescriptorHandleForHeapStart().ptr, heap->GetGPUDescriptorHandleForHeapStart().ptr);
+            }
+        }
+
     }
-    else
+    catch (...)
     {
-        if (ppvHeap != nullptr && *ppvHeap != nullptr)
-        {
-            auto heap = (ID3D12DescriptorHeap*) (*ppvHeap);
-            LOG_TRACE("Skipping, Heap type: {}, Cpu: {}, Gpu: {}", (UINT) pDescriptorHeapDesc->Type,
-                      heap->GetCPUDescriptorHandleForHeapStart().ptr, heap->GetGPUDescriptorHandleForHeapStart().ptr);
-        }
+        if (gNrdBridgeWrappers) NrdBridgeNativeBirth::Detail::Fail("created heap metadata publication failed");
     }
 
     return result;
@@ -2425,7 +2584,7 @@ ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Release,gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
     if (UseNrdNativeRetirement() && !State::Instance().isShuttingDown)
         return NrdBridgeRelease::Title(This,o_Release);
-    NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
+    NrdBridgeLifetime::ScopedRelease titleRelease(NeedsNativeReleaseGate());
     if (State::Instance().isShuttingDown)
         return o_Release(This);
     auto computeRecording = RecordedComputeLease::BeginRelease(This);
@@ -2453,7 +2612,7 @@ ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
 
         {
             std::scoped_lock rrResourceLock(gRRTrackedResourceMutex);
-            gRRTrackedResources.erase(This);
+            EraseRRTrackedResourceLocked(This);
         }
         {
             std::scoped_lock psoLock(gRRPsoMutex);
@@ -2497,7 +2656,7 @@ ULONG hkPsoRelease(ID3D12PipelineState* This)
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Release,gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
     if (UseNrdNativeRetirement() && !State::Instance().isShuttingDown)
         return NrdBridgeRelease::Title(This,o_PsoRelease);
-    NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
+    NrdBridgeLifetime::ScopedRelease titleRelease(NeedsNativeReleaseGate());
     if (State::Instance().isShuttingDown)
         return o_PsoRelease(This);
     auto computeRecording = RecordedComputeLease::BeginRelease(This);
@@ -2527,7 +2686,7 @@ static ULONG STDMETHODCALLTYPE hkCommandListRelease(IUnknown* This)
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Release,gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
     if (UseNrdNativeRetirement() && !State::Instance().isShuttingDown)
         return NrdBridgeRelease::Title(This,o_CommandListRelease);
-    NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::OwnedRelease());
+    NrdBridgeLifetime::ScopedRelease titleRelease(NeedsNativeReleaseGate());
     if (State::Instance().isShuttingDown)
         return o_CommandListRelease(This);
     auto computeRecording = RecordedComputeLease::BeginRelease(This);
@@ -2554,9 +2713,7 @@ HRESULT ResTrack_Dx12::hkCreateGraphicsPipelineState(
         *ppPipelineState != nullptr &&
         gRRResourceInspectorEnabled.load(std::memory_order_relaxed))
     {
-        std::scoped_lock psoLock(gRRPsoMutex);
-        EnsureRRPsoMetadata(static_cast<ID3D12PipelineState*>(*ppPipelineState),
-                            RRPsoKind::Graphics, HashRRGraphicsPipeline(*pDesc));
+        PublishCreatedRRPso(*ppPipelineState,riid,RRPsoKind::Graphics,HashRRGraphicsPipeline(*pDesc));
     }
     return result;
 }
@@ -2570,9 +2727,7 @@ HRESULT ResTrack_Dx12::hkCreateComputePipelineState(
         *ppPipelineState != nullptr &&
         gRRResourceInspectorEnabled.load(std::memory_order_relaxed))
     {
-        std::scoped_lock psoLock(gRRPsoMutex);
-        EnsureRRPsoMetadata(static_cast<ID3D12PipelineState*>(*ppPipelineState),
-                            RRPsoKind::Compute, HashRRComputePipeline(*pDesc));
+        PublishCreatedRRPso(*ppPipelineState,riid,RRPsoKind::Compute,HashRRComputePipeline(*pDesc));
     }
     return result;
 }
@@ -2588,9 +2743,7 @@ HRESULT ResTrack_Dx12::hkCreatePipelineState(
     {
         const uint64_t hash = HashRRBytes(
             pDesc->pPipelineStateSubobjectStream, pDesc->SizeInBytes);
-        std::scoped_lock psoLock(gRRPsoMutex);
-        EnsureRRPsoMetadata(static_cast<ID3D12PipelineState*>(*ppPipelineState),
-                            RRPsoKind::Stream, hash);
+        PublishCreatedRRPso(*ppPipelineState,riid,RRPsoKind::Stream,hash);
     }
     return result;
 }
@@ -2601,64 +2754,99 @@ void ResTrack_Dx12::hkResourceBarrier(ID3D12GraphicsCommandList* This, UINT NumB
     std::vector<ID3D12Resource*> computeWrites;
     if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) && pBarriers != nullptr)
     {
-        const auto [passName, emissivePassMatch] = GetRRActivePass(This);
-        std::scoped_lock stateLock(gRRResourceStateMutex);
-        for (UINT index = 0; index < NumBarriers; ++index)
+        try
         {
-            const D3D12_RESOURCE_BARRIER& barrier = pBarriers[index];
-            if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_ALIASING)
+            const auto [passName, emissivePassMatch] = GetRRActivePass(This);
+            // Native getters use this API caller's valid resource inputs, before any
+            // common state lock. Whole-resource transitions need no description at all.
+            std::vector<uint8_t> wholeResources(NumBarriers);
+            for (UINT index=0;index<NumBarriers;++index)
             {
-                if (barrier.Aliasing.pResourceBefore != nullptr)
+                const auto& barrier = pBarriers[index];
+                if (barrier.Type != D3D12_RESOURCE_BARRIER_TYPE_TRANSITION || !barrier.Transition.pResource) continue;
+                if (barrier.Transition.Subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) wholeResources[index] = 1;
+                else
                 {
-                    gRRResourceStates.erase(barrier.Aliasing.pResourceBefore);
-                    gRRResourceActivity.erase(barrier.Aliasing.pResourceBefore);
-                }
-                if (barrier.Aliasing.pResourceAfter != nullptr)
-                {
-                    gRRResourceStates.erase(barrier.Aliasing.pResourceAfter);
-                    gRRResourceActivity.erase(barrier.Aliasing.pResourceAfter);
-                }
-                continue;
-            }
-
-            if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_UAV)
-            {
-                RecordRRResourceWrite(barrier.UAV.pResource, passName, emissivePassMatch);
-                if (barrier.UAV.pResource != nullptr)
-                    computeWrites.push_back(barrier.UAV.pResource);
-                continue;
-            }
-
-            if (barrier.Type != D3D12_RESOURCE_BARRIER_TYPE_TRANSITION ||
-                barrier.Transition.pResource == nullptr)
-            {
-                continue;
-            }
-
-            ID3D12Resource* resource = barrier.Transition.pResource;
-            const D3D12_RESOURCE_DESC desc = resource->GetDesc();
-            const bool wholeResource =
-                barrier.Transition.Subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES ||
-                (desc.MipLevels == 1 && desc.DepthOrArraySize == 1);
-
-            if (!wholeResource ||
-                (barrier.Flags & D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY) != 0)
-            {
-                gRRResourceStates.erase(resource);
-                continue;
-            }
-
-            gRRResourceStates[resource] = barrier.Transition.StateAfter;
-            if (IsRRResourceWritable(barrier.Transition.StateBefore) &&
-                !IsRRResourceWritable(barrier.Transition.StateAfter))
-            {
-                RecordRRResourceWrite(resource, passName, emissivePassMatch);
-                if ((barrier.Transition.StateBefore &
-                     D3D12_RESOURCE_STATE_UNORDERED_ACCESS) != 0)
-                {
-                    computeWrites.push_back(resource);
+                    D3D12_RESOURCE_DESC desc {}; bool cached = false;
+                    {
+                        std::scoped_lock lock(gRRTrackedResourceMutex);
+                        const auto found = gRRTrackedResources.find(barrier.Transition.pResource);
+                        if (found != gRRTrackedResources.end()) { desc=found->second.desc; cached=true; }
+                    }
+                    if (!cached) desc = barrier.Transition.pResource->GetDesc();
+                    wholeResources[index] = desc.MipLevels == 1 && desc.DepthOrArraySize == 1;
                 }
             }
+            std::scoped_lock stateLock(gRRResourceStateMutex);
+            for (UINT index = 0; index < NumBarriers; ++index)
+            {
+                const D3D12_RESOURCE_BARRIER& barrier = pBarriers[index];
+                if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_ALIASING)
+                {
+                    if (barrier.Aliasing.pResourceBefore != nullptr)
+                    {
+                        gRRResourceStates.erase(barrier.Aliasing.pResourceBefore);
+                        gRRResourceActivity.erase(barrier.Aliasing.pResourceBefore);
+                    }
+                    if (barrier.Aliasing.pResourceAfter != nullptr)
+                    {
+                        gRRResourceStates.erase(barrier.Aliasing.pResourceAfter);
+                        gRRResourceActivity.erase(barrier.Aliasing.pResourceAfter);
+                    }
+                    continue;
+                }
+
+                if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_UAV)
+                {
+                    RecordRRResourceWrite(barrier.UAV.pResource, passName, emissivePassMatch);
+                    if (barrier.UAV.pResource != nullptr)
+                        computeWrites.push_back(barrier.UAV.pResource);
+                    continue;
+                }
+
+                if (barrier.Type != D3D12_RESOURCE_BARRIER_TYPE_TRANSITION ||
+                    barrier.Transition.pResource == nullptr)
+                {
+                    continue;
+                }
+
+                ID3D12Resource* resource = barrier.Transition.pResource;
+                const bool wholeResource = wholeResources[index] != 0;
+
+                if (!wholeResource ||
+                    (barrier.Flags & D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY) != 0)
+                {
+                    gRRResourceStates.erase(resource);
+                    continue;
+                }
+
+                gRRResourceStates[resource] = barrier.Transition.StateAfter;
+                if (IsRRResourceWritable(barrier.Transition.StateBefore) &&
+                    !IsRRResourceWritable(barrier.Transition.StateAfter))
+                {
+                    RecordRRResourceWrite(resource, passName, emissivePassMatch);
+                    if ((barrier.Transition.StateBefore &
+                         D3D12_RESOURCE_STATE_UNORDERED_ACCESS) != 0)
+                    {
+                        computeWrites.push_back(resource);
+                    }
+                }
+            }
+        }
+        catch (...)
+        {
+            // Erase only this batch's actual affected resources; cached readable
+            // states may never survive a failed observation of their new state.
+            std::scoped_lock stateLock(gRRResourceStateMutex);
+            for (UINT index=0;index<NumBarriers;++index)
+            {
+                const auto& barrier = pBarriers[index];
+                if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION) gRRResourceStates.erase(barrier.Transition.pResource);
+                else if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_UAV) gRRResourceStates.erase(barrier.UAV.pResource);
+                else if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_ALIASING)
+                { gRRResourceStates.erase(barrier.Aliasing.pResourceBefore); gRRResourceStates.erase(barrier.Aliasing.pResourceAfter); }
+            }
+            computeWrites.clear();
         }
     }
 
@@ -2672,15 +2860,30 @@ void ResTrack_Dx12::hkSetPipelineState(ID3D12GraphicsCommandList* This,
                                        ID3D12PipelineState* pPipelineState)
 {
     if (gRRResourceInspectorEnabled.load(std::memory_order_relaxed) &&
+        !(RRInspectorBirthsEnabled() && FrameSurvey::Internal()) &&
         This != MenuOverlayDx::MenuCommandList())
     {
-        std::scoped_lock psoLock(gRRPsoMutex);
-        RRCommandListPsoState& state = gRRCommandListPsoStates[This];
-        const auto previous = RRPsoPointers(state);
-        state.currentPso = pPipelineState;
-        UpdateRRPsoListReferencesLocked(This,previous,state);
-        if (pPipelineState != nullptr)
-            EnsureRRPsoMetadata(pPipelineState);
+        try
+        {
+            const bool prepared = !pPipelineState || PublishRRPsoMetadata(pPipelineState);
+            const bool born = RRInspectorBirthsEnabled();
+            const auto receiver = born ? RRStrongReceiver(This) : NrdBridgeBirth::Token{};
+            {
+                NrdBridgeBirth::CurrentGuard current(receiver,born);
+                if (!born || (current.MatchesCurrent() && NrdBridgeBirth::Healthy()))
+                {
+                    std::scoped_lock psoLock(gRRPsoMutex);
+                    auto& state = RRPsoListStateLocked(This,receiver);
+                    const auto previous = RRPsoPointers(state);
+                    state.currentPso = prepared ? pPipelineState : nullptr;
+                    UpdateRRPsoListReferencesLocked(This,previous,state);
+                }
+            }
+        }
+        catch (...)
+        {
+            if (RRInspectorBirthsEnabled()) NrdBridgeNativeBirth::Detail::Fail("RR list PSO metadata failed");
+        }
     }
     o_SetPipelineState(This, pPipelineState);
 }
@@ -2694,16 +2897,29 @@ HRESULT ResTrack_Dx12::hkReset(ID3D12GraphicsCommandList* This,
     if (SUCCEEDED(result)) RecordedComputeLease::Detach(computeRecording);
     if (SUCCEEDED(result)) RRTraceFence::ResetSucceeded(This);
     if (SUCCEEDED(result) &&
-        gRRResourceInspectorEnabled.load(std::memory_order_relaxed))
+        gRRResourceInspectorEnabled.load(std::memory_order_relaxed) &&
+        !(RRInspectorBirthsEnabled() && FrameSurvey::Internal()))
     {
-        std::scoped_lock psoLock(gRRPsoMutex);
-        RRCommandListPsoState& state = gRRCommandListPsoStates[This];
-        const auto previous = RRPsoPointers(state);
-        state = {};
-        state.currentPso = pInitialState;
-        UpdateRRPsoListReferencesLocked(This,previous,state);
-        if (pInitialState != nullptr)
-            EnsureRRPsoMetadata(pInitialState);
+        try
+        {
+            const bool prepared = !pInitialState || PublishRRPsoMetadata(pInitialState);
+            const bool born = RRInspectorBirthsEnabled();
+            const auto receiver = born ? RRStrongReceiver(This) : NrdBridgeBirth::Token{};
+            NrdBridgeBirth::CurrentGuard current(receiver,born);
+            if (!born || (current.MatchesCurrent() && NrdBridgeBirth::Healthy()))
+            {
+                std::scoped_lock psoLock(gRRPsoMutex);
+                auto& state = RRPsoListStateLocked(This,receiver);
+                const auto previous = RRPsoPointers(state);
+                state = {}; state.receiverBirth = receiver;
+                state.currentPso = prepared ? pInitialState : nullptr;
+                UpdateRRPsoListReferencesLocked(This,previous,state);
+            }
+        }
+        catch (...)
+        {
+            if (RRInspectorBirthsEnabled()) NrdBridgeNativeBirth::Detail::Fail("RR list PSO metadata failed");
+        }
     }
     return result;
 }
@@ -3639,15 +3855,16 @@ void ResTrack_Dx12::hkDispatch(ID3D12GraphicsCommandList* This, UINT ThreadGroup
     {
         std::scoped_lock psoLock(gRRPsoMutex);
         RRCommandListPsoState& state = gRRCommandListPsoStates[This];
-        if (state.currentPso != nullptr)
+        if (state.currentPso != nullptr && RRPsoListAvailable(state,This))
         {
-            RRPsoMetadata& metadata = EnsureRRPsoMetadata(state.currentPso);
-            if (metadata.kind == RRPsoKind::Unknown || metadata.kind == RRPsoKind::Stream)
-                metadata.kind = RRPsoKind::Compute;
-            const auto previous = RRPsoPointers(state);
-            state.lastComputePso = state.currentPso;
-            UpdateRRPsoListReferencesLocked(This,previous,state);
-            ++state.dispatchesSinceBarrier;
+            const auto prepared = FindRRPsoMetadataLocked(state.currentPso);
+            if (prepared)
+            {
+                RRPsoMetadata& metadata = *prepared;
+                if (metadata.kind == RRPsoKind::Unknown || metadata.kind == RRPsoKind::Stream) metadata.kind = RRPsoKind::Compute;
+                const auto previous = RRPsoPointers(state); state.lastComputePso = state.currentPso;
+                UpdateRRPsoListReferencesLocked(This,previous,state); ++state.dispatchesSinceBarrier;
+            }
         }
     }
 
@@ -4482,7 +4699,7 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
 
     {
         std::scoped_lock resourceLock(gRRTrackedResourceMutex);
-        gRRTrackedResources.clear();
+        gRRTrackedResources.clear(); gRRResourceSizeIndex.clear();
     }
     {
         std::scoped_lock stateLock(gRRResourceStateMutex);
@@ -4729,9 +4946,21 @@ HRESULT ResTrack_Dx12::hkSurveyCreateDescriptorHeap(ID3D12Device* This, D3D12_DE
                                               REFIID riid, void** ppvHeap)
 {
     const auto result = hkCreateDescriptorHeap(This,pDescriptorHeapDesc,riid,ppvHeap);
-    if (SUCCEEDED(result) && ppvHeap && *ppvHeap &&
-        (!gNrdBridgeWrappers || HeapReleaseObserverCovers(static_cast<ID3D12DescriptorHeap*>(*ppvHeap))))
-        FrameSurvey::HeapCreated(This,static_cast<ID3D12DescriptorHeap*>(*ppvHeap));
+    if (SUCCEEDED(result) && ppvHeap && *ppvHeap)
+    {
+        ReturnedHeapInterface returned(*ppvHeap,riid);
+        if (returned.heap && (!gNrdBridgeWrappers || HeapReleaseObserverCovers(returned.heap)))
+        {
+            if (RRInspectorBirthsEnabled() && *ppvHeap != returned.heap && !FrameSurvey::Internal())
+            {
+                if (!ObserveBridgeObjectRelease(static_cast<IUnknown*>(*ppvHeap))) return result;
+                const auto birth = NrdBridgeNativeBirth::Prepare(returned.heap);
+                NrdBridgeNativeBirth::RetirementScope effects;
+                if (!birth || !effects.Valid() || !NrdBridgeBirth::LinkAlias(birth->InstanceStamp(),*ppvHeap)) return result;
+            }
+            FrameSurvey::HeapCreated(This,returned.heap);
+        }
+    }
     return result;
 }
 
@@ -4740,7 +4969,21 @@ HRESULT ResTrack_Dx12::hkSurveyCreateGraphicsPipelineState(
     REFIID riid, void** ppPipelineState)
 {
     const auto result = hkCreateGraphicsPipelineState(This,pDesc,riid,ppPipelineState);
-    if (SUCCEEDED(result) && pDesc && ppPipelineState && *ppPipelineState) FrameSurvey::PipelineCreated(static_cast<ID3D12PipelineState*>(*ppPipelineState),*pDesc);
+    if (SUCCEEDED(result) && pDesc && ppPipelineState && *ppPipelineState)
+    {
+        ReturnedPipelineInterface returned(*ppPipelineState,riid);
+        if (returned.pipeline)
+        {
+            if (RRInspectorBirthsEnabled() && *ppPipelineState != returned.pipeline && !FrameSurvey::Internal())
+            {
+                if (!NrdBridgeNativeBirth::ObserveReleaseCoverage(static_cast<IUnknown*>(*ppPipelineState))) return result;
+                const auto birth = RRStrongReceiver(returned.pipeline);
+                NrdBridgeNativeBirth::RetirementScope effects;
+                if (!birth || !effects.Valid() || !NrdBridgeBirth::LinkAlias(birth->InstanceStamp(),*ppPipelineState)) return result;
+            }
+            FrameSurvey::PipelineCreated(returned.pipeline,*pDesc);
+        }
+    }
     return result;
 }
 
@@ -4749,7 +4992,21 @@ HRESULT ResTrack_Dx12::hkSurveyCreateComputePipelineState(
     REFIID riid, void** ppPipelineState)
 {
     const auto result = hkCreateComputePipelineState(This,pDesc,riid,ppPipelineState);
-    if (SUCCEEDED(result) && pDesc && ppPipelineState && *ppPipelineState) FrameSurvey::PipelineCreated(static_cast<ID3D12PipelineState*>(*ppPipelineState),*pDesc);
+    if (SUCCEEDED(result) && pDesc && ppPipelineState && *ppPipelineState)
+    {
+        ReturnedPipelineInterface returned(*ppPipelineState,riid);
+        if (returned.pipeline)
+        {
+            if (RRInspectorBirthsEnabled() && *ppPipelineState != returned.pipeline && !FrameSurvey::Internal())
+            {
+                if (!NrdBridgeNativeBirth::ObserveReleaseCoverage(static_cast<IUnknown*>(*ppPipelineState))) return result;
+                const auto birth = RRStrongReceiver(returned.pipeline);
+                NrdBridgeNativeBirth::RetirementScope effects;
+                if (!birth || !effects.Valid() || !NrdBridgeBirth::LinkAlias(birth->InstanceStamp(),*ppPipelineState)) return result;
+            }
+            FrameSurvey::PipelineCreated(returned.pipeline,*pDesc);
+        }
+    }
     return result;
 }
 
@@ -4758,7 +5015,21 @@ HRESULT ResTrack_Dx12::hkSurveyCreatePipelineState(
     REFIID riid, void** ppPipelineState)
 {
     const auto result = hkCreatePipelineState(This,pDesc,riid,ppPipelineState);
-    if (SUCCEEDED(result) && pDesc && ppPipelineState && *ppPipelineState) FrameSurvey::PipelineCreated(static_cast<ID3D12PipelineState*>(*ppPipelineState),*pDesc);
+    if (SUCCEEDED(result) && pDesc && ppPipelineState && *ppPipelineState)
+    {
+        ReturnedPipelineInterface returned(*ppPipelineState,riid);
+        if (returned.pipeline)
+        {
+            if (RRInspectorBirthsEnabled() && *ppPipelineState != returned.pipeline && !FrameSurvey::Internal())
+            {
+                if (!NrdBridgeNativeBirth::ObserveReleaseCoverage(static_cast<IUnknown*>(*ppPipelineState))) return result;
+                const auto birth = RRStrongReceiver(returned.pipeline);
+                NrdBridgeNativeBirth::RetirementScope effects;
+                if (!birth || !effects.Valid() || !NrdBridgeBirth::LinkAlias(birth->InstanceStamp(),*ppPipelineState)) return result;
+            }
+            FrameSurvey::PipelineCreated(returned.pipeline,*pDesc);
+        }
+    }
     return result;
 }
 

@@ -545,6 +545,9 @@ struct RRResourceCandidate
     uint32_t producerCount = 0;
     uint8_t producerKind = 0;
     bool producerAmbiguous = false;
+    // Weak UI snapshots revalidate both physical birth and inspector generation.
+    NrdBridgeBirth::Token resourceBirth;
+    uint64_t registryVersion = 0;
 };
 
 #ifdef USE_SPINLOCK_MUTEX
