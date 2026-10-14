@@ -5,6 +5,7 @@
 
 #include "IFeature_Dx12.h"
 #include "State.h"
+#include "shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
 
 std::optional<D3D12_RESOURCE_STATES> IFeature_Dx12::TitleOutputState(ID3D12Resource* output) const
 {
@@ -343,6 +344,14 @@ bool IFeature_Dx12::Evaluate(ID3D12GraphicsCommandList* InCommandList, NVSDK_NGX
                 return !recordedRR;
             }
         }
+    }
+
+    if (NrdBridge::NativeDebugEnabled())
+    {
+        std::string debugError;
+        const auto debugState = _internalOutput ? D3D12_RESOURCE_STATE_UNORDERED_ACCESS :
+            TitleOutputState(paramOutput).value_or(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        NrdBridge::PresentNativeDebug(InCommandList,paramOutput,debugState,debugError);
     }
 
     // imgui

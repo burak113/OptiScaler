@@ -36,6 +36,8 @@ bool ApplyRRSettings(const RRSettings&, bool cameraProjectedDepthDelta, std::str
 RRSettingsState GetRRSettingsState() noexcept;
 bool CameraProjectedDepthEnabled() noexcept;
 bool NativeDebugEnabled() noexcept;
+// Quiet false means no eligible completed/same-recording diagnostic image.
+bool PresentNativeDebug(ID3D12GraphicsCommandList*, ID3D12Resource*, D3D12_RESOURCE_STATES, std::string& error) noexcept;
 #ifdef FSRD_NRD_BRIDGE_TEST
 void RegisterPipelineRoleForTesting(ID3D12PipelineState*, Role) noexcept;
 #endif
