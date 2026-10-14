@@ -1372,7 +1372,12 @@ bool PublishHeapMetadata(const PreparedHeap& prepared, const NrdBridgeBirth::Tok
             heap.birth = birth; return true;
         }
         Heap heap {prepared.object,prepared.cpu,prepared.gpu,prepared.description.NumDescriptors,prepared.increment,uint32_t(prepared.description.Type)};
-        heap.birth = birth; gHeaps.emplace(prepared.object,std::move(heap)); gCpuHeaps[prepared.cpu] = prepared.object; return true;
+        heap.birth = birth; gHeaps.emplace(prepared.object,std::move(heap));
+        // SAMPLER handles belong to a distinct typed space. Only its object/birth
+        // participates in heap seeding; it must never shadow resource-view slots.
+        if (prepared.description.Type == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV || prepared.description.Type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV)
+            gCpuHeaps[prepared.cpu] = prepared.object;
+        return true;
     } catch (...) { MetadataFailed("Prepared heap publication failed"); return false; }
 }
 bool PublishRootMetadata(const PreparedRoot& prepared, const NrdBridgeBirth::Token& birth) noexcept
@@ -1674,7 +1679,8 @@ void Released(void* object) noexcept
                 const auto view = gViews.find(handle);
                 if (view != gViews.end() && view->second.heapKnown && view->second.descriptorHeap == uint64_t(reinterpret_cast<uintptr_t>(heap))) EraseView(handle);
             }
-            gCpuHeaps.erase(found->second.cpu); gHeaps.erase(found);
+            if (const auto cpu = gCpuHeaps.find(found->second.cpu); cpu != gCpuHeaps.end() && cpu->second == heap) gCpuHeaps.erase(cpu);
+            gHeaps.erase(found);
         }
         }
     } catch (...) { MetadataFailed("Resource release registry invalidation failed"); }
