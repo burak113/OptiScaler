@@ -46,6 +46,7 @@ struct MetadataMutation
 };
 #ifdef FSRD_NRD_BRIDGE_TEST
 std::atomic<int> gCopyFailureAfterForTesting {-1};
+std::atomic<bool> gViewFailureAfterReverseForTesting {false};
 #endif
 std::atomic<PipelineObserver> gPipelineObserver {nullptr};
 std::atomic<ReleaseObserver> gReleaseObserver {nullptr};
@@ -177,6 +178,15 @@ template<class Node> bool NativeNodeCurrent(const std::shared_ptr<Node>& node) n
     return node && node->epoch == gNativeMetadataEpoch.load(std::memory_order_acquire) &&
         node->birth && node->birth->Address() == node->object && NrdBridgeBirth::CacheAdmissible(node->birth);
 }
+// Pure descriptor metadata never dereferences a native object. An in-flight
+// NONFINAL release must not erase a still-owned descriptor declaration. Native
+// readers/bootstrap remain strictly CacheAdmissible; final retirement sets Live
+// false before draining each slot, and before-mark writes are drained afterwards.
+template<class Node> bool NativeNodeMetadataCurrent(const std::shared_ptr<Node>& node) noexcept
+{
+    return node && node->epoch == gNativeMetadataEpoch.load(std::memory_order_acquire) && node->birth &&
+        node->birth->Address() == node->object && node->birth->Live() && !node->birth->Failed() && NrdBridgeBirth::Healthy();
+}
 std::unordered_map<ID3D12Resource*,Resource> gResources;
 std::map<uint64_t,ID3D12Resource*> gAddresses;
 FrameSurveyMetadata::BufferAddressIndex gBufferAddresses;
@@ -275,12 +285,37 @@ std::shared_ptr<NativeHeapNode> NativeHeapAtCpu(uint64_t handle,uint32_t type)
     if (!node || node->id != interval.generation || !contains(node) || version != ranges.Version()) return {};
     cache[index][next[index]++%cache[index].size()] = {version,node}; return node;
 }
-std::shared_ptr<NativeResourceNode> NativeBufferAtAddress(uint64_t address)
+std::shared_ptr<NativeResourceNode> NativeMetadataResource(ID3D12Resource* object)
+{
+    struct Cache { ID3D12Resource* object=nullptr; std::shared_ptr<NativeResourceNode> node; };
+    static thread_local std::array<Cache,4> cache; static thread_local unsigned next=0;
+    for (const auto& hit : cache) if (hit.object == object && NativeNodeMetadataCurrent(hit.node)) return hit.node;
+    auto node=gNativeResources.Find(object); if (!NativeNodeMetadataCurrent(node)) return {};
+    cache[next++%cache.size()]={object,node}; return node;
+}
+std::shared_ptr<NativeHeapNode> NativeMetadataHeapAtCpu(uint64_t handle,uint32_t type)
+{
+    if (type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && type != D3D12_DESCRIPTOR_HEAP_TYPE_RTV) return {};
+    const auto index=type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV ? 1u : 0u; auto& ranges=gNativeHeapRanges[index];
+    struct Cache { uint64_t version=0; std::shared_ptr<NativeHeapNode> node; };
+    static thread_local std::array<std::array<Cache,4>,2> cache; static thread_local std::array<unsigned,2> next {};
+    const auto version=ranges.Version();
+    const auto contains=[&](const auto& node) {
+        return NativeNodeMetadataCurrent(node) && node->type == type && node->increment && handle >= node->cpu &&
+            handle-node->cpu < uint64_t(node->count)*node->increment && (handle-node->cpu)%node->increment == 0;
+    };
+    for (const auto& hit : cache[index]) if (hit.version == version && contains(hit.node)) return hit.node;
+    const auto interval=ranges.Find(handle); if (interval.matches != 1) return {};
+    auto node=gNativeHeaps.Find(static_cast<ID3D12DescriptorHeap*>(interval.object));
+    if (!node || node->id != interval.generation || !contains(node) || version != ranges.Version()) return {};
+    cache[index][next[index]++%cache[index].size()]={version,node}; return node;
+}
+std::shared_ptr<NativeResourceNode> NativeMetadataBufferAtAddress(uint64_t address)
 {
     const auto version = gNativeBuffers.Version();
     const auto interval = gNativeBuffers.Find(address);
     if (interval.matches != 1) return {};
-    auto node = NativeResource(static_cast<ID3D12Resource*>(interval.object));
+    auto node = NativeMetadataResource(static_cast<ID3D12Resource*>(interval.object));
     if (!node || node->id != interval.generation || node->description.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER ||
         !node->address || address < node->address || address-node->address >= node->description.Width ||
         version != gNativeBuffers.Version()) return {};
@@ -311,6 +346,15 @@ bool NativeViewFresh(const ViewInfo& view) noexcept
     if (declaration) return true;
     return NativeNodeCurrent(view.resourceOwner) && view.resourceOwner->object == view.object && view.resourceOwner->id == view.resource;
 }
+bool NativeViewMetadataFresh(const ViewInfo& view) noexcept
+{
+    if (!NativeNodeMetadataCurrent(view.heapOwner) ||
+        view.heapOwner->object != reinterpret_cast<ID3D12DescriptorHeap*>(uintptr_t(view.descriptorHeap))) return false;
+    const bool declaration=view.kind == D3D12_DESCRIPTOR_RANGE_TYPE_CBV && !view.object && !view.resource &&
+        view.rootVa && !(view.rootVa%256) && view.constantBytes && !(view.constantBytes%256) && view.constantBytes <= 65536;
+    return declaration || (NativeNodeMetadataCurrent(view.resourceOwner) &&
+        view.resourceOwner->object == view.object && view.resourceOwner->id == view.resource);
+}
 void NativeEraseView(uint64_t handle)
 {
     const auto found = gViews.find(handle); if (found == gViews.end()) return;
@@ -326,6 +370,9 @@ void NativeReplaceView(const ViewInfo& view)
     NativeEraseView(view.descriptorCpu);
     if (view.resourceOwner && view.resourceOwner->handles) view.resourceOwner->handles->insert(view.descriptorCpu);
     if (view.heapOwner && view.heapOwner->views) view.heapOwner->views->insert(view.descriptorCpu);
+#ifdef FSRD_NRD_BRIDGE_TEST
+    if (gViewFailureAfterReverseForTesting.exchange(false)) throw std::bad_alloc();
+#endif
     gViews.emplace(view.descriptorCpu,view);
 }
 bool FreshView(const ViewInfo& view, const Heap* heap)
@@ -781,6 +828,7 @@ void StorePipelineMetadata(ID3D12PipelineState* pso, const std::string& text)
 bool Seed(ID3D12GraphicsCommandList* cmd, List& list)
 {
     NativeSnapshotExclusive metadataSnapshot;
+    if (!gMetadataHealthy.load(std::memory_order_acquire) || !Recording()) return false;
     Mirror mirror;
     {
         std::scoped_lock lock(gMirrorMutex);
@@ -850,12 +898,12 @@ void NativeStoreResourceView(ID3D12Resource* object, uint64_t handle, uint32_t k
     NativeSnapshotShared snapshot; if (!Tracking()) return;
     for (unsigned attempt=0;attempt<8;++attempt)
     {
-        const auto version=ranges.Version(); auto heap=NativeHeapAtCpu(handle,type);
+        const auto version=ranges.Version(); auto heap=NativeMetadataHeapAtCpu(handle,type);
         std::scoped_lock slot(gViewMutexes[FrameSurveyMetadata::DescriptorShard(handle)]); MetadataMutation mutation;
         if (version != ranges.Version()) continue; // Retry unrelated heap changes without a false tombstone.
         const bool strong = resource && resource->epoch == gNativeMetadataEpoch.load(std::memory_order_acquire) &&
             resource->birth && resource->birth->Live() && !resource->birth->Failed() && NrdBridgeBirth::Healthy();
-        if (!object || !strong || !NativeNodeCurrent(heap)) { NativeEraseView(handle); return; }
+        if (!object || !strong || !NativeNodeMetadataCurrent(heap)) { NativeEraseView(handle); return; }
         ViewInfo view {object,resource->id,kind,uint32_t(format == DXGI_FORMAT_UNKNOWN ? resource->description.Format : format),
             mip+slice*resource->description.MipLevels,supported};
         view.descriptorCpu=handle; view.descriptorHeap=uint64_t(reinterpret_cast<uintptr_t>(heap->object)); view.heapKnown=true;
@@ -868,17 +916,17 @@ void NativeStoreConstantView(uint64_t handle, const D3D12_CONSTANT_BUFFER_VIEW_D
     const auto bufferVersion=gNativeBuffers.Version();
     const bool declared=desc && desc->BufferLocation && !(desc->BufferLocation%256) && desc->SizeInBytes &&
         !(desc->SizeInBytes%256) && desc->SizeInBytes <= 65536;
-    auto resource=declared ? NativeBufferAtAddress(desc->BufferLocation) : std::shared_ptr<NativeResourceNode>{};
+    auto resource=declared ? NativeMetadataBufferAtAddress(desc->BufferLocation) : std::shared_ptr<NativeResourceNode>{};
     NativeSnapshotShared snapshot; if (!Tracking()) return;
     for (unsigned attempt=0;attempt<8;++attempt)
     {
-        const auto heapVersion=gNativeHeapRanges[0].Version(); auto heap=NativeHeapAtCpu(handle,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        const auto heapVersion=gNativeHeapRanges[0].Version(); auto heap=NativeMetadataHeapAtCpu(handle,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         std::scoped_lock slot(gViewMutexes[FrameSurveyMetadata::DescriptorShard(handle)]); MetadataMutation mutation;
         if (heapVersion != gNativeHeapRanges[0].Version()) continue;
-        if (!declared || !NativeNodeCurrent(heap)) { NativeEraseView(handle); return; }
+        if (!declared || !NativeNodeMetadataCurrent(heap)) { NativeEraseView(handle); return; }
         // A VA/size declaration remains useful when diagnostic ownership is
         // unknown/ambiguous. Native b6 admission never requires that ownership.
-        if (!NativeNodeCurrent(resource) || bufferVersion != gNativeBuffers.Version() ||
+        if (!NativeNodeMetadataCurrent(resource) || bufferVersion != gNativeBuffers.Version() ||
             desc->BufferLocation < resource->address || desc->BufferLocation-resource->address >= resource->description.Width ||
             desc->SizeInBytes > resource->description.Width-(desc->BufferLocation-resource->address)) resource.reset();
         ViewInfo view {resource ? resource->object : nullptr,resource ? resource->id : 0,
@@ -907,7 +955,7 @@ void NativeCopyDescriptors(UINT stride, UINT nd, const D3D12_CPU_DESCRIPTOR_HAND
             throw std::logic_error("Descriptor copy handle overflow");
         const uint64_t dh0=dst[di].ptr+destinationDelta, sh0=src[si].ptr+sourceDelta;
         auto version=ranges.Version();
-        auto destinationHeap=NativeHeapAtCpu(dh0,type), sourceHeap=NativeHeapAtCpu(sh0,type);
+        auto destinationHeap=NativeMetadataHeapAtCpu(dh0,type), sourceHeap=NativeMetadataHeapAtCpu(sh0,type);
         UINT count=std::min(dc-d,sc-s);
         if (destinationHeap && destinationHeap->increment == stride)
             count=std::min(count,destinationHeap->count-UINT((dh0-destinationHeap->cpu)/stride));
@@ -930,18 +978,18 @@ void NativeCopyDescriptors(UINT stride, UINT nd, const D3D12_CPU_DESCRIPTOR_HAND
             {
                 if (attempt)
                 {
-                    version=ranges.Version(); destinationHeap=NativeHeapAtCpu(dh,type); sourceHeap=NativeHeapAtCpu(sh,type);
+                    version=ranges.Version(); destinationHeap=NativeMetadataHeapAtCpu(dh,type); sourceHeap=NativeMetadataHeapAtCpu(sh,type);
                 }
                 std::unique_lock<DescriptorMutex> first(gViewMutexes[std::min(sourceShard,destinationShard)]);
                 std::unique_lock<DescriptorMutex> second;
                 if (sourceShard != destinationShard) second=std::unique_lock<DescriptorMutex>(gViewMutexes[std::max(sourceShard,destinationShard)]);
                 if (version != ranges.Version()) continue;
                 const auto source=gViews.find(sh);
-                const bool known=source != gViews.end() && NativeNodeCurrent(sourceHeap) && NativeNodeCurrent(destinationHeap) &&
+                const bool known=source != gViews.end() && NativeNodeMetadataCurrent(sourceHeap) && NativeNodeMetadataCurrent(destinationHeap) &&
                     sourceHeap->increment == stride && destinationHeap->increment == stride &&
                     sh >= sourceHeap->cpu && sh-sourceHeap->cpu < uint64_t(sourceHeap->count)*stride &&
                     dh >= destinationHeap->cpu && dh-destinationHeap->cpu < uint64_t(destinationHeap->count)*stride &&
-                    source->second.heapOwner == sourceHeap && NativeViewFresh(source->second);
+                    source->second.heapOwner == sourceHeap && NativeViewMetadataFresh(source->second);
                 // Snapshot before mutation, including same-slot and shared-owner copies.
                 if (known)
                 {
@@ -1000,6 +1048,7 @@ std::vector<ViewInfo> Bindings(List& state, bool graphics, Json& unresolved)
     if (!root.layout.complete) unresolved.push_back("root_signature_layout_unavailable");
     if (root.layout.directIndexed) unresolved.push_back("direct_heap_indexing_shader_usage_unknown");
     NativeSnapshotExclusive snapshot;
+    if (!gMetadataHealthy.load(std::memory_order_acquire) || !Recording()) { unresolved.push_back("descriptor_metadata_unhealthy"); return result; }
     std::scoped_lock lock(gLifetimeMutex);
     for (const auto& [index,base] : root.tables)
     {
@@ -2329,6 +2378,7 @@ void RenderTargets(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_CPU_D
         NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
         std::scoped_lock record(gRecordMutex); if (!Recording()) return; auto& list = GetList(cmd); list.targets.clear();
         NativeSnapshotExclusive metadataSnapshot;
+        if (!gMetadataHealthy.load(std::memory_order_acquire) || !Recording()) return;
         std::scoped_lock lifetime(gLifetimeMutex);
         UINT stride = 0;
         if (contiguous && count && handles)
@@ -2353,6 +2403,7 @@ void Barrier(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_RESOURCE_BA
         std::vector<std::pair<ViewInfo,D3D12_RESOURCE_STATES>> exits;
         {
         NativeSnapshotExclusive metadataSnapshot;
+        if (!gMetadataHealthy.load(std::memory_order_acquire) || !Recording()) return;
         std::scoped_lock lifetime(gLifetimeMutex);
         for (UINT i=0;i<count;++i)
         {
