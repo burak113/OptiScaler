@@ -16,6 +16,7 @@ struct RRSettings
     int32_t nativeDebugView = -1;
     uint32_t nativeDebugViewport = 0;
     bool preserveNativeMaterialIDs = false;
+    float nativeSpecularBlend = 0.0f; // NRD-assisted hybrid after RR; never changes RR inputs or history.
 };
 struct RRSettingsState
 {

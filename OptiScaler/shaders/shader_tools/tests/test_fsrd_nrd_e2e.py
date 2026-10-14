@@ -313,12 +313,77 @@ def quality_replay(exe, out):
     print(json.dumps(result, indent=2))
 
 
+def validate_native_blend(value):
+    trace = value['native_blend']
+    assert trace['binding'] in ('root VA', 'native table')
+    assert trace['submitted_frames'] == len(trace['frames']) == 88
+    assert trace['physical_provider_creates'] == 1 and trace['provider_resets'] == 2
+    assert trace['same_history_context'] and trace['noisy_input_identity'] and trace['diffuse_unchanged']
+    assert trace['latest_gap_applies'] == trace['closed_list_changes'] == 2
+    assert trace['extra_provider_configures'] == trace['extra_owned_bytes'] == 0
+    assert value['debug_errors'] == value['debug_warnings'] == 0
+    weights = [0., .25, .5, .75, 1., 0., 0., .5]
+    for mode in range(2):
+        rows = trace['frames'][mode*44:(mode+1)*44]
+        assert [row['source_frame'] for row in rows] == list(range(2, 46))
+        assert [row['frame'] for row in rows] == list(range(2+mode*44, 46+mode*44))
+        assert [row['encoding'] for row in rows] == [('RGB', 'YCoCg')[mode]]*44
+        assert [row['provider_reset'] for row in rows] == [True]+[False]*43
+        for index, row in enumerate(rows):
+            expected = .375 if index == 17 else weights[index % len(weights)]
+            assert row['recorded_strength'] == expected
+            assert row['latest_gap_value_used'] == (index == 17)
+            assert row['closed_list_value_immutable'] == (index == 5)
+            stats = row['statistics']
+            assert stats['strength'] == expected
+            assert stats['finite_rgb'] == stats['rgb_values'] == 128*128*6
+            assert stats['native_alpha_values'] == 128*128*2
+            assert stats['native_endpoint_exact'] == (expected == 1.)
+            assert stats['reference_matches'] == 128*128*(3 if expected == 1. else 6)
+            if mode == 1:
+                assert stats['nearest_half_values'] == stats['reference_matches']
+    return 7+4*2+8*88+44
+
+
+def native_blend_replay(exe, out):
+    from fsrd_nrd_quality_replay import write_sequence
+    inputs = out / 'native_blend_input'
+    manifest = write_sequence(inputs)
+    assert manifest['submitted_frames'] == 44
+    sealed_hash = hashlib.sha256((inputs/'sequence.json').read_bytes()).hexdigest()
+    runs = {}
+    for binding in ('root', 'table'):
+        directory = out / ('native_blend_' + binding)
+        directory.mkdir(parents=True, exist_ok=True)
+        selector = '--native-blend' if binding == 'root' else '--native-blend-table'
+        text, peak, elapsed, log = bounded_run([str(exe), str(directory), str(DLL), selector], directory/'native_run')
+        value = json.loads((directory/'native-blend-result.json').read_text())
+        checks = validate_native_blend(value)
+        assert value['native_blend']['input_manifest_sha256'] == sealed_hash
+        assert value['native_blend']['binding'] == ('root VA' if binding == 'root' else 'native table')
+        value.update(python_checks=checks+2, elapsed_seconds=elapsed, peak_resident_bytes=peak,
+                     native_log=str(log), dll=str(DLL), dll_sha256=hashlib.sha256(DLL.read_bytes()).hexdigest())
+        (directory/'native-blend-result.json').write_text(json.dumps(value, indent=2)+'\n')
+        runs[binding] = value
+    result = dict(runs=runs, input_manifest_sha256=sealed_hash,
+                  python_checks=1+sum(run['python_checks'] for run in runs.values()),
+                  scope='signed RR/production bridge pointwise hybrid plumbing on sealed44-frame camera input; native OUT is synthetic, no game NRD quality truth')
+    (out/'native-blend-comparison.json').write_text(json.dumps(result, indent=2)+'\n')
+    report = Path(os.environ.get('FSRD_NRD_E2E_REPORT', f'E:/FSRD/sol_batch/{out.parents[1].name}'))
+    report.mkdir(parents=True, exist_ok=True)
+    (report/'native-blend-comparison.json').write_text(json.dumps(result, indent=2)+'\n')
+    return result
+
+
 def run():
     out = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/sol_batch/12e-e2e/tests/e2e'))
     out.mkdir(parents=True, exist_ok=True)
     exe = build(out)
     if '--compile-only' in sys.argv:
         print(json.dumps({'compile_only': True, 'executable': str(exe)}))
+        return
+    if '--native-blend-only' in sys.argv:
+        print(json.dumps(native_blend_replay(exe, out), indent=2))
         return
     if '--quality-only' in sys.argv:
         quality_replay(exe, out)
@@ -369,7 +434,8 @@ def run():
     guide_text, guide_peak, guide_elapsed, guide_log = bounded_run([str(exe), str(out), str(DLL), '--guide-pingpong'], out / 'guide_pingpong')
     guide = json.loads((out / 'guide-pingpong-result.json').read_text())
     guide_checks = validate_guide_pingpong(guide)
-    result.update(python_checks=10+guide_checks,
+    blend = native_blend_replay(exe, out)
+    result.update(python_checks=10+guide_checks+blend['python_checks'], native_blend=blend,
                   guide_pingpong=dict(**guide, elapsed_seconds=guide_elapsed, peak_resident_bytes=guide_peak, native_log=str(guide_log)),
                   cbv_lifetime=dict(**cbv, elapsed_seconds=cbv_elapsed, peak_resident_bytes=cbv_peak, native_log=str(cbv_log)),
                   submission_failure=dict(**fault, elapsed_seconds=fault_elapsed, peak_resident_bytes=fault_peak, native_log=str(fault_log)), elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log),

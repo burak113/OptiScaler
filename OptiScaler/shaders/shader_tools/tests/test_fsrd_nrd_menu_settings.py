@@ -20,6 +20,7 @@ KEYS = {
     'FfxDenoiserNrdBridgeUseCustomRR': ('NrdBridgeUseCustomRR', 'Bool'),
     'FfxDenoiserNrdBridgeMotionDepthMode': ('NrdBridgeMotionDepthMode', 'Bool'),
     'FfxDenoiserNrdBridgeMaterialIDs': ('NrdBridgeMaterialIDs', 'Bool'),
+    'FfxDenoiserNrdBridgeNativeSpecularBlend': ('NrdBridgeNativeSpecularBlend', 'Float'),
     'FfxDenoiserNrdBridgeEnabled': ('NrdBridgeEnabled', 'Bool'),
     'FfxDenoiserUseAmdDefaults': ('UseAmdDefaults', 'Bool'),
     'FfxDenoiserCrossBlNormStr': ('CrossBilateralNormalStrength', 'Float'),
@@ -39,6 +40,8 @@ CPP = r'''
 #include <array>
 #include <cctype>
 #include <concepts>
+#include <cmath>
+#include <limits>
 #include <cstdint>
 #include <cstdarg>
 #include <cstdio>
@@ -228,6 +231,34 @@ int main(){try{
  "Complete reset disables material experiment in Config and runtime POD");
  saved=cfg.save();reload.load(saved);need(!ReadNrdBridgeRRSettings(reload).preserveNativeMaterialIDs,"Reset/save/reload retains material OFF default");
  cfg.load("[FSR-RR]\nNrdBridgeMaterialIDs=invalid\n");need(!ReadNrdBridgeRRSettings(cfg).preserveNativeMaterialIDs,"Malformed material key remains OFF");
+ cfg.load("[FSR-RR]\n");NrdBridge::accept=true;ImGui::frame();before=NrdBridge::applyCalls;drawBridge(&cfg);
+ need(cfg.FfxDenoiserNrdBridgeNativeSpecularBlend.value_or_default()==0.f&&ReadNrdBridgeRRSettings(cfg).nativeSpecularBlend==0.f,
+ "NRD-assisted specular hybrid defaults to exact RR endpoint0");
+ need(ImGui::hasLabel("NRD reference specular blend (experimental)")&&NrdBridge::applyCalls==before,
+ "Default0 exposes one independent hybrid slider and performs no apply");
+ ImGui::frame();ImGui::hovered=true;ImGui::floats["NRD reference specular blend (experimental)"]=.375f;
+ const auto resets=NrdBridge::resetCalls;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.nativeSpecularBlend==.375f&&NrdBridge::last.overrideMask==0,
+ "Hybrid-only UI publishes one coherent coefficient independently of AMD custom keys");
+ need(NrdBridge::resetCalls==resets&&ImGui::hasText("both RR lobes still run")&&ImGui::hasText("NRD-assisted hybrid")&&
+ ImGui::hasText("without a confidence or noise gate")&&ImGui::hasText("RR history is unchanged"),
+ "Hybrid UI states its actual NRD assistance/history contract without invented confidence");
+ saved=cfg.save();reload.load(saved);need(ReadNrdBridgeRRSettings(reload).nativeSpecularBlend==.375f,
+ "Hybrid coefficient survives the actual Config float serializer/save/reload");
+ cfg.FfxDenoiserNrdBridgeNativeSpecularBlend=.9f;ImGui::frame();drawBridge(&cfg);
+ need(ImGui::hasText("Applied NRD reference specular blend: 0.375"),"Effective hybrid label uses accepted runtime snapshot rather than stale Config");
+ for(const auto [value,expected]:std::array<std::array<float,2>,6>{{{-5.f,0.f},{2.f,1.f},{.125f,.125f},
+ {std::numeric_limits<float>::quiet_NaN(),0.f},{std::numeric_limits<float>::infinity(),0.f},{-std::numeric_limits<float>::infinity(),0.f}}}) {
+  cfg.FfxDenoiserNrdBridgeNativeSpecularBlend=value;
+  need(ReadNrdBridgeRRSettings(cfg).nativeSpecularBlend==expected,"INI/runtime snapshot finite clamp and nonfinite OFF sanitation");
+ }
+ cfg.load("[FSR-RR]\nNrdBridgeNativeSpecularBlend=invalid\n");need(ReadNrdBridgeRRSettings(cfg).nativeSpecularBlend==0.f,
+ "Malformed hybrid float key remains at OFF endpoint0");
+ cfg.FfxDenoiserNrdBridgeNativeSpecularBlend=.75f;cfg.ResetFfxDenoiserSettings();
+ need(cfg.FfxDenoiserNrdBridgeNativeSpecularBlend.value_or_default()==0.f&&NrdBridge::last.nativeSpecularBlend==0.f,
+ "Complete reset disables hybrid in both Config and coherent bridge snapshot");
+ saved=cfg.save();reload.load(saved);need(ReadNrdBridgeRRSettings(reload).nativeSpecularBlend==0.f,
+ "Reset/save/reload preserves native blend0 without altering ordinary RR settings");
  std::cout<<"PASS: "<<checks<<" actual NRD menu/INI/reset checks\n";return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
 '''
@@ -244,8 +275,10 @@ def run():
     else:
         # Approved public POD is an explicit runtime-spy boundary until lead merges
         # its new header. No provider configuration/history algorithm is reproduced.
-        contract='struct RRSettings {uint32_t overrideMask=0;std::array<float,8> values{};int32_t nativeDebugView=-1;uint32_t nativeDebugViewport=0;bool preserveNativeMaterialIDs=false;};\nstruct RRSettingsState {bool ready=false;RRSettings requested{};std::array<float,8> defaults{},effective{};};'
+        contract='struct RRSettings {uint32_t overrideMask=0;std::array<float,8> values{};int32_t nativeDebugView=-1;uint32_t nativeDebugViewport=0;bool preserveNativeMaterialIDs=false;float nativeSpecularBlend=0.f;};\nstruct RRSettingsState {bool ready=false;RRSettings requested{};std::array<float,8> defaults{},effective{};};'
         contract_origin='explicit approved API spy POD; integrated replay reads actual header'
+    types=(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Types.h').read_text()
+    contract+='\n'+function(types,'inline float NormalizeNativeSpecularBlend(')
     loads=[];saves=[];resets=[]
     for field,(key,kind) in KEYS.items():
         load=re.findall(r'^\s*'+field+r'\.set_from_config\(read'+kind+r'\("FSR-RR", "'+key+r'"\)\);',config,re.M)
@@ -262,6 +295,7 @@ def run():
         assert len(re.findall(r'^'+key+r'=false\s*$',template,re.M))==1,key
     assert len(re.findall(r'^NrdBridgeNativeDebugView=-1\s*$',template,re.M))==1
     assert len(re.findall(r'^NrdBridgeNativeDebugViewport=0\s*$',template,re.M))==1
+    assert len(re.findall(r'^NrdBridgeNativeSpecularBlend=0\.0\s*$',template,re.M))==1
     ffx=(ROOT/'OptiScaler/include/fsr-rr/ffx_denoiser.h').read_text()
     enum=function(ffx,'typedef enum FfxApiDenoiserDebugViewMode')+' FfxApiDenoiserDebugViewMode;'
     maximum=re.search(r'^#define FFX_API_DENOISER_DEBUG_VIEW_MAX_VIEWPORTS \d+',ffx,re.M).group()

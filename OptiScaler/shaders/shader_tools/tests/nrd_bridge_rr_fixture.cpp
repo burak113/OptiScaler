@@ -1,6 +1,7 @@
 #define FSRD_NRD_BRIDGE_RR_TEST_BACKEND
 #include "../../fsrd_preprocess/FSRDNrdBridgeRR_Dx12.cpp"
 #include <d3d12sdklayers.h>
+#include <d3dcompiler.h>
 #include <DirectXPackedVector.h>
 #include <fstream>
 #include <iostream>
@@ -44,6 +45,29 @@ SLConstantsSnapshot camera(uint32_t frame = 100, float aspect = 4.f/3.f, float n
     c.cameraMotionIncluded = sl::Boolean::eTrue; c.motionVectors3D = sl::Boolean::eFalse;
     return snapshot;
 }
+void commitRootLayoutChecks()
+{
+    ComPtr<ID3DBlob> serialized;hr(D3DGetBlobPart(FSRDNrdBridgeCommit_cso,sizeof(FSRDNrdBridgeCommit_cso),D3D_BLOB_ROOT_SIGNATURE,0,&serialized));
+    ComPtr<ID3D12VersionedRootSignatureDeserializer> reader;
+    hr(D3D12CreateVersionedRootSignatureDeserializer(serialized->GetBufferPointer(),serialized->GetBufferSize(),IID_PPV_ARGS(&reader)));
+    const D3D12_VERSIONED_ROOT_SIGNATURE_DESC* versioned=nullptr;hr(reader->GetRootSignatureDescAtVersion(D3D_ROOT_SIGNATURE_VERSION_1_0,&versioned));
+    const auto& root=versioned->Desc_1_0;need(root.NumParameters==4 && root.NumStaticSamplers==0,"actual compiled commit retains exactly four root parameters and no samplers");
+    const auto& constants=root.pParameters[0];need(constants.ParameterType==D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS &&
+        constants.Constants.ShaderRegister==0 && constants.Constants.RegisterSpace==0 && constants.Constants.Num32BitValues==5,
+        "actual compiled commit has five unpacked32-bit constants at b0space0");
+    unsigned cost=constants.Constants.Num32BitValues;
+    for(unsigned i=1;i<3;++i)
+    {
+        const auto& table=root.pParameters[i];need(table.ParameterType==D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE &&
+            table.DescriptorTable.NumDescriptorRanges==1,"actual commit has distinct single-range SRV and UAV tables");
+        const auto& range=table.DescriptorTable.pDescriptorRanges[0];need(range.NumDescriptors==2 && range.BaseShaderRegister==0 && range.RegisterSpace==0 &&
+            range.RangeType==(i==1?D3D12_DESCRIPTOR_RANGE_TYPE_SRV:D3D12_DESCRIPTOR_RANGE_TYPE_UAV),"actual commit tables preserve t0/t1 and u0/u1 ranges");++cost;
+    }
+    const auto& cbv=root.pParameters[3];need(cbv.ParameterType==D3D12_ROOT_PARAMETER_TYPE_CBV && cbv.Descriptor.ShaderRegister==6 &&
+        cbv.Descriptor.RegisterSpace==0,"actual commit keeps live native flag snapshot at rootCBV b6space0");cost+=2;
+    need(cost==9 && cost<=64,"actual compiled root costs5+1+1+2=9DWORDs within the native limit");
+    std::cout<<"commit_root actual_parameters="<<root.NumParameters<<" constants="<<constants.Constants.Num32BitValues<<" cost_dwords="<<cost<<'\n';
+}
 void settingsValidationChecks()
 {
     RRWrapper wrapper; RRSettings requested; std::string error;
@@ -56,6 +80,15 @@ void settingsValidationChecks()
     requested.values.fill(std::numeric_limits<float>::quiet_NaN());
     need(ValidateRRSettings(requested,error) && wrapper.Configure(requested,error),"unselected override storage is ignored");
     need(wrapper.GetSettingsState().requested.values==std::array<float,8>{},"unselected overrides are canonicalized");
+    for(const auto [value,expected]:std::array<std::array<float,2>,8>{{{-1.f,0.f},{2.f,1.f},{.375f,.375f},{-0.f,0.f},{1.f,1.f},
+        {std::numeric_limits<float>::quiet_NaN(),0.f},{std::numeric_limits<float>::infinity(),0.f},{-std::numeric_limits<float>::infinity(),0.f}}})
+    {
+        RRSettings blend;blend.nativeSpecularBlend=value;need(ValidateRRSettings(blend,error) && wrapper.Configure(blend,error),"hybrid coefficient sanitizes without invalidating AMD scalar settings");
+        const auto normalized=wrapper.GetSettingsState().requested.nativeSpecularBlend;
+        need(normalized==expected && std::isfinite(normalized),"coherent hybrid coefficient uses finite clamp0..1/nonfiniteOFF");
+        if(expected==0.f)need(std::bit_cast<uint32_t>(normalized)==0u,"hybrid OFF canonicalizes signed/nonfinite zero to positive0");
+        need(wrapper.OwnedStagingBytes()==0 && wrapper.OwnedAuxiliaryBytes()==0 && wrapper.ContextGeneration()==0,"coefficient-only settings allocate no GPU resources or context");
+    }
     const RRSettings valid{0x7fu,{.8f,.6f,3000.f,12.f,.9f,.025f,.01f,80.f},-1,0};
     need(ValidateRRSettings(valid,error) && wrapper.Configure(valid,error),"all seven supported keys validate before context creation");
     const auto retained=wrapper.GetSettingsState().requested;
@@ -66,7 +99,8 @@ void settingsValidationChecks()
         need(state.requested.overrideMask==retained.overrideMask && state.requested.values==retained.values &&
             state.requested.nativeDebugView==retained.nativeDebugView &&
             state.requested.nativeDebugViewport==retained.nativeDebugViewport &&
-            state.requested.preserveNativeMaterialIDs==retained.preserveNativeMaterialIDs,"invalid settings preserve prior requested snapshot");
+            state.requested.preserveNativeMaterialIDs==retained.preserveNativeMaterialIDs &&
+            state.requested.nativeSpecularBlend==retained.nativeSpecularBlend,"invalid settings preserve prior requested snapshot");
     };
     auto bad=valid;bad.overrideMask|=0x80u;rejected(bad,"unknown AMD key bit rejected");
     for(unsigned i=0;i<8;++i)
@@ -677,6 +711,14 @@ void runtimeSettingsChecks(Host& host)
     for(unsigned i=0;i<6;++i)need(state.effective[i]==custom.values[i],"cached effective scalar equals applied override");
     calls=FfxApiProxy::configures;
     need(wrapper.Configure(custom,error) && FfxApiProxy::configures==calls,"same requested settings issue no provider calls");step(true);step(false);
+    const auto blendGeneration=wrapper.ContextGeneration(),blendBytes=wrapper.OwnedStagingBytes(),blendAux=wrapper.OwnedAuxiliaryBytes();
+    for(float value:{.25f,.5f,1.f,0.f,std::numeric_limits<float>::quiet_NaN(),std::numeric_limits<float>::infinity()})
+    {
+        custom.nativeSpecularBlend=value;need(wrapper.Configure(custom,error),"apply commit-only hybrid coefficient");
+        need(FfxApiProxy::configures==calls && wrapper.ContextGeneration()==blendGeneration && wrapper.OwnedStagingBytes()==blendBytes && wrapper.OwnedAuxiliaryBytes()==blendAux,
+            "native blend changes no AMD key/context/staging/allocation");
+        need(wrapper.GetSettingsState().requested.nativeSpecularBlend==NormalizeNativeSpecularBlend(value),"live requested hybrid metadata is normalized");step(false);
+    }
     const auto generation=wrapper.ContextGeneration();custom.preserveNativeMaterialIDs=true;
     need(wrapper.Configure(custom,error) && FfxApiProxy::configures==calls && wrapper.ContextGeneration()==generation,
         "material ID experiment is stored without inventing an AMD configure key or recreating context");
@@ -942,6 +984,149 @@ struct ConsumerBuffer
     ULONG references(){const auto value=binding->AddRef();binding->Release();return value-1;}
 };
 #include "nrd_bridge_consumer_test.h"
+void seedNativeSpecular(Host& host,Scene& scene,const std::array<uint16_t,4>& words)
+{
+    const auto desc=scene.spec()->GetDesc();D3D12_PLACED_SUBRESOURCE_FOOTPRINT fp{};UINT64 bytes=0;
+    host.device->GetCopyableFootprints(&desc,0,1,0,&fp,nullptr,nullptr,&bytes);auto upload=buffer(host.device.Get(),bytes,D3D12_HEAP_TYPE_UPLOAD);
+    uint8_t* mapped=nullptr;hr(upload->Map(0,nullptr,reinterpret_cast<void**>(&mapped)));std::memset(mapped,0,size_t(bytes));
+    for(uint32_t y=0;y<scene.height;++y)for(uint32_t x=0;x<scene.width;++x)
+        std::memcpy(mapped+fp.Offset+size_t(y)*fp.Footprint.RowPitch+size_t(x)*8,words.data(),8);
+    upload->Unmap(0,nullptr);barrier(host.list.Get(),scene.spec(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COPY_DEST);
+    D3D12_TEXTURE_COPY_LOCATION from{},to{};from.pResource=upload.Get();from.Type=D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;from.PlacedFootprint=fp;
+    to.pResource=scene.spec();to.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;host.list->CopyTextureRegion(&to,0,0,0,&from,nullptr);
+    barrier(host.list.Get(),scene.spec(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);scene.uploads.push_back(std::move(upload));
+}
+void nativeBlendReference(Readback& output,Readback& staged,Readback& native,uint32_t width,uint32_t height,float requested,bool encoded)
+{
+    const auto actual=output.values(width,height),rr=staged.values(width,height),before=native.values(width,height);
+    const float strength=NormalizeNativeSpecularBlend(requested);uint64_t finite=0,stageFinite=0,alpha=0,within=0,exact=0;
+    for(size_t p=0;p<size_t(width)*height;++p)
+    {
+        std::array<float,3> source,color;bool valid=true;
+        for(unsigned c=0;c<3;++c){source[c]=PackedVector::XMConvertHalfToFloat(rr[p*4+c]);color[c]=PackedVector::XMConvertHalfToFloat(before[p*4+c]);
+            valid&=std::isfinite(color[c]);stageFinite+=std::isfinite(source[c]);finite+=std::isfinite(PackedVector::XMConvertHalfToFloat(actual[p*4+c]));}
+        alpha+=actual[p*4+3]==before[p*4+3];
+        if(strength==1.f){for(unsigned c=0;c<3;++c){exact+=actual[p*4+c]==before[p*4+c];++within;}continue;}
+        if(strength>0.f && valid)
+        {
+            if(encoded)color={std::max(color[0]-color[2]+color[1],0.f),std::max(color[0]+color[2],0.f),std::max(color[0]-color[2]-color[1],0.f)};
+            for(unsigned c=0;c<3;++c)source[c]=std::clamp(source[c]*(1.f-strength)+color[c]*strength,-65504.f,65504.f);
+        }
+        if(encoded)source={(source[0]+2.f*source[1]+source[2])*.25f,(source[0]-source[2])*.5f,(-source[0]+2.f*source[1]-source[2])*.25f};
+        for(unsigned c=0;c<3;++c)
+        {
+            const auto word=PackedVector::XMConvertFloatToHalf(source[c]);exact+=actual[p*4+c]==word;
+            const auto value=PackedVector::XMConvertHalfToFloat(actual[p*4+c]);
+            // RGB keeps the old native typed-store rule. A normal half ULP (and
+            // one subnormal quantum) bounds this NEW intermediate-only check.
+            const float bound=std::abs(source[c])*std::ldexp(1.f,-10)+std::ldexp(1.f,-24);
+            within+=std::abs(value-source[c])<=bound;
+        }
+    }
+    const auto components=uint64_t(width)*height*3;
+    need(stageFinite==components && finite==components,"hybrid still runs RR and produces finite RGB in every pixel");
+    need(alpha==uint64_t(width)*height,"hybrid preserves every opaque native alpha word");
+    need(within==components,"pointwise hybrid agrees with independent linear-RGB reference within one half-storage ULP");
+    if(encoded || strength==0.f || strength==1.f || !FfxApiProxy::real)
+        need(exact==components,"hybrid endpoints/YCoCgRNE and exactly representable mock RGB match every expected half bit");
+    if(strength==1.f)need(actual==before,"native endpoint performs no specular store, including NaN alpha payload bits");
+}
+void nativeConsumerTitleIdentity(Readback& decoded,Readback& title,uint32_t width,uint32_t height,bool encoded)
+{
+    const auto words=title.values(width,height);uint8_t* data=nullptr;hr(decoded.bufferResource->Map(0,nullptr,reinterpret_cast<void**>(&data)));
+    uint64_t matched=0,alpha=0,finite=0;
+    for(uint32_t y=0;y<height;++y)for(uint32_t x=0;x<width;++x)
+    {
+        const auto p=size_t(y)*width+x;std::array<float,3> rgb;
+        for(unsigned c=0;c<3;++c)rgb[c]=PackedVector::XMConvertHalfToFloat(words[p*4+c]);
+        if(encoded)rgb={std::max(rgb[0]-rgb[2]+rgb[1],0.f),std::max(rgb[0]+rgb[2],0.f),std::max(rgb[0]-rgb[2]-rgb[1],0.f)};
+        const auto* row=reinterpret_cast<const float*>(data+decoded.footprint.Offset+size_t(y)*decoded.footprint.Footprint.RowPitch);
+        for(unsigned c=0;c<3;++c){matched+=row[x*4+c]==rgb[c]*64.f;finite+=std::isfinite(row[x*4+c]);}alpha+=row[x*4+3]==1.f;
+    }
+    decoded.bufferResource->Unmap(0,nullptr);need(matched==uint64_t(width)*height*3 && finite==matched,"actual original Consumer GPU decodes committed hybrid with exact execution-time mode/factor64");
+    need(alpha==uint64_t(width)*height,"original Consumer alpha1 remains independent of hybrid native alpha");
+}
+void nativeBlendChecks(Host& host)
+{
+    const uint32_t width=128,height=128;Scene scene(host,width,height,{},true);host.submit();host.reset();RRWrapper wrapper;FrameParameters frame;std::string error;
+    const auto oldSpec=FfxApiProxy::mockSpec,oldDiff=FfxApiProxy::mockDiff;const bool oldWrites=FfxApiProxy::recordPartialWrites;
+    if(!FfxApiProxy::real){FfxApiProxy::mockSpec={1.5f,7.f,9.25f,99.f};FfxApiProxy::mockDiff={9.f,2.75f,.5f,98.f};FfxApiProxy::recordPartialWrites=true;}
+    struct Case {float strength;bool table;uint32_t flag;bool nanAlpha=false,invalidRgb=false;};
+    const Case cases[] {{0.f,false,0},{1.f,false,0,true},{.25f,false,0},{.5f,false,1},{.75f,true,0},{1.f,true,1,true},
+        {std::numeric_limits<float>::quiet_NaN(),false,1},{std::numeric_limits<float>::infinity(),false,0},
+        {-1.f,true,1},{2.f,true,0,true},{.5f,true,0x80000000u},{.5f,true,0x7fc00000u},{.5f,false,1,false,true},{.5f,true,0,false,true}};
+    uint64_t staging=0,auxiliary=0;
+    for(unsigned i=0;i<std::size(cases);++i)
+    {
+        const auto& test=cases[i];const bool encoded=test.flag!=0;ConsumerBuffer old(host),next(host);old.flag(encoded?0u:1u);
+        NativeTableConsumer consumer(host,scene.spec(),scene.diff(),width,height);consumer.Overwrite(host.device.Get(),old.constants().address);
+        const auto refs=old.references(),nextRefs=next.references(),heapRefs=consumer.References();
+        ClearPair(host.list.Get(),scene.spec(),scene.diff(),{.125f,.25f,.5f,9.f},{1.25f,1.5f,1.75f,11.f});
+        const std::array<float,3> nativeRgb {2.25f,.75f,5.5f};const std::array<float,3> nativeColor=encoded?
+            std::array<float,3>{(nativeRgb[0]+2.f*nativeRgb[1]+nativeRgb[2])*.25f,(nativeRgb[0]-nativeRgb[2])*.5f,(-nativeRgb[0]+2.f*nativeRgb[1]-nativeRgb[2])*.25f}:nativeRgb;
+        std::array<uint16_t,4> nativeWords;for(unsigned c=0;c<3;++c)nativeWords[c]=PackedVector::XMConvertFloatToHalf(nativeColor[c]);
+        nativeWords[3]=test.nanAlpha?uint16_t(0x7e55u):PackedVector::XMConvertFloatToHalf(9.f);if(test.invalidRgb)nativeWords[0]=0x7e31u;
+        seedNativeSpecular(host,scene,nativeWords);Readback before(host,scene.spec());
+        RRSettings settings;settings.nativeSpecularBlend=test.strength;const auto calls=FfxApiProxy::configures;
+        need(wrapper.Configure(settings,error) && FfxApiProxy::configures==calls,"hybrid-only configuration emits no AMD key calls");
+        need(wrapper.PrepareFrame(camera(900+i,1.f),false,frame,error),"prepare native specular hybrid frame");frame.nativeSpecularBlend=test.strength;
+        frame.outputEncoding=encoded?SignalEncoding::Rgb:SignalEncoding::YCoCg; // Deliberately WRONG fallback: only live b6 is authoritative.
+        frame.outputConstants=test.table?TitleSignalConstants{nullptr,0,consumer.heap.Get(),consumer.Handle()}:TitleSignalConstants{nullptr,old.constants().address};
+        const auto dispatches=FfxApiProxy::dispatches;need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
+        need(FfxApiProxy::dispatches==dispatches+1 && wrapper.ContextGeneration()==1,"both RR lobes still dispatch once with one unchanged context at every hybrid strength");
+        need(bool(FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET)==(i==0),"coefficient/native mode changes never reset valid RR history");descriptorChecks(frame);
+        if(i==0){staging=wrapper.OwnedStagingBytes();auxiliary=wrapper.OwnedAuxiliaryBytes();}
+        need(wrapper.OwnedStagingBytes()==staging && wrapper.OwnedAuxiliaryBytes()==auxiliary,"hybrid adds no owned staging or auxiliary allocation beyond existing live-flag capture");
+        consumer.Record(host);Readback decodedSpec(host,consumer.spec.Get()),decodedDiff(host,consumer.diff.Get());
+        Readback spec(host,scene.spec()),diff(host,scene.diff()),stagedSpec(host,static_cast<ID3D12Resource*>(FfxApiProxy::lastSpecular.signal.output.resource)),stagedDiff(host,static_cast<ID3D12Resource*>(FfxApiProxy::lastDiffuse.signal.output.resource));
+        if(test.table){next.flag(test.flag);consumer.Overwrite(host.device.Get(),next.constants().address);}
+        else old.flag(test.flag); // AFTER capture/commit and original Consumer recording.
+        if(i==0)
+        {
+            hr(host.list->Close());settings.nativeSpecularBlend=1.f;const auto generation=wrapper.ContextGeneration(),configureCalls=FfxApiProxy::configures;
+            need(wrapper.Configure(settings,error) && wrapper.ContextGeneration()==generation && FfxApiProxy::configures==configureCalls,"desired hybrid change after Close cannot alter an old recording or RR context");
+            ComPtr<IUnknown> identity;hr(host.list.As(&identity));auto submission=RecordedComputeLease::BeforeSubmission(host.queue.Get(),{identity.Get()});
+            ID3D12CommandList* lists[]{host.list.Get()};host.queue->ExecuteCommandLists(1,lists);RecordedComputeLease::AfterSubmission(submission);host.finish();host.reset();
+        }
+        else {host.submit();host.reset();}
+        need(consumer.Flag()==test.flag,"actual Consumer and hybrid follow the same execution-time word303 despite wrong fallback enum");
+        need(old.references()==refs && next.references()==nextRefs && consumer.References()==heapRefs,"hybrid never retains borrowed native CBV/heap targets");
+        if(test.nanAlpha) {const auto seeded=before.values(width,height);uint64_t same=0;for(size_t p=0;p<size_t(width)*height;++p)same+=seeded[p*4+3]==0x7e55u;
+            need(same==uint64_t(width)*height,"endpoint1 NaN alpha seed is transported to native OUT without any payload conversion");}
+        nativeBlendReference(spec,stagedSpec,before,width,height,test.strength,encoded);diff.consumerRoundtrip(stagedDiff,width,height,encoded,11.f);
+        nativeConsumerTitleIdentity(decodedSpec,spec,width,height,encoded);nativeConsumerTitleIdentity(decodedDiff,diff,width,height,encoded);
+    }
+    if(!FfxApiProxy::real){FfxApiProxy::mockSpec=oldSpec;FfxApiProxy::mockDiff=oldDiff;FfxApiProxy::recordPartialWrites=oldWrites;}
+    std::cout<<"native_blend cases="<<std::size(cases)<<" endpoints_exact=1 native_nan_alpha_no_store=1 live_root_and_table=1 fallback_wrong=1 closed_recording_immutable=1 extra_dispatches=0 extra_owned_bytes=0 history_resets_on_change=0\n";
+}
+void nativeBlendFailureChecks(Host& host)
+{
+    Scene scene(host,64,64);host.submit();host.reset();const auto oldWrites=FfxApiProxy::recordPartialWrites;FfxApiProxy::recordPartialWrites=true;
+    for(bool table:{false,true})for(bool cancelled:{false,true})
+    {
+        RRWrapper wrapper;FrameParameters frame;std::string error;ConsumerBuffer native(host);native.flag(1);
+        NativeTableConsumer consumer(host,scene.spec(),scene.diff(),64,64);consumer.Overwrite(host.device.Get(),native.constants().address);
+        ClearPair(host.list.Get(),scene.spec(),scene.diff(),{.125f,.25f,.5f,9.f},{1.25f,1.5f,1.75f,11.f});
+        Readback originalSpec(host,scene.spec()),originalDiff(host,scene.diff());RRSettings desired;desired.nativeSpecularBlend=.5f;need(wrapper.Configure(desired,error),"configure weighted failure fixture");
+        need(wrapper.PrepareFrame(camera(1000),false,frame,error),"prepare weighted partial-provider/cancel fixture");frame.nativeSpecularBlend=.5f;
+        frame.outputConstants=table?TitleSignalConstants{nullptr,0,consumer.heap.Get(),consumer.Handle()}:TitleSignalConstants{nullptr,native.constants().address};
+        const auto destroys=FfxApiProxy::destroys,creates=FfxApiProxy::creates;CommitProbe probe;FfxApiProxy::rejectDispatch=!cancelled;
+        const OutputCommitGuard guard=cancelled?OutputCommitGuard{&probe,CommitProbe::Admit}:OutputCommitGuard{};
+        need(!wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error,guard),"weighted SDK runtime-error/denied admission fails closed");
+        if(cancelled)need(probe.calls==1&&probe.actions==0,"denied weighted guard records zero flag capture or commit");
+        need(wrapper.OwnedStagingBytes()==0&&FfxApiProxy::destroys==destroys,"weighted failure retires context while partial SDK recording remains leased");
+        Readback spec(host,scene.spec()),diff(host,scene.diff());host.submit();host.reset();
+        need(spec.values(64,64)==originalSpec.values(64,64)&&diff.values(64,64)==originalDiff.values(64,64),"weighted provider failure/cancel preserves every original native RGBA bit");
+        need(FfxApiProxy::destroys==destroys+1,"failed weighted context destroys only after actual GPU completion");FfxApiProxy::rejectDispatch=false;probe.accepted=true;
+        need(wrapper.PrepareFrame(camera(1001),false,frame,error)&&frame.reset&&!frame.previousValid,"weighted failure resets private history before physically fresh recovery");
+        frame.nativeSpecularBlend=.5f;frame.outputConstants=table?TitleSignalConstants{nullptr,0,consumer.heap.Get(),consumer.Handle()}:TitleSignalConstants{nullptr,native.constants().address};
+        Readback before(host,scene.spec());need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error,guard),error.c_str());
+        need(FfxApiProxy::creates==creates+2&&wrapper.ContextGeneration()==2,"weighted failed provider never reuses a partially recorded CPU/GPU context");
+        Readback recovered(host,scene.spec()),staged(host,static_cast<ID3D12Resource*>(FfxApiProxy::lastSpecular.signal.output.resource));host.submit();host.reset();
+        nativeBlendReference(recovered,staged,before,64,64,.5f,true);
+    }
+    FfxApiProxy::recordPartialWrites=oldWrites;std::cout<<"native_blend_failures partial_provider=2 denied_admission=2 native_rgba_exact=1 fresh_recovery_context=1\n";
+}
 void tableEncodingChecks(Host& host)
 {
     const auto width=FfxApiProxy::real?1505u:64u,height=FfxApiProxy::real?847u:64u;
@@ -1103,7 +1288,7 @@ void sameBatchSnapshotChecks(Host& host)
         // Deliberately reuse the SAME private slot to exercise its real production
         // Commit/FlagCapture state balance. Normal pool admission never reuses an
         // outstanding lease; two distinct lists are required by the native API.
-        owner->Commit(lists[i],*slot,scene.spec(),scene.diff(),SignalEncoding::Rgb,constants);
+        owner->Commit(lists[i],*slot,scene.spec(),scene.diff(),SignalEncoding::Rgb,constants,0.0f);
     }
     hr(host.list->Close());auto firstList=host.list;host.list=secondList;
     consumer.Record(host);Readback decodedSpec(host,consumer.spec.Get()),decodedDiff(host,consumer.diff.Get());
@@ -1398,6 +1583,7 @@ void realLoop(Host& host,uint32_t width,uint32_t height,unsigned frames,const st
 int main(int argc,char** argv) try
 {
     std::cout.setf(std::ios::unitbuf);
+    commitRootLayoutChecks();
     settingsValidationChecks();
     cameraChecks();
     const std::string mode=argc>1?argv[1]:"--camera";
@@ -1420,10 +1606,11 @@ int main(int argc,char** argv) try
     std::cout<<"stage minimum-size fail-closed check\n";minimumChecks(host);
     std::cout<<"stage encoding/CBV fail-closed checks\n";encodingValidationChecks(host);
     std::cout<<"stage native Consumer codec checks\n";encodingChecks(host);
+    std::cout<<"stage NRD-assisted specular blend checks\n";nativeBlendChecks(host);
     std::cout<<"stage volatile native descriptor table checks\n";tableEncodingChecks(host);
     std::cout<<"stage discarded volatile table checks\n";tableDiscardChecks(host);
     if(mode=="--mock")providerChecks(host);
-    if(mode=="--mock"){partialFailureChecks(host);cancelledCommitChecks(host);encodedFailureChecks(host);tableFailureChecks(host);sameBatchSnapshotChecks(host);nearestHalfEdgeChecks(host);}
+    if(mode=="--mock"){nativeBlendFailureChecks(host);partialFailureChecks(host);cancelledCommitChecks(host);encodedFailureChecks(host);tableFailureChecks(host);sameBatchSnapshotChecks(host);nearestHalfEdgeChecks(host);}
     if(mode=="--mock")stagingPoolChecks(host);
     std::cout<<"stage coherent runtime AMD settings checks\n";runtimeSettingsChecks(host);
     std::cout<<"stage native AMD debug view and presentation checks\n";

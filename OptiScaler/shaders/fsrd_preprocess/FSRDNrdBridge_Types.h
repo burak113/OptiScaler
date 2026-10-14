@@ -2,6 +2,7 @@
 #include <d3d12.h>
 #include <DirectXMath.h>
 #include <cstdint>
+#include <cmath>
 #include <string>
 #include "upscalers/fsr31/FSRDCameraMatrices.h"
 
@@ -10,6 +11,12 @@ namespace NrdBridge
 enum class Role : uint8_t { None, PrepLast, Recon, PrePass, Temporal, Chain3, HistSave, HistFix, Clamp, ATrous, Consumer };
 enum class DebugMode : uint8_t { Off, RawSignals, RRInputs };
 enum class SignalEncoding : uint8_t { Rgb, YCoCg };
+// Optional NRD-assisted specular reference; malformed values disable the hybrid.
+inline float NormalizeNativeSpecularBlend(float value) noexcept
+{
+    if (!std::isfinite(value) || value <= 0.0f) return 0.0f;
+    return value >= 1.0f ? 1.0f : value;
+}
 struct TitleSignalConstants
 {
     ID3D12Resource* resource = nullptr; // Optional diagnostic identity; native flag capture never dereferences or retains it.
@@ -69,6 +76,7 @@ struct FrameParameters
     bool reset = true, previousValid = false;
     bool cameraProjectedDepthDelta = false; // Experimental camera-only B; capture with the Recon ticket.
     bool preserveNativeMaterialIDs = false; // Experimental native categorical A; capture with the Recon ticket.
+    float nativeSpecularBlend = 0.0f; // Commit-only; capture the coherent setting immediately before Consumer.
     SignalEncoding outputEncoding = SignalEncoding::Rgb;
     TitleSignalConstants outputConstants {};
 };

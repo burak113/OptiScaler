@@ -556,6 +556,8 @@ class Config
     CustomOptional<bool> FfxDenoiserNrdBridgeMotionDepthMode {false};
     // A/B hypothesis: retain native categorical normal A instead of material ID 0.
     CustomOptional<bool> FfxDenoiserNrdBridgeMaterialIDs {false};
+    // Optional NRD-assisted specular hybrid after RR; 0 keeps the complete RR output.
+    CustomOptional<float> FfxDenoiserNrdBridgeNativeSpecularBlend {0.0f};
     // Survey only: shader SHA-256 prefixes whose dispatch outputs are saved right after the dispatch.
     CustomOptional<std::wstring, NoDefault> FfxDenoiserFrameSurveyPassHashes;
     CustomOptional<bool> FfxDenoiserFogGuides {false};

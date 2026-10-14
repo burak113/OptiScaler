@@ -197,6 +197,8 @@ template<class Configuration> RRSettings ReadStartupSettings(const Configuration
     }
     if constexpr (requires { config.FfxDenoiserNrdBridgeMaterialIDs; })
         settings.preserveNativeMaterialIDs = config.FfxDenoiserNrdBridgeMaterialIDs.value_or_default();
+    if constexpr (requires { config.FfxDenoiserNrdBridgeNativeSpecularBlend; })
+        settings.nativeSpecularBlend = NormalizeNativeSpecularBlend(config.FfxDenoiserNrdBridgeNativeSpecularBlend.value_or_default());
     return settings;
 }
 template<class Configuration> bool ReadStartupCameraDepth(const Configuration& config)
@@ -1091,6 +1093,9 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
             const auto found = owner->lists.find(cmd);
             if (found == owner->lists.end() || found->second.frame != staged.frame ||
                 found->second.recording != staged.recording || !found->second.converted || !found->second.motionReady || !ListLive(found->second) || !ChainLive(found->second.chain)) return;
+            // Commit-only metadata uses the latest admitted setting, including older history domains.
+            // A closed recording already owns its root constant and remains immutable.
+            staged.parameters.nativeSpecularBlend = owner->rrSettings.nativeSpecularBlend;
         }
         if (!FrameSurvey::MetadataHealthy()) { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
         FrameSurvey::ComputeBindings currentBindings;
@@ -1161,7 +1166,11 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         if (ticket.cancelled) return; // Preserve the newer reset/discovery status and epoch.
         {
             std::scoped_lock lock(gMutex);
-            if (gService == owner) owner->rrSettingsState = staged.history->rr.GetSettingsState();
+            if (gService == owner)
+            {
+                owner->rrSettingsState = staged.history->rr.GetSettingsState();
+                owner->rrSettingsState.requested.nativeSpecularBlend = owner->rrSettings.nativeSpecularBlend;
+            }
         }
         if (!succeeded) { Failure(owner,error.empty() ? "NRD output dispatch failed" : error); return; }
         CaptureNativeDebugSource(owner,cmd,staged);
@@ -1371,10 +1380,12 @@ void RequestHistoryReset() noexcept
         { gService->status.phase = "Waiting for NRD"; gService->status.reason = "RR history reset requested; waiting for the next Recon"; }
     } catch (...) {}
 }
-bool ApplyRRSettings(const RRSettings& settings, bool cameraProjectedDepthDelta, std::string& error) noexcept
+bool ApplyRRSettings(const RRSettings& requested, bool cameraProjectedDepthDelta, std::string& error) noexcept
 {
     try
     {
+        RRSettings settings = requested;
+        settings.nativeSpecularBlend = NormalizeNativeSpecularBlend(settings.nativeSpecularBlend);
         if (!ValidateRRSettings(settings,error)) return false;
         std::scoped_lock injection(gInjectionMutex);
         std::shared_ptr<Service> owner; std::shared_ptr<HistoryDomain> history;

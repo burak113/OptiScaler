@@ -217,7 +217,7 @@ def main():
                     str(Path(__file__).with_name('nrd_bridge_consumer_fixture.hlsl')), '-Fo', str(shader)], check=True)
     (work / 'consumer_shader.h').write_text('const unsigned char ConsumerShaderBytes[] = {' +
                                           ','.join(str(x) for x in shader.read_bytes()) + '};\n', encoding='utf-8')
-    compile_cpp(Path(__file__).with_name('nrd_bridge_rr_fixture.cpp'), exe, ['d3d12.lib', 'dxgi.lib'],
+    compile_cpp(Path(__file__).with_name('nrd_bridge_rr_fixture.cpp'), exe, ['d3d12.lib', 'dxgi.lib', 'd3dcompiler.lib'],
                 [work, ROOT / 'OptiScaler', ROOT / 'OptiScaler/include', ROOT / 'external/streamline',
                  ROOT / 'external/FidelityFX-SDK/ffx-api/include/ffx_api'])
     command = [str(exe), f'--{args.mode}']
@@ -240,17 +240,22 @@ def main():
     text, peak, elapsed, log = bounded_run(command, work / result_name)
     match = re.search(r'^PASS checks=(\d+).*$', text, flags=re.M)
     assert match, 'Native fixture did not report PASS'
+    assert 'commit_root actual_parameters=4 constants=5 cost_dwords=9' in text
     result = dict(mode=args.mode, native_checks=int(match.group(1)), native_summary=match.group(0),
                   executable=str(exe), native_log=str(log), peak_resident_bytes=peak, seconds=elapsed)
     if args.mode in ('mock', 'real'):
+        assert 'native_blend cases=14 endpoints_exact=1 native_nan_alpha_no_store=1 live_root_and_table=1 fallback_wrong=1 closed_recording_immutable=1 extra_dispatches=0 extra_owned_bytes=0 history_resets_on_change=0' in text
         assert 'runtime_settings effective_changes=' in text
         assert 'unchanged_calls=0 debug_bounds_count=1 material_key_calls=0' in text
         assert 'native_debug views=13 ' in text
         assert 'default_extra_dispatch=0 default_extra_image_bytes=0' in text
         assert 'source_fence_complete=1 distinct_recording=1 explicit_source_owner=1' in text
         assert 'native_debug_dispatches=' in match.group(0)
+        result['native_blend'] = [line for line in text.splitlines() if line.startswith('native_blend ')]
         result['runtime_settings'] = [line for line in text.splitlines() if line.startswith('runtime_settings ')]
         result['native_debug'] = [line for line in text.splitlines() if line.startswith('native_debug')]
+    if args.mode == 'mock':
+        assert 'native_blend_failures partial_provider=2 denied_admission=2 native_rgba_exact=1 fresh_recovery_context=1' in text
     if args.mode == 'real':
         result['dll_path'] = str(DLL)
         result['dll_sha256'] = hashlib.sha256(DLL.read_bytes()).hexdigest()
