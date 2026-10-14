@@ -497,13 +497,14 @@ int main(int argc,char** argv) try {
  need(FfxApiProxy::dispatches==rrBefore+1 && restores==rrRestores+3,"one real AMD RR call and three title restores per requested frame");
  need(NrdBridge::GetStatus().active,"real RR makes coordinator Active");
  const auto rrFirstFlags=FfxApiProxy::lastDispatch.flags; need((rrFirstFlags&FFX_DENOISER_DISPATCH_RESET)!=0,"first RR frame resets history");
- const auto offDispatches=FfxApiProxy::dispatches,offInternal=internalCalls(),offRestores=restores;
+ const auto offDispatches=FfxApiProxy::dispatches,offInternal=internalCalls(),offRestores=restores,offCreates=FfxApiProxy::creates;
  NrdBridge::SetRuntimeEnabled(false); title.frame(4,3,2,false); auto off=title.finish(3,2,false);
  need(title.sentinel(off),"runtime OFF keeps complete title NRD sentinel output");
  need(FfxApiProxy::dispatches==offDispatches && internalCalls()==offInternal && restores==offRestores,"runtime OFF records zero conversion/RR/restoration work");
  result["runtime_off"]={{"provider_dispatches",FfxApiProxy::dispatches-offDispatches},{"internal_detour_calls",internalCalls()-offInternal},{"restore_calls",restores-offRestores},{"nrdsentinel_untouched",true}};
  NrdBridge::SetRuntimeEnabled(true); title.frame(5); auto on=title.finish(); title.rrChecks(on);
  need(FfxApiProxy::dispatches==offDispatches+1 && (FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET)!=0,"runtime ON recovers with reset and one RR call");
+ need(FfxApiProxy::creates==offCreates,"submitted runtime OFF/ON retains the same physical RR context");
  title.frame(6); title.rrChecks(title.finish()); need((FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET)==0,"consecutive submitted RR frame reuses valid history");
  NrdBridge::RequestHistoryReset(); title.frame(7); const auto beforeReplacement=title.finish(); title.rrChecks(beforeReplacement);
  need((FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET)!=0,"menu reset reaches real AMD RR");
@@ -538,11 +539,13 @@ int main(int argc,char** argv) try {
  need(FfxApiProxy::creates==beforeResize+1 && NrdBridge::GetStatus().width==96 && NrdBridge::GetStatus().height==64,"extent change recreates real provider context and guides at exact dimensions");
  result["resize"]={{"extent",{96,64}},{"provider_recreated",true},{"statistics",resizeStats}};
  resized.frame(17); resized.rrChecks(resized.finish()); need((FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET)==0,"submitted resized frame has valid consecutive history");
- const auto beforeDiscard=FfxApiProxy::dispatches; resized.frame(18); need(FfxApiProxy::dispatches==beforeDiscard+1,"real provider records complete frame before discard");
+ const auto beforeDiscard=FfxApiProxy::dispatches,beforeDiscardCreates=FfxApiProxy::creates,beforeDiscardDestroys=FfxApiProxy::destroys;
+ resized.frame(18); need(FfxApiProxy::dispatches==beforeDiscard+1,"real provider records complete frame before discard");
  hr(h.list->Close()); h.reset(); // Deliberately discard without BeforeSubmission or ExecuteCommandLists.
  resized.frame(19); resized.rrChecks(resized.finish());
  need((FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET)!=0,"complete unsubmitted list discard resets depth and actual RR history");
- result["discarded_recording"]={{"complete_recordings_discarded",1},{"following_rr_reset",true}};
+ need(FfxApiProxy::creates==beforeDiscardCreates+1 && FfxApiProxy::destroys==beforeDiscardDestroys+1,"discard retires the physical real SDK context and creates exactly one fresh context before next RR");
+ result["discarded_recording"]={{"complete_recordings_discarded",1},{"following_rr_reset",true},{"physical_context_creates",FfxApiProxy::creates-beforeDiscardCreates},{"physical_context_destroys",FfxApiProxy::destroys-beforeDiscardDestroys}};
  const auto beforeInputs=FfxApiProxy::dispatches; NrdBridge::SetDebugMode(NrdBridge::DebugMode::RRInputs);
  resized.frame(20); const auto inputsView=resized.finish(); bool inputFinite=true,inputAlpha=true;
  for(const auto& signal:inputsView) for(size_t i=0;i<signal.size();++i) {
@@ -586,7 +589,9 @@ int main(int argc,char** argv) try {
   need(description.Width==96 && description.Height==64 && description.Format==DXGI_FORMAT_R16G16B16A16_FLOAT,"transaction outputs match the current extent and exact signal format");
   directStagingBytes+=h.device->GetResourceAllocationInfo(0,1,&description).SizeInBytes;
  }
- need(NrdBridge::gService->rr.OwnedStagingBytes()==directStagingBytes,"reported RR staging bytes equal independent device allocation queries");
+ constexpr UINT warmedTransactionSlots=4; // Production initializes four independent pairs; sequential submissions reuse them.
+ need(NrdBridge::gService->rr.OwnedStagingBytes()==directStagingBytes*warmedTransactionSlots,"reported RR staging bytes equal independently queried pair allocations across all four warmed slots");
+ result["rr_staging_allocation"]={{"independent_pair_bytes",directStagingBytes},{"warmed_slots",warmedTransactionSlots},{"total_bytes",directStagingBytes*warmedTransactionSlots}};
  result["provider"]={{"creates",FfxApiProxy::creates},{"dispatches",FfxApiProxy::dispatches},{"defaults",FfxApiProxy::defaults},{"configures",FfxApiProxy::configures}};
  result["proxy_routed_calls"]=FfxApiProxy::routed;
  result["title_restore_calls"]=restores; result["frames_bridged"]=NrdBridge::GetStatus().framesBridged;
