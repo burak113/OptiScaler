@@ -275,6 +275,15 @@ def run():
         (out / 'submission-failure-result.json').write_text(json.dumps(fault, indent=2) + '\n')
         print(json.dumps(fault, indent=2))
         return
+    if '--cbv-lifetime-only' in sys.argv:
+        text, peak, elapsed, log = bounded_run([str(exe), str(out), str(DLL), '--cbv-lifetime'], out / 'cbv_lifetime')
+        value = json.loads((out / 'cbv-lifetime-result.json').read_text())
+        assert value['cbv_lifetime']['dead_com_calls'] == 0 and value['cbv_lifetime']['physical_final_reference_count'] == 0
+        assert value['debug_errors'] == 0 and value['debug_warnings'] == 0
+        value.update(python_checks=2, elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log))
+        (out / 'cbv-lifetime-result.json').write_text(json.dumps(value, indent=2) + '\n')
+        print(json.dumps(value, indent=2))
+        return
     off_text, off_peak, off_elapsed, off_log = bounded_run([str(exe), str(out), str(DLL), '--startup-off'], out / 'startup_off')
     configured_off = json.loads((out / 'startup-off-result.json').read_text())
     assert configured_off['startup_off'] == {'provider_creates': 0, 'provider_dispatches': 0, 'restore_calls': 0, 'nrdsentinel_untouched': True}
@@ -289,7 +298,12 @@ def run():
     fault = json.loads((out / 'submission-failure-result.json').read_text())
     assert fault['submission_failure']['dependent_original_executes'] == 0 and fault['submission_failure']['dependent_denied']
     assert fault['debug_errors'] == 0 and fault['debug_warnings'] == 0
-    result.update(python_checks=8,
+    cbv_text, cbv_peak, cbv_elapsed, cbv_log = bounded_run([str(exe), str(out), str(DLL), '--cbv-lifetime'], out / 'cbv_lifetime')
+    cbv = json.loads((out / 'cbv-lifetime-result.json').read_text())
+    assert cbv['cbv_lifetime']['dead_com_calls'] == 0 and cbv['cbv_lifetime']['physical_final_reference_count'] == 0
+    assert cbv['debug_errors'] == 0 and cbv['debug_warnings'] == 0
+    result.update(python_checks=10,
+                  cbv_lifetime=dict(**cbv, elapsed_seconds=cbv_elapsed, peak_resident_bytes=cbv_peak, native_log=str(cbv_log)),
                   submission_failure=dict(**fault, elapsed_seconds=fault_elapsed, peak_resident_bytes=fault_peak, native_log=str(fault_log)), elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log),
                   configured_startup_off=dict(**configured_off, elapsed_seconds=off_elapsed, peak_resident_bytes=off_peak, native_log=str(off_log)),
                   dll=str(DLL), dll_sha256=hashlib.sha256(DLL.read_bytes()).hexdigest(),

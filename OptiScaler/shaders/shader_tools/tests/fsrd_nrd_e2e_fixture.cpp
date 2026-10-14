@@ -313,14 +313,14 @@ struct Readback {
  }
 };
 struct Title {
- Host& h; UINT width,height,increment=0,codecBits=0; bool registered;
+ Host& h; UINT width,height,increment=0,codecBits=0; bool registered,tableConstants=false;void (*beforeConsumer)()=nullptr;
  ComPtr<ID3D12RootSignature> root; std::array<ComPtr<ID3D12PipelineState>,11> pso;
  std::array<ComPtr<ID3D12Resource>,13> tex;
  std::array<std::vector<uint16_t>,2> raw;
  ComPtr<ID3D12DescriptorHeap> staging,visible,sampler;
  ComPtr<ID3D12Resource> cb,rootSrv,checksum;
  ~Title() { for(const auto& texture:tex) titleTextures.erase(texture.Get()); }
- Title(Host& host,UINT w,UINT height_,bool metadata):h(host),width(w),height(height_),registered(metadata) {
+ Title(Host& host,UINT w,UINT height_,bool metadata,bool tableCbv=false):h(host),width(w),height(height_),registered(metadata),tableConstants(tableCbv) {
   D3D12_DESCRIPTOR_RANGE ranges[3]={{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,8,0,0,0},{D3D12_DESCRIPTOR_RANGE_TYPE_UAV,5,0,0,0},{D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,1,0,0,0}};
   D3D12_ROOT_PARAMETER p[8]{}; p[0].ParameterType=D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS; p[0].Constants={0,0,8};
   p[1].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE; p[1].DescriptorTable={1,&ranges[0]};
@@ -331,7 +331,21 @@ struct Title {
   p[6].ParameterType=D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS; p[6].Constants={8,0,2};
   p[7].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE; p[7].DescriptorTable={1,&ranges[2]};
   D3D12_ROOT_SIGNATURE_DESC desc{8,p,0,nullptr,D3D12_ROOT_SIGNATURE_FLAG_NONE}; ComPtr<ID3DBlob> blob,error;
-  hr(D3D12SerializeRootSignature(&desc,D3D_ROOT_SIGNATURE_VERSION_1,&blob,&error));
+  if(tableConstants) {
+   const auto volatileFlags=D3D12_DESCRIPTOR_RANGE_FLAGS(D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE|D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
+   D3D12_DESCRIPTOR_RANGE1 range1[4]={{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,8,0,0,volatileFlags,0},{D3D12_DESCRIPTOR_RANGE_TYPE_UAV,5,0,0,volatileFlags,0},
+    {D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,1,0,0,D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE,0},{D3D12_DESCRIPTOR_RANGE_TYPE_CBV,1,6,0,volatileFlags,0}};
+   D3D12_ROOT_PARAMETER1 parameter1[8]{};
+   for(UINT i=0;i<8;++i) {
+    parameter1[i].ParameterType=p[i].ParameterType;
+    if(p[i].ParameterType==D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS) parameter1[i].Constants=p[i].Constants;
+    else if(p[i].ParameterType!=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE) parameter1[i].Descriptor={p[i].Descriptor.ShaderRegister,p[i].Descriptor.RegisterSpace,D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE};
+   }
+   parameter1[1].DescriptorTable={1,&range1[0]};parameter1[5].DescriptorTable={1,&range1[1]};parameter1[7].DescriptorTable={1,&range1[2]};
+   parameter1[2].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;parameter1[2].DescriptorTable={1,&range1[3]};
+   D3D12_VERSIONED_ROOT_SIGNATURE_DESC versioned{};versioned.Version=D3D_ROOT_SIGNATURE_VERSION_1_1;versioned.Desc_1_1={8,parameter1,0,nullptr,D3D12_ROOT_SIGNATURE_FLAG_NONE};
+   hr(D3D12SerializeVersionedRootSignature(&versioned,&blob,&error));
+  } else hr(D3D12SerializeRootSignature(&desc,D3D_ROOT_SIGNATURE_VERSION_1,&blob,&error));
   hr(h.device->CreateRootSignature(0,blob->GetBufferPointer(),blob->GetBufferSize(),IID_PPV_ARGS(&root)));
   rootSigParameterCount[root.Get()]=8; // Equivalent device creation-hook metadata, isolated from its adapter setup.
   if(registered) FrameSurvey::RootCreated(root.Get(),blob->GetBufferPointer(),blob->GetBufferSize());
@@ -429,6 +443,13 @@ struct Title {
   if(codecBits) c={std::max(c[0]-c[2]+c[1],0.f),std::max(c[0]+c[2],0.f),std::max(c[0]-c[2]-c[1],0.f)};
   return c;
  }
+ void bindConstants(ID3D12Resource* resource,UINT slot=56) {
+  if(!tableConstants) {h.list->SetComputeRootConstantBufferView(2,resource->GetGPUVirtualAddress());return;}
+  const D3D12_CONSTANT_BUFFER_VIEW_DESC view{resource->GetGPUVirtualAddress(),1536};
+  const D3D12_CPU_DESCRIPTOR_HANDLE cpu{visible->GetCPUDescriptorHandleForHeapStart().ptr+uint64_t(slot)*increment};
+  h.device->CreateConstantBufferView(&view,cpu);if(registered)FrameSurvey::View(cpu,&view);
+  h.list->SetComputeRootDescriptorTable(2,{visible->GetGPUDescriptorHandleForHeapStart().ptr+uint64_t(slot)*increment});
+ }
  void begin(UINT frame,bool tagMotion=true) {
   StreamlineHooks::snapshot=camera(frame,width,height);
   if(registered && tagMotion) NrdBridge::OnTitleTag(h.list.Get(),"MotionVectors",tex[6].Get());
@@ -437,7 +458,7 @@ struct Title {
   h.list->SetComputeRootSignature(root.Get()); ID3D12DescriptorHeap* heaps[]={visible.Get(),sampler.Get()}; h.list->SetDescriptorHeaps(2,heaps);
   const UINT first[]={11,22,30}, dimensions[]={width,height}; h.list->SetComputeRoot32BitConstants(0,3,first,0);
   h.list->SetComputeRoot32BitConstant(0,40,5); h.list->SetComputeRoot32BitConstant(0,33,2);
-  h.list->SetComputeRootConstantBufferView(2,cb->GetGPUVirtualAddress()); h.list->SetComputeRootShaderResourceView(3,rootSrv->GetGPUVirtualAddress());
+  bindConstants(cb.Get()); h.list->SetComputeRootShaderResourceView(3,rootSrv->GetGPUVirtualAddress());
   h.list->SetComputeRootUnorderedAccessView(4,checksum->GetGPUVirtualAddress()); h.list->SetComputeRoot32BitConstants(6,2,dimensions,0);
   h.list->SetComputeRootDescriptorTable(7,sampler->GetGPUDescriptorHandleForHeapStart());
  }
@@ -462,7 +483,7 @@ struct Title {
   for(UINT i=0;i<a;++i) { pass(Role::ATrous,i+1==a?32:24); h.uav(tex[i+1==a?7:9].Get()); h.uav(tex[i+1==a?8:10].Get()); }
   pass(Role::PrePass); pass(Role::Temporal); pass(Role::Clamp);
   for(UINT i=0;i<b;++i) { pass(Role::ATrous,40); h.uav(tex[11].Get()); h.uav(tex[12].Get()); }
-  h.uav(tex[7].Get()); h.uav(tex[8].Get()); pass(Role::Consumer,48);
+  h.uav(tex[7].Get()); h.uav(tex[8].Get());if(beforeConsumer)beforeConsumer();pass(Role::Consumer,48);
  }
  void frame(UINT id,UINT a=3,UINT b=2,bool probe=true,bool tagMotion=true) { recon(id,probe,tagMotion); tail(a,b,probe); }
  Readback readback(UINT texture) {
@@ -738,6 +759,67 @@ void failureCase(Host& h,Title& title,J& result) {
  need(FfxApiProxy::creates==1 && FfxApiProxy::dispatches==4 && FfxApiProxy::destroys==0,"real SDK context and all recorded leases remain pinned across uncertain Signal completion");
  result["submission_failure"]={{"injected_native_signal_failures",1},{"dependent_denied",true},{"dependent_original_executes",dependentExecutes},{"dependent_signals",dependentSignals},{"old_point_waits",oldPointWaits},{"same_thread_return_ms",returnedMs},{"gpu_dependent_checksum_untouched",untouched},{"old_sdk_context_pinned",true},{"sdk_recordings",FfxApiProxy::dispatches}};
 }
+namespace CbLifetime {
+using DescFn=D3D12_RESOURCE_DESC*(WINAPI*)(ID3D12Resource*,D3D12_RESOURCE_DESC*);
+using DeviceFn=HRESULT(WINAPI*)(ID3D12Resource*,REFIID,void**);
+using AddressFn=D3D12_GPU_VIRTUAL_ADDRESS(WINAPI*)(ID3D12Resource*);
+DescFn originalDesc=nullptr;DeviceFn originalDevice=nullptr;AddressFn originalAddress=nullptr;
+ID3D12Resource* watched=nullptr;bool dead=false;unsigned deadComCalls=0;
+Title* title=nullptr;ComPtr<ID3D12Resource> temporary,replacement;ULONG finalReferences=ULONG_MAX;FrameSurvey::BoundConstantBuffer captured;
+D3D12_RESOURCE_DESC* WINAPI Desc(ID3D12Resource* resource,D3D12_RESOURCE_DESC* out) {
+ if(dead && resource==watched) {++deadComCalls;*out={};return out;}return originalDesc(resource,out);
+}
+HRESULT WINAPI Device(ID3D12Resource* resource,REFIID iid,void** out) {
+ if(dead && resource==watched) {++deadComCalls;*out=nullptr;return E_FAIL;}return originalDevice(resource,iid,out);
+}
+D3D12_GPU_VIRTUAL_ADDRESS WINAPI Address(ID3D12Resource* resource) {
+ if(dead && resource==watched) {++deadComCalls;return 0;}return originalAddress(resource);
+}
+void Attach(ID3D12Resource* resource) {
+ watched=resource;dead=false;deadComCalls=0;auto** v=*reinterpret_cast<void***>(resource);
+ originalDesc=reinterpret_cast<DescFn>(v[10]);originalDevice=reinterpret_cast<DeviceFn>(v[7]);originalAddress=reinterpret_cast<AddressFn>(v[11]);
+ hr(DetourTransactionBegin());hr(DetourUpdateThread(GetCurrentThread()));
+ need(DetourAttach(&(PVOID&)originalDesc,Desc)==NO_ERROR,"actual native Resource GetDesc observer uses installed SDK Win64 struct-return ABI");
+ need(DetourAttach(&(PVOID&)originalDevice,Device)==NO_ERROR,"actual native Resource GetDevice observer attached");
+ need(DetourAttach(&(PVOID&)originalAddress,Address)==NO_ERROR,"actual native Resource GPU-address observer attached");need(DetourTransactionCommit()==NO_ERROR,"native b6 lifetime observers committed");
+}
+void Detach() {
+ hr(DetourTransactionBegin());hr(DetourUpdateThread(GetCurrentThread()));
+ need(DetourDetach(&(PVOID&)originalDesc,Desc)==NO_ERROR,"native Resource GetDesc observer detached");need(DetourDetach(&(PVOID&)originalDevice,Device)==NO_ERROR,"native Resource GetDevice observer detached");
+ need(DetourDetach(&(PVOID&)originalAddress,Address)==NO_ERROR,"native Resource GPU-address observer detached");need(DetourTransactionCommit()==NO_ERROR,"native b6 lifetime observers detached");watched=nullptr;
+}
+void BindTemporary() {
+ // This separate volatile table slot is never used by any earlier native GPU Dispatch.
+ title->bindConstants(temporary.Get(),57);
+ need(FrameSurvey::ResolveComputeConstantBuffer(title->h.list.Get(),6,0,1216,captured) && captured.resource==temporary.Get() && captured.resourceGeneration && captured.descriptorHeap==title->visible.Get(),"actual native volatile b6 resolver captures the exact live generation and heap before the staged gap");
+}
+void ReleaseAndReplace() {
+ need(!FrameSurvey::Internal() && NrdBridgeLifetime::Detail::borrowDepth==0,"staged Consumer gap runs on an ordinary thread outside the physical-resource borrow");
+ temporary->AddRef();need(temporary->Release()==1,"bridge has added no permanent COM reference to the staged native b6");
+ {NrdBridgeLifetime::ScopedRelease release(true);auto* old=temporary.Detach();FrameSurvey::Released(old);finalReferences=old->Release();}
+ dead=true;need(finalReferences==0,"temporary native b6 is genuinely physically final-released in the staged gap");
+ need(!FrameSurvey::ValidateBorrowedConstantBuffer(captured),"pure production generation validation rejects the genuinely released native b6 token");
+ FrameSurvey::ResourceCreated(replacement.Get(),D3D12_RESOURCE_STATE_GENERIC_READ);title->cb=replacement;title->bindConstants(replacement.Get(),57);
+}
+}
+void cbvReleaseCase(Host& h,Title& title,J& result) {
+ title.frame(1);need(title.sentinel(title.finish()),"CBV lifetime scenario validates the native title resource profile");title.frame(2);title.rrChecks(title.finish());
+ const auto prefixConstants=title.cb;CbLifetime::title=&title;
+ auto constants=[&] {auto value=h.upload(0,1536);void* mapped=nullptr;hr(value->Map(0,nullptr,&mapped));static_cast<UINT*>(mapped)[0]=55;value->Unmap(0,nullptr);return value;};
+ CbLifetime::temporary=constants();CbLifetime::replacement=constants();need(CbLifetime::temporary.Get()!=CbLifetime::replacement.Get(),"replacement is preallocated while old native b6 is alive, so dead-pointer observation is unambiguous");
+ FrameSurvey::ResourceCreated(CbLifetime::temporary.Get(),D3D12_RESOURCE_STATE_GENERIC_READ);CbLifetime::Attach(CbLifetime::temporary.Get());
+ const auto calls=FfxApiProxy::dispatches;const auto before=NrdBridge::GetStatus();const auto beforeRestores=restores;
+ title.beforeConsumer=CbLifetime::BindTemporary;NrdBridge::gBeforeOutputLockForTesting=CbLifetime::ReleaseAndReplace;
+ title.frame(3);title.beforeConsumer=nullptr;NrdBridge::gBeforeOutputLockForTesting=nullptr;
+ need(CbLifetime::finalReferences==0 && CbLifetime::deadComCalls==0,"stale b6 token is rejected with zero GetDesc/GetDevice/GetGPUVA calls on the genuinely dead object");
+ CbLifetime::Detach();need(NrdBridge::GetStatus().reason=="Consumer constants were released or rebound while awaiting injection; waiting for rediscovery","actual staged Consumer reaches the native b6 generation guard before provider work");need(FfxApiProxy::dispatches==calls && NrdBridge::GetStatus().framesBridged==before.framesBridged && !NrdBridge::GetStatus().active,"staged b6 final Release cancels bridge SDK/write/Active publication before provider work");
+ need(restores==beforeRestores+2,"live Recon/motion injections restore normally while stale Consumer b6 records no injected work");
+ need(title.sentinel(title.finish()),"original Consumer executes with its rebound live b6 and leaves full native NRD RGBA sentinels unchanged");
+ NrdBridge::SetRuntimeEnabled(false);NrdBridge::SetRuntimeEnabled(true);title.frame(4);need(title.sentinel(title.finish()),"b6 lifetime recovery validates the replacement resource profile first");title.frame(5);title.rrChecks(title.finish());
+ need(FfxApiProxy::dispatches==calls+1 && (FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET),"live replacement b6 recovers through actual signed RR with RESET");
+ result["cbv_lifetime"]={{"physical_final_reference_count",CbLifetime::finalReferences},{"dead_com_calls",CbLifetime::deadComCalls},{"sdk_calls_in_stale_gap",0},{"title_rgba_untouched",true},{"original_gpu_bindings_counts_exact",true},{"live_recovery_reset",true},{"volatile_native_table",true}};
+ CbLifetime::temporary.Reset();CbLifetime::replacement.Reset();CbLifetime::title=nullptr;
+}
 void loadProvider(const char* path) {
  FfxApiProxy::real=true; auto module=LoadLibraryA(path); need(module!=nullptr,"signed AMD DLL loaded read-only");
  FfxApiProxy::denoiser_dx12.dll=module;
@@ -749,8 +831,8 @@ void loadProvider(const char* path) {
  need(FfxApiProxy::createFunction && FfxApiProxy::destroyFunction && FfxApiProxy::queryFunction && FfxApiProxy::configureFunction && FfxApiProxy::dispatchFunction,"all actual AMD exports resolved");
 }
 int main(int argc,char** argv) try {
- need(argc==3 || (argc==4 && (std::string(argv[3])=="--startup-off" || std::string(argv[3])=="--submission-failure")),"scratch folder, signed AMD DLL and optional fresh-process scenario arguments");
- const bool startupOff=argc==4 && std::string(argv[3])=="--startup-off",submissionFailure=argc==4 && std::string(argv[3])=="--submission-failure"; if(startupOff) NrdBridge::ConfigureStartup(false);
+ need(argc==3 || (argc==4 && (std::string(argv[3])=="--startup-off" || std::string(argv[3])=="--submission-failure" || std::string(argv[3])=="--cbv-lifetime")),"scratch folder, signed AMD DLL and optional fresh-process scenario arguments");
+ const bool startupOff=argc==4 && std::string(argv[3])=="--startup-off",submissionFailure=argc==4 && std::string(argv[3])=="--submission-failure",cbvLifetime=argc==4 && std::string(argv[3])=="--cbv-lifetime"; if(startupOff) NrdBridge::ConfigureStartup(false);
  g_dllPath=std::filesystem::path(argv[1])/"fixture.dll"; Host h;
  requestedList=h.list.Get(); J result; result["adapter"]=h.adapter;
  need(!NrdBridge::Initialize(h.device.Get()),"startup OFF allocates no coordinator");
@@ -773,7 +855,12 @@ int main(int argc,char** argv) try {
  loadProvider(argv[2]);
  FrameSurvey::BeginCreationTracking(false); need(FrameSurvey::Install(h.device.Get(),h.list.Get(),false),"real metadata-only survey installed");
  need(NrdBridge::Initialize(h.device.Get()),"production coordinator initialized"); AttachRoots(h.list.Get()); Wiring::Attach(h.list.Get());
- Title title(h,128,128,true);
+ Title title(h,128,128,true,cbvLifetime);
+ if(cbvLifetime) {
+  cbvReleaseCase(h,title,result);NrdBridge::Shutdown();RecordedComputeLease::Poll();need(FfxApiProxy::destroys==FfxApiProxy::creates && FfxApiProxy::contextToType.empty(),"healthy CBV recovery retires every actual SDK context after fences");
+  Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();const auto debug=h.debugCounts();result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["native_checks"]=checks;
+  std::ofstream(std::filesystem::path(argv[1])/"cbv-lifetime-result.json")<<result.dump(2)<<'\n';std::cout<<"PASS cbv_lifetime checks="<<checks<<'\n';return 0;
+ }
  if(submissionFailure) {
   failureCase(h,title,result);NrdBridge::Shutdown();RecordedComputeLease::Poll();
   need(FfxApiProxy::destroys==0 && FfxApiProxy::contextToType.size()==1,"uncertain native SDK context stays pinned after coordinator shutdown");
