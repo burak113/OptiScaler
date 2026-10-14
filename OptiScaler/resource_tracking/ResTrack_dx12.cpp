@@ -176,6 +176,8 @@ static std::recursive_mutex gReleaseHookInstallMutex;
 static PVOID gPsoReleaseEntry = nullptr;
 static PVOID gCommandListReleaseEntry = nullptr;
 static PVOID gComputeResetEntry = nullptr;
+static PVOID gRRRecordingCloseEntry = nullptr;
+static PVOID gRRRecordingBarrierEntry = nullptr;
 static PVOID gComputeExecuteEntry = nullptr;
 static Microsoft::WRL::ComPtr<IUnknown> gComputeQueueDeviceIdentity;
 static PFN_CommandListRelease o_CommandListRelease = nullptr;
@@ -397,6 +399,9 @@ static bool DeactivateTrackedHeap(const std::shared_ptr<HeapInfo>& heap)
 static std::atomic<bool> gRRResourceInspectorEnabled { false };
 static std::atomic<int> gRRResourceCandidateIndex { 0 };
 static std::atomic<uintptr_t> gRRResourceCandidateAddress { 0 };
+static std::atomic<uint64_t> gRRSelectedResourceVersion {0};
+static std::atomic<uint64_t> gRRSelectionEpoch {1};
+static std::atomic<const char*> gRRInspectorReason {"GPU state unavailable: preview has not been verified in the consumer recording."};
 static std::atomic<uint32_t> gRRResourceChannel { 0 };
 static std::atomic<float> gRRResourceViewScale { 1.0f };
 static std::atomic<uint64_t> gRRResourceInspectorFrame { 0 };
@@ -404,6 +409,45 @@ static std::mutex gRRResourceCandidateMutex;
 static std::vector<RRResourceCandidate> gRRResourceCandidates;
 static NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Tracking> gRRResourceStateMutex;
 static std::unordered_map<ID3D12Resource*, D3D12_RESOURCE_STATES> gRRResourceStates;
+// Only selected-resource observations create rows. Native aliases share a key
+// solely when their reserved GUID proves the same physical command list.
+struct RRRecordingKey
+{
+    uintptr_t legacyAddress = 0; uint64_t instanceStamp = 0;
+    bool operator==(const RRRecordingKey& other) const noexcept
+    { return legacyAddress == other.legacyAddress && instanceStamp == other.instanceStamp; }
+};
+struct RRRecordingKeyHash
+{
+    size_t operator()(const RRRecordingKey& key) const noexcept
+    { return std::hash<uintptr_t>{}(key.legacyAddress) ^ (std::hash<uint64_t>{}(key.instanceStamp) << 1); }
+};
+struct RRPreparedRecording
+{
+    RRRecordingKey key {}; NrdBridgeBirth::Token birth; bool born = false; bool valid = false;
+};
+struct RRSelectedIdentity
+{
+    ID3D12Resource* resource = nullptr; NrdBridgeBirth::Token birth;
+    uint64_t version = 0; uint64_t selectionEpoch = 0;
+};
+struct RRRecordingProof
+{
+    uint64_t recordingSerial = 0;
+    RRSelectedIdentity selected {}; uint64_t stateEpoch = 0;
+    D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON;
+};
+static std::unordered_map<RRRecordingKey,RRRecordingProof,RRRecordingKeyHash> gRRRecordingProofs;
+// These counters are protected by gRRResourceStateMutex. Reset/Close erase one
+// recording; every selected state observation invalidates foreign stale proofs.
+static uint64_t gRRNextRecordingSerial = 1;
+static uint64_t gRRSelectedStateEpoch = 1;
+static void ForgetRRRecording(void* object,const NrdBridgeBirth::Token& birth = NrdBridgeBirth::Token())
+{
+    std::scoped_lock lock(gRRResourceStateMutex);
+    gRRRecordingProofs.erase({reinterpret_cast<uintptr_t>(object),0});
+    if (birth) gRRRecordingProofs.erase({0,birth->InstanceStamp()});
+}
 struct RRResourceActivity
 {
     uint64_t lastWriteFrame = 0;
@@ -617,6 +661,7 @@ static uint64_t HashRRComputePipeline(const D3D12_COMPUTE_PIPELINE_STATE_DESC& d
 // address that has no PSO metadata exits immediately.
 static void CleanupRRPsoReferences(void* object)
 {
+    ForgetRRRecording(object); // Direct legacy list retirement, outside the PSO lock.
     auto* pipelineState = static_cast<ID3D12PipelineState*>(object);
     std::scoped_lock psoLock(gRRPsoMutex);
     EraseRRCommandListPsoStateLocked(static_cast<ID3D12GraphicsCommandList*>(object));
@@ -683,6 +728,93 @@ template <class T> static NrdBridgeBirth::Token RRStrongReceiver(T* object)
     if (!RRInspectorBirthsEnabled() || !object || FrameSurvey::Internal()) return {};
     return NrdBridgeNativeBirth::ReceiverWithReleaseCoverage(object,
         [](auto* strong) noexcept { return NrdBridgeNativeBirth::ObserveReleaseCoverage(strong); });
+}
+
+// This API caller owns its list. Validate native recording-hook implementations
+// before any metadata lock; unknown forwarding surfaces cannot lend state proof.
+static RRPreparedRecording PrepareRRRecording(ID3D12GraphicsCommandList* list) noexcept
+{
+    RRPreparedRecording receiver {};
+    if (!list || FrameSurvey::OwnedRelease() || NrdBridgeBirth::InMetadataScope() ||
+        !gComputeListHooksAvailable.load(std::memory_order_acquire)) return receiver;
+    auto** table = *reinterpret_cast<PVOID**>(list);
+    if (!o_Reset || !o_Close || !o_ResourceBarrier || table[10] != gComputeResetEntry ||
+        table[9] != gRRRecordingCloseEntry || table[26] != gRRRecordingBarrierEntry) return receiver;
+    receiver.born = RRInspectorBirthsEnabled();
+    if (receiver.born)
+    {
+        // ScopedRecording deliberately permits this title-list cold bootstrap.
+        // Owned injection callers are excluded above; cached coverage is native-free.
+        receiver.birth = NrdBridgeNativeBirth::ReceiverWithReleaseCoverage(list,
+            [](auto* strong) noexcept { return NrdBridgeNativeBirth::ObserveReleaseCoverage(strong); });
+        if (!receiver.birth || !NrdBridgeBirth::Healthy()) return receiver;
+        receiver.key.instanceStamp = receiver.birth->InstanceStamp();
+    }
+    else
+    {
+        const auto entry = table[2];
+        if (!((entry == gResourceReleaseEntry && o_Release) ||
+              (entry == gCommandListReleaseEntry && o_CommandListRelease) ||
+              (entry == gPsoReleaseEntry && o_PsoRelease))) return receiver;
+        receiver.key.legacyAddress = reinterpret_cast<uintptr_t>(list);
+    }
+    receiver.valid = true;
+    return receiver;
+}
+static RRSelectedIdentity CaptureRRSelectedIdentity()
+{
+    RRSelectedIdentity selected {};
+    std::scoped_lock lock(gRRResourceCandidateMutex);
+    const auto index = gRRResourceCandidateIndex.load(std::memory_order_relaxed);
+    if (index < 0 || size_t(index) >= gRRResourceCandidates.size()) return selected;
+    const auto& candidate = gRRResourceCandidates[size_t(index)];
+    if (reinterpret_cast<uintptr_t>(candidate.resourceAddress) != gRRResourceCandidateAddress.load(std::memory_order_acquire) ||
+        !candidate.previewSupported) return selected;
+    selected.resource = static_cast<ID3D12Resource*>(candidate.resourceAddress);
+    selected.birth = candidate.resourceBirth; selected.version = candidate.registryVersion;
+    selected.selectionEpoch = gRRSelectionEpoch.load(std::memory_order_acquire);
+    return selected;
+}
+// Called only while gRRResourceCandidateMutex is held. An empty inventory or
+// recycled selected address changes the epoch without scanning recording rows.
+static void SelectRRResourceLocked(const RRResourceCandidate* candidate)
+{
+    const auto address = candidate ? reinterpret_cast<uintptr_t>(candidate->resourceAddress) : 0;
+    const auto version = candidate ? candidate->registryVersion : 0;
+    const auto oldAddress = gRRResourceCandidateAddress.exchange(address,std::memory_order_acq_rel);
+    const auto oldVersion = gRRSelectedResourceVersion.exchange(version,std::memory_order_acq_rel);
+    if (oldAddress != address || oldVersion != version) gRRSelectionEpoch.fetch_add(1,std::memory_order_acq_rel);
+}
+static bool RRBarrierTouchesSelected(const D3D12_RESOURCE_BARRIER& barrier,ID3D12Resource* selected) noexcept
+{
+    if (!selected) return false;
+    if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION) return barrier.Transition.pResource == selected;
+    if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_UAV) return !barrier.UAV.pResource || barrier.UAV.pResource == selected;
+    if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_ALIASING)
+        return !barrier.Aliasing.pResourceBefore || !barrier.Aliasing.pResourceAfter ||
+            barrier.Aliasing.pResourceBefore == selected || barrier.Aliasing.pResourceAfter == selected;
+    return false;
+}
+// State lock held; whole resources only, no native methods, no foreign-list walk.
+static void ObserveRRSelectedStateLocked(const RRPreparedRecording& receiver,const RRSelectedIdentity& selected,
+                                         const D3D12_RESOURCE_BARRIER& barrier,bool wholeResource)
+{
+    if (!RRBarrierTouchesSelected(barrier,selected.resource) ||
+        selected.selectionEpoch != gRRSelectionEpoch.load(std::memory_order_acquire)) return;
+    ++gRRSelectedStateEpoch;
+    if (!receiver.valid || (receiver.born && !receiver.birth->CacheAdmissible())) return;
+    auto& proof = gRRRecordingProofs[receiver.key];
+    if (!proof.recordingSerial) proof.recordingSerial = gRRNextRecordingSerial++;
+    proof.selected = selected; proof.stateEpoch = gRRSelectedStateEpoch;
+    proof.state = barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION && wholeResource &&
+        barrier.Flags == D3D12_RESOURCE_BARRIER_FLAG_NONE ? barrier.Transition.StateAfter : D3D12_RESOURCE_STATE_COMMON;
+}
+static void RRRecordingSucceeded(const RRPreparedRecording& receiver,void* list)
+{
+    std::scoped_lock lock(gRRResourceStateMutex);
+    gRRRecordingProofs.erase({reinterpret_cast<uintptr_t>(list),0});
+    if (receiver.valid) gRRRecordingProofs.erase(receiver.key);
+    else ++gRRSelectedStateEpoch; // Unknown identity must not leave a prior recording admissible.
 }
 // Unknown IID outputs own one temporary typed reference, released after guards.
 struct ReturnedPipelineInterface
@@ -1166,6 +1298,7 @@ static void RecordRRResourceWrite(ID3D12Resource* resource, const std::string& p
 void ResTrack_Dx12::SetRRResourceInspectorEnabled(bool enabled)
 {
     if (enabled) gRRInspectorLifetimeProtection.store(true,std::memory_order_release);
+    gRRSelectionEpoch.fetch_add(1,std::memory_order_acq_rel);
     gRRResourceInspectorEnabled.store(enabled, std::memory_order_release);
 
     if (enabled)
@@ -1185,6 +1318,7 @@ void ResTrack_Dx12::SetRRResourceInspectorEnabled(bool enabled)
             std::scoped_lock lock(gRRResourceStateMutex);
             gRRResourceStates.clear();
             gRRResourceActivity.clear();
+            gRRRecordingProofs.clear(); ++gRRSelectedStateEpoch;
         }
         {
             std::scoped_lock markerLock(gRRMarkerMutex);
@@ -1229,15 +1363,14 @@ void ResTrack_Dx12::SetRRResourceCandidateIndex(int index)
     if (gRRResourceCandidates.empty())
     {
         gRRResourceCandidateIndex.store(0, std::memory_order_release);
+        SelectRRResourceLocked(nullptr);
         return;
     }
 
     const int selected =
         std::clamp(index, 0, static_cast<int>(gRRResourceCandidates.size()) - 1);
     gRRResourceCandidateIndex.store(selected, std::memory_order_release);
-    gRRResourceCandidateAddress.store(
-        reinterpret_cast<uintptr_t>(gRRResourceCandidates[selected].resourceAddress),
-        std::memory_order_release);
+    SelectRRResourceLocked(&gRRResourceCandidates[selected]);
 }
 
 int ResTrack_Dx12::GetRRResourceCandidateIndex()
@@ -1392,6 +1525,7 @@ void ResTrack_Dx12::RefreshRRResourceCandidates(uint32_t renderWidth, uint32_t r
         if (gRRResourceCandidates.empty())
         {
             gRRResourceCandidateIndex.store(0, std::memory_order_release);
+            SelectRRResourceLocked(nullptr);
             return;
         }
 
@@ -1416,12 +1550,10 @@ void ResTrack_Dx12::RefreshRRResourceCandidates(uint32_t renderWidth, uint32_t r
             selected = std::clamp(
                 gRRResourceCandidateIndex.load(std::memory_order_acquire), 0,
                 static_cast<int>(gRRResourceCandidates.size()) - 1);
-            gRRResourceCandidateAddress.store(
-                reinterpret_cast<uintptr_t>(
-                    gRRResourceCandidates[selected].resourceAddress),
-                std::memory_order_release);
+
         }
         gRRResourceCandidateIndex.store(selected, std::memory_order_release);
+        SelectRRResourceLocked(&gRRResourceCandidates[selected]);
     }
 }
 
@@ -1431,36 +1563,48 @@ std::vector<RRResourceCandidate> ResTrack_Dx12::GetRRResourceCandidates()
     return gRRResourceCandidates;
 }
 
-ID3D12Resource* ResTrack_Dx12::AcquireRRResourceCandidate()
+const char* ResTrack_Dx12::GetRRResourceInspectorReason() noexcept
+{ return gRRInspectorReason.load(std::memory_order_acquire); }
+
+ID3D12Resource* ResTrack_Dx12::AcquireRRResourceCandidate(ID3D12GraphicsCommandList* consumer)
 {
-    if (!IsRRResourceInspectorEnabled()) return nullptr;
-    // Releases cover this weak lookup through the final native AddRef. A nested
-    // concurrent Release cannot upgrade its gate and simply skips the preview.
+    const auto reject = [](const char* reason) -> ID3D12Resource* {
+        gRRInspectorReason.store(reason,std::memory_order_release); return nullptr;
+    };
+    if (!IsRRResourceInspectorEnabled()) return reject("CPU lifetime unavailable: resource inspector is disabled.");
+    const auto receiver = PrepareRRRecording(consumer); // Strong caller; no metadata locks held.
+    if (!receiver.valid) return reject("GPU state unavailable: consumer Reset/Close/Barrier or Release coverage is unknown.");
     NrdBridgeLifetime::ScopedBorrow lifetime(gRRInspectorLifetimeProtection.load(std::memory_order_acquire));
-    if (!lifetime.Acquired()) return nullptr;
-    ID3D12Resource* resource = nullptr;
-    NrdBridgeBirth::Token birth; uint64_t version = 0;
+    if (!lifetime.Acquired()) return reject("CPU lifetime unavailable: nested Release cannot borrow the selected resource.");
+    const auto selected = CaptureRRSelectedIdentity();
+    if (!selected.resource) return reject("CPU lifetime unavailable: selected resource is no longer in the preview inventory.");
     {
-        std::scoped_lock candidateLock(gRRResourceCandidateMutex);
-        const auto selected = gRRResourceCandidateAddress.load(std::memory_order_acquire);
-        const auto index = gRRResourceCandidateIndex.load(std::memory_order_acquire);
-        if (index < 0 || size_t(index) >= gRRResourceCandidates.size()) return nullptr;
-        const auto& candidate = gRRResourceCandidates[size_t(index)];
-        if (reinterpret_cast<uintptr_t>(candidate.resourceAddress) != selected || !candidate.previewSupported) return nullptr;
-        resource = static_cast<ID3D12Resource*>(candidate.resourceAddress);
-        birth = candidate.resourceBirth; version = candidate.registryVersion;
+        NrdBridgeBirth::CurrentGuard current(selected.birth,RRInspectorBirthsEnabled());
+        if (RRInspectorBirthsEnabled() && !current.AdmitsBorrow())
+            return reject("CPU lifetime unavailable: selected native resource identity is not admissible.");
+        std::scoped_lock lock(gRRTrackedResourceMutex);
+        const auto found = gRRTrackedResources.find(selected.resource);
+        if (found == gRRTrackedResources.end() || found->second.version != selected.version || found->second.birth != selected.birth)
+            return reject("CPU lifetime unavailable: selected resource was released or its registry version changed.");
     }
     {
-        NrdBridgeBirth::CurrentGuard current(birth,RRInspectorBirthsEnabled());
-        if (RRInspectorBirthsEnabled() && !current.AdmitsBorrow()) return nullptr;
-        std::scoped_lock locks(gRRTrackedResourceMutex,gRRResourceStateMutex);
-        const auto found = gRRTrackedResources.find(resource);
-        const auto state = gRRResourceStates.find(resource);
-        if (found == gRRTrackedResources.end() || found->second.version != version || found->second.birth != birth ||
-            state == gRRResourceStates.end() || !IsRRResourceComputeReadable(state->second)) return nullptr;
+        NrdBridgeBirth::CurrentGuard current(receiver.birth,receiver.born);
+        if (receiver.born && !current.AdmitsBorrow())
+            return reject("CPU lifetime unavailable: consumer native command-list identity is not admissible.");
+        std::scoped_lock lock(gRRResourceStateMutex);
+        const auto found = gRRRecordingProofs.find(receiver.key);
+        if (found == gRRRecordingProofs.end() || !found->second.recordingSerial)
+            return reject("GPU state unavailable: no selected-resource transition was observed in this recording.");
+        const auto& proof = found->second;
+        if (selected.selectionEpoch != gRRSelectionEpoch.load(std::memory_order_acquire) ||
+            proof.selected.selectionEpoch != selected.selectionEpoch || proof.selected.resource != selected.resource ||
+            proof.selected.version != selected.version || proof.selected.birth != selected.birth ||
+            proof.stateEpoch != gRRSelectedStateEpoch || !IsRRResourceComputeReadable(proof.state))
+            return reject("GPU state unavailable: selected resource changed state, selection, or recording; a fresh whole-resource readable transition is required.");
     }
-    resource->AddRef(); // All metadata/Birth locks are released; physical lifetime is still held.
-    return resource;
+    selected.resource->AddRef(); // No metadata/Birth guards; physical Borrow still protects the weak native call.
+    gRRInspectorReason.store("",std::memory_order_release);
+    return selected.resource;
 }
 
 void ResTrack_Dx12::LogRRScalarResourceCandidates(uint32_t renderWidth, uint32_t renderHeight)
@@ -1781,32 +1925,30 @@ void ResTrack_Dx12::ResourceBarrier(ID3D12GraphicsCommandList* InCommandList, ID
 
 SIZE_T ResTrack_Dx12::GetGPUHandle(ID3D12Device* This, SIZE_T cpuHandle, D3D12_DESCRIPTOR_HEAP_TYPE type)
 {
-    std::shared_lock lock(_heapRegistryMutex);
-    const auto heap = FindIndexedHeapRangeLocked(gHeapCpuRanges,cpuHandle,false);
-    if (heap && heap->gpuStart != 0)
+    SIZE_T sourceStart = 0, destinationStart = 0;
     {
-        auto incSize = This->GetDescriptorHandleIncrementSize(type);
-        auto addr = cpuHandle - heap->cpuStart;
-        auto index = addr / incSize;
-        return heap->gpuStart + (index * incSize);
+        std::shared_lock lock(_heapRegistryMutex);
+        const auto heap = FindIndexedHeapRangeLocked(gHeapCpuRanges,cpuHandle,false);
+        if (heap) { sourceStart = heap->cpuStart; destinationStart = heap->gpuStart; }
     }
-
-    return NULL;
+    if (!destinationStart) return 0;
+    const auto increment = This->GetDescriptorHandleIncrementSize(type); // Strong device, outside the heap registry lock.
+    if (!increment) return 0;
+    return destinationStart + ((cpuHandle-sourceStart)/increment)*increment;
 }
 
 SIZE_T ResTrack_Dx12::GetCPUHandle(ID3D12Device* This, SIZE_T gpuHandle, D3D12_DESCRIPTOR_HEAP_TYPE type)
 {
-    std::shared_lock lock(_heapRegistryMutex);
-    const auto heap = FindIndexedHeapRangeLocked(gHeapGpuRanges,gpuHandle,true);
-    if (heap && heap->cpuStart != 0)
+    SIZE_T sourceStart = 0, destinationStart = 0;
     {
-        auto incSize = This->GetDescriptorHandleIncrementSize(type);
-        auto addr = gpuHandle - heap->gpuStart;
-        auto index = addr / incSize;
-        return heap->cpuStart + (index * incSize);
+        std::shared_lock lock(_heapRegistryMutex);
+        const auto heap = FindIndexedHeapRangeLocked(gHeapGpuRanges,gpuHandle,true);
+        if (heap) { sourceStart = heap->gpuStart; destinationStart = heap->cpuStart; }
     }
-
-    return NULL;
+    if (!destinationStart) return 0;
+    const auto increment = This->GetDescriptorHandleIncrementSize(type); // Strong device, outside the heap registry lock.
+    if (!increment) return 0;
+    return destinationStart + ((gpuHandle-sourceStart)/increment)*increment;
 }
 
 static std::shared_ptr<HeapInfo> FindHeapByCpuHandle(SIZE_T cpuHandle, HeapCacheTLS& heapCache)
@@ -2436,6 +2578,7 @@ bool DetachNativeRetirement(void* state,const NrdBridgeBirth::Token& birth) noex
           gRRResourceStates.erase(resource); gRRResourceActivity.erase(resource); }
         { std::scoped_lock lock(gRRTrackedResourceMutex); EraseRRTrackedResourceLocked(resource); }
         { std::scoped_lock lock(gRRPsoMutex); CleanupRRResourcePsoProducersLocked(resource); }
+        ForgetRRRecording(resource,birth);
         CleanupRRPsoReferences(resource);
         { std::scoped_lock lock(_trackedResourcesMutex);
           if (const auto found = _trackedResources.find(resource); found != _trackedResources.end())
@@ -2757,6 +2900,11 @@ void ResTrack_Dx12::hkResourceBarrier(ID3D12GraphicsCommandList* This, UINT NumB
         try
         {
             const auto [passName, emissivePassMatch] = GetRRActivePass(This);
+            RRSelectedIdentity selected {}; RRPreparedRecording receiver {};
+            auto* selectedAddress = reinterpret_cast<ID3D12Resource*>(gRRResourceCandidateAddress.load(std::memory_order_acquire));
+            for (UINT index=0;selectedAddress && index<NumBarriers;++index)
+                if (RRBarrierTouchesSelected(pBarriers[index],selectedAddress))
+                { selected = CaptureRRSelectedIdentity(); receiver = PrepareRRRecording(This); break; }
             // Native getters use this API caller's valid resource inputs, before any
             // common state lock. Whole-resource transitions need no description at all.
             std::vector<uint8_t> wholeResources(NumBarriers);
@@ -2777,10 +2925,13 @@ void ResTrack_Dx12::hkResourceBarrier(ID3D12GraphicsCommandList* This, UINT NumB
                     wholeResources[index] = desc.MipLevels == 1 && desc.DepthOrArraySize == 1;
                 }
             }
+            NrdBridgeBirth::CurrentGuard recording(receiver.birth,receiver.born && receiver.valid);
+            if (receiver.born && receiver.valid && !recording.MatchesCurrent()) receiver.valid = false;
             std::scoped_lock stateLock(gRRResourceStateMutex);
             for (UINT index = 0; index < NumBarriers; ++index)
             {
                 const D3D12_RESOURCE_BARRIER& barrier = pBarriers[index];
+                ObserveRRSelectedStateLocked(receiver,selected,barrier,wholeResources[index] != 0);
                 if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_ALIASING)
                 {
                     if (barrier.Aliasing.pResourceBefore != nullptr)
@@ -2846,12 +2997,13 @@ void ResTrack_Dx12::hkResourceBarrier(ID3D12GraphicsCommandList* This, UINT NumB
                 else if (barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_ALIASING)
                 { gRRResourceStates.erase(barrier.Aliasing.pResourceBefore); gRRResourceStates.erase(barrier.Aliasing.pResourceAfter); }
             }
+            ++gRRSelectedStateEpoch; // A failed observation cannot preserve any selected state proof.
             computeWrites.clear();
         }
     }
 
-    for (ID3D12Resource* resource : computeWrites)
-        RecordRRComputeOutput(This, resource);
+    try { for (ID3D12Resource* resource : computeWrites) RecordRRComputeOutput(This, resource); }
+    catch (...) { /* Optional producer metadata cannot suppress the original barrier. */ }
 
     o_ResourceBarrier(This, NumBarriers, pBarriers);
 }
@@ -2892,10 +3044,12 @@ HRESULT ResTrack_Dx12::hkReset(ID3D12GraphicsCommandList* This,
                                ID3D12CommandAllocator* pAllocator,
                                ID3D12PipelineState* pInitialState)
 {
+    const auto inspectorRecording = gRRResourceInspectorEnabled.load(std::memory_order_acquire) ? PrepareRRRecording(This) : RRPreparedRecording{};
     auto computeRecording = RecordedComputeLease::Capture(This);
     const HRESULT result = o_Reset(This, pAllocator, pInitialState);
     if (SUCCEEDED(result)) RecordedComputeLease::Detach(computeRecording);
     if (SUCCEEDED(result)) RRTraceFence::ResetSucceeded(This);
+    if (SUCCEEDED(result) && gRRResourceInspectorEnabled.load(std::memory_order_acquire)) RRRecordingSucceeded(inspectorRecording,This);
     if (SUCCEEDED(result) &&
         gRRResourceInspectorEnabled.load(std::memory_order_relaxed) &&
         !(RRInspectorBirthsEnabled() && FrameSurvey::Internal()))
@@ -3797,6 +3951,7 @@ void ResTrack_Dx12::hkExecuteBundle(ID3D12GraphicsCommandList* This, ID3D12Graph
 
 HRESULT ResTrack_Dx12::hkClose(ID3D12GraphicsCommandList* This)
 {
+    const auto inspectorRecording = gRRResourceInspectorEnabled.load(std::memory_order_acquire) ? PrepareRRRecording(This) : RRPreparedRecording{};
     auto fg = State::Instance().currentFG;
     auto index = fg != nullptr ? fg->GetIndex() : 0;
 
@@ -3842,7 +3997,9 @@ HRESULT ResTrack_Dx12::hkClose(ID3D12GraphicsCommandList* This)
         }
     }
 
-    return o_Close(This);
+    const HRESULT result = o_Close(This);
+    if (SUCCEEDED(result) && gRRResourceInspectorEnabled.load(std::memory_order_acquire)) RRRecordingSucceeded(inspectorRecording,This);
+    return result;
 }
 
 void ResTrack_Dx12::hkDispatch(ID3D12GraphicsCommandList* This, UINT ThreadGroupCountX, UINT ThreadGroupCountY,
@@ -4090,6 +4247,8 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
             o_DrawIndexedInstanced = (PFN_DrawIndexedInstanced) pVTable[13];
             o_Dispatch = (PFN_Dispatch) pVTable[14];
             o_Close = (PFN_Close) pVTable[9];
+            gRRRecordingCloseEntry = pVTable[9];
+            gRRRecordingBarrierEntry = pVTable[26];
             const bool resetAlreadyHooked = o_Reset != nullptr;
             const bool releaseAlreadyHooked = o_CommandListRelease != nullptr;
             if (!resetAlreadyHooked) o_Reset = (PFN_Reset) pVTable[10];
@@ -4141,8 +4300,8 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
                         DetourAttach(&(PVOID&) o_SetComputeRootDescriptorTable, gSurveyWrappers ? hkSurveySetComputeRootDescriptorTable : hkSetComputeRootDescriptorTable);
                 }
 
-                if (o_Close != nullptr)
-                    DetourAttach(&(PVOID&) o_Close, gSurveyWrappers ? hkSurveyClose : hkClose);
+                const auto closeAttachResult = o_Close ?
+                    DetourAttach(&(PVOID&) o_Close, gSurveyWrappers ? hkSurveyClose : hkClose) : ERROR_INVALID_FUNCTION;
 
                 const auto resetAttachResult = resetAlreadyHooked ? NO_ERROR :
                     (o_Reset ? DetourAttach(&(PVOID&) o_Reset, gSurveyWrappers ? hkSurveyReset : hkReset) : ERROR_INVALID_FUNCTION);
@@ -4153,8 +4312,8 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
                 if (o_SetPipelineState != nullptr)
                     DetourAttach(&(PVOID&) o_SetPipelineState, gSurveyWrappers ? hkSurveySetPipelineState : hkSetPipelineState);
 
-                if (o_ResourceBarrier != nullptr)
-                    DetourAttach(&(PVOID&) o_ResourceBarrier, gSurveyWrappers ? hkSurveyResourceBarrier : hkResourceBarrier);
+                const auto barrierAttachResult = o_ResourceBarrier ?
+                    DetourAttach(&(PVOID&) o_ResourceBarrier, gSurveyWrappers ? hkSurveyResourceBarrier : hkResourceBarrier) : ERROR_INVALID_FUNCTION;
 
                 if (o_SetMarker != nullptr)
                     DetourAttach(&(PVOID&) o_SetMarker, gSurveyWrappers ? hkSurveySetMarker : hkSetMarker);
@@ -4168,7 +4327,8 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
                 if (o_ExecuteBundle != nullptr)
                     DetourAttach(&(PVOID&) o_ExecuteBundle, gSurveyWrappers ? hkSurveyExecuteBundle : hkExecuteBundle);
 
-                const auto criticalAttachResult = resetAttachResult != NO_ERROR ? resetAttachResult : releaseAttachResult;
+                const auto criticalAttachResult = resetAttachResult != NO_ERROR ? resetAttachResult :
+                    releaseAttachResult != NO_ERROR ? releaseAttachResult : closeAttachResult != NO_ERROR ? closeAttachResult : barrierAttachResult;
                 const auto commitResult = criticalAttachResult == NO_ERROR ? DetourTransactionCommit() : DetourTransactionAbort();
                 const auto detourResult = criticalAttachResult == NO_ERROR ? commitResult : criticalAttachResult;
                 if (detourResult != NO_ERROR)
@@ -4179,7 +4339,7 @@ void ResTrack_Dx12::HookCommandList(ID3D12Device* InDevice)
                     o_DrawInstanced = nullptr;
                     o_DrawIndexedInstanced = nullptr;
                     o_Dispatch = nullptr;
-                    o_Close = nullptr;
+                    o_Close = nullptr; gRRRecordingCloseEntry = gRRRecordingBarrierEntry = nullptr;
                     o_SetComputeRootDescriptorTable = nullptr;
                     o_ExecuteBundle = nullptr;
                     if (!resetAlreadyHooked) { o_Reset = nullptr; gComputeResetEntry = nullptr; }
@@ -4669,6 +4829,7 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
     o_CommandListRelease = nullptr;
     gCommandListReleaseEntry = nullptr;
     gComputeResetEntry = nullptr;
+    gRRRecordingCloseEntry = gRRRecordingBarrierEntry = nullptr;
     o_SetPipelineState = nullptr;
     o_ResourceBarrier = nullptr;
     o_SetMarker = nullptr;
@@ -4705,6 +4866,7 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
         std::scoped_lock stateLock(gRRResourceStateMutex);
         gRRResourceStates.clear();
         gRRResourceActivity.clear();
+        gRRRecordingProofs.clear(); ++gRRSelectedStateEpoch;
     }
     {
         std::scoped_lock candidateLock(gRRResourceCandidateMutex);
