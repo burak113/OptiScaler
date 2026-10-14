@@ -310,6 +310,13 @@ J exercise(Host& h,bool enabled) {
  J result; result["dispatch_order"]=calls;
  if(enabled) {
   need(D3D12Hooks::CanRestoreRootSignature(h.list.Get()),"complete title root snapshot permits injection");
+  Config::Instance()->RestoreComputeSignature.current=false;
+  need(!D3D12Hooks::CanRestoreRootSignature(h.list.Get()),"configuration reload disabling compute restore rejects bridge injection");
+  Config::Instance()->RestoreComputeSignature.current=true;
+  Config::Instance()->ExtendedStateRestore.current=false;
+  need(!D3D12Hooks::CanRestoreRootSignature(h.list.Get()),"configuration reload disabling extended restore rejects bridge injection");
+  Config::Instance()->ExtendedStateRestore.current=true;
+  need(D3D12Hooks::CanRestoreRootSignature(h.list.Get()),"both restore flags recover bridge preflight without clobbering title state");
   D3D12_RESOURCE_BARRIER barriers[2]{};
   barriers[0].Type=barriers[1].Type=D3D12_RESOURCE_BARRIER_TYPE_UAV;
   barriers[0].UAV.pResource=title.output.Get(); barriers[1].UAV.pResource=title.uav.Get(); h.list->ResourceBarrier(2,barriers);
@@ -329,8 +336,14 @@ J exercise(Host& h,bool enabled) {
    need(descriptorHeaps[h.list.Get()].Heaps[0]==title.heap.Get() && descriptorHeaps[h.list.Get()].Heaps[1]==title.samplers.Get(),"injected heaps never overwrite title snapshot");
    for(UINT i=1;i<=9;++i) need(rootStates[h.list.Get()][i].rootDescriptorTable.ptr==saved[i].rootDescriptorTable.ptr &&
      rootStates[h.list.Get()][i].bufferLocation==saved[i].bufferLocation && rootStates[h.list.Get()][i].Data==saved[i].Data,"every title root argument survives shader clobber");
+   Config::Instance()->RestoreComputeSignature.current=false;
+   Config::Instance()->ExtendedStateRestore.current=false;
    D3D12Hooks::RestoreRoot(h.list.Get()); D3D12Hooks::SetRootSignatureTracking(prior);
   }
+  need(!Config::Instance()->RestoreComputeSignature.current && !Config::Instance()->ExtendedStateRestore.current,
+       "in-flight reload keeps its settings while the admitted injection restores every title binding");
+  Config::Instance()->RestoreComputeSignature.current=true;
+  Config::Instance()->ExtendedStateRestore.current=true;
   need(!FrameSurvey::Internal() && D3D12Hooks::RootSignatureTrackingEnabled(),"both production guards restore title tracking");
   need(calls.empty(),"RestoreRoot calls original trampolines without recursive callbacks");
   result["injection_did_not_change_tracking"]=true;

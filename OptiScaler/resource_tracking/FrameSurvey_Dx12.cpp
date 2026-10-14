@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <atomic>
 #include <cctype>
+#include <exception>
 
 namespace FrameSurvey
 {
@@ -25,8 +26,18 @@ const GUID RootBlobId = {0xe971fb39,0x45a2,0x41ea,{0xa1,0x55,0x64,0xa8,0xc7,0xa4
 const GUID PipelineId = {0xeb65bd20,0x3531,0x41b0,{0xbc,0x65,0x40,0xd9,0xc2,0xbe,0x31,0x11}};
 std::atomic<bool> gEnabled {false}, gRecording {false};
 // Creation metadata (root layouts, shader hashes, heaps, views) is tracked from device creation when
-// FrameSurvey=true. Install() runs later, after the title has created most of its pipelines.
+// FrameSurvey=true or the NRD bridge is enabled. Install() runs later, after title pipeline creation.
 std::atomic<bool> gTracking {false}, gSurveyBindings {false}, gBindingWindow {false}, gHooksInstalled {false};
+// A partial registry/mirror update is never eligible for bridge reads until a clean device restart.
+std::atomic<bool> gMetadataHealthy {true};
+struct MetadataMutation
+{
+    int exceptions = std::uncaught_exceptions();
+    ~MetadataMutation() { if (std::uncaught_exceptions() > exceptions) gMetadataHealthy.store(false,std::memory_order_release); }
+};
+#ifdef FSRD_NRD_BRIDGE_TEST
+int gCopyFailureAfterForTesting = -1;
+#endif
 std::atomic<PipelineObserver> gPipelineObserver {nullptr};
 std::atomic<ReleaseObserver> gReleaseObserver {nullptr};
 bool BindingTracking() noexcept
@@ -162,6 +173,7 @@ ComPtr<ID3D12Device> gCreationDevice;
 bool Recording() { return Enabled() && gRecording.load(std::memory_order_acquire) && !gInternal; }
 void Fail(const char* reason) noexcept
 {
+    InternalScope internal; // Recorder-owned cleanup must never upgrade a title-resource borrow.
     try
     {
         std::scoped_lock lock(gRecordMutex);
@@ -174,6 +186,11 @@ void Fail(const char* reason) noexcept
         }
         LOG_ERROR("[FRAME_SURVEY] {}",reason);
     } catch (...) {}
+}
+void MetadataFailed(const char* reason) noexcept
+{
+    gMetadataHealthy.store(false,std::memory_order_release);
+    Fail(reason);
 }
 void Count(const char* reason)
 {
@@ -289,7 +306,8 @@ std::unordered_map<ID3D12GraphicsCommandList*,Mirror> gMirror;
 template<class Update> void Mirrored(ID3D12GraphicsCommandList* cmd, Update&& update) noexcept
 {
     if (!BindingTracking() || gInternal || !cmd) return;
-    try { std::scoped_lock lock(gMirrorMutex); update(gMirror[cmd]); } catch (...) {}
+    try { std::scoped_lock lock(gMirrorMutex); MetadataMutation mutation; update(gMirror[cmd]); }
+    catch (...) { MetadataFailed("Binding mirror allocation failed"); }
 }
 bool Seed(ID3D12GraphicsCommandList* cmd, List& list)
 {
@@ -323,7 +341,7 @@ void StoreView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI_FORM
     uint32_t mip, uint32_t slice, bool supported)
 {
     if (!Tracking() || gInternal) return;
-    std::scoped_lock lock(gLifetimeMutex);
+    std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation;
     if (const auto found = gViews.find(handle); found != gViews.end() && found->second.object)
         if (const auto old = gResources.find(found->second.object); old != gResources.end()) old->second.handles.erase(handle);
     if (!object) { gViews.erase(handle); return; }
@@ -495,38 +513,43 @@ void SetBindingWindow(bool enabled) noexcept
     try
     {
         std::scoped_lock lock(gMirrorMutex); gMirror.clear();
-    } catch (...) {}
+    } catch (...) { MetadataFailed("Binding window invalidation failed"); }
 }
 bool BindingWindow() noexcept { return gBindingWindow.load(std::memory_order_relaxed); }
+bool MetadataHealthy() noexcept { return gMetadataHealthy.load(std::memory_order_acquire); }
 bool SeedComputeBindings(ID3D12GraphicsCommandList* cmd, const ComputeBindings& bindings) noexcept
 {
-    if (!BindingTracking() || gInternal || !cmd || !bindings.root || bindings.heaps.empty()) return false;
+    if (!BindingTracking() || gInternal || !cmd || !bindings.root || bindings.heaps.empty() || !gMetadataHealthy.load(std::memory_order_acquire)) return false;
     try
     {
-        std::scoped_lock lock(gMirrorMutex); auto& mirror = gMirror[cmd];
+        std::scoped_lock lock(gMirrorMutex); MetadataMutation mutation;
+        if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
+        auto& mirror = gMirror[cmd];
         if (mirror.compute.object != bindings.root) mirror.compute = {};
         if (mirror.heaps != bindings.heaps) mirror.graphics.tables.clear();
         mirror.compute.object = bindings.root; mirror.compute.tables.clear();
         for (const auto& [parameter,handle] : bindings.tables) mirror.compute.tables[parameter] = handle.ptr;
         mirror.heaps = bindings.heaps; return true;
-    } catch (...) { return false; }
+    } catch (...) { MetadataFailed("Compute binding seed failed"); return false; }
 }
 bool ResolveComputeTable(ID3D12GraphicsCommandList* cmd, UINT parameter, std::vector<BoundResource>& out) noexcept
 {
     out.clear();
-    if (!BindingTracking() || gInternal || !cmd) return false;
+    if (!BindingTracking() || gInternal || !cmd || !gMetadataHealthy.load(std::memory_order_acquire)) return false;
     try
     {
         Mirror::Root root; std::vector<ID3D12DescriptorHeap*> heaps;
         {
-            std::scoped_lock lock(gMirrorMutex);
+            std::scoped_lock lock(gMirrorMutex); MetadataMutation mutation;
+            if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
             const auto list = gMirror.find(cmd);
             if (list == gMirror.end()) return false;
             root = list->second.compute; heaps = list->second.heaps;
         }
         const auto binding = root.tables.find(parameter);
         if (!root.object || binding == root.tables.end()) return false;
-        std::scoped_lock lock(gLifetimeMutex);
+        std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation;
+        if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
         const auto layout = gRootLayouts.find(root.object);
         if (layout == gRootLayouts.end() || !layout->second.complete) return false;
         const auto table = layout->second.tables.find(parameter);
@@ -562,7 +585,7 @@ bool ResolveComputeTable(ID3D12GraphicsCommandList* cmd, UINT parameter, std::ve
         std::sort(out.begin(),out.end(),[](const auto& a,const auto& b) {
             return std::tie(a.descriptorOffset,a.descriptorIndex,a.kind) < std::tie(b.descriptorOffset,b.descriptorIndex,b.kind); });
         return true;
-    } catch (...) { out.clear(); return false; }
+    } catch (...) { MetadataFailed("Compute table resolution allocation failed"); out.clear(); return false; }
 }
 bool Enabled() noexcept { return gEnabled.load(std::memory_order_relaxed); }
 void BeginCreationTracking(bool recorder) noexcept
@@ -594,17 +617,17 @@ void ResourceCreated(ID3D12Resource* object, D3D12_RESOURCE_STATES initial, ID3D
     if (!Tracking() || gInternal || !object) return;
     try
     {
-        std::scoped_lock lock(gLifetimeMutex); auto& resource = Register(object);
+        std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation; auto& resource = Register(object);
         resource.initial = initial; resource.initialKnown = true;
         resource.heap = uint64_t(reinterpret_cast<uintptr_t>(heap)); resource.offset = offset;
-    } catch (...) { Fail("Resource metadata allocation failed"); }
+    } catch (...) { MetadataFailed("Resource metadata allocation failed"); }
 }
 void RootCreated(ID3D12RootSignature* root, const void* bytes, size_t length) noexcept
 {
     if (!Tracking() || gInternal || !root || !bytes || length > (1u<<20)) return;
-    if (FAILED(root->SetPrivateData(RootBlobId,UINT(length),bytes))) { Fail("Root signature metadata storage failed"); return; }
-    try { auto layout = ReadRoot(root); std::scoped_lock lock(gLifetimeMutex); gRootLayouts[root] = std::move(layout); }
-    catch (...) { Fail("Root signature layout allocation failed"); }
+    if (FAILED(root->SetPrivateData(RootBlobId,UINT(length),bytes))) { MetadataFailed("Root signature metadata storage failed"); return; }
+    try { auto layout = ReadRoot(root); std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation; gRootLayouts[root] = std::move(layout); }
+    catch (...) { MetadataFailed("Root signature layout allocation failed"); }
 }
 void PipelineCreated(ID3D12PipelineState* pso, const D3D12_COMPUTE_PIPELINE_STATE_DESC& desc) noexcept
 {
@@ -616,7 +639,7 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_COMPUTE_PIPELINE_STAT
         auto text = data.dump(); pso->SetPrivateData(PipelineId,UINT(text.size()),text.data());
         if (const auto observer = gPipelineObserver.load(std::memory_order_acquire))
             observer(pso,data["shader_hashes"]["CS"].get_ref<const std::string&>().c_str());
-    } catch (...) { Fail("Compute shader hash failed"); }
+    } catch (...) { MetadataFailed("Compute shader hash failed"); }
 }
 void PipelineCreated(ID3D12PipelineState* pso, const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc) noexcept
 {
@@ -630,7 +653,7 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_GRAPHICS_PIPELINE_STA
         const auto text = Json{{"shader_hashes",hashes},{"hash_known",!hashes.empty()},{"root_hash",ReadRoot(desc.pRootSignature).hash}}.dump();
         pso->SetPrivateData(PipelineId,UINT(text.size()),text.data());
         if (const auto observer = gPipelineObserver.load(std::memory_order_acquire)) observer(pso,nullptr);
-    } catch (...) { Fail("Graphics shader hash failed"); }
+    } catch (...) { MetadataFailed("Graphics shader hash failed"); }
 }
 void PipelineCreated(ID3D12PipelineState* pso, const D3D12_PIPELINE_STATE_STREAM_DESC& desc) noexcept
 {
@@ -658,7 +681,7 @@ void PipelineCreated(ID3D12PipelineState* pso, const D3D12_PIPELINE_STATE_STREAM
         if (const auto observer = gPipelineObserver.load(std::memory_order_acquire))
             observer(pso,SUCCEEDED(result) && parser.shaders.contains("CS") ?
                 parser.shaders["CS"].get_ref<const std::string&>().c_str() : nullptr);
-    } catch (...) { Fail("Pipeline stream shader hash failed"); }
+    } catch (...) { MetadataFailed("Pipeline stream shader hash failed"); }
 }
 void Released(void* object) noexcept
 {
@@ -689,7 +712,7 @@ void Released(void* object) noexcept
             }
             gCpuHeaps.erase(found->second.cpu); gHeaps.erase(found);
         }
-    } catch (...) {}
+    } catch (...) { MetadataFailed("Resource release registry invalidation failed"); }
     try
     {
         std::scoped_lock lock(gMirrorMutex);
@@ -702,7 +725,7 @@ void Released(void* object) noexcept
             if (std::erase(mirror.heaps,reinterpret_cast<ID3D12DescriptorHeap*>(object)))
             { mirror.compute.tables.clear(); mirror.graphics.tables.clear(); }
         }
-    } catch (...) {}
+    } catch (...) { MetadataFailed("Release binding invalidation failed"); }
     if (const auto observer = gReleaseObserver.load(std::memory_order_acquire)) observer(object);
 }
 void HeapCreated(ID3D12Device* device, ID3D12DescriptorHeap* object) noexcept
@@ -712,12 +735,12 @@ void HeapCreated(ID3D12Device* device, ID3D12DescriptorHeap* object) noexcept
     {
         const auto desc = object->GetDesc();
         if (desc.Type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && desc.Type != D3D12_DESCRIPTOR_HEAP_TYPE_RTV) return;
-        std::scoped_lock lock(gLifetimeMutex);
+        std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation;
         const auto cpu = object->GetCPUDescriptorHandleForHeapStart().ptr;
         const auto gpu = (desc.Flags&D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE) ? object->GetGPUDescriptorHandleForHeapStart().ptr : 0;
         gHeaps[object] = {object,cpu,gpu,desc.NumDescriptors,device->GetDescriptorHandleIncrementSize(desc.Type),uint32_t(desc.Type)};
         gCpuHeaps[cpu] = object;
-    } catch (...) { Fail("Descriptor heap metadata allocation failed"); }
+    } catch (...) { MetadataFailed("Descriptor heap metadata allocation failed"); }
 }
 void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3D12_SHADER_RESOURCE_VIEW_DESC* desc) noexcept
 {
@@ -728,7 +751,7 @@ void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3
         if (desc && desc->ViewDimension == D3D12_SRV_DIMENSION_TEXTURE2DARRAY)
         { mip = desc->Texture2DArray.MostDetailedMip; slice = desc->Texture2DArray.FirstArraySlice; supported = desc->Texture2DArray.ArraySize == 1 && desc->Texture2DArray.PlaneSlice == 0; }
         StoreView(resource,handle.ptr,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,desc ? desc->Format : DXGI_FORMAT_UNKNOWN,mip,slice,supported);
-    } catch (...) { Fail("SRV metadata allocation failed"); }
+    } catch (...) { MetadataFailed("SRV metadata allocation failed"); }
 }
 void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3D12_UNORDERED_ACCESS_VIEW_DESC* desc) noexcept
 {
@@ -739,7 +762,7 @@ void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3
         if (desc && desc->ViewDimension == D3D12_UAV_DIMENSION_TEXTURE2DARRAY)
         { mip = desc->Texture2DArray.MipSlice; slice = desc->Texture2DArray.FirstArraySlice; supported = desc->Texture2DArray.ArraySize == 1 && desc->Texture2DArray.PlaneSlice == 0; }
         StoreView(resource,handle.ptr,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,desc ? desc->Format : DXGI_FORMAT_UNKNOWN,mip,slice,supported);
-    } catch (...) { Fail("UAV metadata allocation failed"); }
+    } catch (...) { MetadataFailed("UAV metadata allocation failed"); }
 }
 void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3D12_RENDER_TARGET_VIEW_DESC* desc) noexcept
 {
@@ -750,7 +773,7 @@ void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3
         if (desc && desc->ViewDimension == D3D12_RTV_DIMENSION_TEXTURE2DARRAY)
         { mip = desc->Texture2DArray.MipSlice; slice = desc->Texture2DArray.FirstArraySlice; supported = desc->Texture2DArray.ArraySize == 1 && desc->Texture2DArray.PlaneSlice == 0; }
         StoreView(resource,handle.ptr,4,desc ? desc->Format : DXGI_FORMAT_UNKNOWN,mip,slice,supported);
-    } catch (...) { Fail("RTV metadata allocation failed"); }
+    } catch (...) { MetadataFailed("RTV metadata allocation failed"); }
 }
 void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_HANDLE* dst, const UINT* dn,
     UINT ns, const D3D12_CPU_DESCRIPTOR_HANDLE* src, const UINT* sn, D3D12_DESCRIPTOR_HEAP_TYPE type) noexcept
@@ -759,7 +782,8 @@ void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_H
         (type != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV && type != D3D12_DESCRIPTOR_HEAP_TYPE_RTV)) return;
     try
     {
-        std::scoped_lock lock(gLifetimeMutex); const auto stride = device->GetDescriptorHandleIncrementSize(type);
+        std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation;
+        const auto stride = device->GetDescriptorHandleIncrementSize(type);
         UINT di = 0, si = 0, d = 0, s = 0;
         while (di<nd && si<ns)
         {
@@ -772,6 +796,10 @@ void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_H
             if (destinationHeap) count = std::min(count,destinationHeap->count-UINT((firstDestination-destinationHeap->cpu)/stride));
             for (UINT i=0;i<count;++i)
             {
+#ifdef FSRD_NRD_BRIDGE_TEST
+                if (gCopyFailureAfterForTesting == 0) { gCopyFailureAfterForTesting = -1; throw std::bad_alloc(); }
+                if (gCopyFailureAfterForTesting > 0) --gCopyFailureAfterForTesting;
+#endif
                 const auto dh = dst[di].ptr+uint64_t(d++)*stride, sh = src[si].ptr+uint64_t(s++)*stride;
                 if (const auto old = gViews.find(dh); old != gViews.end())
                     if (const auto resource = gResources.find(old->second.object); resource != gResources.end()) resource->second.handles.erase(dh);
@@ -791,7 +819,7 @@ void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_H
                 else gViews.erase(dh);
             }
         }
-    } catch (...) { Fail("Descriptor copy metadata allocation failed"); }
+    } catch (...) { MetadataFailed("Descriptor copy metadata allocation failed"); }
 }
 
 void Reset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexcept
@@ -1597,6 +1625,7 @@ bool Install(ID3D12Device* device, ID3D12GraphicsCommandList* list, bool recorde
 }
 void Shutdown() noexcept
 {
+    gMetadataHealthy.store(false,std::memory_order_release);
     gTracking.store(false,std::memory_order_release);
     gSurveyBindings.store(false,std::memory_order_release); gBindingWindow.store(false,std::memory_order_release);
     gPipelineObserver.store(nullptr,std::memory_order_release); gReleaseObserver.store(nullptr,std::memory_order_release);
@@ -1626,6 +1655,7 @@ void Shutdown() noexcept
         { std::scoped_lock mirror(gMirrorMutex); gMirror.clear(); }
         std::scoped_lock lock(gLifetimeMutex); gViews.clear(); gResources.clear(); gAddresses.clear(); gHeaps.clear(); gCpuHeaps.clear(); gRootLayouts.clear();
         gCreationDevice.Reset(); gStatus.installed = false;
+        gMetadataHealthy.store(true,std::memory_order_release);
     } catch (...) {}
 }
 }

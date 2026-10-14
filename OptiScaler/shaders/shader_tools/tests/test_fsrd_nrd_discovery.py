@@ -81,6 +81,8 @@ struct ChainHost {
   need(!FrameSurvey::Enabled() && !FrameSurvey::GetStatus().installed,"metadata hooks do not enable survey recorder");
   Config::Instance()->FfxDenoiserNrdBridge.value=false;
   need(!NrdBridge::Initialize(h.dev.Get()),"startup disabled creates no service");
+  NrdBridge::OnReset(h.list.Get(),nullptr); NrdBridge::SetRuntimeEnabled(true);
+  need(!Config::Instance()->RestoreComputeSignature.value && !Config::Instance()->ExtendedStateRestore.value,"startup OFF leaves existing restore preferences unchanged");
   Config::Instance()->FfxDenoiserNrdBridge.value=true;
   need(NrdBridge::Initialize(h.dev.Get()),"bridge coordinator initializes");
   need(NrdBridge::Initialize(h.dev.Get()),"same-device initialization is idempotent");
@@ -310,6 +312,9 @@ J discoveryTests(Host& h) {
  StreamlineHooks::frame=40; c.frame(3);
  need(convertCalls==beforeFailedConversion && !NrdBridge::GetStatus().active && !NrdBridge::gService->cache.Valid(),"missing state restore prevents conversion and invalidates discovery");
  D3D12Hooks::canRestore=true;
+ const auto cooldownFailure=NrdBridge::gService->failures,cooldownConversion=convertCalls;
+ for(UINT cooldownFrame=0;cooldownFrame<5;++cooldownFrame) c.frame(3);
+ need(NrdBridge::gService->failures==cooldownFailure && convertCalls==cooldownConversion && !FrameSurvey::BindingWindow(),"ordinary NRD frames during retry cooldown consume no additional failures or conversion work");
  for(UINT attempt=0;attempt<2;++attempt) {
   for(UINT present=0;present<60;++present) NrdBridge::OnPresent();
   need(FrameSurvey::BindingWindow(),"bounded provider failure retry opens discovery window");
@@ -370,6 +375,16 @@ J discoveryTests(Host& h) {
  need(convertCalls==retainConversion && motionCalls==retainMotion && rrCalls==retainRR && !NrdBridge::GetStatus().active && NrdBridge::GetStatus().reason.find("submission token")!=std::string::npos,"submission-token retention failure stops all conversion/motion/output writes");
  NrdBridge::SetRuntimeEnabled(false); NrdBridge::SetRuntimeEnabled(true); c.frame(3); c.frame(3);
  need(NrdBridge::GetStatus().active,"retention failure permits explicit runtime reset and clean rediscovery");
+ auto* config=Config::Instance(); config->RestoreComputeSignature.value=false; config->ExtendedStateRestore.value=false;
+ NrdBridge::OnReset(h.list.Get(),nullptr);
+ need(config->RestoreComputeSignature.value && config->ExtendedStateRestore.value && config->RestoreComputeSignature.volatileValue && config->ExtendedStateRestore.volatileValue,"active Reset restores both volatile state tracking flags after INI reload");
+ NrdBridge::SetRuntimeEnabled(false); config->RestoreComputeSignature.value=false; config->ExtendedStateRestore.value=false;
+ const auto offRestoreWrites=config->RestoreComputeSignature.volatileWrites; NrdBridge::OnReset(h.list.Get(),nullptr);
+ need(!config->RestoreComputeSignature.value && !config->ExtendedStateRestore.value && config->RestoreComputeSignature.volatileWrites==offRestoreWrites,"runtime-off Reset preserves reloaded restore preferences");
+ NrdBridge::SetRuntimeEnabled(true);
+ need(config->RestoreComputeSignature.value && config->ExtendedStateRestore.value,"runtime enable restores required tracking flags");
+ config->RestoreComputeSignature.value=false; config->ExtendedStateRestore.value=false; NrdBridge::SetRuntimeEnabled(true);
+ need(config->RestoreComputeSignature.value && config->ExtendedStateRestore.value,"idempotent runtime enable restores flags cleared by later reload");
  // Offset ordering and a root/heap reset are production resolver properties, independent of recorder service.
  FrameSurvey::SetBindingWindow(true); c.begin(); c.bind(1,0); c.bind(5,8); auto table=c.table(1);
  need(table.size()==8 && table[0].descriptorOffset==0 && table[3].descriptorOffset==3,"resolver preserves sorted offsets rather than resource-id order");
@@ -391,18 +406,46 @@ J discoveryTests(Host& h) {
  NrdBridge::RegisterPipelineRoleForTesting(c.pipelines[UINT(Role::Recon)].Get(),Role::Recon);
  FrameSurvey::PipelineCreated(c.pipelines[UINT(Role::Recon)].Get(),D3D12_PIPELINE_STATE_STREAM_DESC {});
  need(!NrdBridge::gService->roles.contains(c.pipelines[UINT(Role::Recon)].Get()),"failed/no-CS stream creation erases an old PSO role");
- auto metadata=descriptorMetadataTests(c); auto timings=cpuTimings(c); FrameSurvey::SetBindingWindow(true); c.begin();
+ NrdBridge::RegisterPipelineRoleForTesting(c.pipelines[UINT(Role::Recon)].Get(),Role::Recon);
+ auto metadata=descriptorMetadataTests(c); auto timings=cpuTimings(c); FrameSurvey::SetBindingWindow(true); c.begin(); c.bind(1,0);
+ FrameSurvey::Fail("fixture recorder-only capture failure");
+ need(FrameSurvey::gMetadataHealthy.load(),"recorder-only capture failures do not latch creation or binding metadata unhealthy");
+ c.pass(Role::Recon); c.pass(Role::PrePass); c.pass(Role::Temporal); c.postTemporal(3); c.frame(3);
+ c.begin(); h.list->SetPipelineState(c.pipelines[UINT(Role::Recon)].Get());
+ NrdBridge::OnSetPipeline(h.list.Get(),c.pipelines[UINT(Role::Recon)].Get()); c.bind(1,0); c.bind(5,8); h.list->Dispatch(1,1,1);
+ const auto healthWaitConversion=convertCalls; conversionStaged.store(false); NrdBridge::gBeforeConversionLockForTesting=conversionLockProbe;
+ std::unique_lock healthSerial(NrdBridge::gInjectionMutex);
+ std::thread healthWaiter([&]{NrdBridge::AfterDispatch(h.list.Get());});
+ try { await([]{return conversionStaged.load(std::memory_order_acquire);},"validated conversion stages before a metadata allocation fault while waiting for native serialization"); }
+ catch (...) { healthSerial.unlock(); healthWaiter.join(); NrdBridge::gBeforeConversionLockForTesting=nullptr; throw; }
+ auto faultDestination=c.visible->GetCPUDescriptorHandleForHeapStart(); D3D12_CPU_DESCRIPTOR_HANDLE faultSource {c.cpu.ptr+c.increment}; UINT one=1;
+ h.dev->CopyDescriptorsSimple(1,faultDestination,faultSource,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+ FrameSurvey::gCopyFailureAfterForTesting=0;
+ FrameSurvey::CopyDescriptors(h.dev.Get(),1,&faultDestination,&one,1,&faultSource,&one,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+ healthSerial.unlock(); healthWaiter.join(); NrdBridge::gBeforeConversionLockForTesting=nullptr;
+ need(convertCalls==healthWaitConversion && !NrdBridge::GetStatus().active && NrdBridge::GetStatus().reason.find("unhealthy")!=std::string::npos,"metadata fault during injection mutex wait cancels staged conversion before native work");
+ need(!FrameSurvey::gMetadataHealthy.load() && !FrameSurvey::ResolveComputeTable(h.list.Get(),1,empty) && empty.empty(),"copy allocation fault rejects stale old descriptor metadata while both resources remain alive");
+ need(!FrameSurvey::SeedComputeBindings(h.list.Get(),D3D12Hooks::current),"unhealthy metadata cannot be made eligible by root-state seeding");
+ FrameSurvey::BeginCreationTracking(false);
+ need(!FrameSurvey::gMetadataHealthy.load(),"repeated creation tracking and binding windows cannot clear the device health latch");
+ const auto unhealthyConversion=convertCalls,unhealthyRR=rrCalls; c.frame(3);
+ need(convertCalls==unhealthyConversion && rrCalls==unhealthyRR && !NrdBridge::GetStatus().active && !NrdBridge::gService->cache.Valid(),"unhealthy current-table metadata stops all bridge writes until clean device restart");
  FrameSurvey::Released(c.visible.Get());
  need(!FrameSurvey::ResolveComputeTable(h.list.Get(),1,empty),"descriptor heap release invalidates bindings");
  FrameSurvey::SetBindingWindow(false); need(!FrameSurvey::ResolveComputeTable(h.list.Get(),1,empty),"closed binding window resolves no cached stale copies");
  NrdBridge::Shutdown(); hr(h.list->Close()); h.execute(); h.reset(); h.errors();
+ FrameSurvey::Shutdown();
+ need(FrameSurvey::gMetadataHealthy.load() && !FrameSurvey::gTracking.load(),"clean device shutdown clears failed metadata before another device starts");
+ FrameSurvey::BeginCreationTracking(false);
+ need(FrameSurvey::gMetadataHealthy.load() && FrameSurvey::gTracking.load(),"a fresh device creation registry resumes with healthy metadata");
+ FrameSurvey::Shutdown();
  for(const auto& role:NrdBridge::ShaderRoles) {
   need(role.sha256.size()==64,"all roles use full SHA256"); need(NrdBridge::IdentifyRole(role.sha256)==role.role,"full shader digest identifies exact role");
   need(NrdBridge::IdentifyRole(role.sha256.substr(0,8))==Role::None,"hash prefixes never identify roles");
   std::string altered(role.sha256); altered.back()=altered.back()=='0' ? '1' : '0';
   need(NrdBridge::IdentifyRole(altered)==Role::None,"same prefix with different full hash never identifies a role");
  }
- return {{"descriptor_metadata",metadata},{"cpu_callback_timings",timings},{"conversion_stub_calls",convertCalls},{"motion_stub_calls",motionCalls},{"rr_stub_calls",rrCalls},{"debug_stub_calls",debugCalls},
+ return {{"descriptor_metadata",metadata},{"metadata_allocation_fault_fail_closed",true},{"cpu_callback_timings",timings},{"conversion_stub_calls",convertCalls},{"motion_stub_calls",motionCalls},{"rr_stub_calls",rrCalls},{"debug_stub_calls",debugCalls},
   {"history_resets",{{"conversion",depthResets},{"rr",rrResets}}},{"restore_callback_calls",D3D12Hooks::restores}};
 }
 Bound manifestBinding(const J& row,const J& resource,UINT first) {
@@ -468,13 +511,13 @@ def run():
         (stubs / folder).mkdir(parents=True, exist_ok=True)
     (stubs / 'pch.h').write_text('#pragma once\n#define NOMINMAX\n#include <windows.h>\n#include <filesystem>\n#include <memory>\n#define LOG_INFO(...) ((void)0)\n#define LOG_ERROR(...) ((void)0)\n')
     (stubs / 'Util.h').write_text('#pragma once\n#include <filesystem>\ninline std::filesystem::path g_dllPath;\nnamespace Util { inline std::filesystem::path DllPath() { return g_dllPath; } inline std::filesystem::path ExePath() { return L"cyberpunk2077.exe"; } }\n')
-    (stubs / 'Config.h').write_text('#pragma once\ntemplate<class T> struct FixtureOptional { T value; T value_or_default() const { return value; } };\nstruct Config { FixtureOptional<bool> FfxDenoiserNrdBridge {false}, FfxDenoiserNrdBridgeEnabled {true}; static Config* Instance() { static Config config; return &config; } };\n')
-    (stubs / 'hooks/D3D12_Hooks.h').write_text('#pragma once\nstruct D3D12Hooks { inline static bool tracking=true, canRestore=true; inline static unsigned restores=0; inline static FrameSurvey::ComputeBindings current {}; static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*,FrameSurvey::ComputeBindings& out) noexcept { out=current; return out.root && !out.heaps.empty(); } static void SetRootSignatureTracking(bool enabled) { tracking=enabled; } static bool RootSignatureTrackingEnabled() { return tracking; } static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*) { return canRestore; } static void RestoreRoot(ID3D12GraphicsCommandList*) { ++restores; } };\n')
+    (stubs / 'Config.h').write_text('#pragma once\ntemplate<class T> struct FixtureOptional { T value; unsigned volatileWrites=0; bool volatileValue=false; T value_or_default() const { return value; } void set_volatile_value(const T& next) { value=next; volatileValue=true; ++volatileWrites; } };\nstruct Config { FixtureOptional<bool> FfxDenoiserNrdBridge {false}, FfxDenoiserNrdBridgeEnabled {true}, RestoreComputeSignature {false}, ExtendedStateRestore {false}; static Config* Instance() { static Config config; return &config; } };\n')
+    (stubs / 'hooks/D3D12_Hooks.h').write_text('#pragma once\nstruct D3D12Hooks { inline static bool tracking=true, canRestore=true; inline static unsigned restores=0; inline static FrameSurvey::ComputeBindings current {}; static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*,FrameSurvey::ComputeBindings& out) noexcept { out=current; return out.root && !out.heaps.empty(); } static void SetRootSignatureTracking(bool enabled) { tracking=enabled; } static bool RootSignatureTrackingEnabled() { return tracking; } static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*) { return canRestore && Config::Instance()->RestoreComputeSignature.value_or_default() && Config::Instance()->ExtendedStateRestore.value_or_default(); } static void RestoreRoot(ID3D12GraphicsCommandList*) { ++restores; } };\n')
     (stubs / 'hooks/Streamline_Hooks.h').write_text('#pragma once\n#include <sl_consts.h>\nstruct SLConstantsSnapshot { sl::Constants constants {}; uint32_t frameIndex=UINT32_MAX, viewport=UINT32_MAX; };\nstruct StreamlineHooks { inline static uint32_t frame=0; static SLConstantsSnapshot getSLConstantsSnapshot() { SLConstantsSnapshot result; result.frameIndex=frame; return result; } };\n')
     (stubs / 'inputs/NVNGX_DLSS.h').write_text('#pragma once\n#include <nvsdk_ngx.h>\n')
     (stubs / 'proxies/D3D12_Proxy.h').write_text('#pragma once\n#include <d3d12.h>\nnamespace D3d12Proxy { inline auto D3D12CreateVersionedRootSignatureDeserializer_() { return &D3D12CreateVersionedRootSignatureDeserializer; } inline auto D3D12SerializeVersionedRootSignature_() { return &D3D12SerializeVersionedRootSignature; } }\n')
     (stubs / 'resource_tracking/ResTrack_dx12.h').write_text('#pragma once\n#include <functional>\n#include <unordered_map>\nstruct ResTrack_Dx12 { struct Lease { std::shared_ptr<void> payload; std::function<void(ID3D12CommandQueue*)> callback; }; inline static std::unordered_map<ID3D12GraphicsCommandList*,std::vector<Lease>> leases; inline static bool retentionAvailable=true; static bool RetainComputeDispatch(ID3D12Device*,ID3D12GraphicsCommandList* list,const std::shared_ptr<void>& payload,std::function<void(ID3D12CommandQueue*)> callback={}) { if(!retentionAvailable) return false; leases[list].push_back({payload,std::move(callback)}); return true; } static void SubmitForTesting(ID3D12GraphicsCommandList* list) { for(auto& lease:leases[list]) if(lease.callback) lease.callback(nullptr); } };\n')
-    host = survey_fixture.CPP.split('// GetStatus()')[0]
+    host = '#define FSRD_NRD_BRIDGE_TEST\n' + survey_fixture.CPP.split('// GetStatus()')[0]
     rr_header = (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h').read_text()
     camera_stub = 'const std::string& RRWrapper::CameraConventionDescription() const noexcept { static const std::string text; return text; }' if 'CameraConventionDescription' in rr_header else ''
     pass_header = (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgePass_Dx12.h').read_text()
