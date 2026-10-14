@@ -11,6 +11,8 @@
 #include <stdexcept>
 #include <source_location>
 #include <shared_mutex>
+#include <bit>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include "__ROOT__/OptiScaler/hooks/Hook_Utils.h"
@@ -205,25 +207,29 @@ struct Host {
 };
 const char titleShader[]=R"(
 cbuffer Root:register(b0) { uint C0,C1,C2,P3,P4,C5,P6,P7; };
-cbuffer BufferValue:register(b2) { uint CB; };
-cbuffer Extent:register(b6) { uint Width,Height; };
+cbuffer BufferValue:register(b6) { uint4 TitleWords[96]; };
+cbuffer Extent:register(b8) { uint Width,Height; };
 Texture2D<float4> S0:register(t0); Texture2D<float4> S1:register(t1);
 Texture2D<float4> S2:register(t2);
 SamplerState Samp:register(s0);
 StructuredBuffer<uint> RootSRV:register(t0,space1);
 RWStructuredBuffer<uint> Checks:register(u0,space1);
 RWTexture2D<float4> U0:register(u0); RWTexture2D<float4> U1:register(u1);
+float3 ConsumerRGB(float3 c) {
+ if(TitleWords[75].w==0) return c;
+ return max(float3(c.x-c.z+c.y,c.x+c.z,c.x-c.z-c.y),0);
+}
 [numthreads(8,8,1)] void main(uint3 p:SV_DispatchThreadID) {
  if(any(p.xy>=uint2(Width,Height))) return;
  if(ROLE==2) { U0[p.xy]=S0.Load(int3(p.xy,0)); U1[p.xy]=S1.Load(int3(p.xy,0)); }
- if(ROLE==9) { U0[p.xy]=float4(.75,.5,.25,0); U1[p.xy]=float4(.625,.375,.125,0); }
+ if(ROLE==9) { U0[p.xy]=float4(.75,.5,.25,9); U1[p.xy]=float4(.625,.375,.125,11); }
  if(all(p.xy==0)) {
   uint base=ROLE*16; Checks[base+0]=C0; Checks[base+1]=C1; Checks[base+2]=C2; Checks[base+3]=C5;
-  Checks[base+4]=CB; Checks[base+5]=RootSRV[0]; Checks[base+6]=Width; Checks[base+7]=Height;
+  Checks[base+4]=TitleWords[0].x; Checks[base+5]=RootSRV[0]; Checks[base+6]=Width; Checks[base+7]=Height;
   Checks[base+8]=(uint)round(S0.Load(int3(0,0,0)).x*65536);
   Checks[base+9]=ROLE; Checks[base+10]=(uint)round(S0.SampleLevel(Samp,float2(.5/Width,.5/Height),0).x*65536);
   InterlockedAdd(Checks[base+11],1);
-  if(ROLE==10) { Checks[base+12]=asuint(U0[uint2(0,0)].x); Checks[base+13]=asuint(U1[uint2(0,0)].x); }
+  if(ROLE==10) { Checks[base+12]=asuint(ConsumerRGB(U0[uint2(0,0)].rgb).x); Checks[base+13]=asuint(ConsumerRGB(U1[uint2(0,0)].rgb).x); Checks[base+15]=TitleWords[75].w; }
   if(ROLE==4) Checks[base+14]=asuint(S2.Load(int3(0,0,0)).x);
  }
 })";
@@ -238,7 +244,7 @@ struct Readback {
  }
 };
 struct Title {
- Host& h; UINT width,height,increment=0; bool registered;
+ Host& h; UINT width,height,increment=0,codecBits=0; bool registered;
  ComPtr<ID3D12RootSignature> root; std::array<ComPtr<ID3D12PipelineState>,11> pso;
  std::array<ComPtr<ID3D12Resource>,13> tex;
  std::array<std::vector<uint16_t>,2> raw;
@@ -249,11 +255,11 @@ struct Title {
   D3D12_DESCRIPTOR_RANGE ranges[3]={{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,8,0,0,0},{D3D12_DESCRIPTOR_RANGE_TYPE_UAV,5,0,0,0},{D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,1,0,0,0}};
   D3D12_ROOT_PARAMETER p[8]{}; p[0].ParameterType=D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS; p[0].Constants={0,0,8};
   p[1].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE; p[1].DescriptorTable={1,&ranges[0]};
-  p[2].ParameterType=D3D12_ROOT_PARAMETER_TYPE_CBV; p[2].Descriptor={2,0};
+  p[2].ParameterType=D3D12_ROOT_PARAMETER_TYPE_CBV; p[2].Descriptor={6,0};
   p[3].ParameterType=D3D12_ROOT_PARAMETER_TYPE_SRV; p[3].Descriptor={0,1};
   p[4].ParameterType=D3D12_ROOT_PARAMETER_TYPE_UAV; p[4].Descriptor={0,1};
   p[5].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE; p[5].DescriptorTable={1,&ranges[1]};
-  p[6].ParameterType=D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS; p[6].Constants={6,0,2};
+  p[6].ParameterType=D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS; p[6].Constants={8,0,2};
   p[7].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE; p[7].DescriptorTable={1,&ranges[2]};
   D3D12_ROOT_SIGNATURE_DESC desc{8,p,0,nullptr,D3D12_ROOT_SIGNATURE_FLAG_NONE}; ComPtr<ID3DBlob> blob,error;
   hr(D3D12SerializeRootSignature(&desc,D3D_ROOT_SIGNATURE_VERSION_1,&blob,&error));
@@ -268,7 +274,10 @@ struct Title {
    hr(h.device->CreateComputePipelineState(&pd,IID_PPV_ARGS(&pso[role])));
    if(registered) { FrameSurvey::PipelineCreated(pso[role].Get(),pd); NrdBridge::RegisterPipelineRoleForTesting(pso[role].Get(),Role(role)); }
   }
-  cb=h.upload(55); rootSrv=h.upload(66); checksum=h.buffer(1024,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,true);
+  cb=h.upload(0,1536); void* constants=nullptr; hr(cb->Map(0,nullptr,&constants));
+  static_cast<UINT*>(constants)[0]=55; cb->Unmap(0,nullptr);
+  if(registered) FrameSurvey::ResourceCreated(cb.Get(),D3D12_RESOURCE_STATE_GENERIC_READ);
+  rootSrv=h.upload(66); checksum=h.buffer(1024,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,true);
   createTextures(); D3D12_DESCRIPTOR_HEAP_DESC hd{}; hd.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; hd.NumDescriptors=64;
   hr(h.device->CreateDescriptorHeap(&hd,IID_PPV_ARGS(&staging))); hd.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
   hr(h.device->CreateDescriptorHeap(&hd,IID_PPV_ARGS(&visible))); hd.Type=D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER; hd.NumDescriptors=1;
@@ -330,6 +339,14 @@ struct Title {
    h.device->CopyDescriptors(1,&dst,&count,1,&src,&count,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
    if(registered) FrameSurvey::CopyDescriptors(h.device.Get(),1,&dst,&count,1,&src,&count,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
   }
+ }
+ void setCodec(UINT bits) {
+  void* mapped=nullptr; hr(cb->Map(0,nullptr,&mapped)); static_cast<UINT*>(mapped)[303]=bits; cb->Unmap(0,nullptr); codecBits=bits;
+ }
+ std::array<float,3> decode(const uint16_t* value) const {
+  std::array<float,3> c; for(UINT i=0;i<3;++i) c[i]=PackedVector::XMConvertHalfToFloat(value[i]);
+  if(codecBits) c={std::max(c[0]-c[2]+c[1],0.f),std::max(c[0]+c[2],0.f),std::max(c[0]-c[2]-c[1],0.f)};
+  return c;
  }
  void begin(UINT frame,bool tagMotion=true) {
   StreamlineHooks::snapshot=camera(frame,width,height);
@@ -403,7 +420,8 @@ struct Title {
   auto spec=readback(7),diff=readback(8); auto read=h.buffer(1024,D3D12_HEAP_TYPE_READBACK,D3D12_RESOURCE_STATE_COPY_DEST);
   h.barrier(checksum.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COPY_SOURCE);
   h.list->CopyBufferRegion(read.Get(),0,checksum.Get(),0,1024); h.barrier(checksum.Get(),D3D12_RESOURCE_STATE_COPY_SOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-  h.submit(); void* data=nullptr; hr(read->Map(0,nullptr,&data)); const auto* words=static_cast<const UINT*>(data);
+  h.submit(); auto result=std::array<std::vector<uint16_t>,2>{spec.signal(),diff.signal()};
+  void* data=nullptr; hr(read->Map(0,nullptr,&data)); const auto* words=static_cast<const UINT*>(data);
   for(UINT role=1;role<11;++role) {
    const std::array<UINT,11> wanted={11,22,33,40,55,66,width,height,2048,role,2048};
    need(std::equal(wanted.begin(),wanted.end(),words+role*16),"title GPU sees exact sparse constants, CBV, root SRV/UAV, descriptor and sampler heaps/PSO");
@@ -411,11 +429,13 @@ struct Title {
    need(words[role*16+11]==count,"each requested title shader executes exactly once, including distinct post-conversion probe");
    if(role==4) need(words[role*16+14]==0,"Temporal and post-motion probe read exactly the current MV descriptor at p1+2");
   }
-  read->Unmap(0,nullptr); auto result=std::array<std::vector<uint16_t>,2>{spec.signal(),diff.signal()}; h.reset(); return result;
+  need(words[10*16+12]==std::bit_cast<UINT>(decode(result[1].data())[0]) && words[10*16+13]==std::bit_cast<UINT>(decode(result[0].data())[0]),"native Consumer reads and decodes the actual post-injection title outputs");
+  need(words[10*16+15]==codecBits,"Consumer observes the GPU execution-time native b6 encoding flag");
+  read->Unmap(0,nullptr); h.reset(); return result;
  }
  bool sentinel(const std::array<std::vector<uint16_t>,2>& data) const {
   for(UINT signal=0;signal<2;++signal) {
-   const std::array<float,4> values=signal==0?std::array<float,4>{.75f,.5f,.25f,0}:std::array<float,4>{.625f,.375f,.125f,0};
+   const std::array<float,4> values=signal==0?std::array<float,4>{.75f,.5f,.25f,9}:std::array<float,4>{.625f,.375f,.125f,11};
    for(size_t i=0;i<data[signal].size();++i) if(data[signal][i]!=PackedVector::XMConvertFloatToHalf(values[i%4])) return false;
   }
   return true;
@@ -429,15 +449,16 @@ struct Title {
   return {{"exact_rgb",rgb},{"alpha_zero",alpha},{"rgb_values_checked",uint64_t(width)*height*6}};
  }
  J rrChecks(const std::array<std::vector<uint16_t>,2>& data) const {
-  UINT64 finite=0,total=0; double sum=0; bool nonnegative=true;
-  for(const auto& signal:data) for(size_t i=0;i<signal.size();++i) {
-   const float value=PackedVector::XMConvertHalfToFloat(signal[i]); ++total; if(std::isfinite(value)) ++finite;
-   if(i%4!=3) { sum+=value; nonnegative &= value>=0 && value<2; }
+  UINT64 finite=0,total=0; double sum=0; bool nonnegative=true,alphaNative=true;
+  for(UINT id=0;id<2;++id) for(size_t i=0;i<data[id].size();i+=4) {
+   for(UINT c=0;c<4;++c) { ++total; if(std::isfinite(PackedVector::XMConvertHalfToFloat(data[id][i+c]))) ++finite; }
+   for(const auto value:decode(data[id].data()+i)) { sum+=value; nonnegative &= value>=0 && value<2; }
+   alphaNative &= data[id][i+3]==PackedVector::XMConvertFloatToHalf(id==0?9.f:11.f);
   }
   const auto mean=sum/(uint64_t(width)*height*6);
-  need(finite==total,"real signed RR output is entirely finite"); need(nonnegative,"synthetic low-radiance RR RGB remains in plausible nonnegative bounds");
+  need(finite==total,"real signed RR output is entirely finite"); need(alphaNative,"real RR RGB commit preserves every native title alpha bit"); need(nonnegative,"synthetic low-radiance RR RGB remains in plausible nonnegative bounds");
   need(mean>.005 && mean<.25,"real RR synthetic mean remains plausible"); need(!sentinel(data),"real RR overwrites native NRD sentinels");
-  return {{"finite_values",finite},{"total_values",total},{"mean_rgb",mean},{"rgb_minimum_bound",0},{"rgb_maximum_bound",2}};
+  return {{"finite_values",finite},{"total_values",total},{"mean_rgb",mean},{"rgb_minimum_bound",0},{"rgb_maximum_bound",2},{"native_alpha_preserved",alphaNative},{"gpu_encoding_flag",codecBits}};
  }
 };
 unsigned internalCalls() { unsigned count=0; for(const auto& [_,value]:detourDispatches) count+=value[1]; return count; }
