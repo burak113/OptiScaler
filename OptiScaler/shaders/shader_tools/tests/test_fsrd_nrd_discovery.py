@@ -310,6 +310,9 @@ J discoveryTests(Host& h) {
  StreamlineHooks::frame=40; c.frame(3);
  need(convertCalls==beforeFailedConversion && !NrdBridge::GetStatus().active && !NrdBridge::gService->cache.Valid(),"missing state restore prevents conversion and invalidates discovery");
  D3D12Hooks::canRestore=true;
+ const auto cooldownFailure=NrdBridge::gService->failures,cooldownConversion=convertCalls;
+ for(UINT cooldownFrame=0;cooldownFrame<5;++cooldownFrame) c.frame(3);
+ need(NrdBridge::gService->failures==cooldownFailure && convertCalls==cooldownConversion && !FrameSurvey::BindingWindow(),"ordinary NRD frames during retry cooldown consume no additional failures or conversion work");
  for(UINT attempt=0;attempt<2;++attempt) {
   for(UINT present=0;present<60;++present) NrdBridge::OnPresent();
   need(FrameSurvey::BindingWindow(),"bounded provider failure retry opens discovery window");
