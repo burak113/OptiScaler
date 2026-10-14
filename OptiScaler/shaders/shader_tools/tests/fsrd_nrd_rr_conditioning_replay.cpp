@@ -6,6 +6,7 @@
 #undef main
 #include "radiance_gain_shader.h"
 #include <iomanip>
+#include <map>
 
 namespace NrdConditioningResearch
 {
@@ -169,6 +170,48 @@ void stagedHitIdentity(const Capture& input,const Capture& staged)
     need(matched==before.size()/8,"actual signed SDK preserves every input hit-alpha bit in owned staged output");
     need(valid==before.size()/8,"every shared active signal hit/metric alpha is finite and strictly positive");
 }
+struct AlphaArea
+{
+    uint64_t samples=0,exact=0,finite=0,zero=0,negative=0;
+    double sum=0,minimum=std::numeric_limits<double>::infinity(),maximum=-std::numeric_limits<double>::infinity();
+    uint32_t mismatchX=UINT32_MAX,mismatchY=UINT32_MAX;
+    uint16_t firstInput=0,firstOutput=0;
+    std::map<uint16_t,uint64_t> histogram;
+    void add(uint16_t source,uint16_t target,uint32_t x,uint32_t y)
+    {
+        ++samples;exact+=source==target;++histogram[target];
+        const float value=PackedVector::XMConvertHalfToFloat(target);
+        if(std::isfinite(value)){++finite;sum+=value;minimum=std::min(minimum,double(value));maximum=std::max(maximum,double(value));}
+        zero+=(target&0x7fffu)==0;negative+=std::isfinite(value) && value<0;
+        if(source!=target && mismatchX==UINT32_MAX){mismatchX=x;mismatchY=y;firstInput=source;firstOutput=target;}
+    }
+    void write(std::ostream& out) const
+    {
+        out<<"{\"samples\":"<<samples<<",\"exact_input_words\":"<<exact<<",\"mismatched_words\":"<<samples-exact
+            <<",\"finite\":"<<finite<<",\"zero\":"<<zero<<",\"negative\":"<<negative<<",\"mean\":";
+        if(finite)out<<sum/finite;else out<<"null";
+        out<<",\"minimum\":";if(finite)out<<minimum;else out<<"null";
+        out<<",\"maximum\":";if(finite)out<<maximum;else out<<"null";
+        out<<",\"first_mismatch_xy\":["<<mismatchX<<','<<mismatchY<<"],\"first_input_word\":"<<firstInput
+            <<",\"first_output_word\":"<<firstOutput<<",\"histogram\":[";
+        unsigned i=0;for(const auto& [word,count]:histogram){if(i++)out<<',';out<<'['<<word<<','<<count<<']';}out<<"]}";
+    }
+};
+void stagedAlphaDiagnostic(const Capture& source,const Capture& target,std::ostream& out)
+{
+    const auto before=source.bytes(),after=target.bytes();need(before.size()==after.size(),"stage-alpha diagnostic exact buffer extent");
+    AlphaArea all,interior,padding;
+    for(uint32_t y=0;y<source.height;++y)for(uint32_t x=0;x<source.width;++x)
+    {
+        const auto offset=(size_t(y)*source.width+x)*8+6;uint16_t a,b;
+        std::memcpy(&a,before.data()+offset,2);std::memcpy(&b,after.data()+offset,2);
+        all.add(a,b,x,y);
+        if(x>=16 && x<source.width-16 && y>=16 && y<source.height-16)interior.add(a,b,x,y);else padding.add(a,b,x,y);
+    }
+    out<<"{\"all\":";all.write(out);out<<",\"interior\":";interior.write(out);out<<",\"excluded_padding\":";padding.write(out);out<<'}';
+    std::cout<<"stage_alpha_diag exact="<<all.exact<<" mismatched="<<all.samples-all.exact<<" finite="<<all.finite
+        <<" first_xy="<<all.mismatchX<<','<<all.mismatchY<<" first_input_word="<<all.firstInput<<" first_output_word="<<all.firstOutput<<'\n';
+}
 std::array<uint32_t,8> floatWords(const std::array<float,8>& source)
 {std::array<uint32_t,8> words{};std::memcpy(words.data(),source.data(),sizeof(words));return words;}
 void writeWords(std::ostream& out,const std::array<float,8>& values)
@@ -331,16 +374,20 @@ int run(int argc,char** argv)
             need(FfxApiProxy::destroys==1 && FfxApiProxy::live.empty(),"real context destroys exactly once only after final GPU completion");
         }
         else host.submit();
-        originalSpec.exact(frameDir/"spec.bin");originalDiff.exact(frameDir/"diff.bin");
-        halfGainIdentity(originalSpec,conditionedSpec,fixedGain);halfGainIdentity(originalDiff,conditionedDiff,fixedGain);
-        stagedHitIdentity(conditionedSpec,stagedSpec);stagedHitIdentity(conditionedDiff,stagedDiff);
-        halfGainIdentity(committedSpec,finalSpec,1.f/fixedGain);halfGainIdentity(committedDiff,finalDiff,1.f/fixedGain);
+        // Preserve all completed raw evidence before any diagnostic assertion
+        // can terminate this process. No captured failure artifact is replaced.
         for(unsigned guide=0;guide<5;++guide)
-        {guides[guide]->exact(frameDir/(std::string(guideNames[guide])+".bin"));guides[guide]->save(outputDir/(std::string("guide_")+guideNames[guide]+".bin"));}
+            guides[guide]->save(outputDir/(std::string("guide_")+guideNames[guide]+".bin"));
         conditionedSpec.save(outputDir/"conditioned_spec.bin");conditionedDiff.save(outputDir/"conditioned_diff.bin");
         stagedSpec.save(outputDir/"rr_stage_spec.bin");stagedDiff.save(outputDir/"rr_stage_diff.bin");
         committedSpec.save(outputDir/"rr_committed_spec.bin");committedDiff.save(outputDir/"rr_committed_diff.bin");
         finalSpec.save(outputDir/"spec.bin");finalDiff.save(outputDir/"diff.bin");
+        consumerSpecData.save(outputDir/"consumer_spec.bin");consumerDiffData.save(outputDir/"consumer_diff.bin");
+        host.checkDebug();
+        originalSpec.exact(frameDir/"spec.bin");originalDiff.exact(frameDir/"diff.bin");
+        halfGainIdentity(originalSpec,conditionedSpec,fixedGain);halfGainIdentity(originalDiff,conditionedDiff,fixedGain);
+        halfGainIdentity(committedSpec,finalSpec,1.f/fixedGain);halfGainIdentity(committedDiff,finalDiff,1.f/fixedGain);
+        for(unsigned guide=0;guide<5;++guide)guides[guide]->exact(frameDir/(std::string(guideNames[guide])+".bin"));
         committedSpecCheck.verify(outputDir/"checked_committed_spec.rgba16f",width,height);
         committedDiffCheck.verify(outputDir/"checked_committed_diff.rgba16f",width,height);
         finalSpecCheck.verify(outputDir/"checked_final_spec.rgba16f",width,height);
@@ -348,7 +395,25 @@ int run(int argc,char** argv)
         consumerSpec.consumerGpuRoundtrip(finalSpecCheck,finalSpecCheck,width,height,false);
         consumerDiff.consumerGpuRoundtrip(finalDiffCheck,finalDiffCheck,width,height,false);
         need(consumer.Flag()==0,"actual Consumer executes RGB branch after reciprocal inverse with unity exposure");
-        consumerSpecData.save(outputDir/"consumer_spec.bin");consumerDiffData.save(outputDir/"consumer_diff.bin");
+        std::ofstream diagnostic(outputDir/"stage-alpha-diagnostic.json");diagnostic<<std::setprecision(17);
+        diagnostic<<"{\"frame\":"<<pose.frame<<",\"route\":\""<<(indirect?"id":"dd")<<"\",\"gain\":"<<fixedGain
+            <<",\"signal_flags\":"<<FfxApiProxy::lastCreate.signalFlags<<",\"render_rect\":[0,0,"
+            <<FfxApiProxy::lastDispatch.renderSize.width<<','<<FfxApiProxy::lastDispatch.renderSize.height
+            <<"],\"context_max_render\":["<<FfxApiProxy::lastCreate.maxRenderSize.width<<','<<FfxApiProxy::lastCreate.maxRenderSize.height
+            <<"],\"spec_output_extent\":["<<FfxApiProxy::lastSpecular.signal.output.description.width<<','<<FfxApiProxy::lastSpecular.signal.output.description.height
+            <<"],\"diff_output_extent\":["<<FfxApiProxy::lastDiffuse.signal.output.description.width<<','<<FfxApiProxy::lastDiffuse.signal.output.description.height
+            <<"],\"checkerboard_flags\":"<<FfxApiProxy::lastCreate.checkerboardSignalFlags
+            <<",\"linear_depth_bounds\":["<<FfxApiProxy::lastDispatch.linearDepthBounds.min<<','<<FfxApiProxy::lastDispatch.linearDepthBounds.max
+            <<"],\"core_input_gain_guide_opaque_alpha_consumer_checks_passed\":true,\"debug_errors\":0,\"debug_warnings\":0"
+            <<",\"creates\":"<<FfxApiProxy::creates<<",\"destroys\":"<<FfxApiProxy::destroys
+            <<",\"public_sdk_contract\":\"ID/IS A output Preserved (or input if passthrough); diagnostic tests input-word identity interpretation\""
+            <<",\"private_sdk_dispatch_rects\":\"not observable through public dispatch adapter\",\"spec\":";
+        stagedAlphaDiagnostic(conditionedSpec,stagedSpec,diagnostic);diagnostic<<",\"diff\":";
+        stagedAlphaDiagnostic(conditionedDiff,stagedDiff,diagnostic);diagnostic<<"}\n";diagnostic.close();
+        need(bool(diagnostic),"stage-alpha diagnostic evidence write completed before strict assertion");
+        // Keep the original strict interpretation in this focused diagnostic;
+        // any mismatch remains a negative result until independently reviewed.
+        stagedHitIdentity(conditionedSpec,stagedSpec);stagedHitIdentity(conditionedDiff,stagedDiff);
         host.reset();
         UINT64* ticks=nullptr;hr(timing->Map(0,nullptr,reinterpret_cast<void**>(&ticks)));
         for(unsigned n=1;n<5;++n)need(ticks[n]>=ticks[n-1],"ordered GPU timestamp sequence");
