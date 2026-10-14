@@ -33,6 +33,9 @@ void RecordTestProviderDebugWrites(ID3D12GraphicsCommandList*, ID3D12Resource*, 
 struct FfxApiProxy
 {
     static inline bool real = false, initAvailable = true, rejectDispatch = false;
+    // Offline research only: select a physically fresh wrapper/context before
+    // changing this flag. Every production/baseline fixture leaves it false.
+    static inline bool useIndirectDiffuseResearch = false;
     static inline bool recordPartialWrites = false;
     static inline uint64_t rejectConfigureKey = 0;
     static inline std::array<float,4> mockSpec {2.5f,3.75f,4.25f,5.5f}, mockDiff {6.5f,7.75f,8.25f,9.5f};
@@ -62,6 +65,11 @@ struct FfxApiProxy
     static ffxReturnCode_t D3D12_CreateContext(ffxContext* context, ffxCreateContextDescHeader* header,
                                              const ffxAllocationCallbacks* callbacks)
     {
+        if (useIndirectDiffuseResearch)
+        {
+            auto& create=*reinterpret_cast<ffxCreateContextDescDenoiser*>(header);
+            create.signalFlags=(create.signalFlags&~FFX_DENOISER_SIGNAL_DIRECT_DIFFUSE)|FFX_DENOISER_SIGNAL_INDIRECT_DIFFUSE;
+        }
         lastCreate = *reinterpret_cast<ffxCreateContextDescDenoiser*>(header);
         auto* backend = reinterpret_cast<ffxCreateBackendDX12Desc*>(header->pNext);
         lastOverride = reinterpret_cast<ffxOverrideVersion*>(backend->header.pNext)->versionId;
@@ -154,6 +162,18 @@ struct FfxApiProxy
         lastDispatch = *reinterpret_cast<const ffxDispatchDescDenoiser*>(header);
         lastDiffuse = *reinterpret_cast<const ffxDispatchDescDenoiserDirectDiffuse*>(header->pNext);
         lastSpecular = *reinterpret_cast<const ffxDispatchDescDenoiserIndirectSpecular*>(lastDiffuse.header.pNext);
+        static_assert(sizeof(ffxDispatchDescDenoiserIndirectDiffuse)==sizeof(ffxDispatchDescDenoiserDirectDiffuse));
+        static_assert(offsetof(ffxDispatchDescDenoiserIndirectDiffuse,signal)==offsetof(ffxDispatchDescDenoiserDirectDiffuse,signal));
+        ffxDispatchDescDenoiser forwarded=lastDispatch;
+        ffxDispatchDescDenoiserIndirectDiffuse researchDiffuse{};
+        if(useIndirectDiffuseResearch)
+        {
+            researchDiffuse.header.type=FFX_API_DISPATCH_DESC_TYPE_DENOISER_INDIRECT_DIFFUSE;
+            researchDiffuse.header.pNext=lastDiffuse.header.pNext;
+            researchDiffuse.signal=lastDiffuse.signal;
+            forwarded.header.pNext=&researchDiffuse.header;
+            lastDiffuse.header.type=researchDiffuse.header.type;
+        }
         lastDebug = {};
         if (lastSpecular.header.pNext)
         {
@@ -167,7 +187,7 @@ struct FfxApiProxy
             static_cast<ID3D12Resource*>(lastSpecular.signal.output.resource), static_cast<ID3D12Resource*>(lastDiffuse.signal.output.resource));
         if (rejectDispatch) return FFX_API_RETURN_ERROR_RUNTIME_ERROR;
         if (real && dispatches < 4) std::fprintf(stderr,"real dispatch begin attempt=%u\n",dispatches);
-        const auto result = real ? dispatchFunction(context, header) : FFX_API_RETURN_OK;
+        const auto result = real ? dispatchFunction(context, useIndirectDiffuseResearch?&forwarded.header:header) : FFX_API_RETURN_OK;
         if (real && dispatches < 4) std::fprintf(stderr,"real dispatch end code=%u\n",unsigned(result));
         return result;
     }

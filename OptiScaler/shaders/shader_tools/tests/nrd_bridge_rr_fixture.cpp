@@ -661,6 +661,7 @@ void runtimeSettingsChecks(Host& host)
     };
     need(wrapper.Configure({},error),"lazy provider-default settings configure");step(true);
     const auto defaults=wrapper.GetSettingsState().defaults;
+    std::cout<<"runtime_settings_defaults values=";for(auto value:defaults)std::cout<<value<<',';std::cout<<'\n';
     need(wrapper.GetSettingsState().ready && wrapper.GetSettingsState().effective==defaults,"queried provider defaults are effective baseline");
     RRSettings explicitDefaults;explicitDefaults.overrideMask=0x3fu;explicitDefaults.values=defaults;
     auto calls=FfxApiProxy::configures;
