@@ -27,6 +27,22 @@ cbuffer CopyConstants : register(b0)
 }
 cbuffer TitleConsumer : register(b6) { uint4 TitleConsumerConstants[76]; }
 
+uint DiagnosticStoredHalfBits(float value)
+{
+    // Diagnostic colors are finite and clamped to [0,1]. Reproduce their
+    // existing RGB typed-store truncation before optional YCoCg coding.
+    const uint bits = asuint(value), sign = (bits >> 16u) & 0x8000u;
+    const uint magnitude = bits & 0x7fffffffu;
+    if (magnitude >= 0x38800000u) return sign | ((magnitude >> 13u) - 0x1c000u);
+    const uint exponent = magnitude >> 23u;
+    if (exponent < 103u) return sign;
+    return sign | (((magnitude & 0x7fffffu) | 0x800000u) >> (126u - exponent));
+}
+float3 DiagnosticStoredRgb(float3 rgb)
+{
+    return f16tof32(uint3(DiagnosticStoredHalfBits(rgb.x), DiagnosticStoredHalfBits(rgb.y), DiagnosticStoredHalfBits(rgb.z)));
+}
+
 [RootSignature(MainRS)]
 [numthreads(8, 8, 1)]
 void CSMain(uint3 tid : SV_DispatchThreadID)
@@ -49,6 +65,11 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
              : band == 1u ? float3(saturate(0.5f + motion.xy * float2(RenderSize) / 32.0f),
                                      saturate(0.5f + motion.z / 32.0f))
              : InDiffAlbedo[p].rgb;
+        if (encoding != 0u)
+        {
+            spec = DiagnosticStoredRgb(spec);
+            diff = DiagnosticStoredRgb(diff);
+        }
     }
     // Diagnostic views write zero alpha; production RR preserves the native title payload.
     OutSpec[p] = float4(EncodeNrdSignal(spec, encoding), 0.0f);
