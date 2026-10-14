@@ -33,6 +33,7 @@ struct FfxApiProxy
 {
     static inline bool real = false, initAvailable = true, rejectDispatch = false;
     static inline bool recordPartialWrites = false;
+    static inline std::array<float,4> mockSpec {2.5f,3.75f,4.25f,5.5f}, mockDiff {6.5f,7.75f,8.25f,9.5f};
     static inline uint64_t providerCount = 1;
     static inline const char* providerName = "AMD FSR Denoiser v1.2.0";
     static inline unsigned creates = 0, destroys = 0, dispatches = 0, defaults = 0, configures = 0;
