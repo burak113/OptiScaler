@@ -39,6 +39,8 @@ CPP = r'''
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
+__INDEX_HEADER__
 #include <vector>
 #define LOG_DEBUG(...) ((void)0)
 #define LOG_ERROR(...) ((void)0)
@@ -73,11 +75,14 @@ __MIRROR__
 struct BoundConstantBuffer {ID3D12Resource* resource=nullptr;uint64_t address=0,offset=0,size=0,resourceGeneration=0;};
 struct Resource{uint64_t id=0,va=0;ID3D12Resource* object=nullptr;D3D12_RESOURCE_DESC desc{};std::set<uint64_t> handles;};
 struct ViewInfo{ID3D12Resource* object=nullptr;uint64_t resource=0;uint32_t kind=0,format=0,subresource=0;bool snapshotSupported=false;uint64_t descriptorCpu=0,rootVa=0,constantBytes=0,descriptorHeap=0;bool heapKnown=false;};
-struct Heap{ID3D12DescriptorHeap* object=nullptr;};
+struct Heap{ID3D12DescriptorHeap* object=nullptr;std::set<uint64_t> views;};
 std::unordered_map<ID3D12Resource*,Resource> gResources;
 std::unordered_map<uint64_t,ViewInfo> gViews;
+std::unordered_map<ID3D12DescriptorHeap*,Heap> gHeaps;
+__INDEX_DECL__
 std::mutex gLifetimeMutex;
-Heap* HeapAtCpu(uint64_t){static Heap heap{reinterpret_cast<ID3D12DescriptorHeap*>(5)};return &heap;}
+Heap* HeapAtCpu(uint64_t){auto* key=reinterpret_cast<ID3D12DescriptorHeap*>(5);auto& heap=gHeaps[key];heap.object=key;return &heap;}
+__VIEW_INDICES__
 __BUFFER_RESOLVE__
 __MIRROR_CALLBACKS__
 __CBV_VIEW__
@@ -181,7 +186,7 @@ struct ReflexHooks{static void setDlssgFrameCount(int){}};
 __CREATE_HELPER__
 __EVALUATE_HELPER__
 __EVALUATE_EXPORT__
-void resetEvidence(){nativePso=nativeDispatch=nativeCbv=nativeRoot=nativeHeaps=rootWrites=passes=bridgeCallbacks=scopeWork=0;FrameSurvey::gMirror.clear();FrameSurvey::gViews.clear();order.clear();}
+void resetEvidence(){nativePso=nativeDispatch=nativeCbv=nativeRoot=nativeHeaps=rootWrites=passes=bridgeCallbacks=scopeWork=0;FrameSurvey::gMirror.clear();__MIRROR_INDEX_CLEAR__for(auto& [key,resource]:FrameSurvey::gResources)resource.handles.clear();for(auto& [key,heap]:FrameSurvey::gHeaps)heap.views.clear();FrameSurvey::gViews.clear();order.clear();}
 void checkOwned(const char* message){
  need(scopeWork>0,message);need(nativePso==scopeWork&&nativeDispatch==scopeWork&&nativeCbv==scopeWork&&nativeRoot==scopeWork&&nativeHeaps==scopeWork,"each actual owned wrapper forwards exactly once");
  need(FrameSurvey::gMirror.empty()&&FrameSurvey::gViews.empty()&&passes==0&&bridgeCallbacks==0&&rootWrites==0,"owned recording leaves metadata/bridge/root snapshots untouched");
@@ -189,7 +194,7 @@ void checkOwned(const char* message){
 void checkUnwound(){need(!FrameSurvey::Internal()&&D3D12Hooks::RootSignatureTrackingEnabled(),"both production TLS guards restore external recording");}
 int main()try{
  FrameSurvey::Resource resource;resource.id=1;resource.va=0x10000;resource.object=reinterpret_cast<ID3D12Resource*>(6);resource.desc.Dimension=D3D12_RESOURCE_DIMENSION_BUFFER;resource.desc.Width=4096;
- FrameSurvey::gResources[resource.object]=resource;NVSDK_NGX_Parameter params;NVSDK_NGX_Handle* handle=nullptr;
+ FrameSurvey::gResources[resource.object]=resource;__INDEX_SETUP__NVSDK_NGX_Parameter params;NVSDK_NGX_Handle* handle=nullptr;
  need(TryCreateOptiFeature(testList,NVSDK_NGX_Feature_RayReconstruction,&params,&handle)==NVSDK_NGX_Result_Success,"complete actual RR creation helper succeeds");checkOwned("owned creation issued native adapter work");checkUnwound();HandleToFeature[handle->Id]=NVSDK_NGX_Feature_RayReconstruction;
  resetEvidence();const auto inputs=titleInputs;
  need(NVSDK_NGX_D3D12_EvaluateFeature(testList,handle,&params,nullptr)==NVSDK_NGX_Result_Success,"complete actual exported Evaluate reaches owned RR helper");
@@ -236,6 +241,11 @@ def run():
     d3d = (base/'hooks/D3D12_Hooks.cpp').read_text()
     replacements = {
         'ROOT': ROOT.as_posix(),
+        'INDEX_HEADER': '#include "'+(base/'resource_tracking/FrameSurveyBufferRanges.h').as_posix()+'"' if (base/'resource_tracking/FrameSurveyBufferRanges.h').exists() else '',
+        'INDEX_DECL': 'FrameSurveyMetadata::BufferAddressIndex gBufferAddresses;' if 'gBufferAddresses' in survey else '',
+        'INDEX_SETUP': 'FrameSurvey::gBufferAddresses.Insert(resource.va,resource.desc.Width,resource.id,resource.object);' if 'gBufferAddresses' in survey else '',
+        'VIEW_INDICES': '\n'.join(function(survey, signature) for signature in ('void EraseView(', 'void IndexView(')) if 'void EraseView(' in survey else '',
+        'MIRROR_INDEX_CLEAR': 'FrameSurvey::gMirrorOwners.clear();' if 'gMirrorOwners' in survey else '',
         'OWNED_SCOPE': function(source, 'class ScopedOptiFeatureRecording')+';',
         'CREATE_HELPER': function(source, 'static NVSDK_NGX_Result TryCreateOptiFeature('),
         'EVALUATE_HELPER': function(source, 'static NVSDK_NGX_Result TryEvaluateOptiFeature('),
