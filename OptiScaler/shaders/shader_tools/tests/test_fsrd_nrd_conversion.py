@@ -20,7 +20,7 @@ from fsrd_toolchain import compile_cpp, dxc
 
 ROOT = Path(__file__).resolve().parents[4]
 PASS = ROOT / 'OptiScaler/shaders/fsrd_preprocess'
-OUT = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/sol_batch/12b-conversion/tests/nrd_conversion'))
+OUT = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/sol_batch/13b-inputs/tests/nrd_conversion'))
 REPORT = Path(os.environ.get('FSRD_NRD_REPORT_OUTPUT', f'E:/FSRD/sol_batch/{OUT.parents[1].name}/conversion-evidence'))
 CAPTURES = Path('F:/Ultra Yedek 2/overwrite/bin/x64/GAME_TRACE/FRAME_SURVEY')
 CHECKS = 0
@@ -154,7 +154,8 @@ def write_case(directory, inputs, params):
         value.tofile(directory / f'{name}.bin')
     values = [params['near'], params['far'], params['sign'], *params['scale'], *params['jitter'],
               *params['previous_jitter'], int(params['jittered']), int(params['reset']),
-              int(params['previous_valid']), params['mode'], *params['view'].ravel(), *params['projection'].ravel()]
+              int(params['previous_valid']), params['mode'], *params['view'].ravel(), *params['projection'].ravel(),
+              int(params.get('camera_projected_depth_delta', False))]
     (directory / 'frame.txt').write_text(' '.join(str(value) for value in values), encoding='utf-8')
 
 
@@ -239,10 +240,13 @@ def read_outputs(directory, width, height):
     return result
 
 
-def verify_case(directory, input_values, params, previous_depth=None, history_valid=False):
+def verify_case(directory, input_values, params, previous_depth=None, history_valid=False, expected_camera_delta=None):
     height, width = input_values['depth'].shape
     output = read_outputs(directory, width, height)
     depth, motion, no_v = reference(input_values, params, previous_depth, history_valid)
+    if expected_camera_delta is not None:
+        # Independent pose/plane oracle supplied by projected_depth_cases, not shader reconstruction.
+        motion[..., 2] = np.asarray(expected_camera_delta, dtype=np.float16)
     for name in ('spec', 'diff'):
         expected = input_values[name].copy()
         expected[..., :3] = np.where(np.isfinite(expected[..., :3]), np.maximum(expected[..., :3], 0), 0)
@@ -314,6 +318,138 @@ def verify_table_consumer(directory, width, height):
                 bound = (np.abs(encoded).sum(-1) * 2**-11 + 3 * 2**-25) * 64
                 check('actual GPU Consumer YCoCg inverse within half rounding',
                       np.all(np.abs(consumer[..., :3] - original) <= bound[..., None] * 1.01))
+
+
+def projected_depth_cases(width=13, height=11):
+    """Known world planes and physical camera poses, independent of inverse-projection helper."""
+    poses = [
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0)),
+        (0.0, (0.0, 0.0, 0.2), (-0.25, 0.5)),
+        (0.17, (0.15, 0.0, 0.2), (0.25, -0.25)),
+        (0.23, (0.15, 0.0, 0.2), (0.375, -0.125)),
+        (0.23, (0.15, 0.0, 0.2), (-0.375, 0.125)),
+        (0.35, (0.25, 0.1, 0.3), (0.5, -0.5)),
+        (0.0, (0.0, 0.0, 0.0), (0.0, 0.0)),
+        (0.0, (0.0, 0.0, 0.2), (-0.25, 0.5)),
+    ]
+    descriptions = ['initial', 'translation', 'rotation', 'rotation+jitter+occluder',
+                    'occluder reveal', 'invalid previous', 'LH reset', 'LH object-Z limitation']
+    y, x = np.mgrid[:height, :width]
+    cases = []
+    rotations = []
+    for index, (yaw, camera, jitter) in enumerate(poses):
+        cosine, sine = math.cos(yaw), math.sin(yaw)
+        rotation = np.array([[cosine, 0, sine], [0, 1, 0], [-sine, 0, cosine]], dtype=np.float64)
+        rotations.append(rotation)
+        right = index < 6
+        sign = -1 if right else 1
+        proj = projection(width, height, 0.05, right, reverse=right, infinite=right, far=64)
+        proj[0, 2], proj[1, 2] = 0.13, -0.11
+        view = np.eye(4, dtype=np.float32)
+        view[:3, :3] = rotation
+        view[:3, 3] = -rotation @ np.asarray(camera, dtype=np.float64)
+        previous_jitter = poses[index-1][2] if index else jitter
+        params = dict(near=0.05, far=64, sign=sign, scale=(1, 1), jitter=jitter,
+                      previous_jitter=previous_jitter, jittered=index == 2,
+                      reset=index in (0, 6), previous_valid=index not in (0, 5, 6),
+                      mode=1, view=view, projection=proj)
+        uv = np.stack(((x + 0.5-jitter[0])/width, (y + 0.5-jitter[1])/height), axis=-1)
+        ndc = uv * (2, -2) + (-1, 1)
+        # Perspective camera ray from physical focal lengths and pinhole offsets.
+        camera_ray = np.dstack(((ndc[..., 0]-float(proj[0, 2])*sign)/float(proj[0, 0]),
+                               (ndc[..., 1]-float(proj[1, 2])*sign)/float(proj[1, 1]),
+                               np.full((height, width), sign, np.float64)))
+        world_ray = camera_ray @ rotation
+        plane_z = -6.0 if right else (3.0 if index == 7 else 6.0)
+        distance = (plane_z-camera[2])/world_ray[..., 2]
+        reveal_mask = (x >= width//3) & (x < 2*width//3) & (y >= height//3) & (y < 2*height//3)
+        if index == 3:
+            # Previous visibility contains a nearer occluder; the next frame exposes the fixed -6 world plane.
+            distance[reveal_mask] = (-2.0-camera[2])/world_ray[..., 2][reveal_mask]
+        value = inputs(width, height, index, extremes=False)
+        value['depth'] = distance.astype('<f4')
+        world = np.asarray(camera)+world_ray*value['depth'][..., None].astype(np.float64)
+        current_z = sign*value['depth'].astype(np.float64)
+        delta = np.zeros((height, width), np.float64)
+        raw_motion = np.zeros((height, width, 4), '<f2')
+        true_object_delta = None
+        if index and index != 6:
+            previous_camera = np.asarray(poses[index-1][1])
+            previous_view = (world-previous_camera) @ rotations[index-1].T
+            delta = previous_view[..., 2]-current_z
+            previous_object = world.copy()
+            if index == 7:
+                previous_object[..., 2] += 3.0
+                true_object_delta = ((previous_object-previous_camera) @ rotations[index-1].T)[..., 2]-current_z
+                # Native Z exists, but its game CB scale/mode has not been attested and must not be guessed.
+                raw_motion[..., 2] = true_object_delta.astype(np.float16)
+            projected_previous = (previous_object-previous_camera) @ rotations[index-1].T
+            previous_projection = cases[-1]['params']['projection'].astype(np.float64)
+            clip = np.dstack((projected_previous, np.ones((height, width)))) @ previous_projection.T
+            previous_uv = clip[..., :2]/clip[..., 3:] * (0.5, -0.5)+(0.5, 0.5)
+            canonical = previous_uv-uv
+            if params['jittered']:
+                canonical += (np.asarray(previous_jitter)-np.asarray(jitter))/(width, height)
+            raw_motion[..., :2] = canonical.astype(np.float16)
+        if not params['previous_valid'] or params['reset']:
+            delta.fill(0)
+        value['motion'] = raw_motion
+        cases.append(dict(inputs=value, params=params, expected_delta=delta,
+                          description=descriptions[index], reveal_mask=reveal_mask,
+                          world_points=world, true_object_delta=true_object_delta))
+    return cases
+
+
+def projected_depth(exe):
+    cases = projected_depth_cases()
+    height, width = cases[0]['inputs']['depth'].shape
+    mode_outputs, evidence = {}, {}
+    for enabled in (False, True):
+        mode = 'on' if enabled else 'off'
+        directory = OUT/'projected_depth'/mode
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory/'meta.txt').write_text(f'{len(cases)} {width} {height}', encoding='utf-8')
+        for index, case in enumerate(cases):
+            params = dict(case['params'], camera_projected_depth_delta=enabled)
+            write_case(directory/f'frame{index}', case['inputs'], params)
+        stdout = run_fixture(exe, 'geometry', directory)
+        previous, outputs = None, []
+        for index, case in enumerate(cases):
+            params = dict(case['params'], camera_projected_depth_delta=enabled)
+            previous = verify_case(directory/f'frame{index}', case['inputs'], params,
+                                   previous, index > 0, case['expected_delta'] if enabled else None)
+            outputs.append(read_outputs(directory/f'frame{index}', width, height))
+        verify_table_consumer(directory, width, height)
+        mode_outputs[mode] = outputs
+        evidence[mode] = dict(fixture_checks=int(re.search(r'fixture_checks=(\d+)', stdout)[1]),
+                              table_fixture_checks=int(re.search(r'table_fixture_checks=(\d+)', stdout)[1]))
+    off, on = mode_outputs['off'], mode_outputs['on']
+    for index in range(len(cases)):
+        for name in ('spec', 'diff', 'depth', 'nr', 'spec_albedo', 'diff_albedo', 'debug_spec', 'debug_diff'):
+            check(f'projected frame{index} {name} byte identity across A/B',
+                  on[index][name].tobytes() == off[index][name].tobytes())
+        check(f'projected frame{index} XY/W exact across A/B',
+              np.array_equal(on[index]['motion'][..., [0, 1, 3]].view('<u2'), off[index]['motion'][..., [0, 1, 3]].view('<u2')))
+    for index in (0, 5, 6):
+        check(f'projected frame{index} invalid previous/reset exact positivezero B',
+              np.all(on[index]['motion'][..., 2].view('<u2') == 0))
+    for index in (1, 7):
+        check(f'projected frame{index} RH/LH +0.2 translation signed B',
+              np.allclose(on[index]['motion'][..., 2].astype(np.float32), 0.2, atol=2e-4, rtol=0))
+    check('projected rotation Z varies across a known fixed world plane', np.ptp(on[2]['motion'][..., 2]) > 0.1)
+    mask = cases[4]['reveal_mask']
+    cur = on[4]['depth']
+    check('revealed fixed surface predicts its own previous Z, not the old occluder',
+          np.max(np.abs((cur+on[4]['motion'][..., 2])[mask]-cur[mask])) < 2e-4)
+    check('legacy old-visibility delta is observably wrong on the revealed surface',
+          np.count_nonzero(np.abs(off[4]['motion'][..., 2][mask]-on[4]['motion'][..., 2][mask]) > 1) >= 4)
+    limitation = np.max(np.abs(cases[7]['true_object_delta']-on[7]['motion'][..., 2].astype(np.float64)))
+    check('camera-only mode explicitly cannot reconstruct object-Z displacement', limitation > 2.9)
+    return dict(frames=len(cases), width=width, height=height, fixtures=evidence,
+                oracle='physical pinhole camera rays intersect known world planes; previous pose projects known surface points',
+                only_motion_B_changes=True, native_table_cases=8,
+                object_depth_limitation_max= float(limitation), camera_only_object_Z_supported=False,
+                note='Guide correctness A/B evidence; no claim of actual RR visual quality until E2E/user validation.')
 
 
 def synthetic(exe):
@@ -452,7 +588,7 @@ def benchmark(exe, width, height):
 def main():
     global DEFERRED
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--phase', choices=('all', 'synthetic', 'capture', 'benchmark'), default='all')
+    parser.add_argument('--phase', choices=('all', 'synthetic', 'capture', 'benchmark', 'projected-depth'), default='all')
     parser.add_argument('--deferred', action='store_true', help='Production Recon plus current-Temporal motion path')
     args = parser.parse_args()
     DEFERRED = args.deferred
@@ -460,6 +596,8 @@ def main():
     result = dict(production_source=(PASS / 'FSRDNrdBridgePass_Dx12.cpp').as_posix(), phase=args.phase, deferred_motion=DEFERRED)
     if args.phase in ('all', 'synthetic'):
         result['synthetic'] = synthetic(exe)
+    if args.phase in ('all', 'projected-depth'):
+        result['projected_depth'] = projected_depth(exe)
     if args.phase in ('all', 'capture'):
         result['captured'] = captured(exe)
         result['normal_evidence'] = normal_evidence()
