@@ -18,11 +18,18 @@ inline void RetireExact(const NrdBridgeBirth::Token& ticket) noexcept
 inline void RetirePhysical(const NrdBridgeBirth::Token& ticket) noexcept
 {
     if (!ticket) return;
-    NrdBridgeNativeBirth::RetirementScope retirement;
-    if (!retirement.Valid()) return;
+    NrdBridgeBirth::AliasSnapshot aliases;
+    if (!NrdBridgeBirth::CaptureProvenAliasesForFinalZero(ticket,aliases) || !aliases.complete)
+    { NrdBridgeBirth::Fail(); FrameSurvey::MetadataHookFailed("Final native Release alias snapshot failed"); return; }
     // Match the native instance even when an interned object was re-observed
     // with a new logical sequence after the temporary final-reference probe.
-    NrdBridgeBirth::RetireCurrentInstance(ticket);
+    // Each alias prepares and drains its own detached owners outside every
+    // registry/index guard. The native/probe calls never hold an alias lock.
+    for (size_t index = 0; index != aliases.count; ++index)
+    {
+        NrdBridgeNativeBirth::RetirementScope retirement;
+        if (retirement.Valid()) NrdBridgeBirth::RetireCurrentInstance(aliases.tokens[index]);
+    }
 }
 template <class NativeObject, class Original>
 ULONG Title(NativeObject* object, Original original) noexcept
