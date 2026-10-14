@@ -9,6 +9,12 @@ namespace NrdBridge
 {
 enum class Role : uint8_t { None, PrepLast, Recon, PrePass, Temporal, Chain3, HistSave, HistFix, Clamp, ATrous, Consumer };
 enum class DebugMode : uint8_t { Off, RawSignals, RRInputs };
+enum class SignalEncoding : uint8_t { Rgb, YCoCg };
+struct TitleSignalConstants
+{
+    ID3D12Resource* resource = nullptr;
+    D3D12_GPU_VIRTUAL_ADDRESS address = 0;
+};
 // Run a prepared, infallible output recording while the coordinator ticket is
 // still admitted. A plain callback needs no allocation after provider dispatch.
 struct OutputCommitGuard
@@ -59,5 +65,7 @@ struct FrameParameters
     uint32_t streamlineFrame = UINT32_MAX, frameIndex = 0;
     bool motionVectorsJittered = false, motionVectors3D = false;
     bool reset = true, previousValid = false;
+    SignalEncoding outputEncoding = SignalEncoding::Rgb;
+    TitleSignalConstants outputConstants {};
 };
 }
