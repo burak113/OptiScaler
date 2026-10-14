@@ -3349,7 +3349,8 @@ static void DrawNrdBridgeRRTuning(Config* config)
         ImGui::SetTooltip("NRD-assisted hybrid: 0 keeps RR specular; 1 keeps the native NRD specular output exactly. "
                           "Intermediate values mix same-pixel linear RGB. Diffuse stays RR and both RR lobes still run. "
                           "This changes the NRD/RR quality tradeoff, without a confidence or noise gate. "
-                          "RR history is unchanged; in-game quality is unmeasured. Default 0.");
+                          "RR history is unchanged; in-game quality is unmeasured. Default 0. "
+                          "Native AMD debug views show RR before this reference blend.");
     changed |= DrawNrdBridgeNativeDebug(config);
     static std::string settingsError;
     if (changed)
