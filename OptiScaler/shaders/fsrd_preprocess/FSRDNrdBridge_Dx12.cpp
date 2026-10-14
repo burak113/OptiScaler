@@ -83,6 +83,7 @@ std::atomic<DebugMode> gDebug {DebugMode::Off};
 #ifdef FSRD_NRD_BRIDGE_TEST
 void (*gBeforeConversionLockForTesting)() = nullptr;
 void (*gBeforeBindingWindowPublishForTesting)() = nullptr;
+void (*gBeforeOutputLockForTesting)() = nullptr;
 #endif
 
 // The wrapper caches its measured conventions after the first valid camera snapshot.
@@ -684,6 +685,9 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         if (window && !keepWindow) PublishBindingWindow();
         if (published) LogDiscovery(discovered,motionTag);
         if (!inject) return;
+#ifdef FSRD_NRD_BRIDGE_TEST
+        if (gBeforeOutputLockForTesting) gBeforeOutputLockForTesting();
+#endif
         std::scoped_lock injection(gInjectionMutex);
         NrdBridgeLifetime::ScopedBorrow borrow;
         {
