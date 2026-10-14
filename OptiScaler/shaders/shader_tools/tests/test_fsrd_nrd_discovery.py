@@ -891,30 +891,68 @@ J birthNotificationTests(Host& h) {
  return {{"delayed_old_role",true},{"delayed_old_list",true},{"delayed_old_guide_reverse_pair",true},{"delayed_old_motion_tag",true},{"exact_current_retirement",true},{"logical_metadata_replay",true},{"native_guid_or_final_release_proved",false},{"sdk_called",false},{"debug_layer_errors",0}};
 }
 J nativeDebugTests(Host& h) {
+ auto step=[](const char* phase) {nrdFixtureStage=phase;std::cerr<<"[native-debug] "<<phase<<" checks="<<checks<<std::endl;};step("setup");
  ResTrack_Dx12::nativeSubmission=true;RecordedComputeLease::SetHooksAvailable(true,true);
  ChainHost c(h);std::string error;const auto a=h.list;
  ComPtr<ID3D12CommandQueue> queueB;D3D12_COMMAND_QUEUE_DESC q {};hr(h.dev->CreateCommandQueue(&q,IID_PPV_ARGS(&queueB)));
  struct Destination {ComPtr<ID3D12CommandAllocator> allocator;ComPtr<ID3D12GraphicsCommandList> list;};
  auto makeDestination=[&] {Destination d;hr(h.dev->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,IID_PPV_ARGS(&d.allocator)));hr(h.dev->CreateCommandList(0,D3D12_COMMAND_LIST_TYPE_DIRECT,d.allocator.Get(),nullptr,IID_PPV_ARGS(&d.list)));return d;};
  auto b=makeDestination(),d=makeDestination(),third=makeDestination();
+ // Every owner used by an executed list survives failure unwinding until the fixture's queues drain.
+ // Private image owners are pinned per submission, then released after that exact observed fence completes.
+ struct Cleanup {
+  std::array<ID3D12CommandQueue*,2> queues;ComPtr<ID3D12Fence> gate,complete;
+  struct Pins {RecordedComputeLease::FencePointPtr point;std::vector<std::shared_ptr<void>> owners;};std::vector<Pins> pending;
+  void Prepare() {
+   pending.emplace_back();auto& owners=pending.back().owners;
+   for(const auto& [wrapper,image]:fixtureNativeImages)if(image.owner)owners.push_back(image.owner);
+   std::array<std::shared_ptr<NrdBridge::NativeDebugSource>,4> sources;
+   {std::scoped_lock lock(NrdBridge::gMutex);if(NrdBridge::gService)sources=NrdBridge::gService->nativeDebugSources;}
+   for(const auto& source:sources)if(source&&source->image.owner)owners.push_back(source->image.owner);
+  }
+  void Published(const std::shared_ptr<RecordedComputeLease::Submission>& submission) {if(submission)pending.back().point=submission->point;}
+  void Completed(const std::shared_ptr<RecordedComputeLease::Submission>& submission) {std::erase_if(pending,[&](const auto& pin){return pin.point&&pin.point==submission->point;});}
+  ~Cleanup() {
+   if(!complete)return; // Failed setup has executed no GPU work.
+   if(gate)gate->Signal(1);
+   UINT64 point=0;for(auto* queue:queues) {
+    const auto signaled=queue->Signal(complete.Get(),++point);
+    if(FAILED(signaled)){std::cerr<<"[native-debug] cleanup queue Signal failed HRESULT="<<uint32_t(signaled)<<std::endl;continue;}
+    const auto deadline=GetTickCount64()+15000;
+    while(complete->GetCompletedValue()<point&&GetTickCount64()<deadline)Sleep(2);
+    if(complete->GetCompletedValue()<point)std::cerr<<"[native-debug] cleanup queue drain timed out point="<<point<<std::endl;
+   }
+   pending.clear(); // This can release real images/callback owners only after both queues have completed.
+  }
+ } cleanup {{h.queue.Get(),queueB.Get()}};
+ hr(h.dev->CreateFence(0,D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&cleanup.complete))); // Allocated before any Execute.
  auto sourceCount=[&] {std::scoped_lock lock(NrdBridge::gMutex);return std::count_if(NrdBridge::gService->nativeDebugSources.begin(),NrdBridge::gService->nativeDebugSources.end(),[](const auto& source){return bool(source);});};
  auto resetDestination=[&](Destination& dest) {hr(dest.allocator->Reset());hr(dest.list->Reset(dest.allocator.Get(),nullptr));};
  auto submit=[&](ID3D12CommandQueue* queue,ID3D12GraphicsCommandList* list) {
   RecordedComputeLease::SubmissionDecision decision;
-  const auto before=ResTrack_Dx12::nativeExecutes;
-  auto s=ResTrack_Dx12::SubmitNativeForTesting(queue,list,decision);
+  const auto before=ResTrack_Dx12::nativeExecutes;cleanup.Prepare();
+  auto s=ResTrack_Dx12::SubmitNativeForTesting(queue,list,decision);cleanup.Published(s);
   need(decision.allowed&&s&&s->signalPublished&&s->point&&s->point->IsPublished(),"actual ledger publishes a successful exact native fence point");
   need(ResTrack_Dx12::nativeExecutes==before+1,"allowed native submission executes the original title list exactly once");return s;
  };
- auto finish=[&](const auto& s) {await([&]{return s->point->fence->GetCompletedValue()>=s->point->value;},"native debug submission GPU completion");RecordedComputeLease::Poll();};
+ auto finish=[&](const auto& s) {await([&]{return s->point->fence->GetCompletedValue()>=s->point->value;},"native debug submission GPU completion");RecordedComputeLease::Poll();cleanup.Completed(s);};
  auto next=[&] {h.list=a;++StreamlineHooks::frame;c.frame(3);};
  auto finishA=[&] {hr(a->Close());auto s=submit(h.queue.Get(),a.Get());finish(s);h.list=a;h.reset();};
  auto present=[&](ID3D12GraphicsCommandList* list,D3D12_RESOURCE_STATES state=D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {error.clear();return NrdBridge::PresentNativeDebug(list,c.textures[7].Get(),state,error);};
  {std::scoped_lock state(NrdBridge::gMutex);std::scoped_lock injection(NrdBridge::gInjectionMutex);
   need(!present(a.Get())&&error.empty(),"default native-debug OFF returns without either coordinator mutex");}
+ step("default OFF and baseline");
  need(nativeSnapshotCalls==0&&nativePresentPreparations==0&&fixtureNativeImages.empty(),"default OFF allocates no native image and prepares no debug work");
- next();finishA();next();need(NrdBridge::GetStatus().active,"native-debug process establishes a baseline admitted frame");finishA();
+ next();
+ const auto discovery=RecordedComputeLease::Capture(a.Get());const auto discoveryCallbacks=ResTrack_Dx12::leases.find(a.Get());
+ need(!discovery&&(discoveryCallbacks==ResTrack_Dx12::leases.end()||discoveryCallbacks->second.empty())&&!NrdBridge::gService->lists.at(a.Get()).recording&&NrdBridge::GetStatus().framesBridged==0&&convertCalls==0&&rrCalls==0,"first discovery-only title list has recording ordinal zero, no callbacks and no private bridge work");
+ hr(a->Close());RecordedComputeLease::SubmissionDecision discoveryDecision;const auto discoveryExecutes=ResTrack_Dx12::nativeExecutes;
+ const auto titleOnly=ResTrack_Dx12::SubmitNativeForTesting(h.queue.Get(),a.Get(),discoveryDecision);
+ need(discoveryDecision.allowed&&!titleOnly&&ResTrack_Dx12::nativeExecutes==discoveryExecutes+1,"discovery-only original title Execute remains exactly once with no fabricated participant ledger point");
+ hr(h.queue->Signal(h.fence.Get(),++h.tick));await([&]{return h.fence->GetCompletedValue()>=h.tick;},"independent actual title-only fence completes before reset");h.list=a;h.reset();
+ next();need(NrdBridge::GetStatus().active,"native-debug process establishes a baseline admitted frame");finishA();
  need(nativeSnapshotCalls==0&&fixtureNativeImages.empty()&&sourceCount()==0,"ordinary RR with debug OFF does not query or retain a diagnostic image");
+ step("same-recording native image");
  NrdBridge::RRSettings settings;settings.nativeDebugView=0;
  need(NrdBridge::ApplyRRSettings(settings,false,error)&&NrdBridge::NativeDebugEnabled(),"native overview mode enables only the explicit diagnostic path");
  need(!present(a.Get())&&error.empty(),"startup without a native debug source is a quiet skip");
@@ -925,6 +963,7 @@ J nativeDebugTests(Host& h) {
  need(present(a.Get())&&!lastNativeOrdered&&lastNativeSourceSL==sameFrame,"second same-recording presentation follows the same image's presentation tail");
  need(nativePresentActions==2&&D3D12Hooks::restores==restore+2&&rrCalls==rrBefore&&NrdBridge::GetStatus().framesBridged==frames,"diagnostic presentation restores compute state and never advances RR/Active accounting");
  need(internalObserved&&trackingSuppressed,"diagnostic recording is scoped internal with title tracking suppressed");finishA();
+ step("controlled producer");
  // Mode change clears the old submitted snapshot before the controlled queue experiment.
  settings.nativeDebugView=1;settings.nativeDebugViewport=2;
  need(NrdBridge::ApplyRRSettings(settings,false,error)&&sourceCount()==0,"mode/index change invalidates old diagnostic selectors");
@@ -933,30 +972,36 @@ J nativeDebugTests(Host& h) {
  {std::scoped_lock lock(NrdBridge::gMutex);for(const auto& entry:NrdBridge::gService->nativeDebugSources)if(entry)producer=entry;}
  NativeWaitProbe waitProbe(h.queue.Get(),queueB.Get());
  ComPtr<ID3D12Fence> gate;hr(h.dev->CreateFence(0,D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&gate)));
- struct OpenGate {ID3D12Fence* fence;~OpenGate(){fence->Signal(1);}} openGate {gate.Get()};
+ cleanup.gate=gate;
  hr(h.queue->Wait(gate.Get(),1));hr(a->Close());auto producerSubmission=submit(h.queue.Get(),a.Get());
  need(producer->recording->completion==producerSubmission->point&&producer->recording->phase.load()==NrdBridge::SubmissionPhase::FencePublished,"per-token publication stores the exact point before advertising FencePublished");
  need(gate->GetCompletedValue()==0&&producerSubmission->point->fence->GetCompletedValue()==0,"producer fence remains unfinished behind the same-thread gate");
+ step("newer unsubmitted producer");
  // Record a newer image on a different list, but leave it unsubmitted.
  h.list=d.list;++StreamlineHooks::frame;c.frame(3);
  need(NrdBridge::GetStatus().active&&sourceCount()==2,"newer unsubmitted producer remains a distinct cached source");
+ step("select submitted source");
  const auto newerSL=StreamlineHooks::frame;h.list=b.list;c.begin();
  need(present(b.list.Get())&&lastNativeSourceSL==producerSL&&lastNativeSourceSL!=newerSL&&lastNativeOrdered,"latest submitted source wins over a newer unsubmitted snapshot");
  // Age out any older source while keeping the selected producer within the four-SL window.
  StreamlineHooks::frame=producerSL+4;h.list=third.list;c.begin();const auto pending=nativePresentPreparations;
  need(!present(third.list.Get())&&error.empty()&&nativePresentPreparations==pending,"unsubmitted presentation on another recording blocks unordered source-image transitions");
+ step("submit B with producer dependency");
  hr(b.list->Close());const auto waitsBeforeB=nativeWaitEvents.size();auto bSubmission=submit(queueB.Get(),b.list.Get());
  need(nativeWaitEvents.size()==waitsBeforeB+1&&nativeWaitEvents.back().queue==queueB.Get()&&nativeWaitEvents.back().fence==producerSubmission->point->fence.Get()&&nativeWaitEvents.back().value==producerSubmission->point->value,"native queue B waits for the exact producer token fence before original Execute");
  need(gate->GetCompletedValue()==0&&bSubmission->point->fence->GetCompletedValue()==0,"cross-queue submission returns while the same submitting thread still owns the unopened producer gate");
+ step("present and submit C with presentation tail");
  need(present(third.list.Get())&&lastNativeSourceSL==producerSL&&lastNativeOrdered,"published prior presentation admits the next read of the same private image");
  hr(third.list->Close());const auto waitsBeforeThird=nativeWaitEvents.size();auto thirdSubmission=submit(h.queue.Get(),third.list.Get());
  need(nativeWaitEvents.size()==waitsBeforeThird+1&&nativeWaitEvents.back().queue==h.queue.Get()&&nativeWaitEvents.back().fence==bSubmission->point->fence.Get(),"native queue A orders the source-image transition after queue B's exact presentation fence");
  need(gate->GetCompletedValue()==0,"both required GPU edges return before the producer gate is opened");
+ step("replay producer after submitted tail");
  const auto waitsBeforeReplay=nativeWaitEvents.size();const auto replayExecutes=ResTrack_Dx12::nativeExecutes;
  auto orderedReplay=submit(queueB.Get(),a.Get());
  need(nativeWaitEvents.size()==waitsBeforeReplay+2&&nativeWaitEvents[waitsBeforeReplay].queue==queueB.Get()&&nativeWaitEvents[waitsBeforeReplay].fence==thirdSubmission->point->fence.Get(),"producer replay GPU-waits for the last submitted presentation tail before rewriting that private image");
  need(nativeWaitEvents[waitsBeforeReplay+1].fence==producerSubmission->point->fence.Get(),"producer replay also preserves the temporal history predecessor edge");
  need(ResTrack_Dx12::nativeExecutes==replayExecutes+1&&gate->GetCompletedValue()==0,"ordered producer replay executes exactly once and returns before the same-thread gate is opened");
+ step("open intentional gate and complete all submissions");
  hr(gate->Signal(1));finish(producerSubmission);finish(bSubmission);finish(thirdSubmission);finish(orderedReplay);waitProbe.stop();
  producerSubmission.reset();bSubmission.reset();thirdSubmission.reset();orderedReplay.reset();producer.reset();
  // Reset raw command-list pointers only after their submitted GPU work completes.
@@ -965,21 +1010,26 @@ J nativeDebugTests(Host& h) {
  hr(d.list->Close());NrdBridge::OnReset(d.list.Get(),nullptr);ResTrack_Dx12::ResetForTesting(d.list.Get());resetDestination(d);
  h.list=a;h.reset();
  next();need(lastRRFrame.reset&&NrdBridge::GetStatus().active,"discarded newer producer recovers through a fresh RESET domain");finishA();
+ step("bounded source eviction");
  const auto retiredBefore=nativeImageRetirements;
  for(UINT i=0;i<6;++i){next();need(NrdBridge::GetStatus().active,"submitted diagnostic continuation remains Active");finishA();need(sourceCount()<=4,"native debug source cache is bounded to four successful snapshots");}
  need(sourceCount()==4&&nativeImageRetirements>retiredBefore,"cache eviction releases real private image owners outside the coordinator lock");
+ step("reset list identity");
  // Reusing a raw list pointer after Reset requires a published producer point.
  h.list=a;StreamlineHooks::frame+=1;c.begin();
  need(present(a.Get())&&lastNativeOrdered,"Reset of the same raw command-list pointer uses exact fence ordering rather than same-recording identity");finishA();
+ step("final admission cancellation");
  next();const auto canceledFrames=NrdBridge::GetStatus().framesBridged;const auto failures=NrdBridge::gService->failures;
  const auto actions=nativePresentActions;beforeDebugAdmissionForTesting=+[]{NrdBridge::RequestHistoryReset();};
  need(!present(a.Get())&&error.empty(),"normal reset at the final presentation gate quietly rejects prepared output commands");beforeDebugAdmissionForTesting=nullptr;
  need(nativePresentActions==actions&&NrdBridge::GetStatus().framesBridged==canceledFrames&&!NrdBridge::GetStatus().active&&NrdBridge::gService->failures==failures,"canceled presentation touches no target/action and spends no RR success or failure accounting");
  hr(a->Close());h.list=a;h.reset();next();need(NrdBridge::GetStatus().active&&lastRRFrame.reset,"presentation cancellation recovers on the next coherent Recon with RESET");finishA();
+ step("runtime OFF and recovery");
  const auto disabledActions=nativePresentActions;NrdBridge::SetRuntimeEnabled(false);
  {std::scoped_lock state(NrdBridge::gMutex);std::scoped_lock injection(NrdBridge::gInjectionMutex);need(!present(a.Get())&&error.empty(),"runtime OFF diagnostic fast path acquires no coordinator locks");}
  need(sourceCount()==0&&nativePresentActions==disabledActions&&!NrdBridge::NativeDebugEnabled(),"runtime OFF clears cached images and records no presentation");
  NrdBridge::SetRuntimeEnabled(true);next();need(lastRRFrame.reset&&NrdBridge::GetStatus().active,"runtime ON restores one fresh coherent producer");finishA();
+ step("age and wrap");
  const auto expiredPreparations=nativePresentPreparations;StreamlineHooks::frame+=5;h.list=b.list;c.begin();
  need(!present(b.list.Get())&&error.empty()&&nativePresentPreparations==expiredPreparations,"source beyond the bounded SL age quietly skips without provider preparation");
  StreamlineHooks::frame=UINT32_MAX;need(!present(b.list.Get())&&error.empty(),"unknown SL frame never guesses native debug provenance");
@@ -988,6 +1038,7 @@ J nativeDebugTests(Host& h) {
  need(present(b.list.Get())&&lastNativeSourceSL==UINT32_MAX-2&&lastNativeOrdered,"bounded source age crosses uint32 SL wrap using the exact published image");
  hr(b.list->Close());auto wrapped=submit(queueB.Get(),b.list.Get());finish(wrapped);wrapped.reset();
  NrdBridge::OnReset(b.list.Get(),nullptr);ResTrack_Dx12::ResetForTesting(b.list.Get());resetDestination(b);
+ step("reentrant private-owner retirement");
  // Last-owner destruction re-enters the real coordinator callback. No fake TLS is used.
  retirementProbeEnabled=true;const auto resetReleases=retirementReleaseCallbacks;
  {auto orphan=NrdBridge::MakeOwnedShared<NrdBridge::HistoryDomain>();std::scoped_lock lock(NrdBridge::gMutex);NrdBridge::gService->lists[b.list.Get()].history=std::move(orphan);}
@@ -996,6 +1047,7 @@ J nativeDebugTests(Host& h) {
  {auto orphan=NrdBridge::MakeOwnedShared<NrdBridge::HistoryDomain>();std::scoped_lock lock(NrdBridge::gMutex);NrdBridge::gService->lists[third.list.Get()].history=std::move(orphan);}
  const auto erasedReleases=retirementReleaseCallbacks;NrdBridge::OnReleased(third.list.Get());
  need(retirementReleaseCallbacks==erasedReleases+1,"OnReleased erases a participant without destroying its last history owner under gMutex");retirementProbeEnabled=false;
+ step("final unsubmitted-tail replay denial");
  // A recorded dependent keeps the producer's original point. Resubmission cannot replace that proof.
  StreamlineHooks::frame=100;h.list=a;next();hr(a->Close());auto first=submit(h.queue.Get(),a.Get());finish(first);
  h.list=b.list;c.begin();need(present(b.list.Get())&&lastNativeOrdered,"final dependent records against one exact submitted producer");hr(b.list->Close());
@@ -1139,6 +1191,10 @@ def run():
     (stubs / 'proxies/D3D12_Proxy.h').write_text('#pragma once\n#include <d3d12.h>\nnamespace D3d12Proxy { inline auto D3D12CreateVersionedRootSignatureDeserializer_() { return &D3D12CreateVersionedRootSignatureDeserializer; } inline auto D3D12SerializeVersionedRootSignature_() { return &D3D12SerializeVersionedRootSignature; } }\n')
     (stubs / 'resource_tracking/ResTrack_dx12.h').write_text(RES_TRACK_STUB)
     host = '#define FSRD_NRD_BRIDGE_TEST\n' + survey_fixture.CPP.split('// GetStatus()')[0]
+    assertion = 'void need(bool ok,const char* msg) { if (!ok) throw std::runtime_error(msg); ++checks; }'
+    diagnostic_assertion = 'const char* nrdFixtureStage="setup";\nvoid need(bool ok,const char* msg) { if (!ok) { std::cerr<<"[FSRD_ASSERT] stage="<<nrdFixtureStage<<" checks="<<checks<<" message="<<msg<<std::endl; throw std::runtime_error(msg); } ++checks; }'
+    assert host.count(assertion) == 1
+    host = host.replace(assertion, diagnostic_assertion)
     rr_header = (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h').read_text()
     camera_stub = 'const std::string& RRWrapper::CameraConventionDescription() const noexcept { static const std::string text; return text; }' if 'CameraConventionDescription' in rr_header else ''
     pass_header = (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgePass_Dx12.h').read_text()
@@ -1152,6 +1208,13 @@ def run():
     libraries = ('d3d12.lib', 'dxgi.lib', 'dxguid.lib', 'd3dcompiler.lib', 'bcrypt.lib', 'user32.lib', 'psapi.lib', str(detours))
     includes = (stubs, ROOT / 'OptiScaler', ROOT / 'OptiScaler/include', ROOT / 'external/nlohmann', ROOT / 'external/nvngx_dlss_sdk', ROOT / 'external/streamline', ROOT / 'external/FidelityFX-SDK/ffx-api/include/ffx_api')
     compile_cpp(source, executable, libraries, includes)
+    if os.environ.get('FSRD_NRD_DISCOVERY_NATIVE_DEBUG_ONLY') == '1':
+        subprocess.run([str(executable), '--native-debug', str(output)], check=True, timeout=60, creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
+        result = json.loads((output / 'native-debug-result.json').read_text())
+        result['execution_scope'] = 'targeted native-debug process only; full discovery/settings/birth/startup/replay suite not run'
+        (output / 'targeted-native-debug-result.json').write_text(json.dumps(result, indent=2) + '\n')
+        print(json.dumps({'native_debug_checks_passed': result['checks_passed'], 'execution_scope': result['execution_scope']}))
+        return
     subprocess.run([str(executable), str(output)], check=True, creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
     result = json.loads((output / 'host-result.json').read_text())
     subprocess.run([str(executable), '--settings', str(output)], check=True, creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
