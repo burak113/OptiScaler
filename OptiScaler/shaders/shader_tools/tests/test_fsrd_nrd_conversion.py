@@ -320,7 +320,7 @@ def verify_table_consumer(directory, width, height):
                       np.all(np.abs(consumer[..., :3] - original) <= bound[..., None] * 1.01))
 
 
-def projected_depth_cases(width=13, height=11):
+def projected_depth_cases(width=13, height=11, focal_scales=None):
     """Known world planes and physical camera poses, independent of inverse-projection helper."""
     poses = [
         (0.0, (0.0, 0.0, 0.0), (0.0, 0.0)),
@@ -332,6 +332,9 @@ def projected_depth_cases(width=13, height=11):
         (0.0, (0.0, 0.0, 0.0), (0.0, 0.0)),
         (0.0, (0.0, 0.0, 0.2), (-0.25, 0.5)),
     ]
+    if focal_scales is not None:
+        if len(focal_scales) != len(poses) or any(not math.isfinite(v) or v <= 0 for v in focal_scales):
+            raise ValueError('Eight finite positive per-pose focal scales are required')
     descriptions = ['initial', 'translation', 'rotation', 'rotation+jitter+occluder',
                     'occluder reveal', 'invalid previous', 'LH reset', 'LH object-Z limitation']
     y, x = np.mgrid[:height, :width]
@@ -344,6 +347,9 @@ def projected_depth_cases(width=13, height=11):
         right = index < 6
         sign = -1 if right else 1
         proj = projection(width, height, 0.05, right, reverse=right, infinite=right, far=64)
+        if focal_scales is not None:
+            proj[0, 0] *= focal_scales[index]
+            proj[1, 1] *= focal_scales[index]
         proj[0, 2], proj[1, 2] = 0.13, -0.11
         view = np.eye(4, dtype=np.float32)
         view[:3, :3] = rotation
