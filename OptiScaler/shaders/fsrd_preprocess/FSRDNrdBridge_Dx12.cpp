@@ -9,6 +9,8 @@
 #include "hooks/Streamline_Hooks.h"
 #include "resource_tracking/ResTrack_dx12.h"
 #include "misc/NrdBridgeLifetime_Dx12.h"
+#include "misc/NrdBridgeOwned_Dx12.h"
+#include "misc/RecordedComputeLease_Dx12.h"
 #include "misc/NrdBridgeDevice_Dx12.h"
 #include <atomic>
 #include <mutex>
@@ -21,13 +23,34 @@ namespace NrdBridge
 {
 namespace
 {
-struct RecordingToken { std::atomic<bool> submitted {false}; };
+enum class SubmissionPhase : uint8_t { Recorded, Submitting, FencePublished, Poisoned };
+struct RecordingToken
+{
+    std::atomic<bool> submitted {false};
+    std::atomic<SubmissionPhase> phase {SubmissionPhase::Recorded};
+};
+struct HistoryDomain
+{
+    ConversionPass conversion;
+    RRWrapper rr;
+    uint64_t resourceGeneration = 0, id = 0;
+    std::shared_ptr<RecordingToken> latestRecording; // CPU recording order, under gInjectionMutex.
+    std::atomic<bool> uncertain {false}, discardPending {false};
+    std::mutex submissionMutex;
+    RecordedComputeLease::FencePointPtr completion;
+};
+struct RecordingOwnership
+{
+    std::shared_ptr<HistoryDomain> history;
+    std::shared_ptr<RecordingToken> token;
+};
 struct ListState
 {
     Role role = Role::None;
     ChainDiscovery chain;
     bool followingRecon = false, converted = false, motionReady = false, temporal = false, atrous = false, nrdList = false;
     std::shared_ptr<RecordingToken> recording;
+    std::shared_ptr<HistoryDomain> history;
     uint64_t frame = 0, generation = 0, resetSerial = 0;
     FrameParameters parameters {};
     ConvertedResources inputs {};
@@ -39,12 +62,13 @@ struct Service
     std::unordered_map<ID3D12PipelineState*,Role> roles;
     std::unordered_map<ID3D12GraphicsCommandList*,ListState> lists;
     DiscoveryCache cache;
-    ConversionPass conversion;
-    RRWrapper rr;
+    std::shared_ptr<HistoryDomain> history;
+    std::vector<std::weak_ptr<HistoryDomain>> historyDomains;
+    uint64_t nextDomain = 0;
     Status status;
     ID3D12Resource* taggedMotion = nullptr;
     ID3D12GraphicsCommandList* pendingList = nullptr;
-    uint64_t frame = 0, resetSerial = 1, appliedReset = 0, lastLog = 0;
+    uint64_t frame = 0, resetSerial = 1, cancellationSerial = 1, appliedReset = 0, lastLog = 0, activeFrame = 0;
     uint32_t windowPresents = 0, retryPresents = 0, attempts = 0, failures = 0, lastSLFrame = UINT32_MAX;
     bool window = false, windowSawRecon = false, everRecon = false, observedRecon = false, conventionsLogged = false, discardRequested = false;
 };
@@ -94,7 +118,7 @@ void DropPending(Service& owner)
 {
     owner.pendingList = nullptr; owner.status.active = false;
     for (auto& [cmd,list] : owner.lists) list.converted = list.motionReady = false;
-    ++owner.resetSerial;
+    ++owner.resetSerial; ++owner.cancellationSerial;
 }
 void IdentityChanged(Service& owner, const char* reason)
 {
@@ -170,10 +194,19 @@ bool Tables(ID3D12GraphicsCommandList* cmd, Role role, std::vector<FrameSurvey::
 {
     if (role == Role::Recon)
         return FrameSurvey::ResolveComputeTable(cmd,1,srv) && FrameSurvey::ResolveComputeTable(cmd,5,uav) &&
-            CompleteOffsets(srv,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,{0,1,2,3}) && CompleteOffsets(uav,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,{0,1});
-    if (role == Role::Temporal) return FrameSurvey::ResolveComputeTable(cmd,1,srv) && CompleteOffsets(srv,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,{2});
+            CompleteOffsets(srv,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,{0,1,2,3}) && CompleteOffsets(uav,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,{0,1}) &&
+            FrameSurvey::ComputeTableBindingMatches(cmd,1,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,0,0,0) &&
+            FrameSurvey::ComputeTableBindingMatches(cmd,1,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,1,1,0) &&
+            FrameSurvey::ComputeTableBindingMatches(cmd,1,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,2,2,0) &&
+            FrameSurvey::ComputeTableBindingMatches(cmd,1,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,3,3,0) &&
+            FrameSurvey::ComputeTableBindingMatches(cmd,5,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,0,0,0) &&
+            FrameSurvey::ComputeTableBindingMatches(cmd,5,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,1,1,0);
+    if (role == Role::Temporal) return FrameSurvey::ResolveComputeTable(cmd,1,srv) && CompleteOffsets(srv,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,{2}) &&
+        FrameSurvey::ComputeTableBindingMatches(cmd,1,D3D12_DESCRIPTOR_RANGE_TYPE_SRV,2,2,0);
     if (role == Role::ATrous || role == Role::Consumer)
-        return FrameSurvey::ResolveComputeTable(cmd,5,uav) && CompleteOffsets(uav,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,{0,1});
+        return FrameSurvey::ResolveComputeTable(cmd,5,uav) && CompleteOffsets(uav,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,{0,1}) &&
+            FrameSurvey::ComputeTableBindingMatches(cmd,5,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,0,0,0) &&
+            FrameSurvey::ComputeTableBindingMatches(cmd,5,D3D12_DESCRIPTOR_RANGE_TYPE_UAV,1,1,0);
     return true;
 }
 void LogDiscovery(const ChainDiscovery& chain, ID3D12Resource* motionTag)
@@ -204,7 +237,7 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         const auto found = owner->lists.find(cmd);
         if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || !owner->cache.Valid() ||
             found == owner->lists.end() || found->second.frame != frame) return;
-        resources = owner->cache.Get(); generation = owner->cache.Generation(); serial = owner->resetSerial;
+        resources = owner->cache.Get(); generation = owner->cache.Generation(); serial = owner->cancellationSerial;
         reset = serial != owner->appliedReset;
     }
     #ifdef FSRD_NRD_BRIDGE_TEST
@@ -216,36 +249,88 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         std::scoped_lock lock(gMutex);
         const auto found = owner->lists.find(cmd);
         if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || !owner->cache.Valid() ||
-            owner->cache.Generation() != generation || owner->resetSerial != serial || found == owner->lists.end() ||
+            owner->cache.Generation() != generation || owner->cancellationSerial != serial || found == owner->lists.end() ||
             found->second.frame != frame) return;
         discard = owner->discardRequested;
     }
     if (!FrameSurvey::MetadataHealthy()) { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
     if (!D3D12Hooks::CanRestoreRootSignature(cmd)) { Failure(owner,"Title compute state cannot be restored after Recon"); return; }
     std::string error, conventions; FrameParameters parameters; ConvertedResources converted;
-    bool succeeded = false; auto recording = std::make_shared<RecordingToken>();
+    bool succeeded = false; auto recording = MakeOwnedShared<RecordingToken>();
+    std::shared_ptr<HistoryDomain> history = owner->history;
+    if (discard)
+    {
+        for (const auto& weak : owner->historyDomains)
+            if (const auto abandoned = weak.lock(); abandoned && abandoned->discardPending.exchange(false,std::memory_order_acq_rel))
+            {
+                abandoned->uncertain.store(true,std::memory_order_release);
+                FrameSurvey::ScopedInternal internal;
+                abandoned->rr.DiscardRecordingHistory();
+            }
+    }
+    const bool reusable = history && history->resourceGeneration == generation &&
+        !history->uncertain.load(std::memory_order_acquire) && (!history->latestRecording ||
+            history->latestRecording->phase.load(std::memory_order_acquire) == SubmissionPhase::FencePublished);
+    if (!reusable)
+    {
+        // Drop an otherwise unowned retired generation before applying the live bound.
+        if (history && history.use_count() == 2)
+        { owner->history.reset(); history.reset(); }
+        std::erase_if(owner->historyDomains,[](const auto& domain) { return domain.expired(); });
+        // Entire temporal generations are bounded as well as their descriptor slots.
+        // An outstanding, unsubmitted predecessor cannot seed GPU depth/SDK history.
+        if (owner->historyDomains.size() >= 8)
+        { Failure(owner,"NRD has 8 unretired temporal generations; submit/reset recordings before retrying"); return; }
+        history = MakeOwnedShared<HistoryDomain>();
+        history->resourceGeneration = generation; history->id = ++owner->nextDomain;
+        owner->historyDomains.push_back(history); owner->history = history;
+        reset = true;
+    }
+    history->latestRecording = recording;
+    auto ownership = MakeOwnedShared<RecordingOwnership>(); ownership->history = history; ownership->token = recording;
+    RecordedComputeLease::SubmissionCallbacks submission;
+    submission.beforeSubmit = [ownership](const RecordedComputeLease::SubmissionInfo& info) {
+        auto& domain = *ownership->history;
+        ownership->token->submitted.store(true,std::memory_order_release);
+        ownership->token->phase.store(SubmissionPhase::Submitting,std::memory_order_release);
+        // Replaying a closed recording changes temporal causality. Existing work is
+        // still ordered and retained; the next recording gets a fresh RESET domain.
+        if (info.recordingSubmission > 1 || info.snapshotFallback)
+            domain.uncertain.store(true,std::memory_order_release);
+        RecordedComputeLease::FencePointPtr predecessor;
+        { std::scoped_lock lock(domain.submissionMutex); predecessor = domain.completion; }
+        return SUCCEEDED(RecordedComputeLease::WaitForFence(info.queue,predecessor));
+    };
+    submission.fencePublished = [ownership](const RecordedComputeLease::SubmissionInfo&,
+                                            const RecordedComputeLease::FencePointPtr& point) {
+        auto& domain = *ownership->history;
+        { std::scoped_lock lock(domain.submissionMutex); domain.completion = point; }
+        ownership->token->phase.store(SubmissionPhase::FencePublished,std::memory_order_release);
+    };
+    submission.failed = [ownership](const auto&, auto) {
+        ownership->history->uncertain.store(true,std::memory_order_release);
+        ownership->token->phase.store(SubmissionPhase::Poisoned,std::memory_order_release);
+    };
     {
         InjectionScope guard(cmd);
         if (discard)
         {
-            owner->rr.DiscardRecordingHistory();
             std::scoped_lock lock(gMutex);
-            if (gService == owner && owner->resetSerial == serial) owner->discardRequested = false;
+            if (gService == owner && owner->cancellationSerial == serial) owner->discardRequested = false;
         }
-        if (reset) { owner->conversion.ResetHistory(); owner->rr.ResetHistory(); }
+        if (reset) { history->conversion.ResetHistory(); history->rr.ResetHistory(); }
         const auto snapshot = StreamlineHooks::getSLConstantsSnapshot();
-        succeeded = owner->rr.PrepareFrame(snapshot,reset,parameters,error);
-        if (succeeded && parameters.reset) owner->conversion.ResetHistory();
-        if (succeeded) succeeded = owner->conversion.Initialize(owner->device.Get(),resources.width,resources.height,error);
-        if (succeeded) succeeded = ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(),cmd,recording,
-            [recording](ID3D12CommandQueue*) { recording->submitted.store(true,std::memory_order_release); });
+        succeeded = history->rr.PrepareFrame(snapshot,reset,parameters,error);
+        if (succeeded && parameters.reset) history->conversion.ResetHistory();
+        if (succeeded) succeeded = history->conversion.Initialize(owner->device.Get(),resources.width,resources.height,error);
+        if (succeeded) succeeded = ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(),cmd,ownership,{},std::move(submission));
         if (!succeeded && error.empty()) error = "Could not retain NRD recording submission token";
         if (succeeded)
         {
             const ConversionInputs inputs {resources.reconSpec,resources.reconDiff,resources.normals,resources.viewDepth,nullptr};
-            succeeded = owner->conversion.Dispatch(cmd,inputs,parameters,converted,error);
+            succeeded = history->conversion.Dispatch(cmd,inputs,parameters,converted,error);
         }
-        if (succeeded) conventions = Conventions(owner->rr);
+        if (succeeded) conventions = Conventions(history->rr);
     }
     if (!succeeded) { Failure(owner,error.empty() ? "NRD input conversion failed" : error); return; }
     bool logConventions = false;
@@ -253,10 +338,11 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         std::scoped_lock lock(gMutex);
         const auto found = owner->lists.find(cmd);
         if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || !owner->cache.Valid() ||
-            owner->cache.Generation() != generation || owner->resetSerial != serial || found == owner->lists.end() ||
-            found->second.frame != frame) { DropPending(*owner); return; }
+            owner->cache.Generation() != generation || owner->cancellationSerial != serial || found == owner->lists.end() ||
+            found->second.frame != frame) return;
         auto& list = found->second;
-        list.converted = true; list.motionReady = false; list.recording = recording; list.generation = generation; list.resetSerial = serial;
+        list.converted = true; list.motionReady = false; list.recording = recording; list.history = history;
+        list.generation = generation; list.resetSerial = serial;
         list.parameters = parameters; list.inputs = converted; list.debug = gDebug.load(std::memory_order_relaxed);
         owner->pendingList = cmd; owner->appliedReset = serial;
         logConventions = !owner->conventionsLogged && !conventions.empty();
@@ -282,7 +368,7 @@ void FinalizeMotion(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommand
         if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || !owner->cache.Valid() || found == owner->lists.end()) return;
         const auto& list = found->second;
         if (!list.converted || list.motionReady || list.frame != frame || list.generation != owner->cache.Generation() ||
-            list.resetSerial != owner->resetSerial || owner->cache.Get().motion != currentMotion) return;
+            list.resetSerial != owner->cancellationSerial || owner->cache.Get().motion != currentMotion) return;
         staged = list;
     }
     if (!FrameSurvey::MetadataHealthy()) { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
@@ -290,14 +376,14 @@ void FinalizeMotion(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommand
     std::string error; bool succeeded = false;
     {
         InjectionScope guard(cmd);
-        succeeded = DispatchCurrentMotion(owner->conversion,cmd,staged.inputs,currentMotion,staged.parameters,error);
+        succeeded = DispatchCurrentMotion(staged.history->conversion,cmd,staged.inputs,currentMotion,staged.parameters,error);
     }
     if (!succeeded) { Failure(owner,error.empty() ? "NRD current motion conversion failed" : error); return; }
     {
         std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
         if (gService != owner || !owner->cache.Valid() || found == owner->lists.end()) return;
         auto& list = found->second;
-        if (list.frame == frame && list.generation == owner->cache.Generation() && list.resetSerial == owner->resetSerial && list.converted)
+        if (list.frame == frame && list.generation == owner->cache.Generation() && list.resetSerial == owner->cancellationSerial && list.converted)
             list.motionReady = true;
     }
 }
@@ -419,8 +505,18 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
             {
                 const bool nrdList = found->second.nrdList;
                 const bool unsubmitted = found->second.recording && !found->second.recording->submitted.load(std::memory_order_acquire);
-                if (unsubmitted) owner.discardRequested = true;
-                if (found->second.converted || owner.pendingList == cmd || unsubmitted) DropPending(owner);
+                if (unsubmitted && found->second.history)
+                {
+                    found->second.history->uncertain.store(true,std::memory_order_release);
+                    found->second.history->discardPending.store(true,std::memory_order_release);
+                    owner.discardRequested = true;
+                }
+                if (found->second.converted || owner.pendingList == cmd || unsubmitted)
+                {
+                    if (owner.pendingList == cmd) owner.pendingList = nullptr;
+                    if (owner.activeFrame == found->second.frame) owner.status.active = false;
+                    ++owner.resetSerial;
+                }
                 found->second = {}; found->second.nrdList = nrdList; found->second.role = PipelineRole(owner,initial);
                 if (nrdList && gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
                     (owner.cache.Valid() || owner.retryPresents >= 60 || !owner.everRecon))
@@ -448,9 +544,10 @@ void AfterDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 if (!window) { found->second.followingRecon = false; return; } // Intentional retry cooldown records no owned work.
                 if (role == Role::Recon)
                 {
-                    if (owner->pendingList) DropPending(*owner);
                     auto& list = found->second; auto recording = std::move(list.recording);
-                    list = {}; list.recording = std::move(recording); // Prior unsubmitted RR work survives a second incomplete Recon.
+                    auto previousHistory = std::move(list.history);
+                    list = {}; list.recording = std::move(recording); list.history = std::move(previousHistory);
+                    // Prior unsubmitted RR work survives a second incomplete Recon.
                     list.role = role; list.followingRecon = list.nrdList = true;
                     list.frame = frame = ++owner->frame; owner->observedRecon = owner->everRecon = true;
                     if (window) owner->windowSawRecon = true;
@@ -515,12 +612,15 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
             }
         }
         std::string error; ChainDiscovery discovered; bool published = false, invalid = false;
-        ID3D12Resource* motionTag = nullptr; Resources resources; ListState staged; bool inject = false;
+        ID3D12Resource* motionTag = nullptr; Resources resources; ListState staged; bool inject = false, keepWindow = false;
         {
         NrdBridgeLifetime::ScopedBorrow borrow;
         std::vector<FrameSurvey::BoundResource> srv, uav;
         if (!window) { Failure(owner,"Consumer has no current binding-validation window"); return; }
-        if (!Tables(cmd,Role::Consumer,srv,uav)) { WaitingForBindings(owner,cmd,"Consumer compute table bindings are unavailable in discovery window"); return; }
+        if (!Tables(cmd,Role::Consumer,srv,uav)) { WaitingForBindings(owner,cmd,"Consumer compute table bindings/registers are unavailable in discovery window"); return; }
+        FrameSurvey::BoundConstantBuffer consumerConstants;
+        if (!FrameSurvey::ResolveComputeConstantBuffer(cmd,6,0,76u*16u,consumerConstants))
+        { Failure(owner,"Consumer b6 space0 constants are missing, ambiguous or do not cover register75.w"); return; }
         {
             std::scoped_lock lock(gMutex); if (gService != owner) return;
             const auto found = owner->lists.find(cmd); if (found == owner->lists.end()) return;
@@ -539,13 +639,19 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 }
             }
             inject = !invalid && owner->cache.Valid() && list.converted && list.motionReady && list.temporal && list.atrous &&
-                list.generation == owner->cache.Generation() && list.resetSerial == owner->resetSerial;
-            if (inject) { resources = owner->cache.Get(); staged = list; }
+                list.generation == owner->cache.Generation() && list.resetSerial == owner->cancellationSerial;
+            if (inject)
+            {
+                resources = owner->cache.Get(); staged = list;
+                staged.parameters.outputConstants = {consumerConstants.resource,consumerConstants.address};
+            }
             list.followingRecon = false;
+            keepWindow = std::any_of(owner->lists.begin(),owner->lists.end(),[](const auto& entry) { return entry.second.followingRecon; });
+            owner->window = keepWindow;
         }
         } // Release physical-resource borrow before waiting for native injection serialization.
         if (invalid) { Failure(owner,error); return; }
-        if (window) FrameSurvey::SetBindingWindow(false);
+        if (window && !keepWindow) FrameSurvey::SetBindingWindow(false);
         if (published) LogDiscovery(discovered,motionTag);
         if (!inject) return;
         std::scoped_lock injection(gInjectionMutex);
@@ -553,7 +659,10 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         {
             std::scoped_lock lock(gMutex);
             if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || !owner->cache.Valid() ||
-                staged.generation != owner->cache.Generation() || staged.resetSerial != owner->resetSerial || owner->pendingList != cmd) return;
+                staged.generation != owner->cache.Generation() || staged.resetSerial != owner->cancellationSerial) return;
+            const auto found = owner->lists.find(cmd);
+            if (found == owner->lists.end() || found->second.frame != staged.frame ||
+                found->second.recording != staged.recording || !found->second.converted || !found->second.motionReady) return;
         }
         if (!FrameSurvey::MetadataHealthy()) { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
         if (!D3D12Hooks::CanRestoreRootSignature(cmd)) { Failure(owner,"Title compute state cannot be restored before Consumer"); return; }
@@ -573,8 +682,8 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 ticket.metadataFailed = !FrameSurvey::MetadataHealthy();
                 if (gService.get() != ticket.owner || !gRuntime.load(std::memory_order_relaxed) ||
                     !ticket.owner->cache.Valid() || ticket.metadataFailed ||
-                    staged.generation != ticket.owner->cache.Generation() || staged.resetSerial != ticket.owner->resetSerial ||
-                    ticket.owner->pendingList != ticket.list || found == ticket.owner->lists.end() ||
+                    staged.generation != ticket.owner->cache.Generation() || staged.resetSerial != ticket.owner->cancellationSerial ||
+                    found == ticket.owner->lists.end() ||
                     found->second.frame != staged.frame || !found->second.converted || !found->second.motionReady ||
                     found->second.recording != staged.recording)
                 { ticket.cancelled = true; return false; }
@@ -582,12 +691,15 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
                 // cannot pass between the final ticket check and the prepared write.
                 action(prepared);
                 found->second.converted = false;
-                ticket.owner->pendingList = nullptr; ticket.owner->failures = 0;
+                if (ticket.owner->pendingList == ticket.list) ticket.owner->pendingList = nullptr;
+                ticket.owner->failures = 0;
                 ticket.frames = ++ticket.owner->status.framesBridged;
                 if (staged.parameters.reset) ++ticket.owner->status.resets;
                 ticket.resets = ticket.owner->status.resets;
-                ticket.owner->status.active = true; ticket.owner->status.phase = "Active"; ticket.owner->status.reason.clear();
-                if (staged.debug != DebugMode::Off) ++ticket.owner->resetSerial;
+                ticket.owner->status.active = true; ticket.owner->activeFrame = staged.frame;
+                ticket.owner->status.phase = "Active"; ticket.owner->status.reason.clear();
+                if (staged.debug != DebugMode::Off)
+                { ++ticket.owner->resetSerial; staged.history->uncertain.store(true,std::memory_order_release); }
                 ticket.log = ticket.frames == 1 || ticket.frames-ticket.owner->lastLog >= 600;
                 if (ticket.log) ticket.owner->lastLog = ticket.frames;
                 return true;
@@ -598,8 +710,9 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         {
             InjectionScope guard(cmd);
             if (staged.debug == DebugMode::Off)
-                succeeded = owner->rr.Dispatch(cmd,staged.inputs,resources.outputSpec,resources.outputDiff,staged.parameters,error,admission);
-            else succeeded = owner->conversion.WriteDebug(cmd,staged.inputs,resources.outputSpec,resources.outputDiff,staged.debug,error,admission);
+                succeeded = staged.history->rr.Dispatch(cmd,staged.inputs,resources.outputSpec,resources.outputDiff,staged.parameters,error,admission);
+            else succeeded = staged.history->conversion.WriteDebug(cmd,staged.inputs,resources.outputSpec,resources.outputDiff,staged.debug,error,admission,
+                    staged.parameters.outputEncoding,staged.parameters.outputConstants);
         }
         if (ticket.metadataFailed)
         { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
@@ -622,8 +735,18 @@ void OnReleased(void* object) noexcept
             if (const auto found = owner.lists.find(reinterpret_cast<ID3D12GraphicsCommandList*>(object)); found != owner.lists.end())
             {
                 const bool unsubmitted = found->second.recording && !found->second.recording->submitted.load(std::memory_order_acquire);
-                if (unsubmitted) owner.discardRequested = true;
-                if (found->second.converted || unsubmitted) DropPending(owner);
+                if (unsubmitted && found->second.history)
+                {
+                    found->second.history->uncertain.store(true,std::memory_order_release);
+                    found->second.history->discardPending.store(true,std::memory_order_release);
+                    owner.discardRequested = true;
+                }
+                if (found->second.converted || unsubmitted)
+                {
+                    if (owner.pendingList == reinterpret_cast<ID3D12GraphicsCommandList*>(object)) owner.pendingList = nullptr;
+                    if (owner.activeFrame == found->second.frame) owner.status.active = false;
+                    ++owner.resetSerial;
+                }
                 owner.lists.erase(found);
             }
             for (auto& [cmd,list] : owner.lists) if (list.chain.Released(object)) list.followingRecon = false;

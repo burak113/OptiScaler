@@ -1034,6 +1034,8 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="misc\NrdBridgeTitleCallbacks_Dx12.h" />
     <ClInclude Include="misc\NrdBridgeDevice_Dx12.h" />
     <ClInclude Include="misc\NrdBridgeOwned_Dx12.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdSignalConstants_Dx12.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdSignalEncoding.hlsli" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMotion.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMotion_Shader.cso" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdMotionCommon.hlsli" />

@@ -3805,7 +3805,7 @@ void ResTrack_Dx12::HookDevice(ID3D12Device* device)
     }
 
     // o_CreateDepthStencilView = (PFN_CreateDepthStencilView) pVTable[21];
-    // o_CreateConstantBufferView = (PFN_CreateConstantBufferView) pVTable[17];
+    if (gNrdBridgeWrappers) o_CreateConstantBufferView = (PFN_CreateConstantBufferView) pVTable[17];
 
     // Apply the detour
 
@@ -3829,6 +3829,9 @@ void ResTrack_Dx12::HookDevice(ID3D12Device* device)
         if (o_CreateRenderTargetView != nullptr)
             DetourAttach(&(PVOID&) o_CreateRenderTargetView, gSurveyWrappers ? hkSurveyCreateRenderTargetView : hkCreateRenderTargetView);
 
+        if (gNrdBridgeWrappers && o_CreateConstantBufferView != nullptr)
+            DetourAttach(&(PVOID&) o_CreateConstantBufferView, hkSurveyCreateConstantBufferView);
+
         if (o_CreateShaderResourceView != nullptr)
             DetourAttach(&(PVOID&) o_CreateShaderResourceView, gSurveyWrappers ? hkSurveyCreateShaderResourceView : hkCreateShaderResourceView);
 
@@ -3847,6 +3850,7 @@ void ResTrack_Dx12::HookDevice(ID3D12Device* device)
             LOG_ERROR("Failed to hook Descriptor methods: {:X}", detourResult);
             o_CreateDescriptorHeap = nullptr;
             o_CreateRenderTargetView = nullptr;
+            o_CreateConstantBufferView = nullptr;
             o_CreateShaderResourceView = nullptr;
             o_CreateUnorderedAccessView = nullptr;
             o_CopyDescriptors = nullptr;
@@ -3891,6 +3895,9 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
 
     if (o_CreateRenderTargetView != nullptr)
         DetourDetach(&(PVOID&) o_CreateRenderTargetView, gSurveyWrappers ? hkSurveyCreateRenderTargetView : hkCreateRenderTargetView);
+
+    if (o_CreateConstantBufferView != nullptr)
+        DetourDetach(&(PVOID&) o_CreateConstantBufferView, hkSurveyCreateConstantBufferView);
 
     if (o_CreateShaderResourceView != nullptr)
         DetourDetach(&(PVOID&) o_CreateShaderResourceView, gSurveyWrappers ? hkSurveyCreateShaderResourceView : hkCreateShaderResourceView);
@@ -3968,6 +3975,7 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
     o_CreateComputePipelineState = nullptr;
     o_CreatePipelineState = nullptr;
     o_CreateRenderTargetView = nullptr;
+    o_CreateConstantBufferView = nullptr;
     o_CreateShaderResourceView = nullptr;
     o_CreateUnorderedAccessView = nullptr;
     o_CopyDescriptors = nullptr;
