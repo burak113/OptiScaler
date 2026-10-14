@@ -19,6 +19,7 @@
 #include "__ROOT__/OptiScaler/include/detours/detours.h"
 #include "__ROOT__/OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h"
 #include "__ROOT__/OptiScaler/misc/NrdBridgeTitleCallbacks_Dx12.h"
+#include "__ROOT__/OptiScaler/misc/NrdBridgeNativeBirth_Dx12.h"
 #include "hooks/D3D12_Hooks.h"
 using Microsoft::WRL::ComPtr;
 using J=nlohmann::json;
@@ -872,16 +873,19 @@ void qualityReplayCase(Host& h,Title& title,J& result,const std::filesystem::pat
   const auto gpuDepth=title.readback(static_cast<ID3D12Resource*>(record.depth),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
   const std::array<Readback,2> converted{title.readback(static_cast<ID3D12Resource*>(record.spec),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),title.readback(static_cast<ID3D12Resource*>(record.diff),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE)};
   const auto outputData=title.capture();auto stamps=h.buffer(16,D3D12_HEAP_TYPE_READBACK,D3D12_RESOURCE_STATE_COPY_DEST);h.list->ResolveQueryData(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0,2,stamps.Get(),0);h.submit();
-  const auto rgb=title.validate(outputData);const auto stats=title.rrChecks(rgb);const auto motion=gpuMotion.signal(),nr=gpuNR.signal();
+  const auto rgb=title.validate(outputData);const auto stats=title.rrChecks(rgb);const auto motion=gpuMotion.signal();
   for(UINT signal=0;signal<2;++signal)need(converted[signal].signal()==title.raw[signal],"actual signed provider's converted signal preserves every sealed finite native RGB/alpha input bit");
   bool currentDepth=true,currentNormal=true,currentXY=true,projectedDelta=true;void* depthMap=nullptr;hr(gpuDepth.resource->Map(0,nullptr,&depthMap));
+  need(gpuNR.footprint.Footprint.Format==DXGI_FORMAT_R10G10B10A2_UNORM,"quality normal readback uses the attested native packed RGB10/A2 format");
+  void* normalMap=nullptr;hr(gpuNR.resource->Map(0,nullptr,&normalMap));
   const auto* nativeZ=reinterpret_cast<const float*>(data[3].data());const auto* nativeNR=reinterpret_cast<const UINT*>(data[2].data());const auto* nativeMV=reinterpret_cast<const uint16_t*>(data[4].data());const auto* expectedDelta=reinterpret_cast<const float*>(delta.data());
   const auto parameters=list.parameters;
+  need(!parameters.preserveNativeMaterialIDs,"camera-depth quality A/B keeps the independent material-ID experiment OFF");
   for(UINT y=0;y<title.height;++y)for(UINT x=0;x<title.width;++x) {
    const size_t pixel=size_t(y)*title.width+x,at=pixel*4;const auto* depthRow=reinterpret_cast<const float*>(static_cast<const uint8_t*>(depthMap)+size_t(y)*gpuDepth.footprint.Footprint.RowPitch);
    currentDepth &= std::bit_cast<UINT>(depthRow[x])==std::bit_cast<UINT>(-nativeZ[pixel]);
-   for(UINT c=0;c<3;++c)currentNormal &= nr[at+c]==PackedVector::XMConvertFloatToHalf(float((nativeNR[pixel]>>(10*c))&1023u)/1023.f);
-   currentNormal &= nr[at+3]==0;
+   const auto* normalRow=reinterpret_cast<const UINT*>(static_cast<const uint8_t*>(normalMap)+size_t(y)*gpuNR.footprint.Footprint.RowPitch);
+   currentNormal &= normalRow[x]==(nativeNR[pixel]&0x3fffffffu); // Every current RGB bit, and exact A=0.
    for(UINT c=0;c<2;++c) {
     const float raw=PackedVector::XMConvertHalfToFloat(nativeMV[at+c]);const float jitter=c?(parameters.previousJitter.y-parameters.jitter.y)/title.height:(parameters.previousJitter.x-parameters.jitter.x)/title.width;
     currentXY &= std::abs(PackedVector::XMConvertHalfToFloat(motion[at+c])-(raw+jitter))<.0002f;
@@ -889,7 +893,7 @@ void qualityReplayCase(Host& h,Title& title,J& result,const std::filesystem::pat
    if(!index)projectedDelta &= motion[at+2]==0;
    if(projected&&x>=16&&x+16<title.width&&y>=16&&y+16<title.height)projectedDelta &= std::abs(PackedVector::XMConvertHalfToFloat(motion[at+2])-expectedDelta[pixel])<.005f;
   }
-  gpuDepth.resource->Unmap(0,nullptr);need(currentDepth&&currentNormal,"actual GPU guides use every current native normal/depth byte after each identity rotation");need(currentXY,"actual GPU motion XY uses the current native vector and jitter once");need(projectedDelta,"candidate GPU B matches the independent same-surface camera oracle in the interior");
+  gpuNR.resource->Unmap(0,nullptr);gpuDepth.resource->Unmap(0,nullptr);need(currentDepth&&currentNormal,"actual GPU guides use every current native normal/depth byte after each identity rotation");need(currentXY,"actual GPU motion XY uses the current native vector and jitter once");need(projectedDelta,"candidate GPU B matches the independent same-surface camera oracle in the interior");
   void* timestampData=nullptr;hr(stamps->Map(0,nullptr,&timestampData));const auto* ticks=static_cast<const UINT64*>(timestampData);need(ticks[1]>=ticks[0],"quality diagnostic timestamp pair is ordered");const double gpuMs=double(ticks[1]-ticks[0])*1000./frequency;stamps->Unmap(0,nullptr);
   const auto number=std::to_string(id);const auto prefix="frame"+std::string(3-number.size(),'0')+number;J hashes;
   hashes["spec"]=qualitySave(output/(prefix+"-spec.bin"),rgb[0]);hashes["diff"]=qualitySave(output/(prefix+"-diff.bin"),rgb[1]);hashes["motion"]=qualitySave(output/(prefix+"-motion.bin"),motion);

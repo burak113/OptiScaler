@@ -20,16 +20,23 @@ from test_fsrd_nrd_bridge_rr import bounded_run, DLL
 
 
 def method(source, signature):
-    """Keep default aggregate arguments while finding the function body."""
-    start = source.index(signature)
-    opening = source.index('(', start)
-    level = 1
-    end_parameters = opening + 1
-    while level:
-        character = source[end_parameters]
-        level += (character == '(') - (character == ')')
-        end_parameters += 1
-    brace = source.index('{', end_parameters)
+    """Extract the actual definition, past declarations and aggregate default arguments."""
+    search = 0
+    while True:
+        start = source.index(signature, search)
+        opening = source.index('(', start)
+        level = 1
+        end_parameters = opening + 1
+        while level:
+            character = source[end_parameters]
+            level += (character == '(') - (character == ')')
+            end_parameters += 1
+        brace = source.index('{', end_parameters)
+        declaration = source.find(';', end_parameters, brace)
+        if declaration != -1:
+            search = declaration + 1
+            continue
+        break
     level = 1
     end = brace + 1
     while level:
@@ -203,7 +210,7 @@ struct D3D12Hooks {
              'SetComputeRootShaderResourceView', 'SetComputeRootUnorderedAccessView')
     wrappers = ('SetDescriptorHeaps', 'SetComputeRootSignature', 'SetComputeRootConstantBufferView',
                 'SetComputeRootShaderResourceView', 'SetComputeRootUnorderedAccessView')
-    bodies = function(d3d, 'UINT GetRootParameterCount(') + '\n'
+    bodies = method(d3d, 'UINT GetRootParameterCount(') + '\n'
     bodies += '\n'.join(function(d3d, 'static void hk' + name + '(') for name in early)
     bodies += '\n' + '\n'.join(function(d3d, 'static void hkSurvey' + name + '(') for name in wrappers)
     bodies = re.sub(r'\bhk(?=\w)', 'root_hk', bodies)
