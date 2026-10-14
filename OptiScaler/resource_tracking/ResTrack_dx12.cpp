@@ -161,6 +161,11 @@ static PFN_PsoRelease o_PsoRelease = nullptr;
 // Release entry so a PSO that shares the same implementation can reuse hkRelease instead of
 // attempting to detour the already-detoured address a second time.
 static PVOID gResourceReleaseEntry = nullptr;
+static PVOID gHeapReleaseEntry = nullptr;
+static bool gHeapOwnsReleaseHook = false;
+static std::atomic<bool> gHeapReleaseSharesResource { false };
+static bool gResourceReleaseSharesHeap = false;
+static std::recursive_mutex gReleaseHookInstallMutex;
 static PVOID gPsoReleaseEntry = nullptr;
 static PVOID gCommandListReleaseEntry = nullptr;
 static PVOID gComputeResetEntry = nullptr;
@@ -1927,6 +1932,8 @@ void ResTrack_Dx12::hkExecuteCommandLists(ID3D12CommandQueue* This, UINT NumComm
 
 static ULONG STDMETHODCALLTYPE hkHeapRelease(ID3D12DescriptorHeap* This)
 {
+    if (gHeapReleaseSharesResource.load(std::memory_order_acquire) && gSharedResourceReleaseObserver)
+        return gSharedResourceReleaseObserver(reinterpret_cast<ID3D12Resource*>(This));
     NrdBridgeLifetime::ScopedRelease titleRelease(gNrdBridgeWrappers && !FrameSurvey::Internal());
     if (State::Instance().isShuttingDown)
         return o_HeapRelease(This);
@@ -1972,6 +1979,88 @@ static ULONG STDMETHODCALLTYPE hkHeapRelease(ID3D12DescriptorHeap* This)
     return o_HeapRelease(This);
 }
 
+static void EnsureHeapReleaseHook(ID3D12DescriptorHeap* heap)
+{
+    std::unique_lock installation(gReleaseHookInstallMutex);
+    const auto entry = (*reinterpret_cast<PVOID**>(heap))[2];
+    if (o_HeapRelease)
+    {
+        if (entry != gHeapReleaseEntry && gNrdBridgeWrappers)
+        {
+            installation.unlock();
+            FrameSurvey::MetadataHookFailed("Descriptor heap Release implementation is not covered by the installed observer");
+        }
+        return;
+    }
+    if (entry == gResourceReleaseEntry && o_Release)
+    {
+        // The resource observer already owns this physical IUnknown entry.
+        gHeapReleaseEntry = entry;
+        o_HeapRelease = reinterpret_cast<PFN_HeapRelease>(o_Release);
+        gHeapOwnsReleaseHook = false;
+        gHeapReleaseSharesResource.store(true,std::memory_order_release);
+        return;
+    }
+    if ((entry == gPsoReleaseEntry && o_PsoRelease) ||
+        (entry == gCommandListReleaseEntry && o_CommandListRelease))
+    {
+        // No second detour may own a previously observed IUnknown implementation.
+        if (gNrdBridgeWrappers)
+        {
+            installation.unlock();
+            FrameSurvey::MetadataHookFailed("Descriptor heap Release shares an unsupported native observer");
+        }
+        return;
+    }
+    gHeapReleaseEntry = entry;
+    o_HeapRelease = reinterpret_cast<PFN_HeapRelease>(entry);
+    const auto begin = DetourTransactionBegin();
+    const auto update = begin == NO_ERROR ? DetourUpdateThread(GetCurrentThread()) : begin;
+    const auto attach = update == NO_ERROR ? DetourAttach(&(PVOID&) o_HeapRelease, hkHeapRelease) : update;
+    const auto commit = attach == NO_ERROR ? DetourTransactionCommit() :
+        (begin == NO_ERROR ? DetourTransactionAbort() : begin);
+    const auto result = attach == NO_ERROR ? commit : attach;
+    if (result != NO_ERROR)
+    {
+        LOG_ERROR("Failed to hook Heap Release: {:X}", result);
+        o_HeapRelease = nullptr; gHeapReleaseEntry = nullptr;
+        if (gNrdBridgeWrappers)
+        {
+            installation.unlock();
+            FrameSurvey::MetadataHookFailed("Descriptor heap Release observer installation failed");
+        }
+    }
+    else gHeapOwnsReleaseHook = true;
+}
+
+static bool HeapReleaseObserverCovers(ID3D12DescriptorHeap* heap)
+{
+    std::lock_guard installation(gReleaseHookInstallMutex);
+    const auto entry = (*reinterpret_cast<PVOID**>(heap))[2];
+    // The generic resource observer also removes heap metadata by raw address.
+    // Uncovered heaps must never enter the borrowed native-descriptor registry.
+    return (entry == gResourceReleaseEntry && o_Release) ||
+        (entry == gHeapReleaseEntry && o_HeapRelease && gHeapOwnsReleaseHook);
+}
+
+// The common resource/heap Release observer cannot use a heap as a resource.
+// Resolve only its address and run reverse-index removal outside the resource lock.
+static void DeactivateSharedHeap(void* address)
+{
+    if (!gHeapReleaseSharesResource.load(std::memory_order_acquire)) return;
+    std::shared_ptr<HeapInfo> found;
+    {
+        std::shared_lock lock(_heapRegistryMutex);
+        for (const auto& heap : fgHeaps)
+            if (heap && heap->heap == address && heap->active.load(std::memory_order_acquire))
+            { found = heap; break; }
+    }
+    if (!found) return;
+    bool deactivated = false;
+    { std::unique_lock lock(_heapRegistryMutex); deactivated = found->DeactivateAndClear(); }
+    if (deactivated) gHeapGeneration.fetch_add(1, std::memory_order_release);
+}
+
 HRESULT ResTrack_Dx12::hkCreateDescriptorHeap(ID3D12Device* This, D3D12_DESCRIPTOR_HEAP_DESC* pDescriptorHeapDesc,
                                               REFIID riid, void** ppvHeap)
 {
@@ -1986,20 +2075,7 @@ HRESULT ResTrack_Dx12::hkCreateDescriptorHeap(ID3D12Device* This, D3D12_DESCRIPT
     {
         auto heap = (ID3D12DescriptorHeap*) (*ppvHeap);
 
-        if (!o_HeapRelease)
-        {
-            PVOID* vtbl = *(PVOID**) heap;
-            o_HeapRelease = (PFN_HeapRelease) vtbl[2];
-            DetourTransactionBegin();
-            DetourUpdateThread(GetCurrentThread());
-            DetourAttach(&(PVOID&) o_HeapRelease, hkHeapRelease);
-            auto detourResult = DetourTransactionCommit();
-            if (detourResult != NO_ERROR)
-            {
-                LOG_ERROR("Failed to hook Heap Release: {:X}", detourResult);
-                o_HeapRelease = nullptr;
-            }
-        }
+        EnsureHeapReleaseHook(heap);
 
         auto increment = This->GetDescriptorHandleIncrementSize(pDescriptorHeapDesc->Type);
         auto numDescriptors = pDescriptorHeapDesc->NumDescriptors;
@@ -2065,6 +2141,7 @@ ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
     auto computeRecording = RecordedComputeLease::BeginRelease(This);
 
     std::vector<TrackedResourceSlot> toClean;
+    bool finalProbe = false;
     {
         std::lock_guard lock(_trackedResourcesMutex);
 
@@ -2073,6 +2150,7 @@ ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
 
         if (refCount <= 1)
         {
+            finalProbe = true;
             if (gSurveyWrappers) FrameSurvey::Released(This);
             // Release may be shared with command lists; erase by address before final destruction.
             if (gNrdBridgeWrappers)
@@ -2105,6 +2183,7 @@ ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
         }
     }
 
+    if (finalProbe) DeactivateSharedHeap(This);
     // Clean descriptor slots outside the reverse-index lock.
     for (const auto& slot : toClean)
     {
@@ -3370,6 +3449,7 @@ void ResTrack_Dx12::hkDispatch(ID3D12GraphicsCommandList* This, UINT ThreadGroup
 
 void ResTrack_Dx12::HookResource(ID3D12Device* InDevice)
 {
+    std::unique_lock installation(gReleaseHookInstallMutex);
     if (o_Release != nullptr)
         return;
 
@@ -3385,6 +3465,16 @@ void ResTrack_Dx12::HookResource(ID3D12Device* InDevice)
         PVOID* pVTable = *(PVOID**) tmp;
         gResourceReleaseEntry = pVTable[2];
         gSharedResourceReleaseObserver = hkRelease;
+        if (gResourceReleaseEntry == gHeapReleaseEntry && o_HeapRelease && gHeapOwnsReleaseHook)
+        {
+            // A heap detour installed first. Its universal wrapper delegates to
+            // hkRelease; both aliases call the existing original trampoline.
+            o_Release = reinterpret_cast<PFN_Release>(o_HeapRelease);
+            gResourceReleaseSharesHeap = true;
+            gHeapReleaseSharesResource.store(true,std::memory_order_release);
+            tmp->Release();
+            return;
+        }
         if (gResourceReleaseEntry == gCommandListReleaseEntry && o_CommandListRelease)
         {
             // Already detoured for command lists: use that observer for this shared entry.
@@ -3404,19 +3494,25 @@ void ResTrack_Dx12::HookResource(ID3D12Device* InDevice)
 
         if (o_Release != nullptr)
         {
-            DetourTransactionBegin();
-            DetourUpdateThread(GetCurrentThread());
-            const auto attachResult = DetourAttach(&(PVOID&) o_Release, hkRelease);
-            const auto commitResult = attachResult == NO_ERROR ? DetourTransactionCommit() : DetourTransactionAbort();
+            const auto beginResult = DetourTransactionBegin();
+            const auto updateResult = beginResult == NO_ERROR ? DetourUpdateThread(GetCurrentThread()) : beginResult;
+            const auto attachResult = updateResult == NO_ERROR ? DetourAttach(&(PVOID&) o_Release, hkRelease) : updateResult;
+            const auto commitResult = attachResult == NO_ERROR ? DetourTransactionCommit() :
+                (beginResult == NO_ERROR ? DetourTransactionAbort() : beginResult);
             const auto detourResult = attachResult == NO_ERROR ? commitResult : attachResult;
 
             if (detourResult != NO_ERROR)
             {
-                LOG_ERROR("Failed to hook Heap Release: {:X}", detourResult);
+                LOG_ERROR("Failed to hook Resource Release: {:X}", detourResult);
                 o_Release = nullptr;
                 gResourceReleaseEntry = nullptr;
                 gSharedResourceReleaseObserver = nullptr;
                 tmp->Release();
+                if (gNrdBridgeWrappers)
+                {
+                    installation.unlock();
+                    FrameSurvey::MetadataHookFailed("Native resource Release observer installation failed");
+                }
             }
             else
             {
@@ -3725,7 +3821,7 @@ bool ResTrack_Dx12::RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCo
         HookToQueue(device);
         if (deviceIdentity.Get() != gComputeQueueDeviceIdentity.Get()) return false;
     }
-    if (!RecordedComputeLease::Available()) return false;
+    if (!RecordedComputeLease::Available() || (gNrdBridgeWrappers && !gResourceReleaseEntry)) return false;
     ID3D12GraphicsCommandList* actual = list;
     IUnknown* unwrapped = nullptr;
     if (CheckForRealObject(__FUNCTION__, list, &unwrapped))
@@ -3980,7 +4076,7 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
         DetourDetach(&(PVOID&) o_ExecuteBundle, gSurveyWrappers ? hkSurveyExecuteBundle : hkExecuteBundle);
 
     // Resource
-    if (o_Release != nullptr && !gResourceReleaseSharesCommandList && !gResourceReleaseSharesPso)
+    if (o_Release != nullptr && !gResourceReleaseSharesCommandList && !gResourceReleaseSharesPso && !gResourceReleaseSharesHeap)
         DetourDetach(&(PVOID&) o_Release, hkRelease);
 
     if (o_PsoRelease != nullptr)
@@ -4030,6 +4126,11 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
     gPsoReleaseEntry = nullptr;
     gResourceReleaseSharesCommandList = false;
     gResourceReleaseSharesPso = false;
+    gResourceReleaseSharesHeap = false;
+    gHeapReleaseSharesResource.store(false,std::memory_order_release);
+    // A resource-owned trampoline is retired by Detours; never leave a dangling
+    // heap alias. A legacy heap-owned detour keeps its own original trampoline.
+    if (!gHeapOwnsReleaseHook) { o_HeapRelease = nullptr; gHeapReleaseEntry = nullptr; }
     gComputeExecuteEntry = nullptr;
     gComputeQueueDeviceIdentity.Reset();
 
@@ -4277,7 +4378,9 @@ HRESULT ResTrack_Dx12::hkSurveyCreateDescriptorHeap(ID3D12Device* This, D3D12_DE
                                               REFIID riid, void** ppvHeap)
 {
     const auto result = hkCreateDescriptorHeap(This,pDescriptorHeapDesc,riid,ppvHeap);
-    if (SUCCEEDED(result) && ppvHeap && *ppvHeap) FrameSurvey::HeapCreated(This,static_cast<ID3D12DescriptorHeap*>(*ppvHeap));
+    if (SUCCEEDED(result) && ppvHeap && *ppvHeap &&
+        (!gNrdBridgeWrappers || HeapReleaseObserverCovers(static_cast<ID3D12DescriptorHeap*>(*ppvHeap))))
+        FrameSurvey::HeapCreated(This,static_cast<ID3D12DescriptorHeap*>(*ppvHeap));
     return result;
 }
 
