@@ -179,6 +179,22 @@ class RetirementScope
     bool Valid() const noexcept { return payload_ != nullptr; }
 };
 
+namespace Detail
+{
+struct ReceiverVerification
+{
+    // Only COM Prepare calls this after both native Release coverage checks and
+    // the reserved GUID Get/Set proof. No native call runs inside this guard.
+    static void Mark(const NrdBridgeBirth::Token& token, void* address, uint64_t stamp) noexcept
+    {
+        if (!token || !address || !stamp || token->Address() != address || token->InstanceStamp() != stamp ||
+            NrdBridgeBirth::InMetadataScope()) return;
+        NrdBridgeBirth::CurrentGuard current(token);
+        if (current.AdmitsBorrow()) token->nativeReceiverVerified_.store(true,std::memory_order_release);
+        // A pending/in-flight/current-change race is a safe unverified result.
+    }
+};
+}
 // Link the exact typed address while keeping canonical initialization state.
 // Existing strong creators may publish a pending token, but weak/native readers
 // cannot borrow it until the canonical writer succeeds.
@@ -250,7 +266,13 @@ template <class NativeObject> NrdBridgeBirth::Token Prepare(NativeObject* object
                     const auto current = NrdBridgeBirth::ObserveInstance(electionAddress,native.instanceStamp);
                     if (!current || !FinishPendingAliases(current))
                     { Detail::Fail("native instance observation failed"); return {}; }
-                    return TypedAlias(current,object);
+                    auto typed = TypedAlias(current,object);
+                    if constexpr (std::is_convertible_v<NativeObject*,IUnknown*>)
+                    {
+                        Detail::ReceiverVerification::Mark(current,electionAddress,native.instanceStamp);
+                        Detail::ReceiverVerification::Mark(typed,object,native.instanceStamp);
+                    }
+                    return typed;
                 }
             }
             else if (result != DXGI_ERROR_NOT_FOUND)
@@ -273,7 +295,16 @@ template <class NativeObject> NrdBridgeBirth::Token Prepare(NativeObject* object
             const auto written = object->SetPrivateData(InstanceGuid,sizeof(native),&native);
             const bool success = SUCCEEDED(written);
             if (NrdBridgeBirth::Finalize(elected,success))
-            { if (!FinishPendingAliases(elected)) return {}; return TypedAlias(elected,object); }
+            {
+                if (!FinishPendingAliases(elected)) return {};
+                auto typed = TypedAlias(elected,object);
+                if constexpr (std::is_convertible_v<NativeObject*,IUnknown*>)
+                {
+                    Detail::ReceiverVerification::Mark(elected,electionAddress,native.instanceStamp);
+                    Detail::ReceiverVerification::Mark(typed,object,native.instanceStamp);
+                }
+                return typed;
+            }
             if (!success) { Detail::Fail("native instance GUID write failed"); return {}; }
             if (!NrdBridgeBirth::Healthy()) return {};
             // An exact metadata pre-retirement can race with an interned live
@@ -284,6 +315,19 @@ template <class NativeObject> NrdBridgeBirth::Token Prepare(NativeObject* object
     Detail::Fail("native instance election exceeded bounded retries"); return {};
 }
 
+// Only a completed COM proof for this exact current address can bypass cold
+// work on a TLS miss. Capture is forbidden beneath any metadata guard.
+template <class NativeObject> NrdBridgeBirth::Token GloballyVerifiedReceiver(NativeObject* object) noexcept
+{
+    if constexpr (!std::is_convertible_v<NativeObject*,IUnknown*>) return {};
+    else
+    {
+        if (!object || !Ready() || FrameSurvey::OwnedRelease() || NrdBridgeBirth::InMetadataScope()) return {};
+        auto birth = NrdBridgeBirth::Capture(object);
+        return birth && birth->Address() == object && birth->InstanceStamp() &&
+            birth->NativeReceiverVerified() && NrdBridgeBirth::CacheAdmissible(birth) ? birth : NrdBridgeBirth::Token{};
+    }
+}
 // Cover each physical receiver once before caching it. Plain metadata users
 // can populate an uncovered cache entry without bypassing this native hook seam.
 template <class NativeObject, class Coverage>
@@ -305,6 +349,11 @@ NrdBridgeBirth::Token ReceiverWithReleaseCoverage(NativeObject* object, Coverage
             entry.releaseCovered = true;
             return entry.birth;
         }
+        if (auto verified = GloballyVerifiedReceiver(object); verified && NrdBridgeBirth::CacheAdmissible(verified))
+        {
+            Detail::receiverCache[Detail::nextReceiver++ % Detail::receiverCache.size()] = {object,verified,true};
+            return verified;
+        }
         if (NrdBridgeBirth::InMetadataScope())
         { Detail::Fail("native release coverage entered under metadata lock"); return {}; }
         if (!coverage(object)) return {};
@@ -324,6 +373,11 @@ template <class NativeObject> NrdBridgeBirth::Token Receiver(NativeObject* objec
     FlushFailure();
     for (auto& entry : Detail::receiverCache)
         if (entry.address == object && NrdBridgeBirth::CacheAdmissible(entry.birth)) return entry.birth;
+    if (auto verified = GloballyVerifiedReceiver(object); verified && NrdBridgeBirth::CacheAdmissible(verified))
+    {
+        Detail::receiverCache[Detail::nextReceiver++ % Detail::receiverCache.size()] = {object,verified,true};
+        return verified;
+    }
     auto birth = Prepare(object);
     if (birth) Detail::receiverCache[Detail::nextReceiver++ % Detail::receiverCache.size()] = {object,birth,std::is_convertible_v<NativeObject*,IUnknown*>};
     return birth;
