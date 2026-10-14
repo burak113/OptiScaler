@@ -1,6 +1,7 @@
 #pragma once
 
 #include <d3d12.h>
+#include <dxgi.h>
 #include <wrl/client.h>
 #include <algorithm>
 #include <functional>
@@ -15,6 +16,47 @@
 namespace RecordedComputeLease
 {
 using Microsoft::WRL::ComPtr;
+struct Submission;
+inline void AfterSubmission(const std::shared_ptr<Submission>& s) noexcept;
+struct FencePoint
+{
+    ComPtr<ID3D12CommandQueue> queue;
+    ComPtr<ID3D12Fence> fence;
+    uint64_t value = 1;
+    bool IsPublished() const noexcept { return published_; }
+  private:
+    bool published_ = false;
+    friend void AfterSubmission(const std::shared_ptr<Submission>&) noexcept;
+};
+using FencePointPtr = std::shared_ptr<const FencePoint>;
+struct SubmissionInfo
+{
+    ID3D12CommandQueue* queue = nullptr; // borrowed during the callback; never dereference a recording identity
+    uint64_t submissionId = 0, recordingId = 0, recordingSubmission = 0;
+    bool snapshotFallback = false;
+};
+enum class SubmissionFailure { Snapshot, Prepare, FenceCreate, Signal, Publish };
+struct SubmissionCallbacks
+{
+    // Necessary ordering must run even during a failed snapshot. Keep that work
+    // allocation-free; false cannot remove commands already recorded in a list.
+    std::function<bool(const SubmissionInfo&)> beforeSubmit;
+    std::function<void(const SubmissionInfo&, const FencePointPtr&)> fencePublished;
+    std::function<void(const SubmissionInfo&, SubmissionFailure)> failed;
+    bool Empty() const noexcept { return !beforeSubmit && !fencePublished && !failed; }
+};
+// Resolve one strong canonical identity on the stack. This avoids allocating a
+// list of identities before the allocation-failure ordering fallback can run.
+struct IdentityRange
+{
+    const void* context = nullptr;
+    size_t count = 0;
+    HRESULT (*identityAt)(const void*, size_t, IUnknown**) = nullptr;
+    void* (*aliasAt)(const void*, size_t) = nullptr;
+    IdentityRange(const void* sources, size_t size,
+                  HRESULT (*resolve)(const void*, size_t, IUnknown**), void* (*alias)(const void*, size_t)) noexcept
+        : context(sources), count(size), identityAt(resolve), aliasAt(alias) {}
+};
 struct Recording
 {
     IUnknown* identity = nullptr; // weak canonical identity; owning it prevents final Release
@@ -23,6 +65,8 @@ struct Recording
     // Optional gated work can learn the ACTUAL queue immediately before Execute.
     // Every gate starts denied and owns its private upload storage through a lease.
     std::vector<std::function<void(ID3D12CommandQueue*)>> prepareSubmission;
+    std::vector<SubmissionCallbacks> callbacks;
+    uint64_t id = 0, submissionCount = 0;
     size_t releasesInFlight = 0;
 };
 struct Submission
@@ -31,6 +75,12 @@ struct Submission
     ComPtr<ID3D12Fence> fence; // distinct fence per submission; no cross-thread value ordering
     std::vector<std::shared_ptr<void>> leases;
     std::vector<std::function<void(ID3D12CommandQueue*)>> prepareSubmission;
+    struct Callback { SubmissionInfo info; SubmissionCallbacks callbacks; };
+    struct Occurrence { std::shared_ptr<Recording> recording; size_t first = 0, count = 0; };
+    std::vector<Callback> callbacks;
+    std::vector<Occurrence> occurrences;
+    std::shared_ptr<FencePoint> point; // contains no leases/callbacks/domain references: no ownership cycle
+    bool preparationFailed = false, failureNotified = false;
     bool signalPublished = false;
 };
 struct Registry
@@ -40,6 +90,7 @@ struct Registry
     std::unordered_map<IUnknown*, std::shared_ptr<Recording>> recordings;
     std::unordered_map<void*, std::weak_ptr<Recording>> aliases;
     std::vector<std::shared_ptr<Submission>> submissions;
+    uint64_t nextRecording = 1, nextSubmission = 1;
 };
 inline Registry& GetRegistry()
 {
@@ -97,7 +148,8 @@ inline void Poll() noexcept
 }
 inline bool Track(IUnknown* identity, const std::vector<void*>& aliases,
                   const std::shared_ptr<void>& lease,
-                  std::function<void(ID3D12CommandQueue*)> prepareSubmission = {})
+                  std::function<void(ID3D12CommandQueue*)> prepareSubmission = {},
+                  SubmissionCallbacks callbacks = {})
 {
     if (!identity || !lease) return false;
     Poll();
@@ -115,6 +167,7 @@ inline bool Track(IUnknown* identity, const std::vector<void*>& aliases,
             if (auto rec = a->second.lock(); rec && rec->releasesInFlight) return false;
     }
     auto& rec = r.recordings.try_emplace(identity, std::move(fresh)).first->second;
+    if (!rec->id) rec->id = r.nextRecording++;
     for (void* alias : aliases)
     {
         if (!alias) continue;
@@ -124,6 +177,7 @@ inline bool Track(IUnknown* identity, const std::vector<void*>& aliases,
     }
     rec->leases.push_back(lease);
     if (prepareSubmission) rec->prepareSubmission.push_back(std::move(prepareSubmission));
+    if (!callbacks.Empty()) rec->callbacks.push_back(std::move(callbacks));
     return true;
 }
 // Capture BEFORE real Reset/Release. The generation token prevents post-call address ABA.
@@ -176,56 +230,154 @@ inline void EndRelease(const std::shared_ptr<Recording>& rec, bool finalRelease)
     }
     r.recordings.erase(it); // caller keeps destruction outside the lock
 }
-inline std::shared_ptr<Submission> BeforeSubmission(
-    ID3D12CommandQueue* queue, const std::vector<IUnknown*>& identities) noexcept
+inline void NotifyFailure(const std::shared_ptr<Submission>& s, SubmissionFailure reason) noexcept
 {
+    if (!s || s->failureNotified) return;
+    s->failureNotified = true;
+    for (const auto& callback : s->callbacks)
+        if (callback.callbacks.failed)
+            try { callback.callbacks.failed(callback.info, reason); } catch (...) {}
+}
+inline HRESULT WaitForFence(ID3D12CommandQueue* queue, const FencePointPtr& predecessor) noexcept
+{
+    if (!predecessor) return S_OK;
+    if (!queue || !predecessor->IsPublished() || !predecessor->queue || !predecessor->fence || !predecessor->value)
+    { FailCompletion(); return E_INVALIDARG; }
+    if (queue == predecessor->queue.Get()) return S_OK;
+    const HRESULT result = queue->Wait(predecessor->fence.Get(), predecessor->value);
+    if (SUCCEEDED(result)) return result;
+    // A failed GPU Wait must not let already-recorded shared work race. Poll a
+    // previously successful Signal without allocating an event. The caller must
+    // provide an acyclic predecessor; publication alone cannot prove that graph.
+    FailCompletion();
+    for (;;)
+    {
+        const auto completed = predecessor->fence->GetCompletedValue();
+        if (completed == UINT64_MAX) return DXGI_ERROR_DEVICE_REMOVED;
+        if (completed >= predecessor->value) return result;
+        Sleep(1);
+    }
+}
+inline std::shared_ptr<Recording> FindRecording(IUnknown* identity, void* alias)
+{
+    auto& r = GetRegistry();
+    std::lock_guard lock(r.mutex);
+    if (identity)
+        if (const auto it = r.recordings.find(identity); it != r.recordings.end()) return it->second;
+    if (alias)
+        if (const auto it = r.aliases.find(alias); it != r.aliases.end()) return it->second.lock();
+    return {};
+}
+inline std::shared_ptr<Recording> ResolveRecording(const IdentityRange& identities, size_t index, bool* unknownFailure = nullptr)
+{
+    ComPtr<IUnknown> identity;
+    const auto result = identities.identityAt ? identities.identityAt(identities.context, index, identity.GetAddressOf()) : E_POINTER;
+    const auto alias = identities.aliasAt ? identities.aliasAt(identities.context, index) : nullptr;
+    auto recording = FindRecording(SUCCEEDED(result) ? identity.Get() : nullptr, alias);
+    if (FAILED(result))
+    {
+        FailCompletion();
+        // An exact known alias still identifies its necessary ordering callback.
+        // Catastrophic QI failure with no known alias cannot establish ordering.
+        if (!recording && unknownFailure) *unknownFailure = true;
+    }
+    return recording;
+}
+inline void OrderingFallback(ID3D12CommandQueue* queue, const IdentityRange& identities, uint64_t submissionId) noexcept
+{
+    // Failure is latched first. Track now refuses mutations and Reset/Release
+    // keep every Recording, so its callback vectors are immutable and pinned.
+    FailCompletion();
+    for (size_t i = 0; i < identities.count; ++i)
+    {
+        try
+        {
+            auto recording = ResolveRecording(identities, i); // one strong owner, no callback/vector copies
+            if (!recording) continue;
+            SubmissionInfo info {queue, submissionId, recording->id, 0, true};
+            { auto& r = GetRegistry(); std::lock_guard lock(r.mutex); info.recordingSubmission = ++recording->submissionCount; }
+            for (const auto& prepare : recording->prepareSubmission)
+                try { prepare(queue); } catch (...) {}
+            for (const auto& callback : recording->callbacks)
+                if (callback.beforeSubmit) try { callback.beforeSubmit(info); } catch (...) {}
+            for (const auto& callback : recording->callbacks)
+                if (callback.failed) try { callback.failed(info, SubmissionFailure::Snapshot); } catch (...) {}
+        }
+        catch (...) { /* Unknown identity stays pinned; do not invent an unrelated queue dependency. */ }
+    }
+}
+inline std::shared_ptr<Submission> BeforeSubmission(ID3D12CommandQueue* queue, const IdentityRange& identities) noexcept
+{
+    if (!queue) return nullptr;
+    auto& r = GetRegistry();
+    uint64_t submissionId = 0;
+    { std::lock_guard lock(r.mutex); submissionId = r.nextSubmission++; }
     try
     {
-        if (!queue) return nullptr;
         Poll();
         auto s = std::make_shared<Submission>();
-        s->queue = queue; // retain real queue identity before registry lock
-        auto& r = GetRegistry();
+        s->queue = queue; // COM ownership and point allocation precede registry locks/Execute.
+        for (size_t i = 0; i < identities.count; ++i)
         {
+            bool unknownFailure = false;
+            auto recording = ResolveRecording(identities, i, &unknownFailure);
+            if (unknownFailure) { OrderingFallback(queue, identities, submissionId); return nullptr; }
+            if (!recording) continue;
             std::lock_guard lock(r.mutex);
             try
             {
-                for (auto key : identities)
+                s->leases.insert(s->leases.end(), recording->leases.begin(), recording->leases.end());
+                s->prepareSubmission.insert(s->prepareSubmission.end(), recording->prepareSubmission.begin(), recording->prepareSubmission.end());
+                if (!recording->callbacks.empty())
                 {
-                    auto it = r.recordings.find(key);
-                    if (it == r.recordings.end()) continue;
-                    s->leases.insert(s->leases.end(), it->second->leases.begin(), it->second->leases.end());
-                    s->prepareSubmission.insert(s->prepareSubmission.end(),
-                        it->second->prepareSubmission.begin(), it->second->prepareSubmission.end());
+                    const auto first = s->callbacks.size();
+                    for (const auto& callbacks : recording->callbacks)
+                        s->callbacks.push_back({{queue, submissionId, recording->id, 0, false}, callbacks});
+                    s->occurrences.push_back({recording, first, recording->callbacks.size()});
                 }
-                if (s->leases.empty()) return nullptr;
-                // Registry owns the intent BEFORE Execute; Reset in the post-call gap is safe.
-                r.submissions.push_back(s);
             }
-            catch (...)
-            {
-                // Latch before unlock/unwinding so Reset/Release cannot discard the
-                // recording when a PRE snapshot allocation was incomplete.
-                r.completionFailed = true;
-                throw;
-            }
+            catch (...) { r.completionFailed = true; throw; }
         }
-        // Do not call consumers, COM or queue methods under the registry lock.
-        // This function completes before the hook calls the real ExecuteCommandLists.
-        // Consumers must keep work denied if preparation throws; uncertainty also
-        // latches the existing completion failure policy and retains every lease.
-        for (const auto& prepare : s->prepareSubmission)
+        if (s->leases.empty()) return nullptr;
+        // Existing users with no new callbacks allocate no fence point/occurrence.
+        if (!s->callbacks.empty()) { s->point = std::make_shared<FencePoint>(); s->point->queue = queue; }
         {
-            try { prepare(s->queue.Get()); }
-            catch (...) { FailCompletion(); }
+            std::lock_guard lock(r.mutex);
+            try { r.submissions.push_back(s); } catch (...) { r.completionFailed = true; throw; }
+            // Commit counters only after every snapshot allocation succeeded.
+            for (const auto& occurrence : s->occurrences)
+            {
+                const auto ordinal = ++occurrence.recording->submissionCount;
+                for (size_t i = occurrence.first; i < occurrence.first + occurrence.count; ++i)
+                    s->callbacks[i].info.recordingSubmission = ordinal;
+            }
         }
+        // Every necessary wait runs before Execute and outside all registry locks.
+        for (const auto& prepare : s->prepareSubmission)
+            try { prepare(queue); } catch (...) { s->preparationFailed = true; FailCompletion(); }
+        for (const auto& callback : s->callbacks)
+            if (callback.callbacks.beforeSubmit)
+                try { if (!callback.callbacks.beforeSubmit(callback.info)) { s->preparationFailed = true; FailCompletion(); } }
+                catch (...) { s->preparationFailed = true; FailCompletion(); }
+        if (s->preparationFailed) NotifyFailure(s, SubmissionFailure::Prepare);
         return s;
     }
-    catch (...) { FailCompletion(); return nullptr; }
+    catch (...) { OrderingFallback(queue, identities, submissionId); return nullptr; }
+}
+inline std::shared_ptr<Submission> BeforeSubmission(ID3D12CommandQueue* queue, const std::vector<IUnknown*>& identities) noexcept
+{
+    const IdentityRange range {&identities, identities.size(),
+        [](const void* context, size_t index, IUnknown** out) -> HRESULT {
+            auto* identity = (*static_cast<const std::vector<IUnknown*>*>(context))[index];
+            *out = identity; if (identity) identity->AddRef(); return S_OK;
+        },
+        [](const void* context, size_t index) -> void* { return (*static_cast<const std::vector<IUnknown*>*>(context))[index]; }};
+    return BeforeSubmission(queue, range);
 }
 inline void AfterSubmission(const std::shared_ptr<Submission>& s) noexcept
 {
     if (!s) return;
+    auto failure = SubmissionFailure::FenceCreate;
     try
     {
         ComPtr<ID3D12Device> device;
@@ -234,18 +386,29 @@ inline void AfterSubmission(const std::shared_ptr<Submission>& s) noexcept
             FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence))))
         {
             FailCompletion(); // registry retains intent forever, rejects new tracked work
+            NotifyFailure(s, SubmissionFailure::FenceCreate);
             return;
         }
         s->fence = std::move(fence);
+        if (s->point) s->point->fence = s->fence;
+        failure = SubmissionFailure::Signal;
         if (FAILED(s->queue->Signal(s->fence.Get(), 1)))
         {
             FailCompletion(); // retain even the fence on an uncertain Signal result
+            NotifyFailure(s, SubmissionFailure::Signal);
             return;
         }
         auto& r = GetRegistry();
-        std::lock_guard lock(r.mutex);
-        s->signalPublished = true;
+        { std::lock_guard lock(r.mutex); s->signalPublished = true; }
+        if (s->point) s->point->published_ = true;
+        failure = SubmissionFailure::Publish;
+        if (!s->preparationFailed)
+        {
+            const FencePointPtr point = s->point;
+            for (const auto& callback : s->callbacks)
+                if (callback.callbacks.fencePublished) callback.callbacks.fencePublished(callback.info, point);
+        }
     }
-    catch (...) { FailCompletion(); }
+    catch (...) { FailCompletion(); NotifyFailure(s, failure); }
 }
 }
