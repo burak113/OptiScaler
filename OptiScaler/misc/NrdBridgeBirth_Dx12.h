@@ -12,6 +12,8 @@
 #include <optional>
 #include <unordered_map>
 
+namespace NrdBridgeNativeBirth::Detail { struct ReceiverVerification; }
+
 // This registry owns metadata only. It never retains or dereferences a title COM
 // object. Native calls, notifications and destruction of detached owned state
 // MUST run outside CurrentGuard and the detach/publish callbacks below.
@@ -96,6 +98,7 @@ class PhysicalInstance
 
 class Birth
 {
+    friend struct NrdBridgeNativeBirth::Detail::ReceiverVerification;
     friend class Registry;
     friend class CurrentGuard;
     friend class ScopedRelease;
@@ -105,6 +108,8 @@ class Birth
     const std::shared_ptr<PhysicalInstance> physical_;
     mutable std::atomic<bool> live_ {true};
     mutable std::atomic<bool> initializing_ {false}, failed_ {false};
+    // Exact logical-address proof; aliases and new sequences never inherit it.
+    mutable std::atomic<bool> nativeReceiverVerified_ {false};
   public:
     Birth(Registry* registry, void* address, uint64_t sequence, uint64_t instanceStamp,
           std::shared_ptr<PhysicalInstance> physical,
@@ -122,6 +127,8 @@ class Birth
     bool Admissible() const noexcept { return Live() && Ready(); }
     uint32_t ReleasesInFlight() const noexcept { return physical_->ReleasesInFlight(); }
     bool CacheAdmissible() const noexcept;
+    bool NativeReceiverVerified() const noexcept
+    { return nativeReceiverVerified_.load(std::memory_order_acquire); }
     bool RecordingMayExist() const noexcept
     { return physical_->recordingMayExist_.load(std::memory_order_acquire); }
     // Mark a known native title-list physical instance BEFORE attempting Track.
