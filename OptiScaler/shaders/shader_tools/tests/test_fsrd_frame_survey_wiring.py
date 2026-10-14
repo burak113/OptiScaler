@@ -89,7 +89,7 @@ void Detach() {
     detach_lines = '\n'.join(selected_line(detach, f'DetourDetach(&(PVOID&) o_{name},') for name in ('Reset', 'Close', 'ExecuteCommandLists'))
     for key, value in [('WRAPPERS', wrappers), ('RESET', reset), ('SUBMIT', submit), ('CLOSE', close), ('DETACH', detach_lines)]:
         wiring = wiring.replace('__'+key+'__', value)
-    cpp = fixture.CPP.replace('struct Host {', wiring+'\nstruct Host {')
+    cpp = '#include "misc/NrdBridgeTitleCallbacks_Dx12.h"\n'+fixture.CPP.replace('struct Host {', wiring+'\nstruct Host {')
     start = cpp.index('  ComPtr<IDXGIAdapter1> chosen;'); end = cpp.index('  need(bool(chosen)', start)
     cpp = cpp[:start]+'  ComPtr<IDXGIAdapter1> chosen; hr(factory->EnumWarpAdapter(IID_PPV_ARGS(&chosen))); adapter="WARP";\n'+cpp[end:]
     cpp = cpp.replace(' FrameSurvey::Submit(queue.Get(),1,&cmd);', '')

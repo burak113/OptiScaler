@@ -19,6 +19,7 @@
 #include <iostream>
 #include <stdexcept>
 #include "__ROOT__/OptiScaler/hooks/Hook_Utils.h"
+#include "__ROOT__/OptiScaler/misc/NrdBridgeTitleCallbacks_Dx12.h"
 #include "__ROOT__/OptiScaler/include/detours/detours.h"
 #define LOG_WARN(...) ((void)0)
 #define LOG_ERROR(...) ((void)0)
@@ -365,6 +366,10 @@ J exercise(Host& h,bool enabled) {
   need(rootStates[h.list.Get()][0].type==RootEntryType::Invalid,"new root signature invalidates prior root arguments");
   need(!D3D12Hooks::CanRestoreRootSignature(h.list.Get()),"incomplete signature fails restore preflight");
  }
+  need(NrdBridge::totalCallbacks==NrdBridge::callbacks,"forwarded title calls report bridge callbacks once across all COM identities");
+  std::unordered_map<uint64_t,bool> resIdentities;
+  for(const auto& layer:layerTrace) if(layer["layer"]=="ResTrack") resIdentities[layer["this"].get<uint64_t>()]=true;
+  need(resIdentities.size()>=2,"WARP debug forwarding genuinely traverses different COM This pointers");
  result["bridge_callbacks"]=NrdBridge::callbacks;
  result["all_com_identities_bridge_callbacks"]=NrdBridge::totalCallbacks;
  result["hook_layers"]=layerTrace;
