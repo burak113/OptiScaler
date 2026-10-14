@@ -117,7 +117,14 @@ struct FfxApiProxy : ProviderExports {
  }
 ''' + routes + '\n};\n'
     lease = Path(__file__).with_name('dx12_shader_test_support.h').read_text()
-    support += lease[lease.index('struct ResTrack_Dx12'):]
+    retention = lease[lease.index('struct ResTrack_Dx12'):]
+    retention = retention.replace('std::function<void(ID3D12CommandQueue*)> beforeSubmit = {})',
+        'std::function<void(ID3D12CommandQueue*)> beforeSubmit = {},\n'
+        '                                     RecordedComputeLease::SubmissionCallbacks callbacks = {})')
+    retention = retention.replace('lease, std::move(beforeSubmit));',
+        'lease, std::move(beforeSubmit), std::move(callbacks));')
+    assert 'SubmissionCallbacks callbacks' in retention
+    support += retention
     support += '''
 #define LOG_WARN(...) ((void)0)
 #define LOG_TRACE(...) ((void)0)
