@@ -406,6 +406,18 @@ struct Title {
    if(registered) FrameSurvey::CopyDescriptors(h.device.Get(),1,&dst,&count,1,&src,&count,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
   }
  }
+ void writeDepth(float value) {
+  const auto desc=tex[3]->GetDesc(); D3D12_PLACED_SUBRESOURCE_FOOTPRINT fp{}; UINT64 bytes=0;
+  h.device->GetCopyableFootprints(&desc,0,1,0,&fp,nullptr,nullptr,&bytes);
+  auto up=h.buffer(bytes,D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ); void* mapped=nullptr; hr(up->Map(0,nullptr,&mapped));
+  std::memset(mapped,0,size_t(bytes));
+  for(UINT y=0;y<height;++y) std::fill_n(reinterpret_cast<float*>(static_cast<uint8_t*>(mapped)+size_t(y)*fp.Footprint.RowPitch),width,value);
+  up->Unmap(0,nullptr); D3D12_TEXTURE_COPY_LOCATION src{},dst{}; src.pResource=up.Get(); src.Type=D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;src.PlacedFootprint=fp;
+  dst.pResource=tex[3].Get();dst.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+  h.barrier(tex[3].Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_COPY_DEST);
+  h.list->CopyTextureRegion(&dst,0,0,0,&src,nullptr);
+  h.barrier(tex[3].Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);h.uploads.push_back(up);
+ }
  void setCodec(UINT bits) {
   void* mapped=nullptr; hr(cb->Map(0,nullptr,&mapped)); static_cast<UINT*>(mapped)[303]=bits; cb->Unmap(0,nullptr); codecBits=bits;
  }
@@ -508,6 +520,18 @@ struct Title {
   need(words[10*16+15]==codecBits,"Consumer observes the GPU execution-time native b6 encoding flag");
   read->Unmap(0,nullptr); return result;
  }
+ void validateIncomplete(const Captured& captured) {
+  void* mapped=nullptr;hr(captured.read->Map(0,nullptr,&mapped));const auto* words=static_cast<const UINT*>(mapped);
+  const std::array<UINT,11> expectedCounts={0,1,2,1,2,0,0,0,0,0,0};
+  for(UINT role=1;role<11;++role) {
+   need(words[role*16+11]==expectedCounts[role],"conversion-only recording executes exactly its requested original title prefix and both restore probes");
+   if(expectedCounts[role]) {
+    const std::array<UINT,11> expected={11,22,33,40,55,66,width,height,2048,role,2048};
+    need(std::equal(expected.begin(),expected.end(),words+role*16),"incomplete recording still preserves exact title root/heap/PSO GPU bindings");
+   }
+  }
+  captured.read->Unmap(0,nullptr);
+ }
  std::array<std::vector<uint16_t>,2> finish(UINT a=3,UINT b=2,bool probe=true) {
   const auto captured=capture(a,b,probe); h.submit(); auto result=validate(captured); h.reset(); return result;
  }
@@ -520,8 +544,10 @@ struct Title {
  }
  J rawChecks(const std::array<std::vector<uint16_t>,2>& data) const {
   bool rgb=true,alpha=true;
-  for(UINT signal=0;signal<2;++signal) for(size_t i=0;i<data[signal].size();++i) {
-   if(i%4==3) alpha &= data[signal][i]==0; else rgb &= data[signal][i]==raw[signal][i];
+  for(UINT signal=0;signal<2;++signal) for(size_t i=0;i<data[signal].size();i+=4) {
+   alpha &= data[signal][i+3]==0;
+   if(codecBits) { const auto decoded=decode(data[signal].data()+i); for(UINT c=0;c<3;++c) rgb &= decoded[c]==PackedVector::XMConvertHalfToFloat(raw[signal][i+c]); }
+   else for(UINT c=0;c<3;++c) rgb &= data[signal][i+c]==raw[signal][i+c];
   }
   need(rgb,"Raw debug mode copies exact reconstructed half RGB"); need(alpha,"Raw debug mode writes documented zero alpha");
   return {{"exact_rgb",rgb},{"alpha_zero",alpha},{"rgb_values_checked",uint64_t(width)*height*6}};
@@ -542,6 +568,132 @@ struct Title {
 unsigned internalCalls() { unsigned count=0; for(const auto& [_,value]:detourDispatches) count+=value[1]; return count; }
 void disableRestoreFlagsAfterSDK() {
  Config::Instance()->RestoreComputeSignature.value=false; Config::Instance()->ExtendedStateRestore.value=false;
+}
+ID3D12GraphicsCommandList* tagCallbackList=nullptr;
+ID3D12Resource* tagCallbackMotion=nullptr;
+void resetAfterSDK() { NrdBridge::RequestHistoryReset(); }
+void normalThreadTagAfterSDK() {
+ bool normal=false;std::thread ordinary([&] { normal=!FrameSurvey::Internal();NrdBridge::OnTitleTag(tagCallbackList,"MotionVectors",tagCallbackMotion); });ordinary.join();
+ need(normal,"concurrent title tag callback runs on a genuine ordinary thread with untouched TLS");
+}
+void motionEquals(const Readback& read,float z) {
+ const auto values=read.signal();bool correct=true;
+ const std::array<uint16_t,4> expected={0,0,PackedVector::XMConvertFloatToHalf(z),PackedVector::XMConvertFloatToHalf(1.f)};
+ for(size_t i=0;i<values.size();++i)correct &= values[i]==expected[i%4];
+ need(correct,"actual GPU motion guide has exact causal XY/depth delta and W=1 across every pixel");
+}
+Readback motionCapture(Title& title,const ProviderExports::Record& record) {
+ need(record.list==title.h.list.Get(),"actual signed provider dispatch targets the requested native command list");
+ return title.readback(static_cast<ID3D12Resource*>(record.motion),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+}
+void privateGuides(const ProviderExports::Record& a,const ProviderExports::Record& b) {
+ need(a.context!=b.context,"overlapping recordings own different live physical signed SDK contexts");
+ need(a.spec!=b.spec && a.diff!=b.diff && a.depth!=b.depth && a.motion!=b.motion,"overlapping recordings own disjoint conversion signals, depth and motion guides");
+}
+struct GateRelease { ComPtr<ID3D12Fence> fence; ~GateRelease() { if(fence) fence->Signal(1); } };
+void deepCases(Host& h,Title& title,J& result,std::vector<std::unique_ptr<Title>>& keepTitles) {
+ UINT frame=25;J deep;J codec=J::array();
+ for(const UINT flag:std::array<UINT,4>{0,1,0x80000000u,0x7fc00000u}) {
+  title.setCodec(0);const auto before=FfxApiProxy::dispatches;title.frame(frame++);
+  need(FfxApiProxy::dispatches==before+1,"codec fixture records actual signed RR exactly once");
+  title.setCodec(flag);const auto stats=title.rrChecks(title.finish());codec.push_back({{"flag_mutated_after_record",flag},{"statistics",stats}});
+ }
+ deep["gpu_consumer_codec"]=codec;
+ title.setCodec(0);NrdBridge::SetDebugMode(NrdBridge::DebugMode::RawSignals);title.frame(frame++);title.setCodec(1);
+ deep["gpu_raw_codec"]=title.rawChecks(title.finish());title.setCodec(0);NrdBridge::SetDebugMode(NrdBridge::DebugMode::Off);
+ title.frame(frame++);title.rrChecks(title.finish());
+ // A reset between real provider recording and output admission must not be republished as Active.
+ auto before=NrdBridge::GetStatus();auto calls=FfxApiProxy::dispatches,creates=FfxApiProxy::creates,destroys=FfxApiProxy::destroys;
+ auto failures=NrdBridge::gService->failures,attempts=NrdBridge::gService->attempts;
+ FfxApiProxy::afterRealDispatch=resetAfterSDK;title.frame(frame++);FfxApiProxy::afterRealDispatch=nullptr;
+ need(FfxApiProxy::dispatches==calls+1 && FfxApiProxy::destroys==destroys,"cancelled reset SDK work retains its old physical context before submission");
+ need(!NrdBridge::GetStatus().active && NrdBridge::GetStatus().framesBridged==before.framesBridged,"post-provider reset cancels title commit and never republishes Active or frames");
+ need(NrdBridge::gService->failures==failures && NrdBridge::gService->attempts==attempts,"post-provider reset cancellation spends no failure or retry budget");
+ need(title.sentinel(title.finish()),"post-provider reset preserves every title NRD RGBA sentinel bit");
+ title.frame(frame++);title.rrChecks(title.finish());
+ need(FfxApiProxy::creates==creates+1 && FfxApiProxy::destroys==destroys+1 && (FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET),"post-provider reset recovers with one fresh physical SDK context and RESET");
+ deep["post_provider_reset"]={{"title_rgba_untouched",true},{"active_not_republished",true},{"failure_retry_budget_unchanged",true},{"physical_fresh_recovery",true}};
+ // Prepare another live MV without changing the title descriptors seen by this recording.
+ const auto originalMotion=title.replaceMotion();const auto nextMotion=title.tex[6];title.tex[6]=originalMotion;title.views();
+ tagCallbackList=h.list.Get();tagCallbackMotion=nextMotion.Get();before=NrdBridge::GetStatus();calls=FfxApiProxy::dispatches;creates=FfxApiProxy::creates;destroys=FfxApiProxy::destroys;
+ failures=NrdBridge::gService->failures;attempts=NrdBridge::gService->attempts;
+ FfxApiProxy::afterRealDispatch=normalThreadTagAfterSDK;title.frame(frame++);FfxApiProxy::afterRealDispatch=nullptr;
+ need(FfxApiProxy::dispatches==calls+1 && FfxApiProxy::destroys==destroys,"normal-thread tag cancellation retains the real SDK context through recording");
+ need(!NrdBridge::GetStatus().active && NrdBridge::GetStatus().framesBridged==before.framesBridged && !NrdBridge::gService->cache.Valid(),"post-provider ordinary tag invalidation stays Discovering without commit/frame republish");
+ need(NrdBridge::gService->failures==failures && NrdBridge::gService->attempts==attempts,"ordinary concurrent tag cancellation spends no failure or retry budget");
+ need(title.sentinel(title.finish()),"ordinary concurrent tag after real SDK preserves the complete native NRD RGBA pair");
+ title.tex[6]=nextMotion;title.views();title.frame(frame++);need(title.sentinel(title.finish()),"ordinary tag recovery first rediscovers the current resource profile");
+ title.frame(frame++);title.rrChecks(title.finish());
+ need(FfxApiProxy::creates==creates+1 && FfxApiProxy::destroys==destroys+1 && (FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET),"ordinary tag recovery retires its old leased SDK context and creates a fresh RESET context");
+ deep["post_provider_normal_thread_tag"]={{"untouched_tls",true},{"title_rgba_untouched",true},{"active_not_republished",true},{"failure_retry_budget_unchanged",true},{"physical_fresh_recovery",true}};
+ tagCallbackList=nullptr;tagCallbackMotion=nullptr;
+ auto alternate=h.newStream(true);const auto checksumA=title.checksum;ComPtr<ID3D12Resource> checksumB;
+ const auto interFrames=NrdBridge::GetStatus().framesBridged;const auto interCalls=FfxApiProxy::dispatches;failures=NrdBridge::gService->failures;
+ // Record A's Recon, all of B, then A's remaining stages. Execute B before A.
+ title.writeDepth(5.f);title.recon(frame++);const auto listA=h.list.Get();
+ h.exchange(alternate);checksumB=h.buffer(1024,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,true);title.checksum=checksumB;
+ title.writeDepth(7.f);title.frame(frame++);const auto recordB=FfxApiProxy::records.back();const auto motionB=motionCapture(title,recordB);const auto readB=title.capture();SubmissionProbe probeB;probeB.attach(h.device.Get(),h.list.Get());hr(h.list->Close());
+ h.exchange(alternate);title.checksum=checksumA;need(h.list.Get()==listA,"stream exchange returns the original A recording");title.tail();
+ const auto recordA=FfxApiProxy::records.back();const auto motionA=motionCapture(title,recordA);const auto readA=title.capture();SubmissionProbe probeA;probeA.attach(h.device.Get(),h.list.Get());hr(h.list->Close());
+ privateGuides(recordA,recordB);need((recordA.flags&FFX_DENOISER_DISPATCH_RESET) && (recordB.flags&FFX_DENOISER_DISPATCH_RESET),"unpublished overlapping predecessors receive independent fresh RESET histories");
+ need(FfxApiProxy::dispatches==interCalls+2 && NrdBridge::GetStatus().framesBridged==interFrames+2 && NrdBridge::gService->failures==failures,"interleaved Recon/Temporal/Consumer bridges both recordings without overwrite, cancellation or failure");
+ h.exchange(alternate);title.checksum=checksumB;h.executeClosed();title.rrChecks(title.validate(readB));motionEquals(motionB,0);h.reset();
+ h.exchange(alternate);title.checksum=checksumA;h.executeClosed();title.rrChecks(title.validate(readA));motionEquals(motionA,0);h.reset();
+ need(probeA.before==1 && probeA.published==1 && !probeA.failed && probeB.before==1 && probeB.published==1 && !probeB.failed,"actual ledger publishes one fence for each reversed-order submitted recording");
+ deep["interleaved_reversed_submission"]={{"bridged_recordings",2},{"private_contexts_guides",true},{"both_rr_reset",true},{"both_gpu_depth_delta_zero",true},{"title_bindings_counts_exact",true}};
+ // Publish a still-unfinished predecessor on QA, then record shared history on QB.
+ QueueAudit::Attach(h.queue.Get(),alternate.queue.Get());ComPtr<ID3D12Fence> gate;hr(h.device->CreateFence(0,D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&gate)));GateRelease gateRelease{gate};
+ hr(h.queue->Wait(gate.Get(),1));title.writeDepth(5.f);title.frame(frame++);const auto queueRecordA=FfxApiProxy::records.back();const auto queueReadA=title.capture();SubmissionProbe queuedA;queuedA.attach(h.device.Get(),h.list.Get());h.submit(false);
+ need(queuedA.point && queuedA.point->IsPublished() && queuedA.point->fence->GetCompletedValue()<queuedA.point->value,"actual predecessor point is published after native Signal while QA is physically stalled");
+ h.exchange(alternate);title.checksum=checksumB;title.writeDepth(7.f);title.frame(frame++);const auto queueRecordB=FfxApiProxy::records.back();const auto queueMotionB=motionCapture(title,queueRecordB);const auto queueReadB=title.capture();SubmissionProbe queuedB;queuedB.attach(h.device.Get(),h.list.Get());h.submit(false);
+ need(queueRecordA.context==queueRecordB.context && queueRecordA.spec==queueRecordB.spec && queueRecordA.depth==queueRecordB.depth,"published predecessor allows same temporal context and owned guides on the next queue");
+ need(!(queueRecordB.flags&FFX_DENOISER_DISPATCH_RESET),"published consecutive cross-queue frame inherits actual RR history");
+ size_t waitAt=SIZE_MAX,executeAt=SIZE_MAX;unsigned waits=0,executes=0;
+ for(size_t i=0;i<QueueAudit::events.size();++i) {const auto& e=QueueAudit::events[i];
+  if(e.kind==QueueAudit::Kind::Wait && e.queue==h.queue.Get() && e.fence==queuedA.point->fence.Get() && e.value==queuedA.point->value) {++waits;waitAt=i;}
+  if(e.kind==QueueAudit::Kind::Execute && e.queue==h.queue.Get() && e.list==h.list.Get()) {++executes;executeAt=i;}
+ }
+ need(waits==1 && executes==1 && waitAt<executeAt,"actual native QB Wait on the precise published QA fence precedes exactly one original title Execute");
+ need(h.fence->GetCompletedValue()<h.tick,"QB completion remains blocked until the real QA predecessor gate opens");
+ hr(gate->Signal(1));h.waitComplete();title.rrChecks(title.validate(queueReadB));motionEquals(queueMotionB,2.f);
+ h.exchange(alternate);title.checksum=checksumA;h.waitComplete();title.rrChecks(title.validate(queueReadA));h.reset();
+ h.exchange(alternate);title.checksum=checksumB;
+ need(queuedA.published==1 && queuedB.published==1 && !queuedA.failed && !queuedB.failed,"both ordered real submissions publish successful actual fence points");
+ deep["cross_queue_history"]={{"actual_waits",waits},{"original_executes",executes},{"wait_precedes_execute",true},{"gate_blocks_consumer",true},{"same_context_and_guides",true},{"gpu_depth_delta",2}};
+ // Re-execution of an already closed list is visible to the actual typed ledger.
+ const auto replayCalls=FfxApiProxy::dispatches,replayCreates=FfxApiProxy::creates;h.executeClosed();title.rrChecks(title.validate(queueReadB));
+ need(FfxApiProxy::dispatches==replayCalls && queuedB.before==2 && queuedB.published==2 && queuedB.ordinal==2,"closed-list replay executes original GPU work once without another SDK recording and advances actual submission ordinal");
+ h.reset();title.writeDepth(9.f);title.frame(frame++);const auto freshRecord=FfxApiProxy::records.back();const auto freshMotion=motionCapture(title,freshRecord);const auto freshRead=title.capture();h.submit();title.rrChecks(title.validate(freshRead));motionEquals(freshMotion,0);h.reset();
+ need(FfxApiProxy::creates==replayCreates+1 && (freshRecord.flags&FFX_DENOISER_DISPATCH_RESET),"closed-list resubmission poisons future temporal reuse and creates a fresh RESET context/depth domain");
+ deep["closed_list_resubmission"]={{"native_replays",1},{"second_submission_ordinal",2},{"future_fresh_reset",true},{"future_depth_delta_zero",true}};
+ h.exchange(alternate);title.checksum=checksumA;
+ // Even a successful publication is not RR history when no Consumer output was committed.
+ const auto incompleteCalls=FfxApiProxy::dispatches,incompleteCreates=FfxApiProxy::creates;
+ const auto incompleteFrames=NrdBridge::GetStatus().framesBridged;const auto precedingRecord=FfxApiProxy::records.back();const UINT incompleteSL=frame++;
+ title.writeDepth(5.f);title.recon(incompleteSL);title.pass(Role::PrePass);title.pass(Role::Temporal,24,true);
+ const auto partialInputs=NrdBridge::gService->lists.at(h.list.Get()).inputs;const auto incompleteRead=title.capture();SubmissionProbe incompleteProbe;incompleteProbe.attach(h.device.Get(),h.list.Get());h.submit();title.validateIncomplete(incompleteRead);
+ need(FfxApiProxy::dispatches==incompleteCalls && NrdBridge::GetStatus().framesBridged==incompleteFrames && incompleteProbe.point && incompleteProbe.point->IsPublished(),"conversion-only submitted prefix publishes a real fence without provider/output commit");
+ h.exchange(alternate);title.checksum=checksumB;title.writeDepth(11.f);title.frame(incompleteSL);const auto afterIncomplete=FfxApiProxy::records.back();
+ const auto incompleteMotion=motionCapture(title,afterIncomplete);const auto completeRead=title.capture();h.submit();title.rrChecks(title.validate(completeRead));motionEquals(incompleteMotion,0);h.reset();
+ need(FfxApiProxy::creates==incompleteCreates+1 && afterIncomplete.context!=precedingRecord.context && afterIncomplete.depth!=partialInputs.linearDepth && afterIncomplete.motion!=partialInputs.motion && (afterIncomplete.flags&FFX_DENOISER_DISPATCH_RESET),"before incomplete predecessor Reset, a following Recon gets a private fresh SDK/depth RESET domain despite its published fence");
+ h.exchange(alternate);title.checksum=checksumA;h.reset();
+ deep["submitted_without_consumer"]={{"real_fence_published",true},{"provider_dispatches_in_prefix",0},{"fresh_before_old_list_reset",true},{"same_sl_frame",true},{"gpu_depth_delta_zero",true},{"title_prefix_bindings_counts_exact",true}};
+ // Two disjoint same-size title profiles use QA and QB without borrowing owned history.
+ auto titleA=std::make_unique<Title>(h,64,64,true);titleA->frame(frame++);need(titleA->sentinel(titleA->finish()),"disjoint profile A first validates through native NRD discovery");
+ ComPtr<ID3D12Fence> disjointGate;hr(h.device->CreateFence(0,D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&disjointGate)));GateRelease disjointRelease{disjointGate};hr(h.queue->Wait(disjointGate.Get(),1));
+ titleA->frame(frame++);const auto disjointA=FfxApiProxy::records.back();const auto disjointMotionA=motionCapture(*titleA,disjointA);const auto disjointReadA=titleA->capture();SubmissionProbe disjointProbeA;disjointProbeA.attach(h.device.Get(),h.list.Get());h.submit(false);
+ need(disjointProbeA.point && disjointProbeA.point->IsPublished() && disjointProbeA.point->fence->GetCompletedValue()<1,"disjoint profile A is published and retained while its actual queue remains stalled");
+ h.exchange(alternate);auto titleB=std::make_unique<Title>(h,64,64,true);titleB->frame(frame++);need(titleB->sentinel(titleB->finish()),"disjoint profile B rediscovers its own resources on the other queue");
+ titleB->frame(frame++);const auto disjointB=FfxApiProxy::records.back();const auto disjointMotionB=motionCapture(*titleB,disjointB);const auto disjointReadB=titleB->capture();SubmissionProbe disjointProbeB;disjointProbeB.attach(h.device.Get(),h.list.Get());
+ privateGuides(disjointA,disjointB);need((disjointA.flags&FFX_DENOISER_DISPATCH_RESET) && (disjointB.flags&FFX_DENOISER_DISPATCH_RESET),"disjoint same-size resource generations get separate fresh RR histories");
+ const auto eventsBefore=QueueAudit::events.size();h.submit();titleB->rrChecks(titleB->validate(disjointReadB));motionEquals(disjointMotionB,0);
+ unsigned foreignWaits=0;for(size_t i=eventsBefore;i<QueueAudit::events.size();++i) {const auto& event=QueueAudit::events[i];if(event.kind==QueueAudit::Kind::Wait && event.fence==disjointProbeA.point->fence.Get()) ++foreignWaits;}
+ need(foreignWaits==0 && disjointProbeA.point->fence->GetCompletedValue()<1,"private disjoint QB work completes without waiting for the still-stalled QA generation");h.reset();
+ hr(disjointGate->Signal(1));h.exchange(alternate);h.waitComplete();titleA->rrChecks(titleA->validate(disjointReadA));motionEquals(disjointMotionA,0);h.reset();
+ need(disjointProbeA.published==1 && disjointProbeB.published==1 && !disjointProbeA.failed && !disjointProbeB.failed,"disjoint queue generations retain owned state through independent successful publications");
+ deep["disjoint_resource_queues"]={{"same_extent",{64,64}},{"private_contexts_guides",true},{"qb_completes_while_qa_stalled",true},{"foreign_waits",foreignWaits},{"both_gpu_depth_delta_zero",true},{"both_title_bindings_counts_exact",true}};
+ keepTitles.push_back(std::move(titleA));keepTitles.push_back(std::move(titleB));QueueAudit::Detach();
+ deep["synthetic_last_frame"]=frame-1;deep["provider_recordings_added"]=FfxApiProxy::dispatches-14;result["deep_native"]=deep;
 }
 void loadProvider(const char* path) {
  FfxApiProxy::real=true; auto module=LoadLibraryA(path); need(module!=nullptr,"signed AMD DLL loaded read-only");
@@ -690,8 +842,8 @@ int main(int argc,char** argv) try {
  need(FfxApiProxy::dispatches==14 && NrdBridge::GetStatus().framesBridged==15,"exact bridge/provider work count includes one deliberately unsubmitted recording and one real SDK error");
  need(internalBarriers>0 && titleTransitions==0,"conversion/motion/debug/real RR never transition a borrowed title texture");
  result["barrier_audit"]={{"internal_barriers_observed",internalBarriers},{"borrowed_title_transitions",titleTransitions}};
- result["owned_conversion_bytes"]=NrdBridge::gService->conversion.OwnedTextureBytes();
- result["owned_rr_staging_bytes"]=NrdBridge::gService->rr.OwnedStagingBytes();
+ result["owned_conversion_bytes"]=NrdBridge::gService->history->conversion.OwnedTextureBytes();
+ result["owned_rr_staging_bytes"]=NrdBridge::gService->history->rr.OwnedStagingBytes();
  UINT64 directStagingBytes=0;
  for(void* pointer:{FfxApiProxy::lastSpecular.signal.output.resource,FfxApiProxy::lastDiffuse.signal.output.resource}) {
   auto* texture=static_cast<ID3D12Resource*>(pointer); const auto description=texture->GetDesc();
@@ -699,12 +851,14 @@ int main(int argc,char** argv) try {
   directStagingBytes+=h.device->GetResourceAllocationInfo(0,1,&description).SizeInBytes;
  }
  constexpr UINT warmedTransactionSlots=4; // Production initializes four independent pairs; sequential submissions reuse them.
- need(NrdBridge::gService->rr.OwnedStagingBytes()==directStagingBytes*warmedTransactionSlots,"reported RR staging bytes equal independently queried pair allocations across all four warmed slots");
+ need(NrdBridge::gService->history->rr.OwnedStagingBytes()==directStagingBytes*warmedTransactionSlots,"reported RR staging bytes equal independently queried pair allocations across all four warmed slots");
  result["rr_staging_allocation"]={{"independent_pair_bytes",directStagingBytes},{"warmed_slots",warmedTransactionSlots},{"total_bytes",directStagingBytes*warmedTransactionSlots}};
+ std::vector<std::unique_ptr<Title>> deepTitles;deepCases(h,resized,result,deepTitles);
  result["provider"]={{"creates",FfxApiProxy::creates},{"dispatches",FfxApiProxy::dispatches},{"defaults",FfxApiProxy::defaults},{"configures",FfxApiProxy::configures}};
  result["proxy_routed_calls"]=FfxApiProxy::routed;
  result["title_restore_calls"]=restores; result["frames_bridged"]=NrdBridge::GetStatus().framesBridged;
- result["recon_callbacks"]=NrdBridge::gService->frame; result["submitted_rr_frames"]=FfxApiProxy::dispatches-2;
+ result["recon_callbacks"]=NrdBridge::gService->frame; result["submitted_rr_frames"]=FfxApiProxy::dispatches-4;
+ result["submitted_cancelled_rr_records"]=2;
  result["submitted_partial_sdk_records"]=1;
  J identities=J::array(); for(const auto& [id,count]:detourDispatches) identities.push_back({{"this",id},{"external_dispatch_callbacks",count[0]},{"internal_dispatch_callbacks",count[1]}});
  result["detour_identities"]=identities;
