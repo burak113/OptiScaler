@@ -3,6 +3,8 @@
 The CPU COM implementations come from the installed SDK interface declarations.
 The application/FG/logging hooks are adapters; BeforeComputeSubmission, retention,
 eligibility, before/after submission and fence-wait code are production extraction.
+The actual native-birth facade is included but intentionally unconfigured here;
+configured physical Release/birth behavior has separate native fixtures.
 """
 from pathlib import Path
 import json
@@ -170,6 +172,7 @@ PREAMBLE = r'''
 #include <thread>
 #include <json.hpp>
 #include "__LEDGER__"
+#include "__NATIVE_BIRTH__"
 using Microsoft::WRL::ComPtr;
 using J=nlohmann::json;
 std::atomic<bool> denyAllocations=false;
@@ -191,7 +194,17 @@ void resetRegistry() {
  eventCount=0; // Fixture only: every real GPU operation has been explicitly drained before this is called.
 }
 struct State { bool isShuttingDown=false; static State& Instance() { static State state; return state; } };
-namespace FrameSurvey { thread_local bool internal=false; struct ScopedInternal { bool prior=internal; ScopedInternal(){internal=true;} ~ScopedInternal(){internal=prior;} }; }
+std::atomic<unsigned> unexpectedNativeCoverage=0,unexpectedMetadataFailure=0;
+namespace FrameSurvey {
+ thread_local bool internal=false;
+ struct ScopedInternal { bool prior=internal; ScopedInternal(){internal=true;} ~ScopedInternal(){internal=prior;} };
+ void MetadataHookFailed(const char*) noexcept { ++unexpectedMetadataFailure; }
+ void FlushMetadataFailure() noexcept {}
+}
+// This fixture owns an empty detour-installation table. Configured native birth
+// and physical Release coverage have their separate actual production fixtures.
+using PFN_BirthRelease=ULONG(STDMETHODCALLTYPE*)(IUnknown*);
+static PFN_BirthRelease FindBirthReleaseOriginal(PVOID) noexcept { return nullptr; }
 PVOID gResourceReleaseEntry=nullptr,gPsoReleaseEntry=nullptr,gCommandListReleaseEntry=nullptr,gComputeResetEntry=nullptr,gComputeExecuteEntry=nullptr;
 ComPtr<IUnknown> gComputeQueueDeviceIdentity;
 std::atomic<bool> gComputeListHooksAvailable=false,gComputeQueueHookAvailable=false;
@@ -205,7 +218,11 @@ struct ResTrack_Dx12 {
  static void HookResource(ID3D12Device*);
  static void HookCommandList(ID3D12Device*);
  static void HookToQueue(ID3D12Device*);
+ static bool ObserveBridgeObjectRelease(IUnknown*) noexcept { ++unexpectedNativeCoverage; return false; }
 };
+bool NrdBridgeNativeBirth::ObserveReleaseCoverage(IUnknown* object) noexcept {
+ return ResTrack_Dx12::ObserveBridgeObjectRelease(object);
+}
 void ResTrack_Dx12::HookResource(ID3D12Device* device) {
  if(gResourceReleaseEntry || fixtureResourceHookFails) return;
  D3D12_HEAP_PROPERTIES heap{};heap.Type=D3D12_HEAP_TYPE_DEFAULT;
@@ -447,7 +464,14 @@ J gpuTests() {
  unsigned errors=0,warnings=0;for(auto* messages:{info.Get(),replacementInfo.Get()})for(UINT64 i=0;i<messages->GetNumStoredMessages();++i){SIZE_T size=0;messages->GetMessage(i,nullptr,&size);std::vector<unsigned char> bytes(size);auto* message=reinterpret_cast<D3D12_MESSAGE*>(bytes.data());messages->GetMessage(i,message,&size);if(message->Severity<=D3D12_MESSAGE_SEVERITY_ERROR)++errors;else if(message->Severity==D3D12_MESSAGE_SEVERITY_WARNING)++warnings;if(message->Severity<=D3D12_MESSAGE_SEVERITY_WARNING)std::fprintf(stderr,"D3D12 %u: %s\n",message->ID,message->pDescription);}
  need(!errors && !warnings,"real two-queue and replacement-device debug layers are clean");return {{"gpu_checks",checks},{"real_queues",2},{"published_fences",published},{"waits",waits},{"exact_gpu_value",0x12345678},{"exact_oom_gpu_value",0x89abcdef},{"real_snapshot_oom",true},{"transient_native_wait_recoveries",transientNativeRecoveries},{"denied_required_ordering_submissions",deniedSubmissions},{"same_thread_gate_progress",true},{"same_entry_native_device_replacement",true},{"debug_errors",errors},{"debug_warnings",warnings}};
 }
-int main(int argc,char** argv) try { auto result=(argc>1 && std::string(argv[1])=="gpu")?gpuTests():cpuTests();std::cout<<result.dump()<<'\n';return 0; } catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}
+int main(int argc,char** argv) try {
+ need(!NrdBridgeNativeBirth::Ready(),"lease/eligibility fixture includes the actual unconfigured native-birth facade");
+ const bool gpu=argc>1 && std::string(argv[1])=="gpu";auto result=gpu?gpuTests():cpuTests();
+ need(!unexpectedNativeCoverage && !unexpectedMetadataFailure,"inactive native-birth/installer route was never fabricated or entered");
+ result[gpu?"gpu_checks":"cpu_checks"]=checks;result["native_birth_ready"]=NrdBridgeNativeBirth::Ready();
+ result["unexpected_native_coverage_calls"]=unexpectedNativeCoverage.load();result["unexpected_metadata_failure_calls"]=unexpectedMetadataFailure.load();
+ std::cout<<result.dump()<<'\n';return 0;
+} catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}
 '''
 
 
@@ -460,13 +484,13 @@ def run():
     production = '\n'.join(function(source, signature) for signature in (
         'std::shared_ptr<RecordedComputeLease::Submission> ResTrack_Dx12::BeforeComputeSubmission(',
         'bool ResTrack_Dx12::RefreshComputeHookDevice(', 'bool ResTrack_Dx12::RetainComputeDispatch('))
-    cpp = PREAMBLE.replace('__LEDGER__', (ROOT / 'OptiScaler/misc/RecordedComputeLease_Dx12.h').as_posix()).replace('__PRODUCTION__', production)
+    cpp = PREAMBLE.replace('__LEDGER__', (ROOT / 'OptiScaler/misc/RecordedComputeLease_Dx12.h').as_posix()).replace('__NATIVE_BIRTH__', (ROOT / 'OptiScaler/misc/NrdBridgeNativeBirth_Dx12.h').as_posix()).replace('__PRODUCTION__', production)
     cpp += fake_com(sdk) + CPU + GPU
     path = output / 'recorded_submission.cpp'
     path.write_text(cpp)
     exe = output / 'recorded_submission.exe'
     os.environ['FSRD_CPP_CACHE'] = str(output / 'cache')
-    compile_cpp(path, exe, ('d3d12.lib', 'dxgi.lib', 'dxguid.lib'), (ROOT / 'external/nlohmann',))
+    compile_cpp(path, exe, ('d3d12.lib', 'dxgi.lib', 'dxguid.lib', 'bcrypt.lib'), (ROOT / 'external/nlohmann',))
     mode = 'gpu' if '--gpu' in sys.argv else 'cpu'
     result = subprocess.run([str(exe), mode], capture_output=True, text=True, timeout=45)
     (output / 'native.log').write_text(result.stdout + result.stderr)
