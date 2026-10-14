@@ -14,7 +14,8 @@ class RRWrapper
     ~RRWrapper();
     bool PrepareFrame(const SLConstantsSnapshot&, bool requestedReset, FrameParameters& out, std::string& error);
     bool Dispatch(ID3D12GraphicsCommandList*, const ConvertedResources&, ID3D12Resource* outputSpec,
-                  ID3D12Resource* outputDiff, const FrameParameters&, std::string& error);
+                  ID3D12Resource* outputDiff, const FrameParameters&, std::string& error,
+                  const OutputCommitGuard& = {});
     void ResetHistory() noexcept;
     void DiscardRecordingHistory() noexcept;
     uint64_t ContextGeneration() const noexcept;

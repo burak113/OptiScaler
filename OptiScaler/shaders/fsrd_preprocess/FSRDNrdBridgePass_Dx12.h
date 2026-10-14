@@ -19,7 +19,7 @@ class ConversionPass
     bool DispatchMotion(ID3D12GraphicsCommandList*, const ConvertedResources&, ID3D12Resource* titleMotion,
                         const FrameParameters&, std::string& error);
     bool WriteDebug(ID3D12GraphicsCommandList*, const ConvertedResources&, ID3D12Resource* outputSpec,
-                    ID3D12Resource* outputDiff, DebugMode, std::string& error);
+                    ID3D12Resource* outputDiff, DebugMode, std::string& error, const OutputCommitGuard& = {});
     void ResetHistory() noexcept;
     uint64_t OwnedTextureBytes() const noexcept;
 };

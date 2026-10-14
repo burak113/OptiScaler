@@ -261,6 +261,9 @@ struct Scene
         }
         resources.spec=textures[0].Get();resources.diff=textures[1].Get();resources.linearDepth=textures[2].Get();
         resources.motion=textures[3].Get();resources.normals=textures[4].Get();resources.specAlbedo=textures[5].Get();resources.diffAlbedo=textures[6].Get();
+        // Opaque title alpha is initialized independently of both RR signal inputs
+        // and the provider's staged alpha, then checked after real and mock dispatches.
+        ClearPair(host.list.Get(),spec(),diff(),{.125f,.25f,.5f,.75f},{1.25f,1.5f,1.75f,2.f});
     }
     ID3D12Resource* spec(){return textures[7].Get();} ID3D12Resource* diff(){return textures[8].Get();}
 };
@@ -422,17 +425,20 @@ struct Readback
     void verify(const std::filesystem::path& file,uint32_t width,uint32_t height)
     {
         uint8_t* data;hr(bufferResource->Map(0,nullptr,reinterpret_cast<void**>(&data)));
-        std::ofstream out(file,std::ios::binary);uint64_t finite=0;double sum=0;float maximum=0;
+        std::ofstream out(file,std::ios::binary);uint64_t finite=0,alphaPreserved=0;double sum=0;float maximum=0;
+        const auto nativeAlpha=PackedVector::XMConvertFloatToHalf(file.filename().string().find("spec")!=std::string::npos?.75f:2.f);
         for(uint32_t y=0;y<height;++y)
         {
             const auto* row=reinterpret_cast<const uint16_t*>(data+footprint.Offset+y*footprint.Footprint.RowPitch);
             out.write(reinterpret_cast<const char*>(row),width*8);
             for(uint32_t i=0;i<width*4;++i){const float value=PackedVector::XMConvertHalfToFloat(row[i]);
-                finite+=std::isfinite(value);if(i%4<3){sum+=value;maximum=std::max(maximum,value);}}
+                finite+=std::isfinite(value);if(i%4<3){sum+=value;maximum=std::max(maximum,value);}
+                else alphaPreserved+=row[i]==nativeAlpha;}
         }
         bufferResource->Unmap(0,nullptr);
         need(finite==uint64_t(width)*height*4,"real RR output contains NaN/Inf");
         need(sum>0 && maximum<65504.f,"real RR output is black or saturated");
+        need(alphaPreserved==uint64_t(width)*height,"real RR RGB commit preserves every native title alpha sample");
         std::cout<<"output "<<file.filename().string()<<" finite="<<finite<<" meanRGB="<<sum/(double(width)*height*3)
             <<" maxRGB="<<maximum<<'\n';
     }
@@ -471,9 +477,46 @@ void partialFailureChecks(Host& host)
     need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
     need(FfxApiProxy::creates==creates+2 && wrapper.ContextGeneration()==2,"recovery uses a physically fresh provider context");
     Readback newSpec(host,scene.spec()),newDiff(host,scene.diff());host.submit();host.reset();
-    newSpec.exact({2.5f,3.75f,4.25f,5.5f},64,64);newDiff.exact({6.5f,7.75f,8.25f,9.5f},64,64);
+    newSpec.exact({2.5f,3.75f,4.25f,specSentinel[3]},64,64);newDiff.exact({6.5f,7.75f,8.25f,diffSentinel[3]},64,64);
     need(scene.spec()->AddRef()==2 && scene.spec()->Release()==1,"commit heap never retains title spec output");
     need(scene.diff()->AddRef()==2 && scene.diff()->Release()==1,"commit heap never retains title diffuse output");
+    FfxApiProxy::recordPartialWrites=false;
+}
+struct CommitProbe
+{
+    bool accepted=false;
+    unsigned calls=0,actions=0;
+    static bool Admit(void* state,OutputCommitGuard::Action action,void* prepared) noexcept
+    {
+        auto& probe=*static_cast<CommitProbe*>(state);++probe.calls;
+        if(!probe.accepted)return false;
+        action(prepared);++probe.actions;return true;
+    }
+};
+void cancelledCommitChecks(Host& host)
+{
+    Scene scene(host,64,64);host.submit();host.reset();
+    RRWrapper wrapper;FrameParameters frame;std::string error;CommitProbe probe;
+    OutputCommitGuard guard{&probe,CommitProbe::Admit};
+    FfxApiProxy::recordPartialWrites=true;
+    const auto creates=FfxApiProxy::creates,destroys=FfxApiProxy::destroys;
+    need(wrapper.PrepareFrame(camera(450),false,frame,error),"prepare provider-success cancellation");
+    need(!wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error,guard),
+        "expired coordinator admission cancels provider-success title commit");
+    need(probe.calls==1 && probe.actions==0 && error.find("ticket expired")!=std::string::npos,
+        "allocation-free guard runs exactly once and never records a denied commit");
+    need(wrapper.OwnedStagingBytes()==0 && FfxApiProxy::destroys==destroys,"cancelled SDK context stays alive while its commands are unsubmitted");
+    Readback oldSpec(host,scene.spec()),oldDiff(host,scene.diff());host.submit();host.reset();
+    oldSpec.exact({.125f,.25f,.5f,.75f},64,64);oldDiff.exact({1.25f,1.5f,1.75f,2.f},64,64);
+    need(FfxApiProxy::destroys==destroys+1,"cancelled context retires only after its actual GPU work completes");
+    probe.accepted=true;
+    need(wrapper.PrepareFrame(camera(451),false,frame,error) && frame.reset && !frame.previousValid,
+        "denied commit invalidates all private SDK history");
+    need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error,guard),error.c_str());
+    need(probe.calls==2 && probe.actions==1 && FfxApiProxy::creates==creates+2,
+        "accepted recovery records once into a physically new SDK context");
+    Readback newSpec(host,scene.spec()),newDiff(host,scene.diff());host.submit();host.reset();
+    newSpec.exact({2.5f,3.75f,4.25f,.75f},64,64);newDiff.exact({6.5f,7.75f,8.25f,2.f},64,64);
     FfxApiProxy::recordPartialWrites=false;
 }
 void stagingPoolChecks(Host& host)
@@ -569,7 +612,7 @@ int main(int argc,char** argv) try
     std::cout<<"stage deferred lifetime checks\n";lifecycleChecks(host);
     std::cout<<"stage minimum-size fail-closed check\n";minimumChecks(host);
     if(mode=="--mock")providerChecks(host);
-    if(mode=="--mock")partialFailureChecks(host);
+    if(mode=="--mock"){partialFailureChecks(host);cancelledCommitChecks(host);}
     if(mode=="--mock")stagingPoolChecks(host);
     if(mode=="--real")
     {

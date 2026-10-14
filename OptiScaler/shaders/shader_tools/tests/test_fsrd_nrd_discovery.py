@@ -37,7 +37,8 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* cmd,const ConversionInp
 }
 __MOTION_STUB__
 bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList*,const ConvertedResources&,ID3D12Resource*,
-                               ID3D12Resource*,DebugMode,std::string&) { ++debugCalls; return true; }
+                               ID3D12Resource*,DebugMode,std::string&,const OutputCommitGuard& guard) {
+ ++debugCalls; return !guard.admit || guard.admit(guard.state,+[](void*) noexcept {},nullptr); }
 void ConversionPass::ResetHistory() noexcept { ++depthResets; }
 uint64_t ConversionPass::OwnedTextureBytes() const noexcept { return 0; }
 struct RRWrapper::Impl {};
@@ -47,9 +48,10 @@ bool RRWrapper::PrepareFrame(const SLConstantsSnapshot& sl,bool reset,FrameParam
  out.streamlineFrame=sl.frameIndex; out.frameIndex=rrCalls; out.reset=reset; return true;
 }
 bool RRWrapper::Dispatch(ID3D12GraphicsCommandList*,const ConvertedResources&,ID3D12Resource* outputSpec,ID3D12Resource* outputDiff,
-                        const FrameParameters& frame,std::string&) {
+                        const FrameParameters& frame,std::string&,const OutputCommitGuard& guard) {
  ++rrCalls; lastOutSpec=outputSpec; lastOutDiff=outputDiff; lastRRFrame=frame;
- internalObserved &= FrameSurvey::Internal(); trackingSuppressed &= !D3D12Hooks::tracking; return true;
+ internalObserved &= FrameSurvey::Internal(); trackingSuppressed &= !D3D12Hooks::tracking;
+ return !guard.admit || guard.admit(guard.state,+[](void*) noexcept {},nullptr);
 }
 void RRWrapper::ResetHistory() noexcept { ++rrResets; }
 void RRWrapper::DiscardRecordingHistory() noexcept { ++rrDiscards; }

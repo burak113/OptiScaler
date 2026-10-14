@@ -331,7 +331,7 @@ bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList* list, const Conve
 
 bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList* list, const ConvertedResources& resources,
                                 ID3D12Resource* outputSpec, ID3D12Resource* outputDiff,
-                                DebugMode mode, std::string& error)
+                                DebugMode mode, std::string& error, const OutputCommitGuard& guard)
 {
     if (!list || !impl_ || (mode != DebugMode::RawSignals && mode != DebugMode::RRInputs))
     { error = "Invalid NRD debug-copy request"; return false; }
@@ -360,9 +360,24 @@ bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList* list, const Converted
             {resources.spec, resources.diff, resources.normals, resources.linearDepth, resources.motion,
              resources.specAlbedo, resources.diffAlbedo}, {outputSpec, outputDiff});
         const uint32_t constants[] = {owner->width, owner->height, uint32_t(mode), 0};
-        UavBarrier(list, outputSpec, outputDiff);
-        owner->copy.Record(list, *lease->slot, constants, 4, owner->width, owner->height);
-        UavBarrier(list, outputSpec, outputDiff);
+        struct PreparedCopy
+        {
+            Impl* owner;
+            ID3D12GraphicsCommandList* list;
+            DescriptorSlot* slot;
+            ID3D12Resource *spec, *diff;
+            const uint32_t* constants;
+        } copy {owner.get(), list, lease->slot.get(), outputSpec, outputDiff, constants};
+        const auto record = +[](void* state) noexcept {
+            const auto& prepared = *static_cast<PreparedCopy*>(state);
+            UavBarrier(prepared.list, prepared.spec, prepared.diff);
+            prepared.owner->copy.Record(prepared.list, *prepared.slot, prepared.constants, 4,
+                prepared.owner->width, prepared.owner->height);
+            UavBarrier(prepared.list, prepared.spec, prepared.diff);
+        };
+        if (guard.admit && !guard.admit(guard.state, record, &copy))
+        { error = "NRD output ticket expired before debug commit"; return false; }
+        if (!guard.admit) record(&copy);
         error.clear(); return true;
     }
     catch (const std::exception& e) { error = e.what(); return false; }

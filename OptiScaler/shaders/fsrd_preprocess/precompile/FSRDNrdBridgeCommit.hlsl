@@ -15,6 +15,8 @@ cbuffer CommitConstants : register(b0) { uint2 RenderSize; }
 void CSMain(uint3 tid : SV_DispatchThreadID)
 {
     if (any(tid.xy >= RenderSize)) return;
-    TitleSpec[tid.xy] = StagedSpec[tid.xy];
-    TitleDiff[tid.xy] = StagedDiff[tid.xy];
+    // RR1.2 writes denoised RGB; the title owns its auxiliary alpha payload.
+    // Read and preserve the current title alpha just as a direct RGB RR write would.
+    TitleSpec[tid.xy] = float4(StagedSpec[tid.xy].rgb, TitleSpec[tid.xy].a);
+    TitleDiff[tid.xy] = float4(StagedDiff[tid.xy].rgb, TitleDiff[tid.xy].a);
 }

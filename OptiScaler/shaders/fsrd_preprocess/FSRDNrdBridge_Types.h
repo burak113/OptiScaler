@@ -9,6 +9,14 @@ namespace NrdBridge
 {
 enum class Role : uint8_t { None, PrepLast, Recon, PrePass, Temporal, Chain3, HistSave, HistFix, Clamp, ATrous, Consumer };
 enum class DebugMode : uint8_t { Off, RawSignals, RRInputs };
+// Run a prepared, infallible output recording while the coordinator ticket is
+// still admitted. A plain callback needs no allocation after provider dispatch.
+struct OutputCommitGuard
+{
+    using Action = void (*)(void*) noexcept;
+    void* state = nullptr;
+    bool (*admit)(void*, Action, void*) noexcept = nullptr;
+};
 struct Resources
 {
     ID3D12Resource* inputSpec = nullptr;

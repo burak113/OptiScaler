@@ -384,7 +384,7 @@ bool RRWrapper::PrepareFrame(const SLConstantsSnapshot& snapshot, bool requested
 
 bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResources& input,
                          ID3D12Resource* outputSpec, ID3D12Resource* outputDiff,
-                         const FrameParameters& frame, std::string& error)
+                         const FrameParameters& frame, std::string& error, const OutputCommitGuard& guard)
 {
     error.clear();
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
@@ -488,7 +488,25 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList* list, const ConvertedResourc
         DiscardRecordingHistory();
         return Fail(error, "RR dispatch", result);
     }
-    lease->context->Commit(list, *lease->slot, outputSpec, outputDiff);
+    struct PreparedCommit
+    {
+        Context* context;
+        ID3D12GraphicsCommandList* list;
+        Context::Slot* slot;
+        ID3D12Resource *spec, *diff;
+    } commit {lease->context.get(), list, lease->slot.get(), outputSpec, outputDiff};
+    const auto record = +[](void* state) noexcept {
+        const auto& prepared = *static_cast<PreparedCommit*>(state);
+        prepared.context->Commit(prepared.list, *prepared.slot, prepared.spec, prepared.diff);
+    };
+    if (guard.admit && !guard.admit(guard.state, record, &commit))
+    {
+        // SDK work stays leased, but an expired title ticket never receives it.
+        DiscardRecordingHistory();
+        error = "NRD output ticket expired before RR commit";
+        return false;
+    }
+    if (!guard.admit) record(&commit);
     impl_->previous = frame;
     impl_->previous.reset = reset;
     impl_->historyValid = true;
