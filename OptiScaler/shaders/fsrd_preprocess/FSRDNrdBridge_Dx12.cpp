@@ -13,6 +13,7 @@
 #include <mutex>
 #include <sstream>
 #include <unordered_map>
+#include <vector>
 #include <cctype>
 
 namespace NrdBridge
@@ -88,7 +89,7 @@ Role PipelineRole(const Service& owner, ID3D12PipelineState* pipeline)
 }
 void DropPending(Service& owner)
 {
-    owner.pendingList = nullptr;
+    owner.pendingList = nullptr; owner.status.active = false;
     for (auto& [cmd,list] : owner.lists) list.converted = list.motionReady = false;
     ++owner.resetSerial;
 }
@@ -539,27 +540,56 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         }
         if (!FrameSurvey::MetadataHealthy()) { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
         if (!D3D12Hooks::CanRestoreRootSignature(cmd)) { Failure(owner,"Title compute state cannot be restored before Consumer"); return; }
+        struct CommitTicket
+        {
+            Service* owner;
+            ID3D12GraphicsCommandList* list;
+            const ListState* staged;
+            bool cancelled = false, metadataFailed = false, log = false;
+            uint64_t frames = 0, resets = 0;
+            static bool Admit(void* state, OutputCommitGuard::Action action, void* prepared) noexcept
+            {
+                auto& ticket = *static_cast<CommitTicket*>(state);
+                std::scoped_lock lock(gMutex);
+                const auto found = ticket.owner->lists.find(ticket.list);
+                const auto& staged = *ticket.staged;
+                ticket.metadataFailed = !FrameSurvey::MetadataHealthy();
+                if (gService.get() != ticket.owner || !gRuntime.load(std::memory_order_relaxed) ||
+                    !ticket.owner->cache.Valid() || ticket.metadataFailed ||
+                    staged.generation != ticket.owner->cache.Generation() || staged.resetSerial != ticket.owner->resetSerial ||
+                    ticket.owner->pendingList != ticket.list || found == ticket.owner->lists.end() ||
+                    found->second.frame != staged.frame || !found->second.converted || !found->second.motionReady ||
+                    found->second.recording != staged.recording)
+                { ticket.cancelled = true; return false; }
+                // This is the output admission point: reset/tag/release invalidation
+                // cannot pass between the final ticket check and the prepared write.
+                action(prepared);
+                found->second.converted = false;
+                ticket.owner->pendingList = nullptr; ticket.owner->failures = 0;
+                ticket.frames = ++ticket.owner->status.framesBridged;
+                if (staged.parameters.reset) ++ticket.owner->status.resets;
+                ticket.resets = ticket.owner->status.resets;
+                ticket.owner->status.active = true; ticket.owner->status.phase = "Active"; ticket.owner->status.reason.clear();
+                if (staged.debug != DebugMode::Off) ++ticket.owner->resetSerial;
+                ticket.log = ticket.frames == 1 || ticket.frames-ticket.owner->lastLog >= 600;
+                if (ticket.log) ticket.owner->lastLog = ticket.frames;
+                return true;
+            }
+        } ticket {owner.get(), cmd, &staged};
+        const OutputCommitGuard admission {&ticket, CommitTicket::Admit};
         bool succeeded = false;
         {
             InjectionScope guard(cmd);
             if (staged.debug == DebugMode::Off)
-                succeeded = owner->rr.Dispatch(cmd,staged.inputs,resources.outputSpec,resources.outputDiff,staged.parameters,error);
-            else succeeded = owner->conversion.WriteDebug(cmd,staged.inputs,resources.outputSpec,resources.outputDiff,staged.debug,error);
+                succeeded = owner->rr.Dispatch(cmd,staged.inputs,resources.outputSpec,resources.outputDiff,staged.parameters,error,admission);
+            else succeeded = owner->conversion.WriteDebug(cmd,staged.inputs,resources.outputSpec,resources.outputDiff,staged.debug,error,admission);
         }
+        if (ticket.metadataFailed)
+        { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
+        if (ticket.cancelled) return; // Preserve the newer reset/discovery status and epoch.
         if (!succeeded) { Failure(owner,error.empty() ? "NRD output dispatch failed" : error); return; }
-        bool log = false; Status status;
-        {
-            std::scoped_lock lock(gMutex); if (gService != owner) return;
-            const auto found = owner->lists.find(cmd); if (found != owner->lists.end()) found->second.converted = false;
-            owner->pendingList = nullptr; owner->failures = 0; ++owner->status.framesBridged;
-            if (staged.parameters.reset) ++owner->status.resets;
-            owner->status.active = true; owner->status.phase = "Active"; owner->status.reason.clear();
-            if (staged.debug != DebugMode::Off) ++owner->resetSerial; // Debug frames never seed RR temporal history.
-            log = owner->status.framesBridged == 1 || owner->status.framesBridged-owner->lastLog >= 600;
-            if (log) { owner->lastLog = owner->status.framesBridged; status = owner->status; }
-        }
-        if (log) LOG_INFO("[NRD_BRIDGE] active frames={} resets={} SL_frame={} bridge_frame={} render={}x{} debug={}",
-            status.framesBridged,status.resets,staged.parameters.streamlineFrame,staged.parameters.frameIndex,
+        if (ticket.log) LOG_INFO("[NRD_BRIDGE] active frames={} resets={} SL_frame={} bridge_frame={} render={}x{} debug={}",
+            ticket.frames,ticket.resets,staged.parameters.streamlineFrame,staged.parameters.frameIndex,
             resources.width,resources.height,uint32_t(staged.debug));
     } catch (...) { CoordinatorException("Exception while preparing NRD output dispatch"); }
 }
@@ -692,7 +722,14 @@ void SetDebugMode(DebugMode mode) noexcept
 DebugMode GetDebugMode() noexcept { return gDebug.load(std::memory_order_relaxed); }
 void RequestHistoryReset() noexcept
 {
-    try { std::scoped_lock lock(gMutex); if (gService) DropPending(*gService); } catch (...) {}
+    try
+    {
+        std::scoped_lock lock(gMutex);
+        if (!gService) return;
+        DropPending(*gService);
+        if (gService->status.runtimeEnabled)
+        { gService->status.phase = "Waiting for NRD"; gService->status.reason = "RR history reset requested; waiting for the next Recon"; }
+    } catch (...) {}
 }
 #ifdef FSRD_NRD_BRIDGE_TEST
 void RegisterPipelineRoleForTesting(ID3D12PipelineState* pipeline, Role role) noexcept

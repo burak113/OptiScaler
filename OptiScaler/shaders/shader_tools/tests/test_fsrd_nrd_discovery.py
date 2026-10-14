@@ -21,6 +21,7 @@ CPP = r'''
 #include <chrono>
 unsigned convertCalls=0, motionCalls=0, rrCalls=0, debugCalls=0, depthResets=0, rrResets=0, rrDiscards=0;
 bool internalObserved=true, trackingSuppressed=true, observerUnlocked=true, throwPrepare=false, deferredMotion=true;
+void (*afterRRForTesting)() = nullptr;
 NrdBridge::ConversionInputs lastReconInputs {};
 NrdBridge::FrameParameters lastRGBFrame {},lastMotionFrame {},lastRRFrame {};
 ID3D12Resource* lastMotion=nullptr; ID3D12Resource* lastOutSpec=nullptr; ID3D12Resource* lastOutDiff=nullptr;
@@ -51,6 +52,7 @@ bool RRWrapper::Dispatch(ID3D12GraphicsCommandList*,const ConvertedResources&,ID
                         const FrameParameters& frame,std::string&,const OutputCommitGuard& guard) {
  ++rrCalls; lastOutSpec=outputSpec; lastOutDiff=outputDiff; lastRRFrame=frame;
  internalObserved &= FrameSurvey::Internal(); trackingSuppressed &= !D3D12Hooks::tracking;
+ if(afterRRForTesting) afterRRForTesting();
  return !guard.admit || guard.admit(guard.state,+[](void*) noexcept {},nullptr);
 }
 void RRWrapper::ResetHistory() noexcept { ++rrResets; }
@@ -435,6 +437,31 @@ J discoveryTests(Host& h) {
  FrameSurvey::PipelineCreated(c.pipelines[UINT(Role::Recon)].Get(),D3D12_PIPELINE_STATE_STREAM_DESC {});
  need(!NrdBridge::gService->roles.contains(c.pipelines[UINT(Role::Recon)].Get()),"failed/no-CS stream creation erases an old PSO role");
  NrdBridge::RegisterPipelineRoleForTesting(c.pipelines[UINT(Role::Recon)].Get(),Role::Recon);
+ // The provider can succeed after the coordinator epoch changed on another path.
+ // Admission must preserve the newer state and avoid an Active/counter publication.
+ NrdBridge::SetRuntimeEnabled(false); NrdBridge::SetRuntimeEnabled(true); c.frame(3); c.frame(3);
+ need(NrdBridge::GetStatus().active,"output admission fixture starts from a valid active chain");
+ const auto beforeCancelledReset=NrdBridge::GetStatus().framesBridged;
+ const auto beforeResetFailures=NrdBridge::gService->failures; const auto beforeResetEpoch=NrdBridge::gService->resetSerial;
+ afterRRForTesting=+[] { NrdBridge::RequestHistoryReset(); }; c.frame(3); afterRRForTesting=nullptr;
+ need(NrdBridge::GetStatus().framesBridged==beforeCancelledReset && !NrdBridge::GetStatus().active,
+  "provider success after an explicit history reset cannot commit or republish Active");
+ need(NrdBridge::gService->resetSerial>beforeResetEpoch && NrdBridge::gService->failures==beforeResetFailures,
+  "reset cancellation preserves the new epoch without spending a provider failure retry");
+ c.frame(3); need(NrdBridge::GetStatus().active,"fresh frame recovers after output admission cancellation");
+ const auto beforeCancelledTag=NrdBridge::GetStatus().framesBridged;
+ const auto beforeTagFailures=NrdBridge::gService->failures;
+ afterRRForTesting=+[] {
+  auto* foreign=lastReconInputs.reconSpec;
+  std::thread tagger([foreign] { NrdBridge::OnTitleTag(nullptr,"MotionVectors",foreign); }); tagger.join();
+ }; c.frame(3); afterRRForTesting=nullptr;
+ need(NrdBridge::GetStatus().framesBridged==beforeCancelledTag && !NrdBridge::GetStatus().active &&
+  !NrdBridge::gService->cache.Valid() && FrameSurvey::BindingWindow(),
+  "normal-thread tag change during provider success cancels the stale commit and preserves rediscovery");
+ need(NrdBridge::gService->failures==beforeTagFailures && NrdBridge::GetStatus().reason.find("motion tag")!=std::string::npos,
+  "tag cancellation preserves its diagnostic and does not consume provider retry budget");
+ NrdBridge::OnTitleTag(h.list.Get(),"MotionVectors",c.textures[6].Get()); c.frame(3); c.frame(3);
+ need(NrdBridge::GetStatus().active,"clean tagged chain rediscovers and recovers after cancellation");
  auto metadata=descriptorMetadataTests(c); auto timings=cpuTimings(c); FrameSurvey::SetBindingWindow(true); c.begin(); c.bind(1,0);
  FrameSurvey::Fail("fixture recorder-only capture failure");
  need(FrameSurvey::gMetadataHealthy.load(),"recorder-only capture failures do not latch creation or binding metadata unhealthy");

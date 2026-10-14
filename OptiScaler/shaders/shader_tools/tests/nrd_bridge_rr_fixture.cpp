@@ -586,7 +586,7 @@ void realLoop(Host& host,uint32_t width,uint32_t height,unsigned frames,const st
     std::sort(steady.begin(),steady.end());const double mean=std::accumulate(steady.begin(),steady.end(),0.0)/steady.size();
     std::cout<<"timing "<<label<<" size="<<width<<'x'<<height<<" frames="<<frames<<" warmup="<<warm
         <<" mean_ms="<<mean<<" median_ms="<<steady[steady.size()/2]<<" first_ms="<<milliseconds[0]
-        <<" staging_bytes="<<warmedStagingBytes<<" staging_slots=4 scope=RR_stage_plus_exact_RGBA_commit samples_ms=";
+        <<" staging_bytes="<<warmedStagingBytes<<" staging_slots=4 scope=RR_stage_plus_RGB_commit_preserving_title_alpha samples_ms=";
     for(auto value:milliseconds)std::cout<<value<<',';std::cout<<'\n';
 }
 int main(int argc,char** argv) try
