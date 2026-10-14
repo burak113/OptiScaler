@@ -1039,6 +1039,10 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeCommit_Shader.cso" />
     <ClInclude Include="misc\NrdBridgeLifetime_Dx12.h" />
     <ClInclude Include="misc\NrdBridgePerf_Dx12.h" />
+    <ClInclude Include="misc\NrdBridgeBirth_Dx12.h" />
+    <ClInclude Include="misc\NrdBridgeNativeBirth_Dx12.h" />
+    <ClInclude Include="misc\NrdBridgeRelease_Dx12.h" />
+    <ClInclude Include="resource_tracking\ConcurrentMetadata_Dx12.h" />
     <ClInclude Include="misc\NrdBridgeTitleCallbacks_Dx12.h" />
     <ClInclude Include="misc\NrdBridgeDevice_Dx12.h" />
     <ClInclude Include="misc\NrdBridgeOwned_Dx12.h" />
