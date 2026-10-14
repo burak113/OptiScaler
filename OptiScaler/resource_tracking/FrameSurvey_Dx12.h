@@ -41,6 +41,7 @@ void SetPipelineObserver(PipelineObserver) noexcept;
 void SetReleaseObserver(ReleaseObserver) noexcept;
 void SetBindingWindow(bool) noexcept;
 bool BindingWindow() noexcept;
+bool MetadataHealthy() noexcept;
 bool ResolveComputeTable(ID3D12GraphicsCommandList*, UINT rootParameter, std::vector<BoundResource>& out) noexcept;
 class ScopedInternal
 {
