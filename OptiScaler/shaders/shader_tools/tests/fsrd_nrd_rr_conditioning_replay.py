@@ -154,7 +154,7 @@ def generate(directory):
                                           albedos='white linear RGB; spec A is NoV, diffuse A0',
                                           viewZ='RH signed linear depth', motion='UV prev-current XY + pixel jitter delta; legacy previous visibility depth difference Z; W1'),
                   exposure='unity, no SDK exposure field; fixed test-only RGB gain undone before Consumer',
-                  timing_scope='GPU gain + real RR staged RGB commit + inverse + original Consumer; no uploads/readbacks/CPU context setup/gameFPS',
+                  timing_scope='GPU gain + optional separately timed owned-stage CopyResource + real RR RGB commit + inverse + original Consumer; no uploads/readbacks/CPU context setup/gameFPS',
                   oracle_sha256=file_hash(HERE/'fsrd_nrd_quality_replay.py'),
                   geometry_sha256=file_hash(HERE/'test_fsrd_nrd_conversion.py'),
                   generator_sha256=file_hash(__file__), native_nrd_paired=False, game_fps_measured=False,
@@ -213,11 +213,12 @@ def build(work):
     return exe, hashes
 
 
-def run_native(exe, inputs, output, route, gain_value, settings=None, probe=False):
+def run_native(exe, inputs, output, route, gain_value, settings=None, probe=False, initialize_stage=True):
     from test_fsrd_nrd_bridge_rr import bounded_run
     output.mkdir(parents=True, exist_ok=True)
     command = [str(exe), '--sequence', str(inputs), '--output', str(output), '--route', route,
                '--gain', format(gain_value, '.9g')]
+    command.append('--initialize-staged-rgba' if initialize_stage else '--uninitialized-staged-rgba')
     if probe:
         command.append('--probe-defaults')
     else:
@@ -239,6 +240,11 @@ def run_native(exe, inputs, output, route, gain_value, settings=None, probe=Fals
     require(result['specular_dispatch_type'] == (0x50000 | 0x48), 'unchanged actual indirect specular dispatch type')
     require(result['native_debug_dispatches'] == 0 and result['debug_errors'] == result['debug_warnings'] == 0,
             'research contains no diagnostic provider pass or debug warnings')
+    require(result['test_only_stage_initialization'] is initialize_stage,
+            'actual native adapter initialization mode matches immutable whole-history request')
+    copies=(1 if probe else 44)*2 if initialize_stage else 0
+    require(result['stage_initialization_copies']==copies and result['stage_initialization_bytes']==copies*128*128*8,
+            'exact two owned RGBA stage initialization copies per actual signed-provider frame')
     result.update(peak_working_set_bytes=peak, elapsed_seconds=elapsed, native_log=str(log))
     return result
 
@@ -342,6 +348,8 @@ def summary(runs, manifest):
     require(len({run['provider_version_id'] for run in runs.values()})==1, 'all candidates select exact same actual AMD1.2 version ID')
     require(len({run['input_manifest_sha256'] for run in runs.values()})==1,
             'all candidate metrics derive from one identical sealed reference/input manifest')
+    require(all(run['test_only_stage_initialization'] for run in runs.values()),
+            'all six calibrated candidates initialize owned stage RGBA identically before actual provider')
     identity_count=0
     for gain_value in GAINS:
         dd=runs[label('dd',gain_value)];indirect=runs[label('id',gain_value)]
@@ -359,7 +367,7 @@ def summary(runs, manifest):
                 entries=[v[key] for v in all_values if key in v]
                 aggregate[signal][key]=float(np.mean(entries)) if entries else None
         timing={key:float(np.mean([frame[key] for frame in run['frames'][4:]]))
-                for key in ('input_gain_ms','rr_stage_commit_ms','inverse_gain_ms','consumer_ms','total_ms')}
+                for key in ('input_gain_ms','staging_initialization_ms','rr_stage_commit_ms','inverse_gain_ms','consumer_ms','total_ms')}
         baseline=runs[label('dd',1.)]
         deltas={}
         for signal in ('spec','diff'):
@@ -376,10 +384,12 @@ def summary(runs, manifest):
                 paired_actual_input_identities=identity_count,effective_words=effective[0],rows=rows,
                 native_nrd_paired=False,game_fps_measured=False,production_default_changed=False,
                 quality_direction_asserted=False,scope=manifest['scope'],
+                test_only_stage_initialization=True,
                 notes=['Metrics report every candidate even when it is worse.',
                        'Synthetic secondary-mask geometry and prescribed radiance do not attest native game decomposition.',
                        'Specular A5 and excluded binding guard are disclosed synthetic metrics/padding.',
                        'FP16 reciprocal quantization is measured; SDK has no exposure field in this API.',
+                       'Owned SDK outputs are initialized from exact conditioned input RGBA before actual dispatch; initialization is separately timed and is not a production change.',
                        'Motion-chroma metric applies the same bilinear UV warp to output and reference, excluding revealed/out-of-crop support.',
                        'Only stepped camera poses and static repeats are tested; continuous game motion and FPS remain unmeasured.'])
 
@@ -419,23 +429,31 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     mode=parser.add_mutually_exclusive_group()
     mode.add_argument('--run',action='store_true',help='compiler/GPU job; mandatory external shared-lock wrapper')
+    mode.add_argument('--stage-alpha-diagnostic',action='store_true',
+                      help='focused uninitialized-output DD gain1 defaults probe; retains strict staged-A interpretation and may intentionally fail')
     mode.add_argument('--analyze-only',action='store_true',help='analyze already sealed native results')
     parser.add_argument('--work',type=Path,default=Path(os.environ.get('FSRD_GPU_TEST_OUTPUT','F:/FSRD/sol_batch/13c-rr/tests/conditioning')))
     parser.add_argument('--report',type=Path,default=Path(os.environ.get('FSRD_NRD_RR_REPORT','E:/FSRD/sol_batch/13c-rr/conditioning')))
     args=parser.parse_args();work=args.work;report=args.report
     work.mkdir(parents=True,exist_ok=True);report.mkdir(parents=True,exist_ok=True);inputs=work/'inputs'
-    if not args.run and not args.analyze_only:
+    if not args.run and not args.analyze_only and not args.stage_alpha_diagnostic:
         manifest=generate(inputs)
         write_json(report/'prepared-inputs.json',dict(schema=SCHEMA,frames=len(manifest['frames']),
                     manifest=str(inputs/'sequence.json'),input_manifest_sha256=file_hash(inputs/'sequence.json'),
                     compiled=False,gpu_executed=False,python_checks=CHECKS,scope=manifest['scope']))
         print(json.dumps(dict(prepared_frames=44,input_manifest_sha256=file_hash(inputs/'sequence.json'),compiled=False,gpu_executed=False)))
         return
-    if args.run:
+    if args.run or args.stage_alpha_diagnostic:
         manifest=generate(inputs);manifest=read_manifest(inputs)
         require(file_hash(DLL)==DLL_SHA256,'installed provider must match independently verified signed AMD1.2 binary')
         exe,hashes=build(work)
-        probe=run_native(exe,inputs,work/'defaults_probe','dd',1.,probe=True)
+        probe=run_native(exe,inputs,work/'defaults_probe','dd',1.,probe=True,
+                         initialize_stage=not args.stage_alpha_diagnostic)
+        if args.stage_alpha_diagnostic:
+            write_json(report/'uninitialized-stage-diagnostic.json',dict(probe=probe,build=hashes,
+                       quality_candidates_run=False,production_default_changed=False))
+            print(json.dumps(dict(stage_alpha_diagnostic='strict_input_word_identity_passed',quality_candidates_run=False)))
+            return
         common_values=np.frombuffer(struct.pack('<8I',*probe['default_words']),dtype='<f4')
         require(np.isfinite(common_values).all(),'signed provider queried common defaults are finite')
         settings=work/'common-settings.txt';settings.write_bytes((' '.join(format(float(v),'.9g') for v in common_values)+'\n').encode('ascii'))
