@@ -633,9 +633,23 @@ static bool EnsureD3D12Device(ID3D12GraphicsCommandList* cmdList)
     return true;
 }
 
+// OptiScaler feature recording is internal even when the title survey is enabled.
+// Keep the caller's root-tracking state across early returns and provider exceptions.
+class ScopedOptiFeatureRecording
+{
+    const bool previousTracking_ = D3D12Hooks::RootSignatureTrackingEnabled();
+    FrameSurvey::ScopedInternal internal_;
+  public:
+    ScopedOptiFeatureRecording() = default;
+    ~ScopedOptiFeatureRecording() { D3D12Hooks::SetRootSignatureTracking(previousTracking_); }
+    ScopedOptiFeatureRecording(const ScopedOptiFeatureRecording&) = delete;
+    ScopedOptiFeatureRecording& operator=(const ScopedOptiFeatureRecording&) = delete;
+};
+
 static NVSDK_NGX_Result TryCreateOptiFeature(ID3D12GraphicsCommandList* InCmdList, NVSDK_NGX_Feature InFeatureID,
                                              NVSDK_NGX_Parameter* InParameters, NVSDK_NGX_Handle** OutHandle)
 {
+    ScopedOptiFeatureRecording recording;
     State& state = State::Instance();
     const Config& cfg = *Config::Instance();
 
@@ -1013,6 +1027,7 @@ static NVSDK_NGX_Result TryEvaluateOptiFeature(ID3D12GraphicsCommandList* InCmdL
                                                NVSDK_NGX_Parameter* InParameters,
                                                PFN_NVSDK_NGX_ProgressCallback InCallback)
 {
+    ScopedOptiFeatureRecording recording;
     State& state = State::Instance();
     const Config& cfg = *Config::Instance();
     const uint32_t handleId = InFeatureHandle->Id;
