@@ -43,9 +43,30 @@ bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList*,const ConvertedResour
 void ConversionPass::ResetHistory() noexcept { ++depthResets; }
 uint64_t ConversionPass::OwnedTextureBytes() const noexcept { return 0; }
 struct RRWrapper::Impl {};
-RRWrapper::RRWrapper()=default; RRWrapper::~RRWrapper()=default;
+std::unordered_map<const RRWrapper*,RRSettingsState> fixtureRRStates;
+struct ConfigureObservation { const RRWrapper* wrapper; RRSettings desired; std::array<float,8> effective; };
+std::vector<ConfigureObservation> fixtureConfigureCalls;
+RRWrapper::RRWrapper() {fixtureRRStates[this]={};fixtureRRStates[this].defaults.fill(.5f);fixtureRRStates[this].effective.fill(.5f);}
+RRWrapper::~RRWrapper() {fixtureRRStates.erase(this);}
+bool ValidateRRSettings(const RRSettings& settings,std::string& error) {
+ // Structural stub only; the production RR suite proves actual AMD key/range validation.
+ if(settings.overrideMask&~0x7fu){error="fixture invalid mask";return false;}
+ if(settings.nativeDebugView < -1 || settings.nativeDebugView > 1 || settings.nativeDebugViewport > 11){error="fixture invalid debug selector";return false;}
+ for(UINT i=0;i<7;++i)if((settings.overrideMask&(1u<<i))&&!std::isfinite(settings.values[i])){error="fixture nonfinite setting";return false;}
+ return true;
+}
+bool RRWrapper::Configure(const RRSettings& settings,std::string& error) {
+ if(!ValidateRRSettings(settings,error))return false;
+ auto& state=fixtureRRStates.at(this);state.requested=settings;state.effective=state.defaults;
+ for(UINT i=0;i<8;++i)if(!(settings.overrideMask&(1u<<i)))state.requested.values[i]=0;
+ for(UINT i=0;i<7;++i)if(settings.overrideMask&(1u<<i))state.effective[i]=settings.values[i];
+ fixtureConfigureCalls.push_back({this,state.requested,state.effective});return true;
+}
+RRSettingsState RRWrapper::GetSettingsState() const noexcept {return fixtureRRStates.at(this);}
+
 bool RRWrapper::PrepareFrame(const SLConstantsSnapshot& sl,bool reset,FrameParameters& out,std::string&) {
  if(throwPrepare) throw std::runtime_error("fixture provider exception");
+ fixtureRRStates.at(this).ready=true;
  out.streamlineFrame=sl.frameIndex; out.frameIndex=rrCalls; out.reset=reset; return true;
 }
 bool RRWrapper::Dispatch(ID3D12GraphicsCommandList*,const ConvertedResources&,ID3D12Resource* outputSpec,ID3D12Resource* outputDiff,
@@ -599,6 +620,83 @@ Bound manifestBinding(const J& row,const J& resource,UINT first) {
  result.descriptorIndex=row["descriptor_index"].get<UINT>(); result.descriptorOffset=result.descriptorIndex-first;
  result.subresource=row["subresource"].get<UINT>(); return result;
 }
+J settingsTests(Host& h) {
+ ChainHost c(h); std::string error;
+ auto nextFrame=[&]{++StreamlineHooks::frame;c.frame(3);};
+ auto submit=[&]{ResTrack_Dx12::SubmitForTesting(h.list.Get());};
+ auto sameDesired=[](const NrdBridge::RRSettings& a,const NrdBridge::RRSettings& b) {
+  return a.overrideMask==b.overrideMask && a.values==b.values && a.nativeDebugView==b.nativeDebugView && a.nativeDebugViewport==b.nativeDebugViewport;
+ };
+ nextFrame();need(convertCalls==0&&rrCalls==0,"settings process discovers a complete chain before bridge work");
+ nextFrame();need(NrdBridge::GetStatus().active&&rrCalls==1,"settings process establishes a valid default frame");submit();
+ auto defaults=NrdBridge::GetRRSettingsState();
+ need(defaults.ready&&defaults.requested.overrideMask==0&&defaults.defaults==defaults.effective,"mask zero observes queried-default semantics through the wrapper adapter");
+ need(!NrdBridge::CameraProjectedDepthEnabled()&&!lastRGBFrame.cameraProjectedDepthDelta&&!lastMotionFrame.cameraProjectedDepthDelta&&!lastRRFrame.cameraProjectedDepthDelta,"camera-projected depth is OFF in all default stages");
+ NrdBridge::RRSettings configured;
+ auto defaultSerial=NrdBridge::gService->cancellationSerial;
+ const auto defaultResets=rrResets;
+ need(NrdBridge::ApplyRRSettings(configured,false,error),"default mask-zero configuration is accepted");
+ need(NrdBridge::gService->cancellationSerial==defaultSerial&&rrResets==defaultResets,"unchanged effective defaults do not cancel or reset submitted history");
+ ++StreamlineHooks::frame;c.begin();c.pass(Role::PrepLast);c.pass(Role::Recon);
+ const auto canceledRR=rrCalls,canceledMotion=motionCalls;
+ const auto canceledBridged=NrdBridge::GetStatus().framesBridged;
+ const auto reconSerial=NrdBridge::gService->cancellationSerial;
+ need(lastRGBFrame.cameraProjectedDepthDelta==false&&NrdBridge::gService->lists.at(h.list.Get()).converted,"pre-change Recon stages the original immutable camera convention");
+ configured.overrideMask=1;configured.values[0]=.25f;
+ need(NrdBridge::ApplyRRSettings(configured,true,error),"valid scalar and motion settings apply atomically");
+ need(NrdBridge::gService->cancellationSerial>reconSerial&&!NrdBridge::gService->lists.at(h.list.Get()).converted&&!NrdBridge::gService->lists.at(h.list.Get()).motionReady,"effective change cancels the already-converted current recording");
+ need(NrdBridge::CameraProjectedDepthEnabled()&&!lastRGBFrame.cameraProjectedDepthDelta,"new desired motion mode cannot rewrite the already-recorded Recon snapshot");
+ c.pass(Role::PrePass);c.pass(Role::Temporal);c.postTemporal(3);
+ need(rrCalls==canceledRR&&motionCalls==canceledMotion&&NrdBridge::GetStatus().framesBridged==canceledBridged&&!NrdBridge::GetStatus().active,"canceled Recon produces no motion/RR commit and cannot republish Active");
+ nextFrame();
+ need(NrdBridge::GetStatus().active&&rrCalls==canceledRR+1&&lastRRFrame.reset,"next valid Recon recovers with one RR commit and first-frame RESET");
+ need(lastRGBFrame.cameraProjectedDepthDelta&&lastMotionFrame.cameraProjectedDepthDelta&&lastRRFrame.cameraProjectedDepthDelta,"RGB, deferred motion and RR share the new immutable motion snapshot");
+ auto applied=NrdBridge::GetRRSettingsState();
+ need(applied.ready&&sameDesired(applied.requested,configured)&&applied.effective[0]==.25f,"cached state reports the coherent requested/effective scalar snapshot");
+ need(!fixtureConfigureCalls.empty()&&sameDesired(fixtureConfigureCalls.back().desired,configured)&&fixtureConfigureCalls.back().effective[0]==.25f,"the actual coordinator passes desired settings into its private history wrapper");
+ submit();nextFrame();
+ need(NrdBridge::GetStatus().active&&!lastRRFrame.reset,"normal submitted continuation keeps new settings without repeated RESET");submit();
+ const auto stableSerial=NrdBridge::gService->cancellationSerial;
+ const auto stableResets=rrResets;
+ need(NrdBridge::ApplyRRSettings(configured,true,error),"identical settings reapply succeeds");
+ need(NrdBridge::gService->cancellationSerial==stableSerial&&rrResets==stableResets,"identical desired/effective settings preserve the admitted history epoch");
+ auto invalid=configured;invalid.overrideMask=0x80;
+ const auto callsBeforeInvalid=fixtureConfigureCalls.size();
+ need(!NrdBridge::ApplyRRSettings(invalid,true,error)&&!error.empty(),"unknown override bits fail before provider mutation");
+ invalid=configured;invalid.values[0]=std::numeric_limits<float>::quiet_NaN();error.clear();
+ need(!NrdBridge::ApplyRRSettings(invalid,true,error)&&!error.empty(),"selected nonfinite scalar fails before provider mutation");
+ need(NrdBridge::gService->cancellationSerial==stableSerial&&fixtureConfigureCalls.size()==callsBeforeInvalid&&sameDesired(NrdBridge::GetRRSettingsState().requested,configured),"invalid requests preserve epoch, provider calls and the last valid desired state");
+ ++StreamlineHooks::frame;c.begin();c.pass(Role::PrepLast);c.pass(Role::Recon);c.pass(Role::PrePass);c.pass(Role::Temporal);
+ const auto canceledTemporalRR=rrCalls;
+ const auto canceledTemporalBridged=NrdBridge::GetStatus().framesBridged;
+ const auto temporalSerial=NrdBridge::gService->cancellationSerial;
+ need(lastRGBFrame.cameraProjectedDepthDelta&&lastMotionFrame.cameraProjectedDepthDelta&&NrdBridge::gService->lists.at(h.list.Get()).motionReady,"motion-ready recording uses the previous coherent snapshot");
+ configured.values[0]=.125f;
+ need(NrdBridge::ApplyRRSettings(configured,true,error),"scalar-only effective change succeeds after Temporal");
+ need(NrdBridge::gService->cancellationSerial>temporalSerial&&!NrdBridge::gService->lists.at(h.list.Get()).converted,"scalar-only change also cancels the motion-ready recording");
+ c.postTemporal(3);
+ need(rrCalls==canceledTemporalRR&&NrdBridge::GetStatus().framesBridged==canceledTemporalBridged&&!NrdBridge::GetStatus().active,"canceled Temporal cannot reach RR output commit or Active publication");
+ nextFrame();need(NrdBridge::GetStatus().active&&lastRRFrame.reset&&lastRGBFrame.cameraProjectedDepthDelta,"next Recon applies scalar-only change with RESET and the unchanged motion convention");submit();
+ nextFrame();need(NrdBridge::GetStatus().active&&!lastRRFrame.reset,"new scalar history stabilizes after a normal published submission");
+ // Successful but unsubmitted work cannot seed a later recording. Its replacement must inherit the desired snapshot.
+ const auto inheritedConfigure=fixtureConfigureCalls.size();
+ nextFrame();
+ need(NrdBridge::GetStatus().active&&lastRRFrame.reset&&fixtureConfigureCalls.size()>inheritedConfigure,"discarded recording creates/reconfigures a fresh private history with RESET");
+ const auto inherited=NrdBridge::GetRRSettingsState();
+ need(sameDesired(inherited.requested,configured)&&inherited.effective[0]==.125f&&sameDesired(fixtureConfigureCalls.back().desired,configured),"fresh history inherits the exact desired settings instead of reverting to defaults");submit();
+ ++StreamlineHooks::frame;c.begin();c.pass(Role::PrepLast);c.pass(Role::Recon);
+ const auto canceledModeRR=rrCalls;
+ const auto modeSerial=NrdBridge::gService->cancellationSerial;
+ need(NrdBridge::ApplyRRSettings(configured,false,error),"motion-only mode change is accepted");
+ c.pass(Role::PrePass);c.pass(Role::Temporal);c.postTemporal(3);
+ need(NrdBridge::gService->cancellationSerial>modeSerial&&rrCalls==canceledModeRR&&!NrdBridge::GetStatus().active,"motion-only change cancels the old recorded guide interpretation");
+ nextFrame();
+ need(NrdBridge::GetStatus().active&&lastRRFrame.reset&&!lastRGBFrame.cameraProjectedDepthDelta&&!lastMotionFrame.cameraProjectedDepthDelta&&!lastRRFrame.cameraProjectedDepthDelta,"next frame returns every stage coherently to baseline OFF with RESET");submit();
+ NrdBridge::Shutdown();hr(h.list->Close());h.execute();h.reset();h.errors();FrameSurvey::Shutdown();
+ return {{"default_mask_zero",true},{"canceled_recon",true},{"canceled_temporal",true},{"invalid_preserves_state",true},
+  {"fresh_history_inherits_settings",true},{"motion_snapshot_coherent",true},{"rr_calls",rrCalls},{"configure_observations",fixtureConfigureCalls.size()},
+  {"sdk_called",false},{"debug_layer_errors",0}};
+}
 J replayManifest(const char* path) {
  std::ifstream stream(path); auto manifest=J::parse(stream); std::unordered_map<uint64_t,J> resources;
  for(const auto& resource:manifest["resources"]) resources[resource["id"].get<uint64_t>()]=resource;
@@ -636,10 +734,13 @@ J replayManifest(const char* path) {
 }
 int main(int argc,char** argv) try {
  if(argc==3 && std::string(argv[1])=="--replay") { std::cout<<replayManifest(argv[2]).dump()<<'\n'; return 0; }
- need(argc==2,"scratch directory argument"); g_dllPath=std::filesystem::path(argv[1])/"fixture.dll";
- Host host; auto result=discoveryTests(host); result["checks_passed"]=checks; result["adapter"]=host.adapter;
+ const bool settings=argc==3&&std::string(argv[1])=="--settings";
+ need(argc==2||settings,"scratch directory argument or --settings scratch");
+ const std::filesystem::path output=settings?argv[2]:argv[1];g_dllPath=output/"fixture.dll";
+ Host host;auto result=settings?settingsTests(host):discoveryTests(host);result["checks_passed"]=checks;result["adapter"]=host.adapter;
  result["scope"]="real D3D12 registry, binding-window resolution and coordinator; conversion/RR/state-restore callback stubs; typed submission publication is a CPU counter adapter without a GPU fence";
- std::ofstream(std::filesystem::path(argv[1])/"host-result.json")<<result.dump(2)<<'\n'; std::cout<<result.dump()<<'\n'; return 0;
+ ResTrack_Dx12::leases.clear(); // Complete fixture-owned stub wrappers before their observation registry is destroyed.
+ std::ofstream(output/(settings?"settings-result.json":"host-result.json"))<<result.dump(2)<<'\n';std::cout<<result.dump()<<'\n';return 0;
 } catch(const std::exception& error) { std::cerr<<error.what()<<'\n'; return 1; }
 '''
 
@@ -673,6 +774,10 @@ def run():
                 (stubs, ROOT / 'OptiScaler', ROOT / 'OptiScaler/include', ROOT / 'external/nlohmann', ROOT / 'external/nvngx_dlss_sdk', ROOT / 'external/streamline', ROOT / 'external/FidelityFX-SDK/ffx-api/include/ffx_api'))
     subprocess.run([str(executable), str(output)], check=True, creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
     result = json.loads((output / 'host-result.json').read_text())
+    subprocess.run([str(executable), '--settings', str(output)], check=True, creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS)
+    settings = json.loads((output / 'settings-result.json').read_text())
+    result['settings'] = settings
+    result['settings_checks_passed'] = settings['checks_passed']
     captures = Path('F:/Ultra Yedek 2/overwrite/bin/x64/GAME_TRACE/FRAME_SURVEY')
     expected = {
         'bb22daa989a8e892ee4470e3cd9a8a14': [62025, 62023, 62162, 62029, 62049, 62051, 61997, 62026, 62024, 6],
@@ -690,7 +795,7 @@ def run():
     report = Path(os.environ.get('FSRD_NRD_DISCOVERY_REPORT', f'E:/FSRD/sol_batch/{output.parents[1].name}'))
     report.mkdir(parents=True, exist_ok=True)
     (report / 'host-result.json').write_text(json.dumps(result, indent=2) + '\n')
-    print(json.dumps({'checks_passed': result['checks_passed'], 'python_checks_passed': 4, 'result': str(output / 'host-result.json')}))
+    print(json.dumps({'checks_passed': result['checks_passed'], 'settings_checks_passed': result['settings_checks_passed'], 'python_checks_passed': 4, 'result': str(output / 'host-result.json')}))
 
 
 if __name__ == '__main__':
