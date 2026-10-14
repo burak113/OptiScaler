@@ -777,12 +777,34 @@ void nativeDebugChecks(Host& host,const std::filesystem::path& evidence={})
             need(!wrapper.PresentNativeDebug(host.list.Get(),image.resource,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,image.frameSL,error),
                 "native presentation rejects source-output alias");
         }
+        std::unique_ptr<Readback> cancelledPresentation;
+        if(view==0 && !FfxApiProxy::real)
+        {
+            struct Probe
+            {
+                uint32_t calls=0,actions=0;
+                static bool Deny(void* state,OutputCommitGuard::Action,void*) noexcept
+                { ++static_cast<Probe*>(state)->calls;return false; }
+            } probe;
+            const OutputCommitGuard guard{&probe,Probe::Deny};
+            const auto sdkCalls=FfxApiProxy::dispatches;
+            need(!wrapper.PresentNativeDebug(host.list.Get(),target.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,image.frameSL,error,false,guard),
+                "latest-source final presentation admission cancels after allocation and lease preparation");
+            need(!wrapper.PresentNativeDebug(host.list.Get(),target.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,image,error,false,guard),
+                "explicit submitted-source final presentation admission cancels after preparation");
+            need(probe.calls==2 && probe.actions==0 && FfxApiProxy::dispatches==sdkCalls &&
+                error.find("final admission")!=std::string::npos,"presentation guard runs exactly once per attempt without SDK work");
+            need(wrapper.GetNativeDebugOutputSnapshot().resource==image.resource && wrapper.GetNativeDebugOutputSnapshot().owner,
+                "cancelled diagnostic display retains valid original producer source");
+            cancelledPresentation=std::make_unique<Readback>(host,target.Get());
+        }
         barrier(host.list.Get(),target.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         need(wrapper.PresentNativeDebug(host.list.Get(),target.Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,image.frameSL,error),error.c_str());
         // This next explicit barrier proves the caller's read state was restored;
         // strict debug warnings/errors fail if presentation left the target UAV.
         barrier(host.list.Get(),target.Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         Readback source(host,image.resource),display(host,target.Get());host.submit();host.reset();
+        if(cancelledPresentation)cancelledPresentation->exact(sentinel,outWidth,outHeight);
         display.nativeDebugPresentation(source,width,height,outWidth,outHeight,sentinel,!FfxApiProxy::real);
         if(!evidence.empty())
         {

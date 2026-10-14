@@ -585,7 +585,7 @@ RRWrapperNativeDebugOutputSnapshot RRWrapper::GetNativeDebugOutputSnapshot() con
 }
 bool RRWrapper::PresentNativeDebug(ID3D12GraphicsCommandList* list, ID3D12Resource* output,
                                    D3D12_RESOURCE_STATES outputState, uint32_t frameSL, std::string& error,
-                                   bool orderedAcrossLists)
+                                   bool orderedAcrossLists, const OutputCommitGuard& guard)
 {
     error.clear();
     const auto reject = [&](const char* reason) { error = reason; return false; };
@@ -593,11 +593,11 @@ bool RRWrapper::PresentNativeDebug(ID3D12GraphicsCommandList* list, ID3D12Resour
         !impl_->nativeDebug.resource || !impl_->nativeDebug.owner || frameSL == UINT32_MAX ||
         impl_->nativeDebug.frameSL != frameSL)
         return reject("RR native debug output for this SL frame is unavailable");
-    return PresentNativeDebug(list, output, outputState, impl_->nativeDebug, error, orderedAcrossLists);
+    return PresentNativeDebug(list, output, outputState, impl_->nativeDebug, error, orderedAcrossLists, guard);
 }
 bool RRWrapper::PresentNativeDebug(ID3D12GraphicsCommandList* list, ID3D12Resource* output,
                                    D3D12_RESOURCE_STATES outputState, const RRWrapperNativeDebugOutputSnapshot& image,
-                                   std::string& error, bool orderedAcrossLists)
+                                   std::string& error, bool orderedAcrossLists, const OutputCommitGuard& guard)
 {
     error.clear();
     const auto reject = [&](const char* reason) { error = reason; return false; };
@@ -644,8 +644,24 @@ bool RRWrapper::PresentNativeDebug(ID3D12GraphicsCommandList* list, ID3D12Resour
     if (!lease->slot) return false;
     if (!ResTrack_Dx12::RetainComputeDispatch(device.Get(), list, lease))
         return reject("RR native debug presentation lifetime tracking is unavailable");
-    lease->context->Present(list, *lease->slot, image.resource, output, outputState,
-        image.width, image.height, static_cast<uint32_t>(desc.Width), desc.Height);
+    struct PreparedPresent
+    {
+        const Context* context;
+        const Context::PresentSlot* slot;
+        ID3D12GraphicsCommandList* list;
+        ID3D12Resource *source, *output;
+        D3D12_RESOURCE_STATES state;
+        uint32_t sourceWidth, sourceHeight, outputWidth, outputHeight;
+    } prepared {lease->context.get(), lease->slot.get(), list, image.resource, output, outputState,
+        image.width, image.height, static_cast<uint32_t>(desc.Width), desc.Height};
+    const auto record=+[](void* state) noexcept {
+        const auto& value=*static_cast<PreparedPresent*>(state);
+        value.context->Present(value.list,*value.slot,value.source,value.output,value.state,
+            value.sourceWidth,value.sourceHeight,value.outputWidth,value.outputHeight);
+    };
+    if (guard.admit && !guard.admit(guard.state, record, &prepared))
+    { error = "RR native debug presentation ticket expired before final admission"; return false; }
+    if (!guard.admit) record(&prepared);
     return true;
 }
 bool RRWrapper::PrepareFrame(const SLConstantsSnapshot& snapshot, bool requestedReset,
