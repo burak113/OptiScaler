@@ -155,7 +155,7 @@ def write_case(directory, inputs, params):
     values = [params['near'], params['far'], params['sign'], *params['scale'], *params['jitter'],
               *params['previous_jitter'], int(params['jittered']), int(params['reset']),
               int(params['previous_valid']), params['mode'], *params['view'].ravel(), *params['projection'].ravel(),
-              int(params.get('camera_projected_depth_delta', False))]
+              int(params.get('camera_projected_depth_delta', False)), int(params.get('preserve_native_material_ids', False))]
     (directory / 'frame.txt').write_text(' '.join(str(value) for value in values), encoding='utf-8')
 
 
@@ -280,7 +280,10 @@ def verify_case(directory, input_values, params, previous_depth=None, history_va
         check(f'{directory.name} {name} cancelled encoded debug leaves originalRGBA exact',
               np.array_equal(cancelled.view(np.uint16), output['debug_' + name].view(np.uint16)))
     check(f'{directory.name} signed depth sign clamp and nonfinite sky', np.allclose(output['depth'], depth, rtol=1e-7, atol=1e-6))
-    check(f'{directory.name} packed normals RGB preserved alpha zero', np.array_equal(output['nr'], input_values['nr'] & 0x3fffffff))
+    if params.get('preserve_native_material_ids', False):
+        check(f'{directory.name} packed native RGB/A preserved exact', np.array_equal(output['nr'], input_values['nr']))
+    else:
+        check(f'{directory.name} packed normals RGB preserved alpha zero', np.array_equal(output['nr'], input_values['nr'] & 0x3fffffff))
     check(f'{directory.name} motion scale jitter depth delta and W', np.allclose(output['motion'], motion, rtol=1e-3, atol=2e-4))
     check(f'{directory.name} motion finite', np.isfinite(output['motion']).all())
     check(f'{directory.name} white specular albedo', np.all(output['spec_albedo'][..., :3] == 255))
@@ -320,7 +323,7 @@ def verify_table_consumer(directory, width, height):
                       np.all(np.abs(consumer[..., :3] - original) <= bound[..., None] * 1.01))
 
 
-def projected_depth_cases(width=13, height=11):
+def projected_depth_cases(width=13, height=11, focal_scales=None):
     """Known world planes and physical camera poses, independent of inverse-projection helper."""
     poses = [
         (0.0, (0.0, 0.0, 0.0), (0.0, 0.0)),
@@ -332,6 +335,9 @@ def projected_depth_cases(width=13, height=11):
         (0.0, (0.0, 0.0, 0.0), (0.0, 0.0)),
         (0.0, (0.0, 0.0, 0.2), (-0.25, 0.5)),
     ]
+    if focal_scales is not None:
+        if len(focal_scales) != len(poses) or any(not math.isfinite(v) or v <= 0 for v in focal_scales):
+            raise ValueError('Eight finite positive per-pose focal scales are required')
     descriptions = ['initial', 'translation', 'rotation', 'rotation+jitter+occluder',
                     'occluder reveal', 'invalid previous', 'LH reset', 'LH object-Z limitation']
     y, x = np.mgrid[:height, :width]
@@ -344,6 +350,9 @@ def projected_depth_cases(width=13, height=11):
         right = index < 6
         sign = -1 if right else 1
         proj = projection(width, height, 0.05, right, reverse=right, infinite=right, far=64)
+        if focal_scales is not None:
+            proj[0, 0] *= focal_scales[index]
+            proj[1, 1] *= focal_scales[index]
         proj[0, 2], proj[1, 2] = 0.13, -0.11
         view = np.eye(4, dtype=np.float32)
         view[:3, :3] = rotation
@@ -450,6 +459,48 @@ def projected_depth(exe):
                 only_motion_B_changes=True, native_table_cases=8,
                 object_depth_limitation_max= float(limitation), camera_only_object_Z_supported=False,
                 note='Guide correctness A/B evidence; no claim of actual RR visual quality until E2E/user validation.')
+
+
+def material_ids(exe):
+    width, height, count = 13, 11, 8
+    y, x = np.mgrid[:height, :width]
+    cases = []
+    for index in range(count):
+        value = inputs(width, height, index, extremes=True)
+        categories = ((x+y+index) % 4).astype('<u4')
+        value['nr'] = (value['nr'] & np.uint32(0x3fffffff)) | (categories << np.uint32(30))
+        cases.append((value, frame(width, height, index)))
+    mode_outputs, evidence = {}, {}
+    for enabled in (False, True):
+        mode = 'on' if enabled else 'off'
+        directory = OUT/'material_ids'/mode
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory/'meta.txt').write_text(f'{count} {width} {height}', encoding='utf-8')
+        for index, (value, params) in enumerate(cases):
+            write_case(directory/f'frame{index}', value, dict(params, preserve_native_material_ids=enabled))
+        stdout = run_fixture(exe, 'sequence', directory)
+        previous, outputs = None, []
+        for index, (value, params) in enumerate(cases):
+            previous = verify_case(directory/f'frame{index}', value,
+                                   dict(params, preserve_native_material_ids=enabled), previous,
+                                   index > 0 and index != 4)
+            outputs.append(read_outputs(directory/f'frame{index}', width, height))
+        verify_table_consumer(directory, width, height)
+        mode_outputs[mode] = outputs
+        evidence[mode] = dict(fixture_checks=int(re.search(r'fixture_checks=(\d+)', stdout)[1]),
+                              table_fixture_checks=int(re.search(r'table_fixture_checks=(\d+)', stdout)[1]))
+    for index, (off, on) in enumerate(zip(mode_outputs['off'], mode_outputs['on'])):
+        for name in ('spec', 'diff', 'depth', 'motion', 'spec_albedo', 'diff_albedo', 'debug_spec', 'debug_diff'):
+            check(f'material frame{index} {name} byte identity across A/B',
+                  on[name].tobytes() == off[name].tobytes())
+        check(f'material frame{index} RG/B packed bits exact across A/B',
+              np.array_equal(on['nr'] & np.uint32(0x3fffffff), off['nr']))
+        check(f'material frame{index} all four native categories preserved',
+              np.array_equal(np.unique(on['nr'] >> np.uint32(30)), np.arange(4, dtype='<u4')))
+        check(f'material frame{index} OFF remains category0 exact', np.all(off['nr'] >> np.uint32(30) == 0))
+    return dict(frames=count, width=width, height=height, fixtures=evidence, native_table_cases=8,
+                only_normal_A_changes=True, native_categories=[0, 1, 2, 3],
+                note='Exact guide A/B evidence; actual title ID distribution/flags and visual quality unmeasured.')
 
 
 def synthetic(exe):
@@ -588,7 +639,7 @@ def benchmark(exe, width, height):
 def main():
     global DEFERRED
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--phase', choices=('all', 'synthetic', 'capture', 'benchmark', 'projected-depth'), default='all')
+    parser.add_argument('--phase', choices=('all', 'synthetic', 'capture', 'benchmark', 'projected-depth', 'material-ids'), default='all')
     parser.add_argument('--deferred', action='store_true', help='Production Recon plus current-Temporal motion path')
     args = parser.parse_args()
     DEFERRED = args.deferred
@@ -598,6 +649,8 @@ def main():
         result['synthetic'] = synthetic(exe)
     if args.phase in ('all', 'projected-depth'):
         result['projected_depth'] = projected_depth(exe)
+    if args.phase in ('all', 'material-ids'):
+        result['material_ids'] = material_ids(exe)
     if args.phase in ('all', 'capture'):
         result['captured'] = captured(exe)
         result['normal_evidence'] = normal_evidence()

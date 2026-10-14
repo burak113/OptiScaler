@@ -80,8 +80,10 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
                                         InverseProjection, PreviousViewDepthRow, CurrentJitterUv);
     else OutMotion[p] = float4(0.0f, 0.0f, 0.0f, 1.0f);
 
-    const float3 normalRoughness = InNormalRoughness[p].rgb;
-    OutNormalRoughness[p] = float4(normalRoughness, 0.0f);
+    const float4 normalRoughness = InNormalRoughness[p];
+    // Native A equality-gates title spatial/temporal taps; preserve its four
+    // normalized categories only for the independent OFF-default experiment.
+    OutNormalRoughness[p] = float4(normalRoughness.rgb, CameraReserved.x != 0u ? normalRoughness.a : 0.0f);
     const float3 worldNormal = OctahedralDecode(normalRoughness.xy);
     const float3 viewNormal = normalize(mul((float3x3)WorldToView, worldNormal));
     const float2 uv = (float2(p) + 0.5f) / float2(RenderSize);

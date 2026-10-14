@@ -165,6 +165,7 @@ struct ConversionPass::Impl
     bool motionInitialized = false, pendingMotion = false;
     uint32_t motionPreviousIndex = 0, motionSLFrame = UINT32_MAX, motionBridgeFrame = 0;
     bool motionPreviousValid = false, motionCameraProjectedDepthDelta = false;
+    bool motionPreserveNativeMaterialIDs = false;
     bool previousCameraValid = false;
     DirectX::XMFLOAT4X4 previousCameraView {}, motionInverseProjection {};
     DirectX::XMFLOAT4 motionPreviousViewDepthRow {};
@@ -265,6 +266,7 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
         constants.motionScale = frame.motionScale;
         constants.reserved[0] = inputs.motion ? 0u : 1u;
         constants.reserved[1] = frame.cameraProjectedDepthDelta ? 1u : 0u;
+        constants.cameraReserved[0] = frame.preserveNativeMaterialIDs ? 1u : 0u;
         if (frame.cameraProjectedDepthDelta)
         {
             constants.previousValid = constants.previousValid && owner->previousCameraValid;
@@ -299,6 +301,7 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
         owner->motionPreviousIndex = owner->previousIndex;
         owner->motionPreviousValid = constants.previousValid != 0;
         owner->motionCameraProjectedDepthDelta = frame.cameraProjectedDepthDelta;
+        owner->motionPreserveNativeMaterialIDs = frame.preserveNativeMaterialIDs;
         if (frame.cameraProjectedDepthDelta)
         {
             owner->motionInverseProjection = constants.inverseProjection;
@@ -326,6 +329,7 @@ bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList* list, const Conve
     if (!owner->pendingMotion || !owner->historyValid || owner->motionList != list ||
         owner->motionSLFrame != frame.streamlineFrame || owner->motionBridgeFrame != frame.frameIndex ||
         owner->motionCameraProjectedDepthDelta != frame.cameraProjectedDepthDelta ||
+        owner->motionPreserveNativeMaterialIDs != frame.preserveNativeMaterialIDs ||
         resources.width != current.width || resources.height != current.height || resources.spec != current.spec ||
         resources.diff != current.diff || resources.linearDepth != current.linearDepth || resources.motion != current.motion ||
         resources.normals != current.normals || resources.specAlbedo != current.specAlbedo || resources.diffAlbedo != current.diffAlbedo ||
