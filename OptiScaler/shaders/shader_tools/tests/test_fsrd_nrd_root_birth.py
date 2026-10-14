@@ -61,7 +61,10 @@ struct FakeObject:ID3D12Object{
   checkNativeContext();++reads;
   const bool instance=guid==NrdBridgeNativeBirth::InstanceGuid;
   if(!size)return E_POINTER;
-  if(!(instance?hasStamp:hasCount))return DXGI_ERROR_NOT_FOUND;
+  if(!(instance?hasStamp:hasCount)){
+   if(!instance&&armCountRead){armCountRead=false;failNextAllocation=true;}
+   return DXGI_ERROR_NOT_FOUND;
+  }
   if(*size<16){*size=16;return DXGI_ERROR_MORE_DATA;}
   *size=16;std::memcpy(out,(instance?stamp:countTag).data(),16);
   if(!instance&&armCountRead){armCountRead=false;failNextAllocation=true;}
@@ -106,10 +109,12 @@ struct FakeBlob:ID3DBlob{
 } blob;
 HRESULT deserializeResult=S_OK,serializeResult=S_OK,createResult=S_OK;
 void* returnedRoot=nullptr;bool expectFreshCreate=false;
+struct CreatorCall{UINT nodeMask;const void* bytes;SIZE_T size;GUID iid;} lastCreator;
 HRESULT WINAPI deserialize(LPCVOID,SIZE_T,REFIID,void** out){checkNativeContext();*out=SUCCEEDED(deserializeResult)?&deserializer:nullptr;return deserializeResult;}
 HRESULT WINAPI serialize(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC*,ID3DBlob** out,ID3DBlob** error){checkNativeContext();*out=SUCCEEDED(serializeResult)?&blob:nullptr;*error=nullptr;return serializeResult;}
-HRESULT nativeCreate(ID3D12Device*,UINT,const void*,SIZE_T,REFIID,void** out){
+HRESULT nativeCreate(ID3D12Device*,UINT nodeMask,const void* bytes,SIZE_T size,REFIID iid,void** out){
  checkNativeContext();++originalCreateCalls;
+ lastCreator={nodeMask,bytes,size,iid};
  if(expectFreshCreate&&rootSigParameterCount.contains(static_cast<ID3D12RootSignature*>(returnedRoot)))throw std::runtime_error("root count published before successful native Create");
  *out=SUCCEEDED(createResult)?returnedRoot:nullptr;return createResult;
 }
@@ -139,7 +144,8 @@ void createdRootCases(){
   else if(i==1)deserializer.desc.Desc_1_1.NumParameters=7;
   else deserializer.desc.Desc_1_2.NumParameters=7;
   void* output=nullptr;auto nativeBefore=originalCreateCalls;auto releasesBefore=deserializerReleases;
-  need(hkCreateRootSignature(nullptr,0,&object,1,__uuidof(ID3D12RootSignature),&output)==S_OK&&output==returnedRoot,"all root blob versions preserve successful native result/output");
+  need(hkCreateRootSignature(nullptr,9,&object,17,__uuidof(ID3D12RootSignature),&output)==S_OK&&output==returnedRoot,"all root blob versions preserve successful native result/output");
+  need(lastCreator.nodeMask==9&&lastCreator.bytes==&object&&lastCreator.size==17&&lastCreator.iid==__uuidof(ID3D12RootSignature),"unmodified native creator receives exact original node/blob/length/IID arguments");
   const auto born=NrdBridgeBirth::Capture(output);
   NativeRootParameterCount count;std::memcpy(&count,object.countTag.data(),sizeof(count));
   need(born&&born->CacheAdmissible()&&rootSigBirths.at(object.as<ID3D12RootSignature>())==born&&rootSigParameterCount.at(object.as<ID3D12RootSignature>())==7,"successful creator publishes count with the exact native root birth");
@@ -153,7 +159,8 @@ void createdRootCases(){
  for(unsigned i=3;i<5;++i){
   serializeResult=i==3?S_OK:E_FAIL;returnedRoot=objects[i].as<ID3D12RootSignature>();void* output=nullptr;
   const auto before=originalCreateCalls;
-  need(hkCreateRootSignature(nullptr,0,&blob,1,__uuidof(ID3D12RootSignature),&output)==S_OK&&output==returnedRoot&&originalCreateCalls==before+1,"override success and serialization fallback each call native Create exactly once");
+  need(hkCreateRootSignature(nullptr,9,&objects[i],17,__uuidof(ID3D12RootSignature),&output)==S_OK&&output==returnedRoot&&originalCreateCalls==before+1,"override success and serialization fallback each call native Create exactly once");
+  need(lastCreator.nodeMask==9&&lastCreator.iid==__uuidof(ID3D12RootSignature)&&lastCreator.bytes==(i==3?static_cast<void*>(&blob):static_cast<void*>(&objects[i]))&&lastCreator.size==(i==3?1:17),"successful serialization uses owned replacement bytes and failure falls back to the exact original blob");
   need(rootSigParameterCount.at(static_cast<ID3D12RootSignature*>(output))==7,"override and fallback publish original parameter count after success");
   retire(NrdBridgeBirth::Capture(output));
  }
@@ -220,10 +227,18 @@ void unknownAndOffCases(){
  calls.clear();hkSetComputeRootSignature(watched,root);hkSetComputeRoot32BitConstant(watched,2,99,0);
  const auto node=NrdBridgeBirth::Capture(root);FrameSurvey::ComputeBindings current;
  need(node&&node->CacheAdmissible()&&NrdBridgeBirth::Healthy()&&!rootStates.at(watched).rootCountKnown&&rootStates.at(watched).size()==64,"prehook root missing count tag remains locally unknown with bounded legacy arguments and healthy identity");
+ const auto reads=unknownRoot.reads+listObject.reads,coverage=coverageCalls,factories=factoryCalls;
+ calls.clear();for(unsigned i=0;i<10000;++i)hkSetComputeRootSignature(watched,root);
+ need(unknownRoot.reads+listObject.reads==reads&&coverageCalls==coverage&&factoryCalls==factories,"ten thousand same-birth unknown root setters perform no repeated native count/GUID/coverage/factory work");
+ need(calls.size()==10000&&calls.front().name=="compute.signature"&&calls.back().words[0]==uintptr_t(root)&&rootStates.at(watched)[2].Data==std::vector<uint32_t>{99},"unknown observation cache preserves every original signature call and active legacy argument");
  need(!D3D12Hooks::GetComputeBindingsForBridge(watched,current)&&!D3D12Hooks::CanRestoreRootSignature(watched),"unknown root count never admits a bridge snapshot or injection");
  const auto warnings=warningCalls;calls.clear();D3D12Hooks::RestoreRoot(watched);
  need(calls.size()==2&&calls[0].name=="compute.signature"&&calls[1].name=="many"&&calls[1].parameter==2&&calls[1].offset==0&&calls[1].words==std::vector<uint64_t>{99}&&warningCalls==warnings,"ordinary unknown-root restore preserves observed argument and skips all silent unbound gaps");
  retire(NrdBridgeBirth::Capture(watched));retire(node);
+ need(!rootSigBirths.contains(root)&&!rootSigParameterCount.contains(root),"exact retirement removes the cold unknown observation row");
+ const auto previousReads=unknownRoot.reads;const auto fresh=TrackerRootReceiver(root);
+ need(fresh&&fresh!=node&&fresh->InstanceStamp()==node->InstanceStamp()&&unknownRoot.reads==previousReads+2&&rootSigBirths.at(root)==fresh&&!RootParameterCountKnown(root,fresh),"new logical root birth rechecks unknown count once without inheriting old observation");
+ retire(fresh);
  FakeObject ownedList,ownedRoot;watched=ownedList.as<ID3D12GraphicsCommandList>();root=ownedRoot.as<ID3D12RootSignature>();
  auto before=coverageCalls;FrameSurvey::internalScope=true;calls.clear();hkSetComputeRootSignature(watched,root);PublishCreatedRootParameters(root,__uuidof(ID3D12RootSignature),7);FrameSurvey::internalScope=false;
  need(calls.size()==1&&ownedList.reads==0&&ownedRoot.reads==0&&ownedRoot.writes==0&&coverageCalls==before&&!rootStates.contains(watched),"owned internal setter/create skips title bootstrap while original native call remains once");
@@ -241,12 +256,13 @@ void rootOomCase(const std::string& kind){
   void* output=nullptr;const auto before=originalCreateCalls,released=deserializerReleases;
   need(hkCreateRootSignature(nullptr,0,&blob,1,__uuidof(ID3D12RootSignature),&output)==S_OK&&output==root&&originalCreateCalls==before+1&&deserializerReleases==released+1,"metadata OOM preserves successful native creator/output and releases deserializer");
  }else{
-  const auto birth=NrdBridgeNativeBirth::Prepare(root);NativeRootParameterCount count{birth->InstanceStamp(),7,1};rootObject.SetPrivateData(RootParameterCountGuid,sizeof(count),&count);
+  const auto birth=NrdBridgeNativeBirth::Prepare(root);
+  if(kind!="oom-unknown"){NativeRootParameterCount count{birth->InstanceStamp(),7,1};rootObject.SetPrivateData(RootParameterCountGuid,sizeof(count),&count);}
   rootObject.armCountRead=true;calls.clear();hkSetComputeRootSignature(watched,root);
   need(calls.size()==1&&calls[0].name=="compute.signature","cold root count OOM preserves one original title setter");
  }
  need(oomHits==1&&!NrdBridgeBirth::Healthy()&&healthCalls==1,"actual map allocation failure latches metadata health exactly once after all guards unwind");
- need(nativeUnderBirth==0&&nativeUnderTracker==0&&!rootSigParameterCount.contains(root),"failed new metadata publication leaves no root count row and no native-under-lock calls");
+ need(nativeUnderBirth==0&&nativeUnderTracker==0&&!rootSigParameterCount.contains(root)&&!rootSigBirths.contains(root),"failed new metadata publication leaves no root count/birth observation row and no native-under-lock calls");
 }
 '''
 
@@ -258,6 +274,7 @@ def run():
     source_file = base.run()
     del os.environ['FSRD_RESTORE_GENERATE_ONLY']
     cpp = source_file.read_text()
+    cpp = cpp.replace('#include <d3d12.h>', '#include <d3d12.h>\n#include <d3dcommon.h>\n#include <cstring>\n#include <cstdlib>\n#include <new>\n#include <cstddef>')
     cpp = cpp.replace('struct Config{Option RestoreComputeSignature,RestoreGraphicSignature,ExtendedStateRestore;',
                       'struct Config{Option RestoreComputeSignature,RestoreGraphicSignature,ExtendedStateRestore; std::optional<float> MipmapBiasOverride; std::optional<int> AnisotropyOverride;')
     cpp = cpp.replace('void MetadataHookFailed(const char*) noexcept {}',
@@ -279,7 +296,7 @@ def run():
     build = base.compile_cpp(file, exe, libraries=['bcrypt.lib'])
     (out/'build.json').write_text(json.dumps(build, indent=2))
     results = {}
-    for case in ['', 'oom-created', 'oom-bootstrap']:
+    for case in ['', 'oom-created', 'oom-bootstrap', 'oom-unknown']:
         result = subprocess.run([str(exe)] + ([case] if case else []), capture_output=True, text=True, timeout=30)
         key = case or 'positive'
         results[key] = {'exit_code': result.returncode, 'stdout': result.stdout, 'stderr': result.stderr}

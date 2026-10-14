@@ -343,24 +343,34 @@ static bool RootParameterCountKnown(ID3D12RootSignature* root, const NrdBridgeBi
     return birth && birth->Live() && !birth->Failed() && node != rootSigBirths.end() && node->second == birth &&
         rootSigParameterCount.find(root) != rootSigParameterCount.end();
 }
+// A birth-only row records a cold NOT_FOUND count observation. Stable prehook
+// roots remain locally unknown without repeating native getters on hot setters.
+static bool RootParameterCountObserved(ID3D12RootSignature* root, const NrdBridgeBirth::Token& birth)
+{
+    if (!RootTrackerBirthsEnabled()) return true;
+    std::shared_lock lock(rootSigParameterCountMutex, std::defer_lock); LockRootTracker(lock);
+    const auto found = rootSigBirths.find(root);
+    return birth && birth->Live() && !birth->Failed() && found != rootSigBirths.end() && found->second == birth;
+}
 static NrdBridgeBirth::Token TrackerRootReceiver(ID3D12RootSignature* root) noexcept
 {
     try
     {
         auto birth = TrackerNativeReceiver(root);
-        if (!birth || RootParameterCountKnown(root,birth)) return birth;
+        if (!birth || RootParameterCountObserved(root,birth)) return birth;
         NativeRootParameterCount native;
         UINT bytes = sizeof(native);
         // This cold native getter runs before the receiver/list CurrentGuard.
         const auto result = root->GetPrivateData(RootParameterCountGuid,&bytes,&native);
-        if (result == DXGI_ERROR_NOT_FOUND) return birth; // Unobserved ordinary root: count remains unknown.
-        if (FAILED(result) || bytes != sizeof(native) || native.version != 1 ||
-            native.instanceStamp != birth->InstanceStamp() || native.count > D3D12_MAX_ROOT_COST)
+        const bool known = result != DXGI_ERROR_NOT_FOUND;
+        if (known && (FAILED(result) || bytes != sizeof(native) || native.version != 1 ||
+            native.instanceStamp != birth->InstanceStamp() || native.count > D3D12_MAX_ROOT_COST))
         { NrdBridgeNativeBirth::Detail::Fail("native root parameter count read failed"); return {}; }
         NrdBridgeBirth::CurrentGuard guard(birth);
         if (!guard.MatchesCurrent() || !NrdBridgeBirth::Healthy()) return {};
         std::unique_lock lock(rootSigParameterCountMutex, std::defer_lock); LockRootTracker(lock);
-        rootSigParameterCount.insert_or_assign(root,native.count); rootSigBirths.insert_or_assign(root,birth);
+        if (known) rootSigParameterCount.insert_or_assign(root,native.count); else rootSigParameterCount.erase(root);
+        rootSigBirths.insert_or_assign(root,birth);
         return birth;
     }
     catch (...)
