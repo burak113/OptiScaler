@@ -229,7 +229,7 @@ static NrdBridge::FrameParameters ReadFrame(const fs::path& path, uint32_t& mode
     return result;
 }
 
-static void Sequence(const fs::path& root, bool gpuValidation)
+static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = false)
 {
     std::ifstream meta(root / "meta.txt"); uint32_t frames, width, height; meta >> frames >> width >> height;
     need(bool(meta) && frames <= 24, "invalid fixture sequence");
@@ -266,7 +266,32 @@ static void Sequence(const fs::path& root, bool gpuValidation)
         }
         if (frameIndex == 4) pass->ResetHistory();
         NrdBridge::ConvertedResources resources;
-        need(pass->Dispatch(fixture.list.Get(), input.Inputs(), frame, resources, error), error.c_str());
+        auto currentInputs = input.Inputs();
+        if (deferred)
+        {
+            currentInputs.motion = nullptr;
+            // At Recon the old/cached MV may be a live object in COPY_DEST. It must not be read.
+            Fixture::Transition(fixture.list.Get(), input.textures[4].Get(),
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+        }
+        need(pass->Dispatch(fixture.list.Get(), currentInputs, frame, resources, error), error.c_str());
+        if (deferred)
+        {
+            const auto before = gNrdAuditedBarriers;
+            need(!pass->DispatchMotion(fixture.list.Get(), resources, nullptr, frame, error), "missing current Temporal MV accepted");
+            auto stale = frame; ++stale.streamlineFrame;
+            need(!pass->DispatchMotion(fixture.list.Get(), resources, input.textures[4].Get(), stale, error), "stale Temporal frame ticket accepted");
+            need(!pass->DispatchMotion(fixture.list.Get(), resources, resources.motion, frame, error), "motion read/write alias accepted");
+            stale = frame; stale.motionVectors3D = true;
+            need(!pass->DispatchMotion(fixture.list.Get(), resources, input.textures[4].Get(), stale, error), "3D motion accepted");
+            need(before == gNrdAuditedBarriers, "invalid deferred motion recorded GPU work");
+            Fixture::Transition(fixture.list.Get(), input.textures[4].Get(),
+                D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            need(pass->DispatchMotion(fixture.list.Get(), resources, input.textures[4].Get(), frame, error), error.c_str());
+            const auto finished = gNrdAuditedBarriers;
+            need(!pass->DispatchMotion(fixture.list.Get(), resources, input.textures[4].Get(), frame, error), "duplicate Temporal motion ticket accepted");
+            need(finished == gNrdAuditedBarriers, "duplicate deferred motion recorded GPU work");
+        }
         for (uint32_t i = 0; i < 5; ++i)
             need(References(input.textures[i].Get()) == before[i], "conversion AddRef'd a title input");
         std::array<ComPtr<ID3D12Resource>, 2> output;
@@ -323,7 +348,7 @@ static void Sequence(const fs::path& root, bool gpuValidation)
               << " audited_views=" << gNrdAuditedViews << " audited_barriers=" << gNrdAuditedBarriers << "\n";
 }
 
-static void Benchmark(const fs::path& root)
+static void Benchmark(const fs::path& root, bool deferred = false)
 {
     std::ifstream meta(root / "meta.txt"); uint32_t frames, width, height; meta >> frames >> width >> height;
     Fixture fixture(false); auto input = InputSet::Read(fixture, root / "frame0", width, height);
@@ -332,37 +357,56 @@ static void Benchmark(const fs::path& root)
     NrdBridge::ConversionPass pass; std::string error;
     need(pass.Initialize(fixture.device.Get(), width, height, error), error.c_str());
     constexpr uint32_t repetitions = 16, warmBatches = 2, measuredBatches = 9;
-    D3D12_QUERY_HEAP_DESC queryDesc {}; queryDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP; queryDesc.Count = repetitions * 2;
+    const uint32_t stamps = deferred ? 3u : 2u;
+    D3D12_QUERY_HEAP_DESC queryDesc {}; queryDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP; queryDesc.Count = repetitions * stamps;
     ComPtr<ID3D12QueryHeap> query; hr(fixture.device->CreateQueryHeap(&queryDesc, IID_PPV_ARGS(&query)));
-    auto timestamps = fixture.Buffer(repetitions * 2 * sizeof(uint64_t), D3D12_HEAP_TYPE_READBACK);
+    auto timestamps = fixture.Buffer(repetitions * stamps * sizeof(uint64_t), D3D12_HEAP_TYPE_READBACK);
     uint64_t frequency; hr(fixture.queue->GetTimestampFrequency(&frequency));
-    std::vector<double> samples; uint32_t warmedHeaps = 0;
+    std::vector<double> samples, reconSamples, motionSamples; uint32_t warmedHeaps = 0;
     for (uint32_t batch = 0; batch < warmBatches + measuredBatches; ++batch)
     {
         for (uint32_t i = 0; i < repetitions; ++i)
         {
             frame.reset = batch == 0 && i == 0; frame.previousValid = !frame.reset;
-            fixture.list->EndQuery(query.Get(), D3D12_QUERY_TYPE_TIMESTAMP, i * 2);
+            fixture.list->EndQuery(query.Get(), D3D12_QUERY_TYPE_TIMESTAMP, i * stamps);
             NrdBridge::ConvertedResources output;
-            need(pass.Dispatch(fixture.list.Get(), input.Inputs(), frame, output, error), error.c_str());
-            fixture.list->EndQuery(query.Get(), D3D12_QUERY_TYPE_TIMESTAMP, i * 2 + 1);
+            auto currentInputs = input.Inputs(); if (deferred) currentInputs.motion = nullptr;
+            need(pass.Dispatch(fixture.list.Get(), currentInputs, frame, output, error), error.c_str());
+            fixture.list->EndQuery(query.Get(), D3D12_QUERY_TYPE_TIMESTAMP, i * stamps + 1);
+            if (deferred)
+            {
+                need(pass.DispatchMotion(fixture.list.Get(), output, input.textures[4].Get(), frame, error), error.c_str());
+                fixture.list->EndQuery(query.Get(), D3D12_QUERY_TYPE_TIMESTAMP, i * stamps + 2);
+            }
         }
-        fixture.list->ResolveQueryData(query.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, repetitions * 2, timestamps.Get(), 0);
+        fixture.list->ResolveQueryData(query.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, repetitions * stamps, timestamps.Get(), 0);
         fixture.Submit(); fixture.Reset();
         if (batch == warmBatches - 1) warmedHeaps = gNrdDescriptorAllocations;
         if (batch >= warmBatches)
         {
             need(warmedHeaps == gNrdDescriptorAllocations, "descriptor heap allocated after warmup");
-            uint64_t* values = nullptr; const D3D12_RANGE range {0, repetitions * 2 * sizeof(uint64_t)};
-            hr(timestamps->Map(0, &range, reinterpret_cast<void**>(&values))); double total = 0;
-            for (uint32_t i = 0; i < repetitions; ++i) total += double(values[i*2+1] - values[i*2]);
+            uint64_t* values = nullptr; const D3D12_RANGE range {0, repetitions * stamps * sizeof(uint64_t)};
+            hr(timestamps->Map(0, &range, reinterpret_cast<void**>(&values))); double total = 0, recon = 0, motion = 0;
+            for (uint32_t i = 0; i < repetitions; ++i)
+            {
+                const auto start = values[i*stamps], middle = values[i*stamps+1], end = values[i*stamps+stamps-1];
+                total += double(end-start); recon += double(middle-start); motion += double(end-middle);
+            }
             const D3D12_RANGE empty {0,0}; timestamps->Unmap(0, &empty);
-            samples.push_back(total * 1000.0 / double(frequency) / repetitions);
+            const auto scale = 1000.0 / double(frequency) / repetitions;
+            samples.push_back(total * scale); reconSamples.push_back(recon * scale); motionSamples.push_back(motion * scale);
         }
     }
     hr(fixture.list->Close()); fixture.Validate();
     std::cout << std::setprecision(10) << "gpu_ms=";
     for (size_t i = 0; i < samples.size(); ++i) std::cout << (i ? "," : "") << samples[i];
+    if (deferred)
+    {
+        std::cout << "\nrecon_gpu_ms=";
+        for (size_t i=0;i<reconSamples.size();++i) std::cout << (i ? "," : "") << reconSamples[i];
+        std::cout << "\nmotion_gpu_ms=";
+        for (size_t i=0;i<motionSamples.size();++i) std::cout << (i ? "," : "") << motionSamples[i];
+    }
     std::cout << "\ntexture_bytes=" << pass.OwnedTextureBytes() << " descriptor_heaps=" << warmedHeaps
               << " descriptor_allocations_after_warmup=0\nfixture_checks=" << checks << "\n";
 }
@@ -370,8 +414,10 @@ static void Benchmark(const fs::path& root)
 int main(int argc, char** argv) try
 {
     need(argc == 3, "usage: fixture sequence|capture|benchmark path");
-    if (std::string(argv[1]) == "benchmark") Benchmark(argv[2]);
-    else Sequence(argv[2], std::string(argv[1]) == "sequence");
+    std::string mode = argv[1]; const bool deferred = mode.starts_with("deferred-");
+    if (deferred) mode.erase(0,9);
+    if (mode == "benchmark") Benchmark(argv[2],deferred);
+    else Sequence(argv[2], mode == "sequence",deferred);
     std::cout << "PASS: production NRD conversion, borrowed title resources, GPU retirement\n"; return 0;
 }
 catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
