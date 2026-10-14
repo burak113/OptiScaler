@@ -19,18 +19,23 @@ CPP = r'''
 #include "__COORDINATOR__"
 #include <thread>
 #include <chrono>
-unsigned convertCalls=0, rrCalls=0, debugCalls=0, depthResets=0, rrResets=0;
-bool internalObserved=true, trackingSuppressed=true, observerUnlocked=true, throwPrepare=false;
+unsigned convertCalls=0, motionCalls=0, rrCalls=0, debugCalls=0, depthResets=0, rrResets=0;
+bool internalObserved=true, trackingSuppressed=true, observerUnlocked=true, throwPrepare=false, deferredMotion=true;
+NrdBridge::ConversionInputs lastReconInputs {};
+NrdBridge::FrameParameters lastRGBFrame {},lastMotionFrame {},lastRRFrame {};
+ID3D12Resource* lastMotion=nullptr; ID3D12Resource* lastOutSpec=nullptr; ID3D12Resource* lastOutDiff=nullptr;
 namespace NrdBridge {
 struct ConversionPass::Impl {};
 ConversionPass::ConversionPass()=default; ConversionPass::~ConversionPass()=default;
 bool ConversionPass::Initialize(ID3D12Device*,uint32_t,uint32_t,std::string&) { return true; }
-bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* cmd,const ConversionInputs&,const FrameParameters&,
+bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* cmd,const ConversionInputs& inputs,const FrameParameters& frame,
                              ConvertedResources& out,std::string&) {
- ++convertCalls; internalObserved &= FrameSurvey::Internal(); trackingSuppressed &= !D3D12Hooks::tracking;
+ ++convertCalls; lastReconInputs=inputs; lastRGBFrame=frame; deferredMotion &= !inputs.motion;
+ internalObserved &= FrameSurvey::Internal(); trackingSuppressed &= !D3D12Hooks::tracking;
  // Internal callbacks must not alter either mirror or the live title role.
  FrameSurvey::RootBinding(cmd,false,nullptr); OnSetPipeline(cmd,nullptr); out.width=64; out.height=32; return true;
 }
+__MOTION_STUB__
 bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList*,const ConvertedResources&,ID3D12Resource*,
                                ID3D12Resource*,DebugMode,std::string&) { ++debugCalls; return true; }
 void ConversionPass::ResetHistory() noexcept { ++depthResets; }
@@ -41,9 +46,10 @@ bool RRWrapper::PrepareFrame(const SLConstantsSnapshot& sl,bool reset,FrameParam
  if(throwPrepare) throw std::runtime_error("fixture provider exception");
  out.streamlineFrame=sl.frameIndex; out.frameIndex=rrCalls; out.reset=reset; return true;
 }
-bool RRWrapper::Dispatch(ID3D12GraphicsCommandList*,const ConvertedResources&,ID3D12Resource*,ID3D12Resource*,
-                        const FrameParameters&,std::string&) {
- ++rrCalls; internalObserved &= FrameSurvey::Internal(); trackingSuppressed &= !D3D12Hooks::tracking; return true;
+bool RRWrapper::Dispatch(ID3D12GraphicsCommandList*,const ConvertedResources&,ID3D12Resource* outputSpec,ID3D12Resource* outputDiff,
+                        const FrameParameters& frame,std::string&) {
+ ++rrCalls; lastOutSpec=outputSpec; lastOutDiff=outputDiff; lastRRFrame=frame;
+ internalObserved &= FrameSurvey::Internal(); trackingSuppressed &= !D3D12Hooks::tracking; return true;
 }
 void RRWrapper::ResetHistory() noexcept { ++rrResets; }
 uint64_t RRWrapper::ContextGeneration() const noexcept { return 0; }
@@ -127,18 +133,24 @@ struct ChainHost {
    }
   }
  }
- void begin() {
-  FrameSurvey::Reset(h.list.Get(),nullptr); NrdBridge::OnReset(h.list.Get(),nullptr);
-  h.list->SetComputeRootSignature(root.Get()); FrameSurvey::RootBinding(h.list.Get(),false,root.Get());
-  ID3D12DescriptorHeap* heap=visible.Get(); h.list->SetDescriptorHeaps(1,&heap); FrameSurvey::DescriptorHeaps(h.list.Get(),1,&heap);
-  for(UINT i : {0u,2u,3u,4u}) h.list->SetComputeRoot32BitConstant(i,0,0);
+ void copy() {
   auto dst=visible->GetCPUDescriptorHandleForHeapStart(); UINT n=64;
   h.dev->CopyDescriptors(1,&dst,&n,1,&cpu,&n,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
   FrameSurvey::CopyDescriptors(h.dev.Get(),1,&dst,&n,1,&cpu,&n,D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
  }
+ void begin(bool copyDescriptors=true) {
+  FrameSurvey::Reset(h.list.Get(),nullptr); NrdBridge::OnReset(h.list.Get(),nullptr);
+  D3D12Hooks::current = {}; D3D12Hooks::current.root=root.Get(); D3D12Hooks::current.heaps={visible.Get()};
+  h.list->SetComputeRootSignature(root.Get()); FrameSurvey::RootBinding(h.list.Get(),false,root.Get());
+  ID3D12DescriptorHeap* heap=visible.Get(); h.list->SetDescriptorHeaps(1,&heap); FrameSurvey::DescriptorHeaps(h.list.Get(),1,&heap);
+  for(UINT i : {0u,2u,3u,4u}) h.list->SetComputeRoot32BitConstant(i,0,0);
+  if(copyDescriptors) copy();
+ }
  void bind(UINT parameter,UINT index) {
   D3D12_GPU_DESCRIPTOR_HANDLE handle {gpu.ptr+uint64_t(index)*increment};
   h.list->SetComputeRootDescriptorTable(parameter,handle); FrameSurvey::Table(h.list.Get(),false,parameter,handle);
+  auto& tables=D3D12Hooks::current.tables; auto entry=std::find_if(tables.begin(),tables.end(),[&](const auto& value){return value.first==parameter;});
+  if(entry==tables.end()) tables.emplace_back(parameter,handle); else entry->second=handle;
  }
  void pass(Role role,UINT uav=8) {
   h.list->SetPipelineState(pipelines[UINT(role)].Get()); FrameSurvey::SetPipeline(h.list.Get(),pipelines[UINT(role)].Get());
@@ -146,13 +158,15 @@ struct ChainHost {
   bind(1,role==Role::Temporal ? 16 : 0); bind(5,uav);
   NrdBridge::BeforeDispatch(h.list.Get()); h.list->Dispatch(1,1,1); NrdBridge::AfterDispatch(h.list.Get());
  }
- void frame(UINT count,UINT bcount=2) {
-  begin(); pass(Role::PrepLast); pass(Role::Recon); pass(Role::PrePass); pass(Role::Temporal);
+ void postTemporal(UINT count,UINT bcount=2) {
   pass(Role::Chain3); pass(Role::HistSave); pass(Role::HistFix); pass(Role::Clamp);
   for(UINT i=0;i<count;++i) pass(Role::ATrous,i+1==count ? 32 : 24);
   pass(Role::PrePass); pass(Role::Temporal); pass(Role::Clamp);
   for(UINT i=0;i<bcount;++i) pass(Role::ATrous,40);
   pass(Role::Consumer,48);
+ }
+ void frame(UINT count,UINT bcount=2,bool copyDescriptors=true) {
+  begin(copyDescriptors); pass(Role::PrepLast); pass(Role::Recon); pass(Role::PrePass); pass(Role::Temporal); postTemporal(count,bcount);
  }
  std::vector<Bound> table(UINT parameter) { std::vector<Bound> out; need(FrameSurvey::ResolveComputeTable(h.list.Get(),parameter,out),"real descriptor table resolves"); return out; }
 };
@@ -236,7 +250,7 @@ J discoveryTests(Host& h) {
  need(!FrameSurvey::BindingWindow() && NrdBridge::GetStatus().phase=="Waiting for NRD" && NrdBridge::gService->attempts==0 && NrdBridge::gService->failures==0,
   "empty startup/loading windows do not consume discovery or provider failure budgets");
  // Record root/heaps while the window is closed; waking in the middle of a list must wait for its next full Reset.
- c.begin(); c.pass(Role::PrepLast); need(FrameSurvey::BindingWindow(),"PrepLast activity wakes a bounded window after loading");
+ c.begin(); D3D12Hooks::current={}; c.pass(Role::PrepLast); need(FrameSurvey::BindingWindow(),"PrepLast activity wakes a bounded window after loading");
  c.pass(Role::Recon);
  need(FrameSurvey::BindingWindow() && !NrdBridge::gService->cache.Valid() && NrdBridge::gService->failures==0,
   "missing initial root/heap mirror keeps fail-closed discovery open for the next Reset");
@@ -244,7 +258,7 @@ J discoveryTests(Host& h) {
  c.frame(3,5); auto status=NrdBridge::GetStatus();
  need(status.width==64 && status.height==32 && !status.resources.empty(),"first full chain caches render extent/resources");
  need(convertCalls==0 && rrCalls==0,"discovery frame injects nothing before full cache is known");
- need(!FrameSurvey::BindingWindow(),"stable discovery closes binding mirror and descriptor-copy window");
+ need(!FrameSurvey::BindingWindow(),"stable discovery closes the short binding mirror window");
  auto resources=NrdBridge::gService->cache.Get();
  need(resources.inputSpec==c.textures[0].Get() && resources.inputDiff==c.textures[1].Get(),"Recon input spec/diff offsets");
  need(resources.normals==c.textures[2].Get() && resources.viewDepth==c.textures[3].Get(),"normal/depth offsets");
@@ -255,7 +269,7 @@ J discoveryTests(Host& h) {
  StreamlineHooks::frame=1; c.frame(6,1);
  need(convertCalls==1 && rrCalls==1 && NrdBridge::GetStatus().active,"cache drives same-list conversion and pre-Consumer RR");
  need(internalObserved && trackingSuppressed && D3D12Hooks::tracking,"injected callbacks are internal and tracking restored");
- need(D3D12Hooks::restores==2,"state restore invoked after both injections");
+ need(D3D12Hooks::restores==3 && motionCalls==1,"state restore invoked after RGB, current motion and RR injections");
  NrdBridge::OnPresent(); NrdBridge::OnPresent(); NrdBridge::OnPresent();
  need(NrdBridge::gService->cache.Valid(),"duplicate FG Presents retain discovery and history");
  const auto oldDepth=depthResets, oldRR=rrResets;
@@ -307,6 +321,55 @@ J discoveryTests(Host& h) {
  need(!FrameSurvey::BindingWindow() && NrdBridge::GetStatus().reason.find("3 bridge attempts")!=std::string::npos,"three repeated failures stop retries even when discovery succeeded between them");
  NrdBridge::SetRuntimeEnabled(false); NrdBridge::SetRuntimeEnabled(true);
  need(FrameSurvey::BindingWindow(),"explicit re-enable restarts an exhausted bounded retry budget");
+ c.frame(3); c.frame(3); need(NrdBridge::GetStatus().active,"explicit re-enable restores active current-frame validation");
+ // SL null untag is authoritative: the fresh first-Temporal table remains usable when the tag is unknown.
+ NrdBridge::OnTitleTag(h.list.Get(),"MotionVectors",nullptr);
+ need(!NrdBridge::gService->taggedMotion,"SL null motion untag clears the previously known tag");
+ const auto untagRR=rrCalls; c.frame(3);
+ need(rrCalls==untagRR+1 && NrdBridge::GetStatus().active,"unknown motion tag permits validated current Temporal binding");
+ // Exact metadata copied before Reset or persistently reused without recopy must survive the closed window.
+ need(!FrameSurvey::BindingWindow(),"active Consumer closes its frame-local validation window");
+ c.copy(); const auto persistentRR=rrCalls; c.frame(3,2,false);
+ need(rrCalls==persistentRR+1 && NrdBridge::GetStatus().active,"visible metadata copied before Reset reaches valid Active Consumer");
+ c.frame(3,2,false);
+ need(rrCalls==persistentRR+2 && NrdBridge::GetStatus().active,"persistent visible tables remain valid without any descriptor recopy");
+ // Keep all old resources alive while changing bindings: old pointers must never authorize output writes.
+ c.views(8,{5,4,9,0,2},true); const auto reconConversion=convertCalls,reconRR=rrCalls; c.frame(3);
+ need(convertCalls==reconConversion && rrCalls==reconRR && !NrdBridge::GetStatus().active,"alive Recon resource swap cancels conversion and RR before current cache publication");
+ c.frame(3);
+ need(rrCalls==reconRR+1 && lastReconInputs.reconSpec==c.textures[5].Get() && lastReconInputs.reconDiff==c.textures[4].Get(),"next Recon converts newly validated current specular/diffuse bindings");
+ c.views(8,{4,5,9,0,2},true); c.frame(3); c.frame(3);
+ c.views(16,{9,10,11,2,3,0,1,2},false); const auto motionConversion=convertCalls,motionBefore=motionCalls,motionRR=rrCalls; c.frame(3);
+ need(convertCalls==motionConversion+1 && motionCalls==motionBefore && rrCalls==motionRR && deferredMotion,"alive MV swap never reads the old MV during Recon or finalizes stale motion");
+ c.frame(3);
+ need(motionCalls==motionBefore+1 && lastMotion==c.textures[11].Get() && rrCalls==motionRR+1,"first Temporal finalizes only the newly validated current MV");
+ c.views(16,{9,10,6,2,3,0,1,2},false); c.frame(3); c.frame(3);
+ c.views(32,{8,7,9,10,9},true); c.views(48,{7,8,9,10,9},true); const auto outputRR=rrCalls; c.frame(3);
+ need(rrCalls==outputRR && !NrdBridge::GetStatus().active,"alive Consumer output swap cancels writes and resets staged history");
+ c.frame(3);
+ need(rrCalls==outputRR+1 && lastOutSpec==c.textures[8].Get() && lastOutDiff==c.textures[7].Get(),"validated current Consumer receives the newly bound output pair");
+ c.views(32,{7,8,9,10,9},true); c.views(48,{8,7,9,10,9},true); c.frame(3); c.frame(3);
+ // A second SL snapshot must not replace the immutable camera prepared at this frame's first injection.
+ StreamlineHooks::frame=100; c.begin(); c.pass(Role::PrepLast); c.pass(Role::Recon); StreamlineHooks::frame=101;
+ c.pass(Role::PrePass); c.pass(Role::Temporal); c.postTemporal(3);
+ need(lastRGBFrame.streamlineFrame==100 && lastMotionFrame.streamlineFrame==100 && lastRRFrame.streamlineFrame==100,"RGB, motion and RR share the same immutable prepared SL camera frame");
+ // The retained submission token outlives successful Consumer's converted=false state.
+ auto recorded=NrdBridge::gService->lists.at(h.list.Get()).recording; const auto discardSerial=NrdBridge::gService->resetSerial;
+ need(recorded && !recorded->submitted.load() && !NrdBridge::gService->lists.at(h.list.Get()).converted,"successful Consumer retains an unsubmitted recording token");
+ NrdBridge::OnReset(h.list.Get(),nullptr);
+ need(NrdBridge::gService->resetSerial>discardSerial,"Reset of a successful recorded-but-unsubmitted Consumer drops temporal history");
+ c.frame(3); recorded=NrdBridge::gService->lists.at(h.list.Get()).recording; ResTrack_Dx12::SubmitForTesting(h.list.Get());
+ const auto submittedSerial=NrdBridge::gService->resetSerial; const auto submittedDepth=depthResets,submittedRR=rrResets;
+ need(recorded && recorded->submitted.load(),"retained beforeSubmit callback marks the recording token submitted");
+ NrdBridge::OnReset(h.list.Get(),nullptr); c.frame(3);
+ need(NrdBridge::gService->resetSerial==submittedSerial && depthResets==submittedDepth && rrResets==submittedRR,"Reset after normal submission preserves temporal history");
+ const auto releaseSerial=NrdBridge::gService->resetSerial; FrameSurvey::Released(h.list.Get());
+ need(NrdBridge::gService->resetSerial>releaseSerial && !NrdBridge::gService->lists.contains(h.list.Get()),"list Release discards an unsubmitted successful Consumer even after converted is cleared");
+ c.frame(3); const auto retainConversion=convertCalls,retainMotion=motionCalls,retainRR=rrCalls;
+ ResTrack_Dx12::retentionAvailable=false; c.frame(3); ResTrack_Dx12::retentionAvailable=true;
+ need(convertCalls==retainConversion && motionCalls==retainMotion && rrCalls==retainRR && !NrdBridge::GetStatus().active && NrdBridge::GetStatus().reason.find("submission token")!=std::string::npos,"submission-token retention failure stops all conversion/motion/output writes");
+ NrdBridge::SetRuntimeEnabled(false); NrdBridge::SetRuntimeEnabled(true); c.frame(3); c.frame(3);
+ need(NrdBridge::GetStatus().active,"retention failure permits explicit runtime reset and clean rediscovery");
  // Offset ordering and a root/heap reset are production resolver properties, independent of recorder service.
  FrameSurvey::SetBindingWindow(true); c.begin(); c.bind(1,0); c.bind(5,8); auto table=c.table(1);
  need(table.size()==8 && table[0].descriptorOffset==0 && table[3].descriptorOffset==3,"resolver preserves sorted offsets rather than resource-id order");
@@ -339,7 +402,7 @@ J discoveryTests(Host& h) {
   std::string altered(role.sha256); altered.back()=altered.back()=='0' ? '1' : '0';
   need(NrdBridge::IdentifyRole(altered)==Role::None,"same prefix with different full hash never identifies a role");
  }
- return {{"descriptor_metadata",metadata},{"cpu_callback_timings",timings},{"conversion_stub_calls",convertCalls},{"rr_stub_calls",rrCalls},{"debug_stub_calls",debugCalls},
+ return {{"descriptor_metadata",metadata},{"cpu_callback_timings",timings},{"conversion_stub_calls",convertCalls},{"motion_stub_calls",motionCalls},{"rr_stub_calls",rrCalls},{"debug_stub_calls",debugCalls},
   {"history_resets",{{"conversion",depthResets},{"rr",rrResets}}},{"restore_callback_calls",D3D12Hooks::restores}};
 }
 Bound manifestBinding(const J& row,const J& resource,UINT first) {
@@ -401,19 +464,22 @@ def run():
     output = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/sol_batch/12a-discovery/tests/discovery'))
     output.mkdir(parents=True, exist_ok=True)
     stubs = output / 'stubs'
-    for folder in ('proxies', 'inputs', 'hooks'):
+    for folder in ('proxies', 'inputs', 'hooks', 'resource_tracking'):
         (stubs / folder).mkdir(parents=True, exist_ok=True)
     (stubs / 'pch.h').write_text('#pragma once\n#define NOMINMAX\n#include <windows.h>\n#include <filesystem>\n#include <memory>\n#define LOG_INFO(...) ((void)0)\n#define LOG_ERROR(...) ((void)0)\n')
     (stubs / 'Util.h').write_text('#pragma once\n#include <filesystem>\ninline std::filesystem::path g_dllPath;\nnamespace Util { inline std::filesystem::path DllPath() { return g_dllPath; } inline std::filesystem::path ExePath() { return L"cyberpunk2077.exe"; } }\n')
     (stubs / 'Config.h').write_text('#pragma once\ntemplate<class T> struct FixtureOptional { T value; T value_or_default() const { return value; } };\nstruct Config { FixtureOptional<bool> FfxDenoiserNrdBridge {false}, FfxDenoiserNrdBridgeEnabled {true}; static Config* Instance() { static Config config; return &config; } };\n')
-    (stubs / 'hooks/D3D12_Hooks.h').write_text('#pragma once\nstruct D3D12Hooks { inline static bool tracking=true, canRestore=true; inline static unsigned restores=0; static void SetRootSignatureTracking(bool enabled) { tracking=enabled; } static bool RootSignatureTrackingEnabled() { return tracking; } static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*) { return canRestore; } static void RestoreRoot(ID3D12GraphicsCommandList*) { ++restores; } };\n')
+    (stubs / 'hooks/D3D12_Hooks.h').write_text('#pragma once\nstruct D3D12Hooks { inline static bool tracking=true, canRestore=true; inline static unsigned restores=0; inline static FrameSurvey::ComputeBindings current {}; static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*,FrameSurvey::ComputeBindings& out) noexcept { out=current; return out.root && !out.heaps.empty(); } static void SetRootSignatureTracking(bool enabled) { tracking=enabled; } static bool RootSignatureTrackingEnabled() { return tracking; } static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*) { return canRestore; } static void RestoreRoot(ID3D12GraphicsCommandList*) { ++restores; } };\n')
     (stubs / 'hooks/Streamline_Hooks.h').write_text('#pragma once\n#include <sl_consts.h>\nstruct SLConstantsSnapshot { sl::Constants constants {}; uint32_t frameIndex=UINT32_MAX, viewport=UINT32_MAX; };\nstruct StreamlineHooks { inline static uint32_t frame=0; static SLConstantsSnapshot getSLConstantsSnapshot() { SLConstantsSnapshot result; result.frameIndex=frame; return result; } };\n')
     (stubs / 'inputs/NVNGX_DLSS.h').write_text('#pragma once\n#include <nvsdk_ngx.h>\n')
     (stubs / 'proxies/D3D12_Proxy.h').write_text('#pragma once\n#include <d3d12.h>\nnamespace D3d12Proxy { inline auto D3D12CreateVersionedRootSignatureDeserializer_() { return &D3D12CreateVersionedRootSignatureDeserializer; } inline auto D3D12SerializeVersionedRootSignature_() { return &D3D12SerializeVersionedRootSignature; } }\n')
+    (stubs / 'resource_tracking/ResTrack_dx12.h').write_text('#pragma once\n#include <functional>\n#include <unordered_map>\nstruct ResTrack_Dx12 { struct Lease { std::shared_ptr<void> payload; std::function<void(ID3D12CommandQueue*)> callback; }; inline static std::unordered_map<ID3D12GraphicsCommandList*,std::vector<Lease>> leases; inline static bool retentionAvailable=true; static bool RetainComputeDispatch(ID3D12Device*,ID3D12GraphicsCommandList* list,const std::shared_ptr<void>& payload,std::function<void(ID3D12CommandQueue*)> callback={}) { if(!retentionAvailable) return false; leases[list].push_back({payload,std::move(callback)}); return true; } static void SubmitForTesting(ID3D12GraphicsCommandList* list) { for(auto& lease:leases[list]) if(lease.callback) lease.callback(nullptr); } };\n')
     host = survey_fixture.CPP.split('// GetStatus()')[0]
     rr_header = (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h').read_text()
     camera_stub = 'const std::string& RRWrapper::CameraConventionDescription() const noexcept { static const std::string text; return text; }' if 'CameraConventionDescription' in rr_header else ''
-    fixture_cpp = CPP.replace('__CAMERA_STUB__', camera_stub)
+    pass_header = (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgePass_Dx12.h').read_text()
+    motion_stub = 'bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList*,const ConvertedResources&,ID3D12Resource* motion,const FrameParameters& frame,std::string&) { ++motionCalls; lastMotion=motion; lastMotionFrame=frame; internalObserved &= FrameSurvey::Internal(); trackingSuppressed &= !D3D12Hooks::tracking; return motion!=nullptr; }' if 'DispatchMotion' in pass_header else ''
+    fixture_cpp = CPP.replace('__CAMERA_STUB__', camera_stub).replace('__MOTION_STUB__', motion_stub)
     source_text = (host + fixture_cpp).replace('__TRACE__', (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDGameTraceSession.cpp').as_posix()).replace('__SURVEY__', (ROOT / 'OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp').as_posix()).replace('__COORDINATOR__', (ROOT / 'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp').as_posix())
     source = output / 'fixture.cpp'
     source.write_text(source_text, encoding='utf-8')
