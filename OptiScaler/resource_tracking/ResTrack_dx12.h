@@ -400,7 +400,8 @@ struct HeapInfo : public std::enable_shared_from_this<HeapInfo>
             return false;
 
         std::array<std::unique_lock<std::shared_mutex>, DESCRIPTOR_LOCK_STRIPE_COUNT> locks;
-        for (size_t i = 0; i < DESCRIPTOR_LOCK_STRIPE_COUNT; ++i)
+        const auto stripeCount = std::min<size_t>(numDescriptors,DESCRIPTOR_LOCK_STRIPE_COUNT);
+        for (size_t i = 0; i < stripeCount; ++i)
             locks[i] = std::unique_lock<std::shared_mutex>(descriptorLocks[i]);
 
         std::scoped_lock trackedLock(_trackedResourcesMutex);
