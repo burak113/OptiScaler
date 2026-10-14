@@ -14,7 +14,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from fsrd_toolchain import compile_cpp
 
 CPP = r'''
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <atomic>
+std::atomic<unsigned> qpcCalls{0};
+BOOL WINAPI BirthFixtureQpc(LARGE_INTEGER* value)noexcept{++qpcCalls;return ::QueryPerformanceCounter(value);}
+#define QueryPerformanceCounter BirthFixtureQpc
 #include "misc/NrdBridgeBirth_Dx12.h"
+#undef QueryPerformanceCounter
 #include <barrier>
 #include <chrono>
 #include <cstdlib>
@@ -240,6 +248,85 @@ void independentShards(){
  need(other.wait_for(std::chrono::seconds(2))==std::future_status::ready&&other.get(),"independent metadata retirement is not globally serialized");
  finish.set_value();need(blocked.get()&&registry.Healthy(),"blocked shard finishes without cross-shard cycle");
 }
+void stagedProvenAliases(){
+ B::Registry registry;Effects effects;effects.registry=&registry;void* a=address(0xc000);void* b=address(0xc008);
+ auto first=registry.ObserveInstance(a,12000,detach,publish,&effects);B::AliasSnapshot snapshot;
+ const auto warm=allocations.load();
+ need(registry.CaptureProvenAliasesForFinalZero(first,snapshot)&&snapshot.complete&&snapshot.count==1&&snapshot.tokens[0]==first,"normal native instance enumerates exactly one proven alias");
+ need(allocations==warm&&!B::InMetadataScope(),"bounded alias snapshot is allocation-free and ends every index/registry guard before caller use");
+ auto alias=registry.ObserveInstance(b,12000,detach,publish,&effects);
+ need(registry.CaptureProvenAliasesForFinalZero(first,snapshot)&&snapshot.count==2,"same native GUID records both proven address aliases");
+ {B::CurrentGuard current(first);need(current.Retire(detach,&effects),"old logical alias pre-retires exactly");}
+ auto reobserved=registry.ObserveInstance(a,12000,detach,publish,&effects);
+ need(reobserved&&reobserved!=first&&registry.CaptureProvenAliasesForFinalZero(first,snapshot)&&snapshot.count==2,"old native ticket snapshots new current same-GUID logical alias");
+ bool sawNew=false,sawOld=false;for(size_t i=0;i<snapshot.count;++i){sawNew|=snapshot.tokens[i]==reobserved;sawOld|=snapshot.tokens[i]==first;}
+ need(sawNew&&!sawOld,"proven-alias index replaces stale logical token without historical duplicates");
+ auto recycled=registry.ObserveInstance(b,12001,detach,publish,&effects);
+ need(recycled&&recycled->Live()&&!alias->Live(),"one old captured alias address can carry a genuinely different native GUID");
+ need(registry.RetireProvenAliases(snapshot,detach,&effects)==1,"staged old-physical final cleanup retires matching current alias only");
+ need(!reobserved->Live()&&recycled->Live()&&effects.metadata.size()==1&&effects.metadata[b]==recycled->Sequence(),"old GUID snapshot preserves recycled same address metadata and descriptor role");
+ need(registry.RetireProvenAliases(snapshot,detach,&effects)==0,"repeat proven-alias staged retirement is idempotent");
+ need(registry.CaptureProvenAliasesForFinalZero(first,snapshot)&&snapshot.count==0&&snapshot.complete,"retired physical metadata retains no live alias tombstone");
+ snapshot.Reset();{B::CurrentGuard current(recycled);need(current.Retire(detach,&effects),"recycled alias owner retires its own new GUID");}
+ need(registry.LiveCountForTesting()==0&&registry.Healthy()&&effects.detached==4,"alias reuse and reobserve callback counts remain exact");
+}
+void aliasCapAndPruning(){
+ B::Registry rotating;Effects effects;auto anchor=rotating.ObserveInstance(address(0xd000),13000,detach,publish,&effects);B::AliasSnapshot snapshot;
+ for(uint64_t index=0;index!=192;++index){
+  auto alias=rotating.ObserveInstance(address(0xd100+index*256),13000,detach,publish,&effects);
+  need(alias&&rotating.CaptureProvenAliasesForFinalZero(anchor,snapshot)&&snapshot.count==2,"same live GUID admits rotating native aliases without historical weak-slot growth");
+  {B::CurrentGuard current(alias);need(current.Retire(detach,&effects),"rotating logical alias removes exact weak slot");}
+ }
+ need(rotating.CaptureProvenAliasesForFinalZero(anchor,snapshot)&&snapshot.count==1&&rotating.WeakPhysicalCountForTesting()==1,"cold alias pruning remains bounded to current proven aliases");
+ {B::CurrentGuard current(anchor);need(current.Retire(detach,&effects),"native anchor metadata eventually retires");}
+ B::Registry capped;Effects capEffects;std::array<B::Token,B::AliasSnapshot::Capacity> tokens;
+ for(size_t index=0;index!=tokens.size();++index){tokens[index]=capped.ObserveInstance(address(0xe000+index*256),14000,detach,publish,&capEffects);need(bool(tokens[index]),"every supported proven alias publishes");}
+ need(capped.CaptureProvenAliasesForFinalZero(tokens[0],snapshot)&&snapshot.count==B::AliasSnapshot::Capacity&&snapshot.complete,"bounded final snapshot covers all 64 supported proven aliases");
+ auto overflow=capped.ObserveInstance(address(0x100000),14000,detach,publish,&capEffects);
+ need(!overflow&&!capped.Healthy()&&!B::CacheAdmissible(tokens[0])&&capped.LiveCountForTesting()==B::AliasSnapshot::Capacity,"alias-cap overflow fails closed without publishing or deleting an existing alias");
+ need(capped.CaptureProvenAliasesForFinalZero(tokens[0],snapshot)&&snapshot.complete&&snapshot.count==64,"failed health still captures every existing alias for required cleanup");
+ capped.RetireProvenAliases(snapshot,detach,&capEffects);
+ for(const auto& token:tokens)need(!token->Live(),"fail-closed metadata still attempts each bounded alias final retirement");
+ need(capped.LiveCountForTesting()==0&&capEffects.detached==64&&capEffects.metadata.empty(),"alias overflow leaves no live metadata after staged cleanup");
+}
+void concurrentAliasFinalReseed(){
+ B::Registry registry;Effects effects;Native object;object.refs=2;
+ auto old=registry.ObserveInstance(address(0xf000),15000,detach,publish,&effects);
+ std::barrier captured(3),reseeded(3),adds(2),probesDone(2);std::atomic<int> probes[2]{},results[2]{};std::atomic<unsigned> finalAliases{0},retired{0};
+ auto release=[&](size_t index){
+  auto ticket=registry.Capture(old->Address());B::ScopedRelease pending(ticket);captured.arrive_and_wait();reseeded.arrive_and_wait();
+  object.add();adds.arrive_and_wait();probes[index]=object.release();probesDone.arrive_and_wait();results[index]=object.release();
+  if(!results[index]){B::AliasSnapshot aliases;need(registry.CaptureProvenAliasesForFinalZero(ticket,aliases)&&aliases.complete,"actual0 snapshots physical aliases using pre-native strong metadata ticket");
+   finalAliases=unsigned(aliases.count);retired=unsigned(registry.RetireProvenAliases(aliases,detach,&effects));}
+ };
+ std::jthread a(release,0),b(release,1);captured.arrive_and_wait();
+ need(old->ReleasesInFlight()==2,"both native callers captured and counted before logical reseed");
+ // Exercise logical-generation ABA while both title callers still own valid
+ // native refs. Earlier exact logical retirement is independent of physical0.
+ {B::CurrentGuard current(old);need(current.Retire(detach,&effects),"earlier logical token detaches while native caller refs remain valid");}
+ auto fresh=registry.ObserveInstance(old->Address(),15000,detach,publish,&effects);
+ auto alias=registry.ObserveInstance(address(0xf008),15000,detach,publish,&effects);
+ need(fresh&&fresh!=old&&fresh->ReleasesInFlight()==2&&alias->ReleasesInFlight()==2&&!B::CacheAdmissible(fresh),"new same-GUID sequence and alias inherit both pending native releases");
+ reseeded.arrive_and_wait();a.join();b.join();
+ need(probes[0]>1&&probes[1]>1&&((results[0]==0&&results[1]==1)||(results[0]==1&&results[1]==0)),"parallel native probes both miss pre-final yet exactly one actual caller returns0");
+ need(finalAliases==2&&retired==2&&!fresh->Live()&&!alias->Live()&&effects.detached==3&&effects.metadata.empty(),"post0 old ticket retires ALL current same-GUID aliases/new logical generation");
+ need(object.adds==2&&object.releases==4&&object.destroyed==1&&old->ReleasesInFlight()==0&&registry.LiveCountForTesting()==0,"alias final-reseed proof preserves exact native caller/probe counts and scope balance");
+}
+void aliasIndexNotHeldByCallback(){
+ B::Registry registry;Effects effects;void* a=address(0x110000);uintptr_t value=0x110100;
+ while(B::Registry::ShardIndex(a)==B::Registry::ShardIndex(address(value)))value+=16;
+ auto token=registry.ObserveInstance(a,16000,detach,publish,&effects);
+ std::promise<void> finish;ParallelState item;item.finish=finish.get_future().share();auto entered=item.entered.get_future();
+ auto old=std::async(std::launch::async,[&]{B::CurrentGuard current(token);return current.Retire(waitDetach,&item);});
+ need(entered.wait_for(std::chrono::seconds(2))==std::future_status::ready,"exact retirement entered POD callback after removing weak alias slot");
+ auto creation=std::async(std::launch::async,[&]{return registry.ObserveInstance(address(value),16000,detach,publish,&effects);});
+ need(creation.wait_for(std::chrono::seconds(2))==std::future_status::ready,"same-physical GUID cold alias publication proceeds while another alias POD callback is paused");
+ auto fresh=creation.get();finish.set_value();need(old.get()&&fresh&&registry.Healthy(),"metadata callback never holds physical alias index lock");
+ // waitDetach deliberately owns no component POD map; finish its model cleanup.
+ effects.metadata.erase(token->Address());B::AliasSnapshot aliases;
+ need(registry.CaptureProvenAliasesForFinalZero(token,aliases)&&aliases.count==1&&aliases.tokens[0]==fresh,"staged snapshot finds current alias after independent publication");
+ need(registry.RetireProvenAliases(aliases,detach,&effects)==1,"staged callback executes after all alias index locks ended");
+}
 void bounded(){
  B::Registry registry;Effects effects;
  for(uint64_t index=1;index<=4096;++index){
@@ -272,9 +359,59 @@ void processFacade(){
  {B::CurrentGuard guard(token);need(guard.Retire(),"registered exact-sequence pre-retirement callback is available");}
  need(B::RetireCurrentInstance(alias)&&!B::RetireCurrentInstance(alias),"registered actual0 alias retirement is idempotent");
  need(processEffects.metadata.empty()&&B::ProcessRegistry().LiveCountForTesting()==0,"registered POD callbacks remove all explicitly retired aliases");
+ auto native=B::ObserveInstance(address(0xa100),next),nativeAlias=B::LinkAlias(next,address(0xa108));B::AliasSnapshot aliases;
+ need(native&&nativeAlias&&B::CaptureProvenAliasesForFinalZero(native,aliases)&&aliases.complete&&aliases.count==2,"registered native facade exposes bounded proven alias tokens/count/complete");
+ need(B::RetireProvenAliases(aliases)==2&&processEffects.metadata.empty(),"registered alias staged retirement invokes required POD dispatcher outside index guards");
  std::atomic<uint64_t> exhausted{UINT64_MAX};
  need(!B::Detail::AllocateMonotonic(exhausted)&&!B::Detail::AllocateMonotonic(exhausted)&&exhausted==UINT64_MAX,"process/sequence allocator never wraps or reuses exhausted IDs");
  B::Registry unconfigured;need(!unconfigured.Actions().detachOld&&!unconfigured.Healthy(),"missing registered cleanup dispatcher fails closed instead of silently omitting detach");
+}
+NrdBridgePerf::Report measuredProfile;
+std::atomic<unsigned> profileReports{0};
+void captureProfile(const NrdBridgePerf::Report& report)noexcept{measuredProfile=report;++profileReports;}
+struct ProfileEffects{Effects effects;bool frozen=false;};
+bool profileDetach(void* state,const B::Token& token)noexcept{
+ auto& data=*static_cast<ProfileEffects*>(state);auto* waits=NrdBridgePerf::Detail::currentWaits;
+ if(!waits||!B::InMetadataAction())return false;
+ const auto before=(*waits)[size_t(NrdBridgePerf::WaitKind::Metadata)];const auto clocks=qpcCalls.load();
+ // Deliberately pause only the POD callback. Its time/QPC calls must not leak
+ // into the lock-acquisition profiler after each mutex has been acquired.
+ std::this_thread::sleep_for(std::chrono::milliseconds(5));
+ data.frozen=(*waits)[size_t(NrdBridgePerf::WaitKind::Metadata)]==before&&qpcCalls==clocks;
+ return data.frozen&&detach(&data.effects,token);
+}
+void birthWaitProfiling(){
+ namespace P=NrdBridgePerf;B::Registry registry;Effects effects;void* a=address(0x120000);
+ const auto off=qpcCalls.load();auto token=registry.ObserveInstance(a,17000,detach,publish,&effects);B::AliasSnapshot aliases;
+ {P::Scope disabled(P::Hook::Release,true);registry.Capture(a);registry.CaptureProvenAliasesForFinalZero(token,aliases);}
+ need(!P::Detail::configured&&!P::Detail::collecting&&qpcCalls==off,"profiling default OFF adds no QPC call for address/cold-physical/alias lock acquisitions");
+ P::Configure(captureProfile);P::ConsumerFrame(7);
+ need(P::Detail::configured&&P::Detail::collecting&&!profileReports,"profiling ON requires actual configured Consumer gameplay interval");
+ const auto outside=qpcCalls.load();registry.Capture(a);registry.CaptureProvenAliasesForFinalZero(token,aliases);
+ need(qpcCalls==outside,"armed sampler outside a measured physical hook adds no mutex QPC overhead");
+ {P::Scope measured(P::Hook::Release,true);auto clocks=qpcCalls.load();registry.Capture(a);
+  need(qpcCalls==clocks+2,"address registry acquisition is measured exactly once");
+  clocks=qpcCalls.load();registry.CaptureProvenAliasesForFinalZero(token,aliases);
+  need(qpcCalls==clocks+2,"per-physical alias snapshot acquisition is measured exactly once");
+  clocks=qpcCalls.load();auto fresh=registry.ObserveInstance(address(0x120100),17001,detach,publish,&effects);
+  need(fresh&&qpcCalls==clocks+6,"cold publication profiles only physical-index/address/alias mutex acquisitions");
+  {B::CurrentGuard current(fresh);need(current.Retire(detach,&effects),"profiled cold birth retires normally");}}
+ // A real queued address acquisition contributes Metadata wait to Release.
+ std::promise<void> entered,finish,start;auto held=entered.get_future();auto done=finish.get_future().share();auto begun=start.get_future();
+ auto holder=std::async(std::launch::async,[&]{B::CurrentGuard current(token);entered.set_value();done.wait();});
+ need(held.wait_for(std::chrono::seconds(2))==std::future_status::ready,"profiling fixture holds actual production address mutex");
+ auto unlock=std::async(std::launch::async,[&]{begun.wait();std::this_thread::sleep_for(std::chrono::milliseconds(30));finish.set_value();});
+ {P::Scope measured(P::Hook::Release,true);start.set_value();need(registry.Capture(a)==token,"profiled acquisition waits for and observes current metadata");}
+ holder.get();unlock.get();
+ ProfileEffects final;final.effects.metadata[a]=token->Sequence();
+ {P::Scope measured(P::Hook::Release,true);B::CurrentGuard current(token);need(current.Retire(profileDetach,&final),"POD retirement callback keeps acquisition counters/QPC frozen while it is paused");}
+ need(final.frozen&&registry.Healthy(),"metadata profiler excludes protected callback duration");
+ for(uint32_t frame=8;frame<=107;++frame)P::ConsumerFrame(frame);
+ const auto& sample=measuredProfile.hooks[size_t(P::Hook::Release)];
+ need(profileReports==1&&measuredProfile.frames==100&&sample.calls==3&&sample.waitTicks[size_t(P::WaitKind::Metadata)]>0,"Release report includes actual Birth contention over one hundred Consumer intervals");
+ need(sample.waitTicks[size_t(P::WaitKind::Metadata)]<=sample.ticks,"mutex acquisition wait cannot exceed measured physical hook duration");
+ const auto ended=qpcCalls.load();{P::Scope after(P::Hook::Release,true);registry.Capture(a);registry.CaptureProvenAliasesForFinalZero(token,aliases);}
+ need(qpcCalls==ended&&!P::Detail::collecting&&profileReports==1,"completed one-shot profiler restores inert no-QPC Birth lock path");
 }
 struct Cross{B::Registry* registry;void* other;};
 bool crossCapture(void* state,const B::Token&)noexcept{
@@ -297,9 +434,9 @@ void hazards(){
  B::Registry missing;need(!missing.PublishFresh(address(0x9000),0,detach,publish,&nested)&&!missing.Healthy(),"missing native instance stamp fails closed");
 }
 int main(int argc,char** argv)try{
- need(argc==2,"output JSON path");basics();reuseAndNotifications();probeAndAliases();missedPreFinal();internedDuringFinal();firstStampElection();crossNestedNonfinal();independentShards();bounded();processFacade();hazards();
+ need(argc==2,"output JSON path");basics();reuseAndNotifications();probeAndAliases();missedPreFinal();internedDuringFinal();firstStampElection();crossNestedNonfinal();independentShards();stagedProvenAliases();aliasCapAndPruning();concurrentAliasFinalReseed();aliasIndexNotHeldByCallback();bounded();processFacade();hazards();birthWaitProfiling();
  need(nativeInside==0&&ownedInside==0,"all executed native calls and owned destruction remain outside metadata scope");
- const auto result=std::string("{\"native_checks\":")+std::to_string(checks.load())+",\"shards\":64,\"bounded_births\":4096,\"burst_births\":4096,\"cold_prune_budget\":8,\"native_calls_inside_scope\":0,\"owned_destruction_inside_scope\":0,\"gpu_work\":false}";
+ const auto result=std::string("{\"native_checks\":")+std::to_string(checks.load())+",\"shards\":64,\"bounded_births\":4096,\"burst_births\":4096,\"cold_prune_budget\":8,\"proven_alias_cap\":64,\"profile_reports\":"+std::to_string(profileReports.load())+",\"metadata_wait_ticks\":"+std::to_string(measuredProfile.hooks[size_t(NrdBridgePerf::Hook::Release)].waitTicks[size_t(NrdBridgePerf::WaitKind::Metadata)])+",\"native_calls_inside_scope\":0,\"owned_destruction_inside_scope\":0,\"gpu_work\":false}";
  std::ofstream(argv[1])<<result<<'\n';std::cout<<result<<'\n';return 0;
 }catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}
 '''
@@ -412,9 +549,10 @@ def run():
     assert result['native_checks'] >= 8200
     assert result['shards'] == 64 and result['bounded_births'] == 4096
     assert result['burst_births'] == 4096 and result['cold_prune_budget'] == 8
+    assert result['proven_alias_cap'] == 64 and result['profile_reports'] == 1 and result['metadata_wait_ticks'] > 0
     assert result['native_calls_inside_scope'] == 0 and result['owned_destruction_inside_scope'] == 0
     assert result['gpu_work'] is False
-    result['python_checks'] = 5
+    result['python_checks'] = 6
     (output/'result.json').write_text(json.dumps(result, indent=2)+'\n', encoding='utf-8')
     print(json.dumps(result))
 

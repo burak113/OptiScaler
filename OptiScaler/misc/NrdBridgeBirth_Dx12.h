@@ -1,5 +1,7 @@
 #pragma once
 
+#include "NrdBridgePerf_Dx12.h"
+
 #include <array>
 #include <atomic>
 #include <cstddef>
@@ -26,6 +28,19 @@ struct MetadataActions
     MetadataAction detachOld = nullptr, publish = nullptr;
     void* state = nullptr; // Stable dispatcher; caller/TLS owns per-call retirement effects.
 };
+struct AliasSnapshot
+{
+    static constexpr size_t Capacity = 64;
+    std::array<Token, Capacity> tokens {};
+    size_t count = 0;
+    bool complete = false;
+    // Reuse/reset only outside metadata/index guards. Tokens contain no COM owner.
+    void Reset() noexcept
+    {
+        for (auto& alias : tokens) alias.reset();
+        count = 0; complete = false;
+    }
+};
 
 namespace Detail
 {
@@ -40,6 +55,11 @@ inline uint64_t AllocateMonotonic(std::atomic<uint64_t>& counter) noexcept
     for (unsigned attempt = 0; attempt != 32 && value && value != UINT64_MAX; ++attempt)
         if (counter.compare_exchange_weak(value, value + 1, std::memory_order_relaxed)) return value;
     return 0; // Exhaustion or exceptional contention fails closed; never wraps/reuses an ID.
+}
+template<class Mutex> inline void AcquireMetadata(std::unique_lock<Mutex>& lock)
+{
+    NrdBridgePerf::WaitScope wait(NrdBridgePerf::WaitKind::Metadata);
+    lock.lock(); // Profile only acquisition, never protected callbacks/native work.
 }
 }
 
@@ -56,9 +76,14 @@ inline uint64_t AllocateInstanceStamp() noexcept
 class PhysicalInstance
 {
     friend class Registry;
+    friend class CurrentGuard;
     friend class ScopedRelease;
     const uint64_t stamp_;
     mutable std::atomic<uint32_t> releasesInFlight_ {0};
+    mutable std::mutex aliasesMutex_;
+    mutable std::unordered_map<void*, std::weak_ptr<const Birth>> aliases_;
+    bool Remember(const Token& token) noexcept;
+    bool Forget(const Token& token) noexcept;
   public:
     explicit PhysicalInstance(uint64_t stamp) noexcept : stamp_(stamp) {}
     uint64_t Stamp() const noexcept { return stamp_; }
@@ -97,6 +122,34 @@ class Birth
     bool CacheAdmissible() const noexcept;
 };
 
+inline bool PhysicalInstance::Remember(const Token& token) noexcept
+{
+    try
+    {
+        std::unique_lock lock(aliasesMutex_, std::defer_lock); Detail::AcquireMetadata(lock);
+        // Per-native-instance weak slots only. Expired slots are bounded by the
+        // same cap, never searched through the global resource/instance catalog.
+        for (auto found = aliases_.begin(); found != aliases_.end();)
+            if (found->second.expired()) found = aliases_.erase(found); else ++found;
+        const auto found = aliases_.find(token->Address());
+        if (found == aliases_.end() && aliases_.size() == AliasSnapshot::Capacity) return false;
+        aliases_[token->Address()] = token;
+        return true;
+    }
+    catch (...) { return false; }
+}
+inline bool PhysicalInstance::Forget(const Token& token) noexcept
+{
+    try
+    {
+        std::unique_lock lock(aliasesMutex_, std::defer_lock); Detail::AcquireMetadata(lock);
+        const auto found = aliases_.find(token->Address());
+        if (found != aliases_.end() && found->second.lock() == token) aliases_.erase(found);
+        return true;
+    }
+    catch (...) { return false; }
+}
+
 class Registry
 {
     friend class CurrentGuard;
@@ -128,7 +181,7 @@ class Registry
         try
         {
             auto& shard = physicalShards_[size_t(stamp) & (ShardCount - 1)];
-            std::lock_guard lock(shard.mutex);
+            std::unique_lock lock(shard.mutex, std::defer_lock); Detail::AcquireMetadata(lock);
             // A bounded ordered cursor removes expired weak entries at cold
             // births. Erasing a weak entry destroys no Birth/PhysicalInstance.
             for (unsigned visited = 0; visited != 8 && !shard.instances.empty(); ++visited)
@@ -163,7 +216,8 @@ class Registry
             { registry_.Fail(); return; }
             try
             {
-                lock_ = std::unique_lock<std::recursive_mutex>(shard.mutex);
+                lock_ = std::unique_lock<std::recursive_mutex>(shard.mutex, std::defer_lock);
+                Detail::AcquireMetadata(lock_);
                 shard_ = &shard; Detail::heldShard = shard_; ++Detail::scopeDepth;
                 accepted = true;
             }
@@ -232,6 +286,10 @@ class Registry
     bool Finalize(const Token& token, bool success, bool enabled = true) noexcept;
     bool RetireCurrentInstance(const Token& ticket, MetadataAction detachOld,
                                void* state, bool enabled = true) noexcept;
+    bool CaptureProvenAliasesForFinalZero(const Token& ticket, AliasSnapshot& snapshot,
+                                         bool enabled = true) noexcept;
+    size_t RetireProvenAliases(const AliasSnapshot& snapshot, MetadataAction detachOld,
+                              void* state, bool enabled = true) noexcept;
 
     // instanceStamp must identify the ACTUAL native instance, not just its
     // pointer, root bytes, shader hash, creation-observer invocation or TTL.
@@ -268,17 +326,23 @@ class Registry
             // cannot leave a half-published fresh birth or drop any owned state.
             Token fresh = std::make_shared<Birth>(this, address, sequence, instanceStamp,
                                                 std::move(physical), initializing);
+            if (!fresh->physical_->Remember(fresh)) { Fail(); return {}; }
             if (found != shard.live.end())
             {
                 const auto old = found->second;
                 old->live_.store(false, std::memory_order_release);
+                if (!old->physical_->Forget(old)) Fail();
                 const bool detached = Action(detachOld, state, old);
                 shard.live.erase(found);
-                if (!detached) return {};
+                if (!detached)
+                { fresh->live_.store(false, std::memory_order_release); fresh->physical_->Forget(fresh); return {}; }
             }
             shard.live.emplace(address, fresh);
             if (!Action(publish, state, fresh))
-            { fresh->live_.store(false, std::memory_order_release); shard.live.erase(address); return {}; }
+            {
+                fresh->live_.store(false, std::memory_order_release); fresh->physical_->Forget(fresh);
+                shard.live.erase(address); return {};
+            }
             return fresh;
         }
         catch (...) { Fail(); return {}; }
@@ -317,16 +381,22 @@ class Registry
             if (!sequence) { Fail(); return {}; }
             Token fresh = std::make_shared<Birth>(this, address, sequence, instanceStamp,
                                                 std::move(physical), true);
+            if (!fresh->physical_->Remember(fresh)) { Fail(); return {}; }
             if (current)
             {
                 current->live_.store(false, std::memory_order_release);
+                if (!current->physical_->Forget(current)) Fail();
                 const bool detached = Action(detachOld, state, current);
                 shard.live.erase(address);
-                if (!detached) return {};
+                if (!detached)
+                { fresh->live_.store(false, std::memory_order_release); fresh->physical_->Forget(fresh); return {}; }
             }
             shard.live.emplace(address, fresh);
             if (!Action(publish, state, fresh))
-            { fresh->live_.store(false, std::memory_order_release); shard.live.erase(address); return {}; }
+            {
+                fresh->live_.store(false, std::memory_order_release); fresh->physical_->Forget(fresh);
+                shard.live.erase(address); return {};
+            }
             return fresh;
         }
         catch (...) { Fail(); return {}; }
@@ -343,7 +413,7 @@ class Registry
         if (InMetadataScope()) { Fail(); return 0; }
         size_t count = 0;
         for (auto& shard : physicalShards_)
-        { std::lock_guard lock(shard.mutex); count += shard.instances.size(); }
+        { std::unique_lock lock(shard.mutex, std::defer_lock); Detail::AcquireMetadata(lock); count += shard.instances.size(); }
         return count;
     }
 };
@@ -410,6 +480,7 @@ class CurrentGuard
         if (!MatchesCurrent()) return false;
         if (!detachOld || Detail::actionDepth) { registry_->Fail(); return false; }
         token_->live_.store(false, std::memory_order_release);
+        if (!token_->physical_->Forget(token_)) registry_->Fail();
         const bool detached = registry_->Action(detachOld, state, token_);
         const auto found = shard_->live.find(token_->Address());
         if (found != shard_->live.end() && found->second == token_) shard_->live.erase(found);
@@ -460,6 +531,46 @@ inline bool Registry::RetireCurrentInstance(const Token& ticket, MetadataAction 
     // A genuinely recycled allocation has another stamp and survives this check.
     CurrentGuard current(found->second); return current.Retire(detachOld, state);
 }
+inline bool Registry::CaptureProvenAliasesForFinalZero(const Token& ticket, AliasSnapshot& snapshot,
+                                                      bool enabled) noexcept
+{
+    if (InMetadataScope()) { Fail(); return false; }
+    snapshot.Reset();
+    if (!enabled || !ticket || ticket->registry_ != this) return false;
+    try
+    {
+        // Only the caller's strong metadata physical node is touched. No address
+        // shard, stamp index or callback is entered while holding aliasesMutex.
+        const auto physical = ticket->physical_;
+        std::unique_lock lock(physical->aliasesMutex_, std::defer_lock); Detail::AcquireMetadata(lock);
+        for (const auto& entry : physical->aliases_)
+        {
+            auto alias = entry.second.lock();
+            if (!alias || !alias->Live()) continue;
+            if (alias->InstanceStamp() != ticket->InstanceStamp() || alias->registry_ != this ||
+                snapshot.count == AliasSnapshot::Capacity)
+            { Fail(); return false; }
+            snapshot.tokens[snapshot.count++] = std::move(alias);
+        }
+        snapshot.complete = true;
+        return true;
+    }
+    catch (...) { Fail(); return false; }
+}
+inline size_t Registry::RetireProvenAliases(const AliasSnapshot& snapshot, MetadataAction detachOld,
+                                           void* state, bool enabled) noexcept
+{
+    if (!enabled) return 0;
+    if (InMetadataScope() || !snapshot.complete || snapshot.count > AliasSnapshot::Capacity || !detachOld)
+    { Fail(); return 0; }
+    size_t detached = 0;
+    // This staged phase holds no alias/stamp-index lock. Each addressed callback
+    // sees its actual current same-GUID sequence; recycled different GUIDs survive.
+    // Count reports successful callbacks; failed health still attempts every slot.
+    for (size_t index = 0; index != snapshot.count; ++index)
+        if (RetireCurrentInstance(snapshot.tokens[index], detachOld, state)) ++detached;
+    return detached;
+}
 inline Registry& ProcessRegistry()
 {
     static auto* registry = new Registry; // Safe for hooks during static teardown.
@@ -499,8 +610,8 @@ inline Token PublishFresh(void* address, uint64_t stamp, bool enabled = true) no
 inline Token LinkAlias(uint64_t stamp, void* aliasAddress, bool enabled = true) noexcept
 {
     // Only a nonzero reserved native GUID stamp is alias evidence. This shares
-    // physical release metadata; the caller still batches final retirement of
-    // every proven alias address. No QueryInterface or inferred pointer relation.
+    // physical release metadata. Actual0 snapshots every proven alias and stages
+    // retirement outside the alias index. No QueryInterface or pointer inference.
     return ObserveInstance(aliasAddress, stamp, enabled);
 }
 inline Token ComparePublish(void* address, const Token& expected, uint64_t stamp,
@@ -538,6 +649,27 @@ inline bool RetireCurrentInstance(const Token& ticket, bool enabled = true) noex
         return registry.RetireCurrentInstance(ticket, actions.detachOld, actions.state);
     }
     catch (...) { return false; }
+}
+inline bool CaptureProvenAliasesForFinalZero(const Token& ticket, AliasSnapshot& snapshot,
+                                            bool enabled = true) noexcept
+{
+    if (!enabled || !ticket)
+    {
+        if (!InMetadataScope()) snapshot.Reset();
+        return false;
+    }
+    try { return ProcessRegistry().CaptureProvenAliasesForFinalZero(ticket, snapshot); }
+    catch (...) { return false; }
+}
+inline size_t RetireProvenAliases(const AliasSnapshot& snapshot, bool enabled = true) noexcept
+{
+    if (!enabled) return 0;
+    try
+    {
+        auto& registry = ProcessRegistry(); const auto actions = registry.Actions();
+        return registry.RetireProvenAliases(snapshot, actions.detachOld, actions.state);
+    }
+    catch (...) { return 0; }
 }
 inline Token ComparePublish(void* address, const Token& expected, uint64_t stamp,
                             MetadataAction detachOld, MetadataAction publish, void* state,
