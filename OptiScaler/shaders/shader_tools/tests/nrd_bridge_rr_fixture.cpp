@@ -592,15 +592,15 @@ struct ConsumerBuffer
 {
     ComPtr<ID3D12Resource> upload, binding;
     UINT64 offset=0;
-    ConsumerBuffer(Host& host,bool defaultHeap=false,UINT64 byteOffset=0) : offset(byteOffset)
+    ConsumerBuffer(Host& host,bool defaultHeap=false,UINT64 byteOffset=0,UINT64 byteSize=1536) : offset(byteOffset)
     {
-        upload=buffer(host.device.Get(),1536,D3D12_HEAP_TYPE_UPLOAD);
-        void* mapped=nullptr;hr(upload->Map(0,nullptr,&mapped));std::memset(mapped,0,1536);upload->Unmap(0,nullptr);
+        upload=buffer(host.device.Get(),byteSize,D3D12_HEAP_TYPE_UPLOAD);
+        void* mapped=nullptr;hr(upload->Map(0,nullptr,&mapped));std::memset(mapped,0,size_t(byteSize));upload->Unmap(0,nullptr);
         if(defaultHeap)
         {
-            binding=buffer(host.device.Get(),1536,D3D12_HEAP_TYPE_DEFAULT);
+            binding=buffer(host.device.Get(),byteSize,D3D12_HEAP_TYPE_DEFAULT);
             barrier(host.list.Get(),binding.Get(),D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_COPY_DEST);
-            host.list->CopyBufferRegion(binding.Get(),0,upload.Get(),0,1536);
+            host.list->CopyBufferRegion(binding.Get(),0,upload.Get(),0,byteSize);
             barrier(host.list.Get(),binding.Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
             D3D12_HEAP_PROPERTIES heap{};hr(binding->GetHeapProperties(&heap,nullptr));
             need(heap.Type==D3D12_HEAP_TYPE_DEFAULT,"native default-heap CBV test is not an upload buffer");
@@ -622,7 +622,7 @@ void tableEncodingChecks(Host& host)
     Scene scene(host,width,height,{},true);host.submit();host.reset();RRWrapper wrapper;FrameParameters frame;std::string error;
     const auto previousSpec=FfxApiProxy::mockSpec,previousDiff=FfxApiProxy::mockDiff;
     if(!FfxApiProxy::real){FfxApiProxy::mockSpec={1.5f,7.f,9.25f,99.f};FfxApiProxy::mockDiff={9.f,2.75f,.5f,98.f};FfxApiProxy::recordPartialWrites=true;}
-    const uint32_t flags[] {0u,1u,0x80000000u,0x7fc00000u,0u,1u};
+    const uint32_t flags[] {0u,1u,0x80000000u,0x7fc00000u,0u,1u,0u,1u};
     uint64_t auxiliary=0;
     for(unsigned i=0;i<std::size(flags);++i)
     {
@@ -631,7 +631,11 @@ void tableEncodingChecks(Host& host)
         const auto heapRefs=consumer.References(),oldRefs=old.references(),nextRefs=next.references();
         ClearPair(host.list.Get(),scene.spec(),scene.diff(),{.125f,.25f,.5f,9.f},{1.25f,1.5f,1.75f,11.f});
         need(wrapper.PrepareFrame(camera(800+i,width/float(height)),false,frame,error),"prepare volatile native table frame");
-        frame.outputConstants={old.binding.Get(),old.constants().address,consumer.heap.Get(),consumer.Handle()};
+        frame.outputEncoding=flags[i]?SignalEncoding::Rgb:SignalEncoding::YCoCg;
+        frame.outputConstants=i<6?TitleSignalConstants{old.binding.Get(),old.constants().address,consumer.heap.Get(),consumer.Handle()}
+            :TitleSignalConstants{nullptr,0,consumer.heap.Get(),consumer.Handle()};
+        if(i>=6)need(!frame.outputConstants.resource && !frame.outputConstants.address,
+            "ownerless table-only test supplies neither source resource nor VA");
         need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
         if(i==0)auxiliary=wrapper.OwnedAuxiliaryBytes();
         need(wrapper.OwnedAuxiliaryBytes()==auxiliary,"warm native flag snapshots reused without new allocation");
@@ -654,7 +658,7 @@ void tableEncodingChecks(Host& host)
     }
     need(auxiliary==5u*65536u,"four committed64K flag slots plus committed64K fallback CB");
     if(!FfxApiProxy::real){FfxApiProxy::recordPartialWrites=false;FfxApiProxy::mockSpec=previousSpec;FfxApiProxy::mockDiff=previousDiff;}
-    std::cout<<"volatile_table cases=6 original_consumer_RSG1.0=1 overwrite_different_buffer=6 default_heap=2 native_alpha=9,11 auxiliary_bytes="<<auxiliary<<'\n';
+    std::cout<<"volatile_table cases=8 original_consumer_RSG1.0=1 overwrite_different_buffer=8 default_heap=4 ownerless_table_address0=2 native_alpha=9,11 auxiliary_bytes="<<auxiliary<<'\n';
 }
 void nearestHalfEdgeChecks(Host& host)
 {
@@ -808,24 +812,50 @@ void encodingValidationChecks(Host& host)
     need(!wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),"invalid encoding enum fails closed");
     frame.outputEncoding=SignalEncoding::Rgb;
     const auto address=native.constants().address;
-    for(const auto& constants:{TitleSignalConstants{native.binding.Get(),0},TitleSignalConstants{nullptr,address},
-        TitleSignalConstants{native.binding.Get(),address+1},TitleSignalConstants{native.binding.Get(),address+512},
-        TitleSignalConstants{scene.spec(),address}})
+    auto makeHeap=[](ID3D12Device* device,D3D12_DESCRIPTOR_HEAP_TYPE type,D3D12_DESCRIPTOR_HEAP_FLAGS flags) {
+        D3D12_DESCRIPTOR_HEAP_DESC desc{};desc.Type=type;desc.NumDescriptors=4;desc.Flags=flags;
+        ComPtr<ID3D12DescriptorHeap> heap;hr(device->CreateDescriptorHeap(&desc,IID_PPV_ARGS(&heap)));return heap;
+    };
+    auto heap=makeHeap(host.device.Get(),D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+    auto otherHeap=makeHeap(host.device.Get(),D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+    auto sampler=makeHeap(host.device.Get(),D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+    auto hidden=makeHeap(host.device.Get(),D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+    const auto handle=heap->GetGPUDescriptorHandleForHeapStart(),otherHandle=otherHeap->GetGPUDescriptorHandleForHeapStart();
+    const auto stride=host.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    need(otherHandle.ptr<handle.ptr || otherHandle.ptr>=handle.ptr+UINT64(4)*stride,
+         "wrong-target probe uses a descriptor from a genuinely different heap");
+    // Source owner/identity/width is diagnostic-only. Replace those obsolete
+    // rejection probes with actual native binding shape/device contracts.
+    struct Invalid { TitleSignalConstants constants; const char* reason; };
+    const Invalid cases[] {
+        {{nullptr,address+1},"unaligned direct root VA fails closed"},
+        {{nullptr,0,heap.Get(),{}},"native heap without handle fails closed"},
+        {{nullptr,0,nullptr,handle},"native handle without heap fails closed"},
+        {{nullptr,0,heap.Get(),otherHandle},"native handle targeting another heap fails closed"},
+        {{nullptr,0,heap.Get(),{handle.ptr+1}},"unaligned native descriptor handle fails closed"},
+        {{nullptr,0,heap.Get(),{handle.ptr+UINT64(4)*stride}},"out-of-range native descriptor handle fails closed"},
+        {{nullptr,0,sampler.Get(),sampler->GetGPUDescriptorHandleForHeapStart()},"wrong native heap type fails closed"},
+        {{nullptr,0,hidden.Get(),handle},"non-shader-visible native heap fails closed"}
+    };
+    for(const auto& test:cases)
     {
-        frame.outputConstants=constants;
-        need(!wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),"invalid native CBV fails closed");
+        frame.outputConstants=test.constants;
+        need(!wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),test.reason);
         need(!error.empty(),"invalid CBV reports concrete reason");
     }
     ComPtr<IDXGIFactory4> foreignFactory;hr(CreateDXGIFactory1(IID_PPV_ARGS(&foreignFactory)));
     ComPtr<IDXGIAdapter> foreignAdapter;hr(foreignFactory->EnumWarpAdapter(IID_PPV_ARGS(&foreignAdapter)));
     ComPtr<ID3D12Device> foreignDevice;hr(D3D12CreateDevice(foreignAdapter.Get(),D3D_FEATURE_LEVEL_12_0,IID_PPV_ARGS(&foreignDevice)));
-    auto foreign=buffer(foreignDevice.Get(),1536,D3D12_HEAP_TYPE_UPLOAD);
-    frame.outputConstants={foreign.Get(),foreign->GetGPUVirtualAddress()};
-    need(!wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),"foreign device native CBV fails closed");
-    need(error.find("device mismatch")!=std::string::npos,"native CBV device rejection diagnosed");
+    auto foreign=makeHeap(foreignDevice.Get(),D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+    const auto foreignHandle=foreign->GetGPUDescriptorHandleForHeapStart();
+    need(foreignHandle.ptr!=0,"foreign device probe supplies a genuine native GPU descriptor handle");
+    frame.outputConstants={nullptr,0,foreign.Get(),foreignHandle};
+    need(!wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),"foreign device native heap fails closed");
+    need(error.find("device mismatch")!=std::string::npos,"native heap device rejection diagnosed");
     need(FfxApiProxy::creates==creates && FfxApiProxy::dispatches==dispatches && wrapper.ContextGeneration()==0,
         "invalid encoding/CBV invokes no provider and creates no context");
     need(!RecordedComputeLease::Capture(host.list.Get()),"invalid encoding/CBV records no GPU work");
+    std::cout<<"native_binding_negative obsolete_source_owner_range_probes_replaced=5 unaligned_rootVA_retained=1 native_shape_cases=9 provider_calls=0 recorded_work=0\n";
 }
 void encodingChecks(Host& host)
 {
@@ -839,7 +869,7 @@ void encodingChecks(Host& host)
         FfxApiProxy::mockSpec={1.5f,7.f,9.25f,99.f};FfxApiProxy::mockDiff={9.f,2.75f,.5f,98.f};
         FfxApiProxy::recordPartialWrites=true;
     }
-    struct Case { bool native,defaultHeap; UINT64 offset; uint32_t flag; SignalEncoding fallback; bool encoded; };
+    struct Case { bool native,defaultHeap; UINT64 offset; uint32_t flag; SignalEncoding fallback; bool encoded; bool ownerless=false; };
     const Case cases[] {
         {false,false,0,0,SignalEncoding::Rgb,false},
         {false,false,0,0,SignalEncoding::YCoCg,true},
@@ -849,13 +879,22 @@ void encodingChecks(Host& host)
         {true,false,0,0x7fc00000u,SignalEncoding::Rgb,true},
         {true,true,0,1,SignalEncoding::Rgb,true},
         {true,false,256,1,SignalEncoding::Rgb,true},
+        {true,false,0,0,SignalEncoding::YCoCg,false,true},
+        {true,false,0,1,SignalEncoding::Rgb,true,true},
     };
     for(unsigned i=0;i<std::size(cases);++i)
     {
-        const auto& test=cases[i];ConsumerBuffer native(host,test.defaultHeap,test.offset);
+        const auto& test=cases[i];ConsumerBuffer native(host,test.defaultHeap,test.offset,test.ownerless?1216:1536);
         const auto nativeRefs=native.references();
         need(wrapper.PrepareFrame(camera(430+i,width/float(height)),false,frame,error),"prepare asymmetric codec frame");
         frame.outputEncoding=test.fallback;if(test.native)frame.outputConstants=native.constants();
+        if(test.ownerless)
+        {
+            frame.outputConstants.resource=nullptr;
+            need(native.binding->GetDesc().Width==1216 && !frame.outputConstants.resource && frame.outputConstants.address,
+                 "ownerless direct-root test supplies only exact VA of a1216-byte buffer");
+            native.flag(test.flag?0u:1u); // Both ownerless flags change AFTER the recording below.
+        }
         need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
         need(wrapper.ContextGeneration()==1,"encoding changes do not recreate provider or history");
         need(native.references()==nativeRefs,"RR commit never AddRef's borrowed native Consumer CBV");
@@ -870,7 +909,7 @@ void encodingChecks(Host& host)
         else need(!(FfxApiProxy::lastDispatch.flags&FFX_DENOISER_DISPATCH_RESET),"mode changes preserve valid provider history");
     }
     if(!FfxApiProxy::real){FfxApiProxy::recordPartialWrites=false;FfxApiProxy::mockSpec=previousSpec;FfxApiProxy::mockDiff=previousDiff;}
-    std::cout<<"codec cases=8 native_upload_update_after_record=4 native_default_heap=1 native_offset=256 integer_nonzero_bits=1,80000000,7fc00000 alpha_exact=1\n";
+    std::cout<<"codec cases=10 native_upload_update_after_record=6 native_default_heap=1 native_offset=256 ownerless_rootVA=2 exact_root_buffer_bytes=1216 integer_nonzero_bits=1,80000000,7fc00000 alpha_exact=1\n";
 }
 void encodedFailureChecks(Host& host)
 {
