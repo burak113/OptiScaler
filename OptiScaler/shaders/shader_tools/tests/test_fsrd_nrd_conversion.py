@@ -119,7 +119,7 @@ def projection(width, height, near=0.01, right_handed=True, reverse=True, infini
 
 def frame(width, height, index=0, captured=False):
     right = captured or index not in (2, 3, 4)
-    near = 0.01 if captured else (0.25 if right else 0.5)
+    near = 0.02 if captured else (0.25 if right else 0.5)
     proj = projection(width, height, near, right, reverse=right, infinite=right, far=100)
     view = np.eye(4, dtype=np.float32)
     if not captured:
@@ -176,6 +176,8 @@ def inputs(width, height, index=0, extremes=False):
     if extremes:
         spec[0, :4, :3] = [[-1, np.nan, np.inf], [-np.inf, 2, -3], [65504, -0.1, 0], [0, 0, 0]]
         diff[0, :4, :3] = spec[0, :4, :3]
+        spec[0, :8, 3] = [np.nan, np.inf, -np.inf, -1, -123, 0, -0.0, 65504]
+        diff[0, :8, 3] = [-np.inf, np.nan, np.inf, -7, -65504, -0.0, 0, 123]
         depth[0, :6] = [-3, 0.001, 100000, np.nan, np.inf, -np.inf]
         motion[0, :4, :2] = [[np.nan, np.inf], [65504, -65504], [-4, 0.33], [0.17, 3.11]]
     return dict(spec=spec, diff=diff, nr=packed_nr(normal), depth=depth, motion=motion)
@@ -239,7 +241,13 @@ def verify_case(directory, input_values, params, previous_depth=None, history_va
     for name in ('spec', 'diff'):
         expected = input_values[name].copy()
         expected[..., :3] = np.where(np.isfinite(expected[..., :3]), np.maximum(expected[..., :3], 0), 0)
-        check(f'{directory.name} {name} sanitization and world hit distance passthrough', np.array_equal(output[name], expected))
+        expected[..., 3] = np.where(np.isfinite(expected[..., 3]), expected[..., 3], np.float16(0))
+        check(f'{directory.name} {name} RGB sanitizer/native finite-alpha policy', np.array_equal(output[name], expected))
+        finite_alpha = np.isfinite(input_values[name][..., 3])
+        check(f'{directory.name} {name} every finite alpha bit preserved including inactive/signedzero',
+              np.array_equal(output[name][..., 3].view(np.uint16)[finite_alpha], input_values[name][..., 3].view(np.uint16)[finite_alpha]))
+        check(f'{directory.name} {name} nonfinite alpha becomes exact positivezero',
+              np.all(output[name][..., 3].view(np.uint16)[~finite_alpha] == 0))
         check(f'{directory.name} {name} finite', np.isfinite(output[name]).all())
         check(f'{directory.name} {name} debug alpha zero', np.all(output['debug_' + name][..., 3] == 0))
         if params['mode'] == 1:
@@ -247,6 +255,21 @@ def verify_case(directory, input_values, params, previous_depth=None, history_va
         else:
             check(f'{directory.name} {name} diagnostics finite bounded',
                   np.isfinite(output['debug_' + name]).all() and np.max(output['debug_' + name]) <= 1 and np.min(output['debug_' + name]) >= 0)
+        encoded = np.fromfile(directory / f'debug_ycocg_{name}.bin', '<f2').reshape(height, width, 4).astype(np.float32)
+        check(f'{directory.name} {name} encoded debug finite and alpha zero', np.isfinite(encoded).all() and np.all(encoded[..., 3] == 0))
+        decoded = np.stack((encoded[..., 0] - encoded[..., 2] + encoded[..., 1],
+                            encoded[..., 0] + encoded[..., 2],
+                            encoded[..., 0] - encoded[..., 2] - encoded[..., 1]), -1)
+        decoded = np.maximum(decoded, 0)
+        original = output['debug_' + name][..., :3].astype(np.float32)
+        # Three encoded half rounding errors plus the reference RGB half rounding.
+        # eps=2^-11 (half ULP relative bound), subnormal halfstep=2^-25.
+        encoded_error = (np.abs(encoded[..., :3]).sum(-1) + np.max(np.abs(original), -1)) * (2.0**-11) + 4 * (2.0**-25)
+        check(f'{directory.name} {name} exact Consumer inverse roundtrip within derived FP16 quantization bound',
+              np.all(np.abs(decoded-original) <= encoded_error[..., None] * 1.01))
+        cancelled = np.fromfile(directory / f'debug_cancel_{name}.bin', '<f2').reshape(height, width, 4)
+        check(f'{directory.name} {name} cancelled encoded debug leaves originalRGBA exact',
+              np.array_equal(cancelled.view(np.uint16), output['debug_' + name].view(np.uint16)))
     check(f'{directory.name} signed depth sign clamp and nonfinite sky', np.allclose(output['depth'], depth, rtol=1e-7, atol=1e-6))
     check(f'{directory.name} packed normals RGB preserved alpha zero', np.array_equal(output['nr'], input_values['nr'] & 0x3fffffff))
     check(f'{directory.name} motion scale jitter depth delta and W', np.allclose(output['motion'], motion, rtol=1e-3, atol=2e-4))
@@ -336,8 +359,8 @@ def captured(exe):
                 assumptions=['Exact NR3749 and original VIEWZ44287 snapshots absent.',
                              'Internal NRD depth44307 used as depth substitute.',
                              'Synthetic camera-facing oct world normal, roughness512/1023.',
-                             'Static zero motion, RH reverse infinite projection, FOV60deg, near0.01, far65504.',
-                             'This verifies real lighting payload conversion, not live camera or exact NR encoding.'],
+                             'Static zero motion, assumed RH/FOV60deg reverse infinite projection; near0.02 derived from D=a+b/Z fit, far65504.',
+                             'This verifies real lighting payload conversion; missing captured normals/camera remain synthetic. Installed-title oct/B packing is independently attested.'],
                 fixture_checks=int(re.search(r'fixture_checks=(\d+)', stdout)[1]),
                 outputs=(directory / 'frame0').as_posix(), image=(REPORT / 'da9f_conversion_before_after.png').as_posix())
 
@@ -362,7 +385,7 @@ def normal_evidence():
                 xy_near_half_fraction=float(plane.mean()), world_z_median_near_half=float(np.median(normal[..., 2][plane])) if plane.any() else None,
                 roughness_median_near_half=float(np.median(((raw >> 20) & 1023)[plane] / 1023)) if plane.any() else None,
                 exact_role_verified=False,
-                note='Different G-buffer resource. Unit length is guaranteed by oct decoding and is not proof of encoding. Exact3749/62162 remains an unproven packing assumption.')
+                note='Different G-buffer resource. Unit length is guaranteed by oct decoding and does not establish this older resource role. Installed-title oct/B packing is independently attested; the missing exact captured normal guide remains synthetic.')
 
 
 def benchmark(exe, width, height):
