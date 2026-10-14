@@ -31,6 +31,14 @@ using PFN_CheckFeatureSupport = rewrite_signature<decltype(&ID3D12Device::CheckF
 using PFN_CreateSampler = rewrite_signature<decltype(&ID3D12Device::CreateSampler)>::type;
 using PFN_CreateCommittedResource = rewrite_signature<decltype(&ID3D12Device::CreateCommittedResource)>::type;
 using PFN_CreatePlacedResource = rewrite_signature<decltype(&ID3D12Device::CreatePlacedResource)>::type;
+using PFN_CreateReservedResource = rewrite_signature<decltype(&ID3D12Device::CreateReservedResource)>::type;
+using PFN_CreateCommittedResource1 = rewrite_signature<decltype(&ID3D12Device4::CreateCommittedResource1)>::type;
+using PFN_CreateReservedResource1 = rewrite_signature<decltype(&ID3D12Device4::CreateReservedResource1)>::type;
+using PFN_CreateCommittedResource2 = rewrite_signature<decltype(&ID3D12Device8::CreateCommittedResource2)>::type;
+using PFN_CreatePlacedResource1 = rewrite_signature<decltype(&ID3D12Device8::CreatePlacedResource1)>::type;
+using PFN_CreateCommittedResource3 = rewrite_signature<decltype(&ID3D12Device10::CreateCommittedResource3)>::type;
+using PFN_CreatePlacedResource2 = rewrite_signature<decltype(&ID3D12Device10::CreatePlacedResource2)>::type;
+using PFN_CreateReservedResource2 = rewrite_signature<decltype(&ID3D12Device10::CreateReservedResource2)>::type;
 using PFN_SetResidencyPriority = rewrite_signature<decltype(&ID3D12Device1::SetResidencyPriority)>::type;
 using PFN_CreateRootSignature = rewrite_signature<decltype(&ID3D12Device::CreateRootSignature)>::type;
 
@@ -51,6 +59,14 @@ static PFN_CreateSampler o_CreateSampler = nullptr;
 static PFN_CheckFeatureSupport o_CheckFeatureSupport = nullptr;
 static PFN_CreateCommittedResource o_CreateCommittedResource = nullptr;
 static PFN_CreatePlacedResource o_CreatePlacedResource = nullptr;
+static PFN_CreateReservedResource o_CreateReservedResource = nullptr;
+static PFN_CreateCommittedResource1 o_CreateCommittedResource1 = nullptr;
+static PFN_CreateReservedResource1 o_CreateReservedResource1 = nullptr;
+static PFN_CreateCommittedResource2 o_CreateCommittedResource2 = nullptr;
+static PFN_CreatePlacedResource1 o_CreatePlacedResource1 = nullptr;
+static PFN_CreateCommittedResource3 o_CreateCommittedResource3 = nullptr;
+static PFN_CreatePlacedResource2 o_CreatePlacedResource2 = nullptr;
+static PFN_CreateReservedResource2 o_CreateReservedResource2 = nullptr;
 static PFN_SetResidencyPriority o_SetResidencyPriority = nullptr;
 static PFN_GetResourceAllocationInfo o_GetResourceAllocationInfo = nullptr;
 static bool gSurveyDeviceWrappers = false;
@@ -1907,14 +1923,33 @@ static HRESULT hkCreateCommittedResource(ID3D12Device* device, const D3D12_HEAP_
                                      pOptimizedClearValue, riidResource, ppvResource);
 }
 
+// A newer API can forward through an older device entry. Only the outer
+// successful creation owns initial-state metadata, especially for enhanced layouts.
+static thread_local unsigned gSurveyResourceCreationDepth = 0;
+class SurveyResourceCreationScope
+{
+    bool observe_;
+  public:
+    SurveyResourceCreationScope() noexcept
+        : observe_(gSurveyResourceCreationDepth++ == 0 && !FrameSurvey::Internal()) {}
+    ~SurveyResourceCreationScope() { --gSurveyResourceCreationDepth; }
+    bool Observe() const noexcept { return observe_; }
+    SurveyResourceCreationScope(const SurveyResourceCreationScope&) = delete;
+    SurveyResourceCreationScope& operator=(const SurveyResourceCreationScope&) = delete;
+};
+
+VALIDATE_HOOK(hkSurveyCreateCommittedResource, PFN_CreateCommittedResource)
 static HRESULT hkSurveyCreateCommittedResource(ID3D12Device* device, const D3D12_HEAP_PROPERTIES* pHeapProperties,
                                          D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC* pDesc,
                                          D3D12_RESOURCE_STATES InitialResourceState,
                                          const D3D12_CLEAR_VALUE* pOptimizedClearValue, REFIID riidResource,
                                          void** ppvResource)
 {
-    const auto result = hkCreateCommittedResource(device,pHeapProperties,HeapFlags,pDesc,InitialResourceState,pOptimizedClearValue,riidResource,ppvResource);
-    if (SUCCEEDED(result) && ppvResource && *ppvResource) FrameSurvey::ResourceCreated(static_cast<ID3D12Resource*>(*ppvResource),InitialResourceState);
+    const SurveyResourceCreationScope creation;
+    const auto result = hkCreateCommittedResource(device, pHeapProperties, HeapFlags, pDesc, InitialResourceState,
+                                                   pOptimizedClearValue, riidResource, ppvResource);
+    if (creation.Observe() && SUCCEEDED(result) && ppvResource && *ppvResource)
+        FrameSurvey::ResourceCreated(static_cast<ID3D12Resource*>(*ppvResource), InitialResourceState);
     return result;
 }
 
@@ -1949,15 +1984,239 @@ static HRESULT hkCreatePlacedResource(ID3D12Device* device, ID3D12Heap* pHeap, U
                                   ppvResource);
 }
 
+VALIDATE_HOOK(hkSurveyCreatePlacedResource, PFN_CreatePlacedResource)
 static HRESULT hkSurveyCreatePlacedResource(ID3D12Device* device, ID3D12Heap* pHeap, UINT64 HeapOffset,
                                       const D3D12_RESOURCE_DESC* pDesc, D3D12_RESOURCE_STATES InitialState,
                                       const D3D12_CLEAR_VALUE* pOptimizedClearValue, REFIID riid, void** ppvResource)
 {
-    const auto result = hkCreatePlacedResource(device,pHeap,HeapOffset,pDesc,InitialState,pOptimizedClearValue,riid,ppvResource);
-    if (SUCCEEDED(result) && ppvResource && *ppvResource) FrameSurvey::ResourceCreated(static_cast<ID3D12Resource*>(*ppvResource),InitialState,pHeap,HeapOffset);
+    const SurveyResourceCreationScope creation;
+    const auto result = hkCreatePlacedResource(device, pHeap, HeapOffset, pDesc, InitialState,
+                                                pOptimizedClearValue, riid, ppvResource);
+    if (creation.Observe() && SUCCEEDED(result) && ppvResource && *ppvResource)
+        FrameSurvey::ResourceCreated(static_cast<ID3D12Resource*>(*ppvResource), InitialState, pHeap, HeapOffset);
     return result;
 }
 
+
+VALIDATE_HOOK(hkSurveyCreateReservedResource, PFN_CreateReservedResource)
+static HRESULT hkSurveyCreateReservedResource(ID3D12Device* device, const D3D12_RESOURCE_DESC* pDesc,
+                                               D3D12_RESOURCE_STATES InitialState,
+                                               const D3D12_CLEAR_VALUE* pOptimizedClearValue,
+                                               REFIID riid, void** ppvResource)
+{
+    const SurveyResourceCreationScope creation;
+    const auto result = o_CreateReservedResource(device, pDesc, InitialState, pOptimizedClearValue, riid, ppvResource);
+    if (creation.Observe() && SUCCEEDED(result) && ppvResource && *ppvResource)
+        FrameSurvey::ResourceCreated(static_cast<ID3D12Resource*>(*ppvResource), InitialState);
+    return result;
+}
+
+VALIDATE_HOOK(hkSurveyCreateCommittedResource1, PFN_CreateCommittedResource1)
+static HRESULT hkSurveyCreateCommittedResource1(ID3D12Device4* device, const D3D12_HEAP_PROPERTIES* pHeapProperties,
+                                                D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC* pDesc,
+                                                D3D12_RESOURCE_STATES InitialResourceState,
+                                                const D3D12_CLEAR_VALUE* pOptimizedClearValue,
+                                                ID3D12ProtectedResourceSession* pProtectedSession,
+                                                REFIID riidResource, void** ppvResource)
+{
+    const SurveyResourceCreationScope creation;
+    const auto result = o_CreateCommittedResource1(device, pHeapProperties, HeapFlags, pDesc, InitialResourceState,
+                                                    pOptimizedClearValue, pProtectedSession, riidResource, ppvResource);
+    if (creation.Observe() && SUCCEEDED(result) && ppvResource && *ppvResource)
+        FrameSurvey::ResourceCreated(static_cast<ID3D12Resource*>(*ppvResource), InitialResourceState);
+    return result;
+}
+
+VALIDATE_HOOK(hkSurveyCreateReservedResource1, PFN_CreateReservedResource1)
+static HRESULT hkSurveyCreateReservedResource1(ID3D12Device4* device, const D3D12_RESOURCE_DESC* pDesc,
+                                               D3D12_RESOURCE_STATES InitialState,
+                                               const D3D12_CLEAR_VALUE* pOptimizedClearValue,
+                                               ID3D12ProtectedResourceSession* pProtectedSession,
+                                               REFIID riid, void** ppvResource)
+{
+    const SurveyResourceCreationScope creation;
+    const auto result = o_CreateReservedResource1(device, pDesc, InitialState, pOptimizedClearValue,
+                                                   pProtectedSession, riid, ppvResource);
+    if (creation.Observe() && SUCCEEDED(result) && ppvResource && *ppvResource)
+        FrameSurvey::ResourceCreated(static_cast<ID3D12Resource*>(*ppvResource), InitialState);
+    return result;
+}
+
+VALIDATE_HOOK(hkSurveyCreateCommittedResource2, PFN_CreateCommittedResource2)
+static HRESULT hkSurveyCreateCommittedResource2(ID3D12Device8* device, const D3D12_HEAP_PROPERTIES* pHeapProperties,
+                                                D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC1* pDesc,
+                                                D3D12_RESOURCE_STATES InitialResourceState,
+                                                const D3D12_CLEAR_VALUE* pOptimizedClearValue,
+                                                ID3D12ProtectedResourceSession* pProtectedSession,
+                                                REFIID riidResource, void** ppvResource)
+{
+    const SurveyResourceCreationScope creation;
+    const auto result = o_CreateCommittedResource2(device, pHeapProperties, HeapFlags, pDesc, InitialResourceState,
+                                                    pOptimizedClearValue, pProtectedSession, riidResource, ppvResource);
+    if (creation.Observe() && SUCCEEDED(result) && ppvResource && *ppvResource)
+        FrameSurvey::ResourceCreated(static_cast<ID3D12Resource*>(*ppvResource), InitialResourceState);
+    return result;
+}
+
+VALIDATE_HOOK(hkSurveyCreatePlacedResource1, PFN_CreatePlacedResource1)
+static HRESULT hkSurveyCreatePlacedResource1(ID3D12Device8* device, ID3D12Heap* pHeap, UINT64 HeapOffset,
+                                             const D3D12_RESOURCE_DESC1* pDesc, D3D12_RESOURCE_STATES InitialState,
+                                             const D3D12_CLEAR_VALUE* pOptimizedClearValue,
+                                             REFIID riid, void** ppvResource)
+{
+    const SurveyResourceCreationScope creation;
+    const auto result = o_CreatePlacedResource1(device, pHeap, HeapOffset, pDesc, InitialState,
+                                                 pOptimizedClearValue, riid, ppvResource);
+    if (creation.Observe() && SUCCEEDED(result) && ppvResource && *ppvResource)
+        FrameSurvey::ResourceCreated(static_cast<ID3D12Resource*>(*ppvResource), InitialState, pHeap, HeapOffset);
+    return result;
+}
+
+VALIDATE_HOOK(hkSurveyCreateCommittedResource3, PFN_CreateCommittedResource3)
+static HRESULT hkSurveyCreateCommittedResource3(ID3D12Device10* device, const D3D12_HEAP_PROPERTIES* pHeapProperties,
+                                                D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC1* pDesc,
+                                                D3D12_BARRIER_LAYOUT InitialLayout,
+                                                const D3D12_CLEAR_VALUE* pOptimizedClearValue,
+                                                ID3D12ProtectedResourceSession* pProtectedSession,
+                                                UINT32 NumCastableFormats, const DXGI_FORMAT* pCastableFormats,
+                                                REFIID riidResource, void** ppvResource)
+{
+    const SurveyResourceCreationScope creation;
+    const auto result = o_CreateCommittedResource3(device, pHeapProperties, HeapFlags, pDesc, InitialLayout,
+                                                    pOptimizedClearValue, pProtectedSession, NumCastableFormats,
+                                                    pCastableFormats, riidResource, ppvResource);
+    if (creation.Observe() && SUCCEEDED(result) && ppvResource && *ppvResource)
+        FrameSurvey::ResourceCreatedWithLayout(static_cast<ID3D12Resource*>(*ppvResource), InitialLayout);
+    return result;
+}
+
+VALIDATE_HOOK(hkSurveyCreatePlacedResource2, PFN_CreatePlacedResource2)
+static HRESULT hkSurveyCreatePlacedResource2(ID3D12Device10* device, ID3D12Heap* pHeap, UINT64 HeapOffset,
+                                             const D3D12_RESOURCE_DESC1* pDesc, D3D12_BARRIER_LAYOUT InitialLayout,
+                                             const D3D12_CLEAR_VALUE* pOptimizedClearValue,
+                                             UINT32 NumCastableFormats, const DXGI_FORMAT* pCastableFormats,
+                                             REFIID riid, void** ppvResource)
+{
+    const SurveyResourceCreationScope creation;
+    const auto result = o_CreatePlacedResource2(device, pHeap, HeapOffset, pDesc, InitialLayout, pOptimizedClearValue,
+                                                 NumCastableFormats, pCastableFormats, riid, ppvResource);
+    if (creation.Observe() && SUCCEEDED(result) && ppvResource && *ppvResource)
+        FrameSurvey::ResourceCreatedWithLayout(static_cast<ID3D12Resource*>(*ppvResource), InitialLayout, pHeap, HeapOffset);
+    return result;
+}
+
+VALIDATE_HOOK(hkSurveyCreateReservedResource2, PFN_CreateReservedResource2)
+static HRESULT hkSurveyCreateReservedResource2(ID3D12Device10* device, const D3D12_RESOURCE_DESC* pDesc,
+                                               D3D12_BARRIER_LAYOUT InitialLayout,
+                                               const D3D12_CLEAR_VALUE* pOptimizedClearValue,
+                                               ID3D12ProtectedResourceSession* pProtectedSession,
+                                               UINT32 NumCastableFormats, const DXGI_FORMAT* pCastableFormats,
+                                               REFIID riid, void** ppvResource)
+{
+    const SurveyResourceCreationScope creation;
+    const auto result = o_CreateReservedResource2(device, pDesc, InitialLayout, pOptimizedClearValue,
+                                                   pProtectedSession, NumCastableFormats, pCastableFormats, riid, ppvResource);
+    if (creation.Observe() && SUCCEEDED(result) && ppvResource && *ppvResource)
+        FrameSurvey::ResourceCreatedWithLayout(static_cast<ID3D12Resource*>(*ppvResource), InitialLayout);
+    return result;
+}
+
+static void ResetSurveyResourceCreationHooks() noexcept
+{
+    o_CreateReservedResource = nullptr;
+    o_CreateCommittedResource1 = nullptr;
+    o_CreateReservedResource1 = nullptr;
+    o_CreateCommittedResource2 = nullptr;
+    o_CreatePlacedResource1 = nullptr;
+    o_CreateCommittedResource3 = nullptr;
+    o_CreatePlacedResource2 = nullptr;
+    o_CreateReservedResource2 = nullptr;
+}
+
+// Read only advertised interfaces. Reject shared addresses before attaching any
+// replacement: different resource-creation ABIs cannot safely share a detour.
+static bool SelectSurveyResourceCreationHooks(ID3D12Device* device, const char*& reason) noexcept
+{
+    ResetSurveyResourceCreationHooks();
+    reason = nullptr;
+    if (!gSurveyDeviceWrappers) return true;
+    if (!device) { reason = "Resource creation device unavailable"; return false; }
+    o_CreateReservedResource = reinterpret_cast<PFN_CreateReservedResource>((*reinterpret_cast<PVOID**>(device))[30]);
+    Microsoft::WRL::ComPtr<ID3D12Device4> device4;
+    Microsoft::WRL::ComPtr<ID3D12Device8> device8;
+    Microsoft::WRL::ComPtr<ID3D12Device10> device10;
+    if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&device4))) && device4)
+    {
+        auto* table = *reinterpret_cast<PVOID**>(device4.Get());
+        o_CreateCommittedResource1 = reinterpret_cast<PFN_CreateCommittedResource1>(table[53]);
+        o_CreateReservedResource1 = reinterpret_cast<PFN_CreateReservedResource1>(table[55]);
+        if (!o_CreateCommittedResource1 || !o_CreateReservedResource1)
+            reason = "Advertised ID3D12Device4 resource creation entry unavailable";
+    }
+    if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&device8))) && device8)
+    {
+        auto* table = *reinterpret_cast<PVOID**>(device8.Get());
+        o_CreateCommittedResource2 = reinterpret_cast<PFN_CreateCommittedResource2>(table[69]);
+        o_CreatePlacedResource1 = reinterpret_cast<PFN_CreatePlacedResource1>(table[70]);
+        if (!o_CreateCommittedResource2 || !o_CreatePlacedResource1)
+            reason = "Advertised ID3D12Device8 resource creation entry unavailable";
+    }
+    if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&device10))) && device10)
+    {
+        auto* table = *reinterpret_cast<PVOID**>(device10.Get());
+        o_CreateCommittedResource3 = reinterpret_cast<PFN_CreateCommittedResource3>(table[76]);
+        o_CreatePlacedResource2 = reinterpret_cast<PFN_CreatePlacedResource2>(table[77]);
+        o_CreateReservedResource2 = reinterpret_cast<PFN_CreateReservedResource2>(table[78]);
+        if (!o_CreateCommittedResource3 || !o_CreatePlacedResource2 || !o_CreateReservedResource2)
+            reason = "Advertised ID3D12Device10 resource creation entry unavailable";
+    }
+    if (!o_CreateReservedResource) reason = "ID3D12Device reserved resource creation entry unavailable";
+    const PVOID entries[] = {
+        reinterpret_cast<PVOID>(o_CreateSampler), reinterpret_cast<PVOID>(o_CreateRootSignature),
+        reinterpret_cast<PVOID>(o_D3D12DeviceRelease), reinterpret_cast<PVOID>(o_SetResidencyPriority),
+        reinterpret_cast<PVOID>(o_CheckFeatureSupport), reinterpret_cast<PVOID>(o_GetResourceAllocationInfo),
+        reinterpret_cast<PVOID>(o_CreateCommittedResource), reinterpret_cast<PVOID>(o_CreatePlacedResource),
+        reinterpret_cast<PVOID>(o_CreateReservedResource), reinterpret_cast<PVOID>(o_CreateCommittedResource1),
+        reinterpret_cast<PVOID>(o_CreateReservedResource1), reinterpret_cast<PVOID>(o_CreateCommittedResource2),
+        reinterpret_cast<PVOID>(o_CreatePlacedResource1), reinterpret_cast<PVOID>(o_CreateCommittedResource3),
+        reinterpret_cast<PVOID>(o_CreatePlacedResource2), reinterpret_cast<PVOID>(o_CreateReservedResource2)};
+    for (size_t i = 0; i < std::size(entries); ++i)
+        for (size_t j = i + 1; j < std::size(entries); ++j)
+            if (entries[i] && entries[i] == entries[j])
+                reason = "Aliased ID3D12Device resource creation detour entries";
+    if (!reason) return true;
+    ResetSurveyResourceCreationHooks();
+    return false;
+}
+
+template <typename PFN> static LONG ChangeSurveyResourceCreationHook(PFN& target, PFN replacement, bool attach)
+{
+    if (!target) return NO_ERROR;
+    return attach ? DetourAttach(&(PVOID&) target, reinterpret_cast<PVOID>(replacement))
+                  : DetourDetach(&(PVOID&) target, reinterpret_cast<PVOID>(replacement));
+}
+
+static LONG ChangeSurveyResourceCreationHooks(bool attach)
+{
+    LONG result = NO_ERROR;
+    if ((result = ChangeSurveyResourceCreationHook(o_CreateReservedResource, hkSurveyCreateReservedResource, attach)) != NO_ERROR)
+        return result;
+    if ((result = ChangeSurveyResourceCreationHook(o_CreateCommittedResource1, hkSurveyCreateCommittedResource1, attach)) != NO_ERROR)
+        return result;
+    if ((result = ChangeSurveyResourceCreationHook(o_CreateReservedResource1, hkSurveyCreateReservedResource1, attach)) != NO_ERROR)
+        return result;
+    if ((result = ChangeSurveyResourceCreationHook(o_CreateCommittedResource2, hkSurveyCreateCommittedResource2, attach)) != NO_ERROR)
+        return result;
+    if ((result = ChangeSurveyResourceCreationHook(o_CreatePlacedResource1, hkSurveyCreatePlacedResource1, attach)) != NO_ERROR)
+        return result;
+    if ((result = ChangeSurveyResourceCreationHook(o_CreateCommittedResource3, hkSurveyCreateCommittedResource3, attach)) != NO_ERROR)
+        return result;
+    if ((result = ChangeSurveyResourceCreationHook(o_CreatePlacedResource2, hkSurveyCreatePlacedResource2, attach)) != NO_ERROR)
+        return result;
+    if ((result = ChangeSurveyResourceCreationHook(o_CreateReservedResource2, hkSurveyCreateReservedResource2, attach)) != NO_ERROR)
+        return result;
+    return result;
+}
 
 VALIDATE_HOOK(hkSetResidencyPriority, PFN_SetResidencyPriority)
 static HRESULT hkSetResidencyPriority(ID3D12Device1* This, UINT NumObjects, ID3D12Pageable* const* ppObjects,
@@ -2326,6 +2585,23 @@ static void HookToDevice(ID3D12Device* InDevice)
         device12_1->Release();
     }
 
+    const char* resourceCreationFailure = nullptr;
+    if (gSurveyDeviceWrappers && !SelectSurveyResourceCreationHooks(realDevice, resourceCreationFailure))
+    {
+        LOG_ERROR("Cannot install ID3D12Device resource metadata hooks: {}", resourceCreationFailure);
+        o_CreateSampler = nullptr;
+        o_CheckFeatureSupport = nullptr;
+        o_CreateRootSignature = nullptr;
+        o_CreateCommittedResource = nullptr;
+        o_CreatePlacedResource = nullptr;
+        o_SetResidencyPriority = nullptr;
+        o_D3D12DeviceRelease = nullptr;
+        o_GetResourceAllocationInfo = nullptr;
+        FrameSurvey::MetadataHookFailed(resourceCreationFailure);
+        if (gNrdBridgeDeviceWrappers) NrdBridge::ReportUnavailable(resourceCreationFailure);
+        return;
+    }
+
     // Apply the detour
     if (o_CreateSampler != nullptr)
     {
@@ -2363,10 +2639,15 @@ static void HookToDevice(ID3D12Device* InDevice)
                 DetourAttach(&(PVOID&) o_GetResourceAllocationInfo, hkGetResourceAllocationInfo);
         }
 
-        auto detourResult = DetourTransactionCommit();
+        auto detourResult = gSurveyDeviceWrappers ? ChangeSurveyResourceCreationHooks(true) : NO_ERROR;
+        if (detourResult == NO_ERROR) detourResult = DetourTransactionCommit();
+        else DetourTransactionAbort();
         if (detourResult != NO_ERROR)
         {
             LOG_ERROR("Failed to detour ID3D12Device methods, error: {:X}", detourResult);
+            ResetSurveyResourceCreationHooks();
+            if (gSurveyDeviceWrappers) FrameSurvey::MetadataHookFailed("ID3D12Device resource creation detour failed");
+            if (gNrdBridgeDeviceWrappers) NrdBridge::ReportUnavailable("ID3D12Device resource creation detour failed");
             o_CreateSampler = nullptr;
             o_CheckFeatureSupport = nullptr;
             o_CreateRootSignature = nullptr;
@@ -2374,6 +2655,8 @@ static void HookToDevice(ID3D12Device* InDevice)
             o_CreatePlacedResource = nullptr;
             o_D3D12DeviceRelease = nullptr;
             o_GetResourceAllocationInfo = nullptr;
+            o_SetResidencyPriority = nullptr;
+            if (gSurveyDeviceWrappers) return;
         }
     }
 
@@ -2420,13 +2703,16 @@ static void UnhookDevice()
     if (o_GetResourceAllocationInfo != nullptr)
         DetourDetach(&(PVOID&) o_GetResourceAllocationInfo, hkGetResourceAllocationInfo);
 
-    auto detourResult = DetourTransactionCommit();
+    auto detourResult = ChangeSurveyResourceCreationHooks(false);
+    if (detourResult == NO_ERROR) detourResult = DetourTransactionCommit();
+    else DetourTransactionAbort();
     if (detourResult != NO_ERROR)
     {
         LOG_ERROR("Failed to unhook ID3D12Device methods, error: {:X}", detourResult);
     }
     else
     {
+        ResetSurveyResourceCreationHooks();
         o_CreateSampler = nullptr;
         o_CheckFeatureSupport = nullptr;
         o_CreateCommittedResource = nullptr;
@@ -2506,13 +2792,16 @@ void D3D12Hooks::Unhook()
     if (o_D3D12DeviceRelease != nullptr)
         DetourDetach(&(PVOID&) o_D3D12DeviceRelease, hkD3D12DeviceRelease);
 
-    auto detourResult = DetourTransactionCommit();
+    auto detourResult = ChangeSurveyResourceCreationHooks(false);
+    if (detourResult == NO_ERROR) detourResult = DetourTransactionCommit();
+    else DetourTransactionAbort();
     if (detourResult != NO_ERROR)
     {
         LOG_ERROR("Failed to unhook ID3D12Device methods, error: {:X}", detourResult);
     }
     else
     {
+        ResetSurveyResourceCreationHooks();
         o_CreateSampler = nullptr;
         o_CheckFeatureSupport = nullptr;
         o_CreateCommittedResource = nullptr;
