@@ -4549,6 +4549,7 @@ HRESULT ResTrack_Dx12::hkSurveyCreatePipelineState(
 void ResTrack_Dx12::hkSurveySetGraphicsRootDescriptorTable(ID3D12GraphicsCommandList* This, UINT RootParameterIndex,
                                                      D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
 {
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::RootTable,gNrdBridgeWrappers && !FrameSurvey::Internal());
     FrameSurvey::Table(This,true,RootParameterIndex,BaseDescriptor);
     hkSetGraphicsRootDescriptorTable(This,RootParameterIndex,BaseDescriptor);
 }
@@ -4556,6 +4557,7 @@ void ResTrack_Dx12::hkSurveySetGraphicsRootDescriptorTable(ID3D12GraphicsCommand
 void ResTrack_Dx12::hkSurveySetComputeRootDescriptorTable(ID3D12GraphicsCommandList* This, UINT RootParameterIndex,
                                                     D3D12_GPU_DESCRIPTOR_HANDLE BaseDescriptor)
 {
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::RootTable,gNrdBridgeWrappers && !FrameSurvey::Internal());
     if (FrameSurvey::Internal()) { o_SetComputeRootDescriptorTable(This,RootParameterIndex,BaseDescriptor); return; }
     FrameSurvey::Table(This,false,RootParameterIndex,BaseDescriptor);
     hkSetComputeRootDescriptorTable(This,RootParameterIndex,BaseDescriptor);
@@ -4573,6 +4575,7 @@ void ResTrack_Dx12::hkSurveyOMSetRenderTargets(ID3D12GraphicsCommandList* This, 
 void ResTrack_Dx12::hkSurveyResourceBarrier(ID3D12GraphicsCommandList* This, UINT NumBarriers,
                                       const D3D12_RESOURCE_BARRIER* pBarriers)
 {
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Barrier,gNrdBridgeWrappers && !FrameSurvey::Internal());
     if (FrameSurvey::Internal()) { o_ResourceBarrier(This,NumBarriers,pBarriers); return; }
     FrameSurvey::Barrier(This,NumBarriers,pBarriers);
     hkResourceBarrier(This,NumBarriers,pBarriers);
@@ -4581,6 +4584,7 @@ void ResTrack_Dx12::hkSurveyResourceBarrier(ID3D12GraphicsCommandList* This, UIN
 void ResTrack_Dx12::hkSurveySetPipelineState(ID3D12GraphicsCommandList* This,
                                        ID3D12PipelineState* pPipelineState)
 {
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::SetPipelineState,gNrdBridgeWrappers && !FrameSurvey::Internal());
     if (FrameSurvey::Internal()) { o_SetPipelineState(This,pPipelineState); return; }
     NrdBridgeTitleCallbacks::Scope forwarding(NrdBridgeTitleCallbacks::Method::Pipeline, gNrdBridgeWrappers);
     if (forwarding.Nested()) { hkSetPipelineState(This,pPipelineState); return; }
@@ -4637,6 +4641,7 @@ void ResTrack_Dx12::hkSurveyEndEvent(ID3D12GraphicsCommandList* This)
 void ResTrack_Dx12::hkSurveyDispatch(ID3D12GraphicsCommandList* This, UINT ThreadGroupCountX, UINT ThreadGroupCountY,
                                UINT ThreadGroupCountZ)
 {
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::Dispatch,gNrdBridgeWrappers && !FrameSurvey::Internal());
     if (FrameSurvey::Internal()) { o_Dispatch(This,ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ); return; }
     NrdBridgeTitleCallbacks::Scope forwarding(NrdBridgeTitleCallbacks::Method::Dispatch, gNrdBridgeWrappers);
     if (forwarding.Nested()) { hkDispatch(This,ThreadGroupCountX,ThreadGroupCountY,ThreadGroupCountZ); return; }
@@ -4678,6 +4683,7 @@ void ResTrack_Dx12::hkSurveyExecuteBundle(ID3D12GraphicsCommandList* This, ID3D1
 void ResTrack_Dx12::hkSurveyExecuteCommandLists(ID3D12CommandQueue* This, UINT NumCommandLists,
                                           ID3D12CommandList* const* ppCommandLists)
 {
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::ExecuteCommandLists,gNrdBridgeWrappers && !FrameSurvey::Internal());
     std::scoped_lock lock(FrameSurvey::SubmissionMutex());
     FrameSurvey::Submit(This,NumCommandLists,ppCommandLists);
     hkExecuteCommandLists(This,NumCommandLists,ppCommandLists);
@@ -4689,6 +4695,7 @@ void ResTrack_Dx12::hkSurveyCopyDescriptors(ID3D12Device* This, UINT NumDestDesc
                                       D3D12_CPU_DESCRIPTOR_HANDLE* pSrcDescriptorRangeStarts,
                                       UINT* pSrcDescriptorRangeSizes, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
 {
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::CopyDescriptors,gNrdBridgeWrappers && !FrameSurvey::Internal());
     FrameSurvey::CopyDescriptors(This,NumDestDescriptorRanges,pDestDescriptorRangeStarts,pDestDescriptorRangeSizes,NumSrcDescriptorRanges,pSrcDescriptorRangeStarts,pSrcDescriptorRangeSizes,DescriptorHeapsType);
     hkCopyDescriptors(This,NumDestDescriptorRanges,pDestDescriptorRangeStarts,pDestDescriptorRangeSizes,NumSrcDescriptorRanges,pSrcDescriptorRangeStarts,pSrcDescriptorRangeSizes,DescriptorHeapsType);
 }
@@ -4698,6 +4705,7 @@ void ResTrack_Dx12::hkSurveyCopyDescriptorsSimple(ID3D12Device* This, UINT NumDe
                                             D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart,
                                             D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
 {
+    NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::CopyDescriptors,gNrdBridgeWrappers && !FrameSurvey::Internal());
     FrameSurvey::CopyDescriptors(This,1,&DestDescriptorRangeStart,&NumDescriptors,1,&SrcDescriptorRangeStart,&NumDescriptors,DescriptorHeapsType);
     hkCopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType);
 }

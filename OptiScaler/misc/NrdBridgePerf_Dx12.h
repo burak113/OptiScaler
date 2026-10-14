@@ -8,7 +8,19 @@
 
 namespace NrdBridgePerf
 {
-enum class Hook : size_t { ConstantBufferView, ShaderResourceView, UnorderedAccessView, Release, Count };
+enum class Hook : size_t
+{
+    ConstantBufferView, ShaderResourceView, UnorderedAccessView, Release,
+    CopyDescriptors, SetPipelineState, RootSignature, RootTable, RootConstants, RootView,
+    Dispatch, ExecuteIndirect, Barrier, ExecuteCommandLists, Present, Count
+};
+inline const char* HookName(Hook hook) noexcept
+{
+    constexpr std::array<const char*,size_t(Hook::Count)> names {
+        "CBV","SRV","UAV","Release","CopyDescriptors","SetPipelineState","RootSignature","RootTable",
+        "RootConstants","RootView","Dispatch","ExecuteIndirect","Barrier","ExecuteCommandLists","Present"};
+    return names[size_t(hook)];
+}
 enum class WaitKind : size_t { Metadata, LifetimeGate, Tracking, Coordinator, Count };
 struct Sample
 {
@@ -34,6 +46,18 @@ struct Report
     {
         double total = 0.0;
         for (size_t i=0;i<size_t(WaitKind::Count);++i) total += AverageWaitUs(hook,WaitKind(i));
+        return total;
+    }
+    double SumMsPerFrame(Hook hook, bool waitOnly = false) const noexcept
+    {
+        const auto& sample = hooks[size_t(hook)]; uint64_t ticks = sample.ticks;
+        if (waitOnly) { ticks = 0; for (const auto wait : sample.waitTicks) ticks += wait; }
+        return frames && frequency ? double(ticks)*1000.0/double(frequency)/double(frames) : 0.0;
+    }
+    double SumMsPerFrame(bool waitOnly = false) const noexcept
+    {
+        double total = 0.0;
+        for (size_t i=0;i<size_t(Hook::Count);++i) total += SumMsPerFrame(Hook(i),waitOnly);
         return total;
     }
 };

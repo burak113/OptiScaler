@@ -69,6 +69,9 @@ struct Service
     std::vector<std::weak_ptr<HistoryDomain>> historyDomains;
     uint64_t nextDomain = 0;
     Status status;
+    RRSettings rrSettings {};
+    RRSettingsState rrSettingsState {};
+    bool cameraProjectedDepthDelta = false;
     ID3D12Resource* taggedMotion = nullptr;
     ID3D12GraphicsCommandList* pendingList = nullptr;
     uint64_t frame = 0, resetSerial = 1, cancellationSerial = 1, appliedReset = 0, lastLog = 0, activeFrame = 0;
@@ -82,6 +85,7 @@ std::atomic<bool> gInstalled {false}, gRuntime {false};
 std::atomic<int> gStartupSelection {-1};
 std::string gUnavailableReason;
 std::atomic<DebugMode> gDebug {DebugMode::Off};
+std::atomic<bool> gNativeDebug {false};
 #ifdef FSRD_NRD_BRIDGE_TEST
 void (*gBeforeConversionLockForTesting)() = nullptr;
 void (*gBeforeBindingWindowPublishForTesting)() = nullptr;
@@ -126,6 +130,32 @@ void RequireRestoreFlags()
     auto* config = Config::Instance();
     if (!config->RestoreComputeSignature.value_or_default()) config->RestoreComputeSignature.set_volatile_value(true);
     if (!config->ExtendedStateRestore.value_or_default()) config->ExtendedStateRestore.set_volatile_value(true);
+}
+template<class Configuration> RRSettings ReadStartupSettings(const Configuration& config)
+{
+    RRSettings settings;
+    if constexpr (requires { config.FfxDenoiserNrdBridgeUseCustomRR; config.FfxDenoiserUseAmdDefaults;
+        config.FfxDenoiserCrossBlNormStr; config.FfxDenoiserStabilityBias; config.FfxDenoiserMaxRadiance;
+        config.FfxDenoiserRadianceClip; config.FfxDenoiserGaussKernRelax; config.FfxDenoiserDisocThreshold; })
+        if (config.FfxDenoiserNrdBridgeUseCustomRR.value_or_default() && !config.FfxDenoiserUseAmdDefaults.value_or_default())
+        {
+            settings.overrideMask = 0x3fu;
+            settings.values = {config.FfxDenoiserCrossBlNormStr.value_or_default(), config.FfxDenoiserStabilityBias.value_or_default(),
+                config.FfxDenoiserMaxRadiance.value_or_default(), config.FfxDenoiserRadianceClip.value_or_default(),
+                config.FfxDenoiserGaussKernRelax.value_or_default(), config.FfxDenoiserDisocThreshold.value_or_default(),0.0f,0.0f};
+        }
+    if constexpr (requires { config.FfxDenoiserNrdBridgeNativeDebugView; config.FfxDenoiserNrdBridgeNativeDebugViewport; })
+    {
+        settings.nativeDebugView = config.FfxDenoiserNrdBridgeNativeDebugView.value_or_default();
+        settings.nativeDebugViewport = uint32_t(config.FfxDenoiserNrdBridgeNativeDebugViewport.value_or_default());
+    }
+    return settings;
+}
+template<class Configuration> bool ReadStartupCameraDepth(const Configuration& config)
+{
+    if constexpr (requires { config.FfxDenoiserNrdBridgeMotionDepthMode; })
+        return config.FfxDenoiserNrdBridgeMotionDepthMode.value_or_default();
+    return false;
 }
 Role PipelineRole(const Service& owner, ID3D12PipelineState* pipeline)
 {
@@ -236,6 +266,7 @@ std::string ResourceSummary(const Resources& resources)
 void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* cmd, uint64_t frame)
 {
     Resources resources; uint64_t generation = 0, serial = 0; bool reset = false, discard = false;
+    RRSettings rrSettings; bool cameraProjectedDepthDelta = false;
     {
         std::scoped_lock lock(gMutex);
         const auto found = owner->lists.find(cmd);
@@ -263,6 +294,7 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
             found->second.chain.Get().normals != resources.normals ||
             found->second.chain.Get().viewDepth != resources.viewDepth) return;
         discard = owner->discardRequested;
+        rrSettings = owner->rrSettings; cameraProjectedDepthDelta = owner->cameraProjectedDepthDelta;
     }
     if (!FrameSurvey::MetadataHealthy()) { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
     if (!D3D12Hooks::CanRestoreRootSignature(cmd)) { Failure(owner,"Title compute state cannot be restored after Recon"); return; }
@@ -347,7 +379,9 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         }
         if (reset) { history->conversion.ResetHistory(); history->rr.ResetHistory(); }
         const auto snapshot = StreamlineHooks::getSLConstantsSnapshot();
-        succeeded = history->rr.PrepareFrame(snapshot,reset,parameters,error);
+        succeeded = history->rr.Configure(rrSettings,error);
+        if (succeeded) succeeded = history->rr.PrepareFrame(snapshot,reset,parameters,error);
+        parameters.cameraProjectedDepthDelta = cameraProjectedDepthDelta;
         if (succeeded && parameters.reset) history->conversion.ResetHistory();
         if (succeeded) succeeded = history->conversion.Initialize(owner->device.Get(),resources.width,resources.height,error);
         if (succeeded) succeeded = ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(),cmd,ownership,{},std::move(submission));
@@ -371,6 +405,7 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         list.converted = true; list.motionReady = false; list.recording = recording; list.history = history;
         list.generation = generation; list.resetSerial = serial;
         list.parameters = parameters; list.inputs = converted; list.debug = gDebug.load(std::memory_order_relaxed);
+        owner->rrSettingsState = history->rr.GetSettingsState();
         owner->pendingList = cmd; owner->appliedReset = serial;
         logConventions = !owner->conventionsLogged && !conventions.empty();
         if (logConventions) owner->conventionsLogged = true;
@@ -453,11 +488,15 @@ bool Initialize(ID3D12Device* device) noexcept
                 if (gService && NrdBridgeDevice::Same(gService->device.Get(), native.Get())) return true;
                 auto owner = std::shared_ptr<Service>(new Service,[](Service* service) { FrameSurvey::ScopedInternal internal; delete service; }); owner->device = native;
                 owner->status.installed = true; owner->status.runtimeEnabled = Config::Instance()->FfxDenoiserNrdBridgeEnabled.value_or_default();
+                owner->rrSettings = ReadStartupSettings(*Config::Instance());
+                owner->cameraProjectedDepthDelta = ReadStartupCameraDepth(*Config::Instance());
+                owner->rrSettingsState.requested = owner->rrSettings;
                 owner->status.phase = owner->status.runtimeEnabled ? "Discovering" : "Waiting for NRD";
                 owner->status.reason = owner->status.runtimeEnabled ? "Waiting for the Recon to Consumer chain" : "Runtime toggle is off";
                 owner->window = owner->status.runtimeEnabled;
                 previous = std::move(gService); gService = std::move(owner);
                 gUnavailableReason.clear();
+                gNativeDebug.store(gService->rrSettings.nativeDebugView >= 0,std::memory_order_release);
                 gRuntime.store(gService->status.runtimeEnabled,std::memory_order_release); gInstalled.store(true,std::memory_order_release);
             }
             // Publish observers under lifecycle serialization, outside the state lock.
@@ -470,8 +509,15 @@ bool Initialize(ID3D12Device* device) noexcept
             try
             {
                 using H = NrdBridgePerf::Hook;
-                LOG_INFO("[NRD_BRIDGE] perf frames={} SL_frame={}..{} window=100_gameplay_Consumer_intervals scope=external_views_and_protected_releases_including_native wait_scope=metadata+physical_borrow+tracking+coordinator CBV_avg_us={:.3f} CBV_wait_us={:.3f} CBV_metadata_wait_us={:.3f} CBV_calls={} SRV_avg_us={:.3f} SRV_wait_us={:.3f} SRV_metadata_wait_us={:.3f} SRV_calls={} UAV_avg_us={:.3f} UAV_wait_us={:.3f} UAV_metadata_wait_us={:.3f} UAV_calls={} Release_avg_us={:.3f} Release_wait_us={:.3f} Release_metadata_wait_us={:.3f} Release_borrow_wait_us={:.3f} Release_tracking_wait_us={:.3f} Release_coordinator_wait_us={:.3f} Release_calls={}",
-                    perf.frames,perf.firstFrame,perf.lastFrame,perf.AverageUs(H::ConstantBufferView),perf.AverageWaitUs(H::ConstantBufferView),
+                std::array<H,size_t(H::Count)> ranked {};
+                for (size_t i=0;i<ranked.size();++i) ranked[i] = H(i);
+                std::partial_sort(ranked.begin(),ranked.begin()+3,ranked.end(),[&](H a,H b) { return perf.SumMsPerFrame(a)>perf.SumMsPerFrame(b); });
+                const auto top = std::format("{}:{:.3f},{}:{:.3f},{}:{:.3f}",
+                    NrdBridgePerf::HookName(ranked[0]),perf.SumMsPerFrame(ranked[0]),
+                    NrdBridgePerf::HookName(ranked[1]),perf.SumMsPerFrame(ranked[1]),
+                    NrdBridgePerf::HookName(ranked[2]),perf.SumMsPerFrame(ranked[2]));
+                LOG_INFO("[NRD_BRIDGE] perf frames={} SL_frame={}..{} window=100_gameplay_Consumer_intervals scope=all_external_hook_wall_times_including_native cpu_hooks_sum_ms_per_frame={:.3f} lock_wait_sum_ms_per_frame={:.3f} top_sum_ms_per_frame={} wait_scope=metadata+physical_borrow+tracking+coordinator CBV_avg_us={:.3f} CBV_wait_us={:.3f} CBV_metadata_wait_us={:.3f} CBV_calls={} SRV_avg_us={:.3f} SRV_wait_us={:.3f} SRV_metadata_wait_us={:.3f} SRV_calls={} UAV_avg_us={:.3f} UAV_wait_us={:.3f} UAV_metadata_wait_us={:.3f} UAV_calls={} Release_avg_us={:.3f} Release_wait_us={:.3f} Release_metadata_wait_us={:.3f} Release_borrow_wait_us={:.3f} Release_tracking_wait_us={:.3f} Release_coordinator_wait_us={:.3f} Release_calls={}",
+                    perf.frames,perf.firstFrame,perf.lastFrame,perf.SumMsPerFrame(),perf.SumMsPerFrame(true),top,perf.AverageUs(H::ConstantBufferView),perf.AverageWaitUs(H::ConstantBufferView),
                     perf.AverageWaitUs(H::ConstantBufferView,NrdBridgePerf::WaitKind::Metadata),perf.hooks[size_t(H::ConstantBufferView)].calls,
                     perf.AverageUs(H::ShaderResourceView),perf.AverageWaitUs(H::ShaderResourceView),
                     perf.AverageWaitUs(H::ShaderResourceView,NrdBridgePerf::WaitKind::Metadata),perf.hooks[size_t(H::ShaderResourceView)].calls,
@@ -495,6 +541,7 @@ void Shutdown() noexcept
         {
             std::scoped_lock injection(gInjectionMutex);
             gInstalled.store(false,std::memory_order_release); gRuntime.store(false,std::memory_order_release);
+            gNativeDebug.store(false,std::memory_order_release);
             FrameSurvey::SetPipelineObserver(nullptr); FrameSurvey::SetReleaseObserver(nullptr); PublishBindingWindow();
             { std::scoped_lock lock(gMutex); previous = std::move(gService); }
         }
@@ -798,6 +845,10 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         if (ticket.bindingFailed)
         { Failure(owner,"Consumer native b6 binding changed before output admission; waiting for rediscovery"); return; }
         if (ticket.cancelled) return; // Preserve the newer reset/discovery status and epoch.
+        {
+            std::scoped_lock lock(gMutex);
+            if (gService == owner) owner->rrSettingsState = staged.history->rr.GetSettingsState();
+        }
         if (!succeeded) { Failure(owner,error.empty() ? "NRD output dispatch failed" : error); return; }
         if (ticket.log) LOG_INFO("[NRD_BRIDGE] active frames={} resets={} SL_frame={} bridge_frame={} render={}x{} debug={}",
             ticket.frames,ticket.resets,staged.parameters.streamlineFrame,staged.parameters.frameIndex,
@@ -961,6 +1012,7 @@ bool RuntimeEnabled() noexcept { return gRuntime.load(std::memory_order_relaxed)
 void SetDebugMode(DebugMode mode) noexcept
 {
     if (mode != DebugMode::Off && mode != DebugMode::RawSignals && mode != DebugMode::RRInputs) return;
+    if (mode != DebugMode::Off && NativeDebugEnabled()) return;
     if (gDebug.exchange(mode,std::memory_order_acq_rel) != mode) RequestHistoryReset();
 }
 DebugMode GetDebugMode() noexcept { return gDebug.load(std::memory_order_relaxed); }
@@ -975,6 +1027,66 @@ void RequestHistoryReset() noexcept
         { gService->status.phase = "Waiting for NRD"; gService->status.reason = "RR history reset requested; waiting for the next Recon"; }
     } catch (...) {}
 }
+bool ApplyRRSettings(const RRSettings& settings, bool cameraProjectedDepthDelta, std::string& error) noexcept
+{
+    try
+    {
+        if (!ValidateRRSettings(settings,error)) return false;
+        std::scoped_lock injection(gInjectionMutex);
+        std::shared_ptr<Service> owner; std::shared_ptr<HistoryDomain> history;
+        RRSettingsState before;
+        {
+            std::scoped_lock lock(gMutex); owner = gService;
+            if (!owner) { error = "NRD bridge is not installed on the selected title device"; return false; }
+            history = owner->history; before = owner->rrSettingsState;
+        }
+        RRSettingsState after; bool configured = true;
+        if (history)
+        {
+            configured = history->rr.Configure(settings,error);
+            after = history->rr.GetSettingsState();
+        }
+        else after.requested = settings;
+        {
+            std::scoped_lock lock(gMutex);
+            if (gService != owner) { error = "NRD bridge device changed while applying settings"; return false; }
+            bool requestedScalarChanged = before.requested.overrideMask != settings.overrideMask;
+            for (size_t i=0;i<6;++i)
+                if ((settings.overrideMask & (1u<<i)) && before.requested.values[i] != settings.values[i]) requestedScalarChanged = true;
+            const bool scalarChanged = before.ready && after.ready
+                ? !std::equal(before.effective.begin(),before.effective.begin()+6,after.effective.begin()) : requestedScalarChanged;
+            const bool motionChanged = owner->cameraProjectedDepthDelta != cameraProjectedDepthDelta;
+            const bool debugChanged = owner->rrSettings.nativeDebugView != settings.nativeDebugView ||
+                (settings.nativeDebugView >= 0 && owner->rrSettings.nativeDebugViewport != settings.nativeDebugViewport);
+            const bool rawDebugCleared = settings.nativeDebugView >= 0 && gDebug.exchange(DebugMode::Off,std::memory_order_acq_rel) != DebugMode::Off;
+            owner->rrSettings = settings; owner->cameraProjectedDepthDelta = cameraProjectedDepthDelta;
+            owner->rrSettingsState = after; owner->rrSettingsState.requested = settings;
+            gNativeDebug.store(settings.nativeDebugView >= 0,std::memory_order_release);
+            if (scalarChanged || motionChanged || debugChanged || rawDebugCleared || !configured)
+            {
+                DropPending(*owner);
+                if (owner->status.runtimeEnabled)
+                { owner->status.phase = "Waiting for NRD"; owner->status.reason = "RR settings changed; waiting for the next Recon"; }
+            }
+        }
+        if (!configured) { Failure(owner,error.empty() ? "RR settings could not be applied" : error); return false; }
+        error.clear(); return true;
+    }
+    catch (...) { error = "Exception while applying NRD RR settings"; return false; }
+}
+RRSettingsState GetRRSettingsState() noexcept
+{
+    try { std::scoped_lock lock(gMutex); if (gService) return gService->rrSettingsState; }
+    catch (...) {}
+    return {};
+}
+bool CameraProjectedDepthEnabled() noexcept
+{
+    try { std::scoped_lock lock(gMutex); return gService && gService->cameraProjectedDepthDelta; }
+    catch (...) { return false; }
+}
+bool NativeDebugEnabled() noexcept
+{ return gInstalled.load(std::memory_order_relaxed) && gNativeDebug.load(std::memory_order_relaxed); }
 #ifdef FSRD_NRD_BRIDGE_TEST
 void RegisterPipelineRoleForTesting(ID3D12PipelineState* pipeline, Role role) noexcept
 {

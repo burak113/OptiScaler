@@ -1,5 +1,6 @@
 #pragma once
 #include "FSRDNrdBridge_Types.h"
+#include "FSRDNrdBridgeRR_Dx12.h"
 
 namespace NrdBridge
 {
@@ -31,6 +32,10 @@ bool RuntimeEnabled() noexcept;
 void SetDebugMode(DebugMode) noexcept;
 DebugMode GetDebugMode() noexcept;
 void RequestHistoryReset() noexcept;
+bool ApplyRRSettings(const RRSettings&, bool cameraProjectedDepthDelta, std::string& error) noexcept;
+RRSettingsState GetRRSettingsState() noexcept;
+bool CameraProjectedDepthEnabled() noexcept;
+bool NativeDebugEnabled() noexcept;
 #ifdef FSRD_NRD_BRIDGE_TEST
 void RegisterPipelineRoleForTesting(ID3D12PipelineState*, Role) noexcept;
 #endif
