@@ -722,6 +722,63 @@ void deepCases(Host& h,Title& title,J& result,std::vector<std::unique_ptr<Title>
  keepTitles.push_back(std::move(titleA));keepTitles.push_back(std::move(titleB));QueueAudit::Detach();
  deep["synthetic_last_frame"]=frame-1;deep["provider_recordings_added"]=FfxApiProxy::dispatches-14;result["deep_native"]=deep;
 }
+void depthEquals(const Readback& read,float expected) {
+ need(read.footprint.Footprint.Format==DXGI_FORMAT_R32_FLOAT,"actual signed provider receives an R32_FLOAT linear-depth guide");
+ void* mapped=nullptr;hr(read.resource->Map(0,nullptr,&mapped));bool exact=true;
+ for(UINT y=0;y<read.height;++y) {
+  const auto* values=reinterpret_cast<const float*>(static_cast<const uint8_t*>(mapped)+size_t(y)*read.footprint.Footprint.RowPitch);
+  for(UINT x=0;x<read.width;++x)exact &= std::bit_cast<UINT>(values[x])==std::bit_cast<UINT>(expected);
+ }
+ read.resource->Unmap(0,nullptr);need(exact,"actual GPU current linear-depth guide matches every pixel of this frame's native VIEWZ source");
+}
+void guidePingPongCase(Host& h,Title& title,J& result) {
+ constexpr UINT bridgeFrames=8;const auto createsBefore=FfxApiProxy::creates,dispatchesBefore=FfxApiProxy::dispatches;
+ const auto framesBefore=NrdBridge::GetStatus().framesBridged;
+ std::array<ComPtr<ID3D12Resource>,2> depths{title.tex[3],{}};
+ const auto desc=depths[0]->GetDesc();D3D12_HEAP_PROPERTIES heap{};heap.Type=D3D12_HEAP_TYPE_DEFAULT;
+ hr(h.device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&desc,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,nullptr,IID_PPV_ARGS(&depths[1])));
+ titleTextures.insert(depths[1].Get());FrameSurvey::ResourceCreated(depths[1].Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+ need(depths[0].Get()!=depths[1].Get(),"guide ping-pong uses two genuinely distinct live native VIEWZ resources");
+ const auto stable=title.tex;title.frame(1);need(title.sentinel(title.finish()),"guide ping-pong discovery frame executes untouched original title NRD");
+ need(NrdBridge::gService->cache.Valid()&&FfxApiProxy::dispatches==dispatchesBefore,"cold guide scenario validates its full chain before any signed RR dispatch");
+ const auto generation=NrdBridge::gService->cache.Generation();std::shared_ptr<NrdBridge::HistoryDomain> history;
+ ProviderExports::Record previous{};J frames=J::array();float previousDepth=0;
+ for(UINT i=0;i<bridgeFrames;++i) {
+  const UINT index=(i+1)%2,frame=i+2;const float value=index?7.f:5.f,delta=i?value-previousDepth:0.f;
+  title.tex[3]=depths[index];title.views();title.writeDepth(value);
+  for(UINT slot=0;slot<9;++slot)if(slot!=3) {
+   const UINT texture=std::array<UINT,9>{0,1,2,3,4,5,6,7,8}[slot];
+   need(title.tex[texture].Get()==stable[texture].Get(),"only VIEWZ identity rotates; all signal, normal, motion and output anchors remain exact");
+  }
+  const auto dispatchBefore=FfxApiProxy::dispatches,restoreBefore=restores,bridgedBefore=NrdBridge::GetStatus().framesBridged;
+  title.frame(frame);
+  need(FfxApiProxy::dispatches==dispatchBefore+1&&restores==restoreBefore+3,"every rotated-guide frame records one actual signed RR and all three production title restores");
+  need(NrdBridge::GetStatus().active&&NrdBridge::GetStatus().framesBridged==bridgedBefore+1,"every frame after discovery becomes Active immediately despite a changed current VIEWZ pointer");
+  need(NrdBridge::gService->cache.Generation()==generation&&NrdBridge::gService->cache.Get().viewDepth==depths[index].Get(),"validated current guide publication preserves the same signal-profile generation");
+  const auto record=FfxApiProxy::records.back();const bool reset=(record.flags&FFX_DENOISER_DISPATCH_RESET)!=0;
+  if(!i) {history=NrdBridge::gService->history;need(reset&&bool(history),"first rotated-guide RR frame owns one real RESET history domain");}
+  else {
+   need(!reset,"submitted guide ping-pong preserves RR history without further RESET flags");
+   need(record.context==previous.context&&record.spec==previous.spec&&record.diff==previous.diff&&record.motion==previous.motion&&record.depth!=previous.depth,"guide rotation reuses the same signed context/spec/diff/motion and alternates causal current-depth endpoints");
+   need(NrdBridge::gService->history==history,"guide pointer rotation retains the exact same production history domain");
+  }
+  need(FfxApiProxy::creates==createsBefore+1,"no rotated-guide frame recreates its physical signed AMD provider context");
+  const auto motion=motionCapture(title,record);
+  const auto linearDepth=title.readback(static_cast<ID3D12Resource*>(record.depth),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+  const auto outputs=title.capture();h.submit();const auto stats=title.rrChecks(title.validate(outputs));
+  need(NrdBridge::gService->lists.at(h.list.Get()).parameters.depthSign==-1.f,"synthetic right-handed camera requires negative signed linear depth");
+  depthEquals(linearDepth,-value);motionEquals(motion,delta);
+  need(NrdBridge::GetStatus().active,"submitted rotated-guide frame stays Active after GPU execution");
+  h.reset();need(NrdBridge::GetStatus().active&&NrdBridge::gService->history==history,"successful list Reset retains the submitted Active history domain");
+  frames.push_back({{"frame",frame},{"native_depth_identity",index?"B":"A"},{"native_viewz",value},{"gpu_current_linear_depth",-value},{"gpu_motion_depth_delta",delta},{"provider_reset",reset},{"active",true},{"statistics",stats}});
+  previous=record;previousDepth=value;
+ }
+ need(FfxApiProxy::dispatches==dispatchesBefore+bridgeFrames&&FfxApiProxy::creates==createsBefore+1&&NrdBridge::GetStatus().framesBridged==framesBefore+bridgeFrames,"all eight guide ping-pong frames commit without discovery gaps or provider recreation");
+ result["guide_pingpong"]={{"submitted_frames",bridgeFrames},{"initial_discovery_frames",1},{"provider_dispatches",bridgeFrames},{"physical_provider_creates",1},
+  {"same_history_domain",true},{"same_signal_profile_generation",true},{"reset_frames",1},{"active_every_frame",true},{"current_depth_and_causal_motion_every_pixel",true},
+  {"title_root_heaps_pso_rgb_alpha_checks_unchanged",true},{"frames",frames}};
+ titleTextures.erase(depths[1].Get());
+}
 void failureCase(Host& h,Title& title,J& result) {
  title.frame(1);need(title.sentinel(title.finish()),"fault scenario starts with a fully validated native discovery frame");
  title.frame(2);title.rrChecks(title.finish());title.frame(3);title.rrChecks(title.finish()); // Warm both native depth/SDK ping-pong histories.
@@ -843,8 +900,8 @@ void loadProvider(const char* path) {
  need(FfxApiProxy::createFunction && FfxApiProxy::destroyFunction && FfxApiProxy::queryFunction && FfxApiProxy::configureFunction && FfxApiProxy::dispatchFunction,"all actual AMD exports resolved");
 }
 int main(int argc,char** argv) try {
- need(argc==3 || (argc==4 && (std::string(argv[3])=="--startup-off" || std::string(argv[3])=="--submission-failure" || std::string(argv[3])=="--cbv-lifetime")),"scratch folder, signed AMD DLL and optional fresh-process scenario arguments");
- const bool startupOff=argc==4 && std::string(argv[3])=="--startup-off",submissionFailure=argc==4 && std::string(argv[3])=="--submission-failure",cbvLifetime=argc==4 && std::string(argv[3])=="--cbv-lifetime"; if(startupOff) NrdBridge::ConfigureStartup(false);
+ need(argc==3 || (argc==4 && (std::string(argv[3])=="--startup-off" || std::string(argv[3])=="--submission-failure" || std::string(argv[3])=="--cbv-lifetime" || std::string(argv[3])=="--guide-pingpong")),"scratch folder, signed AMD DLL and optional fresh-process scenario arguments");
+ const bool startupOff=argc==4 && std::string(argv[3])=="--startup-off",submissionFailure=argc==4 && std::string(argv[3])=="--submission-failure",cbvLifetime=argc==4 && std::string(argv[3])=="--cbv-lifetime",guidePingPong=argc==4 && std::string(argv[3])=="--guide-pingpong"; if(startupOff) NrdBridge::ConfigureStartup(false);
  g_dllPath=std::filesystem::path(argv[1])/"fixture.dll"; Host h;
  requestedList=h.list.Get(); J result; result["adapter"]=h.adapter;
  need(!NrdBridge::Initialize(h.device.Get()),"startup OFF allocates no coordinator");
@@ -868,6 +925,12 @@ int main(int argc,char** argv) try {
  FrameSurvey::BeginCreationTracking(false); need(FrameSurvey::Install(h.device.Get(),h.list.Get(),false),"real metadata-only survey installed");
  need(NrdBridge::Initialize(h.device.Get()),"production coordinator initialized"); AttachRoots(h.list.Get()); Wiring::Attach(h.list.Get());
  Title title(h,128,128,true,cbvLifetime);
+ if(guidePingPong) {
+  guidePingPongCase(h,title,result);NrdBridge::Shutdown();RecordedComputeLease::Poll();
+  need(FfxApiProxy::destroys==FfxApiProxy::creates&&FfxApiProxy::contextToType.empty(),"guide ping-pong shutdown retires its single signed context after every real fence");
+  Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();const auto debug=h.debugCounts();result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["native_checks"]=checks;
+  std::ofstream(std::filesystem::path(argv[1])/"guide-pingpong-result.json")<<result.dump(2)<<'\n';std::cout<<"PASS guide_pingpong checks="<<checks<<'\n';return 0;
+ }
  if(cbvLifetime) {
   cbvReleaseCase(h,title,result);NrdBridge::Shutdown();RecordedComputeLease::Poll();need(FfxApiProxy::destroys==FfxApiProxy::creates && FfxApiProxy::contextToType.empty(),"healthy CBV recovery retires every actual SDK context after fences");
   Wiring::Detach();DetachRoots();FrameSurvey::Shutdown();const auto debug=h.debugCounts();result["debug_errors"]=debug[0];result["debug_warnings"]=debug[1];result["native_checks"]=checks;
