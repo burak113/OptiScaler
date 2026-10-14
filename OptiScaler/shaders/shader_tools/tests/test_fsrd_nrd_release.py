@@ -64,9 +64,10 @@ def entries():
 
 def run():
     d3d = (ROOT/'OptiScaler/hooks/D3D12_Hooks.cpp').read_text()
-    res = (ROOT/'OptiScaler/resource_tracking/ResTrack_dx12.cpp').read_text()
+    resource_source = Path(os.environ.get('FSRD_RELEASE_RESOURCE_SOURCE',ROOT/'OptiScaler/resource_tracking/ResTrack_dx12.cpp'))
+    res = resource_source.read_text()
     survey = (ROOT/'OptiScaler/resource_tracking/FrameSurvey_Dx12.cpp').read_text()
-    res_header = (ROOT/'OptiScaler/resource_tracking/ResTrack_dx12.h').read_text()
+    res_header = Path(os.environ.get('FSRD_RELEASE_RESOURCE_HEADER',ROOT/'OptiScaler/resource_tracking/ResTrack_dx12.h')).read_text()
     teardown = function(res, 'void ResTrack_Dx12::ReleaseDeviceHooks()')
     detach_begin = teardown.index('    if (o_Release != nullptr &&')
     detach_end = teardown.index('    if (o_PsoRelease != nullptr)', detach_begin)
@@ -90,6 +91,7 @@ def run():
 #include <mutex>
 #include <unordered_map>
 #include <unordered_set>
+#include <map>
 #include <stdexcept>
 #include <iostream>
 #include <atomic>
@@ -155,11 +157,12 @@ std::mutex _trackedResourcesMutex,gRRResourceStateMutex,gRRTrackedResourceMutex,
 std::unordered_map<ID3D12Resource*,std::vector<TrackedResourceSlot>> _trackedResources;
 std::unordered_set<ID3D12Resource*> gRRResourceStates,gRRResourceActivity,gRRTrackedResources,gRRResourcePsoProducers;
 void CleanupRRPsoReferences(void*) { ++psoCleaned; }
+void CleanupRRResourcePsoProducersLocked(ID3D12Resource* resource) {gRRResourcePsoProducers.erase(resource);}
 // Registry scaffolding is an adapter; the full production DeactivateAndClear body follows.
 struct HeapInfo {
  static constexpr size_t DESCRIPTOR_LOCK_STRIPE_COUNT=2;
  std::array<std::shared_mutex,DESCRIPTOR_LOCK_STRIPE_COUNT> descriptorLocks;
- ID3D12DescriptorHeap* heap=nullptr;std::atomic<bool> active=true;std::atomic<uint64_t> version=19;
+ ID3D12DescriptorHeap* heap=nullptr;SIZE_T cpuStart=0,cpuEnd=0,gpuStart=0,gpuEnd=0;std::atomic<bool> active=true;std::atomic<uint64_t> version=19;
  struct Info {ID3D12Resource* buffer=nullptr;uint64_t lastUsedFrame=0;};std::shared_ptr<Info[]> info;
  UINT numDescriptors=1;
  __HEAP_DEACTIVATE__
@@ -167,6 +170,11 @@ struct HeapInfo {
 std::shared_mutex _heapRegistryMutex;
 std::vector<std::shared_ptr<HeapInfo>> fgHeaps;
 std::atomic<unsigned> gHeapGeneration=0;
+std::unordered_map<void*,size_t> gHeapSlotsByAddress;
+std::map<SIZE_T,size_t> gHeapCpuRanges,gHeapGpuRanges;
+std::vector<size_t> gFreeHeapSlots;
+__HEAP_REGISTRY_HELPERS__
+void seedHeapRegistry(const std::shared_ptr<HeapInfo>& info){if(!info->cpuStart){info->cpuStart=SIZE_T(info->heap);info->cpuEnd=info->cpuStart+32;}std::unique_lock lock(_heapRegistryMutex);__REGISTER_HEAP_BODY__}
 struct Probe : IUnknown {
  std::atomic<ULONG> refs=1;
  std::atomic<bool> destroyed=false;
@@ -320,10 +328,10 @@ std::shared_ptr<HeapInfo> seedHeap(Probe& object,bool tracked=true){
  if(!tracked)return{};
  auto info=std::make_shared<HeapInfo>();info->heap=heap;info->info=std::make_shared<HeapInfo::Info[]>(1);info->info[0].buffer=reinterpret_cast<ID3D12Resource*>(&object);
  _trackedResources[info->info[0].buffer]={{std::weak_ptr<HeapSlot>{},0,info->version.load()}};
- {std::unique_lock lock(_heapRegistryMutex);fgHeaps.push_back(info);}return info;
+ seedHeapRegistry(info);return info;
 }
 bool heapMetadataLive(void* address){std::scoped_lock lock(heapMetadataMutex);return heapMetadata.contains(address);}
-void clearHeaps(){std::unique_lock lock(_heapRegistryMutex);fgHeaps.clear();lock.unlock();std::scoped_lock metadata(heapMetadataMutex);heapMetadata.clear();_trackedResources.clear();heapFinalGap={};}
+void clearHeaps(){std::unique_lock lock(_heapRegistryMutex);fgHeaps.clear();gHeapSlotsByAddress.clear();gHeapCpuRanges.clear();gHeapGpuRanges.clear();gFreeHeapSlots.clear();lock.unlock();std::scoped_lock metadata(heapMetadataMutex);heapMetadata.clear();_trackedResources.clear();heapFinalGap={};}
 void heapReleaseRace(bool tracked,bool shared=false,bool viaResource=false){
  gHeapReleaseSharesResource=shared;
  Probe object;auto info=seedHeap(object,tracked);auto* address=reinterpret_cast<ID3D12DescriptorHeap*>(&object);
@@ -400,14 +408,14 @@ void nativeSharedTests(){
   if(heapFirst){EnsureHeapReleaseHook(heap.Get());ResTrack_Dx12::HookResource(device.Get());}else{ResTrack_Dx12::HookResource(device.Get());EnsureHeapReleaseHook(heap.Get());}
   need(nativeAttaches==1 && gHeapReleaseSharesResource && bool(o_HeapRelease) && bool(o_Release),"actual production installers attach one native detour for both creation orders");need(gHeapOwnsReleaseHook==heapFirst && gResourceReleaseSharesHeap==heapFirst,"native detour ownership/trampoline follows actual first installer");
   need(HeapReleaseObserverCovers(heap.Get()),"both native installer orders prove final Release coverage before borrowed heap admission");publishHeap(heap.Get(),true);
-  auto info=std::make_shared<HeapInfo>();info->heap=heap.Get();info->info=std::make_shared<HeapInfo::Info[]>(1);info->info[0].buffer=resource.Get();fgHeaps.push_back(info);_trackedResources[resource.Get()]={{std::weak_ptr<HeapSlot>{},0,info->version.load()}};nativeWatchedHeap=heap.Get();nativeWatchedNotifications=0;heapMetadata.insert(heap.Get());const auto generation=gHeapGeneration.load();
+  auto info=std::make_shared<HeapInfo>();info->heap=heap.Get();info->info=std::make_shared<HeapInfo::Info[]>(1);info->info[0].buffer=resource.Get();seedHeapRegistry(info);_trackedResources[resource.Get()]={{std::weak_ptr<HeapSlot>{},0,info->version.load()}};nativeWatchedHeap=heap.Get();nativeWatchedNotifications=0;heapMetadata.insert(heap.Get());const auto generation=gHeapGeneration.load();
   heap.Reset();need(!info->active && !info->info && !heapMetadataLive(nativeWatchedHeap) && !_trackedResources.contains(resource.Get()),"real detoured native heap final Release deactivates FG/bridge registries before destruction");need(nativeWatchedNotifications==1 && gHeapGeneration==generation+1,"real shared entry observes heap once without a double-detour chain or recursion");resource.Reset();nativeWatchedHeap=nullptr;
   need(DetourTransactionBegin()==NO_ERROR && DetourUpdateThread(GetCurrentThread())==NO_ERROR,"native teardown transaction starts");
   __RESOURCE_DETACH__
   need(DetourTransactionCommit()==NO_ERROR,"actual resource teardown detaches only its owned native entry");
   __RESOURCE_RESET__
   need(!o_Release && !gSharedResourceReleaseObserver && !gHeapReleaseSharesResource && !gResourceReleaseSharesHeap,"actual resource teardown clears shared observer routing");
-  if(heapFirst){need(gHeapOwnsReleaseHook && o_HeapRelease && gHeapReleaseEntry,"heap-first teardown keeps its legacy heap-owned trampoline alive");ComPtr<ID3D12DescriptorHeap> late;hr(device->CreateDescriptorHeap(&hd,IID_PPV_ARGS(&late)));auto lateInfo=std::make_shared<HeapInfo>();lateInfo->heap=late.Get();lateInfo->info=std::make_shared<HeapInfo::Info[]>(1);fgHeaps.push_back(lateInfo);nativeWatchedHeap=late.Get();nativeWatchedNotifications=0;heapMetadata.insert(late.Get());late.Reset();need(!lateInfo->active && !lateInfo->info && nativeWatchedNotifications==1 && !heapMetadataLive(nativeWatchedHeap),"remaining legacy heap owner still deactivates a real native heap after resource teardown");nativeWatchedHeap=nullptr;need(DetourTransactionBegin()==NO_ERROR && DetourUpdateThread(GetCurrentThread())==NO_ERROR,"final legacy owner detach starts");need(DetourDetach(reinterpret_cast<PVOID*>(&o_HeapRelease),reinterpret_cast<PVOID>(hkHeapRelease))==NO_ERROR,"legacy heap owner detaches exactly once");need(DetourTransactionCommit()==NO_ERROR,"legacy heap owner detach commits");}
+  if(heapFirst){need(gHeapOwnsReleaseHook && o_HeapRelease && gHeapReleaseEntry,"heap-first teardown keeps its legacy heap-owned trampoline alive");ComPtr<ID3D12DescriptorHeap> late;hr(device->CreateDescriptorHeap(&hd,IID_PPV_ARGS(&late)));auto lateInfo=std::make_shared<HeapInfo>();lateInfo->heap=late.Get();lateInfo->info=std::make_shared<HeapInfo::Info[]>(1);seedHeapRegistry(lateInfo);nativeWatchedHeap=late.Get();nativeWatchedNotifications=0;heapMetadata.insert(late.Get());late.Reset();need(!lateInfo->active && !lateInfo->info && nativeWatchedNotifications==1 && !heapMetadataLive(nativeWatchedHeap),"remaining legacy heap owner still deactivates a real native heap after resource teardown");nativeWatchedHeap=nullptr;need(DetourTransactionBegin()==NO_ERROR && DetourUpdateThread(GetCurrentThread())==NO_ERROR,"final legacy owner detach starts");need(DetourDetach(reinterpret_cast<PVOID*>(&o_HeapRelease),reinterpret_cast<PVOID>(hkHeapRelease))==NO_ERROR,"legacy heap owner detaches exactly once");need(DetourTransactionCommit()==NO_ERROR,"legacy heap owner detach commits");}
   else need(!o_HeapRelease && !gHeapReleaseEntry,"resource-first teardown clears retired heap alias before freed trampoline can be reused");
   o_Release=&releaseResource;o_HeapRelease=&releaseHeap;gHeapReleaseSharesResource=gResourceReleaseSharesHeap=gHeapOwnsReleaseHook=false;gResourceReleaseEntry=gHeapReleaseEntry=nullptr;gSharedResourceReleaseObserver=&hkRelease;clearHeaps();
  }
@@ -474,6 +482,11 @@ int main(int argc,char** argv) try {
         'HEAP_RELEASE':function(res,'static ULONG STDMETHODCALLTYPE hkHeapRelease(ID3D12DescriptorHeap* This)\n{'),
         'HEAP_DEACTIVATE':function(res_header,'bool DeactivateAndClear()'),
         'HEAP_SHARED_CLEANUP':function(res,'static void DeactivateSharedHeap(void* address)'),
+        'HEAP_REGISTRY_HELPERS':'\n'.join(function(res,signature) for signature in (
+            'static bool HeapRangeAvailableLocked(', 'static std::shared_ptr<HeapInfo> FindIndexedHeapRangeLocked(',
+            'static bool RegisterTrackedHeapLocked(', 'static std::shared_ptr<HeapInfo> FindTrackedHeapByAddress(',
+            'static bool DeactivateTrackedHeap(')) if 'static bool RegisterTrackedHeapLocked(' in res else '',
+        'REGISTER_HEAP_BODY':'need(RegisterTrackedHeapLocked(info),"fixture registers indexed live heap");' if 'static bool RegisterTrackedHeapLocked(' in res else 'fgHeaps.push_back(info);',
         'HEAP_INSTALL':instrument_installer('static void EnsureHeapReleaseHook(ID3D12DescriptorHeap* heap)'),
         'HEAP_COVERAGE':function(res,'static bool HeapReleaseObserverCovers(ID3D12DescriptorHeap* heap)'),
         'RESOURCE_INSTALL':instrument_installer('void ResTrack_Dx12::HookResource(ID3D12Device* InDevice)'),
@@ -487,6 +500,8 @@ int main(int argc,char** argv) try {
     out.mkdir(parents=True, exist_ok=True)
     source, exe = out/'nrd_release.cpp', out/'nrd_release.exe'
     source.write_text(cpp)
+    if os.environ.get('FSRD_RELEASE_GENERATE_ONLY') == '1':
+        return source
     compile_cpp(source,exe,('d3d12.lib','dxgi.lib','dxguid.lib',str(ROOT/'OptiScaler/library/detours/detours.lib')),(ROOT/'OptiScaler',))
     command = [str(exe)] + (['native-shared'] if '--native-shared' in sys.argv else [])
     result = subprocess.run(command,check=True,capture_output=True,text=True,timeout=30)

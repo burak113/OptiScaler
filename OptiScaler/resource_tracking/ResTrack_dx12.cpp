@@ -17,6 +17,8 @@
 
 #include <algorithm>
 #include <future>
+#include <map>
+#include <unordered_set>
 
 #include <magic_enum_utility.hpp>
 #include <include/d3dx/d3dx12.h>
@@ -223,6 +225,10 @@ static ankerl::unordered_dense::map<ID3D12GraphicsCommandList*,
 
 static std::shared_mutex _heapRegistryMutex;
 static std::vector<std::shared_ptr<HeapInfo>> fgHeaps;
+static std::unordered_map<void*, size_t> gHeapSlotsByAddress;
+static std::map<SIZE_T, size_t> gHeapCpuRanges;
+static std::map<SIZE_T, size_t> gHeapGpuRanges;
+static std::vector<size_t> gFreeHeapSlots;
 
 static std::set<void*> _notFoundCmdLists;
 static std::unordered_map<FG_ResourceType, void*> _resCmdList[BUFFER_COUNT];
@@ -243,6 +249,92 @@ static std::atomic<unsigned> gHeapGeneration { 1 };
 
 static thread_local HeapCacheTLS cacheGR;
 static thread_local HeapCacheTLS cacheCR;
+
+// Heap registry indexes are changed only under _heapRegistryMutex. Live native
+// descriptor ranges do not overlap; ambiguous ranges are rejected explicitly.
+static bool HeapRangeAvailableLocked(const std::map<SIZE_T, size_t>& ranges,
+                                     SIZE_T start, SIZE_T end, bool gpu)
+{
+    if (!start || end <= start) return false;
+    const auto next = ranges.lower_bound(start);
+    if (next != ranges.end() && next->first < end) return false;
+    if (next != ranges.begin())
+    {
+        const auto& previous = fgHeaps[std::prev(next)->second];
+        if (previous && (gpu ? previous->gpuEnd : previous->cpuEnd) > start) return false;
+    }
+    return true;
+}
+
+static std::shared_ptr<HeapInfo> FindIndexedHeapRangeLocked(const std::map<SIZE_T, size_t>& ranges,
+                                                           SIZE_T handle, bool gpu)
+{
+    auto next = ranges.upper_bound(handle);
+    if (next == ranges.begin()) return nullptr;
+    const auto& heap = fgHeaps[std::prev(next)->second];
+    if (!heap || !heap->active.load(std::memory_order_acquire) ||
+        handle >= (gpu ? heap->gpuEnd : heap->cpuEnd)) return nullptr;
+    return heap;
+}
+
+static bool RegisterTrackedHeapLocked(const std::shared_ptr<HeapInfo>& heap)
+{
+    if (gHeapSlotsByAddress.contains(heap->heap) ||
+        !HeapRangeAvailableLocked(gHeapCpuRanges,heap->cpuStart,heap->cpuEnd,false) ||
+        (heap->gpuStart && !HeapRangeAvailableLocked(gHeapGpuRanges,heap->gpuStart,heap->gpuEnd,true)))
+    {
+        LOG_ERROR("Tracked descriptor heap address/range overlaps a live heap; rejecting ambiguous heap");
+        if (gNrdBridgeWrappers) FrameSurvey::MetadataHookFailed("Tracked descriptor heap ranges are ambiguous");
+        return false;
+    }
+    const size_t slot = gFreeHeapSlots.empty() ? fgHeaps.size() : gFreeHeapSlots.back();
+    bool addressAdded = false, cpuAdded = false, gpuAdded = false;
+    try
+    {
+        if (slot == fgHeaps.size() && fgHeaps.capacity() == fgHeaps.size())
+            fgHeaps.reserve(fgHeaps.size()+65536);
+        // Final release can recycle its slot without an allocation.
+        if (gFreeHeapSlots.capacity() < fgHeaps.capacity()) gFreeHeapSlots.reserve(fgHeaps.capacity());
+        addressAdded = gHeapSlotsByAddress.emplace(heap->heap,slot).second;
+        cpuAdded = gHeapCpuRanges.emplace(heap->cpuStart,slot).second;
+        if (heap->gpuStart) gpuAdded = gHeapGpuRanges.emplace(heap->gpuStart,slot).second;
+        if (slot == fgHeaps.size()) fgHeaps.push_back(heap);
+        else { fgHeaps[slot] = heap; gFreeHeapSlots.pop_back(); }
+        gHeapGeneration.fetch_add(1,std::memory_order_release);
+        return true;
+    }
+    catch (...)
+    {
+        if (addressAdded) gHeapSlotsByAddress.erase(heap->heap);
+        if (cpuAdded) gHeapCpuRanges.erase(heap->cpuStart);
+        if (gpuAdded) gHeapGpuRanges.erase(heap->gpuStart);
+        if (gNrdBridgeWrappers) FrameSurvey::MetadataHookFailed("Tracked descriptor heap index allocation failed");
+        return false;
+    }
+}
+
+static std::shared_ptr<HeapInfo> FindTrackedHeapByAddress(void* address)
+{
+    std::shared_lock lock(_heapRegistryMutex);
+    const auto found = gHeapSlotsByAddress.find(address);
+    if (found == gHeapSlotsByAddress.end()) return nullptr;
+    const auto& heap = fgHeaps[found->second];
+    return heap && heap->active.load(std::memory_order_acquire) ? heap : nullptr;
+}
+
+static bool DeactivateTrackedHeap(const std::shared_ptr<HeapInfo>& heap)
+{
+    std::unique_lock lock(_heapRegistryMutex);
+    const auto found = gHeapSlotsByAddress.find(heap->heap);
+    if (found == gHeapSlotsByAddress.end() || fgHeaps[found->second] != heap || !heap->DeactivateAndClear()) return false;
+    const auto slot = found->second;
+    gHeapSlotsByAddress.erase(found);
+    gHeapCpuRanges.erase(heap->cpuStart);
+    if (heap->gpuStart) gHeapGpuRanges.erase(heap->gpuStart);
+    gFreeHeapSlots.push_back(slot);
+    gHeapGeneration.fetch_add(1,std::memory_order_release);
+    return true;
+}
 
 static std::atomic<bool> gRRResourceInspectorEnabled { false };
 static std::atomic<int> gRRResourceCandidateIndex { 0 };
@@ -330,6 +422,70 @@ static std::unordered_map<ID3D12GraphicsCommandList*, RRCommandListPsoState> gRR
 static std::unordered_map<ID3D12Resource*,
                           std::unordered_map<ID3D12PipelineState*, RRPsoProducerStats>>
     gRRResourcePsoProducers;
+static std::unordered_map<ID3D12PipelineState*, std::unordered_set<ID3D12Resource*>> gRRPsoProducerResources;
+static std::unordered_map<ID3D12PipelineState*, std::unordered_set<ID3D12GraphicsCommandList*>> gRRPsoCommandLists;
+
+static std::array<ID3D12PipelineState*, 3> RRPsoPointers(const RRCommandListPsoState& state)
+{
+    return {state.currentPso,state.lastGraphicsPso,state.lastComputePso};
+}
+
+// Caller holds gRRPsoMutex. These sets contain only actual participants.
+static void RemoveRRPsoListMembershipLocked(ID3D12PipelineState* pso, ID3D12GraphicsCommandList* list)
+{
+    if (!pso) return;
+    const auto found = gRRPsoCommandLists.find(pso);
+    if (found == gRRPsoCommandLists.end()) return;
+    found->second.erase(list);
+    if (found->second.empty()) gRRPsoCommandLists.erase(found);
+}
+
+static void UpdateRRPsoListReferencesLocked(ID3D12GraphicsCommandList* list,
+                                           const std::array<ID3D12PipelineState*,3>& previous,
+                                           RRCommandListPsoState& state) noexcept
+{
+    const auto current = RRPsoPointers(state);
+    try
+    {
+        for (size_t index = 0; index < current.size(); ++index)
+            if (current[index] && std::find(current.begin(),current.begin()+index,current[index]) == current.begin()+index &&
+                std::find(previous.begin(),previous.end(),current[index]) == previous.end())
+                gRRPsoCommandLists[current[index]].insert(list);
+    }
+    catch (...)
+    {
+        // A failed optional inspector index must not leave an unindexed raw PSO.
+        for (auto* pso : previous) RemoveRRPsoListMembershipLocked(pso,list);
+        for (auto* pso : current) RemoveRRPsoListMembershipLocked(pso,list);
+        state.currentPso = state.lastGraphicsPso = state.lastComputePso = nullptr;
+        if (gNrdBridgeWrappers) FrameSurvey::MetadataHookFailed("RR PSO participant index allocation failed");
+        return;
+    }
+    for (auto* pso : previous)
+        if (std::find(current.begin(),current.end(),pso) == current.end()) RemoveRRPsoListMembershipLocked(pso,list);
+}
+
+static void EraseRRCommandListPsoStateLocked(ID3D12GraphicsCommandList* list)
+{
+    const auto found = gRRCommandListPsoStates.find(list);
+    if (found == gRRCommandListPsoStates.end()) return;
+    for (auto* pso : RRPsoPointers(found->second)) RemoveRRPsoListMembershipLocked(pso,list);
+    gRRCommandListPsoStates.erase(found);
+}
+
+static void CleanupRRResourcePsoProducersLocked(ID3D12Resource* resource)
+{
+    const auto found = gRRResourcePsoProducers.find(resource);
+    if (found == gRRResourcePsoProducers.end()) return;
+    for (const auto& [pso,stats] : found->second)
+    {
+        const auto reverse = gRRPsoProducerResources.find(pso);
+        if (reverse == gRRPsoProducerResources.end()) continue;
+        reverse->second.erase(resource);
+        if (reverse->second.empty()) gRRPsoProducerResources.erase(reverse);
+    }
+    gRRResourcePsoProducers.erase(found);
+}
 
 static uint64_t HashRRBytes(const void* data, size_t size, uint64_t hash = 1469598103934665603ull)
 {
@@ -377,16 +533,28 @@ static void CleanupRRPsoReferences(void* object)
 {
     auto* pipelineState = static_cast<ID3D12PipelineState*>(object);
     std::scoped_lock psoLock(gRRPsoMutex);
-    if (gRRPsoMetadata.erase(pipelineState) == 0)
+    EraseRRCommandListPsoStateLocked(static_cast<ID3D12GraphicsCommandList*>(object));
+    if (gRRPsoMetadata.erase(pipelineState) == 0 &&
+        !gRRPsoProducerResources.contains(pipelineState) && !gRRPsoCommandLists.contains(pipelineState))
         return;
 
-    for (auto& [resource, producers] : gRRResourcePsoProducers)
-        producers.erase(pipelineState);
+    if (const auto found = gRRPsoProducerResources.find(pipelineState); found != gRRPsoProducerResources.end())
+    {
+        for (auto* resource : found->second)
+            if (const auto producer = gRRResourcePsoProducers.find(resource); producer != gRRResourcePsoProducers.end())
+                producer->second.erase(pipelineState);
+        gRRPsoProducerResources.erase(found);
+    }
 
     // Recorded bindings would re-register the dying pointer through later draws/dispatches on
     // these command lists, resurrecting metadata for an address the driver may recycle.
-    for (auto& [commandList, state] : gRRCommandListPsoStates)
+    const auto lists = gRRPsoCommandLists.find(pipelineState);
+    if (lists == gRRPsoCommandLists.end()) return;
+    for (auto* commandList : lists->second)
     {
+        const auto found = gRRCommandListPsoStates.find(commandList);
+        if (found == gRRCommandListPsoStates.end()) continue;
+        auto& state = found->second;
         if (state.currentPso == pipelineState)
             state.currentPso = nullptr;
         if (state.lastGraphicsPso == pipelineState)
@@ -394,6 +562,7 @@ static void CleanupRRPsoReferences(void* object)
         if (state.lastComputePso == pipelineState)
             state.lastComputePso = nullptr;
     }
+    gRRPsoCommandLists.erase(lists);
 }
 
 // Metadata is keyed by raw pointer, so an entry must die with its object:
@@ -464,6 +633,12 @@ static void RecordRRPsoProducer(ID3D12Resource* resource, ID3D12PipelineState* p
     ++stats.hits;
     stats.lastFrame = gRRResourceInspectorFrame.load(std::memory_order_relaxed);
     stats.ambiguous = stats.ambiguous || ambiguous;
+    try { gRRPsoProducerResources[pipelineState].insert(resource); }
+    catch (...)
+    {
+        gRRResourcePsoProducers[resource].erase(pipelineState);
+        if (gNrdBridgeWrappers) FrameSurvey::MetadataHookFailed("RR producer participant index allocation failed");
+    }
 }
 
 // Called only while gRRPsoMutex is held.
@@ -492,7 +667,9 @@ static void RecordRRGraphicsOutputs(ID3D12GraphicsCommandList* commandList)
     for (ID3D12Resource* resource : state.renderTargets)
         RecordRRPsoProducer(resource, state.currentPso, false);
 
+    const auto previous = RRPsoPointers(state);
     state.lastGraphicsPso = state.currentPso;
+    UpdateRRPsoListReferencesLocked(commandList,previous,state);
     state.lastGraphicsGeneration = state.renderTargetGeneration;
     state.lastGraphicsFrame = frame;
 }
@@ -810,6 +987,8 @@ void ResTrack_Dx12::SetRRResourceInspectorEnabled(bool enabled)
             std::scoped_lock psoLock(gRRPsoMutex);
             gRRCommandListPsoStates.clear();
             gRRResourcePsoProducers.clear();
+            gRRPsoCommandLists.clear();
+            gRRPsoProducerResources.clear();
             // PSO metadata is only collected while the inspector is on, so it
             // is cleared here as well instead of surviving until global
             // teardown; ids restart on the next enable, matching teardown.
@@ -1415,16 +1594,13 @@ void ResTrack_Dx12::ResourceBarrier(ID3D12GraphicsCommandList* InCommandList, ID
 SIZE_T ResTrack_Dx12::GetGPUHandle(ID3D12Device* This, SIZE_T cpuHandle, D3D12_DESCRIPTOR_HEAP_TYPE type)
 {
     std::shared_lock lock(_heapRegistryMutex);
-    for (const auto& heap : fgHeaps)
+    const auto heap = FindIndexedHeapRangeLocked(gHeapCpuRanges,cpuHandle,false);
+    if (heap && heap->gpuStart != 0)
     {
-        if (heap != nullptr && heap->active.load(std::memory_order_acquire) && heap->cpuStart <= cpuHandle &&
-            heap->cpuEnd > cpuHandle && heap->gpuStart != 0)
-        {
-            auto incSize = This->GetDescriptorHandleIncrementSize(type);
-            auto addr = cpuHandle - heap->cpuStart;
-            auto index = addr / incSize;
-            return heap->gpuStart + (index * incSize);
-        }
+        auto incSize = This->GetDescriptorHandleIncrementSize(type);
+        auto addr = cpuHandle - heap->cpuStart;
+        auto index = addr / incSize;
+        return heap->gpuStart + (index * incSize);
     }
 
     return NULL;
@@ -1433,16 +1609,13 @@ SIZE_T ResTrack_Dx12::GetGPUHandle(ID3D12Device* This, SIZE_T cpuHandle, D3D12_D
 SIZE_T ResTrack_Dx12::GetCPUHandle(ID3D12Device* This, SIZE_T gpuHandle, D3D12_DESCRIPTOR_HEAP_TYPE type)
 {
     std::shared_lock lock(_heapRegistryMutex);
-    for (const auto& heap : fgHeaps)
+    const auto heap = FindIndexedHeapRangeLocked(gHeapGpuRanges,gpuHandle,true);
+    if (heap && heap->cpuStart != 0)
     {
-        if (heap != nullptr && heap->active.load(std::memory_order_acquire) && heap->gpuStart <= gpuHandle &&
-            heap->gpuEnd > gpuHandle && heap->cpuStart != 0)
-        {
-            auto incSize = This->GetDescriptorHandleIncrementSize(type);
-            auto addr = gpuHandle - heap->gpuStart;
-            auto index = addr / incSize;
-            return heap->cpuStart + (index * incSize);
-        }
+        auto incSize = This->GetDescriptorHandleIncrementSize(type);
+        auto addr = gpuHandle - heap->gpuStart;
+        auto index = addr / incSize;
+        return heap->cpuStart + (index * incSize);
     }
 
     return NULL;
@@ -1462,16 +1635,13 @@ static std::shared_ptr<HeapInfo> FindHeapByCpuHandle(SIZE_T cpuHandle, HeapCache
 
     std::shared_lock lock(_heapRegistryMutex);
     const auto registryGen = gHeapGeneration.load(std::memory_order_acquire);
-    for (const auto& heap : fgHeaps)
+    const auto heap = FindIndexedHeapRangeLocked(gHeapCpuRanges,cpuHandle,false);
+    if (heap)
     {
-        if (heap != nullptr && heap->active.load(std::memory_order_acquire) && heap->cpuStart <= cpuHandle &&
-            cpuHandle < heap->cpuEnd)
-        {
-            heapCache.genSeen = registryGen;
-            heapCache.heap = heap;
-            heapCache.heapVersion = heap->version.load(std::memory_order_relaxed);
-            return heap;
-        }
+        heapCache.genSeen = registryGen;
+        heapCache.heap = heap;
+        heapCache.heapVersion = heap->version.load(std::memory_order_relaxed);
+        return heap;
     }
 
     heapCache.genSeen = registryGen;
@@ -1497,16 +1667,13 @@ static std::shared_ptr<HeapInfo> FindHeapByGpuHandle(SIZE_T gpuHandle, HeapCache
 
     std::shared_lock lock(_heapRegistryMutex);
     const auto registryGen = gHeapGeneration.load(std::memory_order_acquire);
-    for (const auto& heap : fgHeaps)
+    const auto heap = FindIndexedHeapRangeLocked(gHeapGpuRanges,gpuHandle,true);
+    if (heap)
     {
-        if (heap != nullptr && heap->active.load(std::memory_order_acquire) && heap->gpuStart <= gpuHandle &&
-            gpuHandle < heap->gpuEnd)
-        {
-            heapCache.genSeen = registryGen;
-            heapCache.heap = heap;
-            heapCache.heapVersion = heap->version.load(std::memory_order_relaxed);
-            return heap;
-        }
+        heapCache.genSeen = registryGen;
+        heapCache.heap = heap;
+        heapCache.heapVersion = heap->version.load(std::memory_order_relaxed);
+        return heap;
     }
 
     heapCache.genSeen = registryGen;
@@ -1938,18 +2105,7 @@ static ULONG STDMETHODCALLTYPE hkHeapRelease(ID3D12DescriptorHeap* This)
     if (State::Instance().isShuttingDown)
         return o_HeapRelease(This);
 
-    std::shared_ptr<HeapInfo> heapInfo;
-    {
-        std::shared_lock lock(_heapRegistryMutex);
-        for (const auto& heap : fgHeaps)
-        {
-            if (heap != nullptr && heap->heap == This && heap->active.load(std::memory_order_acquire))
-            {
-                heapInfo = heap;
-                break;
-            }
-        }
-    }
+    const auto heapInfo = FindTrackedHeapByAddress(This);
 
     if (heapInfo == nullptr)
     {
@@ -1962,17 +2118,10 @@ static ULONG STDMETHODCALLTYPE hkHeapRelease(ID3D12DescriptorHeap* This)
     This->AddRef();
     if (o_HeapRelease(This) <= 1)
     {
-        bool deactivated = false;
-        {
-            std::unique_lock lock(_heapRegistryMutex);
-            deactivated = heapInfo->DeactivateAndClear();
-        }
-
-        if (deactivated)
+        if (DeactivateTrackedHeap(heapInfo))
         {
             if (gSurveyWrappers) FrameSurvey::Released(This);
             LOG_INFO("Heap released: {:X}", (size_t) This);
-            gHeapGeneration.fetch_add(1, std::memory_order_release);
         }
     }
 
@@ -2048,17 +2197,7 @@ static bool HeapReleaseObserverCovers(ID3D12DescriptorHeap* heap)
 static void DeactivateSharedHeap(void* address)
 {
     if (!gHeapReleaseSharesResource.load(std::memory_order_acquire)) return;
-    std::shared_ptr<HeapInfo> found;
-    {
-        std::shared_lock lock(_heapRegistryMutex);
-        for (const auto& heap : fgHeaps)
-            if (heap && heap->heap == address && heap->active.load(std::memory_order_acquire))
-            { found = heap; break; }
-    }
-    if (!found) return;
-    bool deactivated = false;
-    { std::unique_lock lock(_heapRegistryMutex); deactivated = found->DeactivateAndClear(); }
-    if (deactivated) gHeapGeneration.fetch_add(1, std::memory_order_release);
+    if (const auto found = FindTrackedHeapByAddress(address)) DeactivateTrackedHeap(found);
 }
 
 HRESULT ResTrack_Dx12::hkCreateDescriptorHeap(ID3D12Device* This, D3D12_DESCRIPTOR_HEAP_DESC* pDescriptorHeapDesc,
@@ -2087,38 +2226,8 @@ HRESULT ResTrack_Dx12::hkCreateDescriptorHeap(ID3D12Device* This, D3D12_DESCRIPT
 
         LOG_TRACE("Heap: {:X}, Heap type: {}, Cpu: {}-{}, Gpu: {}-{}, Desc count: {}", (size_t) *ppvHeap, type,
                   cpuStart, cpuEnd, gpuStart, gpuEnd, numDescriptors);
-        {
-            std::unique_lock lock(_heapRegistryMutex);
-            size_t count = fgHeaps.size();
-            bool foundEmpty = false;
-            for (size_t i = 0; i < count; i++)
-            {
-                if (fgHeaps[i] != nullptr && !fgHeaps[i]->active.load(std::memory_order_acquire))
-                {
-
-                    fgHeaps[i] = std::make_shared<HeapInfo>(heap, cpuStart, cpuEnd, gpuStart, gpuEnd, numDescriptors,
-                                                            increment, type);
-
-                    gHeapGeneration.fetch_add(1, std::memory_order_release);
-                    foundEmpty = true;
-                    LOG_DEBUG("Reusing empty heap slot: {}", i);
-                    break;
-                }
-            }
-
-            if (!foundEmpty)
-            {
-                // Reallocate vector if needed
-                if (fgHeaps.capacity() == fgHeaps.size())
-                    fgHeaps.reserve(fgHeaps.size() + 65536);
-
-                fgHeaps.push_back(std::make_shared<HeapInfo>(heap, cpuStart, cpuEnd, gpuStart, gpuEnd, numDescriptors,
-                                                             increment, type));
-
-                gHeapGeneration.fetch_add(1, std::memory_order_release);
-                LOG_DEBUG("Adding new heap slot: {}", fgHeaps.size() - 1);
-            }
-        }
+        const auto trackedHeap = std::make_shared<HeapInfo>(heap,cpuStart,cpuEnd,gpuStart,gpuEnd,numDescriptors,increment,type);
+        { std::unique_lock lock(_heapRegistryMutex); RegisterTrackedHeapLocked(trackedHeap); }
     }
     else
     {
@@ -2165,7 +2274,7 @@ ULONG ResTrack_Dx12::hkRelease(ID3D12Resource* This)
             }
             {
                 std::scoped_lock psoLock(gRRPsoMutex);
-                gRRResourcePsoProducers.erase(This);
+                CleanupRRResourcePsoProducersLocked(This);
             }
 
             // A runtime may use the same IUnknown::Release implementation for resources and
@@ -2371,7 +2480,9 @@ void ResTrack_Dx12::hkSetPipelineState(ID3D12GraphicsCommandList* This,
     {
         std::scoped_lock psoLock(gRRPsoMutex);
         RRCommandListPsoState& state = gRRCommandListPsoStates[This];
+        const auto previous = RRPsoPointers(state);
         state.currentPso = pPipelineState;
+        UpdateRRPsoListReferencesLocked(This,previous,state);
         if (pPipelineState != nullptr)
             EnsureRRPsoMetadata(pPipelineState);
     }
@@ -2391,8 +2502,10 @@ HRESULT ResTrack_Dx12::hkReset(ID3D12GraphicsCommandList* This,
     {
         std::scoped_lock psoLock(gRRPsoMutex);
         RRCommandListPsoState& state = gRRCommandListPsoStates[This];
+        const auto previous = RRPsoPointers(state);
         state = {};
         state.currentPso = pInitialState;
+        UpdateRRPsoListReferencesLocked(This,previous,state);
         if (pInitialState != nullptr)
             EnsureRRPsoMetadata(pInitialState);
     }
@@ -3313,7 +3426,7 @@ HRESULT ResTrack_Dx12::hkClose(ID3D12GraphicsCommandList* This)
         }
         {
             std::scoped_lock psoLock(gRRPsoMutex);
-            gRRCommandListPsoStates.erase(This);
+            EraseRRCommandListPsoStateLocked(This);
         }
     }
 
@@ -3335,7 +3448,9 @@ void ResTrack_Dx12::hkDispatch(ID3D12GraphicsCommandList* This, UINT ThreadGroup
             RRPsoMetadata& metadata = EnsureRRPsoMetadata(state.currentPso);
             if (metadata.kind == RRPsoKind::Unknown || metadata.kind == RRPsoKind::Stream)
                 metadata.kind = RRPsoKind::Compute;
+            const auto previous = RRPsoPointers(state);
             state.lastComputePso = state.currentPso;
+            UpdateRRPsoListReferencesLocked(This,previous,state);
             ++state.dispatchesSinceBarrier;
         }
     }
@@ -3883,6 +3998,7 @@ void ResTrack_Dx12::HookDevice(ID3D12Device* device)
             fgHeaps.reserve(65536);
             initializeTracking = true;
         }
+        if (gFreeHeapSlots.capacity() < fgHeaps.capacity()) gFreeHeapSlots.reserve(fgHeaps.capacity());
     }
 
     if (initializeTracking)
@@ -4157,6 +4273,8 @@ void ResTrack_Dx12::ReleaseDeviceHooks()
         gRRPsoMetadata.clear();
         gRRCommandListPsoStates.clear();
         gRRResourcePsoProducers.clear();
+        gRRPsoCommandLists.clear();
+        gRRPsoProducerResources.clear();
         gRRNextPsoId.store(1, std::memory_order_release);
     }
     gRRResourceCandidateAddress.store(0, std::memory_order_release);
