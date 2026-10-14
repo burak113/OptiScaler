@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "misc/NrdBridgeOwned_Dx12.h"
 #include "FSRDNrdBridgePass_Dx12.h"
+#include "FSRDNrdSignalConstants_Dx12.h"
 #include "resource_tracking/ResTrack_Dx12.h"
 #include "State.h"
 #include "precompile/FSRDNrdBridge_Shader.h"
@@ -132,11 +133,13 @@ struct Pipeline
         }
     }
     void Record(ID3D12GraphicsCommandList* list, const DescriptorSlot& slot,
-                const void* constants, uint32_t count, uint32_t width, uint32_t height)
+                const void* constants, uint32_t count, uint32_t width, uint32_t height,
+                D3D12_GPU_VIRTUAL_ADDRESS constantAddress = 0)
     {
         list->SetPipelineState(pso.Get()); list->SetComputeRootSignature(root.Get());
         ID3D12DescriptorHeap* heaps[] = {slot.heap.Get()}; list->SetDescriptorHeaps(1, heaps);
         list->SetComputeRoot32BitConstants(0, count, constants, 0);
+        if (constantAddress) list->SetComputeRootConstantBufferView(3, constantAddress);
         auto gpu = slot.heap->GetGPUDescriptorHandleForHeapStart();
         list->SetComputeRootDescriptorTable(1, gpu); gpu.ptr += uint64_t(srvCount) * stride;
         list->SetComputeRootDescriptorTable(2, gpu);
@@ -153,6 +156,7 @@ struct ConversionPass::Impl
     bool historyValid = false;
     std::mutex mutex;
     Pipeline conversion, copy, motionPass;
+    ComPtr<ID3D12Resource> zeroConstants;
     bool motionInitialized = false, pendingMotion = false;
     uint32_t motionPreviousIndex = 0, motionSLFrame = UINT32_MAX, motionBridgeFrame = 0;
     bool motionPreviousValid = false;
@@ -195,6 +199,7 @@ bool ConversionPass::Initialize(ID3D12Device* device, uint32_t width, uint32_t h
     {
         ScopedSkipHeapCapture skipHeapCapture;
         auto next = MakeOwnedShared<Impl>(); next->device = device; next->width = width; next->height = height;
+        if (!CreateZeroSignalConstants(device, next->zeroConstants, error)) return false;
         next->conversion.Initialize(device, FSRDNrdBridge_cso, sizeof(FSRDNrdBridge_cso), 4, 9);
         next->copy.Initialize(device, FSRDNrdBridgeCopy_cso, sizeof(FSRDNrdBridgeCopy_cso), 7, 2);
         next->Create(next->spec, DXGI_FORMAT_R16G16B16A16_FLOAT, L"NRD_Bridge_Spec");
@@ -331,11 +336,14 @@ bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList* list, const Conve
 
 bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList* list, const ConvertedResources& resources,
                                 ID3D12Resource* outputSpec, ID3D12Resource* outputDiff,
-                                DebugMode mode, std::string& error, const OutputCommitGuard& guard)
+                                DebugMode mode, std::string& error, const OutputCommitGuard& guard, SignalEncoding encoding,
+                                const TitleSignalConstants& titleConstants)
 {
-    if (!list || !impl_ || (mode != DebugMode::RawSignals && mode != DebugMode::RRInputs))
+    if (!list || !impl_ || (mode != DebugMode::RawSignals && mode != DebugMode::RRInputs) ||
+        (encoding != SignalEncoding::Rgb && encoding != SignalEncoding::YCoCg))
     { error = "Invalid NRD debug-copy request"; return false; }
     auto owner = impl_;
+    if (!ValidateTitleSignalConstants(titleConstants, owner->device.Get(), error)) return false;
     std::lock_guard lock(owner->mutex);
     const auto current = owner->Resources();
     if (!owner->historyValid || owner->pendingMotion || resources.width != current.width || resources.height != current.height ||
@@ -359,7 +367,7 @@ bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList* list, const Converted
         owner->copy.Describe(owner->device.Get(), *lease->slot,
             {resources.spec, resources.diff, resources.normals, resources.linearDepth, resources.motion,
              resources.specAlbedo, resources.diffAlbedo}, {outputSpec, outputDiff});
-        const uint32_t constants[] = {owner->width, owner->height, uint32_t(mode), 0};
+        const uint32_t constants[] = {owner->width, owner->height, uint32_t(mode), uint32_t(encoding), titleConstants.address ? 1u : 0u};
         struct PreparedCopy
         {
             Impl* owner;
@@ -367,12 +375,15 @@ bool ConversionPass::WriteDebug(ID3D12GraphicsCommandList* list, const Converted
             DescriptorSlot* slot;
             ID3D12Resource *spec, *diff;
             const uint32_t* constants;
-        } copy {owner.get(), list, lease->slot.get(), outputSpec, outputDiff, constants};
+            D3D12_GPU_VIRTUAL_ADDRESS address;
+        } copy {owner.get(), list, lease->slot.get(), outputSpec, outputDiff, constants,
+            titleConstants.address ? titleConstants.address : owner->zeroConstants->GetGPUVirtualAddress()};
         const auto record = +[](void* state) noexcept {
             const auto& prepared = *static_cast<PreparedCopy*>(state);
             UavBarrier(prepared.list, prepared.spec, prepared.diff);
-            prepared.owner->copy.Record(prepared.list, *prepared.slot, prepared.constants, 4,
-                prepared.owner->width, prepared.owner->height);
+            // Bind the native CBV at execution; CPU-visible flag contents may still change before submission.
+            prepared.owner->copy.Record(prepared.list, *prepared.slot, prepared.constants, 5,
+                prepared.owner->width, prepared.owner->height, prepared.address);
             UavBarrier(prepared.list, prepared.spec, prepared.diff);
         };
         if (guard.admit && !guard.admit(guard.state, record, &copy))
