@@ -33,6 +33,14 @@ struct BoundConstantBuffer
     ID3D12Resource* resource = nullptr; // Borrowed, valid while the caller holds the title lifetime borrow gate.
     D3D12_GPU_VIRTUAL_ADDRESS address = 0;
     uint64_t offset = 0, size = 0;
+    uint64_t resourceGeneration = 0;
+    ID3D12DescriptorHeap* descriptorHeap = nullptr; // Borrowed; table CBVs preserve their native volatile slot.
+    D3D12_GPU_DESCRIPTOR_HANDLE descriptor {};
+};
+struct ComputeTableRequest
+{
+    D3D12_DESCRIPTOR_RANGE_TYPE kind = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    UINT descriptorOffset = UINT_MAX, shaderRegister = UINT_MAX, registerSpace = UINT_MAX;
 };
 struct ComputeRootView
 {
@@ -59,9 +67,14 @@ bool MetadataHealthy() noexcept;
 bool ComputeTableBindingMatches(ID3D12GraphicsCommandList*, UINT rootParameter, D3D12_DESCRIPTOR_RANGE_TYPE kind,
                                 UINT descriptorOffset, UINT shaderRegister, UINT registerSpace) noexcept;
 bool ResolveComputeTable(ID3D12GraphicsCommandList*, UINT rootParameter, std::vector<BoundResource>& out) noexcept;
+// At most eight exact requests; proves only those slots, including valid large/unbounded tables.
+bool ResolveComputeBindings(ID3D12GraphicsCommandList*, UINT rootParameter,
+                            std::span<const ComputeTableRequest>, std::vector<BoundResource>& out) noexcept;
 // Resolves one current root/table CBV by its exact b-register and space, without retaining or mapping it.
 bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList*, UINT shaderRegister, UINT registerSpace,
                                   uint64_t minimumBytes, BoundConstantBuffer& out) noexcept;
+// Window-independent generation validation; the caller holds the physical title lifetime borrow gate.
+bool ValidateBorrowedConstantBuffer(const BoundConstantBuffer&) noexcept;
 class ScopedInternal
 {
     bool previous_;
