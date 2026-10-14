@@ -21,6 +21,7 @@
 #include <imgui/ImGuiNotify.hpp>
 
 #include <hooks/D3D12_Hooks.h>
+#include <hooks/Streamline_Hooks.h>
 
 #include <dxgi1_4.h>
 #include <shared_mutex>
