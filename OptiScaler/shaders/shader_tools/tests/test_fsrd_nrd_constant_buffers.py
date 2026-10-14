@@ -155,8 +155,12 @@ J constantTests(Host& h) {
  layout.computeDescriptors[2]={D3D12_DESCRIPTOR_RANGE_TYPE_CBV,6,0};
  need(!f.resolve(out),"metadata-only duplicate b6 root parameters fail uniqueness proof"); layout.computeDescriptors=savedDescriptors;
  f.direct(direct,av);
- auto& alias=FrameSurvey::gResources.at(b); const auto savedVA=alias.va; alias.va=av;
- need(!f.resolve(out),"metadata-only overlapping live buffer VAs are ambiguous, not nearest-address guesses"); alias.va=savedVA;
+ auto& alias=FrameSurvey::gResources.at(b); const auto savedVA=alias.va;
+ FrameSurvey::gBufferAddresses.Erase(alias.va,alias.id); alias.va=av;
+ FrameSurvey::gBufferAddresses.Insert(alias.va,alias.desc.Width,alias.id,b);
+ need(!f.resolve(out),"metadata-only overlapping live buffer VAs are ambiguous, not nearest-address guesses");
+ FrameSurvey::gBufferAddresses.Erase(alias.va,alias.id); alias.va=savedVA;
+ FrameSurvey::gBufferAddresses.Insert(alias.va,alias.desc.Width,alias.id,b);
  auto* table=f.root(true); f.table(table); f.write(0,a,512); f.copy(1,false,0); f.copy(7,true,1);
  need(f.resolve(out) && out.resource==a && out.address==av+512 && out.offset==512 && out.size==1536,"mixed APPEND table maps b6 through exact CBV descriptor/address/size");
  need(cbvNativeCalls==1,"actual new CBV callback forwards native creation exactly once");
@@ -206,7 +210,8 @@ J constantTests(Host& h) {
   FrameSurvey::Resource resource; resource.object=object; resource.id=100000+i;
   resource.desc.Dimension=D3D12_RESOURCE_DIMENSION_BUFFER; resource.desc.Width=4096;
   resource.va=c->GetGPUVirtualAddress()+0x10000000+UINT64(i)*65536;
-  FrameSurvey::gResources.emplace(object,resource); syntheticBuffers.push_back(object);
+  FrameSurvey::gResources.emplace(object,resource);
+  FrameSurvey::gBufferAddresses.Insert(resource.va,resource.desc.Width,resource.id,object); syntheticBuffers.push_back(object);
  }
  need(f.resolve(out) && out.resource==c,"1,000 synthetic cached-buffer records need no COM access during exact resolution");
  const auto stressBefore=std::chrono::steady_clock::now();

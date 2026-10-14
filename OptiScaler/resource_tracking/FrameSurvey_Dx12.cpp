@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "FrameSurvey_Dx12.h"
 #include "FrameSurveyMetadata.h"
+#include "FrameSurveyBufferRanges.h"
 #include "shaders/fsrd_preprocess/FSRDGameTraceSession.h"
 #include "shaders/fsrd_preprocess/RRTraceAdditiveIO.h"
 #include "proxies/D3D12_Proxy.h"
@@ -12,6 +13,7 @@
 #include <map>
 #include <set>
 #include <unordered_map>
+#include <unordered_set>
 #include <atomic>
 #include <cctype>
 #include <exception>
@@ -101,9 +103,11 @@ struct Heap
     ID3D12DescriptorHeap* object = nullptr;
     uint64_t cpu = 0, gpu = 0;
     uint32_t count = 0, increment = 0, type = 0;
+    std::set<uint64_t> views; // Occupied native slots only; no full heap walk at final Release.
 };
 std::unordered_map<ID3D12Resource*,Resource> gResources;
 std::map<uint64_t,ID3D12Resource*> gAddresses;
+FrameSurveyMetadata::BufferAddressIndex gBufferAddresses;
 std::unordered_map<uint64_t,ViewInfo> gViews;
 std::unordered_map<ID3D12DescriptorHeap*,Heap> gHeaps;
 std::map<uint64_t,ID3D12DescriptorHeap*> gCpuHeaps;
@@ -118,6 +122,25 @@ Heap* HeapAtCpu(uint64_t handle)
     auto& heap = found->second;
     return heap.increment && handle >= heap.cpu && handle-heap.cpu < uint64_t(heap.count)*heap.increment &&
         (handle-heap.cpu)%heap.increment == 0 ? &heap : nullptr;
+}
+// Caller holds gLifetimeMutex; remove both reverse indices before overwriting a slot.
+void EraseView(uint64_t handle)
+{
+    const auto view = gViews.find(handle);
+    if (view == gViews.end()) return;
+    if (const auto resource = gResources.find(view->second.object); resource != gResources.end())
+        resource->second.handles.erase(handle);
+    if (view->second.heapKnown)
+        if (const auto heap = gHeaps.find(reinterpret_cast<ID3D12DescriptorHeap*>(uintptr_t(view->second.descriptorHeap))); heap != gHeaps.end())
+            heap->second.views.erase(handle);
+    gViews.erase(view);
+}
+void IndexView(const ViewInfo& view)
+{
+    if (const auto resource = gResources.find(view.object); resource != gResources.end()) resource->second.handles.insert(view.descriptorCpu);
+    if (view.heapKnown)
+        if (const auto heap = gHeaps.find(reinterpret_cast<ID3D12DescriptorHeap*>(uintptr_t(view.descriptorHeap))); heap != gHeaps.end())
+            heap->second.views.insert(view.descriptorCpu);
 }
 bool FreshView(const ViewInfo& view, const Heap* heap)
 {
@@ -217,7 +240,14 @@ Resource& Register(ID3D12Resource* resource)
     {
         result.id = ++gNextResource; result.object = resource; result.desc = resource->GetDesc();
         if (result.desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
-        { result.va = resource->GetGPUVirtualAddress(); if (result.va) gAddresses[result.va] = resource; }
+        {
+            result.va = resource->GetGPUVirtualAddress();
+            if (result.va)
+            {
+                gAddresses[result.va] = resource;
+                gBufferAddresses.Insert(result.va,result.desc.Width,result.id,resource);
+            }
+        }
     }
     return result;
 }
@@ -379,10 +409,40 @@ struct Mirror
 };
 std::mutex gMirrorMutex;
 std::unordered_map<ID3D12GraphicsCommandList*,Mirror> gMirror;
-template<class Update> void Mirrored(ID3D12GraphicsCommandList* cmd, Update&& update) noexcept
+std::unordered_map<void*,std::unordered_set<ID3D12GraphicsCommandList*>> gMirrorOwners;
+struct MirrorReferences
+{
+    std::array<void*,5> objects {}; size_t count = 0;
+    bool Contains(void* object) const { return std::find(objects.begin(),objects.begin()+count,object) != objects.begin()+count; }
+    void Add(void* object)
+    {
+        if (!object || Contains(object)) return;
+        if (count == objects.size()) throw std::runtime_error("More than two shader-visible heaps in a native binding");
+        objects[count++] = object;
+    }
+    explicit MirrorReferences(const Mirror& mirror)
+    {
+        Add(mirror.pso); Add(mirror.compute.object); Add(mirror.graphics.object);
+        for (auto* heap : mirror.heaps) Add(heap);
+    }
+};
+// Caller holds gMirrorMutex. Touch only the objects referenced by this list.
+void UpdateMirrorOwners(ID3D12GraphicsCommandList* cmd, const MirrorReferences& before, const MirrorReferences& after)
+{
+    for (size_t i=0;i<before.count;++i) if (!after.Contains(before.objects[i]))
+        if (const auto owner = gMirrorOwners.find(before.objects[i]); owner != gMirrorOwners.end())
+        { owner->second.erase(cmd); if (owner->second.empty()) gMirrorOwners.erase(owner); }
+    for (size_t i=0;i<after.count;++i) if (!before.Contains(after.objects[i])) gMirrorOwners[after.objects[i]].insert(cmd);
+}
+template<class Update> void Mirrored(ID3D12GraphicsCommandList* cmd, Update&& update, bool references = false) noexcept
 {
     if (!BindingTracking() || gInternal || !cmd) return;
-    try { std::scoped_lock lock(gMirrorMutex); MetadataMutation mutation; update(gMirror[cmd]); }
+    try
+    {
+        std::scoped_lock lock(gMirrorMutex); MetadataMutation mutation; auto& mirror = gMirror[cmd];
+        if (!references) { update(mirror); return; }
+        const MirrorReferences before(mirror); update(mirror); UpdateMirrorOwners(cmd,before,MirrorReferences(mirror));
+    }
     catch (...) { MetadataFailed("Binding mirror allocation failed"); }
 }
 bool Seed(ID3D12GraphicsCommandList* cmd, List& list)
@@ -414,21 +474,20 @@ List& GetList(ID3D12GraphicsCommandList* cmd)
     return state;
 }
 // Caller holds gLifetimeMutex. Cached creation descriptions avoid any COM call or title retain.
-// Scan the live buffer records rather than guessing the nearest VA: placed resources may alias.
+// Query live buffer intervals without scanning the title's texture/descriptor registry.
+// The interval index retains overlapping placed buffers and rejects ambiguous addresses.
 bool ResolveBufferAddress(uint64_t address, uint64_t declaredBytes, uint64_t minimumBytes, BoundConstantBuffer& out)
 {
     out = {};
     if (!address || address%256 || !minimumBytes || minimumBytes > 65536 ||
         (declaredBytes && (declaredBytes%256 || declaredBytes > 65536))) return false;
-    const Resource* match = nullptr;
-    for (const auto& [object,resource] : gResources)
-    {
-        if (resource.desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER || !resource.va || address < resource.va ||
-            address-resource.va >= resource.desc.Width) continue;
-        if (match) return false; // Any live overlapping VA is ambiguous, even if only one covers the requested length.
-        match = &resource;
-    }
-    if (!match) return false;
+    const auto interval = gBufferAddresses.Find(address);
+    if (interval.matches != 1) return false; // Any live overlap is ambiguous, even if only one covers the requested length.
+    const auto found = gResources.find(static_cast<ID3D12Resource*>(interval.object));
+    if (found == gResources.end() || found->second.id != interval.generation) return false;
+    const auto* match = &found->second;
+    if (match->desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER || !match->va || address < match->va ||
+        address-match->va >= match->desc.Width) return false;
     const uint64_t offset = address-match->va, remaining = match->desc.Width-offset;
     const uint64_t bytes = declaredBytes ? declaredBytes : std::min<uint64_t>(65536,remaining);
     if (bytes > remaining || bytes < minimumBytes) return false;
@@ -439,10 +498,9 @@ void StoreView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI_FORM
 {
     if (!Tracking() || gInternal) return;
     std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation;
-    if (const auto found = gViews.find(handle); found != gViews.end() && found->second.object)
-        if (const auto old = gResources.find(found->second.object); old != gResources.end()) old->second.handles.erase(handle);
-    if (!object) { gViews.erase(handle); return; }
-    auto& resource = Register(object); resource.handles.insert(handle);
+    EraseView(handle);
+    if (!object) return;
+    auto& resource = Register(object);
     const auto sub = mip + slice*resource.desc.MipLevels;
     gViews[handle] = {object,resource.id,kind,uint32_t(format == DXGI_FORMAT_UNKNOWN ? resource.desc.Format : format),sub,supported};
     auto& view = gViews[handle]; view.descriptorCpu = handle;
@@ -451,6 +509,7 @@ void StoreView(ID3D12Resource* object, uint64_t handle, uint32_t kind, DXGI_FORM
         view.descriptorHeap = uint64_t(reinterpret_cast<uintptr_t>(heap->object));
         view.heapKnown = true;
     }
+    IndexView(view);
 }
 std::vector<ViewInfo> Bindings(List& state, bool graphics, Json& unresolved)
 {
@@ -609,7 +668,7 @@ void SetBindingWindow(bool enabled) noexcept
     if (gSurveyBindings.load(std::memory_order_relaxed)) return; // Preserve the survey's early-binding mirror.
     try
     {
-        std::scoped_lock lock(gMirrorMutex); gMirror.clear();
+        std::scoped_lock lock(gMirrorMutex); gMirror.clear(); gMirrorOwners.clear();
     } catch (...) { MetadataFailed("Binding window invalidation failed"); }
 }
 bool BindingWindow() noexcept { return gBindingWindow.load(std::memory_order_relaxed); }
@@ -628,13 +687,13 @@ bool SeedComputeBindings(ID3D12GraphicsCommandList* cmd, const ComputeBindings& 
     {
         std::scoped_lock lock(gMirrorMutex); MetadataMutation mutation;
         if (!gMetadataHealthy.load(std::memory_order_acquire)) return false;
-        auto& mirror = gMirror[cmd];
+        auto& mirror = gMirror[cmd]; const MirrorReferences before(mirror);
         if (mirror.compute.object != bindings.root) mirror.compute = {};
         if (mirror.heaps != bindings.heaps) mirror.graphics.tables.clear();
         mirror.compute.object = bindings.root; mirror.compute.tables.clear(); mirror.compute.views.clear();
         for (const auto& [parameter,handle] : bindings.tables) mirror.compute.tables[parameter] = handle.ptr;
         for (const auto& view : bindings.views) mirror.compute.views[view.parameter] = {uint32_t(view.kind),view.address};
-        mirror.heaps = bindings.heaps; return true;
+        mirror.heaps = bindings.heaps; UpdateMirrorOwners(cmd,before,MirrorReferences(mirror)); return true;
     } catch (...) { MetadataFailed("Compute binding seed failed"); return false; }
 }
 bool ComputeTableBindingMatches(ID3D12GraphicsCommandList* cmd, UINT parameter, D3D12_DESCRIPTOR_RANGE_TYPE kind,
@@ -994,23 +1053,29 @@ void Released(void* object) noexcept
         auto* resource = reinterpret_cast<ID3D12Resource*>(object);
         if (const auto found = gResources.find(resource); found != gResources.end())
         {
-            for (auto handle : found->second.handles) gViews.erase(handle);
-            if (found->second.va) gAddresses.erase(found->second.va);
+            while (!found->second.handles.empty())
+            {
+                const auto handle = *found->second.handles.begin(); found->second.handles.erase(found->second.handles.begin());
+                const auto view = gViews.find(handle);
+                if (view != gViews.end() && view->second.object == resource && view->second.resource == found->second.id) EraseView(handle);
+            }
+            if (found->second.va)
+            {
+                gBufferAddresses.Erase(found->second.va,found->second.id);
+                const auto address = gAddresses.find(found->second.va);
+                if (address != gAddresses.end() && address->second == resource) gAddresses.erase(address);
+            }
             gResources.erase(found);
         }
         gRootLayouts.erase(reinterpret_cast<ID3D12RootSignature*>(object));
         auto* heap = reinterpret_cast<ID3D12DescriptorHeap*>(object);
         if (const auto found = gHeaps.find(heap); found != gHeaps.end())
         {
-            for (UINT i=0;i<found->second.count;++i)
+            while (!found->second.views.empty())
             {
-                const auto handle = found->second.cpu+uint64_t(i)*found->second.increment;
+                const auto handle = *found->second.views.begin(); found->second.views.erase(found->second.views.begin());
                 const auto view = gViews.find(handle);
-                if (view != gViews.end())
-                {
-                    if (const auto r = gResources.find(view->second.object); r != gResources.end()) r->second.handles.erase(handle);
-                    gViews.erase(view);
-                }
+                if (view != gViews.end() && view->second.heapKnown && view->second.descriptorHeap == uint64_t(reinterpret_cast<uintptr_t>(heap))) EraseView(handle);
             }
             gCpuHeaps.erase(found->second.cpu); gHeaps.erase(found);
         }
@@ -1018,14 +1083,22 @@ void Released(void* object) noexcept
     try
     {
         std::scoped_lock lock(gMirrorMutex);
-        gMirror.erase(reinterpret_cast<ID3D12GraphicsCommandList*>(object));
-        for (auto& [cmd,mirror] : gMirror)
+        auto* releasedList = reinterpret_cast<ID3D12GraphicsCommandList*>(object);
+        if (const auto list = gMirror.find(releasedList); list != gMirror.end())
+        { UpdateMirrorOwners(releasedList,MirrorReferences(list->second),MirrorReferences(Mirror{})); gMirror.erase(list); }
+        if (const auto owners = gMirrorOwners.find(object); owners != gMirrorOwners.end())
         {
-            if (mirror.pso == object) mirror.pso = nullptr;
-            if (mirror.compute.object == object) mirror.compute = {};
-            if (mirror.graphics.object == object) mirror.graphics = {};
-            if (std::erase(mirror.heaps,reinterpret_cast<ID3D12DescriptorHeap*>(object)))
-            { mirror.compute.tables.clear(); mirror.graphics.tables.clear(); }
+            auto affected = std::move(owners->second); gMirrorOwners.erase(owners);
+            for (auto* cmd : affected)
+            {
+                const auto found = gMirror.find(cmd); if (found == gMirror.end()) continue;
+                auto& mirror = found->second;
+                if (mirror.pso == object) mirror.pso = nullptr;
+                if (mirror.compute.object == object) mirror.compute = {};
+                if (mirror.graphics.object == object) mirror.graphics = {};
+                if (std::erase(mirror.heaps,reinterpret_cast<ID3D12DescriptorHeap*>(object)))
+                { mirror.compute.tables.clear(); mirror.graphics.tables.clear(); }
+            }
         }
     } catch (...) { MetadataFailed("Release binding invalidation failed"); }
     if (const auto observer = gReleaseObserver.load(std::memory_order_acquire)) observer(object);
@@ -1050,19 +1123,17 @@ void View(D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3D12_CONSTANT_BUFFER_VIEW_D
     try
     {
         std::scoped_lock lock(gLifetimeMutex); MetadataMutation mutation;
-        if (const auto old = gViews.find(handle.ptr); old != gViews.end())
-            if (const auto resource = gResources.find(old->second.object); resource != gResources.end()) resource->second.handles.erase(handle.ptr);
-        gViews.erase(handle.ptr);
+        EraseView(handle.ptr);
         BoundConstantBuffer buffer;
         if (!desc || !desc->SizeInBytes || !ResolveBufferAddress(desc->BufferLocation,desc->SizeInBytes,desc->SizeInBytes,buffer)) return;
-        auto& resource = gResources.at(buffer.resource); resource.handles.insert(handle.ptr);
+        auto& resource = gResources.at(buffer.resource);
         ViewInfo view {buffer.resource,resource.id,D3D12_DESCRIPTOR_RANGE_TYPE_CBV,uint32_t(DXGI_FORMAT_UNKNOWN),0,false};
         view.descriptorCpu = handle.ptr; view.rootVa = buffer.address; view.constantBytes = buffer.size;
         if (const auto heap = HeapAtCpu(handle.ptr))
         {
             view.descriptorHeap = uint64_t(reinterpret_cast<uintptr_t>(heap->object)); view.heapKnown = true;
         }
-        gViews[handle.ptr] = view;
+        gViews[handle.ptr] = view; IndexView(view);
     } catch (...) { MetadataFailed("Constant buffer view metadata allocation failed"); }
 }
 void View(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, const D3D12_SHADER_RESOURCE_VIEW_DESC* desc) noexcept
@@ -1124,8 +1195,8 @@ void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_H
                 if (gCopyFailureAfterForTesting > 0) --gCopyFailureAfterForTesting;
 #endif
                 const auto dh = dst[di].ptr+uint64_t(d++)*stride, sh = src[si].ptr+uint64_t(s++)*stride;
-                if (const auto old = gViews.find(dh); old != gViews.end())
-                    if (const auto resource = gResources.find(old->second.object); resource != gResources.end()) resource->second.handles.erase(dh);
+                // D3D12 forbids overlapping source/destination ranges; copy only current source contents.
+                EraseView(dh);
                 const auto view = gViews.find(sh);
                 if (view != gViews.end() && FreshView(view->second,HeapAtCpu(sh)))
                 {
@@ -1135,7 +1206,7 @@ void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_H
                         auto copy = view->second; copy.descriptorCpu = dh;
                         copy.descriptorHeap = uint64_t(reinterpret_cast<uintptr_t>(destinationHeap->object));
                         copy.heapKnown = true;
-                        gViews[dh] = copy; resource->second.handles.insert(dh);
+                        gViews[dh] = copy; IndexView(copy);
                     }
                     else gViews.erase(dh);
                 }
@@ -1147,7 +1218,7 @@ void CopyDescriptors(ID3D12Device* device, UINT nd, const D3D12_CPU_DESCRIPTOR_H
 
 void Reset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexcept
 {
-    Mirrored(cmd,[&](Mirror& mirror) { mirror = {}; mirror.pso = initial; });
+    Mirrored(cmd,[&](Mirror& mirror) { mirror = {}; mirror.pso = initial; },true);
     if (!Recording()) return;
     try
     {
@@ -1169,7 +1240,7 @@ void Close(ID3D12GraphicsCommandList* cmd, HRESULT result) noexcept
 }
 void SetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pso) noexcept
 {
-    Mirrored(cmd,[&](Mirror& mirror) { mirror.pso = pso; });
+    Mirrored(cmd,[&](Mirror& mirror) { mirror.pso = pso; },true);
     if (!Recording()) return;
     try { std::scoped_lock lock(gRecordMutex); if (!Recording()) return; GetList(cmd).pso = ReadPipeline(pso); }
     catch (...) { Fail("Pipeline binding metadata failed"); }
@@ -1178,7 +1249,7 @@ void RootBinding(ID3D12GraphicsCommandList* cmd, bool graphics, ID3D12RootSignat
 {
     Mirrored(cmd,[&](Mirror& mirror) {
         auto& state = graphics ? mirror.graphics : mirror.compute;
-        if (state.object != root) { state = {}; state.object = root; } });
+        if (state.object != root) { state = {}; state.object = root; } },true);
     if (!Recording()) return;
     try
     {
@@ -1196,7 +1267,7 @@ void DescriptorHeaps(ID3D12GraphicsCommandList* cmd, UINT count, ID3D12Descripto
         std::vector<ID3D12DescriptorHeap*> next;
         if (heaps) next.assign(heaps,heaps+count);
         if (next != mirror.heaps) { mirror.compute.tables.clear(); mirror.graphics.tables.clear(); }
-        mirror.heaps = std::move(next); });
+        mirror.heaps = std::move(next); },true);
     if (!Recording()) return;
     try
     {
@@ -1975,8 +2046,8 @@ void Shutdown() noexcept
         oGraphicsCbv = oGraphicsSrv = oGraphicsUav = nullptr; oSignature = nullptr; oCreateLibrary = nullptr;
         oBeginRender = nullptr; oEndRender = nullptr; oRayPipeline = nullptr; oRays = nullptr;
         { std::scoped_lock library(gLibraryHookMutex); oLoadGraphics = nullptr; oLoadCompute = nullptr; oLoadStream = nullptr; }
-        { std::scoped_lock mirror(gMirrorMutex); gMirror.clear(); }
-        std::scoped_lock lock(gLifetimeMutex); gViews.clear(); gResources.clear(); gAddresses.clear(); gHeaps.clear(); gCpuHeaps.clear(); gRootLayouts.clear();
+        { std::scoped_lock mirror(gMirrorMutex); gMirror.clear(); gMirrorOwners.clear(); }
+        std::scoped_lock lock(gLifetimeMutex); gViews.clear(); gResources.clear(); gAddresses.clear(); gBufferAddresses.Clear(); gHeaps.clear(); gCpuHeaps.clear(); gRootLayouts.clear();
         gCreationDevice.Reset(); gStatus.installed = false;
         gMetadataHealthy.store(true,std::memory_order_release);
     } catch (...) {}
