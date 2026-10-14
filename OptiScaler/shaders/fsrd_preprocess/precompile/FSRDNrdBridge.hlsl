@@ -5,7 +5,7 @@
 
 #define MainRS \
     "RootFlags(0), " \
-    "RootConstants(num32BitConstants = 44, b0), " \
+    "RootConstants(num32BitConstants = 52, b0), " \
     "DescriptorTable(SRV(t0, numDescriptors = 4)), " \
     "DescriptorTable(UAV(u0, numDescriptors = 9))"
 
@@ -38,6 +38,9 @@ cbuffer BridgeConstants : register(b0)
     // root-constant bytes identical to XMStoreFloat4x4; mul(M,v) applies them.
     row_major float4x4 InverseProjection;
     row_major float4x4 WorldToView;
+    float4 PreviousViewDepthRow;
+    float2 CurrentJitterUv;
+    uint2 CameraReserved;
 }
 
 float3 SafeRadiance(float3 value)
@@ -73,7 +76,8 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
     // A null-MV Recon conversion defers this read until the current Temporal table is known.
     [branch] if (Reserved.x == 0u)
         OutMotion[p] = ConvertNrdMotion(p, RenderSize, InMotion[p].xy, depth, PreviousValid,
-                                        InPreviousDepth, MotionScale, JitterDeltaUv);
+                                        InPreviousDepth, MotionScale, JitterDeltaUv, Reserved.y,
+                                        InverseProjection, PreviousViewDepthRow, CurrentJitterUv);
     else OutMotion[p] = float4(0.0f, 0.0f, 0.0f, 1.0f);
 
     const float3 normalRoughness = InNormalRoughness[p].rgb;
