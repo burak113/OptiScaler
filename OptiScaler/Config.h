@@ -554,6 +554,8 @@ class Config
     CustomOptional<int> FfxDenoiserNrdBridgeNativeDebugViewport {0};
     // Experimental camera-predicted depth delta; false keeps baseline previous-depth sampling.
     CustomOptional<bool> FfxDenoiserNrdBridgeMotionDepthMode {false};
+    // A/B hypothesis: retain native categorical normal A instead of material ID 0.
+    CustomOptional<bool> FfxDenoiserNrdBridgeMaterialIDs {false};
     // Survey only: shader SHA-256 prefixes whose dispatch outputs are saved right after the dispatch.
     CustomOptional<std::wstring, NoDefault> FfxDenoiserFrameSurveyPassHashes;
     CustomOptional<bool> FfxDenoiserFogGuides {false};

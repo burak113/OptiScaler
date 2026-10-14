@@ -19,6 +19,7 @@ from test_fsrd_nrd_root_restore import function
 KEYS = {
     'FfxDenoiserNrdBridgeUseCustomRR': ('NrdBridgeUseCustomRR', 'Bool'),
     'FfxDenoiserNrdBridgeMotionDepthMode': ('NrdBridgeMotionDepthMode', 'Bool'),
+    'FfxDenoiserNrdBridgeMaterialIDs': ('NrdBridgeMaterialIDs', 'Bool'),
     'FfxDenoiserNrdBridgeEnabled': ('NrdBridgeEnabled', 'Bool'),
     'FfxDenoiserUseAmdDefaults': ('UseAmdDefaults', 'Bool'),
     'FfxDenoiserCrossBlNormStr': ('CrossBilateralNormalStrength', 'Float'),
@@ -97,6 +98,7 @@ struct ScopedIndent {};
 namespace ImGui {
 std::map<std::string,bool> bools;std::map<std::string,float> floats;std::map<std::string,int> combos;std::map<std::string,bool> buttons,headers;
 std::vector<bool> disabled;std::vector<std::string> labels,text;unsigned rrTables=0;
+bool hovered=false;
 bool isDisabled(){return !disabled.empty()&&disabled.back();}
 bool CollapsingHeader(const char* name){labels.push_back(name);auto it=headers.find(name);return it==headers.end()||it->second;}
 bool Checkbox(const char* name,bool* value){labels.push_back(name);auto it=bools.find(name);
@@ -105,7 +107,8 @@ bool SliderFloat(const char* name,float* value,float minimum,float maximum){labe
  if(isDisabled()||it==floats.end())return false;need(it->second>=minimum&&it->second<=maximum,"UI input stays inside actual slider range");
  *value=it->second;floats.erase(it);return true;}
 bool Button(const char* name){labels.push_back(name);return !isDisabled()&&buttons.erase(name)!=0;}
-bool IsItemHovered(){return false;}void SetTooltip(const char*,...){}
+bool IsItemHovered(){return hovered;}
+void SetTooltip(const char* format,...){char buffer[2048];va_list args;va_start(args,format);vsnprintf(buffer,sizeof(buffer),format,args);va_end(args);text.push_back(buffer);}
 void BeginDisabled(bool value){disabled.push_back(isDisabled()||value);}void EndDisabled(){disabled.pop_back();}
 void PushID(const char*){}void PopID(){}
 bool combo(const char* name,int* value,int count){labels.push_back(name);auto found=combos.find(name);
@@ -120,7 +123,7 @@ void Text(const char* format,...){va_list args;va_start(args,format);capture(for
 void TextUnformatted(const char* value){text.push_back(value);}
 bool BeginTable(const char* name,int,int){if(std::string(name)=="NrdBridgeRRValues")++rrTables;return true;}
 void TableSetupColumn(const char*){}void TableHeadersRow(){}void TableNextRow(){}void TableNextColumn(){}void EndTable(){}
-void frame(){bools.clear();floats.clear();combos.clear();buttons.clear();headers.clear();labels.clear();text.clear();rrTables=0;need(disabled.empty(),"UI disabled scopes are balanced");}
+void frame(){bools.clear();floats.clear();combos.clear();buttons.clear();headers.clear();labels.clear();text.clear();rrTables=0;hovered=false;need(disabled.empty(),"UI disabled scopes are balanced");}
 bool hasText(const std::string& term){return std::any_of(text.begin(),text.end(),[&](const auto& s){return s.find(term)!=s.npos;});}
 bool hasLabel(const std::string& term){return std::find(labels.begin(),labels.end(),term)!=labels.end();}
 }
@@ -203,6 +206,24 @@ int main(){try{
  saved=cfg.save();reload.load(saved);need(ReadNrdBridgeRRSettings(reload).nativeDebugView==-1,"Native debug remains OFF after reset/save/reload");
  cfg.load("[FSR-RR]\nNrdBridgeNativeDebugView=invalid\nNrdBridgeNativeDebugViewport=auto\n");
  need(ReadNrdBridgeRRSettings(cfg).nativeDebugView==-1&&ReadNrdBridgeRRSettings(cfg).nativeDebugViewport==0,"Malformed native debug keys use safe defaults");
+ cfg.load("[FSR-RR]\n");NrdBridge::accept=true;ImGui::frame();before=NrdBridge::applyCalls;drawBridge(&cfg);
+ need(!cfg.FfxDenoiserNrdBridgeMaterialIDs.value_or_default()&&!ReadNrdBridgeRRSettings(cfg).preserveNativeMaterialIDs,
+ "Material experiment defaults OFF in Config and coherent POD");
+ need(NrdBridge::applyCalls==before&&ImGui::hasText("material ID 0"),"OFF material control emits no new apply and maps baseline alpha0");
+ need(ImGui::hasText("shared with ordinary FSR-RR")&&ImGui::hasText("latest submitted RR frame")&&ImGui::hasText("SR runs before the current NRD chain"),
+ "UI explains shared tuning persistence and native provider diagnostic frame lag");
+ ImGui::frame();ImGui::hovered=true;ImGui::bools["Preserve native material IDs (experimental)"]=true;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.preserveNativeMaterialIDs&&NrdBridge::last.overrideMask==0&&!NrdBridge::lastCamera,
+ "Material-only change publishes coherent bool independently of scalar/motion switches");
+ need(ImGui::hasText("A/B hypothesis")&&ImGui::hasText("have not been measured")&&ImGui::hasText("four normalized native material categories"),
+ "Material tooltip/map distinguish requested categories from unmeasured game alpha/flags");
+ saved=cfg.save();reload.load(saved);need(ReadNrdBridgeRRSettings(reload).preserveNativeMaterialIDs,"Material A/B choice survives actual save/reload");
+ NrdBridge::state.requested.preserveNativeMaterialIDs=false;ImGui::frame();drawBridge(&cfg);
+ need(ImGui::hasText("material ID 0")&&!ImGui::hasText("Requested experimental A"),"Input map uses runtime requested snapshot rather than stale Config true");
+ cfg.ResetFfxDenoiserSettings();need(!cfg.FfxDenoiserNrdBridgeMaterialIDs.value_or_default()&&!NrdBridge::last.preserveNativeMaterialIDs,
+ "Complete reset disables material experiment in Config and runtime POD");
+ saved=cfg.save();reload.load(saved);need(!ReadNrdBridgeRRSettings(reload).preserveNativeMaterialIDs,"Reset/save/reload retains material OFF default");
+ cfg.load("[FSR-RR]\nNrdBridgeMaterialIDs=invalid\n");need(!ReadNrdBridgeRRSettings(cfg).preserveNativeMaterialIDs,"Malformed material key remains OFF");
  std::cout<<"PASS: "<<checks<<" actual NRD menu/INI/reset checks\n";return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
 '''
@@ -219,7 +240,7 @@ def run():
     else:
         # Approved public POD is an explicit runtime-spy boundary until lead merges
         # its new header. No provider configuration/history algorithm is reproduced.
-        contract='struct RRSettings {uint32_t overrideMask=0;std::array<float,8> values{};int32_t nativeDebugView=-1;uint32_t nativeDebugViewport=0;};\nstruct RRSettingsState {bool ready=false;RRSettings requested{};std::array<float,8> defaults{},effective{};};'
+        contract='struct RRSettings {uint32_t overrideMask=0;std::array<float,8> values{};int32_t nativeDebugView=-1;uint32_t nativeDebugViewport=0;bool preserveNativeMaterialIDs=false;};\nstruct RRSettingsState {bool ready=false;RRSettings requested{};std::array<float,8> defaults{},effective{};};'
         contract_origin='explicit approved API spy POD; integrated replay reads actual header'
     loads=[];saves=[];resets=[]
     for field,(key,kind) in KEYS.items():
@@ -233,7 +254,7 @@ def run():
     assert render.index(marker)<render.index('if (choice.fsrRR)')
     assert 'currentFeature' not in panel and 'ffxActive' not in panel and 'choice.fsrRR' not in panel
     template=(ROOT/'OptiScaler.ini').read_text()
-    for key in ('NrdBridgeUseCustomRR','NrdBridgeMotionDepthMode'):
+    for key in ('NrdBridgeUseCustomRR','NrdBridgeMotionDepthMode','NrdBridgeMaterialIDs'):
         assert len(re.findall(r'^'+key+r'=false\s*$',template,re.M))==1,key
     assert len(re.findall(r'^NrdBridgeNativeDebugView=-1\s*$',template,re.M))==1
     assert len(re.findall(r'^NrdBridgeNativeDebugViewport=0\s*$',template,re.M))==1
@@ -262,7 +283,7 @@ def run():
     if result.returncode:raise RuntimeError(result.stderr)
     print(result.stdout,end='')
     checks=int(re.search(r'PASS: (\d+)',result.stdout).group(1))
-    (out/'result.json').write_text(json.dumps(dict(native_checks=checks,python_checks=9,api_contract=contract_origin,
+    (out/'result.json').write_text(json.dumps(dict(native_checks=checks,python_checks=10,api_contract=contract_origin,
         scope='actual menu helpers/panel, complete Config reset and actual INI parsing/serialization; ImGui/runtime are API spies, no provider/GPU/history implementation claim'),indent=2)+'\n')
 
 

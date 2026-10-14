@@ -3269,6 +3269,7 @@ static bool DrawNrdBridgeNativeDebug(Config* config)
     ImGui::EndDisabled();
     ImGui::TextWrapped("AMD's provider-native debug pass is separate from RawSignals/RRInputs conversion views. "
                       "Its colors are displayed after the upscaler evaluates, without the title's lighting modulation. "
+                      "It shows the latest submitted RR frame and can lag when SR runs before the current NRD chain. "
                       "Enabling or disabling it recreates the RR context and resets history. Default off; depth display bounds use AMD defaults.");
     return changed;
 }
@@ -3276,6 +3277,7 @@ static bool DrawNrdBridgeNativeDebug(Config* config)
 static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
 {
     NrdBridge::RRSettings settings;
+    settings.preserveNativeMaterialIDs = config.FfxDenoiserNrdBridgeMaterialIDs.value_or_default();
     settings.nativeDebugView = config.FfxDenoiserNrdBridgeNativeDebugView.value_or_default();
     settings.nativeDebugViewport = uint32_t(std::clamp(config.FfxDenoiserNrdBridgeNativeDebugViewport.value_or_default(),
         0, FFX_API_DENOISER_DEBUG_VIEW_MAX_VIEWPORTS-1));
@@ -3310,6 +3312,7 @@ static void DrawNrdBridgeRRTuning(Config* config)
                           "Use AMD Default Tuning selects the baseline while keeping your custom values. "
                           "An actual change resets RR history before the next bridge frame. Default off.");
     ImGui::TextWrapped("Sliders show stored custom values. Effective provider values are shown below after the first bridge dispatch.");
+    ImGui::TextWrapped("UseAmdDefaults and these six stored values are shared with ordinary FSR-RR; edits also apply when that denoiser is selected later. The bridge custom-enable switch is independent.");
     ImGui::PushID("NrdBridgeRRTuning");
     ImGui::BeginDisabled(!custom);
     changed |= DrawAmdRRTuning(config, true);
@@ -3325,6 +3328,16 @@ static void DrawNrdBridgeRRTuning(Config* config)
         ImGui::SetTooltip("Predicts previous-camera depth from camera geometry instead of the depth of "
                           "the previously visible surface. The title's current motion input stays unchanged. "
                           "Switching resets RR and conversion histories. Default off.");
+    bool materialIDs = config->FfxDenoiserNrdBridgeMaterialIDs.value_or_default();
+    if (ImGui::Checkbox("Preserve native material IDs (experimental)", &materialIDs))
+    {
+        config->FfxDenoiserNrdBridgeMaterialIDs = materialIDs;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("A/B hypothesis: the four normalized native categories can prevent filtering across material boundaries. "
+                          "The current title alpha population and enable flags have not been measured. "
+                          "Off supplies material ID 0. No extra resources or dispatches; changing it resets history. Default off.");
     changed |= DrawNrdBridgeNativeDebug(config);
     static std::string settingsError;
     if (changed)
@@ -3367,7 +3380,9 @@ static void DrawNrdBridgeInputMap()
         row("Specular lighting", "Recon's separate, already-demodulated RGB lighting. Nonfinite and negative RGB are sanitized before RR.");
         row("Diffuse lighting", "Recon's separate, already-demodulated RGB lighting. No combined-color split or albedo division is needed.");
         row("Hit distance", "Each lobe keeps its native alpha/hit-distance metric, including finite inactive sentinels. The bridge does not normalize it.");
-        row("Normal + roughness", "Native packed octahedral normal in RG and roughness in B. The bridge supplies material ID 0 in alpha.");
+        row("Normal + roughness", NrdBridge::GetRRSettingsState().requested.preserveNativeMaterialIDs
+            ? "Native packed octahedral normal in RG and roughness in B. Requested experimental A preserves the four normalized native material categories."
+            : "Native packed octahedral normal in RG and roughness in B. The bridge supplies material ID 0 in alpha.");
         row("Linear VIEWZ", "The title's NRD view-space depth, signed for the RR camera convention and clamped to the camera depth bounds.");
         row("Motion + jitter", NrdBridge::CameraProjectedDepthEnabled()
             ? "Current Temporal motion uses Streamline scale and jitter correction. Experimental Z predicts previous-camera depth from camera geometry."
