@@ -16,7 +16,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from fsrd_toolchain import compile_cpp
+from fsrd_toolchain import compile_cpp, dxc
 
 ROOT = Path(__file__).resolve().parents[4]
 PASS = ROOT / 'OptiScaler/shaders/fsrd_preprocess'
@@ -67,6 +67,11 @@ def check(name, condition):
 
 def build():
     OUT.mkdir(parents=True, exist_ok=True)
+    consumer_shader = OUT / 'consumer.cso'
+    subprocess.run([str(dxc()), '-T', 'cs_6_2', '-E', 'CSMain', '-O3', '-force-rootsig-ver', 'rootsig_1_0',
+                    str(Path(__file__).with_name('nrd_bridge_consumer_fixture.hlsl')), '-Fo', str(consumer_shader)], check=True)
+    (OUT / 'consumer_shader.h').write_text('const unsigned char ConsumerShaderBytes[] = {' +
+                                         ','.join(str(x) for x in consumer_shader.read_bytes()) + '};\n', encoding='utf-8')
     source = (PASS / 'FSRDNrdBridgePass_Dx12.cpp').read_text(encoding='utf-8')
     support = Path(__file__).with_name('dx12_shader_test_support.h').as_posix()
     source = source.replace('#include "pch.h"', f'#include "{support}"\n' + AUDIT)
@@ -86,7 +91,7 @@ def build():
     shutil.copyfile(Path(__file__).with_name('fsrd_nrd_conversion_fixture.cpp'), OUT / 'fixture.cpp')
     exe = OUT / 'fsrd_nrd_conversion_fixture.exe'
     compile_cpp(OUT / 'fixture.cpp', exe, ('d3d12.lib', 'dxgi.lib'),
-                (PASS, ROOT / 'OptiScaler', ROOT / 'OptiScaler/include', ROOT / 'external/streamline'))
+                (OUT, Path(__file__).parent, PASS, ROOT / 'OptiScaler', ROOT / 'OptiScaler/include', ROOT / 'external/streamline'))
     return exe
 
 
@@ -286,6 +291,31 @@ def verify_case(directory, input_values, params, previous_depth=None, history_va
     return output['depth']
 
 
+def verify_table_consumer(directory, width, height):
+    flags = [0, 1, 0x80000000, 0x7fc00000, 0, 1]
+    for name in ('spec', 'diff'):
+        source = np.fromfile(directory / f'table_source_{name}.bin', '<f2').reshape(height, width, 4)
+        for index, flag in enumerate(flags):
+            title = np.fromfile(directory / f'table{index}' / f'{name}.bin', '<f2').reshape(height, width, 4)
+            consumer = np.fromfile(directory / f'table{index}' / f'consumer_{name}.bin', '<f4').reshape(height, width, 4)
+            check('volatile-table title and actual Consumer RGB finite', np.isfinite(title).all() and np.isfinite(consumer).all())
+            check('debug title alpha0 and actual Consumer alpha1', np.all(title[..., 3].view('<u2') == 0) and np.all(consumer[..., 3] == 1))
+            original = source[..., :3].astype(np.float32) * 64
+            if flag == 0:
+                check('overwritten native zero flag commits exact RGB', np.array_equal(title[..., :3].view('<u2'), source[..., :3].view('<u2')))
+                check('actual GPU Consumer RGB zero branch exact', np.array_equal(consumer[..., :3], original))
+            else:
+                encoded = title[..., :3].astype(np.float32)
+                rgb = source[..., :3].astype(np.float32)
+                nearest = np.stack(((rgb[..., 0] + np.float32(2) * rgb[..., 1] + rgb[..., 2]) * np.float32(.25),
+                                    (rgb[..., 0] - rgb[..., 2]) * np.float32(.5),
+                                    (-rgb[..., 0] + np.float32(2) * rgb[..., 1] - rgb[..., 2]) * np.float32(.25)), -1).astype('<f2')
+                check('encoded native title is exact nearest-half identity', np.array_equal(title[..., :3].view('<u2'), nearest.view('<u2')))
+                bound = (np.abs(encoded).sum(-1) * 2**-11 + 3 * 2**-25) * 64
+                check('actual GPU Consumer YCoCg inverse within half rounding',
+                      np.all(np.abs(consumer[..., :3] - original) <= bound[..., None] * 1.01))
+
+
 def synthetic(exe):
     directory = OUT / 'synthetic'
     directory.mkdir(parents=True, exist_ok=True)
@@ -301,7 +331,10 @@ def synthetic(exe):
     previous = None
     for index, (value, params) in enumerate(cases):
         previous = verify_case(directory / f'frame{index}', value, params, previous, index > 0 and index != 4)
+    verify_table_consumer(directory, width, height)
     return dict(frames=count, width=width, height=height, fixture_checks=int(re.search(r'fixture_checks=(\d+)', stdout)[1]),
+                table_fixture_checks=int(re.search(r'table_fixture_checks=(\d+)', stdout)[1]),
+                native_table_cases=6, table_auxiliary_bytes=327680,
                 gpu_based_validation=True, source_access='Recon UAV flag4 in UA state, guides SRV without UAV flag; descriptor and borrowed-resource barrier audit',
                 audited_views=int(re.search(r'audited_views=(\d+)', stdout)[1]),
                 audited_barriers=int(re.search(r'audited_barriers=(\d+)', stdout)[1]),
@@ -337,6 +370,7 @@ def captured(exe):
     write_case(directory / 'frame0', value, params)
     stdout = run_fixture(exe, 'capture', directory)
     verify_case(directory / 'frame0', value, params)
+    verify_table_consumer(directory, width, height)
     output = read_outputs(directory / 'frame0', width, height)
     REPORT.mkdir(parents=True, exist_ok=True)
     from PIL import Image, ImageDraw
@@ -362,6 +396,8 @@ def captured(exe):
                              'Static zero motion, assumed RH/FOV60deg reverse infinite projection; near0.02 derived from D=a+b/Z fit, far65504.',
                              'This verifies real lighting payload conversion; missing captured normals/camera remain synthetic. Installed-title oct/B packing is independently attested.'],
                 fixture_checks=int(re.search(r'fixture_checks=(\d+)', stdout)[1]),
+                table_fixture_checks=int(re.search(r'table_fixture_checks=(\d+)', stdout)[1]),
+                native_table_cases=6, table_auxiliary_bytes=327680,
                 outputs=(directory / 'frame0').as_posix(), image=(REPORT / 'da9f_conversion_before_after.png').as_posix())
 
 

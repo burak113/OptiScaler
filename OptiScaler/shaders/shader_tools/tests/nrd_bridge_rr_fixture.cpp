@@ -150,15 +150,19 @@ struct Host
     }
     void checkDebug()
     {
-        unsigned errors=0;
+        unsigned errors=0,warnings=0;
         for(UINT64 i=0;i<info->GetNumStoredMessages();++i)
         {
             SIZE_T bytes=0; info->GetMessage(i,nullptr,&bytes); std::vector<uint8_t> memory(bytes);
             auto* message=reinterpret_cast<D3D12_MESSAGE*>(memory.data()); hr(info->GetMessage(i,message,&bytes));
             if(message->Severity==D3D12_MESSAGE_SEVERITY_ERROR || message->Severity==D3D12_MESSAGE_SEVERITY_CORRUPTION)
             { ++errors; std::cerr<<message->pDescription<<'\n'; }
+            if(message->Severity==D3D12_MESSAGE_SEVERITY_WARNING)
+            { ++warnings; std::cerr<<message->pDescription<<'\n'; }
         }
         need(errors==0,"D3D12 debug layer errors");
+        need(warnings==0,"D3D12 debug layer warnings");
+        std::cout<<"debug_errors="<<errors<<" debug_warnings="<<warnings<<'\n';
     }
 };
 void barrier(ID3D12GraphicsCommandList* list,ID3D12Resource* resource,D3D12_RESOURCE_STATES before,D3D12_RESOURCE_STATES after)
@@ -173,7 +177,8 @@ ComPtr<ID3D12Resource> buffer(ID3D12Device* device,UINT64 size,D3D12_HEAP_TYPE t
     desc.Height=desc.DepthOrArraySize=desc.MipLevels=1; desc.SampleDesc.Count=1; desc.Layout=D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
     ComPtr<ID3D12Resource> resource;
     hr(device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&desc,
-        type==D3D12_HEAP_TYPE_UPLOAD?D3D12_RESOURCE_STATE_GENERIC_READ:D3D12_RESOURCE_STATE_COPY_DEST,nullptr,IID_PPV_ARGS(&resource)));
+        type==D3D12_HEAP_TYPE_UPLOAD?D3D12_RESOURCE_STATE_GENERIC_READ:
+            (type==D3D12_HEAP_TYPE_DEFAULT?D3D12_RESOURCE_STATE_COMMON:D3D12_RESOURCE_STATE_COPY_DEST),nullptr,IID_PPV_ARGS(&resource)));
     return resource;
 }
 void ClearPair(ID3D12GraphicsCommandList* list, ID3D12Resource* spec, ID3D12Resource* diff,
@@ -466,7 +471,7 @@ struct Readback
     void consumerRoundtrip(Readback& staged,uint32_t width,uint32_t height,bool encoded,float nativeAlpha)
     {
         const auto output=values(width,height),source=staged.values(width,height);
-        uint64_t finite=0,sourceFinite=0,alphas=0,within=0,exactRgb=0,chroma=0;
+        uint64_t finite=0,sourceFinite=0,alphas=0,within=0,exactRgb=0,chroma=0,nearest=0;
         for(size_t p=0;p<size_t(width)*height;++p)
         {
             std::array<float,3> color,original;
@@ -474,6 +479,9 @@ struct Readback
                 original[c]=PackedVector::XMConvertHalfToFloat(source[p*4+c]);finite+=std::isfinite(color[c]);
                 sourceFinite+=std::isfinite(original[c]);exactRgb+=output[p*4+c]==source[p*4+c];}
             const float bound=(std::abs(color[0])+std::abs(color[1])+std::abs(color[2]))*std::ldexp(1.f,-11)+3*std::ldexp(1.f,-25);
+            const std::array<float,3> expectedHalf {(original[0]+2.f*original[1]+original[2])*.25f,
+                (original[0]-original[2])*.5f,(-original[0]+2.f*original[1]-original[2])*.25f};
+            for(unsigned c=0;c<3;++c)nearest+=output[p*4+c]==PackedVector::XMConvertFloatToHalf(expectedHalf[c]);
             const auto decoded=encoded?std::array<float,3>{std::max(color[0]-color[2]+color[1],0.f),
                 std::max(color[0]+color[2],0.f),std::max(color[0]-color[2]-color[1],0.f)}:color;
             for(unsigned c=0;c<3;++c)within+=std::abs(decoded[c]-(encoded?std::max(original[c],0.f):original[c]))<=bound*1.01f;
@@ -485,7 +493,62 @@ struct Readback
         need(alphas==uint64_t(width)*height,"encoding preserves every native title alpha byte");
         need(within==uint64_t(width)*height*3,"exact Consumer inverse roundtrip within FP16 rounding bound");
         if(!encoded)need(exactRgb==uint64_t(width)*height*3,"native flag zero bypasses fallback encoding with exact RR RGB");
-        else need(chroma>0,"asymmetric codec test must exercise both nonzero chroma channels");
+        else { need(chroma>0,"asymmetric codec test must exercise both nonzero chroma channels");
+            need(nearest==uint64_t(width)*height*3,"encoded title RGB matches exact nearest-half identity"); }
+    }
+    void nearestHalfEdges(Readback& staged,uint32_t width,uint32_t height,float nativeAlpha,unsigned edge)
+    {
+        const auto output=values(width,height),source=staged.values(width,height);
+        uint64_t nearest=0,finite=0,alpha=0;
+        std::array<uint16_t,3> firstExpected{};
+        for(size_t p=0;p<size_t(width)*height;++p)
+        {
+            std::array<float,3> rgb;
+            for(unsigned c=0;c<3;++c)rgb[c]=PackedVector::XMConvertHalfToFloat(source[p*4+c]);
+            const std::array<float,3> expected {(rgb[0]+2.f*rgb[1]+rgb[2])*.25f,
+                (rgb[0]-rgb[2])*.5f,(-rgb[0]+2.f*rgb[1]-rgb[2])*.25f};
+            for(unsigned c=0;c<3;++c)
+            {
+                const auto word=PackedVector::XMConvertFloatToHalf(expected[c]);
+                if(p==0)firstExpected[c]=word;
+                nearest+=output[p*4+c]==word;
+                finite+=std::isfinite(PackedVector::XMConvertHalfToFloat(output[p*4+c]));
+            }
+            alpha+=output[p*4+3]==PackedVector::XMConvertFloatToHalf(nativeAlpha);
+        }
+        need(nearest==uint64_t(width)*height*3,"GPU edge codec matches independent CPU nearest-even half bits");
+        need(finite==uint64_t(width)*height*3,"GPU edge codec remains finite including half subnormals");
+        need(alpha==uint64_t(width)*height,"GPU edge codec preserves native title alpha bits");
+        std::cout<<"nearest_half_edge="<<edge<<" matched_components="<<nearest<<" words="
+                 <<firstExpected[0]<<','<<firstExpected[1]<<','<<firstExpected[2]<<'\n';
+    }
+    void consumerGpuRoundtrip(Readback& title,Readback& staged,uint32_t width,uint32_t height,bool encoded)
+    {
+        const auto native=title.values(width,height),source=staged.values(width,height);
+        uint8_t* data;hr(bufferResource->Map(0,nullptr,reinterpret_cast<void**>(&data)));
+        uint64_t finite=0,within=0,alpha=0;
+        for(uint32_t y=0;y<height;++y)
+        {
+            const auto* row=reinterpret_cast<const float*>(data+footprint.Offset+y*footprint.Footprint.RowPitch);
+            for(uint32_t x=0;x<width;++x)
+            {
+                const auto p=size_t(y)*width+x;
+                float bound=3*std::ldexp(1.f,-25);
+                for(unsigned c=0;c<3;++c)bound+=std::abs(PackedVector::XMConvertHalfToFloat(native[p*4+c]))*std::ldexp(1.f,-11);
+                for(unsigned c=0;c<3;++c)
+                {
+                    const auto expected=PackedVector::XMConvertHalfToFloat(source[p*4+c]);
+                    finite+=std::isfinite(row[x*4+c]);
+                    within+=encoded?std::abs(row[x*4+c]-std::max(expected,0.f)*64.f)<=bound*64.f*1.01f:
+                        row[x*4+c]==expected*64.f;
+                }
+                alpha+=row[x*4+3]==1.f;
+            }
+        }
+        bufferResource->Unmap(0,nullptr);
+        need(finite==uint64_t(width)*height*3,"original Consumer GPU decoded RGB finite");
+        need(within==uint64_t(width)*height*3,"actual Consumer GPU read matches RR RGB within derived half rounding");
+        need(alpha==uint64_t(width)*height,"original Consumer stores alpha1 independently of title signal alpha");
     }
 };
 void partialFailureChecks(Host& host)
@@ -536,6 +599,7 @@ struct ConsumerBuffer
         if(defaultHeap)
         {
             binding=buffer(host.device.Get(),1536,D3D12_HEAP_TYPE_DEFAULT);
+            barrier(host.list.Get(),binding.Get(),D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_COPY_DEST);
             host.list->CopyBufferRegion(binding.Get(),0,upload.Get(),0,1536);
             barrier(host.list.Get(),binding.Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
             D3D12_HEAP_PROPERTIES heap{};hr(binding->GetHeapProperties(&heap,nullptr));
@@ -551,6 +615,189 @@ struct ConsumerBuffer
     }
     ULONG references(){const auto value=binding->AddRef();binding->Release();return value-1;}
 };
+#include "nrd_bridge_consumer_test.h"
+void tableEncodingChecks(Host& host)
+{
+    const auto width=FfxApiProxy::real?1505u:64u,height=FfxApiProxy::real?847u:64u;
+    Scene scene(host,width,height,{},true);host.submit();host.reset();RRWrapper wrapper;FrameParameters frame;std::string error;
+    const auto previousSpec=FfxApiProxy::mockSpec,previousDiff=FfxApiProxy::mockDiff;
+    if(!FfxApiProxy::real){FfxApiProxy::mockSpec={1.5f,7.f,9.25f,99.f};FfxApiProxy::mockDiff={9.f,2.75f,.5f,98.f};FfxApiProxy::recordPartialWrites=true;}
+    const uint32_t flags[] {0u,1u,0x80000000u,0x7fc00000u,0u,1u};
+    uint64_t auxiliary=0;
+    for(unsigned i=0;i<std::size(flags);++i)
+    {
+        ConsumerBuffer old(host),next(host,i>=4);old.flag(flags[i]?0:1);
+        NativeTableConsumer consumer(host,scene.spec(),scene.diff(),width,height);consumer.Overwrite(host.device.Get(),old.constants().address);
+        const auto heapRefs=consumer.References(),oldRefs=old.references(),nextRefs=next.references();
+        ClearPair(host.list.Get(),scene.spec(),scene.diff(),{.125f,.25f,.5f,9.f},{1.25f,1.5f,1.75f,11.f});
+        need(wrapper.PrepareFrame(camera(800+i,width/float(height)),false,frame,error),"prepare volatile native table frame");
+        frame.outputConstants={old.binding.Get(),old.constants().address,consumer.heap.Get(),consumer.Handle()};
+        need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
+        if(i==0)auxiliary=wrapper.OwnedAuxiliaryBytes();
+        need(wrapper.OwnedAuxiliaryBytes()==auxiliary,"warm native flag snapshots reused without new allocation");
+        need(consumer.References()==heapRefs && old.references()==oldRefs && next.references()==nextRefs,
+             "bridge never AddRef's native volatile heap or either CBV target");
+        consumer.Record(host);
+        Readback decodedSpec(host,consumer.spec.Get()),decodedDiff(host,consumer.diff.Get());
+        Readback spec(host,scene.spec()),diff(host,scene.diff());
+        Readback stagedSpec(host,static_cast<ID3D12Resource*>(FfxApiProxy::lastSpecular.signal.output.resource));
+        Readback stagedDiff(host,static_cast<ID3D12Resource*>(FfxApiProxy::lastDiffuse.signal.output.resource));
+        // Overwrite the genuine native CBV descriptor to a DIFFERENT resource,
+        // after both our capture/commit and original Consumer were recorded.
+        next.flag(flags[i]);need(next.constants().address!=old.constants().address,"table overwrite must target a different buffer");
+        consumer.Overwrite(host.device.Get(),next.constants().address);host.submit();host.reset();
+        need(consumer.Flag()==flags[i],"original Consumer GPU table read follows overwritten native descriptor");
+        spec.consumerRoundtrip(stagedSpec,width,height,flags[i]!=0,9.f);
+        diff.consumerRoundtrip(stagedDiff,width,height,flags[i]!=0,11.f);
+        decodedSpec.consumerGpuRoundtrip(spec,stagedSpec,width,height,flags[i]!=0);
+        decodedDiff.consumerGpuRoundtrip(diff,stagedDiff,width,height,flags[i]!=0);
+    }
+    need(auxiliary==5u*65536u,"four committed64K flag slots plus committed64K fallback CB");
+    if(!FfxApiProxy::real){FfxApiProxy::recordPartialWrites=false;FfxApiProxy::mockSpec=previousSpec;FfxApiProxy::mockDiff=previousDiff;}
+    std::cout<<"volatile_table cases=6 original_consumer_RSG1.0=1 overwrite_different_buffer=6 default_heap=2 native_alpha=9,11 auxiliary_bytes="<<auxiliary<<'\n';
+}
+void nearestHalfEdgeChecks(Host& host)
+{
+    const float sub=std::ldexp(1.f,-24),normal=std::ldexp(1.f,-14);
+    const std::array<std::array<float,4>,9> cases {{
+        {sub,0.f,0.f,99.f}, {0.f,sub,0.f,99.f}, {0.f,0.f,sub,99.f},
+        {2.f*sub,0.f,0.f,99.f}, {4.f*normal,0.f,0.f,99.f},
+        {0.f,std::ldexp(1.f,-13)-sub,0.f,99.f},
+        {1.9990234375f,2.f,1.9990234375f,99.f},
+        {65504.f,65504.f,65504.f,99.f}, {-0.f,0.f,0.f,99.f}
+    }};
+    Scene scene(host,64,64);host.submit();host.reset();RRWrapper wrapper;FrameParameters frame;std::string error;
+    ConsumerBuffer old(host),next(host);next.flag(1);
+    NativeTableConsumer consumer(host,scene.spec(),scene.diff(),64,64);
+    const auto priorSpec=FfxApiProxy::mockSpec,priorDiff=FfxApiProxy::mockDiff;
+    FfxApiProxy::recordPartialWrites=true;
+    for(unsigned i=0;i<cases.size();++i)
+    {
+        FfxApiProxy::mockSpec=cases[i];FfxApiProxy::mockDiff=cases[i];
+        consumer.Overwrite(host.device.Get(),old.constants().address);
+        ClearPair(host.list.Get(),scene.spec(),scene.diff(),{.125f,.25f,.5f,9.f},{1.25f,1.5f,1.75f,11.f});
+        need(wrapper.PrepareFrame(camera(850+i),false,frame,error),"prepare half-rounding GPU edge frame");
+        frame.outputConstants={old.binding.Get(),old.constants().address,consumer.heap.Get(),consumer.Handle()};
+        need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
+        consumer.Record(host);Readback decodedSpec(host,consumer.spec.Get()),decodedDiff(host,consumer.diff.Get());
+        Readback spec(host,scene.spec()),diff(host,scene.diff());
+        Readback stagedSpec(host,static_cast<ID3D12Resource*>(FfxApiProxy::lastSpecular.signal.output.resource));
+        Readback stagedDiff(host,static_cast<ID3D12Resource*>(FfxApiProxy::lastDiffuse.signal.output.resource));
+        consumer.Overwrite(host.device.Get(),next.constants().address);host.submit();host.reset();
+        need(consumer.Flag()==1,"edge Consumer GPU sees overwritten YCoCg table");
+        spec.nearestHalfEdges(stagedSpec,64,64,9.f,i);diff.nearestHalfEdges(stagedDiff,64,64,11.f,i);
+        decodedSpec.consumerGpuRoundtrip(spec,stagedSpec,64,64,true);
+        decodedDiff.consumerGpuRoundtrip(diff,stagedDiff,64,64,true);
+    }
+    FfxApiProxy::recordPartialWrites=false;FfxApiProxy::mockSpec=priorSpec;FfxApiProxy::mockDiff=priorDiff;
+}
+void tableFailureChecks(Host& host)
+{
+    Scene scene(host,64,64);host.submit();host.reset();FfxApiProxy::recordPartialWrites=true;
+    for(bool cancelled:{false,true})
+    {
+        ConsumerBuffer old(host),next(host);next.flag(1);
+        NativeTableConsumer consumer(host,scene.spec(),scene.diff(),64,64);consumer.Overwrite(host.device.Get(),old.constants().address);
+        ClearPair(host.list.Get(),scene.spec(),scene.diff(),{.125f,.25f,.5f,9.f},{1.25f,1.5f,1.75f,11.f});host.submit();host.reset();
+        RRWrapper wrapper;FrameParameters frame;std::string error;CommitProbe probe;
+        const auto creates=FfxApiProxy::creates,destroys=FfxApiProxy::destroys;
+        const auto refs=consumer.References();
+        need(wrapper.PrepareFrame(camera(820),false,frame,error),"prepare volatile table error/cancel");
+        frame.outputConstants={old.binding.Get(),old.constants().address,consumer.heap.Get(),consumer.Handle()};
+        FfxApiProxy::rejectDispatch=!cancelled;OutputCommitGuard guard=cancelled?OutputCommitGuard{&probe,CommitProbe::Admit}:OutputCommitGuard{};
+        need(!wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error,guard),"table SDK error/denied guard propagated");
+        need(wrapper.OwnedAuxiliaryBytes()==0 && FfxApiProxy::destroys==destroys,"failed table snapshots/context leased until partial GPU completion");
+        if(cancelled)need(probe.calls==1 && probe.actions==0,"denied table guard records no capture or commit action");
+        consumer.Record(host);Readback spec(host,scene.spec()),diff(host,scene.diff());
+        consumer.Overwrite(host.device.Get(),next.constants().address);host.submit();host.reset();
+        need(consumer.Flag()==1,"Consumer independently observes overwritten table after cancelled commit");
+        spec.exact({.125f,.25f,.5f,9.f},64,64);diff.exact({1.25f,1.5f,1.75f,11.f},64,64);
+        need(FfxApiProxy::destroys==destroys+1 && consumer.References()==refs,"failed table generation deferred, native heap remains unretained");
+        FfxApiProxy::rejectDispatch=false;probe.accepted=true;
+        need(wrapper.PrepareFrame(camera(821),false,frame,error) && frame.reset && !frame.previousValid,"failed table history reset");
+        frame.outputConstants={next.binding.Get(),next.constants().address,consumer.heap.Get(),consumer.Handle()};
+        need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error,guard),error.c_str());
+        need(FfxApiProxy::creates==creates+2 && wrapper.ContextGeneration()==2,"table failure recovery physically recreates provider");
+        Readback recoveredSpec(host,scene.spec()),recoveredDiff(host,scene.diff());
+        Readback stagedSpec(host,static_cast<ID3D12Resource*>(FfxApiProxy::lastSpecular.signal.output.resource));
+        Readback stagedDiff(host,static_cast<ID3D12Resource*>(FfxApiProxy::lastDiffuse.signal.output.resource));
+        host.submit();host.reset();recoveredSpec.consumerRoundtrip(stagedSpec,64,64,true,9.f);recoveredDiff.consumerRoundtrip(stagedDiff,64,64,true,11.f);
+    }
+    FfxApiProxy::recordPartialWrites=false;
+}
+void tableDiscardChecks(Host& host)
+{
+    const auto width=FfxApiProxy::real?1505u:64u,height=FfxApiProxy::real?847u:64u;
+    Scene scene(host,width,height,{},true);host.submit();host.reset();ConsumerBuffer native(host);native.flag(1);
+    NativeTableConsumer consumer(host,scene.spec(),scene.diff(),width,height);consumer.Overwrite(host.device.Get(),native.constants().address);
+    RRWrapper wrapper;FrameParameters frame;std::string error;const auto creates=FfxApiProxy::creates,destroys=FfxApiProxy::destroys;
+    if(!FfxApiProxy::real)FfxApiProxy::recordPartialWrites=true;
+    need(wrapper.PrepareFrame(camera(830),false,frame,error),"prepare unsubmitted table capture");
+    frame.outputConstants={native.binding.Get(),native.constants().address,consumer.heap.Get(),consumer.Handle()};
+    need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
+    hr(host.list->Close());host.reset();wrapper.DiscardRecordingHistory();
+    need(wrapper.OwnedAuxiliaryBytes()==0 && FfxApiProxy::destroys==destroys+1,"discarded table snapshot generation destroyed only after list reset");
+    need(wrapper.PrepareFrame(camera(831),false,frame,error) && frame.reset && !frame.previousValid,"discarded table private history absent");
+    frame.outputConstants={native.binding.Get(),native.constants().address,consumer.heap.Get(),consumer.Handle()};
+    need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
+    need(FfxApiProxy::creates==creates+2,"post-discard table context is physically new");
+    consumer.Record(host);Readback decodedSpec(host,consumer.spec.Get()),decodedDiff(host,consumer.diff.Get());
+    Readback spec(host,scene.spec()),diff(host,scene.diff());
+    Readback stagedSpec(host,static_cast<ID3D12Resource*>(FfxApiProxy::lastSpecular.signal.output.resource));
+    Readback stagedDiff(host,static_cast<ID3D12Resource*>(FfxApiProxy::lastDiffuse.signal.output.resource));
+    host.submit();host.reset();need(consumer.Flag()==1,"post-discard actual Consumer uses table flag");
+    spec.consumerRoundtrip(stagedSpec,width,height,true,.75f);diff.consumerRoundtrip(stagedDiff,width,height,true,2.f);
+    decodedSpec.consumerGpuRoundtrip(spec,stagedSpec,width,height,true);decodedDiff.consumerGpuRoundtrip(diff,stagedDiff,width,height,true);
+    if(!FfxApiProxy::real)FfxApiProxy::recordPartialWrites=false;
+}
+void sameBatchSnapshotChecks(Host& host)
+{
+    Scene scene(host,64,64);host.submit();host.reset();ConsumerBuffer old(host),next(host);next.flag(1);
+    NativeTableConsumer consumer(host,scene.spec(),scene.diff(),64,64);consumer.Overwrite(host.device.Get(),old.constants().address);
+    const TitleSignalConstants constants {old.binding.Get(),old.constants().address,consumer.heap.Get(),consumer.Handle()};
+    std::shared_ptr<Context> owner;std::string error;const auto destroys=FfxApiProxy::destroys;
+    need(CreateContext(host.device.Get(),64,64,owner,error),"create state-balance helper context");
+    need(owner->PrepareTableFlags(error),"prepare state-balance helper snapshots");
+    auto slot=owner->AcquireSlot(scene.spec(),scene.diff(),error);need(bool(slot),"acquire state-balance helper slot");
+    ComPtr<ID3D12CommandAllocator> secondAllocator;ComPtr<ID3D12GraphicsCommandList> secondList;
+    hr(host.device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,IID_PPV_ARGS(&secondAllocator)));
+    hr(host.device->CreateCommandList(0,D3D12_COMMAND_LIST_TYPE_DIRECT,secondAllocator.Get(),nullptr,IID_PPV_ARGS(&secondList)));
+    std::array<std::shared_ptr<DispatchLease>,2> leases;
+    ID3D12GraphicsCommandList* lists[] {host.list.Get(),secondList.Get()};
+    for(unsigned i=0;i<2;++i)
+    {
+        leases[i]=MakeOwnedShared<DispatchLease>();leases[i]->context=owner;leases[i]->slot=slot;
+        need(ResTrack_Dx12::RetainComputeDispatch(host.device.Get(),lists[i],leases[i]),"explicit lease of shared state-balance snapshot");
+        ClearPair(lists[i],scene.spec(),scene.diff(),{.125f,.25f,.5f,9.f},{1.25f,1.5f,1.75f,11.f});
+        ClearPair(lists[i],slot->spec.Get(),slot->diff.Get(),{1.5f,7.f,9.25f,99.f},{9.f,2.75f,.5f,98.f});
+        // Deliberately reuse the SAME private slot to exercise its real production
+        // Commit/FlagCapture state balance. Normal pool admission never reuses an
+        // outstanding lease; two distinct lists are required by the native API.
+        owner->Commit(lists[i],*slot,scene.spec(),scene.diff(),SignalEncoding::Rgb,constants);
+    }
+    hr(host.list->Close());auto firstList=host.list;host.list=secondList;
+    consumer.Record(host);Readback decodedSpec(host,consumer.spec.Get()),decodedDiff(host,consumer.diff.Get());
+    Readback spec(host,scene.spec()),diff(host,scene.diff()),stagedSpec(host,slot->spec.Get()),stagedDiff(host,slot->diff.Get());
+    hr(secondList->Close());host.list=firstList;
+    consumer.Overwrite(host.device.Get(),next.constants().address);
+    ComPtr<IUnknown> firstIdentity,secondIdentity;hr(firstList.As(&firstIdentity));hr(secondList.As(&secondIdentity));
+    ComPtr<ID3D12Fence> gate;hr(host.device->CreateFence(0,D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&gate)));
+    struct Unblock { ID3D12Fence* fence; ~Unblock(){fence->Signal(1);} } unblock {gate.Get()};
+    hr(host.queue->Wait(gate.Get(),1));
+    {
+        auto submission=RecordedComputeLease::BeforeSubmission(host.queue.Get(),{firstIdentity.Get(),secondIdentity.Get()});
+        ID3D12CommandList* submitted[] {firstList.Get(),secondList.Get()};host.queue->ExecuteCommandLists(2,submitted);
+        RecordedComputeLease::AfterSubmission(submission);
+    } // Release the fixture's own strong submission handle before testing retirement.
+    owner.reset();for(auto& lease:leases)lease.reset();
+    for(auto* list:lists){auto recording=RecordedComputeLease::Capture(list);RecordedComputeLease::Detach(recording);}
+    need(FfxApiProxy::destroys==destroys,"shared snapshot/commit pipeline retained while two-list GPU batch is blocked");
+    hr(gate->Signal(1));host.finish();need(FfxApiProxy::destroys==destroys+1,"shared helper context retires after batch completion");
+    need(consumer.Flag()==1,"actual Consumer sees overwritten CBV after both distinct-list captures");
+    spec.consumerRoundtrip(stagedSpec,64,64,true,9.f);diff.consumerRoundtrip(stagedDiff,64,64,true,11.f);
+    decodedSpec.consumerGpuRoundtrip(spec,stagedSpec,64,64,true);decodedDiff.consumerGpuRoundtrip(diff,stagedDiff,64,64,true);
+    host.reset();std::cout<<"same_batch distinct_lists=2 shared_snapshot=1 end_start_COMMON=1 native_alpha=9,11 debug_strict=1\n";
+}
 void encodingValidationChecks(Host& host)
 {
     Scene scene(host,FfxApiProxy::real?1505u:64u,FfxApiProxy::real?847u:64u);host.submit();host.reset();
@@ -718,22 +965,32 @@ void discardedRecordingChecks(Host& host,const std::filesystem::path& output)
     spec.verify(output/"discard_recovery_spec.rgba16f",1505,847);diff.verify(output/"discard_recovery_diff.rgba16f",1505,847);
 }
 void realLoop(Host& host,uint32_t width,uint32_t height,unsigned frames,const std::filesystem::path& input,
-              const std::filesystem::path& output,const char* label)
+              const std::filesystem::path& output,const char* label,bool nativeTable=false)
 {
     Scene scene(host,width,height,input);host.submit();host.reset();RRWrapper wrapper;
+    std::unique_ptr<ConsumerBuffer> native;
+    std::unique_ptr<NativeTableConsumer> consumer;
+    if(nativeTable)
+    {
+        native=std::make_unique<ConsumerBuffer>(host);native->flag(1);
+        consumer=std::make_unique<NativeTableConsumer>(host,scene.spec(),scene.diff(),width,height);
+        consumer->Overwrite(host.device.Get(),native->constants().address);
+    }
     ComPtr<ID3D12QueryHeap> queries;D3D12_QUERY_HEAP_DESC desc{};desc.Type=D3D12_QUERY_HEAP_TYPE_TIMESTAMP;desc.Count=2;
     hr(host.device->CreateQueryHeap(&desc,IID_PPV_ARGS(&queries)));auto timing=buffer(host.device.Get(),16,D3D12_HEAP_TYPE_READBACK);
     UINT64 frequency;hr(host.queue->GetTimestampFrequency(&frequency));std::vector<double> milliseconds;
-    uint64_t warmedStagingBytes=0;
+    uint64_t warmedStagingBytes=0,warmedAuxiliaryBytes=0;
     for(unsigned index=0;index<frames;++index)
     {
         auto snapshot=camera(index,width/float(height),input.empty()?.01f:.02f);snapshot.constants.jitterOffset=sl::float2(0,0);
         snapshot.constants.mvecScale=sl::float2(1,1);FrameParameters frame;std::string error;
         need(wrapper.PrepareFrame(snapshot,false,frame,error),"real loop camera preparation");
+        if(nativeTable)frame.outputConstants={native->binding.Get(),native->constants().address,consumer->heap.Get(),consumer->Handle()};
         host.list->EndQuery(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0);
         need(wrapper.Dispatch(host.list.Get(),scene.resources,scene.spec(),scene.diff(),frame,error),error.c_str());
-        if(index==0)warmedStagingBytes=wrapper.OwnedStagingBytes();
+        if(index==0){warmedStagingBytes=wrapper.OwnedStagingBytes();warmedAuxiliaryBytes=wrapper.OwnedAuxiliaryBytes();}
         need(wrapper.OwnedStagingBytes()==warmedStagingBytes,"sequential recordings reuse warmed staging without allocation");
+        need(wrapper.OwnedAuxiliaryBytes()==warmedAuxiliaryBytes,"sequential recording reuses owned fallback/snapshot buffers without allocation");
         host.list->EndQuery(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,1);
         host.list->ResolveQueryData(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0,2,timing.Get(),0);
         host.submit();UINT64* ticks;hr(timing->Map(0,nullptr,reinterpret_cast<void**>(&ticks)));
@@ -746,7 +1003,8 @@ void realLoop(Host& host,uint32_t width,uint32_t height,unsigned frames,const st
     std::sort(steady.begin(),steady.end());const double mean=std::accumulate(steady.begin(),steady.end(),0.0)/steady.size();
     std::cout<<"timing "<<label<<" size="<<width<<'x'<<height<<" frames="<<frames<<" warmup="<<warm
         <<" mean_ms="<<mean<<" median_ms="<<steady[steady.size()/2]<<" first_ms="<<milliseconds[0]
-        <<" staging_bytes="<<warmedStagingBytes<<" staging_slots=4 scope=RR_stage_plus_RGB_commit_preserving_title_alpha samples_ms=";
+        <<" staging_bytes="<<warmedStagingBytes<<" staging_slots=4 auxiliary_bytes="<<warmedAuxiliaryBytes
+        <<" scope="<<(nativeTable?"RR_stage_plus_native_table_capture_YCoCg_commit":"RR_stage_plus_RGB_commit_preserving_title_alpha")<<" samples_ms=";
     for(auto value:milliseconds)std::cout<<value<<',';std::cout<<'\n';
 }
 int main(int argc,char** argv) try
@@ -773,8 +1031,10 @@ int main(int argc,char** argv) try
     std::cout<<"stage minimum-size fail-closed check\n";minimumChecks(host);
     std::cout<<"stage encoding/CBV fail-closed checks\n";encodingValidationChecks(host);
     std::cout<<"stage native Consumer codec checks\n";encodingChecks(host);
+    std::cout<<"stage volatile native descriptor table checks\n";tableEncodingChecks(host);
+    std::cout<<"stage discarded volatile table checks\n";tableDiscardChecks(host);
     if(mode=="--mock")providerChecks(host);
-    if(mode=="--mock"){partialFailureChecks(host);cancelledCommitChecks(host);encodedFailureChecks(host);}
+    if(mode=="--mock"){partialFailureChecks(host);cancelledCommitChecks(host);encodedFailureChecks(host);tableFailureChecks(host);sameBatchSnapshotChecks(host);nearestHalfEdgeChecks(host);}
     if(mode=="--mock")stagingPoolChecks(host);
     if(mode=="--real")
     {
@@ -783,6 +1043,8 @@ int main(int argc,char** argv) try
         realLoop(host,1505,847,24,{},output,"synthetic_1505x847");
         realLoop(host,1505,847,24,argv[2],output,"da9f_1505x847");
         realLoop(host,2560,1440,16,{},output,"synthetic_2560x1440");
+        realLoop(host,1505,847,24,{},output,"native_table_1505x847",true);
+        realLoop(host,2560,1440,16,{},output,"native_table_2560x1440",true);
     }
     RecordedComputeLease::Poll();need(FfxApiProxy::live.empty(),"all completed contexts retired");
     need(FfxApiProxy::creates==FfxApiProxy::destroys,"exact context create/destroy balance");host.checkDebug();

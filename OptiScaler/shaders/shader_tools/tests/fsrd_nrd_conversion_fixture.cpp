@@ -30,6 +30,7 @@ static void hr(HRESULT result, std::source_location location = std::source_locat
 static uint32_t bytesPerPixel(DXGI_FORMAT format)
 {
     if (format == DXGI_FORMAT_R16G16B16A16_FLOAT) return 8;
+    if (format == DXGI_FORMAT_R32G32B32A32_FLOAT) return 16;
     return 4;
 }
 static std::vector<char> load(const fs::path& path)
@@ -108,7 +109,8 @@ struct Fixture
         desc.SampleDesc.Count = 1; desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
         ComPtr<ID3D12Resource> resource;
         hr(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
-            heapType == D3D12_HEAP_TYPE_UPLOAD ? D3D12_RESOURCE_STATE_GENERIC_READ : D3D12_RESOURCE_STATE_COPY_DEST,
+            heapType == D3D12_HEAP_TYPE_UPLOAD ? D3D12_RESOURCE_STATE_GENERIC_READ :
+                (heapType == D3D12_HEAP_TYPE_DEFAULT ? D3D12_RESOURCE_STATE_COMMON : D3D12_RESOURCE_STATE_COPY_DEST),
             nullptr, IID_PPV_ARGS(&resource)));
         return resource;
     }
@@ -406,9 +408,106 @@ static void Sequence(const fs::path& root, bool gpuValidation, bool deferred = f
     need(!denied.Dispatch(fixture.list.Get(), inputs[0].Inputs(), frame, unused, error), "untracked dispatch was accepted");
     need(!unused.spec && !unused.diff && !RecordedComputeLease::Capture(fixture.list.Get()), "failed dispatch exposed outputs");
     RecordedComputeLease::SetHooksAvailable(true, true);
+    need(fixture.fence->GetCompletedValue() >= fixture.fenceValue, "original fixture fence completed before audit-role reset");
     hr(fixture.list->Close()); fixture.Validate();
     std::cout << "fixture_checks=" << checks << " descriptor_heaps=" << gNrdDescriptorAllocations
               << " audited_views=" << gNrdAuditedViews << " audited_barriers=" << gNrdAuditedBarriers << "\n";
+}
+
+#include "nrd_bridge_consumer_test.h"
+static void TableSequence(const fs::path& root, bool deferred)
+{
+    need(RecordedComputeLease::GetRegistry().recordings.empty() && RecordedComputeLease::GetRegistry().submissions.empty(),
+         "previous destroyed fixture has no active recording/submission owners");
+    // The preceding fixture has completed and destroyed its native resources.
+    // Addresses may now be reused; its fixture-only role sets must not classify
+    // newly allocated resources according to the previous object's role.
+    gNrdReconInputs.clear(); gNrdGuideInputs.clear(); gNrdTitleOutputs.clear();
+    std::cout << "table stage previous fixture GPU retired; audit role sets reset\n";
+    std::ifstream meta(root / "meta.txt"); uint32_t frames, width, height; meta >> frames >> width >> height;
+    Fixture fixture(width < 64); auto input = InputSet::Read(fixture, root / "frame0", width, height);
+    auto pass = std::make_unique<NrdBridge::ConversionPass>(); std::string error; uint32_t mode;
+    auto require = [&](bool value) { need(value, error.c_str()); };
+    auto frame = ReadFrame(root / "frame0", mode); NrdBridge::ConvertedResources resources;
+    require(pass->Initialize(fixture.device.Get(), width, height, error));
+    auto inputs = input.Inputs(); if (deferred) inputs.motion = nullptr;
+    require(pass->Dispatch(fixture.list.Get(), inputs, frame, resources, error));
+    if (deferred) require(pass->DispatchMotion(fixture.list.Get(), resources, input.textures[4].Get(), frame, error));
+    auto sourceSpec = fixture.Snapshot(resources.spec, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    auto sourceDiff = fixture.Snapshot(resources.diff, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    fixture.Submit(); fixture.Reset(); save(root / "table_source_spec.bin", sourceSpec.Data()); save(root / "table_source_diff.bin", sourceDiff.Data());
+    const uint32_t flags[] {0u, 1u, 0x80000000u, 0x7fc00000u, 0u, 1u}; uint64_t warmAuxiliary = 0;
+    for (unsigned i = 0; i < std::size(flags); ++i)
+    {
+        std::cout << "table stage case " << i << '\n';
+        std::array<ComPtr<ID3D12Resource>, 2> title {fixture.Texture(width, height, DXGI_FORMAT_R16G16B16A16_FLOAT,
+            D3D12_RESOURCE_STATE_UNORDERED_ACCESS), fixture.Texture(width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)};
+        for (const auto& texture : title) gNrdTitleOutputs.insert(texture.Get());
+        auto old = fixture.Buffer(1536, D3D12_HEAP_TYPE_UPLOAD), upload = fixture.Buffer(1536, D3D12_HEAP_TYPE_UPLOAD);
+        for (auto* resource : {old.Get(), upload.Get()})
+        { void* mapped = nullptr; hr(resource->Map(0, nullptr, &mapped)); std::memset(mapped, 0, 1536); resource->Unmap(0, nullptr); }
+        uint32_t* mapped = nullptr; hr(old->Map(0, nullptr, reinterpret_cast<void**>(&mapped))); mapped[303] = flags[i] ? 0u : 1u; old->Unmap(0, nullptr);
+        ComPtr<ID3D12Resource> next = upload;
+        if (i >= 4)
+        {
+            next = fixture.Buffer(1536, D3D12_HEAP_TYPE_DEFAULT);
+            Fixture::Transition(fixture.list.Get(), next.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+            fixture.list->CopyBufferRegion(next.Get(), 0, upload.Get(), 0, 1536);
+            Fixture::Transition(fixture.list.Get(), next.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+        }
+        NativeTableConsumer consumer(fixture, title[0].Get(), title[1].Get(), width, height);
+        consumer.Overwrite(fixture.device.Get(), old->GetGPUVirtualAddress());
+        const NrdBridge::TitleSignalConstants constants {old.Get(), old->GetGPUVirtualAddress(), consumer.heap.Get(), consumer.Handle()};
+        const auto heapRefs = consumer.References(), oldRefs = References(old.Get()), newRefs = References(next.Get());
+        if (i == 0)
+        {
+            const auto heaps = gNrdDescriptorAllocations;
+            const auto aux = pass->OwnedAuxiliaryBytes();
+            auto bad = constants; bad.cbvHandle.ptr = 0;
+            need(!pass->WriteDebug(fixture.list.Get(), resources, title[0].Get(), title[1].Get(), NrdBridge::DebugMode::RawSignals,
+                                  error, {}, NrdBridge::SignalEncoding::Rgb, bad), "incomplete native table pair accepted");
+            bad = constants; ++bad.cbvHandle.ptr;
+            need(!pass->WriteDebug(fixture.list.Get(), resources, title[0].Get(), title[1].Get(), NrdBridge::DebugMode::RawSignals,
+                                  error, {}, NrdBridge::SignalEncoding::Rgb, bad), "unaligned native table handle accepted");
+            bad = constants; bad.cbvHandle.ptr = consumer.heap->GetGPUDescriptorHandleForHeapStart().ptr + 6u * consumer.stride;
+            need(!pass->WriteDebug(fixture.list.Get(), resources, title[0].Get(), title[1].Get(), NrdBridge::DebugMode::RawSignals,
+                                  error, {}, NrdBridge::SignalEncoding::Rgb, bad), "out-of-heap native table handle accepted");
+            need(heaps == gNrdDescriptorAllocations && aux == pass->OwnedAuxiliaryBytes(), "invalid table allocated descriptors or private flag buffers");
+        }
+        require(pass->WriteDebug(fixture.list.Get(), resources, title[0].Get(), title[1].Get(), NrdBridge::DebugMode::RawSignals, error));
+        auto initialSpec = fixture.Snapshot(title[0].Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        auto initialDiff = fixture.Snapshot(title[1].Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        const auto before = gNrdAuditedBarriers;
+        NrdBridge::OutputCommitGuard denied {nullptr, +[](void*, NrdBridge::OutputCommitGuard::Action, void*) noexcept { return false; }};
+        need(!pass->WriteDebug(fixture.list.Get(), resources, title[0].Get(), title[1].Get(), NrdBridge::DebugMode::RawSignals,
+                              error, denied, NrdBridge::SignalEncoding::Rgb, constants), "denied volatile-table debug request accepted");
+        need(before == gNrdAuditedBarriers, "denied table debug records no native capture/commit barriers");
+        auto cancelledSpec = fixture.Snapshot(title[0].Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        auto cancelledDiff = fixture.Snapshot(title[1].Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        require(pass->WriteDebug(fixture.list.Get(), resources, title[0].Get(), title[1].Get(), NrdBridge::DebugMode::RawSignals,
+                                error, {}, NrdBridge::SignalEncoding::Rgb, constants));
+        if (i == 0) warmAuxiliary = pass->OwnedAuxiliaryBytes();
+        need(pass->OwnedAuxiliaryBytes() == warmAuxiliary, "sequential table debug reuses warm owned flag slots");
+        consumer.Record(fixture);
+        auto spec = fixture.Snapshot(title[0].Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        auto diff = fixture.Snapshot(title[1].Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        auto decodedSpec = fixture.Snapshot(consumer.spec.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        auto decodedDiff = fixture.Snapshot(consumer.diff.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        hr(upload->Map(0, nullptr, reinterpret_cast<void**>(&mapped))); mapped[303] = flags[i]; upload->Unmap(0, nullptr);
+        need(old->GetGPUVirtualAddress() != next->GetGPUVirtualAddress(), "native descriptor overwrite must change its buffer target");
+        consumer.Overwrite(fixture.device.Get(), next->GetGPUVirtualAddress());
+        need(consumer.References() == heapRefs && References(old.Get()) == oldRefs && References(next.Get()) == newRefs,
+             "debug bridge never AddRef's native heap or either CBV target");
+        if (i == std::size(flags)-1) { need(pass->Initialize(fixture.device.Get(), 7, 5, error), error.c_str()); pass.reset(); }
+        fixture.Submit(); fixture.Reset(); need(consumer.Flag() == flags[i], "actual Consumer GPU reads overwritten native table target");
+        need(initialSpec.Data() == cancelledSpec.Data() && initialDiff.Data() == cancelledDiff.Data(), "cancelled table debug preserves every native output byte");
+        const auto directory = root / ("table" + std::to_string(i)); fs::create_directories(directory);
+        save(directory / "spec.bin", spec.Data()); save(directory / "diff.bin", diff.Data());
+        save(directory / "consumer_spec.bin", decodedSpec.Data()); save(directory / "consumer_diff.bin", decodedDiff.Data());
+    }
+    need(warmAuxiliary == 5u * 65536u, "debug table four committed64K snapshots plus committed64K fallback CB");
+    hr(fixture.list->Close()); fixture.Validate();
+    std::cout << "table_fixture_checks=" << checks << " table_cases=6 auxiliary_bytes=" << warmAuxiliary << " native_consumer_RSG1.0=1\n";
 }
 
 static void Benchmark(const fs::path& root, bool deferred = false)
@@ -480,7 +579,7 @@ int main(int argc, char** argv) try
     std::string mode = argv[1]; const bool deferred = mode.starts_with("deferred-");
     if (deferred) mode.erase(0,9);
     if (mode == "benchmark") Benchmark(argv[2],deferred);
-    else Sequence(argv[2], mode == "sequence",deferred);
+    else { Sequence(argv[2], mode == "sequence",deferred); TableSequence(argv[2],deferred); }
     std::cout << "PASS: production NRD conversion, borrowed title resources, GPU retirement\n"; return 0;
 }
 catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
