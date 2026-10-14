@@ -20,7 +20,7 @@ from fsrd_toolchain import compile_cpp, dxc
 
 DLL = Path('F:/OptiRevelations/OptiScaler-ffxD-alpha/external/FidelityFX-SDK-v2/Kits/FidelityFX/signedbin/amd_fidelityfx_denoiser_dx12.dll')
 CAPTURE = Path('F:/Ultra Yedek 2/overwrite/bin/x64/GAME_TRACE/FRAME_SURVEY/da9f46edb00fd2144b531c8c0b6fc6a2')
-REPORT = Path(os.environ.get('FSRD_NRD_RR_REPORT', 'E:/FSRD/sol_batch/12c-rr'))
+REPORT = Path(os.environ.get('FSRD_NRD_RR_REPORT', 'E:/FSRD/sol_batch/13c-rr'))
 
 
 def capture_inputs(folder):
@@ -182,7 +182,7 @@ def main():
     parser.add_argument('--converted-inputs', type=Path)
     args = parser.parse_args()
     os.environ.update(TEMP='F:/FSRD/tmp', TMP='F:/FSRD/tmp', OMP_NUM_THREADS='2', OPENBLAS_NUM_THREADS='2', MKL_NUM_THREADS='2')
-    work = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/sol_batch/12c-rr/tests/nrd_rr'))
+    work = Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/sol_batch/13c-rr/tests/nrd_rr'))
     work.mkdir(parents=True, exist_ok=True)
     REPORT.mkdir(parents=True, exist_ok=True)
     os.environ['FSRD_CPP_CACHE'] = str(work / 'cache')
