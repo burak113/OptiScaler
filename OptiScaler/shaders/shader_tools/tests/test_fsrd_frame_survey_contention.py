@@ -20,6 +20,7 @@ from fsrd_toolchain import compile_cpp
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_fsrd_nrd_root_restore import function
 import test_fsrd_frame_survey_game_scale as native
+from test_fsrd_nrd_release import tracked_resource_cache
 
 BASELINE = '6edf7d3d1c639250db6534496227fc91fc3e5306'
 
@@ -35,8 +36,9 @@ bool gSurveyWrappers=true;
 struct TrackedResourceSlot {std::weak_ptr<HeapInfo> heap;uint64_t heapVersion=0;UINT index=0;};
 NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Tracking> _trackedResourcesMutex;
 std::unordered_map<ID3D12Resource*,std::vector<TrackedResourceSlot>> _trackedResources;
-NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Tracking> gRRResourceStateMutex,gRRTrackedResourceMutex,gRRPsoMutex;
-std::unordered_set<ID3D12Resource*> gRRResourceStates,gRRResourceActivity,gRRTrackedResources;
+NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Tracking> gRRResourceStateMutex,gRRPsoMutex;
+std::unordered_set<ID3D12Resource*> gRRResourceStates,gRRResourceActivity;
+__RR_RELEASE_HELPERS__
 void CleanupRRResourcePsoProducersLocked(ID3D12Resource*){}void CleanupRRPsoReferences(void*){}void DeactivateSharedHeap(void*){}
 struct PausedNativeRelease {
  void* object=nullptr;std::atomic<unsigned> calls{0};std::promise<void> entered,resume;
@@ -550,7 +552,9 @@ struct OriginalForwardTimer {
     retirement_start = current_hooks.index('struct NativeRetirementPayload\n{')
     retirement_end = current_hooks.index('void* PrepareNativeRetirement(', retirement_start)
     retirement = current_hooks[retirement_start:retirement_end]+'\n'+'\n'.join(function(current_hooks, name) for name in ('void* PrepareNativeRetirement(', 'bool DetachNativeRetirement(', 'void NotifyNativeRetirement('))
-    adapter = ADAPTER.replace('__RELEASE_HEADER__', measured_helper.as_posix()).replace('__USE_NATIVE__', function(current_hooks, 'static bool UseNrdNativeRetirement('))
+    gates = 'static std::atomic<bool> gRRInspectorLifetimeProtection{false};\n' + function(current_hooks, 'static bool NeedsNativeReleaseGate(') + '\n' + function(current_hooks, 'static bool UseNrdNativeRetirement(')
+    rr_helpers = tracked_resource_cache(current_hooks) + '\n// Optional inspector proof map is inactive; no proof is published in this fixture.\nvoid ForgetRRRecording(void*,const NrdBridgeBirth::Token& = NrdBridgeBirth::Token()) noexcept {}\n'
+    adapter = ADAPTER.replace('__RELEASE_HEADER__', measured_helper.as_posix()).replace('__USE_NATIVE__', gates).replace('__RR_RELEASE_HELPERS__', rr_helpers)
     adapter = adapter.replace('__BASELINE_FAILURE_ADAPTER__', 'namespace FrameSurvey {void FlushMetadataFailure() noexcept{}}' if args.baseline else '')
     if args.baseline:
         retirement = 'void* PrepareNativeRetirement() noexcept {std::terminate();} bool DetachNativeRetirement(void*,const NrdBridgeBirth::Token&) noexcept {std::terminate();} void NotifyNativeRetirement(void*) noexcept {std::terminate();}'
@@ -599,6 +603,8 @@ struct OriginalForwardTimer {
         report['baseline_instrumentation'] = 'scratch catalog mutex WaitScope, same-call native AddRef/QPC and before-Scope-destructor TLS snapshot; production control flow and assertions unchanged' if args.baseline else None
         report['measurement_instrumentation'] = 'same-call native AddRef/Release/View/Copy QPC; profiler TLS snapshot before outer Scope destructor; copy native+callback boundary uses Hook::CopyDescriptors Scope'
         report['native_release_helper_sha256'] = hashlib.sha256(helper.encode()).hexdigest()
+        report['release_adapter_helpers_sha256'] = hashlib.sha256((gates+rr_helpers).encode()).hexdigest()
+        report['optional_inspector_scope'] = 'actual direct resource-cache erase and sticky release gate; inspector proof map inactive, ForgetRRRecording seam; no HUD/RR inspector active-path claim'
         report['source_commit'] = BASELINE if args.baseline else subprocess.check_output(['git', 'log', '-1', '--format=%H'], cwd=ROOT, text=True).strip()
         report_dir = Path(os.environ.get('FSRD_TASK_REPORT_DIR', 'E:/FSRD/sol_batch/13a-lifetime'))
         report_dir.mkdir(parents=True, exist_ok=True)
