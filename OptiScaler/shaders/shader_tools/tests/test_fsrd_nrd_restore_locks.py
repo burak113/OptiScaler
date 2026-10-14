@@ -41,6 +41,8 @@ CPP = r'''
 #define LOG_TRACE(...) ((void)0)
 namespace FrameSurvey {
  thread_local bool internalScope=false; bool Internal() { return internalScope; }
+ struct ComputeRootView { UINT parameter=UINT_MAX; D3D12_DESCRIPTOR_RANGE_TYPE kind=D3D12_DESCRIPTOR_RANGE_TYPE_CBV; D3D12_GPU_VIRTUAL_ADDRESS address=0; };
+ struct ComputeBindings { ID3D12RootSignature* root=nullptr; std::vector<ID3D12DescriptorHeap*> heaps; std::vector<std::pair<UINT,D3D12_GPU_DESCRIPTOR_HANDLE>> tables; std::vector<ComputeRootView> views; };
  void RootBinding(ID3D12GraphicsCommandList*,bool,ID3D12RootSignature*) {}
  void RootView(ID3D12GraphicsCommandList*,bool,UINT,D3D12_DESCRIPTOR_RANGE_TYPE,D3D12_GPU_VIRTUAL_ADDRESS) {}
 }
@@ -51,6 +53,8 @@ struct Config{Option RestoreComputeSignature,RestoreGraphicSignature,ExtendedSta
  static Config* Instance(){static Config config;return &config;}};
 struct D3D12Hooks{
  static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*);
+ static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*,FrameSurvey::ComputeBindings&) noexcept;
+ static void OnBridgeCommandListReset(ID3D12GraphicsCommandList*,ID3D12PipelineState*);
  static bool RestoreDescriptorHeaps(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
  static bool RestorePipelineState(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
  static bool RestoreComputeRootState(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
@@ -101,7 +105,7 @@ void initialize(){
  s_SetComputeRootConstantBufferView={cbv,cbv};s_SetGraphicsRootConstantBufferView={cbv,cbv};
  s_SetComputeRootShaderResourceView={srv,srv};s_SetGraphicsRootShaderResourceView={srv,srv};
  s_SetComputeRootUnorderedAccessView={uav,uav};s_SetGraphicsRootUnorderedAccessView={uav,uav};
- rootSigParameterCount[root]=7;signatures[watched]={SignatureEntryType::Compute,root};
+ rootSigParameterCount[root]=7;signatures[watched]={SignatureEntryType::Compute,root};bridgeComputeRoots[watched]=root;
  descriptorHeaps[watched]={1,{heap,nullptr}};pipelineStates[watched]=pipeline;rootStates[watched].clear();rootStates[watched].resize(7);
  auto& values=rootStates[watched];
  values[1].type=values[5].type=RootEntryType::Table;values[1].rootDescriptorTable.ptr=101;values[5].rootDescriptorTable.ptr=505;
@@ -130,7 +134,7 @@ void blockedCase(Block kind){
   const uint32_t word=123;hkSetComputeRoot32BitConstants(independent,2,1,&word,0);
   // Direct cache mutation proves snapshot ownership; it is not an allowed title
   // recording concurrently on the same command list.
-  {std::unique_lock lock(rootStatesMutex);rootStates[watched].clear();}
+  {std::unique_lock lock(rootStatesMutex);rootStates[watched].clear();bridgeComputeRoots[watched]=nullptr;}
   {std::unique_lock lock(descriptorHeapsMutex);descriptorHeaps[watched]={};}
   {std::unique_lock lock(pipelineStatesMutex);pipelineStates[watched]=nullptr;}
   {std::unique_lock lock(rootSignatureMutex);signatures[watched]={};}
@@ -143,6 +147,47 @@ void blockedCase(Block kind){
  need(progressed,"independent title tracker writes finish while original native setter remains blocked");
  need(rootStates[independent][2].Data==std::vector<uint32_t>{123},"independent actual tracker data survives blocked restore");
  verifyBytes();
+}
+void independentFamilyCases(){
+ gNrdBridgeDeviceWrappers=true;isNrdBridgeInjection=false;initialize();blocked=Block::None;
+ Config::Instance()->RestoreComputeSignature.current=true;Config::Instance()->RestoreGraphicSignature.current=true;Config::Instance()->ExtendedStateRestore.current=true;
+ auto* graphicsRoot=reinterpret_cast<ID3D12RootSignature*>(uintptr_t(0x6000));
+ auto* nextGraphicsRoot=reinterpret_cast<ID3D12RootSignature*>(uintptr_t(0x6100));
+ rootSigParameterCount[graphicsRoot]=rootSigParameterCount[nextGraphicsRoot]=7;
+ hkSetComputeRootSignature(watched,root);hkSetComputeRootDescriptorTable(watched,1,{101});hkSetComputeRootDescriptorTableLate(watched,5,{505});
+ const uint32_t a[]={11,99,33,66},b[]={77,88};
+ hkSetComputeRoot32BitConstants(watched,2,4,a,0);hkSetComputeRoot32BitConstantsLate(watched,2,2,b,5);
+ hkSetComputeRootConstantBufferView(watched,3,0x8000);hkSetComputeRootShaderResourceView(watched,4,0x9000);hkSetComputeRootUnorderedAccessView(watched,6,0xa000);
+ auto graphicsArgs=[&](uint64_t base){
+  hkSetGraphicsRootDescriptorTableLate(watched,1,{base+1});hkSetGraphicsRootDescriptorTable(watched,5,{base+5});
+  const uint32_t words[]={111,199,133,166},tail[]={177,188};
+  hkSetGraphicsRoot32BitConstantsLate(watched,2,4,words,0);hkSetGraphicsRoot32BitConstants(watched,2,2,tail,5);
+  hkSetGraphicsRootConstantBufferViewLate(watched,3,base+0x8000);hkSetGraphicsRootShaderResourceView(watched,4,base+0x9000);hkSetGraphicsRootUnorderedAccessViewLate(watched,6,base+0xa000);
+ };
+ hkSetGraphicsRootSignatureLate(watched,graphicsRoot);graphicsArgs(900);
+ auto verifyCompute=[&]{
+  FrameSurvey::ComputeBindings current;need(D3D12Hooks::GetComputeBindingsForBridge(watched,current),"legal graphics writes do not invalidate current compute binding snapshot");
+  need(current.root==root&&current.tables.size()==2&&current.tables[0].first==1&&current.tables[0].second.ptr==101&&current.tables[1].first==5&&current.tables[1].second.ptr==505,"compute snapshot never seeds graphics descriptor tables into compute mirror");
+  need(current.views.size()==3&&current.views[0].parameter==3&&current.views[0].address==0x8000&&current.views[1].address==0x9000&&current.views[2].address==0xa000,"compute CBV/SRV/UAV remain current after graphics interleaving");
+  need(D3D12Hooks::CanRestoreRootSignature(watched),"bridge preflight accepts current compute state even when last ordinary signature is graphics");
+  isNrdBridgeInjection=true;calls.clear();D3D12Hooks::RestoreRoot(watched);verifyBytes();isNrdBridgeInjection=false;
+ };
+ verifyCompute();
+ Config::Instance()->RestoreGraphicSignature.current=false;
+ hkSetGraphicsRootSignatureLate(watched,nextGraphicsRoot);graphicsArgs(1900);
+ verifyCompute();
+ Config::Instance()->RestoreGraphicSignature.current=true;
+ hkSetGraphicsRootSignature(watched,nextGraphicsRoot);
+ need(bridgeGraphicsStates[watched].rows[1].type==RootEntryType::Invalid&&bridgeGraphicsStates[watched].rows[5].type==RootEntryType::Invalid,"new graphics signature invalidates only graphics arguments");
+ graphicsArgs(2900);calls.clear();D3D12Hooks::RestoreRoot(watched);
+ need(calls.size()==10&&calls[1].name=="graphics.signature"&&calls[1].words[0]==uintptr_t(nextGraphicsRoot)&&calls[2].words[0]==2901&&calls[7].words[0]==2905,"ordinary graphics restoration retains its own signature and descriptor tables");
+ need(calls[3].words==std::vector<uint64_t>{111,199,133,166}&&calls[4].offset==5&&calls[4].words==std::vector<uint64_t>{177,188}&&calls[5].words[0]==2900+0x8000,"ordinary graphics constants/CBV remain exact independently of compute arguments");
+ verifyCompute();
+ D3D12Hooks::OnBridgeCommandListReset(watched,nullptr);
+ need(!rootStates.contains(watched)&&!bridgeComputeRoots.contains(watched)&&!bridgeGraphicsStates.contains(watched),"successful Reset/final Release cache callback removes both root families");
+ FrameSurvey::ComputeBindings cleared;need(!D3D12Hooks::GetComputeBindingsForBridge(watched,cleared),"Reset cannot republish either discarded family");
+ gNrdBridgeDeviceWrappers=false;initialize();hkSetGraphicsRoot32BitConstantLate(watched,2,987,4);
+ need(rootStates[watched][2].type==RootEntryType::Constant&&rootStates[watched][2].Data==std::vector<uint32_t>{987}&&rootStates[watched][2].DestOffset==4,"startup OFF retains legacy shared graphics argument representation");
 }
 NrdBridgePerf::Report profilerReport;bool profilerReported=false;
 void rootProfilerCases(){
@@ -212,6 +257,7 @@ int main()try{
  need(calls[3].name=="one"&&calls[3].offset==4&&calls[3].words==std::vector<uint64_t>{321},"startup OFF retains original single-value offset mapping");
  signatures[watched].type=SignatureEntryType::Graphics;calls.clear();D3D12Hooks::RestoreRoot(watched);need(calls[1].name=="graphics.signature"&&calls[3].name=="one"&&calls[3].offset==4,"graphics snapshot replay keeps original signature and argument family");
  Config::Instance()->ExtendedStateRestore.current=false;calls.clear();D3D12Hooks::RestoreRoot(watched);need(calls.size()==1&&calls[0].name=="graphics.signature","nonextended restoration sets only original root signature");
+ independentFamilyCases();
  rootProfilerCases();
  std::cout<<"PASS: "<<checks<<" actual restore snapshot/concurrent tracker/profiling checks; snapshot_bytes="<<sizeof(D3D12RootRestoreSnapshot)<<'\n';return 0;
 }catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}
@@ -219,15 +265,27 @@ int main()try{
 
 
 def run():
-    source = (ROOT/'OptiScaler/hooks/D3D12_Hooks.cpp').read_text()
+    checkpoint = os.environ.get('FSRD_ROOT_SOURCE_CHECKPOINT')
+    if checkpoint:
+        if not re.fullmatch(r'[0-9a-f]{8,40}', checkpoint):
+            raise ValueError('baseline must be a literal commit hash')
+        source = subprocess.run(['git', 'show', checkpoint + ':OptiScaler/hooks/D3D12_Hooks.cpp'], cwd=ROOT,
+                                check=True, capture_output=True, text=True).stdout
+    else:
+        source = (ROOT/'OptiScaler/hooks/D3D12_Hooks.cpp').read_text()
     state = source[source.index('// Common'):source.index('// Intel Atomic Extension')]
     state = state.replace('ankerl::unordered_dense::map', 'std::unordered_map')
-    names = re.findall(r'static void (hk(?:Survey)?Set(?:Compute|Graphics)Root(?:Signature|32BitConstants?|ConstantBufferView|ShaderResourceView|UnorderedAccessView)(?:Late)?)\(', source)
-    assert len(names) == 29
+    # Old actual-source negative control needs only this new-field declaration to
+    # compile the unchanged regression body; it never changes any extracted hook.
+    if 'struct BridgeGraphicsState' not in state:
+        state += '\nstruct BridgeGraphicsState { ID3D12RootSignature* root=nullptr; std::vector<RootState> rows; };\nstd::unordered_map<ID3D12GraphicsCommandList*,BridgeGraphicsState> bridgeGraphicsStates;\n'
+    names = re.findall(r'static void (hk(?:Survey)?Set(?:Compute|Graphics)Root(?:Signature|DescriptorTable|32BitConstants?|ConstantBufferView|ShaderResourceView|UnorderedAccessView)(?:Late)?)\(', source)
+    assert len(names) == 33
     signatures = ('UINT GetRootParameterCount(', 'static void hkSetDescriptorHeaps(',
                   'static void hkSetPipelineState(') + tuple('static void ' + name + '(' for name in names)
     trackers = '\n'.join(function(source, signature) for signature in signatures)
     restore = '\n'.join(function(source, signature) for signature in (
+        'bool D3D12Hooks::GetComputeBindingsForBridge(', 'void D3D12Hooks::OnBridgeCommandListReset(',
         'static bool CaptureRootRestoreSnapshot(', 'bool D3D12Hooks::CanRestoreRootSignature(',
         'bool D3D12Hooks::RestoreDescriptorHeaps(', 'bool D3D12Hooks::RestorePipelineState(',
         'bool D3D12Hooks::RestoreComputeRootState(', 'bool D3D12Hooks::RestoreGraphicsRootState(',
@@ -240,11 +298,14 @@ def run():
     if os.environ.get('FSRD_RESTORE_GENERATE_ONLY') == '1':
         return file
     compile_cpp(file, exe)
-    result = subprocess.run([str(exe)], check=True, capture_output=True, text=True)
+    result = subprocess.run([str(exe)], capture_output=True, text=True)
     print(result.stdout, end='')
-    (out/'result.json').write_text(json.dumps({'checks': int(result.stdout.split()[1]),
-        'scope': 'actual production capture/restore/trackers, blocking native CPU adapters, no COM/GPU lifetime or timing-gain claim',
-        'output': result.stdout}, indent=2))
+    print(result.stderr, end='', file=sys.stderr)
+    (out/'result.json').write_text(json.dumps({'checks': int(result.stdout.split()[1]) if result.returncode == 0 else None,
+        'exit_code': result.returncode, 'actual_source_checkpoint': checkpoint,
+        'scope': 'actual production capture/restore/trackers/profiler, blocking native CPU adapters, no COM/GPU lifetime or timing-gain claim',
+        'output': result.stdout, 'error': result.stderr}, indent=2))
+    result.check_returncode()
 
 
 if __name__ == '__main__':

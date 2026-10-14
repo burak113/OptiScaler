@@ -279,6 +279,20 @@ static bool isUpscalerActive = false;
 // Preserve the existing off path; bridge suppression applies only to the recording thread.
 static thread_local bool isNrdBridgeInjection = false;
 static ankerl::unordered_dense::map<ID3D12GraphicsCommandList*, ID3D12RootSignature*> bridgeComputeRoots;
+// Bridge-on compute arguments remain in rootStates; graphics setters must not
+// overwrite them when both families are active on the same native list.
+struct BridgeGraphicsState { ID3D12RootSignature* root = nullptr; std::vector<RootState> rows; };
+static ankerl::unordered_dense::map<ID3D12GraphicsCommandList*, BridgeGraphicsState> bridgeGraphicsStates;
+UINT GetRootParameterCount(ID3D12RootSignature* root);
+static void TrackBridgeGraphicsRoot(ID3D12GraphicsCommandList* list, ID3D12RootSignature* root)
+{
+    if (!gNrdBridgeDeviceWrappers) return;
+    const auto count = GetRootParameterCount(root);
+    std::unique_lock lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock);
+    auto& state = bridgeGraphicsStates[list];
+    if (state.root != root) { state.rows.clear(); state.root = root; }
+    state.rows.resize(count);
+}
 
 // Intel Atomic Extension
 struct UE_D3D12_RESOURCE_DESC
@@ -694,6 +708,7 @@ static void hkSetGraphicsRootSignature(ID3D12GraphicsCommandList* commandList, I
     if (!lateInProgressSetGraphicsRootSignature && Config::Instance()->RestoreGraphicSignature.value_or_default() &&
         !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && pRootSignature != nullptr)
     {
+        TrackBridgeGraphicsRoot(commandList,pRootSignature);
         std::unique_lock<std::shared_mutex> lock(rootSignatureMutex, std::defer_lock); LockRootTracker(lock);
         signatures.insert_or_assign(commandList, SignatureEntry { SignatureEntryType::Graphics, pRootSignature });
     }
@@ -717,7 +732,7 @@ static void hkSetGraphicsRootDescriptorTable(ID3D12GraphicsCommandList* commandL
         BaseDescriptor.ptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock);
-        auto& table = rootStates[commandList];
+        auto& table = gNrdBridgeDeviceWrappers ? bridgeGraphicsStates[commandList].rows : rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
             table[RootParameterIndex].type = RootEntryType::Table;
@@ -737,7 +752,7 @@ static void hkSetGraphicsRoot32BitConstants(ID3D12GraphicsCommandList* commandLi
     if (!lateInProgressSetGraphicsRoot32BitConstants && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && pSrcData)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock);
-        auto& table = rootStates[commandList];
+        auto& table = gNrdBridgeDeviceWrappers ? bridgeGraphicsStates[commandList].rows : rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
             if (gNrdBridgeDeviceWrappers)
@@ -766,7 +781,7 @@ static void hkSetGraphicsRoot32BitConstant(ID3D12GraphicsCommandList* commandLis
     if (!lateInProgressSetGraphicsRoot32BitConstant && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock);
-        auto& table = rootStates[commandList];
+        auto& table = gNrdBridgeDeviceWrappers ? bridgeGraphicsStates[commandList].rows : rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
             if (gNrdBridgeDeviceWrappers)
@@ -791,7 +806,7 @@ static void hkSetGraphicsRootConstantBufferView(ID3D12GraphicsCommandList* comma
     if (!lateInProgressSetGraphicsRootConstantBufferView && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock);
-        auto& table = rootStates[commandList];
+        auto& table = gNrdBridgeDeviceWrappers ? bridgeGraphicsStates[commandList].rows : rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
             table[RootParameterIndex].type = RootEntryType::CBV;
@@ -810,7 +825,7 @@ static void hkSetGraphicsRootShaderResourceView(ID3D12GraphicsCommandList* comma
     if (!lateInProgressSetGraphicsRootShaderResourceView && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock);
-        auto& table = rootStates[commandList];
+        auto& table = gNrdBridgeDeviceWrappers ? bridgeGraphicsStates[commandList].rows : rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
             table[RootParameterIndex].type = RootEntryType::SRV;
@@ -831,7 +846,7 @@ static void hkSetGraphicsRootUnorderedAccessView(ID3D12GraphicsCommandList* comm
     if (lateInProgressSetGraphicsRootUnorderedAccessView && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock);
-        auto& table = rootStates[commandList];
+        auto& table = gNrdBridgeDeviceWrappers ? bridgeGraphicsStates[commandList].rows : rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
             table[RootParameterIndex].type = RootEntryType::UAV;
@@ -1072,6 +1087,7 @@ static void hkSetGraphicsRootSignatureLate(ID3D12GraphicsCommandList* commandLis
     if (Config::Instance()->RestoreGraphicSignature.value_or_default() && !(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr &&
         pRootSignature != nullptr)
     {
+        TrackBridgeGraphicsRoot(commandList,pRootSignature);
         std::unique_lock<std::shared_mutex> lock(rootSignatureMutex, std::defer_lock); LockRootTracker(lock);
         signatures.insert_or_assign(commandList, SignatureEntry { SignatureEntryType::Graphics, pRootSignature });
     }
@@ -1090,7 +1106,7 @@ static void hkSetGraphicsRootDescriptorTableLate(ID3D12GraphicsCommandList* comm
     if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && BaseDescriptor.ptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock);
-        auto& table = rootStates[commandList];
+        auto& table = gNrdBridgeDeviceWrappers ? bridgeGraphicsStates[commandList].rows : rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
             table[RootParameterIndex].type = RootEntryType::Table;
@@ -1114,7 +1130,7 @@ static void hkSetGraphicsRoot32BitConstantsLate(ID3D12GraphicsCommandList* comma
     if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr && pSrcData)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock);
-        auto& table = rootStates[commandList];
+        auto& table = gNrdBridgeDeviceWrappers ? bridgeGraphicsStates[commandList].rows : rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
             if (gNrdBridgeDeviceWrappers)
@@ -1147,7 +1163,7 @@ static void hkSetGraphicsRoot32BitConstantLate(ID3D12GraphicsCommandList* comman
     if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock);
-        auto& table = rootStates[commandList];
+        auto& table = gNrdBridgeDeviceWrappers ? bridgeGraphicsStates[commandList].rows : rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
             if (gNrdBridgeDeviceWrappers)
@@ -1176,7 +1192,7 @@ static void hkSetGraphicsRootConstantBufferViewLate(ID3D12GraphicsCommandList* c
     if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock);
-        auto& table = rootStates[commandList];
+        auto& table = gNrdBridgeDeviceWrappers ? bridgeGraphicsStates[commandList].rows : rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
             table[RootParameterIndex].type = RootEntryType::CBV;
@@ -1199,7 +1215,7 @@ static void hkSetGraphicsRootShaderResourceViewLate(ID3D12GraphicsCommandList* c
     if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock);
-        auto& table = rootStates[commandList];
+        auto& table = gNrdBridgeDeviceWrappers ? bridgeGraphicsStates[commandList].rows : rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
             table[RootParameterIndex].type = RootEntryType::SRV;
@@ -1222,7 +1238,7 @@ static void hkSetGraphicsRootUnorderedAccessViewLate(ID3D12GraphicsCommandList* 
     if (!(isUpscalerActive || isNrdBridgeInjection) && commandList != nullptr)
     {
         std::unique_lock<std::shared_mutex> lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock);
-        auto& table = rootStates[commandList];
+        auto& table = gNrdBridgeDeviceWrappers ? bridgeGraphicsStates[commandList].rows : rootStates[commandList];
         if (RootParameterIndex < table.size())
         {
             table[RootParameterIndex].type = RootEntryType::UAV;
@@ -2610,7 +2626,7 @@ void D3D12Hooks::OnBridgeCommandListReset(ID3D12GraphicsCommandList* list, ID3D1
 {
     if (!gNrdBridgeDeviceWrappers || !list) return;
     { std::unique_lock lock(rootSignatureMutex, std::defer_lock); LockRootTracker(lock); signatures.erase(list); }
-    { std::unique_lock lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock); rootStates.erase(list); bridgeComputeRoots.erase(list); }
+    { std::unique_lock lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock); rootStates.erase(list); bridgeComputeRoots.erase(list); bridgeGraphicsStates.erase(list); }
     { std::unique_lock lock(descriptorHeapsMutex, std::defer_lock); LockRootTracker(lock); descriptorHeaps.erase(list); }
     { std::unique_lock lock(pipelineStatesMutex, std::defer_lock); LockRootTracker(lock); if (initial) pipelineStates[list] = initial; else pipelineStates.erase(list); }
 }
@@ -2658,7 +2674,7 @@ bool D3D12Hooks::GetComputeBindingsForBridge(ID3D12GraphicsCommandList* list, Fr
     catch (...) { out = {}; return false; }
 }
 
-static bool CaptureRootRestoreSnapshot(ID3D12GraphicsCommandList* cmdList, bool extended,
+static bool CaptureRootRestoreSnapshot(ID3D12GraphicsCommandList* cmdList, bool extended, bool bridgeCompute,
                                       D3D12RootRestoreSnapshot& snapshot)
 {
     // No COM calls, callbacks, logging or resource retention under these locks.
@@ -2672,9 +2688,18 @@ static bool CaptureRootRestoreSnapshot(ID3D12GraphicsCommandList* cmdList, bool 
         std::lock(signaturesLock, heapsLock, pipelineLock, statesLock);
     }
     else LockRootTracker(signaturesLock);
-    const auto signature = signatures.find(cmdList);
-    if (signature == signatures.end()) return true;
-    snapshot.signature = signature->second; snapshot.hasSignature = true;
+    if (bridgeCompute)
+    {
+        const auto root = bridgeComputeRoots.find(cmdList);
+        if (root == bridgeComputeRoots.end() || !root->second) return true;
+        snapshot.signature = {SignatureEntryType::Compute,root->second}; snapshot.hasSignature = true;
+    }
+    else
+    {
+        const auto signature = signatures.find(cmdList);
+        if (signature == signatures.end()) return true;
+        snapshot.signature = signature->second; snapshot.hasSignature = true;
+    }
     if (!extended) return true;
     if (const auto heaps = descriptorHeaps.find(cmdList); heaps != descriptorHeaps.end())
     {
@@ -2683,13 +2708,19 @@ static bool CaptureRootRestoreSnapshot(ID3D12GraphicsCommandList* cmdList, bool 
     }
     if (const auto pipeline = pipelineStates.find(cmdList); pipeline != pipelineStates.end())
     { snapshot.pipelineState = pipeline->second; snapshot.hasPipelineState = true; }
-    if (const auto states = rootStates.find(cmdList); states != rootStates.end())
+    const std::vector<RootState>* states = nullptr;
+    if (gNrdBridgeDeviceWrappers && snapshot.signature.type == SignatureEntryType::Graphics)
     {
-        if (!RootRestoreArgumentsSupported(states->second)) return false;
-        snapshot.rootStates.count = states->second.size(); snapshot.hasRootState = true;
-        for (size_t i = 0; i < states->second.size(); ++i)
+        if (const auto found = bridgeGraphicsStates.find(cmdList); found != bridgeGraphicsStates.end()) states = &found->second.rows;
+    }
+    else if (const auto found = rootStates.find(cmdList); found != rootStates.end()) states = &found->second;
+    if (states)
+    {
+        if (!RootRestoreArgumentsSupported(*states)) return false;
+        snapshot.rootStates.count = states->size(); snapshot.hasRootState = true;
+        for (size_t i = 0; i < states->size(); ++i)
         {
-            const auto& source = states->second[i]; auto& target = snapshot.rootStates.values[i];
+            const auto& source = (*states)[i]; auto& target = snapshot.rootStates.values[i];
             target.type = source.type; target.rootDescriptorTable = source.rootDescriptorTable;
             target.bufferLocation = source.bufferLocation; target.Num32BitValues = source.Num32BitValues;
             target.DestOffset = source.DestOffset;
@@ -2703,15 +2734,13 @@ static bool CaptureRootRestoreSnapshot(ID3D12GraphicsCommandList* cmdList, bool 
 
 bool D3D12Hooks::CanRestoreRootSignature(ID3D12GraphicsCommandList* cmdList)
 {
+    if (!gNrdBridgeDeviceWrappers)
     {
         std::shared_lock lock(rootSignatureMutex, std::defer_lock); LockRootTracker(lock);
-        auto found = signatures.find(cmdList);
-        if (found == signatures.end()) return false;
-        if (!gNrdBridgeDeviceWrappers) return true;
-        if (!Config::Instance()->RestoreComputeSignature.value_or_default() ||
-            !Config::Instance()->ExtendedStateRestore.value_or_default()) return false;
-        if (found->second.type != SignatureEntryType::Compute || !found->second.ptr) return false;
+        return signatures.find(cmdList) != signatures.end();
     }
+    if (!Config::Instance()->RestoreComputeSignature.value_or_default() ||
+        !Config::Instance()->ExtendedStateRestore.value_or_default()) return false;
     if (!s_SetComputeRootSignature.GetHook() || !s_SetDescriptorHeaps.GetHook() || !s_SetPipelineState.GetHook() ||
         !s_SetComputeRootDescriptorTable.GetHook() || !s_SetComputeRoot32BitConstants.GetHook() ||
         !s_SetComputeRootConstantBufferView.GetHook() || !s_SetComputeRootShaderResourceView.GetHook() ||
@@ -2721,7 +2750,8 @@ bool D3D12Hooks::CanRestoreRootSignature(ID3D12GraphicsCommandList* cmdList)
     { std::shared_lock lock(pipelineStatesMutex, std::defer_lock); LockRootTracker(lock); auto found = pipelineStates.find(cmdList);
       if (found == pipelineStates.end() || !found->second) return false; }
     { std::shared_lock lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock); auto found = rootStates.find(cmdList);
-      if (found == rootStates.end() || found->second.size() <= 5 ||
+      const auto root = bridgeComputeRoots.find(cmdList);
+      if (root == bridgeComputeRoots.end() || !root->second || found == rootStates.end() || found->second.size() <= 5 ||
           found->second[1].type != RootEntryType::Table || found->second[5].type != RootEntryType::Table ||
           !RootRestoreArgumentsSupported(found->second)) return false; }
     return true;
@@ -2948,7 +2978,7 @@ void D3D12Hooks::RestoreRoot(ID3D12GraphicsCommandList* cmdList)
     {
         const bool extendedRestoreSignature = bridgeRestore || Config::Instance()->ExtendedStateRestore.value_or_default();
         D3D12RootRestoreSnapshot snapshot;
-        if (!CaptureRootRestoreSnapshot(cmdList, extendedRestoreSignature, snapshot))
+        if (!CaptureRootRestoreSnapshot(cmdList, extendedRestoreSignature, bridgeRestore, snapshot))
         {
             LOG_ERROR("Can't restore invalid cached root arguments for CmdList: {:X}", (UINT64) cmdList);
             return;
