@@ -3145,6 +3145,202 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
     }
 }
 
+static bool DrawAmdRRTuning(Config* config, bool bridge = false)
+{
+    bool changed = false;
+    ScopedIndent indent;
+    bool useAmdDefaults = config->FfxDenoiserUseAmdDefaults.value_or_default();
+    if (ImGui::Checkbox("Use AMD Default Tuning", &useAmdDefaults))
+        { config->FfxDenoiserUseAmdDefaults = useAmdDefaults; changed = true; }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip(
+            "A/B reference. Pushes the baseline RR queries from AMD for the six\n"
+            "keys below instead of this fork's tuning. Takes effect immediately,\n"
+            "no context recreation. Your slider values are kept and restored when\n"
+            "you switch back.\n"
+            "AMD's actual numbers are printed to the log at context creation as\n"
+            "\"[RR_DIAG] configure baseline\".");
+    ImGui::BeginDisabled(useAmdDefaults);
+    if (float v = config->FfxDenoiserDisocThreshold.value_or_default();
+        ImGui::SliderFloat("Disocclusion Threshold", &v, 1e-2f, 1.0f))
+        { config->FfxDenoiserDisocThreshold = v; changed = true; }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip(
+            "Controls how sensitive the denoiser is to newly revealed areas when objects "
+            "move.\n"
+            "Lower: More sensitive - better handles moving objects, but may cause "
+            "flickering.\n"
+            "Higher: Less sensitive - reduces flickering, but may cause ghosting or light "
+            "smearing.");
+    if (float v = config->FfxDenoiserCrossBlNormStr.value_or_default();
+        ImGui::SliderFloat("Cross Bilateral Normal Strength", &v, 0, 1))
+        { config->FfxDenoiserCrossBlNormStr = v; changed = true; }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip(
+            "Controls how strongly the denoiser preserves edges based on surface angles.\n"
+            "Higher: Keeps edges sharper and prevents blurring across surface boundaries.\n"
+            "Too high: May introduce noise or artifacts on complex surfaces.");
+    if (float v = config->FfxDenoiserStabilityBias.value_or_default();
+        ImGui::SliderFloat("Temporal Stability Bias", &v, 0.1f, 0.9f))
+        { config->FfxDenoiserStabilityBias = v; changed = true; }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip(
+            "Controls how much the denoiser blends previous frames with the current "
+            "frame.\n"
+            "Higher: Smoother, less noisy image, but may cause ghosting or loss of fine "
+            "detail.\n"
+            "Lower: More responsive and detailed, but may show noise or a boiling effect.");
+    if (float v = config->FfxDenoiserMaxRadiance.value_or_default();
+        ImGui::SliderFloat("Max Radiance", &v, 10, 65500.0f))
+        { config->FfxDenoiserMaxRadiance = v; changed = true; }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip(
+            "Lower: More aggressive firefly removal, but may dim bright highlights.\n"
+            "Higher: Preserves bright lights better, but may allow fireflies and noise "
+            "through.");
+    if (float v = config->FfxDenoiserRadianceClip.value_or_default();
+        ImGui::SliderFloat("Radiance Clip Deviation", &v, 1, 500))
+        { config->FfxDenoiserRadianceClip = v; changed = true; }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip(
+            "Controls tolerance for bright spots relative to their surroundings.\n"
+            "Lower: Aggressively removes fireflies and noise, but may dim small intense "
+            "light "
+            "sources.\n"
+            "Higher: Better preserves specular highlights and glowing surfaces, but allows "
+            "more noise.");
+    if (float v = config->FfxDenoiserGaussKernRelax.value_or_default();
+        ImGui::SliderFloat("Gaussian Kernel Relaxation", &v, 0, 1))
+        { config->FfxDenoiserGaussKernRelax = v; changed = true; }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Controls how the smoothing filter adapts to surface details.\n"
+                          "Higher: Filter stretches more to follow surface geometry, "
+                          "reducing rippling and "
+                          "banding on smooth surfaces.\n"
+                          "Lower: Slightly sharper with weaker smoothing on large "
+                          "surfaces, may increase banding and rippling.\n");
+    ImGui::EndDisabled();
+    if (useAmdDefaults)
+        ImGui::TextDisabled("AMD baseline active - sliders above show the fork values, not "
+                            "what is applied");
+    if (ImGui::Button("Reset AMD Tuning"))
+    {
+        config->FfxDenoiserUseAmdDefaults.reset();
+        config->FfxDenoiserDisocThreshold.reset();
+        config->FfxDenoiserCrossBlNormStr.reset();
+        config->FfxDenoiserStabilityBias.reset();
+        config->FfxDenoiserMaxRadiance.reset();
+        config->FfxDenoiserRadianceClip.reset();
+        config->FfxDenoiserGaussKernRelax.reset();
+        if (bridge) config->FfxDenoiserNrdBridgeUseCustomRR.reset();
+        changed = true;
+    }
+    return changed;
+}
+
+static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
+{
+    NrdBridge::RRSettings settings;
+    if (config.FfxDenoiserNrdBridgeUseCustomRR.value_or_default() &&
+        !config.FfxDenoiserUseAmdDefaults.value_or_default())
+    {
+        settings.overrideMask = 0x3fu;
+        settings.values = {
+            config.FfxDenoiserCrossBlNormStr.value_or_default(),
+            config.FfxDenoiserStabilityBias.value_or_default(),
+            config.FfxDenoiserMaxRadiance.value_or_default(),
+            config.FfxDenoiserRadianceClip.value_or_default(),
+            config.FfxDenoiserGaussKernRelax.value_or_default(),
+            config.FfxDenoiserDisocThreshold.value_or_default(), 0.0f, 0.0f};
+    }
+    return settings;
+}
+
+static void DrawNrdBridgeRRTuning(Config* config)
+{
+    if (!ImGui::CollapsingHeader("AMD RR tuning##NrdBridge")) return;
+    ScopedIndent indent;
+    bool changed = false;
+    bool custom = config->FfxDenoiserNrdBridgeUseCustomRR.value_or_default();
+    if (ImGui::Checkbox("Use custom RR tuning##NrdBridge", &custom))
+    {
+        config->FfxDenoiserNrdBridgeUseCustomRR = custom;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Off uses AMD's queried provider defaults. On applies the six stored sliders. "
+                          "Use AMD Default Tuning selects the baseline while keeping your custom values. "
+                          "An actual change resets RR history before the next bridge frame. Default off.");
+    ImGui::TextWrapped("Sliders show stored custom values. Effective provider values are shown below after the first bridge dispatch.");
+    ImGui::PushID("NrdBridgeRRTuning");
+    ImGui::BeginDisabled(!custom);
+    changed |= DrawAmdRRTuning(config, true);
+    ImGui::EndDisabled();
+    ImGui::PopID();
+    bool cameraDepth = config->FfxDenoiserNrdBridgeMotionDepthMode.value_or_default();
+    if (ImGui::Checkbox("Camera-projected depth delta (experimental)", &cameraDepth))
+    {
+        config->FfxDenoiserNrdBridgeMotionDepthMode = cameraDepth;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Predicts previous-camera depth from camera geometry instead of the depth of "
+                          "the previously visible surface. The title's current motion input stays unchanged. "
+                          "Switching resets RR and conversion histories. Default off.");
+    static std::string settingsError;
+    if (changed)
+        NrdBridge::ApplyRRSettings(ReadNrdBridgeRRSettings(*config), cameraDepth, settingsError);
+    if (!settingsError.empty()) ImGui::TextWrapped("Settings not applied: %s", settingsError.c_str());
+    const auto state = NrdBridge::GetRRSettingsState();
+    if (!state.ready)
+        ImGui::TextDisabled("Provider values are not available yet.");
+    else if (ImGui::BeginTable("NrdBridgeRRValues", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable))
+    {
+        ImGui::TableSetupColumn("RR parameter"); ImGui::TableSetupColumn("AMD baseline");
+        ImGui::TableSetupColumn("Effective"); ImGui::TableHeadersRow();
+        const char* names[] = {"Normal strength", "Temporal stability", "Max radiance", "Radiance clip",
+                               "Gaussian relaxation", "Disocclusion threshold"};
+        for (size_t i = 0; i < std::size(names); ++i)
+        {
+            ImGui::TableNextRow(); ImGui::TableNextColumn(); ImGui::TextUnformatted(names[i]);
+            ImGui::TableNextColumn(); ImGui::Text("%.6g", state.defaults[i]);
+            ImGui::TableNextColumn(); ImGui::Text("%.6g", state.effective[i]);
+        }
+        ImGui::EndTable();
+    }
+    ImGui::TextWrapped("Changes apply as one validated snapshot before the next bridge frame. The current upscaler does not select this RR path.");
+}
+
+// The NRD bridge consumes the title's split lighting, independently of SR.
+static void DrawNrdBridgeInputMap()
+{
+    if (!ImGui::CollapsingHeader("NRD -> AMD RR input map")) return;
+    ScopedIndent indent;
+    if (ImGui::BeginTable("NrdBridgeInputMap", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable))
+    {
+        ImGui::TableSetupColumn("Input");
+        ImGui::TableSetupColumn("What AMD RR receives");
+        ImGui::TableHeadersRow();
+        const auto row = [](const char* name, const char* meaning) {
+            ImGui::TableNextRow(); ImGui::TableNextColumn(); ImGui::TextUnformatted(name);
+            ImGui::TableNextColumn(); ImGui::TextWrapped("%s", meaning);
+        };
+        row("Specular lighting", "Recon's separate, already-demodulated RGB lighting. Nonfinite and negative RGB are sanitized before RR.");
+        row("Diffuse lighting", "Recon's separate, already-demodulated RGB lighting. No combined-color split or albedo division is needed.");
+        row("Hit distance", "Each lobe keeps its native alpha/hit-distance metric, including finite inactive sentinels. The bridge does not normalize it.");
+        row("Normal + roughness", "Native packed octahedral normal in RG and roughness in B. The bridge supplies material ID 0 in alpha.");
+        row("Linear VIEWZ", "The title's NRD view-space depth, signed for the RR camera convention and clamped to the camera depth bounds.");
+        row("Motion + jitter", NrdBridge::CameraProjectedDepthEnabled()
+            ? "Current Temporal motion uses Streamline scale and jitter correction. Experimental Z predicts previous-camera depth from camera geometry."
+            : "Current Temporal motion uses Streamline scale and jitter correction. Z is previous-frame depth minus current depth at the reprojected pixel.");
+        row("Albedo guides", "White RGB for both already-demodulated lobes. Specular alpha contains normal/view angle; diffuse alpha is 0.");
+        row("Consumer output encoding", "A tiny GPU shader reads the title's exact b6/space0 binding, word 303 at byte 1212. That flag selects RGB or YCoCg output. The game keeps exposure, its specular factor 64 and output alpha.");
+        row("Unused title inputs", "Separate diffuse/specular albedo textures, AO, bias mask, particle color and SSS guides are not supplied by this bridge. Ordinary DLSS-input conversion and Recovery controls do not affect this path.");
+        ImGui::EndTable();
+    }
+    ImGui::TextWrapped("Both noisy lighting lobes go through AMD RR. The title composites the denoised outputs with its water, fog and transparent layers.");
+}
+
 // Denoiser selection. FSR-RR's own settings appear inside it only while FSR-RR is the
 // selected denoiser.
 void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
@@ -3205,6 +3401,8 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
         int debug = int(NrdBridge::GetDebugMode());
         if (ImGui::Combo("Bridge debug", &debug, "Off\0Raw signals\0RR inputs view\0"))
             NrdBridge::SetDebugMode(NrdBridge::DebugMode(debug));
+        DrawNrdBridgeRRTuning(config);
+        DrawNrdBridgeInputMap();
     }
     // Independent of the selected denoiser: NRD mode still exposes this capture.
     if (ImGui::CollapsingHeader("GAME_TRACE / Frame survey"))
@@ -3412,91 +3610,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             }
             if (ImGui::CollapsingHeader("AMD Tuning"))
             {
-                ScopedIndent indent;
-                bool useAmdDefaults = config->FfxDenoiserUseAmdDefaults.value_or_default();
-                if (ImGui::Checkbox("Use AMD Default Tuning", &useAmdDefaults))
-                    config->FfxDenoiserUseAmdDefaults = useAmdDefaults;
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip(
-                        "A/B reference. Pushes the baseline RR queries from AMD for the six\n"
-                        "keys below instead of this fork's tuning. Takes effect immediately,\n"
-                        "no context recreation. Your slider values are kept and restored when\n"
-                        "you switch back.\n"
-                        "AMD's actual numbers are printed to the log at context creation as\n"
-                        "\"[RR_DIAG] configure baseline\".");
-                ImGui::BeginDisabled(useAmdDefaults);
-                if (float v = config->FfxDenoiserDisocThreshold.value_or_default();
-                    ImGui::SliderFloat("Disocclusion Threshold", &v, 1e-2f, 1.0f))
-                    config->FfxDenoiserDisocThreshold = v;
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip(
-                        "Controls how sensitive the denoiser is to newly revealed areas when objects "
-                        "move.\n"
-                        "Lower: More sensitive - better handles moving objects, but may cause "
-                        "flickering.\n"
-                        "Higher: Less sensitive - reduces flickering, but may cause ghosting or light "
-                        "smearing.");
-                if (float v = config->FfxDenoiserCrossBlNormStr.value_or_default();
-                    ImGui::SliderFloat("Cross Bilateral Normal Strength", &v, 0, 1))
-                    config->FfxDenoiserCrossBlNormStr = v;
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip(
-                        "Controls how strongly the denoiser preserves edges based on surface angles.\n"
-                        "Higher: Keeps edges sharper and prevents blurring across surface boundaries.\n"
-                        "Too high: May introduce noise or artifacts on complex surfaces.");
-                if (float v = config->FfxDenoiserStabilityBias.value_or_default();
-                    ImGui::SliderFloat("Temporal Stability Bias", &v, 0.1f, 0.9f))
-                    config->FfxDenoiserStabilityBias = v;
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip(
-                        "Controls how much the denoiser blends previous frames with the current "
-                        "frame.\n"
-                        "Higher: Smoother, less noisy image, but may cause ghosting or loss of fine "
-                        "detail.\n"
-                        "Lower: More responsive and detailed, but may show noise or a boiling effect.");
-                if (float v = config->FfxDenoiserMaxRadiance.value_or_default();
-                    ImGui::SliderFloat("Max Radiance", &v, 10, 65500.0f))
-                    config->FfxDenoiserMaxRadiance = v;
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip(
-                        "Lower: More aggressive firefly removal, but may dim bright highlights.\n"
-                        "Higher: Preserves bright lights better, but may allow fireflies and noise "
-                        "through.");
-                if (float v = config->FfxDenoiserRadianceClip.value_or_default();
-                    ImGui::SliderFloat("Radiance Clip Deviation", &v, 1, 500))
-                    config->FfxDenoiserRadianceClip = v;
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip(
-                        "Controls tolerance for bright spots relative to their surroundings.\n"
-                        "Lower: Aggressively removes fireflies and noise, but may dim small intense "
-                        "light "
-                        "sources.\n"
-                        "Higher: Better preserves specular highlights and glowing surfaces, but allows "
-                        "more noise.");
-                if (float v = config->FfxDenoiserGaussKernRelax.value_or_default();
-                    ImGui::SliderFloat("Gaussian Kernel Relaxation", &v, 0, 1))
-                    config->FfxDenoiserGaussKernRelax = v;
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("Controls how the smoothing filter adapts to surface details.\n"
-                                      "Higher: Filter stretches more to follow surface geometry, "
-                                      "reducing rippling and "
-                                      "banding on smooth surfaces.\n"
-                                      "Lower: Slightly sharper with weaker smoothing on large "
-                                      "surfaces, may increase banding and rippling.\n");
-                ImGui::EndDisabled();
-                if (useAmdDefaults)
-                    ImGui::TextDisabled("AMD baseline active - sliders above show the fork values, not "
-                                        "what is applied");
-                if (ImGui::Button("Reset AMD Tuning"))
-                {
-                    config->FfxDenoiserUseAmdDefaults.reset();
-                    config->FfxDenoiserDisocThreshold.reset();
-                    config->FfxDenoiserCrossBlNormStr.reset();
-                    config->FfxDenoiserStabilityBias.reset();
-                    config->FfxDenoiserMaxRadiance.reset();
-                    config->FfxDenoiserRadianceClip.reset();
-                    config->FfxDenoiserGaussKernRelax.reset();
-                }
+                DrawAmdRRTuning(config);
             }
             if (ImGui::CollapsingHeader("Conversion & Modulation"))
             {

@@ -548,6 +548,9 @@ class Config
     // Cyberpunk NRD bridge installs hooks only at startup; the runtime A/B is independent.
     CustomOptional<bool> FfxDenoiserNrdBridge {false};
     CustomOptional<bool> FfxDenoiserNrdBridgeEnabled {true};
+    CustomOptional<bool> FfxDenoiserNrdBridgeUseCustomRR {false};
+    // Experimental camera-predicted depth delta; false keeps baseline previous-depth sampling.
+    CustomOptional<bool> FfxDenoiserNrdBridgeMotionDepthMode {false};
     // Survey only: shader SHA-256 prefixes whose dispatch outputs are saved right after the dispatch.
     CustomOptional<std::wstring, NoDefault> FfxDenoiserFrameSurveyPassHashes;
     CustomOptional<bool> FfxDenoiserFogGuides {false};
