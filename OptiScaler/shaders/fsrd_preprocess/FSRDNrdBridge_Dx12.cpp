@@ -271,9 +271,9 @@ std::atomic<bool> gNativeDebug {false};
 std::atomic<bool> gNativeMaterials {false};
 std::atomic<bool> gNativeTransactions {false};
 thread_local ID3D12GraphicsCommandList* gDispatchCandidate = nullptr; // Set by the immediately preceding public BeforeDispatch.
-// Final shipping activation stays closed until the complete A/B source,
-// checkerboard and intervening opaque-work contracts have all been attested.
-constexpr bool kNativeElisionContractReady = false;
+// The supported full-hash profile uses owned raw A/B inputs and required output
+// admission, including checkerboard and intervening native binding witnesses.
+constexpr bool kNativeElisionContractReady = true;
 #ifdef FSRD_NRD_BRIDGE_TEST
 std::atomic<bool> gNativeElisionForTesting {false};
 #endif
