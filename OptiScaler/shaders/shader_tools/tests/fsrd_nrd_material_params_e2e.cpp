@@ -148,7 +148,13 @@ int main(int argc,char** argv)try
  need(NrdBridge::Initialize(h.device.Get()),"initialize actual production coordinator");AttachRoots(h.list.Get());Wiring::Attach(h.list.Get());
  Title title(h,128,128,true);NrdBridge::RRSettings settings;settings.nativeMaterialGuides=enabled;settings.nativeTemporalMotion=false;std::string error;
  need(NrdBridge::ApplyRRSettings(settings,false,error),"apply explicit material-Params ON/OFF setting");ParamsHost::Writer writer(title);
- title.frame(1);need(title.sentinel(title.finish()),"one real original title frame discovers the complete NRD chain before material comparisons");
+ // The bounded witness learns a source pair only at its first actual writer.
+ // Earlier unknown-address barriers cannot retroactively prove its state.
+ writer.native.start();writer.states({ParamsHost::NPS,ParamsHost::NPS});writer.dispatch(false);
+ need(!NrdBridge::gService->lists.at(h.list.Get()).pendingMaterial.snapshot,"first-ever material pair discovery is quiet and reads no unproved source state");
+ const auto firstWriter=writer.native.captureCheck();
+ title.frame(1);need(title.sentinel(title.finish()),"one real original title frame discovers the complete NRD chain before material comparisons");writer.native.validateCheck(firstWriter.Get());
+ need(FfxApiProxy::dispatches==0&&NrdBridge::gService->nativeMaterialCapture.OwnedAuxiliaryBytes()==0,"first-writer/discovery phase allocates no capture pair and dispatches no signed RR work");
  const auto initialCreates=FfxApiProxy::creates;std::shared_ptr<NrdBridge::HistoryDomain> history;void* context=nullptr;bool previous=false;J rows=J::array();
  const std::array<ParamsHost::States,7> variants{{{ParamsHost::NPS,ParamsHost::NPS},{ParamsHost::PS,ParamsHost::PS},{D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_COMMON},{ParamsHost::UA,ParamsHost::UA},
   {D3D12_RESOURCE_STATES(ParamsHost::PS|ParamsHost::NPS),D3D12_RESOURCE_STATES(ParamsHost::PS|ParamsHost::NPS)},{D3D12_RESOURCE_STATE_COMMON,ParamsHost::PS},{ParamsHost::PS,ParamsHost::NPS}}};
