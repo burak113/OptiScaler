@@ -104,9 +104,9 @@ def inspect_capture(folder, *, verify_payload=True):
         require(proof.get("cpu_snapshot_immutable") is True and proof.get("recorded") is True
                 and proof.get("invalid") is False and proof.get("signal_failed") is False
                 and proof.get("ambiguous_submission") is False and proof.get("pending_signals") == 0
-                and type(proof.get("fence_expected")) is int and proof["fence_expected"] > 0
-                and proof.get("fence_completed", -1) >= proof["fence_expected"]
-                and proof.get("signal_hresult") == 0, "invalid/incomplete GPU submission proof")
+                and type(proof.get("fence_expected")) is int and proof["fence_expected"] == 1
+                and type(proof.get("fence_completed")) is int and 1 <= proof["fence_completed"] < (1 << 64) - 1
+                and type(proof.get("signal_hresult")) is int and 0 <= proof["signal_hresult"] < 0x80000000, "invalid/incomplete GPU submission proof")
         identity = frame.get("identity", {})
         for key in ("domain", "recording_id", "recording_generation", "cancellation_serial", "cache_generation", "streamline_frame"):
             uint(identity.get(key), key, 0xffffffff if key == "streamline_frame" else (1 << 64) - 1)
