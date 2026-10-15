@@ -9,6 +9,8 @@ struct Status
 {
     bool installed = false, runtimeEnabled = false, active = false;
     bool nativeMaterialGuidesActive = false;
+    bool nativeHistoryDirty = false, runtimeDisablePending = false;
+    uint64_t nativeDispatchesSkipped = 0;
     std::string phase = "Off", reason = "Set [FSR-RR] NrdBridge=true and restart.", resources;
     uint64_t framesBridged = 0, resets = 0;
     // Service totals: capture/Recon admission, not per-pixel material coverage.
@@ -29,6 +31,12 @@ void OnSetPipeline(ID3D12GraphicsCommandList*, ID3D12PipelineState*) noexcept;
 void OnReset(ID3D12GraphicsCommandList*, ID3D12PipelineState*) noexcept;
 void BeforeDispatch(ID3D12GraphicsCommandList*) noexcept;
 void AfterDispatch(ID3D12GraphicsCommandList*) noexcept;
+enum class DispatchKind : uint8_t { Direct, Indirect, Bundle };
+enum class DispatchDisposition : uint8_t { Forward, Suppress };
+// Query after BeforeDispatch, immediately before forwarding the title call.
+// Suppression belongs to an admitted recording transaction, never a shader hash alone.
+DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList*, DispatchKind) noexcept;
+void InvalidateRecordingProof(ID3D12GraphicsCommandList*, const char* reason) noexcept;
 void OnResourceBarriers(ID3D12GraphicsCommandList*, UINT, const D3D12_RESOURCE_BARRIER*) noexcept;
 void OnRecordingClosed(ID3D12GraphicsCommandList*, HRESULT) noexcept;
 void OnReleased(void*) noexcept;
@@ -48,6 +56,6 @@ bool NativeDebugEnabled() noexcept;
 // Quiet false means no eligible completed/same-recording diagnostic image.
 bool PresentNativeDebug(ID3D12GraphicsCommandList*, ID3D12Resource*, D3D12_RESOURCE_STATES, std::string& error) noexcept;
 #ifdef FSRD_NRD_BRIDGE_TEST
-void RegisterPipelineRoleForTesting(ID3D12PipelineState*, Role) noexcept;
+void RegisterPipelineRoleForTesting(ID3D12PipelineState*, Role, bool nativeContract = false) noexcept;
 #endif
 }
