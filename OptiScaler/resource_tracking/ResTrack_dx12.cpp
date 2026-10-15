@@ -7,6 +7,7 @@
 #include "misc/NrdBridgeLifetime_Dx12.h"
 #include "misc/NrdBridgeRelease_Dx12.h"
 #include "misc/NrdBridgeTitleCallbacks_Dx12.h"
+#include "misc/NrdBridgeDescriptorAdmission_Dx12.h"
 #include "ResTrack_dx12.h"
 #include "FrameSurvey_Dx12.h"
 #include "hooks/D3D12_Hooks.h"
@@ -2384,10 +2385,22 @@ void ResTrack_Dx12::hkCreateUnorderedAccessView(ID3D12Device* This, ID3D12Resour
 
 #pragma endregion
 
+static bool HasRetainedSubmissionParticipant(UINT count, ID3D12CommandList* const* lists) noexcept;
+
 void ResTrack_Dx12::hkExecuteCommandLists(ID3D12CommandQueue* This, UINT NumCommandLists,
                                           ID3D12CommandList* const* ppCommandLists)
 {
     if (!RequiredComputeSubmissionAllowed()) return;
+    // Close admission before any retained validation/BeforeSubmission. The gate
+    // drains whole native+metadata descriptor mutations and remains held through
+    // Execute and its already-submitted lease/fence publication, including FG.
+    NrdBridgeDescriptorAdmission::Submission descriptorAdmission(gNrdBridgeWrappers && !FrameSurvey::Internal() &&
+        HasRetainedSubmissionParticipant(NumCommandLists,ppCommandLists));
+    if (!descriptorAdmission.Acquired())
+    {
+        RecordedComputeLease::FailUntrackedRequiredSubmission(E_UNEXPECTED);
+        RequiredComputeSubmissionAllowed(); return;
+    }
     auto fg = State::Instance().currentFG;
 
     if (fg != nullptr && fg->IsActive() && !fg->IsPaused())
@@ -2456,6 +2469,9 @@ void ResTrack_Dx12::hkExecuteCommandLists(ID3D12CommandQueue* This, UINT NumComm
             o_ExecuteCommandLists(This, NumCommandLists, ppCommandLists);
             RecordedComputeLease::AfterSubmission(computeIntent);
             RRTraceFence::AfterSubmission(This, additiveTickets);
+            // Synchronous unexpected native reentry may have latched failure.
+            // Already-submitted leases are fenced first; never replay the batch.
+            if (!RequiredComputeSubmissionAllowed(&decision)) return;
 
             for (size_t i = 0; i < found.size(); i++)
             {
@@ -2480,6 +2496,7 @@ void ResTrack_Dx12::hkExecuteCommandLists(ID3D12CommandQueue* This, UINT NumComm
     o_ExecuteCommandLists(This, NumCommandLists, ppCommandLists);
     RecordedComputeLease::AfterSubmission(computeIntent);
     RRTraceFence::AfterSubmission(This, additiveTickets);
+    RequiredComputeSubmissionAllowed(&decision);
 }
 
 #pragma region Heap hooks
@@ -5175,6 +5192,8 @@ void ResTrack_Dx12::hkSurveyCreateConstantBufferView(ID3D12Device* This, const D
                                                    D3D12_CPU_DESCRIPTOR_HANDLE handle)
 {
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::ConstantBufferView,gNrdBridgeWrappers && !FrameSurvey::Internal());
+    NrdBridgeDescriptorAdmission::Mutation descriptorMutation(gNrdBridgeWrappers && !FrameSurvey::Internal());
+    if (!descriptorMutation.Acquired()) RecordedComputeLease::FailUntrackedRequiredSubmission(E_UNEXPECTED);
     o_CreateConstantBufferView(This,desc,handle);
     FrameSurvey::View(handle,desc);
 }
@@ -5184,6 +5203,8 @@ void ResTrack_Dx12::hkSurveyCreateRenderTargetView(ID3D12Device* This, ID3D12Res
                                              D3D12_RENDER_TARGET_VIEW_DESC* pDesc,
                                              D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
+    NrdBridgeDescriptorAdmission::Mutation descriptorMutation(gNrdBridgeWrappers && !FrameSurvey::Internal());
+    if (!descriptorMutation.Acquired()) RecordedComputeLease::FailUntrackedRequiredSubmission(E_UNEXPECTED);
     hkCreateRenderTargetView(This,pResource,pDesc,DestDescriptor);
     FrameSurvey::View(pResource,DestDescriptor,pDesc);
 }
@@ -5193,6 +5214,8 @@ void ResTrack_Dx12::hkSurveyCreateShaderResourceView(ID3D12Device* This, ID3D12R
                                                D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::ShaderResourceView,gNrdBridgeWrappers && !FrameSurvey::Internal());
+    NrdBridgeDescriptorAdmission::Mutation descriptorMutation(gNrdBridgeWrappers && !FrameSurvey::Internal());
+    if (!descriptorMutation.Acquired()) RecordedComputeLease::FailUntrackedRequiredSubmission(E_UNEXPECTED);
     hkCreateShaderResourceView(This,pResource,pDesc,DestDescriptor);
     FrameSurvey::View(pResource,DestDescriptor,pDesc);
 }
@@ -5203,6 +5226,8 @@ void ResTrack_Dx12::hkSurveyCreateUnorderedAccessView(ID3D12Device* This, ID3D12
                                                 D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::UnorderedAccessView,gNrdBridgeWrappers && !FrameSurvey::Internal());
+    NrdBridgeDescriptorAdmission::Mutation descriptorMutation(gNrdBridgeWrappers && !FrameSurvey::Internal());
+    if (!descriptorMutation.Acquired()) RecordedComputeLease::FailUntrackedRequiredSubmission(E_UNEXPECTED);
     hkCreateUnorderedAccessView(This,pResource,pCounterResource,pDesc,DestDescriptor);
     FrameSurvey::View(pResource,DestDescriptor,pDesc);
 }
@@ -5562,6 +5587,8 @@ void ResTrack_Dx12::hkSurveyCopyDescriptors(ID3D12Device* This, UINT NumDestDesc
                                       UINT* pSrcDescriptorRangeSizes, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
 {
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::CopyDescriptors,gNrdBridgeWrappers && !FrameSurvey::Internal());
+    NrdBridgeDescriptorAdmission::Mutation descriptorMutation(gNrdBridgeWrappers && !FrameSurvey::Internal());
+    if (!descriptorMutation.Acquired()) RecordedComputeLease::FailUntrackedRequiredSubmission(E_UNEXPECTED);
     FrameSurvey::CopyDescriptors(This,NumDestDescriptorRanges,pDestDescriptorRangeStarts,pDestDescriptorRangeSizes,NumSrcDescriptorRanges,pSrcDescriptorRangeStarts,pSrcDescriptorRangeSizes,DescriptorHeapsType);
     hkCopyDescriptors(This,NumDestDescriptorRanges,pDestDescriptorRangeStarts,pDestDescriptorRangeSizes,NumSrcDescriptorRanges,pSrcDescriptorRangeStarts,pSrcDescriptorRangeSizes,DescriptorHeapsType);
 }
@@ -5572,6 +5599,8 @@ void ResTrack_Dx12::hkSurveyCopyDescriptorsSimple(ID3D12Device* This, UINT NumDe
                                             D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
 {
     NrdBridgePerf::Scope perf(NrdBridgePerf::Hook::CopyDescriptors,gNrdBridgeWrappers && !FrameSurvey::Internal());
+    NrdBridgeDescriptorAdmission::Mutation descriptorMutation(gNrdBridgeWrappers && !FrameSurvey::Internal());
+    if (!descriptorMutation.Acquired()) RecordedComputeLease::FailUntrackedRequiredSubmission(E_UNEXPECTED);
     FrameSurvey::CopyDescriptors(This,1,&DestDescriptorRangeStart,&NumDescriptors,1,&SrcDescriptorRangeStart,&NumDescriptors,DescriptorHeapsType);
     hkCopyDescriptorsSimple(This,NumDescriptors,DestDescriptorRangeStart,SrcDescriptorRangeStart,DescriptorHeapsType);
 }

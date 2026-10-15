@@ -55,7 +55,10 @@ def run():
     )
     bodies = {signature: definition(source, signature) for signature in signatures}
     fixture = Path(__file__).with_name('fsrd_submission_transaction_fixture.cpp').read_text()
-    generated = fixture.replace('__ROOT__', ROOT.as_posix()).replace('__PRODUCTION__', '\n'.join(bodies.values()))
+    fixture = fixture.replace('#include "__ROOT__/OptiScaler/misc/RecordedComputeLease_Dx12.h"',
+        '#include "__ROOT__/OptiScaler/misc/RecordedComputeLease_Dx12.h"\n#include "__ROOT__/OptiScaler/misc/NrdBridgeDescriptorAdmission_Dx12.h"', 1)
+    declaration = 'static bool HasRetainedSubmissionParticipant(UINT,ID3D12CommandList* const*) noexcept;\n'
+    generated = fixture.replace('__ROOT__', ROOT.as_posix()).replace('__PRODUCTION__', declaration+'\n'.join(bodies.values()))
     generated = generated.replace('__FAKE_COM__', fake_com(sdk))
     path = output / 'submission_transactions.cpp'
     path.write_text(generated)
