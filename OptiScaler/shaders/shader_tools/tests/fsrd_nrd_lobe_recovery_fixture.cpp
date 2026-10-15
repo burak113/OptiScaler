@@ -27,6 +27,35 @@ namespace LobeFixture
 {
 constexpr auto UA=D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 constexpr auto NPS=D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+// The forwarding list has a distinct proxy address and a native canonical
+// IUnknown. Capture BEFORE the real successful Reset, exactly like the hook;
+// the unchanged Host adapter only knows its native typed-list address.
+static unsigned observedResets=0,distinctTypedCanonicalResets=0;
+void reset(Host& host,LobeObservedList& list,size_t expectedLeases=SIZE_MAX)
+{
+ auto recording=RecordedComputeLease::Capture(&list);
+ ComPtr<IUnknown> canonical;hr(list.QueryInterface(IID_PPV_ARGS(&canonical)));
+ auto canonicalRecording=RecordedComputeLease::Capture(canonical.Get());
+ auto typedRecording=RecordedComputeLease::Capture(host.list.Get());
+ if(recording)
+ {
+  need(recording==canonicalRecording&&(!typedRecording||typedRecording==recording),"observed/canonical aliases resolve the same exact recording before native Reset");
+  need(recording->identity==canonical.Get()&&static_cast<void*>(&list)!=static_cast<void*>(host.list.Get()),"proxy identity is distinct and its canonical identity is actual native IUnknown");
+  size_t leases=0;{auto& registry=RecordedComputeLease::GetRegistry();std::lock_guard lock(registry.mutex);leases=recording->leases.size();}
+  need(leases>0&&(expectedLeases==SIZE_MAX||leases==expectedLeases),"recording retains every expected immutable owner until real native Reset succeeds");
+  if(static_cast<void*>(canonical.Get())!=static_cast<void*>(host.list.Get()))
+  {need(!typedRecording,"unregistered native typed address cannot substitute for the tracked canonical/proxy aliases");++distinctTypedCanonicalResets;}
+  if(expectedLeases!=SIZE_MAX)std::cerr<<"reset ownership before id="<<recording->id<<" leases="<<leases<<" typed="<<host.list.Get()<<" canonical="<<canonical.Get()<<" observed="<<&list<<'\n';
+ }
+ host.reset(); // If the native allocator/list Reset fails, retain the old ticket.
+ RecordedComputeLease::Detach(recording);
+ if(recording)
+ {
+  need(!RecordedComputeLease::Capture(&list)&&!RecordedComputeLease::Capture(canonical.Get())&&!RecordedComputeLease::Capture(host.list.Get()),"successful native Reset detaches all exact old recording aliases");
+  ++observedResets;
+ }
+ // All strong tickets and their last owners die here, outside the registry lock.
+}
 LobeRecoveryInputs inputs(Scene& scene)
 {
  return {scene.resources.spec,scene.resources.diff,scene.resources.linearDepth,scene.resources.motion,
@@ -113,7 +142,7 @@ J parity(Host& host,LobeObservedList& list,const J& caseValue,LobeRecovery::Stor
   Copy spec(host,prepared.specular,UA,8),diff(host,prepared.diffuse,UA,8);
   std::array<std::unique_ptr<Copy>,7> original;
   for(unsigned i=0;i<7;++i)original[i]=std::make_unique<Copy>(host,data.textures[i].Get(),i<5?NPS:UA,(i==2||i==4)?4:8);
-  auxiliaryBytes=helper.OwnedAuxiliaryBytes();host.submit();host.reset();
+  auxiliaryBytes=helper.OwnedAuxiliaryBytes();host.submit();reset(host,list);
   need(spec.bytes()==file(row.at("outputs").at("spec").get<std::string>()),"complete helper specular array equals independently submitted13-pass graph bit for bit");
   need(diff.bytes()==file(row.at("outputs").at("diff").get<std::string>()),"complete helper diffuse array equals independently submitted13-pass graph bit for bit");
   constexpr std::array<const char*,7> names {"spec","diff","depth","motion","normals","rr_spec","rr_diff"};
@@ -124,7 +153,7 @@ J parity(Host& host,LobeObservedList& list,const J& caseValue,LobeRecovery::Stor
 }
 void failures(Host& host,LobeObservedList& list)
 {
- Scene scene(host,64,64);host.submit();host.reset();const auto in=inputs(scene);LobeRecoveryFrame frame;std::string error;
+ Scene scene(host,64,64);host.submit();reset(host,list);const auto in=inputs(scene);LobeRecoveryFrame frame;std::string error;
  auto family=MakeOwnedShared<LobeRecovery::Family>();const auto noClock=tickCalls;
  {LobeRecovery off;need(off.OwnedTextureBytes()==0&&off.OwnedAuxiliaryBytes()==0&&off.RecordedFrames()==0&&tickCalls==noClock,"default construction performs zero allocation/clock/dispatch");}
  for(unsigned at:{1u,9u,55u,56u})
@@ -144,7 +173,7 @@ void failures(Host& host,LobeObservedList& list)
   need(!helper.Prepare(device.Get(),&list,in,frame,family,prepared,error)&&device->createCalls==0&&list.commands==commands,"full2GiB family denies before native resource creation or GPU commands");
   need(family->slots.allocatedSlots==0&&family->graphBytes==LobeRecovery::Family::GraphByteLimit,"denied graph returns its in-progress slot reservation without consuming other family bytes");}
  family->graphBytes=0;tickOffset+=1001;
- Readback rawSpec(host,scene.spec()),rawDiff(host,scene.diff());host.submit();host.reset();
+ Readback rawSpec(host,scene.spec()),rawDiff(host,scene.diff());host.submit();reset(host,list);
  rawSpec.exact({.125f,.25f,.5f,.75f},64,64);rawDiff.exact({1.25f,1.5f,1.75f,2.f},64,64);
  // Saturate immutable slots in one causal recording without cloning the graph.
  auto helper=std::make_unique<LobeRecovery>();std::array<LobeRecovery::Prepared,32> retained;
@@ -157,11 +186,19 @@ void failures(Host& host,LobeObservedList& list)
  helper.reset();for(auto& lease:retained)lease={};
  {LobeRecovery fresh;const auto calls=device->createCalls;need(!fresh.Prepare(device.Get(),&list,in,frame,family,denied,error)&&device->createCalls==calls,"retired-context leases still consume the same stable family32-slot limit");}
  need(family->graphBytes==bytes,"GPU recording lease keeps the old graph alive after every caller owner is dropped");
- host.submit();host.reset();need(family->graphBytes==0&&family->slots.allocatedSlots==0&&family->slots.allocatedBytes==0,"fence completion and recording detach release all graph/slot storage");tickOffset+=1001;
+ std::weak_ptr<RecordedComputeLease::Recording> retired;
+ {auto ticket=RecordedComputeLease::Capture(&list);need(bool(ticket),"all32 outstanding graph owners have an exact observed-alias recording");
+  {auto& registry=RecordedComputeLease::GetRegistry();std::lock_guard lock(registry.mutex);need(ticket->leases.size()==32,"the recorded proxy owns exactly32 graph preparations before fence/reset");}
+  retired=ticket;}
+ host.submit();reset(host,list,32);
+ need(retired.expired(),"fence completion and successful native Reset release the final old recording ticket");
+ if(family->graphBytes||family->slots.allocatedSlots||family->slots.allocatedBytes)
+  std::cerr<<"reset cleanup graph_bytes="<<family->graphBytes<<" slots="<<family->slots.allocatedSlots<<" slot_bytes="<<family->slots.allocatedBytes<<std::endl;
+ need(family->graphBytes==0&&family->slots.allocatedSlots==0&&family->slots.allocatedBytes==0,"fence completion and recording detach release all graph/slot storage");tickOffset+=1001;
 }
 void replay(Host& host,LobeObservedList& list)
 {
- Scene scene(host,64,64);host.submit();host.reset();const auto in=inputs(scene);std::string error;
+ Scene scene(host,64,64);host.submit();reset(host,list);const auto in=inputs(scene);std::string error;
  auto family=MakeOwnedShared<LobeRecovery::Family>();LobeRecovery helper;
  for(unsigned frame=0;frame<2;++frame)
  {
@@ -174,7 +211,7 @@ void replay(Host& host,LobeObservedList& list)
   need(bool(submission),"closed replay keeps an actual recorded lease participant");
   ID3D12CommandList* commands[]={host.list.Get()};host.queue->ExecuteCommandLists(1,commands);RecordedComputeLease::AfterSubmission(submission);host.finish();
   need(spec.values(64,64)==firstSpec&&diff.values(64,64)==firstDiff,"cold and warm closed-list replay repeat exact GPU outputs with stable UAV/NPS boundary states");
-  need(helper.RecordedFrames()==frame+1,"GPU list replay does not fabricate another CPU history advance");host.reset();
+  need(helper.RecordedFrames()==frame+1,"GPU list replay does not fabricate another CPU history advance");reset(host,list);
  }
 }
 }
@@ -189,7 +226,7 @@ int main(int argc,char** argv)try
  J rows=J::array();for(const auto& value:manifest.at("cases"))rows.push_back(LobeFixture::parity(host,*observed.Get(),value,storage));
  host.checkDebug();need(unexpectedCoverage==0,"no fake native coverage success was used");
  need(FfxApiProxy::dispatches==0,"helper parity consumes immutable previously signed-provider arrays and never fabricates a new SDK run");
- J result{{"native_checks",checks},{"debug_errors",0},{"debug_warnings",0},{"cases",rows},{"storage",manifest.at("storage")},
+ J result{{"native_checks",checks},{"observed_alias_resets",LobeFixture::observedResets},{"distinct_native_typed_canonical_resets",LobeFixture::distinctTypedCanonicalResets},{"debug_errors",0},{"debug_warnings",0},{"cases",rows},{"storage",manifest.at("storage")},
   {"scope","actual production recovery helper/real native commands and lease ledger; actual graph output parity; immutable signed-provider input provenance; proxy/legacy metadata adapters and controlled native allocation failures; no new RR/provider or game-quality/FPS claim"}};
  std::ofstream(output/"lobe-recovery-helper-result.json")<<result.dump(2)<<'\n';std::cout<<"PASS lobe_recovery_helper checks="<<checks<<'\n';return 0;
 }catch(const std::exception& e){std::cerr<<"lobe recovery fixture failure: "<<e.what()<<'\n';return 1;}
