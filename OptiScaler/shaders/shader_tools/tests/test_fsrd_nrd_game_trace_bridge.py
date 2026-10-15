@@ -104,6 +104,10 @@ def run():
         check(header["payload"]["bytes"] == 4 * len(offsets))
         check(header["copy_footprint"]["committed_buffer_bytes"] == 0)
     check(all(frame["frame_parameters"]["jitter"][0] == 0x80000000 for frame in replay["frames"]))
+    check([frame["provider"]["signal_flags"] for frame in replay["frames"]] == [34, 34])
+    check([frame["provider"]["checkerboard_signal_flags"] for frame in replay["frames"]] == [34, 34])
+    check([frame["provider"]["diffuse_checkerboard_origin"] for frame in replay["frames"]] == [0, 1])
+    check([frame["provider"]["specular_checkerboard_origin"] for frame in replay["frames"]] == [1, 0])
     check(replay["frames"][0]["actual_dispatch_flags"] & 1)
     check(not replay["frames"][1]["actual_dispatch_flags"] & 1)
     for frame in replay["frames"]:

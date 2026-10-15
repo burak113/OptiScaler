@@ -35,7 +35,11 @@ struct OwnedBridgeFixture
         out.selectedSpec=stages[separate ? 2 : 0].Get(); out.selectedDiff=stages[separate ? 3 : 1].Get();
         out.recording=h.list.Get(); out.frameSL=100+frame; out.frameIndex=500+frame;
         out.width=h.renderWidth; out.height=h.renderHeight; out.contextGeneration=7; out.recordingId=20+frame;
-        out.providerVersionId=12; out.providerApiVersion=12; out.providerSignalFlags=3;
+        out.providerVersionId=12; out.providerApiVersion=FFX_DENOISER_VERSION;
+        out.providerSignalFlags=FFX_DENOISER_SIGNAL_DIRECT_DIFFUSE|FFX_DENOISER_SIGNAL_INDIRECT_SPECULAR;
+        // Deliberately nonzero typed metadata adapter, not an actual SDK call.
+        out.providerCheckerboardSignalFlags=out.providerSignalFlags;
+        out.diffuseCheckerboardOrigin=frame&1u;out.specularCheckerboardOrigin=(frame+1u)&1u;
         const char name[]="CPU adapter; no actual provider"; memcpy(out.providerName.data(),name,sizeof(name));
         ffxDispatchDescDenoiser dispatch {};
         dispatch.renderSize={h.renderWidth,h.renderHeight}; dispatch.frameIndex=out.frameIndex;

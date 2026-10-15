@@ -187,6 +187,16 @@ def inspect_capture(folder, *, verify_payload=True):
             require(struct.unpack_from("<4I", tail, 168) == (render[0], render[1], sdk_frame, flags),
                     "actual provider tail differs from frame/extent/flags")
         provider = frame.get("provider", {})
+        required_controls = ("checkerboard_signal_flags", "diffuse_checkerboard_origin", "specular_checkerboard_origin")
+        if not all(key in provider for key in required_controls):
+            if "actual_checkerboard_create_and_signal_controls_unavailable" not in reasons:
+                reasons.append("actual_checkerboard_create_and_signal_controls_unavailable")
+        else:
+            signal_flags = uint(provider.get("signal_flags"), "actual provider signal flags", 0xffffffff)
+            cb_flags = uint(provider["checkerboard_signal_flags"], "actual provider checkerboard flags", 0xffffffff)
+            require(cb_flags & ~signal_flags == 0, "checkerboard flags are not a subset of actual signals")
+            for key in required_controls[1:]:
+                uint(provider[key], "actual " + key, 1)
         witness = provider.get("route_attestation", {})
         binary = witness.get("creation", {}).get("implementation_identity", {})
         binary_hash = binary.get("disk_sha256") if isinstance(binary, dict) else None
@@ -195,7 +205,8 @@ def inspect_capture(folder, *, verify_payload=True):
         if not attested and "actual_provider_binary_attestation_unavailable" not in reasons:
             reasons.append("actual_provider_binary_attestation_unavailable")
         current = (identity["domain"], frame.get("context_generation"), frame.get("settings_sha256"),
-                   provider.get("version_id"), provider.get("api_version"), binary_hash)
+                   provider.get("version_id"), provider.get("api_version"), binary_hash,
+                   provider.get("signal_flags"), provider.get("context_flags"), provider.get("checkerboard_signal_flags"))
         if stable is None:
             stable = current
             if not flags & 1:
