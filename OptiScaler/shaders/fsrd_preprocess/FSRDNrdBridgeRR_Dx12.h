@@ -20,6 +20,8 @@ struct RRSettings
     bool preserveNativeMaterialIDs = false;
     bool nativeTemporalMotion = false;
     bool nativeMaterialGuides = false;
+    bool lobeRecovery = false;
+    float recoverySpecular = 1.0f, recoveryDiffuse = 1.0f;
     float nativeSpecularBlend = 0.0f; // NRD-assisted hybrid after RR; never changes RR inputs or history.
 };
 struct RRSettingsState

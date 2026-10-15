@@ -503,6 +503,10 @@ struct RRWrapper::Impl
 bool ValidateRRSettings(const RRSettings& settings, std::string& error)
 {
     error.clear();
+    if (!std::isfinite(settings.recoverySpecular) || !std::isfinite(settings.recoveryDiffuse) ||
+        settings.recoverySpecular < 0.0f || settings.recoverySpecular > 1.0f ||
+        settings.recoveryDiffuse < 0.0f || settings.recoveryDiffuse > 1.0f)
+    { error = "RR detail recovery strengths must be finite values in [0,1]"; return false; }
     if (settings.overrideMask & ~0x7fu)
     { error = "RR settings contain an unsupported AMD key"; return false; }
     if (settings.nativeDebugView < -1 || settings.nativeDebugView >
@@ -534,12 +538,15 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     const float nativeSpecularBlend = NormalizeNativeSpecularBlend(requested.nativeSpecularBlend);
     if (!impl_ && !requested.overrideMask && requested.nativeDebugView == -1 &&
         requested.nativeDebugViewport == 0 && !requested.preserveNativeMaterialIDs && !requested.nativeTemporalMotion &&
-        !requested.nativeMaterialGuides &&
+        !requested.nativeMaterialGuides && !requested.lobeRecovery &&
         nativeSpecularBlend == 0.0f) return true;
     if (!impl_) impl_ = MakeOwnedShared<Impl>();
     if (impl_->settings.preserveNativeMaterialIDs != requested.preserveNativeMaterialIDs ||
         impl_->settings.nativeTemporalMotion != requested.nativeTemporalMotion ||
-        impl_->settings.nativeMaterialGuides != requested.nativeMaterialGuides)
+        impl_->settings.nativeMaterialGuides != requested.nativeMaterialGuides ||
+        impl_->settings.lobeRecovery != requested.lobeRecovery ||
+        impl_->settings.recoverySpecular != requested.recoverySpecular ||
+        impl_->settings.recoveryDiffuse != requested.recoveryDiffuse)
     { impl_->resetPending = true; impl_->nativeDebug = {}; }
     if (impl_->settings.nativeDebugView != requested.nativeDebugView ||
         impl_->settings.nativeDebugViewport != requested.nativeDebugViewport) impl_->nativeDebug = {};
@@ -550,6 +557,9 @@ bool RRWrapper::Configure(const RRSettings& requested, std::string& error)
     impl_->settings.preserveNativeMaterialIDs = requested.preserveNativeMaterialIDs;
     impl_->settings.nativeTemporalMotion = requested.nativeTemporalMotion;
     impl_->settings.nativeMaterialGuides = requested.nativeMaterialGuides;
+    impl_->settings.lobeRecovery = requested.lobeRecovery;
+    impl_->settings.recoverySpecular = requested.recoverySpecular;
+    impl_->settings.recoveryDiffuse = requested.recoveryDiffuse;
     impl_->settings.nativeSpecularBlend = nativeSpecularBlend;
     for (uint32_t index = 0; index < 7; ++index)
         if (requested.overrideMask & (1u << index))
