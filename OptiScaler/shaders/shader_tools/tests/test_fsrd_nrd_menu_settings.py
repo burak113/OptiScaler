@@ -71,10 +71,11 @@ __RR_CONTRACT__
 bool startup=false,runtime=true,camera=false,accept=true,guidesActive=false;unsigned applyCalls=0,resetCalls=0,statusCalls=0;
 RRSettings last{};bool lastCamera=false;RRSettingsState state;
 enum class DebugMode {Off,RawSignals,RRInputs};DebugMode conversionDebug=DebugMode::Off;
-struct Status {std::string phase="Active",reason="test",resources;bool nativeMaterialGuidesActive=false;};
+__STATUS_CONTRACT__
+Status statusCounters;
 bool StartupEnabled(){return startup;}bool RuntimeEnabled(){return runtime;}
 void SetRuntimeEnabled(bool value){runtime=value;}
-Status GetStatus(){++statusCalls;Status value;value.nativeMaterialGuidesActive=guidesActive;return value;}
+Status GetStatus(){++statusCalls;auto value=statusCounters;value.nativeMaterialGuidesActive=guidesActive;return value;}
 void RequestHistoryReset(){++resetCalls;}
 DebugMode GetDebugMode(){return conversionDebug;}void SetDebugMode(DebugMode value){conversionDebug=value;}
 bool ApplyRRSettings(const RRSettings& settings,bool motion,std::string& error) noexcept {
@@ -425,6 +426,32 @@ int main(){try{
  ImGui::frame();ImGui::hovered=true;drawBridge(&cfg);
  need(ImGui::hasText("Adds GPU work and temporary VRAM")&&ImGui::hasText("cost depends on resolution and hardware"),
  "Experimental recovery tooltip explains variable GPU/VRAM cost without a hardware-independent timing claim");
+
+ cfg.load("[FSR-RR]\n");NrdBridge::state.requested.nativeMaterialGuides=true;NrdBridge::guidesActive=false;
+ NrdBridge::statusCounters.nativeMaterialAttempts=101;NrdBridge::statusCounters.nativeMaterialSnapshots=59;
+ NrdBridge::statusCounters.nativeMaterialFramesApplied=43;NrdBridge::statusCounters.nativeMaterialUnknownState=31;
+ NrdBridge::statusCounters.nativeMaterialKnownPSR=17;NrdBridge::statusCounters.nativeMaterialUnsupportedState=19;
+ NrdBridge::statusCounters.nativeMaterialCaptureFailures=13;NrdBridge::statusCounters.nativeMaterialModeResets=7;
+ ImGui::frame();ImGui::hovered=true;drawBridge(&cfg);
+ need(ImGui::hasText("Native albedo: Requested; white fallback until a matching capture is admitted.")&&
+ ImGui::hasText("Default on; disabling requests white guides")&&ImGui::hasText("Separate lobe detail recovery stays off by default"),
+ "Native-albedo default ON is explained without mistaking a request for admitted native guidance");
+ need(ImGui::hasText("Native-guide Recon frames: 43")&&ImGui::hasText("Captured snapshots: 59 / attempts: 101"),
+ "Status counter wiring distinguishes successful capture candidates from Recon frames actually supplied native guides");
+ need(ImGui::hasText("unknown state: 31; unsupported state: 19; capture failure: 13")&&
+ ImGui::hasText("pixel-only read state: 17; availability history resets: 7"),
+ "All eight actual public Status counters map to their distinct informational/fallback meanings");
+ need(ImGui::hasText("not colored-pixel coverage")&&ImGui::hasText("do not include every rejected attempt")&&
+ ImGui::hasText("pixel-only read state is informational"),
+ "Capture totals are not misrepresented as exhaustive white/native pixel coverage or PSR failures");
+ NrdBridge::guidesActive=true;ImGui::frame();drawBridge(&cfg);
+ need(ImGui::hasText("A matching native guide snapshot was admitted for the latest reported Recon")&&
+ !ImGui::hasText("Native albedo: Requested; white fallback"),
+ "Actual cached material admission is distinguished from pending white fallback");
+ NrdBridge::state.requested.nativeMaterialGuides=false;ImGui::frame();drawBridge(&cfg);
+ need(ImGui::hasText("Native albedo: Disabled; white guides requested.")&&
+ !ImGui::hasText("A matching native guide snapshot was admitted for the latest reported Recon"),
+ "Accepted runtime disable takes precedence over stale Config ON or prior material-admission observation");
  std::cout<<"PASS: "<<checks<<" actual NRD menu/INI/reset checks\n";return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
 '''
@@ -435,6 +462,7 @@ def run():
     config=(ROOT/'OptiScaler/Config.cpp').read_text()
     menu=(ROOT/'OptiScaler/menu/menu_common.cpp').read_text()
     rr=(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridgeRR_Dx12.h').read_text()
+    bridge=(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.h').read_text()
     if 'struct RRSettings\n' in rr:
         contract='\n'.join(function(rr,'struct '+name+'\n')+';' for name in ('RRSettings','RRSettingsState'))
         contract_origin='actual public RR header'
@@ -443,6 +471,7 @@ def run():
         # its new header. No provider configuration/history algorithm is reproduced.
         contract='struct RRSettings {uint32_t overrideMask=0;std::array<float,8> values{};int32_t nativeDebugView=-1;uint32_t nativeDebugViewport=0;bool preserveNativeMaterialIDs=false;float nativeSpecularBlend=0.f;};\nstruct RRSettingsState {bool ready=false;RRSettings requested{};std::array<float,8> defaults{},effective{};};'
         contract_origin='explicit approved API spy POD; integrated replay reads actual header'
+    contract_origin+='; actual public Status header'
     types=(ROOT/'OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Types.h').read_text()
     contract+='\n'+function(types,'inline float NormalizeNativeSpecularBlend(')
     contract+='\n'+function(rr,'static inline float NormalizeLobeRecoveryStrength(')
@@ -473,13 +502,13 @@ def run():
     assert 'FFX_API_DENOISER_DEBUG_VIEW_MODE_FULLSCREEN_VIEWPORT = 1' in enum
     replacements=dict(SIMPLEINI=(ROOT/'external/simpleini/SimpleIni.h').as_posix(),
         CUSTOM=header[header.index('enum HasDefaultValue'):header.index('constexpr inline int UnboundKey')],
-        RR_CONTRACT=contract,CONFIG_FIELDS='\n'.join(re.findall(r'^\s*CustomOptional<[^\n]+>\s+FfxDenoiser\w+[^;\n]*;',header,re.M)),
+        RR_CONTRACT=contract,STATUS_CONTRACT=function(bridge,'struct Status\n')+';',CONFIG_FIELDS='\n'.join(re.findall(r'^\s*CustomOptional<[^\n]+>\s+FfxDenoiser\w+[^;\n]*;',header,re.M)),
         FFX_DEBUG_CONTRACT=maximum+'\n'+enum,
         SERIALIZERS='\n'.join(function(config,signature) for signature in ('static inline bool isFloat(', 'static inline bool isInteger(', 'static inline std::optional<float> NormalizeNrdBridgeRecoverySetting(', 'std::string GetBoolValue(', 'std::string GetFloatValue(', 'std::string GetIntValue(std::optional<int> value)')),
         READERS='\n'.join(function(config,'std::optional<'+kind+'> Config::read'+name+'(') for kind,name in (('std::string','String'),('bool','Bool'),('float','Float'),('int','Int'))),
         RESET_KEYS='\n'.join(resets),LOAD_KEYS='\n'.join(loads),SAVE_KEYS='\n'.join(saves),
         RESET_ALL=function(config,'bool Config::ResetFfxDenoiserSettings('),
-        MENU_HELPERS='\n'.join(function(menu,signature) for signature in ('static bool DrawAmdRRTuning(', 'static bool DrawNrdBridgeNativeDebug(', 'static bool DrawNrdBridgeLobeRecovery(', 'static NrdBridge::RRSettings ReadNrdBridgeRRSettings(', 'static void DrawNrdBridgeRRTuning(', 'static void DrawNrdBridgeInputMap(')),BRIDGE_PANEL=panel)
+        MENU_HELPERS='\n'.join(function(menu,signature) for signature in ('static bool DrawAmdRRTuning(', 'static bool DrawNrdBridgeNativeDebug(', 'static bool DrawNrdBridgeLobeRecovery(', 'static void DrawNrdBridgeNativeMaterialStatus(', 'static NrdBridge::RRSettings ReadNrdBridgeRRSettings(', 'static void DrawNrdBridgeRRTuning(', 'static void DrawNrdBridgeInputMap(')),BRIDGE_PANEL=panel)
     cpp=CPP
     for key,value in replacements.items():cpp=cpp.replace('__'+key+'__',value)
     assert not re.search(r'__[A-Z_]+__',cpp)

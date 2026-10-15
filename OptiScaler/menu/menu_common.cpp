@@ -3306,6 +3306,29 @@ static bool DrawNrdBridgeLobeRecovery(Config* config)
     return changed;
 }
 
+static void DrawNrdBridgeNativeMaterialStatus()
+{
+    const auto status = NrdBridge::GetStatus();
+    if (!NrdBridge::GetRRSettingsState().requested.nativeMaterialGuides)
+        ImGui::TextDisabled("Native albedo: Disabled; white guides requested.");
+    else if (status.nativeMaterialGuidesActive)
+        ImGui::TextWrapped("Native albedo: A matching native guide snapshot was admitted for the latest reported Recon.");
+    else
+        ImGui::TextWrapped("Native albedo: Requested; white fallback until a matching capture is admitted.");
+    ImGui::Text("Native-guide Recon frames: %llu", static_cast<unsigned long long>(status.nativeMaterialFramesApplied));
+    ImGui::Text("Captured snapshots: %llu / attempts: %llu", static_cast<unsigned long long>(status.nativeMaterialSnapshots),
+                static_cast<unsigned long long>(status.nativeMaterialAttempts));
+    ImGui::TextWrapped("Fallback causes - unknown state: %llu; unsupported state: %llu; capture failure: %llu",
+                static_cast<unsigned long long>(status.nativeMaterialUnknownState),
+                static_cast<unsigned long long>(status.nativeMaterialUnsupportedState),
+                static_cast<unsigned long long>(status.nativeMaterialCaptureFailures));
+    ImGui::TextWrapped("Attempts with pixel-only read state: %llu; availability history resets: %llu",
+                static_cast<unsigned long long>(status.nativeMaterialKnownPSR),
+                static_cast<unsigned long long>(status.nativeMaterialModeResets));
+    ImGui::TextWrapped("Service totals describe capture and Recon admission, not colored-pixel coverage. "
+                      "Fallback causes do not include every rejected attempt; pixel-only read state is informational.");
+}
+
 static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
 {
     NrdBridge::RRSettings settings;
@@ -3367,6 +3390,7 @@ static void DrawNrdBridgeRRTuning(Config* config)
                           "Diffuse guide uses baseColor*(1-metal); specular uses AMD's analytic GGX BRDF. "
                           "Unknown special material/state uses white guides. Lighting stays demodulated. History resets on change. "
                           "Default on; disabling requests white guides. Separate lobe detail recovery stays off by default.");
+    DrawNrdBridgeNativeMaterialStatus();
     bool nativeMotion = config->FfxDenoiserNrdBridgeNativeTemporalMotion.value_or_default();
     if (ImGui::Checkbox("Native NRD surface reprojection (experimental)", &nativeMotion))
     {
