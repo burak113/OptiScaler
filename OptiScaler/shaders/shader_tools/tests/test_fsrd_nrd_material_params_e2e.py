@@ -38,7 +38,7 @@ def prepare(out):
     marker = '  ++internalBarriers;'
     assert source.count(marker) == 1
     source = source.replace(marker, marker + '\n  ParamsHostAudit(barriers[i]);')
-    prefix = '#include <d3d12.h>\nvoid ParamsHostAudit(const D3D12_RESOURCE_BARRIER&) noexcept;\n#define main PreservedNrdMaterialE2EMain\n'
+    prefix = '#include "fixture_support.h"\nvoid ParamsHostAudit(const D3D12_RESOURCE_BARRIER&) noexcept;\n#define main PreservedNrdMaterialE2EMain\n'
     fixture = HERE / 'fsrd_nrd_material_params_e2e.cpp'
     path, exe = out / 'material_params_host.cpp', out / 'material_params_host.exe'
     path.write_text(prefix + source + '\n#undef main\n' + fixture.read_text(encoding='utf-8'), encoding='utf-8')
