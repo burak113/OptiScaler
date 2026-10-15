@@ -22,6 +22,11 @@ Native finite alpha is preserved, including signed zero. The native multiplicati
 by1000 was a reconstruction weight that cancels during normalization; it is not a
 hit-distance unit conversion. Nonfinite values are sanitized explicitly.
 
+This describes the raw RR **input** alpha. Final commit preserves the title
+target's opaque alpha; its current initialization after native elision is not
+proved. Both attested retained consumers read only RGB from these targets. That
+opaque channel is not an RR history/input or a current hit-distance claim.
+
 For B, PrePass b6 register36.xy selects full-resolution mode2 or checkerboard0/1.
 Register32.y supplies the local parity phase, register28.zw the signed origin and
 register29.zw the **integer** rectangle dimensions. Known traced pixels retain
@@ -36,6 +41,11 @@ An actual signed AMD provider experiment rejected the proposed full-resolution
 negative-alpha shortcut: inactive poisoned RGB leaked into the output. That
 shortcut is not used.
 
+A separate signed-provider control compared the new reconstruction with native
+SDK packed checkerboard input. The two are approximate alternatives: in that toy
+scene the reconstructed input had higher RGB error and slightly lower chroma
+error. This is a preserved negative result, not evidence of a quality gain.
+
 ## Submission and lifetime
 
 A mandatory recording token is retained before the first native dispatch is
@@ -48,6 +58,8 @@ are checked again before submission. Intervening indirect/draw work requires
 known complete shader identities, a pure indirect signature and bounded checks
 that its actually used image bindings do not touch pending lighting targets.
 Unknown actual work fails closed. Unknown PSO assignment alone is not work.
+The native omission contract is pinned to the supported complete shader hashes;
+unclassified work outside a pending interval is not a general game-version proof.
 
 The descriptor admission protocol joins each native descriptor mutation with its
 metadata publication. Writers use fixed sharded atomic counters. A participating
