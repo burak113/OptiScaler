@@ -113,6 +113,7 @@ struct ListState
     NativeTemporalCapture::SnapshotLease nativeMotionSnapshot;
     MaterialSnapshot pendingMaterial, material;
     NativeMaterialStateWitness materialStates;
+    uint64_t materialIdentityRevision = 0;
     DebugMode debug = DebugMode::Off;
     std::array<std::weak_ptr<RecordingToken>,4> debugPresentations {};
 };
@@ -404,7 +405,7 @@ void ReplaceList(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list
     if (owner.activeFrame == list.frame) owner.status.active = false;
     RemoveChainUsers(owner,cmd,list); StopFollowing(owner,cmd,list);
     retiredList.emplace(std::move(list)); list = {}; list.birth = birth; ++owner.resetSerial;
-    if (owner.rrSettings.nativeMaterialGuides) owner.materialIdentities.Seed(list.materialStates);
+    if (owner.rrSettings.nativeMaterialGuides) owner.materialIdentities.SeedIfChanged(list.materialStates,list.materialIdentityRevision);
 }
 void DropPending(Service& owner, RetiredDebugSources& retired)
 {
@@ -1142,10 +1143,10 @@ void OnSetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pipeline
             const auto role = PipelineRole(owner,pipeline,pipelineBirth);
             if (const auto found = owner.lists.find(cmd); found != owner.lists.end() && found->second.birth != receiverBirth)
                 ReplaceList(owner,cmd,found->second,receiverBirth,retiredList,retiredPresentations,retired);
-            if (role != Role::None || (owner.rrSettings.nativeMaterialGuides && !owner.materialIdentities.Empty()))
+            if (role != Role::None)
             {
                 auto& list = owner.lists[cmd]; list.role = role; list.birth = receiverBirth; list.pipelineBirth = pipelineBirth;
-                if (owner.rrSettings.nativeMaterialGuides) owner.materialIdentities.Seed(list.materialStates);
+                if (owner.rrSettings.nativeMaterialGuides) owner.materialIdentities.SeedIfChanged(list.materialStates,list.materialIdentityRevision);
             }
             else if (const auto found = owner.lists.find(cmd); found != owner.lists.end()) { found->second.role = Role::None; found->second.pipelineBirth = pipelineBirth; }
             if (gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
@@ -1192,22 +1193,25 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
                     ++owner.resetSerial;
                 }
                 NativeMaterialStateWitness rememberedMaterialStates;
-                if (found->second.birth == receiverBirth) rememberedMaterialStates = found->second.materialStates;
+                uint64_t rememberedMaterialRevision = 0;
+                if (found->second.birth == receiverBirth)
+                { rememberedMaterialStates = found->second.materialStates; rememberedMaterialRevision = found->second.materialIdentityRevision; }
                 rememberedMaterialStates.Invalidate(); // Keep bounded selections, never a preceding recording's proof.
                 RemoveChainUsers(owner,cmd,found->second); StopFollowing(owner,cmd,found->second);
                 retiredList.emplace(std::move(found->second)); found->second = {};
                 found->second.materialStates = std::move(rememberedMaterialStates); found->second.nrdList = nrdList; found->second.role = PipelineRole(owner,initial,pipelineBirth);
                 found->second.birth = receiverBirth; found->second.pipelineBirth = pipelineBirth;
-                if (owner.rrSettings.nativeMaterialGuides) owner.materialIdentities.Seed(found->second.materialStates);
+                found->second.materialIdentityRevision = rememberedMaterialRevision;
+                if (owner.rrSettings.nativeMaterialGuides)
+                    owner.materialIdentities.SeedIfChanged(found->second.materialStates,found->second.materialIdentityRevision);
                 if (nrdList && gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
                     (owner.cache.Valid() || owner.retryPresents >= 60 || !owner.everRecon))
                 { StartWindow(owner); open = true; }
             }
-            else if (const auto role = PipelineRole(owner,initial,pipelineBirth); role != Role::None ||
-                (owner.rrSettings.nativeMaterialGuides && !owner.materialIdentities.Empty()))
+            else if (const auto role = PipelineRole(owner,initial,pipelineBirth); role != Role::None)
             {
                 auto& list = owner.lists[cmd]; list.role = role; list.birth = receiverBirth; list.pipelineBirth = pipelineBirth;
-                if (owner.rrSettings.nativeMaterialGuides) owner.materialIdentities.Seed(list.materialStates);
+                if (owner.rrSettings.nativeMaterialGuides) owner.materialIdentities.SeedIfChanged(list.materialStates,list.materialIdentityRevision);
                 if (gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
                     (role == Role::PrepLast || role == Role::Recon || (role == Role::MaterialGuide && owner.rrSettings.nativeMaterialGuides)) && (owner.cache.Valid() || owner.retryPresents >= 60 ||
                         (role == Role::Recon && !owner.everRecon)))
@@ -1576,24 +1580,36 @@ void OnResourceBarriers(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_
         !gRuntime.load(std::memory_order_relaxed) || FrameSurvey::Internal() || !barriers || !count) return;
     try
     {
+        std::shared_ptr<Service> owner;
+        {
+            std::scoped_lock lock(gMutex); owner = gService; if (!owner || !cmd) return;
+            const auto found = owner->lists.find(cmd);
+            if (found != owner->lists.end() && ListLive(found->second))
+            {
+                owner->materialIdentities.SeedIfChanged(found->second.materialStates,found->second.materialIdentityRevision);
+                // Existing lists must see every packet, including wildcard aliases.
+                found->second.materialStates.Observe(count,barriers,owner->cancellationSerial);
+                return;
+            }
+            if (!owner->materialIdentities.MatchesAnyTransition(count,barriers)) return;
+        }
+        // The rare first relevant transition needs a receiver identity; known
+        // lists avoid a Birth registry lookup in the steady barrier path.
         RetiredDebugSources retired; std::optional<ListState> retiredList;
         std::array<std::shared_ptr<RecordingToken>,4> retiredPresentations;
         const auto receiverBirth = NrdBridgeBirth::Capture(cmd,BirthMode());
         std::scoped_lock lock(gMutex);
-        if (!gService || !BirthLive(receiverBirth) || !cmd) return;
-        auto& owner = *gService;
-        auto found = owner.lists.find(cmd);
-        if (found == owner.lists.end())
-        {
-            if (owner.materialIdentities.Empty()) return;
-            found = owner.lists.try_emplace(cmd).first; found->second.birth = receiverBirth;
-        }
+        if (gService != owner || !BirthLive(receiverBirth) ||
+            !owner->materialIdentities.MatchesAnyTransition(count,barriers)) return;
+        auto found = owner->lists.find(cmd);
+        if (found == owner->lists.end())
+        { found = owner->lists.try_emplace(cmd).first; found->second.birth = receiverBirth; }
         else if (found->second.birth != receiverBirth)
-            ReplaceList(owner,cmd,found->second,receiverBirth,retiredList,retiredPresentations,retired);
+            ReplaceList(*owner,cmd,found->second,receiverBirth,retiredList,retiredPresentations,retired);
         if (ListLive(found->second))
         {
-            owner.materialIdentities.Seed(found->second.materialStates);
-            found->second.materialStates.Observe(count,barriers,owner.cancellationSerial);
+            owner->materialIdentities.SeedIfChanged(found->second.materialStates,found->second.materialIdentityRevision);
+            found->second.materialStates.Observe(count,barriers,owner->cancellationSerial);
         }
     } catch (...) {}
 }

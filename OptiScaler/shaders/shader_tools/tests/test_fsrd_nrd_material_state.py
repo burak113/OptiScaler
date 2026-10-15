@@ -24,6 +24,7 @@ CASES = [
     "legacy-generation", "legacy-zero-generation",
     "known-states", "known-invalid", "seed-new-list", "seed-selection", "seed-ring",
     "seed-generation", "seed-birth", "seed-allocation-free", "supported-states",
+    "cache-revision", "cache-transition-gate", "gate-unrelated", "gate-first", "gate-revision-alias", "gate-off",
 ]
 
 CPP = r'''
@@ -35,6 +36,9 @@ CPP = r'''
 #include <cstdlib>
 #include <iostream>
 #include <new>
+#include <mutex>
+#include <optional>
+#include <unordered_map>
 #include <stdexcept>
 #include <string>
 
@@ -101,6 +105,96 @@ Token birth(NrdBridgeBirth::Registry& registry,ID3D12Resource* resource,
 {
     auto token=registry.ObserveInstance(resource,stamp,metadata,metadata,nullptr,true,initializing);
     need(bool(token),"actual Birth registry published exact CPU metadata identity"); return token;
+}
+
+// Only startup/receiver/retirement facades below are explicit CPU adapters.
+// The extracted production OnResourceBarriers body and actual witness/cache run
+// unchanged except one counted Capture facade; no NativeReady/GUID/COM claim.
+namespace FrameSurvey { bool Internal() noexcept { return false; } }
+namespace BarrierGateFixture
+{
+using NrdBridge::NativeMaterialStateWitness;
+struct RecordingToken {};
+struct RetiredDebugSources {};
+struct ListState { Token birth; Witness materialStates; uint64_t materialIdentityRevision=0; };
+struct Service { std::unordered_map<ID3D12GraphicsCommandList*,ListState> lists; IdentityCache materialIdentities; uint64_t cancellationSerial=1; };
+std::shared_ptr<Service> gService;
+std::atomic<bool> gNativeMaterials{true},gInstalled{true},gRuntime{true};
+std::mutex gMutex;
+unsigned captures=0,replacements=0;
+bool BirthMode() noexcept { return false; } // Legacy metadata-only receiver adapter, never a fake NativeReady.
+bool BirthLive(const Token& token) noexcept { return !token || token->CacheAdmissible(); }
+bool ListLive(const ListState& list) noexcept { return BirthLive(list.birth); }
+Token CountCapture(void* address,bool enabled) noexcept
+{ ++captures;return NrdBridgeBirth::Capture(address,enabled); }
+void ReplaceList(Service&,ID3D12GraphicsCommandList*,ListState&,const Token&,
+                 std::optional<ListState>&,std::array<std::shared_ptr<RecordingToken>,4>&,RetiredDebugSources&)
+{ ++replacements;throw std::runtime_error("unexpected receiver replacement in legacy gate fixture"); }
+__BARRIER_OBSERVER__
+void run(const std::string& mode)
+{
+    gService=std::make_shared<Service>();const auto p=pair();gService->materialIdentities.Remember(p.base,p.params);
+    const auto cmd=reinterpret_cast<ID3D12GraphicsCommandList*>(uintptr_t(0x500000));
+    const std::array material{transition(p.base.resource),transition(p.params.resource)};
+    if(mode=="gate-unrelated")
+    {
+        const auto irrelevant=transition(pair(20).base.resource);
+        D3D12_RESOURCE_BARRIER alias{};alias.Type=D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
+        alias.Aliasing={nullptr,nullptr};
+        allocations=0;meter=true;
+        for(unsigned i=0;i!=1000;++i)
+        {
+            auto* unseen=reinterpret_cast<ID3D12GraphicsCommandList*>(uintptr_t(0x600000)+i*0x100);
+            OnResourceBarriers(unseen,1,&irrelevant);OnResourceBarriers(unseen,1,&alias);
+        }
+        meter=false;
+        need(gService->lists.empty(),"1000 unrelated transition/alias-only unseen lists are not registered");
+        need(allocations==0,"unrelated unseen-list packets allocate zero metadata");
+        need(captures==0,"unrelated unseen-list packets avoid receiver Birth lookup");
+    }
+    else if(mode=="gate-first")
+    {
+        OnResourceBarriers(cmd,UINT(material.size()),material.data());
+        need(gService->lists.size()==1 && captures==1,"first exact material transition creates one receiver entry");
+        auto& list=gService->lists.at(cmd);select(list.materialStates,p);Witness::SourceStates states{};
+        need(list.materialStates.TryKnownStates(1,states),"first pre-writer material transitions are observed after identity seeding");
+        const auto revision=list.materialIdentityRevision;
+        allocations=0;meter=true;
+        for(unsigned i=0;i!=1000;++i)OnResourceBarriers(cmd,UINT(material.size()),material.data());
+        meter=false;
+        need(captures==1 && allocations==0,"1000 known-list barrier packets perform no receiver lookup/allocation");
+        need(list.materialIdentityRevision==revision && list.materialStates.TryKnownStates(1,states),
+             "unchanged revision preserves selection and fresh recording proof");
+    }
+    else if(mode=="gate-revision-alias")
+    {
+        OnResourceBarriers(cmd,UINT(material.size()),material.data());
+        auto& list=gService->lists.at(cmd);const auto oldRevision=list.materialIdentityRevision;
+        gService->materialIdentities.Remember(p.base,p.params);
+        need(gService->materialIdentities.Revision()==oldRevision,"reobserving exact writer pair does not advance revision");
+        const auto q=pair(1);gService->materialIdentities.Remember(q.base,q.params);
+        const std::array next{transition(q.base.resource),transition(q.params.resource)};
+        OnResourceBarriers(cmd,UINT(next.size()),next.data());select(list.materialStates,q);
+        need(list.materialIdentityRevision!=oldRevision && list.materialStates.Readable(1),
+             "existing list seeds changed service identity revision before observing new pair transitions");
+        const auto revision=list.materialIdentityRevision;
+        D3D12_RESOURCE_BARRIER alias{};alias.Type=D3D12_RESOURCE_BARRIER_TYPE_ALIASING;alias.Aliasing={nullptr,nullptr};
+        OnResourceBarriers(cmd,1,&alias);
+        need(list.materialIdentityRevision==revision && !list.materialStates.Readable(1),
+             "unchanged revision does not hide wildcard alias invalidation on existing list");
+        need(captures==1,"known-list alias/revision packets avoid receiver registry");
+    }
+    else if(mode=="gate-off")
+    {
+        allocations=0;meter=true;
+        gNativeMaterials=false;OnResourceBarriers(cmd,UINT(material.size()),material.data());gNativeMaterials=true;
+        gInstalled=false;OnResourceBarriers(cmd,UINT(material.size()),material.data());gInstalled=true;
+        gRuntime=false;OnResourceBarriers(cmd,UINT(material.size()),material.data());gRuntime=true;
+        meter=false;need(gService->lists.empty() && captures==0 && allocations==0,"all disabled guards avoid receiver/metadata work");
+    }
+    else throw std::runtime_error("unknown production gate case");
+    need(replacements==0,"no unexpected retirement adapter invoked");
+}
 }
 
 void run(const std::string& mode)
@@ -416,14 +510,14 @@ void run(const std::string& mode)
     else if(mode=="supported-states")
     {
         using P=CapturePolicy;using S=P::SourceStates;
-        for(const auto state : {D3D12_RESOURCE_STATE_COMMON,readState,D3D12_RESOURCE_STATE_UNORDERED_ACCESS})
+        for(const auto state : {readState,D3D12_RESOURCE_STATE_UNORDERED_ACCESS})
         {need(P::CanCaptureStates(S{state,readState},D3D12_COMMAND_LIST_TYPE_DIRECT),"known supported direct source state");
          need(P::CanCaptureStates(S{readState,state},D3D12_COMMAND_LIST_TYPE_COMPUTE),"known supported compute source state");}
         for(const auto state : {D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATES(readState|D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)})
         {need(P::CanCaptureStates(S{state,readState},D3D12_COMMAND_LIST_TYPE_DIRECT),"direct list supports exact pixel-read state");
          need(!P::CanCaptureStates(S{readState,state},D3D12_COMMAND_LIST_TYPE_COMPUTE),"compute list cannot restore pixel-state masks");}
-        for(const auto state : {D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        for(const auto state : {D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_DEPTH_WRITE,
                 D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_COPY_SOURCE,
                 D3D12_RESOURCE_STATE_RESOLVE_DEST,D3D12_RESOURCE_STATE_RESOLVE_SOURCE,D3D12_RESOURCE_STATE_GENERIC_READ,
                 D3D12_RESOURCE_STATES(readState|D3D12_RESOURCE_STATE_INDEX_BUFFER),
@@ -434,6 +528,41 @@ void run(const std::string& mode)
         for(const auto type : {D3D12_COMMAND_LIST_TYPE_BUNDLE,D3D12_COMMAND_LIST_TYPE_COPY})
             need(!P::CanCaptureStates(S{readState,readState},type),"non-dispatch command list cannot capture");
     }
+    else if(mode=="cache-revision")
+    {
+        IdentityCache identities;uint64_t seen=0;need(identities.Revision()==0,"identity revision starts empty");
+        need(!identities.SeedIfChanged(w,seen),"empty unchanged cache does no seed work");
+        identities.Remember(p.base,p.params);const auto first=identities.Revision();
+        need(first!=0 && identities.SeedIfChanged(w,seen) && seen==first,"new identity revision seeds list once");
+        observe(w,p);select(w,p);need(w.Readable(1),"revision seeding still requires this recording's barriers");
+        identities.Remember(p.base,p.params);
+        need(identities.Revision()==first && !identities.SeedIfChanged(w,seen) && w.Readable(1),"same pair does not increment or reseed");
+        const auto q=pair(1);identities.Remember(q.base,q.params);
+        need(identities.Revision()!=first && identities.SeedIfChanged(w,seen),"different pair advances revision and seeds once");
+        need(!identities.SeedIfChanged(w,seen),"second use of same revision does no work");
+        alias(w,nullptr,nullptr);need(!w.Readable(1),"revision optimization does not suppress alias observations");
+    }
+    else if(mode=="cache-transition-gate")
+    {
+        IdentityCache identities;identities.Remember(p.base,p.params);
+        auto b=transition(p.base.resource);need(identities.MatchesAnyTransition(1,&b),"exact base transition is relevant");
+        b=transition(p.params.resource);need(identities.MatchesAnyTransition(1,&b),"exact params transition is relevant");
+        b=transition(pair(20).base.resource);need(!identities.MatchesAnyTransition(1,&b),"unrelated incoming target cannot register a list");
+        b=transition(p.base.resource,readState,D3D12_RESOURCE_BARRIER_FLAG_NONE,1);
+        need(!identities.MatchesAnyTransition(1,&b),"different subresource cannot register a list");
+        b={};b.Type=D3D12_RESOURCE_BARRIER_TYPE_ALIASING;b.Aliasing={nullptr,nullptr};
+        need(!identities.MatchesAnyTransition(1,&b),"wildcard alias alone has no state proof for unknown list");
+        b={};b.Type=D3D12_RESOURCE_BARRIER_TYPE_UAV;b.UAV.pResource=p.base.resource;
+        need(!identities.MatchesAnyTransition(1,&b),"UAV ordering alone has no state proof for unknown list");
+        need(!identities.MatchesAnyTransition(1,nullptr),"malformed incoming packet does not create metadata");
+        NrdBridgeBirth::Registry registry;auto tracked=p;
+        tracked.base.resourceBirth=birth(registry,p.base.resource,501);tracked.params.resourceBirth=birth(registry,p.params.resource,502);
+        IdentityCache exact;exact.Remember(tracked.base,tracked.params);b=transition(p.base.resource);
+        need(exact.MatchesAnyTransition(1,&b),"current admissible Birth may register relevant list");
+        need(registry.RetireCurrentInstance(tracked.base.resourceBirth,metadata,nullptr),"cached exact Birth retired");
+        need(!exact.MatchesAnyTransition(1,&b),"retired cached Birth cannot register recycled raw address");
+    }
+    else if(mode.starts_with("gate-")) BarrierGateFixture::run(mode);
     else throw std::runtime_error("unknown fixture case");
 }
 int main(int argc,char** argv)try
@@ -463,9 +592,23 @@ def generate(out):
         end += 1
     policy = ("class CapturePolicy { public: using SourceStates=std::array<D3D12_RESOURCE_STATES,2>;\n" +
               text[start:end] + "\n};")
-    source.write_text(CPP.replace("__ROOT__", ROOT.as_posix()).replace("__CAPTURE_POLICY__", policy), encoding="utf-8")
+    coordinator = ROOT / "OptiScaler/shaders/fsrd_preprocess/FSRDNrdBridge_Dx12.cpp"
+    coordinator_text = coordinator.read_text()
+    signature = "void OnResourceBarriers("
+    assert coordinator_text.count(signature) == 1, "one actual coordinator barrier observer"
+    start = coordinator_text.index(signature)
+    opening = coordinator_text.index("{", start)
+    depth, end = 1, opening + 1
+    while depth:
+        depth += (coordinator_text[end] == "{") - (coordinator_text[end] == "}")
+        end += 1
+    observer = coordinator_text[start:end]
+    assert observer.count("NrdBridgeBirth::Capture(cmd,BirthMode())") == 1
+    observer = observer.replace("NrdBridgeBirth::Capture(cmd,BirthMode())", "CountCapture(cmd,BirthMode())")
+    generated = CPP.replace("__ROOT__", ROOT.as_posix()).replace("__CAPTURE_POLICY__", policy).replace("__BARRIER_OBSERVER__", observer)
+    source.write_text(generated, encoding="utf-8")
     production = Path(os.environ.get("FSRD_NRD_PRODUCTION_ROOT", ROOT)).resolve()
-    paths = [ROOT / "OptiScaler/shaders/fsrd_preprocess/FSRDNrdNativeMaterialStateWitness.h", capture,
+    paths = [ROOT / "OptiScaler/shaders/fsrd_preprocess/FSRDNrdNativeMaterialStateWitness.h", capture, coordinator,
              production / "OptiScaler/misc/NrdBridgeBirth_Dx12.h",
              production / "OptiScaler/resource_tracking/FrameSurvey_Dx12.h"]
     assert "uint64_t resourceGeneration" in paths[-1].read_text(), "actual production BoundResource generation field required"
