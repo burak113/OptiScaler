@@ -117,7 +117,7 @@ Trace::BridgeControlHeader ControlHeader(const std::shared_ptr<OwnedBridgeFixtur
 Trace::BridgeFrameToken Admit(Trace& trace,Host& h,const std::shared_ptr<OwnedBridgeFixture>& owner,unsigned frame=0,bool separate=false)
 {
     Trace::BridgeFrameToken token;
-    Await([&]{token=Owned(trace,h,owner,frame,separate,Identity(frame));return bool(token)||!Trace::IsActive();},"bridge admission did not initialize");
+    Await([&]{if(!token)token=Owned(trace,h,owner,frame,separate,Identity(frame));return bool(token)||!Trace::IsActive();},"bridge admission did not initialize");
     return token;
 }
 Trace::Request Request(const std::filesystem::path& root)
