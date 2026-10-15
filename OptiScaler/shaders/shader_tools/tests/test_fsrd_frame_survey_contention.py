@@ -761,6 +761,7 @@ void D3D12Hooks::OnBridgeOpaqueCommand(ID3D12GraphicsCommandList*,bool)noexcept{
 namespace NrdBridge {
 bool StartupEnabled()noexcept{return false;}
 DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList*,DispatchKind)noexcept{return DispatchDisposition::Forward;}
+bool PreserveIndirectRecording(ID3D12GraphicsCommandList*,ID3D12CommandSignature*)noexcept{return false;}
 void InvalidateRecordingProof(ID3D12GraphicsCommandList*,const char*)noexcept{}
 }
 '''
