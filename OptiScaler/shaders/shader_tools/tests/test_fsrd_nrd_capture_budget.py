@@ -12,7 +12,8 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[4]
-CASES = ["off", "capacity", "move", "bytes", "unwind", "field-order", "parallel", "retained"]
+CASES = ["off", "capacity", "move", "bytes", "unwind", "field-order", "parallel", "retained",
+         "staging-admit", "staging-budget", "staging-retire", "staging-parallel"]
 CPP = r'''
 #include "__HEADER__"
 #include <windows.h>
@@ -76,12 +77,50 @@ void run(const std::string& mode){
   std::thread a(worker),b(worker);a.join();b.join();need(success==32&&denied==32&&family->allocatedSlots==0&&family->allocatedBytes==0,"two concurrent contexts share32permits and retire all");
  }
  else if(mode=="retained"){
-  auto family=std::make_shared<Family>();struct Slot{Permit permit;explicit Slot(Permit&& p):permit(std::move(p)){}};
-  std::array<std::shared_ptr<Slot>,32> cache,leases;
+  auto family=std::make_shared<Family>();struct Slot{Permit permit;explicit Slot(Permit&& p):permit(std::move(p)){}};  std::array<std::shared_ptr<Slot>,32> cache,leases;
   for(unsigned i=0;i<32;++i){auto permit=Permit::TryAcquire(family);need(permit.SetBytes(65536),"context slot owns its reservation");cache[i]=std::make_shared<Slot>(std::move(permit));leases[i]=cache[i];}
   meter=true;for(auto& slot:cache)slot.reset();need(family->allocatedSlots==32,"cache retirement preserves all pending snapshots");
   for(unsigned i=1;i<32;++i)leases[i].reset();need(family->allocatedSlots==1&&family->allocatedBytes==65536,"later-idle snapshots immediatelyreturn allocated slots");
   leases[0].reset();meter=false;need(family->allocatedSlots==0&&family->allocatedBytes==0,"final old snapshot retires family allocation");
+ }
+ else if(mode=="staging-admit"){
+  auto ledger=std::make_shared<StagingLedger>();meter=true;ledger->limit=StagingLedger::NoLimit;
+  need(!ledger->byteAdmissionActive()&&ledger->TryAdmit(0),"limit0 staging default is admission-disabled and admits free slots");
+  need(ledger->TryAdmit(69632)&&ledger->TryAdmit(16*640u*480u*2),"disabled ledger still counts retained exact bytes");
+  need(ledger->RetainedBytes()==69632+16*640u*480u*2&&ledger->RetainedSlots()==3,"disabled ledger counts bytes and slots exactly");
+  need(ledger->Rejections()==0,"disabled ledger rejects nothing");meter=false;
+ }
+ else if(mode=="staging-budget"){
+  const uint64_t slot=16*1505u*847u;auto ledger=std::make_shared<StagingLedger>();meter=true;
+  ledger->limit=slot*4;need(ledger->byteAdmissionActive(),"configured staging limit enables byte admission");
+  std::array<bool,5> adds{};for(unsigned i=0;i<5;++i)adds[i]=ledger->TryAdmit(slot);
+  need(adds[0]&&adds[1]&&adds[2]&&adds[3]&&!adds[4],"four tolerated slots admit and the fifth rejects at the retained sum");
+  need(ledger->Rejections()==1&&ledger->RetainedSlots()==4&&ledger->RetainedBytes()==slot*4,"rejection counts once without touching retained bytes");
+  need(ledger->RetainedPeakBytes()==slot*4,"retained high-water reports the admitted peak");meter=false;
+ }
+ else if(mode=="staging-retire"){
+  auto ledger=std::make_shared<StagingLedger>();meter=true;ledger->limit=2;
+  need(ledger->TryAdmit(1)&&ledger->TryAdmit(1)&&ledger->RetainedBytes()==2&&ledger->RetainedSlots()==2,
+   "exact candidates admit up to the full retained limit");
+  need(!ledger->TryAdmit(1)&&ledger->Rejections()==1&&ledger->RetainedBytes()==2,
+   "sums crossing the retained budget reject with a visible counter and no retained change");
+  ledger->Retire(1);
+  need(ledger->RetainedBytes()==1&&ledger->RetiredTotalBytes()==1&&ledger->RetainedSlots()==1,
+   "one retirement removes exactly one admitted slot");
+  ledger->Retire(1);
+  need(ledger->RetainedBytes()==0&&ledger->RetiredTotalBytes()==2&&ledger->RetainedSlots()==0,
+   "the second retirement removes the last admitted slot");
+  need(ledger->TryAdmit(2)&&ledger->RetainedBytes()==2&&ledger->RetainedSlots()==1,"retirement restores admission availability");
+  ledger->Retire(2);need(ledger->RetiredTotalBytes()==4,"every retirement total accumulates exactly");meter=false;
+ }
+ else if(mode=="staging-parallel"){
+  auto ledger=std::make_shared<StagingLedger>();std::atomic<unsigned> admitted=0,rejected=0;
+  auto worker=[&]{meter=true;ledger->limit=64;for(unsigned i=0;i<8;++i)if(ledger->TryAdmit(8))++admitted;else++rejected;meter=false;};
+  std::thread a(worker),b(worker);a.join();b.join();
+  need(ledger->RetainedBytes()<=64&&admitted.load()+rejected.load()==16,"concurrent byte admission never crosses the retained limit");
+  need(ledger->RetainedSlots()==admitted.load(),"retained slots equal admitted attempts");
+  meter=true;for(unsigned i=0;i<admitted.load();++i)ledger->Retire(8);meter=false;
+  need(ledger->RetainedBytes()==0&&ledger->RetainedSlots()==0,"offset retirement removes every admitted slot unit");
  }
  else throw std::runtime_error("unknown case");
  need(allocations==0,"actual budget hot path allocated no C++ heap memory");

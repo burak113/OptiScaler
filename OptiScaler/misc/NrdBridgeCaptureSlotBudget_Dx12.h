@@ -16,6 +16,56 @@ struct Family
     std::atomic<uint64_t> allocatedBytes {0};
 };
 
+// D07/WP10 staging byte admission ledger. It is shared by every retained
+// staging generation of one RR wrapper and counts slot pair bytes only
+// (debug targets keep their separate auxiliary class). Byte admission is
+// DISABLED at the documented default limit 0: the shipped per-context slot
+// cap stays the single active admission. Each TryAdmit reserves bytes and
+// one slot unit; each Retire returns exactly one admitted slot's bytes.
+// No native calls; the rejections counter and retirement total are metadata.
+class StagingLedger
+{
+    std::atomic<uint64_t> retainedBytes_ {0}, retainedPeakBytes_ {0}, retiredTotal_ {0};
+    std::atomic<uint32_t> retainedSlots_ {0}, rejections_ {0};
+  public:
+    static constexpr uint64_t NoLimit = 0;
+    uint64_t limit = NoLimit; // Mutated once before hot use; never during.
+    bool byteAdmissionActive() const noexcept { return limit != NoLimit; }
+    uint64_t RetainedBytes() const noexcept { return retainedBytes_.load(std::memory_order_acquire); }
+    uint64_t RetainedPeakBytes() const noexcept { return retainedPeakBytes_.load(std::memory_order_acquire); }
+    uint64_t RetiredTotalBytes() const noexcept { return retiredTotal_.load(std::memory_order_acquire); }
+    uint32_t RetainedSlots() const noexcept { return retainedSlots_.load(std::memory_order_acquire); }
+    uint32_t Rejections() const noexcept { return rejections_.load(std::memory_order_acquire); }
+    bool TryAdmit(uint64_t bytes) noexcept
+    {
+        auto current = retainedBytes_.load(std::memory_order_acquire);
+        for (;;)
+        {
+            if (limit != NoLimit)
+            {
+                uint64_t checked = current;
+                if (checked > limit || bytes > limit-checked)
+                { rejections_.fetch_add(1,std::memory_order_relaxed); return false; }
+            }
+            if (bytes == 0 || retainedBytes_.compare_exchange_weak(current,current+bytes,std::memory_order_acq_rel)) break;
+        }
+        const uint64_t updated = retainedBytes_.load(std::memory_order_relaxed);
+        auto peak = retainedPeakBytes_.load(std::memory_order_relaxed);
+        while (peak < updated && !retainedPeakBytes_.compare_exchange_weak(peak,updated,std::memory_order_relaxed)) {}
+        retainedSlots_.fetch_add(1,std::memory_order_acq_rel);
+        return true;
+    }
+    void Retire(uint64_t bytes) noexcept
+    {
+        // One call returns exactly one admitted slot's bytes (retired total is
+        // therefore monotone across every retained generation).
+        if (!bytes) return;
+        retiredTotal_.fetch_add(bytes,std::memory_order_acq_rel);
+        retainedBytes_.fetch_sub(bytes,std::memory_order_acq_rel);
+        retainedSlots_.fetch_sub(1,std::memory_order_acq_rel);
+    }
+};
+
 class Permit
 {
     std::shared_ptr<Family> family_;

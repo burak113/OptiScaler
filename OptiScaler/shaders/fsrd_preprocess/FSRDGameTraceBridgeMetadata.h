@@ -74,6 +74,17 @@ inline Json Settings(const NrdBridge::RRSettingsState& s)
         {"recovery_specular",Bits(p.recoverySpecular)},{"recovery_diffuse",Bits(p.recoveryDiffuse)},
         {"native_nrd_output_used",false}};
 }
+// D06/D07 proposed diagnostic vocabulary (control-model names, not keys).
+// This payload is attached per recorded frame and is NOT part of the hashed
+// settings lineage; the free recovery error text may change between frames.
+inline Json RecordedRecovery(const NrdBridge::RRRecordedOutputSnapshot& output)
+{
+    return {{"tier",NrdBridge::LobeRecoveryTierName(output.recoveryTier)},
+        {"tier_value",output.recoveryTier},
+        {"fallback_reason",NrdBridge::LobeRecoveryFallbackReasonName(output.recoveryFallbackReason)},
+        {"fallback_reason_value",output.recoveryFallbackReason},
+        {"last_error",output.recoveryErrorText}};
+}
 inline Json Contract()
 {
     return {{"lighting_source","separate_current_native_noisy_NRD_domain_signals; bridge_treats_RGB_as_demodulated"},

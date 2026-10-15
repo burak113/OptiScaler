@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "misc/NrdBridgeStagePerf_Dx12.h"
+#include "misc/NrdBridgeCaptureSlotBudget_Dx12.h"
 #if defined(FSRD_NRD_BRIDGE_RR_TEST_BACKEND)
 #include "../shader_tools/tests/nrd_bridge_rr_test_support.h"
 #else
@@ -33,6 +34,28 @@ std::shared_ptr<RRRecoveryFamily> CreateRRRecoveryFamily() noexcept
     try { return MakeOwnedShared<RRRecoveryFamily>(); }
     catch (...) { return {}; } // Optional postprocessing never disables the RR bridge.
 }
+const char* LobeRecoveryTierName(uint32_t tier) noexcept
+{
+    switch (tier)
+    {
+    case uint32_t(LobeRecoveryTier::FullPrecision): return "full_precision";
+    case uint32_t(LobeRecoveryTier::MixedPrecision): return "mixed_precision";
+    default: return "none";
+    }
+}
+const char* LobeRecoveryFallbackReasonName(uint32_t reason) noexcept
+{
+    switch (reason)
+    {
+    case uint32_t(LobeRecoveryFallbackReason::NotRequested): return "not_requested";
+    case uint32_t(LobeRecoveryFallbackReason::DebugConstraint): return "debug_constraint";
+    case uint32_t(LobeRecoveryFallbackReason::ZeroStrength): return "zero_strength";
+    case uint32_t(LobeRecoveryFallbackReason::ExternalFamilyUnavailable): return "external_family_unavailable";
+    case uint32_t(LobeRecoveryFallbackReason::FamilyCapacity): return "family_capacity";
+    case uint32_t(LobeRecoveryFallbackReason::PreparationFailed): return "preparation_failed";
+    default: return "none";
+    }
+}
 namespace
 {
 using Microsoft::WRL::ComPtr;
@@ -52,6 +75,14 @@ bool Fail(std::string& error, const char* operation, ffxReturnCode_t code)
 {
     error = std::string(operation) + " failed (FFX code " + std::to_string(code) + ")";
     return false;
+}
+// Rate-limited classification from the helper's stable message constants;
+// the full optional error text is always preserved verbatim regardless.
+bool LobeRecoveryCapacityText(const std::string& text) noexcept
+{
+    return text.find("family exceeds") != std::string::npos ||
+        text.find("retained recording slots") != std::string::npos ||
+        text.find("slot capacity is exhausted") != std::string::npos;
 }
 bool BooleanIsSet(sl::Boolean value)
 {
@@ -142,6 +173,10 @@ struct Context
     std::vector<std::shared_ptr<PresentSlot>> presentSlots;
     uint32_t descriptorStride = 0;
     uint64_t stagingBytes = 0;
+    // D07/WP10 byte admission ledger (retained generations, pairs only).
+    // limit 0 = disabled: identical shipped admission behavior.
+    std::shared_ptr<NrdBridgeCaptureBudget::StagingLedger> ledger;
+    uint64_t ledgerBytes = 0;
     std::array<float, 8> defaultValues {}, configuredValues {};
     bool ApplySettings(const RRSettings& requested, bool& lightingChanged, std::string& error)
     {
@@ -227,7 +262,16 @@ struct Context
         if (!Check(device->CreateDescriptorHeap(&descriptors, IID_PPV_ARGS(&slot->descriptors)), "RR commit heap creation failed", error))
             return nullptr;
         if (flagCapture.pso && !slot->flag.Initialize(device.Get(), error)) return nullptr;
+        // D07/WP10 byte admission (retained generations, pair bytes only).
+        // Disabled at the ledger default limit 0; the rejection keeps the
+        // mandatory-RR fail-closed contract: no slot, no recording, no denoise.
+        if (ledger && !ledger->TryAdmit(slot->bytes))
+        {
+            error = "RR staging pool byte budget is exhausted";
+            return nullptr;
+        }
         stagingBytes += slot->bytes; slots.push_back(slot);
+        if (ledger) ledgerBytes += slot->bytes;
         return slot;
     }
     std::shared_ptr<PresentSlot> NewPresentSlot(std::string& error)
@@ -427,6 +471,16 @@ struct Context
     }
     ~Context()
     {
+        // Metadata retirement happens before any early-return guard so a partial
+        // teardown never leaves the shared staging ledger with phantom bytes;
+        // every allocated slot was admitted once and retires exactly once here.
+        if (ledger)
+        {
+            uint64_t retired = 0;
+            for (const auto& slot : slots) if (slot) { ledger->Retire(slot->bytes); retired += slot->bytes; }
+            if (retired != ledgerBytes)
+                LOG_ERROR("[NRD_BRIDGE] staging ledger retirement mismatch: counted {} of {}", retired, ledgerBytes);
+        }
         if (!handle) return;
         const auto result = FfxApiProxy::D3D12_DestroyContext(&handle, nullptr);
         if (result != FFX_API_RETURN_OK)
@@ -604,6 +658,15 @@ struct RRWrapper::Impl
     RRSettings settings {};
     std::shared_ptr<RRRecoveryFamily> recoveryFamily;
     bool recoveryActive = false, recoveryFallback = false, externalRecoveryFamily = false;
+    std::shared_ptr<NrdBridgeCaptureBudget::StagingLedger> stagingLedger; // Shared across retained generations.
+    std::shared_ptr<NrdBridgeCaptureBudget::StagingLedger>& EnsureStagingLedger() noexcept
+    { if (!stagingLedger) stagingLedger = MakeOwnedShared<NrdBridgeCaptureBudget::StagingLedger>(); return stagingLedger; }
+    // D06/D07 tier/fallback diagnostic vocabulary (control-model names, not keys).
+    uint32_t recoveryRequestedTier = uint32_t(LobeRecoveryTier::None);
+    uint32_t recoveryTier = uint32_t(LobeRecoveryTier::None);
+    uint32_t recoveryFallbackReason = uint32_t(LobeRecoveryFallbackReason::None);
+    std::string recoveryErrorText; // Last real optional error; cleared on success.
+    std::string loggedRecoveryFailure; // Rate-limit key of the last warned fallback.
     RRWrapperNativeDebugOutputSnapshot nativeDebug {};
     std::string conventions;
 };
@@ -702,6 +765,10 @@ RRSettingsState RRWrapper::GetSettingsState() const noexcept
     state.requested = impl_->settings;
     state.lobeRecoveryActive = impl_->recoveryActive;
     state.lobeRecoveryFallback = impl_->recoveryFallback;
+    state.lobeRecoveryRequestedTier = impl_->recoveryRequestedTier;
+    state.lobeRecoveryTier = impl_->recoveryTier;
+    state.lobeRecoveryFallbackReason = impl_->recoveryFallbackReason;
+    state.lobeRecoveryLastError = impl_->recoveryErrorText;
     if (impl_->context)
     {
         state.ready = true;
@@ -930,12 +997,27 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
         }
         catch (...) { DiscardRecordingHistory(); throw; }
         fresh->generation = ++impl_->generation;
+        fresh->ledger = impl_->EnsureStagingLedger();
         impl_->context = std::move(fresh); // Old GPU leases retain their exact physical generation.
         impl_->resetPending = true;
     }
     auto lease = MakeOwnedShared<DispatchLease>(); lease->context = impl_->context;
     lease->slot = lease->context->AcquireOwnedSlot(error);
     if (!lease->slot) { impl_->resetPending = true; return false; }
+    // D06/D07 requested/effective tier + rate-limited failure text division.
+    // Names are proposed control-model vocabulary; not INI keys.
+    impl_->recoveryRequestedTier = impl_->settings.lobeRecovery ?
+        uint32_t(LobeRecoveryTier::FullPrecision) : uint32_t(LobeRecoveryTier::None);
+    impl_->recoveryTier = uint32_t(LobeRecoveryTier::None);
+    impl_->recoveryErrorText.clear();
+    uint32_t recoverySkipReason = uint32_t(LobeRecoveryFallbackReason::None);
+    if (!impl_->settings.lobeRecovery)
+        recoverySkipReason = uint32_t(LobeRecoveryFallbackReason::NotRequested);
+    else if (lease->context->debugEnabled)
+        recoverySkipReason = uint32_t(LobeRecoveryFallbackReason::DebugConstraint);
+    else if (impl_->settings.recoverySpecular == 0.0f && impl_->settings.recoveryDiffuse == 0.0f)
+        recoverySkipReason = uint32_t(LobeRecoveryFallbackReason::ZeroStrength);
+    impl_->recoveryFallbackReason = recoverySkipReason;
     // Deferred native recording must know every late capture object exists before provider/suppression.
     if (prepareNativeCommit && (!lease->context->PrepareTableFlags(error,303) ||
         !lease->context->PrepareTableFlags(error,36))) { impl_->resetPending = true; return false; }
@@ -943,8 +1025,7 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     const bool reset = frame.reset || impl_->resetPending || recreate;
     auto* committedSpec = lease->slot->spec.Get(); auto* committedDiff = lease->slot->diff.Get();
     bool recoveryFallback = false;
-    const bool requestRecovery = impl_->settings.lobeRecovery && !lease->context->debugEnabled &&
-        (impl_->settings.recoverySpecular > 0.0f || impl_->settings.recoveryDiffuse > 0.0f);
+    const bool requestRecovery = recoverySkipReason == uint32_t(LobeRecoveryFallbackReason::None);
     if (requestRecovery)
     {
         bool prepared = false;
@@ -972,8 +1053,31 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
         {
             committedSpec = lease->recovery.specular; committedDiff = lease->recovery.diffuse;
             lease->context->SetCommitInputs(*lease->slot,committedSpec,committedDiff);
+            impl_->recoveryFallbackReason = uint32_t(LobeRecoveryFallbackReason::None);
         }
-        else { lease->recovery = {}; lease->context->recovery.reset(); recoveryFallback = true; }
+        else
+        {
+            lease->recovery = {}; lease->context->recovery.reset(); recoveryFallback = true;
+            impl_->recoveryFallbackReason = !impl_->recoveryFamily ?
+                uint32_t(LobeRecoveryFallbackReason::ExternalFamilyUnavailable) :
+                LobeRecoveryCapacityText(error) ?
+                uint32_t(LobeRecoveryFallbackReason::FamilyCapacity) :
+                uint32_t(LobeRecoveryFallbackReason::PreparationFailed);
+            // Real helper text travels with the effective fallback; rate limit
+            // is one log per new (reason,text) pair, never per frame.
+            if (error.empty())
+                impl_->recoveryErrorText = !impl_->recoveryFamily ?
+                    "Lobe recovery family is unavailable" : "Lobe recovery preparation failed";
+            else impl_->recoveryErrorText = error;
+            const std::string failureKey = std::string(
+                LobeRecoveryFallbackReasonName(impl_->recoveryFallbackReason)) + "|" + impl_->recoveryErrorText;
+            if (impl_->loggedRecoveryFailure != failureKey)
+            {
+                impl_->loggedRecoveryFailure = failureKey;
+                LOG_WARN("[NRD_BRIDGE] lobe recovery {} for this Consumer: {}",
+                    LobeRecoveryFallbackReasonName(impl_->recoveryFallbackReason), impl_->recoveryErrorText);
+            }
+        }
     }
     else lease->context->recovery.reset();
     // Allocate the public opaque owner before any provider commands can be recorded.
@@ -1047,6 +1151,7 @@ bool RRWrapper::RecordOwnedImpl(ID3D12GraphicsCommandList* list, const Converted
     if (lease->recovery.owner) lease->context->recovery->Record(list,lease->recovery);
     // SDK CPU history advances here, once. Late Commit never changes camera/frame history.
     impl_->recoveryActive = bool(lease->recovery.owner); impl_->recoveryFallback = recoveryFallback;
+    impl_->recoveryTier = lease->recovery.owner ? uint32_t(LobeRecoveryTier::FullPrecision) : uint32_t(LobeRecoveryTier::None);
     impl_->previous = frame; impl_->previous.reset = reset;
     impl_->previous.outputConstants = {}; impl_->previous.nativeSpecularBlend = 0.0f;
     impl_->historyValid = true; impl_->resetPending = false; ++impl_->nextFrame;
@@ -1079,6 +1184,9 @@ RRRecordedOutputSnapshot RRWrapper::GetOwnedOutputSnapshot(const RRRecordedOutpu
     result.nativeEncodingCaptured = result.outputCommitted && output->nativeEncodingCaptured;
     if (result.nativeEncodingCaptured) result.encodingFlag = lease->slot->flag.resource.Get();
     result.recoveryActive = bool(lease->recovery.owner); result.recoveryFallback = output->recoveryFallback;
+    result.recoveryTier = impl_->recoveryTier;
+    result.recoveryFallbackReason = impl_->recoveryFallbackReason;
+    result.recoveryErrorText = impl_->recoveryErrorText;
     result.providerControl = output->providerControl;
     result.providerVersionId = lease->context->overrideVersion.versionId;
     result.providerApiVersion = lease->context->create.version;
@@ -1197,6 +1305,8 @@ void RRWrapper::DiscardRecordingHistory() noexcept
     if (!impl_) return;
     impl_->nativeDebug = {};
     impl_->recoveryActive = impl_->recoveryFallback = false;
+    impl_->recoveryTier = uint32_t(LobeRecoveryTier::None);
+    impl_->recoveryFallbackReason = uint32_t(LobeRecoveryFallbackReason::None);
     impl_->context.reset();
     impl_->historyValid = false;
     impl_->resetPending = true;
@@ -1214,6 +1324,20 @@ uint64_t RRWrapper::OwnedAuxiliaryBytes() const noexcept
         bytes += impl_->recoveryFamily->budget.graphBytes.load(std::memory_order_acquire) +
             impl_->recoveryFamily->budget.slots.allocatedBytes.load(std::memory_order_acquire);
     return bytes;
+}
+RRWrapper::StagingLedgerSnapshot RRWrapper::SnapshotStagingLedger() const noexcept
+{
+    StagingLedgerSnapshot result;
+    if (!impl_ || !impl_->context || !impl_->context->ledger) return result;
+    const auto& ledger = *impl_->context->ledger;
+    result.limitBytes = ledger.limit;
+    result.byteAdmissionActive = ledger.byteAdmissionActive();
+    result.retainedBytes = ledger.RetainedBytes();
+    result.retainedPeakBytes = ledger.RetainedPeakBytes();
+    result.retiredTotalBytes = ledger.RetiredTotalBytes();
+    result.retainedSlots = ledger.RetainedSlots();
+    result.rejections = ledger.Rejections();
+    return result;
 }
 const std::string& RRWrapper::CameraConventionDescription() const noexcept
 {

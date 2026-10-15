@@ -9,6 +9,11 @@
 #define NRD_RECOVERY_HISTORY 1u
 #define NRD_RECOVERY_COARSEST 2u
 #define NRD_RECOVERY_FINAL 4u
+// D06/WP09 reserved control-model flag name (never set by the shipped host):
+// a future opt-in reject-statistics pass must claim this bit together with
+// its own UAV contract before any counters are written. Defining the name
+// compiles no new code and preserves the Control flag bit for it.
+#define NRD_RECOVERY_REJECT_STATS 8u
 
 // Eight16-byte rows, owned by this NEW graph. No existing shared CB is changed.
 cbuffer NrdLobeRecoveryConstants : register(b0)

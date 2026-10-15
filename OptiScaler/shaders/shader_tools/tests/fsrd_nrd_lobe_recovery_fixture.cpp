@@ -165,13 +165,19 @@ void failures(Host& host,LobeObservedList& list)
   need(device->createCalls==at&&stats.released==at-1&&stats.live==0&&stats.earlyCharge==0&&stats.nonfinal==0,"all successfully created native resources physically release before the graph charge returns");
   need(!prepared.owner&&local->graphBytes==0&&local->slots.allocatedSlots==0&&local->slots.allocatedBytes==0&&helper.RecordedFrames()==0&&list.commands==commands,"allocation failure unwinds every graph/slot charge without GPU/history work");
   const auto calls=device->createCalls;need(!helper.Prepare(device.Get(),&list,in,frame,local,prepared,error)&&device->createCalls==calls,"cold failure cooldown prevents repeated native allocation attempts");
+  {const auto diagnostic=LobeRecovery::FamilyDiagnosticsSnapshot(*local);
+   need(diagnostic.preparationFailures==1&&diagnostic.coldCooldowns==1&&diagnostic.coldRetryDenials==1,
+    "cold failure publishes one preparation failure, one cooldown window and one denied attempt");}
   tickOffset+=1001;
  }
  family->graphBytes=LobeRecovery::Family::GraphByteLimit;
  ComPtr<LobeForwardDevice> device;ForwardStats stats;device.Attach(new LobeForwardDevice(host.device.Get(),family,&stats));
  {LobeRecovery helper;LobeRecovery::Prepared prepared;const auto commands=list.commands;
   need(!helper.Prepare(device.Get(),&list,in,frame,family,prepared,error)&&device->createCalls==0&&list.commands==commands,"full2GiB family denies before native resource creation or GPU commands");
-  need(family->slots.allocatedSlots==0&&family->graphBytes==LobeRecovery::Family::GraphByteLimit,"denied graph returns its in-progress slot reservation without consuming other family bytes");}
+  need(family->slots.allocatedSlots==0&&family->graphBytes==LobeRecovery::Family::GraphByteLimit,"denied graph returns its in-progress slot reservation without consuming other family bytes");
+  {const auto diagnostic=LobeRecovery::FamilyDiagnosticsSnapshot(*family);
+   need(diagnostic.familyRetainedPeakBytes==0&&diagnostic.preparationFailures==1&&diagnostic.coldCooldowns==1,
+    "denied capacity preparation records its failure counters without ever counting retained bytes");}}
  family->graphBytes=0;tickOffset+=1001;
  Readback rawSpec(host,scene.spec()),rawDiff(host,scene.diff());host.submit();reset(host,list);
  rawSpec.exact({.125f,.25f,.5f,.75f},64,64);rawDiff.exact({1.25f,1.5f,1.75f,2.f},64,64);
@@ -226,7 +232,7 @@ static uint64_t changedSpecHalfWords=0,changedDiffHalfWords=0,matureChangedHalfW
 struct Probe
 {
  LobeObservedList* list=nullptr;Scene* scene=nullptr;RRWrapper* wrapper=nullptr;
- bool recovery=false,deny=false,returnFailure=false,nativeDebug=false;
+ bool recovery=false,deny=false,returnFailure=false,nativeDebug=false,expectedFallback=false;
  uint64_t historyBefore=0;
  unsigned commandsBefore=0,afterProvider=0,providerCalls=0,guards=0,actions=0;
  ffxReturnCode_t nativeResult=FFX_API_RETURN_ERROR_RUNTIME_ERROR;
@@ -238,7 +244,12 @@ struct Probe
  {
   auto& p=*static_cast<Probe*>(state);++p.guards;
   const auto publication=p.wrapper->GetSettingsState();
-  p.check(!publication.lobeRecoveryActive&&!publication.lobeRecoveryFallback,"private preparation is not published as successful recovery/fallback before title admission");
+  // a3b63952 separates owned recording from the single-use late commit: by
+  // admission the state may truthfully report that the last RECORDING ran the
+  // private graph, but it must never claim a fallback or invent success for a
+  // frame without one. The post-commit truth contract stays pinned below.
+  p.check(publication.lobeRecoveryActive==p.recovery&&publication.lobeRecoveryFallback==p.expectedFallback,
+   "title admission observes exactly the truthful recorded publication of this transaction (recovery or fallback, never invented)");
   p.check(p.providerCalls==1&&p.nativeResult==FFX_API_RETURN_OK,"output admission follows exactly one successful actual signed SDK call");
   p.check(bool(p.lease),"the pre-provider strong DispatchLease survives through final admission");
   if(p.lease)
@@ -325,6 +336,7 @@ StepResult step(Host& host,LobeObservedList& list,Scene& scene,RRWrapper& wrappe
  need(frame.reset==expectedReset,"optional recovery does not invent or suppress the caller's continuous RR reset policy");
  Probe probe;probe.list=&list;probe.scene=&scene;probe.wrapper=&wrapper;probe.recovery=recovery;probe.historyBefore=historyBefore;
  probe.deny=deny;probe.returnFailure=fail;probe.nativeDebug=wrapper.GetSettingsState().requested.nativeDebugView!=-1;probe.commandsBefore=list.commands;
+ probe.expectedFallback=fallback;
  const auto calls=FfxApiProxy::dispatches,realCalls=signedCalls,destroys=FfxApiProxy::destroys;
  bool accepted=false;{ActiveScope observation(probe);accepted=wrapper.Dispatch(&list,scene.resources,scene.spec(),scene.diff(),frame,error,{&probe,Probe::Admit});}
  if(probe.failure||!accepted)std::cerr<<"real recovery observation SL="<<token<<" frame="<<frame.frameIndex<<" expectedRecovery="<<recovery<<" accepted="<<accepted<<" SDK="<<probe.providerCalls<<" guard="<<probe.guards<<" actions="<<probe.actions<<" afterSDK="<<probe.afterProvider<<" currentDispatch="<<list.dispatches<<" contextGeneration="<<wrapper.ContextGeneration()<<" error="<<error<<" failure="<<(probe.failure?probe.failure:"none")<<std::endl;
@@ -336,6 +348,23 @@ StepResult step(Host& host,LobeObservedList& list,Scene& scene,RRWrapper& wrappe
  const auto state=wrapper.GetSettingsState();
  need(state.ready==accepted,"successful commits alone publish a live ready context after cancellation/provider error");
  need(state.lobeRecoveryActive==(accepted&&recovery)&&state.lobeRecoveryFallback==(accepted&&fallback),"only successful title admission publishes active/fallback status");
+ need(state.lobeRecoveryRequestedTier==(state.requested.lobeRecovery?uint32_t(NrdBridge::LobeRecoveryTier::FullPrecision):uint32_t(NrdBridge::LobeRecoveryTier::None)),
+  "requested tier division is consistent with the requested recovery configuration");
+ if(accepted&&fallback)
+  need(state.lobeRecoveryTier==uint32_t(NrdBridge::LobeRecoveryTier::None)&&
+   (state.lobeRecoveryFallbackReason==uint32_t(NrdBridge::LobeRecoveryFallbackReason::FamilyCapacity)||
+    state.lobeRecoveryFallbackReason==uint32_t(NrdBridge::LobeRecoveryFallbackReason::ExternalFamilyUnavailable)||
+    state.lobeRecoveryFallbackReason==uint32_t(NrdBridge::LobeRecoveryFallbackReason::PreparationFailed))&&
+   !state.lobeRecoveryLastError.empty(),
+   "the effective fallback publishes one machine reason (capacity/external/unprepared) and the real helper text");
+ else if(accepted&&recovery)
+  need(state.lobeRecoveryTier==uint32_t(NrdBridge::LobeRecoveryTier::FullPrecision)&&
+   state.lobeRecoveryFallbackReason==uint32_t(NrdBridge::LobeRecoveryFallbackReason::None)&&state.lobeRecoveryLastError.empty(),
+   "an admitted recovery frame publishes the full-tier effective state with no error text");
+ else if(accepted&&!recovery&&!fallback&&state.requested.lobeRecovery)
+  need(state.lobeRecoveryTier==uint32_t(NrdBridge::LobeRecoveryTier::None)&&
+   state.lobeRecoveryFallbackReason!=uint32_t(NrdBridge::LobeRecoveryFallbackReason::None),
+   "requested recovery without a graph on admission publishes its skip reason");
  need(probe.guards==(fail?0u:1u)&&probe.actions==(accepted?1u:0u),"provider failure skips final admission; denial records zero title commits");
  need(bool(probe.lease),"the actual leased provider resources remain strongly inspectable");
  if(fail)
