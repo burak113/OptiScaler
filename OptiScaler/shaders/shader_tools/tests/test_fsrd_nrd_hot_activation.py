@@ -28,21 +28,22 @@ def run():
         else:
             os.environ['CL'] = prior_cl
     cases = {}
-    for mode in ('root', 'table', 'table0', 'missing-table'):
+    for mode in ('root', 'table', 'table0', 'missing-table', 'native-indirect'):
         directory = out / mode
         directory.mkdir(parents=True, exist_ok=True)
         _, peak, elapsed, log = bounded_run([str(exe), str(directory), str(DLL), mode], directory / 'native_run')
         value = json.loads((directory / 'hot-activation-result.json').read_text())
         assert value['debug_errors'] == value['debug_warnings'] == 0
-        if mode == 'missing-table':
+        if mode in ('missing-table', 'native-indirect'):
             assert value['provider_dispatches'] == value['native_submissions'] == 0
-            assert 'gate=compute_restore reason=native_p1_or_p5_table_missing' in value['failure_reason']
+            expected = 'unsupported_native_indirect role=2' if mode == 'native-indirect' else 'gate=compute_restore reason=native_p1_or_p5_table_missing'
+            assert expected in value['failure_reason']
         else:
             assert value['provider_dispatches'] == 4 and value['native_submissions'] == 5
             assert len(value['frames']) == 2 and all(v['native_filter_gpu_executions'] == 0 for v in value['frames'])
         value.update(elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log))
         cases[mode] = value
-    result = dict(cases=cases, native_checks=sum(v['native_checks'] for v in cases.values()), python_checks=12,
+    result = dict(cases=cases, native_checks=sum(v['native_checks'] for v in cases.values()), python_checks=15,
                   source_sha256=native.sha(source), fixture_sha256=native.sha(fixture), exe_sha256=native.sha(exe))
     (out / 'hot-activation-result.json').write_text(json.dumps(result, indent=2) + '\n')
     print(json.dumps(result, indent=2))

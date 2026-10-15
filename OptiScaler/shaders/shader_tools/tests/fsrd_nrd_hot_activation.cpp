@@ -107,7 +107,6 @@ template<class T> J HotActivation(Host& h,T& title)
     for(UINT frame=4;frame<=5;++frame)
     {
         title.Begin(frame);
-        if(frame==4)
         {
             std::promise<void> locked,completed;auto held=locked.get_future(),done=completed.get_future();
             std::atomic<bool> timedOut=false;
@@ -116,6 +115,9 @@ template<class T> J HotActivation(Host& h,T& title)
             held.wait();cold.Record();completed.set_value();holder.join();
             need(!timedOut,"pre-Recon execution-only indirect makes progress while another thread owns the injection mutex");
             h.uav(title.checksum.Get());
+        }
+        if(frame==4)
+        {
             // Bind the complete Recon while still OFF; enabling does not rely on
             // another root setter or Reset to seed the upcoming native source.
             h.list->SetPipelineState(title.pso[UINT(Role::Recon)].Get());
@@ -142,7 +144,7 @@ template<class T> J HotActivation(Host& h,T& title)
         need(NativeFixture::Execute(h),"hot activated native A/B batch passes original queue admission");
         NativeFixture::RootChecks(h,title,read);
         void* mapped=nullptr;hr(read->Map(0,nullptr,&mapped));
-        need(static_cast<const UINT*>(mapped)[13*16+11]==UINT(frame==4),
+        need(static_cast<const UINT*>(mapped)[13*16+11]==1,
              "cold pure indirect forwards exactly once and executes on the actual GPU");read->Unmap(0,nullptr);
         for(UINT chain=0;chain<2;++chain)
         {
@@ -162,7 +164,7 @@ template<class T> J HotActivation(Host& h,T& title)
 int main(int argc,char** argv)try
 {
     need(argc==4,"scratch output, signed AMD provider and root/table/table0 mode");const std::string mode=argv[3];
-    const bool negative=mode=="missing-table";
+    const bool indirectNegative=mode=="native-indirect",negative=mode=="missing-table"||indirectNegative;
     need(mode=="root"||mode=="table"||mode=="table0"||negative,"bounded hot activation mode");
     NativeFixture::Bootstrap();Host h;NativeFixtureRegister(h.device.Get());NativeFixtureRegister(h.list.Get());
     g_dllPath=std::filesystem::path(argv[1])/"fixture.dll";
@@ -180,17 +182,24 @@ int main(int argc,char** argv)try
         struct Cleanup{Host& h;~Cleanup(){h.waitComplete();NrdBridge::Shutdown();RecordedComputeLease::Detach(RecordedComputeLease::Capture(h.list.Get()));RecordedComputeLease::Poll();}}cleanup{h};
         if(negative)
         {
-            auto& title=*ordinary;title.Begin(1);
+            auto& title=*ordinary;std::optional<ColdPureIndirect> indirect;
+            if(indirectNegative)indirect.emplace(h,title);
+            title.Begin(1);
             h.list->SetPipelineState(title.pso[UINT(Role::Recon)].Get());
             h.list->SetComputeRootDescriptorTable(1,title.visible->GetGPUDescriptorHandleForHeapStart());
             h.list->SetComputeRootDescriptorTable(5,{title.visible->GetGPUDescriptorHandleForHeapStart().ptr+UINT64(8)*title.increment});
             NrdBridge::SetRuntimeEnabled(true);
-            // Explicit missing-observer metadata control: native bindings remain
-            // valid, but an unproven restore row must still deny this batch.
-            {std::unique_lock lock(rootStatesMutex);rootStates.at(h.list.Get())[5].type=RootEntryType::Invalid;}
-            h.list->Dispatch(16,16,1);
+            if(indirectNegative)
+                h.list->ExecuteIndirect(indirect->signature.Get(),1,indirect->arguments.Get(),0,nullptr,0);
+            else
+            {
+                // Missing-observer control: native bindings remain valid, but
+                // an unproven restore row must still deny this batch.
+                {std::unique_lock lock(rootStatesMutex);rootStates.at(h.list.Get())[5].type=RootEntryType::Invalid;}
+                h.list->Dispatch(16,16,1);
+            }
             const auto status=NrdBridge::GetStatus();
-            need(status.reason.find("gate=compute_restore reason=native_p1_or_p5_table_missing")!=std::string::npos,
+            need(status.reason.find(indirectNegative?"unsupported_native_indirect role=2":"gate=compute_restore reason=native_p1_or_p5_table_missing")!=std::string::npos,
                  "initial required-admission failure identifies its exact gate and restoration cause");
             need(RecordedComputeLease::RequiredSubmissionFailure()==E_FAIL&&FfxApiProxy::dispatches==0,
                  "diagnostic reporting preserves exact fatal submission policy before any provider call");

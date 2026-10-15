@@ -70,6 +70,10 @@ activation when the title reused its bound heaps. The common pre-Recon path
 validates immutable signature metadata without taking the injection mutex.
 Pending RR outputs still require the complete shader/resource exclusion proof;
 unknown or state-changing signatures retain their invalidation behavior.
+Known native denoiser/Consumer roles invoked indirectly are explicitly denied
+while RR is requested: the supported native profile requires direct Dispatch for
+its raw capture, filter omission and late commit. Binding inheritance alone does
+not authorize an indirect native denoiser invocation.
 
 Failed initial native admission records its exact `gate` and `reason`, including
 restore configuration, missing setters/heaps/PSO/tables, unknown predication,

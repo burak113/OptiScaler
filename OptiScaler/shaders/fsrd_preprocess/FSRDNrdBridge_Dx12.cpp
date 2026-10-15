@@ -2589,6 +2589,28 @@ bool PreserveIndirectRecording(ID3D12GraphicsCommandList* cmd,ID3D12CommandSigna
     bool required = false;
     try
     {
+        // Supported native NRD roles enter through direct Dispatch, where raw
+        // capture/omission or late RR commit is admitted. A pure signature proves
+        // binding inheritance, not permission to run an NRD filter indirectly.
+        // Reject that unsupported entry even before any pending token exists.
+        std::shared_ptr<Service> unsupportedOwner;Role unsupportedRole=Role::None;
+        if(gRuntime.load(std::memory_order_relaxed))
+        {
+            std::scoped_lock lock(gMutex);
+            if(gService)if(const auto found=gService->lists.find(cmd);found!=gService->lists.end()&&found->second.nativeContract)
+            {
+                const auto role=found->second.role;
+                if(role==Role::Recon||role==Role::PrePass||role==Role::Temporal||role==Role::Chain3||
+                   role==Role::HistSave||role==Role::HistFix||role==Role::Clamp||role==Role::ATrous||role==Role::Consumer)
+                {unsupportedOwner=gService;unsupportedRole=role;}
+            }
+        }
+        if(unsupportedOwner)
+        {
+            RecordedComputeLease::FailUntrackedRequiredSubmission(E_FAIL);
+            Failure(unsupportedOwner,std::format("RR-only unsupported_native_indirect role={}; native profile requires direct Dispatch; restart required",uint32_t(unsupportedRole)));
+            return false;
+        }
         // No required native interval can start on this same validly recorded
         // command list during an ExecuteIndirect call. Avoid the injection mutex
         // for the common pre-Recon/OFF path; immutable signature metadata alone
