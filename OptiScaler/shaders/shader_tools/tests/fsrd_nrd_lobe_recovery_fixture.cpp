@@ -222,6 +222,7 @@ namespace LobeReal
 // by the real ledger. They do not replace allocation, Record, Commit, or SDK work.
 static PfnFfxDispatch nativeDispatch=nullptr;
 static unsigned signedCalls=0,inspectionChecks=0,privateDispatches=0,commits=0;
+static uint64_t changedSpecHalfWords=0,changedDiffHalfWords=0,matureChangedHalfWords=0,recoveredRgbHalfWords=0;
 struct Probe
 {
  LobeObservedList* list=nullptr;Scene* scene=nullptr;RRWrapper* wrapper=nullptr;
@@ -376,7 +377,10 @@ StepResult step(Host& host,LobeObservedList& list,Scene& scene,RRWrapper& wrappe
   {
    for(unsigned c=0;c<3;++c)
    {rgb+=ts[p*4+c]==ss[p*4+c];rgb+=td[p*4+c]==sd[p*4+c];finite+=std::isfinite(PackedVector::XMConvertHalfToFloat(ts[p*4+c]));finite+=std::isfinite(PackedVector::XMConvertHalfToFloat(td[p*4+c]));
-    if(zeroLobe==0)zeroExact+=ss[p*4+c]==rs[p*4+c];if(zeroLobe==1)zeroExact+=sd[p*4+c]==rd[p*4+c];}
+    if(zeroLobe==0)zeroExact+=ss[p*4+c]==rs[p*4+c];if(zeroLobe==1)zeroExact+=sd[p*4+c]==rd[p*4+c];
+    if(recovery)
+    {const bool cs=ss[p*4+c]!=rs[p*4+c],cd=sd[p*4+c]!=rd[p*4+c];changedSpecHalfWords+=cs;changedDiffHalfWords+=cd;
+     recoveredRgbHalfWords+=2;if(historyBefore>=8)matureChangedHalfWords+=unsigned(cs)+unsigned(cd);}}
    alpha+=ts[p*4+3]==PackedVector::XMConvertFloatToHalf(.75f);alpha+=td[p*4+3]==PackedVector::XMConvertFloatToHalf(2.f);
   }
   need(rgb==64u*64u*6u&&finite==rgb,"title RGB is finite and bit-exactly the selected actual raw/recovered RR pair");
@@ -446,7 +450,10 @@ J run(Host& host,LobeObservedList& list)
  need(FfxApiProxy::creates==creates+14&&FfxApiProxy::destroys==destroys+14&&FfxApiProxy::live.empty(),"all fourteen actual signed contexts have balanced physical creation/destruction after queue fences and Reset");
  need(FfxApiProxy::badDefaults==0,"optional graph experiments preserve all queried AMD scalar defaults");
  host.checkDebug();need(unexpectedCoverage==0&&!NrdBridgeNativeBirth::Ready(),"actual RR/recovery proof explicitly uses the unchanged legacy metadata adapter and no fake native coverage");
- return {{"native_checks",checks},{"inspection_checks",inspectionChecks},{"actual_signed_dispatches",signedCalls},{"successful_title_commits",commits},{"private_graph_dispatches",privateDispatches},{"physical_contexts",14},{"debug_errors",0},{"debug_warnings",0},{"cases",rows},
+ std::cout<<"actual recovery changed half words spec="<<changedSpecHalfWords<<" diffuse="<<changedDiffHalfWords<<" mature="<<matureChangedHalfWords<<" observed="<<recoveredRgbHalfWords<<std::endl;
+ return {{"changed_specular_rgb_half_words",changedSpecHalfWords},{"changed_diffuse_rgb_half_words",changedDiffHalfWords},{"changed_mature_rgb_half_words",matureChangedHalfWords},{"observed_recovered_rgb_half_words",recoveredRgbHalfWords},
+  {"nonzero_effect_observed",matureChangedHalfWords>0},{"effect_scope",matureChangedHalfWords?"actual signed static toy has observable mature correction; integration, not quality":"host binding/conditional-state proof only; nonzero graph math is covered separately by independent complete-array parity"},
+  {"native_checks",checks},{"inspection_checks",inspectionChecks},{"actual_signed_dispatches",signedCalls},{"successful_title_commits",commits},{"private_graph_dispatches",privateDispatches},{"physical_contexts",14},{"debug_errors",0},{"debug_warnings",0},{"cases",rows},
   {"scope","actual production RRWrapper, DispatchLease, LobeRecovery, Commit and actual signed AMD export; real native GPU outputs/lifetime; NativeBirth READY=false and legacy FrameSurvey application adapters; static synthetic admission/state proof, not game quality/FPS"}};
 }
 }
