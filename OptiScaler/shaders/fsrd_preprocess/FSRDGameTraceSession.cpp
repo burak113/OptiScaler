@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "FSRDGameTraceSession.h"
+#include "FSRDGameTraceBridgeMetadata.h"
 #include "RRTraceFence.h"
 #include "RRTraceAdditiveIO.h"
 #include "../../include/fsr-rr/ffx_denoiser.h"
@@ -85,6 +86,7 @@ static_assert(std::string_view(DiagnosticNames[FullContextDiagnosticFirst + 1]) 
 
 std::atomic<bool> g_captureActive {false};
 std::atomic<bool> g_surveyActive {false};
+std::atomic<bool> g_bridgeRequested {false};
 std::atomic<bool> g_srRequested {false};
 std::atomic<bool> g_fullContextReferenceRequested {false};
 std::atomic<bool> g_particleLayerDiagnosticsRequested {false};
@@ -97,7 +99,9 @@ struct Session
     FSRDGameTraceSession::SrMode srMode = FSRDGameTraceSession::SrMode::Off;
     bool fullContextReference = false, particleLayerDiagnostics = false;
     std::string srContext; std::array<uint32_t,2> srExtent {}; uint32_t srFormat = 0;
-    bool survey = false;
+    bool survey = false, bridge = false;
+    uint64_t bridgeDomain = 0, lastBridgeRecording = 0;
+    uint32_t lastBridgeSL = UINT32_MAX;
     bool initialized = false, initializing = false, closing = false;
     uint64_t diskAvailable = 0, maximumPayload = MaximumPayloadBytes, cpuBytes = 0;
     bool payloadEstimated = false, defaultPayloadQuota = true;
@@ -264,6 +268,13 @@ struct Frame
     ID3D12GraphicsCommandList* list = nullptr;
     std::array<Image, 10> images;
     uint64_t surveyListId = 0;
+    bool bridge = false;
+    FSRDGameTraceSession::BridgeIdentity bridgeIdentity {};
+    std::shared_ptr<void> bridgeInputOwner, bridgeOutputOwner;
+    Json bridgeMetadata;
+    std::array<size_t,14> bridgeRoles {};
+    std::vector<bool> bridgeCopied;
+    std::array<ID3D12Resource*,11> bridgeOwnedResources {}; // Owned by the two leases, never title pointers.
     std::vector<Image> surveyImages;
     std::vector<std::string> surveyKeys;
     std::vector<uint32_t> surveySubresources;
@@ -843,7 +854,9 @@ const char* SrModeName(FSRDGameTraceSession::SrMode mode)
 uint64_t FramePayload(const Frame& f)
 {
     uint64_t bytes = f.constants.size()+f.geometryConstants.size()+f.flatDetailConstants.size();
-    for (const auto& image : f.surveyImages) bytes += uint64_t(image.width)*image.height*image.bpp;
+    for (size_t i=0;i<f.surveyImages.size();++i)
+        if (!f.bridge || f.bridgeCopied[i])
+        { const auto& image = f.surveyImages[i]; bytes += uint64_t(image.width)*image.height*image.bpp; }
     for (const auto& image : f.images) if (image.readback) bytes += uint64_t(image.width)*image.height*image.bpp;
     for (const auto& diagnostic : f.diagnostics)
         if (diagnostic.image.readback && diagnostic.metadata.value("available",false))
@@ -947,6 +960,78 @@ Json ImageMetadata(const Image& image, const char* name)
         {"source_subresource",0},{"source_mip",0},{"source_array_slice",0},{"source_plane",0},
         {"copy_footprint",CopyFootprintMetadata(image)}};
 }
+constexpr std::array<const char*,14> BridgeNames {"input_specular","input_diffuse","input_depth","input_motion",
+    "input_normal_roughness","input_specular_albedo","input_diffuse_albedo","raw_rr_specular","raw_rr_diffuse",
+    "selected_rr_specular","selected_rr_diffuse","encoded_commit_specular","encoded_commit_diffuse","consumer_word303"};
+constexpr std::array<DXGI_FORMAT,13> BridgeFormats {DXGI_FORMAT_R16G16B16A16_FLOAT,DXGI_FORMAT_R16G16B16A16_FLOAT,
+    DXGI_FORMAT_R32_FLOAT,DXGI_FORMAT_R16G16B16A16_FLOAT,DXGI_FORMAT_R10G10B10A2_UNORM,
+    DXGI_FORMAT_R8G8B8A8_UNORM,DXGI_FORMAT_R8G8B8A8_UNORM,DXGI_FORMAT_R16G16B16A16_FLOAT,
+    DXGI_FORMAT_R16G16B16A16_FLOAT,DXGI_FORMAT_R16G16B16A16_FLOAT,DXGI_FORMAT_R16G16B16A16_FLOAT,
+    DXGI_FORMAT_R16G16B16A16_FLOAT,DXGI_FORMAT_R16G16B16A16_FLOAT};
+Json BridgeIdentityMetadata(const FSRDGameTraceSession::BridgeIdentity& id)
+{
+    return {{"domain",id.domain},{"recording_id",id.recordingId},{"recording_generation",id.recordingGeneration},
+        {"cancellation_serial",id.cancellationSerial},{"cache_generation",id.cacheGeneration},
+        {"streamline_frame",id.streamlineFrame}};
+}
+Image PlanBridgeImage(ID3D12Device* device, const Session& s, size_t role, ID3D12Resource* source)
+{
+    D3D12_RESOURCE_DESC desc {};
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D; desc.Width = s.rw; desc.Height = s.rh;
+    desc.DepthOrArraySize = desc.MipLevels = 1; desc.SampleDesc.Count = 1; desc.Format = BridgeFormats.at(role);
+    if (source) desc = source->GetDesc(); // Strong owned source, or current native proof inside caller Borrow.
+    if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || desc.Format != BridgeFormats[role] ||
+        desc.DepthOrArraySize != 1 || desc.SampleDesc.Count != 1 || desc.Width > UINT_MAX ||
+        desc.Width < s.rw || desc.Height < s.rh || desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)
+        throw std::runtime_error(std::string("NRD_BRIDGE trace incompatible stage: ")+BridgeNames[role]);
+    Image image;
+    image.sourceDesc = desc; image.sourceWidth = uint32_t(desc.Width); image.sourceHeight = desc.Height;
+    image.width = s.width; image.height = s.height; image.cropX = s.x; image.cropY = s.y;
+    image.format = uint32_t(desc.Format); image.bpp = desc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT ? 8 : 4;
+    image.channels = role == 2 ? 1 : 4;
+    image.sourceIdentity = uint64_t(reinterpret_cast<uintptr_t>(source));
+    desc.Width = s.width; desc.Height = s.height; desc.DepthOrArraySize = desc.MipLevels = 1;
+    device->GetCopyableFootprints(&desc,0,1,0,&image.footprint,nullptr,nullptr,&image.footprintBytes);
+    image.allocationBytes = ChargedReadbackBytes(device,image.footprintBytes);
+    return image;
+}
+Image PlanBridgeFlag(ID3D12Device* device)
+{
+    Image image;
+    image.width = 4; image.height = image.bpp = image.channels = 1;
+    image.footprint.Footprint = {DXGI_FORMAT_UNKNOWN,4,1,1,256};
+    image.footprintBytes = 4; image.allocationBytes = ChargedReadbackBytes(device,4);
+    return image;
+}
+void RecordBridgeCopy(ID3D12GraphicsCommandList* list, Frame& f, Image& image,
+                      FSRDGameTraceSession::Source source, bool buffer = false)
+{
+    // All allocations, COM ownership and the total-frame preflight precede this function.
+    D3D12_RESOURCE_BARRIER barrier {}; barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition = {source.resource,0,source.state,D3D12_RESOURCE_STATE_COPY_SOURCE};
+    image.sourceState = uint32_t(source.state);
+    f.started = true;
+    if (source.state != D3D12_RESOURCE_STATE_COPY_SOURCE) list->ResourceBarrier(1,&barrier);
+    if (buffer) list->CopyBufferRegion(image.readback.Get(),0,source.resource,image.sourceByteOffset,image.width);
+    else
+    {
+        D3D12_TEXTURE_COPY_LOCATION src {},dst {};
+        src.pResource = source.resource; src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        dst.pResource = image.readback.Get(); dst.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT; dst.PlacedFootprint = image.footprint;
+        D3D12_BOX box {image.cropX,image.cropY,0,image.cropX+image.width,image.cropY+image.height,1};
+        list->CopyTextureRegion(&dst,0,0,0,&src,&box);
+    }
+    if (source.state != D3D12_RESOURCE_STATE_COPY_SOURCE)
+    { std::swap(barrier.Transition.StateBefore,barrier.Transition.StateAfter); list->ResourceBarrier(1,&barrier); }
+}
+std::string BridgeShaderHex(const std::array<uint8_t,32>& words)
+{
+    constexpr char hex[] = "0123456789abcdef";
+    std::string result(64,'0');
+    for (size_t i=0;i<words.size();++i) { result[2*i] = hex[words[i]>>4]; result[2*i+1] = hex[words[i]&15]; }
+    return result;
+}
+
 // This function is called ONLY under WithCompletedSnapshot. Storage was sized
 // beforehand. It neither allocates nor hashes/writes/inspects another ticket.
 bool CopyCpuWords(const Image& image, std::vector<uint8_t>& bytes) noexcept
@@ -1071,7 +1156,13 @@ struct FSRDGameTraceSession::Impl
     void Seal(Frame& f)
     {
         auto& s = *session;
-        for (const auto& image : f.images) if (!image.readback) throw std::runtime_error("GAME_TRACE missing pre-SR snapshot");
+        if (f.bridge)
+        {
+            for (size_t role=0;role<13;++role)
+                if (f.bridgeRoles[role] >= f.bridgeCopied.size() || !f.bridgeCopied[f.bridgeRoles[role]])
+                    throw std::runtime_error("NRD_BRIDGE trace lacks a matched owned/commit stage");
+        }
+        else for (const auto& image : f.images) if (!image.readback) throw std::runtime_error("GAME_TRACE missing pre-SR snapshot");
         for (const auto& d : std::span(f.diagnostics.data(),f.diagnosticCount))
             if (d.metadata.value("active",false) && !d.metadata.value("available",false))
                 throw std::runtime_error("GAME_TRACE active diagnostic unavailable: "+d.metadata["name"].get<std::string>());
@@ -1097,18 +1188,29 @@ struct FSRDGameTraceSession::Impl
             packet->payloads.push_back({std::move(filename),std::vector<uint8_t>(size_t(image.width)*image.height*image.bpp),kind,slot});
             images.push_back(&image);
         };
-        if (s->survey)
+        if (s->survey || f->bridge)
         {
             packet->row = {{"ordinal",f->ordinal},{"command_list",uint64_t(reinterpret_cast<uintptr_t>(f->list))},
                 {"list_id",f->surveyListId},{"images",Json::array()},{"gpu_submission_verified",true}};
             for (size_t i=0;i<f->surveyImages.size();++i)
             {
-                addImage(f->surveyImages[i],f->surveyKeys[i]+".bin",0,i);
+                if (f->bridge && !f->bridgeCopied[i]) continue;
+                const auto payloadSlot = packet->row["images"].size();
+                addImage(f->surveyImages[i],f->surveyKeys[i]+".bin",0,payloadSlot);
                 auto row = ImageMetadata(f->surveyImages[i],f->surveyKeys[i].c_str());
                 row["source_subresource"] = f->surveySubresources[i];
                 row["source_buffer_offset"] = f->surveyImages[i].sourceByteOffset;
-                row["source_state_provenance"] = "survey_supplied_copy_contract; detailed_provenance_in_snapshots_or_tags";
+                row["source_state_provenance"] = f->bridge ?
+                    "owned_stage_contract_or_same_recording_native_target_proof_under_live_physical_borrow" :
+                    "survey_supplied_copy_contract; detailed_provenance_in_snapshots_or_tags";
                 packet->row["images"].push_back(std::move(row));
+            }
+            if (f->bridge)
+            {
+                packet->row.update(f->bridgeMetadata);
+                packet->row["provider_controls"] = {{"wireformat","ffxDispatchDescDenoiser_native_ABI_suffix_264_184"},
+                    {"native_dispatch_bytes",448},{"controls_offset",264},{"controls_bytes",184}};
+                packet->payloads.push_back({"provider_controls.bin",f->constants,-5,0});
             }
             bool copied = true; RRTraceFence::Snapshot exactProof {};
             const bool protectedCopy = RRTraceFence::WithCompletedSnapshot(f->ticket,[&](const RRTraceFence::Snapshot& proof) {
@@ -1212,7 +1314,8 @@ struct FSRDGameTraceSession::Impl
         {
             RRTraceAdditiveIO::WriteFile(partial/payload.filename,payload.bytes);
             Json* metadata = nullptr;
-            if (payload.kind == 0) metadata = &packet.row["images"][payload.slot];
+            if (payload.kind == -5) metadata = &packet.row["provider_controls"];
+            else if (payload.kind == 0) metadata = &packet.row["images"][payload.slot];
             else if (payload.kind == 1) metadata = &packet.row["diagnostics"][payload.slot];
             else metadata = &packet.row[payload.kind == -1 ? "post_sr" : payload.kind == -2 ? "conversion_constants" :
                 payload.kind == -3 ? "geometry_constants" : "flat_detail_constants"];
@@ -1530,6 +1633,12 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
         const auto mode = SrModeName(request.srMode);
         const auto region = RegionModeName(request.regionMode);
         s->x = request.x; s->y = request.y; s->size = request.size; s->srMode = request.srMode; s->regionMode = request.regionMode;
+        if (request.capturePath != Request::CapturePath::Legacy && request.capturePath != Request::CapturePath::NrdBridge)
+            throw std::runtime_error("Invalid GAME_TRACE capture path");
+        s->bridge = request.capturePath == Request::CapturePath::NrdBridge;
+        s->bridgeDomain = request.bridgeDomain;
+        if (s->bridge && (request.srMode != SrMode::Off || request.fullContextReference || request.particleLayerDiagnostics))
+            throw std::runtime_error("NRD_BRIDGE trace supports owned RR inputs/stages/encoded commit; legacy SR/reference/particle options must be off");
         s->fullContextReference = request.fullContextReference;
         s->particleLayerDiagnostics = request.particleLayerDiagnostics;
         s->status.target = request.frameCount; s->lineageLimit = request.frameCount-1;
@@ -1579,13 +1688,28 @@ bool FSRDGameTraceSession::RequestStart(const Request& request) noexcept
             {"saved_frame_scope","closed payload files and renamed frame folders; power-loss durability is not asserted"},
             {"capacity_wait_maximum_ms",0},{"io_mode","bounded_cpu_snapshot_and_disk_workers"},
             {"frames",Json::array()},{"errors",Json::array()}};
+        if (s->bridge)
+        {
+            s->status.message = "Waiting for an eligible NRD-to-RR domain; capture never resets RR history.";
+            s->manifest["schema"] = "fsrd-nrd-bridge-game-trace-v1";
+            s->manifest["capture_path"] = "nrd_bridge";
+            s->manifest["output_scope"] = "owned_raw_RR_selected_recovery_and_bridge_encoded_commit_before_original_Consumer";
+            s->manifest.erase("native_full1_filename_role");
+            s->manifest["source_contract"] = FSRDGameTraceBridgeMetadata::Contract();
+            s->manifest["requested_domain"] = request.bridgeDomain;
+            s->manifest["domain_policy"] = "explicit_selector_or_first_eligible_domain_only; other_chains_are_not_captured_or_merged";
+            s->manifest["history_replay_scope"] = "full_render_and_actual_first_SDK_RESET_and_consecutive_same_context_required; no_capture_forced_reset; cropped_or_hidden_prior_history_not_reconstructible";
+            s->manifest["native_nrd_outputs"] = {{"captured",false},{"used_as_reference",false},{"used_as_correction",false}};
+        }
         if (request.fullContextReference)
         {
             s->manifest["full_context_reference_requested"] = true;
             s->manifest["full_context_reference_scope"] = "diagnostic_separate_full_native_RESET_each_RR_heads; primary_logical_controls_history_and_composition_selection_unchanged; not_a_solution_or_clean_truth";
             s->manifest["full_context_reference_observer_effect"] = "full_input_copies_transitions_and_extra_dispatch_can_change_GPU_scheduling_residency_and_fps; primary_pixel_identity_is_not_asserted";
         }
-        control.current = s; g_srRequested.store(request.srMode != SrMode::Off,std::memory_order_release);
+        control.current = s;
+        g_bridgeRequested.store(s->bridge,std::memory_order_release);
+        g_srRequested.store(request.srMode != SrMode::Off,std::memory_order_release);
         if (request.particleLayerDiagnostics)
             s->manifest["particle_layer_diagnostics"] = {{"requested",true},{"scope","original_title_guides_pre_sdk_conversion"},{"particle_bypass",false}};
         g_particleLayerDiagnosticsRequested.store(request.particleLayerDiagnostics,std::memory_order_release);
@@ -1628,6 +1752,8 @@ FSRDGameTraceSession::Status FSRDGameTraceSession::GetStatus()
 }
 bool FSRDGameTraceSession::IsActive() noexcept
 { return g_captureActive.load(std::memory_order_acquire); }
+bool FSRDGameTraceSession::IsNrdBridgeCaptureActive() noexcept
+{ return IsActive() && g_bridgeRequested.load(std::memory_order_acquire); }
 bool FSRDGameTraceSession::WantsSrOutput() noexcept
 { return IsActive() && g_srRequested.load(std::memory_order_acquire); }
 bool FSRDGameTraceSession::WantsFullContextReference() noexcept
@@ -1640,6 +1766,7 @@ bool FSRDGameTraceSession::RecordSources(ID3D12Device* device, ID3D12GraphicsCom
     std::span<const DiagnosticSource> diagnostics, std::span<const uint8_t> geometryConstants,
     std::span<const uint8_t> flatDetailConstants, bool submissionHooksAvailable) noexcept
 {
+    if (!IsActive() || IsNrdBridgeCaptureActive()) return false;
     auto& control = Global(); std::scoped_lock lock(control.mutex);
     try
     {
@@ -1648,7 +1775,7 @@ bool FSRDGameTraceSession::RecordSources(ID3D12Device* device, ID3D12GraphicsCom
         { impl.current.reset(); impl.pending.clear(); impl.cpuQueue.clear(); impl.session.reset(); }
         if (!impl.session)
         {
-            if (!control.current || !control.current->status.active || control.current->claimed || control.current->stop) return false;
+            if (!control.current || control.current->bridge || !control.current->status.active || control.current->claimed || control.current->stop) return false;
             impl.session = control.current; impl.session->claimed = true; impl.device = device;
             control.wake.notify_all();
         }
@@ -1782,6 +1909,225 @@ void FSRDGameTraceSession::CompleteSrFrame(ID3D12GraphicsCommandList* cmd, Sourc
     catch (const std::exception& error) { m_impl->Failure(error.what()); }
     catch (...) { m_impl->Failure("Unknown SR snapshot failure"); }
 }
+FSRDGameTraceSession::BridgeFrameToken FSRDGameTraceSession::RecordBridgeOwned(
+    ID3D12Device* device, ID3D12GraphicsCommandList* cmd, const BridgeIdentity& identity,
+    const NrdBridge::ConvertedResources& input, const std::shared_ptr<void>& inputOwner,
+    const NrdBridge::FrameParameters& parameters, const sl::Constants& slConstants, uint32_t slFrame, uint32_t slViewport,
+    const NrdBridge::RRSettingsState& settings, const NrdBridge::RRRecordedOutputSnapshot& output,
+    const BridgeProviderBinaryIdentity& binary, bool submissionHooksAvailable) noexcept
+{
+    if (!IsNrdBridgeCaptureActive()) return {};
+    auto& control = Global(); std::scoped_lock lock(control.mutex);
+    try
+    {
+        auto& impl = *m_impl; ReapReadbacks(control); impl.InspectLineage();
+        if (impl.session && !impl.session->status.active)
+        { impl.current.reset(); impl.pending.clear(); impl.cpuQueue.clear(); impl.session.reset(); }
+        if (!impl.session)
+        {
+            if (!control.current || !control.current->bridge || !control.current->status.active ||
+                control.current->claimed || control.current->stop) return {};
+            impl.session = control.current; impl.session->claimed = true; impl.device = device;
+            control.wake.notify_all();
+        }
+        auto& s = *impl.session;
+        if (!s.bridge || s.stop || s.closing || s.status.recorded >= s.status.target) return {};
+        if (s.bridgeDomain && identity.domain != s.bridgeDomain) return {}; // Never merge A/B domains.
+        if (!s.initialized || GetTickCount64() < s.startTick) return {};
+        if (!device || !cmd || impl.device.Get() != device || !inputOwner || !output.owner ||
+            !identity.domain || !identity.recordingId || !identity.recordingGeneration || identity.streamlineFrame == UINT32_MAX ||
+            identity.streamlineFrame != parameters.streamlineFrame || identity.streamlineFrame != slFrame ||
+            output.recording != cmd || output.recordingId != identity.recordingId || !output.contextGeneration ||
+            output.frameSL != identity.streamlineFrame || output.frameIndex != parameters.frameIndex ||
+            output.width != input.width || output.height != input.height || !input.width || !input.height || output.outputCommitted)
+            throw std::runtime_error("NRD_BRIDGE trace owned stage lacks exact frame/domain/recording/lease identity");
+        if (!submissionHooksAvailable) throw std::runtime_error("NRD_BRIDGE trace requires real submission/Reset hooks");
+        ResolveRegion(s,input.width,input.height);
+        if (impl.current && !impl.current->sealed)
+            throw std::runtime_error("NRD_BRIDGE trace previous owned frame has no matched encoded commit");
+        if (s.bound && identity.streamlineFrame == s.lastBridgeSL) return {}; // FG/repeated SL cannot create a second row.
+        if (impl.pending.size() >= MaximumPendingFrames)
+            throw std::runtime_error("NRD_BRIDGE trace GPU backlog reached 3 pending frames; no wait performed");
+        const auto settingsJson = FSRDGameTraceBridgeMetadata::Settings(settings);
+        const auto serialized = settingsJson.dump();
+        const auto settingsHash = RRTraceAdditiveIO::Sha256({reinterpret_cast<const uint8_t*>(serialized.data()),serialized.size()});
+        const auto context = std::to_string(identity.domain)+":"+std::to_string(output.contextGeneration);
+        if (s.bound && (s.context != context || s.settingsHash != settingsHash ||
+            output.frameIndex != s.lastFrameIndex+1u || identity.streamlineFrame != s.lastBridgeSL+1u ||
+            identity.recordingId <= s.lastBridgeRecording))
+            throw std::runtime_error("NRD_BRIDGE trace context/settings/consecutive SL or SDK frame lineage changed");
+        const std::array<ID3D12Resource*,11> sources {input.spec,input.diff,input.linearDepth,input.motion,input.normals,
+            input.specAlbedo,input.diffAlbedo,output.rawSpec,output.rawDiff,output.selectedSpec,output.selectedDiff};
+        for (auto* source : sources) if (!source) throw std::runtime_error("NRD_BRIDGE trace missing owned stage");
+        auto f = std::make_shared<Frame>(); f->bridge = true; f->bridgeIdentity = identity;
+        f->bridgeInputOwner = inputOwner; f->bridgeOutputOwner = output.owner; f->bridgeOwnedResources = sources;
+        f->ordinal = s.status.recorded; f->list = cmd; f->owner = impl.session;
+        f->info.contextId = context; f->info.frameIndex = output.frameIndex; f->info.evaluationId = identity.recordingId;
+        f->constants.assign(output.providerControl.begin(),output.providerControl.end());
+        memcpy(&f->info.dispatchFlags,f->constants.data()+NativeFlagsOffset,4); f->info.reset = (f->info.dispatchFlags&1u) != 0;
+        uint32_t nativeFrame = 0, nativeWidth = 0, nativeHeight = 0;
+        memcpy(&nativeFrame,f->constants.data()+NativeFrameOffset,4);
+        memcpy(&nativeWidth,f->constants.data()+NativeRenderOffset,4); memcpy(&nativeHeight,f->constants.data()+NativeRenderOffset+4,4);
+        if (nativeFrame != output.frameIndex || nativeWidth != input.width || nativeHeight != input.height)
+            throw std::runtime_error("NRD_BRIDGE trace provider controls do not match owned stage extent/frame");
+        f->settingsHash = settingsHash;
+        Json attestation = Json::object();
+        if (!binary.routeAttestationJson.empty())
+        {
+            if (binary.routeAttestationJson.size() > 256*1024) throw std::runtime_error("NRD_BRIDGE trace provider witness exceeds metadata bound");
+            attestation = Json::parse(binary.routeAttestationJson);
+            if (!attestation.is_object()) throw std::runtime_error("NRD_BRIDGE trace provider witness must be an object");
+        }
+        Json roles = Json::object();
+        uint64_t readback = 0, payload = f->constants.size();
+        for (size_t role=0;role<14;++role)
+        {
+            size_t alias = role;
+            if (role < sources.size())
+                for (size_t earlier=0;earlier<role;++earlier) if (sources[earlier] == sources[role]) { alias = earlier; break; }
+            if (alias != role) { f->bridgeRoles[role] = f->bridgeRoles[alias]; roles[BridgeNames[role]] = BridgeNames[alias]; continue; }
+            auto image = role == 13 ? PlanBridgeFlag(device) : PlanBridgeImage(device,s,role,role < 11 ? sources[role] : nullptr);
+            readback += image.allocationBytes; payload += uint64_t(image.width)*image.height*image.bpp;
+            f->bridgeRoles[role] = f->surveyImages.size(); roles[BridgeNames[role]] = BridgeNames[role];
+            f->surveyImages.push_back(std::move(image)); f->surveyKeys.emplace_back(BridgeNames[role]);
+            f->surveySubresources.push_back(0); f->bridgeCopied.push_back(false);
+        }
+        // Includes both future encoded outputs and the optional exact GPU flag.
+        // No readback allocation or command has occurred at this point.
+        PreflightReadback(s,readback,readback); PreflightPayload(s,payload);
+        f->bridgeMetadata = {{"identity",BridgeIdentityMetadata(identity)},{"frame_parameters",FSRDGameTraceBridgeMetadata::Frame(parameters,slConstants,slFrame,slViewport)},
+            {"settings",settingsJson},{"settings_sha256",settingsHash},{"context_id",context},
+            {"context_generation",output.contextGeneration},{"sdk_frame_index",output.frameIndex},
+            {"actual_dispatch_flags",f->info.dispatchFlags},{"actual_reset",f->info.reset},
+            {"roles",roles},{"skipped_original_dispatches",Json::array()},{"native_nrd_output_captured",false},
+            {"recovery",{{"graph_recorded",output.recoveryActive},{"fallback_to_raw_rr",output.recoveryFallback}}},
+            {"provider",{{"version_id",output.providerVersionId},{"api_version",output.providerApiVersion},
+                {"signal_flags",output.providerSignalFlags},{"context_flags",output.providerContextFlags},
+                {"name",std::string(output.providerName.begin(),std::find(output.providerName.begin(),output.providerName.end(),'\0'))},
+                {"route_attestation",attestation},{"binary_identity_available",attestation.value("attested",false)}}},
+            {"encoding",{{"native_flag_captured",false},{"fallback_encoding",uint32_t(parameters.outputEncoding)},
+                {"native_flag_scope","not_available_until_successful_late_commit"}}},
+            {"output_scope","owned_RR_and_bridge_encoded_commit; no_native_NRD_reference"}};
+        LARGE_INTEGER qpc {}; QueryPerformanceCounter(&qpc); f->qpc = uint64_t(qpc.QuadPart);
+        f->bridgeMetadata["recording_qpc"] = f->qpc;
+        f->ticket = RRTraceFence::Arm(device,cmd);
+        impl.current = f; impl.pending.push_back(f); control.retained.push_back(f);
+        for (auto& image : f->surveyImages)
+        { const auto bytes = image.footprintBytes; AllocateReadback(device,*f,image,bytes); f->ticket->Retain(image.readback.Get()); }
+        // Exclusively owned inputs/stages may be retained. Title destinations never enter this collection.
+        for (auto* source : sources) f->ticket->Retain(source);
+        for (size_t role=0;role<sources.size();++role)
+        {
+            const auto slot = f->bridgeRoles[role]; if (f->bridgeCopied[slot]) continue;
+            RecordBridgeCopy(cmd,*f,f->surveyImages[slot],{sources[role],role < 7 ?
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE : output.state}); f->bridgeCopied[slot] = true;
+        }
+        s.bridgeDomain = identity.domain; s.manifest["captured_domain"] = identity.domain;
+        s.status.phase = "capturing"; impl.UpdateProgress(); control.wake.notify_all(); return f;
+    }
+    catch (const std::exception& error) { m_impl->Failure(error.what()); return {}; }
+    catch (...) { m_impl->Failure("Unknown NRD_BRIDGE owned trace failure"); return {}; }
+}
+
+void FSRDGameTraceSession::RecordBridgeSkipped(const BridgeFrameToken& token, ID3D12GraphicsCommandList* cmd,
+    const BridgeIdentity& identity, const BridgeSkippedDispatch& event) noexcept
+{
+    if (!IsNrdBridgeCaptureActive() || !token) return;
+    std::scoped_lock lock(Global().mutex);
+    try
+    {
+        const auto f = std::static_pointer_cast<Frame>(token);
+        if (!m_impl->session || m_impl->session->stop || f->sealed) return;
+        if (!f->bridge || f->owner.lock() != m_impl->session || f->list != cmd || f->bridgeIdentity != identity)
+            throw std::runtime_error("NRD_BRIDGE skipped-dispatch trace identity mismatch");
+        auto& events = f->bridgeMetadata["skipped_original_dispatches"];
+        if (events.size() >= 64 || !event.sequence || (!events.empty() && event.sequence <= events.back()["sequence"].get<uint64_t>()))
+            throw std::runtime_error("NRD_BRIDGE skipped-dispatch trace bound/order violated");
+        events.push_back({{"sequence",event.sequence},{"role",event.role},{"original_suppressed",true},
+            {"shader_sha256",event.shaderKnown ? Json(BridgeShaderHex(event.shaderSha256)) : Json(nullptr)},
+            {"groups",event.dimensionsKnown ? Json(event.groups) : Json(nullptr)},
+            {"indirect",event.indirect},{"native_output_payload",false},
+            {"reason","same_recording_owned_RR_replacement_admitted"}});
+    }
+    catch (const std::exception& error) { m_impl->Failure(error.what()); }
+    catch (...) { m_impl->Failure("Unknown NRD_BRIDGE skipped-dispatch trace failure"); }
+}
+
+bool FSRDGameTraceSession::CompleteBridgeFrame(const BridgeFrameToken& token, ID3D12GraphicsCommandList* cmd,
+    const BridgeIdentity& identity, const std::array<Source,2>& targets,
+    const NrdBridge::RRRecordedOutputSnapshot& output) noexcept
+{
+    if (!IsNrdBridgeCaptureActive() || !token) return false;
+    std::scoped_lock lock(Global().mutex);
+    try
+    {
+        auto& impl = *m_impl; const auto f = std::static_pointer_cast<Frame>(token);
+        if (!impl.session || impl.session->stop || f->sealed) return false;
+        if (!f->bridge || f->owner.lock() != impl.session || f->bridgeIdentity != identity || f->list != cmd ||
+            !output.outputCommitted || output.recording != cmd || output.recordingId != identity.recordingId ||
+            output.frameSL != identity.streamlineFrame || output.frameIndex != f->info.frameIndex ||
+            output.owner.get() != f->bridgeOutputOwner.get() ||
+            output.contextGeneration != f->bridgeMetadata.at("context_generation").get<uint64_t>() ||
+            output.rawSpec != f->bridgeOwnedResources[7] || output.rawDiff != f->bridgeOwnedResources[8] ||
+            output.selectedSpec != f->bridgeOwnedResources[9] || output.selectedDiff != f->bridgeOwnedResources[10])
+            throw std::runtime_error("NRD_BRIDGE encoded commit trace lacks the same successfully committed owned frame");
+        RequireUnsubmitted(*f);
+        std::array<Image,2> plans;
+        for (size_t i=0;i<2;++i)
+        {
+            if (!targets[i].resource) throw std::runtime_error("NRD_BRIDGE encoded commit target unavailable");
+            plans[i] = PlanBridgeImage(impl.device.Get(),*impl.session,11+i,targets[i].resource);
+        }
+        if (targets[0].resource == targets[1].resource) throw std::runtime_error("NRD_BRIDGE encoded commit targets alias");
+        auto& flag = f->surveyImages[f->bridgeRoles[13]];
+        if (output.nativeEncodingCaptured)
+        {
+            if (!output.encodingFlag) throw std::runtime_error("NRD_BRIDGE encoding flag marked captured without owned buffer");
+            const auto desc = output.encodingFlag->GetDesc();
+            if (desc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER || desc.Width < 1216)
+                throw std::runtime_error("NRD_BRIDGE encoding flag buffer extent invalid");
+            flag.sourceDesc = desc; flag.sourceIdentity = uint64_t(reinterpret_cast<uintptr_t>(output.encodingFlag));
+            flag.sourceWidth = uint32_t(std::min<uint64_t>(desc.Width,UINT_MAX)); flag.sourceHeight = 1; flag.sourceByteOffset = 1212;
+            f->ticket->Retain(output.encodingFlag); // Owned by this exact output lease.
+        }
+        // No title AddRef: these weak targets are used synchronously only inside
+        // the caller's same-recording native proof and live physical Borrow.
+        for (size_t i=0;i<2;++i)
+        {
+            auto& image = f->surveyImages[f->bridgeRoles[11+i]];
+            const auto allocation = image.allocationBytes; const auto bytes = image.footprintBytes;
+            auto readback = std::move(image.readback); image = std::move(plans[i]);
+            image.readback = std::move(readback); image.allocationBytes = allocation; image.footprintBytes = bytes;
+            RecordBridgeCopy(cmd,*f,image,targets[i]); f->bridgeCopied[f->bridgeRoles[11+i]] = true;
+        }
+        if (output.nativeEncodingCaptured)
+        {
+            RecordBridgeCopy(cmd,*f,flag,{output.encodingFlag,output.encodingFlagState},true);
+            f->bridgeCopied[f->bridgeRoles[13]] = true;
+        }
+        f->bridgeMetadata["encoding"] = {{"native_flag_captured",output.nativeEncodingCaptured},
+            {"fallback_encoding",f->bridgeMetadata["frame_parameters"]["fallback_output_encoding"]},
+            {"native_flag_scope",output.nativeEncodingCaptured ? "actual_GPU_native_b6_word303_captured_immediately_before_commit" :
+                "not_used; explicit_fallback_output_encoding"}};
+        f->bridgeMetadata["output_committed"] = true;
+        impl.Seal(*f);
+        auto& s = *impl.session; s.context = f->info.contextId; s.settingsHash = f->settingsHash;
+        s.lastFrameIndex = output.frameIndex; s.lastBridgeSL = identity.streamlineFrame;
+        s.lastBridgeRecording = identity.recordingId; s.bound = true;
+        return true;
+    }
+    catch (const std::exception& error) { m_impl->Failure(error.what()); return false; }
+    catch (...) { m_impl->Failure("Unknown NRD_BRIDGE encoded commit trace failure"); return false; }
+}
+void FSRDGameTraceSession::CancelBridgeFrame(const BridgeFrameToken& token, std::string_view reason) noexcept
+{
+    if (!token) return;
+    std::scoped_lock lock(Global().mutex);
+    const auto f = std::static_pointer_cast<Frame>(token);
+    if (f->bridge && !f->sealed && f->owner.lock() == m_impl->session) m_impl->Failure(reason);
+}
+
+
 bool FSRDGameTraceSession::StartSurvey(uint32_t width, uint32_t height) noexcept
 {
     auto& control = Global(); std::scoped_lock lock(control.mutex);
