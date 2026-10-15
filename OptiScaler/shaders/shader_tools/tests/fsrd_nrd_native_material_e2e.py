@@ -25,6 +25,8 @@ def validate(directory, value):
     enabled = trace['enabled']
     require(trace['warm_snapshot_bytes'] > 0 if enabled else trace['warm_snapshot_bytes'] == 0)
     require(trace['coherent_cancel_recovery'] == enabled)
+    require(trace['stable_phase_physical_creates'] == 1 and trace['physical_provider_creates'] == (2 if enabled else 1))
+    require(trace['incomplete_recovery_fresh_context'] == enabled and trace['recovery_toggle_same_context'] == enabled)
     old_applied = False
     alpha = None
     hashes = {}
