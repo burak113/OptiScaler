@@ -11,6 +11,10 @@ struct Status
     bool nativeMaterialGuidesActive = false;
     std::string phase = "Off", reason = "Set [FSR-RR] NrdBridge=true and restart.", resources;
     uint64_t framesBridged = 0, resets = 0;
+    // Service totals: capture/Recon admission, not per-pixel material coverage.
+    uint64_t nativeMaterialAttempts = 0, nativeMaterialSnapshots = 0, nativeMaterialFramesApplied = 0;
+    uint64_t nativeMaterialUnknownState = 0, nativeMaterialKnownPSR = 0, nativeMaterialUnsupportedState = 0;
+    uint64_t nativeMaterialCaptureFailures = 0, nativeMaterialModeResets = 0;
     uint32_t width = 0, height = 0;
 };
 bool SupportedExecutable() noexcept;

@@ -125,6 +125,7 @@ struct Service
     std::unordered_set<ID3D12GraphicsCommandList*> followingChains;
     DiscoveryCache cache;
     NativeMaterialCapture nativeMaterialCapture;
+    NativeMaterialIdentityCache materialIdentities; // Fixed weak pairs, never cross-recording states.
     std::shared_ptr<RRRecoveryFamily> recoveryFamily; // Stable across all temporal-domain replacements.
     std::array<NrdBridgeBirth::Token,9> cacheBirths {};
     std::shared_ptr<HistoryDomain> history;
@@ -403,6 +404,7 @@ void ReplaceList(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& list
     if (owner.activeFrame == list.frame) owner.status.active = false;
     RemoveChainUsers(owner,cmd,list); StopFollowing(owner,cmd,list);
     retiredList.emplace(std::move(list)); list = {}; list.birth = birth; ++owner.resetSerial;
+    if (owner.rrSettings.nativeMaterialGuides) owner.materialIdentities.Seed(list.materialStates);
 }
 void DropPending(Service& owner, RetiredDebugSources& retired)
 {
@@ -684,7 +686,9 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         reset = true;
     }
     const bool materialApplied = rrSettings.nativeMaterialGuides && NativeMaterialCapture::Resource(materialSnapshot);
-    if (rrSettings.nativeMaterialGuides && history->materialGuidesKnown && history->materialGuidesUsed != materialApplied) reset = true;
+    const bool materialModeReset = rrSettings.nativeMaterialGuides && history->materialGuidesKnown &&
+        history->materialGuidesUsed != materialApplied;
+    if (materialModeReset) reset = true;
     history->latestRecording = recording;
     auto ownership = MakeOwnedShared<RecordingOwnership>(); ownership->history = history; ownership->token = recording;
     RecordedComputeLease::SubmissionCallbacks submission;
@@ -817,6 +821,8 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         owner->rrSettingsState = history->rr.GetSettingsState();
         owner->pendingList = cmd; owner->appliedReset = serial;
         owner->status.nativeMaterialGuidesActive = materialApplied;
+        if (materialApplied) ++owner->status.nativeMaterialFramesApplied;
+        if (materialModeReset) ++owner->status.nativeMaterialModeResets;
         logConventions = !owner->conventionsLogged && !conventions.empty();
         if (logConventions) owner->conventionsLogged = true;
     }
@@ -832,6 +838,7 @@ bool CaptureMaterialForCurrentPipeline(ID3D12GraphicsCommandList* cmd)
         if (found == owner->lists.end() || found->second.role != Role::MaterialGuide) return false;
         retiredMaterial = std::move(found->second.pendingMaterial); // Tombstone even if this writer cannot borrow/capture.
         if (!owner->rrSettings.nativeMaterialGuides || !owner->window || !ListLive(found->second)) return true;
+        ++owner->status.nativeMaterialAttempts;
         receiverBirth = found->second.birth; serial = owner->cancellationSerial;
     }
     std::scoped_lock injection(gInjectionMutex);
@@ -854,21 +861,39 @@ bool CaptureMaterialForCurrentPipeline(ID3D12GraphicsCommandList* cmd)
         base[0].viewFormat!=DXGI_FORMAT_R10G10B10A2_UNORM || params[0].viewFormat!=DXGI_FORMAT_R8G8B8A8_UNORM ||
         normal[0].viewFormat!=DXGI_FORMAT_R10G10B10A2_UNORM || base[0].subresource || params[0].subresource || normal[0].subresource)
     { return true; } // Optional unsupported provenance retains white guides.
+    NativeMaterialCapture::SourceStates sourceStates {};
     {
         std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
         if (gService != owner || found == owner->lists.end() || found->second.birth != receiverBirth || serial != owner->cancellationSerial) return true;
+        owner->materialIdentities.Remember(base[0],params[0]);
         auto& witness = found->second.materialStates;
         witness.Select(base[0],params[0]);
-        if (!witness.Readable(serial)) return true; // Optional unknown/pixel-only source: white guides, no GPU read.
+        if (!witness.TryKnownStates(serial,sourceStates))
+        { ++owner->status.nativeMaterialUnknownState; return true; }
+        if (std::any_of(sourceStates.begin(),sourceStates.end(),[](auto state) {
+            return (state & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) &&
+                   !(state & D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE); }))
+            ++owner->status.nativeMaterialKnownPSR;
+    }
+    if (!NativeMaterialCapture::CanCaptureStates(sourceStates,cmd->GetType()))
+    {
+        std::scoped_lock lock(gMutex);
+        if (gService == owner) ++owner->status.nativeMaterialUnsupportedState;
+        return true;
     }
     const auto extent = normal[0].description;
     std::string error; NativeMaterialCapture::SnapshotLease snapshot; bool captured = false;
     {
         InjectionScope guard(cmd);
         captured = owner->nativeMaterialCapture.Initialize(owner->device.Get(),uint32_t(extent.Width),extent.Height,error) &&
-            owner->nativeMaterialCapture.Capture(cmd,base[0].resource,params[0].resource,snapshot,error);
+            owner->nativeMaterialCapture.Capture(cmd,base[0].resource,params[0].resource,sourceStates,snapshot,error);
     }
-    if (!captured) return true; // Optional capture failure records no title reads; conversion keeps white guides.
+    if (!captured)
+    {
+        std::scoped_lock lock(gMutex);
+        if (gService == owner) ++owner->status.nativeMaterialCaptureFailures;
+        return true; // Failed preparation/retain records no borrowed GPU commands.
+    }
     {
         std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
         if (gService != owner || found == owner->lists.end() || found->second.birth != receiverBirth || serial != owner->cancellationSerial) return true;
@@ -876,6 +901,7 @@ bool CaptureMaterialForCurrentPipeline(ID3D12GraphicsCommandList* cmd)
         pending.snapshot = std::move(snapshot); pending.normal = normal[0].resource;
         pending.normalBirth = normal[0].resourceBirth; pending.serial = serial;
         pending.normalGeneration = normal[0].resourceGeneration;
+        ++owner->status.nativeMaterialSnapshots;
     }
     return true;
 }
@@ -1116,7 +1142,11 @@ void OnSetPipeline(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* pipeline
             const auto role = PipelineRole(owner,pipeline,pipelineBirth);
             if (const auto found = owner.lists.find(cmd); found != owner.lists.end() && found->second.birth != receiverBirth)
                 ReplaceList(owner,cmd,found->second,receiverBirth,retiredList,retiredPresentations,retired);
-            if (role != Role::None) { auto& list = owner.lists[cmd]; list.role = role; list.birth = receiverBirth; list.pipelineBirth = pipelineBirth; }
+            if (role != Role::None || (owner.rrSettings.nativeMaterialGuides && !owner.materialIdentities.Empty()))
+            {
+                auto& list = owner.lists[cmd]; list.role = role; list.birth = receiverBirth; list.pipelineBirth = pipelineBirth;
+                if (owner.rrSettings.nativeMaterialGuides) owner.materialIdentities.Seed(list.materialStates);
+            }
             else if (const auto found = owner.lists.find(cmd); found != owner.lists.end()) { found->second.role = Role::None; found->second.pipelineBirth = pipelineBirth; }
             if (gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
                 (role == Role::PrepLast || role == Role::Recon || (role == Role::MaterialGuide && owner.rrSettings.nativeMaterialGuides)) && (owner.cache.Valid() || owner.retryPresents >= 60 ||
@@ -1168,13 +1198,16 @@ void OnReset(ID3D12GraphicsCommandList* cmd, ID3D12PipelineState* initial) noexc
                 retiredList.emplace(std::move(found->second)); found->second = {};
                 found->second.materialStates = std::move(rememberedMaterialStates); found->second.nrdList = nrdList; found->second.role = PipelineRole(owner,initial,pipelineBirth);
                 found->second.birth = receiverBirth; found->second.pipelineBirth = pipelineBirth;
+                if (owner.rrSettings.nativeMaterialGuides) owner.materialIdentities.Seed(found->second.materialStates);
                 if (nrdList && gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
                     (owner.cache.Valid() || owner.retryPresents >= 60 || !owner.everRecon))
                 { StartWindow(owner); open = true; }
             }
-            else if (const auto role = PipelineRole(owner,initial,pipelineBirth); role != Role::None)
+            else if (const auto role = PipelineRole(owner,initial,pipelineBirth); role != Role::None ||
+                (owner.rrSettings.nativeMaterialGuides && !owner.materialIdentities.Empty()))
             {
-                owner.lists[cmd].role = role; owner.lists[cmd].birth = receiverBirth; owner.lists[cmd].pipelineBirth = pipelineBirth;
+                auto& list = owner.lists[cmd]; list.role = role; list.birth = receiverBirth; list.pipelineBirth = pipelineBirth;
+                if (owner.rrSettings.nativeMaterialGuides) owner.materialIdentities.Seed(list.materialStates);
                 if (gRuntime.load(std::memory_order_relaxed) && !owner.window && owner.attempts < 3 && owner.failures < 3 &&
                     (role == Role::PrepLast || role == Role::Recon || (role == Role::MaterialGuide && owner.rrSettings.nativeMaterialGuides)) && (owner.cache.Valid() || owner.retryPresents >= 60 ||
                         (role == Role::Recon && !owner.everRecon)))
@@ -1543,10 +1576,25 @@ void OnResourceBarriers(ID3D12GraphicsCommandList* cmd, UINT count, const D3D12_
         !gRuntime.load(std::memory_order_relaxed) || FrameSurvey::Internal() || !barriers || !count) return;
     try
     {
-        std::scoped_lock lock(gMutex); if (!gService) return;
-        const auto found = gService->lists.find(cmd);
-        if (found != gService->lists.end() && ListLive(found->second))
-            found->second.materialStates.Observe(count,barriers,gService->cancellationSerial);
+        RetiredDebugSources retired; std::optional<ListState> retiredList;
+        std::array<std::shared_ptr<RecordingToken>,4> retiredPresentations;
+        const auto receiverBirth = NrdBridgeBirth::Capture(cmd,BirthMode());
+        std::scoped_lock lock(gMutex);
+        if (!gService || !BirthLive(receiverBirth) || !cmd) return;
+        auto& owner = *gService;
+        auto found = owner.lists.find(cmd);
+        if (found == owner.lists.end())
+        {
+            if (owner.materialIdentities.Empty()) return;
+            found = owner.lists.try_emplace(cmd).first; found->second.birth = receiverBirth;
+        }
+        else if (found->second.birth != receiverBirth)
+            ReplaceList(owner,cmd,found->second,receiverBirth,retiredList,retiredPresentations,retired);
+        if (ListLive(found->second))
+        {
+            owner.materialIdentities.Seed(found->second.materialStates);
+            found->second.materialStates.Observe(count,barriers,owner.cancellationSerial);
+        }
     } catch (...) {}
 }
 void OnRecordingClosed(ID3D12GraphicsCommandList* cmd, HRESULT result) noexcept

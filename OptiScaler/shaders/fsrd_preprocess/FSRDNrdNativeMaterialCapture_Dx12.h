@@ -2,6 +2,7 @@
 #include <d3d12.h>
 #include <wrl/client.h>
 #include <cstdint>
+#include <array>
 #include <initializer_list>
 #include <memory>
 #include <mutex>
@@ -163,14 +164,41 @@ class NativeMaterialCapture
         catch (const std::exception& exception) { error = exception.what(); return false; }
         catch (...) { error = "Native material capture initialization allocation failed"; return false; }
     }
-    // Caller holds the physical lifetime borrow/restoration scope and proves
-    // both title views are currently compute-readable in this exact recording.
-    // The helper neither infers nor transitions a borrowed source state.
+    using SourceStates = std::array<D3D12_RESOURCE_STATES,2>;
+    static bool CanCaptureStates(const SourceStates& states, D3D12_COMMAND_LIST_TYPE type) noexcept
+    {
+        if (type != D3D12_COMMAND_LIST_TYPE_DIRECT && type != D3D12_COMMAND_LIST_TYPE_COMPUTE) return false;
+        constexpr auto readMask = D3D12_RESOURCE_STATE_GENERIC_READ | D3D12_RESOURCE_STATE_RESOLVE_SOURCE;
+        for (const auto state : states)
+        {
+            if ((state & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) && type != D3D12_COMMAND_LIST_TYPE_DIRECT) return false;
+            if (state == D3D12_RESOURCE_STATE_COMMON || state == D3D12_RESOURCE_STATE_UNORDERED_ACCESS) continue;
+            if ((state & ~readMask) != 0 ||
+                !(state & (D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE))) return false;
+        }
+        return true;
+    }
+
+    // Existing callers attest compute-readable sources and need no source barriers.
     bool Capture(ID3D12GraphicsCommandList* list, ID3D12Resource* baseColor,
                  ID3D12Resource* materialParams, SnapshotLease& out, std::string& error) noexcept
     {
+        return Capture(list,baseColor,materialParams,
+            {D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE},out,error);
+    }
+
+    // Caller holds the physical lifetime borrow/restoration scope and attests
+    // both exact source states in this recording. All preparation and the GPU
+    // lease precede title transitions; every transitioned source returns to its
+    // exact attested state before return. Sources never acquire a COM owner.
+    bool Capture(ID3D12GraphicsCommandList* list, ID3D12Resource* baseColor,
+                 ID3D12Resource* materialParams, const SourceStates& sourceStates,
+                 SnapshotLease& out, std::string& error) noexcept
+    {
         out.reset();
         if (!list) { error = "Native material capture command list is null"; return false; }
+        if (!CanCaptureStates(sourceStates,list->GetType()))
+        { error = "Native material source states or command-list type are unsupported"; return false; }
         try
         {
             FrameSurvey::ScopedInternal internal; ScopedSkipHeapCapture skip;
@@ -201,9 +229,29 @@ class NativeMaterialCapture
             D3D12_UNORDERED_ACCESS_VIEW_DESC uav {}; uav.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
             uav.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
             owner->device->CreateUnorderedAccessView(lease->slot->resource.Get(),nullptr,&uav,cpu);
+            std::array<D3D12_RESOURCE_BARRIER,2> sourceBefore {},sourceAfter {},sourceUav {};
+            UINT transitionCount = 0, uavCount = 0;
+            const std::array sources {baseColor,materialParams};
+            for (size_t index = 0; index != sources.size(); ++index)
+            {
+                if (sourceStates[index] & D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE) continue;
+                if (sourceStates[index] == D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+                {
+                    auto& uavBarrier = sourceUav[uavCount++];
+                    uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV; uavBarrier.UAV.pResource = sources[index];
+                }
+                auto& before = sourceBefore[transitionCount]; before.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+                before.Transition = {sources[index],D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+                    sourceStates[index],D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE};
+                auto& after = sourceAfter[transitionCount++]; after = before;
+                after.Transition.StateBefore = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+                after.Transition.StateAfter = sourceStates[index];
+            }
             // No GPU command is recorded until the actual recording lease exists.
             if (!ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(),list,lease))
             { error = "Native material snapshot GPU lifetime tracking unavailable"; return false; }
+            if (uavCount) list->ResourceBarrier(uavCount,sourceUav.data());
+            if (transitionCount) list->ResourceBarrier(transitionCount,sourceBefore.data());
             D3D12_RESOURCE_BARRIER barrier {}; barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
             barrier.Transition = {lease->slot->resource.Get(),D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
                 D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_UNORDERED_ACCESS};
@@ -215,9 +263,10 @@ class NativeMaterialCapture
             list->SetComputeRootDescriptorTable(1,gpu); gpu.ptr += uint64_t(owner->stride) * 2;
             list->SetComputeRootDescriptorTable(2,gpu);
             list->Dispatch((owner->width + 7) / 8,(owner->height + 7) / 8,1);
-            // Only the private snapshot transitions; title SRVs are never changed.
+            // Snapshot and every borrowed source are restored before exposing the lease.
             barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
             barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON; list->ResourceBarrier(1,&barrier);
+            if (transitionCount) list->ResourceBarrier(transitionCount,sourceAfter.data());
             out = std::move(lease); error.clear(); return true;
         }
         catch (const std::exception& exception) { error = exception.what(); return false; }
