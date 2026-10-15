@@ -60,6 +60,13 @@ struct D3D12Hooks{
  static bool CanRestoreRootSignature(ID3D12GraphicsCommandList*);
  static bool GetComputeBindingsForBridge(ID3D12GraphicsCommandList*,FrameSurvey::ComputeBindings&) noexcept;
  static void OnBridgeCommandListReset(ID3D12GraphicsCommandList*,ID3D12PipelineState*);
+ static void OnBridgeCommandListClearState(ID3D12GraphicsCommandList*,ID3D12PipelineState*) noexcept;
+ static void OnBridgeSetPredication(ID3D12GraphicsCommandList*,bool) noexcept;
+ static void OnBridgeOpaqueCommand(ID3D12GraphicsCommandList*,bool) noexcept;
+ static bool BridgePredicationDisabled(ID3D12GraphicsCommandList*) noexcept;
+ static bool GetGraphicsBindingsForBridge(ID3D12GraphicsCommandList*,FrameSurvey::ComputeBindings&,ID3D12PipelineState*&) noexcept;
+ static bool CanRestoreGraphicsRootSignature(ID3D12GraphicsCommandList*) noexcept;
+ static bool RestoreGraphicsRootForBridge(ID3D12GraphicsCommandList*) noexcept;
  static void OnBridgeObjectReleased(const NrdBridgeBirth::Token&) noexcept;
  static bool RestoreDescriptorHeaps(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
  static bool RestorePipelineState(ID3D12GraphicsCommandList*,const D3D12RootRestoreSnapshot&);
@@ -111,6 +118,9 @@ void initialize(){
  s_SetComputeRootConstantBufferView={cbv,cbv};s_SetGraphicsRootConstantBufferView={cbv,cbv};
  s_SetComputeRootShaderResourceView={srv,srv};s_SetGraphicsRootShaderResourceView={srv,srv};
  s_SetComputeRootUnorderedAccessView={uav,uav};s_SetGraphicsRootUnorderedAccessView={uav,uav};
+ // This CPU adapter represents a newly Reset native recording, not an
+ // unobserved list whose predicate state the bridge may assume is disabled.
+ D3D12Hooks::OnBridgeCommandListReset(watched,nullptr);
  rootSigParameterCount[root]=7;signatures[watched]={SignatureEntryType::Compute,root};bridgeComputeRoots[watched]=root;
  descriptorHeaps[watched]={1,{heap,nullptr}};pipelineStates[watched]=pipeline;rootStates[watched].clear();rootStates[watched].resize(7);
  auto& values=rootStates[watched];
@@ -312,8 +322,13 @@ def run():
                   'static void hkSetPipelineState(') + tuple('static void ' + name + '(' for name in names)
     trackers = '\n'.join(function(source, signature) for signature in signatures)
     restore = '\n'.join(function(source, signature) for signature in (
-        'bool D3D12Hooks::GetComputeBindingsForBridge(', 'void D3D12Hooks::OnBridgeCommandListReset(',
+        'bool D3D12Hooks::GetComputeBindingsForBridge(', 'bool D3D12Hooks::GetGraphicsBindingsForBridge(',
+        'void D3D12Hooks::OnBridgeCommandListReset(', 'void D3D12Hooks::OnBridgeCommandListClearState(',
+        'void D3D12Hooks::OnBridgeSetPredication(', 'void D3D12Hooks::OnBridgeOpaqueCommand(',
+        'bool D3D12Hooks::BridgePredicationDisabled(',
         'static bool CaptureRootRestoreSnapshot(', 'bool D3D12Hooks::CanRestoreRootSignature(',
+        'static bool BridgeGraphicsRestoreHooksReady(', 'static bool BridgeGraphicsSnapshotPair(',
+        'bool D3D12Hooks::CanRestoreGraphicsRootSignature(', 'bool D3D12Hooks::RestoreGraphicsRootForBridge(',
         'bool D3D12Hooks::RestoreDescriptorHeaps(', 'bool D3D12Hooks::RestorePipelineState(',
         'bool D3D12Hooks::RestoreComputeRootState(', 'bool D3D12Hooks::RestoreGraphicsRootState(',
         'void D3D12Hooks::RestoreRoot('))
