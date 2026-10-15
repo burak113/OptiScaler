@@ -983,6 +983,8 @@
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdBridge_Dx12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdRawSignals_Dx12.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDGameTraceBridgeMetadata.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdBridgePass_Dx12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -1668,6 +1670,7 @@
     <ClCompile Include="shaders\fsrd_preprocess\FSRDNrdBridge_Dx12.cpp">
       <Filter>Header Files</Filter>
     </ClCompile>
+    <ClCompile Include="shaders\fsrd_preprocess\FSRDNrdRawSignals_Dx12.cpp" />
     <ClCompile Include="shaders\fsrd_preprocess\FSRDNrdBridgePass_Dx12.cpp">
       <Filter>Header Files</Filter>
     </ClCompile>
@@ -1815,6 +1818,24 @@
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeCommit_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeFlag_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeFlagRoot_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawCapture_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawCapture.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawCapture_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawCaptureRoot_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawCaptureRoot.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawCaptureRoot_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawDecode_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawDecode.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdRawDecode_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeGeometry_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeGeometry.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeGeometry_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeGeometryMaterial_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeGeometryMaterial.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeGeometryMaterial_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeGeometryMaterialParams_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeGeometryMaterialParams.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeGeometryMaterialParams_Shader.cso" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeFlagPixel_Shader.h" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeFlagPixel.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeFlagPixel_Shader.cso" />
