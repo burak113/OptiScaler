@@ -1,4 +1,4 @@
-﻿"""Production NRD discovery replay and real D3D12 binding-window fixture.
+"""Production NRD discovery replay and real D3D12 binding-window fixture.
 
 Conversion/RR are explicit counter stubs here: GPU/provider output and real state
 restoration are verified by the separate end-to-end fixture, not claimed by this test.
