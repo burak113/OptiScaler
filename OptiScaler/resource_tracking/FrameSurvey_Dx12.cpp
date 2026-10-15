@@ -1,6 +1,7 @@
 #include "pch.h"
 #include <optional>
 #include "FrameSurvey_Dx12.h"
+#include "hooks/D3D12_Hooks.h"
 #include "FrameSurveyMetadata.h"
 #include "FrameSurveyBufferRanges.h"
 #include "FrameSurveyConcurrentMetadata.h"
