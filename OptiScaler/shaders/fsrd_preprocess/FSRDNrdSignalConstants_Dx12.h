@@ -4,6 +4,8 @@
 #include <cstring>
 #include "precompile/FSRDNrdBridgeFlag_Shader.h"
 #include "precompile/FSRDNrdBridgeFlagRoot_Shader.h"
+#include "precompile/FSRDNrdBridgeFlagPixel_Shader.h"
+#include "precompile/FSRDNrdBridgeFlagPixelRoot_Shader.h"
 
 namespace NrdBridge
 {
@@ -15,6 +17,8 @@ inline bool HasNativeTitleSignalConstants(const TitleSignalConstants& constants)
 inline bool ValidateTitleSignalConstants(const TitleSignalConstants& constants, ID3D12Device* device, std::string& error)
 {
     if (!constants.address && !constants.nativeHeap && !constants.cbvHandle.ptr) return true;
+    if (constants.wordIndex != 303 && constants.wordIndex != 36)
+    { error = "NRD consumer signal flag word is unsupported"; return false; }
     if (bool(constants.nativeHeap) != bool(constants.cbvHandle.ptr))
     { error = "NRD Consumer CB6 native heap/table pair is incomplete"; return false; }
     // A table is the title's native descriptor, even when its buffer/VA is unknown.
@@ -80,29 +84,42 @@ struct SignalFlagCapture
 {
     Microsoft::WRL::ComPtr<ID3D12RootSignature> root, directRoot;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> pso, rootPso;
-    bool Initialize(ID3D12Device* device, std::string& error)
+    // Keep both profiles alive: closed recordings may still use either pair.
+    Microsoft::WRL::ComPtr<ID3D12RootSignature> pixelRoot, pixelDirectRoot;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> pixelPso, pixelRootPso;
+    bool Initialize(ID3D12Device* device, std::string& error, uint32_t wordIndex = 303)
     {
-        if (pso && rootPso) return true;
+        if (wordIndex != 303 && wordIndex != 36)
+        { error = "NRD consumer signal flag word is unsupported"; return false; }
+        const bool pixel = wordIndex == 36;
+        if (pixel ? (pixelPso && pixelRootPso) : (pso && rootPso)) return true;
+        const auto* tableCode = pixel ? FSRDNrdBridgeFlagPixel_cso : FSRDNrdBridgeFlag_cso;
+        const auto tableBytes = pixel ? sizeof(FSRDNrdBridgeFlagPixel_cso) : sizeof(FSRDNrdBridgeFlag_cso);
+        const auto* rootCode = pixel ? FSRDNrdBridgeFlagPixelRoot_cso : FSRDNrdBridgeFlagRoot_cso;
+        const auto rootBytes = pixel ? sizeof(FSRDNrdBridgeFlagPixelRoot_cso) : sizeof(FSRDNrdBridgeFlagRoot_cso);
         Microsoft::WRL::ComPtr<ID3D12RootSignature> nextRoot, nextDirectRoot;
         Microsoft::WRL::ComPtr<ID3D12PipelineState> nextPso, nextRootPso;
-        auto code = device->CreateRootSignature(0, FSRDNrdBridgeFlag_cso, sizeof(FSRDNrdBridgeFlag_cso), IID_PPV_ARGS(&nextRoot));
+        auto code = device->CreateRootSignature(0, tableCode, tableBytes, IID_PPV_ARGS(&nextRoot));
         if (SUCCEEDED(code))
         {
             D3D12_COMPUTE_PIPELINE_STATE_DESC desc {};
-            desc.pRootSignature = nextRoot.Get(); desc.CS = {FSRDNrdBridgeFlag_cso, sizeof(FSRDNrdBridgeFlag_cso)};
+            desc.pRootSignature = nextRoot.Get(); desc.CS = {tableCode, tableBytes};
             code = device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&nextPso));
         }
         if (SUCCEEDED(code))
-            code = device->CreateRootSignature(0, FSRDNrdBridgeFlagRoot_cso, sizeof(FSRDNrdBridgeFlagRoot_cso), IID_PPV_ARGS(&nextDirectRoot));
+            code = device->CreateRootSignature(0, rootCode, rootBytes, IID_PPV_ARGS(&nextDirectRoot));
         if (SUCCEEDED(code))
         {
             D3D12_COMPUTE_PIPELINE_STATE_DESC desc {};
-            desc.pRootSignature = nextDirectRoot.Get(); desc.CS = {FSRDNrdBridgeFlagRoot_cso, sizeof(FSRDNrdBridgeFlagRoot_cso)};
+            desc.pRootSignature = nextDirectRoot.Get(); desc.CS = {rootCode, rootBytes};
             code = device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&nextRootPso));
         }
         if (FAILED(code)) { error = "NRD Consumer flag capture pipeline failed (HRESULT " + std::to_string(code) + ")"; return false; }
-        // Publish together: existing pooled-slot checks use pso as the ready indicator.
-        root = nextRoot; directRoot = nextDirectRoot; pso = nextPso; rootPso = nextRootPso;
+        // Publish only this profile. Never release another profile's recorded PSOs.
+        if (pixel)
+        { pixelRoot = nextRoot; pixelDirectRoot = nextDirectRoot; pixelPso = nextPso; pixelRootPso = nextRootPso; }
+        else
+        { root = nextRoot; directRoot = nextDirectRoot; pso = nextPso; rootPso = nextRootPso; }
         return true;
     }
     void Record(ID3D12GraphicsCommandList* list, const TitleSignalConstants& constants,
@@ -114,15 +131,18 @@ struct SignalFlagCapture
         start.Transition = {snapshot.resource.Get(), D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
             D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS};
         list->ResourceBarrier(1, &start);
+        const bool pixel = constants.wordIndex == 36;
         if (constants.nativeHeap)
         {
-            list->SetPipelineState(pso.Get()); list->SetComputeRootSignature(root.Get());
+            list->SetPipelineState(pixel ? pixelPso.Get() : pso.Get());
+            list->SetComputeRootSignature(pixel ? pixelRoot.Get() : root.Get());
             ID3D12DescriptorHeap* heaps[] = {constants.nativeHeap}; list->SetDescriptorHeaps(1, heaps);
             list->SetComputeRootDescriptorTable(0, constants.cbvHandle);
         }
         else
         {
-            list->SetPipelineState(rootPso.Get()); list->SetComputeRootSignature(directRoot.Get());
+            list->SetPipelineState(pixel ? pixelRootPso.Get() : rootPso.Get());
+            list->SetComputeRootSignature(pixel ? pixelDirectRoot.Get() : directRoot.Get());
             list->SetComputeRootConstantBufferView(0, constants.address);
         }
         list->SetComputeRootUnorderedAccessView(1, snapshot.resource->GetGPUVirtualAddress());

@@ -22,6 +22,7 @@ struct TitleSignalConstants
     D3D12_GPU_VIRTUAL_ADDRESS address = 0;
     ID3D12DescriptorHeap* nativeHeap = nullptr;
     D3D12_GPU_DESCRIPTOR_HANDLE cbvHandle {};
+    uint32_t wordIndex = 303; // Exact consumer ABI: compute word303 or pixel-composition word36.
 };
 // Run a prepared, infallible output recording while the coordinator ticket is
 // still admitted. A plain callback needs no allocation after provider dispatch.

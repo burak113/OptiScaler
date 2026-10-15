@@ -1031,6 +1031,12 @@ copy NUL "$(SolutionDir)x64\Release\a\!! EXTRACT ALL FILES TO GAME FOLDER !!" /Y
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeCommit_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeFlag_Shader.h" />
     <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeFlagRoot_Shader.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeFlagPixel_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeFlagPixel.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeFlagPixel_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeFlagPixelRoot_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeFlagPixelRoot.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeFlagPixelRoot_Shader.cso" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeFlag.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeFlagRoot.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeFlag_Shader.cso" />
