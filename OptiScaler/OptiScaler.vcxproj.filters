@@ -1832,6 +1832,17 @@
     <ClInclude Include="misc\NrdBridgeDevice_Dx12.h" />
     <ClInclude Include="misc\NrdBridgeOwned_Dx12.h" />
     <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdSignalConstants_Dx12.h" />
+    <ClInclude Include="shaders\fsrd_preprocess\FSRDNrdNativeTemporalConstants_Dx12.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdNativeTemporal.hlsli" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMotionNative_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMotionNative.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMotionNative_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdNativeTemporalCapture_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdNativeTemporalCapture.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdNativeTemporalCapture_Shader.cso" />
+    <ClInclude Include="shaders\fsrd_preprocess\precompile\FSRDNrdNativeTemporalCaptureRoot_Shader.h" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdNativeTemporalCaptureRoot.hlsl" />
+    <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdNativeTemporalCaptureRoot_Shader.cso" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdSignalEncoding.hlsli" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMotion.hlsl" />
     <None Include="shaders\fsrd_preprocess\precompile\FSRDNrdBridgeMotion_Shader.cso" />

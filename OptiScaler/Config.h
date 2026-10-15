@@ -554,6 +554,7 @@ class Config
     CustomOptional<int> FfxDenoiserNrdBridgeNativeDebugViewport {0};
     // Experimental camera-predicted depth delta; false keeps baseline previous-depth sampling.
     CustomOptional<bool> FfxDenoiserNrdBridgeMotionDepthMode {false};
+    CustomOptional<bool> FfxDenoiserNrdBridgeNativeTemporalMotion {false};
     // A/B hypothesis: retain native categorical normal A instead of material ID 0.
     CustomOptional<bool> FfxDenoiserNrdBridgeMaterialIDs {false};
     // Optional NRD-assisted specular hybrid after RR; 0 keeps the complete RR output.

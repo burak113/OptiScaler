@@ -3,6 +3,7 @@
 #include "FSRDNrdBridge_Dx12.h"
 #include "FSRDNrdDiscovery.h"
 #include "FSRDNrdBridgePass_Dx12.h"
+#include "FSRDNrdNativeTemporalConstants_Dx12.h"
 #include "FSRDNrdBridgeRR_Dx12.h"
 #include "Config.h"
 #include "Logger.h"
@@ -47,6 +48,7 @@ struct NativeDebugImageOrder
 struct HistoryDomain
 {
     ConversionPass conversion;
+    NativeTemporalCapture nativeTemporalCapture;
     RRWrapper rr;
     uint64_t resourceGeneration = 0, id = 0;
     std::shared_ptr<RecordingToken> latestRecording; // CPU recording order, under gInjectionMutex.
@@ -95,6 +97,7 @@ struct ListState
     uint64_t frame = 0, generation = 0, resetSerial = 0;
     FrameParameters parameters {};
     ConvertedResources inputs {};
+    NativeTemporalCapture::SnapshotLease nativeMotionSnapshot;
     DebugMode debug = DebugMode::Off;
     std::array<std::weak_ptr<RecordingToken>,4> debugPresentations {};
 };
@@ -199,6 +202,8 @@ template<class Configuration> RRSettings ReadStartupSettings(const Configuration
         settings.preserveNativeMaterialIDs = config.FfxDenoiserNrdBridgeMaterialIDs.value_or_default();
     if constexpr (requires { config.FfxDenoiserNrdBridgeNativeSpecularBlend; })
         settings.nativeSpecularBlend = NormalizeNativeSpecularBlend(config.FfxDenoiserNrdBridgeNativeSpecularBlend.value_or_default());
+    if constexpr (requires { config.FfxDenoiserNrdBridgeNativeTemporalMotion; })
+        settings.nativeTemporalMotion = config.FfxDenoiserNrdBridgeNativeTemporalMotion.value_or_default();
     return settings;
 }
 template<class Configuration> bool ReadStartupCameraDepth(const Configuration& config)
@@ -274,7 +279,8 @@ void StopFollowing(Service& owner, ID3D12GraphicsCommandList* cmd, ListState& li
 bool SameDebugSettings(const RRSettings& a, const RRSettings& b) noexcept
 {
     if (a.overrideMask != b.overrideMask || a.nativeDebugView != b.nativeDebugView ||
-        a.nativeDebugViewport != b.nativeDebugViewport || a.preserveNativeMaterialIDs != b.preserveNativeMaterialIDs) return false;
+        a.nativeDebugViewport != b.nativeDebugViewport || a.preserveNativeMaterialIDs != b.preserveNativeMaterialIDs ||
+        a.nativeTemporalMotion != b.nativeTemporalMotion) return false;
     for (uint32_t i=0;i<8;++i)
         if ((a.overrideMask & (1u << (i == 7 ? 6 : i))) && a.values[i] != b.values[i]) return false;
     return true;
@@ -655,6 +661,7 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         succeeded = history->rr.Configure(rrSettings,error);
         if (succeeded) succeeded = history->rr.PrepareFrame(snapshot,reset,parameters,error);
         parameters.cameraProjectedDepthDelta = cameraProjectedDepthDelta;
+        parameters.nativeTemporalMotion = rrSettings.nativeTemporalMotion;
         parameters.preserveNativeMaterialIDs = rrSettings.preserveNativeMaterialIDs;
         if (succeeded && parameters.reset) history->conversion.ResetHistory();
         if (succeeded) succeeded = history->conversion.Initialize(owner->device.Get(),resources.width,resources.height,error);
@@ -688,9 +695,50 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
     }
     if (logConventions) LOG_INFO("[NRD_BRIDGE] SL conventions: {}",conventions);
 }
-template<class Pass> bool DispatchCurrentMotion(Pass& pass, ID3D12GraphicsCommandList* cmd,
-    const ConvertedResources& converted, ID3D12Resource* motion, const FrameParameters& frame, std::string& error)
+void CaptureTemporalMotion(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* cmd)
 {
+    std::scoped_lock injection(gInjectionMutex);
+    NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
+    ListState staged;
+    {
+        std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
+        if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || found == owner->lists.end()) return;
+        const auto& list = found->second;
+        if (!ListLive(list) || !ChainLive(list.chain) || !list.converted || list.temporal ||
+            !list.followingRecon || !list.parameters.nativeTemporalMotion || !list.history ||
+            list.resetSerial != owner->cancellationSerial || !owner->cache.Valid() ||
+            list.generation != owner->cache.Generation()) return;
+        staged = list;
+    }
+    std::string error;
+    FrameSurvey::BoundConstantBinding binding;
+    if (!FrameSurvey::MetadataHealthy() || !D3D12Hooks::CanRestoreRootSignature(cmd) ||
+        !FrameSurvey::ResolveComputeConstantBinding(cmd,6,0,binding))
+    { Failure(owner,"Native Temporal b6 binding/state unavailable before dispatch"); return; }
+    NativeTemporalCapture::SnapshotLease snapshot;
+    bool captured = false;
+    {
+        InjectionScope guard(cmd);
+        captured = staged.history->nativeTemporalCapture.Initialize(owner->device.Get(),error) &&
+            staged.history->nativeTemporalCapture.Capture(cmd,binding,snapshot,error);
+    }
+    if (!captured) { Failure(owner,error.empty() ? "Native Temporal GPU constant capture failed" : error); return; }
+    {
+        std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
+        if (gService != owner || found == owner->lists.end()) return;
+        auto& list = found->second;
+        if (list.frame == staged.frame && list.generation == staged.generation && list.converted &&
+            list.resetSerial == owner->cancellationSerial && list.recording == staged.recording)
+            list.nativeMotionSnapshot = std::move(snapshot);
+    }
+}
+
+template<class Pass> bool DispatchCurrentMotion(Pass& pass, ID3D12GraphicsCommandList* cmd,
+    const ConvertedResources& converted, ID3D12Resource* motion, const FrameParameters& frame, std::string& error,
+    const NativeMotionSource& native)
+{
+    if constexpr (requires { pass.DispatchMotion(cmd,converted,motion,frame,error,native); })
+        return pass.DispatchMotion(cmd,converted,motion,frame,error,native);
     if constexpr (requires { pass.DispatchMotion(cmd,converted,motion,frame,error); })
         return pass.DispatchMotion(cmd,converted,motion,frame,error);
     error = "NRD motion finalization interface is unavailable"; return false;
@@ -712,9 +760,19 @@ void FinalizeMotion(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommand
     if (!FrameSurvey::MetadataHealthy()) { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
     if (!D3D12Hooks::CanRestoreRootSignature(cmd)) { Failure(owner,"Title compute state cannot be restored after first Temporal"); return; }
     std::string error; bool succeeded = false;
+    NativeMotionSource native;
+    if (staged.parameters.nativeTemporalMotion)
+    {
+        constexpr std::array<FrameSurvey::ComputeTableRequest,1> depth {{{D3D12_DESCRIPTOR_RANGE_TYPE_SRV,4,4,0}}};
+        std::vector<FrameSurvey::BoundResource> resolved;
+        native.constants = NativeTemporalCapture::Resource(staged.nativeMotionSnapshot);
+        if (!native.constants || !FrameSurvey::ResolveComputeBindings(cmd,1,depth,resolved) || resolved.size() != 1 || !resolved[0].resource)
+        { Failure(owner,"Native Temporal motion has no same-recording constants/current ViewZ"); return; }
+        native.viewDepth = resolved[0].resource;
+    }
     {
         InjectionScope guard(cmd);
-        succeeded = DispatchCurrentMotion(staged.history->conversion,cmd,staged.inputs,currentMotion,staged.parameters,error);
+        succeeded = DispatchCurrentMotion(staged.history->conversion,cmd,staged.inputs,currentMotion,staged.parameters,error,native);
     }
     if (!succeeded) { Failure(owner,error.empty() ? "NRD current motion conversion failed" : error); return; }
     {
@@ -1009,12 +1067,20 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
     try
     {
         RetiredDebugSources retired; const auto receiverBirth = NrdBridgeBirth::Capture(cmd,BirthMode());
-        std::shared_ptr<Service> owner; bool window = false, following = false;
+        std::shared_ptr<Service> owner; bool window = false, following = false, captureNative = false; Role role = Role::None;
         {
             std::scoped_lock lock(gMutex); owner = gService; if (!owner) return;
             const auto found = owner->lists.find(cmd);
-            if (found == owner->lists.end() || found->second.role != Role::Consumer || found->second.birth != receiverBirth || !ListLive(found->second)) return;
+            if (found == owner->lists.end() || found->second.birth != receiverBirth || !ListLive(found->second)) return;
+            role = found->second.role;
+            if (role != Role::Consumer && role != Role::Temporal) return;
             window = owner->window; following = found->second.followingRecon;
+            captureNative = found->second.parameters.nativeTemporalMotion && found->second.converted && !found->second.temporal;
+        }
+        if (role == Role::Temporal)
+        {
+            if (gRuntime.load(std::memory_order_relaxed) && following && captureNative) CaptureTemporalMotion(owner,cmd);
+            return;
         }
         NrdBridgePerf::ConsumerFrame(StreamlineHooks::getSLConstantsSnapshot().frameIndex);
         if (!gRuntime.load(std::memory_order_relaxed) || !following) return;
@@ -1410,7 +1476,8 @@ bool ApplyRRSettings(const RRSettings& requested, bool cameraProjectedDepthDelta
                 if ((settings.overrideMask & (1u<<i)) && before.requested.values[i] != settings.values[i]) requestedScalarChanged = true;
             const bool scalarChanged = before.ready && after.ready
                 ? !std::equal(before.effective.begin(),before.effective.begin()+6,after.effective.begin()) : requestedScalarChanged;
-            const bool motionChanged = owner->cameraProjectedDepthDelta != cameraProjectedDepthDelta;
+            const bool motionChanged = owner->cameraProjectedDepthDelta != cameraProjectedDepthDelta ||
+                owner->rrSettings.nativeTemporalMotion != settings.nativeTemporalMotion;
             const bool debugChanged = owner->rrSettings.nativeDebugView != settings.nativeDebugView ||
                 (settings.nativeDebugView >= 0 && owner->rrSettings.nativeDebugViewport != settings.nativeDebugViewport);
             const bool materialChanged = owner->rrSettings.preserveNativeMaterialIDs != settings.preserveNativeMaterialIDs;

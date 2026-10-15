@@ -7,6 +7,7 @@
 #include "precompile/FSRDNrdBridge_Shader.h"
 #include "precompile/FSRDNrdBridgeCopy_Shader.h"
 #include "precompile/FSRDNrdBridgeMotion_Shader.h"
+#include "precompile/FSRDNrdBridgeMotionNative_Shader.h"
 #include <wrl/client.h>
 #include <array>
 #include <cmath>
@@ -158,14 +159,14 @@ struct ConversionPass::Impl
     uint64_t textureBytes = 0;
     bool historyValid = false;
     std::mutex mutex;
-    Pipeline conversion, copy, motionPass;
+    Pipeline conversion, copy, motionPass, nativeMotionPass;
     ComPtr<ID3D12Resource> zeroConstants;
     SignalFlagCapture flagCapture;
     uint64_t zeroBytes = 0;
-    bool motionInitialized = false, pendingMotion = false;
+    bool motionInitialized = false, nativeMotionInitialized = false, pendingMotion = false;
     uint32_t motionPreviousIndex = 0, motionSLFrame = UINT32_MAX, motionBridgeFrame = 0;
     bool motionPreviousValid = false, motionCameraProjectedDepthDelta = false;
-    bool motionPreserveNativeMaterialIDs = false;
+    bool motionPreserveNativeMaterialIDs = false, motionNativeTemporal = false;
     bool previousCameraValid = false;
     DirectX::XMFLOAT4X4 previousCameraView {}, motionInverseProjection {};
     DirectX::XMFLOAT4 motionPreviousViewDepthRow {};
@@ -267,7 +268,7 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
         constants.reserved[0] = inputs.motion ? 0u : 1u;
         constants.reserved[1] = frame.cameraProjectedDepthDelta ? 1u : 0u;
         constants.cameraReserved[0] = frame.preserveNativeMaterialIDs ? 1u : 0u;
-        if (frame.cameraProjectedDepthDelta)
+        if (frame.cameraProjectedDepthDelta || frame.nativeTemporalMotion)
         {
             constants.previousValid = constants.previousValid && owner->previousCameraValid;
             if (constants.previousValid)
@@ -302,14 +303,15 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
         owner->motionPreviousValid = constants.previousValid != 0;
         owner->motionCameraProjectedDepthDelta = frame.cameraProjectedDepthDelta;
         owner->motionPreserveNativeMaterialIDs = frame.preserveNativeMaterialIDs;
-        if (frame.cameraProjectedDepthDelta)
+        owner->motionNativeTemporal = frame.nativeTemporalMotion;
+        if (frame.cameraProjectedDepthDelta || frame.nativeTemporalMotion)
         {
             owner->motionInverseProjection = constants.inverseProjection;
             owner->motionPreviousViewDepthRow = constants.previousViewDepthRow;
             owner->motionCurrentJitterUv = constants.currentJitterUv;
             DirectX::XMStoreFloat4x4(&owner->previousCameraView, frame.camera.view);
         }
-        owner->previousCameraValid = frame.cameraProjectedDepthDelta;
+        owner->previousCameraValid = frame.cameraProjectedDepthDelta || frame.nativeTemporalMotion;
         owner->motionList = list;
         owner->motionSLFrame = frame.streamlineFrame;
         owner->motionBridgeFrame = frame.frameIndex;
@@ -320,7 +322,8 @@ bool ConversionPass::Dispatch(ID3D12GraphicsCommandList* list, const ConversionI
 }
 
 bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList* list, const ConvertedResources& resources,
-                                    ID3D12Resource* titleMotion, const FrameParameters& frame, std::string& error)
+                                    ID3D12Resource* titleMotion, const FrameParameters& frame, std::string& error,
+                                    const NativeMotionSource& native)
 {
     if (!list || !impl_) { error = "NRD motion conversion is not initialized"; return false; }
     auto owner = impl_;
@@ -330,6 +333,7 @@ bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList* list, const Conve
         owner->motionSLFrame != frame.streamlineFrame || owner->motionBridgeFrame != frame.frameIndex ||
         owner->motionCameraProjectedDepthDelta != frame.cameraProjectedDepthDelta ||
         owner->motionPreserveNativeMaterialIDs != frame.preserveNativeMaterialIDs ||
+        owner->motionNativeTemporal != frame.nativeTemporalMotion ||
         resources.width != current.width || resources.height != current.height || resources.spec != current.spec ||
         resources.diff != current.diff || resources.linearDepth != current.linearDepth || resources.motion != current.motion ||
         resources.normals != current.normals || resources.specAlbedo != current.specAlbedo || resources.diffAlbedo != current.diffAlbedo ||
@@ -349,9 +353,9 @@ bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList* list, const Conve
     MotionConstants constants {};
     constants.width = owner->width; constants.height = owner->height;
     constants.previousValid = owner->motionPreviousValid ? 1u : 0u;
-    constants.reserved = owner->motionCameraProjectedDepthDelta ? 1u : 0u;
+    constants.reserved = (owner->motionCameraProjectedDepthDelta || owner->motionNativeTemporal) ? 1u : 0u;
     constants.scale = frame.motionScale;
-    if (owner->motionCameraProjectedDepthDelta)
+    if (owner->motionCameraProjectedDepthDelta || owner->motionNativeTemporal)
     {
         constants.inverseProjection = owner->motionInverseProjection;
         constants.previousViewDepthRow = owner->motionPreviousViewDepthRow;
@@ -366,19 +370,43 @@ bool ConversionPass::DispatchMotion(ID3D12GraphicsCommandList* list, const Conve
     try
     {
         ScopedSkipHeapCapture skipHeapCapture;
-        if (!owner->motionInitialized)
+        if (frame.nativeTemporalMotion && (!native.constants ||
+            !TextureMatches(native.viewDepth, owner->width, owner->height, DXGI_FORMAT_R32_FLOAT, false)))
+        { error = "Native Temporal motion requires its same-recording constants and current positive ViewZ"; return false; }
+        auto& pipeline = frame.nativeTemporalMotion ? owner->nativeMotionPass : owner->motionPass;
+        if (frame.nativeTemporalMotion && !owner->nativeMotionInitialized)
+        {
+            pipeline.Initialize(owner->device.Get(), FSRDNrdBridgeMotionNative_cso, sizeof(FSRDNrdBridgeMotionNative_cso), 4, 1);
+            owner->nativeMotionInitialized = true;
+        }
+        if (!frame.nativeTemporalMotion && !owner->motionInitialized)
         {
             owner->motionPass.Initialize(owner->device.Get(), FSRDNrdBridgeMotion_cso, sizeof(FSRDNrdBridgeMotion_cso), 3, 1);
             owner->motionInitialized = true;
         }
         auto lease = std::make_shared<Impl::Lease>(); lease->owner = owner;
-        lease->slot = owner->motionPass.Acquire(owner->device.Get());
+        lease->slot = pipeline.Acquire(owner->device.Get());
         if (!ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(), list, lease))
         { error = "NRD motion conversion GPU lifetime tracking unavailable"; return false; }
-        owner->motionPass.Describe(owner->device.Get(), *lease->slot,
-            {titleMotion, current.linearDepth, owner->depth[owner->motionPreviousIndex].resource.Get()}, {current.motion});
+        std::vector<ID3D12Resource*> srvs {titleMotion, current.linearDepth, owner->depth[owner->motionPreviousIndex].resource.Get()};
+        if (frame.nativeTemporalMotion) srvs.push_back(native.viewDepth);
+        pipeline.Describe(owner->device.Get(), *lease->slot, srvs, {current.motion});
+        D3D12_RESOURCE_BARRIER shadowBarrier {};
+        if (frame.nativeTemporalMotion)
+        {
+            shadowBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            shadowBarrier.Transition = {native.constants, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+                D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER};
+            list->ResourceBarrier(1, &shadowBarrier);
+        }
         owner->motion.Transition(list, kWrite);
-        owner->motionPass.Record(list, *lease->slot, &constants, 32, owner->width, owner->height);
+        pipeline.Record(list, *lease->slot, &constants, 32, owner->width, owner->height,
+            frame.nativeTemporalMotion ? native.constants->GetGPUVirtualAddress() : 0);
+        if (frame.nativeTemporalMotion)
+        {
+            std::swap(shadowBarrier.Transition.StateBefore, shadowBarrier.Transition.StateAfter);
+            list->ResourceBarrier(1, &shadowBarrier);
+        }
         owner->motion.Transition(list, kRead);
         owner->pendingMotion = false;
         error.clear(); return true;

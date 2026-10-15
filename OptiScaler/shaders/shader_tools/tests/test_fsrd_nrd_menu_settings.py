@@ -19,6 +19,7 @@ from test_fsrd_nrd_root_restore import function
 KEYS = {
     'FfxDenoiserNrdBridgeUseCustomRR': ('NrdBridgeUseCustomRR', 'Bool'),
     'FfxDenoiserNrdBridgeMotionDepthMode': ('NrdBridgeMotionDepthMode', 'Bool'),
+    'FfxDenoiserNrdBridgeNativeTemporalMotion': ('NrdBridgeNativeTemporalMotion', 'Bool'),
     'FfxDenoiserNrdBridgeMaterialIDs': ('NrdBridgeMaterialIDs', 'Bool'),
     'FfxDenoiserNrdBridgeNativeSpecularBlend': ('NrdBridgeNativeSpecularBlend', 'Float'),
     'FfxDenoiserNrdBridgeEnabled': ('NrdBridgeEnabled', 'Bool'),
@@ -259,6 +260,20 @@ int main(){try{
  "Complete reset disables hybrid in both Config and coherent bridge snapshot");
  saved=cfg.save();reload.load(saved);need(ReadNrdBridgeRRSettings(reload).nativeSpecularBlend==0.f,
  "Reset/save/reload preserves native blend0 without altering ordinary RR settings");
+ cfg.load("[FSR-RR]\n");ImGui::frame();before=NrdBridge::applyCalls;drawBridge(&cfg);
+ need(!ReadNrdBridgeRRSettings(cfg).nativeTemporalMotion&&NrdBridge::applyCalls==before,
+ "Native motion defaults OFF and idle controls do not change runtime");
+ ImGui::frame();ImGui::bools["Native NRD surface reprojection (experimental)"]=true;drawBridge(&cfg);
+ need(NrdBridge::applyCalls==before+1&&NrdBridge::last.nativeTemporalMotion&&NrdBridge::last.overrideMask==0,
+ "Native motion publishes one coherent independent accepted runtime setting");
+ saved=cfg.save();reload.load(saved);need(ReadNrdBridgeRRSettings(reload).nativeTemporalMotion,
+ "Native motion survives production serializer and reload");
+ ImGui::frame();drawBridge(&cfg);need(ImGui::hasText("native NRD Temporal surface reprojection"),
+ "Input map describes accepted native mode rather than stored camera toggle");
+ cfg.ResetFfxDenoiserSettings();need(!ReadNrdBridgeRRSettings(cfg).nativeTemporalMotion&&!NrdBridge::last.nativeTemporalMotion,
+ "Full reset disables native motion in Config and applied snapshot");
+ cfg.load("[FSR-RR]\nNrdBridgeNativeTemporalMotion=invalid\n");need(!ReadNrdBridgeRRSettings(cfg).nativeTemporalMotion,
+ "Malformed native motion setting stays OFF");
  std::cout<<"PASS: "<<checks<<" actual NRD menu/INI/reset checks\n";return 0;
 }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
 '''
@@ -291,7 +306,7 @@ def run():
     assert render.index(marker)<render.index('if (choice.fsrRR)')
     assert 'currentFeature' not in panel and 'ffxActive' not in panel and 'choice.fsrRR' not in panel
     template=(ROOT/'OptiScaler.ini').read_text()
-    for key in ('NrdBridgeUseCustomRR','NrdBridgeMotionDepthMode','NrdBridgeMaterialIDs'):
+    for key in ('NrdBridgeUseCustomRR','NrdBridgeMotionDepthMode','NrdBridgeMaterialIDs','NrdBridgeNativeTemporalMotion'):
         assert len(re.findall(r'^'+key+r'=false\s*$',template,re.M))==1,key
     assert len(re.findall(r'^NrdBridgeNativeDebugView=-1\s*$',template,re.M))==1
     assert len(re.findall(r'^NrdBridgeNativeDebugViewport=0\s*$',template,re.M))==1

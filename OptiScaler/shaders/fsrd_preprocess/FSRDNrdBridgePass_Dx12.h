@@ -18,7 +18,7 @@ class ConversionPass
     // Complete the motion guide using the current first chain-A Temporal SRV.
     // The depth mode and camera reprojection were captured at Recon; changing the mode invalidates this ticket.
     bool DispatchMotion(ID3D12GraphicsCommandList*, const ConvertedResources&, ID3D12Resource* titleMotion,
-                        const FrameParameters&, std::string& error);
+                        const FrameParameters&, std::string& error, const NativeMotionSource& = {});
     bool WriteDebug(ID3D12GraphicsCommandList*, const ConvertedResources&, ID3D12Resource* outputSpec,
                     ID3D12Resource* outputDiff, DebugMode, std::string& error, const OutputCommitGuard& = {},
                     SignalEncoding = SignalEncoding::Rgb, const TitleSignalConstants& = {});

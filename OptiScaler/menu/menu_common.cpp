@@ -3278,6 +3278,7 @@ static NrdBridge::RRSettings ReadNrdBridgeRRSettings(const Config& config)
 {
     NrdBridge::RRSettings settings;
     settings.preserveNativeMaterialIDs = config.FfxDenoiserNrdBridgeMaterialIDs.value_or_default();
+    settings.nativeTemporalMotion = config.FfxDenoiserNrdBridgeNativeTemporalMotion.value_or_default();
     settings.nativeSpecularBlend = NrdBridge::NormalizeNativeSpecularBlend(config.FfxDenoiserNrdBridgeNativeSpecularBlend.value_or_default());
     settings.nativeDebugView = config.FfxDenoiserNrdBridgeNativeDebugView.value_or_default();
     settings.nativeDebugViewport = uint32_t(std::clamp(config.FfxDenoiserNrdBridgeNativeDebugViewport.value_or_default(),
@@ -3319,6 +3320,16 @@ static void DrawNrdBridgeRRTuning(Config* config)
     changed |= DrawAmdRRTuning(config, true);
     ImGui::EndDisabled();
     ImGui::PopID();
+    bool nativeMotion = config->FfxDenoiserNrdBridgeNativeTemporalMotion.value_or_default();
+    if (ImGui::Checkbox("Native NRD surface reprojection (experimental)", &nativeMotion))
+    {
+        config->FfxDenoiserNrdBridgeNativeTemporalMotion = nativeMotion;
+        changed = true;
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Uses NRD Temporal's current b6 camera and object-motion constants to predict the same surface's previous depth. "
+                          "Prevents a previously visible occluder from validating the wrong history. "
+                          "Takes priority over camera-only depth. Resets history when changed. Default off.");
     bool cameraDepth = config->FfxDenoiserNrdBridgeMotionDepthMode.value_or_default();
     if (ImGui::Checkbox("Camera-projected depth delta (experimental)", &cameraDepth))
     {
@@ -3398,7 +3409,9 @@ static void DrawNrdBridgeInputMap()
             ? "Native packed octahedral normal in RG and roughness in B. Requested experimental A preserves the four normalized native material categories."
             : "Native packed octahedral normal in RG and roughness in B. The bridge supplies material ID 0 in alpha.");
         row("Linear VIEWZ", "The title's NRD view-space depth, signed for the RR camera convention and clamped to the camera depth bounds.");
-        row("Motion + jitter", NrdBridge::CameraProjectedDepthEnabled()
+        row("Motion + jitter", NrdBridge::GetRRSettingsState().requested.nativeTemporalMotion
+            ? "Current motion XY uses Streamline scale/jitter. Z follows native NRD Temporal surface reprojection using live b6 and positive ViewZ; invalid native pixels use camera-only depth."
+            : NrdBridge::CameraProjectedDepthEnabled()
             ? "Current Temporal motion uses Streamline scale and jitter correction. Experimental Z predicts previous-camera depth from camera geometry."
             : "Current Temporal motion uses Streamline scale and jitter correction. Z is previous-frame depth minus current depth at the reprojected pixel.");
         row("Albedo guides", "White RGB guides are supplied for both lobes under that assumption. The native material/albedo contract is unverified. Specular alpha stores normal/view alignment; diffuse alpha is 0. AMD documents guide RGB.");
