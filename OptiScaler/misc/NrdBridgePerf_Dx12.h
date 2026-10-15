@@ -21,7 +21,7 @@ inline const char* HookName(Hook hook) noexcept
         "RootConstants","RootView","Dispatch","ExecuteIndirect","Barrier","ExecuteCommandLists","Present"};
     return names[size_t(hook)];
 }
-enum class WaitKind : size_t { Metadata, LifetimeGate, Tracking, Coordinator, Count };
+enum class WaitKind : size_t { Metadata, LifetimeGate, Tracking, Coordinator, DescriptorAdmission, Count };
 struct Sample
 {
     uint64_t calls = 0, ticks = 0;
