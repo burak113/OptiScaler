@@ -42,6 +42,20 @@ static_assert(offsetof(NativeTemporalSnapshotData,previousRectSize) == 216);
 static_assert(offsetof(NativeTemporalSnapshotData,motionSpace) == 224);
 static_assert(offsetof(NativeTemporalSnapshotData,signature) == 232);
 
+// The motion pass creates a Texture2D mip0 SRV from the resource. Admit only a
+// native Temporal view that is exactly representable by that descriptor; a
+// whole-resource pointer alone does not attest the title's selected mip/slice.
+inline bool NativeTemporalDepthViewSupported(const FrameSurvey::BoundResource& view,
+                                              uint32_t width, uint32_t height) noexcept
+{
+    const auto& desc = view.description;
+    return width && height && view.resource && view.kind == D3D12_DESCRIPTOR_RANGE_TYPE_SRV &&
+        view.viewFormat == DXGI_FORMAT_R32_FLOAT && view.subresource == 0 &&
+        desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D && desc.Format == DXGI_FORMAT_R32_FLOAT &&
+        desc.Width == width && desc.Height == height && desc.MipLevels == 1 && desc.DepthOrArraySize == 1 &&
+        desc.SampleDesc.Count == 1 && !(desc.Flags & D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE);
+}
+
 class NativeTemporalCapture
 {
     using ComResource = Microsoft::WRL::ComPtr<ID3D12Resource>;
