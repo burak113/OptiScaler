@@ -95,6 +95,14 @@ def run():
     check(replay["ineligibility_reasons"] == ["actual_provider_binary_attestation_unavailable"])
     check(all(frame["encoding"]["captured_encoding_word"] == 1 for frame in replay["frames"]))
     check([frame["encoding"]["native_source_word"] for frame in replay["frames"]] == [36, 303])
+    check([frame["native_control_header"]["profile"] for frame in replay["frames"]] == ["A_Recon_direct", "B_PrePass"])
+    for frame, offsets in zip(replay["frames"], ([448, 452, 456, 460], [456, 460, 472, 476, 516, 576, 580])):
+        header = frame["native_control_header"]
+        check(header["available"] is True)
+        check([word["native_byte_offset"] for word in header["words"]] == offsets)
+        check([word["captured_uint32"] for word in header["words"]] == [0x51000000 + offset for offset in offsets])
+        check(header["payload"]["bytes"] == 4 * len(offsets))
+        check(header["copy_footprint"]["committed_buffer_bytes"] == 0)
     check(all(frame["frame_parameters"]["jitter"][0] == 0x80000000 for frame in replay["frames"]))
     check(replay["frames"][0]["actual_dispatch_flags"] & 1)
     check(not replay["frames"][1]["actual_dispatch_flags"] & 1)

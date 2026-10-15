@@ -62,7 +62,11 @@ struct OwnedBridgeFixture
         auto d=ReadbackDesc(1536); ComPtr<ID3D12Resource> upload;
         hr(h.device->CreateCommittedResource(&heap,D3D12_HEAP_FLAG_NONE,&d,D3D12_RESOURCE_STATE_GENERIC_READ,nullptr,IID_PPV_ARGS(&upload)));
         void* data=nullptr; D3D12_RANGE empty {0,0}; hr(upload->Map(0,&empty,&data)); memset(data,0,1536);
-        const uint32_t nativeFlag=1; memcpy(static_cast<uint8_t*>(data)+1212,&nativeFlag,4); upload->Unmap(0,nullptr);
+        const uint32_t nativeFlag=1; memcpy(static_cast<uint8_t*>(data)+1212,&nativeFlag,4);
+        // Controlled GPU-owned header adapter, not proof that a title PrePass executed.
+        for(uint32_t offset: {448u,452u,456u,460u,472u,476u,516u,576u,580u})
+        {const uint32_t word=0x51000000u+offset;memcpy(static_cast<uint8_t*>(data)+offset,&word,4);}
+        upload->Unmap(0,nullptr);
         D3D12_RESOURCE_BARRIER barrier {}; barrier.Type=D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
         barrier.Transition={flag.Get(),0,D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_COPY_DEST}; h.list->ResourceBarrier(1,&barrier);
         h.list->CopyBufferRegion(flag.Get(),0,upload.Get(),0,1536);
@@ -95,6 +99,17 @@ Trace::BridgeFrameToken Owned(Trace& trace,Host& h,const std::shared_ptr<OwnedBr
     return trace.RecordBridgeOwned(h.device.Get(),h.list.Get(),id,owner->Converted(h),owner,Parameters(frame),sl,100+frame,2,
         NrdBridge::RRSettingsState{},output,Witness());
 }
+Trace::BridgeControlHeader ControlHeader(const std::shared_ptr<OwnedBridgeFixture>& owner,unsigned frame)
+{
+    Trace::BridgeControlHeader header;header.image={owner->flag.Get(),D3D12_RESOURCE_STATE_COMMON};header.owner=owner;
+    header.recordingId=20+frame;header.streamlineFrame=100+frame;header.bridgeFrame=500+frame;
+    header.profile=frame==0 ? Trace::BridgeControlHeader::Profile::ReconA : Trace::BridgeControlHeader::Profile::PrePassB;
+    header.wordCount=frame==0 ? 4 : 7;
+    const std::array<uint32_t,7> offsets=frame==0 ? std::array<uint32_t,7>{448,452,456,460} :
+        std::array<uint32_t,7>{456,460,472,476,516,576,580};
+    for(size_t i=0;i<header.wordCount;++i)header.words[i]={offsets[i],offsets[i]};
+    return header;
+}
 Trace::BridgeFrameToken Admit(Trace& trace,Host& h,const std::shared_ptr<OwnedBridgeFixture>& owner,unsigned frame=0,bool separate=false)
 {
     Trace::BridgeFrameToken token;
@@ -114,6 +129,7 @@ int main(int argc,char** argv) try
     {
         Trace trace;g_testFailHeapAllocation.store(true);
         auto token=trace.RecordBridgeOwned(nullptr,nullptr,{}, {}, {}, {},sl::Constants{},0,0,{}, {}, {});
+        check(!trace.RecordBridgeControlHeader({},nullptr,{},{}),"OFF control-header path accessed native/allocated");
         g_testFailHeapAllocation.store(false);check(!token,"OFF performed allocation/native access");
     }
     auto request=Request(root);
@@ -134,6 +150,13 @@ int main(int argc,char** argv) try
             check(f->bridgeMetadata["frame_parameters"]["streamline"]["clip_to_previous_clip"][0]==0x80000000u,"SL reprojection bits lost");
             check(!Owned(trace,h,owner,frame,false,Identity(frame,99)),"foreign chain joined selected capture");
             check(f->bridgeIdentity.domain==11,"foreign chain overwrote identity");
+            const auto beforeHeader=f->gpuBytes;
+            auto header=ControlHeader(owner,frame);
+            check(trace.RecordBridgeControlHeader(token,h.list.Get(),Identity(frame),header),"actual owned control header rejected");
+            check(!trace.RecordBridgeControlHeader(token,h.list.Get(),Identity(frame),header),"duplicate control header copied twice");
+            check(f->gpuBytes==beforeHeader,"control header allocated new committed readback");
+            check(f->bridgeControlHeader.readback.Get()==f->surveyImages[f->bridgeRoles[13]].readback.Get(),"control header not in reserved flag readback");
+            check(f->bridgeControlHeader.allocationBytes==0&&f->bridgeControlHeader.width==4*header.wordCount,"shared header charge/size wrong");
             Trace::BridgeSkippedDispatch skip;skip.sequence=1;skip.role=uint32_t(NrdBridge::Role::Temporal);
             skip.shaderKnown=true;skip.shaderSha256[0]=0xaa;skip.dimensionsKnown=true;skip.groups={16,16,1};
             trace.RecordBridgeSkipped(token,h.list.Get(),Identity(frame),skip);
@@ -194,6 +217,23 @@ int main(int argc,char** argv) try
         auto f=std::static_pointer_cast<Frame>(token);check(f->bridgeMetadata["skipped_original_dispatches"].size()==64,"bounded skip metadata lost");
         event.sequence=65;trace.RecordBridgeSkipped(token,h.list.Get(),Identity(),event);
         check(Trace::GetStatus().message.find("bound/order")!=std::string::npos,"skip overflow silently truncated");
+        h.Discard();token.reset();f.reset();Closed();trace.Poll();
+    }
+    for(unsigned bad=0;bad<6;++bad)
+    {
+        Trace trace;check(Trace::RequestStart(request),"control-header negative request");
+        auto token=Admit(trace,h,owner);check(bool(token),"control-header negative setup");
+        auto header=ControlHeader(owner,0);
+        if(bad==0)header.words[0].nativeByteOffset=576; // A zero prefix never proves B selectors.
+        if(bad==1)++header.bridgeFrame;
+        if(bad==2)header.owner.reset();
+        if(bad==3)header.words[1].sourceBufferByteOffset=header.words[0].sourceBufferByteOffset;
+        if(bad==4)header.words[0].sourceBufferByteOffset=1536;
+        if(bad==5)header.wordCount=7;
+        auto f=std::static_pointer_cast<Frame>(token);
+        check(!trace.RecordBridgeControlHeader(token,h.list.Get(),Identity(),header),"invalid/uncaptured control header accepted");
+        check(!f->bridgeControlHeader.readback,"invalid control header recorded a copy");
+        check(Trace::GetStatus().manifestPublished==0,"invalid control header published");
         h.Discard();token.reset();f.reset();Closed();trace.Poll();
     }
     {

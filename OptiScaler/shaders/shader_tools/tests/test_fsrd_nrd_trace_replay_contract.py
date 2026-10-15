@@ -17,7 +17,8 @@ def exercise(source, output):
     count = original["manifest_published_frames"]
     assert count == 2
     for frame in original["frames"][:count]:
-        for row in frame["images"] + [frame["provider_controls"]]:
+        extras = [frame["native_control_header"]] if frame.get("native_control_header", {}).get("available") else []
+        for row in frame["images"] + [frame["provider_controls"]] + extras:
             dst = output / row["file"]
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source / row["file"], dst)
@@ -56,6 +57,17 @@ def exercise(source, output):
     write(roi)
     assert "cropped_inputs_cannot_reconstruct_full_frame_temporal_history" in inspect_capture(output)["ineligibility_reasons"]
     checks.append("ROI_inspect_only_not_complete_replay")
+    assert baseline["frames"][0]["native_control_header"]["profile"] == "A_Recon_direct"
+    assert baseline["frames"][1]["native_control_header"]["profile"] == "B_PrePass"
+    checks.append("actual_postfence_native_control_words_profiled")
+    rejected("A_zero_header_not_B_proof", lambda m: m["frames"][0]["native_control_header"].update(profile="B_PrePass"))
+    rejected("native_control_unavailable_with_payload", lambda m: m["frames"][0]["native_control_header"].update(available=False))
+    rejected("native_control_wrong_frame", lambda m: m["frames"][0]["native_control_header"].update(bridge_frame=1))
+    rejected("native_control_wrong_native_offset", lambda m: m["frames"][0]["native_control_header"]["words"][0].update(native_byte_offset=576))
+    rejected("native_control_wrong_private_alignment", lambda m: m["frames"][0]["native_control_header"]["words"][0].update(source_buffer_byte_offset=1))
+    rejected("native_control_decoded_value_not_payload", lambda m: m["frames"][0]["native_control_header"]["words"][0].update(captured_uint32=0))
+    rejected("native_control_wrong_size", lambda m: m["frames"][0]["native_control_header"].update(bytes=28))
+    rejected("native_control_double_allocation_charge", lambda m: m["frames"][0]["native_control_header"]["copy_footprint"].update(committed_buffer_bytes=65536))
     rejected("mixed_domain", lambda m: m["frames"][1]["identity"].update(domain=22))
     rejected("zero_recording_generation", lambda m: m["frames"][0]["identity"].update(recording_generation=0))
     rejected("SL_gap", lambda m: m["frames"][1]["identity"].update(streamline_frame=123))
