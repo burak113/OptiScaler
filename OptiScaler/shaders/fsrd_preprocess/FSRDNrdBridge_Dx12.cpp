@@ -2560,6 +2560,20 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
             const auto found = owner->lists.find(cmd);
             if (found == owner->lists.end() || found->second.birth != receiverBirth || !ListLive(found->second)) return;
             role = found->second.role;
+            if(NativeElisionReady()&&owner->status.nativeHistoryDirty)
+            {
+                // Once native history was omitted, a later known filter cannot
+                // enter through a no-participant list after Reset/profile loss.
+                const bool nativeDenoising=role==Role::PrePass||role==Role::Temporal||role==Role::Chain3||
+                    role==Role::HistSave||role==Role::HistFix||role==Role::Clamp||role==Role::ATrous||role==Role::Consumer;
+                if(!FrameSurvey::MetadataHealthy()||(found->second.nativeContract&&nativeDenoising&&
+                    (!found->second.nativeReconPrepared||!found->second.rrOnlyTransaction)))
+                {
+                    RecordedComputeLease::FailUntrackedRequiredSubmission(E_FAIL);
+                    owner->status.active=false;owner->status.phase="Inactive";
+                    owner->status.reason="RR-only known native filter lost its raw transaction; restart required";return;
+                }
+            }
             if(found->second.rrOnlyTransaction || (found->second.nativeContract && role==Role::Recon))gDispatchCandidate=cmd;
             if (role != Role::Consumer && role != Role::Temporal && role != Role::MaterialGuide &&
                 !(found->second.nativeContract && (role==Role::Recon || role==Role::PrePass))) return;
