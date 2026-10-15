@@ -324,6 +324,13 @@ struct Context
             device->CreateShaderResourceView(input,&view,cpu); cpu.ptr += descriptorStride;
         }
     }
+    // The raw staged pair remains the canonical commit for existing standalone callers.
+    void Commit(ID3D12GraphicsCommandList* list, const Slot& slot,
+                ID3D12Resource* outputSpec, ID3D12Resource* outputDiff, SignalEncoding encoding,
+                const TitleSignalConstants& titleConstants, float nativeSpecularBlend) noexcept
+    {
+        Commit(list,slot,outputSpec,outputDiff,encoding,titleConstants,nativeSpecularBlend,slot.spec.Get(),slot.diff.Get());
+    }
     void Commit(ID3D12GraphicsCommandList* list, const Slot& slot,
                 ID3D12Resource* outputSpec, ID3D12Resource* outputDiff, SignalEncoding encoding,
                 const TitleSignalConstants& titleConstants, float nativeSpecularBlend,
