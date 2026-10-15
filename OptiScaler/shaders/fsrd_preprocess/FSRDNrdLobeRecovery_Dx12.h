@@ -414,7 +414,7 @@ class LobeRecovery
     bool Prepare(ID3D12Device* device,ID3D12GraphicsCommandList* list,const LobeRecoveryInputs& inputs,
                  const LobeRecoveryFrame& frame,const std::shared_ptr<Family>& family,Prepared& out,std::string& error) noexcept
     {
-        // Destruction is outside any metadata/physical/coordinator mutex here.
+        // This helper takes no mutex; caller lifetime/injection guards may remain held.
         out = {}; error.clear();
         if (frame.strength[0]==0 && frame.strength[1]==0)
         { if (context_) context_->historyValid = false; return false; }

@@ -4,6 +4,8 @@ Default --prepare-only performs no DXC/compiler/native/GPU work. --run requires
 the lead's serialized GPU/build grant and compares every output word against
 the independently submitted, sealed13-pass graph. This is not a new quality or
 signed-provider run: its RR arrays were produced by the cited prior signed run.
+The separate --real-provider mode runs actual RRWrapper admission/failure cases
+through the real signed export; static toy inputs prove integration, not quality.
 """
 from pathlib import Path
 import argparse
@@ -23,7 +25,7 @@ sys.path[:0] = [str(HERE), str(HERE.parent)]
 from fsrd_toolchain import compile_cpp, dxc, visual_studio, _toolchain_environment
 from test_fsrd_nrd_bridge_rr import bounded_run
 
-REFERENCE = Path('F:/FSRD/sol_batch/15b-inputs/tests/nrd-recovery-native-r2/recovery-graph')
+REFERENCE = Path('F:/FSRD/sol_batch/15b-inputs/tests/nrd-recovery-native-final-r1/recovery-graph')
 
 
 def sha(path):
@@ -195,11 +197,14 @@ def prepare(out, reference, storage):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run', action='store_true')
+    parser.add_argument('--real-provider', action='store_true', help='run the separate actual signed RRWrapper/recovery integration mode')
     parser.add_argument('--prepare-only', action='store_true')
     parser.add_argument('--reference', type=Path, default=REFERENCE)
     parser.add_argument('--storage', choices=('fp32', 'mixed'), default='fp32')
     parser.add_argument('--output', type=Path, default=Path(os.environ.get('FSRD_GPU_TEST_OUTPUT', 'F:/FSRD/sol_batch/15e-quality/lobe-recovery-helper')))
     args = parser.parse_args(); out = args.output
+    if args.real_provider:
+        assert args.storage == 'fp32', 'Production RRWrapper recovery uses the validated FP32 default'
     manifest = prepare(out, args.reference, args.storage)
     ast.parse(Path(__file__).read_text(encoding='utf-8'))
     if not args.run or args.prepare_only:
@@ -215,11 +220,25 @@ def main():
                 ['d3d12.lib', 'dxgi.lib', 'd3dcompiler.lib', 'bcrypt.lib'],
                 [out, ROOT / 'OptiScaler', ROOT / 'OptiScaler/include', ROOT / 'external/nlohmann',
                  ROOT / 'external/streamline', ROOT / 'external/FidelityFX-SDK/ffx-api/include/ffx_api'])
-    _, peak, elapsed, log = bounded_run([str(exe), str(manifest), str(out)], out / 'native_run')
-    path = out / 'lobe-recovery-helper-result.json'; result = json.loads(path.read_text(encoding='utf-8'))
+    command = [str(exe), str(manifest), str(out)] + (['--real-provider'] if args.real_provider else [])
+    _, peak, elapsed, log = bounded_run(command, out / 'native_run')
+    path = out / ('lobe-recovery-rr-result.json' if args.real_provider else 'lobe-recovery-helper-result.json')
+    result = json.loads(path.read_text(encoding='utf-8'))
     assert result['debug_errors'] == result['debug_warnings'] == 0
-    assert len(result['cases']) == 2 and all(x['frames'] == 64 and x['dispatches'] == 832 for x in result['cases'])
-    result.update(python_checks=3, elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log),
+    if args.real_provider:
+        assert result['actual_signed_dispatches'] == 58
+        assert result['successful_title_commits'] == 55
+        assert result['private_graph_dispatches'] == 46 * 13
+        assert result['physical_contexts'] == 14
+        assert len(result['cases']) == 11
+        assert result['inspection_checks'] > 0
+        provider = Path('F:/OptiRevelations/OptiScaler-ffxD-alpha/external/FidelityFX-SDK-v2/Kits/FidelityFX/signedbin/amd_fidelityfx_denoiser_dx12.dll')
+        result['actual_provider'] = dict(path=str(provider), sha256=sha(provider))
+        python_checks = 7
+    else:
+        assert len(result['cases']) == 2 and all(x['frames'] == 64 and x['dispatches'] == 832 for x in result['cases'])
+        python_checks = 3
+    result.update(python_checks=python_checks, elapsed_seconds=elapsed, peak_resident_bytes=peak, native_log=str(log),
                   executable_sha256=sha(exe), source_preparation_sha256=sha(out / 'source-preparation.json'))
     path.write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
     print(json.dumps(result, indent=2))
