@@ -39,6 +39,8 @@ enum class DispatchDisposition : uint8_t { Forward, Suppress };
 // Suppression belongs to an admitted recording transaction, never a shader hash alone.
 DispatchDisposition OriginalDispatchDisposition(ID3D12GraphicsCommandList*, DispatchKind) noexcept;
 void InvalidateRecordingProof(ID3D12GraphicsCommandList*, const char* reason) noexcept;
+// True only for an exact no-root-argument indirect signature and bounded used-slot exclusion proof.
+bool PreserveIndirectRecording(ID3D12GraphicsCommandList*, ID3D12CommandSignature*) noexcept;
 void OnResourceBarriers(ID3D12GraphicsCommandList*, UINT, const D3D12_RESOURCE_BARRIER*) noexcept;
 void OnRecordingClosed(ID3D12GraphicsCommandList*, HRESULT) noexcept;
 void OnReleased(void*) noexcept;
@@ -61,5 +63,7 @@ bool PresentNativeDebug(ID3D12GraphicsCommandList*, ID3D12Resource*, D3D12_RESOU
 // Explicit NEW-fixture readiness adapter; does not enable the shipping contract.
 void SetNativeElisionContractForTesting(bool) noexcept;
 void RegisterPipelineRoleForTesting(ID3D12PipelineState*, Role, bool nativeContract = false) noexcept;
+// Select only a register-use profile (0..4); real native PSO identity is never replaced.
+bool RegisterInterveningPipelineForTesting(ID3D12PipelineState*, uint32_t profile) noexcept;
 #endif
 }
