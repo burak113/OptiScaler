@@ -35,10 +35,23 @@ def prepare(out):
     assert len(commands) == 1
     args, kwargs = commands[0]
     source = Path(args[0]).read_text(encoding='utf-8')
-    marker = '  ++internalBarriers;'
+    # Keep the old raw-observation audit untouched. The NEW packet scope spans
+    # the real hook body, so debug COM forwarding is measured without counting
+    # the same native ResourceBarrier packet twice in the state oracle.
+    marker = ' auditBarriers(This,NumBarriers,pBarriers,FrameSurvey::Internal());'
     assert source.count(marker) == 1
-    source = source.replace(marker, marker + '\n  ParamsHostAudit(barriers[i]);')
-    prefix = '#include "fixture_support.h"\nvoid ParamsHostAudit(const D3D12_RESOURCE_BARRIER&) noexcept;\n#define main PreservedNrdMaterialE2EMain\n'
+    source = source.replace(marker, ' ParamsBarrierAuditScope paramsBarrierAudit(This,NumBarriers,pBarriers,FrameSurvey::Internal());\n' + marker)
+    prefix = '''#include "fixture_support.h"
+void ParamsHostAuditPacket(ID3D12GraphicsCommandList*,UINT,const D3D12_RESOURCE_BARRIER*,bool,unsigned) noexcept;
+struct ParamsBarrierAuditScope {
+ inline static thread_local unsigned depth=0;
+ ParamsBarrierAuditScope(ID3D12GraphicsCommandList* list,UINT count,const D3D12_RESOURCE_BARRIER* barriers,bool internal) noexcept {
+  const auto current=depth++;ParamsHostAuditPacket(list,count,barriers,internal,current);
+ }
+ ~ParamsBarrierAuditScope(){--depth;}
+};
+#define main PreservedNrdMaterialE2EMain
+'''
     fixture = HERE / 'fsrd_nrd_material_params_e2e.cpp'
     path, exe = out / 'material_params_host.cpp', out / 'material_params_host.exe'
     path.write_text(prefix + source + '\n#undef main\n' + fixture.read_text(encoding='utf-8'), encoding='utf-8')
@@ -130,6 +143,11 @@ def validate(directory, value):
     require(value['debug_errors'] == value['debug_warnings'] == 0, 'Zero actual D3D12 errors and warnings')
     require(len(value['frames']) == value['provider_dispatches'] == 7, 'Exactly seven actual complete signed frames')
     require(value['provider_contexts'] == 1 and value['unexpected_title_transitions'] == 0, 'One physical context and exact allowed borrowed transition set')
+    require(value['exact_recon_output_uav_barriers'] == 14 and value['exact_commit_output_uav_barriers'] == 28, 'Native outer packets contain exactly the two Recon and four Commit UAV dependencies per frame')
+    observed = value['barrier_observations']
+    require(observed['native_title_transitions'] == (10 if enabled else 0), 'Only admitted material state roundtrips transition title resources')
+    require(observed['raw_recon_uav'] >= 14 and observed['raw_commit_uav'] >= 28 and observed['raw_title_transitions'] >= observed['native_title_transitions'], 'Raw nested observations cover every native outer dependency without assuming a COM forwarding multiplier')
+    require(observed['forwarded_title'] == observed['matched_forwarded_title'], 'Every nested title barrier is exactly the current outer packet forwarded through COM')
     baseline_alpha = None
     for row in value['frames']:
         index = row['frame'];applied = enabled and index in (2, 3, 5, 6, 8)
