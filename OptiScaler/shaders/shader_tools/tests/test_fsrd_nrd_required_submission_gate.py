@@ -16,7 +16,8 @@ ROOT = Path(os.environ.get('FSRD_NRD_PRODUCTION_ROOT', Path(__file__).resolve().
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 from fsrd_toolchain import compile_cpp
-from test_recorded_compute_submission import fake_com, function
+from test_recorded_compute_submission import fake_com
+from test_fsrd_submission_transactions import definition as function
 
 DRIVER = r'''
 void cleanCase() {
@@ -76,7 +77,19 @@ int main()try {
  need(queue->executions==before,"fatal batch is denied whole, with unknown identity and no filtering");
  need(deniedAllocations==0,"all warmed fatal gates remain allocation-free under forced OOM");
  need(!FrameSurvey::metadataFailures,"actual GUID metadata stays healthy");
- cleanCase();std::cout<<J{{"checks",checks.load()},{"fatal_route_cases",cases},{"GPU_submissions",0},
+ cleanCase();auto lease=std::make_shared<unsigned>(1);unsigned admissionsBefore=0,admissionsPublished=0;
+ RecordedComputeLease::SubmissionCallbacks callbacks;
+ callbacks.beforeSubmit=[&](const auto&){need(NrdBridgeDescriptorAdmission::SubmissionHeldByCurrentThread(),"actual Before callback holds native descriptor admission gate");++admissionsBefore;return true;};
+ callbacks.fencePublished=[&](const auto&,const auto&){need(NrdBridgeDescriptorAdmission::SubmissionHeldByCurrentThread(),"already-submitted lease publication precedes admission reopening");++admissionsPublished;};
+ track(source.Get(),lease,callbacks);const auto admissionBefore=queue->executions;
+ o_ExecuteCommandLists=+[](ID3D12CommandQueue* q,UINT n,ID3D12CommandList* const* commands){need(NrdBridgeDescriptorAdmission::SubmissionHeldByCurrentThread(),"actual original Execute remains inside descriptor admission gate");OriginalExecute(q,n,commands);};
+ ResTrack_Dx12::hkExecuteCommandLists(queue.Get(),1,&list);o_ExecuteCommandLists=OriginalExecute;
+ need(queue->executions==admissionBefore+1&&admissionsBefore==1&&admissionsPublished==1,"retained participant forwards once with exact Before/Execute/After gate scope");
+ need(!NrdBridgeDescriptorAdmission::SubmissionHeldByCurrentThread()&&NrdBridgeDescriptorAdmission::Healthy(),"successful queue returns with admission reopened and healthy");
+ cleanCase();track(source.Get(),lease);const auto forbiddenBefore=queue->executions;
+ {NrdBridgeDescriptorAdmission::Mutation activeWriter(true);need(activeWriter.Acquired(),"actual native writer admitted before nested-submit negative");ResTrack_Dx12::hkExecuteCommandLists(queue.Get(),1,&list);}
+ need(queue->executions==forbiddenBefore&&!NrdBridgeDescriptorAdmission::Healthy()&&FAILED(RecordedComputeLease::RequiredSubmissionFailure()),"reentrant participant cannot deadlock or execute; failure is globally latched");
+ std::cout<<J{{"checks",checks.load()},{"fatal_route_cases",cases},{"descriptor_admission_cases",2},{"GPU_submissions",0},
   {"scope","actual queue/selector/Before helper and ledger/Birth/GUID headers; fake COM and explicit FG/recorder/optional trace spies"}}.dump()<<'\n';return 0;
 }catch(const std::exception& e){denyAllocations=false;std::cerr<<e.what()<<'\n';return 1;}
 '''
@@ -99,6 +112,8 @@ inline void AfterSubmission(ID3D12CommandQueue*,int) {} }'''
     needle = '#include "__ROOT__/OptiScaler/shaders/fsrd_preprocess/RRTraceFence.h"'
     assert fixture.count(needle) == 1
     fixture = fixture.replace(needle, trace)
+    fixture = fixture.replace('#include "__ROOT__/OptiScaler/misc/RecordedComputeLease_Dx12.h"',
+        '#include "__ROOT__/OptiScaler/misc/RecordedComputeLease_Dx12.h"\n#include "__ROOT__/OptiScaler/misc/NrdBridgeDescriptorAdmission_Dx12.h"', 1)
     coverage = 'namespace NrdBridgeNativeBirth {bool ObserveReleaseCoverage(IUnknown*) noexcept {return false;}}'
     assert fixture.count(coverage) == 1
     fixture = fixture.replace(coverage, '''IUnknown* coveredFixtureList=nullptr;unsigned coverageAccepted=0,coverageRejected=0;
@@ -109,13 +124,15 @@ namespace NrdBridgeNativeBirth {bool ObserveReleaseCoverage(IUnknown* object) no
                               'bool Internal() noexcept {return false;} bool OwnedRelease() noexcept {return false;}', 1)
     sdk = Path(os.environ.get('FSRD_D3D12_SDK_HEADER',
         r'C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um/d3d12.h')).read_text()
-    generated = fixture.replace('__ROOT__', ROOT.as_posix()).replace('__PRODUCTION__', '\n'.join(bodies))
+    declaration = 'static bool HasRetainedSubmissionParticipant(UINT,ID3D12CommandList* const*) noexcept;\n'
+    generated = fixture.replace('__ROOT__', ROOT.as_posix()).replace('__PRODUCTION__', declaration+'\n'.join(bodies))
     generated = generated.replace('__FAKE_COM__', fake_com(sdk))+DRIVER
     output.mkdir(parents=True, exist_ok=True)
     path = output/'required_submission_gate.cpp'
     path.write_text(generated)
     metadata = {'production_root': str(ROOT), 'production_bodies_sha256': {
-        signature: hashlib.sha256(body.encode()).hexdigest() for signature, body in zip(signatures, bodies)}}
+        signature: hashlib.sha256(body.encode()).hexdigest() for signature, body in zip(signatures, bodies)},
+        'descriptor_admission_header_sha256': hashlib.sha256((ROOT/'OptiScaler/misc/NrdBridgeDescriptorAdmission_Dx12.h').read_bytes()).hexdigest()}
     (output/'source.json').write_text(json.dumps(metadata, indent=2)+'\n')
     return path, metadata
 
