@@ -249,7 +249,11 @@ struct Host {
  bool executeClosed(bool wait=true) {
   RecordedComputeLease::SubmissionDecision decision;ID3D12CommandList* cmd=list.Get();
   auto pending=ResTrack_Dx12::BeforeComputeSubmission(queue.Get(),1,&cmd,&decision);
-  if(!decision.allowed) {++denied;lastOrderingFailure=decision.orderingFailure;return false;}
+  if(!decision.allowed) {++denied;lastOrderingFailure=decision.orderingFailure;
+   const auto status=NrdBridge::GetStatus();
+   std::cerr<<"title submission denied required="<<std::hex<<RecordedComputeLease::RequiredSubmissionFailure()
+    <<" decision="<<decision.orderingFailure<<std::dec<<" denied="<<denied<<" bridged="<<status.framesBridged
+    <<" phase="<<status.phase<<" reason="<<status.reason<<std::endl;return false;}
   queue->ExecuteCommandLists(1,&cmd); RecordedComputeLease::AfterSubmission(pending);
   hr(queue->Signal(fence.Get(),++tick)); if(wait) waitComplete();return true;
  }
@@ -387,7 +391,7 @@ struct Title {
    if(FAILED(result) && error) std::cerr<<static_cast<const char*>(error->GetBufferPointer())<<'\n'; hr(result);
    D3D12_COMPUTE_PIPELINE_STATE_DESC pd{}; pd.pRootSignature=root.Get(); pd.CS={cs->GetBufferPointer(),cs->GetBufferSize()};
    hr(h.device->CreateComputePipelineState(&pd,IID_PPV_ARGS(&pso[role])));
-   if(registered) { FrameSurvey::PipelineCreated(pso[role].Get(),pd); NrdBridge::RegisterPipelineRoleForTesting(pso[role].Get(),Role(role),true); }
+   if(registered) { FrameSurvey::PipelineCreated(pso[role].Get(),pd); NrdBridge::RegisterPipelineRoleForTesting(pso[role].Get(),Role(role)); }
   }
   cb=h.upload(0,1536); void* constants=nullptr; hr(cb->Map(0,nullptr,&constants));
   static_cast<UINT*>(constants)[0]=55; cb->Unmap(0,nullptr);
