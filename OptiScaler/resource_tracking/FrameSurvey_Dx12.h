@@ -1,5 +1,6 @@
 #pragma once
 #include <d3d12.h>
+#include <array>
 #include <dxgi.h>
 #include <mutex>
 #include <memory>
@@ -67,6 +68,50 @@ struct ComputeTableRequest
     D3D12_DESCRIPTOR_RANGE_TYPE kind = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
     UINT descriptorOffset = UINT_MAX, shaderRegister = UINT_MAX, registerSpace = UINT_MAX;
 };
+// A single coherent native table snapshot can span compute SRV/UAV parameters.
+struct TextureTableRequest
+{
+    UINT rootParameter = UINT_MAX;
+    ComputeTableRequest binding;
+};
+inline constexpr size_t MaximumTextureBindingWitnesses = 36*9;
+struct TextureBindingWitness
+{
+    ID3D12RootSignature* root = nullptr;
+    NrdBridgeBirth::Token rootBirth;
+    UINT rootParameter = UINT_MAX, descriptorOffset = UINT_MAX, shaderRegister = UINT_MAX, registerSpace = UINT_MAX;
+    D3D12_DESCRIPTOR_RANGE_TYPE kind = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    bool pixel = false;
+    ID3D12DescriptorHeap* heap = nullptr;
+    NrdBridgeBirth::Token heapBirth;
+    uint64_t tableBase = 0, descriptorCpu = 0;
+    ID3D12Resource* resource = nullptr;
+    NrdBridgeBirth::Token resourceBirth;
+    uint64_t resourceGeneration = 0;
+    DXGI_FORMAT viewFormat = DXGI_FORMAT_UNKNOWN;
+    UINT subresource = 0;
+};
+enum class IndirectSignatureKind : uint8_t { Unknown, Dispatch, DrawIndexed };
+struct IndirectSignatureInfo
+{
+    ID3D12CommandSignature* signature = nullptr;
+    IndirectSignatureKind kind = IndirectSignatureKind::Unknown;
+    UINT byteStride = 0;
+    NrdBridgeBirth::Token birth;
+};
+enum PipelineStage : uint32_t
+{
+    PipelineCS = 1u<<0, PipelineVS = 1u<<1, PipelinePS = 1u<<2,
+    PipelineHS = 1u<<3, PipelineDS = 1u<<4, PipelineGS = 1u<<5
+};
+struct PipelineShaderIdentity
+{
+    ID3D12PipelineState* pipeline = nullptr;
+    std::array<char,65> compute {}, vertex {}, pixel {}; // Full lowercase SHA-256, fixed storage.
+    uint32_t presentStages = 0;
+    bool complete = false; // Full native legacy descriptor or successful complete stream parse.
+    NrdBridgeBirth::Token pipelineBirth;
+};
 struct ComputeRootView
 {
     UINT parameter = UINT_MAX;
@@ -83,6 +128,14 @@ struct ComputeBindings
     std::vector<NrdBridgeBirth::Token> heapBirths; // Same order/size as heaps in native Birth mode.
 };
 bool SeedComputeBindings(ID3D12GraphicsCommandList*, const ComputeBindings&) noexcept;
+// O(1), exact live native instance proofs. No COM calls or hot JSON/string allocation.
+bool ResolveIndirectSignature(ID3D12CommandSignature*, IndirectSignatureInfo&) noexcept;
+bool ValidateIndirectSignature(const IndirectSignatureInfo&) noexcept;
+bool ResolvePipelineShaderIdentity(ID3D12PipelineState*, PipelineShaderIdentity&) noexcept;
+bool ValidatePipelineShaderIdentity(const PipelineShaderIdentity&) noexcept;
+// Cold caller-strong publication; SDK/internal signatures are excluded.
+void CommandSignatureCreated(ID3D12CommandSignature*, const D3D12_COMMAND_SIGNATURE_DESC&, ID3D12RootSignature*) noexcept;
+
 using PipelineObserver = void (*)(ID3D12PipelineState*, const char* csSha256);
 using GraphicsPipelineObserver = void (*)(ID3D12PipelineState*, const char* psSha256);
 using ReleaseObserver = void (*)(void*);
@@ -107,6 +160,13 @@ bool ResolveComputeBindings(ID3D12GraphicsCommandList*, UINT rootParameter,
 // Window-independent texture SRV/UAV snapshot; caller holds the physical title borrow.
 bool ResolveComputeBindings(const ComputeBindings&, UINT rootParameter,
                             std::span<const ComputeTableRequest>, std::vector<BoundResource>& out) noexcept;
+// At most sixteen Texture2D slots in ONE coherent snapshot, optionally retaining metadata-only witnesses.
+// Submission revalidation checks only the retained slots; no unrelated descriptor epoch is involved.
+bool ResolveComputeTextureBindings(const ComputeBindings&, std::span<const TextureTableRequest>,
+    std::vector<BoundResource>&, std::vector<TextureBindingWitness>* witnesses = nullptr) noexcept;
+bool ResolveGraphicsTextureBindings(const ComputeBindings&, std::span<const TextureTableRequest>,
+    std::vector<BoundResource>&, std::vector<TextureBindingWitness>* witnesses = nullptr) noexcept;
+bool ValidateTextureBindingWitnesses(std::span<const TextureBindingWitness>) noexcept;
 // Resolves one current root/table CBV by its exact b-register and space, without retaining or mapping it.
 bool ResolveComputeConstantBuffer(ID3D12GraphicsCommandList*, UINT shaderRegister, UINT registerSpace,
                                   uint64_t minimumBytes, BoundConstantBuffer& out, ConstantBufferDiagnostic* diagnostic = nullptr) noexcept;
