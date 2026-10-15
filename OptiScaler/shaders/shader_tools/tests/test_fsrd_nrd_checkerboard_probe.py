@@ -96,8 +96,8 @@ def write_inputs(folder, mode, width=128, height=128, frames=32):
     signal.tofile(folder / 'diff.bin')
     signal.tofile(folder / 'spec.bin')
     base.tofile(folder / 'reference.f32')
-    # Fixed explicit DLL path, all seven inputs, indirect diffuse/specular.
-    lines = [f'{width} {height} {frames} 16 32 0 0 0 {json.dumps(str(DLL))}']
+    # Fixed explicit DLL path, all seven inputs, production direct diffuse / indirect specular.
+    lines = [f'{width} {height} {frames} 1 32 0 0 0 {json.dumps(str(DLL))}']
     for name, fmt, count in [('depth', 41, 1), ('motion', 10, 1), ('normal', 24, 1),
                              ('spec_albedo', 28, 1), ('diff_albedo', 28, 1),
                              ('diff', 10, frames), ('spec', 10, frames)]:
@@ -156,7 +156,7 @@ def main():
             }
         rows[mode].update(seconds=seconds, peak_resident_bytes=peak, log=str(log))
     result = {'scope': 'Controlled signed SDK synthetic; not live title flags, game quality or checkerboard support proof',
-              'width': 128, 'height': 128, 'frames': 32, 'signal_flags': 48,
+              'width': 128, 'height': 128, 'frames': 32, 'signal_flags': 33,
               'provider_path': str(DLL), 'provider_sha256': sha(DLL),
               'legacy_runner_sha256_before': original_sha, 'legacy_runner_sha256_after': sha(HERE / 'fsrd_rr_runner.cpp'),
               'generated_runner_sha256': sha(source), 'executable_sha256': sha(exe), 'rows': rows}
