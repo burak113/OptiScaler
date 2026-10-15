@@ -121,6 +121,17 @@ public:
         // Actual per-context FfxApiProxy route witness, resolved only while USER-armed.
         std::string routeAttestationJson;
     };
+    struct BridgeControlHeader
+    {
+        enum class Profile { ReconA, PrePassB };
+        struct Word { uint32_t nativeByteOffset = 0, sourceBufferByteOffset = 0; };
+        Profile profile = Profile::ReconA;
+        Source image; // Exclusively owned raw snapshot buffer, never the title CBV.
+        std::shared_ptr<void> owner;
+        uint64_t recordingId = 0;
+        uint32_t streamlineFrame = UINT32_MAX, bridgeFrame = 0, wordCount = 0;
+        std::array<Word,7> words {};
+    };
     using BridgeFrameToken = std::shared_ptr<void>;
     // Caller owns the input/output leases, same-recording admission and injection
     // serialization. Call ONLY after motion is finalized and RecordOwned succeeds.
@@ -133,6 +144,11 @@ public:
         bool submissionHooksAvailable = true) noexcept;
     void RecordBridgeSkipped(const BridgeFrameToken&, ID3D12GraphicsCommandList*, const BridgeIdentity&,
                              const BridgeSkippedDispatch&) noexcept;
+    // Optional actual captured words only. Zero-filled uncaptured header bytes
+    // are never accepted as another profile's evidence. Shares the already planned
+    // 32-byte flag readback; up to7 packed DWORDs, no new committed allocation.
+    bool RecordBridgeControlHeader(const BridgeFrameToken&, ID3D12GraphicsCommandList*,
+                                   const BridgeIdentity&, const BridgeControlHeader&) noexcept;
     // Synchronous borrowed sources only: caller holds live physical Borrow and
     // proves the current native targets. Never AddRef/queue a title source pointer.
     // The updated owned snapshot supplies the GPU-captured live encoding flag.

@@ -70,6 +70,46 @@ def verify_file(root, row, ordinal, expected_bytes, verify):
     return {"file": row["file"], "bytes": expected_bytes, "sha256": digest}
 
 
+def inspect_native_control_header(root, frame, ordinal, identity, verify_payload):
+    header = frame.get("native_control_header", {"available": False})
+    require(type(header.get("available")) is bool, "native control header availability missing")
+    if not header["available"]:
+        require("file" not in header and "words" not in header, "uncaptured native controls invented payload")
+        return dict(header), 0
+    expected = {"A_Recon_direct": [448, 452, 456, 460],
+                "B_PrePass": [456, 460, 472, 476, 516, 576, 580]}.get(header.get("profile"))
+    require(expected is not None, "unknown native control profile")
+    require(header.get("recording_id") == identity["recording_id"]
+            and header.get("streamline_frame") == identity["streamline_frame"]
+            and header.get("bridge_frame") == frame["sdk_frame_index"], "native control source frame differs")
+    mapping = header.get("words")
+    require(isinstance(mapping, list) and len(mapping) == len(expected), "native control profile word count differs")
+    size = 4 * len(expected)
+    require(header.get("dxgi_format") == 0 and header.get("bytes_per_pixel") == 1
+            and header.get("extent") == [size, 1], "native control packed layout differs")
+    require(header.get("copy_footprint", {}).get("committed_buffer_bytes") == 0
+            and header.get("readback_allocation_shared_with") == "private_encoding_flag_reserved_readback",
+            "native control shared allocation charge differs")
+    payload = verify_file(root, header, ordinal, size, verify_payload)
+    data = safe_file(root, payload["file"]).read_bytes() if verify_payload else None
+    source = header.get("source_native_resource_desc", {})
+    source_width = uint(source.get("width"), "owned native control buffer width")
+    require(source.get("dimension") == 1 and header.get("source_state") in (0, 2048), "native control owned buffer/state differs")
+    allocation = uint(header.get("shared_committed_buffer_bytes"), "native control shared committed bytes")
+    require(allocation >= 32 and allocation % (64 << 10) == 0, "native control reserved readback charge differs")
+    private_offsets = set()
+    for index, row in enumerate(mapping):
+        offset = uint(row.get("source_buffer_byte_offset"), "native control private offset", 0xffffffff)
+        require(row.get("native_byte_offset") == expected[index] and offset % 4 == 0
+                and offset + 4 <= source_width and offset not in private_offsets and row.get("payload_byte_offset") == 4 * index,
+                "native/private control word mapping differs")
+        private_offsets.add(offset)
+        value = uint(row.get("captured_uint32"), "captured native control word", 0xffffffff)
+        if data is not None:
+            require(struct.unpack_from("<I", data, 4 * index)[0] == value, "native control decoded value differs from payload")
+    return dict(header, payload=payload), size
+
+
 def inspect_capture(folder, *, verify_payload=True):
     root = Path(folder).resolve()
     manifest_path = root / "capture.json"
@@ -167,7 +207,7 @@ def inspect_capture(folder, *, verify_payload=True):
         prior = identity["streamline_frame"], sdk_frame, identity["recording_id"]
         images = frame.get("images")
         require(isinstance(images, list) and 1 <= len(images) <= 14, "unexpected bridge image count")
-        physical, charged, payload_bytes = {}, 0, 184
+        physical, charges, charged, payload_bytes = {}, {}, 0, 184
         for row in images:
             name = row.get("name")
             require(name in FORMATS and name not in physical, "unknown/duplicate image stage")
@@ -182,8 +222,17 @@ def inspect_capture(folder, *, verify_payload=True):
             footprint = row.get("copy_footprint", {})
             allocation = uint(footprint.get("committed_buffer_bytes"), "readback allocation")
             require(allocation >= size and allocation % (64 << 10) == 0, "invalid committed readback charge")
+            charges[name] = allocation
             charged += allocation
             payload_bytes += size
+        native_controls, native_bytes = inspect_native_control_header(root, frame, ordinal, identity, verify_payload)
+        payload_bytes += native_bytes
+        if native_controls["available"]:
+            reserved = native_controls["shared_committed_buffer_bytes"]
+            if "consumer_word303" in charges:
+                require(charges["consumer_word303"] == reserved, "native control shared buffer charge not same as flag")
+            else:
+                charged += reserved
         require(charged <= MAX_FRAME, "frame readback budget exceeded")
         roles = frame.get("roles", {})
         require(set(roles) == set(FORMATS), "missing or invented bridge role")
@@ -223,7 +272,7 @@ def inspect_capture(folder, *, verify_payload=True):
                        "provider_controls": controls, "provider": provider, "frame_parameters": params,
                        "settings": settings, "inputs": {name: resolved[name] for name in INPUTS},
                        "observations": {name: row for name, row in resolved.items() if name not in INPUTS},
-                       "encoding": encoding, "payload_bytes": payload_bytes,
+                       "encoding": encoding, "native_control_header": native_controls, "payload_bytes": payload_bytes,
                        "skipped_original_dispatches": events})
     return {"schema": "fsrd-nrd-bridge-replay-inputs-v1", "capture_uuid": manifest.get("capture_uuid"),
             "capture_root": str(root), "published_frames": published, "payload_hashes_verified": verify_payload,
