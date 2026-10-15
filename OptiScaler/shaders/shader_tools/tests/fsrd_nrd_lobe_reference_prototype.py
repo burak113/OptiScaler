@@ -73,6 +73,7 @@ def finish(rr,correction,supported,settings):
             lower = np.maximum(lower,-settings.negative_limit*rr)
         if projection == 'local_anchor':
             projected = np.minimum(np.maximum(correction,lower),high-rr)
+            projected = np.where(mask,projected,0)
             extra = dict(bound_projection=projection,uniform_bound_scale=None,
                 projection_clipped_component_fraction=float(np.mean(projected!=correction)))
         else:
@@ -259,7 +260,8 @@ class LobeReferenceRecovery(Recovery):
         supported = safe&(age>=s.minimum_age)&np.any(signal!=rr,axis=-1)
         correction,statistics = finish(rr,collapsed,supported,s)
         result = denoised.copy()
-        result[...,:3] = rr+correction
+        applied=np.isfinite(correction)&(correction!=0)
+        np.copyto(result[...,:3],np.clip(rr+correction,0,65504),where=applied,casting='unsafe')
         self.reference = dict(value=self.store(value),gradient=self.store(gradient),age=self.store(age),q=q,depth=depth.copy(),normal=normal.copy(),
             roughness=roughness.copy(),material=material.copy())
         self.states,self.last_frame,self.extent,self.previous_jitter = states,frame,depth.shape,jitter
