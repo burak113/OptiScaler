@@ -85,18 +85,47 @@ def build(prepare_only=False):
     source = source.replace('#include "State.h"', '')
     check('one descriptor instrumentation point', source.count('slots.push_back(slot);') == 1)
     source = source.replace('slots.push_back(slot);', '++gNrdDescriptorAllocations; slots.push_back(slot);')
-    check('six production barrier call sites plus audit forwarding', source.count('list->ResourceBarrier(') == 7)
+    geometry_begin = source.index('bool ConversionPass::DispatchGeometry(')
+    geometry_end = source.index('bool ConversionPass::DispatchMotion(', geometry_begin)
+    geometry_source = source[geometry_begin:geometry_end]
+    legacy_source = source[:geometry_begin] + source[geometry_end:]
+    check('six legacy production barrier call sites plus audit forwarding', legacy_source.count('list->ResourceBarrier(') == 7)
+    check('four additional geometry transitions are audited separately', geometry_source.count('list->ResourceBarrier(') == 4)
+    check('ten production barrier call sites plus audit forwarding', source.count('list->ResourceBarrier(') == 11)
     check('two native shadow barriers', source.count('list->ResourceBarrier(1, &shadowBarrier);') == 2)
-    check('two owned material barriers', source.count('list->ResourceBarrier(1,&materialBarrier);') == 2)
+    check('two legacy owned material barriers', legacy_source.count('list->ResourceBarrier(1,&materialBarrier);') == 2)
+    check('two geometry owned material barriers', geometry_source.count('list->ResourceBarrier(1,&materialBarrier);') == 2)
+    check('four total owned material barriers', source.count('list->ResourceBarrier(1,&materialBarrier);') == 4)
+    check('two owned geometry-header barriers', geometry_source.count('list->ResourceBarrier(1,&geometryBarrier);') == 2)
     source = source.replace('list->ResourceBarrier(1, &barrier);', 'AuditedNrdBarriers(list, 1, &barrier);')
     source = source.replace('list->ResourceBarrier(2, barriers);', 'AuditedNrdBarriers(list, 2, barriers);')
     source = source.replace('list->ResourceBarrier(1, &shadowBarrier);', 'AuditedNrdBarriers(list, 1, &shadowBarrier);')
     source = source.replace('list->ResourceBarrier(1,&materialBarrier);', 'AuditedNrdBarriers(list, 1, &materialBarrier);')
+    source = source.replace('list->ResourceBarrier(1,&geometryBarrier);', 'AuditedNrdBarriers(list, 1, &geometryBarrier);')
     check('every production barrier is audited', source.count('list->ResourceBarrier(') == 1)
     check('one production SRV descriptor loop', source.count('for (auto* resource : srvs)\n        {') == 1)
     check('one production UAV descriptor loop', source.count('for (auto* resource : uavs)\n        {') == 1)
     source = source.replace('for (auto* resource : srvs)\n        {', 'for (auto* resource : srvs)\n        {\n            AuditNrdSrv(resource);')
     source = source.replace('for (auto* resource : uavs)\n        {', 'for (auto* resource : uavs)\n        {\n            AuditNrdUav(resource);')
+    # Legacy conversion cases never enter the new raw/geometry path. Fail hard
+    # if that assumption changes; the separate raw fixture links the real helper.
+    source += r'''
+#include <cstdio>
+#include <cstdlib>
+namespace NrdBridge
+{
+RawSignalSnapshot RawSignalSnapshotPass::GetSnapshot(const RawSignalLease&) noexcept
+{
+    std::fputs("unexpected legacy raw snapshot adapter invocation\n", stderr);
+    std::abort();
+}
+}
+struct LegacyRawSnapshotProbe
+{
+    ~LegacyRawSnapshotProbe() { std::fputs("raw_snapshot_adapter_calls=0\n", stdout); }
+};
+static LegacyRawSnapshotProbe gLegacyRawSnapshotProbe;
+'''
     (OUT / 'production_nrd_pass.cpp').write_text(source, encoding='utf-8')
     shutil.copyfile(Path(__file__).with_name('fsrd_nrd_conversion_fixture.cpp'), OUT / 'fixture.cpp')
     if prepare_only:
@@ -123,6 +152,7 @@ def run_fixture(exe, mode, directory):
         print(result.stderr, file=sys.stderr, end='')
     result.check_returncode()
     check('D3D12 errors and warnings absent', 'debug_errors=0 debug_warnings=0' in result.stdout)
+    check('legacy cases never invoke deferred raw adapter', 'raw_snapshot_adapter_calls=0' in result.stdout)
     return result.stdout
 
 

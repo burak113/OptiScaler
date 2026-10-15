@@ -27,7 +27,7 @@ void CSMain(uint3 tid : SV_DispatchThreadID)
 {
     if (any(tid.xy >= RenderSize)) return;
     // Recon ec37... RGB loads use local DTid, unlike NR/ViewZ's source origin.
-    // Preserve raw A here too; its role-specific unit conversion is a late step.
+    // Preserve native raw A too: normalized Recon sample weights do not change its units.
     const uint address = 1536u + (tid.y * RenderSize.x + tid.x) * 16u;
     PrivateRaw.Store4(address, uint4(PackNativeHalf4(NativeRawSpec[tid.xy]), PackNativeHalf4(NativeRawDiff[tid.xy])));
     if (all(tid.xy == 0u))
