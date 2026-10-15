@@ -332,6 +332,22 @@ static ankerl::unordered_dense::map<ID3D12GraphicsCommandList*, ID3D12RootSignat
 // overwrite them when both families are active on the same native list.
 struct BridgeGraphicsState { ID3D12RootSignature* root = nullptr; TrackedRootRows rows; };
 static ankerl::unordered_dense::map<ID3D12GraphicsCommandList*, BridgeGraphicsState> bridgeGraphicsStates;
+// Absence means UNKNOWN, never disabled. Only a witnessed successful Reset,
+// ClearState or SetPredication(nullptr) establishes the injection precondition.
+enum class BridgePredication { Disabled, Enabled };
+struct BridgePredicateState
+{
+    NrdBridgeBirth::Token receiverBirth;
+    BridgePredication value = BridgePredication::Enabled;
+};
+static ankerl::unordered_dense::map<ID3D12GraphicsCommandList*, BridgePredicateState> bridgePredicates;
+// Caller owns rootStatesMutex and, in native mode, the receiver CurrentGuard.
+static bool BridgePredicateDisabledLocked(ID3D12GraphicsCommandList* list, const NrdBridgeBirth::Token& receiver)
+{
+    const auto found = bridgePredicates.find(list);
+    return found != bridgePredicates.end() && found->second.value == BridgePredication::Disabled &&
+        (!RootTrackerBirthsEnabled() || found->second.receiverBirth == receiver);
+}
 inline constexpr GUID RootParameterCountGuid = {0x72304b14,0x1a2e,0x46be,{0xae,0xdc,0x22,0x50,0x50,0x4d,0xc9,0x64}};
 struct NativeRootParameterCount { uint64_t instanceStamp = 0; UINT count = 0, version = 1; };
 static_assert(sizeof(NativeRootParameterCount) == 16);
@@ -2957,10 +2973,73 @@ void D3D12Hooks::OnBridgeCommandListReset(ID3D12GraphicsCommandList* list, ID3D1
     RootTrackerPublication publication(list);
     if (!publication.Accepted()) return;
     { std::unique_lock lock(rootSignatureMutex, std::defer_lock); LockRootTracker(lock); signatures.erase(list); }
-    { std::unique_lock lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock); rootStates.erase(list); bridgeComputeRoots.erase(list); bridgeGraphicsStates.erase(list); }
+    { std::unique_lock lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock);
+      rootStates.erase(list); bridgeComputeRoots.erase(list); bridgeGraphicsStates.erase(list);
+      bridgePredicates.erase(list);
+      bridgePredicates.emplace(list,BridgePredicateState{publication.receiver,BridgePredication::Disabled}); }
     { std::unique_lock lock(descriptorHeapsMutex, std::defer_lock); LockRootTracker(lock); descriptorHeaps.erase(list); }
     { std::unique_lock lock(pipelineStatesMutex, std::defer_lock); LockRootTracker(lock);
       if (initial) pipelineStates[list] = TrackedPipelineState{initial,publication.receiver,pipeline}; else pipelineStates.erase(list); }
+}
+
+void D3D12Hooks::OnBridgeCommandListClearState(ID3D12GraphicsCommandList* list, ID3D12PipelineState* initial) noexcept
+{
+    if (!gNrdBridgeDeviceWrappers || !list || isNrdBridgeInjection || FrameSurvey::Internal()) return;
+    // This is state invalidation only: ClearState is NOT a recording Reset and
+    // must not detach submission leases or advance a recording epoch.
+    try { OnBridgeCommandListReset(list,initial); }
+    catch (...) { NrdBridgeNativeBirth::Detail::Fail("ClearState metadata publication failed"); }
+}
+
+void D3D12Hooks::OnBridgeSetPredication(ID3D12GraphicsCommandList* list, bool enabled) noexcept
+{
+    if (!gNrdBridgeDeviceWrappers || !list || isNrdBridgeInjection || FrameSurvey::Internal()) return;
+    try
+    {
+        RootTrackerPublication publication(list);
+        if (!publication.Accepted()) return;
+        std::unique_lock lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock);
+        bridgePredicates.erase(list);
+        bridgePredicates.emplace(list,BridgePredicateState{publication.receiver,
+            enabled ? BridgePredication::Enabled : BridgePredication::Disabled});
+    }
+    catch (...) { NrdBridgeNativeBirth::Detail::Fail("predication metadata publication failed"); }
+}
+
+void D3D12Hooks::OnBridgeOpaqueCommand(ID3D12GraphicsCommandList* list, bool bundle) noexcept
+{
+    if (!gNrdBridgeDeviceWrappers || !list || isNrdBridgeInjection || FrameSurvey::Internal()) return;
+    try
+    {
+        RootTrackerPublication publication(list);
+        if (!publication.Accepted()) return;
+        // Called before AND after forwarding: a bundle may enter other native
+        // setters while executing and must not republish a parent binding proof.
+        { std::unique_lock lock(rootSignatureMutex, std::defer_lock); LockRootTracker(lock); signatures.erase(list); }
+        { std::unique_lock lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock);
+          rootStates.erase(list); bridgeComputeRoots.erase(list); bridgeGraphicsStates.erase(list);
+          const auto predicate = bridgePredicates.find(list);
+          if (predicate != bridgePredicates.end() && (bundle ||
+              (RootTrackerBirthsEnabled() && predicate->second.receiverBirth != publication.receiver)))
+              bridgePredicates.erase(predicate); }
+        { std::unique_lock lock(descriptorHeapsMutex, std::defer_lock); LockRootTracker(lock); descriptorHeaps.erase(list); }
+        { std::unique_lock lock(pipelineStatesMutex, std::defer_lock); LockRootTracker(lock); pipelineStates.erase(list); }
+    }
+    catch (...) { NrdBridgeNativeBirth::Detail::Fail("opaque command metadata invalidation failed"); }
+}
+
+bool D3D12Hooks::BridgePredicationDisabled(ID3D12GraphicsCommandList* list) noexcept
+{
+    if (!gNrdBridgeDeviceWrappers || !list) return false;
+    try
+    {
+        const auto receiver = RootTrackerBirthsEnabled() ? NrdBridgeBirth::Capture(list) : NrdBridgeBirth::Token{};
+        NrdBridgeBirth::CurrentGuard guard(receiver,RootTrackerBirthsEnabled());
+        if (RootTrackerBirthsEnabled() && !guard.AdmitsBorrow()) return false;
+        std::shared_lock lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock);
+        return BridgePredicateDisabledLocked(list,receiver);
+    }
+    catch (...) { return false; }
 }
 
 void D3D12Hooks::OnBridgeObjectReleased(const NrdBridgeBirth::Token& retired) noexcept
@@ -2979,7 +3058,9 @@ void D3D12Hooks::OnBridgeObjectReleased(const NrdBridgeBirth::Token& retired) no
           const auto compute = rootStates.find(list);
           if (compute != rootStates.end() && compute->second.receiverBirth == retired) { rootStates.erase(compute); bridgeComputeRoots.erase(list); }
           const auto graphics = bridgeGraphicsStates.find(list);
-          if (graphics != bridgeGraphicsStates.end() && graphics->second.rows.receiverBirth == retired) bridgeGraphicsStates.erase(graphics); }
+          if (graphics != bridgeGraphicsStates.end() && graphics->second.rows.receiverBirth == retired) bridgeGraphicsStates.erase(graphics);
+          const auto predicate = bridgePredicates.find(list);
+          if (predicate != bridgePredicates.end() && predicate->second.receiverBirth == retired) bridgePredicates.erase(predicate); }
         { std::unique_lock lock(descriptorHeapsMutex, std::defer_lock); LockRootTracker(lock);
           const auto found = descriptorHeaps.find(list); if (found != descriptorHeaps.end() && found->second.receiverBirth == retired) descriptorHeaps.erase(found); }
         { std::unique_lock lock(pipelineStatesMutex, std::defer_lock); LockRootTracker(lock);
@@ -3060,6 +3141,7 @@ static bool CaptureRootRestoreSnapshot(ID3D12GraphicsCommandList* cmdList, bool 
         std::lock(signaturesLock, heapsLock, pipelineLock, statesLock);
     }
     else LockRootTracker(signaturesLock);
+    if (bridgeCompute && !BridgePredicateDisabledLocked(cmdList,receiver)) return false;
     if (bridgeCompute)
     {
         const auto root = bridgeComputeRoots.find(cmdList);
@@ -3151,7 +3233,8 @@ bool D3D12Hooks::CanRestoreRootSignature(ID3D12GraphicsCommandList* cmdList)
           !TrackerBorrowMatches(found->second.pipelineBirth,found->second.ptr))) return false; }
     { std::shared_lock lock(rootStatesMutex, std::defer_lock); LockRootTracker(lock); auto found = rootStates.find(cmdList);
       const auto root = bridgeComputeRoots.find(cmdList);
-      if (root == bridgeComputeRoots.end() || !root->second || found == rootStates.end() || found->second.size() <= 5 ||
+      if (!BridgePredicateDisabledLocked(cmdList,receiver) || root == bridgeComputeRoots.end() || !root->second ||
+          found == rootStates.end() || found->second.size() <= 5 ||
           found->second[1].type != RootEntryType::Table || found->second[5].type != RootEntryType::Table ||
           !RootRestoreArgumentsSupported(found->second)) return false;
       if (RootTrackerBirthsEnabled() && (found->second.receiverBirth != receiver || !found->second.rootCountKnown ||
