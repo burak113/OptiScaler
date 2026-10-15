@@ -4565,6 +4565,10 @@ bool ResTrack_Dx12::RetainComputeDispatch(ID3D12Device* device, ID3D12GraphicsCo
     if (FAILED(actual->QueryInterface(IID_PPV_ARGS(&identity)))) return false;
     if (NrdBridgeNativeBirth::Ready() && gNrdBridgeWrappers && NrdBridgeBirth::Capture(actual))
     {
+        // This explicit title list already passed device/type/hook eligibility.
+        // Keep helper work internal, but admit its native recording identity even
+        // when the caller is inside ScopedInternal. Never broaden owned creation.
+        FrameSurvey::ScopedRecording titleRecording;
         if (!ObserveBridgeObjectRelease(actual) || !ObserveBridgeObjectRelease(identity.Get())) return false;
         const auto nativeBirth = NrdBridgeNativeBirth::Receiver(actual);
         // Query the canonical ID3D12Object while QI owns its temporary reference.
