@@ -99,3 +99,53 @@ Primary source: [AMD GGX guide example](https://gpuopen.com/manuals/fsr_sdk/tech
 locally pinned `Kits/FidelityFX/docs/techniques/denoising.md`5.5.2 and production
 helper `FSRDNrdMaterialGuides.hlsli` at28afe3b0. Native material-remodulation proof
 is maintained by15b; this synthetic experiment does not substitute for it.
+
+## Actual signed-provider V2 result and model boundaries
+
+Root's `material-v2-rr-root-run1` completed in14.826s. One disposable default
+probe and four fresh64-frame DD|IS histories retain33067 native checks in total
+(211+4x8214),1create/1destroy per history, first-only reset and strict0D3D12
+errors/0warnings. The comparator reached8830 cumulative Python checks. All
+eight effective setting words match. No production default was changed.
+
+The material route is not a demonstrated reflection-detail fix. Combined
+pre-Consumer RMSE is .00694524934 white, .00685886 diffuse-only,
+.00693522541 specular-only and .00699517947 both. Both guides makes demodulated
+specular chroma RMSE1.46% worse and diffuse chroma6.79% worse. The specular-only
+route improves diffuse RMSE7.34%, while worsening specular RMSE .32% and its
+age9..16 positive stale energy4.44%. Small cross-lobe benefits do not establish
+restored reflected detail.
+
+Original-crop specular gradient projection is .00874505 white, .01550407
+diffuse-only, .00778586 specular-only and .00790412 both. Same-material pair
+projection is .00169848, .00832642, .00072083 and .00096669 respectively, over
+1010516 adjacent pairs. These lighting-detail measurements avoid crediting
+material color boundaries as recovered reflection detail. All raw metrics,
+including worse reveal cohorts, remain in the unedited comparison JSON.
+
+`analyze_fsrd_nrd_rr_material_quality.py` only reads sealed completed outputs.
+It exports all aggregate rows, exact timing samples, and fixed-frame previews
+at2,17,33,49,65. Every column uses the same disclosed exposure/tonemap within a
+domain. It never calls a compiler/provider/GPU and validates selected output
+hashes. Previews are development evidence, not a native-NRD/game truth pair.
+
+`fsrd_nrd_rr_specular_contract_probe.py` leaves V1/V2 untouched. It proves that
+the V1 packed B is123/1023=.120234604 while the radiance reference is an ideal
+mirror center ray, not a rough-GGX integral. Packed oct(512,512) decodes to
+(.000979431,.000979431,.999999041), a .0793618degree tilt from the analytic
+trace's exact+Z. This legal quantization moves the analytic environment hit by
+mean .0304086/max .0438849world units, significant relative to the thin pattern.
+
+The primary-vs-reflected-feature previous-UV difference has median .0834502px,
+p955.037711px over570457 jointly visible samples. This is a diagnostic, not a
+reason to substitute reflection motion for SDK-required primary motion. The
+private SDK virtual-hit implementation is opaque. Blur is already visible on
+the first reset frame, so temporal reprojection alone cannot explain it.
+
+The probe also finds7500 of589824 interior background secondary segments cross
+the foreground rectangle before the environment plane. V1 did not declare a
+specular secondary visibility mask. Its A is exactly the declared environment
+distance, but a nearest-full-scene-hit claim is unsupported on those samples.
+Do not relabel the frozen data after measurement. A separate coherent mirror
+control must use decoded normals, exact zero roughness and nearest secondary
+intersections. None of these synthetic boundaries proves a game-guide defect.
