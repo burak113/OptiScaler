@@ -3609,7 +3609,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             const bool bridgeTrace = capture.active ? capture.nrdBridge :
                 NrdBridge::StartupEnabled() && NrdBridge::RuntimeEnabled();
             ImGui::TextWrapped(bridgeTrace ?
-                "NRD-to-RR: owned RR inputs, raw RR, selected recovery and encoded bridge commit. First eligible chain only; no native NRD output/reference." :
+                "NRD-to-RR: owned RR inputs, raw RR, selected recovery and encoded bridge commit. One selected A/B signal chain only; no native NRD output/reference." :
                 "Ordinary RR: configured pre-SR composition and original conversion inputs.");
             const auto bridgeStatus = NrdBridge::GetStatus();
             const uint32_t width = bridgeTrace && bridgeStatus.width ? bridgeStatus.width :
@@ -3620,9 +3620,12 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
             static char outputRoot[1024] {};
             static bool initialCenter = true, folderOpenFailed = false;
             static bool fullContextReference = false, bridgeResetCapture = false;
+            static int bridgeSignalChoice = 1; // User-facing default B exposes actual checkerboard operands.
+            if (capture.active && capture.nrdBridge) bridgeSignalChoice = int(capture.bridgeSignal);
             ImGui::BeginDisabled(capture.active);
             if (bridgeTrace)
             {
+                ImGui::Combo("Bridge signal chain##GameTrace", &bridgeSignalChoice, "A - Recon raw signals\0" "B - PrePass / checkerboard raw signals\0");
                 ImGui::Checkbox("Full inputs from RR history reset (64 frames)##GameTrace", &bridgeResetCapture);
                 ImGui::TextWrapped("This explicit option requests one RR history reset after the destination and delay are ready, then records 64 full render frames beginning at an actual SDK RESET. Ordinary recording preserves current history.");
             }
@@ -3697,6 +3700,7 @@ void MenuCommon::RenderDenoiserSettings(RenderMenuContext& ctx)
                 request.delaySeconds = uint32_t(delaySeconds); request.outputRoot = outputRoot;
                 request.capturePath = bridgeTrace ? FSRDGameTraceSession::Request::CapturePath::NrdBridge :
                     FSRDGameTraceSession::Request::CapturePath::Legacy;
+                request.bridgeSignal = bridgeTrace ? uint32_t(std::clamp(bridgeSignalChoice, 0, 1)) : 0u;
                 request.bridgeWaitForReset = bridgeTrace && bridgeResetCapture;
                 request.fullContextReference = !bridgeTrace && fullContextReference;
                 request.particleLayerDiagnostics = !bridgeTrace && particleDiagnostics;
