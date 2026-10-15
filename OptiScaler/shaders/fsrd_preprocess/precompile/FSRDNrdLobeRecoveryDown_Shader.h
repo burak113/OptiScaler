@@ -1,4 +1,4 @@
-// Exact DXIL bytes from full native recovery R2; no recompilation.
+// Exact DXIL from full native signed no-correction graph final-r1; no recompilation.
 // SHA-256: 8a063414749af06c6abb00cba70ac53188a1c0b83fbaeeb360913e5a168712f8
 const unsigned char FSRDNrdLobeRecoveryDown_cso[] = {
     0x44, 0x58, 0x42, 0x43, 0x3f, 0x55, 0xf4, 0x5a, 0xe7, 0x17, 0x7b, 0x94,
