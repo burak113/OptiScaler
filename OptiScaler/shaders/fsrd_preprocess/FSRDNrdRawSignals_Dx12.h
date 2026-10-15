@@ -6,7 +6,7 @@ namespace RecordedComputeLease { struct Recording; }
 namespace NrdBridge
 {
 // Profiles name proved native instruction addressing, never CPU guesses about CB values.
-enum class NativeRawProfile : uint32_t { Unknown = 0, ReconDirect = 1, PrePassPending = 2 };
+enum class NativeRawProfile : uint32_t { Unknown = 0, ReconDirect = 1, PrePass = 2, PrePassPending = PrePass };
 struct RawSignalSource
 {
     ID3D12DescriptorHeap* nativeHeap = nullptr;
@@ -35,6 +35,11 @@ struct RawSignalSnapshot
     // The executed native303/36 value always lands at owned byte1212. Reuse this
     // GPU value for final encoding so decode and commit cannot select different modes.
     TitleSignalConstants decodedEncodingConstants {};
+    // PrePass publishes one uniform owned status word, read only after its GPU fence.
+    // Zero means supported known modes0/1/2; nonzero requires asynchronous fatal handling.
+    // This is not CPU admission of GPU-only operands for the current batch.
+    bool hasStatus = false;
+    uint32_t statusByteOffset = 0;
 };
 class RawSignalSnapshotPass
 {

@@ -9,6 +9,9 @@
 #include "precompile/FSRDNrdRawCapture_Shader.h"
 #include "precompile/FSRDNrdRawCaptureRoot_Shader.h"
 #include "precompile/FSRDNrdRawDecode_Shader.h"
+#include "precompile/FSRDNrdRawPrePassCapture_Shader.h"
+#include "precompile/FSRDNrdRawPrePassCaptureRoot_Shader.h"
+#include "precompile/FSRDNrdRawPrePassDecode_Shader.h"
 #include <array>
 #include <atomic>
 #include <mutex>
@@ -72,7 +75,7 @@ struct RawSlot
     RawSlot(RawBytes&& bytes,NrdBridgeCaptureBudget::Permit&& slots) noexcept
         :bytePermit(std::move(bytes)),slotPermit(std::move(slots)){}
     ComPtr<ID3D12Resource> resource;
-    ComPtr<ID3D12DescriptorHeap> decodeViews;
+    ComPtr<ID3D12DescriptorHeap> decodeViews,prePassDecodeViews;
     SignalFlagSnapshot flag;
     D3D12_GPU_VIRTUAL_ADDRESS rawAddress=0,flagAddress=0;
 };
@@ -81,12 +84,34 @@ struct RawContext
     ComPtr<ID3D12Device> device;
     ComPtr<ID3D12RootSignature> tableRoot,directRoot,decodeRoot;
     ComPtr<ID3D12PipelineState> tablePso,directPso,decodePso;
+    ComPtr<ID3D12RootSignature> prePassTableRoot,prePassDirectRoot,prePassDecodeRoot;
+    ComPtr<ID3D12PipelineState> prePassTablePso,prePassDirectPso,prePassDecodePso;
     SignalFlagCapture captureFlag;
     std::shared_ptr<RawFamily> family;
     std::vector<std::shared_ptr<RawSlot>> slots;
     std::mutex mutex;
     std::atomic<bool> retired {false};
     uint32_t width=0,height=0,stride=0;
+    void PreparePrePass()
+    {
+        std::lock_guard lock(mutex);
+        if(prePassDecodePso)return;
+        // Publish only a complete set, before capture can suppress any native work.
+        ComPtr<ID3D12RootSignature> table,direct,decode;
+        ComPtr<ID3D12PipelineState> tableState,directState,decodeState;
+        RawPipeline(device.Get(),FSRDNrdRawPrePassCapture_cso,sizeof(FSRDNrdRawPrePassCapture_cso),table,tableState);
+        RawPipeline(device.Get(),FSRDNrdRawPrePassCaptureRoot_cso,sizeof(FSRDNrdRawPrePassCaptureRoot_cso),direct,directState);
+        RawPipeline(device.Get(),FSRDNrdRawPrePassDecode_cso,sizeof(FSRDNrdRawPrePassDecode_cso),decode,decodeState);
+        prePassTableRoot=std::move(table);prePassDirectRoot=std::move(direct);prePassDecodeRoot=std::move(decode);
+        prePassTablePso=std::move(tableState);prePassDirectPso=std::move(directState);prePassDecodePso=std::move(decodeState);
+    }
+    void PreparePrePassSlot(RawSlot& slot)
+    {
+        if(slot.prePassDecodeViews)return;
+        D3D12_DESCRIPTOR_HEAP_DESC views {};views.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        views.NumDescriptors=4;views.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        RawCheck(device->CreateDescriptorHeap(&views,IID_PPV_ARGS(&slot.prePassDecodeViews)),"Raw PrePass decode view allocation failed");
+    }
     std::shared_ptr<RawSlot> Acquire()
     {
         {
@@ -149,6 +174,15 @@ bool RawOutputMatches(ID3D12Resource* resource,RawContext& context)
     if(desc.Dimension!=D3D12_RESOURCE_DIMENSION_TEXTURE2D||desc.Width!=context.width||desc.Height!=context.height||
        desc.DepthOrArraySize!=1||desc.MipLevels!=1||desc.SampleDesc.Count!=1||desc.Format!=DXGI_FORMAT_R16G16B16A16_FLOAT||
        !(desc.Flags&D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS))return false;
+    ComPtr<ID3D12Device> actual;ComPtr<IUnknown> expectedIdentity,actualIdentity;
+    return SUCCEEDED(context.device.As(&expectedIdentity))&&SUCCEEDED(resource->GetDevice(IID_PPV_ARGS(&actual)))&&
+        SUCCEEDED(actual.As(&actualIdentity))&&actualIdentity.Get()==expectedIdentity.Get();
+}
+bool RawGuideMatches(ID3D12Resource* resource,RawContext& context,DXGI_FORMAT format)
+{
+    if(!resource)return false;const auto desc=resource->GetDesc();
+    if(desc.Dimension!=D3D12_RESOURCE_DIMENSION_TEXTURE2D||desc.Width!=context.width||desc.Height!=context.height||
+       desc.DepthOrArraySize!=1||desc.MipLevels!=1||desc.SampleDesc.Count!=1||desc.Format!=format)return false;
     ComPtr<ID3D12Device> actual;ComPtr<IUnknown> expectedIdentity,actualIdentity;
     return SUCCEEDED(context.device.As(&expectedIdentity))&&SUCCEEDED(resource->GetDevice(IID_PPV_ARGS(&actual)))&&
         SUCCEEDED(actual.As(&actualIdentity))&&actualIdentity.Get()==expectedIdentity.Get();
@@ -216,7 +250,7 @@ bool RawSignalSnapshotPass::Capture(ID3D12GraphicsCommandList* list,const RawSig
     {
         auto owner=impl_;std::shared_ptr<RawContext> context;{std::lock_guard lock(owner->mutex);context=owner->context;}
         if(!context||source.width!=context->width||source.height!=context->height||frameSL==UINT32_MAX||
-           source.profile!=NativeRawProfile::ReconDirect)
+           (source.profile!=NativeRawProfile::ReconDirect&&source.profile!=NativeRawProfile::PrePass))
         {error="Raw noisy shader addressing profile/extent is unsupported";return false;}
         if(!HasNativeTitleSignalConstants(source.nativeConstants))
         {error="Raw noisy native geometry CB6 binding is unavailable";return false;}
@@ -225,7 +259,10 @@ bool RawSignalSnapshotPass::Capture(ID3D12GraphicsCommandList* list,const RawSig
         if(source.nativeConstants.nativeHeap&&source.nativeConstants.nativeHeap!=source.nativeHeap)
         {error="Raw noisy source SRVs and CBV table require the same native heap";return false;}
         FrameSurvey::ScopedInternal internal;ScopedSkipHeapCapture skip;
+        const bool prePass=source.profile==NativeRawProfile::PrePass;
+        if(prePass)context->PreparePrePass();
         auto record=MakeOwnedShared<RawSignalRecord>();record->context=context;record->slot=context->Acquire();record->wrapper=owner;
+        if(prePass)context->PreparePrePassSlot(*record->slot);
         record->recording=list;record->frameSL=frameSL;record->bridgeFrame=bridgeFrame;record->profile=source.profile;
         if(!ResTrack_Dx12::RetainComputeDispatch(context->device.Get(),list,record))
         {error="Raw noisy snapshot GPU lifetime tracking unavailable";return false;}
@@ -234,8 +271,10 @@ bool RawSignalSnapshotPass::Capture(ID3D12GraphicsCommandList* list,const RawSig
         record->nativeRecording=native;record->recordingId=native->id;
         RawTransition(list,record->slot->resource.Get(),D3D12_RESOURCE_STATE_COMMON,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         const bool table=source.nativeConstants.nativeHeap!=nullptr;
-        list->SetPipelineState(table?context->tablePso.Get():context->directPso.Get());
-        list->SetComputeRootSignature(table?context->tableRoot.Get():context->directRoot.Get());
+        list->SetPipelineState(prePass?(table?context->prePassTablePso.Get():context->prePassDirectPso.Get()):
+                                      (table?context->tablePso.Get():context->directPso.Get()));
+        list->SetComputeRootSignature(prePass?(table?context->prePassTableRoot.Get():context->prePassDirectRoot.Get()):
+                                             (table?context->tableRoot.Get():context->directRoot.Get()));
         ID3D12DescriptorHeap* heaps[]={source.nativeHeap};list->SetDescriptorHeaps(1,heaps);
         const uint32_t extent[]={context->width,context->height};list->SetComputeRoot32BitConstants(0,2,extent,0);
         list->SetComputeRootDescriptorTable(1,source.specSrv);list->SetComputeRootDescriptorTable(2,source.diffSrv);
@@ -266,12 +305,27 @@ bool RawSignalSnapshotPass::Decode(ID3D12GraphicsCommandList* list,const RawSign
        !RawOutputMatches(output.spec,*context)||!RawOutputMatches(output.diff,*context)||
        !ValidateTitleSignalConstants(constants,context->device.Get(),error))
     {if(error.empty())error="Raw decode requires its same live native recording and owned output pair";return false;}
+    const bool prePass=record->profile==NativeRawProfile::PrePass;
+    if(prePass&&(!record->slot->prePassDecodeViews||!context->prePassDecodePso||
+       !RawGuideMatches(output.normals,*context,DXGI_FORMAT_R10G10B10A2_UNORM)||
+       !RawGuideMatches(output.linearDepth,*context,DXGI_FORMAT_R32_FLOAT)))
+    {error="Raw PrePass decode requires its prepared views and owned same-size normal/depth guides";return false;}
     uint32_t expected=0;if(!record->phase.compare_exchange_strong(expected,1,std::memory_order_acq_rel))
     {error="Raw noisy snapshot can be decoded only once";return false;}
     try
     {
         FrameSurvey::ScopedInternal internal;ScopedSkipHeapCapture skip;
-        auto cpu=record->slot->decodeViews->GetCPUDescriptorHandleForHeapStart();
+        auto* views=prePass?record->slot->prePassDecodeViews.Get():record->slot->decodeViews.Get();
+        auto cpu=views->GetCPUDescriptorHandleForHeapStart();
+        if(prePass)
+        {
+            for(auto* resource:{output.normals,output.linearDepth})
+            {
+                D3D12_SHADER_RESOURCE_VIEW_DESC desc {};desc.Format=resource->GetDesc().Format;
+                desc.ViewDimension=D3D12_SRV_DIMENSION_TEXTURE2D;desc.Shader4ComponentMapping=D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+                desc.Texture2D.MipLevels=1;context->device->CreateShaderResourceView(resource,&desc,cpu);cpu.ptr+=context->stride;
+            }
+        }
         for(auto* resource:{output.spec,output.diff})
         {
             D3D12_UNORDERED_ACCESS_VIEW_DESC desc {};desc.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;
@@ -284,12 +338,14 @@ bool RawSignalSnapshotPass::Decode(ID3D12GraphicsCommandList* list,const RawSign
         RawTransition(list,record->slot->resource.Get(),D3D12_RESOURCE_STATE_COMMON,kRawRead);
         RawTransition(list,output.spec,kRawRead,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         RawTransition(list,output.diff,kRawRead,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        list->SetPipelineState(context->decodePso.Get());list->SetComputeRootSignature(context->decodeRoot.Get());
-        ID3D12DescriptorHeap* heaps[]={record->slot->decodeViews.Get()};list->SetDescriptorHeaps(1,heaps);
+        list->SetPipelineState(prePass?context->prePassDecodePso.Get():context->decodePso.Get());
+        list->SetComputeRootSignature(prePass?context->prePassDecodeRoot.Get():context->decodeRoot.Get());
+        ID3D12DescriptorHeap* heaps[]={views};list->SetDescriptorHeaps(1,heaps);
         const uint32_t extent[]={context->width,context->height};list->SetComputeRoot32BitConstants(0,2,extent,0);
         list->SetComputeRootShaderResourceView(1,record->slot->rawAddress);
-        list->SetComputeRootDescriptorTable(2,record->slot->decodeViews->GetGPUDescriptorHandleForHeapStart());
-        list->SetComputeRootConstantBufferView(3,record->slot->flagAddress);
+        auto gpu=views->GetGPUDescriptorHandleForHeapStart();list->SetComputeRootDescriptorTable(2,gpu);
+        if(prePass){gpu.ptr+=uint64_t(2)*context->stride;list->SetComputeRootDescriptorTable(3,gpu);}
+        list->SetComputeRootConstantBufferView(prePass?4:3,record->slot->flagAddress);
         list->Dispatch((context->width+7)/8,(context->height+7)/8,1);
         RawTransition(list,output.spec,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,kRawRead);
         RawTransition(list,output.diff,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,kRawRead);
@@ -307,6 +363,7 @@ RawSignalSnapshot RawSignalSnapshotPass::GetSnapshot(const RawSignalLease& recor
     result.nativeRecording=record->nativeRecording;result.recording=record->recording;result.recordingId=record->recordingId;
     result.width=record->context->width;result.height=record->context->height;result.frameSL=record->frameSL;
     result.bridgeFrame=record->bridgeFrame;result.profile=record->profile;result.decoded=record->phase.load(std::memory_order_acquire)==2;
+    result.hasStatus=record->profile==NativeRawProfile::PrePass;
     if(result.decoded)
     {
         result.encodingFlag=record->slot->flag.resource.Get();
