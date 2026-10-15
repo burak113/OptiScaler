@@ -4,6 +4,8 @@
 #include <memory>
 struct SLConstantsSnapshot;
 
+namespace NrdBridgeStagePerf { struct Sample; }
+
 namespace NrdBridge
 {
 struct RRSettings
@@ -47,7 +49,7 @@ class RRWrapper
     bool PrepareFrame(const SLConstantsSnapshot&, bool requestedReset, FrameParameters& out, std::string& error);
     bool Dispatch(ID3D12GraphicsCommandList*, const ConvertedResources&, ID3D12Resource* outputSpec,
                   ID3D12Resource* outputDiff, const FrameParameters&, std::string& error,
-                  const OutputCommitGuard& = {});
+                  const OutputCommitGuard& = {}, NrdBridgeStagePerf::Sample* profiling = nullptr);
     // Coordinator serializes this snapshot with dispatch; Config is never read here.
     bool Configure(const RRSettings&, std::string& error);
     RRSettingsState GetSettingsState() const noexcept;

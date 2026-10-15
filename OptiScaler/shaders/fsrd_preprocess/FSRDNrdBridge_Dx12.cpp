@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "misc/NrdBridgePerf_Dx12.h"
+#include "misc/NrdBridgeStagePerf_Dx12.h"
 #include "FSRDNrdBridge_Dx12.h"
 #include "FSRDNrdDiscovery.h"
 #include "FSRDNrdBridgePass_Dx12.h"
@@ -41,6 +42,8 @@ struct RecordingToken
     RecordedComputeLease::FencePointPtr completion;
     uint64_t submissionId = 0;
     std::shared_ptr<NativeDebugImageOrder> imageOrder; // Allocated only by native-debug capture.
+    NrdBridgeStagePerf::Sample stages {};
+    bool needsStageSamples = false; // Stamped under gMutex; writes serialize with gInjectionMutex.
 };
 struct NativeDebugImageOrder
 {
@@ -141,6 +144,8 @@ struct Service
 };
 NrdBridgePerf::TimedMutex<std::mutex,NrdBridgePerf::WaitKind::Coordinator> gMutex;
 std::mutex gInjectionMutex, gWindowMutex;
+NrdBridgeStagePerf::Collector gStageCollector; // One process-lifetime window, including device recreation.
+std::atomic<bool> gStagesStopped {false};
 std::shared_ptr<Service> gService;
 std::atomic<bool> gInstalled {false}, gRuntime {false};
 std::atomic<int> gStartupSelection {-1}; // -1 unconfigured, -2 configuring, 0 OFF/failed, 1 enabled.
@@ -154,6 +159,62 @@ void (*gBeforeConversionLockForTesting)() = nullptr;
 void (*gBeforeBindingWindowPublishForTesting)() = nullptr;
 void (*gBeforeOutputLockForTesting)() = nullptr;
 #endif
+
+NrdBridgeStagePerf::Sample* StageSample(const std::shared_ptr<RecordingToken>& recording) noexcept
+{
+    return recording && recording->needsStageSamples && !gStagesStopped.load(std::memory_order_acquire)
+        ? &recording->stages : nullptr;
+}
+void MergeStageSamples(NrdBridgeStagePerf::Sample& destination, const NrdBridgeStagePerf::Sample& source) noexcept
+{
+    if (!destination.Enabled()) return;
+    for (size_t index=0;index<NrdBridgeStagePerf::StageCount;++index)
+    {
+        auto& target = destination.stages[index]; const auto& value = source.stages[index];
+        if (target.invalid) continue;
+        if (value.invalid || value.ticks > UINT64_MAX-target.ticks || value.events > UINT64_MAX-target.events)
+        { target.invalid = true; continue; }
+        target.ticks += value.ticks; target.events += value.events;
+    }
+}
+void ReportStages(const NrdBridgeStagePerf::Report& report) noexcept
+{
+    try
+    {
+        std::ostringstream text; text.setf(std::ios::fixed); text.precision(3);
+        text << "frames=" << report.frames << " SL_frame=" << report.firstSL << ".." << report.lastSL
+             << " window=first100_successful_unique_Consumer_output_recordings scope=CPU_elapsed_not_GPU_or_display_FPS"
+             << " time_valid=" << bool(report.frequency) << " overlapping_spans_do_not_sum=1"
+             << " consumer_physical_spans=metadata+injection recon_prepare_scope=reset+settings+SL+conversion_initialize+retain"
+             << " provider_scope=FfxApiProxy_D3D12_Dispatch output_commit_scope=Context_Commit_CPU";
+        for (size_t index=0;index<NrdBridgeStagePerf::StageCount;++index)
+        {
+            const auto& value = report.stages[index];
+            text << ' ' << NrdBridgeStagePerf::StageName(NrdBridgeStagePerf::Stage(index))
+                 << "{samples=" << value.observedSamples << ",events=" << value.events
+                 << ",mean_ms=" << value.MeanMs(report.frequency) << ",max_ms=" << value.MaxMs(report.frequency)
+                 << ",p95_ms=" << value.P95Ms(report.frequency) << ",invalid=" << value.invalidSamples
+                 << ",saturated=" << value.saturated << '}';
+        }
+        LOG_INFO("[NRD_BRIDGE] stages {}",text.str());
+        FlushLogger();
+    } catch (...) {}
+}
+void CompleteStageSample(uint32_t slFrame, const NrdBridgeStagePerf::Sample& complete, bool committed) noexcept
+{
+    try
+    {
+        NrdBridgeStagePerf::Report report {}; bool ready = false;
+        {
+            std::scoped_lock lock(gMutex);
+            ready = gStageCollector.AcceptSuccessful(slFrame,complete,committed,report);
+            if (ready) gStagesStopped.store(true,std::memory_order_release);
+        }
+        // The completed sample is a local POD copy. No host/injection/physical lock,
+        // native pointer or recording owner is borrowed by the reporter.
+        if (ready) gStageCollector.Publish(report,ReportStages);
+    } catch (...) {} // Diagnostic failure cannot change a committed title recording.
+}
 
 // The wrapper caches its measured conventions after the first valid camera snapshot.
 template<class Wrapper> std::string Conventions(const Wrapper& wrapper)
@@ -526,7 +587,7 @@ std::string ResourceSummary(const Resources& resources)
 void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* cmd, uint64_t frame)
 {
     Resources resources; uint64_t generation = 0, serial = 0; bool reset = false, discard = false;
-    RRSettings rrSettings; bool cameraProjectedDepthDelta = false;
+    RRSettings rrSettings; bool cameraProjectedDepthDelta = false, stageSampling = false;
     NativeMaterialCapture::SnapshotLease materialSnapshot;
     {
         std::scoped_lock lock(gMutex);
@@ -540,12 +601,24 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         resources.viewDepth = found->second.chain.Get().viewDepth;
         generation = owner->cache.Generation(); serial = owner->cancellationSerial;
         reset = serial != owner->appliedReset;
+        stageSampling = gStageCollector.Active();
     }
     #ifdef FSRD_NRD_BRIDGE_TEST
     if (gBeforeConversionLockForTesting) gBeforeConversionLockForTesting();
 #endif
-    std::scoped_lock injection(gInjectionMutex); // Provider calls never hold the coordinator/registry mutex.
-    NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
+    // Reuse the recording's existing allocation; no native work moves before its lifetime borrow.
+    auto recording = MakeOwnedShared<RecordingToken>();
+    recording->needsStageSamples = stageSampling; recording->stages.stopped = &gStagesStopped;
+    NrdBridgeStagePerf::Sample injectionWait {}; injectionWait.stopped = &gStagesStopped;
+    std::unique_lock injection(gInjectionMutex,std::defer_lock);
+    NrdBridgeStagePerf::StackTimer waitTimer(stageSampling ? &injectionWait : nullptr,NrdBridgeStagePerf::Stage::ReconInjectionWait);
+    injection.lock(); waitTimer.Stop();
+    auto* profile = StageSample(recording);
+    if (profile) MergeStageSamples(*profile,injectionWait);
+    NrdBridgeStagePerf::StackTimer injectionHold(profile,NrdBridgeStagePerf::Stage::ReconInjectionHold);
+    NrdBridgeStagePerf::StackTimer physicalWait(profile,NrdBridgeStagePerf::Stage::ReconPhysicalWait);
+    NrdBridgeLifetime::ScopedBorrow borrow; physicalWait.Stop(); if (!borrow.Acquired()) return;
+    NrdBridgeStagePerf::StackTimer physicalHold(profile,NrdBridgeStagePerf::Stage::ReconPhysicalHold);
     {
         std::scoped_lock lock(gMutex);
         const auto found = owner->lists.find(cmd);
@@ -569,7 +642,7 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
     if (!FrameSurvey::MetadataHealthy()) { Failure(owner,"Creation or binding metadata is unhealthy; restart the title/device"); return; }
     if (!D3D12Hooks::CanRestoreRootSignature(cmd)) { Failure(owner,"Title compute state cannot be restored after Recon"); return; }
     std::string error, conventions; FrameParameters parameters; ConvertedResources converted;
-    bool succeeded = false; auto recording = MakeOwnedShared<RecordingToken>();
+    bool succeeded = false;
     std::shared_ptr<HistoryDomain> history = owner->history;
     if (discard)
     {
@@ -679,6 +752,7 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
     };
     {
         InjectionScope guard(cmd);
+        NrdBridgeStagePerf::StackTimer prepare(profile,NrdBridgeStagePerf::Stage::ReconPrepare);
         if (discard)
         {
             std::scoped_lock lock(gMutex);
@@ -696,10 +770,12 @@ void Convert(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommandList* c
         if (succeeded) succeeded = history->conversion.Initialize(owner->device.Get(),resources.width,resources.height,error);
         if (succeeded) succeeded = ResTrack_Dx12::RetainComputeDispatch(owner->device.Get(),cmd,ownership,{},std::move(submission));
         if (!succeeded && error.empty()) error = "Could not retain NRD recording submission token";
+        prepare.Stop();
         if (succeeded)
         {
             const ConversionInputs inputs {resources.reconSpec,resources.reconDiff,resources.normals,resources.viewDepth,nullptr,
                 NativeMaterialCapture::Resource(materialSnapshot)};
+            NrdBridgeStagePerf::StackTimer conversion(profile,NrdBridgeStagePerf::Stage::ReconConvert);
             succeeded = history->conversion.Dispatch(cmd,inputs,parameters,converted,error);
         }
         if (succeeded)
@@ -840,7 +916,9 @@ void FinalizeMotion(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommand
                     ID3D12Resource* currentMotion)
 {
     std::scoped_lock injection(gInjectionMutex);
+    NrdBridgeStagePerf::Sample motionStages {}; motionStages.stopped = &gStagesStopped;
     NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
+    NrdBridgeStagePerf::StackTimer physicalHold(motionStages.Enabled() ? &motionStages : nullptr,NrdBridgeStagePerf::Stage::MotionPhysicalHold);
     ListState staged;
     {
         std::scoped_lock lock(gMutex); const auto found = owner->lists.find(cmd);
@@ -876,6 +954,8 @@ void FinalizeMotion(const std::shared_ptr<Service>& owner, ID3D12GraphicsCommand
         if (list.frame == frame && list.generation == owner->cache.Generation() && list.resetSerial == owner->cancellationSerial && list.converted)
             list.motionReady = true;
     }
+    physicalHold.Stop(); // End before the physical borrow's destructor.
+    if (auto* profile = StageSample(staged.recording)) MergeStageSamples(*profile,motionStages);
 }
 
 }
@@ -1171,7 +1251,7 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
     try
     {
         RetiredDebugSources retired; const auto receiverBirth = NrdBridgeBirth::Capture(cmd,BirthMode());
-        std::shared_ptr<Service> owner; bool window = false, following = false, captureNative = false, captureMaterial = false; Role role = Role::None;
+        std::shared_ptr<Service> owner; bool window = false, following = false, captureNative = false, captureMaterial = false, stageSampling = false; Role role = Role::None;
         {
             std::scoped_lock lock(gMutex); owner = gService; if (!owner) return;
             const auto found = owner->lists.find(cmd);
@@ -1181,6 +1261,8 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
             window = owner->window; following = found->second.followingRecon;
             captureNative = found->second.parameters.nativeTemporalMotion && found->second.converted && !found->second.temporal;
             captureMaterial = owner->rrSettings.nativeMaterialGuides;
+            stageSampling = role == Role::Consumer && found->second.recording && found->second.recording->needsStageSamples &&
+                found->second.converted && gStageCollector.Active();
         }
         if (role == Role::MaterialGuide)
         {
@@ -1207,8 +1289,12 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         std::string error; ChainDiscovery discovered; bool published = false, invalid = false;
         ID3D12Resource* motionTag = nullptr; Resources resources; ListState staged; bool inject = false, keepWindow = false;
         FrameSurvey::BoundConstantBinding consumerConstants;
+        NrdBridgeStagePerf::Sample consumerStages {}; consumerStages.stopped = &gStagesStopped;
+        auto* consumerProfile = stageSampling && consumerStages.Enabled() ? &consumerStages : nullptr;
         {
-        NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
+        NrdBridgeStagePerf::StackTimer physicalWait(consumerProfile,NrdBridgeStagePerf::Stage::ConsumerPhysicalWait);
+        NrdBridgeLifetime::ScopedBorrow borrow; physicalWait.Stop(); if (!borrow.Acquired()) return;
+        NrdBridgeStagePerf::StackTimer physicalHold(consumerProfile,NrdBridgeStagePerf::Stage::ConsumerPhysicalHold);
         std::vector<FrameSurvey::BoundResource> srv, uav;
         if (!window) { Failure(owner,"Consumer has no current binding-validation window"); return; }
         if (!Tables(cmd,Role::Consumer,srv,uav)) { WaitingForBindings(owner,cmd,"Consumer compute table bindings/registers are unavailable in discovery window"); return; }
@@ -1260,8 +1346,16 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
 #ifdef FSRD_NRD_BRIDGE_TEST
         if (gBeforeOutputLockForTesting) gBeforeOutputLockForTesting();
 #endif
-        std::scoped_lock injection(gInjectionMutex);
-        NrdBridgeLifetime::ScopedBorrow borrow; if (!borrow.Acquired()) return;
+        NrdBridgeStagePerf::Sample completeStages {}; bool committed = false;
+        {
+        std::unique_lock injection(gInjectionMutex,std::defer_lock);
+        NrdBridgeStagePerf::StackTimer waitTimer(consumerProfile,NrdBridgeStagePerf::Stage::ConsumerInjectionWait);
+        injection.lock(); waitTimer.Stop();
+        NrdBridgeStagePerf::StackTimer injectionHold(consumerProfile,NrdBridgeStagePerf::Stage::ConsumerInjectionHold);
+        {
+        NrdBridgeStagePerf::StackTimer physicalWait(consumerProfile,NrdBridgeStagePerf::Stage::ConsumerPhysicalWait);
+        NrdBridgeLifetime::ScopedBorrow borrow; physicalWait.Stop(); if (!borrow.Acquired()) return;
+        NrdBridgeStagePerf::StackTimer physicalHold(consumerProfile,NrdBridgeStagePerf::Stage::ConsumerPhysicalHold);
         {
             std::scoped_lock lock(gMutex);
             if (gService != owner || !gRuntime.load(std::memory_order_relaxed) || !owner->cache.Valid() ||
@@ -1331,7 +1425,10 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         {
             InjectionScope guard(cmd);
             if (staged.debug == DebugMode::Off)
-                succeeded = staged.history->rr.Dispatch(cmd,staged.inputs,resources.outputSpec,resources.outputDiff,staged.parameters,error,admission);
+            {
+                NrdBridgeStagePerf::StackTimer rrDispatch(consumerProfile,NrdBridgeStagePerf::Stage::ConsumerRRDispatch);
+                succeeded = staged.history->rr.Dispatch(cmd,staged.inputs,resources.outputSpec,resources.outputDiff,staged.parameters,error,admission,consumerProfile);
+            }
             else succeeded = staged.history->conversion.WriteDebug(cmd,staged.inputs,resources.outputSpec,resources.outputDiff,staged.debug,error,admission,
                     staged.parameters.outputEncoding,staged.parameters.outputConstants);
         }
@@ -1353,6 +1450,16 @@ void BeforeDispatch(ID3D12GraphicsCommandList* cmd) noexcept
         if (ticket.log) LOG_INFO("[NRD_BRIDGE] active frames={} resets={} SL_frame={} bridge_frame={} render={}x{} debug={}",
             ticket.frames,ticket.resets,staged.parameters.streamlineFrame,staged.parameters.frameIndex,
             resources.width,resources.height,uint32_t(staged.debug));
+        committed = staged.recording->outputCommitted.load(std::memory_order_acquire);
+        } // Physical hold timer ends before Borrow; native recording boundaries are unchanged.
+        injectionHold.Stop();
+        if (stageSampling)
+        {
+            completeStages = staged.recording->stages;
+            MergeStageSamples(completeStages,consumerStages);
+        }
+        } // Injection hold has ended and the injection mutex is now unlocked.
+        if (stageSampling) CompleteStageSample(staged.parameters.streamlineFrame,completeStages,committed);
     } catch (...) { CoordinatorException("Exception while preparing NRD output dispatch"); }
 }
 void ReleaseObserved(void* object, const NrdBridgeBirth::Token& birth) noexcept
